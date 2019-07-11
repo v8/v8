@@ -20,6 +20,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
+#include "src/heap/basic-memory-chunk.h"
 #include "src/heap/heap.h"
 #include "src/heap/invalidated-slots.h"
 #include "src/heap/marking.h"
@@ -541,86 +542,13 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
 // It is divided into the header and the body. Chunk start is always
 // 1MB aligned. Start of the body is aligned so it can accommodate
 // any heap object.
-class MemoryChunk {
+class MemoryChunk : public BasicMemoryChunk {
  public:
   // Use with std data structures.
   struct Hasher {
     size_t operator()(MemoryChunk* const chunk) const {
       return reinterpret_cast<size_t>(chunk) >> kPageSizeBits;
     }
-  };
-
-  enum Flag {
-    NO_FLAGS = 0u,
-    IS_EXECUTABLE = 1u << 0,
-    POINTERS_TO_HERE_ARE_INTERESTING = 1u << 1,
-    POINTERS_FROM_HERE_ARE_INTERESTING = 1u << 2,
-    // A page in the from-space or a young large page that was not scavenged
-    // yet.
-    FROM_PAGE = 1u << 3,
-    // A page in the to-space or a young large page that was scavenged.
-    TO_PAGE = 1u << 4,
-    LARGE_PAGE = 1u << 5,
-    EVACUATION_CANDIDATE = 1u << 6,
-    NEVER_EVACUATE = 1u << 7,
-
-    // Large objects can have a progress bar in their page header. These object
-    // are scanned in increments and will be kept black while being scanned.
-    // Even if the mutator writes to them they will be kept black and a white
-    // to grey transition is performed in the value.
-    HAS_PROGRESS_BAR = 1u << 8,
-
-    // |PAGE_NEW_OLD_PROMOTION|: A page tagged with this flag has been promoted
-    // from new to old space during evacuation.
-    PAGE_NEW_OLD_PROMOTION = 1u << 9,
-
-    // |PAGE_NEW_NEW_PROMOTION|: A page tagged with this flag has been moved
-    // within the new space during evacuation.
-    PAGE_NEW_NEW_PROMOTION = 1u << 10,
-
-    // This flag is intended to be used for testing. Works only when both
-    // FLAG_stress_compaction and FLAG_manual_evacuation_candidates_selection
-    // are set. It forces the page to become an evacuation candidate at next
-    // candidates selection cycle.
-    FORCE_EVACUATION_CANDIDATE_FOR_TESTING = 1u << 11,
-
-    // This flag is intended to be used for testing.
-    NEVER_ALLOCATE_ON_PAGE = 1u << 12,
-
-    // The memory chunk is already logically freed, however the actual freeing
-    // still has to be performed.
-    PRE_FREED = 1u << 13,
-
-    // |POOLED|: When actually freeing this chunk, only uncommit and do not
-    // give up the reservation as we still reuse the chunk at some point.
-    POOLED = 1u << 14,
-
-    // |COMPACTION_WAS_ABORTED|: Indicates that the compaction in this page
-    //   has been aborted and needs special handling by the sweeper.
-    COMPACTION_WAS_ABORTED = 1u << 15,
-
-    // |COMPACTION_WAS_ABORTED_FOR_TESTING|: During stress testing evacuation
-    // on pages is sometimes aborted. The flag is used to avoid repeatedly
-    // triggering on the same page.
-    COMPACTION_WAS_ABORTED_FOR_TESTING = 1u << 16,
-
-    // |SWEEP_TO_ITERATE|: The page requires sweeping using external markbits
-    // to iterate the page.
-    SWEEP_TO_ITERATE = 1u << 17,
-
-    // |INCREMENTAL_MARKING|: Indicates whether incremental marking is currently
-    // enabled.
-    INCREMENTAL_MARKING = 1u << 18,
-    NEW_SPACE_BELOW_AGE_MARK = 1u << 19,
-
-    // The memory chunk freeing bookkeeping has been performed but the chunk has
-    // not yet been freed.
-    UNREGISTERED = 1u << 20,
-
-    // The memory chunk belongs to the read-only heap and does not participate
-    // in garbage collection. This is used instead of owner for identity
-    // checking since read-only chunks have no owner once they are detached.
-    READ_ONLY_HEAP = 1u << 21,
   };
 
   using Flags = uintptr_t;
@@ -651,34 +579,12 @@ class MemoryChunk {
     kSweepingInProgress,
   };
 
-  static const intptr_t kAlignment =
-      (static_cast<uintptr_t>(1) << kPageSizeBits);
-
-  static const intptr_t kAlignmentMask = kAlignment - 1;
-
-  static const intptr_t kSizeOffset = 0;
-  static const intptr_t kFlagsOffset = kSizeOffset + kSizetSize;
-  static const intptr_t kMarkBitmapOffset = kFlagsOffset + kUIntptrSize;
-  static const intptr_t kReservationOffset =
-      kMarkBitmapOffset + kSystemPointerSize;
-  static const intptr_t kHeapOffset =
-      kReservationOffset + 3 * kSystemPointerSize;
-  static const intptr_t kHeaderSentinelOffset =
-      kHeapOffset + kSystemPointerSize;
-
   static const size_t kHeaderSize =
-      kSizeOffset               // NOLINT
-      + kSizetSize              // size_t size
-      + kUIntptrSize            // uintptr_t flags_
-      + kSystemPointerSize      // Bitmap* marking_bitmap_
-      + 3 * kSystemPointerSize  // VirtualMemory reservation_
-      + kSystemPointerSize      // Heap* heap_
-      + kSystemPointerSize      // Address header_sentinel_
-      + kSystemPointerSize      // Address area_start_
-      + kSystemPointerSize      // Address area_end_
-      + kSystemPointerSize      // Address owner_
-      + kSizetSize              // size_t progress_bar_
-      + kIntptrSize             // intptr_t live_byte_count_
+      BasicMemoryChunk::kHeaderSize  // Parent size.
+      + 3 * kSystemPointerSize       // VirtualMemory reservation_
+      + kSystemPointerSize           // Address owner_
+      + kSizetSize                   // size_t progress_bar_
+      + kIntptrSize                  // intptr_t live_byte_count_
       + kSystemPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES  // SlotSet* array
       + kSystemPointerSize *
             NUMBER_OF_REMEMBERED_SET_TYPES  // TypedSlotSet* array
@@ -705,8 +611,6 @@ class MemoryChunk {
 
   // Maximum number of nested code memory modification scopes.
   static const int kMaxWriteUnprotectCounter = 3;
-
-  static Address BaseAddress(Address a) { return a & ~kAlignmentMask; }
 
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
   static MemoryChunk* FromAddress(Address a) {
@@ -743,21 +647,7 @@ class MemoryChunk {
 
   void DiscardUnusedMemory(Address addr, size_t size);
 
-  Address address() const {
-    return reinterpret_cast<Address>(const_cast<MemoryChunk*>(this));
-  }
-
   base::Mutex* mutex() { return mutex_; }
-
-  bool Contains(Address addr) {
-    return addr >= area_start() && addr < area_end();
-  }
-
-  // Checks whether |addr| can be a limit of addresses in this page. It's a
-  // limit if it's in the page, or if it's just after the last byte of the page.
-  bool ContainsLimit(Address addr) {
-    return addr >= area_start() && addr <= area_end();
-  }
 
   void set_concurrent_sweeping_state(ConcurrentSweepingState state) {
     concurrent_sweeping_ = state;
@@ -768,9 +658,6 @@ class MemoryChunk {
   }
 
   bool SweepingDone() { return concurrent_sweeping_ == kSweepingDone; }
-
-  size_t size() const { return size_; }
-  void set_size(size_t size) { size_ = size; }
 
   inline Heap* heap() const {
     DCHECK_NOT_NULL(heap_);
@@ -830,13 +717,6 @@ class MemoryChunk {
   void AllocateYoungGenerationBitmap();
   void ReleaseYoungGenerationBitmap();
 
-  void AllocateMarkingBitmap();
-  void ReleaseMarkingBitmap();
-
-  Address area_start() { return area_start_; }
-  Address area_end() { return area_end_; }
-  size_t area_size() { return static_cast<size_t>(area_end() - area_start()); }
-
   int FreeListsLength();
 
   // Approximate amount of physical memory committed for this chunk.
@@ -881,36 +761,6 @@ class MemoryChunk {
     return this->address() + (index << kTaggedSizeLog2);
   }
 
-  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
-  void SetFlag(Flag flag) {
-    if (access_mode == AccessMode::NON_ATOMIC) {
-      flags_ |= flag;
-    } else {
-      base::AsAtomicWord::SetBits<uintptr_t>(&flags_, flag, flag);
-    }
-  }
-
-  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
-  bool IsFlagSet(Flag flag) const {
-    return (GetFlags<access_mode>() & flag) != 0;
-  }
-
-  void ClearFlag(Flag flag) { flags_ &= ~flag; }
-  // Set or clear multiple flags at a time. The flags in the mask are set to
-  // the value in "flags", the rest retain the current value in |flags_|.
-  void SetFlags(uintptr_t flags, uintptr_t mask) {
-    flags_ = (flags_ & ~mask) | (flags & mask);
-  }
-
-  // Return all current flags.
-  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
-  uintptr_t GetFlags() const {
-    if (access_mode == AccessMode::NON_ATOMIC) {
-      return flags_;
-    } else {
-      return base::AsAtomicWord::Relaxed_Load(&flags_);
-    }
-  }
 
   bool NeverEvacuate() { return IsFlagSet(NEVER_EVACUATE); }
 
@@ -938,12 +788,11 @@ class MemoryChunk {
     return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
   }
 
-  bool IsFromPage() const { return (flags_ & FROM_PAGE) != 0; }
-  bool IsToPage() const { return (flags_ & TO_PAGE) != 0; }
-  bool IsLargePage() const { return (flags_ & LARGE_PAGE) != 0; }
-
+  bool IsFromPage() const { return IsFlagSet(FROM_PAGE); }
+  bool IsToPage() const { return IsFlagSet(TO_PAGE); }
+  bool IsLargePage() const { return IsFlagSet(LARGE_PAGE); }
   bool InYoungGeneration() const {
-    return (flags_ & kIsInYoungGenerationMask) != 0;
+    return (GetFlags() & kIsInYoungGenerationMask) != 0;
   }
   bool InNewSpace() const { return InYoungGeneration() && !IsLargePage(); }
   bool InNewLargeObjectSpace() const {
@@ -957,9 +806,6 @@ class MemoryChunk {
 
   void set_owner(Space* space) { owner_ = space; }
 
-  bool InReadOnlySpace() const {
-    return IsFlagSet(MemoryChunk::READ_ONLY_HEAP);
-  }
   bool IsWritable() const {
     // If this is a read-only space chunk but heap_ is non-null, it has not yet
     // been sealed and can be written to.
@@ -969,8 +815,6 @@ class MemoryChunk {
   // Gets the chunk's allocation space, potentially dealing with a null owner_
   // (like read-only chunks have).
   inline AllocationSpace owner_identity() const;
-
-  static inline bool HasHeaderSentinel(Address slot_addr);
 
   // Emits a memory barrier. For TSAN builds the other thread needs to perform
   // MemoryChunk::synchronized_heap() to simulate the barrier.
@@ -1024,28 +868,11 @@ class MemoryChunk {
     return reinterpret_cast<ConcurrentBitmap<mode>*>(young_generation_bitmap_);
   }
 
-  size_t size_;
-  uintptr_t flags_;
-
-  Bitmap* marking_bitmap_;
-
   // If the chunk needs to remember its memory reservation, it is stored here.
   VirtualMemory reservation_;
 
-  Heap* heap_;
-
-  // This is used to distinguish the memory chunk header from the interior of a
-  // large page. The memory chunk header stores here an impossible tagged
-  // pointer: the tagger pointer of the page start. A field in a large object is
-  // guaranteed to not contain such a pointer.
-  Address header_sentinel_;
-
   // The space owning this memory chunk.
   std::atomic<Space*> owner_;
-
-  // Start and end of allocatable memory on this chunk.
-  Address area_start_;
-  Address area_end_;
 
   // Used by the incremental marker to keep track of the scanning progress in
   // large objects that have a progress bar and are scanned in increments.
@@ -1112,10 +939,8 @@ class MemoryChunk {
   friend class ConcurrentMarkingState;
   friend class IncrementalMarkingState;
   friend class MajorAtomicMarkingState;
-  friend class MajorMarkingState;
   friend class MajorNonAtomicMarkingState;
   friend class MemoryAllocator;
-  friend class MemoryChunkValidator;
   friend class MinorMarkingState;
   friend class MinorNonAtomicMarkingState;
   friend class PagedSpace;
@@ -1189,8 +1014,8 @@ class Page : public MemoryChunk {
   // Returns the address for a given offset to the this page.
   Address OffsetToAddress(size_t offset) {
     Address address_in_page = address() + offset;
-    DCHECK_GE(address_in_page, area_start_);
-    DCHECK_LT(address_in_page, area_end_);
+    DCHECK_GE(address_in_page, area_start());
+    DCHECK_LT(address_in_page, area_end());
     return address_in_page;
   }
 
@@ -1291,16 +1116,11 @@ class LargePage : public MemoryChunk {
   friend class MemoryAllocator;
 };
 
-class MemoryChunkValidator {
-  // Computed offsets should match the compiler generated ones.
-  STATIC_ASSERT(MemoryChunk::kSizeOffset == offsetof(MemoryChunk, size_));
-
-  // Validate our estimates on the header size.
-  STATIC_ASSERT(sizeof(MemoryChunk) <= MemoryChunk::kHeaderSize);
-  STATIC_ASSERT(sizeof(LargePage) <= MemoryChunk::kHeaderSize);
-  STATIC_ASSERT(sizeof(Page) <= MemoryChunk::kHeaderSize);
-};
-
+// Validate our estimates on the header size.
+STATIC_ASSERT(sizeof(BasicMemoryChunk) <= BasicMemoryChunk::kHeaderSize);
+STATIC_ASSERT(sizeof(MemoryChunk) <= MemoryChunk::kHeaderSize);
+STATIC_ASSERT(sizeof(LargePage) <= MemoryChunk::kHeaderSize);
+STATIC_ASSERT(sizeof(Page) <= MemoryChunk::kHeaderSize);
 
 // The process-wide singleton that keeps track of code range regions with the
 // intention to reuse free code range regions as a workaround for CFG memory

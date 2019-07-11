@@ -690,16 +690,11 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
                                      Executability executable, Space* owner,
                                      VirtualMemory reservation) {
   MemoryChunk* chunk = FromAddress(base);
-
   DCHECK_EQ(base, chunk->address());
+  new (chunk) BasicMemoryChunk(size, area_start, area_end);
+  DCHECK(HasHeaderSentinel(area_start));
 
   chunk->heap_ = heap;
-  chunk->size_ = size;
-  chunk->header_sentinel_ = HeapObject::FromAddress(base).ptr();
-  DCHECK(HasHeaderSentinel(area_start));
-  chunk->area_start_ = area_start;
-  chunk->area_end_ = area_end;
-  chunk->flags_ = Flags(NO_FLAGS);
   chunk->set_owner(owner);
   chunk->InitializeReservedMemory();
   base::AsAtomicPointer::Release_Store(&chunk->slot_set_[OLD_TO_NEW], nullptr);
@@ -718,7 +713,6 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->allocated_bytes_ = chunk->area_size();
   chunk->wasted_memory_ = 0;
   chunk->young_generation_bitmap_ = nullptr;
-  chunk->marking_bitmap_ = nullptr;
   chunk->local_tracker_ = nullptr;
 
   chunk->external_backing_store_bytes_[ExternalBackingStoreType::kArrayBuffer] =
@@ -728,20 +722,15 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
 
   chunk->categories_ = nullptr;
 
-  chunk->AllocateMarkingBitmap();
+  heap->incremental_marking()->non_atomic_marking_state()->SetLiveBytes(chunk,
+                                                                        0);
   if (owner->identity() == RO_SPACE) {
     heap->incremental_marking()
         ->non_atomic_marking_state()
         ->bitmap(chunk)
         ->MarkAllBits();
     chunk->SetFlag(READ_ONLY_HEAP);
-  } else {
-    heap->incremental_marking()->non_atomic_marking_state()->SetLiveBytes(chunk,
-                                                                          0);
   }
-
-  DCHECK_EQ(kFlagsOffset, OFFSET_OF(MemoryChunk, flags_));
-  DCHECK_EQ(kHeapOffset, OFFSET_OF(MemoryChunk, heap_));
 
   if (executable == EXECUTABLE) {
     chunk->SetFlag(IS_EXECUTABLE);
@@ -1135,15 +1124,15 @@ void MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk, Address start_free,
                                         Address new_area_end) {
   VirtualMemory* reservation = chunk->reserved_memory();
   DCHECK(reservation->IsReserved());
-  chunk->size_ -= bytes_to_free;
-  chunk->area_end_ = new_area_end;
+  chunk->set_size(chunk->size() - bytes_to_free);
+  chunk->set_area_end(new_area_end);
   if (chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
     // Add guard page at the end.
     size_t page_size = GetCommitPageSize();
-    DCHECK_EQ(0, chunk->area_end_ % static_cast<Address>(page_size));
+    DCHECK_EQ(0, chunk->area_end() % static_cast<Address>(page_size));
     DCHECK_EQ(chunk->address() + chunk->size(),
               chunk->area_end() + MemoryChunkLayout::CodePageGuardSize());
-    reservation->SetPermissions(chunk->area_end_, page_size,
+    reservation->SetPermissions(chunk->area_end(), page_size,
                                 PageAllocator::kNoAccess);
   }
   // On e.g. Windows, a reservation may be larger than a page and releasing
@@ -1421,7 +1410,7 @@ template V8_EXPORT_PRIVATE SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_OLD>();
 
 template <RememberedSetType type>
 SlotSet* MemoryChunk::AllocateSlotSet() {
-  SlotSet* slot_set = AllocateAndInitializeSlotSet(size_, address());
+  SlotSet* slot_set = AllocateAndInitializeSlotSet(size(), address());
   SlotSet* old_slot_set = base::AsAtomicPointer::Release_CompareAndSwap(
       &slot_set_[type], nullptr, slot_set);
   if (old_slot_set != nullptr) {
@@ -1538,17 +1527,6 @@ void MemoryChunk::ReleaseYoungGenerationBitmap() {
   DCHECK_NOT_NULL(young_generation_bitmap_);
   free(young_generation_bitmap_);
   young_generation_bitmap_ = nullptr;
-}
-
-void MemoryChunk::AllocateMarkingBitmap() {
-  DCHECK_NULL(marking_bitmap_);
-  marking_bitmap_ = static_cast<Bitmap*>(calloc(1, Bitmap::kSize));
-}
-
-void MemoryChunk::ReleaseMarkingBitmap() {
-  DCHECK_NOT_NULL(marking_bitmap_);
-  free(marking_bitmap_);
-  marking_bitmap_ = nullptr;
 }
 
 // -----------------------------------------------------------------------------

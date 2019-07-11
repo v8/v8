@@ -6349,22 +6349,6 @@ bool Heap::PageFlagsAreConsistent(HeapObject object) {
   return true;
 }
 
-static_assert(MemoryChunk::Flag::INCREMENTAL_MARKING ==
-                  heap_internals::MemoryChunk::kMarkingBit,
-              "Incremental marking flag inconsistent");
-static_assert(MemoryChunk::Flag::FROM_PAGE ==
-                  heap_internals::MemoryChunk::kFromPageBit,
-              "From page flag inconsistent");
-static_assert(MemoryChunk::Flag::TO_PAGE ==
-                  heap_internals::MemoryChunk::kToPageBit,
-              "To page flag inconsistent");
-static_assert(MemoryChunk::kFlagsOffset ==
-                  heap_internals::MemoryChunk::kFlagsOffset,
-              "Flag offset inconsistent");
-static_assert(MemoryChunk::kHeapOffset ==
-                  heap_internals::MemoryChunk::kHeapOffset,
-              "Heap offset inconsistent");
-
 void Heap::SetEmbedderStackStateForNextFinalizaton(
     EmbedderHeapTracer::EmbedderStackState stack_state) {
   local_embedder_heap_tracer()->SetEmbedderStackStateForNextFinalization(

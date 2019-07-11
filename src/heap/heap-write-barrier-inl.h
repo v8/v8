@@ -47,9 +47,9 @@ V8_EXPORT_PRIVATE void Heap_GenerationalEphemeronKeyBarrierSlow(
 namespace heap_internals {
 
 struct MemoryChunk {
-  static constexpr uintptr_t kFlagsOffset = sizeof(size_t);
+  static constexpr uintptr_t kFlagsOffset = kSizetSize;
   static constexpr uintptr_t kHeapOffset =
-      kFlagsOffset + kUIntptrSize + 4 * kSystemPointerSize;
+      kSizetSize + kUIntptrSize + kSystemPointerSize;
   static constexpr uintptr_t kMarkingBit = uintptr_t{1} << 18;
   static constexpr uintptr_t kFromPageBit = uintptr_t{1} << 3;
   static constexpr uintptr_t kToPageBit = uintptr_t{1} << 4;

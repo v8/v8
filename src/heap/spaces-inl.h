@@ -204,13 +204,6 @@ bool PagedSpace::TryFreeLast(HeapObject object, int object_size) {
   return false;
 }
 
-bool MemoryChunk::HasHeaderSentinel(Address slot_addr) {
-  Address base = BaseAddress(slot_addr);
-  if (slot_addr < base + kHeaderSize) return false;
-  return HeapObject::FromAddress(base) ==
-         ObjectSlot(base + kHeaderSentinelOffset).Relaxed_Load();
-}
-
 MemoryChunk* MemoryChunk::FromAnyPointerAddress(Address addr) {
   while (!HasHeaderSentinel(addr)) {
     addr = BaseAddress(addr) - 1;
