@@ -726,9 +726,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->external_backing_store_bytes_
       [ExternalBackingStoreType::kExternalString] = 0;
 
-  for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
-    chunk->categories_[i] = nullptr;
-  }
+  chunk->categories_ = nullptr;
 
   chunk->AllocateMarkingBitmap();
   if (owner->identity() == RO_SPACE) {
@@ -830,24 +828,31 @@ LargePage* LargePage::Initialize(Heap* heap, MemoryChunk* chunk,
 }
 
 void Page::AllocateFreeListCategories() {
-  for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
+  DCHECK_NULL(categories_);
+  categories_ = new FreeListCategory*[free_list()->number_of_categories()]();
+  for (int i = kFirstCategory; i <= free_list()->last_category(); i++) {
+    DCHECK_NULL(categories_[i]);
     categories_[i] = new FreeListCategory(
         reinterpret_cast<PagedSpace*>(owner())->free_list(), this);
   }
 }
 
 void Page::InitializeFreeListCategories() {
-  for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
+  for (int i = kFirstCategory; i <= free_list()->last_category(); i++) {
     categories_[i]->Initialize(static_cast<FreeListCategoryType>(i));
   }
 }
 
 void Page::ReleaseFreeListCategories() {
-  for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
-    if (categories_[i] != nullptr) {
-      delete categories_[i];
-      categories_[i] = nullptr;
+  if (categories_ != nullptr) {
+    for (int i = kFirstCategory; i <= free_list()->last_category(); i++) {
+      if (categories_[i] != nullptr) {
+        delete categories_[i];
+        categories_[i] = nullptr;
+      }
     }
+    delete[] categories_;
+    categories_ = nullptr;
   }
 }
 
@@ -1392,12 +1397,13 @@ void MemoryChunk::ReleaseAllocatedMemoryNeededForWritableChunk() {
 }
 
 void MemoryChunk::ReleaseAllAllocatedMemory() {
-  ReleaseAllocatedMemoryNeededForWritableChunk();
-  if (marking_bitmap_ != nullptr) ReleaseMarkingBitmap();
   if (!IsLargePage()) {
     Page* page = static_cast<Page*>(this);
     page->ReleaseFreeListCategories();
   }
+
+  ReleaseAllocatedMemoryNeededForWritableChunk();
+  if (marking_bitmap_ != nullptr) ReleaseMarkingBitmap();
 }
 
 static SlotSet* AllocateAndInitializeSlotSet(size_t size, Address page_start) {
@@ -1597,8 +1603,8 @@ intptr_t Space::GetNextInlineAllocationStepSize() {
 }
 
 PagedSpace::PagedSpace(Heap* heap, AllocationSpace space,
-                       Executability executable)
-    : SpaceWithLinearArea(heap, space), executable_(executable) {
+                       Executability executable, FreeList* free_list)
+    : SpaceWithLinearArea(heap, space, free_list), executable_(executable) {
   area_size_ = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(space);
   accounting_stats_.Clear();
 }
@@ -1719,21 +1725,7 @@ void PagedSpace::RefineAllocatedBytesAfterSweeping(Page* page) {
 
 Page* PagedSpace::RemovePageSafe(int size_in_bytes) {
   base::MutexGuard guard(mutex());
-  // Check for pages that still contain free list entries. Bail out for smaller
-  // categories.
-  const int minimum_category =
-      static_cast<int>(FreeList::SelectFreeListCategoryType(size_in_bytes));
-  Page* page = free_list()->GetPageForCategoryType(kHuge);
-  if (!page && static_cast<int>(kLarge) >= minimum_category)
-    page = free_list()->GetPageForCategoryType(kLarge);
-  if (!page && static_cast<int>(kMedium) >= minimum_category)
-    page = free_list()->GetPageForCategoryType(kMedium);
-  if (!page && static_cast<int>(kSmall) >= minimum_category)
-    page = free_list()->GetPageForCategoryType(kSmall);
-  if (!page && static_cast<int>(kTiny) >= minimum_category)
-    page = free_list()->GetPageForCategoryType(kTiny);
-  if (!page && static_cast<int>(kTiniest) >= minimum_category)
-    page = free_list()->GetPageForCategoryType(kTiniest);
+  Page* page = free_list()->GetPageForSize(size_in_bytes);
   if (!page) return nullptr;
   RemovePage(page);
   return page;
@@ -1775,9 +1767,9 @@ size_t PagedSpace::ShrinkPageToHighWaterMark(Page* page) {
 
 void PagedSpace::ResetFreeList() {
   for (Page* page : *this) {
-    free_list_.EvictFreeListItems(page);
+    free_list_->EvictFreeListItems(page);
   }
-  DCHECK(free_list_.IsEmpty());
+  DCHECK(free_list_->IsEmpty());
 }
 
 void PagedSpace::ShrinkImmortalImmovablePages() {
@@ -1940,8 +1932,8 @@ void PagedSpace::ReleasePage(Page* page) {
              page));
   DCHECK_EQ(page->owner(), this);
 
-  free_list_.EvictFreeListItems(page);
-  DCHECK(!free_list_.ContainsPageFreeListItems(page));
+  free_list_->EvictFreeListItems(page);
+  DCHECK(!free_list_->ContainsPageFreeListItems(page));
 
   if (Page::FromAllocationAreaAddress(allocation_info_.top()) == page) {
     DCHECK(!top_on_previous_step_);
@@ -2004,7 +1996,7 @@ bool PagedSpace::RefillLinearAllocationAreaFromFreeList(size_t size_in_bytes) {
   }
 
   size_t new_node_size = 0;
-  FreeSpace new_node = free_list_.Allocate(size_in_bytes, &new_node_size);
+  FreeSpace new_node = free_list_->Allocate(size_in_bytes, &new_node_size);
   if (new_node.is_null()) return false;
 
   DCHECK_GE(new_node_size, size_in_bytes);
@@ -2191,7 +2183,7 @@ void PagedSpace::VerifyCountersBeforeConcurrentSweeping() {
 NewSpace::NewSpace(Heap* heap, v8::PageAllocator* page_allocator,
                    size_t initial_semispace_capacity,
                    size_t max_semispace_capacity)
-    : SpaceWithLinearArea(heap, NEW_SPACE),
+    : SpaceWithLinearArea(heap, NEW_SPACE, new NoFreeList()),
       to_space_(heap, kToSpace),
       from_space_(heap, kFromSpace) {
   DCHECK(initial_semispace_capacity <= max_semispace_capacity);
@@ -2638,6 +2630,9 @@ bool SemiSpace::Commit() {
   DCHECK(!is_committed());
   const int num_pages = static_cast<int>(current_capacity_ / Page::kPageSize);
   for (int pages_added = 0; pages_added < num_pages; pages_added++) {
+    // Pages in the new spaces can be moved to the old space by the full
+    // collector. Therefore, they must be initialized with the same FreeList as
+    // old pages.
     Page* new_page =
         heap()->memory_allocator()->AllocatePage<MemoryAllocator::kPooled>(
             MemoryChunkLayout::AllocatableMemoryInDataPage(), this,
@@ -3010,24 +3005,30 @@ void FreeListCategory::Relink() {
   owner()->AddCategory(this);
 }
 
-FreeList::FreeList() : wasted_bytes_(0) {
-  for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
-    categories_[i] = nullptr;
-  }
+FreeList* FreeList::CreateFreeList() { return new FreeListLegacy(); }
+
+FreeListLegacy::FreeListLegacy() {
+  wasted_bytes_ = 0;
+  number_of_categories_ = kHuge + 1;
+  last_category_ = kHuge;
+
+  categories_ = new FreeListCategory*[number_of_categories_]();
   Reset();
 }
 
+FreeListLegacy::~FreeListLegacy() { delete[] categories_; }
 
 void FreeList::Reset() {
   ForAllFreeListCategories(
       [](FreeListCategory* category) { category->Reset(); });
-  for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
+  for (int i = kFirstCategory; i < number_of_categories_; i++) {
     categories_[i] = nullptr;
   }
   wasted_bytes_ = 0;
 }
 
-size_t FreeList::Free(Address start, size_t size_in_bytes, FreeMode mode) {
+size_t FreeListLegacy::Free(Address start, size_t size_in_bytes,
+                            FreeMode mode) {
   Page* page = Page::FromAddress(start);
   page->DecreaseAllocatedBytes(size_in_bytes);
 
@@ -3047,9 +3048,9 @@ size_t FreeList::Free(Address start, size_t size_in_bytes, FreeMode mode) {
   return 0;
 }
 
-
-FreeSpace FreeList::TryFindNodeIn(FreeListCategoryType type,
-                                  size_t minimum_size, size_t* node_size) {
+FreeSpace FreeListLegacy::TryFindNodeIn(FreeListCategoryType type,
+                                        size_t minimum_size,
+                                        size_t* node_size) {
   FreeListCategory* category = categories_[type];
   if (category == nullptr) return FreeSpace();
   FreeSpace node = category->PickNodeFromList(minimum_size, node_size);
@@ -3062,9 +3063,9 @@ FreeSpace FreeList::TryFindNodeIn(FreeListCategoryType type,
   return node;
 }
 
-FreeSpace FreeList::SearchForNodeInList(FreeListCategoryType type,
-                                        size_t* node_size,
-                                        size_t minimum_size) {
+FreeSpace FreeListLegacy::SearchForNodeInList(FreeListCategoryType type,
+                                              size_t* node_size,
+                                              size_t minimum_size) {
   FreeListCategoryIterator it(this, type);
   FreeSpace node;
   while (it.HasNext()) {
@@ -3081,7 +3082,7 @@ FreeSpace FreeList::SearchForNodeInList(FreeListCategoryType type,
   return node;
 }
 
-FreeSpace FreeList::Allocate(size_t size_in_bytes, size_t* node_size) {
+FreeSpace FreeListLegacy::Allocate(size_t size_in_bytes, size_t* node_size) {
   DCHECK_GE(kMaxBlockSize, size_in_bytes);
   FreeSpace node;
   // First try the allocation fast path: try to allocate the minimum element
@@ -3153,7 +3154,7 @@ void FreeList::RepairLists(Heap* heap) {
 
 bool FreeList::AddCategory(FreeListCategory* category) {
   FreeListCategoryType type = category->type_;
-  DCHECK_LT(type, kNumberOfCategories);
+  DCHECK_LT(type, number_of_categories_);
   FreeListCategory* top = categories_[type];
 
   if (category->is_empty()) return false;
@@ -3170,7 +3171,7 @@ bool FreeList::AddCategory(FreeListCategory* category) {
 
 void FreeList::RemoveCategory(FreeListCategory* category) {
   FreeListCategoryType type = category->type_;
-  DCHECK_LT(type, kNumberOfCategories);
+  DCHECK_LT(type, number_of_categories_);
   FreeListCategory* top = categories_[type];
 
   // Common double-linked list removal.
@@ -3200,7 +3201,7 @@ void FreeList::PrintCategories(FreeListCategoryType type) {
 
 int MemoryChunk::FreeListsLength() {
   int length = 0;
-  for (int cat = kFirstCategory; cat <= kLastCategory; cat++) {
+  for (int cat = kFirstCategory; cat <= free_list()->last_category(); cat++) {
     if (categories_[cat] != nullptr) {
       length += categories_[cat]->FreeListLength();
     }
@@ -3225,7 +3226,7 @@ size_t FreeListCategory::SumFreeList() {
 #ifdef DEBUG
 bool FreeList::IsVeryLong() {
   int len = 0;
-  for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
+  for (int i = kFirstCategory; i < number_of_categories_; i++) {
     FreeListCategoryIterator it(this, static_cast<FreeListCategoryType>(i));
     while (it.HasNext()) {
       len += it.Next()->FreeListLength();
@@ -3257,7 +3258,7 @@ void PagedSpace::PrepareForMarkCompact() {
   FreeLinearAllocationArea();
 
   // Clear the free list before a full GC---it will be rebuilt afterward.
-  free_list_.Reset();
+  free_list_->Reset();
 }
 
 size_t PagedSpace::SizeOfObjects() {
@@ -3350,7 +3351,7 @@ bool PagedSpace::RawSlowRefillLinearAllocationArea(int size_in_bytes) {
 
   if (heap()->ShouldExpandOldGenerationOnSlowAllocation() && Expand()) {
     DCHECK((CountTotalPages() > 1) ||
-           (static_cast<size_t>(size_in_bytes) <= free_list_.Available()));
+           (static_cast<size_t>(size_in_bytes) <= free_list_->Available()));
     return RefillLinearAllocationAreaFromFreeList(
         static_cast<size_t>(size_in_bytes));
   }
@@ -3369,7 +3370,7 @@ void MapSpace::VerifyObject(HeapObject object) { CHECK(object.IsMap()); }
 #endif
 
 ReadOnlySpace::ReadOnlySpace(Heap* heap)
-    : PagedSpace(heap, RO_SPACE, NOT_EXECUTABLE),
+    : PagedSpace(heap, RO_SPACE, NOT_EXECUTABLE, FreeList::CreateFreeList()),
       is_string_padding_cleared_(heap->isolate()->initialized_from_snapshot()) {
 }
 
@@ -3377,10 +3378,11 @@ void ReadOnlyPage::MakeHeaderRelocatable() {
   ReleaseAllocatedMemoryNeededForWritableChunk();
   // Detached read-only space needs to have a valid marking bitmap and free list
   // categories. Instruct Lsan to ignore them if required.
-  LSAN_IGNORE_OBJECT(marking_bitmap_);
-  for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
+  LSAN_IGNORE_OBJECT(categories_);
+  for (int i = kFirstCategory; i < free_list()->number_of_categories(); i++) {
     LSAN_IGNORE_OBJECT(categories_[i]);
   }
+  LSAN_IGNORE_OBJECT(marking_bitmap_);
   heap_ = nullptr;
   owner_ = nullptr;
 }
@@ -3401,7 +3403,7 @@ void ReadOnlySpace::SetPermissionsForPages(MemoryAllocator* memory_allocator,
 // were created with the wrong FreeSpaceMap (normally nullptr), so we need to
 // fix them.
 void ReadOnlySpace::RepairFreeListsAfterDeserialization() {
-  free_list_.RepairLists(heap());
+  free_list_->RepairLists(heap());
   // Each page may have a small free space that is not tracked by a free list.
   // Those free spaces still contain null as their map pointer.
   // Overwrite them with new fillers.
@@ -3507,7 +3509,10 @@ LargeObjectSpace::LargeObjectSpace(Heap* heap)
     : LargeObjectSpace(heap, LO_SPACE) {}
 
 LargeObjectSpace::LargeObjectSpace(Heap* heap, AllocationSpace id)
-    : Space(heap, id), size_(0), page_count_(0), objects_size_(0) {}
+    : Space(heap, id, new NoFreeList()),
+      size_(0),
+      page_count_(0),
+      objects_size_(0) {}
 
 void LargeObjectSpace::TearDown() {
   while (!memory_chunk_list_.Empty()) {

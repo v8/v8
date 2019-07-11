@@ -182,7 +182,7 @@ size_t PagedSpace::RelinkFreeListCategories(Page* page) {
   DCHECK_EQ(this, page->owner());
   size_t added = 0;
   page->ForAllFreeListCategories([this, &added](FreeListCategory* category) {
-    category->set_free_list(&free_list_);
+    category->set_free_list(free_list());
     added += category->available();
     category->Relink();
   });
@@ -320,10 +320,6 @@ MemoryChunk* OldGenerationMemoryChunkIterator::next() {
       break;
   }
   UNREACHABLE();
-}
-
-Page* FreeList::GetPageForCategoryType(FreeListCategoryType type) {
-  return top(type) ? top(type)->page() : nullptr;
 }
 
 FreeList* FreeListCategory::owner() { return free_list_; }
