@@ -868,10 +868,18 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     BIND(&not_found);
     {
       CheckForAssociatedProtector(p->name(), slow);
-      Label extensible(this);
+      Label extensible(this), is_private_symbol(this);
       Node* bitfield3 = LoadMapBitField3(receiver_map);
-      GotoIf(IsPrivateSymbol(p->name()), &extensible);
+      GotoIf(IsPrivateSymbol(p->name()), &is_private_symbol);
       Branch(IsSetWord32<Map::IsExtensibleBit>(bitfield3), &extensible, slow);
+
+      BIND(&is_private_symbol);
+      {
+        CSA_ASSERT(this, IsPrivateSymbol(p->name()));
+        // For private names, we miss to the runtime which will throw.
+        // For private symbols, we extend and store an own property.
+        Branch(IsPrivateName(p->name()), slow, &extensible);
+      }
 
       BIND(&extensible);
       if (ShouldCheckPrototype()) {

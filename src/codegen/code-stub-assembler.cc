@@ -6596,6 +6596,11 @@ TNode<BoolT> CodeStubAssembler::IsPrivateSymbol(
       [=] { return Int32FalseConstant(); });
 }
 
+TNode<BoolT> CodeStubAssembler::IsPrivateName(SloppyTNode<Symbol> symbol) {
+  TNode<Uint32T> flags = LoadObjectField<Uint32T>(symbol, Symbol::kFlagsOffset);
+  return IsSetWord32<Symbol::IsPrivateNameBit>(flags);
+}
+
 TNode<BoolT> CodeStubAssembler::IsNativeContext(
     SloppyTNode<HeapObject> object) {
   return WordEqual(LoadMap(object), LoadRoot(RootIndex::kNativeContextMap));

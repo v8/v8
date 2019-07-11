@@ -2283,14 +2283,14 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
   {
     VARIABLE(var_holder_map, MachineRepresentation::kTagged);
     VARIABLE(var_holder_instance_type, MachineRepresentation::kWord32);
-    Label return_undefined(this);
+    Label return_undefined(this), is_private_symbol(this);
     Variable* merged_variables[] = {&var_holder_map, &var_holder_instance_type};
     Label loop(this, arraysize(merged_variables), merged_variables);
 
     var_holder_map.Bind(receiver_map);
     var_holder_instance_type.Bind(instance_type);
-    // Private symbols must not be looked up on the prototype chain.
-    GotoIf(IsPrivateSymbol(p->name()), &return_undefined);
+    GotoIf(IsPrivateSymbol(p->name()), &is_private_symbol);
+
     Goto(&loop);
     BIND(&loop);
     {
@@ -2319,6 +2319,16 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
 
       BIND(&return_value);
       Return(var_value.value());
+    }
+
+    BIND(&is_private_symbol);
+    {
+      CSA_ASSERT(this, IsPrivateSymbol(p->name()));
+
+      // For private names that don't exist on the receiver, we bail
+      // to the runtime to throw. For private symbols, we just return
+      // undefined.
+      Branch(IsPrivateName(p->name()), slow, &return_undefined);
     }
 
     BIND(&return_undefined);
