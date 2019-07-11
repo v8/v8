@@ -1910,6 +1910,35 @@ class ThreadImpl {
         *len += imm.length;
         return true;
       }
+      case kExprTableFill: {
+        TableIndexImmediate<Decoder::kNoValidate> imm(decoder,
+                                                      code->at(pc + 1));
+        HandleScope handle_scope(isolate_);
+        auto count = Pop().to<uint32_t>();
+        auto value = Pop().to_anyref();
+        auto start = Pop().to<uint32_t>();
+
+        auto table = handle(
+            WasmTableObject::cast(instance_object_->tables().get(imm.index)),
+            isolate_);
+        uint32_t table_size = table->current_length();
+        if (start > table_size) {
+          DoTrap(kTrapTableOutOfBounds, pc);
+          return false;
+        }
+
+        // Even when table.fill goes out-of-bounds, as many entries as possible
+        // are put into the table. Only afterwards we trap.
+        uint32_t fill_count = std::min(count, table_size - start);
+        WasmTableObject::Fill(isolate_, table, start, value, fill_count);
+
+        if (fill_count < count) {
+          DoTrap(kTrapTableOutOfBounds, pc);
+          return false;
+        }
+        *len += imm.length;
+        return true;
+      }
       default:
         FATAL("Unknown or unimplemented opcode #%d:%s", code->start[pc],
               OpcodeName(code->start[pc]));
