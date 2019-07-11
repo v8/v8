@@ -95,7 +95,7 @@ class V8_EXPORT_PRIVATE DecoderVisitor {
 };
 
 // A visitor that dispatches to a list of visitors.
-class V8_EXPORT_PRIVATE DispatchingDecoderVisitor : public DecoderVisitor {
+class DispatchingDecoderVisitor : public DecoderVisitor {
  public:
   DispatchingDecoderVisitor() {}
   virtual ~DispatchingDecoderVisitor() {}
@@ -119,7 +119,7 @@ class V8_EXPORT_PRIVATE DispatchingDecoderVisitor : public DecoderVisitor {
   //
   // will call in order visitor methods in V3, V2, V1, V4.
   void AppendVisitor(DecoderVisitor* visitor);
-  void PrependVisitor(DecoderVisitor* visitor);
+  void V8_EXPORT_PRIVATE PrependVisitor(DecoderVisitor* visitor);
   void InsertVisitorBefore(DecoderVisitor* new_visitor,
                            DecoderVisitor* registered_visitor);
   void InsertVisitorAfter(DecoderVisitor* new_visitor,
