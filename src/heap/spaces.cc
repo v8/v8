@@ -2983,7 +2983,13 @@ void FreeListCategory::Relink() {
   owner()->AddCategory(this);
 }
 
-FreeList* FreeList::CreateFreeList() { return new FreeListLegacy(); }
+FreeList* FreeList::CreateFreeList() {
+  if (FLAG_gc_freelist_strategy == 1) {
+    return new FreeListFastAlloc();
+  } else {
+    return new FreeListLegacy();
+  }
+}
 
 FreeListLegacy::FreeListLegacy() {
   wasted_bytes_ = 0;
@@ -3093,6 +3099,72 @@ FreeSpace FreeListLegacy::Allocate(size_t size_in_bytes, size_t* node_size) {
       // requested size.
       node = TryFindNodeIn(type, size_in_bytes, node_size);
     }
+  }
+
+  if (!node.is_null()) {
+    Page::FromHeapObject(node)->IncreaseAllocatedBytes(*node_size);
+  }
+
+  DCHECK(IsVeryLong() || Available() == SumFreeLists());
+  return node;
+}
+
+FreeListFastAlloc::FreeListFastAlloc() {
+  wasted_bytes_ = 0;
+  number_of_categories_ = kHuge + 1;
+  last_category_ = kHuge;
+
+  categories_ = new FreeListCategory*[number_of_categories_]();
+  Reset();
+}
+
+FreeListFastAlloc::~FreeListFastAlloc() { delete[] categories_; }
+
+size_t FreeListFastAlloc::Free(Address start, size_t size_in_bytes,
+                               FreeMode mode) {
+  Page* page = Page::FromAddress(start);
+  page->DecreaseAllocatedBytes(size_in_bytes);
+
+  // Blocks have to be a minimum size to hold free list items.
+  if (size_in_bytes < kMinBlockSize) {
+    page->add_wasted_memory(size_in_bytes);
+    wasted_bytes_ += size_in_bytes;
+    return size_in_bytes;
+  }
+
+  // Insert other blocks at the head of a free list of the appropriate
+  // magnitude.
+  FreeListCategoryType type = SelectFreeListCategoryType(size_in_bytes);
+  page->free_list_category(type)->Free(start, size_in_bytes, mode);
+  DCHECK_EQ(page->AvailableInFreeList(),
+            page->AvailableInFreeListFromAllocatedBytes());
+  return 0;
+}
+
+FreeSpace FreeListFastAlloc::TryFindNodeIn(FreeListCategoryType type,
+                                           size_t minimum_size,
+                                           size_t* node_size) {
+  FreeListCategory* category = categories_[type];
+  if (category == nullptr) return FreeSpace();
+  FreeSpace node = category->PickNodeFromList(minimum_size, node_size);
+  if (!node.is_null()) {
+    DCHECK(IsVeryLong() || Available() == SumFreeLists());
+  }
+  if (category->is_empty()) {
+    RemoveCategory(category);
+  }
+  return node;
+}
+
+FreeSpace FreeListFastAlloc::Allocate(size_t size_in_bytes, size_t* node_size) {
+  DCHECK_GE(kMaxBlockSize, size_in_bytes);
+  FreeSpace node;
+  // Try to allocate the biggest element possible (to make the most of later
+  // bump-pointer allocations).
+  FreeListCategoryType type = SelectFreeListCategoryType(size_in_bytes);
+  for (int i = kHuge; i >= type && node.is_null(); i--) {
+    node = TryFindNodeIn(static_cast<FreeListCategoryType>(i), size_in_bytes,
+                         node_size);
   }
 
   if (!node.is_null()) {

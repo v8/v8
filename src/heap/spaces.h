@@ -240,7 +240,19 @@ class FreeList {
   virtual ~FreeList() = default;
 
   virtual size_t GuaranteedAllocatable(size_t maximum_freed) = 0;
+
+  // Adds a node on the free list. The block of size {size_in_bytes} starting
+  // at {start} is placed on the free list. The return value is the number of
+  // bytes that were not added to the free list, because the freed memory block
+  // was too small. Bookkeeping information will be written to the block, i.e.,
+  // its contents will be destroyed. The start address should be word aligned,
+  // and the size should be a non-zero multiple of the word size.
   virtual size_t Free(Address start, size_t size_in_bytes, FreeMode mode) = 0;
+
+  // Allocates a free space node frome the free list of at least size_in_bytes
+  // bytes. Returns the actual node size in node_size which can be bigger than
+  // size_in_bytes. This method returns null if the allocation request cannot be
+  // handled by the free list.
   virtual V8_WARN_UNUSED_RESULT FreeSpace Allocate(size_t size_in_bytes,
                                                    size_t* node_size) = 0;
 
@@ -1809,22 +1821,12 @@ class V8_EXPORT_PRIVATE FreeListLegacy : public FreeList {
   FreeListLegacy();
   ~FreeListLegacy();
 
-  // Adds a node on the free list. The block of size {size_in_bytes} starting
-  // at {start} is placed on the free list. The return value is the number of
-  // bytes that were not added to the free list, because they freed memory block
-  // was too small. Bookkeeping information will be written to the block, i.e.,
-  // its contents will be destroyed. The start address should be word aligned,
-  // and the size should be a non-zero multiple of the word size.
   size_t Free(Address start, size_t size_in_bytes, FreeMode mode) override;
 
-  // Allocates a free space node frome the free list of at least size_in_bytes
-  // bytes. Returns the actual node size in node_size which can be bigger than
-  // size_in_bytes. This method returns null if the allocation request cannot be
-  // handled by the free list.
   V8_WARN_UNUSED_RESULT FreeSpace Allocate(size_t size_in_bytes,
                                            size_t* node_size) override;
 
- private:
+ protected:
   enum { kTiniest, kTiny, kSmall, kMedium, kLarge, kHuge };
 
   static const size_t kMinBlockSize = 3 * kTaggedSize;
@@ -1872,6 +1874,81 @@ class V8_EXPORT_PRIVATE FreeListLegacy : public FreeList {
 
   friend class FreeListCategory;
   friend class heap::HeapTester;
+};
+
+// Inspired by FreeListLegacy.
+// Only has 3 categories: Medium, Large and Huge.
+// Any block that would have belong to tiniest, tiny or small in FreeListLegacy
+// is considered wasted.
+// Allocation is done only in Huge, Medium and Large (in that order),
+// using a first-fit strategy (only the first block of each freelist is ever
+// considered though). Performances is supposed to be better than
+// FreeListLegacy, but memory usage should be higher (because fragmentation will
+// probably be higher).
+class V8_EXPORT_PRIVATE FreeListFastAlloc : public FreeList {
+ public:
+  size_t GuaranteedAllocatable(size_t maximum_freed) override {
+    if (maximum_freed <= kMediumListMax) {
+      // Since we are not iterating over all list entries, we cannot guarantee
+      // that we can find the maximum freed block in that free list.
+      return 0;
+    } else if (maximum_freed <= kLargeListMax) {
+      return kLargeAllocationMax;
+    }
+    return maximum_freed;
+  }
+
+  FreeListCategoryType SelectFreeListCategoryType(size_t size_in_bytes) {
+    if (size_in_bytes <= kMediumListMax) {
+      return kMedium;
+    } else if (size_in_bytes <= kLargeListMax) {
+      return kLarge;
+    }
+    return kHuge;
+  }
+
+  Page* GetPageForSize(size_t size_in_bytes) override {
+    const int minimum_category =
+        static_cast<int>(SelectFreeListCategoryType(size_in_bytes));
+    Page* page = GetPageForCategoryType(kHuge);
+    if (!page && static_cast<int>(kLarge) >= minimum_category)
+      page = GetPageForCategoryType(kLarge);
+    if (!page && static_cast<int>(kMedium) >= minimum_category)
+      page = GetPageForCategoryType(kMedium);
+    return page;
+  }
+
+  FreeListFastAlloc();
+  ~FreeListFastAlloc();
+
+  size_t Free(Address start, size_t size_in_bytes, FreeMode mode) override;
+
+  V8_WARN_UNUSED_RESULT FreeSpace Allocate(size_t size_in_bytes,
+                                           size_t* node_size) override;
+
+ protected:
+  enum { kMedium, kLarge, kHuge };
+
+  static const size_t kMinBlockSize = 0xff * kTaggedSize;
+
+  // This is a conservative upper bound. The actual maximum block size takes
+  // padding and alignment of data and code pages into account.
+  static const size_t kMaxBlockSize = Page::kPageSize;
+
+  static const size_t kMediumListMax = 0x7ff * kTaggedSize;
+  static const size_t kLargeListMax = 0x1fff * kTaggedSize;
+  static const size_t kMediumAllocationMax = kMinBlockSize;
+  static const size_t kLargeAllocationMax = kMediumListMax;
+
+  // Tries to retrieve a node from the first category in a given |type|.
+  // Returns nullptr if the category is empty or the top entry is smaller
+  // than minimum_size.
+  FreeSpace TryFindNodeIn(FreeListCategoryType type, size_t minimum_size,
+                          size_t* node_size);
+
+  Page* GetPageForCategoryType(FreeListCategoryType type) {
+    return top(type) ? top(type)->page() : nullptr;
+  }
 };
 
 // LocalAllocationBuffer represents a linear allocation area that is created
