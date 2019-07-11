@@ -147,7 +147,13 @@ class StackFrame {
   // the type of the value on the stack.
   static Type MarkerToType(intptr_t marker) {
     DCHECK(IsTypeMarker(marker));
-    return static_cast<Type>(marker >> kSmiTagSize);
+    intptr_t type = marker >> kSmiTagSize;
+    // TODO(petermarshall): There is a bug in the arm64 simulator that causes
+    // invalid frame markers.
+#if !(defined(USE_SIMULATOR) && V8_TARGET_ARCH_ARM64)
+    DCHECK_LT(static_cast<uintptr_t>(type), Type::NUMBER_OF_TYPES);
+#endif
+    return static_cast<Type>(type);
   }
 
   // Check if a marker is a stack frame type marker or a tagged pointer.

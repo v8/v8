@@ -775,6 +775,12 @@ ExternalReference ExternalReference::fast_c_call_caller_pc_address(
       isolate->isolate_data()->fast_c_call_caller_pc_address());
 }
 
+ExternalReference ExternalReference::stack_is_iterable_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->isolate_data()->stack_is_iterable_address());
+}
+
 FUNCTION_REFERENCE(call_enqueue_microtask_function,
                    MicrotaskQueue::CallEnqueueMicrotask)
 

@@ -81,9 +81,6 @@
   'test-cpu-profiler/SampleWhenFrameIsNotSetup': [SKIP],
   'test-sampler/LibSamplerCollectSample': [SKIP],
 
-  # BUG(v8:9057). Flaky, maybe only on UBSan
-  'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [SKIP],
-
   # BUG(7202). The test is flaky.
   'test-cpu-profiler/NativeFrameStackTrace': [SKIP],
 
