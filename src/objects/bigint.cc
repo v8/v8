@@ -239,6 +239,15 @@ NEVER_READ_ONLY_SPACE_IMPL(MutableBigInt)
 MaybeHandle<MutableBigInt> MutableBigInt::New(Isolate* isolate, int length,
                                               AllocationType allocation) {
   if (length > BigInt::kMaxLength) {
+    // If the result of a BigInt computation is truncated to 64 bit, Turbofan
+    // can sometimes truncate intermediate results already, which can prevent
+    // those from exceeding the maximum length, effectively changing the
+    // semantics of optimized code. As this is a performance optimization, this
+    // behavior is accepted. To prevent the fuzzer from detecting this
+    // difference, we crash the program.
+    if (FLAG_correctness_fuzzer_suppressions) {
+      FATAL("Aborting on invalid BigInt length");
+    }
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
                     MutableBigInt);
   }

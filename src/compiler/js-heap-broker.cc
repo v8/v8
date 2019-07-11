@@ -810,6 +810,18 @@ class AllocationSiteData : public HeapObjectData {
   bool serialized_boilerplate_ = false;
 };
 
+class BigIntData : public HeapObjectData {
+ public:
+  BigIntData(JSHeapBroker* broker, ObjectData** storage, Handle<BigInt> object)
+      : HeapObjectData(broker, storage, object),
+        as_uint64_(object->AsUint64(nullptr)) {}
+
+  uint64_t AsUint64() const { return as_uint64_; }
+
+ private:
+  const uint64_t as_uint64_;
+};
+
 // Only used in JSNativeContextSpecialization.
 class ScriptContextTableData : public HeapObjectData {
  public:
@@ -3261,6 +3273,11 @@ double HeapNumberRef::value() const {
 double MutableHeapNumberRef::value() const {
   IF_BROKER_DISABLED_ACCESS_HANDLE_C(MutableHeapNumber, value);
   return data()->AsMutableHeapNumber()->value();
+}
+
+uint64_t BigIntRef::AsUint64() const {
+  IF_BROKER_DISABLED_ACCESS_HANDLE_C(BigInt, AsUint64);
+  return data()->AsBigInt()->AsUint64();
 }
 
 CellRef SourceTextModuleRef::GetCell(int cell_index) const {

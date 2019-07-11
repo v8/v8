@@ -1117,8 +1117,11 @@ class RepresentationSelector {
     if (IsAnyCompressed(rep)) {
       return MachineType::AnyCompressed();
     }
-    // Word64 representation is only valid for safe integer values.
     if (rep == MachineRepresentation::kWord64) {
+      if (type.Is(Type::BigInt())) {
+        return MachineType::AnyTagged();
+      }
+
       DCHECK(type.Is(TypeCache::Get()->kSafeInteger));
       return MachineType(rep, MachineSemantic::kInt64);
     }
@@ -1134,7 +1137,17 @@ class RepresentationSelector {
   void VisitStateValues(Node* node) {
     if (propagate()) {
       for (int i = 0; i < node->InputCount(); i++) {
-        EnqueueInput(node, i, UseInfo::Any());
+        // When lowering 64 bit BigInts to Word64 representation, we have to
+        // make sure they are rematerialized before deoptimization. By
+        // propagating a AnyTagged use, the RepresentationChanger is going to
+        // insert the necessary conversions.
+        // TODO(nicohartmann): Remove, once the deoptimizer can rematerialize
+        // truncated BigInts.
+        if (TypeOf(node->InputAt(i)).Is(Type::BigInt())) {
+          EnqueueInput(node, i, UseInfo::AnyTagged());
+        } else {
+          EnqueueInput(node, i, UseInfo::Any());
+        }
       }
     } else if (lower()) {
       Zone* zone = jsgraph_->zone();
@@ -1143,6 +1156,12 @@ class RepresentationSelector {
               ZoneVector<MachineType>(node->InputCount(), zone);
       for (int i = 0; i < node->InputCount(); i++) {
         Node* input = node->InputAt(i);
+        // TODO(nicohartmann): Remove, once the deoptimizer can rematerialize
+        // truncated BigInts.
+        if (TypeOf(input).Is(Type::BigInt())) {
+          ProcessInput(node, i, UseInfo::AnyTagged());
+        }
+
         (*types)[i] =
             DeoptMachineTypeOf(GetInfo(input)->representation(), TypeOf(input));
       }
@@ -2481,7 +2500,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kBigIntAsUintN: {
-        ProcessInput(node, 0, UseInfo::TruncatedBigIntAsWord64());
+        ProcessInput(node, 0, UseInfo::TruncatingWord64());
         SetOutput(node, MachineRepresentation::kWord64, Type::BigInt());
         return;
       }
@@ -2646,9 +2665,18 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kSpeculativeBigIntAdd: {
-        VisitBinop(node,
-                   UseInfo::CheckedBigIntAsTaggedPointer(VectorSlotPair{}),
-                   MachineRepresentation::kTaggedPointer);
+        if (truncation.IsUsedAsWord64()) {
+          VisitBinop(node,
+                     UseInfo::CheckedBigIntTruncatingWord64(VectorSlotPair{}),
+                     MachineRepresentation::kWord64);
+          if (lower()) {
+            ChangeToPureOp(node, lowering->machine()->Int64Add());
+          }
+        } else {
+          VisitBinop(node,
+                     UseInfo::CheckedBigIntAsTaggedPointer(VectorSlotPair{}),
+                     MachineRepresentation::kTaggedPointer);
+        }
         return;
       }
       case IrOpcode::kStringConcat: {
@@ -3594,7 +3622,7 @@ SimplifiedLowering::SimplifiedLowering(JSGraph* jsgraph, JSHeapBroker* broker,
       poisoning_level_(poisoning_level) {}
 
 void SimplifiedLowering::LowerAllNodes() {
-  RepresentationChanger changer(jsgraph(), jsgraph()->isolate());
+  RepresentationChanger changer(jsgraph(), broker_);
   RepresentationSelector selector(jsgraph(), broker_, zone_, &changer,
                                   source_positions_, node_origins_);
   selector.Run(this);

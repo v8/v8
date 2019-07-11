@@ -4,6 +4,8 @@
 
 #include <limits>
 
+#include "src/compiler/access-info.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/representation-change.h"
 #include "src/compiler/type-cache.h"
@@ -25,13 +27,15 @@ class RepresentationChangerTester : public HandleAndZoneScope,
         javascript_(main_zone()),
         jsgraph_(main_isolate(), main_graph_, &main_common_, &javascript_,
                  &main_simplified_, &main_machine_),
-        changer_(&jsgraph_, main_isolate()) {
+        broker_{main_isolate(), main_zone(), FLAG_trace_heap_broker},
+        changer_(&jsgraph_, &broker_) {
     Node* s = graph()->NewNode(common()->Start(num_parameters));
     graph()->SetStart(s);
   }
 
   JSOperatorBuilder javascript_;
   JSGraph jsgraph_;
+  JSHeapBroker broker_;
   RepresentationChanger changer_;
 
   Isolate* isolate() { return main_isolate(); }

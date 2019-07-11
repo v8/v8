@@ -72,6 +72,7 @@ enum class OddballType : uint8_t {
   V(Symbol)                        \
   /* Subtypes of HeapObject */     \
   V(AllocationSite)                \
+  V(BigInt)                        \
   V(CallHandlerInfo)               \
   V(Cell)                          \
   V(Code)                          \
@@ -476,6 +477,14 @@ class AllocationSiteRef : public HeapObjectRef {
 
   ElementsKind GetElementsKind() const;
   bool CanInlineCall() const;
+};
+
+class BigIntRef : public HeapObjectRef {
+ public:
+  using HeapObjectRef::HeapObjectRef;
+  Handle<BigInt> object() const;
+
+  uint64_t AsUint64() const;
 };
 
 class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
