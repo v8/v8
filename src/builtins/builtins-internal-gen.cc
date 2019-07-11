@@ -865,6 +865,11 @@ TF_BUILTIN(AbortJS, CodeStubAssembler) {
   TailCallRuntime(Runtime::kAbortJS, NoContextConstant(), message);
 }
 
+TF_BUILTIN(AbortCSAAssert, CodeStubAssembler) {
+  TNode<String> message = CAST(Parameter(Descriptor::kMessageOrMessageId));
+  TailCallRuntime(Runtime::kAbortCSAAssert, NoContextConstant(), message);
+}
+
 void Builtins::Generate_CEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit(
     MacroAssembler* masm) {
   Generate_CEntry(masm, 1, kDontSaveFPRegs, kArgvOnStack, false);

@@ -934,7 +934,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
 
     case IrOpcode::kComment:
-    case IrOpcode::kDebugAbort:
+    case IrOpcode::kAbortJS:
+    case IrOpcode::kAbortCSAAssert:
     case IrOpcode::kDebugBreak:
     case IrOpcode::kRetain:
     case IrOpcode::kUnsafePointerAdd:

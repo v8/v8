@@ -434,6 +434,7 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_TEST(F, I)         \
   F(Abort, 1, 1)                              \
   F(AbortJS, 1, 1)                            \
+  F(AbortCSAAssert, 1, 1)                     \
   F(ArraySpeciesProtector, 0, 1)              \
   F(ClearFunctionFeedback, 1, 1)              \
   F(ClearMegamorphicStubCache, 0, 1)          \

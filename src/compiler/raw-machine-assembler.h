@@ -1019,7 +1019,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   void PopAndReturn(Node* pop, Node* v1, Node* v2, Node* v3, Node* v4);
   void Bind(RawMachineLabel* label);
   void Deoptimize(Node* state);
-  void DebugAbort(Node* message);
+  void AbortJS(Node* message);
+  void AbortCSAAssert(Node* message);
   void DebugBreak();
   void Unreachable();
   void Comment(const std::string& msg);

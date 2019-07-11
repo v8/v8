@@ -171,11 +171,10 @@ void CodeStubAssembler::FailAssert(
   DCHECK_NOT_NULL(message);
   EmbeddedVector<char, 1024> chars;
   if (file != nullptr) {
-    SNPrintF(chars, "CSA_ASSERT failed: %s [%s:%d]\n", message, file, line);
-  } else {
-    SNPrintF(chars, "CSA_ASSERT failed: %s\n", message);
+    SNPrintF(chars, "%s [%s:%d]", message, file, line);
+    message = chars.begin();
   }
-  Node* message_node = StringConstant(chars.begin());
+  Node* message_node = StringConstant(message);
 
 #ifdef DEBUG
   // Only print the extra nodes in debug builds.
@@ -186,7 +185,7 @@ void CodeStubAssembler::FailAssert(
   MaybePrintNodeWithName(this, extra_node5, extra_node5_name);
 #endif
 
-  DebugAbort(message_node);
+  AbortCSAAssert(message_node);
   Unreachable();
 }
 

@@ -1352,7 +1352,8 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return AssembleArchLookupSwitchLatency((instr->InputCount() - 2) / 2);
     case kArchTableSwitch:
       return AssembleArchTableSwitchLatency();
-    case kArchDebugAbort:
+    case kArchAbortJS:
+    case kArchAbortCSAAssert:
       return CallLatency() + 1;
     case kArchComment:
     case kArchDeoptimize:

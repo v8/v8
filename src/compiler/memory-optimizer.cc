@@ -99,7 +99,8 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kBitcastTaggedToWord:
     case IrOpcode::kBitcastWordToTagged:
     case IrOpcode::kComment:
-    case IrOpcode::kDebugAbort:
+    case IrOpcode::kAbortJS:
+    case IrOpcode::kAbortCSAAssert:
     case IrOpcode::kDebugBreak:
     case IrOpcode::kDeoptimizeIf:
     case IrOpcode::kDeoptimizeUnless:

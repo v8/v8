@@ -821,12 +821,19 @@ struct MachineOperatorGlobalCache {
   };
   Word64PoisonOnSpeculation kWord64PoisonOnSpeculation;
 
-  struct DebugAbortOperator : public Operator {
-    DebugAbortOperator()
-        : Operator(IrOpcode::kDebugAbort, Operator::kNoThrow, "DebugAbort", 1,
-                   1, 1, 0, 1, 0) {}
+  struct AbortJSOperator : public Operator {
+    AbortJSOperator()
+        : Operator(IrOpcode::kAbortJS, Operator::kNoThrow, "AbortJS", 1, 1, 1,
+                   0, 1, 0) {}
   };
-  DebugAbortOperator kDebugAbort;
+  AbortJSOperator kAbortJS;
+
+  struct AbortCSAAssertOperator : public Operator {
+    AbortCSAAssertOperator()
+        : Operator(IrOpcode::kAbortCSAAssert, Operator::kNoThrow,
+                   "AbortCSAAssert", 1, 1, 1, 0, 1, 0) {}
+  };
+  AbortCSAAssertOperator kAbortCSAAssert;
 
   struct DebugBreakOperator : public Operator {
     DebugBreakOperator()
@@ -1019,8 +1026,10 @@ const Operator* MachineOperatorBuilder::BitcastMaybeObjectToWord() {
   return &cache_.kBitcastMaybeObjectToWord;
 }
 
-const Operator* MachineOperatorBuilder::DebugAbort() {
-  return &cache_.kDebugAbort;
+const Operator* MachineOperatorBuilder::AbortJS() { return &cache_.kAbortJS; }
+
+const Operator* MachineOperatorBuilder::AbortCSAAssert() {
+  return &cache_.kAbortCSAAssert;
 }
 
 const Operator* MachineOperatorBuilder::DebugBreak() {

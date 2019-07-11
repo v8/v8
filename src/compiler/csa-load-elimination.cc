@@ -46,8 +46,9 @@ Reduction CsaLoadElimination::Reduce(Node* node) {
     case IrOpcode::kStoreToObject:
       return ReduceStoreToObject(node, ObjectAccessOf(node->op()));
     case IrOpcode::kDebugBreak:
-    case IrOpcode::kDebugAbort:
-      // Avoid changing optimizations in the presence of debug instructions
+    case IrOpcode::kAbortJS:
+    case IrOpcode::kAbortCSAAssert:
+      // Avoid changing optimizations in the presence of debug instructions.
       return PropagateInputState(node);
     case IrOpcode::kCall:
       return ReduceCall(node);

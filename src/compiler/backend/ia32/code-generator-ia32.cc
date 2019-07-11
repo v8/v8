@@ -885,7 +885,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchComment:
       __ RecordComment(reinterpret_cast<const char*>(i.InputInt32(0)));
       break;
-    case kArchDebugAbort:
+    case kArchAbortJS:
       DCHECK(i.InputRegister(0) == edx);
       if (!frame_access_state()->has_frame()) {
         // We don't actually want to generate a pile of code for this, so just
@@ -896,6 +896,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         __ Call(isolate()->builtins()->builtin_handle(Builtins::kAbortJS),
                 RelocInfo::CODE_TARGET);
+      }
+      __ int3();
+      break;
+    case kArchAbortCSAAssert:
+      DCHECK(i.InputRegister(0) == edx);
+      if (!frame_access_state()->has_frame()) {
+        // We don't actually want to generate a pile of code for this, so just
+        // claim there is a stack frame, without generating one.
+        FrameScope scope(tasm(), StackFrame::NONE);
+        __ Call(
+            isolate()->builtins()->builtin_handle(Builtins::kAbortCSAAssert),
+            RelocInfo::CODE_TARGET);
+      } else {
+        __ Call(
+            isolate()->builtins()->builtin_handle(Builtins::kAbortCSAAssert),
+            RelocInfo::CODE_TARGET);
       }
       __ int3();
       break;

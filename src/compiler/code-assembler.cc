@@ -227,7 +227,10 @@ void CodeAssembler::GenerateCheckMaybeObjectIsObject(Node* node,
                       IntPtrConstant(kWeakHeapObjectTag)),
          &ok);
   Node* message_node = StringConstant(location);
-  DebugAbort(message_node);
+  // TODO(clemensh): Avoid {AbortJS} here, as it will be disabled by fuzzers
+  // (via --disable-abortjs). Remove the {AbortJS} opcode and builtin
+  // afterwards.
+  AbortJS(message_node);
   Unreachable();
   Bind(&ok);
 }
@@ -409,8 +412,12 @@ void CodeAssembler::ReturnRaw(Node* value) {
   return raw_assembler()->Return(value);
 }
 
-void CodeAssembler::DebugAbort(Node* message) {
-  raw_assembler()->DebugAbort(message);
+void CodeAssembler::AbortJS(Node* message) {
+  raw_assembler()->AbortJS(message);
+}
+
+void CodeAssembler::AbortCSAAssert(Node* message) {
+  raw_assembler()->AbortCSAAssert(message);
 }
 
 void CodeAssembler::DebugBreak() { raw_assembler()->DebugBreak(); }

@@ -441,9 +441,14 @@ void InstructionSelector::VisitStackSlot(Node* node) {
        sequence()->AddImmediate(Constant(slot)), 0, nullptr);
 }
 
-void InstructionSelector::VisitDebugAbort(Node* node) {
+void InstructionSelector::VisitAbortJS(Node* node) {
   ArmOperandGenerator g(this);
-  Emit(kArchDebugAbort, g.NoOutput(), g.UseFixed(node->InputAt(0), r1));
+  Emit(kArchAbortJS, g.NoOutput(), g.UseFixed(node->InputAt(0), r1));
+}
+
+void InstructionSelector::VisitAbortCSAAssert(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArchAbortCSAAssert, g.NoOutput(), g.UseFixed(node->InputAt(0), r1));
 }
 
 void InstructionSelector::VisitLoad(Node* node) {
