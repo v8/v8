@@ -2782,7 +2782,6 @@ void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
   std::swap(from->current_page_, to->current_page_);
   std::swap(from->external_backing_store_bytes_,
             to->external_backing_store_bytes_);
-  std::swap(from->pages_used_, to->pages_used_);
 
   to->FixPagesFlags(saved_to_space_flags, Page::kCopyOnFlipFlagsMask);
   from->FixPagesFlags(0, 0);

@@ -362,9 +362,11 @@ void ScavengerCollector::MergeSurvivingNewLargeObjects(
 
 int ScavengerCollector::NumberOfScavengeTasks() {
   if (!FLAG_parallel_scavenge) return 1;
-  const int num_pages = heap_->new_space()->from_space().pages_used();
-  const int num_cores = V8::GetCurrentPlatform()->NumberOfWorkerThreads() + 1;
-  int tasks = Max(1, Min(Min(num_pages, kMaxScavengerTasks), num_cores));
+  const int num_scavenge_tasks =
+      static_cast<int>(heap_->new_space()->TotalCapacity()) / MB;
+  static int num_cores = V8::GetCurrentPlatform()->NumberOfWorkerThreads() + 1;
+  int tasks =
+      Max(1, Min(Min(num_scavenge_tasks, kMaxScavengerTasks), num_cores));
   if (!heap_->CanExpandOldGeneration(
           static_cast<size_t>(tasks * Page::kPageSize))) {
     // Optimize for memory usage near the heap limit.
