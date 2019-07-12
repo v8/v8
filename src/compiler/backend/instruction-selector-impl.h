@@ -109,13 +109,9 @@ class OperandGenerator {
   }
 
   InstructionOperand DefineAsConstant(Node* node) {
-    return DefineAsConstant(node, ToConstant(node));
-  }
-
-  InstructionOperand DefineAsConstant(Node* node, Constant constant) {
     selector()->MarkAsDefined(node);
     int virtual_register = GetVReg(node);
-    sequence()->AddConstant(virtual_register, constant);
+    sequence()->AddConstant(virtual_register, ToConstant(node));
     return ConstantOperand(virtual_register);
   }
 
