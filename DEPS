@@ -15,7 +15,7 @@ vars = {
   'gn_version': 'git_revision:972ed755f8e6d31cae9ba15fcd08136ae1a7886f',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:25958d48e89e980e2a97daeddc977fb5e2e1fb8c',
+  'luci_go': 'git_revision:7d11fd9e66407c49cb6c8546a2ae45ea993a240c',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -57,15 +57,15 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '40634f13fb6789890735baaf08aa12cc5f804d9a',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c9892688f4422870bb89b1d0cfe5afbc29df9f05',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'd3f699407f75b20a39ae15fc02a64914d6f994e2',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '78dec0421b6903c0d260d51aff69d6b7ebf09781',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'fd97d4326fac6da84452b2d5fe75ff0949368dab',
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '523c0fd6b600c434668e70cd9be270a8589d60ed',
   'v8/buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '80b545b427d95ac8996a887fa32ba1d64919792d',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '95c72f350fed4d9bc1929c65d0ca0e5f28615322',
   'v8/buildtools/clang_format/script':
     Var('chromium_url') + '/chromium/llvm-project/cfe/tools/clang-format.git' + '@' + '96636aa0e9f047f17447f2d45a094d0b59ed7917',
   'v8/buildtools/linux64': {
@@ -153,7 +153,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'b79dda949e8864ffa4262b4a34628bf7251bc26c',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '1abe66f1c25324dc3e5c2bf84f3d5c5aed105196',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
