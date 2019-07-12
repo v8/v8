@@ -559,6 +559,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Jump table used to easily redirect wasm function calls.
   WasmCode* jump_table_ = nullptr;
 
+  // Lazy compile stub table, containing entries to jump to the
+  // {WasmCompileLazy} builtin, passing the function index.
+  WasmCode* lazy_compile_table_ = nullptr;
+
   // The compilation state keeps track of compilation tasks for this module.
   // Note that its destructor blocks until all tasks are finished/aborted and
   // hence needs to be destructed first when this native module dies.

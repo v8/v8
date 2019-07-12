@@ -696,12 +696,26 @@ void NativeModule::UseLazyStub(uint32_t func_index) {
   DCHECK_LT(func_index,
             module_->num_imported_functions + module_->num_declared_functions);
 
+  if (!lazy_compile_table_) {
+    uint32_t num_slots = module_->num_declared_functions;
+    WasmCodeRefScope code_ref_scope;
+    lazy_compile_table_ = CreateEmptyJumpTable(
+        JumpTableAssembler::SizeForNumberOfLazyFunctions(num_slots));
+    JumpTableAssembler::GenerateLazyCompileTable(
+        lazy_compile_table_->instruction_start(), num_slots,
+        module_->num_imported_functions,
+        runtime_stub_entry(WasmCode::kWasmCompileLazy));
+  }
+
   // Add jump table entry for jump to the lazy compile stub.
   uint32_t slot_index = func_index - module_->num_imported_functions;
   DCHECK_NE(runtime_stub_entry(WasmCode::kWasmCompileLazy), kNullAddress);
-  JumpTableAssembler::EmitLazyCompileJumpSlot(
-      jump_table_->instruction_start(), slot_index, func_index,
-      runtime_stub_entry(WasmCode::kWasmCompileLazy), WasmCode::kFlushICache);
+  Address lazy_compile_target =
+      lazy_compile_table_->instruction_start() +
+      JumpTableAssembler::LazyCompileSlotIndexToOffset(slot_index);
+  JumpTableAssembler::PatchJumpTableSlot(jump_table_->instruction_start(),
+                                         slot_index, lazy_compile_target,
+                                         WasmCode::kFlushICache);
 }
 
 // TODO(mstarzinger): Remove {Isolate} parameter once {V8_EMBEDDED_BUILTINS}
@@ -1115,7 +1129,7 @@ Address NativeModule::GetCallTargetForFunction(uint32_t func_index) const {
   // Return the jump table slot for that function index.
   DCHECK_NOT_NULL(jump_table_);
   uint32_t slot_idx = func_index - module_->num_imported_functions;
-  uint32_t slot_offset = JumpTableAssembler::SlotIndexToOffset(slot_idx);
+  uint32_t slot_offset = JumpTableAssembler::JumpSlotIndexToOffset(slot_idx);
   DCHECK_LT(slot_offset, jump_table_->instructions().size());
   return jump_table_->instruction_start() + slot_offset;
 }
