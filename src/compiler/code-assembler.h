@@ -747,10 +747,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                            code_assembler_->SmiConstant(
                                static_cast<int>(ObjectTypeOf<A>::value))),
             std::make_pair(MachineType::AnyTagged(),
-                           code_assembler_->StringConstant(
-                               (location_ + std::string("\n") +
-                                code_assembler_->CSADebugHint())
-                                   .c_str())));
+                           code_assembler_->StringConstant(location_)));
       }
 #endif
       return TNode<A>::UncheckedCast(node_);
@@ -1489,8 +1486,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Exception handling support.
   void GotoIfException(Node* node, Label* if_exception,
                        Variable* exception_var = nullptr);
-
-  std::string CSADebugHint();
 
   // Helpers which delegate to RawMachineAssembler.
   Factory* factory() const;
