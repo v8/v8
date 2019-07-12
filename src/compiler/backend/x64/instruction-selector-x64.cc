@@ -1271,7 +1271,20 @@ void InstructionSelector::VisitChangeCompressedSignedToTaggedSigned(
     Node* node) {
   X64OperandGenerator g(this);
   Node* const value = node->InputAt(0);
-  Emit(kX64DecompressSigned, g.DefineAsRegister(node), g.Use(value));
+  if (value->opcode() == IrOpcode::kLoad && CanCover(node, value)) {
+    DCHECK_EQ(LoadRepresentationOf(value->op()).representation(),
+              MachineRepresentation::kCompressedSigned);
+    InstructionCode opcode = kX64MovqDecompressTaggedSigned;
+    InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+    size_t input_count = 0;
+    InstructionOperand inputs[3];
+    AddressingMode mode = g.GetEffectiveAddressMemoryOperand(
+        node->InputAt(0), inputs, &input_count);
+    opcode |= AddressingModeField::encode(mode);
+    Emit(opcode, 1, outputs, input_count, inputs);
+  } else {
+    Emit(kX64DecompressSigned, g.DefineAsRegister(node), g.Use(value));
+  }
 }
 
 namespace {

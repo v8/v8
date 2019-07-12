@@ -1660,7 +1660,17 @@ void InstructionSelector::VisitChangeCompressedSignedToTaggedSigned(
     Node* node) {
   Arm64OperandGenerator g(this);
   Node* const value = node->InputAt(0);
-  Emit(kArm64DecompressSigned, g.DefineAsRegister(node), g.UseRegister(value));
+  if (value->opcode() == IrOpcode::kLoad && CanCover(node, value)) {
+    DCHECK_EQ(LoadRepresentationOf(value->op()).representation(),
+              MachineRepresentation::kCompressedSigned);
+    InstructionCode opcode = kArm64LdrDecompressTaggedSigned;
+    ImmediateMode immediate_mode = kLoadStoreImm32;
+    MachineRepresentation rep = MachineRepresentation::kCompressedSigned;
+    EmitLoad(this, value, opcode, immediate_mode, rep, node);
+  } else {
+    Emit(kArm64DecompressSigned, g.DefineAsRegister(node),
+         g.UseRegister(value));
+  }
 }
 
 void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
