@@ -8,6 +8,7 @@
 #include "src/debug/debug.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frame-constants.h"
+#include "src/execution/frames.h"
 #include "src/heap/factory.h"
 #include "src/logging/counters.h"
 #include "src/numbers/conversions.h"

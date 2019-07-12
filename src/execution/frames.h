@@ -6,6 +6,7 @@
 #define V8_EXECUTION_FRAMES_H_
 
 #include "src/codegen/safepoint-table.h"
+#include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/objects/code.h"
 #include "src/objects/objects.h"
@@ -97,12 +98,6 @@ class StackFrame {
     MANUAL
   };
 #undef DECLARE_TYPE
-
-  // Opaque data type for identifying stack frames. Used extensively
-  // by the debugger.
-  // ID_MIN_VALUE and ID_MAX_VALUE are specified to ensure that enumeration type
-  // has correct value range (see Issue 830 for more details).
-  enum Id { ID_MIN_VALUE = kMinInt, ID_MAX_VALUE = kMaxInt, NO_ID = 0 };
 
   // Used to mark the outermost JS entry frame.
   //
@@ -239,7 +234,7 @@ class StackFrame {
   }
 
   // Get the id of this stack frame.
-  Id id() const { return static_cast<Id>(caller_sp()); }
+  StackFrameId id() const { return static_cast<StackFrameId>(caller_sp()); }
 
   // Get the top handler from the current stack iterator.
   inline StackHandler* top_handler() const;
@@ -1265,7 +1260,7 @@ class V8_EXPORT_PRIVATE StackTraceFrameIterator {
  public:
   explicit StackTraceFrameIterator(Isolate* isolate);
   // Skip frames until the frame with the given id is reached.
-  StackTraceFrameIterator(Isolate* isolate, StackFrame::Id id);
+  StackTraceFrameIterator(Isolate* isolate, StackFrameId id);
   bool done() const { return iterator_.done(); }
   void Advance();
   void AdvanceOneFrame() { iterator_.Advance(); }

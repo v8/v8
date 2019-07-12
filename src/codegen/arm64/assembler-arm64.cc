@@ -34,6 +34,7 @@
 #include "src/base/cpu.h"
 #include "src/codegen/arm64/assembler-arm64-inl.h"
 #include "src/codegen/register-configuration.h"
+#include "src/codegen/safepoint-table.h"
 #include "src/codegen/string-constants.h"
 #include "src/execution/frame-constants.h"
 

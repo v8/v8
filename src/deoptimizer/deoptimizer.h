@@ -16,7 +16,6 @@
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/frame-constants.h"
-#include "src/execution/frames.h"
 #include "src/execution/isolate.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/shared-function-info.h"
@@ -28,8 +27,10 @@ namespace v8 {
 namespace internal {
 
 class FrameDescription;
+class JavaScriptFrame;
 class TranslationIterator;
 class DeoptimizedFrameInfo;
+class TranslatedFrame;
 class TranslatedState;
 class RegisterValues;
 class MacroAssembler;
@@ -500,6 +501,13 @@ class Deoptimizer : public Malloced {
 
   static const int kMaxNumberOfEntries = 16384;
 
+  enum class BuiltinContinuationMode {
+    STUB,
+    JAVASCRIPT,
+    JAVASCRIPT_WITH_CATCH,
+    JAVASCRIPT_HANDLE_EXCEPTION
+  };
+
  private:
   friend class FrameWriter;
   void QueueValueForMaterialization(Address output_address, Object obj,
@@ -522,16 +530,8 @@ class Deoptimizer : public Malloced {
   void DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
                                    int frame_index);
 
-  enum class BuiltinContinuationMode {
-    STUB,
-    JAVASCRIPT,
-    JAVASCRIPT_WITH_CATCH,
-    JAVASCRIPT_HANDLE_EXCEPTION
-  };
   static bool BuiltinContinuationModeIsWithCatch(BuiltinContinuationMode mode);
   static bool BuiltinContinuationModeIsJavaScript(BuiltinContinuationMode mode);
-  static StackFrame::Type BuiltinContinuationModeToFrameType(
-      BuiltinContinuationMode mode);
   static Builtins::Name TrampolineForBuiltinContinuation(
       BuiltinContinuationMode mode, bool must_handle_result);
 

@@ -11,7 +11,6 @@
 #include "src/base/bits.h"
 #include "src/base/small-vector.h"
 #include "src/codegen/macro-assembler.h"
-#include "src/execution/frames.h"
 #include "src/wasm/baseline/liftoff-assembler-defs.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/baseline/liftoff-register.h"

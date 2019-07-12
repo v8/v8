@@ -11,6 +11,7 @@
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/source-position-table.h"
+#include "src/common/globals.h"
 #include "src/debug/debug-interface.h"
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
@@ -852,7 +853,7 @@ class FunctionDataMap : public ThreadVisitor {
       }
     }
     FunctionData::StackPosition stack_position =
-        isolate->debug()->break_frame_id() == StackFrame::NO_ID
+        isolate->debug()->break_frame_id() == StackFrameId::NO_ID
             ? FunctionData::PATCHABLE
             : FunctionData::ABOVE_BREAK_FRAME;
     for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
@@ -1272,8 +1273,8 @@ void LiveEdit::InitializeThreadLocal(Debug* debug) {
 bool LiveEdit::RestartFrame(JavaScriptFrame* frame) {
   if (!LiveEdit::kFrameDropperSupported) return false;
   Isolate* isolate = frame->isolate();
-  StackFrame::Id break_frame_id = isolate->debug()->break_frame_id();
-  bool break_frame_found = break_frame_id == StackFrame::NO_ID;
+  StackFrameId break_frame_id = isolate->debug()->break_frame_id();
+  bool break_frame_found = break_frame_id == StackFrameId::NO_ID;
   for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
     StackFrame* current = it.frame();
     break_frame_found = break_frame_found || break_frame_id == current->id();

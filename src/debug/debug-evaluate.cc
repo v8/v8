@@ -51,7 +51,7 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
 }
 
 MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
-                                         StackFrame::Id frame_id,
+                                         StackFrameId frame_id,
                                          int inlined_jsframe_index,
                                          Handle<String> source,
                                          bool throw_on_side_effect) {

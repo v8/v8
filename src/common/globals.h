@@ -1529,6 +1529,12 @@ constexpr int kFunctionLiteralIdTopLevel = 0;
 constexpr int kSmallOrderedHashSetMinCapacity = 4;
 constexpr int kSmallOrderedHashMapMinCapacity = 4;
 
+// Opaque data type for identifying stack frames. Used extensively
+// by the debugger.
+// ID_MIN_VALUE and ID_MAX_VALUE are specified to ensure that enumeration type
+// has correct value range (see Issue 830 for more details).
+enum StackFrameId { ID_MIN_VALUE = kMinInt, ID_MAX_VALUE = kMaxInt, NO_ID = 0 };
+
 }  // namespace internal
 }  // namespace v8
 

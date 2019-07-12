@@ -1356,20 +1356,24 @@ bool Deoptimizer::BuiltinContinuationModeIsWithCatch(
   UNREACHABLE();
 }
 
-StackFrame::Type Deoptimizer::BuiltinContinuationModeToFrameType(
-    BuiltinContinuationMode mode) {
+namespace {
+
+StackFrame::Type BuiltinContinuationModeToFrameType(
+    Deoptimizer::BuiltinContinuationMode mode) {
   switch (mode) {
-    case BuiltinContinuationMode::STUB:
+    case Deoptimizer::BuiltinContinuationMode::STUB:
       return StackFrame::BUILTIN_CONTINUATION;
-    case BuiltinContinuationMode::JAVASCRIPT:
+    case Deoptimizer::BuiltinContinuationMode::JAVASCRIPT:
       return StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION;
-    case BuiltinContinuationMode::JAVASCRIPT_WITH_CATCH:
+    case Deoptimizer::BuiltinContinuationMode::JAVASCRIPT_WITH_CATCH:
       return StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH;
-    case BuiltinContinuationMode::JAVASCRIPT_HANDLE_EXCEPTION:
+    case Deoptimizer::BuiltinContinuationMode::JAVASCRIPT_HANDLE_EXCEPTION:
       return StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH;
   }
   UNREACHABLE();
 }
+
+}  // namespace
 
 Builtins::Name Deoptimizer::TrampolineForBuiltinContinuation(
     BuiltinContinuationMode mode, bool must_handle_result) {

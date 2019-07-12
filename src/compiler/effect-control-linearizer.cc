@@ -17,6 +17,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
+#include "src/execution/frames.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/oddball.h"

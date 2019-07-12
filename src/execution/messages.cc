@@ -9,6 +9,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/v8-fallthrough.h"
 #include "src/execution/execution.h"
+#include "src/execution/frames.h"
 #include "src/execution/isolate-inl.h"
 #include "src/logging/counters.h"
 #include "src/objects/foreign-inl.h"

@@ -12,7 +12,6 @@
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/compiler/code-assembler.h"
-#include "src/execution/frames.h"
 #include "src/objects/arguments.h"
 #include "src/objects/bigint.h"
 #include "src/objects/objects.h"
@@ -3314,12 +3313,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   Node* HasAsyncEventDelegate();
   Node* IsPromiseHookEnabledOrHasAsyncEventDelegate();
   Node* IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate();
-
-  // Helpers for StackFrame markers.
-  Node* MarkerIsFrameType(Node* marker_or_function,
-                          StackFrame::Type frame_type);
-  Node* MarkerIsNotFrameType(Node* marker_or_function,
-                             StackFrame::Type frame_type);
 
   // for..in helpers
   void CheckPrototypeEnumCache(Node* receiver, Node* receiver_map,

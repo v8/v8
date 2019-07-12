@@ -169,7 +169,7 @@ StackTraceFrameIterator::StackTraceFrameIterator(Isolate* isolate)
 }
 
 StackTraceFrameIterator::StackTraceFrameIterator(Isolate* isolate,
-                                                 StackFrame::Id id)
+                                                 StackFrameId id)
     : StackTraceFrameIterator(isolate) {
   while (!done() && frame()->id() != id) Advance();
 }

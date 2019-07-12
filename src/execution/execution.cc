@@ -6,6 +6,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/compiler/wasm-compiler.h"  // Only for static asserts.
+#include "src/execution/frames.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/logging/counters.h"
