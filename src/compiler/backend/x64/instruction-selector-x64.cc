@@ -1277,7 +1277,20 @@ void InstructionSelector::VisitChangeCompressedPointerToTaggedPointer(
     Node* node) {
   X64OperandGenerator g(this);
   Node* const value = node->InputAt(0);
-  Emit(kX64DecompressPointer, g.DefineAsRegister(node), g.Use(value));
+  if (value->opcode() == IrOpcode::kLoad && CanCover(node, value)) {
+    DCHECK_EQ(LoadRepresentationOf(value->op()).representation(),
+              MachineRepresentation::kCompressedPointer);
+    InstructionCode opcode = kX64MovqDecompressTaggedPointer;
+    InstructionOperand outputs[] = {g.DefineAsRegister(node)};
+    size_t input_count = 0;
+    InstructionOperand inputs[3];
+    AddressingMode mode = g.GetEffectiveAddressMemoryOperand(
+        node->InputAt(0), inputs, &input_count);
+    opcode |= AddressingModeField::encode(mode);
+    Emit(opcode, 1, outputs, input_count, inputs);
+  } else {
+    Emit(kX64DecompressPointer, g.DefineAsRegister(node), g.Use(value));
+  }
 }
 
 void InstructionSelector::VisitChangeCompressedSignedToTaggedSigned(
