@@ -1646,7 +1646,17 @@ void InstructionSelector::VisitChangeTaggedSignedToCompressedSigned(
 void InstructionSelector::VisitChangeCompressedToTagged(Node* node) {
   Arm64OperandGenerator g(this);
   Node* const value = node->InputAt(0);
-  Emit(kArm64DecompressAny, g.DefineAsRegister(node), g.UseRegister(value));
+  if (value->opcode() == IrOpcode::kLoad && CanCover(node, value)) {
+    // TODO(v8:7703): Make this work with poisoned loads as well.
+    DCHECK_EQ(LoadRepresentationOf(value->op()).representation(),
+              MachineRepresentation::kCompressed);
+    InstructionCode opcode = kArm64LdrDecompressAnyTagged;
+    ImmediateMode immediate_mode = kLoadStoreImm32;
+    MachineRepresentation rep = MachineRepresentation::kCompressed;
+    EmitLoad(this, value, opcode, immediate_mode, rep, node);
+  } else {
+    Emit(kArm64DecompressAny, g.DefineAsRegister(node), g.UseRegister(value));
+  }
 }
 
 void InstructionSelector::VisitChangeCompressedPointerToTaggedPointer(
