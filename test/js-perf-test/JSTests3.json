@@ -359,6 +359,18 @@
             {"name": "Smi-Value"},
             {"name": "Prototype-Chain-Value"}
           ]
+        },
+        {
+          "name": "LdaKeyedProperty",
+          "main": "run.js",
+          "resources": [ "LdaKeyedProperty.js" ],
+          "test_flags": [ "LdaKeyedProperty" ],
+          "results_regexp": "^%s\\-BytecodeHandler\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "Object-Lookup-String-Constant"},
+            {"name": "Object-Lookup-Index-Number"},
+            {"name": "Object-Lookup-Index-String"}
+          ]
         }
       ]
     },
