@@ -27,6 +27,7 @@
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/template-objects-inl.h"
 #include "src/objects/templates.h"
 #include "src/utils/boxed-float.h"
 #include "src/utils/utils.h"
@@ -1513,6 +1514,18 @@ class SharedFunctionInfoData : public HeapObjectData {
   FunctionTemplateInfoData* function_template_info() const {
     return function_template_info_;
   }
+  JSArrayData* GetTemplateObject(FeedbackSlot slot) const {
+    auto lookup_it = template_objects_.find(slot.ToInt());
+    if (lookup_it != template_objects_.cend()) {
+      return lookup_it->second;
+    }
+    return nullptr;
+  }
+  void SetTemplateObject(FeedbackSlot slot, JSArrayData* object) {
+    CHECK(
+        template_objects_.insert(std::make_pair(slot.ToInt(), object)).second);
+  }
+
 #define DECL_ACCESSOR(type, name) \
   type name() const { return name##_; }
   BROKER_SFI_FIELDS(DECL_ACCESSOR)
@@ -1528,6 +1541,7 @@ class SharedFunctionInfoData : public HeapObjectData {
   BROKER_SFI_FIELDS(DECL_MEMBER)
 #undef DECL_MEMBER
   FunctionTemplateInfoData* function_template_info_;
+  ZoneMap<int, JSArrayData*> template_objects_;
 };
 
 SharedFunctionInfoData::SharedFunctionInfoData(
@@ -1546,7 +1560,8 @@ SharedFunctionInfoData::SharedFunctionInfoData(
           BROKER_SFI_FIELDS(INIT_MEMBER)
 #undef INIT_MEMBER
       ,
-      function_template_info_(nullptr) {
+      function_template_info_(nullptr),
+      template_objects_(broker->zone()) {
   DCHECK_EQ(HasBuiltinId_, builtin_id_ != Builtins::kNoBuiltinId);
   DCHECK_EQ(HasBytecodeArray_, GetBytecodeArray_ != nullptr);
 }
@@ -3529,6 +3544,46 @@ bool JSFunctionRef::IsSerializedForCompilation() const {
   // JSFunctionRef without a feedback vector.
   return serialized() && has_feedback_vector() &&
          shared().IsSerializedForCompilation(feedback_vector());
+}
+
+JSArrayRef SharedFunctionInfoRef::GetTemplateObject(ObjectRef description,
+                                                    FeedbackVectorRef vector,
+                                                    FeedbackSlot slot,
+                                                    bool serialize) {
+  // Look in the feedback vector for the array. A Smi indicates that it's
+  // not yet cached here.
+  ObjectRef candidate = vector.get(slot);
+  if (!candidate.IsSmi()) {
+    return candidate.AsJSArray();
+  }
+
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleAllocation handle_allocation;
+    AllowHandleDereference allow_handle_dereference;
+    Handle<TemplateObjectDescription> tod =
+        Handle<TemplateObjectDescription>::cast(description.object());
+    Handle<JSArray> template_object =
+        TemplateObjectDescription::GetTemplateObject(
+            broker()->isolate(), broker()->native_context().object(), tod,
+            object(), slot.ToInt());
+    return JSArrayRef(broker(), template_object);
+  }
+
+  JSArrayData* array = data()->AsSharedFunctionInfo()->GetTemplateObject(slot);
+  if (array != nullptr) return JSArrayRef(broker(), array);
+
+  CHECK(serialize);
+  CHECK(broker()->SerializingAllowed());
+
+  Handle<TemplateObjectDescription> tod =
+      Handle<TemplateObjectDescription>::cast(description.object());
+  Handle<JSArray> template_object =
+      TemplateObjectDescription::GetTemplateObject(
+          broker()->isolate(), broker()->native_context().object(), tod,
+          object(), slot.ToInt());
+  array = broker()->GetOrCreateData(template_object)->AsJSArray();
+  data()->AsSharedFunctionInfo()->SetTemplateObject(slot, array);
+  return JSArrayRef(broker(), array);
 }
 
 void SharedFunctionInfoRef::SetSerializedForCompilation(

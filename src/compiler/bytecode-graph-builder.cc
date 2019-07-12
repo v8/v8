@@ -35,8 +35,8 @@ class BytecodeGraphBuilder {
   BytecodeGraphBuilder(JSHeapBroker* broker, Zone* local_zone,
                        BytecodeArrayRef bytecode_array,
                        Handle<SharedFunctionInfo> shared,
-                       Handle<FeedbackVector> feedback_vector,
-                       BailoutId osr_offset, JSGraph* jsgraph,
+                       FeedbackVectorRef feedback_vector, BailoutId osr_offset,
+                       JSGraph* jsgraph,
                        CallFrequency const& invocation_frequency,
                        SourcePositionTable* source_positions,
                        Handle<NativeContext> native_context, int inlining_id,
@@ -320,9 +320,7 @@ class BytecodeGraphBuilder {
   }
   Zone* local_zone() const { return local_zone_; }
   const BytecodeArrayRef bytecode_array() const { return bytecode_array_; }
-  const Handle<FeedbackVector>& feedback_vector() const {
-    return feedback_vector_;
-  }
+  FeedbackVectorRef feedback_vector() const { return feedback_vector_; }
   const JSTypeHintLowering& type_hint_lowering() const {
     return type_hint_lowering_;
   }
@@ -382,7 +380,7 @@ class BytecodeGraphBuilder {
   JSGraph* const jsgraph_;
   CallFrequency const invocation_frequency_;
   BytecodeArrayRef const bytecode_array_;
-  Handle<FeedbackVector> const feedback_vector_;
+  FeedbackVectorRef feedback_vector_;
   JSTypeHintLowering const type_hint_lowering_;
   const FrameStateFunctionInfo* const frame_state_function_info_;
   std::unique_ptr<SourcePositionTableIterator> source_position_iterator_;
@@ -938,9 +936,9 @@ Node* BytecodeGraphBuilder::Environment::Checkpoint(
 
 BytecodeGraphBuilder::BytecodeGraphBuilder(
     JSHeapBroker* broker, Zone* local_zone, BytecodeArrayRef bytecode_array,
-    Handle<SharedFunctionInfo> shared_info,
-    Handle<FeedbackVector> feedback_vector, BailoutId osr_offset,
-    JSGraph* jsgraph, CallFrequency const& invocation_frequency,
+    Handle<SharedFunctionInfo> shared_info, FeedbackVectorRef feedback_vector,
+    BailoutId osr_offset, JSGraph* jsgraph,
+    CallFrequency const& invocation_frequency,
     SourcePositionTable* source_positions, Handle<NativeContext> native_context,
     int inlining_id, BytecodeGraphBuilderFlags flags)
     : broker_(broker),
@@ -950,7 +948,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       bytecode_array_(bytecode_array),
       feedback_vector_(feedback_vector),
       type_hint_lowering_(
-          jsgraph, feedback_vector,
+          jsgraph, feedback_vector.object(),
           (flags & BytecodeGraphBuilderFlag::kBailoutOnUninitialized)
               ? JSTypeHintLowering::kBailoutOnUninitialized
               : JSTypeHintLowering::kNoFlags),
@@ -1014,8 +1012,8 @@ Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {
 
 VectorSlotPair BytecodeGraphBuilder::CreateVectorSlotPair(int slot_id) {
   FeedbackSlot slot = FeedbackVector::ToSlot(slot_id);
-  FeedbackNexus nexus(feedback_vector(), slot);
-  return VectorSlotPair(feedback_vector(), slot, nexus.ic_state());
+  FeedbackNexus nexus(feedback_vector().object(), slot);
+  return VectorSlotPair(feedback_vector().object(), slot, nexus.ic_state());
 }
 
 void BytecodeGraphBuilder::CreateGraph() {
@@ -1390,7 +1388,8 @@ Node* BytecodeGraphBuilder::BuildLoadGlobal(Handle<Name> name,
                                             uint32_t feedback_slot_index,
                                             TypeofMode typeof_mode) {
   VectorSlotPair feedback = CreateVectorSlotPair(feedback_slot_index);
-  DCHECK(IsLoadGlobalICKind(feedback_vector()->GetKind(feedback.slot())));
+  DCHECK(
+      IsLoadGlobalICKind(feedback_vector().object()->GetKind(feedback.slot())));
   const Operator* op = javascript()->LoadGlobal(name, feedback, typeof_mode);
   return NewNode(op);
 }
@@ -1917,7 +1916,7 @@ void BytecodeGraphBuilder::VisitCreateClosure() {
           : AllocationType::kYoung;
   const Operator* op = javascript()->CreateClosure(
       shared_info,
-      feedback_vector()->GetClosureFeedbackCell(
+      feedback_vector().object()->GetClosureFeedbackCell(
           bytecode_iterator().GetIndexOperand(1)),
       handle(jsgraph()->isolate()->builtins()->builtin(Builtins::kCompileLazy),
              isolate()),
@@ -2078,32 +2077,14 @@ void BytecodeGraphBuilder::VisitCloneObject() {
 }
 
 void BytecodeGraphBuilder::VisitGetTemplateObject() {
-  Handle<TemplateObjectDescription> description =
-      Handle<TemplateObjectDescription>::cast(
-          bytecode_iterator().GetConstantForIndexOperand(0, isolate()));
+  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
   FeedbackSlot slot = bytecode_iterator().GetSlotOperand(1);
-  FeedbackNexus nexus(feedback_vector(), slot);
-
-  Handle<JSArray> cached_value;
-  if (nexus.GetFeedback() == MaybeObject::FromSmi(Smi::zero())) {
-    // It's not observable when the template object is created, so we
-    // can just create it eagerly during graph building and bake in
-    // the JSArray constant here.
-    //
-    // It simplifies the compiler interface if we don't set this value
-    // in the feedback vector, especially as we consider concurrent
-    // compilation. We can count on the {cached_value} to be re-created
-    // later by bytecode if necessary.
-    cached_value = TemplateObjectDescription::GetTemplateObject(
-        isolate(), native_context(), description, shared_info(), slot.ToInt());
-  } else {
-    cached_value =
-        handle(JSArray::cast(nexus.GetFeedback()->GetHeapObjectAssumeStrong()),
-               isolate());
-  }
-
-  Node* template_object = jsgraph()->HeapConstant(cached_value);
-  environment()->BindAccumulator(template_object);
+  ObjectRef description(
+      broker(), bytecode_iterator().GetConstantForIndexOperand(0, isolate()));
+  SharedFunctionInfoRef shared(broker(), shared_info());
+  JSArrayRef template_object =
+      shared.GetTemplateObject(description, feedback_vector(), slot);
+  environment()->BindAccumulator(jsgraph()->Constant(template_object));
 }
 
 Node* const* BytecodeGraphBuilder::GetCallArgumentsFromRegisters(
@@ -2657,7 +2638,7 @@ void BytecodeGraphBuilder::BuildBinaryOp(const Operator* op) {
 BinaryOperationHint BytecodeGraphBuilder::GetBinaryOperationHint(
     int operand_index) {
   FeedbackSlot slot = bytecode_iterator().GetSlotOperand(operand_index);
-  FeedbackNexus nexus(feedback_vector(), slot);
+  FeedbackNexus nexus(feedback_vector().object(), slot);
   return nexus.GetBinaryOperationFeedback();
 }
 
@@ -2665,14 +2646,14 @@ BinaryOperationHint BytecodeGraphBuilder::GetBinaryOperationHint(
 // feedback.
 CompareOperationHint BytecodeGraphBuilder::GetCompareOperationHint() {
   FeedbackSlot slot = bytecode_iterator().GetSlotOperand(1);
-  FeedbackNexus nexus(feedback_vector(), slot);
+  FeedbackNexus nexus(feedback_vector().object(), slot);
   return nexus.GetCompareOperationFeedback();
 }
 
 // Helper function to create for-in mode from the recorded type feedback.
 ForInMode BytecodeGraphBuilder::GetForInMode(int operand_index) {
   FeedbackSlot slot = bytecode_iterator().GetSlotOperand(operand_index);
-  FeedbackNexus nexus(feedback_vector(), slot);
+  FeedbackNexus nexus(feedback_vector().object(), slot);
   switch (nexus.GetForInFeedback()) {
     case ForInHint::kNone:
     case ForInHint::kEnumCacheKeysAndIndices:
@@ -2687,7 +2668,8 @@ ForInMode BytecodeGraphBuilder::GetForInMode(int operand_index) {
 
 CallFrequency BytecodeGraphBuilder::ComputeCallFrequency(int slot_id) const {
   if (invocation_frequency_.IsUnknown()) return CallFrequency();
-  FeedbackNexus nexus(feedback_vector(), FeedbackVector::ToSlot(slot_id));
+  FeedbackNexus nexus(feedback_vector().object(),
+                      FeedbackVector::ToSlot(slot_id));
   float feedback_frequency = nexus.ComputeCallFrequency();
   if (feedback_frequency == 0.0f) {
     // This is to prevent multiplying zero and infinity.
@@ -2698,7 +2680,8 @@ CallFrequency BytecodeGraphBuilder::ComputeCallFrequency(int slot_id) const {
 }
 
 SpeculationMode BytecodeGraphBuilder::GetSpeculationMode(int slot_id) const {
-  FeedbackNexus nexus(feedback_vector(), FeedbackVector::ToSlot(slot_id));
+  FeedbackNexus nexus(feedback_vector().object(),
+                      FeedbackVector::ToSlot(slot_id));
   return nexus.GetSpeculationMode();
 }
 
@@ -4041,8 +4024,9 @@ void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
                             int inlining_id, BytecodeGraphBuilderFlags flags) {
   BytecodeArrayRef bytecode_array_ref(broker, bytecode_array);
   DCHECK(bytecode_array_ref.IsSerializedForCompilation());
+  FeedbackVectorRef feedback_vector_ref(broker, feedback_vector);
   BytecodeGraphBuilder builder(broker, local_zone, bytecode_array_ref, shared,
-                               feedback_vector, osr_offset, jsgraph,
+                               feedback_vector_ref, osr_offset, jsgraph,
                                invocation_frequency, source_positions,
                                native_context, inlining_id, flags);
   builder.CreateGraph();

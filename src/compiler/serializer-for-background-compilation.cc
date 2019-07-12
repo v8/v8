@@ -538,6 +538,20 @@ void SerializerForBackgroundCompilation::VisitGetSuperConstructor(
   }
 }
 
+void SerializerForBackgroundCompilation::VisitGetTemplateObject(
+    BytecodeArrayIterator* iterator) {
+  ObjectRef description(
+      broker(), iterator->GetConstantForIndexOperand(0, broker()->isolate()));
+  FeedbackSlot slot = iterator->GetSlotOperand(1);
+  FeedbackVectorRef feedback_vector(
+      broker(), environment()->function().feedback_vector());
+  SharedFunctionInfoRef shared(broker(), environment()->function().shared());
+  JSArrayRef template_object =
+      shared.GetTemplateObject(description, feedback_vector, slot, true);
+  environment()->accumulator_hints().Clear();
+  environment()->accumulator_hints().AddConstant(template_object.object());
+}
+
 void SerializerForBackgroundCompilation::VisitLdaTrue(
     BytecodeArrayIterator* iterator) {
   environment()->accumulator_hints().Clear();

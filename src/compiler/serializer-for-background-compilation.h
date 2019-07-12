@@ -74,7 +74,6 @@ namespace compiler {
   V(ForInEnumerate)               \
   V(ForInNext)                    \
   V(ForInStep)                    \
-  V(GetTemplateObject)            \
   V(Inc)                          \
   V(LdaLookupSlot)                \
   V(LdaLookupSlotInsideTypeof)    \
@@ -174,6 +173,7 @@ namespace compiler {
   V(CreateFunctionContext)            \
   V(CreateWithContext)                \
   V(GetSuperConstructor)              \
+  V(GetTemplateObject)                \
   V(InvokeIntrinsic)                  \
   V(LdaConstant)                      \
   V(LdaContextSlot)                   \

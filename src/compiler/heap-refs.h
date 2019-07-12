@@ -689,6 +689,12 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
   bool IsSerializedForCompilation(FeedbackVectorRef feedback) const;
   void SetSerializedForCompilation(FeedbackVectorRef feedback);
 
+  // Template objects may not be created at compilation time. This method
+  // wraps the retrieval of the template object and creates it if
+  // necessary.
+  JSArrayRef GetTemplateObject(ObjectRef description, FeedbackVectorRef vector,
+                               FeedbackSlot slot, bool serialize = false);
+
   void SerializeFunctionTemplateInfo();
   base::Optional<FunctionTemplateInfoRef> function_template_info() const;
 };
