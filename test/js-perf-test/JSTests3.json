@@ -377,15 +377,38 @@
     {
       "name": "InterpreterEntryTrampoline",
       "path": ["InterpreterEntryTrampoline"],
-      "main": "run.js",
       "flags": ["--no-opt"],
-      "resources": ["InterpreterEntryTrampoline.js"],
-      "results_regexp": "^%s\\-InterpreterEntryTrampoline\\(Score\\): (.+)$",
       "tests": [
-        {"name": "Calls-No-Argument"},
-        {"name": "Calls-One-Argument"},
-        {"name": "Calls-Six-Arguments"},
-        {"name": "Calls-With-Receiver"}
+        {
+          "name": "Arguments",
+          "main": "run.js",
+          "resources": [ "arguments.js" ],
+          "test_flags": [ "arguments" ],
+          "results_regexp": "^%s\\-InterpreterEntryTrampoline\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "Calls-No-Argument"},
+            {"name": "Calls-One-Argument"},
+            {"name": "Calls-Six-Arguments"},
+            {"name": "Calls-With-Receiver"}
+          ]
+        },
+        {
+          "name": "Locals",
+          "main": "run.js",
+          "resources": [ "locals.js" ],
+          "test_flags": [ "locals" ],
+          "results_regexp": "^%s\\-InterpreterEntryTrampoline\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "Calls-No-Argument"},
+            {"name": "Calls-No-Argument-1-Local"},
+            {"name": "Calls-No-Argument-2-Locals"},
+            {"name": "Calls-No-Argument-3-Locals"},
+            {"name": "Calls-No-Argument-4-Locals"},
+            {"name": "Calls-No-Argument-5-Locals"},
+            {"name": "Calls-No-Argument-10-Locals"},
+            {"name": "Calls-No-Argument-100-Locals"}
+          ]
+        }
       ]
     }
   ]
