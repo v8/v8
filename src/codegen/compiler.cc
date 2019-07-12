@@ -594,6 +594,12 @@ MaybeHandle<SharedFunctionInfo> GenerateUnoptimizedCodeForToplevel(
       return MaybeHandle<SharedFunctionInfo>();
     }
 
+    if (FLAG_stress_lazy_source_positions) {
+      // Collect source positions immediately to try and flush out bytecode
+      // mismatches.
+      SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared_info);
+    }
+
     if (shared_info.is_identical_to(top_level)) {
       // Ensure that the top level function is retained.
       *is_compiled_scope = shared_info->is_compiled_scope();
