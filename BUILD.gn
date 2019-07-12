@@ -1877,6 +1877,8 @@ v8_compiler_sources = [
   "src/compiler/state-values-utils.h",
   "src/compiler/store-store-elimination.cc",
   "src/compiler/store-store-elimination.h",
+  "src/compiler/add-type-assertions-reducer.cc",
+  "src/compiler/add-type-assertions-reducer.h",
   "src/compiler/type-cache.cc",
   "src/compiler/type-cache.h",
   "src/compiler/type-narrowing-reducer.cc",

@@ -471,6 +471,7 @@
   V(FindOrderedHashMapEntryForInt32Key) \
   V(PoisonIndex)                        \
   V(RuntimeAbort)                       \
+  V(AssertType)                         \
   V(DateNow)
 
 #define SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(V) V(SpeculativeBigIntAdd)

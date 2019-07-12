@@ -194,6 +194,7 @@ class EffectControlLinearizer {
   void LowerTransitionAndStoreNumberElement(Node* node);
   void LowerTransitionAndStoreNonNumberElement(Node* node);
   void LowerRuntimeAbort(Node* node);
+  Node* LowerAssertType(Node* node);
   Node* LowerConvertReceiver(Node* node);
   Node* LowerDateNow(Node* node);
 
@@ -1266,6 +1267,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kRuntimeAbort:
       LowerRuntimeAbort(node);
+      break;
+    case IrOpcode::kAssertType:
+      result = LowerAssertType(node);
       break;
     case IrOpcode::kConvertReceiver:
       result = LowerConvertReceiver(node);
@@ -5345,6 +5349,30 @@ void EffectControlLinearizer::LowerRuntimeAbort(Node* node) {
           jsgraph()->SmiConstant(static_cast<int>(reason)),
           __ ExternalConstant(ExternalReference::Create(id)),
           __ Int32Constant(1), __ NoContextConstant());
+}
+
+Node* EffectControlLinearizer::LowerAssertType(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kAssertType);
+  Type type = OpParameter<Type>(node->op());
+  DCHECK(type.IsRange());
+  auto range = type.AsRange();
+
+  Node* const input = node->InputAt(0);
+  Node* const min = __ NumberConstant(range->Min());
+  Node* const max = __ NumberConstant(range->Max());
+
+  {
+    Callable const callable =
+        Builtins::CallableFor(isolate(), Builtins::kCheckNumberInRange);
+    Operator::Properties const properties = node->op()->properties();
+    CallDescriptor::Flags const flags = CallDescriptor::kNoFlags;
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
+        graph()->zone(), callable.descriptor(),
+        callable.descriptor().GetStackParameterCount(), flags, properties);
+    __ Call(call_descriptor, __ HeapConstant(callable.code()), input, min, max,
+            __ NoContextConstant());
+    return input;
+  }
 }
 
 Node* EffectControlLinearizer::LowerConvertReceiver(Node* node) {

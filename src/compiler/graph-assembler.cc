@@ -52,6 +52,9 @@ Node* GraphAssembler::HeapConstant(Handle<HeapObject> object) {
   return jsgraph()->HeapConstant(object);
 }
 
+Node* GraphAssembler::NumberConstant(double value) {
+  return jsgraph()->Constant(value);
+}
 
 Node* GraphAssembler::ExternalConstant(ExternalReference ref) {
   return jsgraph()->ExternalConstant(ref);

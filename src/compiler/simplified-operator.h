@@ -888,6 +888,9 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   // Abort (for terminating execution on internal error).
   const Operator* RuntimeAbort(AbortReason reason);
 
+  // Abort if the value input does not inhabit the given type
+  const Operator* AssertType(Type type);
+
   const Operator* DateNow();
 
  private:

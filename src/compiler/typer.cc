@@ -2348,6 +2348,8 @@ Type Typer::Visitor::TypeFindOrderedHashMapEntryForInt32Key(Node* node) {
 
 Type Typer::Visitor::TypeRuntimeAbort(Node* node) { UNREACHABLE(); }
 
+Type Typer::Visitor::TypeAssertType(Node* node) { UNREACHABLE(); }
+
 // Heap constants.
 
 Type Typer::Visitor::TypeConstant(Handle<Object> value) {

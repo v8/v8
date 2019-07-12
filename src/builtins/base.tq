@@ -1682,6 +1682,7 @@ extern operator '==' macro Word32Equal(bool, bool): bool;
 extern operator '!=' macro Word32NotEqual(bool, bool): bool;
 
 extern operator '+' macro Float64Add(float64, float64): float64;
+extern operator '-' macro Float64Sub(float64, float64): float64;
 
 extern operator '+' macro NumberAdd(Number, Number): Number;
 extern operator '-' macro NumberSub(Number, Number): Number;
@@ -1733,6 +1734,8 @@ extern macro TaggedIsSmi(Object): bool;
 extern macro TaggedIsNotSmi(Object): bool;
 extern macro TaggedIsPositiveSmi(Object): bool;
 extern macro IsValidPositiveSmi(intptr): bool;
+
+extern macro IsInteger(HeapNumber): bool;
 
 extern macro HeapObjectToJSDataView(HeapObject): JSDataView
     labels CastError;
@@ -3069,4 +3072,42 @@ transitioning macro ToStringImpl(context: Context, o: Object): String {
 macro VerifiedUnreachable(): never {
   StaticAssert(false);
   unreachable;
+}
+
+macro Float64IsSomeInfinity(value: float64): bool {
+  if (value == V8_INFINITY) {
+    return true;
+  }
+  return value == (Convert<float64>(0) - V8_INFINITY);
+}
+
+@export
+macro IsIntegerOrSomeInfinity(o: Object): bool {
+  typeswitch (o) {
+    case (Smi): {
+      return true;
+    }
+    case (hn: HeapNumber): {
+      if (Float64IsSomeInfinity(Convert<float64>(hn))) {
+        return true;
+      }
+      return IsInteger(hn);
+    }
+    case (Object): {
+      return false;
+    }
+  }
+}
+
+builtin CheckNumberInRange(implicit context: Context)(
+    value: Number, min: Number, max: Number): Undefined {
+  if (IsIntegerOrSomeInfinity(value) && min <= value && value <= max) {
+    return Undefined;
+  } else {
+    Print('Range type assertion failed! (value/min/max)');
+    Print(value);
+    Print(min);
+    Print(max);
+    unreachable;
+  }
 }

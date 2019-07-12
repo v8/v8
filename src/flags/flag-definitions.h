@@ -318,6 +318,9 @@ DEFINE_BOOL(future, FUTURE_BOOL,
 
 DEFINE_IMPLICATION(future, write_protect_code_memory)
 
+DEFINE_BOOL(assert_types, false,
+            "generate runtime type assertions to test the typer")
+
 // Flags for experimental implementation features.
 DEFINE_BOOL(allocation_site_pretenuring, true,
             "pretenure with allocation sites")

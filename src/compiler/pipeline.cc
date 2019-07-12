@@ -16,6 +16,7 @@
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/register-configuration.h"
+#include "src/compiler/add-type-assertions-reducer.h"
 #include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/frame-elider.h"
 #include "src/compiler/backend/instruction-selector.h"
@@ -1421,6 +1422,19 @@ struct EscapeAnalysisPhase {
   }
 };
 
+struct TypeAssertionsPhase {
+  static const char* phase_name() { return "V8.TFTypeAssertions"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    GraphReducer graph_reducer(temp_zone, data->graph(),
+                               data->jsgraph()->Dead());
+    AddTypeAssertionsReducer type_assertions(&graph_reducer, data->jsgraph(),
+                                             temp_zone);
+    AddReducer(data, &graph_reducer, &type_assertions);
+    graph_reducer.ReduceGraph();
+  }
+};
+
 struct SimplifiedLoweringPhase {
   static const char* phase_name() { return "V8.TFSimplifiedLowering"; }
 
@@ -2228,6 +2242,11 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
       return false;
     }
     RunPrintAndVerify(EscapeAnalysisPhase::phase_name());
+  }
+
+  if (FLAG_assert_types) {
+    Run<TypeAssertionsPhase>();
+    RunPrintAndVerify(TypeAssertionsPhase::phase_name());
   }
 
   // Perform simplified lowering. This has to run w/o the Typer decorator,

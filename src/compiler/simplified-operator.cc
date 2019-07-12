@@ -1231,6 +1231,13 @@ const Operator* SimplifiedOperatorBuilder::BigIntAsUintN(int bits) {
                                      "BigIntAsUintN", 1, 0, 0, 1, 0, 0, bits);
 }
 
+const Operator* SimplifiedOperatorBuilder::AssertType(Type type) {
+  DCHECK(type.IsRange());
+  return new (zone()) Operator1<Type>(IrOpcode::kAssertType,
+                                      Operator::kNoThrow | Operator::kNoDeopt,
+                                      "AssertType", 1, 0, 0, 1, 0, 0, type);
+}
+
 const Operator* SimplifiedOperatorBuilder::CheckIf(
     DeoptimizeReason reason, const VectorSlotPair& feedback) {
   if (!feedback.IsValid()) {
