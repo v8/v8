@@ -38,6 +38,7 @@ v8_executable("wasm_api_tests") {
     "serialize.cc",
     "table.cc",
     "threads.cc",
+    "traps.cc",
     "wasm-api-test.h",
   ]
 }

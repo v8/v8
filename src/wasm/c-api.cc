@@ -1134,8 +1134,12 @@ auto ExportType::type() const -> const ExternType* {
 
 i::Handle<i::String> VecToString(i::Isolate* isolate,
                                  const vec<byte_t>& chars) {
+  size_t length = chars.size();
+  // Some, but not all, {chars} vectors we get here are null-terminated,
+  // so let's be robust to that.
+  if (length > 0 && chars[length - 1] == 0) length--;
   return isolate->factory()
-      ->NewStringFromUtf8({chars.get(), chars.size()})
+      ->NewStringFromUtf8({chars.get(), length})
       .ToHandleChecked();
 }
 

@@ -43,7 +43,7 @@ class WasmCapiCallbacksTest : public WasmCapiTest {
     // Build the following function:
     // int32 stage1(int32 arg0) { return stage2(arg0); }
     uint32_t stage2_index =
-        builder()->AddImport(ArrayVector("stage2"), wasm_i_i_sig());
+        builder()->AddImport(CStrVector("stage2"), wasm_i_i_sig());
     byte code[] = {WASM_CALL_FUNCTION(stage2_index, WASM_GET_LOCAL(0))};
     AddExportedFunction(CStrVector("stage1"), code, sizeof(code));
 
@@ -81,7 +81,7 @@ TEST_F(WasmCapiCallbacksTest, GC) {
   // Build the following function:
   // int32 stage3_to4(int32 arg0) { return stage4(arg0); }
   uint32_t stage4_index =
-      builder()->AddImport(ArrayVector("stage4"), wasm_i_i_sig());
+      builder()->AddImport(CStrVector("stage4"), wasm_i_i_sig());
   byte code[] = {WASM_CALL_FUNCTION(stage4_index, WASM_GET_LOCAL(0))};
   AddExportedFunction(CStrVector("stage3_to4"), code, sizeof(code));
 
@@ -134,7 +134,7 @@ TEST_F(WasmCapiTest, Recursion) {
   //   return fibonacci_c(arg0 - 1) + fibonacci_c(arg0 - 2);
   // }
   uint32_t fibo_c_index =
-      builder()->AddImport(ArrayVector("fibonacci_c"), wasm_i_i_sig());
+      builder()->AddImport(CStrVector("fibonacci_c"), wasm_i_i_sig());
   byte code_fibo[] = {
       WASM_IF(WASM_I32_EQ(WASM_GET_LOCAL(0), WASM_ZERO),
               WASM_RETURN1(WASM_ZERO)),
