@@ -66,9 +66,6 @@ static size_t BytesNeededForVarint(T value) {
   return result;
 }
 
-// Note that some additional tag values are defined in Blink's
-// Source/bindings/core/v8/serialization/SerializationTag.h, which must
-// not clash with values defined here.
 enum class SerializationTag : uint8_t {
   // version:uint32_t (if at beginning of data, sets version > 0)
   kVersion = 0xFF,
@@ -165,6 +162,37 @@ enum class SerializationTag : uint8_t {
   // A list of (subtag: ErrorTag, [subtag dependent data]). See ErrorTag for
   // details.
   kError = 'r',
+
+  // The following tags are reserved because they were in use in Chromium before
+  // the kHostObject tag was introduced in format version 13, at
+  //   v8           refs/heads/master@{#43466}
+  //   chromium/src refs/heads/master@{#453568}
+  //
+  // They must not be reused without a version check to prevent old values from
+  // starting to deserialize incorrectly. For simplicity, it's recommended to
+  // avoid them altogether.
+  //
+  // This is the set of tags that existed in SerializationTag.h at that time and
+  // still exist at the time of this writing (i.e., excluding those that were
+  // removed on the Chromium side because there should be no real user data
+  // containing them).
+  //
+  // It might be possible to also free up other tags which were never persisted
+  // (e.g. because they were used only for transfer) in the future.
+  kLegacyReservedMessagePort = 'M',
+  kLegacyReservedBlob = 'b',
+  kLegacyReservedBlobIndex = 'i',
+  kLegacyReservedFile = 'f',
+  kLegacyReservedFileIndex = 'e',
+  kLegacyReservedDOMFileSystem = 'd',
+  kLegacyReservedFileList = 'l',
+  kLegacyReservedFileListIndex = 'L',
+  kLegacyReservedImageData = '#',
+  kLegacyReservedImageBitmap = 'g',
+  kLegacyReservedImageBitmapTransfer = 'G',
+  kLegacyReservedOffscreenCanvas = 'H',
+  kLegacyReservedCryptoKey = 'K',
+  kLegacyReservedRTCCertificate = 'k',
 };
 
 namespace {
