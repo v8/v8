@@ -269,7 +269,6 @@ StoreImpl::~StoreImpl() {
       v8::kGCCallbackFlagForced);
 #endif
   context()->Exit();
-  isolate_->Exit();
   isolate_->Dispose();
   delete create_params_.array_buffer_allocator;
 }
@@ -294,7 +293,6 @@ auto Store::make(Engine*) -> own<Store*> {
   if (!isolate) return own<Store*>();
 
   {
-    v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
 
     // Create context.
@@ -305,8 +303,10 @@ auto Store::make(Engine*) -> own<Store*> {
     store->isolate_ = isolate;
     store->context_ = v8::Eternal<v8::Context>(isolate, context);
   }
-
-  store->isolate()->Enter();
+  // We intentionally do not call isolate->Enter() here, because that would
+  // prevent embedders from using stores with overlapping but non-nested
+  // lifetimes. The consequence is that Isolate::Current() is dysfunctional
+  // and hence must not be called by anything reachable via this file.
   store->context()->Enter();
   isolate->SetData(0, store.get());
 

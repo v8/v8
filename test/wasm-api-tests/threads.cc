@@ -90,6 +90,16 @@ TEST_F(WasmCapiTest, Threads) {
   EXPECT_EQ(kExpected, g_traces);
 }
 
+TEST_F(WasmCapiTest, MultiStoresOneThread) {
+  // These Stores intentionally have overlapping, but non-nested lifetimes.
+  own<Store*> store1 = Store::make(engine());
+  own<Store*> store2 = Store::make(engine());
+  own<Store*> store3 = Store::make(engine());
+  store1.reset();
+  store2.reset();
+  store3.reset();
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
