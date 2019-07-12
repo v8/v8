@@ -251,15 +251,7 @@ namespace tracing {
 
 namespace {
 
-// String options that can be used to initialize TraceOptions.
-const char kRecordUntilFull[] = "record-until-full";
-const char kRecordContinuously[] = "record-continuously";
-const char kRecordAsMuchAsPossible[] = "record-as-much-as-possible";
-
-const char kRecordModeParam[] = "record_mode";
-const char kEnableSystraceParam[] = "enable_systrace";
-const char kEnableArgumentFilterParam[] = "enable_argument_filter";
-const char kIncludedCategoriesParam[] = "included_categories";
+static constexpr char kIncludedCategoriesParam[] = "included_categories";
 
 class TraceConfigParser {
  public:
@@ -277,30 +269,11 @@ class TraceConfigParser {
     Local<Value> result = JSON::Parse(context, source).ToLocalChecked();
     Local<v8::Object> trace_config_object = Local<v8::Object>::Cast(result);
 
-    trace_config->SetTraceRecordMode(
-        GetTraceRecordMode(isolate, context, trace_config_object));
-    if (GetBoolean(isolate, context, trace_config_object,
-                   kEnableSystraceParam)) {
-      trace_config->EnableSystrace();
-    }
-    if (GetBoolean(isolate, context, trace_config_object,
-                   kEnableArgumentFilterParam)) {
-      trace_config->EnableArgumentFilter();
-    }
     UpdateIncludedCategoriesList(isolate, context, trace_config_object,
                                  trace_config);
   }
 
  private:
-  static bool GetBoolean(v8::Isolate* isolate, Local<Context> context,
-                         Local<v8::Object> object, const char* property) {
-    Local<Value> value = GetValue(isolate, context, object, property);
-    if (value->IsNumber()) {
-      return value->BooleanValue(isolate);
-    }
-    return false;
-  }
-
   static int UpdateIncludedCategoriesList(
       v8::Isolate* isolate, Local<Context> context, Local<v8::Object> object,
       platform::tracing::TraceConfig* trace_config) {
@@ -319,23 +292,6 @@ class TraceConfigParser {
       return v8_array->Length();
     }
     return 0;
-  }
-
-  static platform::tracing::TraceRecordMode GetTraceRecordMode(
-      v8::Isolate* isolate, Local<Context> context, Local<v8::Object> object) {
-    Local<Value> value = GetValue(isolate, context, object, kRecordModeParam);
-    if (value->IsString()) {
-      Local<String> v8_string = value->ToString(context).ToLocalChecked();
-      String::Utf8Value str(isolate, v8_string);
-      if (strcmp(kRecordUntilFull, *str) == 0) {
-        return platform::tracing::TraceRecordMode::RECORD_UNTIL_FULL;
-      } else if (strcmp(kRecordContinuously, *str) == 0) {
-        return platform::tracing::TraceRecordMode::RECORD_CONTINUOUSLY;
-      } else if (strcmp(kRecordAsMuchAsPossible, *str) == 0) {
-        return platform::tracing::TraceRecordMode::RECORD_AS_MUCH_AS_POSSIBLE;
-      }
-    }
-    return platform::tracing::TraceRecordMode::RECORD_UNTIL_FULL;
   }
 };
 
