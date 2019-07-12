@@ -338,6 +338,10 @@ class FreeList {
     return categories_[type];
   }
 
+  Page* GetPageForCategoryType(FreeListCategoryType type) {
+    return top(type) ? top(type)->page() : nullptr;
+  }
+
   int number_of_categories_;
   FreeListCategoryType last_category_;
 
@@ -1868,10 +1872,6 @@ class V8_EXPORT_PRIVATE FreeListLegacy : public FreeList {
     return kHuge;
   }
 
-  Page* GetPageForCategoryType(FreeListCategoryType type) {
-    return top(type) ? top(type)->page() : nullptr;
-  }
-
   friend class FreeListCategory;
   friend class heap::HeapTester;
 };
@@ -1948,6 +1948,71 @@ class V8_EXPORT_PRIVATE FreeListFastAlloc : public FreeList {
 
   Page* GetPageForCategoryType(FreeListCategoryType type) {
     return top(type) ? top(type)->page() : nullptr;
+  }
+};
+
+// Use 49 Freelists: on per size between 24 and 256, and then a few ones for
+// larger sizes. See the variable |categories_max| for the size of each
+// Freelist.  Allocation is done using a best-fit strategy (considering only the
+// first element of each category though).
+// Performances are expected to be worst than FreeListLegacy, but memory
+// consumption should be lower (since fragmentation should be lower).
+class V8_EXPORT_PRIVATE FreeListMany : public FreeList {
+ public:
+  // This method returns how much memory can be allocated after freeing
+  // maximum_freed memory.
+  size_t GuaranteedAllocatable(size_t maximum_freed) override;
+
+  Page* GetPageForSize(size_t size_in_bytes) override;
+
+  FreeListMany();
+  ~FreeListMany();
+
+  size_t Free(Address start, size_t size_in_bytes, FreeMode mode) override;
+
+  V8_WARN_UNUSED_RESULT FreeSpace Allocate(size_t size_in_bytes,
+                                           size_t* node_size) override;
+
+ private:
+  static const size_t kMinBlockSize = 3 * kTaggedSize;
+
+  // This is a conservative upper bound. The actual maximum block size takes
+  // padding and alignment of data and code pages into account.
+  static const size_t kMaxBlockSize = Page::kPageSize;
+
+  // Categories boundaries generated with:
+  // perl -E '
+  //   @cat = map {$_*8} 3..32, 48, 64;
+  //   while ($cat[-1] <= 32768) {
+  //     push @cat, $cat[-1]+$cat[-3], $cat[-1]*2
+  //   }
+  //   push @cat, 4080, 4088;
+  //   @cat = sort { $a <=> $b } @cat;
+  //   push @cat, "Page::kPageSize";
+  //   say join ", ", @cat;
+  //   say "\n", scalar @cat'
+  // Note the special case for 4080 and 4088 bytes: experiments have shown that
+  // this category classes are more used than others of similar sizes
+  static const int kNumberOfCategories = 49;
+  static const size_t categories_max[kNumberOfCategories];
+
+  // Tries to retrieve a node from the first category in a given |type|.
+  // Returns nullptr if the category is empty or the top entry is smaller
+  // than minimum_size.
+  FreeSpace TryFindNodeIn(FreeListCategoryType type, size_t minimum_size,
+                          size_t* node_size);
+
+  // Searches a given |type| for a node of at least |minimum_size|.
+  FreeSpace SearchForNodeInList(FreeListCategoryType type, size_t* node_size,
+                                size_t minimum_size);
+
+  FreeListCategoryType SelectFreeListCategoryType(size_t size_in_bytes) {
+    for (int cat = kFirstCategory; cat < last_category_; cat++) {
+      if (size_in_bytes <= categories_max[cat]) {
+        return cat;
+      }
+    }
+    return last_category_;
   }
 };
 

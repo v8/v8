@@ -790,7 +790,7 @@ DEFINE_BOOL(trace_evacuation_candidates, false,
             "Show statistics about the pages evacuation by the compaction")
 DEFINE_INT(gc_freelist_strategy, 0,
            "Freelist strategy to use: "
-           "1=FreeListFastAlloc. Anything else=FreeListLegacy")
+           "1=FreeListFastAlloc. 2=FreeListMany. Anything else=FreeListLegacy")
 
 DEFINE_INT(trace_allocation_stack_interval, -1,
            "print stack trace after <n> free-list allocations")
