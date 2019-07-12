@@ -133,6 +133,7 @@ class WasmCapiTest : public ::testing::Test {
   }
 
   WasmModuleBuilder* builder() { return &builder_; }
+  Engine* engine() { return engine_.get(); }
   Store* store() { return store_.get(); }
   Module* module() { return module_.get(); }
   const vec<Extern*>& exports() { return exports_; }
