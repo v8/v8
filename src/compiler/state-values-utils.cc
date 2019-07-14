@@ -329,9 +329,7 @@ void StateValuesAccess::iterator::Pop() {
   current_depth_--;
 }
 
-
-bool StateValuesAccess::iterator::done() { return current_depth_ < 0; }
-
+bool StateValuesAccess::iterator::done() const { return current_depth_ < 0; }
 
 void StateValuesAccess::iterator::Advance() {
   Top()->Advance();
@@ -392,8 +390,7 @@ MachineType StateValuesAccess::iterator::type() {
   }
 }
 
-bool StateValuesAccess::iterator::operator!=(
-    iterator& other) {  // NOLINT(runtime/references)
+bool StateValuesAccess::iterator::operator!=(iterator const& other) {
   // We only allow comparison with end().
   CHECK(other.done());
   return !done();
