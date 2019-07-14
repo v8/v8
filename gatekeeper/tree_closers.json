@@ -67,6 +67,7 @@
         ],
         "excluded_builders" : [
           "V8 Android Arm64 - N5X",
+          "V8 Arm",
           "V8 Linux - mipsel - sim - builder",
           "V8 Linux - mipsel - sim",
           "V8 Linux - mips64el - sim - builder",
