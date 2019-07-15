@@ -7,9 +7,10 @@
 
 #include "src/base/optional.h"
 #include "src/compiler/access-info.h"
-#include "src/utils/utils.h"
+#include "src/compiler/bytecode-analysis.h"
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
+#include "src/utils/utils.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -34,8 +35,7 @@ namespace compiler {
   V(CallRuntimeForPair)           \
   V(Debugger)                     \
   V(ResumeGenerator)              \
-  V(SuspendGenerator)             \
-  V(SwitchOnGeneratorState)
+  V(SuspendGenerator)
 
 #define KILL_ENVIRONMENT_LIST(V) \
   V(Abort)                       \
@@ -210,6 +210,7 @@ namespace compiler {
   V(StaNamedOwnProperty)              \
   V(StaNamedProperty)                 \
   V(Star)                             \
+  V(SwitchOnGeneratorState)           \
   V(SwitchOnSmiNoFeedback)            \
   V(TestIn)                           \
   CLEAR_ACCUMULATOR_LIST(V)           \
@@ -429,6 +430,9 @@ class SerializerForBackgroundCompilation {
   // ContributeToJumpTargetEnvironment may actually do a merge as well.
   void ContributeToJumpTargetEnvironment(int target_offset);
   void IncorporateJumpTargetEnvironment(int target_offset);
+
+  Handle<BytecodeArray> bytecode_array() const;
+  BytecodeAnalysis const& GetBytecodeAnalysis(bool serialize);
 
   JSHeapBroker* broker() const { return broker_; }
   CompilationDependencies* dependencies() const { return dependencies_; }

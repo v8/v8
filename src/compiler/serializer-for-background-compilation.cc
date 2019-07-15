@@ -6,6 +6,7 @@
 
 #include <sstream>
 
+#include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/vector-slot-pair.h"
 #include "src/handles/handles-inl.h"
@@ -481,34 +482,51 @@ class ExceptionHandlerMatcher {
   std::set<int>::const_iterator handlers_iterator_;
 };
 
-void SerializerForBackgroundCompilation::TraverseBytecode() {
-  BytecodeArrayRef bytecode_array(
-      broker(), handle(environment()->function().shared()->GetBytecodeArray(),
-                       broker()->isolate()));
-  broker()->GetBytecodeAnalysis(
-      bytecode_array.object(), osr_offset(),
+Handle<BytecodeArray> SerializerForBackgroundCompilation::bytecode_array()
+    const {
+  return handle(environment()->function().shared()->GetBytecodeArray(),
+                broker()->isolate());
+}
+
+BytecodeAnalysis const& SerializerForBackgroundCompilation::GetBytecodeAnalysis(
+    bool serialize) {
+  return broker()->GetBytecodeAnalysis(
+      bytecode_array(), osr_offset(),
       flags() &
           SerializerForBackgroundCompilationFlag::kAnalyzeEnvironmentLiveness,
-      true);
-  bytecode_array.SerializeForCompilation();
-  BytecodeArrayIterator iterator(bytecode_array.object());
-  ExceptionHandlerMatcher handler_matcher(iterator, bytecode_array.object());
+      serialize);
+}
+
+void SerializerForBackgroundCompilation::TraverseBytecode() {
+  BytecodeAnalysis const& bytecode_analysis = GetBytecodeAnalysis(true);
+  BytecodeArrayRef(broker(), bytecode_array()).SerializeForCompilation();
+
+  BytecodeArrayIterator iterator(bytecode_array());
+  ExceptionHandlerMatcher handler_matcher(iterator, bytecode_array());
 
   for (; !iterator.done(); iterator.Advance()) {
-    IncorporateJumpTargetEnvironment(iterator.current_offset());
+    int const current_offset = iterator.current_offset();
+    IncorporateJumpTargetEnvironment(current_offset);
 
     TRACE_BROKER(broker(),
-                 "Handling bytecode: " << iterator.current_offset() << "  "
+                 "Handling bytecode: " << current_offset << "  "
                                        << iterator.current_bytecode());
     TRACE_BROKER(broker(), "Current environment: " << *environment());
 
     if (environment()->IsDead()) {
-      if (iterator.current_bytecode() ==
-              interpreter::Bytecode::kResumeGenerator ||
-          handler_matcher.CurrentBytecodeIsExceptionHandlerStart()) {
+      if (handler_matcher.CurrentBytecodeIsExceptionHandlerStart()) {
         environment()->Revive();
       } else {
         continue;  // Skip this bytecode since TF won't generate code for it.
+      }
+    }
+
+    if (bytecode_analysis.IsLoopHeader(current_offset)) {
+      // Graph builder might insert jumps to resume targets in the loop body.
+      LoopInfo const& loop_info =
+          bytecode_analysis.GetLoopInfoFor(current_offset);
+      for (const auto& target : loop_info.resume_jump_targets()) {
+        ContributeToJumpTargetEnvironment(target.target_offset());
       }
     }
 
@@ -1288,6 +1306,13 @@ void SerializerForBackgroundCompilation::VisitSwitchOnSmiNoFeedback(
       iterator->GetJumpTableTargetOffsets();
   for (const auto& target : targets) {
     ContributeToJumpTargetEnvironment(target.target_offset);
+  }
+}
+
+void SerializerForBackgroundCompilation::VisitSwitchOnGeneratorState(
+    interpreter::BytecodeArrayIterator* iterator) {
+  for (const auto& target : GetBytecodeAnalysis(false).resume_jump_targets()) {
+    ContributeToJumpTargetEnvironment(target.target_offset());
   }
 }
 
