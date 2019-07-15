@@ -79,17 +79,21 @@ ResumeJumpTarget ResumeJumpTarget::AtLoopHeader(int loop_header_offset,
 }
 
 BytecodeAnalysis::BytecodeAnalysis(Handle<BytecodeArray> bytecode_array,
-                                   Zone* zone, bool do_liveness_analysis)
+                                   Zone* zone, BailoutId osr_bailout_id,
+                                   bool analyze_liveness)
     : bytecode_array_(bytecode_array),
-      do_liveness_analysis_(do_liveness_analysis),
       zone_(zone),
+      osr_bailout_id_(osr_bailout_id),
+      analyze_liveness_(analyze_liveness),
       loop_stack_(zone),
       loop_end_index_queue_(zone),
       resume_jump_targets_(zone),
       end_to_header_(zone),
       header_to_info_(zone),
       osr_entry_point_(-1),
-      liveness_map_(bytecode_array->length(), zone) {}
+      liveness_map_(bytecode_array->length(), zone) {
+  Analyze();
+}
 
 namespace {
 
@@ -315,15 +319,13 @@ void UpdateAssignments(
 
 }  // namespace
 
-void BytecodeAnalysis::Analyze(BailoutId osr_bailout_id) {
+void BytecodeAnalysis::Analyze() {
   loop_stack_.push({-1, nullptr});
 
   BytecodeLivenessState* next_bytecode_in_liveness = nullptr;
-
-  bool is_osr = !osr_bailout_id.IsNone();
-  int osr_loop_end_offset = is_osr ? osr_bailout_id.ToInt() : -1;
-
   int generator_switch_index = -1;
+  int osr_loop_end_offset = osr_bailout_id_.ToInt();
+  DCHECK_EQ(osr_loop_end_offset < 0, osr_bailout_id_.IsNone());
 
   interpreter::BytecodeArrayRandomIterator iterator(bytecode_array(), zone());
   for (iterator.GoToEnd(); iterator.IsValid(); --iterator) {
@@ -345,14 +347,14 @@ void BytecodeAnalysis::Analyze(BailoutId osr_bailout_id) {
       if (current_offset == osr_loop_end_offset) {
         osr_entry_point_ = loop_header;
       } else if (current_offset < osr_loop_end_offset) {
-        // Check we've found the osr_entry_point if we've gone past the
+        // Assert that we've found the osr_entry_point if we've gone past the
         // osr_loop_end_offset. Note, we are iterating the bytecode in reverse,
-        // so the less than in the check is correct.
-        DCHECK_NE(-1, osr_entry_point_);
+        // so the less-than in the above condition is correct.
+        DCHECK_LE(0, osr_entry_point_);
       }
 
       // Save the index so that we can do another pass later.
-      if (do_liveness_analysis_) {
+      if (analyze_liveness_) {
         loop_end_index_queue_.push_back(iterator.current_index());
       }
     } else if (loop_stack_.size() > 1) {
@@ -365,8 +367,8 @@ void BytecodeAnalysis::Analyze(BailoutId osr_bailout_id) {
       // information we currently have.
       UpdateAssignments(bytecode, current_loop_info->assignments(), iterator);
 
-      // Update suspend counts for this loop, though only if not OSR.
-      if (!is_osr && bytecode == Bytecode::kSuspendGenerator) {
+      // Update suspend counts for this loop.
+      if (bytecode == Bytecode::kSuspendGenerator) {
         int suspend_id = iterator.GetUnsignedImmediateOperand(3);
         int resume_offset = current_offset + iterator.current_bytecode_size();
         current_loop_info->AddResumeTarget(
@@ -420,7 +422,7 @@ void BytecodeAnalysis::Analyze(BailoutId osr_bailout_id) {
           }
         }
       }
-    } else if (!is_osr && bytecode == Bytecode::kSuspendGenerator) {
+    } else if (bytecode == Bytecode::kSuspendGenerator) {
       // If we're not in a loop, we still need to look for suspends.
       // TODO(leszeks): It would be nice to de-duplicate this with the in-loop
       // case
@@ -430,7 +432,7 @@ void BytecodeAnalysis::Analyze(BailoutId osr_bailout_id) {
           ResumeJumpTarget::Leaf(suspend_id, resume_offset));
     }
 
-    if (do_liveness_analysis_) {
+    if (analyze_liveness_) {
       BytecodeLiveness& liveness = liveness_map_.InitializeLiveness(
           current_offset, bytecode_array()->register_count(), zone());
       UpdateLiveness(bytecode, liveness, &next_bytecode_in_liveness, iterator,
@@ -443,7 +445,7 @@ void BytecodeAnalysis::Analyze(BailoutId osr_bailout_id) {
 
   DCHECK(ResumeJumpTargetsAreValid());
 
-  if (!do_liveness_analysis_) return;
+  if (!analyze_liveness_) return;
 
   // At this point, every bytecode has a valid in and out liveness, except for
   // propagating liveness across back edges (i.e. JumpLoop). Subsequent liveness
@@ -547,7 +549,7 @@ void BytecodeAnalysis::Analyze(BailoutId osr_bailout_id) {
     }
   }
 
-  DCHECK(do_liveness_analysis_);
+  DCHECK(analyze_liveness_);
   if (FLAG_trace_environment_liveness) {
     StdoutStream of;
     PrintLivenessTo(of);
@@ -619,14 +621,14 @@ const LoopInfo& BytecodeAnalysis::GetLoopInfoFor(int header_offset) const {
 
 const BytecodeLivenessState* BytecodeAnalysis::GetInLivenessFor(
     int offset) const {
-  if (!do_liveness_analysis_) return nullptr;
+  if (!analyze_liveness_) return nullptr;
 
   return liveness_map_.GetInLiveness(offset);
 }
 
 const BytecodeLivenessState* BytecodeAnalysis::GetOutLivenessFor(
     int offset) const {
-  if (!do_liveness_analysis_) return nullptr;
+  if (!analyze_liveness_) return nullptr;
 
   return liveness_map_.GetOutLiveness(offset);
 }
@@ -671,9 +673,8 @@ bool BytecodeAnalysis::ResumeJumpTargetsAreValid() {
   }
 
   // If the iterator is invalid, we've reached the end without finding the
-  // generator switch. Similarly, if we are OSR-ing, we're not resuming, so we
-  // need no jump targets. So, ensure there are no jump targets and exit.
-  if (!iterator.IsValid() || HasOsrEntryPoint()) {
+  // generator switch. So, ensure there are no jump targets and exit.
+  if (!iterator.IsValid()) {
     // Check top-level.
     if (!resume_jump_targets().empty()) {
       PrintF(stderr,

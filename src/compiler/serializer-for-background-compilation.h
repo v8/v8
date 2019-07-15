@@ -284,7 +284,7 @@ using HintsVector = ZoneVector<Hints>;
 enum class SerializerForBackgroundCompilationFlag : uint8_t {
   kBailoutOnUninitialized = 1 << 0,
   kCollectSourcePositions = 1 << 1,
-  kOsr = 1 << 2,
+  kAnalyzeEnvironmentLiveness = 1 << 2,
 };
 using SerializerForBackgroundCompilationFlags =
     base::Flags<SerializerForBackgroundCompilationFlag>;
@@ -340,8 +340,8 @@ class SerializerForBackgroundCompilation {
  public:
   SerializerForBackgroundCompilation(
       JSHeapBroker* broker, CompilationDependencies* dependencies, Zone* zone,
-      Handle<JSFunction> closure,
-      SerializerForBackgroundCompilationFlags flags);
+      Handle<JSFunction> closure, SerializerForBackgroundCompilationFlags flags,
+      BailoutId osr_offset);
   Hints Run();  // NOTE: Returns empty for an already-serialized function.
 
   class Environment;
@@ -435,6 +435,7 @@ class SerializerForBackgroundCompilation {
   Zone* zone() const { return zone_; }
   Environment* environment() const { return environment_; }
   SerializerForBackgroundCompilationFlags flags() const { return flags_; }
+  BailoutId osr_offset() const { return osr_offset_; }
 
   JSHeapBroker* const broker_;
   CompilationDependencies* const dependencies_;
@@ -442,6 +443,7 @@ class SerializerForBackgroundCompilation {
   Environment* const environment_;
   ZoneUnorderedMap<int, Environment*> jump_target_environments_;
   SerializerForBackgroundCompilationFlags const flags_;
+  BailoutId const osr_offset_;
 };
 
 }  // namespace compiler

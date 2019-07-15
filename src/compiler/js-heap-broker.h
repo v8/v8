@@ -22,6 +22,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+class BytecodeAnalysis;
 class ObjectRef;
 std::ostream& operator<<(std::ostream& os, const ObjectRef& ref);
 
@@ -108,6 +109,10 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   GlobalAccessFeedback const* ProcessFeedbackForGlobalAccess(
       FeedbackSource const& source);
 
+  BytecodeAnalysis const& GetBytecodeAnalysis(
+      Handle<BytecodeArray> bytecode_array, BailoutId osr_offset,
+      bool analyze_liveness, bool serialize);
+
   base::Optional<NameRef> GetNameFeedback(FeedbackNexus const& nexus);
 
   // If there is no result stored for {map}, we return an Invalid
@@ -144,6 +149,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   ZoneUnorderedMap<FeedbackSource, ProcessedFeedback const*,
                    FeedbackSource::Hash, FeedbackSource::Equal>
       feedback_;
+  ZoneUnorderedMap<ObjectData*, BytecodeAnalysis*> bytecode_analyses_;
   typedef ZoneUnorderedMap<MapRef, PropertyAccessInfo, ObjectRef::Hash,
                            ObjectRef::Equal>
       MapToAccessInfos;

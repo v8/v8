@@ -340,8 +340,6 @@ class BytecodeGraphBuilder {
     return bytecode_analysis_;
   }
 
-  void RunBytecodeAnalysis() { bytecode_analysis_.Analyze(osr_offset_); }
-
   int currently_peeled_loop_offset() const {
     return currently_peeled_loop_offset_;
   }
@@ -385,9 +383,9 @@ class BytecodeGraphBuilder {
   const FrameStateFunctionInfo* const frame_state_function_info_;
   std::unique_ptr<SourcePositionTableIterator> source_position_iterator_;
   interpreter::BytecodeArrayIterator bytecode_iterator_;
-  BytecodeAnalysis bytecode_analysis_;
+  BytecodeAnalysis const& bytecode_analysis_;
   Environment* environment_;
-  BailoutId const osr_offset_;
+  bool const osr_;
   int currently_peeled_loop_offset_;
   bool skip_next_stack_check_;
 
@@ -958,11 +956,12 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
           shared_info)),
       bytecode_iterator_(
           base::make_unique<OffHeapBytecodeArray>(bytecode_array)),
-      bytecode_analysis_(
-          bytecode_array.object(), local_zone,
-          flags & BytecodeGraphBuilderFlag::kAnalyzeEnvironmentLiveness),
+      bytecode_analysis_(broker_->GetBytecodeAnalysis(
+          bytecode_array.object(), osr_offset,
+          flags & BytecodeGraphBuilderFlag::kAnalyzeEnvironmentLiveness,
+          !FLAG_concurrent_inlining)),
       environment_(nullptr),
-      osr_offset_(osr_offset),
+      osr_(!osr_offset.IsNone()),
       currently_peeled_loop_offset_(-1),
       skip_next_stack_check_(flags &
                              BytecodeGraphBuilderFlag::kSkipFirstStackCheck),
@@ -1117,19 +1116,17 @@ class BytecodeGraphBuilder::OsrIteratorState {
 
   void ProcessOsrPrelude() {
     ZoneVector<int> outer_loop_offsets(graph_builder_->local_zone());
-    BytecodeAnalysis const& bytecode_analysis =
-        graph_builder_->bytecode_analysis();
-    int osr_offset = bytecode_analysis.osr_entry_point();
+    int osr_entry = graph_builder_->bytecode_analysis().osr_entry_point();
 
     // We find here the outermost loop which contains the OSR loop.
-    int outermost_loop_offset = osr_offset;
-    while ((outermost_loop_offset =
-                bytecode_analysis.GetLoopInfoFor(outermost_loop_offset)
-                    .parent_offset()) != -1) {
+    int outermost_loop_offset = osr_entry;
+    while ((outermost_loop_offset = graph_builder_->bytecode_analysis()
+                                        .GetLoopInfoFor(outermost_loop_offset)
+                                        .parent_offset()) != -1) {
       outer_loop_offsets.push_back(outermost_loop_offset);
     }
     outermost_loop_offset =
-        outer_loop_offsets.empty() ? osr_offset : outer_loop_offsets.back();
+        outer_loop_offsets.empty() ? osr_entry : outer_loop_offsets.back();
     graph_builder_->AdvanceIteratorsTo(outermost_loop_offset);
 
     // We save some iterators states at the offsets of the loop headers of the
@@ -1147,14 +1144,16 @@ class BytecodeGraphBuilder::OsrIteratorState {
     }
 
     // Finishing by advancing to the OSR entry
-    graph_builder_->AdvanceIteratorsTo(osr_offset);
+    graph_builder_->AdvanceIteratorsTo(osr_entry);
 
     // Enters all remaining exception handler which end before the OSR loop
     // so that on next call of VisitSingleBytecode they will get popped from
     // the exception handlers stack.
-    graph_builder_->ExitThenEnterExceptionHandlers(osr_offset);
+    graph_builder_->ExitThenEnterExceptionHandlers(osr_entry);
     graph_builder_->set_currently_peeled_loop_offset(
-        bytecode_analysis.GetLoopInfoFor(osr_offset).parent_offset());
+        graph_builder_->bytecode_analysis()
+            .GetLoopInfoFor(osr_entry)
+            .parent_offset());
   }
 
   void RestoreState(int target_offset, int new_parent_offset) {
@@ -1203,8 +1202,8 @@ void BytecodeGraphBuilder::RemoveMergeEnvironmentsBeforeOffset(
 void BytecodeGraphBuilder::AdvanceToOsrEntryAndPeelLoops() {
   OsrIteratorState iterator_states(this);
   iterator_states.ProcessOsrPrelude();
-  int osr_offset = bytecode_analysis().osr_entry_point();
-  DCHECK_EQ(bytecode_iterator().current_offset(), osr_offset);
+  int osr_entry = bytecode_analysis().osr_entry_point();
+  DCHECK_EQ(bytecode_iterator().current_offset(), osr_entry);
 
   environment()->FillWithOsrValues();
 
@@ -1222,7 +1221,7 @@ void BytecodeGraphBuilder::AdvanceToOsrEntryAndPeelLoops() {
   // parent loop entirely, and so on.
 
   int current_parent_offset =
-      bytecode_analysis().GetLoopInfoFor(osr_offset).parent_offset();
+      bytecode_analysis().GetLoopInfoFor(osr_entry).parent_offset();
   while (current_parent_offset != -1) {
     const LoopInfo& current_parent_loop =
         bytecode_analysis().GetLoopInfoFor(current_parent_offset);
@@ -1294,14 +1293,12 @@ void BytecodeGraphBuilder::VisitSingleBytecode() {
 }
 
 void BytecodeGraphBuilder::VisitBytecodes() {
-  RunBytecodeAnalysis();
-
   if (!bytecode_analysis().resume_jump_targets().empty()) {
     environment()->BindGeneratorState(
         jsgraph()->SmiConstant(JSGeneratorObject::kGeneratorExecuting));
   }
 
-  if (bytecode_analysis().HasOsrEntryPoint()) {
+  if (osr_) {
     // We peel the OSR loop and any outer loop containing it except that we
     // leave the nodes corresponding to the whole outermost loop (including
     // the last copies of the loops it contains) to be generated by the normal

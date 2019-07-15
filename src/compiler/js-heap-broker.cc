@@ -13,6 +13,7 @@
 #include "src/ast/modules.h"
 #include "src/codegen/code-factory.h"
 #include "src/compiler/access-info.h"
+#include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/per-isolate-compiler-cache.h"
 #include "src/compiler/vector-slot-pair.h"
@@ -1353,20 +1354,18 @@ class BytecodeArrayData : public FixedArrayBaseData {
   void SerializeForCompilation(JSHeapBroker* broker) {
     if (is_serialized_for_compilation_) return;
 
-    DCHECK(bytecodes_.empty());
-    DCHECK(constant_pool_.empty());
-
     Handle<BytecodeArray> bytecode_array =
         Handle<BytecodeArray>::cast(object());
 
+    DCHECK(bytecodes_.empty());
     bytecodes_.reserve(bytecode_array->length());
     for (int i = 0; i < bytecode_array->length(); i++) {
       bytecodes_.push_back(bytecode_array->get(i));
     }
 
+    DCHECK(constant_pool_.empty());
     Handle<FixedArray> constant_pool(bytecode_array->constant_pool(),
                                      broker->isolate());
-
     constant_pool_.reserve(constant_pool->length());
     for (int i = 0; i < constant_pool->length(); i++) {
       constant_pool_.push_back(broker->GetOrCreateData(constant_pool->get(i)));
@@ -2067,6 +2066,7 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
       array_and_object_prototypes_(zone()),
       tracing_enabled_(tracing_enabled),
       feedback_(zone()),
+      bytecode_analyses_(zone()),
       ais_for_loading_then_(zone()) {
   // Note that this initialization of the refs_ pointer with the minimal
   // initial capacity is redundant in the normal use case (concurrent
@@ -4048,6 +4048,36 @@ ElementAccessFeedback const* ProcessedFeedback::AsElementAccess() const {
 NamedAccessFeedback const* ProcessedFeedback::AsNamedAccess() const {
   CHECK_EQ(kNamedAccess, kind());
   return static_cast<NamedAccessFeedback const*>(this);
+}
+
+BytecodeAnalysis const& JSHeapBroker::GetBytecodeAnalysis(
+    Handle<BytecodeArray> bytecode_array, BailoutId osr_bailout_id,
+    bool analyze_liveness, bool serialize) {
+  ObjectData* bytecode_array_data = GetData(bytecode_array);
+  CHECK_NOT_NULL(bytecode_array_data);
+
+  auto it = bytecode_analyses_.find(bytecode_array_data);
+  if (it != bytecode_analyses_.end()) {
+    // Bytecode analysis can be run for OSR or for non-OSR. In the rare case
+    // where we optimize for OSR and consider the top-level function itself for
+    // inlining (because of recursion), we need both the OSR and the non-OSR
+    // analysis. Fortunately, the only difference between the two lies in
+    // whether the OSR entry offset gets computed (from the OSR bailout id).
+    // Hence it's okay to reuse the OSR-version when asked for the non-OSR
+    // version, such that we need to store at most one analysis result per
+    // bytecode array.
+    CHECK_IMPLIES(osr_bailout_id != it->second->osr_bailout_id(),
+                  osr_bailout_id.IsNone());
+    CHECK_EQ(analyze_liveness, it->second->liveness_analyzed());
+    return *it->second;
+  }
+
+  CHECK(serialize);
+  BytecodeAnalysis* analysis = new (zone()) BytecodeAnalysis(
+      bytecode_array, zone(), osr_bailout_id, analyze_liveness);
+  DCHECK_EQ(analysis->osr_bailout_id(), osr_bailout_id);
+  bytecode_analyses_[bytecode_array_data] = analysis;
+  return *analysis;
 }
 
 OffHeapBytecodeArray::OffHeapBytecodeArray(BytecodeArrayRef bytecode_array)

@@ -362,14 +362,16 @@ int SerializerForBackgroundCompilation::Environment::RegisterToLocalIndex(
 
 SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
     JSHeapBroker* broker, CompilationDependencies* dependencies, Zone* zone,
-    Handle<JSFunction> closure, SerializerForBackgroundCompilationFlags flags)
+    Handle<JSFunction> closure, SerializerForBackgroundCompilationFlags flags,
+    BailoutId osr_offset)
     : broker_(broker),
       dependencies_(dependencies),
       zone_(zone),
       environment_(new (zone) Environment(
           zone, CompilationSubject(closure, broker_->isolate(), zone))),
       jump_target_environments_(zone),
-      flags_(flags) {
+      flags_(flags),
+      osr_offset_(osr_offset) {
   JSFunctionRef(broker, closure).Serialize();
 }
 
@@ -383,8 +385,8 @@ SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
       environment_(new (zone) Environment(zone, broker_->isolate(), function,
                                           new_target, arguments)),
       jump_target_environments_(zone),
-      flags_(flags) {
-  DCHECK(!(flags_ & SerializerForBackgroundCompilationFlag::kOsr));
+      flags_(flags),
+      osr_offset_(BailoutId::None()) {
   TraceScope tracer(
       broker_, this,
       "SerializerForBackgroundCompilation::SerializerForBackgroundCompilation");
@@ -402,7 +404,7 @@ bool SerializerForBackgroundCompilation::BailoutOnUninitialized(
         SerializerForBackgroundCompilationFlag::kBailoutOnUninitialized)) {
     return false;
   }
-  if (flags() & SerializerForBackgroundCompilationFlag::kOsr) {
+  if (!osr_offset().IsNone()) {
     // Exclude OSR from this optimization because we might end up skipping the
     // OSR entry point. TODO(neis): Support OSR?
     return false;
@@ -483,6 +485,11 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
   BytecodeArrayRef bytecode_array(
       broker(), handle(environment()->function().shared()->GetBytecodeArray(),
                        broker()->isolate()));
+  broker()->GetBytecodeAnalysis(
+      bytecode_array.object(), osr_offset(),
+      flags() &
+          SerializerForBackgroundCompilationFlag::kAnalyzeEnvironmentLiveness,
+      true);
   bytecode_array.SerializeForCompilation();
   BytecodeArrayIterator iterator(bytecode_array.object());
   ExceptionHandlerMatcher handler_matcher(iterator, bytecode_array.object());
@@ -1010,7 +1017,7 @@ Hints SerializerForBackgroundCompilation::RunChildSerializer(
 
   SerializerForBackgroundCompilation child_serializer(
       broker(), dependencies(), zone(), function, new_target, arguments,
-      flags().without(SerializerForBackgroundCompilationFlag::kOsr));
+      flags());
   return child_serializer.Run();
 }
 

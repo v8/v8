@@ -1359,12 +1359,13 @@ struct SerializationPhase {
     if (data->info()->is_source_positions_enabled()) {
       flags |= SerializerForBackgroundCompilationFlag::kCollectSourcePositions;
     }
-    if (data->info()->is_osr()) {
-      flags |= SerializerForBackgroundCompilationFlag::kOsr;
+    if (data->info()->is_analyze_environment_liveness()) {
+      flags |=
+          SerializerForBackgroundCompilationFlag::kAnalyzeEnvironmentLiveness;
     }
     SerializerForBackgroundCompilation serializer(
         data->broker(), data->dependencies(), temp_zone,
-        data->info()->closure(), flags);
+        data->info()->closure(), flags, data->info()->osr_offset());
     serializer.Run();
   }
 };
