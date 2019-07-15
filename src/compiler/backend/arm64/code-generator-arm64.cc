@@ -866,9 +866,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           this, object, offset, value, mode, DetermineStubCallMode(),
           &unwinding_info_writer_);
       __ StoreTaggedField(value, MemOperand(object, offset));
-      if (COMPRESS_POINTERS_BOOL) {
-        __ DecompressTaggedPointer(object, object);
-      }
       __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
                        eq, ool->entry());
       __ Bind(ool->exit());

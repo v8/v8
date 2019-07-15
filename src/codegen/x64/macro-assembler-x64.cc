@@ -322,10 +322,9 @@ void TurboAssembler::DecompressRegisterAnyTagged(Register destination,
     // masked_root = HAS_SMI_TAG(destination) ? 0 : kRootRegister;
     STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag < 32));
     Register masked_root = scratch;
-    movl(masked_root, destination);
-    andl(masked_root, Immediate(kSmiTagMask));
-    negq(masked_root);
-    andq(masked_root, kRootRegister);
+    xorq(masked_root, masked_root);
+    Condition smi = CheckSmi(destination);
+    cmovq(NegateCondition(smi), masked_root, kRootRegister);
     // Now this add operation will either leave the value unchanged if it is
     // a smi or add the isolate root if it is a heap object.
     addq(destination, masked_root);

@@ -1041,9 +1041,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           OutOfLineRecordWrite(this, object, operand, value, scratch0, scratch1,
                                mode, DetermineStubCallMode());
       __ StoreTaggedField(operand, value);
-      if (COMPRESS_POINTERS_BOOL) {
-        __ DecompressTaggedPointer(object, object);
-      }
       __ CheckPageFlag(object, scratch0,
                        MemoryChunk::kPointersFromHereAreInterestingMask,
                        not_zero, ool->entry());
