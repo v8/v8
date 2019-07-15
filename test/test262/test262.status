@@ -567,10 +567,6 @@
   'built-ins/FinalizationGroup/prototype-from-newtarget-custom': [SKIP],
   'built-ins/WeakRef/prototype-from-newtarget-custom': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9430
-  'language/statements/class/elements/private-getter-visible-to-direct-eval-on-initializer': [FAIL],
-  'language/statements/class/elements/private-method-visible-to-direct-eval-on-initializer': [FAIL],
-
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
