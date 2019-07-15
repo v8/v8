@@ -3718,9 +3718,9 @@ TEST_F(LocalDeclDecoderTest, UseEncoder) {
   pos = ExpectRun(map, pos, kWasmI64, 212);
 }
 
-TEST_F(LocalDeclDecoderTest, ExceptRef) {
+TEST_F(LocalDeclDecoderTest, ExnRef) {
   WASM_FEATURE_SCOPE(eh);
-  ValueType type = kWasmExceptRef;
+  ValueType type = kWasmExnRef;
   const byte data[] = {1, 1,
                        static_cast<byte>(ValueTypes::ValueTypeCodeFor(type))};
   BodyLocalDecls decls(zone());

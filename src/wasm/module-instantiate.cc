@@ -751,7 +751,7 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
     }
     case kWasmAnyRef:
     case kWasmFuncRef:
-    case kWasmExceptRef: {
+    case kWasmExnRef: {
       tagged_globals_->set(global.offset, *value->GetRef());
       break;
     }

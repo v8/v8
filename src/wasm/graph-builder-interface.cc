@@ -692,7 +692,7 @@ class WasmGraphBuildingInterface {
         return builder_->S128Zero();
       case kWasmAnyRef:
       case kWasmFuncRef:
-      case kWasmExceptRef:
+      case kWasmExnRef:
         return builder_->RefNull();
       default:
         UNREACHABLE();

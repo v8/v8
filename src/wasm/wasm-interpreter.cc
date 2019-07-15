@@ -1284,7 +1284,7 @@ class ThreadImpl {
 #undef CASE_TYPE
       case kWasmAnyRef:
       case kWasmFuncRef:
-      case kWasmExceptRef: {
+      case kWasmExnRef: {
         HandleScope handle_scope(isolate_);  // Avoid leaking handles.
         Handle<FixedArray> global_buffer;    // The buffer of the global.
         uint32_t global_index = 0;           // The index into the buffer.
@@ -1465,7 +1465,7 @@ class ThreadImpl {
 #undef CASE_TYPE
         case kWasmAnyRef:
         case kWasmFuncRef:
-        case kWasmExceptRef: {
+        case kWasmExnRef: {
           val = WasmValue(isolate_->factory()->null_value());
           break;
         }
@@ -2670,7 +2670,7 @@ class ThreadImpl {
         }
         case kWasmAnyRef:
         case kWasmFuncRef:
-        case kWasmExceptRef: {
+        case kWasmExnRef: {
           Handle<Object> anyref = value.to_anyref();
           encoded_values->set(encoded_index++, *anyref);
           break;
@@ -2770,7 +2770,7 @@ class ThreadImpl {
         }
         case kWasmAnyRef:
         case kWasmFuncRef:
-        case kWasmExceptRef: {
+        case kWasmExnRef: {
           Handle<Object> anyref(encoded_values->get(encoded_index++), isolate_);
           value = WasmValue(anyref);
           break;
@@ -3224,7 +3224,7 @@ class ThreadImpl {
 #undef CASE_TYPE
             case kWasmAnyRef:
             case kWasmFuncRef:
-            case kWasmExceptRef: {
+            case kWasmExnRef: {
               HandleScope handle_scope(isolate_);  // Avoid leaking handles.
               Handle<FixedArray> global_buffer;    // The buffer of the global.
               uint32_t global_index = 0;           // The index into the buffer.
@@ -3685,7 +3685,7 @@ class ThreadImpl {
           break;
         case kWasmAnyRef:
         case kWasmFuncRef:
-        case kWasmExceptRef:
+        case kWasmExnRef:
           packer.Push(arg.to_anyref()->ptr());
           break;
         default:
@@ -3724,7 +3724,7 @@ class ThreadImpl {
           break;
         case kWasmAnyRef:
         case kWasmFuncRef:
-        case kWasmExceptRef: {
+        case kWasmExnRef: {
           Handle<Object> ref(Object(packer.Pop<Address>()), isolate);
           Push(WasmValue(ref));
           break;

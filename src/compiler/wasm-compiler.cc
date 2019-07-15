@@ -2197,7 +2197,7 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
         break;
       case wasm::kWasmAnyRef:
       case wasm::kWasmFuncRef:
-      case wasm::kWasmExceptRef:
+      case wasm::kWasmExnRef:
         STORE_FIXED_ARRAY_SLOT_ANY(values_array, index, value);
         ++index;
         break;
@@ -2336,7 +2336,7 @@ Node** WasmGraphBuilder::GetExceptionValues(
         break;
       case wasm::kWasmAnyRef:
       case wasm::kWasmFuncRef:
-      case wasm::kWasmExceptRef:
+      case wasm::kWasmExnRef:
         value = LOAD_FIXED_ARRAY_SLOT_ANY(values_array, index);
         ++index;
         break;
@@ -5200,7 +5200,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         return BuildChangeFloat64ToTagged(node);
       case wasm::kWasmAnyRef:
       case wasm::kWasmFuncRef:
-      case wasm::kWasmExceptRef:
+      case wasm::kWasmExnRef:
         return node;
       default:
         UNREACHABLE();
@@ -5254,8 +5254,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   Node* FromJS(Node* node, Node* js_context, wasm::ValueType type) {
     DCHECK_NE(wasm::kWasmStmt, type);
 
-    // The parameter is of type anyref or except_ref, we take it as is.
-    if (type == wasm::kWasmAnyRef || type == wasm::kWasmExceptRef) {
+    // The parameter is of type anyref or exnref, we take it as is.
+    if (type == wasm::kWasmAnyRef || type == wasm::kWasmExnRef) {
       return node;
     }
 

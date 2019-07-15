@@ -2149,7 +2149,7 @@ uint32_t WasmExceptionPackage::GetEncodedSize(
         break;
       case wasm::kWasmAnyRef:
       case wasm::kWasmFuncRef:
-      case wasm::kWasmExceptRef:
+      case wasm::kWasmExnRef:
         encoded_size += 1;
         break;
       default:

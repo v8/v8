@@ -1601,8 +1601,8 @@ class ModuleDecoderImpl : public Decoder {
             case kLocalAnyRef:
               if (enabled_features_.anyref) return kWasmAnyRef;
               break;
-            case kLocalExceptRef:
-              if (enabled_features_.eh) return kWasmExceptRef;
+            case kLocalExnRef:
+              if (enabled_features_.eh) return kWasmExnRef;
               break;
             default:
               break;

@@ -1257,7 +1257,7 @@ void PushArgs(i::wasm::FunctionSig* sig, const Val args[],
       case i::wasm::kWasmFuncRef:
         packer->Push(impl(args[i].ref())->v8_object()->ptr());
         break;
-      case i::wasm::kWasmExceptRef:
+      case i::wasm::kWasmExnRef:
         // TODO(jkummerow): Implement these.
         UNIMPLEMENTED();
         break;
@@ -1297,7 +1297,7 @@ void PopArgs(i::wasm::FunctionSig* sig, Val results[],
         }
         break;
       }
-      case i::wasm::kWasmExceptRef:
+      case i::wasm::kWasmExnRef:
         // TODO(jkummerow): Implement these.
         UNIMPLEMENTED();
         break;

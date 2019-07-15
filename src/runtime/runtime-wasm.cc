@@ -226,7 +226,7 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
 #undef CASE_ARG_TYPE
       case wasm::kWasmAnyRef:
       case wasm::kWasmFuncRef:
-      case wasm::kWasmExceptRef: {
+      case wasm::kWasmExnRef: {
         DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetParam(i)),
                   kSystemPointerSize);
         Handle<Object> ref(base::ReadUnalignedValue<Object>(arg_buf_ptr),
@@ -277,7 +277,7 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
 #undef CASE_RET_TYPE
       case wasm::kWasmAnyRef:
       case wasm::kWasmFuncRef:
-      case wasm::kWasmExceptRef: {
+      case wasm::kWasmExnRef: {
         DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetReturn(i)),
                   kSystemPointerSize);
         base::WriteUnalignedValue<Object>(arg_buf_ptr,

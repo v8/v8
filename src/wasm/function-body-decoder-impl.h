@@ -236,8 +236,8 @@ inline bool decode_local_type(uint8_t val, ValueType* result) {
     case kLocalAnyRef:
       *result = kWasmAnyRef;
       return true;
-    case kLocalExceptRef:
-      *result = kWasmExceptRef;
+    case kLocalExnRef:
+      *result = kWasmExnRef;
       return true;
     default:
       *result = kWasmBottom;
@@ -859,9 +859,9 @@ class WasmDecoder : public Decoder {
                          "local type 'funcref' is not enabled with "
                          "--experimental-wasm-anyref");
           return false;
-        case kLocalExceptRef:
+        case kLocalExnRef:
           if (enabled.eh) {
-            type = kWasmExceptRef;
+            type = kWasmExnRef;
             break;
           }
           decoder->error(decoder->pc() - 1, "invalid local type");
@@ -1769,7 +1769,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         }
         case kExprRethrow: {
           CHECK_PROTOTYPE_OPCODE(eh);
-          auto exception = Pop(0, kWasmExceptRef);
+          auto exception = Pop(0, kWasmExnRef);
           CALL_INTERFACE_IF_REACHABLE(Rethrow, exception);
           EndControl();
           break;
@@ -1815,7 +1815,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           FallThruTo(c);
           stack_.erase(stack_.begin() + c->stack_depth, stack_.end());
           c->reachability = control_at(1)->innerReachability();
-          auto* exception = Push(kWasmExceptRef);
+          auto* exception = Push(kWasmExnRef);
           CALL_INTERFACE_IF_PARENT_REACHABLE(Catch, c, exception);
           break;
         }
@@ -1825,7 +1825,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           if (!this->Validate(this->pc_, imm.depth, control_.size())) break;
           if (!this->Validate(this->pc_ + imm.depth.length, imm.index)) break;
           Control* c = control_at(imm.depth.depth);
-          auto exception = Pop(0, kWasmExceptRef);
+          auto exception = Pop(0, kWasmExnRef);
           const WasmExceptionSig* sig = imm.index.exception->sig;
           size_t value_count = sig->parameter_count();
           // TODO(mstarzinger): This operand stack mutation is an ugly hack to
@@ -1844,7 +1844,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           }
           len = 1 + imm.length;
           for (size_t i = 0; i < value_count; ++i) Pop();
-          auto* pexception = Push(kWasmExceptRef);
+          auto* pexception = Push(kWasmExnRef);
           *pexception = exception;
           break;
         }

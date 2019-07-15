@@ -1864,7 +1864,7 @@ void WebAssemblyGlobalGetValueCommon(
       break;
     case i::wasm::kWasmAnyRef:
     case i::wasm::kWasmFuncRef:
-    case i::wasm::kWasmExceptRef:
+    case i::wasm::kWasmExnRef:
       return_value.Set(Utils::ToLocal(receiver->GetRef()));
       break;
     default:
@@ -1933,7 +1933,7 @@ void WebAssemblyGlobalSetValue(
       break;
     }
     case i::wasm::kWasmAnyRef:
-    case i::wasm::kWasmExceptRef: {
+    case i::wasm::kWasmExnRef: {
       receiver->SetAnyRef(Utils::OpenHandle(*args[0]));
       break;
     }
