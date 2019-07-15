@@ -154,10 +154,18 @@ class StreamTester {
   bool IsPromisePending() { return state_ == CompilationState::kPending; }
 
   void OnBytesReceived(const uint8_t* start, size_t length) {
+    // Streaming compiler is expected to set its own context and handle scope.
+    i::SaveAndSwitchContext saved_context(CcTest::i_isolate(), i::Context{});
+    v8::SealHandleScope seal_handle_scope(CcTest::isolate());
     stream_->OnBytesReceived(Vector<const uint8_t>(start, length));
   }
 
-  void FinishStream() { stream_->Finish(); }
+  void FinishStream() {
+    // Streaming compiler is expected to set its own context and handle scope.
+    i::SaveAndSwitchContext saved_context(CcTest::i_isolate(), i::Context{});
+    v8::SealHandleScope seal_handle_scope(CcTest::isolate());
+    stream_->Finish();
+  }
 
   void SetCompiledModuleBytes(const uint8_t* start, size_t length) {
     stream_->SetCompiledModuleBytes(Vector<const uint8_t>(start, length));
