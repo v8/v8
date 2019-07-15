@@ -220,8 +220,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
-    case JS_ASYNC_FUNCTION_OBJECT_TYPE:
-    case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_ARGUMENTS_TYPE:
     case JS_ERROR_TYPE:
     // TODO(titzer): debug printing for more wasm objects
@@ -243,6 +241,8 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case WASM_INSTANCE_TYPE:
       WasmInstanceObject::cast(*this).WasmInstanceObjectPrint(os);
       break;
+    case JS_ASYNC_FUNCTION_OBJECT_TYPE:
+    case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
       JSGeneratorObject::cast(*this).JSGeneratorObjectPrint(os);
       break;
