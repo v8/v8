@@ -473,7 +473,20 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
     }
     op = simplified()->CheckBigInt(use_info.feedback());
   } else if (output_rep == MachineRepresentation::kCompressedPointer) {
+    if (use_info.type_check() == TypeCheckKind::kBigInt &&
+        !output_type.Is(Type::BigInt())) {
+      node = InsertChangeCompressedToTagged(node);
+      op = simplified()->CheckBigInt(use_info.feedback());
+    } else {
+      op = machine()->ChangeCompressedPointerToTaggedPointer();
+    }
+  } else if (output_rep == MachineRepresentation::kCompressed &&
+             output_type.Is(Type::BigInt())) {
     op = machine()->ChangeCompressedPointerToTaggedPointer();
+  } else if (output_rep == MachineRepresentation::kCompressed &&
+             use_info.type_check() == TypeCheckKind::kBigInt) {
+    node = InsertChangeCompressedToTagged(node);
+    op = simplified()->CheckBigInt(use_info.feedback());
   } else if (CanBeCompressedSigned(output_rep) &&
              use_info.type_check() == TypeCheckKind::kHeapObject) {
     if (!output_type.Maybe(Type::SignedSmall())) {
