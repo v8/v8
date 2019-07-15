@@ -3892,8 +3892,32 @@ TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
           *args_count = frames_[i - 1].height();
           return &(frames_[i - 1]);
         }
-        *args_count =
-            frames_[i].shared_info()->internal_formal_parameter_count() + 1;
+
+        // JavaScriptBuiltinContinuation frames that are not preceeded by
+        // a arguments adapter frame are currently only used by C++ API calls
+        // from TurboFan. Calls to C++ API functions from TurboFan need
+        // a special marker frame state, otherwise the API call wouldn't
+        // be shown in a stack trace.
+        if (frames_[i].kind() ==
+                TranslatedFrame::kJavaScriptBuiltinContinuation &&
+            frames_[i].shared_info()->internal_formal_parameter_count() ==
+                SharedFunctionInfo::kDontAdaptArgumentsSentinel) {
+          DCHECK(frames_[i].shared_info()->IsApiFunction());
+
+          // The argument count for this special case is always the second
+          // to last value in the TranslatedFrame. It should also always be
+          // {1}, as the GenericLazyDeoptContinuation builtin only has one
+          // argument (the receiver).
+          const int height = frames_[i].height();
+          Object argc_object = frames_[i].ValueAt(height - 1)->GetRawValue();
+          CHECK(argc_object.IsSmi());
+          *args_count = Smi::ToInt(argc_object);
+
+          DCHECK_EQ(*args_count, 1);
+        } else {
+          *args_count =
+              frames_[i].shared_info()->internal_formal_parameter_count() + 1;
+        }
         return &(frames_[i]);
       }
     }
