@@ -183,12 +183,16 @@ void JumpTableAssembler::NopBytes(int bytes) {
 #elif V8_TARGET_ARCH_PPC64
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
+  int start = pc_offset();
   // Load function index to register. max 5 instrs
   mov(kWasmCompileLazyFuncIndexRegister, Operand(func_index));
   // Jump to {lazy_compile_target}. max 5 instrs
   mov(r0, Operand(lazy_compile_target));
   mtctr(r0);
   bctr();
+  int nop_bytes = start + kLazyCompileTableSlotSize - pc_offset();
+  DCHECK_EQ(nop_bytes % kInstrSize, 0);
+  for (int i = 0; i < nop_bytes; i += kInstrSize) nop();
 }
 
 void JumpTableAssembler::EmitRuntimeStubSlot(Address builtin_target) {
