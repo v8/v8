@@ -2062,7 +2062,7 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
     // 5. Let _promiseResolve_ be ? Get(_constructor_, `"resolve"`).
     TNode<Object> resolve =
         GetProperty(native_context, constructor, factory()->resolve_string());
-    GotoIfException(resolve, if_exception, var_exception);
+    GotoIfException(resolve, &close_iterator, var_exception);
 
     // 6. If IsCallable(_promiseResolve_) is *false*, throw a *TypeError*
     // exception.
@@ -2624,7 +2624,7 @@ TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
       // 3. Let _promiseResolve_ be ? Get(_constructor_, `"resolve"`).
       TNode<Object> resolve =
           GetProperty(native_context, receiver, factory()->resolve_string());
-      GotoIfException(resolve, &reject_promise, &var_exception);
+      GotoIfException(resolve, &close_iterator, &var_exception);
 
       // 4. If IsCallable(_promiseResolve_) is *false*, throw a *TypeError*
       // exception.

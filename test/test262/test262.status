@@ -567,11 +567,6 @@
   'built-ins/FinalizationGroup/prototype-from-newtarget-custom': [SKIP],
   'built-ins/WeakRef/prototype-from-newtarget-custom': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9431
-  'built-ins/Promise/all/invoke-resolve-get-error-close': [FAIL],
-  'built-ins/Promise/allSettled/invoke-resolve-get-error-close': [FAIL],
-  'built-ins/Promise/race/invoke-resolve-get-error-close': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9430
   'language/statements/class/elements/private-getter-visible-to-direct-eval-on-initializer': [FAIL],
   'language/statements/class/elements/private-method-visible-to-direct-eval-on-initializer': [FAIL],
