@@ -1094,9 +1094,8 @@ void LiftoffAssembler::emit_i64_set_cond(Condition cond, Register dst,
 
 namespace liftoff {
 
-inline FPUCondition ConditionToConditionCmpFPU(
-    bool& predicate,  // NOLINT(runtime/references)
-    Condition condition) {
+inline FPUCondition ConditionToConditionCmpFPU(Condition condition,
+                                               bool* predicate) {
   switch (condition) {
     case kEqual:
       predicate = true;
@@ -1143,7 +1142,7 @@ void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
 
   TurboAssembler::li(dst, 1);
   bool predicate;
-  FPUCondition fcond = liftoff::ConditionToConditionCmpFPU(predicate, cond);
+  FPUCondition fcond = liftoff::ConditionToConditionCmpFPU(cond, &predicate);
   TurboAssembler::CompareF32(fcond, lhs, rhs);
   if (predicate) {
     TurboAssembler::LoadZeroIfNotFPUCondition(dst);
@@ -1172,7 +1171,7 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
 
   TurboAssembler::li(dst, 1);
   bool predicate;
-  FPUCondition fcond = liftoff::ConditionToConditionCmpFPU(predicate, cond);
+  FPUCondition fcond = liftoff::ConditionToConditionCmpFPU(cond, &predicate);
   TurboAssembler::CompareF64(fcond, lhs, rhs);
   if (predicate) {
     TurboAssembler::LoadZeroIfNotFPUCondition(dst);
