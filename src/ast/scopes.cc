@@ -264,7 +264,6 @@ void Scope::SetDefaults() {
   is_debug_evaluate_scope_ = false;
 
   inner_scope_calls_eval_ = false;
-  force_context_allocation_ = false;
   force_context_allocation_for_parameters_ = false;
 
   is_declaration_scope_ = false;
