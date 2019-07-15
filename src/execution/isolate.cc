@@ -942,6 +942,14 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
           PromiseCapability::cast(context->get(index)), isolate);
       if (!capability->promise().IsJSPromise()) return;
       promise = handle(JSPromise::cast(capability->promise()), isolate);
+    } else if (IsBuiltinFunction(isolate, reaction->fulfill_handler(),
+                                 Builtins::kPromiseCapabilityDefaultResolve)) {
+      Handle<JSFunction> function(JSFunction::cast(reaction->fulfill_handler()),
+                                  isolate);
+      Handle<Context> context(function->context(), isolate);
+      promise =
+          handle(JSPromise::cast(context->get(PromiseBuiltins::kPromiseSlot)),
+                 isolate);
     } else {
       // We have some generic promise chain here, so try to
       // continue with the chained promise on the reaction
