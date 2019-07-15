@@ -145,16 +145,16 @@ int Int64Lowering::GetParameterCountAfterLowering(
       signature, static_cast<int>(signature->parameter_count()));
 }
 
-void Int64Lowering::GetIndexNodes(Node* index, Node*& index_low,
-                                  Node*& index_high) {
+void Int64Lowering::GetIndexNodes(Node* index, Node** index_low,
+                                  Node** index_high) {
 #if defined(V8_TARGET_LITTLE_ENDIAN)
-  index_low = index;
-  index_high = graph()->NewNode(machine()->Int32Add(), index,
-                                graph()->NewNode(common()->Int32Constant(4)));
+  *index_low = index;
+  *index_high = graph()->NewNode(machine()->Int32Add(), index,
+                                 graph()->NewNode(common()->Int32Constant(4)));
 #elif defined(V8_TARGET_BIG_ENDIAN)
-  index_low = graph()->NewNode(machine()->Int32Add(), index,
-                               graph()->NewNode(common()->Int32Constant(4)));
-  index_high = index;
+  *index_low = graph()->NewNode(machine()->Int32Add(), index,
+                                graph()->NewNode(common()->Int32Constant(4)));
+  *index_high = index;
 #endif
 }
 
@@ -185,7 +185,7 @@ void Int64Lowering::LowerNode(Node* node) {
         Node* index = node->InputAt(1);
         Node* index_low;
         Node* index_high;
-        GetIndexNodes(index, index_low, index_high);
+        GetIndexNodes(index, &index_low, &index_high);
         const Operator* load_op;
 
         if (node->opcode() == IrOpcode::kLoad) {
@@ -235,7 +235,7 @@ void Int64Lowering::LowerNode(Node* node) {
         Node* index = node->InputAt(1);
         Node* index_low;
         Node* index_high;
-        GetIndexNodes(index, index_low, index_high);
+        GetIndexNodes(index, &index_low, &index_high);
         Node* value = node->InputAt(2);
         DCHECK(HasReplacementLow(value));
         DCHECK(HasReplacementHigh(value));

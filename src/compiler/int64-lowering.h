@@ -59,9 +59,7 @@ class V8_EXPORT_PRIVATE Int64Lowering {
   bool HasReplacementHigh(Node* node);
   Node* GetReplacementHigh(Node* node);
   void PreparePhiReplacement(Node* phi);
-  void GetIndexNodes(Node* index,
-                     Node*& index_low,    // NOLINT(runtime/references)
-                     Node*& index_high);  // NOLINT(runtime/references)
+  void GetIndexNodes(Node* index, Node** index_low, Node** index_high);
   void ReplaceNodeWithProjections(Node* node);
   void LowerMemoryBaseAndIndex(Node* node);
 

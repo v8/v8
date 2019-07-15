@@ -419,14 +419,15 @@ bool LoadElimination::AbstractState::Equals(AbstractState const* that) const {
 }
 
 void LoadElimination::AbstractState::FieldsMerge(
-    AbstractFields& this_fields, AbstractFields const& that_fields,
+    AbstractFields* this_fields, AbstractFields const& that_fields,
     Zone* zone) {
-  for (size_t i = 0; i < this_fields.size(); ++i) {
-    if (this_fields[i]) {
+  for (size_t i = 0; i < this_fields->size(); ++i) {
+    AbstractField const*& this_field = (*this_fields)[i];
+    if (this_field) {
       if (that_fields[i]) {
-        this_fields[i] = this_fields[i]->Merge(that_fields[i], zone);
+        this_field = this_field->Merge(that_fields[i], zone);
       } else {
-        this_fields[i] = nullptr;
+        this_field = nullptr;
       }
     }
   }
@@ -442,8 +443,8 @@ void LoadElimination::AbstractState::Merge(AbstractState const* that,
   }
 
   // Merge the information we have about the fields.
-  FieldsMerge(this->fields_, that->fields_, zone);
-  FieldsMerge(this->const_fields_, that->const_fields_, zone);
+  FieldsMerge(&this->fields_, that->fields_, zone);
+  FieldsMerge(&this->const_fields_, that->const_fields_, zone);
 
   // Merge the information we have about the maps.
   if (this->maps_) {
