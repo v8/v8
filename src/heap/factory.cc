@@ -290,7 +290,7 @@ Handle<HeapObject> Factory::NewFillerObject(int size, bool double_align,
   Heap* heap = isolate()->heap();
   HeapObject result =
       heap->AllocateRawWithRetryOrFail(size, allocation, alignment);
-  heap->CreateFillerObjectAt(result.address(), size);
+  heap->CreateFillerObjectAt(result.address(), size, ClearRecordedSlots::kNo);
   return Handle<HeapObject>(result, isolate());
 }
 

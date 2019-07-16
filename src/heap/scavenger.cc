@@ -8,7 +8,6 @@
 #include "src/heap/barrier.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/invalidated-slots-inl.h"
 #include "src/heap/item-parallel-job.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/objects-visiting-inl.h"
@@ -422,15 +421,12 @@ void Scavenger::AddPageToSweeperIfNecessary(MemoryChunk* page) {
 
 void Scavenger::ScavengePage(MemoryChunk* page) {
   CodePageMemoryModificationScope memory_modification_scope(page);
-  InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(page);
-  RememberedSet<OLD_TO_NEW>::Iterate(
-      page,
-      [this, &filter](MaybeObjectSlot addr) {
-        if (!filter.IsValid(addr.address())) return REMOVE_SLOT;
-        return CheckAndScavengeObject(heap_, addr);
-      },
-      SlotSet::KEEP_EMPTY_BUCKETS);
-  page->ReleaseInvalidatedSlots<OLD_TO_NEW>();
+  RememberedSet<OLD_TO_NEW>::Iterate(page,
+                                     [this](MaybeObjectSlot addr) {
+                                       return CheckAndScavengeObject(heap_,
+                                                                     addr);
+                                     },
+                                     SlotSet::KEEP_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_NEW>::IterateTyped(
       page, [=](SlotType type, Address addr) {
         return UpdateTypedSlotHelper::UpdateTypedSlot(

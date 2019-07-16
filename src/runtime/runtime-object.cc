@@ -134,17 +134,8 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   // for properties stored in the descriptor array.
   if (details.location() == kField) {
     DisallowHeapAllocation no_allocation;
-    int receiver_size = receiver_map->instance_size();
-    isolate->heap()->NotifyObjectLayoutChange(*receiver, receiver_size,
-                                              no_allocation);
-
-    // We need to invalidate object because subsequent object modifications
-    // might put a raw double into the deleted property.
-    // Slot clearing is the reason why this entire function cannot currently
-    // be implemented in the DeleteProperty stub.
-    MemoryChunk::FromHeapObject(*receiver)
-        ->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(*receiver,
-                                                         receiver_size);
+    isolate->heap()->NotifyObjectLayoutChange(
+        *receiver, receiver_map->instance_size(), no_allocation);
     FieldIndex index =
         FieldIndex::ForPropertyIndex(*receiver_map, details.field_index());
     // Special case deleting the last out-of object property.
@@ -155,6 +146,14 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
     } else {
       Object filler = ReadOnlyRoots(isolate).one_pointer_filler_map();
       JSObject::cast(*receiver).RawFastPropertyAtPut(index, filler);
+      // We must clear any recorded slot for the deleted property, because
+      // subsequent object modifications might put a raw double there.
+      // Slot clearing is the reason why this entire function cannot currently
+      // be implemented in the DeleteProperty stub.
+      if (index.is_inobject() && !receiver_map->IsUnboxedDoubleField(index)) {
+        isolate->heap()->ClearRecordedSlot(*receiver,
+                                           receiver->RawField(index.offset()));
+      }
     }
   }
   // If the {receiver_map} was marked stable before, then there could be

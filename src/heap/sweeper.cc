@@ -8,7 +8,6 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/gc-tracer.h"
-#include "src/heap/invalidated-slots-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/remembered-set.h"
 #include "src/objects/objects-inl.h"
@@ -266,8 +265,6 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
   ArrayBufferTracker::FreeDead(p, marking_state_);
 
   Address free_start = p->area_start();
-  InvalidatedSlotsCleanup old_to_new_cleanup =
-      InvalidatedSlotsCleanup::OldToNew(p);
 
   intptr_t live_bytes = 0;
   intptr_t freed_bytes = 0;
@@ -299,7 +296,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
         max_freed_bytes = Max(freed_bytes, max_freed_bytes);
       } else {
         p->heap()->CreateFillerObjectAt(
-            free_start, static_cast<int>(size),
+            free_start, static_cast<int>(size), ClearRecordedSlots::kNo,
             ClearFreedMemoryMode::kClearFreedMemory);
       }
       if (should_reduce_memory_) p->DiscardUnusedMemory(free_start, size);
@@ -312,8 +309,6 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
             static_cast<uint32_t>(free_start - p->address()),
             static_cast<uint32_t>(free_end - p->address())));
       }
-
-      old_to_new_cleanup.Free(free_start, free_end);
     }
     Map map = object.synchronized_map();
     int size = object.SizeFromMap(map);
@@ -333,6 +328,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
       max_freed_bytes = Max(freed_bytes, max_freed_bytes);
     } else {
       p->heap()->CreateFillerObjectAt(free_start, static_cast<int>(size),
+                                      ClearRecordedSlots::kNo,
                                       ClearFreedMemoryMode::kClearFreedMemory);
     }
     if (should_reduce_memory_) p->DiscardUnusedMemory(free_start, size);
@@ -345,8 +341,6 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
           static_cast<uint32_t>(free_start - p->address()),
           static_cast<uint32_t>(p->area_end() - p->address())));
     }
-
-    old_to_new_cleanup.Free(free_start, p->area_end());
   }
 
   // Clear invalid typed slots after collection all free ranges.
