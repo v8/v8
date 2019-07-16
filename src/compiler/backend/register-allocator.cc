@@ -1974,14 +1974,6 @@ void ConstraintBuilder::MeetConstraintsBefore(int instr_index) {
             second->reference_map(), &gap_move->source()};
         data()->delayed_references().push_back(delayed_reference);
       }
-    } else if (!code()->IsReference(input_vreg) &&
-               code()->IsReference(output_vreg)) {
-      // The input is assumed to immediately have a tagged representation,
-      // before the pointer map can be used. I.e. the pointer map at the
-      // instruction will include the output operand (whose value at the
-      // beginning of the instruction is equal to the input operand). If
-      // this is not desired, then the pointer map at this instruction needs
-      // to be adjusted manually.
     }
   }
 }
