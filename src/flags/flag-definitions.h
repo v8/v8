@@ -999,6 +999,8 @@ DEFINE_BOOL(experimental_stack_trace_frames, false,
 DEFINE_BOOL(disallow_code_generation_from_strings, false,
             "disallow eval and friends")
 DEFINE_BOOL(expose_async_hooks, false, "expose async_hooks object")
+DEFINE_STRING(expose_cputracemark_as, nullptr,
+              "expose cputracemark extension under the specified name")
 
 // builtins.cc
 DEFINE_BOOL(allow_unsafe_function_constructor, false,

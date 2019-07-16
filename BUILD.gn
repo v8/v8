@@ -2206,6 +2206,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/execution/v8threads.h",
     "src/execution/vm-state-inl.h",
     "src/execution/vm-state.h",
+    "src/extensions/cputracemark-extension.cc",
+    "src/extensions/cputracemark-extension.h",
     "src/extensions/externalize-string-extension.cc",
     "src/extensions/externalize-string-extension.h",
     "src/extensions/free-buffer-extension.cc",

@@ -12,6 +12,7 @@
 #include "src/debug/debug.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/microtask-queue.h"
+#include "src/extensions/cputracemark-extension.h"
 #include "src/extensions/externalize-string-extension.h"
 #include "src/extensions/free-buffer-extension.h"
 #include "src/extensions/gc-extension.h"
@@ -123,6 +124,11 @@ static const char* GCFunctionName() {
   return flag_given ? FLAG_expose_gc_as : "gc";
 }
 
+static bool isValidCpuTraceMarkFunctionName() {
+  return FLAG_expose_cputracemark_as != nullptr &&
+         strlen(FLAG_expose_cputracemark_as) != 0;
+}
+
 void Bootstrapper::InitializeOncePerProcess() {
   v8::RegisterExtension(v8::base::make_unique<FreeBufferExtension>());
   v8::RegisterExtension(v8::base::make_unique<GCExtension>(GCFunctionName()));
@@ -130,6 +136,10 @@ void Bootstrapper::InitializeOncePerProcess() {
   v8::RegisterExtension(v8::base::make_unique<StatisticsExtension>());
   v8::RegisterExtension(v8::base::make_unique<TriggerFailureExtension>());
   v8::RegisterExtension(v8::base::make_unique<IgnitionStatisticsExtension>());
+  if (isValidCpuTraceMarkFunctionName()) {
+    v8::RegisterExtension(v8::base::make_unique<CpuTraceMarkExtension>(
+        FLAG_expose_cputracemark_as));
+  }
 }
 
 void Bootstrapper::TearDown() {
@@ -5087,6 +5097,8 @@ bool Genesis::InstallExtensions(Isolate* isolate,
          (!FLAG_trace_ignition_dispatches ||
           InstallExtension(isolate, "v8/ignition-statistics",
                            &extension_states)) &&
+         (!isValidCpuTraceMarkFunctionName() ||
+          InstallExtension(isolate, "v8/cpumark", &extension_states)) &&
          InstallRequestedExtensions(isolate, extensions, &extension_states);
 }
 
