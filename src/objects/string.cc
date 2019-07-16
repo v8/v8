@@ -123,7 +123,7 @@ void String::MakeThin(Isolate* isolate, String internalized) {
   int size_delta = old_size - ThinString::kSize;
   if (size_delta != 0) {
     Heap* heap = isolate->heap();
-    heap->CreateFillerObjectAt(thin_end, size_delta, ClearRecordedSlots::kNo);
+    heap->CreateFillerObjectAt(thin_end, size_delta);
   }
 }
 
@@ -155,6 +155,10 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
   if (has_pointers) {
     isolate->heap()->NotifyObjectLayoutChange(*this, size, no_allocation);
+
+    MemoryChunk::FromAddress(this->address())
+        ->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(
+            HeapObject::FromAddress(this->address()), size);
   }
   // Morph the string to an external string by replacing the map and
   // reinitializing the fields.  This won't work if the space the existing
@@ -177,12 +181,8 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
   // Byte size of the external String object.
   int new_size = this->SizeFromMap(new_map);
-  isolate->heap()->CreateFillerObjectAt(
-      this->address() + new_size, size - new_size, ClearRecordedSlots::kNo);
-  if (has_pointers) {
-    isolate->heap()->ClearRecordedSlotRange(this->address(),
-                                            this->address() + new_size);
-  }
+  isolate->heap()->CreateFillerObjectAt(this->address() + new_size,
+                                        size - new_size);
 
   // We are storing the new map using release store after creating a filler for
   // the left-over space to avoid races with the sweeper thread.
@@ -228,6 +228,10 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
 
   if (has_pointers) {
     isolate->heap()->NotifyObjectLayoutChange(*this, size, no_allocation);
+
+    MemoryChunk::FromAddress(this->address())
+        ->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(
+            HeapObject::FromAddress(this->address()), size);
   }
   // Morph the string to an external string by replacing the map and
   // reinitializing the fields.  This won't work if the space the existing
@@ -249,12 +253,8 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
 
   // Byte size of the external String object.
   int new_size = this->SizeFromMap(new_map);
-  isolate->heap()->CreateFillerObjectAt(
-      this->address() + new_size, size - new_size, ClearRecordedSlots::kNo);
-  if (has_pointers) {
-    isolate->heap()->ClearRecordedSlotRange(this->address(),
-                                            this->address() + new_size);
-  }
+  isolate->heap()->CreateFillerObjectAt(this->address() + new_size,
+                                        size - new_size);
 
   // We are storing the new map using release store after creating a filler for
   // the left-over space to avoid races with the sweeper thread.
@@ -1405,8 +1405,7 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
   Heap* heap = Heap::FromWritableHeapObject(*string);
   // Sizes are pointer size aligned, so that we can use filler objects
   // that are a multiple of pointer size.
-  heap->CreateFillerObjectAt(start_of_string + new_size, delta,
-                             ClearRecordedSlots::kNo);
+  heap->CreateFillerObjectAt(start_of_string + new_size, delta);
   // We are storing the new length using release store after creating a filler
   // for the left-over space to avoid races with the sweeper thread.
   string->synchronized_set_length(new_length);
