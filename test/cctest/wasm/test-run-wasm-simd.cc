@@ -383,7 +383,8 @@ int64_t LessEqual(double a, double b) { return a <= b ? -1 : 0; }
   void RunWasm_##name##_Impl(LowerSimd lower_simd, ExecutionTier execution_tier)
 
 // Returns true if the platform can represent the result.
-bool PlatformCanRepresent(float x) {
+template <typename T>
+bool PlatformCanRepresent(T x) {
 #if V8_TARGET_ARCH_ARM
   return std::fpclassify(x) != FP_SUBNORMAL;
 #else
