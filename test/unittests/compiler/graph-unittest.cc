@@ -116,7 +116,8 @@ Matcher<Node*> GraphTest::IsUndefinedConstant() {
 }
 
 TypedGraphTest::TypedGraphTest(int num_parameters)
-    : GraphTest(num_parameters), typer_(broker(), Typer::kNoFlags, graph()) {}
+    : GraphTest(num_parameters),
+      typer_(broker(), Typer::kNoFlags, graph(), tick_counter()) {}
 
 TypedGraphTest::~TypedGraphTest() = default;
 

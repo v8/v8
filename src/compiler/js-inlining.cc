@@ -7,6 +7,7 @@
 #include "src/ast/ast.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
+#include "src/codegen/tick-counter.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/bytecode-graph-builder.h"
 #include "src/compiler/common-operator.h"
@@ -469,11 +470,11 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       AllowCodeDependencyChange allow_code_dep_change;
       CallFrequency frequency = call.frequency();
       Handle<NativeContext> native_context(info_->native_context(), isolate());
-      BuildGraphFromBytecode(broker(), zone(), bytecode_array.object(),
-                             shared_info.value().object(),
-                             feedback_vector.object(), BailoutId::None(),
-                             jsgraph(), frequency, source_positions_,
-                             native_context, inlining_id, flags);
+      BuildGraphFromBytecode(
+          broker(), zone(), bytecode_array.object(),
+          shared_info.value().object(), feedback_vector.object(),
+          BailoutId::None(), jsgraph(), frequency, source_positions_,
+          native_context, inlining_id, flags, &info_->tick_counter());
     }
 
     // Extract the inlinee start/end nodes.

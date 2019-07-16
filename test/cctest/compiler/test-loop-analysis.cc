@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/codegen/tick-counter.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/graph-visualizer.h"
+#include "src/compiler/graph.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/loop-analysis.h"
@@ -57,6 +58,7 @@ class LoopFinderTester : HandleAndZoneScope {
   }
 
   Isolate* isolate;
+  TickCounter tick_counter;
   CommonOperatorBuilder common;
   Graph graph;
   JSGraph jsgraph;
@@ -128,7 +130,7 @@ class LoopFinderTester : HandleAndZoneScope {
         StdoutStream{} << AsRPO(graph);
       }
       Zone zone(main_isolate()->allocator(), ZONE_NAME);
-      loop_tree = LoopFinder::BuildLoopTree(&graph, &zone);
+      loop_tree = LoopFinder::BuildLoopTree(&graph, &tick_counter, &zone);
     }
     return loop_tree;
   }

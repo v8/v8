@@ -11,6 +11,9 @@
 #include "src/handles/handles.h"
 
 namespace v8 {
+
+class TickCounter;
+
 namespace internal {
 
 class BytecodeArray;
@@ -43,7 +46,8 @@ void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
                             CallFrequency const& invocation_frequency,
                             SourcePositionTable* source_positions,
                             Handle<NativeContext> native_context,
-                            int inlining_id, BytecodeGraphBuilderFlags flags);
+                            int inlining_id, BytecodeGraphBuilderFlags flags,
+                            TickCounter* tick_counter);
 
 }  // namespace compiler
 }  // namespace internal

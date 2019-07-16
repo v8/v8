@@ -7,6 +7,7 @@
 #include <iomanip>
 
 #include "src/base/flags.h"
+#include "src/codegen/tick-counter.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-operator.h"
@@ -33,20 +34,21 @@ class Typer::Decorator final : public GraphDecorator {
   Typer* const typer_;
 };
 
-Typer::Typer(JSHeapBroker* broker, Flags flags, Graph* graph)
+Typer::Typer(JSHeapBroker* broker, Flags flags, Graph* graph,
+             TickCounter* tick_counter)
     : flags_(flags),
       graph_(graph),
       decorator_(nullptr),
       cache_(TypeCache::Get()),
       broker_(broker),
-      operation_typer_(broker, zone()) {
+      operation_typer_(broker, zone()),
+      tick_counter_(tick_counter) {
   singleton_false_ = operation_typer_.singleton_false();
   singleton_true_ = operation_typer_.singleton_true();
 
   decorator_ = new (zone()) Decorator(this);
   graph_->AddDecorator(decorator_);
 }
-
 
 Typer::~Typer() {
   graph_->RemoveDecorator(decorator_);
@@ -422,7 +424,7 @@ void Typer::Run(const NodeVector& roots,
     induction_vars->ChangeToInductionVariablePhis();
   }
   Visitor visitor(this, induction_vars);
-  GraphReducer graph_reducer(zone(), graph());
+  GraphReducer graph_reducer(zone(), graph(), tick_counter_);
   graph_reducer.AddReducer(&visitor);
   for (Node* const root : roots) graph_reducer.ReduceNode(root);
   graph_reducer.ReduceGraph();

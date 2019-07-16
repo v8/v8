@@ -6,6 +6,7 @@
 
 #include "src/ast/ast.h"
 #include "src/codegen/source-position-table.h"
+#include "src/codegen/tick-counter.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/compiler-source-position-table.h"
@@ -40,7 +41,8 @@ class BytecodeGraphBuilder {
                        CallFrequency const& invocation_frequency,
                        SourcePositionTable* source_positions,
                        Handle<NativeContext> native_context, int inlining_id,
-                       BytecodeGraphBuilderFlags flags);
+                       BytecodeGraphBuilderFlags flags,
+                       TickCounter* tick_counter);
 
   // Creates a graph by visiting bytecodes.
   void CreateGraph();
@@ -433,6 +435,8 @@ class BytecodeGraphBuilder {
 
   // The native context for which we optimize.
   Handle<NativeContext> const native_context_;
+
+  TickCounter* const tick_counter_;
 
   static int const kBinaryOperationHintIndex = 1;
   static int const kCountOperationHintIndex = 0;
@@ -938,7 +942,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
     BailoutId osr_offset, JSGraph* jsgraph,
     CallFrequency const& invocation_frequency,
     SourcePositionTable* source_positions, Handle<NativeContext> native_context,
-    int inlining_id, BytecodeGraphBuilderFlags flags)
+    int inlining_id, BytecodeGraphBuilderFlags flags, TickCounter* tick_counter)
     : broker_(broker),
       local_zone_(local_zone),
       jsgraph_(jsgraph),
@@ -977,7 +981,8 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       source_positions_(source_positions),
       start_position_(shared_info->StartPosition(), inlining_id),
       shared_info_(shared_info),
-      native_context_(native_context) {
+      native_context_(native_context),
+      tick_counter_(tick_counter) {
   if (FLAG_concurrent_inlining) {
     // With concurrent inlining on, the source position address doesn't change
     // because it's been copied from the heap.
@@ -1265,6 +1270,7 @@ void BytecodeGraphBuilder::AdvanceToOsrEntryAndPeelLoops() {
 }
 
 void BytecodeGraphBuilder::VisitSingleBytecode() {
+  tick_counter_->DoTick();
   int current_offset = bytecode_iterator().current_offset();
   UpdateSourcePosition(current_offset);
   ExitThenEnterExceptionHandlers(current_offset);
@@ -4018,14 +4024,15 @@ void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
                             CallFrequency const& invocation_frequency,
                             SourcePositionTable* source_positions,
                             Handle<NativeContext> native_context,
-                            int inlining_id, BytecodeGraphBuilderFlags flags) {
+                            int inlining_id, BytecodeGraphBuilderFlags flags,
+                            TickCounter* tick_counter) {
   BytecodeArrayRef bytecode_array_ref(broker, bytecode_array);
   DCHECK(bytecode_array_ref.IsSerializedForCompilation());
   FeedbackVectorRef feedback_vector_ref(broker, feedback_vector);
-  BytecodeGraphBuilder builder(broker, local_zone, bytecode_array_ref, shared,
-                               feedback_vector_ref, osr_offset, jsgraph,
-                               invocation_frequency, source_positions,
-                               native_context, inlining_id, flags);
+  BytecodeGraphBuilder builder(
+      broker, local_zone, bytecode_array_ref, shared, feedback_vector_ref,
+      osr_offset, jsgraph, invocation_frequency, source_positions,
+      native_context, inlining_id, flags, tick_counter);
   builder.CreateGraph();
 }
 

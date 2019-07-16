@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/simplified-operator-reducer.h"
+#include "src/codegen/tick-counter.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
@@ -34,7 +35,7 @@ class SimplifiedOperatorReducerTest : public GraphTest {
     JSOperatorBuilder javascript(zone());
     JSGraph jsgraph(isolate(), graph(), common(), &javascript, simplified(),
                     &machine);
-    GraphReducer graph_reducer(zone(), graph());
+    GraphReducer graph_reducer(zone(), graph(), tick_counter());
     SimplifiedOperatorReducer reducer(&graph_reducer, &jsgraph, &broker);
     return reducer.Reduce(node);
   }

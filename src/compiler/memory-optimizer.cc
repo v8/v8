@@ -5,6 +5,7 @@
 #include "src/compiler/memory-optimizer.h"
 
 #include "src/codegen/interface-descriptors.h"
+#include "src/codegen/tick-counter.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
@@ -20,7 +21,8 @@ namespace compiler {
 MemoryOptimizer::MemoryOptimizer(JSGraph* jsgraph, Zone* zone,
                                  PoisoningMitigationLevel poisoning_level,
                                  AllocationFolding allocation_folding,
-                                 const char* function_debug_name)
+                                 const char* function_debug_name,
+                                 TickCounter* tick_counter)
     : jsgraph_(jsgraph),
       empty_state_(AllocationState::Empty(zone)),
       pending_(zone),
@@ -29,7 +31,8 @@ MemoryOptimizer::MemoryOptimizer(JSGraph* jsgraph, Zone* zone,
       graph_assembler_(jsgraph, nullptr, nullptr, zone),
       poisoning_level_(poisoning_level),
       allocation_folding_(allocation_folding),
-      function_debug_name_(function_debug_name) {}
+      function_debug_name_(function_debug_name),
+      tick_counter_(tick_counter) {}
 
 void MemoryOptimizer::Optimize() {
   EnqueueUses(graph()->start(), empty_state());
@@ -216,6 +219,7 @@ Node* EffectPhiForPhi(Node* phi) {
 }  // namespace
 
 void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
+  tick_counter_->DoTick();
   DCHECK(!node->IsDead());
   DCHECK_LT(0, node->op()->EffectInputCount());
   switch (node->opcode()) {

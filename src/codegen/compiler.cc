@@ -320,6 +320,8 @@ void OptimizedCompilationJob::RecordCompilationStats(CompilationMode mode,
       counters->turbofan_optimize_total_foreground()->AddSample(
           static_cast<int>(time_foreground.InMicroseconds()));
     }
+    counters->turbofan_ticks()->AddSample(static_cast<int>(
+        compilation_info()->tick_counter().CurrentTicks() / 1000));
   }
 }
 

@@ -8,6 +8,7 @@
 
 #include "src/base/bits.h"
 #include "src/codegen/code-factory.h"
+#include "src/codegen/tick-counter.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
@@ -22,8 +23,8 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
 #include "src/numbers/conversions-inl.h"
-#include "src/utils/address-map.h"
 #include "src/objects/objects.h"
+#include "src/utils/address-map.h"
 
 namespace v8 {
 namespace internal {
@@ -279,7 +280,8 @@ class RepresentationSelector {
   RepresentationSelector(JSGraph* jsgraph, JSHeapBroker* broker, Zone* zone,
                          RepresentationChanger* changer,
                          SourcePositionTable* source_positions,
-                         NodeOriginTable* node_origins)
+                         NodeOriginTable* node_origins,
+                         TickCounter* tick_counter)
       : jsgraph_(jsgraph),
         zone_(zone),
         count_(jsgraph->graph()->NodeCount()),
@@ -296,7 +298,8 @@ class RepresentationSelector {
         source_positions_(source_positions),
         node_origins_(node_origins),
         type_cache_(TypeCache::Get()),
-        op_typer_(broker, graph_zone()) {
+        op_typer_(broker, graph_zone()),
+        tick_counter_(tick_counter) {
   }
 
   // Forward propagation of types from type feedback.
@@ -1683,6 +1686,8 @@ class RepresentationSelector {
   // Depending on the operator, propagate new usage info to the inputs.
   void VisitNode(Node* node, Truncation truncation,
                  SimplifiedLowering* lowering) {
+    tick_counter_->DoTick();
+
     // Unconditionally eliminate unused pure nodes (only relevant if there's
     // a pure operation in between two effectful ones, where the last one
     // is unused).
@@ -3656,6 +3661,7 @@ class RepresentationSelector {
   NodeOriginTable* node_origins_;
   TypeCache const* type_cache_;
   OperationTyper op_typer_;  // helper for the feedback typer
+  TickCounter* const tick_counter_;
 
   NodeInfo* GetInfo(Node* node) {
     DCHECK(node->id() < count_);
@@ -3669,19 +3675,22 @@ SimplifiedLowering::SimplifiedLowering(JSGraph* jsgraph, JSHeapBroker* broker,
                                        Zone* zone,
                                        SourcePositionTable* source_positions,
                                        NodeOriginTable* node_origins,
-                                       PoisoningMitigationLevel poisoning_level)
+                                       PoisoningMitigationLevel poisoning_level,
+                                       TickCounter* tick_counter)
     : jsgraph_(jsgraph),
       broker_(broker),
       zone_(zone),
       type_cache_(TypeCache::Get()),
       source_positions_(source_positions),
       node_origins_(node_origins),
-      poisoning_level_(poisoning_level) {}
+      poisoning_level_(poisoning_level),
+      tick_counter_(tick_counter) {}
 
 void SimplifiedLowering::LowerAllNodes() {
   RepresentationChanger changer(jsgraph(), broker_);
   RepresentationSelector selector(jsgraph(), broker_, zone_, &changer,
-                                  source_positions_, node_origins_);
+                                  source_positions_, node_origins_,
+                                  tick_counter_);
   selector.Run(this);
 }
 

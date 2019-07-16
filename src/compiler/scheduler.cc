@@ -7,6 +7,7 @@
 #include <iomanip>
 
 #include "src/base/adapters.h"
+#include "src/codegen/tick-counter.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/control-equivalence.h"
 #include "src/compiler/graph.h"
@@ -26,7 +27,7 @@ namespace compiler {
   } while (false)
 
 Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule, Flags flags,
-                     size_t node_count_hint)
+                     size_t node_count_hint, TickCounter* tick_counter)
     : zone_(zone),
       graph_(graph),
       schedule_(schedule),
@@ -34,12 +35,14 @@ Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule, Flags flags,
       scheduled_nodes_(zone),
       schedule_root_nodes_(zone),
       schedule_queue_(zone),
-      node_data_(zone) {
+      node_data_(zone),
+      tick_counter_(tick_counter) {
   node_data_.reserve(node_count_hint);
   node_data_.resize(graph->NodeCount(), DefaultSchedulerData());
 }
 
-Schedule* Scheduler::ComputeSchedule(Zone* zone, Graph* graph, Flags flags) {
+Schedule* Scheduler::ComputeSchedule(Zone* zone, Graph* graph, Flags flags,
+                                     TickCounter* tick_counter) {
   Zone* schedule_zone =
       (flags & Scheduler::kTempSchedule) ? zone : graph->zone();
 
@@ -50,7 +53,8 @@ Schedule* Scheduler::ComputeSchedule(Zone* zone, Graph* graph, Flags flags) {
 
   Schedule* schedule =
       new (schedule_zone) Schedule(schedule_zone, node_count_hint);
-  Scheduler scheduler(zone, graph, schedule, flags, node_count_hint);
+  Scheduler scheduler(zone, graph, schedule, flags, node_count_hint,
+                      tick_counter);
 
   scheduler.BuildCFG();
   scheduler.ComputeSpecialRPONumbering();
@@ -64,7 +68,6 @@ Schedule* Scheduler::ComputeSchedule(Zone* zone, Graph* graph, Flags flags) {
 
   return schedule;
 }
-
 
 Scheduler::SchedulerData Scheduler::DefaultSchedulerData() {
   SchedulerData def = {schedule_->start(), 0, kUnknown};
@@ -258,6 +261,7 @@ class CFGBuilder : public ZoneObject {
     Queue(scheduler_->graph_->end());
 
     while (!queue_.empty()) {  // Breadth-first backwards traversal.
+      scheduler_->tick_counter_->DoTick();
       Node* node = queue_.front();
       queue_.pop();
       int max = NodeProperties::PastControlIndex(node);
@@ -283,6 +287,7 @@ class CFGBuilder : public ZoneObject {
     component_end_ = schedule_->block(exit);
     scheduler_->equivalence_->Run(exit);
     while (!queue_.empty()) {  // Breadth-first backwards traversal.
+      scheduler_->tick_counter_->DoTick();
       Node* node = queue_.front();
       queue_.pop();
 
@@ -1234,6 +1239,7 @@ void Scheduler::PrepareUses() {
   visited[node->id()] = true;
   stack.push(node->input_edges().begin());
   while (!stack.empty()) {
+    tick_counter_->DoTick();
     Edge edge = *stack.top();
     Node* node = edge.to();
     if (visited[node->id()]) {
@@ -1262,6 +1268,7 @@ class ScheduleEarlyNodeVisitor {
     for (Node* const root : *roots) {
       queue_.push(root);
       while (!queue_.empty()) {
+        scheduler_->tick_counter_->DoTick();
         VisitNode(queue_.front());
         queue_.pop();
       }
@@ -1388,6 +1395,7 @@ class ScheduleLateNodeVisitor {
 
       queue->push(node);
       do {
+        scheduler_->tick_counter_->DoTick();
         Node* const node = queue->front();
         queue->pop();
         VisitNode(node);

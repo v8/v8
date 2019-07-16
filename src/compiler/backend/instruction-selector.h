@@ -19,6 +19,9 @@
 
 namespace v8 {
 namespace internal {
+
+class TickCounter;
+
 namespace compiler {
 
 // Forward declarations.
@@ -266,7 +269,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
       Zone* zone, size_t node_count, Linkage* linkage,
       InstructionSequence* sequence, Schedule* schedule,
       SourcePositionTable* source_positions, Frame* frame,
-      EnableSwitchJumpTable enable_switch_jump_table,
+      EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
       SourcePositionMode source_position_mode = kCallSourcePositions,
       Features features = SupportedFeatures(),
       EnableScheduling enable_scheduling = FLAG_turbo_instruction_scheduling
@@ -778,6 +781,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   bool instruction_selection_failed_;
   ZoneVector<std::pair<int, int>> instr_origins_;
   EnableTraceTurboJson trace_turbo_;
+  TickCounter* const tick_counter_;
 };
 
 }  // namespace compiler

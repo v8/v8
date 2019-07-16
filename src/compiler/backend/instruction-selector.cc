@@ -8,6 +8,7 @@
 
 #include "src/base/adapters.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/codegen/tick-counter.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/node-matchers.h"
@@ -24,7 +25,7 @@ InstructionSelector::InstructionSelector(
     Zone* zone, size_t node_count, Linkage* linkage,
     InstructionSequence* sequence, Schedule* schedule,
     SourcePositionTable* source_positions, Frame* frame,
-    EnableSwitchJumpTable enable_switch_jump_table,
+    EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
     SourcePositionMode source_position_mode, Features features,
     EnableScheduling enable_scheduling,
     EnableRootsRelativeAddressing enable_roots_relative_addressing,
@@ -54,7 +55,8 @@ InstructionSelector::InstructionSelector(
       frame_(frame),
       instruction_selection_failed_(false),
       instr_origins_(sequence->zone()),
-      trace_turbo_(trace_turbo) {
+      trace_turbo_(trace_turbo),
+      tick_counter_(tick_counter) {
   instructions_.reserve(node_count);
   continuation_inputs_.reserve(5);
   continuation_outputs_.reserve(2);
@@ -1251,6 +1253,7 @@ void InstructionSelector::MarkPairProjectionsAsWord32(Node* node) {
 }
 
 void InstructionSelector::VisitNode(Node* node) {
+  tick_counter_->DoTick();
   DCHECK_NOT_NULL(schedule()->block(node));  // should only use scheduled nodes.
   switch (node->opcode()) {
     case IrOpcode::kStart:

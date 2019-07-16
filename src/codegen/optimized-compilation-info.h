@@ -9,6 +9,7 @@
 
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/source-position-table.h"
+#include "src/codegen/tick-counter.h"
 #include "src/common/globals.h"
 #include "src/execution/frames.h"
 #include "src/handles/handles.h"
@@ -289,6 +290,8 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   std::unique_ptr<v8::tracing::TracedValue> ToTracedValue();
 
+  TickCounter& tick_counter() { return tick_counter_; }
+
  private:
   OptimizedCompilationInfo(Code::Kind code_kind, Zone* zone);
   void ConfigureFlags();
@@ -340,6 +343,8 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   Vector<const char> debug_name_;
   std::unique_ptr<char[]> trace_turbo_filename_;
+
+  TickCounter tick_counter_;
 
   DISALLOW_COPY_AND_ASSIGN(OptimizedCompilationInfo);
 };

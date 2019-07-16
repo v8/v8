@@ -91,7 +91,9 @@ namespace internal {
   HR(wasm_module_num_triggered_code_gcs,                                       \
      V8.WasmModuleNumberOfCodeGCsTriggered, 1, 128, 20)                        \
   /* bailout reason if Liftoff failed, or {kSuccess} (per function) */         \
-  HR(liftoff_bailout_reasons, V8.LiftoffBailoutReasons, 0, 20, 21)
+  HR(liftoff_bailout_reasons, V8.LiftoffBailoutReasons, 0, 20, 21)             \
+  /* Ticks observed in a single Turbofan compilation, in 1K */                 \
+  HR(turbofan_ticks, V8.TurboFan1KTicks, 0, 100000, 200)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
   /* Timer histograms, not thread safe: HT(name, caption, max, unit) */        \
