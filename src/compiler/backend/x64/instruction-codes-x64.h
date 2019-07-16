@@ -161,6 +161,8 @@ namespace compiler {
   V(X64F64x2Splat)                        \
   V(X64F64x2ExtractLane)                  \
   V(X64F64x2ReplaceLane)                  \
+  V(X64F64x2Eq)                           \
+  V(X64F64x2Ne)                           \
   V(X64F32x4Splat)                        \
   V(X64F32x4ExtractLane)                  \
   V(X64F32x4ReplaceLane)                  \

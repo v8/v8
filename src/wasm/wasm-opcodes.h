@@ -321,6 +321,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   V(F32x4Gt, 0xfd43, s_ss)               \
   V(F32x4Le, 0xfd44, s_ss)               \
   V(F32x4Ge, 0xfd45, s_ss)               \
+  V(F64x2Eq, 0xfd46, s_ss)               \
+  V(F64x2Ne, 0xfd47, s_ss)               \
   V(S128Not, 0xfd4c, s_s)                \
   V(S128And, 0xfd4d, s_ss)               \
   V(S128Or, 0xfd4e, s_ss)                \

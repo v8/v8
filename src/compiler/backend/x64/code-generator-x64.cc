@@ -2269,6 +2269,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ movq(i.OutputDoubleRegister(), kScratchRegister);
       break;
     }
+    case kX64F64x2Eq: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ cmpeqpd(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kX64F64x2Ne: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ cmpneqpd(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
     // TODO(gdeepti): Get rid of redundant moves for F32x4Splat/Extract below
     case kX64F32x4Splat: {
       XMMRegister dst = i.OutputSimd128Register();
