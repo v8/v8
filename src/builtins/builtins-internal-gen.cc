@@ -1047,6 +1047,9 @@ TF_BUILTIN(GetPropertyWithReceiver, CodeStubAssembler) {
     // Convert the {key} to a Name first.
     Node* name = CallBuiltin(Builtins::kToName, context, key);
 
+    // Proxy cannot handle private symbol so bailout.
+    GotoIf(IsPrivateSymbol(name), &if_slow);
+
     // The {object} is a JSProxy instance, look up the {name} on it, passing
     // {object} both as receiver and holder. If {name} is absent we can safely
     // return undefined from here.

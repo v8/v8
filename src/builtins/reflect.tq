@@ -42,4 +42,26 @@ namespace reflect {
     }
     ThrowTypeError(kProtoObjectOrNull, proto);
   }
+
+  extern transitioning builtin ToName(implicit context: Context)(Object): Name;
+  type OnNonExistent constexpr 'OnNonExistent';
+  const kReturnUndefined: constexpr OnNonExistent
+  generates 'OnNonExistent::kReturnUndefined';
+  extern macro SmiConstant(constexpr OnNonExistent): Smi;
+  extern transitioning builtin GetPropertyWithReceiver(
+      implicit context: Context)(Object, Name, Object, Smi): Object;
+
+  // ES6 section 26.1.6 Reflect.get
+  transitioning javascript builtin
+  ReflectGet(js-implicit context: Context)(...arguments): Object {
+    const length = arguments.length;
+    const object: Object = length > 0 ? arguments[0] : Undefined;
+    const objectJSReceiver = Cast<JSReceiver>(object)
+        otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.get');
+    const propertyKey: Object = length > 1 ? arguments[1] : Undefined;
+    const name: Name = ToName(propertyKey);
+    const receiver: Object = length > 2 ? arguments[2] : objectJSReceiver;
+    return GetPropertyWithReceiver(
+        objectJSReceiver, name, receiver, SmiConstant(kReturnUndefined));
+  }
 }  // namespace reflect

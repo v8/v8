@@ -70,29 +70,6 @@ BUILTIN(ReflectDeleteProperty) {
   return *isolate->factory()->ToBoolean(result.FromJust());
 }
 
-// ES6 section 26.1.6 Reflect.get
-BUILTIN(ReflectGet) {
-  HandleScope scope(isolate);
-  Handle<Object> target = args.atOrUndefined(isolate, 1);
-  Handle<Object> key = args.atOrUndefined(isolate, 2);
-  Handle<Object> receiver = args.length() > 3 ? args.at(3) : target;
-
-  if (!target->IsJSReceiver()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kCalledOnNonObject,
-                              isolate->factory()->NewStringFromAsciiChecked(
-                                  "Reflect.get")));
-  }
-
-  Handle<Name> name;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
-                                     Object::ToName(isolate, key));
-
-  RETURN_RESULT_OR_FAILURE(
-      isolate, Object::GetPropertyOrElement(receiver, name,
-                                            Handle<JSReceiver>::cast(target)));
-}
-
 // ES6 section 26.1.7 Reflect.getOwnPropertyDescriptor
 BUILTIN(ReflectGetOwnPropertyDescriptor) {
   HandleScope scope(isolate);
