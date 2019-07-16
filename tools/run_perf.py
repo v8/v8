@@ -1089,8 +1089,11 @@ def Main(argv):
                 break
 
               attempts_left -= 1
-              have_failed_tests = True
-              if attempts_left:
+              if not attempts_left:
+                logging.info('>>> Suite %s failed after %d retries',
+                             runnable_name, runnable.retry_count + 1)
+                have_failed_tests = True
+              else:
                 logging.info('>>> Retrying suite: %s', runnable_name)
       except MaxTotalDurationReachedError:
         have_failed_tests = True
