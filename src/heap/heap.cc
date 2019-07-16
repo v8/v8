@@ -2576,8 +2576,8 @@ void Heap::ExternalStringTable::IterateYoung(RootVisitor* v) {
   if (!young_strings_.empty()) {
     v->VisitRootPointers(
         Root::kExternalStringsTable, nullptr,
-        FullObjectSlot(&young_strings_[0]),
-        FullObjectSlot(&young_strings_[young_strings_.size()]));
+        FullObjectSlot(young_strings_.data()),
+        FullObjectSlot(young_strings_.data() + young_strings_.size()));
   }
 }
 
