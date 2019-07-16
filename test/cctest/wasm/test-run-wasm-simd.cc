@@ -2585,9 +2585,9 @@ WASM_SIMD_COMPILED_TEST(SimdLoadStoreLoad) {
     V8_TARGET_ARCH_ARM
 // V8:8665 - Tracking bug to enable reduction tests in the interpreter,
 // and for SIMD lowering.
-#define WASM_SIMD_ANYTRUE_TEST(format, lanes, max)                            \
+#define WASM_SIMD_ANYTRUE_TEST(format, lanes, max, param_type)                \
   WASM_SIMD_TEST_NO_LOWERING(S##format##AnyTrue) {                            \
-    WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);               \
+    WasmRunner<int32_t, param_type> r(execution_tier, lower_simd);            \
     byte simd = r.AllocateLocal(kWasmS128);                                   \
     BUILD(                                                                    \
         r,                                                                    \
@@ -2597,13 +2597,16 @@ WASM_SIMD_COMPILED_TEST(SimdLoadStoreLoad) {
     DCHECK_EQ(1, r.Call(5));                                                  \
     DCHECK_EQ(0, r.Call(0));                                                  \
   }
-WASM_SIMD_ANYTRUE_TEST(32x4, 4, 0xffffffff)
-WASM_SIMD_ANYTRUE_TEST(16x8, 8, 0xffff)
-WASM_SIMD_ANYTRUE_TEST(8x16, 16, 0xff)
+#if V8_TARGET_ARCH_X64
+WASM_SIMD_ANYTRUE_TEST(64x2, 2, 0xffffffffffffffff, int64_t)
+#endif  // V8_TARGET_ARCH_X64
+WASM_SIMD_ANYTRUE_TEST(32x4, 4, 0xffffffff, int32_t)
+WASM_SIMD_ANYTRUE_TEST(16x8, 8, 0xffff, int32_t)
+WASM_SIMD_ANYTRUE_TEST(8x16, 16, 0xff, int32_t)
 
-#define WASM_SIMD_ALLTRUE_TEST(format, lanes, max)                            \
+#define WASM_SIMD_ALLTRUE_TEST(format, lanes, max, param_type)                \
   WASM_SIMD_TEST_NO_LOWERING(S##format##AllTrue) {                            \
-    WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);               \
+    WasmRunner<int32_t, param_type> r(execution_tier, lower_simd);            \
     byte simd = r.AllocateLocal(kWasmS128);                                   \
     BUILD(                                                                    \
         r,                                                                    \
@@ -2613,9 +2616,12 @@ WASM_SIMD_ANYTRUE_TEST(8x16, 16, 0xff)
     DCHECK_EQ(1, r.Call(0x1));                                                \
     DCHECK_EQ(0, r.Call(0));                                                  \
   }
-WASM_SIMD_ALLTRUE_TEST(32x4, 4, 0xffffffff)
-WASM_SIMD_ALLTRUE_TEST(16x8, 8, 0xffff)
-WASM_SIMD_ALLTRUE_TEST(8x16, 16, 0xff)
+#if V8_TARGET_ARCH_X64
+WASM_SIMD_ALLTRUE_TEST(64x2, 2, 0xffffffffffffffff, int64_t)
+#endif  // V8_TARGET_ARCH_X64
+WASM_SIMD_ALLTRUE_TEST(32x4, 4, 0xffffffff, int32_t)
+WASM_SIMD_ALLTRUE_TEST(16x8, 8, 0xffff, int32_t)
+WASM_SIMD_ALLTRUE_TEST(8x16, 16, 0xff, int32_t)
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 ||
         // V8_TARGET_ARCH_ARM
 

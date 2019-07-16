@@ -2553,6 +2553,7 @@ class ThreadImpl {
         Push(WasmValue(Simd128(res)));
         return true;
       }
+      case kExprS1x2AnyTrue:
       case kExprS1x4AnyTrue:
       case kExprS1x8AnyTrue:
       case kExprS1x16AnyTrue: {
@@ -2571,6 +2572,7 @@ class ThreadImpl {
     Push(WasmValue(res));                                 \
     return true;                                          \
   }
+        REDUCTION_CASE(S1x2AllTrue, i64x2, int2, 2, &)
         REDUCTION_CASE(S1x4AllTrue, i32x4, int4, 4, &)
         REDUCTION_CASE(S1x8AllTrue, i16x8, int8, 8, &)
         REDUCTION_CASE(S1x16AllTrue, i8x16, int16, 16, &)

@@ -2067,6 +2067,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitS128Select(node);
     case IrOpcode::kS8x16Shuffle:
       return MarkAsSimd128(node), VisitS8x16Shuffle(node);
+    case IrOpcode::kS1x2AnyTrue:
+      return MarkAsWord32(node), VisitS1x2AnyTrue(node);
+    case IrOpcode::kS1x2AllTrue:
+      return MarkAsWord32(node), VisitS1x2AllTrue(node);
     case IrOpcode::kS1x4AnyTrue:
       return MarkAsWord32(node), VisitS1x4AnyTrue(node);
     case IrOpcode::kS1x4AllTrue:
@@ -2536,6 +2540,8 @@ void InstructionSelector::VisitI64x2Splat(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ExtractLane(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2Neg(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitS1x2AnyTrue(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitS1x2AllTrue(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2Shl(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ShrS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2Add(Node* node) { UNIMPLEMENTED(); }

@@ -3474,6 +3474,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ por(dst, kScratchDoubleReg);
       break;
     }
+    case kX64S1x2AnyTrue:
     case kX64S1x4AnyTrue:
     case kX64S1x8AnyTrue:
     case kX64S1x16AnyTrue: {
@@ -3491,6 +3492,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     // comparison instruction used matters, e.g. given 0xff00, pcmpeqb returns
     // 0x0011, pcmpeqw returns 0x0000, ptest will set ZF to 0 and 1
     // respectively.
+    case kX64S1x2AllTrue: {
+      ASSEMBLE_SIMD_ALL_TRUE(pcmpeqq);
+      break;
+    }
     case kX64S1x4AllTrue: {
       ASSEMBLE_SIMD_ALL_TRUE(pcmpeqd);
       break;

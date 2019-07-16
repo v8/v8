@@ -2702,11 +2702,13 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x16ShrU)
 
 #define SIMD_ANYTRUE_LIST(V) \
+  V(S1x2AnyTrue)             \
   V(S1x4AnyTrue)             \
   V(S1x8AnyTrue)             \
   V(S1x16AnyTrue)
 
 #define SIMD_ALLTRUE_LIST(V) \
+  V(S1x2AllTrue)             \
   V(S1x4AllTrue)             \
   V(S1x8AllTrue)             \
   V(S1x16AllTrue)

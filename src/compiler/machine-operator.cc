@@ -350,6 +350,8 @@ MachineType AtomicOpType(Operator const* op) {
   V(S128Xor, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)        \
   V(S128Not, Operator::kNoProperties, 1, 0, 1)                                \
   V(S128Select, Operator::kNoProperties, 3, 0, 1)                             \
+  V(S1x2AnyTrue, Operator::kNoProperties, 1, 0, 1)                            \
+  V(S1x2AllTrue, Operator::kNoProperties, 1, 0, 1)                            \
   V(S1x4AnyTrue, Operator::kNoProperties, 1, 0, 1)                            \
   V(S1x4AllTrue, Operator::kNoProperties, 1, 0, 1)                            \
   V(S1x8AnyTrue, Operator::kNoProperties, 1, 0, 1)                            \

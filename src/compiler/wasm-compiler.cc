@@ -4339,6 +4339,10 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprS128Select:
       return graph()->NewNode(mcgraph()->machine()->S128Select(), inputs[2],
                               inputs[0], inputs[1]);
+    case wasm::kExprS1x2AnyTrue:
+      return graph()->NewNode(mcgraph()->machine()->S1x2AnyTrue(), inputs[0]);
+    case wasm::kExprS1x2AllTrue:
+      return graph()->NewNode(mcgraph()->machine()->S1x2AllTrue(), inputs[0]);
     case wasm::kExprS1x4AnyTrue:
       return graph()->NewNode(mcgraph()->machine()->S1x4AnyTrue(), inputs[0]);
     case wasm::kExprS1x4AllTrue:

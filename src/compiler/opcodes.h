@@ -884,6 +884,8 @@
   V(S128Xor)                    \
   V(S128Select)                 \
   V(S8x16Shuffle)               \
+  V(S1x2AnyTrue)                \
+  V(S1x2AllTrue)                \
   V(S1x4AnyTrue)                \
   V(S1x4AllTrue)                \
   V(S1x8AnyTrue)                \

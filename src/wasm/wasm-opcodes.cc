@@ -23,16 +23,17 @@ namespace wasm {
 #define CASE_F32_OP(name, str) CASE_OP(F32##name, "f32." str)
 #define CASE_F64_OP(name, str) CASE_OP(F64##name, "f64." str)
 #define CASE_REF_OP(name, str) CASE_OP(Ref##name, "ref." str)
-#define CASE_F32x4_OP(name, str) CASE_OP(F32x4##name, "f32x4." str)
-#define CASE_I32x4_OP(name, str) CASE_OP(I32x4##name, "i32x4." str)
-#define CASE_I64x2_OP(name, str) CASE_OP(I64x2##name, "i64x2." str)
 #define CASE_F64x2_OP(name, str) CASE_OP(F64x2##name, "f64x2." str)
+#define CASE_F32x4_OP(name, str) CASE_OP(F32x4##name, "f32x4." str)
+#define CASE_I64x2_OP(name, str) CASE_OP(I64x2##name, "i64x2." str)
+#define CASE_I32x4_OP(name, str) CASE_OP(I32x4##name, "i32x4." str)
 #define CASE_I16x8_OP(name, str) CASE_OP(I16x8##name, "i16x8." str)
 #define CASE_I8x16_OP(name, str) CASE_OP(I8x16##name, "i8x16." str)
 #define CASE_S128_OP(name, str) CASE_OP(S128##name, "s128." str)
 #define CASE_S32x4_OP(name, str) CASE_OP(S32x4##name, "s32x4." str)
 #define CASE_S16x8_OP(name, str) CASE_OP(S16x8##name, "s16x8." str)
 #define CASE_S8x16_OP(name, str) CASE_OP(S8x16##name, "s8x16." str)
+#define CASE_S1x2_OP(name, str) CASE_OP(S1x2##name, "s1x2." str)
 #define CASE_S1x4_OP(name, str) CASE_OP(S1x4##name, "s1x4." str)
 #define CASE_S1x8_OP(name, str) CASE_OP(S1x8##name, "s1x8." str)
 #define CASE_S1x16_OP(name, str) CASE_OP(S1x16##name, "s1x16." str)
@@ -283,6 +284,8 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_S128_OP(Not, "not")
     CASE_S128_OP(Select, "select")
     CASE_S8x16_OP(Shuffle, "shuffle")
+    CASE_S1x2_OP(AnyTrue, "any_true")
+    CASE_S1x2_OP(AllTrue, "all_true")
     CASE_S1x4_OP(AnyTrue, "any_true")
     CASE_S1x4_OP(AllTrue, "all_true")
     CASE_S1x8_OP(AnyTrue, "any_true")
@@ -314,7 +317,9 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
 #undef CASE_F32_OP
 #undef CASE_F64_OP
 #undef CASE_REF_OP
+#undef CASE_F64x2_OP
 #undef CASE_F32x4_OP
+#undef CASE_I64x2_OP
 #undef CASE_I32x4_OP
 #undef CASE_I16x8_OP
 #undef CASE_I8x16_OP
@@ -322,6 +327,7 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
 #undef CASE_S32x4_OP
 #undef CASE_S16x8_OP
 #undef CASE_S8x16_OP
+#undef CASE_S1x2_OP
 #undef CASE_S1x4_OP
 #undef CASE_S1x8_OP
 #undef CASE_S1x16_OP
