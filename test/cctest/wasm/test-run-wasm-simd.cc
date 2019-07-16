@@ -275,6 +275,14 @@ T Sqrt(T a) {
 int64_t Equal(double a, double b) { return a == b ? -1 : 0; }
 
 int64_t NotEqual(double a, double b) { return a != b ? -1 : 0; }
+
+int64_t Greater(double a, double b) { return a > b ? -1 : 0; }
+
+int64_t GreaterEqual(double a, double b) { return a >= b ? -1 : 0; }
+
+int64_t Less(double a, double b) { return a < b ? -1 : 0; }
+
+int64_t LessEqual(double a, double b) { return a <= b ? -1 : 0; }
 #endif  // V8_TARGET_ARCH_X64
 
 }  // namespace
@@ -814,6 +822,22 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Eq) {
 
 WASM_SIMD_TEST_NO_LOWERING(F64x2Ne) {
   RunF64x2CompareOpTest(execution_tier, lower_simd, kExprF64x2Ne, NotEqual);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(F64x2Gt) {
+  RunF64x2CompareOpTest(execution_tier, lower_simd, kExprF64x2Gt, Greater);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(F64x2Ge) {
+  RunF64x2CompareOpTest(execution_tier, lower_simd, kExprF64x2Ge, GreaterEqual);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(F64x2Lt) {
+  RunF64x2CompareOpTest(execution_tier, lower_simd, kExprF64x2Lt, Less);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(F64x2Le) {
+  RunF64x2CompareOpTest(execution_tier, lower_simd, kExprF64x2Le, LessEqual);
 }
 
 WASM_SIMD_TEST_NO_LOWERING(I64x2Splat) {

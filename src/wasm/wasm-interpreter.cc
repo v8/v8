@@ -2316,6 +2316,10 @@ class ThreadImpl {
   }
       CMPOP_CASE(F64x2Eq, f64x2, float2, int2, 2, a == b)
       CMPOP_CASE(F64x2Ne, f64x2, float2, int2, 2, a != b)
+      CMPOP_CASE(F64x2Gt, f64x2, float2, int2, 2, a > b)
+      CMPOP_CASE(F64x2Ge, f64x2, float2, int2, 2, a >= b)
+      CMPOP_CASE(F64x2Lt, f64x2, float2, int2, 2, a < b)
+      CMPOP_CASE(F64x2Le, f64x2, float2, int2, 2, a <= b)
       CMPOP_CASE(F32x4Eq, f32x4, float4, int4, 4, a == b)
       CMPOP_CASE(F32x4Ne, f32x4, float4, int4, 4, a != b)
       CMPOP_CASE(F32x4Gt, f32x4, float4, int4, 4, a > b)
