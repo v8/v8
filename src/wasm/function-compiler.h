@@ -35,6 +35,10 @@ class WasmInstructionBuffer final {
 
   static std::unique_ptr<WasmInstructionBuffer> New();
 
+  // Override {operator delete} to avoid implicit instantiation of {operator
+  // delete} with {size_t} argument. The {size_t} argument would be incorrect.
+  void operator delete(void* ptr) { ::operator delete(ptr); }
+
  private:
   WasmInstructionBuffer() = delete;
   DISALLOW_COPY_AND_ASSIGN(WasmInstructionBuffer);
