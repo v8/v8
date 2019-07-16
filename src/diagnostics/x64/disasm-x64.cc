@@ -1684,6 +1684,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
 
         SSSE3_INSTRUCTION_LIST(SSE34_DIS_CASE)
         SSE4_INSTRUCTION_LIST(SSE34_DIS_CASE)
+        SSE4_2_INSTRUCTION_LIST(SSE34_DIS_CASE)
 #undef SSE34_DIS_CASE
         default:
           UnimplementedInstruction();

@@ -606,6 +606,14 @@ TEST(DisasmX64) {
       SSE4_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
     }
   }
+
+  {
+    if (CpuFeatures::IsSupported(SSE4_2)) {
+      CpuFeatureScope scope(&assm, SSE4_2);
+
+      SSE4_2_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
+    }
+  }
 #undef EMIT_SSE34_INSTR
 
   // AVX instruction
