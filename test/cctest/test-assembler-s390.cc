@@ -600,6 +600,11 @@ TEST(12) {
 
 // vector basics
 TEST(13) {
+  // check if the VECTOR_FACILITY is supported
+  if (!CpuFeatures::IsSupported(VECTOR_FACILITY)) {
+    return;
+  }
+
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -659,6 +664,11 @@ TEST(13) {
 
 // vector sum, packs, unpacks
 TEST(14) {
+  // check if the VECTOR_FACILITY is supported
+  if (!CpuFeatures::IsSupported(VECTOR_FACILITY)) {
+    return;
+  }
+
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -743,6 +753,11 @@ TEST(14) {
 
 // vector comparisons
 TEST(15) {
+  // check if the VECTOR_FACILITY is supported
+  if (!CpuFeatures::IsSupported(VECTOR_FACILITY)) {
+    return;
+  }
+
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -827,6 +842,11 @@ TEST(15) {
 
 // vector select and test mask
 TEST(16) {
+  // check if the VECTOR_FACILITY is supported
+  if (!CpuFeatures::IsSupported(VECTOR_FACILITY)) {
+    return;
+  }
+
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -868,6 +888,11 @@ TEST(16) {
 
 // vector fp instructions
 TEST(17) {
+  // check if the VECTOR_FACILITY is supported
+  if (!CpuFeatures::IsSupported(VECTOR_FACILITY)) {
+    return;
+  }
+
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
