@@ -1953,16 +1953,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64MovqDecompressTaggedSigned: {
       CHECK(instr->HasOutput());
       __ DecompressTaggedSigned(i.OutputRegister(), i.MemoryOperand());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     }
     case kX64MovqDecompressTaggedPointer: {
       CHECK(instr->HasOutput());
       __ DecompressTaggedPointer(i.OutputRegister(), i.MemoryOperand());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     }
     case kX64MovqDecompressAnyTagged: {
       CHECK(instr->HasOutput());
       __ DecompressAnyTagged(i.OutputRegister(), i.MemoryOperand());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     }
     case kX64MovqCompressTagged: {
@@ -1979,16 +1982,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64DecompressSigned: {
       CHECK(instr->HasOutput());
       ASSEMBLE_MOVX(DecompressTaggedSigned);
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     }
     case kX64DecompressPointer: {
       CHECK(instr->HasOutput());
       ASSEMBLE_MOVX(DecompressTaggedPointer);
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     }
     case kX64DecompressAny: {
       CHECK(instr->HasOutput());
       ASSEMBLE_MOVX(DecompressAnyTagged);
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     }
     case kX64CompressSigned:   // Fall through.

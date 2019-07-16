@@ -1646,11 +1646,16 @@ void InstructionSelector::VisitChangeTaggedSignedToCompressedSigned(
 void InstructionSelector::VisitChangeCompressedToTagged(Node* node) {
   Arm64OperandGenerator g(this);
   Node* const value = node->InputAt(0);
-  if (value->opcode() == IrOpcode::kLoad && CanCover(node, value)) {
-    // TODO(v8:7703): Make this work with poisoned loads as well.
+  if ((value->opcode() == IrOpcode::kLoad ||
+       value->opcode() == IrOpcode::kPoisonedLoad) &&
+      CanCover(node, value)) {
     DCHECK_EQ(LoadRepresentationOf(value->op()).representation(),
               MachineRepresentation::kCompressed);
     InstructionCode opcode = kArm64LdrDecompressAnyTagged;
+    if (value->opcode() == IrOpcode::kPoisonedLoad) {
+      CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
+      opcode |= MiscField::encode(kMemoryAccessPoisoned);
+    }
     ImmediateMode immediate_mode = kLoadStoreImm32;
     MachineRepresentation rep = MachineRepresentation::kCompressed;
     EmitLoad(this, value, opcode, immediate_mode, rep, node);
@@ -1663,10 +1668,16 @@ void InstructionSelector::VisitChangeCompressedPointerToTaggedPointer(
     Node* node) {
   Arm64OperandGenerator g(this);
   Node* const value = node->InputAt(0);
-  if (value->opcode() == IrOpcode::kLoad && CanCover(node, value)) {
+  if ((value->opcode() == IrOpcode::kLoad ||
+       value->opcode() == IrOpcode::kPoisonedLoad) &&
+      CanCover(node, value)) {
     DCHECK_EQ(LoadRepresentationOf(value->op()).representation(),
               MachineRepresentation::kCompressedPointer);
     InstructionCode opcode = kArm64LdrDecompressTaggedPointer;
+    if (value->opcode() == IrOpcode::kPoisonedLoad) {
+      CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
+      opcode |= MiscField::encode(kMemoryAccessPoisoned);
+    }
     ImmediateMode immediate_mode = kLoadStoreImm32;
     MachineRepresentation rep = MachineRepresentation::kCompressedPointer;
     EmitLoad(this, value, opcode, immediate_mode, rep, node);
@@ -1680,10 +1691,16 @@ void InstructionSelector::VisitChangeCompressedSignedToTaggedSigned(
     Node* node) {
   Arm64OperandGenerator g(this);
   Node* const value = node->InputAt(0);
-  if (value->opcode() == IrOpcode::kLoad && CanCover(node, value)) {
+  if ((value->opcode() == IrOpcode::kLoad ||
+       value->opcode() == IrOpcode::kPoisonedLoad) &&
+      CanCover(node, value)) {
     DCHECK_EQ(LoadRepresentationOf(value->op()).representation(),
               MachineRepresentation::kCompressedSigned);
     InstructionCode opcode = kArm64LdrDecompressTaggedSigned;
+    if (value->opcode() == IrOpcode::kPoisonedLoad) {
+      CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
+      opcode |= MiscField::encode(kMemoryAccessPoisoned);
+    }
     ImmediateMode immediate_mode = kLoadStoreImm32;
     MachineRepresentation rep = MachineRepresentation::kCompressedSigned;
     EmitLoad(this, value, opcode, immediate_mode, rep, node);

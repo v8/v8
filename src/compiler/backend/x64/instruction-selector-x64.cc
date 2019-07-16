@@ -314,16 +314,14 @@ void InstructionSelector::VisitAbortCSAAssert(Node* node) {
   Emit(kArchAbortCSAAssert, g.NoOutput(), g.UseFixed(node->InputAt(0), rdx));
 }
 
-void InstructionSelector::VisitLoad(Node* node) {
-  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
+void InstructionSelector::VisitLoad(Node* node, Node* value,
+                                    InstructionCode opcode) {
   X64OperandGenerator g(this);
-
-  ArchOpcode opcode = GetLoadOpcode(load_rep);
   InstructionOperand outputs[] = {g.DefineAsRegister(node)};
   InstructionOperand inputs[3];
   size_t input_count = 0;
   AddressingMode mode =
-      g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
+      g.GetEffectiveAddressMemoryOperand(value, inputs, &input_count);
   InstructionCode code = opcode | AddressingModeField::encode(mode);
   if (node->opcode() == IrOpcode::kProtectedLoad) {
     code |= MiscField::encode(kMemoryAccessProtected);
@@ -332,6 +330,11 @@ void InstructionSelector::VisitLoad(Node* node) {
     code |= MiscField::encode(kMemoryAccessPoisoned);
   }
   Emit(code, 1, outputs, input_count, inputs);
+}
+
+void InstructionSelector::VisitLoad(Node* node) {
+  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
+  VisitLoad(node, node, GetLoadOpcode(load_rep));
 }
 
 void InstructionSelector::VisitPoisonedLoad(Node* node) { VisitLoad(node); }
@@ -1255,60 +1258,45 @@ void InstructionSelector::VisitChangeTaggedSignedToCompressedSigned(
 }
 
 void InstructionSelector::VisitChangeCompressedToTagged(Node* node) {
-  X64OperandGenerator g(this);
   Node* const value = node->InputAt(0);
-  if (value->opcode() == IrOpcode::kLoad && CanCover(node, value)) {
+  if ((value->opcode() == IrOpcode::kLoad ||
+       value->opcode() == IrOpcode::kPoisonedLoad) &&
+      CanCover(node, value)) {
     DCHECK_EQ(LoadRepresentationOf(value->op()).representation(),
               MachineRepresentation::kCompressed);
-    InstructionCode opcode = kX64MovqDecompressAnyTagged;
-    InstructionOperand outputs[] = {g.DefineAsRegister(node)};
-    size_t input_count = 0;
-    InstructionOperand inputs[3];
-    AddressingMode mode = g.GetEffectiveAddressMemoryOperand(
-        node->InputAt(0), inputs, &input_count);
-    opcode |= AddressingModeField::encode(mode);
-    Emit(opcode, 1, outputs, input_count, inputs);
+    VisitLoad(node, value, kX64MovqDecompressAnyTagged);
   } else {
+    X64OperandGenerator g(this);
     Emit(kX64DecompressAny, g.DefineAsRegister(node), g.Use(value));
   }
 }
 
 void InstructionSelector::VisitChangeCompressedPointerToTaggedPointer(
     Node* node) {
-  X64OperandGenerator g(this);
   Node* const value = node->InputAt(0);
-  if (value->opcode() == IrOpcode::kLoad && CanCover(node, value)) {
+  if ((value->opcode() == IrOpcode::kLoad ||
+       value->opcode() == IrOpcode::kPoisonedLoad) &&
+      CanCover(node, value)) {
     DCHECK_EQ(LoadRepresentationOf(value->op()).representation(),
               MachineRepresentation::kCompressedPointer);
-    InstructionCode opcode = kX64MovqDecompressTaggedPointer;
-    InstructionOperand outputs[] = {g.DefineAsRegister(node)};
-    size_t input_count = 0;
-    InstructionOperand inputs[3];
-    AddressingMode mode = g.GetEffectiveAddressMemoryOperand(
-        node->InputAt(0), inputs, &input_count);
-    opcode |= AddressingModeField::encode(mode);
-    Emit(opcode, 1, outputs, input_count, inputs);
+    VisitLoad(node, value, kX64MovqDecompressTaggedPointer);
   } else {
+    X64OperandGenerator g(this);
     Emit(kX64DecompressPointer, g.DefineAsRegister(node), g.Use(value));
   }
 }
 
 void InstructionSelector::VisitChangeCompressedSignedToTaggedSigned(
     Node* node) {
-  X64OperandGenerator g(this);
   Node* const value = node->InputAt(0);
-  if (value->opcode() == IrOpcode::kLoad && CanCover(node, value)) {
+  if ((value->opcode() == IrOpcode::kLoad ||
+       value->opcode() == IrOpcode::kPoisonedLoad) &&
+      CanCover(node, value)) {
     DCHECK_EQ(LoadRepresentationOf(value->op()).representation(),
               MachineRepresentation::kCompressedSigned);
-    InstructionCode opcode = kX64MovqDecompressTaggedSigned;
-    InstructionOperand outputs[] = {g.DefineAsRegister(node)};
-    size_t input_count = 0;
-    InstructionOperand inputs[3];
-    AddressingMode mode = g.GetEffectiveAddressMemoryOperand(
-        node->InputAt(0), inputs, &input_count);
-    opcode |= AddressingModeField::encode(mode);
-    Emit(opcode, 1, outputs, input_count, inputs);
+    VisitLoad(node, value, kX64MovqDecompressTaggedSigned);
   } else {
+    X64OperandGenerator g(this);
     Emit(kX64DecompressSigned, g.DefineAsRegister(node), g.Use(value));
   }
 }

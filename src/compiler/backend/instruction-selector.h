@@ -608,6 +608,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   MACHINE_SIMD_OP_LIST(DECLARE_GENERATOR)
 #undef DECLARE_GENERATOR
 
+  // Visit the load node with a value and opcode to replace with.
+  void VisitLoad(Node* node, Node* value, InstructionCode opcode);
   void VisitFinishRegion(Node* node);
   void VisitParameter(Node* node);
   void VisitIfException(Node* node);
