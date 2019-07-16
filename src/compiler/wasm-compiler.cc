@@ -5985,7 +5985,7 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
   // Create the Graph.
   //----------------------------------------------------------------------------
   std::unique_ptr<Zone> zone =
-      base::make_unique<Zone>(isolate->wasm_engine()->allocator(), ZONE_NAME);
+      base::make_unique<Zone>(isolate->allocator(), ZONE_NAME);
   Graph* graph = new (zone.get()) Graph(zone.get());
   CommonOperatorBuilder common(zone.get());
   MachineOperatorBuilder machine(
@@ -6448,7 +6448,8 @@ MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
           isolate, incoming, std::move(zone), graph, Code::C_WASM_ENTRY,
           std::move(debug_name), AssemblerOptions::Default(isolate)));
 
-  if (job->ExecuteJob() == CompilationJob::FAILED ||
+  if (job->PrepareJob(isolate) == CompilationJob::FAILED ||
+      job->ExecuteJob() == CompilationJob::FAILED ||
       job->FinalizeJob(isolate) == CompilationJob::FAILED) {
     return {};
   }

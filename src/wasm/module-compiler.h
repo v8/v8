@@ -153,6 +153,8 @@ class AsyncCompileJob {
 
   void AsyncCompileSucceeded(Handle<WasmModuleObject> result);
 
+  void CompileWrappers();
+
   void FinishModule();
 
   void StartForegroundTask();

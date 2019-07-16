@@ -112,19 +112,15 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
                                  bool is_import);
   ~JSToWasmWrapperCompilationUnit();
 
+  void Prepare(Isolate* isolate);
   void Execute();
   Handle<Code> Finalize(Isolate* isolate);
-
-  bool is_import() const { return is_import_; }
-  FunctionSig* sig() const { return sig_; }
 
   // Run a compilation unit synchronously.
   static Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, FunctionSig* sig,
                                              bool is_import);
 
  private:
-  bool is_import_;
-  FunctionSig* sig_;
   std::unique_ptr<OptimizedCompilationJob> job_;
 };
 

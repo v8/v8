@@ -381,7 +381,7 @@ class CompilationStateImpl {
   // Initialize compilation progress. Set compilation tiers to expect for
   // baseline and top tier compilation. Must be set before {AddCompilationUnits}
   // is invoked which triggers background compilation.
-  void InitializeCompilationProgress(bool lazy_module, int num_wrappers);
+  void InitializeCompilationProgress(bool lazy_module, int num_import_wrappers);
 
   // Add the callback function to be called on compilation events. Needs to be
   // set before {AddCompilationUnits} is run to ensure that it receives all
@@ -389,24 +389,13 @@ class CompilationStateImpl {
   void AddCallback(CompilationState::callback_t);
 
   // Inserts new functions to compile and kicks off compilation.
-  void AddCompilationUnits(
-      Vector<WasmCompilationUnit> baseline_units,
-      Vector<WasmCompilationUnit> top_tier_units,
-      Vector<std::shared_ptr<JSToWasmWrapperCompilationUnit>>
-          js_to_wasm_wrapper_units);
+  void AddCompilationUnits(Vector<WasmCompilationUnit> baseline_units,
+                           Vector<WasmCompilationUnit> top_tier_units);
   void AddTopTierCompilationUnit(WasmCompilationUnit);
   base::Optional<WasmCompilationUnit> GetNextCompilationUnit(
       int task_id, CompileBaselineOnly baseline_only);
 
-  std::shared_ptr<JSToWasmWrapperCompilationUnit>
-  GetNextJSToWasmWrapperCompilationUnit();
-  void FinalizeJSToWasmWrappers(Isolate* isolate, const WasmModule* module,
-                                Handle<FixedArray> export_wrappers);
-
   void OnFinishedUnits(Vector<WasmCode*>);
-  void OnFinishedJSToWasmWrapperUnits(int num);
-  void TriggerCallbacks(bool completes_baseline_compilation,
-                        bool completes_top_tier_compilation);
 
   void OnBackgroundTaskStopped(int task_id, const WasmFeatures& detected);
   void UpdateDetectedFeatures(const WasmFeatures& detected);
@@ -493,13 +482,6 @@ class CompilationStateImpl {
   // contention during publishing of compilation results and also gives other
   // tasks a fair chance to utilize the worker threads on a regular basis.
   std::atomic<double> next_compilation_deadline_{0};
-
-  // Index of the next wrapper to compile in {js_to_wasm_wrapper_units_}.
-  std::atomic<int> js_to_wasm_wrapper_id_{0};
-  // Wrapper compilation units are stored in shared_ptrs so that they are kept
-  // alive by the tasks even if the NativeModule dies.
-  std::vector<std::shared_ptr<JSToWasmWrapperCompilationUnit>>
-      js_to_wasm_wrapper_units_;
 
   // This mutex protects all information of this {CompilationStateImpl} which is
   // being accessed concurrently.
@@ -729,11 +711,6 @@ class CompilationUnitBuilder {
     }
   }
 
-  void AddJSToWasmWrapperUnit(
-      std::shared_ptr<JSToWasmWrapperCompilationUnit> unit) {
-    js_to_wasm_wrapper_units_.emplace_back(std::move(unit));
-  }
-
   void AddTopTierUnit(int func_index) {
     ExecutionTierPair tiers = GetRequestedExecutionTiers(
         native_module_->module(), compilation_state()->compile_mode(),
@@ -752,13 +729,9 @@ class CompilationUnitBuilder {
   }
 
   bool Commit() {
-    if (baseline_units_.empty() && tiering_units_.empty() &&
-        js_to_wasm_wrapper_units_.empty()) {
-      return false;
-    }
-    compilation_state()->AddCompilationUnits(
-        VectorOf(baseline_units_), VectorOf(tiering_units_),
-        VectorOf(js_to_wasm_wrapper_units_));
+    if (baseline_units_.empty() && tiering_units_.empty()) return false;
+    compilation_state()->AddCompilationUnits(VectorOf(baseline_units_),
+                                             VectorOf(tiering_units_));
     Clear();
     return true;
   }
@@ -766,7 +739,6 @@ class CompilationUnitBuilder {
   void Clear() {
     baseline_units_.clear();
     tiering_units_.clear();
-    js_to_wasm_wrapper_units_.clear();
   }
 
  private:
@@ -778,8 +750,6 @@ class CompilationUnitBuilder {
   const ExecutionTier default_tier_;
   std::vector<WasmCompilationUnit> baseline_units_;
   std::vector<WasmCompilationUnit> tiering_units_;
-  std::vector<std::shared_ptr<JSToWasmWrapperCompilationUnit>>
-      js_to_wasm_wrapper_units_;
 };
 
 void SetCompileError(ErrorThrower* thrower, ModuleWireBytes wire_bytes,
@@ -939,33 +909,6 @@ void RecordStats(const Code code, Counters* counters) {
 
 constexpr int kMainThreadTaskId = -1;
 
-bool ExecuteJSToWasmWrapperCompilationUnits(
-    const std::shared_ptr<BackgroundCompileToken>& token) {
-  std::shared_ptr<JSToWasmWrapperCompilationUnit> wrapper_unit = nullptr;
-  int num_processed_wrappers = 0;
-  do {
-    // TODO(thibaudm): Reschedule the compilation task if it takes too long, so
-    // that the background thread is not blocked.
-    {
-      BackgroundCompileScope compile_scope(token);
-      if (compile_scope.cancelled()) return false;
-      wrapper_unit = compile_scope.compilation_state()
-                         ->GetNextJSToWasmWrapperCompilationUnit();
-    }
-    if (wrapper_unit) {
-      wrapper_unit->Execute();
-      ++num_processed_wrappers;
-    }
-  } while (wrapper_unit);
-  {
-    BackgroundCompileScope compile_scope(token);
-    if (compile_scope.cancelled()) return false;
-    compile_scope.compilation_state()->OnFinishedJSToWasmWrapperUnits(
-        num_processed_wrappers);
-  }
-  return true;
-}
-
 // Run by the main thread and background tasks to take part in compilation.
 // Returns whether any units were executed.
 bool ExecuteCompilationUnits(
@@ -973,13 +916,6 @@ bool ExecuteCompilationUnits(
     int task_id, CompileBaselineOnly baseline_only) {
   TRACE_COMPILE("Compiling (task %d)...\n", task_id);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "ExecuteCompilationUnits");
-
-  // Execute JS to WASM wrapper units first, so that they are ready to be
-  // finalized by the main thread when the kFinishedBaselineCompilation event is
-  // triggered.
-  if (!ExecuteJSToWasmWrapperCompilationUnits(token)) {
-    return false;
-  }
 
   const bool is_foreground = task_id == kMainThreadTaskId;
   // The main thread uses task id 0, which might collide with one of the
@@ -1113,26 +1049,6 @@ bool ExecuteCompilationUnits(
   return true;
 }
 
-using JSToWasmWrapperKey = std::pair<bool, FunctionSig>;
-
-// Returns the number of units added.
-int AddExportWrapperUnits(Isolate* isolate, NativeModule* native_module,
-                          CompilationUnitBuilder* builder) {
-  std::unordered_set<JSToWasmWrapperKey, base::hash<JSToWasmWrapperKey>> keys;
-  for (auto exp : native_module->module()->export_table) {
-    if (exp.kind != kExternalFunction) continue;
-    auto& function = native_module->module()->functions[exp.index];
-    JSToWasmWrapperKey key(function.imported, *function.sig);
-    if (keys.insert(key).second) {
-      auto unit = std::make_shared<JSToWasmWrapperCompilationUnit>(
-          isolate, function.sig, function.imported);
-      builder->AddJSToWasmWrapperUnit(std::move(unit));
-    }
-  }
-
-  return static_cast<int>(keys.size());
-}
-
 // Returns the number of units added.
 int AddImportWrapperUnits(NativeModule* native_module,
                           CompilationUnitBuilder* builder) {
@@ -1158,7 +1074,7 @@ int AddImportWrapperUnits(NativeModule* native_module,
   return static_cast<int>(keys.size());
 }
 
-void InitializeCompilationUnits(Isolate* isolate, NativeModule* native_module) {
+void InitializeCompilationUnits(NativeModule* native_module) {
   CompilationStateImpl* compilation_state =
       Impl(native_module->compilation_state());
   const bool lazy_module = IsLazyModule(native_module->module());
@@ -1182,10 +1098,8 @@ void InitializeCompilationUnits(Isolate* isolate, NativeModule* native_module) {
     }
   }
   int num_import_wrappers = AddImportWrapperUnits(native_module, &builder);
-  int num_export_wrappers =
-      AddExportWrapperUnits(isolate, native_module, &builder);
-  compilation_state->InitializeCompilationProgress(
-      lazy_module, num_import_wrappers + num_export_wrappers);
+  compilation_state->InitializeCompilationProgress(lazy_module,
+                                                   num_import_wrappers);
   builder.Commit();
 }
 
@@ -1287,7 +1201,7 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
   }
 
   // Initialize the compilation units and kick off background compile tasks.
-  InitializeCompilationUnits(isolate, native_module);
+  InitializeCompilationUnits(native_module);
 
   // If tiering is disabled, the main thread can execute any unit (all of them
   // are part of initial compilation). Otherwise, just execute baseline units.
@@ -1377,9 +1291,8 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   int num_wrappers = MaxNumExportWrappers(native_module->module());
   *export_wrappers_out =
       isolate->factory()->NewFixedArray(num_wrappers, AllocationType::kOld);
-  Impl(native_module->compilation_state())
-      ->FinalizeJSToWasmWrappers(isolate, native_module->module(),
-                                 *export_wrappers_out);
+  CompileJsToWasmWrappers(isolate, native_module->module(),
+                          *export_wrappers_out);
 
   // Log the code within the generated module for profiling.
   native_module->LogWasmCodes(isolate);
@@ -1553,12 +1466,8 @@ void AsyncCompileJob::FinishCompile() {
   // TODO(bbudge) Allow deserialization without wrapper compilation, so we can
   // just compile wrappers here.
   if (!is_after_deserialization) {
-    CompilationStateImpl* compilation_state =
-        Impl(native_module_->compilation_state());
-    Handle<FixedArray> export_wrappers =
-        handle(module_object_->export_wrappers(), isolate_);
-    compilation_state->FinalizeJSToWasmWrappers(
-        isolate_, module_object_->module(), export_wrappers);
+    // TODO(wasm): compiling wrappers should be made async.
+    CompileWrappers();
   }
 
   FinishModule();
@@ -1879,7 +1788,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       // then DoAsync would do the same as NextStep already.
 
       // Add compilation units and kick off compilation.
-      InitializeCompilationUnits(job->isolate(), job->native_module_.get());
+      InitializeCompilationUnits(job->native_module_.get());
     }
   }
 };
@@ -1940,8 +1849,17 @@ class AsyncCompileJob::CompileFinished : public CompileStep {
   }
 };
 
+void AsyncCompileJob::CompileWrappers() {
+  // TODO(wasm): Compile all wrappers here, including the start function wrapper
+  // and the wrappers for the function table elements.
+  TRACE_COMPILE("(5) Compile wrappers...\n");
+  // Compile JS->wasm wrappers for exported functions.
+  CompileJsToWasmWrappers(isolate_, module_object_->native_module()->module(),
+                          handle(module_object_->export_wrappers(), isolate_));
+}
+
 void AsyncCompileJob::FinishModule() {
-  TRACE_COMPILE("(4) Finish module...\n");
+  TRACE_COMPILE("(6) Finish module...\n");
   AsyncCompileSucceeded(module_object_);
   isolate_->wasm_engine()->RemoveCompileJob(this);
 }
@@ -2051,12 +1969,8 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
 
   int num_import_wrappers =
       AddImportWrapperUnits(native_module, compilation_unit_builder_.get());
-  HandleScope scope(job_->isolate_);
-  SaveAndSwitchContext saved_context(job_->isolate_, *job_->native_context_);
-  int num_export_wrappers = AddExportWrapperUnits(
-      job_->isolate_, native_module, compilation_unit_builder_.get());
-  compilation_state->InitializeCompilationProgress(
-      lazy_module, num_import_wrappers + num_export_wrappers);
+  compilation_state->InitializeCompilationProgress(lazy_module,
+                                                   num_import_wrappers);
   return true;
 }
 
@@ -2227,8 +2141,8 @@ void CompilationStateImpl::AbortCompilation() {
   callbacks_.clear();
 }
 
-void CompilationStateImpl::InitializeCompilationProgress(bool lazy_module,
-                                                         int num_wrappers) {
+void CompilationStateImpl::InitializeCompilationProgress(
+    bool lazy_module, int num_import_wrappers) {
   DCHECK(!failed());
   auto enabled_features = native_module_->enabled_features();
   auto* module = native_module_->module();
@@ -2272,7 +2186,7 @@ void CompilationStateImpl::InitializeCompilationProgress(bool lazy_module,
   DCHECK_IMPLIES(lazy_module, outstanding_top_tier_functions_ == 0);
   DCHECK_LE(0, outstanding_baseline_units_);
   DCHECK_LE(outstanding_baseline_units_, outstanding_top_tier_functions_);
-  outstanding_baseline_units_ += num_wrappers;
+  outstanding_baseline_units_ += num_import_wrappers;
 
   // Trigger callbacks if module needs no baseline or top tier compilation. This
   // can be the case for an empty or fully lazy module.
@@ -2297,50 +2211,15 @@ void CompilationStateImpl::AddCallback(CompilationState::callback_t callback) {
 
 void CompilationStateImpl::AddCompilationUnits(
     Vector<WasmCompilationUnit> baseline_units,
-    Vector<WasmCompilationUnit> top_tier_units,
-    Vector<std::shared_ptr<JSToWasmWrapperCompilationUnit>>
-        js_to_wasm_wrapper_units) {
-  if (!baseline_units.empty() || !top_tier_units.empty()) {
-    compilation_unit_queues_.AddUnits(baseline_units, top_tier_units,
-                                      native_module_->module());
-  }
-  js_to_wasm_wrapper_units_.insert(js_to_wasm_wrapper_units_.end(),
-                                   js_to_wasm_wrapper_units.begin(),
-                                   js_to_wasm_wrapper_units.end());
+    Vector<WasmCompilationUnit> top_tier_units) {
+  compilation_unit_queues_.AddUnits(baseline_units, top_tier_units,
+                                    native_module_->module());
 
   RestartBackgroundTasks();
 }
 
 void CompilationStateImpl::AddTopTierCompilationUnit(WasmCompilationUnit unit) {
-  AddCompilationUnits({}, {&unit, 1}, {});
-}
-
-std::shared_ptr<JSToWasmWrapperCompilationUnit>
-CompilationStateImpl::GetNextJSToWasmWrapperCompilationUnit() {
-  int wrapper_id =
-      js_to_wasm_wrapper_id_.fetch_add(1, std::memory_order_relaxed);
-  if (wrapper_id < static_cast<int>(js_to_wasm_wrapper_units_.size())) {
-    return js_to_wasm_wrapper_units_[wrapper_id];
-  }
-  return nullptr;
-}
-
-void CompilationStateImpl::FinalizeJSToWasmWrappers(
-    Isolate* isolate, const WasmModule* module,
-    Handle<FixedArray> export_wrappers) {
-  // TODO(6792): Wrappers below are allocated with {Factory::NewCode}. As an
-  // optimization we keep the code space unlocked to avoid repeated unlocking
-  // because many such wrapper are allocated in sequence below.
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
-               "FinalizeJSToWasmWrappers");
-  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-  for (auto& unit : js_to_wasm_wrapper_units_) {
-    Handle<Code> code = unit->Finalize(isolate);
-    int wrapper_index =
-        GetExportWrapperIndex(module, unit->sig(), unit->is_import());
-    export_wrappers->set(wrapper_index, *code);
-    RecordStats(*code, isolate->counters());
-  }
+  AddCompilationUnits({}, {&unit, 1});
 }
 
 base::Optional<WasmCompilationUnit>
@@ -2430,37 +2309,24 @@ void CompilationStateImpl::OnFinishedUnits(Vector<WasmCode*> code_vector) {
       DCHECK_LE(0, outstanding_baseline_units_);
     }
 
-    TriggerCallbacks(completes_baseline_compilation,
-                     completes_top_tier_compilation);
-  }
-}
-
-void CompilationStateImpl::OnFinishedJSToWasmWrapperUnits(int num) {
-  if (num == 0) return;
-  base::MutexGuard guard(&callbacks_mutex_);
-  outstanding_baseline_units_ -= num;
-  bool completes_baseline_compilation = outstanding_baseline_units_ == 0;
-  TriggerCallbacks(completes_baseline_compilation, false);
-}
-
-void CompilationStateImpl::TriggerCallbacks(
-    bool completes_baseline_compilation, bool completes_top_tier_compilation) {
-  if (completes_baseline_compilation) {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "BaselineFinished");
-    for (auto& callback : callbacks_) {
-      callback(CompilationEvent::kFinishedBaselineCompilation);
+    // Trigger callbacks.
+    if (completes_baseline_compilation) {
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "BaselineFinished");
+      for (auto& callback : callbacks_) {
+        callback(CompilationEvent::kFinishedBaselineCompilation);
+      }
+      if (outstanding_top_tier_functions_ == 0) {
+        completes_top_tier_compilation = true;
+      }
     }
-    if (outstanding_top_tier_functions_ == 0) {
-      completes_top_tier_compilation = true;
+    if (outstanding_baseline_units_ == 0 && completes_top_tier_compilation) {
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "TopTierFinished");
+      for (auto& callback : callbacks_) {
+        callback(CompilationEvent::kFinishedTopTierCompilation);
+      }
+      // Clear the callbacks because no more events will be delivered.
+      callbacks_.clear();
     }
-  }
-  if (outstanding_baseline_units_ == 0 && completes_top_tier_compilation) {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "TopTierFinished");
-    for (auto& callback : callbacks_) {
-      callback(CompilationEvent::kFinishedTopTierCompilation);
-    }
-    // Clear the callbacks because no more events will be delivered.
-    callbacks_.clear();
   }
 }
 
@@ -2509,11 +2375,6 @@ void CompilationStateImpl::RestartBackgroundTasks() {
     if (failed()) return;
 
     size_t max_num_restart = compilation_unit_queues_.GetTotalSize();
-    if (js_to_wasm_wrapper_id_ <
-        static_cast<int>(js_to_wasm_wrapper_units_.size())) {
-      max_num_restart +=
-          js_to_wasm_wrapper_units_.size() - js_to_wasm_wrapper_id_;
-    }
 
     while (!available_task_ids_.empty() && max_num_restart-- > 0) {
       int task_id = available_task_ids_.back();
@@ -2553,6 +2414,7 @@ void CompilationStateImpl::SetError() {
 }
 
 namespace {
+using JSToWasmWrapperKey = std::pair<bool, FunctionSig>;
 using JSToWasmWrapperQueue =
     WrapperQueue<JSToWasmWrapperKey, base::hash<JSToWasmWrapperKey>>;
 using JSToWasmWrapperUnitMap =
@@ -2595,6 +2457,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
     if (queue.insert(key)) {
       auto unit = base::make_unique<JSToWasmWrapperCompilationUnit>(
           isolate, function.sig, function.imported);
+      unit->Prepare(isolate);
       compilation_units.emplace(key, std::move(unit));
     }
   }
