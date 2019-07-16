@@ -77,6 +77,7 @@ v8_source_set("unittests_sources") {
     "base/template-utils-unittest.cc",
     "base/threaded-list-unittest.cc",
     "base/utils/random-number-generator-unittest.cc",
+    "base/vlq-base64-unittest.cc",
     "codegen/code-stub-assembler-unittest.cc",
     "codegen/code-stub-assembler-unittest.h",
     "codegen/register-configuration-unittest.cc",

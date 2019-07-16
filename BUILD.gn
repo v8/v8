@@ -3499,6 +3499,8 @@ v8_component("v8_libbase") {
     "src/base/type-traits.h",
     "src/base/utils/random-number-generator.cc",
     "src/base/utils/random-number-generator.h",
+    "src/base/vlq-base64.cc",
+    "src/base/vlq-base64.h",
   ]
 
   configs = [ ":internal_config_base" ]
