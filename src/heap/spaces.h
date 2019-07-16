@@ -239,6 +239,8 @@ class FreeList {
 
   virtual ~FreeList() = default;
 
+  // Returns how much memory can be allocated after freeing maximum_freed
+  // memory.
   virtual size_t GuaranteedAllocatable(size_t maximum_freed) = 0;
 
   // Adds a node on the free list. The block of size {size_in_bytes} starting
@@ -1780,8 +1782,6 @@ class AllocationStats {
 //   larger. Empty pages are also added to this list.
 class V8_EXPORT_PRIVATE FreeListLegacy : public FreeList {
  public:
-  // This method returns how much memory can be allocated after freeing
-  // maximum_freed memory.
   size_t GuaranteedAllocatable(size_t maximum_freed) override {
     if (maximum_freed <= kTiniestListMax) {
       // Since we are not iterating over all list entries, we cannot guarantee
@@ -1797,21 +1797,6 @@ class V8_EXPORT_PRIVATE FreeListLegacy : public FreeList {
       return kLargeAllocationMax;
     }
     return maximum_freed;
-  }
-
-  FreeListCategoryType SelectFreeListCategoryType(size_t size_in_bytes) {
-    if (size_in_bytes <= kTiniestListMax) {
-      return kTiniest;
-    } else if (size_in_bytes <= kTinyListMax) {
-      return kTiny;
-    } else if (size_in_bytes <= kSmallListMax) {
-      return kSmall;
-    } else if (size_in_bytes <= kMediumListMax) {
-      return kMedium;
-    } else if (size_in_bytes <= kLargeListMax) {
-      return kLarge;
-    }
-    return kHuge;
   }
 
   Page* GetPageForSize(size_t size_in_bytes) override {
@@ -1868,7 +1853,25 @@ class V8_EXPORT_PRIVATE FreeListLegacy : public FreeList {
   FreeSpace SearchForNodeInList(FreeListCategoryType type, size_t* node_size,
                                 size_t minimum_size);
 
-  // The tiny categories are not used for fast allocation.
+  // Returns the smallest category in which an object of |size_in_bytes| could
+  // fit.
+  FreeListCategoryType SelectFreeListCategoryType(size_t size_in_bytes) {
+    if (size_in_bytes <= kTiniestListMax) {
+      return kTiniest;
+    } else if (size_in_bytes <= kTinyListMax) {
+      return kTiny;
+    } else if (size_in_bytes <= kSmallListMax) {
+      return kSmall;
+    } else if (size_in_bytes <= kMediumListMax) {
+      return kMedium;
+    } else if (size_in_bytes <= kLargeListMax) {
+      return kLarge;
+    }
+    return kHuge;
+  }
+
+  // Returns the category to be used to allocate |size_in_bytes| in the fast
+  // path. The tiny categories are not used for fast allocation.
   FreeListCategoryType SelectFastAllocationFreeListCategoryType(
       size_t size_in_bytes) {
     if (size_in_bytes <= kSmallAllocationMax) {
@@ -1907,15 +1910,6 @@ class V8_EXPORT_PRIVATE FreeListFastAlloc : public FreeList {
     return maximum_freed;
   }
 
-  FreeListCategoryType SelectFreeListCategoryType(size_t size_in_bytes) {
-    if (size_in_bytes <= kMediumListMax) {
-      return kMedium;
-    } else if (size_in_bytes <= kLargeListMax) {
-      return kLarge;
-    }
-    return kHuge;
-  }
-
   Page* GetPageForSize(size_t size_in_bytes) override {
     const int minimum_category =
         static_cast<int>(SelectFreeListCategoryType(size_in_bytes));
@@ -1949,6 +1943,16 @@ class V8_EXPORT_PRIVATE FreeListFastAlloc : public FreeList {
   static const size_t kMediumAllocationMax = kMinBlockSize;
   static const size_t kLargeAllocationMax = kMediumListMax;
 
+  // Returns the category used to hold an object of size |size_in_bytes|.
+  FreeListCategoryType SelectFreeListCategoryType(size_t size_in_bytes) {
+    if (size_in_bytes <= kMediumListMax) {
+      return kMedium;
+    } else if (size_in_bytes <= kLargeListMax) {
+      return kLarge;
+    }
+    return kHuge;
+  }
+
   // Tries to retrieve a node from the first category in a given |type|.
   // Returns nullptr if the category is empty or the top entry is smaller
   // than minimum_size.
@@ -1968,8 +1972,6 @@ class V8_EXPORT_PRIVATE FreeListFastAlloc : public FreeList {
 // consumption should be lower (since fragmentation should be lower).
 class V8_EXPORT_PRIVATE FreeListMany : public FreeList {
  public:
-  // This method returns how much memory can be allocated after freeing
-  // maximum_freed memory.
   size_t GuaranteedAllocatable(size_t maximum_freed) override;
 
   Page* GetPageForSize(size_t size_in_bytes) override;
@@ -2010,10 +2012,6 @@ class V8_EXPORT_PRIVATE FreeListMany : public FreeList {
   // than minimum_size.
   FreeSpace TryFindNodeIn(FreeListCategoryType type, size_t minimum_size,
                           size_t* node_size);
-
-  // Searches a given |type| for a node of at least |minimum_size|.
-  FreeSpace SearchForNodeInList(FreeListCategoryType type, size_t* node_size,
-                                size_t minimum_size);
 
   FreeListCategoryType SelectFreeListCategoryType(size_t size_in_bytes) {
     for (int cat = kFirstCategory; cat < last_category_; cat++) {
