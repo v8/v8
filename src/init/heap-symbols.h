@@ -416,10 +416,12 @@
   F(MC_EVACUATE_CANDIDATES)                          \
   F(MC_EVACUATE_CLEAN_UP)                            \
   F(MC_EVACUATE_COPY)                                \
+  F(MC_EVACUATE_COPY_PARALLEL)                       \
   F(MC_EVACUATE_EPILOGUE)                            \
   F(MC_EVACUATE_PROLOGUE)                            \
   F(MC_EVACUATE_REBALANCE)                           \
   F(MC_EVACUATE_UPDATE_POINTERS)                     \
+  F(MC_EVACUATE_UPDATE_POINTERS_PARALLEL)            \
   F(MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN)          \
   F(MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAP_SPACE)     \
   F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS)        \
@@ -447,15 +449,18 @@
   F(MINOR_MC_EVACUATE)                               \
   F(MINOR_MC_EVACUATE_CLEAN_UP)                      \
   F(MINOR_MC_EVACUATE_COPY)                          \
+  F(MINOR_MC_EVACUATE_COPY_PARALLEL)                 \
   F(MINOR_MC_EVACUATE_EPILOGUE)                      \
   F(MINOR_MC_EVACUATE_PROLOGUE)                      \
   F(MINOR_MC_EVACUATE_REBALANCE)                     \
   F(MINOR_MC_EVACUATE_UPDATE_POINTERS)               \
+  F(MINOR_MC_EVACUATE_UPDATE_POINTERS_PARALLEL)      \
   F(MINOR_MC_EVACUATE_UPDATE_POINTERS_SLOTS)         \
   F(MINOR_MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS)  \
   F(MINOR_MC_EVACUATE_UPDATE_POINTERS_WEAK)          \
   F(MINOR_MC_MARK)                                   \
   F(MINOR_MC_MARK_GLOBAL_HANDLES)                    \
+  F(MINOR_MC_MARK_PARALLEL)                          \
   F(MINOR_MC_MARK_SEED)                              \
   F(MINOR_MC_MARK_ROOTS)                             \
   F(MINOR_MC_MARK_WEAK)                              \
