@@ -802,6 +802,7 @@
   # wasm memories each. Before running OOM on a wasm memory allocation we
   # trigger a GC, but only in the isolate allocating the new memory.
   'wasm/module-memory': [SKIP],
+  'wasm/shared-memory-gc-stress': [SKIP],
 }],  # 'isolates'
 
 ##############################################################################
