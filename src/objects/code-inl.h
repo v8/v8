@@ -741,7 +741,9 @@ ByteArray BytecodeArray::SourcePositionTableIfCollected() const {
 
 void BytecodeArray::ClearFrameCacheFromSourcePositionTable() {
   Object maybe_table = source_position_table();
-  if (maybe_table.IsUndefined() || maybe_table.IsByteArray()) return;
+  if (maybe_table.IsUndefined() || maybe_table.IsByteArray() ||
+      maybe_table.IsException())
+    return;
   DCHECK(maybe_table.IsSourcePositionTableWithFrameCache());
   set_source_position_table(SourcePositionTableWithFrameCache::cast(maybe_table)
                                 .source_position_table());
