@@ -538,11 +538,8 @@ void ScopeIterator::RetrieveScopeChain(DeclarationScope* scope) {
       int beg_pos = inner_scope->start_position();
       int end_pos = inner_scope->end_position();
       DCHECK((beg_pos >= 0 && end_pos >= 0) || inner_scope->is_hidden());
-      if (beg_pos <= position && position < end_pos) {
-        // Don't walk into inner functions.
-        if (!inner_scope->is_function_scope()) {
-          current = inner_scope;
-        }
+      if (beg_pos < position && position < end_pos) {
+        current = inner_scope;
         break;
       }
     }
