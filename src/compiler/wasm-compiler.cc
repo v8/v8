@@ -4778,16 +4778,19 @@ Node* WasmGraphBuilder::DataDrop(uint32_t data_segment_index,
 Node* WasmGraphBuilder::MemoryCopy(Node* dst, Node* src, Node* size,
                                    wasm::WasmCodePosition position) {
   auto m = mcgraph()->machine();
-  // The data must be copied backward if the regions overlap and src < dst. The
-  // regions overlap if {src + size > dst && dst + size > src}. Since we already
-  // test that {src < dst}, we know that {dst + size > src}, so this simplifies
-  // to just {src + size > dst}. That sum can overflow, but if we subtract
-  // {size} from both sides of the inequality we get the equivalent test
-  // {size > dst - src}.
-  Node* copy_backward = graph()->NewNode(
-      m->Word32And(), graph()->NewNode(m->Uint32LessThan(), src, dst),
-      graph()->NewNode(m->Uint32LessThan(),
-                       graph()->NewNode(m->Int32Sub(), dst, src), size));
+  auto common = mcgraph()->common();
+  // If size == 0, then memory.copy is a no-op.
+  Node* size_null_check =
+      graph()->NewNode(m->Word32Equal(), size, mcgraph()->Int32Constant(0));
+  Node* size_null_branch = graph()->NewNode(common->Branch(BranchHint::kFalse),
+                                            size_null_check, Control());
+
+  Node* size_null_etrue = Effect();
+  Node* size_null_if_false =
+      graph()->NewNode(common->IfFalse(), size_null_branch);
+  SetControl(size_null_if_false);
+  // The data must be copied backward if src < dst.
+  Node* copy_backward = graph()->NewNode(m->Uint32LessThan(), src, dst);
 
   Node* dst_fail = BoundsCheckMemRange(&dst, &size, position);
 
@@ -4807,9 +4810,16 @@ Node* WasmGraphBuilder::MemoryCopy(Node* dst, Node* src, Node* size,
                              MachineType::Uint32()};
   MachineSignature sig(0, 3, sig_types);
   BuildCCall(&sig, function, dst, src, size);
-  return TrapIfTrue(wasm::kTrapMemOutOfBounds,
-                    graph()->NewNode(m->Word32Or(), dst_fail, src_fail),
-                    position);
+  TrapIfTrue(wasm::kTrapMemOutOfBounds,
+             graph()->NewNode(m->Word32Or(), dst_fail, src_fail), position);
+  Node* size_null_if_true =
+      graph()->NewNode(common->IfTrue(), size_null_branch);
+
+  Node* merge = SetControl(
+      graph()->NewNode(common->Merge(2), size_null_if_true, Control()));
+  SetEffect(
+      graph()->NewNode(common->EffectPhi(2), size_null_etrue, Effect(), merge));
+  return merge;
 }
 
 Node* WasmGraphBuilder::MemoryFill(Node* dst, Node* value, Node* size,

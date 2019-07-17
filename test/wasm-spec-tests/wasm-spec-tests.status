@@ -17,7 +17,6 @@
   # TODO(ahaas): Incorporate recent changes to the bulk-memory-operations
   # proposal.
   'tests/proposals/bulk-memory-operations/elem': [FAIL],
-  'tests/proposals/bulk-memory-operations/memory_copy': [FAIL],
   'tests/proposals/bulk-memory-operations/table_copy': [FAIL],
   'tests/proposals/bulk-memory-operations/memory_init': [FAIL],
   'tests/proposals/bulk-memory-operations/memory_fill': [FAIL],

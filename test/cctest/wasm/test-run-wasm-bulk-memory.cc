@@ -206,9 +206,10 @@ WASM_EXEC_TEST(MemoryCopyOutOfBoundsData) {
 
   const uint32_t last_5_bytes = kWasmPageSize - 5;
 
-  // Write all values up to the out-of-bounds access.
+  // Copy with source < destination. Copy would happen backwards,
+  // but the first byte to copy is out-of-bounds, so no data should be written.
   CHECK_EQ(0xDEADBEEF, r.Call(last_5_bytes, 0, 6));
-  CheckMemoryEquals(r.builder(), last_5_bytes, {11, 22, 33, 44, 55});
+  CheckMemoryEquals(r.builder(), last_5_bytes, {0, 0, 0, 0, 0});
 
   // Copy overlapping with destination < source. Copy will happen forwards, up
   // to the out-of-bounds access.
@@ -247,9 +248,9 @@ WASM_EXEC_TEST(MemoryCopyOutOfBounds) {
   CHECK_EQ(0xDEADBEEF, r.Call(1000, 0, kWasmPageSize));
   CHECK_EQ(0xDEADBEEF, r.Call(kWasmPageSize, 0, 1));
 
-  // Copy 0 out-of-bounds fails.
-  CHECK_EQ(0xDEADBEEF, r.Call(kWasmPageSize + 1, 0, 0));
-  CHECK_EQ(0xDEADBEEF, r.Call(0, kWasmPageSize + 1, 0));
+  // Copy 0 out-of-bounds always succeeds.
+  CHECK_EQ(0, r.Call(kWasmPageSize + 1, 0, 0));
+  CHECK_EQ(0, r.Call(0, kWasmPageSize + 1, 0));
 
   // Make sure bounds aren't checked with 32-bit wrapping.
   CHECK_EQ(0xDEADBEEF, r.Call(1, 1, 0xFFFFFFFF));

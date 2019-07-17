@@ -1812,11 +1812,15 @@ class ThreadImpl {
       }
       case kExprMemoryCopy: {
         MemoryCopyImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc));
+        *len += imm.length;
         auto size = Pop().to<uint32_t>();
         auto src = Pop().to<uint32_t>();
         auto dst = Pop().to<uint32_t>();
+        if (size == 0) {
+          return true;
+        }
         Address dst_addr;
-        bool copy_backward = src < dst && dst - src < size;
+        bool copy_backward = src < dst;
         bool ok = BoundsCheckMemRange(dst, &size, &dst_addr);
         // Trap without copying any bytes if we are copying backward and the
         // copy is partially out-of-bounds. We only need to check that the dst
@@ -1829,7 +1833,6 @@ class ThreadImpl {
           memory_copy_wrapper(dst_addr, src_addr, size);
         }
         if (!ok) DoTrap(kTrapMemOutOfBounds, pc);
-        *len += imm.length;
         return ok;
       }
       case kExprMemoryFill: {
