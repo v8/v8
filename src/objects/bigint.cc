@@ -236,20 +236,24 @@ NEVER_READ_ONLY_SPACE_IMPL(MutableBigInt)
 
 #include "src/objects/object-macros-undef.h"
 
+template <typename T>
+MaybeHandle<T> ThrowBigIntTooBig(Isolate* isolate) {
+  // If the result of a BigInt computation is truncated to 64 bit, Turbofan
+  // can sometimes truncate intermediate results already, which can prevent
+  // those from exceeding the maximum length, effectively preventing a
+  // RangeError from being thrown. As this is a performance optimization, this
+  // behavior is accepted. To prevent the correctness fuzzer from detecting this
+  // difference, we crash the program.
+  if (FLAG_correctness_fuzzer_suppressions) {
+    FATAL("Aborting on invalid BigInt length");
+  }
+  THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig), T);
+}
+
 MaybeHandle<MutableBigInt> MutableBigInt::New(Isolate* isolate, int length,
                                               AllocationType allocation) {
   if (length > BigInt::kMaxLength) {
-    // If the result of a BigInt computation is truncated to 64 bit, Turbofan
-    // can sometimes truncate intermediate results already, which can prevent
-    // those from exceeding the maximum length, effectively changing the
-    // semantics of optimized code. As this is a performance optimization, this
-    // behavior is accepted. To prevent the fuzzer from detecting this
-    // difference, we crash the program.
-    if (FLAG_correctness_fuzzer_suppressions) {
-      FATAL("Aborting on invalid BigInt length");
-    }
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
-                    MutableBigInt);
+    return ThrowBigIntTooBig<MutableBigInt>(isolate);
   }
   Handle<MutableBigInt> result =
       Cast(isolate->factory()->NewBigInt(length, allocation));
@@ -454,14 +458,12 @@ MaybeHandle<BigInt> BigInt::Exponentiate(Isolate* isolate, Handle<BigInt> base,
   // results.
   STATIC_ASSERT(kMaxLengthBits < std::numeric_limits<digit_t>::max());
   if (exponent->length() > 1) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
-                    BigInt);
+    return ThrowBigIntTooBig<BigInt>(isolate);
   }
   digit_t exp_value = exponent->digit(0);
   if (exp_value == 1) return base;
   if (exp_value >= kMaxLengthBits) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
-                    BigInt);
+    return ThrowBigIntTooBig<BigInt>(isolate);
   }
   STATIC_ASSERT(kMaxLengthBits <= kMaxInt);
   int n = static_cast<int>(exp_value);
@@ -1761,8 +1763,7 @@ MaybeHandle<BigInt> MutableBigInt::LeftShiftByAbsolute(Isolate* isolate,
                                                        Handle<BigIntBase> y) {
   Maybe<digit_t> maybe_shift = ToShiftAmount(y);
   if (maybe_shift.IsNothing()) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
-                    BigInt);
+    return ThrowBigIntTooBig<BigInt>(isolate);
   }
   digit_t shift = maybe_shift.FromJust();
   int digit_shift = static_cast<int>(shift / kDigitBits);
@@ -1772,8 +1773,7 @@ MaybeHandle<BigInt> MutableBigInt::LeftShiftByAbsolute(Isolate* isolate,
               (x->digit(length - 1) >> (kDigitBits - bits_shift)) != 0;
   int result_length = length + digit_shift + grow;
   if (result_length > kMaxLength) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
-                    BigInt);
+    return ThrowBigIntTooBig<BigInt>(isolate);
   }
   Handle<MutableBigInt> result;
   if (!New(isolate, result_length).ToHandle(&result)) {
@@ -1932,8 +1932,7 @@ MaybeHandle<FreshlyAllocatedBigInt> BigInt::AllocateFor(
   }
   // All the overflow/maximum checks above fall through to here.
   if (should_throw == kThrowOnError) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
-                    FreshlyAllocatedBigInt);
+    return ThrowBigIntTooBig<FreshlyAllocatedBigInt>(isolate);
   } else {
     return MaybeHandle<FreshlyAllocatedBigInt>();
   }
@@ -2291,8 +2290,7 @@ MaybeHandle<BigInt> BigInt::AsUintN(Isolate* isolate, uint64_t n,
   // If {x} is negative, simulate two's complement representation.
   if (x->sign()) {
     if (n > kMaxLengthBits) {
-      THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
-                      BigInt);
+      return ThrowBigIntTooBig<BigInt>(isolate);
     }
     return MutableBigInt::TruncateAndSubFromPowerOfTwo(
         isolate, static_cast<int>(n), x, false);
@@ -2436,8 +2434,7 @@ MaybeHandle<BigInt> BigInt::FromWords64(Isolate* isolate, int sign_bit,
                                         int words64_count,
                                         const uint64_t* words) {
   if (words64_count < 0 || words64_count > kMaxLength / (64 / kDigitBits)) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
-                    BigInt);
+    return ThrowBigIntTooBig<BigInt>(isolate);
   }
   if (words64_count == 0) return MutableBigInt::Zero(isolate);
   STATIC_ASSERT(kDigitBits == 64 || kDigitBits == 32);

@@ -94,6 +94,22 @@ RUNTIME_FUNCTION(Runtime_ThrowSymbolAsyncIteratorInvalid) {
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, call(message_id, arg0, arg1, arg2));
 
 RUNTIME_FUNCTION(Runtime_ThrowRangeError) {
+  if (FLAG_correctness_fuzzer_suppressions) {
+    DCHECK_LE(1, args.length());
+    CONVERT_SMI_ARG_CHECKED(message_id_smi, 0);
+
+    // If the result of a BigInt computation is truncated to 64 bit, Turbofan
+    // can sometimes truncate intermediate results already, which can prevent
+    // those from exceeding the maximum length, effectively preventing a
+    // RangeError from being thrown. As this is a performance optimization, this
+    // behavior is accepted. To prevent the correctness fuzzer from detecting
+    // this difference, we crash the program.
+    if (MessageTemplateFromInt(message_id_smi) ==
+        MessageTemplate::kBigIntTooBig) {
+      FATAL("Aborting on invalid BigInt length");
+    }
+  }
+
   THROW_ERROR(isolate, args, NewRangeError);
 }
 
