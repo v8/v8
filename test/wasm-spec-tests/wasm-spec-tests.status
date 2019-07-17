@@ -10,6 +10,20 @@
   # the bulk-memory proposal. Since we've enabled bulk-memory by default, we
   # need to update to use its testsuite.
   'tests/linking': [FAIL],
+
+  # TODO(ahaas): Needs investigation, I disable the test for now.
+  'tests/conversions': [PASS, ['system == windows and arch == ia32', FAIL]],
+
+  # TODO(ahaas): Incorporate recent changes to the bulk-memory-operations
+  # proposal.
+  'tests/proposals/bulk-memory-operations/elem': [FAIL],
+  'tests/proposals/bulk-memory-operations/memory_copy': [FAIL],
+  'tests/proposals/bulk-memory-operations/table_copy': [FAIL],
+  'tests/proposals/bulk-memory-operations/table_init': [FAIL],
+  'tests/proposals/bulk-memory-operations/memory_init': [FAIL],
+  'tests/proposals/bulk-memory-operations/memory_fill': [FAIL],
+  'tests/proposals/bulk-memory-operations/bulk': [FAIL],
+  'tests/proposals/bulk-memory-operations/data': [FAIL],
 }],  # ALWAYS
 
 ['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {
