@@ -547,7 +547,7 @@ def create_total_page_stats(domains, args):
 
 # Generate Raw JSON file.
 
-def do_raw_json(args):
+def _read_logs(args):
   versions = {}
   for path in args.logdirs:
     if os.path.isdir(path):
@@ -561,6 +561,11 @@ def do_raw_json(args):
             if domain not in versions[version]: versions[version][domain] = {}
             read_stats(os.path.join(root, filename),
                        versions[version][domain], args)
+
+  return versions
+
+def do_raw_json(args):
+  versions = _read_logs(args)
 
   for version, domains in versions.items():
     if args.aggregate:
@@ -584,19 +589,8 @@ def do_raw_json(args):
 # Generate JSON file.
 
 def do_json(args):
-  versions = {}
-  for path in args.logdirs:
-    if os.path.isdir(path):
-      for root, dirs, files in os.walk(path):
-        version = os.path.basename(root)
-        if version not in versions: versions[version] = {}
-        for filename in files:
-          if filename.endswith(".txt"):
-            m = re.match(r'^([^#]+)(#.*)?\.txt$', filename)
-            domain = m.group(1)
-            if domain not in versions[version]: versions[version][domain] = {}
-            read_stats(os.path.join(root, filename),
-                       versions[version][domain], args)
+  versions = _read_logs(args)
+
   for version, domains in versions.items():
     if args.aggregate:
       create_total_page_stats(domains, args)
