@@ -729,23 +729,22 @@ void NativeModule::SetRuntimeStubs(Isolate* isolate) {
           WasmCode::kRuntimeStubCount));
   Address base = jump_table->instruction_start();
   EmbeddedData embedded_data = EmbeddedData::FromBlob();
-#define RUNTIME_STUB(Name) {Builtins::k##Name, WasmCode::k##Name},
+#define RUNTIME_STUB(Name) Builtins::k##Name,
 #define RUNTIME_STUB_TRAP(Name) RUNTIME_STUB(ThrowWasm##Name)
-  std::pair<Builtins::Name, WasmCode::RuntimeStubId> wasm_runtime_stubs[] = {
+  Builtins::Name wasm_runtime_stubs[WasmCode::kRuntimeStubCount] = {
       WASM_RUNTIME_STUB_LIST(RUNTIME_STUB, RUNTIME_STUB_TRAP)};
 #undef RUNTIME_STUB
 #undef RUNTIME_STUB_TRAP
-  for (auto pair : wasm_runtime_stubs) {
-    CHECK(embedded_data.ContainsBuiltin(pair.first));
-    Address builtin = embedded_data.InstructionStartOfBuiltin(pair.first);
-    JumpTableAssembler::EmitRuntimeStubSlot(base, pair.second, builtin,
-                                            WasmCode::kNoFlushICache);
-    uint32_t slot_offset =
-        JumpTableAssembler::StubSlotIndexToOffset(pair.second);
-    runtime_stub_entries_[pair.second] = base + slot_offset;
+  Address builtin_address[WasmCode::kRuntimeStubCount];
+  for (int i = 0; i < WasmCode::kRuntimeStubCount; ++i) {
+    Builtins::Name builtin = wasm_runtime_stubs[i];
+    CHECK(embedded_data.ContainsBuiltin(builtin));
+    builtin_address[i] = embedded_data.InstructionStartOfBuiltin(builtin);
+    runtime_stub_entries_[i] =
+        base + JumpTableAssembler::StubSlotIndexToOffset(i);
   }
-  FlushInstructionCache(jump_table->instructions().begin(),
-                        jump_table->instructions().size());
+  JumpTableAssembler::GenerateRuntimeStubTable(base, builtin_address,
+                                               WasmCode::kRuntimeStubCount);
   DCHECK_NULL(runtime_stub_table_);
   runtime_stub_table_ = jump_table;
 #else  // V8_EMBEDDED_BUILTINS

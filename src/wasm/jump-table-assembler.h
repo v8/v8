@@ -100,16 +100,20 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
     FlushInstructionCache(base, lazy_compile_table_size);
   }
 
-  static void EmitRuntimeStubSlot(Address base, uint32_t slot_index,
-                                  Address builtin_target,
-                                  WasmCode::FlushICache flush_i_cache) {
-    Address slot = base + StubSlotIndexToOffset(slot_index);
-    JumpTableAssembler jtasm(slot);
-    jtasm.EmitRuntimeStubSlot(builtin_target);
-    jtasm.NopBytes(kJumpTableStubSlotSize - jtasm.pc_offset());
-    if (flush_i_cache) {
-      FlushInstructionCache(slot, kJumpTableStubSlotSize);
+  static void GenerateRuntimeStubTable(Address base, Address* targets,
+                                       int num_stubs) {
+    uint32_t table_size = num_stubs * kJumpTableStubSlotSize;
+    // Assume enough space, so the Assembler does not try to grow the buffer.
+    JumpTableAssembler jtasm(base, table_size + 256);
+    int offset = 0;
+    for (int index = 0; index < num_stubs; ++index) {
+      DCHECK_EQ(offset, StubSlotIndexToOffset(index));
+      DCHECK_EQ(offset, jtasm.pc_offset());
+      jtasm.EmitRuntimeStubSlot(targets[index]);
+      offset += kJumpTableStubSlotSize;
+      jtasm.NopBytes(offset - jtasm.pc_offset());
     }
+    FlushInstructionCache(base, table_size);
   }
 
   static void PatchJumpTableSlot(Address base, uint32_t slot_index,
