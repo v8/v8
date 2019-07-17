@@ -590,27 +590,30 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
   VARIABLE(var_length, MachineRepresentation::kTagged);
   VARIABLE(var_elements, MachineRepresentation::kTagged);
   Label if_empty(this, Label::kDeferred), if_empty_elements(this),
-      if_fast(this), if_slow(this, Label::kDeferred), if_join(this);
+      if_fast(this), try_fast(this, Label::kDeferred),
+      if_slow(this, Label::kDeferred), if_join(this);
 
-  // Check if the {object} has a usable enum cache.
+  // Take the slow path if the {object} IsCustomElementsReceiverInstanceType or
+  // has any elements.
   GotoIf(TaggedIsSmi(object), &if_slow);
   Node* object_map = LoadMap(object);
-  Node* object_bit_field3 = LoadMapBitField3(object_map);
-  Node* object_enum_length =
-      DecodeWordFromWord32<Map::EnumLengthBits>(object_bit_field3);
-  GotoIf(
-      WordEqual(object_enum_length, IntPtrConstant(kInvalidEnumCacheSentinel)),
-      &if_slow);
-
-  // Ensure that the {object} doesn't have any elements.
-  CSA_ASSERT(this, IsJSObjectMap(object_map));
+  TNode<Int32T> instance_type = LoadMapInstanceType(object_map);
+  GotoIf(IsCustomElementsReceiverInstanceType(instance_type), &if_slow);
   Node* object_elements = LoadElements(object);
   GotoIf(IsEmptyFixedArray(object_elements), &if_empty_elements);
   Branch(IsEmptySlowElementDictionary(object_elements), &if_empty_elements,
          &if_slow);
 
-  // Check whether all own properties are enumerable.
+  // Check if the {object} has a usable enum cache.
   BIND(&if_empty_elements);
+  Node* object_bit_field3 = LoadMapBitField3(object_map);
+  Node* object_enum_length =
+      DecodeWordFromWord32<Map::EnumLengthBits>(object_bit_field3);
+  GotoIf(
+      WordEqual(object_enum_length, IntPtrConstant(kInvalidEnumCacheSentinel)),
+      &try_fast);
+
+  // Check whether all own properties are enumerable.
   Node* number_descriptors =
       DecodeWordFromWord32<Map::NumberOfOwnDescriptorsBits>(object_bit_field3);
   GotoIfNot(WordEqual(object_enum_length, number_descriptors), &if_slow);
@@ -641,6 +644,16 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
     CopyFixedArrayElements(PACKED_ELEMENTS, object_enum_keys, elements,
                            object_enum_length, SKIP_WRITE_BARRIER);
     Return(array);
+  }
+
+  BIND(&try_fast);
+  {
+    // Let the runtime compute the elements and try initializing enum cache.
+    Node* elements = CallRuntime(Runtime::kObjectGetOwnPropertyNamesTryFast,
+                                 context, object);
+    var_length.Bind(LoadObjectField(elements, FixedArray::kLengthOffset));
+    var_elements.Bind(elements);
+    Goto(&if_join);
   }
 
   BIND(&if_empty);
