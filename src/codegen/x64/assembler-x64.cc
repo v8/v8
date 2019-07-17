@@ -1513,19 +1513,20 @@ void Assembler::j(Condition cc, Handle<Code> target, RelocInfo::Mode rmode) {
   emitl(code_target_index);
 }
 
-void Assembler::jmp_rel(int offset) {
+void Assembler::jmp_rel(int32_t offset) {
   EnsureSpace ensure_space(this);
-  const int short_size = sizeof(int8_t);
-  const int long_size = sizeof(int32_t);
-  --offset;  // This is how jumps are specified on x64.
-  if (is_int8(offset - short_size) && !predictable_code_size()) {
-    // 1110 1011 #8-bit disp.
+  // The offset is encoded relative to the next instruction.
+  constexpr int32_t kShortJmpDisplacement = 1 + sizeof(int8_t);
+  constexpr int32_t kNearJmpDisplacement = 1 + sizeof(int32_t);
+  DCHECK_LE(std::numeric_limits<int32_t>::min() + kNearJmpDisplacement, offset);
+  if (is_int8(offset - kShortJmpDisplacement) && !predictable_code_size()) {
+    // 0xEB #8-bit disp.
     emit(0xEB);
-    emit((offset - short_size) & 0xFF);
+    emit(offset - kShortJmpDisplacement);
   } else {
-    // 1110 1001 #32-bit disp.
+    // 0xE9 #32-bit disp.
     emit(0xE9);
-    emitl(offset - long_size);
+    emitl(offset - kNearJmpDisplacement);
   }
 }
 
