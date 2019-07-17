@@ -57,6 +57,9 @@
   # Issue 8505: Math.pow is incorrect for asm.js
   'regress/wasm/regress-8505': [SKIP],
 
+  # Issue 9380: Memory leaks of shared WebAssembly.Memory objects
+  'wasm/shared-memory-worker-gc': [SKIP],
+
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
   'regress/regress-create-exception': [PASS, ['mode == debug', SKIP]],
