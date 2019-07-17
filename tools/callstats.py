@@ -545,6 +545,41 @@ def create_total_page_stats(domains, args):
   # Add a new "Total" page containing the summed up metrics.
   domains['Total'] = total
 
+# Generate Raw JSON file.
+
+def do_raw_json(args):
+  versions = {}
+  for path in args.logdirs:
+    if os.path.isdir(path):
+      for root, dirs, files in os.walk(path):
+        version = os.path.basename(root)
+        if version not in versions: versions[version] = {}
+        for filename in files:
+          if filename.endswith(".txt"):
+            m = re.match(r'^([^#]+)(#.*)?\.txt$', filename)
+            domain = m.group(1)
+            if domain not in versions[version]: versions[version][domain] = {}
+            read_stats(os.path.join(root, filename),
+                       versions[version][domain], args)
+
+  for version, domains in versions.items():
+    if args.aggregate:
+      create_total_page_stats(domains, args)
+    for domain, entries in domains.items():
+      raw_entries = []
+      for name, value in entries.items():
+        # We don't want the calculated sum in the JSON file.
+        if name == "Sum": continue
+        raw_entries.append({
+          'name': name,
+          'duration': value['time_list'],
+          'count': value['count_list'],
+        })
+
+      domains[domain] = raw_entries
+
+  print(json.dumps(versions, separators=(',', ':')))
+
 
 # Generate JSON file.
 
@@ -702,6 +737,20 @@ def main():
       "logdirs", type=str, metavar="<logdir>", nargs="*",
       help="specify directories with log files to parse")
   subparsers["json"].add_argument(
+      "--aggregate", dest="aggregate", action="store_true", default=False,
+      help="Create aggregated entries. Adds Group-* entries at the toplevel. " \
+      "Additionally creates a Total page with all entries.")
+
+  # Command: raw-json.
+  subparsers["raw-json"] = subparser_adder.add_parser(
+      "raw-json", help="Collect raw results from 'run' command into" \
+          "a single json file.")
+  subparsers["raw-json"].set_defaults(
+      func=do_raw_json, error=subparsers["json"].error)
+  subparsers["raw-json"].add_argument(
+      "logdirs", type=str, metavar="<logdir>", nargs="*",
+      help="specify directories with log files to parse")
+  subparsers["raw-json"].add_argument(
       "--aggregate", dest="aggregate", action="store_true", default=False,
       help="Create aggregated entries. Adds Group-* entries at the toplevel. " \
       "Additionally creates a Total page with all entries.")
