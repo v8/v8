@@ -543,9 +543,9 @@ void TestTableInitOob(ExecutionTier execution_tier, int table_index) {
   r.CheckCallViaJS(0xDEADBEEF, 0, 3, 3);
   CheckTableCall(isolate, table, r, call_index, 3, 4, null, 0, 1);
 
-  // 0-count is oob.
-  r.CheckCallViaJS(0xDEADBEEF, kTableSize + 1, 0, 0);
-  r.CheckCallViaJS(0xDEADBEEF, 0, kTableSize + 1, 0);
+  // 0-count is never oob.
+  r.CheckCallViaJS(0, kTableSize + 1, 0, 0);
+  r.CheckCallViaJS(0, 0, kTableSize + 1, 0);
 
   r.CheckCallViaJS(0xDEADBEEF, 0, 0, 6);
   r.CheckCallViaJS(0xDEADBEEF, 0, 1, 5);

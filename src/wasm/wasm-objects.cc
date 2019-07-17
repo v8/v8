@@ -1869,6 +1869,8 @@ bool WasmInstanceObject::InitTableEntries(Isolate* isolate,
                                           uint32_t table_index,
                                           uint32_t segment_index, uint32_t dst,
                                           uint32_t src, uint32_t count) {
+  // Copying 0 elements is a no-op.
+  if (count == 0) return true;
   // Note that this implementation just calls through to module instantiation.
   // This is intentional, so that the runtime only depends on the object
   // methods, and not the module instantiation logic.
