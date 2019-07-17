@@ -584,6 +584,9 @@
   'es6/block-conflicts-sloppy': [PASS, SLOW],
   'math-floor-part1': [PASS, SLOW],
   'regress/regress-500980': [PASS, SLOW],
+
+  # BUG(v8:9506): times out.
+  'wasm/shared-memory-worker-explicit-gc-stress': [SKIP],
 }],  # 'tsan == True'
 
 ##############################################################################
