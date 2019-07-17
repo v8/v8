@@ -1367,10 +1367,9 @@ struct SerializationPhase {
       flags |=
           SerializerForBackgroundCompilationFlag::kAnalyzeEnvironmentLiveness;
     }
-    SerializerForBackgroundCompilation serializer(
-        data->broker(), data->dependencies(), temp_zone,
-        data->info()->closure(), flags, data->info()->osr_offset());
-    serializer.Run();
+    RunSerializerForBackgroundCompilation(data->broker(), data->dependencies(),
+                                          temp_zone, data->info()->closure(),
+                                          flags, data->info()->osr_offset());
   }
 };
 
