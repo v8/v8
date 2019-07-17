@@ -1274,74 +1274,44 @@
   },
   'V8 Arm': {
     'swarming_dimensions': {
-      'cores': '2',
-      'cpu': 'armv7l',
-      'os': 'Ubuntu-14.04',
+      'cores': '8',
+      'cpu': 'armv7l-32-ODROID-XU4',
+      'os': 'Ubuntu-16.04',
     },
     'swarming_task_attrs': {
       'expiration': 21600,
       'hard_timeout': 5400,
     },
     'tests': [
-      {'name': 'benchmarks'},
-      {'name': 'optimize_for_size'},
-      {'name': 'v8testing', 'shards': 2},
       # Odroid.
       {
         'name': 'benchmarks',
         'suffix': 'ODROID',
-        'swarming_dimensions': {
-          'cores': '8',
-          'os': 'Ubuntu-16.04',
-          'cpu': 'armv7l-32-ODROID-XU4',
-        },
         # Less parallelism to prevent OOMs in benchmarks.
         'test_args': ['-j2'],
       },
       {
         'name': 'optimize_for_size',
         'suffix': 'ODROID',
-        'swarming_dimensions': {
-          'cores': '8',
-          'os': 'Ubuntu-16.04',
-          'cpu': 'armv7l-32-ODROID-XU4',
-        }
       },
       {
         'name': 'v8testing',
         'suffix': 'ODROID',
         'shards': 2,
-        'swarming_dimensions': {
-          'cores': '8',
-          'os': 'Ubuntu-16.04',
-          'cpu': 'armv7l-32-ODROID-XU4',
-        }
       },
     ],
   },
   'V8 Arm - debug': {
     'swarming_dimensions': {
-      'cores': '2',
-      'cpu': 'armv7l',
-      'os': 'Ubuntu-14.04',
+      'cores': '8',
+      'cpu': 'armv7l-32-ODROID-XU4',
+      'os': 'Ubuntu-16.04',
     },
     'swarming_task_attrs': {
       'expiration': 21600,
       'hard_timeout': 3600,
     },
     'tests': [
-      {
-        'name': 'optimize_for_size',
-        'variant': 'default',
-        'test_args': ['--extra-flags=--verify-heap-skip-remembered-set'],
-        'shards': 2
-      },
-      {
-        'name': 'v8testing',
-        'variant': 'default',
-        'test_args': ['--extra-flags=--verify-heap-skip-remembered-set'],
-        'shards': 3
-      },
       # Odroid.
       {
         'name': 'optimize_for_size',
@@ -1349,11 +1319,6 @@
         'variant': 'default',
         'test_args': ['--extra-flags=--verify-heap-skip-remembered-set'],
         'shards': 2,
-        'swarming_dimensions': {
-          'cores': '8',
-          'os': 'Ubuntu-16.04',
-          'cpu': 'armv7l-32-ODROID-XU4',
-        }
       },
       {
         'name': 'v8testing',
@@ -1361,19 +1326,14 @@
         'variant': 'default',
         'test_args': ['--extra-flags=--verify-heap-skip-remembered-set'],
         'shards': 3,
-        'swarming_dimensions': {
-          'cores': '8',
-          'os': 'Ubuntu-16.04',
-          'cpu': 'armv7l-32-ODROID-XU4',
-        }
       },
     ],
   },
   'V8 Arm GC Stress': {
     'swarming_dimensions': {
-      'cores': '2',
-      'cpu': 'armv7l',
-      'os': 'Ubuntu-14.04',
+      'cores': '8',
+      'cpu': 'armv7l-32-ODROID-XU4',
+      'os': 'Ubuntu-16.04',
     },
     'swarming_task_attrs': {
       'expiration': 21600,
@@ -1382,21 +1342,10 @@
     'tests': [
       {
         'name': 'd8testing',
-        'variant': 'default',
-        'test_args': ['--gc-stress', '--extra-flags=--verify-heap-skip-remembered-set'],
-        'shards': 3
-      },
-      {
-        'name': 'd8testing',
         'suffix': 'ODROID',
         'variant': 'default',
         'test_args': ['--gc-stress', '--extra-flags=--verify-heap-skip-remembered-set'],
         'shards': 3,
-        'swarming_dimensions': {
-          'cores': '8',
-          'os': 'Ubuntu-16.04',
-          'cpu': 'armv7l-32-ODROID-XU4',
-        }
       },
     ],
   },
