@@ -389,6 +389,7 @@ class SerializerForBackgroundCompilation {
   void ProcessHintsForPromiseResolve(Hints const& resolution_hints);
   void ProcessHintsForRegExpTest(Hints const& regexp_hints);
   PropertyAccessInfo ProcessMapForRegExpTest(MapRef map);
+  void ProcessHintsForFunctionCall(Hints const& target_hints);
 
   GlobalAccessFeedback const* ProcessFeedbackForGlobalAccess(FeedbackSlot slot);
   NamedAccessFeedback const* ProcessFeedbackMapsForNamedAccess(

@@ -1082,6 +1082,8 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
     if (!hint->IsJSFunction()) continue;
 
     Handle<JSFunction> function = Handle<JSFunction>::cast(hint);
+    JSFunctionRef(broker(), function).Serialize();
+
     Handle<SharedFunctionInfo> shared(function->shared(), broker()->isolate());
 
     if (shared->IsApiFunction()) {
@@ -1239,6 +1241,12 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
       }
       break;
     }
+    case Builtins::kFunctionPrototypeCall:
+      if (arguments.size() >= 1) {
+        Hints const& target_hints = arguments[0];
+        ProcessHintsForFunctionCall(target_hints);
+      }
+      break;
     default:
       break;
   }
@@ -1311,6 +1319,15 @@ void SerializerForBackgroundCompilation::ProcessHintsForRegExpTest(
   for (auto map : regexp_hints.maps()) {
     if (!map->IsJSRegExpMap()) continue;
     ProcessMapForRegExpTest(MapRef(broker(), map));
+  }
+}
+
+void SerializerForBackgroundCompilation::ProcessHintsForFunctionCall(
+    Hints const& target_hints) {
+  for (auto constant : target_hints.constants()) {
+    if (!constant->IsJSFunction()) continue;
+    JSFunctionRef func(broker(), constant);
+    func.Serialize();
   }
 }
 

@@ -368,6 +368,8 @@ Reduction JSCallReducer::ReduceObjectConstructor(Node* node) {
 
 // ES6 section 19.2.3.1 Function.prototype.apply ( thisArg, argArray )
 Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
+  DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
+
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
   size_t arity = p.arity();
@@ -475,9 +477,17 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
     }
   }
   // Change {node} to the new {JSCall} operator.
+  // TODO(mslekova): Since this introduces a Call that will get optimized by
+  // the JSCallReducer, we basically might have to do all the serialization
+  // that we do for that here as well. The only difference is that here we
+  // disable speculation (cf. the empty VectorSlotPair above), causing the
+  // JSCallReducer to do much less work. We should revisit this later.
   NodeProperties::ChangeOp(
       node,
       javascript()->Call(arity, p.frequency(), VectorSlotPair(), convert_mode));
+  // TODO(mslekova): Remove once ReduceJSCall is brokerized.
+  AllowHandleDereference allow_handle_dereference;
+  AllowHandleAllocation allow_handle_allocation;
   // Try to further reduce the JSCall {node}.
   Reduction const reduction = ReduceJSCall(node);
   return reduction.Changed() ? reduction : Changed(node);
@@ -590,6 +600,8 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
 
 // ES6 section 19.2.3.3 Function.prototype.call (thisArg, ...args)
 Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
+  DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
+
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
   Node* target = NodeProperties::GetValueInput(node, 0);
@@ -602,6 +614,10 @@ Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
   HeapObjectMatcher m(target);
   if (m.HasValue()) {
     JSFunctionRef function = m.Ref(broker()).AsJSFunction();
+    if (FLAG_concurrent_inlining && !function.serialized()) {
+      TRACE_BROKER_MISSING(broker(), "Serialize call on function " << function);
+      return NoChange();
+    }
     context = jsgraph()->Constant(function.context());
   } else {
     context = effect = graph()->NewNode(
@@ -631,6 +647,9 @@ Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
   NodeProperties::ChangeOp(
       node,
       javascript()->Call(arity, p.frequency(), VectorSlotPair(), convert_mode));
+  // TODO(mslekova): Remove once ReduceJSCall is brokerized.
+  AllowHandleDereference allow_handle_dereference;
+  AllowHandleAllocation allow_handle_allocation;
   // Try to further reduce the JSCall {node}.
   Reduction const reduction = ReduceJSCall(node);
   return reduction.Changed() ? reduction : Changed(node);
@@ -3774,6 +3793,10 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
 }
 
 Reduction JSCallReducer::ReduceJSCallWithArrayLike(Node* node) {
+  // TODO(mslekova): Remove once ReduceJSCallWithArrayLike is brokerized.
+  AllowHandleDereference allow_handle_dereference;
+  AllowHandleAllocation allow_handle_allocation;
+
   DCHECK_EQ(IrOpcode::kJSCallWithArrayLike, node->opcode());
   CallFrequency frequency = CallFrequencyOf(node->op());
   VectorSlotPair feedback;
