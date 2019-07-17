@@ -335,7 +335,8 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
   ToDirectStringAssembler to_direct(state(), string);
 
   TVARIABLE(HeapObject, var_result);
-  Label out(this), atom(this), runtime(this, Label::kDeferred);
+  Label out(this), interpreted(this), atom(this),
+      runtime(this, Label::kDeferred);
 
   // External constants.
   TNode<ExternalReference> isolate_address =
@@ -398,14 +399,6 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
            &runtime);
   }
 
-  // Ensure that a RegExp stack is allocated. This check is after branching off
-  // for ATOM regexps to avoid unnecessary trips to runtime.
-  {
-    TNode<IntPtrT> stack_size = UncheckedCast<IntPtrT>(
-        Load(MachineType::IntPtr(), regexp_stack_memory_size_address));
-    GotoIf(IntPtrEqual(stack_size, IntPtrZero()), &runtime);
-  }
-
   // Unpack the string if possible.
 
   to_direct.TryToDirect(&runtime);
@@ -462,8 +455,15 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 #endif
 
   GotoIf(TaggedIsSmi(var_code.value()), &runtime);
-  GotoIfNot(IsCode(CAST(var_code.value())), &runtime);
+  GotoIfNot(IsCode(CAST(var_code.value())), &interpreted);
   TNode<Code> code = CAST(var_code.value());
+
+  // Ensure that a RegExp stack is allocated when using compiled Irregexp.
+  {
+    TNode<IntPtrT> stack_size = UncheckedCast<IntPtrT>(
+        Load(MachineType::IntPtr(), regexp_stack_memory_size_address));
+    GotoIf(IntPtrEqual(stack_size, IntPtrZero()), &runtime);
+  }
 
   Label if_success(this), if_exception(this, Label::kDeferred);
   {
@@ -537,6 +537,74 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     // Check the result.
     // We expect exactly one result since we force the called regexp to behave
     // as non-global.
+    TNode<IntPtrT> int_result = ChangeInt32ToIntPtr(result);
+    GotoIf(
+        IntPtrEqual(int_result, IntPtrConstant(RegExp::kInternalRegExpSuccess)),
+        &if_success);
+    GotoIf(
+        IntPtrEqual(int_result, IntPtrConstant(RegExp::kInternalRegExpFailure)),
+        &if_failure);
+    GotoIf(IntPtrEqual(int_result,
+                       IntPtrConstant(RegExp::kInternalRegExpException)),
+           &if_exception);
+
+    CSA_ASSERT(this, IntPtrEqual(int_result,
+                                 IntPtrConstant(RegExp::kInternalRegExpRetry)));
+    Goto(&runtime);
+  }
+
+  BIND(&interpreted);
+  {
+    TNode<ByteArray> byte_code = CAST(var_code.value());
+    IncrementCounter(isolate()->counters()->regexp_entry_native(), 1);
+
+    // Set up args for the final call into IrregexpInterpreter.
+
+    MachineType type_int32 = MachineType::Int32();
+    MachineType type_tagged = MachineType::AnyTagged();
+    MachineType type_ptr = MachineType::Pointer();
+
+    // Result: A IrregexpInterpreter::Result return code.
+    MachineType retval_type = type_int32;
+
+    // Argument 0: Pass current isolate address.
+    MachineType arg0_type = type_ptr;
+    TNode<ExternalReference> arg0 = isolate_address;
+
+    // Argument 1: Pattern ByteCode.
+    MachineType arg1_type = type_tagged;
+    TNode<ByteArray> arg1 = byte_code;
+
+    // Argument 2: Original subject string.
+    MachineType arg2_type = type_tagged;
+    TNode<String> arg2 = string;
+
+    // Argument 3: Static offsets vector buffer.
+    MachineType arg3_type = type_ptr;
+    TNode<ExternalReference> arg3 = static_offsets_vector_address;
+
+    // Argument 4: Length of static offsets vector buffer.
+    TNode<Smi> capture_count = CAST(UnsafeLoadFixedArrayElement(
+        data, JSRegExp::kIrregexpCaptureCountIndex));
+    TNode<Smi> register_count =
+        SmiShl(SmiAdd(capture_count, SmiConstant(1)), 1);
+
+    MachineType arg4_type = type_int32;
+    TNode<Int32T> arg4 = SmiToInt32(register_count);
+
+    // Argument 5: Previous index.
+    MachineType arg5_type = type_int32;
+    TNode<Int32T> arg5 = TruncateIntPtrToInt32(int_last_index);
+
+    TNode<ExternalReference> code_entry = ExternalConstant(
+        ExternalReference::re_match_for_call_from_js(isolate()));
+
+    TNode<Int32T> result = UncheckedCast<Int32T>(CallCFunction(
+        code_entry, retval_type, std::make_pair(arg0_type, arg0),
+        std::make_pair(arg1_type, arg1), std::make_pair(arg2_type, arg2),
+        std::make_pair(arg3_type, arg3), std::make_pair(arg4_type, arg4),
+        std::make_pair(arg5_type, arg5)));
+
     TNode<IntPtrT> int_result = ChangeInt32ToIntPtr(result);
     GotoIf(
         IntPtrEqual(int_result, IntPtrConstant(RegExp::kInternalRegExpSuccess)),

@@ -82,6 +82,7 @@ class StatsCounter;
   V(re_check_stack_guard_state,                                                \
     "RegExpMacroAssembler*::CheckStackGuardState()")                           \
   V(re_grow_stack, "NativeRegExpMacroAssembler::GrowStack()")                  \
+  V(re_match_for_call_from_js, "IrregexpInterpreter::MatchForCallFromJs")      \
   V(re_word_character_map, "NativeRegExpMacroAssembler::word_character_map")
 
 #define EXTERNAL_REFERENCE_LIST(V)                                            \

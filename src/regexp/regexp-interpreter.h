@@ -12,7 +12,7 @@
 namespace v8 {
 namespace internal {
 
-class V8_EXPORT_PRIVATE IrregexpInterpreter {
+class V8_EXPORT_PRIVATE IrregexpInterpreter : public AllStatic {
  public:
   enum Result {
     FAILURE = RegExp::kInternalRegExpFailure,
@@ -21,10 +21,26 @@ class V8_EXPORT_PRIVATE IrregexpInterpreter {
     RETRY = RegExp::kInternalRegExpRetry,
   };
 
-  // The caller is responsible for initializing registers before each call.
-  static Result Match(Isolate* isolate, Handle<ByteArray> code_array,
-                      Handle<String> subject_string, int* registers,
-                      int start_position);
+  // In case a StackOverflow occurs, a StackOverflowException is created and
+  // EXCEPTION is returned.
+  static Result MatchForCallFromRuntime(Isolate* isolate,
+                                        Handle<ByteArray> code_array,
+                                        Handle<String> subject_string,
+                                        int* registers, int registers_length,
+                                        int start_position);
+
+  // In case a StackOverflow occurs, EXCEPTION is returned. The caller is
+  // responsible for creating the exception.
+  static Result MatchForCallFromJs(Isolate* isolate, Address code,
+                                   Address subject, int* registers,
+                                   int32_t registers_length,
+                                   int32_t start_position);
+
+ private:
+  static Result Match(Isolate* isolate, ByteArray code_array,
+                      String subject_string, int* registers,
+                      int registers_length, int start_position,
+                      RegExp::CallOrigin call_origin);
 };
 
 }  // namespace internal

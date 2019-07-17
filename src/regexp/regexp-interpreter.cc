@@ -141,7 +141,9 @@ class BacktrackStack {
 
 namespace {
 
-IrregexpInterpreter::Result StackOverflow(Isolate* isolate) {
+IrregexpInterpreter::Result StackOverflow(Isolate* isolate,
+                                          RegExp::CallOrigin call_origin) {
+  CHECK(call_origin == RegExp::CallOrigin::kFromRuntime);
   // We abort interpreter execution after the stack overflow is thrown, and thus
   // allow allocation here despite the outer DisallowHeapAllocationScope.
   AllowHeapAllocation yes_gc;
@@ -149,53 +151,16 @@ IrregexpInterpreter::Result StackOverflow(Isolate* isolate) {
   return IrregexpInterpreter::EXCEPTION;
 }
 
-// Runs all pending interrupts. Callers must update unhandlified object
-// references after this function completes.
-IrregexpInterpreter::Result HandleInterrupts(Isolate* isolate,
-                                             Handle<String> subject_string) {
-  DisallowHeapAllocation no_gc;
-
-  StackLimitCheck check(isolate);
-  if (check.JsHasOverflowed()) {
-    return StackOverflow(isolate);  // A real stack overflow.
-  }
-
-  // Handle interrupts if any exist.
-  if (check.InterruptRequested()) {
-    const bool was_one_byte =
-        String::IsOneByteRepresentationUnderneath(*subject_string);
-
-    Object result;
-    {
-      AllowHeapAllocation yes_gc;
-      result = isolate->stack_guard()->HandleInterrupts();
-    }
-
-    if (result.IsException(isolate)) {
-      return IrregexpInterpreter::EXCEPTION;
-    }
-
-    // If we changed between a LATIN1 and a UC16 string, we need to restart
-    // regexp matching with the appropriate template instantiation of RawMatch.
-    if (String::IsOneByteRepresentationUnderneath(*subject_string) !=
-        was_one_byte) {
-      return IrregexpInterpreter::RETRY;
-    }
-  }
-
-  return IrregexpInterpreter::SUCCESS;
-}
-
 template <typename Char>
-void UpdateCodeAndSubjectReferences(Isolate* isolate,
-                                    Handle<ByteArray> code_array,
-                                    Handle<String> subject_string,
-                                    const byte** code_base_out,
-                                    const byte** pc_out,
-                                    Vector<const Char>* subject_string_out) {
+void UpdateCodeAndSubjectReferences(
+    Isolate* isolate, Handle<ByteArray> code_array,
+    Handle<String> subject_string, ByteArray* code_array_out,
+    const byte** code_base_out, const byte** pc_out, String* subject_string_out,
+    Vector<const Char>* subject_string_vector_out) {
   DisallowHeapAllocation no_gc;
 
   if (*code_base_out != code_array->GetDataStartAddress()) {
+    *code_array_out = *code_array;
     const intptr_t pc_offset = *pc_out - *code_base_out;
     DCHECK_GT(pc_offset, 0);
     *code_base_out = code_array->GetDataStartAddress();
@@ -203,18 +168,80 @@ void UpdateCodeAndSubjectReferences(Isolate* isolate,
   }
 
   DCHECK(subject_string->IsFlat());
-  *subject_string_out = subject_string->GetCharVector<Char>(no_gc);
+  *subject_string_out = *subject_string;
+  *subject_string_vector_out = subject_string->GetCharVector<Char>(no_gc);
+}
+
+// Runs all pending interrupts and updates unhandlified object references if
+// necessary.
+template <typename Char>
+IrregexpInterpreter::Result HandleInterrupts(
+    Isolate* isolate, RegExp::CallOrigin call_origin, ByteArray* code_array_out,
+    String* subject_string_out, const byte** code_base_out,
+    Vector<const Char>* subject_string_vector_out, const byte** pc_out) {
+  DisallowHeapAllocation no_gc;
+
+  StackLimitCheck check(isolate);
+  bool js_has_overflowed = check.JsHasOverflowed();
+
+  if (call_origin == RegExp::CallOrigin::kFromJs) {
+    // Direct calls from JavaScript can be interrupted in two ways:
+    // 1. A real stack overflow, in which case we let the caller throw the
+    //    exception.
+    // 2. The stack guard was used to interrupt execution for another purpose,
+    //    forcing the call through the runtime system.
+    if (js_has_overflowed) {
+      return IrregexpInterpreter::EXCEPTION;
+    } else if (check.InterruptRequested()) {
+      return IrregexpInterpreter::RETRY;
+    }
+  } else {
+    DCHECK(call_origin == RegExp::CallOrigin::kFromRuntime);
+    // Prepare for possible GC.
+    HandleScope handles(isolate);
+    Handle<ByteArray> code_handle(*code_array_out, isolate);
+    Handle<String> subject_handle(*subject_string_out, isolate);
+
+    if (js_has_overflowed) {
+      return StackOverflow(isolate, call_origin);
+    } else if (check.InterruptRequested()) {
+      const bool was_one_byte =
+          String::IsOneByteRepresentationUnderneath(*subject_string_out);
+      Object result;
+      {
+        AllowHeapAllocation yes_gc;
+        result = isolate->stack_guard()->HandleInterrupts();
+      }
+      if (result.IsException(isolate)) {
+        return IrregexpInterpreter::EXCEPTION;
+      }
+
+      // If we changed between a LATIN1 and a UC16 string, we need to restart
+      // regexp matching with the appropriate template instantiation of
+      // RawMatch.
+      if (String::IsOneByteRepresentationUnderneath(*subject_handle) !=
+          was_one_byte) {
+        return IrregexpInterpreter::RETRY;
+      }
+
+      UpdateCodeAndSubjectReferences(
+          isolate, code_handle, subject_handle, code_array_out, code_base_out,
+          pc_out, subject_string_out, subject_string_vector_out);
+    }
+  }
+
+  return IrregexpInterpreter::SUCCESS;
 }
 
 template <typename Char>
-IrregexpInterpreter::Result RawMatch(Isolate* isolate,
-                                     Handle<ByteArray> code_array,
-                                     Handle<String> subject_string,
+IrregexpInterpreter::Result RawMatch(Isolate* isolate, ByteArray code_array,
+                                     String subject_string,
                                      Vector<const Char> subject, int* registers,
-                                     int current, uint32_t current_char) {
+                                     int current, uint32_t current_char,
+                                     RegExp::CallOrigin call_origin) {
   DisallowHeapAllocation no_gc;
 
-  const byte* pc = code_array->GetDataStartAddress();
+  const byte* pc = code_array.GetDataStartAddress();
   const byte* code_base = pc;
 
   BacktrackStack backtrack_stack;
@@ -280,11 +307,9 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate,
       }
       BYTECODE(POP_BT) {
         IrregexpInterpreter::Result return_code =
-            HandleInterrupts(isolate, subject_string);
+            HandleInterrupts(isolate, call_origin, &code_array, &subject_string,
+                             &code_base, &subject, &pc);
         if (return_code != IrregexpInterpreter::SUCCESS) return return_code;
-
-        UpdateCodeAndSubjectReferences(isolate, code_array, subject_string,
-                                       &code_base, &pc, &subject);
 
         pc = code_base + backtrack_stack.pop();
         break;
@@ -649,31 +674,66 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate,
 
 // static
 IrregexpInterpreter::Result IrregexpInterpreter::Match(
-    Isolate* isolate, Handle<ByteArray> code_array,
-    Handle<String> subject_string, int* registers, int start_position) {
-  DCHECK(subject_string->IsFlat());
+    Isolate* isolate, ByteArray code_array, String subject_string,
+    int* registers, int registers_length, int start_position,
+    RegExp::CallOrigin call_origin) {
+  DCHECK(subject_string.IsFlat());
 
-  // Note: Heap allocation *is* allowed in two situations:
+  // Note: Heap allocation *is* allowed in two situations if calling from
+  // Runtime:
   // 1. When creating & throwing a stack overflow exception. The interpreter
   //    aborts afterwards, and thus possible-moved objects are never used.
   // 2. When handling interrupts. We manually relocate unhandlified references
   //    after interrupts have run.
   DisallowHeapAllocation no_gc;
 
+  // Reset registers to -1 (=undefined).
+  // This is necessary because registers are only written when a
+  // capture group matched.
+  // Resetting them ensures that previous matches are cleared.
+  memset(registers, -1, sizeof(registers[0]) * registers_length);
+
   uc16 previous_char = '\n';
-  String::FlatContent subject_content = subject_string->GetFlatContent(no_gc);
+  String::FlatContent subject_content = subject_string.GetFlatContent(no_gc);
   if (subject_content.IsOneByte()) {
     Vector<const uint8_t> subject_vector = subject_content.ToOneByteVector();
     if (start_position != 0) previous_char = subject_vector[start_position - 1];
     return RawMatch(isolate, code_array, subject_string, subject_vector,
-                    registers, start_position, previous_char);
+                    registers, start_position, previous_char, call_origin);
   } else {
     DCHECK(subject_content.IsTwoByte());
     Vector<const uc16> subject_vector = subject_content.ToUC16Vector();
     if (start_position != 0) previous_char = subject_vector[start_position - 1];
     return RawMatch(isolate, code_array, subject_string, subject_vector,
-                    registers, start_position, previous_char);
+                    registers, start_position, previous_char, call_origin);
   }
+}
+
+// This method is called through an external reference from RegExpExecInternal
+// builtin.
+IrregexpInterpreter::Result IrregexpInterpreter::MatchForCallFromJs(
+    Isolate* isolate, Address code, Address subject, int* registers,
+    int32_t registers_length, int32_t start_position) {
+  DCHECK_NOT_NULL(isolate);
+  DCHECK_NOT_NULL(registers);
+
+  DisallowHeapAllocation no_gc;
+  DisallowJavascriptExecution no_js(isolate);
+
+  String subject_string = String::cast(Object(subject));
+  ByteArray code_array = ByteArray::cast(Object(code));
+
+  return Match(isolate, code_array, subject_string, registers, registers_length,
+               start_position, RegExp::CallOrigin::kFromJs);
+}
+
+IrregexpInterpreter::Result IrregexpInterpreter::MatchForCallFromRuntime(
+    Isolate* isolate, Handle<ByteArray> code_array,
+    Handle<String> subject_string, int* registers, int registers_length,
+    int start_position) {
+  return Match(isolate, *code_array, *subject_string, registers,
+               registers_length, start_position,
+               RegExp::CallOrigin::kFromRuntime);
 }
 
 }  // namespace internal
