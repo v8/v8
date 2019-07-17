@@ -2661,6 +2661,7 @@ VISIT_ATOMIC_BINOP(Xor)
 
 #define SIMD_UNOP_LIST(V)   \
   V(F64x2Abs)               \
+  V(F64x2Neg)               \
   V(F32x4SConvertI32x4)     \
   V(F32x4Abs)               \
   V(F32x4Neg)               \

@@ -954,6 +954,10 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Abs) {
   RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2Abs, std::abs);
 }
 
+WASM_SIMD_TEST_NO_LOWERING(F64x2Neg) {
+  RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2Neg, Negate);
+}
+
 WASM_SIMD_TEST_NO_LOWERING(I64x2Splat) {
   WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);
   // Set up a global to hold output vector.

@@ -3996,6 +3996,8 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
       return graph()->NewNode(mcgraph()->machine()->F64x2Splat(), inputs[0]);
     case wasm::kExprF64x2Abs:
       return graph()->NewNode(mcgraph()->machine()->F64x2Abs(), inputs[0]);
+    case wasm::kExprF64x2Neg:
+      return graph()->NewNode(mcgraph()->machine()->F64x2Neg(), inputs[0]);
     case wasm::kExprF64x2Eq:
       return graph()->NewNode(mcgraph()->machine()->F64x2Eq(), inputs[0],
                               inputs[1]);

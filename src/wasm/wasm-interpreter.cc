@@ -2299,6 +2299,7 @@ class ThreadImpl {
     return true;                                \
   }
       UNOP_CASE(F64x2Abs, f64x2, float2, 2, std::abs(a))
+      UNOP_CASE(F64x2Neg, f64x2, float2, 2, -a)
       UNOP_CASE(F32x4Abs, f32x4, float4, 4, std::abs(a))
       UNOP_CASE(F32x4Neg, f32x4, float4, 4, -a)
       UNOP_CASE(F32x4RecipApprox, f32x4, float4, 4, base::Recip(a))
