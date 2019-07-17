@@ -3673,7 +3673,7 @@ SharedFunctionInfoRef::function_template_info() const {
 
 bool SharedFunctionInfoRef::IsSerializedForCompilation(
     FeedbackVectorRef feedback) const {
-  CHECK_NE(broker()->mode(), JSHeapBroker::kDisabled);
+  if (broker()->mode() == JSHeapBroker::kDisabled) return true;
   return data()->AsSharedFunctionInfo()->IsSerializedForCompilation(feedback);
 }
 

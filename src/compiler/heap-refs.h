@@ -679,6 +679,7 @@ class ScopeInfoRef : public HeapObjectRef {
   V(bool, HasBytecodeArray)                  \
   V(bool, is_safe_to_skip_arguments_adaptor) \
   V(bool, IsInlineable)                      \
+  V(int, StartPosition)                      \
   V(bool, is_compiled)
 
 class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {

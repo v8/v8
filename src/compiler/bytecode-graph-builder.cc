@@ -35,12 +35,12 @@ class BytecodeGraphBuilder {
  public:
   BytecodeGraphBuilder(JSHeapBroker* broker, Zone* local_zone,
                        BytecodeArrayRef bytecode_array,
-                       Handle<SharedFunctionInfo> shared,
+                       SharedFunctionInfoRef shared,
                        FeedbackVectorRef feedback_vector, BailoutId osr_offset,
                        JSGraph* jsgraph,
                        CallFrequency const& invocation_frequency,
                        SourcePositionTable* source_positions,
-                       Handle<NativeContext> native_context, int inlining_id,
+                       NativeContextRef native_context, int inlining_id,
                        BytecodeGraphBuilderFlags flags,
                        TickCounter* tick_counter);
 
@@ -365,9 +365,9 @@ class BytecodeGraphBuilder {
     needs_eager_checkpoint_ = value;
   }
 
-  Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
+  SharedFunctionInfoRef shared_info() const { return shared_info_; }
 
-  Handle<NativeContext> native_context() const { return native_context_; }
+  NativeContextRef native_context() const { return native_context_; }
 
   JSHeapBroker* broker() const { return broker_; }
 
@@ -431,10 +431,10 @@ class BytecodeGraphBuilder {
 
   SourcePosition const start_position_;
 
-  Handle<SharedFunctionInfo> const shared_info_;
+  SharedFunctionInfoRef const shared_info_;
 
   // The native context for which we optimize.
-  Handle<NativeContext> const native_context_;
+  NativeContextRef const native_context_;
 
   TickCounter* const tick_counter_;
 
@@ -938,10 +938,10 @@ Node* BytecodeGraphBuilder::Environment::Checkpoint(
 
 BytecodeGraphBuilder::BytecodeGraphBuilder(
     JSHeapBroker* broker, Zone* local_zone, BytecodeArrayRef bytecode_array,
-    Handle<SharedFunctionInfo> shared_info, FeedbackVectorRef feedback_vector,
+    SharedFunctionInfoRef shared_info, FeedbackVectorRef feedback_vector,
     BailoutId osr_offset, JSGraph* jsgraph,
     CallFrequency const& invocation_frequency,
-    SourcePositionTable* source_positions, Handle<NativeContext> native_context,
+    SourcePositionTable* source_positions, NativeContextRef native_context,
     int inlining_id, BytecodeGraphBuilderFlags flags, TickCounter* tick_counter)
     : broker_(broker),
       local_zone_(local_zone),
@@ -957,7 +957,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       frame_state_function_info_(common()->CreateFrameStateFunctionInfo(
           FrameStateType::kInterpretedFunction,
           bytecode_array.parameter_count(), bytecode_array.register_count(),
-          shared_info)),
+          shared_info.object())),
       bytecode_iterator_(
           base::make_unique<OffHeapBytecodeArray>(bytecode_array)),
       bytecode_analysis_(broker_->GetBytecodeAnalysis(
@@ -979,7 +979,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       exit_controls_(local_zone),
       state_values_cache_(jsgraph),
       source_positions_(source_positions),
-      start_position_(shared_info->StartPosition(), inlining_id),
+      start_position_(shared_info.StartPosition(), inlining_id),
       shared_info_(shared_info),
       native_context_(native_context),
       tick_counter_(tick_counter) {
@@ -1009,8 +1009,8 @@ Node* BytecodeGraphBuilder::GetFunctionClosure() {
 
 Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {
   Node* result = NewNode(javascript()->LoadContext(0, index, true));
-  NodeProperties::ReplaceContextInput(
-      result, jsgraph()->HeapConstant(native_context()));
+  NodeProperties::ReplaceContextInput(result,
+                                      jsgraph()->Constant(native_context()));
   return result;
 }
 
@@ -2084,9 +2084,8 @@ void BytecodeGraphBuilder::VisitGetTemplateObject() {
   FeedbackSlot slot = bytecode_iterator().GetSlotOperand(1);
   ObjectRef description(
       broker(), bytecode_iterator().GetConstantForIndexOperand(0, isolate()));
-  SharedFunctionInfoRef shared(broker(), shared_info());
   JSArrayRef template_object =
-      shared.GetTemplateObject(description, feedback_vector(), slot);
+      shared_info().GetTemplateObject(description, feedback_vector(), slot);
   environment()->BindAccumulator(jsgraph()->Constant(template_object));
 }
 
@@ -3876,7 +3875,7 @@ Node* BytecodeGraphBuilder::MakeNode(const Operator* op, int value_input_count,
     if (has_context) {
       *current_input++ = OperatorProperties::NeedsExactContext(op)
                              ? environment()->Context()
-                             : jsgraph()->HeapConstant(native_context());
+                             : jsgraph()->Constant(native_context());
     }
     if (has_frame_state) {
       // The frame state will be inserted later. Here we misuse the {Dead} node
@@ -4029,10 +4028,13 @@ void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
   BytecodeArrayRef bytecode_array_ref(broker, bytecode_array);
   DCHECK(bytecode_array_ref.IsSerializedForCompilation());
   FeedbackVectorRef feedback_vector_ref(broker, feedback_vector);
+  SharedFunctionInfoRef shared_ref(broker, shared);
+  DCHECK(shared_ref.IsSerializedForCompilation(feedback_vector_ref));
+  NativeContextRef native_context_ref(broker, native_context);
   BytecodeGraphBuilder builder(
-      broker, local_zone, bytecode_array_ref, shared, feedback_vector_ref,
+      broker, local_zone, bytecode_array_ref, shared_ref, feedback_vector_ref,
       osr_offset, jsgraph, invocation_frequency, source_positions,
-      native_context, inlining_id, flags, tick_counter);
+      native_context_ref, inlining_id, flags, tick_counter);
   builder.CreateGraph();
 }
 
