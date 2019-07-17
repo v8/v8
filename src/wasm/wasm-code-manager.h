@@ -278,7 +278,8 @@ const char* GetWasmCodeKindAsString(WasmCode::Kind);
 class WasmCodeAllocator {
  public:
   WasmCodeAllocator(WasmCodeManager*, VirtualMemory code_space,
-                    bool can_request_more);
+                    bool can_request_more,
+                    std::shared_ptr<Counters> async_counters);
   ~WasmCodeAllocator();
 
   size_t committed_code_space() const {
@@ -316,7 +317,7 @@ class WasmCodeAllocator {
   // Code space that was allocated for code (subset of {owned_code_space_}).
   DisjointAllocationPool allocated_code_space_;
   // Code space that was allocated before but is dead now. Full pages within
-  // this region are discarded. It's still a subset of {owned_code_space_}).
+  // this region are discarded. It's still a subset of {owned_code_space_}.
   DisjointAllocationPool freed_code_space_;
   std::vector<VirtualMemory> owned_code_space_;
 
@@ -330,6 +331,8 @@ class WasmCodeAllocator {
   bool is_executable_ = false;
 
   const bool can_request_more_memory_;
+
+  std::shared_ptr<Counters> async_counters_;
 };
 
 class V8_EXPORT_PRIVATE NativeModule final {

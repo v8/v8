@@ -405,12 +405,15 @@ void WasmCode::DecrementRefCount(Vector<WasmCode* const> code_vec) {
 
 WasmCodeAllocator::WasmCodeAllocator(WasmCodeManager* code_manager,
                                      VirtualMemory code_space,
-                                     bool can_request_more)
+                                     bool can_request_more,
+                                     std::shared_ptr<Counters> async_counters)
     : code_manager_(code_manager),
       free_code_space_(code_space.region()),
-      can_request_more_memory_(can_request_more) {
+      can_request_more_memory_(can_request_more),
+      async_counters_(std::move(async_counters)) {
   owned_code_space_.reserve(can_request_more ? 4 : 1);
   owned_code_space_.emplace_back(std::move(code_space));
+  async_counters_->wasm_module_num_code_spaces()->AddSample(1);
 }
 
 WasmCodeAllocator::~WasmCodeAllocator() {
@@ -489,6 +492,8 @@ Vector<byte> WasmCodeAllocator::AllocateForCode(NativeModule* native_module,
     owned_code_space_.emplace_back(std::move(new_mem));
     code_space = free_code_space_.Allocate(size);
     DCHECK(!code_space.is_empty());
+    async_counters_->wasm_module_num_code_spaces()->AddSample(
+        static_cast<int>(owned_code_space_.size()));
   }
   const Address commit_page_size = page_allocator->CommitPageSize();
   Address commit_start = RoundUp(code_space.begin(), commit_page_size);
@@ -615,7 +620,7 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
                            std::shared_ptr<Counters> async_counters,
                            std::shared_ptr<NativeModule>* shared_this)
     : code_allocator_(engine->code_manager(), std::move(code_space),
-                      can_request_more),
+                      can_request_more, async_counters),
       enabled_features_(enabled),
       module_(std::move(module)),
       import_wrapper_cache_(std::unique_ptr<WasmImportWrapperCache>(
