@@ -249,7 +249,7 @@ class FreeList {
   // was too small. Bookkeeping information will be written to the block, i.e.,
   // its contents will be destroyed. The start address should be word aligned,
   // and the size should be a non-zero multiple of the word size.
-  virtual size_t Free(Address start, size_t size_in_bytes, FreeMode mode) = 0;
+  virtual size_t Free(Address start, size_t size_in_bytes, FreeMode mode);
 
   // Allocates a free space node frome the free list of at least size_in_bytes
   // bytes. Returns the actual node size in node_size which can be bigger than
@@ -336,6 +336,21 @@ class FreeList {
     FreeListCategory* current_;
   };
 
+  // Tries to retrieve a node from the first category in a given |type|.
+  // Returns nullptr if the category is empty or the top entry is smaller
+  // than minimum_size.
+  FreeSpace TryFindNodeIn(FreeListCategoryType type, size_t minimum_size,
+                          size_t* node_size);
+
+  // Searches a given |type| for a node of at least |minimum_size|.
+  FreeSpace SearchForNodeInList(FreeListCategoryType type, size_t minimum_size,
+                                size_t* node_size);
+
+  // Returns the smallest category in which an object of |size_in_bytes| could
+  // fit.
+  virtual FreeListCategoryType SelectFreeListCategoryType(
+      size_t size_in_bytes) = 0;
+
   FreeListCategory* top(FreeListCategoryType type) const {
     return categories_[type];
   }
@@ -344,11 +359,12 @@ class FreeList {
     return top(type) ? top(type)->page() : nullptr;
   }
 
-  int number_of_categories_;
-  FreeListCategoryType last_category_;
+  int number_of_categories_ = 0;
+  FreeListCategoryType last_category_ = 0;
+  size_t min_block_size_ = 0;
 
-  std::atomic<size_t> wasted_bytes_;
-  FreeListCategory** categories_;
+  std::atomic<size_t> wasted_bytes_{0};
+  FreeListCategory** categories_ = nullptr;
 
   friend class FreeListCategory;
   friend class Page;
@@ -371,6 +387,11 @@ class NoFreeList final : public FreeList {
     FATAL("NoFreeList can't be used as a standard FreeList.");
   }
   Page* GetPageForSize(size_t size_in_bytes) final {
+    FATAL("NoFreeList can't be used as a standard FreeList.");
+  }
+
+ private:
+  FreeListCategoryType SelectFreeListCategoryType(size_t size_in_bytes) final {
     FATAL("NoFreeList can't be used as a standard FreeList.");
   }
 };
@@ -1810,12 +1831,10 @@ class V8_EXPORT_PRIVATE FreeListLegacy : public FreeList {
   FreeListLegacy();
   ~FreeListLegacy();
 
-  size_t Free(Address start, size_t size_in_bytes, FreeMode mode) override;
-
   V8_WARN_UNUSED_RESULT FreeSpace Allocate(size_t size_in_bytes,
                                            size_t* node_size) override;
 
- protected:
+ private:
   enum { kTiniest, kTiny, kSmall, kMedium, kLarge, kHuge };
 
   static const size_t kMinBlockSize = 3 * kTaggedSize;
@@ -1834,19 +1853,8 @@ class V8_EXPORT_PRIVATE FreeListLegacy : public FreeList {
   static const size_t kMediumAllocationMax = kSmallListMax;
   static const size_t kLargeAllocationMax = kMediumListMax;
 
-  // Tries to retrieve a node from the first category in a given |type|.
-  // Returns nullptr if the category is empty or the top entry is smaller
-  // than minimum_size.
-  FreeSpace TryFindNodeIn(FreeListCategoryType type, size_t minimum_size,
-                          size_t* node_size);
-
-  // Searches a given |type| for a node of at least |minimum_size|.
-  FreeSpace SearchForNodeInList(FreeListCategoryType type, size_t* node_size,
-                                size_t minimum_size);
-
-  // Returns the smallest category in which an object of |size_in_bytes| could
-  // fit.
-  FreeListCategoryType SelectFreeListCategoryType(size_t size_in_bytes) {
+  FreeListCategoryType SelectFreeListCategoryType(
+      size_t size_in_bytes) override {
     if (size_in_bytes <= kTiniestListMax) {
       return kTiniest;
     } else if (size_in_bytes <= kTinyListMax) {
@@ -1898,7 +1906,7 @@ class V8_EXPORT_PRIVATE FreeListFastAlloc : public FreeList {
     } else if (maximum_freed <= kLargeListMax) {
       return kLargeAllocationMax;
     }
-    return maximum_freed;
+    return kHugeAllocationMax;
   }
 
   Page* GetPageForSize(size_t size_in_bytes) override {
@@ -1915,12 +1923,10 @@ class V8_EXPORT_PRIVATE FreeListFastAlloc : public FreeList {
   FreeListFastAlloc();
   ~FreeListFastAlloc();
 
-  size_t Free(Address start, size_t size_in_bytes, FreeMode mode) override;
-
   V8_WARN_UNUSED_RESULT FreeSpace Allocate(size_t size_in_bytes,
                                            size_t* node_size) override;
 
- protected:
+ private:
   enum { kMedium, kLarge, kHuge };
 
   static const size_t kMinBlockSize = 0xff * kTaggedSize;
@@ -1933,9 +1939,11 @@ class V8_EXPORT_PRIVATE FreeListFastAlloc : public FreeList {
   static const size_t kLargeListMax = 0x1fff * kTaggedSize;
   static const size_t kMediumAllocationMax = kMinBlockSize;
   static const size_t kLargeAllocationMax = kMediumListMax;
+  static const size_t kHugeAllocationMax = kLargeListMax;
 
   // Returns the category used to hold an object of size |size_in_bytes|.
-  FreeListCategoryType SelectFreeListCategoryType(size_t size_in_bytes) {
+  FreeListCategoryType SelectFreeListCategoryType(
+      size_t size_in_bytes) override {
     if (size_in_bytes <= kMediumListMax) {
       return kMedium;
     } else if (size_in_bytes <= kLargeListMax) {
@@ -1943,12 +1951,6 @@ class V8_EXPORT_PRIVATE FreeListFastAlloc : public FreeList {
     }
     return kHuge;
   }
-
-  // Tries to retrieve a node from the first category in a given |type|.
-  // Returns nullptr if the category is empty or the top entry is smaller
-  // than minimum_size.
-  FreeSpace TryFindNodeIn(FreeListCategoryType type, size_t minimum_size,
-                          size_t* node_size);
 
   Page* GetPageForCategoryType(FreeListCategoryType type) {
     return top(type) ? top(type)->page() : nullptr;
@@ -1969,8 +1971,6 @@ class V8_EXPORT_PRIVATE FreeListMany : public FreeList {
 
   FreeListMany();
   ~FreeListMany();
-
-  size_t Free(Address start, size_t size_in_bytes, FreeMode mode) override;
 
   V8_WARN_UNUSED_RESULT FreeSpace Allocate(size_t size_in_bytes,
                                            size_t* node_size) override;
@@ -1998,13 +1998,9 @@ class V8_EXPORT_PRIVATE FreeListMany : public FreeList {
   static const int kNumberOfCategories = 49;
   static const size_t categories_max[kNumberOfCategories];
 
-  // Tries to retrieve a node from the first category in a given |type|.
-  // Returns nullptr if the category is empty or the top entry is smaller
-  // than minimum_size.
-  FreeSpace TryFindNodeIn(FreeListCategoryType type, size_t minimum_size,
-                          size_t* node_size);
-
-  FreeListCategoryType SelectFreeListCategoryType(size_t size_in_bytes) {
+  // Return the smallest category that could hold |size_in_bytes| bytes.
+  FreeListCategoryType SelectFreeListCategoryType(
+      size_t size_in_bytes) override {
     for (int cat = kFirstCategory; cat < last_category_; cat++) {
       if (size_in_bytes <= categories_max[cat]) {
         return cat;
