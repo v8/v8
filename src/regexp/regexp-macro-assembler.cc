@@ -129,37 +129,32 @@ const byte* NativeRegExpMacroAssembler::StringCharacterPosition(
   }
 }
 
-// This method may only be called after an interrupt.
 int NativeRegExpMacroAssembler::CheckStackGuardState(
-    Isolate* isolate, int start_index, RegExp::CallOrigin call_origin,
+    Isolate* isolate, int start_index, bool is_direct_call,
     Address* return_address, Code re_code, Address* subject,
     const byte** input_start, const byte** input_end) {
   DisallowHeapAllocation no_gc;
 
   DCHECK(re_code.raw_instruction_start() <= *return_address);
   DCHECK(*return_address <= re_code.raw_instruction_end());
-  StackLimitCheck check(isolate);
-  bool js_has_overflowed = check.JsHasOverflowed();
-
-  if (call_origin == RegExp::CallOrigin::kFromJs) {
-    // Direct calls from JavaScript can be interrupted in two ways:
-    // 1. A real stack overflow, in which case we let the caller throw the
-    //    exception.
-    // 2. The stack guard was used to interrupt execution for another purpose,
-    //    forcing the call through the runtime system.
-    DCHECK(js_has_overflowed || check.InterruptRequested());
-    return js_has_overflowed ? EXCEPTION : RETRY;
-  }
-  DCHECK(call_origin == RegExp::CallOrigin::kFromRuntime);
-
+  int return_value = 0;
   // Prepare for possible GC.
   HandleScope handles(isolate);
   Handle<Code> code_handle(re_code, isolate);
   Handle<String> subject_handle(String::cast(Object(*subject)), isolate);
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(*subject_handle);
-  int return_value = 0;
 
-  if (js_has_overflowed) {
+  StackLimitCheck check(isolate);
+  bool js_has_overflowed = check.JsHasOverflowed();
+
+  if (is_direct_call) {
+    // Direct calls from JavaScript can be interrupted in two ways:
+    // 1. A real stack overflow, in which case we let the caller throw the
+    //    exception.
+    // 2. The stack guard was used to interrupt execution for another purpose,
+    //    forcing the call through the runtime system.
+    return_value = js_has_overflowed ? EXCEPTION : RETRY;
+  } else if (js_has_overflowed) {
     AllowHeapAllocation yes_gc;
     isolate->StackOverflow();
     return_value = EXCEPTION;

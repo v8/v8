@@ -1326,9 +1326,8 @@ int RegExpMacroAssemblerARM64::CheckStackGuardState(
   Code re_code = Code::cast(Object(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolate), start_index,
-      static_cast<RegExp::CallOrigin>(frame_entry<int>(re_frame, kDirectCall)),
-      return_address, re_code, frame_entry_address<Address>(re_frame, kInput),
-      input_start, input_end);
+      frame_entry<int>(re_frame, kDirectCall) == 1, return_address, re_code,
+      frame_entry_address<Address>(re_frame, kInput), input_start, input_end);
 }
 
 
