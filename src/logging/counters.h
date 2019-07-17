@@ -1140,7 +1140,7 @@ class WorkerThreadRuntimeCallStats final {
 // when it is destroyed.
 class WorkerThreadRuntimeCallStatsScope final {
  public:
-  WorkerThreadRuntimeCallStatsScope(
+  explicit WorkerThreadRuntimeCallStatsScope(
       WorkerThreadRuntimeCallStats* off_thread_stats);
   ~WorkerThreadRuntimeCallStatsScope();
 

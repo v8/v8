@@ -846,7 +846,7 @@ class PreParserFuncNameInferrer {
 
 class PreParserSourceRange {
  public:
-  PreParserSourceRange() {}
+  PreParserSourceRange() = default;
   PreParserSourceRange(int start, int end) {}
   static PreParserSourceRange Empty() { return PreParserSourceRange(); }
   static PreParserSourceRange OpenEnded(int32_t start) { return Empty(); }

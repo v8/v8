@@ -396,8 +396,8 @@ class ExpressionParsingScope : public ExpressionScope<Types> {
   using ExpressionScopeT = ExpressionScope<Types>;
   using ScopeType = typename ExpressionScopeT::ScopeType;
 
-  ExpressionParsingScope(ParserT* parser,
-                         ScopeType type = ExpressionScopeT::kExpression)
+  explicit ExpressionParsingScope(
+      ParserT* parser, ScopeType type = ExpressionScopeT::kExpression)
       : ExpressionScopeT(parser, type),
         variable_list_(parser->variable_buffer()),
         has_async_arrow_in_scope_chain_(
