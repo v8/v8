@@ -3076,6 +3076,9 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ CompareRoot(map, RootIndex::kHeapNumberMap);
   __ j(equal, &ok, Label::kNear);
 
+  __ CompareRoot(map, RootIndex::kBigIntMap);
+  __ j(equal, &ok, Label::kNear);
+
   __ CompareRoot(return_value, RootIndex::kUndefinedValue);
   __ j(equal, &ok, Label::kNear);
 
