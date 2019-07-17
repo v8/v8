@@ -132,9 +132,9 @@ WASM_EXEC_TEST(MemoryInitOutOfBounds) {
   CHECK_EQ(0xDEADBEEF, r.Call(1000, 0, kWasmPageSize));
   CHECK_EQ(0xDEADBEEF, r.Call(kWasmPageSize, 0, 1));
 
-  // Copy 0 out-of-bounds fails.
-  CHECK_EQ(0xDEADBEEF, r.Call(kWasmPageSize + 1, 0, 0));
-  CHECK_EQ(0xDEADBEEF, r.Call(0, kWasmPageSize + 1, 0));
+  // Copy 0 out-of-bounds succeeds.
+  CHECK_EQ(0, r.Call(kWasmPageSize + 1, 0, 0));
+  CHECK_EQ(0, r.Call(0, kWasmPageSize + 1, 0));
 
   // Make sure bounds aren't checked with 32-bit wrapping.
   CHECK_EQ(0xDEADBEEF, r.Call(1, 1, 0xFFFFFFFF));

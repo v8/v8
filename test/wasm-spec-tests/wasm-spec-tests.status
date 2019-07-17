@@ -18,7 +18,6 @@
   # proposal.
   'tests/proposals/bulk-memory-operations/elem': [FAIL],
   'tests/proposals/bulk-memory-operations/table_copy': [FAIL],
-  'tests/proposals/bulk-memory-operations/memory_init': [FAIL],
   'tests/proposals/bulk-memory-operations/memory_fill': [FAIL],
   'tests/proposals/bulk-memory-operations/bulk': [FAIL],
   'tests/proposals/bulk-memory-operations/data': [FAIL],

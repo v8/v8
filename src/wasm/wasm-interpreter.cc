@@ -1788,6 +1788,9 @@ class ThreadImpl {
         auto size = Pop().to<uint32_t>();
         auto src = Pop().to<uint32_t>();
         auto dst = Pop().to<uint32_t>();
+        if (size == 0) {
+          return true;
+        }
         Address dst_addr;
         bool ok = BoundsCheckMemRange(dst, &size, &dst_addr);
         auto src_max =
