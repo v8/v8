@@ -61,6 +61,11 @@ class RegExp final : public AllStatic {
       Isolate* isolate, Handle<JSRegExp> re, Handle<String> pattern,
       JSRegExp::Flags flags);
 
+  enum CallOrigin : int {
+    kFromRuntime = 0,
+    kFromJs = 1,
+  };
+
   // See ECMA-262 section 15.10.6.2.
   // This function calls the garbage collector if necessary.
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Exec(
@@ -73,7 +78,7 @@ class RegExp final : public AllStatic {
   static constexpr int kInternalRegExpException = -1;
   static constexpr int kInternalRegExpRetry = -2;
 
-  enum IrregexpResult {
+  enum IrregexpResult : int32_t {
     RE_FAILURE = kInternalRegExpFailure,
     RE_SUCCESS = kInternalRegExpSuccess,
     RE_EXCEPTION = kInternalRegExpException,
