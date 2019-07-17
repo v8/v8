@@ -1441,23 +1441,17 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         isolate_, object_function, "create", Builtins::kObjectCreate, 2, false);
     native_context()->set_object_create(*object_create);
 
-    Handle<JSFunction> object_define_properties =
-        SimpleInstallFunction(isolate_, object_function, "defineProperties",
-                              Builtins::kObjectDefineProperties, 2, true);
-    native_context()->set_object_define_properties(*object_define_properties);
+    SimpleInstallFunction(isolate_, object_function, "defineProperties",
+                          Builtins::kObjectDefineProperties, 2, true);
 
-    Handle<JSFunction> object_define_property =
-        SimpleInstallFunction(isolate_, object_function, "defineProperty",
-                              Builtins::kObjectDefineProperty, 3, true);
-    native_context()->set_object_define_property(*object_define_property);
+    SimpleInstallFunction(isolate_, object_function, "defineProperty",
+                          Builtins::kObjectDefineProperty, 3, true);
 
     SimpleInstallFunction(isolate_, object_function, "freeze",
                           Builtins::kObjectFreeze, 1, false);
 
-    Handle<JSFunction> object_get_prototype_of =
-        SimpleInstallFunction(isolate_, object_function, "getPrototypeOf",
-                              Builtins::kObjectGetPrototypeOf, 1, true);
-    native_context()->set_object_get_prototype_of(*object_get_prototype_of);
+    SimpleInstallFunction(isolate_, object_function, "getPrototypeOf",
+                          Builtins::kObjectGetPrototypeOf, 1, true);
     SimpleInstallFunction(isolate_, object_function, "setPrototypeOf",
                           Builtins::kObjectSetPrototypeOf, 2, true);
 
@@ -1466,14 +1460,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(isolate_, object_function, "isFrozen",
                           Builtins::kObjectIsFrozen, 1, false);
 
-    Handle<JSFunction> object_is_sealed =
-        SimpleInstallFunction(isolate_, object_function, "isSealed",
-                              Builtins::kObjectIsSealed, 1, false);
-    native_context()->set_object_is_sealed(*object_is_sealed);
+    SimpleInstallFunction(isolate_, object_function, "isSealed",
+                          Builtins::kObjectIsSealed, 1, false);
 
-    Handle<JSFunction> object_keys = SimpleInstallFunction(
-        isolate_, object_function, "keys", Builtins::kObjectKeys, 1, true);
-    native_context()->set_object_keys(*object_keys);
+    SimpleInstallFunction(isolate_, object_function, "keys",
+                          Builtins::kObjectKeys, 1, true);
     SimpleInstallFunction(isolate_, object_function, "entries",
                           Builtins::kObjectEntries, 1, true);
     SimpleInstallFunction(isolate_, object_function, "fromEntries",
@@ -1659,10 +1650,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     JSFunction::SetPrototype(array_function, proto);
     native_context()->set_initial_array_prototype(*proto);
 
-    Handle<JSFunction> is_arraylike = SimpleInstallFunction(
-        isolate_, array_function, "isArray", Builtins::kArrayIsArray, 1, true);
-    native_context()->set_is_arraylike(*is_arraylike);
-
+    SimpleInstallFunction(isolate_, array_function, "isArray",
+                          Builtins::kArrayIsArray, 1, true);
     SimpleInstallFunction(isolate_, array_function, "from",
                           Builtins::kArrayFrom, 1, false);
     SimpleInstallFunction(isolate_, array_function, "of", Builtins::kArrayOf, 0,
@@ -3673,15 +3662,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         factory->NewJSObject(isolate_->object_function(), AllocationType::kOld);
     JSObject::AddProperty(isolate_, global, reflect_string, reflect, DONT_ENUM);
 
-    Handle<JSFunction> define_property =
         SimpleInstallFunction(isolate_, reflect, "defineProperty",
                               Builtins::kReflectDefineProperty, 3, true);
-    native_context()->set_reflect_define_property(*define_property);
 
-    Handle<JSFunction> delete_property =
         SimpleInstallFunction(isolate_, reflect, "deleteProperty",
                               Builtins::kReflectDeleteProperty, 2, true);
-    native_context()->set_reflect_delete_property(*delete_property);
 
     Handle<JSFunction> apply = SimpleInstallFunction(
         isolate_, reflect, "apply", Builtins::kReflectApply, 3, false);
@@ -4338,7 +4323,6 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
     Handle<Map> weak_ref_map =
         factory->NewMap(JS_WEAK_REF_TYPE, JSWeakRef::kSize);
     DCHECK(weak_ref_map->IsJSObjectMap());
-    native_context()->set_js_weak_ref_map(*weak_ref_map);
 
     Handle<JSObject> weak_ref_prototype = factory->NewJSObject(
         isolate()->object_function(), AllocationType::kOld);

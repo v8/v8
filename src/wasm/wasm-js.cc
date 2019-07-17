@@ -2243,7 +2243,6 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   if (enabled_features.type_reflection) {
     Handle<JSFunction> function_constructor = InstallConstructorFunc(
         isolate, webassembly, "Function", WebAssemblyFunction);
-    context->set_wasm_function_constructor(*function_constructor);
     SetDummyInstanceTemplate(isolate, function_constructor);
     JSFunction::EnsureHasInitialMap(function_constructor);
     Handle<JSObject> function_proto(

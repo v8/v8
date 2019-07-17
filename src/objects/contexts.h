@@ -38,9 +38,6 @@ enum ContextLookupFlags {
 // Factory::NewContext.
 
 #define NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)                           \
-  V(ASYNC_FUNCTION_PROMISE_CREATE_INDEX, JSFunction,                    \
-    async_function_promise_create)                                      \
-  V(IS_ARRAYLIKE, JSFunction, is_arraylike)                             \
   V(GENERATOR_NEXT_INTERNAL, JSFunction, generator_next_internal)       \
   V(MAKE_ERROR_INDEX, JSFunction, make_error)                           \
   V(MAKE_RANGE_ERROR_INDEX, JSFunction, make_range_error)               \
@@ -48,20 +45,10 @@ enum ContextLookupFlags {
   V(MAKE_TYPE_ERROR_INDEX, JSFunction, make_type_error)                 \
   V(MAKE_URI_ERROR_INDEX, JSFunction, make_uri_error)                   \
   V(OBJECT_CREATE, JSFunction, object_create)                           \
-  V(OBJECT_DEFINE_PROPERTIES, JSFunction, object_define_properties)     \
-  V(OBJECT_DEFINE_PROPERTY, JSFunction, object_define_property)         \
-  V(OBJECT_GET_PROTOTYPE_OF, JSFunction, object_get_prototype_of)       \
-  V(OBJECT_IS_EXTENSIBLE, JSFunction, object_is_extensible)             \
-  V(OBJECT_IS_FROZEN, JSFunction, object_is_frozen)                     \
-  V(OBJECT_IS_SEALED, JSFunction, object_is_sealed)                     \
-  V(OBJECT_KEYS, JSFunction, object_keys)                               \
   V(REFLECT_APPLY_INDEX, JSFunction, reflect_apply)                     \
   V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)             \
-  V(REFLECT_DEFINE_PROPERTY_INDEX, JSFunction, reflect_define_property) \
-  V(REFLECT_DELETE_PROPERTY_INDEX, JSFunction, reflect_delete_property) \
   V(MATH_FLOOR_INDEX, JSFunction, math_floor)                           \
   V(MATH_POW_INDEX, JSFunction, math_pow)                               \
-  V(NEW_PROMISE_CAPABILITY_INDEX, JSFunction, new_promise_capability)   \
   V(PROMISE_INTERNAL_CONSTRUCTOR_INDEX, JSFunction,                     \
     promise_internal_constructor)                                       \
   V(IS_PROMISE_INDEX, JSFunction, is_promise)                           \
@@ -193,7 +180,6 @@ enum ContextLookupFlags {
   V(JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_MAP_INDEX, Map,                     \
     js_finalization_group_cleanup_iterator_map)                                \
   V(JS_WEAK_MAP_FUN_INDEX, JSFunction, js_weak_map_fun)                        \
-  V(JS_WEAK_REF_MAP_INDEX, Map, js_weak_ref_map)                               \
   V(JS_WEAK_SET_FUN_INDEX, JSFunction, js_weak_set_fun)                        \
   V(MAP_CACHE_INDEX, Object, map_cache)                                        \
   V(MAP_KEY_ITERATOR_MAP_INDEX, Map, map_key_iterator_map)                     \
@@ -304,7 +290,6 @@ enum ContextLookupFlags {
   V(SYMBOL_FUNCTION_INDEX, JSFunction, symbol_function)                        \
   V(WASM_EXPORTED_FUNCTION_MAP_INDEX, Map, wasm_exported_function_map)         \
   V(WASM_EXCEPTION_CONSTRUCTOR_INDEX, JSFunction, wasm_exception_constructor)  \
-  V(WASM_FUNCTION_CONSTRUCTOR_INDEX, JSFunction, wasm_function_constructor)    \
   V(WASM_GLOBAL_CONSTRUCTOR_INDEX, JSFunction, wasm_global_constructor)        \
   V(WASM_INSTANCE_CONSTRUCTOR_INDEX, JSFunction, wasm_instance_constructor)    \
   V(WASM_MEMORY_CONSTRUCTOR_INDEX, JSFunction, wasm_memory_constructor)        \
