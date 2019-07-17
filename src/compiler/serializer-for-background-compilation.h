@@ -387,6 +387,8 @@ class SerializerForBackgroundCompilation {
                                   FeedbackSlot slot, AccessMode mode);
   void ProcessMapHintsForPromises(Hints const& receiver_hints);
   void ProcessHintsForPromiseResolve(Hints const& resolution_hints);
+  void ProcessHintsForRegExpTest(Hints const& regexp_hints);
+  PropertyAccessInfo ProcessMapForRegExpTest(MapRef map);
 
   GlobalAccessFeedback const* ProcessFeedbackForGlobalAccess(FeedbackSlot slot);
   NamedAccessFeedback const* ProcessFeedbackMapsForNamedAccess(

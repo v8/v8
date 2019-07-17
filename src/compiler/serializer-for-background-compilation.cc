@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "src/compiler/bytecode-analysis.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/vector-slot-pair.h"
 #include "src/handles/handles-inl.h"
@@ -14,6 +15,7 @@
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/objects/code.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-regexp-inl.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/zone/zone.h"
 
@@ -1229,6 +1231,14 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
         ProcessHintsForPromiseResolve(resolution_hints);
       }
       break;
+    case Builtins::kRegExpPrototypeTest: {
+      // For JSCallReducer::ReduceRegExpPrototypeTest.
+      if (arguments.size() >= 1) {
+        Hints const& regexp_hints = arguments[0];
+        ProcessHintsForRegExpTest(regexp_hints);
+      }
+      break;
+    }
     default:
       break;
   }
@@ -1263,6 +1273,44 @@ void SerializerForBackgroundCompilation::ProcessMapHintsForPromises(
   for (auto map : receiver_hints.maps()) {
     if (!map->IsJSPromiseMap()) continue;
     MapRef(broker(), map).SerializePrototype();
+  }
+}
+
+PropertyAccessInfo SerializerForBackgroundCompilation::ProcessMapForRegExpTest(
+    MapRef map) {
+  PropertyAccessInfo ai_exec =
+      broker()->CreateAccessInfoForLoadingExec(map, dependencies());
+
+  Handle<JSObject> holder;
+  if (ai_exec.IsDataConstant() && ai_exec.holder().ToHandle(&holder)) {
+    // The property is on the prototype chain.
+    JSObjectRef holder_ref(broker(), holder);
+    holder_ref.GetOwnProperty(ai_exec.field_representation(),
+                              ai_exec.field_index(), true);
+  }
+  return ai_exec;
+}
+
+void SerializerForBackgroundCompilation::ProcessHintsForRegExpTest(
+    Hints const& regexp_hints) {
+  for (auto hint : regexp_hints.constants()) {
+    if (!hint->IsJSRegExp()) continue;
+    Handle<JSRegExp> regexp(Handle<JSRegExp>::cast(hint));
+    Handle<Map> regexp_map(regexp->map(), broker()->isolate());
+    PropertyAccessInfo ai_exec =
+        ProcessMapForRegExpTest(MapRef(broker(), regexp_map));
+    Handle<JSObject> holder;
+    if (ai_exec.IsDataConstant() && !ai_exec.holder().ToHandle(&holder)) {
+      // The property is on the object itself.
+      JSObjectRef holder_ref(broker(), regexp);
+      holder_ref.GetOwnProperty(ai_exec.field_representation(),
+                                ai_exec.field_index(), true);
+    }
+  }
+
+  for (auto map : regexp_hints.maps()) {
+    if (!map->IsJSRegExpMap()) continue;
+    ProcessMapForRegExpTest(MapRef(broker(), map));
   }
 }
 

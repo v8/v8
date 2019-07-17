@@ -231,6 +231,12 @@ class JSObjectRef : public HeapObjectRef {
   double RawFastDoublePropertyAt(FieldIndex index) const;
   ObjectRef RawFastPropertyAt(FieldIndex index) const;
 
+  // Return the value of the property identified by the field {index}
+  // if {index} is known to be an own data property of the object.
+  base::Optional<ObjectRef> GetOwnProperty(Representation field_representation,
+                                           FieldIndex index,
+                                           bool serialize = false) const;
+
   FixedArrayBaseRef elements() const;
   void SerializeElements();
   void EnsureElementsTenured();
@@ -376,6 +382,7 @@ class ContextRef : public HeapObjectRef {
   V(Map, map_key_iterator_map)                   \
   V(Map, map_key_value_iterator_map)             \
   V(Map, map_value_iterator_map)                 \
+  V(JSFunction, regexp_exec_function)            \
   V(Map, set_key_value_iterator_map)             \
   V(Map, set_value_iterator_map)
 

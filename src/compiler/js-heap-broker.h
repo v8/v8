@@ -120,6 +120,9 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   PropertyAccessInfo GetAccessInfoForLoadingThen(MapRef map);
   void CreateAccessInfoForLoadingThen(MapRef map,
                                       CompilationDependencies* dependencies);
+  PropertyAccessInfo GetAccessInfoForLoadingExec(MapRef map);
+  PropertyAccessInfo const& CreateAccessInfoForLoadingExec(
+      MapRef map, CompilationDependencies* dependencies);
 
   std::ostream& Trace();
   void IncrementTracingIndentation();
@@ -154,6 +157,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
                            ObjectRef::Equal>
       MapToAccessInfos;
   MapToAccessInfos ais_for_loading_then_;
+  MapToAccessInfos ais_for_loading_exec_;
 
   static const size_t kMinimalRefsBucketCount = 8;     // must be power of 2
   static const size_t kInitialRefsBucketCount = 1024;  // must be power of 2

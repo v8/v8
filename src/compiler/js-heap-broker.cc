@@ -259,6 +259,12 @@ class JSObjectField {
   uint64_t number_bits_ = 0;
 };
 
+struct FieldIndexHasher {
+  size_t operator()(FieldIndex field_index) const {
+    return field_index.index();
+  }
+};
+
 class JSObjectData : public HeapObjectData {
  public:
   JSObjectData(JSHeapBroker* broker, ObjectData** storage,
@@ -281,6 +287,9 @@ class JSObjectData : public HeapObjectData {
 
   ObjectData* GetOwnConstantElement(JSHeapBroker* broker, uint32_t index,
                                     bool serialize);
+  ObjectData* GetOwnProperty(JSHeapBroker* broker,
+                             Representation representation,
+                             FieldIndex field_index, bool serialize);
 
   // This method is only used to assert our invariants.
   bool cow_or_empty_elements_tenured() const;
@@ -305,6 +314,12 @@ class JSObjectData : public HeapObjectData {
   // non-configurable, or (2) are known not to (possibly they don't exist at
   // all). In case (2), the second pair component is nullptr.
   ZoneVector<std::pair<uint32_t, ObjectData*>> own_constant_elements_;
+  // Properties that either:
+  // (1) are known to exist directly on the object, or
+  // (2) are known not to (possibly they don't exist at all).
+  // In case (2), the second pair component is nullptr.
+  // For simplicity, this may in theory overlap with inobject_fields_.
+  ZoneUnorderedMap<FieldIndex, ObjectData*, FieldIndexHasher> own_properties_;
 };
 
 void JSObjectData::SerializeObjectCreateMap(JSHeapBroker* broker) {
@@ -340,6 +355,15 @@ base::Optional<ObjectRef> GetOwnElementFromHeap(JSHeapBroker* broker,
   }
   return base::nullopt;
 }
+
+ObjectRef GetOwnPropertyFromHeap(JSHeapBroker* broker,
+                                 Handle<JSObject> receiver,
+                                 Representation representation,
+                                 FieldIndex field_index) {
+  Handle<Object> constant =
+      JSObject::FastPropertyAt(receiver, representation, field_index);
+  return ObjectRef(broker, constant);
+}
 }  // namespace
 
 ObjectData* JSObjectData::GetOwnConstantElement(JSHeapBroker* broker,
@@ -358,6 +382,27 @@ ObjectData* JSObjectData::GetOwnConstantElement(JSHeapBroker* broker,
       GetOwnElementFromHeap(broker, object(), index, true);
   ObjectData* result = element.has_value() ? element->data() : nullptr;
   own_constant_elements_.push_back({index, result});
+  return result;
+}
+
+ObjectData* JSObjectData::GetOwnProperty(JSHeapBroker* broker,
+                                         Representation representation,
+                                         FieldIndex field_index,
+                                         bool serialize) {
+  auto p = own_properties_.find(field_index);
+  if (p != own_properties_.end()) return p->second;
+
+  if (!serialize) {
+    TRACE_MISSING(broker, "knowledge about property with index "
+                              << field_index.property_index() << " on "
+                              << this);
+    return nullptr;
+  }
+
+  ObjectRef property = GetOwnPropertyFromHeap(
+      broker, Handle<JSObject>::cast(object()), representation, field_index);
+  ObjectData* result(property.data());
+  own_properties_.insert(std::make_pair(field_index, result));
   return result;
 }
 
@@ -1259,7 +1304,8 @@ JSObjectData::JSObjectData(JSHeapBroker* broker, ObjectData** storage,
                            Handle<JSObject> object)
     : HeapObjectData(broker, storage, object),
       inobject_fields_(broker->zone()),
-      own_constant_elements_(broker->zone()) {}
+      own_constant_elements_(broker->zone()),
+      own_properties_(broker->zone()) {}
 
 FixedArrayData::FixedArrayData(JSHeapBroker* broker, ObjectData** storage,
                                Handle<FixedArray> object)
@@ -2067,7 +2113,8 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
       tracing_enabled_(tracing_enabled),
       feedback_(zone()),
       bytecode_analyses_(zone()),
-      ais_for_loading_then_(zone()) {
+      ais_for_loading_then_(zone()),
+      ais_for_loading_exec_(zone()) {
   // Note that this initialization of the refs_ pointer with the minimal
   // initial capacity is redundant in the normal use case (concurrent
   // compilation enabled, standard objects to be serialized), as the map
@@ -3259,6 +3306,19 @@ base::Optional<ObjectRef> ObjectRef::GetOwnConstantElement(
   return ObjectRef(broker(), element);
 }
 
+base::Optional<ObjectRef> JSObjectRef::GetOwnProperty(
+    Representation field_representation, FieldIndex index,
+    bool serialize) const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    return GetOwnPropertyFromHeap(broker(), Handle<JSObject>::cast(object()),
+                                  field_representation, index);
+  }
+  ObjectData* property = data()->AsJSObject()->GetOwnProperty(
+      broker(), field_representation, index, serialize);
+  if (property == nullptr) return base::nullopt;
+  return ObjectRef(broker(), property);
+}
+
 base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(uint32_t index,
                                                        bool serialize) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
@@ -4038,6 +4098,32 @@ void JSHeapBroker::CreateAccessInfoForLoadingThen(
         std::make_pair(map, access_info_factory.ComputePropertyAccessInfo(
                                 map.object(), then_string, AccessMode::kLoad)));
   }
+}
+
+PropertyAccessInfo JSHeapBroker::GetAccessInfoForLoadingExec(MapRef map) {
+  auto access_info = ais_for_loading_exec_.find(map);
+  if (access_info == ais_for_loading_exec_.end()) {
+    TRACE_BROKER_MISSING(this,
+                         "access info for property 'exec' on map " << map);
+    return PropertyAccessInfo::Invalid(zone());
+  }
+  return access_info->second;
+}
+
+PropertyAccessInfo const& JSHeapBroker::CreateAccessInfoForLoadingExec(
+    MapRef map, CompilationDependencies* dependencies) {
+  auto access_info = ais_for_loading_exec_.find(map);
+  if (access_info != ais_for_loading_exec_.end()) {
+    return access_info->second;
+  }
+
+  ZoneVector<PropertyAccessInfo> access_infos(zone());
+  AccessInfoFactory access_info_factory(this, dependencies, zone());
+  PropertyAccessInfo ai_exec = access_info_factory.ComputePropertyAccessInfo(
+      map.object(), isolate()->factory()->exec_string(), AccessMode::kLoad);
+
+  auto inserted_ai = ais_for_loading_exec_.insert(std::make_pair(map, ai_exec));
+  return inserted_ai.first->second;
 }
 
 ElementAccessFeedback const* ProcessedFeedback::AsElementAccess() const {

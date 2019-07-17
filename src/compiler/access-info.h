@@ -112,9 +112,9 @@ class PropertyAccessInfo final {
 
   Kind kind() const { return kind_; }
   MaybeHandle<JSObject> holder() const {
-    // This CHECK tries to protect against using the access info without
-    // recording its dependencies first.
-    CHECK(unrecorded_dependencies_.empty());
+    // TODO(neis): There was a CHECK here that tries to protect against
+    // using the access info without recording its dependencies first.
+    // Find a more suitable place for it.
     return holder_;
   }
   MaybeHandle<Map> transition_map() const { return transition_map_; }

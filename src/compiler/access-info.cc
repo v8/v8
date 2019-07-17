@@ -332,9 +332,9 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   MaybeHandle<Map> field_map;
   MapRef map_ref(broker(), map);
   ZoneVector<CompilationDependency const*> unrecorded_dependencies(zone());
+  map_ref.SerializeOwnDescriptor(descriptor);
   if (details_representation.IsSmi()) {
     field_type = Type::SignedSmall();
-    map_ref.SerializeOwnDescriptor(descriptor);
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(map_ref,
                                                                   descriptor));
@@ -354,19 +354,23 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
       // The field type was cleared by the GC, so we don't know anything
       // about the contents now.
     }
-    map_ref.SerializeOwnDescriptor(descriptor);
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(map_ref,
                                                                   descriptor));
     if (descriptors_field_type->IsClass()) {
-      unrecorded_dependencies.push_back(
-          dependencies()->FieldTypeDependencyOffTheRecord(map_ref, descriptor));
       // Remember the field map, and try to infer a useful type.
       Handle<Map> map(descriptors_field_type->AsClass(), isolate());
       field_type = Type::For(MapRef(broker(), map));
       field_map = MaybeHandle<Map>(map);
     }
+  } else {
+    CHECK(details_representation.IsTagged());
   }
+  // TODO(turbofan): We may want to do this only depending on the use
+  // of the access info.
+  unrecorded_dependencies.push_back(
+      dependencies()->FieldTypeDependencyOffTheRecord(map_ref, descriptor));
+
   PropertyConstness constness;
   if (details.IsReadOnly() && !details.IsConfigurable()) {
     constness = PropertyConstness::kConst;

@@ -7096,8 +7096,11 @@ Reduction JSCallReducer::ReduceNumberParseInt(Node* node) {
 }
 
 Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+
   if (FLAG_force_slow_path) return NoChange();
   if (node->op()->ValueInputCount() < 3) return NoChange();
+
   CallParameters const& p = CallParametersOf(node->op());
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
     return NoChange();
@@ -7114,13 +7117,24 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   }
   MapHandles const& regexp_maps = inference.GetMaps();
 
-  // Compute property access info for "exec" on {resolution}.
   ZoneVector<PropertyAccessInfo> access_infos(graph()->zone());
   AccessInfoFactory access_info_factory(broker(), dependencies(),
                                         graph()->zone());
-  access_info_factory.ComputePropertyAccessInfos(
-      MapHandles(regexp_maps.begin(), regexp_maps.end()),
-      factory()->exec_string(), AccessMode::kLoad, &access_infos);
+  if (!FLAG_concurrent_inlining) {
+    // Compute property access info for "exec" on {resolution}.
+    access_info_factory.ComputePropertyAccessInfos(
+        MapHandles(regexp_maps.begin(), regexp_maps.end()),
+        factory()->exec_string(), AccessMode::kLoad, &access_infos);
+  } else {
+    // Obtain precomputed access infos from the broker.
+    for (auto map : regexp_maps) {
+      MapRef map_ref(broker(), map);
+      PropertyAccessInfo access_info =
+          broker()->GetAccessInfoForLoadingExec(map_ref);
+      access_infos.push_back(access_info);
+    }
+  }
+
   PropertyAccessInfo ai_exec =
       access_info_factory.FinalizePropertyAccessInfosAsOne(access_infos,
                                                            AccessMode::kLoad);
@@ -7132,34 +7146,24 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
     // Do not reduce if the exec method is not on the prototype chain.
     if (!ai_exec.holder().ToHandle(&holder)) return inference.NoChange();
 
+    JSObjectRef holder_ref(broker(), holder);
+
     // Bail out if the exec method is not the original one.
-    Handle<Object> constant = JSObject::FastPropertyAt(
-        holder, ai_exec.field_representation(), ai_exec.field_index());
-    if (!constant.is_identical_to(isolate()->regexp_exec_function())) {
+    base::Optional<ObjectRef> constant = holder_ref.GetOwnProperty(
+        ai_exec.field_representation(), ai_exec.field_index());
+    if (!constant.has_value() ||
+        !constant->equals(native_context().regexp_exec_function())) {
       return inference.NoChange();
     }
 
-    // Protect the exec method change in the holder.
-    Handle<Object> exec_on_proto;
-    MapRef holder_map(broker(), handle(holder->map(), isolate()));
-    Handle<DescriptorArray> descriptors(
-        holder_map.object()->instance_descriptors(), isolate());
-    int descriptor_index =
-        descriptors->Search(*(factory()->exec_string()), *holder_map.object());
-    CHECK_NE(descriptor_index, DescriptorArray::kNotFound);
-    holder_map.SerializeOwnDescriptors();
-    dependencies()->DependOnFieldType(holder_map, descriptor_index);
+    // Add proper dependencies on the {regexp}s [[Prototype]]s.
+    dependencies()->DependOnStablePrototypeChains(
+        ai_exec.receiver_maps(), kStartAtPrototype,
+        JSObjectRef(broker(), holder));
   } else {
     return inference.NoChange();
   }
 
-  // Add proper dependencies on the {regexp}s [[Prototype]]s.
-  Handle<JSObject> holder;
-  if (ai_exec.holder().ToHandle(&holder)) {
-    dependencies()->DependOnStablePrototypeChains(
-        ai_exec.receiver_maps(), kStartAtPrototype,
-        JSObjectRef(broker(), holder));
-  }
   inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
                                       control, p.feedback());
 
