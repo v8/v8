@@ -306,6 +306,7 @@ int main(int argc, char* argv[]) {
   }
 
 #ifdef V8_USE_PERFETTO
+  // Set up the in-process backend that the tracing controller will connect to.
   perfetto::TracingInitArgs init_args;
   init_args.backends = perfetto::BackendType::kInProcessBackend;
   perfetto::Tracing::Initialize(init_args);

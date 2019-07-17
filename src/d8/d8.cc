@@ -3323,28 +3323,25 @@ int Shell::Main(int argc, char* argv[]) {
 
   std::unique_ptr<platform::tracing::TracingController> tracing;
   std::ofstream trace_file;
-#ifdef V8_USE_PERFETTO
-  std::ofstream perfetto_trace_file;
-#endif  // V8_USE_PERFETTO
   if (options.trace_enabled && !i::FLAG_verify_predictable) {
     tracing = base::make_unique<platform::tracing::TracingController>();
-
     trace_file.open(options.trace_path ? options.trace_path : "v8_trace.json");
     DCHECK(trace_file.good());
+
+#ifdef V8_USE_PERFETTO
+    // Set up the in-process backend that the tracing controller will connect
+    // to.
+    perfetto::TracingInitArgs init_args;
+    init_args.backends = perfetto::BackendType::kInProcessBackend;
+    perfetto::Tracing::Initialize(init_args);
+
+    tracing->InitializeForPerfetto(&trace_file);
+#else
     platform::tracing::TraceBuffer* trace_buffer =
         platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(
             platform::tracing::TraceBuffer::kRingBufferChunks,
             platform::tracing::TraceWriter::CreateJSONTraceWriter(trace_file));
     tracing->Initialize(trace_buffer);
-
-#ifdef V8_USE_PERFETTO
-    perfetto::TracingInitArgs init_args;
-    init_args.backends = perfetto::BackendType::kInProcessBackend;
-    perfetto::Tracing::Initialize(init_args);
-
-    perfetto_trace_file.open("v8_perfetto_trace.json");
-    DCHECK(trace_file.good());
-    tracing->InitializeForPerfetto(&perfetto_trace_file);
 #endif  // V8_USE_PERFETTO
   }
 
