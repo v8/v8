@@ -1098,25 +1098,25 @@ inline FPUCondition ConditionToConditionCmpFPU(Condition condition,
                                                bool* predicate) {
   switch (condition) {
     case kEqual:
-      predicate = true;
+      *predicate = true;
       return EQ;
     case kUnequal:
-      predicate = false;
+      *predicate = false;
       return EQ;
     case kUnsignedLessThan:
-      predicate = true;
+      *predicate = true;
       return OLT;
     case kUnsignedGreaterEqual:
-      predicate = false;
+      *predicate = false;
       return OLT;
     case kUnsignedLessEqual:
-      predicate = true;
+      *predicate = true;
       return OLE;
     case kUnsignedGreaterThan:
-      predicate = false;
+      *predicate = false;
       return OLE;
     default:
-      predicate = true;
+      *predicate = true;
       break;
   }
   UNREACHABLE();
