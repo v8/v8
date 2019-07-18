@@ -757,6 +757,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckedInt32Mod();
   const Operator* CheckedInt32Mul(CheckForMinusZeroMode);
   const Operator* CheckedInt32Sub();
+  const Operator* CheckedInt32ToCompressedSigned(
+      const VectorSlotPair& feedback);
   const Operator* CheckedInt32ToTaggedSigned(const VectorSlotPair& feedback);
   const Operator* CheckedInt64ToInt32(const VectorSlotPair& feedback);
   const Operator* CheckedInt64ToTaggedSigned(const VectorSlotPair& feedback);

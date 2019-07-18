@@ -300,6 +300,36 @@ TEST_F(RedundancyEliminationTest, CheckedFloat64ToInt64) {
 }
 
 // -----------------------------------------------------------------------------
+// CheckedInt32ToCompressedSigned
+
+TEST_F(RedundancyEliminationTest, CheckedInt32ToCompressedSigned) {
+  if (!COMPRESS_POINTERS_BOOL) {
+    return;
+  }
+  TRACED_FOREACH(VectorSlotPair, feedback1, vector_slot_pairs()) {
+    TRACED_FOREACH(VectorSlotPair, feedback2, vector_slot_pairs()) {
+      Node* value = Parameter(0);
+      Node* effect = graph()->start();
+      Node* control = graph()->start();
+
+      Node* check1 = effect = graph()->NewNode(
+          simplified()->CheckedInt32ToCompressedSigned(feedback1), value,
+          effect, control);
+      Reduction r1 = Reduce(check1);
+      ASSERT_TRUE(r1.Changed());
+      EXPECT_EQ(r1.replacement(), check1);
+
+      Node* check2 = effect = graph()->NewNode(
+          simplified()->CheckedInt32ToCompressedSigned(feedback2), value,
+          effect, control);
+      Reduction r2 = Reduce(check2);
+      ASSERT_TRUE(r2.Changed());
+      EXPECT_EQ(r2.replacement(), check1);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
 // CheckedInt32ToTaggedSigned
 
 TEST_F(RedundancyEliminationTest, CheckedInt32ToTaggedSigned) {

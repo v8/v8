@@ -88,6 +88,7 @@ class EffectControlLinearizer {
   Node* LowerCheckedUint32Div(Node* node, Node* frame_state);
   Node* LowerCheckedUint32Mod(Node* node, Node* frame_state);
   Node* LowerCheckedInt32Mul(Node* node, Node* frame_state);
+  Node* LowerCheckedInt32ToCompressedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedInt32ToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedInt64ToInt32(Node* node, Node* frame_state);
   Node* LowerCheckedInt64ToTaggedSigned(Node* node, Node* frame_state);
@@ -960,6 +961,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckedInt32Mul:
       result = LowerCheckedInt32Mul(node, frame_state);
       break;
+    case IrOpcode::kCheckedInt32ToCompressedSigned:
+      result = LowerCheckedInt32ToCompressedSigned(node, frame_state);
+      break;
     case IrOpcode::kCheckedInt32ToTaggedSigned:
       result = LowerCheckedInt32ToTaggedSigned(node, frame_state);
       break;
@@ -1737,8 +1741,7 @@ Node* EffectControlLinearizer::LowerChangeTaggedToCompressedSigned(Node* node) {
   STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
   Node* vfalse = __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
   vfalse = __ ChangeFloat64ToInt32(vfalse);
-  vfalse = ChangeInt32ToSmi(vfalse);
-  vfalse = __ ChangeTaggedSignedToCompressedSigned(vfalse);
+  vfalse = ChangeInt32ToCompressedSmi(vfalse);
   __ Goto(&done, vfalse);
 
   __ Bind(&done);
@@ -2334,6 +2337,19 @@ Node* EffectControlLinearizer::LowerCheckedInt32Mul(Node* node,
   }
 
   return value;
+}
+
+Node* EffectControlLinearizer::LowerCheckedInt32ToCompressedSigned(
+    Node* node, Node* frame_state) {
+  DCHECK(SmiValuesAre31Bits());
+  Node* value = node->InputAt(0);
+  const CheckParameters& params = CheckParametersOf(node->op());
+
+  Node* add = __ Int32AddWithOverflow(value, value);
+  Node* check = __ Projection(1, add);
+  __ DeoptimizeIf(DeoptimizeReason::kLostPrecision, params.feedback(), check,
+                  frame_state);
+  return __ Projection(0, add);
 }
 
 Node* EffectControlLinearizer::LowerCheckedInt32ToTaggedSigned(

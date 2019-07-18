@@ -654,6 +654,13 @@ Node* RepresentationChanger::GetCompressedSignedRepresentationFor(
   } else if (IsWord(output_rep)) {
     if (output_type.Is(Type::Signed31())) {
       op = simplified()->ChangeInt31ToCompressedSigned();
+    } else if (output_type.Is(Type::Signed32())) {
+      if (use_info.type_check() == TypeCheckKind::kSignedSmall) {
+        op = simplified()->CheckedInt32ToCompressedSigned(use_info.feedback());
+      } else {
+        return TypeError(node, output_rep, output_type,
+                         MachineRepresentation::kCompressedSigned);
+      }
     } else {
       node = GetTaggedSignedRepresentationFor(node, output_rep, output_type,
                                               use_node, use_info);
