@@ -101,24 +101,12 @@ void CheckNoArchivedThreads(Isolate* isolate) {
   isolate->thread_manager()->IterateArchivedThreads(&archived_threads_visitor);
 }
 
-class WasmGCForegroundTask : public Task {
+class WasmGCForegroundTask : public CancelableTask {
  public:
-  explicit WasmGCForegroundTask(Isolate* isolate) : isolate_(isolate) {
-    DCHECK_NOT_NULL(isolate);
-  }
+  explicit WasmGCForegroundTask(Isolate* isolate)
+      : CancelableTask(isolate->cancelable_task_manager()), isolate_(isolate) {}
 
-  ~WasmGCForegroundTask() {
-    // If the isolate is already shutting down, the platform can delete this
-    // task without ever executing it. For that case, we need to deregister the
-    // task from the engine to avoid UAF.
-    if (isolate_) {
-      WasmEngine* engine = isolate_->wasm_engine();
-      engine->ReportLiveCodeForGC(isolate_, Vector<WasmCode*>{});
-    }
-  }
-
-  void Run() final {
-    if (isolate_ == nullptr) return;  // cancelled.
+  void RunInternal() final {
     WasmEngine* engine = isolate_->wasm_engine();
     // If the foreground task is executing, there is no wasm code active. Just
     // report an empty set of live wasm code.
@@ -129,11 +117,7 @@ class WasmGCForegroundTask : public Task {
 #endif
     CheckNoArchivedThreads(isolate_);
     engine->ReportLiveCodeForGC(isolate_, Vector<WasmCode*>{});
-    // Cancel to signal to the destructor that this task executed.
-    Cancel();
   }
-
-  void Cancel() { isolate_ = nullptr; }
 
  private:
   Isolate* isolate_;
@@ -913,11 +897,7 @@ void WasmEngine::TriggerGC(int8_t gc_sequence_index) {
 bool WasmEngine::RemoveIsolateFromCurrentGC(Isolate* isolate) {
   DCHECK(!mutex_.TryLock());
   DCHECK_NOT_NULL(current_gc_info_);
-  auto it = current_gc_info_->outstanding_isolates.find(isolate);
-  if (it == current_gc_info_->outstanding_isolates.end()) return false;
-  if (auto* fg_task = it->second) fg_task->Cancel();
-  current_gc_info_->outstanding_isolates.erase(it);
-  return true;
+  return current_gc_info_->outstanding_isolates.erase(isolate) != 0;
 }
 
 void WasmEngine::PotentiallyFinishCurrentGC() {
