@@ -323,8 +323,8 @@ WASM_EXEC_TEST(MemoryFillOutOfBounds) {
   CHECK_EQ(0xDEADBEEF, r.Call(1000, v, kWasmPageSize));
   CHECK_EQ(0xDEADBEEF, r.Call(kWasmPageSize, v, 1));
 
-  // Fill 0 out-of-bounds fails.
-  CHECK_EQ(0xDEADBEEF, r.Call(kWasmPageSize + 1, v, 0));
+  // Fill 0 out-of-bounds succeeds.
+  CHECK_EQ(0, r.Call(kWasmPageSize + 1, v, 0));
 
   // Make sure bounds aren't checked with 32-bit wrapping.
   CHECK_EQ(0xDEADBEEF, r.Call(1, v, 0xFFFFFFFF));

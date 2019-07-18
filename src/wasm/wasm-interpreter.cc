@@ -1841,14 +1841,17 @@ class ThreadImpl {
       case kExprMemoryFill: {
         MemoryIndexImmediate<Decoder::kNoValidate> imm(decoder,
                                                        code->at(pc + 1));
+        *len += imm.length;
         auto size = Pop().to<uint32_t>();
         auto value = Pop().to<uint32_t>();
         auto dst = Pop().to<uint32_t>();
+        if (size == 0) {
+          return true;
+        }
         Address dst_addr;
         bool ok = BoundsCheckMemRange(dst, &size, &dst_addr);
         memory_fill_wrapper(dst_addr, value, size);
         if (!ok) DoTrap(kTrapMemOutOfBounds, pc);
-        *len += imm.length;
         return ok;
       }
       case kExprTableInit: {

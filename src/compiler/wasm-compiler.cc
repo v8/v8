@@ -4842,6 +4842,18 @@ Node* WasmGraphBuilder::MemoryCopy(Node* dst, Node* src, Node* size,
 
 Node* WasmGraphBuilder::MemoryFill(Node* dst, Node* value, Node* size,
                                    wasm::WasmCodePosition position) {
+  auto machine = mcgraph()->machine();
+  auto common = mcgraph()->common();
+  // If size == 0, then memory.copy is a no-op.
+  Node* size_null_check = graph()->NewNode(machine->Word32Equal(), size,
+                                           mcgraph()->Int32Constant(0));
+  Node* size_null_branch = graph()->NewNode(common->Branch(BranchHint::kFalse),
+                                            size_null_check, Control());
+
+  Node* size_null_etrue = Effect();
+  Node* size_null_if_false =
+      graph()->NewNode(common->IfFalse(), size_null_branch);
+  SetControl(size_null_if_false);
   Node* fail = BoundsCheckMemRange(&dst, &size, position);
   Node* function = graph()->NewNode(mcgraph()->common()->ExternalConstant(
       ExternalReference::wasm_memory_fill()));
@@ -4849,7 +4861,15 @@ Node* WasmGraphBuilder::MemoryFill(Node* dst, Node* value, Node* size,
                              MachineType::Uint32()};
   MachineSignature sig(0, 3, sig_types);
   BuildCCall(&sig, function, dst, value, size);
-  return TrapIfTrue(wasm::kTrapMemOutOfBounds, fail, position);
+  TrapIfTrue(wasm::kTrapMemOutOfBounds, fail, position);
+  Node* size_null_if_true =
+      graph()->NewNode(common->IfTrue(), size_null_branch);
+
+  Node* merge = SetControl(
+      graph()->NewNode(common->Merge(2), size_null_if_true, Control()));
+  SetEffect(
+      graph()->NewNode(common->EffectPhi(2), size_null_etrue, Effect(), merge));
+  return merge;
 }
 
 Node* WasmGraphBuilder::CheckElemSegmentIsPassiveAndNotDropped(
