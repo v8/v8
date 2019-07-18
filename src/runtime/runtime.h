@@ -362,6 +362,7 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_PROXY(F, I) \
   F(CheckProxyGetSetTrapResult, 2, 1)  \
   F(CheckProxyHasTrapResult, 2, 1)     \
+  F(CheckProxyDeleteTrapResult, 2, 1)  \
   F(GetPropertyWithReceiver, 3, 1)     \
   F(SetPropertyWithReceiver, 4, 1)
 

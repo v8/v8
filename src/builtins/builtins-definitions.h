@@ -821,7 +821,6 @@ namespace internal {
   ASM(ReflectApply, Dummy)                                                     \
   ASM(ReflectConstruct, Dummy)                                                 \
   CPP(ReflectDefineProperty)                                                   \
-  CPP(ReflectDeleteProperty)                                                   \
   CPP(ReflectGetOwnPropertyDescriptor)                                         \
   TFJ(ReflectHas, 2, kReceiver, kTarget, kKey)                                 \
   CPP(ReflectOwnKeys)                                                          \

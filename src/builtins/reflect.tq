@@ -64,4 +64,19 @@ namespace reflect {
     return GetPropertyWithReceiver(
         objectJSReceiver, name, receiver, SmiConstant(kReturnUndefined));
   }
+
+  // ES6 section 26.1.4 Reflect.deleteProperty
+  transitioning javascript builtin ReflectDeleteProperty(
+      js-implicit context:
+          Context)(_receiver: Object, object: Object, key: Object): Object {
+    const objectJSReceiver = Cast<JSReceiver>(object)
+        otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.deleteProperty');
+    const name: Name = ToName(key);
+    if (IsPrivateSymbol(name)) {
+      return DeleteProperty(objectJSReceiver, name, kSloppy);
+    }
+    const proxy = Cast<JSProxy>(objectJSReceiver)
+        otherwise return DeleteProperty(objectJSReceiver, name, kSloppy);
+    return proxy::ProxyDeleteProperty(proxy, name, kSloppy);
+  }
 }  // namespace reflect

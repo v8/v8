@@ -421,5 +421,63 @@ void ProxiesCodeStubAssembler::CheckHasTrapResult(TNode<Context> context,
   BIND(&check_passed);
 }
 
+void ProxiesCodeStubAssembler::CheckDeleteTrapResult(TNode<Context> context,
+                                                     TNode<JSReceiver> target,
+                                                     TNode<JSProxy> proxy,
+                                                     TNode<Name> name) {
+  TNode<Map> target_map = LoadMap(target);
+  TVARIABLE(Object, var_value);
+  TVARIABLE(Uint32T, var_details);
+  TVARIABLE(Object, var_raw_value);
+
+  Label if_found_value(this, Label::kDeferred),
+      throw_non_configurable(this, Label::kDeferred),
+      throw_non_extensible(this, Label::kDeferred), check_passed(this),
+      check_in_runtime(this, Label::kDeferred);
+
+  // 10. Let targetDesc be ? target.[[GetOwnProperty]](P).
+  GotoIfNot(IsUniqueNameNoIndex(name), &check_in_runtime);
+  TNode<Int32T> instance_type = LoadInstanceType(target);
+  TryGetOwnProperty(context, target, target, target_map, instance_type, name,
+                    &if_found_value, &var_value, &var_details, &var_raw_value,
+                    &check_passed, &check_in_runtime, kReturnAccessorPair);
+
+  // 11. If targetDesc is undefined, return true.
+  BIND(&if_found_value);
+  {
+    // 12. If targetDesc.[[Configurable]] is false, throw a TypeError exception.
+    TNode<BoolT> non_configurable = IsSetWord32(
+        var_details.value(), PropertyDetails::kAttributesDontDeleteMask);
+    GotoIf(non_configurable, &throw_non_configurable);
+
+    // 13. Let extensibleTarget be ? IsExtensible(target).
+    TNode<BoolT> target_extensible = IsExtensibleMap(target_map);
+
+    // 14. If extensibleTarget is false, throw a TypeError exception.
+    GotoIfNot(target_extensible, &throw_non_extensible);
+    Goto(&check_passed);
+  }
+
+  BIND(&throw_non_configurable);
+  {
+    ThrowTypeError(context,
+                   MessageTemplate::kProxyDeletePropertyNonConfigurable, name);
+  }
+
+  BIND(&throw_non_extensible);
+  {
+    ThrowTypeError(context, MessageTemplate::kProxyDeletePropertyNonExtensible,
+                   name);
+  }
+
+  BIND(&check_in_runtime);
+  {
+    CallRuntime(Runtime::kCheckProxyDeleteTrapResult, context, name, target);
+    Goto(&check_passed);
+  }
+
+  BIND(&check_passed);
+}
+
 }  // namespace internal
 }  // namespace v8

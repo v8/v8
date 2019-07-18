@@ -19,6 +19,9 @@ namespace proxy {
       implicit context:
           Context)(JSReceiver, JSProxy, Name, Object, constexpr int31);
 
+  extern transitioning macro ProxiesCodeStubAssembler::CheckDeleteTrapResult(
+      implicit context: Context)(JSReceiver, JSProxy, Name);
+
   extern transitioning macro ProxiesCodeStubAssembler::CheckHasTrapResult(
       implicit context: Context)(JSReceiver, JSProxy, Name);
 
@@ -44,6 +47,8 @@ namespace proxy {
   generates 'MessageTemplate::kProxyGetPrototypeOfNonExtensible';
   const kProxySetPrototypeOfNonExtensible: constexpr MessageTemplate
   generates 'MessageTemplate::kProxySetPrototypeOfNonExtensible';
+  const kProxyDeletePropertyNonExtensible: constexpr MessageTemplate
+  generates 'MessageTemplate::kProxyDeletePropertyNonExtensible';
 
   const kProxyGet: constexpr int31
   generates 'JSProxy::AccessKind::kGet';

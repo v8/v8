@@ -63,6 +63,10 @@ class JSProxy : public TorqueGeneratedJSProxy<JSProxy, JSReceiver> {
   V8_WARN_UNUSED_RESULT static Maybe<bool> CheckHasTrap(
       Isolate* isolate, Handle<Name> name, Handle<JSReceiver> target);
 
+  // ES6 9.5.10
+  V8_WARN_UNUSED_RESULT static Maybe<bool> CheckDeleteTrap(
+      Isolate* isolate, Handle<Name> name, Handle<JSReceiver> target);
+
   // ES6 9.5.8
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetProperty(
       Isolate* isolate, Handle<JSProxy> proxy, Handle<Name> name,

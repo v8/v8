@@ -3046,27 +3046,34 @@ Maybe<bool> JSProxy::DeletePropertyOrElement(Handle<JSProxy> proxy,
   }
 
   // Enforce the invariant.
+  return JSProxy::CheckDeleteTrap(isolate, name, target);
+}
+
+Maybe<bool> JSProxy::CheckDeleteTrap(Isolate* isolate, Handle<Name> name,
+                                     Handle<JSReceiver> target) {
+  // 10. Let targetDesc be ? target.[[GetOwnProperty]](P).
   PropertyDescriptor target_desc;
-  Maybe<bool> owned =
+  Maybe<bool> target_found =
       JSReceiver::GetOwnPropertyDescriptor(isolate, target, name, &target_desc);
-  MAYBE_RETURN(owned, Nothing<bool>());
-  if (owned.FromJust()) {
+  MAYBE_RETURN(target_found, Nothing<bool>());
+  // 11. If targetDesc is undefined, return true.
+  if (target_found.FromJust()) {
+    // 12. If targetDesc.[[Configurable]] is false, throw a TypeError exception.
     if (!target_desc.configurable()) {
-      isolate->Throw(*factory->NewTypeError(
+      isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kProxyDeletePropertyNonConfigurable, name));
       return Nothing<bool>();
     }
     // 13. Let extensibleTarget be ? IsExtensible(target).
+    Maybe<bool> extensible_target = JSReceiver::IsExtensible(target);
+    MAYBE_RETURN(extensible_target, Nothing<bool>());
     // 14. If extensibleTarget is false, throw a TypeError exception.
-    Maybe<bool> extensible = JSReceiver::IsExtensible(target);
-    MAYBE_RETURN(extensible, Nothing<bool>());
-    if (!extensible.FromJust()) {
-      isolate->Throw(*factory->NewTypeError(
+    if (!extensible_target.FromJust()) {
+      isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kProxyDeletePropertyNonExtensible, name));
       return Nothing<bool>();
     }
   }
-
   return Just(true);
 }
 

@@ -1481,7 +1481,7 @@ extern transitioning builtin SetProperty(implicit context: Context)(
 extern transitioning builtin SetPropertyInLiteral(implicit context: Context)(
     Object, Object, Object);
 extern transitioning builtin DeleteProperty(implicit context: Context)(
-    Object, Object, LanguageMode);
+    Object, Object, LanguageMode): Object;
 extern transitioning builtin HasProperty(implicit context: Context)(
     Object, Object): Boolean;
 extern transitioning macro HasProperty_Inline(implicit context: Context)(
@@ -2142,9 +2142,9 @@ extern macro Float64Constant(constexpr float64): float64;
 extern macro SmiConstant(constexpr int31): Smi;
 extern macro SmiConstant(constexpr Smi): Smi;
 extern macro SmiConstant(constexpr MessageTemplate): Smi;
+extern macro SmiConstant(constexpr LanguageMode): Smi;
 extern macro BoolConstant(constexpr bool): bool;
 extern macro StringConstant(constexpr string): String;
-extern macro LanguageModeConstant(constexpr LanguageMode): LanguageMode;
 extern macro Int32Constant(constexpr ElementsKind): ElementsKind;
 extern macro IntPtrConstant(constexpr NativeContextSlot): NativeContextSlot;
 extern macro IntPtrConstant(constexpr ContextSlot): ContextSlot;

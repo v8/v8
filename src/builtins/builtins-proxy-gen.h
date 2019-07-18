@@ -30,6 +30,9 @@ class ProxiesCodeStubAssembler : public CodeStubAssembler {
   void CheckHasTrapResult(TNode<Context> context, TNode<JSReceiver> target,
                           TNode<JSProxy> proxy, TNode<Name> name);
 
+  void CheckDeleteTrapResult(TNode<Context> context, TNode<JSReceiver> target,
+                             TNode<JSProxy> proxy, TNode<Name> name);
+
  protected:
   enum ProxyRevokeFunctionContextSlot {
     kProxySlot = Context::MIN_CONTEXT_SLOTS,
