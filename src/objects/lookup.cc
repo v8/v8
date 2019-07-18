@@ -212,7 +212,7 @@ void LookupIterator::ReloadPropertyInformation() {
 
 namespace {
 
-bool IsTypedArrayFunctionInAnyContext(Isolate* isolate, HeapObject object) {
+bool IsTypedArrayFunctionInAnyContext(Isolate* isolate, JSReceiver holder) {
   static uint32_t context_slots[] = {
 #define TYPED_ARRAY_CONTEXT_SLOTS(Type, type, TYPE, ctype) \
   Context::TYPE##_ARRAY_FUN_INDEX,
@@ -221,19 +221,17 @@ bool IsTypedArrayFunctionInAnyContext(Isolate* isolate, HeapObject object) {
 #undef TYPED_ARRAY_CONTEXT_SLOTS
   };
 
-  if (!object.IsJSFunction(isolate)) return false;
+  if (!holder.IsJSFunction(isolate)) return false;
 
   return std::any_of(
       std::begin(context_slots), std::end(context_slots),
-      [=](uint32_t slot) { return isolate->IsInAnyContext(object, slot); });
+      [=](uint32_t slot) { return isolate->IsInAnyContext(holder, slot); });
 }
 
 }  // namespace
 
 void LookupIterator::InternalUpdateProtector() {
   if (isolate_->bootstrapper()->IsActive()) return;
-  if (!receiver_->IsHeapObject()) return;
-  Handle<HeapObject> receiver = Handle<HeapObject>::cast(receiver_);
 
   Handle<NativeContext> native_context = isolate_->native_context();
 
@@ -246,74 +244,70 @@ void LookupIterator::InternalUpdateProtector() {
       return;
     }
     // Setting the constructor property could change an instance's @@species
-    if (receiver->IsJSArray(isolate_)) {
+    if (holder_->IsJSArray(isolate_)) {
       if (!isolate_->IsArraySpeciesLookupChainIntact()) return;
       isolate_->CountUsage(
           v8::Isolate::UseCounterFeature::kArrayInstanceConstructorModified);
       isolate_->InvalidateArraySpeciesProtector();
       return;
-    } else if (receiver->IsJSPromise(isolate_)) {
+    } else if (holder_->IsJSPromise(isolate_)) {
       if (!isolate_->IsPromiseSpeciesLookupChainIntact()) return;
       isolate_->InvalidatePromiseSpeciesProtector();
       return;
-    } else if (receiver->IsJSRegExp(isolate_)) {
+    } else if (holder_->IsJSRegExp(isolate_)) {
       if (!isolate_->IsRegExpSpeciesLookupChainIntact(native_context)) return;
       isolate_->InvalidateRegExpSpeciesProtector(native_context);
       return;
-    } else if (receiver->IsJSTypedArray(isolate_)) {
+    } else if (holder_->IsJSTypedArray(isolate_)) {
       if (!isolate_->IsTypedArraySpeciesLookupChainIntact()) return;
       isolate_->InvalidateTypedArraySpeciesProtector();
       return;
     }
-    if (receiver->map(isolate_).is_prototype_map()) {
+    if (holder_->map(isolate_).is_prototype_map()) {
       DisallowHeapAllocation no_gc;
       // Setting the constructor of any prototype with the @@species protector
       // (of any realm) also needs to invalidate the protector.
-      // For typed arrays, we check a prototype of this receiver since
-      // TypedArrays have different prototypes for each type, and their parent
-      // prototype is pointing the same TYPED_ARRAY_PROTOTYPE.
-      if (isolate_->IsInAnyContext(*receiver,
+      // For typed arrays, we check a prototype of this holder since TypedArrays
+      // have different prototypes for each type, and their parent prototype is
+      // pointing the same TYPED_ARRAY_PROTOTYPE.
+      if (isolate_->IsInAnyContext(*holder_,
                                    Context::INITIAL_ARRAY_PROTOTYPE_INDEX)) {
         if (!isolate_->IsArraySpeciesLookupChainIntact()) return;
         isolate_->CountUsage(
             v8::Isolate::UseCounterFeature::kArrayPrototypeConstructorModified);
         isolate_->InvalidateArraySpeciesProtector();
-      } else if (isolate_->IsInAnyContext(*receiver,
+      } else if (isolate_->IsInAnyContext(*holder_,
                                           Context::PROMISE_PROTOTYPE_INDEX)) {
         if (!isolate_->IsPromiseSpeciesLookupChainIntact()) return;
         isolate_->InvalidatePromiseSpeciesProtector();
-      } else if (isolate_->IsInAnyContext(*receiver,
+      } else if (isolate_->IsInAnyContext(*holder_,
                                           Context::REGEXP_PROTOTYPE_INDEX)) {
         if (!isolate_->IsRegExpSpeciesLookupChainIntact(native_context)) return;
         isolate_->InvalidateRegExpSpeciesProtector(native_context);
       } else if (isolate_->IsInAnyContext(
-                     receiver->map(isolate_).prototype(isolate_),
+                     holder_->map(isolate_).prototype(isolate_),
                      Context::TYPED_ARRAY_PROTOTYPE_INDEX)) {
         if (!isolate_->IsTypedArraySpeciesLookupChainIntact()) return;
         isolate_->InvalidateTypedArraySpeciesProtector();
       }
     }
   } else if (*name_ == roots.next_string()) {
-    if (receiver->IsJSArrayIterator() ||
-        isolate_->IsInAnyContext(
-            *receiver, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_INDEX)) {
+    if (isolate_->IsInAnyContext(
+            *holder_, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_INDEX)) {
       // Setting the next property of %ArrayIteratorPrototype% also needs to
       // invalidate the array iterator protector.
       if (!isolate_->IsArrayIteratorLookupChainIntact()) return;
       isolate_->InvalidateArrayIteratorProtector();
-    } else if (receiver->IsJSMapIterator() ||
-               isolate_->IsInAnyContext(
-                   *receiver, Context::INITIAL_MAP_ITERATOR_PROTOTYPE_INDEX)) {
+    } else if (isolate_->IsInAnyContext(
+                   *holder_, Context::INITIAL_MAP_ITERATOR_PROTOTYPE_INDEX)) {
       if (!isolate_->IsMapIteratorLookupChainIntact()) return;
       isolate_->InvalidateMapIteratorProtector();
-    } else if (receiver->IsJSSetIterator() ||
-               isolate_->IsInAnyContext(
-                   *receiver, Context::INITIAL_SET_ITERATOR_PROTOTYPE_INDEX)) {
+    } else if (isolate_->IsInAnyContext(
+                   *holder_, Context::INITIAL_SET_ITERATOR_PROTOTYPE_INDEX)) {
       if (!isolate_->IsSetIteratorLookupChainIntact()) return;
       isolate_->InvalidateSetIteratorProtector();
-    } else if (receiver->IsJSStringIterator() ||
-               isolate_->IsInAnyContext(
-                   *receiver,
+    } else if (isolate_->IsInAnyContext(
+                   *receiver_,
                    Context::INITIAL_STRING_ITERATOR_PROTOTYPE_INDEX)) {
       // Setting the next property of %StringIteratorPrototype% invalidates the
       // string iterator protector.
@@ -329,20 +323,20 @@ void LookupIterator::InternalUpdateProtector() {
     }
     // Setting the Symbol.species property of any Array, Promise or TypedArray
     // constructor invalidates the @@species protector
-    if (isolate_->IsInAnyContext(*receiver, Context::ARRAY_FUNCTION_INDEX)) {
+    if (isolate_->IsInAnyContext(*holder_, Context::ARRAY_FUNCTION_INDEX)) {
       if (!isolate_->IsArraySpeciesLookupChainIntact()) return;
       isolate_->CountUsage(
           v8::Isolate::UseCounterFeature::kArraySpeciesModified);
       isolate_->InvalidateArraySpeciesProtector();
-    } else if (isolate_->IsInAnyContext(*receiver,
+    } else if (isolate_->IsInAnyContext(*holder_,
                                         Context::PROMISE_FUNCTION_INDEX)) {
       if (!isolate_->IsPromiseSpeciesLookupChainIntact()) return;
       isolate_->InvalidatePromiseSpeciesProtector();
-    } else if (isolate_->IsInAnyContext(*receiver,
+    } else if (isolate_->IsInAnyContext(*holder_,
                                         Context::REGEXP_FUNCTION_INDEX)) {
       if (!isolate_->IsRegExpSpeciesLookupChainIntact(native_context)) return;
       isolate_->InvalidateRegExpSpeciesProtector(native_context);
-    } else if (IsTypedArrayFunctionInAnyContext(isolate_, *receiver)) {
+    } else if (IsTypedArrayFunctionInAnyContext(isolate_, *holder_)) {
       if (!isolate_->IsTypedArraySpeciesLookupChainIntact()) return;
       isolate_->InvalidateTypedArraySpeciesProtector();
     }
@@ -350,33 +344,23 @@ void LookupIterator::InternalUpdateProtector() {
     if (!isolate_->IsIsConcatSpreadableLookupChainIntact()) return;
     isolate_->InvalidateIsConcatSpreadableProtector();
   } else if (*name_ == roots.iterator_symbol()) {
-    if (receiver->IsJSArray(isolate_)) {
+    if (holder_->IsJSArray(isolate_)) {
       if (!isolate_->IsArrayIteratorLookupChainIntact()) return;
       isolate_->InvalidateArrayIteratorProtector();
-    } else if (receiver->IsJSSet(isolate_) || receiver->IsJSSetIterator() ||
-               isolate_->IsInAnyContext(
-                   *receiver, Context::INITIAL_SET_ITERATOR_PROTOTYPE_INDEX) ||
-               isolate_->IsInAnyContext(*receiver,
+    } else if (isolate_->IsInAnyContext(
+                   *holder_, Context::INITIAL_ITERATOR_PROTOTYPE_INDEX)) {
+      if (isolate_->IsMapIteratorLookupChainIntact()) {
+        isolate_->InvalidateMapIteratorProtector();
+      }
+      if (isolate_->IsSetIteratorLookupChainIntact()) {
+        isolate_->InvalidateSetIteratorProtector();
+      }
+    } else if (isolate_->IsInAnyContext(*holder_,
                                         Context::INITIAL_SET_PROTOTYPE_INDEX)) {
-      if (isolate_->IsSetIteratorLookupChainIntact()) {
-        isolate_->InvalidateSetIteratorProtector();
-      }
-    } else if (receiver->IsJSMapIterator() ||
-               isolate_->IsInAnyContext(
-                   *receiver, Context::INITIAL_MAP_ITERATOR_PROTOTYPE_INDEX)) {
-      if (isolate_->IsMapIteratorLookupChainIntact()) {
-        isolate_->InvalidateMapIteratorProtector();
-      }
+      if (!isolate_->IsSetIteratorLookupChainIntact()) return;
+      isolate_->InvalidateSetIteratorProtector();
     } else if (isolate_->IsInAnyContext(
-                   *receiver, Context::INITIAL_ITERATOR_PROTOTYPE_INDEX)) {
-      if (isolate_->IsMapIteratorLookupChainIntact()) {
-        isolate_->InvalidateMapIteratorProtector();
-      }
-      if (isolate_->IsSetIteratorLookupChainIntact()) {
-        isolate_->InvalidateSetIteratorProtector();
-      }
-    } else if (isolate_->IsInAnyContext(
-                   *receiver, Context::INITIAL_STRING_PROTOTYPE_INDEX)) {
+                   *receiver_, Context::INITIAL_STRING_PROTOTYPE_INDEX)) {
       // Setting the Symbol.iterator property of String.prototype invalidates
       // the string iterator protector. Symbol.iterator can also be set on a
       // String wrapper, but not on a primitive string. We only support
@@ -388,7 +372,7 @@ void LookupIterator::InternalUpdateProtector() {
     if (!isolate_->IsPromiseResolveLookupChainIntact()) return;
     // Setting the "resolve" property on any %Promise% intrinsic object
     // invalidates the Promise.resolve protector.
-    if (isolate_->IsInAnyContext(*receiver, Context::PROMISE_FUNCTION_INDEX)) {
+    if (isolate_->IsInAnyContext(*holder_, Context::PROMISE_FUNCTION_INDEX)) {
       isolate_->InvalidatePromiseResolveProtector();
     }
   } else if (*name_ == roots.then_string()) {
@@ -400,10 +384,10 @@ void LookupIterator::InternalUpdateProtector() {
     // to guard the fast-path in AsyncGeneratorResolve, where we can skip
     // the ResolvePromise step and go directly to FulfillPromise if we
     // know that the Object.prototype doesn't contain a "then" method.
-    if (receiver->IsJSPromise(isolate_) ||
-        isolate_->IsInAnyContext(*receiver,
+    if (holder_->IsJSPromise(isolate_) ||
+        isolate_->IsInAnyContext(*holder_,
                                  Context::INITIAL_OBJECT_PROTOTYPE_INDEX) ||
-        isolate_->IsInAnyContext(*receiver, Context::PROMISE_PROTOTYPE_INDEX)) {
+        isolate_->IsInAnyContext(*holder_, Context::PROMISE_PROTOTYPE_INDEX)) {
       isolate_->InvalidatePromiseThenProtector();
     }
   }

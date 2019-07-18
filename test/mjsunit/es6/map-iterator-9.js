@@ -23,7 +23,7 @@ assertEquals([1,2,3], [...map.keys()]);
 assertEquals([2,3,4], [...map.values()]);
 assertEquals([], [...iterator]);
 
-assertTrue(%SetIteratorProtector());
+assertFalse(%SetIteratorProtector());
 assertEquals([1,2,3], [...set]);
 assertEquals([[1,1],[2,2],[3,3]], [...set.entries()]);
 assertEquals([1,2,3], [...set.keys()]);
