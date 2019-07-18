@@ -9,7 +9,6 @@
 #include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
-#include "src/wasm/wasm-memory.h"
 
 namespace v8 {
 namespace internal {
