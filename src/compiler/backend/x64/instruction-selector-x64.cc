@@ -2665,8 +2665,6 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I64x2GeU)
 
 #define SIMD_UNOP_LIST(V)   \
-  V(F64x2Abs)               \
-  V(F64x2Neg)               \
   V(F32x4SConvertI32x4)     \
   V(F32x4Abs)               \
   V(F32x4Neg)               \
@@ -2818,6 +2816,18 @@ void InstructionSelector::VisitS128Select(Node* node) {
   Emit(kX64S128Select, g.DefineSameAsFirst(node),
        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
        g.UseRegister(node->InputAt(2)));
+}
+
+void InstructionSelector::VisitF64x2Abs(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64F64x2Abs, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitF64x2Neg(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64F64x2Neg, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)));
 }
 
 void InstructionSelector::VisitF32x4UConvertI32x4(Node* node) {
