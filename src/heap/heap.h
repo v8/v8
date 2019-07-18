@@ -233,8 +233,7 @@ class Heap {
   // should instead adapt it's heap size based on available physical memory.
   static const int kPointerMultiplier = 1;
 #else
-  // TODO(ishell): kSystePointerMultiplier?
-  static const int kPointerMultiplier = i::kSystemPointerSize / 4;
+  static const int kPointerMultiplier = i::kTaggedSize / 4;
 #endif
 
   static const size_t kMaxInitialOldGenerationSize =
