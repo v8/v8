@@ -910,6 +910,8 @@ TEST(EmptyMemoryEmptyDataSegment) {
 
 TEST(MemoryWithOOBEmptyDataSegment) {
   {
+    FlagScope<bool> no_bulk_memory(
+        &v8::internal::FLAG_experimental_wasm_bulk_memory, false);
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
     testing::SetupIsolateForWasmModule(isolate);
