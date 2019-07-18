@@ -676,10 +676,10 @@ void InstructionSelector::VisitStore(Node* node) {
     InstructionOperand inputs[3];
     size_t input_count = 0;
     inputs[input_count++] = g.UseUniqueRegister(base);
-    // OutOfLineRecordWrite uses the index in an arithmetic instruction, so we
-    // must check kArithmeticImm as well as kLoadStoreImm64.
-    if (g.CanBeImmediate(index, kArithmeticImm) &&
-        g.CanBeImmediate(index, kLoadStoreImm64)) {
+    // OutOfLineRecordWrite uses the index in an add or sub instruction, but we
+    // can trust the assembler to generate extra instructions if the index does
+    // not fit into add or sub. So here only check the immediate for a store.
+    if (g.CanBeImmediate(index, kLoadStoreImm64)) {
       inputs[input_count++] = g.UseImmediate(index);
       addressing_mode = kMode_MRI;
     } else {

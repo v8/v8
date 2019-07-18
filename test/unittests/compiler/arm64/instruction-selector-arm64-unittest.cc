@@ -2844,6 +2844,59 @@ INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
                          InstructionSelectorMemoryAccessTest,
                          ::testing::ValuesIn(kMemoryAccesses));
 
+static const WriteBarrierKind kWriteBarrierKinds[] = {
+    kMapWriteBarrier, kPointerWriteBarrier, kEphemeronKeyWriteBarrier,
+    kFullWriteBarrier};
+
+const int32_t kStoreWithBarrierImmediates[] = {
+    -256, -255, -3,   -2,   -1,   0,    1,     2,     3,     255,
+    256,  264,  4096, 4104, 8192, 8200, 16384, 16392, 32752, 32760};
+
+using InstructionSelectorStoreWithBarrierTest =
+    InstructionSelectorTestWithParam<WriteBarrierKind>;
+
+TEST_P(InstructionSelectorStoreWithBarrierTest,
+       StoreWithWriteBarrierParameters) {
+  const WriteBarrierKind barrier_kind = GetParam();
+  StreamBuilder m(this, MachineType::Int32(),
+                  MachineType::TypeCompressedTaggedPointer(),
+                  MachineType::Int32(), MachineType::TypeCompressedTagged());
+  m.Store(MachineType::RepCompressedTagged(), m.Parameter(0), m.Parameter(1),
+          m.Parameter(2), barrier_kind);
+  m.Return(m.Int32Constant(0));
+  Stream s = m.Build(kAllExceptNopInstructions);
+  // We have two instructions that are not nops: Store and Return.
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kArchStoreWithWriteBarrier, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MRR, s[0]->addressing_mode());
+  EXPECT_EQ(3U, s[0]->InputCount());
+  EXPECT_EQ(0U, s[0]->OutputCount());
+}
+
+TEST_P(InstructionSelectorStoreWithBarrierTest,
+       StoreWithWriteBarrierImmediate) {
+  const WriteBarrierKind barrier_kind = GetParam();
+  TRACED_FOREACH(int32_t, index, kStoreWithBarrierImmediates) {
+    StreamBuilder m(this, MachineType::Int32(),
+                    MachineType::TypeCompressedTaggedPointer(),
+                    MachineType::TypeCompressedTagged());
+    m.Store(MachineType::RepCompressedTagged(), m.Parameter(0),
+            m.Int32Constant(index), m.Parameter(1), barrier_kind);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build(kAllExceptNopInstructions);
+    // We have two instructions that are not nops: Store and Return.
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(kArchStoreWithWriteBarrier, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
+    EXPECT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(0U, s[0]->OutputCount());
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorStoreWithBarrierTest,
+                         ::testing::ValuesIn(kWriteBarrierKinds));
+
 // -----------------------------------------------------------------------------
 // Comparison instructions.
 
