@@ -50,10 +50,11 @@ resetTable();
 instance.exports.copy(3, 0, 2);
 assertTable([1000, 1001, 1002, 1000, 1001]);
 
-// Non-overlapping, src < dst.
+// Non-overlapping, src < dst. Because of src < dst, we copy backwards.
+// Therefore the first access already traps, and the table is not changed.
 resetTable();
 assertTraps(kTrapTableOutOfBounds, () => instance.exports.copy(3, 0, 3));
-assertTable([1000, 1001, 1002, 1000, 1001]);
+assertTable([1000, 1001, 1002, 1003, 1004]);
 
 // Non-overlapping, dst < src.
 resetTable();

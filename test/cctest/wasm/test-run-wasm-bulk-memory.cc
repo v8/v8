@@ -776,34 +776,23 @@ void TestTableCopyOobWrites(ExecutionTier execution_tier, int table_dst,
 
   CheckTable(isolate, table, f0, f1, f2, f3, f4);
 
-  // Non-overlapping, src < dst.
+  // Non-overlapping, src < dst. Because of src < dst, we copy backwards.
+  // Therefore the first access already traps, and the table is not changed.
   r.CheckCallViaJS(0xDEADBEEF, 3, 0, 3);
-  CheckTable(isolate, table, f0, f1, f2, f0, f1);
+  CheckTable(isolate, table, f0, f1, f2, f3, f4);
 
   // Non-overlapping, dst < src.
   r.CheckCallViaJS(0xDEADBEEF, 0, 4, 2);
-  if (table_dst == table_src) {
-    CheckTable(isolate, table, f1, f1, f2, f0, f1);
-  } else {
-    CheckTable(isolate, table, f4, f1, f2, f0, f1);
-  }
+  CheckTable(isolate, table, f4, f1, f2, f3, f4);
 
   // Overlapping, src < dst. This is required to copy backward, but the first
   // access will be out-of-bounds, so nothing changes.
   r.CheckCallViaJS(0xDEADBEEF, 3, 0, 99);
-  if (table_dst == table_src) {
-    CheckTable(isolate, table, f1, f1, f2, f0, f1);
-  } else {
-    CheckTable(isolate, table, f4, f1, f2, f0, f1);
-  }
+  CheckTable(isolate, table, f4, f1, f2, f3, f4);
 
   // Overlapping, dst < src.
   r.CheckCallViaJS(0xDEADBEEF, 0, 1, 99);
-  if (table_dst == table_src) {
-    CheckTable(isolate, table, f1, f2, f0, f1, f1);
-  } else {
-    CheckTable(isolate, table, f1, f2, f3, f4, f1);
-  }
+  CheckTable(isolate, table, f1, f2, f3, f4, f4);
 }
 
 WASM_EXEC_TEST(TableCopyOobWritesFrom0To0) {
@@ -848,8 +837,8 @@ void TestTableCopyOob1(ExecutionTier execution_tier, int table_dst,
 
   {
     const uint32_t big = 1000000;
-    r.CheckCallViaJS(0xDEADBEEF, big, 0, 0);
-    r.CheckCallViaJS(0xDEADBEEF, 0, big, 0);
+    r.CheckCallViaJS(0, big, 0, 0);
+    r.CheckCallViaJS(0, 0, big, 0);
   }
 
   for (uint32_t big = 4294967295; big > 1000; big >>= 1) {

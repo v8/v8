@@ -1832,6 +1832,8 @@ bool WasmInstanceObject::CopyTableEntries(Isolate* isolate,
                                           uint32_t table_src_index,
                                           uint32_t dst, uint32_t src,
                                           uint32_t count) {
+  // Copying 0 elements is a no-op.
+  if (count == 0) return true;
   CHECK_LT(table_dst_index, instance->tables().length());
   CHECK_LT(table_src_index, instance->tables().length());
   auto table_dst = handle(
@@ -1840,7 +1842,7 @@ bool WasmInstanceObject::CopyTableEntries(Isolate* isolate,
       WasmTableObject::cast(instance->tables().get(table_src_index)), isolate);
   uint32_t max_dst = static_cast<uint32_t>(table_dst->entries().length());
   uint32_t max_src = static_cast<uint32_t>(table_src->entries().length());
-  bool copy_backward = src < dst && dst - src < count;
+  bool copy_backward = src < dst;
   bool ok = ClampToBounds(dst, &count, max_dst);
   // Use & instead of && so the clamp is not short-circuited.
   ok &= ClampToBounds(src, &count, max_src);
