@@ -6,9 +6,11 @@
 
 load("test/mjsunit/worker-ping-test.js");
 
+// TODO(v8:9380): increase {numThings} and {numWorkers} when stress-opt mode
+// no longer leaks wasm memories.
 let config = {
-  numThings: 4,         // size of circular buffer
-  numWorkers: 4,        // number of workers
+  numThings: 2,         // size of circular buffer
+  numWorkers: 2,        // number of workers
   numMessages: 2000,    // number of messages sent to each worker
   allocInterval: 10001, // interval for allocating new things per worker
   traceScript: false,   // print the script
