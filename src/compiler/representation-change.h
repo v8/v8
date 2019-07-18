@@ -395,6 +395,7 @@ class V8_EXPORT_PRIVATE RepresentationChanger final {
   Node* InsertChangeTaggedSignedToInt32(Node* node);
   Node* InsertChangeTaggedToFloat64(Node* node);
   Node* InsertChangeUint32ToFloat64(Node* node);
+  Node* InsertChangeCompressedPointerToTaggedPointer(Node* node);
   Node* InsertChangeCompressedToTagged(Node* node);
   Node* InsertConversion(Node* node, const Operator* op, Node* use_node);
   Node* InsertTruncateInt64ToInt32(Node* node);

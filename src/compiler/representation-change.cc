@@ -475,7 +475,7 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
   } else if (output_rep == MachineRepresentation::kCompressedPointer) {
     if (use_info.type_check() == TypeCheckKind::kBigInt &&
         !output_type.Is(Type::BigInt())) {
-      node = InsertChangeCompressedToTagged(node);
+      node = InsertChangeCompressedPointerToTaggedPointer(node);
       op = simplified()->CheckBigInt(use_info.feedback());
     } else {
       op = machine()->ChangeCompressedPointerToTaggedPointer();
@@ -1739,6 +1739,12 @@ Node* RepresentationChanger::InsertChangeUint32ToFloat64(Node* node) {
 
 Node* RepresentationChanger::InsertTruncateInt64ToInt32(Node* node) {
   return jsgraph()->graph()->NewNode(machine()->TruncateInt64ToInt32(), node);
+}
+
+Node* RepresentationChanger::InsertChangeCompressedPointerToTaggedPointer(
+    Node* node) {
+  return jsgraph()->graph()->NewNode(machine()->ChangeCompressedToTagged(),
+                                     node);
 }
 
 Node* RepresentationChanger::InsertChangeCompressedToTagged(Node* node) {
