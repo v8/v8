@@ -47,6 +47,8 @@
   'tests/f64': [SKIP],
   # This test fails because ppc float to double doesn't convert sNaN to qNaN.
   'tests/conversions': [SKIP],
+   'tests/proposals/reference-types/conversions':  [SKIP],
+   'tests/proposals/bulk-memory-operations/conversions': [SKIP],
 }],  # 'arch == ppc or arch == ppc64'
 
 ['arch == s390 or arch == s390x', {
