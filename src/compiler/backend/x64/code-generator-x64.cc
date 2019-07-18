@@ -2598,10 +2598,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister src = i.InputSimd128Register(1);
       XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
 
-      // Sets up a mask to clear the sign bit of the 2 quadwords.
-      __ Set(kScratchRegister, 0x8000000000000000);
-      __ movq(kScratchDoubleReg, kScratchRegister);
-      __ pshufd(kScratchDoubleReg, kScratchDoubleReg, 0x44);
+      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+      __ psllq(kScratchDoubleReg, 63);
 
       __ movaps(tmp, src);
       __ pxor(tmp, kScratchDoubleReg);
@@ -2616,10 +2614,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister src = i.InputSimd128Register(1);
       XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
 
-      // Sets up a mask to clear the sign bit of the 2 quadwords.
-      __ Set(kScratchRegister, 0x8000000000000000);
-      __ movq(kScratchDoubleReg, kScratchRegister);
-      __ pshufd(kScratchDoubleReg, kScratchDoubleReg, 0x44);
+      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+      __ psllq(kScratchDoubleReg, 63);
 
       __ movaps(tmp, src);
       __ pxor(dst, kScratchDoubleReg);
