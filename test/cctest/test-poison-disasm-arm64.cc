@@ -49,7 +49,7 @@ TEST(DisasmPoisonMonomorphicLoad) {
       "b.ne",                                              // deopt if different
       "csel " + kPReg + ", xzr, " + kPReg + ", ne",        // update the poison
       "csdb",                                              // spec. barrier
-      "ldur w<<Field:[0-9]+>>, \\[<<Obj>>, #[0-9]+\\]",    // load the field
+      "ldursw x<<Field:[0-9]+>>, \\[<<Obj>>, #[0-9]+\\]",  // load the field
       "and x<<Field>>, x<<Field>>, " + kPReg,              // apply the poison
   };
 #else
@@ -109,17 +109,15 @@ TEST(DisasmPoisonPolymorphicLoad) {
       "csdb",                                            // spec. barrier
       "ldur w<<Field:[0-9]+>>, \\[<<Obj>>, #[0-9]+\\]",  // load the field
       "and x<<Field>>, x<<Field>>, " + kPReg,            // apply the poison
-      "sxtw x<<Field>>, w<<Field>>",
-      "asr w[0-9]+, w<<Field>>, #1",  // untag
-      "b",                            // goto merge point
+      "asr w[0-9]+, w<<Field>>, #1",                     // untag
+      "b",                                               // goto merge point
       // Lcase1:
       "csel " + kPReg + ", xzr, " + kPReg + ", ne",      // update the poison
       "csdb",                                            // spec. barrier
-      "ldur w<<BSt:[0-9]+>>, \\[<<Obj>>, #[0-9]+\\]",    // load backing store
+      "ldursw x<<BSt:[0-9]+>>, \\[<<Obj>>, #[0-9]+\\]",  // load backing store
+      "tbz w<<BSt>>, #0, #\\+0x8",                       // branchful decompress
+      "add x<<BSt>>, x26, x<<BSt>>",                     // Add root to ref
       "and x<<BSt>>, x<<BSt>>, " + kPReg,                // apply the poison
-      "sbfx <<Temp:x[0-9]+>>, x<<BSt>>, #0, #1",         // Decompress ref
-      "and <<Temp>>, <<Temp>>, x26",                     // Decompress ref
-      "add x<<BSt>>, <<Temp>>, w<<BSt>>, sxtw",          // Decompress ref
       "ldur w<<Prop:[0-9]+>>, \\[x<<BSt>>, #[0-9]+\\]",  // load the property
       "and x<<Prop>>, x<<Prop>>, " + kPReg,              // apply the poison
                                                          // Ldone:
