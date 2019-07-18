@@ -32,7 +32,7 @@
   V(_, first_string, "first")                                       \
   V(_, format_string, "format")                                     \
   V(_, fractionalSecond_string, "fractionalSecond")                 \
-  V(_, except_zero_string, "except-zero")                           \
+  V(_, exceptZero_string, "exceptZero")                             \
   V(_, exponentInteger_string, "exponentInteger")                   \
   V(_, exponentMinusSign_string, "exponentMinusSign")               \
   V(_, exponentSeparator_string, "exponentSeparator")               \
@@ -70,7 +70,7 @@
   V(_, minute_string, "minute")                                     \
   V(_, month_string, "month")                                       \
   V(_, nan_string, "nan")                                           \
-  V(_, narrow_symbol_string, "narrow-symbol")                       \
+  V(_, narrowSymbol_string, "narrowSymbol")                         \
   V(_, never_string, "never")                                       \
   V(_, none_string, "none")                                         \
   V(_, notation_string, "notation")                                 \

@@ -83,6 +83,9 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=9319
   'intl402/NumberFormat/prototype/resolvedOptions/order': [FAIL],
 
+  # crbug.com/v8/9483
+  'intl402/NumberFormat/currencyDisplay-unit': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=9084
   'intl402/supportedLocalesOf-consistent-with-resolvedOptions': [FAIL],
   'intl402/fallback-locales-are-supported': [FAIL],

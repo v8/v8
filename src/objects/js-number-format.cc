@@ -42,8 +42,8 @@ enum class Style {
 };
 
 // [[CurrencyDisplay]] is one of the values "code", "symbol", "name",
-// or "narrow-symbol" identifying the display of the currency number format.
-// Note: "narrow-symbol" is added in proposal-unified-intl-numberformat
+// or "narrowSymbol" identifying the display of the currency number format.
+// Note: "narrowSymbol" is added in proposal-unified-intl-numberformat
 enum class CurrencyDisplay {
   CODE,
   SYMBOL,
@@ -95,7 +95,7 @@ enum class CompactDisplay {
 };
 
 // [[SignDisplay]] is one of the String values "auto", "always", "never", or
-// "except-zero", specifying whether to show the sign on negative numbers
+// "exceptZero", specifying whether to show the sign on negative numbers
 // only, positive and negative numbers including zero, neither positive nor
 // negative numbers, or positive and negative numbers but not zero.
 enum class SignDisplay {
@@ -359,7 +359,7 @@ Handle<String> CurrencyDisplayString(Isolate* isolate,
   // Ex: skeleton as
   // "currency/TWD .00 rounding-mode-half-up unit-width-narrow;
   if (skeleton.indexOf("unit-width-narrow") >= 0) {
-    return ReadOnlyRoots(isolate).narrow_symbol_string_handle();
+    return ReadOnlyRoots(isolate).narrowSymbol_string_handle();
   }
   // Ex: skeleton as "currency/TWD .00 rounding-mode-half-up"
   return ReadOnlyRoots(isolate).symbol_string_handle();
@@ -482,7 +482,7 @@ Handle<String> SignDisplayString(Isolate* isolate,
   // "currency/TWD .00 rounding-mode-half-up sign-except-zero"
   if (skeleton.indexOf("sign-accounting-except-zero") >= 0 ||
       skeleton.indexOf("sign-except-zero") >= 0) {
-    return ReadOnlyRoots(isolate).except_zero_string_handle();
+    return ReadOnlyRoots(isolate).exceptZero_string_handle();
   }
   return ReadOnlyRoots(isolate).auto_string_handle();
 }
@@ -1006,7 +1006,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   std::vector<CurrencyDisplay> currency_display_enum_values(
       {CurrencyDisplay::CODE, CurrencyDisplay::SYMBOL, CurrencyDisplay::NAME});
   if (FLAG_harmony_intl_numberformat_unified) {
-    currency_display_str_values.push_back("narrow-symbol");
+    currency_display_str_values.push_back("narrowSymbol");
     currency_display_enum_values.push_back(CurrencyDisplay::NARROW_SYMBOL);
   }
   Maybe<CurrencyDisplay> maybe_currency_display =
@@ -1210,10 +1210,10 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
 
   if (FLAG_harmony_intl_numberformat_unified) {
     // 32. Let signDisplay be ? GetOption(options, "signDisplay", "string", «
-    // "auto", "never", "always",  "except-zero" », "auto").
+    // "auto", "never", "always",  "exceptZero" », "auto").
     Maybe<SignDisplay> maybe_sign_display = Intl::GetStringOption<SignDisplay>(
         isolate, options, "signDisplay", service,
-        {"auto", "never", "always", "except-zero"},
+        {"auto", "never", "always", "exceptZero"},
         {SignDisplay::AUTO, SignDisplay::NEVER, SignDisplay::ALWAYS,
          SignDisplay::EXCEPT_ZERO},
         SignDisplay::AUTO);
