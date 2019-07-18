@@ -825,8 +825,9 @@ void CpuProfilesCollection::AddPathToCurrentProfiles(
   current_profiles_semaphore_.Signal();
 }
 
-ProfileGenerator::ProfileGenerator(CpuProfilesCollection* profiles)
-    : profiles_(profiles) {}
+ProfileGenerator::ProfileGenerator(CpuProfilesCollection* profiles,
+                                   CodeMap* code_map)
+    : profiles_(profiles), code_map_(code_map) {}
 
 void ProfileGenerator::RecordTickSample(const TickSample& sample) {
   ProfileStackTrace stack_trace;

@@ -307,6 +307,15 @@ enum CpuProfilingNamingMode {
   kDebugNaming,
 };
 
+enum CpuProfilingLoggingMode {
+  // Enables logging when a profile is active, and disables logging when all
+  // profiles are detached.
+  kLazyLogging,
+  // Enables logging for the lifetime of the CpuProfiler. Calls to
+  // StartRecording are faster, at the expense of runtime overhead.
+  kEagerLogging,
+};
+
 /**
  * Optional profiling attributes.
  */
@@ -357,7 +366,8 @@ class V8_EXPORT CpuProfiler {
    * |Dispose| method.
    */
   static CpuProfiler* New(Isolate* isolate,
-                          CpuProfilingNamingMode = kDebugNaming);
+                          CpuProfilingNamingMode = kDebugNaming,
+                          CpuProfilingLoggingMode = kLazyLogging);
 
   /**
    * Synchronously collect current stack sample in all profilers attached to

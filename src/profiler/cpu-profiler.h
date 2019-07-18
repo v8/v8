@@ -129,27 +129,19 @@ class CodeEventsContainer {
   };
 };
 
-// Maintains the number of active CPU profilers in an isolate.
+// Maintains the number of active CPU profilers in an isolate, and routes
+// logging to a given ProfilerListener.
 class ProfilingScope {
  public:
-  explicit ProfilingScope(Isolate* isolate) : isolate_(isolate) {
-    size_t profiler_count = isolate_->num_cpu_profilers();
-    profiler_count++;
-    isolate_->set_num_cpu_profilers(profiler_count);
-    isolate_->set_is_profiling(true);
-  }
-
-  ~ProfilingScope() {
-    size_t profiler_count = isolate_->num_cpu_profilers();
-    DCHECK_GT(profiler_count, 0);
-    profiler_count--;
-    isolate_->set_num_cpu_profilers(profiler_count);
-    if (profiler_count == 0) isolate_->set_is_profiling(false);
-  }
+  ProfilingScope(Isolate* isolate, ProfilerListener* listener);
+  ~ProfilingScope();
 
  private:
   Isolate* const isolate_;
+  ProfilerListener* const listener_;
 };
+
+class ProfilerCodeObserver;
 
 // This class implements both the profile events processor thread and
 // methods called by event producers: VM and stack sampler threads.
@@ -175,7 +167,8 @@ class V8_EXPORT_PRIVATE ProfilerEventsProcessor : public base::Thread,
   virtual void SetSamplingInterval(base::TimeDelta) {}
 
  protected:
-  ProfilerEventsProcessor(Isolate* isolate, ProfileGenerator* generator);
+  ProfilerEventsProcessor(Isolate* isolate, ProfileGenerator* generator,
+                          ProfilerCodeObserver* code_observer);
 
   // Called from events processing thread (Run() method.)
   bool ProcessCodeEvent();
@@ -188,6 +181,7 @@ class V8_EXPORT_PRIVATE ProfilerEventsProcessor : public base::Thread,
   virtual SampleProcessingResult ProcessOneSample() = 0;
 
   ProfileGenerator* generator_;
+  ProfilerCodeObserver* code_observer_;
   base::Atomic32 running_;
   base::ConditionVariable running_cond_;
   base::Mutex running_mutex_;
@@ -196,13 +190,13 @@ class V8_EXPORT_PRIVATE ProfilerEventsProcessor : public base::Thread,
   std::atomic<unsigned> last_code_event_id_;
   unsigned last_processed_code_event_id_;
   Isolate* isolate_;
-  ProfilingScope profiling_scope_;
 };
 
 class V8_EXPORT_PRIVATE SamplingEventsProcessor
     : public ProfilerEventsProcessor {
  public:
   SamplingEventsProcessor(Isolate* isolate, ProfileGenerator* generator,
+                          ProfilerCodeObserver* code_observer,
                           base::TimeDelta period, bool use_precise_sampling);
   ~SamplingEventsProcessor() override;
 
@@ -241,11 +235,47 @@ class V8_EXPORT_PRIVATE SamplingEventsProcessor
                                      // low sampling intervals on Windows.
 };
 
+// Builds and maintains a CodeMap tracking code objects on the VM heap. While
+// alive, logs generated code, callbacks, and builtins from the isolate.
+// Redirects events to the profiler events processor when present.
+class V8_EXPORT_PRIVATE ProfilerCodeObserver : public CodeEventObserver {
+ public:
+  explicit ProfilerCodeObserver(Isolate*);
+
+  void CodeEventHandler(const CodeEventsContainer& evt_rec) override;
+
+  CodeMap* code_map() { return &code_map_; }
+
+ private:
+  friend class ProfilerEventsProcessor;
+
+  void CodeEventHandlerInternal(const CodeEventsContainer& evt_rec);
+
+  void CreateEntriesForRuntimeCallStats();
+  void LogBuiltins();
+
+  ProfilerEventsProcessor* processor() { return processor_; }
+
+  // Redirects code events to be enqueued on the given events processor.
+  void set_processor(ProfilerEventsProcessor* processor) {
+    processor_ = processor;
+  }
+
+  // Stops redirection of code events onto an events processor.
+  void clear_processor() { processor_ = nullptr; }
+
+  Isolate* const isolate_;
+  CodeMap code_map_;
+  ProfilerEventsProcessor* processor_;
+};
+
 class V8_EXPORT_PRIVATE CpuProfiler {
  public:
-  explicit CpuProfiler(Isolate* isolate, CpuProfilingNamingMode = kDebugNaming);
+  explicit CpuProfiler(Isolate* isolate, CpuProfilingNamingMode = kDebugNaming,
+                       CpuProfilingLoggingMode = kLazyLogging);
 
   CpuProfiler(Isolate* isolate, CpuProfilingNamingMode naming_mode,
+              CpuProfilingLoggingMode logging_mode,
               CpuProfilesCollection* profiles, ProfileGenerator* test_generator,
               ProfilerEventsProcessor* test_processor);
 
@@ -255,6 +285,7 @@ class V8_EXPORT_PRIVATE CpuProfiler {
 
   using ProfilingMode = v8::CpuProfilingMode;
   using NamingMode = v8::CpuProfilingNamingMode;
+  using LoggingMode = v8::CpuProfilingLoggingMode;
 
   base::TimeDelta sampling_interval() const { return base_sampling_interval_; }
   void set_sampling_interval(base::TimeDelta value);
@@ -284,8 +315,9 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   void StopProcessorIfLastProfile(const char* title);
   void StopProcessor();
   void ResetProfiles();
-  void LogBuiltins();
-  void CreateEntriesForRuntimeCallStats();
+
+  void EnableLogging();
+  void DisableLogging();
 
   // Computes a sampling interval sufficient to accomodate attached profiles.
   base::TimeDelta ComputeSamplingInterval() const;
@@ -295,6 +327,7 @@ class V8_EXPORT_PRIVATE CpuProfiler {
 
   Isolate* const isolate_;
   const NamingMode naming_mode_;
+  const LoggingMode logging_mode_;
   bool use_precise_sampling_ = true;
   // Sampling interval to which per-profile sampling intervals will be clamped
   // to a multiple of, or used as the default if unspecified.
@@ -303,6 +336,8 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   std::unique_ptr<ProfileGenerator> generator_;
   std::unique_ptr<ProfilerEventsProcessor> processor_;
   std::unique_ptr<ProfilerListener> profiler_listener_;
+  std::unique_ptr<ProfilingScope> profiling_scope_;
+  ProfilerCodeObserver code_observer_;
   bool is_profiling_;
 
   DISALLOW_COPY_AND_ASSIGN(CpuProfiler);

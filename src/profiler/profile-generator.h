@@ -494,18 +494,18 @@ class V8_EXPORT_PRIVATE CpuProfilesCollection {
 
 class V8_EXPORT_PRIVATE ProfileGenerator {
  public:
-  explicit ProfileGenerator(CpuProfilesCollection* profiles);
+  explicit ProfileGenerator(CpuProfilesCollection* profiles, CodeMap* code_map);
 
   void RecordTickSample(const TickSample& sample);
 
-  CodeMap* code_map() { return &code_map_; }
+  CodeMap* code_map() { return code_map_; }
 
  private:
   CodeEntry* FindEntry(Address address);
   CodeEntry* EntryForVMState(StateTag tag);
 
   CpuProfilesCollection* profiles_;
-  CodeMap code_map_;
+  CodeMap* const code_map_;
 
   DISALLOW_COPY_AND_ASSIGN(ProfileGenerator);
 };
