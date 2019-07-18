@@ -1051,7 +1051,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(i.OutputRegister(), i.InputRegister(0));
       __ andq(i.InputRegister(0), kSpeculationPoisonRegister);
       break;
-    case kLFence:
+    case kX64MFence:
+      __ mfence();
+      break;
+    case kX64LFence:
       __ lfence();
       break;
     case kArchStackSlot: {

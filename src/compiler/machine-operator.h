@@ -655,6 +655,9 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* LoadFramePointer();
   const Operator* LoadParentFramePointer();
 
+  // Memory barrier.
+  const Operator* MemBarrier();
+
   // atomic-load [base + index]
   const Operator* Word32AtomicLoad(LoadRepresentation rep);
   // atomic-load [base + index]

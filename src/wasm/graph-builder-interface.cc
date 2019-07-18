@@ -532,6 +532,8 @@ class WasmGraphBuildingInterface {
     if (result) result->node = node;
   }
 
+  void AtomicFence(FullDecoder* decoder) { BUILD(AtomicFence); }
+
   void MemoryInit(FullDecoder* decoder,
                   const MemoryInitImmediate<validate>& imm, const Value& dst,
                   const Value& src, const Value& size) {

@@ -1870,6 +1870,9 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
           int mod, regop, rm;
           get_modrm(*data, &mod, &regop, &rm);
           data += PrintRightOperand(data);
+        } else if (f0byte == 0xAE && (data[2] & 0xF8) == 0xF0) {
+          AppendToBuffer("mfence");
+          data += 3;
         } else if (f0byte == 0xAE && (data[2] & 0xF8) == 0xE8) {
           AppendToBuffer("lfence");
           data += 3;

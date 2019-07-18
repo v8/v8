@@ -1080,7 +1080,8 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
         node->opcode() == IrOpcode::kCall ||
         node->opcode() == IrOpcode::kCallWithCallerSavedRegisters ||
         node->opcode() == IrOpcode::kProtectedLoad ||
-        node->opcode() == IrOpcode::kProtectedStore) {
+        node->opcode() == IrOpcode::kProtectedStore ||
+        node->opcode() == IrOpcode::kMemoryBarrier) {
       ++effect_level;
     }
   }
@@ -1740,6 +1741,8 @@ void InstructionSelector::VisitNode(Node* node) {
       MarkAsWord32(node);
       MarkPairProjectionsAsWord32(node);
       return VisitWord32PairSar(node);
+    case IrOpcode::kMemoryBarrier:
+      return VisitMemoryBarrier(node);
     case IrOpcode::kWord32AtomicLoad: {
       LoadRepresentation type = LoadRepresentationOf(node->op());
       MarkAsRepresentation(type.representation(), node);

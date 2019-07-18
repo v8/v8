@@ -528,6 +528,10 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   V(I64AtomicCompareExchange16U, 0xfe4d, l_ill) \
   V(I64AtomicCompareExchange32U, 0xfe4e, l_ill)
 
+#define FOREACH_ATOMIC_0_OPERAND_OPCODE(V)                      \
+  /* AtomicFence does not target a particular linear memory. */ \
+  V(AtomicFence, 0xfe03, v_v)
+
 // All opcodes.
 #define FOREACH_OPCODE(V)             \
   FOREACH_CONTROL_OPCODE(V)           \
@@ -543,6 +547,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   FOREACH_SIMD_MASK_OPERAND_OPCODE(V) \
   FOREACH_SIMD_MEM_OPCODE(V)          \
   FOREACH_ATOMIC_OPCODE(V)            \
+  FOREACH_ATOMIC_0_OPERAND_OPCODE(V)  \
   FOREACH_NUMERIC_OPCODE(V)
 
 // All signatures.

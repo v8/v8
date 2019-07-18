@@ -1258,6 +1258,13 @@ void Assembler::emit_cmpxchg(Operand dst, Register src, int size) {
   emit_operand(src, dst);
 }
 
+void Assembler::mfence() {
+  EnsureSpace ensure_space(this);
+  emit(0x0F);
+  emit(0xAE);
+  emit(0xF0);
+}
+
 void Assembler::lfence() {
   EnsureSpace ensure_space(this);
   emit(0x0F);

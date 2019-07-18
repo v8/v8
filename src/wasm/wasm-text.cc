@@ -361,6 +361,10 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
                << " align=" << (1ULL << imm.alignment);
             break;
           }
+          FOREACH_ATOMIC_0_OPERAND_OPCODE(CASE_OPCODE) {
+            os << WasmOpcodes::OpcodeName(atomic_opcode);
+            break;
+          }
           default:
             UNREACHABLE();
             break;

@@ -387,6 +387,7 @@ class WasmGraphBuilder {
   Node* AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
                  uint32_t alignment, uint32_t offset,
                  wasm::WasmCodePosition position);
+  Node* AtomicFence();
 
   // Returns a pointer to the dropped_data_segments array. Traps if the data
   // segment is active or has been dropped.

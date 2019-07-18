@@ -2151,6 +2151,10 @@ class ThreadImpl {
       ATOMIC_STORE_CASE(I64AtomicStore16U, uint16_t, uint64_t, atomic_store);
       ATOMIC_STORE_CASE(I64AtomicStore32U, uint32_t, uint64_t, atomic_store);
 #undef ATOMIC_STORE_CASE
+      case kExprAtomicFence:
+        std::atomic_thread_fence(std::memory_order_seq_cst);
+        *len += 2;
+        break;
       default:
         UNREACHABLE();
         return false;

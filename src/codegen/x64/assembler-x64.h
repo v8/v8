@@ -1746,6 +1746,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void rorxl(Register dst, Register src, byte imm8);
   void rorxl(Register dst, Operand src, byte imm8);
 
+  void mfence();
   void lfence();
   void pause();
 

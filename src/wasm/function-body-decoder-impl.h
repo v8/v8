@@ -760,6 +760,7 @@ struct ControlBase {
     Vector<Value> values)                                                     \
   F(AtomicOp, WasmOpcode opcode, Vector<Value> args,                          \
     const MemoryAccessImmediate<validate>& imm, Value* result)                \
+  F(AtomicFence)                                                              \
   F(MemoryInit, const MemoryInitImmediate<validate>& imm, const Value& dst,   \
     const Value& src, const Value& size)                                      \
   F(DataDrop, const DataDropImmediate<validate>& imm)                         \
@@ -1416,6 +1417,12 @@ class WasmDecoder : public Decoder {
           {
             MemoryAccessImmediate<validate> imm(decoder, pc + 1, UINT32_MAX);
             return 2 + imm.length;
+          }
+#define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
+          FOREACH_ATOMIC_0_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
+#undef DECLARE_OPCODE_CASE
+          {
+            return 2 + 1;
           }
           default:
             decoder->error(pc, "invalid Atomics opcode");
@@ -2360,7 +2367,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         }
         case kAtomicPrefix: {
           CHECK_PROTOTYPE_OPCODE(threads);
-          if (!CheckHasSharedMemory()) break;
           len++;
           byte atomic_index =
               this->template read_u8<validate>(this->pc_ + 1, "atomic index");
@@ -2766,16 +2772,19 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     uint32_t len = 0;
     ValueType ret_type;
     FunctionSig* sig = WasmOpcodes::Signature(opcode);
-    if (sig != nullptr) {
-      MachineType memtype;
-      switch (opcode) {
+    if (!VALIDATE(sig != nullptr)) {
+      this->error("invalid atomic opcode");
+      return 0;
+    }
+    MachineType memtype;
+    switch (opcode) {
 #define CASE_ATOMIC_STORE_OP(Name, Type) \
   case kExpr##Name: {                    \
     memtype = MachineType::Type();       \
     ret_type = kWasmStmt;                \
     break;                               \
   }
-        ATOMIC_STORE_OP_LIST(CASE_ATOMIC_STORE_OP)
+      ATOMIC_STORE_OP_LIST(CASE_ATOMIC_STORE_OP)
 #undef CASE_ATOMIC_OP
 #define CASE_ATOMIC_OP(Name, Type) \
   case kExpr##Name: {              \
@@ -2783,22 +2792,28 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     ret_type = GetReturnType(sig); \
     break;                         \
   }
-        ATOMIC_OP_LIST(CASE_ATOMIC_OP)
+      ATOMIC_OP_LIST(CASE_ATOMIC_OP)
 #undef CASE_ATOMIC_OP
-        default:
-          this->error("invalid atomic opcode");
+      case kExprAtomicFence: {
+        byte zero = this->template read_u8<validate>(this->pc_ + 2, "zero");
+        if (!VALIDATE(zero == 0)) {
+          this->error(this->pc_ + 2, "invalid atomic operand");
           return 0;
+        }
+        CALL_INTERFACE_IF_REACHABLE(AtomicFence);
+        return 1;
       }
-      MemoryAccessImmediate<validate> imm(
-          this, this->pc_ + 1, ElementSizeLog2Of(memtype.representation()));
-      len += imm.length;
-      auto args = PopArgs(sig);
-      auto result = ret_type == kWasmStmt ? nullptr : Push(GetReturnType(sig));
-      CALL_INTERFACE_IF_REACHABLE(AtomicOp, opcode, VectorOf(args), imm,
-                                  result);
-    } else {
-      this->error("invalid atomic opcode");
+      default:
+        this->error("invalid atomic opcode");
+        return 0;
     }
+    if (!CheckHasSharedMemory()) return 0;
+    MemoryAccessImmediate<validate> imm(
+        this, this->pc_ + 1, ElementSizeLog2Of(memtype.representation()));
+    len += imm.length;
+    auto args = PopArgs(sig);
+    auto result = ret_type == kWasmStmt ? nullptr : Push(GetReturnType(sig));
+    CALL_INTERFACE_IF_REACHABLE(AtomicOp, opcode, VectorOf(args), imm, result);
     return len;
   }
 

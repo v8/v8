@@ -305,6 +305,7 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     // Atomic operations.
     CASE_OP(AtomicNotify, "atomic.notify")
     CASE_INT_OP(AtomicWait, "atomic.wait")
+    CASE_OP(AtomicFence, "atomic.fence")
     CASE_UNSIGNED_ALL_OP(AtomicLoad, "atomic.load")
     CASE_UNSIGNED_ALL_OP(AtomicStore, "atomic.store")
     CASE_UNSIGNED_ALL_OP(AtomicAdd, "atomic.add")
@@ -508,7 +509,8 @@ struct GetSimdOpcodeSigIndex {
 struct GetAtomicOpcodeSigIndex {
   constexpr WasmOpcodeSig operator()(byte opcode) const {
 #define CASE(name, opc, sig) opcode == (opc & 0xFF) ? kSigEnum_##sig:
-    return FOREACH_ATOMIC_OPCODE(CASE) kSigEnum_None;
+    return FOREACH_ATOMIC_OPCODE(CASE) FOREACH_ATOMIC_0_OPERAND_OPCODE(CASE)
+        kSigEnum_None;
 #undef CASE
 }
 };

@@ -1752,6 +1752,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+    case kArmDmbIsh: {
+      __ dmb(ISH);
+      break;
+    }
     case kArmDsbIsb: {
       __ dsb(SY);
       __ isb(SY);

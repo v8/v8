@@ -778,6 +778,14 @@ struct MachineOperatorGlobalCache {
   };
   Word32AtomicPairCompareExchangeOperator kWord32AtomicPairCompareExchange;
 
+  struct MemoryBarrierOperator : public Operator {
+    MemoryBarrierOperator()
+        : Operator(IrOpcode::kMemoryBarrier,
+                   Operator::kNoDeopt | Operator::kNoThrow, "MemoryBarrier", 0,
+                   1, 1, 0, 1, 0) {}
+  };
+  MemoryBarrierOperator kMemoryBarrier;
+
   // The {BitcastWordToTagged} operator must not be marked as pure (especially
   // not idempotent), because otherwise the splitting logic in the Scheduler
   // might decide to split these operators, thus potentially creating live
@@ -1039,6 +1047,10 @@ const Operator* MachineOperatorBuilder::DebugBreak() {
 
 const Operator* MachineOperatorBuilder::Comment(const char* msg) {
   return new (zone_) CommentOperator(msg);
+}
+
+const Operator* MachineOperatorBuilder::MemBarrier() {
+  return &cache_.kMemoryBarrier;
 }
 
 const Operator* MachineOperatorBuilder::Word32AtomicLoad(

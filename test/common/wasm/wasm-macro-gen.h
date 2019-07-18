@@ -697,6 +697,7 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
       static_cast<byte>(ElementSizeLog2Of(representation)), ZERO_OFFSET
 #define WASM_ATOMICS_WAIT(op, index, value, timeout, offset) \
   index, value, timeout, WASM_ATOMICS_OP(op), ZERO_ALIGNMENT, offset
+#define WASM_ATOMICS_FENCE WASM_ATOMICS_OP(kExprAtomicFence), ZERO_OFFSET
 
 //------------------------------------------------------------------------------
 // Sign Externsion Operations.

@@ -354,7 +354,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Poke:
       return kHasSideEffect;
 
-    case kLFence:
+    case kX64MFence:
+    case kX64LFence:
       return kHasSideEffect;
 
     case kX64Word64AtomicLoadUint8:

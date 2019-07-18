@@ -1217,7 +1217,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchWordPoisonOnSpeculation:
       // TODO(860429): Remove remaining poisoning infrastructure on ia32.
       UNREACHABLE();
-    case kLFence:
+    case kIA32MFence:
+      __ mfence();
+      break;
+    case kIA32LFence:
       __ lfence();
       break;
     case kSSEFloat32Cmp:

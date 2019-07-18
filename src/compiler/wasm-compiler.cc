@@ -4695,6 +4695,11 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
   return SetEffect(node);
 }
 
+Node* WasmGraphBuilder::AtomicFence() {
+  return SetEffect(graph()->NewNode(mcgraph()->machine()->MemBarrier(),
+                                    Effect(), Control()));
+}
+
 #undef ATOMIC_BINOP_LIST
 #undef ATOMIC_CMP_EXCHG_LIST
 #undef ATOMIC_LOAD_LIST

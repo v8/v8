@@ -2007,6 +2007,9 @@ class LiftoffCompiler {
                 const MemoryAccessImmediate<validate>& imm, Value* result) {
     unsupported(decoder, kAtomics, "atomicop");
   }
+  void AtomicFence(FullDecoder* decoder) {
+    unsupported(decoder, kAtomics, "atomic.fence");
+  }
   void MemoryInit(FullDecoder* decoder,
                   const MemoryInitImmediate<validate>& imm, const Value& dst,
                   const Value& src, const Value& size) {

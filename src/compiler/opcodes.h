@@ -714,6 +714,7 @@
   V(Word32PairSar)                          \
   V(ProtectedLoad)                          \
   V(ProtectedStore)                         \
+  V(MemoryBarrier)                          \
   V(Word32AtomicLoad)                       \
   V(Word32AtomicStore)                      \
   V(Word32AtomicExchange)                   \

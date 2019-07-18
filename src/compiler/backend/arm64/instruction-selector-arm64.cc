@@ -2801,6 +2801,11 @@ void InstructionSelector::VisitFloat64Mul(Node* node) {
   return VisitRRR(this, kArm64Float64Mul, node);
 }
 
+void InstructionSelector::VisitMemoryBarrier(Node* node) {
+  Arm64OperandGenerator g(this);
+  Emit(kArm64DmbIsh, g.NoOutput());
+}
+
 void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());
   ArchOpcode opcode = kArchNop;
