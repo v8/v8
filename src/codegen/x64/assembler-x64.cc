@@ -2007,84 +2007,37 @@ void Assembler::emit_not(Operand dst, int size) {
 }
 
 void Assembler::Nop(int n) {
+  DCHECK_LE(0, n);
   // The recommended muti-byte sequences of NOP instructions from the Intel 64
   // and IA-32 Architectures Software Developer's Manual.
   //
-  // Length   Assembly                                Byte Sequence
-  // 2 bytes  66 NOP                                  66 90H
-  // 3 bytes  NOP DWORD ptr [EAX]                     0F 1F 00H
-  // 4 bytes  NOP DWORD ptr [EAX + 00H]               0F 1F 40 00H
-  // 5 bytes  NOP DWORD ptr [EAX + EAX*1 + 00H]       0F 1F 44 00 00H
-  // 6 bytes  66 NOP DWORD ptr [EAX + EAX*1 + 00H]    66 0F 1F 44 00 00H
-  // 7 bytes  NOP DWORD ptr [EAX + 00000000H]         0F 1F 80 00 00 00 00H
-  // 8 bytes  NOP DWORD ptr [EAX + EAX*1 + 00000000H] 0F 1F 84 00 00 00 00 00H
-  // 9 bytes  66 NOP DWORD ptr [EAX + EAX*1 +         66 0F 1F 84 00 00 00 00
-  //          00000000H]                              00H
+  // Len Assembly                                    Byte Sequence
+  // 2   66 NOP                                      66 90H
+  // 3   NOP DWORD ptr [EAX]                         0F 1F 00H
+  // 4   NOP DWORD ptr [EAX + 00H]                   0F 1F 40 00H
+  // 5   NOP DWORD ptr [EAX + EAX*1 + 00H]           0F 1F 44 00 00H
+  // 6   66 NOP DWORD ptr [EAX + EAX*1 + 00H]        66 0F 1F 44 00 00H
+  // 7   NOP DWORD ptr [EAX + 00000000H]             0F 1F 80 00 00 00 00H
+  // 8   NOP DWORD ptr [EAX + EAX*1 + 00000000H]     0F 1F 84 00 00 00 00 00H
+  // 9   66 NOP DWORD ptr [EAX + EAX*1 + 00000000H]  66 0F 1F 84 00 00 00 00 00H
 
-  EnsureSpace ensure_space(this);
-  while (n > 0) {
-    switch (n) {
-      case 2:
-        emit(0x66);
-        V8_FALLTHROUGH;
-      case 1:
-        emit(0x90);
-        return;
-      case 3:
-        emit(0x0F);
-        emit(0x1F);
-        emit(0x00);
-        return;
-      case 4:
-        emit(0x0F);
-        emit(0x1F);
-        emit(0x40);
-        emit(0x00);
-        return;
-      case 6:
-        emit(0x66);
-        V8_FALLTHROUGH;
-      case 5:
-        emit(0x0F);
-        emit(0x1F);
-        emit(0x44);
-        emit(0x00);
-        emit(0x00);
-        return;
-      case 7:
-        emit(0x0F);
-        emit(0x1F);
-        emit(0x80);
-        emit(0x00);
-        emit(0x00);
-        emit(0x00);
-        emit(0x00);
-        return;
-      default:
-      case 11:
-        emit(0x66);
-        n--;
-        V8_FALLTHROUGH;
-      case 10:
-        emit(0x66);
-        n--;
-        V8_FALLTHROUGH;
-      case 9:
-        emit(0x66);
-        n--;
-        V8_FALLTHROUGH;
-      case 8:
-        emit(0x0F);
-        emit(0x1F);
-        emit(0x84);
-        emit(0x00);
-        emit(0x00);
-        emit(0x00);
-        emit(0x00);
-        emit(0x00);
-        n -= 8;
-    }
-  }
+  constexpr const char* kNopSequences =
+      "\x66\x90"                               // length 1 (@1) / 2 (@0)
+      "\x0F\x1F\x00"                           // length 3 (@2)
+      "\x0F\x1F\x40\x00"                       // length 4 (@5)
+      "\x66\x0F\x1F\x44\x00\x00"               // length 5 (@10) / 6 (@9)
+      "\x0F\x1F\x80\x00\x00\x00\x00"           // length 7 (@15)
+      "\x66\x0F\x1F\x84\x00\x00\x00\x00\x00";  // length 8 (@23) / 9 (@22)
+  constexpr int8_t kNopOffsets[10] = {0, 1, 0, 2, 5, 10, 9, 15, 23, 22};
+
+  do {
+    EnsureSpace ensure_space(this);
+    int nop_bytes = std::min(n, 9);
+    const char* sequence = kNopSequences + kNopOffsets[nop_bytes];
+    memcpy(pc_, sequence, nop_bytes);
+    pc_ += nop_bytes;
+    n -= nop_bytes;
+  } while (n);
 }
 
 void Assembler::popq(Register dst) {
