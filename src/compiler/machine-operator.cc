@@ -246,6 +246,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(Word32PairShr, Operator::kNoProperties, 3, 0, 2)                          \
   V(Word32PairSar, Operator::kNoProperties, 3, 0, 2)                          \
   V(F64x2Splat, Operator::kNoProperties, 1, 0, 1)                             \
+  V(F64x2Abs, Operator::kNoProperties, 1, 0, 1)                               \
   V(F64x2Eq, Operator::kCommutative, 2, 0, 1)                                 \
   V(F64x2Ne, Operator::kCommutative, 2, 0, 1)                                 \
   V(F64x2Lt, Operator::kNoProperties, 2, 0, 1)                                \

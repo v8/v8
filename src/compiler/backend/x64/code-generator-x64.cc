@@ -2275,6 +2275,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ movq(i.OutputDoubleRegister(), kScratchRegister);
       break;
     }
+    case kX64F64x2Abs: {
+      // TODO(zhin): look at kSSEFloat64Abs instruction selection and codegen to
+      // avoid having 2 cases here, and potentially share code
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(0);
+      if (dst == src) {
+        __ pcmpeqq(kScratchDoubleReg, kScratchDoubleReg);
+        __ psrlq(kScratchDoubleReg, 1);
+        __ andpd(dst, kScratchDoubleReg);
+      } else {
+        __ pcmpeqq(dst, dst);
+        __ psrlq(dst, 1);
+        __ andpd(dst, src);
+      }
+      break;
+    }
     case kX64F64x2Eq: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ cmpeqpd(i.OutputSimd128Register(), i.InputSimd128Register(1));

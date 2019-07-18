@@ -238,6 +238,7 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_F64x2_OP(Le, "le")
     CASE_F64x2_OP(Gt, "gt")
     CASE_F64x2_OP(Ge, "ge")
+    CASE_F64x2_OP(Abs, "abs")
     CASE_F32x4_OP(Abs, "abs")
     CASE_F32x4_OP(AddHoriz, "add_horizontal")
     CASE_F32x4_OP(RecipApprox, "recip_approx")

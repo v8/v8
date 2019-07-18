@@ -19,6 +19,7 @@ namespace test_run_wasm_simd {
 
 namespace {
 
+using DoubleUnOp = double (*)(double);
 using DoubleCompareOp = int64_t (*)(double, double);
 using FloatUnOp = float (*)(float);
 using FloatBinOp = float (*)(float, float);
@@ -840,6 +841,117 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Lt) {
 
 WASM_SIMD_TEST_NO_LOWERING(F64x2Le) {
   RunF64x2CompareOpTest(execution_tier, lower_simd, kExprF64x2Le, LessEqual);
+}
+
+bool IsSameNan(double expected, double actual) {
+  // Sign is non-deterministic.
+  uint64_t expected_bits = bit_cast<uint64_t>(expected) & ~0x8000000000000000;
+  uint64_t actual_bits = bit_cast<uint64_t>(actual) & ~0x8000000000000000;
+  // Some implementations convert signaling NaNs to quiet NaNs.
+  return (expected_bits == actual_bits) ||
+         ((expected_bits | 0x0008000000000000) == actual_bits);
+}
+
+bool IsCanonical(double actual) {
+  uint64_t actual_bits = bit_cast<uint64_t>(actual);
+  // Canonical NaN has quiet bit and no payload.
+  return (actual_bits & 0xFF80000000000000) == actual_bits;
+}
+
+void CheckDoubleResult(double x, double y, double expected, double actual,
+                       bool exact = true) {
+  if (std::isnan(expected)) {
+    CHECK(std::isnan(actual));
+    if (std::isnan(x) && IsSameNan(x, actual)) return;
+    if (std::isnan(y) && IsSameNan(y, actual)) return;
+    if (IsSameNan(expected, actual)) return;
+    if (IsCanonical(actual)) return;
+    // This is expected to assert; it's useful for debugging.
+    CHECK_EQ(bit_cast<uint64_t>(expected), bit_cast<uint64_t>(actual));
+  } else {
+    if (exact) {
+      CHECK_EQ(expected, actual);
+      // The sign of 0's must match.
+      CHECK_EQ(std::signbit(expected), std::signbit(actual));
+      return;
+    }
+    // Otherwise, perform an approximate equality test. First check for
+    // equality to handle +/-Infinity where approximate equality doesn't work.
+    if (expected == actual) return;
+
+    // 1% error allows all platforms to pass easily.
+    constexpr double kApproximationError = 0.01f;
+    double abs_error = std::abs(expected) * kApproximationError,
+           min = expected - abs_error, max = expected + abs_error;
+    CHECK_LE(min, actual);
+    CHECK_GE(max, actual);
+  }
+}
+
+// Test some values not included in the double inputs from value_helper. These
+// tests are useful for opcodes that are synthesized during code gen, like Min
+// and Max on ia32 and x64.
+static constexpr uint64_t double_nan_test_array[] = {
+    // quiet NaNs, + and -
+    0x7FF8000000000001, 0xFFF8000000000001,
+    // with payload
+    0x7FF8000000000011, 0xFFF8000000000011,
+    // signaling NaNs, + and -
+    0x7FF0000000000001, 0xFFF0000000000001,
+    // with payload
+    0x7FF0000000000011, 0xFFF0000000000011,
+    // Both Infinities.
+    0x7FF0000000000000, 0xFFF0000000000000,
+    // Some "normal" numbers, 1 and -1.
+    0x3FF0000000000000, 0xBFF0000000000000};
+
+#define FOR_FLOAT64_NAN_INPUTS(i) \
+  for (size_t i = 0; i < arraysize(double_nan_test_array); ++i)
+
+void RunF64x2UnOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
+                      WasmOpcode opcode, DoubleUnOp expected_op,
+                      bool exact = true) {
+  WasmRunner<int32_t, double> r(execution_tier, lower_simd);
+  // Global to hold output.
+  double* g = r.builder().AddGlobal<double>(kWasmS128);
+  // Build fn to splat test value, perform unop, and write the result.
+  byte value = 0;
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(value))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_UNOP(opcode, WASM_GET_LOCAL(temp1))),
+        WASM_ONE);
+
+  FOR_FLOAT64_INPUTS(x) {
+    if (!PlatformCanRepresent(x)) continue;
+    // Extreme values have larger errors so skip them for approximation tests.
+    if (!exact && IsExtreme(x)) continue;
+    double expected = expected_op(x);
+    if (!PlatformCanRepresent(expected)) continue;
+    r.Call(x);
+    for (int i = 0; i < 2; i++) {
+      double actual = ReadLittleEndianValue<double>(&g[i]);
+      CheckFloatResult(x, x, expected, actual, exact);
+    }
+  }
+
+  FOR_FLOAT64_NAN_INPUTS(i) {
+    double x = bit_cast<double>(double_nan_test_array[i]);
+    if (!PlatformCanRepresent(x)) continue;
+    // Extreme values have larger errors so skip them for approximation tests.
+    if (!exact && IsExtreme(x)) continue;
+    double expected = expected_op(x);
+    if (!PlatformCanRepresent(expected)) continue;
+    r.Call(x);
+    for (int i = 0; i < 2; i++) {
+      double actual = ReadLittleEndianValue<double>(&g[i]);
+      CheckDoubleResult(x, x, expected, actual, exact);
+    }
+  }
+}
+#undef FOR_FLOAT64_NAN_INPUTS
+
+WASM_SIMD_TEST_NO_LOWERING(F64x2Abs) {
+  RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2Abs, std::abs);
 }
 
 WASM_SIMD_TEST_NO_LOWERING(I64x2Splat) {

@@ -743,6 +743,7 @@
   V(F64x2Splat)                 \
   V(F64x2ExtractLane)           \
   V(F64x2ReplaceLane)           \
+  V(F64x2Abs)                   \
   V(F64x2Eq)                    \
   V(F64x2Ne)                    \
   V(F64x2Lt)                    \
