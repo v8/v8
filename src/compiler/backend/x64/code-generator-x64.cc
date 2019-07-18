@@ -1318,16 +1318,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kSSEFloat32Abs: {
       // TODO(bmeurer): Use RIP relative 128-bit constants.
-      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ psrlq(kScratchDoubleReg, 33);
-      __ andps(i.OutputDoubleRegister(), kScratchDoubleReg);
+      __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+      __ Psrlq(kScratchDoubleReg, 33);
+      __ Andps(i.OutputDoubleRegister(), kScratchDoubleReg);
       break;
     }
     case kSSEFloat32Neg: {
       // TODO(bmeurer): Use RIP relative 128-bit constants.
-      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ psllq(kScratchDoubleReg, 31);
-      __ xorps(i.OutputDoubleRegister(), kScratchDoubleReg);
+      __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+      __ Psllq(kScratchDoubleReg, 31);
+      __ Xorps(i.OutputDoubleRegister(), kScratchDoubleReg);
       break;
     }
     case kSSEFloat32Sqrt:
@@ -1528,16 +1528,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kSSEFloat64Abs: {
       // TODO(bmeurer): Use RIP relative 128-bit constants.
-      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ psrlq(kScratchDoubleReg, 1);
-      __ andpd(i.OutputDoubleRegister(), kScratchDoubleReg);
+      __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+      __ Psrlq(kScratchDoubleReg, 1);
+      __ Andpd(i.OutputDoubleRegister(), kScratchDoubleReg);
       break;
     }
     case kSSEFloat64Neg: {
       // TODO(bmeurer): Use RIP relative 128-bit constants.
-      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ psllq(kScratchDoubleReg, 63);
-      __ xorpd(i.OutputDoubleRegister(), kScratchDoubleReg);
+      __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+      __ Psllq(kScratchDoubleReg, 63);
+      __ Xorpd(i.OutputDoubleRegister(), kScratchDoubleReg);
       break;
     }
     case kSSEFloat64Sqrt:
@@ -2021,11 +2021,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64Movss:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
       if (instr->HasOutput()) {
-        __ movss(i.OutputDoubleRegister(), i.MemoryOperand());
+        __ Movss(i.OutputDoubleRegister(), i.MemoryOperand());
       } else {
         size_t index = 0;
         Operand operand = i.MemoryOperand(&index);
-        __ movss(operand, i.InputDoubleRegister(index));
+        __ Movss(operand, i.InputDoubleRegister(index));
       }
       break;
     case kX64Movsd: {
@@ -2054,11 +2054,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope(tasm(), SSSE3);
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
       if (instr->HasOutput()) {
-        __ movdqu(i.OutputSimd128Register(), i.MemoryOperand());
+        __ Movdqu(i.OutputSimd128Register(), i.MemoryOperand());
       } else {
         size_t index = 0;
         Operand operand = i.MemoryOperand(&index);
-        __ movdqu(operand, i.InputSimd128Register(index));
+        __ Movdqu(operand, i.InputSimd128Register(index));
       }
       break;
     }
@@ -2080,7 +2080,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (instr->InputAt(0)->IsRegister()) {
         __ Movd(i.OutputDoubleRegister(), i.InputRegister(0));
       } else {
-        __ movss(i.OutputDoubleRegister(), i.InputOperand(0));
+        __ Movss(i.OutputDoubleRegister(), i.InputOperand(0));
       }
       break;
     case kX64BitcastLD:
@@ -4076,7 +4076,7 @@ void CodeGenerator::AssembleConstructFrame() {
     int slot_idx = 0;
     for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       if (!((1 << i) & saves_fp)) continue;
-      __ movdqu(Operand(rsp, kQuadWordSize * slot_idx),
+      __ Movdqu(Operand(rsp, kQuadWordSize * slot_idx),
                 XMMRegister::from_code(i));
       slot_idx++;
     }
@@ -4118,7 +4118,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
     int slot_idx = 0;
     for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       if (!((1 << i) & saves_fp)) continue;
-      __ movdqu(XMMRegister::from_code(i),
+      __ Movdqu(XMMRegister::from_code(i),
                 Operand(rsp, kQuadWordSize * slot_idx));
       slot_idx++;
     }

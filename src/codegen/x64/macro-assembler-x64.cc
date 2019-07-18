@@ -1771,6 +1771,42 @@ void TurboAssembler::Pinsrd(XMMRegister dst, Operand src, int8_t imm8) {
   }
 }
 
+void TurboAssembler::Psllq(XMMRegister dst, byte imm8) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpsllq(dst, dst, imm8);
+  } else {
+    psllq(dst, imm8);
+  }
+}
+
+void TurboAssembler::Psrlq(XMMRegister dst, byte imm8) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpsrlq(dst, dst, imm8);
+  } else {
+    psrlq(dst, imm8);
+  }
+}
+
+void TurboAssembler::Pslld(XMMRegister dst, byte imm8) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpslld(dst, dst, imm8);
+  } else {
+    pslld(dst, imm8);
+  }
+}
+
+void TurboAssembler::Psrld(XMMRegister dst, byte imm8) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpsrld(dst, dst, imm8);
+  } else {
+    psrld(dst, imm8);
+  }
+}
+
 void TurboAssembler::Lzcntl(Register dst, Register src) {
   if (CpuFeatures::IsSupported(LZCNT)) {
     CpuFeatureScope scope(this, LZCNT);

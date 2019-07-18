@@ -1305,6 +1305,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   void vmovsd(XMMRegister dst, Operand src) { vsd(0x10, dst, xmm0, src); }
   void vmovsd(Operand dst, XMMRegister src) { vsd(0x11, src, xmm0, dst); }
+  void vmovdqu(XMMRegister dst, Operand src);
+  void vmovdqu(Operand dst, XMMRegister src);
 
 #define AVX_SP_3(instr, opcode) \
   AVX_S_3(instr, opcode)        \
