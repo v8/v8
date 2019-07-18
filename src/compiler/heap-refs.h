@@ -326,15 +326,14 @@ class ContextRef : public HeapObjectRef {
   using HeapObjectRef::HeapObjectRef;
   Handle<Context> object() const;
 
-  void SerializeContextChain();
+  // {previous} decrements {depth} by 1 for each previous link successfully
+  // followed. If {depth} != 0 on function return, then it only got
+  // partway to the desired depth. If {serialize} is true, then
+  // {previous} will cache its findings.
+  ContextRef previous(size_t* depth, bool serialize = false) const;
 
-  // {previous} decrements n by 1 for each previous link successfully
-  // followed. If depth != 0 on function return, then it only got
-  // partway to the desired depth.
-  ContextRef previous(size_t* depth) const;
-
-  void SerializeSlot(int index);
-  base::Optional<ObjectRef> get(int index) const;
+  // Only returns a value if the index is valid for this ContextRef.
+  base::Optional<ObjectRef> get(int index, bool serialize = false) const;
 
   // We only serialize the ScopeInfo if certain Promise
   // builtins are called.

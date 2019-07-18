@@ -1106,13 +1106,11 @@ void SerializerForBackgroundCompilation::VisitPopContext(
 void SerializerForBackgroundCompilation::ProcessImmutableLoad(
     ContextRef& context_ref, int slot, ContextProcessingMode mode) {
   DCHECK(mode == kSerializeSlot || mode == kSerializeSlotAndAddToAccumulator);
-  context_ref.SerializeSlot(slot);
+  base::Optional<ObjectRef> slot_value = context_ref.get(slot, true);
 
   // Also, put the object into the constant hints for the accumulator.
-  if (mode == kSerializeSlotAndAddToAccumulator) {
-    Handle<Object> slot_value(context_ref.object()->get(slot),
-                              broker()->isolate());
-    environment()->accumulator_hints().AddConstant(slot_value);
+  if (mode == kSerializeSlotAndAddToAccumulator && slot_value.has_value()) {
+    environment()->accumulator_hints().AddConstant(slot_value.value().object());
   }
 }
 
@@ -1128,28 +1126,20 @@ void SerializerForBackgroundCompilation::ProcessContextAccess(
     if (x->IsContext()) {
       // Walk this context to the given depth and serialize the slot found.
       ContextRef context_ref(broker(), x);
-      // TODO(mvstanton): Add a depth parameter to SerializeContextChain.
-      context_ref.SerializeContextChain();
-      if (mode != kIgnoreSlot) {
-        size_t remaining_depth = depth;
-        context_ref = context_ref.previous(&remaining_depth);
-        if (remaining_depth == 0) {
-          ProcessImmutableLoad(context_ref, slot, mode);
-        }
+      size_t remaining_depth = depth;
+      context_ref = context_ref.previous(&remaining_depth, true);
+      if (remaining_depth == 0 && mode != kIgnoreSlot) {
+        ProcessImmutableLoad(context_ref, slot, mode);
       }
     }
   }
   for (auto x : context_hints.virtual_contexts()) {
     if (x.distance <= static_cast<unsigned int>(depth)) {
       ContextRef context_ref(broker(), x.context);
-      // TODO(mvstanton): Add a depth parameter to SerializeContextChain.
-      context_ref.SerializeContextChain();
-      if (mode != kIgnoreSlot) {
-        size_t remaining_depth = depth - x.distance;
-        context_ref = context_ref.previous(&remaining_depth);
-        if (remaining_depth == 0) {
-          ProcessImmutableLoad(context_ref, slot, mode);
-        }
+      size_t remaining_depth = depth - x.distance;
+      context_ref = context_ref.previous(&remaining_depth, true);
+      if (remaining_depth == 0 && mode != kIgnoreSlot) {
+        ProcessImmutableLoad(context_ref, slot, mode);
       }
     }
   }
@@ -1437,7 +1427,7 @@ void SerializerForBackgroundCompilation::VisitCallJSRuntime(
   // BytecodeGraphBuilder::VisitCallJSRuntime needs the {runtime_index}
   // slot in the native context to be serialized.
   const int runtime_index = iterator->GetNativeContextIndexOperand(0);
-  broker()->native_context().SerializeSlot(runtime_index);
+  broker()->native_context().get(runtime_index, true);
 }
 
 Hints SerializerForBackgroundCompilation::RunChildSerializer(

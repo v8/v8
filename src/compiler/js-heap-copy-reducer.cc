@@ -31,7 +31,6 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       if (object.IsJSFunction()) object.AsJSFunction().Serialize();
       if (object.IsJSObject()) object.AsJSObject().SerializeObjectCreateMap();
       if (object.IsSourceTextModule()) object.AsSourceTextModule().Serialize();
-      if (object.IsContext()) object.AsContext().SerializeContextChain();
       break;
     }
     case IrOpcode::kJSCreateArray: {

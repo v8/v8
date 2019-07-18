@@ -576,21 +576,15 @@ class ContextData : public HeapObjectData {
  public:
   ContextData(JSHeapBroker* broker, ObjectData** storage,
               Handle<Context> object);
-  void SerializeContextChain(JSHeapBroker* broker);
 
-  ContextData* previous() const {
-    return previous_;
-  }
+  // {previous} will return the closest valid context possible to desired
+  // {depth}, decrementing {depth} for each previous link successfully followed.
+  // If {serialize} is true, it will serialize contexts along the way.
+  ContextData* previous(JSHeapBroker* broker, size_t* depth, bool serialize);
 
-  void SerializeSlot(JSHeapBroker* broker, int index);
-
-  ObjectData* GetSlot(int index) {
-    auto search = slots_.find(index);
-    if (search != slots_.end()) {
-      return search->second;
-    }
-    return nullptr;
-  }
+  // Returns nullptr if the slot index isn't valid or wasn't serialized
+  // (unless {serialize} is true).
+  ObjectData* GetSlot(JSHeapBroker* broker, int index, bool serialize);
 
  private:
   ZoneMap<int, ObjectData*> slots_;
@@ -601,25 +595,46 @@ ContextData::ContextData(JSHeapBroker* broker, ObjectData** storage,
                          Handle<Context> object)
     : HeapObjectData(broker, storage, object), slots_(broker->zone()) {}
 
-void ContextData::SerializeContextChain(JSHeapBroker* broker) {
-  if (previous_ != nullptr) return;
+ContextData* ContextData::previous(JSHeapBroker* broker, size_t* depth,
+                                   bool serialize) {
+  if (*depth == 0) return this;
 
-  Handle<Context> context = Handle<Context>::cast(object());
-  // Context::previous DCHECK-fails when called on the native context.
-  if (!context->IsNativeContext()) {
-    TraceScope tracer(broker, this, "ContextData::SerializeContextChain");
-    previous_ = broker->GetOrCreateData(context->previous())->AsContext();
-    previous_->SerializeContextChain(broker);
+  if (serialize && previous_ == nullptr) {
+    TraceScope tracer(broker, this, "ContextData::previous");
+    Handle<Context> context = Handle<Context>::cast(object());
+    Context prev = context->previous();
+    if (!prev.is_null()) {
+      previous_ = broker->GetOrCreateData(prev)->AsContext();
+    }
   }
+
+  if (previous_ != nullptr) {
+    *depth = *depth - 1;
+    return previous_->previous(broker, depth, serialize);
+  }
+  return this;
 }
 
-void ContextData::SerializeSlot(JSHeapBroker* broker, int index) {
-  TraceScope tracer(broker, this, "ContextData::SerializeSlot");
-  TRACE(broker, "Serializing context slot " << index);
-  Handle<Context> context = Handle<Context>::cast(object());
-  CHECK(index >= 0 && index < context->length());
-  ObjectData* odata = broker->GetOrCreateData(context->get(index));
-  slots_.insert(std::make_pair(index, odata));
+ObjectData* ContextData::GetSlot(JSHeapBroker* broker, int index,
+                                 bool serialize) {
+  CHECK_GE(index, 0);
+  auto search = slots_.find(index);
+  if (search != slots_.end()) {
+    return search->second;
+  }
+
+  if (serialize) {
+    Handle<Context> context = Handle<Context>::cast(object());
+    if (index < context->length()) {
+      TraceScope tracer(broker, this, "ContextData::GetSlot");
+      TRACE(broker, "Serializing context slot " << index);
+      ObjectData* odata = broker->GetOrCreateData(context->get(index));
+      slots_.insert(std::make_pair(index, odata));
+      return odata;
+    }
+  }
+
+  return nullptr;
 }
 
 class NativeContextData : public ContextData {
@@ -2067,35 +2082,31 @@ bool ObjectRef::equals(const ObjectRef& other) const {
 
 Isolate* ObjectRef::isolate() const { return broker()->isolate(); }
 
-ContextRef ContextRef::previous(size_t* depth) const {
+ContextRef ContextRef::previous(size_t* depth, bool serialize) const {
   DCHECK_NOT_NULL(depth);
-  DCHECK_GE(*depth, 0);
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference handle_dereference;
     Context current = *object();
-    while (*depth != 0) {
+    while (*depth != 0 && !current.previous().is_null()) {
       current = current.previous();
       (*depth)--;
     }
     return ContextRef(broker(), handle(current, broker()->isolate()));
   }
   ContextData* current = this->data()->AsContext();
-  while (*depth != 0 && current->previous() != nullptr) {
-    current = current->previous();
-    (*depth)--;
-  }
-  return ContextRef(broker(), current);
+  return ContextRef(broker(), current->previous(broker(), depth, serialize));
 }
 
-base::Optional<ObjectRef> ContextRef::get(int index) const {
+base::Optional<ObjectRef> ContextRef::get(int index, bool serialize) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference handle_dereference;
     Handle<Object> value(object()->get(index), broker()->isolate());
     return ObjectRef(broker(), value);
   }
-  ObjectData* optional_slot = data()->AsContext()->GetSlot(index);
+  ObjectData* optional_slot =
+      data()->AsContext()->GetSlot(broker(), index, serialize);
   if (optional_slot != nullptr) {
     return ObjectRef(broker(), optional_slot);
   }
@@ -3718,18 +3729,6 @@ void SourceTextModuleRef::Serialize() {
   data()->AsSourceTextModule()->Serialize(broker());
 }
 
-void ContextRef::SerializeContextChain() {
-  if (broker()->mode() == JSHeapBroker::kDisabled) return;
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  data()->AsContext()->SerializeContextChain(broker());
-}
-
-void ContextRef::SerializeSlot(int index) {
-  if (broker()->mode() == JSHeapBroker::kDisabled) return;
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  data()->AsContext()->SerializeSlot(broker(), index);
-}
-
 void NativeContextRef::Serialize() {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
@@ -4053,7 +4052,7 @@ GlobalAccessFeedback const* JSHeapBroker::ProcessFeedbackForGlobalAccess(
     }
     ContextRef context_ref(this, context);
     if (immutable) {
-      context_ref.SerializeSlot(context_slot_index);
+      context_ref.get(context_slot_index, true);
     }
     return new (zone())
         GlobalAccessFeedback(context_ref, context_slot_index, immutable);
