@@ -13,7 +13,7 @@
 #include "src/base/platform/semaphore.h"
 #include "src/base/template-utils.h"
 #include "src/execution/vm-state-inl.h"
-#include "src/heap/array-buffer-tracker-inl.h"
+#include "src/heap/array-buffer-tracker.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/gc-tracer.h"
@@ -2068,7 +2068,7 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
       } else if (object.IsJSArrayBuffer()) {
         JSArrayBuffer array_buffer = JSArrayBuffer::cast(object);
         if (ArrayBufferTracker::IsTracked(array_buffer)) {
-          size_t size = PerIsolateAccountingLength(array_buffer);
+          size_t size = array_buffer.byte_length();
           external_page_bytes[ExternalBackingStoreType::kArrayBuffer] += size;
         }
       }
@@ -2557,7 +2557,7 @@ void NewSpace::Verify(Isolate* isolate) {
       } else if (object.IsJSArrayBuffer()) {
         JSArrayBuffer array_buffer = JSArrayBuffer::cast(object);
         if (ArrayBufferTracker::IsTracked(array_buffer)) {
-          size_t size = PerIsolateAccountingLength(array_buffer);
+          size_t size = array_buffer.byte_length();
           external_space_bytes[ExternalBackingStoreType::kArrayBuffer] += size;
         }
       }

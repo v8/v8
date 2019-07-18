@@ -266,9 +266,7 @@ class Symbol;
   V(HeapObject, weak_refs_keep_during_job, WeakRefsKeepDuringJob)          \
   V(HeapObject, interpreter_entry_trampoline_for_profiling,                \
     InterpreterEntryTrampolineForProfiling)                                \
-  V(Object, pending_optimize_for_test_bytecode,                            \
-    PendingOptimizeForTestBytecode)                                        \
-  V(WeakArrayList, shared_wasm_memories, SharedWasmMemories)
+  V(Object, pending_optimize_for_test_bytecode, PendingOptimizeForTestBytecode)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                       \
