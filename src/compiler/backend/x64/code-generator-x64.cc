@@ -588,17 +588,18 @@ void EmitWordLoadPoisoningIfNeeded(
     __ opcode(i.OutputSimd128Register(), i.InputSimd128Register(1), imm); \
   } while (false)
 
-#define ASSEMBLE_SIMD_ALL_TRUE(opcode)                       \
-  do {                                                       \
-    CpuFeatureScope sse_scope(tasm(), SSE4_1);               \
-    Register dst = i.OutputRegister();                       \
-    Register tmp = i.TempRegister(0);                        \
-    __ movq(tmp, Immediate(1));                              \
-    __ xorq(dst, dst);                                       \
-    __ pxor(kScratchDoubleReg, kScratchDoubleReg);           \
-    __ opcode(kScratchDoubleReg, i.InputSimd128Register(0)); \
-    __ ptest(kScratchDoubleReg, kScratchDoubleReg);          \
-    __ cmovq(zero, dst, tmp);                                \
+#define ASSEMBLE_SIMD_ALL_TRUE(opcode)                        \
+  do {                                                        \
+    CpuFeatureScope sse_scope(tasm(), SSE4_1);                \
+    Register dst = i.OutputRegister();                        \
+    Register tmp1 = i.TempRegister(0);                        \
+    XMMRegister tmp2 = i.ToSimd128Register(instr->TempAt(1)); \
+    __ movq(tmp1, Immediate(1));                              \
+    __ xorq(dst, dst);                                        \
+    __ pxor(tmp2, tmp2);                                      \
+    __ opcode(tmp2, i.InputSimd128Register(0));               \
+    __ ptest(tmp2, tmp2);                                     \
+    __ cmovq(zero, dst, tmp1);                                \
   } while (false)
 
 void CodeGenerator::AssembleDeconstructFrame() {
@@ -2666,9 +2667,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64I64x2Ne: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
       __ pcmpeqq(i.OutputSimd128Register(), i.InputSimd128Register(1));
-      __ pcmpeqq(kScratchDoubleReg, kScratchDoubleReg);
-      __ pxor(i.OutputSimd128Register(), kScratchDoubleReg);
+      __ pcmpeqq(tmp, tmp);
+      __ pxor(i.OutputSimd128Register(), tmp);
       break;
     }
     case kX64I64x2GtS: {
@@ -2805,19 +2807,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64I32x4SConvertF32x4: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
       // NAN->0
-      __ movaps(kScratchDoubleReg, dst);
-      __ cmpeqps(kScratchDoubleReg, kScratchDoubleReg);
-      __ pand(dst, kScratchDoubleReg);
+      __ movaps(tmp, dst);
+      __ cmpeqps(tmp, tmp);
+      __ pand(dst, tmp);
       // Set top bit if >= 0 (but not -0.0!)
-      __ pxor(kScratchDoubleReg, dst);
+      __ pxor(tmp, dst);
       // Convert
       __ cvttps2dq(dst, dst);
       // Set top bit if >=0 is now < 0
-      __ pand(kScratchDoubleReg, dst);
-      __ psrad(kScratchDoubleReg, 31);
+      __ pand(tmp, dst);
+      __ psrad(tmp, 31);
       // Set positive overflow lanes to 0x7FFFFFFF
-      __ pxor(dst, kScratchDoubleReg);
+      __ pxor(dst, tmp);
       break;
     }
     case kX64I32x4SConvertI16x8Low: {
@@ -2890,9 +2893,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I32x4Ne: {
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
       __ pcmpeqd(i.OutputSimd128Register(), i.InputSimd128Register(1));
-      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ pxor(i.OutputSimd128Register(), kScratchDoubleReg);
+      __ pcmpeqd(tmp, tmp);
+      __ pxor(i.OutputSimd128Register(), tmp);
       break;
     }
     case kX64I32x4GtS: {
@@ -2912,23 +2916,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister tmp2 = i.ToSimd128Register(instr->TempAt(1));
       // NAN->0, negative->0
-      __ pxor(kScratchDoubleReg, kScratchDoubleReg);
-      __ maxps(dst, kScratchDoubleReg);
+      __ pxor(tmp2, tmp2);
+      __ maxps(dst, tmp2);
       // scratch: float representation of max_signed
-      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ psrld(kScratchDoubleReg, 1);                     // 0x7fffffff
-      __ cvtdq2ps(kScratchDoubleReg, kScratchDoubleReg);  // 0x4f000000
+      __ pcmpeqd(tmp2, tmp2);
+      __ psrld(tmp2, 1);        // 0x7fffffff
+      __ cvtdq2ps(tmp2, tmp2);  // 0x4f000000
       // tmp: convert (src-max_signed).
       // Positive overflow lanes -> 0x7FFFFFFF
       // Negative lanes -> 0
       __ movaps(tmp, dst);
-      __ subps(tmp, kScratchDoubleReg);
-      __ cmpleps(kScratchDoubleReg, tmp);
+      __ subps(tmp, tmp2);
+      __ cmpleps(tmp2, tmp);
       __ cvttps2dq(tmp, tmp);
-      __ pxor(tmp, kScratchDoubleReg);
-      __ pxor(kScratchDoubleReg, kScratchDoubleReg);
-      __ pmaxsd(tmp, kScratchDoubleReg);
+      __ pxor(tmp, tmp2);
+      __ pxor(tmp2, tmp2);
+      __ pmaxsd(tmp, tmp2);
       // convert. Overflow lanes above max_signed will be 0x80000000
       __ cvttps2dq(dst, dst);
       // Add (src-max_signed) for overflow lanes.
@@ -2967,10 +2972,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(1);
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
       __ pmaxud(dst, src);
       __ pcmpeqd(dst, src);
-      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ pxor(dst, kScratchDoubleReg);
+      __ pcmpeqd(tmp, tmp);
+      __ pxor(dst, tmp);
       break;
     }
     case kX64I32x4GeU: {
@@ -3097,9 +3103,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I16x8Ne: {
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
       __ pcmpeqw(i.OutputSimd128Register(), i.InputSimd128Register(1));
-      __ pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
-      __ pxor(i.OutputSimd128Register(), kScratchDoubleReg);
+      __ pcmpeqw(tmp, tmp);
+      __ pxor(i.OutputSimd128Register(), tmp);
       break;
     }
     case kX64I16x8GtS: {
@@ -3166,10 +3173,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(1);
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
       __ pmaxuw(dst, src);
       __ pcmpeqw(dst, src);
-      __ pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
-      __ pxor(dst, kScratchDoubleReg);
+      __ pcmpeqw(tmp, tmp);
+      __ pxor(dst, tmp);
       break;
     }
     case kX64I16x8GeU: {
@@ -3327,9 +3335,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I8x16Ne: {
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
       __ pcmpeqb(i.OutputSimd128Register(), i.InputSimd128Register(1));
-      __ pcmpeqb(kScratchDoubleReg, kScratchDoubleReg);
-      __ pxor(i.OutputSimd128Register(), kScratchDoubleReg);
+      __ pcmpeqb(tmp, tmp);
+      __ pxor(i.OutputSimd128Register(), tmp);
       break;
     }
     case kX64I8x16GtS: {
@@ -3396,10 +3405,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(1);
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
       __ pmaxub(dst, src);
       __ pcmpeqb(dst, src);
-      __ pcmpeqb(kScratchDoubleReg, kScratchDoubleReg);
-      __ pxor(dst, kScratchDoubleReg);
+      __ pcmpeqb(tmp, tmp);
+      __ pxor(dst, tmp);
       break;
     }
     case kX64I8x16GeU: {

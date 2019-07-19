@@ -2619,7 +2619,6 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I64x2Add)              \
   V(I64x2Sub)              \
   V(I64x2Eq)               \
-  V(I64x2Ne)               \
   V(I64x2GtS)              \
   V(I32x4Add)              \
   V(I32x4AddHoriz)         \
@@ -2628,12 +2627,10 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I32x4MinS)             \
   V(I32x4MaxS)             \
   V(I32x4Eq)               \
-  V(I32x4Ne)               \
   V(I32x4GtS)              \
   V(I32x4GeS)              \
   V(I32x4MinU)             \
   V(I32x4MaxU)             \
-  V(I32x4GtU)              \
   V(I32x4GeU)              \
   V(I16x8SConvertI32x4)    \
   V(I16x8Add)              \
@@ -2645,14 +2642,12 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8MinS)             \
   V(I16x8MaxS)             \
   V(I16x8Eq)               \
-  V(I16x8Ne)               \
   V(I16x8GtS)              \
   V(I16x8GeS)              \
   V(I16x8AddSaturateU)     \
   V(I16x8SubSaturateU)     \
   V(I16x8MinU)             \
   V(I16x8MaxU)             \
-  V(I16x8GtU)              \
   V(I16x8GeU)              \
   V(I8x16SConvertI16x8)    \
   V(I8x16Add)              \
@@ -2662,23 +2657,28 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x16MinS)             \
   V(I8x16MaxS)             \
   V(I8x16Eq)               \
-  V(I8x16Ne)               \
   V(I8x16GtS)              \
   V(I8x16GeS)              \
   V(I8x16AddSaturateU)     \
   V(I8x16SubSaturateU)     \
   V(I8x16MinU)             \
   V(I8x16MaxU)             \
-  V(I8x16GtU)              \
   V(I8x16GeU)              \
   V(S128And)               \
   V(S128Or)                \
   V(S128Xor)
 
 #define SIMD_BINOP_ONE_TEMP_LIST(V) \
+  V(I64x2Ne)                        \
   V(I64x2GeS)                       \
   V(I64x2GtU)                       \
-  V(I64x2GeU)
+  V(I64x2GeU)                       \
+  V(I32x4Ne)                        \
+  V(I32x4GtU)                       \
+  V(I16x8Ne)                        \
+  V(I16x8GtU)                       \
+  V(I8x16Ne)                        \
+  V(I8x16GtU)
 
 #define SIMD_UNOP_LIST(V)   \
   V(F32x4SConvertI32x4)     \
@@ -2829,12 +2829,12 @@ SIMD_ANYTRUE_LIST(VISIT_SIMD_ANYTRUE)
 #undef VISIT_SIMD_ANYTRUE
 #undef SIMD_ANYTRUE_LIST
 
-#define VISIT_SIMD_ALLTRUE(Opcode)                                        \
-  void InstructionSelector::Visit##Opcode(Node* node) {                   \
-    X64OperandGenerator g(this);                                          \
-    InstructionOperand temps[] = {g.TempRegister()};                      \
-    Emit(kX64##Opcode, g.DefineAsRegister(node),                          \
-         g.UseUniqueRegister(node->InputAt(0)), arraysize(temps), temps); \
+#define VISIT_SIMD_ALLTRUE(Opcode)                                            \
+  void InstructionSelector::Visit##Opcode(Node* node) {                       \
+    X64OperandGenerator g(this);                                              \
+    InstructionOperand temps[] = {g.TempRegister(), g.TempSimd128Register()}; \
+    Emit(kX64##Opcode, g.DefineAsRegister(node),                              \
+         g.UseUniqueRegister(node->InputAt(0)), arraysize(temps), temps);     \
   }
 SIMD_ALLTRUE_LIST(VISIT_SIMD_ALLTRUE)
 #undef VISIT_SIMD_ALLTRUE
@@ -2920,13 +2920,15 @@ void InstructionSelector::VisitI64x2MaxU(Node* node) {
 
 void InstructionSelector::VisitI32x4SConvertF32x4(Node* node) {
   X64OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
   Emit(kX64I32x4SConvertF32x4, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)));
+       g.UseRegister(node->InputAt(0)), arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitI32x4UConvertF32x4(Node* node) {
   X64OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempSimd128Register()};
+  InstructionOperand temps[] = {g.TempSimd128Register(),
+                                g.TempSimd128Register()};
   Emit(kX64I32x4UConvertF32x4, g.DefineSameAsFirst(node),
        g.UseRegister(node->InputAt(0)), arraysize(temps), temps);
 }
