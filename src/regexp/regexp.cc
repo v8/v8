@@ -478,13 +478,17 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
     int32_t* raw_output = &output[number_of_capture_registers];
 
     do {
+      // We do not touch the actual capture result registers until we know there
+      // has been a match so that we can use those capture results to set the
+      // last match info.
+      for (int i = number_of_capture_registers - 1; i >= 0; i--) {
+        raw_output[i] = -1;
+      }
       Handle<ByteArray> byte_codes(IrregexpByteCode(*irregexp, is_one_byte),
                                    isolate);
 
-      IrregexpInterpreter::Result result =
-          IrregexpInterpreter::MatchForCallFromRuntime(
-              isolate, byte_codes, subject, raw_output,
-              number_of_capture_registers, index);
+      IrregexpInterpreter::Result result = IrregexpInterpreter::Match(
+          isolate, byte_codes, subject, raw_output, index);
       DCHECK_IMPLIES(result == IrregexpInterpreter::EXCEPTION,
                      isolate->has_pending_exception());
 
