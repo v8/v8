@@ -13,7 +13,6 @@ namespace internal {
   HR(background_marking, V8.GCBackgroundMarking, 0, 10000, 101)                \
   HR(background_scavenger, V8.GCBackgroundScavenger, 0, 10000, 101)            \
   HR(background_sweeping, V8.GCBackgroundSweeping, 0, 10000, 101)              \
-  HR(detached_context_age_in_gc, V8.DetachedContextAgeInGC, 0, 20, 21)         \
   HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)              \
   HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)         \
   HR(debug_feature_usage, V8.DebugFeatureUsage, 1, 7, 7)                       \
