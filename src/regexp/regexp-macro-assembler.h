@@ -235,9 +235,9 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
       String subject, int start_index, const DisallowHeapAllocation& no_gc);
 
   static int CheckStackGuardState(Isolate* isolate, int start_index,
-                                  RegExp::CallOrigin call_origin,
-                                  Address* return_address, Code re_code,
-                                  Address* subject, const byte** input_start,
+                                  bool is_direct_call, Address* return_address,
+                                  Code re_code, Address* subject,
+                                  const byte** input_start,
                                   const byte** input_end);
 
   // Byte map of one byte characters with a 0xff if the character is a word

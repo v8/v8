@@ -1120,10 +1120,8 @@ int RegExpMacroAssemblerS390::CheckStackGuardState(Address* return_address,
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolate),
       frame_entry<intptr_t>(re_frame, kStartIndex),
-      static_cast<RegExp::CallOrigin>(
-          frame_entry<intptr_t>(re_frame, kDirectCall)),
-      return_address, re_code,
-      frame_entry_address<Address>(re_frame, kInputString),
+      frame_entry<intptr_t>(re_frame, kDirectCall) == 1, return_address,
+      re_code, frame_entry_address<Address>(re_frame, kInputString),
       frame_entry_address<const byte*>(re_frame, kInputStart),
       frame_entry_address<const byte*>(re_frame, kInputEnd));
 }
