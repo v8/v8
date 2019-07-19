@@ -52,7 +52,7 @@ bytecodes: [
                 B(Star), R(3),
   /*  133 E> */ B(CallProperty0), R(3), R(1), U8(4),
                 B(LdaUndefined),
-  /*  143 S> */ B(Return),
+  /*  144 S> */ B(Return),
 ]
 constant pool: [
   SCOPE_INFO_TYPE,
@@ -138,7 +138,7 @@ bytecodes: [
                 B(Star), R(5),
   /*  232 E> */ B(CallProperty0), R(5), R(2), U8(4),
                 B(LdaUndefined),
-  /*  242 S> */ B(Return),
+  /*  243 S> */ B(Return),
 ]
 constant pool: [
   SCOPE_INFO_TYPE,
