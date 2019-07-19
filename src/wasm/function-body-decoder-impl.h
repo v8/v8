@@ -2386,8 +2386,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           break;
         default: {
           // Deal with special asmjs opcodes.
-          if (this->module_ != nullptr &&
-              this->module_->origin == kAsmJsOrigin) {
+          if (this->module_ != nullptr && is_asmjs_module(this->module_)) {
             FunctionSig* sig = WasmOpcodes::AsmjsSignature(opcode);
             if (sig) {
               BuildSimpleOperator(opcode, sig);

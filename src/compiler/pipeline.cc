@@ -2625,7 +2625,7 @@ void Pipeline::GenerateCodeForWasmFunction(
   pipeline.RunPrintAndVerify("V8.WasmMachineCode", true);
 
   data.BeginPhaseKind("V8.WasmOptimization");
-  const bool is_asm_js = module->origin == wasm::kAsmJsOrigin;
+  const bool is_asm_js = is_asmjs_module(module);
   if (FLAG_turbo_splitting && !is_asm_js) {
     data.info()->MarkAsSplittingEnabled();
   }

@@ -238,10 +238,13 @@ bool WasmEngine::SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
 MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
     Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
     Vector<const byte> asm_js_offset_table_bytes,
-    Handle<HeapNumber> uses_bitset) {
+    Handle<HeapNumber> uses_bitset, LanguageMode language_mode) {
+  ModuleOrigin origin = language_mode == LanguageMode::kSloppy
+                            ? kAsmJsSloppyOrigin
+                            : kAsmJsStrictOrigin;
   ModuleResult result =
       DecodeWasmModule(kAsmjsWasmFeatures, bytes.start(), bytes.end(), false,
-                       kAsmJsOrigin, isolate->counters(), allocator());
+                       origin, isolate->counters(), allocator());
   if (result.failed()) {
     // This happens once in a while when we have missed some limit check
     // in the asm parser. Output an error message to help diagnose, but crash.

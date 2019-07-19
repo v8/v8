@@ -112,7 +112,7 @@ ExecutionTier WasmCompilationUnit::GetDefaultExecutionTier(
     const WasmModule* module) {
   // Liftoff does not support the special asm.js opcodes, thus always compile
   // asm.js modules with TurboFan.
-  if (module->origin == kAsmJsOrigin) return ExecutionTier::kTurbofan;
+  if (is_asmjs_module(module)) return ExecutionTier::kTurbofan;
   if (FLAG_wasm_interpret_all) return ExecutionTier::kInterpreter;
   return FLAG_liftoff ? ExecutionTier::kLiftoff : ExecutionTier::kTurbofan;
 }
@@ -147,7 +147,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteImportWrapperCompilation(
   // Assume the wrapper is going to be a JS function with matching arity at
   // instantiation time.
   auto kind = compiler::kDefaultImportCallKind;
-  bool source_positions = env->module->origin == kAsmJsOrigin;
+  bool source_positions = is_asmjs_module(env->module);
   WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
       engine, env, kind, sig, source_positions);
   return result;

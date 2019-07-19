@@ -312,8 +312,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     memory->set_is_detachable(false);
 
     DCHECK_IMPLIES(native_module->use_trap_handler(),
-                   module_->origin == kAsmJsOrigin ||
-                       memory->is_wasm_memory() ||
+                   is_asmjs_module(module_) || memory->is_wasm_memory() ||
                        memory->backing_store() == nullptr);
   } else if (initial_pages > 0 || native_module->use_trap_handler()) {
     // We need to unconditionally create a guard region if using trap handlers,
@@ -795,7 +794,7 @@ void InstanceBuilder::SanitizeImports() {
 
     int int_index = static_cast<int>(index);
     MaybeHandle<Object> result =
-        module_->origin == kAsmJsOrigin
+        is_asmjs_module(module_)
             ? LookupImportAsm(int_index, import_name)
             : LookupImport(int_index, module_name, import_name);
     if (thrower_->error()) {
@@ -1131,7 +1130,7 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
                     module_name, import_name);
     return false;
   }
-  if (module_->origin == kAsmJsOrigin) {
+  if (is_asmjs_module(module_)) {
     // Accepting {JSFunction} on top of just primitive values here is a
     // workaround to support legacy asm.js code with broken binding. Note
     // that using {NaN} (or Smi::kZero) here is what using the observable
@@ -1469,7 +1468,8 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
       exports_object = isolate_->factory()->NewJSObjectWithNullProto();
       break;
     }
-    case kAsmJsOrigin: {
+    case kAsmJsSloppyOrigin:
+    case kAsmJsStrictOrigin: {
       Handle<JSFunction> object_function = Handle<JSFunction>(
           isolate_->native_context()->object_function(), isolate_);
       exports_object = isolate_->factory()->NewJSObject(object_function);

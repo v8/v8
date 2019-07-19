@@ -511,7 +511,7 @@ int WasmModuleObject::GetSourcePosition(Handle<WasmModuleObject> module_object,
   Isolate* isolate = module_object->GetIsolate();
   const WasmModule* module = module_object->module();
 
-  if (module->origin != wasm::kAsmJsOrigin) {
+  if (module->origin == wasm::kWasmOrigin) {
     // for non-asm.js modules, we just add the function's start offset
     // to make a module-relative position.
     return byte_offset + module_object->GetFunctionOffset(func_index);
@@ -2237,7 +2237,8 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   function_data->set_packed_args_size(0);
 
   MaybeHandle<String> maybe_name;
-  if (instance->module()->origin == wasm::kAsmJsOrigin) {
+  bool is_asm_js_module = instance->module_object().is_asm_js();
+  if (is_asm_js_module) {
     // We can use the function name only for asm.js. For WebAssembly, the
     // function name is specified as the function_index.toString().
     maybe_name = WasmModuleObject::GetFunctionNameOrNull(
@@ -2252,10 +2253,18 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
                    Vector<uint8_t>::cast(buffer.SubVector(0, length)))
                .ToHandleChecked();
   }
-  bool is_asm_js_module = instance->module_object().is_asm_js();
-  Handle<Map> function_map = is_asm_js_module
-                                 ? isolate->sloppy_function_map()
-                                 : isolate->wasm_exported_function_map();
+  Handle<Map> function_map;
+  switch (instance->module()->origin) {
+    case wasm::kWasmOrigin:
+      function_map = isolate->wasm_exported_function_map();
+      break;
+    case wasm::kAsmJsSloppyOrigin:
+      function_map = isolate->sloppy_function_map();
+      break;
+    case wasm::kAsmJsStrictOrigin:
+      function_map = isolate->strict_function_map();
+      break;
+  }
   NewFunctionArgs args =
       NewFunctionArgs::ForWasm(name, function_data, function_map);
   Handle<JSFunction> js_function = isolate->factory()->NewFunction(args);

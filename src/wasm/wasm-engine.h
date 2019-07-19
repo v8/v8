@@ -62,7 +62,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   MaybeHandle<AsmWasmData> SyncCompileTranslatedAsmJs(
       Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
       Vector<const byte> asm_js_offset_table_bytes,
-      Handle<HeapNumber> uses_bitset);
+      Handle<HeapNumber> uses_bitset, LanguageMode language_mode);
   Handle<WasmModuleObject> FinalizeTranslatedAsmJs(
       Isolate* isolate, Handle<AsmWasmData> asm_wasm_data,
       Handle<Script> script);

@@ -824,7 +824,7 @@ void ValidateSequentially(
 
 bool IsLazyModule(const WasmModule* module) {
   return FLAG_wasm_lazy_compilation ||
-         (FLAG_asm_wasm_lazy_compilation && module->origin == kAsmJsOrigin);
+         (FLAG_asm_wasm_lazy_compilation && is_asmjs_module(module));
 }
 
 }  // namespace
@@ -2502,7 +2502,7 @@ WasmCode* CompileImportWrapper(
   // yet.
   WasmImportWrapperCache::CacheKey key(kind, sig);
   DCHECK_NULL((*cache_scope)[key]);
-  bool source_positions = native_module->module()->origin == kAsmJsOrigin;
+  bool source_positions = is_asmjs_module(native_module->module());
   // Keep the {WasmCode} alive until we explicitly call {IncRef}.
   WasmCodeRefScope code_ref_scope;
   CompilationEnv env = native_module->CreateCompilationEnv();

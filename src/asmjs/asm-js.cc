@@ -287,7 +287,7 @@ UnoptimizedCompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl(
               isolate, &thrower,
               wasm::ModuleWireBytes(module_->begin(), module_->end()),
               Vector<const byte>(asm_offsets_->begin(), asm_offsets_->size()),
-              uses_bitset)
+              uses_bitset, shared_info->language_mode())
           .ToHandleChecked();
   DCHECK(!thrower.error());
   compile_time_ = compile_timer.Elapsed().InMillisecondsF();

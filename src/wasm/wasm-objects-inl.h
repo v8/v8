@@ -111,7 +111,7 @@ void WasmModuleObject::reset_breakpoint_infos() {
               GetReadOnlyRoots().undefined_value());
 }
 bool WasmModuleObject::is_asm_js() {
-  bool asm_js = module()->origin == wasm::kAsmJsOrigin;
+  bool asm_js = is_asmjs_module(module());
   DCHECK_EQ(asm_js, script().IsUserJavaScript());
   DCHECK_EQ(asm_js, has_asm_js_offset_table());
   return asm_js;

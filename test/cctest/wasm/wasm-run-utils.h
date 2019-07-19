@@ -90,7 +90,7 @@ class TestingModuleBuilder {
   TestingModuleBuilder(Zone*, ManuallyImportedJSFunction*, ExecutionTier,
                        RuntimeExceptionSupport, LowerSimd);
 
-  void ChangeOriginToAsmjs() { test_module_->origin = kAsmJsOrigin; }
+  void ChangeOriginToAsmjs() { test_module_->origin = kAsmJsSloppyOrigin; }
 
   byte* AddMemory(uint32_t size, SharedFlag shared = SharedFlag::kNotShared);
 

@@ -2159,7 +2159,7 @@ TEST_F(FunctionBodyDecoderTest, WasmMemoryGrow) {
 }
 
 TEST_F(FunctionBodyDecoderTest, AsmJsMemoryGrow) {
-  TestModuleBuilder builder(kAsmJsOrigin);
+  TestModuleBuilder builder(kAsmJsSloppyOrigin);
   module = builder.module();
   builder.InitializeMemory();
 
@@ -2191,7 +2191,7 @@ TEST_F(FunctionBodyDecoderTest, AsmJsBinOpsCheckOrigin) {
   };
 
   {
-    TestModuleBuilder builder(kAsmJsOrigin);
+    TestModuleBuilder builder(kAsmJsSloppyOrigin);
     module = builder.module();
     builder.InitializeMemory();
     for (size_t i = 0; i < arraysize(AsmJsBinOps); i++) {
@@ -2239,7 +2239,7 @@ TEST_F(FunctionBodyDecoderTest, AsmJsUnOpsCheckOrigin) {
                     {kExprI32AsmjsSConvertF64, sigs.i_d()},
                     {kExprI32AsmjsUConvertF64, sigs.i_d()}};
   {
-    TestModuleBuilder builder(kAsmJsOrigin);
+    TestModuleBuilder builder(kAsmJsSloppyOrigin);
     module = builder.module();
     builder.InitializeMemory();
     for (size_t i = 0; i < arraysize(AsmJsUnOps); i++) {

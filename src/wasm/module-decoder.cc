@@ -259,13 +259,13 @@ class ModuleDecoderImpl : public Decoder {
   explicit ModuleDecoderImpl(const WasmFeatures& enabled, ModuleOrigin origin)
       : Decoder(nullptr, nullptr),
         enabled_features_(enabled),
-        origin_(FLAG_assume_asmjs_origin ? kAsmJsOrigin : origin) {}
+        origin_(FLAG_assume_asmjs_origin ? kAsmJsSloppyOrigin : origin) {}
 
   ModuleDecoderImpl(const WasmFeatures& enabled, const byte* module_start,
                     const byte* module_end, ModuleOrigin origin)
       : Decoder(module_start, module_end),
         enabled_features_(enabled),
-        origin_(FLAG_assume_asmjs_origin ? kAsmJsOrigin : origin) {
+        origin_(FLAG_assume_asmjs_origin ? kAsmJsSloppyOrigin : origin) {
     if (end_ < start_) {
       error(start_, "end is less than start");
       end_ = start_;
@@ -746,7 +746,7 @@ class ModuleDecoderImpl : public Decoder {
       }
     }
     // Check for duplicate exports (except for asm.js).
-    if (ok() && origin_ != kAsmJsOrigin && module_->export_table.size() > 1) {
+    if (ok() && origin_ == kWasmOrigin && module_->export_table.size() > 1) {
       std::vector<WasmExport> sorted_exports(module_->export_table);
 
       auto cmp_less = [this](const WasmExport& a, const WasmExport& b) {
