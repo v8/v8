@@ -548,7 +548,7 @@ bool CheckBaselineExpectations(const std::string& input_filename,
   std::ifstream input_stream(input_filename);
   if (!input_stream.is_open()) {
     REPORT_ERROR("Could not open " << input_filename << " for reading.");
-    return 2;
+    std::exit(2);
   }
 
   bool check_failed = false;
