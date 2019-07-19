@@ -1776,6 +1776,7 @@ void TurboAssembler::Psllq(XMMRegister dst, byte imm8) {
     CpuFeatureScope scope(this, AVX);
     vpsllq(dst, dst, imm8);
   } else {
+    DCHECK(!IsEnabled(AVX));
     psllq(dst, imm8);
   }
 }
@@ -1785,6 +1786,7 @@ void TurboAssembler::Psrlq(XMMRegister dst, byte imm8) {
     CpuFeatureScope scope(this, AVX);
     vpsrlq(dst, dst, imm8);
   } else {
+    DCHECK(!IsEnabled(AVX));
     psrlq(dst, imm8);
   }
 }
@@ -1794,6 +1796,7 @@ void TurboAssembler::Pslld(XMMRegister dst, byte imm8) {
     CpuFeatureScope scope(this, AVX);
     vpslld(dst, dst, imm8);
   } else {
+    DCHECK(!IsEnabled(AVX));
     pslld(dst, imm8);
   }
 }
@@ -1803,6 +1806,7 @@ void TurboAssembler::Psrld(XMMRegister dst, byte imm8) {
     CpuFeatureScope scope(this, AVX);
     vpsrld(dst, dst, imm8);
   } else {
+    DCHECK(!IsEnabled(AVX));
     psrld(dst, imm8);
   }
 }
