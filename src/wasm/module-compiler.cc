@@ -1312,6 +1312,7 @@ AsyncCompileJob::AsyncCompileJob(
       bytes_copy_(std::move(bytes_copy)),
       wire_bytes_(bytes_copy_.get(), bytes_copy_.get() + length),
       resolver_(std::move(resolver)) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "new AsyncCompileJob");
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8::Platform* platform = V8::GetCurrentPlatform();
   foreground_task_runner_ = platform->GetForegroundTaskRunner(v8_isolate);
@@ -1442,6 +1443,8 @@ void AsyncCompileJob::PrepareRuntimeObjects() {
 // This function assumes that it is executed in a HandleScope, and that a
 // context is set on the isolate.
 void AsyncCompileJob::FinishCompile() {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
+               "AsyncCompileJob::FinishCompile");
   bool is_after_deserialization = !module_object_.is_null();
   if (!is_after_deserialization) {
     PrepareRuntimeObjects();
