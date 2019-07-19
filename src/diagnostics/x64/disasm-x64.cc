@@ -1906,9 +1906,9 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         } else if (opcode == 0xD9) {
           mnemonic = "psubusw";
         } else if (opcode == 0xDA) {
-          mnemonic = "pand";
-        } else if (opcode == 0xDB) {
           mnemonic = "pminub";
+        } else if (opcode == 0xDB) {
+          mnemonic = "pand";
         } else if (opcode == 0xDC) {
           mnemonic = "paddusb";
         } else if (opcode == 0xDD) {
