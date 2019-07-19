@@ -56,8 +56,7 @@ class JSSegmenter : public JSObject {
   enum class Granularity {
     GRAPHEME,  // for character-breaks
     WORD,      // for word-breaks
-    SENTENCE,  // for sentence-breaks
-    COUNT
+    SENTENCE   // for sentence-breaks
   };
   inline void set_granularity(Granularity granularity);
   inline Granularity granularity() const;

@@ -146,9 +146,8 @@ Handle<String> JSV8BreakIterator::TypeAsString() const {
       return GetReadOnlyRoots().sentence_string_handle();
     case Type::LINE:
       return GetReadOnlyRoots().line_string_handle();
-    case Type::COUNT:
-      UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 Handle<Object> JSV8BreakIterator::Current(

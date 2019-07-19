@@ -37,9 +37,8 @@ Handle<String> JSSegmentIterator::GranularityAsString() const {
       return GetReadOnlyRoots().word_string_handle();
     case JSSegmenter::Granularity::SENTENCE:
       return GetReadOnlyRoots().sentence_string_handle();
-    case JSSegmenter::Granularity::COUNT:
-      UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 MaybeHandle<JSSegmentIterator> JSSegmentIterator::Create(
@@ -122,9 +121,8 @@ Handle<Object> JSSegmentIterator::BreakType() const {
         return GetReadOnlyRoots().sep_string_handle();
       }
       return GetReadOnlyRoots().undefined_value_handle();
-    case JSSegmenter::Granularity::COUNT:
-      UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 // ecma402 #sec-segment-iterator-prototype-index

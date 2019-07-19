@@ -55,9 +55,8 @@ Handle<String> JSPluralRules::TypeAsString() const {
       return GetReadOnlyRoots().cardinal_string_handle();
     case Type::ORDINAL:
       return GetReadOnlyRoots().ordinal_string_handle();
-    case Type::COUNT:
-      UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 // static

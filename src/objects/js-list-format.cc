@@ -50,8 +50,6 @@ const char* GetIcuStyleString(JSListFormat::Style style,
           return kStandardShort;
         case JSListFormat::Style::NARROW:
           return kStandardNarrow;
-        case JSListFormat::Style::COUNT:
-          UNREACHABLE();
       }
     case JSListFormat::Type::DISJUNCTION:
       switch (style) {
@@ -61,8 +59,6 @@ const char* GetIcuStyleString(JSListFormat::Style style,
           return kOrShort;
         case JSListFormat::Style::NARROW:
           return kOrNarrow;
-        case JSListFormat::Style::COUNT:
-          UNREACHABLE();
       }
     case JSListFormat::Type::UNIT:
       switch (style) {
@@ -72,12 +68,9 @@ const char* GetIcuStyleString(JSListFormat::Style style,
           return kUnitShort;
         case JSListFormat::Style::NARROW:
           return kUnitNarrow;
-        case JSListFormat::Style::COUNT:
-          UNREACHABLE();
       }
-    case JSListFormat::Type::COUNT:
-      UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 }  // namespace
@@ -238,9 +231,8 @@ Handle<String> JSListFormat::StyleAsString() const {
       return GetReadOnlyRoots().short_string_handle();
     case Style::NARROW:
       return GetReadOnlyRoots().narrow_string_handle();
-    case Style::COUNT:
-      UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 Handle<String> JSListFormat::TypeAsString() const {
@@ -251,9 +243,8 @@ Handle<String> JSListFormat::TypeAsString() const {
       return GetReadOnlyRoots().disjunction_string_handle();
     case Type::UNIT:
       return GetReadOnlyRoots().unit_string_handle();
-    case Type::COUNT:
-      UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 namespace {

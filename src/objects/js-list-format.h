@@ -64,10 +64,9 @@ class JSListFormat : public JSObject {
   //
   // ecma402/#sec-properties-of-intl-listformat-instances
   enum class Style {
-    LONG,    // Everything spelled out.
-    SHORT,   // Abbreviations used when possible.
-    NARROW,  // Use the shortest possible form.
-    COUNT
+    LONG,   // Everything spelled out.
+    SHORT,  // Abbreviations used when possible.
+    NARROW  // Use the shortest possible form.
   };
   inline void set_style(Style style);
   inline Style style() const;
@@ -78,8 +77,7 @@ class JSListFormat : public JSObject {
   enum class Type {
     CONJUNCTION,  // for "and"-based lists (e.g., "A, B and C")
     DISJUNCTION,  // for "or"-based lists (e.g., "A, B or C"),
-    UNIT,  // for lists of values with units (e.g., "5 pounds, 12 ounces").
-    COUNT
+    UNIT  // for lists of values with units (e.g., "5 pounds, 12 ounces").
   };
   inline void set_type(Type type);
   inline Type type() const;

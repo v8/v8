@@ -99,8 +99,6 @@ MaybeHandle<JSSegmenter> JSSegmenter::New(Isolate* isolate, Handle<Map> map,
       icu_break_iterator.reset(
           icu::BreakIterator::createSentenceInstance(icu_locale, status));
       break;
-    case Granularity::COUNT:
-      UNREACHABLE();
   }
 
   CHECK(U_SUCCESS(status));
@@ -161,9 +159,8 @@ Handle<String> JSSegmenter::GranularityAsString() const {
       return GetReadOnlyRoots().word_string_handle();
     case Granularity::SENTENCE:
       return GetReadOnlyRoots().sentence_string_handle();
-    case Granularity::COUNT:
-      UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 const std::set<std::string>& JSSegmenter::GetAvailableLocales() {

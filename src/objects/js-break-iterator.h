@@ -51,7 +51,7 @@ class JSV8BreakIterator : public JSObject {
   static String BreakType(Isolate* isolate,
                           Handle<JSV8BreakIterator> break_iterator);
 
-  enum class Type { CHARACTER, WORD, SENTENCE, LINE, COUNT };
+  enum class Type { CHARACTER, WORD, SENTENCE, LINE };
   inline void set_type(Type type);
   inline Type type() const;
 

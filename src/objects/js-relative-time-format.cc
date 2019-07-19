@@ -34,9 +34,8 @@ UDateRelativeDateTimeFormatterStyle getIcuStyle(
       return UDAT_STYLE_SHORT;
     case JSRelativeTimeFormat::Style::NARROW:
       return UDAT_STYLE_NARROW;
-    case JSRelativeTimeFormat::Style::COUNT:
-      UNREACHABLE();
   }
+  UNREACHABLE();
 }
 }  // namespace
 
@@ -220,9 +219,8 @@ Handle<String> JSRelativeTimeFormat::StyleAsString() const {
       return GetReadOnlyRoots().short_string_handle();
     case Style::NARROW:
       return GetReadOnlyRoots().narrow_string_handle();
-    case Style::COUNT:
-      UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 Handle<String> JSRelativeTimeFormat::NumericAsString() const {
@@ -231,9 +229,8 @@ Handle<String> JSRelativeTimeFormat::NumericAsString() const {
       return GetReadOnlyRoots().always_string_handle();
     case Numeric::AUTO:
       return GetReadOnlyRoots().auto_string_handle();
-    case Numeric::COUNT:
-      UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 namespace {

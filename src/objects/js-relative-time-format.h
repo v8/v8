@@ -66,10 +66,9 @@ class JSRelativeTimeFormat : public JSObject {
   // ecma402/#sec-properties-of-intl-relativetimeformat-instances
 
   enum class Style {
-    LONG,    // Everything spelled out.
-    SHORT,   // Abbreviations used when possible.
-    NARROW,  // Use the shortest possible form.
-    COUNT
+    LONG,   // Everything spelled out.
+    SHORT,  // Abbreviations used when possible.
+    NARROW  // Use the shortest possible form.
   };
   inline void set_style(Style style);
   inline Style style() const;
@@ -81,9 +80,8 @@ class JSRelativeTimeFormat : public JSObject {
   // ecma402/#sec-properties-of-intl-relativetimeformat-instances
   enum class Numeric {
     ALWAYS,  // numerical descriptions are always used ("1 day ago")
-    AUTO,    // numerical descriptions are used only when no more specific
+    AUTO     // numerical descriptions are used only when no more specific
              // version is available ("yesterday")
-    COUNT
   };
   inline void set_numeric(Numeric numeric);
   inline Numeric numeric() const;

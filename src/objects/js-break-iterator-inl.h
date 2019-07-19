@@ -25,7 +25,6 @@ inline JSV8BreakIterator::Type JSV8BreakIterator::type() const {
 }
 
 inline void JSV8BreakIterator::set_type(Type type) {
-  DCHECK_GT(JSV8BreakIterator::Type::COUNT, type);
   set_raw_type(static_cast<int>(type));
 }
 

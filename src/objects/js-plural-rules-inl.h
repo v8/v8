@@ -30,7 +30,7 @@ ACCESSORS(JSPluralRules, icu_number_formatter,
           kIcuNumberFormatterOffset)
 
 inline void JSPluralRules::set_type(Type type) {
-  DCHECK_LT(type, Type::COUNT);
+  DCHECK_LE(type, TypeBits::kMax);
   int hints = flags();
   hints = TypeBits::update(hints, type);
   set_flags(hints);

@@ -47,12 +47,7 @@ class JSPluralRules : public JSObject {
 
   // [[Type]] is one of the values "cardinal" or "ordinal",
   // identifying the plural rules used.
-  enum class Type {
-    CARDINAL,
-    ORDINAL,
-
-    COUNT
-  };
+  enum class Type { CARDINAL, ORDINAL };
   inline void set_type(Type type);
   inline Type type() const;
 
