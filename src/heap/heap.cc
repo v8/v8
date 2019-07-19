@@ -4654,6 +4654,40 @@ uint64_t Heap::PromotedExternalMemorySize() {
       isolate_data->external_memory_at_last_mark_compact_);
 }
 
+bool Heap::AllocationLimitOvershotByLargeMargin() {
+  // This guards against too eager finalization in small heaps.
+  // The number is chosen based on v8.browsing_mobile on Nexus 7v2.
+  constexpr size_t kMarginForSmallHeaps = 32u * MB;
+
+  const size_t v8_overshoot =
+      old_generation_allocation_limit_ <
+              OldGenerationObjectsAndPromotedExternalMemorySize()
+          ? OldGenerationObjectsAndPromotedExternalMemorySize() -
+                old_generation_allocation_limit_
+          : 0;
+  const size_t global_overshoot =
+      global_allocation_limit_ < GlobalSizeOfObjects()
+          ? GlobalSizeOfObjects() - global_allocation_limit_
+          : 0;
+
+  // Bail out if the V8 and global sizes are still below their respective
+  // limits.
+  if (v8_overshoot == 0 && global_overshoot == 0) {
+    return false;
+  }
+
+  // Overshoot margin is 50% of allocation limit or half-way to the max heap
+  // with special handling of small heaps.
+  const size_t v8_margin =
+      Min(Max(old_generation_allocation_limit_ / 2, kMarginForSmallHeaps),
+          (max_old_generation_size_ - old_generation_allocation_limit_) / 2);
+  const size_t global_margin =
+      Min(Max(global_allocation_limit_ / 2, kMarginForSmallHeaps),
+          (max_global_memory_size_ - global_allocation_limit_) / 2);
+
+  return v8_overshoot >= v8_margin || global_overshoot >= global_margin;
+}
+
 bool Heap::ShouldOptimizeForLoadTime() {
   return isolate()->rail_mode() == PERFORMANCE_LOAD &&
          !AllocationLimitOvershotByLargeMargin() &&

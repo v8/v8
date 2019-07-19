@@ -118,6 +118,10 @@ void LocalEmbedderHeapTracer::StartIncrementalMarkingIfNeeded() {
   heap->StartIncrementalMarkingIfAllocationLimitIsReached(
       heap->GCFlagsForIncrementalMarking(),
       kGCCallbackScheduleIdleGarbageCollection);
+  if (heap->AllocationLimitOvershotByLargeMargin()) {
+    heap->FinalizeIncrementalMarkingAtomically(
+        i::GarbageCollectionReason::kExternalFinalize);
+  }
 }
 
 }  // namespace internal
