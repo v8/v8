@@ -560,6 +560,16 @@ void ByteArray::set_uint32(int index, uint32_t value) {
   WriteField<uint32_t>(kHeaderSize + index * kUInt32Size, value);
 }
 
+uint32_t ByteArray::get_uint32_relaxed(int index) const {
+  DCHECK(index >= 0 && index < this->length() / kUInt32Size);
+  return RELAXED_READ_UINT32_FIELD(*this, kHeaderSize + index * kUInt32Size);
+}
+
+void ByteArray::set_uint32_relaxed(int index, uint32_t value) {
+  DCHECK(index >= 0 && index < this->length() / kUInt32Size);
+  RELAXED_WRITE_UINT32_FIELD(*this, kHeaderSize + index * kUInt32Size, value);
+}
+
 void ByteArray::clear_padding() {
   int data_size = length() + kHeaderSize;
   memset(reinterpret_cast<void*>(address() + data_size), 0, Size() - data_size);

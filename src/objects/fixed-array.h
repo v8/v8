@@ -488,6 +488,9 @@ class ByteArray : public FixedArrayBase {
   inline uint32_t get_uint32(int index) const;
   inline void set_uint32(int index, uint32_t value);
 
+  inline uint32_t get_uint32_relaxed(int index) const;
+  inline void set_uint32_relaxed(int index, uint32_t value);
+
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic.
   inline void clear_padding();
