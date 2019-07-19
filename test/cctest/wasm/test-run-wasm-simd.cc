@@ -930,7 +930,7 @@ void RunF64x2UnOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
     r.Call(x);
     for (int i = 0; i < 2; i++) {
       double actual = ReadLittleEndianValue<double>(&g[i]);
-      CheckFloatResult(x, x, expected, actual, exact);
+      CheckDoubleResult(x, x, expected, actual, exact);
     }
   }
 
