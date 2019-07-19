@@ -2180,10 +2180,10 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   int num_imported_functions = instance->module()->num_imported_functions;
   int jump_table_offset = -1;
   if (func_index >= num_imported_functions) {
-    ptrdiff_t jump_table_diff =
-        instance->module_object().native_module()->jump_table_offset(
+    uint32_t jump_table_diff =
+        instance->module_object().native_module()->GetJumpTableOffset(
             func_index);
-    DCHECK(jump_table_diff >= 0 && jump_table_diff <= INT_MAX);
+    DCHECK_GE(kMaxInt, jump_table_diff);
     jump_table_offset = static_cast<int>(jump_table_diff);
   }
   Handle<WasmExportedFunctionData> function_data =

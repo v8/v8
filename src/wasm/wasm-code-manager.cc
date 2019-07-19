@@ -1129,11 +1129,16 @@ WasmCode* NativeModule::Lookup(Address pc) const {
   return candidate;
 }
 
+uint32_t NativeModule::GetJumpTableOffset(uint32_t func_index) const {
+  uint32_t slot_idx = func_index - module_->num_imported_functions;
+  DCHECK_GT(module_->num_declared_functions, slot_idx);
+  return JumpTableAssembler::JumpSlotIndexToOffset(slot_idx);
+}
+
 Address NativeModule::GetCallTargetForFunction(uint32_t func_index) const {
   // Return the jump table slot for that function index.
   DCHECK_NOT_NULL(jump_table_);
-  uint32_t slot_idx = func_index - module_->num_imported_functions;
-  uint32_t slot_offset = JumpTableAssembler::JumpSlotIndexToOffset(slot_idx);
+  uint32_t slot_offset = GetJumpTableOffset(func_index);
   DCHECK_LT(slot_offset, jump_table_->instructions().size());
   return jump_table_->instruction_start() + slot_offset;
 }
