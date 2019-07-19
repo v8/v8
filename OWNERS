@@ -5,6 +5,7 @@ file://ENG_REVIEW_OWNERS
 per-file .clang-format=file://INFRA_OWNERS
 per-file .clang-tidy=file://INFRA_OWNERS
 per-file .editorconfig=file://INFRA_OWNERS
+per-file .flake8=file://INFRA_OWNERS
 per-file .git-blame-ignore-revs=file://INFRA_OWNERS
 per-file .gitattributes=file://INFRA_OWNERS
 per-file .gitignore=file://INFRA_OWNERS
