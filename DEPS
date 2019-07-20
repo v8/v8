@@ -57,15 +57,15 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c98642948c05efca3c0f3baafb076ed53965a3b6',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'bcbed0911c610c2a5bd692bc369d11f85c777f0b',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'f4e0cc69eed38336e8e6e741c7b6ad02e9cab731',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '0a0fbf143a621a349b1da251511ec827da877a44',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'fd97d4326fac6da84452b2d5fe75ff0949368dab',
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'b1c3ca20848c117eb935b02c25d441f03e6fbc5e',
   'v8/buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '7b7a5c0f25f11f3c5a1ed3935324c2c59fbc24a2',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '67b293ca1316d06f7f00160ce35c92b8849a9dc9',
   'v8/buildtools/clang_format/script':
     Var('chromium_url') + '/chromium/llvm-project/cfe/tools/clang-format.git' + '@' + '96636aa0e9f047f17447f2d45a094d0b59ed7917',
   'v8/buildtools/linux64': {
@@ -153,7 +153,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '42a883d13292b1a8a667ef7be682b7347268ef1c',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '5075be939f844c14e43d6a8a16b67d6c6df08520',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -201,7 +201,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '558ca3e977d446f62d96cd15f50222de041f44b3',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '3e2c753e4cc964f9d60c348abed65ee3d9557a29',
   'v8/tools/luci-go': {
       'packages': [
         {
