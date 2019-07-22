@@ -2080,16 +2080,17 @@ Handle<String> Intl::NumberFieldToType(Isolate* isolate,
                                      : isolate->factory()->plusSign_string();
       } else {
         double number = numeric_obj->Number();
-        return number < 0 ? isolate->factory()->minusSign_string()
-                          : isolate->factory()->plusSign_string();
+        return std::signbit(number) ? isolate->factory()->minusSign_string()
+                                    : isolate->factory()->plusSign_string();
       }
     case UNUM_EXPONENT_SYMBOL_FIELD:
+      return isolate->factory()->exponentSeparator_string();
+
     case UNUM_EXPONENT_SIGN_FIELD:
+      return isolate->factory()->exponentMinusSign_string();
+
     case UNUM_EXPONENT_FIELD:
-      // We should never get these because we're not using any scientific
-      // formatter.
-      UNREACHABLE();
-      return Handle<String>();
+      return isolate->factory()->exponentInteger_string();
 
     case UNUM_PERMILL_FIELD:
       // We're not creating any permill formatter, and it's not even clear how

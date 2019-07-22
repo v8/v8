@@ -29,14 +29,14 @@
   V(_, endRange_string, "endRange")                                 \
   V(_, engineering_string, "engineering")                           \
   V(_, era_string, "era")                                           \
-  V(_, first_string, "first")                                       \
-  V(_, format_string, "format")                                     \
-  V(_, fractionalSecond_string, "fractionalSecond")                 \
   V(_, exceptZero_string, "exceptZero")                             \
   V(_, exponentInteger_string, "exponentInteger")                   \
   V(_, exponentMinusSign_string, "exponentMinusSign")               \
   V(_, exponentSeparator_string, "exponentSeparator")               \
+  V(_, first_string, "first")                                       \
+  V(_, format_string, "format")                                     \
   V(_, fraction_string, "fraction")                                 \
+  V(_, fractionalSecond_string, "fractionalSecond")                 \
   V(_, fractionalSecondDigits_string, "fractionalSecondDigits")     \
   V(_, full_string, "full")                                         \
   V(_, granularity_string, "granularity")                           \
