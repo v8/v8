@@ -2887,7 +2887,13 @@ TEST_P(InstructionSelectorStoreWithBarrierTest,
     // We have two instructions that are not nops: Store and Return.
     ASSERT_EQ(2U, s.size());
     EXPECT_EQ(kArchStoreWithWriteBarrier, s[0]->arch_opcode());
-    EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
+    // With compressed pointers, a store with barrier is a 32-bit str which has
+    // a smaller immediate range.
+    if (COMPRESS_POINTERS_BOOL && (index > 16380)) {
+      EXPECT_EQ(kMode_MRR, s[0]->addressing_mode());
+    } else {
+      EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
+    }
     EXPECT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(0U, s[0]->OutputCount());
   }

@@ -679,7 +679,8 @@ void InstructionSelector::VisitStore(Node* node) {
     // OutOfLineRecordWrite uses the index in an add or sub instruction, but we
     // can trust the assembler to generate extra instructions if the index does
     // not fit into add or sub. So here only check the immediate for a store.
-    if (g.CanBeImmediate(index, kLoadStoreImm64)) {
+    if (g.CanBeImmediate(index, COMPRESS_POINTERS_BOOL ? kLoadStoreImm32
+                                                       : kLoadStoreImm64)) {
       inputs[input_count++] = g.UseImmediate(index);
       addressing_mode = kMode_MRI;
     } else {
