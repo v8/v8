@@ -973,7 +973,7 @@ TEST(18) {
   // selected bits all 0
   __ lgfi(r1, Operand(0));
   __ tmhh(r1, Operand(1));
-  __ beq(&done); //8
+  __ beq(&continue1); //8
   __ b(&error);
 
   __ bind(&continue1);
