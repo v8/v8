@@ -126,6 +126,8 @@
 #endif  // V8_TARGET_ARCH_X64
 #endif  // V8_OS_WIN
 
+#define TRACE_BS(...) /* PrintF(__VA_ARGS__) */
+
 namespace v8 {
 
 /*
@@ -7171,19 +7173,74 @@ bool v8::ArrayBuffer::IsDetachable() const {
   return Utils::OpenHandle(this)->is_detachable();
 }
 
-v8::ArrayBuffer::Contents v8::ArrayBuffer::Externalize() {
-  i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
-  i::Isolate* isolate = self->GetIsolate();
-  Utils::ApiCheck(!self->is_external(), "v8_ArrayBuffer_Externalize",
-                  "ArrayBuffer already externalized");
-  self->set_is_external(true);
-
-  const v8::ArrayBuffer::Contents contents = GetContents();
-  isolate->heap()->UnregisterArrayBuffer(*self);
-
-  // A regular copy is good enough. No move semantics needed.
-  return contents;
+namespace {
+// The backing store deleter just deletes the indirection, which downrefs
+// the shared pointer. It will get collected normally.
+void BackingStoreDeleter(void* buffer, size_t length, void* info) {
+  auto bs_indirection =
+      reinterpret_cast<std::shared_ptr<i::BackingStore>*>(info);
+  if (bs_indirection) {
+    auto backing_store = bs_indirection->get();
+    TRACE_BS("API:delete bs=%p mem=%p (length=%zu)\n", backing_store,
+             backing_store->buffer_start(), backing_store->byte_length());
+    USE(backing_store);
+  }
+  delete bs_indirection;
 }
+
+void* MakeDeleterData(std::shared_ptr<i::BackingStore> backing_store) {
+  if (!backing_store) return nullptr;
+  TRACE_BS("API:extern bs=%p mem=%p (length=%zu)\n", backing_store.get(),
+           backing_store->buffer_start(), backing_store->byte_length());
+  return new std::shared_ptr<i::BackingStore>(backing_store);
+}
+
+std::shared_ptr<i::BackingStore> LookupOrCreateBackingStore(
+    i::Isolate* i_isolate, void* data, size_t byte_length, i::SharedFlag shared,
+    ArrayBufferCreationMode mode) {
+  // "internalized" means that the storage was allocated by the
+  // ArrayBufferAllocator and thus should be freed upon destruction.
+  bool free_on_destruct = mode == ArrayBufferCreationMode::kInternalized;
+
+  // Try to lookup a previously-registered backing store in the global
+  // registry. If found, use that instead of wrapping an embedder allocation.
+  std::shared_ptr<i::BackingStore> backing_store =
+      i::GlobalBackingStoreRegistry::Lookup(data, byte_length);
+
+  if (backing_store) {
+    // Check invariants for a previously-found backing store.
+
+    // 1. We cannot allow an embedder to first allocate a backing store that
+    // should not be freed upon destruct, and then allocate an alias that should
+    // destruct it. The other order is fine.
+    bool changing_destruct_mode =
+        free_on_destruct && !backing_store->free_on_destruct();
+    Utils::ApiCheck(
+        !changing_destruct_mode, "v8_[Shared]ArrayBuffer_New",
+        "previous backing store found that should not be freed on destruct");
+
+    // 2. We cannot allow embedders to use the same backing store for both
+    // SharedArrayBuffers and regular ArrayBuffers.
+    bool changing_shared_flag =
+        (shared == i::SharedFlag::kShared) != backing_store->is_shared();
+    Utils::ApiCheck(
+        !changing_shared_flag, "v8_[Shared]ArrayBuffer_New",
+        "previous backing store found that does not match shared flag");
+  } else {
+    // No previous backing store found.
+    backing_store = i::BackingStore::WrapAllocation(
+        i_isolate, data, byte_length, shared, free_on_destruct);
+
+    if (free_on_destruct) {
+      // The embedder requested free-on-destruct. They already have a
+      // direct pointer to the buffer start, so globally register the backing
+      // store in case they come back with the same buffer start.
+      i::GlobalBackingStoreRegistry::Register(backing_store);
+    }
+  }
+  return backing_store;
+}
+}  // namespace
 
 v8::ArrayBuffer::Contents::Contents(void* data, size_t byte_length,
                                     void* allocation_base,
@@ -7201,29 +7258,61 @@ v8::ArrayBuffer::Contents::Contents(void* data, size_t byte_length,
   DCHECK_LE(byte_length_, allocation_length_);
 }
 
-void WasmMemoryDeleter(void* buffer, size_t lenght, void* info) {
-  internal::wasm::WasmEngine* engine =
-      reinterpret_cast<internal::wasm::WasmEngine*>(info);
-  CHECK(engine->memory_tracker()->FreeWasmMemory(nullptr, buffer));
-}
-
-void ArrayBufferDeleter(void* buffer, size_t length, void* info) {
-  v8::ArrayBuffer::Allocator* allocator =
-      reinterpret_cast<v8::ArrayBuffer::Allocator*>(info);
-  allocator->Free(buffer, length);
+v8::ArrayBuffer::Contents v8::ArrayBuffer::Externalize() {
+  return GetContents(true);
 }
 
 v8::ArrayBuffer::Contents v8::ArrayBuffer::GetContents() {
+  return GetContents(false);
+}
+
+v8::ArrayBuffer::Contents v8::ArrayBuffer::GetContents(bool externalize) {
+  // TODO(titzer): reduce duplication between shared/unshared GetContents()
+  using BufferType = v8::ArrayBuffer;
+
   i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
-  Contents contents(
-      self->backing_store(), self->byte_length(), self->allocation_base(),
-      self->allocation_length(),
-      self->is_wasm_memory() ? Allocator::AllocationMode::kReservation
-                             : Allocator::AllocationMode::kNormal,
-      self->is_wasm_memory() ? WasmMemoryDeleter : ArrayBufferDeleter,
-      self->is_wasm_memory()
-          ? static_cast<void*>(self->GetIsolate()->wasm_engine())
-          : static_cast<void*>(self->GetIsolate()->array_buffer_allocator()));
+
+  std::shared_ptr<i::BackingStore> backing_store = self->GetBackingStore();
+
+  void* deleter_data = nullptr;
+  if (externalize) {
+    Utils::ApiCheck(!self->is_external(), "v8_ArrayBuffer_Externalize",
+                    "ArrayBuffer already externalized");
+    self->set_is_external(true);
+    // When externalizing, upref the shared pointer to the backing store
+    // and store that as the deleter data. When the embedder calls the deleter
+    // callback, we will delete the additional (on-heap) shared_ptr.
+    deleter_data = MakeDeleterData(backing_store);
+  }
+
+  if (!backing_store) {
+    // If the array buffer has zero length or was detached, return empty
+    // contents.
+    DCHECK_EQ(0, self->byte_length());
+    BufferType::Contents contents(
+        nullptr, 0, nullptr, 0,
+        v8::ArrayBuffer::Allocator::AllocationMode::kNormal,
+        BackingStoreDeleter, deleter_data);
+    return contents;
+  }
+
+  // Backing stores that given to the embedder might be passed back through
+  // the API using only the start of the buffer. We need to find such
+  // backing stores using global registration until the API is changed.
+  i::GlobalBackingStoreRegistry::Register(backing_store);
+
+  auto allocation_mode =
+      backing_store->is_wasm_memory()
+          ? v8::ArrayBuffer::Allocator::AllocationMode::kReservation
+          : v8::ArrayBuffer::Allocator::AllocationMode::kNormal;
+
+  BufferType::Contents contents(backing_store->buffer_start(),  // --
+                                backing_store->byte_length(),   // --
+                                backing_store->buffer_start(),  // --
+                                backing_store->byte_length(),   // --
+                                allocation_mode,                // --
+                                BackingStoreDeleter,            // --
+                                deleter_data);
   return contents;
 }
 
@@ -7248,14 +7337,18 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(Isolate* isolate, size_t byte_length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, ArrayBuffer, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::JSArrayBuffer> obj =
-      i_isolate->factory()->NewJSArrayBuffer(i::SharedFlag::kNotShared);
-  // TODO(jbroman): It may be useful in the future to provide a MaybeLocal
-  // version that throws an exception or otherwise does not crash.
-  if (!i::JSArrayBuffer::SetupAllocatingData(obj, i_isolate, byte_length)) {
+  i::MaybeHandle<i::JSArrayBuffer> result =
+      i_isolate->factory()->NewJSArrayBufferAndBackingStore(
+          byte_length, i::InitializedFlag::kZeroInitialized);
+
+  i::Handle<i::JSArrayBuffer> array_buffer;
+  if (!result.ToHandle(&array_buffer)) {
+    // TODO(jbroman): It may be useful in the future to provide a MaybeLocal
+    // version that throws an exception or otherwise does not crash.
     i::FatalProcessOutOfMemory(i_isolate, "v8::ArrayBuffer::New");
   }
-  return Utils::ToLocal(obj);
+
+  return Utils::ToLocal(array_buffer);
 }
 
 Local<ArrayBuffer> v8::ArrayBuffer::New(Isolate* isolate, void* data,
@@ -7267,11 +7360,15 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(Isolate* isolate, void* data,
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, ArrayBuffer, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::JSArrayBuffer> obj =
-      i_isolate->factory()->NewJSArrayBuffer(i::SharedFlag::kNotShared);
-  i::JSArrayBuffer::Setup(obj, i_isolate,
-                          mode == ArrayBufferCreationMode::kExternalized, data,
-                          byte_length);
+
+  std::shared_ptr<i::BackingStore> backing_store = LookupOrCreateBackingStore(
+      i_isolate, data, byte_length, i::SharedFlag::kNotShared, mode);
+
+  i::Handle<i::JSArrayBuffer> obj = i_isolate->factory()->NewJSArrayBuffer();
+  obj->Attach(std::move(backing_store));
+  if (mode == ArrayBufferCreationMode::kExternalized) {
+    obj->set_is_external(true);
+  }
   return Utils::ToLocal(obj);
 }
 
@@ -7314,9 +7411,9 @@ size_t v8::ArrayBufferView::CopyContents(void* dest, size_t byte_length) {
 
 bool v8::ArrayBufferView::HasBuffer() const {
   i::Handle<i::JSArrayBufferView> self = Utils::OpenHandle(this);
-  i::Handle<i::JSArrayBuffer> buffer(i::JSArrayBuffer::cast(self->buffer()),
-                                     self->GetIsolate());
-  return buffer->backing_store() != nullptr;
+  if (!self->IsJSTypedArray()) return true;
+  auto typed_array = i::Handle<i::JSTypedArray>::cast(self);
+  return !typed_array->is_on_heap();
 }
 
 size_t v8::ArrayBufferView::ByteOffset() {
@@ -7412,13 +7509,17 @@ i::Handle<i::JSArrayBuffer> SetupSharedArrayBuffer(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, SharedArrayBuffer, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+
+  std::shared_ptr<i::BackingStore> backing_store = LookupOrCreateBackingStore(
+      i_isolate, data, byte_length, i::SharedFlag::kShared, mode);
+
   i::Handle<i::JSArrayBuffer> obj =
-      i_isolate->factory()->NewJSArrayBuffer(i::SharedFlag::kShared);
-  bool is_wasm_memory =
-      i_isolate->wasm_engine()->memory_tracker()->IsWasmMemory(data);
-  i::JSArrayBuffer::Setup(obj, i_isolate,
-                          mode == ArrayBufferCreationMode::kExternalized, data,
-                          byte_length, i::SharedFlag::kShared, is_wasm_memory);
+      i_isolate->factory()->NewJSSharedArrayBuffer();
+
+  obj->Attach(backing_store);
+  if (mode == ArrayBufferCreationMode::kExternalized) {
+    obj->set_is_external(true);
+  }
   return obj;
 }
 
@@ -7426,20 +7527,6 @@ i::Handle<i::JSArrayBuffer> SetupSharedArrayBuffer(
 
 bool v8::SharedArrayBuffer::IsExternal() const {
   return Utils::OpenHandle(this)->is_external();
-}
-
-v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::Externalize() {
-  i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
-  i::Isolate* isolate = self->GetIsolate();
-  Utils::ApiCheck(!self->is_external(), "v8_SharedArrayBuffer_Externalize",
-                  "SharedArrayBuffer already externalized");
-  self->set_is_external(true);
-
-  const v8::SharedArrayBuffer::Contents contents = GetContents();
-  isolate->heap()->UnregisterArrayBuffer(*self);
-
-  // A regular copy is good enough. No move semantics needed.
-  return contents;
 }
 
 v8::SharedArrayBuffer::Contents::Contents(
@@ -7457,20 +7544,62 @@ v8::SharedArrayBuffer::Contents::Contents(
   DCHECK_LE(byte_length_, allocation_length_);
 }
 
+v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::Externalize() {
+  return GetContents(true);
+}
+
 v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::GetContents() {
+  return GetContents(false);
+}
+
+v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::GetContents(
+    bool externalize) {
+  // TODO(titzer): reduce duplication between shared/unshared GetContents()
+  using BufferType = v8::SharedArrayBuffer;
+
   i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
-  Contents contents(
-      self->backing_store(), self->byte_length(), self->allocation_base(),
-      self->allocation_length(),
-      self->is_wasm_memory()
-          ? ArrayBuffer::Allocator::AllocationMode::kReservation
-          : ArrayBuffer::Allocator::AllocationMode::kNormal,
-      self->is_wasm_memory()
-          ? reinterpret_cast<Contents::DeleterCallback>(WasmMemoryDeleter)
-          : reinterpret_cast<Contents::DeleterCallback>(ArrayBufferDeleter),
-      self->is_wasm_memory()
-          ? static_cast<void*>(self->GetIsolate()->wasm_engine())
-          : static_cast<void*>(self->GetIsolate()->array_buffer_allocator()));
+
+  std::shared_ptr<i::BackingStore> backing_store = self->GetBackingStore();
+
+  void* deleter_data = nullptr;
+  if (externalize) {
+    Utils::ApiCheck(!self->is_external(), "v8_SharedArrayBuffer_Externalize",
+                    "SharedArrayBuffer already externalized");
+    self->set_is_external(true);
+    // When externalizing, upref the shared pointer to the backing store
+    // and store that as the deleter data. When the embedder calls the deleter
+    // callback, we will delete the additional (on-heap) shared_ptr.
+    deleter_data = MakeDeleterData(backing_store);
+  }
+
+  if (!backing_store) {
+    // If the array buffer has zero length or was detached, return empty
+    // contents.
+    DCHECK_EQ(0, self->byte_length());
+    BufferType::Contents contents(
+        nullptr, 0, nullptr, 0,
+        v8::ArrayBuffer::Allocator::AllocationMode::kNormal,
+        BackingStoreDeleter, deleter_data);
+    return contents;
+  }
+
+  // Backing stores that given to the embedder might be passed back through
+  // the API using only the start of the buffer. We need to find such
+  // backing stores using global registration until the API is changed.
+  i::GlobalBackingStoreRegistry::Register(backing_store);
+
+  auto allocation_mode =
+      backing_store->is_wasm_memory()
+          ? v8::ArrayBuffer::Allocator::AllocationMode::kReservation
+          : v8::ArrayBuffer::Allocator::AllocationMode::kNormal;
+
+  BufferType::Contents contents(backing_store->buffer_start(),  // --
+                                backing_store->byte_length(),   // --
+                                backing_store->buffer_start(),  // --
+                                backing_store->byte_length(),   // --
+                                allocation_mode,                // --
+                                BackingStoreDeleter,            // --
+                                deleter_data);
   return contents;
 }
 
@@ -7485,14 +7614,20 @@ Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(Isolate* isolate,
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, SharedArrayBuffer, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::JSArrayBuffer> obj =
-      i_isolate->factory()->NewJSArrayBuffer(i::SharedFlag::kShared);
-  // TODO(jbroman): It may be useful in the future to provide a MaybeLocal
-  // version that throws an exception or otherwise does not crash.
-  if (!i::JSArrayBuffer::SetupAllocatingData(obj, i_isolate, byte_length, true,
-                                             i::SharedFlag::kShared)) {
+
+  std::unique_ptr<i::BackingStore> backing_store =
+      i::BackingStore::Allocate(i_isolate, byte_length, i::SharedFlag::kShared,
+                                i::InitializedFlag::kZeroInitialized);
+
+  if (!backing_store) {
+    // TODO(jbroman): It may be useful in the future to provide a MaybeLocal
+    // version that throws an exception or otherwise does not crash.
     i::FatalProcessOutOfMemory(i_isolate, "v8::SharedArrayBuffer::New");
   }
+
+  i::Handle<i::JSArrayBuffer> obj =
+      i_isolate->factory()->NewJSSharedArrayBuffer();
+  obj->Attach(std::move(backing_store));
   return Utils::ToLocalShared(obj);
 }
 
@@ -10458,3 +10593,5 @@ void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
 
 }  // namespace internal
 }  // namespace v8
+
+#undef TRACE_BS

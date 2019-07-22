@@ -10,6 +10,7 @@
 #include "src/execution/runtime-profiler.h"
 #include "src/execution/simulator.h"
 #include "src/logging/counters.h"
+#include "src/objects/backing-store.h"
 #include "src/roots/roots-inl.h"
 #include "src/utils/memcopy.h"
 #include "src/wasm/wasm-engine.h"
@@ -301,8 +302,7 @@ Object StackGuard::HandleInterrupts() {
   if (TestAndClear(&interrupt_flags, GROW_SHARED_MEMORY)) {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                  "V8.WasmGrowSharedMemory");
-    isolate_->wasm_engine()->memory_tracker()->UpdateSharedMemoryInstances(
-        isolate_);
+    BackingStore::UpdateSharedWasmMemoryObjects(isolate_);
   }
 
   if (TestAndClear(&interrupt_flags, DEOPT_MARKED_ALLOCATION_SITES)) {

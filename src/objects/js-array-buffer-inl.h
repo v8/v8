@@ -48,14 +48,6 @@ size_t JSArrayBuffer::allocation_length() const {
   if (backing_store() == nullptr) {
     return 0;
   }
-  // If this buffer is managed by the WasmMemoryTracker
-  if (is_wasm_memory()) {
-    const auto* data =
-        GetIsolate()->wasm_engine()->memory_tracker()->FindAllocationData(
-            backing_store());
-    DCHECK_NOT_NULL(data);
-    return data->allocation_length;
-  }
   return byte_length();
 }
 
@@ -63,23 +55,7 @@ void* JSArrayBuffer::allocation_base() const {
   if (backing_store() == nullptr) {
     return nullptr;
   }
-  // If this buffer is managed by the WasmMemoryTracker
-  if (is_wasm_memory()) {
-    const auto* data =
-        GetIsolate()->wasm_engine()->memory_tracker()->FindAllocationData(
-            backing_store());
-    DCHECK_NOT_NULL(data);
-    return data->allocation_base;
-  }
   return backing_store();
-}
-
-bool JSArrayBuffer::is_wasm_memory() const {
-  return IsWasmMemoryBit::decode(bit_field());
-}
-
-void JSArrayBuffer::set_is_wasm_memory(bool is_wasm_memory) {
-  set_bit_field(IsWasmMemoryBit::update(bit_field(), is_wasm_memory));
 }
 
 void JSArrayBuffer::clear_padding() {
@@ -105,6 +81,8 @@ BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_detachable,
                     JSArrayBuffer::IsDetachableBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, was_detached,
                     JSArrayBuffer::WasDetachedBit)
+BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_asmjs_memory,
+                    JSArrayBuffer::IsAsmJsMemoryBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_shared,
                     JSArrayBuffer::IsSharedBit)
 

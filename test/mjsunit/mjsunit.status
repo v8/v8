@@ -82,6 +82,7 @@
 
   # Too slow in debug mode BUG(v8:9506): times out.
   'wasm/shared-memory-worker-explicit-gc-stress': [PASS, ['mode == debug', SKIP]],
+  'wasm/shared-memory-worker-gc-stress': [PASS, ['mode == debug', SKIP]],
 
   ##############################################################################
   # Only RegExp stuff tested, no need for extensive optimizing compiler tests.
