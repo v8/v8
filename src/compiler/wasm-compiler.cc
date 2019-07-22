@@ -277,8 +277,9 @@ Node* WasmGraphBuilder::EffectPhi(unsigned count, Node** effects,
 }
 
 Node* WasmGraphBuilder::RefNull() {
-  return LOAD_INSTANCE_FIELD(NullValue,
-                             MachineType::TypeCompressedTaggedPointer());
+  Node* isolate_root = LOAD_INSTANCE_FIELD(IsolateRoot, MachineType::Pointer());
+  return LOAD_TAGGED_POINTER(
+      isolate_root, IsolateData::root_slot_offset(RootIndex::kNullValue));
 }
 
 Node* WasmGraphBuilder::RefFunc(uint32_t function_index) {
@@ -3316,13 +3317,6 @@ Node* WasmGraphBuilder::CurrentMemoryPages() {
   return result;
 }
 
-Node* WasmGraphBuilder::BuildLoadBuiltinFromInstance(int builtin_index) {
-  DCHECK(Builtins::IsBuiltinId(builtin_index));
-  Node* isolate_root = LOAD_INSTANCE_FIELD(IsolateRoot, MachineType::Pointer());
-  return LOAD_TAGGED_POINTER(isolate_root,
-                             IsolateData::builtin_slot_offset(builtin_index));
-}
-
 // Only call this function for code which is not reused across instantiations,
 // as we do not patch the embedded js_context.
 Node* WasmGraphBuilder::BuildCallToRuntimeWithContext(
@@ -5070,6 +5064,34 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     return mcgraph()->IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag);
   }
 
+  Node* BuildLoadUndefinedValueFromInstance() {
+    if (undefined_value_node_ == nullptr) {
+      Node* isolate_root = graph()->NewNode(
+          mcgraph()->machine()->Load(MachineType::Pointer()),
+          instance_node_.get(),
+          mcgraph()->Int32Constant(WASM_INSTANCE_OBJECT_OFFSET(IsolateRoot)),
+          graph()->start(), graph()->start());
+      undefined_value_node_ = InsertDecompressionIfNeeded(
+          MachineType::TypeCompressedTaggedPointer(),
+          graph()->NewNode(
+              mcgraph()->machine()->Load(
+                  MachineType::TypeCompressedTaggedPointer()),
+              isolate_root,
+              mcgraph()->Int32Constant(
+                  IsolateData::root_slot_offset(RootIndex::kUndefinedValue)),
+              isolate_root, graph()->start()));
+    }
+    return undefined_value_node_.get();
+  }
+
+  Node* BuildLoadBuiltinFromInstance(int builtin_index) {
+    DCHECK(Builtins::IsBuiltinId(builtin_index));
+    Node* isolate_root =
+        LOAD_INSTANCE_FIELD(IsolateRoot, MachineType::Pointer());
+    return LOAD_TAGGED_POINTER(isolate_root,
+                               IsolateData::builtin_slot_offset(builtin_index));
+  }
+
   Node* BuildChangeInt32ToTagged(Node* value) {
     MachineOperatorBuilder* machine = mcgraph()->machine();
     CommonOperatorBuilder* common = mcgraph()->common();
@@ -5240,8 +5262,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     SetControl(is_heap_object.if_true);
     Node* orig_effect = Effect();
 
-    Node* undefined_node = LOAD_INSTANCE_FIELD(
-        UndefinedValue, MachineType::TypeCompressedTaggedPointer());
+    Node* undefined_node = BuildLoadUndefinedValueFromInstance();
     Node* check_undefined =
         graph()->NewNode(machine->WordEqual(), value, undefined_node);
     Node* effect_tagged = Effect();
@@ -5585,8 +5606,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // The callable is passed as the last parameter, after WASM arguments.
     Node* callable_node = Param(wasm_count + 1);
 
-    Node* undefined_node = LOAD_INSTANCE_FIELD(
-        UndefinedValue, MachineType::TypeCompressedTaggedPointer());
+    Node* undefined_node = BuildLoadUndefinedValueFromInstance();
 
     Node* call = nullptr;
     bool sloppy_receiver = true;
@@ -6014,6 +6034,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   Isolate* const isolate_;
   JSGraph* jsgraph_;
   StubCallMode stub_mode_;
+  SetOncePointer<Node> undefined_value_node_;
   SetOncePointer<const Operator> allocate_heap_number_operator_;
   wasm::WasmFeatures enabled_features_;
 };

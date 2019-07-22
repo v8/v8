@@ -602,8 +602,6 @@ class WasmGraphBuilder {
     return buf;
   }
 
-  Node* BuildLoadBuiltinFromInstance(int builtin_index);
-
   //-----------------------------------------------------------------------
   // Operations involving the CEntry, a dependency we want to remove
   // to get off the GC heap.

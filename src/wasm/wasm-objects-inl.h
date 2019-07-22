@@ -261,8 +261,6 @@ OPTIONAL_ACCESSORS(WasmInstanceObject, managed_native_allocations, Foreign,
                    kManagedNativeAllocationsOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, exceptions_table, FixedArray,
                    kExceptionsTableOffset)
-ACCESSORS(WasmInstanceObject, undefined_value, Oddball, kUndefinedValueOffset)
-ACCESSORS(WasmInstanceObject, null_value, Oddball, kNullValueOffset)
 ACCESSORS(WasmInstanceObject, centry_stub, Code, kCEntryStubOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, wasm_exported_functions, FixedArray,
                    kWasmExportedFunctionsOffset)

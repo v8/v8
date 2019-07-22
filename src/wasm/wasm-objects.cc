@@ -1702,8 +1702,6 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   instance->set_indirect_function_table_targets(nullptr);
   instance->set_native_context(*isolate->native_context());
   instance->set_module_object(*module_object);
-  instance->set_undefined_value(ReadOnlyRoots(isolate).undefined_value());
-  instance->set_null_value(ReadOnlyRoots(isolate).null_value());
   instance->set_jump_table_start(
       module_object->native_module()->jump_table_start());
 

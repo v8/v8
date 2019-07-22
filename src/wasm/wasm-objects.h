@@ -447,8 +447,6 @@ class WasmInstanceObject : public JSObject {
   DECL_OPTIONAL_ACCESSORS(indirect_function_table_refs, FixedArray)
   DECL_OPTIONAL_ACCESSORS(managed_native_allocations, Foreign)
   DECL_OPTIONAL_ACCESSORS(exceptions_table, FixedArray)
-  DECL_ACCESSORS(undefined_value, Oddball)
-  DECL_ACCESSORS(null_value, Oddball)
   DECL_ACCESSORS(centry_stub, Code)
   DECL_OPTIONAL_ACCESSORS(wasm_exported_functions, FixedArray)
   DECL_PRIMITIVE_ACCESSORS(memory_start, byte*)
@@ -494,7 +492,6 @@ class WasmInstanceObject : public JSObject {
   V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
   V(kGlobalsStartOffset, kSystemPointerSize)                              \
   V(kImportedMutableGlobalsOffset, kSystemPointerSize)                    \
-  V(kUndefinedValueOffset, kTaggedSize)                                   \
   V(kIsolateRootOffset, kSystemPointerSize)                               \
   V(kJumpTableStartOffset, kSystemPointerSize)                            \
   /* End of often-accessed fields. */                                     \
@@ -510,7 +507,6 @@ class WasmInstanceObject : public JSObject {
   V(kIndirectFunctionTablesOffset, kTaggedSize)                           \
   V(kManagedNativeAllocationsOffset, kTaggedSize)                         \
   V(kExceptionsTableOffset, kTaggedSize)                                  \
-  V(kNullValueOffset, kTaggedSize)                                        \
   V(kCEntryStubOffset, kTaggedSize)                                       \
   V(kWasmExportedFunctionsOffset, kTaggedSize)                            \
   V(kRealStackLimitAddressOffset, kSystemPointerSize)                     \
@@ -539,7 +535,6 @@ class WasmInstanceObject : public JSObject {
   static constexpr uint16_t kTaggedFieldOffsets[] = {
       kImportedFunctionRefsOffset,
       kIndirectFunctionTableRefsOffset,
-      kUndefinedValueOffset,
       kModuleObjectOffset,
       kExportsObjectOffset,
       kNativeContextOffset,
@@ -552,7 +547,6 @@ class WasmInstanceObject : public JSObject {
       kIndirectFunctionTablesOffset,
       kManagedNativeAllocationsOffset,
       kExceptionsTableOffset,
-      kNullValueOffset,
       kCEntryStubOffset,
       kWasmExportedFunctionsOffset};
 
