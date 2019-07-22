@@ -602,8 +602,8 @@ ContextData* ContextData::previous(JSHeapBroker* broker, size_t* depth,
   if (serialize && previous_ == nullptr) {
     TraceScope tracer(broker, this, "ContextData::previous");
     Handle<Context> context = Handle<Context>::cast(object());
-    Context prev = context->previous();
-    if (!prev.is_null()) {
+    Object prev = context->unchecked_previous();
+    if (prev.IsContext()) {
       previous_ = broker->GetOrCreateData(prev)->AsContext();
     }
   }
@@ -2088,8 +2088,8 @@ ContextRef ContextRef::previous(size_t* depth, bool serialize) const {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference handle_dereference;
     Context current = *object();
-    while (*depth != 0 && !current.previous().is_null()) {
-      current = current.previous();
+    while (*depth != 0 && current.unchecked_previous().IsContext()) {
+      current = Context::cast(current.unchecked_previous());
       (*depth)--;
     }
     return ContextRef(broker(), handle(current, broker()->isolate()));
