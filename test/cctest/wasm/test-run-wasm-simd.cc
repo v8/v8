@@ -1131,6 +1131,24 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2Mul) {
                     base::MulWithWraparound);
 }
 
+WASM_SIMD_TEST_NO_LOWERING(I64x2MinS) {
+  RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2MinS, Minimum);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I64x2MaxS) {
+  RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2MaxS, Maximum);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I64x2MinU) {
+  RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2MinU,
+                    UnsignedMinimum);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I64x2MaxU) {
+  RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2MaxU,
+                    UnsignedMaximum);
+}
+
 WASM_SIMD_TEST_NO_LOWERING(I64x2Eq) {
   RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2Eq, Equal);
 }

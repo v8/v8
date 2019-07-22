@@ -2848,6 +2848,40 @@ void InstructionSelector::VisitI64x2Mul(Node* node) {
        g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
 }
 
+void InstructionSelector::VisitI64x2MinS(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  Emit(kX64I64x2MinS, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)), g.UseFixed(node->InputAt(1), xmm0),
+       arraysize(temps), temps);
+}
+
+void InstructionSelector::VisitI64x2MaxS(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  Emit(kX64I64x2MaxS, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)), g.UseFixed(node->InputAt(1), xmm0),
+       arraysize(temps), temps);
+}
+
+void InstructionSelector::VisitI64x2MinU(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempSimd128Register(),
+                                g.TempSimd128Register()};
+  Emit(kX64I64x2MinU, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)), g.UseFixed(node->InputAt(1), xmm0),
+       arraysize(temps), temps);
+}
+
+void InstructionSelector::VisitI64x2MaxU(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempSimd128Register(),
+                                g.TempSimd128Register()};
+  Emit(kX64I64x2MaxU, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)), g.UseFixed(node->InputAt(1), xmm0),
+       arraysize(temps), temps);
+}
+
 void InstructionSelector::VisitI32x4SConvertF32x4(Node* node) {
   X64OperandGenerator g(this);
   Emit(kX64I32x4SConvertF32x4, g.DefineSameAsFirst(node),

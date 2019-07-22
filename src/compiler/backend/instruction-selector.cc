@@ -1897,6 +1897,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI64x2Sub(node);
     case IrOpcode::kI64x2Mul:
       return MarkAsSimd128(node), VisitI64x2Mul(node);
+    case IrOpcode::kI64x2MinS:
+      return MarkAsSimd128(node), VisitI64x2MinS(node);
+    case IrOpcode::kI64x2MaxS:
+      return MarkAsSimd128(node), VisitI64x2MaxS(node);
     case IrOpcode::kI64x2Eq:
       return MarkAsSimd128(node), VisitI64x2Eq(node);
     case IrOpcode::kI64x2Ne:
@@ -1907,6 +1911,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI64x2GeS(node);
     case IrOpcode::kI64x2ShrU:
       return MarkAsSimd128(node), VisitI64x2ShrU(node);
+    case IrOpcode::kI64x2MinU:
+      return MarkAsSimd128(node), VisitI64x2MinU(node);
+    case IrOpcode::kI64x2MaxU:
+      return MarkAsSimd128(node), VisitI64x2MaxU(node);
     case IrOpcode::kI64x2GtU:
       return MarkAsSimd128(node), VisitI64x2GtU(node);
     case IrOpcode::kI64x2GeU:
@@ -2582,11 +2590,15 @@ void InstructionSelector::VisitI64x2ShrS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2Add(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2Sub(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2Mul(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI64x2MinS(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI64x2MaxS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2Eq(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2Ne(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2GtS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2GeS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ShrU(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI64x2MinU(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI64x2MaxU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2GtU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2GeU(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64

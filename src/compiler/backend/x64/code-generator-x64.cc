@@ -2575,6 +2575,33 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ paddq(left, tmp2);  // left == dst
       break;
     }
+    case kX64I64x2MinS: {
+      CpuFeatureScope sse_scope_4_2(tasm(), SSE4_2);
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(1);
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      DCHECK_EQ(src, xmm0);
+
+      __ movaps(tmp, src);
+      __ pcmpgtq(src, dst);
+      __ blendvpd(tmp, dst);  // implicit use of xmm0 as mask
+      __ movaps(dst, tmp);
+      break;
+    }
+    case kX64I64x2MaxS: {
+      CpuFeatureScope sse_scope_4_2(tasm(), SSE4_2);
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(1);
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      DCHECK_EQ(src, xmm0);
+
+      __ movaps(tmp, src);
+      __ pcmpgtq(src, dst);
+      __ blendvpd(dst, tmp);  // implicit use of xmm0 as mask
+      break;
+    }
     case kX64I64x2Eq: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
@@ -2610,6 +2637,53 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I64x2ShrU: {
       __ psrlq(i.OutputSimd128Register(), i.InputInt8(1));
+      break;
+    }
+    case kX64I64x2MinU: {
+      CpuFeatureScope sse_scope_4_2(tasm(), SSE4_2);
+      CpuFeatureScope sse_scope_4_1(tasm(), SSE4_1);
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(1);
+      XMMRegister src_tmp = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister dst_tmp = i.ToSimd128Register(instr->TempAt(1));
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      DCHECK_EQ(src, xmm0);
+
+      __ movaps(src_tmp, src);
+      __ movaps(dst_tmp, dst);
+
+      __ pcmpeqd(src, src);
+      __ psllq(src, 63);
+
+      __ pxor(dst_tmp, src);
+      __ pxor(src, src_tmp);
+
+      __ pcmpgtq(src, dst_tmp);
+      __ blendvpd(src_tmp, dst);  // implicit use of xmm0 as mask
+      __ movaps(dst, src_tmp);
+      break;
+    }
+    case kX64I64x2MaxU: {
+      CpuFeatureScope sse_scope_4_2(tasm(), SSE4_2);
+      CpuFeatureScope sse_scope_4_1(tasm(), SSE4_1);
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(1);
+      XMMRegister src_tmp = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister dst_tmp = i.ToSimd128Register(instr->TempAt(1));
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      DCHECK_EQ(src, xmm0);
+
+      __ movaps(src_tmp, src);
+      __ movaps(dst_tmp, dst);
+
+      __ pcmpeqd(src, src);
+      __ psllq(src, 63);
+
+      __ pxor(dst_tmp, src);
+      __ pxor(src, src_tmp);
+
+      __ pcmpgtq(src, dst_tmp);
+      __ blendvpd(dst, src_tmp);  // implicit use of xmm0 as mask
       break;
     }
     case kX64I64x2GtU: {
