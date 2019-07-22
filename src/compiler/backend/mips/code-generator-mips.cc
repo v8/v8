@@ -1620,6 +1620,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Usdc1(ft, i.MemoryOperand(), kScratchReg);
       break;
     }
+    case kMipsSync: {
+      __ sync();
+      break;
+    }
     case kMipsPush:
       if (instr->InputAt(0)->IsFPRegister()) {
         LocationOperand* op = LocationOperand::cast(instr->InputAt(0));

@@ -1795,6 +1795,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Usdc1(ft, i.MemoryOperand(), kScratchReg);
       break;
     }
+    case kMips64Sync: {
+      __ sync();
+      break;
+    }
     case kMips64Push:
       if (instr->InputAt(0)->IsFPRegister()) {
         __ Sdc1(i.InputDoubleRegister(0), MemOperand(sp, -kDoubleSize));

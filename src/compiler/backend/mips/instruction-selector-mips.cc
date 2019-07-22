@@ -1775,6 +1775,11 @@ void InstructionSelector::VisitFloat64SilenceNaN(Node* node) {
        arraysize(temps), temps);
 }
 
+void InstructionSelector::VisitMemoryBarrier(Node* node) {
+  MipsOperandGenerator g(this);
+  Emit(kMipsSync, g.NoOutput());
+}
+
 void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());
   MipsOperandGenerator g(this);

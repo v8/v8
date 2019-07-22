@@ -318,6 +318,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64Ush:
     case kMips64Usw:
     case kMips64Uswc1:
+    case kMips64Sync:
     case kMips64Word64AtomicStoreWord8:
     case kMips64Word64AtomicStoreWord16:
     case kMips64Word64AtomicStoreWord32:
