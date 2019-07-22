@@ -114,6 +114,15 @@ void DotPrinterImpl::VisitChoice(ChoiceNode* that) {
   }
 }
 
+void DotPrinterImpl::VisitLoopChoice(LoopChoiceNode* that) {
+  VisitChoice(that);
+}
+
+void DotPrinterImpl::VisitNegativeLookaroundChoice(
+    NegativeLookaroundChoiceNode* that) {
+  VisitChoice(that);
+}
+
 void DotPrinterImpl::VisitText(TextNode* that) {
   Zone* zone = that->zone();
   os_ << "  n" << that << " [label=\"";

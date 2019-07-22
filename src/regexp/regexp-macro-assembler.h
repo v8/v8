@@ -36,6 +36,8 @@ class RegExpMacroAssembler {
   static const int kTableSize = 1 << kTableSizeBits;
   static const int kTableMask = kTableSize - 1;
 
+  static constexpr int kUseCharactersValue = -1;
+
   enum IrregexpImplementation {
     kIA32Implementation,
     kARMImplementation,
@@ -133,10 +135,12 @@ class RegExpMacroAssembler {
   // label if it is.
   virtual void IfRegisterEqPos(int reg, Label* if_eq) = 0;
   virtual IrregexpImplementation Implementation() = 0;
-  virtual void LoadCurrentCharacter(int cp_offset,
-                                    Label* on_end_of_input,
-                                    bool check_bounds = true,
-                                    int characters = 1) = 0;
+  V8_EXPORT_PRIVATE void LoadCurrentCharacter(
+      int cp_offset, Label* on_end_of_input, bool check_bounds = true,
+      int characters = 1, int eats_at_least = kUseCharactersValue);
+  virtual void LoadCurrentCharacterImpl(int cp_offset, Label* on_end_of_input,
+                                        bool check_bounds, int characters,
+                                        int eats_at_least) = 0;
   virtual void PopCurrentPosition() = 0;
   virtual void PopRegister(int register_index) = 0;
   // Pushes the label on the backtrack stack, so that a following Backtrack

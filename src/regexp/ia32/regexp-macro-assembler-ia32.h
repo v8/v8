@@ -66,10 +66,9 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerIA32
   virtual void IfRegisterLT(int reg, int comparand, Label* if_lt);
   virtual void IfRegisterEqPos(int reg, Label* if_eq);
   virtual IrregexpImplementation Implementation();
-  virtual void LoadCurrentCharacter(int cp_offset,
-                                    Label* on_end_of_input,
-                                    bool check_bounds = true,
-                                    int characters = 1);
+  virtual void LoadCurrentCharacterImpl(int cp_offset, Label* on_end_of_input,
+                                        bool check_bounds, int characters,
+                                        int eats_at_least);
   virtual void PopCurrentPosition();
   virtual void PopRegister(int register_index);
   virtual void PushBacktrack(Label* label);

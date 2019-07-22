@@ -53,9 +53,9 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   void IfRegisterLT(int reg, int comparand, Label* if_lt) override;
   void IfRegisterEqPos(int reg, Label* if_eq) override;
   IrregexpImplementation Implementation() override;
-  void LoadCurrentCharacter(int cp_offset, Label* on_end_of_input,
-                            bool check_bounds = true,
-                            int characters = 1) override;
+  void LoadCurrentCharacterImpl(int cp_offset, Label* on_end_of_input,
+                                bool check_bounds, int characters,
+                                int eats_at_least) override;
   void PopCurrentPosition() override;
   void PopRegister(int register_index) override;
   void PushBacktrack(Label* label) override;

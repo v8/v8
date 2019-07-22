@@ -702,11 +702,8 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
 
   if (node == nullptr) node = new (zone) EndNode(EndNode::BACKTRACK, zone);
   data->node = node;
-  Analysis analysis(isolate, is_one_byte);
-  analysis.EnsureAnalyzed(node);
-  if (analysis.has_failed()) {
-    data->error =
-        isolate->factory()->NewStringFromAsciiChecked(analysis.error_message());
+  if (const char* error_message = AnalyzeRegExp(isolate, is_one_byte, node)) {
+    data->error = isolate->factory()->NewStringFromAsciiChecked(error_message);
     return false;
   }
 

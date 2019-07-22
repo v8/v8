@@ -171,10 +171,13 @@ void RegExpBytecodeGenerator::CheckGreedyLoop(
   EmitOrLink(on_tos_equals_current_position);
 }
 
-void RegExpBytecodeGenerator::LoadCurrentCharacter(int cp_offset,
-                                                   Label* on_failure,
-                                                   bool check_bounds,
-                                                   int characters) {
+void RegExpBytecodeGenerator::LoadCurrentCharacterImpl(int cp_offset,
+                                                       Label* on_failure,
+                                                       bool check_bounds,
+                                                       int characters,
+                                                       int eats_at_least) {
+  // TODO(v8:9305): Make use of eats_at_least value to perform a bigger bounds-
+  // check if it doesn't match the number of preloaded characters.
   DCHECK_LE(kMinCPOffset, cp_offset);
   DCHECK_GE(kMaxCPOffset, cp_offset);
   int bytecode;

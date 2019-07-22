@@ -46,9 +46,9 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   virtual void ReadCurrentPositionFromRegister(int reg);
   virtual void WriteStackPointerToRegister(int reg);
   virtual void ReadStackPointerFromRegister(int reg);
-  virtual void LoadCurrentCharacter(int cp_offset, Label* on_end_of_input,
-                                    bool check_bounds = true,
-                                    int characters = 1);
+  virtual void LoadCurrentCharacterImpl(int cp_offset, Label* on_end_of_input,
+                                        bool check_bounds, int characters,
+                                        int eats_at_least);
   virtual void CheckCharacter(unsigned c, Label* on_equal);
   virtual void CheckCharacterAfterAnd(unsigned c, unsigned mask,
                                       Label* on_equal);

@@ -85,6 +85,20 @@ void RegExpMacroAssembler::CheckPosition(int cp_offset,
   LoadCurrentCharacter(cp_offset, on_outside_input, true);
 }
 
+void RegExpMacroAssembler::LoadCurrentCharacter(int cp_offset,
+                                                Label* on_end_of_input,
+                                                bool check_bounds,
+                                                int characters,
+                                                int eats_at_least) {
+  // By default, eats_at_least = characters.
+  if (eats_at_least == kUseCharactersValue) {
+    eats_at_least = characters;
+  }
+
+  LoadCurrentCharacterImpl(cp_offset, on_end_of_input, check_bounds, characters,
+                           eats_at_least);
+}
+
 bool RegExpMacroAssembler::CheckSpecialCharacterClass(uc16 type,
                                                       Label* on_no_match) {
   return false;
