@@ -538,8 +538,6 @@
   'built-ins/FinalizationGroup/gc-has-one-chance-to-call-cleanupCallback': [FAIL],
   'built-ins/FinalizationGroup/newtarget-prototype-is-not-object': [FAIL],
   'built-ins/FinalizationGroup/proto-from-ctor-realm': [FAIL],
-  'built-ins/FinalizationGroup/prototype/cleanupSome/length': [FAIL],
-  'built-ins/FinalizationGroup/prototype/register/length': [FAIL],
   'built-ins/FinalizationGroup/prototype/register/return-undefined-register-itself': [FAIL],
   'built-ins/FinalizationGroup/prototype/register/unregisterToken-not-object-or-undefined-throws': [FAIL],
   'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-job-not-active-throws': [FAIL],
