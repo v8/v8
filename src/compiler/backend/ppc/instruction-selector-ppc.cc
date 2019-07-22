@@ -1853,6 +1853,11 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
        g.UseRegister(left), g.UseRegister(right));
 }
 
+void InstructionSelector::VisitMemoryBarrier(Node* node) {
+  PPCOperandGenerator g(this);
+  Emit(kPPC_Sync, g.NoOutput());
+}
+
 void InstructionSelector::VisitWord32AtomicLoad(Node* node) { VisitLoad(node); }
 
 void InstructionSelector::VisitWord64AtomicLoad(Node* node) { VisitLoad(node); }

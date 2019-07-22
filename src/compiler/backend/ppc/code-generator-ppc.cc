@@ -1195,6 +1195,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+    case kPPC_Sync: {
+      __ sync();
+      break;
+    }
     case kPPC_And:
       if (HasRegisterInput(instr, 1)) {
         __ and_(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),

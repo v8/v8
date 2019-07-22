@@ -2198,6 +2198,11 @@ void InstructionSelector::EmitPrepareArguments(
   }
 }
 
+void InstructionSelector::VisitMemoryBarrier(Node* node) {
+  S390OperandGenerator g(this);
+  Emit(kArchNop, g.NoOutput());
+}
+
 bool InstructionSelector::IsTailCallAddressImmediate() { return false; }
 
 int InstructionSelector::GetTempsCountForTailCallFromJSFunction() { return 3; }
