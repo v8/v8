@@ -81,7 +81,7 @@
   'regress/regress-crbug-941743': [PASS, ['mode == debug', SKIP], ['(arch == arm or arch == arm64 or arch == mipsel or arch == mips64el) and simulator_run == True', SKIP]],
 
   # Too slow in debug mode BUG(v8:9506): times out.
-  'wasm/shared-memory-worker-explicit-gc-stress': [PASS, ['mode == debug', SKIP]],
+  'wasm/shared-memory-worker-explicit-gc-stress': [PASS, ['mode == debug', SKIP], ['tsan', SKIP]],
   'wasm/shared-memory-worker-gc-stress': [PASS, ['mode == debug', SKIP]],
 
   ##############################################################################
