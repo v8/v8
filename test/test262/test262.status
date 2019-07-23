@@ -535,29 +535,24 @@
   'language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-recursive': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=8179
-  'built-ins/FinalizationGroup/gc-has-one-chance-to-call-cleanupCallback': [FAIL],
-  'built-ins/FinalizationGroup/prototype/register/return-undefined-register-itself': [FAIL],
   'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-job-not-active-throws': [FAIL],
-  'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-length': [FAIL],
-  'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-missing-internal-throws': [FAIL],
-  'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-name': [FAIL],
-  'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-not-object-throws': [FAIL],
-  'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-prop-desc': [FAIL],
-  'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/proto': [FAIL],
   'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/Symbol.toStringTag': [FAIL],
-  'built-ins/FinalizationGroup/prototype/cleanupSome/callback-iterator-proto': [FAIL],
-  'built-ins/FinalizationGroup/prototype/cleanupSome/cleanupcallback-iterator-proto': [FAIL],
-  'built-ins/FinalizationGroup/prototype/cleanupSome/cleanup-prevented-with-reference': [FAIL],
-  'built-ins/FinalizationGroup/prototype/cleanupSome/cleanup-prevented-with-unregister': [FAIL],
-  'built-ins/FinalizationGroup/prototype/cleanupSome/gc-cleanup-not-prevented-with-wr-deref': [FAIL],
-  'built-ins/FinalizationGroup/prototype/cleanupSome/iterator-dynamic': [FAIL],
-  'built-ins/FinalizationGroup/prototype/cleanupSome/iterator-holdings-multiple-values': [FAIL],
   'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-callback-throws': [FAIL],
   'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-cleanup-callback-throws': [FAIL],
-  'built-ins/FinalizationGroup/prototype/cleanupSome/return-undefined-with-gc': [FAIL],
   'built-ins/FinalizationGroup/prototype/register/holdings-same-as-target': [FAIL],
   'built-ins/FinalizationGroup/prototype/register/unregisterToken-same-as-holdings-and-target': [FAIL],
+  'built-ins/FinalizationGroup/prototype/cleanupSome/cleanup-prevented-with-reference': [FAIL],
+  'built-ins/FinalizationGroup/prototype/register/return-undefined-register-itself': [FAIL],
+
+  # https://github.com/tc39/test262/issues/2256
+  'built-ins/FinalizationGroup/prototype/cleanupSome/cleanup-prevented-with-unregister': [FAIL],
+
+  # https://github.com/tc39/test262/issues/2239
   'built-ins/WeakRef/prototype/deref/gc-cleanup-not-prevented-with-wr-deref': [FAIL],
+  'built-ins/FinalizationGroup/prototype/cleanupSome/gc-cleanup-not-prevented-with-wr-deref': [FAIL],
+
+  # https://github.com/tc39/test262/issues/2255
+  'built-ins/FinalizationGroup/prototype/cleanupSome/iterator-holdings-multiple-values': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 

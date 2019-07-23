@@ -58,6 +58,7 @@ FEATURE_FLAGS = {
   'Promise.allSettled': '--harmony-promise-all-settled',
   'FinalizationGroup': '--harmony-weak-refs',
   'WeakRef': '--harmony-weak-refs',
+  'host-gc-required': '--expose-gc-as=v8GC',
 }
 
 SKIPPED_FEATURES = set(['class-methods-private',
