@@ -536,7 +536,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=8179
   'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-job-not-active-throws': [FAIL],
-  'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/Symbol.toStringTag': [FAIL],
   'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-callback-throws': [FAIL],
   'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-cleanup-callback-throws': [FAIL],
   'built-ins/FinalizationGroup/prototype/register/holdings-same-as-target': [FAIL],

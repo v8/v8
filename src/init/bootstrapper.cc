@@ -4367,7 +4367,7 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
     JSObject::ForceSetPrototype(cleanup_iterator_prototype, iterator_prototype);
 
     InstallToStringTag(isolate(), cleanup_iterator_prototype,
-                       "JSFinalizationGroupCleanupIterator");
+                       "FinalizationGroup Cleanup Iterator");
 
     SimpleInstallFunction(isolate(), cleanup_iterator_prototype, "next",
                           Builtins::kFinalizationGroupCleanupIteratorNext, 0,
