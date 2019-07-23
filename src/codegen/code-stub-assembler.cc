@@ -10614,7 +10614,8 @@ void CodeStubAssembler::BigIntToRawBytes(TNode<BigInt> bigint,
 void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
                                          ElementsKind elements_kind,
                                          KeyedAccessStoreMode store_mode,
-                                         Label* bailout, Node* context) {
+                                         Label* bailout, Node* context,
+                                         Variable* maybe_converted_value) {
   CSA_ASSERT(this, Word32BinaryNot(IsJSProxy(object)));
 
   Node* elements = LoadElements(object);
@@ -10630,12 +10631,12 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
   TNode<IntPtrT> intptr_key = TryToIntptr(key, bailout);
 
   if (IsTypedArrayElementsKind(elements_kind)) {
-    Label done(this);
+    Label done(this), update_value_and_bailout(this, Label::kDeferred);
 
     // IntegerIndexedElementSet converts value to a Number/BigInt prior to the
     // bounds check.
-    value = PrepareValueForWriteToTypedArray(CAST(value), elements_kind,
-                                             CAST(context));
+    Node* converted_value = PrepareValueForWriteToTypedArray(
+        CAST(value), elements_kind, CAST(context));
 
     // There must be no allocations between the buffer load and
     // and the actual store to backing store, because GC may decide that
@@ -10644,7 +10645,11 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
 
     // Check if buffer has been detached.
     TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(CAST(object));
-    GotoIf(IsDetachedBuffer(buffer), bailout);
+    if (maybe_converted_value) {
+      GotoIf(IsDetachedBuffer(buffer), &update_value_and_bailout);
+    } else {
+      GotoIf(IsDetachedBuffer(buffer), bailout);
+    }
 
     // Bounds check.
     TNode<UintPtrT> length = LoadJSTypedArrayLength(CAST(object));
@@ -10653,20 +10658,82 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
       // Skip the store if we write beyond the length or
       // to a property with a negative integer index.
       GotoIfNot(UintPtrLessThan(intptr_key, length), &done);
-    } else if (store_mode == STANDARD_STORE) {
-      GotoIfNot(UintPtrLessThan(intptr_key, length), bailout);
     } else {
-      // This case is produced due to the dispatched call in
-      // ElementsTransitionAndStore and StoreFastElement.
-      // TODO(jgruber): Avoid generating unsupported combinations to save code
-      // size.
-      DebugBreak();
+      DCHECK_EQ(store_mode, STANDARD_STORE);
+      GotoIfNot(UintPtrLessThan(intptr_key, length), &update_value_and_bailout);
     }
 
     TNode<RawPtrT> backing_store = LoadJSTypedArrayBackingStore(CAST(object));
-    StoreElement(backing_store, elements_kind, intptr_key, value,
+    StoreElement(backing_store, elements_kind, intptr_key, converted_value,
                  parameter_mode);
     Goto(&done);
+
+    BIND(&update_value_and_bailout);
+    // We already prepared the incoming value for storing into a typed array.
+    // This might involve calling ToNumber in some cases. We shouldn't call
+    // ToNumber again in the runtime so pass the converted value to the runtime.
+    // The prepared value is an untagged value. Convert it to a tagged value
+    // to pass it to runtime. It is not possible to do the detached buffer check
+    // before we prepare the value, since ToNumber can detach the ArrayBuffer.
+    // The spec specifies the order of these operations.
+    if (maybe_converted_value != nullptr) {
+      switch (elements_kind) {
+        case UINT8_ELEMENTS:
+        case INT8_ELEMENTS:
+        case UINT16_ELEMENTS:
+        case INT16_ELEMENTS:
+        case UINT8_CLAMPED_ELEMENTS:
+          maybe_converted_value->Bind(SmiFromInt32(converted_value));
+          break;
+        case UINT32_ELEMENTS:
+          maybe_converted_value->Bind(ChangeUint32ToTagged(converted_value));
+          break;
+        case INT32_ELEMENTS:
+          maybe_converted_value->Bind(ChangeInt32ToTagged(converted_value));
+          break;
+        case FLOAT32_ELEMENTS: {
+          Label dont_allocate_heap_number(this), end(this);
+          GotoIf(TaggedIsSmi(value), &dont_allocate_heap_number);
+          GotoIf(IsHeapNumber(value), &dont_allocate_heap_number);
+          {
+            maybe_converted_value->Bind(AllocateHeapNumberWithValue(
+                ChangeFloat32ToFloat64(converted_value)));
+            Goto(&end);
+          }
+          BIND(&dont_allocate_heap_number);
+          {
+            maybe_converted_value->Bind(value);
+            Goto(&end);
+          }
+          BIND(&end);
+          break;
+        }
+        case FLOAT64_ELEMENTS: {
+          Label dont_allocate_heap_number(this), end(this);
+          GotoIf(TaggedIsSmi(value), &dont_allocate_heap_number);
+          GotoIf(IsHeapNumber(value), &dont_allocate_heap_number);
+          {
+            maybe_converted_value->Bind(
+                AllocateHeapNumberWithValue(converted_value));
+            Goto(&end);
+          }
+          BIND(&dont_allocate_heap_number);
+          {
+            maybe_converted_value->Bind(value);
+            Goto(&end);
+          }
+          BIND(&end);
+          break;
+        }
+        case BIGINT64_ELEMENTS:
+        case BIGUINT64_ELEMENTS:
+          maybe_converted_value->Bind(converted_value);
+          break;
+        default:
+          UNREACHABLE();
+      }
+    }
+    Goto(bailout);
 
     BIND(&done);
     return;

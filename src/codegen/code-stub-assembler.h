@@ -3070,7 +3070,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void EmitElementStore(Node* object, Node* key, Node* value,
                         ElementsKind elements_kind,
                         KeyedAccessStoreMode store_mode, Label* bailout,
-                        Node* context);
+                        Node* context,
+                        Variable* maybe_converted_value = nullptr);
 
   Node* CheckForCapacityGrow(Node* object, Node* elements, ElementsKind kind,
                              Node* length, Node* key, ParameterMode mode,
