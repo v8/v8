@@ -1406,16 +1406,16 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
     if (!allow_new_workers_) return;
 
+    Worker* worker = new Worker;
+    args.Holder()->SetAlignedPointerInInternalField(0, worker);
+    workers_.push_back(worker);
+
     String::Utf8Value script(args.GetIsolate(), source);
     if (!*script) {
       Throw(args.GetIsolate(), "Can't get worker script");
       return;
     }
-
-    Worker* worker = new Worker(*script);
-    args.Holder()->SetAlignedPointerInInternalField(0, worker);
-    workers_.push_back(worker);
-    worker->StartExecuteInThread();
+    worker->StartExecuteInThread(*script);
   }
 }
 
@@ -2441,7 +2441,7 @@ bool SourceGroup::Execute(Isolate* isolate) {
     Local<String> file_name =
         String::NewFromUtf8(isolate, arg, NewStringType::kNormal)
             .ToLocalChecked();
-    Local<String> source = Shell::ReadFile(isolate, arg);
+    Local<String> source = ReadFile(isolate, arg);
     if (source.IsEmpty()) {
       printf("Error reading '%s'\n", arg);
       base::OS::ExitProcess(1);
@@ -2455,6 +2455,10 @@ bool SourceGroup::Execute(Isolate* isolate) {
     }
   }
   return success;
+}
+
+Local<String> SourceGroup::ReadFile(Isolate* isolate, const char* name) {
+  return Shell::ReadFile(isolate, name);
 }
 
 SourceGroup::IsolateThread::IsolateThread(SourceGroup* group)
@@ -2523,56 +2527,73 @@ ExternalizedContents::~ExternalizedContents() {
 
 void SerializationDataQueue::Enqueue(std::unique_ptr<SerializationData> data) {
   base::MutexGuard lock_guard(&mutex_);
-  if (!live_) return;
-  data_.emplace_back(std::move(data));
-  not_empty_.NotifyOne();
+  data_.push_back(std::move(data));
 }
 
-std::unique_ptr<SerializationData> SerializationDataQueue::Dequeue() {
+bool SerializationDataQueue::Dequeue(
+    std::unique_ptr<SerializationData>* out_data) {
+  out_data->reset();
   base::MutexGuard lock_guard(&mutex_);
-  while (live_ && data_.empty()) not_empty_.Wait(&mutex_);
-  if (!live_) return {};
-  auto result = std::move(data_.front());
-  data_.pop_front();
-  return result;
+  if (data_.empty()) return false;
+  *out_data = std::move(data_[0]);
+  data_.erase(data_.begin());
+  return true;
 }
 
-void SerializationDataQueue::Kill() {
+bool SerializationDataQueue::IsEmpty() {
   base::MutexGuard lock_guard(&mutex_);
-  live_ = false;
+  return data_.empty();
+}
+
+void SerializationDataQueue::Clear() {
+  base::MutexGuard lock_guard(&mutex_);
   data_.clear();
-  not_empty_.NotifyAll();
 }
 
-Worker::Worker(const char* script)
-    : thread_(nullptr), script_(nullptr), running_(false) {
-  script_ = i::StrDup(script);
-}
+Worker::Worker()
+    : in_semaphore_(0),
+      out_semaphore_(0),
+      thread_(nullptr),
+      script_(nullptr),
+      running_(false) {}
 
 Worker::~Worker() {
   delete thread_;
   thread_ = nullptr;
   delete[] script_;
   script_ = nullptr;
+  in_queue_.Clear();
+  out_queue_.Clear();
 }
 
-void Worker::StartExecuteInThread() {
+void Worker::StartExecuteInThread(const char* script) {
   running_ = true;
+  script_ = i::StrDup(script);
   thread_ = new WorkerThread(this);
   thread_->Start();
 }
 
 void Worker::PostMessage(std::unique_ptr<SerializationData> data) {
   in_queue_.Enqueue(std::move(data));
+  in_semaphore_.Signal();
 }
 
 std::unique_ptr<SerializationData> Worker::GetMessage() {
-  return out_queue_.Dequeue();
+  std::unique_ptr<SerializationData> result;
+  while (!out_queue_.Dequeue(&result)) {
+    // If the worker is no longer running, and there are no messages in the
+    // queue, don't expect any more messages from it.
+    if (!base::Relaxed_Load(&running_)) break;
+    out_semaphore_.Wait();
+  }
+  return result;
 }
 
 void Worker::Terminate() {
-  in_queue_.Kill();
-  out_queue_.Kill();
+  base::Relaxed_Store(&running_, false);
+  // Post nullptr to wake the Worker thread message loop, and tell it to stop
+  // running.
+  PostMessage(nullptr);
 }
 
 void Worker::WaitForThread() {
@@ -2638,8 +2659,12 @@ void Worker::ExecuteInThread() {
             Local<Function> onmessage_fun = Local<Function>::Cast(onmessage);
             // Now wait for messages
             while (true) {
-              std::unique_ptr<SerializationData> data = in_queue_.Dequeue();
-              if (!data) break;  // nullptr indicates termination.
+              in_semaphore_.Wait();
+              std::unique_ptr<SerializationData> data;
+              if (!in_queue_.Dequeue(&data)) continue;
+              if (!data) {
+                break;
+              }
               v8::TryCatch try_catch(isolate);
               Local<Value> value;
               if (Shell::DeserializeValue(isolate, std::move(data))
@@ -2661,8 +2686,10 @@ void Worker::ExecuteInThread() {
     Shell::CollectGarbage(isolate);
   }
   isolate->Dispose();
-  in_queue_.Kill();
-  out_queue_.Kill();
+
+  // Post nullptr to wake the thread waiting on GetMessage() if there is one.
+  out_queue_.Enqueue(nullptr);
+  out_semaphore_.Signal();
 }
 
 void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -2683,6 +2710,7 @@ void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& args) {
     Local<External> this_value = Local<External>::Cast(args.Data());
     Worker* worker = static_cast<Worker*>(this_value->Value());
     worker->out_queue_.Enqueue(std::move(data));
+    worker->out_semaphore_.Signal();
   }
 }
 
