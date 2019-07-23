@@ -973,4 +973,38 @@ namespace test {
     return 1;
   }
 
+  struct SBox<T: type> {
+    value: T;
+  }
+
+  @export
+  macro TestGenericStruct1(): intptr {
+    const i: intptr = 123;
+    let box = SBox<intptr>{value: i};
+    let boxbox = SBox<SBox<intptr>>{value: box};
+    check(box.value == 123);
+    boxbox.value.value *= 2;
+    check(boxbox.value.value == 246);
+    return boxbox.value.value;
+  }
+
+  struct TestTuple<T1: type, T2: type> {
+    const fst: T1;
+    const snd: T2;
+  }
+
+  macro Swap<T1: type, T2: type>(tuple: TestTuple<T1, T2>):
+      TestTuple<T2, T1> {
+    return TestTuple<T2, T1>{fst: tuple.snd, snd: tuple.fst};
+  }
+
+  @export
+  macro TestGenericStruct2(): TestTuple<Smi, intptr> {
+    const intptrAndSmi = TestTuple<intptr, Smi>{fst: 1, snd: 2};
+    const smiAndIntptr = Swap<intptr, Smi>(intptrAndSmi);
+    check(intptrAndSmi.fst == smiAndIntptr.snd);
+    check(intptrAndSmi.snd == smiAndIntptr.fst);
+    return smiAndIntptr;
+  }
+
 }

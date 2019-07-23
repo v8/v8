@@ -461,8 +461,8 @@ base::Optional<ParseResult> MakeDebugStatement(
 }
 
 base::Optional<ParseResult> MakeVoidType(ParseResultIterator* child_results) {
-  TypeExpression* result =
-      MakeNode<BasicTypeExpression>(std::vector<std::string>{}, "void");
+  TypeExpression* result = MakeNode<BasicTypeExpression>(
+      std::vector<std::string>{}, "void", std::vector<TypeExpression*>{});
   return ParseResult{result};
 }
 
@@ -776,10 +776,13 @@ base::Optional<ParseResult> MakeStructDeclaration(
   if (!IsValidTypeName(name->value)) {
     NamingConventionError("Struct", name, "UpperCamelCase");
   }
+  auto generic_parameters = child_results->NextAs<GenericParameters>();
+  LintGenericParameters(generic_parameters);
   auto methods = child_results->NextAs<std::vector<Declaration*>>();
   auto fields = child_results->NextAs<std::vector<StructFieldExpression>>();
   Declaration* result =
-      MakeNode<StructDeclaration>(name, std::move(methods), std::move(fields));
+      MakeNode<StructDeclaration>(name, std::move(methods), std::move(fields),
+                                  std::move(generic_parameters));
   return ParseResult{result};
 }
 
@@ -855,9 +858,12 @@ base::Optional<ParseResult> MakeBasicTypeExpression(
       child_results->NextAs<std::vector<std::string>>();
   auto is_constexpr = child_results->NextAs<bool>();
   auto name = child_results->NextAs<std::string>();
+  auto generic_arguments =
+      child_results->NextAs<std::vector<TypeExpression*>>();
   TypeExpression* result = MakeNode<BasicTypeExpression>(
       std::move(namespace_qualification),
-      is_constexpr ? GetConstexprName(name) : std::move(name));
+      is_constexpr ? GetConstexprName(name) : std::move(name),
+      std::move(generic_arguments));
   return ParseResult{result};
 }
 
@@ -1134,8 +1140,8 @@ base::Optional<ParseResult> MakeCatchBlock(ParseResultIterator* child_results) {
   }
   ParameterList parameters;
   parameters.names.push_back(MakeNode<Identifier>(variable));
-  parameters.types.push_back(
-      MakeNode<BasicTypeExpression>(std::vector<std::string>{}, "Object"));
+  parameters.types.push_back(MakeNode<BasicTypeExpression>(
+      std::vector<std::string>{}, "Object", std::vector<TypeExpression*>{}));
   parameters.has_varargs = false;
   LabelBlock* result = MakeNode<LabelBlock>(
       MakeNode<Identifier>(kCatchLabelName), std::move(parameters), body);
@@ -1159,6 +1165,17 @@ base::Optional<ParseResult> MakeIdentifierFromMatchedInput(
     ParseResultIterator* child_results) {
   return ParseResult{
       MakeNode<Identifier>(child_results->matched_input().ToString())};
+}
+
+base::Optional<ParseResult> MakeRightShiftIdentifier(
+    ParseResultIterator* child_results) {
+  std::string str = child_results->matched_input().ToString();
+  for (auto character : str) {
+    if (character != '>') {
+      ReportError("right-shift operators may not contain any whitespace");
+    }
+  }
+  return ParseResult{MakeNode<Identifier>(str)};
 }
 
 base::Optional<ParseResult> MakeIdentifierExpression(
@@ -1491,7 +1508,9 @@ struct TorqueGrammar : Grammar {
   Symbol simpleType = {
       Rule({Token("("), &type, Token(")")}),
       Rule({List<std::string>(Sequence({&identifier, Token("::")})),
-            CheckIf(Token("constexpr")), &identifier},
+            CheckIf(Token("constexpr")), &identifier,
+            TryOrDefault<std::vector<TypeExpression*>>(
+                &genericSpecializationTypeList)},
            MakeBasicTypeExpression),
       Rule({Token("builtin"), Token("("), typeList, Token(")"), Token("=>"),
             &simpleType},
@@ -1689,9 +1708,14 @@ struct TorqueGrammar : Grammar {
   Symbol* additiveExpression =
       BinaryOperator(multiplicativeExpression, OneOf({"+", "-"}));
 
+  // Result: Identifier*
+  Symbol shiftOperator = {
+      Rule({Token("<<")}, MakeIdentifierFromMatchedInput),
+      Rule({Token(">"), Token(">")}, MakeRightShiftIdentifier),
+      Rule({Token(">"), Token(">"), Token(">")}, MakeRightShiftIdentifier)};
+
   // Result: Expression*
-  Symbol* shiftExpression =
-      BinaryOperator(additiveExpression, OneOf({"<<", ">>", ">>>"}));
+  Symbol* shiftExpression = BinaryOperator(additiveExpression, &shiftOperator);
 
   // Do not allow expressions like a < b > c because this is never
   // useful and ambiguous with template parameters.
@@ -1853,7 +1877,9 @@ struct TorqueGrammar : Grammar {
             Token("{"), List<Declaration*>(&method),
             List<ClassFieldExpression>(&classField), Token("}")},
            AsSingletonVector<Declaration*, MakeClassDeclaration>()),
-      Rule({Token("struct"), &name, Token("{"), List<Declaration*>(&method),
+      Rule({Token("struct"), &name,
+            TryOrDefault<GenericParameters>(&genericParameters), Token("{"),
+            List<Declaration*>(&method),
             List<StructFieldExpression>(&structField), Token("}")},
            AsSingletonVector<Declaration*, MakeStructDeclaration>()),
       Rule({CheckIf(Token("transient")), Token("type"), &name,

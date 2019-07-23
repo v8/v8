@@ -65,7 +65,7 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
 
   // A class types' fields are resolved here, which allows two class fields to
   // mutually refer to each others.
-  TypeOracle::FinalizeClassTypes();
+  TypeOracle::FinalizeAggregateTypes();
 
   std::string output_directory = options.output_directory;
 

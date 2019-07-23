@@ -50,6 +50,7 @@ class Declarable {
     kRuntimeFunction,
     kIntrinsic,
     kGeneric,
+    kGenericStructType,
     kTypeAlias,
     kExternConstant,
     kNamespaceConstant
@@ -64,6 +65,7 @@ class Declarable {
   bool IsBuiltin() const { return kind() == kBuiltin; }
   bool IsRuntimeFunction() const { return kind() == kRuntimeFunction; }
   bool IsGeneric() const { return kind() == kGeneric; }
+  bool IsGenericStructType() const { return kind() == kGenericStructType; }
   bool IsTypeAlias() const { return kind() == kTypeAlias; }
   bool IsExternConstant() const { return kind() == kExternConstant; }
   bool IsNamespaceConstant() const { return kind() == kNamespaceConstant; }
@@ -450,26 +452,43 @@ class Intrinsic : public Callable {
   }
 };
 
-class Generic : public Declarable {
- public:
-  DECLARE_DECLARABLE_BOILERPLATE(Generic, generic)
+template <class T>
+class SpecializationMap {
+ private:
+  using Map = std::unordered_map<TypeVector, T*, base::hash<TypeVector>>;
 
-  GenericDeclaration* declaration() const { return declaration_; }
-  const std::vector<Identifier*> generic_parameters() const {
-    return declaration()->generic_parameters;
-  }
-  const std::string& name() const { return name_; }
-  void AddSpecialization(const TypeVector& type_arguments,
-                         Callable* specialization) {
+ public:
+  SpecializationMap() {}
+
+  void Add(const TypeVector& type_arguments, T* specialization) {
     DCHECK_EQ(0, specializations_.count(type_arguments));
     specializations_[type_arguments] = specialization;
   }
-  base::Optional<Callable*> GetSpecialization(
-      const TypeVector& type_arguments) const {
+  base::Optional<T*> Get(const TypeVector& type_arguments) const {
     auto it = specializations_.find(type_arguments);
     if (it != specializations_.end()) return it->second;
     return base::nullopt;
   }
+
+  using iterator = typename Map::const_iterator;
+  iterator begin() const { return specializations_.begin(); }
+  iterator end() const { return specializations_.end(); }
+
+ private:
+  Map specializations_;
+};
+
+class Generic : public Declarable {
+ public:
+  DECLARE_DECLARABLE_BOILERPLATE(Generic, generic)
+
+  const std::string& name() const { return name_; }
+  GenericDeclaration* declaration() const { return declaration_; }
+  const std::vector<Identifier*> generic_parameters() const {
+    return declaration()->generic_parameters;
+  }
+  SpecializationMap<Callable>& specializations() { return specializations_; }
+
   base::Optional<TypeVector> InferSpecializationTypes(
       const TypeVector& explicit_specialization_types,
       const TypeVector& arguments);
@@ -482,14 +501,39 @@ class Generic : public Declarable {
         declaration_(declaration) {}
 
   std::string name_;
-  std::unordered_map<TypeVector, Callable*, base::hash<TypeVector>>
-      specializations_;
   GenericDeclaration* declaration_;
+  SpecializationMap<Callable> specializations_;
 };
 
 struct SpecializationKey {
   Generic* generic;
   TypeVector specialized_types;
+};
+
+class GenericStructType : public Declarable {
+ public:
+  DECLARE_DECLARABLE_BOILERPLATE(GenericStructType, generic_type)
+  const std::string& name() const { return name_; }
+  StructDeclaration* declaration() const { return declaration_; }
+  const std::vector<Identifier*>& generic_parameters() const {
+    return declaration_->generic_parameters;
+  }
+  SpecializationMap<const StructType>& specializations() {
+    return specializations_;
+  }
+
+ private:
+  friend class Declarations;
+  GenericStructType(const std::string& name, StructDeclaration* declaration)
+      : Declarable(Declarable::kGenericStructType),
+        name_(name),
+        declaration_(declaration) {
+    DCHECK_GT(declaration->generic_parameters.size(), 0);
+  }
+
+  std::string name_;
+  StructDeclaration* declaration_;
+  SpecializationMap<const StructType> specializations_;
 };
 
 class TypeAlias : public Declarable {

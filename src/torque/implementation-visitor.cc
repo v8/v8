@@ -1601,7 +1601,7 @@ void FailCallableLookup(const std::string& reason, const QualifiedName& name,
 
 Callable* GetOrCreateSpecialization(const SpecializationKey& key) {
   if (base::Optional<Callable*> specialization =
-          key.generic->GetSpecialization(key.specialized_types)) {
+          key.generic->specializations().Get(key.specialized_types)) {
     return *specialization;
   }
   return DeclarationVisitor::SpecializeImplicit(key);
@@ -2658,6 +2658,7 @@ void ImplementationVisitor::Visit(Declarable* declarable) {
     case Declarable::kExternConstant:
     case Declarable::kNamespace:
     case Declarable::kGeneric:
+    case Declarable::kGenericStructType:
       return;
   }
 }
@@ -3671,13 +3672,13 @@ void ImplementationVisitor::GenerateCSATypes(
 
     NamespaceScope h_namespaces(h_contents, {"v8", "internal"});
 
-    for (auto& declarable : GlobalContext::AllDeclarables()) {
-      TypeAlias* alias = TypeAlias::DynamicCast(declarable.get());
-      if (!alias || alias->IsRedeclaration()) continue;
-      const StructType* struct_type = StructType::DynamicCast(alias->type());
+    // Generates headers for all structs in a topologically-sorted order, since
+    // TypeOracle keeps them in the order of their resolution
+    for (auto& type : *TypeOracle::GetAggregateTypes()) {
+      const StructType* struct_type = StructType::DynamicCast(type.get());
       if (!struct_type) continue;
-      const std::string& name = struct_type->name();
-      h_contents << "struct TorqueStruct" << name << " {\n";
+      h_contents << "struct " << struct_type->GetGeneratedTypeNameImpl()
+                 << " {\n";
       for (auto& field : struct_type->fields()) {
         h_contents << "  " << field.name_and_type.type->GetGeneratedTypeName();
         h_contents << " " << field.name_and_type.name << ";\n";

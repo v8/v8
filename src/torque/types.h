@@ -502,6 +502,18 @@ class StructType final : public AggregateType {
   DECLARE_TYPE_BOILERPLATE(StructType)
   std::string ToExplicitString() const override;
   std::string GetGeneratedTypeNameImpl() const override;
+  std::string MangledName() const override {
+    // TODO(gsps): Generate more readable mangled names
+    std::string str(name());
+    std::replace(str.begin(), str.end(), ',', '_');
+    std::replace(str.begin(), str.end(), ' ', '_');
+    std::replace(str.begin(), str.end(), '<', '_');
+    std::replace(str.begin(), str.end(), '>', '_');
+    return str;
+  }
+
+  static std::string ComputeName(const std::string& basename,
+                                 const std::vector<const Type*>& args);
 
  private:
   friend class TypeOracle;

@@ -333,7 +333,7 @@ Callable* DeclarationVisitor::Specialize(
            << std::to_string(generic_parameter_count) << ")";
     ReportError(stream.str());
   }
-  if (key.generic->GetSpecialization(key.specialized_types)) {
+  if (key.generic->specializations().Get(key.specialized_types)) {
     ReportError("cannot redeclare specialization of ", key.generic->name(),
                 " with types <", key.specialized_types, ">");
   }
@@ -364,7 +364,7 @@ Callable* DeclarationVisitor::Specialize(
     callable = CreateBuiltin(builtin, generated_name, readable_name.str(),
                              type_signature, *body);
   }
-  key.generic->AddSpecialization(key.specialized_types, callable);
+  key.generic->specializations().Add(key.specialized_types, callable);
   return callable;
 }
 
