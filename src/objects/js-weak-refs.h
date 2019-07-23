@@ -141,15 +141,10 @@ class FinalizationGroupCleanupJobTask : public Microtask {
   DECL_VERIFIER(FinalizationGroupCleanupJobTask)
   DECL_PRINTER(FinalizationGroupCleanupJobTask)
 
-// Layout description.
-#define FINALIZATION_GROUP_CLEANUP_JOB_TASK_FIELDS(V) \
-  V(kFinalizationGroupOffset, kTaggedSize)            \
-  /* Total size. */                                   \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(Microtask::kHeaderSize,
-                                FINALIZATION_GROUP_CLEANUP_JOB_TASK_FIELDS)
-#undef FINALIZATION_GROUP_CLEANUP_JOB_TASK_FIELDS
+  // Layout description.
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+      Microtask::kHeaderSize,
+      TORQUE_GENERATED_FINALIZATION_GROUP_CLEANUP_JOB_TASK_FIELDS)
 
   OBJECT_CONSTRUCTORS(FinalizationGroupCleanupJobTask, Microtask);
 };

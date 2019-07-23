@@ -189,15 +189,6 @@ declare_args() {
   v8_enable_shared_ro_heap = ""
 }
 
-# We reuse the snapshot toolchain for building torque and other generators to
-# avoid building v8_libbase on the host more than once. On mips with big endian,
-# the snapshot toolchain is the target toolchain and, hence, can't be used.
-v8_generator_toolchain = v8_snapshot_toolchain
-if (host_cpu == "x64" &&
-    (v8_current_cpu == "mips" || v8_current_cpu == "mips64")) {
-  v8_generator_toolchain = "//build/toolchain/linux:clang_x64"
-}
-
 # Derived defaults.
 if (v8_enable_verify_heap == "") {
   v8_enable_verify_heap = v8_enable_debugging_features
@@ -1002,6 +993,7 @@ if (!v8_enable_i18n_support) {
 action("run_torque") {
   visibility = [
     ":*",
+    "tools/debug_helper/:*",
     "tools/gcmole/:*",
     "test/cctest/:*",
   ]
@@ -1023,6 +1015,8 @@ action("run_torque") {
     "$target_gen_dir/torque-generated/class-definitions-tq.cc",
     "$target_gen_dir/torque-generated/class-definitions-tq-inl.h",
     "$target_gen_dir/torque-generated/class-definitions-tq.h",
+    "$target_gen_dir/torque-generated/class-debug-readers-tq.cc",
+    "$target_gen_dir/torque-generated/class-debug-readers-tq.h",
     "$target_gen_dir/torque-generated/exported-macros-assembler-tq.cc",
     "$target_gen_dir/torque-generated/exported-macros-assembler-tq.h",
     "$target_gen_dir/torque-generated/csa-types-tq.h",
@@ -3325,6 +3319,7 @@ v8_source_set("torque_base") {
     "src/torque/ast.h",
     "src/torque/cfg.cc",
     "src/torque/cfg.h",
+    "src/torque/class-debug-reader-generator.cc",
     "src/torque/constants.h",
     "src/torque/contextual.h",
     "src/torque/csa-generator.cc",

@@ -1301,11 +1301,7 @@ void JSFinalizationGroupCleanupIterator::
   VerifyHeapPointer(isolate, finalization_group());
 }
 
-void FinalizationGroupCleanupJobTask::FinalizationGroupCleanupJobTaskVerify(
-    Isolate* isolate) {
-  CHECK(IsFinalizationGroupCleanupJobTask());
-  CHECK(finalization_group().IsJSFinalizationGroup());
-}
+USE_TORQUE_VERIFIER(FinalizationGroupCleanupJobTask)
 
 void JSWeakMap::JSWeakMapVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSWeakMapVerify(*this, isolate);
