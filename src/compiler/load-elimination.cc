@@ -1197,9 +1197,12 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
     ElementsTransition transition;
     Node* object;
   };
-  ZoneVector<TransitionElementsKindInfo> element_transitions_(zone());
-  ZoneQueue<Node*> queue(zone());
-  ZoneSet<Node*> visited(zone());
+  // Allocate zone data structures in a temporary zone with a lifetime limited
+  // to this function to avoid blowing up the size of the stage-global zone.
+  Zone temp_zone(zone()->allocator(), "Temporary scoped zone");
+  ZoneVector<TransitionElementsKindInfo> element_transitions_(&temp_zone);
+  ZoneQueue<Node*> queue(&temp_zone);
+  ZoneSet<Node*> visited(&temp_zone);
   visited.insert(node);
   for (int i = 1; i < control->InputCount(); ++i) {
     queue.push(node->InputAt(i));
