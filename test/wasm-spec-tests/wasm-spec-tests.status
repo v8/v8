@@ -22,6 +22,8 @@
   'tests/f64': [SKIP],
   'tests/f32_bitwise': [SKIP],
   'tests/f64_bitwise': [SKIP],
+  'tests/proposals/reference-types/conversions':  [SKIP],
+  'tests/proposals/bulk-memory-operations/conversions': [SKIP],
 }],  # 'arch == mipsel or arch == mips64el or arch == mips or arch == mips64'
 
 ['(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simulator_run', {
