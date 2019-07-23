@@ -537,7 +537,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=8179
   'built-ins/FinalizationGroup/gc-has-one-chance-to-call-cleanupCallback': [FAIL],
   'built-ins/FinalizationGroup/prototype/register/return-undefined-register-itself': [FAIL],
-  'built-ins/FinalizationGroup/prototype/register/unregisterToken-not-object-or-undefined-throws': [FAIL],
   'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-job-not-active-throws': [FAIL],
   'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-length': [FAIL],
   'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-missing-internal-throws': [FAIL],
