@@ -811,15 +811,10 @@ StartupData SnapshotCreator::CreateBlob(
       // Complete in-object slack tracking for all functions.
       fun.CompleteInobjectSlackTrackingIfActive();
 
+      fun.ResetIfBytecodeFlushed();
+
       // Also, clear out feedback vectors, or any optimized code.
-      // Note that checking for fun.IsOptimized() || fun.IsInterpreted() is not
-      // sufficient because the function can have a feedback vector even if it
-      // is not compiled (e.g. when the bytecode was flushed). On the other
-      // hand, only checking for the feedback vector is not sufficient because
-      // there can be multiple functions sharing the same feedback vector. So we
-      // need all these checks.
-      if (fun.IsOptimized() || fun.IsInterpreted() ||
-          !fun.raw_feedback_cell().value().IsUndefined()) {
+      if (fun.IsOptimized() || fun.IsInterpreted()) {
         fun.raw_feedback_cell().set_value(
             i::ReadOnlyRoots(isolate).undefined_value());
         fun.set_code(isolate->builtins()->builtin(i::Builtins::kCompileLazy));
