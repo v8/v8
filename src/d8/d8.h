@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "src/base/once.h"
+#include "src/base/platform/condition-variable.h"
 #include "src/base/platform/time.h"
 #include "src/d8/async-hooks-wrapper.h"
 #include "src/strings/string-hasher.h"
@@ -101,9 +102,6 @@ class SourceGroup {
   base::Semaphore next_semaphore_;
   base::Semaphore done_semaphore_;
   base::Thread* thread_;
-
-  void ExitShell(int exit_code);
-  Local<String> ReadFile(Isolate* isolate, const char* name);
 
   const char** argv_;
   int begin_offset_;
@@ -195,24 +193,31 @@ class SerializationData {
 
 class SerializationDataQueue {
  public:
+  // Enqueue the given data.
   void Enqueue(std::unique_ptr<SerializationData> data);
-  bool Dequeue(std::unique_ptr<SerializationData>* data);
-  bool IsEmpty();
-  void Clear();
+
+  // Wait for data to arrive. Returns {nullptr} if this queue is {Kill()'d}
+  // in the course of waiting.
+  std::unique_ptr<SerializationData> Dequeue();
+
+  // Kill this queue, canceling any pending dequeue requests.
+  void Kill();
 
  private:
   base::Mutex mutex_;
-  std::vector<std::unique_ptr<SerializationData>> data_;
+  bool live_ = true;
+  std::deque<std::unique_ptr<SerializationData>> data_;
+  base::ConditionVariable not_empty_;
 };
 
 class Worker {
  public:
-  Worker();
+  explicit Worker(const char* script);
   ~Worker();
 
-  // Run the given script on this Worker. This function should only be called
-  // once, and should only be called by the thread that created the Worker.
-  void StartExecuteInThread(const char* script);
+  // Run this Worker. This function should only be called once, and should only
+  // be called by the thread that created the Worker.
+  void StartExecuteInThread();
   // Post a message to the worker's incoming message queue. The worker will
   // take ownership of the SerializationData.
   // This function should only be called by the thread that created the Worker.
@@ -247,12 +252,10 @@ class Worker {
   void ExecuteInThread();
   static void PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  base::Semaphore in_semaphore_;
-  base::Semaphore out_semaphore_;
   SerializationDataQueue in_queue_;
   SerializationDataQueue out_queue_;
-  base::Thread* thread_;
-  char* script_;
+  WorkerThread* thread_;
+  const char* script_;
   base::Atomic32 running_;
 };
 
