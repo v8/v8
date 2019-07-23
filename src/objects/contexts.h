@@ -181,6 +181,9 @@ enum ContextLookupFlags {
     js_finalization_group_cleanup_iterator_map)                                \
   V(JS_WEAK_MAP_FUN_INDEX, JSFunction, js_weak_map_fun)                        \
   V(JS_WEAK_SET_FUN_INDEX, JSFunction, js_weak_set_fun)                        \
+  V(JS_WEAK_REF_FUNCTION_INDEX, JSFunction, js_weak_ref_fun)                   \
+  V(JS_FINALIZATION_GROUP_FUNCTION_INDEX, JSFunction,                          \
+    js_finalization_group_fun)                                                 \
   V(MAP_CACHE_INDEX, Object, map_cache)                                        \
   V(MAP_KEY_ITERATOR_MAP_INDEX, Map, map_key_iterator_map)                     \
   V(MAP_KEY_VALUE_ITERATOR_MAP_INDEX, Map, map_key_value_iterator_map)         \

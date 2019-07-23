@@ -536,8 +536,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=8179
   'built-ins/FinalizationGroup/gc-has-one-chance-to-call-cleanupCallback': [FAIL],
-  'built-ins/FinalizationGroup/newtarget-prototype-is-not-object': [FAIL],
-  'built-ins/FinalizationGroup/proto-from-ctor-realm': [FAIL],
   'built-ins/FinalizationGroup/prototype/register/return-undefined-register-itself': [FAIL],
   'built-ins/FinalizationGroup/prototype/register/unregisterToken-not-object-or-undefined-throws': [FAIL],
   'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-job-not-active-throws': [FAIL],
@@ -560,8 +558,6 @@
   'built-ins/FinalizationGroup/prototype/cleanupSome/return-undefined-with-gc': [FAIL],
   'built-ins/FinalizationGroup/prototype/register/holdings-same-as-target': [FAIL],
   'built-ins/FinalizationGroup/prototype/register/unregisterToken-same-as-holdings-and-target': [FAIL],
-  'built-ins/WeakRef/newtarget-prototype-is-not-object': [FAIL],
-  'built-ins/WeakRef/proto-from-ctor-realm': [FAIL],
   'built-ins/WeakRef/prototype/deref/gc-cleanup-not-prevented-with-wr-deref': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################

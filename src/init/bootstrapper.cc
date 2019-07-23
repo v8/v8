@@ -4293,6 +4293,9 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
         isolate(), finalization_group_name, JS_FINALIZATION_GROUP_TYPE,
         JSFinalizationGroup::kSize, 0, finalization_group_prototype,
         Builtins::kFinalizationGroupConstructor);
+    InstallWithIntrinsicDefaultProto(
+        isolate(), finalization_group_fun,
+        Context::JS_FINALIZATION_GROUP_FUNCTION_INDEX);
 
     finalization_group_fun->shared().DontAdaptArguments();
     finalization_group_fun->shared().set_length(1);
@@ -4339,6 +4342,8 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
     Handle<JSFunction> weak_ref_fun = CreateFunction(
         isolate(), weak_ref_name, JS_WEAK_REF_TYPE, JSWeakRef::kSize, 0,
         weak_ref_prototype, Builtins::kWeakRefConstructor);
+    InstallWithIntrinsicDefaultProto(isolate(), weak_ref_fun,
+                                     Context::JS_WEAK_REF_FUNCTION_INDEX);
 
     weak_ref_fun->shared().DontAdaptArguments();
     weak_ref_fun->shared().set_length(1);
