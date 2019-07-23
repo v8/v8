@@ -10,7 +10,6 @@
 #include "include/v8.h"
 #include "src/api/api-inl.h"
 #include "src/base/build_config.h"
-#include "src/objects/backing-store.h"
 #include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-objects.h"
 #include "test/unittests/test-utils.h"
@@ -1988,43 +1987,22 @@ class ValueSerializerTestWithSharedArrayBufferClone
   ValueSerializerTestWithSharedArrayBufferClone()
       : serializer_delegate_(this), deserializer_delegate_(this) {}
 
-  void InitializeData(const std::vector<uint8_t>& data, bool is_wasm_memory) {
+  void InitializeData(const std::vector<uint8_t>& data) {
     data_ = data;
     {
       Context::Scope scope(serialization_context());
       input_buffer_ =
-          NewSharedArrayBuffer(data_.data(), data_.size(), is_wasm_memory);
+          SharedArrayBuffer::New(isolate(), data_.data(), data_.size());
     }
     {
       Context::Scope scope(deserialization_context());
       output_buffer_ =
-          NewSharedArrayBuffer(data_.data(), data_.size(), is_wasm_memory);
+          SharedArrayBuffer::New(isolate(), data_.data(), data_.size());
     }
   }
 
   const Local<SharedArrayBuffer>& input_buffer() { return input_buffer_; }
   const Local<SharedArrayBuffer>& output_buffer() { return output_buffer_; }
-
-  Local<SharedArrayBuffer> NewSharedArrayBuffer(void* data, size_t byte_length,
-                                                bool is_wasm_memory) {
-    if (is_wasm_memory) {
-      // TODO(titzer): there is no way to create Wasm memory backing stores
-      // through the API, or to create a shared array buffer whose backing
-      // store is wasm memory, so use the internal API.
-      DCHECK_EQ(0, byte_length % i::wasm::kWasmPageSize);
-      auto pages = byte_length / i::wasm::kWasmPageSize;
-      auto i_isolate = reinterpret_cast<i::Isolate*>(isolate());
-      auto backing_store = i::BackingStore::AllocateWasmMemory(
-          i_isolate, pages, pages, i::SharedFlag::kShared);
-      memcpy(backing_store->buffer_start(), data, byte_length);
-      i::Handle<i::JSArrayBuffer> buffer =
-          i_isolate->factory()->NewJSSharedArrayBuffer();
-      buffer->Attach(std::move(backing_store));
-      return Utils::ToLocalShared(buffer);
-    } else {
-      return SharedArrayBuffer::New(isolate(), data, byte_length);
-    }
-  }
 
   static void SetUpTestCase() {
     flag_was_enabled_ = i::FLAG_harmony_sharedarraybuffer;
@@ -2097,7 +2075,7 @@ bool ValueSerializerTestWithSharedArrayBufferClone::flag_was_enabled_ = false;
 
 TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
        RoundTripSharedArrayBufferClone) {
-  InitializeData({0x00, 0x01, 0x80, 0xFF}, false);
+  InitializeData({0x00, 0x01, 0x80, 0xFF});
 
   EXPECT_CALL(serializer_delegate_,
               GetSharedArrayBufferId(isolate(), input_buffer()))
@@ -2136,7 +2114,7 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
 
   std::vector<uint8_t> data = {0x00, 0x01, 0x80, 0xFF};
   data.resize(65536);
-  InitializeData(data, true);
+  InitializeData(data);
 
   EXPECT_CALL(serializer_delegate_,
               GetSharedArrayBufferId(isolate(), input_buffer()))
