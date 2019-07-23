@@ -564,10 +564,6 @@
   'built-ins/WeakRef/proto-from-ctor-realm': [FAIL],
   'built-ins/WeakRef/prototype/deref/gc-cleanup-not-prevented-with-wr-deref': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9433
-  'built-ins/FinalizationGroup/prototype-from-newtarget-custom': [SKIP],
-  'built-ins/WeakRef/prototype-from-newtarget-custom': [SKIP],
-
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
