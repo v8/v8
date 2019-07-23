@@ -368,6 +368,7 @@
   'asm/global-imports': [SKIP],
   'asm/regress-913822': [SKIP],
   'asm/regress-937650': [SKIP],
+  'asm/regress-9531': [SKIP],
   'asm/return-types': [SKIP],
   'regress/regress-599719': [SKIP],
   'regress/regress-6196': [SKIP],
