@@ -217,10 +217,7 @@ void FunctionTemplateInfoData::SerializeCallCode(JSHeapBroker* broker) {
   DCHECK_NULL(call_code_);
   call_code_ = broker->GetOrCreateData(function_template_info->call_code())
                    ->AsCallHandlerInfo();
-
-  if (call_code_->IsCallHandlerInfo()) {
-    call_code_->Serialize(broker);
-  }
+  call_code_->Serialize(broker);
 }
 
 void CallHandlerInfoData::Serialize(JSHeapBroker* broker) {

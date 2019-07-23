@@ -3012,8 +3012,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(
                                        << function_template_info);
     return NoChange();
   }
-  CallHandlerInfoRef call_handler_info =
-      function_template_info.call_code()->AsCallHandlerInfo();
+  CallHandlerInfoRef call_handler_info = *function_template_info.call_code();
   Callable call_api_callback = CodeFactory::CallApiCallback(isolate());
   CallInterfaceDescriptor cid = call_api_callback.descriptor();
   auto call_descriptor = Linkage::GetStubCallDescriptor(

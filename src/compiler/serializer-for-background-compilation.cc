@@ -1989,13 +1989,13 @@ SerializerForBackgroundCompilation::ProcessFeedbackMapsForNamedAccess(
         if (sfi->IsApiFunction()) {
           FunctionTemplateInfoRef fti_ref(
               broker(), handle(sfi->get_api_func_data(), broker()->isolate()));
-          fti_ref.SerializeCallCode();
+          if (fti_ref.has_call_code()) fti_ref.SerializeCallCode();
           ProcessReceiverMapForApiCall(fti_ref, map);
         }
       } else {
         FunctionTemplateInfoRef fti_ref(
             broker(), Handle<FunctionTemplateInfo>::cast(info.constant()));
-        fti_ref.SerializeCallCode();
+        if (fti_ref.has_call_code()) fti_ref.SerializeCallCode();
       }
     }
   }
