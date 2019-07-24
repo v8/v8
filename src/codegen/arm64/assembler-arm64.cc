@@ -1166,6 +1166,11 @@ void Assembler::cls(const Register& rd, const Register& rn) {
   DataProcessing1Source(rd, rn, CLS);
 }
 
+void Assembler::pacia1716() { Emit(PACIA1716); }
+void Assembler::autia1716() { Emit(AUTIA1716); }
+void Assembler::paciasp() { Emit(PACIASP); }
+void Assembler::autiasp() { Emit(AUTIASP); }
+
 void Assembler::ldp(const CPURegister& rt, const CPURegister& rt2,
                     const MemOperand& src) {
   LoadStorePair(rt, rt2, src, LoadPairOpFor(rt, rt2));

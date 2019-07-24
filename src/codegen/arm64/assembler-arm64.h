@@ -786,6 +786,22 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void clz(const Register& rd, const Register& rn);
   void cls(const Register& rd, const Register& rn);
 
+  // Pointer Authentication Code for Instruction address, using key A, with
+  // address in x17 and modifier in x16 [Armv8.3].
+  void pacia1716();
+
+  // Pointer Authentication Code for Instruction address, using key A, with
+  // address in LR and modifier in SP [Armv8.3].
+  void paciasp();
+
+  // Authenticate Instruction address, using key A, with address in x17 and
+  // modifier in x16 [Armv8.3].
+  void autia1716();
+
+  // Authenticate Instruction address, using key A, with address in LR and
+  // modifier in SP [Armv8.3].
+  void autiasp();
+
   // Memory instructions.
 
   // Load integer or FP register.

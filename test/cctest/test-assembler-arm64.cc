@@ -234,6 +234,15 @@ static void InitializeVM() {
 #define CHECK_FULL_HEAP_OBJECT_IN_REGISTER(expected, result) \
   CHECK(Equal64(expected->ptr(), &core, result))
 
+#define CHECK_NOT_ZERO_AND_NOT_EQUAL_64(reg0, reg1) \
+  {                                                 \
+    int64_t value0 = core.xreg(reg0.code());        \
+    int64_t value1 = core.xreg(reg1.code());        \
+    CHECK_NE(0, value0);                            \
+    CHECK_NE(0, value1);                            \
+    CHECK_NE(value0, value1);                       \
+  }
+
 #define CHECK_EQUAL_FP64(expected, result)                                    \
   CHECK(EqualFP64(expected, &core, result))
 
@@ -11478,6 +11487,79 @@ TEST(system_msr) {
   CHECK_EQUAL_64(0, x10);
 }
 
+TEST(system_pauth_a) {
+  SETUP();
+  START();
+
+  // Exclude x16 and x17 from the scratch register list so we can use
+  // Pac/Autia1716 safely.
+  UseScratchRegisterScope temps(&masm);
+  temps.Exclude(x16, x17);
+  temps.Include(x10, x11);
+
+  // Backup stack pointer.
+  __ Mov(x20, sp);
+
+  // Modifiers
+  __ Mov(x16, 0x477d469dec0b8768);
+  __ Mov(sp, 0x477d469dec0b8760);
+
+  // Generate PACs using the 3 system instructions.
+  __ Mov(x17, 0x0000000012345678);
+  __ Pacia1716();
+  __ Mov(x0, x17);
+
+  __ Mov(lr, 0x0000000012345678);
+  __ Paciasp();
+  __ Mov(x2, lr);
+
+  // Authenticate the pointers above.
+  __ Mov(x17, x0);
+  __ Autia1716();
+  __ Mov(x3, x17);
+
+  __ Mov(lr, x2);
+  __ Autiasp();
+  __ Mov(x5, lr);
+
+  // Attempt to authenticate incorrect pointers.
+  __ Mov(x17, x2);
+  __ Autia1716();
+  __ Mov(x6, x17);
+
+  __ Mov(lr, x0);
+  __ Autiasp();
+  __ Mov(x8, lr);
+
+  // Restore stack pointer.
+  __ Mov(sp, x20);
+
+  // Mask out just the PAC code bits.
+  __ And(x0, x0, 0x007f000000000000);
+  __ And(x2, x2, 0x007f000000000000);
+
+  END();
+
+// TODO(all): test on real hardware when available
+#ifdef USE_SIMULATOR
+  RUN();
+
+  // Check PAC codes have been generated and aren't equal.
+  // NOTE: with a different ComputePAC implementation, there may be a collision.
+  CHECK_NE(0, core.xreg(2));
+  CHECK_NOT_ZERO_AND_NOT_EQUAL_64(x0, x2);
+
+  // Pointers correctly authenticated.
+  CHECK_EQUAL_64(0x0000000012345678, x3);
+  CHECK_EQUAL_64(0x0000000012345678, x5);
+
+  // Pointers corrupted after failing to authenticate.
+  CHECK_EQUAL_64(0x0020000012345678, x6);
+  CHECK_EQUAL_64(0x0020000012345678, x8);
+
+#endif  // USE_SIMULATOR
+}
+
 TEST(system) {
   INIT_V8();
   SETUP();
@@ -14703,6 +14785,7 @@ TEST(internal_reference_linked) {
 #undef CHECK_EQUAL_FP32
 #undef CHECK_EQUAL_64
 #undef CHECK_FULL_HEAP_OBJECT_IN_REGISTER
+#undef CHECK_NOT_ZERO_AND_NOT_EQUAL_64
 #undef CHECK_EQUAL_FP64
 #undef CHECK_EQUAL_128
 #undef CHECK_CONSTANT_POOL_SIZE

@@ -3115,6 +3115,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/diagnostics/arm64/eh-frame-arm64.cc",
       "src/execution/arm64/frame-constants-arm64.cc",
       "src/execution/arm64/frame-constants-arm64.h",
+      "src/execution/arm64/pointer-auth-arm64.cc",
       "src/execution/arm64/simulator-arm64.cc",
       "src/execution/arm64/simulator-arm64.h",
       "src/execution/arm64/simulator-logic-arm64.cc",

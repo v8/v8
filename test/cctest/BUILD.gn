@@ -313,6 +313,7 @@ v8_source_set("cctest_sources") {
       "test-javascript-arm64.cc",
       "test-js-arm64-variables.cc",
       "test-macro-assembler-arm64.cc",
+      "test-pointer-auth-arm64.cc",
       "test-poison-disasm-arm64.cc",
       "test-sync-primitives-arm64.cc",
       "test-utils-arm64.cc",

@@ -3037,11 +3037,31 @@ bool Simulator::FPProcessNaNs(Instruction* instr) {
   return done;
 }
 
+// clang-format off
+#define PAUTH_SYSTEM_MODES(V)                            \
+  V(A1716, 17, xreg(16),                      kPACKeyIA) \
+  V(ASP,   30, xreg(31, Reg31IsStackPointer), kPACKeyIA)
+// clang-format on
+
 void Simulator::VisitSystem(Instruction* instr) {
   // Some system instructions hijack their Op and Cp fields to represent a
   // range of immediates instead of indicating a different instruction. This
   // makes the decoding tricky.
-  if (instr->Mask(SystemSysRegFMask) == SystemSysRegFixed) {
+  if (instr->Mask(SystemPAuthFMask) == SystemPAuthFixed) {
+    switch (instr->Mask(SystemPAuthMask)) {
+#define DEFINE_PAUTH_FUNCS(SUFFIX, DST, MOD, KEY)                     \
+  case PACI##SUFFIX:                                                  \
+    set_xreg(DST, AddPAC(xreg(DST), MOD, KEY, kInstructionPointer));  \
+    break;                                                            \
+  case AUTI##SUFFIX:                                                  \
+    set_xreg(DST, AuthPAC(xreg(DST), MOD, KEY, kInstructionPointer)); \
+    break;
+
+      PAUTH_SYSTEM_MODES(DEFINE_PAUTH_FUNCS)
+#undef DEFINE_PAUTH_FUNCS
+#undef PAUTH_SYSTEM_MODES
+    }
+  } else if (instr->Mask(SystemSysRegFMask) == SystemSysRegFixed) {
     switch (instr->Mask(SystemSysRegMask)) {
       case MRS: {
         switch (instr->ImmSystemRegister()) {
