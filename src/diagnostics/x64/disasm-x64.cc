@@ -1851,8 +1851,14 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
           mnemonic = "orpd";
         } else if (opcode == 0x57) {
           mnemonic = "xorpd";
+        } else if (opcode == 0x58) {
+          mnemonic = "addpd";
+        } else if (opcode == 0x59) {
+          mnemonic = "mulpd";
         } else if (opcode == 0x5B) {
           mnemonic = "cvtps2dq";
+        } else if (opcode == 0x5C) {
+          mnemonic = "subpd";
         } else if (opcode == 0x60) {
           mnemonic = "punpcklbw";
         } else if (opcode == 0x61) {

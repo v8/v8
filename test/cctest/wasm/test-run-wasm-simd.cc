@@ -20,6 +20,7 @@ namespace test_run_wasm_simd {
 namespace {
 
 using DoubleUnOp = double (*)(double);
+using DoubleBinOp = double (*)(double, double);
 using DoubleCompareOp = int64_t (*)(double, double);
 using FloatUnOp = float (*)(float);
 using FloatBinOp = float (*)(float, float);
@@ -948,7 +949,6 @@ void RunF64x2UnOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
     }
   }
 }
-#undef FOR_FLOAT64_NAN_INPUTS
 
 WASM_SIMD_TEST_NO_LOWERING(F64x2Abs) {
   RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2Abs, std::abs);
@@ -957,6 +957,65 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Abs) {
 WASM_SIMD_TEST_NO_LOWERING(F64x2Neg) {
   RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2Neg, Negate);
 }
+
+void RunF64x2BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
+                       WasmOpcode opcode, DoubleBinOp expected_op) {
+  WasmRunner<int32_t, double, double> r(execution_tier, lower_simd);
+  // Global to hold output.
+  double* g = r.builder().AddGlobal<double>(kWasmS128);
+  // Build fn to splat test value, perform binop, and write the result.
+  byte value1 = 0, value2 = 1;
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  byte temp2 = r.AllocateLocal(kWasmS128);
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(value1))),
+        WASM_SET_LOCAL(temp2, WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(value2))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_BINOP(opcode, WASM_GET_LOCAL(temp1),
+                                           WASM_GET_LOCAL(temp2))),
+        WASM_ONE);
+
+  FOR_FLOAT64_INPUTS(x) {
+    if (!PlatformCanRepresent(x)) continue;
+    FOR_FLOAT64_INPUTS(y) {
+      if (!PlatformCanRepresent(x)) continue;
+      double expected = expected_op(x, y);
+      if (!PlatformCanRepresent(expected)) continue;
+      r.Call(x, y);
+      for (int i = 0; i < 2; i++) {
+        double actual = ReadLittleEndianValue<double>(&g[i]);
+        CheckDoubleResult(x, y, expected, actual, true /* exact */);
+      }
+    }
+  }
+
+  FOR_FLOAT64_NAN_INPUTS(i) {
+    double x = bit_cast<double>(double_nan_test_array[i]);
+    if (!PlatformCanRepresent(x)) continue;
+    FOR_FLOAT64_NAN_INPUTS(j) {
+      double y = bit_cast<double>(double_nan_test_array[j]);
+      double expected = expected_op(x, y);
+      if (!PlatformCanRepresent(expected)) continue;
+      r.Call(x, y);
+      for (int i = 0; i < 2; i++) {
+        double actual = ReadLittleEndianValue<double>(&g[i]);
+        CheckDoubleResult(x, y, expected, actual, true /* exact */);
+      }
+    }
+  }
+}
+
+WASM_SIMD_TEST_NO_LOWERING(F64x2Add) {
+  RunF64x2BinOpTest(execution_tier, lower_simd, kExprF64x2Add, Add);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(F64x2Sub) {
+  RunF64x2BinOpTest(execution_tier, lower_simd, kExprF64x2Sub, Sub);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(F64x2Mul) {
+  RunF64x2BinOpTest(execution_tier, lower_simd, kExprF64x2Mul, Mul);
+}
+
+#undef FOR_FLOAT64_NAN_INPUTS
 
 WASM_SIMD_TEST_NO_LOWERING(I64x2Splat) {
   WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);

@@ -2284,6 +2284,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ movq(i.OutputDoubleRegister(), kScratchRegister);
       break;
     }
+    case kX64F64x2Add: {
+      ASSEMBLE_SSE_BINOP(addpd);
+      break;
+    }
+    case kX64F64x2Sub: {
+      ASSEMBLE_SSE_BINOP(subpd);
+      break;
+    }
+    case kX64F64x2Mul: {
+      ASSEMBLE_SSE_BINOP(mulpd);
+      break;
+    }
     case kX64F64x2Eq: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ cmpeqpd(i.OutputSimd128Register(), i.InputSimd128Register(1));

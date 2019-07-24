@@ -1329,9 +1329,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   AVX_SP_3(vsqrt, 0x51)
-  AVX_SP_3(vadd, 0x58)
-  AVX_SP_3(vsub, 0x5c)
-  AVX_SP_3(vmul, 0x59)
+  AVX_S_3(vadd, 0x58)
+  AVX_S_3(vsub, 0x5c)
+  AVX_S_3(vmul, 0x59)
   AVX_SP_3(vdiv, 0x5e)
   AVX_SP_3(vmin, 0x5d)
   AVX_SP_3(vmax, 0x5f)

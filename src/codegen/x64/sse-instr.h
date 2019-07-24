@@ -6,7 +6,10 @@
 #define V8_CODEGEN_X64_SSE_INSTR_H_
 
 #define SSE2_INSTRUCTION_LIST(V) \
+  V(addpd, 66, 0F, 58)           \
+  V(mulpd, 66, 0F, 59)           \
   V(cvtps2dq, 66, 0F, 5B)        \
+  V(subpd, 66, 0F, 5C)           \
   V(punpcklbw, 66, 0F, 60)       \
   V(punpcklwd, 66, 0F, 61)       \
   V(punpckldq, 66, 0F, 62)       \

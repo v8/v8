@@ -2241,6 +2241,9 @@ class ThreadImpl {
     Push(WasmValue(Simd128(res)));               \
     return true;                                 \
   }
+      BINOP_CASE(F64x2Add, f64x2, float2, 2, a + b)
+      BINOP_CASE(F64x2Sub, f64x2, float2, 2, a - b)
+      BINOP_CASE(F64x2Mul, f64x2, float2, 2, a * b)
       BINOP_CASE(F32x4Add, f32x4, float4, 4, a + b)
       BINOP_CASE(F32x4Sub, f32x4, float4, 4, a - b)
       BINOP_CASE(F32x4Mul, f32x4, float4, 4, a * b)

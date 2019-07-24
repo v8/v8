@@ -164,6 +164,9 @@ namespace compiler {
   V(X64F64x2ReplaceLane)                  \
   V(X64F64x2Abs)                          \
   V(X64F64x2Neg)                          \
+  V(X64F64x2Add)                          \
+  V(X64F64x2Sub)                          \
+  V(X64F64x2Mul)                          \
   V(X64F64x2Eq)                           \
   V(X64F64x2Ne)                           \
   V(X64F64x2Lt)                           \
