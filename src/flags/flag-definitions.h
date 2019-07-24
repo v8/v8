@@ -307,6 +307,20 @@ DEFINE_IMPLICATION(lite_mode, lazy_feedback_allocation)
 DEFINE_IMPLICATION(lite_mode, enable_lazy_source_positions)
 DEFINE_IMPLICATION(lite_mode, optimize_for_size)
 
+#ifdef V8_ENABLE_SINGLE_GENERATION
+#define V8_GENERATION_BOOL true
+#else
+#define V8_GENERATION_BOOL false
+#endif
+
+DEFINE_BOOL_READONLY(
+    single_generation, V8_GENERATION_BOOL,
+    "allocate all objects from young generation to old generation")
+
+// Prevent inline allocation into new space
+DEFINE_NEG_IMPLICATION(single_generation, inline_new)
+DEFINE_NEG_IMPLICATION(single_generation, turbo_allocation_folding)
+
 #ifdef V8_ENABLE_FUTURE
 #define FUTURE_BOOL true
 #else

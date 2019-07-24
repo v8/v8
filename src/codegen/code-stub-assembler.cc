@@ -4341,6 +4341,7 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
                            var_target_map.value());
     var_result.Bind(to_elements);
 
+#ifndef V8_ENABLE_SINGLE_GENERATION
 #ifdef DEBUG
     TNode<IntPtrT> object_word = BitcastTaggedToWord(to_elements);
     TNode<IntPtrT> object_page = PageFromAddress(object_word);
@@ -4353,6 +4354,7 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
             WordAnd(page_flags,
                     IntPtrConstant(MemoryChunk::kIsInYoungGenerationMask)),
             IntPtrConstant(0)));
+#endif
 #endif
 
     if (convert_holes == HoleConversionMode::kDontConvert &&

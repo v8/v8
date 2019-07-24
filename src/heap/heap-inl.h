@@ -179,6 +179,9 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
   HeapObject object;
   AllocationResult allocation;
 
+  if (FLAG_single_generation && type == AllocationType::kYoung)
+    type = AllocationType::kOld;
+
   if (AllocationType::kYoung == type) {
     if (large_object) {
       if (FLAG_young_generation_large_objects) {

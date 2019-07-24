@@ -187,6 +187,9 @@ declare_args() {
   # Enable sharing read-only space across isolates.
   # Sets -DV8_SHARED_RO_HEAP.
   v8_enable_shared_ro_heap = ""
+
+  # Redirect allocation in young generation so that there will be only one single generation.
+  v8_enable_single_generation = false
 }
 
 # Derived defaults.
@@ -414,6 +417,9 @@ config("features") {
     if (v8_enable_snapshot_native_code_counters) {
       defines += [ "V8_SNAPSHOT_NATIVE_CODE_COUNTERS" ]
     }
+  }
+  if (v8_enable_single_generation) {
+    defines += [ "V8_ENABLE_SINGLE_GENERATION" ]
   }
   if (v8_use_external_startup_data) {
     defines += [ "V8_USE_EXTERNAL_STARTUP_DATA" ]
