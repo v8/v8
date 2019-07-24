@@ -1532,10 +1532,6 @@ void MemoryChunk::ReleaseYoungGenerationBitmap() {
 // -----------------------------------------------------------------------------
 // PagedSpace implementation
 
-void Space::CheckOffsetsAreConsistent() const {
-  DCHECK_EQ(Space::kIdOffset, OFFSET_OF(Space, id_));
-}
-
 void Space::AddAllocationObserver(AllocationObserver* observer) {
   allocation_observers_.push_back(observer);
   StartNextInlineAllocationStep();

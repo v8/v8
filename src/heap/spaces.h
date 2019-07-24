@@ -412,10 +412,7 @@ class V8_EXPORT_PRIVATE Space : public Malloced {
     external_backing_store_bytes_[ExternalBackingStoreType::kArrayBuffer] = 0;
     external_backing_store_bytes_[ExternalBackingStoreType::kExternalString] =
         0;
-    CheckOffsetsAreConsistent();
   }
-
-  void CheckOffsetsAreConsistent() const;
 
   static inline void MoveExternalBackingStoreBytes(
       ExternalBackingStoreType type, Space* from, Space* to, size_t amount);
@@ -530,8 +527,6 @@ class V8_EXPORT_PRIVATE Space : public Malloced {
 
   // Tracks off-heap memory used by this space.
   std::atomic<size_t>* external_backing_store_bytes_;
-
-  static const intptr_t kIdOffset = 9 * kSystemPointerSize;
 
   bool allocation_observers_paused_;
   Heap* heap_;
