@@ -550,7 +550,13 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
     // runtime otherwise.
     Handle<DescriptorArray> descriptors(
         receiver_map.object()->instance_descriptors(), isolate());
-    if (descriptors->number_of_descriptors() < 2) return inference.NoChange();
+    int minimum_nof_descriptors = std::max(JSFunction::kLengthDescriptorIndex,
+                                           JSFunction::kNameDescriptorIndex) +
+                                  1;
+    if (receiver_map.object()->NumberOfOwnDescriptors() <
+        minimum_nof_descriptors) {
+      return inference.NoChange();
+    }
     if (descriptors->GetKey(JSFunction::kLengthDescriptorIndex) !=
         ReadOnlyRoots(isolate()).length_string()) {
       return inference.NoChange();

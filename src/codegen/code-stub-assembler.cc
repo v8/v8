@@ -1547,6 +1547,12 @@ TNode<Int32T> CodeStubAssembler::LoadNumberOfDescriptors(
                       MachineType::Int16()));
 }
 
+TNode<Int32T> CodeStubAssembler::LoadNumberOfOwnDescriptors(TNode<Map> map) {
+  Node* bit_field3 = LoadMapBitField3(map);
+  return UncheckedCast<Int32T>(
+      DecodeWord32<Map::NumberOfOwnDescriptorsBits>(bit_field3));
+}
+
 TNode<Int32T> CodeStubAssembler::LoadMapBitField(SloppyTNode<Map> map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
   return UncheckedCast<Int32T>(
