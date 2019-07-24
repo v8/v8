@@ -256,12 +256,6 @@ class JSObjectField {
   uint64_t number_bits_ = 0;
 };
 
-struct FieldIndexHasher {
-  size_t operator()(FieldIndex field_index) const {
-    return field_index.index();
-  }
-};
-
 class JSObjectData : public HeapObjectData {
  public:
   JSObjectData(JSHeapBroker* broker, ObjectData** storage,
@@ -284,9 +278,9 @@ class JSObjectData : public HeapObjectData {
 
   ObjectData* GetOwnConstantElement(JSHeapBroker* broker, uint32_t index,
                                     bool serialize);
-  ObjectData* GetOwnProperty(JSHeapBroker* broker,
-                             Representation representation,
-                             FieldIndex field_index, bool serialize);
+  ObjectData* GetOwnDataProperty(JSHeapBroker* broker,
+                                 Representation representation,
+                                 FieldIndex field_index, bool serialize);
 
   // This method is only used to assert our invariants.
   bool cow_or_empty_elements_tenured() const;
@@ -316,7 +310,9 @@ class JSObjectData : public HeapObjectData {
   // (2) are known not to (possibly they don't exist at all).
   // In case (2), the second pair component is nullptr.
   // For simplicity, this may in theory overlap with inobject_fields_.
-  ZoneUnorderedMap<FieldIndex, ObjectData*, FieldIndexHasher> own_properties_;
+  // The keys of the map are the property_index() values of the
+  // respective property FieldIndex'es.
+  ZoneUnorderedMap<int, ObjectData*> own_properties_;
 };
 
 void JSObjectData::SerializeObjectCreateMap(JSHeapBroker* broker) {
@@ -353,14 +349,15 @@ base::Optional<ObjectRef> GetOwnElementFromHeap(JSHeapBroker* broker,
   return base::nullopt;
 }
 
-ObjectRef GetOwnPropertyFromHeap(JSHeapBroker* broker,
-                                 Handle<JSObject> receiver,
-                                 Representation representation,
-                                 FieldIndex field_index) {
+ObjectRef GetOwnDataPropertyFromHeap(JSHeapBroker* broker,
+                                     Handle<JSObject> receiver,
+                                     Representation representation,
+                                     FieldIndex field_index) {
   Handle<Object> constant =
       JSObject::FastPropertyAt(receiver, representation, field_index);
   return ObjectRef(broker, constant);
 }
+
 }  // namespace
 
 ObjectData* JSObjectData::GetOwnConstantElement(JSHeapBroker* broker,
@@ -382,11 +379,11 @@ ObjectData* JSObjectData::GetOwnConstantElement(JSHeapBroker* broker,
   return result;
 }
 
-ObjectData* JSObjectData::GetOwnProperty(JSHeapBroker* broker,
-                                         Representation representation,
-                                         FieldIndex field_index,
-                                         bool serialize) {
-  auto p = own_properties_.find(field_index);
+ObjectData* JSObjectData::GetOwnDataProperty(JSHeapBroker* broker,
+                                             Representation representation,
+                                             FieldIndex field_index,
+                                             bool serialize) {
+  auto p = own_properties_.find(field_index.property_index());
   if (p != own_properties_.end()) return p->second;
 
   if (!serialize) {
@@ -396,10 +393,10 @@ ObjectData* JSObjectData::GetOwnProperty(JSHeapBroker* broker,
     return nullptr;
   }
 
-  ObjectRef property = GetOwnPropertyFromHeap(
+  ObjectRef property = GetOwnDataPropertyFromHeap(
       broker, Handle<JSObject>::cast(object()), representation, field_index);
   ObjectData* result(property.data());
-  own_properties_.insert(std::make_pair(field_index, result));
+  own_properties_.insert(std::make_pair(field_index.property_index(), result));
   return result;
 }
 
@@ -842,6 +839,12 @@ bool IsInlinableFastLiteral(Handle<JSObject> boilerplate) {
 
 }  // namespace
 
+class AccessorInfoData : public HeapObjectData {
+ public:
+  AccessorInfoData(JSHeapBroker* broker, ObjectData** storage,
+                   Handle<AccessorInfo> object);
+};
+
 class AllocationSiteData : public HeapObjectData {
  public:
   AllocationSiteData(JSHeapBroker* broker, ObjectData** storage,
@@ -891,6 +894,7 @@ class ScriptContextTableData : public HeapObjectData {
 
 struct PropertyDescriptor {
   NameData* key = nullptr;
+  ObjectData* value = nullptr;
   PropertyDetails details = PropertyDetails::Empty();
   FieldIndex field_index;
   MapData* field_owner = nullptr;
@@ -942,6 +946,7 @@ class MapData : public HeapObjectData {
   // on field owner(s).
   void SerializeOwnDescriptor(JSHeapBroker* broker, int descriptor_index);
   void SerializeOwnDescriptors(JSHeapBroker* broker);
+  ObjectData* GetStrongValue(int descriptor_index) const;
   DescriptorArrayData* instance_descriptors() const {
     return instance_descriptors_;
   }
@@ -1005,6 +1010,10 @@ class MapData : public HeapObjectData {
 
   bool serialized_for_element_store_ = false;
 };
+
+AccessorInfoData::AccessorInfoData(JSHeapBroker* broker, ObjectData** storage,
+                                   Handle<AccessorInfo> object)
+    : HeapObjectData(broker, storage, object) {}
 
 AllocationSiteData::AllocationSiteData(JSHeapBroker* broker,
                                        ObjectData** storage,
@@ -1896,6 +1905,13 @@ void MapData::SerializeOwnDescriptors(JSHeapBroker* broker) {
   }
 }
 
+ObjectData* MapData::GetStrongValue(int descriptor_index) const {
+  auto data = instance_descriptors_->contents().find(descriptor_index);
+  if (data == instance_descriptors_->contents().end()) return nullptr;
+
+  return data->second.value;
+}
+
 void MapData::SerializeOwnDescriptor(JSHeapBroker* broker,
                                      int descriptor_index) {
   TraceScope tracer(broker, this, "MapData::SerializeOwnDescriptor");
@@ -1907,7 +1923,7 @@ void MapData::SerializeOwnDescriptor(JSHeapBroker* broker,
   }
 
   ZoneMap<int, PropertyDescriptor>& contents =
-      instance_descriptors_->contents();
+      instance_descriptors()->contents();
   CHECK_LT(descriptor_index, map->NumberOfOwnDescriptors());
   if (contents.find(descriptor_index) != contents.end()) return;
 
@@ -1919,6 +1935,11 @@ void MapData::SerializeOwnDescriptor(JSHeapBroker* broker,
   PropertyDescriptor d;
   d.key =
       broker->GetOrCreateData(descriptors->GetKey(descriptor_index))->AsName();
+  MaybeObject value = descriptors->GetValue(descriptor_index);
+  HeapObject obj;
+  if (value.GetHeapObjectIfStrong(&obj)) {
+    d.value = broker->GetOrCreateData(handle(obj, broker->isolate()));
+  }
   d.details = descriptors->GetDetails(descriptor_index);
   if (d.details.location() == kField) {
     d.field_index = FieldIndex::ForDescriptor(*map, descriptor_index);
@@ -3129,6 +3150,17 @@ BIMODAL_ACCESSOR_C(String, int, length)
 
 BIMODAL_ACCESSOR(FeedbackCell, HeapObject, value)
 
+ObjectRef MapRef::GetStrongValue(int descriptor_index) const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleDereference allow_handle_dereference;
+    return ObjectRef(broker(),
+                     handle(object()->instance_descriptors().GetStrongValue(
+                                descriptor_index),
+                            broker()->isolate()));
+  }
+  return ObjectRef(broker(), data()->AsMap()->GetStrongValue(descriptor_index));
+}
+
 void* JSTypedArrayRef::external_pointer() const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference allow_handle_dereference;
@@ -3314,14 +3346,15 @@ base::Optional<ObjectRef> ObjectRef::GetOwnConstantElement(
   return ObjectRef(broker(), element);
 }
 
-base::Optional<ObjectRef> JSObjectRef::GetOwnProperty(
+base::Optional<ObjectRef> JSObjectRef::GetOwnDataProperty(
     Representation field_representation, FieldIndex index,
     bool serialize) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
-    return GetOwnPropertyFromHeap(broker(), Handle<JSObject>::cast(object()),
-                                  field_representation, index);
+    return GetOwnDataPropertyFromHeap(broker(),
+                                      Handle<JSObject>::cast(object()),
+                                      field_representation, index);
   }
-  ObjectData* property = data()->AsJSObject()->GetOwnProperty(
+  ObjectData* property = data()->AsJSObject()->GetOwnDataProperty(
       broker(), field_representation, index, serialize);
   if (property == nullptr) return base::nullopt;
   return ObjectRef(broker(), property);
@@ -3701,6 +3734,16 @@ void MapRef::SerializeOwnDescriptor(int descriptor_index) {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsMap()->SerializeOwnDescriptor(broker(), descriptor_index);
+}
+
+bool MapRef::serialized_own_descriptor(int descriptor_index) const {
+  CHECK_LT(descriptor_index, NumberOfOwnDescriptors());
+  if (broker()->mode() == JSHeapBroker::kDisabled) return true;
+  DescriptorArrayData* desc_array_data =
+      data()->AsMap()->instance_descriptors();
+  if (!desc_array_data) return false;
+  return desc_array_data->contents().find(descriptor_index) !=
+         desc_array_data->contents().end();
 }
 
 void MapRef::SerializeBackPointer() {
