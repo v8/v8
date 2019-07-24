@@ -143,6 +143,33 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
+    case IrOpcode::kChangeTaggedSignedToCompressedSigned: {
+      DCHECK(COMPRESS_POINTERS_BOOL);
+      NodeMatcher m(node->InputAt(0));
+      if (m.IsChangeInt31ToTaggedSigned()) {
+        Node* new_node = graph()->NewNode(
+            simplified()->ChangeInt31ToCompressedSigned(), m.InputAt(0));
+        return Replace(new_node);
+      } else if (m.IsCheckedInt32ToTaggedSigned()) {
+        // Create a new checked node that outputs CompressedSigned values, with
+        // an explicit decompression after it.
+        Node* new_checked = graph()->CloneNode(m.node());
+        NodeProperties::ChangeOp(
+            new_checked, simplified()->CheckedInt32ToCompressedSigned(
+                             CheckParametersOf(m.node()->op()).feedback()));
+        Node* new_decompression = graph()->NewNode(
+            machine()->ChangeCompressedSignedToTaggedSigned(), new_checked);
+
+        // For all uses of the old checked node, instead insert the new "checked
+        // + decompression". Also, update control and effect.
+        ReplaceWithValue(m.node(), new_decompression, new_checked, new_checked);
+
+        // In the current node, we can skip the decompression since we are going
+        // to have a Decompression + Compression combo.
+        return Replace(new_checked);
+      }
+      break;
+    }
     case IrOpcode::kCheckedTaggedToInt32:
     case IrOpcode::kCheckedTaggedSignedToInt32: {
       NodeMatcher m(node->InputAt(0));
@@ -265,6 +292,10 @@ Graph* SimplifiedOperatorReducer::graph() const { return jsgraph()->graph(); }
 
 MachineOperatorBuilder* SimplifiedOperatorReducer::machine() const {
   return jsgraph()->machine();
+}
+
+SimplifiedOperatorBuilder* SimplifiedOperatorReducer::simplified() const {
+  return jsgraph()->simplified();
 }
 
 }  // namespace compiler
