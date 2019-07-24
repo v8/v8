@@ -892,8 +892,7 @@ class BailoutId {
 
 // Our version of printf().
 V8_EXPORT_PRIVATE void PRINTF_FORMAT(1, 2) PrintF(const char* format, ...);
-V8_EXPORT_PRIVATE void PRINTF_FORMAT(2, 3)
-    PrintF(FILE* out, const char* format, ...);
+void PRINTF_FORMAT(2, 3) PrintF(FILE* out, const char* format, ...);
 
 // Prepends the current process ID to the output.
 void PRINTF_FORMAT(1, 2) PrintPID(const char* format, ...);

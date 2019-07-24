@@ -205,7 +205,7 @@ type LayoutDescriptor extends ByteArray
 type TransitionArray extends WeakFixedArray
     generates 'TNode<TransitionArray>';
 
-type InstanceType extends uint16 constexpr 'v8::internal::InstanceType';
+type InstanceType extends uint16 constexpr 'InstanceType';
 
 extern class Map extends HeapObject {
   instance_size_in_words: uint8;
@@ -1421,10 +1421,6 @@ extern class JSFinalizationGroup extends JSObject {
 }
 
 extern class JSFinalizationGroupCleanupIterator extends JSObject {
-  finalization_group: JSFinalizationGroup;
-}
-
-extern class FinalizationGroupCleanupJobTask extends Microtask {
   finalization_group: JSFinalizationGroup;
 }
 

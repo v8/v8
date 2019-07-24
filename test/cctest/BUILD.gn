@@ -188,7 +188,6 @@ v8_source_set("cctest_sources") {
     "test-conversions.cc",
     "test-cpu-profiler.cc",
     "test-date.cc",
-    "test-debug-helper.cc",
     "test-debug.cc",
     "test-decls.cc",
     "test-deoptimization.cc",
@@ -383,7 +382,6 @@ v8_source_set("cctest_sources") {
     "../..:v8_libbase",
     "../..:v8_libplatform",
     "../..:wasm_module_runner",
-    "../../tools/debug_helper:v8_debug_helper",
     "//build/win:default_exe_manifest",
   ]
 

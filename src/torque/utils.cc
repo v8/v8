@@ -292,42 +292,6 @@ void ReplaceFileContentsIfDifferent(const std::string& file_path,
   }
 }
 
-IfDefScope::IfDefScope(std::ostream& os, std::string d)
-    : os_(os), d_(std::move(d)) {
-  os_ << "#ifdef " << d_ << "\n";
-}
-IfDefScope::~IfDefScope() { os_ << "#endif  // " << d_ << "\n"; }
-
-NamespaceScope::NamespaceScope(std::ostream& os,
-                               std::initializer_list<std::string> namespaces)
-    : os_(os), d_(std::move(namespaces)) {
-  for (const std::string& s : d_) {
-    os_ << "namespace " << s << " {\n";
-  }
-}
-NamespaceScope::~NamespaceScope() {
-  for (auto i = d_.rbegin(); i != d_.rend(); ++i) {
-    os_ << "}  // namespace " << *i << "\n";
-  }
-}
-
-IncludeGuardScope::IncludeGuardScope(std::ostream& os, std::string file_name)
-    : os_(os),
-      d_("V8_GEN_TORQUE_GENERATED_" + CapifyStringWithUnderscores(file_name) +
-         "_") {
-  os_ << "#ifndef " << d_ << "\n";
-  os_ << "#define " << d_ << "\n\n";
-}
-IncludeGuardScope::~IncludeGuardScope() { os_ << "#endif  // " << d_ << "\n"; }
-
-IncludeObjectMacrosScope::IncludeObjectMacrosScope(std::ostream& os) : os_(os) {
-  os_ << "\n// Has to be the last include (doesn't have include guards):\n"
-         "#include \"src/objects/object-macros.h\"\n";
-}
-IncludeObjectMacrosScope::~IncludeObjectMacrosScope() {
-  os_ << "\n#include \"src/objects/object-macros-undef.h\"\n";
-}
-
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8
