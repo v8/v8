@@ -361,8 +361,7 @@ class SerializerForBackgroundCompilation {
       FunctionTemplateInfoRef& target,  // NOLINT(runtime/references)
       Handle<Map> receiver);
   void ProcessBuiltinCall(Handle<SharedFunctionInfo> target,
-                          const HintsVector& arguments,
-                          SpeculationMode speculation_mode);
+                          const HintsVector& arguments);
 
   void ProcessJump(interpreter::BytecodeArrayIterator* iterator);
 
@@ -377,7 +376,6 @@ class SerializerForBackgroundCompilation {
   void ProcessHintsForRegExpTest(Hints const& regexp_hints);
   PropertyAccessInfo ProcessMapForRegExpTest(MapRef map);
   void ProcessHintsForFunctionCall(Hints const& target_hints);
-  void ProcessHintsForFunctionBind(Hints const& receiver_hints);
 
   GlobalAccessFeedback const* ProcessFeedbackForGlobalAccess(FeedbackSlot slot);
   NamedAccessFeedback const* ProcessFeedbackMapsForNamedAccess(
@@ -1494,8 +1492,6 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
   }
 
   environment()->accumulator_hints().Clear();
-  FeedbackNexus nexus(environment()->function().feedback_vector(), slot);
-  SpeculationMode speculation_mode = nexus.GetSpeculationMode();
 
   for (auto hint : callee.constants()) {
     if (!hint->IsJSFunction()) continue;
@@ -1509,7 +1505,7 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
       ProcessApiCall(shared, arguments);
       DCHECK(!shared->IsInlineable());
     } else if (shared->HasBuiltinId()) {
-      ProcessBuiltinCall(shared, arguments, speculation_mode);
+      ProcessBuiltinCall(shared, arguments);
       DCHECK(!shared->IsInlineable());
     }
 
@@ -1527,7 +1523,7 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
       ProcessApiCall(shared, arguments);
       DCHECK(!shared->IsInlineable());
     } else if (shared->HasBuiltinId()) {
-      ProcessBuiltinCall(shared, arguments, speculation_mode);
+      ProcessBuiltinCall(shared, arguments);
       DCHECK(!shared->IsInlineable());
     }
 
@@ -1612,8 +1608,7 @@ void SerializerForBackgroundCompilation::ProcessReceiverMapForApiCall(
 }
 
 void SerializerForBackgroundCompilation::ProcessBuiltinCall(
-    Handle<SharedFunctionInfo> target, const HintsVector& arguments,
-    SpeculationMode speculation_mode) {
+    Handle<SharedFunctionInfo> target, const HintsVector& arguments) {
   DCHECK(target->HasBuiltinId());
   const int builtin_id = target->builtin_id();
   const char* name = Builtins::name(builtin_id);
@@ -1621,26 +1616,20 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
   switch (builtin_id) {
     case Builtins::kPromisePrototypeCatch: {
       // For JSCallReducer::ReducePromisePrototypeCatch.
-      if (speculation_mode != SpeculationMode::kDisallowSpeculation) {
-        CHECK_GE(arguments.size(), 1);
-        ProcessMapHintsForPromises(arguments[0]);
-      }
+      CHECK_GE(arguments.size(), 1);
+      ProcessMapHintsForPromises(arguments[0]);
       break;
     }
     case Builtins::kPromisePrototypeFinally: {
       // For JSCallReducer::ReducePromisePrototypeFinally.
-      if (speculation_mode != SpeculationMode::kDisallowSpeculation) {
-        CHECK_GE(arguments.size(), 1);
-        ProcessMapHintsForPromises(arguments[0]);
-      }
+      CHECK_GE(arguments.size(), 1);
+      ProcessMapHintsForPromises(arguments[0]);
       break;
     }
     case Builtins::kPromisePrototypeThen: {
       // For JSCallReducer::ReducePromisePrototypeThen.
-      if (speculation_mode != SpeculationMode::kDisallowSpeculation) {
-        CHECK_GE(arguments.size(), 1);
-        ProcessMapHintsForPromises(arguments[0]);
-      }
+      CHECK_GE(arguments.size(), 1);
+      ProcessMapHintsForPromises(arguments[0]);
       break;
     }
     case Builtins::kPromiseResolveTrampoline:
@@ -1661,25 +1650,16 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
       break;
     case Builtins::kRegExpPrototypeTest: {
       // For JSCallReducer::ReduceRegExpPrototypeTest.
-      if (arguments.size() >= 1 &&
-          speculation_mode != SpeculationMode::kDisallowSpeculation) {
+      if (arguments.size() >= 1) {
         Hints const& regexp_hints = arguments[0];
         ProcessHintsForRegExpTest(regexp_hints);
       }
       break;
     }
     case Builtins::kFunctionPrototypeCall:
-      if (arguments.size() >= 1 &&
-          speculation_mode != SpeculationMode::kDisallowSpeculation) {
+      if (arguments.size() >= 1) {
         Hints const& target_hints = arguments[0];
         ProcessHintsForFunctionCall(target_hints);
-      }
-      break;
-    case Builtins::kFastFunctionPrototypeBind:
-      if (arguments.size() >= 2 &&
-          speculation_mode != SpeculationMode::kDisallowSpeculation) {
-        Hints const& receiver_hints = arguments[1];
-        ProcessHintsForFunctionBind(receiver_hints);
       }
       break;
     default:
@@ -1728,8 +1708,8 @@ PropertyAccessInfo SerializerForBackgroundCompilation::ProcessMapForRegExpTest(
   if (ai_exec.IsDataConstant() && ai_exec.holder().ToHandle(&holder)) {
     // The property is on the prototype chain.
     JSObjectRef holder_ref(broker(), holder);
-    holder_ref.GetOwnDataProperty(ai_exec.field_representation(),
-                                  ai_exec.field_index(), true);
+    holder_ref.GetOwnProperty(ai_exec.field_representation(),
+                              ai_exec.field_index(), true);
   }
   return ai_exec;
 }
@@ -1746,8 +1726,8 @@ void SerializerForBackgroundCompilation::ProcessHintsForRegExpTest(
     if (ai_exec.IsDataConstant() && !ai_exec.holder().ToHandle(&holder)) {
       // The property is on the object itself.
       JSObjectRef holder_ref(broker(), regexp);
-      holder_ref.GetOwnDataProperty(ai_exec.field_representation(),
-                                    ai_exec.field_index(), true);
+      holder_ref.GetOwnProperty(ai_exec.field_representation(),
+                                ai_exec.field_index(), true);
     }
   }
 
@@ -1763,35 +1743,6 @@ void SerializerForBackgroundCompilation::ProcessHintsForFunctionCall(
     if (!constant->IsJSFunction()) continue;
     JSFunctionRef func(broker(), constant);
     func.Serialize();
-  }
-}
-
-namespace {
-void ProcessMapForFunctionBind(MapRef map) {
-  map.SerializePrototype();
-  int min_nof_descriptors = i::Max(JSFunction::kLengthDescriptorIndex,
-                                   JSFunction::kNameDescriptorIndex) +
-                            1;
-  if (map.NumberOfOwnDescriptors() >= min_nof_descriptors) {
-    map.SerializeOwnDescriptor(JSFunction::kLengthDescriptorIndex);
-    map.SerializeOwnDescriptor(JSFunction::kNameDescriptorIndex);
-  }
-}
-}  // namespace
-
-void SerializerForBackgroundCompilation::ProcessHintsForFunctionBind(
-    Hints const& receiver_hints) {
-  for (auto constant : receiver_hints.constants()) {
-    if (!constant->IsJSFunction()) continue;
-    JSFunctionRef function(broker(), constant);
-    function.Serialize();
-    ProcessMapForFunctionBind(function.map());
-  }
-
-  for (auto map : receiver_hints.maps()) {
-    if (!map->IsJSFunctionMap()) continue;
-    MapRef map_ref(broker(), map);
-    ProcessMapForFunctionBind(map_ref);
   }
 }
 

@@ -71,7 +71,6 @@ enum class OddballType : uint8_t {
   V(String)                        \
   V(Symbol)                        \
   /* Subtypes of HeapObject */     \
-  V(AccessorInfo)                  \
   V(AllocationSite)                \
   V(BigInt)                        \
   V(CallHandlerInfo)               \
@@ -234,9 +233,10 @@ class JSObjectRef : public HeapObjectRef {
 
   // Return the value of the property identified by the field {index}
   // if {index} is known to be an own data property of the object.
-  base::Optional<ObjectRef> GetOwnDataProperty(
-      Representation field_representation, FieldIndex index,
-      bool serialize = false) const;
+  base::Optional<ObjectRef> GetOwnProperty(Representation field_representation,
+                                           FieldIndex index,
+                                           bool serialize = false) const;
+
   FixedArrayBaseRef elements() const;
   void SerializeElements();
   void EnsureElementsTenured();
@@ -463,12 +463,6 @@ class CallHandlerInfoRef : public HeapObjectRef {
   ObjectRef data() const;
 };
 
-class AccessorInfoRef : public HeapObjectRef {
- public:
-  using HeapObjectRef::HeapObjectRef;
-  Handle<AccessorInfo> object() const;
-};
-
 class AllocationSiteRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
@@ -556,14 +550,12 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   // Concerning the underlying instance_descriptors:
   void SerializeOwnDescriptors();
   void SerializeOwnDescriptor(int descriptor_index);
-  bool serialized_own_descriptor(int descriptor_index) const;
   MapRef FindFieldOwner(int descriptor_index) const;
   PropertyDetails GetPropertyDetails(int descriptor_index) const;
   NameRef GetPropertyKey(int descriptor_index) const;
   FieldIndex GetFieldIndexFor(int descriptor_index) const;
   ObjectRef GetFieldType(int descriptor_index) const;
   bool IsUnboxedDoubleField(int descriptor_index) const;
-  ObjectRef GetStrongValue(int descriptor_number) const;
 
   // Available after calling JSFunctionRef::Serialize on a function that has
   // this map as initial map.
