@@ -46,10 +46,16 @@ class WasmBuiltinsAssembler : public CodeStubAssembler {
   }
 
   TNode<Code> LoadCEntryFromInstance(TNode<Object> instance) {
-    return UncheckedCast<Code>(
-        Load(MachineType::AnyTagged(), instance,
-             IntPtrConstant(WasmInstanceObject::kCEntryStubOffset -
+    TNode<IntPtrT> isolate_root = UncheckedCast<IntPtrT>(
+        Load(MachineType::Pointer(), instance,
+             IntPtrConstant(WasmInstanceObject::kIsolateRootOffset -
                             kHeapObjectTag)));
+    auto centry_id =
+        Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit;
+    TNode<Code> target = UncheckedCast<Code>(
+        Load(MachineType::TaggedPointer(), isolate_root,
+             IntPtrConstant(IsolateData::builtin_slot_offset(centry_id))));
+    return target;
   }
 };
 

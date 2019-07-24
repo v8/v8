@@ -1631,7 +1631,13 @@ class LiftoffCompiler {
     __ TurboAssembler::Move(kContextRegister,
                             Smi::FromInt(Context::kNoContext));
     Register centry = kJavaScriptCallCodeStartRegister;
-    LOAD_TAGGED_PTR_INSTANCE_FIELD(centry, CEntryStub);
+    LOAD_INSTANCE_FIELD(centry, IsolateRoot, kSystemPointerSize);
+    // All cache registers are spilled and there are no register arguments.
+    LiftoffRegList pinned;
+    auto centry_id =
+        Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit;
+    __ LoadTaggedPointer(centry, centry, no_reg,
+                         IsolateData::builtin_slot_offset(centry_id), pinned);
     __ CallRuntimeWithCEntry(runtime_function, centry);
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
   }

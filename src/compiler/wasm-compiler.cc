@@ -3326,11 +3326,14 @@ Node* WasmGraphBuilder::BuildCallToRuntimeWithContext(
   auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
       mcgraph()->zone(), f, fun->nargs, Operator::kNoProperties,
       CallDescriptor::kNoFlags);
+  Node* isolate_root = LOAD_INSTANCE_FIELD(IsolateRoot, MachineType::Pointer());
   // The CEntryStub is loaded from the instance_node so that generated code is
   // Isolate independent. At the moment this is only done for CEntryStub(1).
   DCHECK_EQ(1, fun->result_size);
-  Node* centry_stub = LOAD_INSTANCE_FIELD(
-      CEntryStub, MachineType::TypeCompressedTaggedPointer());
+  auto centry_id =
+      Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit;
+  Node* centry_stub = LOAD_TAGGED_POINTER(
+      isolate_root, IsolateData::builtin_slot_offset(centry_id));
   // TODO(titzer): allow arbitrary number of runtime arguments
   // At the moment we only allow 5 parameters. If more parameters are needed,
   // increase this constant accordingly.
