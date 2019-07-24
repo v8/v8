@@ -397,6 +397,9 @@ class V8_EXPORT_PRIVATE RepresentationChanger final {
   Node* InsertChangeUint32ToFloat64(Node* node);
   Node* InsertChangeCompressedPointerToTaggedPointer(Node* node);
   Node* InsertChangeCompressedToTagged(Node* node);
+  Node* InsertCheckedFloat64ToInt32(Node* node, CheckForMinusZeroMode check,
+                                    const VectorSlotPair& feedback,
+                                    Node* use_node);
   Node* InsertConversion(Node* node, const Operator* op, Node* use_node);
   Node* InsertTruncateInt64ToInt32(Node* node);
   Node* InsertUnconditionalDeopt(Node* node, DeoptimizeReason reason);
