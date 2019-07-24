@@ -12,6 +12,7 @@
 
 #include <memory>
 
+#include "src/base/optional.h"
 #include "src/common/message-template.h"
 #include "src/handles/handles.h"
 
@@ -146,6 +147,7 @@ class JSStackFrame : public StackFrameBase {
   Handle<JSFunction> function_;
   Handle<AbstractCode> code_;
   int offset_;
+  mutable base::Optional<int> cached_position_;
 
   bool is_async_ : 1;
   bool is_constructor_ : 1;
