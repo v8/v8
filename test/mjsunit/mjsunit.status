@@ -248,6 +248,7 @@
   # To be re-enabled once https://crbug.com/v8/9534 is fixed.
   'es6/regress/regress-crbug-465671': [SKIP],
   'es6/regress/regress-crbug-465671-null': [SKIP],
+  'regress/regress-543994': [SKIP],
 }],  # ALWAYS
 
 ['novfp3 == True', {
