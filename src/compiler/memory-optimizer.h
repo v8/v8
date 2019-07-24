@@ -142,6 +142,11 @@ class MemoryOptimizer final {
 
   bool NeedsPoisoning(LoadSensitivity load_sensitivity) const;
 
+  // Returns true if the AllocationType of the current AllocateRaw node that we
+  // are visiting needs to be updated to kOld, due to propagation of tenuring
+  // from outer to inner allocations.
+  bool AllocationTypeNeedsUpdateToOld(Node* const user, const Edge edge);
+
   AllocationState const* empty_state() const { return empty_state_; }
   Graph* graph() const;
   Isolate* isolate() const;
