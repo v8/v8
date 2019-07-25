@@ -1811,7 +1811,7 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
       // If map is not deprecated the migration attempt does not make sense.
       Node* bitfield3 =
           __ LoadField(AccessBuilder::ForMapBitField3(), value_map);
-      Node* if_not_deprecated = __ WordEqual(
+      Node* if_not_deprecated = __ Word32Equal(
           __ Word32And(bitfield3,
                        __ Int32Constant(Map::IsDeprecatedBit::kMask)),
           __ Int32Constant(0));
