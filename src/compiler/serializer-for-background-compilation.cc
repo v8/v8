@@ -92,7 +92,6 @@ namespace compiler {
   V(TestEqualStrict)              \
   V(TestGreaterThan)              \
   V(TestGreaterThanOrEqual)       \
-  V(TestInstanceOf)               \
   V(TestLessThan)                 \
   V(TestLessThanOrEqual)          \
   V(TestNull)                     \
@@ -208,6 +207,7 @@ namespace compiler {
   V(SwitchOnGeneratorState)           \
   V(SwitchOnSmiNoFeedback)            \
   V(TestIn)                           \
+  V(TestInstanceOf)                   \
   CLEAR_ACCUMULATOR_LIST(V)           \
   CLEAR_ENVIRONMENT_LIST(V)           \
   CONDITIONAL_JUMPS_LIST(V)           \
@@ -374,6 +374,7 @@ class SerializerForBackgroundCompilation {
                                   FeedbackSlot slot, AccessMode mode);
   void ProcessMapHintsForPromises(Hints const& receiver_hints);
   void ProcessHintsForPromiseResolve(Hints const& resolution_hints);
+  void ProcessHintsForObjectIsPrototypeOf(Hints const& value_hints);
   void ProcessHintsForRegExpTest(Hints const& regexp_hints);
   PropertyAccessInfo ProcessMapForRegExpTest(MapRef map);
   void ProcessHintsForFunctionCall(Hints const& target_hints);
@@ -1659,7 +1660,7 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
         ProcessHintsForPromiseResolve(resolution_hints);
       }
       break;
-    case Builtins::kRegExpPrototypeTest: {
+    case Builtins::kRegExpPrototypeTest:
       // For JSCallReducer::ReduceRegExpPrototypeTest.
       if (arguments.size() >= 1 &&
           speculation_mode != SpeculationMode::kDisallowSpeculation) {
@@ -1667,12 +1668,16 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
         ProcessHintsForRegExpTest(regexp_hints);
       }
       break;
-    }
     case Builtins::kFunctionPrototypeCall:
       if (arguments.size() >= 1 &&
           speculation_mode != SpeculationMode::kDisallowSpeculation) {
         Hints const& target_hints = arguments[0];
         ProcessHintsForFunctionCall(target_hints);
+      }
+      break;
+    case Builtins::kObjectPrototypeIsPrototypeOf:
+      if (arguments.size() >= 2) {
+        ProcessHintsForObjectIsPrototypeOf(arguments[1]);
       }
       break;
     case Builtins::kFastFunctionPrototypeBind:
@@ -1684,6 +1689,26 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
       break;
     default:
       break;
+  }
+}
+
+void SerializerForBackgroundCompilation::ProcessHintsForObjectIsPrototypeOf(
+    Hints const& value_hints) {
+  auto processMap = [&](Handle<Map> map_handle) {
+    MapRef map(broker(), map_handle);
+    while (map.IsJSObjectMap()) {
+      map.SerializePrototype();
+      map = map.prototype().map();
+    }
+  };
+
+  for (auto hint : value_hints.constants()) {
+    if (!hint->IsHeapObject()) continue;
+    Handle<HeapObject> object(Handle<HeapObject>::cast(hint));
+    processMap(handle(object->map(), broker()->isolate()));
+  }
+  for (auto map_hint : value_hints.maps()) {
+    processMap(map_hint);
   }
 }
 
@@ -2211,6 +2236,38 @@ void SerializerForBackgroundCompilation::VisitTestIn(
       environment()->register_hints(iterator->GetRegisterOperand(0));
   FeedbackSlot slot = iterator->GetSlotOperand(1);
   ProcessKeyedPropertyAccess(receiver, key, slot, AccessMode::kHas);
+}
+
+void SerializerForBackgroundCompilation::VisitTestInstanceOf(
+    BytecodeArrayIterator* iterator) {
+  Hints const& lhs =
+      environment()->register_hints(iterator->GetRegisterOperand(0));
+  Hints const& rhs = environment()->accumulator_hints();
+  FeedbackSlot slot = iterator->GetSlotOperand(1);
+
+  // Inspect feedback (about the rhs of the operator).
+  Handle<FeedbackVector> feedback_vector =
+      environment()->function().feedback_vector();
+  FeedbackNexus nexus(feedback_vector, slot);
+  VectorSlotPair rhs_feedback(feedback_vector, slot, nexus.ic_state());
+  Handle<JSObject> constructor;
+  if (rhs_feedback.IsValid() &&
+      nexus.GetConstructorFeedback().ToHandle(&constructor)) {
+    if (constructor->IsJSBoundFunction()) {
+      JSBoundFunctionRef(broker(), constructor).Serialize();
+    } else if (constructor->IsJSFunction()) {
+      JSFunctionRef(broker(), constructor).Serialize();
+    } else {
+      UNREACHABLE();
+    }
+  }
+
+  // TODO(neis): Support full instanceof semantics.
+
+  ProcessHintsForObjectIsPrototypeOf(lhs);
+
+  // TODO(neis): Process rhs hints.
+  USE(rhs);
 }
 
 void SerializerForBackgroundCompilation::VisitStaKeyedProperty(

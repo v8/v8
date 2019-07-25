@@ -70,6 +70,8 @@ enum class OddballType : uint8_t {
   V(InternalizedString)            \
   V(String)                        \
   V(Symbol)                        \
+  /* Subtypes of JSReceiver */     \
+  V(JSObject)                      \
   /* Subtypes of HeapObject */     \
   V(AccessorInfo)                  \
   V(AllocationSite)                \
@@ -83,7 +85,7 @@ enum class OddballType : uint8_t {
   V(FixedArrayBase)                \
   V(FunctionTemplateInfo)          \
   V(HeapNumber)                    \
-  V(JSObject)                      \
+  V(JSReceiver)                    \
   V(Map)                           \
   V(MutableHeapNumber)             \
   V(Name)                          \
@@ -223,9 +225,15 @@ class PropertyCellRef : public HeapObjectRef {
   ObjectRef value() const;
 };
 
-class JSObjectRef : public HeapObjectRef {
+class JSReceiverRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  Handle<JSReceiver> object() const;
+};
+
+class JSObjectRef : public JSReceiverRef {
+ public:
+  using JSReceiverRef::JSReceiverRef;
   Handle<JSObject> object() const;
 
   uint64_t RawFastDoublePropertyAsBitsAt(FieldIndex index) const;
@@ -261,9 +269,10 @@ class JSBoundFunctionRef : public JSObjectRef {
   Handle<JSBoundFunction> object() const;
 
   void Serialize();
+  bool serialized() const;
 
   // The following are available only after calling Serialize().
-  ObjectRef bound_target_function() const;
+  JSReceiverRef bound_target_function() const;
   ObjectRef bound_this() const;
   FixedArrayRef bound_arguments() const;
 };

@@ -234,7 +234,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
     kMayBeInPrototypeChain
   };
   InferHasInPrototypeChainResult InferHasInPrototypeChain(
-      Node* receiver, Node* effect, Handle<HeapObject> prototype);
+      Node* receiver, Node* effect, HeapObjectRef const& prototype);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }

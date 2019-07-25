@@ -847,6 +847,8 @@ Reduction JSCallReducer::ReduceObjectPrototypeHasOwnProperty(Node* node) {
 
 // ES #sec-object.prototype.isprototypeof
 Reduction JSCallReducer::ReduceObjectPrototypeIsPrototypeOf(Node* node) {
+  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
+
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* value = node->op()->ValueInputCount() > 2

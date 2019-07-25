@@ -537,6 +537,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     }
 
     // Walk up the prototype chain.
+    MapRef(broker(), map).SerializePrototype();
     if (!map->prototype().IsJSObject()) {
       // Perform the implicit ToObject for primitives here.
       // Implemented according to ES6 section 7.3.2 GetV (V, P).
