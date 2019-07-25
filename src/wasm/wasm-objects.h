@@ -139,14 +139,18 @@ class WasmModuleObject : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 TORQUE_GENERATED_WASM_MODULE_OBJECT_FIELDS)
 
+  // Creates a new {WasmModuleObject} with a new {NativeModule} underneath.
+  V8_EXPORT_PRIVATE static Handle<WasmModuleObject> New(
+      Isolate* isolate, const wasm::WasmFeatures& enabled,
+      std::shared_ptr<const wasm::WasmModule> module,
+      OwnedVector<const uint8_t> wire_bytes, Handle<Script> script,
+      Handle<ByteArray> asm_js_offset_table);
+
   // Creates a new {WasmModuleObject} for an existing {NativeModule} that is
   // reference counted and might be shared between multiple Isolates.
   V8_EXPORT_PRIVATE static Handle<WasmModuleObject> New(
       Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
-      Handle<Script> script);
-  V8_EXPORT_PRIVATE static Handle<WasmModuleObject> New(
-      Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
-      Handle<Script> script, Handle<FixedArray> export_wrappers);
+      Handle<Script> script, size_t code_size_estimate);
   V8_EXPORT_PRIVATE static Handle<WasmModuleObject> New(
       Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
       Handle<Script> script, Handle<FixedArray> export_wrappers,

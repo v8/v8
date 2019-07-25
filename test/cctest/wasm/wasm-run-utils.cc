@@ -324,14 +324,9 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   Handle<Script> script =
       isolate_->factory()->NewScript(isolate_->factory()->empty_string());
   script->set_type(Script::TYPE_WASM);
-
-  auto native_module = isolate_->wasm_engine()->NewNativeModule(
-      isolate_, enabled_features_, test_module_);
-  native_module->SetWireBytes(OwnedVector<const uint8_t>());
-  native_module->SetRuntimeStubs(isolate_);
-
   Handle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate_, std::move(native_module), script);
+      WasmModuleObject::New(isolate_, enabled_features_, test_module_, {},
+                            script, Handle<ByteArray>::null());
   // This method is called when we initialize TestEnvironment. We don't
   // have a memory yet, so we won't create it here. We'll update the
   // interpreter when we get a memory. We do have globals, though.
