@@ -427,12 +427,11 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   Node* context;
   FeedbackVectorRef feedback_vector = DetermineCallContext(node, context);
 
-  if (FLAG_concurrent_inlining) {
-    if (!shared_info.value().IsSerializedForCompilation(feedback_vector)) {
-      TRACE("Missed opportunity to inline a function ("
-            << *shared_info << " with " << feedback_vector << ")");
-      return NoChange();
-    }
+  if (FLAG_concurrent_inlining &&
+      !shared_info.value().IsSerializedForCompilation(feedback_vector)) {
+    TRACE("Missed opportunity to inline a function ("
+          << *shared_info << " with " << feedback_vector << ")");
+    return NoChange();
   }
 
   // ----------------------------------------------------------------

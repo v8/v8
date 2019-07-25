@@ -527,27 +527,19 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
   MapRef first_receiver_map(broker(), receiver_maps[0]);
   bool const is_constructor = first_receiver_map.is_constructor();
 
-  if (FLAG_concurrent_inlining) {
-    if (!first_receiver_map.serialized_prototype()) {
-      TRACE_BROKER_MISSING(
-          broker(), "serialized prototype on map " << first_receiver_map);
-      return inference.NoChange();
-    }
-  } else {
-    first_receiver_map.SerializePrototype();
+  if (FLAG_concurrent_inlining && !first_receiver_map.serialized_prototype()) {
+    TRACE_BROKER_MISSING(broker(),
+                         "serialized prototype on map " << first_receiver_map);
+    return inference.NoChange();
   }
   ObjectRef const prototype = first_receiver_map.prototype();
   for (Handle<Map> const map : receiver_maps) {
     MapRef receiver_map(broker(), map);
 
-    if (FLAG_concurrent_inlining) {
-      if (!receiver_map.serialized_prototype()) {
-        TRACE_BROKER_MISSING(broker(),
-                             "serialized prototype on map " << receiver_map);
-        return inference.NoChange();
-      }
-    } else {
-      receiver_map.SerializePrototype();
+    if (FLAG_concurrent_inlining && !receiver_map.serialized_prototype()) {
+      TRACE_BROKER_MISSING(broker(),
+                           "serialized prototype on map " << receiver_map);
+      return inference.NoChange();
     }
 
     // Check for consistency among the {receiver_maps}.
@@ -5987,9 +5979,7 @@ bool JSCallReducer::DoPromiseChecks(MapInference* inference) {
   for (Handle<Map> map : receiver_maps) {
     MapRef receiver_map(broker(), map);
     if (!receiver_map.IsJSPromiseMap()) return false;
-    if (!FLAG_concurrent_inlining) {
-      receiver_map.SerializePrototype();
-    } else if (!receiver_map.serialized_prototype()) {
+    if (FLAG_concurrent_inlining && !receiver_map.serialized_prototype()) {
       TRACE_BROKER_MISSING(broker(), "prototype for map " << receiver_map);
       return false;
     }
@@ -7205,12 +7195,7 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   ZoneVector<PropertyAccessInfo> access_infos(graph()->zone());
   AccessInfoFactory access_info_factory(broker(), dependencies(),
                                         graph()->zone());
-  if (!FLAG_concurrent_inlining) {
-    // Compute property access info for "exec" on {resolution}.
-    access_info_factory.ComputePropertyAccessInfos(
-        MapHandles(regexp_maps.begin(), regexp_maps.end()),
-        factory()->exec_string(), AccessMode::kLoad, &access_infos);
-  } else {
+  if (FLAG_concurrent_inlining) {
     // Obtain precomputed access infos from the broker.
     for (auto map : regexp_maps) {
       MapRef map_ref(broker(), map);
@@ -7218,6 +7203,11 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
           broker()->GetAccessInfoForLoadingExec(map_ref);
       access_infos.push_back(access_info);
     }
+  } else {
+    // Compute property access info for "exec" on {resolution}.
+    access_info_factory.ComputePropertyAccessInfos(
+        MapHandles(regexp_maps.begin(), regexp_maps.end()),
+        factory()->exec_string(), AccessMode::kLoad, &access_infos);
   }
 
   PropertyAccessInfo ai_exec =
