@@ -2118,6 +2118,18 @@ VisitResult ImplementationVisitor::GenerateCall(
 
   const Type* return_type = callable->signature().return_type;
 
+  if (is_tailcall) {
+    if (Builtin* builtin = Builtin::DynamicCast(CurrentCallable::Get())) {
+      const Type* outer_return_type = builtin->signature().return_type;
+      if (!return_type->IsSubtypeOf(outer_return_type)) {
+        Error("Cannot tailcall, type of result is ", *return_type,
+              " but should be a subtype of ", *outer_return_type, ".");
+      }
+    } else {
+      Error("Tail calls are only allowed from builtins");
+    }
+  }
+
   std::vector<VisitResult> converted_arguments;
   StackRange argument_range = assembler().TopRange(0);
   std::vector<std::string> constexpr_arguments;
