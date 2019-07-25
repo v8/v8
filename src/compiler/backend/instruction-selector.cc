@@ -2583,12 +2583,13 @@ void InstructionSelector::VisitF64x2Le(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2Splat(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ExtractLane(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ReplaceLane(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI64x2Shl(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI64x2ShrS(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI64x2ShrU(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM64
 void InstructionSelector::VisitI64x2Neg(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitS1x2AnyTrue(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitS1x2AllTrue(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitI64x2Shl(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitI64x2ShrS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2Add(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2Sub(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2Mul(Node* node) { UNIMPLEMENTED(); }
@@ -2598,7 +2599,6 @@ void InstructionSelector::VisitI64x2Eq(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2Ne(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2GtS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2GeS(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitI64x2ShrU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2MinU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2MaxU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2GtU(Node* node) { UNIMPLEMENTED(); }

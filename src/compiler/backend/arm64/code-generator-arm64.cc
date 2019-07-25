@@ -1846,6 +1846,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Mov(dst, i.InputInt8(1), i.InputRegister64(2));
       break;
     }
+    case kArm64I64x2Shl: {
+      __ Shl(i.OutputSimd128Register().V2D(), i.InputSimd128Register(0).V2D(),
+             i.InputInt6(1));
+      break;
+    }
+    case kArm64I64x2ShrS: {
+      __ Sshr(i.OutputSimd128Register().V2D(), i.InputSimd128Register(0).V2D(),
+              i.InputInt6(1));
+      break;
+    }
+    case kArm64I64x2ShrU: {
+      __ Ushr(i.OutputSimd128Register().V2D(), i.InputSimd128Register(0).V2D(),
+              i.InputInt6(1));
+      break;
+    }
     case kArm64I32x4Splat: {
       __ Dup(i.OutputSimd128Register().V4S(), i.InputRegister32(0));
       break;
