@@ -268,7 +268,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     } else {
       DCHECK_EQ(mode, ParameterMode::INTPTR_PARAMETERS);
       intptr_t constant;
-      if (ToIntPtrConstant(node, constant)) {
+      if (ToIntPtrConstant(node, &constant)) {
         *out = constant;
         return true;
       }

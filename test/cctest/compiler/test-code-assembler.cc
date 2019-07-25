@@ -24,7 +24,7 @@ using Variable = CodeAssemblerVariable;
 Node* SmiTag(CodeAssembler& m,  // NOLINT(runtime/references)
              Node* value) {
   int32_t constant_value;
-  if (m.ToInt32Constant(value, constant_value) &&
+  if (m.ToInt32Constant(value, &constant_value) &&
       Smi::IsValid(constant_value)) {
     return m.SmiConstant(Smi::FromInt(constant_value));
   }
@@ -374,24 +374,24 @@ TEST(TestToConstant) {
   int32_t value32;
   int64_t value64;
   Node* a = m.Int32Constant(5);
-  CHECK(m.ToInt32Constant(a, value32));
-  CHECK(m.ToInt64Constant(a, value64));
+  CHECK(m.ToInt32Constant(a, &value32));
+  CHECK(m.ToInt64Constant(a, &value64));
 
   a = m.Int64Constant(static_cast<int64_t>(1) << 32);
-  CHECK(!m.ToInt32Constant(a, value32));
-  CHECK(m.ToInt64Constant(a, value64));
+  CHECK(!m.ToInt32Constant(a, &value32));
+  CHECK(m.ToInt64Constant(a, &value64));
 
   a = m.Int64Constant(13);
-  CHECK(m.ToInt32Constant(a, value32));
-  CHECK(m.ToInt64Constant(a, value64));
+  CHECK(m.ToInt32Constant(a, &value32));
+  CHECK(m.ToInt64Constant(a, &value64));
 
   a = UndefinedConstant(m);
-  CHECK(!m.ToInt32Constant(a, value32));
-  CHECK(!m.ToInt64Constant(a, value64));
+  CHECK(!m.ToInt32Constant(a, &value32));
+  CHECK(!m.ToInt64Constant(a, &value64));
 
   a = UndefinedConstant(m);
-  CHECK(!m.ToInt32Constant(a, value32));
-  CHECK(!m.ToInt64Constant(a, value64));
+  CHECK(!m.ToInt32Constant(a, &value32));
+  CHECK(!m.ToInt64Constant(a, &value64));
 }
 
 TEST(DeferredCodePhiHints) {

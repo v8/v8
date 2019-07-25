@@ -332,7 +332,7 @@ base::Optional<SharedFunctionInfoRef> JSInliner::DetermineCallTarget(
 //  - context         : The context (as SSA value) bound by the call target.
 //  - feedback_vector : The target is guaranteed to use this feedback vector.
 FeedbackVectorRef JSInliner::DetermineCallContext(Node* node,
-                                                  Node*& context_out) {
+                                                  Node** context_out) {
   DCHECK(IrOpcode::IsInlineeOpcode(node->opcode()));
   HeapObjectMatcher match(node->InputAt(0));
 
@@ -342,7 +342,7 @@ FeedbackVectorRef JSInliner::DetermineCallContext(Node* node,
     CHECK(function.has_feedback_vector());
 
     // The inlinee specializes to the context from the JSFunction object.
-    context_out = jsgraph()->Constant(function.context());
+    *context_out = jsgraph()->Constant(function.context());
     return function.feedback_vector();
   }
 
@@ -354,7 +354,7 @@ FeedbackVectorRef JSInliner::DetermineCallContext(Node* node,
     FeedbackCellRef cell(FeedbackCellRef(broker(), p.feedback_cell()));
 
     // The inlinee uses the locally provided context at instantiation.
-    context_out = NodeProperties::GetContextInput(match.node());
+    *context_out = NodeProperties::GetContextInput(match.node());
     return cell.value().AsFeedbackVector();
   }
 
@@ -425,7 +425,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
                                                       : ""));
   // Determine the targets feedback vector and its context.
   Node* context;
-  FeedbackVectorRef feedback_vector = DetermineCallContext(node, context);
+  FeedbackVectorRef feedback_vector = DetermineCallContext(node, &context);
 
   if (FLAG_concurrent_inlining &&
       !shared_info.value().IsSerializedForCompilation(feedback_vector)) {

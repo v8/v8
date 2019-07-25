@@ -853,15 +853,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return value ? Int32TrueConstant() : Int32FalseConstant();
   }
 
-  // TODO(jkummerow): The style guide wants pointers for output parameters.
-  // https://google.github.io/styleguide/cppguide.html#Output_Parameters
-  bool ToInt32Constant(Node* node,
-                       int32_t& out_value);  // NOLINT(runtime/references)
-  bool ToInt64Constant(Node* node,
-                       int64_t& out_value);  // NOLINT(runtime/references)
+  bool ToInt32Constant(Node* node, int32_t* out_value);
+  bool ToInt64Constant(Node* node, int64_t* out_value);
+  bool ToIntPtrConstant(Node* node, intptr_t* out_value);
   bool ToSmiConstant(Node* node, Smi* out_value);
-  bool ToIntPtrConstant(Node* node,
-                        intptr_t& out_value);  // NOLINT(runtime/references)
 
   bool IsUndefinedConstant(TNode<Object> node);
   bool IsNullConstant(TNode<Object> node);

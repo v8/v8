@@ -1133,10 +1133,10 @@ bool CanInlineArrayIteratingBuiltin(JSHeapBroker* broker,
   return true;
 }
 
-bool CanInlineArrayResizingBuiltin(
-    JSHeapBroker* broker, MapHandles const& receiver_maps,
-    std::vector<ElementsKind>& kinds,  // NOLINT(runtime/references)
-    bool builtin_is_push = false) {
+bool CanInlineArrayResizingBuiltin(JSHeapBroker* broker,
+                                   MapHandles const& receiver_maps,
+                                   std::vector<ElementsKind>* kinds,
+                                   bool builtin_is_push = false) {
   DCHECK_NE(0, receiver_maps.size());
   for (auto receiver_map : receiver_maps) {
     MapRef map(broker, receiver_map);
@@ -1147,14 +1147,14 @@ bool CanInlineArrayResizingBuiltin(
       return false;
     }
     ElementsKind current_kind = map.elements_kind();
-    auto kind_ptr = kinds.data();
+    auto kind_ptr = kinds->data();
     size_t i;
-    for (i = 0; i < kinds.size(); i++, kind_ptr++) {
+    for (i = 0; i < kinds->size(); i++, kind_ptr++) {
       if (UnionElementsKindUptoPackedness(kind_ptr, current_kind)) {
         break;
       }
     }
-    if (i == kinds.size()) kinds.push_back(current_kind);
+    if (i == kinds->size()) kinds->push_back(current_kind);
   }
   return true;
 }
@@ -4497,7 +4497,7 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
   MapHandles const& receiver_maps = inference.GetMaps();
 
   std::vector<ElementsKind> kinds;
-  if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, kinds, true)) {
+  if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, &kinds, true)) {
     return inference.NoChange();
   }
   if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
@@ -4632,7 +4632,7 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
   MapHandles const& receiver_maps = inference.GetMaps();
 
   std::vector<ElementsKind> kinds;
-  if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, kinds)) {
+  if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, &kinds)) {
     return inference.NoChange();
   }
   if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
@@ -4770,7 +4770,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
   MapHandles const& receiver_maps = inference.GetMaps();
 
   std::vector<ElementsKind> kinds;
-  if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, kinds)) {
+  if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, &kinds)) {
     return inference.NoChange();
   }
   if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();

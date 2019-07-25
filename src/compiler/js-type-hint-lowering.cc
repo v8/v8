@@ -549,8 +549,8 @@ JSTypeHintLowering::ReduceStoreKeyedOperation(const Operator* op, Node* obj,
   return LoweringResult::NoChange();
 }
 
-Node* JSTypeHintLowering::TryBuildSoftDeopt(FeedbackNexus& nexus, Node* effect,
-                                            Node* control,
+Node* JSTypeHintLowering::TryBuildSoftDeopt(FeedbackNexus const& nexus,
+                                            Node* effect, Node* control,
                                             DeoptimizeReason reason) const {
   if ((flags() & kBailoutOnUninitialized) && nexus.IsUninitialized()) {
     Node* deoptimize = jsgraph()->graph()->NewNode(

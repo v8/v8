@@ -357,9 +357,8 @@ class SerializerForBackgroundCompilation {
                           bool with_spread = false);
   void ProcessApiCall(Handle<SharedFunctionInfo> target,
                       const HintsVector& arguments);
-  void ProcessReceiverMapForApiCall(
-      FunctionTemplateInfoRef& target,  // NOLINT(runtime/references)
-      Handle<Map> receiver);
+  void ProcessReceiverMapForApiCall(FunctionTemplateInfoRef target,
+                                    Handle<Map> receiver);
   void ProcessBuiltinCall(Handle<SharedFunctionInfo> target,
                           const HintsVector& arguments,
                           SpeculationMode speculation_mode);
@@ -399,8 +398,8 @@ class SerializerForBackgroundCompilation {
 
   void ProcessContextAccess(const Hints& context_hints, int slot, int depth,
                             ContextProcessingMode mode);
-  void ProcessImmutableLoad(ContextRef& context,  // NOLINT(runtime/references)
-                            int slot, ContextProcessingMode mode);
+  void ProcessImmutableLoad(ContextRef const& context, int slot,
+                            ContextProcessingMode mode);
   void ProcessLdaLookupGlobalSlot(interpreter::BytecodeArrayIterator* iterator);
   void ProcessLdaLookupContextSlot(
       interpreter::BytecodeArrayIterator* iterator);
@@ -631,7 +630,7 @@ class SerializerForBackgroundCompilation::Environment : public ZoneObject {
 
   // Appends the hints for the given register range to {dst} (in order).
   void ExportRegisterHints(interpreter::Register first, size_t count,
-                           HintsVector& dst);  // NOLINT(runtime/references)
+                           HintsVector* dst);
 
  private:
   friend std::ostream& operator<<(std::ostream& out, const Environment& env);
@@ -1066,7 +1065,7 @@ void SerializerForBackgroundCompilation::VisitInvokeIntrinsic(
     size_t reg_count = iterator->GetRegisterCountOperand(2);
     CHECK_EQ(reg_count, 3);
     HintsVector arguments(zone());
-    environment()->ExportRegisterHints(first_reg, reg_count, arguments);
+    environment()->ExportRegisterHints(first_reg, reg_count, &arguments);
     Hints const& resolution_hints = arguments[1];  // The resolution object.
     ProcessHintsForPromiseResolve(resolution_hints);
     environment()->accumulator_hints().Clear();
@@ -1107,7 +1106,7 @@ void SerializerForBackgroundCompilation::VisitPopContext(
 }
 
 void SerializerForBackgroundCompilation::ProcessImmutableLoad(
-    ContextRef& context_ref, int slot, ContextProcessingMode mode) {
+    ContextRef const& context_ref, int slot, ContextProcessingMode mode) {
   DCHECK(mode == kSerializeSlot || mode == kSerializeSlotAndAddToAccumulator);
   base::Optional<ObjectRef> slot_value = context_ref.get(slot, true);
 
@@ -1555,7 +1554,7 @@ void SerializerForBackgroundCompilation::ProcessCallVarArgs(
     receiver.AddConstant(broker()->isolate()->factory()->undefined_value());
     arguments.push_back(receiver);
   }
-  environment()->ExportRegisterHints(first_reg, reg_count, arguments);
+  environment()->ExportRegisterHints(first_reg, reg_count, &arguments);
 
   ProcessCallOrConstruct(callee, base::nullopt, arguments, slot);
 }
@@ -1601,7 +1600,7 @@ void SerializerForBackgroundCompilation::ProcessApiCall(
 }
 
 void SerializerForBackgroundCompilation::ProcessReceiverMapForApiCall(
-    FunctionTemplateInfoRef& target, Handle<Map> receiver) {
+    FunctionTemplateInfoRef target, Handle<Map> receiver) {
   if (receiver->is_access_check_needed()) {
     return;
   }
@@ -1871,10 +1870,10 @@ void SerializerForBackgroundCompilation::VisitSwitchOnGeneratorState(
 }
 
 void SerializerForBackgroundCompilation::Environment::ExportRegisterHints(
-    interpreter::Register first, size_t count, HintsVector& dst) {
+    interpreter::Register first, size_t count, HintsVector* dst) {
   const int reg_base = first.index();
   for (int i = 0; i < static_cast<int>(count); ++i) {
-    dst.push_back(register_hints(interpreter::Register(reg_base + i)));
+    dst->push_back(register_hints(interpreter::Register(reg_base + i)));
   }
 }
 
@@ -1888,7 +1887,7 @@ void SerializerForBackgroundCompilation::VisitConstruct(
   const Hints& new_target = environment()->accumulator_hints();
 
   HintsVector arguments(zone());
-  environment()->ExportRegisterHints(first_reg, reg_count, arguments);
+  environment()->ExportRegisterHints(first_reg, reg_count, &arguments);
 
   ProcessCallOrConstruct(callee, new_target, arguments, slot);
 }
@@ -1903,7 +1902,7 @@ void SerializerForBackgroundCompilation::VisitConstructWithSpread(
   const Hints& new_target = environment()->accumulator_hints();
 
   HintsVector arguments(zone());
-  environment()->ExportRegisterHints(first_reg, reg_count, arguments);
+  environment()->ExportRegisterHints(first_reg, reg_count, &arguments);
 
   ProcessCallOrConstruct(callee, new_target, arguments, slot, true);
 }
