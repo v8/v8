@@ -480,8 +480,14 @@ Vector<byte> WasmCodeAllocator::AllocateForCode(NativeModule* native_module,
     Address hint = owned_code_space_.empty() ? kNullAddress
                                              : owned_code_space_.back().end();
 
+    // Reserve at least 20% of the total generated code size so far, and of
+    // course at least {size}. Round up to the next power of two.
+    size_t total_reserved = 0;
+    for (auto& vmem : owned_code_space_) total_reserved += vmem.size();
+    size_t reserve_size =
+        base::bits::RoundUpToPowerOfTwo(std::max(size, total_reserved / 5));
     VirtualMemory new_mem =
-        code_manager_->TryAllocate(size, reinterpret_cast<void*>(hint));
+        code_manager_->TryAllocate(reserve_size, reinterpret_cast<void*>(hint));
     if (!new_mem.IsReserved()) {
       V8::FatalProcessOutOfMemory(nullptr, "wasm code reservation");
       UNREACHABLE();
