@@ -538,8 +538,8 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
         StoreObjectFieldNoWriteBarrier(copy, offset.value(), field);
       } else {
         // Copy fields as raw data.
-        TNode<IntPtrT> field =
-            LoadObjectField<IntPtrT>(boilerplate, offset.value());
+        TNode<TaggedT> field =
+            LoadObjectField<TaggedT>(boilerplate, offset.value());
         StoreObjectFieldNoWriteBarrier(copy, offset.value(), field);
       }
       offset = IntPtrAdd(offset.value(), IntPtrConstant(kTaggedSize));
