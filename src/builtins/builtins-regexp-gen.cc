@@ -2214,6 +2214,17 @@ void RegExpMatchAllAssembler::Generate(TNode<Context> context,
 
   BIND(&create_iterator);
   {
+    {
+      // UseCounter for matchAll with non-g RegExp.
+      // https://crbug.com/v8/9551
+      Label next(this);
+      GotoIf(var_global.value(), &next);
+      CallRuntime(Runtime::kIncrementUseCounter, context,
+                  SmiConstant(v8::Isolate::kRegExpMatchAllWithNonGlobalRegExp));
+      Goto(&next);
+      BIND(&next);
+    }
+
     // 13. Return ! CreateRegExpStringIterator(matcher, S, global, fullUnicode).
     TNode<Object> iterator =
         CreateRegExpStringIterator(native_context, var_matcher.value(), string,

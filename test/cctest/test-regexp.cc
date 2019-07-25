@@ -1694,8 +1694,7 @@ void MockUseCounterCallback(v8::Isolate* isolate,
 }
 }
 
-
-// Test that ES2015 RegExp compatibility fixes are in place, that they
+// Test that ES2015+ RegExp compatibility fixes are in place, that they
 // are not overly broad, and the appropriate UseCounters are incremented
 TEST(UseCountRegExp) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -1717,7 +1716,7 @@ TEST(UseCountRegExp) {
   CHECK_EQ(0, use_counts[v8::Isolate::kRegExpPrototypeToString]);
   CHECK(resultReSticky->IsFalse());
 
-  // When the getter is caleld on another object, throw an exception
+  // When the getter is called on another object, throw an exception
   // and don't increment the UseCounter
   v8::Local<v8::Value> resultStickyError = CompileRun(
       "var exception;"
@@ -1759,6 +1758,19 @@ TEST(UseCountRegExp) {
   CHECK_EQ(2, use_counts[v8::Isolate::kRegExpPrototypeStickyGetter]);
   CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeToString]);
   CHECK(resultToStringError->IsObject());
+
+  // Increment a UseCounter when .matchAll() is used with a non-global
+  // regular expression.
+  CHECK_EQ(0, use_counts[v8::Isolate::kRegExpMatchAllWithNonGlobalRegExp]);
+  v8::Local<v8::Value> resultReMatchAllNonGlobal =
+      CompileRun("'a'.matchAll(/./)");
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpMatchAllWithNonGlobalRegExp]);
+  CHECK(resultReMatchAllNonGlobal->IsObject());
+  // Don't increment the counter for global regular expressions.
+  v8::Local<v8::Value> resultReMatchAllGlobal =
+      CompileRun("'a'.matchAll(/./g)");
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpMatchAllWithNonGlobalRegExp]);
+  CHECK(resultReMatchAllGlobal->IsObject());
 }
 
 class UncachedExternalString
