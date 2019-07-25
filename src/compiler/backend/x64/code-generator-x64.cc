@@ -210,10 +210,6 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
       // Just encode the stub index. This will be patched when the code
       // is added to the native module and copied into wasm code space.
       __ near_call(wasm::WasmCode::kDoubleToI, RelocInfo::WASM_STUB_CALL);
-    } else if (tasm()->options().inline_offheap_trampolines) {
-      // With embedded builtins we do not need the isolate here. This allows
-      // the call to be generated asynchronously.
-      __ CallBuiltin(Builtins::kDoubleToI);
     } else {
       __ Call(BUILTIN_CODE(isolate_, DoubleToI), RelocInfo::CODE_TARGET);
     }
