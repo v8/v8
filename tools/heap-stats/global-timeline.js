@@ -88,7 +88,7 @@ class GlobalTimeline extends HTMLElement {
                     data_set.boxed_double_fields +
                     data_set.string_data;
       const ptr_compr_benefit =
-          (data_set.smi_fields + data_set.tagged_fields) / 2;
+          (data_set.inobject_smi_fields + data_set.tagged_fields) / 2;
       const ptr_compr_benefit_perc = ptr_compr_benefit / total * 100;
       sum_total += total;
       sum_ptr_compr_benefit_perc += ptr_compr_benefit_perc;
@@ -99,8 +99,8 @@ class GlobalTimeline extends HTMLElement {
       data.push(ptr_compr_benefit / KB);
       data.push(tooltip);
       data.push(data_set.embedder_fields / KB);
-      data.push(data_set.inobject_smi_fields / KB);
       data.push(data_set.tagged_fields / KB);
+      data.push(data_set.inobject_smi_fields / KB);
       data.push(data_set.other_raw_fields / KB);
       data.push(data_set.unboxed_double_fields / KB);
       data.push(data_set.boxed_double_fields / KB);
