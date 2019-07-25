@@ -239,6 +239,7 @@ class EffectControlLinearizer {
   Node* ChangeSmiToInt32(Node* value);
   Node* ChangeSmiToInt64(Node* value);
   Node* ObjectIsSmi(Node* value);
+  Node* CompressedObjectIsSmi(Node* value);
   Node* LoadFromSeqString(Node* receiver, Node* position, Node* is_one_byte);
 
   Node* SmiMaxValueConstant();
@@ -1711,7 +1712,7 @@ Node* EffectControlLinearizer::LowerChangeCompressedToTaggedSigned(Node* node) {
   auto if_not_smi = __ MakeDeferredLabel();
   auto done = __ MakeLabel(MachineRepresentation::kWord32);
 
-  Node* check = ObjectIsSmi(value);
+  Node* check = CompressedObjectIsSmi(value);
   __ GotoIfNot(check, &if_not_smi);
   __ Goto(&done, __ ChangeCompressedSignedToTaggedSigned(value));
 
@@ -2840,7 +2841,7 @@ Node* EffectControlLinearizer::LowerCheckedCompressedToTaggedSigned(
   Node* value = node->InputAt(0);
   const CheckParameters& params = CheckParametersOf(node->op());
 
-  Node* check = ObjectIsSmi(value);
+  Node* check = CompressedObjectIsSmi(value);
   __ DeoptimizeIfNot(DeoptimizeReason::kNotASmi, params.feedback(), check,
                      frame_state);
 
@@ -2852,7 +2853,7 @@ Node* EffectControlLinearizer::LowerCheckedCompressedToTaggedPointer(
   Node* value = node->InputAt(0);
   const CheckParameters& params = CheckParametersOf(node->op());
 
-  Node* check = ObjectIsSmi(value);
+  Node* check = CompressedObjectIsSmi(value);
   __ DeoptimizeIf(DeoptimizeReason::kSmi, params.feedback(), check,
                   frame_state);
   return __ ChangeCompressedPointerToTaggedPointer(value);
@@ -4547,6 +4548,11 @@ Node* EffectControlLinearizer::ObjectIsSmi(Node* value) {
                       __ IntPtrConstant(kSmiTag));
 }
 
+Node* EffectControlLinearizer::CompressedObjectIsSmi(Node* value) {
+  return __ Word32Equal(__ Word32And(value, __ Int32Constant(kSmiTagMask)),
+                        __ Int32Constant(kSmiTag));
+}
+
 Node* EffectControlLinearizer::SmiMaxValueConstant() {
   return __ Int32Constant(Smi::kMaxValue);
 }
@@ -5906,7 +5912,11 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForInt32Key(
     auto if_match = __ MakeLabel();
     auto if_notmatch = __ MakeLabel();
     auto if_notsmi = __ MakeDeferredLabel();
-    __ GotoIfNot(ObjectIsSmi(candidate_key), &if_notsmi);
+    if (COMPRESS_POINTERS_BOOL) {
+      __ GotoIfNot(CompressedObjectIsSmi(candidate_key), &if_notsmi);
+    } else {
+      __ GotoIfNot(ObjectIsSmi(candidate_key), &if_notsmi);
+    }
     __ Branch(__ Word32Equal(ChangeSmiToInt32(candidate_key), key), &if_match,
               &if_notmatch);
 
