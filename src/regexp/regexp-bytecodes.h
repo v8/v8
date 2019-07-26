@@ -67,7 +67,8 @@ const int BYTECODE_SHIFT = 8;
   V(CHECK_NOT_AT_START, 48, 8) /* bc8 offset24 addr32 */                       \
   V(CHECK_GREEDY, 49, 8) /* bc8 pad24 addr32                           */      \
   V(ADVANCE_CP_AND_GOTO, 50, 8)           /* bc8 offset24 addr32 */            \
-  V(SET_CURRENT_POSITION_FROM_END, 51, 4) /* bc8 idx24 */
+  V(SET_CURRENT_POSITION_FROM_END, 51, 4) /* bc8 idx24 */                      \
+  V(CHECK_CURRENT_POSITION, 52, 8)        /* bc8 idx24 addr32 */
 
 #define DECLARE_BYTECODES(name, code, length) static const int BC_##name = code;
 BYTECODE_ITERATOR(DECLARE_BYTECODES)

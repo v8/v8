@@ -661,6 +661,15 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate, ByteArray code_array,
         pc += BC_SET_CURRENT_POSITION_FROM_END_LENGTH;
         break;
       }
+      BYTECODE(CHECK_CURRENT_POSITION) {
+        int pos = current + (insn >> BYTECODE_SHIFT);
+        if (pos > subject.length() || pos < 0) {
+          pc = code_base + Load32Aligned(pc + 4);
+        } else {
+          pc += BC_CHECK_CURRENT_POSITION_LENGTH;
+        }
+        break;
+      }
       default:
         UNREACHABLE();
         break;

@@ -176,8 +176,14 @@ void RegExpBytecodeGenerator::LoadCurrentCharacterImpl(int cp_offset,
                                                        bool check_bounds,
                                                        int characters,
                                                        int eats_at_least) {
-  // TODO(v8:9305): Make use of eats_at_least value to perform a bigger bounds-
-  // check if it doesn't match the number of preloaded characters.
+  DCHECK_GE(eats_at_least, characters);
+  if (eats_at_least > characters && check_bounds) {
+    DCHECK(is_uint24(cp_offset + eats_at_least));
+    Emit(BC_CHECK_CURRENT_POSITION, cp_offset + eats_at_least);
+    EmitOrLink(on_failure);
+    check_bounds = false;  // Load below doesn't need to check.
+  }
+
   DCHECK_LE(kMinCPOffset, cp_offset);
   DCHECK_GE(kMaxCPOffset, cp_offset);
   int bytecode;
