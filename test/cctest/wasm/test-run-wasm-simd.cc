@@ -767,6 +767,32 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2ReplaceLane) {
   }
 }
 
+void RunI64x2UnOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
+                      WasmOpcode opcode, Int64UnOp expected_op) {
+  WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);
+  // Global to hold output.
+  int64_t* g = r.builder().AddGlobal<int64_t>(kWasmS128);
+  // Build fn to splat test value, perform unop, and write the result.
+  byte value = 0;
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(value))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_UNOP(opcode, WASM_GET_LOCAL(temp1))),
+        WASM_ONE);
+
+  FOR_INT64_INPUTS(x) {
+    r.Call(x);
+    int64_t expected = expected_op(x);
+    for (int i = 0; i < 2; i++) {
+      CHECK_EQ(expected, ReadLittleEndianValue<int64_t>(&g[i]));
+    }
+  }
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I64x2Neg) {
+  RunI64x2UnOpTest(execution_tier, lower_simd, kExprI64x2Neg,
+                   base::NegateWithWraparound);
+}
+
 void RunI64x2ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                          WasmOpcode opcode, Int64ShiftOp expected_op) {
   for (int shift = 1; shift < 64; shift++) {
@@ -1115,32 +1141,6 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2ExtractWithF64x2) {
                            WASM_I64_REINTERPRET_F64(WASM_F64(1e15))),
                WASM_I64V(1), WASM_I64V(0)));
   CHECK_EQ(1, r.Call());
-}
-
-void RunI64x2UnOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
-                      WasmOpcode opcode, Int64UnOp expected_op) {
-  WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);
-  // Global to hold output.
-  int64_t* g = r.builder().AddGlobal<int64_t>(kWasmS128);
-  // Build fn to splat test value, perform unop, and write the result.
-  byte value = 0;
-  byte temp1 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(value))),
-        WASM_SET_GLOBAL(0, WASM_SIMD_UNOP(opcode, WASM_GET_LOCAL(temp1))),
-        WASM_ONE);
-
-  FOR_INT64_INPUTS(x) {
-    r.Call(x);
-    int64_t expected = expected_op(x);
-    for (int i = 0; i < 2; i++) {
-      CHECK_EQ(expected, ReadLittleEndianValue<int64_t>(&g[i]));
-    }
-  }
-}
-
-WASM_SIMD_TEST_NO_LOWERING(I64x2Neg) {
-  RunI64x2UnOpTest(execution_tier, lower_simd, kExprI64x2Neg,
-                   base::NegateWithWraparound);
 }
 
 void RunI64x2BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
