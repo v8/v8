@@ -861,6 +861,7 @@
   # Tests that fail some assertions due to checking internal state sensitive
   # to GC.
   'compiler/native-context-specialization-hole-check': [SKIP],
+  'opt-elements-kind': [SKIP],
   'regress/regress-trap-allocation-memento': [SKIP],
   'regress/regress-v8-9267-*': [SKIP],
   'shared-function-tier-up-turbo': [SKIP],
