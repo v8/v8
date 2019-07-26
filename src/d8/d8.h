@@ -11,7 +11,6 @@
 #include <queue>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 #include "src/base/once.h"
@@ -208,9 +207,12 @@ class SerializationDataQueue {
 
 class Worker {
  public:
-  explicit Worker(const char* script);
+  Worker();
   ~Worker();
 
+  // Run the given script on this Worker. This function should only be called
+  // once, and should only be called by the thread that created the Worker.
+  void StartExecuteInThread(const char* script);
   // Post a message to the worker's incoming message queue. The worker will
   // take ownership of the SerializationData.
   // This function should only be called by the thread that created the Worker.
@@ -229,20 +231,17 @@ class Worker {
   // This function can be called by any thread.
   void WaitForThread();
 
-  // Start running the given worker in another thread.
-  static void StartWorkerThread(std::shared_ptr<Worker> worker);
-
  private:
   class WorkerThread : public base::Thread {
    public:
-    explicit WorkerThread(std::shared_ptr<Worker> worker)
+    explicit WorkerThread(Worker* worker)
         : base::Thread(base::Thread::Options("WorkerThread")),
-          worker_(std::move(worker)) {}
+          worker_(worker) {}
 
-    void Run() override;
+    void Run() override { worker_->ExecuteInThread(); }
 
    private:
-    std::shared_ptr<Worker> worker_;
+    Worker* worker_;
   };
 
   void ExecuteInThread();
@@ -379,6 +378,7 @@ class Shell : public i::AllStatic {
       Isolate* isolate, Local<Value> value, Local<Value> transfer);
   static MaybeLocal<Value> DeserializeValue(
       Isolate* isolate, std::unique_ptr<SerializationData> data);
+  static void CleanupWorkers();
   static int* LookupCounter(const char* name);
   static void* CreateHistogram(const char* name, int min, int max,
                                size_t buckets);
@@ -493,10 +493,6 @@ class Shell : public i::AllStatic {
            !options.test_shell;
   }
 
-  static void WaitForRunningWorkers();
-  static void AddRunningWorker(std::shared_ptr<Worker> worker);
-  static void RemoveRunningWorker(const std::shared_ptr<Worker>& worker);
-
  private:
   static Global<Context> evaluation_context_;
   static base::OnceType quit_once_;
@@ -513,7 +509,7 @@ class Shell : public i::AllStatic {
 
   static base::LazyMutex workers_mutex_;  // Guards the following members.
   static bool allow_new_workers_;
-  static std::unordered_set<std::shared_ptr<Worker>> running_workers_;
+  static std::vector<Worker*> workers_;
   static std::vector<ExternalizedContents> externalized_contents_;
 
   // Multiple isolates may update this flag concurrently.
