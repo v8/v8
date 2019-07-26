@@ -1377,11 +1377,12 @@ VariableProxy* Parser::DeclareBoundVariable(const AstRawString* name,
 }
 
 void Parser::DeclareAndBindVariable(VariableProxy* proxy, VariableKind kind,
-                                    VariableMode mode, InitializationFlag init,
-                                    Scope* scope, bool* was_added, int begin,
-                                    int end) {
-  Variable* var = DeclareVariable(proxy->raw_name(), kind, mode, init, scope,
-                                  was_added, begin, end);
+                                    VariableMode mode, Scope* scope,
+                                    bool* was_added, int initializer_position) {
+  Variable* var = DeclareVariable(
+      proxy->raw_name(), kind, mode, Variable::DefaultInitializationFlag(mode),
+      scope, was_added, proxy->position(), kNoSourcePosition);
+  var->set_initializer_position(initializer_position);
   proxy->BindTo(var);
 }
 

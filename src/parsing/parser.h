@@ -387,9 +387,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   VariableProxy* DeclareBoundVariable(const AstRawString* name,
                                       VariableMode mode, int pos);
   void DeclareAndBindVariable(VariableProxy* proxy, VariableKind kind,
-                              VariableMode mode, InitializationFlag init,
-                              Scope* declaration_scope, bool* was_added,
-                              int begin, int end = kNoSourcePosition);
+                              VariableMode mode, Scope* declaration_scope,
+                              bool* was_added, int initializer_position);
   V8_WARN_UNUSED_RESULT
   Variable* DeclareVariable(const AstRawString* name, VariableKind kind,
                             VariableMode mode, InitializationFlag init,

@@ -354,11 +354,19 @@ class ScopedList final {
   }
 
   int length() const { return static_cast<int>(end_ - start_); }
-  T at(int i) const {
+
+  const T& at(int i) const {
     size_t index = start_ + i;
     DCHECK_LE(start_, index);
     DCHECK_LT(index, buffer_.size());
-    return static_cast<T>(buffer_[index]);
+    return *reinterpret_cast<T*>(&buffer_[index]);
+  }
+
+  T& at(int i) {
+    size_t index = start_ + i;
+    DCHECK_LE(start_, index);
+    DCHECK_LT(index, buffer_.size());
+    return *reinterpret_cast<T*>(&buffer_[index]);
   }
 
   void CopyTo(ZoneList<T>* target, Zone* zone) const {

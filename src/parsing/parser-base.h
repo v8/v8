@@ -6,6 +6,7 @@
 #define V8_PARSING_PARSER_BASE_H_
 
 #include <stdint.h>
+#include <utility>
 #include <vector>
 
 #include "src/ast/ast-source-ranges.h"
@@ -1019,7 +1020,8 @@ class ParserBase {
   ExpressionT ParseAssignmentExpressionCoverGrammar();
 
   ExpressionT ParseArrowParametersWithRest(ExpressionListT* list,
-                                           AccumulationScope* scope);
+                                           AccumulationScope* scope,
+                                           int seen_variables);
 
   ExpressionT ParseArrayLiteral();
 
@@ -1365,7 +1367,9 @@ class ParserBase {
   };
 
   std::vector<void*>* pointer_buffer() { return &pointer_buffer_; }
-  std::vector<void*>* variable_buffer() { return &variable_buffer_; }
+  std::vector<std::pair<VariableProxy*, int>>* variable_buffer() {
+    return &variable_buffer_;
+  }
 
   // Parser base's protected field members.
 
@@ -1390,7 +1394,7 @@ class ParserBase {
   ExpressionScope* expression_scope_;
 
   std::vector<void*> pointer_buffer_;
-  std::vector<void*> variable_buffer_;
+  std::vector<std::pair<VariableProxy*, int>> variable_buffer_;
 
   Scanner* scanner_;
 
@@ -1688,6 +1692,7 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       ClassifyParameter(name, beg_pos, end_position());
       ExpressionT result =
           impl()->ExpressionFromIdentifier(name, beg_pos, InferName::kNo);
+      parsing_scope.SetInitializers(0, peek_position());
       next_arrow_function_info_.scope = parsing_scope.ValidateAndCreateScope();
       return result;
     }
@@ -1825,9 +1830,11 @@ ParserBase<Impl>::ParseExpressionCoverGrammar() {
   ExpressionListT list(pointer_buffer());
   ExpressionT expression;
   AccumulationScope accumulation_scope(expression_scope());
+  int variable_index = 0;
   while (true) {
     if (V8_UNLIKELY(peek() == Token::ELLIPSIS)) {
-      return ParseArrowParametersWithRest(&list, &accumulation_scope);
+      return ParseArrowParametersWithRest(&list, &accumulation_scope,
+                                          variable_index);
     }
 
     int expr_pos = peek_position();
@@ -1835,6 +1842,9 @@ ParserBase<Impl>::ParseExpressionCoverGrammar() {
 
     ClassifyArrowParameter(&accumulation_scope, expr_pos, expression);
     list.Add(expression);
+
+    variable_index =
+        expression_scope()->SetInitializers(variable_index, peek_position());
 
     if (!Check(Token::COMMA)) break;
 
@@ -1863,7 +1873,7 @@ template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseArrowParametersWithRest(
     typename ParserBase<Impl>::ExpressionListT* list,
-    AccumulationScope* accumulation_scope) {
+    AccumulationScope* accumulation_scope, int seen_variables) {
   Consume(Token::ELLIPSIS);
 
   Scanner::Location ellipsis = scanner()->location();
@@ -1884,6 +1894,8 @@ ParserBase<Impl>::ParseArrowParametersWithRest(
     ReportMessage(MessageTemplate::kParamAfterRest);
     return impl()->FailureExpression();
   }
+
+  expression_scope()->SetInitializers(seen_variables, peek_position());
 
   // 'x, y, ...z' in CoverParenthesizedExpressionAndArrowParameterList only
   // as the formal parameters of'(x, y, ...z) => foo', and is not itself a
@@ -3048,6 +3060,7 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
     ParseArguments(&args, &has_spread, kMaybeArrowHead);
     if (V8_LIKELY(peek() == Token::ARROW)) {
       fni_.RemoveAsyncKeywordFromEnd();
+      expression_scope()->SetInitializers(0, peek_position());
       next_arrow_function_info_.scope = maybe_arrow.ValidateAndCreateScope();
       scope_snapshot.Reparent(next_arrow_function_info_.scope);
       // async () => ...
