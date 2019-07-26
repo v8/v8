@@ -285,10 +285,11 @@ class Trace {
     void set_cp_offset(int cp_offset) { cp_offset_ = cp_offset; }
   };
 
-  class DeferredSetRegister : public DeferredAction {
+  class DeferredSetRegisterForLoop : public DeferredAction {
    public:
-    DeferredSetRegister(int reg, int value)
-        : DeferredAction(ActionNode::SET_REGISTER, reg), value_(value) {}
+    DeferredSetRegisterForLoop(int reg, int value)
+        : DeferredAction(ActionNode::SET_REGISTER_FOR_LOOP, reg),
+          value_(value) {}
     int value() { return value_; }
 
    private:
