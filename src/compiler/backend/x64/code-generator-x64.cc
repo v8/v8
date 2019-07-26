@@ -2256,11 +2256,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F64x2Splat: {
+      CpuFeatureScope sse_scope(tasm(), SSE3);
       XMMRegister dst = i.OutputSimd128Register();
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ pshufd(dst, i.InputDoubleRegister(0), 0x44);
+        __ movddup(dst, i.InputDoubleRegister(0));
       } else {
-        __ pshufd(dst, i.InputOperand(0), 0x44);
+        __ movddup(dst, i.InputOperand(0));
       }
       break;
     }
@@ -2478,13 +2479,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I64x2Splat: {
+      CpuFeatureScope sse_scope(tasm(), SSE3);
       XMMRegister dst = i.OutputSimd128Register();
       if (instr->InputAt(0)->IsRegister()) {
         __ movq(dst, i.InputRegister(0));
       } else {
         __ movq(dst, i.InputOperand(0));
       }
-      __ pshufd(dst, dst, 0x44);
+      __ movddup(dst, dst);
       break;
     }
     case kX64I64x2ExtractLane: {

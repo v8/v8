@@ -1991,6 +1991,11 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         AppendToBuffer("%s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
       }
+    } else if (opcode == 0x12) {
+      int mod, regop, rm;
+      get_modrm(*current, &mod, &regop, &rm);
+      AppendToBuffer("movddup %s,", NameOfXMMRegister(regop));
+      current += PrintRightXMMOperand(current);
     } else if (opcode == 0x2A) {
       // CVTSI2SD: integer to XMM double conversion.
       int mod, regop, rm;

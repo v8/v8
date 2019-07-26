@@ -4719,6 +4719,26 @@ void Assembler::lddqu(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
+void Assembler::movddup(XMMRegister dst, XMMRegister src) {
+  DCHECK(IsEnabled(SSE3));
+  EnsureSpace ensure_space(this);
+  emit(0xF2);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x12);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::movddup(XMMRegister dst, Operand src) {
+  DCHECK(IsEnabled(SSE3));
+  EnsureSpace ensure_space(this);
+  emit(0xF2);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x12);
+  emit_sse_operand(dst, src);
+}
+
 void Assembler::psrldq(XMMRegister dst, uint8_t shift) {
   EnsureSpace ensure_space(this);
   emit(0x66);

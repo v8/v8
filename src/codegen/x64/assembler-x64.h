@@ -916,6 +916,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // SSE3
   void lddqu(XMMRegister dst, Operand src);
+  void movddup(XMMRegister dst, Operand src);
+  void movddup(XMMRegister dst, XMMRegister src);
 
   // SSSE3
   void ssse3_instr(XMMRegister dst, XMMRegister src, byte prefix, byte escape1,
