@@ -1509,20 +1509,27 @@ namespace {
 
 Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
                                                  PropertyDescriptor* desc) {
+  Handle<InterceptorInfo> interceptor;
+
   if (it->state() == LookupIterator::ACCESS_CHECK) {
     if (it->HasAccess()) {
       it->Next();
-    } else if (!JSObject::AllCanRead(it) ||
-               it->state() != LookupIterator::INTERCEPTOR) {
-      it->Restart();
-      return Just(false);
+    } else {
+      interceptor = it->GetInterceptorForFailedAccessCheck();
+      if (interceptor.is_null() &&
+          (!JSObject::AllCanRead(it) ||
+           it->state() != LookupIterator::INTERCEPTOR)) {
+        it->Restart();
+        return Just(false);
+      }
     }
   }
 
-  if (it->state() != LookupIterator::INTERCEPTOR) return Just(false);
-
+  if (it->state() == LookupIterator::INTERCEPTOR) {
+    interceptor = it->GetInterceptor();
+  }
+  if (interceptor.is_null()) return Just(false);
   Isolate* isolate = it->isolate();
-  Handle<InterceptorInfo> interceptor = it->GetInterceptor();
   if (interceptor->descriptor().IsUndefined(isolate)) return Just(false);
 
   Handle<Object> result;
