@@ -46,8 +46,7 @@ namespace torque {
 #define AST_TYPE_EXPRESSION_NODE_KIND_LIST(V) \
   V(BasicTypeExpression)                      \
   V(FunctionTypeExpression)                   \
-  V(UnionTypeExpression)                      \
-  V(ReferenceTypeExpression)
+  V(UnionTypeExpression)
 
 #define AST_STATEMENT_NODE_KIND_LIST(V) \
   V(BlockStatement)                     \
@@ -617,13 +616,6 @@ struct UnionTypeExpression : TypeExpression {
       : TypeExpression(kKind, pos), a(a), b(b) {}
   TypeExpression* a;
   TypeExpression* b;
-};
-
-struct ReferenceTypeExpression : TypeExpression {
-  DEFINE_AST_NODE_LEAF_BOILERPLATE(ReferenceTypeExpression)
-  ReferenceTypeExpression(SourcePosition pos, TypeExpression* referenced_type)
-      : TypeExpression(kKind, pos), referenced_type(referenced_type) {}
-  TypeExpression* referenced_type;
 };
 
 struct ExpressionStatement : Statement {

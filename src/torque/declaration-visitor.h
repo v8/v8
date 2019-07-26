@@ -107,15 +107,16 @@ class DeclarationVisitor {
   static void Visit(ExternConstDeclaration* decl);
   static void Visit(CppIncludeDeclaration* decl);
 
-  static Signature MakeSpecializedSignature(const SpecializationKey& key);
-  static Callable* SpecializeImplicit(const SpecializationKey& key);
+  static Signature MakeSpecializedSignature(
+      const SpecializationKey<Generic>& key);
+  static Callable* SpecializeImplicit(const SpecializationKey<Generic>& key);
   static Callable* Specialize(
-      const SpecializationKey& key, CallableNode* declaration,
+      const SpecializationKey<Generic>& key, CallableNode* declaration,
       base::Optional<const CallableNodeSignature*> signature,
       base::Optional<Statement*> body, SourcePosition position);
 
  private:
-  static void DeclareSpecializedTypes(const SpecializationKey& key);
+  static void DeclareSpecializedTypes(const SpecializationKey<Generic>& key);
 };
 
 }  // namespace torque

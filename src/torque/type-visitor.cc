@@ -110,25 +110,12 @@ void DeclareMethods(AggregateType* container_type,
   }
 }
 
-namespace {
-std::string ComputeStructName(StructDeclaration* decl) {
-  TypeVector args;
-  if (decl->IsGeneric()) {
-    args.resize(decl->generic_parameters.size());
-    std::transform(
-        decl->generic_parameters.begin(), decl->generic_parameters.end(),
-        args.begin(), [](Identifier* parameter) {
-          return Declarations::LookupTypeAlias(QualifiedName(parameter->value))
-              ->type();
-        });
-  }
-  return StructType::ComputeName(decl->name->value, args);
-}
-}  // namespace
-
-const StructType* TypeVisitor::ComputeType(StructDeclaration* decl) {
+const StructType* TypeVisitor::ComputeType(
+    StructDeclaration* decl,
+    StructType::MaybeSpecializationKey specialized_from) {
   CurrentSourcePosition::Scope position_activator(decl->pos);
-  StructType* struct_type = TypeOracle::GetStructType(ComputeStructName(decl));
+  StructType* struct_type =
+      TypeOracle::GetStructType(decl->name->value, specialized_from);
   size_t offset = 0;
   for (auto& field : decl->fields) {
     CurrentSourcePosition::Scope position_activator(
@@ -214,34 +201,8 @@ const Type* TypeVisitor::ComputeType(TypeExpression* type_expression) {
     } else {
       auto* generic_struct =
           Declarations::LookupUniqueGenericStructType(qualified_name);
-      auto& params = generic_struct->generic_parameters();
-      auto& specializations = generic_struct->specializations();
-      if (params.size() != args.size()) {
-        ReportError("Generic struct takes ", params.size(),
-                    " parameters, but only ", args.size(), " were given");
-      }
-
-      std::vector<const Type*> arg_types = ComputeTypeVector(args);
-      if (auto specialization = specializations.Get(arg_types)) {
-        type = *specialization;
-      } else {
-        CurrentScope::Scope generic_scope(generic_struct->ParentScope());
-        // Create a temporary fake-namespace just to temporarily declare the
-        // specialization aliases for the generic types to create a signature.
-        Namespace tmp_namespace("_tmp");
-        CurrentScope::Scope tmp_namespace_scope(&tmp_namespace);
-        auto arg_types_iterator = arg_types.begin();
-        for (auto param : params) {
-          TypeAlias* alias =
-              Declarations::DeclareType(param, *arg_types_iterator);
-          alias->SetIsUserDefined(false);
-          arg_types_iterator++;
-        }
-
-        auto struct_type = ComputeType(generic_struct->declaration());
-        specializations.Add(arg_types, struct_type);
-        type = struct_type;
-      }
+      type = TypeOracle::GetGenericStructTypeInstance(generic_struct,
+                                                      ComputeTypeVector(args));
       pos = generic_struct->declaration()->name->pos;
     }
 
@@ -254,10 +215,6 @@ const Type* TypeVisitor::ComputeType(TypeExpression* type_expression) {
                  UnionTypeExpression::DynamicCast(type_expression)) {
     return TypeOracle::GetUnionType(ComputeType(union_type->a),
                                     ComputeType(union_type->b));
-  } else if (auto* reference_type =
-                 ReferenceTypeExpression::DynamicCast(type_expression)) {
-    return TypeOracle::GetReferenceType(
-        ComputeType(reference_type->referenced_type));
   } else {
     auto* function_type_exp = FunctionTypeExpression::cast(type_expression);
     TypeVector argument_types;

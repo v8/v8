@@ -505,11 +505,6 @@ class Generic : public Declarable {
   SpecializationMap<Callable> specializations_;
 };
 
-struct SpecializationKey {
-  Generic* generic;
-  TypeVector specialized_types;
-};
-
 class GenericStructType : public Declarable {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(GenericStructType, generic_type)

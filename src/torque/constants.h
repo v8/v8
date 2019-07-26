@@ -49,6 +49,8 @@ static const char* const FLOAT64_TYPE_STRING = "float64";
 static const char* const CONST_INT31_TYPE_STRING = "constexpr int31";
 static const char* const CONST_INT32_TYPE_STRING = "constexpr int32";
 static const char* const CONST_FLOAT64_TYPE_STRING = "constexpr float64";
+static const char* const TORQUE_INTERNAL_NAMESPACE_STRING = "torque_internal";
+static const char* const REFERENCE_TYPE_STRING = "Reference";
 
 inline bool IsConstexprName(const std::string& name) {
   return name.substr(0, std::strlen(CONSTEXPR_TYPE_PREFIX)) ==

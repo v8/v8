@@ -297,6 +297,7 @@ void CreateFieldReferenceInstruction::TypeInstruction(
   stack->Push(TypeOracle::GetIntPtrType());
 }
 
+// TODO(gsps): Remove in favor of a method on Reference<T>
 void LoadReferenceInstruction::TypeInstruction(Stack<const Type*>* stack,
                                                ControlFlowGraph* cfg) const {
   ExpectType(TypeOracle::GetIntPtrType(), stack->Pop());
@@ -305,6 +306,7 @@ void LoadReferenceInstruction::TypeInstruction(Stack<const Type*>* stack,
   stack->Push(type);
 }
 
+// TODO(gsps): Remove in favor of a method on Reference<T>
 void StoreReferenceInstruction::TypeInstruction(Stack<const Type*>* stack,
                                                 ControlFlowGraph* cfg) const {
   ExpectSubtype(stack->Pop(), type);

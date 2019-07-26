@@ -74,11 +74,7 @@ base::Optional<const Type*> InferTypeArgument(const std::string& to_infer,
       basic->name == to_infer) {
     return argument;
   }
-  auto* ref = ReferenceTypeExpression::DynamicCast(parameter);
-  if (ref && argument->IsReferenceType()) {
-    return InferTypeArgument(to_infer, ref->referenced_type,
-                             ReferenceType::cast(argument)->referenced_type());
-  }
+  // TODO(gsps): Perform type inference for generic types
   return base::nullopt;
 }
 

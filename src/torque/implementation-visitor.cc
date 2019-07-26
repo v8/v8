@@ -1599,7 +1599,7 @@ void FailCallableLookup(const std::string& reason, const QualifiedName& name,
   ReportError(stream.str());
 }
 
-Callable* GetOrCreateSpecialization(const SpecializationKey& key) {
+Callable* GetOrCreateSpecialization(const SpecializationKey<Generic>& key) {
   if (base::Optional<Callable*> specialization =
           key.generic->specializations().Get(key.specialized_types)) {
     return *specialization;
@@ -1664,7 +1664,8 @@ Callable* ImplementationVisitor::LookupCallable(
       overloads.push_back(generic);
       overload_signatures.push_back(
           DeclarationVisitor::MakeSpecializedSignature(
-              SpecializationKey{generic, *inferred_specialization_types}));
+              SpecializationKey<Generic>{generic,
+                                         *inferred_specialization_types}));
     } else if (Callable* callable = Callable::DynamicCast(declarable)) {
       overloads.push_back(callable);
       overload_signatures.push_back(callable->signature());
@@ -1717,9 +1718,9 @@ Callable* ImplementationVisitor::LookupCallable(
   }
 
   if (Generic* generic = Generic::DynamicCast(overloads[best])) {
-    result = GetOrCreateSpecialization(
-        SpecializationKey{generic, *generic->InferSpecializationTypes(
-                                       specialization_types, parameter_types)});
+    result = GetOrCreateSpecialization(SpecializationKey<Generic>{
+        generic, *generic->InferSpecializationTypes(specialization_types,
+                                                    parameter_types)});
   } else {
     result = Callable::cast(overloads[best]);
   }
@@ -1927,8 +1928,9 @@ LocationReference ImplementationVisitor::GetLocationReference(
   }
   if (expr->generic_arguments.size() != 0) {
     Generic* generic = Declarations::LookupUniqueGeneric(name);
-    Callable* specialization = GetOrCreateSpecialization(SpecializationKey{
-        generic, TypeVisitor::ComputeTypeVector(expr->generic_arguments)});
+    Callable* specialization =
+        GetOrCreateSpecialization(SpecializationKey<Generic>{
+            generic, TypeVisitor::ComputeTypeVector(expr->generic_arguments)});
     if (Builtin* builtin = Builtin::DynamicCast(specialization)) {
       DCHECK(!builtin->IsExternal());
       return LocationReference::Temporary(GetBuiltinCode(builtin),
@@ -1963,8 +1965,8 @@ LocationReference ImplementationVisitor::GetLocationReference(
 LocationReference ImplementationVisitor::GetLocationReference(
     DereferenceExpression* expr) {
   VisitResult ref = Visit(expr->reference);
-  const ReferenceType* type = ReferenceType::DynamicCast(ref.type());
-  if (!type) {
+  if (!StructType::MatchUnaryGeneric(ref.type(),
+                                     TypeOracle::GetReferenceGeneric())) {
     ReportError("Operator * expects a reference but found a value of type ",
                 *ref.type());
   }
@@ -2542,10 +2544,6 @@ StackRange ImplementationVisitor::LowerParameter(
       range.Extend(parameter_range);
     }
     return range;
-  } else if (type->IsReferenceType()) {
-    lowered_parameters->Push(parameter_name + ".object");
-    lowered_parameters->Push(parameter_name + ".offset");
-    return lowered_parameters->TopRange(2);
   } else {
     lowered_parameters->Push(parameter_name);
     return lowered_parameters->TopRange(1);

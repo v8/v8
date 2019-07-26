@@ -12,6 +12,7 @@
 #include "src/torque/cfg.h"
 #include "src/torque/declarations.h"
 #include "src/torque/global-context.h"
+#include "src/torque/type-oracle.h"
 #include "src/torque/types.h"
 #include "src/torque/utils.h"
 
@@ -52,7 +53,8 @@ class LocationReference {
   // pointer.
   static LocationReference HeapReference(VisitResult heap_reference) {
     LocationReference result;
-    DCHECK(heap_reference.type()->IsReferenceType());
+    DCHECK(StructType::MatchUnaryGeneric(heap_reference.type(),
+                                         TypeOracle::GetReferenceGeneric()));
     result.heap_reference_ = std::move(heap_reference);
     return result;
   }
@@ -112,7 +114,8 @@ class LocationReference {
 
   const Type* ReferencedType() const {
     if (IsHeapReference()) {
-      return ReferenceType::cast(heap_reference().type())->referenced_type();
+      return *StructType::MatchUnaryGeneric(heap_reference().type(),
+                                            TypeOracle::GetReferenceGeneric());
     }
     return GetVisitResult().type();
   }

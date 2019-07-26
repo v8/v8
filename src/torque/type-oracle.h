@@ -30,8 +30,11 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return result;
   }
 
-  static StructType* GetStructType(const std::string& name) {
-    StructType* result = new StructType(CurrentNamespace(), name);
+  static StructType* GetStructType(
+      const std::string& basename,
+      StructType::MaybeSpecializationKey specialized_from) {
+    StructType* result =
+        new StructType(CurrentNamespace(), basename, specialized_from);
     Get().aggregate_types_.push_back(std::unique_ptr<StructType>(result));
     return result;
   }
@@ -60,8 +63,17 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return result;
   }
 
-  static const ReferenceType* GetReferenceType(const Type* referenced_type) {
-    return Get().reference_types_.Add(ReferenceType(referenced_type));
+  static const StructType* GetGenericStructTypeInstance(
+      GenericStructType* generic_struct, TypeVector arg_types);
+
+  static GenericStructType* GetReferenceGeneric() {
+    return Declarations::LookupUniqueGenericStructType(QualifiedName(
+        {TORQUE_INTERNAL_NAMESPACE_STRING}, REFERENCE_TYPE_STRING));
+  }
+
+  static const StructType* GetReferenceType(const Type* referenced_type) {
+    return GetGenericStructTypeInstance(GetReferenceGeneric(),
+                                        {referenced_type});
   }
 
   static const std::vector<const BuiltinPointerType*>&
@@ -245,7 +257,6 @@ class TypeOracle : public ContextualClass<TypeOracle> {
   Deduplicator<BuiltinPointerType> function_pointer_types_;
   std::vector<const BuiltinPointerType*> all_builtin_pointer_types_;
   Deduplicator<UnionType> union_types_;
-  Deduplicator<ReferenceType> reference_types_;
   std::vector<std::unique_ptr<Type>> nominal_types_;
   std::vector<std::unique_ptr<AggregateType>> aggregate_types_;
   std::vector<std::unique_ptr<Type>> top_types_;

@@ -205,7 +205,7 @@ void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
       TypeVisitor::MakeSignature(decl->signature.get());
   for (Generic* generic : generic_list) {
     Signature generic_signature_with_types =
-        MakeSpecializedSignature(SpecializationKey{
+        MakeSpecializedSignature(SpecializationKey<Generic>{
             generic, TypeVisitor::ComputeTypeVector(decl->generic_parameters)});
     if (signature_with_types.HasSameTypesAs(generic_signature_with_types,
                                             ParameterMode::kIgnoreImplicit)) {
@@ -233,7 +233,7 @@ void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
     stream << "\ncandidates are:";
     for (Generic* generic : generic_list) {
       stream << "\n  "
-             << MakeSpecializedSignature(SpecializationKey{
+             << MakeSpecializedSignature(SpecializationKey<Generic>{
                     generic,
                     TypeVisitor::ComputeTypeVector(decl->generic_parameters)});
     }
@@ -245,8 +245,9 @@ void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
                                       matching_generic->IdentifierPosition());
   }
 
-  Specialize(SpecializationKey{matching_generic, TypeVisitor::ComputeTypeVector(
-                                                     decl->generic_parameters)},
+  Specialize(SpecializationKey<Generic>{matching_generic,
+                                        TypeVisitor::ComputeTypeVector(
+                                            decl->generic_parameters)},
              matching_generic->declaration()->callable, decl->signature.get(),
              decl->body, decl->pos);
 }
@@ -267,7 +268,8 @@ void DeclarationVisitor::Visit(CppIncludeDeclaration* decl) {
   GlobalContext::AddCppInclude(decl->include_path);
 }
 
-void DeclarationVisitor::DeclareSpecializedTypes(const SpecializationKey& key) {
+void DeclarationVisitor::DeclareSpecializedTypes(
+    const SpecializationKey<Generic>& key) {
   size_t i = 0;
   const std::size_t generic_parameter_count =
       key.generic->declaration()->generic_parameters.size();
@@ -288,7 +290,7 @@ void DeclarationVisitor::DeclareSpecializedTypes(const SpecializationKey& key) {
 }
 
 Signature DeclarationVisitor::MakeSpecializedSignature(
-    const SpecializationKey& key) {
+    const SpecializationKey<Generic>& key) {
   CurrentScope::Scope generic_scope(key.generic->ParentScope());
   // Create a temporary fake-namespace just to temporarily declare the
   // specialization aliases for the generic types to create a signature.
@@ -299,7 +301,8 @@ Signature DeclarationVisitor::MakeSpecializedSignature(
       key.generic->declaration()->callable->signature.get());
 }
 
-Callable* DeclarationVisitor::SpecializeImplicit(const SpecializationKey& key) {
+Callable* DeclarationVisitor::SpecializeImplicit(
+    const SpecializationKey<Generic>& key) {
   if (!key.generic->declaration()->body &&
       IntrinsicDeclaration::DynamicCast(key.generic->declaration()->callable) ==
           nullptr) {
@@ -318,7 +321,7 @@ Callable* DeclarationVisitor::SpecializeImplicit(const SpecializationKey& key) {
 }
 
 Callable* DeclarationVisitor::Specialize(
-    const SpecializationKey& key, CallableNode* declaration,
+    const SpecializationKey<Generic>& key, CallableNode* declaration,
     base::Optional<const CallableNodeSignature*> signature,
     base::Optional<Statement*> body, SourcePosition position) {
   CurrentSourcePosition::Scope pos_scope(position);
