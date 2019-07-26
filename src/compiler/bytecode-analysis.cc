@@ -265,17 +265,17 @@ void UpdateOutLiveness(Bytecode bytecode, BytecodeLivenessState* out_liveness,
   }
 }
 
-void UpdateLiveness(Bytecode bytecode, BytecodeLiveness* liveness,
+void UpdateLiveness(Bytecode bytecode, BytecodeLiveness const& liveness,
                     BytecodeLivenessState** next_bytecode_in_liveness,
                     const interpreter::BytecodeArrayAccessor& accessor,
                     Handle<BytecodeArray> bytecode_array,
                     const BytecodeLivenessMap& liveness_map) {
-  UpdateOutLiveness(bytecode, liveness->out, *next_bytecode_in_liveness,
+  UpdateOutLiveness(bytecode, liveness.out, *next_bytecode_in_liveness,
                     accessor, bytecode_array, liveness_map);
-  liveness->in->CopyFrom(*liveness->out);
-  UpdateInLiveness(bytecode, liveness->in, accessor);
+  liveness.in->CopyFrom(*liveness.out);
+  UpdateInLiveness(bytecode, liveness.in, accessor);
 
-  *next_bytecode_in_liveness = liveness->in;
+  *next_bytecode_in_liveness = liveness.in;
 }
 
 void UpdateAssignments(Bytecode bytecode, BytecodeLoopAssignments* assignments,
@@ -426,9 +426,9 @@ void BytecodeAnalysis::Analyze() {
     }
 
     if (analyze_liveness_) {
-      BytecodeLiveness liveness = liveness_map_.InitializeLiveness(
+      BytecodeLiveness const& liveness = liveness_map_.InitializeLiveness(
           current_offset, bytecode_array()->register_count(), zone());
-      UpdateLiveness(bytecode, &liveness, &next_bytecode_in_liveness, iterator,
+      UpdateLiveness(bytecode, liveness, &next_bytecode_in_liveness, iterator,
                      bytecode_array(), liveness_map_);
     }
   }
@@ -489,8 +489,9 @@ void BytecodeAnalysis::Analyze() {
     for (; iterator.current_offset() > header_offset; --iterator) {
       Bytecode bytecode = iterator.current_bytecode();
       int current_offset = iterator.current_offset();
-      BytecodeLiveness liveness = liveness_map_.GetLiveness(current_offset);
-      UpdateLiveness(bytecode, &liveness, &next_bytecode_in_liveness, iterator,
+      BytecodeLiveness const& liveness =
+          liveness_map_.GetLiveness(current_offset);
+      UpdateLiveness(bytecode, liveness, &next_bytecode_in_liveness, iterator,
                      bytecode_array(), liveness_map_);
     }
     // Now we are at the loop header. Since the in-liveness of the header
@@ -530,13 +531,14 @@ void BytecodeAnalysis::Analyze() {
       for (--iterator; iterator.IsValid(); --iterator) {
         Bytecode bytecode = iterator.current_bytecode();
         int current_offset = iterator.current_offset();
-        BytecodeLiveness& liveness = liveness_map_.GetLiveness(current_offset);
+        BytecodeLiveness const& liveness =
+            liveness_map_.GetLiveness(current_offset);
 
         // There shouldn't be any more loops.
         DCHECK_NE(bytecode, Bytecode::kJumpLoop);
 
-        UpdateLiveness(bytecode, &liveness, &next_bytecode_in_liveness,
-                       iterator, bytecode_array(), liveness_map_);
+        UpdateLiveness(bytecode, liveness, &next_bytecode_in_liveness, iterator,
+                       bytecode_array(), liveness_map_);
       }
     }
   }
