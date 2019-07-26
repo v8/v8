@@ -179,6 +179,14 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
+    case IrOpcode::kCheckedTaggedToTaggedPointer: {
+      NodeMatcher m(node->InputAt(0));
+      if (m.IsChangeCompressedPointerToTaggedPointer()) {
+        RelaxEffectsAndControls(node);
+        return Replace(m.node());
+      }
+      break;
+    }
     case IrOpcode::kCheckIf: {
       HeapObjectMatcher m(node->InputAt(0));
       if (m.Is(factory()->true_value())) {
