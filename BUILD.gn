@@ -91,7 +91,7 @@ declare_args() {
   # Enable embedded builtins.
   v8_enable_embedded_builtins = true
 
-  # Enable the registration of unwinding info for Windows/x64.
+  # Enable the registration of unwinding info for Windows x64 and ARM64.
   v8_win64_unwinding_info = true
 
   # Enable code comments for builtins in the snapshot (impacts performance).
@@ -3123,6 +3123,12 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/arm64/regexp-macro-assembler-arm64.h",
       "src/wasm/baseline/arm64/liftoff-assembler-arm64.h",
     ]
+    if (is_win) {
+      sources += [
+        "src/diagnostics/unwinding-info-win64.cc",
+        "src/diagnostics/unwinding-info-win64.h",
+      ]
+    }
     jumbo_excluded_sources += [
       # TODO(mostynb@vewd.com): fix this code so it doesn't need
       # to be excluded, see the comments inside.

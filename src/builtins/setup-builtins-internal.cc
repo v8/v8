@@ -119,9 +119,9 @@ Code BuildWithMacroAssembler(Isolate* isolate, int32_t builtin_index,
                           .set_self_reference(masm.CodeObject())
                           .set_builtin_index(builtin_index)
                           .Build();
-#if defined(V8_OS_WIN_X64)
+#if defined(V8_OS_WIN64)
   isolate->SetBuiltinUnwindData(builtin_index, masm.GetUnwindInfo());
-#endif
+#endif  // V8_OS_WIN64
   return *code;
 }
 

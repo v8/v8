@@ -101,6 +101,14 @@ constexpr int kStackSpaceRequiredForCompilation = 40;
 #define V8_OS_WIN_X64 true
 #endif
 
+#if defined(V8_OS_WIN) && defined(V8_TARGET_ARCH_ARM64)
+#define V8_OS_WIN_ARM64 true
+#endif
+
+#if defined(V8_OS_WIN_X64) || defined(V8_OS_WIN_ARM64)
+#define V8_OS_WIN64 true
+#endif
+
 // Superclass for classes only using static method functions.
 // The subclass of AllStatic cannot be instantiated at all.
 class AllStatic {

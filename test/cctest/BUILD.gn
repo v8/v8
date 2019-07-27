@@ -319,6 +319,9 @@ v8_source_set("cctest_sources") {
       "test-utils-arm64.cc",
       "test-utils-arm64.h",
     ]
+    if (is_win) {
+      sources += [ "test-stack-unwinding-win64.cc" ]
+    }
   } else if (v8_current_cpu == "x86") {
     sources += [  ### gcmole(arch:ia32) ###
       "test-assembler-ia32.cc",
@@ -357,7 +360,7 @@ v8_source_set("cctest_sources") {
       "test-macro-assembler-x64.cc",
     ]
     if (is_win) {
-      sources += [ "test-stack-unwinding-x64.cc" ]
+      sources += [ "test-stack-unwinding-win64.cc" ]
     }
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
     sources += [  ### gcmole(arch:ppc) ###

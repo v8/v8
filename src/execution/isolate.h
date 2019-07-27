@@ -1502,11 +1502,11 @@ class Isolate final : private HiddenFactory {
   // annotate the builtin blob with debugging information.
   void PrepareBuiltinSourcePositionMap();
 
-#if defined(V8_OS_WIN_X64)
+#if defined(V8_OS_WIN64)
   void SetBuiltinUnwindData(
       int builtin_index,
       const win64_unwindinfo::BuiltinUnwindInfo& unwinding_info);
-#endif
+#endif  // V8_OS_WIN64
 
   void SetPrepareStackTraceCallback(PrepareStackTraceCallback callback);
   MaybeHandle<Object> RunPrepareStackTraceCallback(Handle<Context>,

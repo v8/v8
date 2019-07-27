@@ -25,6 +25,10 @@
 #undef mvn
 #endif
 
+#if defined(V8_OS_WIN)
+#include "src/diagnostics/unwinding-info-win64.h"
+#endif  // V8_OS_WIN
+
 namespace v8 {
 namespace internal {
 
@@ -2416,6 +2420,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockPoolsScope);
   };
 
+#if defined(V8_OS_WIN)
+  win64_unwindinfo::XdataEncoder* GetXdataEncoder() {
+    return xdata_encoder_.get();
+  }
+
+  win64_unwindinfo::BuiltinUnwindInfo GetUnwindInfo() const;
+#endif
+
  protected:
   inline const Register& AppropriateZeroRegFor(const CPURegister& reg) const;
 
@@ -2685,6 +2697,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // It is maintained to the closest unresolved branch limit minus the maximum
   // veneer margin (or kMaxInt if there are no unresolved branches).
   int next_veneer_pool_check_;
+
+#if defined(V8_OS_WIN)
+  std::unique_ptr<win64_unwindinfo::XdataEncoder> xdata_encoder_;
+#endif
 
  private:
   // Avoid overflows for displacements etc.

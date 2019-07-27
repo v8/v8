@@ -122,9 +122,9 @@
 #include <windows.h>
 #include "include/v8-wasm-trap-handler-win.h"
 #include "src/trap-handler/handler-inside-win.h"
-#if V8_TARGET_ARCH_X64
+#if defined(V8_OS_WIN64)
 #include "src/diagnostics/unwinding-info-win64.h"
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_OS_WIN64
 #endif  // V8_OS_WIN
 
 namespace v8 {
@@ -5588,14 +5588,14 @@ bool V8::EnableWebAssemblyTrapHandler(bool use_v8_signal_handler) {
 #if defined(V8_OS_WIN)
 void V8::SetUnhandledExceptionCallback(
     UnhandledExceptionCallback unhandled_exception_callback) {
-#if defined(V8_TARGET_ARCH_X64)
+#if defined(V8_OS_WIN64)
   v8::internal::win64_unwindinfo::SetUnhandledExceptionCallback(
       unhandled_exception_callback);
 #else
-  // Not implemented on ARM64.
-#endif
+  // Not implemented, port needed.
+#endif  // V8_OS_WIN64
 }
-#endif
+#endif  // V8_OS_WIN
 
 void v8::V8::SetEntropySource(EntropySource entropy_source) {
   base::RandomNumberGenerator::SetEntropySource(entropy_source);

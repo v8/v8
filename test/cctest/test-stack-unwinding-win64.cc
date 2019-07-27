@@ -6,9 +6,15 @@
 #include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 
-class UnwindingWinX64Callbacks {
+#if defined(V8_OS_WIN_X64)
+#define CONTEXT_PC(context) (context.Rip)
+#elif defined(V8_OS_WIN_ARM64)
+#define CONTEXT_PC(context) (context.Pc)
+#endif
+
+class UnwindingWin64Callbacks {
  public:
-  UnwindingWinX64Callbacks() = default;
+  UnwindingWin64Callbacks() = default;
 
   static void Getter(v8::Local<v8::String> name,
                      const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -31,25 +37,26 @@ class UnwindingWinX64Callbacks {
     int iframe = 0;
     while (++iframe < max_frames) {
       uint64_t image_base;
-      PRUNTIME_FUNCTION function_entry =
-          ::RtlLookupFunctionEntry(context_record.Rip, &image_base, nullptr);
+      PRUNTIME_FUNCTION function_entry = ::RtlLookupFunctionEntry(
+          CONTEXT_PC(context_record), &image_base, nullptr);
       if (!function_entry) break;
 
       void* handler_data;
       uint64_t establisher_frame;
-      ::RtlVirtualUnwind(UNW_FLAG_NHANDLER, image_base, context_record.Rip,
-                         function_entry, &context_record, &handler_data,
-                         &establisher_frame, NULL);
+      ::RtlVirtualUnwind(UNW_FLAG_NHANDLER, image_base,
+                         CONTEXT_PC(context_record), function_entry,
+                         &context_record, &handler_data, &establisher_frame,
+                         NULL);
     }
     return iframe;
   }
 };
 
-// Verifies that stack unwinding data has been correctly registered on Win/x64.
-UNINITIALIZED_TEST(StackUnwindingWinX64) {
+// Verifies that stack unwinding data has been correctly registered on Win64.
+UNINITIALIZED_TEST(StackUnwindingWin64) {
 #ifdef V8_WIN64_UNWINDING_INFO
 
-  static const char* unwinding_win_x64_test_source =
+  static const char* unwinding_win64_test_source =
       "function start(count) {\n"
       "  for (var i = 0; i < count; i++) {\n"
       "    var o = instance.foo;\n"
@@ -79,18 +86,18 @@ UNINITIALIZED_TEST(StackUnwindingWinX64) {
     v8::Local<v8::ObjectTemplate> instance_template =
         func_template->InstanceTemplate();
 
-    UnwindingWinX64Callbacks accessors;
+    UnwindingWin64Callbacks accessors;
     v8::Local<v8::External> data = v8::External::New(isolate, &accessors);
     instance_template->SetAccessor(v8_str("foo"),
-                                   &UnwindingWinX64Callbacks::Getter,
-                                   &UnwindingWinX64Callbacks::Setter, data);
+                                   &UnwindingWin64Callbacks::Getter,
+                                   &UnwindingWin64Callbacks::Setter, data);
     v8::Local<v8::Function> func =
         func_template->GetFunction(env.local()).ToLocalChecked();
     v8::Local<v8::Object> instance =
         func->NewInstance(env.local()).ToLocalChecked();
     env->Global()->Set(env.local(), v8_str("instance"), instance).FromJust();
 
-    CompileRun(unwinding_win_x64_test_source);
+    CompileRun(unwinding_win64_test_source);
     v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
         env->Global()->Get(env.local(), v8_str("start")).ToLocalChecked());
 
@@ -106,3 +113,5 @@ UNINITIALIZED_TEST(StackUnwindingWinX64) {
 
 #endif  // V8_WIN64_UNWINDING_INFO
 }
+
+#undef CONTEXT_PC

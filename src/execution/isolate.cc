@@ -86,9 +86,9 @@
 #include "unicode/uobject.h"
 #endif  // V8_INTL_SUPPORT
 
-#if defined(V8_OS_WIN_X64)
+#if defined(V8_OS_WIN64)
 #include "src/diagnostics/unwinding-info-win64.h"
-#endif
+#endif  // V8_OS_WIN64
 
 extern "C" const uint8_t* v8_Default_embedded_blob_;
 extern "C" uint32_t v8_Default_embedded_blob_size_;
@@ -2962,7 +2962,7 @@ void Isolate::Deinit() {
     heap_profiler()->StopSamplingHeapProfiler();
   }
 
-#if defined(V8_OS_WIN_X64)
+#if defined(V8_OS_WIN64)
   if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
       heap()->memory_allocator()) {
     const base::AddressRegion& code_range =
@@ -2970,7 +2970,7 @@ void Isolate::Deinit() {
     void* start = reinterpret_cast<void*>(code_range.begin());
     win64_unwindinfo::UnregisterNonABICompliantCodeRange(start);
   }
-#endif
+#endif  // V8_OS_WIN64
 
   debug()->Unload();
 
@@ -3554,7 +3554,7 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
                                                sampling_flags);
   }
 
-#if defined(V8_OS_WIN_X64)
+#if defined(V8_OS_WIN64)
   if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
     const base::AddressRegion& code_range =
         heap()->memory_allocator()->code_range();
@@ -3562,7 +3562,7 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
     size_t size_in_bytes = code_range.size();
     win64_unwindinfo::RegisterNonABICompliantCodeRange(start, size_in_bytes);
   }
-#endif
+#endif  // V8_OS_WIN64
 
   if (create_heap_objects && FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
@@ -4411,7 +4411,7 @@ void Isolate::PrepareBuiltinSourcePositionMap() {
   }
 }
 
-#if defined(V8_OS_WIN_X64)
+#if defined(V8_OS_WIN64)
 void Isolate::SetBuiltinUnwindData(
     int builtin_index,
     const win64_unwindinfo::BuiltinUnwindInfo& unwinding_info) {
@@ -4419,7 +4419,7 @@ void Isolate::SetBuiltinUnwindData(
     embedded_file_writer_->SetBuiltinUnwindData(builtin_index, unwinding_info);
   }
 }
-#endif
+#endif  // V8_OS_WIN64
 
 void Isolate::SetPrepareStackTraceCallback(PrepareStackTraceCallback callback) {
   prepare_stack_trace_callback_ = callback;

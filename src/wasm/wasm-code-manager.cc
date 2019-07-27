@@ -29,9 +29,9 @@
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-objects.h"
 
-#if defined(V8_OS_WIN_X64)
+#if defined(V8_OS_WIN64)
 #include "src/diagnostics/unwinding-info-win64.h"
-#endif
+#endif  // V8_OS_WIN64
 
 #define TRACE_HEAP(...)                                   \
   do {                                                    \
@@ -643,7 +643,7 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
       CompilationState::New(*shared_this, std::move(async_counters));
   DCHECK_NOT_NULL(module_);
 
-#if defined(V8_OS_WIN_X64)
+#if defined(V8_OS_WIN64)
   // On some platforms, specifically Win64, we need to reserve some pages at
   // the beginning of an executable space.
   // See src/heap/spaces.cc, MemoryAllocator::InitializeCodePageAllocator() and
@@ -653,7 +653,7 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
           ->CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
     code_allocator_.AllocateForCode(this, Heap::GetCodeRangeReservedAreaSize());
   }
-#endif
+#endif  // V8_OS_WIN64
 
   uint32_t num_wasm_functions = module_->num_declared_functions;
   if (num_wasm_functions > 0) {
@@ -1187,21 +1187,21 @@ WasmCodeManager::WasmCodeManager(WasmMemoryTracker* memory_tracker,
                                  size_t max_committed)
     : memory_tracker_(memory_tracker),
       max_committed_code_space_(max_committed),
-#if defined(V8_OS_WIN_X64)
+#if defined(V8_OS_WIN64)
       is_win64_unwind_info_disabled_for_testing_(false),
-#endif
+#endif  // V8_OS_WIN64
       total_committed_code_space_(0),
       critical_committed_code_space_(max_committed / 2) {
   DCHECK_LE(max_committed, kMaxWasmCodeMemory);
 }
 
-#if defined(V8_OS_WIN_X64)
+#if defined(V8_OS_WIN64)
 bool WasmCodeManager::CanRegisterUnwindInfoForNonABICompliantCodeRange() const {
   return win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
          FLAG_win64_unwinding_info &&
          !is_win64_unwind_info_disabled_for_testing_;
 }
-#endif
+#endif  // V8_OS_WIN64
 
 bool WasmCodeManager::Commit(base::AddressRegion region) {
   // TODO(v8:8462): Remove eager commit once perf supports remapping.
@@ -1369,12 +1369,12 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   TRACE_HEAP("New NativeModule %p: Mem: %" PRIuPTR ",+%zu\n", ret.get(), start,
              size);
 
-#if defined(V8_OS_WIN_X64)
+#if defined(V8_OS_WIN64)
   if (CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
     win64_unwindinfo::RegisterNonABICompliantCodeRange(
         reinterpret_cast<void*>(start), size);
   }
-#endif
+#endif  // V8_OS_WIN64
 
   base::MutexGuard lock(&native_modules_mutex_);
   lookup_map_.insert(std::make_pair(start, std::make_pair(end, ret.get())));
@@ -1487,12 +1487,12 @@ void WasmCodeManager::FreeNativeModule(Vector<VirtualMemory> owned_code_space,
     TRACE_HEAP("VMem Release: 0x%" PRIxPTR ":0x%" PRIxPTR " (%zu)\n",
                code_space.address(), code_space.end(), code_space.size());
 
-#if defined(V8_OS_WIN_X64)
+#if defined(V8_OS_WIN64)
     if (CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
       win64_unwindinfo::UnregisterNonABICompliantCodeRange(
           reinterpret_cast<void*>(code_space.address()));
     }
-#endif
+#endif  // V8_OS_WIN64
 
     lookup_map_.erase(code_space.address());
     memory_tracker_->ReleaseReservation(code_space.size());

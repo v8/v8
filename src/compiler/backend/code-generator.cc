@@ -412,12 +412,12 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
   CodeDesc desc;
   tasm()->GetCode(isolate(), &desc, safepoints(), handler_table_offset_);
 
-#if defined(V8_OS_WIN_X64)
+#if defined(V8_OS_WIN64)
   if (Builtins::IsBuiltinId(info_->builtin_index())) {
     isolate_->SetBuiltinUnwindData(info_->builtin_index(),
                                    tasm()->GetUnwindInfo());
   }
-#endif
+#endif  // V8_OS_WIN64
 
   if (unwinding_info_writer_.eh_frame_writer()) {
     unwinding_info_writer_.eh_frame_writer()->GetEhFrame(&desc);
