@@ -154,12 +154,11 @@ class SerializerReference {
   }
 
  private:
-  class SpaceBits : public BitField<SnapshotSpace, 0, kSpaceTagSize> {};
-  class ChunkIndexBits
-      : public BitField<uint32_t, SpaceBits::kNext, 32 - kSpaceTagSize> {};
-  class SpecialValueTypeBits
-      : public BitField<SpecialValueType, SpaceBits::kNext,
-                        32 - kSpaceTagSize> {};
+  using SpaceBits = BitField<SnapshotSpace, 0, kSpaceTagSize>;
+  using ChunkIndexBits =
+      BitField<uint32_t, SpaceBits::kNext, 32 - kSpaceTagSize>;
+  using SpecialValueTypeBits =
+      BitField<SpecialValueType, SpaceBits::kNext, 32 - kSpaceTagSize>;
 
   // We use two fields to store a reference.
   // In case of a normal back reference, the bitfield_ stores the space and

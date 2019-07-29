@@ -99,12 +99,11 @@ class Name : public TorqueGeneratedName<Name, HeapObject> {
   STATIC_ASSERT(kArrayIndexLengthBits > 0);
   STATIC_ASSERT(kMaxArrayIndexSize < (1 << kArrayIndexLengthBits));
 
-  class ArrayIndexValueBits
-      : public BitField<unsigned int, kNofHashBitFields, kArrayIndexValueBits> {
-  };  // NOLINT
-  class ArrayIndexLengthBits
-      : public BitField<unsigned int, kNofHashBitFields + kArrayIndexValueBits,
-                        kArrayIndexLengthBits> {};  // NOLINT
+  using ArrayIndexValueBits =
+      BitField<unsigned int, kNofHashBitFields, kArrayIndexValueBits>;
+  using ArrayIndexLengthBits =
+      BitField<unsigned int, kNofHashBitFields + kArrayIndexValueBits,
+               kArrayIndexLengthBits>;
 
   // Check that kMaxCachedArrayIndexLength + 1 is a power of two so we
   // could use a mask to test if the length of string is less than or equal to

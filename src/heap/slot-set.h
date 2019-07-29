@@ -411,8 +411,8 @@ class V8_EXPORT_PRIVATE TypedSlots {
   void Merge(TypedSlots* other);
 
  protected:
-  class OffsetField : public BitField<int, 0, 29> {};
-  class TypeField : public BitField<SlotType, 29, 3> {};
+  using OffsetField = BitField<int, 0, 29>;
+  using TypeField = BitField<SlotType, 29, 3>;
   struct TypedSlot {
     uint32_t type_and_offset;
   };

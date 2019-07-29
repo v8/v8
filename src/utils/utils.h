@@ -302,9 +302,12 @@ T SaturateSub(T a, T b) {
 // ----------------------------------------------------------------------------
 // BitField is a help template for encoding and decode bitfield with
 // unsigned content.
+// Instantiate them via 'using', which is cheaper than deriving a new class:
+// using MyBitField = BitField<int, 4, 2, MyEnum>;
+// The BitField class is final to enforce this style over derivation.
 
 template <class T, int shift, int size, class U = uint32_t>
-class BitField {
+class BitField final {
  public:
   STATIC_ASSERT(std::is_unsigned<U>::value);
   STATIC_ASSERT(shift < 8 * sizeof(U));  // Otherwise shifts by {shift} are UB.

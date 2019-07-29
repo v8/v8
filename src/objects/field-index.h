@@ -107,17 +107,16 @@ class FieldIndex final {
       (kDescriptorIndexBitCount + 1 + kTaggedSizeLog2);
 
   // Index from beginning of object.
-  class OffsetBits : public BitField64<int, 0, kOffsetBitsSize> {};
-  class IsInObjectBits : public BitField64<bool, OffsetBits::kNext, 1> {};
-  class EncodingBits : public BitField64<Encoding, IsInObjectBits::kNext, 2> {};
+  using OffsetBits = BitField64<int, 0, kOffsetBitsSize>;
+  using IsInObjectBits = BitField64<bool, OffsetBits::kNext, 1>;
+  using EncodingBits = BitField64<Encoding, IsInObjectBits::kNext, 2>;
   // Number of inobject properties.
-  class InObjectPropertyBits
-      : public BitField64<int, EncodingBits::kNext, kDescriptorIndexBitCount> {
-  };
+  using InObjectPropertyBits =
+      BitField64<int, EncodingBits::kNext, kDescriptorIndexBitCount>;
   // Offset of first inobject property from beginning of object.
-  class FirstInobjectPropertyOffsetBits
-      : public BitField64<int, InObjectPropertyBits::kNext,
-                          kFirstInobjectPropertyOffsetBitCount> {};
+  using FirstInobjectPropertyOffsetBits =
+      BitField64<int, InObjectPropertyBits::kNext,
+                 kFirstInobjectPropertyOffsetBitCount>;
   STATIC_ASSERT(FirstInobjectPropertyOffsetBits::kNext <= 64);
 
   uint64_t bit_field_;

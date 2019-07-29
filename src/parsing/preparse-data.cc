@@ -21,22 +21,21 @@ namespace internal {
 
 namespace {
 
-class ScopeCallsSloppyEvalField : public BitField8<bool, 0, 1> {};
-class InnerScopeCallsEvalField
-    : public BitField8<bool, ScopeCallsSloppyEvalField::kNext, 1> {};
+using ScopeCallsSloppyEvalField = BitField8<bool, 0, 1>;
+using InnerScopeCallsEvalField =
+    BitField8<bool, ScopeCallsSloppyEvalField::kNext, 1>;
 
-class VariableMaybeAssignedField : public BitField8<bool, 0, 1> {};
-class VariableContextAllocatedField
-    : public BitField8<bool, VariableMaybeAssignedField::kNext, 1> {};
+using VariableMaybeAssignedField = BitField8<bool, 0, 1>;
+using VariableContextAllocatedField =
+    BitField8<bool, VariableMaybeAssignedField::kNext, 1>;
 
-class HasDataField : public BitField<bool, 0, 1> {};
-class LengthEqualsParametersField
-    : public BitField<bool, HasDataField::kNext, 1> {};
-class NumberOfParametersField
-    : public BitField<uint16_t, LengthEqualsParametersField::kNext, 16> {};
+using HasDataField = BitField<bool, 0, 1>;
+using LengthEqualsParametersField = BitField<bool, HasDataField::kNext, 1>;
+using NumberOfParametersField =
+    BitField<uint16_t, LengthEqualsParametersField::kNext, 16>;
 
-class LanguageField : public BitField8<LanguageMode, 0, 1> {};
-class UsesSuperField : public BitField8<bool, LanguageField::kNext, 1> {};
+using LanguageField = BitField8<LanguageMode, 0, 1>;
+using UsesSuperField = BitField8<bool, LanguageField::kNext, 1>;
 STATIC_ASSERT(LanguageModeSize <= LanguageField::kNumValues);
 
 }  // namespace
