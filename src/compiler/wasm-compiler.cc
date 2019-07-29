@@ -6166,13 +6166,13 @@ void AppendSignature(char* buffer, size_t max_name_len,
 }  // namespace
 
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
-    Isolate* isolate, wasm::FunctionSig* sig, bool is_import,
-    const wasm::WasmFeatures& enabled_features) {
+    Isolate* isolate, wasm::WasmEngine* wasm_engine, wasm::FunctionSig* sig,
+    bool is_import, const wasm::WasmFeatures& enabled_features) {
   //----------------------------------------------------------------------------
   // Create the Graph.
   //----------------------------------------------------------------------------
   std::unique_ptr<Zone> zone =
-      base::make_unique<Zone>(isolate->allocator(), ZONE_NAME);
+      base::make_unique<Zone>(wasm_engine->allocator(), ZONE_NAME);
   Graph* graph = new (zone.get()) Graph(zone.get());
   CommonOperatorBuilder common(zone.get());
   MachineOperatorBuilder machine(

@@ -263,10 +263,10 @@ void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
 }
 
 JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
-    Isolate* isolate, FunctionSig* sig, bool is_import,
+    Isolate* isolate, WasmEngine* wasm_engine, FunctionSig* sig, bool is_import,
     const WasmFeatures& enabled_features)
-    : job_(compiler::NewJSToWasmCompilationJob(isolate, sig, is_import,
-                                               enabled_features)) {}
+    : job_(compiler::NewJSToWasmCompilationJob(isolate, wasm_engine, sig,
+                                               is_import, enabled_features)) {}
 
 JSToWasmWrapperCompilationUnit::~JSToWasmWrapperCompilationUnit() = default;
 
@@ -298,8 +298,8 @@ Handle<Code> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
     Isolate* isolate, FunctionSig* sig, bool is_import) {
   // Run the compilation unit synchronously.
   WasmFeatures enabled_features = WasmFeaturesFromIsolate(isolate);
-  JSToWasmWrapperCompilationUnit unit(isolate, sig, is_import,
-                                      enabled_features);
+  JSToWasmWrapperCompilationUnit unit(isolate, isolate->wasm_engine(), sig,
+                                      is_import, enabled_features);
   unit.Prepare(isolate);
   unit.Execute();
   return unit.Finalize(isolate);

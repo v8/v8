@@ -1062,7 +1062,7 @@ class WasmHeapStubCompilationJob final : public OptimizedCompilationJob {
         debug_name_(std::move(debug_name)),
         info_(CStrVector(debug_name_.get()), graph->zone(), kind),
         call_descriptor_(call_descriptor),
-        zone_stats_(isolate->allocator()),
+        zone_stats_(zone->allocator()),
         zone_(std::move(zone)),
         graph_(graph),
         data_(&zone_stats_, &info_, isolate, graph_, nullptr, source_positions,

@@ -2460,7 +2460,8 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
     JSToWasmWrapperKey key(function.imported, *function.sig);
     if (queue.insert(key)) {
       auto unit = base::make_unique<JSToWasmWrapperCompilationUnit>(
-          isolate, function.sig, function.imported, enabled_features);
+          isolate, isolate->wasm_engine(), function.sig, function.imported,
+          enabled_features);
       unit->Prepare(isolate);
       compilation_units.emplace(key, std::move(unit));
     }
