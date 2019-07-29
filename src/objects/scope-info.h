@@ -224,39 +224,32 @@ class ScopeInfo : public FixedArray {
   enum VariableAllocationInfo { NONE, STACK, CONTEXT, UNUSED };
 
   // Properties of scopes.
-  class ScopeTypeField : public BitField<ScopeType, 0, 4> {};
-  class CallsSloppyEvalField : public BitField<bool, ScopeTypeField::kNext, 1> {
-  };
+  using ScopeTypeField = BitField<ScopeType, 0, 4>;
+  using CallsSloppyEvalField = BitField<bool, ScopeTypeField::kNext, 1>;
   STATIC_ASSERT(LanguageModeSize == 2);
-  class LanguageModeField
-      : public BitField<LanguageMode, CallsSloppyEvalField::kNext, 1> {};
-  class DeclarationScopeField
-      : public BitField<bool, LanguageModeField::kNext, 1> {};
-  class ReceiverVariableField
-      : public BitField<VariableAllocationInfo, DeclarationScopeField::kNext,
-                        2> {};
-  class HasClassBrandField
-      : public BitField<bool, ReceiverVariableField::kNext, 1> {};
-  class HasNewTargetField
-      : public BitField<bool, HasClassBrandField::kNext, 1> {};
-  class FunctionVariableField
-      : public BitField<VariableAllocationInfo, HasNewTargetField::kNext, 2> {};
+  using LanguageModeField =
+      BitField<LanguageMode, CallsSloppyEvalField::kNext, 1>;
+  using DeclarationScopeField = BitField<bool, LanguageModeField::kNext, 1>;
+  using ReceiverVariableField =
+      BitField<VariableAllocationInfo, DeclarationScopeField::kNext, 2>;
+  using HasClassBrandField = BitField<bool, ReceiverVariableField::kNext, 1>;
+  using HasNewTargetField = BitField<bool, HasClassBrandField::kNext, 1>;
+  using FunctionVariableField =
+      BitField<VariableAllocationInfo, HasNewTargetField::kNext, 2>;
   // TODO(cbruni): Combine with function variable field when only storing the
   // function name.
-  class HasInferredFunctionNameField
-      : public BitField<bool, FunctionVariableField::kNext, 1> {};
-  class IsAsmModuleField
-      : public BitField<bool, HasInferredFunctionNameField::kNext, 1> {};
-  class HasSimpleParametersField
-      : public BitField<bool, IsAsmModuleField::kNext, 1> {};
-  class FunctionKindField
-      : public BitField<FunctionKind, HasSimpleParametersField::kNext, 5> {};
-  class HasOuterScopeInfoField
-      : public BitField<bool, FunctionKindField::kNext, 1> {};
-  class IsDebugEvaluateScopeField
-      : public BitField<bool, HasOuterScopeInfoField::kNext, 1> {};
-  class ForceContextAllocationField
-      : public BitField<bool, IsDebugEvaluateScopeField::kNext, 1> {};
+  using HasInferredFunctionNameField =
+      BitField<bool, FunctionVariableField::kNext, 1>;
+  using IsAsmModuleField =
+      BitField<bool, HasInferredFunctionNameField::kNext, 1>;
+  using HasSimpleParametersField = BitField<bool, IsAsmModuleField::kNext, 1>;
+  using FunctionKindField =
+      BitField<FunctionKind, HasSimpleParametersField::kNext, 5>;
+  using HasOuterScopeInfoField = BitField<bool, FunctionKindField::kNext, 1>;
+  using IsDebugEvaluateScopeField =
+      BitField<bool, HasOuterScopeInfoField::kNext, 1>;
+  using ForceContextAllocationField =
+      BitField<bool, IsDebugEvaluateScopeField::kNext, 1>;
 
   STATIC_ASSERT(kLastFunctionKind <= FunctionKindField::kMax);
 
@@ -323,14 +316,13 @@ class ScopeInfo : public FixedArray {
   static const int kPositionInfoEntries = 2;
 
   // Properties of variables.
-  class VariableModeField : public BitField<VariableMode, 0, 3> {};
-  class InitFlagField : public BitField<InitializationFlag, 3, 1> {};
-  class MaybeAssignedFlagField : public BitField<MaybeAssignedFlag, 4, 1> {};
-  class RequiresBrandCheckField
-      : public BitField<RequiresBrandCheckFlag, MaybeAssignedFlagField::kNext,
-                        1> {};
-  class ParameterNumberField
-      : public BitField<uint32_t, RequiresBrandCheckField::kNext, 16> {};
+  using VariableModeField = BitField<VariableMode, 0, 3>;
+  using InitFlagField = BitField<InitializationFlag, 3, 1>;
+  using MaybeAssignedFlagField = BitField<MaybeAssignedFlag, 4, 1>;
+  using RequiresBrandCheckField =
+      BitField<RequiresBrandCheckFlag, MaybeAssignedFlagField::kNext, 1>;
+  using ParameterNumberField =
+      BitField<uint32_t, RequiresBrandCheckField::kNext, 16>;
 
   friend class ScopeIterator;
   friend std::ostream& operator<<(std::ostream& os,

@@ -310,13 +310,11 @@ class PropertyDetails {
 
   // Bit fields in value_ (type, shift, size). Must be public so the
   // constants can be embedded in generated code.
-  class KindField : public BitField<PropertyKind, 0, 1> {};
-  class LocationField : public BitField<PropertyLocation, KindField::kNext, 1> {
-  };
-  class ConstnessField
-      : public BitField<PropertyConstness, LocationField::kNext, 1> {};
-  class AttributesField
-      : public BitField<PropertyAttributes, ConstnessField::kNext, 3> {};
+  using KindField = BitField<PropertyKind, 0, 1>;
+  using LocationField = BitField<PropertyLocation, KindField::kNext, 1>;
+  using ConstnessField = BitField<PropertyConstness, LocationField::kNext, 1>;
+  using AttributesField =
+      BitField<PropertyAttributes, ConstnessField::kNext, 3>;
   static const int kAttributesReadOnlyMask =
       (READ_ONLY << AttributesField::kShift);
   static const int kAttributesDontDeleteMask =
@@ -325,20 +323,17 @@ class PropertyDetails {
       (DONT_ENUM << AttributesField::kShift);
 
   // Bit fields for normalized objects.
-  class PropertyCellTypeField
-      : public BitField<PropertyCellType, AttributesField::kNext, 2> {};
-  class DictionaryStorageField
-      : public BitField<uint32_t, PropertyCellTypeField::kNext, 23> {};
+  using PropertyCellTypeField =
+      BitField<PropertyCellType, AttributesField::kNext, 2>;
+  using DictionaryStorageField =
+      BitField<uint32_t, PropertyCellTypeField::kNext, 23>;
 
   // Bit fields for fast objects.
-  class RepresentationField
-      : public BitField<uint32_t, AttributesField::kNext, 3> {};
-  class DescriptorPointer
-      : public BitField<uint32_t, RepresentationField::kNext,
-                        kDescriptorIndexBitCount> {};  // NOLINT
-  class FieldIndexField : public BitField<uint32_t, DescriptorPointer::kNext,
-                                          kDescriptorIndexBitCount> {
-  };  // NOLINT
+  using RepresentationField = BitField<uint32_t, AttributesField::kNext, 3>;
+  using DescriptorPointer =
+      BitField<uint32_t, RepresentationField::kNext, kDescriptorIndexBitCount>;
+  using FieldIndexField =
+      BitField<uint32_t, DescriptorPointer::kNext, kDescriptorIndexBitCount>;
 
   // All bits for both fast and slow objects must fit in a smi.
   STATIC_ASSERT(DictionaryStorageField::kNext <= 31);

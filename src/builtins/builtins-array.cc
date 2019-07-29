@@ -782,10 +782,10 @@ class ArrayConcatVisitor {
     storage_ = isolate_->global_handles()->Create(storage);
   }
 
-  class FastElementsField : public BitField<bool, 0, 1> {};
-  class ExceedsLimitField : public BitField<bool, 1, 1> {};
-  class IsFixedArrayField : public BitField<bool, 2, 1> {};
-  class HasSimpleElementsField : public BitField<bool, 3, 1> {};
+  using FastElementsField = BitField<bool, 0, 1>;
+  using ExceedsLimitField = BitField<bool, 1, 1>;
+  using IsFixedArrayField = BitField<bool, 2, 1>;
+  using HasSimpleElementsField = BitField<bool, 3, 1>;
 
   bool fast_elements() const { return FastElementsField::decode(bit_field_); }
   void set_fast_elements(bool fast) {
