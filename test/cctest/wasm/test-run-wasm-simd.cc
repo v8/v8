@@ -2882,9 +2882,9 @@ WASM_SIMD_COMPILED_TEST(SimdLoadStoreLoad) {
     DCHECK_EQ(1, r.Call(5));                                                  \
     DCHECK_EQ(0, r.Call(0));                                                  \
   }
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 WASM_SIMD_ANYTRUE_TEST(64x2, 2, 0xffffffffffffffff, int64_t)
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 WASM_SIMD_ANYTRUE_TEST(32x4, 4, 0xffffffff, int32_t)
 WASM_SIMD_ANYTRUE_TEST(16x8, 8, 0xffff, int32_t)
 WASM_SIMD_ANYTRUE_TEST(8x16, 16, 0xff, int32_t)
@@ -2901,9 +2901,9 @@ WASM_SIMD_ANYTRUE_TEST(8x16, 16, 0xff, int32_t)
     DCHECK_EQ(1, r.Call(0x1));                                                \
     DCHECK_EQ(0, r.Call(0));                                                  \
   }
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 WASM_SIMD_ALLTRUE_TEST(64x2, 2, 0xffffffffffffffff, int64_t)
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 WASM_SIMD_ALLTRUE_TEST(32x4, 4, 0xffffffff, int32_t)
 WASM_SIMD_ALLTRUE_TEST(16x8, 8, 0xffff, int32_t)
 WASM_SIMD_ALLTRUE_TEST(8x16, 16, 0xff, int32_t)
