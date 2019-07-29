@@ -81,6 +81,16 @@ void CodeStubAssembler::Assert(const NodeGenerator& condition_body,
 #endif
 }
 
+void CodeStubAssembler::Assert(SloppyTNode<Word32T> condition_node,
+                               const char* message, const char* file, int line,
+                               std::initializer_list<ExtraNode> extra_nodes) {
+#if defined(DEBUG)
+  if (FLAG_debug_code) {
+    Check(condition_node, message, file, line, extra_nodes);
+  }
+#endif
+}
+
 void CodeStubAssembler::Check(const BranchGenerator& branch,
                               const char* message, const char* file, int line,
                               std::initializer_list<ExtraNode> extra_nodes) {
@@ -107,6 +117,16 @@ void CodeStubAssembler::Check(const NodeGenerator& condition_body,
     Node* condition = condition_body();
     DCHECK_NOT_NULL(condition);
     Branch(condition, ok, not_ok);
+  };
+
+  Check(branch, message, file, line, extra_nodes);
+}
+
+void CodeStubAssembler::Check(SloppyTNode<Word32T> condition_node,
+                              const char* message, const char* file, int line,
+                              std::initializer_list<ExtraNode> extra_nodes) {
+  BranchGenerator branch = [=](Label* ok, Label* not_ok) {
+    Branch(condition_node, ok, not_ok);
   };
 
   Check(branch, message, file, line, extra_nodes);

@@ -127,12 +127,9 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 
 // CSA_ASSERT(csa, <condition>, <extra values to print...>)
 
-#define CSA_ASSERT(csa, condition_node, ...)                                  \
-  (csa)->Assert(                                                              \
-      [&]() -> compiler::Node* {                                              \
-        return implicit_cast<compiler::SloppyTNode<Word32T>>(condition_node); \
-      },                                                                      \
-      #condition_node, __FILE__, __LINE__, CSA_ASSERT_ARGS(__VA_ARGS__))
+#define CSA_ASSERT(csa, condition_node, ...)                         \
+  (csa)->Assert(condition_node, #condition_node, __FILE__, __LINE__, \
+                CSA_ASSERT_ARGS(__VA_ARGS__))
 
 // CSA_ASSERT_BRANCH(csa, [](Label* ok, Label* not_ok) {...},
 //     <extra values to print...>)
@@ -622,10 +619,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void Assert(const NodeGenerator& condition_body, const char* message,
               const char* file, int line,
               std::initializer_list<ExtraNode> extra_nodes = {});
+  void Assert(SloppyTNode<Word32T> condition_node, const char* message,
+              const char* file, int line,
+              std::initializer_list<ExtraNode> extra_nodes = {});
   void Check(const BranchGenerator& branch, const char* message,
              const char* file, int line,
              std::initializer_list<ExtraNode> extra_nodes = {});
   void Check(const NodeGenerator& condition_body, const char* message,
+             const char* file, int line,
+             std::initializer_list<ExtraNode> extra_nodes = {});
+  void Check(SloppyTNode<Word32T> condition_node, const char* message,
              const char* file, int line,
              std::initializer_list<ExtraNode> extra_nodes = {});
   void FailAssert(const char* message, const char* file, int line,
