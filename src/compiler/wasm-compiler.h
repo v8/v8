@@ -186,14 +186,14 @@ class WasmGraphBuilder {
       wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
       wasm::FunctionSig* sig, compiler::SourcePositionTable* spt = nullptr);
 
-  Node** Buffer(size_t count) {
+  Vector<Node*> Buffer(size_t count) {
     if (count > cur_bufsize_) {
       size_t new_size = count + cur_bufsize_ + 5;
       cur_buffer_ =
           reinterpret_cast<Node**>(zone_->New(new_size * sizeof(Node*)));
       cur_bufsize_ = new_size;
     }
-    return cur_buffer_;
+    return {cur_buffer_, count};
   }
 
   //-----------------------------------------------------------------------
@@ -230,8 +230,8 @@ class WasmGraphBuilder {
   Node* ExceptionTagEqual(Node* caught_tag, Node* expected_tag);
   Node* LoadExceptionTagFromTable(uint32_t exception_index);
   Node* GetExceptionTag(Node* except_obj);
-  Node** GetExceptionValues(Node* except_obj,
-                            const wasm::WasmException* exception);
+  Vector<Node*> GetExceptionValues(Node* except_obj,
+                                   const wasm::WasmException* exception);
   bool IsPhiWithMerge(Node* phi, Node* merge);
   bool ThrowsException(Node* node, Node** if_success, Node** if_exception);
   void AppendToMerge(Node* merge, Node* from);
@@ -274,11 +274,11 @@ class WasmGraphBuilder {
   Node* Switch(unsigned count, Node* key);
   Node* IfValue(int32_t value, Node* sw);
   Node* IfDefault(Node* sw);
-  Node* Return(unsigned count, Node** nodes);
+  Node* Return(Vector<Node*> nodes);
   template <typename... Nodes>
   Node* Return(Node* fst, Nodes*... more) {
     Node* arr[] = {fst, more...};
-    return Return(arraysize(arr), arr);
+    return Return(ArrayVector(arr));
   }
   Node* ReturnVoid();
   Node* Unreachable(wasm::WasmCodePosition position);
@@ -606,9 +606,13 @@ class WasmGraphBuilder {
   Node* BuildDecodeException32BitValue(Node* values_array, uint32_t* index);
   Node* BuildDecodeException64BitValue(Node* values_array, uint32_t* index);
 
-  Node** Realloc(Node* const* buffer, size_t old_count, size_t new_count) {
-    Node** buf = Buffer(new_count);
-    if (buf != buffer) memcpy(buf, buffer, old_count * sizeof(Node*));
+  Vector<Node*> Realloc(Node* const* buffer, size_t old_count,
+                        size_t new_count) {
+    DCHECK_GE(new_count, old_count);  // Only support growing.
+    Vector<Node*> buf = Buffer(new_count);
+    if (buf.begin() != buffer) {
+      memcpy(buf.begin(), buffer, old_count * sizeof(Node*));
+    }
     return buf;
   }
 

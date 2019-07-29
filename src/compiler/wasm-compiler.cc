@@ -259,21 +259,21 @@ Node* WasmGraphBuilder::Merge(unsigned count, Node** controls) {
 Node* WasmGraphBuilder::Phi(wasm::ValueType type, unsigned count, Node** vals,
                             Node* control) {
   DCHECK(IrOpcode::IsMergeOpcode(control->opcode()));
-  Node** buf = Realloc(vals, count, count + 1);
+  Vector<Node*> buf = Realloc(vals, count, count + 1);
   buf[count] = control;
   return graph()->NewNode(
       mcgraph()->common()->Phi(wasm::ValueTypes::MachineRepresentationFor(type),
                                count),
-      count + 1, buf);
+      count + 1, buf.begin());
 }
 
 Node* WasmGraphBuilder::EffectPhi(unsigned count, Node** effects,
                                   Node* control) {
   DCHECK(IrOpcode::IsMergeOpcode(control->opcode()));
-  Node** buf = Realloc(effects, count, count + 1);
+  Vector<Node*> buf = Realloc(effects, count, count + 1);
   buf[count] = control;
   return graph()->NewNode(mcgraph()->common()->EffectPhi(count), count + 1,
-                          buf);
+                          buf.begin());
 }
 
 Node* WasmGraphBuilder::RefNull() {
@@ -1134,12 +1134,13 @@ Node* WasmGraphBuilder::IfDefault(Node* sw) {
   return graph()->NewNode(mcgraph()->common()->IfDefault(), sw);
 }
 
-Node* WasmGraphBuilder::Return(unsigned count, Node** vals) {
+Node* WasmGraphBuilder::Return(Vector<Node*> vals) {
   static const int kStackAllocatedNodeBufferSize = 8;
   Node* stack_buffer[kStackAllocatedNodeBufferSize];
   std::vector<Node*> heap_buffer;
 
   Node** buf = stack_buffer;
+  unsigned count = static_cast<unsigned>(vals.size());
   if (count + 3 > kStackAllocatedNodeBufferSize) {
     heap_buffer.resize(count + 3);
     buf = heap_buffer.data();
@@ -1147,7 +1148,7 @@ Node* WasmGraphBuilder::Return(unsigned count, Node** vals) {
 
   buf[0] = mcgraph()->Int32Constant(0);
   if (count > 0) {
-    memcpy(buf + 1, vals, sizeof(void*) * count);
+    memcpy(buf + 1, vals.begin(), sizeof(void*) * count);
   }
   buf[count + 1] = Effect();
   buf[count + 2] = Control();
@@ -1158,7 +1159,7 @@ Node* WasmGraphBuilder::Return(unsigned count, Node** vals) {
   return ret;
 }
 
-Node* WasmGraphBuilder::ReturnVoid() { return Return(0, nullptr); }
+Node* WasmGraphBuilder::ReturnVoid() { return Return(Vector<Node*>{}); }
 
 Node* WasmGraphBuilder::Unreachable(wasm::WasmCodePosition position) {
   TrapIfFalse(wasm::TrapReason::kTrapUnreachable, Int32Constant(0), position);
@@ -2303,13 +2304,13 @@ Node* WasmGraphBuilder::GetExceptionTag(Node* except_obj) {
   return BuildCallToRuntime(Runtime::kWasmExceptionGetTag, &except_obj, 1);
 }
 
-Node** WasmGraphBuilder::GetExceptionValues(
+Vector<Node*> WasmGraphBuilder::GetExceptionValues(
     Node* except_obj, const wasm::WasmException* exception) {
   Node* values_array =
       BuildCallToRuntime(Runtime::kWasmExceptionGetValues, &except_obj, 1);
   uint32_t index = 0;
   const wasm::WasmExceptionSig* sig = exception->sig;
-  Node** values = Buffer(sig->parameter_count());
+  Vector<Node*> values = Buffer(sig->parameter_count());
   for (size_t i = 0; i < sig->parameter_count(); ++i) {
     Node* value;
     switch (sig->GetParam(i)) {
@@ -2703,7 +2704,7 @@ Node* WasmGraphBuilder::BuildCallNode(wasm::FunctionSig* sig, Node** args,
   const size_t count = 1 + params + extra;
 
   // Reallocate the buffer to make space for extra inputs.
-  args = Realloc(args, 1 + params, count);
+  args = Realloc(args, 1 + params, count).begin();
 
   // Make room for the instance_node parameter at index 1, just after code.
   memmove(&args[2], &args[1], params * sizeof(Node*));
@@ -2733,7 +2734,7 @@ Node* WasmGraphBuilder::BuildWasmCall(wasm::FunctionSig* sig, Node** args,
   size_t ret_count = sig->return_count();
   if (ret_count == 0) return call;  // No return value.
 
-  *rets = Buffer(ret_count);
+  *rets = Buffer(ret_count).begin();
   if (ret_count == 1) {
     // Only a single return value.
     (*rets)[0] = call;
@@ -3191,12 +3192,12 @@ Node* WasmGraphBuilder::CreateOrMergeIntoPhi(MachineRepresentation rep,
   } else if (tnode != fnode) {
     uint32_t count = merge->InputCount();
     // + 1 for the merge node.
-    Node** vals = Buffer(count + 1);
+    Vector<Node*> vals = Buffer(count + 1);
     for (uint32_t j = 0; j < count - 1; j++) vals[j] = tnode;
     vals[count - 1] = fnode;
     vals[count] = merge;
     return graph()->NewNode(mcgraph()->common()->Phi(rep, count), count + 1,
-                            vals);
+                            vals.begin());
   }
   return tnode;
 }
@@ -3207,12 +3208,12 @@ Node* WasmGraphBuilder::CreateOrMergeIntoEffectPhi(Node* merge, Node* tnode,
     AppendToPhi(tnode, fnode);
   } else if (tnode != fnode) {
     uint32_t count = merge->InputCount();
-    Node** effects = Buffer(count);
+    Vector<Node*> effects = Buffer(count);
     for (uint32_t j = 0; j < count - 1; j++) {
       effects[j] = tnode;
     }
     effects[count - 1] = fnode;
-    tnode = EffectPhi(count, effects, merge);
+    tnode = EffectPhi(count, effects.begin(), merge);
   }
   return tnode;
 }
@@ -5244,7 +5245,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                             vsmi, vbox, merge);
   }
 
-  int AddArgumentNodes(Node** args, int pos, int param_count,
+  int AddArgumentNodes(Vector<Node*> args, int pos, int param_count,
                        wasm::FunctionSig* sig) {
     // Convert wasm numbers to JS values.
     for (int i = 0; i < param_count; ++i) {
@@ -5566,7 +5567,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     }
 
     const int args_count = wasm_count + 1;  // +1 for wasm_code.
-    Node** args = Buffer(args_count);
+    Vector<Node*> args = Buffer(args_count);
     Node** rets;
 
     // Convert JS parameters to wasm numbers.
@@ -5584,8 +5585,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       // Load function index from {WasmExportedFunctionData}.
       Node* function_index =
           BuildLoadFunctionIndexFromExportedFunctionData(function_data);
-      BuildImportCall(sig_, args, &rets, wasm::kNoCodePosition, function_index,
-                      kCallContinues);
+      BuildImportCall(sig_, args.begin(), &rets, wasm::kNoCodePosition,
+                      function_index, kCallContinues);
     } else {
       // Call to a wasm function defined in this module.
       // The call target is the jump table slot for that function.
@@ -5597,7 +5598,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           mcgraph()->machine()->IntAdd(), jump_table_start, jump_table_offset);
       args[0] = jump_table_slot;
 
-      BuildWasmCall(sig_, args, &rets, wasm::kNoCodePosition, nullptr,
+      BuildWasmCall(sig_, args.begin(), &rets, wasm::kNoCodePosition, nullptr,
                     kNoRetpoline);
     }
 
@@ -5653,7 +5654,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         sloppy_receiver = false;
         V8_FALLTHROUGH;  // fallthru
       case WasmImportCallKind::kJSFunctionArityMatchSloppy: {
-        Node** args = Buffer(wasm_count + 9);
+        Vector<Node*> args = Buffer(wasm_count + 7);
         int pos = 0;
         Node* function_context =
             LOAD_RAW(callable_node,
@@ -5681,8 +5682,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         args[pos++] = Effect();
         args[pos++] = Control();
 
+        DCHECK_EQ(pos, args.size());
         call = graph()->NewNode(mcgraph()->common()->Call(call_descriptor), pos,
-                                args);
+                                args.begin());
         break;
       }
       // =======================================================================
@@ -5692,7 +5694,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         sloppy_receiver = false;
         V8_FALLTHROUGH;  // fallthru
       case WasmImportCallKind::kJSFunctionArityMismatchSloppy: {
-        Node** args = Buffer(wasm_count + 9);
+        Vector<Node*> args = Buffer(wasm_count + 9);
         int pos = 0;
         Node* function_context =
             LOAD_RAW(callable_node,
@@ -5743,15 +5745,17 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         args[pos++] = function_context;
         args[pos++] = Effect();
         args[pos++] = Control();
+
+        DCHECK_EQ(pos, args.size());
         call = graph()->NewNode(mcgraph()->common()->Call(call_descriptor), pos,
-                                args);
+                                args.begin());
         break;
       }
       // =======================================================================
       // === General case of unknown callable ==================================
       // =======================================================================
       case WasmImportCallKind::kUseCallBuiltin: {
-        Node** args = Buffer(wasm_count + 9);
+        Vector<Node*> args = Buffer(wasm_count + 7);
         int pos = 0;
         args[pos++] = mcgraph()->RelocatableIntPtrConstant(
             wasm::WasmCode::kWasmCallJavaScript, RelocInfo::WASM_STUB_CALL);
@@ -5776,8 +5780,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         args[pos++] = Effect();
         args[pos++] = Control();
 
+        DCHECK_EQ(pos, args.size());
         call = graph()->NewNode(mcgraph()->common()->Call(call_descriptor), pos,
-                                args);
+                                args.begin());
         break;
       }
       default:
@@ -5884,13 +5889,13 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     SetControl(
         graph()->NewNode(mcgraph()->common()->IfTrue(), exception_branch));
     DCHECK_LT(sig_->return_count(), wasm::kV8MaxWasmFunctionMultiReturns);
-    int return_count = static_cast<int>(sig_->return_count());
+    size_t return_count = sig_->return_count();
     if (return_count == 0) {
       Return(Int32Constant(0));
     } else {
-      Node** returns = Buffer(return_count);
+      Vector<Node*> returns = Buffer(return_count);
       offset = 0;
-      for (int i = 0; i < return_count; ++i) {
+      for (size_t i = 0; i < return_count; ++i) {
         wasm::ValueType type = sig_->GetReturn(i);
         Node* val = SetEffect(
             graph()->NewNode(GetSafeLoadOperator(offset, type), values,
@@ -5898,7 +5903,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         returns[i] = val;
         offset += wasm::ValueTypes::ElementSizeInBytes(type);
       }
-      Return(return_count, returns);
+      Return(returns);
     }
 
     if (ContainsInt64(sig_)) LowerInt64();
@@ -5954,11 +5959,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     // Read back the return value.
     DCHECK_LT(sig_->return_count(), wasm::kV8MaxWasmFunctionMultiReturns);
-    unsigned return_count = static_cast<unsigned>(sig_->return_count());
+    size_t return_count = sig_->return_count();
     if (return_count == 0) {
       Return(Int32Constant(0));
     } else {
-      Node** returns = Buffer(return_count);
+      Vector<Node*> returns = Buffer(return_count);
       offset = 0;
       for (size_t i = 0; i < return_count; ++i) {
         wasm::ValueType type = sig_->GetReturn(i);
@@ -5968,7 +5973,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         returns[i] = val;
         offset += wasm::ValueTypes::ElementSizeInBytes(type);
       }
-      Return(return_count, returns);
+      Return(returns);
     }
 
     if (ContainsInt64(sig_)) LowerInt64();
@@ -6009,7 +6014,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         wasm::ObjectAccess::ToTagged(WasmJSFunctionData::kCallableOffset));
 
     // Call the underlying closure.
-    Node** args = Buffer(wasm_count + 7);
+    Vector<Node*> args = Buffer(wasm_count + 7);
     int pos = 0;
     args[pos++] =
         jsgraph()->Constant(BUILTIN_CODE(isolate_, Call_ReceiverIsAny));
@@ -6033,8 +6038,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     args[pos++] = Effect();
     args[pos++] = Control();
 
+    DCHECK_EQ(pos, args.size());
     Node* call = SetEffect(graph()->NewNode(
-        mcgraph()->common()->Call(call_descriptor), pos, args));
+        mcgraph()->common()->Call(call_descriptor), pos, args.begin()));
 
     // TODO(wasm): Extend this to support multi-return.
     DCHECK_LE(sig_->return_count(), 1);
@@ -6062,8 +6068,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
               kNoWriteBarrier);
 
     int wasm_arg_count = static_cast<int>(sig_->parameter_count());
-    int arg_count = wasm_arg_count + 4;  // code, object_ref, control, effect
-    Node** args = Buffer(arg_count);
+    Vector<Node*> args = Buffer(wasm_arg_count + 4);
 
     int pos = 0;
     args[pos++] = code_entry;
@@ -6080,13 +6085,13 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     args[pos++] = Effect();
     args[pos++] = Control();
-    DCHECK_EQ(arg_count, pos);
 
     // Call the wasm code.
     auto call_descriptor = GetWasmCallDescriptor(mcgraph()->zone(), sig_);
 
+    DCHECK_EQ(pos, args.size());
     Node* call = SetEffect(graph()->NewNode(
-        mcgraph()->common()->Call(call_descriptor), arg_count, args));
+        mcgraph()->common()->Call(call_descriptor), pos, args.begin()));
 
     Node* if_success = graph()->NewNode(mcgraph()->common()->IfSuccess(), call);
     Node* if_exception =
