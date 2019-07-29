@@ -1504,6 +1504,9 @@ class VariableProxy final : public Expression {
       var()->SetMaybeAssigned();
     }
   }
+  void clear_is_assigned() {
+    bit_field_ = IsAssignedField::update(bit_field_, false);
+  }
 
   bool is_resolved() const { return IsResolvedField::decode(bit_field_); }
   void set_is_resolved() {

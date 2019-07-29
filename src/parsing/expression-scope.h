@@ -715,6 +715,9 @@ class ArrowHeadParsingScope : public ExpressionParsingScope<Types> {
     for (auto& proxy_initializer_pair : *this->variable_list()) {
       VariableProxy* proxy = proxy_initializer_pair.first;
       int initializer_position = proxy_initializer_pair.second;
+      // Default values for parameters will have been parsed as assignments so
+      // clear the is_assigned bit as they are not actually assignments.
+      proxy->clear_is_assigned();
       bool was_added;
       this->parser()->DeclareAndBindVariable(proxy, kind, mode, result,
                                              &was_added, initializer_position);
