@@ -2972,7 +2972,7 @@ void FreeListCategory::Free(Address start, size_t size_in_bytes,
   set_top(free_space);
   available_ += size_in_bytes;
   length_++;
-  if ((mode == kLinkCategory) && (prev() == nullptr) && (next() == nullptr)) {
+  if ((mode == kLinkCategory) && !is_linked()) {
     owner()->AddCategory(this);
   }
 }
@@ -3313,7 +3313,7 @@ bool FreeList::AddCategory(FreeListCategory* category) {
   FreeListCategory* top = categories_[type];
 
   if (category->is_empty()) return false;
-  if (top == category) return false;
+  DCHECK_NE(top, category);
 
   // Common double-linked list insertion.
   if (top != nullptr) {

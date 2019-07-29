@@ -318,7 +318,8 @@ MemoryChunk* OldGenerationMemoryChunkIterator::next() {
 FreeList* FreeListCategory::owner() { return free_list_; }
 
 bool FreeListCategory::is_linked() {
-  return prev_ != nullptr || next_ != nullptr;
+  return prev_ != nullptr || next_ != nullptr ||
+         free_list_->categories_[type_] == this;
 }
 
 AllocationResult LocalAllocationBuffer::AllocateRawAligned(
