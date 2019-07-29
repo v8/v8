@@ -2005,6 +2005,30 @@ class V8_EXPORT_PRIVATE FreeListMany : public FreeList {
   }
 };
 
+// FreeList for maps: since maps are all the same size, uses a single freelist.
+class V8_EXPORT_PRIVATE FreeListMap : public FreeList {
+ public:
+  size_t GuaranteedAllocatable(size_t maximum_freed) override;
+
+  Page* GetPageForSize(size_t size_in_bytes) override;
+
+  FreeListMap();
+  ~FreeListMap();
+
+  V8_WARN_UNUSED_RESULT FreeSpace Allocate(size_t size_in_bytes,
+                                           size_t* node_size) override;
+
+ private:
+  static const size_t kMinBlockSize = Map::kSize;
+  static const size_t kMaxBlockSize = Page::kPageSize;
+  static const FreeListCategoryType kOnlyCategory = 0;
+
+  FreeListCategoryType SelectFreeListCategoryType(
+      size_t size_in_bytes) override {
+    return kOnlyCategory;
+  }
+};
+
 // LocalAllocationBuffer represents a linear allocation area that is created
 // from a given {AllocationResult} and can be used to allocate memory without
 // synchronization.
@@ -2968,8 +2992,7 @@ class MapSpace : public PagedSpace {
  public:
   // Creates a map space object.
   explicit MapSpace(Heap* heap)
-      : PagedSpace(heap, MAP_SPACE, NOT_EXECUTABLE,
-                   FreeList::CreateFreeList()) {}
+      : PagedSpace(heap, MAP_SPACE, NOT_EXECUTABLE, new FreeListMap()) {}
 
   int RoundSizeDownToObjectAlignment(int size) override {
     if (base::bits::IsPowerOfTwo(Map::kSize)) {
