@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-type-reflection
+// Flags: --experimental-wasm-type-reflection --expose-gc
 
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -219,8 +219,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertSame(fun.__proto__.__proto__.__proto__, Object.prototype);
   assertSame(fun.constructor, WebAssembly.Function);
   assertEquals(typeof fun, 'function');
-  // TODO(7742): Enable once it is callable.
-  // assertDoesNotThrow(() => fun());
+  assertDoesNotThrow(() => fun());
 })();
 
 (function TestFunctionExportedFunction() {
@@ -269,6 +268,49 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
     let type = WebAssembly.Function.type(instance.exports.fun);
     assertEquals(expected, type)
   });
+})();
+
+(function TestFunctionConstructedCoercions() {
+  let obj1 = { valueOf: _ => 123.45 };
+  let obj2 = { toString: _ => "456" };
+  let gcer = { valueOf: _ => gc() };
+  let testcases = [
+    { params: { sig: ["i32"],
+                val: [23.5],
+                exp: [23], },
+      result: { sig: ["i32"],
+                val: 42.7,
+                exp: 42, },
+    },
+    { params: { sig: ["i32", "f32", "f64"],
+                val: [obj1,  obj2,  "789"],
+                exp: [123,   456,   789], },
+      result: { sig: [],
+                val: undefined,
+                exp: undefined, },
+    },
+    { params: { sig: ["i32", "f32", "f64"],
+                val: [gcer,  {},    "xyz"],
+                exp: [0,     NaN,   NaN], },
+      result: { sig: ["f64"],
+                val: gcer,
+                exp: NaN, },
+    },
+  ];
+  testcases.forEach(function({params, result}) {
+    let p = params.sig; let r = result.sig; var params_after;
+    function testFun() { params_after = arguments; return result.val; }
+    let fun = new WebAssembly.Function({parameters:p, results:r}, testFun);
+    let result_after = fun.apply(undefined, params.val);
+    assertArrayEquals(params.exp, params_after);
+    assertEquals(result.exp, result_after);
+  });
+})();
+
+(function TestFunctionConstructedIncompatibleSig() {
+  let fun = new WebAssembly.Function({parameters:["i64"], results:[]}, _ => 0);
+  assertThrows(() => fun(), TypeError,
+    /wasm function signature contains illegal type/);
 })();
 
 (function TestFunctionTableSetAndCall() {

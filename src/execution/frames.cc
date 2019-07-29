@@ -579,6 +579,8 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
             return OPTIMIZED;
           case Code::JS_TO_WASM_FUNCTION:
             return JS_TO_WASM;
+          case Code::JS_TO_JS_FUNCTION:
+            return STUB;
           case Code::C_WASM_ENTRY:
             return C_WASM_ENTRY;
           case Code::WASM_FUNCTION:

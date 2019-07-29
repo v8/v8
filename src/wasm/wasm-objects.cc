@@ -2298,6 +2298,10 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   if (sig_size > 0) {
     serialized_sig->copy_in(0, sig->all().begin(), sig_size);
   }
+  // TODO(mstarzinger): Think about caching and sharing the JS-to-JS wrappers
+  // per signature instead of compiling a new one for every instantiation.
+  Handle<Code> wrapper_code =
+      compiler::CompileJSToJSWrapper(isolate, sig).ToHandleChecked();
   Handle<WasmJSFunctionData> function_data =
       Handle<WasmJSFunctionData>::cast(isolate->factory()->NewStruct(
           WASM_JS_FUNCTION_DATA_TYPE, AllocationType::kOld));
@@ -2305,9 +2309,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   function_data->set_serialized_parameter_count(parameter_count);
   function_data->set_serialized_signature(*serialized_sig);
   function_data->set_callable(*callable);
-  // TODO(7742): Make this callable by using a proper wrapper code.
-  function_data->set_wrapper_code(
-      isolate->builtins()->builtin(Builtins::kIllegal));
+  function_data->set_wrapper_code(*wrapper_code);
   Handle<String> name = isolate->factory()->Function_string();
   if (callable->IsJSFunction()) {
     name = JSFunction::GetName(Handle<JSFunction>::cast(callable));
@@ -2316,6 +2318,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   NewFunctionArgs args =
       NewFunctionArgs::ForWasm(name, function_data, function_map);
   Handle<JSFunction> js_function = isolate->factory()->NewFunction(args);
+  js_function->shared().set_internal_formal_parameter_count(parameter_count);
   return Handle<WasmJSFunction>::cast(js_function);
 }
 

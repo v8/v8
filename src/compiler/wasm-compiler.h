@@ -140,6 +140,12 @@ V8_EXPORT_PRIVATE wasm::WasmCompilationResult CompileWasmInterpreterEntry(
     wasm::WasmEngine*, const wasm::WasmFeatures& enabled_features,
     uint32_t func_index, wasm::FunctionSig*);
 
+// Compiles a stub with JS linkage that serves as an adapter for function
+// objects constructed via {WebAssembly.Function}. It performs a round-trip
+// simulating a JS-to-Wasm-to-JS coercion of parameter and return values.
+MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
+                                       wasm::FunctionSig* sig);
+
 enum CWasmEntryParameters {
   kCodeEntry,
   kObjectRef,
@@ -444,6 +450,7 @@ class WasmGraphBuilder {
   SetOncePointer<Node> globals_start_;
   SetOncePointer<Node> imported_mutable_globals_;
   SetOncePointer<Node> stack_check_code_node_;
+  SetOncePointer<Node> isolate_root_node_;
   SetOncePointer<const Operator> stack_check_call_operator_;
 
   Node** cur_buffer_;
@@ -460,6 +467,8 @@ class WasmGraphBuilder {
   compiler::SourcePositionTable* const source_position_table_ = nullptr;
 
   Node* NoContextConstant();
+
+  Node* BuildLoadIsolateRoot();
 
   Node* MemBuffer(uint32_t offset);
   // BoundsCheckMem receives a uint32 {index} node and returns a ptrsize index.
