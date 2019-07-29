@@ -108,8 +108,8 @@ class BaseCollectionsAssembler : public CodeStubAssembler {
   // Checks whether {collection}'s initial add/set function has been modified
   // (depending on {variant}, loaded from {native_context}).
   void GotoIfInitialAddFunctionModified(Variant variant,
-                                        TNode<Context> native_context,
-                                        TNode<Object> collection,
+                                        TNode<NativeContext> native_context,
+                                        TNode<HeapObject> collection,
                                         Label* if_modified);
 
   // Gets root index for the name of the add/set function.
@@ -186,8 +186,8 @@ void BaseCollectionsAssembler::AddConstructorEntries(
     TNode<Object> table = AllocateTable(variant, context, at_least_space_for);
     StoreObjectField(collection, GetTableOffset(variant), table);
     GotoIf(IsNullOrUndefined(initial_entries), &exit);
-    GotoIfInitialAddFunctionModified(variant, native_context, collection,
-                                     &slow_loop);
+    GotoIfInitialAddFunctionModified(variant, CAST(native_context),
+                                     CAST(collection), &slow_loop);
     Branch(use_fast_loop.value(), &fast_loop, &slow_loop);
   }
   BIND(&fast_loop);
@@ -212,8 +212,8 @@ void BaseCollectionsAssembler::AddConstructorEntries(
       {
         // Check that add/set function has not been modified.
         Label if_not_modified(this), if_modified(this);
-        GotoIfInitialAddFunctionModified(variant, native_context, collection,
-                                         &if_modified);
+        GotoIfInitialAddFunctionModified(variant, CAST(native_context),
+                                         CAST(collection), &if_modified);
         Goto(&if_not_modified);
         BIND(&if_modified);
         Unreachable();
@@ -356,15 +356,38 @@ RootIndex BaseCollectionsAssembler::GetAddFunctionNameIndex(Variant variant) {
 }
 
 void BaseCollectionsAssembler::GotoIfInitialAddFunctionModified(
-    Variant variant, TNode<Context> native_context, TNode<Object> collection,
-    Label* if_modified) {
+    Variant variant, TNode<NativeContext> native_context,
+    TNode<HeapObject> collection, Label* if_modified) {
   STATIC_ASSERT(JSCollection::kAddFunctionDescriptorIndex ==
                 JSWeakCollection::kAddFunctionDescriptorIndex);
-  GotoIfInitialPrototypePropertyModified(
-      LoadMap(CAST(collection)),
-      GetInitialCollectionPrototype(variant, native_context),
+
+  // TODO(jgruber): Investigate if this should also fall back to full prototype
+  // verification.
+  static constexpr PrototypeCheckAssembler::Flags flags{
+      PrototypeCheckAssembler::kCheckPrototypePropertyConstness};
+
+  static constexpr int kNoContextIndex = -1;
+  STATIC_ASSERT(
+      (flags & PrototypeCheckAssembler::kCheckPrototypePropertyIdentity) == 0);
+
+  using DescriptorIndexNameValue =
+      PrototypeCheckAssembler::DescriptorIndexNameValue;
+
+  DescriptorIndexNameValue property_to_check{
       JSCollection::kAddFunctionDescriptorIndex,
-      GetAddFunctionNameIndex(variant), if_modified);
+      GetAddFunctionNameIndex(variant), kNoContextIndex};
+
+  PrototypeCheckAssembler prototype_check_assembler(
+      state(), flags, native_context,
+      GetInitialCollectionPrototype(variant, native_context),
+      Vector<DescriptorIndexNameValue>(&property_to_check, 1));
+
+  TNode<HeapObject> prototype = LoadMapPrototype(LoadMap(collection));
+  Label if_unmodified(this);
+  prototype_check_assembler.CheckAndBranch(prototype, &if_unmodified,
+                                           if_modified);
+
+  BIND(&if_unmodified);
 }
 
 TNode<JSObject> BaseCollectionsAssembler::AllocateJSCollection(

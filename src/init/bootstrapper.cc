@@ -2450,11 +2450,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         Handle<JSFunction> fun =
             SimpleInstallFunction(isolate_, prototype, "exec",
                                   Builtins::kRegExpPrototypeExec, 1, true);
-        // Check that index of "exec" function in JSRegExp is correct.
+        native_context()->set_regexp_exec_function(*fun);
         DCHECK_EQ(JSRegExp::kExecFunctionDescriptorIndex,
                   prototype->map().LastAdded());
-
-        native_context()->set_regexp_exec_function(*fun);
       }
 
       SimpleInstallGetter(isolate_, prototype, factory->dotAll_string(),
@@ -2481,35 +2479,50 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       SimpleInstallFunction(isolate_, prototype, "test",
                             Builtins::kRegExpPrototypeTest, 1, true);
 
-      InstallFunctionAtSymbol(isolate_, prototype, factory->match_symbol(),
-                              "[Symbol.match]", Builtins::kRegExpPrototypeMatch,
-                              1, true);
-      DCHECK_EQ(JSRegExp::kSymbolMatchFunctionDescriptorIndex,
-                prototype->map().LastAdded());
+      {
+        Handle<JSFunction> fun = InstallFunctionAtSymbol(
+            isolate_, prototype, factory->match_symbol(), "[Symbol.match]",
+            Builtins::kRegExpPrototypeMatch, 1, true);
+        native_context()->set_regexp_match_function(*fun);
+        DCHECK_EQ(JSRegExp::kSymbolMatchFunctionDescriptorIndex,
+                  prototype->map().LastAdded());
+      }
 
-      InstallFunctionAtSymbol(isolate_, prototype, factory->match_all_symbol(),
-                              "[Symbol.matchAll]",
-                              Builtins::kRegExpPrototypeMatchAll, 1, true);
-      DCHECK_EQ(JSRegExp::kSymbolMatchAllFunctionDescriptorIndex,
-                prototype->map().LastAdded());
+      {
+        Handle<JSFunction> fun = InstallFunctionAtSymbol(
+            isolate_, prototype, factory->match_all_symbol(),
+            "[Symbol.matchAll]", Builtins::kRegExpPrototypeMatchAll, 1, true);
+        native_context()->set_regexp_match_all_function(*fun);
+        DCHECK_EQ(JSRegExp::kSymbolMatchAllFunctionDescriptorIndex,
+                  prototype->map().LastAdded());
+      }
 
-      InstallFunctionAtSymbol(isolate_, prototype, factory->replace_symbol(),
-                              "[Symbol.replace]",
-                              Builtins::kRegExpPrototypeReplace, 2, false);
-      DCHECK_EQ(JSRegExp::kSymbolReplaceFunctionDescriptorIndex,
-                prototype->map().LastAdded());
+      {
+        Handle<JSFunction> fun = InstallFunctionAtSymbol(
+            isolate_, prototype, factory->replace_symbol(), "[Symbol.replace]",
+            Builtins::kRegExpPrototypeReplace, 2, false);
+        native_context()->set_regexp_replace_function(*fun);
+        DCHECK_EQ(JSRegExp::kSymbolReplaceFunctionDescriptorIndex,
+                  prototype->map().LastAdded());
+      }
 
-      InstallFunctionAtSymbol(isolate_, prototype, factory->search_symbol(),
-                              "[Symbol.search]",
-                              Builtins::kRegExpPrototypeSearch, 1, true);
-      DCHECK_EQ(JSRegExp::kSymbolSearchFunctionDescriptorIndex,
-                prototype->map().LastAdded());
+      {
+        Handle<JSFunction> fun = InstallFunctionAtSymbol(
+            isolate_, prototype, factory->search_symbol(), "[Symbol.search]",
+            Builtins::kRegExpPrototypeSearch, 1, true);
+        native_context()->set_regexp_search_function(*fun);
+        DCHECK_EQ(JSRegExp::kSymbolSearchFunctionDescriptorIndex,
+                  prototype->map().LastAdded());
+      }
 
-      InstallFunctionAtSymbol(isolate_, prototype, factory->split_symbol(),
-                              "[Symbol.split]", Builtins::kRegExpPrototypeSplit,
-                              2, false);
-      DCHECK_EQ(JSRegExp::kSymbolSplitFunctionDescriptorIndex,
-                prototype->map().LastAdded());
+      {
+        Handle<JSFunction> fun = InstallFunctionAtSymbol(
+            isolate_, prototype, factory->split_symbol(), "[Symbol.split]",
+            Builtins::kRegExpPrototypeSplit, 2, false);
+        native_context()->set_regexp_split_function(*fun);
+        DCHECK_EQ(JSRegExp::kSymbolSplitFunctionDescriptorIndex,
+                  prototype->map().LastAdded());
+      }
 
       Handle<Map> prototype_map(prototype->map(), isolate());
       Map::SetShouldBeFastPrototypeMap(prototype_map, true, isolate_);

@@ -955,7 +955,8 @@ void StringIncludesIndexOfAssembler::Generate(SearchVariant variant,
 
 void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
     Node* const context, Node* const object, Node* const maybe_string,
-    Handle<Symbol> symbol, DescriptorIndexAndName symbol_index,
+    Handle<Symbol> symbol,
+    DescriptorIndexNameValue additional_property_to_check,
     const NodeFunction0& regexp_call, const NodeFunction1& generic_call) {
   Label out(this);
 
@@ -972,9 +973,17 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
     GotoIf(TaggedIsSmi(maybe_string), &slow_lookup);
     GotoIfNot(IsString(maybe_string), &slow_lookup);
 
+    // Note we don't run a full (= permissive) check here, because passing the
+    // check implies calling the fast variants of target builtins, which assume
+    // we've already made their appropriate fast path checks. This is not the
+    // case though; e.g.: some of the target builtins access flag getters.
+    // TODO(jgruber): Handle slow flag accesses on the fast path and make this
+    // permissive.
     RegExpBuiltinsAssembler regexp_asm(state());
-    regexp_asm.BranchIfFastRegExp(context, object, LoadMap(object),
-                                  symbol_index, &stub_call, &slow_lookup);
+    regexp_asm.BranchIfFastRegExp(
+        CAST(context), CAST(object), LoadMap(object),
+        PrototypeCheckAssembler::kCheckPrototypePropertyConstness,
+        additional_property_to_check, &stub_call, &slow_lookup);
 
     BIND(&stub_call);
     // TODO(jgruber): Add a no-JS scope once it exists.
@@ -1073,8 +1082,9 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
 
   MaybeCallFunctionAtSymbol(
       context, search, receiver, isolate()->factory()->replace_symbol(),
-      DescriptorIndexAndName{JSRegExp::kSymbolReplaceFunctionDescriptorIndex,
-                             RootIndex::kreplace_symbol},
+      DescriptorIndexNameValue{JSRegExp::kSymbolReplaceFunctionDescriptorIndex,
+                               RootIndex::kreplace_symbol,
+                               Context::REGEXP_REPLACE_FUNCTION_INDEX},
       [=]() {
         Return(CallBuiltin(Builtins::kRegExpReplace, context, search, receiver,
                            replace));
@@ -1225,19 +1235,19 @@ class StringMatchSearchAssembler : public StringBuiltinsAssembler {
 
     Builtins::Name builtin;
     Handle<Symbol> symbol;
-    DescriptorIndexAndName property_to_check;
+    DescriptorIndexNameValue property_to_check;
     if (variant == kMatch) {
       builtin = Builtins::kRegExpMatchFast;
       symbol = isolate()->factory()->match_symbol();
-      property_to_check =
-          DescriptorIndexAndName{JSRegExp::kSymbolMatchFunctionDescriptorIndex,
-                                 RootIndex::kmatch_symbol};
+      property_to_check = DescriptorIndexNameValue{
+          JSRegExp::kSymbolMatchFunctionDescriptorIndex,
+          RootIndex::kmatch_symbol, Context::REGEXP_MATCH_FUNCTION_INDEX};
     } else {
       builtin = Builtins::kRegExpSearchFast;
       symbol = isolate()->factory()->search_symbol();
-      property_to_check =
-          DescriptorIndexAndName{JSRegExp::kSymbolSearchFunctionDescriptorIndex,
-                                 RootIndex::ksearch_symbol};
+      property_to_check = DescriptorIndexNameValue{
+          JSRegExp::kSymbolSearchFunctionDescriptorIndex,
+          RootIndex::ksearch_symbol, Context::REGEXP_SEARCH_FUNCTION_INDEX};
     }
 
     RequireObjectCoercible(context, receiver, method_name);
@@ -1263,9 +1273,13 @@ class StringMatchSearchAssembler : public StringBuiltinsAssembler {
       TNode<Object> regexp = regexp_asm.RegExpCreate(
           context, initial_map, maybe_regexp, EmptyStringConstant());
 
+      // TODO(jgruber): Handle slow flag accesses on the fast path and make this
+      // permissive.
       Label fast_path(this), slow_path(this);
-      regexp_asm.BranchIfFastRegExp(context, regexp, initial_map,
-                                    property_to_check, &fast_path, &slow_path);
+      regexp_asm.BranchIfFastRegExp(
+          context, CAST(regexp), initial_map,
+          PrototypeCheckAssembler::kCheckPrototypePropertyConstness,
+          property_to_check, &fast_path, &slow_path);
 
       BIND(&fast_path);
       Return(CallBuiltin(builtin, context, regexp, receiver_string));
@@ -1320,8 +1334,9 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
   };
   MaybeCallFunctionAtSymbol(
       context, maybe_regexp, receiver, isolate()->factory()->match_all_symbol(),
-      DescriptorIndexAndName{JSRegExp::kSymbolMatchAllFunctionDescriptorIndex,
-                             RootIndex::kmatch_all_symbol},
+      DescriptorIndexNameValue{JSRegExp::kSymbolMatchAllFunctionDescriptorIndex,
+                               RootIndex::kmatch_all_symbol,
+                               Context::REGEXP_MATCH_ALL_FUNCTION_INDEX},
       if_regexp_call, if_generic_call);
 
   RegExpMatchAllAssembler regexp_asm(state());
@@ -1579,8 +1594,9 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
 
   MaybeCallFunctionAtSymbol(
       context, separator, receiver, isolate()->factory()->split_symbol(),
-      DescriptorIndexAndName{JSRegExp::kSymbolSplitFunctionDescriptorIndex,
-                             RootIndex::ksplit_symbol},
+      DescriptorIndexNameValue{JSRegExp::kSymbolSplitFunctionDescriptorIndex,
+                               RootIndex::ksplit_symbol,
+                               Context::REGEXP_SPLIT_FUNCTION_INDEX},
       [&]() {
         args.PopAndReturn(CallBuiltin(Builtins::kRegExpSplit, context,
                                       separator, receiver, limit));

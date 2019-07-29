@@ -916,6 +916,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                       InstanceType type);
   TNode<BoolT> TaggedDoesntHaveInstanceType(SloppyTNode<HeapObject> any_tagged,
                                             InstanceType type);
+
+  TNode<Word32T> IsStringWrapperElementsKind(TNode<Map> map);
+  void GotoIfMapHasSlowProperties(TNode<Map> map, Label* if_slow);
+
   // Load the properties backing store of a JSObject.
   TNode<HeapObject> LoadSlowProperties(SloppyTNode<JSObject> object);
   TNode<HeapObject> LoadFastProperties(SloppyTNode<JSObject> object);
@@ -3374,34 +3378,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void SetPropertyLength(TNode<Context> context, TNode<Object> array,
                          TNode<Number> length);
 
-  // Checks that {object_map}'s prototype map is the {initial_prototype_map} and
-  // makes sure that the field with name at index {descriptor} is still
-  // constant. If it is not, go to label {if_modified}.
-  //
-  // To make the checks robust, the method also asserts that the descriptor has
-  // the right key, the caller must pass the root index of the key
-  // in {field_name_root_index}.
-  //
-  // This is useful for checking that given function has not been patched
-  // on the prototype.
-  void GotoIfInitialPrototypePropertyModified(TNode<Map> object_map,
-                                              TNode<Map> initial_prototype_map,
-                                              int descfriptor,
-                                              RootIndex field_name_root_index,
-                                              Label* if_modified);
-  struct DescriptorIndexAndName {
-    DescriptorIndexAndName() {}
-    DescriptorIndexAndName(int descriptor_index, RootIndex name_root_index)
-        : descriptor_index(descriptor_index),
-          name_root_index(name_root_index) {}
-
-    int descriptor_index;
-    RootIndex name_root_index;
-  };
-  void GotoIfInitialPrototypePropertiesModified(
-      TNode<Map> object_map, TNode<Map> initial_prototype_map,
-      Vector<DescriptorIndexAndName> properties, Label* if_modified);
-
   // Implements DescriptorArray::Search().
   void DescriptorLookup(SloppyTNode<Name> unique_name,
                         SloppyTNode<DescriptorArray> descriptors,
@@ -3764,6 +3740,43 @@ class ToDirectStringAssembler : public CodeStubAssembler {
   Variable var_is_external_;
 
   const Flags flags_;
+};
+
+// Performs checks on a given prototype (e.g. map identity, property
+// verification), intended for use in fast path checks.
+class PrototypeCheckAssembler : public CodeStubAssembler {
+ public:
+  enum Flag {
+    kCheckPrototypePropertyConstness = 1 << 0,
+    kCheckPrototypePropertyIdentity = 1 << 1,
+    kCheckFull =
+        kCheckPrototypePropertyConstness | kCheckPrototypePropertyIdentity,
+  };
+  using Flags = base::Flags<Flag>;
+
+  // A tuple describing a relevant property. It contains the descriptor index of
+  // the property (within the descriptor array), the property's expected name
+  // (stored as a root), and the property's expected value (stored on the native
+  // context).
+  struct DescriptorIndexNameValue {
+    int descriptor_index;
+    RootIndex name_root_index;
+    int expected_value_context_index;
+  };
+
+  PrototypeCheckAssembler(compiler::CodeAssemblerState* state, Flags flags,
+                          TNode<NativeContext> native_context,
+                          TNode<Map> initial_prototype_map,
+                          Vector<DescriptorIndexNameValue> properties);
+
+  void CheckAndBranch(TNode<HeapObject> prototype, Label* if_unmodified,
+                      Label* if_modified);
+
+ private:
+  const Flags flags_;
+  const TNode<NativeContext> native_context_;
+  const TNode<Map> initial_prototype_map_;
+  const Vector<DescriptorIndexNameValue> properties_;
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(CodeStubAssembler::AllocationFlags)

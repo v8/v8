@@ -44,10 +44,6 @@ class ObjectBuiltinsAssembler : public CodeStubAssembler {
   Node* ConstructDataDescriptor(Node* context, Node* value, Node* writable,
                                 Node* enumerable, Node* configurable);
   Node* GetAccessorOrUndefined(Node* accessor, Label* if_bailout);
-
-  Node* IsSpecialReceiverMap(SloppyTNode<Map> map);
-
-  TNode<Word32T> IsStringWrapperElementsKind(TNode<Map> map);
 };
 
 class ObjectEntriesValuesBuiltinsAssembler : public ObjectBuiltinsAssembler {
@@ -71,8 +67,6 @@ class ObjectEntriesValuesBuiltinsAssembler : public ObjectBuiltinsAssembler {
 
   void GetOwnValuesOrEntries(TNode<Context> context, TNode<Object> maybe_object,
                              CollectType collect_type);
-
-  void GotoIfMapHasSlowProperties(TNode<Map> map, Label* if_slow);
 
   TNode<JSArray> FastGetOwnValuesOrEntries(
       TNode<Context> context, TNode<JSObject> object,
@@ -142,28 +136,6 @@ Node* ObjectBuiltinsAssembler::ConstructDataDescriptor(Node* context,
                                  SelectBooleanConstant(configurable));
 
   return js_desc;
-}
-
-Node* ObjectBuiltinsAssembler::IsSpecialReceiverMap(SloppyTNode<Map> map) {
-  CSA_SLOW_ASSERT(this, IsMap(map));
-  TNode<BoolT> is_special =
-      IsSpecialReceiverInstanceType(LoadMapInstanceType(map));
-  uint32_t mask =
-      Map::HasNamedInterceptorBit::kMask | Map::IsAccessCheckNeededBit::kMask;
-  USE(mask);
-  // Interceptors or access checks imply special receiver.
-  CSA_ASSERT(this,
-             SelectConstant<BoolT>(IsSetWord32(LoadMapBitField(map), mask),
-                                   is_special, Int32TrueConstant()));
-  return is_special;
-}
-
-TNode<Word32T> ObjectBuiltinsAssembler::IsStringWrapperElementsKind(
-    TNode<Map> map) {
-  Node* kind = LoadMapElementsKind(map);
-  return Word32Or(
-      Word32Equal(kind, Int32Constant(FAST_STRING_WRAPPER_ELEMENTS)),
-      Word32Equal(kind, Int32Constant(SLOW_STRING_WRAPPER_ELEMENTS)));
 }
 
 TNode<BoolT> ObjectEntriesValuesBuiltinsAssembler::IsPropertyEnumerable(
@@ -240,13 +212,6 @@ void ObjectEntriesValuesBuiltinsAssembler::GetOwnValuesOrEntries(
           CallRuntime(Runtime::kObjectValuesSkipFastPath, context, receiver));
     }
   }
-}
-
-void ObjectEntriesValuesBuiltinsAssembler::GotoIfMapHasSlowProperties(
-    TNode<Map> map, Label* if_slow) {
-  GotoIf(IsStringWrapperElementsKind(map), if_slow);
-  GotoIf(IsSpecialReceiverMap(map), if_slow);
-  GotoIf(IsDictionaryMap(map), if_slow);
 }
 
 TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(

@@ -2008,7 +2008,13 @@ Cast<JSArgumentsObjectWithLength>(implicit context: Context)(o: HeapObject):
 
 Cast<FastJSRegExp>(implicit context: Context)(o: HeapObject): FastJSRegExp
     labels CastError {
-  if (regexp::BranchIfFastRegExp(o)) return %RawDownCast<FastJSRegExp>(o);
+  // TODO(jgruber): Remove or redesign this. There is no single 'fast' regexp,
+  // the conditions to make a regexp object fast differ based on the callsite.
+  // For now, run the strict variant since replace (the only current callsite)
+  // accesses flag getters.
+  if (regexp::BranchIfFastRegExp_Strict(o)) {
+    return %RawDownCast<FastJSRegExp>(o);
+  }
   goto CastError;
 }
 

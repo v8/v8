@@ -1472,6 +1472,34 @@ TNode<BoolT> CodeStubAssembler::TaggedDoesntHaveInstanceType(
       [=]() { return DoesntHaveInstanceType(any_tagged, type); });
 }
 
+TNode<BoolT> CodeStubAssembler::IsSpecialReceiverMap(SloppyTNode<Map> map) {
+  CSA_SLOW_ASSERT(this, IsMap(map));
+  TNode<BoolT> is_special =
+      IsSpecialReceiverInstanceType(LoadMapInstanceType(map));
+  uint32_t mask =
+      Map::HasNamedInterceptorBit::kMask | Map::IsAccessCheckNeededBit::kMask;
+  USE(mask);
+  // Interceptors or access checks imply special receiver.
+  CSA_ASSERT(this,
+             SelectConstant<BoolT>(IsSetWord32(LoadMapBitField(map), mask),
+                                   is_special, Int32TrueConstant()));
+  return is_special;
+}
+
+TNode<Word32T> CodeStubAssembler::IsStringWrapperElementsKind(TNode<Map> map) {
+  Node* kind = LoadMapElementsKind(map);
+  return Word32Or(
+      Word32Equal(kind, Int32Constant(FAST_STRING_WRAPPER_ELEMENTS)),
+      Word32Equal(kind, Int32Constant(SLOW_STRING_WRAPPER_ELEMENTS)));
+}
+
+void CodeStubAssembler::GotoIfMapHasSlowProperties(TNode<Map> map,
+                                                   Label* if_slow) {
+  GotoIf(IsStringWrapperElementsKind(map), if_slow);
+  GotoIf(IsSpecialReceiverMap(map), if_slow);
+  GotoIf(IsDictionaryMap(map), if_slow);
+}
+
 TNode<HeapObject> CodeStubAssembler::LoadFastProperties(
     SloppyTNode<JSObject> object) {
   CSA_SLOW_ASSERT(this, Word32BinaryNot(IsDictionaryMap(LoadMap(object))));
@@ -13974,63 +14002,138 @@ void CodeStubAssembler::SetPropertyLength(TNode<Context> context,
   BIND(&done);
 }
 
-void CodeStubAssembler::GotoIfInitialPrototypePropertyModified(
-    TNode<Map> object_map, TNode<Map> initial_prototype_map, int descriptor,
-    RootIndex field_name_root_index, Label* if_modified) {
-  DescriptorIndexAndName index_name{descriptor, field_name_root_index};
-  GotoIfInitialPrototypePropertiesModified(
-      object_map, initial_prototype_map,
-      Vector<DescriptorIndexAndName>(&index_name, 1), if_modified);
-}
-
-void CodeStubAssembler::GotoIfInitialPrototypePropertiesModified(
-    TNode<Map> object_map, TNode<Map> initial_prototype_map,
-    Vector<DescriptorIndexAndName> properties, Label* if_modified) {
-  TNode<Map> prototype_map = LoadMap(LoadMapPrototype(object_map));
-  GotoIfNot(WordEqual(prototype_map, initial_prototype_map), if_modified);
-
-  // We need to make sure that relevant properties in the prototype have
-  // not been tampered with. We do this by checking that their slots
-  // in the prototype's descriptor array are still marked as const.
-  TNode<DescriptorArray> descriptors = LoadMapDescriptors(prototype_map);
-
-  TNode<Uint32T> combined_details;
-  for (int i = 0; i < properties.length(); i++) {
-    // Assert the descriptor index is in-bounds.
-    int descriptor = properties[i].descriptor_index;
-    CSA_ASSERT(this, Int32LessThan(Int32Constant(descriptor),
-                                   LoadNumberOfDescriptors(descriptors)));
-    // Assert that the name is correct. This essentially checks that
-    // the descriptor index corresponds to the insertion order in
-    // the bootstrapper.
-    CSA_ASSERT(this,
-               WordEqual(LoadKeyByDescriptorEntry(descriptors, descriptor),
-                         LoadRoot(properties[i].name_root_index)));
-
-    TNode<Uint32T> details =
-        DescriptorArrayGetDetails(descriptors, Uint32Constant(descriptor));
-    if (i == 0) {
-      combined_details = details;
-    } else {
-      combined_details = Word32And(combined_details, details);
-    }
-  }
-
-  TNode<Uint32T> constness =
-      DecodeWord32<PropertyDetails::ConstnessField>(combined_details);
-
-  GotoIfNot(
-      Word32Equal(constness,
-                  Int32Constant(static_cast<int>(PropertyConstness::kConst))),
-      if_modified);
-}
-
 TNode<String> CodeStubAssembler::TaggedToDirectString(TNode<Object> value,
                                                       Label* fail) {
   ToDirectStringAssembler to_direct(state(), value);
   to_direct.TryToDirect(fail);
   to_direct.PointerToData(fail);
   return CAST(value);
+}
+
+PrototypeCheckAssembler::PrototypeCheckAssembler(
+    compiler::CodeAssemblerState* state, Flags flags,
+    TNode<NativeContext> native_context, TNode<Map> initial_prototype_map,
+    Vector<DescriptorIndexNameValue> properties)
+    : CodeStubAssembler(state),
+      flags_(flags),
+      native_context_(native_context),
+      initial_prototype_map_(initial_prototype_map),
+      properties_(properties) {}
+
+void PrototypeCheckAssembler::CheckAndBranch(TNode<HeapObject> prototype,
+                                             Label* if_unmodified,
+                                             Label* if_modified) {
+  TNode<Map> prototype_map = LoadMap(prototype);
+  TNode<DescriptorArray> descriptors = LoadMapDescriptors(prototype_map);
+
+  // The continuation of a failed fast check: if property identity checks are
+  // enabled, we continue there (since they may still classify the prototype as
+  // fast), otherwise we bail out.
+  Label property_identity_check(this, Label::kDeferred);
+  Label* if_fast_check_failed =
+      ((flags_ & kCheckPrototypePropertyIdentity) == 0)
+          ? if_modified
+          : &property_identity_check;
+
+  if ((flags_ & kCheckPrototypePropertyConstness) != 0) {
+    // A simple prototype map identity check. Note that map identity does not
+    // guarantee unmodified properties. It does guarantee that no new properties
+    // have been added, or old properties deleted.
+
+    GotoIfNot(WordEqual(prototype_map, initial_prototype_map_),
+              if_fast_check_failed);
+
+    // We need to make sure that relevant properties in the prototype have
+    // not been tampered with. We do this by checking that their slots
+    // in the prototype's descriptor array are still marked as const.
+
+    TNode<Uint32T> combined_details;
+    for (int i = 0; i < properties_.length(); i++) {
+      // Assert the descriptor index is in-bounds.
+      int descriptor = properties_[i].descriptor_index;
+      CSA_ASSERT(this, Int32LessThan(Int32Constant(descriptor),
+                                     LoadNumberOfDescriptors(descriptors)));
+
+      // Assert that the name is correct. This essentially checks that
+      // the descriptor index corresponds to the insertion order in
+      // the bootstrapper.
+      CSA_ASSERT(this,
+                 WordEqual(LoadKeyByDescriptorEntry(descriptors, descriptor),
+                           LoadRoot(properties_[i].name_root_index)));
+
+      TNode<Uint32T> details =
+          DescriptorArrayGetDetails(descriptors, Uint32Constant(descriptor));
+
+      if (i == 0) {
+        combined_details = details;
+      } else {
+        combined_details = Word32And(combined_details, details);
+      }
+    }
+
+    TNode<Uint32T> constness =
+        DecodeWord32<PropertyDetails::ConstnessField>(combined_details);
+
+    Branch(
+        Word32Equal(constness,
+                    Int32Constant(static_cast<int>(PropertyConstness::kConst))),
+        if_unmodified, if_fast_check_failed);
+  }
+
+  if ((flags_ & kCheckPrototypePropertyIdentity) != 0) {
+    // The above checks have failed, for whatever reason (maybe the prototype
+    // map has changed, or a property is no longer const). This block implements
+    // a more thorough check that can also accept maps which 1. do not have the
+    // initial map, 2. have mutable relevant properties, but 3. still match the
+    // expected value for all relevant properties.
+
+    BIND(&property_identity_check);
+
+    int max_descriptor_index = -1;
+    for (int i = 0; i < properties_.length(); i++) {
+      max_descriptor_index =
+          std::max(max_descriptor_index, properties_[i].descriptor_index);
+    }
+
+    // If the greatest descriptor index is out of bounds, the map cannot be
+    // fast.
+    GotoIfNot(Int32LessThan(Int32Constant(max_descriptor_index),
+                            LoadNumberOfDescriptors(descriptors)),
+              if_modified);
+
+    // Logic below only handles maps with fast properties.
+    GotoIfMapHasSlowProperties(prototype_map, if_modified);
+
+    for (int i = 0; i < properties_.length(); i++) {
+      const DescriptorIndexNameValue& p = properties_[i];
+      const int descriptor = p.descriptor_index;
+
+      // Check if the name is correct. This essentially checks that
+      // the descriptor index corresponds to the insertion order in
+      // the bootstrapper.
+      GotoIfNot(WordEqual(LoadKeyByDescriptorEntry(descriptors, descriptor),
+                          LoadRoot(p.name_root_index)),
+                if_modified);
+
+      // Finally, check whether the actual value equals the expected value.
+      TNode<Uint32T> details =
+          DescriptorArrayGetDetails(descriptors, Uint32Constant(descriptor));
+      TVARIABLE(Uint32T, var_details, details);
+      TVARIABLE(Object, var_value);
+
+      const int key_index = DescriptorArray::ToKeyIndex(descriptor);
+      LoadPropertyFromFastObject(prototype, prototype_map, descriptors,
+                                 IntPtrConstant(key_index), &var_details,
+                                 &var_value);
+
+      TNode<Object> actual_value = var_value.value();
+      TNode<Object> expected_value =
+          LoadContextElement(native_context_, p.expected_value_context_index);
+      GotoIfNot(WordEqual(actual_value, expected_value), if_modified);
+    }
+
+    Goto(if_unmodified);
+  }
 }
 
 }  // namespace internal
