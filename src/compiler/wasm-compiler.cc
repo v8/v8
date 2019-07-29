@@ -5598,8 +5598,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // Clear the ThreadInWasm flag.
     BuildModifyThreadInWasmFlag(false);
 
-    Node* jsval = sig_->return_count() == 0 ? jsgraph()->UndefinedConstant()
-                                            : ToJS(rets[0], sig_->GetReturn());
+    Node* jsval = sig_->return_count() == 0
+                      ? BuildLoadUndefinedValueFromInstance()
+                      : ToJS(rets[0], sig_->GetReturn());
     Return(jsval);
   }
 
