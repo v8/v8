@@ -893,9 +893,7 @@ PipelineCompilationJob::PipelineCompilationJob(
     // Note that the OptimizedCompilationInfo is not initialized at the time
     // we pass it to the CompilationJob constructor, but it is not
     // dereferenced there.
-    : OptimizedCompilationJob(
-          function->GetIsolate()->stack_guard()->real_climit(),
-          &compilation_info_, "TurboFan"),
+    : OptimizedCompilationJob(&compilation_info_, "TurboFan"),
       zone_(function->GetIsolate()->allocator(), ZONE_NAME),
       zone_stats_(function->GetIsolate()->allocator()),
       compilation_info_(&zone_, function->GetIsolate(), shared_info, function),
@@ -1057,8 +1055,7 @@ class WasmHeapStubCompilationJob final : public OptimizedCompilationJob {
       // Note that the OptimizedCompilationInfo is not initialized at the time
       // we pass it to the CompilationJob constructor, but it is not
       // dereferenced there.
-      : OptimizedCompilationJob(isolate->stack_guard()->real_climit(), &info_,
-                                "TurboFan"),
+      : OptimizedCompilationJob(&info_, "TurboFan"),
         debug_name_(std::move(debug_name)),
         info_(CStrVector(debug_name_.get()), graph->zone(), kind),
         call_descriptor_(call_descriptor),
