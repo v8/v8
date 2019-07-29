@@ -109,7 +109,8 @@ STATIC_ASSERT(sizeof(WasmCompilationUnit) <= 2 * kSystemPointerSize);
 class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
  public:
   JSToWasmWrapperCompilationUnit(Isolate* isolate, FunctionSig* sig,
-                                 bool is_import);
+                                 bool is_import,
+                                 const WasmFeatures& enabled_features);
   ~JSToWasmWrapperCompilationUnit();
 
   void Prepare(Isolate* isolate);

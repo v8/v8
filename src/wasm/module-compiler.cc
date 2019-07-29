@@ -2451,6 +2451,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
                              Handle<FixedArray> export_wrappers) {
   JSToWasmWrapperQueue queue;
   JSToWasmWrapperUnitMap compilation_units;
+  WasmFeatures enabled_features = WasmFeaturesFromIsolate(isolate);
 
   // Prepare compilation units in the main thread.
   for (auto exp : module->export_table) {
@@ -2459,7 +2460,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
     JSToWasmWrapperKey key(function.imported, *function.sig);
     if (queue.insert(key)) {
       auto unit = base::make_unique<JSToWasmWrapperCompilationUnit>(
-          isolate, function.sig, function.imported);
+          isolate, function.sig, function.imported, enabled_features);
       unit->Prepare(isolate);
       compilation_units.emplace(key, std::move(unit));
     }

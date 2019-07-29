@@ -6083,7 +6083,8 @@ void AppendSignature(char* buffer, size_t max_name_len,
 }  // namespace
 
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
-    Isolate* isolate, wasm::FunctionSig* sig, bool is_import) {
+    Isolate* isolate, wasm::FunctionSig* sig, bool is_import,
+    const wasm::WasmFeatures& enabled_features) {
   //----------------------------------------------------------------------------
   // Create the Graph.
   //----------------------------------------------------------------------------
@@ -6102,7 +6103,7 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
 
   WasmWrapperGraphBuilder builder(zone.get(), &jsgraph, sig, nullptr,
                                   StubCallMode::kCallCodeObject,
-                                  wasm::WasmFeaturesFromIsolate(isolate));
+                                  enabled_features);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
   builder.BuildJSToWasmWrapper(is_import);

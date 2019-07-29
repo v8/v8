@@ -131,7 +131,8 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::WasmEngine*,
 
 // Returns an OptimizedCompilationJob object for a JS to Wasm wrapper.
 std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
-    Isolate* isolate, wasm::FunctionSig* sig, bool is_import);
+    Isolate* isolate, wasm::FunctionSig* sig, bool is_import,
+    const wasm::WasmFeatures& enabled_features);
 
 // Compiles a stub that redirects a call to a wasm function to the wasm
 // interpreter. It's ABI compatible with the compiled wasm function.
