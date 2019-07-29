@@ -583,7 +583,7 @@ TEST(TestInterruptLoop) {
     int32_t* memory_array = reinterpret_cast<int32_t*>(memory->backing_store());
 
     InterruptThread thread(isolate, memory_array);
-    thread.Start();
+    CHECK(thread.Start());
     testing::RunWasmModuleForTesting(isolate, instance, 0, nullptr);
     Address address = reinterpret_cast<Address>(
         &memory_array[InterruptThread::interrupt_location_]);

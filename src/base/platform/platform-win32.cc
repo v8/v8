@@ -1352,12 +1352,12 @@ Thread::~Thread() {
 // Create a new thread. It is important to use _beginthreadex() instead of
 // the Win32 function CreateThread(), because the CreateThread() does not
 // initialize thread specific structures in the C runtime library.
-void Thread::Start() {
-  data_->thread_ = reinterpret_cast<HANDLE>(
-      _beginthreadex(nullptr, static_cast<unsigned>(stack_size_), ThreadEntry,
-                     this, 0, &data_->thread_id_));
+bool Thread::Start() {
+  uintptr_t result = _beginthreadex(nullptr, static_cast<unsigned>(stack_size_),
+                                    ThreadEntry, this, 0, &data_->thread_id_);
+  data_->thread_ = reinterpret_cast<HANDLE>(result);
+  return result != 0;
 }
-
 
 // Wait for thread to terminate.
 void Thread::Join() {

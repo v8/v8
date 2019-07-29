@@ -871,7 +871,7 @@ void Profiler::Engage() {
 
   // Start thread processing the profiler buffer.
   base::Relaxed_Store(&running_, 1);
-  Start();
+  CHECK(Start());
 
   // Register to get ticks.
   Logger* logger = isolate_->logger();

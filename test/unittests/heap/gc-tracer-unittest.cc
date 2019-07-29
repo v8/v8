@@ -460,8 +460,8 @@ TEST_F(GCTracerTest, MultithreadedBackgroundScope) {
   ThreadWithBackgroundScope thread1(tracer);
   ThreadWithBackgroundScope thread2(tracer);
   tracer->ResetForTesting();
-  thread1.Start();
-  thread2.Start();
+  CHECK(thread1.Start());
+  CHECK(thread2.Start());
   tracer->FetchBackgroundMarkCompactCounters();
   thread1.Join();
   thread2.Join();

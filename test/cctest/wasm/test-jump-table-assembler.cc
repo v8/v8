@@ -246,8 +246,8 @@ TEST(JumpTablePatchingStress) {
     }
     JumpTablePatcher patcher(slot_start, slot, thunk1, thunk2);
     global_stop_bit = 0;  // Signal runners to keep going.
-    for (auto& runner : runners) runner.Start();
-    patcher.Start();
+    for (auto& runner : runners) CHECK(runner.Start());
+    CHECK(patcher.Start());
     patcher.Join();
     global_stop_bit = -1;  // Signal runners to stop.
     for (auto& runner : runners) runner.Join();

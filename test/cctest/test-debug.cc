@@ -3854,7 +3854,7 @@ TEST(DebugBreakOffThreadTerminate) {
   DebugBreakTriggerTerminate delegate;
   v8::debug::SetDebugDelegate(isolate, &delegate);
   TerminationThread terminator(isolate);
-  terminator.Start();
+  CHECK(terminator.Start());
   v8::TryCatch try_catch(env->GetIsolate());
   env->GetIsolate()->RequestInterrupt(BreakRightNow, nullptr);
   CompileRun("while (true);");
@@ -3950,7 +3950,7 @@ class ArchiveRestoreThread : public v8::base::Thread,
       // on) so that the ThreadManager is forced to archive and restore
       // the current thread.
       ArchiveRestoreThread child(isolate_, spawn_count_ - 1);
-      child.Start();
+      CHECK(child.Start());
       child.Join();
 
       // The child thread sets itself as the debug delegate, so we need to

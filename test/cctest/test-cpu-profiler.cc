@@ -85,7 +85,7 @@ TEST(StartStop) {
       new SamplingEventsProcessor(isolate, &generator, &code_observer,
                                   v8::base::TimeDelta::FromMicroseconds(100),
                                   true));
-  processor->Start();
+  CHECK(processor->Start());
   processor->StopSynchronously();
 }
 
@@ -170,7 +170,7 @@ TEST(CodeEvents) {
   ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
       isolate, generator, &code_observer,
       v8::base::TimeDelta::FromMicroseconds(100), true);
-  processor->Start();
+  CHECK(processor->Start());
   ProfilerListener profiler_listener(isolate, processor);
   isolate->logger()->AddCodeEventListener(&profiler_listener);
 
@@ -235,7 +235,7 @@ TEST(TickEvents) {
   CpuProfiler profiler(isolate, kDebugNaming, kLazyLogging, profiles, generator,
                        processor);
   profiles->StartProfiling("");
-  processor->Start();
+  CHECK(processor->Start());
   ProfilerListener profiler_listener(isolate, processor);
   isolate->logger()->AddCodeEventListener(&profiler_listener);
 
@@ -307,7 +307,7 @@ TEST(Issue1398) {
   CpuProfiler profiler(isolate, kDebugNaming, kLazyLogging, profiles, generator,
                        processor);
   profiles->StartProfiling("");
-  processor->Start();
+  CHECK(processor->Start());
   ProfilerListener profiler_listener(isolate, processor);
 
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, code, "bbb");
@@ -1178,7 +1178,7 @@ static void TickLines(bool optimize) {
   // This would normally happen automatically with CpuProfiler::StartProfiling
   // but doesn't because it's constructed with a generator and a processor.
   isolate->logger()->LogCompiledFunctions();
-  processor->Start();
+  CHECK(processor->Start());
   ProfilerListener profiler_listener(isolate, processor);
 
   // Enqueue code creation events.
@@ -3055,8 +3055,8 @@ TEST(MultipleIsolates) {
   IsolateThread thread1;
   IsolateThread thread2;
 
-  thread1.Start();
-  thread2.Start();
+  CHECK(thread1.Start());
+  CHECK(thread2.Start());
 
   thread1.Join();
   thread2.Join();
@@ -3089,7 +3089,7 @@ TEST(LowPrecisionSamplingStartStopInternal) {
       new SamplingEventsProcessor(isolate, &generator, &code_observer,
                                   v8::base::TimeDelta::FromMicroseconds(100),
                                   false));
-  processor->Start();
+  CHECK(processor->Start());
   processor->StopSynchronously();
 }
 
