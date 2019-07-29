@@ -202,7 +202,11 @@ namespace compiler {
   V(Arm64I64x2Sub)                          \
   V(Arm64I64x2Eq)                           \
   V(Arm64I64x2Ne)                           \
+  V(Arm64I64x2GtS)                          \
+  V(Arm64I64x2GeS)                          \
   V(Arm64I64x2ShrU)                         \
+  V(Arm64I64x2GtU)                          \
+  V(Arm64I64x2GeU)                          \
   V(Arm64I32x4Splat)                        \
   V(Arm64I32x4ExtractLane)                  \
   V(Arm64I32x4ReplaceLane)                  \
