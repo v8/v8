@@ -627,8 +627,16 @@ class RegisterValues {
   }
 
   Float32 GetFloatRegister(unsigned n) const {
-    DCHECK(n < arraysize(float_registers_));
-    return float_registers_[n];
+    DCHECK(n < arraysize(double_registers_));
+    if (kSimpleFPAliasing) {
+      return Float32::FromBits(
+          static_cast<uint32_t>(double_registers_[n].get_bits()));
+    } else {
+      const int kShift = n % 2 == 0 ? 0 : 32;
+
+      return Float32::FromBits(
+          static_cast<uint32_t>(double_registers_[n / 2].get_bits() >> kShift));
+    }
   }
 
   Float64 GetDoubleRegister(unsigned n) const {
@@ -641,23 +649,10 @@ class RegisterValues {
     registers_[n] = value;
   }
 
-  void SetFloatRegister(unsigned n, Float32 value) {
-    DCHECK(n < arraysize(float_registers_));
-    float_registers_[n] = value;
-  }
-
-  void SetDoubleRegister(unsigned n, Float64 value) {
-    DCHECK(n < arraysize(double_registers_));
-    double_registers_[n] = value;
-  }
-
-  // Generated code is writing directly into the below arrays, make sure their
-  // element sizes fit what the machine instructions expect.
-  static_assert(sizeof(Float32) == kFloatSize, "size mismatch");
-  static_assert(sizeof(Float64) == kDoubleSize, "size mismatch");
-
   intptr_t registers_[Register::kNumRegisters];
-  Float32 float_registers_[FloatRegister::kNumRegisters];
+  // Generated code writes directly into the following array, make sure the
+  // element size matches what the machine instructions expect.
+  static_assert(sizeof(Float64) == kDoubleSize, "size mismatch");
   Float64 double_registers_[DoubleRegister::kNumRegisters];
 };
 
@@ -721,10 +716,6 @@ class FrameDescription {
     register_values_.SetRegister(n, value);
   }
 
-  void SetDoubleRegister(unsigned n, Float64 value) {
-    register_values_.SetDoubleRegister(n, value);
-  }
-
   intptr_t GetTop() const { return top_; }
   void SetTop(intptr_t top) { top_ = top; }
 
@@ -753,10 +744,6 @@ class FrameDescription {
 
   static int double_registers_offset() {
     return OFFSET_OF(FrameDescription, register_values_.double_registers_);
-  }
-
-  static int float_registers_offset() {
-    return OFFSET_OF(FrameDescription, register_values_.float_registers_);
   }
 
   static int frame_size_offset() {

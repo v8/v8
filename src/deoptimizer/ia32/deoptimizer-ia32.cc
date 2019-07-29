@@ -33,24 +33,14 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
     __ movsd(Operand(esp, offset), xmm_reg);
   }
 
-  STATIC_ASSERT(kFloatSize == kSystemPointerSize);
-  const int kFloatRegsSize = kFloatSize * XMMRegister::kNumRegisters;
-  __ AllocateStackSpace(kFloatRegsSize);
-  for (int i = 0; i < config->num_allocatable_float_registers(); ++i) {
-    int code = config->GetAllocatableFloatCode(i);
-    XMMRegister xmm_reg = XMMRegister::from_code(code);
-    int offset = code * kFloatSize;
-    __ movss(Operand(esp, offset), xmm_reg);
-  }
-
   __ pushad();
 
   ExternalReference c_entry_fp_address =
       ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate);
   __ mov(masm->ExternalReferenceAsOperand(c_entry_fp_address, esi), ebp);
 
-  const int kSavedRegistersAreaSize = kNumberOfRegisters * kSystemPointerSize +
-                                      kDoubleRegsSize + kFloatRegsSize;
+  const int kSavedRegistersAreaSize =
+      kNumberOfRegisters * kSystemPointerSize + kDoubleRegsSize;
 
   // The bailout id is passed in ebx by the caller.
 
@@ -92,13 +82,6 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
     int offset =
         (i * kSystemPointerSize) + FrameDescription::registers_offset();
     __ pop(Operand(esi, offset));
-  }
-
-  int float_regs_offset = FrameDescription::float_registers_offset();
-  // Fill in the float input registers.
-  for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
-    int dst_offset = i * kFloatSize + float_regs_offset;
-    __ pop(Operand(esi, dst_offset));
   }
 
   int double_regs_offset = FrameDescription::double_registers_offset();

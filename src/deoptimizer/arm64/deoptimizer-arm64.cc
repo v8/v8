@@ -111,12 +111,6 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   DCHECK_EQ(saved_double_registers.Count() % 2, 0);
   __ PushCPURegList(saved_double_registers);
 
-  CPURegList saved_float_registers(
-      CPURegister::kVRegister, kSRegSizeInBits,
-      RegisterConfiguration::Default()->allocatable_float_codes_mask());
-  DCHECK_EQ(saved_float_registers.Count() % 4, 0);
-  __ PushCPURegList(saved_float_registers);
-
   // We save all the registers except sp, lr, platform register (x18) and the
   // masm scratches.
   CPURegList saved_registers(CPURegister::kRegister, kXRegSizeInBits, 0, 28);
@@ -134,13 +128,10 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
 
   const int kSavedRegistersAreaSize =
       (saved_registers.Count() * kXRegSize) +
-      (saved_double_registers.Count() * kDRegSize) +
-      (saved_float_registers.Count() * kSRegSize);
+      (saved_double_registers.Count() * kDRegSize);
 
   // Floating point registers are saved on the stack above core registers.
-  const int kFloatRegistersOffset = saved_registers.Count() * kXRegSize;
-  const int kDoubleRegistersOffset =
-      kFloatRegistersOffset + saved_float_registers.Count() * kSRegSize;
+  const int kDoubleRegistersOffset = saved_registers.Count() * kXRegSize;
 
   // The bailout id was passed by the caller in x26.
   Register bailout_id = x2;
@@ -193,12 +184,6 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   // Copy double registers to the input frame.
   CopyRegListToFrame(masm, x1, FrameDescription::double_registers_offset(),
                      saved_double_registers, x2, x3, kDoubleRegistersOffset);
-
-  // Copy float registers to the input frame.
-  // TODO(arm): these are the lower 32-bits of the double registers stored
-  // above, so we shouldn't need to store them again.
-  CopyRegListToFrame(masm, x1, FrameDescription::float_registers_offset(),
-                     saved_float_registers, w2, w3, kFloatRegistersOffset);
 
   // Remove the saved registers from the stack.
   DCHECK_EQ(kSavedRegistersAreaSize % kXRegSize, 0);
