@@ -19,6 +19,14 @@ void SourcePositionTable::SetPosition(int pc_offset, int line,
                                       int inlining_id) {
   DCHECK_GE(pc_offset, 0);
   DCHECK_GT(line, 0);  // The 1-based number of the source line.
+  // It's possible that we map multiple source positions to a pc_offset in
+  // optimized code. Usually these map to the same line, so there is no
+  // difference here as we only store line number and not line/col in the form
+  // of a script offset. Ignore any subsequent sets to the same offset.
+  if (!pc_offsets_to_lines_.empty() &&
+      pc_offsets_to_lines_.back().pc_offset == pc_offset) {
+    return;
+  }
   // Check that we are inserting in ascending order, so that the vector remains
   // sorted.
   DCHECK(pc_offsets_to_lines_.empty() ||

@@ -2942,6 +2942,15 @@ TEST(SourcePositionTable) {
 
   CHECK_EQ(SourcePosition::kNotInlined, info.GetInliningId(21));
   CHECK_EQ(0, info.GetInliningId(100));
+
+  // Test that subsequent SetPosition calls with the same pc_offset are ignored.
+  info.SetPosition(25, 4, SourcePosition::kNotInlined);
+  CHECK_EQ(2, info.GetSourceLineNumber(21));
+  CHECK_EQ(3, info.GetSourceLineNumber(100));
+  CHECK_EQ(3, info.GetSourceLineNumber(std::numeric_limits<int>::max()));
+
+  CHECK_EQ(SourcePosition::kNotInlined, info.GetInliningId(21));
+  CHECK_EQ(0, info.GetInliningId(100));
 }
 
 TEST(MultipleProfilers) {
