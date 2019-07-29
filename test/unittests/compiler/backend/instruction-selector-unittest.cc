@@ -25,7 +25,7 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
     InstructionSelector::Features features,
     InstructionSelectorTest::StreamBuilderMode mode,
     InstructionSelector::SourcePositionMode source_position_mode) {
-  Schedule* schedule = Export();
+  Schedule* schedule = ExportForTest();
   if (FLAG_trace_turbo) {
     StdoutStream{} << "=== Schedule before instruction selection ==="
                    << std::endl

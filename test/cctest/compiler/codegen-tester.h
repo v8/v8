@@ -79,7 +79,7 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
  protected:
   Address Generate() override {
     if (code_.is_null()) {
-      Schedule* schedule = this->Export();
+      Schedule* schedule = this->ExportForTest();
       auto call_descriptor = this->call_descriptor();
       Graph* graph = this->graph();
       OptimizedCompilationInfo info(ArrayVector("testing"), main_zone(), kind_);

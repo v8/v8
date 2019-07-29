@@ -585,6 +585,23 @@ TEST(TestGenericStruct2) {
   ft.Call();
 }
 
+TEST(TestBranchOnBoolOptimization) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  Handle<Context> context =
+      Utils::OpenHandle(*v8::Isolate::GetCurrent()->GetCurrentContext());
+  CodeAssemblerTester asm_tester(isolate, 1);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    m.TestBranchOnBoolOptimization(
+        m.UncheckedCast<Context>(m.HeapConstant(context)),
+        m.UncheckedCast<Smi>(m.Parameter(0)));
+    m.Return(m.UndefinedConstant());
+  }
+  asm_tester.GenerateCode();
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

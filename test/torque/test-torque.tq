@@ -1008,4 +1008,26 @@ namespace test {
     return smiAndIntptr;
   }
 
+  macro BranchAndWriteResult(x: Smi, box: SmiBox): bool {
+    if (x > 5 || x < 0) {
+      box.value = 1;
+      return true;
+    } else {
+      box.value = 2;
+      return false;
+    }
+  }
+
+  @export
+  macro TestBranchOnBoolOptimization(implicit context: Context)(input: Smi) {
+    const box = NewSmiBox(1);
+    // If the two branches get combined into one, we should be able to determine
+    // the value of {box} statically.
+    if (BranchAndWriteResult(input, box)) {
+      StaticAssert(box.value == 1);
+    } else {
+      StaticAssert(box.value == 2);
+    }
+  }
+
 }
