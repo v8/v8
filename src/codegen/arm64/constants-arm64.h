@@ -762,7 +762,7 @@ enum MemBarrierOp : uint32_t {
   ISB = MemBarrierFixed | 0x00000040
 };
 
-enum SystemPAuthOp {
+enum SystemPAuthOp : uint32_t {
   SystemPAuthFixed = 0xD503211F,
   SystemPAuthFMask = 0xFFFFFD1F,
   SystemPAuthMask = 0xFFFFFFFF,
