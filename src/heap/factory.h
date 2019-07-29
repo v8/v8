@@ -521,8 +521,9 @@ class V8_EXPORT_PRIVATE Factory {
 
   // Allocate a block of memory of the given AllocationType (filled with a
   // filler). Used as a fall-back for generated code when the space is full.
-  Handle<HeapObject> NewFillerObject(int size, bool double_align,
-                                     AllocationType allocation);
+  Handle<HeapObject> NewFillerObject(
+      int size, bool double_align, AllocationType allocation,
+      AllocationOrigin origin = AllocationOrigin::kRuntime);
 
   Handle<JSObject> NewFunctionPrototype(Handle<JSFunction> function);
 

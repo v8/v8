@@ -285,11 +285,12 @@ HeapObject Factory::New(Handle<Map> map, AllocationType allocation) {
 }
 
 Handle<HeapObject> Factory::NewFillerObject(int size, bool double_align,
-                                            AllocationType allocation) {
+                                            AllocationType allocation,
+                                            AllocationOrigin origin) {
   AllocationAlignment alignment = double_align ? kDoubleAligned : kWordAligned;
   Heap* heap = isolate()->heap();
   HeapObject result =
-      heap->AllocateRawWithRetryOrFail(size, allocation, alignment);
+      heap->AllocateRawWithRetryOrFail(size, allocation, origin, alignment);
   heap->CreateFillerObjectAt(result.address(), size, ClearRecordedSlots::kNo);
   return Handle<HeapObject>(result, isolate());
 }

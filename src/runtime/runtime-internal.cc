@@ -322,7 +322,8 @@ RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {
   double_align = false;
 
   return *isolate->factory()->NewFillerObject(size, double_align,
-                                              AllocationType::kYoung);
+                                              AllocationType::kYoung,
+                                              AllocationOrigin::kGeneratedCode);
 }
 
 RUNTIME_FUNCTION(Runtime_AllocateInOldGeneration) {
@@ -339,7 +340,8 @@ RUNTIME_FUNCTION(Runtime_AllocateInOldGeneration) {
     CHECK(size <= kMaxRegularHeapObjectSize);
   }
   return *isolate->factory()->NewFillerObject(size, double_align,
-                                              AllocationType::kOld);
+                                              AllocationType::kOld,
+                                              AllocationOrigin::kGeneratedCode);
 }
 
 RUNTIME_FUNCTION(Runtime_AllocateByteArray) {

@@ -96,6 +96,15 @@ enum class TraceRetainingPathMode { kEnabled, kDisabled };
 
 enum class RetainingPathOption { kDefault, kTrackEphemeronPath };
 
+enum class AllocationOrigin {
+  kGeneratedCode = 0,
+  kRuntime = 1,
+  kGC = 2,
+  kFirstAllocationOrigin = kGeneratedCode,
+  kLastAllocationOrigin = kGC,
+  kNumberOfAllocationOrigins = kLastAllocationOrigin + 1
+};
+
 enum class GarbageCollectionReason {
   kUnknown = 0,
   kAllocationFailure = 1,
@@ -1729,7 +1738,8 @@ class Heap {
   // inlined allocations, use the Heap::DisableInlineAllocation() support).
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRaw(
       int size_in_bytes, AllocationType allocation,
-      AllocationAlignment aligment = kWordAligned);
+      AllocationOrigin origin = AllocationOrigin::kRuntime,
+      AllocationAlignment alignment = kWordAligned);
 
   // This method will try to perform an allocation of a given size of a given
   // AllocationType. If the allocation fails, a regular full garbage collection
@@ -1737,8 +1747,14 @@ class Heap {
   // times. If after that retry procedure the allocation still fails nullptr is
   // returned.
   HeapObject AllocateRawWithLightRetry(
-      int size, AllocationType allocation,
+      int size, AllocationType allocation, AllocationOrigin origin,
       AllocationAlignment alignment = kWordAligned);
+  HeapObject AllocateRawWithLightRetry(
+      int size, AllocationType allocation,
+      AllocationAlignment alignment = kWordAligned) {
+    return AllocateRawWithLightRetry(size, allocation,
+                                     AllocationOrigin::kRuntime, alignment);
+  }
 
   // This method will try to perform an allocation of a given size of a given
   // AllocationType. If the allocation fails, a regular full garbage collection
@@ -1747,8 +1763,15 @@ class Heap {
   // garbage collection is triggered which tries to significantly reduce memory.
   // If the allocation still fails after that a fatal error is thrown.
   HeapObject AllocateRawWithRetryOrFail(
-      int size, AllocationType allocation,
+      int size, AllocationType allocation, AllocationOrigin origin,
       AllocationAlignment alignment = kWordAligned);
+  HeapObject AllocateRawWithRetryOrFail(
+      int size, AllocationType allocation,
+      AllocationAlignment alignment = kWordAligned) {
+    return AllocateRawWithRetryOrFail(size, allocation,
+                                      AllocationOrigin::kRuntime, alignment);
+  }
+
   HeapObject AllocateRawCodeInLargeObjectSpace(int size);
 
   // Allocates a heap object based on the map.

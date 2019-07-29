@@ -4875,9 +4875,10 @@ HeapObject Heap::EnsureImmovableCode(HeapObject heap_object, int object_size) {
 }
 
 HeapObject Heap::AllocateRawWithLightRetry(int size, AllocationType allocation,
+                                           AllocationOrigin origin,
                                            AllocationAlignment alignment) {
   HeapObject result;
-  AllocationResult alloc = AllocateRaw(size, allocation, alignment);
+  AllocationResult alloc = AllocateRaw(size, allocation, origin, alignment);
   if (alloc.To(&result)) {
     DCHECK(result != ReadOnlyRoots(this).exception());
     return result;
@@ -4886,7 +4887,7 @@ HeapObject Heap::AllocateRawWithLightRetry(int size, AllocationType allocation,
   for (int i = 0; i < 2; i++) {
     CollectGarbage(alloc.RetrySpace(),
                    GarbageCollectionReason::kAllocationFailure);
-    alloc = AllocateRaw(size, allocation, alignment);
+    alloc = AllocateRaw(size, allocation, origin, alignment);
     if (alloc.To(&result)) {
       DCHECK(result != ReadOnlyRoots(this).exception());
       return result;
@@ -4896,16 +4897,18 @@ HeapObject Heap::AllocateRawWithLightRetry(int size, AllocationType allocation,
 }
 
 HeapObject Heap::AllocateRawWithRetryOrFail(int size, AllocationType allocation,
+                                            AllocationOrigin origin,
                                             AllocationAlignment alignment) {
   AllocationResult alloc;
-  HeapObject result = AllocateRawWithLightRetry(size, allocation, alignment);
+  HeapObject result =
+      AllocateRawWithLightRetry(size, allocation, origin, alignment);
   if (!result.is_null()) return result;
 
   isolate()->counters()->gc_last_resort_from_handles()->Increment();
   CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
   {
     AlwaysAllocateScope scope(isolate());
-    alloc = AllocateRaw(size, allocation, alignment);
+    alloc = AllocateRaw(size, allocation, origin, alignment);
   }
   if (alloc.To(&result)) {
     DCHECK(result != ReadOnlyRoots(this).exception());

@@ -802,6 +802,10 @@ DEFINE_BOOL(trace_gc_freelists_verbose, false,
 DEFINE_IMPLICATION(trace_gc_freelists_verbose, trace_gc_freelists)
 DEFINE_BOOL(trace_evacuation_candidates, false,
             "Show statistics about the pages evacuation by the compaction")
+DEFINE_BOOL(
+    trace_allocations_origins, false,
+    "Show statistics about the origins of allocations. "
+    "Combine with --no-inline-new to track allocations from generated code")
 DEFINE_INT(gc_freelist_strategy, 0,
            "Freelist strategy to use: "
            "1=FreeListFastAlloc. 2=FreeListMany. Anything else=FreeListLegacy")

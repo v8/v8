@@ -2103,6 +2103,10 @@ class SpaceWithLinearArea : public Space {
   V8_EXPORT_PRIVATE virtual void UpdateInlineAllocationLimit(
       size_t min_size) = 0;
 
+  V8_EXPORT_PRIVATE void UpdateAllocationOrigins(AllocationOrigin origin);
+
+  void PrintAllocationsOrigins();
+
  protected:
   // If we are doing inline allocation in steps, this method performs the 'step'
   // operation. top is the memory address of the bump pointer at the last
@@ -2120,6 +2124,9 @@ class SpaceWithLinearArea : public Space {
   // TODO(ofrobots): make these private after refactoring is complete.
   LinearAllocationArea allocation_info_;
   Address top_on_previous_step_;
+
+  size_t allocations_origins_[static_cast<int>(
+      AllocationOrigin::kNumberOfAllocationOrigins)] = {0};
 };
 
 class V8_EXPORT_PRIVATE PagedSpace
@@ -2185,17 +2192,19 @@ class V8_EXPORT_PRIVATE PagedSpace
   // Allocate the requested number of bytes in the space if possible, return a
   // failure object if not.
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawUnaligned(
-      int size_in_bytes);
+      int size_in_bytes, AllocationOrigin origin = AllocationOrigin::kRuntime);
 
   // Allocate the requested number of bytes in the space double aligned if
   // possible, return a failure object if not.
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawAligned(
-      int size_in_bytes, AllocationAlignment alignment);
+      int size_in_bytes, AllocationAlignment alignment,
+      AllocationOrigin origin = AllocationOrigin::kRuntime);
 
   // Allocate the requested number of bytes in the space and consider allocation
   // alignment if needed.
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRaw(
-      int size_in_bytes, AllocationAlignment alignment);
+      int size_in_bytes, AllocationAlignment alignment,
+      AllocationOrigin origin = AllocationOrigin::kRuntime);
 
   size_t Free(Address start, size_t size_in_bytes, SpaceAccountingMode mode) {
     if (size_in_bytes == 0) return 0;
@@ -2768,16 +2777,19 @@ class V8_EXPORT_PRIVATE NewSpace
   void set_age_mark(Address mark) { to_space_.set_age_mark(mark); }
 
   V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateRawAligned(int size_in_bytes, AllocationAlignment alignment);
+  AllocateRawAligned(int size_in_bytes, AllocationAlignment alignment,
+                     AllocationOrigin origin = AllocationOrigin::kRuntime);
+
+  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult AllocateRawUnaligned(
+      int size_in_bytes, AllocationOrigin origin = AllocationOrigin::kRuntime);
 
   V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateRawUnaligned(int size_in_bytes);
-
-  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateRaw(int size_in_bytes, AllocationAlignment alignment);
+  AllocateRaw(int size_in_bytes, AllocationAlignment alignment,
+              AllocationOrigin origin = AllocationOrigin::kRuntime);
 
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawSynchronized(
-      int size_in_bytes, AllocationAlignment alignment);
+      int size_in_bytes, AllocationAlignment alignment,
+      AllocationOrigin origin = AllocationOrigin::kRuntime);
 
   // Reset the allocation pointer to the beginning of the active semispace.
   void ResetLinearAllocationArea();

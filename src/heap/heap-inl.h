@@ -159,6 +159,7 @@ size_t Heap::NewSpaceAllocationCounter() {
 }
 
 AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
+                                   AllocationOrigin origin,
                                    AllocationAlignment alignment) {
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
@@ -194,13 +195,13 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
         allocation = lo_space_->AllocateRaw(size_in_bytes);
       }
     } else {
-      allocation = new_space_->AllocateRaw(size_in_bytes, alignment);
+      allocation = new_space_->AllocateRaw(size_in_bytes, alignment, origin);
     }
   } else if (AllocationType::kOld == type) {
     if (large_object) {
       allocation = lo_space_->AllocateRaw(size_in_bytes);
     } else {
-      allocation = old_space_->AllocateRaw(size_in_bytes, alignment);
+      allocation = old_space_->AllocateRaw(size_in_bytes, alignment, origin);
     }
   } else if (AllocationType::kCode == type) {
     if (size_in_bytes <= code_space()->AreaSize() && !large_object) {
@@ -216,7 +217,9 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
 #endif
     DCHECK(!large_object);
     DCHECK(CanAllocateInReadOnlySpace());
-    allocation = read_only_space_->AllocateRaw(size_in_bytes, alignment);
+    DCHECK_EQ(AllocationOrigin::kRuntime, origin);
+    allocation =
+        read_only_space_->AllocateRaw(size_in_bytes, alignment, origin);
   } else {
     UNREACHABLE();
   }

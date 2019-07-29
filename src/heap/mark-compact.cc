@@ -1291,8 +1291,8 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     if (AbortCompactionForTesting(object)) return false;
 #endif  // VERIFY_HEAP
     AllocationAlignment alignment = HeapObject::RequiredAlignment(object.map());
-    AllocationResult allocation =
-        local_allocator_->Allocate(target_space, size, alignment);
+    AllocationResult allocation = local_allocator_->Allocate(
+        target_space, size, AllocationOrigin::kGC, alignment);
     if (allocation.To(target_object)) {
       MigrateObject(*target_object, object, size, target_space);
       if (target_space == CODE_SPACE)
@@ -1398,8 +1398,8 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
     AllocationAlignment alignment =
         HeapObject::RequiredAlignment(old_object.map());
     AllocationSpace space_allocated_in = NEW_SPACE;
-    AllocationResult allocation =
-        local_allocator_->Allocate(NEW_SPACE, size, alignment);
+    AllocationResult allocation = local_allocator_->Allocate(
+        NEW_SPACE, size, AllocationOrigin::kGC, alignment);
     if (allocation.IsRetry()) {
       allocation = AllocateInOldSpace(size, alignment);
       space_allocated_in = OLD_SPACE;
@@ -1412,8 +1412,8 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
 
   inline AllocationResult AllocateInOldSpace(int size_in_bytes,
                                              AllocationAlignment alignment) {
-    AllocationResult allocation =
-        local_allocator_->Allocate(OLD_SPACE, size_in_bytes, alignment);
+    AllocationResult allocation = local_allocator_->Allocate(
+        OLD_SPACE, size_in_bytes, AllocationOrigin::kGC, alignment);
     if (allocation.IsRetry()) {
       heap_->FatalProcessOutOfMemory(
           "MarkCompactCollector: semi-space copy, fallback in old gen");
