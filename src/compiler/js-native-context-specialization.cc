@@ -398,22 +398,31 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
   // we have feedback from the InstanceOfIC.
   Handle<JSObject> receiver;
   HeapObjectMatcher m(constructor);
-  if (m.HasValue() && m.Value()->IsJSObject()) {
-    receiver = Handle<JSObject>::cast(m.Value());
+  if (m.HasValue() && m.Ref(broker()).IsJSObject()) {
+    receiver = m.Ref(broker()).AsJSObject().object();
   } else if (p.feedback().IsValid()) {
     FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
-    if (!nexus.GetConstructorFeedback().ToHandle(&receiver)) return NoChange();
+    if (!nexus.GetConstructorFeedback().ToHandle(&receiver)) {
+      return NoChange();
+    }
   } else {
     return NoChange();
   }
-  Handle<Map> receiver_map(receiver->map(), isolate());
 
-  // Compute property access info for @@hasInstance on the constructor.
-  AccessInfoFactory access_info_factory(broker(), dependencies(),
-                                        graph()->zone());
-  PropertyAccessInfo access_info =
-      access_info_factory.ComputePropertyAccessInfo(
-          receiver_map, factory()->has_instance_symbol(), AccessMode::kLoad);
+  JSObjectRef receiver_ref(broker(), receiver);
+  MapRef receiver_map = receiver_ref.map();
+
+  PropertyAccessInfo access_info = PropertyAccessInfo::Invalid(graph()->zone());
+  if (FLAG_concurrent_inlining) {
+    access_info = broker()->GetAccessInfoForLoadingHasInstance(receiver_map);
+  } else {
+    AccessInfoFactory access_info_factory(broker(), dependencies(),
+                                          graph()->zone());
+    access_info = access_info_factory.ComputePropertyAccessInfo(
+        receiver_map.object(), factory()->has_instance_symbol(),
+        AccessMode::kLoad);
+  }
+
   if (access_info.IsInvalid()) return NoChange();
   access_info.RecordDependencies(dependencies());
 
@@ -422,7 +431,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
   if (access_info.IsNotFound()) {
     // If there's no @@hasInstance handler, the OrdinaryHasInstance operation
     // takes over, but that requires the constructor to be callable.
-    if (!receiver_map->is_callable()) return NoChange();
+    if (!receiver_map.is_callable()) return NoChange();
 
     dependencies()->DependOnStablePrototypeChains(access_info.receiver_maps(),
                                                   kStartAtPrototype);
@@ -441,25 +450,21 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
   }
 
   if (access_info.IsDataConstant()) {
-    // Determine actual holder.
     Handle<JSObject> holder;
     bool found_on_proto = access_info.holder().ToHandle(&holder);
-    if (!found_on_proto) holder = receiver;
-
-    FieldIndex field_index = access_info.field_index();
-    Handle<Object> constant = JSObject::FastPropertyAt(
-        holder, access_info.field_representation(), field_index);
-    if (!constant->IsCallable()) {
+    JSObjectRef holder_ref =
+        found_on_proto ? JSObjectRef(broker(), holder) : receiver_ref;
+    base::Optional<ObjectRef> constant = holder_ref.GetOwnDataProperty(
+        access_info.field_representation(), access_info.field_index());
+    if (!constant.has_value() || !constant->IsHeapObject() ||
+        !constant->AsHeapObject().map().is_callable())
       return NoChange();
-    }
 
     if (found_on_proto) {
       dependencies()->DependOnStablePrototypeChains(
           access_info.receiver_maps(), kStartAtPrototype,
           JSObjectRef(broker(), holder));
     }
-
-    DCHECK(constant->IsCallable());
 
     // Check that {constructor} is actually {receiver}.
     constructor =
@@ -480,7 +485,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
         0, frame_state, ContinuationFrameStateMode::LAZY);
 
     // Call the @@hasInstance handler.
-    Node* target = jsgraph()->Constant(constant);
+    Node* target = jsgraph()->Constant(*constant);
     node->InsertInput(graph()->zone(), 0, target);
     node->ReplaceInput(1, constructor);
     node->ReplaceInput(2, object);
@@ -615,7 +620,7 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
     // of the instanceof operator again.
     JSBoundFunctionRef function = m.Ref(broker()).AsJSBoundFunction();
     if (FLAG_concurrent_inlining && !function.serialized()) {
-      TRACE_BROKER_MISSING(broker(), "data for function " << function);
+      TRACE_BROKER_MISSING(broker(), "data for JSBoundFunction " << function);
       return NoChange();
     }
 
@@ -634,7 +639,7 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
 
     JSFunctionRef function = m.Ref(broker()).AsJSFunction();
     if (FLAG_concurrent_inlining && !function.serialized()) {
-      TRACE_BROKER_MISSING(broker(), "data for function " << function);
+      TRACE_BROKER_MISSING(broker(), "data for JSFunction " << function);
       return NoChange();
     }
 

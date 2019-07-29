@@ -117,12 +117,15 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   // If there is no result stored for {map}, we return an Invalid
   // PropertyAccessInfo.
-  PropertyAccessInfo GetAccessInfoForLoadingThen(MapRef map);
-  void CreateAccessInfoForLoadingThen(MapRef map,
-                                      CompilationDependencies* dependencies);
   PropertyAccessInfo GetAccessInfoForLoadingExec(MapRef map);
+  PropertyAccessInfo GetAccessInfoForLoadingHasInstance(MapRef map);
+  PropertyAccessInfo GetAccessInfoForLoadingThen(MapRef map);
   PropertyAccessInfo const& CreateAccessInfoForLoadingExec(
       MapRef map, CompilationDependencies* dependencies);
+  PropertyAccessInfo const& CreateAccessInfoForLoadingHasInstance(
+      MapRef map, CompilationDependencies* dependencies);
+  void CreateAccessInfoForLoadingThen(MapRef map,
+                                      CompilationDependencies* dependencies);
 
   std::ostream& Trace();
   void IncrementTracingIndentation();
@@ -156,8 +159,9 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   typedef ZoneUnorderedMap<MapRef, PropertyAccessInfo, ObjectRef::Hash,
                            ObjectRef::Equal>
       MapToAccessInfos;
-  MapToAccessInfos ais_for_loading_then_;
   MapToAccessInfos ais_for_loading_exec_;
+  MapToAccessInfos ais_for_loading_has_instance_;
+  MapToAccessInfos ais_for_loading_then_;
 
   static const size_t kMinimalRefsBucketCount = 8;     // must be power of 2
   static const size_t kInitialRefsBucketCount = 1024;  // must be power of 2

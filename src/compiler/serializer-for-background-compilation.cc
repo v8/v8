@@ -373,11 +373,17 @@ class SerializerForBackgroundCompilation {
                                   FeedbackSlot slot, AccessMode mode);
   void ProcessMapHintsForPromises(Hints const& receiver_hints);
   void ProcessHintsForPromiseResolve(Hints const& resolution_hints);
-  void ProcessHintsForObjectIsPrototypeOf(Hints const& value_hints);
+  void ProcessHintsForHasInPrototypeChain(Hints const& instance_hints);
   void ProcessHintsForRegExpTest(Hints const& regexp_hints);
   PropertyAccessInfo ProcessMapForRegExpTest(MapRef map);
   void ProcessHintsForFunctionCall(Hints const& target_hints);
   void ProcessHintsForFunctionBind(Hints const& receiver_hints);
+  void ProcessConstantForOrdinaryHasInstance(HeapObjectRef const& constructor,
+                                             bool* walk_prototypes);
+  void ProcessConstantForInstanceOf(ObjectRef const& constant,
+                                    bool* walk_prototypes);
+  void ProcessHintsForOrdinaryHasInstance(Hints const& constructor_hints,
+                                          Hints const& instance_hints);
 
   GlobalAccessFeedback const* ProcessFeedbackForGlobalAccess(FeedbackSlot slot);
   NamedAccessFeedback const* ProcessFeedbackMapsForNamedAccess(
@@ -1676,14 +1682,19 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
       break;
     case Builtins::kObjectPrototypeIsPrototypeOf:
       if (arguments.size() >= 2) {
-        ProcessHintsForObjectIsPrototypeOf(arguments[1]);
+        ProcessHintsForHasInPrototypeChain(arguments[1]);
+      }
+      break;
+    case Builtins::kFunctionPrototypeHasInstance:
+      // For JSCallReducer::ReduceFunctionPrototypeHasInstance.
+      if (arguments.size() >= 2) {
+        ProcessHintsForOrdinaryHasInstance(arguments[0], arguments[1]);
       }
       break;
     case Builtins::kFastFunctionPrototypeBind:
-      if (arguments.size() >= 2 &&
+      if (arguments.size() >= 1 &&
           speculation_mode != SpeculationMode::kDisallowSpeculation) {
-        Hints const& receiver_hints = arguments[1];
-        ProcessHintsForFunctionBind(receiver_hints);
+        ProcessHintsForFunctionBind(arguments[0]);
       }
       break;
     default:
@@ -1691,8 +1702,22 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
   }
 }
 
-void SerializerForBackgroundCompilation::ProcessHintsForObjectIsPrototypeOf(
-    Hints const& value_hints) {
+void SerializerForBackgroundCompilation::ProcessHintsForOrdinaryHasInstance(
+    Hints const& constructor_hints, Hints const& instance_hints) {
+  bool walk_prototypes = false;
+  for (Handle<Object> constructor : constructor_hints.constants()) {
+    // For JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance.
+    if (constructor->IsHeapObject()) {
+      ProcessConstantForOrdinaryHasInstance(
+          HeapObjectRef(broker(), constructor), &walk_prototypes);
+    }
+  }
+  // For JSNativeContextSpecialization::ReduceJSHasInPrototypeChain.
+  if (walk_prototypes) ProcessHintsForHasInPrototypeChain(instance_hints);
+}
+
+void SerializerForBackgroundCompilation::ProcessHintsForHasInPrototypeChain(
+    Hints const& instance_hints) {
   auto processMap = [&](Handle<Map> map_handle) {
     MapRef map(broker(), map_handle);
     while (map.IsJSObjectMap()) {
@@ -1701,12 +1726,12 @@ void SerializerForBackgroundCompilation::ProcessHintsForObjectIsPrototypeOf(
     }
   };
 
-  for (auto hint : value_hints.constants()) {
+  for (auto hint : instance_hints.constants()) {
     if (!hint->IsHeapObject()) continue;
     Handle<HeapObject> object(Handle<HeapObject>::cast(hint));
     processMap(handle(object->map(), broker()->isolate()));
   }
-  for (auto map_hint : value_hints.maps()) {
+  for (auto map_hint : instance_hints.maps()) {
     processMap(map_hint);
   }
 }
@@ -2237,36 +2262,84 @@ void SerializerForBackgroundCompilation::VisitTestIn(
   ProcessKeyedPropertyAccess(receiver, key, slot, AccessMode::kHas);
 }
 
+// For JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance.
+void SerializerForBackgroundCompilation::ProcessConstantForOrdinaryHasInstance(
+    HeapObjectRef const& constructor, bool* walk_prototypes) {
+  if (constructor.IsJSBoundFunction()) {
+    constructor.AsJSBoundFunction().Serialize();
+    ProcessConstantForInstanceOf(
+        constructor.AsJSBoundFunction().bound_target_function(),
+        walk_prototypes);
+  } else if (constructor.IsJSFunction()) {
+    constructor.AsJSFunction().Serialize();
+    *walk_prototypes =
+        *walk_prototypes ||
+        (constructor.map().has_prototype_slot() &&
+         constructor.AsJSFunction().has_prototype() &&
+         !constructor.AsJSFunction().PrototypeRequiresRuntimeLookup());
+  }
+}
+
+void SerializerForBackgroundCompilation::ProcessConstantForInstanceOf(
+    ObjectRef const& constructor, bool* walk_prototypes) {
+  if (!constructor.IsHeapObject()) return;
+  HeapObjectRef constructor_heap_object = constructor.AsHeapObject();
+
+  PropertyAccessInfo const& access_info =
+      broker()->CreateAccessInfoForLoadingHasInstance(
+          constructor_heap_object.map(), dependencies());
+
+  if (access_info.IsNotFound()) {
+    ProcessConstantForOrdinaryHasInstance(constructor_heap_object,
+                                          walk_prototypes);
+  } else if (access_info.IsDataConstant()) {
+    Handle<JSObject> holder;
+    bool found_on_proto = access_info.holder().ToHandle(&holder);
+    JSObjectRef holder_ref = found_on_proto ? JSObjectRef(broker(), holder)
+                                            : constructor.AsJSObject();
+    base::Optional<ObjectRef> constant = holder_ref.GetOwnDataProperty(
+        access_info.field_representation(), access_info.field_index(), true);
+    CHECK(constant.has_value());
+    if (constant->IsJSFunction()) {
+      JSFunctionRef function = constant->AsJSFunction();
+      function.Serialize();
+      if (function.shared().HasBuiltinId() &&
+          function.shared().builtin_id() ==
+              Builtins::kFunctionPrototypeHasInstance) {
+        // For JSCallReducer::ReduceFunctionPrototypeHasInstance.
+        ProcessConstantForOrdinaryHasInstance(constructor_heap_object,
+                                              walk_prototypes);
+      }
+    }
+  }
+}
+
 void SerializerForBackgroundCompilation::VisitTestInstanceOf(
     BytecodeArrayIterator* iterator) {
   Hints const& lhs =
       environment()->register_hints(iterator->GetRegisterOperand(0));
-  Hints const& rhs = environment()->accumulator_hints();
+  Hints& rhs = environment()->accumulator_hints();
   FeedbackSlot slot = iterator->GetSlotOperand(1);
 
-  // Inspect feedback (about the rhs of the operator).
-  Handle<FeedbackVector> feedback_vector =
-      environment()->function().feedback_vector();
-  FeedbackNexus nexus(feedback_vector, slot);
-  VectorSlotPair rhs_feedback(feedback_vector, slot, nexus.ic_state());
-  Handle<JSObject> constructor;
-  if (rhs_feedback.IsValid() &&
-      nexus.GetConstructorFeedback().ToHandle(&constructor)) {
-    if (constructor->IsJSBoundFunction()) {
-      JSBoundFunctionRef(broker(), constructor).Serialize();
-    } else if (constructor->IsJSFunction()) {
-      JSFunctionRef(broker(), constructor).Serialize();
-    } else {
-      UNREACHABLE();
+  // Incorporate feedback (about the rhs of the operator) into hints.
+  {
+    Handle<FeedbackVector> feedback_vector =
+        environment()->function().feedback_vector();
+    FeedbackNexus nexus(feedback_vector, slot);
+    VectorSlotPair rhs_feedback(feedback_vector, slot, nexus.ic_state());
+    Handle<JSObject> constructor;
+    if (rhs_feedback.IsValid() &&
+        nexus.GetConstructorFeedback().ToHandle(&constructor)) {
+      rhs.AddConstant(constructor);
     }
   }
 
-  // TODO(neis): Support full instanceof semantics.
-
-  ProcessHintsForObjectIsPrototypeOf(lhs);
-
-  // TODO(neis): Process rhs hints.
-  USE(rhs);
+  bool walk_prototypes = false;
+  for (Handle<Object> constant : rhs.constants()) {
+    ProcessConstantForInstanceOf(ObjectRef(broker(), constant),
+                                 &walk_prototypes);
+  }
+  if (walk_prototypes) ProcessHintsForHasInPrototypeChain(lhs);
 }
 
 void SerializerForBackgroundCompilation::VisitStaKeyedProperty(

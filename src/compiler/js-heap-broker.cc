@@ -2155,8 +2155,9 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
       tracing_enabled_(tracing_enabled),
       feedback_(zone()),
       bytecode_analyses_(zone()),
-      ais_for_loading_then_(zone()),
-      ais_for_loading_exec_(zone()) {
+      ais_for_loading_exec_(zone()),
+      ais_for_loading_has_instance_(zone()),
+      ais_for_loading_then_(zone()) {
   // Note that this initialization of the refs_ pointer with the minimal
   // initial capacity is redundant in the normal use case (concurrent
   // compilation enabled, standard objects to be serialized), as the map
@@ -4138,8 +4139,29 @@ base::Optional<NameRef> JSHeapBroker::GetNameFeedback(
 PropertyAccessInfo JSHeapBroker::GetAccessInfoForLoadingThen(MapRef map) {
   auto access_info = ais_for_loading_then_.find(map);
   if (access_info == ais_for_loading_then_.end()) {
+    TRACE_BROKER_MISSING(this,
+                         "access info for property 'then' on map " << map);
+    return PropertyAccessInfo::Invalid(zone());
+  }
+  return access_info->second;
+}
+
+PropertyAccessInfo JSHeapBroker::GetAccessInfoForLoadingHasInstance(
+    MapRef map) {
+  auto access_info = ais_for_loading_has_instance_.find(map);
+  if (access_info == ais_for_loading_has_instance_.end()) {
     TRACE_BROKER_MISSING(
-        this, "access info for reducing JSResolvePromise with map " << map);
+        this, "access info for property Symbol.hasInstance on map " << map);
+    return PropertyAccessInfo::Invalid(zone());
+  }
+  return access_info->second;
+}
+
+PropertyAccessInfo JSHeapBroker::GetAccessInfoForLoadingExec(MapRef map) {
+  auto access_info = ais_for_loading_exec_.find(map);
+  if (access_info == ais_for_loading_exec_.end()) {
+    TRACE_BROKER_MISSING(this,
+                         "access info for property 'exec' on map " << map);
     return PropertyAccessInfo::Invalid(zone());
   }
   return access_info->second;
@@ -4157,30 +4179,27 @@ void JSHeapBroker::CreateAccessInfoForLoadingThen(
   }
 }
 
-PropertyAccessInfo JSHeapBroker::GetAccessInfoForLoadingExec(MapRef map) {
-  auto access_info = ais_for_loading_exec_.find(map);
-  if (access_info == ais_for_loading_exec_.end()) {
-    TRACE_BROKER_MISSING(this,
-                         "access info for property 'exec' on map " << map);
-    return PropertyAccessInfo::Invalid(zone());
-  }
-  return access_info->second;
+PropertyAccessInfo const& JSHeapBroker::CreateAccessInfoForLoadingHasInstance(
+    MapRef map, CompilationDependencies* dependencies) {
+  auto it = ais_for_loading_has_instance_.find(map);
+  if (it != ais_for_loading_has_instance_.end()) return it->second;
+
+  AccessInfoFactory access_info_factory(this, dependencies, zone());
+  auto access_info = access_info_factory.ComputePropertyAccessInfo(
+      map.object(), isolate()->factory()->has_instance_symbol(),
+      AccessMode::kLoad);
+  return ais_for_loading_has_instance_.insert({map, access_info}).first->second;
 }
 
 PropertyAccessInfo const& JSHeapBroker::CreateAccessInfoForLoadingExec(
     MapRef map, CompilationDependencies* dependencies) {
-  auto access_info = ais_for_loading_exec_.find(map);
-  if (access_info != ais_for_loading_exec_.end()) {
-    return access_info->second;
-  }
+  auto it = ais_for_loading_exec_.find(map);
+  if (it != ais_for_loading_exec_.end()) return it->second;
 
-  ZoneVector<PropertyAccessInfo> access_infos(zone());
   AccessInfoFactory access_info_factory(this, dependencies, zone());
-  PropertyAccessInfo ai_exec = access_info_factory.ComputePropertyAccessInfo(
+  auto access_info = access_info_factory.ComputePropertyAccessInfo(
       map.object(), isolate()->factory()->exec_string(), AccessMode::kLoad);
-
-  auto inserted_ai = ais_for_loading_exec_.insert(std::make_pair(map, ai_exec));
-  return inserted_ai.first->second;
+  return ais_for_loading_exec_.insert({map, access_info}).first->second;
 }
 
 ElementAccessFeedback const* ProcessedFeedback::AsElementAccess() const {

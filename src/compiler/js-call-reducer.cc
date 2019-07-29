@@ -507,7 +507,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
   //  - target, which is Function.prototype.bind JSFunction
   //  - receiver, which is the [[BoundTargetFunction]]
   //  - bound_this (optional), which is the [[BoundThis]]
-  //  - and all the remaining value inouts are [[BoundArguments]]
+  //  - and all the remaining value inputs are [[BoundArguments]]
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* bound_this = (node->op()->ValueInputCount() < 3)
                          ? jsgraph()->UndefinedConstant()
