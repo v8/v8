@@ -198,6 +198,10 @@ namespace compiler {
   V(Arm64I64x2Neg)                          \
   V(Arm64I64x2Shl)                          \
   V(Arm64I64x2ShrS)                         \
+  V(Arm64I64x2Add)                          \
+  V(Arm64I64x2Sub)                          \
+  V(Arm64I64x2Eq)                           \
+  V(Arm64I64x2Ne)                           \
   V(Arm64I64x2ShrU)                         \
   V(Arm64I32x4Splat)                        \
   V(Arm64I32x4ExtractLane)                  \

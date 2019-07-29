@@ -1857,6 +1857,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputInt6(1));
       break;
     }
+      SIMD_BINOP_CASE(kArm64I64x2Add, Add, 2D);
+      SIMD_BINOP_CASE(kArm64I64x2Sub, Sub, 2D);
+      SIMD_BINOP_CASE(kArm64I64x2Eq, Cmeq, 2D);
+    case kArm64I64x2Ne: {
+      VRegister dst = i.OutputSimd128Register().V2D();
+      __ Cmeq(dst, i.InputSimd128Register(0).V2D(),
+              i.InputSimd128Register(1).V2D());
+      __ Mvn(dst, dst);
+      break;
+    }
     case kArm64I64x2ShrU: {
       __ Ushr(i.OutputSimd128Register().V2D(), i.InputSimd128Register(0).V2D(),
               i.InputInt6(1));
