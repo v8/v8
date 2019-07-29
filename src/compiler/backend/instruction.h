@@ -130,7 +130,7 @@ class V8_EXPORT_PRIVATE InstructionOperand {
 
   inline uint64_t GetCanonicalizedValue() const;
 
-  using KindField = BitField64<Kind, 0, 3>;
+  class KindField : public BitField64<Kind, 0, 3> {};
 
   uint64_t value_;
 };
@@ -331,20 +331,20 @@ class UnallocatedOperand final : public InstructionOperand {
 
   STATIC_ASSERT(KindField::kSize == 3);
 
-  using VirtualRegisterField = BitField64<uint32_t, 3, 32>;
+  class VirtualRegisterField : public BitField64<uint32_t, 3, 32> {};
 
   // BitFields for all unallocated operands.
-  using BasicPolicyField = BitField64<BasicPolicy, 35, 1>;
+  class BasicPolicyField : public BitField64<BasicPolicy, 35, 1> {};
 
   // BitFields specific to BasicPolicy::FIXED_SLOT.
-  using FixedSlotIndexField = BitField64<int, 36, 28>;
+  class FixedSlotIndexField : public BitField64<int, 36, 28> {};
 
   // BitFields specific to BasicPolicy::EXTENDED_POLICY.
-  using ExtendedPolicyField = BitField64<ExtendedPolicy, 36, 3>;
-  using LifetimeField = BitField64<Lifetime, 39, 1>;
-  using HasSecondaryStorageField = BitField64<bool, 40, 1>;
-  using FixedRegisterField = BitField64<int, 41, 6>;
-  using SecondaryStorageField = BitField64<int, 47, 3>;
+  class ExtendedPolicyField : public BitField64<ExtendedPolicy, 36, 3> {};
+  class LifetimeField : public BitField64<Lifetime, 39, 1> {};
+  class HasSecondaryStorageField : public BitField64<bool, 40, 1> {};
+  class FixedRegisterField : public BitField64<int, 41, 6> {};
+  class SecondaryStorageField : public BitField64<int, 47, 3> {};
 
  private:
   explicit UnallocatedOperand(int virtual_register)
@@ -373,7 +373,7 @@ class ConstantOperand : public InstructionOperand {
   INSTRUCTION_OPERAND_CASTS(ConstantOperand, CONSTANT)
 
   STATIC_ASSERT(KindField::kSize == 3);
-  using VirtualRegisterField = BitField64<uint32_t, 3, 32>;
+  class VirtualRegisterField : public BitField64<uint32_t, 3, 32> {};
 };
 
 class ImmediateOperand : public InstructionOperand {
@@ -406,8 +406,8 @@ class ImmediateOperand : public InstructionOperand {
   INSTRUCTION_OPERAND_CASTS(ImmediateOperand, IMMEDIATE)
 
   STATIC_ASSERT(KindField::kSize == 3);
-  using TypeField = BitField64<ImmediateType, 3, 1>;
-  using ValueField = BitField64<int32_t, 32, 32>;
+  class TypeField : public BitField64<ImmediateType, 3, 1> {};
+  class ValueField : public BitField64<int32_t, 32, 32> {};
 };
 
 class LocationOperand : public InstructionOperand {
@@ -509,9 +509,9 @@ class LocationOperand : public InstructionOperand {
   }
 
   STATIC_ASSERT(KindField::kSize == 3);
-  using LocationKindField = BitField64<LocationKind, 3, 2>;
-  using RepresentationField = BitField64<MachineRepresentation, 5, 8>;
-  using IndexField = BitField64<int32_t, 35, 29>;
+  class LocationKindField : public BitField64<LocationKind, 3, 2> {};
+  class RepresentationField : public BitField64<MachineRepresentation, 5, 8> {};
+  class IndexField : public BitField64<int32_t, 35, 29> {};
 };
 
 class V8_EXPORT_PRIVATE ExplicitOperand

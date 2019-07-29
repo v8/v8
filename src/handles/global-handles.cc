@@ -580,9 +580,10 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
 
   // This stores three flags (independent, partially_dependent and
   // in_young_list) and a State.
-  using NodeState = BitField8<State, 0, 3>;
-  using IsInYoungList = BitField8<bool, NodeState::kNext, 1>;
-  using NodeWeaknessType = BitField8<WeaknessType, IsInYoungList::kNext, 2>;
+  class NodeState : public BitField8<State, 0, 3> {};
+  class IsInYoungList : public BitField8<bool, NodeState::kNext, 1> {};
+  class NodeWeaknessType
+      : public BitField8<WeaknessType, IsInYoungList::kNext, 2> {};
 
   // Handle specific callback - might be a weak reference in disguise.
   WeakCallbackInfo<void>::Callback weak_callback_;
@@ -649,9 +650,9 @@ class GlobalHandles::TracedNode final
   }
 
  protected:
-  using NodeState = BitField8<State, 0, 2>;
-  using IsInYoungList = BitField8<bool, NodeState::kNext, 1>;
-  using IsRoot = BitField8<bool, IsInYoungList::kNext, 1>;
+  class NodeState : public BitField8<State, 0, 2> {};
+  class IsInYoungList : public BitField8<bool, NodeState::kNext, 1> {};
+  class IsRoot : public BitField8<bool, IsInYoungList::kNext, 1> {};
 
   void ClearImplFields() {
     set_root(true);

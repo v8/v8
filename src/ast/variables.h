@@ -243,21 +243,25 @@ class Variable final : public ZoneObject {
     bit_field_ = MaybeAssignedFlagField::update(bit_field_, kMaybeAssigned);
   }
 
-  using VariableModeField = BitField16<VariableMode, 0, 3>;
-  using VariableKindField =
-      BitField16<VariableKind, VariableModeField::kNext, 3>;
-  using LocationField =
-      BitField16<VariableLocation, VariableKindField::kNext, 3>;
-  using ForceContextAllocationField = BitField16<bool, LocationField::kNext, 1>;
-  using IsUsedField = BitField16<bool, ForceContextAllocationField::kNext, 1>;
-  using InitializationFlagField =
-      BitField16<InitializationFlag, IsUsedField::kNext, 1>;
-  using ForceHoleInitializationField =
-      BitField16<bool, InitializationFlagField::kNext, 1>;
-  using MaybeAssignedFlagField =
-      BitField16<MaybeAssignedFlag, ForceHoleInitializationField::kNext, 1>;
-  using RequiresBrandCheckField =
-      BitField16<RequiresBrandCheckFlag, MaybeAssignedFlagField::kNext, 1>;
+  class VariableModeField : public BitField16<VariableMode, 0, 3> {};
+  class VariableKindField
+      : public BitField16<VariableKind, VariableModeField::kNext, 3> {};
+  class LocationField
+      : public BitField16<VariableLocation, VariableKindField::kNext, 3> {};
+  class ForceContextAllocationField
+      : public BitField16<bool, LocationField::kNext, 1> {};
+  class IsUsedField
+      : public BitField16<bool, ForceContextAllocationField::kNext, 1> {};
+  class InitializationFlagField
+      : public BitField16<InitializationFlag, IsUsedField::kNext, 1> {};
+  class ForceHoleInitializationField
+      : public BitField16<bool, InitializationFlagField::kNext, 1> {};
+  class MaybeAssignedFlagField
+      : public BitField16<MaybeAssignedFlag,
+                          ForceHoleInitializationField::kNext, 1> {};
+  class RequiresBrandCheckField
+      : public BitField16<RequiresBrandCheckFlag, MaybeAssignedFlagField::kNext,
+                          1> {};
   Variable** next() { return &next_; }
   friend List;
   friend base::ThreadedListTraits<Variable>;

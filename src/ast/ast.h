@@ -168,7 +168,7 @@ class AstNode: public ZoneObject {
   void* operator new(size_t size);
 
   int position_;
-  using NodeTypeField = BitField<NodeType, 0, 6>;
+  class NodeTypeField : public BitField<NodeType, 0, 6> {};
 
  protected:
   uint32_t bit_field_;
@@ -265,7 +265,8 @@ class Expression : public AstNode {
   }
 
  private:
-  using IsParenthesizedField = BitField<bool, AstNode::kNextBitFieldIndex, 1>;
+  class IsParenthesizedField
+      : public BitField<bool, AstNode::kNextBitFieldIndex, 1> {};
 
  protected:
   Expression(int pos, NodeType type) : AstNode(pos, type) {
@@ -320,8 +321,8 @@ class BreakableStatement : public Statement {
   }
 
  private:
-  using BreakableTypeField =
-      BitField<BreakableType, Statement::kNextBitFieldIndex, 1>;
+  class BreakableTypeField
+      : public BitField<BreakableType, Statement::kNextBitFieldIndex, 1> {};
 
  protected:
   BreakableStatement(BreakableType breakable_type, int position, NodeType type)
@@ -356,9 +357,10 @@ class Block : public BreakableStatement {
   ZonePtrList<Statement> statements_;
   Scope* scope_;
 
-  using IgnoreCompletionField =
-      BitField<bool, BreakableStatement::kNextBitFieldIndex, 1>;
-  using IsLabeledField = BitField<bool, IgnoreCompletionField::kNext, 1>;
+  class IgnoreCompletionField
+      : public BitField<bool, BreakableStatement::kNextBitFieldIndex, 1> {};
+  class IsLabeledField
+      : public BitField<bool, IgnoreCompletionField::kNext, 1> {};
 
  protected:
   Block(Zone* zone, ZonePtrList<const AstRawString>* labels, int capacity,
@@ -446,7 +448,8 @@ class VariableDeclaration : public Declaration {
  private:
   friend class AstNodeFactory;
 
-  using IsNestedField = BitField<bool, Declaration::kNextBitFieldIndex, 1>;
+  class IsNestedField
+      : public BitField<bool, Declaration::kNextBitFieldIndex, 1> {};
 
  protected:
   explicit VariableDeclaration(int pos, bool is_nested = false)
@@ -737,7 +740,8 @@ class ReturnStatement final : public JumpStatement {
   Expression* expression_;
   int end_position_;
 
-  using TypeField = BitField<Type, JumpStatement::kNextBitFieldIndex, 1>;
+  class TypeField
+      : public BitField<Type, JumpStatement::kNextBitFieldIndex, 1> {};
 };
 
 
@@ -973,7 +977,8 @@ class SloppyBlockFunctionStatement final : public Statement {
  private:
   friend class AstNodeFactory;
 
-  using TokenField = BitField<Token::Value, Statement::kNextBitFieldIndex, 8>;
+  class TokenField
+      : public BitField<Token::Value, Statement::kNextBitFieldIndex, 8> {};
 
   SloppyBlockFunctionStatement(int pos, Variable* var, Token::Value init,
                                Statement* statement)
@@ -1074,7 +1079,7 @@ class Literal final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  using TypeField = BitField<Type, Expression::kNextBitFieldIndex, 4>;
+  class TypeField : public BitField<Type, Expression::kNextBitFieldIndex, 4> {};
 
   Literal(int smi, int position) : Expression(position, kLiteral), smi_(smi) {
     bit_field_ = TypeField::update(bit_field_, kSmi);
@@ -1205,10 +1210,10 @@ class AggregateLiteral : public MaterializedLiteral {
 
  private:
   int depth_ : 31;
-  using NeedsInitialAllocationSiteField =
-      BitField<bool, MaterializedLiteral::kNextBitFieldIndex, 1>;
-  using IsSimpleField =
-      BitField<bool, NeedsInitialAllocationSiteField::kNext, 1>;
+  class NeedsInitialAllocationSiteField
+      : public BitField<bool, MaterializedLiteral::kNextBitFieldIndex, 1> {};
+  class IsSimpleField
+      : public BitField<bool, NeedsInitialAllocationSiteField::kNext, 1> {};
 
  protected:
   friend class AstNodeFactory;
@@ -1408,11 +1413,14 @@ class ObjectLiteral final : public AggregateLiteral {
   Handle<ObjectBoilerplateDescription> boilerplate_description_;
   ZoneList<Property*> properties_;
 
-  using HasElementsField =
-      BitField<bool, AggregateLiteral::kNextBitFieldIndex, 1>;
-  using HasRestPropertyField = BitField<bool, HasElementsField::kNext, 1>;
-  using FastElementsField = BitField<bool, HasRestPropertyField::kNext, 1>;
-  using HasNullPrototypeField = BitField<bool, FastElementsField::kNext, 1>;
+  class HasElementsField
+      : public BitField<bool, AggregateLiteral::kNextBitFieldIndex, 1> {};
+  class HasRestPropertyField
+      : public BitField<bool, HasElementsField::kNext, 1> {};
+  class FastElementsField
+      : public BitField<bool, HasRestPropertyField::kNext, 1> {};
+  class HasNullPrototypeField
+      : public BitField<bool, FastElementsField::kNext, 1> {};
 };
 
 // An array literal has a literals object that is used
@@ -1578,14 +1586,15 @@ class VariableProxy final : public Expression {
 
   explicit VariableProxy(const VariableProxy* copy_from);
 
-  using IsAssignedField = BitField<bool, Expression::kNextBitFieldIndex, 1>;
-  using IsResolvedField = BitField<bool, IsAssignedField::kNext, 1>;
-  using IsRemovedFromUnresolvedField =
-      BitField<bool, IsResolvedField::kNext, 1>;
-  using IsNewTargetField =
-      BitField<bool, IsRemovedFromUnresolvedField::kNext, 1>;
-  using HoleCheckModeField =
-      BitField<HoleCheckMode, IsNewTargetField::kNext, 1>;
+  class IsAssignedField
+      : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
+  class IsResolvedField : public BitField<bool, IsAssignedField::kNext, 1> {};
+  class IsRemovedFromUnresolvedField
+      : public BitField<bool, IsResolvedField::kNext, 1> {};
+  class IsNewTargetField
+      : public BitField<bool, IsRemovedFromUnresolvedField::kNext, 1> {};
+  class HoleCheckModeField
+      : public BitField<HoleCheckMode, IsNewTargetField::kNext, 1> {};
 
   union {
     const AstRawString* raw_name_;  // if !is_resolved_
@@ -1734,8 +1743,10 @@ class Call final : public Expression {
     arguments.CopyTo(&arguments_, zone);
   }
 
-  using IsPossiblyEvalField = BitField<bool, Expression::kNextBitFieldIndex, 1>;
-  using IsTaggedTemplateField = BitField<bool, IsPossiblyEvalField::kNext, 1>;
+  class IsPossiblyEvalField
+      : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
+  class IsTaggedTemplateField
+      : public BitField<bool, IsPossiblyEvalField::kNext, 1> {};
 
   Expression* expression_;
   ZonePtrList<Expression> arguments_;
@@ -1827,8 +1838,8 @@ class UnaryOperation final : public Expression {
 
   Expression* expression_;
 
-  using OperatorField =
-      BitField<Token::Value, Expression::kNextBitFieldIndex, 7>;
+  class OperatorField
+      : public BitField<Token::Value, Expression::kNextBitFieldIndex, 7> {};
 };
 
 
@@ -1854,8 +1865,8 @@ class BinaryOperation final : public Expression {
   Expression* left_;
   Expression* right_;
 
-  using OperatorField =
-      BitField<Token::Value, Expression::kNextBitFieldIndex, 7>;
+  class OperatorField
+      : public BitField<Token::Value, Expression::kNextBitFieldIndex, 7> {};
 };
 
 class NaryOperation final : public Expression {
@@ -1914,8 +1925,8 @@ class NaryOperation final : public Expression {
   };
   ZoneVector<NaryOperationEntry> subsequent_;
 
-  using OperatorField =
-      BitField<Token::Value, Expression::kNextBitFieldIndex, 7>;
+  class OperatorField
+      : public BitField<Token::Value, Expression::kNextBitFieldIndex, 7> {};
 };
 
 class CountOperation final : public Expression {
@@ -1935,8 +1946,9 @@ class CountOperation final : public Expression {
     bit_field_ |= IsPrefixField::encode(is_prefix) | TokenField::encode(op);
   }
 
-  using IsPrefixField = BitField<bool, Expression::kNextBitFieldIndex, 1>;
-  using TokenField = BitField<Token::Value, IsPrefixField::kNext, 7>;
+  class IsPrefixField
+      : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
+  class TokenField : public BitField<Token::Value, IsPrefixField::kNext, 7> {};
 
   Expression* expression_;
 };
@@ -1966,8 +1978,8 @@ class CompareOperation final : public Expression {
   Expression* left_;
   Expression* right_;
 
-  using OperatorField =
-      BitField<Token::Value, Expression::kNextBitFieldIndex, 7>;
+  class OperatorField
+      : public BitField<Token::Value, Expression::kNextBitFieldIndex, 7> {};
 };
 
 
@@ -2059,8 +2071,10 @@ class Assignment : public Expression {
  private:
   friend class AstNodeFactory;
 
-  using TokenField = BitField<Token::Value, Expression::kNextBitFieldIndex, 7>;
-  using LookupHoistingModeField = BitField<bool, TokenField::kNext, 1>;
+  class TokenField
+      : public BitField<Token::Value, Expression::kNextBitFieldIndex, 7> {};
+  class LookupHoistingModeField : public BitField<bool, TokenField::kNext, 1> {
+  };
 
   Expression* target_;
   Expression* value_;
@@ -2118,8 +2132,8 @@ class Suspend : public Expression {
 
   Expression* expression_;
 
-  using OnAbruptResumeField =
-      BitField<OnAbruptResume, Expression::kNextBitFieldIndex, 1>;
+  class OnAbruptResumeField
+      : public BitField<OnAbruptResume, Expression::kNextBitFieldIndex, 1> {};
 };
 
 class Yield final : public Suspend {
@@ -2356,17 +2370,17 @@ class FunctionLiteral final : public Expression {
     body.CopyTo(&body_, zone);
   }
 
-  using FunctionTypeBits =
-      BitField<FunctionType, Expression::kNextBitFieldIndex, 3>;
-  using Pretenure = BitField<bool, FunctionTypeBits::kNext, 1>;
-  using HasDuplicateParameters = BitField<bool, Pretenure::kNext, 1>;
-  using DontOptimizeReasonField =
-      BitField<BailoutReason, HasDuplicateParameters::kNext, 8>;
-  using RequiresInstanceMembersInitializer =
-      BitField<bool, DontOptimizeReasonField::kNext, 1>;
-  using HasBracesField =
-      BitField<bool, RequiresInstanceMembersInitializer::kNext, 1>;
-  using OneshotIIFEBit = BitField<bool, HasBracesField::kNext, 1>;
+  class FunctionTypeBits
+      : public BitField<FunctionType, Expression::kNextBitFieldIndex, 3> {};
+  class Pretenure : public BitField<bool, FunctionTypeBits::kNext, 1> {};
+  class HasDuplicateParameters : public BitField<bool, Pretenure::kNext, 1> {};
+  class DontOptimizeReasonField
+      : public BitField<BailoutReason, HasDuplicateParameters::kNext, 8> {};
+  class RequiresInstanceMembersInitializer
+      : public BitField<bool, DontOptimizeReasonField::kNext, 1> {};
+  class HasBracesField
+      : public BitField<bool, RequiresInstanceMembersInitializer::kNext, 1> {};
+  class OneshotIIFEBit : public BitField<bool, HasBracesField::kNext, 1> {};
 
   // expected_property_count_ is the sum of instance fields and properties.
   // It can vary depending on whether a function is lazily or eagerly parsed.
@@ -2511,12 +2525,12 @@ class ClassLiteral final : public Expression {
   ZonePtrList<Property>* properties_;
   FunctionLiteral* static_fields_initializer_;
   FunctionLiteral* instance_members_initializer_function_;
-  using HasNameStaticProperty =
-      BitField<bool, Expression::kNextBitFieldIndex, 1>;
-  using HasStaticComputedNames =
-      BitField<bool, HasNameStaticProperty::kNext, 1>;
-  using IsAnonymousExpression =
-      BitField<bool, HasStaticComputedNames::kNext, 1>;
+  class HasNameStaticProperty
+      : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
+  class HasStaticComputedNames
+      : public BitField<bool, HasNameStaticProperty::kNext, 1> {};
+  class IsAnonymousExpression
+      : public BitField<bool, HasStaticComputedNames::kNext, 1> {};
 };
 
 

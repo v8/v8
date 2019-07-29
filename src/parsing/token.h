@@ -215,8 +215,8 @@ class V8_EXPORT_PRIVATE Token {
     return name_[token];
   }
 
-  using IsKeywordBits = BitField8<bool, 0, 1>;
-  using IsPropertyNameBits = BitField8<bool, IsKeywordBits::kNext, 1>;
+  class IsKeywordBits : public BitField8<bool, 0, 1> {};
+  class IsPropertyNameBits : public BitField8<bool, IsKeywordBits::kNext, 1> {};
 
   // Predicates
   static bool IsKeyword(Value token) {

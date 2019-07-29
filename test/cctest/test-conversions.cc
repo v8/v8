@@ -312,10 +312,11 @@ TEST(ExponentNumberStr) {
   CHECK_EQ(1e-106, StringToDouble(".000001e-100", NO_FLAGS));
 }
 
-using OneBit1 = BitField<uint32_t, 0, 1>;
-using OneBit2 = BitField<uint32_t, 7, 1>;
-using EightBit1 = BitField<uint32_t, 0, 8>;
-using EightBit2 = BitField<uint32_t, 13, 8>;
+
+class OneBit1: public BitField<uint32_t, 0, 1> {};
+class OneBit2: public BitField<uint32_t, 7, 1> {};
+class EightBit1: public BitField<uint32_t, 0, 8> {};
+class EightBit2: public BitField<uint32_t, 13, 8> {};
 
 TEST(BitField) {
   uint32_t x;
@@ -350,8 +351,9 @@ TEST(BitField) {
   CHECK(!EightBit2::is_valid(256));
 }
 
-using UpperBits = BitField64<int, 61, 3>;
-using MiddleBits = BitField64<int, 31, 2>;
+
+class UpperBits: public BitField64<int, 61, 3> {};
+class MiddleBits: public BitField64<int, 31, 2> {};
 
 TEST(BitField64) {
   uint64_t x;

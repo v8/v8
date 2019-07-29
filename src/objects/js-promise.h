@@ -79,7 +79,7 @@ class JSPromise : public JSObject {
   static const int kStatusBits = 2;
   static const int kHasHandlerBit = 2;
   static const int kHandledHintBit = 3;
-  using AsyncTaskIdField = BitField<int, kHandledHintBit + 1, 22>;
+  class AsyncTaskIdField : public BitField<int, kHandledHintBit + 1, 22> {};
 
   static const int kStatusShift = 0;
   static const int kStatusMask = 0x3;

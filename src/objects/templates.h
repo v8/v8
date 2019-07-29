@@ -227,8 +227,9 @@ class ObjectTemplateInfo : public TemplateInfo {
   inline ObjectTemplateInfo GetParent(Isolate* isolate);
 
  private:
-  using IsImmutablePrototype = BitField<bool, 0, 1>;
-  using EmbedderFieldCount = BitField<int, IsImmutablePrototype::kNext, 29>;
+  class IsImmutablePrototype : public BitField<bool, 0, 1> {};
+  class EmbedderFieldCount
+      : public BitField<int, IsImmutablePrototype::kNext, 29> {};
 
   OBJECT_CONSTRUCTORS(ObjectTemplateInfo, TemplateInfo);
 };
