@@ -8067,7 +8067,7 @@ HashTable<NameDictionary, NameDictionaryShape>::Shrink(Isolate* isolate,
                                                        Handle<NameDictionary>,
                                                        int additionalCapacity);
 
-void JSFinalizationGroup::Cleanup(
+Maybe<bool> JSFinalizationGroup::Cleanup(
     Isolate* isolate, Handle<JSFinalizationGroup> finalization_group,
     Handle<Object> cleanup) {
   DCHECK(cleanup->IsCallable());
@@ -8088,23 +8088,17 @@ void JSFinalizationGroup::Cleanup(
               Handle<AllocationSite>::null()));
       iterator->set_finalization_group(*finalization_group);
     }
-
-    v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-    v8::Local<v8::Value> result;
-    MaybeHandle<Object> exception;
     Handle<Object> args[] = {iterator};
-    bool has_pending_exception = !ToLocal<Value>(
-        Execution::TryCall(
+    if (Execution::Call(
             isolate, cleanup,
-            handle(ReadOnlyRoots(isolate).undefined_value(), isolate), 1, args,
-            Execution::MessageHandling::kReport, &exception),
-        &result);
-    // TODO(marja): (spec): What if there's an exception?
-    USE(has_pending_exception);
-
+            handle(ReadOnlyRoots(isolate).undefined_value(), isolate), 1, args)
+            .is_null()) {
+      return Nothing<bool>();
+    }
     // TODO(marja): (spec): Should the iterator be invalidated after the
     // function returns?
   }
+  return Just(true);
 }
 
 MaybeHandle<FixedArray> JSReceiver::GetPrivateEntries(

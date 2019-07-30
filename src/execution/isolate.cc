@@ -56,6 +56,7 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-generator-inl.h"
+#include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/prototype.h"
@@ -4246,12 +4247,6 @@ void Isolate::FireCallCompletedCallback(MicrotaskQueue* microtask_queue) {
 
   if (run_microtasks) {
     microtask_queue->RunMicrotasks(this);
-  } else {
-    // TODO(marja): (spec) The discussion about when to clear the KeepDuringJob
-    // set is still open (whether to clear it after every microtask or once
-    // during a microtask checkpoint). See also
-    // https://github.com/tc39/proposal-weakrefs/issues/39 .
-    heap()->ClearKeptObjects();
   }
 
   if (call_completed_callbacks_.empty()) return;
@@ -4328,6 +4323,23 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
           v8::Utils::ToLocal(specifier_str)),
       MaybeHandle<JSPromise>());
   return v8::Utils::OpenHandle(*promise);
+}
+
+void Isolate::ClearKeptObjects() { heap()->ClearKeptObjects(); }
+
+void Isolate::SetHostCleanupFinalizationGroupCallback(
+    HostCleanupFinalizationGroupCallback callback) {
+  host_cleanup_finalization_group_callback_ = callback;
+}
+
+void Isolate::RunHostCleanupFinalizationGroupCallback(
+    Handle<JSFinalizationGroup> fg) {
+  if (host_cleanup_finalization_group_callback_ != nullptr) {
+    v8::Local<v8::Context> api_context =
+        v8::Utils::ToLocal(handle(Context::cast(fg->native_context()), this));
+    host_cleanup_finalization_group_callback_(api_context,
+                                              v8::Utils::ToLocal(fg));
+  }
 }
 
 void Isolate::SetHostImportModuleDynamicallyCallback(

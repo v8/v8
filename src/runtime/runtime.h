@@ -247,8 +247,7 @@ namespace internal {
   F(ThrowTypeError, -1 /* >= 1 */, 1)                \
   F(ThrowTypeErrorIfStrict, -1 /* >= 1 */, 1)        \
   F(Typeof, 1, 1)                                    \
-  F(UnwindAndFindExceptionHandler, 0, 1)             \
-  F(FinalizationGroupCleanupJob, 1, 1)
+  F(UnwindAndFindExceptionHandler, 0, 1)
 
 #define FOR_EACH_INTRINSIC_LITERALS(F, I)           \
   F(CreateArrayLiteral, 4, 1)                       \

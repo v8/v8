@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-weak-refs --expose-gc --noincremental-marking
+// Flags: --harmony-weak-refs --expose-gc --noincremental-marking --allow-natives-syntax
 
 // This test asserts that the cleanup function call, scheduled by GC, is a
 // microtask and not a normal task.
@@ -11,6 +11,8 @@
 // microtask).  lso schedule another microtask. Assert that the cleanup
 // function ran before the other microtask.
 
+let cleanedUp = false;
+
 function scheduleMicrotask(func) {
   Promise.resolve().then(func);
 }
@@ -18,7 +20,7 @@ function scheduleMicrotask(func) {
 let log = [];
 
 let cleanup = (iter) => {
-  log.push("cleanup");
+  cleanedUp = true;
   for (holdings of iter) { }
 }
 
@@ -32,25 +34,29 @@ let o = null;
   fg.register(o, {});
 })();
 
-let microtask_after_cleanup = () => {
-  log.push("microtask_after_cleanup");
-}
-
-let first_microtask = function() {
+let microtask = function() {
   log.push("first_microtask");
 
-  // This schedules the cleanup function as microtask.
+  // cause GC during a microtask
   o = null;
   gc();
-
-  // Schedule a microtask which should run after the cleanup microtask.
-  scheduleMicrotask(microtask_after_cleanup);
 }
 
-scheduleMicrotask(first_microtask);
+assertFalse(cleanedUp);
+
+// enqueue microtask that triggers GC
+Promise.resolve().then(microtask);
+
+// but cleanup callback hasn't been called yet, as we're still in
+// synchronous execution
+assertFalse(cleanedUp);
+
+// flush the microtask queue to run the microtask that triggers GC
+%PerformMicrotaskCheckpoint();
+
+// still no cleanup callback, because it runs after as a separate task
+assertFalse(cleanedUp);
 
 setTimeout(() => {
-  // Assert that the functions got called in the right order.
-  let wanted_log = ["first_microtask", "cleanup", "microtask_after_cleanup"];
-  assertEquals(wanted_log, log);
+  assertTrue(cleanedUp);
 }, 0);

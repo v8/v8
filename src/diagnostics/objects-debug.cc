@@ -1301,12 +1301,6 @@ void JSFinalizationGroupCleanupIterator::
   VerifyHeapPointer(isolate, finalization_group());
 }
 
-void FinalizationGroupCleanupJobTask::FinalizationGroupCleanupJobTaskVerify(
-    Isolate* isolate) {
-  CHECK(IsFinalizationGroupCleanupJobTask());
-  CHECK(finalization_group().IsJSFinalizationGroup());
-}
-
 void JSWeakMap::JSWeakMapVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSWeakMapVerify(*this, isolate);
   CHECK(table().IsEphemeronHashTable() || table().IsUndefined(isolate));

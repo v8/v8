@@ -43,7 +43,6 @@ class BigInt;
 class CallInterfaceDescriptor;
 class Callable;
 class Factory;
-class FinalizationGroupCleanupJobTask;
 class InterpreterData;
 class Isolate;
 class JSAsyncFunctionObject;

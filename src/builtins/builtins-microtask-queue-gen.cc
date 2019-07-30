@@ -131,21 +131,15 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
       is_promise_fulfill_reaction_job(this),
       is_promise_reject_reaction_job(this),
       is_promise_resolve_thenable_job(this),
-      is_finalization_group_cleanup_job(this),
       is_unreachable(this, Label::kDeferred), done(this);
 
-  int32_t case_values[] = {CALLABLE_TASK_TYPE,
-                           CALLBACK_TASK_TYPE,
+  int32_t case_values[] = {CALLABLE_TASK_TYPE, CALLBACK_TASK_TYPE,
                            PROMISE_FULFILL_REACTION_JOB_TASK_TYPE,
                            PROMISE_REJECT_REACTION_JOB_TASK_TYPE,
-                           PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE,
-                           FINALIZATION_GROUP_CLEANUP_JOB_TASK_TYPE};
-  Label* case_labels[] = {&is_callable,
-                          &is_callback,
-                          &is_promise_fulfill_reaction_job,
-                          &is_promise_reject_reaction_job,
-                          &is_promise_resolve_thenable_job,
-                          &is_finalization_group_cleanup_job};
+                           PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE};
+  Label* case_labels[] = {
+      &is_callable, &is_callback, &is_promise_fulfill_reaction_job,
+      &is_promise_reject_reaction_job, &is_promise_resolve_thenable_job};
   static_assert(arraysize(case_values) == arraysize(case_labels), "");
   Switch(microtask_type, &is_unreachable, case_values, case_labels,
          arraysize(case_labels));
@@ -278,26 +272,6 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     RunPromiseHook(Runtime::kPromiseHookAfter, microtask_context,
                    promise_or_capability);
 
-    RewindEnteredContext(saved_entered_context_count);
-    SetCurrentContext(current_context);
-    Goto(&done);
-  }
-
-  BIND(&is_finalization_group_cleanup_job);
-  {
-    // Enter the context of the {finalization_group}.
-    TNode<JSFinalizationGroup> finalization_group =
-        LoadObjectField<JSFinalizationGroup>(
-            microtask,
-            FinalizationGroupCleanupJobTask::kFinalizationGroupOffset);
-    TNode<Context> native_context = LoadObjectField<Context>(
-        finalization_group, JSFinalizationGroup::kNativeContextOffset);
-    PrepareForContext(native_context, &done);
-
-    Node* const result = CallRuntime(Runtime::kFinalizationGroupCleanupJob,
-                                     native_context, finalization_group);
-
-    GotoIfException(result, &if_exception, &var_exception);
     RewindEnteredContext(saved_entered_context_count);
     SetCurrentContext(current_context);
     Goto(&done);

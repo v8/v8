@@ -1179,16 +1179,9 @@ void Heap::GarbageCollectionEpilogue() {
   }
 
   if (FLAG_harmony_weak_refs) {
-    // TODO(marja): (spec): The exact condition on when to schedule the cleanup
-    // task is unclear. This version schedules the cleanup task for a
-    // JSFinalizationGroup whenever the GC has discovered new dirty WeakCells
-    // for it (at that point it might have leftover dirty WeakCells since an
-    // earlier invocation of the cleanup function didn't iterate through
-    // them). See https://github.com/tc39/proposal-weakrefs/issues/34
     HandleScope handle_scope(isolate());
     while (!isolate()->heap()->dirty_js_finalization_groups().IsUndefined(
         isolate())) {
-      // Enqueue one microtask per JSFinalizationGroup.
       Handle<JSFinalizationGroup> finalization_group(
           JSFinalizationGroup::cast(
               isolate()->heap()->dirty_js_finalization_groups()),
@@ -1196,22 +1189,7 @@ void Heap::GarbageCollectionEpilogue() {
       isolate()->heap()->set_dirty_js_finalization_groups(
           finalization_group->next());
       finalization_group->set_next(ReadOnlyRoots(isolate()).undefined_value());
-      Handle<NativeContext> context(finalization_group->native_context(),
-                                    isolate());
-      // GC has no native context, but we use the creation context of the
-      // JSFinalizationGroup for the EnqueueTask operation. This is consitent
-      // with the Promise implementation, assuming the JSFinalizationGroup's
-      // creation context is the "caller's context" in promise functions. An
-      // alternative would be to use the native context of the cleanup
-      // function. This difference shouldn't be observable from JavaScript,
-      // since we enter the native context of the cleanup function before
-      // calling it. TODO(marja): Revisit when the spec clarifies this. See also
-      // https://github.com/tc39/proposal-weakrefs/issues/38 .
-      Handle<FinalizationGroupCleanupJobTask> task =
-          isolate()->factory()->NewFinalizationGroupCleanupJobTask(
-              finalization_group);
-      MicrotaskQueue* microtask_queue = context->microtask_queue();
-      if (microtask_queue) microtask_queue->EnqueueMicrotask(*task);
+      isolate()->RunHostCleanupFinalizationGroupCallback(finalization_group);
     }
   }
 }

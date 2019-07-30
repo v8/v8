@@ -565,6 +565,9 @@
   # https://github.com/tc39/test262/issues/2255
   'built-ins/FinalizationGroup/prototype/cleanupSome/iterator-holdings-multiple-values': [FAIL],
 
+  # https://github.com/tc39/test262/issues/2260
+  'built-ins/FinalizationGroup/prototype/cleanupSome/return-undefined-with-gc': [FAIL],
+
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833

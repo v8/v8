@@ -1340,7 +1340,17 @@ void JSFinalizationGroup::JSFinalizationGroupPrint(std::ostream& os) {
   os << "\n - native_context: " << Brief(native_context());
   os << "\n - cleanup: " << Brief(cleanup());
   os << "\n - active_cells: " << Brief(active_cells());
+  Object active_cell = active_cells();
+  while (active_cell.IsWeakCell()) {
+    os << "\n   - " << Brief(active_cell);
+    active_cell = WeakCell::cast(active_cell).next();
+  }
   os << "\n - cleared_cells: " << Brief(cleared_cells());
+  Object cleared_cell = cleared_cells();
+  while (cleared_cell.IsWeakCell()) {
+    os << "\n   - " << Brief(cleared_cell);
+    cleared_cell = WeakCell::cast(cleared_cell).next();
+  }
   os << "\n - key_map: " << Brief(key_map());
   JSObjectPrintBody(os, *this);
 }
@@ -1350,12 +1360,6 @@ void JSFinalizationGroupCleanupIterator::
   JSObjectPrintHeader(os, *this, "JSFinalizationGroupCleanupIterator");
   os << "\n - finalization_group: " << Brief(finalization_group());
   JSObjectPrintBody(os, *this);
-}
-
-void FinalizationGroupCleanupJobTask::FinalizationGroupCleanupJobTaskPrint(
-    std::ostream& os) {
-  PrintHeader(os, "FinalizationGroupCleanupJobTask");
-  os << "\n - finalization_group: " << Brief(finalization_group());
 }
 
 void JSWeakMap::JSWeakMapPrint(std::ostream& os) {  // NOLINT
