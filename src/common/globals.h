@@ -1060,6 +1060,25 @@ enum class VariableMode : uint8_t {
                   // has been shadowed by an eval-introduced
                   // variable
 
+  // Variables for private methods or accessors whose access require
+  // brand check. Declared only in class scopes by the compiler
+  // and allocated only in class contexts:
+  kPrivateMethod,  // Does not coexist with any other variable with the same
+                   // name in the same scope.
+
+  kPrivateSetterOnly,  // Incompatible with variables with the same name but
+                       // any mode other than kPrivateGetterOnly. Transition to
+                       // kPrivateGetterAndSetter if a later declaration for the
+                       // same name with kPrivateGetterOnly is made.
+
+  kPrivateGetterOnly,  // Incompatible with variables with the same name but
+                       // any mode other than kPrivateSetterOnly. Transition to
+                       // kPrivateGetterAndSetter if a later declaration for the
+                       // same name with kPrivateSetterOnly is made.
+
+  kPrivateGetterAndSetter,  // Does not coexist with any other variable with the
+                            // same name in the same scope.
+
   kLastLexicalVariableMode = kConst,
 };
 
@@ -1071,6 +1090,14 @@ inline const char* VariableMode2String(VariableMode mode) {
       return "VAR";
     case VariableMode::kLet:
       return "LET";
+    case VariableMode::kPrivateGetterOnly:
+      return "PRIVATE_GETTER_ONLY";
+    case VariableMode::kPrivateSetterOnly:
+      return "PRIVATE_SETTER_ONLY";
+    case VariableMode::kPrivateMethod:
+      return "PRIVATE_METHOD";
+    case VariableMode::kPrivateGetterAndSetter:
+      return "PRIVATE_GETTER_AND_SETTER";
     case VariableMode::kConst:
       return "CONST";
     case VariableMode::kDynamic:
@@ -1102,6 +1129,21 @@ inline bool IsDeclaredVariableMode(VariableMode mode) {
   STATIC_ASSERT(static_cast<uint8_t>(VariableMode::kLet) ==
                 0);  // Implies that mode >= VariableMode::kLet.
   return mode <= VariableMode::kVar;
+}
+
+inline bool IsPrivateMethodOrAccessorVariableMode(VariableMode mode) {
+  return mode >= VariableMode::kPrivateMethod &&
+         mode <= VariableMode::kPrivateGetterAndSetter;
+}
+
+inline bool IsSerializableVariableMode(VariableMode mode) {
+  return IsDeclaredVariableMode(mode) ||
+         IsPrivateMethodOrAccessorVariableMode(mode);
+}
+
+inline bool IsConstVariableMode(VariableMode mode) {
+  return mode == VariableMode::kConst ||
+         IsPrivateMethodOrAccessorVariableMode(mode);
 }
 
 inline bool IsLexicalVariableMode(VariableMode mode) {
@@ -1167,8 +1209,6 @@ enum VariableLocation : uint8_t {
 enum InitializationFlag : uint8_t { kNeedsInitialization, kCreatedInitialized };
 
 enum MaybeAssignedFlag : uint8_t { kNotAssigned, kMaybeAssigned };
-
-enum RequiresBrandCheckFlag : uint8_t { kNoBrandCheck, kRequiresBrandCheck };
 
 enum class InterpreterPushArgsMode : unsigned {
   kArrayFunction,

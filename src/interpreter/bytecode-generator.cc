@@ -2005,9 +2005,11 @@ void BytecodeGenerator::BuildPrivateClassMemberNameAssignment(
                               HoleCheckMode::kElided);
       break;
     }
-    default:
+    case ClassLiteral::Property::GETTER:
+    case ClassLiteral::Property::SETTER: {
       // TODO(joyee): Private accessors are not yet supported.
-      UNREACHABLE();
+      // Make them noops for now.
+    }
   }
 }
 
@@ -3017,6 +3019,7 @@ void BytecodeGenerator::BuildThrowIfHole(Variable* variable) {
 
 void BytecodeGenerator::BuildHoleCheckForVariableAssignment(Variable* variable,
                                                             Token::Value op) {
+  DCHECK(!IsPrivateMethodOrAccessorVariableMode(variable->mode()));
   if (variable->is_this() && variable->mode() == VariableMode::kConst &&
       op == Token::INIT) {
     // Perform an initialization check for 'this'. 'this' variable is the
@@ -3201,10 +3204,10 @@ BytecodeGenerator::AssignmentLhsData::NamedSuperProperty(
 }
 // static
 BytecodeGenerator::AssignmentLhsData
-BytecodeGenerator::AssignmentLhsData::PrivateMethod(Register object,
-                                                    const AstRawString* name) {
-  return AssignmentLhsData(PRIVATE_METHOD, nullptr, RegisterList(), object,
-                           Register(), nullptr, name);
+BytecodeGenerator::AssignmentLhsData::PrivateMethodOrAccessor(
+    AssignType type, Property* property) {
+  return AssignmentLhsData(type, property, RegisterList(), Register(),
+                           Register(), nullptr, nullptr);
 }
 // static
 BytecodeGenerator::AssignmentLhsData
@@ -3237,12 +3240,12 @@ BytecodeGenerator::AssignmentLhsData BytecodeGenerator::PrepareAssignmentLhs(
       Register key = VisitForRegisterValue(property->key());
       return AssignmentLhsData::KeyedProperty(object, key);
     }
-    case PRIVATE_METHOD: {
+    case PRIVATE_METHOD:
+    case PRIVATE_GETTER_ONLY:
+    case PRIVATE_SETTER_ONLY:
+    case PRIVATE_GETTER_AND_SETTER: {
       DCHECK(!property->IsSuperAccess());
-      AccumulatorPreservingScope scope(this, accumulator_preserving_mode);
-      Register object = VisitForRegisterValue(property->obj());
-      const AstRawString* name = property->key()->AsVariableProxy()->raw_name();
-      return AssignmentLhsData::PrivateMethod(object, name);
+      return AssignmentLhsData::PrivateMethodOrAccessor(assign_type, property);
     }
     case NAMED_SUPER_PROPERTY: {
       AccumulatorPreservingScope scope(this, accumulator_preserving_mode);
@@ -3799,8 +3802,15 @@ void BytecodeGenerator::BuildAssignment(
       break;
     }
     case PRIVATE_METHOD: {
-      BuildThrowPrivateMethodWriteError(lhs_data.name());
+      BuildThrowPrivateMethodWriteError(
+          lhs_data.expr()->AsProperty()->key()->AsVariableProxy()->raw_name());
       break;
+    }
+    case PRIVATE_GETTER_ONLY:
+    case PRIVATE_SETTER_ONLY:
+    case PRIVATE_GETTER_AND_SETTER: {
+      // TODO(joyee): implement private accessors.
+      return;
     }
   }
 }
@@ -3848,10 +3858,18 @@ void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
       break;
     }
     case PRIVATE_METHOD: {
-      BuildThrowPrivateMethodWriteError(lhs_data.name());
+      BuildThrowPrivateMethodWriteError(
+          lhs_data.expr()->AsProperty()->key()->AsVariableProxy()->raw_name());
       break;
     }
+    case PRIVATE_SETTER_ONLY:
+    case PRIVATE_GETTER_ONLY:
+    case PRIVATE_GETTER_AND_SETTER: {
+      // TODO(joyee): implement private accessors.
+      return;
+    }
   }
+
   BinaryOperation* binop = expr->AsCompoundAssignment()->binary_operation();
   FeedbackSlot slot = feedback_spec()->AddBinaryOpICSlot();
   if (expr->value()->IsSmiLiteral()) {
@@ -4324,6 +4342,12 @@ void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* property) {
       // loaded (stored in a context slot), so load this directly.
       VisitForAccumulatorValue(property->key());
       break;
+    }
+    case PRIVATE_SETTER_ONLY:
+    case PRIVATE_GETTER_ONLY:
+    case PRIVATE_GETTER_AND_SETTER: {
+      // TODO(joyee): implement private accessors.
+      return;
     }
   }
 }
@@ -4879,6 +4903,12 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
           property->key()->AsVariableProxy()->raw_name());
       break;
     }
+    case PRIVATE_GETTER_ONLY:
+    case PRIVATE_SETTER_ONLY:
+    case PRIVATE_GETTER_AND_SETTER: {
+      // TODO(joyee): implement private accessors.
+      return;
+    }
   }
 
   // Save result for postfix expressions.
@@ -4949,6 +4979,12 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
       BuildThrowPrivateMethodWriteError(
           property->key()->AsVariableProxy()->raw_name());
       break;
+    }
+    case PRIVATE_GETTER_ONLY:
+    case PRIVATE_SETTER_ONLY:
+    case PRIVATE_GETTER_AND_SETTER: {
+      // TODO(joyee): implement private accessors.
+      UNREACHABLE();
     }
   }
 

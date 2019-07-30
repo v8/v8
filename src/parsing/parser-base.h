@@ -625,9 +625,17 @@ class ParserBase {
     }
   }
 
-  RequiresBrandCheckFlag RequiresBrandCheck(ClassLiteralProperty::Kind kind) {
-    return kind == ClassLiteralProperty::Kind::FIELD ? kNoBrandCheck
-                                                     : kRequiresBrandCheck;
+  VariableMode GetVariableMode(ClassLiteralProperty::Kind kind) {
+    switch (kind) {
+      case ClassLiteralProperty::Kind::FIELD:
+        return VariableMode::kConst;
+      case ClassLiteralProperty::Kind::METHOD:
+        return VariableMode::kPrivateMethod;
+      case ClassLiteralProperty::Kind::GETTER:
+        return VariableMode::kPrivateGetterOnly;
+      case ClassLiteralProperty::Kind::SETTER:
+        return VariableMode::kPrivateSetterOnly;
+    }
   }
 
   const AstRawString* ClassFieldVariableName(AstValueFactory* ast_value_factory,

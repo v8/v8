@@ -1605,12 +1605,15 @@ class VariableProxy final : public Expression {
 // Otherwise, the assignment is to a non-property (a global, a local slot, a
 // parameter slot, or a destructuring pattern).
 enum AssignType {
-  NON_PROPERTY,          // destructuring
-  NAMED_PROPERTY,        // obj.key
-  KEYED_PROPERTY,        // obj[key]
-  NAMED_SUPER_PROPERTY,  // super.key
-  KEYED_SUPER_PROPERTY,  // super[key]
-  PRIVATE_METHOD         // obj.#key: #key is a private method
+  NON_PROPERTY,              // destructuring
+  NAMED_PROPERTY,            // obj.key
+  KEYED_PROPERTY,            // obj[key]
+  NAMED_SUPER_PROPERTY,      // super.key
+  KEYED_SUPER_PROPERTY,      // super[key]
+  PRIVATE_METHOD,            // obj.#key: #key is a private method
+  PRIVATE_GETTER_ONLY,       // obj.#key: #key only has a getter defined
+  PRIVATE_SETTER_ONLY,       // obj.#key: #key only has a setter defined
+  PRIVATE_GETTER_AND_SETTER  // obj.#key: #key has both accessors defined
 };
 
 class Property final : public Expression {
@@ -1631,8 +1634,21 @@ class Property final : public Expression {
       VariableProxy* proxy = property->key()->AsVariableProxy();
       DCHECK_NOT_NULL(proxy);
       Variable* var = proxy->var();
-      // Use KEYED_PROPERTY for private fields.
-      return var->requires_brand_check() ? PRIVATE_METHOD : KEYED_PROPERTY;
+
+      switch (var->mode()) {
+        case VariableMode::kPrivateMethod:
+          return PRIVATE_METHOD;
+        case VariableMode::kConst:
+          return KEYED_PROPERTY;  // Use KEYED_PROPERTY for private fields.
+        case VariableMode::kPrivateGetterOnly:
+          return PRIVATE_GETTER_ONLY;
+        case VariableMode::kPrivateSetterOnly:
+          return PRIVATE_SETTER_ONLY;
+        case VariableMode::kPrivateGetterAndSetter:
+          return PRIVATE_GETTER_AND_SETTER;
+        default:
+          UNREACHABLE();
+      }
     }
     bool super_access = property->IsSuperAccess();
     return (property->key()->IsPropertyName())

@@ -130,9 +130,6 @@ class ScopeInfo : public FixedArray {
   // Return the initialization flag of the given context local.
   MaybeAssignedFlag ContextLocalMaybeAssignedFlag(int var) const;
 
-  // Return whether access to the variable requries a brand check.
-  RequiresBrandCheckFlag RequiresBrandCheck(int var) const;
-
   // Return true if this local was introduced by the compiler, and should not be
   // exposed to the user in a debugger.
   static bool VariableIsSynthetic(String name);
@@ -144,8 +141,7 @@ class ScopeInfo : public FixedArray {
   // mode for that variable.
   static int ContextSlotIndex(ScopeInfo scope_info, String name,
                               VariableMode* mode, InitializationFlag* init_flag,
-                              MaybeAssignedFlag* maybe_assigned_flag,
-                              RequiresBrandCheckFlag* requires_brand_check);
+                              MaybeAssignedFlag* maybe_assigned_flag);
 
   // Lookup metadata of a MODULE-allocated variable.  Return 0 if there is no
   // module variable with the given name (the index value of a MODULE variable
@@ -316,13 +312,13 @@ class ScopeInfo : public FixedArray {
   static const int kPositionInfoEntries = 2;
 
   // Properties of variables.
-  using VariableModeField = BitField<VariableMode, 0, 3>;
-  using InitFlagField = BitField<InitializationFlag, 3, 1>;
-  using MaybeAssignedFlagField = BitField<MaybeAssignedFlag, 4, 1>;
-  using RequiresBrandCheckField =
-      BitField<RequiresBrandCheckFlag, MaybeAssignedFlagField::kNext, 1>;
+  using VariableModeField = BitField<VariableMode, 0, 4>;
+  using InitFlagField =
+      BitField<InitializationFlag, VariableModeField::kNext, 1>;
+  using MaybeAssignedFlagField =
+      BitField<MaybeAssignedFlag, InitFlagField::kNext, 1>;
   using ParameterNumberField =
-      BitField<uint32_t, RequiresBrandCheckField::kNext, 16>;
+      BitField<uint32_t, MaybeAssignedFlagField::kNext, 16>;
 
   friend class ScopeIterator;
   friend std::ostream& operator<<(std::ostream& os,

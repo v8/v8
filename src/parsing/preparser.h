@@ -1101,16 +1101,18 @@ class PreParser : public ParserBase<PreParser> {
     // Don't bother actually binding the proxy.
   }
 
-  Variable* DeclarePrivateVariableName(
-      const AstRawString* name, ClassScope* scope,
-      RequiresBrandCheckFlag requires_brand_check, bool* was_added) {
-    return scope->DeclarePrivateName(name, requires_brand_check, was_added);
+  Variable* DeclarePrivateVariableName(const AstRawString* name,
+                                       ClassScope* scope, VariableMode mode,
+                                       bool* was_added) {
+    DCHECK(IsConstVariableMode(mode));
+    return scope->DeclarePrivateName(name, mode, was_added);
   }
 
   Variable* DeclareVariableName(const AstRawString* name, VariableMode mode,
                                 Scope* scope, bool* was_added,
                                 int position = kNoSourcePosition,
                                 VariableKind kind = NORMAL_VARIABLE) {
+    DCHECK(!IsPrivateMethodOrAccessorVariableMode(mode));
     Variable* var = scope->DeclareVariableName(name, mode, was_added, kind);
     if (var == nullptr) {
       ReportUnidentifiableError();
@@ -1250,16 +1252,10 @@ class PreParser : public ParserBase<PreParser> {
       ClassScope* scope, const PreParserIdentifier& property_name,
       const PreParserExpression& property, ClassLiteralProperty::Kind kind,
       bool is_static, ClassInfo* class_info) {
-    // TODO(joyee): We do not support private accessors yet (which allow
-    // declaring the same private name twice). Make them noops.
-    if (kind != ClassLiteralProperty::Kind::FIELD &&
-        kind != ClassLiteralProperty::Kind::METHOD) {
-      return;
-    }
     bool was_added;
 
     DeclarePrivateVariableName(property_name.string_, scope,
-                               RequiresBrandCheck(kind), &was_added);
+                               GetVariableMode(kind), &was_added);
     if (!was_added) {
       Scanner::Location loc(property.position(), property.position() + 1);
       ReportMessageAt(loc, MessageTemplate::kVarRedeclaration,

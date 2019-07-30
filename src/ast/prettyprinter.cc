@@ -1289,6 +1289,18 @@ void AstPrinter::VisitProperty(Property* node) {
       PrintIndentedVisit("PRIVATE_METHOD", node->key());
       break;
     }
+    case PRIVATE_GETTER_ONLY: {
+      PrintIndentedVisit("PRIVATE_GETTER_ONLY", node->key());
+      break;
+    }
+    case PRIVATE_SETTER_ONLY: {
+      PrintIndentedVisit("PRIVATE_SETTER_ONLY", node->key());
+      break;
+    }
+    case PRIVATE_GETTER_AND_SETTER: {
+      PrintIndentedVisit("PRIVATE_GETTER_AND_SETTER", node->key());
+      break;
+    }
     case KEYED_PROPERTY:
     case KEYED_SUPER_PROPERTY: {
       PrintIndentedVisit("KEY", node->key());

@@ -40,7 +40,6 @@ Variable* VariableMap::Declare(Zone* zone, Scope* scope,
                                VariableKind kind,
                                InitializationFlag initialization_flag,
                                MaybeAssignedFlag maybe_assigned_flag,
-                               RequiresBrandCheckFlag requires_brand_check,
                                bool* was_added) {
   // AstRawStrings are unambiguous, i.e., the same string is always represented
   // by the same AstRawString*.
@@ -52,9 +51,8 @@ Variable* VariableMap::Declare(Zone* zone, Scope* scope,
   if (*was_added) {
     // The variable has not been declared yet -> insert it.
     DCHECK_EQ(name, p->key);
-    Variable* variable =
-        new (zone) Variable(scope, name, mode, kind, initialization_flag,
-                            maybe_assigned_flag, requires_brand_check);
+    Variable* variable = new (zone) Variable(
+        scope, name, mode, kind, initialization_flag, maybe_assigned_flag);
     p->value = variable;
   }
   return reinterpret_cast<Variable*>(p->value);
@@ -787,13 +785,11 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   VariableMode mode;
   InitializationFlag init_flag;
   MaybeAssignedFlag maybe_assigned_flag;
-  RequiresBrandCheckFlag requires_brand_check = kNoBrandCheck;
 
   {
     location = VariableLocation::CONTEXT;
     index = ScopeInfo::ContextSlotIndex(*scope_info_, name_handle, &mode,
-                                        &init_flag, &maybe_assigned_flag,
-                                        &requires_brand_check);
+                                        &init_flag, &maybe_assigned_flag);
     found = index >= 0;
   }
 
@@ -818,9 +814,9 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   }
 
   bool was_added;
-  Variable* var = cache->variables_.Declare(
-      zone(), this, name, mode, NORMAL_VARIABLE, init_flag, maybe_assigned_flag,
-      requires_brand_check, &was_added);
+  Variable* var =
+      cache->variables_.Declare(zone(), this, name, mode, NORMAL_VARIABLE,
+                                init_flag, maybe_assigned_flag, &was_added);
   DCHECK(was_added);
   var->AllocateTo(location, index);
   return var;
@@ -873,6 +869,8 @@ Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
                               VariableKind kind, bool* was_added,
                               InitializationFlag init_flag) {
   DCHECK(!already_resolved_);
+  // Private methods should be declared with ClassScope::DeclarePrivateName()
+  DCHECK(!IsPrivateMethodOrAccessorVariableMode(mode));
   // This function handles VariableMode::kVar, VariableMode::kLet, and
   // VariableMode::kConst modes.  VariableMode::kDynamic variables are
   // introduced during variable allocation, and VariableMode::kTemporary
@@ -905,6 +903,8 @@ Variable* Scope::DeclareVariable(
     VariableMode mode, VariableKind kind, InitializationFlag init,
     bool* was_added, bool* sloppy_mode_block_scope_function_redefinition,
     bool* ok) {
+  // Private methods should be declared with ClassScope::DeclarePrivateName()
+  DCHECK(!IsPrivateMethodOrAccessorVariableMode(mode));
   DCHECK(IsDeclaredVariableMode(mode));
   DCHECK(!already_resolved_);
   DCHECK(!GetDeclarationScope()->is_being_lazily_parsed());
@@ -990,7 +990,8 @@ Variable* Scope::DeclareVariableName(const AstRawString* name,
   DCHECK(IsDeclaredVariableMode(mode));
   DCHECK(!already_resolved_);
   DCHECK(GetDeclarationScope()->is_being_lazily_parsed());
-
+  // Private methods should be declared with ClassScope::DeclarePrivateName()
+  DCHECK(!IsPrivateMethodOrAccessorVariableMode(mode));
   if (mode == VariableMode::kVar && !is_declaration_scope()) {
     return GetDeclarationScope()->DeclareVariableName(name, mode, was_added,
                                                       kind);
@@ -1044,7 +1045,7 @@ Variable* DeclarationScope::DeclareDynamicGlobal(const AstRawString* name,
   bool was_added;
   return cache->variables_.Declare(
       zone(), this, name, VariableMode::kDynamicGlobal, kind,
-      kCreatedInitialized, kNotAssigned, kNoBrandCheck, &was_added);
+      kCreatedInitialized, kNotAssigned, &was_added);
   // TODO(neis): Mark variable as maybe-assigned?
 }
 
@@ -1596,10 +1597,6 @@ void PrintVar(int indent, Variable* var) {
     if (comma) PrintF(", ");
     PrintF("hole initialization elided");
   }
-  if (var->requires_brand_check()) {
-    if (comma) PrintF(", ");
-    PrintF("requires brand check");
-  }
   PrintF("\n");
 }
 
@@ -1774,9 +1771,9 @@ Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
   // Declare a new non-local.
   DCHECK(IsDynamicVariableMode(mode));
   bool was_added;
-  Variable* var = variables_.Declare(zone(), this, name, mode, NORMAL_VARIABLE,
-                                     kCreatedInitialized, kNotAssigned,
-                                     kNoBrandCheck, &was_added);
+  Variable* var =
+      variables_.Declare(zone(), this, name, mode, NORMAL_VARIABLE,
+                         kCreatedInitialized, kNotAssigned, &was_added);
   // Allocate it by giving it a dynamic lookup.
   var->AllocateTo(VariableLocation::LOOKUP, -1);
   return var;
@@ -2081,11 +2078,14 @@ bool Scope::MustAllocateInContext(Variable* var) {
   //
   // Temporary variables are always stack-allocated.  Catch-bound variables are
   // always context-allocated.
-  if (var->mode() == VariableMode::kTemporary) return false;
+  VariableMode mode = var->mode();
+  if (mode == VariableMode::kTemporary) return false;
   if (is_catch_scope()) return true;
-  if ((is_script_scope() || is_eval_scope()) &&
-      IsLexicalVariableMode(var->mode())) {
-    return true;
+  if (is_script_scope() || is_eval_scope()) {
+    if (IsLexicalVariableMode(mode) ||
+        IsPrivateMethodOrAccessorVariableMode(mode)) {
+      return true;
+    }
   }
   return var->has_forced_context_allocation() || inner_scope_calls_eval_;
 }
@@ -2326,15 +2326,28 @@ int Scope::ContextLocalCount() const {
          (is_function_var_in_context ? 1 : 0);
 }
 
-Variable* ClassScope::DeclarePrivateName(
-    const AstRawString* name, RequiresBrandCheckFlag requires_brand_check,
-    bool* was_added) {
+bool IsComplementaryAccessorPair(VariableMode a, VariableMode b) {
+  switch (a) {
+    case VariableMode::kPrivateGetterOnly:
+      return b == VariableMode::kPrivateSetterOnly;
+    case VariableMode::kPrivateSetterOnly:
+      return b == VariableMode::kPrivateGetterOnly;
+    default:
+      return false;
+  }
+}
+
+Variable* ClassScope::DeclarePrivateName(const AstRawString* name,
+                                         VariableMode mode, bool* was_added) {
   Variable* result = EnsureRareData()->private_name_map.Declare(
-      zone(), this, name, VariableMode::kConst, NORMAL_VARIABLE,
+      zone(), this, name, mode, NORMAL_VARIABLE,
       InitializationFlag::kNeedsInitialization,
-      MaybeAssignedFlag::kMaybeAssigned, requires_brand_check, was_added);
+      MaybeAssignedFlag::kMaybeAssigned, was_added);
   if (*was_added) {
     locals_.Add(result);
+  } else if (IsComplementaryAccessorPair(result->mode(), mode)) {
+    *was_added = true;
+    result->set_mode(VariableMode::kPrivateGetterAndSetter);
   }
   result->ForceContextAllocation();
   return result;
@@ -2416,22 +2429,20 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
   VariableMode mode;
   InitializationFlag init_flag;
   MaybeAssignedFlag maybe_assigned_flag;
-  RequiresBrandCheckFlag requires_brand_check;
-  int index =
-      ScopeInfo::ContextSlotIndex(*scope_info_, name_handle, &mode, &init_flag,
-                                  &maybe_assigned_flag, &requires_brand_check);
+  int index = ScopeInfo::ContextSlotIndex(*scope_info_, name_handle, &mode,
+                                          &init_flag, &maybe_assigned_flag);
   if (index < 0) {
     return nullptr;
   }
 
-  DCHECK_EQ(mode, VariableMode::kConst);
+  DCHECK(IsConstVariableMode(mode));
   DCHECK_EQ(init_flag, InitializationFlag::kNeedsInitialization);
   DCHECK_EQ(maybe_assigned_flag, MaybeAssignedFlag::kMaybeAssigned);
 
   // Add the found private name to the map to speed up subsequent
   // lookups for the same name.
   bool was_added;
-  Variable* var = DeclarePrivateName(name, requires_brand_check, &was_added);
+  Variable* var = DeclarePrivateName(name, mode, &was_added);
   DCHECK(was_added);
   var->AllocateTo(VariableLocation::CONTEXT, index);
   return var;

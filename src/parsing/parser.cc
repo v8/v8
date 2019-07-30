@@ -2782,15 +2782,15 @@ Variable* Parser::CreateSyntheticContextVariable(const AstRawString* name) {
   return proxy->var();
 }
 
-Variable* Parser::CreatePrivateNameVariable(
-    ClassScope* scope, RequiresBrandCheckFlag requires_brand_check,
-    const AstRawString* name) {
+Variable* Parser::CreatePrivateNameVariable(ClassScope* scope,
+                                            VariableMode mode,
+                                            const AstRawString* name) {
   DCHECK_NOT_NULL(name);
   int begin = position();
   int end = end_position();
   bool was_added = false;
-  Variable* var =
-      scope->DeclarePrivateName(name, requires_brand_check, &was_added);
+  DCHECK(IsConstVariableMode(mode));
+  Variable* var = scope->DeclarePrivateName(name, mode, &was_added);
   if (!was_added) {
     Scanner::Location loc(begin, end);
     ReportMessageAt(loc, MessageTemplate::kVarRedeclaration, var->raw_name());
@@ -2825,14 +2825,8 @@ void Parser::DeclarePrivateClassMember(ClassScope* scope,
                                        ClassLiteralProperty* property,
                                        ClassLiteralProperty::Kind kind,
                                        bool is_static, ClassInfo* class_info) {
-  DCHECK_IMPLIES(kind == ClassLiteralProperty::Kind::METHOD,
+  DCHECK_IMPLIES(kind != ClassLiteralProperty::Kind::FIELD,
                  allow_harmony_private_methods());
-  // TODO(joyee): We do not support private accessors yet (which allow
-  // declaring the same private name twice). Make them noops.
-  if (kind != ClassLiteralProperty::Kind::FIELD &&
-      kind != ClassLiteralProperty::Kind::METHOD) {
-    return;
-  }
 
   if (kind == ClassLiteralProperty::Kind::FIELD) {
     if (is_static) {
@@ -2843,7 +2837,7 @@ void Parser::DeclarePrivateClassMember(ClassScope* scope,
   }
 
   Variable* private_name_var =
-      CreatePrivateNameVariable(scope, RequiresBrandCheck(kind), property_name);
+      CreatePrivateNameVariable(scope, GetVariableMode(kind), property_name);
   int pos = property->value()->position();
   if (pos == kNoSourcePosition) {
     pos = property->key()->position();

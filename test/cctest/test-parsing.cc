@@ -5542,7 +5542,10 @@ TEST(PrivateMethodsErrors) {
     "async #['a']() { }",
     "async *#['a]() { }",
 
-    // TODO(joyee): check duplicate accessors
+    "get #a() {} get #a() {}",
+    "get #a() {} get #['a']() {}",
+    "set #a(val) {} set #a(val) {}",
+    "set #a(val) {} set #['a'](val) {}",
 
     "#a\n#",
     "#a() c",
@@ -5572,8 +5575,60 @@ TEST(PrivateMethodsErrors) {
                     private_methods, arraysize(private_methods));
 }
 
+// Test that private members parse in class bodies nested in object literals
+TEST(PrivateMembersNestedInObjectLiteralsNoErrors) {
+  // clang-format off
+  const char* context_data[][2] = {{"({", "})"},
+                                   {"'use strict'; ({", "});"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "a: class { #a = 1 }",
+    "a: class { #a = () => {} }",
+    "a: class { #a }",
+    "a: class { #a() { } }",
+    "a: class { get #a() { } }",
+    "a: class { set #a(foo) { } }",
+    "a: class { *#a() { } }",
+    "a: class { async #a() { } }",
+    "a: class { async *#a() { } }",
+    nullptr
+  };
+  // clang-format on
+
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
+  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
+                    private_methods, arraysize(private_methods));
+}
+
+// Test that private members parse in class bodies nested in classes
+TEST(PrivateMembersInNestedClassNoErrors) {
+  // clang-format off
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "a = class { #a = 1 }",
+    "a = class { #a = () => {} }",
+    "a = class { #a }",
+    "a = class { #a() { } }",
+    "a = class { get #a() { } }",
+    "a = class { set #a(foo) { } }",
+    "a = class { *#a() { } }",
+    "a = class { async #a() { } }",
+    "a = class { async *#a() { } }",
+    nullptr
+  };
+  // clang-format on
+
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
+  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
+                    private_methods, arraysize(private_methods));
+}
+
 // Test that private members do not parse outside class bodies
-TEST(PrivateMembersInNonClassNoErrors) {
+TEST(PrivateMembersInNonClassErrors) {
   // clang-format off
   const char* context_data[][2] = {{"", ""},
                                    {"({", "})"},
@@ -5602,6 +5657,122 @@ TEST(PrivateMembersInNonClassNoErrors) {
 
   static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
   RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
+                    private_methods, arraysize(private_methods));
+}
+
+// Test that nested private members parse
+TEST(PrivateMembersNestedNoErrors) {
+  // clang-format off
+  const char* context_data[][2] = {{"(class { get #a() { ", "} });"},
+                                   {
+                                     "(class { set #a(val) {} get #a() { ",
+                                     "} });"
+                                    },
+                                   {"(class { set #a(val) {", "} });"},
+                                   {"(class { #a() { ", "} });"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "class C { #a() {} }",
+    "class C { get #a() {} }",
+    "class C { get #a() {} set #a(val) {} }",
+    "class C { set #a(val) {} }",
+    nullptr
+  };
+  // clang-format on
+
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
+  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
+                    private_methods, arraysize(private_methods));
+}
+
+// Test that acessing undeclared private members result in early errors
+TEST(PrivateMembersEarlyErrors) {
+  // clang-format off
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "set #b(val) { this.#a = val; }",
+    "get #b() { return this.#a; }",
+    "foo() { return this.#a; }",
+    "foo() { this.#a = 1; }",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kError);
+
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
+  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
+                    private_methods, arraysize(private_methods));
+}
+
+// Test that acessing wrong kind private members do not error early.
+// Instead these should be runtime errors.
+TEST(PrivateMembersWrongAccessNoEarlyErrors) {
+  // clang-format off
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    // Private setter only
+    "set #b(val) {} fn() { return this.#b; }",
+    "set #b(val) {} fn() { this.#b++; }",
+    // Nested private setter only
+    R"(get #b() {}
+    fn() {
+      return new class { set #b(val) {} fn() { this.#b++; } };
+    })",
+    R"(get #b() {}
+    fn() {
+      return new class { set #b(val) {} fn() { return this.#b; } };
+    })",
+
+    // Private getter only
+    "get #b() { } fn() { this.#b = 1; }",
+    "get #b() { } fn() { this.#b++; }",
+    "get #b() { } fn(obj) { ({ y: this.#b } = obj); }",
+    // Nested private getter only
+    R"(set #b(val) {}
+    fn() {
+      return new class { get #b() {} fn() { this.#b++; } };
+    })",
+    R"(set #b(val) {}
+    fn() {
+      return new class { get #b() {} fn() { this.#b = 1; } };
+    })",
+    R"(set #b(val) {}
+    fn() {
+      return new class { get #b() {} fn() { ({ y: this.#b } = obj); } };
+    })",
+
+    // Writing to private methods
+    "#b() { } fn() { this.#b = 1; }",
+    "#b() { } fn() { this.#b++; }",
+    "#b() {} fn(obj) { ({ y: this.#b } = obj); }",
+    // Writing to nested private methods
+    R"(#b() {}
+    fn() {
+      return new class { get #b() {} fn() { this.#b++; } };
+    })",
+    R"(#b() {}
+    fn() {
+      return new class { get #b() {} fn() { this.#b = 1; } };
+    })",
+    R"(#b() {}
+    fn() {
+      return new class { get #b() {} fn() { ({ y: this.#b } = obj); } };
+    })",
+    nullptr
+  };
+  // clang-format on
+
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
+  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
                     private_methods, arraysize(private_methods));
 }
 
