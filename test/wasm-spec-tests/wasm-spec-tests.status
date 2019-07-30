@@ -12,9 +12,6 @@
   'tests/linking': [FAIL],
   'tests/elem': [FAIL],
   'tests/data': [FAIL],
-
-  # TODO(ahaas): Needs investigation, I disable the test for now.
-  'tests/conversions': [PASS, ['system == windows and arch == ia32', FAIL]],
 }],  # ALWAYS
 
 ['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {
