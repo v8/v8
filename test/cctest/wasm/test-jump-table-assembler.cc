@@ -134,6 +134,7 @@ Address GenerateJumpTableThunk(
 
   CodeDesc desc;
   masm.GetCode(nullptr, &desc);
+  FlushInstructionCache(buffer, desc.instr_size);
   return reinterpret_cast<Address>(buffer);
 }
 
