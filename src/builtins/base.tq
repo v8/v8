@@ -205,7 +205,7 @@ type LayoutDescriptor extends ByteArray
 type TransitionArray extends WeakFixedArray
     generates 'TNode<TransitionArray>';
 
-type InstanceType extends uint16 constexpr 'InstanceType';
+type InstanceType extends uint16 constexpr 'v8::internal::InstanceType';
 
 extern class Map extends HeapObject {
   instance_size_in_words: uint8;

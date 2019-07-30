@@ -15,6 +15,7 @@ group("v8_run_gcmole") {
     "run-gcmole.py",
 
     # The following contains all relevant source and build files.
+    "../debug_helper/debug-helper.h",
     "../../BUILD.gn",
     "../../base/",
     "../../include/",
