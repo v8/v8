@@ -20,9 +20,12 @@
 #include "src/base/platform/platform.h"
 #include "src/base/v8-fallthrough.h"
 #include "src/common/globals.h"
-#include "src/third_party/siphash/halfsiphash.h"
 #include "src/utils/allocation.h"
 #include "src/utils/vector.h"
+
+#if defined(V8_USE_SIPHASH)
+#include "src/third_party/siphash/halfsiphash.h"
+#endif
 
 #if defined(V8_OS_AIX)
 #include <fenv.h>  // NOLINT(build/c++11)
