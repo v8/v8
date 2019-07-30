@@ -653,11 +653,9 @@ WASM_SIMD_TEST(F32x4Sub) {
 WASM_SIMD_TEST(F32x4Mul) {
   RunF32x4BinOpTest(execution_tier, lower_simd, kExprF32x4Mul, Mul);
 }
-// v8:8425 tracks this test being enabled in the interpreter.
 WASM_SIMD_TEST(F32x4Min) {
   RunF32x4BinOpTest(execution_tier, lower_simd, kExprF32x4Min, JSMin);
 }
-// v8:8425 tracks this test being enabled in the interpreter.
 WASM_SIMD_TEST(F32x4Max) {
   RunF32x4BinOpTest(execution_tier, lower_simd, kExprF32x4Max, JSMax);
 }
