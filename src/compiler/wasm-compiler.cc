@@ -4089,6 +4089,12 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
       return graph()->NewNode(mcgraph()->machine()->I64x2Splat(), inputs[0]);
     case wasm::kExprI64x2Neg:
       return graph()->NewNode(mcgraph()->machine()->I64x2Neg(), inputs[0]);
+    case wasm::kExprI64x2Shl:
+      return graph()->NewNode(mcgraph()->machine()->I64x2Shl(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprI64x2ShrS:
+      return graph()->NewNode(mcgraph()->machine()->I64x2ShrS(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI64x2Add:
       return graph()->NewNode(mcgraph()->machine()->I64x2Add(), inputs[0],
                               inputs[1]);
@@ -4121,6 +4127,9 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
                               inputs[1]);
     case wasm::kExprI64x2GeS:
       return graph()->NewNode(mcgraph()->machine()->I64x2GeS(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprI64x2ShrU:
+      return graph()->NewNode(mcgraph()->machine()->I64x2ShrU(), inputs[0],
                               inputs[1]);
     case wasm::kExprI64x2MinU:
       return graph()->NewNode(mcgraph()->machine()->I64x2MinU(), inputs[0],
@@ -4156,6 +4165,12 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
                               inputs[0]);
     case wasm::kExprI32x4Neg:
       return graph()->NewNode(mcgraph()->machine()->I32x4Neg(), inputs[0]);
+    case wasm::kExprI32x4Shl:
+      return graph()->NewNode(mcgraph()->machine()->I32x4Shl(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprI32x4ShrS:
+      return graph()->NewNode(mcgraph()->machine()->I32x4ShrS(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI32x4Add:
       return graph()->NewNode(mcgraph()->machine()->I32x4Add(), inputs[0],
                               inputs[1]);
@@ -4198,6 +4213,9 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprI32x4UConvertI16x8High:
       return graph()->NewNode(mcgraph()->machine()->I32x4UConvertI16x8High(),
                               inputs[0]);
+    case wasm::kExprI32x4ShrU:
+      return graph()->NewNode(mcgraph()->machine()->I32x4ShrU(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI32x4MinU:
       return graph()->NewNode(mcgraph()->machine()->I32x4MinU(), inputs[0],
                               inputs[1]);
@@ -4224,6 +4242,12 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprI16x8SConvertI8x16High:
       return graph()->NewNode(mcgraph()->machine()->I16x8SConvertI8x16High(),
                               inputs[0]);
+    case wasm::kExprI16x8Shl:
+      return graph()->NewNode(mcgraph()->machine()->I16x8Shl(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprI16x8ShrS:
+      return graph()->NewNode(mcgraph()->machine()->I16x8ShrS(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI16x8Neg:
       return graph()->NewNode(mcgraph()->machine()->I16x8Neg(), inputs[0]);
     case wasm::kExprI16x8SConvertI32x4:
@@ -4280,6 +4304,9 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprI16x8UConvertI32x4:
       return graph()->NewNode(mcgraph()->machine()->I16x8UConvertI32x4(),
                               inputs[0], inputs[1]);
+    case wasm::kExprI16x8ShrU:
+      return graph()->NewNode(mcgraph()->machine()->I16x8ShrU(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI16x8AddSaturateU:
       return graph()->NewNode(mcgraph()->machine()->I16x8AddSaturateU(),
                               inputs[0], inputs[1]);
@@ -4308,6 +4335,12 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
       return graph()->NewNode(mcgraph()->machine()->I8x16Splat(), inputs[0]);
     case wasm::kExprI8x16Neg:
       return graph()->NewNode(mcgraph()->machine()->I8x16Neg(), inputs[0]);
+    case wasm::kExprI8x16Shl:
+      return graph()->NewNode(mcgraph()->machine()->I8x16Shl(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprI8x16ShrS:
+      return graph()->NewNode(mcgraph()->machine()->I8x16ShrS(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI8x16SConvertI16x8:
       return graph()->NewNode(mcgraph()->machine()->I8x16SConvertI16x8(),
                               inputs[0], inputs[1]);
@@ -4349,6 +4382,9 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
                               inputs[1]);
     case wasm::kExprI8x16GeS:
       return graph()->NewNode(mcgraph()->machine()->I8x16GeS(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprI8x16ShrU:
+      return graph()->NewNode(mcgraph()->machine()->I8x16ShrU(), inputs[0],
                               inputs[1]);
     case wasm::kExprI8x16UConvertI16x8:
       return graph()->NewNode(mcgraph()->machine()->I8x16UConvertI16x8(),
@@ -4452,47 +4488,6 @@ Node* WasmGraphBuilder::SimdLaneOp(wasm::WasmOpcode opcode, uint8_t lane,
     case wasm::kExprI8x16ReplaceLane:
       return graph()->NewNode(mcgraph()->machine()->I8x16ReplaceLane(lane),
                               inputs[0], inputs[1]);
-    default:
-      FATAL_UNSUPPORTED_OPCODE(opcode);
-  }
-}
-
-Node* WasmGraphBuilder::SimdShiftOp(wasm::WasmOpcode opcode, uint8_t shift,
-                                    Node* const* inputs) {
-  has_simd_ = true;
-  switch (opcode) {
-    case wasm::kExprI64x2Shl:
-      return graph()->NewNode(mcgraph()->machine()->I64x2Shl(shift), inputs[0]);
-    case wasm::kExprI64x2ShrS:
-      return graph()->NewNode(mcgraph()->machine()->I64x2ShrS(shift),
-                              inputs[0]);
-    case wasm::kExprI64x2ShrU:
-      return graph()->NewNode(mcgraph()->machine()->I64x2ShrU(shift),
-                              inputs[0]);
-    case wasm::kExprI32x4Shl:
-      return graph()->NewNode(mcgraph()->machine()->I32x4Shl(shift), inputs[0]);
-    case wasm::kExprI32x4ShrS:
-      return graph()->NewNode(mcgraph()->machine()->I32x4ShrS(shift),
-                              inputs[0]);
-    case wasm::kExprI32x4ShrU:
-      return graph()->NewNode(mcgraph()->machine()->I32x4ShrU(shift),
-                              inputs[0]);
-    case wasm::kExprI16x8Shl:
-      return graph()->NewNode(mcgraph()->machine()->I16x8Shl(shift), inputs[0]);
-    case wasm::kExprI16x8ShrS:
-      return graph()->NewNode(mcgraph()->machine()->I16x8ShrS(shift),
-                              inputs[0]);
-    case wasm::kExprI16x8ShrU:
-      return graph()->NewNode(mcgraph()->machine()->I16x8ShrU(shift),
-                              inputs[0]);
-    case wasm::kExprI8x16Shl:
-      return graph()->NewNode(mcgraph()->machine()->I8x16Shl(shift), inputs[0]);
-    case wasm::kExprI8x16ShrS:
-      return graph()->NewNode(mcgraph()->machine()->I8x16ShrS(shift),
-                              inputs[0]);
-    case wasm::kExprI8x16ShrU:
-      return graph()->NewNode(mcgraph()->machine()->I8x16ShrU(shift),
-                              inputs[0]);
     default:
       FATAL_UNSUPPORTED_OPCODE(opcode);
   }

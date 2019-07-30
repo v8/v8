@@ -335,6 +335,9 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   V(I8x16Neg, 0xfd51, s_s)               \
   V(S1x16AnyTrue, 0xfd52, i_s)           \
   V(S1x16AllTrue, 0xfd53, i_s)           \
+  V(I8x16Shl, 0xfd54, s_si)              \
+  V(I8x16ShrS, 0xfd55, s_si)             \
+  V(I8x16ShrU, 0xfd56, s_si)             \
   V(I8x16Add, 0xfd57, s_ss)              \
   V(I8x16AddSaturateS, 0xfd58, s_ss)     \
   V(I8x16AddSaturateU, 0xfd59, s_ss)     \
@@ -349,6 +352,9 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   V(I16x8Neg, 0xfd62, s_s)               \
   V(S1x8AnyTrue, 0xfd63, i_s)            \
   V(S1x8AllTrue, 0xfd64, i_s)            \
+  V(I16x8Shl, 0xfd65, s_si)              \
+  V(I16x8ShrS, 0xfd66, s_si)             \
+  V(I16x8ShrU, 0xfd67, s_si)             \
   V(I16x8Add, 0xfd68, s_ss)              \
   V(I16x8AddSaturateS, 0xfd69, s_ss)     \
   V(I16x8AddSaturateU, 0xfd6a, s_ss)     \
@@ -363,6 +369,9 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   V(I32x4Neg, 0xfd73, s_s)               \
   V(S1x4AnyTrue, 0xfd74, i_s)            \
   V(S1x4AllTrue, 0xfd75, i_s)            \
+  V(I32x4Shl, 0xfd76, s_si)              \
+  V(I32x4ShrS, 0xfd77, s_si)             \
+  V(I32x4ShrU, 0xfd78, s_si)             \
   V(I32x4Add, 0xfd79, s_ss)              \
   V(I32x4Sub, 0xfd7c, s_ss)              \
   V(I32x4Mul, 0xfd7f, s_ss)              \
@@ -373,6 +382,9 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   V(I64x2Neg, 0xfd84, s_s)               \
   V(S1x2AnyTrue, 0xfd85, i_s)            \
   V(S1x2AllTrue, 0xfd86, i_s)            \
+  V(I64x2Shl, 0xfd87, s_si)              \
+  V(I64x2ShrS, 0xfd88, s_si)             \
+  V(I64x2ShrU, 0xfd89, s_si)             \
   V(I64x2Add, 0xfd8a, s_ss)              \
   V(I64x2Sub, 0xfd8d, s_ss)              \
   V(I64x2Mul, 0xfd8c, s_ss)              \
@@ -420,19 +432,7 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   V(I32x4ExtractLane, 0xfd0d, _)                 \
   V(I64x2ExtractLane, 0xfd10, _)                 \
   V(F32x4ExtractLane, 0xfd13, _)                 \
-  V(F64x2ExtractLane, 0xfd16, _)                 \
-  V(I8x16Shl, 0xfd54, _)                         \
-  V(I8x16ShrS, 0xfd55, _)                        \
-  V(I8x16ShrU, 0xfd56, _)                        \
-  V(I16x8Shl, 0xfd65, _)                         \
-  V(I16x8ShrS, 0xfd66, _)                        \
-  V(I16x8ShrU, 0xfd67, _)                        \
-  V(I32x4Shl, 0xfd76, _)                         \
-  V(I32x4ShrS, 0xfd77, _)                        \
-  V(I32x4ShrU, 0xfd78, _)                        \
-  V(I64x2Shl, 0xfd87, _)                         \
-  V(I64x2ShrS, 0xfd88, _)                        \
-  V(I64x2ShrU, 0xfd89, _)
+  V(F64x2ExtractLane, 0xfd16, _)
 
 #define FOREACH_SIMD_1_OPERAND_2_PARAM_OPCODE(V) \
   V(I8x16ReplaceLane, 0xfd07, _)                 \

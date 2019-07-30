@@ -506,8 +506,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I64x2ExtractLane(int32_t);
   const Operator* I64x2ReplaceLane(int32_t);
   const Operator* I64x2Neg();
-  const Operator* I64x2Shl(int32_t);
-  const Operator* I64x2ShrS(int32_t);
+  const Operator* I64x2Shl();
+  const Operator* I64x2ShrS();
   const Operator* I64x2Add();
   const Operator* I64x2Sub();
   const Operator* I64x2Mul();
@@ -517,7 +517,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I64x2Ne();
   const Operator* I64x2GtS();
   const Operator* I64x2GeS();
-  const Operator* I64x2ShrU(int32_t);
+  const Operator* I64x2ShrU();
   const Operator* I64x2MinU();
   const Operator* I64x2MaxU();
   const Operator* I64x2GtU();
@@ -530,8 +530,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I32x4SConvertI16x8Low();
   const Operator* I32x4SConvertI16x8High();
   const Operator* I32x4Neg();
-  const Operator* I32x4Shl(int32_t);
-  const Operator* I32x4ShrS(int32_t);
+  const Operator* I32x4Shl();
+  const Operator* I32x4ShrS();
   const Operator* I32x4Add();
   const Operator* I32x4AddHoriz();
   const Operator* I32x4Sub();
@@ -546,7 +546,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I32x4UConvertF32x4();
   const Operator* I32x4UConvertI16x8Low();
   const Operator* I32x4UConvertI16x8High();
-  const Operator* I32x4ShrU(int32_t);
+  const Operator* I32x4ShrU();
   const Operator* I32x4MinU();
   const Operator* I32x4MaxU();
   const Operator* I32x4GtU();
@@ -558,8 +558,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I16x8SConvertI8x16Low();
   const Operator* I16x8SConvertI8x16High();
   const Operator* I16x8Neg();
-  const Operator* I16x8Shl(int32_t);
-  const Operator* I16x8ShrS(int32_t);
+  const Operator* I16x8Shl();
+  const Operator* I16x8ShrS();
   const Operator* I16x8SConvertI32x4();
   const Operator* I16x8Add();
   const Operator* I16x8AddSaturateS();
@@ -576,7 +576,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
 
   const Operator* I16x8UConvertI8x16Low();
   const Operator* I16x8UConvertI8x16High();
-  const Operator* I16x8ShrU(int32_t);
+  const Operator* I16x8ShrU();
   const Operator* I16x8UConvertI32x4();
   const Operator* I16x8AddSaturateU();
   const Operator* I16x8SubSaturateU();
@@ -589,8 +589,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I8x16ExtractLane(int32_t);
   const Operator* I8x16ReplaceLane(int32_t);
   const Operator* I8x16Neg();
-  const Operator* I8x16Shl(int32_t);
-  const Operator* I8x16ShrS(int32_t);
+  const Operator* I8x16Shl();
+  const Operator* I8x16ShrS();
   const Operator* I8x16SConvertI16x8();
   const Operator* I8x16Add();
   const Operator* I8x16AddSaturateS();
@@ -604,7 +604,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I8x16GtS();
   const Operator* I8x16GeS();
 
-  const Operator* I8x16ShrU(int32_t);
+  const Operator* I8x16ShrU();
   const Operator* I8x16UConvertI16x8();
   const Operator* I8x16AddSaturateU();
   const Operator* I8x16SubSaturateU();

@@ -443,13 +443,6 @@ class WasmGraphBuildingInterface {
     result->node = BUILD(SimdLaneOp, opcode, imm.lane, nodes.begin());
   }
 
-  void SimdShiftOp(FullDecoder* decoder, WasmOpcode opcode,
-                   const SimdShiftImmediate<validate> imm, const Value& input,
-                   Value* result) {
-    TFNode* inputs[] = {input.node};
-    result->node = BUILD(SimdShiftOp, opcode, imm.shift, inputs);
-  }
-
   void Simd8x16ShuffleOp(FullDecoder* decoder,
                          const Simd8x16ShuffleImmediate<validate>& imm,
                          const Value& input0, const Value& input1,

@@ -1901,6 +1901,8 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
           mnemonic = "psrlw";
         } else if (opcode == 0xD2) {
           mnemonic = "psrld";
+        } else if (opcode == 0xD3) {
+          mnemonic = "psrld";
         } else if (opcode == 0xD4) {
           mnemonic = "paddq";
         } else if (opcode == 0xD5) {
@@ -1945,6 +1947,8 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
           mnemonic = "psllw";
         } else if (opcode == 0xF2) {
           mnemonic = "pslld";
+        } else if (opcode == 0xF3) {
+          mnemonic = "psllq";
         } else if (opcode == 0xF4) {
           mnemonic = "pmuludq";
         } else if (opcode == 0xF8) {

@@ -4070,6 +4070,23 @@ void ShiftRightAndInsert(Simulator* simulator, int Vd, int Vm, int shift) {
   simulator->set_neon_register<T, SIZE>(Vd, dst);
 }
 
+template <typename T, typename S_T, int SIZE>
+void ShiftByRegister(Simulator* simulator, int Vd, int Vm, int Vn) {
+  static const int kElems = SIZE / sizeof(T);
+  T src[kElems];
+  S_T shift[kElems];
+  simulator->get_neon_register<T, SIZE>(Vm, src);
+  simulator->get_neon_register<S_T, SIZE>(Vn, shift);
+  for (int i = 0; i < kElems; i++) {
+    if ((shift[i]) >= 0) {
+      src[i] <<= shift[i];
+    } else {
+      src[i] = ArithmeticShiftRight(src[i], -shift[i]);
+    }
+  }
+  simulator->set_neon_register<T, SIZE>(Vd, src);
+}
+
 template <typename T, int SIZE>
 void CompareEqual(Simulator* simulator, int Vd, int Vm, int Vn) {
   static const int kElems = SIZE / sizeof(T);
@@ -4248,6 +4265,25 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               break;
             case Neon32:
               CompareGreater<int32_t, kSimd128Size>(this, Vd, Vm, Vn, ge);
+              break;
+            default:
+              UNREACHABLE();
+              break;
+          }
+          break;
+        }
+        case 0x4: {
+          // vshl s<size> Qd, Qm, Qn.
+          NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+          switch (size) {
+            case Neon8:
+              ShiftByRegister<int8_t, int8_t, kSimd128Size>(this, Vd, Vm, Vn);
+              break;
+            case Neon16:
+              ShiftByRegister<int16_t, int16_t, kSimd128Size>(this, Vd, Vm, Vn);
+              break;
+            case Neon32:
+              ShiftByRegister<int32_t, int32_t, kSimd128Size>(this, Vd, Vm, Vn);
               break;
             default:
               UNREACHABLE();
@@ -4637,6 +4673,27 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               break;
             case Neon32:
               CompareGreater<uint32_t, kSimd128Size>(this, Vd, Vm, Vn, ge);
+              break;
+            default:
+              UNREACHABLE();
+              break;
+          }
+          break;
+        }
+        case 0x4: {
+          // vshl s<size> Qd, Qm, Qn.
+          NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+          switch (size) {
+            case Neon8:
+              ShiftByRegister<uint8_t, int8_t, kSimd128Size>(this, Vd, Vm, Vn);
+              break;
+            case Neon16:
+              ShiftByRegister<uint16_t, int16_t, kSimd128Size>(this, Vd, Vm,
+                                                               Vn);
+              break;
+            case Neon32:
+              ShiftByRegister<uint32_t, int32_t, kSimd128Size>(this, Vd, Vm,
+                                                               Vn);
               break;
             default:
               UNREACHABLE();

@@ -386,9 +386,6 @@ class WasmGraphBuilder {
 
   Node* SimdLaneOp(wasm::WasmOpcode opcode, uint8_t lane, Node* const* inputs);
 
-  Node* SimdShiftOp(wasm::WasmOpcode opcode, uint8_t shift,
-                    Node* const* inputs);
-
   Node* Simd8x16ShuffleOp(const uint8_t shuffle[16], Node* const* inputs);
 
   Node* AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,

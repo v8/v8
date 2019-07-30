@@ -102,6 +102,15 @@ void VisitRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
                  g.UseRegister(node->InputAt(1)));
 }
 
+void VisitSimdShiftRRR(InstructionSelector* selector, ArchOpcode opcode,
+                       Node* node) {
+  ArmOperandGenerator g(selector);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseRegister(node->InputAt(0)),
+                 g.UseRegister(node->InputAt(1)), arraysize(temps), temps);
+}
+
 void VisitRRRShuffle(InstructionSelector* selector, ArchOpcode opcode,
                      Node* node) {
   ArmOperandGenerator g(selector);
@@ -2488,7 +2497,7 @@ SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 
 #define SIMD_VISIT_SHIFT_OP(Name)                     \
   void InstructionSelector::Visit##Name(Node* node) { \
-    VisitRRI(this, kArm##Name, node);                 \
+    VisitSimdShiftRRR(this, kArm##Name, node);        \
   }
 SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 #undef SIMD_VISIT_SHIFT_OP

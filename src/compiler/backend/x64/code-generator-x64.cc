@@ -2519,7 +2519,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I64x2Shl: {
-      __ psllq(i.OutputSimd128Register(), i.InputInt8(1));
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      __ movq(tmp, i.InputRegister(1));
+      __ psllq(i.OutputSimd128Register(), tmp);
       break;
     }
     case kX64I64x2ShrS: {
@@ -2528,16 +2530,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // ShrS on each quadword one at a time
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(0);
+      Register tmp = i.ToRegister(instr->TempAt(0));
 
       // lower quadword
-      __ pextrq(kScratchRegister, src, 0x0);
-      __ sarq(kScratchRegister, Immediate(i.InputInt8(1)));
-      __ pinsrq(dst, kScratchRegister, 0x0);
+      __ pextrq(tmp, src, 0x0);
+      __ sarq_cl(tmp);
+      __ pinsrq(dst, tmp, 0x0);
 
       // upper quadword
-      __ pextrq(kScratchRegister, src, 0x1);
-      __ sarq(kScratchRegister, Immediate(i.InputInt8(1)));
-      __ pinsrq(dst, kScratchRegister, 0x1);
+      __ pextrq(tmp, src, 0x1);
+      __ sarq_cl(tmp);
+      __ pinsrq(dst, tmp, 0x1);
       break;
     }
     case kX64I64x2Add: {
@@ -2637,7 +2640,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I64x2ShrU: {
-      __ psrlq(i.OutputSimd128Register(), i.InputInt8(1));
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      __ movq(tmp, i.InputRegister(1));
+      __ psrlq(i.OutputSimd128Register(), tmp);
       break;
     }
     case kX64I64x2MinU: {
@@ -2790,11 +2795,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I32x4Shl: {
-      __ pslld(i.OutputSimd128Register(), i.InputInt8(1));
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      __ movq(tmp, i.InputRegister(1));
+      __ pslld(i.OutputSimd128Register(), tmp);
       break;
     }
     case kX64I32x4ShrS: {
-      __ psrad(i.OutputSimd128Register(), i.InputInt8(1));
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      __ movq(tmp, i.InputRegister(1));
+      __ psrad(i.OutputSimd128Register(), tmp);
       break;
     }
     case kX64I32x4Add: {
@@ -2888,7 +2897,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I32x4ShrU: {
-      __ psrld(i.OutputSimd128Register(), i.InputInt8(1));
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      __ movq(tmp, i.InputRegister(1));
+      __ psrld(i.OutputSimd128Register(), tmp);
       break;
     }
     case kX64I32x4MinU: {
@@ -2978,11 +2989,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I16x8Shl: {
-      __ psllw(i.OutputSimd128Register(), i.InputInt8(1));
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      __ movq(tmp, i.InputRegister(1));
+      __ psllw(i.OutputSimd128Register(), tmp);
       break;
     }
     case kX64I16x8ShrS: {
-      __ psraw(i.OutputSimd128Register(), i.InputInt8(1));
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      __ movq(tmp, i.InputRegister(1));
+      __ psraw(i.OutputSimd128Register(), tmp);
       break;
     }
     case kX64I16x8SConvertI32x4: {
@@ -3061,7 +3076,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I16x8ShrU: {
-      __ psrlw(i.OutputSimd128Register(), i.InputInt8(1));
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      __ movq(tmp, i.InputRegister(1));
+      __ psrlw(i.OutputSimd128Register(), tmp);
       break;
     }
     case kX64I16x8UConvertI32x4: {
@@ -3162,31 +3179,36 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64I8x16Shl: {
       XMMRegister dst = i.OutputSimd128Register();
       DCHECK_EQ(dst, i.InputSimd128Register(0));
-      int8_t shift = i.InputInt8(1) & 0x7;
-      if (shift < 4) {
-        // For small shifts, doubling is faster.
-        for (int i = 0; i < shift; ++i) {
-          __ paddb(dst, dst);
-        }
-      } else {
-        // Mask off the unwanted bits before word-shifting.
-        __ pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
-        __ psrlw(kScratchDoubleReg, 8 + shift);
-        __ packuswb(kScratchDoubleReg, kScratchDoubleReg);
-        __ pand(dst, kScratchDoubleReg);
-        __ psllw(dst, shift);
-      }
+      // Temp registers for shift mask andadditional moves to XMM registers.
+      Register tmp = i.ToRegister(instr->TempAt(0));
+      XMMRegister tmp_simd = i.ToSimd128Register(instr->TempAt(1));
+      // Mask off the unwanted bits before word-shifting.
+      __ pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
+      __ movq(tmp, i.InputRegister(1));
+      __ addq(tmp, Immediate(8));
+      __ movq(tmp_simd, tmp);
+      __ psrlw(kScratchDoubleReg, tmp_simd);
+      __ packuswb(kScratchDoubleReg, kScratchDoubleReg);
+      __ pand(dst, kScratchDoubleReg);
+      __ movq(tmp_simd, i.InputRegister(1));
+      __ psllw(dst, tmp_simd);
       break;
     }
     case kX64I8x16ShrS: {
       XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      int8_t shift = i.InputInt8(1) & 0x7;
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      // Temp registers for shift mask andadditional moves to XMM registers.
+      Register tmp = i.ToRegister(instr->TempAt(0));
+      XMMRegister tmp_simd = i.ToSimd128Register(instr->TempAt(1));
       // Unpack the bytes into words, do arithmetic shifts, and repack.
-      __ punpckhbw(kScratchDoubleReg, src);
-      __ punpcklbw(dst, src);
-      __ psraw(kScratchDoubleReg, 8 + shift);
-      __ psraw(dst, 8 + shift);
+      __ punpckhbw(kScratchDoubleReg, dst);
+      __ punpcklbw(dst, dst);
+      // Prepare shift value
+      __ movq(tmp, i.InputRegister(1));
+      __ addq(tmp, Immediate(8));
+      __ movq(tmp_simd, tmp);
+      __ psraw(kScratchDoubleReg, tmp_simd);
+      __ psraw(dst, tmp_simd);
       __ packsswb(dst, kScratchDoubleReg);
       break;
     }
@@ -3285,13 +3307,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I8x16ShrU: {
       XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(0);
-      int8_t shift = i.InputInt8(1) & 0x7;
       // Unpack the bytes into words, do logical shifts, and repack.
-      __ punpckhbw(kScratchDoubleReg, src);
-      __ punpcklbw(dst, src);
-      __ psrlw(kScratchDoubleReg, 8 + shift);
-      __ psrlw(dst, 8 + shift);
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      // Temp registers for shift mask andadditional moves to XMM registers.
+      Register tmp = i.ToRegister(instr->TempAt(0));
+      XMMRegister tmp_simd = i.ToSimd128Register(instr->TempAt(1));
+      __ punpckhbw(kScratchDoubleReg, dst);
+      __ punpcklbw(dst, dst);
+      // Prepare shift value
+      __ movq(tmp, i.InputRegister(1));
+      __ addq(tmp, Immediate(8));
+      __ movq(tmp_simd, tmp);
+      __ psrlw(kScratchDoubleReg, tmp_simd);
+      __ psrlw(dst, tmp_simd);
       __ packuswb(dst, kScratchDoubleReg);
       break;
     }

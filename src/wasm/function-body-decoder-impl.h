@@ -748,8 +748,6 @@ struct ControlBase {
   F(SimdOp, WasmOpcode opcode, Vector<Value> args, Value* result)             \
   F(SimdLaneOp, WasmOpcode opcode, const SimdLaneImmediate<validate>& imm,    \
     const Vector<Value> inputs, Value* result)                                \
-  F(SimdShiftOp, WasmOpcode opcode, const SimdShiftImmediate<validate>& imm,  \
-    const Value& input, Value* result)                                        \
   F(Simd8x16ShuffleOp, const Simd8x16ShuffleImmediate<validate>& imm,         \
     const Value& input0, const Value& input1, Value* result)                  \
   F(Throw, const ExceptionIndexImmediate<validate>& imm,                      \
@@ -2666,16 +2664,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return imm.length;
   }
 
-  uint32_t SimdShiftOp(WasmOpcode opcode) {
-    SimdShiftImmediate<validate> imm(this, this->pc_);
-    if (this->Validate(this->pc_, opcode, imm)) {
-      auto input = Pop(0, kWasmS128);
-      auto* result = Push(kWasmS128);
-      CALL_INTERFACE_IF_REACHABLE(SimdShiftOp, opcode, imm, input, result);
-    }
-    return imm.length;
-  }
-
   uint32_t Simd8x16ShuffleOp() {
     Simd8x16ShuffleImmediate<validate> imm(this, this->pc_);
     if (this->Validate(this->pc_, imm)) {
@@ -2725,21 +2713,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       case kExprI16x8ReplaceLane:
       case kExprI8x16ReplaceLane: {
         len = SimdReplaceLane(opcode, kWasmI32);
-        break;
-      }
-      case kExprI64x2Shl:
-      case kExprI64x2ShrS:
-      case kExprI64x2ShrU:
-      case kExprI32x4Shl:
-      case kExprI32x4ShrS:
-      case kExprI32x4ShrU:
-      case kExprI16x8Shl:
-      case kExprI16x8ShrS:
-      case kExprI16x8ShrU:
-      case kExprI8x16Shl:
-      case kExprI8x16ShrS:
-      case kExprI8x16ShrU: {
-        len = SimdShiftOp(opcode);
         break;
       }
       case kExprS8x16Shuffle: {

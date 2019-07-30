@@ -2431,40 +2431,32 @@ class ThreadImpl {
       case kExprS128StoreMem:
         return ExecuteStore<Simd128, Simd128>(decoder, code, pc, len,
                                               MachineRepresentation::kSimd128);
-#define SHIFT_CASE(op, name, stype, count, expr)                         \
-  case kExpr##op: {                                                      \
-    SimdShiftImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc)); \
-    *len += 1;                                                           \
-    WasmValue v = Pop();                                                 \
-    stype s = v.to_s128().to_##name();                                   \
-    stype res;                                                           \
-    for (size_t i = 0; i < count; ++i) {                                 \
-      auto a = s.val[i];                                                 \
-      res.val[i] = expr;                                                 \
-    }                                                                    \
-    Push(WasmValue(Simd128(res)));                                       \
-    return true;                                                         \
+#define SHIFT_CASE(op, name, stype, count, expr) \
+  case kExpr##op: {                              \
+    uint32_t shift = Pop().to<uint32_t>();       \
+    WasmValue v = Pop();                         \
+    stype s = v.to_s128().to_##name();           \
+    stype res;                                   \
+    for (size_t i = 0; i < count; ++i) {         \
+      auto a = s.val[i];                         \
+      res.val[i] = expr;                         \
+    }                                            \
+    Push(WasmValue(Simd128(res)));               \
+    return true;                                 \
   }
-        SHIFT_CASE(I64x2Shl, i64x2, int2, 2,
-                   static_cast<uint64_t>(a) << imm.shift)
-        SHIFT_CASE(I64x2ShrS, i64x2, int2, 2, a >> imm.shift)
-        SHIFT_CASE(I64x2ShrU, i64x2, int2, 2,
-                   static_cast<uint64_t>(a) >> imm.shift)
-        SHIFT_CASE(I32x4Shl, i32x4, int4, 4,
-                   static_cast<uint32_t>(a) << imm.shift)
-        SHIFT_CASE(I32x4ShrS, i32x4, int4, 4, a >> imm.shift)
-        SHIFT_CASE(I32x4ShrU, i32x4, int4, 4,
-                   static_cast<uint32_t>(a) >> imm.shift)
-        SHIFT_CASE(I16x8Shl, i16x8, int8, 8,
-                   static_cast<uint16_t>(a) << imm.shift)
-        SHIFT_CASE(I16x8ShrS, i16x8, int8, 8, a >> imm.shift)
-        SHIFT_CASE(I16x8ShrU, i16x8, int8, 8,
-                   static_cast<uint16_t>(a) >> imm.shift)
-        SHIFT_CASE(I8x16Shl, i8x16, int16, 16,
-                   static_cast<uint8_t>(a) << imm.shift)
-        SHIFT_CASE(I8x16ShrS, i8x16, int16, 16, a >> imm.shift)
+        SHIFT_CASE(I64x2Shl, i64x2, int2, 2, static_cast<uint64_t>(a) << shift)
+        SHIFT_CASE(I64x2ShrS, i64x2, int2, 2, a >> shift)
+        SHIFT_CASE(I64x2ShrU, i64x2, int2, 2, static_cast<uint64_t>(a) >> shift)
+        SHIFT_CASE(I32x4Shl, i32x4, int4, 4, static_cast<uint32_t>(a) << shift)
+        SHIFT_CASE(I32x4ShrS, i32x4, int4, 4, a >> shift)
+        SHIFT_CASE(I32x4ShrU, i32x4, int4, 4, static_cast<uint32_t>(a) >> shift)
+        SHIFT_CASE(I16x8Shl, i16x8, int8, 8, static_cast<uint16_t>(a) << shift)
+        SHIFT_CASE(I16x8ShrS, i16x8, int8, 8, a >> shift)
+        SHIFT_CASE(I16x8ShrU, i16x8, int8, 8, static_cast<uint16_t>(a) >> shift)
+        SHIFT_CASE(I8x16Shl, i8x16, int16, 16, static_cast<uint8_t>(a) << shift)
+        SHIFT_CASE(I8x16ShrS, i8x16, int16, 16, a >> shift)
         SHIFT_CASE(I8x16ShrU, i8x16, int16, 16,
-                   static_cast<uint8_t>(a) >> imm.shift)
+                   static_cast<uint8_t>(a) >> shift)
 #undef SHIFT_CASE
 #define CONVERT_CASE(op, src_type, name, dst_type, count, start_index, ctype, \
                      expr)                                                    \

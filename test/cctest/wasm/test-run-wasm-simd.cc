@@ -300,7 +300,7 @@ int64_t LessEqual(double a, double b) { return a <= b ? -1 : 0; }
 #define WASM_SIMD_SPLAT(Type, ...) __VA_ARGS__, WASM_SIMD_OP(kExpr##Type##Splat)
 #define WASM_SIMD_UNOP(op, x) x, WASM_SIMD_OP(op)
 #define WASM_SIMD_BINOP(op, x, y) x, y, WASM_SIMD_OP(op)
-#define WASM_SIMD_SHIFT_OP(op, shift, x) x, WASM_SIMD_OP(op), TO_BYTE(shift)
+#define WASM_SIMD_SHIFT_OP(op, x, y) x, y, WASM_SIMD_OP(op)
 #define WASM_SIMD_CONCAT_OP(op, bytes, x, y) \
   x, y, WASM_SIMD_OP(op), TO_BYTE(bytes)
 #define WASM_SIMD_SELECT(format, x, y, z) x, y, z, WASM_SIMD_OP(kExprS128Select)
@@ -799,11 +799,13 @@ void RunI64x2ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
     WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);
     int64_t* g = r.builder().AddGlobal<int64_t>(kWasmS128);
     byte value = 0;
+    byte shift_index = r.AllocateLocal(kWasmI32);
     byte simd1 = r.AllocateLocal(kWasmS128);
     BUILD(r,
           WASM_SET_LOCAL(simd1, WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(value))),
-          WASM_SET_GLOBAL(
-              0, WASM_SIMD_SHIFT_OP(opcode, shift, WASM_GET_LOCAL(simd1))),
+          WASM_SET_LOCAL(shift_index, WASM_I32V(shift)),
+          WASM_SET_GLOBAL(0, WASM_SIMD_SHIFT_OP(opcode, WASM_GET_LOCAL(simd1),
+                                                WASM_GET_LOCAL(shift_index))),
           WASM_ONE);
 
     FOR_INT64_INPUTS(x) {
@@ -1626,16 +1628,17 @@ void RunI32x4ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
     WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
     int32_t* g = r.builder().AddGlobal<int32_t>(kWasmS128);
     byte value = 0;
+    byte shift_index = r.AllocateLocal(kWasmI32);
     byte simd1 = r.AllocateLocal(kWasmS128);
-    BUILD(r,
+    BUILD(r, WASM_SET_LOCAL(shift_index, WASM_I32V(shift)),
           WASM_SET_LOCAL(simd1, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(value))),
-          WASM_SET_GLOBAL(
-              0, WASM_SIMD_SHIFT_OP(opcode, shift, WASM_GET_LOCAL(simd1))),
+          WASM_SET_GLOBAL(0, WASM_SIMD_SHIFT_OP(opcode, WASM_GET_LOCAL(simd1),
+                                                WASM_GET_LOCAL(shift_index))),
           WASM_ONE);
 
     FOR_INT32_INPUTS(x) {
       r.Call(x);
-      float expected = expected_op(x, shift);
+      int32_t expected = expected_op(x, shift);
       for (int i = 0; i < 4; i++) {
         CHECK_EQ(expected, ReadLittleEndianValue<int32_t>(&g[i]));
       }
@@ -1643,17 +1646,17 @@ void RunI32x4ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
   }
 }
 
-WASM_SIMD_TEST(I32x4Shl) {
+WASM_SIMD_TEST_NO_LOWERING(I32x4Shl) {
   RunI32x4ShiftOpTest(execution_tier, lower_simd, kExprI32x4Shl,
                       LogicalShiftLeft);
 }
 
-WASM_SIMD_TEST(I32x4ShrS) {
+WASM_SIMD_TEST_NO_LOWERING(I32x4ShrS) {
   RunI32x4ShiftOpTest(execution_tier, lower_simd, kExprI32x4ShrS,
                       ArithmeticShiftRight);
 }
 
-WASM_SIMD_TEST(I32x4ShrU) {
+WASM_SIMD_TEST_NO_LOWERING(I32x4ShrU) {
   RunI32x4ShiftOpTest(execution_tier, lower_simd, kExprI32x4ShrU,
                       LogicalShiftRight);
 }
@@ -1876,10 +1879,12 @@ void RunI16x8ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
     int16_t* g = r.builder().AddGlobal<int16_t>(kWasmS128);
     byte value = 0;
     byte simd1 = r.AllocateLocal(kWasmS128);
+    byte shift_index = r.AllocateLocal(kWasmI32);
     BUILD(r,
           WASM_SET_LOCAL(simd1, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(value))),
-          WASM_SET_GLOBAL(
-              0, WASM_SIMD_SHIFT_OP(opcode, shift, WASM_GET_LOCAL(simd1))),
+          WASM_SET_LOCAL(shift_index, WASM_I32V(shift)),
+          WASM_SET_GLOBAL(0, WASM_SIMD_SHIFT_OP(opcode, WASM_GET_LOCAL(simd1),
+                                                WASM_GET_LOCAL(shift_index))),
           WASM_ONE);
 
     FOR_INT16_INPUTS(x) {
@@ -1892,17 +1897,17 @@ void RunI16x8ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
   }
 }
 
-WASM_SIMD_TEST(I16x8Shl) {
+WASM_SIMD_TEST_NO_LOWERING(I16x8Shl) {
   RunI16x8ShiftOpTest(execution_tier, lower_simd, kExprI16x8Shl,
                       LogicalShiftLeft);
 }
 
-WASM_SIMD_TEST(I16x8ShrS) {
+WASM_SIMD_TEST_NO_LOWERING(I16x8ShrS) {
   RunI16x8ShiftOpTest(execution_tier, lower_simd, kExprI16x8ShrS,
                       ArithmeticShiftRight);
 }
 
-WASM_SIMD_TEST(I16x8ShrU) {
+WASM_SIMD_TEST_NO_LOWERING(I16x8ShrU) {
   RunI16x8ShiftOpTest(execution_tier, lower_simd, kExprI16x8ShrU,
                       LogicalShiftRight);
 }
@@ -2090,15 +2095,17 @@ void RunI8x16ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
     int8_t* g = r.builder().AddGlobal<int8_t>(kWasmS128);
     byte value = 0;
     byte simd1 = r.AllocateLocal(kWasmS128);
+    byte shift_index = r.AllocateLocal(kWasmI32);
     BUILD(r,
           WASM_SET_LOCAL(simd1, WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(value))),
-          WASM_SET_GLOBAL(
-              0, WASM_SIMD_SHIFT_OP(opcode, shift, WASM_GET_LOCAL(simd1))),
+          WASM_SET_LOCAL(shift_index, WASM_I32V(shift)),
+          WASM_SET_GLOBAL(0, WASM_SIMD_SHIFT_OP(opcode, WASM_GET_LOCAL(simd1),
+                                                WASM_GET_LOCAL(shift_index))),
           WASM_ONE);
 
     FOR_INT8_INPUTS(x) {
       r.Call(x);
-      float expected = expected_op(x, shift);
+      int8_t expected = expected_op(x, shift);
       for (int i = 0; i < 16; i++) {
         CHECK_EQ(expected, ReadLittleEndianValue<int8_t>(&g[i]));
       }
@@ -2106,17 +2113,17 @@ void RunI8x16ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
   }
 }
 
-WASM_SIMD_TEST(I8x16Shl) {
+WASM_SIMD_TEST_NO_LOWERING(I8x16Shl) {
   RunI8x16ShiftOpTest(execution_tier, lower_simd, kExprI8x16Shl,
                       LogicalShiftLeft);
 }
 
-WASM_SIMD_TEST(I8x16ShrS) {
+WASM_SIMD_TEST_NO_LOWERING(I8x16ShrS) {
   RunI8x16ShiftOpTest(execution_tier, lower_simd, kExprI8x16ShrS,
                       ArithmeticShiftRight);
 }
 
-WASM_SIMD_TEST(I8x16ShrU) {
+WASM_SIMD_TEST_NO_LOWERING(I8x16ShrU) {
   RunI8x16ShiftOpTest(execution_tier, lower_simd, kExprI8x16ShrU,
                       LogicalShiftRight);
 }
