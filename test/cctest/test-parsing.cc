@@ -1883,6 +1883,21 @@ void RunModuleParserSyncTest(
                     always_false_len, true, test_preparser, ignore_error_msg);
 }
 
+TEST(NonOctalDecimalIntegerStrictError) {
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  const char* context_data[][2] = {{"\"use strict\";", ""}, {nullptr, nullptr}};
+  const char* statement_data[] = {"09", "09.1_2", nullptr};
+
+  static const ParserFlag flags[] = {kAllowHarmonyNumericSeparator};
+  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0, flags, 1,
+                    nullptr, 0, false, true, true);
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
 TEST(NumericSeparator) {
   v8::HandleScope handles(CcTest::isolate());
   v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
@@ -1931,6 +1946,36 @@ TEST(NumericSeparatorImplicitOctalsErrors) {
   const char* statement_data[] = {"00_122",  "0_012",  "07_7_7",
                                   "0_7_7_7", "0_777",  "07_7_7_",
                                   "07__77",  "0__777", nullptr};
+
+  static const ParserFlag flags[] = {kAllowHarmonyNumericSeparator};
+  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0, flags, 1,
+                    nullptr, 0, false, true, true);
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+TEST(NumericSeparatorNonOctalDecimalInteger) {
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  const char* context_data[][2] = {{"", ""}, {nullptr, nullptr}};
+  const char* statement_data[] = {"09.1_2", nullptr};
+
+  static const ParserFlag flags[] = {kAllowHarmonyNumericSeparator};
+  RunParserSyncTest(context_data, statement_data, kSuccess, nullptr, 0, flags,
+                    1, nullptr, 0, false, true, true);
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+TEST(NumericSeparatorNonOctalDecimalIntegerErrors) {
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  const char* context_data[][2] = {{"", ""}, {nullptr, nullptr}};
+  const char* statement_data[] = {"09_12", nullptr};
 
   static const ParserFlag flags[] = {kAllowHarmonyNumericSeparator};
   RunParserSyncTest(context_data, statement_data, kError, nullptr, 0, flags, 1,

@@ -41,11 +41,6 @@
   assertEquals(binary, 0b01010);
 }
 {
-  const leadingZeros = 09_1_3;
-  assertEquals(leadingZeros, 0913);
-}
-
-{
   const dot1 = 9_1.1_3;
   assertEquals(dot1, 91.13);
 
@@ -54,6 +49,9 @@
 
   const dot3 = 1_1.21;
   assertEquals(dot3, 11.21);
+
+  const dot4 = 09.1_2
+  assertEquals(dot4, 9.12);
 }
 
 {
@@ -114,3 +112,4 @@ assertThrows('0o7__77', SyntaxError);
 assertThrows('0777_', SyntaxError);
 assertThrows('07__77', SyntaxError);
 assertThrows('07_7_7', SyntaxError);
+assertThrows('09_1_3', SyntaxError);

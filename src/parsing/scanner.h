@@ -646,9 +646,9 @@ class V8_EXPORT_PRIVATE Scanner {
 
   bool ScanDigitsWithNumericSeparators(bool (*predicate)(uc32 ch),
                                        bool is_check_first_digit);
-  bool ScanDecimalDigits();
+  bool ScanDecimalDigits(bool allow_numeric_separator);
   // Optimized function to scan decimal number as Smi.
-  bool ScanDecimalAsSmi(uint64_t* value);
+  bool ScanDecimalAsSmi(uint64_t* value, bool allow_numeric_separator);
   bool ScanDecimalAsSmiWithNumericSeparators(uint64_t* value);
   bool ScanHexDigits();
   bool ScanBinaryDigits();
