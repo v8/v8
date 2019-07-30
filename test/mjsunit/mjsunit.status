@@ -894,6 +894,8 @@
   # Skip tests that are known to be non-deterministic.
   'd8/d8-worker-sharedarraybuffer': [SKIP],
   'd8/d8-os': [SKIP],
+  'd8/d8-worker-shutdown': [SKIP],
+  'd8/d8-worker-shutdown-gc': [SKIP],
   'harmony/futex': [SKIP],
 
   # BUG(v8:7166).
