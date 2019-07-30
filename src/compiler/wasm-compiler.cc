@@ -6204,8 +6204,8 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
       zone.get(), false, params + 1, CallDescriptor::kNoFlags);
 
   return Pipeline::NewWasmHeapStubCompilationJob(
-      isolate, incoming, std::move(zone), graph, Code::JS_TO_WASM_FUNCTION,
-      std::move(debug_name), WasmAssemblerOptions());
+      isolate, wasm_engine, incoming, std::move(zone), graph,
+      Code::JS_TO_WASM_FUNCTION, std::move(debug_name), WasmAssemblerOptions());
 }
 
 std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
@@ -6624,11 +6624,11 @@ MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
   // Run the compilation job synchronously.
   std::unique_ptr<OptimizedCompilationJob> job(
       Pipeline::NewWasmHeapStubCompilationJob(
-          isolate, incoming, std::move(zone), graph, Code::JS_TO_JS_FUNCTION,
-          std::move(debug_name), AssemblerOptions::Default(isolate)));
+          isolate, isolate->wasm_engine(), incoming, std::move(zone), graph,
+          Code::JS_TO_JS_FUNCTION, std::move(debug_name),
+          AssemblerOptions::Default(isolate)));
 
-  if (job->PrepareJob(isolate) == CompilationJob::FAILED ||
-      job->ExecuteJob() == CompilationJob::FAILED ||
+  if (job->ExecuteJob() == CompilationJob::FAILED ||
       job->FinalizeJob(isolate) == CompilationJob::FAILED) {
     return {};
   }
@@ -6680,11 +6680,11 @@ MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
   // Run the compilation job synchronously.
   std::unique_ptr<OptimizedCompilationJob> job(
       Pipeline::NewWasmHeapStubCompilationJob(
-          isolate, incoming, std::move(zone), graph, Code::C_WASM_ENTRY,
-          std::move(debug_name), AssemblerOptions::Default(isolate)));
+          isolate, isolate->wasm_engine(), incoming, std::move(zone), graph,
+          Code::C_WASM_ENTRY, std::move(debug_name),
+          AssemblerOptions::Default(isolate)));
 
-  if (job->PrepareJob(isolate) == CompilationJob::FAILED ||
-      job->ExecuteJob() == CompilationJob::FAILED ||
+  if (job->ExecuteJob() == CompilationJob::FAILED ||
       job->FinalizeJob(isolate) == CompilationJob::FAILED) {
     return {};
   }
