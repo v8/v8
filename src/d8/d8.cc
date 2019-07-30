@@ -2699,6 +2699,7 @@ void Worker::ExecuteInThread() {
                   .ToLocalChecked();
           if (onmessage->IsFunction()) {
             Local<Function> onmessage_fun = Local<Function>::Cast(onmessage);
+            SealHandleScope shs(isolate);
             // Now wait for messages
             while (true) {
               in_semaphore_.Wait();
@@ -2708,6 +2709,7 @@ void Worker::ExecuteInThread() {
                 break;
               }
               v8::TryCatch try_catch(isolate);
+              HandleScope scope(isolate);
               Local<Value> value;
               if (Shell::DeserializeValue(isolate, std::move(data))
                       .ToLocal(&value)) {
