@@ -207,36 +207,19 @@ enum DispatchTableElements : int {
 
 // static
 Handle<WasmModuleObject> WasmModuleObject::New(
-    Isolate* isolate, const wasm::WasmFeatures& enabled,
-    std::shared_ptr<const wasm::WasmModule> shared_module,
-    OwnedVector<const uint8_t> wire_bytes, Handle<Script> script,
-    Handle<ByteArray> asm_js_offset_table) {
-  // Create a new {NativeModule} first.
-  size_t code_size_estimate =
-      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(shared_module.get());
-  auto native_module = isolate->wasm_engine()->NewNativeModule(
-      isolate, enabled, code_size_estimate,
-      wasm::NativeModule::kCanAllocateMoreMemory, std::move(shared_module));
-  native_module->SetWireBytes(std::move(wire_bytes));
-  native_module->SetRuntimeStubs(isolate);
-
-  // Delegate to the shared {WasmModuleObject::New} allocator.
-  Handle<WasmModuleObject> module_object =
-      New(isolate, std::move(native_module), script, code_size_estimate);
-  if (!asm_js_offset_table.is_null()) {
-    module_object->set_asm_js_offset_table(*asm_js_offset_table);
-  }
-  return module_object;
+    Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
+    Handle<Script> script) {
+  Handle<FixedArray> export_wrappers = isolate->factory()->NewFixedArray(0);
+  return New(isolate, std::move(native_module), script, export_wrappers);
 }
 
 // static
 Handle<WasmModuleObject> WasmModuleObject::New(
     Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
-    Handle<Script> script, size_t code_size_estimate) {
+    Handle<Script> script, Handle<FixedArray> export_wrappers) {
   const WasmModule* module = native_module->module();
-  int num_wrappers = MaxNumExportWrappers(module);
-  Handle<FixedArray> export_wrappers =
-      isolate->factory()->NewFixedArray(num_wrappers, AllocationType::kOld);
+  size_t code_size_estimate =
+      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module);
   return New(isolate, std::move(native_module), script, export_wrappers,
              code_size_estimate);
 }

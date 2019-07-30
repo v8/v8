@@ -401,7 +401,7 @@ class CompilationStateImpl {
   std::shared_ptr<JSToWasmWrapperCompilationUnit>
   GetNextJSToWasmWrapperCompilationUnit();
   void FinalizeJSToWasmWrappers(Isolate* isolate, const WasmModule* module,
-                                Handle<FixedArray> export_wrappers);
+                                Handle<FixedArray>* export_wrappers_out);
 
   void OnFinishedUnits(Vector<WasmCode*>);
   void OnFinishedJSToWasmWrapperUnits(int num);
@@ -1369,30 +1369,22 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   OwnedVector<uint8_t> wire_bytes_copy =
       OwnedVector<uint8_t>::Of(wire_bytes.module_bytes());
 
-  // Create and compile the native module.
-  size_t code_size_estimate =
-      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get());
-
   // Create a new {NativeModule} first.
   auto native_module = isolate->wasm_engine()->NewNativeModule(
-      isolate, enabled, code_size_estimate,
-      wasm::NativeModule::kCanAllocateMoreMemory, std::move(module));
+      isolate, enabled, std::move(module));
   native_module->SetWireBytes(std::move(wire_bytes_copy));
   native_module->SetRuntimeStubs(isolate);
 
   CompileNativeModule(isolate, thrower, wasm_module, native_module.get());
   if (thrower->error()) return {};
 
-  int num_wrappers = MaxNumExportWrappers(native_module->module());
-  *export_wrappers_out =
-      isolate->factory()->NewFixedArray(num_wrappers, AllocationType::kOld);
 #ifdef V8_EMBEDDED_BUILTINS
   Impl(native_module->compilation_state())
       ->FinalizeJSToWasmWrappers(isolate, native_module->module(),
-                                 *export_wrappers_out);
+                                 export_wrappers_out);
 #else
   CompileJsToWasmWrappers(isolate, native_module->module(),
-                          *export_wrappers_out);
+                          export_wrappers_out);
 #endif
 
   // Log the code within the generated module for profiling.
@@ -1516,11 +1508,8 @@ void AsyncCompileJob::CreateNativeModule(
   // breakpoints on a (potentially empty) subset of the instances.
   // Create the module object.
 
-  size_t code_size_estimate =
-      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get());
   native_module_ = isolate_->wasm_engine()->NewNativeModule(
-      isolate_, enabled_features_, code_size_estimate,
-      wasm::NativeModule::kCanAllocateMoreMemory, std::move(module));
+      isolate_, enabled_features_, std::move(module));
   native_module_->SetWireBytes({std::move(bytes_copy_), wire_bytes_.length()});
   native_module_->SetRuntimeStubs(isolate_);
 
@@ -1534,10 +1523,8 @@ void AsyncCompileJob::PrepareRuntimeObjects() {
   Handle<Script> script =
       CreateWasmScript(isolate_, wire_bytes_, module->source_map_url);
 
-  size_t code_size_estimate =
-      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module);
-  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate_, native_module_, script, code_size_estimate);
+  Handle<WasmModuleObject> module_object =
+      WasmModuleObject::New(isolate_, native_module_, script);
 
   module_object_ = isolate_->global_handles()->Create(*module_object);
 }
@@ -1568,15 +1555,16 @@ void AsyncCompileJob::FinishCompile() {
   // TODO(bbudge) Allow deserialization without wrapper compilation, so we can
   // just compile wrappers here.
   if (!is_after_deserialization) {
-#ifndef V8_EMBEDDED_BUILTINS
-    CompileJsToWasmWrappers(
-        isolate_, module_object_->native_module()->module(),
-        handle(module_object_->export_wrappers(), isolate_));
-#else
-    Handle<FixedArray> export_wrappers =
-        handle(module_object_->export_wrappers(), isolate_);
+#ifdef V8_EMBEDDED_BUILTINS
+    Handle<FixedArray> export_wrappers;
     compilation_state->FinalizeJSToWasmWrappers(
-        isolate_, module_object_->module(), export_wrappers);
+        isolate_, module_object_->module(), &export_wrappers);
+    module_object_->set_export_wrappers(*export_wrappers);
+#else
+    Handle<FixedArray> export_wrappers;
+    CompileJsToWasmWrappers(isolate_, module_object_->module(),
+                            &export_wrappers);
+    module_object_->set_export_wrappers(*export_wrappers);
 #endif
   }
   // We can only update the feature counts once the entire compile is done.
@@ -2348,7 +2336,9 @@ CompilationStateImpl::GetNextJSToWasmWrapperCompilationUnit() {
 
 void CompilationStateImpl::FinalizeJSToWasmWrappers(
     Isolate* isolate, const WasmModule* module,
-    Handle<FixedArray> export_wrappers) {
+    Handle<FixedArray>* export_wrappers_out) {
+  *export_wrappers_out = isolate->factory()->NewFixedArray(
+      MaxNumExportWrappers(module), AllocationType::kOld);
   // TODO(6792): Wrappers below are allocated with {Factory::NewCode}. As an
   // optimization we keep the code space unlocked to avoid repeated unlocking
   // because many such wrapper are allocated in sequence below.
@@ -2359,7 +2349,7 @@ void CompilationStateImpl::FinalizeJSToWasmWrappers(
     Handle<Code> code = unit->Finalize(isolate);
     int wrapper_index =
         GetExportWrapperIndex(module, unit->sig(), unit->is_import());
-    export_wrappers->set(wrapper_index, *code);
+    (*export_wrappers_out)->set(wrapper_index, *code);
     RecordStats(*code, isolate->counters());
   }
 }
@@ -2604,7 +2594,10 @@ class CompileJSToWasmWrapperTask final : public CancelableTask {
 }  // namespace
 
 void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
-                             Handle<FixedArray> export_wrappers) {
+                             Handle<FixedArray>* export_wrappers_out) {
+  *export_wrappers_out = isolate->factory()->NewFixedArray(
+      MaxNumExportWrappers(module), AllocationType::kOld);
+
   JSToWasmWrapperQueue queue;
   JSToWasmWrapperUnitMap compilation_units;
   WasmFeatures enabled_features = WasmFeaturesFromIsolate(isolate);
@@ -2648,7 +2641,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
     JSToWasmWrapperCompilationUnit* unit = pair.second.get();
     Handle<Code> code = unit->Finalize(isolate);
     int wrapper_index = GetExportWrapperIndex(module, &key.second, key.first);
-    export_wrappers->set(wrapper_index, *code);
+    (*export_wrappers_out)->set(wrapper_index, *code);
     RecordStats(*code, isolate->counters());
   }
 }
