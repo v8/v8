@@ -84,6 +84,12 @@ class ExpressionScope {
     AsExpressionParsingScope()->ClearExpressionError();
   }
 
+  void ValidateAsExpression() {
+    if (!CanBeExpression()) return;
+    AsExpressionParsingScope()->ValidateExpression();
+    AsExpressionParsingScope()->ClearPatternError();
+  }
+
   // Record async arrow parameters errors in all ambiguous async arrow scopes in
   // the chain up to the first unambiguous scope.
   void RecordAsyncArrowParametersError(const Scanner::Location& loc,
@@ -479,6 +485,14 @@ class ExpressionParsingScope : public ExpressionScope<Types> {
     verified_ = false;
 #endif
     clear(kExpressionIndex);
+  }
+
+  void ClearPatternError() {
+    DCHECK(verified_);
+#ifdef DEBUG
+    verified_ = false;
+#endif
+    clear(kPatternIndex);
   }
 
   void TrackVariable(VariableProxy* variable) {
