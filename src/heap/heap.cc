@@ -4451,6 +4451,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
         static_cast<size_t>(base::bits::RoundUpToPowerOfTwo64(
             static_cast<uint64_t>(max_semi_space_size_)));
     max_semi_space_size_ = Max(max_semi_space_size_, kMinSemiSpaceSize);
+    max_semi_space_size_ = Min(max_semi_space_size_, kMaxSemiSpaceSize);
     max_semi_space_size_ = RoundDown<Page::kPageSize>(max_semi_space_size_);
   }
 
