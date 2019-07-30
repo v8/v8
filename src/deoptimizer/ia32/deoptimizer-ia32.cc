@@ -13,6 +13,9 @@
 namespace v8 {
 namespace internal {
 
+const bool Deoptimizer::kSupportsFixedDeoptExitSize = false;
+const int Deoptimizer::kDeoptExitSize = 0;
+
 #define __ masm->
 
 void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,

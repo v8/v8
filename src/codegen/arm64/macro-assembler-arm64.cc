@@ -13,6 +13,7 @@
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/register-configuration.h"
 #include "src/debug/debug.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frame-constants.h"
 #include "src/execution/frames-inl.h"
 #include "src/heap/heap-inl.h"  // For MemoryChunk.
@@ -2057,22 +2058,17 @@ bool TurboAssembler::IsNearCallOffset(int64_t offset) {
 
 void TurboAssembler::CallForDeoptimization(Address target, int deopt_id) {
   BlockPoolsScope scope(this);
-  NoRootArrayScope no_root_array(this);
-
 #ifdef DEBUG
   Label start;
-  Bind(&start);
+  bind(&start);
 #endif
-  // Make sure that the deopt id can be encoded in 16 bits, so can be encoded
-  // in a single movz instruction with a zero shift.
-  DCHECK(is_uint16(deopt_id));
-  movz(x26, deopt_id);
   int64_t offset = static_cast<int64_t>(target) -
                    static_cast<int64_t>(options().code_range_start);
   DCHECK_EQ(offset % kInstrSize, 0);
   offset = offset / static_cast<int>(kInstrSize);
   DCHECK(IsNearCallOffset(offset));
   near_call(static_cast<int>(offset), RelocInfo::RUNTIME_ENTRY);
+  DCHECK_EQ(SizeOfCodeGeneratedSince(&start), Deoptimizer::kDeoptExitSize);
 }
 
 void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,

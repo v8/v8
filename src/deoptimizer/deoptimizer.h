@@ -501,6 +501,15 @@ class Deoptimizer : public Malloced {
 
   static const int kMaxNumberOfEntries = 16384;
 
+  // Set to true when the architecture supports deoptimization exit sequences
+  // of a fixed size, that can be sorted so that the deoptimization index is
+  // deduced from the address of the deoptimization exit.
+  static const bool kSupportsFixedDeoptExitSize;
+
+  // Size of deoptimization exit sequence. This is only meaningful when
+  // kSupportsFixedDeoptExitSize is true.
+  static const int kDeoptExitSize;
+
   enum class BuiltinContinuationMode {
     STUB,
     JAVASCRIPT,

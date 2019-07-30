@@ -505,6 +505,19 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
   unsigned size = ComputeInputFrameSize();
   int parameter_count = function.shared().internal_formal_parameter_count() + 1;
   input_ = new (size) FrameDescription(size, parameter_count);
+
+  if (kSupportsFixedDeoptExitSize) {
+    DCHECK_EQ(bailout_id_, kMaxUInt32);
+    // Calculate bailout id from return address.
+    DCHECK_GT(kDeoptExitSize, 0);
+    DeoptimizationData deopt_data =
+        DeoptimizationData::cast(compiled_code_.deoptimization_data());
+    Address deopt_start = compiled_code_.raw_instruction_start() +
+                          deopt_data.DeoptExitStart().value();
+    int offset = static_cast<int>(from_ - kDeoptExitSize - deopt_start);
+    DCHECK_EQ(0, offset % kDeoptExitSize);
+    bailout_id_ = offset / kDeoptExitSize;
+  }
 }
 
 Code Deoptimizer::FindOptimizedCode() {

@@ -13,6 +13,9 @@
 namespace v8 {
 namespace internal {
 
+const bool Deoptimizer::kSupportsFixedDeoptExitSize = true;
+const int Deoptimizer::kDeoptExitSize = kInstrSize;
+
 #define __ masm->
 
 namespace {
@@ -133,9 +136,10 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   // Floating point registers are saved on the stack above core registers.
   const int kDoubleRegistersOffset = saved_registers.Count() * kXRegSize;
 
-  // The bailout id was passed by the caller in x26.
+  // We don't use a bailout id for arm64, because we can compute the id from the
+  // address. Pass kMaxUInt32 instead to signify this.
   Register bailout_id = x2;
-  __ Mov(bailout_id, x26);
+  __ Mov(bailout_id, kMaxUInt32);
 
   Register code_object = x3;
   Register fp_to_sp = x4;

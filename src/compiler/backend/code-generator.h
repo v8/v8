@@ -199,8 +199,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   // Determines how to call helper stubs depending on the code kind.
   StubCallMode DetermineStubCallMode() const;
 
-  CodeGenResult AssembleDeoptimizerCall(int deoptimization_id,
-                                        SourcePosition pos);
+  CodeGenResult AssembleDeoptimizerCall(DeoptimizationExit* exit);
 
   // ===========================================================================
   // ============= Architecture-specific code generation methods. ==============
@@ -342,11 +341,9 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   int DefineDeoptimizationLiteral(DeoptimizationLiteral literal);
   DeoptimizationEntry const& GetDeoptimizationEntry(Instruction* instr,
                                                     size_t frame_state_offset);
-  DeoptimizeKind GetDeoptimizationKind(int deoptimization_id) const;
-  DeoptimizeReason GetDeoptimizationReason(int deoptimization_id) const;
-  int BuildTranslation(Instruction* instr, int pc_offset,
-                       size_t frame_state_offset,
-                       OutputFrameStateCombine state_combine);
+  DeoptimizationExit* BuildTranslation(Instruction* instr, int pc_offset,
+                                       size_t frame_state_offset,
+                                       OutputFrameStateCombine state_combine);
   void BuildTranslationForFrameStateDescriptor(
       FrameStateDescriptor* descriptor, InstructionOperandIterator* iter,
       Translation* translation, OutputFrameStateCombine state_combine);
@@ -361,34 +358,11 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
                                 InstructionOperand* op, MachineType type);
   void MarkLazyDeoptSite();
 
+  void PrepareForDeoptimizationExits(int deopt_count);
   DeoptimizationExit* AddDeoptimizationExit(Instruction* instr,
                                             size_t frame_state_offset);
 
   // ===========================================================================
-
-  class DeoptimizationState final : public ZoneObject {
-   public:
-    DeoptimizationState(BailoutId bailout_id, int translation_id, int pc_offset,
-                        DeoptimizeKind kind, DeoptimizeReason reason)
-        : bailout_id_(bailout_id),
-          translation_id_(translation_id),
-          pc_offset_(pc_offset),
-          kind_(kind),
-          reason_(reason) {}
-
-    BailoutId bailout_id() const { return bailout_id_; }
-    int translation_id() const { return translation_id_; }
-    int pc_offset() const { return pc_offset_; }
-    DeoptimizeKind kind() const { return kind_; }
-    DeoptimizeReason reason() const { return reason_; }
-
-   private:
-    BailoutId bailout_id_;
-    int translation_id_;
-    int pc_offset_;
-    DeoptimizeKind kind_;
-    DeoptimizeReason reason_;
-  };
 
   struct HandlerInfo {
     Label* handler;
@@ -414,8 +388,9 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   GapResolver resolver_;
   SafepointTableBuilder safepoints_;
   ZoneVector<HandlerInfo> handlers_;
+  int next_deoptimization_id_ = 0;
+  int deopt_exit_start_offset_ = 0;
   ZoneDeque<DeoptimizationExit*> deoptimization_exits_;
-  ZoneDeque<DeoptimizationState*> deoptimization_states_;
   ZoneDeque<DeoptimizationLiteral> deoptimization_literals_;
   size_t inlined_function_count_ = 0;
   TranslationBuffer translations_;

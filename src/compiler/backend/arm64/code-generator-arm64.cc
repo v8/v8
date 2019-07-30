@@ -820,12 +820,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // don't emit code for nops.
       break;
     case kArchDeoptimize: {
-      int deopt_state_id =
+      DeoptimizationExit* exit =
           BuildTranslation(instr, -1, 0, OutputFrameStateCombine::Ignore());
-      CodeGenResult result =
-          AssembleDeoptimizerCall(deopt_state_id, current_source_position_);
-      if (result != kSuccess) return result;
-      unwinding_info_writer_.MarkBlockWillExit();
+      __ B(exit->label());
       break;
     }
     case kArchRet:
@@ -2728,6 +2725,11 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
 }
 
 void CodeGenerator::FinishCode() { __ ForceConstantPoolEmissionWithoutJump(); }
+
+void CodeGenerator::PrepareForDeoptimizationExits(int deopt_count) {
+  __ ForceConstantPoolEmissionWithoutJump();
+  __ CheckVeneerPool(false, false, deopt_count * Deoptimizer::kDeoptExitSize);
+}
 
 void CodeGenerator::AssembleMove(InstructionOperand* source,
                                  InstructionOperand* destination) {

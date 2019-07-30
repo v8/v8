@@ -64,7 +64,6 @@ CodeGenerator::CodeGenerator(
       safepoints_(zone()),
       handlers_(zone()),
       deoptimization_exits_(zone()),
-      deoptimization_states_(zone()),
       deoptimization_literals_(zone()),
       translations_(zone()),
       caller_registers_saved_(false),
@@ -115,20 +114,22 @@ void CodeGenerator::CreateFrameAccessState(Frame* frame) {
 }
 
 CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
-    int deoptimization_id, SourcePosition pos) {
+    DeoptimizationExit* exit) {
+  int deoptimization_id = exit->deoptimization_id();
   if (deoptimization_id > Deoptimizer::kMaxNumberOfEntries) {
     return kTooManyDeoptimizationBailouts;
   }
 
-  DeoptimizeKind deopt_kind = GetDeoptimizationKind(deoptimization_id);
-  DeoptimizeReason deoptimization_reason =
-      GetDeoptimizationReason(deoptimization_id);
+  DeoptimizeKind deopt_kind = exit->kind();
+  DeoptimizeReason deoptimization_reason = exit->reason();
   Address deopt_entry =
       Deoptimizer::GetDeoptimizationEntry(tasm()->isolate(), deopt_kind);
   if (info()->is_source_positions_enabled()) {
-    tasm()->RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
+    tasm()->RecordDeoptReason(deoptimization_reason, exit->pos(),
+                              deoptimization_id);
   }
   tasm()->CallForDeoptimization(deopt_entry, deoptimization_id);
+  exit->set_emitted();
   return kSuccess;
 }
 
@@ -267,19 +268,33 @@ void CodeGenerator::AssembleCode() {
   // The test regress/regress-259 is an example of where we need it.
   tasm()->nop();
 
+  // For some targets, we must make sure that constant and veneer pools are
+  // emitted before emitting the deoptimization exits.
+  PrepareForDeoptimizationExits(static_cast<int>(deoptimization_exits_.size()));
+
+  if (Deoptimizer::kSupportsFixedDeoptExitSize) {
+    deopt_exit_start_offset_ = tasm()->pc_offset();
+  }
+
   // Assemble deoptimization exits.
   int last_updated = 0;
   for (DeoptimizationExit* exit : deoptimization_exits_) {
-    tasm()->bind(exit->label());
-    int trampoline_pc = tasm()->pc_offset();
-    int deoptimization_id = exit->deoptimization_id();
-    DeoptimizationState* ds = deoptimization_states_[deoptimization_id];
-
-    if (ds->kind() == DeoptimizeKind::kLazy) {
-      last_updated = safepoints()->UpdateDeoptimizationInfo(
-          ds->pc_offset(), trampoline_pc, last_updated);
+    if (exit->emitted()) continue;
+    if (Deoptimizer::kSupportsFixedDeoptExitSize) {
+      exit->set_deoptimization_id(next_deoptimization_id_++);
     }
-    result_ = AssembleDeoptimizerCall(deoptimization_id, exit->pos());
+    tasm()->bind(exit->label());
+
+    // UpdateDeoptimizationInfo expects lazy deopts to be visited in pc_offset
+    // order, which is always the case since they are added to
+    // deoptimization_exits_ in that order.
+    if (exit->kind() == DeoptimizeKind::kLazy) {
+      int trampoline_pc = tasm()->pc_offset();
+      last_updated = safepoints()->UpdateDeoptimizationInfo(
+          exit->pc_offset(), trampoline_pc, last_updated,
+          exit->deoptimization_id());
+    }
+    result_ = AssembleDeoptimizerCall(exit);
     if (result_ != kSuccess) return;
   }
 
@@ -802,7 +817,7 @@ Handle<PodArray<InliningPosition>> CreateInliningPositions(
 
 Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
   OptimizedCompilationInfo* info = this->info();
-  int deopt_count = static_cast<int>(deoptimization_states_.size());
+  int deopt_count = static_cast<int>(deoptimization_exits_.size());
   if (deopt_count == 0 && !info->is_osr()) {
     return DeoptimizationData::Empty(isolate());
   }
@@ -816,6 +831,8 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
   data->SetInlinedFunctionCount(
       Smi::FromInt(static_cast<int>(inlined_function_count_)));
   data->SetOptimizationId(Smi::FromInt(info->optimization_id()));
+
+  data->SetDeoptExitStart(Smi::FromInt(deopt_exit_start_offset_));
 
   if (info->has_shared_info()) {
     data->SetSharedFunctionInfo(*info->shared_info());
@@ -847,12 +864,13 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
 
   // Populate deoptimization entries.
   for (int i = 0; i < deopt_count; i++) {
-    DeoptimizationState* deoptimization_state = deoptimization_states_[i];
-    data->SetBytecodeOffset(i, deoptimization_state->bailout_id());
-    CHECK(deoptimization_state);
+    DeoptimizationExit* deoptimization_exit = deoptimization_exits_[i];
+    CHECK_NOT_NULL(deoptimization_exit);
+    DCHECK_EQ(i, deoptimization_exit->deoptimization_id());
+    data->SetBytecodeOffset(i, deoptimization_exit->bailout_id());
     data->SetTranslationIndex(
-        i, Smi::FromInt(deoptimization_state->translation_id()));
-    data->SetPc(i, Smi::FromInt(deoptimization_state->pc_offset()));
+        i, Smi::FromInt(deoptimization_exit->translation_id()));
+    data->SetPc(i, Smi::FromInt(deoptimization_exit->pc_offset()));
   }
 
   return data;
@@ -886,13 +904,8 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
     FrameStateDescriptor* descriptor =
         GetDeoptimizationEntry(instr, frame_state_offset).descriptor();
     int pc_offset = tasm()->pc_offset();
-    int deopt_state_id = BuildTranslation(instr, pc_offset, frame_state_offset,
-                                          descriptor->state_combine());
-
-    DeoptimizationExit* const exit = new (zone())
-        DeoptimizationExit(deopt_state_id, current_source_position_);
-    deoptimization_exits_.push_back(exit);
-    safepoints()->RecordLazyDeoptimizationIndex(deopt_state_id);
+    BuildTranslation(instr, pc_offset, frame_state_offset,
+                     descriptor->state_combine());
   }
 }
 
@@ -910,20 +923,6 @@ DeoptimizationEntry const& CodeGenerator::GetDeoptimizationEntry(
   InstructionOperandConverter i(this, instr);
   int const state_id = i.InputInt32(frame_state_offset);
   return instructions()->GetDeoptimizationEntry(state_id);
-}
-
-DeoptimizeKind CodeGenerator::GetDeoptimizationKind(
-    int deoptimization_id) const {
-  size_t const index = static_cast<size_t>(deoptimization_id);
-  DCHECK_LT(index, deoptimization_states_.size());
-  return deoptimization_states_[index]->kind();
-}
-
-DeoptimizeReason CodeGenerator::GetDeoptimizationReason(
-    int deoptimization_id) const {
-  size_t const index = static_cast<size_t>(deoptimization_id);
-  DCHECK_LT(index, deoptimization_states_.size());
-  return deoptimization_states_[index]->reason();
 }
 
 void CodeGenerator::TranslateStateValueDescriptor(
@@ -1054,9 +1053,9 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
   TranslateFrameStateDescriptorOperands(descriptor, iter, translation);
 }
 
-int CodeGenerator::BuildTranslation(Instruction* instr, int pc_offset,
-                                    size_t frame_state_offset,
-                                    OutputFrameStateCombine state_combine) {
+DeoptimizationExit* CodeGenerator::BuildTranslation(
+    Instruction* instr, int pc_offset, size_t frame_state_offset,
+    OutputFrameStateCombine state_combine) {
   DeoptimizationEntry const& entry =
       GetDeoptimizationEntry(instr, frame_state_offset);
   FrameStateDescriptor* const descriptor = entry.descriptor();
@@ -1077,13 +1076,16 @@ int CodeGenerator::BuildTranslation(Instruction* instr, int pc_offset,
   BuildTranslationForFrameStateDescriptor(descriptor, &iter, &translation,
                                           state_combine);
 
-  int deoptimization_id = static_cast<int>(deoptimization_states_.size());
+  DeoptimizationExit* const exit = new (zone()) DeoptimizationExit(
+      current_source_position_, descriptor->bailout_id(), translation.index(),
+      pc_offset, entry.kind(), entry.reason());
 
-  deoptimization_states_.push_back(new (zone()) DeoptimizationState(
-      descriptor->bailout_id(), translation.index(), pc_offset, entry.kind(),
-      entry.reason()));
+  if (!Deoptimizer::kSupportsFixedDeoptExitSize) {
+    exit->set_deoptimization_id(next_deoptimization_id_++);
+  }
 
-  return deoptimization_id;
+  deoptimization_exits_.push_back(exit);
+  return exit;
 }
 
 void CodeGenerator::AddTranslationForOperand(Translation* translation,
@@ -1237,13 +1239,8 @@ void CodeGenerator::MarkLazyDeoptSite() {
 
 DeoptimizationExit* CodeGenerator::AddDeoptimizationExit(
     Instruction* instr, size_t frame_state_offset) {
-  int const deoptimization_id = BuildTranslation(
-      instr, -1, frame_state_offset, OutputFrameStateCombine::Ignore());
-
-  DeoptimizationExit* const exit = new (zone())
-      DeoptimizationExit(deoptimization_id, current_source_position_);
-  deoptimization_exits_.push_back(exit);
-  return exit;
+  return BuildTranslation(instr, -1, frame_state_offset,
+                          OutputFrameStateCombine::Ignore());
 }
 
 void CodeGenerator::InitializeSpeculationPoison() {

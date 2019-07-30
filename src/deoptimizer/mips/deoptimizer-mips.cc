@@ -10,6 +10,9 @@
 namespace v8 {
 namespace internal {
 
+const bool Deoptimizer::kSupportsFixedDeoptExitSize = false;
+const int Deoptimizer::kDeoptExitSize = 0;
+
 #define __ masm->
 
 // This code tries to be close to ia32 code so that any changes can be
