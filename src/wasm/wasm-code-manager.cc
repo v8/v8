@@ -1183,8 +1183,10 @@ NativeModule::~NativeModule() {
   import_wrapper_cache_.reset();
 }
 
-WasmCodeManager::WasmCodeManager(size_t max_committed)
-    : max_committed_code_space_(max_committed),
+WasmCodeManager::WasmCodeManager(WasmMemoryTracker* memory_tracker,
+                                 size_t max_committed)
+    : memory_tracker_(memory_tracker),
+      max_committed_code_space_(max_committed),
 #if defined(V8_OS_WIN64)
       is_win64_unwind_info_disabled_for_testing_(false),
 #endif  // V8_OS_WIN64
@@ -1261,12 +1263,12 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
   DCHECK_GT(size, 0);
   size_t allocate_page_size = page_allocator->AllocatePageSize();
   size = RoundUp(size, allocate_page_size);
-  if (!BackingStore::ReserveAddressSpace(size)) return {};
+  if (!memory_tracker_->ReserveAddressSpace(size)) return {};
   if (hint == nullptr) hint = page_allocator->GetRandomMmapAddr();
 
   VirtualMemory mem(page_allocator, size, hint, allocate_page_size);
   if (!mem.IsReserved()) {
-    BackingStore::ReleaseReservation(size);
+    memory_tracker_->ReleaseReservation(size);
     return {};
   }
   TRACE_HEAP("VMem alloc: 0x%" PRIxPTR ":0x%" PRIxPTR " (%zu)\n", mem.address(),
@@ -1493,7 +1495,7 @@ void WasmCodeManager::FreeNativeModule(Vector<VirtualMemory> owned_code_space,
 #endif  // V8_OS_WIN64
 
     lookup_map_.erase(code_space.address());
-    BackingStore::ReleaseReservation(code_space.size());
+    memory_tracker_->ReleaseReservation(code_space.size());
     code_space.Free();
     DCHECK(!code_space.IsReserved());
   }

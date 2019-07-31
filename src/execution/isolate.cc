@@ -51,7 +51,6 @@
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/numbers/hash-seed-inl.h"
-#include "src/objects/backing-store.h"
 #include "src/objects/elements.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/hash-table-inl.h"
@@ -2983,7 +2982,7 @@ void Isolate::Deinit() {
     optimizing_compile_dispatcher_ = nullptr;
   }
 
-  BackingStore::RemoveSharedWasmMemoryObjects(this);
+  wasm_engine()->memory_tracker()->DeleteSharedMemoryObjectsOnIsolate(this);
 
   heap_.mark_compact_collector()->EnsureSweepingCompleted();
   heap_.memory_allocator()->unmapper()->EnsureUnmappingCompleted();
@@ -4585,15 +4584,6 @@ void Isolate::AddDetachedContext(Handle<Context> context) {
   detached_contexts = WeakArrayList::AddToEnd(this, detached_contexts,
                                               MaybeObjectHandle::Weak(context));
   heap()->set_detached_contexts(*detached_contexts);
-}
-
-void Isolate::AddSharedWasmMemory(Handle<WasmMemoryObject> memory_object) {
-  HandleScope scope(this);
-  Handle<WeakArrayList> shared_wasm_memories =
-      factory()->shared_wasm_memories();
-  shared_wasm_memories = WeakArrayList::AddToEnd(
-      this, shared_wasm_memories, MaybeObjectHandle::Weak(memory_object));
-  heap()->set_shared_wasm_memories(*shared_wasm_memories);
 }
 
 void Isolate::CheckDetachedContextsAfterGC() {

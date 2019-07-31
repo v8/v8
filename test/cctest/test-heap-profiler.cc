@@ -2913,8 +2913,7 @@ TEST(ArrayBufferSharedBackingStore) {
   CHECK(ab2_data);
   CHECK_EQ(ab1_data, ab2_data);
   CHECK_EQ(2, GetRetainersCount(snapshot, ab1_data));
-  ab_contents.Deleter()(ab_contents.Data(), ab_contents.ByteLength(),
-                        ab_contents.DeleterData());
+  free(data);
 }
 
 

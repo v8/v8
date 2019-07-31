@@ -12,31 +12,16 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/objects.h"
 
-#define TRACE_BS(...)                                  \
-  do {                                                 \
-    if (FLAG_trace_backing_store) PrintF(__VA_ARGS__); \
-  } while (false)
-
 namespace v8 {
 namespace internal {
 
-inline size_t PerIsolateAccountingLength(JSArrayBuffer buffer) {
-  // TODO(titzer): SharedArrayBuffers and shared WasmMemorys cause problems with
-  // accounting for per-isolate external memory. In particular, sharing the same
-  // array buffer or memory multiple times, which happens in stress tests, can
-  // cause overcounting, leading to GC thrashing. Fix with global accounting?
-  return buffer.is_shared() ? 0 : buffer.byte_length();
-}
-
-void ArrayBufferTracker::RegisterNew(
-    Heap* heap, JSArrayBuffer buffer,
-    std::shared_ptr<BackingStore> backing_store) {
-  if (!backing_store) return;
+void ArrayBufferTracker::RegisterNew(Heap* heap, JSArrayBuffer buffer) {
+  if (buffer.backing_store() == nullptr) return;
 
   // ArrayBuffer tracking works only for small objects.
   DCHECK(!heap->IsLargeObject(buffer));
-  DCHECK_EQ(backing_store->buffer_start(), buffer.backing_store());
 
+  const size_t length = buffer.byte_length();
   Page* page = Page::FromHeapObject(buffer);
   {
     base::MutexGuard guard(page->mutex());
@@ -46,63 +31,44 @@ void ArrayBufferTracker::RegisterNew(
       tracker = page->local_tracker();
     }
     DCHECK_NOT_NULL(tracker);
-    TRACE_BS("ABT:reg   bs=%p mem=%p (length=%zu) cnt=%ld\n",
-             backing_store.get(), backing_store->buffer_start(),
-             backing_store->byte_length(), backing_store.use_count());
-    tracker->Add(buffer, std::move(backing_store));
+    tracker->Add(buffer, length);
   }
 
   // TODO(wez): Remove backing-store from external memory accounting.
   // We may go over the limit of externally allocated memory here. We call the
   // api function to trigger a GC in this case.
-  const size_t length = PerIsolateAccountingLength(buffer);
   reinterpret_cast<v8::Isolate*>(heap->isolate())
       ->AdjustAmountOfExternalAllocatedMemory(length);
 }
 
-std::shared_ptr<BackingStore> ArrayBufferTracker::Unregister(
-    Heap* heap, JSArrayBuffer buffer) {
-  std::shared_ptr<BackingStore> backing_store;
+void ArrayBufferTracker::Unregister(Heap* heap, JSArrayBuffer buffer) {
+  if (buffer.backing_store() == nullptr) return;
 
-  const size_t length = PerIsolateAccountingLength(buffer);
   Page* page = Page::FromHeapObject(buffer);
+  const size_t length = buffer.byte_length();
   {
     base::MutexGuard guard(page->mutex());
     LocalArrayBufferTracker* tracker = page->local_tracker();
     DCHECK_NOT_NULL(tracker);
-    backing_store = tracker->Remove(buffer);
+    tracker->Remove(buffer, length);
   }
 
   // TODO(wez): Remove backing-store from external memory accounting.
   heap->update_external_memory(-static_cast<intptr_t>(length));
-  return backing_store;
-}
-
-std::shared_ptr<BackingStore> ArrayBufferTracker::Lookup(Heap* heap,
-                                                         JSArrayBuffer buffer) {
-  if (buffer.backing_store() == nullptr) return {};
-
-  Page* page = Page::FromHeapObject(buffer);
-  base::MutexGuard guard(page->mutex());
-  LocalArrayBufferTracker* tracker = page->local_tracker();
-  DCHECK_NOT_NULL(tracker);
-  return tracker->Lookup(buffer);
 }
 
 template <typename Callback>
 void LocalArrayBufferTracker::Free(Callback should_free) {
   size_t freed_memory = 0;
+  Isolate* isolate = page_->heap()->isolate();
   for (TrackingData::iterator it = array_buffers_.begin();
        it != array_buffers_.end();) {
     // Unchecked cast because the map might already be dead at this point.
     JSArrayBuffer buffer = JSArrayBuffer::unchecked_cast(it->first);
-    const size_t length = PerIsolateAccountingLength(buffer);
+    const size_t length = it->second.length;
 
     if (should_free(buffer)) {
-      // Destroy the shared pointer, (perhaps) freeing the backing store.
-      TRACE_BS("ABT:die   bs=%p mem=%p (length=%zu) cnt=%ld\n",
-               it->second.get(), it->second->buffer_start(),
-               it->second->byte_length(), it->second.use_count());
+      JSArrayBuffer::FreeBackingStore(isolate, it->second);
       it = array_buffers_.erase(it);
       freed_memory += length;
     } else {
@@ -132,59 +98,34 @@ void ArrayBufferTracker::FreeDead(Page* page, MarkingState* marking_state) {
   }
 }
 
-void LocalArrayBufferTracker::Add(JSArrayBuffer buffer,
-                                  std::shared_ptr<BackingStore> backing_store) {
-  auto length = PerIsolateAccountingLength(buffer);
+void LocalArrayBufferTracker::Add(JSArrayBuffer buffer, size_t length) {
   page_->IncrementExternalBackingStoreBytes(
       ExternalBackingStoreType::kArrayBuffer, length);
 
-  AddInternal(buffer, std::move(backing_store));
+  AddInternal(buffer, length);
 }
 
-void LocalArrayBufferTracker::AddInternal(
-    JSArrayBuffer buffer, std::shared_ptr<BackingStore> backing_store) {
-  auto ret = array_buffers_.insert({buffer, std::move(backing_store)});
+void LocalArrayBufferTracker::AddInternal(JSArrayBuffer buffer, size_t length) {
+  auto ret = array_buffers_.insert(
+      {buffer,
+       {buffer.backing_store(), length, buffer.backing_store(),
+        buffer.is_wasm_memory()}});
   USE(ret);
   // Check that we indeed inserted a new value and did not overwrite an existing
   // one (which would be a bug).
   DCHECK(ret.second);
 }
 
-std::shared_ptr<BackingStore> LocalArrayBufferTracker::Remove(
-    JSArrayBuffer buffer) {
-  TrackingData::iterator it = array_buffers_.find(buffer);
-
-  // Check that we indeed find a key to remove.
-  DCHECK(it != array_buffers_.end());
-
-  // Steal the underlying shared pointer before erasing the entry.
-  std::shared_ptr<BackingStore> backing_store = std::move(it->second);
-
-  TRACE_BS("ABT:rm    bs=%p mem=%p (length=%zu) cnt=%ld\n", backing_store.get(),
-           backing_store->buffer_start(), backing_store->byte_length(),
-           backing_store.use_count());
-
-  // Erase the entry.
-  array_buffers_.erase(it);
-
-  // Update accounting.
-  auto length = PerIsolateAccountingLength(buffer);
+void LocalArrayBufferTracker::Remove(JSArrayBuffer buffer, size_t length) {
   page_->DecrementExternalBackingStoreBytes(
       ExternalBackingStoreType::kArrayBuffer, length);
 
-  return backing_store;
-}
-
-std::shared_ptr<BackingStore> LocalArrayBufferTracker::Lookup(
-    JSArrayBuffer buffer) {
   TrackingData::iterator it = array_buffers_.find(buffer);
-  if (it != array_buffers_.end()) {
-    return it->second;
-  }
-  return {};
+  // Check that we indeed find a key to remove.
+  DCHECK(it != array_buffers_.end());
+  DCHECK_EQ(length, it->second.length);
+  array_buffers_.erase(it);
 }
-
-#undef TRACE_BS
 
 }  // namespace internal
 }  // namespace v8
