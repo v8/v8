@@ -1038,6 +1038,14 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Le) {
   RunF64x2CompareOpTest(execution_tier, lower_simd, kExprF64x2Le, LessEqual);
 }
 
+bool IsExtreme(double x) {
+  double abs_x = std::fabs(x);
+  const double kSmallFloatThreshold = 1.0e-298;
+  const double kLargeFloatThreshold = 1.0e298;
+  return abs_x != 0.0f &&  // 0 or -0 are fine.
+         (abs_x < kSmallFloatThreshold || abs_x > kLargeFloatThreshold);
+}
+
 bool IsSameNan(double expected, double actual) {
   // Sign is non-deterministic.
   uint64_t expected_bits = bit_cast<uint64_t>(expected) & ~0x8000000000000000;
@@ -1207,6 +1215,14 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Sub) {
 
 WASM_SIMD_TEST_NO_LOWERING(F64x2Mul) {
   RunF64x2BinOpTest(execution_tier, lower_simd, kExprF64x2Mul, Mul);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(F64x2Min) {
+  RunF64x2BinOpTest(execution_tier, lower_simd, kExprF64x2Min, JSMin);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(F64x2Max) {
+  RunF64x2BinOpTest(execution_tier, lower_simd, kExprF64x2Max, JSMax);
 }
 
 #undef FOR_FLOAT64_NAN_INPUTS

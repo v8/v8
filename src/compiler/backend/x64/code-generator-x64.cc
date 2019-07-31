@@ -2296,6 +2296,45 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SSE_BINOP(mulpd);
       break;
     }
+    case kX64F64x2Min: {
+      XMMRegister src1 = i.InputSimd128Register(1),
+                  dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      // The minpd instruction doesn't propagate NaNs and +0's in its first
+      // operand. Perform minpd in both orders, merge the resuls, and adjust.
+      __ movapd(kScratchDoubleReg, src1);
+      __ minpd(kScratchDoubleReg, dst);
+      __ minpd(dst, src1);
+      // propagate -0's and NaNs, which may be non-canonical.
+      __ orpd(kScratchDoubleReg, dst);
+      // Canonicalize NaNs by quieting and clearing the payload.
+      __ cmppd(dst, kScratchDoubleReg, 3);
+      __ orpd(kScratchDoubleReg, dst);
+      __ psrlq(dst, 13);
+      __ andnpd(dst, kScratchDoubleReg);
+      break;
+    }
+    case kX64F64x2Max: {
+      XMMRegister src1 = i.InputSimd128Register(1),
+                  dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      // The maxpd instruction doesn't propagate NaNs and +0's in its first
+      // operand. Perform maxpd in both orders, merge the resuls, and adjust.
+      __ movapd(kScratchDoubleReg, src1);
+      __ maxpd(kScratchDoubleReg, dst);
+      __ maxpd(dst, src1);
+      // Find discrepancies.
+      __ xorpd(dst, kScratchDoubleReg);
+      // Propagate NaNs, which may be non-canonical.
+      __ orpd(kScratchDoubleReg, dst);
+      // Propagate sign discrepancy and (subtle) quiet NaNs.
+      __ subpd(kScratchDoubleReg, dst);
+      // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
+      __ cmppd(dst, kScratchDoubleReg, 3);
+      __ psrlq(dst, 13);
+      __ andnpd(dst, kScratchDoubleReg);
+      break;
+    }
     case kX64F64x2Eq: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ cmpeqpd(i.OutputSimd128Register(), i.InputSimd128Register(1));

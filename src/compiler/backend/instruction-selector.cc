@@ -1833,6 +1833,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitF64x2Sub(node);
     case IrOpcode::kF64x2Mul:
       return MarkAsSimd128(node), VisitF64x2Mul(node);
+    case IrOpcode::kF64x2Min:
+      return MarkAsSimd128(node), VisitF64x2Min(node);
+    case IrOpcode::kF64x2Max:
+      return MarkAsSimd128(node), VisitF64x2Max(node);
     case IrOpcode::kF64x2Eq:
       return MarkAsSimd128(node), VisitF64x2Eq(node);
     case IrOpcode::kF64x2Ne:
@@ -2575,6 +2579,8 @@ void InstructionSelector::VisitF64x2Neg(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Add(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Sub(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Mul(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitF64x2Min(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitF64x2Max(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Eq(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Ne(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Lt(Node* node) { UNIMPLEMENTED(); }
