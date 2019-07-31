@@ -432,7 +432,9 @@
       {'name': 'mozilla', 'shards': 2},
       {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 10},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
+      # TODO(v8:v7703): Temporarily disable this test while enabling pointer
+      # compression on arm64.
+      # {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
       {'name': 'v8testing', 'variant': 'trusted', 'shards': 3},
     ],
   },
@@ -453,7 +455,9 @@
       {'name': 'mozilla', 'shards': 2},
       {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 12},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 8},
+      # TODO(v8:v7703): Temporarily disable this test while enabling pointer
+      # compression on arm64.
+      # {'name': 'v8testing', 'variant': 'extra', 'shards': 8},
       {'name': 'v8testing', 'variant': 'trusted', 'shards': 3},
     ],
   },
@@ -1394,7 +1398,9 @@
       {'name': 'mozilla'},
       {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing', 'shards': 3},
-      {'name': 'v8testing', 'variant': 'extra'},
+      # TODO(v8:v7703): Temporarily disable this test while enabling pointer
+      # compression on arm64.
+      # {'name': 'v8testing', 'variant': 'extra'},
       {'name': 'v8testing', 'variant': 'trusted'},
     ],
   },
@@ -1411,7 +1417,9 @@
       {'name': 'mozilla', 'shards': 2},
       {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 10},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
+      # TODO(v8:v7703): Temporarily disable this test while enabling pointer
+      # compression on arm64.
+      # {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
       {'name': 'v8testing', 'variant': 'trusted', 'shards': 2},
     ],
   },

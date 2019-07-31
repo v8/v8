@@ -104,7 +104,7 @@ declare_args() {
   v8_enable_verify_csa = false
 
   # Enable pointer compression (sets -dV8_COMPRESS_POINTERS).
-  v8_enable_pointer_compression = false
+  v8_enable_pointer_compression = ""
   v8_enable_31bit_smis_on_64bit_arch = false
 
   # Sets -dOBJECT_PRINT.
@@ -229,6 +229,10 @@ if (v8_check_microtasks_scopes_consistency == "") {
 }
 if (v8_enable_snapshot_native_code_counters == "") {
   v8_enable_snapshot_native_code_counters = v8_enable_debugging_features
+}
+if (v8_enable_pointer_compression == "") {
+  # TODO(v8:v7703): temporarily enable pointer compression on arm64
+  v8_enable_pointer_compression = v8_current_cpu == "arm64"
 }
 if (v8_enable_shared_ro_heap == "") {
   v8_enable_shared_ro_heap = !v8_enable_pointer_compression
