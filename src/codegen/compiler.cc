@@ -2111,6 +2111,10 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
 
     parse_info.set_eval();  // Use an eval scope as declaration scope.
     parse_info.set_wrapped_as_function();
+    // TODO(delphick): Remove this and instead make the wrapped and wrapper
+    // functions fully non-lazy instead thus preventing source positions from
+    // being omitted.
+    parse_info.set_collect_source_positions(true);
     // parse_info.set_eager(compile_options == ScriptCompiler::kEagerCompile);
     if (!context->IsNativeContext()) {
       parse_info.set_outer_scope_info(handle(context->scope_info(), isolate));
