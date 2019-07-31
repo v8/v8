@@ -65,8 +65,8 @@ enum class EscapeKind : uint8_t {
 };
 
 using EscapeKindField = BitField8<EscapeKind, 0, 3>;
-using MayTerminateStringField = BitField8<bool, EscapeKindField::kNext, 1>;
-using NumberPartField = BitField8<bool, MayTerminateStringField::kNext, 1>;
+using MayTerminateStringField = EscapeKindField::Next<bool, 1>;
+using NumberPartField = MayTerminateStringField::Next<bool, 1>;
 
 constexpr bool MayTerminateJsonString(uint8_t flags) {
   return MayTerminateStringField::decode(flags);

@@ -221,31 +221,25 @@ class ScopeInfo : public FixedArray {
 
   // Properties of scopes.
   using ScopeTypeField = BitField<ScopeType, 0, 4>;
-  using CallsSloppyEvalField = BitField<bool, ScopeTypeField::kNext, 1>;
+  using CallsSloppyEvalField = ScopeTypeField::Next<bool, 1>;
   STATIC_ASSERT(LanguageModeSize == 2);
-  using LanguageModeField =
-      BitField<LanguageMode, CallsSloppyEvalField::kNext, 1>;
-  using DeclarationScopeField = BitField<bool, LanguageModeField::kNext, 1>;
+  using LanguageModeField = CallsSloppyEvalField::Next<LanguageMode, 1>;
+  using DeclarationScopeField = LanguageModeField::Next<bool, 1>;
   using ReceiverVariableField =
-      BitField<VariableAllocationInfo, DeclarationScopeField::kNext, 2>;
-  using HasClassBrandField = BitField<bool, ReceiverVariableField::kNext, 1>;
-  using HasNewTargetField = BitField<bool, HasClassBrandField::kNext, 1>;
+      DeclarationScopeField::Next<VariableAllocationInfo, 2>;
+  using HasClassBrandField = ReceiverVariableField::Next<bool, 1>;
+  using HasNewTargetField = HasClassBrandField::Next<bool, 1>;
   using FunctionVariableField =
-      BitField<VariableAllocationInfo, HasNewTargetField::kNext, 2>;
+      HasNewTargetField::Next<VariableAllocationInfo, 2>;
   // TODO(cbruni): Combine with function variable field when only storing the
   // function name.
-  using HasInferredFunctionNameField =
-      BitField<bool, FunctionVariableField::kNext, 1>;
-  using IsAsmModuleField =
-      BitField<bool, HasInferredFunctionNameField::kNext, 1>;
-  using HasSimpleParametersField = BitField<bool, IsAsmModuleField::kNext, 1>;
-  using FunctionKindField =
-      BitField<FunctionKind, HasSimpleParametersField::kNext, 5>;
-  using HasOuterScopeInfoField = BitField<bool, FunctionKindField::kNext, 1>;
-  using IsDebugEvaluateScopeField =
-      BitField<bool, HasOuterScopeInfoField::kNext, 1>;
-  using ForceContextAllocationField =
-      BitField<bool, IsDebugEvaluateScopeField::kNext, 1>;
+  using HasInferredFunctionNameField = FunctionVariableField::Next<bool, 1>;
+  using IsAsmModuleField = HasInferredFunctionNameField::Next<bool, 1>;
+  using HasSimpleParametersField = IsAsmModuleField::Next<bool, 1>;
+  using FunctionKindField = HasSimpleParametersField::Next<FunctionKind, 5>;
+  using HasOuterScopeInfoField = FunctionKindField::Next<bool, 1>;
+  using IsDebugEvaluateScopeField = HasOuterScopeInfoField::Next<bool, 1>;
+  using ForceContextAllocationField = IsDebugEvaluateScopeField::Next<bool, 1>;
 
   STATIC_ASSERT(kLastFunctionKind <= FunctionKindField::kMax);
 
@@ -313,12 +307,9 @@ class ScopeInfo : public FixedArray {
 
   // Properties of variables.
   using VariableModeField = BitField<VariableMode, 0, 4>;
-  using InitFlagField =
-      BitField<InitializationFlag, VariableModeField::kNext, 1>;
-  using MaybeAssignedFlagField =
-      BitField<MaybeAssignedFlag, InitFlagField::kNext, 1>;
-  using ParameterNumberField =
-      BitField<uint32_t, MaybeAssignedFlagField::kNext, 16>;
+  using InitFlagField = VariableModeField::Next<InitializationFlag, 1>;
+  using MaybeAssignedFlagField = InitFlagField::Next<MaybeAssignedFlag, 1>;
+  using ParameterNumberField = MaybeAssignedFlagField::Next<uint32_t, 16>;
 
   friend class ScopeIterator;
   friend std::ostream& operator<<(std::ostream& os,

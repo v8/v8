@@ -228,7 +228,7 @@ class ObjectTemplateInfo : public TemplateInfo {
 
  private:
   using IsImmutablePrototype = BitField<bool, 0, 1>;
-  using EmbedderFieldCount = BitField<int, IsImmutablePrototype::kNext, 29>;
+  using EmbedderFieldCount = IsImmutablePrototype::Next<int, 29>;
 
   OBJECT_CONSTRUCTORS(ObjectTemplateInfo, TemplateInfo);
 };

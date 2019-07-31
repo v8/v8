@@ -316,20 +316,24 @@ class BitField final {
   STATIC_ASSERT(shift < 8 * sizeof(U));  // Otherwise shifts by {shift} are UB.
   STATIC_ASSERT(size < 8 * sizeof(U));   // Otherwise shifts by {size} are UB.
   STATIC_ASSERT(shift + size <= 8 * sizeof(U));
+  STATIC_ASSERT(size > 0);
 
   using FieldType = T;
 
   // A type U mask of bit field.  To use all bits of a type U of x bits
   // in a bitfield without compiler warnings we have to compute 2^x
   // without using a shift count of x in the computation.
-  static constexpr U kShift = shift;
-  static constexpr U kSize = size;
+  static constexpr int kShift = shift;
+  static constexpr int kSize = size;
   static constexpr U kMask = ((U{1} << kShift) << kSize) - (U{1} << kShift);
-  static constexpr U kNext = kShift + kSize;
+  static constexpr int kLastUsedBit = kShift + kSize - 1;
   static constexpr U kNumValues = U{1} << kSize;
 
   // Value for the field with all bits set.
   static constexpr T kMax = static_cast<T>(kNumValues - 1);
+
+  template <class T2, int size2>
+  using Next = BitField<T2, kShift + kSize, size2, U>;
 
   // Tells whether the provided value fits into the bit field.
   static constexpr bool is_valid(T value) {

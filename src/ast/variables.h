@@ -238,18 +238,14 @@ class Variable final : public ZoneObject {
   }
 
   using VariableModeField = BitField16<VariableMode, 0, 4>;
-  using VariableKindField =
-      BitField16<VariableKind, VariableModeField::kNext, 3>;
-  using LocationField =
-      BitField16<VariableLocation, VariableKindField::kNext, 3>;
-  using ForceContextAllocationField = BitField16<bool, LocationField::kNext, 1>;
-  using IsUsedField = BitField16<bool, ForceContextAllocationField::kNext, 1>;
-  using InitializationFlagField =
-      BitField16<InitializationFlag, IsUsedField::kNext, 1>;
-  using ForceHoleInitializationField =
-      BitField16<bool, InitializationFlagField::kNext, 1>;
+  using VariableKindField = VariableModeField::Next<VariableKind, 3>;
+  using LocationField = VariableKindField::Next<VariableLocation, 3>;
+  using ForceContextAllocationField = LocationField::Next<bool, 1>;
+  using IsUsedField = ForceContextAllocationField::Next<bool, 1>;
+  using InitializationFlagField = IsUsedField::Next<InitializationFlag, 1>;
+  using ForceHoleInitializationField = InitializationFlagField::Next<bool, 1>;
   using MaybeAssignedFlagField =
-      BitField16<MaybeAssignedFlag, ForceHoleInitializationField::kNext, 1>;
+      ForceHoleInitializationField::Next<MaybeAssignedFlag, 1>;
 
   Variable** next() { return &next_; }
   friend List;

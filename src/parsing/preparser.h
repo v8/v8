@@ -351,16 +351,14 @@ class PreParserExpression {
   // Expression nodes may be represented as multiple Types, not exclusively
   // through kExpression.
   // TODO(caitp, adamk): clean up PreParserExpression bitfields.
-  using IsParenthesizedField = BitField<bool, TypeField::kNext, 1>;
+  using IsParenthesizedField = TypeField::Next<bool, 1>;
 
   // The rest of the bits are interpreted depending on the value
   // of the Type field, so they can share the storage.
-  using ExpressionTypeField =
-      BitField<ExpressionType, IsParenthesizedField::kNext, 4>;
+  using ExpressionTypeField = IsParenthesizedField::Next<ExpressionType, 4>;
   using IdentifierTypeField =
-      BitField<PreParserIdentifier::Type, IsParenthesizedField::kNext, 8>;
-  using HasCoverInitializedNameField =
-      BitField<bool, IsParenthesizedField::kNext, 1>;
+      IsParenthesizedField::Next<PreParserIdentifier::Type, 8>;
+  using HasCoverInitializedNameField = IsParenthesizedField::Next<bool, 1>;
 
   uint32_t code_;
   friend class PreParser;

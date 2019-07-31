@@ -439,7 +439,7 @@ class Code : public HeapObject {
   DEFINE_BIT_FIELDS(CODE_FLAGS_BIT_FIELDS)
 #undef CODE_FLAGS_BIT_FIELDS
   static_assert(NUMBER_OF_KINDS <= KindField::kMax, "Code::KindField size");
-  static_assert(IsOffHeapTrampoline::kNext <= 32,
+  static_assert(IsOffHeapTrampoline::kLastUsedBit < 32,
                 "Code::flags field exhausted");
 
   // KindSpecificFlags layout (STUB, BUILTIN and OPTIMIZED_FUNCTION)
@@ -452,7 +452,8 @@ class Code : public HeapObject {
   V(IsExceptionCaughtField, bool, 1, _)
   DEFINE_BIT_FIELDS(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS)
 #undef CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS
-  static_assert(IsExceptionCaughtField::kNext <= 32, "KindSpecificFlags full");
+  static_assert(IsExceptionCaughtField::kLastUsedBit < 32,
+                "KindSpecificFlags full");
 
   // The {marked_for_deoptimization} field is accessed from generated code.
   static const int kMarkedForDeoptimizationBit =

@@ -22,20 +22,17 @@ namespace internal {
 namespace {
 
 using ScopeCallsSloppyEvalField = BitField8<bool, 0, 1>;
-using InnerScopeCallsEvalField =
-    BitField8<bool, ScopeCallsSloppyEvalField::kNext, 1>;
+using InnerScopeCallsEvalField = ScopeCallsSloppyEvalField::Next<bool, 1>;
 
 using VariableMaybeAssignedField = BitField8<bool, 0, 1>;
-using VariableContextAllocatedField =
-    BitField8<bool, VariableMaybeAssignedField::kNext, 1>;
+using VariableContextAllocatedField = VariableMaybeAssignedField::Next<bool, 1>;
 
 using HasDataField = BitField<bool, 0, 1>;
-using LengthEqualsParametersField = BitField<bool, HasDataField::kNext, 1>;
-using NumberOfParametersField =
-    BitField<uint16_t, LengthEqualsParametersField::kNext, 16>;
+using LengthEqualsParametersField = HasDataField::Next<bool, 1>;
+using NumberOfParametersField = LengthEqualsParametersField::Next<uint16_t, 16>;
 
 using LanguageField = BitField8<LanguageMode, 0, 1>;
-using UsesSuperField = BitField8<bool, LanguageField::kNext, 1>;
+using UsesSuperField = LanguageField::Next<bool, 1>;
 STATIC_ASSERT(LanguageModeSize <= LanguageField::kNumValues);
 
 }  // namespace

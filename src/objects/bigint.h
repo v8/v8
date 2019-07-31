@@ -58,8 +58,8 @@ class BigIntBase : public HeapObject {
   static const int kLengthFieldBits = 30;
   STATIC_ASSERT(kMaxLength <= ((1 << kLengthFieldBits) - 1));
   using SignBits = BitField<bool, 0, 1>;
-  using LengthBits = BitField<int, SignBits::kNext, kLengthFieldBits>;
-  STATIC_ASSERT(LengthBits::kNext <= 32);
+  using LengthBits = SignBits::Next<int, kLengthFieldBits>;
+  STATIC_ASSERT(LengthBits::kLastUsedBit < 32);
 
   // Layout description.
 #define BIGINT_FIELDS(V)                                                  \

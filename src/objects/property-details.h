@@ -311,10 +311,9 @@ class PropertyDetails {
   // Bit fields in value_ (type, shift, size). Must be public so the
   // constants can be embedded in generated code.
   using KindField = BitField<PropertyKind, 0, 1>;
-  using LocationField = BitField<PropertyLocation, KindField::kNext, 1>;
-  using ConstnessField = BitField<PropertyConstness, LocationField::kNext, 1>;
-  using AttributesField =
-      BitField<PropertyAttributes, ConstnessField::kNext, 3>;
+  using LocationField = KindField::Next<PropertyLocation, 1>;
+  using ConstnessField = LocationField::Next<PropertyConstness, 1>;
+  using AttributesField = ConstnessField::Next<PropertyAttributes, 3>;
   static const int kAttributesReadOnlyMask =
       (READ_ONLY << AttributesField::kShift);
   static const int kAttributesDontDeleteMask =
@@ -323,21 +322,19 @@ class PropertyDetails {
       (DONT_ENUM << AttributesField::kShift);
 
   // Bit fields for normalized objects.
-  using PropertyCellTypeField =
-      BitField<PropertyCellType, AttributesField::kNext, 2>;
-  using DictionaryStorageField =
-      BitField<uint32_t, PropertyCellTypeField::kNext, 23>;
+  using PropertyCellTypeField = AttributesField::Next<PropertyCellType, 2>;
+  using DictionaryStorageField = PropertyCellTypeField::Next<uint32_t, 23>;
 
   // Bit fields for fast objects.
-  using RepresentationField = BitField<uint32_t, AttributesField::kNext, 3>;
+  using RepresentationField = AttributesField::Next<uint32_t, 3>;
   using DescriptorPointer =
-      BitField<uint32_t, RepresentationField::kNext, kDescriptorIndexBitCount>;
+      RepresentationField::Next<uint32_t, kDescriptorIndexBitCount>;
   using FieldIndexField =
-      BitField<uint32_t, DescriptorPointer::kNext, kDescriptorIndexBitCount>;
+      DescriptorPointer::Next<uint32_t, kDescriptorIndexBitCount>;
 
   // All bits for both fast and slow objects must fit in a smi.
-  STATIC_ASSERT(DictionaryStorageField::kNext <= 31);
-  STATIC_ASSERT(FieldIndexField::kNext <= 31);
+  STATIC_ASSERT(DictionaryStorageField::kLastUsedBit < 31);
+  STATIC_ASSERT(FieldIndexField::kLastUsedBit < 31);
 
   static const int kInitialIndex = 1;
 
