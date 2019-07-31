@@ -534,11 +534,12 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
   VARIABLE(var_index, MachineType::PointerRepresentation());
   VARIABLE(var_unique, MachineRepresentation::kTagged, key);
   Label if_index(this), if_unique_name(this), if_notunique(this),
-      if_notfound(this), slow(this);
+      if_notfound(this), slow(this), if_proxy(this);
 
   GotoIf(TaggedIsSmi(receiver), &slow);
   TNode<Map> receiver_map = LoadMap(CAST(receiver));
   TNode<Int32T> instance_type = LoadMapInstanceType(receiver_map);
+  GotoIf(InstanceTypeEqual(instance_type, JS_PROXY_TYPE), &if_proxy);
   GotoIf(IsCustomElementsReceiverInstanceType(instance_type), &slow);
   TryToName(key, &if_index, &var_index, &if_unique_name, &var_unique, &slow,
             &if_notunique);
@@ -591,6 +592,14 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
 
   BIND(&if_notfound);
   Return(TrueConstant());
+
+  BIND(&if_proxy);
+  {
+    TNode<Name> name = CAST(CallBuiltin(Builtins::kToName, context, key));
+    GotoIf(IsPrivateSymbol(name), &slow);
+    TailCallBuiltin(Builtins::kProxyDeleteProperty, context, receiver, name,
+                    language_mode);
+  }
 
   BIND(&slow);
   {

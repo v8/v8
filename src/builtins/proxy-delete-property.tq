@@ -12,6 +12,8 @@ namespace proxy {
   ProxyDeleteProperty(implicit context: Context)(
       proxy: JSProxy, name: Name, languageMode: LanguageMode): Object {
     const kTrapName: constexpr string = 'deleteProperty';
+    // Handle deeply nested proxy.
+    PerformStackCheck();
     // 1. Assert: IsPropertyKey(P) is true.
     assert(TaggedIsNotSmi(name));
     assert(IsName(name));
