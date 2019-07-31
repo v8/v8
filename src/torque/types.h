@@ -475,6 +475,9 @@ class StructType final : public AggregateType {
   std::string ToExplicitString() const override;
   std::string GetGeneratedTypeNameImpl() const override;
   std::string MangledName() const override;
+  const MaybeSpecializationKey& GetSpecializedFrom() const {
+    return specialized_from_;
+  }
 
   static base::Optional<const Type*> MatchUnaryGeneric(
       const Type* type, GenericStructType* generic);

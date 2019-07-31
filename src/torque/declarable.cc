@@ -7,6 +7,7 @@
 
 #include "src/torque/declarable.h"
 #include "src/torque/global-context.h"
+#include "src/torque/type-inference.h"
 #include "src/torque/type-visitor.h"
 
 namespace v8 {
@@ -65,56 +66,20 @@ std::ostream& operator<<(std::ostream& os, const Generic& g) {
   return os;
 }
 
-namespace {
-base::Optional<const Type*> InferTypeArgument(const std::string& to_infer,
-                                              TypeExpression* parameter,
-                                              const Type* argument) {
-  BasicTypeExpression* basic = BasicTypeExpression::DynamicCast(parameter);
-  if (basic && basic->namespace_qualification.empty() && !basic->is_constexpr &&
-      basic->name == to_infer) {
-    return argument;
-  }
-  // TODO(gsps): Perform type inference for generic types
-  return base::nullopt;
-}
-
-base::Optional<const Type*> InferTypeArgument(
-    const std::string& to_infer, const std::vector<TypeExpression*>& parameters,
-    const TypeVector& arguments) {
-  for (size_t i = 0; i < arguments.size() && i < parameters.size(); ++i) {
-    if (base::Optional<const Type*> inferred =
-            InferTypeArgument(to_infer, parameters[i], arguments[i])) {
-      return *inferred;
-    }
-  }
-  return base::nullopt;
-}
-
-}  // namespace
-
-base::Optional<TypeVector> Generic::InferSpecializationTypes(
+TypeArgumentInference Generic::InferSpecializationTypes(
     const TypeVector& explicit_specialization_types,
     const TypeVector& arguments) {
-  TypeVector result = explicit_specialization_types;
-  size_t type_parameter_count = declaration()->generic_parameters.size();
-  if (explicit_specialization_types.size() > type_parameter_count) {
-    return base::nullopt;
-  }
-  for (size_t i = explicit_specialization_types.size();
-       i < type_parameter_count; ++i) {
-    const std::string type_name = declaration()->generic_parameters[i]->value;
-    size_t implicit_count =
-        declaration()->callable->signature->parameters.implicit_count;
-    const std::vector<TypeExpression*>& parameters =
-        declaration()->callable->signature->parameters.types;
-    std::vector<TypeExpression*> explicit_parameters(
-        parameters.begin() + implicit_count, parameters.end());
-    base::Optional<const Type*> inferred =
-        InferTypeArgument(type_name, explicit_parameters, arguments);
-    if (!inferred) return base::nullopt;
-    result.push_back(*inferred);
-  }
-  return result;
+  size_t implicit_count =
+      declaration()->callable->signature->parameters.implicit_count;
+  const std::vector<TypeExpression*>& parameters =
+      declaration()->callable->signature->parameters.types;
+  std::vector<TypeExpression*> explicit_parameters(
+      parameters.begin() + implicit_count, parameters.end());
+
+  TypeArgumentInference inference(declaration()->generic_parameters,
+                                  explicit_specialization_types,
+                                  explicit_parameters, arguments);
+  return inference;
 }
 
 bool Namespace::IsDefaultNamespace() const {

@@ -21,6 +21,7 @@ namespace torque {
 
 class Scope;
 class Namespace;
+class TypeArgumentInference;
 
 DECLARE_CONTEXTUAL_VARIABLE(CurrentScope, Scope*);
 
@@ -489,7 +490,7 @@ class Generic : public Declarable {
   }
   SpecializationMap<Callable>& specializations() { return specializations_; }
 
-  base::Optional<TypeVector> InferSpecializationTypes(
+  TypeArgumentInference InferSpecializationTypes(
       const TypeVector& explicit_specialization_types,
       const TypeVector& arguments);
 

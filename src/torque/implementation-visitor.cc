@@ -10,6 +10,7 @@
 #include "src/torque/implementation-visitor.h"
 #include "src/torque/parameter-difference.h"
 #include "src/torque/server-data.h"
+#include "src/torque/type-inference.h"
 #include "src/torque/type-visitor.h"
 
 namespace v8 {
@@ -1582,7 +1583,9 @@ namespace {
 void FailCallableLookup(const std::string& reason, const QualifiedName& name,
                         const TypeVector& parameter_types,
                         const std::vector<Binding<LocalLabel>*>& labels,
-                        const std::vector<Signature>& candidates) {
+                        const std::vector<Signature>& candidates,
+                        const std::vector<std::tuple<Generic*, const char*>>
+                            inapplicable_generics) {
   std::stringstream stream;
   stream << "\n" << reason << ": \n  " << name << "(" << parameter_types << ")";
   if (labels.size() != 0) {
@@ -1595,6 +1598,16 @@ void FailCallableLookup(const std::string& reason, const QualifiedName& name,
   for (const Signature& signature : candidates) {
     stream << "\n  " << name;
     PrintSignature(stream, signature, false);
+  }
+  if (inapplicable_generics.size() != 0) {
+    stream << "\nfailed to instantiate all of these generic declarations:";
+    for (auto& failure : inapplicable_generics) {
+      Generic* generic;
+      const char* reason;
+      std::tie(generic, reason) = failure;
+      stream << "\n  " << generic->name() << " defined at "
+             << generic->Position() << ":\n    " << reason << "\n";
+    }
   }
   ReportError(stream.str());
 }
@@ -1655,17 +1668,20 @@ Callable* ImplementationVisitor::LookupCallable(
 
   std::vector<Declarable*> overloads;
   std::vector<Signature> overload_signatures;
+  std::vector<std::tuple<Generic*, const char*>> inapplicable_generics;
   for (auto* declarable : declaration_container) {
     if (Generic* generic = Generic::DynamicCast(declarable)) {
-      base::Optional<TypeVector> inferred_specialization_types =
-          generic->InferSpecializationTypes(specialization_types,
-                                            parameter_types);
-      if (!inferred_specialization_types) continue;
+      TypeArgumentInference inference = generic->InferSpecializationTypes(
+          specialization_types, parameter_types);
+      if (inference.HasFailed()) {
+        inapplicable_generics.push_back(
+            std::make_tuple(generic, inference.GetFailureReason()));
+        continue;
+      }
       overloads.push_back(generic);
       overload_signatures.push_back(
           DeclarationVisitor::MakeSpecializedSignature(
-              SpecializationKey<Generic>{generic,
-                                         *inferred_specialization_types}));
+              SpecializationKey<Generic>{generic, inference.GetResult()}));
     } else if (Callable* callable = Callable::DynamicCast(declarable)) {
       overloads.push_back(callable);
       overload_signatures.push_back(callable->signature());
@@ -1684,7 +1700,7 @@ Callable* ImplementationVisitor::LookupCallable(
     }
   }
 
-  if (overloads.empty()) {
+  if (overloads.empty() && inapplicable_generics.empty()) {
     if (silence_errors) return nullptr;
     std::stringstream stream;
     stream << "no matching declaration found for " << name;
@@ -1692,7 +1708,8 @@ Callable* ImplementationVisitor::LookupCallable(
   } else if (candidates.empty()) {
     if (silence_errors) return nullptr;
     FailCallableLookup("cannot find suitable callable with name", name,
-                       parameter_types, labels, overload_signatures);
+                       parameter_types, labels, overload_signatures,
+                       inapplicable_generics);
   }
 
   auto is_better_candidate = [&](size_t a, size_t b) {
@@ -1713,14 +1730,15 @@ Callable* ImplementationVisitor::LookupCallable(
         candidate_signatures.push_back(overload_signatures[i]);
       }
       FailCallableLookup("ambiguous callable ", name, parameter_types, labels,
-                         candidate_signatures);
+                         candidate_signatures, inapplicable_generics);
     }
   }
 
   if (Generic* generic = Generic::DynamicCast(overloads[best])) {
-    result = GetOrCreateSpecialization(SpecializationKey<Generic>{
-        generic, *generic->InferSpecializationTypes(specialization_types,
-                                                    parameter_types)});
+    TypeArgumentInference inference = generic->InferSpecializationTypes(
+        specialization_types, parameter_types);
+    result = GetOrCreateSpecialization(
+        SpecializationKey<Generic>{generic, inference.GetResult()});
   } else {
     result = Callable::cast(overloads[best]);
   }

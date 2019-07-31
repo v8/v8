@@ -898,8 +898,7 @@ namespace test {
     const ref:&Smi = & array.a;
     * ref = 3 + * ref;
     -- * ref;
-    // TODO(gsps): Remove explicit type arg once inference works
-    Swap<Smi>(& array.b, array.GetA());
+    Swap(& array.b, array.GetA());
     check(array.a == 2);
     check(array.b == 9);
   }
@@ -1002,7 +1001,7 @@ namespace test {
   @export
   macro TestGenericStruct2(): TestTuple<Smi, intptr> {
     const intptrAndSmi = TestTuple<intptr, Smi>{fst: 1, snd: 2};
-    const smiAndIntptr = TupleSwap<intptr, Smi>(intptrAndSmi);
+    const smiAndIntptr = TupleSwap(intptrAndSmi);
     check(intptrAndSmi.fst == smiAndIntptr.snd);
     check(intptrAndSmi.snd == smiAndIntptr.fst);
     return smiAndIntptr;

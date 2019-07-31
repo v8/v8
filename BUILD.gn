@@ -3364,6 +3364,8 @@ v8_source_set("torque_base") {
     "src/torque/torque-compiler.h",
     "src/torque/torque-parser.cc",
     "src/torque/torque-parser.h",
+    "src/torque/type-inference.cc",
+    "src/torque/type-inference.h",
     "src/torque/type-oracle.cc",
     "src/torque/type-oracle.h",
     "src/torque/type-visitor.cc",
