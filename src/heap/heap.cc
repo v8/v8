@@ -2770,12 +2770,18 @@ HeapObject Heap::AlignWithFiller(HeapObject object, int object_size,
   return object;
 }
 
-void Heap::RegisterNewArrayBuffer(JSArrayBuffer buffer) {
-  ArrayBufferTracker::RegisterNew(this, buffer);
+void Heap::RegisterBackingStore(JSArrayBuffer buffer,
+                                std::shared_ptr<BackingStore> backing_store) {
+  ArrayBufferTracker::RegisterNew(this, buffer, std::move(backing_store));
 }
 
-void Heap::UnregisterArrayBuffer(JSArrayBuffer buffer) {
-  ArrayBufferTracker::Unregister(this, buffer);
+std::shared_ptr<BackingStore> Heap::UnregisterBackingStore(
+    JSArrayBuffer buffer) {
+  return ArrayBufferTracker::Unregister(this, buffer);
+}
+
+std::shared_ptr<BackingStore> Heap::LookupBackingStore(JSArrayBuffer buffer) {
+  return ArrayBufferTracker::Lookup(this, buffer);
 }
 
 void Heap::ConfigureInitialOldGenerationSize() {

@@ -211,8 +211,7 @@ struct WasmEngine::NativeModuleInfo {
   int8_t num_code_gcs_triggered = 0;
 };
 
-WasmEngine::WasmEngine()
-    : code_manager_(&memory_tracker_, FLAG_wasm_max_code_space * MB) {}
+WasmEngine::WasmEngine() : code_manager_(FLAG_wasm_max_code_space * MB) {}
 
 WasmEngine::~WasmEngine() {
   // Synchronize on all background compile tasks.
