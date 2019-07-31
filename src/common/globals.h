@@ -1546,12 +1546,12 @@ enum KeyedAccessStoreMode {
 
 enum MutableMode { MUTABLE, IMMUTABLE };
 
-static inline bool IsCOWHandlingStoreMode(KeyedAccessStoreMode store_mode) {
+inline bool IsCOWHandlingStoreMode(KeyedAccessStoreMode store_mode) {
   return store_mode == STORE_HANDLE_COW ||
          store_mode == STORE_AND_GROW_HANDLE_COW;
 }
 
-static inline bool IsGrowStoreMode(KeyedAccessStoreMode store_mode) {
+inline bool IsGrowStoreMode(KeyedAccessStoreMode store_mode) {
   return store_mode == STORE_AND_GROW_HANDLE_COW;
 }
 
