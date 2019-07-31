@@ -1052,7 +1052,7 @@ bool IsSameNan(double expected, double actual) {
 bool IsCanonical(double actual) {
   uint64_t actual_bits = bit_cast<uint64_t>(actual);
   // Canonical NaN has quiet bit and no payload.
-  return (actual_bits & 0xFF80000000000000) == actual_bits;
+  return (actual_bits & 0xFFF8000000000000) == actual_bits;
 }
 
 void CheckDoubleResult(double x, double y, double expected, double actual,
