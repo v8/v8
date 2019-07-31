@@ -6662,9 +6662,9 @@ MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
   MachineSignature incoming_sig(1, 4, sig_types);
   // Traps need the root register, for TailCallRuntimeWithCEntry to call
   // Runtime::kThrowWasmError.
-  bool initialize_root_flag = true;
-  CallDescriptor* incoming = Linkage::GetSimplifiedCDescriptor(
-      zone.get(), &incoming_sig, initialize_root_flag);
+  CallDescriptor::Flags flags = CallDescriptor::kInitializeRootRegister;
+  CallDescriptor* incoming =
+      Linkage::GetSimplifiedCDescriptor(zone.get(), &incoming_sig, flags);
 
   // Build a name in the form "c-wasm-entry:<params>:<returns>".
   static constexpr size_t kMaxNameLen = 128;

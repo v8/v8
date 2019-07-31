@@ -179,7 +179,6 @@ SelectParameters const& SelectParametersOf(const Operator* const op) {
 
 CallDescriptor const* CallDescriptorOf(const Operator* const op) {
   DCHECK(op->opcode() == IrOpcode::kCall ||
-         op->opcode() == IrOpcode::kCallWithCallerSavedRegisters ||
          op->opcode() == IrOpcode::kTailCall);
   return OpParameter<CallDescriptor const*>(op);
 }
@@ -1464,31 +1463,6 @@ const Operator* CommonOperatorBuilder::Call(
     explicit CallOperator(const CallDescriptor* call_descriptor)
         : Operator1<const CallDescriptor*>(
               IrOpcode::kCall, call_descriptor->properties(), "Call",
-              call_descriptor->InputCount() +
-                  call_descriptor->FrameStateCount(),
-              Operator::ZeroIfPure(call_descriptor->properties()),
-              Operator::ZeroIfEliminatable(call_descriptor->properties()),
-              call_descriptor->ReturnCount(),
-              Operator::ZeroIfPure(call_descriptor->properties()),
-              Operator::ZeroIfNoThrow(call_descriptor->properties()),
-              call_descriptor) {}
-
-    void PrintParameter(std::ostream& os,
-                        PrintVerbosity verbose) const override {
-      os << "[" << *parameter() << "]";
-    }
-  };
-  return new (zone()) CallOperator(call_descriptor);
-}
-
-const Operator* CommonOperatorBuilder::CallWithCallerSavedRegisters(
-    const CallDescriptor* call_descriptor) {
-  class CallOperator final : public Operator1<const CallDescriptor*> {
-   public:
-    explicit CallOperator(const CallDescriptor* call_descriptor)
-        : Operator1<const CallDescriptor*>(
-              IrOpcode::kCallWithCallerSavedRegisters,
-              call_descriptor->properties(), "CallWithCallerSavedRegisters",
               call_descriptor->InputCount() +
                   call_descriptor->FrameStateCount(),
               Operator::ZeroIfPure(call_descriptor->properties()),

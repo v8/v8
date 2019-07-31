@@ -197,7 +197,8 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     // Use the kJavaScriptCallCodeStartRegister (fixed) register for the
     // indirect target address when calling.
     kFixedTargetRegister = 1u << 7,
-    kAllowCallThroughSlot = 1u << 8
+    kAllowCallThroughSlot = 1u << 8,
+    kCallerSavedRegisters = 1u << 9
   };
   using Flags = base::Flags<Flag>;
 
@@ -275,6 +276,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   bool PushArgumentCount() const { return flags() & kPushArgumentCount; }
   bool InitializeRootRegister() const {
     return flags() & kInitializeRootRegister;
+  }
+  bool NeedsCallerSavedRegisters() const {
+    return flags() & kCallerSavedRegisters;
   }
 
   LinkageLocation GetReturnLocation(size_t index) const {
@@ -418,7 +422,7 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
   // structs, pointers to members, etc.
   static CallDescriptor* GetSimplifiedCDescriptor(
       Zone* zone, const MachineSignature* sig,
-      bool set_initialize_root_flag = false);
+      CallDescriptor::Flags flags = CallDescriptor::kNoFlags);
 
   // Get the location of an (incoming) parameter to this function.
   LinkageLocation GetParameterLocation(int index) const {

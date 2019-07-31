@@ -66,7 +66,6 @@
   V(ObjectId)                     \
   V(TypedObjectState)             \
   V(Call)                         \
-  V(CallWithCallerSavedRegisters) \
   V(Parameter)                    \
   V(OsrValue)                     \
   V(LoopExit)                     \

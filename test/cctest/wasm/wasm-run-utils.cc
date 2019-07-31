@@ -458,8 +458,8 @@ Handle<Code> WasmFunctionWrapper::GetWrapperCode() {
   if (!code_.ToHandle(&code)) {
     Isolate* isolate = CcTest::InitIsolateOnce();
 
-    auto call_descriptor =
-        compiler::Linkage::GetSimplifiedCDescriptor(zone(), signature_, true);
+    auto call_descriptor = compiler::Linkage::GetSimplifiedCDescriptor(
+        zone(), signature_, CallDescriptor::kInitializeRootRegister);
 
     if (kSystemPointerSize == 4) {
       size_t num_params = signature_->parameter_count();

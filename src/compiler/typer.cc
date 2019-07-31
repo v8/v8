@@ -999,10 +999,6 @@ Type Typer::Visitor::TypeTypedObjectState(Node* node) {
 
 Type Typer::Visitor::TypeCall(Node* node) { return Type::Any(); }
 
-Type Typer::Visitor::TypeCallWithCallerSavedRegisters(Node* node) {
-  UNREACHABLE();
-}
-
 Type Typer::Visitor::TypeProjection(Node* node) {
   Type const type = Operand(node, 0);
   if (type.Is(Type::None())) return Type::None();

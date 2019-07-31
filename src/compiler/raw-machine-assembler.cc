@@ -713,8 +713,10 @@ Node* CallCFunctionImpl(
   builder.AddReturn(return_type);
   for (const auto& arg : args) builder.AddParam(arg.first);
 
-  auto call_descriptor =
-      Linkage::GetSimplifiedCDescriptor(rasm->zone(), builder.Build());
+  auto call_descriptor = Linkage::GetSimplifiedCDescriptor(
+      rasm->zone(), builder.Build(),
+      caller_saved_regs ? CallDescriptor::kCallerSavedRegisters
+                        : CallDescriptor::kNoFlags);
 
   if (caller_saved_regs) call_descriptor->set_save_fp_mode(mode);
 
@@ -725,10 +727,8 @@ Node* CallCFunctionImpl(
       [](const RawMachineAssembler::CFunctionArg& arg) { return arg.second; });
 
   auto common = rasm->common();
-  return rasm->AddNode(
-      caller_saved_regs ? common->CallWithCallerSavedRegisters(call_descriptor)
-                        : common->Call(call_descriptor),
-      static_cast<int>(nodes.size()), nodes.begin());
+  return rasm->AddNode(common->Call(call_descriptor),
+                       static_cast<int>(nodes.size()), nodes.begin());
 }
 
 }  // namespace

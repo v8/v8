@@ -167,7 +167,6 @@ bool CanAllocate(const Node* node) {
       return false;
 
     case IrOpcode::kCall:
-    case IrOpcode::kCallWithCallerSavedRegisters:
       return !(CallDescriptorOf(node->op())->flags() &
                CallDescriptor::kNoAllocate);
     default:
@@ -237,8 +236,6 @@ void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
       return VisitAllocateRaw(node, state);
     case IrOpcode::kCall:
       return VisitCall(node, state);
-    case IrOpcode::kCallWithCallerSavedRegisters:
-      return VisitCallWithCallerSavedRegisters(node, state);
     case IrOpcode::kLoadFromObject:
       return VisitLoadFromObject(node, state);
     case IrOpcode::kLoadElement:
@@ -556,16 +553,6 @@ void MemoryOptimizer::VisitStoreToObject(Node* node,
 
 void MemoryOptimizer::VisitCall(Node* node, AllocationState const* state) {
   DCHECK_EQ(IrOpcode::kCall, node->opcode());
-  // If the call can allocate, we start with a fresh state.
-  if (!(CallDescriptorOf(node->op())->flags() & CallDescriptor::kNoAllocate)) {
-    state = empty_state();
-  }
-  EnqueueUses(node, state);
-}
-
-void MemoryOptimizer::VisitCallWithCallerSavedRegisters(
-    Node* node, AllocationState const* state) {
-  DCHECK_EQ(IrOpcode::kCallWithCallerSavedRegisters, node->opcode());
   // If the call can allocate, we start with a fresh state.
   if (!(CallDescriptorOf(node->op())->flags() & CallDescriptor::kNoAllocate)) {
     state = empty_state();

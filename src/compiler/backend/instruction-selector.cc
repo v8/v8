@@ -1056,7 +1056,6 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
 bool InstructionSelector::IsSourcePositionUsed(Node* node) {
   return (source_position_mode_ == kAllSourcePositions ||
           node->opcode() == IrOpcode::kCall ||
-          node->opcode() == IrOpcode::kCallWithCallerSavedRegisters ||
           node->opcode() == IrOpcode::kTrapIf ||
           node->opcode() == IrOpcode::kTrapUnless ||
           node->opcode() == IrOpcode::kProtectedLoad ||
@@ -1078,7 +1077,6 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
     if (node->opcode() == IrOpcode::kStore ||
         node->opcode() == IrOpcode::kUnalignedStore ||
         node->opcode() == IrOpcode::kCall ||
-        node->opcode() == IrOpcode::kCallWithCallerSavedRegisters ||
         node->opcode() == IrOpcode::kProtectedLoad ||
         node->opcode() == IrOpcode::kProtectedStore ||
 #define ADD_EFFECT_FOR_ATOMIC_OP(Opcode) \
@@ -1320,8 +1318,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsReference(node), VisitConstant(node);
     case IrOpcode::kCall:
       return VisitCall(node);
-    case IrOpcode::kCallWithCallerSavedRegisters:
-      return VisitCallWithCallerSavedRegisters(node);
     case IrOpcode::kDeoptimizeIf:
       return VisitDeoptimizeIf(node);
     case IrOpcode::kDeoptimizeUnless:
@@ -2704,6 +2700,12 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   OperandGenerator g(this);
   auto call_descriptor = CallDescriptorOf(node->op());
 
+  if (call_descriptor->NeedsCallerSavedRegisters()) {
+    Emit(kArchSaveCallerRegisters | MiscField::encode(static_cast<int>(
+                                        call_descriptor->get_save_fp_mode())),
+         g.NoOutput());
+  }
+
   FrameStateDescriptor* frame_state_descriptor = nullptr;
   if (call_descriptor->NeedsFrameState()) {
     frame_state_descriptor = GetFrameStateDescriptor(
@@ -2772,18 +2774,13 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   call_instr->MarkAsCall();
 
   EmitPrepareResults(&(buffer.output_nodes), call_descriptor, node);
-}
 
-void InstructionSelector::VisitCallWithCallerSavedRegisters(
-    Node* node, BasicBlock* handler) {
-  OperandGenerator g(this);
-  const auto fp_mode = CallDescriptorOf(node->op())->get_save_fp_mode();
-  Emit(kArchSaveCallerRegisters | MiscField::encode(static_cast<int>(fp_mode)),
-       g.NoOutput());
-  VisitCall(node, handler);
-  Emit(kArchRestoreCallerRegisters |
-           MiscField::encode(static_cast<int>(fp_mode)),
-       g.NoOutput());
+  if (call_descriptor->NeedsCallerSavedRegisters()) {
+    Emit(kArchRestoreCallerRegisters |
+             MiscField::encode(
+                 static_cast<int>(call_descriptor->get_save_fp_mode())),
+         g.NoOutput());
+  }
 }
 
 void InstructionSelector::VisitTailCall(Node* node) {
