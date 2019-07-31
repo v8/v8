@@ -617,15 +617,33 @@
   V(Float64Mod)                       \
   V(Float64Pow)
 
-#define MACHINE_WORD64_ATOMIC_OP_LIST(V) \
-  V(Word64AtomicLoad)                    \
-  V(Word64AtomicStore)                   \
-  V(Word64AtomicAdd)                     \
-  V(Word64AtomicSub)                     \
-  V(Word64AtomicAnd)                     \
-  V(Word64AtomicOr)                      \
-  V(Word64AtomicXor)                     \
-  V(Word64AtomicExchange)                \
+#define MACHINE_ATOMIC_OP_LIST(V)    \
+  V(Word32AtomicLoad)                \
+  V(Word32AtomicStore)               \
+  V(Word32AtomicExchange)            \
+  V(Word32AtomicCompareExchange)     \
+  V(Word32AtomicAdd)                 \
+  V(Word32AtomicSub)                 \
+  V(Word32AtomicAnd)                 \
+  V(Word32AtomicOr)                  \
+  V(Word32AtomicXor)                 \
+  V(Word32AtomicPairLoad)            \
+  V(Word32AtomicPairStore)           \
+  V(Word32AtomicPairAdd)             \
+  V(Word32AtomicPairSub)             \
+  V(Word32AtomicPairAnd)             \
+  V(Word32AtomicPairOr)              \
+  V(Word32AtomicPairXor)             \
+  V(Word32AtomicPairExchange)        \
+  V(Word32AtomicPairCompareExchange) \
+  V(Word64AtomicLoad)                \
+  V(Word64AtomicStore)               \
+  V(Word64AtomicAdd)                 \
+  V(Word64AtomicSub)                 \
+  V(Word64AtomicAnd)                 \
+  V(Word64AtomicOr)                  \
+  V(Word64AtomicXor)                 \
+  V(Word64AtomicExchange)            \
   V(Word64AtomicCompareExchange)
 
 #define MACHINE_OP_LIST(V)                  \
@@ -637,7 +655,7 @@
   MACHINE_FLOAT32_UNOP_LIST(V)              \
   MACHINE_FLOAT64_BINOP_LIST(V)             \
   MACHINE_FLOAT64_UNOP_LIST(V)              \
-  MACHINE_WORD64_ATOMIC_OP_LIST(V)          \
+  MACHINE_ATOMIC_OP_LIST(V)                 \
   V(AbortCSAAssert)                         \
   V(DebugBreak)                             \
   V(Comment)                                \
@@ -716,24 +734,6 @@
   V(ProtectedLoad)                          \
   V(ProtectedStore)                         \
   V(MemoryBarrier)                          \
-  V(Word32AtomicLoad)                       \
-  V(Word32AtomicStore)                      \
-  V(Word32AtomicExchange)                   \
-  V(Word32AtomicCompareExchange)            \
-  V(Word32AtomicAdd)                        \
-  V(Word32AtomicSub)                        \
-  V(Word32AtomicAnd)                        \
-  V(Word32AtomicOr)                         \
-  V(Word32AtomicXor)                        \
-  V(Word32AtomicPairLoad)                   \
-  V(Word32AtomicPairStore)                  \
-  V(Word32AtomicPairAdd)                    \
-  V(Word32AtomicPairSub)                    \
-  V(Word32AtomicPairAnd)                    \
-  V(Word32AtomicPairOr)                     \
-  V(Word32AtomicPairXor)                    \
-  V(Word32AtomicPairExchange)               \
-  V(Word32AtomicPairCompareExchange)        \
   V(SignExtendWord8ToInt32)                 \
   V(SignExtendWord16ToInt32)                \
   V(SignExtendWord8ToInt64)                 \

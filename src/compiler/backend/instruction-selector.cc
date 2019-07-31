@@ -1081,7 +1081,11 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
         node->opcode() == IrOpcode::kCallWithCallerSavedRegisters ||
         node->opcode() == IrOpcode::kProtectedLoad ||
         node->opcode() == IrOpcode::kProtectedStore ||
-        node->opcode() == IrOpcode::kMemoryBarrier) {
+#define ADD_EFFECT_FOR_ATOMIC_OP(Opcode) \
+  node->opcode() == IrOpcode::k##Opcode ||
+        MACHINE_ATOMIC_OP_LIST(ADD_EFFECT_FOR_ATOMIC_OP)
+#undef ADD_EFFECT_FOR_ATOMIC_OP
+                node->opcode() == IrOpcode::kMemoryBarrier) {
       ++effect_level;
     }
   }
