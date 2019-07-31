@@ -306,6 +306,19 @@ DEFINE_IMPLICATION(lite_mode, lazy_feedback_allocation)
 DEFINE_IMPLICATION(lite_mode, enable_lazy_source_positions)
 DEFINE_IMPLICATION(lite_mode, optimize_for_size)
 
+#ifdef V8_DISABLE_WRITE_BARRIERS
+#define V8_DISABLE_WRITE_BARRIERS_BOOL true
+#else
+#define V8_DISABLE_WRITE_BARRIERS_BOOL false
+#endif
+
+DEFINE_BOOL_READONLY(disable_write_barriers, V8_DISABLE_WRITE_BARRIERS_BOOL,
+                     "disable write barriers when GC is non-incremental "
+                     "and heap contains single generation.")
+
+// Disable incremental marking barriers
+DEFINE_NEG_IMPLICATION(disable_write_barriers, incremental_marking)
+
 #ifdef V8_ENABLE_SINGLE_GENERATION
 #define V8_GENERATION_BOOL true
 #else

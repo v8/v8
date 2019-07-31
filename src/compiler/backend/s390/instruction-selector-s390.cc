@@ -820,7 +820,9 @@ static void VisitGeneralStore(
 
 void InstructionSelector::VisitStore(Node* node) {
   StoreRepresentation store_rep = StoreRepresentationOf(node->op());
-  WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
+  WriteBarrierKind write_barrier_kind = V8_LIKELY(!FLAG_disable_write_barriers)
+                                            ? store_rep.write_barrier_kind()
+                                            : kNoWriteBarrier;
   MachineRepresentation rep = store_rep.representation();
 
   VisitGeneralStore(this, node, rep, write_barrier_kind);

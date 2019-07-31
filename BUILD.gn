@@ -188,8 +188,13 @@ declare_args() {
   # Sets -DV8_SHARED_RO_HEAP.
   v8_enable_shared_ro_heap = ""
 
-  # Redirect allocation in young generation so that there will be only one single generation.
-  v8_enable_single_generation = false
+  # Disable write barriers when GCs are non-incremental and
+  # heap has single generation.
+  v8_disable_write_barriers = false
+
+  # Redirect allocation in young generation so that there will be
+  # only one single generation.
+  v8_enable_single_generation = ""
 }
 
 # Derived defaults.
@@ -224,6 +229,13 @@ if (v8_enable_shared_ro_heap == "") {
 if (v8_enable_fast_torque == "") {
   v8_enable_fast_torque = v8_enable_fast_mksnapshot
 }
+
+if (v8_enable_single_generation == "") {
+  v8_enable_single_generation = v8_disable_write_barriers
+}
+
+assert(!v8_disable_write_barriers || v8_enable_single_generation,
+       "Disabling write barriers works only with single generation")
 
 assert(v8_current_cpu != "x86" || !v8_untrusted_code_mitigations,
        "Untrusted code mitigations are unsupported on ia32")
@@ -420,6 +432,9 @@ config("features") {
   }
   if (v8_enable_single_generation) {
     defines += [ "V8_ENABLE_SINGLE_GENERATION" ]
+  }
+  if (v8_disable_write_barriers) {
+    defines += [ "V8_DISABLE_WRITE_BARRIERS" ]
   }
   if (v8_use_external_startup_data) {
     defines += [ "V8_USE_EXTERNAL_STARTUP_DATA" ]
