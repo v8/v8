@@ -1464,7 +1464,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   AccessMode access_mode = processed.keyed_mode.access_mode();
   if ((access_mode == AccessMode::kLoad || access_mode == AccessMode::kHas) &&
       receiver->opcode() == IrOpcode::kHeapConstant) {
-    Reduction reduction = ReduceKeyedLoadFromHeapConstant(
+    Reduction reduction = ReduceElementLoadFromHeapConstant(
         node, index, access_mode, processed.keyed_mode.load_mode());
     if (reduction.Changed()) return reduction;
   }
@@ -1674,7 +1674,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   return Replace(value);
 }
 
-Reduction JSNativeContextSpecialization::ReduceKeyedLoadFromHeapConstant(
+Reduction JSNativeContextSpecialization::ReduceElementLoadFromHeapConstant(
     Node* node, Node* key, AccessMode access_mode,
     KeyedAccessLoadMode load_mode) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||

@@ -2239,7 +2239,7 @@ void SerializerForBackgroundCompilation::ProcessKeyedPropertyAccess(
       receiver_ref.AsJSTypedArray().Serialize();
     }
 
-    // For JSNativeContextSpecialization::ReduceKeyedLoadFromHeapConstant.
+    // For JSNativeContextSpecialization::ReduceElementLoadFromHeapConstant.
     if (mode == AccessMode::kLoad || mode == AccessMode::kHas) {
       for (Handle<Object> hint : key.constants()) {
         ObjectRef key_ref(broker(), hint);
