@@ -406,13 +406,6 @@ class V8_EXPORT_PRIVATE Scanner {
 
   bool FoundHtmlComment() const { return found_html_comment_; }
 
-  bool allow_harmony_numeric_separator() const {
-    return allow_harmony_numeric_separator_;
-  }
-  void set_allow_harmony_numeric_separator(bool allow) {
-    allow_harmony_numeric_separator_ = allow;
-  }
-
   const Utf16CharacterStream* stream() const { return source_; }
 
   // If the next characters in the stream are "#!", the line is skipped.
@@ -719,9 +712,6 @@ class V8_EXPORT_PRIVATE Scanner {
 
   // Whether this scanner encountered an HTML comment.
   bool found_html_comment_;
-
-  // Harmony flags to allow ESNext features.
-  bool allow_harmony_numeric_separator_;
 
   const bool is_module_;
 

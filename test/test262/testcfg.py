@@ -44,7 +44,6 @@ from testrunner.outproc import test262
 
 # TODO(littledan): move the flag mapping into the status file
 FEATURE_FLAGS = {
-  'numeric-separator-literal': '--harmony-numeric-separator',
   'Intl.DateTimeFormat-datetimestyle': '--harmony-intl-datetime-style',
   'Intl.DateTimeFormat-formatRange': '--harmony-intl-date-format-range',
   'Intl.NumberFormat-unified': '--harmony-intl-numberformat-unified',

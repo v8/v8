@@ -62,7 +62,6 @@ ParseInfo::ParseInfo(Isolate* isolate, AccountingAllocator* zone_allocator)
   set_allow_natives_syntax(FLAG_allow_natives_syntax);
   set_allow_harmony_dynamic_import(FLAG_harmony_dynamic_import);
   set_allow_harmony_import_meta(FLAG_harmony_import_meta);
-  set_allow_harmony_numeric_separator(FLAG_harmony_numeric_separator);
   set_allow_harmony_private_methods(FLAG_harmony_private_methods);
 }
 

@@ -285,12 +285,6 @@ class ParserBase {
 #undef ALLOW_ACCESSORS
 
   V8_INLINE bool has_error() const { return scanner()->has_parser_error(); }
-  bool allow_harmony_numeric_separator() const {
-    return scanner()->allow_harmony_numeric_separator();
-  }
-  void set_allow_harmony_numeric_separator(bool allow) {
-    scanner()->set_allow_harmony_numeric_separator(allow);
-  }
 
   uintptr_t stack_limit() const { return stack_limit_; }
 

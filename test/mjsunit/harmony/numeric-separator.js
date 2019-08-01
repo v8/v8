@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-numeric-separator
-
 {
   const basic = 1_0_0_0;
   assertEquals(basic, 1000);
