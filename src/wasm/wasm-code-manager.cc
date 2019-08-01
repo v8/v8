@@ -1251,8 +1251,8 @@ void WasmCodeManager::Decommit(base::AddressRegion region) {
   USE(old_committed);
   TRACE_HEAP("Discarding system pages 0x%" PRIxPTR ":0x%" PRIxPTR "\n",
              region.begin(), region.end());
-  CHECK(allocator->DiscardSystemPages(reinterpret_cast<void*>(region.begin()),
-                                      region.size()));
+  CHECK(allocator->SetPermissions(reinterpret_cast<void*>(region.begin()),
+                                  region.size(), PageAllocator::kNoAccess));
 }
 
 void WasmCodeManager::AssignRange(base::AddressRegion region,
