@@ -283,11 +283,13 @@ class JSObjectData : public JSReceiverData {
     return object_create_map_;
   }
 
-  ObjectData* GetOwnConstantElement(JSHeapBroker* broker, uint32_t index,
-                                    bool serialize);
-  ObjectData* GetOwnDataProperty(JSHeapBroker* broker,
-                                 Representation representation,
-                                 FieldIndex field_index, bool serialize);
+  ObjectData* GetOwnConstantElement(
+      JSHeapBroker* broker, uint32_t index,
+      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
+  ObjectData* GetOwnDataProperty(
+      JSHeapBroker* broker, Representation representation,
+      FieldIndex field_index,
+      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
 
   // This method is only used to assert our invariants.
   bool cow_or_empty_elements_tenured() const;
@@ -369,12 +371,12 @@ ObjectRef GetOwnDataPropertyFromHeap(JSHeapBroker* broker,
 
 ObjectData* JSObjectData::GetOwnConstantElement(JSHeapBroker* broker,
                                                 uint32_t index,
-                                                bool serialize) {
+                                                SerializationPolicy policy) {
   for (auto const& p : own_constant_elements_) {
     if (p.first == index) return p.second;
   }
 
-  if (!serialize) {
+  if (policy == SerializationPolicy::kAssumeSerialized) {
     TRACE_MISSING(broker, "knowledge about index " << index << " on " << this);
     return nullptr;
   }
@@ -389,11 +391,11 @@ ObjectData* JSObjectData::GetOwnConstantElement(JSHeapBroker* broker,
 ObjectData* JSObjectData::GetOwnDataProperty(JSHeapBroker* broker,
                                              Representation representation,
                                              FieldIndex field_index,
-                                             bool serialize) {
+                                             SerializationPolicy policy) {
   auto p = own_properties_.find(field_index.property_index());
   if (p != own_properties_.end()) return p->second;
 
-  if (!serialize) {
+  if (policy == SerializationPolicy::kAssumeSerialized) {
     TRACE_MISSING(broker, "knowledge about property with index "
                               << field_index.property_index() << " on "
                               << this);
@@ -581,12 +583,15 @@ class ContextData : public HeapObjectData {
 
   // {previous} will return the closest valid context possible to desired
   // {depth}, decrementing {depth} for each previous link successfully followed.
-  // If {serialize} is true, it will serialize contexts along the way.
-  ContextData* previous(JSHeapBroker* broker, size_t* depth, bool serialize);
+  ContextData* previous(
+      JSHeapBroker* broker, size_t* depth,
+      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
 
-  // Returns nullptr if the slot index isn't valid or wasn't serialized
-  // (unless {serialize} is true).
-  ObjectData* GetSlot(JSHeapBroker* broker, int index, bool serialize);
+  // Returns nullptr if the slot index isn't valid or wasn't serialized,
+  // unless {policy} is {kSerializeIfNeeded}.
+  ObjectData* GetSlot(
+      JSHeapBroker* broker, int index,
+      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
 
  private:
   ZoneMap<int, ObjectData*> slots_;
@@ -598,10 +603,11 @@ ContextData::ContextData(JSHeapBroker* broker, ObjectData** storage,
     : HeapObjectData(broker, storage, object), slots_(broker->zone()) {}
 
 ContextData* ContextData::previous(JSHeapBroker* broker, size_t* depth,
-                                   bool serialize) {
+                                   SerializationPolicy policy) {
   if (*depth == 0) return this;
 
-  if (serialize && previous_ == nullptr) {
+  if (policy == SerializationPolicy::kSerializeIfNeeded &&
+      previous_ == nullptr) {
     TraceScope tracer(broker, this, "ContextData::previous");
     Handle<Context> context = Handle<Context>::cast(object());
     Object prev = context->unchecked_previous();
@@ -612,20 +618,20 @@ ContextData* ContextData::previous(JSHeapBroker* broker, size_t* depth,
 
   if (previous_ != nullptr) {
     *depth = *depth - 1;
-    return previous_->previous(broker, depth, serialize);
+    return previous_->previous(broker, depth, policy);
   }
   return this;
 }
 
 ObjectData* ContextData::GetSlot(JSHeapBroker* broker, int index,
-                                 bool serialize) {
+                                 SerializationPolicy policy) {
   CHECK_GE(index, 0);
   auto search = slots_.find(index);
   if (search != slots_.end()) {
     return search->second;
   }
 
-  if (serialize) {
+  if (policy == SerializationPolicy::kSerializeIfNeeded) {
     Handle<Context> context = Handle<Context>::cast(object());
     if (index < context->length()) {
       TraceScope tracer(broker, this, "ContextData::GetSlot");
@@ -685,8 +691,9 @@ class StringData : public NameData {
   bool is_external_string() const { return is_external_string_; }
   bool is_seq_string() const { return is_seq_string_; }
 
-  StringData* GetCharAsString(JSHeapBroker* broker, uint32_t index,
-                              bool serialize);
+  StringData* GetCharAsString(
+      JSHeapBroker* broker, uint32_t index,
+      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
 
  private:
   int const length_;
@@ -735,14 +742,14 @@ class InternalizedStringData : public StringData {
 };
 
 StringData* StringData::GetCharAsString(JSHeapBroker* broker, uint32_t index,
-                                        bool serialize) {
+                                        SerializationPolicy policy) {
   if (index >= static_cast<uint32_t>(length())) return nullptr;
 
   for (auto const& p : chars_as_strings_) {
     if (p.first == index) return p.second;
   }
 
-  if (!serialize) {
+  if (policy == SerializationPolicy::kAssumeSerialized) {
     TRACE_MISSING(broker, "knowledge about index " << index << " on " << this);
     return nullptr;
   }
@@ -1516,8 +1523,9 @@ class JSArrayData : public JSObjectData {
   void Serialize(JSHeapBroker* broker);
   ObjectData* length() const { return length_; }
 
-  ObjectData* GetOwnElement(JSHeapBroker* broker, uint32_t index,
-                            bool serialize);
+  ObjectData* GetOwnElement(
+      JSHeapBroker* broker, uint32_t index,
+      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
 
  private:
   bool serialized_ = false;
@@ -1546,12 +1554,12 @@ void JSArrayData::Serialize(JSHeapBroker* broker) {
 }
 
 ObjectData* JSArrayData::GetOwnElement(JSHeapBroker* broker, uint32_t index,
-                                       bool serialize) {
+                                       SerializationPolicy policy) {
   for (auto const& p : own_elements_) {
     if (p.first == index) return p.second;
   }
 
-  if (!serialize) {
+  if (policy == SerializationPolicy::kAssumeSerialized) {
     TRACE_MISSING(broker, "knowledge about index " << index << " on " << this);
     return nullptr;
   }
@@ -1768,8 +1776,9 @@ class JSGlobalProxyData : public JSObjectData {
   JSGlobalProxyData(JSHeapBroker* broker, ObjectData** storage,
                     Handle<JSGlobalProxy> object);
 
-  PropertyCellData* GetPropertyCell(JSHeapBroker* broker, NameData* name,
-                                    bool serialize);
+  PropertyCellData* GetPropertyCell(
+      JSHeapBroker* broker, NameData* name,
+      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
 
  private:
   // Properties that either
@@ -1799,15 +1808,14 @@ base::Optional<PropertyCellRef> GetPropertyCellFromHeap(JSHeapBroker* broker,
 }
 }  // namespace
 
-PropertyCellData* JSGlobalProxyData::GetPropertyCell(JSHeapBroker* broker,
-                                                     NameData* name,
-                                                     bool serialize) {
+PropertyCellData* JSGlobalProxyData::GetPropertyCell(
+    JSHeapBroker* broker, NameData* name, SerializationPolicy policy) {
   CHECK_NOT_NULL(name);
   for (auto const& p : properties_) {
     if (p.first == name) return p.second;
   }
 
-  if (!serialize) {
+  if (policy == SerializationPolicy::kAssumeSerialized) {
     TRACE_MISSING(broker, "knowledge about global property " << name);
     return nullptr;
   }
@@ -2113,7 +2121,8 @@ bool ObjectRef::equals(const ObjectRef& other) const {
 
 Isolate* ObjectRef::isolate() const { return broker()->isolate(); }
 
-ContextRef ContextRef::previous(size_t* depth, bool serialize) const {
+ContextRef ContextRef::previous(size_t* depth,
+                                SerializationPolicy policy) const {
   DCHECK_NOT_NULL(depth);
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleAllocation handle_allocation;
@@ -2126,10 +2135,11 @@ ContextRef ContextRef::previous(size_t* depth, bool serialize) const {
     return ContextRef(broker(), handle(current, broker()->isolate()));
   }
   ContextData* current = this->data()->AsContext();
-  return ContextRef(broker(), current->previous(broker(), depth, serialize));
+  return ContextRef(broker(), current->previous(broker(), depth, policy));
 }
 
-base::Optional<ObjectRef> ContextRef::get(int index, bool serialize) const {
+base::Optional<ObjectRef> ContextRef::get(int index,
+                                          SerializationPolicy policy) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference handle_dereference;
@@ -2137,7 +2147,7 @@ base::Optional<ObjectRef> ContextRef::get(int index, bool serialize) const {
     return ObjectRef(broker(), value);
   }
   ObjectData* optional_slot =
-      data()->AsContext()->GetSlot(broker(), index, serialize);
+      data()->AsContext()->GetSlot(broker(), index, policy);
   if (optional_slot != nullptr) {
     return ObjectRef(broker(), optional_slot);
   }
@@ -3083,7 +3093,7 @@ bool FunctionTemplateInfoRef::has_call_code() const {
 BIMODAL_ACCESSOR_C(FunctionTemplateInfo, bool, accept_any_receiver)
 
 HolderLookupResult FunctionTemplateInfoRef::LookupHolderOfExpectedType(
-    MapRef receiver_map, bool serialize) {
+    MapRef receiver_map, SerializationPolicy policy) {
   const HolderLookupResult not_found;
 
   if (broker()->mode() == JSHeapBroker::kDisabled) {
@@ -3119,7 +3129,7 @@ HolderLookupResult FunctionTemplateInfoRef::LookupHolderOfExpectedType(
   if (lookup_it != fti_data->known_receivers().cend()) {
     return lookup_it->second;
   }
-  if (!serialize) {
+  if (policy == SerializationPolicy::kAssumeSerialized) {
     TRACE_BROKER_MISSING(broker(),
                          "holder for receiver with map " << receiver_map);
     return not_found;
@@ -3344,7 +3354,7 @@ Maybe<double> ObjectRef::OddballToNumber() const {
 }
 
 base::Optional<ObjectRef> ObjectRef::GetOwnConstantElement(
-    uint32_t index, bool serialize) const {
+    uint32_t index, SerializationPolicy policy) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     return (IsJSObject() || IsString())
                ? GetOwnElementFromHeap(broker(), object(), index, true)
@@ -3353,9 +3363,9 @@ base::Optional<ObjectRef> ObjectRef::GetOwnConstantElement(
   ObjectData* element = nullptr;
   if (IsJSObject()) {
     element =
-        data()->AsJSObject()->GetOwnConstantElement(broker(), index, serialize);
+        data()->AsJSObject()->GetOwnConstantElement(broker(), index, policy);
   } else if (IsString()) {
-    element = data()->AsString()->GetCharAsString(broker(), index, serialize);
+    element = data()->AsString()->GetCharAsString(broker(), index, policy);
   }
   if (element == nullptr) return base::nullopt;
   return ObjectRef(broker(), element);
@@ -3363,26 +3373,26 @@ base::Optional<ObjectRef> ObjectRef::GetOwnConstantElement(
 
 base::Optional<ObjectRef> JSObjectRef::GetOwnDataProperty(
     Representation field_representation, FieldIndex index,
-    bool serialize) const {
+    SerializationPolicy policy) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     return GetOwnDataPropertyFromHeap(broker(),
                                       Handle<JSObject>::cast(object()),
                                       field_representation, index);
   }
   ObjectData* property = data()->AsJSObject()->GetOwnDataProperty(
-      broker(), field_representation, index, serialize);
+      broker(), field_representation, index, policy);
   if (property == nullptr) return base::nullopt;
   return ObjectRef(broker(), property);
 }
 
-base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(uint32_t index,
-                                                       bool serialize) const {
+base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(
+    uint32_t index, SerializationPolicy policy) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     if (!object()->elements().IsCowArray()) return base::nullopt;
     return GetOwnElementFromHeap(broker(), object(), index, false);
   }
 
-  if (serialize) {
+  if (policy == SerializationPolicy::kSerializeIfNeeded) {
     data()->AsJSObject()->SerializeElements(broker());
   } else if (!data()->AsJSObject()->serialized_elements()) {
     TRACE(broker(), "'elements' on " << this);
@@ -3391,7 +3401,7 @@ base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(uint32_t index,
   if (!elements().map().IsFixedCowArrayMap()) return base::nullopt;
 
   ObjectData* element =
-      data()->AsJSArray()->GetOwnElement(broker(), index, serialize);
+      data()->AsJSArray()->GetOwnElement(broker(), index, policy);
   if (element == nullptr) return base::nullopt;
   return ObjectRef(broker(), element);
 }
@@ -3667,10 +3677,9 @@ bool JSFunctionRef::IsSerializedForCompilation() const {
          shared().IsSerializedForCompilation(feedback_vector());
 }
 
-JSArrayRef SharedFunctionInfoRef::GetTemplateObject(ObjectRef description,
-                                                    FeedbackVectorRef vector,
-                                                    FeedbackSlot slot,
-                                                    bool serialize) {
+JSArrayRef SharedFunctionInfoRef::GetTemplateObject(
+    ObjectRef description, FeedbackVectorRef vector, FeedbackSlot slot,
+    SerializationPolicy policy) {
   // Look in the feedback vector for the array. A Smi indicates that it's
   // not yet cached here.
   ObjectRef candidate = vector.get(slot);
@@ -3693,7 +3702,7 @@ JSArrayRef SharedFunctionInfoRef::GetTemplateObject(ObjectRef description,
   JSArrayData* array = data()->AsSharedFunctionInfo()->GetTemplateObject(slot);
   if (array != nullptr) return JSArrayRef(broker(), array);
 
-  CHECK(serialize);
+  CHECK_EQ(policy, SerializationPolicy::kSerializeIfNeeded);
   CHECK(broker()->SerializingAllowed());
 
   Handle<TemplateObjectDescription> tod =
@@ -3825,13 +3834,13 @@ void FunctionTemplateInfoRef::SerializeCallCode() {
 }
 
 base::Optional<PropertyCellRef> JSGlobalProxyRef::GetPropertyCell(
-    NameRef const& name, bool serialize) const {
+    NameRef const& name, SerializationPolicy policy) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     return GetPropertyCellFromHeap(broker(), name.object());
   }
   PropertyCellData* property_cell_data =
-      data()->AsJSGlobalProxy()->GetPropertyCell(
-          broker(), name.data()->AsName(), serialize);
+      data()->AsJSGlobalProxy()->GetPropertyCell(broker(),
+                                                 name.data()->AsName(), policy);
   if (property_cell_data == nullptr) return base::nullopt;
   return PropertyCellRef(broker(), property_cell_data);
 }
@@ -4121,7 +4130,8 @@ GlobalAccessFeedback const* JSHeapBroker::ProcessFeedbackForGlobalAccess(
     }
     ContextRef context_ref(this, context);
     if (immutable) {
-      context_ref.get(context_slot_index, true);
+      context_ref.get(context_slot_index,
+                      SerializationPolicy::kSerializeIfNeeded);
     }
     return new (zone())
         GlobalAccessFeedback(context_ref, context_slot_index, immutable);
@@ -4412,7 +4422,7 @@ ForInFeedback const* ProcessedFeedback::AsForIn() const {
 
 BytecodeAnalysis const& JSHeapBroker::GetBytecodeAnalysis(
     Handle<BytecodeArray> bytecode_array, BailoutId osr_bailout_id,
-    bool analyze_liveness, bool serialize) {
+    bool analyze_liveness, SerializationPolicy policy) {
   ObjectData* bytecode_array_data = GetData(bytecode_array);
   CHECK_NOT_NULL(bytecode_array_data);
 
@@ -4432,7 +4442,7 @@ BytecodeAnalysis const& JSHeapBroker::GetBytecodeAnalysis(
     return *it->second;
   }
 
-  CHECK(serialize);
+  CHECK_EQ(policy, SerializationPolicy::kSerializeIfNeeded);
   BytecodeAnalysis* analysis = new (zone()) BytecodeAnalysis(
       bytecode_array, zone(), osr_bailout_id, analyze_liveness);
   DCHECK_EQ(analysis->osr_bailout_id(), osr_bailout_id);

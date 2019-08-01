@@ -459,7 +459,8 @@ class SerializerForBackgroundCompilation {
   void IncorporateJumpTargetEnvironment(int target_offset);
 
   Handle<BytecodeArray> bytecode_array() const;
-  BytecodeAnalysis const& GetBytecodeAnalysis(bool serialize);
+  BytecodeAnalysis const& GetBytecodeAnalysis(
+      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
 
   JSHeapBroker* broker() const { return broker_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
@@ -960,16 +961,17 @@ Handle<BytecodeArray> SerializerForBackgroundCompilation::bytecode_array()
 }
 
 BytecodeAnalysis const& SerializerForBackgroundCompilation::GetBytecodeAnalysis(
-    bool serialize) {
+    SerializationPolicy policy) {
   return broker()->GetBytecodeAnalysis(
       bytecode_array(), osr_offset(),
       flags() &
           SerializerForBackgroundCompilationFlag::kAnalyzeEnvironmentLiveness,
-      serialize);
+      policy);
 }
 
 void SerializerForBackgroundCompilation::TraverseBytecode() {
-  BytecodeAnalysis const& bytecode_analysis = GetBytecodeAnalysis(true);
+  BytecodeAnalysis const& bytecode_analysis =
+      GetBytecodeAnalysis(SerializationPolicy::kSerializeIfNeeded);
   BytecodeArrayRef(broker(), bytecode_array()).SerializeForCompilation();
 
   BytecodeArrayIterator iterator(bytecode_array());
@@ -1043,7 +1045,8 @@ void SerializerForBackgroundCompilation::VisitGetTemplateObject(
       broker(), environment()->function().feedback_vector());
   SharedFunctionInfoRef shared(broker(), environment()->function().shared());
   JSArrayRef template_object =
-      shared.GetTemplateObject(description, feedback_vector, slot, true);
+      shared.GetTemplateObject(description, feedback_vector, slot,
+                               SerializationPolicy::kSerializeIfNeeded);
   environment()->accumulator_hints().Clear();
   environment()->accumulator_hints().AddConstant(template_object.object());
 }
@@ -1150,7 +1153,8 @@ void SerializerForBackgroundCompilation::VisitPopContext(
 void SerializerForBackgroundCompilation::ProcessImmutableLoad(
     ContextRef const& context_ref, int slot, ContextProcessingMode mode) {
   DCHECK(mode == kSerializeSlot || mode == kSerializeSlotAndAddToAccumulator);
-  base::Optional<ObjectRef> slot_value = context_ref.get(slot, true);
+  base::Optional<ObjectRef> slot_value =
+      context_ref.get(slot, SerializationPolicy::kSerializeIfNeeded);
 
   // Also, put the object into the constant hints for the accumulator.
   if (mode == kSerializeSlotAndAddToAccumulator && slot_value.has_value()) {
@@ -1171,7 +1175,8 @@ void SerializerForBackgroundCompilation::ProcessContextAccess(
       // Walk this context to the given depth and serialize the slot found.
       ContextRef context_ref(broker(), x);
       size_t remaining_depth = depth;
-      context_ref = context_ref.previous(&remaining_depth, true);
+      context_ref = context_ref.previous(
+          &remaining_depth, SerializationPolicy::kSerializeIfNeeded);
       if (remaining_depth == 0 && mode != kIgnoreSlot) {
         ProcessImmutableLoad(context_ref, slot, mode);
       }
@@ -1181,7 +1186,8 @@ void SerializerForBackgroundCompilation::ProcessContextAccess(
     if (x.distance <= static_cast<unsigned int>(depth)) {
       ContextRef context_ref(broker(), x.context);
       size_t remaining_depth = depth - x.distance;
-      context_ref = context_ref.previous(&remaining_depth, true);
+      context_ref = context_ref.previous(
+          &remaining_depth, SerializationPolicy::kSerializeIfNeeded);
       if (remaining_depth == 0 && mode != kIgnoreSlot) {
         ProcessImmutableLoad(context_ref, slot, mode);
       }
@@ -1477,7 +1483,8 @@ void SerializerForBackgroundCompilation::VisitCallJSRuntime(
   // BytecodeGraphBuilder::VisitCallJSRuntime needs the {runtime_index}
   // slot in the native context to be serialized.
   const int runtime_index = iterator->GetNativeContextIndexOperand(0);
-  broker()->native_context().get(runtime_index, true);
+  broker()->native_context().get(runtime_index,
+                                 SerializationPolicy::kSerializeIfNeeded);
 }
 
 Hints SerializerForBackgroundCompilation::RunChildSerializer(
@@ -1701,14 +1708,12 @@ void SerializerForBackgroundCompilation::ProcessApiCall(
 
 void SerializerForBackgroundCompilation::ProcessReceiverMapForApiCall(
     FunctionTemplateInfoRef target, Handle<Map> receiver) {
-  if (receiver->is_access_check_needed()) {
-    return;
+  if (!receiver->is_access_check_needed()) {
+    MapRef receiver_map(broker(), receiver);
+    TRACE_BROKER(broker(), "Serializing holder for target:" << target);
+    target.LookupHolderOfExpectedType(receiver_map,
+                                      SerializationPolicy::kSerializeIfNeeded);
   }
-
-  MapRef receiver_map(broker(), receiver);
-  TRACE_BROKER(broker(), "Serializing holder for target:" << target);
-
-  target.LookupHolderOfExpectedType(receiver_map, true);
 }
 
 void SerializerForBackgroundCompilation::ProcessBuiltinCall(
@@ -1872,7 +1877,8 @@ PropertyAccessInfo SerializerForBackgroundCompilation::ProcessMapForRegExpTest(
     // The property is on the prototype chain.
     JSObjectRef holder_ref(broker(), holder);
     holder_ref.GetOwnDataProperty(ai_exec.field_representation(),
-                                  ai_exec.field_index(), true);
+                                  ai_exec.field_index(),
+                                  SerializationPolicy::kSerializeIfNeeded);
   }
   return ai_exec;
 }
@@ -1890,7 +1896,8 @@ void SerializerForBackgroundCompilation::ProcessHintsForRegExpTest(
       // The property is on the object itself.
       JSObjectRef holder_ref(broker(), regexp);
       holder_ref.GetOwnDataProperty(ai_exec.field_representation(),
-                                    ai_exec.field_index(), true);
+                                    ai_exec.field_index(),
+                                    SerializationPolicy::kSerializeIfNeeded);
     }
   }
 
@@ -1983,7 +1990,7 @@ void SerializerForBackgroundCompilation::VisitSwitchOnSmiNoFeedback(
 
 void SerializerForBackgroundCompilation::VisitSwitchOnGeneratorState(
     interpreter::BytecodeArrayIterator* iterator) {
-  for (const auto& target : GetBytecodeAnalysis(false).resume_jump_targets()) {
+  for (const auto& target : GetBytecodeAnalysis().resume_jump_targets()) {
     ContributeToJumpTargetEnvironment(target.target_offset());
   }
 }
@@ -2291,12 +2298,14 @@ void SerializerForBackgroundCompilation::ProcessKeyedPropertyAccess(
         // TODO(neis): Do this for integer-HeapNumbers too?
         if (key_ref.IsSmi() && key_ref.AsSmi() >= 0) {
           base::Optional<ObjectRef> element =
-              receiver_ref.GetOwnConstantElement(key_ref.AsSmi(), true);
+              receiver_ref.GetOwnConstantElement(
+                  key_ref.AsSmi(), SerializationPolicy::kSerializeIfNeeded);
           if (!element.has_value() && receiver_ref.IsJSArray()) {
             // We didn't find a constant element, but if the receiver is a
             // cow-array we can exploit the fact that any future write to the
             // element will replace the whole elements storage.
-            receiver_ref.AsJSArray().GetOwnCowElement(key_ref.AsSmi(), true);
+            receiver_ref.AsJSArray().GetOwnCowElement(
+                key_ref.AsSmi(), SerializationPolicy::kSerializeIfNeeded);
           }
         }
       }
@@ -2314,8 +2323,8 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
     base::Optional<JSObjectRef> receiver) {
   // For JSNativeContextSpecialization::ReduceNamedAccess.
   if (receiver_map.IsMapOfCurrentGlobalProxy()) {
-    broker()->native_context().global_proxy_object().GetPropertyCell(name,
-                                                                     true);
+    broker()->native_context().global_proxy_object().GetPropertyCell(
+        name, SerializationPolicy::kSerializeIfNeeded);
   }
 
   AccessInfoFactory access_info_factory(broker(), dependencies(),
@@ -2360,9 +2369,9 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
       }
 
       if (holder.has_value()) {
-        base::Optional<ObjectRef> constant(
-            holder->GetOwnDataProperty(access_info.field_representation(),
-                                       access_info.field_index(), true));
+        base::Optional<ObjectRef> constant(holder->GetOwnDataProperty(
+            access_info.field_representation(), access_info.field_index(),
+            SerializationPolicy::kSerializeIfNeeded));
         if (constant.has_value()) {
           environment()->accumulator_hints().AddConstant(constant->object());
         }
@@ -2398,7 +2407,8 @@ void SerializerForBackgroundCompilation::ProcessNamedPropertyAccess(
     }
     // For JSNativeContextSpecialization::ReduceNamedAccessFromNexus.
     if (object.equals(global_proxy)) {
-      global_proxy.GetPropertyCell(name, true);
+      global_proxy.GetPropertyCell(name,
+                                   SerializationPolicy::kSerializeIfNeeded);
     }
     // For JSNativeContextSpecialization::ReduceJSLoadNamed.
     if (mode == AccessMode::kLoad && object.IsJSFunction() &&
@@ -2489,7 +2499,8 @@ void SerializerForBackgroundCompilation::ProcessConstantForInstanceOf(
     JSObjectRef holder_ref = found_on_proto ? JSObjectRef(broker(), holder)
                                             : constructor.AsJSObject();
     base::Optional<ObjectRef> constant = holder_ref.GetOwnDataProperty(
-        access_info.field_representation(), access_info.field_index(), true);
+        access_info.field_representation(), access_info.field_index(),
+        SerializationPolicy::kSerializeIfNeeded);
     CHECK(constant.has_value());
     if (constant->IsJSFunction()) {
       JSFunctionRef function = constant->AsJSFunction();
