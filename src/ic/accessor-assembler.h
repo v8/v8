@@ -30,7 +30,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void GenerateLoadIC();
   void GenerateLoadIC_Megamorphic();
   void GenerateLoadIC_Noninlined();
-  void GenerateLoadIC_Nofeedback();
+  void GenerateLoadIC_Uninitialized();
   void GenerateLoadICTrampoline();
   void GenerateLoadICTrampoline_Megamorphic();
   void GenerateKeyedLoadIC();
@@ -214,7 +214,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   TNode<MaybeObject> LoadDescriptorValueOrFieldType(
       TNode<Map> map, TNode<IntPtrT> descriptor_entry);
 
-  void LoadIC_Nofeedback(const LoadICParameters* p);
+  void LoadIC_Uninitialized(const LoadICParameters* p);
 
   void KeyedLoadIC(const LoadICParameters* p, LoadAccessMode access_mode);
   void KeyedLoadICGeneric(const LoadICParameters* p);

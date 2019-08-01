@@ -30,7 +30,7 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
 
   void KeyedStoreGeneric();
 
-  void StoreIC_Nofeedback();
+  void StoreIC_Uninitialized();
 
   // Generates code for [[Set]] operation, the |unique_name| is supposed to be
   // unique otherwise this code will always go to runtime.
@@ -138,9 +138,10 @@ void KeyedStoreGenericGenerator::Generate(compiler::CodeAssemblerState* state) {
   assembler.KeyedStoreGeneric();
 }
 
-void StoreICNofeedbackGenerator::Generate(compiler::CodeAssemblerState* state) {
+void StoreICUninitializedGenerator::Generate(
+    compiler::CodeAssemblerState* state) {
   KeyedStoreGenericAssembler assembler(state, StoreMode::kOrdinary);
-  assembler.StoreIC_Nofeedback();
+  assembler.StoreIC_Uninitialized();
 }
 
 void KeyedStoreGenericGenerator::SetProperty(
@@ -1042,13 +1043,14 @@ void KeyedStoreGenericAssembler::SetProperty(TNode<Context> context,
   KeyedStoreGeneric(context, receiver, key, value, Just(language_mode));
 }
 
-void KeyedStoreGenericAssembler::StoreIC_Nofeedback() {
-  using Descriptor = StoreDescriptor;
+void KeyedStoreGenericAssembler::StoreIC_Uninitialized() {
+  using Descriptor = StoreWithVectorDescriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
   Node* value = Parameter(Descriptor::kValue);
   Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
   Node* context = Parameter(Descriptor::kContext);
 
   Label miss(this, Label::kDeferred), store_property(this);
@@ -1059,16 +1061,33 @@ void KeyedStoreGenericAssembler::StoreIC_Nofeedback() {
   // Receivers requiring non-standard element accesses (interceptors, access
   // checks, strings and string wrappers, proxies) are handled in the runtime.
   GotoIf(IsSpecialReceiverInstanceType(instance_type), &miss);
+
+  // Optimistically write the state transition to the vector.
+  GotoIf(IsUndefined(vector), &store_property);
+  StoreFeedbackVectorSlot(vector, slot,
+                          LoadRoot(RootIndex::kpremonomorphic_symbol),
+                          SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
+  Goto(&store_property);
+
+  BIND(&store_property);
   {
-    StoreICParameters p(CAST(context), receiver, name, value, slot,
-                        UndefinedConstant());
+    StoreICParameters p(CAST(context), receiver, name, value, slot, vector);
     EmitGenericPropertyStore(receiver, receiver_map, &p, &miss);
   }
 
   BIND(&miss);
   {
-    TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot,
-                    UndefinedConstant(), receiver, name);
+    Label call_runtime(this);
+    // Undo the optimistic state transition.
+    GotoIf(IsUndefined(vector), &call_runtime);
+    StoreFeedbackVectorSlot(vector, slot,
+                            LoadRoot(RootIndex::kuninitialized_symbol),
+                            SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
+    Goto(&call_runtime);
+
+    BIND(&call_runtime);
+    TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot, vector,
+                    receiver, name);
   }
 }
 

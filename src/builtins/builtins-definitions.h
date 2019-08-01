@@ -222,9 +222,9 @@ namespace internal {
   TFH(LoadIC_Slow, LoadWithVector)                                             \
   TFH(LoadIC_StringLength, LoadWithVector)                                     \
   TFH(LoadIC_StringWrapperLength, LoadWithVector)                              \
-  TFH(LoadIC_Nofeedback, Load)                                                 \
+  TFH(LoadIC_Uninitialized, LoadWithVector)                                    \
   TFH(StoreGlobalIC_Slow, StoreWithVector)                                     \
-  TFH(StoreIC_Nofeedback, Store)                                               \
+  TFH(StoreIC_Uninitialized, StoreWithVector)                                  \
   TFH(StoreInArrayLiteralIC_Slow, StoreWithVector)                             \
   TFH(KeyedLoadIC_SloppyArguments, LoadWithVector)                             \
   TFH(LoadIndexedInterceptorIC, LoadWithVector)                                \

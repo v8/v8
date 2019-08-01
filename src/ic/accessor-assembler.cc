@@ -2524,8 +2524,8 @@ void AccessorAssembler::LoadIC_BytecodeHandler(const LazyLoadICParameters* p,
     Comment("LoadIC_BytecodeHandler_nofeedback");
     // Call into the stub that implements the non-inlined parts of LoadIC.
     exit_point->ReturnCallStub(
-        Builtins::CallableFor(isolate(), Builtins::kLoadIC_Nofeedback),
-        p->context(), p->receiver(), p->name(), p->slot());
+        Builtins::CallableFor(isolate(), Builtins::kLoadIC_Uninitialized),
+        p->context(), p->receiver(), p->name(), p->slot(), p->vector());
   }
 
   BIND(&miss);
@@ -2589,6 +2589,8 @@ void AccessorAssembler::LoadIC_Noninlined(const LoadICParameters* p,
                                           TVariable<MaybeObject>* var_handler,
                                           Label* if_handler, Label* miss,
                                           ExitPoint* exit_point) {
+  Label try_uninitialized(this, Label::kDeferred);
+
   // Neither deprecated map nor monomorphic. These cases are handled in the
   // bytecode handler.
   CSA_ASSERT(this, Word32BinaryNot(IsDeprecatedMap(receiver_map)));
@@ -2599,20 +2601,41 @@ void AccessorAssembler::LoadIC_Noninlined(const LoadICParameters* p,
   {
     // Check megamorphic case.
     GotoIfNot(WordEqual(feedback, LoadRoot(RootIndex::kmegamorphic_symbol)),
-              miss);
+              &try_uninitialized);
 
     TryProbeStubCache(isolate()->load_stub_cache(), p->receiver(), p->name(),
                       if_handler, var_handler, miss);
   }
+
+  BIND(&try_uninitialized);
+  {
+    // Check uninitialized case.
+    GotoIfNot(WordEqual(feedback, LoadRoot(RootIndex::kuninitialized_symbol)),
+              miss);
+    exit_point->ReturnCallStub(
+        Builtins::CallableFor(isolate(), Builtins::kLoadIC_Uninitialized),
+        p->context(), p->receiver(), p->name(), p->slot(), p->vector());
+  }
 }
 
-void AccessorAssembler::LoadIC_Nofeedback(const LoadICParameters* p) {
-  Label miss(this, Label::kDeferred);
+void AccessorAssembler::LoadIC_Uninitialized(const LoadICParameters* p) {
+  Label miss(this, Label::kDeferred),
+      check_function_prototype(this);
   Node* receiver = p->receiver();
   GotoIf(TaggedIsSmi(receiver), &miss);
   Node* receiver_map = LoadMap(receiver);
   Node* instance_type = LoadMapInstanceType(receiver_map);
 
+  GotoIf(IsUndefined(p->vector()), &check_function_prototype);
+  // Optimistically write the state transition to the vector.
+  StoreFeedbackVectorSlot(p->vector(), p->slot(),
+                          LoadRoot(RootIndex::kpremonomorphic_symbol),
+                          SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
+  StoreWeakReferenceInFeedbackVector(p->vector(), p->slot(), receiver_map,
+                                     kTaggedSize, SMI_PARAMETERS);
+  Goto(&check_function_prototype);
+
+  BIND(&check_function_prototype);
   {
     // Special case for Function.prototype load, because it's very common
     // for ICs that are only executed once (MyFunc.prototype.foo = ...).
@@ -2632,6 +2655,15 @@ void AccessorAssembler::LoadIC_Nofeedback(const LoadICParameters* p) {
 
   BIND(&miss);
   {
+    Label call_runtime(this, Label::kDeferred);
+    GotoIf(IsUndefined(p->vector()), &call_runtime);
+    // Undo the optimistic state transition.
+    StoreFeedbackVectorSlot(p->vector(), p->slot(),
+                            LoadRoot(RootIndex::kuninitialized_symbol),
+                            SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
+    Goto(&call_runtime);
+
+    BIND(&call_runtime);
     TailCallRuntime(Runtime::kLoadIC_Miss, p->context(), p->receiver(),
                     p->name(), p->slot(), p->vector());
   }
@@ -2740,7 +2772,6 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p,
   TVARIABLE(MaybeObject, var_handler);
   Label if_handler(this, &var_handler), try_polymorphic(this, Label::kDeferred),
       try_megamorphic(this, Label::kDeferred),
-      try_uninitialized(this, Label::kDeferred),
       try_polymorphic_name(this, Label::kDeferred),
       miss(this, Label::kDeferred), generic(this, Label::kDeferred);
 
@@ -2777,7 +2808,7 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p,
     // Check megamorphic case.
     Comment("KeyedLoadIC_try_megamorphic");
     Branch(WordEqual(strong_feedback, LoadRoot(RootIndex::kmegamorphic_symbol)),
-           &generic, &try_uninitialized);
+           &generic, &try_polymorphic_name);
   }
 
   BIND(&generic);
@@ -2788,15 +2819,6 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p,
                         : Builtins::kKeyedHasIC_Megamorphic,
                     p->context(), p->receiver(), p->name(), p->slot(),
                     p->vector());
-  }
-
-  BIND(&try_uninitialized);
-  {
-    // Check uninitialized case.
-    Comment("KeyedLoadIC_try_uninitialized");
-    Branch(
-        WordEqual(strong_feedback, LoadRoot(RootIndex::kuninitialized_symbol)),
-        &miss, &try_polymorphic_name);
   }
 
   BIND(&try_polymorphic_name);
@@ -2992,7 +3014,8 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
   Label if_handler(this, &var_handler),
       if_handler_from_stub_cache(this, &var_handler, Label::kDeferred),
       try_polymorphic(this, Label::kDeferred),
-      try_megamorphic(this, Label::kDeferred), miss(this, Label::kDeferred),
+      try_megamorphic(this, Label::kDeferred),
+      try_uninitialized(this, Label::kDeferred), miss(this, Label::kDeferred),
       no_feedback(this, Label::kDeferred);
 
   Node* receiver_map = LoadReceiverMap(p->receiver());
@@ -3026,16 +3049,24 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
     // Check megamorphic case.
     GotoIfNot(
         WordEqual(strong_feedback, LoadRoot(RootIndex::kmegamorphic_symbol)),
-        &miss);
+        &try_uninitialized);
 
     TryProbeStubCache(isolate()->store_stub_cache(), p->receiver(), p->name(),
                       &if_handler, &var_handler, &miss);
   }
+  BIND(&try_uninitialized);
+  {
+    // Check uninitialized case.
+    Branch(
+        WordEqual(strong_feedback, LoadRoot(RootIndex::kuninitialized_symbol)),
+        &no_feedback, &miss);
+  }
 
   BIND(&no_feedback);
   {
-    TailCallBuiltin(Builtins::kStoreIC_Nofeedback, p->context(), p->receiver(),
-                    p->name(), p->value(), p->slot());
+    TailCallBuiltin(Builtins::kStoreIC_Uninitialized, p->context(),
+                    p->receiver(), p->name(), p->value(), p->slot(),
+                    p->vector());
   }
 
   BIND(&miss);
@@ -3054,10 +3085,6 @@ void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
   BIND(&if_heapobject);
   {
     Label try_handler(this), miss(this, Label::kDeferred);
-    // We use pre-monomorphic state for global stores that run into
-    // interceptors because the property doesn't exist yet. Using
-    // pre-monomorphic state gives it a chance to find more information the
-    // second time.
     GotoIf(
         WordEqual(maybe_weak_ref, LoadRoot(RootIndex::kpremonomorphic_symbol)),
         &miss);
@@ -3405,16 +3432,17 @@ void AccessorAssembler::GenerateLoadIC_Noninlined() {
                                 slot, vector);
 }
 
-void AccessorAssembler::GenerateLoadIC_Nofeedback() {
-  using Descriptor = LoadDescriptor;
+void AccessorAssembler::GenerateLoadIC_Uninitialized() {
+  using Descriptor = LoadWithVectorDescriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
   Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
-  LoadICParameters p(context, receiver, name, slot, UndefinedConstant());
-  LoadIC_Nofeedback(&p);
+  LoadICParameters p(context, receiver, name, slot, vector);
+  LoadIC_Uninitialized(&p);
 }
 
 void AccessorAssembler::GenerateLoadICTrampoline() {

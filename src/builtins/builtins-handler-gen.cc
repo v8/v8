@@ -66,9 +66,9 @@ void Builtins::Generate_KeyedStoreIC_Megamorphic(
   KeyedStoreGenericGenerator::Generate(state);
 }
 
-void Builtins::Generate_StoreIC_Nofeedback(
+void Builtins::Generate_StoreIC_Uninitialized(
     compiler::CodeAssemblerState* state) {
-  StoreICNofeedbackGenerator::Generate(state);
+  StoreICUninitializedGenerator::Generate(state);
 }
 
 // TODO(mythria): Check if we can remove feedback vector and slot parameters in
