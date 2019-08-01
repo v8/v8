@@ -3998,11 +3998,20 @@ NamedAccessFeedback::NamedAccessFeedback(
   CHECK(!access_infos.empty());
 }
 
+FeedbackSource::FeedbackSource(Handle<FeedbackVector> vector_,
+                               FeedbackSlot slot_)
+    : vector(vector_), slot(slot_) {
+  DCHECK(!slot.IsInvalid());
+}
+
+FeedbackSource::FeedbackSource(FeedbackVectorRef vector_, FeedbackSlot slot_)
+    : FeedbackSource(vector_.object(), slot_) {}
+
 FeedbackSource::FeedbackSource(FeedbackNexus const& nexus)
-    : vector(nexus.vector_handle()), slot(nexus.slot()) {}
+    : FeedbackSource(nexus.vector_handle(), nexus.slot()) {}
 
 FeedbackSource::FeedbackSource(VectorSlotPair const& pair)
-    : vector(pair.vector()), slot(pair.slot()) {}
+    : FeedbackSource(pair.vector(), pair.slot()) {}
 
 void JSHeapBroker::SetFeedback(FeedbackSource const& source,
                                ProcessedFeedback const* feedback) {
@@ -4126,6 +4135,155 @@ GlobalAccessFeedback const* JSHeapBroker::ProcessFeedbackForGlobalAccess(
   return new (zone()) GlobalAccessFeedback(cell);
 }
 
+bool JSHeapBroker::FeedbackIsInsufficient(FeedbackSource const& source) const {
+  if (FLAG_concurrent_inlining) {
+    ProcessedFeedback const* feedback = GetFeedback(source);
+    // TODO(mvstanton): handling nullptr is a workaround until
+    // we find a way to express megamorphic feedback.
+    return feedback != nullptr && feedback->IsInsufficient();
+  }
+  return FeedbackNexus(source.vector, source.slot).IsUninitialized();
+}
+
+BinaryOperationHint JSHeapBroker::ReadBinaryOperationFeedback(
+    FeedbackSource const& source) const {
+  return FeedbackNexus(source.vector, source.slot).GetBinaryOperationFeedback();
+}
+
+CompareOperationHint JSHeapBroker::ReadCompareOperationFeedback(
+    FeedbackSource const& source) const {
+  return FeedbackNexus(source.vector, source.slot)
+      .GetCompareOperationFeedback();
+}
+
+ForInHint JSHeapBroker::ReadForInFeedback(FeedbackSource const& source) const {
+  return FeedbackNexus(source.vector, source.slot).GetForInFeedback();
+}
+
+ProcessedFeedback const* JSHeapBroker::ReadInstanceOfFeedback(
+    FeedbackSource const& source) {
+  FeedbackNexus nexus(source.vector, source.slot);
+  if (nexus.IsUninitialized()) return new (zone()) InsufficientFeedback();
+
+  base::Optional<JSObjectRef> optional_constructor;
+  {
+    MaybeHandle<JSObject> maybe_constructor = nexus.GetConstructorFeedback();
+    Handle<JSObject> constructor;
+    if (maybe_constructor.ToHandle(&constructor)) {
+      optional_constructor = JSObjectRef(this, constructor);
+    }
+  }
+  return new (zone()) InstanceOfFeedback(optional_constructor);
+}
+
+ProcessedFeedback const* JSHeapBroker::ReadCallFeedback(
+    FeedbackSource const& source) {
+  FeedbackNexus nexus(source.vector, source.slot);
+  if (nexus.IsUninitialized()) return new (zone()) InsufficientFeedback();
+
+  base::Optional<HeapObjectRef> target_ref;
+  {
+    MaybeObject maybe_target = nexus.GetFeedback();
+    HeapObject target_object;
+    if (maybe_target->GetHeapObject(&target_object)) {
+      target_ref = HeapObjectRef(this, handle(target_object, isolate()));
+    }
+  }
+  float frequency = nexus.ComputeCallFrequency();
+  SpeculationMode mode = nexus.GetSpeculationMode();
+  return new (zone()) CallFeedback(target_ref, frequency, mode);
+}
+
+BinaryOperationHint JSHeapBroker::GetFeedbackForBinaryOperation(
+    FeedbackSource const& source) const {
+  if (!FLAG_concurrent_inlining) return ReadBinaryOperationFeedback(source);
+  ProcessedFeedback const* feedback = GetFeedback(source);
+  return feedback->IsInsufficient() ? BinaryOperationHint::kNone
+                                    : feedback->AsBinaryOperation()->value();
+}
+
+CompareOperationHint JSHeapBroker::GetFeedbackForCompareOperation(
+    FeedbackSource const& source) const {
+  if (!FLAG_concurrent_inlining) return ReadCompareOperationFeedback(source);
+  ProcessedFeedback const* feedback = GetFeedback(source);
+  return feedback->IsInsufficient() ? CompareOperationHint::kNone
+                                    : feedback->AsCompareOperation()->value();
+}
+
+ForInHint JSHeapBroker::GetFeedbackForForIn(
+    FeedbackSource const& source) const {
+  if (!FLAG_concurrent_inlining) return ReadForInFeedback(source);
+  ProcessedFeedback const* feedback = GetFeedback(source);
+  return feedback->IsInsufficient() ? ForInHint::kNone
+                                    : feedback->AsForIn()->value();
+}
+
+ProcessedFeedback const* JSHeapBroker::GetFeedbackForInstanceOf(
+    FeedbackSource const& source) {
+  return FLAG_concurrent_inlining ? GetFeedback(source)
+                                  : ReadInstanceOfFeedback(source);
+}
+
+ProcessedFeedback const* JSHeapBroker::GetFeedbackForCall(
+    FeedbackSource const& source) {
+  return FLAG_concurrent_inlining ? GetFeedback(source)
+                                  : ReadCallFeedback(source);
+}
+
+void JSHeapBroker::ProcessFeedbackForBinaryOperation(
+    FeedbackSource const& source) {
+  if (HasFeedback(source)) return;
+  BinaryOperationHint hint = ReadBinaryOperationFeedback(source);
+  ProcessedFeedback const* feedback;
+  if (hint == BinaryOperationHint::kNone) {
+    feedback = new (zone()) InsufficientFeedback();
+  } else {
+    feedback = new (zone()) BinaryOperationFeedback(hint);
+  }
+  SetFeedback(source, feedback);
+}
+
+void JSHeapBroker::ProcessFeedbackForCompareOperation(
+    FeedbackSource const& source) {
+  if (HasFeedback(source)) return;
+  CompareOperationHint hint = ReadCompareOperationFeedback(source);
+  ProcessedFeedback const* feedback;
+  if (hint == CompareOperationHint::kNone) {
+    feedback = new (zone()) InsufficientFeedback();
+  } else {
+    feedback = new (zone()) CompareOperationFeedback(hint);
+  }
+  SetFeedback(source, feedback);
+}
+
+void JSHeapBroker::ProcessFeedbackForForIn(FeedbackSource const& source) {
+  if (HasFeedback(source)) return;
+  ForInHint hint = ReadForInFeedback(source);
+  ProcessedFeedback const* feedback;
+  if (hint == ForInHint::kNone) {
+    feedback = new (zone()) InsufficientFeedback();
+  } else {
+    feedback = new (zone()) ForInFeedback(hint);
+  }
+  SetFeedback(source, feedback);
+}
+
+ProcessedFeedback const* JSHeapBroker::ProcessFeedbackForInstanceOf(
+    FeedbackSource const& source) {
+  if (HasFeedback(source)) return GetFeedback(source);
+  ProcessedFeedback const* feedback = ReadInstanceOfFeedback(source);
+  SetFeedback(source, feedback);
+  return feedback;
+}
+
+ProcessedFeedback const* JSHeapBroker::ProcessFeedbackForCall(
+    FeedbackSource const& source) {
+  if (HasFeedback(source)) return GetFeedback(source);
+  ProcessedFeedback const* feedback = ReadCallFeedback(source);
+  SetFeedback(source, feedback);
+  return feedback;
+}
+
 std::ostream& operator<<(std::ostream& os, const ObjectRef& ref) {
   return os << ref.data();
 }
@@ -4225,6 +4383,31 @@ ElementAccessFeedback const* ProcessedFeedback::AsElementAccess() const {
 NamedAccessFeedback const* ProcessedFeedback::AsNamedAccess() const {
   CHECK_EQ(kNamedAccess, kind());
   return static_cast<NamedAccessFeedback const*>(this);
+}
+
+CallFeedback const* ProcessedFeedback::AsCall() const {
+  CHECK_EQ(kCall, kind());
+  return static_cast<CallFeedback const*>(this);
+}
+
+InstanceOfFeedback const* ProcessedFeedback::AsInstanceOf() const {
+  CHECK_EQ(kInstanceOf, kind());
+  return static_cast<InstanceOfFeedback const*>(this);
+}
+
+BinaryOperationFeedback const* ProcessedFeedback::AsBinaryOperation() const {
+  CHECK_EQ(kBinaryOperation, kind());
+  return static_cast<BinaryOperationFeedback const*>(this);
+}
+
+CompareOperationFeedback const* ProcessedFeedback::AsCompareOperation() const {
+  CHECK_EQ(kCompareOperation, kind());
+  return static_cast<CompareOperationFeedback const*>(this);
+}
+
+ForInFeedback const* ProcessedFeedback::AsForIn() const {
+  CHECK_EQ(kForIn, kind());
+  return static_cast<ForInFeedback const*>(this);
 }
 
 BytecodeAnalysis const& JSHeapBroker::GetBytecodeAnalysis(

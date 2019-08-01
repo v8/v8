@@ -38,15 +38,6 @@ namespace compiler {
   V(Throw)
 
 #define CLEAR_ACCUMULATOR_LIST(V) \
-  V(Add)                          \
-  V(AddSmi)                       \
-  V(BitwiseAnd)                   \
-  V(BitwiseAndSmi)                \
-  V(BitwiseNot)                   \
-  V(BitwiseOr)                    \
-  V(BitwiseOrSmi)                 \
-  V(BitwiseXor)                   \
-  V(BitwiseXorSmi)                \
   V(CallRuntime)                  \
   V(CloneObject)                  \
   V(CreateArrayFromIterable)      \
@@ -58,42 +49,16 @@ namespace compiler {
   V(CreateRegExpLiteral)          \
   V(CreateRestParameter)          \
   V(CreateUnmappedArguments)      \
-  V(Dec)                          \
   V(DeletePropertySloppy)         \
   V(DeletePropertyStrict)         \
-  V(Div)                          \
-  V(DivSmi)                       \
-  V(Exp)                          \
-  V(ExpSmi)                       \
   V(ForInContinue)                \
   V(ForInEnumerate)               \
-  V(ForInNext)                    \
   V(ForInStep)                    \
-  V(Inc)                          \
   V(LdaLookupSlot)                \
   V(LdaLookupSlotInsideTypeof)    \
   V(LogicalNot)                   \
-  V(Mod)                          \
-  V(ModSmi)                       \
-  V(Mul)                          \
-  V(MulSmi)                       \
-  V(Negate)                       \
   V(SetPendingMessage)            \
-  V(ShiftLeft)                    \
-  V(ShiftLeftSmi)                 \
-  V(ShiftRight)                   \
-  V(ShiftRightLogical)            \
-  V(ShiftRightLogicalSmi)         \
-  V(ShiftRightSmi)                \
   V(StaLookupSlot)                \
-  V(Sub)                          \
-  V(SubSmi)                       \
-  V(TestEqual)                    \
-  V(TestEqualStrict)              \
-  V(TestGreaterThan)              \
-  V(TestGreaterThanOrEqual)       \
-  V(TestLessThan)                 \
-  V(TestLessThanOrEqual)          \
   V(TestNull)                     \
   V(TestReferenceEqual)           \
   V(TestTypeOf)                   \
@@ -101,8 +66,6 @@ namespace compiler {
   V(TestUndetectable)             \
   V(ToBooleanLogicalNot)          \
   V(ToName)                       \
-  V(ToNumber)                     \
-  V(ToNumeric)                    \
   V(ToString)                     \
   V(TypeOf)
 
@@ -146,6 +109,46 @@ namespace compiler {
   V(Illegal)                         \
   V(Wide)
 
+#define BINARY_OP_LIST(V) \
+  V(Add)                  \
+  V(AddSmi)               \
+  V(BitwiseAnd)           \
+  V(BitwiseAndSmi)        \
+  V(BitwiseOr)            \
+  V(BitwiseOrSmi)         \
+  V(BitwiseXor)           \
+  V(BitwiseXorSmi)        \
+  V(Div)                  \
+  V(DivSmi)               \
+  V(Exp)                  \
+  V(ExpSmi)               \
+  V(Mod)                  \
+  V(ModSmi)               \
+  V(Mul)                  \
+  V(MulSmi)               \
+  V(ShiftLeft)            \
+  V(ShiftLeftSmi)         \
+  V(ShiftRight)           \
+  V(ShiftRightSmi)        \
+  V(ShiftRightLogical)    \
+  V(ShiftRightLogicalSmi) \
+  V(Sub)                  \
+  V(SubSmi)
+
+#define UNARY_OP_LIST(V) \
+  V(BitwiseNot)          \
+  V(Dec)                 \
+  V(Inc)                 \
+  V(Negate)
+
+#define COMPARE_OP_LIST(V)  \
+  V(TestEqual)              \
+  V(TestEqualStrict)        \
+  V(TestGreaterThan)        \
+  V(TestGreaterThanOrEqual) \
+  V(TestLessThan)           \
+  V(TestLessThanOrEqual)
+
 #define SUPPORTED_BYTECODE_LIST(V)    \
   V(CallAnyReceiver)                  \
   V(CallJSRuntime)                    \
@@ -166,6 +169,8 @@ namespace compiler {
   V(CreateEvalContext)                \
   V(CreateFunctionContext)            \
   V(CreateWithContext)                \
+  V(ForInNext)                        \
+  V(ForInPrepare)                     \
   V(GetSuperConstructor)              \
   V(GetTemplateObject)                \
   V(InvokeIntrinsic)                  \
@@ -208,11 +213,16 @@ namespace compiler {
   V(SwitchOnSmiNoFeedback)            \
   V(TestIn)                           \
   V(TestInstanceOf)                   \
+  V(ToNumber)                         \
+  V(ToNumeric)                        \
+  BINARY_OP_LIST(V)                   \
+  COMPARE_OP_LIST(V)                  \
   CLEAR_ACCUMULATOR_LIST(V)           \
   CLEAR_ENVIRONMENT_LIST(V)           \
   CONDITIONAL_JUMPS_LIST(V)           \
   IGNORED_BYTECODE_LIST(V)            \
   KILL_ENVIRONMENT_LIST(V)            \
+  UNARY_OP_LIST(V)                    \
   UNCONDITIONAL_JUMPS_LIST(V)         \
   UNREACHABLE_BYTECODE_LIST(V)
 
@@ -395,11 +405,18 @@ class SerializerForBackgroundCompilation {
                                           Hints const& instance_hints);
 
   GlobalAccessFeedback const* ProcessFeedbackForGlobalAccess(FeedbackSlot slot);
+
   NamedAccessFeedback const* ProcessFeedbackMapsForNamedAccess(
       const MapHandles& maps, AccessMode mode, NameRef const& name);
   ElementAccessFeedback const* ProcessFeedbackMapsForElementAccess(
       const MapHandles& maps, AccessMode mode,
       KeyedAccessMode const& keyed_mode);
+
+  void ProcessFeedbackForCompareOperation(FeedbackSlot slot);
+  void ProcessFeedbackForForIn(FeedbackSlot slot);
+  void ProcessFeedbackForUnaryOrBinaryOperation(
+      FeedbackSlot slot, bool honor_bailout_on_uninitialized);
+
   void ProcessFeedbackForPropertyAccess(FeedbackSlot slot, AccessMode mode,
                                         base::Optional<NameRef> static_name);
   PropertyAccessInfo ProcessMapForNamedPropertyAccess(
@@ -1286,6 +1303,18 @@ void SerializerForBackgroundCompilation::VisitCreateCatchContext(
   ProcessCreateContext();
 }
 
+void SerializerForBackgroundCompilation::VisitForInNext(
+    BytecodeArrayIterator* iterator) {
+  FeedbackSlot slot = iterator->GetSlotOperand(3);
+  ProcessFeedbackForForIn(slot);
+}
+
+void SerializerForBackgroundCompilation::VisitForInPrepare(
+    BytecodeArrayIterator* iterator) {
+  FeedbackSlot slot = iterator->GetSlotOperand(1);
+  ProcessFeedbackForForIn(slot);
+}
+
 void SerializerForBackgroundCompilation::ProcessCreateContext() {
   Hints& accumulator_hints = environment()->accumulator_hints();
   accumulator_hints.Clear();
@@ -1475,22 +1504,6 @@ Hints SerializerForBackgroundCompilation::RunChildSerializer(
   return child_serializer.Run();
 }
 
-namespace {
-base::Optional<HeapObjectRef> GetHeapObjectFeedback(
-    JSHeapBroker* broker, Handle<FeedbackVector> feedback_vector,
-    FeedbackSlot slot) {
-  if (slot.IsInvalid()) return base::nullopt;
-  FeedbackNexus nexus(feedback_vector, slot);
-  VectorSlotPair feedback(feedback_vector, slot, nexus.ic_state());
-  DCHECK(feedback.IsValid());
-  if (nexus.IsUninitialized()) return base::nullopt;
-  HeapObject object;
-  if (!nexus.GetFeedback()->GetHeapObject(&object)) return base::nullopt;
-  return HeapObjectRef(broker, handle(object, broker->isolate()));
-}
-
-}  // namespace
-
 bool SerializerForBackgroundCompilation::ProcessSFIForCallOrConstruct(
     Handle<SharedFunctionInfo> shared, const HintsVector& arguments,
     SpeculationMode speculation_mode) {
@@ -1556,26 +1569,31 @@ MaybeHandle<JSFunction> UnrollBoundFunction(
 void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
     Hints callee, base::Optional<Hints> new_target,
     const HintsVector& arguments, FeedbackSlot slot, bool with_spread) {
-  // TODO(neis): Make this part of ProcessFeedback*?
   if (BailoutOnUninitialized(slot)) return;
 
+  FeedbackSource source(environment()->function().feedback_vector(), slot);
+  ProcessedFeedback const* feedback = broker()->ProcessFeedbackForCall(source);
+
   // Incorporate feedback into hints.
-  base::Optional<HeapObjectRef> feedback = GetHeapObjectFeedback(
-      broker(), environment()->function().feedback_vector(), slot);
-  if (feedback.has_value() && feedback->map().is_callable()) {
-    if (new_target.has_value()) {
-      // Construct; feedback is new_target, which often is also the callee.
-      new_target->AddConstant(feedback->object());
-      callee.AddConstant(feedback->object());
-    } else {
-      // Call; feedback is callee.
-      callee.AddConstant(feedback->object());
+  SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation;
+  if (!feedback->IsInsufficient()) {
+    speculation_mode = feedback->AsCall()->speculation_mode();
+    base::Optional<HeapObjectRef> target = feedback->AsCall()->target();
+    if (target.has_value() && target->map().is_callable()) {
+      // TODO(mvstanton): if the map isn't callable then we have an allocation
+      // site, and it may make sense to add the Array JSFunction constant.
+      if (new_target.has_value()) {
+        // Construct; feedback is new_target, which often is also the callee.
+        new_target->AddConstant(target->object());
+        callee.AddConstant(target->object());
+      } else {
+        // Call; target is callee.
+        callee.AddConstant(target->object());
+      }
     }
   }
 
   environment()->accumulator_hints().Clear();
-  FeedbackNexus nexus(environment()->function().feedback_vector(), slot);
-  SpeculationMode speculation_mode = nexus.GetSpeculationMode();
 
   // For JSCallReducer::ReduceJSCall and JSCallReducer::ReduceJSConstruct.
   for (auto hint : callee.constants()) {
@@ -2136,6 +2154,32 @@ SerializerForBackgroundCompilation::ProcessFeedbackMapsForElementAccess(
   return result;
 }
 
+void SerializerForBackgroundCompilation::ProcessFeedbackForCompareOperation(
+    FeedbackSlot slot) {
+  if (BailoutOnUninitialized(slot)) return;
+  FeedbackSource source(environment()->function().feedback_vector(), slot);
+  broker()->ProcessFeedbackForCompareOperation(source);
+  environment()->accumulator_hints().Clear();
+}
+
+void SerializerForBackgroundCompilation::ProcessFeedbackForForIn(
+    FeedbackSlot slot) {
+  if (BailoutOnUninitialized(slot)) return;
+  FeedbackSource source(environment()->function().feedback_vector(), slot);
+  broker()->ProcessFeedbackForForIn(source);
+  environment()->accumulator_hints().Clear();
+}
+
+void SerializerForBackgroundCompilation::
+    ProcessFeedbackForUnaryOrBinaryOperation(
+        FeedbackSlot slot, bool honor_bailout_on_uninitialized) {
+  if (honor_bailout_on_uninitialized && BailoutOnUninitialized(slot)) return;
+  FeedbackSource source(environment()->function().feedback_vector(), slot);
+  // Internally V8 uses binary op feedback also for unary ops.
+  broker()->ProcessFeedbackForBinaryOperation(source);
+  environment()->accumulator_hints().Clear();
+}
+
 NamedAccessFeedback const*
 SerializerForBackgroundCompilation::ProcessFeedbackMapsForNamedAccess(
     const MapHandles& maps, AccessMode mode, NameRef const& name) {
@@ -2466,17 +2510,21 @@ void SerializerForBackgroundCompilation::VisitTestInstanceOf(
       environment()->register_hints(iterator->GetRegisterOperand(0));
   Hints& rhs = environment()->accumulator_hints();
   FeedbackSlot slot = iterator->GetSlotOperand(1);
+  if (BailoutOnUninitialized(slot)) return;
 
   // Incorporate feedback (about the rhs of the operator) into hints.
   {
     Handle<FeedbackVector> feedback_vector =
         environment()->function().feedback_vector();
-    FeedbackNexus nexus(feedback_vector, slot);
-    VectorSlotPair rhs_feedback(feedback_vector, slot, nexus.ic_state());
-    Handle<JSObject> constructor;
-    if (rhs_feedback.IsValid() &&
-        nexus.GetConstructorFeedback().ToHandle(&constructor)) {
-      rhs.AddConstant(constructor);
+    FeedbackSource source(feedback_vector, slot);
+    ProcessedFeedback const* feedback =
+        broker()->ProcessFeedbackForInstanceOf(source);
+    if (!feedback->IsInsufficient()) {
+      InstanceOfFeedback const* rhs_feedback = feedback->AsInstanceOf();
+      if (rhs_feedback->value().has_value()) {
+        Handle<JSObject> constructor = rhs_feedback->value()->object();
+        rhs.AddConstant(constructor);
+      }
     }
   }
 
@@ -2486,6 +2534,18 @@ void SerializerForBackgroundCompilation::VisitTestInstanceOf(
                                  &walk_prototypes);
   }
   if (walk_prototypes) ProcessHintsForHasInPrototypeChain(lhs);
+}
+
+void SerializerForBackgroundCompilation::VisitToNumeric(
+    BytecodeArrayIterator* iterator) {
+  FeedbackSlot slot = iterator->GetSlotOperand(0);
+  ProcessFeedbackForUnaryOrBinaryOperation(slot, false);
+}
+
+void SerializerForBackgroundCompilation::VisitToNumber(
+    BytecodeArrayIterator* iterator) {
+  FeedbackSlot slot = iterator->GetSlotOperand(0);
+  ProcessFeedbackForUnaryOrBinaryOperation(slot, false);
 }
 
 void SerializerForBackgroundCompilation::VisitStaKeyedProperty(
@@ -2563,14 +2623,44 @@ UNREACHABLE_BYTECODE_LIST(DEFINE_UNREACHABLE)
 KILL_ENVIRONMENT_LIST(DEFINE_KILL)
 #undef DEFINE_KILL
 
-#undef CLEAR_ENVIRONMENT_LIST
-#undef KILL_ENVIRONMENT_LIST
+#define DEFINE_BINARY_OP(name, ...)                       \
+  void SerializerForBackgroundCompilation::Visit##name(   \
+      BytecodeArrayIterator* iterator) {                  \
+    FeedbackSlot slot = iterator->GetSlotOperand(1);      \
+    ProcessFeedbackForUnaryOrBinaryOperation(slot, true); \
+  }
+BINARY_OP_LIST(DEFINE_BINARY_OP)
+#undef DEFINE_BINARY_OP
+
+#define DEFINE_COMPARE_OP(name, ...)                    \
+  void SerializerForBackgroundCompilation::Visit##name( \
+      BytecodeArrayIterator* iterator) {                \
+    FeedbackSlot slot = iterator->GetSlotOperand(1);    \
+    ProcessFeedbackForCompareOperation(slot);           \
+  }
+COMPARE_OP_LIST(DEFINE_COMPARE_OP)
+#undef DEFINE_COMPARE_OP
+
+#define DEFINE_UNARY_OP(name, ...)                        \
+  void SerializerForBackgroundCompilation::Visit##name(   \
+      BytecodeArrayIterator* iterator) {                  \
+    FeedbackSlot slot = iterator->GetSlotOperand(0);      \
+    ProcessFeedbackForUnaryOrBinaryOperation(slot, true); \
+  }
+UNARY_OP_LIST(DEFINE_UNARY_OP)
+#undef DEFINE_UNARY_OP
+
+#undef BINARY_OP_LIST
 #undef CLEAR_ACCUMULATOR_LIST
-#undef UNCONDITIONAL_JUMPS_LIST
+#undef CLEAR_ENVIRONMENT_LIST
+#undef COMPARE_OP_LIST
 #undef CONDITIONAL_JUMPS_LIST
 #undef IGNORED_BYTECODE_LIST
-#undef UNREACHABLE_BYTECODE_LIST
+#undef KILL_ENVIRONMENT_LIST
 #undef SUPPORTED_BYTECODE_LIST
+#undef UNARY_OP_LIST
+#undef UNCONDITIONAL_JUMPS_LIST
+#undef UNREACHABLE_BYTECODE_LIST
 
 }  // namespace compiler
 }  // namespace internal

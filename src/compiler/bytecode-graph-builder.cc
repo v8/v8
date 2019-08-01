@@ -245,11 +245,12 @@ class BytecodeGraphBuilder {
   ForInMode GetForInMode(int operand_index);
 
   // Helper function to compute call frequency from the recorded type
-  // feedback.
+  // feedback. Returns unknown if invocation count is unknown. Returns 0 if
+  // feedback is insufficient.
   CallFrequency ComputeCallFrequency(int slot_id) const;
 
   // Helper function to extract the speculation mode from the recorded type
-  // feedback.
+  // feedback. Returns kDisallowSpeculation if feedback is insufficient.
   SpeculationMode GetSpeculationMode(int slot_id) const;
 
   // Control flow plumbing.
@@ -950,7 +951,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       bytecode_array_(bytecode_array),
       feedback_vector_(feedback_vector),
       type_hint_lowering_(
-          jsgraph, feedback_vector.object(),
+          broker, jsgraph, feedback_vector,
           (flags & BytecodeGraphBuilderFlag::kBailoutOnUninitialized)
               ? JSTypeHintLowering::kBailoutOnUninitialized
               : JSTypeHintLowering::kNoFlags),
@@ -1016,6 +1017,7 @@ Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {
 
 VectorSlotPair BytecodeGraphBuilder::CreateVectorSlotPair(int slot_id) {
   FeedbackSlot slot = FeedbackVector::ToSlot(slot_id);
+  // TODO(mvstanton): eliminate this use of a FeedbackNexus.
   FeedbackNexus nexus(feedback_vector().object(), slot);
   return VectorSlotPair(feedback_vector().object(), slot, nexus.ic_state());
 }
@@ -2141,11 +2143,11 @@ void BytecodeGraphBuilder::BuildCall(ConvertReceiverMode receiver_mode,
   PrepareEagerCheckpoint();
 
   VectorSlotPair feedback = CreateVectorSlotPair(slot_id);
-
   CallFrequency frequency = ComputeCallFrequency(slot_id);
-  const Operator* op =
-      javascript()->Call(arg_count, frequency, feedback, receiver_mode,
-                         GetSpeculationMode(slot_id));
+  SpeculationMode speculation_mode = GetSpeculationMode(slot_id);
+  const Operator* op = javascript()->Call(arg_count, frequency, feedback,
+                                          receiver_mode, speculation_mode);
+
   JSTypeHintLowering::LoweringResult lowering = TryBuildSimplifiedCall(
       op, args, static_cast<int>(arg_count), feedback.slot());
   if (lowering.IsExit()) return;
@@ -2326,7 +2328,6 @@ void BytecodeGraphBuilder::VisitCallWithSpread() {
                                                     first_arg, arg_count);
   int const slot_id = bytecode_iterator().GetIndexOperand(3);
   VectorSlotPair feedback = CreateVectorSlotPair(slot_id);
-
   CallFrequency frequency = ComputeCallFrequency(slot_id);
   const Operator* op = javascript()->CallWithSpread(
       static_cast<int>(reg_count + 1), frequency, feedback);
@@ -2640,23 +2641,23 @@ void BytecodeGraphBuilder::BuildBinaryOp(const Operator* op) {
 BinaryOperationHint BytecodeGraphBuilder::GetBinaryOperationHint(
     int operand_index) {
   FeedbackSlot slot = bytecode_iterator().GetSlotOperand(operand_index);
-  FeedbackNexus nexus(feedback_vector().object(), slot);
-  return nexus.GetBinaryOperationFeedback();
+  FeedbackSource source(feedback_vector(), slot);
+  return broker()->GetFeedbackForBinaryOperation(source);
 }
 
 // Helper function to create compare operation hint from the recorded type
 // feedback.
 CompareOperationHint BytecodeGraphBuilder::GetCompareOperationHint() {
   FeedbackSlot slot = bytecode_iterator().GetSlotOperand(1);
-  FeedbackNexus nexus(feedback_vector().object(), slot);
-  return nexus.GetCompareOperationFeedback();
+  FeedbackSource source(feedback_vector(), slot);
+  return broker()->GetFeedbackForCompareOperation(source);
 }
 
 // Helper function to create for-in mode from the recorded type feedback.
 ForInMode BytecodeGraphBuilder::GetForInMode(int operand_index) {
   FeedbackSlot slot = bytecode_iterator().GetSlotOperand(operand_index);
-  FeedbackNexus nexus(feedback_vector().object(), slot);
-  switch (nexus.GetForInFeedback()) {
+  FeedbackSource source(feedback_vector(), slot);
+  switch (broker()->GetFeedbackForForIn(source)) {
     case ForInHint::kNone:
     case ForInHint::kEnumCacheKeysAndIndices:
       return ForInMode::kUseEnumCacheKeysAndIndices;
@@ -2670,11 +2671,13 @@ ForInMode BytecodeGraphBuilder::GetForInMode(int operand_index) {
 
 CallFrequency BytecodeGraphBuilder::ComputeCallFrequency(int slot_id) const {
   if (invocation_frequency_.IsUnknown()) return CallFrequency();
-  FeedbackNexus nexus(feedback_vector().object(),
-                      FeedbackVector::ToSlot(slot_id));
-  float feedback_frequency = nexus.ComputeCallFrequency();
-  if (feedback_frequency == 0.0f) {
-    // This is to prevent multiplying zero and infinity.
+  FeedbackSlot slot = FeedbackVector::ToSlot(slot_id);
+  FeedbackSource source(feedback_vector(), slot);
+  ProcessedFeedback const* feedback = broker()->GetFeedbackForCall(source);
+  CHECK_NOT_NULL(feedback);
+  float feedback_frequency =
+      feedback->IsInsufficient() ? 0.0f : feedback->AsCall()->frequency();
+  if (feedback_frequency == 0.0f) {  // Prevent multiplying zero and infinity.
     return CallFrequency(0.0f);
   } else {
     return CallFrequency(feedback_frequency * invocation_frequency_.value());
@@ -2682,9 +2685,12 @@ CallFrequency BytecodeGraphBuilder::ComputeCallFrequency(int slot_id) const {
 }
 
 SpeculationMode BytecodeGraphBuilder::GetSpeculationMode(int slot_id) const {
-  FeedbackNexus nexus(feedback_vector().object(),
-                      FeedbackVector::ToSlot(slot_id));
-  return nexus.GetSpeculationMode();
+  FeedbackSlot slot = FeedbackVector::ToSlot(slot_id);
+  FeedbackSource source(feedback_vector(), slot);
+  ProcessedFeedback const* feedback = broker()->GetFeedbackForCall(source);
+  CHECK_NOT_NULL(feedback);
+  return feedback->IsInsufficient() ? SpeculationMode::kDisallowSpeculation
+                                    : feedback->AsCall()->speculation_mode();
 }
 
 void BytecodeGraphBuilder::VisitBitwiseNot() {

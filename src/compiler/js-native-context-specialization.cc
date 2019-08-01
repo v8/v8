@@ -381,9 +381,7 @@ Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
-  // TODO(neis): Eliminate heap accesses.
-  AllowHandleDereference allow_handle_dereference;
-  AllowHandleAllocation allow_handle_allocation;
+  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
 
   DCHECK_EQ(IrOpcode::kJSInstanceOf, node->opcode());
   FeedbackParameter const& p = FeedbackParameterOf(node->op());
@@ -401,10 +399,13 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
   if (m.HasValue() && m.Ref(broker()).IsJSObject()) {
     receiver = m.Ref(broker()).AsJSObject().object();
   } else if (p.feedback().IsValid()) {
-    FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
-    if (!nexus.GetConstructorFeedback().ToHandle(&receiver)) {
-      return NoChange();
-    }
+    ProcessedFeedback const* feedback =
+        broker()->GetFeedbackForInstanceOf(FeedbackSource(p.feedback()));
+    if (feedback->IsInsufficient()) return NoChange();
+    base::Optional<JSObjectRef> maybe_receiver =
+        feedback->AsInstanceOf()->value();
+    if (!maybe_receiver.has_value()) return NoChange();
+    receiver = maybe_receiver->object();
   } else {
     return NoChange();
   }
@@ -1809,7 +1810,7 @@ Reduction JSNativeContextSpecialization::ReducePropertyAccess(
                access_mode);
       return ReduceElementAccess(node, key, value,
                                  *processed->AsElementAccess());
-    case ProcessedFeedback::kGlobalAccess:
+    default:
       UNREACHABLE();
   }
 }
