@@ -980,8 +980,8 @@ namespace test {
   @export
   macro TestGenericStruct1(): intptr {
     const i: intptr = 123;
-    let box = SBox<intptr>{value: i};
-    let boxbox = SBox<SBox<intptr>>{value: box};
+    let box = SBox{value: i};
+    let boxbox: SBox<SBox<intptr>> = SBox{value: box};
     check(box.value == 123);
     boxbox.value.value *= 2;
     check(boxbox.value.value == 246);
@@ -995,16 +995,19 @@ namespace test {
 
   macro TupleSwap<T1: type, T2: type>(tuple: TestTuple<T1, T2>):
       TestTuple<T2, T1> {
-    return TestTuple<T2, T1>{fst: tuple.snd, snd: tuple.fst};
+    return TestTuple{fst: tuple.snd, snd: tuple.fst};
   }
 
   @export
-  macro TestGenericStruct2(): TestTuple<Smi, intptr> {
+  macro TestGenericStruct2():
+      TestTuple<TestTuple<intptr, Smi>, TestTuple<Smi, intptr>> {
     const intptrAndSmi = TestTuple<intptr, Smi>{fst: 1, snd: 2};
     const smiAndIntptr = TupleSwap(intptrAndSmi);
     check(intptrAndSmi.fst == smiAndIntptr.snd);
     check(intptrAndSmi.snd == smiAndIntptr.fst);
-    return smiAndIntptr;
+    const tupleTuple =
+        TestTuple<TestTuple<intptr, Smi>>{fst: intptrAndSmi, snd: smiAndIntptr};
+    return tupleTuple;
   }
 
   macro BranchAndWriteResult(x: Smi, box: SmiBox): bool {

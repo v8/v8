@@ -78,6 +78,8 @@ class Declarations {
 
   static GenericStructType* LookupUniqueGenericStructType(
       const QualifiedName& name);
+  static base::Optional<GenericStructType*> TryLookupGenericStructType(
+      const QualifiedName& name);
 
   static Namespace* DeclareNamespace(const std::string& name);
   static TypeAlias* DeclareType(const Identifier* name, const Type* type);

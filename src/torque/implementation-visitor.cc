@@ -1111,29 +1111,6 @@ const Type* ImplementationVisitor::Visit(ReturnStatement* stmt) {
   return TypeOracle::GetNeverType();
 }
 
-VisitResult ImplementationVisitor::TemporaryUninitializedStruct(
-    const StructType* struct_type, const std::string& reason) {
-  StackRange range = assembler().TopRange(0);
-  for (const Field& f : struct_type->fields()) {
-    if (const StructType* struct_type =
-            StructType::DynamicCast(f.name_and_type.type)) {
-      range.Extend(
-          TemporaryUninitializedStruct(struct_type, reason).stack_range());
-    } else {
-      std::string descriptor = "uninitialized field '" + f.name_and_type.name +
-                               "' declared at " + PositionAsString(f.pos) +
-                               " (" + reason + ")";
-      TypeVector lowered_types = LowerType(f.name_and_type.type);
-      for (const Type* type : lowered_types) {
-        assembler().Emit(PushUninitializedInstruction{
-            TypeOracle::GetTopType(descriptor, type)});
-      }
-      range.Extend(assembler().TopRange(lowered_types.size()));
-    }
-  }
-  return VisitResult(struct_type, range);
-}
-
 VisitResult ImplementationVisitor::Visit(TryLabelExpression* expr) {
   size_t parameter_count = expr->label_block->parameters.names.size();
   std::vector<VisitResult> parameters;
@@ -1212,15 +1189,38 @@ VisitResult ImplementationVisitor::Visit(StatementExpression* expr) {
   return VisitResult{Visit(expr->statement), assembler().TopRange(0)};
 }
 
+void ImplementationVisitor::CheckInitializersWellformed(
+    const std::string& aggregate_name,
+    const std::vector<Field>& aggregate_fields,
+    const std::vector<NameAndExpression>& initializers,
+    bool ignore_first_field) {
+  size_t fields_offset = ignore_first_field ? 1 : 0;
+  size_t fields_size = aggregate_fields.size() - fields_offset;
+  for (size_t i = 0; i < std::min(fields_size, initializers.size()); i++) {
+    const std::string& field_name =
+        aggregate_fields[i + fields_offset].name_and_type.name;
+    Identifier* found_name = initializers[i].name;
+    if (field_name != found_name->value) {
+      Error("Expected field name \"", field_name, "\" instead of \"",
+            found_name->value, "\"")
+          .Position(found_name->pos)
+          .Throw();
+    }
+  }
+  if (fields_size != initializers.size()) {
+    ReportError("expected ", fields_size, " initializers for ", aggregate_name,
+                " found ", initializers.size());
+  }
+}
+
 InitializerResults ImplementationVisitor::VisitInitializerResults(
-    const AggregateType* current_aggregate,
+    const ClassType* class_type,
     const std::vector<NameAndExpression>& initializers) {
   InitializerResults result;
   for (const NameAndExpression& initializer : initializers) {
     result.names.push_back(initializer.name);
     Expression* e = initializer.expression;
-    const Field& field =
-        current_aggregate->LookupField(initializer.name->value);
+    const Field& field = class_type->LookupField(initializer.name->value);
     auto field_index = field.index;
     if (SpreadExpression* s = SpreadExpression::DynamicCast(e)) {
       if (!field_index) {
@@ -1239,54 +1239,30 @@ InitializerResults ImplementationVisitor::VisitInitializerResults(
   return result;
 }
 
-size_t ImplementationVisitor::InitializeAggregateHelper(
-    const AggregateType* aggregate_type, VisitResult allocate_result,
+void ImplementationVisitor::InitializeClass(
+    const ClassType* class_type, VisitResult allocate_result,
     const InitializerResults& initializer_results) {
-  const ClassType* current_class = ClassType::DynamicCast(aggregate_type);
-  size_t current = 0;
-  if (current_class) {
-    const ClassType* super = current_class->GetSuperClass();
-    if (super) {
-      current = InitializeAggregateHelper(super, allocate_result,
-                                          initializer_results);
-    }
+  if (const ClassType* super = class_type->GetSuperClass()) {
+    InitializeClass(super, allocate_result, initializer_results);
   }
 
-  for (Field f : aggregate_type->fields()) {
-    if (current == initializer_results.field_value_map.size()) {
-      ReportError("insufficient number of initializers for ",
-                  aggregate_type->name());
-    }
+  for (Field f : class_type->fields()) {
     VisitResult current_value =
         initializer_results.field_value_map.at(f.name_and_type.name);
-    Identifier* fieldname = initializer_results.names[current];
-    if (fieldname->value != f.name_and_type.name) {
-      CurrentSourcePosition::Scope scope(fieldname->pos);
-      ReportError("Expected fieldname \"", f.name_and_type.name,
-                  "\" instead of \"", fieldname->value, "\"");
-    }
-    if (aggregate_type->IsClassType()) {
-      if (f.index) {
-        InitializeFieldFromSpread(allocate_result, f, initializer_results);
-      } else {
-        allocate_result.SetType(aggregate_type);
-        GenerateCopy(allocate_result);
-        assembler().Emit(CreateFieldReferenceInstruction{
-            ClassType::cast(aggregate_type), f.name_and_type.name});
-        VisitResult heap_reference(
-            TypeOracle::GetReferenceType(f.name_and_type.type),
-            assembler().TopRange(2));
-        GenerateAssignToLocation(
-            LocationReference::HeapReference(heap_reference), current_value);
-      }
+    if (f.index) {
+      InitializeFieldFromSpread(allocate_result, f, initializer_results);
     } else {
-      LocationReference struct_field_ref = LocationReference::VariableAccess(
-          ProjectStructField(allocate_result, f.name_and_type.name));
-      GenerateAssignToLocation(struct_field_ref, current_value);
+      allocate_result.SetType(class_type);
+      GenerateCopy(allocate_result);
+      assembler().Emit(CreateFieldReferenceInstruction{
+          ClassType::cast(class_type), f.name_and_type.name});
+      VisitResult heap_reference(
+          TypeOracle::GetReferenceType(f.name_and_type.type),
+          assembler().TopRange(2));
+      GenerateAssignToLocation(LocationReference::HeapReference(heap_reference),
+                               current_value);
     }
-    ++current;
   }
-  return current;
 }
 
 void ImplementationVisitor::InitializeFieldFromSpread(
@@ -1303,17 +1279,6 @@ void ImplementationVisitor::InitializeFieldFromSpread(
   assign_arguments.parameters.push_back(iterator);
   GenerateCall("%InitializeFieldsFromIterator", assign_arguments,
                {field.aggregate, index.type, iterator.type()});
-}
-
-void ImplementationVisitor::InitializeAggregate(
-    const AggregateType* aggregate_type, VisitResult allocate_result,
-    const InitializerResults& initializer_results) {
-  size_t consumed_initializers = InitializeAggregateHelper(
-      aggregate_type, allocate_result, initializer_results);
-  if (consumed_initializers != initializer_results.field_value_map.size()) {
-    ReportError("more initializers than fields present in ",
-                aggregate_type->name());
-  }
 }
 
 VisitResult ImplementationVisitor::AddVariableObjectSize(
@@ -1398,6 +1363,11 @@ VisitResult ImplementationVisitor::Visit(NewExpression* expr) {
     initializer_results.field_value_map[map_field.name_and_type.name] =
         object_map;
   }
+
+  CheckInitializersWellformed(class_type->name(),
+                              class_type->ComputeAllFields(),
+                              expr->initializers, !class_type->IsExtern());
+
   Arguments size_arguments;
   size_arguments.parameters.push_back(object_map);
   VisitResult object_size = GenerateCall("%GetAllocationBaseSize",
@@ -1412,7 +1382,7 @@ VisitResult ImplementationVisitor::Visit(NewExpression* expr) {
       GenerateCall("%Allocate", allocate_arguments, {class_type}, false);
   DCHECK(allocate_result.IsOnStack());
 
-  InitializeAggregate(class_type, allocate_result, initializer_results);
+  InitializeClass(class_type, allocate_result, initializer_results);
 
   return stack_scope.Yield(allocate_result);
 }
@@ -1802,24 +1772,36 @@ VisitResult ImplementationVisitor::GenerateCopy(const VisitResult& to_copy) {
 
 VisitResult ImplementationVisitor::Visit(StructExpression* expr) {
   StackScope stack_scope(this);
-  const Type* raw_type = TypeVisitor::ComputeType(expr->type);
-  if (!raw_type->IsStructType()) {
-    ReportError(*raw_type, " is not a struct but used like one");
+
+  auto& initializers = expr->initializers;
+  std::vector<VisitResult> values;
+  std::vector<const Type*> term_argument_types;
+  values.reserve(initializers.size());
+  term_argument_types.reserve(initializers.size());
+
+  // Compute values and types of all initializer arguments
+  for (const NameAndExpression& initializer : initializers) {
+    VisitResult value = Visit(initializer.expression);
+    values.push_back(value);
+    term_argument_types.push_back(value.type());
   }
 
-  const StructType* struct_type = StructType::cast(raw_type);
+  // Compute and check struct type from given struct name and argument types
+  const StructType* struct_type = TypeVisitor::ComputeTypeForStructExpression(
+      expr->type, term_argument_types);
+  CheckInitializersWellformed(struct_type->name(), struct_type->fields(),
+                              initializers);
 
-  InitializerResults initialization_results =
-      ImplementationVisitor::VisitInitializerResults(struct_type,
-                                                     expr->initializers);
+  // Implicitly convert values and thereby build the struct on the stack
+  StackRange struct_range = assembler().TopRange(0);
+  auto& fields = struct_type->fields();
+  for (size_t i = 0; i < values.size(); i++) {
+    values[i] =
+        GenerateImplicitConvert(fields[i].name_and_type.type, values[i]);
+    struct_range.Extend(values[i].stack_range());
+  }
 
-  // Push uninitialized 'this'
-  VisitResult result = TemporaryUninitializedStruct(
-      struct_type, "it's not initialized in the struct " + struct_type->name());
-
-  InitializeAggregate(struct_type, result, initialization_results);
-
-  return stack_scope.Yield(result);
+  return stack_scope.Yield(VisitResult(struct_type, struct_range));
 }
 
 LocationReference ImplementationVisitor::GetLocationReference(

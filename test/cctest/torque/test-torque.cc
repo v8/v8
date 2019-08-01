@@ -580,7 +580,7 @@ TEST(TestGenericStruct2) {
   i::HandleScope scope(isolate);
   CodeAssemblerTester asm_tester(isolate);
   TestTorqueAssembler m(asm_tester.state());
-  { m.Return(m.TestGenericStruct2().fst); }
+  { m.Return(m.TestGenericStruct2().snd.fst); }
   FunctionTester ft(asm_tester.GenerateCode(), 0);
   ft.Call();
 }

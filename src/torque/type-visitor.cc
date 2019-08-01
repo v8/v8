@@ -8,6 +8,7 @@
 #include "src/torque/declarable.h"
 #include "src/torque/global-context.h"
 #include "src/torque/server-data.h"
+#include "src/torque/type-inference.h"
 #include "src/torque/type-oracle.h"
 
 namespace v8 {
@@ -121,6 +122,10 @@ const StructType* TypeVisitor::ComputeType(
     CurrentSourcePosition::Scope position_activator(
         field.name_and_type.type->pos);
     const Type* field_type = TypeVisitor::ComputeType(field.name_and_type.type);
+    if (field_type->IsConstexpr()) {
+      ReportError("struct field \"", field.name_and_type.name->value,
+                  "\" carries constexpr type \"", *field_type, "\"");
+    }
     struct_type->RegisterField({field.name_and_type.name->pos,
                                 struct_type,
                                 base::nullopt,
@@ -314,6 +319,53 @@ void TypeVisitor::VisitClassFieldsAndMethods(
   class_type->SetSize(class_offset);
   class_type->GenerateAccessors();
   DeclareMethods(class_type, class_declaration->methods);
+}
+
+const StructType* TypeVisitor::ComputeTypeForStructExpression(
+    TypeExpression* type_expression,
+    const std::vector<const Type*>& term_argument_types) {
+  auto* basic = BasicTypeExpression::DynamicCast(type_expression);
+  if (!basic) {
+    ReportError("expected basic type expression referring to struct");
+  }
+
+  QualifiedName qualified_name{basic->namespace_qualification, basic->name};
+  base::Optional<GenericStructType*> maybe_generic_struct =
+      Declarations::TryLookupGenericStructType(qualified_name);
+
+  // Compute types of non-generic structs as usual
+  if (!maybe_generic_struct) {
+    const Type* type = ComputeType(type_expression);
+    const StructType* struct_type = StructType::DynamicCast(type);
+    if (!struct_type) {
+      ReportError(*type, " is not a struct, but used like one");
+    }
+    return struct_type;
+  }
+
+  auto generic_struct = *maybe_generic_struct;
+  auto explicit_type_arguments = ComputeTypeVector(basic->generic_arguments);
+
+  std::vector<TypeExpression*> term_parameters;
+  auto& fields = generic_struct->declaration()->fields;
+  term_parameters.reserve(fields.size());
+  for (auto& field : fields) {
+    term_parameters.push_back(field.name_and_type.type);
+  }
+
+  TypeArgumentInference inference(
+      generic_struct->declaration()->generic_parameters,
+      explicit_type_arguments, term_parameters, term_argument_types);
+  if (inference.HasFailed()) {
+    ReportError("failed to infer type arguments for struct ", basic->name,
+                " initialization: ", inference.GetFailureReason());
+  }
+  if (GlobalContext::collect_language_server_data()) {
+    LanguageServerData::AddDefinition(type_expression->pos,
+                                      generic_struct->declaration()->name->pos);
+  }
+  return TypeOracle::GetGenericStructTypeInstance(generic_struct,
+                                                  inference.GetResult());
 }
 
 }  // namespace torque

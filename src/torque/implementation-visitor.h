@@ -365,27 +365,26 @@ class ImplementationVisitor {
   VisitResult Visit(Expression* expr);
   const Type* Visit(Statement* stmt);
 
+  void CheckInitializersWellformed(
+      const std::string& aggregate_name,
+      const std::vector<Field>& aggregate_fields,
+      const std::vector<NameAndExpression>& initializers,
+      bool ignore_first_field = false);
+
   InitializerResults VisitInitializerResults(
-      const AggregateType* aggregate,
+      const ClassType* class_type,
       const std::vector<NameAndExpression>& expressions);
 
   void InitializeFieldFromSpread(VisitResult object, const Field& field,
                                  const InitializerResults& initializer_results);
 
-  size_t InitializeAggregateHelper(
-      const AggregateType* aggregate_type, VisitResult allocate_result,
-      const InitializerResults& initializer_results);
-
   VisitResult AddVariableObjectSize(
       VisitResult object_size, const ClassType* current_class,
       const InitializerResults& initializer_results);
 
-  void InitializeAggregate(const AggregateType* aggregate_type,
-                           VisitResult allocate_result,
-                           const InitializerResults& initializer_results);
+  void InitializeClass(const ClassType* class_type, VisitResult allocate_result,
+                       const InitializerResults& initializer_results);
 
-  VisitResult TemporaryUninitializedStruct(const StructType* struct_type,
-                                           const std::string& reason);
   VisitResult Visit(StructExpression* decl);
 
   LocationReference GetLocationReference(Expression* location);

@@ -139,6 +139,13 @@ GenericStructType* Declarations::LookupUniqueGenericStructType(
                       "generic struct");
 }
 
+base::Optional<GenericStructType*> Declarations::TryLookupGenericStructType(
+    const QualifiedName& name) {
+  std::vector<GenericStructType*> results = TryLookup<GenericStructType>(name);
+  if (results.empty()) return base::nullopt;
+  return EnsureUnique(results, name.name, "generic struct");
+}
+
 Namespace* Declarations::DeclareNamespace(const std::string& name) {
   return Declare(name, std::unique_ptr<Namespace>(new Namespace(name)));
 }

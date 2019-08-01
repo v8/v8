@@ -11,7 +11,7 @@ namespace torque {
 TypeArgumentInference::TypeArgumentInference(
     const NameVector& type_parameters,
     const TypeVector& explicit_type_arguments,
-    const std::vector<TypeExpression*> term_parameters,
+    const std::vector<TypeExpression*>& term_parameters,
     const TypeVector& term_argument_types)
     : num_explicit_(explicit_type_arguments.size()),
       type_parameter_from_name_(type_parameters.size()),
@@ -84,7 +84,7 @@ void TypeArgumentInference::Match(TypeExpression* parameter,
     // argument types, but we are only interested in inferring type arguments
     // here
   } else {
-    Fail("unsupported parameter expression");
+    // TODO(gsps): Perform inference on function and union types
   }
 }
 

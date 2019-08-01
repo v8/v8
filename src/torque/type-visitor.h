@@ -28,6 +28,9 @@ class TypeVisitor {
   static void VisitClassFieldsAndMethods(
       ClassType* class_type, const ClassDeclaration* class_declaration);
   static Signature MakeSignature(const CallableNodeSignature* signature);
+  static const StructType* ComputeTypeForStructExpression(
+      TypeExpression* type_expression,
+      const std::vector<const Type*>& term_argument_types);
 
  private:
   friend class TypeAlias;

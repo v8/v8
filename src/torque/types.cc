@@ -418,6 +418,17 @@ void ClassType::Finalize() const {
   CheckForDuplicateFields();
 }
 
+std::vector<Field> ClassType::ComputeAllFields() const {
+  std::vector<Field> all_fields;
+  const ClassType* super_class = this->GetSuperClass();
+  if (super_class) {
+    all_fields = super_class->ComputeAllFields();
+  }
+  const std::vector<Field>& fields = this->fields();
+  all_fields.insert(all_fields.end(), fields.begin(), fields.end());
+  return all_fields;
+}
+
 void ClassType::GenerateAccessors() {
   // For each field, construct AST snippets that implement a CSA accessor
   // function and define a corresponding '.field' operator. The
