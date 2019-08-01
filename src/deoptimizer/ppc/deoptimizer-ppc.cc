@@ -219,6 +219,11 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   __ stop();
 }
 
+Float32 RegisterValues::GetFloatRegister(unsigned n) const {
+  float float_val = static_cast<float>(double_registers_[n].get_scalar());
+  return Float32::FromBits(bit_cast<uint32_t>(float_val));
+}
+
 bool Deoptimizer::PadTopOfStackRegister() { return false; }
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {

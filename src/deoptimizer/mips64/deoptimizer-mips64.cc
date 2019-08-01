@@ -218,6 +218,11 @@ const int Deoptimizer::table_entry_size_ = 2 * kInstrSize;
 const int Deoptimizer::table_entry_size_ = 3 * kInstrSize;
 #endif
 
+Float32 RegisterValues::GetFloatRegister(unsigned n) const {
+  return Float32::FromBits(
+      static_cast<uint32_t>(double_registers_[n].get_bits()));
+}
+
 bool Deoptimizer::PadTopOfStackRegister() { return false; }
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {

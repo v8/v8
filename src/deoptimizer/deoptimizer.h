@@ -635,18 +635,7 @@ class RegisterValues {
     return registers_[n];
   }
 
-  Float32 GetFloatRegister(unsigned n) const {
-    DCHECK(n < arraysize(double_registers_));
-    if (kSimpleFPAliasing) {
-      return Float32::FromBits(
-          static_cast<uint32_t>(double_registers_[n].get_bits()));
-    } else {
-      const int kShift = n % 2 == 0 ? 0 : 32;
-
-      return Float32::FromBits(
-          static_cast<uint32_t>(double_registers_[n / 2].get_bits() >> kShift));
-    }
-  }
+  Float32 GetFloatRegister(unsigned n) const;
 
   Float64 GetDoubleRegister(unsigned n) const {
     DCHECK(n < arraysize(double_registers_));
