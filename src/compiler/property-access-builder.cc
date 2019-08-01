@@ -151,14 +151,6 @@ MachineRepresentation PropertyAccessBuilder::ConvertRepresentation(
 Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
     NameRef const& name, PropertyAccessInfo const& access_info,
     Node* receiver) {
-  // TODO(neis): Eliminate FastPropertyAt call below by doing the lookup during
-  // acccess info computation. Requires extra care in the case where the
-  // receiver is the holder.
-  AllowCodeDependencyChange dependency_change_;
-  AllowHandleAllocation handle_allocation_;
-  AllowHandleDereference handle_dereference_;
-  AllowHeapAllocation heap_allocation_;
-
   if (!access_info.IsDataConstant()) return nullptr;
 
   // First, determine if we have a constant holder to load from.
@@ -174,17 +166,21 @@ Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
     MapRef receiver_map = m.Ref(broker()).map();
     if (std::find_if(access_info.receiver_maps().begin(),
                      access_info.receiver_maps().end(), [&](Handle<Map> map) {
-                       return map.equals(receiver_map.object());
+                       return MapRef(broker(), map).equals(receiver_map);
                      }) == access_info.receiver_maps().end()) {
       // The map of the receiver is not in the feedback, let us bail out.
       return nullptr;
     }
-    holder = Handle<JSObject>::cast(m.Value());
+    holder = m.Ref(broker()).AsJSObject().object();
   }
 
-  Handle<Object> value = JSObject::FastPropertyAt(
-      holder, access_info.field_representation(), access_info.field_index());
-  return jsgraph()->Constant(value);
+  JSObjectRef holder_ref(broker(), holder);
+  base::Optional<ObjectRef> value = holder_ref.GetOwnDataProperty(
+      access_info.field_representation(), access_info.field_index());
+  if (!value.has_value()) {
+    return nullptr;
+  }
+  return jsgraph()->Constant(*value);
 }
 
 Node* PropertyAccessBuilder::BuildLoadDataField(

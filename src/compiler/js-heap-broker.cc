@@ -2157,7 +2157,8 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
       bytecode_analyses_(zone()),
       ais_for_loading_exec_(zone()),
       ais_for_loading_has_instance_(zone()),
-      ais_for_loading_then_(zone()) {
+      ais_for_loading_then_(zone()),
+      property_access_infos_for_load_(zone()) {
   // Note that this initialization of the refs_ pointer with the minimal
   // initial capacity is redundant in the normal use case (concurrent
   // compilation enabled, standard objects to be serialized), as the map
@@ -4200,6 +4201,20 @@ PropertyAccessInfo const& JSHeapBroker::CreateAccessInfoForLoadingExec(
   auto access_info = access_info_factory.ComputePropertyAccessInfo(
       map.object(), isolate()->factory()->exec_string(), AccessMode::kLoad);
   return ais_for_loading_exec_.insert({map, access_info}).first->second;
+}
+
+void JSHeapBroker::StorePropertyAccessInfoForLoad(
+    MapRef map, NameRef name, PropertyAccessInfo const& access_info) {
+  MapNameRefPair pair({map, name});
+  auto it = property_access_infos_for_load_.find(pair);
+  if (it != property_access_infos_for_load_.end()) {
+    return;
+  }
+
+  auto inserted_ai =
+      property_access_infos_for_load_.insert(std::make_pair(pair, access_info));
+  DCHECK(inserted_ai.second);
+  USE(inserted_ai);
 }
 
 ElementAccessFeedback const* ProcessedFeedback::AsElementAccess() const {
