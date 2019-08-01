@@ -410,18 +410,18 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   V(I32x4UConvertF32x4, 0xfdac, s_s)     \
   V(F32x4SConvertI32x4, 0xfdaf, s_s)     \
   V(F32x4UConvertI32x4, 0xfdb0, s_s)     \
-  V(I8x16SConvertI16x8, 0xfdb1, s_ss)    \
-  V(I8x16UConvertI16x8, 0xfdb2, s_ss)    \
-  V(I16x8SConvertI32x4, 0xfdb3, s_ss)    \
-  V(I16x8UConvertI32x4, 0xfdb4, s_ss)    \
-  V(I16x8SConvertI8x16Low, 0xfdb5, s_s)  \
-  V(I16x8SConvertI8x16High, 0xfdb6, s_s) \
-  V(I16x8UConvertI8x16Low, 0xfdb7, s_s)  \
-  V(I16x8UConvertI8x16High, 0xfdb8, s_s) \
-  V(I32x4SConvertI16x8Low, 0xfdb9, s_s)  \
-  V(I32x4SConvertI16x8High, 0xfdba, s_s) \
-  V(I32x4UConvertI16x8Low, 0xfdbb, s_s)  \
-  V(I32x4UConvertI16x8High, 0xfdbc, s_s) \
+  V(I8x16SConvertI16x8, 0xfdc6, s_ss)    \
+  V(I8x16UConvertI16x8, 0xfdc7, s_ss)    \
+  V(I16x8SConvertI32x4, 0xfdc8, s_ss)    \
+  V(I16x8UConvertI32x4, 0xfdc9, s_ss)    \
+  V(I16x8SConvertI8x16Low, 0xfdca, s_s)  \
+  V(I16x8SConvertI8x16High, 0xfdcb, s_s) \
+  V(I16x8UConvertI8x16Low, 0xfdcc, s_s)  \
+  V(I16x8UConvertI8x16High, 0xfdcd, s_s) \
+  V(I32x4SConvertI16x8Low, 0xfdce, s_s)  \
+  V(I32x4SConvertI16x8High, 0xfdcf, s_s) \
+  V(I32x4UConvertI16x8Low, 0xfdd0, s_s)  \
+  V(I32x4UConvertI16x8High, 0xfdd1, s_s) \
   V(I16x8AddHoriz, 0xfdbd, s_ss)         \
   V(I32x4AddHoriz, 0xfdbe, s_ss)         \
   V(F32x4AddHoriz, 0xfdbf, s_ss)
