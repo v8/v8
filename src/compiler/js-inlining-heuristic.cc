@@ -736,12 +736,16 @@ void JSInliningHeuristic::PrintCandidates() {
        << candidate.node->op()->mnemonic()
        << ", frequency: " << candidate.frequency << std::endl;
     for (int i = 0; i < candidate.num_functions; ++i) {
+      if (candidate.bytecode[i].has_value()) {
+        PrintF("  - size:%d,", candidate.bytecode[i].value().length());
+      } else {
+        PrintF("  - no bytecode,");
+      }
       SharedFunctionInfoRef shared =
           candidate.functions[i].has_value()
               ? candidate.functions[i].value().shared()
               : candidate.shared_info.value();
-      PrintF("  - size:%d, name: %s\n", candidate.bytecode[i].value().length(),
-             shared.object()->DebugName().ToCString().get());
+      PrintF(" name: %s\n", shared.object()->DebugName().ToCString().get());
     }
   }
 }
