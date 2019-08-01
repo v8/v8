@@ -643,6 +643,8 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
       CompilationState::New(*shared_this, std::move(async_counters));
   DCHECK_NOT_NULL(module_);
 
+  const bool implicit_alloc_disabled =
+      engine->code_manager()->IsImplicitAllocationsDisabledForTesting();
 #if defined(V8_OS_WIN64)
   // On some platforms, specifically Win64, we need to reserve some pages at
   // the beginning of an executable space.
@@ -650,7 +652,8 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
   // https://cs.chromium.org/chromium/src/components/crash/content/app/crashpad_win.cc?rcl=fd680447881449fba2edcf0589320e7253719212&l=204
   // for details.
   if (engine_->code_manager()
-          ->CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
+          ->CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
+      !implicit_alloc_disabled) {
     code_allocator_.AllocateForCode(this, Heap::GetCodeRangeReservedAreaSize());
   }
 #endif  // V8_OS_WIN64
@@ -659,9 +662,11 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
   if (num_wasm_functions > 0) {
     code_table_.reset(new WasmCode* [num_wasm_functions] {});
 
-    WasmCodeRefScope code_ref_scope;
-    jump_table_ = CreateEmptyJumpTable(
-        JumpTableAssembler::SizeForNumberOfSlots(num_wasm_functions));
+    if (!implicit_alloc_disabled) {
+      WasmCodeRefScope code_ref_scope;
+      jump_table_ = CreateEmptyJumpTable(
+          JumpTableAssembler::SizeForNumberOfSlots(num_wasm_functions));
+    }
   }
 }
 
@@ -1001,8 +1006,12 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
 
     // Populate optimized code to the jump table unless there is an active
     // redirection to the interpreter that should be preserved.
-    bool update_jump_table =
-        update_code_table && !has_interpreter_redirection(code->index());
+    DCHECK_IMPLIES(
+        jump_table_ == nullptr,
+        engine_->code_manager()->IsImplicitAllocationsDisabledForTesting());
+    bool update_jump_table = update_code_table &&
+                             !has_interpreter_redirection(code->index()) &&
+                             jump_table_;
 
     // Ensure that interpreter entries always populate to the jump table.
     if (code->kind_ == WasmCode::Kind::kInterpreterEntry) {
@@ -1187,10 +1196,6 @@ WasmCodeManager::WasmCodeManager(WasmMemoryTracker* memory_tracker,
                                  size_t max_committed)
     : memory_tracker_(memory_tracker),
       max_committed_code_space_(max_committed),
-#if defined(V8_OS_WIN64)
-      is_win64_unwind_info_disabled_for_testing_(false),
-#endif  // V8_OS_WIN64
-      total_committed_code_space_(0),
       critical_committed_code_space_(max_committed / 2) {
   DCHECK_LE(max_committed, kMaxWasmCodeMemory);
 }
@@ -1198,8 +1203,7 @@ WasmCodeManager::WasmCodeManager(WasmMemoryTracker* memory_tracker,
 #if defined(V8_OS_WIN64)
 bool WasmCodeManager::CanRegisterUnwindInfoForNonABICompliantCodeRange() const {
   return win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
-         FLAG_win64_unwinding_info &&
-         !is_win64_unwind_info_disabled_for_testing_;
+         FLAG_win64_unwinding_info;
 }
 #endif  // V8_OS_WIN64
 
@@ -1370,7 +1374,8 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
              size);
 
 #if defined(V8_OS_WIN64)
-  if (CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
+  if (CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
+      !implicit_allocations_disabled_for_testing_) {
     win64_unwindinfo::RegisterNonABICompliantCodeRange(
         reinterpret_cast<void*>(start), size);
   }
@@ -1488,7 +1493,8 @@ void WasmCodeManager::FreeNativeModule(Vector<VirtualMemory> owned_code_space,
                code_space.address(), code_space.end(), code_space.size());
 
 #if defined(V8_OS_WIN64)
-    if (CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
+    if (CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
+        !implicit_allocations_disabled_for_testing_) {
       win64_unwindinfo::UnregisterNonABICompliantCodeRange(
           reinterpret_cast<void*>(code_space.address()));
     }

@@ -622,11 +622,13 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
 
   void SetMaxCommittedMemoryForTesting(size_t limit);
 
-#if defined(V8_OS_WIN64)
-  void DisableWin64UnwindInfoForTesting() {
-    is_win64_unwind_info_disabled_for_testing_ = true;
+  void DisableImplicitAllocationsForTesting() {
+    implicit_allocations_disabled_for_testing_ = true;
   }
-#endif  // V8_OS_WIN64
+
+  bool IsImplicitAllocationsDisabledForTesting() const {
+    return implicit_allocations_disabled_for_testing_;
+  }
 
   static size_t EstimateNativeModuleCodeSize(const WasmModule* module);
   static size_t EstimateNativeModuleNonCodeSize(const WasmModule* module);
@@ -654,11 +656,9 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
 
   size_t max_committed_code_space_;
 
-#if defined(V8_OS_WIN64)
-  bool is_win64_unwind_info_disabled_for_testing_;
-#endif  // V8_OS_WIN64
+  bool implicit_allocations_disabled_for_testing_ = false;
 
-  std::atomic<size_t> total_committed_code_space_;
+  std::atomic<size_t> total_committed_code_space_{0};
   // If the committed code space exceeds {critical_committed_code_space_}, then
   // we trigger a GC before creating the next module. This value is set to the
   // currently committed space plus 50% of the available code space on creation
