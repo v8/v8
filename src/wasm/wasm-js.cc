@@ -26,7 +26,6 @@
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
-#include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-serialization.h"
 
@@ -1156,7 +1155,7 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  bool is_shared_memory = false;
+  auto shared = i::SharedFlag::kNotShared;
   auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
   if (enabled_features.threads) {
     // Shared property of descriptor
@@ -1165,10 +1164,11 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
         descriptor->Get(context, shared_key);
     v8::Local<v8::Value> value;
     if (maybe_value.ToLocal(&value)) {
-      is_shared_memory = value->BooleanValue(isolate);
+      shared = value->BooleanValue(isolate) ? i::SharedFlag::kShared
+                                            : i::SharedFlag::kNotShared;
     }
     // Throw TypeError if shared is true, and the descriptor has no "maximum"
-    if (is_shared_memory && maximum == -1) {
+    if (shared == i::SharedFlag::kShared && maximum == -1) {
       thrower.TypeError(
           "If shared is true, maximum property should be defined.");
       return;
@@ -1177,13 +1177,12 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   i::Handle<i::JSObject> memory_obj;
   if (!i::WasmMemoryObject::New(i_isolate, static_cast<uint32_t>(initial),
-                                static_cast<uint32_t>(maximum),
-                                is_shared_memory)
+                                static_cast<uint32_t>(maximum), shared)
            .ToHandle(&memory_obj)) {
     thrower.RangeError("could not allocate memory");
     return;
   }
-  if (is_shared_memory) {
+  if (shared == i::SharedFlag::kShared) {
     i::Handle<i::JSArrayBuffer> buffer(
         i::Handle<i::WasmMemoryObject>::cast(memory_obj)->array_buffer(),
         i_isolate);
