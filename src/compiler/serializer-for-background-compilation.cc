@@ -349,6 +349,15 @@ class SerializerForBackgroundCompilation {
   SUPPORTED_BYTECODE_LIST(DECLARE_VISIT_BYTECODE)
 #undef DECLARE_VISIT_BYTECODE
 
+  // Returns whether the callee with the given SFI should be processed further,
+  // i.e. whether it's inlineable.
+  bool ProcessSFIForCallOrConstruct(Handle<SharedFunctionInfo> shared,
+                                    const HintsVector& arguments,
+                                    SpeculationMode speculation_mode);
+  // Returns whether {function} should be serialized for compilation.
+  bool ProcessCalleeForCallOrConstruct(Handle<JSFunction> function,
+                                       const HintsVector& arguments,
+                                       SpeculationMode speculation_mode);
   void ProcessCallOrConstruct(Hints callee, base::Optional<Hints> new_target,
                               const HintsVector& arguments, FeedbackSlot slot,
                               bool with_spread = false);
@@ -1477,6 +1486,69 @@ base::Optional<HeapObjectRef> GetHeapObjectFeedback(
   if (!nexus.GetFeedback()->GetHeapObject(&object)) return base::nullopt;
   return HeapObjectRef(broker, handle(object, broker->isolate()));
 }
+
+}  // namespace
+
+bool SerializerForBackgroundCompilation::ProcessSFIForCallOrConstruct(
+    Handle<SharedFunctionInfo> shared, const HintsVector& arguments,
+    SpeculationMode speculation_mode) {
+  if (shared->IsApiFunction()) {
+    ProcessApiCall(shared, arguments);
+    DCHECK(!shared->IsInlineable());
+  } else if (shared->HasBuiltinId()) {
+    ProcessBuiltinCall(shared, arguments, speculation_mode);
+    DCHECK(!shared->IsInlineable());
+  }
+  return shared->IsInlineable();
+}
+
+bool SerializerForBackgroundCompilation::ProcessCalleeForCallOrConstruct(
+    Handle<JSFunction> function, const HintsVector& arguments,
+    SpeculationMode speculation_mode) {
+  JSFunctionRef(broker(), function).Serialize();
+
+  Handle<SharedFunctionInfo> shared(function->shared(), broker()->isolate());
+
+  return ProcessSFIForCallOrConstruct(shared, arguments, speculation_mode) &&
+         function->has_feedback_vector();
+}
+
+namespace {
+// Returns the innermost bound target, if it's a JSFunction and inserts
+// all bound arguments and {original_arguments} into {expanded_arguments}
+// in the appropriate order.
+MaybeHandle<JSFunction> UnrollBoundFunction(
+    JSBoundFunctionRef const& bound_function, JSHeapBroker* broker,
+    const HintsVector& original_arguments, HintsVector* expanded_arguments) {
+  DCHECK(expanded_arguments->empty());
+
+  JSReceiverRef target = bound_function.AsJSReceiver();
+  HintsVector reversed_bound_arguments(broker->zone());
+  for (; target.IsJSBoundFunction();
+       target = target.AsJSBoundFunction().bound_target_function()) {
+    for (int i = target.AsJSBoundFunction().bound_arguments().length() - 1;
+         i >= 0; --i) {
+      Hints arg(broker->zone());
+      arg.AddConstant(
+          target.AsJSBoundFunction().bound_arguments().get(i).object());
+      reversed_bound_arguments.push_back(arg);
+    }
+    Hints arg(broker->zone());
+    arg.AddConstant(target.AsJSBoundFunction().bound_this().object());
+    reversed_bound_arguments.push_back(arg);
+  }
+
+  if (!target.IsJSFunction()) return MaybeHandle<JSFunction>();
+
+  expanded_arguments->insert(expanded_arguments->end(),
+                             reversed_bound_arguments.rbegin(),
+                             reversed_bound_arguments.rend());
+  expanded_arguments->insert(expanded_arguments->end(),
+                             original_arguments.begin(),
+                             original_arguments.end());
+
+  return target.AsJSFunction().object();
+}
 }  // namespace
 
 void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
@@ -1503,41 +1575,42 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
   FeedbackNexus nexus(environment()->function().feedback_vector(), slot);
   SpeculationMode speculation_mode = nexus.GetSpeculationMode();
 
+  // For JSCallReducer::ReduceJSCall and JSCallReducer::ReduceJSConstruct.
   for (auto hint : callee.constants()) {
-    if (!hint->IsJSFunction()) continue;
+    const HintsVector* actual_arguments = &arguments;
+    Handle<JSFunction> function;
+    HintsVector expanded_arguments(zone());
+    if (hint->IsJSBoundFunction()) {
+      JSBoundFunctionRef bound_function(broker(),
+                                        Handle<JSBoundFunction>::cast(hint));
+      bound_function.Serialize();
 
-    Handle<JSFunction> function = Handle<JSFunction>::cast(hint);
-    JSFunctionRef(broker(), function).Serialize();
-
-    Handle<SharedFunctionInfo> shared(function->shared(), broker()->isolate());
-
-    if (shared->IsApiFunction()) {
-      ProcessApiCall(shared, arguments);
-      DCHECK(!shared->IsInlineable());
-    } else if (shared->HasBuiltinId()) {
-      ProcessBuiltinCall(shared, arguments, speculation_mode);
-      DCHECK(!shared->IsInlineable());
+      MaybeHandle<JSFunction> maybe_function = UnrollBoundFunction(
+          bound_function, broker(), arguments, &expanded_arguments);
+      if (maybe_function.is_null()) continue;
+      function = maybe_function.ToHandleChecked();
+      actual_arguments = &expanded_arguments;
+    } else if (hint->IsJSFunction()) {
+      function = Handle<JSFunction>::cast(hint);
+    } else {
+      continue;
     }
 
-    if (!shared->IsInlineable() || !function->has_feedback_vector()) continue;
-
-    environment()->accumulator_hints().Add(RunChildSerializer(
-        CompilationSubject(function, broker()->isolate(), zone()), new_target,
-        arguments, with_spread));
+    if (ProcessCalleeForCallOrConstruct(function, *actual_arguments,
+                                        speculation_mode)) {
+      environment()->accumulator_hints().Add(RunChildSerializer(
+          CompilationSubject(function, broker()->isolate(), zone()), new_target,
+          *actual_arguments, with_spread));
+    }
   }
 
+  // For JSCallReducer::ReduceJSCall and JSCallReducer::ReduceJSConstruct.
   for (auto hint : callee.function_blueprints()) {
     Handle<SharedFunctionInfo> shared = hint.shared();
-
-    if (shared->IsApiFunction()) {
-      ProcessApiCall(shared, arguments);
-      DCHECK(!shared->IsInlineable());
-    } else if (shared->HasBuiltinId()) {
-      ProcessBuiltinCall(shared, arguments, speculation_mode);
-      DCHECK(!shared->IsInlineable());
+    if (!ProcessSFIForCallOrConstruct(shared, arguments, speculation_mode)) {
+      continue;
     }
 
-    if (!shared->IsInlineable()) continue;
     environment()->accumulator_hints().Add(RunChildSerializer(
         CompilationSubject(hint), new_target, arguments, with_spread));
   }
@@ -2076,20 +2149,31 @@ SerializerForBackgroundCompilation::ProcessFeedbackMapsForNamedAccess(
 
     // TODO(turbofan): We want to take receiver hints into account as well,
     // not only the feedback maps.
+
     // For JSNativeContextSpecialization::InlinePropertySetterCall
     // and InlinePropertyGetterCall.
     if (info.IsAccessorConstant() && !info.constant().is_null()) {
       if (info.constant()->IsJSFunction()) {
+        JSFunctionRef function(broker(),
+                               Handle<JSFunction>::cast(info.constant()));
+
+        // For JSCallReducer::ReduceJSCall.
+        function.Serialize();
+
         // For JSCallReducer::ReduceCallApiFunction.
-        Handle<SharedFunctionInfo> sfi(
-            handle(Handle<JSFunction>::cast(info.constant())->shared(),
-                   broker()->isolate()));
+        Handle<SharedFunctionInfo> sfi = function.shared().object();
         if (sfi->IsApiFunction()) {
           FunctionTemplateInfoRef fti_ref(
               broker(), handle(sfi->get_api_func_data(), broker()->isolate()));
           if (fti_ref.has_call_code()) fti_ref.SerializeCallCode();
           ProcessReceiverMapForApiCall(fti_ref, map);
         }
+      } else if (info.constant()->IsJSBoundFunction()) {
+        JSBoundFunctionRef function(
+            broker(), Handle<JSBoundFunction>::cast(info.constant()));
+
+        // For JSCallReducer::ReduceJSCall.
+        function.Serialize();
       } else {
         FunctionTemplateInfoRef fti_ref(
             broker(), Handle<FunctionTemplateInfo>::cast(info.constant()));
@@ -2186,6 +2270,8 @@ void SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
     broker()->native_context().global_proxy_object().GetPropertyCell(name,
                                                                      true);
   }
+  // TODO(mslekova): Compute the property access infos as we do for feedback
+  // maps, store them somewhere. Add constants to the accumulator.
 }
 
 void SerializerForBackgroundCompilation::VisitLdaKeyedProperty(

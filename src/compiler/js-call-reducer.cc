@@ -3348,7 +3348,11 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     ObjectRef target_ref = m.Ref(broker());
     if (target_ref.IsJSFunction()) {
       JSFunctionRef function = target_ref.AsJSFunction();
-      function.Serialize();
+      if (FLAG_concurrent_inlining && !function.serialized()) {
+        TRACE_BROKER_MISSING(broker(),
+                             "function, not serialized: " << function);
+        return NoChange();
+      }
 
       // Don't inline cross native context.
       if (!function.native_context().equals(native_context())) {
@@ -3358,7 +3362,11 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
       return ReduceJSCall(node, function.shared());
     } else if (target_ref.IsJSBoundFunction()) {
       JSBoundFunctionRef function = target_ref.AsJSBoundFunction();
-      function.Serialize();
+      if (FLAG_concurrent_inlining && !function.serialized()) {
+        TRACE_BROKER_MISSING(broker(),
+                             "function, not serialized: " << function);
+        return NoChange();
+      }
 
       ObjectRef bound_this = function.bound_this();
       ConvertReceiverMode const convert_mode =
@@ -3941,7 +3949,11 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
 
     if (target_ref.IsJSFunction()) {
       JSFunctionRef function = target_ref.AsJSFunction();
-      function.Serialize();
+      if (FLAG_concurrent_inlining && !function.serialized()) {
+        TRACE_BROKER_MISSING(broker(),
+                             "function, not serialized: " << function);
+        return NoChange();
+      }
 
       // Do not reduce constructors with break points.
       if (function.shared().HasBreakInfo()) return NoChange();
@@ -3998,7 +4010,11 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       }
     } else if (target_ref.IsJSBoundFunction()) {
       JSBoundFunctionRef function = target_ref.AsJSBoundFunction();
-      function.Serialize();
+      if (FLAG_concurrent_inlining && !function.serialized()) {
+        TRACE_BROKER_MISSING(broker(),
+                             "function, not serialized: " << function);
+        return NoChange();
+      }
 
       ObjectRef bound_target_function = function.bound_target_function();
       FixedArrayRef bound_arguments = function.bound_arguments();

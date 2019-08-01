@@ -3644,6 +3644,11 @@ void JSFunctionRef::Serialize() {
   data()->AsJSFunction()->Serialize(broker());
 }
 
+bool JSBoundFunctionRef::serialized() const {
+  CHECK_NE(broker()->mode(), JSHeapBroker::kDisabled);
+  return data()->AsJSBoundFunction()->serialized();
+}
+
 bool JSFunctionRef::serialized() const {
   CHECK_NE(broker()->mode(), JSHeapBroker::kDisabled);
   return data()->AsJSFunction()->serialized();
@@ -3804,11 +3809,6 @@ void JSBoundFunctionRef::Serialize() {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsJSBoundFunction()->Serialize(broker());
-}
-
-bool JSBoundFunctionRef::serialized() const {
-  CHECK_NE(broker()->mode(), JSHeapBroker::kDisabled);
-  return data()->AsJSBoundFunction()->serialized();
 }
 
 void PropertyCellRef::Serialize() {
