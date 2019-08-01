@@ -454,9 +454,7 @@
       {'name': 'mozilla', 'shards': 2},
       {'name': 'test262', 'shards': 2},
       {'name': 'v8testing', 'shards': 10},
-      # TODO(v8:v7703): Temporarily disable this test while enabling pointer
-      # compression on arm64.
-      # {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
       {'name': 'v8testing', 'variant': 'trusted', 'shards': 3},
     ],
   },
@@ -477,9 +475,7 @@
       {'name': 'mozilla', 'shards': 2},
       {'name': 'test262', 'shards': 2},
       {'name': 'v8testing', 'shards': 12},
-      # TODO(v8:v7703): Temporarily disable this test while enabling pointer
-      # compression on arm64.
-      # {'name': 'v8testing', 'variant': 'extra', 'shards': 8},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 8},
       {'name': 'v8testing', 'variant': 'trusted', 'shards': 3},
     ],
   },
@@ -1471,9 +1467,7 @@
       {'name': 'mozilla'},
       {'name': 'test262'},
       {'name': 'v8testing', 'shards': 3},
-      # TODO(v8:v7703): Temporarily disable this test while enabling pointer
-      # compression on arm64.
-      # {'name': 'v8testing', 'variant': 'extra'},
+      {'name': 'v8testing', 'variant': 'extra'},
       {'name': 'v8testing', 'variant': 'trusted'},
     ],
   },
@@ -1490,9 +1484,7 @@
       {'name': 'mozilla', 'shards': 2},
       {'name': 'test262', 'shards': 2},
       {'name': 'v8testing', 'shards': 10},
-      # TODO(v8:v7703): Temporarily disable this test while enabling pointer
-      # compression on arm64.
-      # {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
       {'name': 'v8testing', 'variant': 'trusted', 'shards': 2},
     ],
   },
