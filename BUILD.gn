@@ -188,6 +188,9 @@ declare_args() {
   # Sets -DV8_SHARED_RO_HEAP.
   v8_enable_shared_ro_heap = ""
 
+  # Enables lazy source positions by default.
+  v8_enable_lazy_source_positions = true
+
   # Disable write barriers when GCs are non-incremental and
   # heap has single generation.
   v8_disable_write_barriers = false
@@ -445,6 +448,9 @@ config("features") {
   }
   if (v8_enable_concurrent_marking) {
     defines += [ "V8_CONCURRENT_MARKING" ]
+  }
+  if (v8_enable_lazy_source_positions) {
+    defines += [ "V8_ENABLE_LAZY_SOURCE_POSITIONS" ]
   }
   if (v8_check_microtasks_scopes_consistency) {
     defines += [ "V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY" ]
