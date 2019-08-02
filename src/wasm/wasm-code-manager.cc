@@ -88,13 +88,30 @@ base::AddressRegion DisjointAllocationPool::Merge(base::AddressRegion region) {
 }
 
 base::AddressRegion DisjointAllocationPool::Allocate(size_t size) {
+  return AllocateInRegion(size,
+                          {kNullAddress, std::numeric_limits<size_t>::max()});
+}
+
+base::AddressRegion DisjointAllocationPool::AllocateInRegion(
+    size_t size, base::AddressRegion region) {
   for (auto it = regions_.begin(), end = regions_.end(); it != end; ++it) {
-    if (size > it->size()) continue;
-    base::AddressRegion ret{it->begin(), size};
+    base::AddressRegion overlap = it->GetOverlap(region);
+    if (size > overlap.size()) continue;
+    base::AddressRegion ret{overlap.begin(), size};
     if (size == it->size()) {
+      // We use the full region --> erase the region from {regions_}.
       regions_.erase(it);
-    } else {
+    } else if (ret.begin() == it->begin()) {
+      // We return a region at the start --> shrink remaining region from front.
       *it = base::AddressRegion{it->begin() + size, it->size() - size};
+    } else if (ret.end() == it->end()) {
+      // We return a region at the end --> shrink remaining region.
+      *it = base::AddressRegion{it->begin(), it->size() - size};
+    } else {
+      // We return something in the middle --> split the remaining region.
+      regions_.insert(
+          it, base::AddressRegion{it->begin(), ret.begin() - it->begin()});
+      *it = base::AddressRegion{ret.end(), it->end() - ret.end()};
     }
     return ret;
   }
@@ -460,16 +477,26 @@ base::SmallVector<base::AddressRegion, 1> SplitRangeByReservationsIfNeeded(
 
 Vector<byte> WasmCodeAllocator::AllocateForCode(NativeModule* native_module,
                                                 size_t size) {
+  return AllocateForCodeInRegion(
+      native_module, size, {kNullAddress, std::numeric_limits<size_t>::max()});
+}
+
+Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
+    NativeModule* native_module, size_t size, base::AddressRegion region) {
   base::MutexGuard lock(&mutex_);
   DCHECK_EQ(code_manager_, native_module->engine()->code_manager());
   DCHECK_LT(0, size);
   v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
-  // This happens under a lock assumed by the caller.
   size = RoundUp<kCodeAlignment>(size);
-  base::AddressRegion code_space = free_code_space_.Allocate(size);
+  base::AddressRegion code_space =
+      free_code_space_.AllocateInRegion(size, region);
   if (code_space.is_empty()) {
-    if (!can_request_more_memory_) {
-      V8::FatalProcessOutOfMemory(nullptr, "wasm code reservation");
+    const bool in_specific_region =
+        region.size() < std::numeric_limits<size_t>::max();
+    if (!can_request_more_memory_ || in_specific_region) {
+      auto error = in_specific_region ? "wasm code reservation in region"
+                                      : "wasm code reservation";
+      V8::FatalProcessOutOfMemory(nullptr, error);
       UNREACHABLE();
     }
 
@@ -665,8 +692,9 @@ void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
 
   CHECK_EQ(1, code_space_data_.size());
   // Re-allocate jump table.
-  code_space_data_[0].jump_table = CreateEmptyJumpTable(
-      JumpTableAssembler::SizeForNumberOfSlots(max_functions));
+  code_space_data_[0].jump_table = CreateEmptyJumpTableInRegion(
+      JumpTableAssembler::SizeForNumberOfSlots(max_functions),
+      code_space_data_[0].region);
   main_jump_table_ = code_space_data_[0].jump_table;
 }
 
@@ -700,8 +728,10 @@ void NativeModule::UseLazyStub(uint32_t func_index) {
   if (!lazy_compile_table_) {
     uint32_t num_slots = module_->num_declared_functions;
     WasmCodeRefScope code_ref_scope;
-    lazy_compile_table_ = CreateEmptyJumpTable(
-        JumpTableAssembler::SizeForNumberOfLazyFunctions(num_slots));
+    DCHECK_EQ(1, code_space_data_.size());
+    lazy_compile_table_ = CreateEmptyJumpTableInRegion(
+        JumpTableAssembler::SizeForNumberOfLazyFunctions(num_slots),
+        code_space_data_[0].region);
     JumpTableAssembler::GenerateLazyCompileTable(
         lazy_compile_table_->instruction_start(), num_slots,
         module_->num_imported_functions,
@@ -725,9 +755,10 @@ void NativeModule::SetRuntimeStubs(Isolate* isolate) {
   DCHECK_EQ(kNullAddress, runtime_stub_entries_[0]);  // Only called once.
 #ifdef V8_EMBEDDED_BUILTINS
   WasmCodeRefScope code_ref_scope;
-  WasmCode* jump_table =
-      CreateEmptyJumpTable(JumpTableAssembler::SizeForNumberOfStubSlots(
-          WasmCode::kRuntimeStubCount));
+  DCHECK_EQ(1, code_space_data_.size());
+  WasmCode* jump_table = CreateEmptyJumpTableInRegion(
+      JumpTableAssembler::SizeForNumberOfStubSlots(WasmCode::kRuntimeStubCount),
+      code_space_data_[0].region);
   Address base = jump_table->instruction_start();
   EmbeddedData embedded_data = EmbeddedData::FromBlob();
 #define RUNTIME_STUB(Name) Builtins::k##Name,
@@ -1065,11 +1096,13 @@ bool NativeModule::HasCode(uint32_t index) const {
   return code_table_[index - module_->num_imported_functions] != nullptr;
 }
 
-WasmCode* NativeModule::CreateEmptyJumpTable(uint32_t jump_table_size) {
+WasmCode* NativeModule::CreateEmptyJumpTableInRegion(
+    uint32_t jump_table_size, base::AddressRegion region) {
   // Only call this if we really need a jump table.
   DCHECK_LT(0, jump_table_size);
   Vector<uint8_t> code_space =
-      code_allocator_.AllocateForCode(this, jump_table_size);
+      code_allocator_.AllocateForCodeInRegion(this, jump_table_size, region);
+  DCHECK(!code_space.empty());
   ZapCode(reinterpret_cast<Address>(code_space.begin()), code_space.size());
   std::unique_ptr<WasmCode> code{new WasmCode{
       this,                                     // native_module
@@ -1122,8 +1155,8 @@ void NativeModule::AddCodeSpace(base::AddressRegion region) {
       has_functions && is_first_code_space && !implicit_alloc_disabled;
 
   if (needs_jump_table) {
-    jump_table = CreateEmptyJumpTable(
-        JumpTableAssembler::SizeForNumberOfSlots(num_wasm_functions));
+    jump_table = CreateEmptyJumpTableInRegion(
+        JumpTableAssembler::SizeForNumberOfSlots(num_wasm_functions), region);
     CHECK(region.contains(jump_table->instruction_start()));
   }
 
