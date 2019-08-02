@@ -6467,11 +6467,18 @@ class V8_EXPORT ResourceConstraints {
    * provided heap size limit. The heap size includes both the young and
    * the old generation.
    *
+   * \param initial_heap_size_in_bytes The initial heap size or zero.
+   *    By default V8 starts with a small heap and dynamically grows it to
+   *    match the set of live objects. This may lead to ineffective
+   *    garbage collections at startup if the live set is large.
+   *    Setting the initial heap size avoids such garbage collections.
+   *    Note that this does not affect young generation garbage collections.
+   *
    * \param maximum_heap_size_in_bytes The hard limit for the heap size.
    *    When the heap size approaches this limit, V8 will perform series of
-   *    garbage collections and invoke the NearHeapLimitCallback.
-   *    If the garbage collections do not help and the callback does not
-   * increase the limit, then V8 will crash with V8::FatalProcessOutOfMemory.
+   *    garbage collections and invoke the NearHeapLimitCallback. If the garbage
+   *    collections do not help and the callback does not increase the limit,
+   *    then V8 will crash with V8::FatalProcessOutOfMemory.
    */
   void ConfigureDefaultsFromHeapSize(size_t initial_heap_size_in_bytes,
                                      size_t maximum_heap_size_in_bytes);
