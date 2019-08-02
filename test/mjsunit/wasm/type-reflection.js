@@ -209,6 +209,42 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
     () => new WebAssembly.Function({parameters:[], results:[]}, _ => 0));
 })();
 
+(function TestFunctionConstructorNonArray1() {
+  let log = [];  // Populated with a log of accesses.
+  let two = { toString: () => "2" };  // Just a fancy "2".
+  let logger = new Proxy({ length: two, "0": "i32", "1": "f32"}, {
+    get: function(obj, prop) { log.push(prop); return Reflect.get(obj, prop); },
+    set: function(obj, prop, val) { assertUnreachable(); }
+  });
+  let fun = new WebAssembly.Function({parameters:logger, results:[]}, _ => 0);
+  assertArrayEquals(["i32", "f32"], WebAssembly.Function.type(fun).parameters);
+  assertArrayEquals(["length", "0", "1"], log);
+})();
+
+(function TestFunctionConstructorNonArray2() {
+  let throw1 = { get length() { throw new Error("cannot see length"); }};
+  let throw2 = { length: { toString: _ => { throw new Error("no length") } } };
+  let throw3 = { length: "not a length value, this also throws" };
+  assertThrows(
+    () => new WebAssembly.Function({parameters:throw1, results:[]}), Error,
+    /cannot see length/);
+  assertThrows(
+    () => new WebAssembly.Function({parameters:throw2, results:[]}), Error,
+    /no length/);
+  assertThrows(
+    () => new WebAssembly.Function({parameters:throw3, results:[]}), TypeError,
+    /Argument 0 contains parameters without 'length'/);
+  assertThrows(
+    () => new WebAssembly.Function({parameters:[], results:throw1}), Error,
+    /cannot see length/);
+  assertThrows(
+    () => new WebAssembly.Function({parameters:[], results:throw2}), Error,
+    /no length/);
+  assertThrows(
+    () => new WebAssembly.Function({parameters:[], results:throw3}), TypeError,
+    /Argument 0 contains results without 'length'/);
+})();
+
 (function TestFunctionConstructedFunction() {
   let fun = new WebAssembly.Function({parameters:[], results:[]}, _ => 0);
   assertTrue(fun instanceof WebAssembly.Function);

@@ -1378,6 +1378,21 @@ void WebAssemblyException(const v8::FunctionCallbackInfo<v8::Value>& args) {
   thrower.TypeError("WebAssembly.Exception cannot be called");
 }
 
+namespace {
+
+uint32_t GetIterableLength(i::Isolate* isolate, Local<Context> context,
+                           Local<Object> iterable) {
+  Local<String> length = Utils::ToLocal(isolate->factory()->length_string());
+  MaybeLocal<Value> property = iterable->Get(context, length);
+  if (property.IsEmpty()) return i::kMaxUInt32;
+  MaybeLocal<Uint32> number = property.ToLocalChecked()->ToArrayIndex(context);
+  if (number.IsEmpty()) return i::kMaxUInt32;
+  DCHECK_NE(i::kMaxUInt32, number.ToLocalChecked()->Value());
+  return number.ToLocalChecked()->Value();
+}
+
+}  // namespace
+
 // WebAssembly.Function
 void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
@@ -1402,13 +1417,16 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
       function_type->Get(context, parameters_key);
   v8::Local<v8::Value> parameters_value;
   if (!parameters_maybe.ToLocal(&parameters_value)) return;
-  // TODO(7742): Allow any iterable, not just {Array} here.
-  if (!parameters_value->IsArray()) {
+  if (!parameters_value->IsObject()) {
     thrower.TypeError("Argument 0 must be a function type with 'parameters'");
     return;
   }
-  Local<Array> parameters = parameters_value.As<Array>();
-  uint32_t parameters_len = parameters->Length();
+  Local<Object> parameters = parameters_value.As<Object>();
+  uint32_t parameters_len = GetIterableLength(i_isolate, context, parameters);
+  if (parameters_len == i::kMaxUInt32) {
+    thrower.TypeError("Argument 0 contains parameters without 'length'");
+    return;
+  }
   if (parameters_len > i::wasm::kV8MaxWasmFunctionParams) {
     thrower.TypeError("Argument 0 contains too many parameters");
     return;
@@ -1420,13 +1438,16 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
       function_type->Get(context, results_key);
   v8::Local<v8::Value> results_value;
   if (!results_maybe.ToLocal(&results_value)) return;
-  // TODO(7742): Allow any iterable, not just {Array} here.
-  if (!results_value->IsArray()) {
+  if (!results_value->IsObject()) {
     thrower.TypeError("Argument 0 must be a function type with 'results'");
     return;
   }
-  Local<Array> results = results_value.As<Array>();
-  uint32_t results_len = results->Length();
+  Local<Object> results = results_value.As<Object>();
+  uint32_t results_len = GetIterableLength(i_isolate, context, results);
+  if (results_len == i::kMaxUInt32) {
+    thrower.TypeError("Argument 0 contains results without 'length'");
+    return;
+  }
   if (results_len > (enabled_features.mv
                          ? i::wasm::kV8MaxWasmFunctionMultiReturns
                          : i::wasm::kV8MaxWasmFunctionReturns)) {
