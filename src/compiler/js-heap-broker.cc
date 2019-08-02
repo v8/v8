@@ -3656,12 +3656,12 @@ void JSFunctionRef::Serialize() {
 }
 
 bool JSBoundFunctionRef::serialized() const {
-  CHECK_NE(broker()->mode(), JSHeapBroker::kDisabled);
+  if (broker()->mode() == JSHeapBroker::kDisabled) return true;
   return data()->AsJSBoundFunction()->serialized();
 }
 
 bool JSFunctionRef::serialized() const {
-  CHECK_NE(broker()->mode(), JSHeapBroker::kDisabled);
+  if (broker()->mode() == JSHeapBroker::kDisabled) return true;
   return data()->AsJSFunction()->serialized();
 }
 
