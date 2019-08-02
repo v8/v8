@@ -567,9 +567,7 @@ void MemoryOptimizer::VisitLoadElement(Node* node,
   Node* index = node->InputAt(1);
   node->ReplaceInput(1, ComputeIndex(access, index));
   MachineType type = access.machine_type;
-  if (NeedsPoisoning(access.load_sensitivity) &&
-      type.representation() != MachineRepresentation::kTaggedPointer &&
-      type.representation() != MachineRepresentation::kCompressedPointer) {
+  if (NeedsPoisoning(access.load_sensitivity)) {
     NodeProperties::ChangeOp(node, machine()->PoisonedLoad(type));
   } else {
     NodeProperties::ChangeOp(node, machine()->Load(type));
@@ -583,9 +581,7 @@ void MemoryOptimizer::VisitLoadField(Node* node, AllocationState const* state) {
   Node* offset = jsgraph()->IntPtrConstant(access.offset - access.tag());
   node->InsertInput(graph()->zone(), 1, offset);
   MachineType type = access.machine_type;
-  if (NeedsPoisoning(access.load_sensitivity) &&
-      type.representation() != MachineRepresentation::kTaggedPointer &&
-      type.representation() != MachineRepresentation::kCompressedPointer) {
+  if (NeedsPoisoning(access.load_sensitivity)) {
     NodeProperties::ChangeOp(node, machine()->PoisonedLoad(type));
   } else {
     NodeProperties::ChangeOp(node, machine()->Load(type));
