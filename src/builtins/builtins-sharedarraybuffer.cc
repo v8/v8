@@ -37,12 +37,16 @@ BUILTIN(AtomicsIsLockFree) {
 
 // ES #sec-validatesharedintegertypedarray
 V8_WARN_UNUSED_RESULT MaybeHandle<JSTypedArray> ValidateSharedIntegerTypedArray(
-    Isolate* isolate, Handle<Object> object, bool only_int32 = false) {
+    Isolate* isolate, Handle<Object> object,
+    bool only_int32_and_big_int64 = false) {
   if (object->IsJSTypedArray()) {
     Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(object);
     if (typed_array->GetBuffer()->is_shared()) {
-      if (only_int32) {
-        if (typed_array->type() == kExternalInt32Array) return typed_array;
+      if (only_int32_and_big_int64) {
+        if (typed_array->type() == kExternalInt32Array ||
+            typed_array->type() == kExternalBigInt64Array) {
+          return typed_array;
+        }
       } else {
         if (typed_array->type() != kExternalFloat32Array &&
             typed_array->type() != kExternalFloat64Array &&
@@ -54,8 +58,9 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSTypedArray> ValidateSharedIntegerTypedArray(
 
   THROW_NEW_ERROR(
       isolate,
-      NewTypeError(only_int32 ? MessageTemplate::kNotInt32SharedTypedArray
-                              : MessageTemplate::kNotIntegerSharedTypedArray,
+      NewTypeError(only_int32_and_big_int64
+                       ? MessageTemplate::kNotInt32OrBigInt64SharedTypedArray
+                       : MessageTemplate::kNotIntegerSharedTypedArray,
                    object),
       JSTypedArray);
 }
@@ -83,6 +88,15 @@ V8_WARN_UNUSED_RESULT Maybe<size_t> ValidateAtomicAccess(
 }
 
 namespace {
+
+inline size_t GetAddress64(size_t index, size_t byte_offset) {
+  return (index << 3) + byte_offset;
+}
+
+inline size_t GetAddress32(size_t index, size_t byte_offset) {
+  return (index << 2) + byte_offset;
+}
+
 MaybeHandle<Object> AtomicsWake(Isolate* isolate, Handle<Object> array,
                                 Handle<Object> index, Handle<Object> count) {
   Handle<JSTypedArray> sta;
@@ -109,9 +123,19 @@ MaybeHandle<Object> AtomicsWake(Isolate* isolate, Handle<Object> array,
   }
 
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
-  size_t addr = (i << 2) + sta->byte_offset();
 
-  return Handle<Object>(FutexEmulation::Wake(array_buffer, addr, c), isolate);
+  if (sta->type() == kExternalBigInt64Array) {
+    return Handle<Object>(
+        FutexEmulation::Wake(array_buffer, GetAddress64(i, sta->byte_offset()),
+                             c),
+        isolate);
+  } else {
+    DCHECK(sta->type() == kExternalInt32Array);
+    return Handle<Object>(
+        FutexEmulation::Wake(array_buffer, GetAddress32(i, sta->byte_offset()),
+                             c),
+        isolate);
+  }
 }
 
 }  // namespace
@@ -157,9 +181,16 @@ BUILTIN(AtomicsWait) {
   if (maybe_index.IsNothing()) return ReadOnlyRoots(isolate).exception();
   size_t i = maybe_index.FromJust();
 
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
-                                     Object::ToInt32(isolate, value));
-  int32_t value_int32 = NumberToInt32(*value);
+  // According to the spec, we have to check value's type before
+  // looking at the timeout.
+  if (sta->type() == kExternalBigInt64Array) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
+                                       BigInt::FromObject(isolate, value));
+  } else {
+    DCHECK(sta->type() == kExternalInt32Array);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
+                                       Object::ToInt32(isolate, value));
+  }
 
   double timeout_number;
   if (timeout->IsUndefined(isolate)) {
@@ -180,10 +211,17 @@ BUILTIN(AtomicsWait) {
   }
 
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
-  size_t addr = (i << 2) + sta->byte_offset();
 
-  return FutexEmulation::WaitJs(isolate, array_buffer, addr, value_int32,
-                                timeout_number);
+  if (sta->type() == kExternalBigInt64Array) {
+    return FutexEmulation::WaitJs64(
+        isolate, array_buffer, GetAddress64(i, sta->byte_offset()),
+        Handle<BigInt>::cast(value)->AsInt64(), timeout_number);
+  } else {
+    DCHECK(sta->type() == kExternalInt32Array);
+    return FutexEmulation::WaitJs32(isolate, array_buffer,
+                                    GetAddress32(i, sta->byte_offset()),
+                                    NumberToInt32(*value), timeout_number);
+  }
 }
 
 }  // namespace internal
