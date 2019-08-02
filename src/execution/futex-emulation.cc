@@ -11,7 +11,6 @@
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/numbers/conversions.h"
-#include "src/objects/bigint.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/objects-inl.h"
 
@@ -81,9 +80,10 @@ void AtomicsWaitWakeHandle::Wake() {
 
 enum WaitReturnValue : int { kOk = 0, kNotEqual = 1, kTimedOut = 2 };
 
-namespace {
-
-Object WaitJsTranslateReturn(Isolate* isolate, Object res) {
+Object FutexEmulation::WaitJs(Isolate* isolate,
+                              Handle<JSArrayBuffer> array_buffer, size_t addr,
+                              int32_t value, double rel_timeout_ms) {
+  Object res = Wait32(isolate, array_buffer, addr, value, rel_timeout_ms);
   if (res.IsSmi()) {
     int val = Smi::ToInt(res);
     switch (val) {
@@ -98,22 +98,6 @@ Object WaitJsTranslateReturn(Isolate* isolate, Object res) {
     }
   }
   return res;
-}
-
-}  // namespace
-
-Object FutexEmulation::WaitJs32(Isolate* isolate,
-                                Handle<JSArrayBuffer> array_buffer, size_t addr,
-                                int32_t value, double rel_timeout_ms) {
-  Object res = Wait32(isolate, array_buffer, addr, value, rel_timeout_ms);
-  return WaitJsTranslateReturn(isolate, res);
-}
-
-Object FutexEmulation::WaitJs64(Isolate* isolate,
-                                Handle<JSArrayBuffer> array_buffer, size_t addr,
-                                int64_t value, double rel_timeout_ms) {
-  Object res = Wait64(isolate, array_buffer, addr, value, rel_timeout_ms);
-  return WaitJsTranslateReturn(isolate, res);
 }
 
 Object FutexEmulation::Wait32(Isolate* isolate,

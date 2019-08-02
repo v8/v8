@@ -450,6 +450,10 @@
   'built-ins/TypedArrayConstructors/internals/Set/key-is-out-of-bounds': [FAIL],
   'built-ins/TypedArrayConstructors/internals/Set/BigInt/key-is-out-of-bounds': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8100
+  'built-ins/Atomics/notify/bigint/*': [SKIP],
+  'built-ins/Atomics/wait/bigint/*': [SKIP],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=6049
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-caller': [FAIL_SLOPPY],
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-arguments': [FAIL_SLOPPY],
@@ -567,11 +571,7 @@
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
-  #
-  # Test262 needs to expose CanBlock
-  'built-ins/Atomics/wait/bigint/cannot-suspend-throws': [SKIP],
   'built-ins/Atomics/wait/cannot-suspend-throws': [SKIP],
-  # Flaky
   'built-ins/Atomics/wait/undefined-index-defaults-to-zero': [SKIP],
 
   ##################### DELIBERATE INCOMPATIBILITIES #####################
