@@ -408,6 +408,7 @@
   # Tests too slow in non-optimized debug mode.
   'compiler/regress-9017': [SKIP],
   'regress/regress-2790': [SKIP],
+  'regress/regress-331444': [SKIP],
   'regress/regress-740784': [SKIP],
 }],  # 'is_full_debug'
 
