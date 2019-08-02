@@ -86,6 +86,12 @@ T Mul(T a, T b) {
   return a * b;
 }
 
+template <typename T, typename = typename std::enable_if<
+                          std::is_floating_point<T>::value>::type>
+T Div(T a, T b) {
+  return a / b;
+}
+
 template <typename T>
 T Minimum(T a, T b) {
   return a <= b ? a : b;
@@ -1215,6 +1221,10 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Sub) {
 
 WASM_SIMD_TEST_NO_LOWERING(F64x2Mul) {
   RunF64x2BinOpTest(execution_tier, lower_simd, kExprF64x2Mul, Mul);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(F64x2Div) {
+  RunF64x2BinOpTest(execution_tier, lower_simd, kExprF64x2Div, Div);
 }
 
 WASM_SIMD_TEST_NO_LOWERING(F64x2Min) {
