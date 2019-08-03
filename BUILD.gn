@@ -91,7 +91,7 @@ declare_args() {
   # Enable embedded builtins.
   v8_enable_embedded_builtins = true
 
-  # Enable the registration of unwinding info for Windows x64 and ARM64.
+  # Enable the registration of unwinding info for Windows x64 and ARM64.
   v8_win64_unwinding_info = true
 
   # Enable code comments for builtins in the snapshot (impacts performance).
