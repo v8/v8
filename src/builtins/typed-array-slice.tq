@@ -13,7 +13,7 @@ namespace typed_array_slice {
   macro FastCopy(
       src: typed_array::AttachedJSTypedArray, dest: JSTypedArray, k: intptr,
       count: PositiveSmi) labels IfSlow {
-    GotoIfForceSlowPath() otherwise IfSlow;
+    if (IsForceSlowPath()) goto IfSlow;
 
     const srcKind: ElementsKind = src.elements_kind;
     const destInfo = typed_array::GetTypedArrayElementsInfo(dest);

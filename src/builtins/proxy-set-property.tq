@@ -62,7 +62,7 @@ namespace proxy {
       // 12. Return true.
       const trapResult =
           Call(context, trap, handler, target, name, value, receiverValue);
-      if (BranchIfToBooleanIsTrue(trapResult)) {
+      if (ToBoolean(trapResult)) {
         CheckGetSetTrapResult(target, proxy, name, value, kProxySet);
         return value;
       }

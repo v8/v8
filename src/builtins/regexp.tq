@@ -9,5 +9,8 @@ namespace regexp {
   extern macro RegExpBuiltinsAssembler::BranchIfFastRegExp_Strict(
       implicit context: Context)(HeapObject): never labels IsFast,
       IsSlow;
+  macro IsFastRegExpStrict(implicit context: Context)(o: HeapObject): bool {
+    BranchIfFastRegExp_Strict(o) otherwise return true, return false;
+  }
 
 }

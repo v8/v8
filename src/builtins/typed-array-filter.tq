@@ -53,7 +53,7 @@ namespace typed_array_filter {
         // d. If selected is true, then
         //    i. Append kValue to the end of kept.
         //   ii. Increase captured by 1.
-        if (BranchIfToBooleanIsTrue(selected)) kept.Push(value);
+        if (ToBoolean(selected)) kept.Push(value);
 
         // e.Increase k by 1.
       }

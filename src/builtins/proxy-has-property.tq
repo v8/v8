@@ -40,7 +40,7 @@ namespace proxy {
       // CheckHasTrapResult).
       // 10. Return booleanTrapResult.
       const trapResult = Call(context, trap, handler, target, name);
-      if (BranchIfToBooleanIsTrue(trapResult)) {
+      if (ToBoolean(trapResult)) {
         return True;
       }
       CheckHasTrapResult(target, proxy, name);

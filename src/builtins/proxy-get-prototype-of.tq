@@ -51,7 +51,7 @@ namespace proxy {
       // 12. If SameValue(handlerProto, targetProto) is false, throw a TypeError
       // exception.
       // 13. Return handlerProto.
-      if (BranchIfSameValue(targetProto, handlerProto)) {
+      if (SameValue(targetProto, handlerProto)) {
         return handlerProto;
       }
       ThrowTypeError(kProxyGetPrototypeOfNonExtensible);

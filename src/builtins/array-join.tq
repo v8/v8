@@ -86,29 +86,25 @@ namespace array_join {
   // (see LoadJoinElement<ElementsAccessor>).
   macro CannotUseSameArrayAccessor<T: type>(implicit context: Context)(
       loadFn: LoadJoinElementFn, receiver: JSReceiver, originalMap: Map,
-      originalLen: Number): never
-      labels Cannot, Can;
+      originalLen: Number): bool;
 
   CannotUseSameArrayAccessor<JSArray>(implicit context: Context)(
       loadFn: LoadJoinElementFn, receiver: JSReceiver, originalMap: Map,
-      originalLen: Number): never
-      labels Cannot, Can {
-    if (loadFn == LoadJoinElement<array::GenericElementsAccessor>) goto Can;
+      originalLen: Number): bool {
+    if (loadFn == LoadJoinElement<array::GenericElementsAccessor>) return false;
 
     const array: JSArray = UnsafeCast<JSArray>(receiver);
-    if (originalMap != array.map) goto Cannot;
-    if (originalLen != array.length) goto Cannot;
-    if (IsNoElementsProtectorCellInvalid()) goto Cannot;
-    goto Can;
+    if (originalMap != array.map) return true;
+    if (originalLen != array.length) return true;
+    if (IsNoElementsProtectorCellInvalid()) return true;
+    return false;
   }
 
   CannotUseSameArrayAccessor<JSTypedArray>(implicit context: Context)(
       _loadFn: LoadJoinElementFn, receiver: JSReceiver, _initialMap: Map,
-      _initialLen: Number): never
-      labels Cannot, Can {
+      _initialLen: Number): bool {
     const typedArray: JSTypedArray = UnsafeCast<JSTypedArray>(receiver);
-    if (IsDetachedBuffer(typedArray.buffer)) goto Cannot;
-    goto Can;
+    return IsDetachedBuffer(typedArray.buffer);
   }
 
   // Calculates the running total length of the resulting string.  If the
@@ -465,11 +461,9 @@ namespace array_join {
   }
 
   // Fast path the common non-nested calls. If the receiver is not already on
-  // the stack, add it to the stack and go to ReceiverAdded. Otherwise go to
-  // ReceiverNotAdded.
+  // the stack, add it to the stack and return true. Otherwise return false.
   macro JoinStackPushInline(implicit context: Context)(receiver: JSReceiver):
-      never
-      labels ReceiverAdded, ReceiverNotAdded {
+      bool {
     try {
       const stack: FixedArray = LoadJoinStack()
           otherwise IfUninitialized;
@@ -477,7 +471,7 @@ namespace array_join {
         stack.objects[0] = receiver;
       } else if (JoinStackPush(stack, receiver) == False)
         deferred {
-          goto ReceiverNotAdded;
+          return false;
         }
     }
     label IfUninitialized {
@@ -486,7 +480,7 @@ namespace array_join {
       stack.objects[0] = receiver;
       SetJoinStack(stack);
     }
-    goto ReceiverAdded;
+    return true;
   }
 
   // Removes a receiver from the stack. The FixedArray will automatically shrink

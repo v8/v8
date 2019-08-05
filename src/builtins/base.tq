@@ -1632,26 +1632,33 @@ extern operator '<' macro Float64LessThan(float64, float64): bool;
 extern macro BranchIfNumberEqual(Number, Number): never
     labels Taken, NotTaken;
 operator '==' macro IsNumberEqual(a: Number, b: Number): bool {
-  return (BranchIfNumberEqual(a, b)) ? true : false;
+  BranchIfNumberEqual(a, b) otherwise return true, return false;
 }
 operator '!=' macro IsNumberNotEqual(a: Number, b: Number): bool {
-  return (BranchIfNumberEqual(a, b)) ? false : true;
+  return !(a == b);
 }
-extern operator '<' macro BranchIfNumberLessThan(Number, Number): never
+extern macro BranchIfNumberLessThan(Number, Number): never
     labels Taken, NotTaken;
-extern operator '<=' macro BranchIfNumberLessThanOrEqual(Number, Number): never
+operator '<' macro NumberIsLessThan(a: Number, b: Number): bool {
+  BranchIfNumberLessThan(a, b) otherwise return true, return false;
+}
+extern macro BranchIfNumberLessThanOrEqual(Number, Number): never
     labels Taken, NotTaken;
+operator '<=' macro NumberIsLessThanOrEqual(a: Number, b: Number): bool {
+  BranchIfNumberLessThanOrEqual(a, b) otherwise return true, return false;
+}
 
-extern operator '>' macro BranchIfNumberGreaterThan(Number, Number): never
-    labels Taken, NotTaken;
-extern operator '>=' macro BranchIfNumberGreaterThanOrEqual(
-    Number, Number): never
-    labels Taken, NotTaken;
+operator '>' macro NumberIsGreaterThan(a: Number, b: Number): bool {
+  return b < a;
+}
+operator '>=' macro NumberIsGreaterThanOrEqual(a: Number, b: Number): bool {
+  return b <= a;
+}
 
 extern macro BranchIfFloat64IsNaN(float64): never
     labels Taken, NotTaken;
 macro Float64IsNaN(n: float64): bool {
-  return (BranchIfFloat64IsNaN(n)) ? true : false;
+  BranchIfFloat64IsNaN(n) otherwise return true, return false;
 }
 
 // The type of all tagged values that can safely be compared with WordEqual.
@@ -2020,7 +2027,7 @@ Cast<FastJSRegExp>(implicit context: Context)(o: HeapObject): FastJSRegExp
   // the conditions to make a regexp object fast differ based on the callsite.
   // For now, run the strict variant since replace (the only current callsite)
   // accesses flag getters.
-  if (regexp::BranchIfFastRegExp_Strict(o)) {
+  if (regexp::IsFastRegExpStrict(o)) {
     return %RawDownCast<FastJSRegExp>(o);
   }
   goto CastError;
@@ -2392,20 +2399,9 @@ Convert<bint, Smi>(v: Smi): bint {
   return SmiToBInt(v);
 }
 
-macro BranchIf<A: type, B: type>(implicit context: Context)(o: B): never
-    labels True, False {
-  Cast<A>(o) otherwise False;
-  goto True;
-}
-
-macro BranchIfNot<A: type, B: type>(implicit context: Context)(o: B): never
-    labels True, False {
-  Cast<A>(o) otherwise True;
-  goto False;
-}
-
 macro Is<A: type, B: type>(implicit context: Context)(o: B): bool {
-  return (BranchIf<A, B>(o)) ? true : false;
+  Cast<A>(o) otherwise return false;
+  return true;
 }
 
 macro UnsafeCast<A: type>(implicit context: Context)(o: Object): A {
@@ -2918,17 +2914,18 @@ macro NumberIsNaN(number: Number): bool {
 }
 
 extern macro GotoIfForceSlowPath() labels Taken;
+macro IsForceSlowPath(): bool {
+  GotoIfForceSlowPath() otherwise return true;
+  return false;
+}
+
 extern macro BranchIfToBooleanIsTrue(Object): never
     labels Taken, NotTaken;
 extern macro BranchIfToBooleanIsFalse(Object): never
     labels Taken, NotTaken;
 
 macro ToBoolean(obj: Object): bool {
-  if (BranchIfToBooleanIsTrue(obj)) {
-    return true;
-  } else {
-    return false;
-  }
+  BranchIfToBooleanIsTrue(obj) otherwise return true, return false;
 }
 
 @export
@@ -2941,6 +2938,9 @@ macro RequireObjectCoercible(implicit context: Context)(
 }
 
 extern macro BranchIfSameValue(Object, Object): never labels Taken, NotTaken;
+macro SameValue(a: Object, b: Object): bool {
+  BranchIfSameValue(a, b) otherwise return true, return false;
+}
 
 transitioning macro ToIndex(input: Object, context: Context): Number
     labels RangeError {
@@ -3005,25 +3005,20 @@ struct KeyValuePair {
 // using "legacy" APIs. In Torque code, these should not be used.
 @export
 macro IsFastJSArray(o: Object, context: Context): bool {
-  try {
-    // Long-term, it's likely not a good idea to have this slow-path test here,
-    // since it fundamentally breaks the type system.
-    GotoIfForceSlowPath() otherwise ForceSlow;
-  }
-  label ForceSlow {
-    return false;
-  }
-
+  // Long-term, it's likely not a good idea to have this slow-path test here,
+  // since it fundamentally breaks the type system.
+  if (IsForceSlowPath()) return false;
   return Is<FastJSArray>(o);
 }
 
 @export
 macro BranchIfFastJSArray(o: Object, context: Context): never labels True,
     False {
-  // Long-term, it's likely not a good idea to have this slow-path test here,
-  // since it fundamentally breaks the type system.
-  GotoIfForceSlowPath() otherwise False;
-  BranchIf<FastJSArray>(o) otherwise True, False;
+  if (IsFastJSArray(o, context)) {
+    goto True;
+  } else {
+    goto False;
+  }
 }
 
 @export
@@ -3031,8 +3026,12 @@ macro BranchIfFastJSArrayForRead(o: Object, context: Context):
     never labels True, False {
   // Long-term, it's likely not a good idea to have this slow-path test here,
   // since it fundamentally breaks the type system.
-  GotoIfForceSlowPath() otherwise False;
-  BranchIf<FastJSArrayForRead>(o) otherwise True, False;
+  if (IsForceSlowPath()) goto False;
+  if (Is<FastJSArrayForRead>(o)) {
+    goto True;
+  } else {
+    goto False;
+  }
 }
 
 @export

@@ -40,7 +40,7 @@ namespace proxy {
       const trapResult = Call(context, trap, handler, target, name);
 
       // 9. If booleanTrapResult is false, return false.
-      if (BranchIfToBooleanIsFalse(trapResult)) {
+      if (!ToBoolean(trapResult)) {
         if (languageMode == SmiConstant(kStrict)) {
           ThrowTypeError(kProxyTrapReturnedFalsishFor, kTrapName, name);
         }

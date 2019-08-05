@@ -611,9 +611,8 @@ class ImplementationVisitor {
   void GenerateBranch(const VisitResult& condition, Block* true_block,
                       Block* false_block);
 
-  using VisitResultGenerator = std::function<VisitResult()>;
-  void GenerateExpressionBranch(VisitResultGenerator, Block* true_block,
-                                Block* false_block);
+  VisitResult GenerateBoolConstant(bool constant);
+
   void GenerateExpressionBranch(Expression* expression, Block* true_block,
                                 Block* false_block);
 

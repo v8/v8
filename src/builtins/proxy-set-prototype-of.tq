@@ -37,7 +37,7 @@ namespace proxy {
       const trapResult = Call(context, trap, handler, target, proto);
 
       // 9. If booleanTrapResult is false, return false.
-      if (BranchIfToBooleanIsFalse(trapResult)) {
+      if (!ToBoolean(trapResult)) {
         if (doThrow == True) {
           ThrowTypeError(kProxyTrapReturnedFalsishFor, kTrapName);
         }
@@ -58,7 +58,7 @@ namespace proxy {
       // 13. If SameValue(V, targetProto) is false, throw a TypeError
       // exception.
       // 14. Return true.
-      if (BranchIfSameValue(proto, targetProto)) {
+      if (SameValue(proto, targetProto)) {
         return True;
       }
       ThrowTypeError(kProxySetPrototypeOfNonExtensible);

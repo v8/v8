@@ -543,95 +543,34 @@ namespace test {
     check(equal);
   }
 
-  macro BoolToBranch(x: bool): never
-      labels Taken, NotTaken {
-    if (x) {
-      goto Taken;
-    } else {
-      goto NotTaken;
-    }
+  @export
+  macro TestOrAnd(x: bool, y: bool, z: bool): bool {
+    return x || y && z ? true : false;
   }
 
   @export
-  macro TestOrAnd1(x: bool, y: bool, z: bool): bool {
-    return BoolToBranch(x) || y && z ? true : false;
-  }
-
-  @export
-  macro TestOrAnd2(x: bool, y: bool, z: bool): bool {
-    return x || BoolToBranch(y) && z ? true : false;
-  }
-
-  @export
-  macro TestOrAnd3(x: bool, y: bool, z: bool): bool {
-    return x || y && BoolToBranch(z) ? true : false;
-  }
-
-  @export
-  macro TestAndOr1(x: bool, y: bool, z: bool): bool {
-    return BoolToBranch(x) && y || z ? true : false;
-  }
-
-  @export
-  macro TestAndOr2(x: bool, y: bool, z: bool): bool {
-    return x && BoolToBranch(y) || z ? true : false;
-  }
-
-  @export
-  macro TestAndOr3(x: bool, y: bool, z: bool): bool {
-    return x && y || BoolToBranch(z) ? true : false;
+  macro TestAndOr(x: bool, y: bool, z: bool): bool {
+    return x && y || z ? true : false;
   }
 
   @export
   macro TestLogicalOperators() {
-    check(TestAndOr1(true, true, true));
-    check(TestAndOr2(true, true, true));
-    check(TestAndOr3(true, true, true));
-    check(TestAndOr1(true, true, false));
-    check(TestAndOr2(true, true, false));
-    check(TestAndOr3(true, true, false));
-    check(TestAndOr1(true, false, true));
-    check(TestAndOr2(true, false, true));
-    check(TestAndOr3(true, false, true));
-    check(!TestAndOr1(true, false, false));
-    check(!TestAndOr2(true, false, false));
-    check(!TestAndOr3(true, false, false));
-    check(TestAndOr1(false, true, true));
-    check(TestAndOr2(false, true, true));
-    check(TestAndOr3(false, true, true));
-    check(!TestAndOr1(false, true, false));
-    check(!TestAndOr2(false, true, false));
-    check(!TestAndOr3(false, true, false));
-    check(TestAndOr1(false, false, true));
-    check(TestAndOr2(false, false, true));
-    check(TestAndOr3(false, false, true));
-    check(!TestAndOr1(false, false, false));
-    check(!TestAndOr2(false, false, false));
-    check(!TestAndOr3(false, false, false));
-    check(TestOrAnd1(true, true, true));
-    check(TestOrAnd2(true, true, true));
-    check(TestOrAnd3(true, true, true));
-    check(TestOrAnd1(true, true, false));
-    check(TestOrAnd2(true, true, false));
-    check(TestOrAnd3(true, true, false));
-    check(TestOrAnd1(true, false, true));
-    check(TestOrAnd2(true, false, true));
-    check(TestOrAnd3(true, false, true));
-    check(TestOrAnd1(true, false, false));
-    check(TestOrAnd2(true, false, false));
-    check(TestOrAnd3(true, false, false));
-    check(TestOrAnd1(false, true, true));
-    check(TestOrAnd2(false, true, true));
-    check(TestOrAnd3(false, true, true));
-    check(!TestOrAnd1(false, true, false));
-    check(!TestOrAnd2(false, true, false));
-    check(!TestOrAnd3(false, true, false));
-    check(!TestOrAnd1(false, false, true));
-    check(!TestOrAnd2(false, false, true));
-    check(!TestOrAnd3(false, false, true));
-    check(!TestOrAnd1(false, false, false));
-    check(!TestOrAnd2(false, false, false));
-    check(!TestOrAnd3(false, false, false));
+    check(TestAndOr(true, true, true));
+    check(TestAndOr(true, true, false));
+    check(TestAndOr(true, false, true));
+    check(!TestAndOr(true, false, false));
+    check(TestAndOr(false, true, true));
+    check(!TestAndOr(false, true, false));
+    check(TestAndOr(false, false, true));
+    check(!TestAndOr(false, false, false));
+    check(TestOrAnd(true, true, true));
+    check(TestOrAnd(true, true, false));
+    check(TestOrAnd(true, false, true));
+    check(TestOrAnd(true, false, false));
+    check(TestOrAnd(false, true, true));
+    check(!TestOrAnd(false, true, false));
+    check(!TestOrAnd(false, false, true));
+    check(!TestOrAnd(false, false, false));
   }
 
   @export

@@ -647,24 +647,8 @@ VisitResult ImplementationVisitor::Visit(ConditionalExpression* expr) {
 }
 
 VisitResult ImplementationVisitor::Visit(LogicalOrExpression* expr) {
-  VisitResult left_result;
-  {
-    Block* false_block = assembler().NewBlock(assembler().CurrentStack());
-    Binding<LocalLabel> false_binding{&LabelBindingsManager::Get(),
-                                      kFalseLabelName, LocalLabel{false_block}};
-    left_result = Visit(expr->left);
-    if (left_result.type()->IsBool()) {
-      Block* true_block = LookupSimpleLabel(kTrueLabelName);
-      assembler().Branch(true_block, false_block);
-      assembler().Bind(false_block);
-    } else if (left_result.type()->IsNever()) {
-      assembler().Bind(false_block);
-    } else if (!left_result.type()->IsConstexprBool()) {
-      ReportError(
-          "expected type bool, constexpr bool, or never on left-hand side of "
-          "operator ||");
-    }
-  }
+  StackScope outer_scope(this);
+  VisitResult left_result = Visit(expr->left);
 
   if (left_result.type()->IsConstexprBool()) {
     VisitResult right_result = Visit(expr->right);
@@ -678,38 +662,34 @@ VisitResult ImplementationVisitor::Visit(LogicalOrExpression* expr) {
                            " || " + right_result.constexpr_value() + ")");
   }
 
-  VisitResult right_result = Visit(expr->right);
-  if (right_result.type()->IsBool()) {
-    Block* true_block = LookupSimpleLabel(kTrueLabelName);
-    Block* false_block = LookupSimpleLabel(kFalseLabelName);
-    assembler().Branch(true_block, false_block);
-    return VisitResult::NeverResult();
-  } else if (!right_result.type()->IsNever()) {
-    ReportError(
-        "expected type bool or never on right-hand side of operator ||");
+  Block* true_block = assembler().NewBlock();
+  Block* false_block = assembler().NewBlock();
+  Block* done_block = assembler().NewBlock();
+
+  left_result = GenerateImplicitConvert(TypeOracle::GetBoolType(), left_result);
+  GenerateBranch(left_result, true_block, false_block);
+
+  assembler().Bind(true_block);
+  VisitResult true_result = GenerateBoolConstant(true);
+  assembler().Goto(done_block);
+
+  assembler().Bind(false_block);
+  VisitResult false_result;
+  {
+    StackScope false_block_scope(this);
+    false_result = false_block_scope.Yield(
+        GenerateImplicitConvert(TypeOracle::GetBoolType(), Visit(expr->right)));
   }
-  return right_result;
+  assembler().Goto(done_block);
+
+  assembler().Bind(done_block);
+  DCHECK_EQ(true_result, false_result);
+  return outer_scope.Yield(true_result);
 }
 
 VisitResult ImplementationVisitor::Visit(LogicalAndExpression* expr) {
-  VisitResult left_result;
-  {
-    Block* true_block = assembler().NewBlock(assembler().CurrentStack());
-    Binding<LocalLabel> false_binding{&LabelBindingsManager::Get(),
-                                      kTrueLabelName, LocalLabel{true_block}};
-    left_result = Visit(expr->left);
-    if (left_result.type()->IsBool()) {
-      Block* false_block = LookupSimpleLabel(kFalseLabelName);
-      assembler().Branch(true_block, false_block);
-      assembler().Bind(true_block);
-    } else if (left_result.type()->IsNever()) {
-      assembler().Bind(true_block);
-    } else if (!left_result.type()->IsConstexprBool()) {
-      ReportError(
-          "expected type bool, constexpr bool, or never on left-hand side of "
-          "operator &&");
-    }
-  }
+  StackScope outer_scope(this);
+  VisitResult left_result = Visit(expr->left);
 
   if (left_result.type()->IsConstexprBool()) {
     VisitResult right_result = Visit(expr->right);
@@ -723,17 +703,29 @@ VisitResult ImplementationVisitor::Visit(LogicalAndExpression* expr) {
                            " && " + right_result.constexpr_value() + ")");
   }
 
-  VisitResult right_result = Visit(expr->right);
-  if (right_result.type()->IsBool()) {
-    Block* true_block = LookupSimpleLabel(kTrueLabelName);
-    Block* false_block = LookupSimpleLabel(kFalseLabelName);
-    assembler().Branch(true_block, false_block);
-    return VisitResult::NeverResult();
-  } else if (!right_result.type()->IsNever()) {
-    ReportError(
-        "expected type bool or never on right-hand side of operator &&");
+  Block* true_block = assembler().NewBlock();
+  Block* false_block = assembler().NewBlock();
+  Block* done_block = assembler().NewBlock();
+
+  left_result = GenerateImplicitConvert(TypeOracle::GetBoolType(), left_result);
+  GenerateBranch(left_result, true_block, false_block);
+
+  assembler().Bind(true_block);
+  VisitResult true_result;
+  {
+    StackScope true_block_scope(this);
+    true_result = true_block_scope.Yield(
+        GenerateImplicitConvert(TypeOracle::GetBoolType(), Visit(expr->right)));
   }
-  return right_result;
+  assembler().Goto(done_block);
+
+  assembler().Bind(false_block);
+  VisitResult false_result = GenerateBoolConstant(false);
+  assembler().Goto(done_block);
+
+  assembler().Bind(done_block);
+  DCHECK_EQ(true_result, false_result);
+  return outer_scope.Yield(true_result);
 }
 
 VisitResult ImplementationVisitor::Visit(IncrementDecrementExpression* expr) {
@@ -1661,11 +1653,7 @@ Callable* ImplementationVisitor::LookupCallable(
   std::vector<size_t> candidates;
   for (size_t i = 0; i < overloads.size(); ++i) {
     const Signature& signature = overload_signatures[i];
-    bool try_bool_context = labels.size() == 0 &&
-                            signature.return_type == TypeOracle::GetNeverType();
-    if (IsCompatibleSignature(signature, parameter_types, labels.size()) ||
-        (try_bool_context &&
-         IsCompatibleSignature(signature, parameter_types, 2))) {
+    if (IsCompatibleSignature(signature, parameter_types, labels.size())) {
       candidates.push_back(i);
     }
   }
@@ -2099,25 +2087,6 @@ VisitResult ImplementationVisitor::GenerateCall(
     Callable* callable, base::Optional<LocationReference> this_reference,
     Arguments arguments, const TypeVector& specialization_types,
     bool is_tailcall) {
-  // Operators used in a branching context can also be function calls that never
-  // return but have a True and False label
-  if (arguments.labels.size() == 0 &&
-      callable->signature().labels.size() == 2) {
-    base::Optional<Binding<LocalLabel>*> true_label =
-        TryLookupLabel(kTrueLabelName);
-    base::Optional<Binding<LocalLabel>*> false_label =
-        TryLookupLabel(kFalseLabelName);
-    if (!true_label || !false_label) {
-      ReportError(
-          callable->ReadableName(),
-          " does not return a value, but has to be called in a branching "
-          "context (e.g., conditional or if-condition). You can fix this by "
-          "adding \"? true : false\".");
-    }
-    arguments.labels.push_back(*true_label);
-    arguments.labels.push_back(*false_label);
-  }
-
   const Type* return_type = callable->signature().return_type;
 
   if (is_tailcall) {
@@ -2454,32 +2423,20 @@ void ImplementationVisitor::GenerateBranch(const VisitResult& condition,
   assembler().Branch(true_block, false_block);
 }
 
-void ImplementationVisitor::GenerateExpressionBranch(
-    VisitResultGenerator generator, Block* true_block, Block* false_block) {
-  // Conditional expressions can either explicitly return a bit
-  // type, or they can be backed by macros that don't return but
-  // take a true and false label. By declaring the labels before
-  // visiting the conditional expression, those label-based
-  // macro conditionals will be able to find them through normal
-  // label lookups.
-  Binding<LocalLabel> true_binding{&LabelBindingsManager::Get(), kTrueLabelName,
-                                   LocalLabel{true_block}};
-  Binding<LocalLabel> false_binding{&LabelBindingsManager::Get(),
-                                    kFalseLabelName, LocalLabel{false_block}};
-  StackScope stack_scope(this);
-  VisitResult expression_result = generator();
-  if (!expression_result.type()->IsNever()) {
-    expression_result = stack_scope.Yield(
-        GenerateImplicitConvert(TypeOracle::GetBoolType(), expression_result));
-    GenerateBranch(expression_result, true_block, false_block);
-  }
+VisitResult ImplementationVisitor::GenerateBoolConstant(bool constant) {
+  return GenerateImplicitConvert(TypeOracle::GetBoolType(),
+                                 VisitResult(TypeOracle::GetConstexprBoolType(),
+                                             constant ? "true" : "false"));
 }
 
 void ImplementationVisitor::GenerateExpressionBranch(Expression* expression,
                                                      Block* true_block,
                                                      Block* false_block) {
-  GenerateExpressionBranch([&]() { return this->Visit(expression); },
-                           true_block, false_block);
+  StackScope stack_scope(this);
+  VisitResult expression_result = this->Visit(expression);
+  expression_result = stack_scope.Yield(
+      GenerateImplicitConvert(TypeOracle::GetBoolType(), expression_result));
+  GenerateBranch(expression_result, true_block, false_block);
 }
 
 VisitResult ImplementationVisitor::GenerateImplicitConvert(
