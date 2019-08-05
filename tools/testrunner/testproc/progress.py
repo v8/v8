@@ -149,10 +149,6 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
       self._print('Still working...')
       self._print_processes_linux()
 
-  def _on_event(self, event):
-    self._print(event)
-    self._print_processes_linux()
-
 
 class DotsProgressIndicator(SimpleProgressIndicator):
   def __init__(self):
