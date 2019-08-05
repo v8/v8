@@ -35,8 +35,6 @@ namespace compiler {
 // For a store during literal creation, do not walk up the prototype chain.
 enum class AccessMode { kLoad, kStore, kStoreInLiteral, kHas };
 
-enum class SerializationPolicy { kAssumeSerialized, kSerializeIfNeeded };
-
 enum class OddballType : uint8_t {
   kNone,     // Not an Oddball.
   kBoolean,  // True or False.
@@ -136,9 +134,8 @@ class V8_EXPORT_PRIVATE ObjectRef {
 
   // Return the element at key {index} if {index} is known to be an own data
   // property of the object that is non-writable and non-configurable.
-  base::Optional<ObjectRef> GetOwnConstantElement(
-      uint32_t index, SerializationPolicy policy =
-                          SerializationPolicy::kAssumeSerialized) const;
+  base::Optional<ObjectRef> GetOwnConstantElement(uint32_t index,
+                                                  bool serialize = false) const;
 
   Isolate* isolate() const;
 
@@ -247,8 +244,7 @@ class JSObjectRef : public JSReceiverRef {
   // if {index} is known to be an own data property of the object.
   base::Optional<ObjectRef> GetOwnDataProperty(
       Representation field_representation, FieldIndex index,
-      SerializationPolicy policy =
-          SerializationPolicy::kAssumeSerialized) const;
+      bool serialize = false) const;
   FixedArrayBaseRef elements() const;
   void SerializeElements();
   void EnsureElementsTenured();
@@ -343,14 +339,10 @@ class ContextRef : public HeapObjectRef {
   // followed. If {depth} != 0 on function return, then it only got
   // partway to the desired depth. If {serialize} is true, then
   // {previous} will cache its findings.
-  ContextRef previous(size_t* depth,
-                      SerializationPolicy policy =
-                          SerializationPolicy::kAssumeSerialized) const;
+  ContextRef previous(size_t* depth, bool serialize = false) const;
 
   // Only returns a value if the index is valid for this ContextRef.
-  base::Optional<ObjectRef> get(
-      int index, SerializationPolicy policy =
-                     SerializationPolicy::kAssumeSerialized) const;
+  base::Optional<ObjectRef> get(int index, bool serialize = false) const;
 
   // We only serialize the ScopeInfo if certain Promise
   // builtins are called.
@@ -610,9 +602,8 @@ class FunctionTemplateInfoRef : public HeapObjectRef {
   void SerializeCallCode();
   base::Optional<CallHandlerInfoRef> call_code() const;
 
-  HolderLookupResult LookupHolderOfExpectedType(
-      MapRef receiver_map,
-      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
+  HolderLookupResult LookupHolderOfExpectedType(MapRef receiver_map,
+                                                bool serialize);
 };
 
 class FixedArrayBaseRef : public HeapObjectRef {
@@ -679,9 +670,8 @@ class JSArrayRef : public JSObjectRef {
 
   // Return the element at key {index} if the array has a copy-on-write elements
   // storage and {index} is known to be an own data property.
-  base::Optional<ObjectRef> GetOwnCowElement(
-      uint32_t index, SerializationPolicy policy =
-                          SerializationPolicy::kAssumeSerialized) const;
+  base::Optional<ObjectRef> GetOwnCowElement(uint32_t index,
+                                             bool serialize = false) const;
 };
 
 class ScopeInfoRef : public HeapObjectRef {
@@ -726,9 +716,8 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
   // Template objects may not be created at compilation time. This method
   // wraps the retrieval of the template object and creates it if
   // necessary.
-  JSArrayRef GetTemplateObject(
-      ObjectRef description, FeedbackVectorRef vector, FeedbackSlot slot,
-      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
+  JSArrayRef GetTemplateObject(ObjectRef description, FeedbackVectorRef vector,
+                               FeedbackSlot slot, bool serialize = false);
 
   void SerializeFunctionTemplateInfo();
   base::Optional<FunctionTemplateInfoRef> function_template_info() const;
@@ -797,9 +786,8 @@ class JSGlobalProxyRef : public JSObjectRef {
   // If {serialize} is true:
   //   Like above but potentially access the heap and serialize the necessary
   //   information.
-  base::Optional<PropertyCellRef> GetPropertyCell(
-      NameRef const& name, SerializationPolicy policy =
-                               SerializationPolicy::kAssumeSerialized) const;
+  base::Optional<PropertyCellRef> GetPropertyCell(NameRef const& name,
+                                                  bool serialize = false) const;
 };
 
 class CodeRef : public HeapObjectRef {

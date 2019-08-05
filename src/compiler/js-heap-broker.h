@@ -129,8 +129,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       FeedbackSource const& source);
   BytecodeAnalysis const& GetBytecodeAnalysis(
       Handle<BytecodeArray> bytecode_array, BailoutId osr_offset,
-      bool analyze_liveness,
-      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
+      bool analyze_liveness, bool serialize);
 
   // Binary, comparison and for-in hints can be fully expressed via
   // an enum. Insufficient feedback is signaled by <Hint enum>::kNone.

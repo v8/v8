@@ -2941,7 +2941,8 @@ Reduction JSCallReducer::ReduceCallApiFunction(
 
       // See if we can constant-fold the compatible receiver checks.
       HolderLookupResult api_holder =
-          function_template_info.LookupHolderOfExpectedType(first_receiver_map);
+          function_template_info.LookupHolderOfExpectedType(first_receiver_map,
+                                                            false);
       if (api_holder.lookup == CallOptimization::kHolderNotFound)
         return inference.NoChange();
 
@@ -2971,7 +2972,8 @@ Reduction JSCallReducer::ReduceCallApiFunction(
       for (size_t i = 1; i < receiver_maps.size(); ++i) {
         MapRef receiver_map(broker(), receiver_maps[i]);
         HolderLookupResult holder_i =
-            function_template_info.LookupHolderOfExpectedType(receiver_map);
+            function_template_info.LookupHolderOfExpectedType(receiver_map,
+                                                              false);
 
         if (api_holder.lookup != holder_i.lookup) return inference.NoChange();
         if (!(api_holder.holder.has_value() && holder_i.holder.has_value()))

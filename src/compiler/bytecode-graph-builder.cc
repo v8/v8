@@ -964,8 +964,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       bytecode_analysis_(broker_->GetBytecodeAnalysis(
           bytecode_array.object(), osr_offset,
           flags & BytecodeGraphBuilderFlag::kAnalyzeEnvironmentLiveness,
-          FLAG_concurrent_inlining ? SerializationPolicy::kAssumeSerialized
-                                   : SerializationPolicy::kSerializeIfNeeded)),
+          !FLAG_concurrent_inlining)),
       environment_(nullptr),
       osr_(!osr_offset.IsNone()),
       currently_peeled_loop_offset_(-1),
