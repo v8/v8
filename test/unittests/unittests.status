@@ -7,7 +7,6 @@
   # https://crbug.com/986063.
   # TODO(szuend): Re-enable test once the fix has landed.
   'AccessRegressionTest.InstantiatedLazyAccessorPairsHaveCorrectNativeContext': [FAIL],
-  'AccessRegressionTest.InstantiatedLazyAccessorPairsHaveCorrectNativeContextDebug': [FAIL],
 }],  # ALWAYS
 
 ['system == macos and asan', {
