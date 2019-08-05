@@ -257,8 +257,6 @@ class Hints {
  public:
   explicit Hints(Zone* zone);
 
-  static Hints SingleConstant(Handle<Object> constant, Zone* zone);
-
   const ConstantsSet& constants() const;
   const MapsSet& maps() const;
   const BlueprintsSet& function_blueprints() const;
@@ -534,12 +532,6 @@ bool Hints::Equals(Hints const& other) const {
 }
 #endif
 
-Hints Hints::SingleConstant(Handle<Object> constant, Zone* zone) {
-  Hints result(zone);
-  result.AddConstant(constant);
-  return result;
-}
-
 const ConstantsSet& Hints::constants() const { return constants_; }
 
 const MapsSet& Hints::maps() const { return maps_; }
@@ -737,8 +729,8 @@ SerializerForBackgroundCompilation::Environment::Environment(
   }
 
   // Pad the rest with "undefined".
-  Hints undefined_hint =
-      Hints::SingleConstant(isolate->factory()->undefined_value(), zone);
+  Hints undefined_hint(zone);
+  undefined_hint.AddConstant(isolate->factory()->undefined_value());
   for (size_t i = arguments.size(); i < param_count; ++i) {
     ephemeral_hints_[i] = undefined_hint;
   }
@@ -1347,10 +1339,9 @@ void SerializerForBackgroundCompilation::ProcessCreateContext() {
 
 void SerializerForBackgroundCompilation::VisitCreateClosure(
     BytecodeArrayIterator* iterator) {
-  environment()->accumulator_hints().Clear();
-
   Handle<SharedFunctionInfo> shared = Handle<SharedFunctionInfo>::cast(
       iterator->GetConstantForIndexOperand(0, broker()->isolate()));
+
   Handle<FeedbackCell> feedback_cell =
       environment()->function().feedback_vector()->GetClosureFeedbackCell(
           iterator->GetIndexOperand(1));
@@ -1358,10 +1349,14 @@ void SerializerForBackgroundCompilation::VisitCreateClosure(
   Handle<Object> cell_value(feedback_cell->value(), broker()->isolate());
   ObjectRef cell_value_ref(broker(), cell_value);
 
+  environment()->accumulator_hints().Clear();
   if (cell_value->IsFeedbackVector()) {
+    // Gather the context hints from the current context register hint
+    // structure.
     FunctionBlueprint blueprint(shared,
                                 Handle<FeedbackVector>::cast(cell_value),
                                 environment()->current_context_hints());
+
     environment()->accumulator_hints().AddFunctionBlueprint(blueprint);
   }
 }
@@ -1377,8 +1372,9 @@ void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver0(
       environment()->register_hints(iterator->GetRegisterOperand(0));
   FeedbackSlot slot = iterator->GetSlotOperand(1);
 
-  Hints receiver = Hints::SingleConstant(
-      broker()->isolate()->factory()->undefined_value(), zone());
+  Hints receiver(zone());
+  receiver.AddConstant(broker()->isolate()->factory()->undefined_value());
+
   HintsVector parameters({receiver}, zone());
   ProcessCallOrConstruct(callee, base::nullopt, parameters, slot);
 }
@@ -1391,8 +1387,9 @@ void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver1(
       environment()->register_hints(iterator->GetRegisterOperand(1));
   FeedbackSlot slot = iterator->GetSlotOperand(2);
 
-  Hints receiver = Hints::SingleConstant(
-      broker()->isolate()->factory()->undefined_value(), zone());
+  Hints receiver(zone());
+  receiver.AddConstant(broker()->isolate()->factory()->undefined_value());
+
   HintsVector parameters({receiver, arg0}, zone());
   ProcessCallOrConstruct(callee, base::nullopt, parameters, slot);
 }
@@ -1407,8 +1404,9 @@ void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver2(
       environment()->register_hints(iterator->GetRegisterOperand(2));
   FeedbackSlot slot = iterator->GetSlotOperand(3);
 
-  Hints receiver = Hints::SingleConstant(
-      broker()->isolate()->factory()->undefined_value(), zone());
+  Hints receiver(zone());
+  receiver.AddConstant(broker()->isolate()->factory()->undefined_value());
+
   HintsVector parameters({receiver, arg0, arg1}, zone());
   ProcessCallOrConstruct(callee, base::nullopt, parameters, slot);
 }
@@ -1545,13 +1543,13 @@ MaybeHandle<JSFunction> UnrollBoundFunction(
        target = target.AsJSBoundFunction().bound_target_function()) {
     for (int i = target.AsJSBoundFunction().bound_arguments().length() - 1;
          i >= 0; --i) {
-      Hints arg = Hints::SingleConstant(
-          target.AsJSBoundFunction().bound_arguments().get(i).object(),
-          broker->zone());
+      Hints arg(broker->zone());
+      arg.AddConstant(
+          target.AsJSBoundFunction().bound_arguments().get(i).object());
       reversed_bound_arguments.push_back(arg);
     }
-    Hints arg = Hints::SingleConstant(
-        target.AsJSBoundFunction().bound_this().object(), broker->zone());
+    Hints arg(broker->zone());
+    arg.AddConstant(target.AsJSBoundFunction().bound_this().object());
     reversed_bound_arguments.push_back(arg);
   }
 
@@ -1651,8 +1649,9 @@ void SerializerForBackgroundCompilation::ProcessCallVarArgs(
   // The receiver is either given in the first register or it is implicitly
   // the {undefined} value.
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-    arguments.push_back(Hints::SingleConstant(
-        broker()->isolate()->factory()->undefined_value(), zone()));
+    Hints receiver(zone());
+    receiver.AddConstant(broker()->isolate()->factory()->undefined_value());
+    arguments.push_back(receiver);
   }
   environment()->ExportRegisterHints(first_reg, reg_count, &arguments);
 
