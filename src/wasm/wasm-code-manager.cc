@@ -204,11 +204,7 @@ void WasmCode::Validate() const {
     switch (mode) {
       case RelocInfo::WASM_CALL: {
         Address target = it.rinfo()->wasm_call_address();
-        WasmCode* code = native_module_->Lookup(target);
-        CHECK_NOT_NULL(code);
-        CHECK_EQ(WasmCode::kJumpTable, code->kind());
-        CHECK_EQ(native_module()->jump_table_, code);
-        CHECK(code->contains(target));
+        DCHECK(native_module_->is_jump_table_slot(target));
         break;
       }
       case RelocInfo::WASM_STUB_CALL: {
@@ -492,10 +488,13 @@ Vector<byte> WasmCodeAllocator::AllocateForCode(NativeModule* native_module,
       V8::FatalProcessOutOfMemory(nullptr, "wasm code reservation");
       UNREACHABLE();
     }
-    code_manager_->AssignRange(new_mem.region(), native_module);
 
-    free_code_space_.Merge(new_mem.region());
+    base::AddressRegion new_region = new_mem.region();
+    code_manager_->AssignRange(new_region, native_module);
+    free_code_space_.Merge(new_region);
     owned_code_space_.emplace_back(std::move(new_mem));
+    native_module->AddCodeSpace(new_region);
+
     code_space = free_code_space_.Allocate(size);
     DCHECK(!code_space.is_empty());
     async_counters_->wasm_module_num_code_spaces()->AddSample(
@@ -620,6 +619,12 @@ void WasmCodeAllocator::FreeCode(Vector<WasmCode* const> codes) {
   }
 }
 
+base::AddressRegion WasmCodeAllocator::GetSingleCodeRegion() const {
+  base::MutexGuard lock(&mutex_);
+  DCHECK_EQ(1, owned_code_space_.size());
+  return owned_code_space_[0].region();
+}
+
 NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
                            bool can_request_more, VirtualMemory code_space,
                            std::shared_ptr<const WasmModule> module,
@@ -642,32 +647,10 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
   compilation_state_ =
       CompilationState::New(*shared_this, std::move(async_counters));
   DCHECK_NOT_NULL(module_);
-
-  const bool implicit_alloc_disabled =
-      engine->code_manager()->IsImplicitAllocationsDisabledForTesting();
-#if defined(V8_OS_WIN64)
-  // On some platforms, specifically Win64, we need to reserve some pages at
-  // the beginning of an executable space.
-  // See src/heap/spaces.cc, MemoryAllocator::InitializeCodePageAllocator() and
-  // https://cs.chromium.org/chromium/src/components/crash/content/app/crashpad_win.cc?rcl=fd680447881449fba2edcf0589320e7253719212&l=204
-  // for details.
-  if (engine_->code_manager()
-          ->CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
-      !implicit_alloc_disabled) {
-    code_allocator_.AllocateForCode(this, Heap::GetCodeRangeReservedAreaSize());
+  if (module_->num_declared_functions > 0) {
+    code_table_.reset(new WasmCode* [module_->num_declared_functions] {});
   }
-#endif  // V8_OS_WIN64
-
-  uint32_t num_wasm_functions = module_->num_declared_functions;
-  if (num_wasm_functions > 0) {
-    code_table_.reset(new WasmCode* [num_wasm_functions] {});
-
-    if (!implicit_alloc_disabled) {
-      WasmCodeRefScope code_ref_scope;
-      jump_table_ = CreateEmptyJumpTable(
-          JumpTableAssembler::SizeForNumberOfSlots(num_wasm_functions));
-    }
-  }
+  AddCodeSpace(code_allocator_.GetSingleCodeRegion());
 }
 
 void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
@@ -680,9 +663,11 @@ void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
   }
   code_table_.reset(new_table);
 
+  CHECK_EQ(1, code_space_data_.size());
   // Re-allocate jump table.
-  jump_table_ = CreateEmptyJumpTable(
+  code_space_data_[0].jump_table = CreateEmptyJumpTable(
       JumpTableAssembler::SizeForNumberOfSlots(max_functions));
+  main_jump_table_ = code_space_data_[0].jump_table;
 }
 
 void NativeModule::LogWasmCodes(Isolate* isolate) {
@@ -729,7 +714,7 @@ void NativeModule::UseLazyStub(uint32_t func_index) {
   Address lazy_compile_target =
       lazy_compile_table_->instruction_start() +
       JumpTableAssembler::LazyCompileSlotIndexToOffset(slot_index);
-  JumpTableAssembler::PatchJumpTableSlot(jump_table_->instruction_start(),
+  JumpTableAssembler::PatchJumpTableSlot(main_jump_table_->instruction_start(),
                                          slot_index, lazy_compile_target,
                                          WasmCode::kFlushICache);
 }
@@ -1007,11 +992,11 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
     // Populate optimized code to the jump table unless there is an active
     // redirection to the interpreter that should be preserved.
     DCHECK_IMPLIES(
-        jump_table_ == nullptr,
+        main_jump_table_ == nullptr,
         engine_->code_manager()->IsImplicitAllocationsDisabledForTesting());
     bool update_jump_table = update_code_table &&
                              !has_interpreter_redirection(code->index()) &&
-                             jump_table_;
+                             main_jump_table_;
 
     // Ensure that interpreter entries always populate to the jump table.
     if (code->kind_ == WasmCode::Kind::kInterpreterEntry) {
@@ -1021,8 +1006,8 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
 
     if (update_jump_table) {
       JumpTableAssembler::PatchJumpTableSlot(
-          jump_table_->instruction_start(), slot_idx, code->instruction_start(),
-          WasmCode::kFlushICache);
+          main_jump_table_->instruction_start(), slot_idx,
+          code->instruction_start(), WasmCode::kFlushICache);
     }
   }
   WasmCodeRefScope::AddRef(code.get());
@@ -1105,6 +1090,48 @@ WasmCode* NativeModule::CreateEmptyJumpTable(uint32_t jump_table_size) {
   return PublishCode(std::move(code));
 }
 
+void NativeModule::AddCodeSpace(base::AddressRegion region) {
+  // Each code space must be at least twice as large as the overhead per code
+  // space. Otherwise, we are wasting too much memory.
+  const bool is_first_code_space = code_space_data_.empty();
+  const bool implicit_alloc_disabled =
+      engine_->code_manager()->IsImplicitAllocationsDisabledForTesting();
+
+#if defined(V8_OS_WIN64)
+  // On some platforms, specifically Win64, we need to reserve some pages at
+  // the beginning of an executable space.
+  // See src/heap/spaces.cc, MemoryAllocator::InitializeCodePageAllocator() and
+  // https://cs.chromium.org/chromium/src/components/crash/content/app/crashpad_win.cc?rcl=fd680447881449fba2edcf0589320e7253719212&l=204
+  // for details.
+  if (engine_->code_manager()
+          ->CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
+      !implicit_alloc_disabled) {
+    size_t size = Heap::GetCodeRangeReservedAreaSize();
+    DCHECK_LT(0, size);
+    Vector<byte> padding = code_allocator_.AllocateForCode(this, size);
+    CHECK(region.contains(reinterpret_cast<Address>(padding.begin()),
+                          padding.size()));
+  }
+#endif  // V8_OS_WIN64
+
+  WasmCodeRefScope code_ref_scope;
+  WasmCode* jump_table = nullptr;
+  const uint32_t num_wasm_functions = module_->num_declared_functions;
+  const bool has_functions = num_wasm_functions > 0;
+  const bool needs_jump_table =
+      has_functions && is_first_code_space && !implicit_alloc_disabled;
+
+  if (needs_jump_table) {
+    jump_table = CreateEmptyJumpTable(
+        JumpTableAssembler::SizeForNumberOfSlots(num_wasm_functions));
+    CHECK(region.contains(jump_table->instruction_start()));
+  }
+
+  if (is_first_code_space) main_jump_table_ = jump_table;
+
+  code_space_data_.push_back(CodeSpaceData{region, jump_table});
+}
+
 namespace {
 class NativeModuleWireBytesStorage final : public WireBytesStorage {
  public:
@@ -1152,17 +1179,17 @@ uint32_t NativeModule::GetJumpTableOffset(uint32_t func_index) const {
 
 Address NativeModule::GetCallTargetForFunction(uint32_t func_index) const {
   // Return the jump table slot for that function index.
-  DCHECK_NOT_NULL(jump_table_);
+  DCHECK_NOT_NULL(main_jump_table_);
   uint32_t slot_offset = GetJumpTableOffset(func_index);
-  DCHECK_LT(slot_offset, jump_table_->instructions().size());
-  return jump_table_->instruction_start() + slot_offset;
+  DCHECK_LT(slot_offset, main_jump_table_->instructions().size());
+  return main_jump_table_->instruction_start() + slot_offset;
 }
 
 uint32_t NativeModule::GetFunctionIndexFromJumpTableSlot(
     Address slot_address) const {
   DCHECK(is_jump_table_slot(slot_address));
-  uint32_t slot_offset =
-      static_cast<uint32_t>(slot_address - jump_table_->instruction_start());
+  uint32_t slot_offset = static_cast<uint32_t>(
+      slot_address - main_jump_table_->instruction_start());
   uint32_t slot_idx = JumpTableAssembler::SlotOffsetToIndex(slot_offset);
   DCHECK_LT(slot_idx, module_->num_declared_functions);
   return module_->num_imported_functions + slot_idx;
@@ -1342,7 +1369,8 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
 
   // If the code must be contiguous, reserve enough address space up front.
   size_t code_vmem_size =
-      kRequiresCodeRange ? kMaxWasmCodeMemory : code_size_estimate;
+      can_request_more ? code_size_estimate : kMaxWasmCodeMemory;
+
   // Try up to two times; getting rid of dead JSArrayBuffer allocations might
   // require two GCs because the first GC maybe incremental and may have
   // floating garbage.
