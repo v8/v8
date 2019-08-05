@@ -9,7 +9,6 @@
 #include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-info.h"
-#include "src/compiler/processed-feedback.h"
 #include "src/compiler/refs-map.h"
 #include "src/handles/handles.h"
 #include "src/interpreter/bytecode-array-accessor.h"
@@ -28,8 +27,8 @@ class ObjectRef;
 std::ostream& operator<<(std::ostream& os, const ObjectRef& ref);
 
 struct FeedbackSource {
-  FeedbackSource(Handle<FeedbackVector> vector_, FeedbackSlot slot_);
-  FeedbackSource(FeedbackVectorRef vector_, FeedbackSlot slot_);
+  FeedbackSource(Handle<FeedbackVector> vector_, FeedbackSlot slot_)
+      : vector(vector_), slot(slot_) {}
   explicit FeedbackSource(FeedbackNexus const& nexus);
   explicit FeedbackSource(VectorSlotPair const& pair);
 
@@ -127,31 +126,10 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       MapHandles const& maps, KeyedAccessMode const& keyed_mode);
   GlobalAccessFeedback const* ProcessFeedbackForGlobalAccess(
       FeedbackSource const& source);
+
   BytecodeAnalysis const& GetBytecodeAnalysis(
       Handle<BytecodeArray> bytecode_array, BailoutId osr_offset,
       bool analyze_liveness, bool serialize);
-
-  // Binary, comparison and for-in hints can be fully expressed via
-  // an enum. Insufficient feedback is signaled by <Hint enum>::kNone.
-  BinaryOperationHint GetFeedbackForBinaryOperation(
-      FeedbackSource const& source) const;
-  CompareOperationHint GetFeedbackForCompareOperation(
-      FeedbackSource const& source) const;
-  ForInHint GetFeedbackForForIn(FeedbackSource const& source) const;
-
-  ProcessedFeedback const* GetFeedbackForCall(FeedbackSource const& source);
-  ProcessedFeedback const* GetFeedbackForInstanceOf(
-      FeedbackSource const& source);
-
-  void ProcessFeedbackForBinaryOperation(FeedbackSource const& source);
-  void ProcessFeedbackForCompareOperation(FeedbackSource const& source);
-  void ProcessFeedbackForForIn(FeedbackSource const& source);
-
-  ProcessedFeedback const* ProcessFeedbackForCall(FeedbackSource const& source);
-  ProcessedFeedback const* ProcessFeedbackForInstanceOf(
-      FeedbackSource const& source);
-
-  bool FeedbackIsInsufficient(FeedbackSource const& source) const;
 
   base::Optional<NameRef> GetNameFeedback(FeedbackNexus const& nexus);
 
@@ -177,17 +155,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   friend class HeapObjectRef;
   friend class ObjectRef;
   friend class ObjectData;
-
-  // Bottleneck FeedbackNexus access here, for storage in the broker
-  // or on-the-fly usage elsewhere in the compiler.
-  ForInHint ReadForInFeedback(FeedbackSource const& source) const;
-  CompareOperationHint ReadCompareOperationFeedback(
-      FeedbackSource const& source) const;
-  BinaryOperationHint ReadBinaryOperationFeedback(
-      FeedbackSource const& source) const;
-
-  ProcessedFeedback const* ReadCallFeedback(FeedbackSource const& source);
-  ProcessedFeedback const* ReadInstanceOfFeedback(FeedbackSource const& source);
 
   void SerializeShareableObjects();
   void CollectArrayAndObjectPrototypes();
