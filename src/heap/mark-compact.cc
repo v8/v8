@@ -576,6 +576,7 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
   heap()->old_space()->RefillFreeList();
   heap()->code_space()->RefillFreeList();
   heap()->map_space()->RefillFreeList();
+  heap()->map_space()->SortFreeList();
 
   heap()->tracer()->NotifySweepingCompleted();
 

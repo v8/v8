@@ -3562,9 +3562,44 @@ bool PagedSpace::RawSlowRefillLinearAllocationArea(int size_in_bytes) {
 // -----------------------------------------------------------------------------
 // MapSpace implementation
 
+// TODO(dmercadier): use a heap instead of sorting like that.
+// Using a heap will have multiple benefits:
+//   - for now, SortFreeList is only called after sweeping, which is somewhat
+//   late. Using a heap, sorting could be done online: FreeListCategories would
+//   be inserted in a heap (ie, in a sorted manner).
+//   - SortFreeList is a bit fragile: any change to FreeListMap (or to
+//   MapSpace::free_list_) could break it.
+void MapSpace::SortFreeList() {
+  using LiveBytesPagePair = std::pair<size_t, Page*>;
+  std::vector<LiveBytesPagePair> pages;
+  pages.reserve(CountTotalPages());
+
+  for (Page* p : *this) {
+    free_list()->RemoveCategory(p->free_list_category(kFirstCategory));
+    pages.push_back(std::make_pair(p->allocated_bytes(), p));
+  }
+
+  // Sorting by least-allocated-bytes first.
+  std::sort(pages.begin(), pages.end(),
+            [](const LiveBytesPagePair& a, const LiveBytesPagePair& b) {
+              return a.first < b.first;
+            });
+
+  for (LiveBytesPagePair const& p : pages) {
+    // Since AddCategory inserts in head position, it reverts the order produced
+    // by the sort above: least-allocated-bytes will be Added first, and will
+    // therefore be the last element (and the first one will be
+    // most-allocated-bytes).
+    free_list()->AddCategory(p.second->free_list_category(kFirstCategory));
+  }
+}
+
 #ifdef VERIFY_HEAP
 void MapSpace::VerifyObject(HeapObject object) { CHECK(object.IsMap()); }
 #endif
+
+// -----------------------------------------------------------------------------
+// ReadOnlySpace implementation
 
 ReadOnlySpace::ReadOnlySpace(Heap* heap)
     : PagedSpace(heap, RO_SPACE, NOT_EXECUTABLE, FreeList::CreateFreeList()),
