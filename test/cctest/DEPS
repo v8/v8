@@ -2,5 +2,5 @@ include_rules = [
   "+src",
   "+tools",
   "+torque-generated",
-  "+perfetto/tracing.h"
+  "+perfetto",
 ]

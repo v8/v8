@@ -625,8 +625,6 @@ TEST(Perfetto) {
     TRACE_EVENT1("v8", "test2", "arg1", uint64_arg);
     TRACE_EVENT2("v8", "test3", "arg1", uint64_arg, "arg2", str_arg);
   }
-  TRACE_EVENT_INSTANT0("v8", "final event not captured",
-                       TRACE_EVENT_SCOPE_THREAD);
 
   harness.StopTracing();
 
@@ -688,8 +686,6 @@ TEST(Categories) {
     TRACE_EVENT0("cat", "v8.Test2");
     TRACE_EVENT0("v8", "v8.Test3");
   }
-  TRACE_EVENT_INSTANT0("v8", "final event not captured",
-                       TRACE_EVENT_SCOPE_THREAD);
 
   harness.StopTracing();
 
@@ -765,8 +761,6 @@ TEST(MultipleArgsAndCopy) {
                          std::move(trace_event_arg), "a2",
                          new ConvertableToTraceFormatMock(123));
   }
-  TRACE_EVENT_INSTANT0("v8", "final event not captured",
-                       TRACE_EVENT_SCOPE_THREAD);
 
   harness.StopTracing();
 
@@ -894,8 +888,6 @@ TEST(JsonIntegrationTest) {
     TRACE_EVENT1("v8", "v8.Test.3", "3", inf_num);
     TRACE_EVENT1("v8", "v8.Test.4", "4", neg_inf_num);
   }
-  TRACE_EVENT_INSTANT0("v8", "final event not captured",
-                       TRACE_EVENT_SCOPE_THREAD);
 
   harness.StopTracing();
   std::string json = harness.perfetto_json_stream();
@@ -955,6 +947,40 @@ TEST(TracingPerfetto) {
 
   printf("%s\n", perfetto_json_stream_.str().c_str());
   CHECK_GT(perfetto_json_stream_.str().length(), 0);
+}
+
+TEST(StartAndStopRepeated) {
+  for (int i = 0; i < 3; i++) {
+    ::perfetto::TraceConfig perfetto_trace_config;
+    perfetto_trace_config.add_buffers()->set_size_kb(4096);
+    auto* ds_config =
+        perfetto_trace_config.add_data_sources()->mutable_config();
+    ds_config->set_name("v8.trace_events");
+
+    perfetto::DataSourceDescriptor dsd;
+    dsd.set_name("v8.trace_events");
+    TestDataSource::Register(dsd);
+
+    auto tracing_session_ =
+        perfetto::Tracing::NewTrace(perfetto::BackendType::kInProcessBackend);
+    tracing_session_->Setup(perfetto_trace_config);
+    tracing_session_->StartBlocking();
+
+    for (int i = 0; i < 15; i++) {
+      TestDataSource::Trace([&](TestDataSource::TraceContext ctx) {
+        auto packet = ctx.NewTracePacket();
+        auto* trace_event_bundle = packet->set_chrome_events();
+        auto* trace_event = trace_event_bundle->add_trace_events();
+
+        trace_event->set_phase('c');
+        trace_event->set_thread_id(v8::base::OS::GetCurrentThreadId());
+        trace_event->set_timestamp(123);
+        trace_event->set_process_id(v8::base::OS::GetCurrentProcessId());
+        trace_event->set_thread_timestamp(123);
+      });
+    }
+    tracing_session_->StopBlocking();
+  }
 }
 
 #endif  // V8_USE_PERFETTO

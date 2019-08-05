@@ -48,7 +48,13 @@
 #include "test/cctest/profiler-extension.h"
 
 #include "include/libplatform/v8-tracing.h"
+#include "src/libplatform/tracing/trace-event-listener.h"
 #include "src/tracing/trace-event.h"
+
+#ifdef V8_USE_PERFETTO
+#include "perfetto/trace/chrome/chrome_trace_event.pb.h"
+#include "perfetto/trace/trace.pb.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -2635,6 +2641,41 @@ using v8::platform::tracing::TraceObject;
 
 namespace {
 
+#ifdef V8_USE_PERFETTO
+
+class CpuProfilerListener : public platform::tracing::TraceEventListener {
+ public:
+  void ProcessPacket(const ::perfetto::protos::TracePacket& packet) {
+    for (const ::perfetto::protos::ChromeTraceEvent& trace_event :
+         packet.chrome_events().trace_events()) {
+      if (trace_event.name() != std::string("Profile") &&
+          trace_event.name() != std::string("ProfileChunk"))
+        return;
+      CHECK(!profile_id_ || trace_event.id() == profile_id_);
+      CHECK_EQ(1, trace_event.args_size());
+      CHECK(trace_event.args()[0].has_json_value());
+      profile_id_ = trace_event.id();
+      result_json_ += result_json_.empty() ? "[" : ",\n";
+      result_json_ += trace_event.args()[0].json_value();
+    }
+  }
+
+  const std::string& result_json() {
+    result_json_ += "]";
+    return result_json_;
+  }
+  void Reset() {
+    result_json_.clear();
+    profile_id_ = 0;
+  }
+
+ private:
+  std::string result_json_;
+  uint64_t profile_id_ = 0;
+};
+
+#else
+
 class CpuProfileEventChecker : public v8::platform::tracing::TraceWriter {
  public:
   void AppendTraceEvent(TraceObject* trace_event) override {
@@ -2663,6 +2704,8 @@ class CpuProfileEventChecker : public v8::platform::tracing::TraceWriter {
   uint64_t profile_id_ = 0;
 };
 
+#endif  // !V8_USE_PERFETTO
+
 }  // namespace
 
 TEST(TracingCpuProfiler) {
@@ -2670,17 +2713,20 @@ TEST(TracingCpuProfiler) {
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
 
-  CpuProfileEventChecker* event_checker = new CpuProfileEventChecker();
-  TraceBuffer* ring_buffer =
-      TraceBuffer::CreateTraceBufferRingBuffer(1, event_checker);
   auto* tracing_controller =
       static_cast<v8::platform::tracing::TracingController*>(
           i::V8::GetCurrentPlatform()->GetTracingController());
-  tracing_controller->Initialize(ring_buffer);
 
 #ifdef V8_USE_PERFETTO
   std::ostringstream perfetto_output;
   tracing_controller->InitializeForPerfetto(&perfetto_output);
+  CpuProfilerListener listener;
+  tracing_controller->SetTraceEventListenerForTesting(&listener);
+#else
+  CpuProfileEventChecker* event_checker = new CpuProfileEventChecker();
+  TraceBuffer* ring_buffer =
+      TraceBuffer::CreateTraceBufferRingBuffer(1, event_checker);
+  tracing_controller->Initialize(ring_buffer);
 #endif
 
   bool result = false;
@@ -2705,8 +2751,13 @@ TEST(TracingCpuProfiler) {
     CompileRun(test_code.c_str());
     tracing_controller->StopTracing();
 
+#ifdef V8_USE_PERFETTO
+    std::string profile_json = listener.result_json();
+    listener.Reset();
+#else
     std::string profile_json = event_checker->result_json();
     event_checker->Reset();
+#endif
     CHECK_LT(0u, profile_json.length());
     printf("Profile JSON: %s\n", profile_json.c_str());
 

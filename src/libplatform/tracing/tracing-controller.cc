@@ -294,7 +294,8 @@ void TracingController::StartTracing(TraceConfig* trace_config) {
 
   perfetto::DataSourceDescriptor dsd;
   dsd.set_name("v8.trace_events");
-  V8DataSource::Register(dsd);
+  bool registered = V8DataSource::Register(dsd);
+  CHECK(registered);
 
   tracing_session_ =
       perfetto::Tracing::NewTrace(perfetto::BackendType::kUnspecifiedBackend);
@@ -334,6 +335,16 @@ void TracingController::StopTracing() {
   }
 
 #ifdef V8_USE_PERFETTO
+  // Emit a fake trace event from the main thread. The final trace event is
+  // sometimes skipped because perfetto can't guarantee that the caller is
+  // totally finished writing to it without synchronization. To avoid the
+  // situation where we lose the last trace event, add a fake one here that will
+  // be sacrificed.
+  // TODO(petermarshall): Use the Client API to flush here rather than this
+  // workaround when that becomes available.
+  V8DataSource::Trace([&](V8DataSource::TraceContext ctx) {
+    auto packet = ctx.NewTracePacket();
+  });
   base::Semaphore stopped_{0};
   tracing_session_->SetOnStopCallback([&stopped_]() { stopped_.Signal(); });
   tracing_session_->Stop();
