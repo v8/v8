@@ -310,13 +310,19 @@ namespace {
 
 bool EnsureFeedbackVector(Handle<JSFunction> function) {
   // Check function allows lazy compilation.
-  if (!function->shared().allows_lazy_compilation()) {
-    return false;
-  }
+  if (!function->shared().allows_lazy_compilation()) return false;
+
+  if (function->has_feedback_vector()) return true;
 
   // If function isn't compiled, compile it now.
   IsCompiledScope is_compiled_scope(function->shared().is_compiled_scope());
-  if (!is_compiled_scope.is_compiled() &&
+  // If the JSFunction isn't compiled but it has a initialized feedback cell
+  // then no need to compile. CompileLazy builtin would handle these cases by
+  // installing the code from SFI. Calling compile here may cause another
+  // optimization if FLAG_always_opt is set.
+  bool needs_compilation =
+      !function->is_compiled() && !function->has_closure_feedback_cell_array();
+  if (needs_compilation &&
       !Compiler::Compile(function, Compiler::CLEAR_EXCEPTION,
                          &is_compiled_scope)) {
     return false;

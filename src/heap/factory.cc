@@ -2510,7 +2510,7 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
       NewFunction(initial_map, info, context, allocation);
 
   // Give compiler a chance to pre-initialize.
-  Compiler::PostInstantiation(result, allocation);
+  Compiler::PostInstantiation(result);
 
   return result;
 }
@@ -2542,7 +2542,7 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
   result->set_raw_feedback_cell(*feedback_cell);
 
   // Give compiler a chance to pre-initialize.
-  Compiler::PostInstantiation(result, allocation);
+  Compiler::PostInstantiation(result);
 
   return result;
 }

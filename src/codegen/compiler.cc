@@ -2298,8 +2298,7 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
   return CompilationJob::FAILED;
 }
 
-void Compiler::PostInstantiation(Handle<JSFunction> function,
-                                 AllocationType allocation) {
+void Compiler::PostInstantiation(Handle<JSFunction> function) {
   Isolate* isolate = function->GetIsolate();
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   IsCompiledScope is_compiled_scope(shared->is_compiled_scope());
