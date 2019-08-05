@@ -60,10 +60,6 @@ class V8_EXPORT_PRIVATE DisjointAllocationPool final {
   // failure.
   base::AddressRegion Allocate(size_t size);
 
-  // Allocate a contiguous region of size {size} within {region}. Return an
-  // empty pool on failure.
-  base::AddressRegion AllocateInRegion(size_t size, base::AddressRegion);
-
   bool IsEmpty() const { return regions_.empty(); }
   const std::list<base::AddressRegion>& regions() const { return regions_; }
 
@@ -298,11 +294,6 @@ class WasmCodeAllocator {
   // Allocate code space. Returns a valid buffer or fails with OOM (crash).
   Vector<byte> AllocateForCode(NativeModule*, size_t size);
 
-  // Allocate code space within a specific region. Returns a valid buffer or
-  // fails with OOM (crash).
-  Vector<byte> AllocateForCodeInRegion(NativeModule*, size_t size,
-                                       base::AddressRegion);
-
   // Sets permissions of all owned code space to executable, or read-write (if
   // {executable} is false). Returns true on success.
   V8_EXPORT_PRIVATE bool SetExecutable(bool executable);
@@ -526,8 +517,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   WasmCode* AddAndPublishAnonymousCode(Handle<Code>, WasmCode::Kind kind,
                                        const char* name = nullptr);
 
-  WasmCode* CreateEmptyJumpTableInRegion(uint32_t jump_table_size,
-                                         base::AddressRegion);
+  WasmCode* CreateEmptyJumpTable(uint32_t jump_table_size);
 
   // Called by the {WasmCodeAllocator} to register a new code space.
   void AddCodeSpace(base::AddressRegion);
