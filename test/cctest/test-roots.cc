@@ -46,7 +46,6 @@ bool IsInitiallyMutable(Factory* factory, Address object_address) {
   V(detached_contexts)                    \
   V(dirty_js_finalization_groups)         \
   V(feedback_vectors_for_profiling_tools) \
-  V(shared_wasm_memories)                 \
   V(materialized_objects)                 \
   V(noscript_shared_function_infos)       \
   V(public_symbol_table)                  \
