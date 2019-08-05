@@ -1614,12 +1614,14 @@ Maybe<bool> JSReceiver::GetOwnPropertyDescriptor(LookupIterator* it,
     // 6. Else X is an accessor property, so
     Handle<AccessorPair> accessors =
         Handle<AccessorPair>::cast(it->GetAccessors());
+    Handle<NativeContext> native_context =
+        it->GetHolder<JSReceiver>()->GetCreationContext();
     // 6a. Set D.[[Get]] to the value of X's [[Get]] attribute.
-    desc->set_get(
-        AccessorPair::GetComponent(isolate, accessors, ACCESSOR_GETTER));
+    desc->set_get(AccessorPair::GetComponent(isolate, native_context, accessors,
+                                             ACCESSOR_GETTER));
     // 6b. Set D.[[Set]] to the value of X's [[Set]] attribute.
-    desc->set_set(
-        AccessorPair::GetComponent(isolate, accessors, ACCESSOR_SETTER));
+    desc->set_set(AccessorPair::GetComponent(isolate, native_context, accessors,
+                                             ACCESSOR_SETTER));
   }
 
   // 7. Set D.[[Enumerable]] to the value of X's [[Enumerable]] attribute.

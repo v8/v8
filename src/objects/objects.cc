@@ -4289,11 +4289,13 @@ Handle<AccessorPair> AccessorPair::Copy(Isolate* isolate,
 }
 
 Handle<Object> AccessorPair::GetComponent(Isolate* isolate,
+                                          Handle<NativeContext> native_context,
                                           Handle<AccessorPair> accessor_pair,
                                           AccessorComponent component) {
   Object accessor = accessor_pair->get(component);
   if (accessor.IsFunctionTemplateInfo()) {
     return ApiNatives::InstantiateFunction(
+               isolate, native_context,
                handle(FunctionTemplateInfo::cast(accessor), isolate))
         .ToHandleChecked();
   }

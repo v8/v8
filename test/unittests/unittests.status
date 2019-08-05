@@ -3,12 +3,6 @@
 # found in the LICENSE file.
 
 [
-[ALWAYS, {
-  # https://crbug.com/986063.
-  # TODO(szuend): Re-enable test once the fix has landed.
-  'AccessRegressionTest.InstantiatedLazyAccessorPairsHaveCorrectNativeContext': [FAIL],
-}],  # ALWAYS
-
 ['system == macos and asan', {
   # BUG(820416).
   'BitsDeathTest*': [SKIP],

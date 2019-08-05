@@ -60,6 +60,7 @@ class AccessorPair : public Struct {
 
   // Note: Returns undefined if the component is not set.
   static Handle<Object> GetComponent(Isolate* isolate,
+                                     Handle<NativeContext> native_context,
                                      Handle<AccessorPair> accessor_pair,
                                      AccessorComponent component);
 
