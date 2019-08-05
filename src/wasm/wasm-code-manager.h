@@ -302,6 +302,10 @@ class WasmCodeAllocator {
   // Free memory pages of all given code objects. Used for wasm code GC.
   void FreeCode(Vector<WasmCode* const>);
 
+  // Returns the region of the single code space managed by this code allocator.
+  // Will fail if more than one code space has been created.
+  base::AddressRegion GetSingleCodeRegion() const;
+
  private:
   // The engine-wide wasm code manager.
   WasmCodeManager* const code_manager_;
@@ -400,17 +404,18 @@ class V8_EXPORT_PRIVATE NativeModule final {
   }
 
   Address jump_table_start() const {
-    return jump_table_ ? jump_table_->instruction_start() : kNullAddress;
+    return main_jump_table_ ? main_jump_table_->instruction_start()
+                            : kNullAddress;
   }
 
   uint32_t GetJumpTableOffset(uint32_t func_index) const;
 
   bool is_jump_table_slot(Address address) const {
-    return jump_table_->contains(address);
+    return main_jump_table_->contains(address);
   }
 
-  // Returns the target to call for the given function (returns a jump table
-  // slot within {jump_table_}).
+  // Returns the canonical target to call for the given function (the slot in
+  // the first jump table).
   Address GetCallTargetForFunction(uint32_t func_index) const;
 
   // Reverse lookup from a given call target (i.e. a jump table slot as the
@@ -485,8 +490,14 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
  private:
   friend class WasmCode;
+  friend class WasmCodeAllocator;
   friend class WasmCodeManager;
   friend class NativeModuleModificationScope;
+
+  struct CodeSpaceData {
+    base::AddressRegion region;
+    WasmCode* jump_table;
+  };
 
   // Private constructor, called via {WasmCodeManager::NewNativeModule()}.
   NativeModule(WasmEngine* engine, const WasmFeatures& enabled_features,
@@ -508,6 +519,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
                                        const char* name = nullptr);
 
   WasmCode* CreateEmptyJumpTable(uint32_t jump_table_size);
+
+  // Called by the {WasmCodeAllocator} to register a new code space.
+  void AddCodeSpace(base::AddressRegion);
 
   // Hold the {allocation_mutex_} when calling this method.
   bool has_interpreter_redirection(uint32_t func_index) {
@@ -556,8 +570,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Jump table used for runtime stubs (i.e. trampolines to embedded builtins).
   WasmCode* runtime_stub_table_ = nullptr;
 
-  // Jump table used to easily redirect wasm function calls.
-  WasmCode* jump_table_ = nullptr;
+  // Jump table used by external calls (from JS). Wasm calls use one of the jump
+  // tables stored in {code_space_data_}.
+  WasmCode* main_jump_table_ = nullptr;
 
   // Lazy compile stub table, containing entries to jump to the
   // {WasmCompileLazy} builtin, passing the function index.
@@ -586,6 +601,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Null if no redirections exist, otherwise a bitset over all functions in
   // this module marking those functions that have been redirected.
   std::unique_ptr<uint8_t[]> interpreter_redirections_;
+
+  // Data (especially jump table) per code space.
+  std::vector<CodeSpaceData> code_space_data_;
 
   // End of fields protected by {allocation_mutex_}.
   //////////////////////////////////////////////////////////////////////////////
