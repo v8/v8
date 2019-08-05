@@ -644,8 +644,6 @@ namespace internal {
   TFJ(MathCeil, 1, kReceiver, kX)                                              \
   /* ES6 #sec-math.floor */                                                    \
   TFJ(MathFloor, 1, kReceiver, kX)                                             \
-  /* ES6 #sec-math.hypot */                                                    \
-  CPP(MathHypot)                                                               \
   /* ES6 #sec-math.imul */                                                     \
   TFJ(MathImul, 2, kReceiver, kX, kY)                                          \
   /* ES6 #sec-math.max */                                                      \

@@ -179,100 +179,6 @@ Reduction JSCallReducer::ReduceMathMinMax(Node* node, const Operator* op,
   return Replace(value);
 }
 
-// ES section #sec-math.hypot Math.hypot ( value1, value2, ...values )
-Reduction JSCallReducer::ReduceMathHypot(Node* node) {
-  CallParameters const& p = CallParametersOf(node->op());
-  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
-    return NoChange();
-  }
-  if (node->op()->ValueInputCount() < 3) {
-    Node* value = jsgraph()->ZeroConstant();
-    ReplaceWithValue(node, value);
-    return Replace(value);
-  }
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  NodeVector values(graph()->zone());
-
-  Node* max = effect =
-      graph()->NewNode(simplified()->SpeculativeToNumber(
-                           NumberOperationHint::kNumberOrOddball, p.feedback()),
-                       NodeProperties::GetValueInput(node, 2), effect, control);
-  max = graph()->NewNode(simplified()->NumberAbs(), max);
-  values.push_back(max);
-  for (int i = 3; i < node->op()->ValueInputCount(); ++i) {
-    Node* input = effect = graph()->NewNode(
-        simplified()->SpeculativeToNumber(NumberOperationHint::kNumberOrOddball,
-                                          p.feedback()),
-        NodeProperties::GetValueInput(node, i), effect, control);
-    input = graph()->NewNode(simplified()->NumberAbs(), input);
-    values.push_back(input);
-
-    // Make sure {max} is NaN in the end in case any argument was NaN.
-    max = graph()->NewNode(
-        common()->Select(MachineRepresentation::kTagged),
-        graph()->NewNode(simplified()->NumberLessThanOrEqual(), input, max),
-        max, input);
-  }
-
-  Node* check0 = graph()->NewNode(simplified()->NumberEqual(), max,
-                                  jsgraph()->ZeroConstant());
-  Node* branch0 =
-      graph()->NewNode(common()->Branch(BranchHint::kFalse), check0, control);
-
-  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
-  Node* vtrue0 = jsgraph()->ZeroConstant();
-
-  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
-  Node* vfalse0;
-  {
-    Node* check1 = graph()->NewNode(simplified()->NumberEqual(), max,
-                                    jsgraph()->Constant(V8_INFINITY));
-    Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                     check1, if_false0);
-
-    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-    Node* vtrue1 = jsgraph()->Constant(V8_INFINITY);
-
-    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
-    Node* vfalse1;
-    {
-      // Kahan summation to avoid rounding errors.
-      // Normalize the numbers to the largest one to avoid overflow.
-      Node* sum = jsgraph()->ZeroConstant();
-      Node* compensation = jsgraph()->ZeroConstant();
-      for (Node* value : values) {
-        Node* n = graph()->NewNode(simplified()->NumberDivide(), value, max);
-        Node* summand = graph()->NewNode(
-            simplified()->NumberSubtract(),
-            graph()->NewNode(simplified()->NumberMultiply(), n, n),
-            compensation);
-        Node* preliminary =
-            graph()->NewNode(simplified()->NumberAdd(), sum, summand);
-        compensation = graph()->NewNode(
-            simplified()->NumberSubtract(),
-            graph()->NewNode(simplified()->NumberSubtract(), preliminary, sum),
-            summand);
-        sum = preliminary;
-      }
-      vfalse1 = graph()->NewNode(
-          simplified()->NumberMultiply(),
-          graph()->NewNode(simplified()->NumberSqrt(), sum), max);
-    }
-
-    if_false0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
-    vfalse0 = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                               vtrue1, vfalse1, if_false0);
-  }
-
-  control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
-  Node* value =
-      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2), vtrue0,
-                       vfalse0, control);
-  ReplaceWithValue(node, value, effect, control);
-  return Replace(value);
-}
-
 Reduction JSCallReducer::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kJSConstruct:
@@ -3669,8 +3575,6 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceMathUnary(node, simplified()->NumberFloor());
     case Builtins::kMathFround:
       return ReduceMathUnary(node, simplified()->NumberFround());
-    case Builtins::kMathHypot:
-      return ReduceMathHypot(node);
     case Builtins::kMathLog:
       return ReduceMathUnary(node, simplified()->NumberLog());
     case Builtins::kMathLog1p:

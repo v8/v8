@@ -235,4 +235,52 @@ namespace math {
     const value = Convert<float64>(ToNumber_Inline(context, x));
     return Convert<Number>(Float64Tanh(value));
   }
+
+  extern macro Float64Abs(float64): float64;
+
+  // ES6 #sec-math.hypot
+  transitioning javascript builtin
+  MathHypot(js-implicit context: Context, receiver: Object)(...arguments):
+      Number {
+    const length = arguments.length;
+    if (length == 0) {
+      return 0;
+    }
+    const absValues = AllocateZeroedFixedDoubleArray(length);
+    let oneArgIsNaN: bool = false;
+    let max: float64 = 0;
+    for (let i: intptr = 0; i < length; ++i) {
+      const value = Convert<float64>(ToNumber_Inline(context, arguments[i]));
+      if (Float64IsNaN(value)) {
+        oneArgIsNaN = true;
+      } else {
+        const absValue = Float64Abs(value);
+        absValues.floats[i] = absValue;
+        if (absValue > max) {
+          max = absValue;
+        }
+      }
+    }
+    if (max == V8_INFINITY) {
+      return V8_INFINITY;
+    } else if (oneArgIsNaN) {
+      return kNaN;
+    } else if (max == 0) {
+      return 0;
+    }
+    assert(max > 0);
+
+    // Kahan summation to avoid rounding errors.
+    // Normalize the numbers to the largest one to avoid overflow.
+    let sum: float64 = 0;
+    let compensation: float64 = 0;
+    for (let i: intptr = 0; i < length; ++i) {
+      const n = absValues.floats[i] / max;
+      const summand = n * n - compensation;
+      const preliminary = sum + summand;
+      compensation = (preliminary - sum) - summand;
+      sum = preliminary;
+    }
+    return Convert<Number>(Float64Sqrt(sum) * max);
+  }
 }

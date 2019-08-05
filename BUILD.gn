@@ -2057,7 +2057,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/builtins/builtins-internal.cc",
     "src/builtins/builtins-intl.cc",
     "src/builtins/builtins-json.cc",
-    "src/builtins/builtins-math.cc",
     "src/builtins/builtins-number.cc",
     "src/builtins/builtins-object.cc",
     "src/builtins/builtins-promise.cc",

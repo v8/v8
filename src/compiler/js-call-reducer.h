@@ -156,7 +156,6 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceMathImul(Node* node);
   Reduction ReduceMathClz32(Node* node);
   Reduction ReduceMathMinMax(Node* node, const Operator* op, Node* empty_value);
-  Reduction ReduceMathHypot(Node* node);
 
   Reduction ReduceNumberIsFinite(Node* node);
   Reduction ReduceNumberIsInteger(Node* node);
