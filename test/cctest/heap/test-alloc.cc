@@ -54,12 +54,12 @@ Handle<Object> HeapTester::TestAllocateAfterFailures() {
       heap->AllocateRaw(size, AllocationType::kYoung).ToObjectChecked();
   // In order to pass heap verification on Isolate teardown, mark the
   // allocated area as a filler.
-  heap->CreateFillerObjectAt(obj.address(), size, ClearRecordedSlots::kNo);
+  heap->CreateFillerObjectAt(obj.address(), size);
 
   // Old generation.
   heap::SimulateFullSpace(heap->old_space());
   obj = heap->AllocateRaw(size, AllocationType::kOld).ToObjectChecked();
-  heap->CreateFillerObjectAt(obj.address(), size, ClearRecordedSlots::kNo);
+  heap->CreateFillerObjectAt(obj.address(), size);
 
   // Large object space.
   static const size_t kLargeObjectSpaceFillerLength =
@@ -71,23 +71,22 @@ Handle<Object> HeapTester::TestAllocateAfterFailures() {
   while (heap->OldGenerationSpaceAvailable() > kLargeObjectSpaceFillerSize) {
     obj = heap->AllocateRaw(kLargeObjectSpaceFillerSize, AllocationType::kOld)
               .ToObjectChecked();
-    heap->CreateFillerObjectAt(obj.address(), size, ClearRecordedSlots::kNo);
+    heap->CreateFillerObjectAt(obj.address(), size);
   }
   obj = heap->AllocateRaw(kLargeObjectSpaceFillerSize, AllocationType::kOld)
             .ToObjectChecked();
-  heap->CreateFillerObjectAt(obj.address(), size, ClearRecordedSlots::kNo);
+  heap->CreateFillerObjectAt(obj.address(), size);
 
   // Map space.
   heap::SimulateFullSpace(heap->map_space());
   obj = heap->AllocateRaw(Map::kSize, AllocationType::kMap).ToObjectChecked();
-  heap->CreateFillerObjectAt(obj.address(), Map::kSize,
-                             ClearRecordedSlots::kNo);
+  heap->CreateFillerObjectAt(obj.address(), Map::kSize);
 
   // Code space.
   heap::SimulateFullSpace(heap->code_space());
   size = CcTest::i_isolate()->builtins()->builtin(Builtins::kIllegal).Size();
   obj = heap->AllocateRaw(size, AllocationType::kCode).ToObjectChecked();
-  heap->CreateFillerObjectAt(obj.address(), size, ClearRecordedSlots::kNo);
+  heap->CreateFillerObjectAt(obj.address(), size);
   return CcTest::i_isolate()->factory()->true_value();
 }
 

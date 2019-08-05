@@ -621,8 +621,7 @@ void SharedFunctionInfo::ClearPreparseData() {
   heap->CreateFillerObjectAt(
       data.address() + UncompiledDataWithoutPreparseData::kSize,
       UncompiledDataWithPreparseData::kSize -
-          UncompiledDataWithoutPreparseData::kSize,
-      ClearRecordedSlots::kNo);
+          UncompiledDataWithoutPreparseData::kSize);
 
   // Ensure that the clear was successful.
   DCHECK(HasUncompiledDataWithoutPreparseData());
