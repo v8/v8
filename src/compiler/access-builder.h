@@ -128,9 +128,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSArray::length() field.
   static FieldAccess ForJSArrayLength(ElementsKind elements_kind);
 
-  // Provides access to JSArrayBuffer::backing_store() field.
-  static FieldAccess ForJSArrayBufferBackingStore();
-
   // Provides access to JSArrayBuffer::bit_field() field.
   static FieldAccess ForJSArrayBufferBitField();
 
@@ -236,23 +233,11 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to ExternalString::resource_data() field.
   static FieldAccess ForExternalStringResourceData();
 
-  // Provides access to ExternalOneByteString characters.
-  static ElementAccess ForExternalOneByteStringCharacter();
-
-  // Provides access to ExternalTwoByteString characters.
-  static ElementAccess ForExternalTwoByteStringCharacter();
-
   // Provides access to SeqOneByteString characters.
   static ElementAccess ForSeqOneByteStringCharacter();
 
   // Provides access to SeqTwoByteString characters.
   static ElementAccess ForSeqTwoByteStringCharacter();
-
-  // Provides access to JSGlobalObject::global_proxy() field.
-  static FieldAccess ForJSGlobalObjectGlobalProxy();
-
-  // Provides access to JSGlobalObject::native_context() field.
-  static FieldAccess ForJSGlobalObjectNativeContext();
 
   // Provides access to JSGlobalProxy::native_context() field.
   static FieldAccess ForJSGlobalProxyNativeContext();
@@ -271,9 +256,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
   // Provides access to JSStringIterator::index() field.
   static FieldAccess ForJSStringIteratorIndex();
-
-  // Provides access to JSPrimitiveWrapper::value() field.
-  static FieldAccess ForValue();
 
   // Provides access to Cell::value() field.
   static FieldAccess ForCellValue();
@@ -327,7 +309,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static ElementAccess ForOrderedHashMapEntryValue();
 
   // Provides access to Dictionary fields.
-  static FieldAccess ForDictionaryMaxNumberKey();
   static FieldAccess ForDictionaryNextEnumerationIndex();
   static FieldAccess ForDictionaryObjectHashIndex();
 
