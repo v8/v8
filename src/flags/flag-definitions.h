@@ -713,6 +713,13 @@ DEFINE_STRING(dump_wasm_module_path, nullptr,
 FOREACH_WASM_FEATURE_FLAG(DECL_WASM_FLAG)
 #undef DECL_WASM_FLAG
 
+DEFINE_BOOL(wasm_staging, false, "enable staged wasm features")
+
+#define WASM_STAGING_IMPLICATION(feat, desc, val) \
+  DEFINE_IMPLICATION(wasm_staging, experimental_wasm_##feat)
+FOREACH_WASM_STAGING_FEATURE_FLAG(WASM_STAGING_IMPLICATION)
+#undef WASM_STAGING_IMPLICATION
+
 DEFINE_BOOL(wasm_opt, false, "enable wasm optimization")
 DEFINE_BOOL(wasm_no_bounds_checks, false,
             "disable bounds checks (performance testing only)")
