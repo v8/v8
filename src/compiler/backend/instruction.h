@@ -1270,6 +1270,13 @@ class FrameStateDescriptor : public ZoneObject {
            type_ == FrameStateType::kConstructStub;
   }
 
+  // The frame height on the stack, in number of slots, as serialized into a
+  // Translation and later used by the deoptimizer. Does *not* include
+  // information from the chain of outer states. Unlike |GetSize| this does not
+  // always include parameters, locals, and stack slots; instead, the returned
+  // slot kinds depend on the frame type.
+  size_t GetHeight() const;
+
   size_t GetSize() const;
   size_t GetTotalSize() const;
   size_t GetFrameCount() const;

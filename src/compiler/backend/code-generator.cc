@@ -996,8 +996,12 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
     }
     shared_info = info()->shared_info();
   }
-  int shared_info_id =
+
+  const BailoutId bailout_id = descriptor->bailout_id();
+  const int shared_info_id =
       DefineDeoptimizationLiteral(DeoptimizationLiteral(shared_info));
+  const unsigned int height =
+      static_cast<unsigned int>(descriptor->GetHeight());
 
   switch (descriptor->type()) {
     case FrameStateType::kInterpretedFunction: {
@@ -1007,45 +1011,30 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
         return_offset = static_cast<int>(state_combine.GetOffsetToPokeAt());
         return_count = static_cast<int>(iter->instruction()->OutputCount());
       }
-      translation->BeginInterpretedFrame(
-          descriptor->bailout_id(), shared_info_id,
-          static_cast<unsigned int>(descriptor->locals_count() + 1),
-          return_offset, return_count);
+      translation->BeginInterpretedFrame(bailout_id, shared_info_id, height,
+                                         return_offset, return_count);
       break;
     }
     case FrameStateType::kArgumentsAdaptor:
-      translation->BeginArgumentsAdaptorFrame(
-          shared_info_id,
-          static_cast<unsigned int>(descriptor->parameters_count()));
+      translation->BeginArgumentsAdaptorFrame(shared_info_id, height);
       break;
     case FrameStateType::kConstructStub:
-      DCHECK(descriptor->bailout_id().IsValidForConstructStub());
-      translation->BeginConstructStubFrame(
-          descriptor->bailout_id(), shared_info_id,
-          static_cast<unsigned int>(descriptor->parameters_count() + 1));
+      DCHECK(bailout_id.IsValidForConstructStub());
+      translation->BeginConstructStubFrame(bailout_id, shared_info_id, height);
       break;
     case FrameStateType::kBuiltinContinuation: {
-      BailoutId bailout_id = descriptor->bailout_id();
-      int parameter_count =
-          static_cast<unsigned int>(descriptor->parameters_count());
       translation->BeginBuiltinContinuationFrame(bailout_id, shared_info_id,
-                                                 parameter_count);
+                                                 height);
       break;
     }
     case FrameStateType::kJavaScriptBuiltinContinuation: {
-      BailoutId bailout_id = descriptor->bailout_id();
-      int parameter_count =
-          static_cast<unsigned int>(descriptor->parameters_count());
       translation->BeginJavaScriptBuiltinContinuationFrame(
-          bailout_id, shared_info_id, parameter_count);
+          bailout_id, shared_info_id, height);
       break;
     }
     case FrameStateType::kJavaScriptBuiltinContinuationWithCatch: {
-      BailoutId bailout_id = descriptor->bailout_id();
-      int parameter_count =
-          static_cast<unsigned int>(descriptor->parameters_count());
       translation->BeginJavaScriptBuiltinContinuationWithCatchFrame(
-          bailout_id, shared_info_id, parameter_count);
+          bailout_id, shared_info_id, height);
       break;
     }
   }
