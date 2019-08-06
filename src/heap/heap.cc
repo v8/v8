@@ -270,10 +270,11 @@ size_t Heap::MinOldGenerationSize() {
 size_t Heap::MaxOldGenerationSize(uint64_t physical_memory) {
   size_t max_size = V8HeapTrait::kMaxSize;
   // Finch experiment: Increase the heap size from 2GB to 4GB for 64-bit
-  // systems with physical memory bigger than 16GB.
+  // systems with physical memory bigger than 16GB. The physical memory
+  // is rounded up to GB.
   constexpr bool x64_bit = Heap::kPointerMultiplier >= 2;
   if (FLAG_huge_max_old_generation_size && x64_bit &&
-      physical_memory / GB > 16) {
+      (physical_memory + 512 * MB) / GB >= 16) {
     DCHECK_EQ(max_size / GB, 2);
     max_size *= 2;
   }
