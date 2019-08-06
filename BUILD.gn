@@ -198,6 +198,10 @@ declare_args() {
   # Redirect allocation in young generation so that there will be
   # only one single generation.
   v8_enable_single_generation = ""
+
+  # Use token threaded dispatch for the regular expression interpreter.
+  # Use switch-based dispatch if this is false
+  v8_enable_regexp_interpreter_threaded_dispatch = true
 }
 
 # Derived defaults.
@@ -472,6 +476,9 @@ config("features") {
   }
   if (v8_win64_unwinding_info) {
     defines += [ "V8_WIN64_UNWINDING_INFO" ]
+  }
+  if (v8_enable_regexp_interpreter_threaded_dispatch) {
+    defines += [ "V8_ENABLE_REGEXP_INTERPRETER_THREADED_DISPATCH" ]
   }
 }
 
