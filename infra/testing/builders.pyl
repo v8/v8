@@ -483,13 +483,8 @@
     'swarming_dimensions' : {
       'os': 'Ubuntu-16.04',
     },
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 3600,
-      'priority': 35,
-    },
     'tests': [
-      {'name': 'v8testing', 'shards': 7},
+      {'name': 'v8testing', 'shards': 12},
     ],
   },
   ##############################################################################
