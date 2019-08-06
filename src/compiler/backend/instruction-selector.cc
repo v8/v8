@@ -1276,9 +1276,9 @@ void InstructionSelector::VisitNode(Node* node) {
       // No code needed for these graph artifacts.
       return;
     case IrOpcode::kIfException:
-      return MarkAsReference(node), VisitIfException(node);
+      return MarkAsTagged(node), VisitIfException(node);
     case IrOpcode::kFinishRegion:
-      return MarkAsReference(node), VisitFinishRegion(node);
+      return MarkAsTagged(node), VisitFinishRegion(node);
     case IrOpcode::kParameter: {
       MachineType type =
           linkage()->GetParameterType(ParameterIndexOf(node->op()));
@@ -1286,7 +1286,7 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitParameter(node);
     }
     case IrOpcode::kOsrValue:
-      return MarkAsReference(node), VisitOsrValue(node);
+      return MarkAsTagged(node), VisitOsrValue(node);
     case IrOpcode::kPhi: {
       MachineRepresentation rep = PhiRepresentationOf(node->op());
       if (rep == MachineRepresentation::kNone) return;
@@ -1306,16 +1306,16 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kFloat64Constant:
       return MarkAsFloat64(node), VisitConstant(node);
     case IrOpcode::kHeapConstant:
-      return MarkAsReference(node), VisitConstant(node);
+      return MarkAsTagged(node), VisitConstant(node);
     case IrOpcode::kCompressedHeapConstant:
       return MarkAsCompressed(node), VisitConstant(node);
     case IrOpcode::kNumberConstant: {
       double value = OpParameter<double>(node->op());
-      if (!IsSmiDouble(value)) MarkAsReference(node);
+      if (!IsSmiDouble(value)) MarkAsTagged(node);
       return VisitConstant(node);
     }
     case IrOpcode::kDelayedStringConstant:
-      return MarkAsReference(node), VisitConstant(node);
+      return MarkAsTagged(node), VisitConstant(node);
     case IrOpcode::kCall:
       return VisitCall(node);
     case IrOpcode::kDeoptimizeIf:
@@ -1484,7 +1484,7 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsRepresentation(MachineType::PointerRepresentation(), node),
              VisitBitcastTaggedToWord(node);
     case IrOpcode::kBitcastWordToTagged:
-      return MarkAsReference(node), VisitBitcastWordToTagged(node);
+      return MarkAsTagged(node), VisitBitcastWordToTagged(node);
     case IrOpcode::kBitcastWordToTaggedSigned:
       return MarkAsRepresentation(MachineRepresentation::kTaggedSigned, node),
              EmitIdentity(node);
@@ -1536,18 +1536,20 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kChangeTaggedToCompressed:
       return MarkAsCompressed(node), VisitChangeTaggedToCompressed(node);
     case IrOpcode::kChangeTaggedPointerToCompressedPointer:
-      return MarkAsCompressed(node),
+      return MarkAsRepresentation(MachineRepresentation::kCompressedPointer,
+                                  node),
              VisitChangeTaggedPointerToCompressedPointer(node);
     case IrOpcode::kChangeTaggedSignedToCompressedSigned:
-      return MarkAsWord32(node),
+      return MarkAsRepresentation(MachineRepresentation::kCompressedSigned,
+                                  node),
              VisitChangeTaggedSignedToCompressedSigned(node);
     case IrOpcode::kChangeCompressedToTagged:
-      return MarkAsReference(node), VisitChangeCompressedToTagged(node);
+      return MarkAsTagged(node), VisitChangeCompressedToTagged(node);
     case IrOpcode::kChangeCompressedPointerToTaggedPointer:
-      return MarkAsReference(node),
+      return MarkAsRepresentation(MachineRepresentation::kTaggedPointer, node),
              VisitChangeCompressedPointerToTaggedPointer(node);
     case IrOpcode::kChangeCompressedSignedToTaggedSigned:
-      return MarkAsWord64(node),
+      return MarkAsRepresentation(MachineRepresentation::kTaggedSigned, node),
              VisitChangeCompressedSignedToTaggedSigned(node);
 #endif
     case IrOpcode::kTruncateFloat64ToFloat32:
@@ -1697,7 +1699,7 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kFloat64InsertHighWord32:
       return MarkAsFloat64(node), VisitFloat64InsertHighWord32(node);
     case IrOpcode::kTaggedPoisonOnSpeculation:
-      return MarkAsReference(node), VisitTaggedPoisonOnSpeculation(node);
+      return MarkAsTagged(node), VisitTaggedPoisonOnSpeculation(node);
     case IrOpcode::kWord32PoisonOnSpeculation:
       return MarkAsWord32(node), VisitWord32PoisonOnSpeculation(node);
     case IrOpcode::kWord64PoisonOnSpeculation:

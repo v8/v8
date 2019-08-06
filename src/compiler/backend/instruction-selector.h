@@ -543,7 +543,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void MarkAsSimd128(Node* node) {
     MarkAsRepresentation(MachineRepresentation::kSimd128, node);
   }
-  void MarkAsReference(Node* node) {
+  void MarkAsTagged(Node* node) {
     MarkAsRepresentation(MachineRepresentation::kTagged, node);
   }
   void MarkAsCompressed(Node* node) {
