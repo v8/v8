@@ -58,7 +58,7 @@ namespace data_view {
     }
   }
 
-  macro WasNeutered(view: JSArrayBufferView): bool {
+  macro WasDetached(view: JSArrayBufferView): bool {
     return IsDetachedBuffer(view.buffer);
   }
 
@@ -86,9 +86,9 @@ namespace data_view {
       js-implicit context: Context, receiver: Object)(...arguments): Number {
     const dataView: JSDataView = ValidateDataView(
         context, receiver, 'get DataView.prototype.byte_length');
-    if (WasNeutered(dataView)) {
+    if (WasDetached(dataView)) {
       // TODO(bmeurer): According to the ES6 spec, we should throw a TypeError
-      // here if the JSArrayBuffer of the {dataView} was neutered.
+      // here if the JSArrayBuffer of the {dataView} was detached.
       return 0;
     }
     return Convert<Number>(dataView.byte_length);
@@ -99,9 +99,9 @@ namespace data_view {
       js-implicit context: Context, receiver: Object)(...arguments): Number {
     const dataView: JSDataView = ValidateDataView(
         context, receiver, 'get DataView.prototype.byte_offset');
-    if (WasNeutered(dataView)) {
+    if (WasDetached(dataView)) {
       // TODO(bmeurer): According to the ES6 spec, we should throw a TypeError
-      // here if the JSArrayBuffer of the {dataView} was neutered.
+      // here if the JSArrayBuffer of the {dataView} was detached.
       return 0;
     }
     return Convert<Number>(dataView.byte_offset);
