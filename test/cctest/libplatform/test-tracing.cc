@@ -23,13 +23,9 @@
 class TestDataSource : public perfetto::DataSource<TestDataSource> {
  public:
   void OnSetup(const SetupArgs&) override {}
-  void OnStart(const StartArgs&) override { started_.Signal(); }
+  void OnStart(const StartArgs&) override {}
   void OnStop(const StopArgs&) override {}
-
-  static v8::base::Semaphore started_;
 };
-
-v8::base::Semaphore TestDataSource::started_{0};
 
 PERFETTO_DEFINE_DATA_SOURCE_STATIC_MEMBERS(TestDataSource);
 #endif  // V8_USE_PERFETTO
@@ -914,8 +910,7 @@ TEST(TracingPerfetto) {
   auto tracing_session_ =
       perfetto::Tracing::NewTrace(perfetto::BackendType::kInProcessBackend);
   tracing_session_->Setup(perfetto_trace_config);
-  tracing_session_->Start();
-  TestDataSource::started_.Wait();
+  tracing_session_->StartBlocking();
 
   for (int i = 0; i < 15; i++) {
     TestDataSource::Trace([&](TestDataSource::TraceContext ctx) {
@@ -930,10 +925,7 @@ TEST(TracingPerfetto) {
       trace_event->set_thread_timestamp(123);
     });
   }
-  v8::base::Semaphore stopped_{0};
-  tracing_session_->SetOnStopCallback([&stopped_]() { stopped_.Signal(); });
-  tracing_session_->Stop();
-  stopped_.Wait();
+  tracing_session_->StopBlocking();
 
   std::ostringstream perfetto_json_stream_;
 

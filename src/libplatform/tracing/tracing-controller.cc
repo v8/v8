@@ -26,13 +26,9 @@
 class V8DataSource : public perfetto::DataSource<V8DataSource> {
  public:
   void OnSetup(const SetupArgs&) override {}
-  void OnStart(const StartArgs&) override { started_.Signal(); }
+  void OnStart(const StartArgs&) override {}
   void OnStop(const StopArgs&) override {}
-
-  static v8::base::Semaphore started_;
 };
-
-v8::base::Semaphore V8DataSource::started_{0};
 
 PERFETTO_DEFINE_DATA_SOURCE_STATIC_MEMBERS(V8DataSource);
 #endif  // V8_USE_PERFETTO
@@ -300,9 +296,7 @@ void TracingController::StartTracing(TraceConfig* trace_config) {
   tracing_session_ =
       perfetto::Tracing::NewTrace(perfetto::BackendType::kUnspecifiedBackend);
   tracing_session_->Setup(perfetto_trace_config);
-  // TODO(petermarshall): Switch to StartBlocking when available.
-  tracing_session_->Start();
-  V8DataSource::started_.Wait();
+  tracing_session_->StartBlocking();
 
 #endif  // V8_USE_PERFETTO
 
@@ -345,10 +339,7 @@ void TracingController::StopTracing() {
   V8DataSource::Trace([&](V8DataSource::TraceContext ctx) {
     auto packet = ctx.NewTracePacket();
   });
-  base::Semaphore stopped_{0};
-  tracing_session_->SetOnStopCallback([&stopped_]() { stopped_.Signal(); });
-  tracing_session_->Stop();
-  stopped_.Wait();
+  tracing_session_->StopBlocking();
 
   std::vector<char> trace = tracing_session_->ReadTraceBlocking();
   json_listener_->ParseFromArray(trace);
