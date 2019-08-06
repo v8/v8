@@ -22,8 +22,23 @@ namespace internal {
 // See builtins-arraybuffer.cc for implementations of
 // SharedArrayBuffer.prototye.byteLength and SharedArrayBuffer.prototype.slice
 
+// #sec-atomics.islockfree
 inline bool AtomicIsLockFree(double size) {
-  return size == 1 || size == 2 || size == 4;
+  // According to the standard, 1, 2, and 4 byte atomics are supposed to be
+  // 'lock free' on every platform. But what exactly does 'lock free' mean?
+  // For example, on x64 V8 uses a lock prefix to implement the semantics of
+  // many atomic operations. Is that considered a lock? Probably not.
+  //
+  // On the other hand, V8 emits a few instructions for some arm atomics which
+  // do appear to be a low level form of a spin lock. With an abundance of
+  // caution, we only claim to have 'true lock free' support for 8 byte sizes
+  // on x64 platforms. If people care about this function returning true, then
+  // we need to clarify exactly what 'lock free' means at the standard level.
+  bool is_lock_free = size == 1 || size == 2 || size == 4;
+#if V8_TARGET_ARCH_x64
+  is_lock_free |= size == 8;
+#endif
+  return is_lock_free;
 }
 
 // ES #sec-atomics.islockfree
