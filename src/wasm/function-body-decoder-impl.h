@@ -847,7 +847,9 @@ class WasmDecoder : public Decoder {
             type = kWasmAnyRef;
             break;
           }
-          decoder->error(decoder->pc() - 1, "invalid local type");
+          decoder->error(decoder->pc() - 1,
+                         "invalid local type 'anyref', enable with "
+                         "--experimental-wasm-anyref");
           return false;
         case kLocalFuncRef:
           if (enabled.anyref) {
@@ -855,7 +857,7 @@ class WasmDecoder : public Decoder {
             break;
           }
           decoder->error(decoder->pc() - 1,
-                         "local type 'funcref' is not enabled with "
+                         "invalid local type 'funcref', enable with "
                          "--experimental-wasm-anyref");
           return false;
         case kLocalExnRef:
@@ -863,14 +865,19 @@ class WasmDecoder : public Decoder {
             type = kWasmExnRef;
             break;
           }
-          decoder->error(decoder->pc() - 1, "invalid local type");
+          decoder->error(decoder->pc() - 1,
+                         "invalid local type 'exception ref', enable with "
+                         "--experimental-wasm-eh");
           return false;
         case kLocalS128:
           if (enabled.simd) {
             type = kWasmS128;
             break;
           }
-          V8_FALLTHROUGH;
+          decoder->error(decoder->pc() - 1,
+                         "invalid local type 'Simd128', enable with "
+                         "--experimental-wasm-simd");
+          return false;
         default:
           decoder->error(decoder->pc() - 1, "invalid local type");
           return false;
