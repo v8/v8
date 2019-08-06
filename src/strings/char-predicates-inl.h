@@ -83,11 +83,11 @@ enum AsciiCharFlags {
 constexpr uint8_t BuildAsciiCharFlags(uc32 c) {
   // clang-format off
   return
-    (IsAsciiIdentifier(c) || c == '\\') ? (
-      kIsIdentifierPart | (!IsDecimalDigit(c) ? kIsIdentifierStart : 0)) : 0 |
-    (c == ' ' || c == '\t' || c == '\v' || c == '\f') ?
-      kIsWhiteSpace | kIsWhiteSpaceOrLineTerminator : 0 |
-    (c == '\r' || c == '\n') ? kIsWhiteSpaceOrLineTerminator : 0;
+    ((IsAsciiIdentifier(c) || c == '\\') ? (
+      kIsIdentifierPart | (!IsDecimalDigit(c) ? kIsIdentifierStart : 0)) : 0) |
+    ((c == ' ' || c == '\t' || c == '\v' || c == '\f') ?
+      kIsWhiteSpace | kIsWhiteSpaceOrLineTerminator : 0) |
+    ((c == '\r' || c == '\n') ? kIsWhiteSpaceOrLineTerminator : 0);
   // clang-format on
 }
 const constexpr uint8_t kAsciiCharFlags[128] = {
