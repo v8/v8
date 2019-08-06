@@ -62,6 +62,9 @@ TEST_F(WasmCapiTest, Table) {
   Func* g = GetExportedFunction(3);
   own<Func*> h = Func::make(store(), cpp_i_i_sig(), Negate);
 
+  // Try cloning.
+  EXPECT_TRUE(table->copy()->same(table));
+
   // Check initial table state.
   EXPECT_EQ(2u, table->size());
   EXPECT_EQ(nullptr, table->get(0));

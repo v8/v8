@@ -208,6 +208,7 @@ public:
     return v;
   }
 
+  // TODO(mvsc): MVSC requires this special case:
   static auto make() -> vec {
     return vec(0);
   }
@@ -454,6 +455,7 @@ public:
   void operator delete(void*);
 
   auto copy() const -> own<Ref*>;
+  auto same(const Ref*) const -> bool;
 
   auto get_host_info() const -> void*;
   void set_host_info(void* info, void (*finalizer)(void*) = nullptr);
@@ -537,6 +539,8 @@ public:
 
   auto copy() const -> Val {
     if (is_ref() && impl_.ref != nullptr) {
+      // TODO(mvsc): MVSC cannot handle this:
+      // impl impl = {.ref = impl_.ref->copy().release()};
       impl impl;
       impl.ref = impl_.ref->copy().release();
       return Val(kind_, impl);

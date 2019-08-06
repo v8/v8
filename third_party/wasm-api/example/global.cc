@@ -126,6 +126,9 @@ void run() {
   auto set_var_f32_export = get_export_func(exports, i++);
   auto set_var_i64_export = get_export_func(exports, i++);
 
+  // Try cloning.
+  assert(var_f32_import->copy()->same(var_f32_import.get()));
+
   // Interact.
   std::cout << "Accessing globals..." << std::endl;
 

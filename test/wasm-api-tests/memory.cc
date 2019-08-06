@@ -41,6 +41,9 @@ TEST_F(WasmCapiTest, Memory) {
   Func* load_func = GetExportedFunction(2);
   Func* store_func = GetExportedFunction(3);
 
+  // Try cloning.
+  EXPECT_TRUE(memory->copy()->same(memory));
+
   // Check initial state.
   EXPECT_EQ(2u, memory->size());
   EXPECT_EQ(0x20000u, memory->data_size());

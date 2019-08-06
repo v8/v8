@@ -209,8 +209,7 @@ TEST_F(WasmCapiTest, DirectCallCapiFunction) {
   EXPECT_EQ(a1 + 1, results[1].i64());
   EXPECT_EQ(a2 + 1, results[2].f32());
   EXPECT_EQ(a3 + 1, results[3].f64());
-  // TODO(jkummerow): Check that func == results[4] when we have a way
-  // to do so.
+  EXPECT_TRUE(func->same(results[4].ref()));
 
   // Test that {func} can be called after import/export round-tripping.
   trap = GetExportedFunction(0)->call(args, results);
@@ -219,8 +218,7 @@ TEST_F(WasmCapiTest, DirectCallCapiFunction) {
   EXPECT_EQ(a1 + 1, results[1].i64());
   EXPECT_EQ(a2 + 1, results[2].f32());
   EXPECT_EQ(a3 + 1, results[3].f64());
-  // TODO(jkummerow): Check that func == results[4] when we have a way
-  // to do so.
+  EXPECT_TRUE(func->same(results[4].ref()));
 }
 
 }  // namespace wasm

@@ -135,6 +135,11 @@ int main(int argc, const char* argv[]) {
 
   wasm_functype_delete(neg_type);
 
+  // Try cloning.
+  own wasm_table_t* copy = wasm_table_copy(table);
+  assert(wasm_table_same(table, copy));
+  wasm_table_delete(copy);
+
   // Check initial table.
   printf("Checking table...\n");
   check(wasm_table_size(table) == 2);

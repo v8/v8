@@ -142,6 +142,11 @@ int main(int argc, const char* argv[]) {
   wasm_func_t* set_var_f32_export = get_export_func(&exports, i++);
   wasm_func_t* set_var_i64_export = get_export_func(&exports, i++);
 
+  // Try cloning.
+  own wasm_global_t* copy = wasm_global_copy(var_f32_import);
+  assert(wasm_global_same(var_f32_import, copy));
+  wasm_global_delete(copy);
+
   // Interact.
   printf("Accessing globals...\n");
 

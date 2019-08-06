@@ -107,6 +107,9 @@ void run() {
   auto load_func = get_export_func(exports, i++);
   auto store_func = get_export_func(exports, i++);
 
+  // Try cloning.
+  assert(memory->copy()->same(memory));
+
   // Check initial memory.
   std::cout << "Checking memory..." << std::endl;
   check(memory->size(), 2u);

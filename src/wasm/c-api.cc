@@ -757,6 +757,11 @@ void Ref::operator delete(void* p) {}
 
 auto Ref::copy() const -> own<Ref*> { return impl(this)->copy(); }
 
+auto Ref::same(const Ref* that) const -> bool {
+  i::HandleScope handle_scope(impl(this)->isolate());
+  return impl(this)->v8_object()->SameValue(*impl(that)->v8_object());
+}
+
 auto Ref::get_host_info() const -> void* { return impl(this)->get_host_info(); }
 
 void Ref::set_host_info(void* info, void (*finalizer)(void*)) {
@@ -2343,6 +2348,11 @@ const wasm_externtype_t* wasm_exporttype_type(const wasm_exporttype_t* et) {
                                                                      \
   wasm_##name##_t* wasm_##name##_copy(const wasm_##name##_t* t) {    \
     return release(t->copy());                                       \
+  }                                                                  \
+                                                                     \
+  bool wasm_##name##_same(const wasm_##name##_t* t1,                 \
+                          const wasm_##name##_t* t2) {               \
+    return t1->same(t2);                                             \
   }                                                                  \
                                                                      \
   void* wasm_##name##_get_host_info(const wasm_##name##_t* r) {      \

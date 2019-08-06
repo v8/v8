@@ -130,6 +130,9 @@ TEST_F(WasmCapiTest, Globals) {
   Func* set_var_f32_export = GetExportedFunction(i++);
   Func* set_var_i64_export = GetExportedFunction(i++);
 
+  // Try cloning.
+  EXPECT_TRUE(var_f32_import->copy()->same(var_f32_import.get()));
+
   // Check initial values.
   EXPECT_EQ(1.f, const_f32_import->get().f32());
   EXPECT_EQ(2, const_i64_import->get().i64());

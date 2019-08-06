@@ -315,15 +315,16 @@ WASM_DECLARE_VEC(val, )
 
 // References
 
-#define WASM_DECLARE_REF_BASE(name) \
-  WASM_DECLARE_OWN(name) \
-  \
-  own wasm_##name##_t* wasm_##name##_copy(const wasm_##name##_t*); \
-  \
-  void* wasm_##name##_get_host_info(const wasm_##name##_t*); \
-  void wasm_##name##_set_host_info(wasm_##name##_t*, void*); \
-  void wasm_##name##_set_host_info_with_finalizer( \
-    wasm_##name##_t*, void*, void (*)(void*));
+#define WASM_DECLARE_REF_BASE(name)                                        \
+  WASM_DECLARE_OWN(name)                                                   \
+                                                                           \
+  own wasm_##name##_t* wasm_##name##_copy(const wasm_##name##_t*);         \
+  bool wasm_##name##_same(const wasm_##name##_t*, const wasm_##name##_t*); \
+                                                                           \
+  void* wasm_##name##_get_host_info(const wasm_##name##_t*);               \
+  void wasm_##name##_set_host_info(wasm_##name##_t*, void*);               \
+  void wasm_##name##_set_host_info_with_finalizer(wasm_##name##_t*, void*, \
+                                                  void (*)(void*));
 
 #define WASM_DECLARE_REF(name) \
   WASM_DECLARE_REF_BASE(name) \

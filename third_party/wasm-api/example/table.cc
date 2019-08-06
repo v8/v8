@@ -123,6 +123,9 @@ void run() {
   );
   auto h = wasm::Func::make(store, neg_type.get(), neg_callback);
 
+  // Try cloning.
+  assert(table->copy()->same(table));
+
   // Check initial table.
   std::cout << "Checking table..." << std::endl;
   check(table->size(), 2u);
