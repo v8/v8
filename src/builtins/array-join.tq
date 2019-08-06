@@ -16,7 +16,7 @@ namespace array_join {
     return GetProperty(receiver, k);
   }
 
-  LoadJoinElement<array::DictionaryElements>(
+  transitioning LoadJoinElement<array::DictionaryElements>(
       context: Context, receiver: JSReceiver, k: Number): Object {
     const array: JSArray = UnsafeCast<JSArray>(receiver);
     const dict: NumberDictionary = UnsafeCast<NumberDictionary>(array.elements);
@@ -323,7 +323,7 @@ namespace array_join {
       useToLocaleString: constexpr bool, receiver: JSReceiver, sep: String,
       lenNumber: Number, locales: Object, options: Object): Object;
 
-  ArrayJoin<JSArray>(implicit context: Context)(
+  transitioning ArrayJoin<JSArray>(implicit context: Context)(
       useToLocaleString: constexpr bool, receiver: JSReceiver, sep: String,
       lenNumber: Number, locales: Object, options: Object): Object {
     const map: Map = receiver.map;
@@ -370,7 +370,7 @@ namespace array_join {
         receiver, sep, lenNumber, useToLocaleString, locales, options, loadFn);
   }
 
-  ArrayJoin<JSTypedArray>(implicit context: Context)(
+  transitioning ArrayJoin<JSTypedArray>(implicit context: Context)(
       useToLocaleString: constexpr bool, receiver: JSReceiver, sep: String,
       lenNumber: Number, locales: Object, options: Object): Object {
     const map: Map = receiver.map;

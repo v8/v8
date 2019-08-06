@@ -647,22 +647,25 @@ using NameVector = std::vector<Identifier*>;
 
 struct Signature {
   Signature(NameVector n, base::Optional<std::string> arguments_variable,
-            ParameterTypes p, size_t i, const Type* r, LabelDeclarationVector l)
+            ParameterTypes p, size_t i, const Type* r, LabelDeclarationVector l,
+            bool transitioning)
       : parameter_names(std::move(n)),
         arguments_variable(arguments_variable),
         parameter_types(std::move(p)),
         implicit_count(i),
         return_type(r),
-        labels(std::move(l)) {}
-  Signature() : implicit_count(0), return_type(nullptr) {}
+        labels(std::move(l)),
+        transitioning(transitioning) {}
+  Signature() = default;
   const TypeVector& types() const { return parameter_types.types; }
   NameVector parameter_names;
   base::Optional<std::string> arguments_variable;
   ParameterTypes parameter_types;
-  size_t implicit_count;
+  size_t implicit_count = 0;
   size_t ExplicitCount() const { return types().size() - implicit_count; }
   const Type* return_type;
   LabelDeclarationVector labels;
+  bool transitioning = false;
   bool HasSameTypesAs(
       const Signature& other,
       ParameterMode mode = ParameterMode::kProcessImplicit) const;

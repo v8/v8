@@ -108,7 +108,8 @@ void ImplementationVisitor::EndCSAFiles() {
 }
 
 void ImplementationVisitor::Visit(NamespaceConstant* decl) {
-  Signature signature{{}, base::nullopt, {{}, false}, 0, decl->type(), {}};
+  Signature signature{{}, base::nullopt, {{}, false}, 0, decl->type(),
+                      {}, false};
 
   BindingsManagersScope bindings_managers_scope;
 
@@ -2412,7 +2413,7 @@ VisitResult ImplementationVisitor::Visit(IntrinsicCallExpression* expr) {
   for (Expression* arg : expr->arguments)
     arguments.parameters.push_back(Visit(arg));
   return scope.Yield(
-      GenerateCall(expr->name, arguments, specialization_types, false));
+      GenerateCall(expr->name->value, arguments, specialization_types, false));
 }
 
 void ImplementationVisitor::GenerateBranch(const VisitResult& condition,

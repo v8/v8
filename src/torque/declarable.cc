@@ -59,7 +59,7 @@ std::ostream& operator<<(std::ostream& os, const RuntimeFunction& b) {
 std::ostream& operator<<(std::ostream& os, const Generic& g) {
   os << "generic " << g.name() << "<";
   PrintCommaSeparatedList(
-      os, g.declaration()->generic_parameters,
+      os, g.generic_parameters(),
       [](const Identifier* identifier) { return identifier->value; });
   os << ">";
 
@@ -69,17 +69,27 @@ std::ostream& operator<<(std::ostream& os, const Generic& g) {
 TypeArgumentInference Generic::InferSpecializationTypes(
     const TypeVector& explicit_specialization_types,
     const TypeVector& arguments) {
-  size_t implicit_count =
-      declaration()->callable->signature->parameters.implicit_count;
+  size_t implicit_count = declaration()->parameters.implicit_count;
   const std::vector<TypeExpression*>& parameters =
-      declaration()->callable->signature->parameters.types;
+      declaration()->parameters.types;
   std::vector<TypeExpression*> explicit_parameters(
       parameters.begin() + implicit_count, parameters.end());
 
-  TypeArgumentInference inference(declaration()->generic_parameters,
+  TypeArgumentInference inference(generic_parameters(),
                                   explicit_specialization_types,
                                   explicit_parameters, arguments);
   return inference;
+}
+
+base::Optional<Statement*> Generic::CallableBody() {
+  if (auto* decl = TorqueMacroDeclaration::DynamicCast(declaration())) {
+    return decl->body;
+  } else if (auto* decl =
+                 TorqueBuiltinDeclaration::DynamicCast(declaration())) {
+    return decl->body;
+  } else {
+    return base::nullopt;
+  }
 }
 
 bool Namespace::IsDefaultNamespace() const {

@@ -92,22 +92,18 @@ void DeclareMethods(AggregateType* container_type,
                     const std::vector<Declaration*>& methods) {
   for (auto declaration : methods) {
     CurrentSourcePosition::Scope pos_scope(declaration->pos);
-    StandardDeclaration* standard_declaration =
-        StandardDeclaration::DynamicCast(declaration);
-    DCHECK(standard_declaration);
     TorqueMacroDeclaration* method =
-        TorqueMacroDeclaration::DynamicCast(standard_declaration->callable);
-    Signature signature = TypeVisitor::MakeSignature(method->signature.get());
+        TorqueMacroDeclaration::DynamicCast(declaration);
+    Signature signature = TypeVisitor::MakeSignature(method);
     signature.parameter_names.insert(
         signature.parameter_names.begin() + signature.implicit_count,
         MakeNode<Identifier>(kThisParameterName));
-    Statement* body = *(standard_declaration->body);
-    std::string method_name(method->name);
+    Statement* body = *(method->body);
+    const std::string& method_name(method->name->value);
     signature.parameter_types.types.insert(
         signature.parameter_types.types.begin() + signature.implicit_count,
         container_type);
-    Declarations::CreateMethod(container_type, method_name, signature, false,
-                               body);
+    Declarations::CreateMethod(container_type, method_name, signature, body);
   }
 }
 
@@ -231,22 +227,23 @@ const Type* TypeVisitor::ComputeType(TypeExpression* type_expression) {
   }
 }
 
-Signature TypeVisitor::MakeSignature(const CallableNodeSignature* signature) {
+Signature TypeVisitor::MakeSignature(const CallableDeclaration* declaration) {
   LabelDeclarationVector definition_vector;
-  for (const auto& label : signature->labels) {
+  for (const auto& label : declaration->labels) {
     LabelDeclaration def = {label.name, ComputeTypeVector(label.types)};
     definition_vector.push_back(def);
   }
   base::Optional<std::string> arguments_variable;
-  if (signature->parameters.has_varargs)
-    arguments_variable = signature->parameters.arguments_variable;
-  Signature result{signature->parameters.names,
+  if (declaration->parameters.has_varargs)
+    arguments_variable = declaration->parameters.arguments_variable;
+  Signature result{declaration->parameters.names,
                    arguments_variable,
-                   {ComputeTypeVector(signature->parameters.types),
-                    signature->parameters.has_varargs},
-                   signature->parameters.implicit_count,
-                   ComputeType(signature->return_type),
-                   definition_vector};
+                   {ComputeTypeVector(declaration->parameters.types),
+                    declaration->parameters.has_varargs},
+                   declaration->parameters.implicit_count,
+                   ComputeType(declaration->return_type),
+                   definition_vector,
+                   declaration->transitioning};
   return result;
 }
 
