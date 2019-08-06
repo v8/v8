@@ -399,6 +399,10 @@
   'tools/compiler-trace-flags': [SKIP],
   'tools/compiler-trace-flags-wasm': [SKIP],
 
+  # Too slow on arm64 simulator and debug: https://crbug.com/v8/7783
+  'bit-not': [PASS, ['arch == arm64 and mode == debug and simulator_run', SKIP]],
+  'md5': [PASS, ['arch == arm64 and mode == debug and simulator_run', SKIP]],
+
   # Slow with pointer compression.
   'regress/regress-crbug-319860': [PASS, ['pointer_compression', SLOW]],
 }],  # 'lite_mode or variant == jitless'
