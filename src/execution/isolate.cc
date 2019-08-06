@@ -4190,7 +4190,7 @@ Handle<Symbol> Isolate::SymbolFor(RootIndex dictionary_index,
                                      PropertyDetails::Empty(), &entry);
     switch (dictionary_index) {
       case RootIndex::kPublicSymbolTable:
-        symbol->set_is_public(true);
+        symbol->set_is_in_public_symbol_table(true);
         heap()->set_public_symbol_table(*dictionary);
         break;
       case RootIndex::kApiSymbolTable:
