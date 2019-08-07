@@ -2788,6 +2788,15 @@ TEST(PrivateMethods) {
       "\n"
       "  const e = new E;\n"
       "  e.callE();\n"
+      "}\n",
+
+      "{\n"
+      "  class A { foo() {} }\n"
+      "  class C extends A {\n"
+      "    #m() { return super.foo; }\n"
+      "    fn() { return this.#m(); }\n"
+      "  }\n"
+      "  new C().fn();\n"
       "}\n"};
 
   CHECK(CompareTexts(BuildActual(printer, snippets),

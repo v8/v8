@@ -158,3 +158,86 @@ constant pool: [
 handlers: [
 ]
 
+---
+snippet: "
+  {
+    class A { foo() {} }
+    class C extends A {
+      #m() { return super.foo; }
+      fn() { return this.#m(); }
+    }
+    new C().fn();
+  }
+"
+frame size: 10
+parameter count: 1
+bytecode array length: 131
+bytecodes: [
+  /*   30 E> */ B(StackCheck),
+                B(CreateBlockContext), U8(0),
+                B(PushContext), R(4),
+                B(LdaTheHole),
+                B(Star), R(8),
+                B(CreateClosure), U8(2), U8(0), U8(2),
+                B(Star), R(5),
+                B(LdaConstant), U8(1),
+                B(Star), R(6),
+                B(CreateClosure), U8(3), U8(1), U8(2),
+                B(Star), R(9),
+                B(Mov), R(5), R(7),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(6), U8(4),
+                B(Star), R(6),
+                B(Mov), R(7), R(3),
+                B(PopContext), R(4),
+                B(Mov), R(3), R(0),
+  /*   38 E> */ B(CreateBlockContext), U8(4),
+                B(PushContext), R(4),
+  /*   77 E> */ B(CreateClosure), U8(6), U8(2), U8(2),
+                B(Star), R(5),
+                B(LdaConstant), U8(5),
+                B(Star), R(6),
+                B(CreateClosure), U8(7), U8(3), U8(2),
+                B(StaCurrentContextSlot), U8(4),
+                B(CreateClosure), U8(8), U8(4), U8(2),
+                B(Star), R(9),
+                B(Mov), R(5), R(7),
+                B(Mov), R(3), R(8),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(6), U8(4),
+                B(Star), R(6),
+                B(Mov), R(7), R(2),
+                B(LdaConstant), U8(9),
+                B(Star), R(7),
+                B(CallRuntime), U16(Runtime::kCreatePrivateNameSymbol), R(7), U8(1),
+                B(StaCurrentContextSlot), U8(5),
+                B(LdaCurrentContextSlot), U8(4),
+                B(Star), R(8),
+                B(Ldar), R(6),
+                B(StaNamedProperty), R(8), U8(10), U8(0),
+                B(PopContext), R(4),
+                B(Mov), R(2), R(1),
+  /*  149 S> */ B(Ldar), R(1),
+  /*  149 E> */ B(Construct), R(5), R(0), U8(0), U8(2),
+                B(Star), R(5),
+  /*  157 E> */ B(LdaNamedProperty), R(5), U8(11), U8(4),
+                B(Star), R(4),
+  /*  157 E> */ B(CallProperty0), R(4), R(5), U8(6),
+                B(LdaUndefined),
+  /*  165 S> */ B(Return),
+]
+constant pool: [
+  SCOPE_INFO_TYPE,
+  FIXED_ARRAY_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
+  SCOPE_INFO_TYPE,
+  FIXED_ARRAY_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["C"],
+  SYMBOL_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["fn"],
+]
+handlers: [
+]
+

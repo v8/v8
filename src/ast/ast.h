@@ -2424,6 +2424,11 @@ class ClassLiteralProperty final : public LiteralProperty {
     return private_or_computed_name_var_;
   }
 
+  bool NeedsHomeObjectOnClassPrototype() const {
+    return is_private() && kind_ == METHOD &&
+           FunctionLiteral::NeedsHomeObject(value_);
+  }
+
  private:
   friend class AstNodeFactory;
 
