@@ -707,7 +707,7 @@ bool ScopeInfo::VariableIsSynthetic(String name) {
   // variable is a compiler-introduced temporary. However, to avoid conflict
   // with user declarations, the current temporaries like .generator_object and
   // .result start with a dot, so we can use that as a flag. It's a hack!
-  return name.length() == 0 || name.Get(0) == '.' ||
+  return name.length() == 0 || name.Get(0) == '.' || name.Get(0) == '#' ||
          name.Equals(name.GetReadOnlyRoots().this_string());
 }
 
