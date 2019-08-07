@@ -616,7 +616,7 @@ void IC::PatchCache(Handle<Name> name, const MaybeObjectHandle& handler) {
   DCHECK(IsAnyLoad() || IsAnyStore() || IsAnyHas());
   switch (state()) {
     case NO_FEEDBACK:
-      break;
+      UNREACHABLE();
     case UNINITIALIZED:
     case PREMONOMORPHIC:
       UpdateMonomorphicIC(handler, name);
