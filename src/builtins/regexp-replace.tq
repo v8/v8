@@ -57,7 +57,7 @@ namespace regexp_replace {
         // Element represents the matched substring, which is then passed to the
         // replace function.
         case (elString: String): {
-          const replacementObj: Object =
+          const replacementObj: JSAny =
               Call(context, replaceFn, Undefined, elString, matchStart, string);
           const replacement: String = ToString_Inline(context, replacementObj);
           matchesElements.objects[i] = replacement;
@@ -79,7 +79,7 @@ namespace regexp_replace {
 
       // The JSArray is expanded into the function args by Reflect.apply().
       // TODO(jgruber): Remove indirection through Call->ReflectApply.
-      const replacementObj: Object = Call(
+      const replacementObj: JSAny = Call(
           context, GetReflectApply(), Undefined, replaceFn, Undefined, elArray);
 
       // Overwrite the i'th element in the results with the string
@@ -172,7 +172,7 @@ namespace regexp_replace {
   }
 
   transitioning builtin RegExpReplace(implicit context: Context)(
-      regexp: FastJSRegExp, string: String, replaceValue: Object): String {
+      regexp: FastJSRegExp, string: String, replaceValue: JSAny): String {
     // TODO(pwong): Remove assert when all callers (StringPrototypeReplace) are
     // from Torque.
     assert(Is<FastJSRegExp>(regexp));
@@ -184,7 +184,7 @@ namespace regexp_replace {
             RegExpReplaceFastGlobalCallable(regexp, string, replaceFn) :
             StringReplaceNonGlobalRegExpWithFunction(string, regexp, replaceFn);
       }
-      case (Object): {
+      case (JSAny): {
         const stableRegexp: JSRegExp = regexp;
         const replaceString: String = ToString_Inline(context, replaceValue);
 
@@ -208,7 +208,7 @@ namespace regexp_replace {
   }
 
   transitioning javascript builtin RegExpPrototypeReplace(
-      js-implicit context: Context, receiver: Object)(...arguments): Object {
+      js-implicit context: Context, receiver: JSAny)(...arguments): Object {
     const methodName: constexpr string = 'RegExp.prototype.@@replace';
 
     // RegExpPrototypeReplace is a bit of a beast - a summary of dispatch logic:
@@ -229,8 +229,8 @@ namespace regexp_replace {
     //   }
     // }
 
-    const string: Object = arguments[0];
-    const replaceValue: Object = arguments[1];
+    const string: JSAny = arguments[0];
+    const replaceValue: JSAny = arguments[1];
 
     // Let rx be the this value.
     // If Type(rx) is not Object, throw a TypeError exception.

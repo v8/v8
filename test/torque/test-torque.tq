@@ -83,11 +83,11 @@ namespace test {
     }
   }
 
-  builtin GenericBuiltinTest<T: type>(_c: Context, _param: T): Object {
+  builtin GenericBuiltinTest<T: type>(_c: Context, _param: T): JSAny {
     return Null;
   }
 
-  GenericBuiltinTest<Object>(_c: Context, param: Object): Object {
+  GenericBuiltinTest<JSAny>(_c: Context, param: JSAny): JSAny {
     return param;
   }
 
@@ -95,8 +95,8 @@ namespace test {
   macro TestBuiltinSpecialization(c: Context) {
     check(GenericBuiltinTest<Smi>(c, 0) == Null);
     check(GenericBuiltinTest<Smi>(c, 1) == Null);
-    check(GenericBuiltinTest<Object>(c, Undefined) == Undefined);
-    check(GenericBuiltinTest<Object>(c, Undefined) == Undefined);
+    check(GenericBuiltinTest<JSAny>(c, Undefined) == Undefined);
+    check(GenericBuiltinTest<JSAny>(c, Undefined) == Undefined);
   }
 
   macro LabelTestHelper4(flag: constexpr bool): never
@@ -202,9 +202,8 @@ namespace test {
 
   @export
   macro TestFunctionPointerToGeneric(c: Context) {
-    const fptr1: builtin(Context, Smi) => Object = GenericBuiltinTest<Smi>;
-    const fptr2: builtin(Context, Object) => Object =
-        GenericBuiltinTest<Object>;
+    const fptr1: builtin(Context, Smi) => JSAny = GenericBuiltinTest<Smi>;
+    const fptr2: builtin(Context, JSAny) => JSAny = GenericBuiltinTest<JSAny>;
 
     check(fptr1(c, 0) == Null);
     check(fptr1(c, 1) == Null);
@@ -212,7 +211,7 @@ namespace test {
     check(fptr2(c, Undefined) == Undefined);
   }
 
-  type ObjectToObject = builtin(Context, Object) => Object;
+  type ObjectToObject = builtin(Context, JSAny) => JSAny;
   @export
   macro TestTypeAlias(x: ObjectToObject): BuiltinPtr {
     return x;
@@ -452,7 +451,7 @@ namespace test {
 
   @export
   macro TestSubtyping(x: Smi) {
-    const _foo: Object = x;
+    const _foo: JSAny = x;
   }
 
   macro IncrementIfSmi<A: type>(x: A): A {
@@ -627,7 +626,7 @@ namespace test {
   @export
   macro TestQualifiedAccess(implicit context: Context)() {
     const s: Smi = 0;
-    check(!array::IsJSArray(s));
+    check(!Is<JSArray>(s));
   }
 
   @export
@@ -685,14 +684,14 @@ namespace test {
   @export
   macro TestIterator(implicit context: Context)(o: JSReceiver, map: Map) {
     try {
-      const t1: Object = iterator::GetIteratorMethod(o);
+      const t1: JSAny = iterator::GetIteratorMethod(o);
       const t2: iterator::IteratorRecord = iterator::GetIterator(o);
 
-      const _t3: Object = iterator::IteratorStep(t2) otherwise Fail;
-      const _t4: Object = iterator::IteratorStep(t2, map) otherwise Fail;
+      const _t3: JSAny = iterator::IteratorStep(t2) otherwise Fail;
+      const _t4: JSAny = iterator::IteratorStep(t2, map) otherwise Fail;
 
-      const t5: Object = iterator::IteratorValue(o);
-      const _t6: Object = iterator::IteratorValue(o, map);
+      const t5: JSAny = iterator::IteratorValue(o);
+      const _t6: JSAny = iterator::IteratorValue(o, map);
 
       const _t7: JSArray = iterator::IterableToList(t1, t1);
 

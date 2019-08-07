@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 
 namespace array_shift {
-  extern builtin ArrayShift(Context, JSFunction, Object, int32): Object;
+  extern builtin ArrayShift(Context, JSFunction, JSAny, int32): JSAny;
 
-  macro TryFastArrayShift(implicit context: Context)(receiver: Object): Object
+  macro TryFastArrayShift(implicit context: Context)(receiver: JSAny): JSAny
       labels Slow, Runtime {
     const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
     let witness = NewFastJSArrayWitness(array);
@@ -37,7 +37,7 @@ namespace array_shift {
   }
 
   transitioning macro GenericArrayShift(implicit context:
-                                            Context)(receiver: Object): Object {
+                                            Context)(receiver: JSAny): JSAny {
     // 1. Let O be ? ToObject(this value).
     const object: JSReceiver = ToObject_Inline(context, receiver);
 
@@ -70,7 +70,7 @@ namespace array_shift {
       // d. If fromPresent is true, then
       if (fromPresent == True) {
         // i. Let fromVal be ? Get(O, from).
-        const fromValue: Object = GetProperty(object, from);
+        const fromValue: JSAny = GetProperty(object, from);
 
         // ii. Perform ? Set(O, to, fromValue, true).
         SetProperty(object, to, fromValue);
@@ -95,7 +95,7 @@ namespace array_shift {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.shift
   transitioning javascript builtin ArrayPrototypeShift(
-      js-implicit context: Context, receiver: Object)(...arguments): Object {
+      js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {
     try {
       return TryFastArrayShift(receiver) otherwise Slow, Runtime;
     }

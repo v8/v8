@@ -1136,7 +1136,7 @@ base::Optional<ParseResult> MakeCatchBlock(ParseResultIterator* child_results) {
   ParameterList parameters;
   parameters.names.push_back(MakeNode<Identifier>(variable));
   parameters.types.push_back(MakeNode<BasicTypeExpression>(
-      std::vector<std::string>{}, "Object", std::vector<TypeExpression*>{}));
+      std::vector<std::string>{}, "JSAny", std::vector<TypeExpression*>{}));
   parameters.has_varargs = false;
   LabelBlock* result = MakeNode<LabelBlock>(
       MakeNode<Identifier>(kCatchLabelName), std::move(parameters), body);
