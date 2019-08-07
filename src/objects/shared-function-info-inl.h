@@ -572,7 +572,8 @@ UncompiledData SharedFunctionInfo::uncompiled_data() const {
 }
 
 void SharedFunctionInfo::set_uncompiled_data(UncompiledData uncompiled_data) {
-  DCHECK(function_data() == Smi::FromEnum(Builtins::kCompileLazy));
+  DCHECK(function_data() == Smi::FromEnum(Builtins::kCompileLazy) ||
+         HasUncompiledData());
   DCHECK(uncompiled_data.IsUncompiledData());
   set_function_data(uncompiled_data);
 }

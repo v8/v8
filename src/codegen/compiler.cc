@@ -2221,7 +2221,28 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
 
   // If we found an existing shared function info, return it.
   Handle<SharedFunctionInfo> existing;
-  if (maybe_existing.ToHandle(&existing)) return existing;
+  if (maybe_existing.ToHandle(&existing)) {
+    // If the function has been uncompiled (bytecode flushed) it will have lost
+    // any preparsed data. If we produced preparsed data during this compile for
+    // this function, replace the uncompiled data with one that includes it.
+    if (literal->produced_preparse_data() != nullptr &&
+        existing->HasUncompiledDataWithoutPreparseData()) {
+      DCHECK(literal->inferred_name()->Equals(
+          existing->uncompiled_data().inferred_name()));
+      DCHECK_EQ(literal->start_position(),
+                existing->uncompiled_data().start_position());
+      DCHECK_EQ(literal->end_position(),
+                existing->uncompiled_data().end_position());
+      Handle<PreparseData> preparse_data =
+          literal->produced_preparse_data()->Serialize(isolate);
+      Handle<UncompiledData> new_uncompiled_data =
+          isolate->factory()->NewUncompiledDataWithPreparseData(
+              literal->inferred_name(), literal->start_position(),
+              literal->end_position(), preparse_data);
+      existing->set_uncompiled_data(*new_uncompiled_data);
+    }
+    return existing;
+  }
 
   // Allocate a shared function info object which will be compiled lazily.
   Handle<SharedFunctionInfo> result =
