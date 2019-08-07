@@ -50,11 +50,12 @@
           "v8_fyi_chromium"
         ],
         "builders": {
-          "V8-Blink Win": {},
-          "V8-Blink Mac": {},
+          "V8 Blink Mac": {},
+          "V8 Blink Win": {},
+          "V8 Blink Linux": {},
+          "V8 Blink Linux Debug": {},
           "V8-Blink Linux 64": {},
           "V8-Blink Linux 64 - future": {},
-          "V8-Blink Linux 64 (dbg)": {},
           "Linux Debug Builder": {},
           "V8 Linux GN": {},
           "V8 Android GN (dbg)": {},
@@ -65,19 +66,19 @@
     ]
   },
   "categories": {
-    "v8_fyi_chromium": {
-      "comment": [
-        "close_tree below prevents closing tree, but still sends emails to ",
-        "blamelist"
-      ],
-      "close_tree": false,
-      "closing_optional": [
-        "bot_update",
-        "gclient runhooks",
-        "generate_build_files",
-        "compile"
-      ],
-      "status_template": "buildbot failure in %(project_name)s on %(builder_name)s, %(unsatisfied)s"
-    }
+      "v8_fyi_chromium": {
+          "comment": [
+              "close_tree below prevents closing tree, but still sends emails to ",
+              "blamelist"
+          ],
+          "close_tree": false,
+          "closing_optional": [
+              "bot_update",
+              "gclient runhooks",
+              "generate_build_files",
+              "compile"
+          ],
+          "status_template": "buildbot failure in %(project_name)s on %(builder_name)s, %(unsatisfied)s"
+      }
   }
 }
