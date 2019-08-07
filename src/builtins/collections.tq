@@ -6,7 +6,7 @@
 
 namespace collections {
   @export
-  macro LoadKeyValuePairNoSideEffects(implicit context: Context)(o: JSAny):
+  macro LoadKeyValuePairNoSideEffects(implicit context: Context)(o: Object):
       KeyValuePair labels MayHaveSideEffects {
     typeswitch (o) {
       case (a: FastJSArray): {
@@ -28,7 +28,7 @@ namespace collections {
                                   Undefined
             };
           }
-          case (FixedArrayBase): deferred {
+          case (Object): deferred {
             unreachable;
           }
         }
@@ -36,14 +36,14 @@ namespace collections {
       case (JSReceiver): {
         goto MayHaveSideEffects;
       }
-      case (o: JSAny): deferred {
+      case (o: Object): deferred {
         ThrowTypeError(kIteratorValueNotAnObject, o);
       }
     }
   }
 
   @export
-  transitioning macro LoadKeyValuePair(implicit context: Context)(o: JSAny):
+  transitioning macro LoadKeyValuePair(implicit context: Context)(o: Object):
       KeyValuePair {
     try {
       return LoadKeyValuePairNoSideEffects(o) otherwise Generic;

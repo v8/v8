@@ -133,7 +133,7 @@ void CallCsaMacroInstruction::TypeInstruction(Stack<const Type*>* stack,
 
   if (catch_block) {
     Stack<const Type*> catch_stack = *stack;
-    catch_stack.Push(TypeOracle::GetJSAnyType());
+    catch_stack.Push(TypeOracle::GetObjectType());
     (*catch_block)->SetInputTypes(catch_stack);
   }
 
@@ -170,7 +170,7 @@ void CallCsaMacroAndBranchInstruction::TypeInstruction(
 
   if (catch_block) {
     Stack<const Type*> catch_stack = *stack;
-    catch_stack.Push(TypeOracle::GetJSAnyType());
+    catch_stack.Push(TypeOracle::GetObjectType());
     (*catch_block)->SetInputTypes(catch_stack);
   }
 
@@ -201,7 +201,7 @@ void CallBuiltinInstruction::TypeInstruction(Stack<const Type*>* stack,
 
   if (catch_block) {
     Stack<const Type*> catch_stack = *stack;
-    catch_stack.Push(TypeOracle::GetJSAnyType());
+    catch_stack.Push(TypeOracle::GetObjectType());
     (*catch_block)->SetInputTypes(catch_stack);
   }
 
@@ -236,7 +236,7 @@ void CallRuntimeInstruction::TypeInstruction(Stack<const Type*>* stack,
 
   if (catch_block) {
     Stack<const Type*> catch_stack = *stack;
-    catch_stack.Push(TypeOracle::GetJSAnyType());
+    catch_stack.Push(TypeOracle::GetObjectType());
     (*catch_block)->SetInputTypes(catch_stack);
   }
 

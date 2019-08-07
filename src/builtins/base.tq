@@ -43,29 +43,6 @@ extern class HeapObject extends Tagged {
 
 type Object = Smi | HeapObject;
 
-// Defined to coincide with https://tc39.es/ecma262/#sec-ispropertykey
-// Doesn't include PrivateSymbol.
-type PropertyKey = String | PublicSymbol;
-
-// TODO(tebbi): PrivateSymbol is only exposed to JavaScript through the debugger
-// API. We should reconsider this and try not to expose it at all. Then JSAny
-// would not need to contain it.
-
-// A JavaScript primitive value as defined in
-// https://tc39.es/ecma262/#sec-primitive-value.
-type JSPrimitive = Numeric | String | Symbol | Boolean |
-    Null | Undefined;
-
-// A user-exposed JavaScript value, as opposed to V8-internal values like
-// TheHole or FixedArray.
-type JSAny = JSReceiver | JSPrimitive;
-
-type JSAnyNotNumber = BigInt | String | Symbol | Boolean |
-    Null | Undefined | JSReceiver;
-
-// This is the intersection of JSAny and HeapObject.
-type JSAnyNotSmi = JSAnyNotNumber | HeapNumber;
-
 type int32 generates 'TNode<Int32T>' constexpr 'int32_t';
 type uint32 generates 'TNode<Uint32T>' constexpr 'uint32_t';
 type int31 extends int32
@@ -120,18 +97,12 @@ type Numeric = Number | BigInt;
 extern class Name extends HeapObject {
   hash_field: uint32;
 }
-// This is the same as Name, but with the information that there are no other
-// kinds of names.
-type AnyName = PrivateSymbol | PublicSymbol | String;
 
 @generateCppClass
 extern class Symbol extends Name {
   flags: int32;
   name: Object;  // The print name of a symbol, or undefined if none.
 }
-
-type PublicSymbol extends Symbol;
-type PrivateSymbol extends Symbol;
 
 @abstract
 @generateCppClass
@@ -411,8 +382,8 @@ extern class JSProxy extends JSReceiver {
 // Just a starting shape for JSObject; properties can move after initialization.
 @noVerifier
 extern class JSProxyRevocableResult extends JSObject {
-  proxy: JSAny;
-  revoke: JSAny;
+  proxy: Object;
+  revoke: Object;
 }
 
 macro NewJSProxyRevocableResult(implicit context: Context)(
@@ -435,7 +406,7 @@ extern class JSGlobalProxy extends JSObject {
 
 @generateCppClass
 extern class JSPrimitiveWrapper extends JSObject {
-  value: JSAny;
+  value: Object;
 }
 
 extern class JSArgumentsObject extends JSObject {}
@@ -444,13 +415,13 @@ extern class JSArgumentsObject extends JSObject {}
 @noVerifier
 @hasSameInstanceTypeAsParent
 extern class JSArgumentsObjectWithLength extends JSArgumentsObject {
-  length: JSAny;
+  length: Object;
 }
 
 // Just a starting shape for JSObject; properties can move after initialization.
 @hasSameInstanceTypeAsParent
 extern class JSSloppyArgumentsObject extends JSArgumentsObjectWithLength {
-  callee: JSAny;
+  callee: Object;
 }
 
 // Just a starting shape for JSObject; properties can move after initialization.
@@ -656,7 +627,7 @@ extern class SharedFunctionInfo extends HeapObject {
 
 extern class JSBoundFunction extends JSObject {
   bound_target_function: Callable;
-  bound_this: JSAny;
+  bound_this: Object;
   bound_arguments: FixedArray;
 }
 
@@ -667,7 +638,7 @@ extern class JSBoundFunction extends JSObject {
 type NonNullForeign extends Foreign;
 
 // A function built with InstantiateFunction for the public API.
-type CallableApiObject extends JSObject;
+type CallableApiObject extends HeapObject;
 
 // A JSProxy with the callable bit set.
 type CallableJSProxy extends JSProxy;
@@ -832,7 +803,7 @@ extern class PropertyArray extends HeapObject { length_and_hash: Smi; }
 type DependentCode extends WeakFixedArray;
 
 extern class PropertyCell extends HeapObject {
-  name: AnyName;
+  name: Name;
   property_details_raw: Smi;
   value: Object;
   dependent_code: DependentCode;
@@ -907,7 +878,7 @@ extern class DataHandler extends Struct {
 extern class JSGeneratorObject extends JSObject {
   function: JSFunction;
   context: Context;
-  receiver: JSAny;
+  receiver: Object;
   input_or_debug_pos: Object;
   resume_mode: Smi;
   continuation: Smi;
@@ -1286,7 +1257,7 @@ extern class JSRegExp extends JSObject {
 }
 
 extern transitioning macro AllocateJSIteratorResult(implicit context: Context)(
-    JSAny, Boolean): JSObject;
+    Object, Boolean): JSObject;
 
 // Note: Although a condition for a FastJSRegExp is having a positive smi
 // lastIndex (see RegExpBuiltinsAssembler::BranchIfFastRegExp), it is possible
@@ -1305,13 +1276,13 @@ RegExpBuiltinsAssembler::FastStoreLastIndex(FastJSRegExp, Smi): void;
 
 @hasSameInstanceTypeAsParent
 extern class JSRegExpResult extends JSArray {
-  index: JSAny;
-  input: JSAny;
-  groups: JSAny;
+  index: Object;
+  input: Object;
+  groups: Object;
 }
 
 extern class JSRegExpStringIterator extends JSObject {
-  iterating_reg_exp: JSAny;
+  iterating_reg_exp: Object;
   iterated_string: String;
   flags: Smi;
 }
@@ -1489,32 +1460,32 @@ extern macro Comment(constexpr string);
 extern macro StaticAssert(bool);
 extern macro Print(Object);
 extern macro DebugBreak();
-extern transitioning macro ToInteger_Inline(Context, JSAny): Number;
+extern transitioning macro ToInteger_Inline(Context, Object): Number;
 extern transitioning macro ToInteger_Inline(
-    Context, JSAny, constexpr ToIntegerTruncationMode): Number;
-extern transitioning macro ToLength_Inline(Context, JSAny): Number;
-extern transitioning macro ToNumber_Inline(Context, JSAny): Number;
-extern transitioning macro ToSmiIndex(implicit context: Context)(JSAny):
+    Context, Object, constexpr ToIntegerTruncationMode): Number;
+extern transitioning macro ToLength_Inline(Context, Object): Number;
+extern transitioning macro ToNumber_Inline(Context, Object): Number;
+extern transitioning macro ToSmiIndex(implicit context: Context)(Object):
     PositiveSmi labels IfRangeError;
-extern transitioning macro ToSmiLength(implicit context: Context)(JSAny):
+extern transitioning macro ToSmiLength(implicit context: Context)(Object):
     PositiveSmi labels IfRangeError;
-extern transitioning macro ToString_Inline(Context, JSAny): String;
+extern transitioning macro ToString_Inline(Context, Object): String;
 extern transitioning macro ToThisString(implicit context: Context)(
-    JSAny, String): String;
+    Object, String): String;
 extern transitioning macro ToThisValue(implicit context: Context)(
-    JSAny, constexpr PrimitiveType, constexpr string): JSAny;
+    Object, constexpr PrimitiveType, constexpr string): Object;
 extern transitioning macro GetProperty(implicit context: Context)(
-    JSAny, JSAny): JSAny;
+    Object, Object): Object;
 extern transitioning builtin SetProperty(implicit context: Context)(
-    JSAny, JSAny, JSAny);
+    Object, Object, Object);
 extern transitioning builtin SetPropertyInLiteral(implicit context: Context)(
-    JSAny, JSAny, JSAny);
+    Object, Object, Object);
 extern transitioning builtin DeleteProperty(implicit context: Context)(
-    JSAny, JSAny | PrivateSymbol, LanguageMode): Boolean;
+    Object, Object, LanguageMode): Object;
 extern transitioning builtin HasProperty(implicit context: Context)(
-    JSAny, JSAny): Boolean;
+    Object, Object): Boolean;
 extern transitioning macro HasProperty_Inline(implicit context: Context)(
-    JSReceiver, JSAny): Boolean;
+    JSReceiver, Object): Boolean;
 
 extern macro ThrowRangeError(implicit context: Context)(
     constexpr MessageTemplate): never;
@@ -1533,43 +1504,43 @@ extern macro ThrowTypeError(implicit context: Context)(
 extern transitioning runtime ThrowTypeErrorIfStrict(implicit context: Context)(
     Smi, Object, Object): void;
 
-extern macro ArraySpeciesCreate(Context, JSAny, Number): JSReceiver;
+extern macro ArraySpeciesCreate(Context, Object, Number): JSReceiver;
 extern macro ArrayCreate(implicit context: Context)(Number): JSArray;
 extern macro BuildAppendJSArray(
-    constexpr ElementsKind, FastJSArray, JSAny): void labels Bailout;
+    constexpr ElementsKind, FastJSArray, Object): void labels Bailout;
 
 extern macro EnsureArrayPushable(Map): ElementsKind
     labels Bailout;
 extern macro EnsureArrayLengthWritable(Map) labels Bailout;
 // TODO: Reduce duplication once varargs are supported in macros.
 extern macro Construct(implicit context: Context)(
-    Constructor, JSAny): JSReceiver;
+    Constructor, Object): JSReceiver;
 extern macro Construct(implicit context: Context)(
-    Constructor, JSAny, JSAny): JSReceiver;
+    Constructor, Object, Object): JSReceiver;
 extern macro Construct(implicit context: Context)(
-    Constructor, JSAny, JSAny, JSAny): JSReceiver;
+    Constructor, Object, Object, Object): JSReceiver;
 extern macro ConstructWithTarget(implicit context: Context)(
     Constructor, JSReceiver): JSReceiver;
 extern macro ConstructWithTarget(implicit context: Context)(
-    Constructor, JSReceiver, JSAny): JSReceiver;
+    Constructor, JSReceiver, Object): JSReceiver;
 extern macro SpeciesConstructor(implicit context: Context)(
-    JSAny, JSReceiver): JSReceiver;
+    Object, JSReceiver): JSReceiver;
 
 extern macro ConstructorBuiltinsAssembler::IsDictionaryMap(Map): bool;
 extern macro CodeStubAssembler::AllocateNameDictionary(constexpr int32):
     NameDictionary;
 
-extern builtin ToObject(Context, JSAny): JSReceiver;
-extern macro ToObject_Inline(Context, JSAny): JSReceiver;
+extern builtin ToObject(Context, Object): JSReceiver;
+extern macro ToObject_Inline(Context, Object): JSReceiver;
 extern macro IsNullOrUndefined(Object): bool;
 extern macro IsTheHole(Object): bool;
 extern macro IsString(HeapObject): bool;
-transitioning builtin ToString(context: Context, o: JSAny): String {
+transitioning builtin ToString(context: Context, o: Object): String {
   return ToStringImpl(context, o);
 }
-extern transitioning runtime ToStringRT(Context, JSAny): String;
+extern transitioning runtime ToStringRT(Context, Object): String;
 extern transitioning builtin NonPrimitiveToPrimitive_String(
-    Context, JSAny): JSPrimitive;
+    Context, Object): Object;
 
 extern transitioning runtime NormalizeElements(Context, JSObject);
 extern transitioning runtime TransitionElementsKindWithKind(
@@ -1588,9 +1559,9 @@ extern macro StringCharCodeAt(String, intptr): int32;
 extern runtime StringCompareSequence(Context, String, String, Number): Boolean;
 extern macro StringFromSingleCharCode(int32): String;
 
-extern macro StrictEqual(JSAny, JSAny): Boolean;
+extern macro StrictEqual(Object, Object): Boolean;
 extern macro SmiLexicographicCompare(Smi, Smi): Smi;
-extern runtime ReThrow(Context, JSAny): never;
+extern runtime ReThrow(Context, Object): never;
 extern runtime ThrowInvalidStringLength(Context): never;
 
 extern operator '==' macro WordEqual(RawPtr, RawPtr): bool;
@@ -1883,150 +1854,6 @@ Cast<Number>(o: Object): Number
   return TaggedToNumber(o) otherwise CastError;
 }
 
-Cast<Numeric>(o: Object): Numeric labels CastError {
-  typeswitch (o) {
-    case (o: Number): {
-      return o;
-    }
-    case (o: BigInt): {
-      return o;
-    }
-    case (HeapObject): {
-      goto CastError;
-    }
-  }
-}
-
-Cast<TheHole>(o: Object): TheHole labels CastError {
-  if (o == TheHole) return %RawDownCast<TheHole>(o);
-  goto CastError;
-}
-
-Cast<TheHole>(o: HeapObject): TheHole labels CastError {
-  const o: Object = o;
-  return Cast<TheHole>(o) otherwise CastError;
-}
-
-Cast<True>(o: Object): True labels CastError {
-  if (o == True) return %RawDownCast<True>(o);
-  goto CastError;
-}
-
-Cast<True>(o: HeapObject): True labels CastError {
-  const o: Object = o;
-  return Cast<True>(o) otherwise CastError;
-}
-
-Cast<False>(o: Object): False labels CastError {
-  if (o == False) return %RawDownCast<False>(o);
-  goto CastError;
-}
-
-Cast<False>(o: HeapObject): False labels CastError {
-  const o: Object = o;
-  return Cast<False>(o) otherwise CastError;
-}
-
-Cast<Boolean>(o: Object): Boolean labels CastError {
-  typeswitch (o) {
-    case (o: True): {
-      return o;
-    }
-    case (o: False): {
-      return o;
-    }
-    case (Object): {
-      goto CastError;
-    }
-  }
-}
-
-Cast<Boolean>(o: HeapObject): Boolean labels CastError {
-  const o: Object = o;
-  return Cast<Boolean>(o) otherwise CastError;
-}
-
-Cast<Undefined>(o: Object): Undefined labels CastError {
-  if (o == Undefined) return %RawDownCast<Undefined>(o);
-  goto CastError;
-}
-
-Cast<Undefined>(o: HeapObject): Undefined labels CastError {
-  const o: Object = o;
-  return Cast<Undefined>(o) otherwise CastError;
-}
-
-// TODO(tebbi): These trivial casts for union types should be generated
-// automatically.
-
-Cast<JSPrimitive>(o: Object): JSPrimitive labels CastError {
-  typeswitch (o) {
-    case (o: Numeric): {
-      return o;
-    }
-    case (o: String): {
-      return o;
-    }
-    case (o: Symbol): {
-      return o;
-    }
-    case (o: Boolean): {
-      return o;
-    }
-    case (o: Undefined): {
-      return o;
-    }
-    case (o: Null): {
-      return o;
-    }
-    case (Object): {
-      goto CastError;
-    }
-  }
-}
-
-Cast<JSAny>(o: Object): JSAny labels CastError {
-  typeswitch (o) {
-    case (o: JSPrimitive): {
-      return o;
-    }
-    case (o: JSReceiver): {
-      return o;
-    }
-    case (Object): {
-      goto CastError;
-    }
-  }
-}
-
-Cast<JSAny | TheHole>(o: Object): JSAny | TheHole labels CastError {
-  typeswitch (o) {
-    case (o: JSAny): {
-      return o;
-    }
-    case (o: TheHole): {
-      return o;
-    }
-    case (Object): {
-      goto CastError;
-    }
-  }
-}
-
-Cast<Number | TheHole>(o: Object): Number | TheHole labels CastError {
-  typeswitch (o) {
-    case (o: Number): {
-      return o;
-    }
-    case (o: TheHole): {
-      return o;
-    }
-    case (Object): {
-      goto CastError;
-    }
-  }
-}
-
 macro Cast<A: type>(o: HeapObject): A
     labels CastError;
 
@@ -2137,27 +1964,6 @@ Cast<Symbol>(o: HeapObject): Symbol
     labels CastError {
   if (IsSymbol(o)) return %RawDownCast<Symbol>(o);
   goto CastError;
-}
-
-macro Cast<T: type>(o: Symbol): T labels CastError;
-Cast<PublicSymbol>(o: Symbol): PublicSymbol labels CastError {
-  if (IsPrivateSymbol(o)) goto CastError;
-  return %RawDownCast<PublicSymbol>(o);
-}
-Cast<PrivateSymbol>(o: Symbol): PrivateSymbol labels CastError {
-  if (IsPrivateSymbol(o)) {
-    return %RawDownCast<PrivateSymbol>(o);
-  }
-  goto CastError;
-}
-
-Cast<PublicSymbol>(o: HeapObject): PublicSymbol labels CastError {
-  const o = Cast<Symbol>(o) otherwise CastError;
-  return Cast<PublicSymbol>(o) otherwise CastError;
-}
-Cast<PrivateSymbol>(o: HeapObject): PrivateSymbol labels CastError {
-  const o = Cast<Symbol>(o) otherwise CastError;
-  return Cast<PrivateSymbol>(o) otherwise CastError;
 }
 
 Cast<DirectString>(o: HeapObject): DirectString
@@ -2285,7 +2091,7 @@ Cast<FastJSArrayForReadWithNoCustomIteration>(implicit context: Context)(
   return %RawDownCast<FastJSArrayForReadWithNoCustomIteration>(a);
 }
 
-Cast<JSReceiver>(o: HeapObject): JSReceiver
+Cast<JSReceiver>(implicit context: Context)(o: HeapObject): JSReceiver
     labels CastError {
   if (IsJSReceiver(o)) return %RawDownCast<JSReceiver>(o);
   goto CastError;
@@ -2310,21 +2116,6 @@ Cast<CoverageInfo>(implicit context: Context)(o: HeapObject): CoverageInfo
   // TODO(jgruber): Assign an instance type.
   if (IsFixedArray(o)) return %RawDownCast<CoverageInfo>(o);
   goto CastError;
-}
-
-Cast<JSReceiver | Null>(o: HeapObject): JSReceiver | Null
-    labels CastError {
-  typeswitch (o) {
-    case (o: Null): {
-      return o;
-    }
-    case (o: JSReceiver): {
-      return o;
-    }
-    case (HeapObject): {
-      goto CastError;
-    }
-  }
 }
 
 extern macro AllocateHeapNumberWithValue(float64): HeapNumber;
@@ -2463,9 +2254,6 @@ FromConstexpr<ElementsKind, constexpr ElementsKind>(e: constexpr ElementsKind):
   return Int32Constant(e);
 }
 FromConstexpr<Object, constexpr string>(s: constexpr string): Object {
-  return StringConstant(s);
-}
-FromConstexpr<JSAny, constexpr string>(s: constexpr string): JSAny {
   return StringConstant(s);
 }
 FromConstexpr<NativeContextSlot, constexpr NativeContextSlot>(
@@ -2621,6 +2409,10 @@ macro UnsafeCast<A: type>(implicit context: Context)(o: Object): A {
   return %RawDownCast<A>(o);
 }
 
+UnsafeCast<Object>(o: Object): Object {
+  return o;
+}
+
 const kFixedArrayMap: Map =
     %RawDownCast<Map>(LoadRoot(kFixedArrayMapRootIndex));
 const kCOWMap: Map = %RawDownCast<Map>(LoadRoot(kFixedCOWArrayMapRootIndex));
@@ -2701,14 +2493,14 @@ operator '[]=' macro StoreFixedArrayDirect(a: FixedArray, i: Smi, v: Object) {
 }
 
 extern macro GetNumberDictionaryNumberOfElements(NumberDictionary): Smi;
-extern macro GetIteratorMethod(implicit context: Context)(HeapObject): JSAny
+extern macro GetIteratorMethod(implicit context: Context)(HeapObject): Object
     labels IfIteratorUndefined;
 
 extern macro LoadConstructorOrBackPointer(Map): Object;
 
-extern macro BasicLoadNumberDictionaryElement(NumberDictionary, intptr): JSAny
+extern macro BasicLoadNumberDictionaryElement(NumberDictionary, intptr): Object
     labels NotData, IfHole;
-extern macro BasicStoreNumberDictionaryElement(NumberDictionary, intptr, JSAny)
+extern macro BasicStoreNumberDictionaryElement(NumberDictionary, intptr, Object)
     labels NotData, IfHole, ReadOnly;
 
 extern macro IsFastElementsKind(ElementsKind): bool;
@@ -2821,15 +2613,16 @@ macro GetRegExpLastMatchInfo(implicit context: Context)(): RegExpMatchInfo {
       LoadNativeContext(context)[REGEXP_LAST_MATCH_INFO_INDEX]);
 }
 
-extern transitioning macro Call(Context, Callable, JSAny): JSAny;
-extern transitioning macro Call(Context, Callable, JSAny, JSAny): JSAny;
-extern transitioning macro Call(Context, Callable, JSAny, JSAny, JSAny): JSAny;
+extern transitioning macro Call(Context, Callable, Object): Object;
+extern transitioning macro Call(Context, Callable, Object, Object): Object;
 extern transitioning macro Call(
-    Context, Callable, JSAny, JSAny, JSAny, JSAny): JSAny;
+    Context, Callable, Object, Object, Object): Object;
 extern transitioning macro Call(
-    Context, Callable, JSAny, JSAny, JSAny, JSAny, JSAny): JSAny;
+    Context, Callable, Object, Object, Object, Object): Object;
 extern transitioning macro Call(
-    Context, Callable, JSAny, JSAny, JSAny, JSAny, JSAny, JSAny): JSAny;
+    Context, Callable, Object, Object, Object, Object, Object): Object;
+extern transitioning macro Call(
+    Context, Callable, Object, Object, Object, Object, Object, Object): Object;
 
 extern builtin CloneFastJSArray(Context, FastJSArrayForCopy): JSArray;
 extern macro ExtractFixedArray(FixedArrayBase, Smi, Smi, Smi): FixedArrayBase;
@@ -2878,24 +2671,20 @@ macro TorqueCopyElements(
       count);
 }
 
-macro LoadElementNoHole<T: type>(a: JSArray, index: Smi): JSAny
+macro LoadElementNoHole<T: type>(a: JSArray, index: Smi): Object
     labels IfHole;
 
 LoadElementNoHole<FixedArray>(implicit context: Context)(
-    a: JSArray, index: Smi): JSAny
+    a: JSArray, index: Smi): Object
     labels IfHole {
   try {
     const elements: FixedArray =
         Cast<FixedArray>(a.elements) otherwise Unexpected;
-    const e = UnsafeCast<(JSAny | TheHole)>(elements.objects[index]);
-    typeswitch (e) {
-      case (TheHole): {
-        goto IfHole;
-      }
-      case (e: JSAny): {
-        return e;
-      }
+    const e: Object = elements.objects[index];
+    if (e == TheHole) {
+      goto IfHole;
     }
+    return e;
   }
   label Unexpected {
     unreachable;
@@ -2903,7 +2692,7 @@ LoadElementNoHole<FixedArray>(implicit context: Context)(
 }
 
 LoadElementNoHole<FixedDoubleArray>(implicit context: Context)(
-    a: JSArray, index: Smi): JSAny
+    a: JSArray, index: Smi): Object
     labels IfHole {
   try {
     const elements: FixedDoubleArray =
@@ -2934,7 +2723,7 @@ struct FastJSArrayWitness {
     this.unstable = %RawDownCast<FastJSArray>(this.stable);
   }
 
-  LoadElementNoHole(implicit context: Context)(k: Smi): JSAny
+  LoadElementNoHole(implicit context: Context)(k: Smi): Object
       labels FoundHole {
     if (this.hasDoubles) {
       return LoadElementNoHole<FixedDoubleArray>(this.unstable, k)
@@ -2957,7 +2746,7 @@ struct FastJSArrayWitness {
     }
   }
 
-  LoadElementOrUndefined(implicit context: Context)(k: Smi): JSAny {
+  LoadElementOrUndefined(implicit context: Context)(k: Smi): Object {
     try {
       return this.LoadElementNoHole(k) otherwise FoundHole;
     }
@@ -2977,7 +2766,7 @@ struct FastJSArrayWitness {
     this.unstable.length = newLength;
   }
 
-  Push(value: JSAny) labels Failed {
+  Push(value: Object) labels Failed {
     assert(this.arrayIsPushable);
     if (this.hasDoubles) {
       BuildAppendJSArray(HOLEY_DOUBLE_ELEMENTS, this.unstable, value)
@@ -3049,7 +2838,7 @@ struct FastJSArrayForReadWitness {
     this.unstable = %RawDownCast<FastJSArrayForRead>(this.stable);
   }
 
-  LoadElementNoHole(implicit context: Context)(k: Smi): JSAny
+  LoadElementNoHole(implicit context: Context)(k: Smi): Object
       labels FoundHole {
     if (this.hasDoubles) {
       return LoadElementNoHole<FixedDoubleArray>(this.unstable, k)
@@ -3109,7 +2898,7 @@ extern macro IsJSArrayMap(Map): bool;
 extern macro IsExtensibleMap(Map): bool;
 extern macro IsJSPrimitiveWrapper(HeapObject): bool;
 extern macro IsCustomElementsReceiverInstanceType(int32): bool;
-extern macro Typeof(JSAny): String;
+extern macro Typeof(Object): Object;
 
 // Return true iff number is NaN.
 macro NumberIsNaN(number: Number): bool {
@@ -3130,30 +2919,30 @@ macro IsForceSlowPath(): bool {
   return false;
 }
 
-extern macro BranchIfToBooleanIsTrue(JSAny): never
+extern macro BranchIfToBooleanIsTrue(Object): never
     labels Taken, NotTaken;
-extern macro BranchIfToBooleanIsFalse(JSAny): never
+extern macro BranchIfToBooleanIsFalse(Object): never
     labels Taken, NotTaken;
 
-macro ToBoolean(obj: JSAny): bool {
+macro ToBoolean(obj: Object): bool {
   BranchIfToBooleanIsTrue(obj) otherwise return true, return false;
 }
 
 @export
 macro RequireObjectCoercible(implicit context: Context)(
-    value: JSAny, name: constexpr string): JSAny {
+    value: Object, name: constexpr string): Object {
   if (IsNullOrUndefined(value)) {
     ThrowTypeError(kCalledOnNullOrUndefined, name);
   }
   return value;
 }
 
-extern macro BranchIfSameValue(JSAny, JSAny): never labels Taken, NotTaken;
-macro SameValue(a: JSAny, b: JSAny): bool {
+extern macro BranchIfSameValue(Object, Object): never labels Taken, NotTaken;
+macro SameValue(a: Object, b: Object): bool {
   BranchIfSameValue(a, b) otherwise return true, return false;
 }
 
-transitioning macro ToIndex(input: JSAny, context: Context): Number
+transitioning macro ToIndex(input: Object, context: Context): Number
     labels RangeError {
   if (input == Undefined) {
     return 0;
@@ -3167,7 +2956,7 @@ transitioning macro ToIndex(input: JSAny, context: Context): Number
   return value;
 }
 
-transitioning macro GetLengthProperty(implicit context: Context)(o: JSAny):
+transitioning macro GetLengthProperty(implicit context: Context)(o: Object):
     Number {
   try {
     typeswitch (o) {
@@ -3177,18 +2966,18 @@ transitioning macro GetLengthProperty(implicit context: Context)(o: JSAny):
       case (a: JSArgumentsObjectWithLength): {
         goto ToLength(a.length);
       }
-      case (JSAny): deferred {
+      case (Object): deferred {
         goto ToLength(GetProperty(o, kLengthString));
       }
     }
   }
-  label ToLength(length: JSAny) deferred {
+  label ToLength(length: Object) deferred {
     return ToLength_Inline(context, length);
   }
 }
 
 transitioning macro GetMethod(implicit context: Context)(
-    o: JSAny, name: constexpr string): Callable labels IfNullOrUndefined {
+    o: Object, name: constexpr string): Callable labels IfNullOrUndefined {
   const value = GetProperty(o, name);
   if (value == Undefined || value == Null) goto IfNullOrUndefined;
   return Cast<Callable>(value)
@@ -3202,14 +2991,14 @@ extern macro AllocateSeqOneByteString(implicit context: Context)(uint32):
 extern macro AllocateSeqTwoByteString(implicit context: Context)(uint32):
     String;
 extern macro ConvertToRelativeIndex(implicit context: Context)(
-    JSAny, intptr): intptr;
+    Object, intptr): intptr;
 
-extern builtin ObjectToString(Context, JSAny): JSAny;
+extern builtin ObjectToString(Context, Object): Object;
 extern builtin StringRepeat(Context, String, Number): String;
 
 struct KeyValuePair {
-  key: JSAny;
-  value: JSAny;
+  key: Object;
+  value: Object;
 }
 
 // Macro definitions for compatibility that expose functionality to the CSA
@@ -3257,7 +3046,7 @@ macro IsFastJSArrayForReadWithNoCustomIteration(context: Context, o: Object):
 }
 
 extern transitioning runtime
-CreateDataProperty(implicit context: Context)(JSReceiver, JSAny, JSAny);
+CreateDataProperty(implicit context: Context)(JSReceiver, Object, Object);
 
 namespace runtime {
   extern runtime
@@ -3265,7 +3054,7 @@ namespace runtime {
 }
 
 transitioning builtin FastCreateDataProperty(implicit context: Context)(
-    receiver: JSReceiver, key: JSAny, value: JSAny): Object {
+    receiver: JSReceiver, key: Object, value: Object): Object {
   try {
     const array = Cast<FastJSArray>(receiver) otherwise Slow;
     const index: Smi = Cast<Smi>(key) otherwise goto Slow;
@@ -3310,8 +3099,8 @@ transitioning builtin FastCreateDataProperty(implicit context: Context)(
 }
 
 @export
-transitioning macro ToStringImpl(context: Context, o: JSAny): String {
-  let result: JSAny = o;
+transitioning macro ToStringImpl(context: Context, o: Object): String {
+  let result: Object = o;
   while (true) {
     typeswitch (result) {
       case (num: Number): {
@@ -3330,7 +3119,7 @@ transitioning macro ToStringImpl(context: Context, o: JSAny): String {
       case (Symbol): {
         ThrowTypeError(kSymbolToString);
       }
-      case (JSAny): {
+      case (Object): {
         return ToStringRT(context, o);
       }
     }
@@ -3378,16 +3167,5 @@ builtin CheckNumberInRange(implicit context: Context)(
     Print(min);
     Print(max);
     unreachable;
-  }
-}
-
-macro ReplaceTheHoleWithUndefined(o: JSAny | TheHole): JSAny {
-  typeswitch (o) {
-    case (TheHole): {
-      return Undefined;
-    }
-    case (a: JSAny): {
-      return a;
-    }
   }
 }

@@ -19,21 +19,15 @@ namespace proxy {
   // https://tc39.github.io/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-set-p-v-receiver
   transitioning builtin
   ProxySetProperty(implicit context: Context)(
-      proxy: JSProxy, name: PropertyKey | PrivateSymbol, value: JSAny,
-      receiverValue: JSAny): JSAny {
+      proxy: JSProxy, name: Name, value: Object,
+      receiverValue: Object): Object {
     // 1. Assert: IsPropertyKey(P) is true.
     assert(TaggedIsNotSmi(name));
     assert(IsName(name));
 
-    let key: PropertyKey;
-    typeswitch (name) {
-      case (PrivateSymbol): {
-        CallThrowTypeErrorIfStrict(kProxyPrivate);
-        return Undefined;
-      }
-      case (name: PropertyKey): {
-        key = name;
-      }
+    if (IsPrivateSymbol(name)) {
+      CallThrowTypeErrorIfStrict(kProxyPrivate);
+      return Undefined;
     }
 
     try {
@@ -67,7 +61,7 @@ namespace proxy {
       //      exception.
       // 12. Return true.
       const trapResult =
-          Call(context, trap, handler, target, key, value, receiverValue);
+          Call(context, trap, handler, target, name, value, receiverValue);
       if (ToBoolean(trapResult)) {
         CheckGetSetTrapResult(target, proxy, name, value, kProxySet);
         return value;

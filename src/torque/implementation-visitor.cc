@@ -468,13 +468,13 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
                     : "UncheckedCast<Object>(Parameter(Descriptor::kReceiver))")
             << ";\n";
         source_out() << "USE(" << generated_name << ");\n";
-        expected_type = TypeOracle::GetJSAnyType();
+        expected_type = TypeOracle::GetObjectType();
       } else if (param_name == "newTarget") {
         source_out() << "  TNode<Object> " << generated_name
                      << " = UncheckedCast<Object>(Parameter("
                      << "Descriptor::kJSNewTarget));\n";
         source_out() << "USE(" << generated_name << ");\n";
-        expected_type = TypeOracle::GetJSAnyType();
+        expected_type = TypeOracle::GetObjectType();
       } else if (param_name == "target") {
         source_out() << "  TNode<JSFunction> " << generated_name
                      << " = UncheckedCast<JSFunction>(Parameter("
@@ -2264,10 +2264,9 @@ VisitResult ImplementationVisitor::GenerateCall(
         size_t j = 0;
         for (auto t : callable->signature().labels[i].types) {
           const Type* parameter_type = label->parameter_types[j];
-          if (!t->IsSubtypeOf(parameter_type)) {
-            ReportError("mismatch of label parameters (label expects ",
-                        *parameter_type, " but macro produces ", *t,
-                        " for parameter ", i + 1, ")");
+          if (parameter_type != t) {
+            ReportError("mismatch of label parameters (expected ", *t, " got ",
+                        parameter_type, " for parameter ", i + 1, ")");
           }
           j++;
         }

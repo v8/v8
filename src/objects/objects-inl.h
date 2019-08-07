@@ -133,13 +133,6 @@ bool Object::IsNullOrUndefined() const {
 
 bool Object::IsZero() const { return *this == Smi::zero(); }
 
-bool Object::IsPublicSymbol() const {
-  return IsSymbol() && !Symbol::cast(*this).is_private();
-}
-bool Object::IsPrivateSymbol() const {
-  return IsSymbol() && Symbol::cast(*this).is_private();
-}
-
 bool Object::IsNoSharedNameSentinel() const {
   return *this == SharedFunctionInfo::kNoSharedNameSentinel;
 }
