@@ -4994,13 +4994,9 @@ void JSFunction::InitializeFeedbackCell(Handle<JSFunction> function) {
   Isolate* const isolate = function->GetIsolate();
 
   if (function->has_feedback_vector()) {
-    // TODO(984344): Make this a CHECK that feedback vectors are identical to
-    // what we expect once we have removed all bytecode generation differences
-    // between eager and lazy compilation. For now just reset if they aren't
-    // identical
-    FeedbackVector vector = function->feedback_vector();
-    if (vector.length() == vector.metadata().slot_count()) return;
-    function->raw_feedback_cell().reset();
+    CHECK_EQ(function->feedback_vector().length(),
+             function->feedback_vector().metadata().slot_count());
+    return;
   }
 
   bool needs_feedback_vector = !FLAG_lazy_feedback_allocation;
