@@ -787,7 +787,13 @@ Type Typer::Visitor::TypeParameter(Node* node) {
   return Type::NonInternal();
 }
 
-Type Typer::Visitor::TypeOsrValue(Node* node) { return Type::Any(); }
+Type Typer::Visitor::TypeOsrValue(Node* node) {
+  if (OsrValueIndexOf(node->op()) == Linkage::kOsrContextSpillSlotIndex) {
+    return Type::OtherInternal();
+  } else {
+    return Type::Any();
+  }
+}
 
 Type Typer::Visitor::TypeRetain(Node* node) { UNREACHABLE(); }
 
