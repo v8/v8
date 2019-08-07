@@ -568,5 +568,24 @@ RUNTIME_FUNCTION(Runtime_WasmTableFill) {
   }
   return ReadOnlyRoots(isolate).undefined_value();
 }
+
+RUNTIME_FUNCTION(Runtime_WasmNewMultiReturnFixedArray) {
+  DCHECK_EQ(1, args.length());
+  HandleScope scope(isolate);
+  CONVERT_INT32_ARG_CHECKED(size, 0);
+  Handle<FixedArray> fixed_array = isolate->factory()->NewFixedArray(size);
+  return *fixed_array;
+}
+
+RUNTIME_FUNCTION(Runtime_WasmNewMultiReturnJSArray) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  DCHECK(!isolate->context().is_null());
+  CONVERT_ARG_CHECKED(FixedArray, fixed_array, 0);
+  Handle<FixedArray> fixed_array_handle(fixed_array, isolate);
+  Handle<JSArray> array = isolate->factory()->NewJSArrayWithElements(
+      fixed_array_handle, PACKED_ELEMENTS);
+  return *array;
+}
 }  // namespace internal
 }  // namespace v8

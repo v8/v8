@@ -5606,9 +5606,25 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // Clear the ThreadInWasm flag.
     BuildModifyThreadInWasmFlag(false);
 
-    Node* jsval = sig_->return_count() == 0
-                      ? BuildLoadUndefinedValueFromInstance()
-                      : ToJS(rets[0], sig_->GetReturn());
+    Node* jsval;
+    if (sig_->return_count() == 0) {
+      jsval = BuildLoadUndefinedValueFromInstance();
+    } else if (sig_->return_count() == 1) {
+      jsval = ToJS(rets[0], sig_->GetReturn());
+    } else {
+      int32_t return_count = static_cast<int32_t>(sig_->return_count());
+      Node* size = jsgraph()->SmiConstant(return_count);
+      // TODO(thibaudm): Replace runtime calls with TurboFan code.
+      Node* fixed_array =
+          BuildCallToRuntime(Runtime::kWasmNewMultiReturnFixedArray, &size, 1);
+      for (int i = 0; i < return_count; ++i) {
+        Node* value = ToJS(rets[i], sig_->GetReturn(i));
+        STORE_FIXED_ARRAY_SLOT_ANY(fixed_array, i, value);
+      }
+      jsval = BuildCallToRuntimeWithContext(Runtime::kWasmNewMultiReturnJSArray,
+                                            js_context, &fixed_array, 1,
+                                            effect_, Control());
+    }
     Return(jsval);
   }
 

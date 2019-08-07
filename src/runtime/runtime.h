@@ -529,28 +529,30 @@ namespace internal {
   F(TypedArraySet, 2, 1)                    \
   F(TypedArraySortFast, 1, 1)
 
-#define FOR_EACH_INTRINSIC_WASM(F, I) \
-  F(ThrowWasmError, 1, 1)             \
-  F(ThrowWasmStackOverflow, 0, 1)     \
-  F(WasmI32AtomicWait, 4, 1)          \
-  F(WasmI64AtomicWait, 5, 1)          \
-  F(WasmAtomicNotify, 3, 1)           \
-  F(WasmExceptionGetValues, 1, 1)     \
-  F(WasmExceptionGetTag, 1, 1)        \
-  F(WasmMemoryGrow, 2, 1)             \
-  F(WasmRunInterpreter, 2, 1)         \
-  F(WasmStackGuard, 0, 1)             \
-  F(WasmThrowCreate, 2, 1)            \
-  F(WasmThrowTypeError, 0, 1)         \
-  F(WasmRefFunc, 1, 1)                \
-  F(WasmFunctionTableGet, 3, 1)       \
-  F(WasmFunctionTableSet, 4, 1)       \
-  F(WasmTableInit, 5, 1)              \
-  F(WasmTableCopy, 5, 1)              \
-  F(WasmTableGrow, 3, 1)              \
-  F(WasmTableFill, 4, 1)              \
-  F(WasmIsValidFuncRefValue, 1, 1)    \
-  F(WasmCompileLazy, 2, 1)
+#define FOR_EACH_INTRINSIC_WASM(F, I)   \
+  F(ThrowWasmError, 1, 1)               \
+  F(ThrowWasmStackOverflow, 0, 1)       \
+  F(WasmI32AtomicWait, 4, 1)            \
+  F(WasmI64AtomicWait, 5, 1)            \
+  F(WasmAtomicNotify, 3, 1)             \
+  F(WasmExceptionGetValues, 1, 1)       \
+  F(WasmExceptionGetTag, 1, 1)          \
+  F(WasmMemoryGrow, 2, 1)               \
+  F(WasmRunInterpreter, 2, 1)           \
+  F(WasmStackGuard, 0, 1)               \
+  F(WasmThrowCreate, 2, 1)              \
+  F(WasmThrowTypeError, 0, 1)           \
+  F(WasmRefFunc, 1, 1)                  \
+  F(WasmFunctionTableGet, 3, 1)         \
+  F(WasmFunctionTableSet, 4, 1)         \
+  F(WasmTableInit, 5, 1)                \
+  F(WasmTableCopy, 5, 1)                \
+  F(WasmTableGrow, 3, 1)                \
+  F(WasmTableFill, 4, 1)                \
+  F(WasmIsValidFuncRefValue, 1, 1)      \
+  F(WasmCompileLazy, 2, 1)              \
+  F(WasmNewMultiReturnFixedArray, 1, 1) \
+  F(WasmNewMultiReturnJSArray, 1, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_PAIR_IMPL(F, I) \
   F(DebugBreakOnBytecode, 1, 2)                   \

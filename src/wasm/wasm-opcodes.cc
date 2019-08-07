@@ -447,7 +447,7 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
 }
 
 bool IsJSCompatibleSignature(const FunctionSig* sig, bool has_bigint_feature) {
-  if (sig->return_count() > 1) {
+  if (!FLAG_experimental_wasm_mv && sig->return_count() > 1) {
     return false;
   }
   for (auto type : sig->all()) {
