@@ -66,6 +66,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   class AccumulatorPreservingScope;
   class TestResultScope;
   class ValueResultScope;
+  class OptionalChainNullLabelScope;
 
   using ToBooleanMode = BytecodeArrayBuilder::ToBooleanMode;
 
@@ -490,6 +491,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   ExpressionResultScope* execution_result_;
 
   Register incoming_new_target_or_generator_;
+
+  BytecodeLabels* optional_chaining_null_labels_;
 
   // Dummy feedback slot for compare operations, where we don't care about
   // feedback

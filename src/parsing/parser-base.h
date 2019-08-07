@@ -286,6 +286,14 @@ class ParserBase {
 
   V8_INLINE bool has_error() const { return scanner()->has_parser_error(); }
 
+  bool allow_harmony_optional_chaining() const {
+    return scanner()->allow_harmony_optional_chaining();
+  }
+
+  void set_allow_harmony_optional_chaining(bool allow) {
+    scanner()->set_allow_harmony_optional_chaining(allow);
+  }
+
   uintptr_t stack_limit() const { return stack_limit_; }
 
   void set_stack_limit(uintptr_t stack_limit) { stack_limit_ = stack_limit; }
@@ -3075,7 +3083,7 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
     }
 
     if (has_spread) {
-      result = impl()->SpreadCall(result, args, pos, Call::NOT_EVAL);
+      result = impl()->SpreadCall(result, args, pos, Call::NOT_EVAL, false);
     } else {
       result = factory()->NewCall(result, args, pos, Call::NOT_EVAL);
     }
@@ -3086,25 +3094,42 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
     if (!Token::IsPropertyOrCall(peek())) return result;
   }
 
+  bool optional_chaining = false;
+  bool is_optional = false;
   do {
     switch (peek()) {
+      case Token::QUESTION_PERIOD: {
+        if (is_optional) {
+          ReportUnexpectedToken(peek());
+          return impl()->FailureExpression();
+        }
+        Consume(Token::QUESTION_PERIOD);
+        is_optional = true;
+        optional_chaining = true;
+        continue;
+      }
+
       /* Property */
       case Token::LBRACK: {
         Consume(Token::LBRACK);
         int pos = position();
         AcceptINScope scope(this, true);
         ExpressionT index = ParseExpressionCoverGrammar();
-        result = factory()->NewProperty(result, index, pos);
+        result = factory()->NewProperty(result, index, pos, is_optional);
         Expect(Token::RBRACK);
         break;
       }
 
       /* Property */
       case Token::PERIOD: {
+        if (is_optional) {
+          ReportUnexpectedToken(Next());
+          return impl()->FailureExpression();
+        }
         Consume(Token::PERIOD);
         int pos = position();
         ExpressionT key = ParsePropertyOrPrivatePropertyName();
-        result = factory()->NewProperty(result, key, pos);
+        result = factory()->NewProperty(result, key, pos, is_optional);
         break;
       }
 
@@ -3149,22 +3174,39 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
             CheckPossibleEvalCall(result, scope());
 
         if (has_spread) {
-          result = impl()->SpreadCall(result, args, pos, is_possibly_eval);
+          result = impl()->SpreadCall(result, args, pos, is_possibly_eval,
+                                      is_optional);
         } else {
-          result = factory()->NewCall(result, args, pos, is_possibly_eval);
+          result = factory()->NewCall(result, args, pos, is_possibly_eval,
+                                      is_optional);
         }
 
         fni_.RemoveLastFunction();
         break;
       }
 
-      /* Call */
       default:
+        /* Optional Property */
+        if (is_optional) {
+          DCHECK_EQ(scanner()->current_token(), Token::QUESTION_PERIOD);
+          int pos = position();
+          ExpressionT key = ParsePropertyOrPrivatePropertyName();
+          result = factory()->NewProperty(result, key, pos, is_optional);
+          break;
+        }
+        if (optional_chaining) {
+          impl()->ReportMessageAt(scanner()->peek_location(),
+                                  MessageTemplate::kOptionalChainingNoTemplate);
+          return impl()->FailureExpression();
+        }
+        /* Tagged Template */
         DCHECK(Token::IsTemplate(peek()));
         result = ParseTemplateLiteral(result, position(), true);
         break;
     }
-  } while (Token::IsPropertyOrCall(peek()));
+    is_optional = false;
+  } while (is_optional || Token::IsPropertyOrCall(peek()));
+  if (optional_chaining) return factory()->NewOptionalChain(result);
   return result;
 }
 
@@ -3226,6 +3268,13 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression() {
     // The expression can still continue with . or [ after the arguments.
     return ParseMemberExpressionContinuation(result);
   }
+
+  if (peek() == Token::QUESTION_PERIOD) {
+    impl()->ReportMessageAt(scanner()->peek_location(),
+                            MessageTemplate::kOptionalChainingNoNew);
+    return impl()->FailureExpression();
+  }
+
   // NewExpression without arguments.
   ExpressionListT args(pointer_buffer());
   return factory()->NewCallNew(result, args, new_pos);
@@ -3346,6 +3395,11 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseSuperExpression(
         Consume(Token::PRIVATE_NAME);
 
         impl()->ReportMessage(MessageTemplate::kUnexpectedPrivateField);
+        return impl()->FailureExpression();
+      }
+      if (peek() == Token::QUESTION_PERIOD) {
+        Consume(Token::QUESTION_PERIOD);
+        impl()->ReportMessage(MessageTemplate::kOptionalChainingNoSuper);
         return impl()->FailureExpression();
       }
       scope->RecordSuperPropertyUsage();

@@ -575,7 +575,10 @@ namespace internal {
     "FinalizationGroup.prototype.register: target and holdings must not be "   \
     "same")                                                                    \
   T(WeakRefsWeakRefConstructorTargetMustBeObject,                              \
-    "WeakRef: target must be an object")
+    "WeakRef: target must be an object")                                       \
+  T(OptionalChainingNoNew, "Invalid optional chain from new expression")       \
+  T(OptionalChainingNoSuper, "Invalid optional chain from super property")     \
+  T(OptionalChainingNoTemplate, "Invalid tagged template on optional chain")
 
 enum class MessageTemplate {
 #define TEMPLATE(NAME, STRING) k##NAME,

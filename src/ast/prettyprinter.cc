@@ -342,6 +342,9 @@ void CallPrinter::VisitAwait(Await* node) { Find(node->expression()); }
 
 void CallPrinter::VisitThrow(Throw* node) { Find(node->exception()); }
 
+void CallPrinter::VisitOptionalChain(OptionalChain* node) {
+  Find(node->expression());
+}
 
 void CallPrinter::VisitProperty(Property* node) {
   Expression* key = node->key();
@@ -349,12 +352,18 @@ void CallPrinter::VisitProperty(Property* node) {
   if (literal != nullptr &&
       literal->BuildValue(isolate_)->IsInternalizedString()) {
     Find(node->obj(), true);
+    if (node->is_optional_chain_link()) {
+      Print("?");
+    }
     Print(".");
     // TODO(adamk): Teach Literal how to print its values without
     // allocating on the heap.
     PrintLiteral(literal->BuildValue(isolate_), false);
   } else {
     Find(node->obj(), true);
+    if (node->is_optional_chain_link()) {
+      Print("?.");
+    }
     Print("[");
     Find(key, true);
     Print("]");
@@ -1270,6 +1279,11 @@ void AstPrinter::VisitAwait(Await* node) {
 void AstPrinter::VisitThrow(Throw* node) {
   IndentedScope indent(this, "THROW", node->position());
   Visit(node->exception());
+}
+
+void AstPrinter::VisitOptionalChain(OptionalChain* node) {
+  IndentedScope indent(this, "OPTIONAL_CHAIN", node->position());
+  Visit(node->expression());
 }
 
 void AstPrinter::VisitProperty(Property* node) {

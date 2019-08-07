@@ -390,6 +390,7 @@ bool TokenIsPropertyOrCall(Token::Value token) {
     case Token::TEMPLATE_SPAN:
     case Token::TEMPLATE_TAIL:
     case Token::PERIOD:
+    case Token::QUESTION_PERIOD:
     case Token::LBRACK:
     case Token::LPAREN:
       return true;
@@ -1529,6 +1530,7 @@ enum ParserFlag {
   kAllowHarmonyPrivateMethods,
   kAllowHarmonyDynamicImport,
   kAllowHarmonyImportMeta,
+  kAllowHarmonyOptionalChaining,
 };
 
 enum ParserSyncTestResult {
@@ -1542,6 +1544,8 @@ void SetGlobalFlags(base::EnumSet<ParserFlag> flags) {
   i::FLAG_harmony_private_methods = flags.contains(kAllowHarmonyPrivateMethods);
   i::FLAG_harmony_dynamic_import = flags.contains(kAllowHarmonyDynamicImport);
   i::FLAG_harmony_import_meta = flags.contains(kAllowHarmonyImportMeta);
+  i::FLAG_harmony_optional_chaining =
+      flags.contains(kAllowHarmonyOptionalChaining);
 }
 
 void SetParserFlags(i::PreParser* parser, base::EnumSet<ParserFlag> flags) {
@@ -1552,6 +1556,8 @@ void SetParserFlags(i::PreParser* parser, base::EnumSet<ParserFlag> flags) {
       flags.contains(kAllowHarmonyDynamicImport));
   parser->set_allow_harmony_import_meta(
       flags.contains(kAllowHarmonyImportMeta));
+  parser->set_allow_harmony_optional_chaining(
+      flags.contains(kAllowHarmonyOptionalChaining));
 }
 
 void TestParserSyncWithFlags(i::Handle<i::String> source,
@@ -1970,6 +1976,36 @@ TEST(NumericSeparatorUnicodeEscapeSequencesErrors) {
   // https://github.com/tc39/proposal-numeric-separator/issues/25
   const char* statement_data[] = {"\\u{10_FFFF}", nullptr};
 
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+TEST(OptionalChaining) {
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  const char* context_data[][2] = {
+      {"", ""}, {"'use strict';", ""}, {nullptr, nullptr}};
+  const char* statement_data[] = {"a?.b", "a?.['b']", "a?.()", nullptr};
+
+  static const ParserFlag flags[] = {kAllowHarmonyOptionalChaining};
+  RunParserSyncTest(context_data, statement_data, kSuccess, nullptr, 0, flags,
+                    1, nullptr, 0, false, true, true);
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+TEST(OptionalChainingTaggedError) {
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  const char* context_data[][2] = {
+      {"", ""}, {"'use strict';", ""}, {nullptr, nullptr}};
+  const char* statement_data[] = {"a?.b``", "a?.['b']``", "a?.()``", nullptr};
+
+  static const ParserFlag flags[] = {kAllowHarmonyOptionalChaining};
+  RunParserSyncTest(context_data, statement_data, kError, nullptr, 9, flags, 1,
+                    nullptr, 0, false, true, true);
   RunParserSyncTest(context_data, statement_data, kError);
 }
 

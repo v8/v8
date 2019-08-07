@@ -915,6 +915,27 @@ class BytecodeGenerator::IteratorRecord final {
   Register next_;
 };
 
+class BytecodeGenerator::OptionalChainNullLabelScope final {
+ public:
+  explicit OptionalChainNullLabelScope(BytecodeGenerator* bytecode_generator)
+      : bytecode_generator_(bytecode_generator),
+        labels_(bytecode_generator->zone()) {
+    prev_ = bytecode_generator_->optional_chaining_null_labels_;
+    bytecode_generator_->optional_chaining_null_labels_ = &labels_;
+  }
+
+  ~OptionalChainNullLabelScope() {
+    bytecode_generator_->optional_chaining_null_labels_ = prev_;
+  }
+
+  BytecodeLabels* labels() { return &labels_; }
+
+ private:
+  BytecodeGenerator* bytecode_generator_;
+  BytecodeLabels labels_;
+  BytecodeLabels* prev_;
+};
+
 namespace {
 
 // A map from property names to getter/setter pairs allocated in the zone that
@@ -994,6 +1015,7 @@ BytecodeGenerator::BytecodeGenerator(
       execution_context_(nullptr),
       execution_result_(nullptr),
       incoming_new_target_or_generator_(),
+      optional_chaining_null_labels_(nullptr),
       dummy_feedback_slot_(feedback_spec(), FeedbackSlotKind::kCompareOp),
       generator_jump_table_(nullptr),
       suspend_count_(0),
@@ -4318,7 +4340,17 @@ void BytecodeGenerator::VisitThrow(Throw* expr) {
 }
 
 void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* property) {
+  if (property->is_optional_chain_link()) {
+    DCHECK_NOT_NULL(optional_chaining_null_labels_);
+    // TODO(ignition): Add a single opcode for JumpIfNullOrUndefined
+    builder()
+        ->LoadAccumulatorWithRegister(obj)
+        .JumpIfUndefined(optional_chaining_null_labels_->New())
+        .JumpIfNull(optional_chaining_null_labels_->New());
+  }
+
   AssignType property_kind = Property::GetAssignType(property);
+
   switch (property_kind) {
     case NON_PROPERTY:
       UNREACHABLE();
@@ -4414,6 +4446,16 @@ void BytecodeGenerator::VisitKeyedSuperPropertyLoad(Property* property,
   if (opt_receiver_out.is_valid()) {
     builder()->MoveRegister(args[0], opt_receiver_out);
   }
+}
+
+void BytecodeGenerator::VisitOptionalChain(OptionalChain* expr) {
+  BytecodeLabel done;
+  OptionalChainNullLabelScope label_scope(this);
+  VisitForAccumulatorValue(expr->expression());
+  builder()->Jump(&done);
+  label_scope.labels()->Bind(builder());
+  builder()->LoadUndefined();
+  builder()->Bind(&done);
 }
 
 void BytecodeGenerator::VisitProperty(Property* expr) {
@@ -4547,6 +4589,15 @@ void BytecodeGenerator::VisitCall(Call* expr) {
     }
     case Call::SUPER_CALL:
       UNREACHABLE();
+  }
+
+  if (expr->is_optional_chain_link()) {
+    DCHECK_NOT_NULL(optional_chaining_null_labels_);
+    // TODO(ignition): Add a single opcode for JumpIfNullOrUndefined
+    builder()
+        ->LoadAccumulatorWithRegister(callee)
+        .JumpIfUndefined(optional_chaining_null_labels_->New())
+        .JumpIfNull(optional_chaining_null_labels_->New());
   }
 
   // Evaluate all arguments to the function call and store in sequential args
@@ -4810,6 +4861,28 @@ void BytecodeGenerator::VisitDelete(UnaryOperation* unary) {
     Register object = VisitForRegisterValue(property->obj());
     VisitForAccumulatorValue(property->key());
     builder()->Delete(object, language_mode());
+  } else if (expr->IsOptionalChain()) {
+    Expression* expr_inner = expr->AsOptionalChain()->expression();
+    if (expr_inner->IsProperty()) {
+      Property* property = expr_inner->AsProperty();
+      DCHECK(!property->IsPrivateReference());
+      BytecodeLabel done;
+      OptionalChainNullLabelScope label_scope(this);
+      VisitForAccumulatorValue(property->obj());
+      builder()
+          ->JumpIfUndefined(label_scope.labels()->New())
+          .JumpIfNull(label_scope.labels()->New());
+      Register object = register_allocator()->NewRegister();
+      builder()->StoreAccumulatorInRegister(object);
+      VisitForAccumulatorValue(property->key());
+      builder()->Delete(object, language_mode()).Jump(&done);
+      label_scope.labels()->Bind(builder());
+      builder()->LoadTrue();
+      builder()->Bind(&done);
+    } else {
+      VisitForEffect(expr);
+      builder()->LoadTrue();
+    }
   } else if (expr->IsVariableProxy() &&
              !expr->AsVariableProxy()->is_new_target()) {
     // Delete of an unqualified identifier is allowed in sloppy mode but is

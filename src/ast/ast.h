@@ -94,6 +94,7 @@ namespace internal {
   V(ImportCallExpression)       \
   V(Literal)                    \
   V(NativeFunctionLiteral)      \
+  V(OptionalChain)              \
   V(Property)                   \
   V(ResolvedProperty)           \
   V(Spread)                     \
@@ -1595,6 +1596,20 @@ class VariableProxy final : public Expression {
   friend base::ThreadedListTraits<VariableProxy>;
 };
 
+// Wraps an optional chain to provide a wrapper for jump labels.
+class OptionalChain final : public Expression {
+ public:
+  Expression* expression() const { return expression_; }
+
+ private:
+  friend class AstNodeFactory;
+
+  explicit OptionalChain(Expression* expression)
+      : Expression(0, kOptionalChain), expression_(expression) {}
+
+  Expression* expression_;
+};
+
 // Assignments to a property will use one of several types of property access.
 // Otherwise, the assignment is to a non-property (a global, a local slot, a
 // parameter slot, or a destructuring pattern).
@@ -1612,6 +1627,10 @@ enum AssignType {
 
 class Property final : public Expression {
  public:
+  bool is_optional_chain_link() const {
+    return IsOptionalChainLinkField::decode(bit_field_);
+  }
+
   bool IsValidReferenceExpression() const { return true; }
 
   Expression* obj() const { return obj_; }
@@ -1653,9 +1672,12 @@ class Property final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  Property(Expression* obj, Expression* key, int pos)
+  Property(Expression* obj, Expression* key, int pos, bool optional_chain)
       : Expression(pos, kProperty), obj_(obj), key_(key) {
+    bit_field_ |= IsOptionalChainLinkField::encode(optional_chain);
   }
+
+  using IsOptionalChainLinkField = Expression::NextBitField<bool, 1>;
 
   Expression* obj_;
   Expression* key_;
@@ -1694,6 +1716,10 @@ class Call final : public Expression {
     return IsTaggedTemplateField::decode(bit_field_);
   }
 
+  bool is_optional_chain_link() const {
+    return IsOptionalChainLinkField::decode(bit_field_);
+  }
+
   bool only_last_arg_is_spread() {
     return !arguments_.is_empty() && arguments_.last()->IsSpread();
   }
@@ -1726,13 +1752,14 @@ class Call final : public Expression {
 
   Call(Zone* zone, Expression* expression,
        const ScopedPtrList<Expression>& arguments, int pos,
-       PossiblyEval possibly_eval)
+       PossiblyEval possibly_eval, bool optional_chain)
       : Expression(pos, kCall),
         expression_(expression),
         arguments_(0, nullptr) {
     bit_field_ |=
         IsPossiblyEvalField::encode(possibly_eval == IS_POSSIBLY_EVAL) |
-        IsTaggedTemplateField::encode(false);
+        IsTaggedTemplateField::encode(false) |
+        IsOptionalChainLinkField::encode(optional_chain);
     arguments.CopyTo(&arguments_, zone);
   }
 
@@ -1743,12 +1770,14 @@ class Call final : public Expression {
         expression_(expression),
         arguments_(0, nullptr) {
     bit_field_ |= IsPossiblyEvalField::encode(false) |
-                  IsTaggedTemplateField::encode(true);
+                  IsTaggedTemplateField::encode(true) |
+                  IsOptionalChainLinkField::encode(false);
     arguments.CopyTo(&arguments_, zone);
   }
 
   using IsPossiblyEvalField = Expression::NextBitField<bool, 1>;
   using IsTaggedTemplateField = IsPossiblyEvalField::Next<bool, 1>;
+  using IsOptionalChainLinkField = IsTaggedTemplateField::Next<bool, 1>;
 
   Expression* expression_;
   ZonePtrList<Expression> arguments_;
@@ -3040,8 +3069,13 @@ class AstNodeFactory final {
     return new (zone_) Variable(variable);
   }
 
-  Property* NewProperty(Expression* obj, Expression* key, int pos) {
-    return new (zone_) Property(obj, key, pos);
+  OptionalChain* NewOptionalChain(Expression* expression) {
+    return new (zone_) OptionalChain(expression);
+  }
+
+  Property* NewProperty(Expression* obj, Expression* key, int pos,
+                        bool optional_chain = false) {
+    return new (zone_) Property(obj, key, pos, optional_chain);
   }
 
   ResolvedProperty* NewResolvedProperty(VariableProxy* obj,
@@ -3052,8 +3086,10 @@ class AstNodeFactory final {
 
   Call* NewCall(Expression* expression,
                 const ScopedPtrList<Expression>& arguments, int pos,
-                Call::PossiblyEval possibly_eval = Call::NOT_EVAL) {
-    return new (zone_) Call(zone_, expression, arguments, pos, possibly_eval);
+                Call::PossiblyEval possibly_eval = Call::NOT_EVAL,
+                bool optional_chain = false) {
+    return new (zone_)
+        Call(zone_, expression, arguments, pos, possibly_eval, optional_chain);
   }
 
   Call* NewTaggedTemplate(Expression* expression,

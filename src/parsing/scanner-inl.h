@@ -354,7 +354,6 @@ V8_INLINE Token::Value Scanner::ScanSingleToken() {
         case Token::RBRACE:
         case Token::LBRACK:
         case Token::RBRACK:
-        case Token::CONDITIONAL:
         case Token::COLON:
         case Token::SEMICOLON:
         case Token::COMMA:
@@ -362,6 +361,16 @@ V8_INLINE Token::Value Scanner::ScanSingleToken() {
         case Token::ILLEGAL:
           // One character tokens.
           return Select(token);
+
+        case Token::CONDITIONAL:
+          // ? ?.
+          Advance();
+          if (allow_harmony_optional_chaining() && c0_ == '.') {
+            Advance();
+            if (!IsDecimalDigit(c0_)) return Token::QUESTION_PERIOD;
+            PushBack('.');
+          }
+          return Token::CONDITIONAL;
 
         case Token::STRING:
           return ScanString();
