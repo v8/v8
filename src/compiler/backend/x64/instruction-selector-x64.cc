@@ -3123,6 +3123,8 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
     SwapShuffleInputs(node);
     is_swizzle = false;        // It's simpler to just handle the general case.
     no_same_as_first = false;  // SSE requires same-as-first.
+    // TODO(v8:9608): also see v8:9083
+    src1_needs_reg = true;
     opcode = kX64S8x16Alignr;
     // palignr takes a single imm8 offset.
     imms[imm_count++] = offset;
