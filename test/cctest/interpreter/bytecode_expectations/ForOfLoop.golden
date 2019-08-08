@@ -15,7 +15,7 @@ snippet: "
 "
 frame size: 17
 parameter count: 2
-bytecode array length: 173
+bytecode array length: 171
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   34 S> */ B(LdaNamedProperty), R(arg0), U8(0), U8(0),
@@ -59,11 +59,10 @@ bytecodes: [
   /*   49 E> */ B(SetPendingMessage),
                 B(Star), R(11),
                 B(Ldar), R(8),
-                B(JumpIfToBooleanTrue), U8(60),
+                B(JumpIfToBooleanTrue), U8(58),
                 B(LdaNamedProperty), R(5), U8(4), U8(12),
                 B(Star), R(13),
-                B(JumpIfUndefined), U8(52),
-                B(JumpIfNull), U8(50),
+                B(JumpIfUndefinedOrNull), U8(50),
                 B(Mov), R(context), R(14),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
@@ -104,7 +103,7 @@ constant pool: [
 ]
 handlers: [
   [35, 81, 89],
-  [115, 148, 150],
+  [113, 146, 148],
 ]
 
 ---
@@ -116,7 +115,7 @@ snippet: "
 "
 frame size: 22
 parameter count: 2
-bytecode array length: 254
+bytecode array length: 252
 bytecodes: [
                 B(CreateFunctionContext), U8(0), U8(4),
                 B(PushContext), R(2),
@@ -196,11 +195,10 @@ bytecodes: [
                 B(SetPendingMessage),
                 B(Star), R(11),
                 B(Ldar), R(8),
-                B(JumpIfToBooleanTrue), U8(60),
+                B(JumpIfToBooleanTrue), U8(58),
                 B(LdaNamedProperty), R(5), U8(9), U8(16),
                 B(Star), R(14),
-                B(JumpIfUndefined), U8(52),
-                B(JumpIfNull), U8(50),
+                B(JumpIfUndefinedOrNull), U8(50),
                 B(Mov), R(context), R(15),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
@@ -247,7 +245,7 @@ constant pool: [
 ]
 handlers: [
   [65, 160, 168],
-  [194, 227, 229],
+  [192, 225, 227],
 ]
 
 ---
@@ -259,7 +257,7 @@ snippet: "
 "
 frame size: 16
 parameter count: 2
-bytecode array length: 190
+bytecode array length: 188
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   34 S> */ B(LdaNamedProperty), R(arg0), U8(0), U8(0),
@@ -311,11 +309,10 @@ bytecodes: [
                 B(SetPendingMessage),
                 B(Star), R(9),
                 B(Ldar), R(6),
-                B(JumpIfToBooleanTrue), U8(60),
+                B(JumpIfToBooleanTrue), U8(58),
                 B(LdaNamedProperty), R(3), U8(6), U8(14),
                 B(Star), R(12),
-                B(JumpIfUndefined), U8(52),
-                B(JumpIfNull), U8(50),
+                B(JumpIfUndefinedOrNull), U8(50),
                 B(Mov), R(context), R(13),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
@@ -358,7 +355,7 @@ constant pool: [
 ]
 handlers: [
   [35, 98, 106],
-  [132, 165, 167],
+  [130, 163, 165],
 ]
 
 ---
@@ -370,7 +367,7 @@ snippet: "
 "
 frame size: 19
 parameter count: 2
-bytecode array length: 197
+bytecode array length: 195
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   41 S> */ B(LdaNamedProperty), R(arg0), U8(0), U8(0),
@@ -423,11 +420,10 @@ bytecodes: [
   /*   56 E> */ B(SetPendingMessage),
                 B(Star), R(13),
                 B(Ldar), R(10),
-                B(JumpIfToBooleanTrue), U8(60),
+                B(JumpIfToBooleanTrue), U8(58),
                 B(LdaNamedProperty), R(7), U8(6), U8(17),
                 B(Star), R(15),
-                B(JumpIfUndefined), U8(52),
-                B(JumpIfNull), U8(50),
+                B(JumpIfUndefinedOrNull), U8(50),
                 B(Mov), R(context), R(16),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
@@ -470,7 +466,7 @@ constant pool: [
 ]
 handlers: [
   [35, 105, 113],
-  [139, 172, 174],
+  [137, 170, 172],
 ]
 
 ---
@@ -482,7 +478,7 @@ snippet: "
 "
 frame size: 18
 parameter count: 2
-bytecode array length: 214
+bytecode array length: 212
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(1),
                 B(Mov), R(closure), R(5),
@@ -540,11 +536,10 @@ bytecodes: [
   /*   50 E> */ B(SetPendingMessage),
                 B(Star), R(12),
                 B(Ldar), R(9),
-                B(JumpIfToBooleanTrue), U8(60),
+                B(JumpIfToBooleanTrue), U8(58),
                 B(LdaNamedProperty), R(6), U8(7), U8(12),
                 B(Star), R(14),
-                B(JumpIfUndefined), U8(52),
-                B(JumpIfNull), U8(50),
+                B(JumpIfUndefinedOrNull), U8(50),
                 B(Mov), R(context), R(15),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
@@ -588,7 +583,7 @@ constant pool: [
 ]
 handlers: [
   [76, 122, 130],
-  [156, 189, 191],
+  [154, 187, 189],
 ]
 
 ---
@@ -600,7 +595,7 @@ snippet: "
 "
 frame size: 17
 parameter count: 2
-bytecode array length: 258
+bytecode array length: 256
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(4),
@@ -672,11 +667,10 @@ bytecodes: [
                 B(SetPendingMessage),
                 B(Star), R(11),
                 B(Ldar), R(8),
-                B(JumpIfToBooleanTrue), U8(60),
+                B(JumpIfToBooleanTrue), U8(58),
                 B(LdaNamedProperty), R(5), U8(10), U8(12),
                 B(Star), R(13),
-                B(JumpIfUndefined), U8(52),
-                B(JumpIfNull), U8(50),
+                B(JumpIfUndefinedOrNull), U8(50),
                 B(Mov), R(context), R(14),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
@@ -727,7 +721,7 @@ constant pool: [
 ]
 handlers: [
   [76, 160, 168],
-  [194, 227, 229],
+  [192, 225, 227],
 ]
 
 ---
@@ -739,7 +733,7 @@ snippet: "
 "
 frame size: 19
 parameter count: 2
-bytecode array length: 228
+bytecode array length: 226
 bytecodes: [
                 B(Mov), R(closure), R(5),
                 B(Mov), R(this), R(6),
@@ -788,11 +782,10 @@ bytecodes: [
   /*   55 E> */ B(SetPendingMessage),
                 B(Star), R(13),
                 B(Ldar), R(10),
-                B(JumpIfToBooleanTrue), U8(60),
+                B(JumpIfToBooleanTrue), U8(58),
                 B(LdaNamedProperty), R(7), U8(4), U8(12),
                 B(Star), R(15),
-                B(JumpIfUndefined), U8(52),
-                B(JumpIfNull), U8(50),
+                B(JumpIfUndefinedOrNull), U8(50),
                 B(Mov), R(context), R(16),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
@@ -852,9 +845,9 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [16, 200, 200],
+  [16, 198, 198],
   [50, 96, 104],
-  [130, 163, 165],
+  [128, 161, 163],
 ]
 
 ---
@@ -866,7 +859,7 @@ snippet: "
 "
 frame size: 18
 parameter count: 2
-bytecode array length: 264
+bytecode array length: 262
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(1),
                 B(Mov), R(closure), R(4),
@@ -928,11 +921,10 @@ bytecodes: [
                 B(SetPendingMessage),
                 B(Star), R(12),
                 B(Ldar), R(9),
-                B(JumpIfToBooleanTrue), U8(60),
+                B(JumpIfToBooleanTrue), U8(58),
                 B(LdaNamedProperty), R(6), U8(5), U8(12),
                 B(Star), R(14),
-                B(JumpIfUndefined), U8(52),
-                B(JumpIfNull), U8(50),
+                B(JumpIfUndefinedOrNull), U8(50),
                 B(Mov), R(context), R(15),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
@@ -993,8 +985,8 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [20, 236, 236],
+  [20, 234, 234],
   [54, 132, 140],
-  [166, 199, 201],
+  [164, 197, 199],
 ]
 

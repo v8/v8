@@ -418,6 +418,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& JumpIfNull(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfNotNull(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfUndefined(BytecodeLabel* label);
+  BytecodeArrayBuilder& JumpIfUndefinedOrNull(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfNotUndefined(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfNil(BytecodeLabel* label, Token::Value op,
                                   NilValue nil);

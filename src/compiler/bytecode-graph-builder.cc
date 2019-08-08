@@ -3132,6 +3132,16 @@ void BytecodeGraphBuilder::VisitJumpIfNotUndefinedConstant() {
   BuildJumpIfNotEqual(jsgraph()->UndefinedConstant());
 }
 
+void BytecodeGraphBuilder::VisitJumpIfUndefinedOrNull() {
+  BuildJumpIfEqual(jsgraph()->UndefinedConstant());
+  BuildJumpIfEqual(jsgraph()->NullConstant());
+}
+
+void BytecodeGraphBuilder::VisitJumpIfUndefinedOrNullConstant() {
+  BuildJumpIfEqual(jsgraph()->UndefinedConstant());
+  BuildJumpIfEqual(jsgraph()->NullConstant());
+}
+
 void BytecodeGraphBuilder::VisitJumpLoop() { BuildJump(); }
 
 void BytecodeGraphBuilder::BuildSwitchOnSmi(Node* condition) {

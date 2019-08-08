@@ -16,7 +16,7 @@ snippet: "
 "
 frame size: 21
 parameter count: 1
-bytecode array length: 325
+bytecode array length: 321
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(4),
@@ -28,8 +28,7 @@ bytecodes: [
   /*   43 S> */ B(CreateArrayLiteral), U8(2), U8(0), U8(37),
                 B(Star), R(7),
                 B(LdaNamedProperty), R(7), U8(3), U8(1),
-                B(JumpIfUndefined), U8(17),
-                B(JumpIfNull), U8(15),
+                B(JumpIfUndefinedOrNull), U8(15),
                 B(Star), R(8),
                 B(CallProperty0), R(8), R(7), U8(3),
                 B(JumpIfJSReceiver), U8(23),
@@ -87,11 +86,10 @@ bytecodes: [
   /*   38 E> */ B(SetPendingMessage),
                 B(Star), R(12),
                 B(Ldar), R(9),
-                B(JumpIfToBooleanTrue), U8(96),
+                B(JumpIfToBooleanTrue), U8(94),
                 B(LdaNamedProperty), R(6), U8(8), U8(17),
                 B(Star), R(16),
-                B(JumpIfUndefined), U8(88),
-                B(JumpIfNull), U8(86),
+                B(JumpIfUndefinedOrNull), U8(86),
                 B(Mov), R(context), R(17),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
@@ -156,8 +154,8 @@ bytecodes: [
   /*   57 S> */ B(Return),
 ]
 constant pool: [
-  Smi [98],
-  Smi [229],
+  Smi [96],
+  Smi [225],
   ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
   SYMBOL_TYPE,
   SYMBOL_TYPE,
@@ -169,9 +167,9 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [20, 297, 297],
-  [77, 157, 165],
-  [191, 260, 262],
+  [20, 293, 293],
+  [75, 155, 163],
+  [187, 256, 258],
 ]
 
 ---
@@ -183,7 +181,7 @@ snippet: "
 "
 frame size: 21
 parameter count: 1
-bytecode array length: 346
+bytecode array length: 342
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(4),
@@ -195,8 +193,7 @@ bytecodes: [
   /*   43 S> */ B(CreateArrayLiteral), U8(2), U8(0), U8(37),
                 B(Star), R(7),
                 B(LdaNamedProperty), R(7), U8(3), U8(1),
-                B(JumpIfUndefined), U8(17),
-                B(JumpIfNull), U8(15),
+                B(JumpIfUndefinedOrNull), U8(15),
                 B(Star), R(8),
                 B(CallProperty0), R(8), R(7), U8(3),
                 B(JumpIfJSReceiver), U8(23),
@@ -256,11 +253,10 @@ bytecodes: [
                 B(SetPendingMessage),
                 B(Star), R(12),
                 B(Ldar), R(9),
-                B(JumpIfToBooleanTrue), U8(96),
+                B(JumpIfToBooleanTrue), U8(94),
                 B(LdaNamedProperty), R(6), U8(8), U8(17),
                 B(Star), R(16),
-                B(JumpIfUndefined), U8(88),
-                B(JumpIfNull), U8(86),
+                B(JumpIfUndefinedOrNull), U8(86),
                 B(Mov), R(context), R(17),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
@@ -331,8 +327,8 @@ bytecodes: [
   /*   68 S> */ B(Return),
 ]
 constant pool: [
-  Smi [98],
-  Smi [233],
+  Smi [96],
+  Smi [229],
   ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
   SYMBOL_TYPE,
   SYMBOL_TYPE,
@@ -346,9 +342,9 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [20, 318, 318],
-  [77, 161, 169],
-  [195, 264, 266],
+  [20, 314, 314],
+  [75, 159, 167],
+  [191, 260, 262],
 ]
 
 ---
@@ -363,7 +359,7 @@ snippet: "
 "
 frame size: 21
 parameter count: 1
-bytecode array length: 341
+bytecode array length: 337
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(4),
@@ -375,8 +371,7 @@ bytecodes: [
   /*   43 S> */ B(CreateArrayLiteral), U8(2), U8(0), U8(37),
                 B(Star), R(7),
                 B(LdaNamedProperty), R(7), U8(3), U8(1),
-                B(JumpIfUndefined), U8(17),
-                B(JumpIfNull), U8(15),
+                B(JumpIfUndefinedOrNull), U8(15),
                 B(Star), R(8),
                 B(CallProperty0), R(8), R(7), U8(3),
                 B(JumpIfJSReceiver), U8(23),
@@ -441,11 +436,10 @@ bytecodes: [
                 B(SetPendingMessage),
                 B(Star), R(12),
                 B(Ldar), R(9),
-                B(JumpIfToBooleanTrue), U8(96),
+                B(JumpIfToBooleanTrue), U8(94),
                 B(LdaNamedProperty), R(6), U8(8), U8(19),
                 B(Star), R(16),
-                B(JumpIfUndefined), U8(88),
-                B(JumpIfNull), U8(86),
+                B(JumpIfUndefinedOrNull), U8(86),
                 B(Mov), R(context), R(17),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
@@ -510,8 +504,8 @@ bytecodes: [
   /*  114 S> */ B(Return),
 ]
 constant pool: [
-  Smi [98],
-  Smi [245],
+  Smi [96],
+  Smi [241],
   ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
   SYMBOL_TYPE,
   SYMBOL_TYPE,
@@ -523,9 +517,9 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [20, 313, 313],
-  [77, 173, 181],
-  [207, 276, 278],
+  [20, 309, 309],
+  [75, 171, 179],
+  [203, 272, 274],
 ]
 
 ---
@@ -538,7 +532,7 @@ snippet: "
 "
 frame size: 17
 parameter count: 1
-bytecode array length: 261
+bytecode array length: 259
 bytecodes: [
                 B(Mov), R(closure), R(2),
                 B(Mov), R(this), R(3),
@@ -593,11 +587,10 @@ bytecodes: [
                 B(SetPendingMessage),
                 B(Star), R(10),
                 B(Ldar), R(7),
-                B(JumpIfToBooleanTrue), U8(60),
+                B(JumpIfToBooleanTrue), U8(58),
                 B(LdaNamedProperty), R(4), U8(7), U8(18),
                 B(Star), R(13),
-                B(JumpIfUndefined), U8(52),
-                B(JumpIfNull), U8(50),
+                B(JumpIfUndefinedOrNull), U8(50),
                 B(Mov), R(context), R(14),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
@@ -668,8 +661,8 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [16, 233, 233],
+  [16, 231, 231],
   [59, 112, 120],
-  [146, 179, 181],
+  [144, 177, 179],
 ]
 
