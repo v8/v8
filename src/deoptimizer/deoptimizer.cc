@@ -681,10 +681,6 @@ void Deoptimizer::DoComputeOutputFrames() {
     }
   }
 
-  StackGuard* const stack_guard = isolate()->stack_guard();
-  CHECK_GT(static_cast<uintptr_t>(caller_frame_top_),
-           stack_guard->real_jslimit());
-
   if (trace_scope_ != nullptr) {
     timer.Start();
     PrintF(trace_scope_->file(), "[deoptimizing (DEOPT %s): begin ",
@@ -742,7 +738,6 @@ void Deoptimizer::DoComputeOutputFrames() {
 
   // Translate each output frame.
   int frame_index = 0;  // output_frame_index
-  size_t total_output_frame_size = 0;
   for (size_t i = 0; i < count; ++i, ++frame_index) {
     // Read the ast node id, function, and frame height for this output frame.
     TranslatedFrame* translated_frame = &(translated_state_.frames()[i]);
@@ -778,7 +773,6 @@ void Deoptimizer::DoComputeOutputFrames() {
         FATAL("invalid frame");
         break;
     }
-    total_output_frame_size += output_[frame_index]->GetFrameSize();
   }
 
   FrameDescription* topmost = output_[count - 1];
@@ -798,14 +792,6 @@ void Deoptimizer::DoComputeOutputFrames() {
            bailout_id_, node_id.ToInt(), output_[index]->GetPc(),
            caller_frame_top_, ms);
   }
-
-  // TODO(jgruber,neis):
-  // The situation that the output frames do not fit into the stack space should
-  // be prevented by an optimized function's initial stack check: That check
-  // must fail if the (interpreter) frames generated upon deoptimization of the
-  // function would overflow the stack.
-  CHECK_GT(static_cast<uintptr_t>(caller_frame_top_) - total_output_frame_size,
-           stack_guard->real_jslimit());
 }
 
 void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
