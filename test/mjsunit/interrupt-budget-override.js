@@ -15,4 +15,5 @@ function f() {
 %PrepareFunctionForOptimization(f);
 f();
 f();
+f();
 assertOptimized(f);
