@@ -11098,9 +11098,12 @@ int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
   }
 
   if (change_in_bytes < 0) {
-    const int64_t lower_limit = *external_memory_limit + change_in_bytes;
-    if (lower_limit > I::kExternalAllocationSoftLimit)
+    const int64_t lower_limit =
+        static_cast<int64_t>(static_cast<uint64_t>(*external_memory_limit) +
+                             static_cast<uint64_t>(change_in_bytes));
+    if (lower_limit > I::kExternalAllocationSoftLimit) {
       *external_memory_limit = lower_limit;
+    }
   } else if (change_in_bytes > 0 && amount > *external_memory_limit) {
     ReportExternalAllocationLimitReached();
   }
