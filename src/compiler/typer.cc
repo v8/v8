@@ -2361,6 +2361,8 @@ Type Typer::Visitor::TypeConstant(Handle<Object> value) {
   return Type::NewConstant(typer_->broker(), value, zone());
 }
 
+Type Typer::Visitor::TypeJSGetIterator(Node* node) { return Type::Any(); }
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

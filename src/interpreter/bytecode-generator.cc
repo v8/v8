@@ -5266,8 +5266,7 @@ void BytecodeGenerator::BuildGetIterator(IteratorType hint) {
     // If method is undefined,
     //     Let syncMethod be GetMethod(obj, @@iterator)
     builder()
-        ->LoadIteratorProperty(obj,
-                               feedback_index(feedback_spec()->AddLoadICSlot()))
+        ->GetIterator(obj, feedback_index(feedback_spec()->AddLoadICSlot()))
         .StoreAccumulatorInRegister(method);
 
     //     Let syncIterator be Call(syncMethod, obj)
@@ -5285,8 +5284,7 @@ void BytecodeGenerator::BuildGetIterator(IteratorType hint) {
     // Let method be GetMethod(obj, @@iterator).
     builder()
         ->StoreAccumulatorInRegister(obj)
-        .LoadIteratorProperty(obj,
-                              feedback_index(feedback_spec()->AddLoadICSlot()))
+        .GetIterator(obj, feedback_index(feedback_spec()->AddLoadICSlot()))
         .StoreAccumulatorInRegister(method);
 
     // Let iterator be Call(method, obj).

@@ -1181,6 +1181,7 @@ extern macro Int32FalseConstant(): bool;
 extern macro EmptyStringConstant(): EmptyString;
 extern macro LengthStringConstant(): String;
 extern macro NanConstant(): NaN;
+extern macro IteratorSymbolConstant(): Symbol;
 
 const TheHole: TheHole = TheHoleConstant();
 const Null: Null = NullConstant();
@@ -1487,6 +1488,7 @@ extern transitioning builtin HasProperty(implicit context: Context)(
     Object, Object): Boolean;
 extern transitioning macro HasProperty_Inline(implicit context: Context)(
     JSReceiver, Object): Boolean;
+extern builtin LoadIC(Context, Object, Object, Smi, FeedbackVector): Object;
 
 extern macro ThrowRangeError(implicit context: Context)(
     constexpr MessageTemplate): never;
@@ -1855,6 +1857,12 @@ Cast<Number>(o: Object): Number
   return TaggedToNumber(o) otherwise CastError;
 }
 
+Cast<Undefined>(o: Object): Undefined
+    labels CastError {
+  if (o != Undefined) goto CastError;
+  return %RawDownCast<Undefined>(o);
+}
+
 macro Cast<A: type>(o: HeapObject): A
     labels CastError;
 
@@ -1867,6 +1875,12 @@ Cast<Null>(o: HeapObject): Null
     labels CastError {
   if (o != Null) goto CastError;
   return %RawDownCast<Null>(o);
+}
+
+Cast<Undefined>(o: HeapObject): Undefined
+    labels CastError {
+  const o: Object = o;
+  return Cast<Undefined>(o) otherwise CastError;
 }
 
 Cast<FixedArray>(o: HeapObject): FixedArray

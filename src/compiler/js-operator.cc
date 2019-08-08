@@ -283,7 +283,8 @@ bool operator!=(PropertyAccess const& lhs, PropertyAccess const& rhs) {
 PropertyAccess const& PropertyAccessOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kJSHasProperty ||
          op->opcode() == IrOpcode::kJSLoadProperty ||
-         op->opcode() == IrOpcode::kJSStoreProperty);
+         op->opcode() == IrOpcode::kJSStoreProperty ||
+         op->opcode() == IrOpcode::kJSGetIterator);
   return OpParameter<PropertyAccess>(op);
 }
 
@@ -951,6 +952,15 @@ const Operator* JSOperatorBuilder::LoadProperty(
       "JSLoadProperty",                                    // name
       2, 1, 1, 1, 1, 2,                                    // counts
       access);                                             // parameter
+}
+
+const Operator* JSOperatorBuilder::GetIterator(VectorSlotPair const& feedback) {
+  PropertyAccess access(LanguageMode::kSloppy, feedback);
+  return new (zone()) Operator1<PropertyAccess>(          // --
+      IrOpcode::kJSGetIterator, Operator::kNoProperties,  // opcode
+      "JSGetIterator",                                    // name
+      1, 1, 1, 1, 1, 2,                                   // counts
+      access);                                            // parameter
 }
 
 const Operator* JSOperatorBuilder::HasProperty(VectorSlotPair const& feedback) {

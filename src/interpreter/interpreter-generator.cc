@@ -3172,6 +3172,25 @@ IGNITION_HANDLER(ForInStep, InterpreterAssembler) {
   Dispatch();
 }
 
+// GetIterator <object>
+//
+// Retrieves the object[Symbol.iterator] method and stores the result
+// in the accumulator
+// TODO(swapnilgaikwad): Extend the functionality of the bytecode to call
+// iterator method for an object
+IGNITION_HANDLER(GetIterator, InterpreterAssembler) {
+  Node* receiver = LoadRegisterAtOperandIndex(0);
+  Node* context = GetContext();
+  Node* feedback_vector = LoadFeedbackVector();
+  Node* feedback_slot = BytecodeOperandIdx(1);
+  Node* smi_slot = SmiTag(feedback_slot);
+
+  Node* result = CallBuiltin(Builtins::kGetIteratorWithFeedback, context,
+                             receiver, smi_slot, feedback_vector);
+  SetAccumulator(result);
+  Dispatch();
+}
+
 // Wide
 //
 // Prefix bytecode indicating next bytecode has wide (16-bit) operands.

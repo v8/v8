@@ -854,6 +854,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* ParseInt();
   const Operator* RegExpTest();
 
+  const Operator* GetIterator(VectorSlotPair const& feedback);
+
  private:
   Zone* zone() const { return zone_; }
 

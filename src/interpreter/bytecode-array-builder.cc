@@ -810,10 +810,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadKeyedProperty(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::LoadIteratorProperty(
-    Register object, int feedback_slot) {
-  size_t name_index = IteratorSymbolConstantPoolEntry();
-  OutputLdaNamedProperty(object, name_index, feedback_slot);
+BytecodeArrayBuilder& BytecodeArrayBuilder::GetIterator(Register object,
+                                                        int feedback_slot) {
+  OutputGetIterator(object, feedback_slot);
   return *this;
 }
 

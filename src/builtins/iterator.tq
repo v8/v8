@@ -41,4 +41,19 @@ namespace iterator {
                                                     Context)(Object, Object);
   extern builtin IterableToListWithSymbolLookup(implicit context:
                                                     Context)(Object);
+
+  transitioning builtin GetIteratorWithFeedback(
+      context: Context, receiver: Object, feedbackSlot: Smi,
+      feedback: Undefined | FeedbackVector): Object {
+    typeswitch (feedback) {
+      case (Undefined): {
+        return GetProperty(receiver, IteratorSymbolConstant());
+      }
+      case (feedback: FeedbackVector): {
+        return LoadIC(
+            context, receiver, IteratorSymbolConstant(), feedbackSlot,
+            feedback);
+      }
+    }
+  }
 }

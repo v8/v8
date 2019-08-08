@@ -3287,6 +3287,17 @@ void BytecodeGraphBuilder::VisitForInStep() {
   environment()->BindAccumulator(index, Environment::kAttachFrameState);
 }
 
+void BytecodeGraphBuilder::VisitGetIterator() {
+  PrepareEagerCheckpoint();
+  Node* object =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  VectorSlotPair feedback =
+      CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(1));
+  const Operator* op = javascript()->GetIterator(feedback);
+  Node* node = NewNode(op, object);
+  environment()->BindAccumulator(node, Environment::kAttachFrameState);
+}
+
 void BytecodeGraphBuilder::VisitSuspendGenerator() {
   Node* generator = environment()->LookupRegister(
       bytecode_iterator().GetRegisterOperand(0));

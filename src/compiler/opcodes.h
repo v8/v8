@@ -203,6 +203,7 @@
   V(JSForInEnumerate)                  \
   V(JSForInNext)                       \
   V(JSForInPrepare)                    \
+  V(JSGetIterator)                     \
   V(JSLoadMessage)                     \
   V(JSStoreMessage)                    \
   V(JSLoadModule)                      \

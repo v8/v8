@@ -216,6 +216,17 @@ void JSGenericLowering::LowerJSLoadGlobal(Node* node) {
   }
 }
 
+void JSGenericLowering::LowerJSGetIterator(Node* node) {
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  const PropertyAccess& p = PropertyAccessOf(node->op());
+  node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.feedback().index()));
+  Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
+  node->InsertInput(zone(), 2, vector);
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtins::kGetIteratorWithFeedback);
+  ReplaceWithStubCall(node, callable, flags);
+}
+
 void JSGenericLowering::LowerJSStoreProperty(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   PropertyAccess const& p = PropertyAccessOf(node->op());

@@ -166,6 +166,7 @@ namespace compiler {
   V(CreateEvalContext)                \
   V(CreateFunctionContext)            \
   V(CreateWithContext)                \
+  V(GetIterator)                      \
   V(GetSuperConstructor)              \
   V(GetTemplateObject)                \
   V(InvokeIntrinsic)                  \
@@ -989,6 +990,16 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
       }
     }
   }
+}
+
+void SerializerForBackgroundCompilation::VisitGetIterator(
+    BytecodeArrayIterator* iterator) {
+  AccessMode mode = AccessMode::kLoad;
+  Hints const& receiver =
+      environment()->register_hints(iterator->GetRegisterOperand(0));
+  Handle<Name> name = broker()->isolate()->factory()->iterator_symbol();
+  FeedbackSlot slot = iterator->GetSlotOperand(1);
+  ProcessNamedPropertyAccess(receiver, NameRef(broker(), name), slot, mode);
 }
 
 void SerializerForBackgroundCompilation::VisitGetSuperConstructor(

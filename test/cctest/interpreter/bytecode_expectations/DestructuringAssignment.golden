@@ -12,12 +12,12 @@ snippet: "
 "
 frame size: 16
 parameter count: 1
-bytecode array length: 176
+bytecode array length: 175
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   45 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(37),
                 B(Star), R(1),
-  /*   60 S> */ B(LdaNamedProperty), R(1), U8(1), U8(1),
+  /*   60 S> */ B(GetIterator), R(1), U8(1),
                 B(Star), R(6),
                 B(CallProperty0), R(6), R(1), U8(3),
                 B(Mov), R(1), R(5),
@@ -25,7 +25,7 @@ bytecodes: [
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star), R(4),
-                B(LdaNamedProperty), R(4), U8(2), U8(5),
+                B(LdaNamedProperty), R(4), U8(1), U8(5),
                 B(Star), R(3),
                 B(LdaFalse),
                 B(Star), R(7),
@@ -38,9 +38,9 @@ bytecodes: [
                 B(Star), R(11),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(11), U8(1),
-                B(LdaNamedProperty), R(11), U8(3), U8(9),
+                B(LdaNamedProperty), R(11), U8(2), U8(9),
                 B(JumpIfToBooleanTrue), U8(15),
-                B(LdaNamedProperty), R(11), U8(4), U8(7),
+                B(LdaNamedProperty), R(11), U8(3), U8(7),
                 B(Star), R(11),
                 B(LdaFalse),
                 B(Star), R(7),
@@ -60,7 +60,7 @@ bytecodes: [
                 B(Star), R(10),
                 B(Ldar), R(7),
                 B(JumpIfToBooleanTrue), U8(58),
-                B(LdaNamedProperty), R(4), U8(5), U8(13),
+                B(LdaNamedProperty), R(4), U8(4), U8(13),
                 B(Star), R(12),
                 B(JumpIfUndefinedOrNull), U8(50),
                 B(Mov), R(context), R(13),
@@ -68,7 +68,7 @@ bytecodes: [
                 B(JumpIfTrue), U8(18),
                 B(Wide), B(LdaSmi), I16(159),
                 B(Star), R(14),
-                B(LdaConstant), U8(6),
+                B(LdaConstant), U8(5),
                 B(Star), R(15),
                 B(CallRuntime), U16(Runtime::kNewTypeError), R(14), U8(2),
                 B(Throw),
@@ -95,7 +95,6 @@ bytecodes: [
 ]
 constant pool: [
   ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
-  SYMBOL_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["next"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["done"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["value"],
@@ -103,8 +102,8 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
 ]
 handlers: [
-  [44, 86, 94],
-  [118, 151, 153],
+  [43, 85, 93],
+  [117, 150, 152],
 ]
 
 ---
@@ -114,12 +113,12 @@ snippet: "
 "
 frame size: 17
 parameter count: 1
-bytecode array length: 262
+bytecode array length: 261
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   48 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(37),
                 B(Star), R(2),
-  /*   69 S> */ B(LdaNamedProperty), R(2), U8(1), U8(1),
+  /*   69 S> */ B(GetIterator), R(2), U8(1),
                 B(Star), R(7),
                 B(CallProperty0), R(7), R(2), U8(3),
                 B(Mov), R(2), R(6),
@@ -127,7 +126,7 @@ bytecodes: [
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star), R(5),
-                B(LdaNamedProperty), R(5), U8(2), U8(5),
+                B(LdaNamedProperty), R(5), U8(1), U8(5),
                 B(Star), R(4),
                 B(LdaFalse),
                 B(Star), R(8),
@@ -140,9 +139,9 @@ bytecodes: [
                 B(Star), R(12),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(12), U8(1),
-                B(LdaNamedProperty), R(12), U8(3), U8(9),
+                B(LdaNamedProperty), R(12), U8(2), U8(9),
                 B(JumpIfToBooleanTrue), U8(13),
-                B(LdaNamedProperty), R(12), U8(4), U8(7),
+                B(LdaNamedProperty), R(12), U8(3), U8(7),
                 B(Star), R(12),
                 B(LdaFalse),
                 B(Star), R(8),
@@ -155,9 +154,9 @@ bytecodes: [
                 B(Star), R(12),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(12), U8(1),
-                B(LdaNamedProperty), R(12), U8(3), U8(9),
+                B(LdaNamedProperty), R(12), U8(2), U8(9),
                 B(JumpIfToBooleanTrue), U8(15),
-                B(LdaNamedProperty), R(12), U8(4), U8(7),
+                B(LdaNamedProperty), R(12), U8(3), U8(7),
                 B(Star), R(12),
                 B(LdaFalse),
                 B(Star), R(8),
@@ -175,9 +174,9 @@ bytecodes: [
                 B(Star), R(12),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(12), U8(1),
-                B(LdaNamedProperty), R(12), U8(3), U8(21),
+                B(LdaNamedProperty), R(12), U8(2), U8(21),
                 B(JumpIfToBooleanTrue), U8(19),
-                B(LdaNamedProperty), R(12), U8(4), U8(7),
+                B(LdaNamedProperty), R(12), U8(3), U8(7),
                 B(StaInArrayLiteral), R(13), R(14), U8(16),
                 B(Ldar), R(14),
                 B(Inc), U8(18),
@@ -196,7 +195,7 @@ bytecodes: [
                 B(Star), R(11),
                 B(Ldar), R(8),
                 B(JumpIfToBooleanTrue), U8(58),
-                B(LdaNamedProperty), R(5), U8(5), U8(23),
+                B(LdaNamedProperty), R(5), U8(4), U8(23),
                 B(Star), R(13),
                 B(JumpIfUndefinedOrNull), U8(50),
                 B(Mov), R(context), R(14),
@@ -204,7 +203,7 @@ bytecodes: [
                 B(JumpIfTrue), U8(18),
                 B(Wide), B(LdaSmi), I16(159),
                 B(Star), R(15),
-                B(LdaConstant), U8(6),
+                B(LdaConstant), U8(5),
                 B(Star), R(16),
                 B(CallRuntime), U16(Runtime::kNewTypeError), R(15), U8(2),
                 B(Throw),
@@ -231,7 +230,6 @@ bytecodes: [
 ]
 constant pool: [
   ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
-  SYMBOL_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["next"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["done"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["value"],
@@ -239,8 +237,8 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
 ]
 handlers: [
-  [44, 172, 180],
-  [204, 237, 239],
+  [43, 171, 179],
+  [203, 236, 238],
 ]
 
 ---
@@ -250,14 +248,14 @@ snippet: "
 "
 frame size: 18
 parameter count: 1
-bytecode array length: 227
+bytecode array length: 226
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   40 S> */ B(CreateEmptyObjectLiteral),
                 B(Star), R(0),
   /*   51 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(37),
                 B(Star), R(2),
-  /*   68 S> */ B(LdaNamedProperty), R(2), U8(1), U8(1),
+  /*   68 S> */ B(GetIterator), R(2), U8(1),
                 B(Star), R(7),
                 B(CallProperty0), R(7), R(2), U8(3),
                 B(Mov), R(2), R(6),
@@ -265,7 +263,7 @@ bytecodes: [
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star), R(5),
-                B(LdaNamedProperty), R(5), U8(2), U8(5),
+                B(LdaNamedProperty), R(5), U8(1), U8(5),
                 B(Star), R(4),
                 B(LdaFalse),
                 B(Star), R(8),
@@ -279,16 +277,16 @@ bytecodes: [
                 B(Star), R(12),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(12), U8(1),
-                B(LdaNamedProperty), R(12), U8(3), U8(9),
+                B(LdaNamedProperty), R(12), U8(2), U8(9),
                 B(JumpIfToBooleanTrue), U8(15),
-                B(LdaNamedProperty), R(12), U8(4), U8(7),
+                B(LdaNamedProperty), R(12), U8(3), U8(7),
                 B(Star), R(12),
                 B(LdaFalse),
                 B(Star), R(8),
                 B(Ldar), R(12),
                 B(Jump), U8(3),
                 B(LdaUndefined),
-                B(StaNamedProperty), R(13), U8(5), U8(13),
+                B(StaNamedProperty), R(13), U8(4), U8(13),
   /*   63 S> */ B(Ldar), R(8),
                 B(JumpIfToBooleanTrue), U8(37),
                 B(LdaTrue),
@@ -297,9 +295,9 @@ bytecodes: [
                 B(Star), R(12),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(12), U8(1),
-                B(LdaNamedProperty), R(12), U8(3), U8(9),
+                B(LdaNamedProperty), R(12), U8(2), U8(9),
                 B(JumpIfToBooleanTrue), U8(15),
-                B(LdaNamedProperty), R(12), U8(4), U8(7),
+                B(LdaNamedProperty), R(12), U8(3), U8(7),
                 B(Star), R(12),
                 B(LdaFalse),
                 B(Star), R(8),
@@ -319,7 +317,7 @@ bytecodes: [
                 B(Star), R(11),
                 B(Ldar), R(8),
                 B(JumpIfToBooleanTrue), U8(58),
-                B(LdaNamedProperty), R(5), U8(6), U8(17),
+                B(LdaNamedProperty), R(5), U8(5), U8(17),
                 B(Star), R(14),
                 B(JumpIfUndefinedOrNull), U8(50),
                 B(Mov), R(context), R(15),
@@ -327,7 +325,7 @@ bytecodes: [
                 B(JumpIfTrue), U8(18),
                 B(Wide), B(LdaSmi), I16(159),
                 B(Star), R(16),
-                B(LdaConstant), U8(7),
+                B(LdaConstant), U8(6),
                 B(Star), R(17),
                 B(CallRuntime), U16(Runtime::kNewTypeError), R(16), U8(2),
                 B(Throw),
@@ -354,7 +352,6 @@ bytecodes: [
 ]
 constant pool: [
   ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
-  SYMBOL_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["next"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["done"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["value"],
@@ -363,8 +360,8 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
 ]
 handlers: [
-  [47, 137, 145],
-  [169, 202, 204],
+  [46, 136, 144],
+  [168, 201, 203],
 ]
 
 ---
