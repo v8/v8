@@ -635,6 +635,11 @@ bool Scanner::ScanDecimalDigits(bool allow_numeric_separator) {
   while (IsDecimalDigit(c0_)) {
     AddLiteralCharAdvance();
   }
+  if (c0_ == '_') {
+    ReportScannerError(Location(source_pos(), source_pos() + 1),
+                       MessageTemplate::kInvalidOrUnexpectedToken);
+    return false;
+  }
   return true;
 }
 
