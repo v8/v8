@@ -24,22 +24,26 @@ class V8_EXPORT_PRIVATE IrregexpInterpreter : public AllStatic {
   // In case a StackOverflow occurs, a StackOverflowException is created and
   // EXCEPTION is returned.
   static Result MatchForCallFromRuntime(Isolate* isolate,
-                                        Handle<ByteArray> code_array,
+                                        Handle<JSRegExp> regexp,
                                         Handle<String> subject_string,
                                         int* registers, int registers_length,
                                         int start_position);
 
   // In case a StackOverflow occurs, EXCEPTION is returned. The caller is
   // responsible for creating the exception.
-  static Result MatchForCallFromJs(Isolate* isolate, Address code,
+  static Result MatchForCallFromJs(Isolate* isolate, Address regexp,
                                    Address subject, int* registers,
                                    int32_t registers_length,
                                    int32_t start_position);
 
+  static Result MatchInternal(Isolate* isolate, ByteArray code_array,
+                              String subject_string, int* registers,
+                              int registers_length, int start_position,
+                              RegExp::CallOrigin call_origin);
+
  private:
-  static Result Match(Isolate* isolate, ByteArray code_array,
-                      String subject_string, int* registers,
-                      int registers_length, int start_position,
+  static Result Match(Isolate* isolate, JSRegExp regexp, String subject_string,
+                      int* registers, int registers_length, int start_position,
                       RegExp::CallOrigin call_origin);
 };
 

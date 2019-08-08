@@ -8,6 +8,7 @@
 
 #include "src/ast/ast.h"
 #include "src/base/small-vector.h"
+#include "src/objects/js-regexp-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/regexp/regexp-bytecodes.h"
 #include "src/regexp/regexp-macro-assembler.h"
@@ -780,6 +781,20 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate, ByteArray code_array,
 
 // static
 IrregexpInterpreter::Result IrregexpInterpreter::Match(
+    Isolate* isolate, JSRegExp regexp, String subject_string, int* registers,
+    int registers_length, int start_position, RegExp::CallOrigin call_origin) {
+  if (FLAG_regexp_tier_up) {
+    regexp.MarkTierUpForNextExec();
+  }
+
+  bool is_one_byte = String::IsOneByteRepresentationUnderneath(subject_string);
+  ByteArray code_array = ByteArray::cast(regexp.Code(is_one_byte));
+
+  return MatchInternal(isolate, code_array, subject_string, registers,
+                       registers_length, start_position, call_origin);
+}
+
+IrregexpInterpreter::Result IrregexpInterpreter::MatchInternal(
     Isolate* isolate, ByteArray code_array, String subject_string,
     int* registers, int registers_length, int start_position,
     RegExp::CallOrigin call_origin) {
@@ -818,7 +833,7 @@ IrregexpInterpreter::Result IrregexpInterpreter::Match(
 // This method is called through an external reference from RegExpExecInternal
 // builtin.
 IrregexpInterpreter::Result IrregexpInterpreter::MatchForCallFromJs(
-    Isolate* isolate, Address code, Address subject, int* registers,
+    Isolate* isolate, Address regexp, Address subject, int* registers,
     int32_t registers_length, int32_t start_position) {
   DCHECK_NOT_NULL(isolate);
   DCHECK_NOT_NULL(registers);
@@ -827,19 +842,17 @@ IrregexpInterpreter::Result IrregexpInterpreter::MatchForCallFromJs(
   DisallowJavascriptExecution no_js(isolate);
 
   String subject_string = String::cast(Object(subject));
-  ByteArray code_array = ByteArray::cast(Object(code));
+  JSRegExp regexp_obj = JSRegExp::cast(Object(regexp));
 
-  return Match(isolate, code_array, subject_string, registers, registers_length,
+  return Match(isolate, regexp_obj, subject_string, registers, registers_length,
                start_position, RegExp::CallOrigin::kFromJs);
 }
 
 IrregexpInterpreter::Result IrregexpInterpreter::MatchForCallFromRuntime(
-    Isolate* isolate, Handle<ByteArray> code_array,
-    Handle<String> subject_string, int* registers, int registers_length,
-    int start_position) {
-  return Match(isolate, *code_array, *subject_string, registers,
-               registers_length, start_position,
-               RegExp::CallOrigin::kFromRuntime);
+    Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject_string,
+    int* registers, int registers_length, int start_position) {
+  return Match(isolate, *regexp, *subject_string, registers, registers_length,
+               start_position, RegExp::CallOrigin::kFromRuntime);
 }
 
 }  // namespace internal

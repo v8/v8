@@ -6146,6 +6146,39 @@ Handle<JSRegExp> JSRegExp::Copy(Handle<JSRegExp> regexp) {
   return Handle<JSRegExp>::cast(isolate->factory()->CopyJSObject(regexp));
 }
 
+Object JSRegExp::Code(bool is_latin1) const {
+  return DataAt(code_index(is_latin1));
+}
+
+bool JSRegExp::ShouldProduceBytecode() {
+  return FLAG_regexp_interpret_all ||
+         (FLAG_regexp_tier_up && !MarkedForTierUp());
+}
+
+// An irregexp is considered to be marked for tier up if the tier-up ticks value
+// is not zero. An atom is not subject to tier-up implementation, so the tier-up
+// ticks value is not set.
+bool JSRegExp::MarkedForTierUp() {
+  DCHECK(data().IsFixedArray());
+  if (TypeTag() == JSRegExp::ATOM) {
+    return false;
+  }
+  return Smi::ToInt(DataAt(kIrregexpTierUpTicksIndex)) != 0;
+}
+
+void JSRegExp::ResetTierUp() {
+  DCHECK(FLAG_regexp_tier_up);
+  DCHECK_EQ(TypeTag(), JSRegExp::IRREGEXP);
+  FixedArray::cast(data()).set(JSRegExp::kIrregexpTierUpTicksIndex, Smi::kZero);
+}
+
+void JSRegExp::MarkTierUpForNextExec() {
+  DCHECK(FLAG_regexp_tier_up);
+  DCHECK_EQ(TypeTag(), JSRegExp::IRREGEXP);
+  FixedArray::cast(data()).set(JSRegExp::kIrregexpTierUpTicksIndex,
+                               Smi::FromInt(1));
+}
+
 namespace {
 
 template <typename Char>

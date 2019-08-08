@@ -555,7 +555,11 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 
   BIND(&interpreted);
   {
-    TNode<ByteArray> byte_code = CAST(var_code.value());
+    // Tier-up in runtime to compiler if ticks are non-zero.
+    TNode<Smi> ticks = CAST(
+        UnsafeLoadFixedArrayElement(data, JSRegExp::kIrregexpTierUpTicksIndex));
+    GotoIf(TruncateIntPtrToInt32(BitcastTaggedSignedToWord(ticks)), &runtime);
+
     IncrementCounter(isolate()->counters()->regexp_entry_native(), 1);
 
     // Set up args for the final call into IrregexpInterpreter.
@@ -571,9 +575,9 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     MachineType arg0_type = type_ptr;
     TNode<ExternalReference> arg0 = isolate_address;
 
-    // Argument 1: Pattern ByteCode.
+    // Argument 1: Regular expression object.
     MachineType arg1_type = type_tagged;
-    TNode<ByteArray> arg1 = byte_code;
+    TNode<JSRegExp> arg1 = regexp;
 
     // Argument 2: Original subject string.
     MachineType arg2_type = type_tagged;

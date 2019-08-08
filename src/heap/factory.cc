@@ -3901,6 +3901,7 @@ void Factory::SetRegExpIrregexpData(Handle<JSRegExp> regexp,
   store->set(JSRegExp::kIrregexpMaxRegisterCountIndex, Smi::kZero);
   store->set(JSRegExp::kIrregexpCaptureCountIndex, Smi::FromInt(capture_count));
   store->set(JSRegExp::kIrregexpCaptureNameMapIndex, uninitialized);
+  store->set(JSRegExp::kIrregexpTierUpTicksIndex, Smi::kZero);
   regexp->set_data(*store);
 }
 

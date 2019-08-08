@@ -1245,6 +1245,9 @@ DEFINE_UINT(serialization_chunk_size, 4096,
 DEFINE_BOOL(regexp_optimization, true, "generate optimized regexp code")
 DEFINE_BOOL(regexp_mode_modifiers, false, "enable inline flags in regexp.")
 DEFINE_BOOL(regexp_interpret_all, false, "interpret all regexp code")
+DEFINE_BOOL(regexp_tier_up, false,
+            "enable regexp interpreter and tier up to the compiler")
+DEFINE_NEG_IMPLICATION(regexp_interpret_all, regexp_tier_up)
 
 // Testing flags test/cctest/test-{flags,api,serialization}.cc
 DEFINE_BOOL(testing_bool_flag, true, "testing_bool_flag")
@@ -1383,6 +1386,7 @@ DEFINE_BOOL(trace_regexp_bytecodes, false, "trace regexp bytecode execution")
 DEFINE_BOOL(trace_regexp_assembler, false,
             "trace regexp macro assembler calls.")
 DEFINE_BOOL(trace_regexp_parser, false, "trace regexp parsing")
+DEFINE_BOOL(trace_regexp_tier_up, false, "trace regexp tiering up execution")
 
 // Debugger
 DEFINE_BOOL(print_break_location, false, "print source location on debug break")

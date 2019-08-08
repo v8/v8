@@ -298,14 +298,59 @@ Handle<Object> RegExpImpl::AtomExec(Isolate* isolate, Handle<JSRegExp> re,
 bool RegExpImpl::EnsureCompiledIrregexp(Isolate* isolate, Handle<JSRegExp> re,
                                         Handle<String> sample_subject,
                                         bool is_one_byte) {
-  Object compiled_code = re->DataAt(JSRegExp::code_index(is_one_byte));
-  if (compiled_code != Smi::FromInt(JSRegExp::kUninitializedValue)) {
+  Object compiled_code = re->Code(is_one_byte);
+  bool needs_initial_compilation =
+      compiled_code == Smi::FromInt(JSRegExp::kUninitializedValue);
+  // Recompile is needed when we're dealing with the first execution of the
+  // regexp after the decision to tier up has been made. If the tiering up
+  // strategy is not in use, this value is always false.
+  bool needs_tier_up_compilation =
+      re->MarkedForTierUp() && compiled_code.IsByteArray();
+
+  if (FLAG_trace_regexp_tier_up && needs_tier_up_compilation) {
+    PrintF("JSRegExp object %p needs tier-up compilation\n",
+           reinterpret_cast<void*>(re->ptr()));
+  }
+
+  if (!needs_initial_compilation && !needs_tier_up_compilation) {
+    // We expect bytecode here only if we're interpreting all regexps. In all
+    // other cases, we can only expect the compiled code to be native code.
     DCHECK(FLAG_regexp_interpret_all ? compiled_code.IsByteArray()
                                      : compiled_code.IsCode());
     return true;
   }
+
+  DCHECK_IMPLIES(needs_tier_up_compilation, compiled_code.IsByteArray());
+
   return CompileIrregexp(isolate, re, sample_subject, is_one_byte);
 }
+
+#ifdef DEBUG
+namespace {
+
+bool RegExpCodeIsValidForPreCompilation(Handle<JSRegExp> re, bool is_one_byte) {
+  Object entry = re->Code(is_one_byte);
+  // If we're not using the tier-up strategy, entry can only be a smi
+  // representing an uncompiled regexp here. If we're using the tier-up
+  // strategy, entry can still be a smi representing an uncompiled regexp, when
+  // compiling the regexp before the tier-up, or it can contain previously
+  // compiled bytecode, when recompiling the regexp after the tier-up. If the
+  // tier-up was forced, which happens for global replaces, entry is a smi
+  // representing an uncompiled regexp, even though we're "recompiling" after
+  // the tier-up.
+  if (re->ShouldProduceBytecode()) {
+    DCHECK(entry.IsSmi());
+    int entry_value = Smi::ToInt(entry);
+    DCHECK_EQ(JSRegExp::kUninitializedValue, entry_value);
+  } else {
+    DCHECK(entry.IsByteArray() || entry.IsSmi());
+  }
+
+  return true;
+}
+
+}  // namespace
+#endif
 
 bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
                                  Handle<String> sample_subject,
@@ -313,14 +358,8 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
   // Compile the RegExp.
   Zone zone(isolate->allocator(), ZONE_NAME);
   PostponeInterruptsScope postpone(isolate);
-#ifdef DEBUG
-  Object entry = re->DataAt(JSRegExp::code_index(is_one_byte));
-  // When arriving here entry can only be a smi representing an uncompiled
-  // regexp.
-  DCHECK(entry.IsSmi());
-  int entry_value = Smi::ToInt(entry);
-  DCHECK_EQ(JSRegExp::kUninitializedValue, entry_value);
-#endif
+
+  DCHECK(RegExpCodeIsValidForPreCompilation(re, is_one_byte));
 
   JSRegExp::Flags flags = re->GetFlags();
 
@@ -335,6 +374,14 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
     USE(ThrowRegExpException(isolate, re, pattern, compile_data.error));
     return false;
   }
+  // The compilation target is a kBytecode if we're interpreting all regexp
+  // objects, or if we're using the tier-up strategy but the tier-up hasn't
+  // happened yet. The compilation target is a kNative if we're using the
+  // tier-up strategy and we need to recompile to tier-up, or if we're producing
+  // native code for all regexp objects.
+  compile_data.compilation_target = re->ShouldProduceBytecode()
+                                        ? RegExpCompilationTarget::kBytecode
+                                        : RegExpCompilationTarget::kNative;
   const bool compilation_succeeded =
       Compile(isolate, &zone, &compile_data, flags, pattern, sample_subject,
               is_one_byte);
@@ -351,6 +398,15 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
   int register_max = IrregexpMaxRegisterCount(*data);
   if (compile_data.register_count > register_max) {
     SetIrregexpMaxRegisterCount(*data, compile_data.register_count);
+  }
+
+  if (FLAG_trace_regexp_tier_up) {
+    PrintF("JSRegExp object %p %s size: %d\n",
+           reinterpret_cast<void*>(re->ptr()),
+           re->ShouldProduceBytecode() ? "bytecode" : "native code",
+           re->ShouldProduceBytecode()
+               ? IrregexpByteCode(*data, is_one_byte).Size()
+               : IrregexpNativeCode(*data, is_one_byte).Size());
   }
 
   return true;
@@ -411,7 +467,7 @@ int RegExp::IrregexpPrepare(Isolate* isolate, Handle<JSRegExp> regexp,
 
   DisallowHeapAllocation no_gc;
   FixedArray data = FixedArray::cast(regexp->data());
-  if (FLAG_regexp_interpret_all) {
+  if (regexp->ShouldProduceBytecode()) {
     // Byte-code regexp needs space allocated for all its registers.
     // The result captures are copied to the start of the registers array
     // if the match succeeds.  This way those registers are not clobbered
@@ -436,7 +492,7 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
 
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
 
-  if (!FLAG_regexp_interpret_all) {
+  if (!regexp->ShouldProduceBytecode()) {
     DCHECK(output_size >= (IrregexpNumberOfCaptures(*irregexp) + 1) * 2);
     do {
       EnsureCompiledIrregexp(isolate, regexp, subject, is_one_byte);
@@ -464,12 +520,11 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
       // the, potentially, different subject (the string can switch between
       // being internal and external, and even between being Latin1 and UC16,
       // but the characters are always the same).
-      RegExp::IrregexpPrepare(isolate, regexp, subject);
       is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
     } while (true);
     UNREACHABLE();
   } else {
-    DCHECK(FLAG_regexp_interpret_all);
+    DCHECK(regexp->ShouldProduceBytecode());
     DCHECK(output_size >= IrregexpNumberOfRegisters(*irregexp));
     // We must have done EnsureCompiledIrregexp, so we can get the number of
     // registers.
@@ -478,13 +533,10 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
     int32_t* raw_output = &output[number_of_capture_registers];
 
     do {
-      Handle<ByteArray> byte_codes(IrregexpByteCode(*irregexp, is_one_byte),
-                                   isolate);
-
       IrregexpInterpreter::Result result =
           IrregexpInterpreter::MatchForCallFromRuntime(
-              isolate, byte_codes, subject, raw_output,
-              number_of_capture_registers, index);
+              isolate, regexp, subject, raw_output, number_of_capture_registers,
+              index);
       DCHECK_IMPLIES(result == IrregexpInterpreter::EXCEPTION,
                      isolate->has_pending_exception());
 
@@ -500,6 +552,10 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
         case IrregexpInterpreter::RETRY:
           // The string has changed representation, and we must restart the
           // match.
+          // We need to reset the tier up to start over with compilation.
+          if (FLAG_regexp_tier_up) {
+            regexp->ResetTierUp();
+          }
           is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
           EnsureCompiledIrregexp(isolate, regexp, subject, is_one_byte);
           break;
@@ -543,6 +599,7 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(
   int res =
       RegExpImpl::IrregexpExecRaw(isolate, regexp, subject, previous_index,
                                   output_registers, required_registers);
+
   if (res == RegExp::RE_SUCCESS) {
     int capture_count =
         IrregexpNumberOfCaptures(FixedArray::cast(regexp->data()));
@@ -709,7 +766,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
 
   // Create the correct assembler for the architecture.
   std::unique_ptr<RegExpMacroAssembler> macro_assembler;
-  if (!FLAG_regexp_interpret_all) {
+  if (data->compilation_target == RegExpCompilationTarget::kNative) {
     // Native regexp implementation.
     DCHECK(!FLAG_jitless);
 
@@ -745,8 +802,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
 #error "Unsupported architecture"
 #endif
   } else {
-    DCHECK(FLAG_regexp_interpret_all);
-
+    DCHECK_EQ(data->compilation_target, RegExpCompilationTarget::kBytecode);
     // Interpreted regexp implementation.
     macro_assembler.reset(new RegExpBytecodeGenerator(isolate, zone));
   }
@@ -796,7 +852,7 @@ RegExpGlobalCache::RegExpGlobalCache(Handle<JSRegExp> regexp,
       regexp_(regexp),
       subject_(subject),
       isolate_(isolate) {
-  bool interpreted = FLAG_regexp_interpret_all;
+  bool interpreted = regexp->ShouldProduceBytecode();
 
   if (regexp_->TypeTag() == JSRegExp::ATOM) {
     static const int kAtomRegistersPerMatch = 2;
@@ -861,6 +917,7 @@ int RegExpGlobalCache::AdvanceZeroLength(int last_index) {
 
 int32_t* RegExpGlobalCache::FetchNext() {
   current_match_index_++;
+
   if (current_match_index_ >= num_matches_) {
     // Current batch of results exhausted.
     // Fail if last batch was not even fully filled.

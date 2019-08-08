@@ -13,6 +13,8 @@ namespace internal {
 class RegExpNode;
 class RegExpTree;
 
+enum class RegExpCompilationTarget : int { kBytecode, kNative };
+
 // TODO(jgruber): Consider splitting between ParseData and CompileData.
 struct RegExpCompileData {
   // The parsed AST as produced by the RegExpParser.
@@ -46,12 +48,20 @@ struct RegExpCompileData {
 
   // The number of registers used by the generated code.
   int register_count = 0;
+
+  // The compilation target (bytecode or native code).
+  RegExpCompilationTarget compilation_target;
 };
 
 class RegExp final : public AllStatic {
  public:
   // Whether the irregexp engine generates native code or interpreter bytecode.
-  static bool GeneratesNativeCode() { return !FLAG_regexp_interpret_all; }
+  static bool CanGenerateNativeCode() {
+    return !FLAG_regexp_interpret_all || FLAG_regexp_tier_up;
+  }
+  static bool CanGenerateBytecode() {
+    return FLAG_regexp_interpret_all || FLAG_regexp_tier_up;
+  }
 
   // Parses the RegExp pattern and prepares the JSRegExp object with
   // generic data and choice of implementation - as well as what

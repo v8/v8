@@ -535,6 +535,7 @@ static RegExpNode* Compile(const char* input, bool multiline, bool unicode,
   Isolate* isolate = CcTest::i_isolate();
   FlatStringReader reader(isolate, CStrVector(input));
   RegExpCompileData compile_data;
+  compile_data.compilation_target = RegExpCompilationTarget::kNative;
   JSRegExp::Flags flags = JSRegExp::kNone;
   if (multiline) flags = JSRegExp::kMultiline;
   if (unicode) flags = JSRegExp::kUnicode;
@@ -1298,8 +1299,9 @@ TEST(MacroAssembler) {
   Handle<String> f1_16 = factory->NewStringFromTwoByte(
       Vector<const uc16>(str1, 6)).ToHandleChecked();
 
-  CHECK(IrregexpInterpreter::MatchForCallFromRuntime(isolate, array, f1_16,
-                                                     captures, 5, 0));
+  CHECK(IrregexpInterpreter::MatchInternal(isolate, *array, *f1_16, captures, 5,
+                                           0,
+                                           RegExp::CallOrigin::kFromRuntime));
   CHECK_EQ(0, captures[0]);
   CHECK_EQ(3, captures[1]);
   CHECK_EQ(1, captures[2]);
@@ -1310,8 +1312,9 @@ TEST(MacroAssembler) {
   Handle<String> f2_16 = factory->NewStringFromTwoByte(
       Vector<const uc16>(str2, 6)).ToHandleChecked();
 
-  CHECK(!IrregexpInterpreter::MatchForCallFromRuntime(isolate, array, f2_16,
-                                                      captures, 5, 0));
+  CHECK(!IrregexpInterpreter::MatchInternal(isolate, *array, *f2_16, captures,
+                                            5, 0,
+                                            RegExp::CallOrigin::kFromRuntime));
   CHECK_EQ(42, captures[0]);
 }
 

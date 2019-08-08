@@ -98,6 +98,10 @@ class JSRegExp : public JSObject {
                                           Handle<String> source,
                                           Handle<String> flags_string);
 
+  bool MarkedForTierUp();
+  void ResetTierUp();
+  void MarkTierUpForNextExec();
+
   inline Type TypeTag() const;
   // Number of captures (without the match itself).
   inline int CaptureCount();
@@ -116,6 +120,9 @@ class JSRegExp : public JSObject {
     }
   }
 
+  // This could be a Smi kUninitializedValue, a ByteArray, or Code.
+  Object Code(bool is_latin1) const;
+  bool ShouldProduceBytecode();
   inline bool HasCompiledCode() const;
   inline void DiscardCompiledCodeForSerialization();
 
@@ -160,8 +167,9 @@ class JSRegExp : public JSObject {
   // Maps names of named capture groups (at indices 2i) to their corresponding
   // (1-based) capture group indices (at indices 2i + 1).
   static const int kIrregexpCaptureNameMapIndex = kDataIndex + 4;
+  static const int kIrregexpTierUpTicksIndex = kDataIndex + 5;
 
-  static const int kIrregexpDataSize = kIrregexpCaptureNameMapIndex + 1;
+  static const int kIrregexpDataSize = kIrregexpTierUpTicksIndex + 1;
 
   // In-object fields.
   static const int kLastIndexFieldIndex = 0;
