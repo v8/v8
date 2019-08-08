@@ -1108,15 +1108,6 @@ void Heap::GarbageCollectionEpilogue() {
   AllowHeapAllocation for_the_rest_of_the_epilogue;
 
 #ifdef DEBUG
-  // Old-to-new slot sets must be empty after each collection.
-  for (SpaceIterator it(this); it.HasNext();) {
-    Space* space = it.Next();
-
-    for (MemoryChunk* chunk = space->first_page(); chunk != space->last_page();
-         chunk = chunk->list_node().next())
-      DCHECK_NULL(chunk->invalidated_slots<OLD_TO_NEW>());
-  }
-
   if (FLAG_print_global_handles) isolate_->global_handles()->Print();
   if (FLAG_print_handles) PrintHandles();
   if (FLAG_gc_verbose) Print();
@@ -1490,7 +1481,7 @@ void Heap::EnsureFillerObjectAtTop() {
   Page* page = Page::FromAddress(to_top - kTaggedSize);
   if (page->Contains(to_top)) {
     int remaining_in_page = static_cast<int>(page->area_end() - to_top);
-    CreateFillerObjectAt(to_top, remaining_in_page);
+    CreateFillerObjectAt(to_top, remaining_in_page, ClearRecordedSlots::kNo);
   }
 }
 
@@ -1821,7 +1812,8 @@ bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
             // Mark with a free list node, in case we have a GC before
             // deserializing.
             Address free_space_address = free_space.address();
-            CreateFillerObjectAt(free_space_address, Map::kSize);
+            CreateFillerObjectAt(free_space_address, Map::kSize,
+                                 ClearRecordedSlots::kNo);
             maps->push_back(free_space_address);
           } else {
             perform_gc = true;
@@ -1852,7 +1844,8 @@ bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
             // Mark with a free list node, in case we have a GC before
             // deserializing.
             Address free_space_address = free_space.address();
-            CreateFillerObjectAt(free_space_address, size);
+            CreateFillerObjectAt(free_space_address, size,
+                                 ClearRecordedSlots::kNo);
             DCHECK(IsPreAllocatedSpace(static_cast<SnapshotSpace>(space)));
             chunk.start = free_space_address;
             chunk.end = free_space_address + size;
@@ -2757,7 +2750,7 @@ size_t Heap::GetCodeRangeReservedAreaSize() {
 }
 
 HeapObject Heap::PrecedeWithFiller(HeapObject object, int filler_size) {
-  CreateFillerObjectAt(object.address(), filler_size);
+  CreateFillerObjectAt(object.address(), filler_size, ClearRecordedSlots::kNo);
   return HeapObject::FromAddress(object.address() + filler_size);
 }
 
@@ -2772,7 +2765,8 @@ HeapObject Heap::AlignWithFiller(HeapObject object, int object_size,
     filler_size -= pre_filler;
   }
   if (filler_size) {
-    CreateFillerObjectAt(object.address() + object_size, filler_size);
+    CreateFillerObjectAt(object.address() + object_size, filler_size,
+                         ClearRecordedSlots::kNo);
   }
   return object;
 }
@@ -2822,6 +2816,7 @@ void Heap::FlushNumberStringCache() {
 }
 
 HeapObject Heap::CreateFillerObjectAt(Address addr, int size,
+                                      ClearRecordedSlots clear_slots_mode,
                                       ClearFreedMemoryMode clear_memory_mode) {
   if (size == 0) return HeapObject();
   HeapObject filler = HeapObject::FromAddress(addr);
@@ -2847,6 +2842,9 @@ HeapObject Heap::CreateFillerObjectAt(Address addr, int size,
       MemsetTagged(ObjectSlot(addr) + 2, Object(kClearedFreeMemoryValue),
                    (size / kTaggedSize) - 2);
     }
+  }
+  if (clear_slots_mode == ClearRecordedSlots::kYes) {
+    ClearRecordedSlotRange(addr, addr + size);
   }
 
   // At this point, we may be deserializing the heap from a snapshot, and
@@ -2984,7 +2982,8 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
   // Technically in new space this write might be omitted (except for
   // debug mode which iterates through the heap), but to play safer
   // we still do it.
-  HeapObject filler = CreateFillerObjectAt(old_start, bytes_to_trim);
+  HeapObject filler =
+      CreateFillerObjectAt(old_start, bytes_to_trim, ClearRecordedSlots::kYes);
 
   // Initialize header of the trimmed array. Since left trimming is only
   // performed on pages which are not concurrently swept creating a filler
@@ -2996,9 +2995,10 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
   FixedArrayBase new_object =
       FixedArrayBase::cast(HeapObject::FromAddress(new_start));
 
-  // Move corresponding invalidated object to the right
-  MemoryChunk::FromHeapObject(new_object)
-      ->MoveObjectWithInvalidatedSlots<OLD_TO_NEW>(filler, new_object);
+  // Remove recorded slots for the new map and length offset.
+  ClearRecordedSlot(new_object, new_object.RawField(0));
+  ClearRecordedSlot(new_object,
+                    new_object.RawField(FixedArrayBase::kLengthOffset));
 
   // Handle invalidated old-to-old slots.
   if (incremental_marking()->IsCompacting() &&
@@ -3006,7 +3006,7 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
     // If the array was right-trimmed before, then it is registered in
     // the invalidated_slots.
     MemoryChunk::FromHeapObject(new_object)
-        ->MoveObjectWithInvalidatedSlots<OLD_TO_OLD>(filler, new_object);
+        ->MoveObjectWithInvalidatedSlots(filler, new_object);
     // We have to clear slots in the free space to avoid stale old-to-old slots.
     // Note we cannot use ClearFreedMemoryMode of CreateFillerObjectAt because
     // we need pointer granularity writes to avoid race with the concurrent
@@ -3094,8 +3094,8 @@ void Heap::CreateFillerForArray(T object, int elements_to_trim,
     // Ensure that the object survives because the InvalidatedSlotsFilter will
     // compute its size from its map during pointers updating phase.
     incremental_marking()->WhiteToGreyAndPush(object);
-    MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-    chunk->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object, old_size);
+    MemoryChunk::FromHeapObject(object)->RegisterObjectWithInvalidatedSlots(
+        object, old_size);
   }
 
   // Technically in new space this write might be omitted (except for
@@ -3103,7 +3103,8 @@ void Heap::CreateFillerForArray(T object, int elements_to_trim,
   // we still do it.
   // We do not create a filler for objects in a large object space.
   if (!IsLargeObject(object)) {
-    HeapObject filler = CreateFillerObjectAt(new_end, bytes_to_trim);
+    HeapObject filler =
+        CreateFillerObjectAt(new_end, bytes_to_trim, ClearRecordedSlots::kNo);
     DCHECK(!filler.is_null());
     // Clear the mark bits of the black area that belongs now to the filler.
     // This is an optimization. The sweeper will release black fillers anyway.
@@ -3386,8 +3387,8 @@ void Heap::NotifyObjectLayoutChange(HeapObject object, int size,
     incremental_marking()->MarkBlackAndVisitObjectDueToLayoutChange(object);
     if (incremental_marking()->IsCompacting() &&
         MayContainRecordedSlots(object)) {
-      MemoryChunk::FromHeapObject(object)
-          ->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object, size);
+      MemoryChunk::FromHeapObject(object)->RegisterObjectWithInvalidatedSlots(
+          object, size);
     }
   }
 #ifdef VERIFY_HEAP
@@ -4861,7 +4862,8 @@ HeapObject Heap::EnsureImmovableCode(HeapObject heap_object, int object_size) {
     } else {
       // Discard the first code allocation, which was on a page where it could
       // be moved.
-      CreateFillerObjectAt(heap_object.address(), object_size);
+      CreateFillerObjectAt(heap_object.address(), object_size,
+                           ClearRecordedSlots::kNo);
       heap_object = AllocateRawCodeInLargeObjectSpace(object_size);
       UnprotectAndRegisterMemoryChunk(heap_object);
       ZapCodeObject(heap_object.address(), object_size);
@@ -5536,6 +5538,15 @@ Address Heap::store_buffer_overflow_function_address() {
   return FUNCTION_ADDR(StoreBuffer::StoreBufferOverflow);
 }
 
+void Heap::ClearRecordedSlot(HeapObject object, ObjectSlot slot) {
+  DCHECK(!IsLargeObject(object));
+  Page* page = Page::FromAddress(slot.address());
+  if (!page->InYoungGeneration()) {
+    DCHECK_EQ(page->owner_identity(), OLD_SPACE);
+    store_buffer()->DeleteEntry(slot.address());
+  }
+}
+
 #ifdef DEBUG
 void Heap::VerifyClearedSlot(HeapObject object, ObjectSlot slot) {
   DCHECK(!IsLargeObject(object));
@@ -5543,13 +5554,21 @@ void Heap::VerifyClearedSlot(HeapObject object, ObjectSlot slot) {
   Page* page = Page::FromAddress(slot.address());
   DCHECK_EQ(page->owner_identity(), OLD_SPACE);
   store_buffer()->MoveAllEntriesToRememberedSet();
-  CHECK_IMPLIES(RememberedSet<OLD_TO_NEW>::Contains(page, slot.address()),
-                page->RegisteredObjectWithInvalidatedSlots<OLD_TO_NEW>(object));
+  CHECK(!RememberedSet<OLD_TO_NEW>::Contains(page, slot.address()));
   // Old to old slots are filtered with invalidated slots.
   CHECK_IMPLIES(RememberedSet<OLD_TO_OLD>::Contains(page, slot.address()),
-                page->RegisteredObjectWithInvalidatedSlots<OLD_TO_OLD>(object));
+                page->RegisteredObjectWithInvalidatedSlots(object));
 }
 #endif
+
+void Heap::ClearRecordedSlotRange(Address start, Address end) {
+  Page* page = Page::FromAddress(start);
+  DCHECK(!page->IsLargePage());
+  if (!page->InYoungGeneration()) {
+    DCHECK_EQ(page->owner_identity(), OLD_SPACE);
+    store_buffer()->DeleteEntry(start, end);
+  }
+}
 
 PagedSpace* PagedSpaceIterator::Next() {
   switch (counter_++) {

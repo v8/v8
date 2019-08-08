@@ -2784,10 +2784,6 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
 
   heap->NotifyObjectLayoutChange(*object, old_instance_size, no_allocation);
 
-  MemoryChunk::FromHeapObject(*object)
-      ->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(*object,
-                                                       old_instance_size);
-
   // Copy (real) inobject properties. If necessary, stop at number_of_fields to
   // avoid overwriting |one_pointer_filler_map|.
   int limit = Min(inobject, number_of_fields);
@@ -2801,9 +2797,14 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
       // Ensure that all bits of the double value are preserved.
       object->RawFastDoublePropertyAsBitsAtPut(
           index, MutableHeapNumber::cast(value).value_as_bits());
+      if (i < old_number_of_fields && !old_map->IsUnboxedDoubleField(index)) {
+        // Transition from tagged to untagged slot.
+        heap->ClearRecordedSlot(*object, object->RawField(index.offset()));
+      } else {
 #ifdef DEBUG
-      heap->VerifyClearedSlot(*object, object->RawField(index.offset()));
+        heap->VerifyClearedSlot(*object, object->RawField(index.offset()));
 #endif
+      }
     } else {
       object->RawFastPropertyAtPut(index, value);
     }
@@ -2818,8 +2819,8 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
 
   if (instance_size_delta > 0) {
     Address address = object->address();
-    heap->CreateFillerObjectAt(address + new_instance_size,
-                               instance_size_delta);
+    heap->CreateFillerObjectAt(address + new_instance_size, instance_size_delta,
+                               ClearRecordedSlots::kYes);
   }
 
   // We are storing the new map using release store after creating a filler for
@@ -2897,10 +2898,6 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
   int old_instance_size = map->instance_size();
   heap->NotifyObjectLayoutChange(*object, old_instance_size, no_allocation);
 
-  MemoryChunk::FromHeapObject(*object)
-      ->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(*object,
-                                                       old_instance_size);
-
   // Resize the object in the heap if necessary.
   int new_instance_size = new_map->instance_size();
   int instance_size_delta = old_instance_size - new_instance_size;
@@ -2908,7 +2905,7 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
 
   if (instance_size_delta > 0) {
     heap->CreateFillerObjectAt(object->address() + new_instance_size,
-                               instance_size_delta);
+                               instance_size_delta, ClearRecordedSlots::kYes);
   }
 
   // We are storing the new map using release store after creating a filler for
@@ -2921,6 +2918,11 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
   // garbage.
   int inobject_properties = new_map->GetInObjectProperties();
   if (inobject_properties) {
+    Heap* heap = isolate->heap();
+    heap->ClearRecordedSlotRange(
+        object->address() + map->GetInObjectPropertyOffset(0),
+        object->address() + new_instance_size);
+
     for (int i = 0; i < inobject_properties; i++) {
       FieldIndex index = FieldIndex::ForPropertyIndex(*new_map, i);
       object->RawFastPropertyAtPut(index, Smi::kZero);

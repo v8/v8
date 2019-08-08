@@ -101,7 +101,8 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
         // Not enough room to create another fixed array. Let's create a filler.
         if (free_memory > (2 * kTaggedSize)) {
           heap->CreateFillerObjectAt(
-              *heap->old_space()->allocation_top_address(), free_memory);
+              *heap->old_space()->allocation_top_address(), free_memory,
+              ClearRecordedSlots::kNo);
         }
         break;
       }
@@ -218,7 +219,8 @@ void ForceEvacuationCandidate(Page* page) {
   if (top < limit && Page::FromAllocationAreaAddress(top) == page) {
     // Create filler object to keep page iterable if it was iterable.
     int remaining = static_cast<int>(limit - top);
-    space->heap()->CreateFillerObjectAt(top, remaining);
+    space->heap()->CreateFillerObjectAt(top, remaining,
+                                        ClearRecordedSlots::kNo);
     space->FreeLinearAllocationArea();
   }
 }
