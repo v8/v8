@@ -14,6 +14,7 @@ namespace v8 {
 namespace internal {
 
 class FrameArray;
+class WasmInstanceObject;
 
 class StackFrameInfo : public Struct {
  public:
@@ -22,6 +23,8 @@ class StackFrameInfo : public Struct {
   DECL_INT_ACCESSORS(column_number)
   DECL_INT_ACCESSORS(script_id)
   DECL_INT_ACCESSORS(promise_all_index)
+  // Wasm frames only: function_offset instead of promise_all_index.
+  DECL_INT_ACCESSORS(function_offset)
   DECL_ACCESSORS(script_name, Object)
   DECL_ACCESSORS(script_name_or_source_url, Object)
   DECL_ACCESSORS(function_name, Object)
@@ -29,6 +32,7 @@ class StackFrameInfo : public Struct {
   DECL_ACCESSORS(type_name, Object)
   DECL_ACCESSORS(eval_origin, Object)
   DECL_ACCESSORS(wasm_module_name, Object)
+  DECL_ACCESSORS(wasm_instance, Object)
   DECL_BOOLEAN_ACCESSORS(is_eval)
   DECL_BOOLEAN_ACCESSORS(is_constructor)
   DECL_BOOLEAN_ACCESSORS(is_wasm)
@@ -90,6 +94,7 @@ class StackTraceFrame : public Struct {
   static int GetOneBasedColumnNumber(Handle<StackTraceFrame> frame);
   static int GetScriptId(Handle<StackTraceFrame> frame);
   static int GetPromiseAllIndex(Handle<StackTraceFrame> frame);
+  static int GetFunctionOffset(Handle<StackTraceFrame> frame);
 
   static Handle<Object> GetFileName(Handle<StackTraceFrame> frame);
   static Handle<Object> GetScriptNameOrSourceUrl(Handle<StackTraceFrame> frame);
@@ -98,6 +103,8 @@ class StackTraceFrame : public Struct {
   static Handle<Object> GetTypeName(Handle<StackTraceFrame> frame);
   static Handle<Object> GetEvalOrigin(Handle<StackTraceFrame> frame);
   static Handle<Object> GetWasmModuleName(Handle<StackTraceFrame> frame);
+  static Handle<WasmInstanceObject> GetWasmInstance(
+      Handle<StackTraceFrame> frame);
 
   static bool IsEval(Handle<StackTraceFrame> frame);
   static bool IsConstructor(Handle<StackTraceFrame> frame);

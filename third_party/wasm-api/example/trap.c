@@ -20,6 +20,16 @@ own wasm_trap_t* fail_callback(
 }
 
 
+void print_frame(wasm_frame_t* frame) {
+  printf("> %p @ 0x%zx = %"PRIu32".0x%zx\n",
+    wasm_frame_instance(frame),
+    wasm_frame_module_offset(frame),
+    wasm_frame_func_index(frame),
+    wasm_frame_func_offset(frame)
+  );
+}
+
+
 int main(int argc, const char* argv[]) {
   // Initialize.
   printf("Initializing...\n");
@@ -104,6 +114,27 @@ int main(int argc, const char* argv[]) {
     wasm_trap_message(trap, &message);
     printf("> %s\n", message.data);
 
+    printf("Printing origin...\n");
+    own wasm_frame_t* frame = wasm_trap_origin(trap);
+    if (frame) {
+      print_frame(frame);
+      wasm_frame_delete(frame);
+    } else {
+      printf("> Empty origin.\n");
+    }
+
+    printf("Printing trace...\n");
+    own wasm_frame_vec_t trace;
+    wasm_trap_trace(trap, &trace);
+    if (trace.size > 0) {
+      for (size_t i = 0; i < trace.size; ++i) {
+        print_frame(trace.data[i]);
+      }
+    } else {
+      printf("> Empty trace.\n");
+    }
+
+    wasm_frame_vec_delete(&trace);
     wasm_trap_delete(trap);
     wasm_name_delete(&message);
   }

@@ -345,6 +345,18 @@ WASM_DECLARE_VEC(val, )
 WASM_DECLARE_REF_BASE(ref)
 
 
+// Frames
+
+WASM_DECLARE_OWN(frame)
+WASM_DECLARE_VEC(frame, *)
+own wasm_frame_t* wasm_frame_copy(const wasm_frame_t*);
+
+struct wasm_instance_t* wasm_frame_instance(const wasm_frame_t*);
+uint32_t wasm_frame_func_index(const wasm_frame_t*);
+size_t wasm_frame_func_offset(const wasm_frame_t*);
+size_t wasm_frame_module_offset(const wasm_frame_t*);
+
+
 // Traps
 
 typedef wasm_name_t wasm_message_t;  // null terminated
@@ -354,6 +366,8 @@ WASM_DECLARE_REF(trap)
 own wasm_trap_t* wasm_trap_new(wasm_store_t* store, const wasm_message_t*);
 
 void wasm_trap_message(const wasm_trap_t*, own wasm_message_t* out);
+own wasm_frame_t* wasm_trap_origin(const wasm_trap_t*);
+void wasm_trap_trace(const wasm_trap_t*, own wasm_frame_vec_t* out);
 
 
 // Foreign Objects

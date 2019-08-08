@@ -925,6 +925,7 @@ extern class StackFrameInfo extends Struct {
   type_name: String | Null | Undefined;
   eval_origin: String | Null | Undefined;
   wasm_module_name: String | Null | Undefined;
+  wasm_instance: WasmInstanceObject | Null | Undefined;
   flag: Smi;
 }
 

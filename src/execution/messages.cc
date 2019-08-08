@@ -314,6 +314,10 @@ Handle<Object> StackFrameBase::GetWasmModuleName() {
   return isolate_->factory()->undefined_value();
 }
 
+Handle<Object> StackFrameBase::GetWasmInstance() {
+  return isolate_->factory()->undefined_value();
+}
+
 int StackFrameBase::GetScriptId() const {
   if (!HasScript()) return kNone;
   return GetScript()->id();
@@ -579,6 +583,8 @@ Handle<Object> WasmStackFrame::GetWasmModuleName() {
   }
   return module_name;
 }
+
+Handle<Object> WasmStackFrame::GetWasmInstance() { return wasm_instance_; }
 
 int WasmStackFrame::GetPosition() const {
   return IsInterpreted()

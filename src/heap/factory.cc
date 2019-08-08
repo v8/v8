@@ -3708,6 +3708,7 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo(
   Handle<Object> type_name = undefined_value();
   Handle<Object> eval_origin = frame->GetEvalOrigin();
   Handle<Object> wasm_module_name = frame->GetWasmModuleName();
+  Handle<Object> wasm_instance = frame->GetWasmInstance();
 
   // MethodName and TypeName are expensive to look up, so they are only
   // included when they are strictly needed by the stack trace
@@ -3743,6 +3744,7 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo(
   info->set_type_name(*type_name);
   info->set_eval_origin(*eval_origin);
   info->set_wasm_module_name(*wasm_module_name);
+  info->set_wasm_instance(*wasm_instance);
 
   info->set_is_eval(frame->IsEval());
   info->set_is_constructor(is_constructor);

@@ -29,6 +29,7 @@
 #include "include/libplatform/libplatform.h"
 #include "src/api/api-inl.h"
 #include "src/compiler/wasm-compiler.h"
+#include "src/objects/stack-frame-info-inl.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/module-instantiate.h"
 #include "src/wasm/wasm-arguments.h"
@@ -309,6 +310,10 @@ auto Store::make(Engine*) -> own<Store*> {
   // and hence must not be called by anything reachable via this file.
   store->context()->Enter();
   isolate->SetData(0, store.get());
+  // We want stack traces for traps.
+  constexpr int kStackLimit = 10;
+  isolate->SetCaptureStackTraceForUncaughtExceptions(true, kStackLimit,
+                                                     v8::StackTrace::kOverview);
 
   return make_own(seal<Store>(store.release()));
 }
@@ -771,6 +776,52 @@ void Ref::set_host_info(void* info, void (*finalizer)(void*)) {
 ///////////////////////////////////////////////////////////////////////////////
 // Runtime Objects
 
+// Frames
+
+namespace {
+
+struct FrameImpl {
+  FrameImpl(own<Instance*>&& instance, uint32_t func_index, size_t func_offset,
+            size_t module_offset)
+      : instance(std::move(instance)),
+        func_index(func_index),
+        func_offset(func_offset),
+        module_offset(module_offset) {}
+
+  ~FrameImpl() {}
+
+  own<Instance*> instance;
+  uint32_t func_index;
+  size_t func_offset;
+  size_t module_offset;
+};
+
+}  // namespace
+
+template <>
+struct implement<Frame> {
+  using type = FrameImpl;
+};
+
+Frame::~Frame() { impl(this)->~FrameImpl(); }
+
+void Frame::operator delete(void* p) { ::operator delete(p); }
+
+own<Frame*> Frame::copy() const {
+  auto self = impl(this);
+  return own<Frame*>(seal<Frame>(
+      new (std::nothrow) FrameImpl(self->instance->copy(), self->func_index,
+                                   self->func_offset, self->module_offset)));
+}
+
+Instance* Frame::instance() const { return impl(this)->instance.get(); }
+
+uint32_t Frame::func_index() const { return impl(this)->func_index; }
+
+size_t Frame::func_offset() const { return impl(this)->func_offset; }
+
+size_t Frame::module_offset() const { return impl(this)->module_offset; }
+
 // Traps
 
 template <>
@@ -804,6 +855,56 @@ auto Trap::message() const -> Message {
   std::unique_ptr<char[]> utf8 =
       result->ToCString(i::DISALLOW_NULLS, i::FAST_STRING_TRAVERSAL, &length);
   return vec<byte_t>::adopt(length, utf8.release());
+}
+
+namespace {
+
+own<Instance*> GetInstance(StoreImpl* store,
+                           i::Handle<i::WasmInstanceObject> instance);
+
+own<Frame*> CreateFrameFromInternal(i::Handle<i::FixedArray> frames, int index,
+                                    i::Isolate* isolate, StoreImpl* store) {
+  i::Handle<i::StackTraceFrame> frame(i::StackTraceFrame::cast(frames->get(0)),
+                                      isolate);
+  i::Handle<i::WasmInstanceObject> instance =
+      i::StackTraceFrame::GetWasmInstance(frame);
+  uint32_t func_index = i::StackTraceFrame::GetLineNumber(frame);
+  size_t func_offset = i::StackTraceFrame::GetFunctionOffset(frame);
+  size_t module_offset = i::StackTraceFrame::GetColumnNumber(frame);
+  return own<Frame*>(seal<Frame>(new (std::nothrow) FrameImpl(
+      GetInstance(store, instance), func_index, func_offset, module_offset)));
+}
+
+}  // namespace
+
+own<Frame*> Trap::origin() const {
+  i::Isolate* isolate = impl(this)->isolate();
+  i::HandleScope handle_scope(isolate);
+
+  i::Handle<i::JSMessageObject> message =
+      isolate->CreateMessage(impl(this)->v8_object(), nullptr);
+  i::Handle<i::FixedArray> frames(i::FixedArray::cast(message->stack_frames()),
+                                  isolate);
+  DCHECK_GT(frames->length(), 0);
+  return CreateFrameFromInternal(frames, 0, isolate, impl(this)->store());
+}
+
+vec<Frame*> Trap::trace() const {
+  i::Isolate* isolate = impl(this)->isolate();
+  i::HandleScope handle_scope(isolate);
+
+  i::Handle<i::JSMessageObject> message =
+      isolate->CreateMessage(impl(this)->v8_object(), nullptr);
+  i::Handle<i::FixedArray> frames(i::FixedArray::cast(message->stack_frames()),
+                                  isolate);
+  int num_frames = frames->length();
+  DCHECK_GT(num_frames, 0);
+  vec<Frame*> result = vec<Frame*>::make_uninitialized(num_frames);
+  for (int i = 0; i < num_frames; i++) {
+    result[i] =
+        CreateFrameFromInternal(frames, i, isolate, impl(this)->store());
+  }
+  return result;
 }
 
 // Foreign Objects
@@ -1832,6 +1933,15 @@ auto Instance::make(Store* store_abs, const Module* module_abs,
   return implement<Instance>::type::make(store, instance_obj);
 }
 
+namespace {
+
+own<Instance*> GetInstance(StoreImpl* store,
+                           i::Handle<i::WasmInstanceObject> instance) {
+  return implement<Instance>::type::make(store, instance);
+}
+
+}  // namespace
+
 auto Instance::exports() const -> vec<Extern*> {
   const implement<Instance>::type* instance = impl(this);
   StoreImpl* store = instance->store();
@@ -2536,6 +2646,30 @@ void wasm_val_copy(wasm_val_t* out, const wasm_val_t* v) {
 ///////////////////////////////////////////////////////////////////////////////
 // Runtime Objects
 
+// Frames
+
+WASM_DEFINE_OWN(frame, wasm::Frame)
+WASM_DEFINE_VEC(frame, wasm::Frame, *)
+
+wasm_frame_t* wasm_frame_copy(const wasm_frame_t* frame) {
+  return release(frame->copy());
+}
+
+wasm_instance_t* wasm_frame_instance(const wasm_frame_t* frame);
+// Defined below along with wasm_instance_t.
+
+uint32_t wasm_frame_func_index(const wasm_frame_t* frame) {
+  return reveal(frame)->func_index();
+}
+
+size_t wasm_frame_func_offset(const wasm_frame_t* frame) {
+  return reveal(frame)->func_offset();
+}
+
+size_t wasm_frame_module_offset(const wasm_frame_t* frame) {
+  return reveal(frame)->module_offset();
+}
+
 // Traps
 
 WASM_DEFINE_REF(trap, wasm::Trap)
@@ -2547,6 +2681,14 @@ wasm_trap_t* wasm_trap_new(wasm_store_t* store, const wasm_message_t* message) {
 
 void wasm_trap_message(const wasm_trap_t* trap, wasm_message_t* out) {
   *out = release(reveal(trap)->message());
+}
+
+wasm_frame_t* wasm_trap_origin(const wasm_trap_t* trap) {
+  return release(reveal(trap)->origin());
+}
+
+void wasm_trap_trace(const wasm_trap_t* trap, wasm_frame_vec_t* out) {
+  *out = release(reveal(trap)->trace());
 }
 
 // Foreign Objects
@@ -2827,6 +2969,10 @@ wasm_instance_t* wasm_instance_new(wasm_store_t* store,
 void wasm_instance_exports(const wasm_instance_t* instance,
                            wasm_extern_vec_t* out) {
   *out = release(instance->exports());
+}
+
+wasm_instance_t* wasm_frame_instance(const wasm_frame_t* frame) {
+  return hide(reveal(frame)->instance());
 }
 
 #undef WASM_DEFINE_OWN

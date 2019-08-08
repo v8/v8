@@ -584,6 +584,22 @@ template<> inline auto Val::get<uint64_t>() const -> uint64_t {
 
 using Message = vec<byte_t>;  // null terminated
 
+class Instance;
+
+class Frame {
+public:
+  Frame() = delete;
+  ~Frame();
+  void operator delete(void*);
+
+  auto copy() const -> own<Frame*>;
+
+  auto instance() const -> Instance*;
+  auto func_index() const -> uint32_t;
+  auto func_offset() const -> size_t;
+  auto module_offset() const -> size_t;
+};
+
 class Trap : public Ref {
 public:
   Trap() = delete;
@@ -593,6 +609,8 @@ public:
   auto copy() const -> own<Trap*>;
 
   auto message() const -> Message;
+  auto origin() const -> own<Frame*>;  // may be null
+  auto trace() const -> vec<Frame*>;  // may be empty, origin first
 };
 
 
