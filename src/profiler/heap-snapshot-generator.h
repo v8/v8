@@ -249,6 +249,8 @@ class HeapObjectsMap {
   SnapshotObjectId FindOrAddEntry(Address addr,
                                   unsigned int size,
                                   bool accessed = true);
+  SnapshotObjectId FindMergedNativeEntry(NativeObject addr);
+  void AddMergedNativeEntry(NativeObject addr, Address canonical_addr);
   bool MoveObject(Address from, Address to, int size);
   void UpdateObjectSize(Address addr, int size);
   SnapshotObjectId last_assigned_id() const {
@@ -285,6 +287,8 @@ class HeapObjectsMap {
   base::HashMap entries_map_;
   std::vector<EntryInfo> entries_;
   std::vector<TimeInterval> time_intervals_;
+  // Map from NativeObject to EntryInfo index in entries_.
+  std::unordered_map<NativeObject, size_t> merged_native_entries_map_;
   Heap* heap_;
 
   DISALLOW_COPY_AND_ASSIGN(HeapObjectsMap);
@@ -453,6 +457,7 @@ class NativeObjectsExplorer {
   Isolate* isolate_;
   HeapSnapshot* snapshot_;
   StringsStorage* names_;
+  HeapObjectsMap* heap_object_map_;
   std::unique_ptr<HeapEntriesAllocator> embedder_graph_entries_allocator_;
   // Used during references extraction.
   HeapSnapshotGenerator* generator_ = nullptr;
