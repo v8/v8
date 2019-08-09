@@ -553,7 +553,7 @@ TEST(BreakPointBuiltin) {
   builtin = CompileRun("String.prototype.repeat").As<v8::Function>();
 
   // Run with breakpoint.
-  bp = SetBreakPoint(builtin, 0);
+  bp = SetBreakPoint(builtin, 0, "this != 1");
   ExpectString("'b'.repeat(10)", "bbbbbbbbbb");
   CHECK_EQ(1, break_point_hit_count);
 
@@ -754,7 +754,7 @@ TEST(BreakPointConstructorBuiltin) {
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint.
-  bp = SetBreakPoint(builtin, 0);
+  bp = SetBreakPoint(builtin, 0, "this != 1");
   ExpectString("(new Promise(()=>{})).toString()", "[object Promise]");
   CHECK_EQ(1, break_point_hit_count);
 
@@ -821,7 +821,7 @@ TEST(BreakPointInlinedBuiltin) {
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint.
-  bp = SetBreakPoint(builtin, 0);
+  bp = SetBreakPoint(builtin, 0, "this != 1");
   CompileRun("Math.sin(0.1);");
   CHECK_EQ(1, break_point_hit_count);
   CompileRun("test(0.2);");
@@ -869,7 +869,7 @@ TEST(BreakPointInlineBoundBuiltin) {
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint.
-  bp = SetBreakPoint(builtin, 0);
+  bp = SetBreakPoint(builtin, 0, "this != 1");
   CompileRun("'a'.repeat(2);");
   CHECK_EQ(1, break_point_hit_count);
   CompileRun("test(7);");
@@ -914,7 +914,7 @@ TEST(BreakPointInlinedConstructorBuiltin) {
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint.
-  bp = SetBreakPoint(builtin, 0);
+  bp = SetBreakPoint(builtin, 0, "this != 1");
   CompileRun("new Promise(()=>{});");
   CHECK_EQ(1, break_point_hit_count);
   CompileRun("test(7);");
@@ -1090,17 +1090,60 @@ TEST(BreakPointApiFunction) {
   break_point_hit_count = 0;
 
   // Run with breakpoint.
-  bp = SetBreakPoint(function, 0);
+  bp = SetBreakPoint(function, 0, "this != 1");
   ExpectInt32("f()", 2);
   CHECK_EQ(1, break_point_hit_count);
 
   ExpectInt32("f()", 2);
   CHECK_EQ(2, break_point_hit_count);
 
+  function->Call(env.local(), v8::Undefined(env->GetIsolate()), 0, nullptr)
+      .ToLocalChecked();
+  CHECK_EQ(3, break_point_hit_count);
+
   // Run without breakpoints.
   ClearBreakPoint(bp);
   ExpectInt32("f()", 2);
+  CHECK_EQ(3, break_point_hit_count);
+
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointApiConstructor) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
+
+  i::Handle<i::BreakPoint> bp;
+
+  v8::Local<v8::FunctionTemplate> function_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), NoOpFunctionCallback);
+
+  v8::Local<v8::Function> function =
+      function_template->GetFunction(env.local()).ToLocalChecked();
+
+  env->Global()->Set(env.local(), v8_str("f"), function).ToChecked();
+
+  // === Test simple builtin ===
+  break_point_hit_count = 0;
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(function, 0, "this != 1");
+  CompileRun("new f()");
+  CHECK_EQ(1, break_point_hit_count);
+  CompileRun("new f()");
   CHECK_EQ(2, break_point_hit_count);
+
+  function->NewInstance(env.local()).ToLocalChecked();
+  CHECK_EQ(3, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("new f()");
+  CHECK_EQ(3, break_point_hit_count);
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
