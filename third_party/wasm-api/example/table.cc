@@ -87,7 +87,7 @@ void run() {
   file.close();
   if (file.fail()) {
     std::cout << "> Error loading module!" << std::endl;
-    return;
+    exit(1);
   }
 
   // Compile.
@@ -95,7 +95,7 @@ void run() {
   auto module = wasm::Module::make(store, binary);
   if (!module) {
     std::cout << "> Error compiling module!" << std::endl;
-    return;
+    exit(1);
   }
 
   // Instantiate.
@@ -103,7 +103,7 @@ void run() {
   auto instance = wasm::Instance::make(store, module.get(), nullptr);
   if (!instance) {
     std::cout << "> Error instantiating module!" << std::endl;
-    return;
+    exit(1);
   }
 
   // Extract export.

@@ -136,10 +136,11 @@ own wasm_store_t* wasm_store_new(wasm_engine_t*);
 
 // Type attributes
 
-typedef enum wasm_mutability_t {
+typedef uint8_t wasm_mutability_t;
+enum wasm_mutability_enum {
   WASM_CONST,
-  WASM_VAR
-} wasm_mutability_t;
+  WASM_VAR,
+};
 
 typedef struct wasm_limits_t {
   uint32_t min;
@@ -162,14 +163,15 @@ static const uint32_t wasm_limits_max_default = 0xffffffff;
 
 WASM_DECLARE_TYPE(valtype)
 
-typedef enum wasm_valkind_t {
+typedef uint8_t wasm_valkind_t;
+enum wasm_valkind_enum {
   WASM_I32,
   WASM_I64,
   WASM_F32,
   WASM_F64,
-  WASM_ANYREF,
-  WASM_FUNCREF
-} wasm_valkind_t;
+  WASM_ANYREF = 128,
+  WASM_FUNCREF,
+};
 
 own wasm_valtype_t* wasm_valtype_new(wasm_valkind_t);
 
@@ -236,12 +238,13 @@ const wasm_limits_t* wasm_memorytype_limits(const wasm_memorytype_t*);
 
 WASM_DECLARE_TYPE(externtype)
 
-typedef enum wasm_externkind_t {
+typedef uint8_t wasm_externkind_t;
+enum wasm_externkind_enum {
   WASM_EXTERN_FUNC,
   WASM_EXTERN_GLOBAL,
   WASM_EXTERN_TABLE,
-  WASM_EXTERN_MEMORY
-} wasm_externkind_t;
+  WASM_EXTERN_MEMORY,
+};
 
 wasm_externkind_t wasm_externtype_kind(const wasm_externtype_t*);
 

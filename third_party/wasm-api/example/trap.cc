@@ -43,7 +43,7 @@ void run() {
   file.close();
   if (file.fail()) {
     std::cout << "> Error loading module!" << std::endl;
-    return;
+    exit(1);
   }
 
   // Compile.
@@ -51,7 +51,7 @@ void run() {
   auto module = wasm::Module::make(store, binary);
   if (!module) {
     std::cout << "> Error compiling module!" << std::endl;
-    return;
+    exit(1);
   }
 
   // Create external print functions.
@@ -69,7 +69,7 @@ void run() {
   auto instance = wasm::Instance::make(store, module.get(), imports);
   if (!instance) {
     std::cout << "> Error instantiating module!" << std::endl;
-    return;
+    exit(1);
   }
 
   // Extract export.
@@ -79,7 +79,7 @@ void run() {
       exports[0]->kind() != wasm::EXTERN_FUNC || !exports[0]->func() ||
       exports[1]->kind() != wasm::EXTERN_FUNC || !exports[1]->func()) {
     std::cout << "> Error accessing exports!" << std::endl;
-    return;
+    exit(1);
   }
 
   // Call.
@@ -88,7 +88,7 @@ void run() {
     auto trap = exports[i]->func()->call();
     if (!trap) {
       std::cout << "> Error calling function!" << std::endl;
-      return;
+      exit(1);
     }
 
     std::cout << "Printing message..." << std::endl;

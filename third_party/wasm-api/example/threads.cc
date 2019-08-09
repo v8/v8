@@ -33,7 +33,7 @@ void run(
   if (!module) {
     std::lock_guard<std::mutex> lock(*mutex);
     std::cout << "> Error compiling module!" << std::endl;
-    return;
+    exit(1);
   }
 
   // Run the example N times.
@@ -58,7 +58,7 @@ void run(
     if (!instance) {
       std::lock_guard<std::mutex> lock(*mutex);
       std::cout << "> Error instantiating module!" << std::endl;
-      return;
+      exit(1);
     }
 
     // Extract export.
@@ -66,7 +66,7 @@ void run(
     if (exports.size() == 0 || exports[0]->kind() != wasm::EXTERN_FUNC || !exports[0]->func()) {
       std::lock_guard<std::mutex> lock(*mutex);
       std::cout << "> Error accessing export!" << std::endl;
-      return;
+      exit(1);
     }
     auto run_func = exports[0]->func();
 

@@ -38,6 +38,10 @@
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
 
+#ifdef WASM_API_DEBUG
+#error "WASM_API_DEBUG is unsupported"
+#endif
+
 namespace wasm {
 
 namespace {
@@ -188,14 +192,6 @@ auto seal(const typename implement<C>::type* x) -> const C* {
   return reinterpret_cast<const C*>(x);
 }
 
-#ifdef DEBUG
-template <class T>
-void vec<T>::make_data() {}
-
-template <class T>
-void vec<T>::free_data() {}
-#endif
-
 ///////////////////////////////////////////////////////////////////////////////
 // Runtime Environment
 
@@ -334,18 +330,43 @@ struct implement<ValType> {
   using type = ValTypeImpl;
 };
 
-ValTypeImpl* valtypes[] = {
-    new ValTypeImpl(I32), new ValTypeImpl(I64),    new ValTypeImpl(F32),
-    new ValTypeImpl(F64), new ValTypeImpl(ANYREF), new ValTypeImpl(FUNCREF),
-};
+ValTypeImpl* valtype_i32 = new ValTypeImpl(I32);
+ValTypeImpl* valtype_i64 = new ValTypeImpl(I64);
+ValTypeImpl* valtype_f32 = new ValTypeImpl(F32);
+ValTypeImpl* valtype_f64 = new ValTypeImpl(F64);
+ValTypeImpl* valtype_anyref = new ValTypeImpl(ANYREF);
+ValTypeImpl* valtype_funcref = new ValTypeImpl(FUNCREF);
 
 ValType::~ValType() {}
 
 void ValType::operator delete(void*) {}
 
-auto ValType::make(ValKind k) -> own<ValType*> {
-  auto result = seal<ValType>(valtypes[k]);
-  return own<ValType*>(result);
+own<ValType*> ValType::make(ValKind k) {
+  ValTypeImpl* valtype;
+  switch (k) {
+    case I32:
+      valtype = valtype_i32;
+      break;
+    case I64:
+      valtype = valtype_i64;
+      break;
+    case F32:
+      valtype = valtype_f32;
+      break;
+    case F64:
+      valtype = valtype_f64;
+      break;
+    case ANYREF:
+      valtype = valtype_anyref;
+      break;
+    case FUNCREF:
+      valtype = valtype_funcref;
+      break;
+    default:
+      // TODO(wasm+): support new value types
+      UNREACHABLE();
+  }
+  return own<ValType*>(seal<ValType>(valtype));
 }
 
 auto ValType::copy() const -> own<ValType*> { return make(kind()); }
@@ -2210,7 +2231,7 @@ extern "C++" inline auto hide(wasm::Mutability mutability)
   return static_cast<wasm_mutability_t>(mutability);
 }
 
-extern "C++" inline auto reveal(wasm_mutability_t mutability)
+extern "C++" inline auto reveal(wasm_mutability_enum mutability)
     -> wasm::Mutability {
   return static_cast<wasm::Mutability>(mutability);
 }
@@ -2228,7 +2249,7 @@ extern "C++" inline auto hide(wasm::ValKind kind) -> wasm_valkind_t {
   return static_cast<wasm_valkind_t>(kind);
 }
 
-extern "C++" inline auto reveal(wasm_valkind_t kind) -> wasm::ValKind {
+extern "C++" inline auto reveal(wasm_valkind_enum kind) -> wasm::ValKind {
   return static_cast<wasm::ValKind>(kind);
 }
 
@@ -2236,7 +2257,7 @@ extern "C++" inline auto hide(wasm::ExternKind kind) -> wasm_externkind_t {
   return static_cast<wasm_externkind_t>(kind);
 }
 
-extern "C++" inline auto reveal(wasm_externkind_t kind) -> wasm::ExternKind {
+extern "C++" inline auto reveal(wasm_externkind_enum kind) -> wasm::ExternKind {
   return static_cast<wasm::ExternKind>(kind);
 }
 
@@ -2255,7 +2276,8 @@ extern "C++" inline auto reveal(wasm_externkind_t kind) -> wasm::ExternKind {
 WASM_DEFINE_TYPE(valtype, wasm::ValType)
 
 wasm_valtype_t* wasm_valtype_new(wasm_valkind_t k) {
-  return release(wasm::ValType::make(reveal(k)));
+  return release(
+      wasm::ValType::make(reveal(static_cast<wasm_valkind_enum>(k))));
 }
 
 wasm_valkind_t wasm_valtype_kind(const wasm_valtype_t* t) {
@@ -2285,7 +2307,8 @@ WASM_DEFINE_TYPE(globaltype, wasm::GlobalType)
 
 wasm_globaltype_t* wasm_globaltype_new(wasm_valtype_t* content,
                                        wasm_mutability_t mutability) {
-  return release(wasm::GlobalType::make(adopt(content), reveal(mutability)));
+  return release(wasm::GlobalType::make(
+      adopt(content), reveal(static_cast<wasm_mutability_enum>(mutability))));
 }
 
 const wasm_valtype_t* wasm_globaltype_content(const wasm_globaltype_t* gt) {
@@ -2504,7 +2527,7 @@ WASM_DEFINE_REF_BASE(ref, wasm::Ref)
 extern "C++" {
 
 inline auto is_empty(wasm_val_t v) -> bool {
-  return !is_ref(reveal(v.kind)) || !v.of.ref;
+  return !is_ref(reveal(static_cast<wasm_valkind_enum>(v.kind))) || !v.of.ref;
 }
 
 inline auto hide(wasm::Val v) -> wasm_val_t {
@@ -2558,7 +2581,7 @@ inline auto release(wasm::Val v) -> wasm_val_t {
 }
 
 inline auto adopt(wasm_val_t v) -> wasm::Val {
-  switch (reveal(v.kind)) {
+  switch (reveal(static_cast<wasm_valkind_enum>(v.kind))) {
     case wasm::I32:
       return wasm::Val(v.of.i32);
     case wasm::I64:
@@ -2586,7 +2609,7 @@ struct borrowed_val {
 
 inline auto borrow(const wasm_val_t* v) -> borrowed_val {
   wasm::Val v2;
-  switch (reveal(v->kind)) {
+  switch (reveal(static_cast<wasm_valkind_enum>(v->kind))) {
     case wasm::I32:
       v2 = wasm::Val(v->of.i32);
       break;
@@ -2633,12 +2656,14 @@ void wasm_val_vec_copy(wasm_val_vec_t* out, wasm_val_vec_t* v) {
 }
 
 void wasm_val_delete(wasm_val_t* v) {
-  if (is_ref(reveal(v->kind))) adopt(v->of.ref);
+  if (is_ref(reveal(static_cast<wasm_valkind_enum>(v->kind)))) {
+    adopt(v->of.ref);
+  }
 }
 
 void wasm_val_copy(wasm_val_t* out, const wasm_val_t* v) {
   *out = *v;
-  if (is_ref(reveal(v->kind))) {
+  if (is_ref(reveal(static_cast<wasm_valkind_enum>(v->kind)))) {
     out->of.ref = release(v->of.ref->copy());
   }
 }

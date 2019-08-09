@@ -111,7 +111,7 @@ class vec {
   size_t size_;
   std::unique_ptr<T[]> data_;
 
-#ifdef DEBUG
+#ifdef WASM_API_DEBUG
   void make_data();
   void free_data();
 #else
@@ -275,7 +275,7 @@ public:
 
 // Type attributes
 
-enum Mutability { CONST, VAR };
+enum Mutability : uint8_t { CONST, VAR };
 
 struct Limits {
   uint32_t min;
@@ -288,7 +288,10 @@ struct Limits {
 
 // Value Types
 
-enum ValKind { I32, I64, F32, F64, ANYREF, FUNCREF };
+enum ValKind : uint8_t {
+  I32, I64, F32, F64,
+  ANYREF = 128, FUNCREF,
+};
 
 inline bool is_num(ValKind k) { return k < ANYREF; }
 inline bool is_ref(ValKind k) { return k >= ANYREF; }
@@ -311,7 +314,7 @@ public:
 
 // External Types
 
-enum ExternKind {
+enum ExternKind : uint8_t {
   EXTERN_FUNC, EXTERN_GLOBAL, EXTERN_TABLE, EXTERN_MEMORY
 };
 
@@ -343,8 +346,6 @@ public:
 
 
 // Function Types
-
-enum class arrow { ARROW };
 
 class FuncType : public ExternType {
 public:

@@ -13,19 +13,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/wasm-api/wasm.hh"
 
-namespace wasm {
-
-// TODO(jkummerow): Drop these from the API.
-#ifdef DEBUG
-template <class T>
-void vec<T>::make_data() {}
-
-template <class T>
-void vec<T>::free_data() {}
-#endif
-
-}  // namespace wasm
-
 namespace v8 {
 namespace internal {
 namespace wasm {
