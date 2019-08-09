@@ -181,21 +181,6 @@ StoreOffset ToOffset(const FieldAccess& access) {
   return ToOffset(access.offset);
 }
 
-unsigned int RepSizeOf(MachineRepresentation rep) {
-  return 1u << ElementSizeLog2Of(rep);
-}
-unsigned int RepSizeOf(FieldAccess access) {
-  return RepSizeOf(access.machine_type.representation());
-}
-
-bool AtMostTagged(FieldAccess access) {
-  return RepSizeOf(access) <= RepSizeOf(MachineRepresentation::kTagged);
-}
-
-bool AtLeastTagged(FieldAccess access) {
-  return RepSizeOf(access) >= RepSizeOf(MachineRepresentation::kTagged);
-}
-
 }  // namespace
 
 void RedundantStoreFinder::Find() {
@@ -266,40 +251,21 @@ UnobservablesSet RedundantStoreFinder::RecomputeSet(
       StoreOffset offset = ToOffset(access);
 
       UnobservableStore observation = {stored_to->id(), offset};
-      bool isNotObservable = uses.Contains(observation);
+      bool is_not_observable = uses.Contains(observation);
 
-      if (isNotObservable && AtMostTagged(access)) {
+      if (is_not_observable) {
         TRACE("  #%d is StoreField[+%d,%s](#%d), unobservable", node->id(),
               offset, MachineReprToString(access.machine_type.representation()),
               stored_to->id());
         to_remove().insert(node);
         return uses;
-      } else if (isNotObservable && !AtMostTagged(access)) {
-        TRACE(
-            "  #%d is StoreField[+%d,%s](#%d), repeated in future but too "
-            "big to optimize away",
-            node->id(), offset,
-            MachineReprToString(access.machine_type.representation()),
-            stored_to->id());
-        return uses;
-      } else if (!isNotObservable && AtLeastTagged(access)) {
+      } else {
         TRACE("  #%d is StoreField[+%d,%s](#%d), observable, recording in set",
               node->id(), offset,
               MachineReprToString(access.machine_type.representation()),
               stored_to->id());
         return uses.Add(observation, temp_zone());
-      } else if (!isNotObservable && !AtLeastTagged(access)) {
-        TRACE(
-            "  #%d is StoreField[+%d,%s](#%d), observable but too small to "
-            "record",
-            node->id(), offset,
-            MachineReprToString(access.machine_type.representation()),
-            stored_to->id());
-        return uses;
-      } else {
-        UNREACHABLE();
       }
-      break;
     }
     case IrOpcode::kLoadField: {
       Node* loaded_from = node->InputAt(0);
