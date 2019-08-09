@@ -2104,6 +2104,9 @@ TEST_F(FunctionBodyDecoderTest, TableGet) {
   ExpectValidates(
       &sig,
       {WASM_SET_LOCAL(local_func, WASM_TABLE_GET(tab_func2, WASM_I32V(7)))});
+  ExpectValidates(
+      &sig, {WASM_SET_LOCAL(local_ref, WASM_SEQ(WASM_I32V(6), kExprTableGet,
+                                                U32V_2(tab_ref1)))});
 
   // We can store funcref values as anyref, but not the other way around.
   ExpectFailure(&sig, {WASM_SET_LOCAL(local_func,

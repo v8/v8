@@ -395,7 +395,7 @@ struct TableIndexImmediate {
   unsigned length = 1;
   inline TableIndexImmediate() = default;
   inline TableIndexImmediate(Decoder* decoder, const byte* pc) {
-    index = decoder->read_u8<validate>(pc + 1, "table index");
+    index = decoder->read_u32v<validate>(pc + 1, &length, "table index");
   }
 };
 
