@@ -151,11 +151,19 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
   }
   bool IsValid() const { return reg_type_ != kNoRegister; }
   bool IsNone() const { return reg_type_ == kNoRegister; }
-  bool Is(const CPURegister& other) const {
+  constexpr bool Is(const CPURegister& other) const {
     return Aliases(other) && (reg_size_ == other.reg_size_);
   }
-  bool Aliases(const CPURegister& other) const {
+  constexpr bool Aliases(const CPURegister& other) const {
     return (reg_code_ == other.reg_code_) && (reg_type_ == other.reg_type_);
+  }
+
+  constexpr bool operator==(const CPURegister& other) const {
+    return Is(other);
+  }
+
+  constexpr bool operator!=(const CPURegister& other) const {
+    return !(*this == other);
   }
 
   bool IsZero() const;
