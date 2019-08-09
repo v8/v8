@@ -165,9 +165,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   friend class i::VariableDeclarationParsingScope<ParserTypes<Parser>>;
   friend class i::ParameterDeclarationParsingScope<ParserTypes<Parser>>;
   friend class i::ArrowHeadParsingScope<ParserTypes<Parser>>;
-  friend bool v8::internal::parsing::ParseProgram(ParseInfo*, Isolate*);
+  friend bool v8::internal::parsing::ParseProgram(
+      ParseInfo*, Isolate*, parsing::UpdateStatisticsMode stats_mode);
   friend bool v8::internal::parsing::ParseFunction(
-      ParseInfo*, Handle<SharedFunctionInfo> shared_info, Isolate*);
+      ParseInfo*, Handle<SharedFunctionInfo> shared_info, Isolate*,
+      parsing::UpdateStatisticsMode stats_mode);
 
   bool AllowsLazyParsingWithoutUnresolvedVariables() const {
     return scope()->AllowsLazyParsingWithoutUnresolvedVariables(

@@ -18,7 +18,8 @@ namespace v8 {
 namespace internal {
 namespace parsing {
 
-bool ParseProgram(ParseInfo* info, Isolate* isolate) {
+bool ParseProgram(ParseInfo* info, Isolate* isolate,
+                  UpdateStatisticsMode stats_mode) {
   DCHECK(info->is_toplevel());
   DCHECK_NULL(info->literal());
 
@@ -48,12 +49,14 @@ bool ParseProgram(ParseInfo* info, Isolate* isolate) {
       info->set_allow_eval_cache(parser.allow_eval_cache());
     }
   }
-  parser.UpdateStatistics(isolate, info->script());
+  if (stats_mode == UpdateStatisticsMode::kYes) {
+    parser.UpdateStatistics(isolate, info->script());
+  }
   return (result != nullptr);
 }
 
 bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
-                   Isolate* isolate) {
+                   Isolate* isolate, UpdateStatisticsMode stats_mode) {
   DCHECK(!info->is_toplevel());
   DCHECK(!shared_info.is_null());
   DCHECK_NULL(info->literal());
@@ -85,15 +88,18 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
       info->set_allow_eval_cache(parser.allow_eval_cache());
     }
   }
-  parser.UpdateStatistics(isolate, info->script());
+  if (stats_mode == UpdateStatisticsMode::kYes) {
+    parser.UpdateStatistics(isolate, info->script());
+  }
   return (result != nullptr);
 }
 
 bool ParseAny(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
-              Isolate* isolate) {
+              Isolate* isolate, UpdateStatisticsMode stats_mode) {
   DCHECK(!shared_info.is_null());
-  return info->is_toplevel() ? ParseProgram(info, isolate)
-                             : ParseFunction(info, shared_info, isolate);
+  return info->is_toplevel()
+             ? ParseProgram(info, isolate, stats_mode)
+             : ParseFunction(info, shared_info, isolate, stats_mode);
 }
 
 }  // namespace parsing

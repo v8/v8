@@ -1215,8 +1215,10 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
   parse_info.set_collect_source_positions();
   if (FLAG_allow_natives_syntax) parse_info.set_allow_natives_syntax();
 
-  // Parse and update ParseInfo with the results.
-  if (!parsing::ParseAny(&parse_info, shared_info, isolate)) {
+  // Parse and update ParseInfo with the results. Don't update parsing
+  // statistics since we've already parsed the code before.
+  if (!parsing::ParseAny(&parse_info, shared_info, isolate,
+                         parsing::UpdateStatisticsMode::kNo)) {
     // Parsing failed probably as a result of stack exhaustion.
     bytecode->SetSourcePositionsFailedToCollect();
     return FailWithPendingException(
