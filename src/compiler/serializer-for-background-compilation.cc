@@ -407,7 +407,9 @@ class SerializerForBackgroundCompilation {
       MapRef const& receiver_map, NameRef const& name, AccessMode mode,
       base::Optional<JSObjectRef> receiver = base::nullopt);
 
-  void ProcessCreateContext();
+  void ProcessCreateContext(interpreter::BytecodeArrayIterator* iterator,
+                            int scopeinfo_operand_index);
+
   enum ContextProcessingMode {
     kIgnoreSlot,
     kSerializeSlot,
@@ -1274,30 +1276,36 @@ void SerializerForBackgroundCompilation::VisitMov(
 
 void SerializerForBackgroundCompilation::VisitCreateFunctionContext(
     BytecodeArrayIterator* iterator) {
-  ProcessCreateContext();
+  ProcessCreateContext(iterator, 0);
 }
 
 void SerializerForBackgroundCompilation::VisitCreateBlockContext(
     BytecodeArrayIterator* iterator) {
-  ProcessCreateContext();
+  ProcessCreateContext(iterator, 0);
 }
 
 void SerializerForBackgroundCompilation::VisitCreateEvalContext(
     BytecodeArrayIterator* iterator) {
-  ProcessCreateContext();
+  ProcessCreateContext(iterator, 0);
 }
 
 void SerializerForBackgroundCompilation::VisitCreateWithContext(
     BytecodeArrayIterator* iterator) {
-  ProcessCreateContext();
+  ProcessCreateContext(iterator, 1);
 }
 
 void SerializerForBackgroundCompilation::VisitCreateCatchContext(
     BytecodeArrayIterator* iterator) {
-  ProcessCreateContext();
+  ProcessCreateContext(iterator, 1);
 }
 
-void SerializerForBackgroundCompilation::ProcessCreateContext() {
+void SerializerForBackgroundCompilation::ProcessCreateContext(
+    interpreter::BytecodeArrayIterator* iterator, int scopeinfo_operand_index) {
+  Handle<ScopeInfo> scope_info =
+      Handle<ScopeInfo>::cast(iterator->GetConstantForIndexOperand(
+          scopeinfo_operand_index, broker()->isolate()));
+  ScopeInfoRef scope_info_ref(broker(), scope_info);
+
   Hints& accumulator_hints = environment()->accumulator_hints();
   accumulator_hints.Clear();
   Hints& current_context_hints = environment()->current_context_hints();

@@ -47,7 +47,9 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       break;
     }
     case IrOpcode::kJSCreateBlockContext: {
-      ScopeInfoRef(broker(), ScopeInfoOf(node->op()));
+      if (!FLAG_concurrent_inlining) {
+        ScopeInfoRef(broker(), ScopeInfoOf(node->op()));
+      }
       break;
     }
     case IrOpcode::kJSCreateBoundFunction: {
@@ -57,7 +59,9 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       break;
     }
     case IrOpcode::kJSCreateCatchContext: {
-      ScopeInfoRef(broker(), ScopeInfoOf(node->op()));
+      if (!FLAG_concurrent_inlining) {
+        ScopeInfoRef(broker(), ScopeInfoOf(node->op()));
+      }
       break;
     }
     case IrOpcode::kJSCreateClosure: {
@@ -73,9 +77,11 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       break;
     }
     case IrOpcode::kJSCreateFunctionContext: {
-      CreateFunctionContextParameters const& p =
-          CreateFunctionContextParametersOf(node->op());
-      ScopeInfoRef(broker(), p.scope_info());
+      if (!FLAG_concurrent_inlining) {
+        CreateFunctionContextParameters const& p =
+            CreateFunctionContextParametersOf(node->op());
+        ScopeInfoRef(broker(), p.scope_info());
+      }
       break;
     }
     case IrOpcode::kJSCreateLiteralArray:
@@ -90,7 +96,9 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       break;
     }
     case IrOpcode::kJSCreateWithContext: {
-      ScopeInfoRef(broker(), ScopeInfoOf(node->op()));
+      if (!FLAG_concurrent_inlining) {
+        ScopeInfoRef(broker(), ScopeInfoOf(node->op()));
+      }
       break;
     }
     case IrOpcode::kJSLoadNamed:

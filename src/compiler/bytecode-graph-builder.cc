@@ -1929,52 +1929,56 @@ void BytecodeGraphBuilder::VisitCreateClosure() {
 }
 
 void BytecodeGraphBuilder::VisitCreateBlockContext() {
-  Handle<ScopeInfo> scope_info = Handle<ScopeInfo>::cast(
-      bytecode_iterator().GetConstantForIndexOperand(0, isolate()));
-
-  const Operator* op = javascript()->CreateBlockContext(scope_info);
+  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
+  ScopeInfoRef scope_info(
+      broker(), bytecode_iterator().GetConstantForIndexOperand(0, isolate()));
+  const Operator* op = javascript()->CreateBlockContext(scope_info.object());
   Node* context = NewNode(op);
   environment()->BindAccumulator(context);
 }
 
 void BytecodeGraphBuilder::VisitCreateFunctionContext() {
-  Handle<ScopeInfo> scope_info = Handle<ScopeInfo>::cast(
-      bytecode_iterator().GetConstantForIndexOperand(0, isolate()));
+  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
+  ScopeInfoRef scope_info(
+      broker(), bytecode_iterator().GetConstantForIndexOperand(0, isolate()));
   uint32_t slots = bytecode_iterator().GetUnsignedImmediateOperand(1);
-  const Operator* op =
-      javascript()->CreateFunctionContext(scope_info, slots, FUNCTION_SCOPE);
+  const Operator* op = javascript()->CreateFunctionContext(
+      scope_info.object(), slots, FUNCTION_SCOPE);
   Node* context = NewNode(op);
   environment()->BindAccumulator(context);
 }
 
 void BytecodeGraphBuilder::VisitCreateEvalContext() {
-  Handle<ScopeInfo> scope_info = Handle<ScopeInfo>::cast(
-      bytecode_iterator().GetConstantForIndexOperand(0, isolate()));
+  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
+  ScopeInfoRef scope_info(
+      broker(), bytecode_iterator().GetConstantForIndexOperand(0, isolate()));
   uint32_t slots = bytecode_iterator().GetUnsignedImmediateOperand(1);
-  const Operator* op =
-      javascript()->CreateFunctionContext(scope_info, slots, EVAL_SCOPE);
+  const Operator* op = javascript()->CreateFunctionContext(scope_info.object(),
+                                                           slots, EVAL_SCOPE);
   Node* context = NewNode(op);
   environment()->BindAccumulator(context);
 }
 
 void BytecodeGraphBuilder::VisitCreateCatchContext() {
+  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
   interpreter::Register reg = bytecode_iterator().GetRegisterOperand(0);
   Node* exception = environment()->LookupRegister(reg);
-  Handle<ScopeInfo> scope_info = Handle<ScopeInfo>::cast(
-      bytecode_iterator().GetConstantForIndexOperand(1, isolate()));
+  ScopeInfoRef scope_info(
+      broker(), bytecode_iterator().GetConstantForIndexOperand(1, isolate()));
 
-  const Operator* op = javascript()->CreateCatchContext(scope_info);
+  const Operator* op = javascript()->CreateCatchContext(scope_info.object());
   Node* context = NewNode(op, exception);
   environment()->BindAccumulator(context);
 }
 
 void BytecodeGraphBuilder::VisitCreateWithContext() {
+  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
   Node* object =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  Handle<ScopeInfo> scope_info = Handle<ScopeInfo>::cast(
-      bytecode_iterator().GetConstantForIndexOperand(1, isolate()));
+  ScopeInfoRef scope_info(
+      broker(), bytecode_iterator().GetConstantForIndexOperand(1, isolate()));
 
-  const Operator* op = javascript()->CreateWithContext(scope_info);
+  const Operator* op = javascript()->CreateWithContext(scope_info.object());
   Node* context = NewNode(op, object);
   environment()->BindAccumulator(context);
 }
