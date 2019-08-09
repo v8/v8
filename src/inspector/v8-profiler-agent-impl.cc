@@ -502,6 +502,13 @@ void V8ProfilerAgentImpl::startProfiling(const String16& title) {
         m_state->integerProperty(ProfilerAgentState::samplingInterval, 0);
     if (interval) m_profiler->SetSamplingInterval(interval);
   }
+  // Create a new temporary context and enter it while starting profiling
+  // since this might involve collecting source positions and requires a
+  // context.
+  // TODO(992063): Remove this once parsing / collecting source positions has
+  // been properly made context independent.
+  v8::Local<v8::Context> tmpContext = v8::Context::New(m_isolate);
+  v8::Context::Scope scope(tmpContext);
   ++m_startedProfilesCount;
   m_profiler->StartProfiling(toV8String(m_isolate, title), true);
 }
