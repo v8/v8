@@ -369,11 +369,8 @@
     'release_simulate_arm64': [
       'release_bot', 'simulate_arm64'],
     'release_simulate_arm64_pointer_compression': [
-      # TODO(v8:v7703): Make pointer compression bots testing non pointer
-      # compression mode while pointer compression is temporarily enabled
-      # on arm64
       'release_bot', 'simulate_arm64', 'dcheck_always_on',
-      'v8_enable_slow_dchecks', 'v8_disable_pointer_compression'],
+      'v8_enable_slow_dchecks', 'v8_enable_pointer_compression'],
     'release_simulate_arm64_msan': [
       'release_bot', 'simulate_arm64', 'msan'],
     'release_simulate_arm64_msan_minimal_symbols': [
@@ -820,10 +817,6 @@
 
     'v8_enable_pointer_compression': {
       'gn_args': 'v8_enable_pointer_compression=true',
-    },
-
-    'v8_disable_pointer_compression': {
-      'gn_args': 'v8_enable_pointer_compression=false',
     },
 
     'v8_enable_test_features': {
