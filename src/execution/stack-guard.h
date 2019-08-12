@@ -132,8 +132,7 @@ class V8_EXPORT_PRIVATE StackGuard final {
     // Clear.
     void Clear();
 
-    // Returns true if the heap's stack limits should be set, false if not.
-    bool Initialize(Isolate* isolate);
+    void Initialize(Isolate* isolate);
 
     // The stack limit is split into a JavaScript and a C++ stack limit. These
     // two are the same except when running on a simulator where the C++ and

@@ -21,14 +21,12 @@ void StackGuard::set_interrupt_limits(const ExecutionAccess& lock) {
   DCHECK_NOT_NULL(isolate_);
   thread_local_.set_jslimit(kInterruptLimit);
   thread_local_.set_climit(kInterruptLimit);
-  isolate_->heap()->SetStackLimits();
 }
 
 void StackGuard::reset_limits(const ExecutionAccess& lock) {
   DCHECK_NOT_NULL(isolate_);
   thread_local_.set_jslimit(thread_local_.real_jslimit_);
   thread_local_.set_climit(thread_local_.real_climit_);
-  isolate_->heap()->SetStackLimits();
 }
 
 void StackGuard::SetStackLimit(uintptr_t limit) {
@@ -54,7 +52,6 @@ void StackGuard::AdjustStackLimitForSimulator() {
   uintptr_t jslimit = SimulatorStack::JsLimitFromCLimit(isolate_, climit);
   if (thread_local_.jslimit() == thread_local_.real_jslimit_) {
     thread_local_.set_jslimit(jslimit);
-    isolate_->heap()->SetStackLimits();
   }
 }
 
@@ -181,23 +178,13 @@ int StackGuard::FetchAndClearInterrupts() {
 char* StackGuard::ArchiveStackGuard(char* to) {
   ExecutionAccess access(isolate_);
   MemCopy(to, reinterpret_cast<char*>(&thread_local_), sizeof(ThreadLocal));
-  ThreadLocal blank;
-
-  // Set the stack limits using the old thread_local_.
-  // TODO(isolates): This was the old semantics of constructing a ThreadLocal
-  //                 (as the ctor called SetStackLimits, which looked at the
-  //                 current thread_local_ from StackGuard)-- but is this
-  //                 really what was intended?
-  isolate_->heap()->SetStackLimits();
-  thread_local_ = blank;
-
+  thread_local_ = {};
   return to + sizeof(ThreadLocal);
 }
 
 char* StackGuard::RestoreStackGuard(char* from) {
   ExecutionAccess access(isolate_);
   MemCopy(reinterpret_cast<char*>(&thread_local_), from, sizeof(ThreadLocal));
-  isolate_->heap()->SetStackLimits();
   return from + sizeof(ThreadLocal);
 }
 
@@ -216,8 +203,7 @@ void StackGuard::ThreadLocal::Clear() {
   interrupt_flags_ = 0;
 }
 
-bool StackGuard::ThreadLocal::Initialize(Isolate* isolate) {
-  bool should_set_stack_limits = false;
+void StackGuard::ThreadLocal::Initialize(Isolate* isolate) {
   if (real_climit_ == kIllegalLimit) {
     const uintptr_t kLimitSize = FLAG_stack_size * KB;
     DCHECK_GT(GetCurrentStackPosition(), kLimitSize);
@@ -226,20 +212,17 @@ bool StackGuard::ThreadLocal::Initialize(Isolate* isolate) {
     set_jslimit(SimulatorStack::JsLimitFromCLimit(isolate, limit));
     real_climit_ = limit;
     set_climit(limit);
-    should_set_stack_limits = true;
   }
   interrupt_scopes_ = nullptr;
   interrupt_flags_ = 0;
-  return should_set_stack_limits;
 }
 
 void StackGuard::ClearThread(const ExecutionAccess& lock) {
   thread_local_.Clear();
-  isolate_->heap()->SetStackLimits();
 }
 
 void StackGuard::InitThread(const ExecutionAccess& lock) {
-  if (thread_local_.Initialize(isolate_)) isolate_->heap()->SetStackLimits();
+  thread_local_.Initialize(isolate_);
   Isolate::PerIsolateThreadData* per_thread =
       isolate_->FindOrAllocatePerThreadDataForThisThread();
   uintptr_t stored_limit = per_thread->stack_limit();

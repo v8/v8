@@ -722,15 +722,6 @@ class Heap {
   V8_INLINE void SetMessageListeners(TemplateList value);
   V8_INLINE void SetPendingOptimizeForTestBytecode(Object bytecode);
 
-  // Set the stack limit in the roots table.  Some architectures generate
-  // code that looks here, because it is faster than loading from the static
-  // jslimit_/real_jslimit_ variable in the StackGuard.
-  void SetStackLimits();
-
-  // The stack limit is thread-dependent. To be able to reproduce the same
-  // snapshot blob, we need to reset it before serializing.
-  void ClearStackLimits();
-
   void RegisterStrongRoots(FullObjectSlot start, FullObjectSlot end);
   void UnregisterStrongRoots(FullObjectSlot start);
 

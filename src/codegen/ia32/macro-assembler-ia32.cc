@@ -92,14 +92,15 @@ void TurboAssembler::CompareRoot(Register with, RootIndex index) {
 }
 
 void TurboAssembler::CompareRealStackLimit(Register with) {
-  if (root_array_available()) {
-    CompareRoot(with, RootIndex::kRealStackLimit);
-  } else {
-    DCHECK(!options().isolate_independent_code);
-    ExternalReference ref =
-        ExternalReference::address_of_real_jslimit(isolate());
-    cmp(with, Operand(ref.address(), RelocInfo::EXTERNAL_REFERENCE));
-  }
+  CHECK(root_array_available());  // Only used by builtins.
+
+  // Address through the root register. No load is needed.
+  ExternalReference limit =
+      ExternalReference::address_of_real_jslimit(isolate());
+  DCHECK(IsAddressableThroughRootRegister(isolate(), limit));
+
+  intptr_t offset = RootRegisterOffsetForExternalReference(isolate(), limit);
+  cmp(with, Operand(kRootRegister, offset));
 }
 
 void MacroAssembler::PushRoot(RootIndex index) {

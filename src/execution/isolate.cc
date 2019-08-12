@@ -3356,9 +3356,6 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
   // The initialization process does not handle memory exhaustion.
   AlwaysAllocateScope always_allocate(this);
 
-  // Safe after setting Heap::isolate_, and initializing StackGuard
-  heap_.SetStackLimits();
-
 #define ASSIGN_ELEMENT(CamelName, hacker_name)                  \
   isolate_addresses_[IsolateAddressId::k##CamelName##Address] = \
       reinterpret_cast<Address>(hacker_name##_address());
@@ -3536,10 +3533,6 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
   clear_pending_exception();
   clear_pending_message();
   clear_scheduled_exception();
-
-  // Deserializing may put strange things in the root array's copy of the
-  // stack guard.
-  heap_.SetStackLimits();
 
   // Quiet the heap NaN if needed on target platform.
   if (!create_heap_objects)

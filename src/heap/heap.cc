@@ -5089,25 +5089,6 @@ void Heap::InitializeHashSeed() {
       0, reinterpret_cast<byte*>(&new_hash_seed), kInt64Size);
 }
 
-void Heap::SetStackLimits() {
-  DCHECK_NOT_NULL(isolate_);
-  DCHECK(isolate_ == isolate());
-  // On 64 bit machines, pointers are generally out of range of Smis.  We write
-  // something that looks like an out of range Smi to the GC.
-
-  // Set up the special root array entries containing the stack limits.
-  // These are actually addresses, but the tag makes the GC ignore it.
-  roots_table()[RootIndex::kStackLimit] =
-      (isolate_->stack_guard()->jslimit() & ~kSmiTagMask) | kSmiTag;
-  roots_table()[RootIndex::kRealStackLimit] =
-      (isolate_->stack_guard()->real_jslimit() & ~kSmiTagMask) | kSmiTag;
-}
-
-void Heap::ClearStackLimits() {
-  roots_table()[RootIndex::kStackLimit] = kNullAddress;
-  roots_table()[RootIndex::kRealStackLimit] = kNullAddress;
-}
-
 int Heap::NextAllocationTimeout(int current_timeout) {
   if (FLAG_random_gc_interval > 0) {
     // If current timeout hasn't reached 0 the GC was caused by something

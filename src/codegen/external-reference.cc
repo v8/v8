@@ -329,11 +329,17 @@ ExternalReference ExternalReference::allocation_sites_list_address(
 }
 
 ExternalReference ExternalReference::address_of_jslimit(Isolate* isolate) {
-  return ExternalReference(isolate->stack_guard()->address_of_jslimit());
+  Address address = isolate->stack_guard()->address_of_jslimit();
+  // For efficient generated code, this should be root-register-addressable.
+  DCHECK(isolate->root_register_addressable_region().contains(address));
+  return ExternalReference(address);
 }
 
 ExternalReference ExternalReference::address_of_real_jslimit(Isolate* isolate) {
-  return ExternalReference(isolate->stack_guard()->address_of_real_jslimit());
+  Address address = isolate->stack_guard()->address_of_real_jslimit();
+  // For efficient generated code, this should be root-register-addressable.
+  DCHECK(isolate->root_register_addressable_region().contains(address));
+  return ExternalReference(address);
 }
 
 ExternalReference ExternalReference::store_buffer_top(Isolate* isolate) {
