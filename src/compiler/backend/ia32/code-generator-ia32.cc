@@ -205,8 +205,16 @@ class IA32OperandConverter : public InstructionOperandConverter {
 
 namespace {
 
+bool HasAddressingMode(Instruction* instr) {
+  return instr->addressing_mode() != kMode_None;
+}
+
 bool HasImmediateInput(Instruction* instr, size_t index) {
   return instr->InputAt(index)->IsImmediate();
+}
+
+bool HasRegisterInput(Instruction* instr, size_t index) {
+  return instr->InputAt(index)->IsRegister();
 }
 
 class OutOfLineLoadFloat32NaN final : public OutOfLineCode {
@@ -328,31 +336,31 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 
 }  // namespace
 
-#define ASSEMBLE_COMPARE(asm_instr)                                   \
-  do {                                                                \
-    if (AddressingModeField::decode(instr->opcode()) != kMode_None) { \
-      size_t index = 0;                                               \
-      Operand left = i.MemoryOperand(&index);                         \
-      if (HasImmediateInput(instr, index)) {                          \
-        __ asm_instr(left, i.InputImmediate(index));                  \
-      } else {                                                        \
-        __ asm_instr(left, i.InputRegister(index));                   \
-      }                                                               \
-    } else {                                                          \
-      if (HasImmediateInput(instr, 1)) {                              \
-        if (instr->InputAt(0)->IsRegister()) {                        \
-          __ asm_instr(i.InputRegister(0), i.InputImmediate(1));      \
-        } else {                                                      \
-          __ asm_instr(i.InputOperand(0), i.InputImmediate(1));       \
-        }                                                             \
-      } else {                                                        \
-        if (instr->InputAt(1)->IsRegister()) {                        \
-          __ asm_instr(i.InputRegister(0), i.InputRegister(1));       \
-        } else {                                                      \
-          __ asm_instr(i.InputRegister(0), i.InputOperand(1));        \
-        }                                                             \
-      }                                                               \
-    }                                                                 \
+#define ASSEMBLE_COMPARE(asm_instr)                              \
+  do {                                                           \
+    if (HasAddressingMode(instr)) {                              \
+      size_t index = 0;                                          \
+      Operand left = i.MemoryOperand(&index);                    \
+      if (HasImmediateInput(instr, index)) {                     \
+        __ asm_instr(left, i.InputImmediate(index));             \
+      } else {                                                   \
+        __ asm_instr(left, i.InputRegister(index));              \
+      }                                                          \
+    } else {                                                     \
+      if (HasImmediateInput(instr, 1)) {                         \
+        if (HasRegisterInput(instr, 0)) {                        \
+          __ asm_instr(i.InputRegister(0), i.InputImmediate(1)); \
+        } else {                                                 \
+          __ asm_instr(i.InputOperand(0), i.InputImmediate(1));  \
+        }                                                        \
+      } else {                                                   \
+        if (HasRegisterInput(instr, 1)) {                        \
+          __ asm_instr(i.InputRegister(0), i.InputRegister(1));  \
+        } else {                                                 \
+          __ asm_instr(i.InputRegister(0), i.InputOperand(1));   \
+        }                                                        \
+      }                                                          \
+    }                                                            \
   } while (0)
 
 #define ASSEMBLE_IEEE754_BINOP(name)                                     \
@@ -384,19 +392,19 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ add(esp, Immediate(kDoubleSize));                                 \
   } while (false)
 
-#define ASSEMBLE_BINOP(asm_instr)                                     \
-  do {                                                                \
-    if (AddressingModeField::decode(instr->opcode()) != kMode_None) { \
-      size_t index = 1;                                               \
-      Operand right = i.MemoryOperand(&index);                        \
-      __ asm_instr(i.InputRegister(0), right);                        \
-    } else {                                                          \
-      if (HasImmediateInput(instr, 1)) {                              \
-        __ asm_instr(i.InputOperand(0), i.InputImmediate(1));         \
-      } else {                                                        \
-        __ asm_instr(i.InputRegister(0), i.InputOperand(1));          \
-      }                                                               \
-    }                                                                 \
+#define ASSEMBLE_BINOP(asm_instr)                             \
+  do {                                                        \
+    if (HasAddressingMode(instr)) {                           \
+      size_t index = 1;                                       \
+      Operand right = i.MemoryOperand(&index);                \
+      __ asm_instr(i.InputRegister(0), right);                \
+    } else {                                                  \
+      if (HasImmediateInput(instr, 1)) {                      \
+        __ asm_instr(i.InputOperand(0), i.InputImmediate(1)); \
+      } else {                                                \
+        __ asm_instr(i.InputRegister(0), i.InputOperand(1));  \
+      }                                                       \
+    }                                                         \
   } while (0)
 
 #define ASSEMBLE_ATOMIC_BINOP(bin_inst, mov_inst, cmpxchg_inst) \
@@ -433,9 +441,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 
 #define ASSEMBLE_MOVX(mov_instr)                            \
   do {                                                      \
-    if (instr->addressing_mode() != kMode_None) {           \
+    if (HasAddressingMode(instr)) {                         \
       __ mov_instr(i.OutputRegister(), i.MemoryOperand());  \
-    } else if (instr->InputAt(0)->IsRegister()) {           \
+    } else if (HasRegisterInput(instr, 0)) {                \
       __ mov_instr(i.OutputRegister(), i.InputRegister(0)); \
     } else {                                                \
       __ mov_instr(i.OutputRegister(), i.InputOperand(0));  \
@@ -931,7 +939,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchStackPointerGreaterThan: {
       constexpr size_t kValueIndex = 0;
-      if (AddressingModeField::decode(instr->opcode()) != kMode_None) {
+      if (HasAddressingMode(instr)) {
         __ cmp(esp, i.MemoryOperand(kValueIndex));
       } else {
         __ cmp(esp, i.InputRegister(kValueIndex));
@@ -1125,7 +1133,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // i.InputRegister(2) ... right low word.
       // i.InputRegister(3) ... right high word.
       bool use_temp = false;
-      if ((instr->InputAt(1)->IsRegister() &&
+      if ((HasRegisterInput(instr, 1) &&
            i.OutputRegister(0).code() == i.InputRegister(1).code()) ||
           i.OutputRegister(0).code() == i.InputRegister(3).code()) {
         // We cannot write to the output register directly, because it would
@@ -1150,7 +1158,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // i.InputRegister(2) ... right low word.
       // i.InputRegister(3) ... right high word.
       bool use_temp = false;
-      if ((instr->InputAt(1)->IsRegister() &&
+      if ((HasRegisterInput(instr, 1) &&
            i.OutputRegister(0).code() == i.InputRegister(1).code()) ||
           i.OutputRegister(0).code() == i.InputRegister(3).code()) {
         // We cannot write to the output register directly, because it would
@@ -1681,7 +1689,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kIA32BitcastIF:
-      if (instr->InputAt(0)->IsRegister()) {
+      if (HasRegisterInput(instr, 0)) {
         __ movd(i.OutputDoubleRegister(), i.InputRegister(0));
       } else {
         __ movss(i.OutputDoubleRegister(), i.InputOperand(0));
@@ -1772,7 +1780,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       frame_access_state()->IncreaseSPDelta(kSimd128Size / kSystemPointerSize);
       break;
     case kIA32Push:
-      if (AddressingModeField::decode(instr->opcode()) != kMode_None) {
+      if (HasAddressingMode(instr)) {
         size_t index = 0;
         Operand operand = i.MemoryOperand(&index);
         __ push(operand);

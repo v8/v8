@@ -155,8 +155,16 @@ class X64OperandConverter : public InstructionOperandConverter {
 
 namespace {
 
+bool HasAddressingMode(Instruction* instr) {
+  return instr->addressing_mode() != kMode_None;
+}
+
 bool HasImmediateInput(Instruction* instr, size_t index) {
   return instr->InputAt(index)->IsImmediate();
+}
+
+bool HasRegisterInput(Instruction* instr, size_t index) {
+  return instr->InputAt(index)->IsRegister();
 }
 
 class OutOfLineLoadFloat32NaN final : public OutOfLineCode {
@@ -384,60 +392,60 @@ void EmitWordLoadPoisoningIfNeeded(
     }                                    \
   } while (false)
 
-#define ASSEMBLE_BINOP(asm_instr)                                     \
-  do {                                                                \
-    if (AddressingModeField::decode(instr->opcode()) != kMode_None) { \
-      size_t index = 1;                                               \
-      Operand right = i.MemoryOperand(&index);                        \
-      __ asm_instr(i.InputRegister(0), right);                        \
-    } else {                                                          \
-      if (HasImmediateInput(instr, 1)) {                              \
-        if (instr->InputAt(0)->IsRegister()) {                        \
-          __ asm_instr(i.InputRegister(0), i.InputImmediate(1));      \
-        } else {                                                      \
-          __ asm_instr(i.InputOperand(0), i.InputImmediate(1));       \
-        }                                                             \
-      } else {                                                        \
-        if (instr->InputAt(1)->IsRegister()) {                        \
-          __ asm_instr(i.InputRegister(0), i.InputRegister(1));       \
-        } else {                                                      \
-          __ asm_instr(i.InputRegister(0), i.InputOperand(1));        \
-        }                                                             \
-      }                                                               \
-    }                                                                 \
+#define ASSEMBLE_BINOP(asm_instr)                                \
+  do {                                                           \
+    if (HasAddressingMode(instr)) {                              \
+      size_t index = 1;                                          \
+      Operand right = i.MemoryOperand(&index);                   \
+      __ asm_instr(i.InputRegister(0), right);                   \
+    } else {                                                     \
+      if (HasImmediateInput(instr, 1)) {                         \
+        if (HasRegisterInput(instr, 0)) {                        \
+          __ asm_instr(i.InputRegister(0), i.InputImmediate(1)); \
+        } else {                                                 \
+          __ asm_instr(i.InputOperand(0), i.InputImmediate(1));  \
+        }                                                        \
+      } else {                                                   \
+        if (HasRegisterInput(instr, 1)) {                        \
+          __ asm_instr(i.InputRegister(0), i.InputRegister(1));  \
+        } else {                                                 \
+          __ asm_instr(i.InputRegister(0), i.InputOperand(1));   \
+        }                                                        \
+      }                                                          \
+    }                                                            \
   } while (false)
 
-#define ASSEMBLE_COMPARE(asm_instr)                                   \
-  do {                                                                \
-    if (AddressingModeField::decode(instr->opcode()) != kMode_None) { \
-      size_t index = 0;                                               \
-      Operand left = i.MemoryOperand(&index);                         \
-      if (HasImmediateInput(instr, index)) {                          \
-        __ asm_instr(left, i.InputImmediate(index));                  \
-      } else {                                                        \
-        __ asm_instr(left, i.InputRegister(index));                   \
-      }                                                               \
-    } else {                                                          \
-      if (HasImmediateInput(instr, 1)) {                              \
-        if (instr->InputAt(0)->IsRegister()) {                        \
-          __ asm_instr(i.InputRegister(0), i.InputImmediate(1));      \
-        } else {                                                      \
-          __ asm_instr(i.InputOperand(0), i.InputImmediate(1));       \
-        }                                                             \
-      } else {                                                        \
-        if (instr->InputAt(1)->IsRegister()) {                        \
-          __ asm_instr(i.InputRegister(0), i.InputRegister(1));       \
-        } else {                                                      \
-          __ asm_instr(i.InputRegister(0), i.InputOperand(1));        \
-        }                                                             \
-      }                                                               \
-    }                                                                 \
+#define ASSEMBLE_COMPARE(asm_instr)                              \
+  do {                                                           \
+    if (HasAddressingMode(instr)) {                              \
+      size_t index = 0;                                          \
+      Operand left = i.MemoryOperand(&index);                    \
+      if (HasImmediateInput(instr, index)) {                     \
+        __ asm_instr(left, i.InputImmediate(index));             \
+      } else {                                                   \
+        __ asm_instr(left, i.InputRegister(index));              \
+      }                                                          \
+    } else {                                                     \
+      if (HasImmediateInput(instr, 1)) {                         \
+        if (HasRegisterInput(instr, 0)) {                        \
+          __ asm_instr(i.InputRegister(0), i.InputImmediate(1)); \
+        } else {                                                 \
+          __ asm_instr(i.InputOperand(0), i.InputImmediate(1));  \
+        }                                                        \
+      } else {                                                   \
+        if (HasRegisterInput(instr, 1)) {                        \
+          __ asm_instr(i.InputRegister(0), i.InputRegister(1));  \
+        } else {                                                 \
+          __ asm_instr(i.InputRegister(0), i.InputOperand(1));   \
+        }                                                        \
+      }                                                          \
+    }                                                            \
   } while (false)
 
 #define ASSEMBLE_MULT(asm_instr)                              \
   do {                                                        \
     if (HasImmediateInput(instr, 1)) {                        \
-      if (instr->InputAt(0)->IsRegister()) {                  \
+      if (HasRegisterInput(instr, 0)) {                       \
         __ asm_instr(i.OutputRegister(), i.InputRegister(0),  \
                      i.InputImmediate(1));                    \
       } else {                                                \
@@ -445,7 +453,7 @@ void EmitWordLoadPoisoningIfNeeded(
                      i.InputImmediate(1));                    \
       }                                                       \
     } else {                                                  \
-      if (instr->InputAt(1)->IsRegister()) {                  \
+      if (HasRegisterInput(instr, 1)) {                       \
         __ asm_instr(i.OutputRegister(), i.InputRegister(1)); \
       } else {                                                \
         __ asm_instr(i.OutputRegister(), i.InputOperand(1));  \
@@ -472,9 +480,9 @@ void EmitWordLoadPoisoningIfNeeded(
 
 #define ASSEMBLE_MOVX(asm_instr)                            \
   do {                                                      \
-    if (instr->addressing_mode() != kMode_None) {           \
+    if (HasAddressingMode(instr)) {                         \
       __ asm_instr(i.OutputRegister(), i.MemoryOperand());  \
-    } else if (instr->InputAt(0)->IsRegister()) {           \
+    } else if (HasRegisterInput(instr, 0)) {                \
       __ asm_instr(i.OutputRegister(), i.InputRegister(0)); \
     } else {                                                \
       __ asm_instr(i.OutputRegister(), i.InputOperand(0));  \
@@ -1018,7 +1026,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchStackPointerGreaterThan: {
       constexpr size_t kValueIndex = 0;
-      if (AddressingModeField::decode(instr->opcode()) != kMode_None) {
+      if (HasAddressingMode(instr)) {
         __ cmpq(rsp, i.MemoryOperand(kValueIndex));
       } else {
         __ cmpq(rsp, i.InputRegister(kValueIndex));
@@ -1188,14 +1196,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_MULT(imulq);
       break;
     case kX64ImulHigh32:
-      if (instr->InputAt(1)->IsRegister()) {
+      if (HasRegisterInput(instr, 1)) {
         __ imull(i.InputRegister(1));
       } else {
         __ imull(i.InputOperand(1));
       }
       break;
     case kX64UmulHigh32:
-      if (instr->InputAt(1)->IsRegister()) {
+      if (HasRegisterInput(instr, 1)) {
         __ mull(i.InputRegister(1));
       } else {
         __ mull(i.InputOperand(1));
@@ -1266,42 +1274,42 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SHIFT(rorq, 6);
       break;
     case kX64Lzcnt:
-      if (instr->InputAt(0)->IsRegister()) {
+      if (HasRegisterInput(instr, 0)) {
         __ Lzcntq(i.OutputRegister(), i.InputRegister(0));
       } else {
         __ Lzcntq(i.OutputRegister(), i.InputOperand(0));
       }
       break;
     case kX64Lzcnt32:
-      if (instr->InputAt(0)->IsRegister()) {
+      if (HasRegisterInput(instr, 0)) {
         __ Lzcntl(i.OutputRegister(), i.InputRegister(0));
       } else {
         __ Lzcntl(i.OutputRegister(), i.InputOperand(0));
       }
       break;
     case kX64Tzcnt:
-      if (instr->InputAt(0)->IsRegister()) {
+      if (HasRegisterInput(instr, 0)) {
         __ Tzcntq(i.OutputRegister(), i.InputRegister(0));
       } else {
         __ Tzcntq(i.OutputRegister(), i.InputOperand(0));
       }
       break;
     case kX64Tzcnt32:
-      if (instr->InputAt(0)->IsRegister()) {
+      if (HasRegisterInput(instr, 0)) {
         __ Tzcntl(i.OutputRegister(), i.InputRegister(0));
       } else {
         __ Tzcntl(i.OutputRegister(), i.InputOperand(0));
       }
       break;
     case kX64Popcnt:
-      if (instr->InputAt(0)->IsRegister()) {
+      if (HasRegisterInput(instr, 0)) {
         __ Popcntq(i.OutputRegister(), i.InputRegister(0));
       } else {
         __ Popcntq(i.OutputRegister(), i.InputOperand(0));
       }
       break;
     case kX64Popcnt32:
-      if (instr->InputAt(0)->IsRegister()) {
+      if (HasRegisterInput(instr, 0)) {
         __ Popcntl(i.OutputRegister(), i.InputRegister(0));
       } else {
         __ Popcntl(i.OutputRegister(), i.InputOperand(0));
@@ -1671,56 +1679,56 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEInt32ToFloat64:
-      if (instr->InputAt(0)->IsRegister()) {
+      if (HasRegisterInput(instr, 0)) {
         __ Cvtlsi2sd(i.OutputDoubleRegister(), i.InputRegister(0));
       } else {
         __ Cvtlsi2sd(i.OutputDoubleRegister(), i.InputOperand(0));
       }
       break;
     case kSSEInt32ToFloat32:
-      if (instr->InputAt(0)->IsRegister()) {
+      if (HasRegisterInput(instr, 0)) {
         __ Cvtlsi2ss(i.OutputDoubleRegister(), i.InputRegister(0));
       } else {
         __ Cvtlsi2ss(i.OutputDoubleRegister(), i.InputOperand(0));
       }
       break;
     case kSSEInt64ToFloat32:
-      if (instr->InputAt(0)->IsRegister()) {
+      if (HasRegisterInput(instr, 0)) {
         __ Cvtqsi2ss(i.OutputDoubleRegister(), i.InputRegister(0));
       } else {
         __ Cvtqsi2ss(i.OutputDoubleRegister(), i.InputOperand(0));
       }
       break;
     case kSSEInt64ToFloat64:
-      if (instr->InputAt(0)->IsRegister()) {
+      if (HasRegisterInput(instr, 0)) {
         __ Cvtqsi2sd(i.OutputDoubleRegister(), i.InputRegister(0));
       } else {
         __ Cvtqsi2sd(i.OutputDoubleRegister(), i.InputOperand(0));
       }
       break;
     case kSSEUint64ToFloat32:
-      if (instr->InputAt(0)->IsRegister()) {
+      if (HasRegisterInput(instr, 0)) {
         __ Cvtqui2ss(i.OutputDoubleRegister(), i.InputRegister(0));
       } else {
         __ Cvtqui2ss(i.OutputDoubleRegister(), i.InputOperand(0));
       }
       break;
     case kSSEUint64ToFloat64:
-      if (instr->InputAt(0)->IsRegister()) {
+      if (HasRegisterInput(instr, 0)) {
         __ Cvtqui2sd(i.OutputDoubleRegister(), i.InputRegister(0));
       } else {
         __ Cvtqui2sd(i.OutputDoubleRegister(), i.InputOperand(0));
       }
       break;
     case kSSEUint32ToFloat64:
-      if (instr->InputAt(0)->IsRegister()) {
+      if (HasRegisterInput(instr, 0)) {
         __ Cvtlui2sd(i.OutputDoubleRegister(), i.InputRegister(0));
       } else {
         __ Cvtlui2sd(i.OutputDoubleRegister(), i.InputOperand(0));
       }
       break;
     case kSSEUint32ToFloat32:
-      if (instr->InputAt(0)->IsRegister()) {
+      if (HasRegisterInput(instr, 0)) {
         __ Cvtlui2ss(i.OutputDoubleRegister(), i.InputRegister(0));
       } else {
         __ Cvtlui2ss(i.OutputDoubleRegister(), i.InputOperand(0));
@@ -1741,21 +1749,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kSSEFloat64InsertLowWord32:
-      if (instr->InputAt(1)->IsRegister()) {
+      if (HasRegisterInput(instr, 1)) {
         __ Pinsrd(i.OutputDoubleRegister(), i.InputRegister(1), 0);
       } else {
         __ Pinsrd(i.OutputDoubleRegister(), i.InputOperand(1), 0);
       }
       break;
     case kSSEFloat64InsertHighWord32:
-      if (instr->InputAt(1)->IsRegister()) {
+      if (HasRegisterInput(instr, 1)) {
         __ Pinsrd(i.OutputDoubleRegister(), i.InputRegister(1), 1);
       } else {
         __ Pinsrd(i.OutputDoubleRegister(), i.InputOperand(1), 1);
       }
       break;
     case kSSEFloat64LoadLowWord32:
-      if (instr->InputAt(0)->IsRegister()) {
+      if (HasRegisterInput(instr, 0)) {
         __ Movd(i.OutputDoubleRegister(), i.InputRegister(0));
       } else {
         __ Movd(i.OutputDoubleRegister(), i.InputOperand(0));
@@ -1941,14 +1949,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64Movl:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
       if (instr->HasOutput()) {
-        if (instr->addressing_mode() == kMode_None) {
-          if (instr->InputAt(0)->IsRegister()) {
+        if (HasAddressingMode(instr)) {
+          __ movl(i.OutputRegister(), i.MemoryOperand());
+        } else {
+          if (HasRegisterInput(instr, 0)) {
             __ movl(i.OutputRegister(), i.InputRegister(0));
           } else {
             __ movl(i.OutputRegister(), i.InputOperand(0));
           }
-        } else {
-          __ movl(i.OutputRegister(), i.MemoryOperand());
         }
         __ AssertZeroExtended(i.OutputRegister());
       } else {
@@ -2094,14 +2102,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kX64BitcastIF:
-      if (instr->InputAt(0)->IsRegister()) {
+      if (HasRegisterInput(instr, 0)) {
         __ Movd(i.OutputDoubleRegister(), i.InputRegister(0));
       } else {
         __ Movss(i.OutputDoubleRegister(), i.InputOperand(0));
       }
       break;
     case kX64BitcastLD:
-      if (instr->InputAt(0)->IsRegister()) {
+      if (HasRegisterInput(instr, 0)) {
         __ Movq(i.OutputDoubleRegister(), i.InputRegister(0));
       } else {
         __ Movsd(i.OutputDoubleRegister(), i.InputOperand(0));
@@ -2189,7 +2197,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ incl(i.OutputRegister());
       break;
     case kX64Push:
-      if (AddressingModeField::decode(instr->opcode()) != kMode_None) {
+      if (HasAddressingMode(instr)) {
         size_t index = 0;
         Operand operand = i.MemoryOperand(&index);
         __ pushq(operand);
@@ -2201,7 +2209,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         frame_access_state()->IncreaseSPDelta(1);
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                          kSystemPointerSize);
-      } else if (instr->InputAt(0)->IsRegister()) {
+      } else if (HasRegisterInput(instr, 0)) {
         __ pushq(i.InputRegister(0));
         frame_access_state()->IncreaseSPDelta(1);
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
@@ -2532,7 +2540,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64I64x2Splat: {
       CpuFeatureScope sse_scope(tasm(), SSE3);
       XMMRegister dst = i.OutputSimd128Register();
-      if (instr->InputAt(0)->IsRegister()) {
+      if (HasRegisterInput(instr, 0)) {
         __ movq(dst, i.InputRegister(0));
       } else {
         __ movq(dst, i.InputOperand(0));
@@ -2547,7 +2555,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I64x2ReplaceLane: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      if (instr->InputAt(2)->IsRegister()) {
+      if (HasRegisterInput(instr, 2)) {
         __ pinsrq(i.OutputSimd128Register(), i.InputRegister(2),
                   i.InputInt8(1));
       } else {
@@ -2776,7 +2784,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I32x4Splat: {
       XMMRegister dst = i.OutputSimd128Register();
-      if (instr->InputAt(0)->IsRegister()) {
+      if (HasRegisterInput(instr, 0)) {
         __ movd(dst, i.InputRegister(0));
       } else {
         __ movd(dst, i.InputOperand(0));
@@ -2791,7 +2799,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I32x4ReplaceLane: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      if (instr->InputAt(2)->IsRegister()) {
+      if (HasRegisterInput(instr, 2)) {
         __ Pinsrd(i.OutputSimd128Register(), i.InputRegister(2),
                   i.InputInt8(1));
       } else {
@@ -2985,7 +2993,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I16x8Splat: {
       XMMRegister dst = i.OutputSimd128Register();
-      if (instr->InputAt(0)->IsRegister()) {
+      if (HasRegisterInput(instr, 0)) {
         __ movd(dst, i.InputRegister(0));
       } else {
         __ movd(dst, i.InputOperand(0));
@@ -3003,7 +3011,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I16x8ReplaceLane: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      if (instr->InputAt(2)->IsRegister()) {
+      if (HasRegisterInput(instr, 2)) {
         __ pinsrw(i.OutputSimd128Register(), i.InputRegister(2),
                   i.InputInt8(1));
       } else {
@@ -3180,7 +3188,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64I8x16Splat: {
       CpuFeatureScope sse_scope(tasm(), SSSE3);
       XMMRegister dst = i.OutputSimd128Register();
-      if (instr->InputAt(0)->IsRegister()) {
+      if (HasRegisterInput(instr, 0)) {
         __ movd(dst, i.InputRegister(0));
       } else {
         __ movd(dst, i.InputOperand(0));
@@ -3198,7 +3206,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I8x16ReplaceLane: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      if (instr->InputAt(2)->IsRegister()) {
+      if (HasRegisterInput(instr, 2)) {
         __ pinsrb(i.OutputSimd128Register(), i.InputRegister(2),
                   i.InputInt8(1));
       } else {
