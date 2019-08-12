@@ -26,6 +26,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/literal-objects-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/template-objects-inl.h"
@@ -449,6 +450,31 @@ void JSTypedArrayData::Serialize(JSHeapBroker* broker) {
     buffer_ = broker->GetOrCreateData(typed_array->buffer())->AsHeapObject();
   }
 }
+
+class ArrayBoilerplateDescriptionData : public HeapObjectData {
+ public:
+  ArrayBoilerplateDescriptionData(JSHeapBroker* broker, ObjectData** storage,
+                                  Handle<ArrayBoilerplateDescription> object)
+      : HeapObjectData(broker, storage, object),
+        constants_elements_length_(object->constant_elements().length()) {}
+
+  int constants_elements_length() const { return constants_elements_length_; }
+
+ private:
+  int const constants_elements_length_;
+};
+
+class ObjectBoilerplateDescriptionData : public HeapObjectData {
+ public:
+  ObjectBoilerplateDescriptionData(JSHeapBroker* broker, ObjectData** storage,
+                                   Handle<ObjectBoilerplateDescription> object)
+      : HeapObjectData(broker, storage, object), size_(object->size()) {}
+
+  int size() const { return size_; }
+
+ private:
+  int const size_;
+};
 
 class JSDataViewData : public JSObjectData {
  public:
@@ -2823,6 +2849,22 @@ base::Optional<double> StringRef::ToNumber() {
     return StringToDouble(broker()->isolate(), object(), flags);
   }
   return data()->AsString()->to_number();
+}
+
+int ArrayBoilerplateDescriptionRef::constants_elements_length() const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleDereference allow_handle_dereference;
+    return object()->constant_elements().length();
+  }
+  return data()->AsArrayBoilerplateDescription()->constants_elements_length();
+}
+
+int ObjectBoilerplateDescriptionRef::size() const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleDereference allow_handle_dereference;
+    return object()->size();
+  }
+  return data()->AsObjectBoilerplateDescription()->size();
 }
 
 ObjectRef FixedArrayRef::get(int i) const {

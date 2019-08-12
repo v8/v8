@@ -75,6 +75,7 @@ enum class OddballType : uint8_t {
   /* Subtypes of HeapObject */     \
   V(AccessorInfo)                  \
   V(AllocationSite)                \
+  V(ArrayBoilerplateDescription)   \
   V(BigInt)                        \
   V(CallHandlerInfo)               \
   V(Cell)                          \
@@ -89,6 +90,7 @@ enum class OddballType : uint8_t {
   V(Map)                           \
   V(MutableHeapNumber)             \
   V(Name)                          \
+  V(ObjectBoilerplateDescription)  \
   V(PropertyCell)                  \
   V(SharedFunctionInfo)            \
   V(SourceTextModule)              \
@@ -612,6 +614,22 @@ class FixedArrayBaseRef : public HeapObjectRef {
   Handle<FixedArrayBase> object() const;
 
   int length() const;
+};
+
+class ArrayBoilerplateDescriptionRef : public HeapObjectRef {
+ public:
+  using HeapObjectRef::HeapObjectRef;
+  Handle<ArrayBoilerplateDescription> object() const;
+
+  int constants_elements_length() const;
+};
+
+class ObjectBoilerplateDescriptionRef : public HeapObjectRef {
+ public:
+  using HeapObjectRef::HeapObjectRef;
+  Handle<ObjectBoilerplateDescription> object() const;
+
+  int size() const;
 };
 
 class FixedArrayRef : public FixedArrayBaseRef {

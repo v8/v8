@@ -18,6 +18,7 @@
 #include "src/objects/code.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/literal-objects-inl.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone.h"
@@ -50,12 +51,9 @@ namespace compiler {
   V(CallRuntime)                  \
   V(CloneObject)                  \
   V(CreateArrayFromIterable)      \
-  V(CreateArrayLiteral)           \
   V(CreateEmptyArrayLiteral)      \
   V(CreateEmptyObjectLiteral)     \
   V(CreateMappedArguments)        \
-  V(CreateObjectLiteral)          \
-  V(CreateRegExpLiteral)          \
   V(CreateRestParameter)          \
   V(CreateUnmappedArguments)      \
   V(Dec)                          \
@@ -154,11 +152,14 @@ namespace compiler {
   V(CallWithSpread)                   \
   V(Construct)                        \
   V(ConstructWithSpread)              \
+  V(CreateArrayLiteral)               \
   V(CreateBlockContext)               \
   V(CreateCatchContext)               \
   V(CreateClosure)                    \
   V(CreateEvalContext)                \
   V(CreateFunctionContext)            \
+  V(CreateObjectLiteral)              \
+  V(CreateRegExpLiteral)              \
   V(CreateWithContext)                \
   V(GetIterator)                      \
   V(GetSuperConstructor)              \
@@ -1280,6 +1281,33 @@ void SerializerForBackgroundCompilation::VisitMov(
   interpreter::Register dst = iterator->GetRegisterOperand(1);
   environment()->register_hints(dst).Clear();
   environment()->register_hints(dst).Add(environment()->register_hints(src));
+}
+
+void SerializerForBackgroundCompilation::VisitCreateRegExpLiteral(
+    BytecodeArrayIterator* iterator) {
+  Handle<String> constant_pattern = Handle<String>::cast(
+      iterator->GetConstantForIndexOperand(0, broker()->isolate()));
+  StringRef description(broker(), constant_pattern);
+  environment()->accumulator_hints().Clear();
+}
+
+void SerializerForBackgroundCompilation::VisitCreateArrayLiteral(
+    BytecodeArrayIterator* iterator) {
+  Handle<ArrayBoilerplateDescription> array_boilerplate_description =
+      Handle<ArrayBoilerplateDescription>::cast(
+          iterator->GetConstantForIndexOperand(0, broker()->isolate()));
+  ArrayBoilerplateDescriptionRef description(broker(),
+                                             array_boilerplate_description);
+  environment()->accumulator_hints().Clear();
+}
+
+void SerializerForBackgroundCompilation::VisitCreateObjectLiteral(
+    BytecodeArrayIterator* iterator) {
+  Handle<ObjectBoilerplateDescription> constant_properties =
+      Handle<ObjectBoilerplateDescription>::cast(
+          iterator->GetConstantForIndexOperand(0, broker()->isolate()));
+  ObjectBoilerplateDescriptionRef description(broker(), constant_properties);
+  environment()->accumulator_hints().Clear();
 }
 
 void SerializerForBackgroundCompilation::VisitCreateFunctionContext(

@@ -86,13 +86,19 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
     }
     case IrOpcode::kJSCreateLiteralArray:
     case IrOpcode::kJSCreateLiteralObject: {
-      CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
-      FeedbackVectorRef(broker(), p.feedback().vector()).SerializeSlots();
+      if (!FLAG_concurrent_inlining) {
+        CreateLiteralParameters const& p =
+            CreateLiteralParametersOf(node->op());
+        FeedbackVectorRef(broker(), p.feedback().vector()).SerializeSlots();
+      }
       break;
     }
     case IrOpcode::kJSCreateLiteralRegExp: {
-      CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
-      FeedbackVectorRef(broker(), p.feedback().vector()).SerializeSlots();
+      if (!FLAG_concurrent_inlining) {
+        CreateLiteralParameters const& p =
+            CreateLiteralParametersOf(node->op());
+        FeedbackVectorRef(broker(), p.feedback().vector()).SerializeSlots();
+      }
       break;
     }
     case IrOpcode::kJSCreateWithContext: {
