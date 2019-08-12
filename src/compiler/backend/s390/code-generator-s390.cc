@@ -1587,9 +1587,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchRet:
       AssembleReturn(instr->InputAt(0));
       break;
-    case kArchStackPointer:
-      __ LoadRR(i.OutputRegister(), sp);
-      break;
     case kArchFramePointer:
       __ LoadRR(i.OutputRegister(), fp);
       break;

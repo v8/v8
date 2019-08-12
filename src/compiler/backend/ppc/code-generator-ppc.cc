@@ -1114,10 +1114,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       AssembleReturn(instr->InputAt(0));
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
-    case kArchStackPointer:
-      __ mr(i.OutputRegister(), sp);
-      DCHECK_EQ(LeaveRC, i.OutputRCBit());
-      break;
     case kArchFramePointer:
       __ mr(i.OutputRegister(), fp);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());

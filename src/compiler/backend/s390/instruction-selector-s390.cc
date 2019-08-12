@@ -243,18 +243,6 @@ class S390OperandGenerator final : public OperandGenerator {
   bool Is64BitOperand(Node* node) {
     return MachineRepresentation::kWord64 == GetRepresentation(node);
   }
-
-  // Use the stack pointer if the node is LoadStackPointer, otherwise assign a
-  // register.
-  InstructionOperand UseRegisterOrStackPointer(Node* node) {
-    // TODO(miladfar): Remove this once LoadStackPointer has been removed.
-    if (node->opcode() == IrOpcode::kLoadStackPointer) {
-      return LocationOperand(LocationOperand::EXPLICIT,
-                             LocationOperand::REGISTER,
-                             MachineRepresentation::kWord32, sp.code());
-    }
-    return UseRegister(node);
-  }
 };
 
 namespace {
@@ -1692,7 +1680,7 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
     return VisitLoadAndTest(selector, load_and_test, node, left, cont, true);
   }
 
-  inputs[input_count++] = g.UseRegisterOrStackPointer(left);
+  inputs[input_count++] = g.UseRegister(left);
   if (g.CanBeMemoryOperand(opcode, node, right, effect_level)) {
     // generate memory operand
     AddressingMode addressing_mode = g.GetEffectiveAddressMemoryOperand(
