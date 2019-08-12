@@ -1997,13 +1997,13 @@ HeapSnapshotGenerator::HeapSnapshotGenerator(
 }
 
 namespace {
-class NullContextScope {
+class NullContextForSnapshotScope {
  public:
-  explicit NullContextScope(Isolate* isolate)
+  explicit NullContextForSnapshotScope(Isolate* isolate)
       : isolate_(isolate), prev_(isolate->context()) {
     isolate_->set_context(Context());
   }
-  ~NullContextScope() { isolate_->set_context(prev_); }
+  ~NullContextForSnapshotScope() { isolate_->set_context(prev_); }
 
  private:
   Isolate* isolate_;
@@ -2023,7 +2023,7 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   heap_->PreciseCollectAllGarbage(Heap::kNoGCFlags,
                                   GarbageCollectionReason::kHeapProfiler);
 
-  NullContextScope null_context_scope(Isolate::FromHeap(heap_));
+  NullContextForSnapshotScope null_context_scope(Isolate::FromHeap(heap_));
 
 #ifdef VERIFY_HEAP
   Heap* debug_heap = heap_;

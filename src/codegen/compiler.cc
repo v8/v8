@@ -1181,6 +1181,9 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
   DCHECK(shared_info->HasBytecodeArray());
   DCHECK(!shared_info->GetBytecodeArray().HasSourcePositionTable());
 
+  // Source position collection should be context independent.
+  NullContextScope null_context_scope(isolate);
+
   // Collecting source positions requires allocating a new source position
   // table.
   DCHECK(AllowHeapAllocation::IsAllowed());

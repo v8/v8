@@ -1936,6 +1936,14 @@ class V8_EXPORT_PRIVATE SaveAndSwitchContext : public SaveContext {
   SaveAndSwitchContext(Isolate* isolate, Context new_context);
 };
 
+// A scope which sets the given isolate's context to null for its lifetime to
+// ensure that code does not make assumptions on a context being available.
+class NullContextScope : public SaveAndSwitchContext {
+ public:
+  explicit NullContextScope(Isolate* isolate)
+      : SaveAndSwitchContext(isolate, Context()) {}
+};
+
 class AssertNoContextChange {
 #ifdef DEBUG
  public:
