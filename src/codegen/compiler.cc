@@ -1218,7 +1218,7 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
   // Parse and update ParseInfo with the results. Don't update parsing
   // statistics since we've already parsed the code before.
   if (!parsing::ParseAny(&parse_info, shared_info, isolate,
-                         parsing::UpdateStatisticsMode::kNo)) {
+                         parsing::ReportErrorsAndStatisticsMode::kNo)) {
     // Parsing failed probably as a result of stack exhaustion.
     bytecode->SetSourcePositionsFailedToCollect();
     return FailWithPendingException(
