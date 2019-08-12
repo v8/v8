@@ -39,6 +39,12 @@
   'Torque*': [SKIP],
 }],  # 'system == windows and asan'
 
+['system == windows and arch == x64 and mode == release', {
+  # BUG(992783).
+  'Torque.ConditionalFields': [SKIP],
+  'Torque.UsingUnderscorePrefixedIdentifierError': [SKIP],
+}],  # 'system == windows and arch == x64 and mode == release'
+
 ##############################################################################
 ['tsan == True', {
   # https://crbug.com/v8/9380
