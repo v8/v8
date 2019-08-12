@@ -170,9 +170,10 @@ class X64OperandGenerator final : public OperandGenerator {
   AddressingMode GetEffectiveAddressMemoryOperand(Node* operand,
                                                   InstructionOperand inputs[],
                                                   size_t* input_count) {
-    if (selector()->CanAddressRelativeToRootsRegister()) {
+    {
       LoadMatcher<ExternalReferenceMatcher> m(operand);
-      if (m.index().HasValue() && m.object().HasValue()) {
+      if (m.index().HasValue() && m.object().HasValue() &&
+          selector()->CanAddressRelativeToRootsRegister(m.object().Value())) {
         ptrdiff_t const delta =
             m.index().Value() +
             TurboAssemblerBase::RootRegisterOffsetForExternalReference(

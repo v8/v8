@@ -421,9 +421,27 @@ void InstructionSelector::SetEffectLevel(Node* node, int effect_level) {
   effect_level_[id] = effect_level;
 }
 
-bool InstructionSelector::CanAddressRelativeToRootsRegister() const {
-  return enable_roots_relative_addressing_ == kEnableRootsRelativeAddressing &&
-         CanUseRootsRegister();
+bool InstructionSelector::CanAddressRelativeToRootsRegister(
+    const ExternalReference& reference) const {
+  // There are three things to consider here:
+  // 1. CanUseRootsRegister: Is kRootRegister initialized?
+  const bool root_register_is_available_and_initialized = CanUseRootsRegister();
+  if (!root_register_is_available_and_initialized) return false;
+
+  // 2. enable_roots_relative_addressing_: Can we address everything on the heap
+  //    through the root register, i.e. are root-relative addresses to arbitrary
+  //    addresses guaranteed not to change between code generation and
+  //    execution?
+  const bool all_root_relative_offsets_are_constant =
+      (enable_roots_relative_addressing_ == kEnableRootsRelativeAddressing);
+  if (all_root_relative_offsets_are_constant) return true;
+
+  // 3. IsAddressableThroughRootRegister: Is the target address guaranteed to
+  //    have a fixed root-relative offset? If so, we can ignore 2.
+  const bool this_root_relative_offset_is_constant =
+      TurboAssemblerBase::IsAddressableThroughRootRegister(isolate(),
+                                                           reference);
+  return this_root_relative_offset_is_constant;
 }
 
 bool InstructionSelector::CanUseRootsRegister() const {

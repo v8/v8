@@ -446,7 +446,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   // Check if we can generate loads and stores of ExternalConstants relative
   // to the roots register.
-  bool CanAddressRelativeToRootsRegister() const;
+  bool CanAddressRelativeToRootsRegister(
+      const ExternalReference& reference) const;
   // Check if we can use the roots register to access GC roots.
   bool CanUseRootsRegister() const;
 
