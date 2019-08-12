@@ -663,7 +663,7 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
   Label stack_ok;
 
   ExternalReference stack_limit =
-      ExternalReference::address_of_stack_limit(isolate());
+      ExternalReference::address_of_jslimit(isolate());
   __ mov(r2, Operand(stack_limit));
   __ LoadP(r2, MemOperand(r2));
   __ SubP(r2, sp, r2);
@@ -1213,7 +1213,7 @@ void RegExpMacroAssemblerS390::Pop(Register target) {
 void RegExpMacroAssemblerS390::CheckPreemption() {
   // Check for preemption.
   ExternalReference stack_limit =
-      ExternalReference::address_of_stack_limit(isolate());
+      ExternalReference::address_of_jslimit(isolate());
   __ mov(r2, Operand(stack_limit));
   __ CmpLogicalP(sp, MemOperand(r2));
   SafeCall(&check_preempt_label_, le);

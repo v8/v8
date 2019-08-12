@@ -97,7 +97,7 @@ void TurboAssembler::CompareRealStackLimit(Register with) {
   } else {
     DCHECK(!options().isolate_independent_code);
     ExternalReference ref =
-        ExternalReference::address_of_real_stack_limit(isolate());
+        ExternalReference::address_of_real_jslimit(isolate());
     cmp(with, Operand(ref.address(), RelocInfo::EXTERNAL_REFERENCE));
   }
 }

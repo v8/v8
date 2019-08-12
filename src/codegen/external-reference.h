@@ -36,8 +36,8 @@ class StatsCounter;
   V(force_slow_path, "Isolate::force_slow_path_address()")                     \
   V(isolate_root, "Isolate::isolate_root()")                                   \
   V(allocation_sites_list_address, "Heap::allocation_sites_list_address()")    \
-  V(address_of_stack_limit, "StackGuard::address_of_jslimit()")                \
-  V(address_of_real_stack_limit, "StackGuard::address_of_real_jslimit()")      \
+  V(address_of_jslimit, "StackGuard::address_of_jslimit()")                    \
+  V(address_of_real_jslimit, "StackGuard::address_of_real_jslimit()")          \
   V(store_buffer_top, "store_buffer_top")                                      \
   V(heap_is_marking_flag_address, "heap_is_marking_flag_address")              \
   V(new_space_allocation_top_address, "Heap::NewSpaceAllocationTopAddress()")  \

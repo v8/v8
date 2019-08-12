@@ -13898,9 +13898,9 @@ void CodeStubAssembler::Print(const char* prefix, Node* tagged_value) {
 void CodeStubAssembler::PerformStackCheck(TNode<Context> context) {
   Label ok(this), stack_check_interrupt(this, Label::kDeferred);
 
-  TNode<UintPtrT> stack_limit = UncheckedCast<UintPtrT>(Load(
-      MachineType::Pointer(),
-      ExternalConstant(ExternalReference::address_of_stack_limit(isolate()))));
+  TNode<UintPtrT> stack_limit = UncheckedCast<UintPtrT>(
+      Load(MachineType::Pointer(),
+           ExternalConstant(ExternalReference::address_of_jslimit(isolate()))));
   TNode<BoolT> sp_within_limit = StackPointerGreaterThan(stack_limit);
 
   Branch(sp_within_limit, &ok, &stack_check_interrupt);

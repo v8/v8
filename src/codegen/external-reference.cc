@@ -328,12 +328,11 @@ ExternalReference ExternalReference::allocation_sites_list_address(
   return ExternalReference(isolate->heap()->allocation_sites_list_address());
 }
 
-ExternalReference ExternalReference::address_of_stack_limit(Isolate* isolate) {
+ExternalReference ExternalReference::address_of_jslimit(Isolate* isolate) {
   return ExternalReference(isolate->stack_guard()->address_of_jslimit());
 }
 
-ExternalReference ExternalReference::address_of_real_stack_limit(
-    Isolate* isolate) {
+ExternalReference ExternalReference::address_of_real_jslimit(Isolate* isolate) {
   return ExternalReference(isolate->stack_guard()->address_of_real_jslimit());
 }
 

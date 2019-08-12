@@ -823,11 +823,11 @@ void JSGenericLowering::LowerJSStackCheck(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  Node* limit = effect = graph()->NewNode(
-      machine()->Load(MachineType::Pointer()),
-      jsgraph()->ExternalConstant(
-          ExternalReference::address_of_stack_limit(isolate())),
-      jsgraph()->IntPtrConstant(0), effect, control);
+  Node* limit = effect =
+      graph()->NewNode(machine()->Load(MachineType::Pointer()),
+                       jsgraph()->ExternalConstant(
+                           ExternalReference::address_of_jslimit(isolate())),
+                       jsgraph()->IntPtrConstant(0), effect, control);
 
   Node* check = graph()->NewNode(machine()->StackPointerGreaterThan(), limit);
   Node* branch =

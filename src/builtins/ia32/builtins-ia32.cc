@@ -72,7 +72,7 @@ void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
   ExternalReference real_stack_limit =
-      ExternalReference::address_of_real_stack_limit(masm->isolate());
+      ExternalReference::address_of_real_jslimit(masm->isolate());
   // Compute the space that is left as a negative number in scratch. If
   // we already overflowed, this will be a positive number.
   __ mov(scratch, __ ExternalReferenceAsOperand(real_stack_limit, scratch));
