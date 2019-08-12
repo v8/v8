@@ -2310,10 +2310,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SSE_BINOP(mulpd);
       break;
     }
-    case kX64F64x2Div: {
-      ASSEMBLE_SSE_BINOP(divpd);
-      break;
-    }
     case kX64F64x2Min: {
       XMMRegister src1 = i.InputSimd128Register(1),
                   dst = i.OutputSimd128Register();

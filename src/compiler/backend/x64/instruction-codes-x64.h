@@ -166,7 +166,6 @@ namespace compiler {
   V(X64F64x2Add)                          \
   V(X64F64x2Sub)                          \
   V(X64F64x2Mul)                          \
-  V(X64F64x2Div)                          \
   V(X64F64x2Min)                          \
   V(X64F64x2Max)                          \
   V(X64F64x2Eq)                           \

@@ -13,7 +13,6 @@
   V(subpd, 66, 0F, 5C)           \
   V(minpd, 66, 0F, 5D)           \
   V(maxpd, 66, 0F, 5F)           \
-  V(divpd, 66, 0F, 5E)           \
   V(punpcklbw, 66, 0F, 60)       \
   V(punpcklwd, 66, 0F, 61)       \
   V(punpckldq, 66, 0F, 62)       \

@@ -1863,8 +1863,6 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
           mnemonic = "subpd";
         } else if (opcode == 0x5D) {
           mnemonic = "minpd";
-        } else if (opcode == 0x5E) {
-          mnemonic = "divpd";
         } else if (opcode == 0x5F) {
           mnemonic = "maxpd";
         } else if (opcode == 0x60) {

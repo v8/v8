@@ -750,7 +750,6 @@
   V(F64x2Add)                   \
   V(F64x2Sub)                   \
   V(F64x2Mul)                   \
-  V(F64x2Div)                   \
   V(F64x2Min)                   \
   V(F64x2Max)                   \
   V(F64x2Eq)                    \
