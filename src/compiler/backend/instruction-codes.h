@@ -88,7 +88,6 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(ArchThrowTerminator)                  \
   V(ArchDeoptimize)                       \
   V(ArchRet)                              \
-  V(ArchStackPointer)                     \
   V(ArchFramePointer)                     \
   V(ArchParentFramePointer)               \
   V(ArchTruncateDoubleToI)                \

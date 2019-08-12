@@ -242,7 +242,6 @@ MachineType AtomicOpType(Operator const* op) {
   V(Float64ExtractHighWord32, Operator::kNoProperties, 1, 0, 1)               \
   V(Float64InsertLowWord32, Operator::kNoProperties, 2, 0, 1)                 \
   V(Float64InsertHighWord32, Operator::kNoProperties, 2, 0, 1)                \
-  V(LoadStackPointer, Operator::kNoProperties, 0, 0, 1)                       \
   V(LoadFramePointer, Operator::kNoProperties, 0, 0, 1)                       \
   V(LoadParentFramePointer, Operator::kNoProperties, 0, 0, 1)                 \
   V(Int32PairAdd, Operator::kNoProperties, 4, 0, 2)                           \

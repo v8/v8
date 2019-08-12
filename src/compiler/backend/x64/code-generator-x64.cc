@@ -1011,9 +1011,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchRet:
       AssembleReturn(instr->InputAt(0));
       break;
-    case kArchStackPointer:
-      __ movq(i.OutputRegister(), rsp);
-      break;
     case kArchFramePointer:
       __ movq(i.OutputRegister(), rbp);
       break;
@@ -3736,9 +3733,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SIMD_ALL_TRUE(pcmpeqb);
       break;
     }
-    case kX64StackCheck:
-      __ CompareRoot(rsp, RootIndex::kStackLimit);
-      break;
     case kWord32AtomicExchangeInt8: {
       __ xchgb(i.InputRegister(0), i.MemoryOperand(1));
       __ movsxbl(i.InputRegister(0), i.InputRegister(0));

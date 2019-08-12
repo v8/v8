@@ -924,9 +924,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchRet:
       AssembleReturn(instr->InputAt(0));
       break;
-    case kArchStackPointer:
-      __ mov(i.OutputRegister(), esp);
-      break;
     case kArchFramePointer:
       __ mov(i.OutputRegister(), ebp);
       break;
@@ -3732,10 +3729,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kIA32S1x16AllTrue: {
       ASSEMBLE_SIMD_ALL_TRUE(pcmpeqb);
-      break;
-    }
-    case kIA32StackCheck: {
-      __ CompareStackLimit(esp);
       break;
     }
     case kIA32Word32AtomicPairLoad: {

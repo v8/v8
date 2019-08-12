@@ -920,10 +920,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       AssembleReturn(instr->InputAt(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
-    case kArchStackPointer:
-      __ mov(i.OutputRegister(), sp);
-      DCHECK_EQ(LeaveCC, i.OutputSBit());
-      break;
     case kArchFramePointer:
       __ mov(i.OutputRegister(), fp);
       DCHECK_EQ(LeaveCC, i.OutputSBit());

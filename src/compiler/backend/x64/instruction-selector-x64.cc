@@ -1869,20 +1869,6 @@ void VisitWord64Compare(InstructionSelector* selector, Node* node,
           g.UseRegister(m.right().node()), cont);
     }
   }
-  if (selector->isolate() != nullptr) {
-    // TODO(jgruber): Remove this matcher once CSA stack checks have been
-    // updated.
-    StackCheckMatcher<Int64BinopMatcher, IrOpcode::kUint64LessThan> m(
-        selector->isolate(), node);
-    if (m.Matched()) {
-      // Compare(Load(js_stack_limit), LoadStackPointer)
-      if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
-      InstructionCode opcode = cont->Encode(kX64StackCheck);
-      CHECK(cont->IsBranch());
-      selector->EmitWithContinuation(opcode, cont);
-      return;
-    }
-  }
   VisitWordCompare(selector, node, kX64Cmp, cont);
 }
 

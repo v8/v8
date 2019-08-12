@@ -720,7 +720,6 @@
   V(TaggedPoisonOnSpeculation)              \
   V(Word32PoisonOnSpeculation)              \
   V(Word64PoisonOnSpeculation)              \
-  V(LoadStackPointer)                       \
   V(LoadFramePointer)                       \
   V(LoadParentFramePointer)                 \
   V(UnalignedLoad)                          \

@@ -660,9 +660,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Word64PoisonOnSpeculation();
 
   // Access to the machine stack.
-  // TODO(jgruber): Remove LoadStackPointer once uses in wasm, interpreter, and
-  // in CSA have been removed.
-  const Operator* LoadStackPointer();
   const Operator* LoadFramePointer();
   const Operator* LoadParentFramePointer();
 

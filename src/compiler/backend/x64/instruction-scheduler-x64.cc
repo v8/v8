@@ -355,7 +355,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Movdqu:
       return instr->HasOutput() ? kIsLoadOperation : kHasSideEffect;
 
-    case kX64StackCheck:
     case kX64Peek:
       return kIsLoadOperation;
 

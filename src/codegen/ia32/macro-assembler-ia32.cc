@@ -91,17 +91,6 @@ void TurboAssembler::CompareRoot(Register with, RootIndex index) {
   }
 }
 
-void TurboAssembler::CompareStackLimit(Register with) {
-  if (root_array_available()) {
-    CompareRoot(with, RootIndex::kStackLimit);
-  } else {
-    DCHECK(!options().isolate_independent_code);
-    ExternalReference ref =
-        ExternalReference::address_of_stack_limit(isolate());
-    cmp(with, Operand(ref.address(), RelocInfo::EXTERNAL_REFERENCE));
-  }
-}
-
 void TurboAssembler::CompareRealStackLimit(Register with) {
   if (root_array_available()) {
     CompareRoot(with, RootIndex::kRealStackLimit);

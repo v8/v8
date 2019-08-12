@@ -1298,19 +1298,6 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 
 void VisitWordCompare(InstructionSelector* selector, Node* node,
                       FlagsContinuation* cont) {
-  if (selector->isolate() != nullptr) {
-    // TODO(jgruber): Remove this once LoadStackPointer has been removed.
-    StackCheckMatcher<Int32BinopMatcher, IrOpcode::kUint32LessThan> m(
-        selector->isolate(), node);
-    if (m.Matched()) {
-      // Compare(Load(js_stack_limit), LoadStackPointer)
-      if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
-      InstructionCode opcode = cont->Encode(kIA32StackCheck);
-      CHECK(cont->IsBranch());
-      selector->EmitWithContinuation(opcode, cont);
-      return;
-    }
-  }
   VisitWordCompare(selector, node, kIA32Cmp, cont);
 }
 

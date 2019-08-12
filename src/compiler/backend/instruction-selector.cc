@@ -1724,8 +1724,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord64(node), VisitWord64PoisonOnSpeculation(node);
     case IrOpcode::kStackSlot:
       return VisitStackSlot(node);
-    case IrOpcode::kLoadStackPointer:
-      return VisitLoadStackPointer(node);
     case IrOpcode::kStackPointerGreaterThan:
       return VisitStackPointerGreaterThan(node);
     case IrOpcode::kLoadFramePointer:
@@ -2172,11 +2170,6 @@ void InstructionSelector::VisitWord64PoisonOnSpeculation(Node* node) {
 
 void InstructionSelector::VisitTaggedPoisonOnSpeculation(Node* node) {
   EmitWordPoisonOnSpeculation(node);
-}
-
-void InstructionSelector::VisitLoadStackPointer(Node* node) {
-  OperandGenerator g(this);
-  Emit(kArchStackPointer, g.DefineAsRegister(node));
 }
 
 void InstructionSelector::VisitStackPointerGreaterThan(Node* node) {

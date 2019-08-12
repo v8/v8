@@ -48,17 +48,6 @@ class Arm64OperandGenerator final : public OperandGenerator {
     return UseRegister(node);
   }
 
-  // Use the stack pointer if the node is LoadStackPointer, otherwise assign a
-  // register.
-  InstructionOperand UseRegisterOrStackPointer(Node* node, bool sp_allowed) {
-    // TODO(jgruber): Remove this once LoadStackPointer has been removed.
-    if (sp_allowed && node->opcode() == IrOpcode::kLoadStackPointer)
-      return LocationOperand(LocationOperand::EXPLICIT,
-                             LocationOperand::REGISTER,
-                             MachineRepresentation::kWord64, sp.code());
-    return UseRegister(node);
-  }
-
   // Use the provided node if it has the required value, or create a
   // TempImmediate otherwise.
   InstructionOperand UseImmediateOrTemp(Node* node, int32_t value) {
@@ -1849,22 +1838,13 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
 
-  // TODO(jgruber): Remove this once LoadStackPointer has been removed.
-  if (right->opcode() == IrOpcode::kLoadStackPointer ||
-      g.CanBeImmediate(left, immediate_mode)) {
-    if (!commutative) cont->Commute();
-    std::swap(left, right);
-  }
-
   // Match immediates on left or right side of comparison.
   if (g.CanBeImmediate(right, immediate_mode)) {
-    VisitCompare(selector, opcode,
-                 g.UseRegisterOrStackPointer(left, opcode == kArm64Cmp),
-                 g.UseImmediate(right), cont);
+    VisitCompare(selector, opcode, g.UseRegister(left), g.UseImmediate(right),
+                 cont);
   } else {
-    VisitCompare(selector, opcode,
-                 g.UseRegisterOrStackPointer(left, opcode == kArm64Cmp),
-                 g.UseRegister(right), cont);
+    VisitCompare(selector, opcode, g.UseRegister(left), g.UseRegister(right),
+                 cont);
   }
 }
 

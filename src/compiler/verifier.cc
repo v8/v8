@@ -1842,7 +1842,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kTaggedPoisonOnSpeculation:
     case IrOpcode::kWord32PoisonOnSpeculation:
     case IrOpcode::kWord64PoisonOnSpeculation:
-    case IrOpcode::kLoadStackPointer:
     case IrOpcode::kLoadFramePointer:
     case IrOpcode::kLoadParentFramePointer:
     case IrOpcode::kUnalignedLoad:

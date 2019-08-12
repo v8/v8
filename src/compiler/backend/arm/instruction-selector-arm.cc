@@ -74,18 +74,6 @@ class ArmOperandGenerator : public OperandGenerator {
     }
     return false;
   }
-
-  // Use the stack pointer if the node is LoadStackPointer, otherwise assign a
-  // register.
-  InstructionOperand UseRegisterOrStackPointer(Node* node) {
-    // TODO(jgruber): Remove this once LoadStackPointer has been removed.
-    if (node->opcode() == IrOpcode::kLoadStackPointer) {
-      return LocationOperand(LocationOperand::EXPLICIT,
-                             LocationOperand::REGISTER,
-                             MachineRepresentation::kWord32, sp.code());
-    }
-    return UseRegister(node);
-  }
 };
 
 namespace {
@@ -1706,17 +1694,17 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 
   if (TryMatchImmediateOrShift(selector, &opcode, m.right().node(),
                                &input_count, &inputs[1])) {
-    inputs[0] = g.UseRegisterOrStackPointer(m.left().node());
+    inputs[0] = g.UseRegister(m.left().node());
     input_count++;
   } else if (TryMatchImmediateOrShift(selector, &opcode, m.left().node(),
                                       &input_count, &inputs[1])) {
     if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
-    inputs[0] = g.UseRegisterOrStackPointer(m.right().node());
+    inputs[0] = g.UseRegister(m.right().node());
     input_count++;
   } else {
     opcode |= AddressingModeField::encode(kMode_Operand2_R);
-    inputs[input_count++] = g.UseRegisterOrStackPointer(m.left().node());
-    inputs[input_count++] = g.UseRegisterOrStackPointer(m.right().node());
+    inputs[input_count++] = g.UseRegister(m.left().node());
+    inputs[input_count++] = g.UseRegister(m.right().node());
   }
 
   if (has_result) {
