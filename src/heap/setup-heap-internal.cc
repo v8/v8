@@ -825,6 +825,15 @@ void Heap::CreateInitialObjects() {
       factory->NewFeedbackMetadata(0, 0, AllocationType::kReadOnly);
   set_empty_feedback_metadata(*empty_feedback_metadata);
 
+  // Canonical scope arrays.
+  Handle<ScopeInfo> global_this_binding =
+      ScopeInfo::CreateGlobalThisBinding(isolate());
+  set_global_this_binding_scope_info(*global_this_binding);
+
+  Handle<ScopeInfo> empty_function =
+      ScopeInfo::CreateForEmptyFunction(isolate());
+  set_empty_function_scope_info(*empty_function);
+
   // Allocate the empty script.
   Handle<Script> script = factory->NewScript(factory->empty_string());
   script->set_type(Script::TYPE_NATIVE);

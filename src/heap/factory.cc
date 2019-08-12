@@ -2547,9 +2547,10 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
   return result;
 }
 
-Handle<ScopeInfo> Factory::NewScopeInfo(int length) {
+Handle<ScopeInfo> Factory::NewScopeInfo(int length, AllocationType type) {
+  DCHECK(type == AllocationType::kOld || type == AllocationType::kReadOnly);
   return NewFixedArrayWithMap<ScopeInfo>(RootIndex::kScopeInfoMap, length,
-                                         AllocationType::kOld);
+                                         type);
 }
 
 Handle<SourceTextModuleInfo> Factory::NewSourceTextModuleInfo() {

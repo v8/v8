@@ -413,7 +413,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
                      (has_position_info ? kPositionInfoEntries : 0);
 
   Factory* factory = isolate->factory();
-  Handle<ScopeInfo> scope_info = factory->NewScopeInfo(length);
+  Handle<ScopeInfo> scope_info =
+      factory->NewScopeInfo(length, AllocationType::kReadOnly);
 
   // Encode the flags.
   int flags =

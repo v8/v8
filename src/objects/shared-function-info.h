@@ -256,6 +256,10 @@ class SharedFunctionInfo : public HeapObject {
   // [scope_info]: Scope info.
   DECL_ACCESSORS(scope_info, ScopeInfo)
 
+  // Set scope_info without moving the existing name onto the ScopeInfo.
+  inline void set_raw_scope_info(ScopeInfo scope_info,
+                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   // End position of this function in the script source.
   V8_EXPORT_PRIVATE int EndPosition() const;
 

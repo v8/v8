@@ -596,9 +596,6 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
   empty_function_map->set_is_prototype_map(true);
   DCHECK(!empty_function_map->is_dictionary_map());
 
-  // Allocate ScopeInfo for the empty function.
-  Handle<ScopeInfo> scope_info = ScopeInfo::CreateForEmptyFunction(isolate());
-
   // Allocate the empty function as the prototype for function according to
   // ES#sec-properties-of-the-function-prototype-object
   NewFunctionArgs args = NewFunctionArgs::ForBuiltin(
@@ -612,7 +609,8 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
   script->set_type(Script::TYPE_NATIVE);
   Handle<WeakFixedArray> infos = factory()->NewWeakFixedArray(2);
   script->set_shared_function_infos(*infos);
-  empty_function->shared().set_scope_info(*scope_info);
+  empty_function->shared().set_raw_scope_info(
+      ReadOnlyRoots(isolate()).empty_function_scope_info());
   empty_function->shared().DontAdaptArguments();
   SharedFunctionInfo::SetScript(handle(empty_function->shared(), isolate()),
                                 script, 1);
@@ -1154,7 +1152,8 @@ void Genesis::CreateRoots() {
 void Genesis::InstallGlobalThisBinding() {
   Handle<ScriptContextTable> script_contexts(
       native_context()->script_context_table(), isolate());
-  Handle<ScopeInfo> scope_info = ScopeInfo::CreateGlobalThisBinding(isolate());
+  Handle<ScopeInfo> scope_info =
+      ReadOnlyRoots(isolate()).global_this_binding_scope_info_handle();
   Handle<Context> context =
       factory()->NewScriptContext(native_context(), scope_info);
 

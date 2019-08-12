@@ -378,11 +378,8 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
 
   if (deserialization_mode == DeserializationMode::kIncludingVariables &&
       script_scope->scope_info_.is_null()) {
-    Handle<ScriptContextTable> table(
-        isolate->native_context()->script_context_table(), isolate);
-    Handle<Context> first = ScriptContextTable::GetContext(isolate, table, 0);
-    Handle<ScopeInfo> scope_info(first->scope_info(), isolate);
-    script_scope->SetScriptScopeInfo(scope_info);
+    script_scope->SetScriptScopeInfo(
+        ReadOnlyRoots(isolate).global_this_binding_scope_info_handle());
   }
 
   if (innermost_scope == nullptr) return script_scope;

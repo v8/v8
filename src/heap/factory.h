@@ -769,7 +769,8 @@ class V8_EXPORT_PRIVATE Factory {
       AllocationType allocation = AllocationType::kOld);
 
   // Create a serialized scope info.
-  Handle<ScopeInfo> NewScopeInfo(int length);
+  Handle<ScopeInfo> NewScopeInfo(int length,
+                                 AllocationType type = AllocationType::kOld);
 
   Handle<SourceTextModuleInfo> NewSourceTextModuleInfo();
 
