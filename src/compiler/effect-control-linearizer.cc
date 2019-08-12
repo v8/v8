@@ -5914,11 +5914,13 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForInt32Key(
     auto if_notsmi = __ MakeDeferredLabel();
     if (COMPRESS_POINTERS_BOOL) {
       __ GotoIfNot(CompressedObjectIsSmi(candidate_key), &if_notsmi);
+      __ Branch(__ Word32Equal(ChangeCompressedSmiToInt32(candidate_key), key),
+                &if_match, &if_notmatch);
     } else {
       __ GotoIfNot(ObjectIsSmi(candidate_key), &if_notsmi);
+      __ Branch(__ Word32Equal(ChangeSmiToInt32(candidate_key), key), &if_match,
+                &if_notmatch);
     }
-    __ Branch(__ Word32Equal(ChangeSmiToInt32(candidate_key), key), &if_match,
-              &if_notmatch);
 
     __ Bind(&if_notsmi);
     __ GotoIfNot(
