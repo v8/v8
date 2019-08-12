@@ -8,6 +8,7 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/constants-arch.h"
 #include "src/codegen/external-reference-table.h"
+#include "src/execution/stack-guard.h"
 #include "src/execution/thread-local-top.h"
 #include "src/roots/roots.h"
 #include "src/utils/utils.h"
@@ -27,7 +28,7 @@ class Isolate;
 // register.
 class IsolateData final {
  public:
-  IsolateData() = default;
+  explicit IsolateData(Isolate* isolate) : stack_guard_(isolate) {}
 
   static constexpr intptr_t kIsolateRootBias = kRootRegisterBias;
 
@@ -81,6 +82,7 @@ class IsolateData final {
   // The FP and PC that are saved right before TurboAssembler::CallCFunction.
   Address* fast_c_call_caller_fp_address() { return &fast_c_call_caller_fp_; }
   Address* fast_c_call_caller_pc_address() { return &fast_c_call_caller_pc_; }
+  StackGuard* stack_guard() { return &stack_guard_; }
   uint8_t* stack_is_iterable_address() { return &stack_is_iterable_; }
   Address fast_c_call_caller_fp() { return fast_c_call_caller_fp_; }
   Address fast_c_call_caller_pc() { return fast_c_call_caller_pc_; }
@@ -123,6 +125,7 @@ class IsolateData final {
   V(kVirtualCallTargetRegisterOffset, kSystemPointerSize)                     \
   V(kFastCCallCallerFPOffset, kSystemPointerSize)                             \
   V(kFastCCallCallerPCOffset, kSystemPointerSize)                             \
+  V(kStackGuardOffset, StackGuard::kSizeInBytes)                              \
   V(kStackIsIterableOffset, kUInt8Size)                                       \
   /* This padding aligns IsolateData size by 8 bytes. */                      \
   V(kPaddingOffset,                                                           \
@@ -175,6 +178,11 @@ class IsolateData final {
   // instruction in compiled code.
   Address fast_c_call_caller_fp_ = kNullAddress;
   Address fast_c_call_caller_pc_ = kNullAddress;
+
+  // Fields related to the system and JS stack. In particular, this contains the
+  // stack limit used by stack checks in generated code.
+  StackGuard stack_guard_;
+
   // Whether the SafeStackFrameIterator can successfully iterate the current
   // stack. Only valid values are 0 or 1.
   uint8_t stack_is_iterable_ = 1;
@@ -225,6 +233,7 @@ void IsolateData::AssertPredictableLayout() {
                 kFastCCallCallerFPOffset);
   STATIC_ASSERT(offsetof(IsolateData, fast_c_call_caller_pc_) ==
                 kFastCCallCallerPCOffset);
+  STATIC_ASSERT(offsetof(IsolateData, stack_guard_) == kStackGuardOffset);
   STATIC_ASSERT(offsetof(IsolateData, stack_is_iterable_) ==
                 kStackIsIterableOffset);
   STATIC_ASSERT(sizeof(IsolateData) == IsolateData::kSize);

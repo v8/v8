@@ -902,7 +902,7 @@ class Isolate final : private HiddenFactory {
     DCHECK_NOT_NULL(logger_);
     return logger_;
   }
-  StackGuard* stack_guard() { return &stack_guard_; }
+  StackGuard* stack_guard() { return isolate_data()->stack_guard(); }
   Heap* heap() { return &heap_; }
   ReadOnlyHeap* read_only_heap() const { return read_only_heap_; }
   static Isolate* FromHeap(Heap* heap) {
@@ -1678,7 +1678,6 @@ class Isolate final : private HiddenFactory {
   std::shared_ptr<Counters> async_counters_;
   base::RecursiveMutex break_access_;
   Logger* logger_ = nullptr;
-  StackGuard stack_guard_;
   StubCache* load_stub_cache_ = nullptr;
   StubCache* store_stub_cache_ = nullptr;
   DeoptimizerData* deoptimizer_data_ = nullptr;

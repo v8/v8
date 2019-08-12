@@ -75,7 +75,8 @@ void StackGuard::PushInterruptsScope(InterruptsScope* scope) {
   DCHECK_NE(scope->mode_, InterruptsScope::kNoop);
   if (scope->mode_ == InterruptsScope::kPostponeInterrupts) {
     // Intercept already requested interrupts.
-    int intercepted = thread_local_.interrupt_flags_ & scope->intercept_mask_;
+    intptr_t intercepted =
+        thread_local_.interrupt_flags_ & scope->intercept_mask_;
     scope->intercepted_flags_ = intercepted;
     thread_local_.interrupt_flags_ &= ~intercepted;
   } else {
@@ -124,7 +125,7 @@ void StackGuard::PopInterruptsScope() {
 
 bool StackGuard::CheckInterrupt(InterruptFlag flag) {
   ExecutionAccess access(isolate_);
-  return thread_local_.interrupt_flags_ & flag;
+  return (thread_local_.interrupt_flags_ & flag) != 0;
 }
 
 void StackGuard::RequestInterrupt(InterruptFlag flag) {
@@ -160,7 +161,7 @@ int StackGuard::FetchAndClearInterrupts() {
   ExecutionAccess access(isolate_);
 
   int result = 0;
-  if (thread_local_.interrupt_flags_ & TERMINATE_EXECUTION) {
+  if ((thread_local_.interrupt_flags_ & TERMINATE_EXECUTION) != 0) {
     // The TERMINATE_EXECUTION interrupt is special, since it terminates
     // execution but should leave V8 in a resumable state. If it exists, we only
     // fetch and clear that bit. On resume, V8 can continue processing other
@@ -169,7 +170,7 @@ int StackGuard::FetchAndClearInterrupts() {
     thread_local_.interrupt_flags_ &= ~TERMINATE_EXECUTION;
     if (!has_pending_interrupts(access)) reset_limits(access);
   } else {
-    result = thread_local_.interrupt_flags_;
+    result = static_cast<int>(thread_local_.interrupt_flags_);
     thread_local_.interrupt_flags_ = 0;
     reset_limits(access);
   }

@@ -7,6 +7,7 @@
 
 #include "include/v8-internal.h"
 #include "src/base/atomicops.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -89,6 +90,8 @@ class V8_EXPORT_PRIVATE StackGuard final {
   // stack overflow, then handle the interruption accordingly.
   Object HandleInterrupts();
 
+  static constexpr int kSizeInBytes = 7 * kSystemPointerSize;
+
  private:
   bool CheckInterrupt(InterruptFlag flag);
   void RequestInterrupt(InterruptFlag flag);
@@ -165,7 +168,7 @@ class V8_EXPORT_PRIVATE StackGuard final {
     }
 
     InterruptsScope* interrupt_scopes_;
-    int interrupt_flags_;
+    intptr_t interrupt_flags_;
   };
 
   // TODO(isolates): Technically this could be calculated directly from a
@@ -179,6 +182,8 @@ class V8_EXPORT_PRIVATE StackGuard final {
 
   DISALLOW_COPY_AND_ASSIGN(StackGuard);
 };
+
+STATIC_ASSERT(StackGuard::kSizeInBytes == sizeof(StackGuard));
 
 }  // namespace internal
 }  // namespace v8

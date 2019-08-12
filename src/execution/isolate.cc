@@ -2885,9 +2885,9 @@ v8::PageAllocator* Isolate::page_allocator() {
 }
 
 Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
-    : isolate_allocator_(std::move(isolate_allocator)),
+    : isolate_data_(this),
+      isolate_allocator_(std::move(isolate_allocator)),
       id_(isolate_counter.fetch_add(1, std::memory_order_relaxed)),
-      stack_guard_(this),
       allocator_(FLAG_trace_zone_stats
                      ? new VerboseAccountingAllocator(&heap_, 256 * KB)
                      : new AccountingAllocator()),
@@ -3380,7 +3380,7 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
     // will ensure this too, but we don't have to use lockers if we are only
     // using one thread.
     ExecutionAccess lock(this);
-    stack_guard_.InitThread(lock);
+    stack_guard()->InitThread(lock);
   }
 
   // SetUp the object heap.
