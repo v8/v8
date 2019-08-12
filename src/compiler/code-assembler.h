@@ -656,7 +656,8 @@ TNode<Float64T> Float64Add(TNode<Float64T> a, TNode<Float64T> b);
   V(Int32AbsWithOverflow, PAIR_TYPE(Int32T, BoolT), Int32T)    \
   V(Int64AbsWithOverflow, PAIR_TYPE(Int64T, BoolT), Int64T)    \
   V(IntPtrAbsWithOverflow, PAIR_TYPE(IntPtrT, BoolT), IntPtrT) \
-  V(Word32BinaryNot, BoolT, Word32T)
+  V(Word32BinaryNot, BoolT, Word32T)                           \
+  V(StackPointerGreaterThan, BoolT, WordT)
 
 // A "public" interface used by components outside of compiler directory to
 // create code objects with TurboFan's backend. This class is mostly a thin

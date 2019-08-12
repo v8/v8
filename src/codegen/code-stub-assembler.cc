@@ -13898,15 +13898,10 @@ void CodeStubAssembler::Print(const char* prefix, Node* tagged_value) {
 void CodeStubAssembler::PerformStackCheck(TNode<Context> context) {
   Label ok(this), stack_check_interrupt(this, Label::kDeferred);
 
-  // The instruction sequence below is carefully crafted to hit our pattern
-  // matcher for stack checks within instruction selection.
-  // See StackCheckMatcher::Matched and JSGenericLowering::LowerJSStackCheck.
-
-  TNode<UintPtrT> sp = UncheckedCast<UintPtrT>(LoadStackPointer());
   TNode<UintPtrT> stack_limit = UncheckedCast<UintPtrT>(Load(
       MachineType::Pointer(),
       ExternalConstant(ExternalReference::address_of_stack_limit(isolate()))));
-  TNode<BoolT> sp_within_limit = UintPtrLessThan(stack_limit, sp);
+  TNode<BoolT> sp_within_limit = StackPointerGreaterThan(stack_limit);
 
   Branch(sp_within_limit, &ok, &stack_check_interrupt);
 

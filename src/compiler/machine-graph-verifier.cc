@@ -263,6 +263,7 @@ class MachineRepresentationInferrer {
           case IrOpcode::kFloat64LessThan:
           case IrOpcode::kFloat64LessThanOrEqual:
           case IrOpcode::kChangeTaggedToBit:
+          case IrOpcode::kStackPointerGreaterThan:
             representation_vector_[node->id()] = MachineRepresentation::kBit;
             break;
 #define LABEL(opcode) case IrOpcode::k##opcode:
@@ -696,6 +697,10 @@ class MachineRepresentationChecker {
             }
             break;
           }
+          case IrOpcode::kStackPointerGreaterThan:
+            CheckValueInputRepresentationIs(
+                node, 0, MachineType::PointerRepresentation());
+            break;
           case IrOpcode::kThrow:
           case IrOpcode::kTypedStateValues:
           case IrOpcode::kFrameState:

@@ -578,6 +578,9 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* Word32PairSar(Node* low_word, Node* high_word, Node* shift) {
     return AddNode(machine()->Word32PairSar(), low_word, high_word, shift);
   }
+  Node* StackPointerGreaterThan(Node* value) {
+    return AddNode(machine()->StackPointerGreaterThan(), value);
+  }
 
 #define INTPTR_BINOP(prefix, name)                           \
   Node* IntPtr##name(Node* a, Node* b) {                     \
