@@ -1311,18 +1311,6 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
       return;
     }
   }
-  WasmStackCheckMatcher<Int32BinopMatcher, IrOpcode::kUint32LessThan> wasm_m(
-      node);
-  if (wasm_m.Matched()) {
-    // This is a wasm stack check. By structure, we know that we can use the
-    // stack pointer directly, as wasm code does not modify the stack at points
-    // where stack checks are performed.
-    Node* left = node->InputAt(0);
-    LocationOperand esp(InstructionOperand::EXPLICIT, LocationOperand::REGISTER,
-                        InstructionSequence::DefaultRepresentation(),
-                        RegisterCode::kRegCode_esp);
-    return VisitCompareWithMemoryOperand(selector, kIA32Cmp, left, esp, cont);
-  }
   VisitWordCompare(selector, node, kIA32Cmp, cont);
 }
 

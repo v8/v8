@@ -328,10 +328,6 @@ void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position,
   if (effect == nullptr) effect = effect_;
   if (control == nullptr) control = control_;
 
-  // This instruction sequence is matched in the instruction selector to
-  // load the stack pointer directly on some platforms. Hence, when modifying
-  // please also fix WasmStackCheckMatcher in node-matchers.h
-
   Node* limit_address = graph()->NewNode(
       mcgraph()->machine()->Load(MachineType::Pointer()), instance_node_.get(),
       mcgraph()->Int32Constant(WASM_INSTANCE_OBJECT_OFFSET(StackLimitAddress)),
@@ -340,10 +336,9 @@ void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position,
       mcgraph()->machine()->Load(MachineType::Pointer()), limit_address,
       mcgraph()->IntPtrConstant(0), limit_address, *control);
   *effect = limit;
-  Node* pointer = graph()->NewNode(mcgraph()->machine()->LoadStackPointer());
 
   Node* check =
-      graph()->NewNode(mcgraph()->machine()->UintLessThan(), limit, pointer);
+      graph()->NewNode(mcgraph()->machine()->StackPointerGreaterThan(), limit);
 
   Diamond stack_check(graph(), mcgraph()->common(), check, BranchHint::kTrue);
   stack_check.Chain(*control);

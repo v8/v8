@@ -762,34 +762,6 @@ struct V8_EXPORT_PRIVATE DiamondMatcher
 };
 
 template <class BinopMatcher, IrOpcode::Value expected_opcode>
-struct WasmStackCheckMatcher {
-  explicit WasmStackCheckMatcher(Node* compare) : compare_(compare) {}
-
-  bool Matched() {
-    if (compare_->opcode() != expected_opcode) return false;
-    BinopMatcher m(compare_);
-    return MatchedInternal(m.left(), m.right());
-  }
-
- private:
-  bool MatchedInternal(const typename BinopMatcher::LeftMatcher& l,
-                       const typename BinopMatcher::RightMatcher& r) {
-    // In wasm, the stack check is performed by loading the value given by
-    // the address of a field stored in the instance object. That object is
-    // passed as a parameter.
-    if (l.IsLoad() && r.IsLoadStackPointer()) {
-      LoadMatcher<LoadMatcher<NodeMatcher>> mleft(l.node());
-      if (mleft.object().IsLoad() && mleft.index().Is(0) &&
-          mleft.object().object().IsParameter()) {
-        return true;
-      }
-    }
-    return false;
-  }
-  Node* compare_;
-};
-
-template <class BinopMatcher, IrOpcode::Value expected_opcode>
 struct StackCheckMatcher {
   StackCheckMatcher(Isolate* isolate, Node* compare)
       : isolate_(isolate), compare_(compare) {
