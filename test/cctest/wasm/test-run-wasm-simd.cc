@@ -915,9 +915,7 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2GeU) {
   RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2GeU,
                     UnsignedGreaterEqual);
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
-#if V8_TARGET_ARCH_X64
 WASM_SIMD_TEST_NO_LOWERING(F64x2Splat) {
   WasmRunner<int32_t, double> r(execution_tier, lower_simd);
   // Set up a global to hold output vector.
@@ -990,7 +988,9 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2ReplaceLane) {
     CHECK_EQ(static_cast<double>(i), ReadLittleEndianValue<double>(&g[i]));
   }
 }
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
+#if V8_TARGET_ARCH_X64
 void RunF64x2CompareOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                            WasmOpcode opcode, DoubleCompareOp expected_op) {
   WasmRunner<int32_t, double, double> r(execution_tier, lower_simd);

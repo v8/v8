@@ -3047,6 +3047,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
 }
 
 #define SIMD_TYPE_LIST(V) \
+  V(F64x2)                \
   V(F32x4)                \
   V(I64x2)                \
   V(I32x4)                \

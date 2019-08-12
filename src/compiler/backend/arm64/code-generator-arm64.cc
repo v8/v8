@@ -1774,6 +1774,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
              i.InputSimd128Register(1).V##FORMAT()); \
     break;
 
+    case kArm64F64x2Splat: {
+      __ Dup(i.OutputSimd128Register().V2D(), i.InputSimd128Register(0).D(), 0);
+      break;
+    }
+    case kArm64F64x2ExtractLane: {
+      __ Mov(i.OutputSimd128Register().D(), i.InputSimd128Register(0).V2D(),
+             i.InputInt8(1));
+      break;
+    }
+    case kArm64F64x2ReplaceLane: {
+      VRegister dst = i.OutputSimd128Register().V2D(),
+                src1 = i.InputSimd128Register(0).V2D();
+      if (!dst.is(src1)) {
+        __ Mov(dst, src1);
+      }
+      __ Mov(dst, i.InputInt8(1), i.InputSimd128Register(2).V2D(), 0);
+      break;
+    }
     case kArm64F32x4Splat: {
       __ Dup(i.OutputSimd128Register().V4S(), i.InputSimd128Register(0).S(), 0);
       break;

@@ -170,6 +170,9 @@ namespace compiler {
   V(Arm64DecompressAny)                     \
   V(Arm64DmbIsh)                            \
   V(Arm64DsbIsb)                            \
+  V(Arm64F64x2Splat)                        \
+  V(Arm64F64x2ExtractLane)                  \
+  V(Arm64F64x2ReplaceLane)                  \
   V(Arm64F32x4Splat)                        \
   V(Arm64F32x4ExtractLane)                  \
   V(Arm64F32x4ReplaceLane)                  \
