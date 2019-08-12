@@ -80,12 +80,6 @@
   'intl402/NumberFormat/numbering-system-options': ['--harmony-intl-add-calendar-numbering-system'],
   'intl402/DateTimeFormat/numbering-system-calendar-options': ['--harmony-intl-add-calendar-numbering-system'],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9319
-  'intl402/NumberFormat/prototype/resolvedOptions/order': [FAIL],
-
-  # crbug.com/v8/9483
-  'intl402/NumberFormat/currencyDisplay-unit': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9084
   'intl402/supportedLocalesOf-consistent-with-resolvedOptions': [FAIL],
   'intl402/fallback-locales-are-supported': [FAIL],
@@ -476,25 +470,8 @@
   'language/expressions/async-generator/generator-created-after-decl-inst': [FAIL],
   'language/statements/async-generator/generator-created-after-decl-inst': [FAIL],
 
-  # await tests that require flags
-  'language/expressions/await/async-generator-interleaved': ['--harmony-await-optimization'],
-  'language/expressions/await/await-monkey-patched-promise': ['--harmony-await-optimization'],
-  'language/expressions/await/for-await-of-interleaved': ['--harmony-await-optimization'],
-  'language/expressions/await/async-await-interleaved': ['--harmony-await-optimization'],
-
-  # https://github.com/tc39/test262/issues/2033
-  'language/expressions/class/elements/private-derived-cls-direct-eval-err-contains-supercall': [SKIP],
-  'language/expressions/class/elements/private-derived-cls-direct-eval-err-contains-supercall-1': [SKIP],
-  'language/expressions/class/elements/private-derived-cls-direct-eval-err-contains-supercall-2': [SKIP],
-  'language/expressions/class/elements/private-derived-cls-indirect-eval-err-contains-supercall': [SKIP],
-  'language/expressions/class/elements/private-derived-cls-indirect-eval-err-contains-supercall-1': [SKIP],
-  'language/expressions/class/elements/private-derived-cls-indirect-eval-err-contains-supercall-2': [SKIP],
-  'language/statements/class/elements/private-derived-cls-direct-eval-err-contains-supercall': [SKIP],
-  'language/statements/class/elements/private-derived-cls-direct-eval-err-contains-supercall-1': [SKIP],
-  'language/statements/class/elements/private-derived-cls-direct-eval-err-contains-supercall-2': [SKIP],
-  'language/statements/class/elements/private-derived-cls-indirect-eval-err-contains-supercall': [SKIP],
-  'language/statements/class/elements/private-derived-cls-indirect-eval-err-contains-supercall-1': [SKIP],
-  'language/statements/class/elements/private-derived-cls-indirect-eval-err-contains-supercall-2': [SKIP],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9611
+  'language/statements/class/elements/prviate-field-is-visible-in-computed-properties': [SKIP],
 
   # https://github.com/tc39/test262/issues/2034
   'language/expressions/postfix-decrement/arguments': [SKIP],
@@ -563,6 +540,27 @@
 
   # https://github.com/tc39/test262/issues/2260
   'built-ins/FinalizationGroup/prototype/cleanupSome/return-undefined-with-gc': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9612
+  'intl402/DateTimeFormat/prototype/formatRange/fractionalSecondDigits': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9613
+  'intl402/Intl/getCanonicalLocales/canonicalized-tags': [FAIL],
+  'intl402/Intl/getCanonicalLocales/grandfathered': [FAIL],
+  'intl402/Intl/getCanonicalLocales/invalid-tags': [FAIL],
+  'intl402/Intl/getCanonicalLocales/non-iana-canon': [FAIL],
+  'intl402/Intl/getCanonicalLocales/preferred-grandfathered': [FAIL],
+  'intl402/Intl/getCanonicalLocales/preferred-variant': [FAIL],
+  'intl402/language-tags-invalid': [FAIL],
+  'intl402/ListFormat/constructor/constructor/locales-valid': [FAIL],
+  'intl402/Locale/constructor-non-iana-canon': [FAIL],
+  'intl402/Locale/constructor-options-region-valid': [FAIL],
+  'intl402/Locale/constructor-tag': [FAIL],
+  'intl402/Locale/getters': [FAIL],
+  'intl402/Locale/likely-subtags-grandfathered': [FAIL],
+  'intl402/PluralRules/prototype/resolvedOptions/order': [FAIL],
+  'intl402/RelativeTimeFormat/constructor/constructor/locales-valid': [FAIL],
+  'intl402/Segmenter/constructor/constructor/locales-valid': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
@@ -691,10 +689,6 @@
 ['asan == True', {
   # BUG(v8:4653): Test262 tests which rely on quit() are not compatible with
   # asan's --omit-quit flag.
-  'built-ins/Promise/allSettled/reject-deferred': [FAIL],
-  'built-ins/Promise/allSettled/reject-ignored-deferred': [FAIL],
-  'built-ins/Promise/allSettled/reject-ignored-immed': [FAIL],
-  'built-ins/Promise/allSettled/reject-immed': [FAIL],
   'built-ins/Promise/prototype/then/deferred-is-resolved-value': [SKIP],
   'language/expressions/dynamic-import/always-create-new-promise': [SKIP],
   'language/expressions/dynamic-import/assign-expr-get-value-abrupt-throws': [SKIP],
