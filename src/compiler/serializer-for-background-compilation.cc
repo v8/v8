@@ -70,8 +70,6 @@ namespace compiler {
   V(ForInNext)                    \
   V(ForInStep)                    \
   V(Inc)                          \
-  V(LdaLookupSlot)                \
-  V(LdaLookupSlotInsideTypeof)    \
   V(LogicalNot)                   \
   V(Mod)                          \
   V(ModSmi)                       \
@@ -85,7 +83,6 @@ namespace compiler {
   V(ShiftRightLogical)            \
   V(ShiftRightLogicalSmi)         \
   V(ShiftRightSmi)                \
-  V(StaLookupSlot)                \
   V(Sub)                          \
   V(SubSmi)                       \
   V(TestEqual)                    \
@@ -134,10 +131,7 @@ namespace compiler {
 #define IGNORED_BYTECODE_LIST(V)      \
   V(CallNoFeedback)                   \
   V(IncBlockCounter)                  \
-  V(LdaNamedPropertyNoFeedback)       \
   V(StackCheck)                       \
-  V(StaNamedPropertyNoFeedback)       \
-  V(ThrowReferenceErrorIfHole)        \
   V(ThrowSuperAlreadyCalledIfNotHole) \
   V(ThrowSuperNotCalledIfHole)
 
@@ -184,7 +178,10 @@ namespace compiler {
   V(LdaLookupContextSlotInsideTypeof) \
   V(LdaLookupGlobalSlot)              \
   V(LdaLookupGlobalSlotInsideTypeof)  \
+  V(LdaLookupSlot)                    \
+  V(LdaLookupSlotInsideTypeof)        \
   V(LdaNamedProperty)                 \
+  V(LdaNamedPropertyNoFeedback)       \
   V(LdaNull)                          \
   V(Ldar)                             \
   V(LdaSmi)                           \
@@ -201,14 +198,17 @@ namespace compiler {
   V(StaGlobal)                        \
   V(StaInArrayLiteral)                \
   V(StaKeyedProperty)                 \
+  V(StaLookupSlot)                    \
   V(StaModuleVariable)                \
   V(StaNamedOwnProperty)              \
   V(StaNamedProperty)                 \
+  V(StaNamedPropertyNoFeedback)       \
   V(Star)                             \
   V(SwitchOnGeneratorState)           \
   V(SwitchOnSmiNoFeedback)            \
   V(TestIn)                           \
   V(TestInstanceOf)                   \
+  V(ThrowReferenceErrorIfHole)        \
   CLEAR_ACCUMULATOR_LIST(V)           \
   CLEAR_ENVIRONMENT_LIST(V)           \
   CONDITIONAL_JUMPS_LIST(V)           \
@@ -1106,9 +1106,10 @@ void SerializerForBackgroundCompilation::VisitInvokeIntrinsic(
 
 void SerializerForBackgroundCompilation::VisitLdaConstant(
     BytecodeArrayIterator* iterator) {
+  ObjectRef object(
+      broker(), iterator->GetConstantForIndexOperand(0, broker()->isolate()));
   environment()->accumulator_hints().Clear();
-  environment()->accumulator_hints().AddConstant(
-      iterator->GetConstantForIndexOperand(0, broker()->isolate()));
+  environment()->accumulator_hints().AddConstant(object.object());
 }
 
 void SerializerForBackgroundCompilation::VisitPushContext(
@@ -1233,6 +1234,13 @@ void SerializerForBackgroundCompilation::VisitStaModuleVariable(
   const int depth = iterator->GetUnsignedImmediateOperand(1);
   ProcessContextAccess(environment()->current_context_hints(),
                        Context::EXTENSION_INDEX, depth, kSerializeSlot);
+}
+
+void SerializerForBackgroundCompilation::VisitStaLookupSlot(
+    BytecodeArrayIterator* iterator) {
+  ObjectRef(broker(),
+            iterator->GetConstantForIndexOperand(0, broker()->isolate()));
+  environment()->accumulator_hints().Clear();
 }
 
 void SerializerForBackgroundCompilation::VisitStaContextSlot(
@@ -2046,7 +2054,8 @@ SerializerForBackgroundCompilation::ProcessFeedbackForGlobalAccess(
 void SerializerForBackgroundCompilation::VisitLdaGlobal(
     BytecodeArrayIterator* iterator) {
   FeedbackSlot slot = iterator->GetSlotOperand(1);
-
+  NameRef(broker(),
+          iterator->GetConstantForIndexOperand(0, broker()->isolate()));
   environment()->accumulator_hints().Clear();
   GlobalAccessFeedback const* feedback = ProcessFeedbackForGlobalAccess(slot);
   if (feedback != nullptr) {
@@ -2061,6 +2070,20 @@ void SerializerForBackgroundCompilation::VisitLdaGlobal(
 void SerializerForBackgroundCompilation::VisitLdaGlobalInsideTypeof(
     BytecodeArrayIterator* iterator) {
   VisitLdaGlobal(iterator);
+}
+
+void SerializerForBackgroundCompilation::VisitLdaLookupSlot(
+    BytecodeArrayIterator* iterator) {
+  ObjectRef(broker(),
+            iterator->GetConstantForIndexOperand(0, broker()->isolate()));
+  environment()->accumulator_hints().Clear();
+}
+
+void SerializerForBackgroundCompilation::VisitLdaLookupSlotInsideTypeof(
+    BytecodeArrayIterator* iterator) {
+  ObjectRef(broker(),
+            iterator->GetConstantForIndexOperand(0, broker()->isolate()));
+  environment()->accumulator_hints().Clear();
 }
 
 void SerializerForBackgroundCompilation::ProcessCheckContextExtensions(
@@ -2092,6 +2115,8 @@ void SerializerForBackgroundCompilation::VisitLdaLookupGlobalSlotInsideTypeof(
 
 void SerializerForBackgroundCompilation::VisitStaGlobal(
     BytecodeArrayIterator* iterator) {
+  NameRef(broker(),
+          iterator->GetConstantForIndexOperand(0, broker()->isolate()));
   FeedbackSlot slot = iterator->GetSlotOperand(1);
   ProcessFeedbackForGlobalAccess(slot);
 }
@@ -2100,6 +2125,8 @@ void SerializerForBackgroundCompilation::ProcessLdaLookupContextSlot(
     BytecodeArrayIterator* iterator) {
   const int slot_index = iterator->GetIndexOperand(1);
   const int depth = iterator->GetUnsignedImmediateOperand(2);
+  NameRef(broker(),
+          iterator->GetConstantForIndexOperand(0, broker()->isolate()));
   ProcessCheckContextExtensions(depth);
   Hints& context_hints = environment()->current_context_hints();
   environment()->accumulator_hints().Clear();
@@ -2397,10 +2424,10 @@ void SerializerForBackgroundCompilation::ProcessNamedPropertyAccess(
     BytecodeArrayIterator* iterator, AccessMode mode) {
   Hints const& receiver =
       environment()->register_hints(iterator->GetRegisterOperand(0));
-  Handle<Name> name = Handle<Name>::cast(
-      iterator->GetConstantForIndexOperand(1, broker()->isolate()));
+  NameRef name(broker(),
+               iterator->GetConstantForIndexOperand(1, broker()->isolate()));
   FeedbackSlot slot = iterator->GetSlotOperand(2);
-  ProcessNamedPropertyAccess(receiver, NameRef(broker(), name), slot, mode);
+  ProcessNamedPropertyAccess(receiver, name, slot, mode);
 }
 
 void SerializerForBackgroundCompilation::VisitLdaNamedProperty(
@@ -2408,9 +2435,21 @@ void SerializerForBackgroundCompilation::VisitLdaNamedProperty(
   ProcessNamedPropertyAccess(iterator, AccessMode::kLoad);
 }
 
+void SerializerForBackgroundCompilation::VisitLdaNamedPropertyNoFeedback(
+    BytecodeArrayIterator* iterator) {
+  NameRef(broker(),
+          iterator->GetConstantForIndexOperand(1, broker()->isolate()));
+}
+
 void SerializerForBackgroundCompilation::VisitStaNamedProperty(
     BytecodeArrayIterator* iterator) {
   ProcessNamedPropertyAccess(iterator, AccessMode::kStore);
+}
+
+void SerializerForBackgroundCompilation::VisitStaNamedPropertyNoFeedback(
+    BytecodeArrayIterator* iterator) {
+  NameRef(broker(),
+          iterator->GetConstantForIndexOperand(1, broker()->isolate()));
 }
 
 void SerializerForBackgroundCompilation::VisitStaNamedOwnProperty(
@@ -2505,6 +2544,12 @@ void SerializerForBackgroundCompilation::VisitTestInstanceOf(
                                  &walk_prototypes);
   }
   if (walk_prototypes) ProcessHintsForHasInPrototypeChain(lhs);
+}
+
+void SerializerForBackgroundCompilation::VisitThrowReferenceErrorIfHole(
+    BytecodeArrayIterator* iterator) {
+  ObjectRef(broker(),
+            iterator->GetConstantForIndexOperand(0, broker()->isolate()));
 }
 
 void SerializerForBackgroundCompilation::VisitStaKeyedProperty(

@@ -103,8 +103,10 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
     }
     case IrOpcode::kJSLoadNamed:
     case IrOpcode::kJSStoreNamed: {
-      NamedAccess const& p = NamedAccessOf(node->op());
-      NameRef(broker(), p.name());
+      if (!FLAG_concurrent_inlining) {
+        NamedAccess const& p = NamedAccessOf(node->op());
+        NameRef(broker(), p.name());
+      }
       break;
     }
     case IrOpcode::kStoreField:
