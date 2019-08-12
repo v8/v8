@@ -1620,7 +1620,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
                     ? ElementsTransition::kFastTransition
                     : ElementsTransition::kSlowTransition,
                 transition_source.object(), transition_target.object())),
-            receiver, effect, control);
+            receiver, this_effect, this_control);
       }
 
       // Perform map check(s) on {receiver}.
