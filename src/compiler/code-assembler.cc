@@ -453,10 +453,6 @@ TNode<RawPtrT> CodeAssembler::LoadParentFramePointer() {
   return UncheckedCast<RawPtrT>(raw_assembler()->LoadParentFramePointer());
 }
 
-TNode<RawPtrT> CodeAssembler::LoadStackPointer() {
-  return UncheckedCast<RawPtrT>(raw_assembler()->LoadStackPointer());
-}
-
 TNode<Object> CodeAssembler::TaggedPoisonOnSpeculation(
     SloppyTNode<Object> value) {
   return UncheckedCast<Object>(

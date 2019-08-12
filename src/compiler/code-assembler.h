@@ -954,9 +954,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<RawPtrT> LoadFramePointer();
   TNode<RawPtrT> LoadParentFramePointer();
 
-  // Access to the stack pointer
-  TNode<RawPtrT> LoadStackPointer();
-
   // Poison |value| on speculative paths.
   TNode<Object> TaggedPoisonOnSpeculation(SloppyTNode<Object> value);
   TNode<WordT> WordPoisonOnSpeculation(SloppyTNode<WordT> value);

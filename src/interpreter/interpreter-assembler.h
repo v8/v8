@@ -427,8 +427,6 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   bool made_call_;
   bool reloaded_frame_ptr_;
   bool bytecode_array_valid_;
-  bool disable_stack_check_across_call_;
-  compiler::Node* stack_pointer_before_call_;
 
   DISALLOW_COPY_AND_ASSIGN(InterpreterAssembler);
 };
