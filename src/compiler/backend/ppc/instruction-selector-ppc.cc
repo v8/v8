@@ -69,6 +69,7 @@ class PPCOperandGenerator final : public OperandGenerator {
   // Use the stack pointer if the node is LoadStackPointer, otherwise assign a
   // register.
   InstructionOperand UseRegisterOrStackPointer(Node* node) {
+    // TODO(miladfar): Remove this once LoadStackPointer has been removed.
     if (node->opcode() == IrOpcode::kLoadStackPointer) {
       return LocationOperand(LocationOperand::EXPLICIT,
                              LocationOperand::REGISTER,
@@ -557,6 +558,15 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
   } else {
     VisitBinop<Int32BinopMatcher>(this, node, kPPC_Xor, kInt16Imm_Unsigned);
   }
+}
+
+void InstructionSelector::VisitStackPointerGreaterThan(
+    Node* node, FlagsContinuation* cont) {
+  Node* const value = node->InputAt(0);
+  InstructionCode opcode = kArchStackPointerGreaterThan;
+
+  PPCOperandGenerator g(this);
+  EmitWithContinuation(opcode, g.UseRegister(value), cont);
 }
 
 #if V8_TARGET_ARCH_PPC64
@@ -1640,6 +1650,9 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
 // case IrOpcode::kWord64Shr:
 // case IrOpcode::kWord64Ror:
 #endif
+      case IrOpcode::kStackPointerGreaterThan:
+        cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
+        return VisitStackPointerGreaterThan(value, cont);
       default:
         break;
     }

@@ -1600,6 +1600,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ LoadRR(i.OutputRegister(), fp);
       }
       break;
+    case kArchStackPointerGreaterThan: {
+      constexpr size_t kValueIndex = 0;
+      DCHECK(instr->InputAt(kValueIndex)->IsRegister());
+      __ CmpLogicalP(sp, i.InputRegister(kValueIndex));
+      break;
+    }
     case kArchTruncateDoubleToI:
       __ TruncateDoubleToI(isolate(), zone(), i.OutputRegister(),
                            i.InputDoubleRegister(0), DetermineStubCallMode());

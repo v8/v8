@@ -247,6 +247,7 @@ class S390OperandGenerator final : public OperandGenerator {
   // Use the stack pointer if the node is LoadStackPointer, otherwise assign a
   // register.
   InstructionOperand UseRegisterOrStackPointer(Node* node) {
+    // TODO(miladfar): Remove this once LoadStackPointer has been removed.
     if (node->opcode() == IrOpcode::kLoadStackPointer) {
       return LocationOperand(LocationOperand::EXPLICIT,
                              LocationOperand::REGISTER,
@@ -837,6 +838,15 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) { UNREACHABLE(); }
 
 // Architecture supports unaligned access, therefore VisitStore is used instead
 void InstructionSelector::VisitUnalignedStore(Node* node) { UNREACHABLE(); }
+
+void InstructionSelector::VisitStackPointerGreaterThan(
+    Node* node, FlagsContinuation* cont) {
+  Node* const value = node->InputAt(0);
+  InstructionCode opcode = kArchStackPointerGreaterThan;
+
+  S390OperandGenerator g(this);
+  EmitWithContinuation(opcode, g.UseRegister(value), cont);
+}
 
 #if 0
 static inline bool IsContiguousMask32(uint32_t value, int* mb, int* me) {
@@ -2009,6 +2019,9 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
         // doesn't generate cc, so ignore
         break;
 #endif
+      case IrOpcode::kStackPointerGreaterThan:
+        cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
+        return VisitStackPointerGreaterThan(value, cont);
       default:
         break;
     }
