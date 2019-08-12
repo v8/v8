@@ -1514,6 +1514,8 @@ class Isolate final : private HiddenFactory {
                                                    Handle<JSArray> sites);
   bool HasPrepareStackTraceCallback() const;
 
+  void SetAddCrashKeyCallback(AddCrashKeyCallback callback);
+
   void SetRAILMode(RAILMode rail_mode);
 
   RAILMode rail_mode() { return rail_mode_.load(); }
@@ -1657,6 +1659,8 @@ class Isolate final : private HiddenFactory {
     }
     return "";
   }
+
+  void AddCrashKeysForIsolateAndHeapPointers();
 
   // This class contains a collection of data accessible from both C++ runtime
   // and compiled code (including assembly stubs, builtins, interpreter bytecode
@@ -1882,6 +1886,11 @@ class Isolate final : private HiddenFactory {
   // know if this is the case, so I'm preserving it for now.
   base::Mutex thread_data_table_mutex_;
   ThreadDataTable thread_data_table_;
+
+  // Enables the host application to provide a mechanism for recording a
+  // predefined set of data as crash keys to be used in postmortem debugging
+  // in case of a crash.
+  AddCrashKeyCallback add_crash_key_callback_ = nullptr;
 
   // Delete new/delete operators to ensure that Isolate::New() and
   // Isolate::Delete() are used for Isolate creation and deletion.

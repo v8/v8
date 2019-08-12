@@ -6644,6 +6644,16 @@ typedef void* (*CreateHistogramCallback)(const char* name,
 
 typedef void (*AddHistogramSampleCallback)(void* histogram, int sample);
 
+// --- Crashkeys Callback ---
+enum class CrashKeyId {
+  kIsolateAddress,
+  kReadonlySpaceFirstPageAddress,
+  kMapSpaceFirstPageAddress,
+  kCodeSpaceFirstPageAddress,
+};
+
+typedef void (*AddCrashKeyCallback)(CrashKeyId id, const std::string& value);
+
 // --- Enter/Leave Script Callback ---
 typedef void (*BeforeCallEnteredCallback)(Isolate*);
 typedef void (*CallCompletedCallback)(Isolate*);
@@ -8357,6 +8367,13 @@ class V8_EXPORT Isolate {
    */
   void SetCreateHistogramFunction(CreateHistogramCallback);
   void SetAddHistogramSampleFunction(AddHistogramSampleCallback);
+
+  /**
+   * Enables the host application to provide a mechanism for recording a
+   * predefined set of data as crash keys to be used in postmortem debugging in
+   * case of a crash.
+   */
+  void SetAddCrashKeyCallback(AddCrashKeyCallback);
 
   /**
    * Optional notification that the embedder is idle.

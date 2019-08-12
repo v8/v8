@@ -8359,6 +8359,11 @@ void Isolate::SetAddHistogramSampleFunction(
       ->SetAddHistogramSampleFunction(callback);
 }
 
+void Isolate::SetAddCrashKeyCallback(AddCrashKeyCallback callback) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->SetAddCrashKeyCallback(callback);
+}
+
 bool Isolate::IdleNotificationDeadline(double deadline_in_seconds) {
   // Returning true tells the caller that it need not
   // continue to call IdleNotification.

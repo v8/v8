@@ -3309,19 +3309,31 @@ bool Isolate::InitWithSnapshot(ReadOnlyDeserializer* read_only_deserializer,
   return Init(read_only_deserializer, startup_deserializer);
 }
 
-static void AddCrashKeysForIsolateAndHeapPointers(Isolate* isolate) {
-  v8::Platform* platform = V8::GetCurrentPlatform();
+static std::string AddressToString(uintptr_t address) {
+  std::stringstream stream_address;
+  stream_address << "0x" << std::hex << address;
+  return stream_address.str();
+}
 
-  const int id = isolate->id();
-  platform->AddCrashKey(id, "isolate", reinterpret_cast<uintptr_t>(isolate));
+void Isolate::AddCrashKeysForIsolateAndHeapPointers() {
+  DCHECK_NOT_NULL(add_crash_key_callback_);
 
-  auto heap = isolate->heap();
-  platform->AddCrashKey(id, "ro_space",
-    reinterpret_cast<uintptr_t>(heap->read_only_space()->first_page()));
-  platform->AddCrashKey(id, "map_space",
-    reinterpret_cast<uintptr_t>(heap->map_space()->first_page()));
-  platform->AddCrashKey(id, "code_space",
-    reinterpret_cast<uintptr_t>(heap->code_space()->first_page()));
+  const uintptr_t isolate_address = reinterpret_cast<uintptr_t>(this);
+  add_crash_key_callback_(v8::CrashKeyId::kIsolateAddress,
+                          AddressToString(isolate_address));
+
+  const uintptr_t ro_space_firstpage_address =
+      reinterpret_cast<uintptr_t>(heap()->read_only_space()->first_page());
+  add_crash_key_callback_(v8::CrashKeyId::kReadonlySpaceFirstPageAddress,
+                          AddressToString(ro_space_firstpage_address));
+  const uintptr_t map_space_firstpage_address =
+      reinterpret_cast<uintptr_t>(heap()->map_space()->first_page());
+  add_crash_key_callback_(v8::CrashKeyId::kMapSpaceFirstPageAddress,
+                          AddressToString(map_space_firstpage_address));
+  const uintptr_t code_space_firstpage_address =
+      reinterpret_cast<uintptr_t>(heap()->code_space()->first_page());
+  add_crash_key_callback_(v8::CrashKeyId::kCodeSpaceFirstPageAddress,
+                          AddressToString(code_space_firstpage_address));
 }
 
 bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
@@ -3569,7 +3581,6 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
     PrintF("[Initializing isolate from scratch took %0.3f ms]\n", ms);
   }
 
-  AddCrashKeysForIsolateAndHeapPointers(this);
   return true;
 }
 
@@ -4427,6 +4438,13 @@ void Isolate::SetPrepareStackTraceCallback(PrepareStackTraceCallback callback) {
 
 bool Isolate::HasPrepareStackTraceCallback() const {
   return prepare_stack_trace_callback_ != nullptr;
+}
+
+void Isolate::SetAddCrashKeyCallback(AddCrashKeyCallback callback) {
+  add_crash_key_callback_ = callback;
+
+  // Log the initial set of data.
+  AddCrashKeysForIsolateAndHeapPointers();
 }
 
 void Isolate::SetAtomicsWaitCallback(v8::Isolate::AtomicsWaitCallback callback,
