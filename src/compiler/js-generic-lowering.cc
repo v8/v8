@@ -828,9 +828,8 @@ void JSGenericLowering::LowerJSStackCheck(Node* node) {
       jsgraph()->ExternalConstant(
           ExternalReference::address_of_stack_limit(isolate())),
       jsgraph()->IntPtrConstant(0), effect, control);
-  Node* pointer = graph()->NewNode(machine()->LoadStackPointer());
 
-  Node* check = graph()->NewNode(machine()->UintLessThan(), limit, pointer);
+  Node* check = graph()->NewNode(machine()->StackPointerGreaterThan(), limit);
   Node* branch =
       graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
 

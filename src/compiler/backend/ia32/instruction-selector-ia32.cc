@@ -542,6 +542,35 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
   }
 }
 
+void InstructionSelector::VisitStackPointerGreaterThan(
+    Node* node, FlagsContinuation* cont) {
+  Node* const value = node->InputAt(0);
+  InstructionCode opcode = kArchStackPointerGreaterThan;
+
+  DCHECK(cont->IsBranch());
+  const int effect_level =
+      GetEffectLevel(cont->true_block()->PredecessorAt(0)->control_input());
+
+  IA32OperandGenerator g(this);
+  if (g.CanBeMemoryOperand(kIA32Cmp, node, value, effect_level)) {
+    DCHECK_EQ(IrOpcode::kLoad, value->opcode());
+
+    // GetEffectiveAddressMemoryOperand can create at most 3 inputs.
+    static constexpr int kMaxInputCount = 3;
+
+    size_t input_count = 0;
+    InstructionOperand inputs[kMaxInputCount];
+    AddressingMode addressing_mode =
+        g.GetEffectiveAddressMemoryOperand(value, inputs, &input_count);
+    opcode |= AddressingModeField::encode(addressing_mode);
+    DCHECK_LE(input_count, kMaxInputCount);
+
+    EmitWithContinuation(opcode, 0, nullptr, input_count, inputs, cont);
+  } else {
+    EmitWithContinuation(opcode, g.UseRegister(value), cont);
+  }
+}
+
 // Shared routine for multiple shift operations.
 static inline void VisitShift(InstructionSelector* selector, Node* node,
                               ArchOpcode opcode) {
@@ -1270,6 +1299,7 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 void VisitWordCompare(InstructionSelector* selector, Node* node,
                       FlagsContinuation* cont) {
   if (selector->isolate() != nullptr) {
+    // TODO(jgruber): Remove this once LoadStackPointer has been removed.
     StackCheckMatcher<Int32BinopMatcher, IrOpcode::kUint32LessThan> m(
         selector->isolate(), node);
     if (m.Matched()) {
@@ -1459,6 +1489,9 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
         return VisitWordCompare(this, value, cont);
       case IrOpcode::kWord32And:
         return VisitWordCompare(this, value, kIA32Test, cont);
+      case IrOpcode::kStackPointerGreaterThan:
+        cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
+        return VisitStackPointerGreaterThan(value, cont);
       default:
         break;
     }

@@ -1708,6 +1708,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitStackSlot(node);
     case IrOpcode::kLoadStackPointer:
       return VisitLoadStackPointer(node);
+    case IrOpcode::kStackPointerGreaterThan:
+      return VisitStackPointerGreaterThan(node);
     case IrOpcode::kLoadFramePointer:
       return VisitLoadFramePointer(node);
     case IrOpcode::kLoadParentFramePointer:
@@ -2157,6 +2159,12 @@ void InstructionSelector::VisitTaggedPoisonOnSpeculation(Node* node) {
 void InstructionSelector::VisitLoadStackPointer(Node* node) {
   OperandGenerator g(this);
   Emit(kArchStackPointer, g.DefineAsRegister(node));
+}
+
+void InstructionSelector::VisitStackPointerGreaterThan(Node* node) {
+  FlagsContinuation cont =
+      FlagsContinuation::ForSet(kStackPointerGreaterThanCondition, node);
+  VisitStackPointerGreaterThan(node, &cont);
 }
 
 void InstructionSelector::VisitLoadFramePointer(Node* node) {

@@ -51,6 +51,7 @@ class Arm64OperandGenerator final : public OperandGenerator {
   // Use the stack pointer if the node is LoadStackPointer, otherwise assign a
   // register.
   InstructionOperand UseRegisterOrStackPointer(Node* node, bool sp_allowed) {
+    // TODO(jgruber): Remove this once LoadStackPointer has been removed.
     if (sp_allowed && node->opcode() == IrOpcode::kLoadStackPointer)
       return LocationOperand(LocationOperand::EXPLICIT,
                              LocationOperand::REGISTER,
@@ -1014,6 +1015,15 @@ void InstructionSelector::VisitWord64Shl(Node* node) {
   VisitRRO(this, kArm64Lsl, node, kShift64Imm);
 }
 
+void InstructionSelector::VisitStackPointerGreaterThan(
+    Node* node, FlagsContinuation* cont) {
+  Node* const value = node->InputAt(0);
+  InstructionCode opcode = kArchStackPointerGreaterThan;
+
+  Arm64OperandGenerator g(this);
+  EmitWithContinuation(opcode, g.UseRegister(value), cont);
+}
+
 namespace {
 
 bool TryEmitBitfieldExtract32(InstructionSelector* selector, Node* node) {
@@ -1841,6 +1851,7 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
 
+  // TODO(jgruber): Remove this once LoadStackPointer has been removed.
   if (right->opcode() == IrOpcode::kLoadStackPointer ||
       g.CanBeImmediate(left, immediate_mode)) {
     if (!commutative) cont->Commute();
@@ -2481,6 +2492,9 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
       case IrOpcode::kWord64And:
         return VisitWordCompare(this, value, kArm64Tst, cont, true,
                                 kLogical64Imm);
+      case IrOpcode::kStackPointerGreaterThan:
+        cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
+        return VisitStackPointerGreaterThan(value, cont);
       default:
         break;
     }

@@ -89,6 +89,8 @@ MachineType AtomicOpType(Operator const* op) {
   return OpParameter<MachineType>(op);
 }
 
+// The format is:
+// V(Name, properties, value_input_count, control_input_count, output_count)
 #define PURE_BINARY_OP_LIST_32(V)                                           \
   V(Word32And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
   V(Word32Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
@@ -112,6 +114,8 @@ MachineType AtomicOpType(Operator const* op) {
   V(Uint32Mod, Operator::kNoProperties, 2, 1, 1)                            \
   V(Uint32MulHigh, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)
 
+// The format is:
+// V(Name, properties, value_input_count, control_input_count, output_count)
 #define PURE_BINARY_OP_LIST_64(V)                                        \
   V(Word64And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1) \
   V(Word64Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)  \
@@ -133,6 +137,8 @@ MachineType AtomicOpType(Operator const* op) {
   V(Uint64LessThan, Operator::kNoProperties, 2, 0, 1)                    \
   V(Uint64LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)
 
+// The format is:
+// V(Name, properties, value_input_count, control_input_count, output_count)
 #define MACHINE_PURE_OP_LIST(V)                                               \
   PURE_BINARY_OP_LIST_32(V)                                                   \
   PURE_BINARY_OP_LIST_64(V)                                                   \
@@ -385,8 +391,11 @@ MachineType AtomicOpType(Operator const* op) {
   V(S1x8AnyTrue, Operator::kNoProperties, 1, 0, 1)                            \
   V(S1x8AllTrue, Operator::kNoProperties, 1, 0, 1)                            \
   V(S1x16AnyTrue, Operator::kNoProperties, 1, 0, 1)                           \
-  V(S1x16AllTrue, Operator::kNoProperties, 1, 0, 1)
+  V(S1x16AllTrue, Operator::kNoProperties, 1, 0, 1)                           \
+  V(StackPointerGreaterThan, Operator::kNoProperties, 1, 0, 1)
 
+// The format is:
+// V(Name, properties, value_input_count, control_input_count, output_count)
 #define PURE_OPTIONAL_OP_LIST(V)                            \
   V(Word32Ctz, Operator::kNoProperties, 1, 0, 1)            \
   V(Word64Ctz, Operator::kNoProperties, 1, 0, 1)            \
@@ -406,6 +415,8 @@ MachineType AtomicOpType(Operator const* op) {
   V(Float32RoundTiesEven, Operator::kNoProperties, 1, 0, 1) \
   V(Float64RoundTiesEven, Operator::kNoProperties, 1, 0, 1)
 
+// The format is:
+// V(Name, properties, value_input_count, control_input_count, output_count)
 #define OVERFLOW_OP_LIST(V)                                                \
   V(Int32AddWithOverflow, Operator::kAssociative | Operator::kCommutative) \
   V(Int32SubWithOverflow, Operator::kNoProperties)                         \

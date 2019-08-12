@@ -929,6 +929,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ mov(i.OutputRegister(), ebp);
       }
       break;
+    case kArchStackPointerGreaterThan: {
+      constexpr size_t kValueIndex = 0;
+      if (AddressingModeField::decode(instr->opcode()) != kMode_None) {
+        __ cmp(esp, i.MemoryOperand(kValueIndex));
+      } else {
+        __ cmp(esp, i.InputRegister(kValueIndex));
+      }
+      break;
+    }
     case kArchTruncateDoubleToI: {
       auto result = i.OutputRegister();
       auto input = i.InputDoubleRegister(0);

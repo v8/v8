@@ -78,6 +78,7 @@ class ArmOperandGenerator : public OperandGenerator {
   // Use the stack pointer if the node is LoadStackPointer, otherwise assign a
   // register.
   InstructionOperand UseRegisterOrStackPointer(Node* node) {
+    // TODO(jgruber): Remove this once LoadStackPointer has been removed.
     if (node->opcode() == IrOpcode::kLoadStackPointer) {
       return LocationOperand(LocationOperand::EXPLICIT,
                              LocationOperand::REGISTER,
@@ -895,6 +896,15 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
     return;
   }
   VisitBinop(this, node, kArmEor, kArmEor);
+}
+
+void InstructionSelector::VisitStackPointerGreaterThan(
+    Node* node, FlagsContinuation* cont) {
+  Node* const value = node->InputAt(0);
+  InstructionCode opcode = kArchStackPointerGreaterThan;
+
+  ArmOperandGenerator g(this);
+  EmitWithContinuation(opcode, g.UseRegister(value), cont);
 }
 
 namespace {
@@ -1858,6 +1868,9 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
         return VisitShift(this, value, TryMatchLSR, cont);
       case IrOpcode::kWord32Ror:
         return VisitShift(this, value, TryMatchROR, cont);
+      case IrOpcode::kStackPointerGreaterThan:
+        cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
+        return VisitStackPointerGreaterThan(value, cont);
       default:
         break;
     }
