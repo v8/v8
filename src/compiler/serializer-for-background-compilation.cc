@@ -124,7 +124,9 @@ namespace compiler {
   V(JumpIfTrue)                   \
   V(JumpIfTrueConstant)           \
   V(JumpIfUndefined)              \
-  V(JumpIfUndefinedConstant)
+  V(JumpIfUndefinedConstant)      \
+  V(JumpIfUndefinedOrNull)        \
+  V(JumpIfUndefinedOrNullConstant)
 
 #define IGNORED_BYTECODE_LIST(V)      \
   V(CallNoFeedback)                   \
