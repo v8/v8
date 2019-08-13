@@ -837,8 +837,8 @@ bool InstanceBuilder::ProcessImportedFunction(
   }
   auto js_receiver = Handle<JSReceiver>::cast(value);
   FunctionSig* expected_sig = module_->functions[func_index].sig;
-  auto resolved = compiler::ResolveWasmImportCall(js_receiver, expected_sig,
-                                                  enabled_.bigint);
+  auto resolved =
+      compiler::ResolveWasmImportCall(js_receiver, expected_sig, enabled_);
   compiler::WasmImportCallKind kind = resolved.first;
   js_receiver = resolved.second;
   switch (kind) {
@@ -1219,8 +1219,7 @@ void InstanceBuilder::CompileImportWrappers(
     auto js_receiver = Handle<JSReceiver>::cast(value);
     uint32_t func_index = module_->import_table[index].index;
     FunctionSig* sig = module_->functions[func_index].sig;
-    auto resolved =
-        compiler::ResolveWasmImportCall(js_receiver, sig, enabled_.bigint);
+    auto resolved = compiler::ResolveWasmImportCall(js_receiver, sig, enabled_);
     compiler::WasmImportCallKind kind = resolved.first;
     if (kind == compiler::WasmImportCallKind::kWasmToWasm ||
         kind == compiler::WasmImportCallKind::kLinkError ||

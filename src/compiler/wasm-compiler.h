@@ -117,7 +117,7 @@ constexpr WasmImportCallKind kDefaultImportCallKind =
 // another target, which is why the ultimate target is returned as well.
 V8_EXPORT_PRIVATE std::pair<WasmImportCallKind, Handle<JSReceiver>>
 ResolveWasmImportCall(Handle<JSReceiver> callable, wasm::FunctionSig* sig,
-                      bool has_bigint_feature);
+                      const wasm::WasmFeatures& enabled_features);
 
 // Compiles an import call wrapper, which allows WASM to call imports.
 V8_EXPORT_PRIVATE wasm::WasmCompilationResult CompileWasmImportCallWrapper(

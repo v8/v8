@@ -10,6 +10,7 @@
 #include "src/codegen/signature.h"
 #include "src/execution/messages.h"
 #include "src/runtime/runtime.h"
+#include "src/wasm/wasm-features.h"
 
 namespace v8 {
 namespace internal {
@@ -446,12 +447,13 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
   return os;
 }
 
-bool IsJSCompatibleSignature(const FunctionSig* sig, bool has_bigint_feature) {
-  if (!FLAG_experimental_wasm_mv && sig->return_count() > 1) {
+bool IsJSCompatibleSignature(const FunctionSig* sig,
+                             const WasmFeatures& enabled_features) {
+  if (!enabled_features.mv && sig->return_count() > 1) {
     return false;
   }
   for (auto type : sig->all()) {
-    if (!has_bigint_feature && type == kWasmI64) {
+    if (!enabled_features.bigint && type == kWasmI64) {
       return false;
     }
 

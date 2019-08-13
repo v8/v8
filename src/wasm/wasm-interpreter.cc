@@ -3682,7 +3682,7 @@ class ThreadImpl {
     WasmFeatures enabled_features = WasmFeaturesFromIsolate(isolate);
 
     if (code->kind() == WasmCode::kWasmToJsWrapper &&
-        !IsJSCompatibleSignature(sig, enabled_features.bigint)) {
+        !IsJSCompatibleSignature(sig, enabled_features)) {
       Drop(num_args);  // Pop arguments before throwing.
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kWasmTrapTypeError));

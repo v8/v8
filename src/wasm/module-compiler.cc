@@ -1151,8 +1151,7 @@ int AddImportWrapperUnits(NativeModule* native_module,
   int num_imported_functions = native_module->num_imported_functions();
   for (int func_index = 0; func_index < num_imported_functions; func_index++) {
     FunctionSig* sig = native_module->module()->functions[func_index].sig;
-    bool has_bigint_feature = native_module->enabled_features().bigint;
-    if (!IsJSCompatibleSignature(sig, has_bigint_feature)) {
+    if (!IsJSCompatibleSignature(sig, native_module->enabled_features())) {
       continue;
     }
     WasmImportWrapperCache::CacheKey key(compiler::kDefaultImportCallKind, sig);

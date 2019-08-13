@@ -5552,7 +5552,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     instance_node_.set(
         BuildLoadInstanceFromExportedFunctionData(function_data));
 
-    if (!wasm::IsJSCompatibleSignature(sig_, enabled_features_.bigint)) {
+    if (!wasm::IsJSCompatibleSignature(sig_, enabled_features_)) {
       // Throw a TypeError. Use the js_context of the calling javascript
       // function (passed as a parameter), such that the generated code is
       // js_context independent.
@@ -6007,7 +6007,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     undefined_value_node_ = jsgraph()->UndefinedConstant();
 
     // Throw a TypeError if the signature is incompatible with JavaScript.
-    if (!wasm::IsJSCompatibleSignature(sig_, enabled_features_.bigint)) {
+    if (!wasm::IsJSCompatibleSignature(sig_, enabled_features_)) {
       BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError, context,
                                     nullptr, 0, effect_, Control());
       Return(jsgraph()->SmiConstant(0));
@@ -6222,7 +6222,7 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
 
 std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
     Handle<JSReceiver> callable, wasm::FunctionSig* expected_sig,
-    bool has_bigint_feature) {
+    const wasm::WasmFeatures& enabled_features) {
   if (WasmExportedFunction::IsWasmExportedFunction(*callable)) {
     auto imported_function = Handle<WasmExportedFunction>::cast(callable);
     auto func_index = imported_function->function_index();
@@ -6257,7 +6257,7 @@ std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
     return std::make_pair(WasmImportCallKind::kWasmToCapi, callable);
   }
   // Assuming we are calling to JS, check whether this would be a runtime error.
-  if (!wasm::IsJSCompatibleSignature(expected_sig, has_bigint_feature)) {
+  if (!wasm::IsJSCompatibleSignature(expected_sig, enabled_features)) {
     return std::make_pair(WasmImportCallKind::kRuntimeTypeError, callable);
   }
   // For JavaScript calls, determine whether the target has an arity match
