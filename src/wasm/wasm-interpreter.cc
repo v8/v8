@@ -2244,6 +2244,7 @@ class ThreadImpl {
       BINOP_CASE(F64x2Add, f64x2, float2, 2, a + b)
       BINOP_CASE(F64x2Sub, f64x2, float2, 2, a - b)
       BINOP_CASE(F64x2Mul, f64x2, float2, 2, a * b)
+      BINOP_CASE(F64x2Div, f64x2, float2, 2, base::Divide(a, b))
       BINOP_CASE(F64x2Min, f64x2, float2, 2, JSMin(a, b))
       BINOP_CASE(F64x2Max, f64x2, float2, 2, JSMax(a, b))
       BINOP_CASE(F32x4Add, f32x4, float4, 4, a + b)

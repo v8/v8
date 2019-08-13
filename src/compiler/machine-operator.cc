@@ -258,6 +258,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(F64x2Add, Operator::kCommutative, 2, 0, 1)                                \
   V(F64x2Sub, Operator::kNoProperties, 2, 0, 1)                               \
   V(F64x2Mul, Operator::kCommutative, 2, 0, 1)                                \
+  V(F64x2Div, Operator::kNoProperties, 2, 0, 1)                               \
   V(F64x2Min, Operator::kCommutative, 2, 0, 1)                                \
   V(F64x2Max, Operator::kCommutative, 2, 0, 1)                                \
   V(F64x2Eq, Operator::kCommutative, 2, 0, 1)                                 \
