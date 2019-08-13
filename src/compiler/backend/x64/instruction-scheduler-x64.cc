@@ -305,9 +305,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64DecompressSigned:
     case kX64DecompressPointer:
     case kX64DecompressAny:
-    case kX64CompressSigned:
-    case kX64CompressPointer:
-    case kX64CompressAny:
       return (instr->addressing_mode() == kMode_None)
                  ? kNoOpcodeFlags
                  : kIsLoadOperation | kHasSideEffect;

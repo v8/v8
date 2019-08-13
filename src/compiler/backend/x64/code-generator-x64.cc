@@ -2019,12 +2019,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     }
-    case kX64CompressSigned:   // Fall through.
-    case kX64CompressPointer:  // Fall through.
-    case kX64CompressAny: {
-      ASSEMBLE_MOVX(movl);
-      break;
-    }
     case kX64Movq:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
       if (instr->HasOutput()) {
