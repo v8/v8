@@ -314,6 +314,12 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // This operator reinterprets the bits of a word as a Smi.
   const Operator* BitcastWordToTaggedSigned();
 
+  // This operator reinterprets the bits of a word32 as a Compressed Smi.
+  const Operator* BitcastWord32ToCompressedSigned();
+
+  // This operator reinterprets the bits of a Compressed Smi as a word32.
+  const Operator* BitcastCompressedSignedToWord32();
+
   // JavaScript float64 to int32/uint32 truncation.
   const Operator* TruncateFloat64ToWord32();
 

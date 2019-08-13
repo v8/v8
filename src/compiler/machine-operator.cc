@@ -148,6 +148,8 @@ MachineType AtomicOpType(Operator const* op) {
   V(Word64ReverseBytes, Operator::kNoProperties, 1, 0, 1)                     \
   V(BitcastTaggedSignedToWord, Operator::kNoProperties, 1, 0, 1)              \
   V(BitcastWordToTaggedSigned, Operator::kNoProperties, 1, 0, 1)              \
+  V(BitcastWord32ToCompressedSigned, Operator::kNoProperties, 1, 0, 1)        \
+  V(BitcastCompressedSignedToWord32, Operator::kNoProperties, 1, 0, 1)        \
   V(TruncateFloat64ToWord32, Operator::kNoProperties, 1, 0, 1)                \
   V(ChangeFloat32ToFloat64, Operator::kNoProperties, 1, 0, 1)                 \
   V(ChangeFloat64ToInt32, Operator::kNoProperties, 1, 0, 1)                   \

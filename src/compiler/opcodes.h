@@ -674,6 +674,8 @@
   V(BitcastTaggedSignedToWord)              \
   V(BitcastWordToTagged)                    \
   V(BitcastWordToTaggedSigned)              \
+  V(BitcastWord32ToCompressedSigned)        \
+  V(BitcastCompressedSignedToWord32)        \
   V(TruncateFloat64ToWord32)                \
   V(ChangeFloat32ToFloat64)                 \
   V(ChangeFloat64ToInt32)                   \

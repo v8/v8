@@ -1804,6 +1804,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kBitcastTaggedSignedToWord:
     case IrOpcode::kBitcastWordToTagged:
     case IrOpcode::kBitcastWordToTaggedSigned:
+    case IrOpcode::kBitcastWord32ToCompressedSigned:
+    case IrOpcode::kBitcastCompressedSignedToWord32:
     case IrOpcode::kChangeInt32ToInt64:
     case IrOpcode::kChangeUint32ToUint64:
     case IrOpcode::kChangeTaggedToCompressed:

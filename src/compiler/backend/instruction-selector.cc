@@ -1506,6 +1506,12 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kBitcastWordToTaggedSigned:
       return MarkAsRepresentation(MachineRepresentation::kTaggedSigned, node),
              EmitIdentity(node);
+    case IrOpcode::kBitcastWord32ToCompressedSigned:
+      return MarkAsRepresentation(MachineRepresentation::kCompressedSigned,
+                                  node),
+             EmitIdentity(node);
+    case IrOpcode::kBitcastCompressedSignedToWord32:
+      return MarkAsWord32(node), EmitIdentity(node);
     case IrOpcode::kChangeFloat32ToFloat64:
       return MarkAsFloat64(node), VisitChangeFloat32ToFloat64(node);
     case IrOpcode::kChangeInt32ToFloat64:

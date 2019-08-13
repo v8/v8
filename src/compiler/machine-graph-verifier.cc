@@ -245,6 +245,13 @@ class MachineRepresentationInferrer {
             representation_vector_[node->id()] =
                 MachineRepresentation::kTaggedSigned;
             break;
+          case IrOpcode::kBitcastWord32ToCompressedSigned:
+            representation_vector_[node->id()] =
+                MachineRepresentation::kCompressedSigned;
+            break;
+          case IrOpcode::kBitcastCompressedSignedToWord32:
+            representation_vector_[node->id()] = MachineRepresentation::kWord32;
+            break;
           case IrOpcode::kWord32Equal:
           case IrOpcode::kInt32LessThan:
           case IrOpcode::kInt32LessThanOrEqual:
@@ -429,6 +436,13 @@ class MachineRepresentationChecker {
           case IrOpcode::kBitcastTaggedSignedToWord:
           case IrOpcode::kTaggedPoisonOnSpeculation:
             CheckValueInputIsTagged(node, 0);
+            break;
+          case IrOpcode::kBitcastWord32ToCompressedSigned:
+            CheckValueInputRepresentationIs(node, 0,
+                                            MachineRepresentation::kWord32);
+            break;
+          case IrOpcode::kBitcastCompressedSignedToWord32:
+            CheckValueInputIsCompressed(node, 0);
             break;
           case IrOpcode::kTruncateFloat64ToWord32:
           case IrOpcode::kTruncateFloat64ToUint32:
