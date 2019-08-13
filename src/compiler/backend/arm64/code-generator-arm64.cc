@@ -1598,12 +1598,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ DecompressAnyTagged(i.OutputRegister(), i.InputRegister(0));
       break;
     }
-    case kArm64CompressSigned:   // Fall through.
-    case kArm64CompressPointer:  // Fall through.
-    case kArm64CompressAny: {
-      __ Uxtw(i.OutputRegister(), i.InputRegister(0));
-      break;
-    }
     case kArm64LdrS:
       __ Ldr(i.OutputDoubleRegister().S(), i.MemoryOperand());
       break;

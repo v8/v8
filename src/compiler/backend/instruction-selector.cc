@@ -2969,7 +2969,6 @@ void InstructionSelector::VisitTrapUnless(Node* node, TrapId trap_id) {
 }
 
 void InstructionSelector::EmitIdentity(Node* node) {
-  OperandGenerator g(this);
   MarkAsUsed(node->InputAt(0));
   SetRename(node, node->InputAt(0));
 }

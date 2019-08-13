@@ -1632,23 +1632,23 @@ void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
 }
 
 void InstructionSelector::VisitChangeTaggedToCompressed(Node* node) {
-  Arm64OperandGenerator g(this);
-  Node* value = node->InputAt(0);
-  Emit(kArm64CompressAny, g.DefineAsRegister(node), g.UseRegister(value));
+  // The top 32 bits in the 64-bit register will be undefined, and
+  // must not be used by a dependent node.
+  EmitIdentity(node);
 }
 
 void InstructionSelector::VisitChangeTaggedPointerToCompressedPointer(
     Node* node) {
-  Arm64OperandGenerator g(this);
-  Node* value = node->InputAt(0);
-  Emit(kArm64CompressPointer, g.DefineAsRegister(node), g.UseRegister(value));
+  // The top 32 bits in the 64-bit register will be undefined, and
+  // must not be used by a dependent node.
+  EmitIdentity(node);
 }
 
 void InstructionSelector::VisitChangeTaggedSignedToCompressedSigned(
     Node* node) {
-  Arm64OperandGenerator g(this);
-  Node* value = node->InputAt(0);
-  Emit(kArm64CompressSigned, g.DefineAsRegister(node), g.UseRegister(value));
+  // The top 32 bits in the 64-bit register will be undefined, and
+  // must not be used by a dependent node.
+  EmitIdentity(node);
 }
 
 void InstructionSelector::VisitChangeCompressedToTagged(Node* node) {
