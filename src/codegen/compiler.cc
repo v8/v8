@@ -410,6 +410,12 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
     DCHECK(!compilation_info->has_asm_wasm_data());
     DCHECK(!shared_info->HasFeedbackMetadata());
 
+    // If the function failed asm-wasm compilation, mark asm_wasm as broken
+    // to ensure we don't try to compile as asm-wasm.
+    if (compilation_info->literal()->scope()->IsAsmModule()) {
+      shared_info->set_is_asm_wasm_broken(true);
+    }
+
     InstallBytecodeArray(compilation_info->bytecode_array(), shared_info,
                          parse_info, isolate);
 
