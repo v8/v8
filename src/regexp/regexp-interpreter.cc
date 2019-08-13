@@ -377,9 +377,9 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate, ByteArray code_array,
       IrregexpInterpreter::Result return_code =
           HandleInterrupts(isolate, call_origin, &code_array, &subject_string,
                            &code_base, &subject, &pc);
-      SET_PC_FROM_OFFSET(backtrack_stack.pop());
       if (return_code != IrregexpInterpreter::SUCCESS) return return_code;
 
+      SET_PC_FROM_OFFSET(backtrack_stack.pop());
       DISPATCH();
     }
     BYTECODE(POP_REGISTER) {
