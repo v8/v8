@@ -471,7 +471,7 @@
   'language/statements/async-generator/generator-created-after-decl-inst': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9611
-  'language/statements/class/elements/prviate-field-is-visible-in-computed-properties': [SKIP],
+  'language/statements/class/elements/private-field-is-visible-in-computed-properties': [SKIP],
 
   # https://github.com/tc39/test262/issues/2034
   'language/expressions/postfix-decrement/arguments': [SKIP],
