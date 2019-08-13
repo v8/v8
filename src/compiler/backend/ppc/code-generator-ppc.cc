@@ -1128,7 +1128,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchStackPointerGreaterThan: {
       constexpr size_t kValueIndex = 0;
       DCHECK(instr->InputAt(kValueIndex)->IsRegister());
-      __ cmpl(sp, i.InputRegister(kValueIndex));
+      __ cmpl(sp, i.InputRegister(kValueIndex), cr0);
       break;
     }
     case kArchTruncateDoubleToI:
