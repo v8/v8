@@ -78,13 +78,14 @@ struct UnobservableStore {
   NodeId id_;
   StoreOffset offset_;
 
-  bool operator==(const UnobservableStore) const;
-  bool operator<(const UnobservableStore) const;
+  bool operator==(const UnobservableStore other) const {
+    return (id_ == other.id_) && (offset_ == other.offset_);
+  }
+
+  bool operator<(const UnobservableStore other) const {
+    return (id_ < other.id_) || (id_ == other.id_ && offset_ < other.offset_);
+  }
 };
-
-}  // namespace
-
-namespace {
 
 // Instances of UnobservablesSet are immutable. They represent either a set of
 // UnobservableStores, or the "unvisited empty set".
@@ -98,12 +99,11 @@ namespace {
 // an UnobservablesSet allocates no memory.
 class UnobservablesSet final {
  public:
-  static UnobservablesSet Unvisited();
+  static UnobservablesSet Unvisited() { return UnobservablesSet(); }
   static UnobservablesSet VisitedEmpty(Zone* zone);
-  UnobservablesSet();  // unvisited
   UnobservablesSet(const UnobservablesSet& other) V8_NOEXCEPT = default;
-
-  UnobservablesSet Intersect(const UnobservablesSet& other, Zone* zone) const;
+  UnobservablesSet Intersect(const UnobservablesSet& other,
+                             const UnobservablesSet& empty, Zone* zone) const;
   UnobservablesSet Add(UnobservableStore obs, Zone* zone) const;
   UnobservablesSet RemoveSameOffset(StoreOffset off, Zone* zone) const;
 
@@ -115,18 +115,25 @@ class UnobservablesSet final {
     return set_ != nullptr && (set_->find(obs) != set_->end());
   }
 
-  bool operator==(const UnobservablesSet&) const;
-  bool operator!=(const UnobservablesSet&) const;
+  bool operator==(const UnobservablesSet& other) const {
+    if (IsUnvisited() || other.IsUnvisited()) {
+      return IsUnvisited() && other.IsUnvisited();
+    } else {
+      // Both pointers guaranteed not to be nullptrs.
+      return *set() == *(other.set());
+    }
+  }
+
+  bool operator!=(const UnobservablesSet& other) const {
+    return !(*this == other);
+  }
 
  private:
+  UnobservablesSet();
   explicit UnobservablesSet(const ZoneSet<UnobservableStore>* set)
       : set_(set) {}
   const ZoneSet<UnobservableStore>* set_;
 };
-
-}  // namespace
-
-namespace {
 
 class RedundantStoreFinder final {
  public:
@@ -226,7 +233,6 @@ void StoreStoreElimination::Run(JSGraph* js_graph, TickCounter* tick_counter,
   finder.Find();
 
   // Remove superfluous nodes
-
   for (Node* node : finder.to_remove_const()) {
     if (FLAG_trace_store_elimination) {
       PrintF("StoreStoreElimination::Run: Eliminating node #%d:%s\n",
@@ -241,7 +247,6 @@ void StoreStoreElimination::Run(JSGraph* js_graph, TickCounter* tick_counter,
 
 // Recompute unobservables-set for a node. Will also mark superfluous nodes
 // as to be removed.
-
 UnobservablesSet RedundantStoreFinder::RecomputeSet(
     Node* node, const UnobservablesSet& uses) {
   switch (node->op()->opcode()) {
@@ -280,7 +285,6 @@ UnobservablesSet RedundantStoreFinder::RecomputeSet(
           loaded_from->id(), offset);
 
       return uses.RemoveSameOffset(offset, temp_zone());
-      break;
     }
     default:
       if (CannotObserveStoreField(node)) {
@@ -335,13 +339,11 @@ void RedundantStoreFinder::Visit(Node* node) {
     }
   }
 
-  bool isEffectful = (node->op()->EffectInputCount() >= 1);
-  if (isEffectful) {
+  bool is_effectful = node->op()->EffectInputCount() >= 1;
+  if (is_effectful) {
     VisitEffectfulNode(node);
     DCHECK(HasBeenVisited(node));
-  }
-
-  if (!HasBeenVisited(node)) {
+  } else if (!HasBeenVisited(node)) {
     // Mark as visited.
     unobservable_for_id(node->id()) = unobservables_visited_empty_;
   }
@@ -357,7 +359,7 @@ void RedundantStoreFinder::VisitEffectfulNode(Node* node) {
 
   UnobservablesSet stored_for_node = unobservable_for_id(node->id());
   bool cur_set_changed =
-      (stored_for_node.IsUnvisited() || stored_for_node != before_set);
+      stored_for_node.IsUnvisited() || stored_for_node != before_set;
   if (!cur_set_changed) {
     // We will not be able to update the part of this chain above any more.
     // Exit.
@@ -380,35 +382,9 @@ void RedundantStoreFinder::VisitEffectfulNode(Node* node) {
 //
 // The result UnobservablesSet will always be visited.
 UnobservablesSet RedundantStoreFinder::RecomputeUseIntersection(Node* node) {
-  // {first} == true indicates that we haven't looked at any elements yet.
-  // {first} == false indicates that cur_set is the intersection of at least one
-  // thing.
-
-  bool first = true;
-  UnobservablesSet cur_set = UnobservablesSet::Unvisited();  // irrelevant
-
-  for (Edge edge : node->use_edges()) {
-    // Skip non-effect edges
-    if (!NodeProperties::IsEffectEdge(edge)) {
-      continue;
-    }
-
-    Node* use = edge.from();
-    UnobservablesSet new_set = unobservable_for_id(use->id());
-    // Include new_set in the intersection.
-    if (first) {
-      // Intersection of a one-element set is that one element
-      first = false;
-      cur_set = new_set;
-    } else {
-      // Take the intersection of cur_set and new_set.
-      cur_set = cur_set.Intersect(new_set, temp_zone());
-    }
-  }
-
-  if (first) {
-    // There were no effect uses.
-    auto opcode = node->op()->opcode();
+  // There were no effect uses.
+  if (node->op()->EffectOutputCount() == 0) {
+    IrOpcode::Value opcode = node->opcode();
     // List of opcodes that may end this effect chain. The opcodes are not
     // important to the soundness of this optimization; this serves as a
     // general sanity check. Add opcodes to this list as it suits you.
@@ -418,38 +394,64 @@ UnobservablesSet RedundantStoreFinder::RecomputeUseIntersection(Node* node) {
         opcode == IrOpcode::kReturn || opcode == IrOpcode::kTerminate ||
             opcode == IrOpcode::kDeoptimize || opcode == IrOpcode::kThrow,
         "for #%d:%s", node->id(), node->op()->mnemonic());
-    USE(opcode);  // silence warning about unused variable in release mode
+    USE(opcode);
 
     return unobservables_visited_empty_;
-  } else {
-    if (cur_set.IsUnvisited()) {
-      cur_set = unobservables_visited_empty_;
+  }
+
+  // {first} == true indicates that we haven't looked at any elements yet.
+  // {first} == false indicates that cur_set is the intersection of at least one
+  // thing.
+  bool first = true;
+  UnobservablesSet cur_set = UnobservablesSet::Unvisited();  // irrelevant
+  for (Edge edge : node->use_edges()) {
+    // Skip non-effect edges
+    if (!NodeProperties::IsEffectEdge(edge)) {
+      continue;
     }
 
-    return cur_set;
-  }
-}
+    // Intersect with the new use node.
+    Node* use = edge.from();
+    UnobservablesSet new_set = unobservable_for_id(use->id());
+    if (first) {
+      first = false;
+      cur_set = new_set;
+      if (cur_set.IsUnvisited()) {
+        cur_set = unobservables_visited_empty_;
+      }
+    } else {
+      cur_set =
+          cur_set.Intersect(new_set, unobservables_visited_empty_, temp_zone());
+    }
 
-UnobservablesSet UnobservablesSet::Unvisited() { return UnobservablesSet(); }
+    // Break fast for the empty set since the intersection will always be empty.
+    if (cur_set.IsEmpty()) {
+      break;
+    }
+  }
+
+  DCHECK(!cur_set.IsUnvisited());
+  return cur_set;
+}
 
 UnobservablesSet::UnobservablesSet() : set_(nullptr) {}
 
+// Create a new empty UnobservablesSet. This allocates in the zone, and
+// can probably be optimized to use a global singleton.
 UnobservablesSet UnobservablesSet::VisitedEmpty(Zone* zone) {
-  // Create a new empty UnobservablesSet. This allocates in the zone, and
-  // can probably be optimized to use a global singleton.
   ZoneSet<UnobservableStore>* empty_set =
       new (zone->New(sizeof(ZoneSet<UnobservableStore>)))
           ZoneSet<UnobservableStore>(zone);
   return UnobservablesSet(empty_set);
 }
 
-// Computes the intersection of two UnobservablesSets. May return
-// UnobservablesSet::Unvisited() instead of an empty UnobservablesSet for
-// speed.
+// Computes the intersection of two UnobservablesSets. If one of the sets is
+// empty, will return empty.
 UnobservablesSet UnobservablesSet::Intersect(const UnobservablesSet& other,
+                                             const UnobservablesSet& empty,
                                              Zone* zone) const {
   if (IsEmpty() || other.IsEmpty()) {
-    return Unvisited();
+    return empty;
   } else {
     ZoneSet<UnobservableStore>* intersection =
         new (zone->New(sizeof(ZoneSet<UnobservableStore>)))
@@ -465,8 +467,8 @@ UnobservablesSet UnobservablesSet::Intersect(const UnobservablesSet& other,
 
 UnobservablesSet UnobservablesSet::Add(UnobservableStore obs,
                                        Zone* zone) const {
-  bool present = (set()->find(obs) != set()->end());
-  if (present) {
+  bool found = set()->find(obs) != set()->end();
+  if (found) {
     return *this;
   } else {
     // Make a new empty set.
@@ -498,29 +500,6 @@ UnobservablesSet UnobservablesSet::RemoveSameOffset(StoreOffset offset,
   }
 
   return UnobservablesSet(new_set);
-}
-
-// Used for debugging.
-bool UnobservablesSet::operator==(const UnobservablesSet& other) const {
-  if (IsUnvisited() || other.IsUnvisited()) {
-    return IsEmpty() && other.IsEmpty();
-  } else {
-    // Both pointers guaranteed not to be nullptrs.
-    return *set() == *other.set();
-  }
-}
-
-bool UnobservablesSet::operator!=(const UnobservablesSet& other) const {
-  return !(*this == other);
-}
-
-bool UnobservableStore::operator==(const UnobservableStore other) const {
-  return (id_ == other.id_) && (offset_ == other.offset_);
-}
-
-
-bool UnobservableStore::operator<(const UnobservableStore other) const {
-  return (id_ < other.id_) || (id_ == other.id_ && offset_ < other.offset_);
 }
 
 #undef TRACE
