@@ -173,8 +173,8 @@ void PagedSpace::UnlinkFreeListCategories(Page* page) {
   DCHECK_EQ(this, page->owner());
   page->ForAllFreeListCategories([this](FreeListCategory* category) {
     DCHECK_EQ(free_list(), category->owner());
-    category->set_free_list(nullptr);
     free_list()->RemoveCategory(category);
+    category->set_free_list(nullptr);
   });
 }
 
@@ -320,6 +320,12 @@ FreeList* FreeListCategory::owner() { return free_list_; }
 bool FreeListCategory::is_linked() {
   return prev_ != nullptr || next_ != nullptr ||
          free_list_->categories_[type_] == this;
+}
+
+void FreeListCategory::UpdateCountersAfterAllocation(size_t allocation_size) {
+  available_ -= allocation_size;
+  length_--;
+  free_list_->DecreaseAvailableBytes(allocation_size);
 }
 
 AllocationResult LocalAllocationBuffer::AllocateRawAligned(

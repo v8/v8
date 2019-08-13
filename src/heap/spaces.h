@@ -190,6 +190,10 @@ class FreeListCategory {
   // {kVeryLongFreeList} by manually walking the list.
   static const int kVeryLongFreeList = 500;
 
+  // Updates |available_|, |length_| and free_list_->Available() after an
+  // allocation of size |allocation_size|.
+  inline void UpdateCountersAfterAllocation(size_t allocation_size);
+
   FreeSpace top() { return top_; }
   void set_top(FreeSpace top) { top_ = top; }
   FreeListCategory* prev() { return prev_; }
@@ -266,12 +270,13 @@ class FreeList {
 
   // Return the number of bytes available on the free list.
   size_t Available() {
-    size_t available = 0;
-    ForAllFreeListCategories([&available](FreeListCategory* category) {
-      available += category->available();
-    });
-    return available;
+    DCHECK(available_ == SumFreeLists());
+    return available_;
   }
+
+  // Update number of available  bytes on the Freelists.
+  void IncreaseAvailableBytes(size_t bytes) { available_ += bytes; }
+  void DecreaseAvailableBytes(size_t bytes) { available_ -= bytes; }
 
   bool IsEmpty() {
     bool empty = true;
@@ -313,11 +318,6 @@ class FreeList {
   V8_EXPORT_PRIVATE void RemoveCategory(FreeListCategory* category);
   void PrintCategories(FreeListCategoryType type);
 
-#ifdef DEBUG
-  size_t SumFreeLists();
-  bool IsVeryLong();
-#endif
-
  protected:
   class FreeListCategoryIterator final {
    public:
@@ -336,6 +336,11 @@ class FreeList {
    private:
     FreeListCategory* current_;
   };
+
+#ifdef DEBUG
+  V8_EXPORT_PRIVATE size_t SumFreeLists();
+  bool IsVeryLong();
+#endif
 
   // Tries to retrieve a node from the first category in a given |type|.
   // Returns nullptr if the category is empty or the top entry is smaller
@@ -366,6 +371,9 @@ class FreeList {
 
   std::atomic<size_t> wasted_bytes_{0};
   FreeListCategory** categories_ = nullptr;
+
+  // |available_|: The number of bytes in this freelist.
+  std::atomic<size_t> available_{0};
 
   friend class FreeListCategory;
   friend class Page;
@@ -3039,6 +3047,8 @@ class ReadOnlySpace : public PagedSpace {
   // During boot the free_space_map is created, and afterwards we may need
   // to write it into the free list nodes that were already created.
   void RepairFreeListsAfterDeserialization();
+
+  size_t Available() override { return 0; }
 
  private:
   // Unseal the space after is has been sealed, by making it writable.

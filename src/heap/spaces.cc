@@ -1991,7 +1991,6 @@ bool PagedSpace::RefillLinearAllocationAreaFromFreeList(size_t size_in_bytes) {
   size_t new_node_size = 0;
   FreeSpace new_node = free_list_->Allocate(size_in_bytes, &new_node_size);
   if (new_node.is_null()) return false;
-
   DCHECK_GE(new_node_size, size_in_bytes);
 
   // The old-space-step might have finished sweeping and restarted marking.
@@ -2912,6 +2911,9 @@ size_t NewSpace::CommittedPhysicalMemory() {
 
 
 void FreeListCategory::Reset() {
+  if (is_linked() && !top().is_null()) {
+    owner()->DecreaseAvailableBytes(available_);
+  }
   set_top(FreeSpace());
   set_prev(nullptr);
   set_next(nullptr);
@@ -2930,8 +2932,7 @@ FreeSpace FreeListCategory::PickNodeFromList(size_t minimum_size,
   }
   set_top(node.next());
   *node_size = node.Size();
-  available_ -= *node_size;
-  length_--;
+  UpdateCountersAfterAllocation(*node_size);
   return node;
 }
 
@@ -2944,8 +2945,7 @@ FreeSpace FreeListCategory::SearchForNodeInList(size_t minimum_size,
     size_t size = cur_node.size();
     if (size >= minimum_size) {
       DCHECK_GE(available_, size);
-      available_ -= size;
-      length_--;
+      UpdateCountersAfterAllocation(size);
       if (cur_node == top()) {
         set_top(cur_node.next());
       }
@@ -2972,8 +2972,12 @@ void FreeListCategory::Free(Address start, size_t size_in_bytes,
   set_top(free_space);
   available_ += size_in_bytes;
   length_++;
-  if ((mode == kLinkCategory) && !is_linked()) {
-    owner()->AddCategory(this);
+  if (mode == kLinkCategory) {
+    if (is_linked()) {
+      owner()->IncreaseAvailableBytes(size_in_bytes);
+    } else {
+      owner()->AddCategory(this);
+    }
   }
 }
 
@@ -3278,6 +3282,7 @@ void FreeList::Reset() {
     categories_[i] = nullptr;
   }
   wasted_bytes_ = 0;
+  available_ = 0;
 }
 
 size_t FreeList::EvictFreeListItems(Page* page) {
@@ -3321,6 +3326,8 @@ bool FreeList::AddCategory(FreeListCategory* category) {
   }
   category->set_next(top);
   categories_[type] = category;
+
+  IncreaseAvailableBytes(category->available());
   return true;
 }
 
@@ -3328,6 +3335,10 @@ void FreeList::RemoveCategory(FreeListCategory* category) {
   FreeListCategoryType type = category->type_;
   DCHECK_LT(type, number_of_categories_);
   FreeListCategory* top = categories_[type];
+
+  if (category->is_linked()) {
+    DecreaseAvailableBytes(category->available());
+  }
 
   // Common double-linked list removal.
   if (top == category) {
