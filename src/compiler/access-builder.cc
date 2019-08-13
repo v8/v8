@@ -90,6 +90,16 @@ FieldAccess AccessBuilder::ForJSObjectPropertiesOrHash() {
 }
 
 // static
+FieldAccess AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer() {
+  FieldAccess access = {
+      kTaggedBase,          JSObject::kPropertiesOrHashOffset,
+      MaybeHandle<Name>(),  MaybeHandle<Map>(),
+      Type::Any(),          MachineType::TypeCompressedTaggedPointer(),
+      kPointerWriteBarrier, LoadSensitivity::kCritical};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForJSObjectElements() {
   FieldAccess access = {
       kTaggedBase,          JSObject::kElementsOffset,
@@ -292,7 +302,7 @@ FieldAccess AccessBuilder::ForJSGeneratorObjectParametersAndRegisters() {
   FieldAccess access = {
       kTaggedBase,         JSGeneratorObject::kParametersAndRegistersOffset,
       Handle<Name>(),      MaybeHandle<Map>(),
-      Type::Internal(),    MachineType::TypeCompressedTagged(),
+      Type::Internal(),    MachineType::TypeCompressedTaggedPointer(),
       kPointerWriteBarrier};
   return access;
 }
@@ -861,6 +871,19 @@ FieldAccess AccessBuilder::ForContextSlot(size_t index) {
                         Handle<Name>(),   MaybeHandle<Map>(),
                         Type::Any(),      MachineType::TypeCompressedTagged(),
                         kFullWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForContextSlotKnownPointer(size_t index) {
+  int offset = Context::OffsetOfElementAt(static_cast<int>(index));
+  DCHECK_EQ(offset,
+            Context::SlotOffset(static_cast<int>(index)) + kHeapObjectTag);
+  FieldAccess access = {
+      kTaggedBase,         offset,
+      Handle<Name>(),      MaybeHandle<Map>(),
+      Type::Any(),         MachineType::TypeCompressedTaggedPointer(),
+      kPointerWriteBarrier};
   return access;
 }
 

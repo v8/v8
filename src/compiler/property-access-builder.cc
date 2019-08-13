@@ -199,7 +199,8 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
   Node* storage = ResolveHolder(access_info, receiver);
   if (!field_index.is_inobject()) {
     storage = *effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSObjectPropertiesOrHash()),
+        simplified()->LoadField(
+            AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer()),
         storage, *effect, *control);
   }
   PropertyConstness constness = access_info.IsDataConstant()

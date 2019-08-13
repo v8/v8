@@ -114,7 +114,7 @@ TEST(DisasmPoisonPolymorphicLoad) {
       "csel " + kPReg + ", xzr, " + kPReg + ", ne",      // update the poison
       "csdb",                                            // spec. barrier
       "ldursw x<<BSt:[0-9]+>>, \\[<<Obj>>, #[0-9]+\\]",  // load backing store
-      "tbz w<<BSt>>, #0, #\\+0x8",                       // branchful decompress
+                                                         // branchful decompress
       "add x<<BSt>>, x26, x<<BSt>>",                     // Add root to ref
       "and x<<BSt>>, x<<BSt>>, " + kPReg,                // apply the poison
       "ldur w<<Prop:[0-9]+>>, \\[x<<BSt>>, #[0-9]+\\]",  // load the property

@@ -54,6 +54,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSObject::properties() field.
   static FieldAccess ForJSObjectPropertiesOrHash();
 
+  // Provides access to JSObject::properties() field for known pointers.
+  static FieldAccess ForJSObjectPropertiesOrHashKnownPointer();
+
   // Provides access to JSObject::elements() field.
   static FieldAccess ForJSObjectElements();
 
@@ -270,6 +273,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
   // Provides access to Context slots.
   static FieldAccess ForContextSlot(size_t index);
+
+  // Provides access to Context slots that are known to be pointers.
+  static FieldAccess ForContextSlotKnownPointer(size_t index);
 
   // Provides access to FixedArray elements.
   static ElementAccess ForFixedArrayElement();

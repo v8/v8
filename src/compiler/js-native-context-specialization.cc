@@ -2227,7 +2227,8 @@ JSNativeContextSpecialization::BuildPropertyStore(
     Node* storage = receiver;
     if (!field_index.is_inobject()) {
       storage = effect = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForJSObjectPropertiesOrHash()),
+          simplified()->LoadField(
+              AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer()),
           storage, effect, control);
     }
     PropertyConstness constness = access_info.IsDataConstant()
@@ -2386,7 +2387,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
                                   storage, value, effect, control);
 
         // Atomically switch to the new properties below.
-        field_access = AccessBuilder::ForJSObjectPropertiesOrHash();
+        field_access = AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer();
         value = storage;
         storage = receiver;
       }

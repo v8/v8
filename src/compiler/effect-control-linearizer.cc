@@ -4778,8 +4778,8 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
     // The {index} is equal to the negated out of property index plus 1.
     __ Bind(&if_outofobject);
     {
-      Node* properties =
-          __ LoadField(AccessBuilder::ForJSObjectPropertiesOrHash(), object);
+      Node* properties = __ LoadField(
+          AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer(), object);
       Node* offset =
           __ IntAdd(__ WordShl(__ IntSub(zero, index),
                                __ IntPtrConstant(kTaggedSizeLog2 - 1)),
@@ -4821,8 +4821,8 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
 
     __ Bind(&if_outofobject);
     {
-      Node* properties =
-          __ LoadField(AccessBuilder::ForJSObjectPropertiesOrHash(), object);
+      Node* properties = __ LoadField(
+          AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer(), object);
       Node* offset =
           __ IntAdd(__ WordShl(__ IntSub(zero, index),
                                __ IntPtrConstant(kTaggedSizeLog2)),

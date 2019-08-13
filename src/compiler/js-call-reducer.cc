@@ -1742,7 +1742,8 @@ Reduction JSCallReducer::ReduceArrayFilter(
                 Type::Array());
     ab.Store(AccessBuilder::ForMap(), initial_map);
     Node* empty_fixed_array = jsgraph()->EmptyFixedArrayConstant();
-    ab.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), empty_fixed_array);
+    ab.Store(AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer(),
+             empty_fixed_array);
     ab.Store(AccessBuilder::ForJSObjectElements(), empty_fixed_array);
     ab.Store(AccessBuilder::ForJSArrayLength(packed_kind),
              jsgraph()->ZeroConstant());
