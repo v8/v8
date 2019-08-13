@@ -3463,7 +3463,8 @@ CellRef SourceTextModuleRef::GetCell(int cell_index) const {
   return CellRef(broker(), data()->AsSourceTextModule()->GetCell(cell_index));
 }
 
-ObjectRef::ObjectRef(JSHeapBroker* broker, Handle<Object> object)
+ObjectRef::ObjectRef(JSHeapBroker* broker, Handle<Object> object,
+                     bool check_type)
     : broker_(broker) {
   switch (broker->mode()) {
     case JSHeapBroker::kSerialized:
