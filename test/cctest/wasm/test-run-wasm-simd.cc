@@ -1110,62 +1110,6 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Abs) {
 WASM_SIMD_TEST_NO_LOWERING(F64x2Neg) {
   RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2Neg, Negate);
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
-
-#if V8_TARGET_ARCH_X64
-void RunF64x2CompareOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
-                           WasmOpcode opcode, DoubleCompareOp expected_op) {
-  WasmRunner<int32_t, double, double> r(execution_tier, lower_simd);
-  // Set up global to hold mask output.
-  int64_t* g = r.builder().AddGlobal<int64_t>(kWasmS128);
-  // Build fn to splat test values, perform compare op, and write the result.
-  byte value1 = 0, value2 = 1;
-  byte temp1 = r.AllocateLocal(kWasmS128);
-  byte temp2 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(value1))),
-        WASM_SET_LOCAL(temp2, WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(value2))),
-        WASM_SET_GLOBAL(0, WASM_SIMD_BINOP(opcode, WASM_GET_LOCAL(temp1),
-                                           WASM_GET_LOCAL(temp2))),
-        WASM_ONE);
-
-  FOR_FLOAT64_INPUTS(x) {
-    if (!PlatformCanRepresent(x)) continue;
-    FOR_FLOAT64_INPUTS(y) {
-      if (!PlatformCanRepresent(y)) continue;
-      double diff = x - y;  // Model comparison as subtraction.
-      if (!PlatformCanRepresent(diff)) continue;
-      r.Call(x, y);
-      int64_t expected = expected_op(x, y);
-      for (int i = 0; i < 2; i++) {
-        CHECK_EQ(expected, ReadLittleEndianValue<int64_t>(&g[i]));
-      }
-    }
-  }
-}
-
-WASM_SIMD_TEST_NO_LOWERING(F64x2Eq) {
-  RunF64x2CompareOpTest(execution_tier, lower_simd, kExprF64x2Eq, Equal);
-}
-
-WASM_SIMD_TEST_NO_LOWERING(F64x2Ne) {
-  RunF64x2CompareOpTest(execution_tier, lower_simd, kExprF64x2Ne, NotEqual);
-}
-
-WASM_SIMD_TEST_NO_LOWERING(F64x2Gt) {
-  RunF64x2CompareOpTest(execution_tier, lower_simd, kExprF64x2Gt, Greater);
-}
-
-WASM_SIMD_TEST_NO_LOWERING(F64x2Ge) {
-  RunF64x2CompareOpTest(execution_tier, lower_simd, kExprF64x2Ge, GreaterEqual);
-}
-
-WASM_SIMD_TEST_NO_LOWERING(F64x2Lt) {
-  RunF64x2CompareOpTest(execution_tier, lower_simd, kExprF64x2Lt, Less);
-}
-
-WASM_SIMD_TEST_NO_LOWERING(F64x2Le) {
-  RunF64x2CompareOpTest(execution_tier, lower_simd, kExprF64x2Le, LessEqual);
-}
 
 void RunF64x2BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                        WasmOpcode opcode, DoubleBinOp expected_op) {
@@ -1226,6 +1170,62 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Mul) {
 
 WASM_SIMD_TEST_NO_LOWERING(F64x2Div) {
   RunF64x2BinOpTest(execution_tier, lower_simd, kExprF64x2Div, Div);
+}
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+
+#if V8_TARGET_ARCH_X64
+void RunF64x2CompareOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
+                           WasmOpcode opcode, DoubleCompareOp expected_op) {
+  WasmRunner<int32_t, double, double> r(execution_tier, lower_simd);
+  // Set up global to hold mask output.
+  int64_t* g = r.builder().AddGlobal<int64_t>(kWasmS128);
+  // Build fn to splat test values, perform compare op, and write the result.
+  byte value1 = 0, value2 = 1;
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  byte temp2 = r.AllocateLocal(kWasmS128);
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(value1))),
+        WASM_SET_LOCAL(temp2, WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(value2))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_BINOP(opcode, WASM_GET_LOCAL(temp1),
+                                           WASM_GET_LOCAL(temp2))),
+        WASM_ONE);
+
+  FOR_FLOAT64_INPUTS(x) {
+    if (!PlatformCanRepresent(x)) continue;
+    FOR_FLOAT64_INPUTS(y) {
+      if (!PlatformCanRepresent(y)) continue;
+      double diff = x - y;  // Model comparison as subtraction.
+      if (!PlatformCanRepresent(diff)) continue;
+      r.Call(x, y);
+      int64_t expected = expected_op(x, y);
+      for (int i = 0; i < 2; i++) {
+        CHECK_EQ(expected, ReadLittleEndianValue<int64_t>(&g[i]));
+      }
+    }
+  }
+}
+
+WASM_SIMD_TEST_NO_LOWERING(F64x2Eq) {
+  RunF64x2CompareOpTest(execution_tier, lower_simd, kExprF64x2Eq, Equal);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(F64x2Ne) {
+  RunF64x2CompareOpTest(execution_tier, lower_simd, kExprF64x2Ne, NotEqual);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(F64x2Gt) {
+  RunF64x2CompareOpTest(execution_tier, lower_simd, kExprF64x2Gt, Greater);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(F64x2Ge) {
+  RunF64x2CompareOpTest(execution_tier, lower_simd, kExprF64x2Ge, GreaterEqual);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(F64x2Lt) {
+  RunF64x2CompareOpTest(execution_tier, lower_simd, kExprF64x2Lt, Less);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(F64x2Le) {
+  RunF64x2CompareOpTest(execution_tier, lower_simd, kExprF64x2Le, LessEqual);
 }
 
 WASM_SIMD_TEST_NO_LOWERING(F64x2Min) {

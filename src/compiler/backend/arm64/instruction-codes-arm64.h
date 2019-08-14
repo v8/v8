@@ -175,6 +175,10 @@ namespace compiler {
   V(Arm64F64x2ReplaceLane)                  \
   V(Arm64F64x2Abs)                          \
   V(Arm64F64x2Neg)                          \
+  V(Arm64F64x2Add)                          \
+  V(Arm64F64x2Sub)                          \
+  V(Arm64F64x2Mul)                          \
+  V(Arm64F64x2Div)                          \
   V(Arm64F32x4Splat)                        \
   V(Arm64F32x4ExtractLane)                  \
   V(Arm64F32x4ReplaceLane)                  \

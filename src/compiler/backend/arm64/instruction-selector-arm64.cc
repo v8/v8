@@ -3102,6 +3102,10 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16ShrU)
 
 #define SIMD_BINOP_LIST(V)                        \
+  V(F64x2Add, kArm64F64x2Add)                     \
+  V(F64x2Sub, kArm64F64x2Sub)                     \
+  V(F64x2Mul, kArm64F64x2Mul)                     \
+  V(F64x2Div, kArm64F64x2Div)                     \
   V(F32x4Add, kArm64F32x4Add)                     \
   V(F32x4AddHoriz, kArm64F32x4AddHoriz)           \
   V(F32x4Sub, kArm64F32x4Sub)                     \
