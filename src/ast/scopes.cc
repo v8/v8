@@ -2070,7 +2070,7 @@ bool Scope::MustAllocate(Variable* var) {
   if (!var->raw_name()->IsEmpty() &&
       (inner_scope_calls_eval_ || is_catch_scope() || is_script_scope())) {
     var->set_is_used();
-    if (inner_scope_calls_eval_) var->SetMaybeAssigned();
+    if (inner_scope_calls_eval_ && !var->is_this()) var->SetMaybeAssigned();
   }
   DCHECK(!var->has_forced_context_allocation() || var->is_used());
   // Global variables do not need to be allocated.
