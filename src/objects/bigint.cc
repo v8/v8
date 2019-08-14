@@ -391,7 +391,7 @@ void MutableBigInt::Canonicalize(MutableBigInt result) {
       // We do not create a filler for objects in large object space.
       // TODO(hpayer): We should shrink the large object page if the size
       // of the object changed significantly.
-      heap->CreateFillerObjectAt(new_end, size_delta, ClearRecordedSlots::kNo);
+      heap->CreateFillerObjectAt(new_end, size_delta);
     }
     result.synchronized_set_length(new_length);
 
@@ -2222,8 +2222,7 @@ MaybeHandle<String> MutableBigInt::ToStringGeneric(Isolate* isolate,
     int needed_size = SeqOneByteString::SizeFor(pos);
     if (needed_size < string_size) {
       Address new_end = result->address() + needed_size;
-      heap->CreateFillerObjectAt(new_end, (string_size - needed_size),
-                                 ClearRecordedSlots::kNo);
+      heap->CreateFillerObjectAt(new_end, string_size - needed_size);
     }
   }
   // Reverse the string.

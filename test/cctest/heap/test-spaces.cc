@@ -391,8 +391,7 @@ static HeapObject AllocateUnaligned(NewSpace* space, int size) {
   CHECK(!allocation.IsRetry());
   HeapObject filler;
   CHECK(allocation.To(&filler));
-  space->heap()->CreateFillerObjectAt(filler.address(), size,
-                                      ClearRecordedSlots::kNo);
+  space->heap()->CreateFillerObjectAt(filler.address(), size);
   return filler;
 }
 
@@ -401,8 +400,7 @@ static HeapObject AllocateUnaligned(PagedSpace* space, int size) {
   CHECK(!allocation.IsRetry());
   HeapObject filler;
   CHECK(allocation.To(&filler));
-  space->heap()->CreateFillerObjectAt(filler.address(), size,
-                                      ClearRecordedSlots::kNo);
+  space->heap()->CreateFillerObjectAt(filler.address(), size);
   return filler;
 }
 
@@ -572,8 +570,7 @@ HEAP_TEST(Regress777177) {
     heap::SimulateFullSpace(old_space);
     AllocationResult result = old_space->AllocateRaw(filler_size, kWordAligned);
     HeapObject obj = result.ToObjectChecked();
-    heap->CreateFillerObjectAt(obj.address(), filler_size,
-                               ClearRecordedSlots::kNo);
+    heap->CreateFillerObjectAt(obj.address(), filler_size);
   }
 
   {
@@ -590,8 +587,7 @@ HEAP_TEST(Regress777177) {
     // This triggers assert in crbug.com/777177.
     AllocationResult result = old_space->AllocateRaw(filler_size, kWordAligned);
     HeapObject obj = result.ToObjectChecked();
-    heap->CreateFillerObjectAt(obj.address(), filler_size,
-                               ClearRecordedSlots::kNo);
+    heap->CreateFillerObjectAt(obj.address(), filler_size);
   }
   old_space->RemoveAllocationObserver(&observer);
 }
@@ -622,8 +618,7 @@ HEAP_TEST(Regress791582) {
     AllocationResult result =
         new_space->AllocateRaw(until_page_end, kWordAligned);
     HeapObject obj = result.ToObjectChecked();
-    heap->CreateFillerObjectAt(obj.address(), until_page_end,
-                               ClearRecordedSlots::kNo);
+    heap->CreateFillerObjectAt(obj.address(), until_page_end);
     // Simulate allocation folding moving the top pointer back.
     *new_space->allocation_top_address() = obj.address();
   }
@@ -632,7 +627,7 @@ HEAP_TEST(Regress791582) {
     // This triggers assert in crbug.com/791582
     AllocationResult result = new_space->AllocateRaw(256, kWordAligned);
     HeapObject obj = result.ToObjectChecked();
-    heap->CreateFillerObjectAt(obj.address(), 256, ClearRecordedSlots::kNo);
+    heap->CreateFillerObjectAt(obj.address(), 256);
   }
   new_space->RemoveAllocationObserver(&observer);
 }
