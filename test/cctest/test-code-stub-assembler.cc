@@ -53,9 +53,9 @@ Handle<String> MakeName(const char* str, int suffix) {
   return MakeString(buffer.begin());
 }
 
-int sum9(int a0, int a1, int a2, int a3, int a4, int a5, int a6, int a7,
-         int a8) {
-  return a0 + a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8;
+int sum10(int a0, int a1, int a2, int a3, int a4, int a5, int a6, int a7,
+          int a8, int a9) {
+  return a0 + a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8 + a9;
 }
 
 static int sum3(int a0, int a1, int a2) { return a0 + a1 + a2; }
@@ -71,7 +71,7 @@ TEST(CallCFunction) {
 
   {
     Node* const fun_constant = m.ExternalConstant(
-        ExternalReference::Create(reinterpret_cast<Address>(sum9)));
+        ExternalReference::Create(reinterpret_cast<Address>(sum10)));
 
     MachineType type_intptr = MachineType::IntPtr();
 
@@ -85,14 +85,15 @@ TEST(CallCFunction) {
                         std::make_pair(type_intptr, m.IntPtrConstant(5)),
                         std::make_pair(type_intptr, m.IntPtrConstant(6)),
                         std::make_pair(type_intptr, m.IntPtrConstant(7)),
-                        std::make_pair(type_intptr, m.IntPtrConstant(8)));
+                        std::make_pair(type_intptr, m.IntPtrConstant(8)),
+                        std::make_pair(type_intptr, m.IntPtrConstant(9)));
     m.Return(m.SmiTag(result));
   }
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   Handle<Object> result = ft.Call().ToHandleChecked();
-  CHECK_EQ(36, Handle<Smi>::cast(result)->value());
+  CHECK_EQ(45, Handle<Smi>::cast(result)->value());
 }
 
 TEST(CallCFunctionWithCallerSavedRegisters) {
