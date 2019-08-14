@@ -10,7 +10,6 @@
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
-#include "src/compiler/simplified-operator.h"
 
 namespace v8 {
 namespace internal {
@@ -42,155 +41,7 @@ namespace compiler {
 #define DCHECK_EXTRA(condition, fmt, ...) ((void)0)
 #endif
 
-// Store-store elimination.
-//
-// The aim of this optimization is to detect the following pattern in the
-// effect graph:
-//
-// - StoreField[+24, kRepTagged](263, ...)
-//
-//   ... lots of nodes from which the field at offset 24 of the object
-//       returned by node #263 cannot be observed ...
-//
-// - StoreField[+24, kRepTagged](263, ...)
-//
-// In such situations, the earlier StoreField cannot be observed, and can be
-// eliminated. This optimization should work for any offset and input node, of
-// course.
-//
-// The optimization also works across splits. It currently does not work for
-// loops, because we tend to put a stack check in loops, and like deopts,
-// stack checks can observe anything.
-
-// Assumption: every byte of a JS object is only ever accessed through one
-// offset. For instance, byte 15 of a given object may be accessed using a
-// two-byte read at offset 14, or a four-byte read at offset 12, but never
-// both in the same program.
-//
-// This implementation needs all dead nodes removed from the graph, and the
-// graph should be trimmed.
-
-namespace {
-
-using StoreOffset = uint32_t;
-
-struct UnobservableStore {
-  NodeId id_;
-  StoreOffset offset_;
-
-  bool operator==(const UnobservableStore other) const {
-    return (id_ == other.id_) && (offset_ == other.offset_);
-  }
-
-  bool operator<(const UnobservableStore other) const {
-    return (id_ < other.id_) || (id_ == other.id_ && offset_ < other.offset_);
-  }
-};
-
-// Instances of UnobservablesSet are immutable. They represent either a set of
-// UnobservableStores, or the "unvisited empty set".
-//
-// We apply some sharing to save memory. The class UnobservablesSet is only a
-// pointer wide, and a copy does not use any heap (or temp_zone) memory. Most
-// changes to an UnobservablesSet might allocate in the temp_zone.
-//
-// The size of an instance should be the size of a pointer, plus additional
-// space in the zone in the case of non-unvisited UnobservablesSets. Copying
-// an UnobservablesSet allocates no memory.
-class UnobservablesSet final {
- public:
-  static UnobservablesSet Unvisited() { return UnobservablesSet(); }
-  static UnobservablesSet VisitedEmpty(Zone* zone);
-  UnobservablesSet(const UnobservablesSet& other) V8_NOEXCEPT = default;
-  UnobservablesSet Intersect(const UnobservablesSet& other,
-                             const UnobservablesSet& empty, Zone* zone) const;
-  UnobservablesSet Add(UnobservableStore obs, Zone* zone) const;
-  UnobservablesSet RemoveSameOffset(StoreOffset off, Zone* zone) const;
-
-  const ZoneSet<UnobservableStore>* set() const { return set_; }
-
-  bool IsUnvisited() const { return set_ == nullptr; }
-  bool IsEmpty() const { return set_ == nullptr || set_->empty(); }
-  bool Contains(UnobservableStore obs) const {
-    return set_ != nullptr && (set_->find(obs) != set_->end());
-  }
-
-  bool operator==(const UnobservablesSet& other) const {
-    if (IsUnvisited() || other.IsUnvisited()) {
-      return IsUnvisited() && other.IsUnvisited();
-    } else {
-      // Both pointers guaranteed not to be nullptrs.
-      return *set() == *(other.set());
-    }
-  }
-
-  bool operator!=(const UnobservablesSet& other) const {
-    return !(*this == other);
-  }
-
- private:
-  UnobservablesSet();
-  explicit UnobservablesSet(const ZoneSet<UnobservableStore>* set)
-      : set_(set) {}
-  const ZoneSet<UnobservableStore>* set_;
-};
-
-class RedundantStoreFinder final {
- public:
-  RedundantStoreFinder(JSGraph* js_graph, TickCounter* tick_counter,
-                       Zone* temp_zone);
-
-  void Find();
-
-  const ZoneSet<Node*>& to_remove_const() { return to_remove_; }
-
-  void Visit(Node* node);
-
- private:
-  void VisitEffectfulNode(Node* node);
-  UnobservablesSet RecomputeUseIntersection(Node* node);
-  UnobservablesSet RecomputeSet(Node* node, const UnobservablesSet& uses);
-  static bool CannotObserveStoreField(Node* node);
-
-  void MarkForRevisit(Node* node);
-  bool HasBeenVisited(Node* node);
-
-  JSGraph* jsgraph() const { return jsgraph_; }
-  Isolate* isolate() { return jsgraph()->isolate(); }
-  Zone* temp_zone() const { return temp_zone_; }
-  ZoneVector<UnobservablesSet>& unobservable() { return unobservable_; }
-  UnobservablesSet& unobservable_for_id(NodeId id) {
-    DCHECK_LT(id, unobservable().size());
-    return unobservable()[id];
-  }
-  ZoneSet<Node*>& to_remove() { return to_remove_; }
-
-  JSGraph* const jsgraph_;
-  TickCounter* const tick_counter_;
-  Zone* const temp_zone_;
-
-  ZoneStack<Node*> revisit_;
-  ZoneVector<bool> in_revisit_;
-  // Maps node IDs to UnobservableNodeSets.
-  ZoneVector<UnobservablesSet> unobservable_;
-  ZoneSet<Node*> to_remove_;
-  const UnobservablesSet unobservables_visited_empty_;
-};
-
-// To safely cast an offset from a FieldAccess, which has a potentially wider
-// range (namely int).
-StoreOffset ToOffset(int offset) {
-  CHECK_LE(0, offset);
-  return static_cast<StoreOffset>(offset);
-}
-
-StoreOffset ToOffset(const FieldAccess& access) {
-  return ToOffset(access.offset);
-}
-
-}  // namespace
-
-void RedundantStoreFinder::Find() {
+void StoreStoreElimination::RedundantStoreFinder::Find() {
   Visit(jsgraph()->graph()->end());
 
   while (!revisit_.empty()) {
@@ -214,7 +65,7 @@ void RedundantStoreFinder::Find() {
 #endif
 }
 
-void RedundantStoreFinder::MarkForRevisit(Node* node) {
+void StoreStoreElimination::RedundantStoreFinder::MarkForRevisit(Node* node) {
   DCHECK_LT(node->id(), in_revisit_.size());
   if (!in_revisit_[node->id()]) {
     revisit_.push(node);
@@ -222,7 +73,7 @@ void RedundantStoreFinder::MarkForRevisit(Node* node) {
   }
 }
 
-bool RedundantStoreFinder::HasBeenVisited(Node* node) {
+bool StoreStoreElimination::RedundantStoreFinder::HasBeenVisited(Node* node) {
   return !unobservable_for_id(node->id()).IsUnvisited();
 }
 
@@ -245,10 +96,9 @@ void StoreStoreElimination::Run(JSGraph* js_graph, TickCounter* tick_counter,
   }
 }
 
-// Recompute unobservables-set for a node. Will also mark superfluous nodes
-// as to be removed.
-UnobservablesSet RedundantStoreFinder::RecomputeSet(
-    Node* node, const UnobservablesSet& uses) {
+StoreStoreElimination::UnobservablesSet
+StoreStoreElimination::RedundantStoreFinder::RecomputeSet(
+    Node* node, const StoreStoreElimination::UnobservablesSet& uses) {
   switch (node->op()->opcode()) {
     case IrOpcode::kStoreField: {
       Node* stored_to = node->InputAt(0);
@@ -300,36 +150,16 @@ UnobservablesSet RedundantStoreFinder::RecomputeSet(
   UNREACHABLE();
 }
 
-bool RedundantStoreFinder::CannotObserveStoreField(Node* node) {
-  return node->opcode() == IrOpcode::kLoadElement ||
-         node->opcode() == IrOpcode::kLoad ||
-         node->opcode() == IrOpcode::kStore ||
-         node->opcode() == IrOpcode::kEffectPhi ||
-         node->opcode() == IrOpcode::kStoreElement ||
-         node->opcode() == IrOpcode::kUnsafePointerAdd ||
-         node->opcode() == IrOpcode::kRetain;
+bool StoreStoreElimination::RedundantStoreFinder::CannotObserveStoreField(
+    Node* node) {
+  IrOpcode::Value opcode = node->opcode();
+  return opcode == IrOpcode::kLoadElement || opcode == IrOpcode::kLoad ||
+         opcode == IrOpcode::kStore || opcode == IrOpcode::kEffectPhi ||
+         opcode == IrOpcode::kStoreElement ||
+         opcode == IrOpcode::kUnsafePointerAdd || opcode == IrOpcode::kRetain;
 }
 
-// Initialize unobservable_ with js_graph->graph->NodeCount() empty sets.
-RedundantStoreFinder::RedundantStoreFinder(JSGraph* js_graph,
-                                           TickCounter* tick_counter,
-                                           Zone* temp_zone)
-    : jsgraph_(js_graph),
-      tick_counter_(tick_counter),
-      temp_zone_(temp_zone),
-      revisit_(temp_zone),
-      in_revisit_(js_graph->graph()->NodeCount(), temp_zone),
-      unobservable_(js_graph->graph()->NodeCount(),
-                    UnobservablesSet::Unvisited(), temp_zone),
-      to_remove_(temp_zone),
-      unobservables_visited_empty_(UnobservablesSet::VisitedEmpty(temp_zone)) {}
-
-void RedundantStoreFinder::Visit(Node* node) {
-  // All effectful nodes should be reachable from End via a sequence of
-  // control, then a sequence of effect edges. In VisitEffectfulNode we mark
-  // all effect inputs for revisiting (if they might have stale state); here
-  // we mark all control inputs at least once.
-
+void StoreStoreElimination::RedundantStoreFinder::Visit(Node* node) {
   if (!HasBeenVisited(node)) {
     for (int i = 0; i < node->op()->ControlInputCount(); i++) {
       Node* control_input = NodeProperties::GetControlInput(node, i);
@@ -341,6 +171,7 @@ void RedundantStoreFinder::Visit(Node* node) {
 
   bool is_effectful = node->op()->EffectInputCount() >= 1;
   if (is_effectful) {
+    // mark all effect inputs for revisiting (if they might have stale state).
     VisitEffectfulNode(node);
     DCHECK(HasBeenVisited(node));
   } else if (!HasBeenVisited(node)) {
@@ -349,17 +180,21 @@ void RedundantStoreFinder::Visit(Node* node) {
   }
 }
 
-void RedundantStoreFinder::VisitEffectfulNode(Node* node) {
+void StoreStoreElimination::RedundantStoreFinder::VisitEffectfulNode(
+    Node* node) {
   if (HasBeenVisited(node)) {
     TRACE("- Revisiting: #%d:%s", node->id(), node->op()->mnemonic());
   }
-  UnobservablesSet after_set = RecomputeUseIntersection(node);
-  UnobservablesSet before_set = RecomputeSet(node, after_set);
+  StoreStoreElimination::UnobservablesSet after_set =
+      RecomputeUseIntersection(node);
+  StoreStoreElimination::UnobservablesSet before_set =
+      RecomputeSet(node, after_set);
   DCHECK(!before_set.IsUnvisited());
 
-  UnobservablesSet stored_for_node = unobservable_for_id(node->id());
+  StoreStoreElimination::UnobservablesSet stores_for_node =
+      unobservable_for_id(node->id());
   bool cur_set_changed =
-      stored_for_node.IsUnvisited() || stored_for_node != before_set;
+      stores_for_node.IsUnvisited() || stores_for_node != before_set;
   if (!cur_set_changed) {
     // We will not be able to update the part of this chain above any more.
     // Exit.
@@ -377,12 +212,10 @@ void RedundantStoreFinder::VisitEffectfulNode(Node* node) {
   }
 }
 
-// Compute the intersection of the UnobservablesSets of all effect uses and
-// return it. This function only works if {node} has an effect use.
-//
-// The result UnobservablesSet will always be visited.
-UnobservablesSet RedundantStoreFinder::RecomputeUseIntersection(Node* node) {
-  // There were no effect uses.
+StoreStoreElimination::UnobservablesSet
+StoreStoreElimination::RedundantStoreFinder::RecomputeUseIntersection(
+    Node* node) {
+  // There were no effect uses. Break early.
   if (node->op()->EffectOutputCount() == 0) {
     IrOpcode::Value opcode = node->opcode();
     // List of opcodes that may end this effect chain. The opcodes are not
@@ -403,16 +236,17 @@ UnobservablesSet RedundantStoreFinder::RecomputeUseIntersection(Node* node) {
   // {first} == false indicates that cur_set is the intersection of at least one
   // thing.
   bool first = true;
-  UnobservablesSet cur_set = UnobservablesSet::Unvisited();  // irrelevant
+  StoreStoreElimination::UnobservablesSet cur_set =
+      StoreStoreElimination::UnobservablesSet::Unvisited();  // irrelevant
   for (Edge edge : node->use_edges()) {
-    // Skip non-effect edges
     if (!NodeProperties::IsEffectEdge(edge)) {
       continue;
     }
 
     // Intersect with the new use node.
     Node* use = edge.from();
-    UnobservablesSet new_set = unobservable_for_id(use->id());
+    StoreStoreElimination::UnobservablesSet new_set =
+        unobservable_for_id(use->id());
     if (first) {
       first = false;
       cur_set = new_set;
@@ -434,22 +268,20 @@ UnobservablesSet RedundantStoreFinder::RecomputeUseIntersection(Node* node) {
   return cur_set;
 }
 
-UnobservablesSet::UnobservablesSet() : set_(nullptr) {}
+StoreStoreElimination::UnobservablesSet::UnobservablesSet() : set_(nullptr) {}
 
-// Create a new empty UnobservablesSet. This allocates in the zone, and
-// can probably be optimized to use a global singleton.
-UnobservablesSet UnobservablesSet::VisitedEmpty(Zone* zone) {
+StoreStoreElimination::UnobservablesSet
+StoreStoreElimination::UnobservablesSet::VisitedEmpty(Zone* zone) {
   ZoneSet<UnobservableStore>* empty_set =
       new (zone->New(sizeof(ZoneSet<UnobservableStore>)))
           ZoneSet<UnobservableStore>(zone);
-  return UnobservablesSet(empty_set);
+  return StoreStoreElimination::UnobservablesSet(empty_set);
 }
 
-// Computes the intersection of two UnobservablesSets. If one of the sets is
-// empty, will return empty.
-UnobservablesSet UnobservablesSet::Intersect(const UnobservablesSet& other,
-                                             const UnobservablesSet& empty,
-                                             Zone* zone) const {
+StoreStoreElimination::UnobservablesSet
+StoreStoreElimination::UnobservablesSet::Intersect(
+    const StoreStoreElimination::UnobservablesSet& other,
+    const StoreStoreElimination::UnobservablesSet& empty, Zone* zone) const {
   if (IsEmpty() || other.IsEmpty()) {
     return empty;
   } else {
@@ -461,12 +293,13 @@ UnobservablesSet UnobservablesSet::Intersect(const UnobservablesSet& other,
                      other.set()->end(),
                      std::inserter(*intersection, intersection->end()));
 
-    return UnobservablesSet(intersection);
+    return StoreStoreElimination::UnobservablesSet(intersection);
   }
 }
 
-UnobservablesSet UnobservablesSet::Add(UnobservableStore obs,
-                                       Zone* zone) const {
+StoreStoreElimination::UnobservablesSet
+StoreStoreElimination::UnobservablesSet::Add(UnobservableStore obs,
+                                             Zone* zone) const {
   bool found = set()->find(obs) != set()->end();
   if (found) {
     return *this;
@@ -482,12 +315,13 @@ UnobservablesSet UnobservablesSet::Add(UnobservableStore obs,
     DCHECK(inserted);
     USE(inserted);  // silence warning about unused variable
 
-    return UnobservablesSet(new_set);
+    return StoreStoreElimination::UnobservablesSet(new_set);
   }
 }
 
-UnobservablesSet UnobservablesSet::RemoveSameOffset(StoreOffset offset,
-                                                    Zone* zone) const {
+StoreStoreElimination::UnobservablesSet
+StoreStoreElimination::UnobservablesSet::RemoveSameOffset(StoreOffset offset,
+                                                          Zone* zone) const {
   // Make a new empty set.
   ZoneSet<UnobservableStore>* new_set =
       new (zone->New(sizeof(ZoneSet<UnobservableStore>)))
@@ -499,7 +333,7 @@ UnobservablesSet UnobservablesSet::RemoveSameOffset(StoreOffset offset,
     }
   }
 
-  return UnobservablesSet(new_set);
+  return StoreStoreElimination::UnobservablesSet(new_set);
 }
 
 #undef TRACE
