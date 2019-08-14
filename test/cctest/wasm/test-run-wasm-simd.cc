@@ -970,6 +970,16 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2ExtractLane) {
   }
 }
 
+WASM_SIMD_TEST_NO_LOWERING(I64x2ExtractWithF64x2) {
+  WasmRunner<int64_t> r(execution_tier, lower_simd);
+  BUILD(r, WASM_IF_ELSE_L(
+               WASM_I64_EQ(WASM_SIMD_I64x2_EXTRACT_LANE(
+                               0, WASM_SIMD_F64x2_SPLAT(WASM_F64(1e15))),
+                           WASM_I64_REINTERPRET_F64(WASM_F64(1e15))),
+               WASM_I64V(1), WASM_I64V(0)));
+  CHECK_EQ(1, r.Call());
+}
+
 WASM_SIMD_TEST_NO_LOWERING(F64x2ReplaceLane) {
   WasmRunner<int32_t> r(execution_tier, lower_simd);
   // Set up a global to hold input/output vector.
@@ -1156,6 +1166,8 @@ void RunF64x2BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
   }
 }
 
+#undef FOR_FLOAT64_NAN_INPUTS
+
 WASM_SIMD_TEST_NO_LOWERING(F64x2Add) {
   RunF64x2BinOpTest(execution_tier, lower_simd, kExprF64x2Add, Add);
 }
@@ -1234,18 +1246,6 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Min) {
 
 WASM_SIMD_TEST_NO_LOWERING(F64x2Max) {
   RunF64x2BinOpTest(execution_tier, lower_simd, kExprF64x2Max, JSMax);
-}
-
-#undef FOR_FLOAT64_NAN_INPUTS
-
-WASM_SIMD_TEST_NO_LOWERING(I64x2ExtractWithF64x2) {
-  WasmRunner<int64_t> r(execution_tier, lower_simd);
-  BUILD(r, WASM_IF_ELSE_L(
-               WASM_I64_EQ(WASM_SIMD_I64x2_EXTRACT_LANE(
-                               0, WASM_SIMD_F64x2_SPLAT(WASM_F64(1e15))),
-                           WASM_I64_REINTERPRET_F64(WASM_F64(1e15))),
-               WASM_I64V(1), WASM_I64V(0)));
-  CHECK_EQ(1, r.Call());
 }
 
 WASM_SIMD_TEST_NO_LOWERING(I64x2Mul) {
