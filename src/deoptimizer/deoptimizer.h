@@ -572,6 +572,9 @@ class Deoptimizer : public Malloced {
   // Some architectures need to push padding together with the TOS register
   // in order to maintain stack alignment.
   static bool PadTopOfStackRegister();
+  static int TopOfStackRegisterPaddingSlots() {
+    return PadTopOfStackRegister() ? 1 : 0;
+  }
 
   // Searches the list of known deoptimizing code for a Code object
   // containing the given address (which is supposedly faster than

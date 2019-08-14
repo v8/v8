@@ -512,7 +512,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
             CodeDeoptEvent(compiled_code_, kind, from_, fp_to_sp_delta_));
   }
   unsigned size = ComputeInputFrameSize();
-  int parameter_count =
+  const int parameter_count =
       InternalFormalParameterCountWithReceiver(function.shared());
   input_ = new (size) FrameDescription(size, parameter_count);
 
@@ -647,8 +647,12 @@ int LookupCatchHandler(TranslatedFrame* translated_frame, int* data_out) {
   return -1;
 }
 
-bool ShouldPadArguments(int arg_count) {
+constexpr bool ShouldPadArguments(int arg_count) {
   return kPadArguments && (arg_count % 2 != 0);
+}
+
+constexpr int ArgumentPaddingSlots(int arg_count) {
+  return ShouldPadArguments(arg_count) ? 1 : 0;
 }
 
 }  // namespace
@@ -810,21 +814,24 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   SharedFunctionInfo shared = translated_frame->raw_shared_info();
 
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
-  bool is_bottommost = (0 == frame_index);
-  bool is_topmost = (output_count_ - 1 == frame_index);
+  const bool is_bottommost = (0 == frame_index);
+  const bool is_topmost = (output_count_ - 1 == frame_index);
 
-  int bytecode_offset = translated_frame->node_id().ToInt();
+  const int real_bytecode_offset = translated_frame->node_id().ToInt();
+  const int bytecode_offset =
+      goto_catch_handler ? catch_handler_pc_offset_ : real_bytecode_offset;
   const int height = translated_frame->height();
   const int register_count = height;  // The accumulator is *not* included.
   const int register_stack_slot_count =
       InterpreterFrameConstants::RegisterStackSlotCount(register_count);
-  int height_in_bytes = register_stack_slot_count * kSystemPointerSize;
 
-  // The topmost frame will contain the accumulator.
-  if (is_topmost) {
-    height_in_bytes += kSystemPointerSize;
-    if (PadTopOfStackRegister()) height_in_bytes += kSystemPointerSize;
-  }
+  static constexpr int kTheAccumulator = 1;
+  const int kTopOfStackPadding = TopOfStackRegisterPaddingSlots();
+  const int adjusted_height =
+      is_topmost
+          ? (register_stack_slot_count + kTheAccumulator + kTopOfStackPadding)
+          : register_stack_slot_count;
+  const int height_in_bytes = adjusted_height * kSystemPointerSize;
 
   TranslatedFrame::iterator function_iterator = value_iterator++;
   if (trace_scope_ != nullptr) {
@@ -832,18 +839,15 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
     std::unique_ptr<char[]> name = shared.DebugName().ToCString();
     PrintF(trace_scope_->file(), "%s", name.get());
     PrintF(trace_scope_->file(), " => bytecode_offset=%d, height=%d%s\n",
-           bytecode_offset, height_in_bytes,
+           real_bytecode_offset, height_in_bytes,
            goto_catch_handler ? " (throw)" : "");
-  }
-  if (goto_catch_handler) {
-    bytecode_offset = catch_handler_pc_offset_;
   }
 
   // The 'fixed' part of the frame consists of the incoming parameters and
   // the part described by InterpreterFrameConstants. This will include
   // argument padding, when needed.
-  unsigned fixed_frame_size = ComputeInterpretedFixedSize(shared);
-  unsigned output_frame_size = height_in_bytes + fixed_frame_size;
+  const unsigned fixed_frame_size = ComputeInterpretedFixedSize(shared);
+  const unsigned output_frame_size = height_in_bytes + fixed_frame_size;
 
   // Allocate and store the output frame description.
   const int parameter_count = InternalFormalParameterCountWithReceiver(shared);
@@ -857,12 +861,9 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
 
   // The top address of the frame is computed from the previous frame's top and
   // this frame's size.
-  intptr_t top_address;
-  if (is_bottommost) {
-    top_address = caller_frame_top_ - output_frame_size;
-  } else {
-    top_address = output_[frame_index - 1]->GetTop() - output_frame_size;
-  }
+  const intptr_t top_address =
+      is_bottommost ? caller_frame_top_ - output_frame_size
+                    : output_[frame_index - 1]->GetTop() - output_frame_size;
   output_frame->SetTop(top_address);
 
   // Compute the incoming parameter translation.
@@ -903,7 +904,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
       is_bottommost ? caller_fp_ : output_[frame_index - 1]->GetFp();
   frame_writer.PushCallerFp(caller_fp);
 
-  intptr_t fp_value = top_address + frame_writer.top_offset();
+  const intptr_t fp_value = top_address + frame_writer.top_offset();
   output_frame->SetFp(fp_value);
   if (is_topmost) {
     Register fp_reg = InterpretedFrame::fp_register();
@@ -949,7 +950,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   frame_writer.PushRawObject(bytecode_array, "bytecode array\n");
 
   // The bytecode offset was mentioned explicitly in the BEGIN_FRAME.
-  int raw_bytecode_offset =
+  const int raw_bytecode_offset =
       BytecodeArray::kHeaderSize - kHeapObjectTag + bytecode_offset;
   Smi smi_bytecode_offset = Smi::FromInt(raw_bytecode_offset);
   frame_writer.PushRawObject(smi_bytecode_offset, "bytecode offset\n");
@@ -961,16 +962,16 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   // Translate the rest of the interpreter registers in the frame.
   // The return_value_offset is counted from the top. Here, we compute the
   // register index (counted from the start).
-  int return_value_first_reg =
+  const int return_value_first_reg =
       register_count - translated_frame->return_value_offset();
-  int return_value_count = translated_frame->return_value_count();
+  const int return_value_count = translated_frame->return_value_count();
   for (int i = 0; i < register_count; ++i, ++value_iterator) {
     // Ensure we write the return value if we have one and we are returning
     // normally to a lazy deopt point.
     if (is_topmost && !goto_catch_handler &&
         deopt_kind_ == DeoptimizeKind::kLazy && i >= return_value_first_reg &&
         i < return_value_first_reg + return_value_count) {
-      int return_index = i - return_value_first_reg;
+      const int return_index = i - return_value_first_reg;
       if (return_index == 0) {
         frame_writer.PushRawValue(input_->GetRegister(kReturnRegister0.code()),
                                   "return value 0\n");
@@ -1077,14 +1078,14 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
 void Deoptimizer::DoComputeArgumentsAdaptorFrame(
     TranslatedFrame* translated_frame, int frame_index) {
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
-  bool is_bottommost = (0 == frame_index);
+  const bool is_bottommost = (0 == frame_index);
 
-  unsigned height = translated_frame->height();
-  unsigned height_in_bytes = height * kSystemPointerSize;
-  int parameter_count = height;
-  if (ShouldPadArguments(parameter_count)) {
-    height_in_bytes += kSystemPointerSize;
-  }
+  const unsigned height = translated_frame->height();
+
+  const int parameter_count = height;
+  const int argument_padding = ArgumentPaddingSlots(parameter_count);
+  const unsigned height_in_bytes =
+      (height + argument_padding) * kSystemPointerSize;
 
   TranslatedFrame::iterator function_iterator = value_iterator++;
   if (trace_scope_ != nullptr) {
@@ -1092,8 +1093,9 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
            "  translating arguments adaptor => height=%d\n", height_in_bytes);
   }
 
-  unsigned fixed_frame_size = ArgumentsAdaptorFrameConstants::kFixedFrameSize;
-  unsigned output_frame_size = height_in_bytes + fixed_frame_size;
+  const unsigned fixed_frame_size =
+      ArgumentsAdaptorFrameConstants::kFixedFrameSize;
+  const unsigned output_frame_size = height_in_bytes + fixed_frame_size;
 
   // Allocate and store the output frame description.
   FrameDescription* output_frame = new (output_frame_size)
@@ -1107,12 +1109,9 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
 
   // The top address of the frame is computed from the previous frame's top and
   // this frame's size.
-  intptr_t top_address;
-  if (is_bottommost) {
-    top_address = caller_frame_top_ - output_frame_size;
-  } else {
-    top_address = output_[frame_index - 1]->GetTop() - output_frame_size;
-  }
+  const intptr_t top_address =
+      is_bottommost ? caller_frame_top_ - output_frame_size
+                    : output_[frame_index - 1]->GetTop() - output_frame_size;
   output_frame->SetTop(top_address);
 
   ReadOnlyRoots roots(isolate());
@@ -1181,7 +1180,7 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
 void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
                                               int frame_index) {
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
-  bool is_topmost = (output_count_ - 1 == frame_index);
+  const bool is_topmost = (output_count_ - 1 == frame_index);
   // The construct frame could become topmost only if we inlined a constructor
   // call which does a tail call (otherwise the tail callee's frame would be
   // the topmost one). So it could only be the DeoptimizeKind::kLazy case.
@@ -1190,23 +1189,23 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   Builtins* builtins = isolate_->builtins();
   Code construct_stub = builtins->builtin(Builtins::kJSConstructStubGeneric);
   BailoutId bailout_id = translated_frame->node_id();
-  unsigned height = translated_frame->height();
-  unsigned parameter_count = height;  // The context is *not* included.
-  unsigned height_in_bytes = parameter_count * kSystemPointerSize;
+  const unsigned height = translated_frame->height();
+  const unsigned parameter_count = height;  // The context is *not* included.
 
   // If the construct frame appears to be topmost we should ensure that the
   // value of result register is preserved during continuation execution.
   // We do this here by "pushing" the result of the constructor function to the
   // top of the reconstructed stack and popping it in
   // {Builtins::kNotifyDeoptimized}.
-  if (is_topmost) {
-    height_in_bytes += kSystemPointerSize;
-    if (PadTopOfStackRegister()) height_in_bytes += kSystemPointerSize;
-  }
 
-  if (ShouldPadArguments(parameter_count)) {
-    height_in_bytes += kSystemPointerSize;
-  }
+  const int kTopOfStackPadding = TopOfStackRegisterPaddingSlots();
+  static constexpr int kTheResult = 1;
+  const int argument_padding = ArgumentPaddingSlots(parameter_count);
+
+  const int adjusted_height = is_topmost ? parameter_count + argument_padding +
+                                               kTheResult + kTopOfStackPadding
+                                         : parameter_count + argument_padding;
+  const unsigned height_in_bytes = adjusted_height * kSystemPointerSize;
 
   TranslatedFrame::iterator function_iterator = value_iterator++;
   if (trace_scope_ != nullptr) {
@@ -1217,8 +1216,8 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
            height_in_bytes);
   }
 
-  unsigned fixed_frame_size = ConstructFrameConstants::kFixedFrameSize;
-  unsigned output_frame_size = height_in_bytes + fixed_frame_size;
+  const unsigned fixed_frame_size = ConstructFrameConstants::kFixedFrameSize;
+  const unsigned output_frame_size = height_in_bytes + fixed_frame_size;
 
   // Allocate and store the output frame description.
   FrameDescription* output_frame = new (output_frame_size)
@@ -1232,8 +1231,8 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
 
   // The top address of the frame is computed from the previous frame's top and
   // this frame's size.
-  intptr_t top_address;
-  top_address = output_[frame_index - 1]->GetTop() - output_frame_size;
+  const intptr_t top_address =
+      output_[frame_index - 1]->GetTop() - output_frame_size;
   output_frame->SetTop(top_address);
 
   ReadOnlyRoots roots(isolate());
@@ -1262,7 +1261,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   const intptr_t caller_fp = output_[frame_index - 1]->GetFp();
   frame_writer.PushCallerFp(caller_fp);
 
-  intptr_t fp_value = top_address + frame_writer.top_offset();
+  const intptr_t fp_value = top_address + frame_writer.top_offset();
   output_frame->SetFp(fp_value);
   if (is_topmost) {
     Register fp_reg = JavaScriptFrame::fp_register();
@@ -1317,7 +1316,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   // Compute this frame's PC.
   DCHECK(bailout_id.IsValidForConstructStub());
   Address start = construct_stub.InstructionStart();
-  int pc_offset =
+  const int pc_offset =
       bailout_id == BailoutId::ConstructStubCreate()
           ? isolate_->heap()->construct_stub_create_deopt_pc_offset().value()
           : isolate_->heap()->construct_stub_invoke_deopt_pc_offset().value();
@@ -1509,16 +1508,17 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   const int stack_param_count =
       translated_stack_parameters + (must_handle_result ? 1 : 0) +
       (BuiltinContinuationModeIsWithCatch(mode) ? 1 : 0);
-  const int stack_param_pad_count =
-      ShouldPadArguments(stack_param_count) ? 1 : 0;
+  const int stack_param_pad_count = ArgumentPaddingSlots(stack_param_count);
 
   // If the builtins frame appears to be topmost we should ensure that the
   // value of result register is preserved during continuation execution.
   // We do this here by "pushing" the result of callback function to the
   // top of the reconstructed stack and popping it in
   // {Builtins::kNotifyDeoptimized}.
+  const int kTopOfStackPadding = TopOfStackRegisterPaddingSlots();
+  static constexpr int kTheResult = 1;
   const int push_result_count =
-      is_topmost ? (PadTopOfStackRegister() ? 2 : 1) : 0;
+      is_topmost ? kTheResult + kTopOfStackPadding : 0;
 
   const unsigned output_frame_size =
       kSystemPointerSize * (stack_param_count + stack_param_pad_count +
@@ -1566,12 +1566,9 @@ void Deoptimizer::DoComputeBuiltinContinuation(
 
   // The top address of the frame is computed from the previous frame's top and
   // this frame's size.
-  intptr_t top_address;
-  if (is_bottommost) {
-    top_address = caller_frame_top_ - output_frame_size;
-  } else {
-    top_address = output_[frame_index - 1]->GetTop() - output_frame_size;
-  }
+  const intptr_t top_address =
+      is_bottommost ? caller_frame_top_ - output_frame_size
+                    : output_[frame_index - 1]->GetTop() - output_frame_size;
   output_frame->SetTop(top_address);
 
   // Get the possible JSFunction for the case that this is a
