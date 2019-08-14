@@ -865,8 +865,6 @@ namespace internal {
   TFJ(RegExpPrototypeSourceGetter, 0, kReceiver)                               \
   /* ES #sec-get-regexp.prototype.sticky */                                    \
   TFJ(RegExpPrototypeStickyGetter, 0, kReceiver)                               \
-  /* ES #sec-regexp.prototype.test */                                          \
-  TFJ(RegExpPrototypeTest, 1, kReceiver, kString)                              \
   TFS(RegExpPrototypeTestFast, kReceiver, kString)                             \
   CPP(RegExpPrototypeToString)                                                 \
   /* ES #sec-get-regexp.prototype.unicode */                                   \

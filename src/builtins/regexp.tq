@@ -13,4 +13,20 @@ namespace regexp {
     BranchIfFastRegExp_Strict(o) otherwise return true, return false;
   }
 
+  extern macro RegExpBuiltinsAssembler::BranchIfFastRegExp_Permissive(
+      implicit context: Context)(HeapObject): never labels IsFast,
+      IsSlow;
+
+  @export
+  macro IsFastRegExpPermissive(implicit context: Context)(o: HeapObject): bool {
+    BranchIfFastRegExp_Strict(o) otherwise return true, return false;
+  }
+
+  extern macro RegExpBuiltinsAssembler::RegExpExec(Context, Object, Object):
+      Object;
+
+  extern macro
+  RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResultFast(
+      implicit context: Context)(JSRegExp, String):
+      RegExpMatchInfo labels IfDidNotMatch;
 }
