@@ -1792,6 +1792,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Mov(dst, i.InputInt8(1), i.InputSimd128Register(2).V2D(), 0);
       break;
     }
+      SIMD_UNOP_CASE(kArm64F64x2Abs, Fabs, 2D);
+      SIMD_UNOP_CASE(kArm64F64x2Neg, Fneg, 2D);
     case kArm64F32x4Splat: {
       __ Dup(i.OutputSimd128Register().V4S(), i.InputSimd128Register(0).S(), 0);
       break;
