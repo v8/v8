@@ -5772,16 +5772,15 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case WasmImportCallKind::kUseCallBuiltin: {
         Vector<Node*> args = Buffer(wasm_count + 7);
         int pos = 0;
-        args[pos++] = mcgraph()->RelocatableIntPtrConstant(
-            wasm::WasmCode::kWasmCallJavaScript, RelocInfo::WASM_STUB_CALL);
+        args[pos++] =
+            BuildLoadBuiltinFromIsolateRoot(Builtins::kCall_ReceiverIsAny);
         args[pos++] = callable_node;
         args[pos++] = mcgraph()->Int32Constant(wasm_count);  // argument count
         args[pos++] = undefined_node;                        // receiver
 
         auto call_descriptor = Linkage::GetStubCallDescriptor(
             graph()->zone(), CallTrampolineDescriptor{}, wasm_count + 1,
-            CallDescriptor::kNoFlags, Operator::kNoProperties,
-            StubCallMode::kCallWasmRuntimeStub);
+            CallDescriptor::kNoFlags, Operator::kNoProperties);
 
         // Convert wasm numbers to JS values.
         pos = AddArgumentNodes(args, pos, wasm_count, sig_);
@@ -6708,6 +6707,8 @@ MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
   return code;
 }
 
+namespace {
+
 bool BuildGraphForWasmFunction(AccountingAllocator* allocator,
                                wasm::CompilationEnv* env,
                                const wasm::FunctionBody& func_body,
@@ -6746,7 +6747,6 @@ bool BuildGraphForWasmFunction(AccountingAllocator* allocator,
   return true;
 }
 
-namespace {
 Vector<const char> GetDebugName(Zone* zone, int index) {
   // TODO(herhut): Use name from module if available.
   constexpr int kBufferLength = 24;
@@ -6759,6 +6759,7 @@ Vector<const char> GetDebugName(Zone* zone, int index) {
   memcpy(index_name, name_vector.begin(), name_len);
   return Vector<const char>(index_name, name_len);
 }
+
 }  // namespace
 
 wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(

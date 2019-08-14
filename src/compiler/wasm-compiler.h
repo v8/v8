@@ -47,14 +47,6 @@ struct WasmFeatures;
 
 namespace compiler {
 
-bool BuildGraphForWasmFunction(AccountingAllocator* allocator,
-                               wasm::CompilationEnv* env,
-                               const wasm::FunctionBody& func_body,
-                               int func_index, wasm::WasmFeatures* detected,
-                               MachineGraph* mcgraph,
-                               NodeOriginTable* node_origins,
-                               SourcePositionTable* source_positions);
-
 wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
     wasm::WasmEngine*, wasm::CompilationEnv*, const wasm::FunctionBody&,
     int func_index, Counters*, wasm::WasmFeatures* detected);

@@ -64,14 +64,6 @@ TF_BUILTIN(WasmAllocateHeapNumber, WasmBuiltinsAssembler) {
   TailCallStub(AllocateHeapNumberDescriptor(), target, NoContextConstant());
 }
 
-TF_BUILTIN(WasmCallJavaScript, WasmBuiltinsAssembler) {
-  TNode<Object> context = UncheckedParameter(Descriptor::kContext);
-  TNode<Object> function = UncheckedParameter(Descriptor::kFunction);
-  TNode<Object> argc = UncheckedParameter(Descriptor::kActualArgumentsCount);
-  TNode<Code> target = LoadBuiltinFromFrame(Builtins::kCall_ReceiverIsAny);
-  TailCallStub(CallTrampolineDescriptor{}, target, context, function, argc);
-}
-
 TF_BUILTIN(WasmRecordWrite, WasmBuiltinsAssembler) {
   TNode<Object> object = UncheckedParameter(Descriptor::kObject);
   TNode<Object> slot = UncheckedParameter(Descriptor::kSlot);
