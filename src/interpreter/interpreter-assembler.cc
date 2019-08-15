@@ -1246,7 +1246,7 @@ void InterpreterAssembler::UpdateInterruptBudget(Node* weight, bool backward) {
   Label load_budget_from_bytecode(this), load_budget_done(this);
   TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));
   TNode<FeedbackCell> feedback_cell =
-      CAST(LoadObjectField(function, JSFunction::kFeedbackCellOffset));
+      LoadObjectField<FeedbackCell>(function, JSFunction::kFeedbackCellOffset);
   TNode<Int32T> old_budget = LoadObjectField<Int32T>(
       feedback_cell, FeedbackCell::kInterruptBudgetOffset);
 

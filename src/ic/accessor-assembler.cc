@@ -2298,10 +2298,10 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
       GotoIf(InstanceTypeEqual(var_holder_instance_type.value(),
                                JS_TYPED_ARRAY_TYPE),
              slow);
-      Node* proto = LoadMapPrototype(var_holder_map.value());
+      TNode<HeapObject> proto = LoadMapPrototype(var_holder_map.value());
       GotoIf(WordEqual(proto, NullConstant()), &return_undefined);
-      Node* proto_map = LoadMap(proto);
-      Node* proto_instance_type = LoadMapInstanceType(proto_map);
+      TNode<Map> proto_map = LoadMap(proto);
+      TNode<Uint16T> proto_instance_type = LoadMapInstanceType(proto_map);
       var_holder_map.Bind(proto_map);
       var_holder_instance_type.Bind(proto_instance_type);
       Label next_proto(this), return_value(this, &var_value), goto_slow(this);
@@ -2623,7 +2623,7 @@ void AccessorAssembler::LoadIC_NoFeedback(const LoadICParameters* p) {
 
     GotoIfPrototypeRequiresRuntimeLookup(CAST(receiver), CAST(receiver_map),
                                          &not_function_prototype);
-    Return(LoadJSFunctionPrototype(receiver, &miss));
+    Return(LoadJSFunctionPrototype(CAST(receiver), &miss));
     BIND(&not_function_prototype);
   }
 
