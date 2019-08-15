@@ -403,7 +403,7 @@ TF_BUILTIN(LoadIC_FunctionPrototype, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
 
   Label miss(this, Label::kDeferred);
-  Return(LoadJSFunctionPrototype(receiver, &miss));
+  Return(LoadJSFunctionPrototype(CAST(receiver), &miss));
 
   BIND(&miss);
   TailCallRuntime(Runtime::kLoadIC_Miss, context, receiver, name, slot, vector);
