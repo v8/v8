@@ -984,7 +984,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       }
       intptr_t* stack_pointer = reinterpret_cast<intptr_t*>(get_register(sp));
       // Remaining argument on stack
-      arg[kRegisterArgCount] = stack_pointer[kStackFrameExtraParamSlot];
+      for (int i = kRegisterArgCount, j = 0; i < kArgCount; i++, j++) {
+        arg[i] = stack_pointer[kStackFrameExtraParamSlot + j];
+      }
       STATIC_ASSERT(kArgCount == kRegisterArgCount + 2);
       STATIC_ASSERT(kMaxCParameters == kArgCount);
       bool fp_call =
