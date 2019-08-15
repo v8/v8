@@ -1369,10 +1369,13 @@ void VisitFloatBinop(InstructionSelector* selector, Node* node,
 void VisitFloatUnop(InstructionSelector* selector, Node* node, Node* input,
                     ArchOpcode avx_opcode, ArchOpcode sse_opcode) {
   X64OperandGenerator g(selector);
+  InstructionOperand temps[] = {g.TempDoubleRegister()};
   if (selector->IsSupported(AVX)) {
-    selector->Emit(avx_opcode, g.DefineAsRegister(node), g.Use(input));
+    selector->Emit(avx_opcode, g.DefineAsRegister(node), g.UseUnique(input),
+                   arraysize(temps), temps);
   } else {
-    selector->Emit(sse_opcode, g.DefineSameAsFirst(node), g.UseRegister(input));
+    selector->Emit(sse_opcode, g.DefineSameAsFirst(node), g.UseRegister(input),
+                   arraysize(temps), temps);
   }
 }
 
@@ -2850,14 +2853,16 @@ void InstructionSelector::VisitS128Select(Node* node) {
 
 void InstructionSelector::VisitF64x2Abs(Node* node) {
   X64OperandGenerator g(this);
-  Emit(kX64F64x2Abs, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)));
+  InstructionOperand temps[] = {g.TempDoubleRegister()};
+  Emit(kX64F64x2Abs, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
+       arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitF64x2Neg(Node* node) {
   X64OperandGenerator g(this);
-  Emit(kX64F64x2Neg, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)));
+  InstructionOperand temps[] = {g.TempDoubleRegister()};
+  Emit(kX64F64x2Neg, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
+       arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitF32x4UConvertI32x4(Node* node) {

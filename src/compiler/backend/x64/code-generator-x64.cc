@@ -1339,16 +1339,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kSSEFloat32Abs: {
       // TODO(bmeurer): Use RIP relative 128-bit constants.
-      __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ Psrlq(kScratchDoubleReg, 33);
-      __ Andps(i.OutputDoubleRegister(), kScratchDoubleReg);
+      XMMRegister tmp = i.ToDoubleRegister(instr->TempAt(0));
+      __ Pcmpeqd(tmp, tmp);
+      __ Psrlq(tmp, 33);
+      __ Andps(i.OutputDoubleRegister(), tmp);
       break;
     }
     case kSSEFloat32Neg: {
       // TODO(bmeurer): Use RIP relative 128-bit constants.
-      __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ Psllq(kScratchDoubleReg, 31);
-      __ Xorps(i.OutputDoubleRegister(), kScratchDoubleReg);
+      XMMRegister tmp = i.ToDoubleRegister(instr->TempAt(0));
+      __ Pcmpeqd(tmp, tmp);
+      __ Psllq(tmp, 31);
+      __ Xorps(i.OutputDoubleRegister(), tmp);
       break;
     }
     case kSSEFloat32Sqrt:
@@ -1550,17 +1552,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64F64x2Abs:
     case kSSEFloat64Abs: {
       // TODO(bmeurer): Use RIP relative 128-bit constants.
-      __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ Psrlq(kScratchDoubleReg, 1);
-      __ Andpd(i.OutputDoubleRegister(), kScratchDoubleReg);
+      XMMRegister tmp = i.ToDoubleRegister(instr->TempAt(0));
+      __ Pcmpeqd(tmp, tmp);
+      __ Psrlq(tmp, 1);
+      __ Andpd(i.OutputDoubleRegister(), tmp);
       break;
     }
     case kX64F64x2Neg:
     case kSSEFloat64Neg: {
       // TODO(bmeurer): Use RIP relative 128-bit constants.
-      __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ Psllq(kScratchDoubleReg, 63);
-      __ Xorpd(i.OutputDoubleRegister(), kScratchDoubleReg);
+      XMMRegister tmp = i.ToDoubleRegister(instr->TempAt(0));
+      __ Pcmpeqd(tmp, tmp);
+      __ Psllq(tmp, 63);
+      __ Xorpd(i.OutputDoubleRegister(), tmp);
       break;
     }
     case kSSEFloat64Sqrt:
@@ -1818,56 +1822,52 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAVXFloat32Abs: {
       // TODO(bmeurer): Use RIP relative 128-bit constants.
       CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vpcmpeqd(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
-      __ vpsrlq(kScratchDoubleReg, kScratchDoubleReg, 33);
+      XMMRegister tmp = i.ToDoubleRegister(instr->TempAt(0));
+      __ vpcmpeqd(tmp, tmp, tmp);
+      __ vpsrlq(tmp, tmp, 33);
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ vandps(i.OutputDoubleRegister(), kScratchDoubleReg,
-                  i.InputDoubleRegister(0));
+        __ vandps(i.OutputDoubleRegister(), tmp, i.InputDoubleRegister(0));
       } else {
-        __ vandps(i.OutputDoubleRegister(), kScratchDoubleReg,
-                  i.InputOperand(0));
+        __ vandps(i.OutputDoubleRegister(), tmp, i.InputOperand(0));
       }
       break;
     }
     case kAVXFloat32Neg: {
       // TODO(bmeurer): Use RIP relative 128-bit constants.
       CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vpcmpeqd(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
-      __ vpsllq(kScratchDoubleReg, kScratchDoubleReg, 31);
+      XMMRegister tmp = i.ToDoubleRegister(instr->TempAt(0));
+      __ vpcmpeqd(tmp, tmp, tmp);
+      __ vpsllq(tmp, tmp, 31);
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ vxorps(i.OutputDoubleRegister(), kScratchDoubleReg,
-                  i.InputDoubleRegister(0));
+        __ vxorps(i.OutputDoubleRegister(), tmp, i.InputDoubleRegister(0));
       } else {
-        __ vxorps(i.OutputDoubleRegister(), kScratchDoubleReg,
-                  i.InputOperand(0));
+        __ vxorps(i.OutputDoubleRegister(), tmp, i.InputOperand(0));
       }
       break;
     }
     case kAVXFloat64Abs: {
       // TODO(bmeurer): Use RIP relative 128-bit constants.
       CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vpcmpeqd(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
-      __ vpsrlq(kScratchDoubleReg, kScratchDoubleReg, 1);
+      XMMRegister tmp = i.ToDoubleRegister(instr->TempAt(0));
+      __ vpcmpeqd(tmp, tmp, tmp);
+      __ vpsrlq(tmp, tmp, 1);
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ vandpd(i.OutputDoubleRegister(), kScratchDoubleReg,
-                  i.InputDoubleRegister(0));
+        __ vandpd(i.OutputDoubleRegister(), tmp, i.InputDoubleRegister(0));
       } else {
-        __ vandpd(i.OutputDoubleRegister(), kScratchDoubleReg,
-                  i.InputOperand(0));
+        __ vandpd(i.OutputDoubleRegister(), tmp, i.InputOperand(0));
       }
       break;
     }
     case kAVXFloat64Neg: {
       // TODO(bmeurer): Use RIP relative 128-bit constants.
       CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vpcmpeqd(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
-      __ vpsllq(kScratchDoubleReg, kScratchDoubleReg, 63);
+      XMMRegister tmp = i.ToDoubleRegister(instr->TempAt(0));
+      __ vpcmpeqd(tmp, tmp, tmp);
+      __ vpsllq(tmp, tmp, 63);
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ vxorpd(i.OutputDoubleRegister(), kScratchDoubleReg,
-                  i.InputDoubleRegister(0));
+        __ vxorpd(i.OutputDoubleRegister(), tmp, i.InputDoubleRegister(0));
       } else {
-        __ vxorpd(i.OutputDoubleRegister(), kScratchDoubleReg,
-                  i.InputOperand(0));
+        __ vxorpd(i.OutputDoubleRegister(), tmp, i.InputOperand(0));
       }
       break;
     }
