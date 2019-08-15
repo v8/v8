@@ -801,7 +801,7 @@ using UniquePersistent = Global<T>;
  *   be treated as root or not.
  */
 template <typename T>
-class V8_EXPORT TracedGlobal {
+class TracedGlobal {
  public:
   /**
    * An empty TracedGlobal without storage cell.
