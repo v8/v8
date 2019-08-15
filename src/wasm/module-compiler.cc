@@ -1460,6 +1460,7 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
   AsyncCompileJob* job_;
   WasmEngine* wasm_engine_;
   std::unique_ptr<CompilationUnitBuilder> compilation_unit_builder_;
+  base::TimeTicks start_time_;
   int num_functions_ = 0;
 };
 
@@ -1958,7 +1959,8 @@ AsyncStreamingProcessor::AsyncStreamingProcessor(AsyncCompileJob* job)
     : decoder_(job->enabled_features_),
       job_(job),
       wasm_engine_(job_->isolate_->wasm_engine()),
-      compilation_unit_builder_(nullptr) {}
+      compilation_unit_builder_(nullptr),
+      start_time_(base::TimeTicks::Now()) {}
 
 void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(
     const WasmError& error) {
@@ -2187,6 +2189,13 @@ bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
 
   MaybeHandle<WasmModuleObject> result =
       DeserializeNativeModule(job_->isolate_, module_bytes, wire_bytes);
+  if (base::TimeTicks::IsHighResolution()) {
+    base::TimeDelta duration = base::TimeTicks::Now() - start_time_;
+    auto* histogram = job_->isolate_->counters()
+                          ->wasm_streaming_deserialize_wasm_module_time();
+    histogram->AddSample(static_cast<int>(duration.InMicroseconds()));
+  }
+
   if (result.is_null()) return false;
 
   job_->module_object_ =
