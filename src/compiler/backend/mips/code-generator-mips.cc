@@ -859,8 +859,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchRet:
       AssembleReturn(instr->InputAt(0));
       break;
-    case kArchStackPointer:
-      __ mov(i.OutputRegister(), sp);
+    case kArchStackPointerGreaterThan:
+      // Pseudo-instruction used for cmp/branch. No opcode emitted here.
       break;
     case kArchFramePointer:
       __ mov(i.OutputRegister(), fp);
@@ -3014,6 +3014,9 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
   } else if (instr->arch_opcode() == kMipsCmp) {
     cc = FlagsConditionToConditionCmp(condition);
     __ Branch(tlabel, cc, i.InputRegister(0), i.InputOperand(1));
+  } else if (instr->arch_opcode() == kArchStackPointerGreaterThan) {
+    cc = FlagsConditionToConditionCmp(condition);
+    __ Branch(tlabel, cc, sp, Operand(i.InputRegister(0)));
   } else if (instr->arch_opcode() == kMipsCmpS ||
              instr->arch_opcode() == kMipsCmpD) {
     bool predicate;

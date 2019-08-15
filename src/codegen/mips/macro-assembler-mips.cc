@@ -1303,6 +1303,18 @@ void TurboAssembler::Sdc1(FPURegister fd, const MemOperand& src) {
   CheckTrampolinePoolQuick(1);
 }
 
+void TurboAssembler::Lw(Register rd, const MemOperand& rs) {
+  MemOperand source = rs;
+  AdjustBaseAndOffset(source);
+  lw(rd, source);
+}
+
+void TurboAssembler::Sw(Register rd, const MemOperand& rs) {
+  MemOperand dest = rs;
+  AdjustBaseAndOffset(dest);
+  sw(rd, dest);
+}
+
 void TurboAssembler::Ll(Register rd, const MemOperand& rs) {
   bool is_one_instruction = IsMipsArchVariant(kMips32r6)
                                 ? is_int9(rs.offset())

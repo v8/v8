@@ -258,6 +258,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void DropAndRet(int drop, Condition cond, Register reg, const Operand& op);
 
+  void Lw(Register rd, const MemOperand& rs);
+  void Sw(Register rd, const MemOperand& rs);
+
   void push(Register src) {
     Addu(sp, sp, Operand(-kPointerSize));
     sw(src, MemOperand(sp, 0));
