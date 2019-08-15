@@ -88,6 +88,7 @@ assertEquals(delete o1?.['y'], true);
 assertEquals(o1.y, undefined);
 assertEquals(delete o1?.['y'], true);
 assertEquals(delete o1.z?.(), true);
+assertThrows(() => { delete ({})?.foo.bar; });
 
 shouldThrowSyntaxError('class C {} class D extends C { foo() { return super?.bar; } }');
 shouldThrowSyntaxError('class C {} class D extends C { foo() { return super?.["bar"]; } }');

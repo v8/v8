@@ -4860,11 +4860,14 @@ void BytecodeGenerator::VisitDelete(UnaryOperation* unary) {
       BytecodeLabel done;
       OptionalChainNullLabelScope label_scope(this);
       VisitForAccumulatorValue(property->obj());
-      builder()->JumpIfUndefinedOrNull(label_scope.labels()->New());
+      if (property->is_optional_chain_link()) {
+        builder()->JumpIfUndefinedOrNull(label_scope.labels()->New());
+      }
       Register object = register_allocator()->NewRegister();
       builder()->StoreAccumulatorInRegister(object);
       VisitForAccumulatorValue(property->key());
-      builder()->Delete(object, language_mode()).Jump(&done);
+      builder()->Delete(object, language_mode());
+      builder()->Jump(&done);
       label_scope.labels()->Bind(builder());
       builder()->LoadTrue();
       builder()->Bind(&done);
