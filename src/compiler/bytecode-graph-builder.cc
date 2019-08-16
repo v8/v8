@@ -3302,6 +3302,12 @@ void BytecodeGraphBuilder::VisitGetIterator() {
   VectorSlotPair feedback =
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(1));
   const Operator* op = javascript()->GetIterator(feedback);
+
+  JSTypeHintLowering::LoweringResult lowering =
+      TryBuildSimplifiedLoadNamed(op, object, feedback.slot());
+  if (lowering.IsExit()) return;
+
+  DCHECK(!lowering.Changed());
   Node* node = NewNode(op, object);
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }

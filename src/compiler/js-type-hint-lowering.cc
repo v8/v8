@@ -490,7 +490,9 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceConstructOperation(
 JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceLoadNamedOperation(
     const Operator* op, Node* receiver, Node* effect, Node* control,
     FeedbackSlot slot) const {
-  DCHECK_EQ(IrOpcode::kJSLoadNamed, op->opcode());
+  // JSGetIterator involves a named load of the Symbol.iterator property.
+  DCHECK(op->opcode() == IrOpcode::kJSLoadNamed ||
+         op->opcode() == IrOpcode::kJSGetIterator);
   DCHECK(!slot.IsInvalid());
   FeedbackNexus nexus(feedback_vector(), slot);
   if (Node* node = TryBuildSoftDeopt(
