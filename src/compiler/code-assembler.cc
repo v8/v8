@@ -259,7 +259,7 @@ TNode<Number> CodeAssembler::NumberConstant(double value) {
     // (see AllocateAndInstallRequestedHeapObjects) since that makes it easier
     // to generate constant lookups for embedded builtins.
     return UncheckedCast<Number>(HeapConstant(
-        isolate()->factory()->NewHeapNumber(value, AllocationType::kOld)));
+        isolate()->factory()->NewHeapNumberForCodeAssembler(value)));
   }
 }
 

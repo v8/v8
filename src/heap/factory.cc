@@ -2226,6 +2226,12 @@ Handle<HeapNumber> Factory::NewHeapNumber(AllocationType allocation) {
   return handle(HeapNumber::cast(result), isolate());
 }
 
+Handle<HeapNumber> Factory::NewHeapNumberForCodeAssembler(double value) {
+  return NewHeapNumber(value, isolate()->heap()->CanAllocateInReadOnlySpace()
+                                  ? AllocationType::kReadOnly
+                                  : AllocationType::kOld);
+}
+
 Handle<MutableHeapNumber> Factory::NewMutableHeapNumber(
     AllocationType allocation) {
   STATIC_ASSERT(HeapNumber::kSize <= kMaxRegularHeapObjectSize);

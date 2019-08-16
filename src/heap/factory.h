@@ -587,6 +587,10 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<HeapNumber> NewHeapNumber(
       AllocationType allocation = AllocationType::kYoung);
 
+  // Creates a new HeapNumber in read-only space if possible otherwise old
+  // space.
+  Handle<HeapNumber> NewHeapNumberForCodeAssembler(double value);
+
   Handle<MutableHeapNumber> NewMutableHeapNumber(
       AllocationType allocation = AllocationType::kYoung);
   inline Handle<MutableHeapNumber> NewMutableHeapNumber(
