@@ -44,6 +44,27 @@ size_t hash_value(LoadSensitivity);
 
 std::ostream& operator<<(std::ostream&, LoadSensitivity);
 
+struct ConstFieldInfo {
+  // the map that introduced the const field, if any. An access is considered
+  // mutable iff the handle is null.
+  MaybeHandle<Map> owner_map;
+
+  ConstFieldInfo() : owner_map(MaybeHandle<Map>()) {}
+  explicit ConstFieldInfo(Handle<Map> owner_map) : owner_map(owner_map) {}
+
+  bool IsConst() const { return !owner_map.is_null(); }
+
+  // No const field owner, i.e., a mutable field
+  static ConstFieldInfo None() { return ConstFieldInfo(); }
+};
+
+V8_EXPORT_PRIVATE bool operator==(ConstFieldInfo const&, ConstFieldInfo const&);
+
+size_t hash_value(ConstFieldInfo const&);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
+                                           ConstFieldInfo const&);
+
 // An access descriptor for loads/stores of fixed structures like field
 // accesses of heap objects. Accesses from either tagged or untagged base
 // pointers are supported; untagging is done automatically during lowering.
@@ -56,7 +77,8 @@ struct FieldAccess {
   MachineType machine_type;       // machine type of the field.
   WriteBarrierKind write_barrier_kind;  // write barrier hint.
   LoadSensitivity load_sensitivity;     // load safety for poisoning.
-  PropertyConstness constness;  // whether the field is assigned only once
+  ConstFieldInfo const_field_info;      // the constness of this access, and the
+                                    // field owner map, if the access is const
 
   FieldAccess()
       : base_is_tagged(kTaggedBase),
@@ -65,13 +87,13 @@ struct FieldAccess {
         machine_type(MachineType::None()),
         write_barrier_kind(kFullWriteBarrier),
         load_sensitivity(LoadSensitivity::kUnsafe),
-        constness(PropertyConstness::kMutable) {}
+        const_field_info(ConstFieldInfo::None()) {}
 
   FieldAccess(BaseTaggedness base_is_tagged, int offset, MaybeHandle<Name> name,
               MaybeHandle<Map> map, Type type, MachineType machine_type,
               WriteBarrierKind write_barrier_kind,
               LoadSensitivity load_sensitivity = LoadSensitivity::kUnsafe,
-              PropertyConstness constness = PropertyConstness::kMutable)
+              ConstFieldInfo const_field_info = ConstFieldInfo::None())
       : base_is_tagged(base_is_tagged),
         offset(offset),
         name(name),
@@ -80,7 +102,7 @@ struct FieldAccess {
         machine_type(machine_type),
         write_barrier_kind(write_barrier_kind),
         load_sensitivity(load_sensitivity),
-        constness(constness) {}
+        const_field_info(const_field_info) {}
 
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };

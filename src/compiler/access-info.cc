@@ -9,6 +9,7 @@
 #include "src/builtins/accessors.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/compilation-dependency.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
 #include "src/ic/call-optimization.h"
 #include "src/logging/counters.h"
@@ -81,11 +82,12 @@ PropertyAccessInfo PropertyAccessInfo::DataField(
     Zone* zone, Handle<Map> receiver_map,
     ZoneVector<CompilationDependency const*>&& dependencies,
     FieldIndex field_index, Representation field_representation,
-    Type field_type, MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder,
-    MaybeHandle<Map> transition_map) {
+    Type field_type, Handle<Map> field_owner_map, MaybeHandle<Map> field_map,
+    MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map) {
   return PropertyAccessInfo(kDataField, holder, transition_map, field_index,
-                            field_representation, field_type, field_map,
-                            {{receiver_map}, zone}, std::move(dependencies));
+                            field_representation, field_type, field_owner_map,
+                            field_map, {{receiver_map}, zone},
+                            std::move(dependencies));
 }
 
 // static
@@ -93,11 +95,12 @@ PropertyAccessInfo PropertyAccessInfo::DataConstant(
     Zone* zone, Handle<Map> receiver_map,
     ZoneVector<CompilationDependency const*>&& dependencies,
     FieldIndex field_index, Representation field_representation,
-    Type field_type, MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder,
-    MaybeHandle<Map> transition_map) {
+    Type field_type, Handle<Map> field_owner_map, MaybeHandle<Map> field_map,
+    MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map) {
   return PropertyAccessInfo(kDataConstant, holder, transition_map, field_index,
-                            field_representation, field_type, field_map,
-                            {{receiver_map}, zone}, std::move(dependencies));
+                            field_representation, field_type, field_owner_map,
+                            field_map, {{receiver_map}, zone},
+                            std::move(dependencies));
 }
 
 // static
@@ -155,7 +158,7 @@ PropertyAccessInfo::PropertyAccessInfo(Zone* zone, Kind kind,
 PropertyAccessInfo::PropertyAccessInfo(
     Kind kind, MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map,
     FieldIndex field_index, Representation field_representation,
-    Type field_type, MaybeHandle<Map> field_map,
+    Type field_type, Handle<Map> field_owner_map, MaybeHandle<Map> field_map,
     ZoneVector<Handle<Map>>&& receiver_maps,
     ZoneVector<CompilationDependency const*>&& unrecorded_dependencies)
     : kind_(kind),
@@ -166,7 +169,11 @@ PropertyAccessInfo::PropertyAccessInfo(
       field_index_(field_index),
       field_representation_(field_representation),
       field_type_(field_type),
-      field_map_(field_map) {}
+      field_owner_map_(field_owner_map),
+      field_map_(field_map) {
+  DCHECK_IMPLIES(!transition_map.is_null(),
+                 field_owner_map.address() == transition_map.address());
+}
 
 bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
                                AccessMode access_mode, Zone* zone) {
@@ -256,6 +263,13 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
     case kModuleExport:
       return false;
   }
+}
+
+ConstFieldInfo PropertyAccessInfo::GetConstFieldInfo() const {
+  if (IsDataConstant()) {
+    return ConstFieldInfo(field_owner_map_.ToHandleChecked());
+  }
+  return ConstFieldInfo::None();
 }
 
 AccessInfoFactory::AccessInfoFactory(JSHeapBroker* broker,
@@ -378,15 +392,19 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
     map_ref.SerializeOwnDescriptor(descriptor);
     constness = dependencies()->DependOnFieldConstness(map_ref, descriptor);
   }
+  Handle<Map> field_owner_map(map->FindFieldOwner(isolate(), descriptor),
+                              isolate());
   switch (constness) {
     case PropertyConstness::kMutable:
       return PropertyAccessInfo::DataField(
           zone(), receiver_map, std::move(unrecorded_dependencies), field_index,
-          details_representation, field_type, field_map, holder);
+          details_representation, field_type, field_owner_map, field_map,
+          holder);
     case PropertyConstness::kConst:
       return PropertyAccessInfo::DataConstant(
           zone(), receiver_map, std::move(unrecorded_dependencies), field_index,
-          details_representation, field_type, field_map, holder);
+          details_representation, field_type, field_owner_map, field_map,
+          holder);
   }
   UNREACHABLE();
 }
@@ -724,7 +742,7 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessor(
     }
     // Special fields are always mutable.
     return PropertyAccessInfo::DataField(zone(), map, {{}, zone()}, field_index,
-                                         field_representation, field_type);
+                                         field_representation, field_type, map);
   }
   return PropertyAccessInfo::Invalid(zone());
 }
@@ -800,12 +818,12 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
     case PropertyConstness::kMutable:
       return PropertyAccessInfo::DataField(
           zone(), map, std::move(unrecorded_dependencies), field_index,
-          details_representation, field_type, field_map, holder,
+          details_representation, field_type, transition_map, field_map, holder,
           transition_map);
     case PropertyConstness::kConst:
       return PropertyAccessInfo::DataConstant(
           zone(), map, std::move(unrecorded_dependencies), field_index,
-          details_representation, field_type, field_map, holder,
+          details_representation, field_type, transition_map, field_map, holder,
           transition_map);
   }
   UNREACHABLE();

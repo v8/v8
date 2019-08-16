@@ -1615,6 +1615,7 @@ Node* JSCreateLowering::AllocateFastLiteral(Node* effect, Node* control,
     DCHECK_EQ(kData, property_details.kind());
     NameRef property_name = boilerplate_map.GetPropertyKey(i);
     FieldIndex index = boilerplate_map.GetFieldIndexFor(i);
+    ConstFieldInfo const_field_info(boilerplate_map.object());
     FieldAccess access = {kTaggedBase,
                           index.offset(),
                           property_name.object(),
@@ -1623,7 +1624,7 @@ Node* JSCreateLowering::AllocateFastLiteral(Node* effect, Node* control,
                           MachineType::TypeCompressedTagged(),
                           kFullWriteBarrier,
                           LoadSensitivity::kUnsafe,
-                          property_details.constness()};
+                          const_field_info};
     Node* value;
     if (boilerplate_map.IsUnboxedDoubleField(i)) {
       access.machine_type = MachineType::Float64();
@@ -1636,7 +1637,7 @@ Node* JSCreateLowering::AllocateFastLiteral(Node* effect, Node* control,
         // the field. The hole NaN should therefore be unobservable.
         // Load elimination expects there to be at most one const store to any
         // given field, so we always mark the unobservable ones as mutable.
-        access.constness = PropertyConstness::kMutable;
+        access.const_field_info = ConstFieldInfo::None();
       }
       value = jsgraph()->Constant(bit_cast<double>(value_bits));
     } else {
@@ -1646,7 +1647,7 @@ Node* JSCreateLowering::AllocateFastLiteral(Node* effect, Node* control,
           boilerplate_value.AsHeapObject().map().oddball_type() ==
               OddballType::kUninitialized;
       if (is_uninitialized) {
-        access.constness = PropertyConstness::kMutable;
+        access.const_field_info = ConstFieldInfo::None();
       }
       if (boilerplate_value.IsJSObject()) {
         JSObjectRef boilerplate_object = boilerplate_value.AsJSObject();

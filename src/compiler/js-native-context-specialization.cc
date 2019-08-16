@@ -2231,9 +2231,6 @@ JSNativeContextSpecialization::BuildPropertyStore(
               AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer()),
           storage, effect, control);
     }
-    PropertyConstness constness = access_info.IsDataConstant()
-                                      ? PropertyConstness::kConst
-                                      : PropertyConstness::kMutable;
     bool store_to_existing_constant_field = access_info.IsDataConstant() &&
                                             access_mode == AccessMode::kStore &&
                                             !access_info.HasTransitionMap();
@@ -2246,7 +2243,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
         MachineType::TypeForRepresentation(field_representation),
         kFullWriteBarrier,
         LoadSensitivity::kUnsafe,
-        constness};
+        access_info.GetConstFieldInfo()};
 
     switch (field_representation) {
       case MachineRepresentation::kFloat64: {
@@ -2263,7 +2260,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
                     factory()->mutable_heap_number_map());
             FieldAccess value_field_access =
                 AccessBuilder::ForHeapNumberValue();
-            value_field_access.constness = field_access.constness;
+            value_field_access.const_field_info = field_access.const_field_info;
             a.Store(value_field_access, value);
             value = effect = a.Finish();
 
@@ -2282,7 +2279,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
                 MachineType::TypeCompressedTaggedPointer(),
                 kPointerWriteBarrier,
                 LoadSensitivity::kUnsafe,
-                constness};
+                access_info.GetConstFieldInfo()};
             storage = effect =
                 graph()->NewNode(simplified()->LoadField(storage_access),
                                  storage, effect, control);

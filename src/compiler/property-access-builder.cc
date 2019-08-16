@@ -203,9 +203,6 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
             AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer()),
         storage, *effect, *control);
   }
-  PropertyConstness constness = access_info.IsDataConstant()
-                                    ? PropertyConstness::kConst
-                                    : PropertyConstness::kMutable;
   FieldAccess field_access = {
       kTaggedBase,
       field_index.offset(),
@@ -215,7 +212,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
       MachineType::TypeForRepresentation(field_representation),
       kFullWriteBarrier,
       LoadSensitivity::kCritical,
-      constness};
+      access_info.GetConstFieldInfo()};
   if (field_representation == MachineRepresentation::kFloat64) {
     if (!field_index.is_inobject() || !FLAG_unbox_double_fields) {
       FieldAccess const storage_access = {
@@ -227,7 +224,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
           MachineType::TypeCompressedTaggedPointer(),
           kPointerWriteBarrier,
           LoadSensitivity::kCritical,
-          constness};
+          access_info.GetConstFieldInfo()};
       storage = *effect = graph()->NewNode(
           simplified()->LoadField(storage_access), storage, *effect, *control);
       field_access.offset = HeapNumber::kValueOffset;

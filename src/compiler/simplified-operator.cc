@@ -31,13 +31,33 @@ std::ostream& operator<<(std::ostream& os, BaseTaggedness base_taggedness) {
   UNREACHABLE();
 }
 
+std::ostream& operator<<(std::ostream& os,
+                         ConstFieldInfo const& const_field_info) {
+  if (const_field_info.IsConst()) {
+    return os << "const (field owner: " << const_field_info.owner_map.address()
+              << ")";
+  } else {
+    return os << "mutable";
+  }
+  UNREACHABLE();
+}
+
+bool operator==(ConstFieldInfo const& lhs, ConstFieldInfo const& rhs) {
+  return lhs.owner_map.address() == rhs.owner_map.address();
+}
+
+size_t hash_value(ConstFieldInfo const& const_field_info) {
+  return (size_t)const_field_info.owner_map.address();
+}
+
 bool operator==(FieldAccess const& lhs, FieldAccess const& rhs) {
   // On purpose we don't include the write barrier kind here, as this method is
   // really only relevant for eliminating loads and they don't care about the
   // write barrier mode.
   return lhs.base_is_tagged == rhs.base_is_tagged && lhs.offset == rhs.offset &&
          lhs.map.address() == rhs.map.address() &&
-         lhs.machine_type == rhs.machine_type;
+         lhs.machine_type == rhs.machine_type &&
+         lhs.const_field_info == rhs.const_field_info;
 }
 
 size_t hash_value(FieldAccess const& access) {
@@ -45,7 +65,7 @@ size_t hash_value(FieldAccess const& access) {
   // really only relevant for eliminating loads and they don't care about the
   // write barrier mode.
   return base::hash_combine(access.base_is_tagged, access.offset,
-                            access.machine_type);
+                            access.machine_type, access.const_field_info);
 }
 
 size_t hash_value(LoadSensitivity load_sensitivity) {
@@ -78,7 +98,7 @@ std::ostream& operator<<(std::ostream& os, FieldAccess const& access) {
   }
 #endif
   os << access.type << ", " << access.machine_type << ", "
-     << access.write_barrier_kind << ", " << access.constness;
+     << access.write_barrier_kind << ", " << access.const_field_info;
   if (FLAG_untrusted_code_mitigations) {
     os << ", " << access.load_sensitivity;
   }

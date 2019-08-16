@@ -9,6 +9,7 @@
 #include "src/codegen/machine-type.h"
 #include "src/common/globals.h"
 #include "src/compiler/graph-reducer.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/handles/maybe-handles.h"
 #include "src/zone/zone-handle-set.h"
 
@@ -100,21 +101,25 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
   struct FieldInfo {
     FieldInfo() = default;
-    FieldInfo(Node* value, MachineRepresentation representation)
-        : value(value), name(), representation(representation) {}
-    FieldInfo(Node* value, MaybeHandle<Name> name,
-              MachineRepresentation representation)
-        : value(value), name(name), representation(representation) {}
+    FieldInfo(Node* value, MachineRepresentation representation,
+              MaybeHandle<Name> name = {},
+              ConstFieldInfo const_field_info = ConstFieldInfo::None())
+        : value(value),
+          representation(representation),
+          name(name),
+          const_field_info(const_field_info) {}
 
     bool operator==(const FieldInfo& other) const {
-      return value == other.value && name.address() == other.name.address() &&
-             representation == other.representation;
+      return value == other.value && representation == other.representation &&
+             name.address() == other.name.address() &&
+             const_field_info == other.const_field_info;
     }
     bool operator!=(const FieldInfo& other) const { return !(*this == other); }
 
     Node* value = nullptr;
-    MaybeHandle<Name> name;
     MachineRepresentation representation = MachineRepresentation::kNone;
+    MaybeHandle<Name> name;
+    ConstFieldInfo const_field_info;
   };
 
   // Abstract state to approximate the current state of a certain field along
@@ -235,8 +240,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
     bool LookupMaps(Node* object, ZoneHandleSet<Map>* object_maps) const;
 
     AbstractState const* AddField(Node* object, IndexRange index,
-                                  FieldInfo info, PropertyConstness constness,
-                                  Zone* zone) const;
+                                  FieldInfo info, Zone* zone) const;
     AbstractState const* KillField(const AliasStateInfo& alias_info,
                                    IndexRange index, MaybeHandle<Name> name,
                                    Zone* zone) const;
@@ -246,7 +250,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
                                     Zone* zone) const;
     AbstractState const* KillAll(Zone* zone) const;
     FieldInfo const* LookupField(Node* object, IndexRange index,
-                                 PropertyConstness constness) const;
+                                 ConstFieldInfo const_field_info) const;
 
     AbstractState const* AddElement(Node* object, Node* index, Node* value,
                                     MachineRepresentation representation,

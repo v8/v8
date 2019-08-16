@@ -8,7 +8,6 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
-#include "src/compiler/simplified-operator.h"
 #include "src/heap/factory.h"
 #include "src/objects/objects-inl.h"
 
@@ -528,11 +527,10 @@ LoadElimination::AbstractState::KillElement(Node* object, Node* index,
 
 LoadElimination::AbstractState const* LoadElimination::AbstractState::AddField(
     Node* object, IndexRange index_range, LoadElimination::FieldInfo info,
-    PropertyConstness constness, Zone* zone) const {
+    Zone* zone) const {
   AbstractState* that = new (zone) AbstractState(*this);
-  AbstractFields& fields = constness == PropertyConstness::kConst
-                               ? that->const_fields_
-                               : that->fields_;
+  AbstractFields& fields =
+      info.const_field_info.IsConst() ? that->const_fields_ : that->fields_;
   for (int index : index_range) {
     if (fields[index]) {
       fields[index] = fields[index]->Extend(object, info, zone);
@@ -603,19 +601,24 @@ LoadElimination::AbstractState const* LoadElimination::AbstractState::KillAll(
 }
 
 LoadElimination::FieldInfo const* LoadElimination::AbstractState::LookupField(
-    Node* object, IndexRange index_range, PropertyConstness constness) const {
-  AbstractFields const& fields =
-      constness == PropertyConstness::kConst ? const_fields_ : fields_;
-
+    Node* object, IndexRange index_range,
+    ConstFieldInfo const_field_info) const {
   // Check if all the indices in {index_range} contain identical information.
   // If not, a partially overlapping access has invalidated part of the value.
   base::Optional<LoadElimination::FieldInfo const*> result;
   for (int index : index_range) {
     LoadElimination::FieldInfo const* info = nullptr;
-    if (AbstractField const* this_field = fields[index]) {
-      info = this_field->Lookup(object);
+    if (const_field_info.IsConst()) {
+      if (AbstractField const* this_field = const_fields_[index]) {
+        info = this_field->Lookup(object);
+      }
+      if (!(info && info->const_field_info == const_field_info)) return nullptr;
+    } else {
+      if (AbstractField const* this_field = fields_[index]) {
+        info = this_field->Lookup(object);
+      }
+      if (!info) return nullptr;
     }
-    if (!info) return nullptr;
     if (!result.has_value()) {
       result = info;
     } else {
@@ -764,10 +767,9 @@ Reduction LoadElimination::ReduceEnsureWritableFastElements(Node* node) {
                            FieldIndexOf(JSObject::kElementsOffset, kTaggedSize),
                            MaybeHandle<Name>(), zone());
   // Add the new elements on {object}.
-  state = state->AddField(object,
-                          FieldIndexOf(JSObject::kElementsOffset, kTaggedSize),
-                          {node, MachineType::RepCompressedTaggedPointer()},
-                          PropertyConstness::kMutable, zone());
+  state = state->AddField(
+      object, FieldIndexOf(JSObject::kElementsOffset, kTaggedSize),
+      {node, MachineType::RepCompressedTaggedPointer()}, zone());
   return UpdateState(node, state);
 }
 
@@ -793,10 +795,9 @@ Reduction LoadElimination::ReduceMaybeGrowFastElements(Node* node) {
                            FieldIndexOf(JSObject::kElementsOffset, kTaggedSize),
                            MaybeHandle<Name>(), zone());
   // Add the new elements on {object}.
-  state = state->AddField(object,
-                          FieldIndexOf(JSObject::kElementsOffset, kTaggedSize),
-                          {node, MachineType::RepCompressedTaggedPointer()},
-                          PropertyConstness::kMutable, zone());
+  state = state->AddField(
+      object, FieldIndexOf(JSObject::kElementsOffset, kTaggedSize),
+      {node, MachineType::RepCompressedTaggedPointer()}, zone());
   return UpdateState(node, state);
 }
 
@@ -885,14 +886,15 @@ Reduction LoadElimination::ReduceLoadField(Node* node,
   } else {
     IndexRange field_index = FieldIndexOf(access);
     if (field_index != IndexRange::Invalid()) {
-      PropertyConstness constness = access.constness;
       MachineRepresentation representation =
           access.machine_type.representation();
       FieldInfo const* lookup_result =
-          state->LookupField(object, field_index, constness);
-      if (!lookup_result && constness == PropertyConstness::kConst) {
-        lookup_result = state->LookupField(object, field_index,
-                                           PropertyConstness::kMutable);
+          state->LookupField(object, field_index, access.const_field_info);
+      if (!lookup_result && access.const_field_info.IsConst()) {
+        // If the access is const and we didn't find anything, also try to look
+        // up information from mutable stores
+        lookup_result =
+            state->LookupField(object, field_index, ConstFieldInfo::None());
       }
       if (lookup_result) {
         // Make sure we don't reuse values that were recorded with a different
@@ -916,8 +918,9 @@ Reduction LoadElimination::ReduceLoadField(Node* node,
           return Replace(replacement);
         }
       }
-      FieldInfo info(node, access.name, representation);
-      state = state->AddField(object, field_index, info, constness, zone());
+      FieldInfo info(node, representation, access.name,
+                     access.const_field_info);
+      state = state->AddField(object, field_index, info, zone());
     }
   }
   Handle<Map> field_map;
@@ -950,14 +953,14 @@ Reduction LoadElimination::ReduceStoreField(Node* node,
   } else {
     IndexRange field_index = FieldIndexOf(access);
     if (field_index != IndexRange::Invalid()) {
-      PropertyConstness constness = access.constness;
+      bool is_const_store = access.const_field_info.IsConst();
       MachineRepresentation representation =
           access.machine_type.representation();
       FieldInfo const* lookup_result =
-          state->LookupField(object, field_index, constness);
+          state->LookupField(object, field_index, access.const_field_info);
 
-      if (lookup_result && (constness == PropertyConstness::kMutable ||
-                            V8_ENABLE_DOUBLE_CONST_STORE_CHECK_BOOL)) {
+      if (lookup_result &&
+          (!is_const_store || V8_ENABLE_DOUBLE_CONST_STORE_CHECK_BOOL)) {
         // At runtime, we should never encounter
         // - any store replacing existing info with a different, incompatible
         //   representation, nor
@@ -971,8 +974,7 @@ Reduction LoadElimination::ReduceStoreField(Node* node,
         bool incompatible_representation =
             !lookup_result->name.is_null() &&
             !IsCompatible(representation, lookup_result->representation);
-        if (incompatible_representation ||
-            constness == PropertyConstness::kConst) {
+        if (incompatible_representation || is_const_store) {
           Node* control = NodeProperties::GetControlInput(node);
           Node* unreachable =
               graph()->NewNode(common()->Unreachable(), effect, control);
@@ -985,16 +987,16 @@ Reduction LoadElimination::ReduceStoreField(Node* node,
       }
 
       // Kill all potentially aliasing fields and record the new value.
-      FieldInfo new_info(new_value, access.name, representation);
+      FieldInfo new_info(new_value, representation, access.name,
+                         access.const_field_info);
       state = state->KillField(object, field_index, access.name, zone());
-      state = state->AddField(object, field_index, new_info,
-                              PropertyConstness::kMutable, zone());
-      if (constness == PropertyConstness::kConst) {
+      state = state->AddField(object, field_index, new_info, zone());
+      if (is_const_store) {
         // For const stores, we track information in both the const and the
         // mutable world to guard against field accesses that should have
         // been marked const, but were not.
-        state =
-            state->AddField(object, field_index, new_info, constness, zone());
+        new_info.const_field_info = ConstFieldInfo::None();
+        state = state->AddField(object, field_index, new_info, zone());
       }
     } else {
       // Unsupported StoreField operator.
