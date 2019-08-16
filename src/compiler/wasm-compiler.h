@@ -272,7 +272,6 @@ class WasmGraphBuilder {
     Node* arr[] = {fst, more...};
     return Return(ArrayVector(arr));
   }
-  Node* ReturnVoid();
   Node* Unreachable(wasm::WasmCodePosition position);
 
   Node* CallDirect(uint32_t index, Node** args, Node*** rets,

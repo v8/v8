@@ -25,12 +25,11 @@
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/int64-lowering.h"
-#include "src/compiler/js-graph.h"
-#include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-origin-table.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/simd-scalar-lowering.h"
 #include "src/compiler/zone-stats.h"
@@ -291,7 +290,6 @@ Node* WasmGraphBuilder::RefFunc(uint32_t function_index) {
 }
 
 Node* WasmGraphBuilder::NoContextConstant() {
-  // TODO(titzer): avoiding a dependency on JSGraph here. Refactor.
   return mcgraph()->IntPtrConstant(0);
 }
 
@@ -1154,11 +1152,9 @@ Node* WasmGraphBuilder::Return(Vector<Node*> vals) {
   return ret;
 }
 
-Node* WasmGraphBuilder::ReturnVoid() { return Return(Vector<Node*>{}); }
-
 Node* WasmGraphBuilder::Unreachable(wasm::WasmCodePosition position) {
   TrapIfFalse(wasm::TrapReason::kTrapUnreachable, Int32Constant(0), position);
-  ReturnVoid();
+  Return(Vector<Node*>{});
   return nullptr;
 }
 
@@ -5042,12 +5038,11 @@ void WasmGraphBuilder::RemoveBytecodePositionDecorator() {
 namespace {
 class WasmWrapperGraphBuilder : public WasmGraphBuilder {
  public:
-  WasmWrapperGraphBuilder(Zone* zone, JSGraph* jsgraph, wasm::FunctionSig* sig,
+  WasmWrapperGraphBuilder(Zone* zone, MachineGraph* mcgraph,
+                          wasm::FunctionSig* sig,
                           compiler::SourcePositionTable* spt,
                           StubCallMode stub_mode, wasm::WasmFeatures features)
-      : WasmGraphBuilder(nullptr, zone, jsgraph, sig, spt),
-        isolate_(jsgraph->isolate()),
-        jsgraph_(jsgraph),
+      : WasmGraphBuilder(nullptr, zone, mcgraph, sig, spt),
         stub_mode_(stub_mode),
         enabled_features_(features) {}
 
@@ -5476,9 +5471,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       Diamond flag_check(graph(), mcgraph()->common(), check,
                          BranchHint::kTrue);
       flag_check.Chain(Control());
-      Node* message_id = jsgraph()->SmiConstant(static_cast<int32_t>(
-          new_value ? AbortReason::kUnexpectedThreadInWasmSet
-                    : AbortReason::kUnexpectedThreadInWasmUnset));
+      Node* message_id = graph()->NewNode(
+          mcgraph()->common()->NumberConstant(static_cast<int32_t>(
+              new_value ? AbortReason::kUnexpectedThreadInWasmSet
+                        : AbortReason::kUnexpectedThreadInWasmUnset)));
 
       Node* effect = Effect();
       BuildCallToRuntimeWithContext(Runtime::kAbort, NoContextConstant(),
@@ -5539,7 +5535,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     // Create the js_closure and js_context parameters.
     Node* js_closure =
-        graph()->NewNode(jsgraph()->common()->Parameter(
+        graph()->NewNode(mcgraph()->common()->Parameter(
                              Linkage::kJSCallClosureParamIndex, "%closure"),
                          graph()->start());
     Node* js_context = graph()->NewNode(
@@ -5561,7 +5557,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       // js_context independent.
       BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError, js_context,
                                     nullptr, 0, effect_, Control());
-      Return(jsgraph()->SmiConstant(0));
+      TerminateThrow(Effect(), Control());
       return;
     }
 
@@ -5611,7 +5607,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       jsval = ToJS(rets[0], sig_->GetReturn());
     } else {
       int32_t return_count = static_cast<int32_t>(sig_->return_count());
-      Node* size = jsgraph()->SmiConstant(return_count);
+      Node* size =
+          graph()->NewNode(mcgraph()->common()->NumberConstant(return_count));
       // TODO(thibaudm): Replace runtime calls with TurboFan code.
       Node* fixed_array =
           BuildCallToRuntime(Runtime::kWasmNewMultiReturnFixedArray, &size, 1);
@@ -5644,9 +5641,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError,
                                     native_context, nullptr, 0, effect_,
                                     Control());
-      // We don't need to return a value here, as the runtime call will not
-      // return anyway (the c entry stub will trigger stack unwinding).
-      ReturnVoid();
+      TerminateThrow(Effect(), Control());
       return false;
     }
 
@@ -5967,7 +5962,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // We are passing the raw arg_buffer here. To the GC and other parts, it
     // looks like a Smi (lowest bit not set). In the runtime function however,
     // don't call Smi::value on it, but just cast it to a byte pointer.
-    Node* parameters[] = {jsgraph()->SmiConstant(func_index), arg_buffer};
+    Node* parameters[] = {
+        graph()->NewNode(mcgraph()->common()->NumberConstant(func_index)),
+        arg_buffer};
     BuildCallToRuntime(Runtime::kWasmRunInterpreter, parameters,
                        arraysize(parameters));
 
@@ -5993,7 +5990,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     if (ContainsInt64(sig_)) LowerInt64();
   }
 
-  void BuildJSToJSWrapper() {
+  void BuildJSToJSWrapper(Isolate* isolate) {
     int wasm_count = static_cast<int>(sig_->parameter_count());
 
     // Build the start and the parameter nodes.
@@ -6005,14 +6002,15 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     // Since JS-to-JS wrappers are specific to one Isolate, it is OK to embed
     // values (for undefined and root) directly into the instruction stream.
-    isolate_root_node_ = jsgraph()->IntPtrConstant(isolate_->isolate_root());
-    undefined_value_node_ = jsgraph()->UndefinedConstant();
+    isolate_root_node_ = mcgraph()->IntPtrConstant(isolate->isolate_root());
+    undefined_value_node_ = graph()->NewNode(mcgraph()->common()->HeapConstant(
+        isolate->factory()->undefined_value()));
 
     // Throw a TypeError if the signature is incompatible with JavaScript.
     if (!wasm::IsJSCompatibleSignature(sig_, enabled_features_)) {
       BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError, context,
                                     nullptr, 0, effect_, Control());
-      Return(jsgraph()->SmiConstant(0));
+      TerminateThrow(Effect(), Control());
       return;
     }
 
@@ -6030,11 +6028,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // Call the underlying closure.
     Vector<Node*> args = Buffer(wasm_count + 7);
     int pos = 0;
-    args[pos++] =
-        jsgraph()->Constant(BUILTIN_CODE(isolate_, Call_ReceiverIsAny));
+    args[pos++] = graph()->NewNode(mcgraph()->common()->HeapConstant(
+        BUILTIN_CODE(isolate, Call_ReceiverIsAny)));
     args[pos++] = callable;
-    args[pos++] = mcgraph()->Int32Constant(wasm_count);  // argument count
-    args[pos++] = jsgraph()->UndefinedConstant();        // receiver
+    args[pos++] = mcgraph()->Int32Constant(wasm_count);   // argument count
+    args[pos++] = BuildLoadUndefinedValueFromInstance();  // receiver
 
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         graph()->zone(), CallTrampolineDescriptor{}, wasm_count + 1,
@@ -6062,7 +6060,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // Convert return JS values to wasm numbers and back to JS values.
     Node* jsval =
         sig_->return_count() == 0
-            ? jsgraph()->UndefinedConstant()
+            ? BuildLoadUndefinedValueFromInstance()
             : ToJS(FromJS(call, context, sig_->GetReturn()), sig_->GetReturn());
     Return(jsval);
   }
@@ -6133,7 +6131,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       pos++;
     }
 
-    Return(jsgraph()->SmiConstant(0));
+    Return(mcgraph()->IntPtrConstant(0));
 
     if (mcgraph()->machine()->Is32() && ContainsInt64(sig_)) {
       MachineRepresentation sig_reps[] = {
@@ -6150,11 +6148,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     }
   }
 
-  JSGraph* jsgraph() { return jsgraph_; }
-
  private:
-  Isolate* const isolate_;
-  JSGraph* jsgraph_;
   StubCallMode stub_mode_;
   SetOncePointer<Node> undefined_value_node_;
   SetOncePointer<const Operator> allocate_heap_number_operator_;
@@ -6193,12 +6187,12 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
       zone.get(), MachineType::PointerRepresentation(),
       InstructionSelector::SupportedMachineOperatorFlags(),
       InstructionSelector::AlignmentRequirements());
-  JSGraph jsgraph(isolate, graph, &common, nullptr, nullptr, &machine);
+  MachineGraph mcgraph(graph, &common, &machine);
 
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  WasmWrapperGraphBuilder builder(zone.get(), &jsgraph, sig, nullptr,
+  WasmWrapperGraphBuilder builder(zone.get(), &mcgraph, sig, nullptr,
                                   StubCallMode::kCallCodeObject,
                                   enabled_features);
   builder.set_control_ptr(&control);
@@ -6470,7 +6464,7 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
       &zone, MachineType::PointerRepresentation(),
       InstructionSelector::SupportedMachineOperatorFlags(),
       InstructionSelector::AlignmentRequirements());
-  JSGraph jsgraph(nullptr, &graph, &common, nullptr, nullptr, &machine);
+  MachineGraph mcgraph(&graph, &common, &machine);
 
   Node* control = nullptr;
   Node* effect = nullptr;
@@ -6478,7 +6472,7 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
   SourcePositionTable* source_position_table =
       source_positions ? new (&zone) SourcePositionTable(&graph) : nullptr;
 
-  WasmWrapperGraphBuilder builder(&zone, &jsgraph, sig, source_position_table,
+  WasmWrapperGraphBuilder builder(&zone, &mcgraph, sig, source_position_table,
                                   StubCallMode::kCallWasmRuntimeStub,
                                   env->enabled_features);
   builder.set_control_ptr(&control);
@@ -6495,7 +6489,7 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
     incoming = GetI32WasmCallDescriptor(&zone, incoming);
   }
   wasm::WasmCompilationResult result = Pipeline::GenerateCodeForWasmNativeStub(
-      wasm_engine, incoming, &jsgraph, Code::WASM_TO_JS_FUNCTION,
+      wasm_engine, incoming, &mcgraph, Code::WASM_TO_JS_FUNCTION,
       wasm::WasmCode::kWasmToJsWrapper, func_name, WasmStubAssemblerOptions(),
       source_position_table);
   result.kind = wasm::WasmCompilationResult::kWasmToJsWrapper;
@@ -6518,10 +6512,8 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::WasmEngine* wasm_engine,
           &zone, MachineType::PointerRepresentation(),
           InstructionSelector::SupportedMachineOperatorFlags(),
           InstructionSelector::AlignmentRequirements()));
-  JSGraph jsgraph(nullptr, mcgraph->graph(), mcgraph->common(), nullptr,
-                  nullptr, mcgraph->machine());
 
-  WasmWrapperGraphBuilder builder(&zone, &jsgraph, sig, source_positions,
+  WasmWrapperGraphBuilder builder(&zone, mcgraph, sig, source_positions,
                                   StubCallMode::kCallWasmRuntimeStub,
                                   native_module->enabled_features());
 
@@ -6571,12 +6563,12 @@ wasm::WasmCompilationResult CompileWasmInterpreterEntry(
       &zone, MachineType::PointerRepresentation(),
       InstructionSelector::SupportedMachineOperatorFlags(),
       InstructionSelector::AlignmentRequirements());
-  JSGraph jsgraph(nullptr, &graph, &common, nullptr, nullptr, &machine);
+  MachineGraph mcgraph(&graph, &common, &machine);
 
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  WasmWrapperGraphBuilder builder(&zone, &jsgraph, sig, nullptr,
+  WasmWrapperGraphBuilder builder(&zone, &mcgraph, sig, nullptr,
                                   StubCallMode::kCallWasmRuntimeStub,
                                   enabled_features);
   builder.set_control_ptr(&control);
@@ -6594,7 +6586,7 @@ wasm::WasmCompilationResult CompileWasmInterpreterEntry(
       SNPrintF(func_name, "wasm-interpreter-entry#%d", func_index));
 
   wasm::WasmCompilationResult result = Pipeline::GenerateCodeForWasmNativeStub(
-      wasm_engine, incoming, &jsgraph, Code::WASM_INTERPRETER_ENTRY,
+      wasm_engine, incoming, &mcgraph, Code::WASM_INTERPRETER_ENTRY,
       wasm::WasmCode::kInterpreterEntry, func_name.begin(),
       WasmStubAssemblerOptions());
   result.result_tier = wasm::ExecutionTier::kInterpreter;
@@ -6613,17 +6605,17 @@ MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
       zone.get(), MachineType::PointerRepresentation(),
       InstructionSelector::SupportedMachineOperatorFlags(),
       InstructionSelector::AlignmentRequirements());
-  JSGraph jsgraph(isolate, graph, &common, nullptr, nullptr, &machine);
+  MachineGraph mcgraph(graph, &common, &machine);
 
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  WasmWrapperGraphBuilder builder(zone.get(), &jsgraph, sig, nullptr,
+  WasmWrapperGraphBuilder builder(zone.get(), &mcgraph, sig, nullptr,
                                   StubCallMode::kCallCodeObject,
                                   wasm::WasmFeaturesFromIsolate(isolate));
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
-  builder.BuildJSToJSWrapper();
+  builder.BuildJSToJSWrapper(isolate);
 
   int wasm_count = static_cast<int>(sig->parameter_count());
   CallDescriptor* incoming = Linkage::GetJSCallDescriptor(
@@ -6660,12 +6652,12 @@ MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
       zone.get(), MachineType::PointerRepresentation(),
       InstructionSelector::SupportedMachineOperatorFlags(),
       InstructionSelector::AlignmentRequirements());
-  JSGraph jsgraph(isolate, graph, &common, nullptr, nullptr, &machine);
+  MachineGraph mcgraph(graph, &common, &machine);
 
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  WasmWrapperGraphBuilder builder(zone.get(), &jsgraph, sig, nullptr,
+  WasmWrapperGraphBuilder builder(zone.get(), &mcgraph, sig, nullptr,
                                   StubCallMode::kCallCodeObject,
                                   wasm::WasmFeaturesFromIsolate(isolate));
   builder.set_control_ptr(&control);
