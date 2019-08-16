@@ -2632,17 +2632,50 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I64x2MinS: {
-      CpuFeatureScope sse_scope_4_2(tasm(), SSE4_2);
-      XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(1);
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
-      DCHECK_EQ(dst, i.InputSimd128Register(0));
-      DCHECK_EQ(src, xmm0);
+      if (CpuFeatures::IsSupported(SSE4_2)) {
+        CpuFeatureScope sse_scope_4_2(tasm(), SSE4_2);
+        XMMRegister dst = i.OutputSimd128Register();
+        XMMRegister src = i.InputSimd128Register(1);
+        XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+        DCHECK_EQ(dst, i.InputSimd128Register(0));
+        DCHECK_EQ(src, xmm0);
 
-      __ movaps(tmp, src);
-      __ pcmpgtq(src, dst);
-      __ blendvpd(tmp, dst);  // implicit use of xmm0 as mask
-      __ movaps(dst, tmp);
+        __ movaps(tmp, src);
+        __ pcmpgtq(src, dst);
+        __ blendvpd(tmp, dst);  // implicit use of xmm0 as mask
+        __ movaps(dst, tmp);
+      } else {
+        CpuFeatureScope sse_scope_4_1(tasm(), SSE4_1);
+        XMMRegister dst = i.OutputSimd128Register();
+        XMMRegister src = i.InputSimd128Register(1);
+        XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+        Register tmp1 = i.TempRegister(1);
+        Register tmp2 = i.TempRegister(2);
+        DCHECK_EQ(dst, i.InputSimd128Register(0));
+        // backup src since we cannot change it
+        __ movaps(tmp, src);
+
+        // compare the lower quardwords
+        __ movq(tmp1, dst);
+        __ movq(tmp2, tmp);
+        __ cmpq(tmp1, tmp2);
+        // tmp2 now has the min of lower quadwords
+        __ cmovq(less_equal, tmp2, tmp1);
+        // tmp1 now has the higher quadword
+        // must do this before movq, movq clears top quadword
+        __ pextrq(tmp1, dst, 1);
+        // save tmp2 into dst
+        __ movq(dst, tmp2);
+        // tmp2 now has the higher quadword
+        __ pextrq(tmp2, tmp, 1);
+        //  compare higher quadwords
+        __ cmpq(tmp1, tmp2);
+        // tmp2 now has the min of higher quadwords
+        __ cmovq(less_equal, tmp2, tmp1);
+        __ movq(tmp, tmp2);
+        // dst = [tmp[0], dst[0]]
+        __ punpcklqdq(dst, tmp);
+      }
       break;
     }
     case kX64I64x2MaxS: {

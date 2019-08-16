@@ -2891,10 +2891,18 @@ void InstructionSelector::VisitI64x2Mul(Node* node) {
 
 void InstructionSelector::VisitI64x2MinS(Node* node) {
   X64OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempSimd128Register()};
-  Emit(kX64I64x2MinS, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.UseFixed(node->InputAt(1), xmm0),
-       arraysize(temps), temps);
+  if (this->IsSupported(SSE4_2)) {
+    InstructionOperand temps[] = {g.TempSimd128Register()};
+    Emit(kX64I64x2MinS, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), g.UseFixed(node->InputAt(1), xmm0),
+         arraysize(temps), temps);
+  } else {
+    InstructionOperand temps[] = {g.TempSimd128Register(), g.TempRegister(),
+                                  g.TempRegister()};
+    Emit(kX64I64x2MinS, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
+         arraysize(temps), temps);
+  }
 }
 
 void InstructionSelector::VisitI64x2MaxS(Node* node) {
