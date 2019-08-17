@@ -1798,6 +1798,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_CASE(kArm64F64x2Sub, Fsub, 2D);
       SIMD_BINOP_CASE(kArm64F64x2Mul, Fmul, 2D);
       SIMD_BINOP_CASE(kArm64F64x2Div, Fdiv, 2D);
+      SIMD_BINOP_CASE(kArm64F64x2Min, Fmin, 2D);
+      SIMD_BINOP_CASE(kArm64F64x2Max, Fmax, 2D);
     case kArm64F32x4Splat: {
       __ Dup(i.OutputSimd128Register().V4S(), i.InputSimd128Register(0).S(), 0);
       break;

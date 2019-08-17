@@ -179,6 +179,8 @@ namespace compiler {
   V(Arm64F64x2Sub)                          \
   V(Arm64F64x2Mul)                          \
   V(Arm64F64x2Div)                          \
+  V(Arm64F64x2Min)                          \
+  V(Arm64F64x2Max)                          \
   V(Arm64F32x4Splat)                        \
   V(Arm64F32x4ExtractLane)                  \
   V(Arm64F32x4ReplaceLane)                  \
