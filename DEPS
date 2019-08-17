@@ -20,7 +20,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
   # and whatever else without interference from each other.
-  'android_sdk_build-tools_version': 'DLK621q5_Bga5EsOr7cp6bHWWxFKx6UHLu_Ix_m3AckC',
+  'android_sdk_build-tools_version': '5DL7LQQjVMLClXLzLgmGysccPGsGcjJdvH9z5-uetiIC',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_emulator_version
   # and whatever else without interference from each other.
@@ -57,9 +57,9 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b9f70753c5914d28b8666751a3443bd094e79f13',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ac11835f217b54a34bc409e3c63298e5e75de25b',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '9f4b37db0e36216cdb09dadc07e200ca25c14ea6',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '72fbaf4d465e86222c92a21283a0d7406ca05323',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '9a5af81f58a2bc2ea7a887505e38b50021496194',
   'v8/third_party/instrumented_libraries':
@@ -153,7 +153,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '2ae52adeeeddfebecc9f4b1a5236b8cbdb42589c',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'dbca9d10d3e0b96f031c17b7604b745fbfa46e43',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -165,7 +165,7 @@ deps = {
     'condition': 'checkout_fuchsia',
   },
   'v8/third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'e9d5f427b56ae62a18efafa8ec631ad177a5a83c',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '27e17f7851e2cc51db2c47470d29513970327cc1',
   'v8/third_party/jinja2':
     Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + 'b41863e42637544c2941b574c7877d3e1f663e25',
   'v8/third_party/markupsafe':
@@ -201,7 +201,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '4327557d191c3a676ee8340939638836560aedde',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '2dd0798ec770f444642e9ec65e260ab8a814ae7e',
   'v8/tools/luci-go': {
       'packages': [
         {
