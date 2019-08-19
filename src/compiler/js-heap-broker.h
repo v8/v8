@@ -9,6 +9,7 @@
 #include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-info.h"
+#include "src/compiler/processed-feedback.h"
 #include "src/compiler/refs-map.h"
 #include "src/handles/handles.h"
 #include "src/interpreter/bytecode-array-accessor.h"
@@ -27,8 +28,8 @@ class ObjectRef;
 std::ostream& operator<<(std::ostream& os, const ObjectRef& ref);
 
 struct FeedbackSource {
-  FeedbackSource(Handle<FeedbackVector> vector_, FeedbackSlot slot_)
-      : vector(vector_), slot(slot_) {}
+  FeedbackSource(Handle<FeedbackVector> vector_, FeedbackSlot slot_);
+  FeedbackSource(FeedbackVectorRef vector_, FeedbackSlot slot_);
   explicit FeedbackSource(FeedbackNexus const& nexus);
   explicit FeedbackSource(VectorSlotPair const& pair);
 
@@ -61,20 +62,24 @@ struct FeedbackSource {
       broker->Trace() << __FUNCTION__ << ": missing " << x << '\n'; \
   } while (false)
 
-struct MapNameRefPair {
+struct PropertyAccessTarget {
   MapRef map;
   NameRef name;
+  AccessMode mode;
 
   struct Hash {
-    size_t operator()(const MapNameRefPair& pair) const {
-      return base::hash_combine(pair.map.object().address(),
-                                pair.name.object().address());
+    size_t operator()(const PropertyAccessTarget& pair) const {
+      return base::hash_combine(
+          base::hash_combine(pair.map.object().address(),
+                             pair.name.object().address()),
+          static_cast<int>(pair.mode));
     }
   };
   struct Equal {
-    bool operator()(const MapNameRefPair& lhs,
-                    const MapNameRefPair& rhs) const {
-      return lhs.map.equals(rhs.map) && lhs.name.equals(rhs.name);
+    bool operator()(const PropertyAccessTarget& lhs,
+                    const PropertyAccessTarget& rhs) const {
+      return lhs.map.equals(rhs.map) && lhs.name.equals(rhs.name) &&
+             lhs.mode == rhs.mode;
     }
   };
 };
@@ -115,21 +120,49 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   // feedback didn't contain information relevant for Turbofan.
   void SetFeedback(FeedbackSource const& source,
                    ProcessedFeedback const* feedback);
-  ProcessedFeedback const* GetFeedback(FeedbackSource const& source) const;
-
-  // Convenience wrappers around GetFeedback.
-  GlobalAccessFeedback const* GetGlobalAccessFeedback(
-      FeedbackSource const& source) const;
+  ProcessedFeedback const& GetFeedback(FeedbackSource const& source) const;
 
   // TODO(neis): Move these into serializer when we're always in the background.
-  ElementAccessFeedback const* ProcessFeedbackMapsForElementAccess(
+  ElementAccessFeedback const& ProcessFeedbackMapsForElementAccess(
       MapHandles const& maps, KeyedAccessMode const& keyed_mode);
-  GlobalAccessFeedback const* ProcessFeedbackForGlobalAccess(
-      FeedbackSource const& source);
-
   BytecodeAnalysis const& GetBytecodeAnalysis(
       Handle<BytecodeArray> bytecode_array, BailoutId osr_offset,
-      bool analyze_liveness, bool serialize);
+      bool analyze_liveness,
+      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
+
+  // Binary, comparison and for-in hints can be fully expressed via
+  // an enum. Insufficient feedback is signaled by <Hint enum>::kNone.
+  BinaryOperationHint GetFeedbackForBinaryOperation(
+      FeedbackSource const& source) const;
+  CompareOperationHint GetFeedbackForCompareOperation(
+      FeedbackSource const& source) const;
+  ForInHint GetFeedbackForForIn(FeedbackSource const& source) const;
+
+  ProcessedFeedback const& GetFeedbackForCall(FeedbackSource const& source);
+  ProcessedFeedback const& GetFeedbackForGlobalAccess(
+      FeedbackSource const& source);
+  ProcessedFeedback const& GetFeedbackForInstanceOf(
+      FeedbackSource const& source);
+  ProcessedFeedback const& GetFeedbackForPropertyAccess(
+      FeedbackSource const& source, AccessMode mode,
+      base::Optional<NameRef> static_name);
+
+  ProcessedFeedback const& ProcessFeedbackForBinaryOperation(
+      FeedbackSource const& source);
+  ProcessedFeedback const& ProcessFeedbackForCall(FeedbackSource const& source);
+  ProcessedFeedback const& ProcessFeedbackForCompareOperation(
+      FeedbackSource const& source);
+  ProcessedFeedback const& ProcessFeedbackForForIn(
+      FeedbackSource const& source);
+  ProcessedFeedback const& ProcessFeedbackForGlobalAccess(
+      FeedbackSource const& source);
+  ProcessedFeedback const& ProcessFeedbackForInstanceOf(
+      FeedbackSource const& source);
+  ProcessedFeedback const& ProcessFeedbackForPropertyAccess(
+      FeedbackSource const& source, AccessMode mode,
+      base::Optional<NameRef> static_name);
+
+  bool FeedbackIsInsufficient(FeedbackSource const& source) const;
 
   base::Optional<NameRef> GetNameFeedback(FeedbackNexus const& nexus);
 
@@ -144,8 +177,12 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       MapRef map, CompilationDependencies* dependencies);
   void CreateAccessInfoForLoadingThen(MapRef map,
                                       CompilationDependencies* dependencies);
-  void StorePropertyAccessInfoForLoad(MapRef map, NameRef name,
-                                      PropertyAccessInfo const& access_info);
+  void StorePropertyAccessInfo(MapRef map, NameRef name, AccessMode mode,
+                               PropertyAccessInfo const& access_info);
+  PropertyAccessInfo GetPropertyAccessInfo(
+      MapRef map, NameRef name, AccessMode access_mode,
+      CompilationDependencies* dependencies,
+      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
 
   std::ostream& Trace();
   void IncrementTracingIndentation();
@@ -155,6 +192,23 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   friend class HeapObjectRef;
   friend class ObjectRef;
   friend class ObjectData;
+
+  // Bottleneck FeedbackNexus access here, for storage in the broker
+  // or on-the-fly usage elsewhere in the compiler.
+  ForInHint ReadFeedbackForForIn(FeedbackSource const& source) const;
+  CompareOperationHint ReadFeedbackForCompareOperation(
+      FeedbackSource const& source) const;
+  BinaryOperationHint ReadFeedbackForBinaryOperation(
+      FeedbackSource const& source) const;
+
+  ProcessedFeedback const& ReadFeedbackForCall(FeedbackSource const& source);
+  ProcessedFeedback const& ReadFeedbackForGlobalAccess(
+      FeedbackSource const& source);
+  ProcessedFeedback const& ReadFeedbackForInstanceOf(
+      FeedbackSource const& source);
+  ProcessedFeedback const& ReadFeedbackForPropertyAccess(
+      FeedbackSource const& source, AccessMode mode,
+      base::Optional<NameRef> static_name);
 
   void SerializeShareableObjects();
   void CollectArrayAndObjectPrototypes();
@@ -179,12 +233,15 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   typedef ZoneUnorderedMap<MapRef, PropertyAccessInfo, ObjectRef::Hash,
                            ObjectRef::Equal>
       MapToAccessInfos;
+
+  // TODO(neis): Replaceby uses of property_access_infos_.
   MapToAccessInfos ais_for_loading_exec_;
   MapToAccessInfos ais_for_loading_has_instance_;
   MapToAccessInfos ais_for_loading_then_;
-  ZoneUnorderedMap<MapNameRefPair, PropertyAccessInfo, MapNameRefPair::Hash,
-                   MapNameRefPair::Equal>
-      property_access_infos_for_load_;
+
+  ZoneUnorderedMap<PropertyAccessTarget, PropertyAccessInfo,
+                   PropertyAccessTarget::Hash, PropertyAccessTarget::Equal>
+      property_access_infos_;
 
   static const size_t kMinimalRefsBucketCount = 8;     // must be power of 2
   static const size_t kInitialRefsBucketCount = 1024;  // must be power of 2

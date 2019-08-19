@@ -168,7 +168,7 @@ class AccessInfoFactory final {
   base::Optional<ElementAccessInfo> ComputeElementAccessInfo(
       Handle<Map> map, AccessMode access_mode) const;
   bool ComputeElementAccessInfos(
-      ElementAccessFeedback const& processed, AccessMode access_mode,
+      ElementAccessFeedback const& feedback,
       ZoneVector<ElementAccessInfo>* access_infos) const;
 
   PropertyAccessInfo ComputePropertyAccessInfo(Handle<Map> map,
@@ -196,7 +196,7 @@ class AccessInfoFactory final {
 
  private:
   base::Optional<ElementAccessInfo> ConsolidateElementLoad(
-      ElementAccessFeedback const& processed) const;
+      ElementAccessFeedback const& feedback) const;
   PropertyAccessInfo LookupSpecialFieldAccessor(Handle<Map> map,
                                                 Handle<Name> name) const;
   PropertyAccessInfo LookupTransition(Handle<Map> map, Handle<Name> name,
