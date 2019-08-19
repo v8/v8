@@ -4,7 +4,7 @@
 
 #include 'src/builtins/builtins-regexp-gen.h'
 
-namespace regexp_replace {
+namespace regexp {
 
   extern builtin
   StringIndexOf(implicit context: Context)(String, String, Smi): Smi;
@@ -23,10 +23,6 @@ namespace regexp_replace {
 
   extern macro
   RegExpBuiltinsAssembler::AdvanceStringIndexFast(String, Smi, bool): Smi;
-  extern macro
-  RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResultFast(
-      implicit context: Context)(JSReceiver, String):
-      RegExpMatchInfo labels IfDidNotMatch;
 
   transitioning macro RegExpReplaceCallableNoExplicitCaptures(implicit context:
                                                                   Context)(
@@ -146,8 +142,9 @@ namespace regexp_replace {
     }
 
     while (true) {
-      const match: RegExpMatchInfo = RegExpPrototypeExecBodyWithoutResultFast(
-          regexp, string) otherwise break;
+      const match: RegExpMatchInfo =
+          regexp::RegExpPrototypeExecBodyWithoutResultFast(regexp, string)
+          otherwise break;
       const matchStart: Smi = match.GetStartOfCapture(0);
       const matchEnd: Smi = match.GetEndOfCapture(0);
 

@@ -843,8 +843,8 @@ RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
 
 TNode<RegExpMatchInfo>
 RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResultFast(
-    TNode<Context> context, TNode<JSReceiver> maybe_regexp,
-    TNode<String> string, Label* if_didnotmatch) {
+    TNode<Context> context, TNode<JSRegExp> maybe_regexp, TNode<String> string,
+    Label* if_didnotmatch) {
   return RegExpPrototypeExecBodyWithoutResult(context, maybe_regexp, string,
                                               if_didnotmatch, true);
 }
@@ -1050,25 +1050,6 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExp_Permissive(
   BranchIfFastRegExp(context, object, LoadMap(object),
                      PrototypeCheckAssembler::kCheckFull, base::nullopt,
                      if_isunmodified, if_ismodified);
-}
-
-TNode<BoolT> RegExpBuiltinsAssembler::IsFastRegExp_Permissive(
-    SloppyTNode<Context> context, SloppyTNode<Object> object) {
-  Label yup(this), nope(this), out(this);
-  TVARIABLE(BoolT, var_result);
-
-  BranchIfFastRegExp_Permissive(context, CAST(object), &yup, &nope);
-
-  BIND(&yup);
-  var_result = Int32TrueConstant();
-  Goto(&out);
-
-  BIND(&nope);
-  var_result = Int32FalseConstant();
-  Goto(&out);
-
-  BIND(&out);
-  return var_result.value();
 }
 
 void RegExpBuiltinsAssembler::BranchIfFastRegExpResult(Node* const context,
@@ -1790,9 +1771,9 @@ TF_BUILTIN(RegExpPrototypeUnicodeGetter, RegExpBuiltinsAssembler) {
 }
 
 // ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
-Node* RegExpBuiltinsAssembler::RegExpExec(Node* context, Node* regexp,
-                                          Node* string) {
-  VARIABLE(var_result, MachineRepresentation::kTagged);
+TNode<Object> RegExpBuiltinsAssembler::RegExpExec(Node* context, Node* regexp,
+                                                  Node* string) {
+  TVARIABLE(Object, var_result);
   Label out(this);
 
   // Take the slow path of fetching the exec property, calling it, and
@@ -1813,12 +1794,11 @@ Node* RegExpBuiltinsAssembler::RegExpExec(Node* context, Node* regexp,
   BIND(&if_iscallable);
   {
     Callable call_callable = CodeFactory::Call(isolate());
-    Node* const result = CallJS(call_callable, context, exec, regexp, string);
+    var_result = CAST(CallJS(call_callable, context, exec, regexp, string));
 
-    var_result.Bind(result);
-    GotoIf(IsNull(result), &out);
+    GotoIf(IsNull(var_result.value()), &out);
 
-    ThrowIfNotJSReceiver(context, result,
+    ThrowIfNotJSReceiver(context, var_result.value(),
                          MessageTemplate::kInvalidRegExpExecResult, "");
 
     Goto(&out);
@@ -1829,55 +1809,13 @@ Node* RegExpBuiltinsAssembler::RegExpExec(Node* context, Node* regexp,
     ThrowIfNotInstanceType(context, regexp, JS_REGEXP_TYPE,
                            "RegExp.prototype.exec");
 
-    Node* const result = CallBuiltin(Builtins::kRegExpPrototypeExecSlow,
-                                     context, regexp, string);
-    var_result.Bind(result);
+    var_result = CallBuiltin(Builtins::kRegExpPrototypeExecSlow, context,
+                             regexp, string);
     Goto(&out);
   }
 
   BIND(&out);
   return var_result.value();
-}
-
-// ES#sec-regexp.prototype.test
-// RegExp.prototype.test ( S )
-TF_BUILTIN(RegExpPrototypeTest, RegExpBuiltinsAssembler) {
-  TNode<Object> maybe_receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> maybe_string = CAST(Parameter(Descriptor::kString));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-
-  // Ensure {maybe_receiver} is a JSReceiver.
-  ThrowIfNotJSReceiver(context, maybe_receiver,
-                       MessageTemplate::kIncompatibleMethodReceiver,
-                       "RegExp.prototype.test");
-  TNode<JSReceiver> receiver = CAST(maybe_receiver);
-
-  // Convert {maybe_string} to a String.
-  TNode<String> string = ToString_Inline(context, maybe_string);
-
-  Label fast_path(this), slow_path(this);
-  BranchIfFastRegExp_Permissive(context, receiver, &fast_path, &slow_path);
-
-  BIND(&fast_path);
-  {
-    Label if_didnotmatch(this);
-    RegExpPrototypeExecBodyWithoutResult(context, receiver, string,
-                                         &if_didnotmatch, true);
-    Return(TrueConstant());
-
-    BIND(&if_didnotmatch);
-    Return(FalseConstant());
-  }
-
-  BIND(&slow_path);
-  {
-    // Call exec.
-    TNode<HeapObject> match_indices =
-        CAST(RegExpExec(context, receiver, string));
-
-    // Return true iff exec matched successfully.
-    Return(SelectBooleanConstant(IsNotNull(match_indices)));
-  }
 }
 
 TF_BUILTIN(RegExpPrototypeTestFast, RegExpBuiltinsAssembler) {
@@ -2179,7 +2117,8 @@ void RegExpMatchAllAssembler::Generate(TNode<Context> context,
     // 6. Let matcher be ? Construct(C, « R, flags »).
     TNode<String> flags = CAST(FlagsGetter(context, fast_regexp, true));
     var_matcher = RegExpCreate(context, native_context, source, flags);
-    CSA_ASSERT(this, IsFastRegExp_Permissive(context, var_matcher.value()));
+    CSA_ASSERT(this,
+               IsFastRegExpPermissive(context, CAST(var_matcher.value())));
 
     // 7. Let lastIndex be ? ToLength(? Get(R, "lastIndex")).
     // 8. Perform ? Set(matcher, "lastIndex", lastIndex, true).
@@ -2336,7 +2275,7 @@ TF_BUILTIN(RegExpMatchFast, RegExpBuiltinsAssembler) {
 
 void RegExpBuiltinsAssembler::RegExpPrototypeSearchBodyFast(
     TNode<Context> context, TNode<JSRegExp> regexp, TNode<String> string) {
-  CSA_ASSERT(this, IsFastRegExp_Permissive(context, regexp));
+  CSA_ASSERT(this, IsFastRegExpPermissive(context, regexp));
 
   // Grab the initial value of last index.
   TNode<Smi> previous_last_index = FastLoadLastIndex(regexp);
@@ -2478,13 +2417,12 @@ TF_BUILTIN(RegExpSearchFast, RegExpBuiltinsAssembler) {
 
 // Generates the fast path for @@split. {regexp} is an unmodified, non-sticky
 // JSRegExp, {string} is a String, and {limit} is a Smi.
-void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
-                                                       Node* const regexp,
+void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(TNode<Context> context,
+                                                       TNode<JSRegExp> regexp,
                                                        TNode<String> string,
                                                        TNode<Smi> const limit) {
-  CSA_ASSERT(this, IsFastRegExp_Permissive(context, regexp));
-  CSA_ASSERT(this,
-             Word32BinaryNot(FastFlagGetter(CAST(regexp), JSRegExp::kSticky)));
+  CSA_ASSERT(this, IsFastRegExpPermissive(context, regexp));
+  CSA_ASSERT(this, Word32BinaryNot(FastFlagGetter(regexp, JSRegExp::kSticky)));
 
   TNode<IntPtrT> const int_limit = SmiUntag(limit);
 
@@ -2606,7 +2544,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
       GotoIfNot(SmiEqual(match_to, next_search_from), &next);
       GotoIfNot(SmiEqual(match_to, last_matched_until), &next);
 
-      Node* const is_unicode = FastFlagGetter(CAST(regexp), JSRegExp::kUnicode);
+      Node* const is_unicode = FastFlagGetter(regexp, JSRegExp::kUnicode);
       Node* const new_next_search_from =
           AdvanceStringIndex(string, next_search_from, is_unicode, true);
       var_next_search_from = CAST(new_next_search_from);
@@ -2698,7 +2636,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
 
   BIND(&out);
   {
-    Node* const result = array.ToJSArray(CAST(context));
+    Node* const result = array.ToJSArray(context);
     Return(result);
   }
 
@@ -2898,7 +2836,7 @@ TF_BUILTIN(RegExpStringIteratorPrototypeNext, RegExpStringIteratorAssembler) {
 
     BIND(&if_slow);
     {
-      var_match = CAST(RegExpExec(context, iterating_regexp, iterating_string));
+      var_match = RegExpExec(context, iterating_regexp, iterating_string);
       var_is_fast_regexp = Int32FalseConstant();
       Branch(IsNull(var_match.value()), &if_no_match, &if_match);
     }
@@ -2943,7 +2881,7 @@ TF_BUILTIN(RegExpStringIteratorPrototypeNext, RegExpStringIteratorAssembler) {
 
         // When iterating_regexp is fast, we assume it stays fast even after
         // accessing the first match from the RegExp result.
-        CSA_ASSERT(this, IsFastRegExp_Permissive(context, iterating_regexp));
+        CSA_ASSERT(this, IsFastRegExpPermissive(context, iterating_regexp));
         GotoIfNot(IsEmptyString(match_str), &return_result);
 
         // 1. Let thisIndex be ? ToLength(? Get(R, "lastIndex")).

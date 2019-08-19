@@ -994,6 +994,7 @@ torque_files = [
   "src/builtins/proxy.tq",
   "src/builtins/reflect.tq",
   "src/builtins/regexp-replace.tq",
+  "src/builtins/regexp-test.tq",
   "src/builtins/regexp.tq",
   "src/builtins/string.tq",
   "src/builtins/string-endswith.tq",
