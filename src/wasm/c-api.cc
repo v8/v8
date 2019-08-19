@@ -1364,7 +1364,7 @@ void PrepareFunctionData(i::Isolate* isolate,
 }
 
 void PushArgs(i::wasm::FunctionSig* sig, const Val args[],
-              i::wasm::CWasmArgumentsPacker* packer) {
+              i::wasm::CWasmArgumentsPacker* packer, StoreImpl* store) {
   for (size_t i = 0; i < sig->parameter_count(); i++) {
     i::wasm::ValueType type = sig->GetParam(i);
     switch (type) {
@@ -1381,9 +1381,15 @@ void PushArgs(i::wasm::FunctionSig* sig, const Val args[],
         packer->Push(args[i].f64());
         break;
       case i::wasm::kWasmAnyRef:
-      case i::wasm::kWasmFuncRef:
-        packer->Push(impl(args[i].ref())->v8_object()->ptr());
+      case i::wasm::kWasmFuncRef: {
+        Ref* ref = args[i].ref();
+        if (ref == nullptr) {
+          packer->Push(store->i_isolate()->factory()->null_value()->ptr());
+        } else {
+          packer->Push(impl(ref)->v8_object()->ptr());
+        }
         break;
+      }
       case i::wasm::kWasmExnRef:
         // TODO(jkummerow): Implement these.
         UNIMPLEMENTED();
@@ -1415,7 +1421,8 @@ void PopArgs(i::wasm::FunctionSig* sig, Val results[],
       case i::wasm::kWasmAnyRef:
       case i::wasm::kWasmFuncRef: {
         i::Address raw = packer->Pop<i::Address>();
-        if (raw == i::kNullAddress) {
+        if (raw == i::kNullAddress ||
+            i::Object(raw).IsNull(store->i_isolate())) {
           results[i] = Val(nullptr);
         } else {
           i::JSReceiver raw_obj = i::JSReceiver::cast(i::Object(raw));
@@ -1473,7 +1480,7 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap*> {
       function_data->wasm_call_target().ptr() >> i::kSmiTagSize;
 
   i::wasm::CWasmArgumentsPacker packer(function_data->packed_args_size());
-  PushArgs(sig, args, &packer);
+  PushArgs(sig, args, &packer, store);
 
   i::Handle<i::Object> object_ref = instance;
   if (function_index <
@@ -1523,6 +1530,8 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap*> {
 
 i::Address FuncData::v8_callback(void* data, i::Address argv) {
   FuncData* self = reinterpret_cast<FuncData*>(data);
+  i::Isolate* isolate = impl(self->store)->i_isolate();
+  i::HandleScope scope(isolate);
 
   const vec<ValType*>& param_types = self->type->params();
   const vec<ValType*>& result_types = self->type->results();
@@ -1555,11 +1564,11 @@ i::Address FuncData::v8_callback(void* data, i::Address argv) {
       case FUNCREF: {
         i::Address raw = v8::base::ReadUnalignedValue<i::Address>(p);
         p += sizeof(raw);
-        if (raw == i::kNullAddress) {
+        if (raw == i::kNullAddress || i::Object(raw).IsNull(isolate)) {
           params[i] = Val(nullptr);
         } else {
           i::JSReceiver raw_obj = i::JSReceiver::cast(i::Object(raw));
-          i::Handle<i::JSReceiver> obj(raw_obj, raw_obj.GetIsolate());
+          i::Handle<i::JSReceiver> obj(raw_obj, isolate);
           params[i] = Val(implement<Ref>::type::make(impl(self->store), obj));
         }
         break;
@@ -1575,7 +1584,6 @@ i::Address FuncData::v8_callback(void* data, i::Address argv) {
   }
 
   if (trap) {
-    i::Isolate* isolate = impl(self->store)->i_isolate();
     isolate->Throw(*impl(trap.get())->v8_object());
     i::Object ex = isolate->pending_exception();
     isolate->clear_pending_exception();
@@ -1731,7 +1739,6 @@ auto Table::make(Store* store_abs, const TableType* type, const Ref* ref)
   StoreImpl* store = impl(store_abs);
   i::Isolate* isolate = store->i_isolate();
   i::HandleScope scope(isolate);
-  auto enabled_features = i::wasm::WasmFeaturesFromFlags();
 
   // Get "element".
   i::wasm::ValueType i_type;
@@ -1740,13 +1747,11 @@ auto Table::make(Store* store_abs, const TableType* type, const Ref* ref)
       i_type = i::wasm::kWasmFuncRef;
       break;
     case ANYREF:
-      if (enabled_features.anyref) {
-        i_type = i::wasm::kWasmAnyRef;
-        break;
-      }  // Else fall through.
-      V8_FALLTHROUGH;
+      DCHECK(i::wasm::WasmFeaturesFromFlags().anyref);  // See Engine::make().
+      i_type = i::wasm::kWasmAnyRef;
+      break;
     default:
-      UNREACHABLE();  // 'element' must be 'FUNCREF'.
+      UNREACHABLE();
       return nullptr;
   }
 
@@ -1784,8 +1789,18 @@ auto Table::type() const -> own<TableType*> {
   uint32_t min = table->current_length();
   uint32_t max;
   if (!table->maximum_length().ToUint32(&max)) max = 0xFFFFFFFFu;
-  // TODO(wasm+): support new element types.
-  return TableType::make(ValType::make(FUNCREF), Limits(min, max));
+  ValKind kind;
+  switch (table->type()) {
+    case i::wasm::kWasmFuncRef:
+      kind = FUNCREF;
+      break;
+    case i::wasm::kWasmAnyRef:
+      kind = ANYREF;
+      break;
+    default:
+      UNREACHABLE();
+  }
+  return TableType::make(ValType::make(kind), Limits(min, max));
 }
 
 auto Table::get(size_t index) const -> own<Ref*> {
@@ -1795,18 +1810,15 @@ auto Table::get(size_t index) const -> own<Ref*> {
   i::HandleScope handle_scope(isolate);
   i::Handle<i::Object> result =
       i::WasmTableObject::Get(isolate, table, static_cast<uint32_t>(index));
-  if (!result->IsJSFunction()) return own<Ref*>();
-  DCHECK(i::WasmExportedFunction::IsWasmExportedFunction(*result) ||
-         i::WasmCapiFunction::IsWasmCapiFunction(*result));
-  // TODO(wasm+): other references
-  return implement<Func>::type::make(impl(this)->store(),
-                                     i::Handle<i::JSFunction>::cast(result));
+  if (result->IsNull(isolate)) return own<Ref*>();
+  // TODO(jkummerow): If we support both JavaScript and the C-API at the same
+  // time, we need to handle Smis and other JS primitives here.
+  DCHECK(result->IsJSReceiver());
+  return implement<Ref>::type::make(impl(this)->store(),
+                                    i::Handle<i::JSReceiver>::cast(result));
 }
 
 auto Table::set(size_t index, const Ref* ref) -> bool {
-  if (ref && !impl(ref)->v8_object()->IsFunction()) {
-    WASM_UNIMPLEMENTED("non-function table elements");
-  }
   i::Handle<i::WasmTableObject> table = impl(this)->v8_object();
   if (index >= table->current_length()) return false;
   i::Isolate* isolate = table->GetIsolate();
@@ -2698,7 +2710,7 @@ void wasm_val_delete(wasm_val_t* v) {
 void wasm_val_copy(wasm_val_t* out, const wasm_val_t* v) {
   *out = *v;
   if (is_ref(reveal_valkind(v->kind))) {
-    out->of.ref = release_ref(v->of.ref->copy());
+    out->of.ref = v->of.ref ? release_ref(v->of.ref->copy()) : nullptr;
   }
 }
 

@@ -32,6 +32,7 @@ v8_executable("wasm_api_tests") {
     "callbacks.cc",
     "finalize.cc",
     "globals.cc",
+    "hostref.cc",
     "memory.cc",
     "reflect.cc",
     "run-all-wasm-api-tests.cc",

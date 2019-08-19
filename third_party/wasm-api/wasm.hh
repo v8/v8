@@ -534,7 +534,7 @@ public:
   auto release_ref() -> own<Ref*> {
     assert(is_ref());
     auto ref = impl_.ref;
-    ref = nullptr;
+    impl_.ref = nullptr;
     return own<Ref*>(ref);
   }
 

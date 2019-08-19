@@ -690,6 +690,8 @@ struct WasmInitExpr {
       val.global_index = index;
     } else if (kind == kRefFuncConst) {
       val.function_index = index;
+    } else if (kind == kRefNullConst) {
+      // Nothing to do.
     } else {
       // For the other types, the other initializers should be used.
       UNREACHABLE();
