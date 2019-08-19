@@ -887,7 +887,8 @@ float FeedbackNexus::ComputeCallFrequency() {
 
   double const invocation_count = vector().invocation_count();
   double const call_count = GetCallCount();
-  if (invocation_count == 0.0) {  // Prevent division by 0.
+  if (invocation_count == 0) {
+    // Prevent division by 0.
     return 0.0f;
   }
   return static_cast<float>(call_count / invocation_count);

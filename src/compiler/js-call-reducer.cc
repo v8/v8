@@ -2848,7 +2848,8 @@ Reduction JSCallReducer::ReduceCallApiFunction(
 
       // See if we can constant-fold the compatible receiver checks.
       HolderLookupResult api_holder =
-          function_template_info.LookupHolderOfExpectedType(first_receiver_map);
+          function_template_info.LookupHolderOfExpectedType(first_receiver_map,
+                                                            false);
       if (api_holder.lookup == CallOptimization::kHolderNotFound)
         return inference.NoChange();
 
@@ -2878,7 +2879,8 @@ Reduction JSCallReducer::ReduceCallApiFunction(
       for (size_t i = 1; i < receiver_maps.size(); ++i) {
         MapRef receiver_map(broker(), receiver_maps[i]);
         HolderLookupResult holder_i =
-            function_template_info.LookupHolderOfExpectedType(receiver_map);
+            function_template_info.LookupHolderOfExpectedType(receiver_map,
+                                                              false);
 
         if (api_holder.lookup != holder_i.lookup) return inference.NoChange();
         if (!(api_holder.holder.has_value() && holder_i.holder.has_value()))
@@ -3225,6 +3227,13 @@ bool ShouldUseCallICFeedback(Node* node) {
   return true;
 }
 
+base::Optional<HeapObjectRef> GetHeapObjectFeedback(
+    JSHeapBroker* broker, const FeedbackNexus& nexus) {
+  HeapObject object;
+  if (!nexus.GetFeedback()->GetHeapObject(&object)) return base::nullopt;
+  return HeapObjectRef(broker, handle(object, broker->isolate()));
+}
+
 }  // namespace
 
 Reduction JSCallReducer::ReduceJSCall(Node* node) {
@@ -3343,18 +3352,19 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     return reduction.Changed() ? reduction : Changed(node);
   }
 
+  // Extract feedback from the {node} using the FeedbackNexus.
   if (!p.feedback().IsValid()) return NoChange();
-  ProcessedFeedback const& feedback =
-      broker()->GetFeedbackForCall(FeedbackSource(p.feedback()));
-  if (feedback.IsInsufficient()) {
+  FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
+  if (nexus.IsUninitialized()) {
     return ReduceSoftDeoptimize(
         node, DeoptimizeReason::kInsufficientTypeFeedbackForCall);
   }
 
-  base::Optional<HeapObjectRef> feedback_target = feedback.AsCall().target();
-  if (feedback_target.has_value() && ShouldUseCallICFeedback(target) &&
-      feedback_target->map().is_callable()) {
-    Node* target_function = jsgraph()->Constant(*feedback_target);
+  base::Optional<HeapObjectRef> feedback =
+      GetHeapObjectFeedback(broker(), nexus);
+  if (feedback.has_value() && ShouldUseCallICFeedback(target) &&
+      feedback->map().is_callable()) {
+    Node* target_function = jsgraph()->Constant(*feedback);
 
     // Check that the {target} is still the {target_function}.
     Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
@@ -3757,10 +3767,6 @@ Reduction JSCallReducer::ReduceJSCallWithSpread(Node* node) {
 }
 
 Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
-  // TODO(mslekova): Remove once ReduceJSConstruct is brokerized.
-  AllowHandleDereference allow_handle_dereference;
-  AllowHandleAllocation allow_handle_allocation;
-
   DCHECK_EQ(IrOpcode::kJSConstruct, node->opcode());
   ConstructParameters const& p = ConstructParametersOf(node->op());
   DCHECK_LE(2u, p.arity());
@@ -3770,16 +3776,17 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
+  // Extract feedback from the {node} using the FeedbackNexus.
   if (p.feedback().IsValid()) {
-    ProcessedFeedback const& feedback =
-        broker()->GetFeedbackForCall(FeedbackSource(p.feedback()));
-    if (feedback.IsInsufficient()) {
+    FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
+    if (nexus.IsUninitialized()) {
       return ReduceSoftDeoptimize(
           node, DeoptimizeReason::kInsufficientTypeFeedbackForConstruct);
     }
 
-    base::Optional<HeapObjectRef> feedback_target = feedback.AsCall().target();
-    if (feedback_target.has_value() && feedback_target->IsAllocationSite()) {
+    base::Optional<HeapObjectRef> feedback =
+        GetHeapObjectFeedback(broker(), nexus);
+    if (feedback.has_value() && feedback->IsAllocationSite()) {
       // The feedback is an AllocationSite, which means we have called the
       // Array function and collected transition (and pretenuring) feedback
       // for the resulting arrays.  This has to be kept in sync with the
@@ -3804,12 +3811,12 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       NodeProperties::ReplaceValueInput(node, array_function, 1);
       NodeProperties::ChangeOp(
           node, javascript()->CreateArray(
-                    arity, feedback_target->AsAllocationSite().object()));
+                    arity, feedback->AsAllocationSite().object()));
       return Changed(node);
-    } else if (feedback_target.has_value() &&
+    } else if (feedback.has_value() &&
                !HeapObjectMatcher(new_target).HasValue() &&
-               feedback_target->map().is_constructor()) {
-      Node* new_target_feedback = jsgraph()->Constant(*feedback_target);
+               feedback->map().is_constructor()) {
+      Node* new_target_feedback = jsgraph()->Constant(*feedback);
 
       // Check that the {new_target} is still the {new_target_feedback}.
       Node* check = graph()->NewNode(simplified()->ReferenceEqual(), new_target,
@@ -6074,7 +6081,7 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
 }
 
 Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
 
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -6142,7 +6149,7 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
 
 // ES section #sec-promise.resolve
 Reduction JSCallReducer::ReducePromiseResolveTrampoline(Node* node) {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
+  DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
 
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   Node* receiver = NodeProperties::GetValueInput(node, 1);

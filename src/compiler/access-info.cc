@@ -290,32 +290,35 @@ base::Optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
 }
 
 bool AccessInfoFactory::ComputeElementAccessInfos(
-    ElementAccessFeedback const& feedback,
+    ElementAccessFeedback const& processed, AccessMode access_mode,
     ZoneVector<ElementAccessInfo>* access_infos) const {
-  AccessMode access_mode = feedback.keyed_mode().access_mode();
   if (access_mode == AccessMode::kLoad || access_mode == AccessMode::kHas) {
     // For polymorphic loads of similar elements kinds (i.e. all tagged or all
     // double), always use the "worst case" code without a transition.  This is
     // much faster than transitioning the elements to the worst case, trading a
     // TransitionElementsKind for a CheckMaps, avoiding mutation of the array.
     base::Optional<ElementAccessInfo> access_info =
-        ConsolidateElementLoad(feedback);
+        ConsolidateElementLoad(processed);
     if (access_info.has_value()) {
       access_infos->push_back(*access_info);
       return true;
     }
   }
 
-  for (auto const& group : feedback.transition_groups()) {
-    DCHECK(!group.empty());
-    Handle<Map> target = group.front();
+  for (Handle<Map> receiver_map : processed.receiver_maps) {
+    // Compute the element access information.
     base::Optional<ElementAccessInfo> access_info =
-        ComputeElementAccessInfo(target, access_mode);
+        ComputeElementAccessInfo(receiver_map, access_mode);
     if (!access_info.has_value()) return false;
 
-    for (size_t i = 1; i < group.size(); ++i) {
-      access_info->AddTransitionSource(group[i]);
+    // Collect the possible transitions for the {receiver_map}.
+    for (auto transition : processed.transitions) {
+      if (transition.second.equals(receiver_map)) {
+        access_info->AddTransitionSource(transition.first);
+      }
     }
+
+    // Schedule the access information.
     access_infos->push_back(*access_info);
   }
   return true;
@@ -631,7 +634,6 @@ void PropertyAccessInfo::RecordDependencies(
 bool AccessInfoFactory::FinalizePropertyAccessInfos(
     ZoneVector<PropertyAccessInfo> access_infos, AccessMode access_mode,
     ZoneVector<PropertyAccessInfo>* result) const {
-  if (access_infos.empty()) return false;
   MergePropertyAccessInfos(access_infos, access_mode, result);
   for (PropertyAccessInfo const& info : *result) {
     if (info.IsInvalid()) return false;
@@ -685,28 +687,22 @@ Maybe<ElementsKind> GeneralizeElementsKind(ElementsKind this_kind,
 }  // namespace
 
 base::Optional<ElementAccessInfo> AccessInfoFactory::ConsolidateElementLoad(
-    ElementAccessFeedback const& feedback) const {
-  if (feedback.transition_groups().empty()) return base::nullopt;
-
-  DCHECK(!feedback.transition_groups().front().empty());
-  MapRef first_map(broker(), feedback.transition_groups().front().front());
+    ElementAccessFeedback const& processed) const {
+  ElementAccessFeedback::MapIterator it = processed.all_maps(broker());
+  MapRef first_map = it.current();
   InstanceType instance_type = first_map.instance_type();
   ElementsKind elements_kind = first_map.elements_kind();
-
   ZoneVector<Handle<Map>> maps(zone());
-  for (auto const& group : feedback.transition_groups()) {
-    for (Handle<Map> map_handle : group) {
-      MapRef map(broker(), map_handle);
-      if (map.instance_type() != instance_type ||
-          !CanInlineElementAccess(map)) {
-        return base::nullopt;
-      }
-      if (!GeneralizeElementsKind(elements_kind, map.elements_kind())
-               .To(&elements_kind)) {
-        return base::nullopt;
-      }
-      maps.push_back(map.object());
+  for (; !it.done(); it.advance()) {
+    MapRef map = it.current();
+    if (map.instance_type() != instance_type || !CanInlineElementAccess(map)) {
+      return base::nullopt;
     }
+    if (!GeneralizeElementsKind(elements_kind, map.elements_kind())
+             .To(&elements_kind)) {
+      return base::nullopt;
+    }
+    maps.push_back(map.object());
   }
 
   return ElementAccessInfo(std::move(maps), elements_kind, zone());

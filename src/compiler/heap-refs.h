@@ -35,8 +35,6 @@ namespace compiler {
 // For a store during literal creation, do not walk up the prototype chain.
 enum class AccessMode { kLoad, kStore, kStoreInLiteral, kHas };
 
-enum class SerializationPolicy { kAssumeSerialized, kSerializeIfNeeded };
-
 enum class OddballType : uint8_t {
   kNone,     // Not an Oddball.
   kBoolean,  // True or False.
@@ -139,9 +137,8 @@ class V8_EXPORT_PRIVATE ObjectRef {
 
   // Return the element at key {index} if {index} is known to be an own data
   // property of the object that is non-writable and non-configurable.
-  base::Optional<ObjectRef> GetOwnConstantElement(
-      uint32_t index, SerializationPolicy policy =
-                          SerializationPolicy::kAssumeSerialized) const;
+  base::Optional<ObjectRef> GetOwnConstantElement(uint32_t index,
+                                                  bool serialize = false) const;
 
   Isolate* isolate() const;
 
@@ -271,8 +268,7 @@ class JSObjectRef : public JSReceiverRef {
   // if {index} is known to be an own data property of the object.
   base::Optional<ObjectRef> GetOwnDataProperty(
       Representation field_representation, FieldIndex index,
-      SerializationPolicy policy =
-          SerializationPolicy::kAssumeSerialized) const;
+      bool serialize = false) const;
   FixedArrayBaseRef elements() const;
   void SerializeElements();
   void EnsureElementsTenured();
@@ -374,14 +370,10 @@ class ContextRef : public HeapObjectRef {
   // followed. If {depth} != 0 on function return, then it only got
   // partway to the desired depth. If {serialize} is true, then
   // {previous} will cache its findings.
-  ContextRef previous(size_t* depth,
-                      SerializationPolicy policy =
-                          SerializationPolicy::kAssumeSerialized) const;
+  ContextRef previous(size_t* depth, bool serialize = false) const;
 
   // Only returns a value if the index is valid for this ContextRef.
-  base::Optional<ObjectRef> get(
-      int index, SerializationPolicy policy =
-                     SerializationPolicy::kAssumeSerialized) const;
+  base::Optional<ObjectRef> get(int index, bool serialize = false) const;
 
   // We only serialize the ScopeInfo if certain Promise
   // builtins are called.
@@ -653,9 +645,8 @@ class FunctionTemplateInfoRef : public HeapObjectRef {
   void SerializeCallCode();
   base::Optional<CallHandlerInfoRef> call_code() const;
 
-  HolderLookupResult LookupHolderOfExpectedType(
-      MapRef receiver_map,
-      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
+  HolderLookupResult LookupHolderOfExpectedType(MapRef receiver_map,
+                                                bool serialize);
 };
 
 class FixedArrayBaseRef : public HeapObjectRef {
@@ -743,9 +734,8 @@ class JSArrayRef : public JSObjectRef {
 
   // Return the element at key {index} if the array has a copy-on-write elements
   // storage and {index} is known to be an own data property.
-  base::Optional<ObjectRef> GetOwnCowElement(
-      uint32_t index, SerializationPolicy policy =
-                          SerializationPolicy::kAssumeSerialized) const;
+  base::Optional<ObjectRef> GetOwnCowElement(uint32_t index,
+                                             bool serialize = false) const;
 };
 
 class ScopeInfoRef : public HeapObjectRef {
@@ -792,9 +782,8 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
   // Template objects may not be created at compilation time. This method
   // wraps the retrieval of the template object and creates it if
   // necessary.
-  JSArrayRef GetTemplateObject(
-      ObjectRef description, FeedbackVectorRef vector, FeedbackSlot slot,
-      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
+  JSArrayRef GetTemplateObject(ObjectRef description, FeedbackVectorRef vector,
+                               FeedbackSlot slot, bool serialize = false);
 
   void SerializeFunctionTemplateInfo();
   base::Optional<FunctionTemplateInfoRef> function_template_info() const;
@@ -869,9 +858,8 @@ class JSGlobalProxyRef : public JSObjectRef {
   // If {serialize} is true:
   //   Like above but potentially access the heap and serialize the necessary
   //   information.
-  base::Optional<PropertyCellRef> GetPropertyCell(
-      NameRef const& name, SerializationPolicy policy =
-                               SerializationPolicy::kAssumeSerialized) const;
+  base::Optional<PropertyCellRef> GetPropertyCell(NameRef const& name,
+                                                  bool serialize = false) const;
 };
 
 class CodeRef : public HeapObjectRef {
@@ -889,6 +877,120 @@ class InternalizedStringRef : public StringRef {
 };
 
 #undef DEFINE_REF_CONSTRUCTOR
+
+class ElementAccessFeedback;
+class NamedAccessFeedback;
+
+class ProcessedFeedback : public ZoneObject {
+ public:
+  enum Kind { kInsufficient, kGlobalAccess, kNamedAccess, kElementAccess };
+  Kind kind() const { return kind_; }
+
+  ElementAccessFeedback const* AsElementAccess() const;
+  NamedAccessFeedback const* AsNamedAccess() const;
+
+ protected:
+  explicit ProcessedFeedback(Kind kind) : kind_(kind) {}
+
+ private:
+  Kind const kind_;
+};
+
+class InsufficientFeedback final : public ProcessedFeedback {
+ public:
+  InsufficientFeedback();
+};
+
+class GlobalAccessFeedback : public ProcessedFeedback {
+ public:
+  explicit GlobalAccessFeedback(PropertyCellRef cell);
+  GlobalAccessFeedback(ContextRef script_context, int slot_index,
+                       bool immutable);
+
+  bool IsPropertyCell() const;
+  PropertyCellRef property_cell() const;
+
+  bool IsScriptContextSlot() const { return !IsPropertyCell(); }
+  ContextRef script_context() const;
+  int slot_index() const;
+  bool immutable() const;
+
+  base::Optional<ObjectRef> GetConstantHint() const;
+
+ private:
+  ObjectRef const cell_or_context_;
+  int const index_and_immutable_;
+};
+
+class KeyedAccessMode {
+ public:
+  static KeyedAccessMode FromNexus(FeedbackNexus const& nexus);
+
+  AccessMode access_mode() const;
+  bool IsLoad() const;
+  bool IsStore() const;
+  KeyedAccessLoadMode load_mode() const;
+  KeyedAccessStoreMode store_mode() const;
+
+ private:
+  AccessMode const access_mode_;
+  union LoadStoreMode {
+    LoadStoreMode(KeyedAccessLoadMode load_mode);
+    LoadStoreMode(KeyedAccessStoreMode store_mode);
+    KeyedAccessLoadMode load_mode;
+    KeyedAccessStoreMode store_mode;
+  } const load_store_mode_;
+
+  KeyedAccessMode(AccessMode access_mode, KeyedAccessLoadMode load_mode);
+  KeyedAccessMode(AccessMode access_mode, KeyedAccessStoreMode store_mode);
+};
+
+class ElementAccessFeedback : public ProcessedFeedback {
+ public:
+  ElementAccessFeedback(Zone* zone, KeyedAccessMode const& keyed_mode);
+
+  // No transition sources appear in {receiver_maps}.
+  // All transition targets appear in {receiver_maps}.
+  ZoneVector<Handle<Map>> receiver_maps;
+  ZoneVector<std::pair<Handle<Map>, Handle<Map>>> transitions;
+
+  KeyedAccessMode const keyed_mode;
+
+  class MapIterator {
+   public:
+    bool done() const;
+    void advance();
+    MapRef current() const;
+
+   private:
+    friend class ElementAccessFeedback;
+
+    explicit MapIterator(ElementAccessFeedback const& processed,
+                         JSHeapBroker* broker);
+
+    ElementAccessFeedback const& processed_;
+    JSHeapBroker* const broker_;
+    size_t index_ = 0;
+  };
+
+  // Iterator over all maps: first {receiver_maps}, then transition sources.
+  MapIterator all_maps(JSHeapBroker* broker) const;
+};
+
+class NamedAccessFeedback : public ProcessedFeedback {
+ public:
+  NamedAccessFeedback(NameRef const& name,
+                      ZoneVector<PropertyAccessInfo> const& access_infos);
+
+  NameRef const& name() const { return name_; }
+  ZoneVector<PropertyAccessInfo> const& access_infos() const {
+    return access_infos_;
+  }
+
+ private:
+  NameRef const name_;
+  ZoneVector<PropertyAccessInfo> const access_infos_;
+};
 
 }  // namespace compiler
 }  // namespace internal
