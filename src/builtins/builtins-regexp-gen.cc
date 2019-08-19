@@ -1818,21 +1818,6 @@ TNode<Object> RegExpBuiltinsAssembler::RegExpExec(Node* context, Node* regexp,
   return var_result.value();
 }
 
-TF_BUILTIN(RegExpPrototypeTestFast, RegExpBuiltinsAssembler) {
-  TNode<JSRegExp> regexp = CAST(Parameter(Descriptor::kReceiver));
-  TNode<String> string = CAST(Parameter(Descriptor::kString));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-
-  Label if_didnotmatch(this);
-  CSA_ASSERT(this, IsFastRegExpWithOriginalExec(context, regexp));
-  RegExpPrototypeExecBodyWithoutResult(context, regexp, string, &if_didnotmatch,
-                                       true);
-  Return(TrueConstant());
-
-  BIND(&if_didnotmatch);
-  Return(FalseConstant());
-}
-
 TNode<Number> RegExpBuiltinsAssembler::AdvanceStringIndex(
     SloppyTNode<String> string, SloppyTNode<Number> index,
     SloppyTNode<BoolT> is_unicode, bool is_fastpath) {
