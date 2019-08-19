@@ -5,16 +5,15 @@
 #ifndef V8_REGEXP_ARM_REGEXP_MACRO_ASSEMBLER_ARM_H_
 #define V8_REGEXP_ARM_REGEXP_MACRO_ASSEMBLER_ARM_H_
 
-#include "src/arm/assembler-arm.h"
-#include "src/macro-assembler.h"
+#include "src/codegen/arm/assembler-arm.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/regexp/regexp-macro-assembler.h"
 
 namespace v8 {
 namespace internal {
 
-
-#ifndef V8_INTERPRETED_REGEXP
-class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
+class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM
+    : public NativeRegExpMacroAssembler {
  public:
   RegExpMacroAssemblerARM(Isolate* isolate, Zone* zone, Mode mode,
                           int registers_to_save);
@@ -68,10 +67,9 @@ class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
   virtual void IfRegisterLT(int reg, int comparand, Label* if_lt);
   virtual void IfRegisterEqPos(int reg, Label* if_eq);
   virtual IrregexpImplementation Implementation();
-  virtual void LoadCurrentCharacter(int cp_offset,
-                                    Label* on_end_of_input,
-                                    bool check_bounds = true,
-                                    int characters = 1);
+  virtual void LoadCurrentCharacterImpl(int cp_offset, Label* on_end_of_input,
+                                        bool check_bounds, int characters,
+                                        int eats_at_least);
   virtual void PopCurrentPosition();
   virtual void PopRegister(int register_index);
   virtual void PushBacktrack(Label* label);
@@ -124,7 +122,7 @@ class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
   static const int kRegisterZero = kStringStartMinusOne - kPointerSize;
 
   // Initial size of code buffer.
-  static const size_t kRegExpCodeSize = 1024;
+  static const int kRegExpCodeSize = 1024;
 
   static const int kBacktrackConstantPoolSize = 4;
 
@@ -210,9 +208,6 @@ class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
   Label check_preempt_label_;
   Label stack_overflow_label_;
 };
-
-#endif  // V8_INTERPRETED_REGEXP
-
 
 }  // namespace internal
 }  // namespace v8

@@ -27,18 +27,18 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
-#include "src/api-inl.h"
-#include "src/compilation-cache.h"
+#include "src/api/api-inl.h"
+#include "src/codegen/compilation-cache.h"
 #include "src/debug/debug-interface.h"
 #include "src/debug/debug.h"
-#include "src/deoptimizer.h"
-#include "src/frames.h"
-#include "src/objects-inl.h"
+#include "src/deoptimizer/deoptimizer.h"
+#include "src/execution/frames.h"
+#include "src/objects/objects-inl.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
-#include "src/utils.h"
+#include "src/utils/utils.h"
 #include "test/cctest/cctest.h"
 
 using ::v8::internal::Handle;
@@ -84,7 +84,7 @@ static i::Handle<i::BreakPoint> SetBreakPoint(v8::Local<v8::Function> fun,
                                               const char* condition = nullptr) {
   i::Handle<i::JSFunction> function =
       i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*fun));
-  position += function->shared()->StartPosition();
+  position += function->shared().StartPosition();
   static int break_point_index = 0;
   i::Isolate* isolate = function->GetIsolate();
   i::Handle<i::String> condition_string =
@@ -94,7 +94,8 @@ static i::Handle<i::BreakPoint> SetBreakPoint(v8::Local<v8::Function> fun,
   i::Handle<i::BreakPoint> break_point =
       isolate->factory()->NewBreakPoint(++break_point_index, condition_string);
 
-  debug->SetBreakPoint(function, break_point, &position);
+  debug->SetBreakpoint(handle(function->shared(), isolate), break_point,
+                       &position);
   return break_point;
 }
 
@@ -164,10 +165,10 @@ void CheckDebuggerUnloaded() {
   CcTest::CollectAllGarbage();
 
   // Iterate the heap and check that there are no debugger related objects left.
-  HeapIterator iterator(CcTest::heap());
-  for (HeapObject obj = iterator.next(); !obj.is_null();
-       obj = iterator.next()) {
-    CHECK(!obj->IsDebugInfo());
+  HeapObjectIterator iterator(CcTest::heap());
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
+    CHECK(!obj.IsDebugInfo());
   }
 }
 
@@ -552,7 +553,7 @@ TEST(BreakPointBuiltin) {
   builtin = CompileRun("String.prototype.repeat").As<v8::Function>();
 
   // Run with breakpoint.
-  bp = SetBreakPoint(builtin, 0);
+  bp = SetBreakPoint(builtin, 0, "this != 1");
   ExpectString("'b'.repeat(10)", "bbbbbbbbbb");
   CHECK_EQ(1, break_point_hit_count);
 
@@ -563,6 +564,110 @@ TEST(BreakPointBuiltin) {
   ClearBreakPoint(bp);
   ExpectString("'b'.repeat(10)", "bbbbbbbbbb");
   CHECK_EQ(2, break_point_hit_count);
+
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointApiIntrinsics) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
+
+  v8::Local<v8::Function> builtin;
+
+  // === Test that using API-exposed functions won't trigger breakpoints ===
+  {
+    v8::Local<v8::Function> weakmap_get =
+        CompileRun("WeakMap.prototype.get").As<v8::Function>();
+    SetBreakPoint(weakmap_get, 0);
+    v8::Local<v8::Function> weakmap_set =
+        CompileRun("WeakMap.prototype.set").As<v8::Function>();
+    SetBreakPoint(weakmap_set, 0);
+
+    // Run with breakpoint.
+    break_point_hit_count = 0;
+    CompileRun("var w = new WeakMap(); w.set(w, 1); w.get(w);");
+    CHECK_EQ(2, break_point_hit_count);
+
+    break_point_hit_count = 0;
+    v8::Local<v8::debug::WeakMap> weakmap =
+        v8::debug::WeakMap::New(env->GetIsolate());
+    CHECK(!weakmap->Set(env.local(), weakmap, v8_num(1)).IsEmpty());
+    CHECK(!weakmap->Get(env.local(), weakmap).IsEmpty());
+    CHECK_EQ(0, break_point_hit_count);
+  }
+
+  {
+    v8::Local<v8::Function> object_to_string =
+        CompileRun("Object.prototype.toString").As<v8::Function>();
+    SetBreakPoint(object_to_string, 0);
+
+    // Run with breakpoint.
+    break_point_hit_count = 0;
+    CompileRun("var o = {}; o.toString();");
+    CHECK_EQ(1, break_point_hit_count);
+
+    break_point_hit_count = 0;
+    v8::Local<v8::Object> object = v8::Object::New(env->GetIsolate());
+    CHECK(!object->ObjectProtoToString(env.local()).IsEmpty());
+    CHECK_EQ(0, break_point_hit_count);
+  }
+
+  {
+    v8::Local<v8::Function> map_set =
+        CompileRun("Map.prototype.set").As<v8::Function>();
+    v8::Local<v8::Function> map_get =
+        CompileRun("Map.prototype.get").As<v8::Function>();
+    v8::Local<v8::Function> map_has =
+        CompileRun("Map.prototype.has").As<v8::Function>();
+    v8::Local<v8::Function> map_delete =
+        CompileRun("Map.prototype.delete").As<v8::Function>();
+    SetBreakPoint(map_set, 0);
+    SetBreakPoint(map_get, 0);
+    SetBreakPoint(map_has, 0);
+    SetBreakPoint(map_delete, 0);
+
+    // Run with breakpoint.
+    break_point_hit_count = 0;
+    CompileRun(
+        "var m = new Map(); m.set(m, 1); m.get(m); m.has(m); m.delete(m);");
+    CHECK_EQ(4, break_point_hit_count);
+
+    break_point_hit_count = 0;
+    v8::Local<v8::Map> map = v8::Map::New(env->GetIsolate());
+    CHECK(!map->Set(env.local(), map, v8_num(1)).IsEmpty());
+    CHECK(!map->Get(env.local(), map).IsEmpty());
+    CHECK(map->Has(env.local(), map).FromJust());
+    CHECK(map->Delete(env.local(), map).FromJust());
+    CHECK_EQ(0, break_point_hit_count);
+  }
+
+  {
+    v8::Local<v8::Function> set_add =
+        CompileRun("Set.prototype.add").As<v8::Function>();
+    v8::Local<v8::Function> set_get =
+        CompileRun("Set.prototype.has").As<v8::Function>();
+    v8::Local<v8::Function> set_delete =
+        CompileRun("Set.prototype.delete").As<v8::Function>();
+    SetBreakPoint(set_add, 0);
+    SetBreakPoint(set_get, 0);
+    SetBreakPoint(set_delete, 0);
+
+    // Run with breakpoint.
+    break_point_hit_count = 0;
+    CompileRun("var s = new Set(); s.add(s); s.has(s); s.delete(s);");
+    CHECK_EQ(3, break_point_hit_count);
+
+    break_point_hit_count = 0;
+    v8::Local<v8::Set> set = v8::Set::New(env->GetIsolate());
+    CHECK(!set->Add(env.local(), set).IsEmpty());
+    CHECK(set->Has(env.local(), set).FromJust());
+    CHECK(set->Delete(env.local(), set).FromJust());
+    CHECK_EQ(0, break_point_hit_count);
+  }
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
@@ -649,7 +754,7 @@ TEST(BreakPointConstructorBuiltin) {
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint.
-  bp = SetBreakPoint(builtin, 0);
+  bp = SetBreakPoint(builtin, 0, "this != 1");
   ExpectString("(new Promise(()=>{})).toString()", "[object Promise]");
   CHECK_EQ(1, break_point_hit_count);
 
@@ -710,19 +815,22 @@ TEST(BreakPointInlinedBuiltin) {
   builtin = CompileRun("Math.sin").As<v8::Function>();
   CompileRun("function test(x) { return 1 + Math.sin(x) }");
   CompileRun(
+      "%PrepareFunctionForOptimization(test);"
       "test(0.5); test(0.6);"
       "%OptimizeFunctionOnNextCall(test); test(0.7);");
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint.
-  bp = SetBreakPoint(builtin, 0);
+  bp = SetBreakPoint(builtin, 0, "this != 1");
   CompileRun("Math.sin(0.1);");
   CHECK_EQ(1, break_point_hit_count);
   CompileRun("test(0.2);");
   CHECK_EQ(2, break_point_hit_count);
 
   // Re-optimize.
-  CompileRun("%OptimizeFunctionOnNextCall(test);");
+  CompileRun(
+      "%PrepareFunctionForOptimization(test);"
+      "%OptimizeFunctionOnNextCall(test);");
   ExpectBoolean("test(0.3) < 2", true);
   CHECK_EQ(3, break_point_hit_count);
 
@@ -755,19 +863,22 @@ TEST(BreakPointInlineBoundBuiltin) {
                 .As<v8::Function>();
   CompileRun("function test(x) { return 'a' + boundrepeat(x) }");
   CompileRun(
+      "%PrepareFunctionForOptimization(test);"
       "test(4); test(5);"
       "%OptimizeFunctionOnNextCall(test); test(6);");
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint.
-  bp = SetBreakPoint(builtin, 0);
+  bp = SetBreakPoint(builtin, 0, "this != 1");
   CompileRun("'a'.repeat(2);");
   CHECK_EQ(1, break_point_hit_count);
   CompileRun("test(7);");
   CHECK_EQ(2, break_point_hit_count);
 
   // Re-optimize.
-  CompileRun("%OptimizeFunctionOnNextCall(test);");
+  CompileRun(
+      "%PrepareFunctionForOptimization(f);"
+      "%OptimizeFunctionOnNextCall(test);");
   CompileRun("test(8);");
   CHECK_EQ(3, break_point_hit_count);
 
@@ -797,19 +908,22 @@ TEST(BreakPointInlinedConstructorBuiltin) {
   builtin = CompileRun("Promise").As<v8::Function>();
   CompileRun("function test(x) { return new Promise(()=>x); }");
   CompileRun(
+      "%PrepareFunctionForOptimization(test);"
       "test(4); test(5);"
       "%OptimizeFunctionOnNextCall(test); test(6);");
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint.
-  bp = SetBreakPoint(builtin, 0);
+  bp = SetBreakPoint(builtin, 0, "this != 1");
   CompileRun("new Promise(()=>{});");
   CHECK_EQ(1, break_point_hit_count);
   CompileRun("test(7);");
   CHECK_EQ(2, break_point_hit_count);
 
   // Re-optimize.
-  CompileRun("%OptimizeFunctionOnNextCall(test);");
+  CompileRun(
+      "%PrepareFunctionForOptimization(f);"
+      "%OptimizeFunctionOnNextCall(test);");
   CompileRun("test(8);");
   CHECK_EQ(3, break_point_hit_count);
 
@@ -840,6 +954,7 @@ TEST(BreakPointBuiltinConcurrentOpt) {
   CompileRun("function test(x) { return 1 + Math.sin(x) }");
   // Trigger concurrent compile job. It is suspended until unblock.
   CompileRun(
+      "%PrepareFunctionForOptimization(test);"
       "test(0.5); test(0.6);"
       "%OptimizeFunctionOnNextCall(test, 'concurrent'); test(0.7);");
   CHECK_EQ(0, break_point_hit_count);
@@ -878,6 +993,7 @@ TEST(BreakPointBuiltinTFOperator) {
   builtin = CompileRun("String.prototype.indexOf").As<v8::Function>();
   CompileRun("function test(x) { return 1 + 'foo'.indexOf(x) }");
   CompileRun(
+      "%PrepareFunctionForOptimization(f);"
       "test('a'); test('b');"
       "%OptimizeFunctionOnNextCall(test); test('c');");
   CHECK_EQ(0, break_point_hit_count);
@@ -890,7 +1006,9 @@ TEST(BreakPointBuiltinTFOperator) {
   CHECK_EQ(2, break_point_hit_count);
 
   // Re-optimize.
-  CompileRun("%OptimizeFunctionOnNextCall(test);");
+  CompileRun(
+      "%PrepareFunctionForOptimization(f);"
+      "%OptimizeFunctionOnNextCall(test);");
   CompileRun("test('e');");
   CHECK_EQ(3, break_point_hit_count);
 
@@ -972,17 +1090,60 @@ TEST(BreakPointApiFunction) {
   break_point_hit_count = 0;
 
   // Run with breakpoint.
-  bp = SetBreakPoint(function, 0);
+  bp = SetBreakPoint(function, 0, "this != 1");
   ExpectInt32("f()", 2);
   CHECK_EQ(1, break_point_hit_count);
 
   ExpectInt32("f()", 2);
   CHECK_EQ(2, break_point_hit_count);
 
+  function->Call(env.local(), v8::Undefined(env->GetIsolate()), 0, nullptr)
+      .ToLocalChecked();
+  CHECK_EQ(3, break_point_hit_count);
+
   // Run without breakpoints.
   ClearBreakPoint(bp);
   ExpectInt32("f()", 2);
+  CHECK_EQ(3, break_point_hit_count);
+
+  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointApiConstructor) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  DebugEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
+
+  i::Handle<i::BreakPoint> bp;
+
+  v8::Local<v8::FunctionTemplate> function_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), NoOpFunctionCallback);
+
+  v8::Local<v8::Function> function =
+      function_template->GetFunction(env.local()).ToLocalChecked();
+
+  env->Global()->Set(env.local(), v8_str("f"), function).ToChecked();
+
+  // === Test simple builtin ===
+  break_point_hit_count = 0;
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(function, 0, "this != 1");
+  CompileRun("new f()");
+  CHECK_EQ(1, break_point_hit_count);
+  CompileRun("new f()");
   CHECK_EQ(2, break_point_hit_count);
+
+  function->NewInstance(env.local()).ToLocalChecked();
+  CHECK_EQ(3, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("new f()");
+  CHECK_EQ(3, break_point_hit_count);
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
@@ -1167,11 +1328,27 @@ TEST(BreakPointApiAccessor) {
   CompileRun("set_loop();");
   CHECK_EQ(42, break_point_hit_count);
 
+  // Test that the break point also works when we install the function
+  // template on a new property (with a fresh AccessorPair instance).
+  v8::Local<v8::ObjectTemplate> baz_template =
+      v8::ObjectTemplate::New(env->GetIsolate());
+  baz_template->SetAccessorProperty(v8_str("g"), accessor_template,
+                                    accessor_template);
+  v8::Local<v8::Object> baz =
+      baz_template->NewInstance(env.local()).ToLocalChecked();
+  env->Global()->Set(env.local(), v8_str("b"), baz).ToChecked();
+
+  CompileRun("b.g = 4");
+  CHECK_EQ(43, break_point_hit_count);
+
+  CompileRun("b.g");
+  CHECK_EQ(44, break_point_hit_count);
+
   // Run without breakpoints.
   ClearBreakPoint(bp);
   CompileRun("o.f = 3");
   CompileRun("o.f");
-  CHECK_EQ(42, break_point_hit_count);
+  CHECK_EQ(44, break_point_hit_count);
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
@@ -1194,7 +1371,9 @@ TEST(BreakPointInlineApiFunction) {
       function_template->GetFunction(env.local()).ToLocalChecked();
 
   env->Global()->Set(env.local(), v8_str("f"), function).ToChecked();
-  CompileRun("function g() { return 1 +  f(); }");
+  CompileRun(
+      "function g() { return 1 +  f(); };"
+      "%PrepareFunctionForOptimization(g);");
 
   // === Test simple builtin ===
   break_point_hit_count = 0;
@@ -1365,6 +1544,7 @@ TEST(BreakPointInlining) {
       CompileRun("function f(x) { return x*2; } f").As<v8::Function>();
   CompileRun("function test(x) { return 1 + f(x) }");
   CompileRun(
+      "%PrepareFunctionForOptimization(test);"
       "test(0.5); test(0.6);"
       "%OptimizeFunctionOnNextCall(test); test(0.7);");
   CHECK_EQ(0, break_point_hit_count);
@@ -1377,7 +1557,9 @@ TEST(BreakPointInlining) {
   CHECK_EQ(2, break_point_hit_count);
 
   // Re-optimize.
-  CompileRun("%OptimizeFunctionOnNextCall(test);");
+  CompileRun(
+      "%PrepareFunctionForOptimization(test);"
+      "%OptimizeFunctionOnNextCall(test);");
   CompileRun("test(0.3);");
   CHECK_EQ(3, break_point_hit_count);
 
@@ -2674,7 +2856,7 @@ TEST(PauseInScript) {
 
   // Set breakpoint in the script.
   i::Handle<i::Script> i_script(
-      i::Script::cast(v8::Utils::OpenHandle(*script)->shared()->script()),
+      i::Script::cast(v8::Utils::OpenHandle(*script)->shared().script()),
       isolate);
   i::Handle<i::String> condition = isolate->factory()->empty_string();
   int position = 0;
@@ -2949,8 +3131,8 @@ TEST(NoBreakWhenBootstrapping) {
   {
     // Create a context with an extension to make sure that some JavaScript
     // code is executed during bootstrapping.
-    v8::RegisterExtension(new v8::Extension("simpletest",
-                                            kSimpleExtensionSource));
+    v8::RegisterExtension(v8::base::make_unique<v8::Extension>(
+        "simpletest", kSimpleExtensionSource));
     const char* extension_names[] = { "simpletest" };
     v8::ExtensionConfiguration extensions(1, extension_names);
     v8::HandleScope handle_scope(isolate);
@@ -3020,7 +3202,7 @@ class EmptyExternalStringResource : public v8::String::ExternalStringResource {
   EmptyExternalStringResource() { empty_[0] = 0; }
   ~EmptyExternalStringResource() override = default;
   size_t length() const override { return empty_.length(); }
-  const uint16_t* data() const override { return empty_.start(); }
+  const uint16_t* data() const override { return empty_.begin(); }
 
  private:
   ::v8::internal::EmbeddedVector<uint16_t, 1> empty_;
@@ -3056,11 +3238,11 @@ TEST(DebugScriptLineEndsAreAscending) {
     v8::internal::Script::InitLineEnds(script);
     v8::internal::FixedArray ends =
         v8::internal::FixedArray::cast(script->line_ends());
-    CHECK_GT(ends->length(), 0);
+    CHECK_GT(ends.length(), 0);
 
     int prev_end = -1;
-    for (int j = 0; j < ends->length(); j++) {
-      const int curr_end = v8::internal::Smi::ToInt(ends->get(j));
+    for (int j = 0; j < ends.length(); j++) {
+      const int curr_end = v8::internal::Smi::ToInt(ends.get(j));
       CHECK_GT(curr_end, prev_end);
       prev_end = curr_end;
     }
@@ -3433,7 +3615,7 @@ static void TestDebugBreakInLoop(const char* loop_head,
     SNPrintF(buffer, "function f() {%s%s%s}", loop_head, loop_bodies[i],
              loop_tail);
 
-    i::PrintF("%s\n", buffer.start());
+    i::PrintF("%s\n", buffer.begin());
 
     for (int j = 0; j < 3; j++) {
       break_point_hit_count_deoptimize = j;
@@ -3446,7 +3628,7 @@ static void TestDebugBreakInLoop(const char* loop_head,
       terminate_after_max_break_point_hit = true;
 
       // Function with infinite loop.
-      CompileRun(buffer.start());
+      CompileRun(buffer.begin());
 
       // Set the debug break to enter the debugger as soon as possible.
       v8::debug::SetBreakOnNextFunctionCall(CcTest::isolate());
@@ -3559,7 +3741,7 @@ class DebugBreakInlineListener : public v8::debug::DebugDelegate {
                              const std::vector<v8::debug::BreakpointId>&
                                  inspector_break_points_hit) override {
     int expected_frame_count = 4;
-    int expected_line_number[] = {1, 4, 7, 12};
+    int expected_line_number[] = {1, 4, 7, 13};
 
     int frame_count = 0;
     auto iterator = v8::debug::StackTraceIterator::Create(CcTest::isolate());
@@ -3577,18 +3759,19 @@ TEST(DebugBreakInline) {
   v8::HandleScope scope(env->GetIsolate());
   v8::Local<v8::Context> context = env.local();
   const char* source =
-      "function debug(b) {             \n"
-      "  if (b) debugger;              \n"
-      "}                               \n"
-      "function f(b) {                 \n"
-      "  debug(b)                      \n"
-      "};                              \n"
-      "function g(b) {                 \n"
-      "  f(b);                         \n"
-      "};                              \n"
-      "g(false);                       \n"
-      "g(false);                       \n"
-      "%OptimizeFunctionOnNextCall(g); \n"
+      "function debug(b) {                 \n"
+      "  if (b) debugger;                  \n"
+      "}                                   \n"
+      "function f(b) {                     \n"
+      "  debug(b)                          \n"
+      "};                                  \n"
+      "function g(b) {                     \n"
+      "  f(b);                             \n"
+      "};                                  \n"
+      "%PrepareFunctionForOptimization(g); \n"
+      "g(false);                           \n"
+      "g(false);                           \n"
+      "%OptimizeFunctionOnNextCall(g);     \n"
       "g(true);";
   DebugBreakInlineListener delegate;
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
@@ -3714,7 +3897,7 @@ TEST(DebugBreakOffThreadTerminate) {
   DebugBreakTriggerTerminate delegate;
   v8::debug::SetDebugDelegate(isolate, &delegate);
   TerminationThread terminator(isolate);
-  terminator.Start();
+  CHECK(terminator.Start());
   v8::TryCatch try_catch(env->GetIsolate());
   env->GetIsolate()->RequestInterrupt(BreakRightNow, nullptr);
   CompileRun("while (true);");
@@ -3810,7 +3993,7 @@ class ArchiveRestoreThread : public v8::base::Thread,
       // on) so that the ThreadManager is forced to archive and restore
       // the current thread.
       ArchiveRestoreThread child(isolate_, spawn_count_ - 1);
-      child.Start();
+      CHECK(child.Start());
       child.Join();
 
       // The child thread sets itself as the debug delegate, so we need to
@@ -4011,7 +4194,7 @@ size_t NearHeapLimitCallback(void* data, size_t current_heap_limit,
 UNINITIALIZED_TEST(DebugSetOutOfMemoryListener) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  create_params.constraints.set_max_old_space_size(10);
+  create_params.constraints.set_max_old_generation_size_in_bytes(10 * i::MB);
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   {
@@ -4022,8 +4205,8 @@ UNINITIALIZED_TEST(DebugSetOutOfMemoryListener) {
     CHECK(!near_heap_limit_callback_called);
     // The following allocation fails unless the out-of-memory callback
     // increases the heap limit.
-    int length = 10 * i::MB / i::kPointerSize;
-    i_isolate->factory()->NewFixedArray(length, i::TENURED);
+    int length = 10 * i::MB / i::kTaggedSize;
+    i_isolate->factory()->NewFixedArray(length, i::AllocationType::kOld);
     CHECK(near_heap_limit_callback_called);
     isolate->RemoveNearHeapLimitCallback(NearHeapLimitCallback, 0);
   }
@@ -4031,13 +4214,12 @@ UNINITIALIZED_TEST(DebugSetOutOfMemoryListener) {
 }
 
 TEST(DebugCoverage) {
-  // Coverage needs feedback vectors.
-  if (i::FLAG_lite_mode) return;
   i::FLAG_always_opt = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
-  v8::debug::Coverage::SelectMode(isolate, v8::debug::Coverage::kPreciseCount);
+  v8::debug::Coverage::SelectMode(isolate,
+                                  v8::debug::CoverageMode::kPreciseCount);
   v8::Local<v8::String> source = v8_str(
       "function f() {\n"
       "}\n"
@@ -4086,13 +4268,12 @@ v8::debug::Coverage::ScriptData GetScriptDataAndDeleteCoverage(
 }  // namespace
 
 TEST(DebugCoverageWithCoverageOutOfScope) {
-  // Coverage needs feedback vectors.
-  if (i::FLAG_lite_mode) return;
   i::FLAG_always_opt = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
-  v8::debug::Coverage::SelectMode(isolate, v8::debug::Coverage::kPreciseCount);
+  v8::debug::Coverage::SelectMode(isolate,
+                                  v8::debug::CoverageMode::kPreciseCount);
   v8::Local<v8::String> source = v8_str(
       "function f() {\n"
       "}\n"
@@ -4157,13 +4338,12 @@ v8::debug::Coverage::FunctionData GetFunctionDataAndDeleteCoverage(
 }  // namespace
 
 TEST(DebugCoverageWithScriptDataOutOfScope) {
-  // Coverage needs feedback vectors.
-  if (i::FLAG_lite_mode) return;
   i::FLAG_always_opt = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
-  v8::debug::Coverage::SelectMode(isolate, v8::debug::Coverage::kPreciseCount);
+  v8::debug::Coverage::SelectMode(isolate,
+                                  v8::debug::CoverageMode::kPreciseCount);
   v8::Local<v8::String> source = v8_str(
       "function f() {\n"
       "}\n"
@@ -4188,8 +4368,8 @@ TEST(BuiltinsExceptionPrediction) {
   bool fail = false;
   for (int i = 0; i < i::Builtins::builtin_count; i++) {
     i::Code builtin = builtins->builtin(i);
-    if (builtin->kind() != i::Code::BUILTIN) continue;
-    auto prediction = builtin->GetBuiltinCatchPrediction();
+    if (builtin.kind() != i::Code::BUILTIN) continue;
+    auto prediction = builtin.GetBuiltinCatchPrediction();
     USE(prediction);
   }
   CHECK(!fail);
@@ -4231,10 +4411,10 @@ TEST(DebugEvaluateNoSideEffect) {
   i::Isolate* isolate = CcTest::i_isolate();
   std::vector<i::Handle<i::JSFunction>> all_functions;
   {
-    i::HeapIterator iterator(isolate->heap());
-    for (i::HeapObject obj = iterator.next(); !obj.is_null();
-         obj = iterator.next()) {
-      if (!obj->IsJSFunction()) continue;
+    i::HeapObjectIterator iterator(isolate->heap());
+    for (i::HeapObject obj = iterator.Next(); !obj.is_null();
+         obj = iterator.Next()) {
+      if (!obj.IsJSFunction()) continue;
       i::JSFunction fun = i::JSFunction::cast(obj);
       all_functions.emplace_back(fun, isolate);
     }
@@ -4260,7 +4440,7 @@ i::MaybeHandle<i::Script> FindScript(
   Handle<i::String> i_name =
       isolate->factory()->NewStringFromAsciiChecked(name);
   for (const auto& script : scripts) {
-    if (!script->name()->IsString()) continue;
+    if (!script->name().IsString()) continue;
     if (i_name->Equals(i::String::cast(script->name()))) return script;
   }
   return i::MaybeHandle<i::Script>();
@@ -4269,7 +4449,6 @@ i::MaybeHandle<i::Script> FindScript(
 
 UNINITIALIZED_TEST(LoadedAtStartupScripts) {
   i::FLAG_expose_gc = true;
-  i::FLAG_expose_natives_as = "natives";
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -4281,31 +4460,27 @@ UNINITIALIZED_TEST(LoadedAtStartupScripts) {
     LocalContext context(isolate);
 
     std::vector<i::Handle<i::Script>> scripts;
-    CompileWithOrigin(v8_str("function foo(){}"), v8_str("normal.js"));
+    CompileWithOrigin(v8_str("function foo(){}"), v8_str("normal.js"),
+                      v8_bool(false));
     std::unordered_map<int, int> count_by_type;
     {
       i::DisallowHeapAllocation no_gc;
       i::Script::Iterator iterator(i_isolate);
       for (i::Script script = iterator.Next(); !script.is_null();
            script = iterator.Next()) {
-        if (script->type() == i::Script::TYPE_NATIVE &&
-            script->name()->IsUndefined(i_isolate)) {
+        if (script.type() == i::Script::TYPE_NATIVE &&
+            script.name().IsUndefined(i_isolate)) {
           continue;
         }
-        ++count_by_type[script->type()];
+        ++count_by_type[script.type()];
         scripts.emplace_back(script, i_isolate);
       }
     }
-    CHECK_EQ(count_by_type[i::Script::TYPE_NATIVE],
-             i::Natives::GetBuiltinsCount());
+    CHECK_EQ(count_by_type[i::Script::TYPE_NATIVE], 0);
     CHECK_EQ(count_by_type[i::Script::TYPE_EXTENSION], 2);
     CHECK_EQ(count_by_type[i::Script::TYPE_NORMAL], 1);
     CHECK_EQ(count_by_type[i::Script::TYPE_WASM], 0);
     CHECK_EQ(count_by_type[i::Script::TYPE_INSPECTOR], 0);
-
-    i::Handle<i::Script> native_prologue_script =
-        FindScript(i_isolate, scripts, "native prologue.js").ToHandleChecked();
-    CHECK_EQ(native_prologue_script->type(), i::Script::TYPE_NATIVE);
 
     i::Handle<i::Script> gc_script =
         FindScript(i_isolate, scripts, "v8/gc").ToHandleChecked();
@@ -4354,7 +4529,7 @@ TEST(SourceInfo) {
   v8::Local<v8::Script> v8_script =
       v8::Script::Compile(env.local(), v8_str(source)).ToLocalChecked();
   i::Handle<i::Script> i_script(
-      i::Script::cast(v8::Utils::OpenHandle(*v8_script)->shared()->script()),
+      i::Script::cast(v8::Utils::OpenHandle(*v8_script)->shared().script()),
       CcTest::i_isolate());
   v8::Local<v8::debug::Script> script =
       v8::ToApiHandle<v8::debug::Script>(i_script);
@@ -4505,4 +4680,98 @@ TEST(Regress517592) {
   CompileRun(v8_str("foo()"));
   CHECK_EQ(delegate.break_count(), 1);
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
+}
+
+TEST(GetPrivateFields) {
+  LocalContext env;
+  v8::Isolate* v8_isolate = CcTest::isolate();
+  v8::internal::Isolate* isolate = CcTest::i_isolate();
+  v8::HandleScope scope(v8_isolate);
+  v8::Local<v8::Context> context = env.local();
+  v8::Local<v8::String> source = v8_str(
+      "var X = class {\n"
+      "  #foo = 1;\n"
+      "  #bar = function() {};\n"
+      "}\n"
+      "var x = new X()");
+  CompileRun(source);
+  v8::Local<v8::Object> object = v8::Local<v8::Object>::Cast(
+      env->Global()
+          ->Get(context, v8_str(env->GetIsolate(), "x"))
+          .ToLocalChecked());
+  v8::Local<v8::Array> private_names =
+      v8::debug::GetPrivateFields(context, object).ToLocalChecked();
+
+  for (int i = 0; i < 4; i = i + 2) {
+    Handle<v8::internal::JSReceiver> private_name =
+        v8::Utils::OpenHandle(*private_names->Get(context, i)
+                                   .ToLocalChecked()
+                                   ->ToObject(context)
+                                   .ToLocalChecked());
+    Handle<v8::internal::JSPrimitiveWrapper> private_value =
+        Handle<v8::internal::JSPrimitiveWrapper>::cast(private_name);
+    Handle<v8::internal::Symbol> priv_symbol(
+        v8::internal::Symbol::cast(private_value->value()), isolate);
+    CHECK(priv_symbol->is_private_name());
+  }
+
+  source = v8_str(
+      "var Y = class {\n"
+      "  #baz = 2;\n"
+      "}\n"
+      "var X = class extends Y{\n"
+      "  #foo = 1;\n"
+      "  #bar = function() {};\n"
+      "}\n"
+      "var x = new X()");
+  CompileRun(source);
+  object = v8::Local<v8::Object>::Cast(
+      env->Global()
+          ->Get(context, v8_str(env->GetIsolate(), "x"))
+          .ToLocalChecked());
+  private_names = v8::debug::GetPrivateFields(context, object).ToLocalChecked();
+
+  for (int i = 0; i < 6; i = i + 2) {
+    Handle<v8::internal::JSReceiver> private_name =
+        v8::Utils::OpenHandle(*private_names->Get(context, i)
+                                   .ToLocalChecked()
+                                   ->ToObject(context)
+                                   .ToLocalChecked());
+    Handle<v8::internal::JSPrimitiveWrapper> private_value =
+        Handle<v8::internal::JSPrimitiveWrapper>::cast(private_name);
+    Handle<v8::internal::Symbol> priv_symbol(
+        v8::internal::Symbol::cast(private_value->value()), isolate);
+    CHECK(priv_symbol->is_private_name());
+  }
+
+  source = v8_str(
+      "var Y = class {\n"
+      "  constructor() {"
+      "    return new Proxy({}, {});"
+      "  }"
+      "}\n"
+      "var X = class extends Y{\n"
+      "  #foo = 1;\n"
+      "  #bar = function() {};\n"
+      "}\n"
+      "var x = new X()");
+  CompileRun(source);
+  object = v8::Local<v8::Object>::Cast(
+      env->Global()
+          ->Get(context, v8_str(env->GetIsolate(), "x"))
+          .ToLocalChecked());
+  private_names = v8::debug::GetPrivateFields(context, object).ToLocalChecked();
+
+  for (int i = 0; i < 4; i = i + 2) {
+    Handle<v8::internal::JSReceiver> private_name =
+        v8::Utils::OpenHandle(*private_names->Get(context, i)
+                                   .ToLocalChecked()
+                                   ->ToObject(context)
+                                   .ToLocalChecked());
+    Handle<v8::internal::JSPrimitiveWrapper> private_value =
+        Handle<v8::internal::JSPrimitiveWrapper>::cast(private_name);
+    Handle<v8::internal::Symbol> priv_symbol(
+        v8::internal::Symbol::cast(private_value->value()), isolate);
+    CHECK(priv_symbol->is_private_name());
+  }
 }

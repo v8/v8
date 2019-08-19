@@ -216,9 +216,8 @@ TestCoverage(
 %PerformMicrotaskCheckpoint();            // 0250
 `,
 [{"start":0,"end":299,"count":1},
- {"start":1,"end":201,"count":6},  // TODO(jgruber): Invocation count is off.
- {"start":83,"end":153,"count":4},
- {"start":153,"end":200,"count":1}]
+ {"start":1,"end":201,"count":1},
+ {"start":83,"end":153,"count":4}]
 );
 
 TestCoverage(
@@ -353,11 +352,11 @@ TestCoverage(
 [{"start":0,"end":849,"count":1},
  {"start":1,"end":801,"count":1},
  {"start":67,"end":87,"count":0},
- {"start":219,"end":222,"count":0},
+ {"start":221,"end":222,"count":0},
  {"start":254,"end":274,"count":0},
- {"start":369,"end":372,"count":0},
+ {"start":371,"end":372,"count":0},
  {"start":403,"end":404,"count":0},
- {"start":513,"end":554,"count":0}]
+ {"start":553,"end":554,"count":0}]
 );
 
 TestCoverage("try/catch/finally statements with early return",
@@ -374,10 +373,10 @@ TestCoverage("try/catch/finally statements with early return",
 `,
 [{"start":0,"end":449,"count":1},
  {"start":1,"end":151,"count":1},
- {"start":67,"end":70,"count":0},
+ {"start":69,"end":70,"count":0},
  {"start":91,"end":150,"count":0},
  {"start":201,"end":401,"count":1},
- {"start":267,"end":270,"count":0},
+ {"start":269,"end":270,"count":0},
  {"start":321,"end":400,"count":0}]
 );
 
@@ -409,15 +408,15 @@ TestCoverage(
 `,
 [{"start":0,"end":1099,"count":1},
  {"start":1,"end":151,"count":1},
- {"start":67,"end":70,"count":0},
+ {"start":69,"end":70,"count":0},
  {"start":91,"end":150,"count":0},
  {"start":201,"end":351,"count":1},
  {"start":286,"end":350,"count":0},
  {"start":401,"end":701,"count":1},
  {"start":603,"end":700,"count":0},
- {"start":561,"end":568,"count":0},  // TODO(jgruber): Sorting.
+ {"start":561,"end":568,"count":0},
  {"start":751,"end":1051,"count":1},
- {"start":817,"end":820,"count":0},
+ {"start":819,"end":820,"count":0},
  {"start":861,"end":1050,"count":0}]
 );
 
@@ -540,10 +539,25 @@ const it = function*() {                  // 0000
 it.next(); it.next();                     // 0250
 `,
 [{"start":0,"end":299,"count":1},
- {"start":11,"end":201,"count":3},
- {"start":64,"end":114,"count":1},
+ {"start":11,"end":201,"count":1},
  {"start":114,"end":121,"count":0},
- {"start":122,"end":129,"count":1},
+ {"start":129,"end":200,"count":0}]
+);
+
+TestCoverage(
+"yield expressions twice",
+`
+function* gen() {                         // 0000
+  yield nop();                            // 0050
+  yield nop() ? nop() : nop()             // 0100
+  return nop();                           // 0150
+};                                        // 0200
+{const it = gen(); it.next(); it.next();} // 0250
+{const it = gen(); it.next(); it.next();} // 0300
+`,
+[{"start":0,"end":349,"count":1},
+ {"start":0,"end":201,"count":2},
+ {"start":114,"end":121,"count":0},
  {"start":129,"end":200,"count":0}]
 );
 
@@ -563,9 +577,9 @@ try {                                     // 0200
 `,
 [{"start":0,"end":499,"count":1},
  {"start":451,"end":452,"count":0},
- {"start":12,"end":101,"count":3},
+ {"start":12,"end":101,"count":1},
  {"start":60,"end":100,"count":0},
- {"start":264,"end":353,"count":3},
+ {"start":264,"end":353,"count":1},
  {"start":312,"end":352,"count":0}]
 );
 
@@ -582,9 +596,8 @@ const it = function*() {                  // 0000
 it.next(); it.return();                   // 0450
 `,
 [{"start":0,"end":449,"count":1},
- {"start":11,"end":351,"count":3},
+ {"start":11,"end":351,"count":1},
  {"start":112,"end":254,"count":0},
- {"start":254,"end":272,"count":1},
  {"start":272,"end":350,"count":0}]
 );
 
@@ -601,9 +614,8 @@ const it = function*() {                  // 0000
 it.next(); it.throw(42);                  // 0550
 `,
 [{"start":0,"end":449,"count":1},
- {"start":11,"end":351,"count":3},
+ {"start":11,"end":351,"count":1},
  {"start":112,"end":154,"count":0},
- {"start":154,"end":310,"count":1},
  {"start":310,"end":350,"count":0}]
 );
 
@@ -619,10 +631,8 @@ it.next(); it.next(); it.next();          // 0250
 it.next(); it.next(); it.next();          // 0300
 `,
 [{"start":0,"end":349,"count":1},
- {"start":11,"end":201,"count":7},
- {"start":65,"end":115,"count":1},
+ {"start":11,"end":201,"count":1},
  {"start":115,"end":122,"count":0},
- {"start":123,"end":130,"count":1},
  {"start":130,"end":200,"count":0}]
 );
 
@@ -642,9 +652,9 @@ try {                                     // 0200
 `,
 [{"start":0,"end":499,"count":1},
  {"start":451,"end":452,"count":0},
- {"start":12,"end":101,"count":3},
+ {"start":12,"end":101,"count":1},
  {"start":65,"end":100,"count":0},
- {"start":264,"end":353,"count":3},
+ {"start":264,"end":353,"count":1},
  {"start":317,"end":352,"count":0}]
 );
 
@@ -659,8 +669,7 @@ f();                                      // 0200
 %PerformMicrotaskCheckpoint();            // 0250
 `,
 [{"start":0,"end":299,"count":1},
- {"start":0,"end":151,"count":3},
- {"start":61,"end":150,"count":1}]
+ {"start":0,"end":151,"count":1}]
 );
 
 TestCoverage(
@@ -676,7 +685,8 @@ b()                                       // 0250
 [{"start":0,"end":299,"count":1},
  {"start":15,"end":20,"count":0},
  {"start":50,"end":151,"count":2},
- {"start":114,"end":118,"count":0}]);
+ {"start":114,"end":118,"count":0}]
+);
 
 TestCoverage(
 "LogicalOrExpression IsTest()",
@@ -705,7 +715,8 @@ const c = true && 50                      // 0300
 [{"start":0,"end":349,"count":1},
  {"start":16,"end":21,"count":0},
  {"start":50,"end":151,"count":2},
- {"start":114,"end":118,"count":0}]);
+ {"start":114,"end":118,"count":0}]
+);
 
 TestCoverage(
 "LogicalAndExpression IsTest()",
@@ -1002,6 +1013,43 @@ c(true); d(true);                         // 1650
  {"start":1050,"end":1551,"count":1},
  {"start":1167,"end":1255,"count":0},
  {"start":1403,"end":1503,"count":0}]
+);
+
+TestCoverage(
+"https://crbug.com/927464",
+`
+!function f() {                           // 0000
+  function unused() { nop(); }            // 0050
+  nop();                                  // 0100
+}();                                      // 0150
+`,
+[{"start":0,"end":199,"count":1},
+ {"start":1,"end":151,"count":1},
+ {"start":52,"end":80,"count":0}]
+);
+
+TestCoverage(
+"https://crbug.com/v8/8691",
+`
+function f(shouldThrow) {                 // 0000
+  if (shouldThrow) {                      // 0050
+    throw Error('threw')                  // 0100
+  }                                       // 0150
+}                                         // 0200
+try {                                     // 0250
+  f(true)                                 // 0300
+} catch (err) {                           // 0350
+                                          // 0400
+}                                         // 0450
+try {                                     // 0500
+  f(false)                                // 0550
+} catch (err) {}                          // 0600
+`,
+[{"start":0,"end":649,"count":1},
+ {"start":351,"end":352,"count":0},
+ {"start":602,"end":616,"count":0},
+ {"start":0,"end":201,"count":2},
+ {"start":69,"end":153,"count":1}]
 );
 
 %DebugToggleBlockCoverage(false);

@@ -6,6 +6,7 @@
 #define V8_OBJECTS_FOREIGN_H_
 
 #include "src/objects/heap-object.h"
+#include "torque-generated/field-offsets-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -19,18 +20,26 @@ class Foreign : public HeapObject {
   // [address]: field containing the address.
   inline Address foreign_address();
 
-  static inline bool IsNormalized(Object* object);
+  static inline bool IsNormalized(Object object);
 
-  DECL_CAST2(Foreign)
+  DECL_CAST(Foreign)
 
   // Dispatched behavior.
   DECL_PRINTER(Foreign)
   DECL_VERIFIER(Foreign)
 
-  // Layout description.
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_FOREIGN_FIELDS)
 
-  static const int kForeignAddressOffset = HeapObject::kHeaderSize;
-  static const int kSize = kForeignAddressOffset + kPointerSize;
+#ifdef V8_COMPRESS_POINTERS
+  // TODO(ishell, v8:8875): When pointer compression is enabled the
+  // kForeignAddressOffset is only kTaggedSize aligned but we can keep using
+  // unaligned access since both x64 and arm64 architectures (where pointer
+  // compression is supported) allow unaligned access to full words.
+  STATIC_ASSERT(IsAligned(kForeignAddressOffset, kTaggedSize));
+#else
+  STATIC_ASSERT(IsAligned(kForeignAddressOffset, kSystemPointerSize));
+#endif
 
   STATIC_ASSERT(kForeignAddressOffset == Internals::kForeignAddressOffset);
 

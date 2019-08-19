@@ -4,20 +4,20 @@
 
 #include "src/builtins/builtins-arguments-gen.h"
 
-#include "src/arguments.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
-#include "src/code-factory.h"
-#include "src/code-stub-assembler.h"
-#include "src/frame-constants.h"
-#include "src/interface-descriptors.h"
-#include "src/objects-inl.h"
+#include "src/codegen/code-factory.h"
+#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/interface-descriptors.h"
+#include "src/execution/arguments.h"
+#include "src/execution/frame-constants.h"
 #include "src/objects/arguments.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 
-typedef compiler::Node Node;
+using Node = compiler::Node;
 
 std::tuple<Node*, Node*, Node*>
 ArgumentsBuiltinsAssembler::AllocateArgumentsObject(Node* map,
@@ -101,7 +101,7 @@ Node* ArgumentsBuiltinsAssembler::ConstructParametersObjectFromArgs(
                     [this, elements, &offset](Node* arg) {
                       StoreNoWriteBarrier(MachineRepresentation::kTagged,
                                           elements, offset.value(), arg);
-                      Increment(&offset, kSystemPointerSize);
+                      Increment(&offset, kTaggedSize);
                     },
                     first_arg, nullptr, param_mode);
   return result;
@@ -112,9 +112,8 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewRestParameter(Node* context,
   ParameterMode mode = OptimalParameterMode();
   Node* zero = IntPtrOrSmiConstant(0, mode);
 
-  ArgumentsBuiltinsFromDSLAssembler::ArgumentsInfo info =
-      GetArgumentsFrameAndCount(CAST(context),
-                                UncheckedCast<JSFunction>(function));
+  TorqueStructArgumentsInfo info = GetArgumentsFrameAndCount(
+      CAST(context), UncheckedCast<JSFunction>(function));
 
   VARIABLE(result, MachineRepresentation::kTagged);
   Label no_rest_parameters(this), runtime(this, Label::kDeferred),
@@ -167,9 +166,8 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewStrictArguments(Node* context,
   ParameterMode mode = OptimalParameterMode();
   Node* zero = IntPtrOrSmiConstant(0, mode);
 
-  ArgumentsBuiltinsFromDSLAssembler::ArgumentsInfo info =
-      GetArgumentsFrameAndCount(CAST(context),
-                                UncheckedCast<JSFunction>(function));
+  TorqueStructArgumentsInfo info = GetArgumentsFrameAndCount(
+      CAST(context), UncheckedCast<JSFunction>(function));
 
   GotoIfFixedArraySizeDoesntFitInNewSpace(
       info.argument_count, &runtime,
@@ -216,9 +214,8 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
   Label done(this, &result), empty(this), no_parameters(this),
       runtime(this, Label::kDeferred);
 
-  ArgumentsBuiltinsFromDSLAssembler::ArgumentsInfo info =
-      GetArgumentsFrameAndCount(CAST(context),
-                                UncheckedCast<JSFunction>(function));
+  TorqueStructArgumentsInfo info = GetArgumentsFrameAndCount(
+      CAST(context), UncheckedCast<JSFunction>(function));
 
   GotoIf(WordEqual(info.argument_count, zero), &empty);
 
@@ -269,7 +266,8 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
         var_list1, argument_offset, mapped_offset,
         [this, elements, &current_argument](Node* offset) {
           Increment(&current_argument, kSystemPointerSize);
-          Node* arg = LoadBufferObject(current_argument.value(), 0);
+          Node* arg = LoadBufferObject(
+              UncheckedCast<RawPtrT>(current_argument.value()), 0);
           StoreNoWriteBarrier(MachineRepresentation::kTagged, elements, offset,
                               arg);
         },

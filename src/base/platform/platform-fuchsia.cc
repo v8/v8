@@ -20,14 +20,13 @@ uint32_t GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
     case OS::MemoryPermission::kNoAccess:
       return 0;  // no permissions
     case OS::MemoryPermission::kRead:
-      return ZX_VM_FLAG_PERM_READ;
+      return ZX_VM_PERM_READ;
     case OS::MemoryPermission::kReadWrite:
-      return ZX_VM_FLAG_PERM_READ | ZX_VM_FLAG_PERM_WRITE;
+      return ZX_VM_PERM_READ | ZX_VM_PERM_WRITE;
     case OS::MemoryPermission::kReadWriteExecute:
-      return ZX_VM_FLAG_PERM_READ | ZX_VM_FLAG_PERM_WRITE |
-             ZX_VM_FLAG_PERM_EXECUTE;
+      return ZX_VM_PERM_READ | ZX_VM_PERM_WRITE | ZX_VM_PERM_EXECUTE;
     case OS::MemoryPermission::kReadExecute:
-      return ZX_VM_FLAG_PERM_READ | ZX_VM_FLAG_PERM_EXECUTE;
+      return ZX_VM_PERM_READ | ZX_VM_PERM_EXECUTE;
   }
   UNREACHABLE();
 }
@@ -49,12 +48,21 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   size_t request_size = size + (alignment - page_size);
 
   zx_handle_t vmo;
-  if (zx_vmo_create(request_size, ZX_VMO_NON_RESIZABLE, &vmo) != ZX_OK) {
+  if (zx_vmo_create(request_size, 0, &vmo) != ZX_OK) {
     return nullptr;
   }
   static const char kVirtualMemoryName[] = "v8-virtualmem";
   zx_object_set_property(vmo, ZX_PROP_NAME, kVirtualMemoryName,
                          strlen(kVirtualMemoryName));
+
+  // Always call zx_vmo_replace_as_executable() in case the memory will need
+  // to be marked as executable in the future.
+  // TOOD(https://crbug.com/v8/8899): Only call this when we know that the
+  // region will need to be marked as executable in the future.
+  if (zx_vmo_replace_as_executable(vmo, ZX_HANDLE_INVALID, &vmo) != ZX_OK) {
+    return nullptr;
+  }
+
   uintptr_t reservation;
   uint32_t prot = GetProtectionFromMemoryPermission(access);
   zx_status_t status = zx_vmar_map(zx_vmar_root_self(), prot, 0, vmo, 0,
@@ -142,7 +150,12 @@ void OS::SignalCodeMovingGC() {
 int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
   const auto kNanosPerMicrosecond = 1000ULL;
   const auto kMicrosPerSecond = 1000000ULL;
-  const zx_time_t nanos_since_thread_started = zx_clock_get(ZX_CLOCK_THREAD);
+  zx_time_t nanos_since_thread_started;
+  zx_status_t status =
+      zx_clock_get(ZX_CLOCK_THREAD, &nanos_since_thread_started);
+  if (status != ZX_OK) {
+    return -1;
+  }
 
   // First convert to microseconds, rounding up.
   const uint64_t micros_since_thread_started =
@@ -154,6 +167,8 @@ int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
       static_cast<uint32_t>(micros_since_thread_started % kMicrosPerSecond);
   return 0;
 }
+
+void OS::AdjustSchedulingParams() {}
 
 }  // namespace base
 }  // namespace v8

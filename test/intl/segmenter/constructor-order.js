@@ -13,11 +13,8 @@ new Intl.Segmenter(['en-US'], {
   get localeMatcher() {
     assertEquals(0, getCount++);
   },
-  get lineBreakStyle() {
+  get granularity() {
     assertEquals(1, getCount++);
   },
-  get granularity() {
-    assertEquals(2, getCount++);
-  },
 });
-assertEquals(3, getCount);
+assertEquals(2, getCount);

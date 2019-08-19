@@ -6,14 +6,14 @@
 #define V8_COMPILER_BACKEND_CODE_GENERATOR_H_
 
 #include "src/base/optional.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/codegen/safepoint-table.h"
+#include "src/codegen/source-position-table.h"
 #include "src/compiler/backend/gap-resolver.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/backend/unwinding-info-writer.h"
 #include "src/compiler/osr.h"
-#include "src/deoptimizer.h"
-#include "src/macro-assembler.h"
-#include "src/safepoint-table.h"
-#include "src/source-position-table.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/trap-handler/trap-handler.h"
 
 namespace v8 {
@@ -86,17 +86,17 @@ class DeoptimizationLiteral {
 };
 
 // Generates native code for a sequence of instructions.
-class CodeGenerator final : public GapResolver::Assembler {
+class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
  public:
   explicit CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
-                         InstructionSequence* code,
+                         InstructionSequence* instructions,
                          OptimizedCompilationInfo* info, Isolate* isolate,
                          base::Optional<OsrHelper> osr_helper,
                          int start_source_position,
                          JumpOptimizationInfo* jump_opt,
                          PoisoningMitigationLevel poisoning_level,
-                         const AssemblerOptions& options,
-                         int32_t builtin_index);
+                         const AssemblerOptions& options, int32_t builtin_index,
+                         std::unique_ptr<AssemblerBuffer> = {});
 
   // Generate native code. After calling AssembleCode, call FinalizeCode to
   // produce the actual code object. If an error occurs during either phase,
@@ -108,7 +108,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   OwnedVector<trap_handler::ProtectedInstructionData>
   GetProtectedInstructions();
 
-  InstructionSequence* code() const { return code_; }
+  InstructionSequence* instructions() const { return instructions_; }
   FrameAccessState* frame_access_state() const { return frame_access_state_; }
   const Frame* frame() const { return frame_access_state_->frame(); }
   Isolate* isolate() const { return isolate_; }
@@ -129,11 +129,12 @@ class CodeGenerator final : public GapResolver::Assembler {
   void AssembleSourcePosition(SourcePosition source_position);
 
   // Record a safepoint with the given pointer map.
-  void RecordSafepoint(ReferenceMap* references, Safepoint::Kind kind,
-                       int arguments, Safepoint::DeoptMode deopt_mode);
+  void RecordSafepoint(ReferenceMap* references,
+                       Safepoint::DeoptMode deopt_mode);
 
   Zone* zone() const { return zone_; }
   TurboAssembler* tasm() { return &tasm_; }
+  SafepointTableBuilder* safepoint_table_builder() { return &safepoints_; }
   size_t GetSafepointTableOffset() const { return safepoints_.GetCodeOffset(); }
   size_t GetHandlerTableOffset() const { return handler_table_offset_; }
 
@@ -198,8 +199,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   // Determines how to call helper stubs depending on the code kind.
   StubCallMode DetermineStubCallMode() const;
 
-  CodeGenResult AssembleDeoptimizerCall(int deoptimization_id,
-                                        SourcePosition pos);
+  CodeGenResult AssembleDeoptimizerCall(DeoptimizationExit* exit);
 
   // ===========================================================================
   // ============= Architecture-specific code generation methods. ==============
@@ -261,7 +261,7 @@ class CodeGenerator final : public GapResolver::Assembler {
     kScalarPush = kRegisterPush | kStackSlotPush
   };
 
-  typedef base::Flags<PushTypeFlag> PushTypeFlags;
+  using PushTypeFlags = base::Flags<PushTypeFlag>;
 
   static bool IsValidPush(InstructionOperand source, PushTypeFlags push_type);
 
@@ -308,6 +308,7 @@ class CodeGenerator final : public GapResolver::Assembler {
                                 int first_unused_stack_slot);
 
   void FinishCode();
+  void MaybeEmitOutOfLineConstantPool();
 
   // ===========================================================================
   // ============== Architecture-specific gap resolver methods. ================
@@ -340,11 +341,9 @@ class CodeGenerator final : public GapResolver::Assembler {
   int DefineDeoptimizationLiteral(DeoptimizationLiteral literal);
   DeoptimizationEntry const& GetDeoptimizationEntry(Instruction* instr,
                                                     size_t frame_state_offset);
-  DeoptimizeKind GetDeoptimizationKind(int deoptimization_id) const;
-  DeoptimizeReason GetDeoptimizationReason(int deoptimization_id) const;
-  int BuildTranslation(Instruction* instr, int pc_offset,
-                       size_t frame_state_offset,
-                       OutputFrameStateCombine state_combine);
+  DeoptimizationExit* BuildTranslation(Instruction* instr, int pc_offset,
+                                       size_t frame_state_offset,
+                                       OutputFrameStateCombine state_combine);
   void BuildTranslationForFrameStateDescriptor(
       FrameStateDescriptor* descriptor, InstructionOperandIterator* iter,
       Translation* translation, OutputFrameStateCombine state_combine);
@@ -359,34 +358,11 @@ class CodeGenerator final : public GapResolver::Assembler {
                                 InstructionOperand* op, MachineType type);
   void MarkLazyDeoptSite();
 
+  void PrepareForDeoptimizationExits(int deopt_count);
   DeoptimizationExit* AddDeoptimizationExit(Instruction* instr,
                                             size_t frame_state_offset);
 
   // ===========================================================================
-
-  class DeoptimizationState final : public ZoneObject {
-   public:
-    DeoptimizationState(BailoutId bailout_id, int translation_id, int pc_offset,
-                        DeoptimizeKind kind, DeoptimizeReason reason)
-        : bailout_id_(bailout_id),
-          translation_id_(translation_id),
-          pc_offset_(pc_offset),
-          kind_(kind),
-          reason_(reason) {}
-
-    BailoutId bailout_id() const { return bailout_id_; }
-    int translation_id() const { return translation_id_; }
-    int pc_offset() const { return pc_offset_; }
-    DeoptimizeKind kind() const { return kind_; }
-    DeoptimizeReason reason() const { return reason_; }
-
-   private:
-    BailoutId bailout_id_;
-    int translation_id_;
-    int pc_offset_;
-    DeoptimizeKind kind_;
-    DeoptimizeReason reason_;
-  };
 
   struct HandlerInfo {
     Label* handler;
@@ -400,7 +376,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   Isolate* isolate_;
   FrameAccessState* frame_access_state_;
   Linkage* const linkage_;
-  InstructionSequence* const code_;
+  InstructionSequence* const instructions_;
   UnwindingInfoWriter unwinding_info_writer_;
   OptimizedCompilationInfo* const info_;
   Label* const labels_;
@@ -412,8 +388,9 @@ class CodeGenerator final : public GapResolver::Assembler {
   GapResolver resolver_;
   SafepointTableBuilder safepoints_;
   ZoneVector<HandlerInfo> handlers_;
+  int next_deoptimization_id_ = 0;
+  int deopt_exit_start_offset_ = 0;
   ZoneDeque<DeoptimizationExit*> deoptimization_exits_;
-  ZoneDeque<DeoptimizationState*> deoptimization_states_;
   ZoneDeque<DeoptimizationLiteral> deoptimization_literals_;
   size_t inlined_function_count_ = 0;
   TranslationBuffer translations_;

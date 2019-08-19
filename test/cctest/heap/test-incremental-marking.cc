@@ -14,12 +14,12 @@
 
 #include <utility>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
-#include "src/global-handles.h"
+#include "src/handles/global-handles.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/spaces.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
@@ -71,14 +71,14 @@ class MockPlatform : public TestPlatform {
 
     void PostDelayedTask(std::unique_ptr<Task> task,
                          double delay_in_seconds) override {
-      UNREACHABLE();
-    };
+      task_ = std::move(task);
+    }
 
     void PostIdleTask(std::unique_ptr<IdleTask> task) override {
       UNREACHABLE();
     }
 
-    bool IdleTasksEnabled() override { return false; };
+    bool IdleTasksEnabled() override { return false; }
 
     bool PendingTask() { return task_ != nullptr; }
 

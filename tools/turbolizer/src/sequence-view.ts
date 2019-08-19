@@ -2,15 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {Sequence} from "../src/source-resolver"
-import {isIterable} from "../src/util"
-import {PhaseView} from "../src/view"
-import {TextView} from "../src/text-view"
-import { MySelection } from "./selection";
+import { Sequence } from "../src/source-resolver";
+import { isIterable } from "../src/util";
+import { TextView } from "../src/text-view";
 
-export class SequenceView extends TextView implements PhaseView {
+export class SequenceView extends TextView {
   sequence: Sequence;
-  search_info: Array<any>;
+  searchInfo: Array<any>;
 
   createViewElement() {
     const pane = document.createElement('div');
@@ -40,16 +38,17 @@ export class SequenceView extends TextView implements PhaseView {
   initializeContent(data, rememberedSelection) {
     this.divNode.innerHTML = '';
     this.sequence = data.sequence;
-    this.search_info = [];
-    this.divNode.addEventListener('click', (e:MouseEvent) => {
+    this.searchInfo = [];
+    this.divNode.addEventListener('click', (e: MouseEvent) => {
       if (!(e.target instanceof HTMLElement)) return;
-      const instructionId = e.target.dataset.instructionId;
+      const instructionId = Number.parseInt(e.target.dataset.instructionId, 10);
       if (!instructionId) return;
       if (!e.shiftKey) this.broker.broadcastClear(null);
       this.broker.broadcastInstructionSelect(null, [instructionId], true);
     });
     this.addBlocks(this.sequence.blocks);
     this.attachSelection(rememberedSelection);
+    this.show();
   }
 
   elementForBlock(block) {
@@ -83,45 +82,49 @@ export class SequenceView extends TextView implements PhaseView {
       return mkLinkHandler(text, view.selectionHandler);
     }
 
-    function elementForOperand(operand, search_info) {
-      var text = operand.text;
+    function elementForOperand(operand, searchInfo) {
+      const text = operand.text;
       const operandEl = createElement("div", ["parameter", "tag", "clickable", operand.type], text);
       if (operand.tooltip) {
         operandEl.setAttribute("title", operand.tooltip);
       }
       operandEl.onclick = mkOperandLinkHandler(text);
-      search_info.push(text);
+      searchInfo.push(text);
       view.addHtmlElementForNodeId(text, operandEl);
       return operandEl;
     }
 
-    function elementForInstruction(instruction, search_info) {
+    function elementForInstruction(instruction, searchInfo) {
       const instNodeEl = createElement("div", "instruction-node");
 
-      const inst_id = createElement("div", "instruction-id", instruction.id);
-      inst_id.classList.add("clickable");
-      inst_id.dataset.instructionId = instruction.id;
-      instNodeEl.appendChild(inst_id);
+      const instId = createElement("div", "instruction-id", instruction.id);
+      instId.classList.add("clickable");
+      instId.dataset.instructionId = instruction.id;
+      instNodeEl.appendChild(instId);
 
       const instContentsEl = createElement("div", "instruction-contents");
       instNodeEl.appendChild(instContentsEl);
 
       // Print gap moves.
       const gapEl = createElement("div", "gap", "gap");
-      instContentsEl.appendChild(gapEl);
+      let hasGaps = false;
       for (const gap of instruction.gaps) {
         const moves = createElement("div", ["comma-sep-list", "gap-move"]);
         for (const move of gap) {
+          hasGaps = true;
           const moveEl = createElement("div", "move");
-          const destinationEl = elementForOperand(move[0], search_info);
+          const destinationEl = elementForOperand(move[0], searchInfo);
           moveEl.appendChild(destinationEl);
           const assignEl = createElement("div", "assign", "=");
           moveEl.appendChild(assignEl);
-          const sourceEl = elementForOperand(move[1], search_info);
+          const sourceEl = elementForOperand(move[1], searchInfo);
           moveEl.appendChild(sourceEl);
           moves.appendChild(moveEl);
         }
         gapEl.appendChild(moves);
+      }
+      if (hasGaps) {
+        instContentsEl.appendChild(gapEl);
       }
 
       const instEl = createElement("div", "instruction");
@@ -130,7 +133,7 @@ export class SequenceView extends TextView implements PhaseView {
       if (instruction.outputs.length > 0) {
         const outputs = createElement("div", ["comma-sep-list", "input-output-list"]);
         for (const output of instruction.outputs) {
-          const outputEl = elementForOperand(output, search_info);
+          const outputEl = elementForOperand(output, searchInfo);
           outputs.appendChild(outputEl);
         }
         instEl.appendChild(outputs);
@@ -138,16 +141,20 @@ export class SequenceView extends TextView implements PhaseView {
         instEl.appendChild(assignEl);
       }
 
-      var text = instruction.opcode + instruction.flags;
-      const inst_label = createElement("div", "node-label", text);
-      search_info.push(text);
-      view.addHtmlElementForNodeId(text, inst_label);
-      instEl.appendChild(inst_label);
+      let text = instruction.opcode + instruction.flags;
+      const instLabel = createElement("div", "node-label", text)
+      if (instruction.opcode == "ArchNop" && instruction.outputs.length == 1 && instruction.outputs[0].tooltip) {
+        instLabel.innerText = instruction.outputs[0].tooltip;
+      }
+
+      searchInfo.push(text);
+      view.addHtmlElementForNodeId(text, instLabel);
+      instEl.appendChild(instLabel);
 
       if (instruction.inputs.length > 0) {
         const inputs = createElement("div", ["comma-sep-list", "input-output-list"]);
         for (const input of instruction.inputs) {
-          const inputEl = elementForOperand(input, search_info);
+          const inputEl = elementForOperand(input, searchInfo);
           inputs.appendChild(inputEl);
         }
         instEl.appendChild(inputs);
@@ -156,7 +163,7 @@ export class SequenceView extends TextView implements PhaseView {
       if (instruction.temps.length > 0) {
         const temps = createElement("div", ["comma-sep-list", "input-output-list", "temps"]);
         for (const temp of instruction.temps) {
-          const tempEl = elementForOperand(temp, search_info);
+          const tempEl = elementForOperand(temp, searchInfo);
           temps.appendChild(tempEl);
         }
         instEl.appendChild(temps);
@@ -165,20 +172,21 @@ export class SequenceView extends TextView implements PhaseView {
       return instNodeEl;
     }
 
-    const sequence_block = createElement("div", "schedule-block");
+    const sequenceBlock = createElement("div", "schedule-block");
+    sequenceBlock.classList.toggle("deferred", block.deferred);
 
-    const block_id = createElement("div", ["block-id", "com", "clickable"], block.id);
-    block_id.onclick = mkBlockLinkHandler(block.id);
-    sequence_block.appendChild(block_id);
-    const block_pred = createElement("div", ["predecessor-list", "block-list", "comma-sep-list"]);
+    const blockId = createElement("div", ["block-id", "com", "clickable"], block.id);
+    blockId.onclick = mkBlockLinkHandler(block.id);
+    sequenceBlock.appendChild(blockId);
+    const blockPred = createElement("div", ["predecessor-list", "block-list", "comma-sep-list"]);
     for (const pred of block.predecessors) {
       const predEl = createElement("div", ["block-id", "com", "clickable"], pred);
       predEl.onclick = mkBlockLinkHandler(pred);
-      block_pred.appendChild(predEl);
+      blockPred.appendChild(predEl);
     }
-    if (block.predecessors.length > 0) sequence_block.appendChild(block_pred);
+    if (block.predecessors.length > 0) sequenceBlock.appendChild(blockPred);
     const phis = createElement("div", "phis");
-    sequence_block.appendChild(phis);
+    sequenceBlock.appendChild(phis);
 
     const phiLabel = createElement("div", "phi-label", "phi:");
     phis.appendChild(phiLabel);
@@ -190,7 +198,7 @@ export class SequenceView extends TextView implements PhaseView {
       const phiEl = createElement("div", "phi");
       phiContents.appendChild(phiEl);
 
-      const outputEl = elementForOperand(phi.output, this.search_info);
+      const outputEl = elementForOperand(phi.output, this.searchInfo);
       phiEl.appendChild(outputEl);
 
       const assignEl = createElement("div", "assign", "=");
@@ -204,18 +212,18 @@ export class SequenceView extends TextView implements PhaseView {
 
     const instructions = createElement("div", "instructions");
     for (const instruction of block.instructions) {
-      instructions.appendChild(elementForInstruction(instruction, this.search_info));
+      instructions.appendChild(elementForInstruction(instruction, this.searchInfo));
     }
-    sequence_block.appendChild(instructions);
-    const block_succ = createElement("div", ["successor-list", "block-list", "comma-sep-list"]);
+    sequenceBlock.appendChild(instructions);
+    const blockSucc = createElement("div", ["successor-list", "block-list", "comma-sep-list"]);
     for (const succ of block.successors) {
       const succEl = createElement("div", ["block-id", "com", "clickable"], succ);
       succEl.onclick = mkBlockLinkHandler(succ);
-      block_succ.appendChild(succEl);
+      blockSucc.appendChild(succEl);
     }
-    if (block.successors.length > 0) sequence_block.appendChild(block_succ);
-    this.addHtmlElementForBlockId(block.id, sequence_block);
-    return sequence_block;
+    if (block.successors.length > 0) sequenceBlock.appendChild(blockSucc);
+    this.addHtmlElementForBlockId(block.id, sequenceBlock);
+    return sequenceBlock;
   }
 
   addBlocks(blocks) {
@@ -233,13 +241,11 @@ export class SequenceView extends TextView implements PhaseView {
     const select = [];
     window.sessionStorage.setItem("lastSearch", query);
     const reg = new RegExp(query);
-    for (const item of this.search_info) {
+    for (const item of this.searchInfo) {
       if (reg.exec(item) != null) {
         select.push(item);
       }
     }
     this.selectionHandler.select(select, true);
   }
-
-  onresize() { }
 }

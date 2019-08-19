@@ -64,6 +64,7 @@
 //  V8_OS_FUCHSIA       - Fuchsia
 //  V8_OS_LINUX         - Linux
 //  V8_OS_MACOSX        - Mac OS X
+//  V8_OS_IOS           - iOS
 //  V8_OS_NETBSD        - NetBSD
 //  V8_OS_OPENBSD       - OpenBSD
 //  V8_OS_POSIX         - POSIX compatible (mostly everything except Windows)
@@ -80,6 +81,9 @@
 # define V8_OS_BSD 1
 # define V8_OS_MACOSX 1
 # define V8_OS_POSIX 1
+# if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+#  define V8_OS_IOS 1
+# endif  // defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
 #elif defined(__CYGWIN__)
 # define V8_OS_CYGWIN 1
 # define V8_OS_POSIX 1
@@ -182,6 +186,8 @@
 //  V8_HAS_BUILTIN_SADD_OVERFLOW        - __builtin_sadd_overflow() supported
 //  V8_HAS_BUILTIN_SSUB_OVERFLOW        - __builtin_ssub_overflow() supported
 //  V8_HAS_BUILTIN_UADD_OVERFLOW        - __builtin_uadd_overflow() supported
+//  V8_HAS_COMPUTED_GOTO                - computed goto/labels as values
+//                                        supported
 //  V8_HAS_DECLSPEC_DEPRECATED          - __declspec(deprecated) supported
 //  V8_HAS_DECLSPEC_NOINLINE            - __declspec(noinline) supported
 //  V8_HAS_DECLSPEC_SELECTANY           - __declspec(selectany) supported
@@ -222,6 +228,10 @@
 # define V8_HAS_BUILTIN_SSUB_OVERFLOW (__has_builtin(__builtin_ssub_overflow))
 # define V8_HAS_BUILTIN_UADD_OVERFLOW (__has_builtin(__builtin_uadd_overflow))
 
+// Clang has no __has_feature for computed gotos.
+// GCC doc: https://gcc.gnu.org/onlinedocs/gcc/Labels-as-Values.html
+# define V8_HAS_COMPUTED_GOTO 1
+
 # if __cplusplus >= 201402L
 #  define V8_CAN_HAVE_DCHECK_IN_CONSTEXPR 1
 # endif
@@ -257,6 +267,9 @@
 # define V8_HAS_BUILTIN_EXPECT (V8_GNUC_PREREQ(2, 96, 0))
 # define V8_HAS_BUILTIN_FRAME_ADDRESS (V8_GNUC_PREREQ(2, 96, 0))
 # define V8_HAS_BUILTIN_POPCOUNT (V8_GNUC_PREREQ(3, 4, 0))
+
+// GCC doc: https://gcc.gnu.org/onlinedocs/gcc/Labels-as-Values.html
+#define V8_HAS_COMPUTED_GOTO (V8_GNUC_PREREQ(2, 0, 0))
 
 #endif
 
@@ -347,6 +360,12 @@
 #define V8_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
 #else
 #define V8_WARN_UNUSED_RESULT /* NOT SUPPORTED */
+#endif
+
+#if defined(BUILDING_V8_SHARED) && defined(USING_V8_SHARED)
+#error Inconsistent build configuration: To build the V8 shared library \
+set BUILDING_V8_SHARED, to include its headers for linking against the \
+V8 shared library set USING_V8_SHARED.
 #endif
 
 #ifdef V8_OS_WIN

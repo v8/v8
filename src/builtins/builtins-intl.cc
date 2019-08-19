@@ -12,10 +12,9 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/counters.h"
-#include "src/date.h"
-#include "src/elements.h"
-#include "src/objects-inl.h"
+#include "src/date/date.h"
+#include "src/logging/counters.h"
+#include "src/objects/elements.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-break-iterator-inl.h"
@@ -28,8 +27,9 @@
 #include "src/objects/js-relative-time-format-inl.h"
 #include "src/objects/js-segment-iterator-inl.h"
 #include "src/objects/js-segmenter-inl.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/property-descriptor.h"
 #include "src/objects/smi.h"
-#include "src/property-descriptor.h"
 
 #include "unicode/brkiter.h"
 
@@ -45,6 +45,7 @@ BUILTIN(StringPrototypeToUpperCaseIntl) {
 
 BUILTIN(StringPrototypeNormalizeIntl) {
   HandleScope handle_scope(isolate);
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kStringNormalize);
   TO_THIS_STRING(string, "String.prototype.normalize");
 
   Handle<Object> form_input = args.atOrUndefined(isolate, 1);
@@ -82,14 +83,19 @@ BUILTIN(NumberFormatPrototypeFormatToParts) {
 
   Handle<Object> x;
   if (args.length() >= 2) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x,
-                                       Object::ToNumber(isolate, args.at(1)));
+    if (FLAG_harmony_intl_bigint) {
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+          isolate, x, Object::ToNumeric(isolate, args.at(1)));
+    } else {
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x,
+                                         Object::ToNumber(isolate, args.at(1)));
+    }
   } else {
     x = isolate->factory()->nan_value();
   }
 
-  RETURN_RESULT_OR_FAILURE(isolate, JSNumberFormat::FormatToParts(
-                                        isolate, number_format, x->Number()));
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSNumberFormat::FormatToParts(isolate, number_format, x));
 }
 
 BUILTIN(DateTimeFormatPrototypeResolvedOptions) {
@@ -151,11 +157,77 @@ BUILTIN(DateTimeFormatPrototypeFormatToParts) {
       isolate, JSDateTimeFormat::FormatToParts(isolate, dtf, date_value));
 }
 
+// Common code for DateTimeFormatPrototypeFormtRange(|ToParts)
+template <class T>
+V8_WARN_UNUSED_RESULT Object DateTimeFormatRange(
+    BuiltinArguments args, Isolate* isolate, const char* const method,
+    MaybeHandle<T> (*format)(Isolate*, Handle<JSDateTimeFormat>, double,
+                             double)) {
+  // 1. Let dtf be this value.
+  // 2. If Type(dtf) is not Object, throw a TypeError exception.
+  CHECK_RECEIVER(JSObject, date_format_holder, method);
+
+  Factory* factory = isolate->factory();
+
+  // 3. If dtf does not have an [[InitializedDateTimeFormat]] internal slot,
+  //    throw a TypeError exception.
+  if (!date_format_holder->IsJSDateTimeFormat()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                              factory->NewStringFromAsciiChecked(method),
+                              date_format_holder));
+  }
+  Handle<JSDateTimeFormat> dtf =
+      Handle<JSDateTimeFormat>::cast(date_format_holder);
+
+  // 4. If startDate is undefined or endDate is undefined, throw a RangeError
+  // exception.
+  Handle<Object> start_date = args.atOrUndefined(isolate, 1);
+  Handle<Object> end_date = args.atOrUndefined(isolate, 2);
+  if (start_date->IsUndefined(isolate) || end_date->IsUndefined(isolate)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
+  }
+  // 5. Let x be ? ToNumber(startDate).
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, start_date,
+                                     Object::ToNumber(isolate, start_date));
+  double x = start_date->Number();
+
+  // 6. Let y be ? ToNumber(endDate).
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, end_date,
+                                     Object::ToNumber(isolate, end_date));
+  double y = end_date->Number();
+  // 7. If x is greater than y, throw a RangeError exception.
+  if (x > y) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
+  }
+
+  // 8. Return ? FormatDateTimeRange(dtf, x, y)
+  // OR
+  // 8. Return ? FormatDateTimeRangeToParts(dtf, x, y).
+  RETURN_RESULT_OR_FAILURE(isolate, format(isolate, dtf, x, y));
+}
+
+BUILTIN(DateTimeFormatPrototypeFormatRange) {
+  const char* const method = "Intl.DateTimeFormat.prototype.formatRange";
+  HandleScope handle_scope(isolate);
+  return DateTimeFormatRange<String>(args, isolate, method,
+                                     JSDateTimeFormat::FormatRange);
+}
+
+BUILTIN(DateTimeFormatPrototypeFormatRangeToParts) {
+  const char* const method = "Intl.DateTimeFormat.prototype.formatRangeToParts";
+  HandleScope handle_scope(isolate);
+  return DateTimeFormatRange<JSArray>(args, isolate, method,
+                                      JSDateTimeFormat::FormatRangeToParts);
+}
+
 namespace {
 Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
                                        Handle<JSObject> object,
                                        Builtins::Name builtin_id, int len) {
-  Handle<NativeContext> native_context(isolate->context()->native_context(),
+  Handle<NativeContext> native_context(isolate->context().native_context(),
                                        isolate);
   Handle<Context> context = isolate->factory()->NewBuiltinContext(
       native_context,
@@ -182,10 +254,9 @@ Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
  * NumberFormatConstrutor
  */
 template <class T>
-Object* LegacyFormatConstructor(BuiltinArguments args, Isolate* isolate,
-                                v8::Isolate::UseCounterFeature feature,
-                                Handle<Object> constructor,
-                                const char* method) {
+Object LegacyFormatConstructor(BuiltinArguments args, Isolate* isolate,
+                               v8::Isolate::UseCounterFeature feature,
+                               Handle<Object> constructor, const char* method) {
   isolate->CountUsage(feature);
   Handle<JSReceiver> new_target;
   // 1. If NewTarget is undefined, let newTarget be the active
@@ -205,15 +276,14 @@ Object* LegacyFormatConstructor(BuiltinArguments args, Isolate* isolate,
   // 2. Let format be ? OrdinaryCreateFromConstructor(newTarget,
   // "%<T>Prototype%", ...).
 
-  Handle<JSObject> obj;
+  Handle<Map> map;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, obj,
-      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
-  Handle<T> format = Handle<T>::cast(obj);
+      isolate, map, JSFunction::GetDerivedMap(isolate, target, new_target));
 
   // 3. Perform ? Initialize<T>(Format, locales, options).
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, format, T::Initialize(isolate, format, locales, options));
+  Handle<T> format;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, format,
+                                     T::New(isolate, map, locales, options));
   // 4. Let this be the this value.
   Handle<Object> receiver = args.receiver();
 
@@ -249,7 +319,7 @@ Object* LegacyFormatConstructor(BuiltinArguments args, Isolate* isolate,
     desc.set_configurable(false);
     Maybe<bool> success = JSReceiver::DefineOwnProperty(
         isolate, rec, isolate->factory()->intl_fallback_symbol(), &desc,
-        kThrowOnError);
+        Just(kThrowOnError));
     MAYBE_RETURN(success, ReadOnlyRoots(isolate).exception());
     CHECK(success.FromJust());
     // b. b. Return this.
@@ -264,9 +334,9 @@ Object* LegacyFormatConstructor(BuiltinArguments args, Isolate* isolate,
  * Segmenter
  */
 template <class T>
-Object* DisallowCallConstructor(BuiltinArguments args, Isolate* isolate,
-                                v8::Isolate::UseCounterFeature feature,
-                                const char* method) {
+Object DisallowCallConstructor(BuiltinArguments args, Isolate* isolate,
+                               v8::Isolate::UseCounterFeature feature,
+                               const char* method) {
   isolate->CountUsage(feature);
 
   // 1. If NewTarget is undefined, throw a TypeError exception.
@@ -280,28 +350,24 @@ Object* DisallowCallConstructor(BuiltinArguments args, Isolate* isolate,
   Handle<JSFunction> target = args.target();
   Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
 
-  Handle<JSObject> obj;
+  Handle<Map> map;
   // 2. Let result be OrdinaryCreateFromConstructor(NewTarget,
   //    "%<T>Prototype%").
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, obj,
-      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
-  Handle<T> result = Handle<T>::cast(obj);
-  result->set_flags(0);
+      isolate, map, JSFunction::GetDerivedMap(isolate, target, new_target));
 
   Handle<Object> locales = args.atOrUndefined(isolate, 1);
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
-  // 3. Return Initialize<T>(t, locales, options).
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           T::Initialize(isolate, result, locales, options));
+  // 3. Return New<T>(t, locales, options).
+  RETURN_RESULT_OR_FAILURE(isolate, T::New(isolate, map, locales, options));
 }
 
 /**
  * Common code shared by Collator and V8BreakIterator
  */
 template <class T>
-Object* CallOrConstructConstructor(BuiltinArguments args, Isolate* isolate) {
+Object CallOrConstructConstructor(BuiltinArguments args, Isolate* isolate) {
   Handle<JSReceiver> new_target;
 
   if (args.new_target()->IsUndefined(isolate)) {
@@ -316,14 +382,11 @@ Object* CallOrConstructConstructor(BuiltinArguments args, Isolate* isolate) {
   Handle<Object> locales = args.atOrUndefined(isolate, 1);
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
-  Handle<JSObject> obj;
+  Handle<Map> map;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, obj,
-      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
-  Handle<T> result = Handle<T>::cast(obj);
+      isolate, map, JSFunction::GetDerivedMap(isolate, target, new_target));
 
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           T::Initialize(isolate, result, locales, options));
+  RETURN_RESULT_OR_FAILURE(isolate, T::New(isolate, map, locales, options));
 }
 }  // namespace
 
@@ -401,24 +464,24 @@ BUILTIN(NumberFormatInternalFormatNumber) {
   // 3. If value is not provided, let value be undefined.
   Handle<Object> value = args.atOrUndefined(isolate, 1);
 
-  // 4. Let x be ? ToNumber(value).
-  Handle<Object> number_obj;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_obj,
-                                     Object::ToNumber(isolate, value));
-
-  // Spec treats -0 as 0.
-  if (number_obj->IsMinusZero()) {
-    number_obj = Handle<Smi>(Smi::zero(), isolate);
+  // 4. Let x be ? ToNumeric(value).
+  Handle<Object> numeric_obj;
+  if (FLAG_harmony_intl_bigint) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, numeric_obj,
+                                       Object::ToNumeric(isolate, value));
+  } else {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, numeric_obj,
+                                       Object::ToNumber(isolate, value));
   }
 
-  double number = number_obj->Number();
-  icu::NumberFormat* icu_number_format =
-      number_format->icu_number_format()->raw();
-  CHECK_NOT_NULL(icu_number_format);
+  icu::number::LocalizedNumberFormatter* icu_localized_number_formatter =
+      number_format->icu_number_formatter().raw();
+  CHECK_NOT_NULL(icu_localized_number_formatter);
 
   // Return FormatNumber(nf, x).
-  RETURN_RESULT_OR_FAILURE(isolate, JSNumberFormat::FormatNumber(
-                                        isolate, *icu_number_format, number));
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSNumberFormat::FormatNumeric(
+                   isolate, *icu_localized_number_formatter, numeric_obj));
 }
 
 BUILTIN(DateTimeFormatConstructor) {
@@ -520,12 +583,11 @@ MaybeHandle<JSLocale> CreateLocale(Isolate* isolate,
                                    Handle<JSFunction> constructor,
                                    Handle<JSReceiver> new_target,
                                    Handle<Object> tag, Handle<Object> options) {
-  Handle<JSObject> locale;
+  Handle<Map> map;
   // 6. Let locale be ? OrdinaryCreateFromConstructor(NewTarget,
   // %LocalePrototype%, internalSlotsList).
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, locale,
-      JSObject::New(constructor, new_target, Handle<AllocationSite>::null()),
+      isolate, map, JSFunction::GetDerivedMap(isolate, constructor, new_target),
       JSLocale);
 
   // 7. If Type(tag) is not String or Object, throw a TypeError exception.
@@ -557,8 +619,7 @@ MaybeHandle<JSLocale> CreateLocale(Isolate* isolate,
                                Object::ToObject(isolate, options), JSLocale);
   }
 
-  return JSLocale::Initialize(isolate, Handle<JSLocale>::cast(locale),
-                              locale_string, options_object);
+  return JSLocale::New(isolate, map, locale_string, options_object);
 }
 
 }  // namespace
@@ -635,7 +696,7 @@ BUILTIN(RelativeTimeFormatPrototypeFormat) {
 
   RETURN_RESULT_OR_FAILURE(
       isolate, JSRelativeTimeFormat::Format(isolate, value_obj, unit_obj,
-                                            format_holder, "format", false));
+                                            format_holder));
 }
 
 BUILTIN(RelativeTimeFormatPrototypeFormatToParts) {
@@ -648,9 +709,9 @@ BUILTIN(RelativeTimeFormatPrototypeFormatToParts) {
                  "Intl.RelativeTimeFormat.prototype.formatToParts");
   Handle<Object> value_obj = args.atOrUndefined(isolate, 1);
   Handle<Object> unit_obj = args.atOrUndefined(isolate, 2);
-  RETURN_RESULT_OR_FAILURE(isolate, JSRelativeTimeFormat::Format(
-                                        isolate, value_obj, unit_obj,
-                                        format_holder, "formatToParts", true));
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSRelativeTimeFormat::FormatToParts(isolate, value_obj, unit_obj,
+                                                   format_holder));
 }
 
 // Locale getters.
@@ -899,7 +960,7 @@ BUILTIN(CollatorInternalCompare) {
                                      Object::ToString(isolate, y));
 
   // 7. Return CompareStrings(collator, X, Y).
-  icu::Collator* icu_collator = collator->icu_collator()->raw();
+  icu::Collator* icu_collator = collator->icu_collator().raw();
   CHECK_NOT_NULL(icu_collator);
   return *Intl::CompareStrings(isolate, *icu_collator, string_x, string_y);
 }
@@ -1001,7 +1062,7 @@ BUILTIN(SegmenterPrototypeSegment) {
   RETURN_RESULT_OR_FAILURE(
       isolate,
       JSSegmentIterator::Create(
-          isolate, segmenter_holder->icu_break_iterator()->raw()->clone(),
+          isolate, segmenter_holder->icu_break_iterator().raw()->clone(),
           segmenter_holder->granularity(), text));
 }
 

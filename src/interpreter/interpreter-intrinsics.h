@@ -29,14 +29,14 @@ namespace interpreter {
   V(GeneratorClose, generator_close, 1)                              \
   V(GetImportMetaObject, get_import_meta_object, 0)                  \
   V(Call, call, -1)                                                  \
+  V(CopyDataProperties, copy_data_properties, 2)                     \
   V(CreateIterResultObject, create_iter_result_object, 2)            \
   V(CreateAsyncFromSyncIterator, create_async_from_sync_iterator, 1) \
   V(HasProperty, has_property, 2)                                    \
   V(IsArray, is_array, 1)                                            \
   V(IsJSReceiver, is_js_receiver, 1)                                 \
   V(IsSmi, is_smi, 1)                                                \
-  V(IsTypedArray, is_typed_array, 1)                                 \
-  V(ToString, to_string, 1)                                          \
+  V(ToStringRT, to_string, 1)                                        \
   V(ToLength, to_length, 1)                                          \
   V(ToObject, to_object, 1)
 
@@ -50,7 +50,7 @@ class IntrinsicsHelper {
   };
   STATIC_ASSERT(static_cast<uint32_t>(IntrinsicId::kIdCount) <= kMaxUInt8);
 
-  static bool IsSupported(Runtime::FunctionId function_id);
+  V8_EXPORT_PRIVATE static bool IsSupported(Runtime::FunctionId function_id);
   static IntrinsicId FromRuntimeId(Runtime::FunctionId function_id);
   static Runtime::FunctionId ToRuntimeId(IntrinsicId intrinsic_id);
 

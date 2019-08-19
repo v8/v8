@@ -55,17 +55,17 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
   const intptr_t kTibExtraTlsOffset = 0xF94;
   const intptr_t kMaxInlineSlots = 64;
   const intptr_t kMaxSlots = kMaxInlineSlots + 1024;
-  const intptr_t kPointerSize = sizeof(void*);
+  const intptr_t kSystemPointerSize = sizeof(void*);
   DCHECK(0 <= index && index < kMaxSlots);
   USE(kMaxSlots);
   if (index < kMaxInlineSlots) {
-    return static_cast<intptr_t>(__readfsdword(kTibInlineTlsOffset +
-                                               kPointerSize * index));
+    return static_cast<intptr_t>(
+        __readfsdword(kTibInlineTlsOffset + kSystemPointerSize * index));
   }
   intptr_t extra = static_cast<intptr_t>(__readfsdword(kTibExtraTlsOffset));
   DCHECK_NE(extra, 0);
-  return *reinterpret_cast<intptr_t*>(extra +
-                                      kPointerSize * (index - kMaxInlineSlots));
+  return *reinterpret_cast<intptr_t*>(extra + kSystemPointerSize *
+                                                  (index - kMaxInlineSlots));
 }
 
 #elif defined(__APPLE__) && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
@@ -188,11 +188,14 @@ class V8_BASE_EXPORT OS {
 
   class V8_BASE_EXPORT MemoryMappedFile {
    public:
+    enum class FileMode { kReadOnly, kReadWrite };
+
     virtual ~MemoryMappedFile() = default;
     virtual void* memory() const = 0;
     virtual size_t size() const = 0;
 
-    static MemoryMappedFile* open(const char* name);
+    static MemoryMappedFile* open(const char* name,
+                                  FileMode mode = FileMode::kReadWrite);
     static MemoryMappedFile* create(const char* name, size_t size,
                                     void* initial);
   };
@@ -204,7 +207,6 @@ class V8_BASE_EXPORT OS {
   static PRINTF_FORMAT(3, 0) int VSNPrintF(char* str, int length,
                                            const char* format, va_list args);
 
-  static char* StrChr(char* str, int c);
   static void StrNCpy(char* dest, int length, const char* src, size_t n);
 
   // Support for the profiler.  Can do nothing, in which case ticks
@@ -245,6 +247,8 @@ class V8_BASE_EXPORT OS {
   static int GetCurrentProcessId();
 
   static int GetCurrentThreadId();
+
+  static void AdjustSchedulingParams();
 
   static void ExitProcess(int exit_code);
 
@@ -308,7 +312,7 @@ inline void EnsureConsoleOutput() {
 class V8_BASE_EXPORT Thread {
  public:
   // Opaque data type for thread-local storage keys.
-  typedef int32_t LocalStorageKey;
+  using LocalStorageKey = int32_t;
 
   class Options {
    public:
@@ -329,15 +333,16 @@ class V8_BASE_EXPORT Thread {
   virtual ~Thread();
 
   // Start new thread by calling the Run() method on the new thread.
-  void Start();
+  V8_WARN_UNUSED_RESULT bool Start();
 
   // Start new thread and wait until Run() method is called on the new thread.
-  void StartSynchronously() {
+  bool StartSynchronously() {
     start_semaphore_ = new Semaphore(0);
-    Start();
+    if (!Start()) return false;
     start_semaphore_->Wait();
     delete start_semaphore_;
     start_semaphore_ = nullptr;
+    return true;
   }
 
   // Wait until thread terminates.

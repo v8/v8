@@ -6,16 +6,12 @@
 
 'use strict';
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 // Basic tests.
 
-var outOfUint32RangeValue = 1e12;
-var int32ButOob = 1073741824;
-var kMaxUint32 = (4 * 1024 * 1024 * 1024) - 1;
-var kMaxUint31 = (2 * 1024 * 1024 * 1024) - 1;
-var kV8MaxWasmTableSize = 10000000;
+const outOfUint32RangeValue = 1e12;
+const kV8MaxWasmTableSize = 10000000;
 
 function assertTableIsValid(table, length) {
   assertSame(WebAssembly.Table.prototype, table.__proto__);
@@ -87,14 +83,16 @@ function assertTableIsValid(table, length) {
   table = new WebAssembly.Table({element: "anyfunc", initial: 0, maximum: undefined});
   assertTableIsValid(table, 0);
 
-  table = new WebAssembly.Table({element: "anyfunc", initial: 0, maximum: kMaxUint31});
+  table = new WebAssembly.Table({element: "anyfunc", initial: 0, maximum: 1000000});
   assertTableIsValid(table, 0);
 
-  table = new WebAssembly.Table({element: "anyfunc", initial: 0, maximum: kMaxUint32});
+  table = new WebAssembly.Table({element: "anyfunc", initial: 0, maximum: kV8MaxWasmTableSize});
   assertTableIsValid(table, 0);
 
-  table = new WebAssembly.Table({element: "anyfunc", initial: 0, maximum: kV8MaxWasmTableSize + 1});
-  assertTableIsValid(table, 0);
+  assertThrows(
+    () => new WebAssembly.Table(
+      {element: "anyfunc", initial: 0, maximum: kV8MaxWasmTableSize + 1}),
+    RangeError, /above the upper bound/);
 })();
 
 (function TestMaximumIsReadOnce() {
@@ -141,10 +139,13 @@ function assertTableIsValid(table, length) {
     assertEquals(null, table.get(i));
     assertEquals(null, table.get(String(i)));
   }
-  for (let key of [0.4, "", NaN, {}, [], () => {}]) {
+  for (let key of [0.4, "", []]) {
     assertEquals(null, table.get(key));
   }
-  for (let key of [-1, table.length, table.length * 10]) {
+  for (let key of [-1, NaN, {}, () => {}]) {
+    assertThrows(() => table.get(key), TypeError);
+  }
+  for (let key of [table.length, table.length * 10]) {
     assertThrows(() => table.get(key), RangeError);
   }
   assertThrows(() => table.get(Symbol()), TypeError);
@@ -176,14 +177,19 @@ function assertTableIsValid(table, length) {
       assertSame(undefined, table[i]);
     }
 
-    for (let key of [0.4, "", NaN, {}, [], () => {}]) {
+    for (let key of [0.4, "", []]) {
       assertSame(undefined, table.set(0, null));
       assertSame(undefined, table.set(key, f));
       assertSame(f, table.get(0));
       assertSame(undefined, table[key]);
     }
+    for (let key of [NaN, {}, () => {}]) {
+      assertSame(undefined, table[key]);
+      assertThrows(() => table.set(key, f), TypeError);
+    }
 
-    for (let key of [-1, table.length, table.length * 10]) {
+    assertThrows(() => table.set(-1, f), TypeError);
+    for (let key of [table.length, table.length * 10]) {
       assertThrows(() => table.set(key, f), RangeError);
     }
 
@@ -214,7 +220,12 @@ function assertTableIsValid(table, length) {
       assertSame(f, table[i]);
     }
 
-    for (let key of [0.4, "", NaN, {}, [], () => {}]) {
+    for (let key of [NaN, {}, () => {}]) {
+      assertSame(f, table[key] = f);
+      assertSame(f, table[key]);
+      assertThrows(() => table.get(key), TypeError);
+    }
+    for (let key of [0.4, "", []]) {
       assertSame(f, table[key] = f);
       assertSame(f, table[key]);
       assertSame(null, table.get(key));
@@ -246,7 +257,7 @@ function assertTableIsValid(table, length) {
   check(table);
   table.grow(10);
   check(table);
-  assertThrows(() => table.grow(-10), RangeError);
+  assertThrows(() => table.grow(-10), TypeError);
 
   table = new WebAssembly.Table({element: "anyfunc", initial: 20, maximum: 25});
   init(table);
@@ -258,7 +269,7 @@ function assertTableIsValid(table, length) {
   table.grow(0);
   check(table);
   assertThrows(() => table.grow(1), RangeError);
-  assertThrows(() => table.grow(-10), RangeError);
+  assertThrows(() => table.grow(-10), TypeError);
 
   assertThrows(() => WebAssembly.Table.prototype.grow.call([], 0), TypeError);
 

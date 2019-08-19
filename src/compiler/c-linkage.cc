@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/assembler-inl.h"
-#include "src/macro-assembler.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/macro-assembler.h"
 
 #include "src/compiler/linkage.h"
 
@@ -140,8 +140,9 @@ namespace {
 
 
 // General code uses the above configuration data.
-CallDescriptor* Linkage::GetSimplifiedCDescriptor(
-    Zone* zone, const MachineSignature* msig, bool set_initialize_root_flag) {
+CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
+                                                  const MachineSignature* msig,
+                                                  CallDescriptor::Flags flags) {
   DCHECK_LE(msig->parameter_count(), static_cast<size_t>(kMaxCParameters));
 
   LocationSignature::Builder locations(zone, msig->return_count(),
@@ -220,10 +221,7 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
   // The target for C calls is always an address (i.e. machine pointer).
   MachineType target_type = MachineType::Pointer();
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
-  CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  if (set_initialize_root_flag) {
-    flags |= CallDescriptor::kInitializeRootRegister;
-  }
+  flags |= CallDescriptor::kNoAllocate;
 
   return new (zone) CallDescriptor(  // --
       CallDescriptor::kCallAddress,  // kind

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-intl-list-format
-
 // The following test are not part of the comformance. Just some output in
 // English to verify the format does return something reasonable for English.
 // It may be changed when we update the CLDR data.
@@ -55,10 +53,10 @@ assertEquals('', enShortConjunction.format());
 assertEquals('', enShortConjunction.format([]));
 assertEquals('a', enShortConjunction.format(['a']));
 assertEquals('b', enShortConjunction.format(['b']));
-assertEquals('a and b', enShortConjunction.format(['a', 'b']));
-assertEquals('a, b, and c', enShortConjunction.format(['a', 'b', 'c']));
-assertEquals('a, b, c, and d', enShortConjunction.format(['a', 'b', 'c', 'd']));
-assertEquals('a, b, c, d, and and',
+assertEquals('a & b', enShortConjunction.format(['a', 'b']));
+assertEquals('a, b, & c', enShortConjunction.format(['a', 'b', 'c']));
+assertEquals('a, b, c, & d', enShortConjunction.format(['a', 'b', 'c', 'd']));
+assertEquals('a, b, c, d, & and',
    enShortConjunction.format(['a', 'b', 'c', 'd', 'and']));
 
 let enShortDisjunction = new Intl.ListFormat(

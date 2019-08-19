@@ -5,8 +5,8 @@
 #ifndef V8_IC_KEYED_STORE_GENERIC_H_
 #define V8_IC_KEYED_STORE_GENERIC_H_
 
+#include "src/common/globals.h"
 #include "src/compiler/code-assembler.h"
-#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -37,7 +37,7 @@ class KeyedStoreGenericGenerator {
                                    TNode<Object> value);
 };
 
-class StoreICUninitializedGenerator {
+class StoreICNoFeedbackGenerator {
  public:
   static void Generate(compiler::CodeAssemblerState* state);
 };

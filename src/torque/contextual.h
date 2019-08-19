@@ -14,6 +14,9 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
+template <class Variable>
+V8_EXPORT_PRIVATE typename Variable::VariableType*& ContextualVariableTop();
+
 // {ContextualVariable} provides a clean alternative to a global variable.
 // The contextual variable is mutable, and supports managing the value of
 // a variable in a well-nested fashion via the {Scope} class.
@@ -54,7 +57,7 @@ class ContextualVariable {
     static_assert(std::is_base_of<ContextualVariable, Derived>::value,
                   "Curiously Recurring Template Pattern");
 
-    DISALLOW_NEW_AND_DELETE();
+    DISALLOW_NEW_AND_DELETE()
     DISALLOW_COPY_AND_ASSIGN(Scope);
   };
 
@@ -66,20 +69,24 @@ class ContextualVariable {
   }
 
  private:
-  V8_EXPORT_PRIVATE static VarType*& Top();
+  template <class T>
+  friend typename T::VariableType*& ContextualVariableTop();
+  static VarType*& Top() { return ContextualVariableTop<Derived>(); }
+
+  static bool HasScope() { return Top() != nullptr; }
+  friend class MessageBuilder;
 };
 
 // Usage: DECLARE_CONTEXTUAL_VARIABLE(VarName, VarType)
 #define DECLARE_CONTEXTUAL_VARIABLE(VarName, ...) \
   struct VarName                                  \
-      : v8::internal::torque::ContextualVariable<VarName, __VA_ARGS__> {};
+      : v8::internal::torque::ContextualVariable<VarName, __VA_ARGS__> {}
 
-#define DEFINE_CONTEXTUAL_VARIABLE(VarName)                   \
-  template <>                                                 \
-  V8_EXPORT_PRIVATE VarName::VariableType*&                   \
-  ContextualVariable<VarName, VarName::VariableType>::Top() { \
-    static thread_local VarName::VariableType* top = nullptr; \
-    return top;                                               \
+#define DEFINE_CONTEXTUAL_VARIABLE(VarName)                                    \
+  template <>                                                                  \
+  V8_EXPORT_PRIVATE VarName::VariableType*& ContextualVariableTop<VarName>() { \
+    static thread_local VarName::VariableType* top = nullptr;                  \
+    return top;                                                                \
   }
 
 // By inheriting from {ContextualClass} a class can become a contextual variable

@@ -5,9 +5,9 @@
 #ifndef V8_BUILTINS_BUILTINS_DATA_VIEW_GEN_H_
 #define V8_BUILTINS_BUILTINS_DATA_VIEW_GEN_H_
 
-#include "src/code-stub-assembler.h"
-#include "src/elements-kind.h"
+#include "src/codegen/code-stub-assembler.h"
 #include "src/objects/bigint.h"
+#include "src/objects/elements-kind.h"
 
 namespace v8 {
 namespace internal {
@@ -17,13 +17,13 @@ class DataViewBuiltinsAssembler : public CodeStubAssembler {
   explicit DataViewBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  TNode<Int32T> LoadUint8(TNode<RawPtrT> data_pointer, TNode<UintPtrT> offset) {
-    return UncheckedCast<Int32T>(
+  TNode<Uint8T> LoadUint8(TNode<RawPtrT> data_pointer, TNode<UintPtrT> offset) {
+    return UncheckedCast<Uint8T>(
         Load(MachineType::Uint8(), data_pointer, offset));
   }
 
-  TNode<Int32T> LoadInt8(TNode<RawPtrT> data_pointer, TNode<UintPtrT> offset) {
-    return UncheckedCast<Int32T>(
+  TNode<Int8T> LoadInt8(TNode<RawPtrT> data_pointer, TNode<UintPtrT> offset) {
+    return UncheckedCast<Int8T>(
         Load(MachineType::Int8(), data_pointer, offset));
   }
 

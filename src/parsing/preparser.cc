@@ -4,32 +4,31 @@
 
 #include <cmath>
 
-#include "src/allocation.h"
 #include "src/base/logging.h"
-#include "src/conversions-inl.h"
-#include "src/conversions.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
+#include "src/numbers/conversions-inl.h"
+#include "src/numbers/conversions.h"
 #include "src/parsing/parser-base.h"
-#include "src/parsing/preparsed-scope-data.h"
+#include "src/parsing/preparse-data.h"
 #include "src/parsing/preparser.h"
-#include "src/unicode.h"
-#include "src/utils.h"
+#include "src/strings/unicode.h"
+#include "src/utils/allocation.h"
+#include "src/utils/utils.h"
+#include "src/zone/zone-list-inl.h"
 
 namespace v8 {
 namespace internal {
 
 namespace {
 
-PreParserIdentifier GetSymbolHelper(Scanner* scanner,
-                                    const AstRawString* string,
-                                    AstValueFactory* avf) {
+PreParserIdentifier GetIdentifierHelper(Scanner* scanner,
+                                        const AstRawString* string,
+                                        AstValueFactory* avf) {
   // These symbols require slightly different treatement:
   // - regular keywords (async, await, etc.; treated in 1st switch.)
   // - 'contextual' keywords (and may contain escaped; treated in 2nd switch.)
   // - 'contextual' keywords, but may not be escaped (3rd switch).
   switch (scanner->current_token()) {
-    case Token::LET:
-      return PreParserIdentifier::Let();
     case Token::AWAIT:
       return PreParserIdentifier::Await();
     case Token::ASYNC:
@@ -46,9 +45,6 @@ PreParserIdentifier GetSymbolHelper(Scanner* scanner,
     return PreParserIdentifier::Name();
   }
   if (scanner->literal_contains_escapes()) {
-    if (string == avf->let_string()) {
-      return PreParserIdentifier::Let();
-    }
     return PreParserIdentifier::Default();
   }
   if (string == avf->eval_string()) {
@@ -62,10 +58,10 @@ PreParserIdentifier GetSymbolHelper(Scanner* scanner,
 
 }  // unnamed namespace
 
-PreParserIdentifier PreParser::GetSymbol() const {
+PreParserIdentifier PreParser::GetIdentifier() const {
   const AstRawString* result = scanner()->CurrentSymbol(ast_value_factory());
   PreParserIdentifier symbol =
-      GetSymbolHelper(scanner(), result, ast_value_factory());
+      GetIdentifierHelper(scanner(), result, ast_value_factory());
   DCHECK_NOT_NULL(result);
   symbol.string_ = result;
   return symbol;
@@ -78,6 +74,10 @@ PreParser::PreParseResult PreParser::PreParseProgram() {
   scope->set_is_being_lazily_parsed(true);
 #endif
 
+  // Note: We should only skip the hashbang in non-Eval scripts
+  // (currently, Eval is not handled by the PreParser).
+  scanner()->SkipHashBang();
+
   // ModuleDeclarationInstantiation for Source Text Module Records creates a
   // new Module Environment Record whose outer lexical environment record is
   // the global scope.
@@ -88,6 +88,7 @@ PreParser::PreParseResult PreParser::PreParseProgram() {
   int start_position = peek_position();
   PreParserScopedStatementList body(pointer_buffer());
   ParseStatementList(&body, Token::EOS);
+  CheckConflictingVarDeclarations(scope);
   original_scope_ = nullptr;
   if (stack_overflow()) return kPreParseStackOverflow;
   if (is_strict(language_mode())) {
@@ -107,8 +108,8 @@ void PreParserFormalParameters::ValidateStrictMode(PreParser* preparser) const {
 PreParser::PreParseResult PreParser::PreParseFunction(
     const AstRawString* function_name, FunctionKind kind,
     FunctionLiteral::FunctionType function_type,
-    DeclarationScope* function_scope, bool may_abort, int* use_counts,
-    ProducedPreParsedScopeData** produced_preparsed_scope_data, int script_id) {
+    DeclarationScope* function_scope, int* use_counts,
+    ProducedPreparseData** produced_preparse_data, int script_id) {
   DCHECK_EQ(FUNCTION_SCOPE, function_scope->scope_type());
   use_counts_ = use_counts;
   set_script_id(script_id);
@@ -132,21 +133,20 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
   // Start collecting data for a new function which might contain skippable
   // functions.
-  PreParsedScopeDataBuilder::DataGatheringScope
-      preparsed_scope_data_builder_scope(this);
+  PreparseDataBuilder::DataGatheringScope preparse_data_builder_scope(this);
 
   if (IsArrowFunction(kind)) {
     formals.is_simple = function_scope->has_simple_parameters();
   } else {
-    preparsed_scope_data_builder_scope.Start(function_scope);
+    preparse_data_builder_scope.Start(function_scope);
 
     // Parse non-arrow function parameters. For arrow functions, the parameters
     // have already been parsed.
-    DeclarationParsingScope formals_scope(
-        this, ExpressionScope::kParameterDeclaration);
+    ParameterDeclarationParsingScope formals_scope(this);
     // We return kPreParseSuccess in failure cases too - errors are retrieved
     // separately by Parser::SkipLazyFunctionBody.
     ParseFormalParameterList(&formals);
+    if (formals_scope.has_duplicate()) formals.set_has_duplicate();
     if (!formals.is_simple) {
       BuildParameterInitializationBlock(formals);
     }
@@ -161,7 +161,6 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
   Expect(Token::LBRACE);
   DeclarationScope* inner_scope = function_scope;
-  LazyParsingResult result;
 
   if (!formals.is_simple) {
     inner_scope = NewVarblockScope();
@@ -170,30 +169,33 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
   {
     BlockState block_state(&scope_, inner_scope);
-    result = ParseStatementListAndLogFunction(&formals, may_abort);
+    ParseStatementListAndLogFunction(&formals);
   }
 
   bool allow_duplicate_parameters = false;
+  CheckConflictingVarDeclarations(inner_scope);
 
-  if (formals.is_simple) {
-    if (is_sloppy(function_scope->language_mode())) {
-      function_scope->HoistSloppyBlockFunctions(nullptr);
-    }
+  if (!has_error()) {
+    if (formals.is_simple) {
+      if (is_sloppy(function_scope->language_mode())) {
+        function_scope->HoistSloppyBlockFunctions(nullptr);
+      }
 
-    allow_duplicate_parameters = is_sloppy(function_scope->language_mode()) &&
-                                 !IsConciseMethod(kind) &&
-                                 !IsArrowFunction(kind);
-  } else {
-    if (is_sloppy(inner_scope->language_mode())) {
-      inner_scope->HoistSloppyBlockFunctions(nullptr);
-    }
+      allow_duplicate_parameters =
+          is_sloppy(function_scope->language_mode()) && !IsConciseMethod(kind);
+    } else {
+      if (is_sloppy(inner_scope->language_mode())) {
+        inner_scope->HoistSloppyBlockFunctions(nullptr);
+      }
 
-    SetLanguageMode(function_scope, inner_scope->language_mode());
-    inner_scope->set_end_position(scanner()->peek_location().end_pos);
-    if (inner_scope->FinalizeBlockScope() != nullptr) {
-      const AstRawString* conflict = inner_scope->FindVariableDeclaredIn(
-          function_scope, VariableMode::kLastLexicalVariableMode);
-      if (conflict != nullptr) ReportVarRedeclarationIn(conflict, inner_scope);
+      SetLanguageMode(function_scope, inner_scope->language_mode());
+      inner_scope->set_end_position(scanner()->peek_location().end_pos);
+      if (inner_scope->FinalizeBlockScope() != nullptr) {
+        const AstRawString* conflict = inner_scope->FindVariableDeclaredIn(
+            function_scope, VariableMode::kLastLexicalVariableMode);
+        if (conflict != nullptr)
+          ReportVarRedeclarationIn(conflict, inner_scope);
+      }
     }
   }
 
@@ -205,12 +207,8 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     return kPreParseNotIdentifiableError;
   } else if (has_error()) {
     DCHECK(pending_error_handler()->has_pending_error());
-  } else if (result == kLazyParsingAborted) {
-    DCHECK(!pending_error_handler()->has_error_unidentifiable_by_preparser());
-    return kPreParseAbort;
   } else {
     DCHECK_EQ(Token::RBRACE, scanner()->peek());
-    DCHECK(result == kLazyParsingComplete);
 
     if (!IsArrowFunction(kind)) {
       // Validate parameter names. We can do this only after parsing the
@@ -233,8 +231,10 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
       DeclareFunctionNameVar(function_name, function_type, function_scope);
 
-      *produced_preparsed_scope_data = ProducedPreParsedScopeData::For(
-          preparsed_scope_data_builder_, main_zone());
+      if (preparse_data_builder_->HasData()) {
+        *produced_preparse_data =
+            ProducedPreparseData::For(preparse_data_builder_, main_zone());
+      }
     }
 
     if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
@@ -250,7 +250,6 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   DCHECK(!pending_error_handler()->has_error_unidentifiable_by_preparser());
   return kPreParseSuccess;
 }
-
 
 // Preparsing checks a JavaScript program and emits preparse-data that helps
 // a later parsing to be faster.
@@ -293,12 +292,11 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   // Start collecting data for a new function which might contain skippable
   // functions.
   {
-    PreParsedScopeDataBuilder::DataGatheringScope
-        preparsed_scope_data_builder_scope(this);
+    PreparseDataBuilder::DataGatheringScope preparse_data_builder_scope(this);
     skippable_function = !function_state_->next_function_is_likely_called() &&
-                         preparsed_scope_data_builder_ != nullptr;
+                         preparse_data_builder_ != nullptr;
     if (skippable_function) {
-      preparsed_scope_data_builder_scope.Start(function_scope);
+      preparse_data_builder_scope.Start(function_scope);
     }
 
     FunctionState function_state(&function_state_, &scope_, function_scope);
@@ -308,9 +306,9 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     function_scope->set_start_position(start_position);
     PreParserFormalParameters formals(function_scope);
     {
-      DeclarationParsingScope formals_scope(
-          this, ExpressionScope::kParameterDeclaration);
+      ParameterDeclarationParsingScope formals_scope(this);
       ParseFormalParameterList(&formals);
+      if (formals_scope.has_duplicate()) formals.set_has_duplicate();
     }
     Expect(Token::RPAREN);
     int formals_end_position = scanner()->location().end_pos;
@@ -343,13 +341,11 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     if (is_strict(language_mode)) {
       CheckStrictOctalLiteral(start_position, end_position());
     }
-  }
-
-  if (skippable_function) {
-    preparsed_scope_data_builder_->AddSkippableFunction(
-        function_scope->start_position(), end_position(),
-        function_scope->num_parameters(), GetLastFunctionLiteralId() - func_id,
-        function_scope->language_mode(), function_scope->NeedsHomeObject());
+    if (skippable_function) {
+      preparse_data_builder_scope.SetSkippableFunction(
+          function_scope, formals.function_length,
+          GetLastFunctionLiteralId() - func_id);
+    }
   }
 
   if (V8_UNLIKELY(FLAG_log_function_events)) {
@@ -372,20 +368,17 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   return Expression::Default();
 }
 
-PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
-    PreParserFormalParameters* formals, bool may_abort) {
+void PreParser::ParseStatementListAndLogFunction(
+    PreParserFormalParameters* formals) {
   PreParserScopedStatementList body(pointer_buffer());
-  LazyParsingResult result =
-      ParseStatementList(&body, Token::RBRACE, may_abort);
-  if (result == kLazyParsingAborted) return result;
+  ParseStatementList(&body, Token::RBRACE);
 
   // Position right after terminal '}'.
   DCHECK_IMPLIES(!has_error(), scanner()->peek() == Token::RBRACE);
   int body_end = scanner()->peek_location().end_pos;
   DCHECK_EQ(this->scope()->is_function_scope(), formals->is_simple);
   log_.LogFunction(body_end, formals->num_parameters(),
-                   GetLastFunctionLiteralId());
-  return kLazyParsingComplete;
+                   formals->function_length, GetLastFunctionLiteralId());
 }
 
 PreParserBlock PreParser::BuildParameterInitializationBlock(
@@ -393,19 +386,19 @@ PreParserBlock PreParser::BuildParameterInitializationBlock(
   DCHECK(!parameters.is_simple);
   DCHECK(scope()->is_function_scope());
   if (scope()->AsDeclarationScope()->calls_sloppy_eval() &&
-      preparsed_scope_data_builder_ != nullptr) {
+      preparse_data_builder_ != nullptr) {
     // We cannot replicate the Scope structure constructed by the Parser,
     // because we've lost information whether each individual parameter was
     // simple or not. Give up trying to produce data to skip inner functions.
-    if (preparsed_scope_data_builder_->parent() != nullptr) {
+    if (preparse_data_builder_->parent() != nullptr) {
       // Lazy parsing started before the current function; the function which
       // cannot contain skippable functions is the parent function. (Its inner
       // functions cannot either; they are implicitly bailed out.)
-      preparsed_scope_data_builder_->parent()->Bailout();
+      preparse_data_builder_->parent()->Bailout();
     } else {
       // Lazy parsing started at the current function; it cannot contain
       // skippable functions.
-      preparsed_scope_data_builder_->Bailout();
+      preparse_data_builder_->Bailout();
     }
   }
 
@@ -415,42 +408,6 @@ PreParserBlock PreParser::BuildParameterInitializationBlock(
 bool PreParser::IdentifierEquals(const PreParserIdentifier& identifier,
                                  const AstRawString* other) {
   return identifier.string_ == other;
-}
-
-PreParserExpression PreParser::ExpressionFromIdentifier(
-    const PreParserIdentifier& name, int start_position, InferName infer) {
-  VariableProxy* proxy = nullptr;
-  DCHECK_IMPLIES(name.string_ == nullptr, has_error());
-  if (name.string_ == nullptr) return PreParserExpression::Default();
-  proxy = scope()->NewUnresolved(factory()->ast_node_factory(), name.string_,
-                                 start_position, NORMAL_VARIABLE);
-  return PreParserExpression::FromIdentifier(name, proxy, zone());
-}
-
-void PreParser::DeclareAndInitializeVariables(
-    PreParserStatement block,
-    const DeclarationDescriptor* declaration_descriptor,
-    const DeclarationParsingResult::Declaration* declaration,
-    ZonePtrList<const AstRawString>* names) {
-  if (declaration->pattern.variables_ != nullptr) {
-    for (auto variable : *(declaration->pattern.variables_)) {
-      scope()->DeleteUnresolved(variable);
-      Variable* var = scope()->DeclareVariableName(
-          variable->raw_name(), declaration_descriptor->mode);
-      if (var == nullptr) {
-        ReportUnidentifiableError();
-        return;
-      }
-      MarkLoopVariableAsAssigned(scope(), var,
-                                 declaration_descriptor->declaration_kind);
-      // This is only necessary if there is an initializer, but we don't have
-      // that information here.  Consequently, the preparser sometimes says
-      // maybe-assigned where the parser (correctly) says never-assigned.
-      if (names) {
-        names->Add(variable->raw_name(), zone());
-      }
-    }
-  }
 }
 
 }  // namespace internal

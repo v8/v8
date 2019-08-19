@@ -5,7 +5,7 @@
 #include "test/unittests/compiler/backend/instruction-selector-unittest.h"
 
 #include "src/compiler/node-matchers.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -91,8 +91,8 @@ static const LoadWithToInt64Extension kLoadWithToInt64Extensions[] = {
 
 }  // namespace
 
-typedef InstructionSelectorTestWithParam<LoadWithToInt64Extension>
-    InstructionSelectorChangeInt32ToInt64Test;
+using InstructionSelectorChangeInt32ToInt64Test =
+    InstructionSelectorTestWithParam<LoadWithToInt64Extension>;
 
 TEST_P(InstructionSelectorChangeInt32ToInt64Test, ChangeInt32ToInt64WithLoad) {
   const LoadWithToInt64Extension extension = GetParam();
@@ -103,9 +103,9 @@ TEST_P(InstructionSelectorChangeInt32ToInt64Test, ChangeInt32ToInt64WithLoad) {
   EXPECT_EQ(extension.expected_opcode, s[0]->arch_opcode());
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorChangeInt32ToInt64Test,
-                        ::testing::ValuesIn(kLoadWithToInt64Extensions));
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorChangeInt32ToInt64Test,
+                         ::testing::ValuesIn(kLoadWithToInt64Extensions));
 
 // -----------------------------------------------------------------------------
 // Loads and stores
@@ -139,10 +139,8 @@ static const MemoryAccess kMemoryAccesses[] = {
 
 }  // namespace
 
-
-typedef InstructionSelectorTestWithParam<MemoryAccess>
-    InstructionSelectorMemoryAccessTest;
-
+using InstructionSelectorMemoryAccessTest =
+    InstructionSelectorTestWithParam<MemoryAccess>;
 
 TEST_P(InstructionSelectorMemoryAccessTest, LoadWithParameters) {
   const MemoryAccess memacc = GetParam();
@@ -171,11 +169,9 @@ TEST_P(InstructionSelectorMemoryAccessTest, StoreWithParameters) {
   EXPECT_EQ(0U, s[0]->OutputCount());
 }
 
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorMemoryAccessTest,
-                        ::testing::ValuesIn(kMemoryAccesses));
-
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorMemoryAccessTest,
+                         ::testing::ValuesIn(kMemoryAccesses));
 
 // -----------------------------------------------------------------------------
 // ChangeUint32ToUint64.
@@ -183,8 +179,7 @@ INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
 
 namespace {
 
-typedef Node* (RawMachineAssembler::*Constructor)(Node*, Node*);
-
+using Constructor = Node* (RawMachineAssembler::*)(Node*, Node*);
 
 struct BinaryOperation {
   Constructor constructor;
@@ -221,10 +216,8 @@ const BinaryOperation kWord32BinaryOperations[] = {
 
 }  // namespace
 
-
-typedef InstructionSelectorTestWithParam<BinaryOperation>
-    InstructionSelectorChangeUint32ToUint64Test;
-
+using InstructionSelectorChangeUint32ToUint64Test =
+    InstructionSelectorTestWithParam<BinaryOperation>;
 
 TEST_P(InstructionSelectorChangeUint32ToUint64Test, ChangeUint32ToUint64) {
   const BinaryOperation& bop = GetParam();
@@ -237,10 +230,9 @@ TEST_P(InstructionSelectorChangeUint32ToUint64Test, ChangeUint32ToUint64) {
   ASSERT_EQ(1U, s.size());
 }
 
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorChangeUint32ToUint64Test,
-                        ::testing::ValuesIn(kWord32BinaryOperations));
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorChangeUint32ToUint64Test,
+                         ::testing::ValuesIn(kWord32BinaryOperations));
 
 // -----------------------------------------------------------------------------
 // CanElideChangeUint32ToUint64
@@ -255,7 +247,7 @@ struct MachInst {
   MachineType machine_type;
 };
 
-typedef MachInst<Node* (RawMachineAssembler::*)(Node*, Node*)> MachInst2;
+using MachInst2 = MachInst<Node* (RawMachineAssembler::*)(Node*, Node*)>;
 
 // X64 instructions that clear the top 32 bits of the destination.
 const MachInst2 kCanElideChangeUint32ToUint64[] = {
@@ -303,8 +295,8 @@ const MachInst2 kCanElideChangeUint32ToUint64[] = {
 
 }  // namespace
 
-typedef InstructionSelectorTestWithParam<MachInst2>
-    InstructionSelectorElidedChangeUint32ToUint64Test;
+using InstructionSelectorElidedChangeUint32ToUint64Test =
+    InstructionSelectorTestWithParam<MachInst2>;
 
 TEST_P(InstructionSelectorElidedChangeUint32ToUint64Test, Parameter) {
   const MachInst2 binop = GetParam();
@@ -320,9 +312,9 @@ TEST_P(InstructionSelectorElidedChangeUint32ToUint64Test, Parameter) {
   EXPECT_EQ(1U, s[0]->OutputCount());
 }
 
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
-                        InstructionSelectorElidedChangeUint32ToUint64Test,
-                        ::testing::ValuesIn(kCanElideChangeUint32ToUint64));
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorElidedChangeUint32ToUint64Test,
+                         ::testing::ValuesIn(kCanElideChangeUint32ToUint64));
 
 // ChangeUint32ToUint64AfterLoad
 TEST_F(InstructionSelectorTest, ChangeUint32ToUint64AfterLoad) {
@@ -1724,67 +1716,6 @@ TEST_F(InstructionSelectorTest, LoadAndWord64ShiftRight32) {
     ASSERT_EQ(1U, s[0]->OutputCount());
     EXPECT_EQ(s.ToVreg(shift), s.ToVreg(s[0]->Output()));
   }
-}
-
-TEST_F(InstructionSelectorTest, SpeculationFence) {
-  StreamBuilder m(this, MachineType::Int32());
-  m.SpeculationFence();
-  m.Return(m.Int32Constant(0));
-  Stream s = m.Build();
-  ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kLFence, s[0]->arch_opcode());
-}
-
-TEST_F(InstructionSelectorTest, StackCheck0) {
-  ExternalReference js_stack_limit =
-      ExternalReference::Create(isolate()->stack_guard()->address_of_jslimit());
-  StreamBuilder m(this, MachineType::Int32());
-  Node* const sp = m.LoadStackPointer();
-  Node* const stack_limit =
-      m.Load(MachineType::Pointer(), m.ExternalConstant(js_stack_limit));
-  Node* const interrupt = m.UintPtrLessThan(sp, stack_limit);
-
-  RawMachineLabel if_true, if_false;
-  m.Branch(interrupt, &if_true, &if_false);
-
-  m.Bind(&if_true);
-  m.Return(m.Int32Constant(1));
-
-  m.Bind(&if_false);
-  m.Return(m.Int32Constant(0));
-
-  Stream s = m.Build();
-
-  ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kX64Cmp, s[0]->arch_opcode());
-  EXPECT_EQ(4U, s[0]->InputCount());
-  EXPECT_EQ(0U, s[0]->OutputCount());
-}
-
-TEST_F(InstructionSelectorTest, StackCheck1) {
-  ExternalReference js_stack_limit =
-      ExternalReference::Create(isolate()->stack_guard()->address_of_jslimit());
-  StreamBuilder m(this, MachineType::Int32());
-  Node* const sp = m.LoadStackPointer();
-  Node* const stack_limit =
-      m.Load(MachineType::Pointer(), m.ExternalConstant(js_stack_limit));
-  Node* const sp_within_limit = m.UintPtrLessThan(stack_limit, sp);
-
-  RawMachineLabel if_true, if_false;
-  m.Branch(sp_within_limit, &if_true, &if_false);
-
-  m.Bind(&if_true);
-  m.Return(m.Int32Constant(1));
-
-  m.Bind(&if_false);
-  m.Return(m.Int32Constant(0));
-
-  Stream s = m.Build();
-
-  ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kX64StackCheck, s[0]->arch_opcode());
-  EXPECT_EQ(2U, s[0]->InputCount());
-  EXPECT_EQ(0U, s[0]->OutputCount());
 }
 
 }  // namespace compiler

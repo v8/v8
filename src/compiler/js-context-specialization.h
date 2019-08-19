@@ -6,7 +6,7 @@
 #define V8_COMPILER_JS_CONTEXT_SPECIALIZATION_H_
 
 #include "src/compiler/graph-reducer.h"
-#include "src/maybe-handles.h"
+#include "src/handles/maybe-handles.h"
 
 namespace v8 {
 namespace internal {
@@ -32,7 +32,7 @@ struct OuterContext {
 //
 // The context can be the incoming function context or any outer context
 // thereof, as indicated by {outer}'s {distance}.
-class JSContextSpecialization final : public AdvancedReducer {
+class V8_EXPORT_PRIVATE JSContextSpecialization final : public AdvancedReducer {
  public:
   JSContextSpecialization(Editor* editor, JSGraph* jsgraph,
                           JSHeapBroker* broker, Maybe<OuterContext> outer,

@@ -6,7 +6,7 @@
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
-#include "src/ppc/frame-constants-ppc.h"
+#include "src/execution/ppc/frame-constants-ppc.h"
 
 namespace v8 {
 namespace internal {
@@ -64,17 +64,6 @@ class PPCOperandGenerator final : public OperandGenerator {
         return false;
     }
     return false;
-  }
-
-  // Use the stack pointer if the node is LoadStackPointer, otherwise assign a
-  // register.
-  InstructionOperand UseRegisterOrStackPointer(Node* node) {
-    if (node->opcode() == IrOpcode::kLoadStackPointer) {
-      return LocationOperand(LocationOperand::EXPLICIT,
-                             LocationOperand::REGISTER,
-                             MachineRepresentation::kWord32, sp.code());
-    }
-    return UseRegister(node);
   }
 };
 
@@ -173,9 +162,9 @@ void InstructionSelector::VisitStackSlot(Node* node) {
        sequence()->AddImmediate(Constant(slot)), 0, nullptr);
 }
 
-void InstructionSelector::VisitDebugAbort(Node* node) {
+void InstructionSelector::VisitAbortCSAAssert(Node* node) {
   PPCOperandGenerator g(this);
-  Emit(kArchDebugAbort, g.NoOutput(), g.UseFixed(node->InputAt(0), r4));
+  Emit(kArchAbortCSAAssert, g.NoOutput(), g.UseFixed(node->InputAt(0), r4));
 }
 
 void InstructionSelector::VisitLoad(Node* node) {
@@ -209,10 +198,12 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = kPPC_LoadWord64;
       mode = kInt16Imm_4ByteAligned;
       break;
+    case MachineRepresentation::kCompressedSigned:   // Fall through.
+    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kSimd128:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
-      return;
   }
 
   if (node->opcode() == IrOpcode::kPoisonedLoad &&
@@ -265,7 +256,8 @@ void InstructionSelector::VisitStore(Node* node) {
     rep = store_rep.representation();
   }
 
-  if (write_barrier_kind != kNoWriteBarrier) {
+  if (write_barrier_kind != kNoWriteBarrier &&
+      V8_LIKELY(!FLAG_disable_write_barriers)) {
     DCHECK(CanBeTaggedPointer(rep));
     AddressingMode addressing_mode;
     InstructionOperand inputs[3];
@@ -285,21 +277,8 @@ void InstructionSelector::VisitStore(Node* node) {
       addressing_mode = kMode_MRR;
     }
     inputs[input_count++] = g.UseUniqueRegister(value);
-    RecordWriteMode record_write_mode = RecordWriteMode::kValueIsAny;
-    switch (write_barrier_kind) {
-      case kNoWriteBarrier:
-        UNREACHABLE();
-        break;
-      case kMapWriteBarrier:
-        record_write_mode = RecordWriteMode::kValueIsMap;
-        break;
-      case kPointerWriteBarrier:
-        record_write_mode = RecordWriteMode::kValueIsPointer;
-        break;
-      case kFullWriteBarrier:
-        record_write_mode = RecordWriteMode::kValueIsAny;
-        break;
-    }
+    RecordWriteMode record_write_mode =
+        WriteBarrierKindToRecordWriteMode(write_barrier_kind);
     InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
     size_t const temp_count = arraysize(temps);
     InstructionCode code = kArchStoreWithWriteBarrier;
@@ -343,6 +322,9 @@ void InstructionSelector::VisitStore(Node* node) {
 #else
       case MachineRepresentation::kWord64:  // Fall through.
 #endif
+      case MachineRepresentation::kCompressedSigned:   // Fall through.
+      case MachineRepresentation::kCompressedPointer:  // Fall through.
+      case MachineRepresentation::kCompressed:         // Fall through.
       case MachineRepresentation::kSimd128:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
@@ -564,6 +546,15 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
   } else {
     VisitBinop<Int32BinopMatcher>(this, node, kPPC_Xor, kInt16Imm_Unsigned);
   }
+}
+
+void InstructionSelector::VisitStackPointerGreaterThan(
+    Node* node, FlagsContinuation* cont) {
+  Node* const value = node->InputAt(0);
+  InstructionCode opcode = kArchStackPointerGreaterThan;
+
+  PPCOperandGenerator g(this);
+  EmitWithContinuation(opcode, g.UseRegister(value), cont);
 }
 
 #if V8_TARGET_ARCH_PPC64
@@ -935,8 +926,6 @@ void InstructionSelector::VisitWord32ReverseBytes(Node* node) {
        g.UseRegister(node->InputAt(0)));
 }
 
-void InstructionSelector::VisitSpeculationFence(Node* node) { UNREACHABLE(); }
-
 void InstructionSelector::VisitInt32Add(Node* node) {
   VisitBinop<Int32BinopMatcher>(this, node, kPPC_Add32, kInt16Imm);
 }
@@ -1147,6 +1136,34 @@ void InstructionSelector::VisitSignExtendWord32ToInt64(Node* node) {
 void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
   // TODO(mbrandy): inspect input to see if nop is appropriate.
   VisitRR(this, kPPC_Uint32ToUint64, node);
+}
+
+void InstructionSelector::VisitChangeTaggedToCompressed(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitChangeTaggedPointerToCompressedPointer(
+    Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitChangeTaggedSignedToCompressedSigned(
+    Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitChangeCompressedToTagged(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitChangeCompressedPointerToTaggedPointer(
+    Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitChangeCompressedSignedToTaggedSigned(
+    Node* node) {
+  UNIMPLEMENTED();
 }
 
 void InstructionSelector::VisitChangeFloat64ToUint64(Node* node) {
@@ -1438,15 +1455,15 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 
   // Match immediates on left or right side of comparison.
   if (g.CanBeImmediate(right, immediate_mode)) {
-    VisitCompare(selector, opcode, g.UseRegisterOrStackPointer(left),
-                 g.UseImmediate(right), cont);
+    VisitCompare(selector, opcode, g.UseRegister(left), g.UseImmediate(right),
+                 cont);
   } else if (g.CanBeImmediate(left, immediate_mode)) {
     if (!commutative) cont->Commute();
-    VisitCompare(selector, opcode, g.UseRegisterOrStackPointer(right),
-                 g.UseImmediate(left), cont);
+    VisitCompare(selector, opcode, g.UseRegister(right), g.UseImmediate(left),
+                 cont);
   } else {
-    VisitCompare(selector, opcode, g.UseRegisterOrStackPointer(left),
-                 g.UseRegisterOrStackPointer(right), cont);
+    VisitCompare(selector, opcode, g.UseRegister(left), g.UseRegister(right),
+                 cont);
   }
 }
 
@@ -1621,6 +1638,9 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
 // case IrOpcode::kWord64Shr:
 // case IrOpcode::kWord64Ror:
 #endif
+      case IrOpcode::kStackPointerGreaterThan:
+        cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
+        return VisitStackPointerGreaterThan(value, cont);
       default:
         break;
     }
@@ -1833,6 +1853,11 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
   }
   Emit(kPPC_DoubleInsertHighWord32, g.DefineSameAsFirst(node),
        g.UseRegister(left), g.UseRegister(right));
+}
+
+void InstructionSelector::VisitMemoryBarrier(Node* node) {
+  PPCOperandGenerator g(this);
+  Emit(kPPC_Sync, g.NoOutput());
 }
 
 void InstructionSelector::VisitWord32AtomicLoad(Node* node) { VisitLoad(node); }
@@ -2232,7 +2257,24 @@ void InstructionSelector::VisitF32x4ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::EmitPrepareResults(
     ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,
     Node* node) {
-  // TODO(John): Port.
+  PPCOperandGenerator g(this);
+
+  int reverse_slot = 0;
+  for (PushParameter output : *results) {
+    if (!output.location.IsCallerFrameSlot()) continue;
+    // Skip any alignment holes in nodes.
+    if (output.node != nullptr) {
+      DCHECK(!call_descriptor->IsCFunctionCall());
+      if (output.location.GetType() == MachineType::Float32()) {
+        MarkAsFloat32(output.node);
+      } else if (output.location.GetType() == MachineType::Float64()) {
+        MarkAsFloat64(output.node);
+      }
+      Emit(kPPC_Peek, g.DefineAsRegister(output.node),
+           g.UseImmediate(reverse_slot));
+    }
+    reverse_slot += output.location.GetSizeInPointers();
+  }
 }
 
 void InstructionSelector::VisitF32x4Add(Node* node) { UNIMPLEMENTED(); }
@@ -2343,6 +2385,8 @@ void InstructionSelector::VisitI8x16ShrS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI8x16ShrU(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16Mul(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitS8x16Shuffle(Node* node) { UNIMPLEMENTED(); }
 
 // static
 MachineOperatorBuilder::Flags

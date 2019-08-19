@@ -15,7 +15,7 @@ namespace base {
 // Helper class representing an address region of certain size.
 class AddressRegion {
  public:
-  typedef uintptr_t Address;
+  using Address = uintptr_t;
 
   AddressRegion() = default;
 
@@ -43,6 +43,13 @@ class AddressRegion {
 
   bool contains(AddressRegion region) const {
     return contains(region.address_, region.size_);
+  }
+
+  base::AddressRegion GetOverlap(AddressRegion region) const {
+    Address overlap_start = std::max(begin(), region.begin());
+    Address overlap_end =
+        std::max(overlap_start, std::min(end(), region.end()));
+    return {overlap_start, overlap_end - overlap_start};
   }
 
   bool operator==(AddressRegion other) const {

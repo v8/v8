@@ -5,20 +5,19 @@
 #ifndef V8_BUILTINS_BUILTINS_ITERATOR_GEN_H_
 #define V8_BUILTINS_BUILTINS_ITERATOR_GEN_H_
 
-#include "src/code-stub-assembler.h"
-#include "torque-generated/builtins-base-from-dsl-gen.h"
-#include "torque-generated/builtins-iterator-from-dsl-gen.h"
+#include "src/codegen/code-stub-assembler.h"
 
 namespace v8 {
 namespace internal {
 
 using compiler::Node;
 
-class IteratorBuiltinsAssembler : public CodeStubAssembler,
-                                  public IteratorBuiltinsFromDSLAssembler {
+class IteratorBuiltinsAssembler : public CodeStubAssembler {
  public:
   explicit IteratorBuiltinsAssembler(compiler::CodeAssemblerState* state)
-      : CodeStubAssembler(state), IteratorBuiltinsFromDSLAssembler(state) {}
+      : CodeStubAssembler(state) {}
+
+  using IteratorRecord = TorqueStructIteratorRecord;
 
   // Returns object[Symbol.iterator].
   TNode<Object> GetIteratorMethod(Node* context, Node* object);
@@ -33,18 +32,19 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler,
                              Variable* exception = nullptr);
 
   // https://tc39.github.io/ecma262/#sec-iteratorstep
-  // Returns `false` if the iterator is done, otherwise returns an
-  // iterator result.
+  // If the iterator is done, goto {if_done}, otherwise returns an iterator
+  // result.
   // `fast_iterator_result_map` refers to the map for the JSIteratorResult
   // object, loaded from the native context.
-  TNode<Object> IteratorStep(Node* context, const IteratorRecord& iterator,
-                             Label* if_done,
-                             Node* fast_iterator_result_map = nullptr,
-                             Label* if_exception = nullptr,
-                             Variable* exception = nullptr);
+  TNode<JSReceiver> IteratorStep(Node* context, const IteratorRecord& iterator,
+                                 Label* if_done,
+                                 Node* fast_iterator_result_map = nullptr,
+                                 Label* if_exception = nullptr,
+                                 Variable* exception = nullptr);
 
-  TNode<Object> IteratorStep(Node* context, const IteratorRecord& iterator,
-                             Node* fast_iterator_result_map, Label* if_done) {
+  TNode<JSReceiver> IteratorStep(Node* context, const IteratorRecord& iterator,
+                                 Node* fast_iterator_result_map,
+                                 Label* if_done) {
     return IteratorStep(context, iterator, if_done, fast_iterator_result_map);
   }
 
@@ -52,10 +52,10 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler,
   // Return the `value` field from an iterator.
   // `fast_iterator_result_map` refers to the map for the JSIteratorResult
   // object, loaded from the native context.
-  Node* IteratorValue(Node* context, Node* result,
-                      Node* fast_iterator_result_map = nullptr,
-                      Label* if_exception = nullptr,
-                      Variable* exception = nullptr);
+  TNode<Object> IteratorValue(
+      TNode<Context> context, TNode<JSReceiver> result,
+      base::Optional<TNode<Map>> fast_iterator_result_map = base::nullopt,
+      Label* if_exception = nullptr, Variable* exception = nullptr);
 
   // https://tc39.github.io/ecma262/#sec-iteratorclose
   void IteratorCloseOnException(Node* context, const IteratorRecord& iterator,

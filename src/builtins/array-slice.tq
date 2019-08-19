@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array {
+namespace array_slice {
   macro HandleSimpleArgumentsSlice(
       context: Context, args: JSArgumentsObjectWithLength, start: Smi,
       count: Smi): JSArray
@@ -43,13 +43,13 @@ namespace array {
     // defined arguments
     const end: Smi = start + count;
     const unmappedElements: FixedArray =
-        Cast<FixedArray>(sloppyElements[kSloppyArgumentsArgumentsIndex])
+        Cast<FixedArray>(sloppyElements.objects[kSloppyArgumentsArgumentsIndex])
         otherwise Bailout;
     const unmappedElementsLength: Smi = unmappedElements.length;
     if (SmiAbove(end, unmappedElementsLength)) goto Bailout;
 
-    const argumentsContext: Context =
-        UnsafeCast<Context>(sloppyElements[kSloppyArgumentsContextIndex]);
+    const argumentsContext: Context = UnsafeCast<Context>(
+        sloppyElements.objects[kSloppyArgumentsContextIndex]);
 
     const arrayMap: Map = LoadJSArrayElementsMap(HOLEY_ELEMENTS, context);
     const result: JSArray =
@@ -62,12 +62,16 @@ namespace array {
     // Fill in the part of the result that map to context-mapped parameters.
     for (let current: Smi = start; current < to; ++current) {
       const e: Object =
-          sloppyElements[current + kSloppyArgumentsParameterMapStart];
-      const newElement: Object = e != Hole ?
+          sloppyElements.objects[current + kSloppyArgumentsParameterMapStart];
+      const newElement: Object = e != TheHole ?
           argumentsContext[UnsafeCast<Smi>(e)] :
-          unmappedElements[current];
-      StoreFixedArrayElementSmi(
-          resultElements, indexOut++, newElement, SKIP_WRITE_BARRIER);
+          unmappedElements.objects[current];
+      // It is safe to skip the write barrier here because resultElements was
+      // allocated together with result in a folded allocation.
+      // TODO(tebbi): The verification of this fails at the moment due to
+      // missing load elimination.
+      StoreFixedArrayElement(
+          resultElements, indexOut++, newElement, UNSAFE_SKIP_WRITE_BARRIER);
     }
 
     // Fill in the rest of the result that contains the unmapped parameters
@@ -101,7 +105,6 @@ namespace array {
         return ExtractFastJSArray(context, a, start, count);
       }
       case (a: JSArgumentsObjectWithLength): {
-        const nativeContext: NativeContext = LoadNativeContext(context);
         const map: Map = a.map;
         if (IsFastAliasedArgumentsMap(map)) {
           return HandleFastAliasedSloppyArgumentsSlice(context, a, start, count)
@@ -119,8 +122,8 @@ namespace array {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.slice
   transitioning javascript builtin
-  ArrayPrototypeSlice(context: Context, receiver: Object, ...arguments):
-      Object {
+  ArrayPrototypeSlice(js-implicit context: Context, receiver: Object)(
+      ...arguments): Object {
     // Handle array cloning case if the receiver is a fast array.
     if (arguments.length == 0) {
       typeswitch (receiver) {
@@ -182,7 +185,7 @@ namespace array {
     // 10. Repeat, while k < final
     while (k < final) {
       // a. Let Pk be ! ToString(k).
-      let pK: Number = k;
+      const pK: Number = k;
 
       // b. Let kPresent be ? HasProperty(O, Pk).
       const fromPresent: Boolean = HasProperty(o, pK);
@@ -193,7 +196,7 @@ namespace array {
         const kValue: Object = GetProperty(o, pK);
 
         // ii. Perform ? CreateDataPropertyOrThrow(A, ! ToString(n), kValue).
-        CreateDataProperty(a, n, kValue);
+        FastCreateDataProperty(a, n, kValue);
       }
 
       // d. Increase k by 1.

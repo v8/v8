@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_FRAME_ARRAY_H_
 #define V8_OBJECTS_FRAME_ARRAY_H_
 
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "src/wasm/wasm-objects.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -20,25 +20,27 @@ class Handle;
 #define FRAME_ARRAY_FIELD_LIST(V)     \
   V(WasmInstance, WasmInstanceObject) \
   V(WasmFunctionIndex, Smi)           \
-  V(WasmCodeObject, Foreign)          \
+  V(WasmCodeObject, Object)           \
   V(Receiver, Object)                 \
   V(Function, JSFunction)             \
   V(Code, AbstractCode)               \
   V(Offset, Smi)                      \
-  V(Flags, Smi)
+  V(Flags, Smi)                       \
+  V(Parameters, FixedArray)
 
 // Container object for data collected during simple stack trace captures.
 class FrameArray : public FixedArray {
  public:
-#define DECL_FRAME_ARRAY_ACCESSORS(name, type)   \
-  inline type##ArgType name(int frame_ix) const; \
-  inline void Set##name(int frame_ix, type##ArgType value);
+#define DECL_FRAME_ARRAY_ACCESSORS(name, type) \
+  inline type name(int frame_ix) const;        \
+  inline void Set##name(int frame_ix, type value);
   FRAME_ARRAY_FIELD_LIST(DECL_FRAME_ARRAY_ACCESSORS)
 #undef DECL_FRAME_ARRAY_ACCESSORS
 
   inline bool IsWasmFrame(int frame_ix) const;
   inline bool IsWasmInterpretedFrame(int frame_ix) const;
   inline bool IsAsmJsWasmFrame(int frame_ix) const;
+  inline bool IsAnyWasmFrame(int frame_ix) const;
   inline int FrameCount() const;
 
   void ShrinkToFit(Isolate* isolate);
@@ -59,12 +61,13 @@ class FrameArray : public FixedArray {
                                           Handle<Object> receiver,
                                           Handle<JSFunction> function,
                                           Handle<AbstractCode> code, int offset,
-                                          int flags);
+                                          int flags,
+                                          Handle<FixedArray> parameters);
   static Handle<FrameArray> AppendWasmFrame(
       Handle<FrameArray> in, Handle<WasmInstanceObject> wasm_instance,
       int wasm_function_index, wasm::WasmCode* code, int offset, int flags);
 
-  DECL_CAST2(FrameArray)
+  DECL_CAST(FrameArray)
 
  private:
   // The underlying fixed array embodies a captured stack trace. Frame i
@@ -86,7 +89,9 @@ class FrameArray : public FixedArray {
 
   static const int kFlagsOffset = 4;
 
-  static const int kElementsPerFrame = 5;
+  static const int kParametersOffset = 5;
+
+  static const int kElementsPerFrame = 6;
 
   // Array layout indices.
 

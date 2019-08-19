@@ -13,6 +13,7 @@
 #include <memory>
 
 #include "src/base/utils/random-number-generator.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/int64-lowering.h"
@@ -38,12 +39,16 @@
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/call-tester.h"
-#include "test/cctest/compiler/graph-builder-tester.h"
+#include "test/cctest/compiler/graph-and-builders.h"
+#include "test/cctest/compiler/value-helper.h"
 #include "test/common/wasm/flag-utils.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
+
+using base::ReadLittleEndianValue;
+using base::WriteLittleEndianValue;
 
 constexpr uint32_t kMaxFunctions = 10;
 constexpr uint32_t kMaxGlobalsSize = 128;
@@ -85,9 +90,9 @@ class TestingModuleBuilder {
   TestingModuleBuilder(Zone*, ManuallyImportedJSFunction*, ExecutionTier,
                        RuntimeExceptionSupport, LowerSimd);
 
-  void ChangeOriginToAsmjs() { test_module_->origin = kAsmJsOrigin; }
+  void ChangeOriginToAsmjs() { test_module_->origin = kAsmJsSloppyOrigin; }
 
-  byte* AddMemory(uint32_t size);
+  byte* AddMemory(uint32_t size, SharedFlag shared = SharedFlag::kNotShared);
 
   size_t CodeTableLength() const { return native_module_->num_functions(); }
 
@@ -114,6 +119,8 @@ class TestingModuleBuilder {
     CHECK_GT(127, size);
     return static_cast<byte>(size - 1);
   }
+
+  uint32_t mem_size() { return mem_size_; }
 
   template <typename T>
   T* raw_mem_start() {
@@ -166,7 +173,7 @@ class TestingModuleBuilder {
   void SetMaxMemPages(uint32_t maximum_pages) {
     test_module_->maximum_pages = maximum_pages;
     if (instance_object()->has_memory_object()) {
-      instance_object()->memory_object()->set_maximum_pages(maximum_pages);
+      instance_object()->memory_object().set_maximum_pages(maximum_pages);
     }
   }
 
@@ -175,14 +182,24 @@ class TestingModuleBuilder {
   enum FunctionType { kImport, kWasm };
   uint32_t AddFunction(FunctionSig* sig, const char* name, FunctionType type);
 
+  // Freezes the signature map of the module and allocates the storage for
+  // export wrappers.
+  void FreezeSignatureMapAndInitializeWrapperCache();
+
+  // Wrap the code so it can be called as a JS function.
   Handle<JSFunction> WrapCode(uint32_t index);
 
+  // If function_indexes is {nullptr}, the contents of the table will be
+  // initialized with null functions.
   void AddIndirectFunctionTable(const uint16_t* function_indexes,
                                 uint32_t table_size);
 
-  void PopulateIndirectFunctionTable();
-
   uint32_t AddBytes(Vector<const byte> bytes);
+
+  uint32_t AddException(FunctionSig* sig);
+
+  uint32_t AddPassiveDataSegment(Vector<const byte> bytes);
+  uint32_t AddPassiveElementSegment(const std::vector<uint32_t>& entries);
 
   WasmFunction* GetFunctionAt(int index) {
     return &test_module_->functions[index];
@@ -196,16 +213,13 @@ class TestingModuleBuilder {
     return instance_object_;
   }
   WasmCode* GetFunctionCode(uint32_t index) const {
-    return native_module_->code(index);
+    return native_module_->GetCode(index);
   }
   Address globals_start() const {
     return reinterpret_cast<Address>(globals_data_);
   }
-  void Link() {
-    if (linked_) return;
-    linked_ = true;
-    native_module_->SetExecutable(true);
-  }
+
+  void SetExecutable() { native_module_->SetExecutable(true); }
 
   CompilationEnv CreateCompilationEnv();
 
@@ -228,9 +242,15 @@ class TestingModuleBuilder {
   ExecutionTier execution_tier_;
   Handle<WasmInstanceObject> instance_object_;
   NativeModule* native_module_ = nullptr;
-  bool linked_ = false;
   RuntimeExceptionSupport runtime_exception_support_;
   LowerSimd lower_simd_;
+
+  // Data segment arrays that are normally allocated on the instance.
+  std::vector<byte> data_segment_data_;
+  std::vector<Address> data_segment_starts_;
+  std::vector<uint32_t> data_segment_sizes_;
+  std::vector<byte> dropped_data_segments_;
+  std::vector<byte> dropped_elem_segments_;
 
   const WasmGlobal* AddGlobal(ValueType type);
 
@@ -367,6 +387,7 @@ class WasmRunnerBase : public HandleAndZoneScope {
                                     const char* name = nullptr) {
     functions_.emplace_back(
         new WasmFunctionCompiler(&zone_, sig, &builder_, name));
+    builder().AddSignature(sig);
     return *functions_.back();
   }
 
@@ -407,6 +428,7 @@ class WasmRunnerBase : public HandleAndZoneScope {
   WasmFunctionWrapper wrapper_;
   bool compiled_ = false;
   bool possible_nondeterminism_ = false;
+  int32_t main_fn_index_ = 0;
 
  public:
   // This field has to be static. Otherwise, gcc complains about the use in
@@ -425,9 +447,13 @@ class WasmRunner : public WasmRunnerBase {
              LowerSimd lower_simd = kNoLowerSimd)
       : WasmRunnerBase(maybe_import, execution_tier, sizeof...(ParamTypes),
                        runtime_exception_support, lower_simd) {
-    NewFunction<ReturnType, ParamTypes...>(main_fn_name);
+    WasmFunctionCompiler& main_fn =
+        NewFunction<ReturnType, ParamTypes...>(main_fn_name);
+    // Non-zero if there is an import.
+    main_fn_index_ = main_fn.function_index();
+
     if (!interpret()) {
-      wrapper_.Init<ReturnType, ParamTypes...>(functions_[0]->descriptor());
+      wrapper_.Init<ReturnType, ParamTypes...>(main_fn.descriptor());
     }
   }
 
@@ -435,33 +461,36 @@ class WasmRunner : public WasmRunnerBase {
       : WasmRunner(execution_tier, nullptr, "main", kNoRuntimeExceptionSupport,
                    lower_simd) {}
 
-  ReturnType Call(ParamTypes... p) {
-    DCHECK(compiled_);
-    if (interpret()) return CallInterpreter(p...);
-
-    ReturnType return_value = static_cast<ReturnType>(0xDEADBEEFDEADBEEF);
+  void SetUpTrapCallback() {
     WasmRunnerBase::trap_happened = false;
-
     auto trap_callback = []() -> void {
       WasmRunnerBase::trap_happened = true;
       set_trap_callback_for_testing(nullptr);
     };
     set_trap_callback_for_testing(trap_callback);
+  }
 
-    wrapper_.SetInnerCode(builder_.GetFunctionCode(0));
+  ReturnType Call(ParamTypes... p) {
+    DCHECK(compiled_);
+    if (interpret()) return CallInterpreter(p...);
+
+    ReturnType return_value = static_cast<ReturnType>(0xDEADBEEFDEADBEEF);
+    SetUpTrapCallback();
+
+    wrapper_.SetInnerCode(builder_.GetFunctionCode(main_fn_index_));
     wrapper_.SetInstance(builder_.instance_object());
-    builder_.Link();
+    builder_.SetExecutable();
     Handle<Code> wrapper_code = wrapper_.GetWrapperCode();
     compiler::CodeRunner<int32_t> runner(CcTest::InitIsolateOnce(),
                                          wrapper_code, wrapper_.signature());
     int32_t result;
     {
-      trap_handler::SetThreadInWasm();
+      SetThreadInWasmFlag();
 
       result = runner.Call(static_cast<void*>(&p)...,
                            static_cast<void*>(&return_value));
 
-      trap_handler::ClearThreadInWasm();
+      ClearThreadInWasmFlag();
     }
     CHECK_EQ(WASM_WRAPPER_RETURN_VALUE, result);
     return WasmRunnerBase::trap_happened
@@ -474,7 +503,9 @@ class WasmRunner : public WasmRunnerBase {
     thread->Reset();
     std::array<WasmValue, sizeof...(p)> args{{WasmValue(p)...}};
     thread->InitFrame(function(), args.data());
-    if (thread->Run() == WasmInterpreter::FINISHED) {
+    thread->Run();
+    CHECK_GT(thread->NumInterpretedCalls(), 0);
+    if (thread->state() == WasmInterpreter::FINISHED) {
       WasmValue val = thread->GetReturnValue();
       possible_nondeterminism_ |= thread->PossibleNondeterminism();
       return val.to<ReturnType>();
@@ -488,23 +519,78 @@ class WasmRunner : public WasmRunnerBase {
     }
   }
 
+  void CheckCallApplyViaJS(double expected, uint32_t function_index,
+                           Handle<Object>* buffer, int count) {
+    Isolate* isolate = builder_.isolate();
+    SetUpTrapCallback();
+    if (jsfuncs_.size() <= function_index) {
+      jsfuncs_.resize(function_index + 1);
+    }
+    if (jsfuncs_[function_index].is_null()) {
+      jsfuncs_[function_index] = builder_.WrapCode(function_index);
+    }
+    Handle<JSFunction> jsfunc = jsfuncs_[function_index];
+    Handle<Object> global(isolate->context().global_object(), isolate);
+    MaybeHandle<Object> retval =
+        Execution::TryCall(isolate, jsfunc, global, count, buffer,
+                           Execution::MessageHandling::kReport, nullptr);
+
+    if (retval.is_null() || WasmRunnerBase::trap_happened) {
+      CHECK_EQ(expected, static_cast<double>(0xDEADBEEF));
+    } else {
+      Handle<Object> result = retval.ToHandleChecked();
+      if (result->IsSmi()) {
+        CHECK_EQ(expected, Smi::ToInt(*result));
+      } else {
+        CHECK(result->IsHeapNumber());
+        CHECK_DOUBLE_EQ(expected, HeapNumber::cast(*result).value());
+      }
+    }
+
+    if (builder_.interpret()) {
+      CHECK_GT(builder_.interpreter()->GetThread(0)->NumInterpretedCalls(), 0);
+    }
+  }
+
+  void CheckCallViaJS(double expected, ParamTypes... p) {
+    Isolate* isolate = builder_.isolate();
+    // MSVC doesn't allow empty arrays, so include a dummy at the end.
+    Handle<Object> buffer[] = {isolate->factory()->NewNumber(p)...,
+                               Handle<Object>()};
+    CheckCallApplyViaJS(expected, function()->func_index, buffer, sizeof...(p));
+  }
+
   Handle<Code> GetWrapperCode() { return wrapper_.GetWrapperCode(); }
+
+ private:
+  wasm::WasmCodeRefScope code_ref_scope_;
+  std::vector<Handle<JSFunction>> jsfuncs_;
+
+  void SetThreadInWasmFlag() {
+    *reinterpret_cast<int*>(trap_handler::GetThreadInWasmThreadLocalAddress()) =
+        true;
+  }
+
+  void ClearThreadInWasmFlag() {
+    *reinterpret_cast<int*>(trap_handler::GetThreadInWasmThreadLocalAddress()) =
+        false;
+  }
 };
 
 // A macro to define tests that run in different engine configurations.
-#define WASM_EXEC_TEST(name)                                                  \
-  void RunWasm_##name(ExecutionTier execution_tier);                          \
-  TEST(RunWasmTurbofan_##name) { RunWasm_##name(ExecutionTier::kOptimized); } \
-  TEST(RunWasmLiftoff_##name) { RunWasm_##name(ExecutionTier::kBaseline); }   \
-  TEST(RunWasmInterpreter_##name) {                                           \
-    RunWasm_##name(ExecutionTier::kInterpreter);                              \
-  }                                                                           \
+#define WASM_EXEC_TEST(name)                                                 \
+  void RunWasm_##name(ExecutionTier execution_tier);                         \
+  TEST(RunWasmTurbofan_##name) { RunWasm_##name(ExecutionTier::kTurbofan); } \
+  TEST(RunWasmLiftoff_##name) { RunWasm_##name(ExecutionTier::kLiftoff); }   \
+  TEST(RunWasmInterpreter_##name) {                                          \
+    RunWasm_##name(ExecutionTier::kInterpreter);                             \
+  }                                                                          \
   void RunWasm_##name(ExecutionTier execution_tier)
 
-#define WASM_COMPILED_EXEC_TEST(name)                                         \
-  void RunWasm_##name(ExecutionTier execution_tier);                          \
-  TEST(RunWasmTurbofan_##name) { RunWasm_##name(ExecutionTier::kOptimized); } \
-  TEST(RunWasmLiftoff_##name) { RunWasm_##name(ExecutionTier::kBaseline); }   \
+#define WASM_COMPILED_EXEC_TEST(name)                                        \
+  void RunWasm_##name(ExecutionTier execution_tier);                         \
+  TEST(RunWasmTurbofan_##name) { RunWasm_##name(ExecutionTier::kTurbofan); } \
+  TEST(RunWasmLiftoff_##name) { RunWasm_##name(ExecutionTier::kLiftoff); }   \
   void RunWasm_##name(ExecutionTier execution_tier)
 
 }  // namespace wasm

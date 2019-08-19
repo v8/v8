@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { SourceResolver, sourcePositionValid } from "../src/source-resolver"
-import { ClearableHandler, SelectionHandler, NodeSelectionHandler, BlockSelectionHandler, InstructionSelectionHandler } from "../src/selection-handler"
+import { SourceResolver, sourcePositionValid } from "../src/source-resolver";
+import { ClearableHandler, SelectionHandler, NodeSelectionHandler, BlockSelectionHandler, InstructionSelectionHandler } from "../src/selection-handler";
 
 export class SelectionBroker {
   sourceResolver: SourceResolver;
@@ -20,7 +20,7 @@ export class SelectionBroker {
     this.blockHandlers = [];
     this.instructionHandlers = [];
     this.sourceResolver = sourceResolver;
-  };
+  }
 
   addSourcePositionHandler(handler: SelectionHandler & ClearableHandler) {
     this.allHandlers.push(handler);
@@ -49,8 +49,7 @@ export class SelectionBroker {
   }
 
   broadcastSourcePositionSelect(from, sourcePositions, selected) {
-    let broker = this;
-    sourcePositions = sourcePositions.filter((l) => {
+    sourcePositions = sourcePositions.filter(l => {
       if (!sourcePositionValid(l)) {
         console.log("Warning: invalid source position");
         return false;
@@ -67,7 +66,6 @@ export class SelectionBroker {
   }
 
   broadcastNodeSelect(from, nodes, selected) {
-    let broker = this;
     for (const b of this.nodeHandlers) {
       if (b != from) b.brokeredNodeSelect(nodes, selected);
     }
@@ -78,8 +76,7 @@ export class SelectionBroker {
   }
 
   broadcastBlockSelect(from, blocks, selected) {
-    let broker = this;
-    for (var b of this.blockHandlers) {
+    for (const b of this.blockHandlers) {
       if (b != from) b.brokeredBlockSelect(blocks, selected);
     }
   }

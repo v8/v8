@@ -14,26 +14,41 @@ namespace v8 {
 namespace internal {
 
 // This is a special cell used to maintain both the link between a
-// closure and it's feedback vector, as well as a way to count the
+// closure and its feedback vector, as well as a way to count the
 // number of closures created for a certain function per native
 // context. There's at most one FeedbackCell for each function in
 // a native context.
 class FeedbackCell : public Struct {
  public:
-  // [value]: value of the cell.
-  DECL_ACCESSORS2(value, HeapObject)
+  static int GetInitialInterruptBudget() {
+    if (FLAG_lazy_feedback_allocation) {
+      return FLAG_budget_for_feedback_vector_allocation;
+    }
+    return FLAG_interrupt_budget;
+  }
 
-  DECL_CAST2(FeedbackCell)
+  // [value]: value of the cell.
+  DECL_ACCESSORS(value, HeapObject)
+  DECL_INT32_ACCESSORS(interrupt_budget)
+
+  DECL_CAST(FeedbackCell)
 
   // Dispatched behavior.
   DECL_PRINTER(FeedbackCell)
   DECL_VERIFIER(FeedbackCell)
 
-  static const int kValueOffset = HeapObject::kHeaderSize;
-  static const int kSize = kValueOffset + kPointerSize;
+  // Layout description.
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_FEEDBACK_CELL_FIELDS)
 
-  typedef FixedBodyDescriptor<kValueOffset, kValueOffset + kPointerSize, kSize>
-      BodyDescriptor;
+  static const int kUnalignedSize = kSize;
+  static const int kAlignedSize = RoundUp<kObjectAlignment>(int{kSize});
+
+  inline void clear_padding();
+  inline void reset();
+
+  using BodyDescriptor =
+      FixedBodyDescriptor<kValueOffset, kInterruptBudgetOffset, kAlignedSize>;
 
   OBJECT_CONSTRUCTORS(FeedbackCell, Struct);
 };

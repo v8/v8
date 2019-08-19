@@ -44,7 +44,8 @@ namespace compiler {
   V(IA32Tzcnt)                     \
   V(IA32Popcnt)                    \
   V(IA32Bswap)                     \
-  V(LFence)                        \
+  V(IA32MFence)                    \
+  V(IA32LFence)                    \
   V(SSEFloat32Cmp)                 \
   V(SSEFloat32Add)                 \
   V(SSEFloat32Sub)                 \
@@ -115,7 +116,6 @@ namespace compiler {
   V(IA32PushSimd128)               \
   V(IA32Poke)                      \
   V(IA32Peek)                      \
-  V(IA32StackCheck)                \
   V(SSEF32x4Splat)                 \
   V(AVXF32x4Splat)                 \
   V(SSEF32x4ExtractLane)           \

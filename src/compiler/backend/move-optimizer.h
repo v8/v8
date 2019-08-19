@@ -5,8 +5,8 @@
 #ifndef V8_COMPILER_BACKEND_MOVE_OPTIMIZER_H_
 #define V8_COMPILER_BACKEND_MOVE_OPTIMIZER_H_
 
+#include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
-#include "src/globals.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -19,8 +19,8 @@ class V8_EXPORT_PRIVATE MoveOptimizer final {
   void Run();
 
  private:
-  typedef ZoneVector<MoveOperands*> MoveOpVector;
-  typedef ZoneVector<Instruction*> Instructions;
+  using MoveOpVector = ZoneVector<MoveOperands*>;
+  using Instructions = ZoneVector<Instruction*>;
 
   InstructionSequence* code() const { return code_; }
   Zone* local_zone() const { return local_zone_; }

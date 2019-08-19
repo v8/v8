@@ -6,9 +6,9 @@
 #define V8_COMPILER_JS_TYPED_LOWERING_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/common/globals.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/opcodes.h"
-#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -101,7 +101,7 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   JSHeapBroker* broker_;
   Type empty_string_type_;
   Type pointer_comparable_type_;
-  TypeCache const& type_cache_;
+  TypeCache const* type_cache_;
 };
 
 }  // namespace compiler

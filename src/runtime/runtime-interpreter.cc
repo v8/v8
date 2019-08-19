@@ -4,19 +4,19 @@
 
 #include <iomanip>
 
-#include "src/arguments-inl.h"
-#include "src/counters.h"
-#include "src/frames-inl.h"
+#include "src/execution/arguments-inl.h"
+#include "src/execution/frames-inl.h"
+#include "src/execution/isolate-inl.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
-#include "src/isolate-inl.h"
-#include "src/ostreams.h"
+#include "src/logging/counters.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/snapshot/snapshot.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {
@@ -26,7 +26,9 @@ namespace internal {
 namespace {
 
 void AdvanceToOffsetForTracing(
-    interpreter::BytecodeArrayIterator& bytecode_iterator, int offset) {
+    interpreter::BytecodeArrayIterator&
+        bytecode_iterator,  // NOLINT(runtime/references)
+    int offset) {
   while (bytecode_iterator.current_offset() +
              bytecode_iterator.current_bytecode_size() <=
          offset) {
@@ -39,7 +41,8 @@ void AdvanceToOffsetForTracing(
 }
 
 void PrintRegisters(Isolate* isolate, std::ostream& os, bool is_input,
-                    interpreter::BytecodeArrayIterator& bytecode_iterator,
+                    interpreter::BytecodeArrayIterator&
+                        bytecode_iterator,  // NOLINT(runtime/references)
                     Handle<Object> accumulator) {
   static const char kAccumulator[] = "accumulator";
   static const int kRegFieldWidth = static_cast<int>(sizeof(kAccumulator) - 1);
@@ -79,12 +82,12 @@ void PrintRegisters(Isolate* isolate, std::ostream& os, bool is_input,
       int range = bytecode_iterator.GetRegisterOperandRange(operand_index);
       for (int reg_index = first_reg.index();
            reg_index < first_reg.index() + range; reg_index++) {
-        Object* reg_object = frame->ReadInterpreterRegister(reg_index);
+        Object reg_object = frame->ReadInterpreterRegister(reg_index);
         os << "      [ " << std::setw(kRegFieldWidth)
            << interpreter::Register(reg_index).ToString(
                   bytecode_iterator.bytecode_array()->parameter_count())
            << kArrowDirection;
-        reg_object->ShortPrint(os);
+        reg_object.ShortPrint(os);
         os << " ]" << std::endl;
       }
     }
@@ -173,13 +176,13 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceUpdateFeedback) {
   CONVERT_SMI_ARG_CHECKED(slot, 1);
   CONVERT_ARG_CHECKED(String, reason, 2);
 
-  int slot_count = function->feedback_vector()->metadata()->slot_count();
+  int slot_count = function->feedback_vector().metadata().slot_count();
 
   StdoutStream os;
   os << "[Feedback slot " << slot << "/" << slot_count << " in ";
-  function->shared()->ShortPrint(os);
+  function->shared().ShortPrint(os);
   os << " updated to ";
-  function->feedback_vector()->FeedbackSlotPrint(os, FeedbackSlot(slot));
+  function->feedback_vector().FeedbackSlotPrint(os, FeedbackSlot(slot));
   os << " - ";
 
   StringCharacterStream stream(reason);

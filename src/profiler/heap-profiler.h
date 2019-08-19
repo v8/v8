@@ -10,8 +10,8 @@
 
 #include "include/v8-profiler.h"
 #include "src/base/platform/mutex.h"
+#include "src/common/globals.h"
 #include "src/debug/debug-interface.h"
-#include "src/globals.h"
 #include "src/heap/heap.h"
 
 namespace v8 {
@@ -52,6 +52,7 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   int GetSnapshotsCount();
   HeapSnapshot* GetSnapshot(int index);
   SnapshotObjectId GetSnapshotObjectId(Handle<Object> obj);
+  SnapshotObjectId GetSnapshotObjectId(NativeObject obj);
   void DeleteAllSnapshots();
   void RemoveSnapshot(HeapSnapshot* snapshot);
 
@@ -60,16 +61,6 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   void AllocationEvent(Address addr, int size) override;
 
   void UpdateObjectSizeEvent(Address addr, int size) override;
-
-  void DefineWrapperClass(
-      uint16_t class_id, v8::HeapProfiler::WrapperInfoCallback callback);
-
-  v8::RetainedObjectInfo* ExecuteWrapperClassCallback(uint16_t class_id,
-                                                      Handle<Object> wrapper);
-
-  void SetGetRetainerInfosCallback(
-      v8::HeapProfiler::GetRetainerInfosCallback callback);
-  v8::HeapProfiler::RetainerInfos GetRetainerInfos(Isolate* isolate);
 
   void AddBuildEmbedderGraphCallback(
       v8::HeapProfiler::BuildEmbedderGraphCallback callback, void* data);
@@ -100,13 +91,10 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   std::unique_ptr<HeapObjectsMap> ids_;
   std::vector<std::unique_ptr<HeapSnapshot>> snapshots_;
   std::unique_ptr<StringsStorage> names_;
-  std::vector<v8::HeapProfiler::WrapperInfoCallback> wrapper_callbacks_;
   std::unique_ptr<AllocationTracker> allocation_tracker_;
   bool is_tracking_object_moves_;
   base::Mutex profiler_mutex_;
   std::unique_ptr<SamplingHeapProfiler> sampling_heap_profiler_;
-  v8::HeapProfiler::GetRetainerInfosCallback get_retainer_infos_callback_ =
-      nullptr;
   std::vector<std::pair<v8::HeapProfiler::BuildEmbedderGraphCallback, void*>>
       build_embedder_graph_callbacks_;
 

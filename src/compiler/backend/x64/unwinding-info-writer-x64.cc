@@ -19,28 +19,21 @@ void UnwindingInfoWriter::BeginInstructionBlock(int pc_offset,
             static_cast<int>(block_initial_states_.size()));
   const BlockInitialState* initial_state =
       block_initial_states_[block->rpo_number().ToInt()];
-  if (initial_state) {
-    if (initial_state->register_ != eh_frame_writer_.base_register() &&
-        initial_state->offset_ != eh_frame_writer_.base_offset()) {
-      eh_frame_writer_.AdvanceLocation(pc_offset);
-      eh_frame_writer_.SetBaseAddressRegisterAndOffset(initial_state->register_,
-                                                       initial_state->offset_);
-    } else if (initial_state->register_ != eh_frame_writer_.base_register()) {
-      eh_frame_writer_.AdvanceLocation(pc_offset);
-      eh_frame_writer_.SetBaseAddressRegister(initial_state->register_);
-    } else if (initial_state->offset_ != eh_frame_writer_.base_offset()) {
-      eh_frame_writer_.AdvanceLocation(pc_offset);
-      eh_frame_writer_.SetBaseAddressOffset(initial_state->offset_);
-    }
+  if (!initial_state) return;
+  if (initial_state->register_ != eh_frame_writer_.base_register() &&
+      initial_state->offset_ != eh_frame_writer_.base_offset()) {
+    eh_frame_writer_.AdvanceLocation(pc_offset);
+    eh_frame_writer_.SetBaseAddressRegisterAndOffset(initial_state->register_,
+                                                     initial_state->offset_);
+  } else if (initial_state->register_ != eh_frame_writer_.base_register()) {
+    eh_frame_writer_.AdvanceLocation(pc_offset);
+    eh_frame_writer_.SetBaseAddressRegister(initial_state->register_);
+  } else if (initial_state->offset_ != eh_frame_writer_.base_offset()) {
+    eh_frame_writer_.AdvanceLocation(pc_offset);
+    eh_frame_writer_.SetBaseAddressOffset(initial_state->offset_);
+  }
 
     tracking_fp_ = initial_state->tracking_fp_;
-  } else {
-    // The entry block always lacks an explicit initial state.
-    // The exit block may lack an explicit state, if it is only reached by
-    //   the block ending in a ret.
-    // All the other blocks must have an explicit initial state.
-    DCHECK(block->predecessors().empty() || block->successors().empty());
-  }
 }
 
 void UnwindingInfoWriter::EndInstructionBlock(const InstructionBlock* block) {

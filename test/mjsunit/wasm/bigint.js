@@ -4,7 +4,6 @@
 
 // Flags: --experimental-wasm-bigint
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestWasmI64ToJSBigInt() {
@@ -21,37 +20,6 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   assertEquals(typeof module.exports.fn(), "bigint");
   assertEquals(module.exports.fn(), 3n);
-})();
-
-(function TestWasmI64ToJSBigIntImportedFunc() {
-  var builder = new WasmModuleBuilder();
-
-  var a_index = builder
-    .addImport("a", "a", kSig_v_l) // i64 -> ()
-
-  builder
-    .addFunction("fn", kSig_v_v) // () -> ()
-    .addBody([
-      kExprI64Const, 0x1,
-      kExprCallFunction, a_index
-    ])
-    .exportFunc();
-
-  a_was_called = false;
-
-  var module = builder.instantiate({
-    a: {
-      a(param) {
-        assertEquals(typeof param, "bigint");
-        assertEquals(param, 1n);
-        a_was_called = true;
-      },
-    }
-  });
-
-  module.exports.fn();
-
-  assertTrue(a_was_called);
 })();
 
 (function TestJSBigIntToWasmI64Global() {

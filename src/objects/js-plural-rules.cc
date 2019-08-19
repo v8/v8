@@ -8,13 +8,14 @@
 
 #include "src/objects/js-plural-rules.h"
 
-#include "src/isolate-inl.h"
+#include "src/execution/isolate-inl.h"
 #include "src/objects/intl-objects.h"
+#include "src/objects/js-number-format.h"
 #include "src/objects/js-plural-rules-inl.h"
-#include "unicode/decimfmt.h"
 #include "unicode/locid.h"
-#include "unicode/numfmt.h"
+#include "unicode/numberformatter.h"
 #include "unicode/plurrule.h"
+#include "unicode/unumberformatter.h"
 
 namespace v8 {
 namespace internal {
@@ -23,8 +24,7 @@ namespace {
 
 bool CreateICUPluralRules(Isolate* isolate, const icu::Locale& icu_locale,
                           JSPluralRules::Type type,
-                          std::unique_ptr<icu::PluralRules>* pl,
-                          std::unique_ptr<icu::DecimalFormat>* nf) {
+                          std::unique_ptr<icu::PluralRules>* pl) {
   // Make formatter from options. Numbering system is added
   // to the locale as Unicode extension (if it was specified at all).
   UErrorCode status = U_ZERO_ERROR;
@@ -43,39 +43,8 @@ bool CreateICUPluralRules(Isolate* isolate, const icu::Locale& icu_locale,
   }
   CHECK_NOT_NULL(plural_rules.get());
 
-  std::unique_ptr<icu::DecimalFormat> number_format(
-      static_cast<icu::DecimalFormat*>(
-          icu::NumberFormat::createInstance(icu_locale, UNUM_DECIMAL, status)));
-  if (U_FAILURE(status)) {
-    return false;
-  }
-  CHECK_NOT_NULL(number_format.get());
-
   *pl = std::move(plural_rules);
-  *nf = std::move(number_format);
-
   return true;
-}
-
-void InitializeICUPluralRules(
-    Isolate* isolate, const icu::Locale& icu_locale, JSPluralRules::Type type,
-    std::unique_ptr<icu::PluralRules>* plural_rules,
-    std::unique_ptr<icu::DecimalFormat>* number_format) {
-  bool success = CreateICUPluralRules(isolate, icu_locale, type, plural_rules,
-                                      number_format);
-  if (!success) {
-    // Remove extensions and try again.
-    icu::Locale no_extension_locale(icu_locale.getBaseName());
-    success = CreateICUPluralRules(isolate, no_extension_locale, type,
-                                   plural_rules, number_format);
-
-    if (!success) {
-      FATAL("Failed to create ICU PluralRules, are ICU data files missing?");
-    }
-  }
-
-  CHECK_NOT_NULL((*plural_rules).get());
-  CHECK_NOT_NULL((*number_format).get());
 }
 
 }  // namespace
@@ -86,16 +55,14 @@ Handle<String> JSPluralRules::TypeAsString() const {
       return GetReadOnlyRoots().cardinal_string_handle();
     case Type::ORDINAL:
       return GetReadOnlyRoots().ordinal_string_handle();
-    case Type::COUNT:
-      UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 // static
-MaybeHandle<JSPluralRules> JSPluralRules::Initialize(
-    Isolate* isolate, Handle<JSPluralRules> plural_rules,
-    Handle<Object> locales, Handle<Object> options_obj) {
-  plural_rules->set_flags(0);
+MaybeHandle<JSPluralRules> JSPluralRules::New(Isolate* isolate, Handle<Map> map,
+                                              Handle<Object> locales,
+                                              Handle<Object> options_obj) {
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
       Intl::CanonicalizeLocaleList(isolate, locales);
@@ -135,9 +102,6 @@ MaybeHandle<JSPluralRules> JSPluralRules::Initialize(
   MAYBE_RETURN(maybe_type, MaybeHandle<JSPluralRules>());
   Type type = maybe_type.FromJust();
 
-  // 8. Set pluralRules.[[Type]] to t.
-  plural_rules->set_type(type);
-
   // Note: The spec says we should do ResolveLocale after performing
   // SetNumberFormatDigitOptions but we need the locale to create all
   // the ICU data structures.
@@ -150,33 +114,64 @@ MaybeHandle<JSPluralRules> JSPluralRules::Initialize(
   Intl::ResolvedLocale r =
       Intl::ResolveLocale(isolate, JSPluralRules::GetAvailableLocales(),
                           requested_locales, matcher, {});
-
-  // 12. Set pluralRules.[[Locale]] to the value of r.[[locale]].
   Handle<String> locale_str =
       isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
-  plural_rules->set_locale(*locale_str);
+
+  icu::number::LocalizedNumberFormatter icu_number_formatter =
+      icu::number::NumberFormatter::withLocale(r.icu_locale)
+          .roundingMode(UNUM_ROUND_HALFUP);
 
   std::unique_ptr<icu::PluralRules> icu_plural_rules;
-  std::unique_ptr<icu::DecimalFormat> icu_decimal_format;
-  InitializeICUPluralRules(isolate, r.icu_locale, type, &icu_plural_rules,
-                           &icu_decimal_format);
+  bool success =
+      CreateICUPluralRules(isolate, r.icu_locale, type, &icu_plural_rules);
+  if (!success) {
+    // Remove extensions and try again.
+    icu::Locale no_extension_locale(r.icu_locale.getBaseName());
+    success = CreateICUPluralRules(isolate, no_extension_locale, type,
+                                   &icu_plural_rules);
+    icu_number_formatter =
+        icu::number::NumberFormatter::withLocale(no_extension_locale)
+            .roundingMode(UNUM_ROUND_HALFUP);
+
+    if (!success) {
+      FATAL("Failed to create ICU PluralRules, are ICU data files missing?");
+    }
+  }
+
   CHECK_NOT_NULL(icu_plural_rules.get());
-  CHECK_NOT_NULL(icu_decimal_format.get());
 
   // 9. Perform ? SetNumberFormatDigitOptions(pluralRules, options, 0, 3).
-  Maybe<bool> done = Intl::SetNumberFormatDigitOptions(
-      isolate, icu_decimal_format.get(), options, 0, 3);
-  MAYBE_RETURN(done, MaybeHandle<JSPluralRules>());
+  Maybe<Intl::NumberFormatDigitOptions> maybe_digit_options =
+      Intl::SetNumberFormatDigitOptions(isolate, options, 0, 3, false);
+  MAYBE_RETURN(maybe_digit_options, MaybeHandle<JSPluralRules>());
+  Intl::NumberFormatDigitOptions digit_options = maybe_digit_options.FromJust();
+  icu_number_formatter = JSNumberFormat::SetDigitOptionsToFormatter(
+      icu_number_formatter, digit_options);
 
   Handle<Managed<icu::PluralRules>> managed_plural_rules =
       Managed<icu::PluralRules>::FromUniquePtr(isolate, 0,
                                                std::move(icu_plural_rules));
-  plural_rules->set_icu_plural_rules(*managed_plural_rules);
 
-  Handle<Managed<icu::DecimalFormat>> managed_decimal_format =
-      Managed<icu::DecimalFormat>::FromUniquePtr(isolate, 0,
-                                                 std::move(icu_decimal_format));
-  plural_rules->set_icu_decimal_format(*managed_decimal_format);
+  Handle<Managed<icu::number::LocalizedNumberFormatter>>
+      managed_number_formatter =
+          Managed<icu::number::LocalizedNumberFormatter>::FromRawPtr(
+              isolate, 0,
+              new icu::number::LocalizedNumberFormatter(icu_number_formatter));
+
+  // Now all properties are ready, so we can allocate the result object.
+  Handle<JSPluralRules> plural_rules = Handle<JSPluralRules>::cast(
+      isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
+  DisallowHeapAllocation no_gc;
+  plural_rules->set_flags(0);
+
+  // 8. Set pluralRules.[[Type]] to t.
+  plural_rules->set_type(type);
+
+  // 12. Set pluralRules.[[Locale]] to the value of r.[[locale]].
+  plural_rules->set_locale(*locale_str);
+
+  plural_rules->set_icu_plural_rules(*managed_plural_rules);
+  plural_rules->set_icu_number_formatter(*managed_number_formatter);
 
   // 13. Return pluralRules.
   return plural_rules;
@@ -184,34 +179,23 @@ MaybeHandle<JSPluralRules> JSPluralRules::Initialize(
 
 MaybeHandle<String> JSPluralRules::ResolvePlural(
     Isolate* isolate, Handle<JSPluralRules> plural_rules, double number) {
-  icu::PluralRules* icu_plural_rules = plural_rules->icu_plural_rules()->raw();
+  icu::PluralRules* icu_plural_rules = plural_rules->icu_plural_rules().raw();
   CHECK_NOT_NULL(icu_plural_rules);
 
-  icu::DecimalFormat* icu_decimal_format =
-      plural_rules->icu_decimal_format()->raw();
-  CHECK_NOT_NULL(icu_decimal_format);
+  icu::number::LocalizedNumberFormatter* fmt =
+      plural_rules->icu_number_formatter().raw();
+  CHECK_NOT_NULL(fmt);
 
-  // Currently, PluralRules doesn't implement all the options for rounding that
-  // the Intl spec provides; format and parse the number to round to the
-  // appropriate amount, then apply PluralRules.
-  //
-  // TODO(littledan): If a future ICU version supports an extended API to avoid
-  // this step, then switch to that API. Bug thread:
-  // http://bugs.icu-project.org/trac/ticket/12763
-  icu::UnicodeString rounded_string;
-  icu_decimal_format->format(number, rounded_string);
-
-  icu::Formattable formattable;
   UErrorCode status = U_ZERO_ERROR;
-  icu_decimal_format->parse(rounded_string, formattable, status);
+  icu::number::FormattedNumber formatted_number =
+      fmt->formatDouble(number, status);
   CHECK(U_SUCCESS(status));
 
-  double rounded = formattable.getDouble(status);
+  icu::UnicodeString result =
+      icu_plural_rules->select(formatted_number, status);
   CHECK(U_SUCCESS(status));
 
-  icu::UnicodeString result = icu_plural_rules->select(rounded);
-  return isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
-      reinterpret_cast<const uint16_t*>(result.getBuffer()), result.length()));
+  return Intl::ToString(isolate, result);
 }
 
 namespace {
@@ -223,7 +207,7 @@ void CreateDataPropertyForOptions(Isolate* isolate, Handle<JSObject> options,
   // This is a brand new JSObject that shouldn't already have the same
   // key so this shouldn't fail.
   CHECK(JSReceiver::CreateDataProperty(isolate, options, key_str, value,
-                                       kDontThrow)
+                                       Just(kDontThrow))
             .FromJust());
 }
 
@@ -246,45 +230,35 @@ Handle<JSObject> JSPluralRules::ResolvedOptions(
   CreateDataPropertyForOptions(isolate, options, plural_rules->TypeAsString(),
                                "type");
 
-  icu::DecimalFormat* icu_decimal_format =
-      plural_rules->icu_decimal_format()->raw();
-  CHECK_NOT_NULL(icu_decimal_format);
+  UErrorCode status = U_ZERO_ERROR;
+  icu::number::LocalizedNumberFormatter* icu_number_formatter =
+      plural_rules->icu_number_formatter().raw();
+  icu::UnicodeString skeleton = icu_number_formatter->toSkeleton(status);
+  CHECK(U_SUCCESS(status));
 
-  // This is a safe upcast as icu::DecimalFormat inherits from
-  // icu::NumberFormat.
-  icu::NumberFormat* icu_number_format =
-      static_cast<icu::NumberFormat*>(icu_decimal_format);
+  CreateDataPropertyForOptions(
+      isolate, options,
+      JSNumberFormat::MinimumIntegerDigitsFromSkeleton(skeleton),
+      "minimumIntegerDigits");
+  int32_t min = 0, max = 0;
+  JSNumberFormat::FractionDigitsFromSkeleton(skeleton, &min, &max);
 
-  int min_int_digits = icu_number_format->getMinimumIntegerDigits();
-  CreateDataPropertyForOptions(isolate, options, min_int_digits,
-                               "minimumIntegerDigits");
+  CreateDataPropertyForOptions(isolate, options, min, "minimumFractionDigits");
 
-  int min_fraction_digits = icu_number_format->getMinimumFractionDigits();
-  CreateDataPropertyForOptions(isolate, options, min_fraction_digits,
-                               "minimumFractionDigits");
+  CreateDataPropertyForOptions(isolate, options, max, "maximumFractionDigits");
 
-  int max_fraction_digits = icu_number_format->getMaximumFractionDigits();
-  CreateDataPropertyForOptions(isolate, options, max_fraction_digits,
-                               "maximumFractionDigits");
-
-  if (icu_decimal_format->areSignificantDigitsUsed()) {
-    int min_significant_digits =
-        icu_decimal_format->getMinimumSignificantDigits();
-    CreateDataPropertyForOptions(isolate, options, min_significant_digits,
+  if (JSNumberFormat::SignificantDigitsFromSkeleton(skeleton, &min, &max)) {
+    CreateDataPropertyForOptions(isolate, options, min,
                                  "minimumSignificantDigits");
-
-    int max_significant_digits =
-        icu_decimal_format->getMaximumSignificantDigits();
-    CreateDataPropertyForOptions(isolate, options, max_significant_digits,
+    CreateDataPropertyForOptions(isolate, options, max,
                                  "maximumSignificantDigits");
   }
 
   // 6. Let pluralCategories be a List of Strings representing the
   // possible results of PluralRuleSelect for the selected locale pr.
-  icu::PluralRules* icu_plural_rules = plural_rules->icu_plural_rules()->raw();
+  icu::PluralRules* icu_plural_rules = plural_rules->icu_plural_rules().raw();
   CHECK_NOT_NULL(icu_plural_rules);
 
-  UErrorCode status = U_ZERO_ERROR;
   std::unique_ptr<icu::StringEnumeration> categories(
       icu_plural_rules->getKeywords(status));
   CHECK(U_SUCCESS(status));
@@ -314,16 +288,39 @@ Handle<JSObject> JSPluralRules::ResolvedOptions(
   return options;
 }
 
-std::set<std::string> JSPluralRules::GetAvailableLocales() {
-  int32_t num_locales = 0;
-  // TODO(ftang): For PluralRules, filter out locales that
-  // don't support PluralRules.
-  // PluralRules is missing an appropriate getAvailableLocales method,
-  // so we should filter from all locales, but it's not clear how; see
-  // https://ssl.icu-project.org/trac/ticket/12756
-  const icu::Locale* icu_available_locales =
-      icu::Locale::getAvailableLocales(num_locales);
-  return Intl::BuildLocaleSet(icu_available_locales, num_locales);
+namespace {
+
+class PluralRulesAvailableLocales {
+ public:
+  PluralRulesAvailableLocales() {
+    UErrorCode status = U_ZERO_ERROR;
+    std::unique_ptr<icu::StringEnumeration> locales(
+        icu::PluralRules::getAvailableLocales(status));
+    CHECK(U_SUCCESS(status));
+    int32_t len = 0;
+    const char* locale = nullptr;
+    while ((locale = locales->next(&len, status)) != nullptr &&
+           U_SUCCESS(status)) {
+      std::string str(locale);
+      if (len > 3) {
+        std::replace(str.begin(), str.end(), '_', '-');
+      }
+      set_.insert(std::move(str));
+    }
+  }
+  const std::set<std::string>& Get() const { return set_; }
+
+ private:
+  std::set<std::string> set_;
+};
+
+}  // namespace
+
+const std::set<std::string>& JSPluralRules::GetAvailableLocales() {
+  static base::LazyInstance<PluralRulesAvailableLocales>::type
+      available_locales = LAZY_INSTANCE_INITIALIZER;
+  return available_locales.Pointer()->Get();
+  // return Intl::GetAvailableLocalesForLocale();
 }
 
 }  // namespace internal

@@ -22,11 +22,11 @@ void RunU64BinOp(ExecutionTier execution_tier, WasmOpcode wasm_op,
                               MachineRepresentation::kWord64));
 
   FOR_UINT64_INPUTS(i) {
-    uint64_t initial = *i;
+    uint64_t initial = i;
     FOR_UINT64_INPUTS(j) {
       r.builder().WriteMemory(&memory[0], initial);
-      CHECK_EQ(initial, r.Call(*j));
-      uint64_t expected = expected_op(*i, *j);
+      CHECK_EQ(initial, r.Call(j));
+      uint64_t expected = expected_op(i, j);
       CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
     }
   }
@@ -51,11 +51,11 @@ void RunU32BinOp(ExecutionTier execution_tier, WasmOpcode wasm_op,
                               MachineRepresentation::kWord32));
 
   FOR_UINT32_INPUTS(i) {
-    uint32_t initial = *i;
+    uint32_t initial = i;
     FOR_UINT32_INPUTS(j) {
       r.builder().WriteMemory(&memory[0], initial);
-      CHECK_EQ(initial, r.Call(*j));
-      uint32_t expected = expected_op(*i, *j);
+      CHECK_EQ(initial, r.Call(j));
+      uint32_t expected = expected_op(i, j);
       CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
     }
   }
@@ -80,11 +80,11 @@ void RunU16BinOp(ExecutionTier tier, WasmOpcode wasm_op,
                               MachineRepresentation::kWord16));
 
   FOR_UINT16_INPUTS(i) {
-    uint16_t initial = *i;
+    uint16_t initial = i;
     FOR_UINT16_INPUTS(j) {
       r.builder().WriteMemory(&memory[0], initial);
-      CHECK_EQ(initial, r.Call(*j));
-      uint16_t expected = expected_op(*i, *j);
+      CHECK_EQ(initial, r.Call(j));
+      uint16_t expected = expected_op(i, j);
       CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
     }
   }
@@ -108,11 +108,11 @@ void RunU8BinOp(ExecutionTier execution_tier, WasmOpcode wasm_op,
                               MachineRepresentation::kWord8));
 
   FOR_UINT8_INPUTS(i) {
-    uint8_t initial = *i;
+    uint8_t initial = i;
     FOR_UINT8_INPUTS(j) {
       r.builder().WriteMemory(&memory[0], initial);
-      CHECK_EQ(initial, r.Call(*j));
-      uint8_t expected = expected_op(*i, *j);
+      CHECK_EQ(initial, r.Call(j));
+      uint8_t expected = expected_op(i, j);
       CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
     }
   }
@@ -136,11 +136,11 @@ WASM_EXEC_TEST(I64AtomicCompareExchange) {
                WASM_GET_LOCAL(1), MachineRepresentation::kWord64));
 
   FOR_UINT64_INPUTS(i) {
-    uint64_t initial = *i;
+    uint64_t initial = i;
     FOR_UINT64_INPUTS(j) {
       r.builder().WriteMemory(&memory[0], initial);
-      CHECK_EQ(initial, r.Call(*i, *j));
-      uint64_t expected = CompareExchange(initial, *i, *j);
+      CHECK_EQ(initial, r.Call(i, j));
+      uint64_t expected = CompareExchange(initial, i, j);
       CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
     }
   }
@@ -158,11 +158,11 @@ WASM_EXEC_TEST(I64AtomicCompareExchange32U) {
                                    MachineRepresentation::kWord32));
 
   FOR_UINT32_INPUTS(i) {
-    uint32_t initial = *i;
+    uint32_t initial = i;
     FOR_UINT32_INPUTS(j) {
       r.builder().WriteMemory(&memory[0], initial);
-      CHECK_EQ(initial, r.Call(*i, *j));
-      uint32_t expected = CompareExchange(initial, *i, *j);
+      CHECK_EQ(initial, r.Call(i, j));
+      uint32_t expected = CompareExchange(initial, i, j);
       CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
     }
   }
@@ -180,11 +180,11 @@ WASM_EXEC_TEST(I64AtomicCompareExchange16U) {
                                    MachineRepresentation::kWord16));
 
   FOR_UINT16_INPUTS(i) {
-    uint16_t initial = *i;
+    uint16_t initial = i;
     FOR_UINT16_INPUTS(j) {
       r.builder().WriteMemory(&memory[0], initial);
-      CHECK_EQ(initial, r.Call(*i, *j));
-      uint16_t expected = CompareExchange(initial, *i, *j);
+      CHECK_EQ(initial, r.Call(i, j));
+      uint16_t expected = CompareExchange(initial, i, j);
       CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
     }
   }
@@ -200,11 +200,11 @@ WASM_EXEC_TEST(I32AtomicCompareExchange8U) {
                                 WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
                                 MachineRepresentation::kWord8));
   FOR_UINT8_INPUTS(i) {
-    uint8_t initial = *i;
+    uint8_t initial = i;
     FOR_UINT8_INPUTS(j) {
       r.builder().WriteMemory(&memory[0], initial);
-      CHECK_EQ(initial, r.Call(*i, *j));
-      uint8_t expected = CompareExchange(initial, *i, *j);
+      CHECK_EQ(initial, r.Call(i, j));
+      uint8_t expected = CompareExchange(initial, i, j);
       CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
     }
   }
@@ -220,7 +220,7 @@ WASM_EXEC_TEST(I64AtomicLoad) {
                                 MachineRepresentation::kWord64));
 
   FOR_UINT64_INPUTS(i) {
-    uint64_t expected = *i;
+    uint64_t expected = i;
     r.builder().WriteMemory(&memory[0], expected);
     CHECK_EQ(expected, r.Call());
   }
@@ -236,7 +236,7 @@ WASM_EXEC_TEST(I64AtomicLoad32U) {
                                 MachineRepresentation::kWord32));
 
   FOR_UINT32_INPUTS(i) {
-    uint32_t expected = *i;
+    uint32_t expected = i;
     r.builder().WriteMemory(&memory[0], expected);
     CHECK_EQ(expected, r.Call());
   }
@@ -252,7 +252,7 @@ WASM_EXEC_TEST(I64AtomicLoad16U) {
                                 MachineRepresentation::kWord16));
 
   FOR_UINT16_INPUTS(i) {
-    uint16_t expected = *i;
+    uint16_t expected = i;
     r.builder().WriteMemory(&memory[0], expected);
     CHECK_EQ(expected, r.Call());
   }
@@ -267,7 +267,7 @@ WASM_EXEC_TEST(I64AtomicLoad8U) {
                                 MachineRepresentation::kWord8));
 
   FOR_UINT8_INPUTS(i) {
-    uint8_t expected = *i;
+    uint8_t expected = i;
     r.builder().WriteMemory(&memory[0], expected);
     CHECK_EQ(expected, r.Call());
   }
@@ -287,8 +287,8 @@ WASM_EXEC_TEST(I64AtomicStoreLoad) {
                              MachineRepresentation::kWord64));
 
   FOR_UINT64_INPUTS(i) {
-    uint64_t expected = *i;
-    CHECK_EQ(expected, r.Call(*i));
+    uint64_t expected = i;
+    CHECK_EQ(expected, r.Call(i));
     CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
   }
 }
@@ -308,8 +308,8 @@ WASM_EXEC_TEST(I64AtomicStoreLoad32U) {
                            MachineRepresentation::kWord32));
 
   FOR_UINT32_INPUTS(i) {
-    uint32_t expected = *i;
-    CHECK_EQ(expected, r.Call(*i));
+    uint32_t expected = i;
+    CHECK_EQ(expected, r.Call(i));
     CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
   }
 }
@@ -329,8 +329,8 @@ WASM_EXEC_TEST(I64AtomicStoreLoad16U) {
                            MachineRepresentation::kWord16));
 
   FOR_UINT16_INPUTS(i) {
-    uint16_t expected = *i;
-    CHECK_EQ(expected, r.Call(*i));
+    uint16_t expected = i;
+    CHECK_EQ(expected, r.Call(i));
     CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
   }
 }
@@ -348,9 +348,9 @@ WASM_EXEC_TEST(I64AtomicStoreLoad8U) {
                              MachineRepresentation::kWord8));
 
   FOR_UINT8_INPUTS(i) {
-    uint8_t expected = *i;
-    CHECK_EQ(expected, r.Call(*i));
-    CHECK_EQ(*i, r.builder().ReadMemory(&memory[0]));
+    uint8_t expected = i;
+    CHECK_EQ(expected, r.Call(i));
+    CHECK_EQ(i, r.builder().ReadMemory(&memory[0]));
   }
 }
 
@@ -484,14 +484,14 @@ void RunConvertTest(ExecutionTier execution_tier, WasmOpcode wasm_op,
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
   r.builder().SetHasSharedMemory();
 
-  BUILD(r, WASM_I32_CONVERT_I64(WASM_ATOMICS_BINOP(
-               kExprI64AtomicAdd, WASM_ZERO, WASM_GET_LOCAL(0),
-               MachineRepresentation::kWord64)));
+  BUILD(r, WASM_I32_CONVERT_I64(
+               WASM_ATOMICS_BINOP(wasm_op, WASM_ZERO, WASM_GET_LOCAL(0),
+                                  MachineRepresentation::kWord64)));
 
   uint64_t initial = 0x1111222233334444, local = 0x1111111111111111;
   r.builder().WriteMemory(&memory[0], initial);
   CHECK_EQ(static_cast<uint32_t>(initial), r.Call(local));
-  uint64_t expected = Add(initial, local);
+  uint64_t expected = op(initial, local);
   CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
 }
 
@@ -518,6 +518,180 @@ WASM_EXEC_TEST(I64AtomicConvertCompareExchange) {
   CHECK_EQ(static_cast<uint32_t>(initial), r.Call(initial, local));
   uint64_t expected = CompareExchange(initial, initial, local);
   CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
+}
+
+// The WASM_I64_EQ operation is used here to test that the index node
+// is lowered correctly.
+void RunNonConstIndexTest(ExecutionTier execution_tier, WasmOpcode wasm_op,
+                          Uint64BinOp op) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint32_t, uint64_t> r(execution_tier);
+  uint64_t* memory =
+      r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
+  r.builder().SetHasSharedMemory();
+
+  BUILD(r, WASM_I32_CONVERT_I64(WASM_ATOMICS_BINOP(
+               wasm_op, WASM_I64_EQ(WASM_I64V(1), WASM_I64V(0)),
+               WASM_GET_LOCAL(0), MachineRepresentation::kWord32)));
+
+  uint64_t initial = 0x1111222233334444, local = 0x5555666677778888;
+  r.builder().WriteMemory(&memory[0], initial);
+  CHECK_EQ(static_cast<uint32_t>(initial), r.Call(local));
+  CHECK_EQ(static_cast<uint32_t>(op(initial, local)),
+           static_cast<uint32_t>(r.builder().ReadMemory(&memory[0])));
+}
+
+// Test a set of Narrow operations
+#define TEST_OPERATION(Name)                                               \
+  WASM_EXEC_TEST(I64AtomicConstIndex##Name##Narrow) {                      \
+    RunNonConstIndexTest(execution_tier, kExprI64Atomic##Name##32U, Name); \
+  }
+OPERATION_LIST(TEST_OPERATION)
+#undef TEST_OPERATION
+
+// Test a set of Regular operations
+#define TEST_OPERATION(Name)                                          \
+  WASM_EXEC_TEST(I64AtomicConstIndex##Name) {                         \
+    RunNonConstIndexTest(execution_tier, kExprI64Atomic##Name, Name); \
+  }
+OPERATION_LIST(TEST_OPERATION)
+#undef TEST_OPERATION
+
+WASM_EXEC_TEST(I64AtomicNonConstIndexCompareExchangeNarrow) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint32_t, uint64_t, uint64_t> r(execution_tier);
+  uint64_t* memory =
+      r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
+  r.builder().SetHasSharedMemory();
+
+  BUILD(r, WASM_I32_CONVERT_I64(WASM_ATOMICS_TERNARY_OP(
+               kExprI64AtomicCompareExchange16U,
+               WASM_I64_EQ(WASM_I64V(1), WASM_I64V(0)), WASM_GET_LOCAL(0),
+               WASM_GET_LOCAL(1), MachineRepresentation::kWord16)));
+
+  uint64_t initial = 4444333322221111, local = 0x9999888877776666;
+  r.builder().WriteMemory(&memory[0], initial);
+  CHECK_EQ(static_cast<uint16_t>(initial), r.Call(initial, local));
+  CHECK_EQ(static_cast<uint16_t>(CompareExchange(initial, initial, local)),
+           static_cast<uint16_t>(r.builder().ReadMemory(&memory[0])));
+}
+
+WASM_EXEC_TEST(I64AtomicNonConstIndexCompareExchange) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint32_t, uint64_t, uint64_t> r(execution_tier);
+  uint64_t* memory =
+      r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
+  r.builder().SetHasSharedMemory();
+
+  BUILD(r, WASM_I32_CONVERT_I64(WASM_ATOMICS_TERNARY_OP(
+               kExprI64AtomicCompareExchange,
+               WASM_I64_EQ(WASM_I64V(1), WASM_I64V(0)), WASM_GET_LOCAL(0),
+               WASM_GET_LOCAL(1), MachineRepresentation::kWord16)));
+
+  uint64_t initial = 4444333322221111, local = 0x9999888877776666;
+  r.builder().WriteMemory(&memory[0], initial);
+  CHECK_EQ(static_cast<uint32_t>(initial), r.Call(initial, local));
+  CHECK_EQ(CompareExchange(initial, initial, local),
+           r.builder().ReadMemory(&memory[0]));
+}
+
+WASM_EXEC_TEST(I64AtomicNonConstIndexLoad8U) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint32_t> r(execution_tier);
+  r.builder().SetHasSharedMemory();
+  uint64_t* memory =
+      r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
+  BUILD(r, WASM_I32_CONVERT_I64(WASM_ATOMICS_LOAD_OP(
+               kExprI64AtomicLoad8U, WASM_I64_EQ(WASM_I64V(1), WASM_I64V(0)),
+               MachineRepresentation::kWord8)));
+
+  uint64_t expected = 0xffffeeeeddddcccc;
+  r.builder().WriteMemory(&memory[0], expected);
+  CHECK_EQ(static_cast<uint8_t>(expected), r.Call());
+}
+
+WASM_EXEC_TEST(I64AtomicCompareExchangeFail) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint64_t, uint64_t, uint64_t> r(execution_tier);
+  r.builder().SetHasSharedMemory();
+  uint64_t* memory =
+      r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
+  BUILD(r, WASM_ATOMICS_TERNARY_OP(
+               kExprI64AtomicCompareExchange, WASM_I32V_1(0), WASM_GET_LOCAL(0),
+               WASM_GET_LOCAL(1), MachineRepresentation::kWord64));
+
+  uint64_t initial = 0x1111222233334444, local = 0x1111111111111111,
+           test = 0x2222222222222222;
+  r.builder().WriteMemory(&memory[0], initial);
+  CHECK_EQ(initial, r.Call(test, local));
+  // No memory change on failed compare exchange
+  CHECK_EQ(initial, r.builder().ReadMemory(&memory[0]));
+}
+
+WASM_EXEC_TEST(I64AtomicCompareExchange32UFail) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint64_t, uint64_t, uint64_t> r(execution_tier);
+  r.builder().SetHasSharedMemory();
+  uint64_t* memory =
+      r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
+  BUILD(r, WASM_ATOMICS_TERNARY_OP(kExprI64AtomicCompareExchange32U,
+                                   WASM_I32V_1(0), WASM_GET_LOCAL(0),
+                                   WASM_GET_LOCAL(1),
+                                   MachineRepresentation::kWord32));
+
+  uint64_t initial = 0x1111222233334444, test = 0xffffffff, local = 0xeeeeeeee;
+  r.builder().WriteMemory(&memory[0], initial);
+  CHECK_EQ(static_cast<uint32_t>(initial), r.Call(test, local));
+  // No memory change on failed compare exchange
+  CHECK_EQ(initial, r.builder().ReadMemory(&memory[0]));
+}
+
+WASM_EXEC_TEST(AtomicStoreNoConsideredEffectful) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  FLAG_wasm_trap_handler = false;  // To use {Load} instead of {ProtectedLoad}.
+  WasmRunner<uint32_t> r(execution_tier);
+  r.builder().AddMemoryElems<int64_t>(kWasmPageSize / sizeof(int64_t));
+  r.builder().SetHasSharedMemory();
+  BUILD(r, WASM_LOAD_MEM(MachineType::Int64(), WASM_ZERO),
+        WASM_ATOMICS_STORE_OP(kExprI64AtomicStore, WASM_ZERO, WASM_I64V(20),
+                              MachineRepresentation::kWord64),
+        kExprI64Eqz);
+  CHECK_EQ(1, r.Call());
+}
+
+void RunNoEffectTest(ExecutionTier execution_tier, WasmOpcode wasm_op) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  FLAG_wasm_trap_handler = false;  // To use {Load} instead of {ProtectedLoad}.
+  WasmRunner<uint32_t> r(execution_tier);
+  r.builder().AddMemoryElems<int64_t>(kWasmPageSize / sizeof(int64_t));
+  r.builder().SetHasSharedMemory();
+  BUILD(r, WASM_LOAD_MEM(MachineType::Int64(), WASM_ZERO),
+        WASM_ATOMICS_BINOP(wasm_op, WASM_ZERO, WASM_I64V(20),
+                           MachineRepresentation::kWord64),
+        WASM_DROP, kExprI64Eqz);
+  CHECK_EQ(1, r.Call());
+}
+
+WASM_EXEC_TEST(AtomicAddNoConsideredEffectful) {
+  RunNoEffectTest(execution_tier, kExprI64AtomicAdd);
+}
+
+WASM_EXEC_TEST(AtomicExchangeNoConsideredEffectful) {
+  RunNoEffectTest(execution_tier, kExprI64AtomicExchange);
+}
+
+WASM_EXEC_TEST(AtomicCompareExchangeNoConsideredEffectful) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  FLAG_wasm_trap_handler = false;  // To use {Load} instead of {ProtectedLoad}.
+  WasmRunner<uint32_t> r(execution_tier);
+  r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
+  r.builder().SetHasSharedMemory();
+  BUILD(r, WASM_LOAD_MEM(MachineType::Int64(), WASM_ZERO),
+        WASM_ATOMICS_TERNARY_OP(kExprI64AtomicCompareExchange, WASM_ZERO,
+                                WASM_I64V(0), WASM_I64V(30),
+                                MachineRepresentation::kWord64),
+        WASM_DROP, kExprI64Eqz);
+  CHECK_EQ(1, r.Call());
 }
 
 }  // namespace test_run_wasm_atomics_64

@@ -14,7 +14,6 @@
 #include "src/base/base-export.h"
 #include "src/base/bits.h"
 #include "src/base/macros.h"
-#include "src/base/safe_math.h"
 #if V8_OS_WIN
 #include "src/base/win32-headers.h"
 #endif
@@ -135,8 +134,6 @@ class V8_BASE_EXPORT TimeDelta final {
   // Converts to/from POSIX time specs.
   static TimeDelta FromTimespec(struct timespec ts);
   struct timespec ToTimespec() const;
-
-  TimeDelta& operator=(const TimeDelta& other) = default;
 
   // Computations with other deltas.
   TimeDelta operator+(const TimeDelta& other) const {

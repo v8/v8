@@ -5,10 +5,10 @@
 #include "src/wasm/graph-builder-interface.h"
 
 #include "src/compiler/wasm-compiler.h"
-#include "src/flags.h"
-#include "src/handles.h"
-#include "src/objects-inl.h"
-#include "src/ostreams.h"
+#include "src/flags/flags.h"
+#include "src/handles/handles.h"
+#include "src/objects/objects-inl.h"
+#include "src/utils/ostreams.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-body-decoder.h"
@@ -36,14 +36,6 @@ struct SsaEnv {
   compiler::WasmInstanceCacheNodes instance_cache;
   TFNode** locals;
 
-  bool reached() const {
-    // The function body decoder already keeps track of reached vs unreached
-    // code. Each SsaEnv we work with should be reached.
-    // TODO(clemensh): Remove this method (https://crbug.com/v8/8611).
-    DCHECK_LE(kReached, state);
-    return state >= kReached;
-  }
-
   void Kill(State new_state = kControlEnd) {
     state = new_state;
     locals = nullptr;
@@ -58,7 +50,6 @@ struct SsaEnv {
 
 #define BUILD(func, ...)                                            \
   ([&] {                                                            \
-    DCHECK(ssa_env_->reached());                                    \
     DCHECK(decoder->ok());                                          \
     return CheckForException(decoder, builder_->func(__VA_ARGS__)); \
   })()
@@ -148,8 +139,7 @@ class WasmGraphBuildingInterface {
 
   // Reload the instance cache entries into the Ssa Environment.
   void LoadContextIntoSsa(SsaEnv* ssa_env) {
-    if (!ssa_env || !ssa_env->reached()) return;
-    builder_->InitInstanceCache(&ssa_env->instance_cache);
+    if (ssa_env) builder_->InitInstanceCache(&ssa_env->instance_cache);
   }
 
   void StartFunctionBody(FullDecoder* decoder, Control* block) {}
@@ -198,9 +188,7 @@ class WasmGraphBuildingInterface {
   void If(FullDecoder* decoder, const Value& cond, Control* if_block) {
     TFNode* if_true = nullptr;
     TFNode* if_false = nullptr;
-    if (ssa_env_->reached()) {
-      BUILD(BranchNoHint, cond.node, &if_true, &if_false);
-    }
+    BUILD(BranchNoHint, cond.node, &if_true, &if_false);
     SsaEnv* end_env = ssa_env_;
     SsaEnv* false_env = Split(decoder, ssa_env_);
     false_env->control = if_false;
@@ -263,11 +251,15 @@ class WasmGraphBuildingInterface {
     result->node = builder_->RefNull();
   }
 
+  void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
+    result->node = BUILD(RefFunc, function_index);
+  }
+
   void Drop(FullDecoder* decoder, const Value& value) {}
 
   void DoReturn(FullDecoder* decoder, Vector<Value> values) {
-    TFNode** nodes = GetNodes(values);
-    BUILD(Return, static_cast<uint32_t>(values.size()), nodes);
+    Vector<TFNode*> nodes = GetNodes(values);
+    BUILD(Return, nodes);
   }
 
   void GetLocal(FullDecoder* decoder, Value* result,
@@ -299,6 +291,16 @@ class WasmGraphBuildingInterface {
     BUILD(SetGlobal, imm.index, value.node);
   }
 
+  void TableGet(FullDecoder* decoder, const Value& index, Value* result,
+                const TableIndexImmediate<validate>& imm) {
+    result->node = BUILD(TableGet, imm.index, index.node, decoder->position());
+  }
+
+  void TableSet(FullDecoder* decoder, const Value& index, const Value& value,
+                const TableIndexImmediate<validate>& imm) {
+    BUILD(TableSet, imm.index, index.node, value.node, decoder->position());
+  }
+
   void Unreachable(FullDecoder* decoder) {
     BUILD(Unreachable, decoder->position());
   }
@@ -317,10 +319,10 @@ class WasmGraphBuildingInterface {
   void BrOrRet(FullDecoder* decoder, uint32_t depth) {
     if (depth == decoder->control_depth() - 1) {
       uint32_t ret_count = static_cast<uint32_t>(decoder->sig_->return_count());
-      TFNode** values =
-          ret_count == 0 ? nullptr
+      Vector<TFNode*> values =
+          ret_count == 0 ? Vector<TFNode*>{}
                          : GetNodes(decoder->stack_value(ret_count), ret_count);
-      BUILD(Return, ret_count, values);
+      BUILD(Return, values);
     } else {
       Br(decoder, decoder->control_at(depth));
     }
@@ -404,34 +406,41 @@ class WasmGraphBuildingInterface {
   void CallDirect(FullDecoder* decoder,
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[], Value returns[]) {
-    DoCall(decoder, nullptr, imm.sig, imm.index, args, returns);
+    DoCall(decoder, 0, nullptr, imm.sig, imm.index, args, returns);
+  }
+
+  void ReturnCall(FullDecoder* decoder,
+                  const CallFunctionImmediate<validate>& imm,
+                  const Value args[]) {
+    DoReturnCall(decoder, 0, nullptr, imm.sig, imm.index, args);
   }
 
   void CallIndirect(FullDecoder* decoder, const Value& index,
                     const CallIndirectImmediate<validate>& imm,
                     const Value args[], Value returns[]) {
-    DoCall(decoder, index.node, imm.sig, imm.sig_index, args, returns);
+    DoCall(decoder, imm.table_index, index.node, imm.sig, imm.sig_index, args,
+           returns);
+  }
+
+  void ReturnCallIndirect(FullDecoder* decoder, const Value& index,
+                          const CallIndirectImmediate<validate>& imm,
+                          const Value args[]) {
+    DoReturnCall(decoder, imm.table_index, index.node, imm.sig, imm.sig_index,
+                 args);
   }
 
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
               Value* result) {
-    TFNode** inputs = GetNodes(args);
-    TFNode* node = BUILD(SimdOp, opcode, inputs);
+    Vector<TFNode*> inputs = GetNodes(args);
+    TFNode* node = BUILD(SimdOp, opcode, inputs.begin());
     if (result) result->node = node;
   }
 
   void SimdLaneOp(FullDecoder* decoder, WasmOpcode opcode,
                   const SimdLaneImmediate<validate> imm, Vector<Value> inputs,
                   Value* result) {
-    TFNode** nodes = GetNodes(inputs);
-    result->node = BUILD(SimdLaneOp, opcode, imm.lane, nodes);
-  }
-
-  void SimdShiftOp(FullDecoder* decoder, WasmOpcode opcode,
-                   const SimdShiftImmediate<validate> imm, const Value& input,
-                   Value* result) {
-    TFNode* inputs[] = {input.node};
-    result->node = BUILD(SimdShiftOp, opcode, imm.shift, inputs);
+    Vector<TFNode*> nodes = GetNodes(inputs);
+    result->node = BUILD(SimdLaneOp, opcode, imm.lane, nodes.begin());
   }
 
   void Simd8x16ShuffleOp(FullDecoder* decoder,
@@ -449,20 +458,48 @@ class WasmGraphBuildingInterface {
     for (int i = 0; i < count; ++i) {
       args[i] = value_args[i].node;
     }
-    BUILD(Throw, imm.index, imm.exception, VectorOf(args));
+    BUILD(Throw, imm.index, imm.exception, VectorOf(args), decoder->position());
     builder_->TerminateThrow(ssa_env_->effect, ssa_env_->control);
   }
 
-  void Rethrow(FullDecoder* decoder, Control* block) {
-    DCHECK(block->is_try_catchall() || block->is_try_catch());
-    TFNode* exception = block->try_info->exception;
-    BUILD(Rethrow, exception);
+  void Rethrow(FullDecoder* decoder, const Value& exception) {
+    BUILD(Rethrow, exception.node);
     builder_->TerminateThrow(ssa_env_->effect, ssa_env_->control);
   }
 
-  void CatchException(FullDecoder* decoder,
-                      const ExceptionIndexImmediate<validate>& imm,
-                      Control* block, Vector<Value> values) {
+  void BrOnException(FullDecoder* decoder, const Value& exception,
+                     const ExceptionIndexImmediate<validate>& imm,
+                     uint32_t depth, Vector<Value> values) {
+    TFNode* if_match = nullptr;
+    TFNode* if_no_match = nullptr;
+
+    // Get the exception tag and see if it matches the expected one.
+    TFNode* caught_tag = BUILD(GetExceptionTag, exception.node);
+    TFNode* exception_tag = BUILD(LoadExceptionTagFromTable, imm.index);
+    TFNode* compare = BUILD(ExceptionTagEqual, caught_tag, exception_tag);
+    BUILD(BranchNoHint, compare, &if_match, &if_no_match);
+    SsaEnv* if_no_match_env = Split(decoder, ssa_env_);
+    SsaEnv* if_match_env = Steal(decoder->zone(), ssa_env_);
+    if_no_match_env->control = if_no_match;
+    if_match_env->control = if_match;
+
+    // If the tags match we extract the values from the exception object and
+    // push them onto the operand stack using the passed {values} vector.
+    SetEnv(if_match_env);
+    // TODO(mstarzinger): Can't use BUILD() here, GetExceptionValues() returns
+    // TFNode** rather than TFNode*. Fix to add landing pads.
+    Vector<TFNode*> caught_values =
+        builder_->GetExceptionValues(exception.node, imm.exception);
+    for (size_t i = 0, e = values.size(); i < e; ++i) {
+      values[i].node = caught_values[i];
+    }
+    BrOrRet(decoder, depth);
+
+    // If the tags don't match we fall-through here.
+    SetEnv(if_no_match_env);
+  }
+
+  void Catch(FullDecoder* decoder, Control* block, Value* exception) {
     DCHECK(block->is_try_catch());
 
     current_catch_ = block->previous_catch;  // Pop try scope.
@@ -475,61 +512,20 @@ class WasmGraphBuildingInterface {
       return;
     }
 
-    TFNode* exception = block->try_info->exception;
     SetEnv(block->try_info->catch_env);
-
-    TFNode* if_catch = nullptr;
-    TFNode* if_no_catch = nullptr;
-
-    // Get the exception tag and see if it matches the expected one.
-    TFNode* caught_tag = BUILD(GetExceptionTag, exception);
-    TFNode* exception_tag = BUILD(LoadExceptionTagFromTable, imm.index);
-    TFNode* compare = BUILD(ExceptionTagEqual, caught_tag, exception_tag);
-    BUILD(BranchNoHint, compare, &if_catch, &if_no_catch);
-
-    // If the tags don't match we continue with the next tag by setting the
-    // false environment as the new {TryInfo::catch_env} here.
-    SsaEnv* if_no_catch_env = Split(decoder, ssa_env_);
-    if_no_catch_env->control = if_no_catch;
-    SsaEnv* if_catch_env = Steal(decoder->zone(), ssa_env_);
-    if_catch_env->control = if_catch;
-    block->try_info->catch_env = if_no_catch_env;
-
-    // If the tags match we extract the values from the exception object and
-    // push them onto the operand stack using the passed {values} vector.
-    SetEnv(if_catch_env);
-    // TODO(mstarzinger): Can't use BUILD() here, GetExceptionValues() returns
-    // TFNode** rather than TFNode*. Fix to add landing pads.
-    TFNode** caught_values =
-        builder_->GetExceptionValues(exception, imm.exception);
-    for (size_t i = 0, e = values.size(); i < e; ++i) {
-      values[i].node = caught_values[i];
-    }
-  }
-
-  void CatchAll(FullDecoder* decoder, Control* block) {
-    DCHECK(block->is_try_catchall() || block->is_try_catch());
-
-    current_catch_ = block->previous_catch;  // Pop try scope.
-
-    // The catch block is unreachable if no possible throws in the try block
-    // exist. We only build a landing pad if some node in the try block can
-    // (possibly) throw. Otherwise the catch environments remain empty.
-    if (!block->try_info->might_throw()) {
-      block->reachability = kSpecOnlyReachable;
-      return;
-    }
-
-    SetEnv(block->try_info->catch_env);
+    DCHECK_NOT_NULL(block->try_info->exception);
+    exception->node = block->try_info->exception;
   }
 
   void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
                 const MemoryAccessImmediate<validate>& imm, Value* result) {
-    TFNode** inputs = GetNodes(args);
-    TFNode* node = BUILD(AtomicOp, opcode, inputs, imm.alignment, imm.offset,
-                         decoder->position());
+    Vector<TFNode*> inputs = GetNodes(args);
+    TFNode* node = BUILD(AtomicOp, opcode, inputs.begin(), imm.alignment,
+                         imm.offset, decoder->position());
     if (result) result->node = node;
   }
+
+  void AtomicFence(FullDecoder* decoder) { BUILD(AtomicFence); }
 
   void MemoryInit(FullDecoder* decoder,
                   const MemoryInitImmediate<validate>& imm, const Value& dst,
@@ -537,31 +533,52 @@ class WasmGraphBuildingInterface {
     BUILD(MemoryInit, imm.data_segment_index, dst.node, src.node, size.node,
           decoder->position());
   }
-  void MemoryDrop(FullDecoder* decoder,
-                  const MemoryDropImmediate<validate>& imm) {
-    BUILD(MemoryDrop, imm.index, decoder->position());
+
+  void DataDrop(FullDecoder* decoder, const DataDropImmediate<validate>& imm) {
+    BUILD(DataDrop, imm.index, decoder->position());
   }
+
   void MemoryCopy(FullDecoder* decoder,
-                  const MemoryIndexImmediate<validate>& imm, const Value& dst,
+                  const MemoryCopyImmediate<validate>& imm, const Value& dst,
                   const Value& src, const Value& size) {
     BUILD(MemoryCopy, dst.node, src.node, size.node, decoder->position());
   }
+
   void MemoryFill(FullDecoder* decoder,
                   const MemoryIndexImmediate<validate>& imm, const Value& dst,
                   const Value& value, const Value& size) {
     BUILD(MemoryFill, dst.node, value.node, size.node, decoder->position());
   }
+
   void TableInit(FullDecoder* decoder, const TableInitImmediate<validate>& imm,
                  Vector<Value> args) {
-    BUILD(Unreachable, decoder->position());
+    BUILD(TableInit, imm.table.index, imm.elem_segment_index, args[0].node,
+          args[1].node, args[2].node, decoder->position());
   }
-  void TableDrop(FullDecoder* decoder,
-                 const TableDropImmediate<validate>& imm) {
-    BUILD(Unreachable, decoder->position());
+
+  void ElemDrop(FullDecoder* decoder, const ElemDropImmediate<validate>& imm) {
+    BUILD(ElemDrop, imm.index, decoder->position());
   }
-  void TableCopy(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
+
+  void TableCopy(FullDecoder* decoder, const TableCopyImmediate<validate>& imm,
                  Vector<Value> args) {
-    BUILD(Unreachable, decoder->position());
+    BUILD(TableCopy, imm.table_dst.index, imm.table_src.index, args[0].node,
+          args[1].node, args[2].node, decoder->position());
+  }
+
+  void TableGrow(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
+                 Value& value, Value& delta, Value* result) {
+    result->node = BUILD(TableGrow, imm.index, value.node, delta.node);
+  }
+
+  void TableSize(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
+                 Value* result) {
+    result->node = BUILD(TableSize, imm.index);
+  }
+
+  void TableFill(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
+                 Value& start, Value& value, Value& count) {
+    BUILD(TableFill, imm.index, start.node, value.node, count.node);
   }
 
  private:
@@ -574,16 +591,16 @@ class WasmGraphBuildingInterface {
         ->try_info;
   }
 
-  TFNode** GetNodes(Value* values, size_t count) {
-    TFNode** nodes = builder_->Buffer(count);
+  Vector<TFNode*> GetNodes(Value* values, size_t count) {
+    Vector<TFNode*> nodes = builder_->Buffer(count);
     for (size_t i = 0; i < count; ++i) {
       nodes[i] = values[i].node;
     }
     return nodes;
   }
 
-  TFNode** GetNodes(Vector<Value> values) {
-    return GetNodes(values.start(), values.size());
+  Vector<TFNode*> GetNodes(Vector<Value> values) {
+    return GetNodes(values.begin(), values.size());
   }
 
   void SetEnv(SsaEnv* env) {
@@ -606,7 +623,7 @@ class WasmGraphBuildingInterface {
             break;
         }
       }
-      PrintF("{set_env = %p, state = %c", static_cast<void*>(env), state);
+      PrintF("{set_env = %p, state = %c", env, state);
       if (env && env->control) {
         PrintF(", control = ");
         compiler::WasmGraphBuilder::PrintDebugName(env->control);
@@ -669,7 +686,8 @@ class WasmGraphBuildingInterface {
       case kWasmS128:
         return builder_->S128Zero();
       case kWasmAnyRef:
-      case kWasmExceptRef:
+      case kWasmFuncRef:
+      case kWasmExnRef:
         return builder_->RefNull();
       default:
         UNREACHABLE();
@@ -678,7 +696,6 @@ class WasmGraphBuildingInterface {
 
   void MergeValuesInto(FullDecoder* decoder, Control* c, Merge<Value>* merge) {
     DCHECK(merge == &c->start_merge || merge == &c->end_merge);
-    if (!ssa_env_->reached()) return;
 
     SsaEnv* target = c->end_env;
     const bool first = target->state == SsaEnv::kUnreachable;
@@ -695,7 +712,9 @@ class WasmGraphBuildingInterface {
       Value& val = stack_values[i];
       Value& old = (*merge)[i];
       DCHECK_NOT_NULL(val.node);
-      DCHECK(val.type == old.type || val.type == kWasmVar);
+      DCHECK(val.type == kWasmBottom ||
+             ValueTypes::MachineRepresentationFor(val.type) ==
+                 ValueTypes::MachineRepresentationFor(old.type));
       old.node = first ? val.node
                        : builder_->CreateOrMergeIntoPhi(
                              ValueTypes::MachineRepresentationFor(old.type),
@@ -705,7 +724,6 @@ class WasmGraphBuildingInterface {
 
   void Goto(FullDecoder* decoder, SsaEnv* from, SsaEnv* to) {
     DCHECK_NOT_NULL(to);
-    if (!from->reached()) return;
     switch (to->state) {
       case SsaEnv::kUnreachable: {  // Overwrite destination.
         to->state = SsaEnv::kReached;
@@ -766,7 +784,6 @@ class WasmGraphBuildingInterface {
   }
 
   SsaEnv* PrepareForLoop(FullDecoder* decoder, SsaEnv* env) {
-    if (!env->reached()) return Split(decoder, env);
     env->state = SsaEnv::kMerged;
 
     env->control = builder_->Loop(env->control);
@@ -820,18 +837,14 @@ class WasmGraphBuildingInterface {
     result->control = from->control;
     result->effect = from->effect;
 
-    if (from->reached()) {
-      result->state = SsaEnv::kReached;
-      result->locals =
-          size > 0 ? reinterpret_cast<TFNode**>(decoder->zone()->New(size))
-                   : nullptr;
+    result->state = SsaEnv::kReached;
+    if (size > 0) {
+      result->locals = reinterpret_cast<TFNode**>(decoder->zone()->New(size));
       memcpy(result->locals, from->locals, size);
-      result->instance_cache = from->instance_cache;
     } else {
-      result->state = SsaEnv::kUnreachable;
       result->locals = nullptr;
-      result->instance_cache = {};
     }
+    result->instance_cache = from->instance_cache;
 
     return result;
   }
@@ -840,7 +853,6 @@ class WasmGraphBuildingInterface {
   // unreachable.
   SsaEnv* Steal(Zone* zone, SsaEnv* from) {
     DCHECK_NOT_NULL(from);
-    if (!from->reached()) return UnreachableEnv(zone);
     SsaEnv* result = reinterpret_cast<SsaEnv*>(zone->New(sizeof(SsaEnv)));
     result->state = SsaEnv::kReached;
     result->locals = from->locals;
@@ -862,19 +874,22 @@ class WasmGraphBuildingInterface {
     return result;
   }
 
-  void DoCall(FullDecoder* decoder, TFNode* index_node, FunctionSig* sig,
-              uint32_t index, const Value args[], Value returns[]) {
+  void DoCall(FullDecoder* decoder, uint32_t table_index, TFNode* index_node,
+              FunctionSig* sig, uint32_t sig_index, const Value args[],
+              Value returns[]) {
     int param_count = static_cast<int>(sig->parameter_count());
-    TFNode** arg_nodes = builder_->Buffer(param_count + 1);
+    Vector<TFNode*> arg_nodes = builder_->Buffer(param_count + 1);
     TFNode** return_nodes = nullptr;
     arg_nodes[0] = index_node;
     for (int i = 0; i < param_count; ++i) {
       arg_nodes[i + 1] = args[i].node;
     }
     if (index_node) {
-      BUILD(CallIndirect, index, arg_nodes, &return_nodes, decoder->position());
+      BUILD(CallIndirect, table_index, sig_index, arg_nodes.begin(),
+            &return_nodes, decoder->position());
     } else {
-      BUILD(CallDirect, index, arg_nodes, &return_nodes, decoder->position());
+      BUILD(CallDirect, sig_index, arg_nodes.begin(), &return_nodes,
+            decoder->position());
     }
     int return_count = static_cast<int>(sig->return_count());
     for (int i = 0; i < return_count; ++i) {
@@ -884,13 +899,29 @@ class WasmGraphBuildingInterface {
     // reload mem_size and mem_start.
     LoadContextIntoSsa(ssa_env_);
   }
+
+  void DoReturnCall(FullDecoder* decoder, uint32_t table_index,
+                    TFNode* index_node, FunctionSig* sig, uint32_t sig_index,
+                    const Value args[]) {
+    int arg_count = static_cast<int>(sig->parameter_count());
+    Vector<TFNode*> arg_nodes = builder_->Buffer(arg_count + 1);
+    arg_nodes[0] = index_node;
+    for (int i = 0; i < arg_count; ++i) {
+      arg_nodes[i + 1] = args[i].node;
+    }
+    if (index_node) {
+      BUILD(ReturnCallIndirect, table_index, sig_index, arg_nodes.begin(),
+            decoder->position());
+    } else {
+      BUILD(ReturnCall, sig_index, arg_nodes.begin(), decoder->position());
+    }
+  }
 };
 
 }  // namespace
 
 DecodeResult BuildTFGraph(AccountingAllocator* allocator,
-                          const WasmFeatures& enabled,
-                          const wasm::WasmModule* module,
+                          const WasmFeatures& enabled, const WasmModule* module,
                           compiler::WasmGraphBuilder* builder,
                           WasmFeatures* detected, const FunctionBody& body,
                           compiler::NodeOriginTable* node_origins) {

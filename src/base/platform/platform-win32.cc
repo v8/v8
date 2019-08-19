@@ -113,7 +113,7 @@ class WindowsTimezoneCache : public TimezoneCache {
 
   ~WindowsTimezoneCache() override {}
 
-  void Clear() override { initialized_ = false; }
+  void Clear(TimeZoneDetection) override { initialized_ = false; }
 
   const char* LocalTimezone(double time) override;
 
@@ -670,11 +670,6 @@ int OS::VSNPrintF(char* str, int length, const char* format, va_list args) {
 }
 
 
-char* OS::StrChr(char* str, int c) {
-  return const_cast<char*>(strchr(str, c));
-}
-
-
 void OS::StrNCpy(char* dest, int length, const char* src, size_t n) {
   // Use _TRUNCATE or strncpy_s crashes (by design) if buffer is too small.
   size_t buffer_size = static_cast<size_t>(length);
@@ -689,8 +684,8 @@ void OS::StrNCpy(char* dest, int length, const char* src, size_t n) {
 #undef _TRUNCATE
 #undef STRUNCATE
 
-static LazyInstance<RandomNumberGenerator>::type
-    platform_random_number_generator = LAZY_INSTANCE_INITIALIZER;
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(RandomNumberGenerator,
+                                GetPlatformRandomNumberGenerator)
 static LazyMutex rng_mutex = LAZY_MUTEX_INITIALIZER;
 
 void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
@@ -724,7 +719,7 @@ size_t OS::CommitPageSize() {
 void OS::SetRandomMmapSeed(int64_t seed) {
   if (seed) {
     MutexGuard guard(rng_mutex.Pointer());
-    platform_random_number_generator.Pointer()->SetSeed(seed);
+    GetPlatformRandomNumberGenerator()->SetSeed(seed);
   }
 }
 
@@ -745,8 +740,7 @@ void* OS::GetRandomMmapAddr() {
   uintptr_t address;
   {
     MutexGuard guard(rng_mutex.Pointer());
-    platform_random_number_generator.Pointer()->NextBytes(&address,
-                                                          sizeof(address));
+    GetPlatformRandomNumberGenerator()->NextBytes(&address, sizeof(address));
   }
   address <<= kPageSizeBits;
   address += kAllocationRandomAddressMin;
@@ -921,6 +915,11 @@ void OS::Sleep(TimeDelta interval) {
 
 
 void OS::Abort() {
+  // Give a chance to debug the failure.
+  if (IsDebuggerPresent()) {
+    DebugBreak();
+  }
+
   // Before aborting, make sure to flush output buffers.
   fflush(stdout);
   fflush(stderr);
@@ -969,39 +968,48 @@ class Win32MemoryMappedFile final : public OS::MemoryMappedFile {
 
 
 // static
-OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
-  // Open a physical file
-  HANDLE file = CreateFileA(name, GENERIC_READ | GENERIC_WRITE,
-                            FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
-                            OPEN_EXISTING, 0, nullptr);
+OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name,
+                                                 FileMode mode) {
+  // Open a physical file.
+  DWORD access = GENERIC_READ;
+  if (mode == FileMode::kReadWrite) {
+    access |= GENERIC_WRITE;
+  }
+  HANDLE file = CreateFileA(name, access, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                            nullptr, OPEN_EXISTING, 0, nullptr);
   if (file == INVALID_HANDLE_VALUE) return nullptr;
 
   DWORD size = GetFileSize(file, nullptr);
+  if (size == 0) return new Win32MemoryMappedFile(file, nullptr, nullptr, 0);
 
-  // Create a file mapping for the physical file
+  DWORD protection =
+      (mode == FileMode::kReadOnly) ? PAGE_READONLY : PAGE_READWRITE;
+  // Create a file mapping for the physical file.
   HANDLE file_mapping =
-      CreateFileMapping(file, nullptr, PAGE_READWRITE, 0, size, nullptr);
+      CreateFileMapping(file, nullptr, protection, 0, size, nullptr);
   if (file_mapping == nullptr) return nullptr;
 
-  // Map a view of the file into memory
-  void* memory = MapViewOfFile(file_mapping, FILE_MAP_ALL_ACCESS, 0, 0, size);
+  // Map a view of the file into memory.
+  DWORD view_access =
+      (mode == FileMode::kReadOnly) ? FILE_MAP_READ : FILE_MAP_ALL_ACCESS;
+  void* memory = MapViewOfFile(file_mapping, view_access, 0, 0, size);
   return new Win32MemoryMappedFile(file, file_mapping, memory, size);
 }
-
 
 // static
 OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name,
                                                    size_t size, void* initial) {
-  // Open a physical file
+  // Open a physical file.
   HANDLE file = CreateFileA(name, GENERIC_READ | GENERIC_WRITE,
                             FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
                             OPEN_ALWAYS, 0, nullptr);
   if (file == nullptr) return nullptr;
-  // Create a file mapping for the physical file
+  if (size == 0) return new Win32MemoryMappedFile(file, nullptr, nullptr, 0);
+  // Create a file mapping for the physical file.
   HANDLE file_mapping = CreateFileMapping(file, nullptr, PAGE_READWRITE, 0,
                                           static_cast<DWORD>(size), nullptr);
   if (file_mapping == nullptr) return nullptr;
-  // Map a view of the file into memory
+  // Map a view of the file into memory.
   void* memory = MapViewOfFile(file_mapping, FILE_MAP_ALL_ACCESS, 0, 0, size);
   if (memory) memmove(memory, initial, size);
   return new Win32MemoryMappedFile(file, file_mapping, memory, size);
@@ -1010,7 +1018,7 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name,
 
 Win32MemoryMappedFile::~Win32MemoryMappedFile() {
   if (memory_) UnmapViewOfFile(memory_);
-  CloseHandle(file_mapping_);
+  if (file_mapping_) CloseHandle(file_mapping_);
   CloseHandle(file_);
 }
 
@@ -1059,58 +1067,44 @@ Win32MemoryMappedFile::~Win32MemoryMappedFile() {
 // DbgHelp isn't supported on MinGW yet
 #ifndef __MINGW32__
 // DbgHelp.h functions.
-typedef BOOL (__stdcall *DLL_FUNC_TYPE(SymInitialize))(IN HANDLE hProcess,
-                                                       IN PSTR UserSearchPath,
-                                                       IN BOOL fInvadeProcess);
-typedef DWORD (__stdcall *DLL_FUNC_TYPE(SymGetOptions))(VOID);
-typedef DWORD (__stdcall *DLL_FUNC_TYPE(SymSetOptions))(IN DWORD SymOptions);
-typedef BOOL (__stdcall *DLL_FUNC_TYPE(SymGetSearchPath))(
-    IN HANDLE hProcess,
-    OUT PSTR SearchPath,
-    IN DWORD SearchPathLength);
-typedef DWORD64 (__stdcall *DLL_FUNC_TYPE(SymLoadModule64))(
-    IN HANDLE hProcess,
-    IN HANDLE hFile,
-    IN PSTR ImageName,
-    IN PSTR ModuleName,
-    IN DWORD64 BaseOfDll,
-    IN DWORD SizeOfDll);
-typedef BOOL (__stdcall *DLL_FUNC_TYPE(StackWalk64))(
-    DWORD MachineType,
-    HANDLE hProcess,
-    HANDLE hThread,
-    LPSTACKFRAME64 StackFrame,
-    PVOID ContextRecord,
+using DLL_FUNC_TYPE(SymInitialize) = BOOL(__stdcall*)(IN HANDLE hProcess,
+                                                      IN PSTR UserSearchPath,
+                                                      IN BOOL fInvadeProcess);
+using DLL_FUNC_TYPE(SymGetOptions) = DWORD(__stdcall*)(VOID);
+using DLL_FUNC_TYPE(SymSetOptions) = DWORD(__stdcall*)(IN DWORD SymOptions);
+using DLL_FUNC_TYPE(SymGetSearchPath) = BOOL(__stdcall*)(
+    IN HANDLE hProcess, OUT PSTR SearchPath, IN DWORD SearchPathLength);
+using DLL_FUNC_TYPE(SymLoadModule64) = DWORD64(__stdcall*)(
+    IN HANDLE hProcess, IN HANDLE hFile, IN PSTR ImageName, IN PSTR ModuleName,
+    IN DWORD64 BaseOfDll, IN DWORD SizeOfDll);
+using DLL_FUNC_TYPE(StackWalk64) = BOOL(__stdcall*)(
+    DWORD MachineType, HANDLE hProcess, HANDLE hThread,
+    LPSTACKFRAME64 StackFrame, PVOID ContextRecord,
     PREAD_PROCESS_MEMORY_ROUTINE64 ReadMemoryRoutine,
     PFUNCTION_TABLE_ACCESS_ROUTINE64 FunctionTableAccessRoutine,
     PGET_MODULE_BASE_ROUTINE64 GetModuleBaseRoutine,
     PTRANSLATE_ADDRESS_ROUTINE64 TranslateAddress);
-typedef BOOL (__stdcall *DLL_FUNC_TYPE(SymGetSymFromAddr64))(
-    IN HANDLE hProcess,
-    IN DWORD64 qwAddr,
-    OUT PDWORD64 pdwDisplacement,
+using DLL_FUNC_TYPE(SymGetSymFromAddr64) = BOOL(__stdcall*)(
+    IN HANDLE hProcess, IN DWORD64 qwAddr, OUT PDWORD64 pdwDisplacement,
     OUT PIMAGEHLP_SYMBOL64 Symbol);
-typedef BOOL (__stdcall *DLL_FUNC_TYPE(SymGetLineFromAddr64))(
-    IN HANDLE hProcess,
-    IN DWORD64 qwAddr,
-    OUT PDWORD pdwDisplacement,
-    OUT PIMAGEHLP_LINE64 Line64);
+using DLL_FUNC_TYPE(SymGetLineFromAddr64) =
+    BOOL(__stdcall*)(IN HANDLE hProcess, IN DWORD64 qwAddr,
+                     OUT PDWORD pdwDisplacement, OUT PIMAGEHLP_LINE64 Line64);
 // DbgHelp.h typedefs. Implementation found in dbghelp.dll.
-typedef PVOID (__stdcall *DLL_FUNC_TYPE(SymFunctionTableAccess64))(
+using DLL_FUNC_TYPE(SymFunctionTableAccess64) = PVOID(__stdcall*)(
     HANDLE hProcess,
     DWORD64 AddrBase);  // DbgHelp.h typedef PFUNCTION_TABLE_ACCESS_ROUTINE64
-typedef DWORD64 (__stdcall *DLL_FUNC_TYPE(SymGetModuleBase64))(
+using DLL_FUNC_TYPE(SymGetModuleBase64) = DWORD64(__stdcall*)(
     HANDLE hProcess,
     DWORD64 AddrBase);  // DbgHelp.h typedef PGET_MODULE_BASE_ROUTINE64
 
 // TlHelp32.h functions.
-typedef HANDLE (__stdcall *DLL_FUNC_TYPE(CreateToolhelp32Snapshot))(
-    DWORD dwFlags,
-    DWORD th32ProcessID);
-typedef BOOL (__stdcall *DLL_FUNC_TYPE(Module32FirstW))(HANDLE hSnapshot,
-                                                        LPMODULEENTRY32W lpme);
-typedef BOOL (__stdcall *DLL_FUNC_TYPE(Module32NextW))(HANDLE hSnapshot,
+using DLL_FUNC_TYPE(CreateToolhelp32Snapshot) =
+    HANDLE(__stdcall*)(DWORD dwFlags, DWORD th32ProcessID);
+using DLL_FUNC_TYPE(Module32FirstW) = BOOL(__stdcall*)(HANDLE hSnapshot,
                                                        LPMODULEENTRY32W lpme);
+using DLL_FUNC_TYPE(Module32NextW) = BOOL(__stdcall*)(HANDLE hSnapshot,
+                                                      LPMODULEENTRY32W lpme);
 
 #undef IN
 #undef VOID
@@ -1358,12 +1352,12 @@ Thread::~Thread() {
 // Create a new thread. It is important to use _beginthreadex() instead of
 // the Win32 function CreateThread(), because the CreateThread() does not
 // initialize thread specific structures in the C runtime library.
-void Thread::Start() {
-  data_->thread_ = reinterpret_cast<HANDLE>(
-      _beginthreadex(nullptr, static_cast<unsigned>(stack_size_), ThreadEntry,
-                     this, 0, &data_->thread_id_));
+bool Thread::Start() {
+  uintptr_t result = _beginthreadex(nullptr, static_cast<unsigned>(stack_size_),
+                                    ThreadEntry, this, 0, &data_->thread_id_);
+  data_->thread_ = reinterpret_cast<HANDLE>(result);
+  return result != 0;
 }
-
 
 // Wait for thread to terminate.
 void Thread::Join() {
@@ -1397,6 +1391,8 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
   USE(result);
   DCHECK(result);
 }
+
+void OS::AdjustSchedulingParams() {}
 
 }  // namespace base
 }  // namespace v8

@@ -414,6 +414,16 @@ InspectorTest.runAsyncTestSuite([
       returnByValue: true
     })).result);
   },
+  async function testCustomError() {
+    InspectorTest.logMessage((await evaluate({
+      expression: `class CustomError extends Error {}; a = new CustomError(); delete a.stack; a`
+    })).result);
+  },
+  async function testCustomErrorWithMessage() {
+    InspectorTest.logMessage((await evaluate( {
+      expression: `class CustomMsgError extends Error {}; a = new CustomMsgError(); delete a.stack; a.message = 'foobar'; a`
+    })).result);
+  },
   async function testProxy() {
     InspectorTest.logMessage((await evaluate({
       expression: 'new Proxy({}, {})'

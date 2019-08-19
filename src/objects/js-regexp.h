@@ -37,13 +37,13 @@ class JSRegExp : public JSObject {
   // IRREGEXP: Compiled with Irregexp.
   enum Type { NOT_COMPILED, ATOM, IRREGEXP };
   struct FlagShiftBit {
-    static const int kGlobal = 0;
-    static const int kIgnoreCase = 1;
-    static const int kMultiline = 2;
-    static const int kSticky = 3;
-    static const int kUnicode = 4;
-    static const int kDotAll = 5;
-    static const int kInvalid = 7;
+    static constexpr int kGlobal = 0;
+    static constexpr int kIgnoreCase = 1;
+    static constexpr int kMultiline = 2;
+    static constexpr int kSticky = 3;
+    static constexpr int kUnicode = 4;
+    static constexpr int kDotAll = 5;
+    static constexpr int kInvalid = 6;
   };
   enum Flag : uint8_t {
     kNone = 0,
@@ -56,28 +56,31 @@ class JSRegExp : public JSObject {
     // Update FlagCount when adding new flags.
     kInvalid = 1 << FlagShiftBit::kInvalid,  // Not included in FlagCount.
   };
-  typedef base::Flags<Flag> Flags;
-  static constexpr int FlagCount() { return 6; }
+  using Flags = base::Flags<Flag>;
 
-  static int FlagShiftBits(Flag flag) {
-    switch (flag) {
-      case kGlobal:
-        return FlagShiftBit::kGlobal;
-      case kIgnoreCase:
-        return FlagShiftBit::kIgnoreCase;
-      case kMultiline:
-        return FlagShiftBit::kMultiline;
-      case kSticky:
-        return FlagShiftBit::kSticky;
-      case kUnicode:
-        return FlagShiftBit::kUnicode;
-      case kDotAll:
-        return FlagShiftBit::kDotAll;
-      default:
-        STATIC_ASSERT(FlagCount() == 6);
-        UNREACHABLE();
-    }
+  static constexpr int kFlagCount = 6;
+
+  static constexpr Flag FlagFromChar(char c) {
+    STATIC_ASSERT(kFlagCount == 6);
+    // clang-format off
+    return c == 'g' ? kGlobal
+         : c == 'i' ? kIgnoreCase
+         : c == 'm' ? kMultiline
+         : c == 'y' ? kSticky
+         : c == 'u' ? kUnicode
+         : c == 's' ? kDotAll
+         : kInvalid;
+    // clang-format on
   }
+
+  STATIC_ASSERT(static_cast<int>(kNone) == v8::RegExp::kNone);
+  STATIC_ASSERT(static_cast<int>(kGlobal) == v8::RegExp::kGlobal);
+  STATIC_ASSERT(static_cast<int>(kIgnoreCase) == v8::RegExp::kIgnoreCase);
+  STATIC_ASSERT(static_cast<int>(kMultiline) == v8::RegExp::kMultiline);
+  STATIC_ASSERT(static_cast<int>(kSticky) == v8::RegExp::kSticky);
+  STATIC_ASSERT(static_cast<int>(kUnicode) == v8::RegExp::kUnicode);
+  STATIC_ASSERT(static_cast<int>(kDotAll) == v8::RegExp::kDotAll);
+  STATIC_ASSERT(kFlagCount == v8::RegExp::kFlagCount);
 
   DECL_ACCESSORS(data, Object)
   DECL_ACCESSORS(flags, Object)
@@ -95,15 +98,19 @@ class JSRegExp : public JSObject {
                                           Handle<String> source,
                                           Handle<String> flags_string);
 
+  bool MarkedForTierUp();
+  void ResetTierUp();
+  void MarkTierUpForNextExec();
+
   inline Type TypeTag() const;
   // Number of captures (without the match itself).
   inline int CaptureCount();
   inline Flags GetFlags();
   inline String Pattern();
-  inline Object* CaptureNameMap();
-  inline Object* DataAt(int index) const;
+  inline Object CaptureNameMap();
+  inline Object DataAt(int index) const;
   // Set implementation data after the object has been prepared.
-  inline void SetDataAt(int index, Object* value);
+  inline void SetDataAt(int index, Object value);
 
   static int code_index(bool is_latin1) {
     if (is_latin1) {
@@ -113,27 +120,24 @@ class JSRegExp : public JSObject {
     }
   }
 
+  // This could be a Smi kUninitializedValue, a ByteArray, or Code.
+  Object Code(bool is_latin1) const;
+  bool ShouldProduceBytecode();
   inline bool HasCompiledCode() const;
   inline void DiscardCompiledCodeForSerialization();
 
-  DECL_CAST2(JSRegExp)
+  DECL_CAST(JSRegExp)
 
   // Dispatched behavior.
   DECL_PRINTER(JSRegExp)
   DECL_VERIFIER(JSRegExp)
 
-// Layout description.
-#define JS_REGEXP_FIELDS(V)                 \
-  V(kDataOffset, kTaggedSize)               \
-  V(kSourceOffset, kTaggedSize)             \
-  V(kFlagsOffset, kTaggedSize)              \
-  /* Total size. */                         \
-  V(kSize, 0)                               \
-  /* This is already an in-object field. */ \
-  V(kLastIndexOffset, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_REGEXP_FIELDS)
-#undef JS_REGEXP_FIELDS
+  // Layout description.
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JSREG_EXP_FIELDS)
+  /* This is already an in-object field. */
+  // TODO(v8:8944): improve handling of in-object fields
+  static constexpr int kLastIndexOffset = kSize;
 
   // Indices in the data array.
   static const int kTagIndex = 0;
@@ -163,8 +167,9 @@ class JSRegExp : public JSObject {
   // Maps names of named capture groups (at indices 2i) to their corresponding
   // (1-based) capture group indices (at indices 2i + 1).
   static const int kIrregexpCaptureNameMapIndex = kDataIndex + 4;
+  static const int kIrregexpTierUpTicksIndex = kDataIndex + 5;
 
-  static const int kIrregexpDataSize = kIrregexpCaptureNameMapIndex + 1;
+  static const int kIrregexpDataSize = kIrregexpTierUpTicksIndex + 1;
 
   // In-object fields.
   static const int kLastIndexFieldIndex = 0;
@@ -173,15 +178,15 @@ class JSRegExp : public JSObject {
   // Descriptor array index to important methods in the prototype.
   static const int kExecFunctionDescriptorIndex = 1;
   static const int kSymbolMatchFunctionDescriptorIndex = 13;
-  static const int kSymbolReplaceFunctionDescriptorIndex = 14;
-  static const int kSymbolSearchFunctionDescriptorIndex = 15;
-  static const int kSymbolSplitFunctionDescriptorIndex = 16;
-  static const int kSymbolMatchAllFunctionDescriptorIndex = 17;
+  static const int kSymbolMatchAllFunctionDescriptorIndex = 14;
+  static const int kSymbolReplaceFunctionDescriptorIndex = 15;
+  static const int kSymbolSearchFunctionDescriptorIndex = 16;
+  static const int kSymbolSplitFunctionDescriptorIndex = 17;
 
   // The uninitialized value for a regexp code object.
   static const int kUninitializedValue = -1;
 
-  OBJECT_CONSTRUCTORS(JSRegExp, JSObject)
+  OBJECT_CONSTRUCTORS(JSRegExp, JSObject);
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(JSRegExp::Flags)
@@ -194,16 +199,9 @@ DEFINE_OPERATORS_FOR_FLAGS(JSRegExp::Flags)
 // After creation the result must be treated as a JSArray in all regards.
 class JSRegExpResult : public JSArray {
  public:
-// Layout description.
-#define REG_EXP_RESULT_FIELDS(V) \
-  V(kIndexOffset, kTaggedSize)   \
-  V(kInputOffset, kTaggedSize)   \
-  V(kGroupsOffset, kTaggedSize)  \
-  /* Total size. */              \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSArray::kSize, REG_EXP_RESULT_FIELDS)
-#undef REG_EXP_RESULT_FIELDS
+  // Layout description.
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSArray::kSize,
+                                TORQUE_GENERATED_JSREG_EXP_RESULT_FIELDS)
 
   // Indices of in-object properties.
   static const int kIndexIndex = 0;

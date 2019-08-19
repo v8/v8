@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-intl-list-format
-
 // ListFormat constructor can't be called as function.
 assertThrows(() => Intl.ListFormat(['sr']), TypeError);
 
@@ -54,7 +52,8 @@ assertDoesNotThrow(
 assertDoesNotThrow(
     () => new Intl.ListFormat(['sr'], {style: 'short'}));
 
-assertThrows(() => new Intl.ListFormat(['sr'], {style: 'narrow'}), RangeError);
+assertDoesNotThrow(
+    () => new Intl.ListFormat(['sr'], {style: 'narrow'}));
 
 assertThrows(
     () => new Intl.ListFormat(['sr'], {style: 'giant'}),
@@ -66,9 +65,8 @@ assertDoesNotThrow(
 assertDoesNotThrow(
     () => new Intl.ListFormat(['sr'], {type: 'conjunction', style: 'short'}));
 
-assertThrows(
-    () => new Intl.ListFormat(['sr'], {type: 'conjunction', style: 'narrow'}),
-    RangeError);
+assertDoesNotThrow(
+    () => new Intl.ListFormat(['sr'], {type: 'conjunction', style: 'narrow'}));
 
 assertDoesNotThrow(
     () => new Intl.ListFormat(['sr'], {type: 'disjunction', style: 'long'}));
@@ -76,9 +74,8 @@ assertDoesNotThrow(
 assertDoesNotThrow(
     () => new Intl.ListFormat(['sr'], {type: 'disjunction', style: 'short'}));
 
-assertThrows(
-    () => new Intl.ListFormat(['sr'], {type: 'disjunction', style: 'narrow'}),
-    RangeError);
+assertDoesNotThrow(
+    () => new Intl.ListFormat(['sr'], {type: 'disjunction', style: 'narrow'}));
 
 assertDoesNotThrow(
     () => new Intl.ListFormat(['sr'], {type: 'unit', style: 'long'}));

@@ -6,6 +6,7 @@
 #define V8_OBJECTS_PROPERTY_ARRAY_H_
 
 #include "src/objects/heap-object.h"
+#include "torque-generated/field-offsets-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -28,11 +29,16 @@ class PropertyArray : public HeapObject {
   inline void SetHash(int hash);
   inline int Hash() const;
 
-  inline Object* get(int index) const;
+  inline Object get(int index) const;
+  inline Object get(Isolate* isolate, int index) const;
 
-  inline void set(int index, Object* value);
+  inline void set(int index, Object value);
   // Setter with explicit barrier mode.
-  inline void set(int index, Object* value, WriteBarrierMode mode);
+  inline void set(int index, Object value, WriteBarrierMode mode);
+
+  // Signature must be in sync with FixedArray::CopyElements().
+  inline void CopyElements(Isolate* isolate, int dst_index, PropertyArray src,
+                           int src_index, int len, WriteBarrierMode mode);
 
   // Gives access to raw memory which stores the array's data.
   inline ObjectSlot data_start();
@@ -43,29 +49,29 @@ class PropertyArray : public HeapObject {
   }
   static constexpr int OffsetOfElementAt(int index) { return SizeFor(index); }
 
-  DECL_CAST2(PropertyArray)
+  DECL_CAST(PropertyArray)
   DECL_PRINTER(PropertyArray)
   DECL_VERIFIER(PropertyArray)
 
-// Layout description.
-#define PROPERTY_ARRAY_FIELDS(V)       \
-  V(kLengthAndHashOffset, kTaggedSize) \
-  /* Header size. */                   \
-  V(kHeaderSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, PROPERTY_ARRAY_FIELDS)
-#undef PROPERTY_ARRAY_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_PROPERTY_ARRAY_FIELDS)
+  static const int kHeaderSize = kSize;
 
   // Garbage collection support.
-  typedef FlexibleBodyDescriptor<kHeaderSize> BodyDescriptor;
+  using BodyDescriptor = FlexibleBodyDescriptor<kHeaderSize>;
 
   static const int kLengthFieldSize = 10;
-  class LengthField : public BitField<int, 0, kLengthFieldSize> {};
+  using LengthField = BitField<int, 0, kLengthFieldSize>;
   static const int kMaxLength = LengthField::kMax;
-  class HashField : public BitField<int, kLengthFieldSize,
-                                    kSmiValueSize - kLengthFieldSize - 1> {};
+  using HashField =
+      BitField<int, kLengthFieldSize, kSmiValueSize - kLengthFieldSize - 1>;
 
   static const int kNoHashSentinel = 0;
+
+ private:
+  DECL_INT_ACCESSORS(length_and_hash)
+
+  DECL_SYNCHRONIZED_INT_ACCESSORS(length_and_hash)
 
   OBJECT_CONSTRUCTORS(PropertyArray, HeapObject);
 };

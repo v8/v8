@@ -19,6 +19,7 @@ RedundancyElimination::~RedundancyElimination() = default;
 Reduction RedundancyElimination::Reduce(Node* node) {
   if (node_checks_.Get(node)) return NoChange();
   switch (node->opcode()) {
+    case IrOpcode::kCheckBigInt:
     case IrOpcode::kCheckBounds:
     case IrOpcode::kCheckEqualsInternalizedString:
     case IrOpcode::kCheckEqualsSymbol:
@@ -147,13 +148,19 @@ bool CheckSubsumes(Node const* a, Node const* b) {
         case IrOpcode::kCheckSmi:
         case IrOpcode::kCheckString:
         case IrOpcode::kCheckNumber:
+        case IrOpcode::kCheckBigInt:
           break;
+        case IrOpcode::kCheckedInt32ToCompressedSigned:
         case IrOpcode::kCheckedInt32ToTaggedSigned:
         case IrOpcode::kCheckedInt64ToInt32:
         case IrOpcode::kCheckedInt64ToTaggedSigned:
         case IrOpcode::kCheckedTaggedSignedToInt32:
         case IrOpcode::kCheckedTaggedToTaggedPointer:
         case IrOpcode::kCheckedTaggedToTaggedSigned:
+        case IrOpcode::kCheckedCompressedToTaggedPointer:
+        case IrOpcode::kCheckedCompressedToTaggedSigned:
+        case IrOpcode::kCheckedTaggedToCompressedPointer:
+        case IrOpcode::kCheckedTaggedToCompressedSigned:
         case IrOpcode::kCheckedUint32Bounds:
         case IrOpcode::kCheckedUint32ToInt32:
         case IrOpcode::kCheckedUint32ToTaggedSigned:
@@ -200,11 +207,22 @@ bool CheckSubsumes(Node const* a, Node const* b) {
   return true;
 }
 
+bool TypeSubsumes(Node* node, Node* replacement) {
+  if (!NodeProperties::IsTyped(node) || !NodeProperties::IsTyped(replacement)) {
+    // If either node is untyped, we are running during an untyped optimization
+    // phase, and replacement is OK.
+    return true;
+  }
+  Type node_type = NodeProperties::GetType(node);
+  Type replacement_type = NodeProperties::GetType(replacement);
+  return replacement_type.Is(node_type);
+}
+
 }  // namespace
 
 Node* RedundancyElimination::EffectPathChecks::LookupCheck(Node* node) const {
   for (Check const* check = head_; check != nullptr; check = check->next) {
-    if (CheckSubsumes(check->node, node)) {
+    if (CheckSubsumes(check->node, node) && TypeSubsumes(node, check->node)) {
       DCHECK(!check->node->IsDead());
       return check->node;
     }

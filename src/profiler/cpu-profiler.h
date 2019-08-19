@@ -7,16 +7,18 @@
 
 #include <memory>
 
-#include "src/allocation.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/atomicops.h"
+#include "src/base/platform/condition-variable.h"
+#include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "src/libsampler/sampler.h"
-#include "src/locked-queue.h"
 #include "src/profiler/circular-queue.h"
 #include "src/profiler/profiler-listener.h"
 #include "src/profiler/tick-sample.h"
+#include "src/utils/allocation.h"
+#include "src/utils/locked-queue.h"
 
 namespace v8 {
 namespace internal {
@@ -127,10 +129,24 @@ class CodeEventsContainer {
   };
 };
 
+// Maintains the number of active CPU profilers in an isolate, and routes
+// logging to a given ProfilerListener.
+class ProfilingScope {
+ public:
+  ProfilingScope(Isolate* isolate, ProfilerListener* listener);
+  ~ProfilingScope();
+
+ private:
+  Isolate* const isolate_;
+  ProfilerListener* const listener_;
+};
+
+class ProfilerCodeObserver;
 
 // This class implements both the profile events processor thread and
 // methods called by event producers: VM and stack sampler threads.
-class ProfilerEventsProcessor : public base::Thread, public CodeEventObserver {
+class V8_EXPORT_PRIVATE ProfilerEventsProcessor : public base::Thread,
+                                                  public CodeEventObserver {
  public:
   virtual ~ProfilerEventsProcessor();
 
@@ -148,8 +164,11 @@ class ProfilerEventsProcessor : public base::Thread, public CodeEventObserver {
   // Add a sample into the tick sample events buffer. Used for testing.
   void AddSample(TickSample sample);
 
+  virtual void SetSamplingInterval(base::TimeDelta) {}
+
  protected:
-  ProfilerEventsProcessor(Isolate* isolate, ProfileGenerator* generator);
+  ProfilerEventsProcessor(Isolate* isolate, ProfileGenerator* generator,
+                          ProfilerCodeObserver* code_observer);
 
   // Called from events processing thread (Run() method.)
   bool ProcessCodeEvent();
@@ -162,7 +181,10 @@ class ProfilerEventsProcessor : public base::Thread, public CodeEventObserver {
   virtual SampleProcessingResult ProcessOneSample() = 0;
 
   ProfileGenerator* generator_;
+  ProfilerCodeObserver* code_observer_;
   base::Atomic32 running_;
+  base::ConditionVariable running_cond_;
+  base::Mutex running_mutex_;
   LockedQueue<CodeEventsContainer> events_buffer_;
   LockedQueue<TickSampleEventRecord> ticks_from_vm_buffer_;
   std::atomic<unsigned> last_code_event_id_;
@@ -170,10 +192,12 @@ class ProfilerEventsProcessor : public base::Thread, public CodeEventObserver {
   Isolate* isolate_;
 };
 
-class SamplingEventsProcessor : public ProfilerEventsProcessor {
+class V8_EXPORT_PRIVATE SamplingEventsProcessor
+    : public ProfilerEventsProcessor {
  public:
   SamplingEventsProcessor(Isolate* isolate, ProfileGenerator* generator,
-                          base::TimeDelta period);
+                          ProfilerCodeObserver* code_observer,
+                          base::TimeDelta period, bool use_precise_sampling);
   ~SamplingEventsProcessor() override;
 
   // SamplingCircularQueue has stricter alignment requirements than a normal new
@@ -182,6 +206,8 @@ class SamplingEventsProcessor : public ProfilerEventsProcessor {
   void operator delete(void* ptr);
 
   void Run() override;
+
+  void SetSamplingInterval(base::TimeDelta period) override;
 
   // Tick sample events are filled directly in the buffer of the circular
   // queue (because the structure is of fixed width, but usually not all
@@ -193,38 +219,80 @@ class SamplingEventsProcessor : public ProfilerEventsProcessor {
   inline void FinishTickSample();
 
   sampler::Sampler* sampler() { return sampler_.get(); }
+  base::TimeDelta period() const { return period_; }
 
  private:
   SampleProcessingResult ProcessOneSample() override;
 
-  static const size_t kTickSampleBufferSize = 1 * MB;
+  static const size_t kTickSampleBufferSize = 512 * KB;
   static const size_t kTickSampleQueueLength =
       kTickSampleBufferSize / sizeof(TickSampleEventRecord);
   SamplingCircularQueue<TickSampleEventRecord,
                         kTickSampleQueueLength> ticks_buffer_;
   std::unique_ptr<sampler::Sampler> sampler_;
-  const base::TimeDelta period_;  // Samples & code events processing period.
+  base::TimeDelta period_;           // Samples & code events processing period.
+  const bool use_precise_sampling_;  // Whether or not busy-waiting is used for
+                                     // low sampling intervals on Windows.
 };
 
-class CpuProfiler {
+// Builds and maintains a CodeMap tracking code objects on the VM heap. While
+// alive, logs generated code, callbacks, and builtins from the isolate.
+// Redirects events to the profiler events processor when present.
+class V8_EXPORT_PRIVATE ProfilerCodeObserver : public CodeEventObserver {
  public:
-  explicit CpuProfiler(Isolate* isolate);
+  explicit ProfilerCodeObserver(Isolate*);
 
-  CpuProfiler(Isolate* isolate, CpuProfilesCollection* profiles,
-              ProfileGenerator* test_generator,
+  void CodeEventHandler(const CodeEventsContainer& evt_rec) override;
+
+  CodeMap* code_map() { return &code_map_; }
+
+ private:
+  friend class ProfilerEventsProcessor;
+
+  void CodeEventHandlerInternal(const CodeEventsContainer& evt_rec);
+
+  void CreateEntriesForRuntimeCallStats();
+  void LogBuiltins();
+
+  ProfilerEventsProcessor* processor() { return processor_; }
+
+  // Redirects code events to be enqueued on the given events processor.
+  void set_processor(ProfilerEventsProcessor* processor) {
+    processor_ = processor;
+  }
+
+  // Stops redirection of code events onto an events processor.
+  void clear_processor() { processor_ = nullptr; }
+
+  Isolate* const isolate_;
+  CodeMap code_map_;
+  ProfilerEventsProcessor* processor_;
+};
+
+class V8_EXPORT_PRIVATE CpuProfiler {
+ public:
+  explicit CpuProfiler(Isolate* isolate, CpuProfilingNamingMode = kDebugNaming,
+                       CpuProfilingLoggingMode = kLazyLogging);
+
+  CpuProfiler(Isolate* isolate, CpuProfilingNamingMode naming_mode,
+              CpuProfilingLoggingMode logging_mode,
+              CpuProfilesCollection* profiles, ProfileGenerator* test_generator,
               ProfilerEventsProcessor* test_processor);
 
   ~CpuProfiler();
 
   static void CollectSample(Isolate* isolate);
 
-  typedef v8::CpuProfilingMode ProfilingMode;
+  using ProfilingMode = v8::CpuProfilingMode;
+  using NamingMode = v8::CpuProfilingNamingMode;
+  using LoggingMode = v8::CpuProfilingLoggingMode;
 
+  base::TimeDelta sampling_interval() const { return base_sampling_interval_; }
   void set_sampling_interval(base::TimeDelta value);
+  void set_use_precise_sampling(bool);
   void CollectSample();
-  void StartProfiling(const char* title, bool record_samples = false,
-                      ProfilingMode mode = ProfilingMode::kLeafNodeLineNumbers);
-  void StartProfiling(String title, bool record_samples, ProfilingMode mode);
+  void StartProfiling(const char* title, CpuProfilingOptions options = {});
+  void StartProfiling(String title, CpuProfilingOptions options = {});
   CpuProfile* StopProfiling(const char* title);
   CpuProfile* StopProfiling(String title);
   int GetProfilesCount();
@@ -247,16 +315,29 @@ class CpuProfiler {
   void StopProcessorIfLastProfile(const char* title);
   void StopProcessor();
   void ResetProfiles();
-  void LogBuiltins();
-  void CreateEntriesForRuntimeCallStats();
+
+  void EnableLogging();
+  void DisableLogging();
+
+  // Computes a sampling interval sufficient to accomodate attached profiles.
+  base::TimeDelta ComputeSamplingInterval() const;
+  // Dynamically updates the sampler to use a sampling interval sufficient for
+  // child profiles.
+  void AdjustSamplingInterval();
 
   Isolate* const isolate_;
-  base::TimeDelta sampling_interval_;
+  const NamingMode naming_mode_;
+  const LoggingMode logging_mode_;
+  bool use_precise_sampling_ = true;
+  // Sampling interval to which per-profile sampling intervals will be clamped
+  // to a multiple of, or used as the default if unspecified.
+  base::TimeDelta base_sampling_interval_;
   std::unique_ptr<CpuProfilesCollection> profiles_;
   std::unique_ptr<ProfileGenerator> generator_;
   std::unique_ptr<ProfilerEventsProcessor> processor_;
   std::unique_ptr<ProfilerListener> profiler_listener_;
-  bool saved_is_logging_;
+  std::unique_ptr<ProfilingScope> profiling_scope_;
+  ProfilerCodeObserver code_observer_;
   bool is_profiling_;
 
   DISALLOW_COPY_AND_ASSIGN(CpuProfiler);

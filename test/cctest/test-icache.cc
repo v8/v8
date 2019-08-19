@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/assembler-inl.h"
-#include "src/handles-inl.h"
-#include "src/macro-assembler-inl.h"
-#include "src/simulator.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/macro-assembler-inl.h"
+#include "src/execution/simulator.h"
+#include "src/handles/handles-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/common/assembler-tester.h"
 
@@ -21,11 +21,10 @@ static constexpr int kNumInstr = 100;
 static constexpr int kNumIterations = 5;
 static constexpr int kBufferSize = 8 * KB;
 
-static void FloodWithInc(Isolate* isolate, byte* buffer, size_t allocated) {
-  MacroAssembler masm(isolate, buffer, static_cast<int>(allocated),
-                      CodeObjectRequired::kYes);
+static void FloodWithInc(Isolate* isolate, TestingAssemblerBuffer* buffer) {
+  MacroAssembler masm(isolate, CodeObjectRequired::kYes, buffer->CreateView());
 #if V8_TARGET_ARCH_IA32
-  __ mov(eax, Operand(esp, kPointerSize));
+  __ mov(eax, Operand(esp, kSystemPointerSize));
   for (int i = 0; i < kNumInstr; ++i) {
     __ add(eax, Immediate(1));
   }
@@ -53,7 +52,6 @@ static void FloodWithInc(Isolate* isolate, byte* buffer, size_t allocated) {
     __ Addu(v0, v0, Operand(1));
   }
 #elif V8_TARGET_ARCH_PPC
-  __ function_descriptor();
   for (int i = 0; i < kNumInstr; ++i) {
     __ addi(r3, r3, Operand(1));
   }
@@ -69,19 +67,16 @@ static void FloodWithInc(Isolate* isolate, byte* buffer, size_t allocated) {
   masm.GetCode(isolate, &desc);
 }
 
-static void FloodWithNop(Isolate* isolate, byte* buffer, size_t allocated) {
-  MacroAssembler masm(isolate, buffer, static_cast<int>(allocated),
-                      CodeObjectRequired::kYes);
+static void FloodWithNop(Isolate* isolate, TestingAssemblerBuffer* buffer) {
+  MacroAssembler masm(isolate, CodeObjectRequired::kYes, buffer->CreateView());
 #if V8_TARGET_ARCH_IA32
-  __ mov(eax, Operand(esp, kPointerSize));
+  __ mov(eax, Operand(esp, kSystemPointerSize));
 #elif V8_TARGET_ARCH_X64
   __ movl(rax, arg_reg_1);
 #elif V8_TARGET_ARCH_MIPS
   __ mov(v0, a0);
 #elif V8_TARGET_ARCH_MIPS64
   __ mov(v0, a0);
-#elif V8_TARGET_ARCH_PPC
-  __ function_descriptor();
 #endif
   for (int i = 0; i < kNumInstr; ++i) {
     __ nop();
@@ -96,30 +91,27 @@ static void FloodWithNop(Isolate* isolate, byte* buffer, size_t allocated) {
 TEST(TestFlushICacheOfWritable) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  size_t allocated;
 
   for (int i = 0; i < kNumIterations; ++i) {
-    byte* buffer = AllocateAssemblerBuffer(&allocated, kBufferSize);
+    auto buffer = AllocateAssemblerBuffer(kBufferSize);
 
     // Allow calling the function from C++.
-    auto f = GeneratedCode<F0>::FromBuffer(isolate, buffer);
+    auto f = GeneratedCode<F0>::FromBuffer(isolate, buffer->start());
 
-    CHECK(SetPermissions(GetPlatformPageAllocator(), buffer, allocated,
-                         v8::PageAllocator::kReadWrite));
-    FloodWithInc(isolate, buffer, allocated);
-    Assembler::FlushICache(buffer, allocated);
-    CHECK(SetPermissions(GetPlatformPageAllocator(), buffer, allocated,
-                         v8::PageAllocator::kReadExecute));
+    CHECK(SetPermissions(GetPlatformPageAllocator(), buffer->start(),
+                         buffer->size(), v8::PageAllocator::kReadWrite));
+    FloodWithInc(isolate, buffer.get());
+    FlushInstructionCache(buffer->start(), buffer->size());
+    CHECK(SetPermissions(GetPlatformPageAllocator(), buffer->start(),
+                         buffer->size(), v8::PageAllocator::kReadExecute));
     CHECK_EQ(23 + kNumInstr, f.Call(23));  // Call into generated code.
-    CHECK(SetPermissions(GetPlatformPageAllocator(), buffer, allocated,
-                         v8::PageAllocator::kReadWrite));
-    FloodWithNop(isolate, buffer, allocated);
-    Assembler::FlushICache(buffer, allocated);
-    CHECK(SetPermissions(GetPlatformPageAllocator(), buffer, allocated,
-                         v8::PageAllocator::kReadExecute));
+    CHECK(SetPermissions(GetPlatformPageAllocator(), buffer->start(),
+                         buffer->size(), v8::PageAllocator::kReadWrite));
+    FloodWithNop(isolate, buffer.get());
+    FlushInstructionCache(buffer->start(), buffer->size());
+    CHECK(SetPermissions(GetPlatformPageAllocator(), buffer->start(),
+                         buffer->size(), v8::PageAllocator::kReadExecute));
     CHECK_EQ(23, f.Call(23));  // Call into generated code.
-
-    CHECK(FreePages(GetPlatformPageAllocator(), buffer, allocated));
   }
 }
 
@@ -144,30 +136,27 @@ TEST(TestFlushICacheOfWritable) {
 CONDITIONAL_TEST(TestFlushICacheOfExecutable) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  size_t allocated;
 
   for (int i = 0; i < kNumIterations; ++i) {
-    byte* buffer = AllocateAssemblerBuffer(&allocated, kBufferSize);
+    auto buffer = AllocateAssemblerBuffer(kBufferSize);
 
     // Allow calling the function from C++.
-    auto f = GeneratedCode<F0>::FromBuffer(isolate, buffer);
+    auto f = GeneratedCode<F0>::FromBuffer(isolate, buffer->start());
 
-    CHECK(SetPermissions(GetPlatformPageAllocator(), buffer, allocated,
-                         v8::PageAllocator::kReadWrite));
-    FloodWithInc(isolate, buffer, allocated);
-    CHECK(SetPermissions(GetPlatformPageAllocator(), buffer, allocated,
-                         v8::PageAllocator::kReadExecute));
-    Assembler::FlushICache(buffer, allocated);
+    CHECK(SetPermissions(GetPlatformPageAllocator(), buffer->start(),
+                         buffer->size(), v8::PageAllocator::kReadWrite));
+    FloodWithInc(isolate, buffer.get());
+    CHECK(SetPermissions(GetPlatformPageAllocator(), buffer->start(),
+                         buffer->size(), v8::PageAllocator::kReadExecute));
+    FlushInstructionCache(buffer->start(), buffer->size());
     CHECK_EQ(23 + kNumInstr, f.Call(23));  // Call into generated code.
-    CHECK(SetPermissions(GetPlatformPageAllocator(), buffer, allocated,
-                         v8::PageAllocator::kReadWrite));
-    FloodWithNop(isolate, buffer, allocated);
-    CHECK(SetPermissions(GetPlatformPageAllocator(), buffer, allocated,
-                         v8::PageAllocator::kReadExecute));
-    Assembler::FlushICache(buffer, allocated);
+    CHECK(SetPermissions(GetPlatformPageAllocator(), buffer->start(),
+                         buffer->size(), v8::PageAllocator::kReadWrite));
+    FloodWithNop(isolate, buffer.get());
+    CHECK(SetPermissions(GetPlatformPageAllocator(), buffer->start(),
+                         buffer->size(), v8::PageAllocator::kReadExecute));
+    FlushInstructionCache(buffer->start(), buffer->size());
     CHECK_EQ(23, f.Call(23));  // Call into generated code.
-
-    CHECK(FreePages(GetPlatformPageAllocator(), buffer, allocated));
   }
 }
 
@@ -178,24 +167,21 @@ CONDITIONAL_TEST(TestFlushICacheOfExecutable) {
 TEST(TestFlushICacheOfWritableAndExecutable) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  size_t allocated;
 
   for (int i = 0; i < kNumIterations; ++i) {
-    byte* buffer = AllocateAssemblerBuffer(&allocated, kBufferSize);
+    auto buffer = AllocateAssemblerBuffer(kBufferSize);
 
     // Allow calling the function from C++.
-    auto f = GeneratedCode<F0>::FromBuffer(isolate, buffer);
+    auto f = GeneratedCode<F0>::FromBuffer(isolate, buffer->start());
 
-    CHECK(SetPermissions(GetPlatformPageAllocator(), buffer, allocated,
-                         v8::PageAllocator::kReadWriteExecute));
-    FloodWithInc(isolate, buffer, allocated);
-    Assembler::FlushICache(buffer, allocated);
+    CHECK(SetPermissions(GetPlatformPageAllocator(), buffer->start(),
+                         buffer->size(), v8::PageAllocator::kReadWriteExecute));
+    FloodWithInc(isolate, buffer.get());
+    FlushInstructionCache(buffer->start(), buffer->size());
     CHECK_EQ(23 + kNumInstr, f.Call(23));  // Call into generated code.
-    FloodWithNop(isolate, buffer, allocated);
-    Assembler::FlushICache(buffer, allocated);
+    FloodWithNop(isolate, buffer.get());
+    FlushInstructionCache(buffer->start(), buffer->size());
     CHECK_EQ(23, f.Call(23));  // Call into generated code.
-
-    CHECK(FreePages(GetPlatformPageAllocator(), buffer, allocated));
   }
 }
 

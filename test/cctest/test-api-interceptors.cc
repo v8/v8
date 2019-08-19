@@ -7,16 +7,16 @@
 #include "test/cctest/test-api.h"
 
 #include "include/v8-util.h"
-#include "src/api-inl.h"
-#include "src/arguments.h"
+#include "src/api/api-inl.h"
 #include "src/base/platform/platform.h"
-#include "src/compilation-cache.h"
-#include "src/execution.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/codegen/compilation-cache.h"
+#include "src/execution/arguments.h"
+#include "src/execution/execution.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 #include "src/runtime/runtime.h"
-#include "src/unicode-inl.h"
-#include "src/utils.h"
+#include "src/strings/unicode-inl.h"
+#include "src/utils/utils.h"
 
 using ::v8::Boolean;
 using ::v8::BooleanObject;
@@ -470,6 +470,9 @@ THREADED_TEST(QueryInterceptor) {
 
   v8_compile("Object.isFrozen('obj.x');")->Run(env.local()).ToLocalChecked();
   CHECK_EQ(8, query_counter_int);
+
+  v8_compile("'x' in obj;")->Run(env.local()).ToLocalChecked();
+  CHECK_EQ(9, query_counter_int);
 }
 
 namespace {
@@ -874,15 +877,14 @@ THREADED_TEST(InterceptorHasOwnPropertyCausingGC) {
   CHECK(!value->BooleanValue(isolate));
 }
 
-
-static void CheckInterceptorLoadIC(
-    v8::GenericNamedPropertyGetterCallback getter, const char* source,
-    int expected) {
+static void CheckInterceptorIC(v8::GenericNamedPropertyGetterCallback getter,
+                               v8::GenericNamedPropertyQueryCallback query,
+                               const char* source, int expected) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
   templ->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      getter, nullptr, nullptr, nullptr, nullptr, v8_str("data")));
+      getter, nullptr, query, nullptr, nullptr, v8_str("data")));
   LocalContext context;
   context->Global()
       ->Set(context.local(), v8_str("o"),
@@ -892,6 +894,11 @@ static void CheckInterceptorLoadIC(
   CHECK_EQ(expected, value->Int32Value(context.local()).FromJust());
 }
 
+static void CheckInterceptorLoadIC(
+    v8::GenericNamedPropertyGetterCallback getter, const char* source,
+    int expected) {
+  CheckInterceptorIC(getter, nullptr, source, expected);
+}
 
 static void InterceptorLoadICGetter(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -1332,9 +1339,9 @@ THREADED_TEST(InterceptorLoadGlobalICGlobalWithInterceptor) {
       v8::Utils::OpenHandle<Object, i::JSReceiver>(context->Global());
   CHECK(global_proxy->IsJSGlobalProxy());
   i::Handle<i::JSGlobalObject> global(
-      i::JSGlobalObject::cast(global_proxy->map()->prototype()),
+      i::JSGlobalObject::cast(global_proxy->map().prototype()),
       global_proxy->GetIsolate());
-  CHECK(global->map()->has_named_interceptor());
+  CHECK(global->map().has_named_interceptor());
 
   v8::Local<Value> value = CompileRun(
       "var f = function() { "
@@ -1396,9 +1403,9 @@ THREADED_TEST(InterceptorLoadICGlobalWithInterceptor) {
       v8::Utils::OpenHandle<Object, i::JSReceiver>(context->Global());
   CHECK(global_proxy->IsJSGlobalProxy());
   i::Handle<i::JSGlobalObject> global(
-      i::JSGlobalObject::cast(global_proxy->map()->prototype()),
+      i::JSGlobalObject::cast(global_proxy->map().prototype()),
       global_proxy->GetIsolate());
-  CHECK(global->map()->has_named_interceptor());
+  CHECK(global->map().has_named_interceptor());
 
   ExpectInt32(
       "(function() {"
@@ -1432,6 +1439,92 @@ THREADED_TEST(InterceptorReturningZero) {
                          0);
 }
 
+namespace {
+
+template <typename TKey, v8::internal::PropertyAttributes attribute>
+void HasICQuery(TKey name, const v8::PropertyCallbackInfo<v8::Integer>& info) {
+  ApiTestFuzzer::Fuzz();
+  v8::Isolate* isolate = CcTest::isolate();
+  CHECK_EQ(isolate, info.GetIsolate());
+  info.GetReturnValue().Set(v8::Integer::New(isolate, attribute));
+}
+
+template <typename TKey>
+void HasICQueryToggle(TKey name,
+                      const v8::PropertyCallbackInfo<v8::Integer>& info) {
+  ApiTestFuzzer::Fuzz();
+  static bool toggle = false;
+  toggle = !toggle;
+  v8::Isolate* isolate = CcTest::isolate();
+  CHECK_EQ(isolate, info.GetIsolate());
+  info.GetReturnValue().Set(v8::Integer::New(
+      isolate, toggle ? v8::internal::ABSENT : v8::internal::NONE));
+}
+
+int named_query_counter = 0;
+void NamedQueryCallback(Local<Name> name,
+                        const v8::PropertyCallbackInfo<v8::Integer>& info) {
+  named_query_counter++;
+}
+
+}  // namespace
+
+THREADED_TEST(InterceptorHasIC) {
+  named_query_counter = 0;
+  CheckInterceptorIC(nullptr, NamedQueryCallback,
+                     "var result = 0;"
+                     "for (var i = 0; i < 1000; i++) {"
+                     "  'x' in o;"
+                     "}",
+                     0);
+  CHECK_EQ(1000, named_query_counter);
+}
+
+THREADED_TEST(InterceptorHasICQueryAbsent) {
+  CheckInterceptorIC(nullptr, HasICQuery<Local<Name>, v8::internal::ABSENT>,
+                     "var result = 0;"
+                     "for (var i = 0; i < 1000; i++) {"
+                     "  if ('x' in o) ++result;"
+                     "}",
+                     0);
+}
+
+THREADED_TEST(InterceptorHasICQueryNone) {
+  CheckInterceptorIC(nullptr, HasICQuery<Local<Name>, v8::internal::NONE>,
+                     "var result = 0;"
+                     "for (var i = 0; i < 1000; i++) {"
+                     "  if ('x' in o) ++result;"
+                     "}",
+                     1000);
+}
+
+THREADED_TEST(InterceptorHasICGetter) {
+  CheckInterceptorIC(InterceptorLoadICGetter, nullptr,
+                     "var result = 0;"
+                     "for (var i = 0; i < 1000; i++) {"
+                     "  if ('x' in o) ++result;"
+                     "}",
+                     1000);
+}
+
+THREADED_TEST(InterceptorHasICQueryGetter) {
+  CheckInterceptorIC(InterceptorLoadICGetter,
+                     HasICQuery<Local<Name>, v8::internal::ABSENT>,
+                     "var result = 0;"
+                     "for (var i = 0; i < 1000; i++) {"
+                     "  if ('x' in o) ++result;"
+                     "}",
+                     0);
+}
+
+THREADED_TEST(InterceptorHasICQueryToggle) {
+  CheckInterceptorIC(InterceptorLoadICGetter, HasICQueryToggle<Local<Name>>,
+                     "var result = 0;"
+                     "for (var i = 0; i < 1000; i++) {"
+                     "  if ('x' in o) ++result;"
+                     "}",
+                     500);
+}
 
 static void InterceptorStoreICSetter(
     Local<Name> key, Local<Value> value,
@@ -3273,6 +3366,101 @@ THREADED_TEST(IndexedInterceptorOnProto) {
   ExpectString(code, "PASSED");
 }
 
+namespace {
+
+void CheckIndexedInterceptorHasIC(v8::IndexedPropertyGetterCallback getter,
+                                  v8::IndexedPropertyQueryCallback query,
+                                  const char* source, int expected) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+      getter, nullptr, query, nullptr, nullptr, v8_str("data")));
+  LocalContext context;
+  context->Global()
+      ->Set(context.local(), v8_str("o"),
+            templ->NewInstance(context.local()).ToLocalChecked())
+      .FromJust();
+  v8::Local<Value> value = CompileRun(source);
+  CHECK_EQ(expected, value->Int32Value(context.local()).FromJust());
+}
+
+int indexed_query_counter = 0;
+void IndexedQueryCallback(uint32_t index,
+                          const v8::PropertyCallbackInfo<v8::Integer>& info) {
+  indexed_query_counter++;
+}
+
+void IndexHasICQueryAbsent(uint32_t index,
+                           const v8::PropertyCallbackInfo<v8::Integer>& info) {
+  ApiTestFuzzer::Fuzz();
+  v8::Isolate* isolate = CcTest::isolate();
+  CHECK_EQ(isolate, info.GetIsolate());
+  info.GetReturnValue().Set(v8::Integer::New(isolate, v8::internal::ABSENT));
+}
+
+}  // namespace
+
+THREADED_TEST(IndexedInterceptorHasIC) {
+  indexed_query_counter = 0;
+  CheckIndexedInterceptorHasIC(nullptr, IndexedQueryCallback,
+                               "var result = 0;"
+                               "for (var i = 0; i < 1000; i++) {"
+                               "  i in o;"
+                               "}",
+                               0);
+  CHECK_EQ(1000, indexed_query_counter);
+}
+
+THREADED_TEST(IndexedInterceptorHasICQueryAbsent) {
+  CheckIndexedInterceptorHasIC(nullptr,
+                               // HasICQuery<uint32_t, v8::internal::ABSENT>,
+                               IndexHasICQueryAbsent,
+                               "var result = 0;"
+                               "for (var i = 0; i < 1000; i++) {"
+                               "  if (i in o) ++result;"
+                               "}",
+                               0);
+}
+
+THREADED_TEST(IndexedInterceptorHasICQueryNone) {
+  CheckIndexedInterceptorHasIC(nullptr,
+                               HasICQuery<uint32_t, v8::internal::NONE>,
+                               "var result = 0;"
+                               "for (var i = 0; i < 1000; i++) {"
+                               "  if (i in o) ++result;"
+                               "}",
+                               1000);
+}
+
+THREADED_TEST(IndexedInterceptorHasICGetter) {
+  CheckIndexedInterceptorHasIC(IdentityIndexedPropertyGetter, nullptr,
+                               "var result = 0;"
+                               "for (var i = 0; i < 1000; i++) {"
+                               "  if (i in o) ++result;"
+                               "}",
+                               1000);
+}
+
+THREADED_TEST(IndexedInterceptorHasICQueryGetter) {
+  CheckIndexedInterceptorHasIC(IdentityIndexedPropertyGetter,
+                               HasICQuery<uint32_t, v8::internal::ABSENT>,
+                               "var result = 0;"
+                               "for (var i = 0; i < 1000; i++) {"
+                               "  if (i in o) ++result;"
+                               "}",
+                               0);
+}
+
+THREADED_TEST(IndexedInterceptorHasICQueryToggle) {
+  CheckIndexedInterceptorHasIC(IdentityIndexedPropertyGetter,
+                               HasICQueryToggle<uint32_t>,
+                               "var result = 0;"
+                               "for (var i = 0; i < 1000; i++) {"
+                               "  if (i in o) ++result;"
+                               "}",
+                               500);
+}
 
 static void NoBlockGetterX(Local<Name> name,
                            const v8::PropertyCallbackInfo<v8::Value>&) {}
@@ -3774,6 +3962,7 @@ THREADED_TEST(InterceptorCallICConstantFunctionNotNeededWrapped) {
       "  }"
       "  return result;"
       "};"
+      "%PrepareFunctionForOptimization(test);"
       "test();"
       "test();"
       "test();"
@@ -4303,6 +4492,7 @@ THREADED_TEST(Regress256330) {
   CompileRun(
       "\"use strict\"; var o = new Bug;"
       "function f(o) { o.x = 10; };"
+      "%PrepareFunctionForOptimization(f);"
       "f(o); f(o); f(o);"
       "%OptimizeFunctionOnNextCall(f);"
       "f(o);");
@@ -4331,6 +4521,7 @@ THREADED_TEST(OptimizedInterceptorSetter) {
       "function getter() { return this.accessor_age; };"
       "function setAge(i) { obj.age = i; };"
       "Object.defineProperty(obj, 'age', { get:getter, set:setter });"
+      "%PrepareFunctionForOptimization(setAge);"
       "setAge(1);"
       "setAge(2);"
       "setAge(3);"
@@ -4359,6 +4550,7 @@ THREADED_TEST(OptimizedInterceptorGetter) {
       "function getter() { return this.accessor_age; };"
       "function getAge() { return obj.interceptor_age; };"
       "Object.defineProperty(obj, 'interceptor_age', { get:getter });"
+      "%PrepareFunctionForOptimization(getAge);"
       "getAge();"
       "getAge();"
       "getAge();"
@@ -4381,7 +4573,8 @@ THREADED_TEST(OptimizedInterceptorFieldRead) {
       "var obj = new Obj;"
       "obj.__proto__.interceptor_age = 42;"
       "obj.age = 100;"
-      "function getAge() { return obj.interceptor_age; };");
+      "function getAge() { return obj.interceptor_age; };"
+      "%PrepareFunctionForOptimization(getAge);");
   ExpectInt32("getAge();", 100);
   ExpectInt32("getAge();", 100);
   ExpectInt32("getAge();", 100);
@@ -4404,6 +4597,7 @@ THREADED_TEST(OptimizedInterceptorFieldWrite) {
       "var obj = new Obj;"
       "obj.age = 100000;"
       "function setAge(i) { obj.age = i };"
+      "%PrepareFunctionForOptimization(setAge);"
       "setAge(100);"
       "setAge(101);"
       "setAge(102);"

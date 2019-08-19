@@ -73,8 +73,8 @@ class V8Debugger : public v8::debug::DebugDelegate,
   // compiled.
   // Only scripts whose debug data matches |contextGroupId| will be reported.
   // Passing 0 will result in reporting all scripts.
-  void getCompiledScripts(int contextGroupId,
-                          std::vector<std::unique_ptr<V8DebuggerScript>>&);
+  std::vector<std::unique_ptr<V8DebuggerScript>> getCompiledScripts(
+      int contextGroupId, V8DebuggerAgentImpl* agent);
   void enable();
   void disable();
 
@@ -144,6 +144,8 @@ class V8Debugger : public v8::debug::DebugDelegate,
   static size_t nearHeapLimitCallback(void* data, size_t current_heap_limit,
                                       size_t initial_heap_limit);
   static void terminateExecutionCompletedCallback(v8::Isolate* isolate);
+  static void terminateExecutionCompletedCallbackIgnoringData(
+      v8::Isolate* isolate, void*);
   void handleProgramBreak(
       v8::Local<v8::Context> pausedContext, v8::Local<v8::Value> exception,
       const std::vector<v8::debug::BreakpointId>& hitBreakpoints,

@@ -3,6 +3,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import os
 import os.path
 import signal
@@ -18,9 +21,9 @@ BASE_PATH = os.path.dirname(os.path.dirname(GCMOLE_PATH))
 
 assert len(sys.argv) == 2
 
-if not os.path.isfile("out/Release/gen/torque-generated/builtin-definitions-from-dsl.h"):
-  print "Expected generated headers in out/Release/gen."
-  print "Either build v8 in out/Release or change gcmole.lua:115"
+if not os.path.isfile("out/Release/gen/torque-generated/builtin-definitions-tq.h"):
+  print("Expected generated headers in out/Release/gen.")
+  print("Either build v8 in out/Release or change gcmole.lua:115")
   sys.exit(-1)
 
 proc = subprocess.Popen(

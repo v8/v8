@@ -6,10 +6,11 @@
 #define V8_COMPILER_LOAD_ELIMINATION_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/codegen/machine-type.h"
+#include "src/common/globals.h"
 #include "src/compiler/graph-reducer.h"
-#include "src/globals.h"
-#include "src/machine-type.h"
-#include "src/maybe-handles.h"
+#include "src/compiler/simplified-operator.h"
+#include "src/handles/maybe-handles.h"
 #include "src/zone/zone-handle-set.h"
 
 namespace v8 {
@@ -98,24 +99,47 @@ class V8_EXPORT_PRIVATE LoadElimination final
   // not alias.
   class AliasStateInfo;
 
+  struct FieldInfo {
+    FieldInfo() = default;
+    FieldInfo(Node* value, MachineRepresentation representation,
+              MaybeHandle<Name> name = {},
+              ConstFieldInfo const_field_info = ConstFieldInfo::None())
+        : value(value),
+          representation(representation),
+          name(name),
+          const_field_info(const_field_info) {}
+
+    bool operator==(const FieldInfo& other) const {
+      return value == other.value && representation == other.representation &&
+             name.address() == other.name.address() &&
+             const_field_info == other.const_field_info;
+    }
+    bool operator!=(const FieldInfo& other) const { return !(*this == other); }
+
+    Node* value = nullptr;
+    MachineRepresentation representation = MachineRepresentation::kNone;
+    MaybeHandle<Name> name;
+    ConstFieldInfo const_field_info;
+  };
+
   // Abstract state to approximate the current state of a certain field along
   // the effect paths through the graph.
   class AbstractField final : public ZoneObject {
    public:
     explicit AbstractField(Zone* zone) : info_for_node_(zone) {}
-    AbstractField(Node* object, Node* value, MaybeHandle<Name> name, Zone* zone)
+    AbstractField(Node* object, FieldInfo info, Zone* zone)
         : info_for_node_(zone) {
-      info_for_node_.insert(std::make_pair(object, Field(value, name)));
+      info_for_node_.insert(std::make_pair(object, info));
     }
 
-    AbstractField const* Extend(Node* object, Node* value,
-                                MaybeHandle<Name> name, Zone* zone) const {
+    AbstractField const* Extend(Node* object, FieldInfo info,
+                                Zone* zone) const {
       AbstractField* that = new (zone) AbstractField(zone);
       that->info_for_node_ = this->info_for_node_;
-      that->info_for_node_.insert(std::make_pair(object, Field(value, name)));
+      that->info_for_node_[object] = info;
       return that;
     }
-    Node* Lookup(Node* object) const;
+    FieldInfo const* Lookup(Node* object) const;
     AbstractField const* Kill(const AliasStateInfo& alias_info,
                               MaybeHandle<Name> name, Zone* zone) const;
     bool Equals(AbstractField const* that) const {
@@ -126,7 +150,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
       AbstractField* copy = new (zone) AbstractField(zone);
       for (auto this_it : this->info_for_node_) {
         Node* this_object = this_it.first;
-        Field this_second = this_it.second;
+        FieldInfo this_second = this_it.second;
         if (this_object->IsDead()) continue;
         auto that_it = that->info_for_node_.find(this_object);
         if (that_it != that->info_for_node_.end() &&
@@ -140,19 +164,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
     void Print() const;
 
    private:
-    struct Field {
-      Field() = default;
-      Field(Node* value, MaybeHandle<Name> name) : value(value), name(name) {}
-
-      bool operator==(const Field& other) const {
-        return value == other.value && name.address() == other.name.address();
-      }
-
-      Node* value = nullptr;
-      MaybeHandle<Name> name;
-    };
-
-    ZoneMap<Node*, Field> info_for_node_;
+    ZoneMap<Node*, FieldInfo> info_for_node_;
   };
 
   static size_t const kMaxTrackedFields = 32;
@@ -180,13 +192,42 @@ class V8_EXPORT_PRIVATE LoadElimination final
     ZoneMap<Node*, ZoneHandleSet<Map>> info_for_node_;
   };
 
-  class AbstractState final : public ZoneObject {
+  class IndexRange {
    public:
-    AbstractState() {
-      for (size_t i = 0; i < arraysize(fields_); ++i) {
-        fields_[i] = nullptr;
+    IndexRange(int begin, int size) : begin_(begin), end_(begin + size) {
+      DCHECK_LE(0, begin);
+      DCHECK_LE(1, size);
+      if (end_ > static_cast<int>(kMaxTrackedFields)) {
+        *this = IndexRange::Invalid();
       }
     }
+    static IndexRange Invalid() { return IndexRange(); }
+
+    bool operator==(const IndexRange& other) {
+      return begin_ == other.begin_ && end_ == other.end_;
+    }
+    bool operator!=(const IndexRange& other) { return !(*this == other); }
+
+    struct Iterator {
+      int i;
+      int operator*() { return i; }
+      void operator++() { ++i; }
+      bool operator!=(Iterator other) { return i != other.i; }
+    };
+
+    Iterator begin() { return {begin_}; }
+    Iterator end() { return {end_}; }
+
+   private:
+    int begin_;
+    int end_;
+
+    IndexRange() : begin_(-1), end_(-1) {}
+  };
+
+  class AbstractState final : public ZoneObject {
+   public:
+    AbstractState() {}
 
     bool Equals(AbstractState const* that) const;
     void Merge(AbstractState const* that, Zone* zone);
@@ -198,16 +239,18 @@ class V8_EXPORT_PRIVATE LoadElimination final
                                   Zone* zone) const;
     bool LookupMaps(Node* object, ZoneHandleSet<Map>* object_maps) const;
 
-    AbstractState const* AddField(Node* object, size_t index, Node* value,
-                                  MaybeHandle<Name> name, Zone* zone) const;
+    AbstractState const* AddField(Node* object, IndexRange index,
+                                  FieldInfo info, Zone* zone) const;
     AbstractState const* KillField(const AliasStateInfo& alias_info,
-                                   size_t index, MaybeHandle<Name> name,
+                                   IndexRange index, MaybeHandle<Name> name,
                                    Zone* zone) const;
-    AbstractState const* KillField(Node* object, size_t index,
+    AbstractState const* KillField(Node* object, IndexRange index,
                                    MaybeHandle<Name> name, Zone* zone) const;
     AbstractState const* KillFields(Node* object, MaybeHandle<Name> name,
                                     Zone* zone) const;
-    Node* LookupField(Node* object, size_t index) const;
+    AbstractState const* KillAll(Zone* zone) const;
+    FieldInfo const* LookupField(Node* object, IndexRange index,
+                                 ConstFieldInfo const_field_info) const;
 
     AbstractState const* AddElement(Node* object, Node* index, Node* value,
                                     MachineRepresentation representation,
@@ -219,9 +262,21 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
     void Print() const;
 
+    static AbstractState const* empty_state() { return &empty_state_; }
+
    private:
+    static AbstractState const empty_state_;
+
+    using AbstractFields = std::array<AbstractField const*, kMaxTrackedFields>;
+
+    bool FieldsEquals(AbstractFields const& this_fields,
+                      AbstractFields const& that_fields) const;
+    void FieldsMerge(AbstractFields* this_fields,
+                     AbstractFields const& that_fields, Zone* zone);
+
     AbstractElements const* elements_ = nullptr;
-    AbstractField const* fields_[kMaxTrackedFields];
+    AbstractFields fields_{};
+    AbstractFields const_fields_{};
     AbstractMaps const* maps_ = nullptr;
   };
 
@@ -243,8 +298,8 @@ class V8_EXPORT_PRIVATE LoadElimination final
   Reduction ReduceEnsureWritableFastElements(Node* node);
   Reduction ReduceMaybeGrowFastElements(Node* node);
   Reduction ReduceTransitionElementsKind(Node* node);
-  Reduction ReduceLoadField(Node* node);
-  Reduction ReduceStoreField(Node* node);
+  Reduction ReduceLoadField(Node* node, FieldAccess const& access);
+  Reduction ReduceStoreField(Node* node, FieldAccess const& access);
   Reduction ReduceLoadElement(Node* node);
   Reduction ReduceStoreElement(Node* node);
   Reduction ReduceTransitionAndStoreElement(Node* node);
@@ -257,21 +312,26 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
   AbstractState const* ComputeLoopState(Node* node,
                                         AbstractState const* state) const;
+  AbstractState const* ComputeLoopStateForStoreField(
+      Node* current, LoadElimination::AbstractState const* state,
+      FieldAccess const& access) const;
   AbstractState const* UpdateStateForPhi(AbstractState const* state,
                                          Node* effect_phi, Node* phi);
 
-  static int FieldIndexOf(int offset);
-  static int FieldIndexOf(FieldAccess const& access);
+  static IndexRange FieldIndexOf(int offset, int representation_size);
+  static IndexRange FieldIndexOf(FieldAccess const& access);
+
+  static AbstractState const* empty_state() {
+    return AbstractState::empty_state();
+  }
 
   CommonOperatorBuilder* common() const;
-  AbstractState const* empty_state() const { return &empty_state_; }
   Isolate* isolate() const;
   Factory* factory() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   Zone* zone() const { return node_states_.zone(); }
 
-  AbstractState const empty_state_;
   AbstractStateForEffectNodes node_states_;
   JSGraph* const jsgraph_;
 

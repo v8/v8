@@ -20,7 +20,7 @@ namespace v8 {
 namespace base {
 
 // ----------------------------------------------------------------------------
-// Mutex
+// Mutex - a replacement for std::mutex
 //
 // This class is a synchronization primitive that can be used to protect shared
 // data from being simultaneously accessed by multiple threads. A mutex offers
@@ -55,9 +55,9 @@ class V8_BASE_EXPORT Mutex final {
 
   // The implementation-defined native handle type.
 #if V8_OS_POSIX
-  typedef pthread_mutex_t NativeHandle;
+  using NativeHandle = pthread_mutex_t;
 #elif V8_OS_WIN
-  typedef SRWLOCK NativeHandle;
+  using NativeHandle = SRWLOCK;
 #endif
 
   NativeHandle& native_handle() {
@@ -66,6 +66,8 @@ class V8_BASE_EXPORT Mutex final {
   const NativeHandle& native_handle() const {
     return native_handle_;
   }
+
+  V8_INLINE void AssertHeld() { DCHECK_EQ(1, level_); }
 
  private:
   NativeHandle native_handle_;
@@ -101,14 +103,13 @@ class V8_BASE_EXPORT Mutex final {
 //     // Do something.
 //   }
 //
-typedef LazyStaticInstance<Mutex, DefaultConstructTrait<Mutex>,
-                           ThreadSafeInitOnceTrait>::type LazyMutex;
+using LazyMutex = LazyStaticInstance<Mutex, DefaultConstructTrait<Mutex>,
+                                     ThreadSafeInitOnceTrait>::type;
 
 #define LAZY_MUTEX_INITIALIZER LAZY_STATIC_INSTANCE_INITIALIZER
 
-
 // -----------------------------------------------------------------------------
-// RecursiveMutex
+// RecursiveMutex - a replacement for std::recursive_mutex
 //
 // This class is a synchronization primitive that can be used to protect shared
 // data from being simultaneously accessed by multiple threads. A recursive
@@ -151,21 +152,14 @@ class V8_BASE_EXPORT RecursiveMutex final {
   // successfully locked.
   bool TryLock() V8_WARN_UNUSED_RESULT;
 
+ private:
   // The implementation-defined native handle type.
 #if V8_OS_POSIX
-  typedef pthread_mutex_t NativeHandle;
+  using NativeHandle = pthread_mutex_t;
 #elif V8_OS_WIN
-  typedef CRITICAL_SECTION NativeHandle;
+  using NativeHandle = CRITICAL_SECTION;
 #endif
 
-  NativeHandle& native_handle() {
-    return native_handle_;
-  }
-  const NativeHandle& native_handle() const {
-    return native_handle_;
-  }
-
- private:
   NativeHandle native_handle_;
 #ifdef DEBUG
   int level_;
@@ -185,12 +179,79 @@ class V8_BASE_EXPORT RecursiveMutex final {
 //     // Do something.
 //   }
 //
-typedef LazyStaticInstance<RecursiveMutex,
-                           DefaultConstructTrait<RecursiveMutex>,
-                           ThreadSafeInitOnceTrait>::type LazyRecursiveMutex;
+using LazyRecursiveMutex =
+    LazyStaticInstance<RecursiveMutex, DefaultConstructTrait<RecursiveMutex>,
+                       ThreadSafeInitOnceTrait>::type;
 
 #define LAZY_RECURSIVE_MUTEX_INITIALIZER LAZY_STATIC_INSTANCE_INITIALIZER
 
+// ----------------------------------------------------------------------------
+// SharedMutex - a replacement for std::shared_mutex
+//
+// This class is a synchronization primitive that can be used to protect shared
+// data from being simultaneously accessed by multiple threads. In contrast to
+// other mutex types which facilitate exclusive access, a shared_mutex has two
+// levels of access:
+// - shared: several threads can share ownership of the same mutex.
+// - exclusive: only one thread can own the mutex.
+// Shared mutexes are usually used in situations when multiple readers can
+// access the same resource at the same time without causing data races, but
+// only one writer can do so.
+// The SharedMutex class is non-copyable.
+
+class V8_BASE_EXPORT SharedMutex final {
+ public:
+  SharedMutex();
+  ~SharedMutex();
+
+  // Acquires shared ownership of the {SharedMutex}. If another thread is
+  // holding the mutex in exclusive ownership, a call to {LockShared()} will
+  // block execution until shared ownership can be acquired.
+  // If {LockShared()} is called by a thread that already owns the mutex in any
+  // mode (exclusive or shared), the behavior is undefined.
+  void LockShared();
+
+  // Locks the SharedMutex. If another thread has already locked the mutex, a
+  // call to {LockExclusive()} will block execution until the lock is acquired.
+  // If {LockExclusive()} is called by a thread that already owns the mutex in
+  // any mode (shared or exclusive), the behavior is undefined.
+  void LockExclusive();
+
+  // Releases the {SharedMutex} from shared ownership by the calling thread.
+  // The mutex must be locked by the current thread of execution in shared mode,
+  // otherwise, the behavior is undefined.
+  void UnlockShared();
+
+  // Unlocks the {SharedMutex}. It must be locked by the current thread of
+  // execution, otherwise, the behavior is undefined.
+  void UnlockExclusive();
+
+  // Tries to lock the {SharedMutex} in shared mode. Returns immediately. On
+  // successful lock acquisition returns true, otherwise returns false.
+  // This function is allowed to fail spuriously and return false even if the
+  // mutex is not currenly exclusively locked by any other thread.
+  bool TryLockShared() V8_WARN_UNUSED_RESULT;
+
+  // Tries to lock the {SharedMutex}. Returns immediately. On successful lock
+  // acquisition returns true, otherwise returns false.
+  // This function is allowed to fail spuriously and return false even if the
+  // mutex is not currently locked by any other thread.
+  // If try_lock is called by a thread that already owns the mutex in any mode
+  // (shared or exclusive), the behavior is undefined.
+  bool TryLockExclusive() V8_WARN_UNUSED_RESULT;
+
+ private:
+  // The implementation-defined native handle type.
+#if V8_OS_POSIX
+  using NativeHandle = pthread_rwlock_t;
+#elif V8_OS_WIN
+  using NativeHandle = SRWLOCK;
+#endif
+
+  NativeHandle native_handle_;
+
+  DISALLOW_COPY_AND_ASSIGN(SharedMutex);
+};
 
 // -----------------------------------------------------------------------------
 // LockGuard
@@ -210,21 +271,60 @@ template <typename Mutex, NullBehavior Behavior = NullBehavior::kRequireNotNull>
 class LockGuard final {
  public:
   explicit LockGuard(Mutex* mutex) : mutex_(mutex) {
-    if (Behavior == NullBehavior::kRequireNotNull || mutex_ != nullptr) {
-      mutex_->Lock();
-    }
+    if (has_mutex()) mutex_->Lock();
   }
   ~LockGuard() {
-    if (mutex_ != nullptr) mutex_->Unlock();
+    if (has_mutex()) mutex_->Unlock();
   }
 
  private:
-  Mutex* mutex_;
+  Mutex* const mutex_;
+
+  bool V8_INLINE has_mutex() const {
+    DCHECK_IMPLIES(Behavior == NullBehavior::kRequireNotNull,
+                   mutex_ != nullptr);
+    return Behavior == NullBehavior::kRequireNotNull || mutex_ != nullptr;
+  }
 
   DISALLOW_COPY_AND_ASSIGN(LockGuard);
 };
 
 using MutexGuard = LockGuard<Mutex>;
+
+enum MutexSharedType : bool { kShared = true, kExclusive = false };
+
+template <MutexSharedType kIsShared,
+          NullBehavior Behavior = NullBehavior::kRequireNotNull>
+class SharedMutexGuard final {
+ public:
+  explicit SharedMutexGuard(SharedMutex* mutex) : mutex_(mutex) {
+    if (!has_mutex()) return;
+    if (kIsShared) {
+      mutex_->LockShared();
+    } else {
+      mutex_->LockExclusive();
+    }
+  }
+  ~SharedMutexGuard() {
+    if (!has_mutex()) return;
+    if (kIsShared) {
+      mutex_->UnlockShared();
+    } else {
+      mutex_->UnlockExclusive();
+    }
+  }
+
+ private:
+  SharedMutex* const mutex_;
+
+  bool V8_INLINE has_mutex() const {
+    DCHECK_IMPLIES(Behavior == NullBehavior::kRequireNotNull,
+                   mutex_ != nullptr);
+    return Behavior == NullBehavior::kRequireNotNull || mutex_ != nullptr;
+  }
+
+  DISALLOW_COPY_AND_ASSIGN(SharedMutexGuard);
+};
 
 }  // namespace base
 }  // namespace v8

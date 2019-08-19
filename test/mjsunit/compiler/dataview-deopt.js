@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt --no-always-opt
+// Flags: --allow-natives-syntax --opt --no-always-opt --no-stress-flush-bytecode
 
 // Check that there are no deopt loops for DataView methods.
 
@@ -16,6 +16,7 @@ function readUint8(offset) {
 }
 
 function warmupRead(f) {
+  %PrepareFunctionForOptimization(f);
   f(0);
   f(1);
   %OptimizeFunctionOnNextCall(f);
@@ -40,6 +41,7 @@ function writeUint8(offset, value) {
 }
 
 function warmupWrite(f) {
+  %PrepareFunctionForOptimization(f);
   f(0, 0);
   f(0, 1);
   %OptimizeFunctionOnNextCall(f);

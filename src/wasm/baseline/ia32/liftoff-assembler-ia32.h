@@ -7,18 +7,18 @@
 
 #include "src/wasm/baseline/liftoff-assembler.h"
 
-#include "src/assembler.h"
+#include "src/codegen/assembler.h"
 #include "src/wasm/value-type.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
 
-#define REQUIRE_CPU_FEATURE(name, ...)   \
-  if (!CpuFeatures::IsSupported(name)) { \
-    bailout("no " #name);                \
-    return __VA_ARGS__;                  \
-  }                                      \
+#define REQUIRE_CPU_FEATURE(name, ...)        \
+  if (!CpuFeatures::IsSupported(name)) {      \
+    bailout(kMissingCPUFeature, "no " #name); \
+    return __VA_ARGS__;                       \
+  }                                           \
   CpuFeatureScope feature(this, name);
 
 namespace liftoff {
@@ -34,8 +34,10 @@ inline Operand GetStackSlot(uint32_t index) {
   return Operand(ebp, -kFirstStackSlotOffset - offset);
 }
 
-inline Operand GetHalfStackSlot(uint32_t half_index) {
-  int32_t offset = half_index * (LiftoffAssembler::kStackSlotSize / 2);
+inline MemOperand GetHalfStackSlot(uint32_t index, RegPairHalf half) {
+  int32_t half_offset =
+      half == kLowWord ? 0 : LiftoffAssembler::kStackSlotSize / 2;
+  int32_t offset = index * LiftoffAssembler::kStackSlotSize - half_offset;
   return Operand(ebp, -kFirstStackSlotOffset - offset);
 }
 
@@ -99,11 +101,11 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
       assm->push(reg.low_gp());
       break;
     case kWasmF32:
-      assm->sub(esp, Immediate(sizeof(float)));
+      assm->AllocateStackSpace(sizeof(float));
       assm->movss(Operand(esp, 0), reg.fp());
       break;
     case kWasmF64:
-      assm->sub(esp, Immediate(sizeof(double)));
+      assm->AllocateStackSpace(sizeof(double));
       assm->movsd(Operand(esp, 0), reg.fp());
       break;
     default:
@@ -132,6 +134,19 @@ inline Register GetTmpByteRegister(LiftoffAssembler* assm, Register candidate) {
   return assm->GetUnusedRegister(liftoff::kByteRegs).gp();
 }
 
+inline void MoveStackValue(LiftoffAssembler* assm, const Operand& src,
+                           const Operand& dst) {
+  if (assm->cache_state()->has_unused_register(kGpReg)) {
+    Register tmp = assm->cache_state()->unused_register(kGpReg).gp();
+    assm->mov(tmp, src);
+    assm->mov(dst, tmp);
+  } else {
+    // No free register, move via the stack.
+    assm->push(src);
+    assm->pop(dst);
+  }
+}
+
 constexpr DoubleRegister kScratchDoubleReg = xmm7;
 
 constexpr int kSubSpSize = 6;  // 6 bytes for "sub esp, <imm32>"
@@ -152,11 +167,11 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset,
   // We can't run out of space, just pass anything big enough to not cause the
   // assembler to try to grow the buffer.
   constexpr int kAvailableSpace = 64;
-  Assembler patching_assembler(AssemblerOptions{}, buffer_ + offset,
-                               kAvailableSpace);
+  Assembler patching_assembler(
+      AssemblerOptions{},
+      ExternalAssemblerBuffer(buffer_start_ + offset, kAvailableSpace));
 #if V8_OS_WIN
-  constexpr int kPageSize = 4 * 1024;
-  if (bytes > kPageSize) {
+  if (bytes > kStackPageSize) {
     // Generate OOL code (at the end of the function, where the current
     // assembler is pointing) to do the explicit stack limit check (see
     // https://docs.microsoft.com/en-us/previous-versions/visualstudio/
@@ -170,10 +185,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset,
                            patching_assembler.pc_offset());
 
     // Now generate the OOL code.
-    // Use {edi} as scratch register; it is not being used as parameter
-    // register (see wasm-linkage.h).
-    mov(edi, bytes);
-    AllocateStackFrame(edi);
+    AllocateStackSpace(bytes);
     // Jump back to the start of the function (from {pc_offset()} to {offset +
     // kSubSpSize}).
     int func_start_offset = offset + liftoff::kSubSpSize - pc_offset();
@@ -399,14 +411,16 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
                                       ValueType type) {
-  DCHECK_NE(dst_index, src_index);
-  if (cache_state_.has_unused_register(kGpReg)) {
-    LiftoffRegister reg = GetUnusedRegister(kGpReg);
-    Fill(reg, src_index, type);
-    Spill(dst_index, reg, type);
+  if (needs_reg_pair(type)) {
+    liftoff::MoveStackValue(this,
+                            liftoff::GetHalfStackSlot(src_index, kLowWord),
+                            liftoff::GetHalfStackSlot(dst_index, kLowWord));
+    liftoff::MoveStackValue(this,
+                            liftoff::GetHalfStackSlot(src_index, kHighWord),
+                            liftoff::GetHalfStackSlot(dst_index, kHighWord));
   } else {
-    push(liftoff::GetStackSlot(src_index));
-    pop(liftoff::GetStackSlot(dst_index));
+    liftoff::MoveStackValue(this, liftoff::GetStackSlot(src_index),
+                            liftoff::GetStackSlot(dst_index));
   }
 }
 
@@ -436,8 +450,8 @@ void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
       mov(dst, reg.gp());
       break;
     case kWasmI64:
-      mov(dst, reg.low_gp());
-      mov(liftoff::GetHalfStackSlot(2 * index - 1), reg.high_gp());
+      mov(liftoff::GetHalfStackSlot(index, kLowWord), reg.low_gp());
+      mov(liftoff::GetHalfStackSlot(index, kHighWord), reg.high_gp());
       break;
     case kWasmF32:
       movss(dst, reg.fp());
@@ -460,8 +474,8 @@ void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
     case kWasmI64: {
       int32_t low_word = value.to_i64();
       int32_t high_word = value.to_i64() >> 32;
-      mov(dst, Immediate(low_word));
-      mov(liftoff::GetHalfStackSlot(2 * index - 1), Immediate(high_word));
+      mov(liftoff::GetHalfStackSlot(index, kLowWord), Immediate(low_word));
+      mov(liftoff::GetHalfStackSlot(index, kHighWord), Immediate(high_word));
       break;
     }
     default:
@@ -478,8 +492,8 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
       mov(reg.gp(), src);
       break;
     case kWasmI64:
-      mov(reg.low_gp(), src);
-      mov(reg.high_gp(), liftoff::GetHalfStackSlot(2 * index - 1));
+      mov(reg.low_gp(), liftoff::GetHalfStackSlot(index, kLowWord));
+      mov(reg.high_gp(), liftoff::GetHalfStackSlot(index, kHighWord));
       break;
     case kWasmF32:
       movss(reg.fp(), src);
@@ -492,8 +506,9 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
   }
 }
 
-void LiftoffAssembler::FillI64Half(Register reg, uint32_t half_index) {
-  mov(reg, liftoff::GetHalfStackSlot(half_index));
+void LiftoffAssembler::FillI64Half(Register reg, uint32_t index,
+                                   RegPairHalf half) {
+  mov(reg, liftoff::GetHalfStackSlot(index, half));
 }
 
 void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, Register rhs) {
@@ -504,13 +519,26 @@ void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, Register rhs) {
   }
 }
 
-void LiftoffAssembler::emit_i32_sub(Register dst, Register lhs, Register rhs) {
-  if (dst == rhs) {
-    neg(dst);
-    add(dst, lhs);
+void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, int32_t imm) {
+  if (lhs != dst) {
+    lea(dst, Operand(lhs, imm));
   } else {
+    add(dst, Immediate(imm));
+  }
+}
+
+void LiftoffAssembler::emit_i32_sub(Register dst, Register lhs, Register rhs) {
+  if (dst != rhs) {
+    // Default path.
     if (dst != lhs) mov(dst, lhs);
     sub(dst, rhs);
+  } else if (lhs == rhs) {
+    // Degenerate case.
+    xor_(dst, dst);
+  } else {
+    // Emit {dst = lhs + -rhs} if dst == rhs.
+    neg(dst);
+    add(dst, lhs);
   }
 }
 
@@ -524,6 +552,13 @@ void EmitCommutativeBinOp(LiftoffAssembler* assm, Register dst, Register lhs,
     if (dst != lhs) assm->mov(dst, lhs);
     (assm->*op)(dst, rhs);
   }
+}
+
+template <void (Assembler::*op)(Register, int32_t)>
+void EmitCommutativeBinOpImm(LiftoffAssembler* assm, Register dst, Register lhs,
+                             int32_t imm) {
+  if (dst != lhs) assm->mov(dst, lhs);
+  (assm->*op)(dst, imm);
 }
 }  // namespace liftoff
 
@@ -627,12 +662,24 @@ void LiftoffAssembler::emit_i32_and(Register dst, Register lhs, Register rhs) {
   liftoff::EmitCommutativeBinOp<&Assembler::and_>(this, dst, lhs, rhs);
 }
 
+void LiftoffAssembler::emit_i32_and(Register dst, Register lhs, int32_t imm) {
+  liftoff::EmitCommutativeBinOpImm<&Assembler::and_>(this, dst, lhs, imm);
+}
+
 void LiftoffAssembler::emit_i32_or(Register dst, Register lhs, Register rhs) {
   liftoff::EmitCommutativeBinOp<&Assembler::or_>(this, dst, lhs, rhs);
 }
 
+void LiftoffAssembler::emit_i32_or(Register dst, Register lhs, int32_t imm) {
+  liftoff::EmitCommutativeBinOpImm<&Assembler::or_>(this, dst, lhs, imm);
+}
+
 void LiftoffAssembler::emit_i32_xor(Register dst, Register lhs, Register rhs) {
   liftoff::EmitCommutativeBinOp<&Assembler::xor_>(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i32_xor(Register dst, Register lhs, int32_t imm) {
+  liftoff::EmitCommutativeBinOpImm<&Assembler::xor_>(this, dst, lhs, imm);
 }
 
 namespace liftoff {
@@ -769,11 +816,47 @@ inline void OpWithCarry(LiftoffAssembler* assm, LiftoffRegister dst,
   LiftoffRegister tmp_result = LiftoffRegister::ForPair(dst_low, dst_high);
   if (tmp_result != dst) assm->Move(dst, tmp_result, kWasmI64);
 }
+
+template <void (Assembler::*op)(Register, const Immediate&),
+          void (Assembler::*op_with_carry)(Register, int32_t)>
+inline void OpWithCarryI(LiftoffAssembler* assm, LiftoffRegister dst,
+                         LiftoffRegister lhs, int32_t imm) {
+  // First, compute the low half of the result, potentially into a temporary dst
+  // register if {dst.low_gp()} equals any register we need to
+  // keep alive for computing the upper half.
+  LiftoffRegList keep_alive = LiftoffRegList::ForRegs(lhs.high_gp());
+  Register dst_low = keep_alive.has(dst.low_gp())
+                         ? assm->GetUnusedRegister(kGpReg, keep_alive).gp()
+                         : dst.low_gp();
+
+  if (dst_low != lhs.low_gp()) assm->mov(dst_low, lhs.low_gp());
+  (assm->*op)(dst_low, Immediate(imm));
+
+  // Now compute the upper half, while keeping alive the previous result.
+  keep_alive = LiftoffRegList::ForRegs(dst_low);
+  Register dst_high = keep_alive.has(dst.high_gp())
+                          ? assm->GetUnusedRegister(kGpReg, keep_alive).gp()
+                          : dst.high_gp();
+
+  if (dst_high != lhs.high_gp()) assm->mov(dst_high, lhs.high_gp());
+  // Top half of the immediate sign extended, either 0 or -1.
+  int32_t sign_extend = imm < 0 ? -1 : 0;
+  (assm->*op_with_carry)(dst_high, sign_extend);
+
+  // If necessary, move result into the right registers.
+  LiftoffRegister tmp_result = LiftoffRegister::ForPair(dst_low, dst_high);
+  if (tmp_result != dst) assm->Move(dst, tmp_result, kWasmI64);
+}
 }  // namespace liftoff
 
 void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
   liftoff::OpWithCarry<&Assembler::add, &Assembler::adc>(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                    int32_t imm) {
+  liftoff::OpWithCarryI<&Assembler::add, &Assembler::adc>(this, dst, lhs, imm);
 }
 
 void LiftoffAssembler::emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1307,7 +1390,7 @@ template <typename dst_type, typename src_type>
 inline bool EmitTruncateFloatToInt(LiftoffAssembler* assm, Register dst,
                                    DoubleRegister src, Label* trap) {
   if (!CpuFeatures::IsSupported(SSE4_1)) {
-    assm->bailout("no SSE4.1");
+    assm->bailout(kMissingCPUFeature, "no SSE4.1");
     return true;
   }
   CpuFeatureScope feature(assm, SSE4_1);
@@ -1372,7 +1455,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       return true;
     case kExprI64ReinterpretF64:
       // Push src to the stack.
-      sub(esp, Immediate(8));
+      AllocateStackSpace(8);
       movsd(Operand(esp, 0), src.fp());
       // Pop to dst.
       pop(dst.low_gp());
@@ -1430,7 +1513,9 @@ void LiftoffAssembler::emit_i32_signextend_i16(Register dst, Register src) {
 
 void LiftoffAssembler::emit_i64_signextend_i8(LiftoffRegister dst,
                                               LiftoffRegister src) {
-  movsx_b(dst.low_gp(), src.low_gp());
+  Register byte_reg = liftoff::GetTmpByteRegister(this, src.low_gp());
+  if (byte_reg != src.low_gp()) mov(byte_reg, src.low_gp());
+  movsx_b(dst.low_gp(), byte_reg);
   liftoff::SignExtendI32ToI64(this, dst);
 }
 
@@ -1620,7 +1705,7 @@ void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
   LiftoffRegList fp_regs = regs & kFpCacheRegList;
   unsigned num_fp_regs = fp_regs.GetNumRegsSet();
   if (num_fp_regs) {
-    sub(esp, Immediate(num_fp_regs * kStackSlotSize));
+    AllocateStackSpace(num_fp_regs * kStackSlotSize);
     unsigned offset = 0;
     while (!fp_regs.is_empty()) {
       LiftoffRegister reg = fp_regs.GetFirstRegSet();
@@ -1661,7 +1746,7 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
                              const LiftoffRegister* rets,
                              ValueType out_argument_type, int stack_bytes,
                              ExternalReference ext_ref) {
-  sub(esp, Immediate(stack_bytes));
+  AllocateStackSpace(stack_bytes);
 
   int arg_bytes = 0;
   for (ValueType param_type : sig->parameters()) {
@@ -1726,7 +1811,7 @@ void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
-  sub(esp, Immediate(size));
+  AllocateStackSpace(size);
   mov(addr, esp);
 }
 
@@ -1741,10 +1826,9 @@ void LiftoffStackSlots::Construct() {
       case LiftoffAssembler::VarState::kStack:
         if (src.type() == kWasmF64) {
           DCHECK_EQ(kLowWord, slot.half_);
-          asm_->push(liftoff::GetHalfStackSlot(2 * slot.src_index_ - 1));
+          asm_->push(liftoff::GetHalfStackSlot(slot.src_index_, kHighWord));
         }
-        asm_->push(liftoff::GetHalfStackSlot(2 * slot.src_index_ -
-                                             (slot.half_ == kLowWord ? 0 : 1)));
+        asm_->push(liftoff::GetHalfStackSlot(slot.src_index_, slot.half_));
         break;
       case LiftoffAssembler::VarState::kRegister:
         if (src.type() == kWasmI64) {
@@ -1755,7 +1839,7 @@ void LiftoffStackSlots::Construct() {
           liftoff::push(asm_, src.reg(), src.type());
         }
         break;
-      case LiftoffAssembler::VarState::KIntConst:
+      case LiftoffAssembler::VarState::kIntConst:
         // The high word is the sign extension of the low word.
         asm_->push(Immediate(slot.half_ == kLowWord ? src.i32_const()
                                                     : src.i32_const() >> 31));

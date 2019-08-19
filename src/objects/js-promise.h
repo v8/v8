@@ -31,10 +31,10 @@ class JSPromise : public JSObject {
   DECL_ACCESSORS(reactions_or_result, Object)
 
   // [result]: Checks that the promise is settled and returns the result.
-  inline Object* result() const;
+  inline Object result() const;
 
   // [reactions]: Checks that the promise is pending and returns the reactions.
-  inline Object* reactions() const;
+  inline Object reactions() const;
 
   DECL_INT_ACCESSORS(flags)
 
@@ -49,12 +49,12 @@ class JSPromise : public JSObject {
   void set_async_task_id(int id);
 
   static const char* Status(Promise::PromiseState status);
-  Promise::PromiseState status() const;
+  V8_EXPORT_PRIVATE Promise::PromiseState status() const;
   void set_status(Promise::PromiseState status);
 
   // ES section #sec-fulfillpromise
-  static Handle<Object> Fulfill(Handle<JSPromise> promise,
-                                Handle<Object> value);
+  V8_EXPORT_PRIVATE static Handle<Object> Fulfill(Handle<JSPromise> promise,
+                                                  Handle<Object> value);
   // ES section #sec-rejectpromise
   static Handle<Object> Reject(Handle<JSPromise> promise, Handle<Object> reason,
                                bool debug_event = true);
@@ -62,20 +62,14 @@ class JSPromise : public JSObject {
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Resolve(
       Handle<JSPromise> promise, Handle<Object> resolution);
 
-  DECL_CAST2(JSPromise)
+  DECL_CAST(JSPromise)
 
   // Dispatched behavior.
   DECL_PRINTER(JSPromise)
   DECL_VERIFIER(JSPromise)
 
-#define JS_PROMISE_FIELDS(V)               \
-  V(kReactionsOrResultOffset, kTaggedSize) \
-  V(kFlagsOffset, kTaggedSize)             \
-  /* Header size. */                       \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_PROMISE_FIELDS)
-#undef JS_PROMISE_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JSPROMISE_FIELDS)
 
   static const int kSizeWithEmbedderFields =
       kSize + v8::Promise::kEmbedderFieldCount * kEmbedderDataSlotSize;
@@ -85,7 +79,7 @@ class JSPromise : public JSObject {
   static const int kStatusBits = 2;
   static const int kHasHandlerBit = 2;
   static const int kHandledHintBit = 3;
-  class AsyncTaskIdField : public BitField<int, kHandledHintBit + 1, 22> {};
+  using AsyncTaskIdField = BitField<int, kHandledHintBit + 1, 22>;
 
   static const int kStatusShift = 0;
   static const int kStatusMask = 0x3;
@@ -100,7 +94,7 @@ class JSPromise : public JSObject {
                                                 Handle<Object> argument,
                                                 PromiseReaction::Type type);
 
-  OBJECT_CONSTRUCTORS(JSPromise, JSObject)
+  OBJECT_CONSTRUCTORS(JSPromise, JSObject);
 };
 
 }  // namespace internal

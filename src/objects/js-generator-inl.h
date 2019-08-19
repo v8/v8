@@ -8,7 +8,7 @@
 #include "src/objects/js-generator.h"
 #include "src/objects/js-promise-inl.h"
 
-#include "src/objects-inl.h"  // Needed for write barriers
+#include "src/objects/objects-inl.h"  // Needed for write barriers
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -21,19 +21,19 @@ OBJECT_CONSTRUCTORS_IMPL(JSAsyncFunctionObject, JSGeneratorObject)
 OBJECT_CONSTRUCTORS_IMPL(JSAsyncGeneratorObject, JSGeneratorObject)
 OBJECT_CONSTRUCTORS_IMPL(AsyncGeneratorRequest, Struct)
 
-CAST_ACCESSOR2(JSAsyncFunctionObject)
-CAST_ACCESSOR2(JSAsyncGeneratorObject)
-CAST_ACCESSOR2(JSGeneratorObject)
-CAST_ACCESSOR2(AsyncGeneratorRequest)
+CAST_ACCESSOR(JSAsyncFunctionObject)
+CAST_ACCESSOR(JSAsyncGeneratorObject)
+CAST_ACCESSOR(JSGeneratorObject)
+CAST_ACCESSOR(AsyncGeneratorRequest)
 
-ACCESSORS2(JSGeneratorObject, function, JSFunction, kFunctionOffset)
-ACCESSORS2(JSGeneratorObject, context, Context, kContextOffset)
+ACCESSORS(JSGeneratorObject, function, JSFunction, kFunctionOffset)
+ACCESSORS(JSGeneratorObject, context, Context, kContextOffset)
 ACCESSORS(JSGeneratorObject, receiver, Object, kReceiverOffset)
 ACCESSORS(JSGeneratorObject, input_or_debug_pos, Object, kInputOrDebugPosOffset)
 SMI_ACCESSORS(JSGeneratorObject, resume_mode, kResumeModeOffset)
 SMI_ACCESSORS(JSGeneratorObject, continuation, kContinuationOffset)
-ACCESSORS2(JSGeneratorObject, parameters_and_registers, FixedArray,
-           kParametersAndRegistersOffset)
+ACCESSORS(JSGeneratorObject, parameters_and_registers, FixedArray,
+          kParametersAndRegistersOffset)
 
 ACCESSORS(AsyncGeneratorRequest, next, Object, kNextOffset)
 SMI_ACCESSORS(AsyncGeneratorRequest, resume_mode, kResumeModeOffset)
@@ -54,9 +54,9 @@ bool JSGeneratorObject::is_executing() const {
   return continuation() == kGeneratorExecuting;
 }
 
-ACCESSORS2(JSAsyncFunctionObject, promise, JSPromise, kPromiseOffset)
+ACCESSORS(JSAsyncFunctionObject, promise, JSPromise, kPromiseOffset)
 
-ACCESSORS2(JSAsyncGeneratorObject, queue, HeapObject, kQueueOffset)
+ACCESSORS(JSAsyncGeneratorObject, queue, HeapObject, kQueueOffset)
 SMI_ACCESSORS(JSAsyncGeneratorObject, is_awaiting, kIsAwaitingOffset)
 
 }  // namespace internal

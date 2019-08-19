@@ -6,6 +6,7 @@
 #define V8_OBJECTS_API_CALLBACKS_H_
 
 #include "src/objects/struct.h"
+#include "torque-generated/class-definitions-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -24,7 +25,7 @@ namespace internal {
 // This shadows the accessor in the prototype.
 class AccessorInfo : public Struct {
  public:
-  DECL_ACCESSORS2(name, Name)
+  DECL_ACCESSORS(name, Name)
   DECL_INT_ACCESSORS(flags)
   DECL_ACCESSORS(expected_receiver_type, Object)
   // This directly points at a foreign C function to be used from the runtime.
@@ -64,9 +65,9 @@ class AccessorInfo : public Struct {
   // Checks whether the given receiver is compatible with this accessor.
   static bool IsCompatibleReceiverMap(Handle<AccessorInfo> info,
                                       Handle<Map> map);
-  inline bool IsCompatibleReceiver(Object* receiver);
+  inline bool IsCompatibleReceiver(Object receiver);
 
-  DECL_CAST2(AccessorInfo)
+  DECL_CAST(AccessorInfo)
 
   // Dispatched behavior.
   DECL_VERIFIER(AccessorInfo)
@@ -76,19 +77,9 @@ class AccessorInfo : public Struct {
   static int AppendUnique(Isolate* isolate, Handle<Object> descriptors,
                           Handle<FixedArray> array, int valid_descriptors);
 
-// Layout description.
-#define ACCESSOR_INFO_FIELDS(V)               \
-  V(kNameOffset, kTaggedSize)                 \
-  V(kFlagsOffset, kTaggedSize)                \
-  V(kExpectedReceiverTypeOffset, kTaggedSize) \
-  V(kSetterOffset, kTaggedSize)               \
-  V(kGetterOffset, kTaggedSize)               \
-  V(kJsGetterOffset, kTaggedSize)             \
-  V(kDataOffset, kTaggedSize)                 \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, ACCESSOR_INFO_FIELDS)
-#undef ACCESSOR_INFO_FIELDS
+  // Layout description.
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_ACCESSOR_INFO_FIELDS)
 
  private:
   inline bool HasExpectedReceiverType();
@@ -118,7 +109,7 @@ class AccessCheckInfo : public Struct {
   DECL_ACCESSORS(indexed_interceptor, Object)
   DECL_ACCESSORS(data, Object)
 
-  DECL_CAST2(AccessCheckInfo)
+  DECL_CAST(AccessCheckInfo)
 
   // Dispatched behavior.
   DECL_PRINTER(AccessCheckInfo)
@@ -126,17 +117,8 @@ class AccessCheckInfo : public Struct {
 
   static AccessCheckInfo Get(Isolate* isolate, Handle<JSObject> receiver);
 
-// Layout description.
-#define ACCESS_CHECK_INFO_FIELDS(V)         \
-  V(kCallbackOffset, kTaggedSize)           \
-  V(kNamedInterceptorOffset, kTaggedSize)   \
-  V(kIndexedInterceptorOffset, kTaggedSize) \
-  V(kDataOffset, kTaggedSize)               \
-  V(kSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                ACCESS_CHECK_INFO_FIELDS)
-#undef ACCESS_CHECK_INFO_FIELDS
+                                TORQUE_GENERATED_ACCESS_CHECK_INFO_FIELDS)
 
   OBJECT_CONSTRUCTORS(AccessCheckInfo, Struct);
 };
@@ -160,28 +142,14 @@ class InterceptorInfo : public Struct {
   inline int flags() const;
   inline void set_flags(int flags);
 
-  DECL_CAST2(InterceptorInfo)
+  DECL_CAST(InterceptorInfo)
 
   // Dispatched behavior.
   DECL_PRINTER(InterceptorInfo)
   DECL_VERIFIER(InterceptorInfo)
 
-// Layout description.
-#define INTERCEPTOR_INFO_FIELDS(V)  \
-  V(kGetterOffset, kTaggedSize)     \
-  V(kSetterOffset, kTaggedSize)     \
-  V(kQueryOffset, kTaggedSize)      \
-  V(kDescriptorOffset, kTaggedSize) \
-  V(kDeleterOffset, kTaggedSize)    \
-  V(kEnumeratorOffset, kTaggedSize) \
-  V(kDefinerOffset, kTaggedSize)    \
-  V(kDataOffset, kTaggedSize)       \
-  V(kFlagsOffset, kTaggedSize)      \
-  V(kSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                INTERCEPTOR_INFO_FIELDS)
-#undef INTERCEPTOR_INFO_FIELDS
+                                TORQUE_GENERATED_INTERCEPTOR_INFO_FIELDS)
 
   static const int kCanInterceptSymbolsBit = 0;
   static const int kAllCanReadBit = 1;
@@ -192,14 +160,9 @@ class InterceptorInfo : public Struct {
   OBJECT_CONSTRUCTORS(InterceptorInfo, Struct);
 };
 
-class CallHandlerInfo : public Tuple3 {
+class CallHandlerInfo
+    : public TorqueGeneratedCallHandlerInfo<CallHandlerInfo, Struct> {
  public:
-  DECL_ACCESSORS(callback, Object)
-  DECL_ACCESSORS(js_callback, Object)
-  DECL_ACCESSORS(data, Object)
-
-  DECL_CAST2(CallHandlerInfo)
-
   inline bool IsSideEffectFreeCallHandlerInfo() const;
   inline bool IsSideEffectCallHandlerInfo() const;
   inline void SetNextCallHasNoSideEffect();
@@ -213,11 +176,7 @@ class CallHandlerInfo : public Tuple3 {
 
   Address redirected_callback() const;
 
-  static const int kCallbackOffset = kValue1Offset;
-  static const int kJsCallbackOffset = kValue2Offset;
-  static const int kDataOffset = kValue3Offset;
-
-  OBJECT_CONSTRUCTORS(CallHandlerInfo, Tuple3);
+  TQ_OBJECT_CONSTRUCTORS(CallHandlerInfo)
 };
 
 }  // namespace internal

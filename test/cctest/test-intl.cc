@@ -4,8 +4,6 @@
 
 #ifdef V8_INTL_SUPPORT
 
-#include "src/lookup.h"
-#include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-break-iterator.h"
 #include "src/objects/js-collator.h"
@@ -15,6 +13,8 @@
 #include "src/objects/js-plural-rules.h"
 #include "src/objects/js-relative-time-format.h"
 #include "src/objects/js-segmenter.h"
+#include "src/objects/lookup.h"
+#include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -132,7 +132,8 @@ TEST(GetStringOption) {
   Handle<String> key = isolate->factory()->NewStringFromAsciiChecked("foo");
   v8::internal::LookupIterator it(isolate, options, key);
   CHECK(Object::SetProperty(&it, Handle<Smi>(Smi::FromInt(42), isolate),
-                            LanguageMode::kStrict, StoreOrigin::kMaybeKeyed)
+                            StoreOrigin::kMaybeKeyed,
+                            Just(ShouldThrow::kThrowOnError))
             .FromJust());
 
   {
@@ -191,7 +192,8 @@ TEST(GetBoolOption) {
     Handle<Object> false_value =
         handle(i::ReadOnlyRoots(isolate).false_value(), isolate);
     Object::SetProperty(isolate, options, key, false_value,
-                        LanguageMode::kStrict)
+                        StoreOrigin::kMaybeKeyed,
+                        Just(ShouldThrow::kThrowOnError))
         .Assert();
     bool result = false;
     Maybe<bool> found =
@@ -205,7 +207,8 @@ TEST(GetBoolOption) {
     Handle<Object> true_value =
         handle(i::ReadOnlyRoots(isolate).true_value(), isolate);
     Object::SetProperty(isolate, options, key, true_value,
-                        LanguageMode::kStrict)
+                        StoreOrigin::kMaybeKeyed,
+                        Just(ShouldThrow::kThrowOnError))
         .Assert();
     bool result = false;
     Maybe<bool> found =
@@ -235,7 +238,7 @@ TEST(GetAvailableLocales) {
   CHECK(locales.count("en-US"));
 
   locales = JSPluralRules::GetAvailableLocales();
-  CHECK(locales.count("en-US"));
+  CHECK(locales.count("en"));
 
   locales = JSRelativeTimeFormat::GetAvailableLocales();
   CHECK(locales.count("en-US"));

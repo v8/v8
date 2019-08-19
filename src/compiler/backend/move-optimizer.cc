@@ -4,7 +4,7 @@
 
 #include "src/compiler/backend/move-optimizer.h"
 
-#include "src/register-configuration.h"
+#include "src/codegen/register-configuration.h"
 
 namespace v8 {
 namespace internal {
@@ -26,7 +26,7 @@ struct MoveKeyCompare {
   }
 };
 
-typedef ZoneMap<MoveKey, unsigned, MoveKeyCompare> MoveMap;
+using MoveMap = ZoneMap<MoveKey, unsigned, MoveKeyCompare>;
 
 class OperandSet {
  public:

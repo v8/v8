@@ -7,8 +7,7 @@
 
 #include "src/objects/name.h"
 
-#include "src/heap/heap-inl.h"
-#include "src/heap/heap-write-barrier.h"
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/map-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -17,18 +16,14 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(Name, HeapObject)
-OBJECT_CONSTRUCTORS_IMPL(Symbol, Name)
+TQ_OBJECT_CONSTRUCTORS_IMPL(Name)
+TQ_OBJECT_CONSTRUCTORS_IMPL(Symbol)
 
-CAST_ACCESSOR2(Name)
-CAST_ACCESSOR2(Symbol)
-
-ACCESSORS(Symbol, name, Object, kNameOffset)
-INT_ACCESSORS(Symbol, flags, kFlagsOffset)
 BIT_FIELD_ACCESSORS(Symbol, flags, is_private, Symbol::IsPrivateBit)
 BIT_FIELD_ACCESSORS(Symbol, flags, is_well_known_symbol,
                     Symbol::IsWellKnownSymbolBit)
-BIT_FIELD_ACCESSORS(Symbol, flags, is_public, Symbol::IsPublicBit)
+BIT_FIELD_ACCESSORS(Symbol, flags, is_in_public_symbol_table,
+                    Symbol::IsInPublicSymbolTableBit)
 BIT_FIELD_ACCESSORS(Symbol, flags, is_interesting_symbol,
                     Symbol::IsInterestingSymbolBit)
 
@@ -45,27 +40,21 @@ void Symbol::set_is_private_name() {
   set_flags(Symbol::IsPrivateNameBit::update(flags(), true));
 }
 
-bool Name::IsUniqueName() const {
-  uint32_t type = map()->instance_type();
-  return (type & (kIsNotStringMask | kIsNotInternalizedMask)) !=
-         (kStringTag | kNotInternalizedTag);
-}
-
-uint32_t Name::hash_field() {
-  return READ_UINT32_FIELD(this, kHashFieldOffset);
-}
-
-void Name::set_hash_field(uint32_t value) {
-  WRITE_UINT32_FIELD(this, kHashFieldOffset, value);
+DEF_GETTER(Name, IsUniqueName, bool) {
+  uint32_t type = map(isolate).instance_type();
+  bool result = (type & (kIsNotStringMask | kIsNotInternalizedMask)) !=
+                (kStringTag | kNotInternalizedTag);
+  SLOW_DCHECK(result == HeapObject::IsUniqueName());
+  return result;
 }
 
 bool Name::Equals(Name other) {
   if (other == *this) return true;
-  if ((this->IsInternalizedString() && other->IsInternalizedString()) ||
-      this->IsSymbol() || other->IsSymbol()) {
+  if ((this->IsInternalizedString() && other.IsInternalizedString()) ||
+      this->IsSymbol() || other.IsSymbol()) {
     return false;
   }
-  return String::cast(*this)->SlowEquals(String::cast(other));
+  return String::cast(*this).SlowEquals(String::cast(other));
 }
 
 bool Name::Equals(Isolate* isolate, Handle<Name> one, Handle<Name> two) {
@@ -89,29 +78,26 @@ uint32_t Name::Hash() {
   uint32_t field = hash_field();
   if (IsHashFieldComputed(field)) return field >> kHashShift;
   // Slow case: compute hash code and set it. Has to be a string.
-  // Also the string must be writable, because read-only strings will have their
-  // hash values precomputed.
-  return String::cast(*this)->ComputeAndSetHash(
-      Heap::FromWritableHeapObject(this)->isolate());
+  return String::cast(*this).ComputeAndSetHash();
 }
 
-bool Name::IsInterestingSymbol() const {
-  return IsSymbol() && Symbol::cast(*this)->is_interesting_symbol();
+DEF_GETTER(Name, IsInterestingSymbol, bool) {
+  return IsSymbol(isolate) && Symbol::cast(*this).is_interesting_symbol();
 }
 
-bool Name::IsPrivate() {
-  return this->IsSymbol() && Symbol::cast(*this)->is_private();
+DEF_GETTER(Name, IsPrivate, bool) {
+  return this->IsSymbol(isolate) && Symbol::cast(*this).is_private();
 }
 
-bool Name::IsPrivateName() {
+DEF_GETTER(Name, IsPrivateName, bool) {
   bool is_private_name =
-      this->IsSymbol() && Symbol::cast(*this)->is_private_name();
+      this->IsSymbol(isolate) && Symbol::cast(*this).is_private_name();
   DCHECK_IMPLIES(is_private_name, IsPrivate());
   return is_private_name;
 }
 
 bool Name::AsArrayIndex(uint32_t* index) {
-  return IsString() && String::cast(*this)->AsArrayIndex(index);
+  return IsString() && String::cast(*this).AsArrayIndex(index);
 }
 
 // static

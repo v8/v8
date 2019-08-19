@@ -20,16 +20,16 @@ namespace iterator {
       implicit context: Context)(Object): IteratorRecord;
 
   extern macro IteratorBuiltinsAssembler::IteratorStep(
-      implicit context: Context)(IteratorRecord): Object
+      implicit context: Context)(IteratorRecord): JSReceiver
       labels Done;
   extern macro IteratorBuiltinsAssembler::IteratorStep(
-      implicit context: Context)(IteratorRecord, Map): Object
+      implicit context: Context)(IteratorRecord, Map): JSReceiver
       labels Done;
 
   extern macro IteratorBuiltinsAssembler::IteratorValue(
-      implicit context: Context)(Object): Object;
+      implicit context: Context)(JSReceiver): Object;
   extern macro IteratorBuiltinsAssembler::IteratorValue(
-      implicit context: Context)(Object, Map): Object;
+      implicit context: Context)(JSReceiver, Map): Object;
 
   extern macro IteratorBuiltinsAssembler::IteratorCloseOnException(
       implicit context: Context)(IteratorRecord, Object): never;
@@ -41,4 +41,19 @@ namespace iterator {
                                                     Context)(Object, Object);
   extern builtin IterableToListWithSymbolLookup(implicit context:
                                                     Context)(Object);
+
+  transitioning builtin GetIteratorWithFeedback(
+      context: Context, receiver: Object, feedbackSlot: Smi,
+      feedback: Undefined | FeedbackVector): Object {
+    typeswitch (feedback) {
+      case (Undefined): {
+        return GetProperty(receiver, IteratorSymbolConstant());
+      }
+      case (feedback: FeedbackVector): {
+        return LoadIC(
+            context, receiver, IteratorSymbolConstant(), feedbackSlot,
+            feedback);
+      }
+    }
+  }
 }

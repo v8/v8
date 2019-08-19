@@ -5,12 +5,13 @@
 #ifndef V8_SNAPSHOT_CODE_SERIALIZER_H_
 #define V8_SNAPSHOT_CODE_SERIALIZER_H_
 
+#include "src/base/macros.h"
 #include "src/snapshot/serializer.h"
 
 namespace v8 {
 namespace internal {
 
-class ScriptData {
+class V8_EXPORT_PRIVATE ScriptData {
  public:
   ScriptData(const byte* data, int length);
   ~ScriptData() {
@@ -44,7 +45,8 @@ class ScriptData {
 
 class CodeSerializer : public Serializer {
  public:
-  static ScriptCompiler::CachedData* Serialize(Handle<SharedFunctionInfo> info);
+  V8_EXPORT_PRIVATE static ScriptCompiler::CachedData* Serialize(
+      Handle<SharedFunctionInfo> info);
 
   ScriptData* SerializeSharedFunctionInfo(Handle<SharedFunctionInfo> info);
 
@@ -58,23 +60,15 @@ class CodeSerializer : public Serializer {
   CodeSerializer(Isolate* isolate, uint32_t source_hash);
   ~CodeSerializer() override { OutputStatistics("CodeSerializer"); }
 
-  virtual void SerializeCodeObject(Code code_object, HowToCode how_to_code,
-                                   WhereToPoint where_to_point) {
-    UNREACHABLE();
-  }
-
-  virtual bool ElideObject(Object* obj) { return false; }
-  void SerializeGeneric(HeapObject heap_object, HowToCode how_to_code,
-                        WhereToPoint where_to_point);
+  virtual bool ElideObject(Object obj) { return false; }
+  void SerializeGeneric(HeapObject heap_object);
 
  private:
-  void SerializeObject(HeapObject o, HowToCode how_to_code,
-                       WhereToPoint where_to_point, int skip) override;
+  void SerializeObject(HeapObject o) override;
 
-  bool SerializeReadOnlyObject(HeapObject obj, HowToCode how_to_code,
-                               WhereToPoint where_to_point, int skip);
+  bool SerializeReadOnlyObject(HeapObject obj);
 
-  DISALLOW_HEAP_ALLOCATION(no_gc_);
+  DISALLOW_HEAP_ALLOCATION(no_gc_)
   uint32_t source_hash_;
   DISALLOW_COPY_AND_ASSIGN(CodeSerializer);
 };
@@ -87,7 +81,6 @@ class SerializedCodeData : public SerializedData {
     MAGIC_NUMBER_MISMATCH = 1,
     VERSION_MISMATCH = 2,
     SOURCE_MISMATCH = 3,
-    CPU_FEATURES_MISMATCH = 4,
     FLAGS_MISMATCH = 5,
     CHECKSUM_MISMATCH = 6,
     INVALID_HEADER = 7,
@@ -98,19 +91,17 @@ class SerializedCodeData : public SerializedData {
   // [0] magic number and (internally provided) external reference count
   // [1] version hash
   // [2] source hash
-  // [3] cpu features
-  // [4] flag hash
-  // [5] number of reservation size entries
-  // [6] payload length
-  // [7] payload checksum part A
-  // [8] payload checksum part B
+  // [3] flag hash
+  // [4] number of reservation size entries
+  // [5] payload length
+  // [6] payload checksum part A
+  // [7] payload checksum part B
   // ...  reservations
   // ...  code stub keys
   // ...  serialized payload
   static const uint32_t kVersionHashOffset = kMagicNumberOffset + kUInt32Size;
   static const uint32_t kSourceHashOffset = kVersionHashOffset + kUInt32Size;
-  static const uint32_t kCpuFeaturesOffset = kSourceHashOffset + kUInt32Size;
-  static const uint32_t kFlagHashOffset = kCpuFeaturesOffset + kUInt32Size;
+  static const uint32_t kFlagHashOffset = kSourceHashOffset + kUInt32Size;
   static const uint32_t kNumReservationsOffset = kFlagHashOffset + kUInt32Size;
   static const uint32_t kPayloadLengthOffset =
       kNumReservationsOffset + kUInt32Size;

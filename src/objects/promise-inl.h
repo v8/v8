@@ -23,32 +23,32 @@ OBJECT_CONSTRUCTORS_IMPL(PromiseResolveThenableJobTask, Microtask)
 OBJECT_CONSTRUCTORS_IMPL(PromiseCapability, Struct)
 OBJECT_CONSTRUCTORS_IMPL(PromiseReaction, Struct)
 
-CAST_ACCESSOR2(PromiseCapability)
-CAST_ACCESSOR2(PromiseReaction)
-CAST_ACCESSOR2(PromiseReactionJobTask)
-CAST_ACCESSOR2(PromiseFulfillReactionJobTask)
-CAST_ACCESSOR2(PromiseRejectReactionJobTask)
-CAST_ACCESSOR2(PromiseResolveThenableJobTask)
+CAST_ACCESSOR(PromiseCapability)
+CAST_ACCESSOR(PromiseReaction)
+CAST_ACCESSOR(PromiseReactionJobTask)
+CAST_ACCESSOR(PromiseFulfillReactionJobTask)
+CAST_ACCESSOR(PromiseRejectReactionJobTask)
+CAST_ACCESSOR(PromiseResolveThenableJobTask)
 
 ACCESSORS(PromiseReaction, next, Object, kNextOffset)
-ACCESSORS2(PromiseReaction, reject_handler, HeapObject, kRejectHandlerOffset)
-ACCESSORS2(PromiseReaction, fulfill_handler, HeapObject, kFulfillHandlerOffset)
-ACCESSORS2(PromiseReaction, promise_or_capability, HeapObject,
-           kPromiseOrCapabilityOffset)
+ACCESSORS(PromiseReaction, reject_handler, HeapObject, kRejectHandlerOffset)
+ACCESSORS(PromiseReaction, fulfill_handler, HeapObject, kFulfillHandlerOffset)
+ACCESSORS(PromiseReaction, promise_or_capability, HeapObject,
+          kPromiseOrCapabilityOffset)
 
-ACCESSORS2(PromiseResolveThenableJobTask, context, Context, kContextOffset)
-ACCESSORS2(PromiseResolveThenableJobTask, promise_to_resolve, JSPromise,
-           kPromiseToResolveOffset)
-ACCESSORS2(PromiseResolveThenableJobTask, then, JSReceiver, kThenOffset)
-ACCESSORS2(PromiseResolveThenableJobTask, thenable, JSReceiver, kThenableOffset)
+ACCESSORS(PromiseResolveThenableJobTask, context, Context, kContextOffset)
+ACCESSORS(PromiseResolveThenableJobTask, promise_to_resolve, JSPromise,
+          kPromiseToResolveOffset)
+ACCESSORS(PromiseResolveThenableJobTask, then, JSReceiver, kThenOffset)
+ACCESSORS(PromiseResolveThenableJobTask, thenable, JSReceiver, kThenableOffset)
 
-ACCESSORS2(PromiseReactionJobTask, context, Context, kContextOffset)
-ACCESSORS(PromiseReactionJobTask, argument, Object, kArgumentOffset);
-ACCESSORS2(PromiseReactionJobTask, handler, HeapObject, kHandlerOffset);
-ACCESSORS2(PromiseReactionJobTask, promise_or_capability, HeapObject,
-           kPromiseOrCapabilityOffset);
+ACCESSORS(PromiseReactionJobTask, context, Context, kContextOffset)
+ACCESSORS(PromiseReactionJobTask, argument, Object, kArgumentOffset)
+ACCESSORS(PromiseReactionJobTask, handler, HeapObject, kHandlerOffset)
+ACCESSORS(PromiseReactionJobTask, promise_or_capability, HeapObject,
+          kPromiseOrCapabilityOffset)
 
-ACCESSORS2(PromiseCapability, promise, HeapObject, kPromiseOffset)
+ACCESSORS(PromiseCapability, promise, HeapObject, kPromiseOffset)
 ACCESSORS(PromiseCapability, resolve, Object, kResolveOffset)
 ACCESSORS(PromiseCapability, reject, Object, kRejectOffset)
 

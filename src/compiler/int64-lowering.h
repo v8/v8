@@ -5,11 +5,11 @@
 #ifndef V8_COMPILER_INT64_LOWERING_H_
 #define V8_COMPILER_INT64_LOWERING_H_
 
+#include "src/common/globals.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-marker.h"
-#include "src/globals.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -59,8 +59,9 @@ class V8_EXPORT_PRIVATE Int64Lowering {
   bool HasReplacementHigh(Node* node);
   Node* GetReplacementHigh(Node* node);
   void PreparePhiReplacement(Node* phi);
-  void GetIndexNodes(Node* index, Node*& index_low, Node*& index_high);
+  void GetIndexNodes(Node* index, Node** index_low, Node** index_high);
   void ReplaceNodeWithProjections(Node* node);
+  void LowerMemoryBaseAndIndex(Node* node);
 
   struct NodeState {
     Node* node;

@@ -4,9 +4,14 @@
 
 #include "src/wasm/function-compiler.h"
 
+#include "src/codegen/compiler.h"
+#include "src/codegen/macro-assembler-inl.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/counters.h"
-#include "src/macro-assembler-inl.h"
+#include "src/diagnostics/code-tracer.h"
+#include "src/logging/counters.h"
+#include "src/logging/log.h"
+#include "src/utils/ostreams.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/wasm-code-manager.h"
 
@@ -16,113 +21,219 @@ namespace wasm {
 
 namespace {
 
-const char* GetExecutionTierAsString(ExecutionTier tier) {
-  switch (tier) {
-    case ExecutionTier::kBaseline:
-      return "liftoff";
-    case ExecutionTier::kOptimized:
-      return "turbofan";
-    case ExecutionTier::kInterpreter:
-      return "interpreter";
+class WasmInstructionBufferImpl {
+ public:
+  class View : public AssemblerBuffer {
+   public:
+    View(Vector<uint8_t> buffer, WasmInstructionBufferImpl* holder)
+        : buffer_(buffer), holder_(holder) {}
+
+    ~View() override {
+      if (buffer_.begin() == holder_->old_buffer_.start()) {
+        DCHECK_EQ(buffer_.size(), holder_->old_buffer_.size());
+        holder_->old_buffer_ = {};
+      }
+    }
+
+    byte* start() const override { return buffer_.begin(); }
+
+    int size() const override { return static_cast<int>(buffer_.size()); }
+
+    std::unique_ptr<AssemblerBuffer> Grow(int new_size) override {
+      // If we grow, we must be the current buffer of {holder_}.
+      DCHECK_EQ(buffer_.begin(), holder_->buffer_.start());
+      DCHECK_EQ(buffer_.size(), holder_->buffer_.size());
+      DCHECK_NULL(holder_->old_buffer_);
+
+      DCHECK_LT(size(), new_size);
+
+      holder_->old_buffer_ = std::move(holder_->buffer_);
+      holder_->buffer_ = OwnedVector<uint8_t>::New(new_size);
+      return base::make_unique<View>(holder_->buffer_.as_vector(), holder_);
+    }
+
+   private:
+    const Vector<uint8_t> buffer_;
+    WasmInstructionBufferImpl* const holder_;
+  };
+
+  std::unique_ptr<AssemblerBuffer> CreateView() {
+    DCHECK_NOT_NULL(buffer_);
+    return base::make_unique<View>(buffer_.as_vector(), this);
   }
-  UNREACHABLE();
+
+  std::unique_ptr<uint8_t[]> ReleaseBuffer() {
+    DCHECK_NULL(old_buffer_);
+    DCHECK_NOT_NULL(buffer_);
+    return buffer_.ReleaseData();
+  }
+
+  bool released() const { return buffer_ == nullptr; }
+
+ private:
+  // The current buffer used to emit code.
+  OwnedVector<uint8_t> buffer_ =
+      OwnedVector<uint8_t>::New(AssemblerBase::kMinimalBufferSize);
+
+  // While the buffer is grown, we need to temporarily also keep the old buffer
+  // alive.
+  OwnedVector<uint8_t> old_buffer_;
+};
+
+WasmInstructionBufferImpl* Impl(WasmInstructionBuffer* buf) {
+  return reinterpret_cast<WasmInstructionBufferImpl*>(buf);
 }
 
 }  // namespace
 
+// PIMPL interface WasmInstructionBuffer for WasmInstBufferImpl
+WasmInstructionBuffer::~WasmInstructionBuffer() {
+  Impl(this)->~WasmInstructionBufferImpl();
+}
+
+std::unique_ptr<AssemblerBuffer> WasmInstructionBuffer::CreateView() {
+  return Impl(this)->CreateView();
+}
+
+std::unique_ptr<uint8_t[]> WasmInstructionBuffer::ReleaseBuffer() {
+  return Impl(this)->ReleaseBuffer();
+}
+
 // static
-ExecutionTier WasmCompilationUnit::GetDefaultExecutionTier() {
-  return FLAG_liftoff ? ExecutionTier::kBaseline : ExecutionTier::kOptimized;
+std::unique_ptr<WasmInstructionBuffer> WasmInstructionBuffer::New() {
+  return std::unique_ptr<WasmInstructionBuffer>{
+      reinterpret_cast<WasmInstructionBuffer*>(
+          new WasmInstructionBufferImpl())};
+}
+// End of PIMPL interface WasmInstructionBuffer for WasmInstBufferImpl
+
+// static
+ExecutionTier WasmCompilationUnit::GetDefaultExecutionTier(
+    const WasmModule* module) {
+  // Liftoff does not support the special asm.js opcodes, thus always compile
+  // asm.js modules with TurboFan.
+  if (is_asmjs_module(module)) return ExecutionTier::kTurbofan;
+  if (FLAG_wasm_interpret_all) return ExecutionTier::kInterpreter;
+  return FLAG_liftoff ? ExecutionTier::kLiftoff : ExecutionTier::kTurbofan;
 }
 
-WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine,
-                                         NativeModule* native_module, int index,
-                                         ExecutionTier tier)
-    : wasm_engine_(wasm_engine),
-      func_index_(index),
-      native_module_(native_module),
-      tier_(tier) {
-  const WasmModule* module = native_module->module();
-  DCHECK_GE(index, module->num_imported_functions);
-  DCHECK_LT(index, module->functions.size());
-  // Always disable Liftoff for asm.js, for two reasons:
-  //    1) asm-specific opcodes are not implemented, and
-  //    2) tier-up does not work with lazy compilation.
-  if (module->origin == kAsmJsOrigin) tier = ExecutionTier::kOptimized;
-  if (V8_UNLIKELY(FLAG_wasm_tier_mask_for_testing) && index < 32 &&
-      (FLAG_wasm_tier_mask_for_testing & (1 << index))) {
-    tier = ExecutionTier::kOptimized;
-  }
-  SwitchTier(tier);
-}
-
-// Declared here such that {LiftoffCompilationUnit} and
-// {TurbofanWasmCompilationUnit} can be opaque in the header file.
-WasmCompilationUnit::~WasmCompilationUnit() = default;
-
-void WasmCompilationUnit::ExecuteCompilation(
-    CompilationEnv* env, std::shared_ptr<WireBytesStorage> wire_bytes_storage,
+WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
+    WasmEngine* engine, CompilationEnv* env,
+    const std::shared_ptr<WireBytesStorage>& wire_bytes_storage,
     Counters* counters, WasmFeatures* detected) {
-  const WasmModule* module = native_module_->module();
-  DCHECK_EQ(module, env->module);
+  WasmCompilationResult result;
+  if (func_index_ < static_cast<int>(env->module->num_imported_functions)) {
+    result = ExecuteImportWrapperCompilation(engine, env);
+  } else {
+    result = ExecuteFunctionCompilation(engine, env, wire_bytes_storage,
+                                        counters, detected);
+  }
 
+  if (result.succeeded()) {
+    counters->wasm_generated_code_size()->Increment(
+        result.code_desc.instr_size);
+    counters->wasm_reloc_size()->Increment(result.code_desc.reloc_size);
+  }
+
+  result.func_index = func_index_;
+  result.requested_tier = tier_;
+
+  return result;
+}
+
+WasmCompilationResult WasmCompilationUnit::ExecuteImportWrapperCompilation(
+    WasmEngine* engine, CompilationEnv* env) {
+  FunctionSig* sig = env->module->functions[func_index_].sig;
+  // Assume the wrapper is going to be a JS function with matching arity at
+  // instantiation time.
+  auto kind = compiler::kDefaultImportCallKind;
+  bool source_positions = is_asmjs_module(env->module);
+  WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
+      engine, env, kind, sig, source_positions);
+  return result;
+}
+
+WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
+    WasmEngine* wasm_engine, CompilationEnv* env,
+    const std::shared_ptr<WireBytesStorage>& wire_bytes_storage,
+    Counters* counters, WasmFeatures* detected) {
   auto* func = &env->module->functions[func_index_];
   Vector<const uint8_t> code = wire_bytes_storage->GetCode(func->code);
-  wasm::FunctionBody func_body{func->sig, func->code.offset(), code.start(),
+  wasm::FunctionBody func_body{func->sig, func->code.offset(), code.begin(),
                                code.end()};
 
-  auto size_histogram =
-      SELECT_WASM_COUNTER(counters, module->origin, wasm, function_size_bytes);
+  auto size_histogram = SELECT_WASM_COUNTER(counters, env->module->origin, wasm,
+                                            function_size_bytes);
   size_histogram->AddSample(static_cast<int>(func_body.end - func_body.start));
-  auto timed_histogram = SELECT_WASM_COUNTER(counters, module->origin,
+  auto timed_histogram = SELECT_WASM_COUNTER(counters, env->module->origin,
                                              wasm_compile, function_time);
   TimedHistogramScope wasm_compile_function_time_scope(timed_histogram);
 
   if (FLAG_trace_wasm_compiler) {
     PrintF("Compiling wasm function %d with %s\n\n", func_index_,
-           GetExecutionTierAsString(tier_));
+           ExecutionTierToString(tier_));
   }
 
+  WasmCompilationResult result;
+
   switch (tier_) {
-    case ExecutionTier::kBaseline:
-      if (liftoff_unit_->ExecuteCompilation(env, func_body, counters,
-                                            detected)) {
-        break;
+    case ExecutionTier::kNone:
+      UNREACHABLE();
+
+    case ExecutionTier::kLiftoff:
+      // The --wasm-tier-mask-for-testing flag can force functions to be
+      // compiled with TurboFan, see documentation.
+      if (V8_LIKELY(FLAG_wasm_tier_mask_for_testing == 0) ||
+          func_index_ >= 32 ||
+          ((FLAG_wasm_tier_mask_for_testing & (1 << func_index_)) == 0)) {
+        result =
+            ExecuteLiftoffCompilation(wasm_engine->allocator(), env, func_body,
+                                      func_index_, counters, detected);
+        if (result.succeeded()) break;
       }
-      // Otherwise, fall back to turbofan.
-      SwitchTier(ExecutionTier::kOptimized);
+
+      // If Liftoff failed, fall back to turbofan.
       // TODO(wasm): We could actually stop or remove the tiering unit for this
       // function to avoid compiling it twice with TurboFan.
       V8_FALLTHROUGH;
-    case ExecutionTier::kOptimized:
-      turbofan_unit_->ExecuteCompilation(env, func_body, counters, detected);
+
+    case ExecutionTier::kTurbofan:
+      result = compiler::ExecuteTurbofanWasmCompilation(
+          wasm_engine, env, func_body, func_index_, counters, detected);
       break;
+
     case ExecutionTier::kInterpreter:
-      UNREACHABLE();  // TODO(titzer): compile interpreter entry stub.
+      result = compiler::ExecuteInterpreterEntryCompilation(
+          wasm_engine, env, func_body, func_index_, counters, detected);
+      break;
   }
+
+  return result;
 }
 
-void WasmCompilationUnit::SwitchTier(ExecutionTier new_tier) {
-  // This method is being called in the constructor, where neither
-  // {liftoff_unit_} nor {turbofan_unit_} are set, or to switch tier from
-  // kLiftoff to kTurbofan, in which case {liftoff_unit_} is already set.
-  tier_ = new_tier;
-  switch (new_tier) {
-    case ExecutionTier::kBaseline:
-      DCHECK(!turbofan_unit_);
-      DCHECK(!liftoff_unit_);
-      liftoff_unit_.reset(new LiftoffCompilationUnit(this));
-      return;
-    case ExecutionTier::kOptimized:
-      DCHECK(!turbofan_unit_);
-      liftoff_unit_.reset();
-      turbofan_unit_.reset(new compiler::TurbofanWasmCompilationUnit(this));
-      return;
-    case ExecutionTier::kInterpreter:
-      UNREACHABLE();  // TODO(titzer): allow compiling interpreter entry stub.
-  }
-  UNREACHABLE();
+namespace {
+bool must_record_function_compilation(Isolate* isolate) {
+  return isolate->logger()->is_listening_to_code_events() ||
+         isolate->is_profiling();
 }
+
+PRINTF_FORMAT(3, 4)
+void RecordWasmHeapStubCompilation(Isolate* isolate, Handle<Code> code,
+                                   const char* format, ...) {
+  DCHECK(must_record_function_compilation(isolate));
+
+  ScopedVector<char> buffer(128);
+  va_list arguments;
+  va_start(arguments, format);
+  int len = VSNPrintF(buffer, format, arguments);
+  CHECK_LT(0, len);
+  va_end(arguments);
+  Handle<String> name_str =
+      isolate->factory()->NewStringFromAsciiChecked(buffer.begin());
+  PROFILE(isolate, CodeCreateEvent(CodeEventListener::STUB_TAG,
+                                   AbstractCode::cast(*code), *name_str));
+}
+}  // namespace
 
 // static
 void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
@@ -135,23 +246,58 @@ void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
                              wire_bytes.start() + function->code.offset(),
                              wire_bytes.start() + function->code.end_offset()};
 
-  WasmCompilationUnit unit(isolate->wasm_engine(), native_module,
-                           function->func_index, tier);
+  DCHECK_LE(native_module->num_imported_functions(), function->func_index);
+  DCHECK_LT(function->func_index, native_module->num_functions());
+  WasmCompilationUnit unit(function->func_index, tier);
   CompilationEnv env = native_module->CreateCompilationEnv();
-  unit.ExecuteCompilation(
-      &env, native_module->compilation_state()->GetWireBytesStorage(),
+  WasmCompilationResult result = unit.ExecuteCompilation(
+      isolate->wasm_engine(), &env,
+      native_module->compilation_state()->GetWireBytesStorage(),
       isolate->counters(), detected);
+  if (result.succeeded()) {
+    WasmCodeRefScope code_ref_scope;
+    native_module->AddCompiledCode(std::move(result));
+  } else {
+    native_module->compilation_state()->SetError();
+  }
 }
 
-void WasmCompilationUnit::SetResult(WasmCode* code, Counters* counters) {
-  DCHECK_NULL(result_);
-  result_ = code;
-  native_module()->PublishCode(code);
+JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
+    Isolate* isolate, WasmEngine* wasm_engine, FunctionSig* sig, bool is_import,
+    const WasmFeatures& enabled_features)
+    : is_import_(is_import),
+      sig_(sig),
+      job_(compiler::NewJSToWasmCompilationJob(isolate, wasm_engine, sig,
+                                               is_import, enabled_features)) {}
 
-  counters->wasm_generated_code_size()->Increment(
-      static_cast<int>(code->instructions().size()));
-  counters->wasm_reloc_size()->Increment(
-      static_cast<int>(code->reloc_info().size()));
+JSToWasmWrapperCompilationUnit::~JSToWasmWrapperCompilationUnit() = default;
+
+void JSToWasmWrapperCompilationUnit::Execute() {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "CompileJSToWasmWrapper");
+  CompilationJob::Status status = job_->ExecuteJob();
+  CHECK_EQ(status, CompilationJob::SUCCEEDED);
+}
+
+Handle<Code> JSToWasmWrapperCompilationUnit::Finalize(Isolate* isolate) {
+  CompilationJob::Status status = job_->FinalizeJob(isolate);
+  CHECK_EQ(status, CompilationJob::SUCCEEDED);
+  Handle<Code> code = job_->compilation_info()->code();
+  if (must_record_function_compilation(isolate)) {
+    RecordWasmHeapStubCompilation(
+        isolate, code, "%s", job_->compilation_info()->GetDebugName().get());
+  }
+  return code;
+}
+
+// static
+Handle<Code> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
+    Isolate* isolate, FunctionSig* sig, bool is_import) {
+  // Run the compilation unit synchronously.
+  WasmFeatures enabled_features = WasmFeaturesFromIsolate(isolate);
+  JSToWasmWrapperCompilationUnit unit(isolate, isolate->wasm_engine(), sig,
+                                      is_import, enabled_features);
+  unit.Execute();
+  return unit.Finalize(isolate);
 }
 
 }  // namespace wasm

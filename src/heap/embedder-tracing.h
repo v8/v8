@@ -6,8 +6,8 @@
 #define V8_HEAP_EMBEDDER_TRACING_H_
 
 #include "include/v8.h"
-#include "src/flags.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
+#include "src/flags/flags.h"
 
 namespace v8 {
 namespace internal {
@@ -17,8 +17,8 @@ class JSObject;
 
 class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
  public:
-  typedef std::pair<void*, void*> WrapperInfo;
-  typedef std::vector<WrapperInfo> WrapperCache;
+  using WrapperInfo = std::pair<void*, void*>;
+  using WrapperCache = std::vector<WrapperInfo>;
 
   class V8_EXPORT_PRIVATE ProcessingScope {
    public:
@@ -48,11 +48,15 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   EmbedderHeapTracer* remote_tracer() const { return remote_tracer_; }
 
   void SetRemoteTracer(EmbedderHeapTracer* tracer);
-  void TracePrologue();
+  void TracePrologue(EmbedderHeapTracer::TraceFlags flags);
   void TraceEpilogue();
   void EnterFinalPause();
   bool Trace(double deadline);
   bool IsRemoteTracingDone();
+
+  bool IsRootForNonTracingGC(const v8::TracedGlobal<v8::Value>& handle) {
+    return !InUse() || remote_tracer_->IsRootForNonTracingGC(handle);
+  }
 
   void NotifyV8MarkingWorklistWasEmpty() {
     num_v8_marking_worklist_was_empty_++;
@@ -72,7 +76,30 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
     embedder_worklist_empty_ = is_empty;
   }
 
+  void IncreaseAllocatedSize(size_t bytes) {
+    remote_stats_.used_size += bytes;
+    remote_stats_.allocated_size += bytes;
+    if (remote_stats_.allocated_size >
+        remote_stats_.allocated_size_limit_for_check) {
+      StartIncrementalMarkingIfNeeded();
+      remote_stats_.allocated_size_limit_for_check =
+          remote_stats_.allocated_size + kEmbedderAllocatedThreshold;
+    }
+  }
+
+  void DecreaseAllocatedSize(size_t bytes) {
+    DCHECK_GE(remote_stats_.used_size, bytes);
+    remote_stats_.used_size -= bytes;
+  }
+
+  void StartIncrementalMarkingIfNeeded();
+
+  size_t used_size() const { return remote_stats_.used_size; }
+  size_t allocated_size() const { return remote_stats_.allocated_size; }
+
  private:
+  static constexpr size_t kEmbedderAllocatedThreshold = 128 * KB;
+
   Isolate* const isolate_;
   EmbedderHeapTracer* remote_tracer_ = nullptr;
 
@@ -83,6 +110,19 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   // thread. This is opportunistic as concurrent marking tasks may hold local
   // segments of potential embedder fields to move to the main thread.
   bool embedder_worklist_empty_ = false;
+
+  struct RemoteStatistics {
+    // Used size of objects in bytes reported by the embedder. Updated via
+    // TraceSummary at the end of tracing and incrementally when the GC is not
+    // in progress.
+    size_t used_size = 0;
+    // Totally bytes allocated by the embedder. Monotonically
+    // increasing value. Used to approximate allocation rate.
+    size_t allocated_size = 0;
+    // Limit for |allocated_size| in bytes to avoid checking for starting a GC
+    // on each increment.
+    size_t allocated_size_limit_for_check = 0;
+  } remote_stats_;
 
   friend class EmbedderStackStateScope;
 };

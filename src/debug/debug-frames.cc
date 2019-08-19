@@ -4,8 +4,8 @@
 
 #include "src/debug/debug-frames.h"
 
-#include "src/accessors.h"
-#include "src/frames-inl.h"
+#include "src/builtins/accessors.h"
+#include "src/execution/frames-inl.h"
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-objects-inl.h"
 
@@ -19,6 +19,7 @@ FrameInspector::FrameInspector(StandardFrame* frame, int inlined_frame_index,
       isolate_(isolate) {
   // Extract the relevant information from the frame summary and discard it.
   FrameSummary summary = FrameSummary::Get(frame, inlined_frame_index);
+  summary.EnsureSourcePositionsAvailable();
 
   is_constructor_ = summary.is_constructor();
   source_position_ = summary.SourcePosition();
@@ -46,15 +47,18 @@ FrameInspector::FrameInspector(StandardFrame* frame, int inlined_frame_index,
     wasm_interpreted_frame_ =
         WasmInterpreterEntryFrame::cast(frame_)
             ->debug_info()
-            ->GetInterpretedFrame(frame_->fp(), inlined_frame_index);
+            .GetInterpretedFrame(frame_->fp(), inlined_frame_index);
     DCHECK(wasm_interpreted_frame_);
   }
 }
 
-// NOLINTNEXTLINE
-FrameInspector::~FrameInspector() {
-  // Destructor needs to be defined in the .cc file, because it instantiates
-  // std::unique_ptr destructors but the types are not known in the header.
+// Destructor needs to be defined in the .cc file, because it instantiates
+// std::unique_ptr destructors but the types are not known in the header.
+FrameInspector::~FrameInspector() = default;
+
+JavaScriptFrame* FrameInspector::javascript_frame() {
+  return frame_->is_arguments_adaptor() ? ArgumentsAdaptorFrame::cast(frame_)
+                                        : JavaScriptFrame::cast(frame_);
 }
 
 int FrameInspector::GetParametersCount() {
@@ -89,8 +93,34 @@ bool FrameInspector::ParameterIsShadowedByContextLocal(
   VariableMode mode;
   InitializationFlag init_flag;
   MaybeAssignedFlag maybe_assigned_flag;
-  return ScopeInfo::ContextSlotIndex(info, parameter_name, &mode, &init_flag,
+  return ScopeInfo::ContextSlotIndex(*info, *parameter_name, &mode, &init_flag,
                                      &maybe_assigned_flag) != -1;
 }
+
+RedirectActiveFunctions::RedirectActiveFunctions(SharedFunctionInfo shared,
+                                                 Mode mode)
+    : shared_(shared), mode_(mode) {
+  DCHECK(shared.HasBytecodeArray());
+  if (mode == Mode::kUseDebugBytecode) {
+    DCHECK(shared.HasDebugInfo());
+  }
+}
+
+void RedirectActiveFunctions::VisitThread(Isolate* isolate,
+                                          ThreadLocalTop* top) {
+  for (JavaScriptFrameIterator it(isolate, top); !it.done(); it.Advance()) {
+    JavaScriptFrame* frame = it.frame();
+    JSFunction function = frame->function();
+    if (!frame->is_interpreted()) continue;
+    if (function.shared() != shared_) continue;
+    InterpretedFrame* interpreted_frame =
+        reinterpret_cast<InterpretedFrame*>(frame);
+    BytecodeArray bytecode = mode_ == Mode::kUseDebugBytecode
+                                 ? shared_.GetDebugInfo().DebugBytecodeArray()
+                                 : shared_.GetBytecodeArray();
+    interpreted_frame->PatchBytecodeArray(bytecode);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

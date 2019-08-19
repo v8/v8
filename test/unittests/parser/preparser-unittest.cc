@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/api-inl.h"
-#include "src/objects-inl.h"
+#include "src/api/api-inl.h"
+#include "src/objects/objects-inl.h"
 #include "test/unittests/test-helpers.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -26,7 +26,7 @@ TEST_F(PreParserTest, LazyFunctionLength) {
 
   Handle<SharedFunctionInfo> shared(lazy_function->shared(),
                                     lazy_function->GetIsolate());
-  CHECK_EQ(shared->length(), SharedFunctionInfo::kInvalidLength);
+  CHECK_EQ(3, shared->length());
 
   Handle<Smi> length = RunJS<Smi>("lazy.length");
   int32_t value;

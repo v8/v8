@@ -20,12 +20,16 @@
     return arr.slice(0);
   }
 
+  %PrepareFunctionForOptimization(slice0);
+  %PrepareFunctionForOptimization(slice);
+
   assertEquals(arr, slice());
   assertFalse(arr === slice());
   assertEquals(slice(), slice0());
   assertEquals(slice0(), slice());
 
   %OptimizeFunctionOnNextCall(slice0);
+  assertEquals(slice(), slice0());
   %OptimizeFunctionOnNextCall(slice);
 
   assertEquals(slice(), slice0());
@@ -40,6 +44,8 @@
   function slice() {
     return arr.slice();
   }
+
+  %PrepareFunctionForOptimization(slice);
 
   assertEquals(arr, slice());
   assertEquals(slice(), arr);
@@ -60,6 +66,8 @@
     return arr.slice();
   }
 
+  %PrepareFunctionForOptimization(slice);
+
   assertEquals(arr, slice());
   assertEquals(slice(), arr);
 
@@ -71,6 +79,7 @@
   arr.push(7.2);
   slice();
 
+  %PrepareFunctionForOptimization(slice);
   %OptimizeFunctionOnNextCall(slice);
   // Trigger opt again
   slice();
@@ -92,6 +101,8 @@
   class MyArray extends Array {};
   array.constructor = MyArray;
 
+  %PrepareFunctionForOptimization(slice);
+
   slice(); slice();
 
   %OptimizeFunctionOnNextCall(slice);
@@ -105,6 +116,8 @@
   function slice(){
     return array.slice();
   }
+
+  %PrepareFunctionForOptimization(slice);
 
   slice(); slice();
 
@@ -127,6 +140,8 @@
   function slice() {
     return arr.slice();
   }
+
+  %PrepareFunctionForOptimization(slice);
 
   slice(); slice();
   arr.foo = 6.2;
@@ -155,6 +170,8 @@
     return arr.slice();
   }
 
+  %PrepareFunctionForOptimization(slice);
+
   slice(iarr); slice(darr);
   slice(iarr); slice(darr);
 
@@ -182,6 +199,8 @@
     return array.slice();
   }
 
+  %PrepareFunctionForOptimization(slice);
+
   assertEquals(slice(),array);
   slice();
 
@@ -205,6 +224,8 @@
     return x.slice();
   }
 
+  %PrepareFunctionForOptimization(slice);
+
   slice(); slice();
 
   %OptimizeFunctionOnNextCall(slice);
@@ -220,6 +241,8 @@
   function slice() {
     return array.slice();
   }
+
+  %PrepareFunctionForOptimization(slice);
 
   assertEquals(slice(),array);
   slice();
@@ -237,6 +260,8 @@
   function slice() {
     return array.slice();
   }
+
+  %PrepareFunctionForOptimization(slice);
 
   assertEquals(slice(),array);
   slice();
@@ -258,6 +283,8 @@
   function slice(arr) {
     return arr.slice();
   }
+
+  %PrepareFunctionForOptimization(slice);
 
   // make array's map is_prototype_map()
   var x = {__proto__ : array};
@@ -284,6 +311,8 @@
     return array.slice();
   }
 
+  %PrepareFunctionForOptimization(slice);
+
   assertEquals(slice(),array);
   slice();
 
@@ -304,6 +333,8 @@
   function slice() {
     return array.slice();
   }
+
+  %PrepareFunctionForOptimization(slice);
 
   assertEquals(slice(),array);
   slice();
@@ -328,6 +359,8 @@
     return array.slice();
   }
 
+  %PrepareFunctionForOptimization(slice);
+
   assertEquals(slice(),array);
   slice();
 
@@ -348,6 +381,8 @@
     return array.slice();
   }
 
+  %PrepareFunctionForOptimization(slice);
+
   assertEquals(slice(),array);
   slice();
 
@@ -362,4 +397,86 @@
   // if optimized, we would get [6, , 6]
   assertNotEquals(Object.getOwnPropertyDescriptor(narr, 1), undefined);
   assertEquals(narr, [6,6,6]);
+})();
+
+// Packed
+// Trigger JSCallReducer on slice() and slice(0)
+(function() {
+  // Non-extensible:
+  var arr = Object.preventExtensions([1,2,'a',4,5]);
+
+  function slice() {
+    return arr.slice();
+  }
+
+  function slice0() {
+    return arr.slice(0);
+  }
+
+  function test() {
+    %PrepareFunctionForOptimization(slice0);
+    %PrepareFunctionForOptimization(slice);
+
+    assertEquals(arr, slice());
+    assertFalse(arr === slice());
+    assertEquals(slice(), slice0());
+    assertEquals(slice0(), slice());
+
+    %OptimizeFunctionOnNextCall(slice0);
+    assertEquals(slice(), slice0());
+    %OptimizeFunctionOnNextCall(slice);
+
+    assertEquals(slice(), slice0());
+    assertOptimized(slice); assertOptimized(slice0);
+  }
+  test();
+
+  // Sealed
+  arr = Object.seal([1,2,'a',4,5]);
+  test();
+
+  // Frozen
+  arr = Object.freeze([1,2,'a',4,5]);
+  test();
+})();
+
+// Holey
+// Trigger JSCallReducer on slice() and slice(0)
+(function() {
+  // Non-extensible:
+  var arr = Object.preventExtensions([,1,2,'a',4,5]);
+
+  function slice() {
+    return arr.slice();
+  }
+
+  function slice0() {
+    return arr.slice(0);
+  }
+
+  function test() {
+    %PrepareFunctionForOptimization(slice0);
+    %PrepareFunctionForOptimization(slice);
+    assertEquals(arr, slice());
+    assertFalse(arr === slice());
+    assertEquals(slice(), slice0());
+    assertEquals(slice0(), slice());
+
+    %OptimizeFunctionOnNextCall(slice0);
+    assertEquals(slice(), slice0());
+    %OptimizeFunctionOnNextCall(slice);
+
+    assertEquals(slice(), slice0());
+    assertOptimized(slice0);
+    assertOptimized(slice);
+  }
+  test();
+
+  // Sealed
+  arr = Object.seal([,1,2,'a',4,5]);
+  test();
+
+  // Frozen
+  arr = Object.freeze([,1,2,'a',4,5]);
+  test();
 })();

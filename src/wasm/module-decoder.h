@@ -5,7 +5,7 @@
 #ifndef V8_WASM_MODULE_DECODER_H_
 #define V8_WASM_MODULE_DECODER_H_
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-features.h"
@@ -27,18 +27,18 @@ inline bool IsValidSectionCode(uint8_t byte) {
 
 const char* SectionName(SectionCode code);
 
-typedef Result<std::shared_ptr<WasmModule>> ModuleResult;
-typedef Result<std::unique_ptr<WasmFunction>> FunctionResult;
-typedef std::vector<std::pair<int, int>> FunctionOffsets;
-typedef Result<FunctionOffsets> FunctionOffsetsResult;
+using ModuleResult = Result<std::shared_ptr<WasmModule>>;
+using FunctionResult = Result<std::unique_ptr<WasmFunction>>;
+using FunctionOffsets = std::vector<std::pair<int, int>>;
+using FunctionOffsetsResult = Result<FunctionOffsets>;
 
 struct AsmJsOffsetEntry {
   int byte_offset;
   int source_position_call;
   int source_position_number_conversion;
 };
-typedef std::vector<std::vector<AsmJsOffsetEntry>> AsmJsOffsets;
-typedef Result<AsmJsOffsets> AsmJsOffsetsResult;
+using AsmJsOffsets = std::vector<std::vector<AsmJsOffsetEntry>>;
+using AsmJsOffsetsResult = Result<AsmJsOffsets>;
 
 struct LocalName {
   int local_index;
@@ -138,14 +138,13 @@ class ModuleDecoder {
   bool ok();
 
   // Translates the unknown section that decoder is pointing to to an extended
-  // SectionCode if the unknown section is known to decoder. Currently this only
-  // handles the name section.
-  // The decoder is expected to point after the section lenght and just before
+  // SectionCode if the unknown section is known to decoder.
+  // The decoder is expected to point after the section length and just before
   // the identifier string of the unknown section.
   // If a SectionCode other than kUnknownSectionCode is returned, the decoder
   // will point right after the identifier string. Otherwise, the position is
   // undefined.
-  static SectionCode IdentifyUnknownSection(Decoder& decoder, const byte* end);
+  static SectionCode IdentifyUnknownSection(Decoder* decoder, const byte* end);
 
  private:
   const WasmFeatures enabled_features_;

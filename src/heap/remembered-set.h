@@ -5,11 +5,11 @@
 #ifndef V8_HEAP_REMEMBERED_SET_H_
 #define V8_HEAP_REMEMBERED_SET_H_
 
+#include "src/base/memory.h"
+#include "src/codegen/reloc-info.h"
 #include "src/heap/heap.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/spaces.h"
-#include "src/reloc-info.h"
-#include "src/v8memory.h"
 
 namespace v8 {
 namespace internal {
@@ -266,8 +266,10 @@ class RememberedSet : public AllStatic {
 
 class UpdateTypedSlotHelper {
  public:
-  // Updates a typed slot using an untyped slot callback.
-  // The callback accepts MaybeObjectSlot and returns SlotCallbackResult.
+  // Updates a typed slot using an untyped slot callback where |addr| depending
+  // on slot type represents either address for respective RelocInfo or address
+  // of the uncompressed constant pool entry.
+  // The callback accepts FullMaybeObjectSlot and returns SlotCallbackResult.
   template <typename Callback>
   static SlotCallbackResult UpdateTypedSlot(Heap* heap, SlotType slot_type,
                                             Address addr, Callback callback) {
@@ -279,13 +281,15 @@ class UpdateTypedSlotHelper {
       case CODE_ENTRY_SLOT: {
         return UpdateCodeEntry(addr, callback);
       }
-      case EMBEDDED_OBJECT_SLOT: {
-        RelocInfo rinfo(addr, RelocInfo::EMBEDDED_OBJECT, 0, Code());
+      case COMPRESSED_EMBEDDED_OBJECT_SLOT: {
+        RelocInfo rinfo(addr, RelocInfo::COMPRESSED_EMBEDDED_OBJECT, 0, Code());
+        return UpdateEmbeddedPointer(heap, &rinfo, callback);
+      }
+      case FULL_EMBEDDED_OBJECT_SLOT: {
+        RelocInfo rinfo(addr, RelocInfo::FULL_EMBEDDED_OBJECT, 0, Code());
         return UpdateEmbeddedPointer(heap, &rinfo, callback);
       }
       case OBJECT_SLOT: {
-        // TODO(ishell): the incoming addr represents MaybeObjectSlot(addr).
-        STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
         return callback(FullMaybeObjectSlot(addr));
       }
       case CLEARED_SLOT:
@@ -303,9 +307,9 @@ class UpdateTypedSlotHelper {
     Code code = Code::GetObjectFromEntryAddress(entry_address);
     Code old_code = code;
     SlotCallbackResult result = callback(FullMaybeObjectSlot(&code));
-    DCHECK(!HasWeakHeapObjectTag(code.ptr()));
+    DCHECK(!HasWeakHeapObjectTag(code));
     if (code != old_code) {
-      Memory<Address>(entry_address) = code->entry();
+      base::Memory<Address>(entry_address) = code.entry();
     }
     return result;
   }
@@ -319,10 +323,9 @@ class UpdateTypedSlotHelper {
     Code old_target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     Code new_target = old_target;
     SlotCallbackResult result = callback(FullMaybeObjectSlot(&new_target));
-    DCHECK(!HasWeakHeapObjectTag(new_target.ptr()));
+    DCHECK(!HasWeakHeapObjectTag(new_target));
     if (new_target != old_target) {
-      rinfo->set_target_address(
-          Code::cast(new_target)->raw_instruction_start());
+      rinfo->set_target_address(Code::cast(new_target).raw_instruction_start());
     }
     return result;
   }
@@ -332,11 +335,11 @@ class UpdateTypedSlotHelper {
   template <typename Callback>
   static SlotCallbackResult UpdateEmbeddedPointer(Heap* heap, RelocInfo* rinfo,
                                                   Callback callback) {
-    DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
-    HeapObject old_target = rinfo->target_object();
+    DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
+    HeapObject old_target = rinfo->target_object_no_host(heap->isolate());
     HeapObject new_target = old_target;
     SlotCallbackResult result = callback(FullMaybeObjectSlot(&new_target));
-    DCHECK(!HasWeakHeapObjectTag(new_target->ptr()));
+    DCHECK(!HasWeakHeapObjectTag(new_target));
     if (new_target != old_target) {
       rinfo->set_target_object(heap, HeapObject::cast(new_target));
     }
@@ -347,8 +350,10 @@ class UpdateTypedSlotHelper {
 inline SlotType SlotTypeForRelocInfoMode(RelocInfo::Mode rmode) {
   if (RelocInfo::IsCodeTargetMode(rmode)) {
     return CODE_TARGET_SLOT;
-  } else if (RelocInfo::IsEmbeddedObject(rmode)) {
-    return EMBEDDED_OBJECT_SLOT;
+  } else if (RelocInfo::IsFullEmbeddedObject(rmode)) {
+    return FULL_EMBEDDED_OBJECT_SLOT;
+  } else if (RelocInfo::IsCompressedEmbeddedObject(rmode)) {
+    return COMPRESSED_EMBEDDED_OBJECT_SLOT;
   }
   UNREACHABLE();
 }

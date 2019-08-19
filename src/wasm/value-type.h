@@ -5,7 +5,7 @@
 #ifndef V8_WASM_VALUE_TYPE_H_
 #define V8_WASM_VALUE_TYPE_H_
 
-#include "src/machine-type.h"
+#include "src/codegen/machine-type.h"
 #include "src/wasm/wasm-constants.h"
 
 namespace v8 {
@@ -16,6 +16,16 @@ class Signature;
 
 namespace wasm {
 
+// Type lattice: For any two types connected by a line, the type at the bottom
+// is a subtype of the other type.
+//
+//                       AnyRef
+//                       /    \
+//                 FuncRef    ExnRef
+//                       \    /
+// I32  I64  F32  F64    NullRef
+//   \    \    \    \    /
+//   ------------   Bottom
 enum ValueType : uint8_t {
   kWasmStmt,
   kWasmI32,
@@ -24,9 +34,10 @@ enum ValueType : uint8_t {
   kWasmF64,
   kWasmS128,
   kWasmAnyRef,
-  kWasmAnyFunc,
-  kWasmExceptRef,
-  kWasmVar,
+  kWasmFuncRef,
+  kWasmNullRef,
+  kWasmExnRef,
+  kWasmBottom,
 };
 
 using FunctionSig = Signature<ValueType>;
@@ -177,6 +188,33 @@ class StoreType {
 // A collection of ValueType-related static methods.
 class V8_EXPORT_PRIVATE ValueTypes {
  public:
+  static inline bool IsSubType(ValueType actual, ValueType expected) {
+    return (expected == actual) ||
+           (expected == kWasmAnyRef && actual == kWasmNullRef) ||
+           (expected == kWasmAnyRef && actual == kWasmFuncRef) ||
+           (expected == kWasmAnyRef && actual == kWasmExnRef) ||
+           (expected == kWasmFuncRef && actual == kWasmNullRef) ||
+           // TODO(mstarzinger): For now we treat "nullref" as a sub-type of
+           // "exnref", which is correct but might change. See here:
+           // https://github.com/WebAssembly/exception-handling/issues/55
+           (expected == kWasmExnRef && actual == kWasmNullRef);
+  }
+
+  static inline bool IsReferenceType(ValueType type) {
+    return type == kWasmAnyRef || type == kWasmFuncRef || type == kWasmExnRef;
+  }
+
+  static inline ValueType CommonSubType(ValueType a, ValueType b) {
+    if (a == b) return a;
+    // The only sub type of any value type is {bot}.
+    if (!IsReferenceType(a) || !IsReferenceType(b)) return kWasmBottom;
+    if (IsSubType(a, b)) return a;
+    if (IsSubType(b, a)) return b;
+    // {a} and {b} are not each other's subtype. The biggest sub-type of all
+    // reference types is {kWasmNullRef}.
+    return kWasmNullRef;
+  }
+
   static byte MemSize(MachineType type) {
     return 1 << i::ElementSizeLog2Of(type.representation());
   }
@@ -191,6 +229,10 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return 8;
       case kWasmS128:
         return 16;
+      case kWasmAnyRef:
+      case kWasmFuncRef:
+      case kWasmExnRef:
+        return kSystemPointerSize;
       default:
         UNREACHABLE();
     }
@@ -206,6 +248,10 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return 3;
       case kWasmS128:
         return 4;
+      case kWasmAnyRef:
+      case kWasmFuncRef:
+      case kWasmExnRef:
+        return kSystemPointerSizeLog2;
       default:
         UNREACHABLE();
     }
@@ -227,8 +273,10 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return kLocalS128;
       case kWasmAnyRef:
         return kLocalAnyRef;
-      case kWasmExceptRef:
-        return kLocalExceptRef;
+      case kWasmFuncRef:
+        return kLocalFuncRef;
+      case kWasmExnRef:
+        return kLocalExnRef;
       case kWasmStmt:
         return kLocalVoid;
       default:
@@ -246,8 +294,9 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return MachineType::Float32();
       case kWasmF64:
         return MachineType::Float64();
-      case kWasmAnyFunc:
       case kWasmAnyRef:
+      case kWasmFuncRef:
+      case kWasmExnRef:
         return MachineType::TaggedPointer();
       case kWasmS128:
         return MachineType::Simd128();
@@ -269,6 +318,9 @@ class V8_EXPORT_PRIVATE ValueTypes {
       case kWasmF64:
         return MachineRepresentation::kFloat64;
       case kWasmAnyRef:
+      case kWasmFuncRef:
+      case kWasmNullRef:
+      case kWasmExnRef:
         return MachineRepresentation::kTaggedPointer;
       case kWasmS128:
         return MachineRepresentation::kSimd128;
@@ -312,11 +364,13 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return 'd';
       case kWasmAnyRef:
         return 'r';
+      case kWasmFuncRef:
+        return 'a';
       case kWasmS128:
         return 's';
       case kWasmStmt:
         return 'v';
-      case kWasmVar:
+      case kWasmBottom:
         return '*';
       default:
         return '?';
@@ -334,13 +388,19 @@ class V8_EXPORT_PRIVATE ValueTypes {
       case kWasmF64:
         return "f64";
       case kWasmAnyRef:
-        return "ref";
+        return "anyref";
+      case kWasmFuncRef:
+        return "funcref";
+      case kWasmNullRef:
+        return "nullref";
+      case kWasmExnRef:
+        return "exn";
       case kWasmS128:
         return "s128";
       case kWasmStmt:
         return "<stmt>";
-      case kWasmVar:
-        return "<var>";
+      case kWasmBottom:
+        return "<bot>";
       default:
         return "<unknown>";
     }

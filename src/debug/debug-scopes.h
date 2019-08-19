@@ -8,11 +8,11 @@
 #include <vector>
 
 #include "src/debug/debug-frames.h"
-#include "src/frames.h"
 
 namespace v8 {
 namespace internal {
 
+class JavaScriptFrame;
 class ParseInfo;
 
 // Iterate over the actual scopes visible from a stack frame or from a closure.
@@ -128,8 +128,8 @@ class ScopeIterator {
 
   void UnwrapEvaluationContext();
 
-  typedef std::function<bool(Handle<String> name, Handle<Object> value)>
-      Visitor;
+  using Visitor =
+      std::function<bool(Handle<String> name, Handle<Object> value)>;
 
   Handle<JSObject> WithContextExtension();
 

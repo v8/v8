@@ -55,7 +55,7 @@ static const char customObjectFormatterEnabled[] =
     "customObjectFormatterEnabled";
 static const char runtimeEnabled[] = "runtimeEnabled";
 static const char bindings[] = "bindings";
-};
+}  // namespace V8RuntimeAgentImplState
 
 using protocol::Runtime::RemoteObject;
 
@@ -107,7 +107,8 @@ bool wrapEvaluateResultAsync(InjectedScript* injectedScript,
 }
 
 void innerCallFunctionOn(
-    V8InspectorSessionImpl* session, InjectedScript::Scope& scope,
+    V8InspectorSessionImpl* session,
+    InjectedScript::Scope& scope,  // NOLINT(runtime/references)
     v8::Local<v8::Value> recv, const String16& expression,
     Maybe<protocol::Array<protocol::Runtime::CallArgument>> optionalArguments,
     bool silent, WrapMode wrapMode, bool userGesture, bool awaitPromise,
@@ -120,12 +121,12 @@ void innerCallFunctionOn(
   if (optionalArguments.isJust()) {
     protocol::Array<protocol::Runtime::CallArgument>* arguments =
         optionalArguments.fromJust();
-    argc = static_cast<int>(arguments->length());
+    argc = static_cast<int>(arguments->size());
     argv.reset(new v8::Local<v8::Value>[argc]);
     for (int i = 0; i < argc; ++i) {
       v8::Local<v8::Value> argumentValue;
       Response response = scope.injectedScript()->resolveCallArgument(
-          arguments->get(i), &argumentValue);
+          (*arguments)[i].get(), &argumentValue);
       if (!response.isSuccess()) {
         callback->sendFailure(response);
         return;
@@ -238,13 +239,6 @@ void V8RuntimeAgentImpl::evaluate(
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("devtools.timeline"),
                "EvaluateScript");
   int contextId = 0;
-
-  // TODO(alph): Temporary code to investigate the crash crbug.com/897816
-  char expression_for_debug[200];
-  std::snprintf(expression_for_debug, sizeof(expression_for_debug),
-                "V8RAI::evaluate %s", expression.utf8().c_str());
-  USE(expression_for_debug);
-
   Response response = ensureContext(m_inspector, m_session->contextGroupId(),
                                     std::move(executionContextId), &contextId);
   if (!response.isSuccess()) {
@@ -392,8 +386,11 @@ Response V8RuntimeAgentImpl::getProperties(
         result,
     Maybe<protocol::Array<protocol::Runtime::InternalPropertyDescriptor>>*
         internalProperties,
+    Maybe<protocol::Array<protocol::Runtime::PrivatePropertyDescriptor>>*
+        privateProperties,
     Maybe<protocol::Runtime::ExceptionDetails>* exceptionDetails) {
   using protocol::Runtime::InternalPropertyDescriptor;
+  using protocol::Runtime::PrivatePropertyDescriptor;
 
   InjectedScript::ObjectScope scope(m_session, objectId);
   Response response = scope.initialize();
@@ -416,12 +413,17 @@ Response V8RuntimeAgentImpl::getProperties(
   if (exceptionDetails->isJust() || accessorPropertiesOnly.fromMaybe(false))
     return Response::OK();
   std::unique_ptr<protocol::Array<InternalPropertyDescriptor>>
-      propertiesProtocolArray;
-  response = scope.injectedScript()->getInternalProperties(
-      object, scope.objectGroupName(), &propertiesProtocolArray);
+      internalPropertiesProtocolArray;
+  std::unique_ptr<protocol::Array<PrivatePropertyDescriptor>>
+      privatePropertiesProtocolArray;
+  response = scope.injectedScript()->getInternalAndPrivateProperties(
+      object, scope.objectGroupName(), &internalPropertiesProtocolArray,
+      &privatePropertiesProtocolArray);
   if (!response.isSuccess()) return response;
-  if (propertiesProtocolArray->length())
-    *internalProperties = std::move(propertiesProtocolArray);
+  if (!internalPropertiesProtocolArray->empty())
+    *internalProperties = std::move(internalPropertiesProtocolArray);
+  if (!privatePropertiesProtocolArray->empty())
+    *privateProperties = std::move(privatePropertiesProtocolArray);
   return Response::OK();
 }
 
@@ -488,7 +490,7 @@ Response V8RuntimeAgentImpl::compileScript(
   if (!isOk) {
     if (scope.tryCatch().HasCaught()) {
       response = scope.injectedScript()->createExceptionDetails(
-          scope.tryCatch(), String16(), WrapMode::kNoPreview, exceptionDetails);
+          scope.tryCatch(), String16(), exceptionDetails);
       if (!response.isSuccess()) return response;
       return Response::OK();
     } else {
@@ -611,9 +613,9 @@ Response V8RuntimeAgentImpl::globalLexicalScopeNames(
 
   v8::PersistentValueVector<v8::String> names(m_inspector->isolate());
   v8::debug::GlobalLexicalScopeNames(scope.context(), &names);
-  *outNames = protocol::Array<String16>::create();
+  *outNames = v8::base::make_unique<protocol::Array<String16>>();
   for (size_t i = 0; i < names.Size(); ++i) {
-    (*outNames)->addItem(
+    (*outNames)->emplace_back(
         toProtocolString(m_inspector->isolate(), names.Get(i)));
   }
   return Response::OK();

@@ -5,7 +5,7 @@
 #ifndef V8_REGEXP_REGEXP_UTILS_H_
 #define V8_REGEXP_REGEXP_UTILS_H_
 
-#include "src/objects.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -38,6 +38,9 @@ class RegExpUtils : public AllStatic {
   // Checks whether the given object is an unmodified JSRegExp instance.
   // Neither the object's map, nor its prototype's map, nor any relevant
   // method on the prototype may be modified.
+  //
+  // Note: This check is limited may only be used in situations where the only
+  // relevant property is 'exec'.
   static bool IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj);
 
   // ES#sec-advancestringindex

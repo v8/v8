@@ -6,9 +6,10 @@
 
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
+#include "src/zone/zone-list-inl.h"
 
 namespace v8 {
 namespace internal {

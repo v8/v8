@@ -39,6 +39,56 @@ class ParseResultHolderBase {
   const TypeId type_id_;
 };
 
+enum class ParseResultHolderBase::TypeId {
+  kStdString,
+  kBool,
+  kStdVectorOfString,
+  kExpressionPtr,
+  kIdentifierPtr,
+  kOptionalIdentifierPtr,
+  kStatementPtr,
+  kDeclarationPtr,
+  kTypeExpressionPtr,
+  kOptionalTypeExpressionPtr,
+  kLabelBlockPtr,
+  kOptionalLabelBlockPtr,
+  kNameAndTypeExpression,
+  kImplicitParameters,
+  kOptionalImplicitParameters,
+  kNameAndExpression,
+  kConditionalAnnotation,
+  kOptionalConditionalAnnotation,
+  kClassFieldExpression,
+  kStructFieldExpression,
+  kStdVectorOfNameAndTypeExpression,
+  kStdVectorOfNameAndExpression,
+  kStdVectorOfClassFieldExpression,
+  kStdVectorOfStructFieldExpression,
+  kIncrementDecrementOperator,
+  kOptionalStdString,
+  kStdVectorOfStatementPtr,
+  kStdVectorOfDeclarationPtr,
+  kStdVectorOfStdVectorOfDeclarationPtr,
+  kStdVectorOfExpressionPtr,
+  kExpressionWithSource,
+  kParameterList,
+  kTypeList,
+  kOptionalTypeList,
+  kLabelAndTypes,
+  kStdVectorOfLabelAndTypes,
+  kStdVectorOfLabelBlockPtr,
+  kOptionalStatementPtr,
+  kOptionalExpressionPtr,
+  kTypeswitchCase,
+  kStdVectorOfTypeswitchCase,
+  kStdVectorOfIdentifierPtr,
+
+  kJsonValue,
+  kJsonMember,
+  kStdVectorOfJsonValue,
+  kStdVectorOfJsonMember,
+};
+
 using ParseResultTypeId = ParseResultHolderBase::TypeId;
 
 template <class T>
@@ -71,12 +121,16 @@ class ParseResult {
   explicit ParseResult(T x) : value_(new ParseResultHolder<T>(std::move(x))) {}
 
   template <class T>
-  const T& Cast() const {
+  const T& Cast() const& {
     return value_->Cast<T>();
   }
   template <class T>
-  T& Cast() {
+  T& Cast() & {
     return value_->Cast<T>();
+  }
+  template <class T>
+  T&& Cast() && {
+    return std::move(value_->Cast<T>());
   }
 
  private:
@@ -136,6 +190,15 @@ inline base::Optional<ParseResult> DefaultAction(
     ParseResultIterator* child_results) {
   if (!child_results->HasNext()) return base::nullopt;
   return child_results->Next();
+}
+
+template <class T, Action action>
+inline Action AsSingletonVector() {
+  return [](ParseResultIterator* child_results) -> base::Optional<ParseResult> {
+    auto result = action(child_results);
+    if (!result) return result;
+    return ParseResult{std::vector<T>{(*result).Cast<T>()}};
+  };
 }
 
 // A rule of the context-free grammar. Each rule can have an action attached to
@@ -252,10 +315,13 @@ class Item {
   void CheckAmbiguity(const Item& other, const LexerResult& tokens) const;
 
   MatchedInput GetMatchedInput(const LexerResult& tokens) const {
-    return {tokens.token_contents[start_].begin,
-            start_ == pos_ ? tokens.token_contents[start_].begin
-                           : tokens.token_contents[pos_ - 1].end,
-            tokens.token_contents[start_].pos};
+    const MatchedInput& start = tokens.token_contents[start_];
+    const MatchedInput& end = start_ == pos_ ? tokens.token_contents[start_]
+                                             : tokens.token_contents[pos_ - 1];
+    CHECK_EQ(start.pos.source, end.pos.source);
+    SourcePosition combined{start.pos.source, start.pos.start, end.pos.end};
+
+    return {start.begin, end.end, combined};
   }
 
   // We exclude {prev_} and {child_} from equality and hash computations,

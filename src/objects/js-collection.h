@@ -5,8 +5,8 @@
 #ifndef V8_OBJECTS_JS_COLLECTION_H_
 #define V8_OBJECTS_JS_COLLECTION_H_
 
-#include "src/objects.h"
-#include "src/objects/ordered-hash-table.h"
+#include "src/objects/js-collection-iterator.h"
+#include "src/objects/objects.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -14,21 +14,23 @@
 namespace v8 {
 namespace internal {
 
+class OrderedHashSet;
+class OrderedHashMap;
+
 class JSCollection : public JSObject {
  public:
+  DECL_CAST(JSCollection)
+
   // [table]: the backing hash table
   DECL_ACCESSORS(table, Object)
 
-// Layout description.
-#define JS_COLLECTION_FIELDS(V) \
-  V(kTableOffset, kTaggedSize)  \
-  /* Header size. */            \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_COLLECTION_FIELDS)
-#undef JS_COLLECTION_FIELDS
+  // Layout description.
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JSCOLLECTION_FIELDS)
 
   static const int kAddFunctionDescriptorIndex = 3;
+
+  DECL_VERIFIER(JSCollection)
 
   OBJECT_CONSTRUCTORS(JSCollection, JSObject);
 };
@@ -36,7 +38,7 @@ class JSCollection : public JSObject {
 // The JSSet describes EcmaScript Harmony sets
 class JSSet : public JSCollection {
  public:
-  DECL_CAST2(JSSet)
+  DECL_CAST(JSSet)
 
   static void Initialize(Handle<JSSet> set, Isolate* isolate);
   static void Clear(Isolate* isolate, Handle<JSSet> set);
@@ -44,6 +46,8 @@ class JSSet : public JSCollection {
   // Dispatched behavior.
   DECL_PRINTER(JSSet)
   DECL_VERIFIER(JSSet)
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSCollection::kHeaderSize,
+                                TORQUE_GENERATED_JSWEAK_SET_FIELDS)
 
   OBJECT_CONSTRUCTORS(JSSet, JSCollection);
 };
@@ -55,7 +59,7 @@ class JSSetIterator
   DECL_PRINTER(JSSetIterator)
   DECL_VERIFIER(JSSetIterator)
 
-  DECL_CAST2(JSSetIterator)
+  DECL_CAST(JSSetIterator)
 
   OBJECT_CONSTRUCTORS(JSSetIterator,
                       OrderedHashTableIterator<JSSetIterator, OrderedHashSet>);
@@ -64,7 +68,7 @@ class JSSetIterator
 // The JSMap describes EcmaScript Harmony maps
 class JSMap : public JSCollection {
  public:
-  DECL_CAST2(JSMap)
+  DECL_CAST(JSMap)
 
   static void Initialize(Handle<JSMap> map, Isolate* isolate);
   static void Clear(Isolate* isolate, Handle<JSMap> map);
@@ -72,6 +76,8 @@ class JSMap : public JSCollection {
   // Dispatched behavior.
   DECL_PRINTER(JSMap)
   DECL_VERIFIER(JSMap)
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSCollection::kHeaderSize,
+                                TORQUE_GENERATED_JSWEAK_MAP_FIELDS)
 
   OBJECT_CONSTRUCTORS(JSMap, JSCollection);
 };
@@ -83,11 +89,11 @@ class JSMapIterator
   DECL_PRINTER(JSMapIterator)
   DECL_VERIFIER(JSMapIterator)
 
-  DECL_CAST2(JSMapIterator)
+  DECL_CAST(JSMapIterator)
 
   // Returns the current value of the iterator. This should only be called when
   // |HasMore| returns true.
-  inline Object* CurrentValue();
+  inline Object CurrentValue();
 
   OBJECT_CONSTRUCTORS(JSMapIterator,
                       OrderedHashTableIterator<JSMapIterator, OrderedHashMap>);
@@ -96,28 +102,24 @@ class JSMapIterator
 // Base class for both JSWeakMap and JSWeakSet
 class JSWeakCollection : public JSObject {
  public:
-  DECL_CAST2(JSWeakCollection)
+  DECL_CAST(JSWeakCollection)
 
   // [table]: the backing hash table mapping keys to values.
   DECL_ACCESSORS(table, Object)
 
   static void Initialize(Handle<JSWeakCollection> collection, Isolate* isolate);
-  static void Set(Handle<JSWeakCollection> collection, Handle<Object> key,
-                  Handle<Object> value, int32_t hash);
+  V8_EXPORT_PRIVATE static void Set(Handle<JSWeakCollection> collection,
+                                    Handle<Object> key, Handle<Object> value,
+                                    int32_t hash);
   static bool Delete(Handle<JSWeakCollection> collection, Handle<Object> key,
                      int32_t hash);
   static Handle<JSArray> GetEntries(Handle<JSWeakCollection> holder,
                                     int max_entries);
 
-// Layout description.
-#define JS_WEAK_COLLECTION_FIELDS(V) \
-  V(kTableOffset, kTaggedSize)       \
-  /* Header size. */                 \
-  V(kSize, 0)
+  DECL_VERIFIER(JSWeakCollection)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                JS_WEAK_COLLECTION_FIELDS)
-#undef JS_WEAK_COLLECTION_FIELDS
+                                TORQUE_GENERATED_JSWEAK_COLLECTION_FIELDS)
 
   static const int kAddFunctionDescriptorIndex = 3;
 
@@ -125,7 +127,9 @@ class JSWeakCollection : public JSObject {
   class BodyDescriptorImpl;
 
   // Visit the whole object.
-  typedef BodyDescriptorImpl BodyDescriptor;
+  using BodyDescriptor = BodyDescriptorImpl;
+
+  static const int kSizeOfAllWeakCollections = kHeaderSize;
 
   OBJECT_CONSTRUCTORS(JSWeakCollection, JSObject);
 };
@@ -133,23 +137,29 @@ class JSWeakCollection : public JSObject {
 // The JSWeakMap describes EcmaScript Harmony weak maps
 class JSWeakMap : public JSWeakCollection {
  public:
-  DECL_CAST2(JSWeakMap)
+  DECL_CAST(JSWeakMap)
 
   // Dispatched behavior.
   DECL_PRINTER(JSWeakMap)
   DECL_VERIFIER(JSWeakMap)
 
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSWeakCollection::kHeaderSize,
+                                TORQUE_GENERATED_JSWEAK_MAP_FIELDS)
+  STATIC_ASSERT(kSize == kSizeOfAllWeakCollections);
   OBJECT_CONSTRUCTORS(JSWeakMap, JSWeakCollection);
 };
 
 // The JSWeakSet describes EcmaScript Harmony weak sets
 class JSWeakSet : public JSWeakCollection {
  public:
-  DECL_CAST2(JSWeakSet)
+  DECL_CAST(JSWeakSet)
 
   // Dispatched behavior.
   DECL_PRINTER(JSWeakSet)
   DECL_VERIFIER(JSWeakSet)
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSWeakCollection::kHeaderSize,
+                                TORQUE_GENERATED_JSWEAK_SET_FIELDS)
+  STATIC_ASSERT(kSize == kSizeOfAllWeakCollections);
 
   OBJECT_CONSTRUCTORS(JSWeakSet, JSWeakCollection);
 };

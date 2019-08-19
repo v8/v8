@@ -12,17 +12,20 @@
 #include <set>
 #include <string>
 
+#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
-#include "src/objects.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/managed.h"
+#include "src/objects/objects.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace U_ICU_NAMESPACE {
 class PluralRules;
+namespace number {
+class LocalizedNumberFormatter;
+}  //  namespace number
 }  //  namespace U_ICU_NAMESPACE
 
 namespace v8 {
@@ -30,9 +33,9 @@ namespace internal {
 
 class JSPluralRules : public JSObject {
  public:
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSPluralRules> Initialize(
-      Isolate* isolate, Handle<JSPluralRules> plural_rules,
-      Handle<Object> locales, Handle<Object> options);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSPluralRules> New(
+      Isolate* isolate, Handle<Map> map, Handle<Object> locales,
+      Handle<Object> options);
 
   static Handle<JSObject> ResolvedOptions(Isolate* isolate,
                                           Handle<JSPluralRules> plural_rules);
@@ -40,22 +43,17 @@ class JSPluralRules : public JSObject {
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ResolvePlural(
       Isolate* isolate, Handle<JSPluralRules> plural_rules, double number);
 
-  static std::set<std::string> GetAvailableLocales();
+  V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 
   // [[Type]] is one of the values "cardinal" or "ordinal",
   // identifying the plural rules used.
-  enum class Type {
-    CARDINAL,
-    ORDINAL,
-
-    COUNT
-  };
+  enum class Type { CARDINAL, ORDINAL };
   inline void set_type(Type type);
   inline Type type() const;
 
   Handle<String> TypeAsString() const;
 
-  DECL_CAST2(JSPluralRules)
+  DECL_CAST(JSPluralRules)
   DECL_PRINTER(JSPluralRules)
   DECL_VERIFIER(JSPluralRules)
 
@@ -69,21 +67,14 @@ class JSPluralRules : public JSObject {
   STATIC_ASSERT(Type::ORDINAL <= TypeBits::kMax);
 
 // Layout description.
-#define JS_PLURAL_RULES_FIELDS(V)         \
-  V(kLocaleOffset, kTaggedSize)           \
-  V(kFlagsOffset, kTaggedSize)            \
-  V(kICUPluralRulesOffset, kTaggedSize)   \
-  V(kICUDecimalFormatOffset, kTaggedSize) \
-  /* Total size. */                       \
-  V(kSize, 0)
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JSPLURAL_RULES_FIELDS)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_PLURAL_RULES_FIELDS)
-#undef JS_PLURAL_RULES_FIELDS
-
-  DECL_ACCESSORS2(locale, String)
+  DECL_ACCESSORS(locale, String)
   DECL_INT_ACCESSORS(flags)
-  DECL_ACCESSORS2(icu_plural_rules, Managed<icu::PluralRules>)
-  DECL_ACCESSORS2(icu_decimal_format, Managed<icu::DecimalFormat>)
+  DECL_ACCESSORS(icu_plural_rules, Managed<icu::PluralRules>)
+  DECL_ACCESSORS(icu_number_formatter,
+                 Managed<icu::number::LocalizedNumberFormatter>)
 
   OBJECT_CONSTRUCTORS(JSPluralRules, JSObject);
 };

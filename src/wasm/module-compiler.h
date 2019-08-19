@@ -9,10 +9,12 @@
 #include <functional>
 #include <memory>
 
-#include "src/cancelable-task.h"
-#include "src/globals.h"
+#include "src/base/optional.h"
+#include "src/common/globals.h"
+#include "src/tasks/cancelable-task.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-features.h"
+#include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-module.h"
 
 namespace v8 {
@@ -37,27 +39,61 @@ class NativeModule;
 class WasmCode;
 struct WasmModule;
 
-std::unique_ptr<NativeModule> CompileToNativeModule(
+std::shared_ptr<NativeModule> CompileToNativeModule(
     Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
     std::shared_ptr<const WasmModule> module, const ModuleWireBytes& wire_bytes,
     Handle<FixedArray>* export_wrappers_out);
 
-MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
-    Isolate* isolate, ErrorThrower* thrower,
-    Handle<WasmModuleObject> module_object, MaybeHandle<JSReceiver> imports,
-    MaybeHandle<JSArrayBuffer> memory);
-
 V8_EXPORT_PRIVATE
 void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
-                             Handle<FixedArray> export_wrappers);
+                             Handle<FixedArray>* export_wrappers_out);
+
+// Compiles the wrapper for this (kind, sig) pair and sets the corresponding
+// cache entry. Assumes the key already exists in the cache but has not been
+// compiled yet.
+V8_EXPORT_PRIVATE
+WasmCode* CompileImportWrapper(
+    WasmEngine* wasm_engine, NativeModule* native_module, Counters* counters,
+    compiler::WasmImportCallKind kind, FunctionSig* sig,
+    WasmImportWrapperCache::ModificationScope* cache_scope);
 
 V8_EXPORT_PRIVATE Handle<Script> CreateWasmScript(
     Isolate* isolate, const ModuleWireBytes& wire_bytes,
     const std::string& source_map_url);
 
-// Triggered by the WasmCompileLazy builtin.
-// Returns the instruction start of the compiled code object.
-Address CompileLazy(Isolate*, NativeModule*, uint32_t func_index);
+// Triggered by the WasmCompileLazy builtin. The return value indicates whether
+// compilation was successful. Lazy compilation can fail only if validation is
+// also lazy.
+bool CompileLazy(Isolate*, NativeModule*, int func_index);
+
+int GetMaxBackgroundTasks();
+
+template <typename Key, typename Hash>
+class WrapperQueue {
+ public:
+  // Removes an arbitrary key from the queue and returns it.
+  // If the queue is empty, returns nullopt.
+  // Thread-safe.
+  base::Optional<Key> pop() {
+    base::Optional<Key> key = base::nullopt;
+    base::LockGuard<base::Mutex> lock(&mutex_);
+    auto it = queue_.begin();
+    if (it != queue_.end()) {
+      key = *it;
+      queue_.erase(it);
+    }
+    return key;
+  }
+
+  // Add the given key to the queue and returns true iff the insert was
+  // successful.
+  // Not thread-safe.
+  bool insert(const Key& key) { return queue_.insert(key).second; }
+
+ private:
+  base::Mutex mutex_;
+  std::unordered_set<Key, Hash> queue_;
+};
 
 // Encapsulates all the state and steps of an asynchronous compilation.
 // An asynchronous compile job consists of a number of tasks that are executed
@@ -70,7 +106,7 @@ class AsyncCompileJob {
  public:
   AsyncCompileJob(Isolate* isolate, const WasmFeatures& enabled_features,
                   std::unique_ptr<byte[]> bytes_copy, size_t length,
-                  Handle<Context> context,
+                  Handle<Context> context, const char* api_method_name,
                   std::shared_ptr<CompilationResultResolver> resolver);
   ~AsyncCompileJob();
 
@@ -83,6 +119,8 @@ class AsyncCompileJob {
 
   Isolate* isolate() const { return isolate_; }
 
+  Handle<Context> context() const { return native_context_; }
+
  private:
   class CompileTask;
   class CompileStep;
@@ -92,9 +130,8 @@ class AsyncCompileJob {
   class DecodeModule;            // Step 1  (async)
   class DecodeFail;              // Step 1b (sync)
   class PrepareAndStartCompile;  // Step 2  (sync)
-  class CompileFailed;           // Step 4b (sync)
-  class CompileWrappers;         // Step 5  (sync)
-  class FinishModule;            // Step 6  (sync)
+  class CompileFailed;           // Step 3a (sync)
+  class CompileFinished;         // Step 3b (sync)
 
   friend class AsyncStreamingProcessor;
 
@@ -102,16 +139,21 @@ class AsyncCompileJob {
   // function should finish the asynchronous compilation, see the comment on
   // {outstanding_finishers_}.
   V8_WARN_UNUSED_RESULT bool DecrementAndCheckFinisherCount() {
+    DCHECK_LT(0, outstanding_finishers_.load());
     return outstanding_finishers_.fetch_sub(1) == 1;
   }
 
-  void PrepareRuntimeObjects(std::shared_ptr<const WasmModule>);
+  void CreateNativeModule(std::shared_ptr<const WasmModule> module);
+  void PrepareRuntimeObjects();
 
-  void FinishCompile(bool compile_wrappers);
+  void FinishCompile();
 
-  void AsyncCompileFailed(Handle<Object> error_reason);
+  void DecodeFailed(const WasmError&);
+  void AsyncCompileFailed();
 
   void AsyncCompileSucceeded(Handle<WasmModuleObject> result);
+
+  void FinishModule();
 
   void StartForegroundTask();
   void ExecuteForegroundTaskImmediately();
@@ -146,19 +188,20 @@ class AsyncCompileJob {
   void NextStep(Args&&... args);
 
   Isolate* const isolate_;
+  const char* const api_method_name_;
   const WasmFeatures enabled_features_;
+  const bool wasm_lazy_compilation_;
   // Copy of the module wire bytes, moved into the {native_module_} on its
   // creation.
   std::unique_ptr<byte[]> bytes_copy_;
-  // Reference to the wire bytes (hold in {bytes_copy_} or as part of
+  // Reference to the wire bytes (held in {bytes_copy_} or as part of
   // {native_module_}).
   ModuleWireBytes wire_bytes_;
   Handle<Context> native_context_;
   const std::shared_ptr<CompilationResultResolver> resolver_;
 
-  std::vector<DeferredHandles*> deferred_handles_;
   Handle<WasmModuleObject> module_object_;
-  NativeModule* native_module_ = nullptr;
+  std::shared_ptr<NativeModule> native_module_;
 
   std::unique_ptr<CompileStep> step_;
   CancelableTaskManager background_task_manager_;

@@ -7,7 +7,7 @@
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
-#include "src/frame-constants.h"
+#include "src/execution/frame-constants.h"
 
 namespace v8 {
 namespace internal {
@@ -313,18 +313,6 @@ void EscapeAnalysisReducer::Finalize() {
       NodeProperties::SetType(arguments_elements_state, Type::OtherInternal());
       ReplaceWithValue(node, arguments_elements_state);
 
-      ElementAccess stack_access;
-      stack_access.base_is_tagged = BaseTaggedness::kUntaggedBase;
-      // Reduce base address by {kSystemPointerSize} such that (length - index)
-      // resolves to the right position.
-      stack_access.header_size =
-          CommonFrameConstants::kFixedFrameSizeAboveFp - kSystemPointerSize;
-      stack_access.type = Type::NonInternal();
-      stack_access.machine_type = MachineType::AnyTagged();
-      stack_access.write_barrier_kind = WriteBarrierKind::kNoWriteBarrier;
-      const Operator* load_stack_op =
-          jsgraph()->simplified()->LoadElement(stack_access);
-
       for (Node* load : loads) {
         switch (load->opcode()) {
           case IrOpcode::kLoadElement: {
@@ -335,10 +323,12 @@ void EscapeAnalysisReducer::Finalize() {
                 jsgraph()->simplified()->NumberSubtract(), arguments_length,
                 index);
             NodeProperties::SetType(offset,
-                                    TypeCache::Get().kArgumentsLengthType);
+                                    TypeCache::Get()->kArgumentsLengthType);
             NodeProperties::ReplaceValueInput(load, arguments_frame, 0);
             NodeProperties::ReplaceValueInput(load, offset, 1);
-            NodeProperties::ChangeOp(load, load_stack_op);
+            NodeProperties::ChangeOp(load,
+                                     jsgraph()->simplified()->LoadElement(
+                                         AccessBuilder::ForStackArgument()));
             break;
           }
           case IrOpcode::kLoadField: {

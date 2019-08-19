@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_MICROTASK_H_
 #define V8_OBJECTS_MICROTASK_H_
 
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "src/objects/struct.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -20,7 +20,7 @@ namespace internal {
 class Microtask : public Struct {
  public:
   // Dispatched behavior.
-  DECL_CAST2(Microtask)
+  DECL_CAST(Microtask)
   DECL_VERIFIER(Microtask)
 
   OBJECT_CONSTRUCTORS(Microtask, Struct);
@@ -31,21 +31,14 @@ class Microtask : public Struct {
 // used by Blink for example.
 class CallbackTask : public Microtask {
  public:
-  DECL_ACCESSORS2(callback, Foreign)
-  DECL_ACCESSORS2(data, Foreign)
+  DECL_ACCESSORS(callback, Foreign)
+  DECL_ACCESSORS(data, Foreign)
 
-// Layout description.
-#define CALLBACK_TASK_FIELDS(V)   \
-  V(kCallbackOffset, kTaggedSize) \
-  V(kDataOffset, kTaggedSize)     \
-  /* Total size. */               \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(Microtask::kHeaderSize, CALLBACK_TASK_FIELDS)
-#undef CALLBACK_TASK_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(Microtask::kHeaderSize,
+                                TORQUE_GENERATED_CALLBACK_TASK_FIELDS)
 
   // Dispatched behavior.
-  DECL_CAST2(CallbackTask)
+  DECL_CAST(CallbackTask)
   DECL_PRINTER(CallbackTask)
   DECL_VERIFIER(CallbackTask)
 
@@ -57,21 +50,14 @@ class CallbackTask : public Microtask {
 // for various tests of the microtask queue.
 class CallableTask : public Microtask {
  public:
-  DECL_ACCESSORS2(callable, JSReceiver)
-  DECL_ACCESSORS2(context, Context)
+  DECL_ACCESSORS(callable, JSReceiver)
+  DECL_ACCESSORS(context, Context)
 
-// Layout description.
-#define CALLABLE_TASK_FIELDS(V)   \
-  V(kCallableOffset, kTaggedSize) \
-  V(kContextOffset, kTaggedSize)  \
-  /* Total size. */               \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(Microtask::kHeaderSize, CALLABLE_TASK_FIELDS)
-#undef CALLABLE_TASK_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(Microtask::kHeaderSize,
+                                TORQUE_GENERATED_CALLABLE_TASK_FIELDS)
 
   // Dispatched behavior.
-  DECL_CAST2(CallableTask)
+  DECL_CAST(CallableTask)
   DECL_PRINTER(CallableTask)
   DECL_VERIFIER(CallableTask)
   void BriefPrintDetails(std::ostream& os);

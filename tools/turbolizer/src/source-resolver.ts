@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { sortUnique, anyToString } from "../src/util"
+import { sortUnique, anyToString } from "../src/util";
+import { NodeLabel } from "./node-label";
 
 function sourcePositionLe(a, b) {
   if (a.inliningId == b.inliningId) {
@@ -16,12 +17,14 @@ function sourcePositionEq(a, b) {
     a.scriptOffset == b.scriptOffset;
 }
 
-export function sourcePositionToStringKey(sourcePosition): string {
+export function sourcePositionToStringKey(sourcePosition: AnyPosition): string {
   if (!sourcePosition) return "undefined";
-  if (sourcePosition.inliningId && sourcePosition.scriptOffset)
+  if ('inliningId' in sourcePosition && 'scriptOffset' in sourcePosition) {
     return "SP:" + sourcePosition.inliningId + ":" + sourcePosition.scriptOffset;
-  if (sourcePosition.bytecodePosition)
+  }
+  if (sourcePosition.bytecodePosition) {
     return "BCP:" + sourcePosition.bytecodePosition;
+  }
   return "undefined";
 }
 
@@ -48,9 +51,9 @@ interface BytecodePosition {
   bytecodePosition: number;
 }
 
-type Origin = NodeOrigin | BytecodePosition;
-type TurboFanNodeOrigin = NodeOrigin & TurboFanOrigin;
-type TurboFanBytecodeOrigin = BytecodePosition & TurboFanOrigin;
+export type Origin = NodeOrigin | BytecodePosition;
+export type TurboFanNodeOrigin = NodeOrigin & TurboFanOrigin;
+export type TurboFanBytecodeOrigin = BytecodePosition & TurboFanOrigin;
 
 type AnyPosition = SourcePosition | BytecodePosition;
 
@@ -87,6 +90,7 @@ interface GraphPhase {
   name: string;
   data: any;
   highestNodeId: number;
+  nodeLabelMap: Array<NodeLabel>;
 }
 
 type Phase = GraphPhase | InstructionsPhase | OtherPhase;
@@ -114,7 +118,6 @@ export class SourceResolver {
   instructionToPCOffset: Array<number>;
   pcOffsetToInstructions: Map<number, Array<number>>;
   pcOffsets: Array<number>;
-
 
   constructor() {
     // Maps node ids to source positions.
@@ -148,7 +151,7 @@ export class SourceResolver {
 
   setSources(sources, mainBackup) {
     if (sources) {
-      for (let [sourceId, source] of Object.entries(sources)) {
+      for (const [sourceId, source] of Object.entries(sources)) {
         this.sources[sourceId] = source;
         this.sources[sourceId].sourcePositions = [];
       }
@@ -180,7 +183,7 @@ export class SourceResolver {
         alternativeMap[nodeId] = { scriptOffset: scriptOffset, inliningId: -1 };
       }
       map = alternativeMap;
-    };
+    }
 
     for (const [nodeId, sourcePosition] of Object.entries<SourcePosition>(map)) {
       if (sourcePosition == undefined) {
@@ -193,13 +196,13 @@ export class SourceResolver {
         this.sources[sourceId].sourcePositions.push(sourcePosition);
       }
       this.nodePositionMap[nodeId] = sourcePosition;
-      let key = sourcePositionToStringKey(sourcePosition);
+      const key = sourcePositionToStringKey(sourcePosition);
       if (!this.positionToNodes.has(key)) {
         this.positionToNodes.set(key, []);
       }
       this.positionToNodes.get(key).push(nodeId);
     }
-    for (const [sourceId, source] of Object.entries(this.sources)) {
+    for (const [, source] of Object.entries(this.sources)) {
       source.sourcePositions = sortUnique(source.sourcePositions,
         sourcePositionLe, sourcePositionEq);
     }
@@ -208,8 +211,8 @@ export class SourceResolver {
   sourcePositionsToNodeIds(sourcePositions) {
     const nodeIds = new Set();
     for (const sp of sourcePositions) {
-      let key = sourcePositionToStringKey(sp);
-      let nodeIdsForPosition = this.positionToNodes.get(key);
+      const key = sourcePositionToStringKey(sp);
+      const nodeIdsForPosition = this.positionToNodes.get(key);
       if (!nodeIdsForPosition) continue;
       for (const nodeId of nodeIdsForPosition) {
         nodeIds.add(nodeId);
@@ -221,8 +224,8 @@ export class SourceResolver {
   nodeIdsToSourcePositions(nodeIds): Array<AnyPosition> {
     const sourcePositions = new Map();
     for (const nodeId of nodeIds) {
-      let sp = this.nodePositionMap[nodeId];
-      let key = sourcePositionToStringKey(sp);
+      const sp = this.nodePositionMap[nodeId];
+      const key = sourcePositionToStringKey(sp);
       sourcePositions.set(key, sp);
     }
     const sourcePositionArray = [];
@@ -232,13 +235,13 @@ export class SourceResolver {
     return sourcePositionArray;
   }
 
-  forEachSource(f) {
+  forEachSource(f: (value: Source, index: number, array: Array<Source>) => void) {
     this.sources.forEach(f);
   }
 
-  translateToSourceId(sourceId, location) {
+  translateToSourceId(sourceId: number, location?: SourcePosition) {
     for (const position of this.getInlineStack(location)) {
-      let inlining = this.inlinings[position.inliningId];
+      const inlining = this.inlinings[position.inliningId];
       if (!inlining) continue;
       if (inlining.sourceId == sourceId) {
         return position;
@@ -247,10 +250,10 @@ export class SourceResolver {
     return location;
   }
 
-  addInliningPositions(sourcePosition, locations) {
-    let inlining = this.inliningsMap.get(sourcePositionToStringKey(sourcePosition));
+  addInliningPositions(sourcePosition: AnyPosition, locations: Array<SourcePosition>) {
+    const inlining = this.inliningsMap.get(sourcePositionToStringKey(sourcePosition));
     if (!inlining) return;
-    let sourceId = inlining.sourceId
+    const sourceId = inlining.sourceId;
     const source = this.sources[sourceId];
     for (const sp of source.sourcePositions) {
       locations.push(sp);
@@ -258,26 +261,26 @@ export class SourceResolver {
     }
   }
 
-  getInliningForPosition(sourcePosition) {
+  getInliningForPosition(sourcePosition: AnyPosition) {
     return this.inliningsMap.get(sourcePositionToStringKey(sourcePosition));
   }
 
-  getSource(sourceId) {
+  getSource(sourceId: number) {
     return this.sources[sourceId];
   }
 
-  getSourceName(sourceId) {
+  getSourceName(sourceId: number) {
     const source = this.sources[sourceId];
     return `${source.sourceName}:${source.functionName}`;
   }
 
-  sourcePositionFor(sourceId, scriptOffset) {
+  sourcePositionFor(sourceId: number, scriptOffset: number) {
     if (!this.sources[sourceId]) {
       return null;
     }
     const list = this.sources[sourceId].sourcePositions;
     for (let i = 0; i < list.length; i++) {
-      const sourcePosition = list[i]
+      const sourcePosition = list[i];
       const position = sourcePosition.scriptOffset;
       const nextPosition = list[Math.min(i + 1, list.length - 1)].scriptOffset;
       if ((position <= scriptOffset && scriptOffset < nextPosition)) {
@@ -287,12 +290,11 @@ export class SourceResolver {
     return null;
   }
 
-  sourcePositionsInRange(sourceId, start, end) {
+  sourcePositionsInRange(sourceId: number, start: number, end: number) {
     if (!this.sources[sourceId]) return [];
     const res = [];
     const list = this.sources[sourceId].sourcePositions;
-    for (let i = 0; i < list.length; i++) {
-      const sourcePosition = list[i]
+    for (const sourcePosition of list) {
       if (start <= sourcePosition.scriptOffset && sourcePosition.scriptOffset < end) {
         res.push(sourcePosition);
       }
@@ -300,15 +302,14 @@ export class SourceResolver {
     return res;
   }
 
-  getInlineStack(sourcePosition) {
-    if (!sourcePosition) {
-      return [];
-    }
-    let inliningStack = [];
+  getInlineStack(sourcePosition?: SourcePosition) {
+    if (!sourcePosition) return [];
+
+    const inliningStack = [];
     let cur = sourcePosition;
     while (cur && cur.inliningId != -1) {
       inliningStack.push(cur);
-      let inlining = this.inlinings[cur.inliningId];
+      const inlining = this.inlinings[cur.inliningId];
       if (!inlining) {
         break;
       }
@@ -323,17 +324,22 @@ export class SourceResolver {
   recordOrigins(phase: GraphPhase) {
     if (phase.type != "graph") return;
     for (const node of phase.data.nodes) {
-      phase.highestNodeId = Math.max(phase.highestNodeId, node.id)
+      phase.highestNodeId = Math.max(phase.highestNodeId, node.id);
       if (node.origin != undefined &&
         node.origin.bytecodePosition != undefined) {
         const position = { bytecodePosition: node.origin.bytecodePosition };
         this.nodePositionMap[node.id] = position;
-        let key = sourcePositionToStringKey(position);
+        const key = sourcePositionToStringKey(position);
         if (!this.positionToNodes.has(key)) {
           this.positionToNodes.set(key, []);
         }
         const A = this.positionToNodes.get(key);
-        if (!A.includes(node.id)) A.push("" + node.id);
+        if (!A.includes(node.id)) A.push(`${node.id}`);
+      }
+
+      // Backwards compatibility.
+      if (typeof node.pos === "number") {
+        node.sourcePosition = { scriptOffset: node.pos, inliningId: -1 };
       }
     }
   }
@@ -350,13 +356,13 @@ export class SourceResolver {
     }
   }
 
-  getInstruction(nodeId): [number, number] {
+  getInstruction(nodeId: number): [number, number] {
     const X = this.nodeIdToInstructionRange[nodeId];
     if (X === undefined) return [-1, -1];
     return X;
   }
 
-  getInstructionRangeForBlock(blockId): [number, number] {
+  getInstructionRangeForBlock(blockId: number): [number, number] {
     const X = this.blockIdToInstructionRange[blockId];
     if (X === undefined) return [-1, -1];
     return X;
@@ -377,21 +383,22 @@ export class SourceResolver {
     return this.pcOffsetToInstructions.size > 0;
   }
 
-  getKeyPcOffset(offset): number {
+  getKeyPcOffset(offset: number): number {
     if (this.pcOffsets.length === 0) return -1;
     for (const key of this.pcOffsets) {
       if (key <= offset) {
         return key;
       }
     }
+    return -1;
   }
 
-  instructionRangeToKeyPcOffsets([start, end]) {
+  instructionRangeToKeyPcOffsets([start, end]: [number, number]) {
     if (start == end) return [this.instructionToPCOffset[start]];
     return this.instructionToPCOffset.slice(start, end);
   }
 
-  instructionsToKeyPcOffsets(instructionIds) {
+  instructionsToKeyPcOffsets(instructionIds: Iterable<number>) {
     const keyPcOffsets = [];
     for (const instructionId of instructionIds) {
       keyPcOffsets.push(this.instructionToPCOffset[instructionId]);
@@ -404,12 +411,12 @@ export class SourceResolver {
     for (const node of nodes) {
       const range = this.nodeIdToInstructionRange[node];
       if (!range) continue;
-      offsets = offsets.concat(this.instructionRangeToKeyPcOffsets(range))
+      offsets = offsets.concat(this.instructionRangeToKeyPcOffsets(range));
     }
     return offsets;
   }
 
-  nodesForPCOffset(offset): [Array<String>, Array<String>] {
+  nodesForPCOffset(offset: number): [Array<string>, Array<string>] {
     if (this.pcOffsets.length === 0) return [[], []];
     for (const key of this.pcOffsets) {
       if (key <= offset) {
@@ -435,18 +442,19 @@ export class SourceResolver {
   }
 
   parsePhases(phases) {
-    for (const [phaseId, phase] of Object.entries<Phase>(phases)) {
+    const nodeLabelMap = [];
+    for (const [, phase] of Object.entries<Phase>(phases)) {
       switch (phase.type) {
         case 'disassembly':
           this.disassemblyPhase = phase;
           break;
         case 'schedule':
-          this.phases.push(this.parseSchedule(phase));
           this.phaseNames.set(phase.name, this.phases.length);
+          this.phases.push(this.parseSchedule(phase));
           break;
         case 'sequence':
-          this.phases.push(this.parseSequence(phase));
           this.phaseNames.set(phase.name, this.phases.length);
+          this.phases.push(this.parseSequence(phase));
           break;
         case 'instructions':
           if (phase.nodeIdToInstructionRange) {
@@ -461,9 +469,11 @@ export class SourceResolver {
           break;
         case 'graph':
           const graphPhase: GraphPhase = Object.assign(phase, { highestNodeId: 0 });
+          this.phaseNames.set(graphPhase.name, this.phases.length);
           this.phases.push(graphPhase);
           this.recordOrigins(graphPhase);
-          this.phaseNames.set(graphPhase.name, this.phases.length);
+          this.internNodeLabels(graphPhase, nodeLabelMap);
+          graphPhase.nodeLabelMap = nodeLabelMap.slice();
           break;
         default:
           throw "Unsupported phase type";
@@ -471,23 +481,39 @@ export class SourceResolver {
     }
   }
 
-  repairPhaseId(anyPhaseId) {
-    return Math.max(0, Math.min(anyPhaseId, this.phases.length - 1))
+  internNodeLabels(phase: GraphPhase, nodeLabelMap: Array<NodeLabel>) {
+    for (const n of phase.data.nodes) {
+      const label = new NodeLabel(n.id, n.label, n.title, n.live,
+        n.properties, n.sourcePosition, n.origin, n.opcode, n.control,
+        n.opinfo, n.type);
+      const previous = nodeLabelMap[label.id];
+      if (!label.equals(previous)) {
+        if (previous != undefined) {
+          label.setInplaceUpdatePhase(phase.name);
+        }
+        nodeLabelMap[label.id] = label;
+      }
+      n.nodeLabel = nodeLabelMap[label.id];
+    }
   }
 
-  getPhase(phaseId) {
+  repairPhaseId(anyPhaseId) {
+    return Math.max(0, Math.min(anyPhaseId | 0, this.phases.length - 1));
+  }
+
+  getPhase(phaseId: number) {
     return this.phases[phaseId];
   }
 
-  getPhaseIdByName(phaseName) {
+  getPhaseIdByName(phaseName: string) {
     return this.phaseNames.get(phaseName);
   }
 
-  forEachPhase(f: (value: Phase, index: number, array: Phase[]) => void) {
+  forEachPhase(f: (value: Phase, index: number, array: Array<Phase>) => void) {
     this.phases.forEach(f);
   }
 
-  addAnyPositionToLine(lineNumber: number | String, sourcePosition: AnyPosition) {
+  addAnyPositionToLine(lineNumber: number | string, sourcePosition: AnyPosition) {
     const lineNumberString = anyToString(lineNumber);
     if (!this.lineToSourcePositions.has(lineNumberString)) {
       this.lineToSourcePositions.set(lineNumberString, []);
@@ -503,19 +529,19 @@ export class SourceResolver {
     });
   }
 
-  linetoSourcePositions(lineNumber: number | String) {
+  linetoSourcePositions(lineNumber: number | string) {
     const positions = this.lineToSourcePositions.get(anyToString(lineNumber));
     if (positions === undefined) return [];
     return positions;
   }
 
   parseSchedule(phase) {
-    function createNode(state, match) {
+    function createNode(state: any, match) {
       let inputs = [];
       if (match.groups.args) {
         const nodeIdsString = match.groups.args.replace(/\s/g, '');
         const nodeIdStrings = nodeIdsString.split(',');
-        inputs = nodeIdStrings.map((n) => Number.parseInt(n, 10));
+        inputs = nodeIdStrings.map(n => Number.parseInt(n, 10));
       }
       const node = {
         id: Number.parseInt(match.groups.id, 10),
@@ -525,7 +551,7 @@ export class SourceResolver {
       if (match.groups.blocks) {
         const nodeIdsString = match.groups.blocks.replace(/\s/g, '').replace(/B/g, '');
         const nodeIdStrings = nodeIdsString.split(',');
-        const successors = nodeIdStrings.map((n) => Number.parseInt(n, 10));
+        const successors = nodeIdStrings.map(n => Number.parseInt(n, 10));
         state.currentBlock.succ = successors;
       }
       state.nodes[node.id] = node;
@@ -536,7 +562,7 @@ export class SourceResolver {
       if (match.groups.in) {
         const blockIdsString = match.groups.in.replace(/\s/g, '').replace(/B/g, '');
         const blockIdStrings = blockIdsString.split(',');
-        predecessors = blockIdStrings.map((n) => Number.parseInt(n, 10));
+        predecessors = blockIdStrings.map(n => Number.parseInt(n, 10));
       }
       const block = {
         id: Number.parseInt(match.groups.id, 10),

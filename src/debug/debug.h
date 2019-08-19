@@ -7,29 +7,25 @@
 
 #include <vector>
 
-#include "src/allocation.h"
-#include "src/base/atomicops.h"
-#include "src/base/hashmap.h"
-#include "src/base/platform/platform.h"
+#include "src/codegen/source-position-table.h"
+#include "src/common/globals.h"
 #include "src/debug/debug-interface.h"
 #include "src/debug/interface-types.h"
-#include "src/execution.h"
-#include "src/flags.h"
-#include "src/frames.h"
-#include "src/globals.h"
-#include "src/heap/factory.h"
+#include "src/execution/interrupts-scope.h"
+#include "src/execution/isolate.h"
+#include "src/handles/handles.h"
 #include "src/objects/debug-objects.h"
-#include "src/runtime/runtime.h"
-#include "src/source-position-table.h"
-#include "src/string-stream.h"
-#include "src/v8threads.h"
 
 namespace v8 {
 namespace internal {
 
 // Forward declarations.
+class AbstractCode;
 class DebugScope;
+class InterpretedFrame;
+class JavaScriptFrame;
 class JSGeneratorObject;
+class StackFrame;
 
 // Step actions. NOTE: These values are in macros.py as well.
 enum StepAction : int8_t {
@@ -128,7 +124,7 @@ class BreakLocation {
   friend class BreakIterator;
 };
 
-class BreakIterator {
+class V8_EXPORT_PRIVATE BreakIterator {
  public:
   explicit BreakIterator(Handle<DebugInfo> debug_info);
 
@@ -214,7 +210,7 @@ class DebugFeatureTracker {
 // active breakpoints in them. This debug info is held in the heap root object
 // debug_info which is a FixedArray. Each entry in this list is of class
 // DebugInfo.
-class Debug {
+class V8_EXPORT_PRIVATE Debug {
  public:
   // Debug event triggers.
   void OnDebugBreak(Handle<FixedArray> break_points_hit);
@@ -234,7 +230,7 @@ class Debug {
   Handle<FixedArray> GetLoadedScripts();
 
   // Break point handling.
-  bool SetBreakPoint(Handle<JSFunction> function,
+  bool SetBreakpoint(Handle<SharedFunctionInfo> shared,
                      Handle<BreakPoint> break_point, int* source_position);
   void ClearBreakPoint(Handle<BreakPoint> break_point);
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
@@ -242,7 +238,7 @@ class Debug {
 
   bool SetBreakPointForScript(Handle<Script> script, Handle<String> condition,
                               int* source_position, int* id);
-  bool SetBreakpointForFunction(Handle<JSFunction> function,
+  bool SetBreakpointForFunction(Handle<SharedFunctionInfo> shared,
                                 Handle<String> condition, int* id);
   void RemoveBreakpoint(int id);
 
@@ -268,6 +264,8 @@ class Debug {
   bool GetPossibleBreakpoints(Handle<Script> script, int start_position,
                               int end_position, bool restrict_to_function,
                               std::vector<BreakLocation>* locations);
+
+  MaybeHandle<JSArray> GetPrivateFields(Handle<JSReceiver> receiver);
 
   bool IsBlackboxed(Handle<SharedFunctionInfo> shared);
 
@@ -346,11 +344,11 @@ class Debug {
   void set_break_points_active(bool v) { break_points_active_ = v; }
   bool break_points_active() const { return break_points_active_; }
 
-  StackFrame::Id break_frame_id() { return thread_local_.break_frame_id_; }
+  StackFrameId break_frame_id() { return thread_local_.break_frame_id_; }
 
   Handle<Object> return_value_handle();
-  Object* return_value() { return thread_local_.return_value_; }
-  void set_return_value(Object* value) { thread_local_.return_value_ = value; }
+  Object return_value() { return thread_local_.return_value_; }
+  void set_return_value(Object value) { thread_local_.return_value_ = value; }
 
   // Support for embedding into generated code.
   Address is_active_address() {
@@ -454,7 +452,7 @@ class Debug {
   void ClearAllDebuggerHints();
 
   // Wraps logic for clearing and maybe freeing all debug infos.
-  typedef std::function<void(Handle<DebugInfo>)> DebugInfoClearFunction;
+  using DebugInfoClearFunction = std::function<void(Handle<DebugInfo>)>;
   void ClearAllDebugInfos(const DebugInfoClearFunction& clear_function);
 
   void FindDebugInfo(Handle<DebugInfo> debug_info, DebugInfoListNode** prev,
@@ -502,14 +500,14 @@ class Debug {
     base::AtomicWord current_debug_scope_;
 
     // Frame id for the frame of the current break.
-    StackFrame::Id break_frame_id_;
+    StackFrameId break_frame_id_;
 
     // Step action for last step performed.
     StepAction last_step_action_;
 
     // If set, next PrepareStepIn will ignore this function until stepped into
     // another function, at which point this will be cleared.
-    Object* ignore_step_into_function_;
+    Object ignore_step_into_function_;
 
     // If set then we need to repeat StepOut action at return.
     bool fast_forward_to_return_;
@@ -524,10 +522,10 @@ class Debug {
     int target_frame_count_;
 
     // Value of the accumulator at the point of entering the debugger.
-    Object* return_value_;
+    Object return_value_;
 
     // The suspended generator object to track when stepping.
-    Object* suspended_generator_;
+    Object suspended_generator_;
 
     // The new frame pointer to drop to when restarting a frame.
     Address restart_fp_;
@@ -569,7 +567,7 @@ class DebugScope {
 
   Debug* debug_;
   DebugScope* prev_;               // Previous scope if entered recursively.
-  StackFrame::Id break_frame_id_;  // Previous break frame id.
+  StackFrameId break_frame_id_;    // Previous break frame id.
   PostponeInterruptsScope no_interrupts_;
 };
 

@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
 #include "src/compiler/code-assembler.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/opcodes.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
+#include "src/execution/isolate.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/objects-inl.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 
@@ -18,34 +18,38 @@ namespace compiler {
 
 namespace {
 
-typedef CodeAssemblerLabel Label;
-typedef CodeAssemblerVariable Variable;
+using Label = CodeAssemblerLabel;
+using Variable = CodeAssemblerVariable;
 
-Node* SmiTag(CodeAssembler& m, Node* value) {
+Node* SmiTag(CodeAssembler& m,  // NOLINT(runtime/references)
+             Node* value) {
   int32_t constant_value;
-  if (m.ToInt32Constant(value, constant_value) &&
+  if (m.ToInt32Constant(value, &constant_value) &&
       Smi::IsValid(constant_value)) {
     return m.SmiConstant(Smi::FromInt(constant_value));
   }
   return m.WordShl(value, m.IntPtrConstant(kSmiShiftSize + kSmiTagSize));
 }
 
-Node* UndefinedConstant(CodeAssembler& m) {
+Node* UndefinedConstant(CodeAssembler& m) {  // NOLINT(runtime/references)
   return m.LoadRoot(RootIndex::kUndefinedValue);
 }
 
-Node* SmiFromInt32(CodeAssembler& m, Node* value) {
+Node* SmiFromInt32(CodeAssembler& m,  // NOLINT(runtime/references)
+                   Node* value) {
   value = m.ChangeInt32ToIntPtr(value);
   return m.BitcastWordToTaggedSigned(
       m.WordShl(value, kSmiShiftSize + kSmiTagSize));
 }
 
-Node* LoadObjectField(CodeAssembler& m, Node* object, int offset,
-                      MachineType rep = MachineType::AnyTagged()) {
-  return m.Load(rep, object, m.IntPtrConstant(offset - kHeapObjectTag));
+Node* LoadObjectField(CodeAssembler& m,  // NOLINT(runtime/references)
+                      Node* object, int offset,
+                      MachineType type = MachineType::AnyTagged()) {
+  return m.Load(type, object, m.IntPtrConstant(offset - kHeapObjectTag));
 }
 
-Node* LoadMap(CodeAssembler& m, Node* object) {
+Node* LoadMap(CodeAssembler& m,  // NOLINT(runtime/references)
+              Node* object) {
   return LoadObjectField(m, object, JSObject::kMapOffset);
 }
 
@@ -69,8 +73,7 @@ TEST(SimpleIntPtrReturn) {
       m.IntPtrConstant(reinterpret_cast<intptr_t>(&test))));
   FunctionTester ft(asm_tester.GenerateCode());
   MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(reinterpret_cast<intptr_t>(&test),
-           reinterpret_cast<intptr_t>(*result.ToHandleChecked()));
+  CHECK_EQ(reinterpret_cast<Address>(&test), result.ToHandleChecked()->ptr());
 }
 
 TEST(SimpleDoubleReturn) {
@@ -132,7 +135,8 @@ TEST(SimpleTailCallRuntime2Arg) {
 
 namespace {
 
-Handle<JSFunction> CreateSumAllArgumentsFunction(FunctionTester& ft) {
+Handle<JSFunction> CreateSumAllArgumentsFunction(
+    FunctionTester& ft) {  // NOLINT(runtime/references)
   const char* source =
       "(function() {\n"
       "  var sum = 0 + this;\n"
@@ -370,24 +374,24 @@ TEST(TestToConstant) {
   int32_t value32;
   int64_t value64;
   Node* a = m.Int32Constant(5);
-  CHECK(m.ToInt32Constant(a, value32));
-  CHECK(m.ToInt64Constant(a, value64));
+  CHECK(m.ToInt32Constant(a, &value32));
+  CHECK(m.ToInt64Constant(a, &value64));
 
   a = m.Int64Constant(static_cast<int64_t>(1) << 32);
-  CHECK(!m.ToInt32Constant(a, value32));
-  CHECK(m.ToInt64Constant(a, value64));
+  CHECK(!m.ToInt32Constant(a, &value32));
+  CHECK(m.ToInt64Constant(a, &value64));
 
   a = m.Int64Constant(13);
-  CHECK(m.ToInt32Constant(a, value32));
-  CHECK(m.ToInt64Constant(a, value64));
+  CHECK(m.ToInt32Constant(a, &value32));
+  CHECK(m.ToInt64Constant(a, &value64));
 
   a = UndefinedConstant(m);
-  CHECK(!m.ToInt32Constant(a, value32));
-  CHECK(!m.ToInt64Constant(a, value64));
+  CHECK(!m.ToInt32Constant(a, &value32));
+  CHECK(!m.ToInt64Constant(a, &value64));
 
   a = UndefinedConstant(m);
-  CHECK(!m.ToInt32Constant(a, value32));
-  CHECK(!m.ToInt64Constant(a, value64));
+  CHECK(!m.ToInt32Constant(a, &value32));
+  CHECK(!m.ToInt64Constant(a, &value64));
 }
 
 TEST(DeferredCodePhiHints) {
@@ -530,7 +534,7 @@ TEST(GotoIfExceptionMultiple) {
   result = ft.Call(isolate->factory()->undefined_value(),
                    isolate->factory()->to_string_tag_symbol())
                .ToHandleChecked();
-  CHECK(String::cast(*result)->IsOneByteEqualTo(OneByteVector("undefined")));
+  CHECK(String::cast(*result).IsOneByteEqualTo(OneByteVector("undefined")));
 
   // First handler returns a number.
   result = ft.Call(isolate->factory()->to_string_tag_symbol(),
@@ -595,7 +599,7 @@ TEST(TestCodeAssemblerCodeComment) {
 
   Handle<Code> code = asm_tester.GenerateCode();
   CHECK_NE(code->code_comments(), kNullAddress);
-  CodeCommentsIterator it(code->code_comments());
+  CodeCommentsIterator it(code->code_comments(), code->code_comments_size());
   CHECK(it.HasCurrent());
   bool found_comment = false;
   while (it.HasCurrent()) {
@@ -603,6 +607,14 @@ TEST(TestCodeAssemblerCodeComment) {
     it.Next();
   }
   CHECK(found_comment);
+}
+
+TEST(StaticAssert) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  CodeAssemblerTester asm_tester(isolate);
+  CodeAssembler m(asm_tester.state());
+  m.StaticAssert(m.ReinterpretCast<BoolT>(m.Int32Constant(1)));
+  USE(asm_tester.GenerateCode());
 }
 
 }  // namespace compiler

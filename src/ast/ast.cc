@@ -12,17 +12,18 @@
 #include "src/base/hashmap.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins.h"
-#include "src/contexts.h"
-#include "src/conversions-inl.h"
-#include "src/double.h"
-#include "src/elements.h"
-#include "src/objects-inl.h"
+#include "src/numbers/conversions-inl.h"
+#include "src/numbers/double.h"
+#include "src/objects/contexts.h"
+#include "src/objects/elements.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/map.h"
-#include "src/property-details.h"
-#include "src/property.h"
-#include "src/string-stream.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/property-details.h"
+#include "src/objects/property.h"
+#include "src/strings/string-stream.h"
+#include "src/zone/zone-list-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -47,8 +48,6 @@ static const char* NameForNativeContextIntrinsicIndex(uint32_t idx) {
 
   return "UnknownIntrinsicIndex";
 }
-
-void AstNode::Print() { Print(Isolate::Current()); }
 
 void AstNode::Print(Isolate* isolate) {
   AllowHandleDereference allow_deref;
@@ -131,6 +130,10 @@ bool Expression::ToBooleanIsFalse() const {
   return IsLiteral() && AsLiteral()->ToBooleanIsFalse();
 }
 
+bool Expression::IsPrivateName() const {
+  return IsVariableProxy() && AsVariableProxy()->IsPrivateName();
+}
+
 bool Expression::IsValidReferenceExpression() const {
   return IsProperty() ||
          (IsVariableProxy() && AsVariableProxy()->IsValidReferenceExpression());
@@ -151,32 +154,12 @@ bool Expression::IsAccessorFunctionDefinition() const {
   return IsFunctionLiteral() && IsAccessorFunction(AsFunctionLiteral()->kind());
 }
 
-bool Statement::IsJump() const {
-  switch (node_type()) {
-#define JUMP_NODE_LIST(V) \
-  V(Block)                \
-  V(ExpressionStatement)  \
-  V(ContinueStatement)    \
-  V(BreakStatement)       \
-  V(ReturnStatement)      \
-  V(IfStatement)
-#define GENERATE_CASE(Node) \
-  case k##Node:             \
-    return static_cast<const Node*>(this)->IsJump();
-    JUMP_NODE_LIST(GENERATE_CASE)
-#undef GENERATE_CASE
-#undef JUMP_NODE_LIST
-    default:
-      return false;
-  }
-}
-
 VariableProxy::VariableProxy(Variable* var, int start_position)
     : Expression(start_position, kVariableProxy),
       raw_name_(var->raw_name()),
       next_unresolved_(nullptr) {
-  bit_field_ |= IsThisField::encode(var->is_this()) |
-                IsAssignedField::encode(false) |
+  DCHECK(!var->is_this());
+  bit_field_ |= IsAssignedField::encode(false) |
                 IsResolvedField::encode(false) |
                 HoleCheckModeField::encode(HoleCheckMode::kElided);
   BindTo(var);
@@ -191,11 +174,11 @@ VariableProxy::VariableProxy(const VariableProxy* copy_from)
 }
 
 void VariableProxy::BindTo(Variable* var) {
-  DCHECK((is_this() && var->is_this()) || raw_name() == var->raw_name());
+  DCHECK_EQ(raw_name(), var->raw_name());
   set_var(var);
   set_is_resolved();
   var->set_is_used();
-  if (is_assigned()) var->set_maybe_assigned();
+  if (is_assigned()) var->SetMaybeAssigned();
 }
 
 Assignment::Assignment(NodeType node_type, Token::Value op, Expression* target,
@@ -231,6 +214,18 @@ void FunctionLiteral::SetShouldEagerCompile() {
 
 bool FunctionLiteral::AllowsLazyCompilation() {
   return scope()->AllowsLazyCompilation();
+}
+
+bool FunctionLiteral::SafeToSkipArgumentsAdaptor() const {
+  // TODO(bmeurer,verwaest): The --fast_calls_with_arguments_mismatches
+  // is mostly here for checking the real-world impact of the calling
+  // convention. There's not really a point in turning off this flag
+  // otherwise, so we should remove it at some point, when we're done
+  // with the experiments (https://crbug.com/v8/8895).
+  return FLAG_fast_calls_with_arguments_mismatches &&
+         language_mode() == LanguageMode::kStrict &&
+         scope()->arguments() == nullptr &&
+         scope()->rest_parameter() == nullptr;
 }
 
 Handle<String> FunctionLiteral::name(Isolate* isolate) const {
@@ -287,6 +282,17 @@ std::unique_ptr<char[]> FunctionLiteral::GetDebugName() const {
   memcpy(result.get(), result_vec.data(), result_vec.size());
   result[result_vec.size()] = '\0';
   return result;
+}
+
+bool FunctionLiteral::requires_brand_initialization() const {
+  Scope* outer = scope_->outer_scope();
+
+  // If there are no variables declared in the outer scope other than
+  // the class name variable, the outer class scope may be elided when
+  // the function is deserialized after preparsing.
+  if (!outer->is_class_scope()) return false;
+
+  return outer->AsClassScope()->brand() != nullptr;
 }
 
 ObjectLiteralProperty::ObjectLiteralProperty(Expression* key, Expression* value,
@@ -477,15 +483,10 @@ void ObjectLiteral::BuildBoilerplateDescription(Isolate* isolate) {
       has_seen_proto = true;
       continue;
     }
-    if (property->is_computed_name()) {
-      continue;
-    }
+    if (property->is_computed_name()) continue;
 
     Literal* key = property->key()->AsLiteral();
-
-    if (!key->IsPropertyName()) {
-      index_keys++;
-    }
+    if (!key->IsPropertyName()) index_keys++;
   }
 
   Handle<ObjectBoilerplateDescription> boilerplate_description =
@@ -602,8 +603,8 @@ void ArrayLiteral::BuildBoilerplateDescription(Isolate* isolate) {
       boilerplate_value = handle(Smi::kZero, isolate);
     }
 
-    kind = GetMoreGeneralElementsKind(kind,
-                                      boilerplate_value->OptimalElementsKind());
+    kind = GetMoreGeneralElementsKind(
+        kind, boilerplate_value->OptimalElementsKind(isolate));
     fixed_array->set(array_index, *boilerplate_value);
   }
 
@@ -695,8 +696,8 @@ void MaterializedLiteral::BuildConstants(Isolate* isolate) {
 
 Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
     Isolate* isolate) {
-  Handle<FixedArray> raw_strings =
-      isolate->factory()->NewFixedArray(this->raw_strings()->length(), TENURED);
+  Handle<FixedArray> raw_strings = isolate->factory()->NewFixedArray(
+      this->raw_strings()->length(), AllocationType::kOld);
   bool raw_and_cooked_match = true;
   for (int i = 0; i < raw_strings->length(); ++i) {
     if (this->cooked_strings()->at(i) == nullptr ||
@@ -709,7 +710,7 @@ Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
   Handle<FixedArray> cooked_strings = raw_strings;
   if (!raw_and_cooked_match) {
     cooked_strings = isolate->factory()->NewFixedArray(
-        this->cooked_strings()->length(), TENURED);
+        this->cooked_strings()->length(), AllocationType::kOld);
     for (int i = 0; i < cooked_strings->length(); ++i) {
       if (this->cooked_strings()->at(i) != nullptr) {
         cooked_strings->set(i, *this->cooked_strings()->at(i)->string());
@@ -833,6 +834,9 @@ Call::CallType Call::GetCallType() const {
 
   Property* property = expression()->AsProperty();
   if (property != nullptr) {
+    if (property->IsPrivateReference()) {
+      return PRIVATE_CALL;
+    }
     bool is_super = property->IsSuperAccess();
     if (property->key()->IsPropertyName()) {
       return is_super ? NAMED_SUPER_PROPERTY_CALL : NAMED_PROPERTY_CALL;
@@ -884,7 +888,7 @@ Handle<Object> Literal::BuildValue(Isolate* isolate) const {
     case kSmi:
       return handle(Smi::FromInt(smi_), isolate);
     case kHeapNumber:
-      return isolate->factory()->NewNumber(number_, TENURED);
+      return isolate->factory()->NewNumber(number_, AllocationType::kOld);
     case kString:
       return string_->string();
     case kSymbol:

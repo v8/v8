@@ -7,18 +7,21 @@
 
 #include <map>
 
+#include "src/codegen/cpu-features.h"
+#include "src/common/globals.h"
 #include "src/compiler/backend/instruction-scheduler.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
-#include "src/cpu-features.h"
-#include "src/globals.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
+
+class TickCounter;
+
 namespace compiler {
 
 // Forward declarations.
@@ -266,7 +269,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
       Zone* zone, size_t node_count, Linkage* linkage,
       InstructionSequence* sequence, Schedule* schedule,
       SourcePositionTable* source_positions, Frame* frame,
-      EnableSwitchJumpTable enable_switch_jump_table,
+      EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
       SourcePositionMode source_position_mode = kCallSourcePositions,
       Features features = SupportedFeatures(),
       EnableScheduling enable_scheduling = FLAG_turbo_instruction_scheduling
@@ -443,7 +446,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   // Check if we can generate loads and stores of ExternalConstants relative
   // to the roots register.
-  bool CanAddressRelativeToRootsRegister() const;
+  bool CanAddressRelativeToRootsRegister(
+      const ExternalReference& reference) const;
   // Check if we can use the roots register to access GC roots.
   bool CanUseRootsRegister() const;
 
@@ -496,11 +500,15 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
                                  VectorSlotPair const& feedback,
                                  Node* frame_state);
 
-  void EmitTableSwitch(const SwitchInfo& sw, InstructionOperand& index_operand);
-  void EmitLookupSwitch(const SwitchInfo& sw,
-                        InstructionOperand& value_operand);
-  void EmitBinarySearchSwitch(const SwitchInfo& sw,
-                              InstructionOperand& value_operand);
+  void EmitTableSwitch(
+      const SwitchInfo& sw,
+      InstructionOperand& index_operand);  // NOLINT(runtime/references)
+  void EmitLookupSwitch(
+      const SwitchInfo& sw,
+      InstructionOperand& value_operand);  // NOLINT(runtime/references)
+  void EmitBinarySearchSwitch(
+      const SwitchInfo& sw,
+      InstructionOperand& value_operand);  // NOLINT(runtime/references)
 
   void TryRename(InstructionOperand* op);
   int GetRename(int virtual_register);
@@ -536,8 +544,11 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void MarkAsSimd128(Node* node) {
     MarkAsRepresentation(MachineRepresentation::kSimd128, node);
   }
-  void MarkAsReference(Node* node) {
+  void MarkAsTagged(Node* node) {
     MarkAsRepresentation(MachineRepresentation::kTagged, node);
+  }
+  void MarkAsCompressed(Node* node) {
+    MarkAsRepresentation(MachineRepresentation::kCompressed, node);
   }
 
   // Inform the register allocation of the representation of the unallocated
@@ -552,7 +563,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
     kCallFixedTargetRegister = 1u << 3,
     kAllowCallThroughSlot = 1u << 4
   };
-  typedef base::Flags<CallBufferFlag> CallBufferFlags;
+  using CallBufferFlags = base::Flags<CallBufferFlag>;
 
   // Initialize the call buffer with the InstructionOperands, nodes, etc,
   // corresponding
@@ -601,6 +612,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   MACHINE_SIMD_OP_LIST(DECLARE_GENERATOR)
 #undef DECLARE_GENERATOR
 
+  // Visit the load node with a value and opcode to replace with.
+  void VisitLoad(Node* node, Node* value, InstructionCode opcode);
   void VisitFinishRegion(Node* node);
   void VisitParameter(Node* node);
   void VisitIfException(Node* node);
@@ -609,8 +622,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitProjection(Node* node);
   void VisitConstant(Node* node);
   void VisitCall(Node* call, BasicBlock* handler = nullptr);
-  void VisitCallWithCallerSavedRegisters(Node* call,
-                                         BasicBlock* handler = nullptr);
   void VisitDeoptimizeIf(Node* node);
   void VisitDeoptimizeUnless(Node* node);
   void VisitTrapIf(Node* node, TrapId trap_id);
@@ -625,7 +636,10 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitThrow(Node* node);
   void VisitRetain(Node* node);
   void VisitUnreachable(Node* node);
+  void VisitStaticAssert(Node* node);
   void VisitDeadValue(Node* node);
+
+  void VisitStackPointerGreaterThan(Node* node, FlagsContinuation* cont);
 
   void VisitWordCompareZero(Node* user, Node* value, FlagsContinuation* cont);
 
@@ -768,6 +782,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   bool instruction_selection_failed_;
   ZoneVector<std::pair<int, int>> instr_origins_;
   EnableTraceTurboJson trace_turbo_;
+  TickCounter* const tick_counter_;
 };
 
 }  // namespace compiler

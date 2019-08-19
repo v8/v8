@@ -27,10 +27,14 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+# for py2/py3 compatibility
+from __future__ import print_function
+
 try:
   import hashlib
   md5er = hashlib.md5
-except ImportError, e:
+except ImportError as e:
   import md5
   md5er = md5.new
 
@@ -61,7 +65,6 @@ LINT_RULES = """
 -build/include_what_you_use
 -readability/fn_size
 -readability/multiline_comment
--runtime/references
 -whitespace/comments
 """.split()
 
@@ -84,7 +87,7 @@ def CppLintWorker(command):
       out_line = process.stderr.readline()
       if out_line == '' and process.poll() != None:
         if error_count == -1:
-          print "Failed to process %s" % command.pop()
+          print("Failed to process %s" % command.pop())
           return 1
         break
       m = LINT_OUTPUT_PATTERN.match(out_line)
@@ -114,7 +117,8 @@ def TorqueLintWorker(command):
       error_count += 1
     sys.stdout.write(out_lines)
     if error_count != 0:
-        sys.stdout.write("tip: use 'tools/torque/format-torque.py -i <filename>'\n");
+        sys.stdout.write(
+          "warning: formatting and overwriting unformatted Torque files\n")
     return error_count
   except KeyboardInterrupt:
     process.kill()
@@ -267,7 +271,7 @@ class CacheableSourceFileProcessor(SourceFileProcessor):
       files = cache.FilterUnchangedFiles(files)
 
     if len(files) == 0:
-      print 'No changes in %s files detected. Skipping check' % self.file_type
+      print('No changes in %s files detected. Skipping check' % self.file_type)
       return True
 
     files_requiring_changes = self.DetectFilesToChange(files)
@@ -292,7 +296,7 @@ class CacheableSourceFileProcessor(SourceFileProcessor):
     try:
       results = pool.map_async(worker, commands).get(timeout=240)
     except KeyboardInterrupt:
-      print "\nCaught KeyboardInterrupt, terminating workers."
+      print("\nCaught KeyboardInterrupt, terminating workers.")
       pool.terminate()
       pool.join()
       sys.exit(1)
@@ -347,20 +351,21 @@ class CppLintProcessor(CacheableSourceFileProcessor):
     return None, arguments
 
 
-class TorqueFormatProcessor(CacheableSourceFileProcessor):
+class TorqueLintProcessor(CacheableSourceFileProcessor):
   """
   Check .tq files to verify they follow the Torque style guide.
   """
 
   def __init__(self, use_cache=True):
-    super(TorqueFormatProcessor, self).__init__(
-      use_cache=use_cache, cache_file_path='.torquelint-cache', file_type='Torque')
+    super(TorqueLintProcessor, self).__init__(
+      use_cache=use_cache, cache_file_path='.torquelint-cache',
+      file_type='Torque')
 
   def IsRelevant(self, name):
     return name.endswith('.tq')
 
   def GetPathsToSearch(self):
-    dirs = ['third-party', 'src']
+    dirs = ['third_party', 'src']
     test_dirs = ['torque']
     return dirs + [join('test', dir) for dir in test_dirs]
 
@@ -370,7 +375,7 @@ class TorqueFormatProcessor(CacheableSourceFileProcessor):
   def GetProcessorScript(self):
     torque_tools = os.path.join(TOOLS_PATH, "torque")
     torque_path = os.path.join(torque_tools, "format-torque.py")
-    arguments = ['-l']
+    arguments = ["-il"]
     if os.path.isfile(torque_path):
       return torque_path, arguments
 
@@ -470,7 +475,10 @@ class SourceProcessor(SourceFileProcessor):
                        'zlib.js']
   IGNORE_TABS = IGNORE_COPYRIGHTS + ['unicode-test.js', 'html-comments.js']
 
-  IGNORE_COPYRIGHTS_DIRECTORY = "test/test262/local-tests"
+  IGNORE_COPYRIGHTS_DIRECTORIES = [
+      "test/test262/local-tests",
+      "test/mjsunit/wasm/bulk-memory-spec",
+  ]
 
   def EndOfDeclaration(self, line):
     return line == "}" or line == "};"
@@ -485,12 +493,13 @@ class SourceProcessor(SourceFileProcessor):
     base = basename(name)
     if not base in SourceProcessor.IGNORE_TABS:
       if '\t' in contents:
-        print "%s contains tabs" % name
+        print("%s contains tabs" % name)
         result = False
     if not base in SourceProcessor.IGNORE_COPYRIGHTS and \
-        not SourceProcessor.IGNORE_COPYRIGHTS_DIRECTORY in name:
+        not any(ignore_dir in name for ignore_dir
+                in SourceProcessor.IGNORE_COPYRIGHTS_DIRECTORIES):
       if not COPYRIGHT_HEADER_PATTERN.search(contents):
-        print "%s is missing a correct copyright header." % name
+        print("%s is missing a correct copyright header." % name)
         result = False
     if ' \n' in contents or contents.endswith(' '):
       line = 0
@@ -503,34 +512,35 @@ class SourceProcessor(SourceFileProcessor):
         lines.append(str(line))
       linenumbers = ', '.join(lines)
       if len(lines) > 1:
-        print "%s has trailing whitespaces in lines %s." % (name, linenumbers)
+        print("%s has trailing whitespaces in lines %s." % (name, linenumbers))
       else:
-        print "%s has trailing whitespaces in line %s." % (name, linenumbers)
+        print("%s has trailing whitespaces in line %s." % (name, linenumbers))
       result = False
     if not contents.endswith('\n') or contents.endswith('\n\n'):
-      print "%s does not end with a single new line." % name
+      print("%s does not end with a single new line." % name)
       result = False
     # Sanitize flags for fuzzer.
-    if "mjsunit" in name or "debugger" in name:
+    if (".js" in name or ".mjs" in name) and ("mjsunit" in name or "debugger" in name):
       match = FLAGS_LINE.search(contents)
       if match:
-        print "%s Flags should use '-' (not '_')" % name
+        print("%s Flags should use '-' (not '_')" % name)
         result = False
-      if not "mjsunit/mjsunit.js" in name:
+      if (not "mjsunit/mjsunit.js" in name and
+          not "mjsunit/mjsunit_numfuzz.js" in name):
         if ASSERT_OPTIMIZED_PATTERN.search(contents) and \
             not FLAGS_ENABLE_OPT.search(contents):
-          print "%s Flag --opt should be set if " \
-                "assertOptimized() is used" % name
+          print("%s Flag --opt should be set if " \
+                "assertOptimized() is used" % name)
           result = False
         if ASSERT_UNOPTIMIZED_PATTERN.search(contents) and \
             not FLAGS_NO_ALWAYS_OPT.search(contents):
-          print "%s Flag --no-always-opt should be set if " \
-                "assertUnoptimized() is used" % name
+          print("%s Flag --no-always-opt should be set if " \
+                "assertUnoptimized() is used" % name)
           result = False
 
       match = self.runtime_function_call_pattern.search(contents)
       if match:
-        print "%s has unexpected spaces in a runtime call '%s'" % (name, match.group(1))
+        print("%s has unexpected spaces in a runtime call '%s'" % (name, match.group(1)))
         result = False
     return result
 
@@ -541,12 +551,12 @@ class SourceProcessor(SourceFileProcessor):
       try:
         handle = open(file)
         contents = handle.read()
-        if not self.ProcessContents(file, contents):
+        if len(contents) > 0 and not self.ProcessContents(file, contents):
           success = False
           violations += 1
       finally:
         handle.close()
-    print "Total violating files: %s" % violations
+    print("Total violating files: %s" % violations)
     return success
 
 def _CheckStatusFileForDuplicateKeys(filepath):
@@ -649,10 +659,13 @@ def CheckDeps(workspace):
 def PyTests(workspace):
   result = True
   for script in [
+      join(workspace, 'tools', 'clusterfuzz', 'v8_foozzie_test.py'),
       join(workspace, 'tools', 'release', 'test_scripts.py'),
       join(workspace, 'tools', 'unittests', 'run_tests_test.py'),
+      join(workspace, 'tools', 'unittests', 'run_perf_test.py'),
+      join(workspace, 'tools', 'testrunner', 'testproc', 'variant_unittest.py'),
     ]:
-    print 'Running ' + script
+    print('Running ' + script)
     result &= subprocess.call(
         [sys.executable, script], stdout=subprocess.PIPE) == 0
 
@@ -663,8 +676,8 @@ def GetOptions():
   result = optparse.OptionParser()
   result.add_option('--no-lint', help="Do not run cpplint", default=False,
                     action="store_true")
-  result.add_option('--no-linter-cache', help="Do not cache linter results", default=False,
-                    action="store_true")
+  result.add_option('--no-linter-cache', help="Do not cache linter results",
+                    default=False, action="store_true")
 
   return result
 
@@ -674,21 +687,22 @@ def Main():
   parser = GetOptions()
   (options, args) = parser.parse_args()
   success = True
-  print "Running checkdeps..."
+  print("Running checkdeps...")
   success &= CheckDeps(workspace)
   use_linter_cache = not options.no_linter_cache
   if not options.no_lint:
-    print "Running C++ lint check..."
+    print("Running C++ lint check...")
     success &= CppLintProcessor(use_cache=use_linter_cache).RunOnPath(workspace)
 
-  print "Running Torque formatting check..."
-  success &= TorqueFormatProcessor(use_cache=use_linter_cache).RunOnPath(workspace)
-  print "Running copyright header, trailing whitespaces and " \
-        "two empty lines between declarations check..."
+  print("Running Torque formatting check...")
+  success &= TorqueLintProcessor(use_cache=use_linter_cache).RunOnPath(
+    workspace)
+  print("Running copyright header, trailing whitespaces and " \
+        "two empty lines between declarations check...")
   success &= SourceProcessor().RunOnPath(workspace)
-  print "Running status-files check..."
+  print("Running status-files check...")
   success &= StatusFilesProcessor().RunOnPath(workspace)
-  print "Running python tests..."
+  print("Running python tests...")
   success &= PyTests(workspace)
   if success:
     return 0

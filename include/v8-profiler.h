@@ -5,6 +5,7 @@
 #ifndef V8_V8_PROFILER_H_
 #define V8_V8_PROFILER_H_
 
+#include <limits.h>
 #include <unordered_set>
 #include <vector>
 #include "v8.h"  // NOLINT(build/include)
@@ -17,8 +18,8 @@ namespace v8 {
 class HeapGraphNode;
 struct HeapStatsUpdate;
 
-typedef uint32_t SnapshotObjectId;
-
+using NativeObject = void*;
+using SnapshotObjectId = uint32_t;
 
 struct CpuProfileDeoptFrame {
   int script_id;
@@ -48,7 +49,7 @@ template class V8_EXPORT std::vector<v8::CpuProfileDeoptInfo>;
 namespace v8 {
 
 // TickSample captures the information collected for each sample.
-struct TickSample {
+struct V8_EXPORT TickSample {
   // Internal profiling (with --prof + tools/$OS-tick-processor) wants to
   // include the runtime function we're calling. Externally exposed tick
   // samples don't care.
@@ -129,6 +130,20 @@ class V8_EXPORT CpuProfileNode {
     unsigned int hit_count;
   };
 
+  // An annotation hinting at the source of a CpuProfileNode.
+  enum SourceType {
+    // User-supplied script with associated resource information.
+    kScript = 0,
+    // Native scripts and provided builtins.
+    kBuiltin = 1,
+    // Callbacks into native code.
+    kCallback = 2,
+    // VM-internal functions or state.
+    kInternal = 3,
+    // A node that failed to symbolize.
+    kUnresolved = 4,
+  };
+
   /** Returns function name (empty string for anonymous functions.) */
   Local<String> GetFunctionName() const;
 
@@ -151,6 +166,12 @@ class V8_EXPORT CpuProfileNode {
    * profile is deleted. The function is thread safe.
    */
   const char* GetScriptResourceNameStr() const;
+
+  /**
+   * Return true if the script from where the function originates is flagged as
+   * being shared cross-origin.
+   */
+  bool IsScriptSharedCrossOrigin() const;
 
   /**
    * Returns the number, 1-based, of the line where the function originates.
@@ -194,11 +215,19 @@ class V8_EXPORT CpuProfileNode {
   /** Returns id of the node. The id is unique within the tree */
   unsigned GetNodeId() const;
 
+  /**
+   * Gets the type of the source which the node was captured from.
+   */
+  SourceType GetSourceType() const;
+
   /** Returns child nodes count of the node. */
   int GetChildrenCount() const;
 
   /** Retrieves a child node by index. */
   const CpuProfileNode* GetChild(int index) const;
+
+  /** Retrieves the ancestor node, or null if the root. */
+  const CpuProfileNode* GetParent() const;
 
   /** Retrieves deopt infos for the node. */
   const std::vector<CpuProfileDeoptInfo>& GetDeoptInfos() const;
@@ -269,6 +298,62 @@ enum CpuProfilingMode {
   kCallerLineNumbers,
 };
 
+// Determines how names are derived for functions sampled.
+enum CpuProfilingNamingMode {
+  // Use the immediate name of functions at compilation time.
+  kStandardNaming,
+  // Use more verbose naming for functions without names, inferred from scope
+  // where possible.
+  kDebugNaming,
+};
+
+enum CpuProfilingLoggingMode {
+  // Enables logging when a profile is active, and disables logging when all
+  // profiles are detached.
+  kLazyLogging,
+  // Enables logging for the lifetime of the CpuProfiler. Calls to
+  // StartRecording are faster, at the expense of runtime overhead.
+  kEagerLogging,
+};
+
+/**
+ * Optional profiling attributes.
+ */
+class V8_EXPORT CpuProfilingOptions {
+ public:
+  // Indicates that the sample buffer size should not be explicitly limited.
+  static const unsigned kNoSampleLimit = UINT_MAX;
+
+  /**
+   * \param mode Type of computation of stack frame line numbers.
+   * \param max_samples The maximum number of samples that should be recorded by
+   *                    the profiler. Samples obtained after this limit will be
+   *                    discarded.
+   * \param sampling_interval_us controls the profile-specific target
+   *                             sampling interval. The provided sampling
+   *                             interval will be snapped to the next lowest
+   *                             non-zero multiple of the profiler's sampling
+   *                             interval, set via SetSamplingInterval(). If
+   *                             zero, the sampling interval will be equal to
+   *                             the profiler's sampling interval.
+   */
+  CpuProfilingOptions(CpuProfilingMode mode = kLeafNodeLineNumbers,
+                      unsigned max_samples = kNoSampleLimit,
+                      int sampling_interval_us = 0)
+      : mode_(mode),
+        max_samples_(max_samples),
+        sampling_interval_us_(sampling_interval_us) {}
+
+  CpuProfilingMode mode() const { return mode_; }
+  unsigned max_samples() const { return max_samples_; }
+  int sampling_interval_us() const { return sampling_interval_us_; }
+
+ private:
+  CpuProfilingMode mode_;
+  unsigned max_samples_;
+  int sampling_interval_us_;
+};
+
 /**
  * Interface for controlling CPU profiling. Instance of the
  * profiler can be created using v8::CpuProfiler::New method.
@@ -280,7 +365,9 @@ class V8_EXPORT CpuProfiler {
    * initialized. The profiler object must be disposed after use by calling
    * |Dispose| method.
    */
-  static CpuProfiler* New(Isolate* isolate);
+  static CpuProfiler* New(Isolate* isolate,
+                          CpuProfilingNamingMode = kDebugNaming,
+                          CpuProfilingLoggingMode = kLazyLogging);
 
   /**
    * Synchronously collect current stack sample in all profilers attached to
@@ -302,18 +389,35 @@ class V8_EXPORT CpuProfiler {
   void SetSamplingInterval(int us);
 
   /**
-   * Starts collecting CPU profile. Title may be an empty string. It
-   * is allowed to have several profiles being collected at
-   * once. Attempts to start collecting several profiles with the same
-   * title are silently ignored. While collecting a profile, functions
-   * from all security contexts are included in it. The token-based
-   * filtering is only performed when querying for a profile.
+   * Sets whether or not the profiler should prioritize consistency of sample
+   * periodicity on Windows. Disabling this can greatly reduce CPU usage, but
+   * may result in greater variance in sample timings from the platform's
+   * scheduler. Defaults to enabled. This method must be called when there are
+   * no profiles being recorded.
+   */
+  void SetUsePreciseSampling(bool);
+
+  /**
+   * Starts collecting a CPU profile. Title may be an empty string. Several
+   * profiles may be collected at once. Attempts to start collecting several
+   * profiles with the same title are silently ignored.
+   */
+  void StartProfiling(Local<String> title, CpuProfilingOptions options);
+
+  /**
+   * Starts profiling with the same semantics as above, except with expanded
+   * parameters.
    *
    * |record_samples| parameter controls whether individual samples should
    * be recorded in addition to the aggregated tree.
+   *
+   * |max_samples| controls the maximum number of samples that should be
+   * recorded by the profiler. Samples obtained after this limit will be
+   * discarded.
    */
-  void StartProfiling(Local<String> title, CpuProfilingMode mode,
-                      bool record_samples = false);
+  void StartProfiling(
+      Local<String> title, CpuProfilingMode mode, bool record_samples = false,
+      unsigned max_samples = CpuProfilingOptions::kNoSampleLimit);
   /**
    * The same as StartProfiling above, but the CpuProfilingMode defaults to
    * kLeafNodeLineNumbers mode, which was the previous default behavior of the
@@ -353,7 +457,6 @@ class V8_EXPORT CpuProfiler {
   CpuProfiler(const CpuProfiler&);
   CpuProfiler& operator=(const CpuProfiler&);
 };
-
 
 /**
  * HeapSnapshotEdge represents a directed connection between heap
@@ -705,7 +808,12 @@ class V8_EXPORT EmbedderGraph {
      */
     virtual const char* NamePrefix() { return nullptr; }
 
-   private:
+    /**
+     * Returns the NativeObject that can be used for querying the
+     * |HeapSnapshot|.
+     */
+    virtual NativeObject GetNativeObject() { return nullptr; }
+
     Node(const Node&) = delete;
     Node& operator=(const Node&) = delete;
   };
@@ -746,33 +854,6 @@ class V8_EXPORT HeapProfiler {
     kSamplingForceGC = 1 << 0,
   };
 
-  typedef std::unordered_set<const v8::PersistentBase<v8::Value>*>
-      RetainerChildren;
-  typedef std::vector<std::pair<v8::RetainedObjectInfo*, RetainerChildren>>
-      RetainerGroups;
-  typedef std::vector<std::pair<const v8::PersistentBase<v8::Value>*,
-                                const v8::PersistentBase<v8::Value>*>>
-      RetainerEdges;
-
-  struct RetainerInfos {
-    RetainerGroups groups;
-    RetainerEdges edges;
-  };
-
-  /**
-   * Callback function invoked to retrieve all RetainerInfos from the embedder.
-   */
-  typedef RetainerInfos (*GetRetainerInfosCallback)(v8::Isolate* isolate);
-
-  /**
-   * Callback function invoked for obtaining RetainedObjectInfo for
-   * the given JavaScript wrapper object. It is prohibited to enter V8
-   * while the callback is running: only getters on the handle and
-   * GetPointerFromInternalField on the objects are allowed.
-   */
-  typedef RetainedObjectInfo* (*WrapperInfoCallback)(uint16_t class_id,
-                                                     Local<Value> wrapper);
-
   /**
    * Callback function invoked during heap snapshot generation to retrieve
    * the embedder object graph. The callback should use graph->AddEdge(..) to
@@ -782,10 +863,6 @@ class V8_EXPORT HeapProfiler {
   typedef void (*BuildEmbedderGraphCallback)(v8::Isolate* isolate,
                                              v8::EmbedderGraph* graph,
                                              void* data);
-
-  /** TODO(addaleax): Remove */
-  typedef void (*LegacyBuildEmbedderGraphCallback)(v8::Isolate* isolate,
-                                                   v8::EmbedderGraph* graph);
 
   /** Returns the number of snapshots taken. */
   int GetSnapshotCount();
@@ -798,6 +875,12 @@ class V8_EXPORT HeapProfiler {
    * it has been seen by the heap profiler, kUnknownObjectId otherwise.
    */
   SnapshotObjectId GetObjectId(Local<Value> value);
+
+  /**
+   * Returns SnapshotObjectId for a native object referenced by |value| if it
+   * has been seen by the heap profiler, kUnknownObjectId otherwise.
+   */
+  SnapshotObjectId GetObjectId(NativeObject value);
 
   /**
    * Returns heap object with given SnapshotObjectId if the object is alive,
@@ -925,20 +1008,6 @@ class V8_EXPORT HeapProfiler {
    */
   void DeleteAllHeapSnapshots();
 
-  /** Binds a callback to embedder's class ID. */
-  V8_DEPRECATED(
-      "Use AddBuildEmbedderGraphCallback to provide info about embedder nodes",
-      void SetWrapperClassInfoProvider(uint16_t class_id,
-                                       WrapperInfoCallback callback));
-
-  V8_DEPRECATED(
-      "Use AddBuildEmbedderGraphCallback to provide info about embedder nodes",
-      void SetGetRetainerInfosCallback(GetRetainerInfosCallback callback));
-
-  V8_DEPRECATED(
-      "Use AddBuildEmbedderGraphCallback to provide info about embedder nodes",
-      void SetBuildEmbedderGraphCallback(
-          LegacyBuildEmbedderGraphCallback callback));
   void AddBuildEmbedderGraphCallback(BuildEmbedderGraphCallback callback,
                                      void* data);
   void RemoveBuildEmbedderGraphCallback(BuildEmbedderGraphCallback callback,
@@ -957,80 +1026,6 @@ class V8_EXPORT HeapProfiler {
   HeapProfiler(const HeapProfiler&);
   HeapProfiler& operator=(const HeapProfiler&);
 };
-
-/**
- * Interface for providing information about embedder's objects
- * held by global handles. This information is reported in two ways:
- *
- *  1. When calling AddObjectGroup, an embedder may pass
- *     RetainedObjectInfo instance describing the group.  To collect
- *     this information while taking a heap snapshot, V8 calls GC
- *     prologue and epilogue callbacks.
- *
- *  2. When a heap snapshot is collected, V8 additionally
- *     requests RetainedObjectInfos for persistent handles that
- *     were not previously reported via AddObjectGroup.
- *
- * Thus, if an embedder wants to provide information about native
- * objects for heap snapshots, it can do it in a GC prologue
- * handler, and / or by assigning wrapper class ids in the following way:
- *
- *  1. Bind a callback to class id by calling SetWrapperClassInfoProvider.
- *  2. Call SetWrapperClassId on certain persistent handles.
- *
- * V8 takes ownership of RetainedObjectInfo instances passed to it and
- * keeps them alive only during snapshot collection. Afterwards, they
- * are freed by calling the Dispose class function.
- */
-class V8_EXPORT RetainedObjectInfo {  // NOLINT
- public:
-  /** Called by V8 when it no longer needs an instance. */
-  virtual void Dispose() = 0;
-
-  /** Returns whether two instances are equivalent. */
-  virtual bool IsEquivalent(RetainedObjectInfo* other) = 0;
-
-  /**
-   * Returns hash value for the instance. Equivalent instances
-   * must have the same hash value.
-   */
-  virtual intptr_t GetHash() = 0;
-
-  /**
-   * Returns human-readable label. It must be a null-terminated UTF-8
-   * encoded string. V8 copies its contents during a call to GetLabel.
-   */
-  virtual const char* GetLabel() = 0;
-
-  /**
-   * Returns human-readable group label. It must be a null-terminated UTF-8
-   * encoded string. V8 copies its contents during a call to GetGroupLabel.
-   * Heap snapshot generator will collect all the group names, create
-   * top level entries with these names and attach the objects to the
-   * corresponding top level group objects. There is a default
-   * implementation which is required because embedders don't have their
-   * own implementation yet.
-   */
-  virtual const char* GetGroupLabel() { return GetLabel(); }
-
-  /**
-   * Returns element count in case if a global handle retains
-   * a subgraph by holding one of its nodes.
-   */
-  virtual intptr_t GetElementCount() { return -1; }
-
-  /** Returns embedder's object size in bytes. */
-  virtual intptr_t GetSizeInBytes() { return -1; }
-
- protected:
-  RetainedObjectInfo() = default;
-  virtual ~RetainedObjectInfo() = default;
-
- private:
-  RetainedObjectInfo(const RetainedObjectInfo&);
-  RetainedObjectInfo& operator=(const RetainedObjectInfo&);
-};
-
 
 /**
  * A struct for exporting HeapStats data from V8, using "push" model.

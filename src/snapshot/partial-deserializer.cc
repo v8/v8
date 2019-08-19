@@ -4,7 +4,8 @@
 
 #include "src/snapshot/partial-deserializer.h"
 
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/snapshot.h"
 
@@ -41,7 +42,7 @@ MaybeHandle<Object> PartialDeserializer::Deserialize(
   // code objects were unserialized
   CodeSpace* code_space = isolate->heap()->code_space();
   Address start_address = code_space->top();
-  Object* root;
+  Object root;
   VisitRootPointer(Root::kPartialSnapshotCache, nullptr, FullObjectSlot(&root));
   DeserializeDeferredObjects();
   DeserializeEmbedderFields(embedder_fields_deserializer);
@@ -72,7 +73,8 @@ void PartialDeserializer::DeserializeEmbedderFields(
     int space = code & kSpaceMask;
     DCHECK_LE(space, kNumberOfSpaces);
     DCHECK_EQ(code - space, kNewObject);
-    Handle<JSObject> obj(JSObject::cast(GetBackReferencedObject(space)),
+    Handle<JSObject> obj(JSObject::cast(GetBackReferencedObject(
+                             static_cast<SnapshotSpace>(space))),
                          isolate());
     int index = source()->GetInt();
     int size = source()->GetInt();

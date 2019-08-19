@@ -9,8 +9,8 @@
 #ifndef V8_OBJECTS_JS_SEGMENTER_INL_H_
 #define V8_OBJECTS_JS_SEGMENTER_INL_H_
 
-#include "src/objects-inl.h"
 #include "src/objects/js-segmenter.h"
+#include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -21,24 +21,13 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(JSSegmenter, JSObject)
 
 // Base segmenter accessors.
-ACCESSORS2(JSSegmenter, locale, String, kLocaleOffset)
-ACCESSORS2(JSSegmenter, icu_break_iterator, Managed<icu::BreakIterator>,
-           kICUBreakIteratorOffset)
+ACCESSORS(JSSegmenter, locale, String, kLocaleOffset)
+ACCESSORS(JSSegmenter, icu_break_iterator, Managed<icu::BreakIterator>,
+          kIcuBreakIteratorOffset)
 SMI_ACCESSORS(JSSegmenter, flags, kFlagsOffset)
 
-inline void JSSegmenter::set_line_break_style(LineBreakStyle line_break_style) {
-  DCHECK_GT(LineBreakStyle::COUNT, line_break_style);
-  int hints = flags();
-  hints = LineBreakStyleBits::update(hints, line_break_style);
-  set_flags(hints);
-}
-
-inline JSSegmenter::LineBreakStyle JSSegmenter::line_break_style() const {
-  return LineBreakStyleBits::decode(flags());
-}
-
 inline void JSSegmenter::set_granularity(Granularity granularity) {
-  DCHECK_GT(Granularity::COUNT, granularity);
+  DCHECK_GE(GranularityBits::kMax, granularity);
   int hints = flags();
   hints = GranularityBits::update(hints, granularity);
   set_flags(hints);
@@ -48,7 +37,7 @@ inline JSSegmenter::Granularity JSSegmenter::granularity() const {
   return GranularityBits::decode(flags());
 }
 
-CAST_ACCESSOR2(JSSegmenter);
+CAST_ACCESSOR(JSSegmenter)
 
 }  // namespace internal
 }  // namespace v8

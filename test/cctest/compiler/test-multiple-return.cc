@@ -7,15 +7,14 @@
 #include <limits>
 #include <memory>
 
-#include "src/assembler.h"
 #include "src/base/bits.h"
-#include "src/codegen.h"
-#include "src/compiler.h"
+#include "src/codegen/assembler.h"
+#include "src/codegen/compiler.h"
+#include "src/codegen/machine-type.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/machine-type.h"
-#include "src/macro-assembler.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -44,7 +43,8 @@ CallDescriptor* CreateCallDescriptor(Zone* zone, int return_count,
   return compiler::GetWasmCallDescriptor(zone, builder.Build());
 }
 
-Node* MakeConstant(RawMachineAssembler& m, MachineType type, int value) {
+Node* MakeConstant(RawMachineAssembler& m,  // NOLINT(runtime/references)
+                   MachineType type, int value) {
   switch (type.representation()) {
     case MachineRepresentation::kWord32:
       return m.Int32Constant(static_cast<int32_t>(value));
@@ -59,7 +59,8 @@ Node* MakeConstant(RawMachineAssembler& m, MachineType type, int value) {
   }
 }
 
-Node* Add(RawMachineAssembler& m, MachineType type, Node* a, Node* b) {
+Node* Add(RawMachineAssembler& m,  // NOLINT(runtime/references)
+          MachineType type, Node* a, Node* b) {
   switch (type.representation()) {
     case MachineRepresentation::kWord32:
       return m.Int32Add(a, b);
@@ -74,7 +75,8 @@ Node* Add(RawMachineAssembler& m, MachineType type, Node* a, Node* b) {
   }
 }
 
-Node* Sub(RawMachineAssembler& m, MachineType type, Node* a, Node* b) {
+Node* Sub(RawMachineAssembler& m,  // NOLINT(runtime/references)
+          MachineType type, Node* a, Node* b) {
   switch (type.representation()) {
     case MachineRepresentation::kWord32:
       return m.Int32Sub(a, b);
@@ -89,7 +91,8 @@ Node* Sub(RawMachineAssembler& m, MachineType type, Node* a, Node* b) {
   }
 }
 
-Node* Mul(RawMachineAssembler& m, MachineType type, Node* a, Node* b) {
+Node* Mul(RawMachineAssembler& m,  // NOLINT(runtime/references)
+          MachineType type, Node* a, Node* b) {
   switch (type.representation()) {
     case MachineRepresentation::kWord32:
       return m.Int32Mul(a, b);
@@ -104,7 +107,8 @@ Node* Mul(RawMachineAssembler& m, MachineType type, Node* a, Node* b) {
   }
 }
 
-Node* ToInt32(RawMachineAssembler& m, MachineType type, Node* a) {
+Node* ToInt32(RawMachineAssembler& m,  // NOLINT(runtime/references)
+              MachineType type, Node* a) {
   switch (type.representation()) {
     case MachineRepresentation::kWord32:
       return a;
@@ -119,14 +123,14 @@ Node* ToInt32(RawMachineAssembler& m, MachineType type, Node* a) {
   }
 }
 
-std::unique_ptr<wasm::NativeModule> AllocateNativeModule(Isolate* isolate,
+std::shared_ptr<wasm::NativeModule> AllocateNativeModule(Isolate* isolate,
                                                          size_t code_size) {
   std::shared_ptr<wasm::WasmModule> module(new wasm::WasmModule());
   module->num_declared_functions = 1;
   // We have to add the code object to a NativeModule, because the
   // WasmCallDescriptor assumes that code is on the native heap and not
   // within a code object.
-  return isolate->wasm_engine()->code_manager()->NewNativeModule(
+  return isolate->wasm_engine()->NewNativeModule(
       isolate, wasm::kAllWasmFeatures, code_size, false, std::move(module));
 }
 
@@ -152,7 +156,7 @@ void TestReturnMultipleValues(MachineType type) {
       // m.Parameter(0) is the WasmContext.
       Node* p0 = m.Parameter(1);
       Node* p1 = m.Parameter(2);
-      typedef Node* Node_ptr;
+      using Node_ptr = Node*;
       std::unique_ptr<Node_ptr[]> returns(new Node_ptr[count]);
       for (int i = 0; i < count; ++i) {
         if (i % 3 == 0) returns[i] = Add(m, type, p0, p1);
@@ -163,11 +167,11 @@ void TestReturnMultipleValues(MachineType type) {
 
       OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
                                     Code::WASM_FUNCTION);
-      Handle<Code> code =
-          Pipeline::GenerateCodeForTesting(
-              &info, handles.main_isolate(), desc, m.graph(),
-              AssemblerOptions::Default(handles.main_isolate()), m.Export())
-              .ToHandleChecked();
+      Handle<Code> code = Pipeline::GenerateCodeForTesting(
+                              &info, handles.main_isolate(), desc, m.graph(),
+                              AssemblerOptions::Default(handles.main_isolate()),
+                              m.ExportForTest())
+                              .ToHandleChecked();
 #ifdef ENABLE_DISASSEMBLER
       if (FLAG_print_code) {
         StdoutStream os;
@@ -184,10 +188,11 @@ void TestReturnMultipleValues(MachineType type) {
         if (i % 4 == 0) sign = -sign;
       }
 
-      std::unique_ptr<wasm::NativeModule> module = AllocateNativeModule(
+      std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
           handles.main_isolate(), code->raw_instruction_size());
+      wasm::WasmCodeRefScope wasm_code_ref_scope;
       byte* code_start =
-          module->AddCodeForTesting(code)->instructions().start();
+          module->AddCodeForTesting(code)->instructions().begin();
 
       RawMachineAssemblerTester<int32_t> mt(Code::Kind::JS_TO_WASM_FUNCTION);
       const int input_count = 2 + param_count;
@@ -267,15 +272,16 @@ void ReturnLastValue(MachineType type) {
 
     OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
                                   Code::WASM_FUNCTION);
-    Handle<Code> code =
-        Pipeline::GenerateCodeForTesting(
-            &info, handles.main_isolate(), desc, m.graph(),
-            AssemblerOptions::Default(handles.main_isolate()), m.Export())
-            .ToHandleChecked();
+    Handle<Code> code = Pipeline::GenerateCodeForTesting(
+                            &info, handles.main_isolate(), desc, m.graph(),
+                            AssemblerOptions::Default(handles.main_isolate()),
+                            m.ExportForTest())
+                            .ToHandleChecked();
 
-    std::unique_ptr<wasm::NativeModule> module = AllocateNativeModule(
+    std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
         handles.main_isolate(), code->raw_instruction_size());
-    byte* code_start = module->AddCodeForTesting(code)->instructions().start();
+    wasm::WasmCodeRefScope wasm_code_ref_scope;
+    byte* code_start = module->AddCodeForTesting(code)->instructions().begin();
 
     // Generate caller.
     int expect = return_count - 1;
@@ -328,15 +334,16 @@ void ReturnSumOfReturns(MachineType type) {
 
     OptimizedCompilationInfo info(ArrayVector("testing"), handles.main_zone(),
                                   Code::WASM_FUNCTION);
-    Handle<Code> code =
-        Pipeline::GenerateCodeForTesting(
-            &info, handles.main_isolate(), desc, m.graph(),
-            AssemblerOptions::Default(handles.main_isolate()), m.Export())
-            .ToHandleChecked();
+    Handle<Code> code = Pipeline::GenerateCodeForTesting(
+                            &info, handles.main_isolate(), desc, m.graph(),
+                            AssemblerOptions::Default(handles.main_isolate()),
+                            m.ExportForTest())
+                            .ToHandleChecked();
 
-    std::unique_ptr<wasm::NativeModule> module = AllocateNativeModule(
+    std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
         handles.main_isolate(), code->raw_instruction_size());
-    byte* code_start = module->AddCodeForTesting(code)->instructions().start();
+    wasm::WasmCodeRefScope wasm_code_ref_scope;
+    byte* code_start = module->AddCodeForTesting(code)->instructions().begin();
 
     // Generate caller.
     RawMachineAssemblerTester<int32_t> mt;

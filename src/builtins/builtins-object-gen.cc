@@ -6,14 +6,14 @@
 
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
-#include "src/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler.h"
 #include "src/heap/factory-inl.h"
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/keyed-store-generic.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/property-descriptor-object.h"
+#include "src/objects/property-details.h"
 #include "src/objects/shared-function-info.h"
-#include "src/property-details.h"
 
 namespace v8 {
 namespace internal {
@@ -21,7 +21,7 @@ namespace internal {
 // -----------------------------------------------------------------------------
 // ES6 section 19.1 Object Objects
 
-typedef compiler::Node Node;
+using Node = compiler::Node;
 template <class T>
 using TNode = CodeStubAssembler::TNode<T>;
 
@@ -44,13 +44,6 @@ class ObjectBuiltinsAssembler : public CodeStubAssembler {
   Node* ConstructDataDescriptor(Node* context, Node* value, Node* writable,
                                 Node* enumerable, Node* configurable);
   Node* GetAccessorOrUndefined(Node* accessor, Label* if_bailout);
-
-  Node* IsSpecialReceiverMap(SloppyTNode<Map> map);
-
-  TNode<Word32T> IsStringWrapperElementsKind(TNode<Map> map);
-
-  void ObjectAssignFast(TNode<Context> context, TNode<JSReceiver> to,
-                        TNode<Object> from, Label* slow);
 };
 
 class ObjectEntriesValuesBuiltinsAssembler : public ObjectBuiltinsAssembler {
@@ -68,16 +61,12 @@ class ObjectEntriesValuesBuiltinsAssembler : public ObjectBuiltinsAssembler {
 
   TNode<BoolT> IsPropertyKindData(TNode<Uint32T> kind);
 
-  TNode<Uint32T> HasHiddenPrototype(TNode<Map> map);
-
   TNode<Uint32T> LoadPropertyKind(TNode<Uint32T> details) {
     return DecodeWord32<PropertyDetails::KindField>(details);
   }
 
   void GetOwnValuesOrEntries(TNode<Context> context, TNode<Object> maybe_object,
                              CollectType collect_type);
-
-  void GotoIfMapHasSlowProperties(TNode<Map> map, Label* if_slow);
 
   TNode<JSArray> FastGetOwnValuesOrEntries(
       TNode<Context> context, TNode<JSObject> object,
@@ -149,28 +138,6 @@ Node* ObjectBuiltinsAssembler::ConstructDataDescriptor(Node* context,
   return js_desc;
 }
 
-Node* ObjectBuiltinsAssembler::IsSpecialReceiverMap(SloppyTNode<Map> map) {
-  CSA_SLOW_ASSERT(this, IsMap(map));
-  TNode<BoolT> is_special =
-      IsSpecialReceiverInstanceType(LoadMapInstanceType(map));
-  uint32_t mask =
-      Map::HasNamedInterceptorBit::kMask | Map::IsAccessCheckNeededBit::kMask;
-  USE(mask);
-  // Interceptors or access checks imply special receiver.
-  CSA_ASSERT(this,
-             SelectConstant<BoolT>(IsSetWord32(LoadMapBitField(map), mask),
-                                   is_special, Int32TrueConstant()));
-  return is_special;
-}
-
-TNode<Word32T> ObjectBuiltinsAssembler::IsStringWrapperElementsKind(
-    TNode<Map> map) {
-  Node* kind = LoadMapElementsKind(map);
-  return Word32Or(
-      Word32Equal(kind, Int32Constant(FAST_STRING_WRAPPER_ELEMENTS)),
-      Word32Equal(kind, Int32Constant(SLOW_STRING_WRAPPER_ELEMENTS)));
-}
-
 TNode<BoolT> ObjectEntriesValuesBuiltinsAssembler::IsPropertyEnumerable(
     TNode<Uint32T> details) {
   TNode<Uint32T> attributes =
@@ -186,12 +153,6 @@ TNode<BoolT> ObjectEntriesValuesBuiltinsAssembler::IsPropertyKindAccessor(
 TNode<BoolT> ObjectEntriesValuesBuiltinsAssembler::IsPropertyKindData(
     TNode<Uint32T> kind) {
   return Word32Equal(kind, Int32Constant(PropertyKind::kData));
-}
-
-TNode<Uint32T> ObjectEntriesValuesBuiltinsAssembler::HasHiddenPrototype(
-    TNode<Map> map) {
-  TNode<Uint32T> bit_field3 = LoadMapBitField3(map);
-  return DecodeWord32<Map::HasHiddenPrototypeBit>(bit_field3);
 }
 
 void ObjectEntriesValuesBuiltinsAssembler::GetOwnValuesOrEntries(
@@ -251,14 +212,6 @@ void ObjectEntriesValuesBuiltinsAssembler::GetOwnValuesOrEntries(
           CallRuntime(Runtime::kObjectValuesSkipFastPath, context, receiver));
     }
   }
-}
-
-void ObjectEntriesValuesBuiltinsAssembler::GotoIfMapHasSlowProperties(
-    TNode<Map> map, Label* if_slow) {
-  GotoIf(IsStringWrapperElementsKind(map), if_slow);
-  GotoIf(IsSpecialReceiverMap(map), if_slow);
-  GotoIf(HasHiddenPrototype(map), if_slow);
-  GotoIf(IsDictionaryMap(map), if_slow);
 }
 
 TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
@@ -390,9 +343,7 @@ ObjectEntriesValuesBuiltinsAssembler::FinalizeValuesOrEntriesJSArray(
   CSA_ASSERT(this, IsJSArrayMap(array_map));
 
   GotoIf(IntPtrEqual(size, IntPtrConstant(0)), if_empty);
-  Node* array = AllocateUninitializedJSArrayWithoutElements(
-      array_map, SmiTag(size), nullptr);
-  StoreObjectField(array, JSArray::kElementsOffset, result);
+  Node* array = AllocateJSArray(array_map, result, SmiTag(size));
   return TNode<JSArray>::UncheckedCast(array);
 }
 
@@ -501,18 +452,8 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
   //    second argument.
   // 4. For each element nextSource of sources, in ascending index order,
   args.ForEach(
-      [=](Node* next_source_) {
-        TNode<Object> next_source = CAST(next_source_);
-        Label slow(this), cont(this);
-        ObjectAssignFast(context, to, next_source, &slow);
-        Goto(&cont);
-
-        BIND(&slow);
-        {
-          CallRuntime(Runtime::kSetDataProperties, context, to, next_source);
-          Goto(&cont);
-        }
-        BIND(&cont);
+      [=](Node* next_source) {
+        CallBuiltin(Builtins::kSetDataProperties, context, to, next_source);
       },
       IntPtrConstant(1));
   Goto(&done);
@@ -520,53 +461,6 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
   // 5. Return to.
   BIND(&done);
   args.PopAndReturn(to);
-}
-
-// This function mimics what FastAssign() function does for C++ implementation.
-void ObjectBuiltinsAssembler::ObjectAssignFast(TNode<Context> context,
-                                               TNode<JSReceiver> to,
-                                               TNode<Object> from,
-                                               Label* slow) {
-  Label done(this);
-
-  // Non-empty strings are the only non-JSReceivers that need to be handled
-  // explicitly by Object.assign.
-  GotoIf(TaggedIsSmi(from), &done);
-  TNode<Map> from_map = LoadMap(CAST(from));
-  TNode<Int32T> from_instance_type = LoadMapInstanceType(from_map);
-  {
-    Label cont(this);
-    GotoIf(IsJSReceiverInstanceType(from_instance_type), &cont);
-    GotoIfNot(IsStringInstanceType(from_instance_type), &done);
-    {
-      Branch(
-          Word32Equal(LoadStringLengthAsWord32(CAST(from)), Int32Constant(0)),
-          &done, slow);
-    }
-    BIND(&cont);
-  }
-
-  // If the target is deprecated, the object will be updated on first store. If
-  // the source for that store equals the target, this will invalidate the
-  // cached representation of the source. Handle this case in runtime.
-  TNode<Map> to_map = LoadMap(to);
-  GotoIf(IsDeprecatedMap(to_map), slow);
-  TNode<BoolT> to_is_simple_receiver = IsSimpleObjectMap(to_map);
-
-  GotoIfNot(IsJSObjectInstanceType(from_instance_type), slow);
-  GotoIfNot(IsEmptyFixedArray(LoadElements(CAST(from))), slow);
-
-  ForEachEnumerableOwnProperty(context, from_map, CAST(from),
-                               [=](TNode<Name> key, TNode<Object> value) {
-                                 KeyedStoreGenericGenerator::SetProperty(
-                                     state(), context, to,
-                                     to_is_simple_receiver, key, value,
-                                     LanguageMode::kStrict);
-                               },
-                               slow);
-
-  Goto(&done);
-  BIND(&done);
 }
 
 // ES #sec-object.keys
@@ -647,10 +541,8 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
     Node* native_context = LoadNativeContext(context);
     TNode<Map> array_map =
         LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
-    TNode<JSArray> array = AllocateUninitializedJSArrayWithoutElements(
-        array_map, CAST(var_length.value()), nullptr);
-    StoreObjectFieldNoWriteBarrier(array, JSArray::kElementsOffset,
-                                   var_elements.value());
+    TNode<JSArray> array = AllocateJSArray(
+        array_map, CAST(var_elements.value()), CAST(var_length.value()));
     Return(array);
   }
 }
@@ -666,9 +558,19 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
       if_fast(this), try_fast(this, Label::kDeferred),
       if_slow(this, Label::kDeferred), if_join(this);
 
-  // Check if the {object} has a usable enum cache.
+  // Take the slow path if the {object} IsCustomElementsReceiverInstanceType or
+  // has any elements.
   GotoIf(TaggedIsSmi(object), &if_slow);
   Node* object_map = LoadMap(object);
+  TNode<Int32T> instance_type = LoadMapInstanceType(object_map);
+  GotoIf(IsCustomElementsReceiverInstanceType(instance_type), &if_slow);
+  Node* object_elements = LoadElements(object);
+  GotoIf(IsEmptyFixedArray(object_elements), &if_empty_elements);
+  Branch(IsEmptySlowElementDictionary(object_elements), &if_empty_elements,
+         &if_slow);
+
+  // Check if the {object} has a usable enum cache.
+  BIND(&if_empty_elements);
   Node* object_bit_field3 = LoadMapBitField3(object_map);
   Node* object_enum_length =
       DecodeWordFromWord32<Map::EnumLengthBits>(object_bit_field3);
@@ -676,15 +578,7 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
       WordEqual(object_enum_length, IntPtrConstant(kInvalidEnumCacheSentinel)),
       &try_fast);
 
-  // Ensure that the {object} doesn't have any elements.
-  CSA_ASSERT(this, IsJSObjectMap(object_map));
-  Node* object_elements = LoadElements(object);
-  GotoIf(IsEmptyFixedArray(object_elements), &if_empty_elements);
-  Branch(IsEmptySlowElementDictionary(object_elements), &if_empty_elements,
-         &if_slow);
-
   // Check whether all own properties are enumerable.
-  BIND(&if_empty_elements);
   Node* number_descriptors =
       DecodeWordFromWord32<Map::NumberOfOwnDescriptorsBits>(object_bit_field3);
   GotoIfNot(WordEqual(object_enum_length, number_descriptors), &if_slow);
@@ -751,10 +645,8 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
     Node* native_context = LoadNativeContext(context);
     TNode<Map> array_map =
         LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
-    TNode<JSArray> array = AllocateUninitializedJSArrayWithoutElements(
-        array_map, CAST(var_length.value()), nullptr);
-    StoreObjectFieldNoWriteBarrier(array, JSArray::kElementsOffset,
-                                   var_elements.value());
+    TNode<JSArray> array = AllocateJSArray(
+        array_map, CAST(var_elements.value()), CAST(var_length.value()));
     Return(array);
   }
 }
@@ -794,11 +686,11 @@ TF_BUILTIN(ObjectPrototypeIsPrototypeOf, ObjectBuiltinsAssembler) {
   // invoke the ToObject builtin, which raises the appropriate error.
   // Otherwise we don't need to invoke ToObject, since {receiver} is
   // either already a JSReceiver, in which case ToObject is a no-op,
-  // or it's a Primitive and ToObject would allocate a fresh JSValue
+  // or it's a Primitive and ToObject would allocate a fresh JSPrimitiveWrapper
   // wrapper, which wouldn't be identical to any existing JSReceiver
   // found in the prototype chain of {value}, hence it will return
   // false no matter if we search for the Primitive {receiver} or
-  // a newly allocated JSValue wrapper for {receiver}.
+  // a newly allocated JSPrimitiveWrapper wrapper for {receiver}.
   GotoIf(IsNull(receiver), &if_receiverisnullorundefined);
   GotoIf(IsUndefined(receiver), &if_receiverisnullorundefined);
 
@@ -860,7 +752,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
                     {JS_SPECIAL_API_OBJECT_TYPE, &if_apiobject},
                     {JS_PROXY_TYPE, &if_proxy},
                     {JS_ERROR_TYPE, &if_error},
-                    {JS_VALUE_TYPE, &if_value}};
+                    {JS_PRIMITIVE_WRAPPER_TYPE, &if_value}};
   size_t const kNumCases = arraysize(kJumpTable);
   Label* case_labels[kNumCases];
   int32_t case_values[kNumCases];
@@ -1062,7 +954,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
         if_value_is_bigint(this, Label::kDeferred),
         if_value_is_string(this, Label::kDeferred);
 
-    Node* receiver_value = LoadJSValueValue(receiver);
+    Node* receiver_value = LoadJSPrimitiveWrapperValue(receiver);
     // We need to start with the object to see if the value was a subclass
     // which might have interesting properties.
     var_holder.Bind(receiver);
@@ -1412,10 +1304,15 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   StoreObjectFieldNoWriteBarrier(
       result, JSGeneratorObject::kParametersAndRegistersOffset,
       parameters_and_registers);
+  Node* resume_mode = SmiConstant(JSGeneratorObject::ResumeMode::kNext);
+  StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kResumeModeOffset,
+                                 resume_mode);
   Node* executing = SmiConstant(JSGeneratorObject::kGeneratorExecuting);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kContinuationOffset,
                                  executing);
-  GotoIfNot(HasInstanceType(maybe_map, JS_ASYNC_GENERATOR_OBJECT_TYPE), &done);
+  GotoIfNot(InstanceTypeEqual(LoadMapInstanceType(maybe_map),
+                              JS_ASYNC_GENERATOR_OBJECT_TYPE),
+            &done);
   StoreObjectFieldNoWriteBarrier(
       result, JSAsyncGeneratorObject::kIsAwaitingOffset, SmiConstant(0));
   Goto(&done);

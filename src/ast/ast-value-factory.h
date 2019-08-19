@@ -31,10 +31,10 @@
 #include <forward_list>
 
 #include "src/base/hashmap.h"
-#include "src/conversions.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
+#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
+#include "src/numbers/conversions.h"
 
 // Ast(Raw|Cons)String and AstValueFactory are for storing strings and
 // values independent of the V8 heap and internalizing them later. During
@@ -52,7 +52,7 @@ class AstRawString final : public ZoneObject {
                          : literal_bytes_.length() / 2;
   }
   bool AsArrayIndex(uint32_t* index) const;
-  bool IsOneByteEqualTo(const char* data) const;
+  V8_EXPORT_PRIVATE bool IsOneByteEqualTo(const char* data) const;
   uint16_t FirstCharacter() const;
 
   void Internalize(Isolate* isolate);
@@ -60,9 +60,7 @@ class AstRawString final : public ZoneObject {
   // Access the physical representation:
   bool is_one_byte() const { return is_one_byte_; }
   int byte_length() const { return literal_bytes_.length(); }
-  const unsigned char* raw_data() const {
-    return literal_bytes_.start();
-  }
+  const unsigned char* raw_data() const { return literal_bytes_.begin(); }
 
   // For storing AstRawStrings in a hash map.
   uint32_t hash_field() const { return hash_field_; }
@@ -202,10 +200,13 @@ class AstBigInt {
   F(await, "await")                             \
   F(bigint, "bigint")                           \
   F(boolean, "boolean")                         \
+  F(computed, "<computed>")                     \
+  F(dot_brand, ".brand")                        \
   F(constructor, "constructor")                 \
   F(default, "default")                         \
   F(done, "done")                               \
   F(dot, ".")                                   \
+  F(dot_default, ".default")                    \
   F(dot_for, ".for")                            \
   F(dot_generator_object, ".generator_object")  \
   F(dot_iterator, ".iterator")                  \
@@ -235,7 +236,6 @@ class AstBigInt {
   F(return, "return")                           \
   F(set, "set")                                 \
   F(set_space, "set ")                          \
-  F(star_default_star, "*default*")             \
   F(string, "string")                           \
   F(symbol, "symbol")                           \
   F(target, "target")                           \
@@ -297,8 +297,7 @@ class AstValueFactory {
     return GetOneByteStringInternal(literal);
   }
   const AstRawString* GetOneByteString(const char* string) {
-    return GetOneByteString(Vector<const uint8_t>(
-        reinterpret_cast<const uint8_t*>(string), StrLength(string)));
+    return GetOneByteString(OneByteVector(string));
   }
   const AstRawString* GetTwoByteString(Vector<const uint16_t> literal) {
     return GetTwoByteStringInternal(literal);

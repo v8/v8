@@ -5,7 +5,7 @@
 #ifndef V8_SNAPSHOT_DESERIALIZER_ALLOCATOR_H_
 #define V8_SNAPSHOT_DESERIALIZER_ALLOCATOR_H_
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/heap/heap.h"
 #include "src/objects/heap-object.h"
 #include "src/snapshot/serializer-common.h"
@@ -18,14 +18,16 @@ class StartupDeserializer;
 
 class DeserializerAllocator final {
  public:
-  explicit DeserializerAllocator(Deserializer* deserializer);
+  DeserializerAllocator() = default;
+
+  void Initialize(Heap* heap) { heap_ = heap; }
 
   // ------- Allocation Methods -------
   // Methods related to memory allocation during deserialization.
 
-  Address Allocate(AllocationSpace space, int size);
+  Address Allocate(SnapshotSpace space, int size);
 
-  void MoveToNextChunk(AllocationSpace space);
+  void MoveToNextChunk(SnapshotSpace space);
   void SetAlignment(AllocationAlignment alignment) {
     DCHECK_EQ(kWordAligned, next_alignment_);
     DCHECK_LE(kWordAligned, alignment);
@@ -49,13 +51,14 @@ class DeserializerAllocator final {
 
   HeapObject GetMap(uint32_t index);
   HeapObject GetLargeObject(uint32_t index);
-  HeapObject GetObject(AllocationSpace space, uint32_t chunk_index,
+  HeapObject GetObject(SnapshotSpace space, uint32_t chunk_index,
                        uint32_t chunk_offset);
 
   // ------- Reservation Methods -------
   // Methods related to memory reservations (prior to deserialization).
 
-  void DecodeReservation(const std::vector<SerializedData::Reservation>& res);
+  V8_EXPORT_PRIVATE void DecodeReservation(
+      const std::vector<SerializedData::Reservation>& res);
   bool ReserveSpace();
 
   bool ReservationsAreFullyUsed() const;
@@ -65,16 +68,14 @@ class DeserializerAllocator final {
   void RegisterDeserializedObjectsForBlackAllocation();
 
  private:
-  Isolate* isolate() const;
-
   // Raw allocation without considering alignment.
-  Address AllocateRaw(AllocationSpace space, int size);
+  Address AllocateRaw(SnapshotSpace space, int size);
 
  private:
   static constexpr int kNumberOfPreallocatedSpaces =
-      SerializerDeserializer::kNumberOfPreallocatedSpaces;
+      static_cast<int>(SnapshotSpace::kNumberOfPreallocatedSpaces);
   static constexpr int kNumberOfSpaces =
-      SerializerDeserializer::kNumberOfSpaces;
+      static_cast<int>(SnapshotSpace::kNumberOfSpaces);
 
   // The address of the next object that will be allocated in each space.
   // Each space has a number of chunks reserved by the GC, with each chunk
@@ -97,8 +98,7 @@ class DeserializerAllocator final {
   // back-references.
   std::vector<HeapObject> deserialized_large_objects_;
 
-  // The current deserializer.
-  Deserializer* const deserializer_;
+  Heap* heap_;
 
   DISALLOW_COPY_AND_ASSIGN(DeserializerAllocator);
 };

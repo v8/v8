@@ -7,9 +7,9 @@
 
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
-#include "src/globals.h"
-#include "src/objects.h"
+#include "src/common/globals.h"
 #include "src/objects/code.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -22,8 +22,9 @@ class RegisterConfiguration;
 namespace wasm {
 struct FunctionBody;
 class NativeModule;
-class WasmCode;
+struct WasmCompilationResult;
 class WasmEngine;
+struct WasmModule;
 }  // namespace wasm
 
 namespace compiler {
@@ -31,6 +32,7 @@ namespace compiler {
 class CallDescriptor;
 class Graph;
 class InstructionSequence;
+class JSHeapBroker;
 class MachineGraph;
 class NodeOriginTable;
 class Schedule;
@@ -39,37 +41,37 @@ class SourcePositionTable;
 class Pipeline : public AllStatic {
  public:
   // Returns a new compilation job for the given JavaScript function.
-  static OptimizedCompilationJob* NewCompilationJob(Isolate* isolate,
-                                                    Handle<JSFunction> function,
-                                                    bool has_script);
+  static std::unique_ptr<OptimizedCompilationJob> NewCompilationJob(
+      Isolate* isolate, Handle<JSFunction> function, bool has_script);
 
   // Run the pipeline for the WebAssembly compilation info.
-  static wasm::WasmCode* GenerateCodeForWasmFunction(
+  static void GenerateCodeForWasmFunction(
       OptimizedCompilationInfo* info, wasm::WasmEngine* wasm_engine,
       MachineGraph* mcgraph, CallDescriptor* call_descriptor,
       SourcePositionTable* source_positions, NodeOriginTable* node_origins,
-      wasm::FunctionBody function_body, wasm::NativeModule* native_module,
+      wasm::FunctionBody function_body, const wasm::WasmModule* module,
       int function_index);
 
   // Run the pipeline on a machine graph and generate code.
-  static wasm::WasmCode* GenerateCodeForWasmNativeStub(
+  static wasm::WasmCompilationResult GenerateCodeForWasmNativeStub(
       wasm::WasmEngine* wasm_engine, CallDescriptor* call_descriptor,
       MachineGraph* mcgraph, Code::Kind kind, int wasm_kind,
       const char* debug_name, const AssemblerOptions& assembler_options,
-      wasm::NativeModule* native_module,
       SourcePositionTable* source_positions = nullptr);
 
-  // Run the pipeline on a machine graph and generate code.
-  static MaybeHandle<Code> GenerateCodeForWasmHeapStub(
-      Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
-      Code::Kind kind, const char* debug_name,
-      const AssemblerOptions& assembler_options,
+  // Returns a new compilation job for a wasm heap stub.
+  static std::unique_ptr<OptimizedCompilationJob> NewWasmHeapStubCompilationJob(
+      Isolate* isolate, wasm::WasmEngine* wasm_engine,
+      CallDescriptor* call_descriptor, std::unique_ptr<Zone> zone, Graph* graph,
+      Code::Kind kind, std::unique_ptr<char[]> debug_name,
+      const AssemblerOptions& options,
       SourcePositionTable* source_positions = nullptr);
 
   // Run the pipeline on a machine graph and generate code.
   static MaybeHandle<Code> GenerateCodeForCodeStub(
       Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
-      Code::Kind kind, const char* debug_name, int32_t builtin_index,
+      SourcePositionTable* source_positions, Code::Kind kind,
+      const char* debug_name, int32_t builtin_index,
       PoisoningMitigationLevel poisoning_level,
       const AssemblerOptions& options);
 
@@ -77,9 +79,12 @@ class Pipeline : public AllStatic {
   // The following methods are for testing purposes only. Avoid production use.
   // ---------------------------------------------------------------------------
 
-  // Run the pipeline on JavaScript bytecode and generate code.
-  static MaybeHandle<Code> GenerateCodeForTesting(
-      OptimizedCompilationInfo* info, Isolate* isolate);
+  // Run the pipeline on JavaScript bytecode and generate code.  If requested,
+  // hands out the heap broker on success, transferring its ownership to the
+  // caller.
+  V8_EXPORT_PRIVATE static MaybeHandle<Code> GenerateCodeForTesting(
+      OptimizedCompilationInfo* info, Isolate* isolate,
+      std::unique_ptr<JSHeapBroker>* out_broker = nullptr);
 
   // Run the pipeline on a machine graph and generate code. If {schedule} is
   // {nullptr}, then compute a new schedule for code generation.

@@ -71,6 +71,17 @@ class TaskRunner {
                                double delay_in_seconds) = 0;
 
   /**
+   * Schedules a task to be invoked by this TaskRunner. The task is scheduled
+   * after the given number of seconds |delay_in_seconds|. The TaskRunner
+   * implementation takes ownership of |task|. The |task| cannot be nested
+   * within other task executions.
+   *
+   * Requires that |TaskRunner::NonNestableDelayedTasksEnabled()| is true.
+   */
+  virtual void PostNonNestableDelayedTask(std::unique_ptr<Task> task,
+                                          double delay_in_seconds) {}
+
+  /**
    * Schedules an idle task to be invoked by this TaskRunner. The task is
    * scheduled when the embedder is idle. Requires that
    * |TaskRunner::IdleTasksEnabled()| is true. Idle tasks may be reordered
@@ -90,10 +101,14 @@ class TaskRunner {
    */
   virtual bool NonNestableTasksEnabled() const { return false; }
 
+  /**
+   * Returns true if non-nestable delayed tasks are enabled for this TaskRunner.
+   */
+  virtual bool NonNestableDelayedTasksEnabled() const { return false; }
+
   TaskRunner() = default;
   virtual ~TaskRunner() = default;
 
- private:
   TaskRunner(const TaskRunner&) = delete;
   TaskRunner& operator=(const TaskRunner&) = delete;
 };
@@ -332,6 +347,15 @@ class Platform {
   }
 
   /**
+   * Schedules a task to be invoked with low-priority on a worker thread.
+   */
+  virtual void CallLowPriorityTaskOnWorkerThread(std::unique_ptr<Task> task) {
+    // Embedders may optionally override this to process these tasks in a low
+    // priority pool.
+    CallOnWorkerThread(std::move(task));
+  }
+
+  /**
    * Schedules a task to be invoked on a worker thread after |delay_in_seconds|
    * expires.
    */
@@ -421,7 +445,7 @@ class Platform {
    * since epoch. Useful for implementing |CurrentClockTimeMillis| if
    * nothing special needed.
    */
-  static double SystemClockTimeMillis();
+  V8_EXPORT static double SystemClockTimeMillis();
 };
 
 }  // namespace v8

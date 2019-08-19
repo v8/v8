@@ -6,20 +6,18 @@
 
 #include "src/regexp/ppc/regexp-macro-assembler-ppc.h"
 
-#include "src/assembler-inl.h"
 #include "src/base/bits.h"
-#include "src/code-stubs.h"
-#include "src/log.h"
-#include "src/macro-assembler.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/logging/log.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
-#include "src/snapshot/embedded-data.h"
-#include "src/unicode.h"
+#include "src/snapshot/embedded/embedded-data.h"
+#include "src/strings/unicode.h"
 
 namespace v8 {
 namespace internal {
 
-#ifndef V8_INTERPRETED_REGEXP
 /*
  * This assembler uses the following register assignment convention
  * - r25: Temporarily stores the index of capture start after a matching pass
@@ -92,12 +90,14 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm_)
 
+const int RegExpMacroAssemblerPPC::kRegExpCodeSize;
+
 RegExpMacroAssemblerPPC::RegExpMacroAssemblerPPC(Isolate* isolate, Zone* zone,
                                                  Mode mode,
                                                  int registers_to_save)
     : NativeRegExpMacroAssembler(isolate, zone),
-      masm_(new MacroAssembler(isolate, nullptr, kRegExpCodeSize,
-                               CodeObjectRequired::kYes)),
+      masm_(new MacroAssembler(isolate, CodeObjectRequired::kYes,
+                               NewAssemblerBuffer(kRegExpCodeSize))),
       mode_(mode),
       num_registers_(registers_to_save),
       num_saved_registers_(registers_to_save),
@@ -109,7 +109,7 @@ RegExpMacroAssemblerPPC::RegExpMacroAssemblerPPC(Isolate* isolate, Zone* zone,
       internal_failure_label_() {
   DCHECK_EQ(0, registers_to_save % 2);
 
-// Called from C
+  // Because RegExp code respects C ABI, so needs a FD
   __ function_descriptor();
 
   __ b(&entry_label_);  // We'll write the entry code later.
@@ -143,8 +143,13 @@ int RegExpMacroAssemblerPPC::stack_limit_slack() {
 
 void RegExpMacroAssemblerPPC::AdvanceCurrentPosition(int by) {
   if (by != 0) {
-    __ addi(current_input_offset(), current_input_offset(),
-            Operand(by * char_size()));
+    if (is_int16(by * char_size())) {
+      __ addi(current_input_offset(), current_input_offset(),
+              Operand(by * char_size()));
+    } else {
+      __ mov(r0, Operand(by * char_size()));
+      __ add(current_input_offset(), r0, current_input_offset());
+    }
   }
 }
 
@@ -367,7 +372,6 @@ void RegExpMacroAssemblerPPC::CheckNotBackReference(int start_reg,
                                                     bool read_backward,
                                                     Label* on_no_match) {
   Label fallthrough;
-  Label success;
 
   // Find length of back-referenced capture.
   __ LoadP(r3, register_location(start_reg), r0);
@@ -685,7 +689,7 @@ Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
     Label stack_ok;
 
     ExternalReference stack_limit =
-        ExternalReference::address_of_stack_limit(isolate());
+        ExternalReference::address_of_jslimit(isolate());
     __ mov(r3, Operand(stack_limit));
     __ LoadP(r3, MemOperand(r3));
     __ sub(r3, sp, r3, LeaveOE, SetRC);
@@ -752,7 +756,7 @@ Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
       if (num_saved_registers_ > 8) {
         // One slot beyond address of register 0.
         __ addi(r4, frame_pointer(), Operand(kRegisterZero + kPointerSize));
-        __ li(r5, Operand(num_saved_registers_));
+        __ mov(r5, Operand(num_saved_registers_));
         __ mtctr(r5);
         Label init_loop;
         __ bind(&init_loop);
@@ -903,8 +907,6 @@ Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
     // Backtrack stack overflow code.
     if (stack_overflow_label_.is_linked()) {
       SafeCallTarget(&stack_overflow_label_);
-      // Reached if the backtrack-stack limit has been hit.
-      Label grow_failed;
 
       // Call GrowStack(backtrack_stackpointer(), &stack_base)
       static const int num_arguments = 3;
@@ -936,8 +938,9 @@ Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
 
   CodeDesc code_desc;
   masm_->GetCode(isolate(), &code_desc);
-  Handle<Code> code = isolate()->factory()->NewCode(code_desc, Code::REGEXP,
-                                                    masm_->CodeObject());
+  Handle<Code> code = Factory::CodeBuilder(isolate(), code_desc, Code::REGEXP)
+                          .set_self_reference(masm_->CodeObject())
+                          .Build();
   PROFILE(masm_->isolate(),
           RegExpCodeCreateEvent(AbstractCode::cast(*code), *source));
   return Handle<HeapObject>::cast(code);
@@ -975,22 +978,25 @@ RegExpMacroAssemblerPPC::Implementation() {
   return kPPCImplementation;
 }
 
+void RegExpMacroAssemblerPPC::LoadCurrentCharacterImpl(int cp_offset,
+                                                       Label* on_end_of_input,
+                                                       bool check_bounds,
+                                                       int characters,
+                                                       int eats_at_least) {
+  // It's possible to preload a small number of characters when each success
+  // path requires a large number of characters, but not the reverse.
+  DCHECK_GE(eats_at_least, characters);
 
-void RegExpMacroAssemblerPPC::LoadCurrentCharacter(int cp_offset,
-                                                   Label* on_end_of_input,
-                                                   bool check_bounds,
-                                                   int characters) {
   DCHECK(cp_offset < (1 << 30));  // Be sane! (And ensure negation works)
   if (check_bounds) {
     if (cp_offset >= 0) {
-      CheckPosition(cp_offset + characters - 1, on_end_of_input);
+      CheckPosition(cp_offset + eats_at_least - 1, on_end_of_input);
     } else {
       CheckPosition(cp_offset, on_end_of_input);
     }
   }
   LoadCurrentCharacterUnchecked(cp_offset, characters);
 }
-
 
 void RegExpMacroAssemblerPPC::PopCurrentPosition() {
   Pop(current_input_offset());
@@ -1092,7 +1098,7 @@ void RegExpMacroAssemblerPPC::WriteStackPointerToRegister(int reg) {
 // Private methods:
 
 void RegExpMacroAssemblerPPC::CallCheckStackGuardState(Register scratch) {
-  DCHECK(!isolate()->ShouldLoadConstantsFromRootList());
+  DCHECK(!isolate()->IsGeneratingEmbeddedBuiltins());
   DCHECK(!masm_->options().isolate_independent_code);
 
   int frame_alignment = masm_->ActivationFrameAlignment();
@@ -1129,7 +1135,19 @@ void RegExpMacroAssemblerPPC::CallCheckStackGuardState(Register scratch) {
   ExternalReference stack_guard_check =
       ExternalReference::re_check_stack_guard_state(isolate());
   __ mov(ip, Operand(stack_guard_check));
-  __ StoreReturnAddressAndCall(ip);
+
+  if (FLAG_embedded_builtins) {
+    EmbeddedData d = EmbeddedData::FromBlob();
+    CHECK(Builtins::IsIsolateIndependent(Builtins::kDirectCEntry));
+    Address entry = d.InstructionStartOfBuiltin(Builtins::kDirectCEntry);
+    __ mov(r0, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+  } else {
+    // TODO(v8:8519): Remove this once embedded builtins are on unconditionally.
+    Handle<Code> code = BUILTIN_CODE(isolate(), DirectCEntry);
+    __ mov(r0, Operand(reinterpret_cast<intptr_t>(code.location()),
+                       RelocInfo::CODE_TARGET));
+  }
+  __ Call(r0);
 
   // Restore the stack pointer
   stack_space = kNumRequiredStackFrameSlots + stack_passed_arguments;
@@ -1158,12 +1176,14 @@ static T* frame_entry_address(Address re_frame, int frame_offset) {
 int RegExpMacroAssemblerPPC::CheckStackGuardState(Address* return_address,
                                                   Address raw_code,
                                                   Address re_frame) {
-  Code re_code = Code::cast(ObjectPtr(raw_code));
+  Code re_code = Code::cast(Object(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolate),
       frame_entry<intptr_t>(re_frame, kStartIndex),
-      frame_entry<intptr_t>(re_frame, kDirectCall) == 1, return_address,
-      re_code, frame_entry_address<Address>(re_frame, kInputString),
+      static_cast<RegExp::CallOrigin>(
+          frame_entry<intptr_t>(re_frame, kDirectCall)),
+      return_address, re_code,
+      frame_entry_address<Address>(re_frame, kInputString),
       frame_entry_address<const byte*>(re_frame, kInputStart),
       frame_entry_address<const byte*>(re_frame, kInputEnd));
 }
@@ -1252,7 +1272,7 @@ void RegExpMacroAssemblerPPC::Pop(Register target) {
 void RegExpMacroAssemblerPPC::CheckPreemption() {
   // Check for preemption.
   ExternalReference stack_limit =
-      ExternalReference::address_of_stack_limit(isolate());
+      ExternalReference::address_of_jslimit(isolate());
   __ mov(r3, Operand(stack_limit));
   __ LoadP(r3, MemOperand(r3));
   __ cmpl(sp, r3);
@@ -1275,7 +1295,12 @@ void RegExpMacroAssemblerPPC::LoadCurrentCharacterUnchecked(int cp_offset,
   Register offset = current_input_offset();
   if (cp_offset != 0) {
     // r25 is not being used to store the capture start index at this point.
-    __ addi(r25, current_input_offset(), Operand(cp_offset * char_size()));
+    if (is_int16(cp_offset * char_size())) {
+      __ addi(r25, current_input_offset(), Operand(cp_offset * char_size()));
+    } else {
+      __ mov(r25, Operand(cp_offset * char_size()));
+      __ add(r25, r25, current_input_offset());
+    }
     offset = r25;
   }
   // The lwz, stw, lhz, sth instructions can do unaligned accesses, if the CPU
@@ -1326,10 +1351,8 @@ void RegExpMacroAssemblerPPC::LoadCurrentCharacterUnchecked(int cp_offset,
 #endif
 }
 
-
 #undef __
 
-#endif  // V8_INTERPRETED_REGEXP
 }  // namespace internal
 }  // namespace v8
 

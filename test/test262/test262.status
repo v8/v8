@@ -60,10 +60,12 @@
   'language/expressions/assignment/S11.13.1_A6*': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4709
+  'built-ins/Promise/all/resolve-element-function-name': [FAIL],
+  'built-ins/Promise/allSettled/reject-element-function-name': [FAIL],
+  'built-ins/Promise/allSettled/resolve-element-function-name': [FAIL],
+  'built-ins/Promise/executor-function-name': [FAIL],
   'built-ins/Promise/reject-function-name': [FAIL],
   'built-ins/Promise/resolve-function-name': [FAIL],
-  'built-ins/Promise/all/resolve-element-function-name': [FAIL],
-  'built-ins/Promise/executor-function-name': [FAIL],
   'built-ins/Proxy/revocable/revocation-function-name': [FAIL],
   'language/expressions/assignment/fn-name-lhs-cover': [FAIL],
   'language/expressions/assignment/fn-name-lhs-member': [FAIL],
@@ -72,6 +74,15 @@
   'intl402/NumberFormat/prototype/format/format-function-name': [FAIL],
   'intl402/DateTimeFormat/prototype/format/format-function-name': [FAIL],
   'intl402/Collator/prototype/compare/compare-function-name': [FAIL],
+
+  # Intl tests which require flags.
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9154
+  'intl402/NumberFormat/numbering-system-options': ['--harmony-intl-add-calendar-numbering-system'],
+  'intl402/DateTimeFormat/numbering-system-calendar-options': ['--harmony-intl-add-calendar-numbering-system'],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9084
+  'intl402/supportedLocalesOf-consistent-with-resolvedOptions': [FAIL],
+  'intl402/fallback-locales-are-supported': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4251
   'language/expressions/postfix-increment/S11.3.1_A5_T1': [FAIL],
@@ -83,6 +94,11 @@
   'language/expressions/prefix-decrement/S11.4.5_A5_*': [FAIL],
   'language/expressions/prefix-increment/S11.4.4_A5_*': [FAIL],
   'language/statements/variable/binding-resolution': [FAIL],
+
+  # https://code.google.com/p/v8/issues/detail?id=8771
+  'language/computed-property-names/class/static/method-number': [FAIL],
+  'language/computed-property-names/class/static/method-string': [FAIL],
+  'language/computed-property-names/class/static/method-symbol': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4895
   'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/detached-buffer': [FAIL],
@@ -138,42 +154,7 @@
   'built-ins/DataView/prototype/byteLength/detached-buffer': [FAIL],
   'built-ins/DataView/prototype/byteOffset/detached-buffer': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4231
-  'language/eval-code/direct/var-env-lower-lex-catch-non-strict': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4951
-  'language/expressions/assignment/dstr-array-elem-iter-rtrn-close-err': [FAIL],
-  'language/expressions/assignment/dstr-array-elem-iter-thrw-close': [FAIL],
-  'language/expressions/assignment/dstr-array-elem-iter-thrw-close-err': [FAIL],
-  'language/expressions/assignment/dstr-array-elem-trlg-iter-list-thrw-close': [FAIL],
-  'language/expressions/assignment/dstr-array-elem-trlg-iter-list-thrw-close-err': [FAIL],
-  'language/expressions/assignment/dstr-array-elem-trlg-iter-rest-rtrn-close': [FAIL],
-  'language/expressions/assignment/dstr-array-elem-trlg-iter-rest-rtrn-close-err': [FAIL],
-  'language/expressions/assignment/dstr-array-elem-trlg-iter-rest-rtrn-close-null': [FAIL],
-  'language/expressions/assignment/dstr-array-elem-trlg-iter-rest-thrw-close': [FAIL],
-  'language/expressions/assignment/dstr-array-elem-trlg-iter-rest-thrw-close-err': [FAIL],
-  'language/expressions/assignment/dstr-array-rest-iter-rtrn-close': [FAIL],
-  'language/expressions/assignment/dstr-array-rest-iter-rtrn-close-err': [FAIL],
-  'language/expressions/assignment/dstr-array-rest-iter-rtrn-close-null': [FAIL],
-  'language/expressions/assignment/dstr-array-rest-iter-thrw-close': [FAIL],
-  'language/expressions/assignment/dstr-array-rest-iter-thrw-close-err': [FAIL],
-  'language/expressions/assignment/dstr-array-rest-lref-err': [FAIL],
-  'language/statements/for-of/dstr-array-elem-iter-rtrn-close-err': [FAIL],
-  'language/statements/for-of/dstr-array-elem-iter-thrw-close': [FAIL],
-  'language/statements/for-of/dstr-array-elem-iter-thrw-close-err': [FAIL],
-  'language/statements/for-of/dstr-array-elem-trlg-iter-list-thrw-close': [FAIL],
-  'language/statements/for-of/dstr-array-elem-trlg-iter-list-thrw-close-err': [FAIL],
-  'language/statements/for-of/dstr-array-elem-trlg-iter-rest-rtrn-close': [FAIL],
-  'language/statements/for-of/dstr-array-elem-trlg-iter-rest-rtrn-close-err': [FAIL],
-  'language/statements/for-of/dstr-array-elem-trlg-iter-rest-rtrn-close-null': [FAIL],
-  'language/statements/for-of/dstr-array-elem-trlg-iter-rest-thrw-close': [FAIL],
-  'language/statements/for-of/dstr-array-elem-trlg-iter-rest-thrw-close-err': [FAIL],
-  'language/statements/for-of/dstr-array-rest-iter-rtrn-close': [FAIL],
-  'language/statements/for-of/dstr-array-rest-iter-rtrn-close-err': [FAIL],
-  'language/statements/for-of/dstr-array-rest-iter-rtrn-close-null': [FAIL],
-  'language/statements/for-of/dstr-array-rest-iter-thrw-close': [FAIL],
-  'language/statements/for-of/dstr-array-rest-iter-thrw-close-err': [FAIL],
-  'language/statements/for-of/dstr-array-rest-lref-err': [FAIL],
   'language/expressions/assignment/destructuring/iterator-destructuring-property-reference-target-evaluation-order': [FAIL],
   'language/expressions/assignment/destructuring/keyed-destructuring-property-reference-target-evaluation-order': [FAIL],
 
@@ -406,9 +387,6 @@
   'language/literals/regexp/u-unicode-esc-non-hex': [FAIL_PHASE_ONLY],
   'language/literals/regexp/unicode-escape-nls-err': [FAIL_PHASE_ONLY],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7829
-  'language/block-scope/syntax/redeclaration/function-declaration-attempt-to-redeclare-with-var-declaration-nested-in-function': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4628
   'language/eval-code/direct/non-definable-function-with-function': [FAIL],
   'language/eval-code/direct/non-definable-function-with-variable': [FAIL],
@@ -419,19 +397,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5116
   'built-ins/TypedArray/prototype/fill/fill-values-conversion-operations-consistent-nan': [PASS, FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5135
-  'annexB/language/eval-code/direct/func-block-decl-eval-func-block-scoping': [FAIL],
-  'annexB/language/eval-code/direct/func-if-decl-else-decl-a-eval-func-block-scoping': [FAIL],
-  'annexB/language/eval-code/direct/func-if-decl-else-decl-b-eval-func-block-scoping': [FAIL],
-  'annexB/language/eval-code/direct/func-if-decl-else-stmt-eval-func-block-scoping': [FAIL],
-  'annexB/language/eval-code/direct/func-if-decl-no-else-eval-func-block-scoping': [FAIL],
-  'annexB/language/eval-code/direct/func-if-stmt-else-decl-eval-func-block-scoping': [FAIL],
-  'annexB/language/eval-code/direct/func-switch-case-eval-func-block-scoping': [FAIL],
-  'annexB/language/eval-code/direct/func-switch-dflt-eval-func-block-scoping': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5139
-  'annexB/built-ins/Date/prototype/setYear/year-number-relative': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4698
   'language/expressions/call/tco-call-args': [SKIP],
@@ -479,144 +444,25 @@
   'built-ins/TypedArrayConstructors/internals/Set/key-is-out-of-bounds': [FAIL],
   'built-ins/TypedArrayConstructors/internals/Set/BigInt/key-is-out-of-bounds': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5112
-  'annexB/language/eval-code/direct/func-block-decl-eval-func-no-skip-try': [FAIL],
-  'annexB/language/eval-code/direct/func-if-decl-else-decl-a-eval-func-no-skip-try': [FAIL],
-  'annexB/language/eval-code/direct/func-if-decl-else-decl-b-eval-func-no-skip-try': [FAIL],
-  'annexB/language/eval-code/direct/func-if-decl-else-stmt-eval-func-no-skip-try': [FAIL],
-  'annexB/language/eval-code/direct/func-if-decl-no-else-eval-func-no-skip-try': [FAIL],
-  'annexB/language/eval-code/direct/func-if-stmt-else-decl-eval-func-no-skip-try': [FAIL],
-  'annexB/language/eval-code/direct/func-switch-case-eval-func-no-skip-try': [FAIL],
-  'annexB/language/eval-code/direct/func-switch-dflt-eval-func-no-skip-try': [FAIL],
-
-  # SharedArrayBuffer tests that require flags
-  'built-ins/SharedArrayBuffer/*': ['--harmony-sharedarraybuffer'],
-  'built-ins/Atomics/*': ['--harmony-sharedarraybuffer'],
-  'built-ins/ArrayBuffer/prototype/byteLength/this-is-sharedarraybuffer': ['--harmony-sharedarraybuffer'],
-  'built-ins/ArrayBuffer/prototype/slice/this-is-sharedarraybuffer': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/buffer-does-not-have-arraybuffer-data-throws-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/buffer-reference-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/byteoffset-is-negative-throws-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/custom-proto-if-not-object-fallbacks-to-default-prototype-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/custom-proto-if-object-is-used-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/defined-bytelength-and-byteoffset-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/defined-byteoffset-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/defined-byteoffset-undefined-bytelength-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/excessive-bytelength-throws-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/excessive-byteoffset-throws-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/instance-extensibility-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/negative-bytelength-throws-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/negative-byteoffset-throws-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/newtarget-undefined-throws-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/proto-from-ctor-realm-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/buffer/return-buffer-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/buffer/this-has-no-dataview-internal-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/byteLength/return-bytelength-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/byteLength/this-has-no-dataview-internal-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/byteOffset/return-byteoffset-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/byteOffset/this-has-no-dataview-internal-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/getInt32/index-is-out-of-range-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/getInt32/negative-byteoffset-throws-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/getInt32/return-abrupt-from-tonumber-byteoffset-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/getInt32/return-abrupt-from-tonumber-byteoffset-symbol-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/getInt32/return-value-clean-arraybuffer-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/getInt32/return-values-custom-offset-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/getInt32/return-values-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/getInt32/this-has-no-dataview-internal-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/prototype/getInt32/to-boolean-littleendian-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/return-abrupt-tonumber-bytelength-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/return-abrupt-tonumber-bytelength-symbol-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/return-abrupt-tonumber-byteoffset-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/return-abrupt-tonumber-byteoffset-symbol-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/return-instance-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/toindex-bytelength-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/DataView/toindex-byteoffset-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArray/prototype/set/typedarray-arg-set-values-diff-buffer-other-type-conversions-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArray/prototype/set/typedarray-arg-set-values-diff-buffer-other-type-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArray/prototype/set/typedarray-arg-set-values-diff-buffer-same-type-sab': ['--harmony-sharedarraybuffer'],
-  'built-ins/TypedArray/prototype/set/typedarray-arg-set-values-same-buffer-same-type-sab': ['--harmony-sharedarraybuffer'],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8100
-  'built-ins/Atomics/notify/bigint/*': [SKIP],
-  'built-ins/Atomics/wait/bigint/*': [SKIP],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=6049
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-caller': [FAIL_SLOPPY],
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-arguments': [FAIL_SLOPPY],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6776
-  'built-ins/Proxy/ownKeys/return-duplicate-entries-throws': [FAIL],
-  'built-ins/Proxy/ownKeys/return-duplicate-symbol-entries-throws': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7184
   'annexB/language/expressions/yield/star-iterable-return-emulates-undefined-throws-when-called': [FAIL],
   'annexB/language/statements/for-await-of/iterator-close-return-emulates-undefined-throws-when-called': [FAIL],
   'annexB/language/statements/for-of/iterator-close-return-emulates-undefined-throws-when-called': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7468
-  'language/statements/class/privatename-not-valid-earlyerr-script-8': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5690
   'language/expressions/call/eval-spread': [FAIL],
   'language/expressions/call/eval-spread-empty-leading': [FAIL],
   'language/expressions/call/eval-spread-empty-trailing': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7472
-  'intl402/NumberFormat/currency-digits': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7474
-  'intl402/NumberFormat/prototype/format/format-fraction-digits': [FAIL],
-  'intl402/NumberFormat/prototype/format/format-significant-digits': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7482
-  'intl402/DateTimeFormat/prototype/resolvedOptions/resolved-locale-with-hc-unicode': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7483
-  'annexB/built-ins/Function/createdynfn-html-close-comment-params': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7669
-  'intl402/Intl/getCanonicalLocales/canonicalized-tags': [FAIL],
-
-  # https://github.com/tc39/ecma402/issues/223
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8664
   'intl402/Collator/missing-unicode-ext-value-defaults-to-true': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8260
-  'intl402/Locale/constructor-non-iana-canon': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8261
-  'intl402/Locale/constructor-options-language-valid': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8262
-  'intl402/Locale/constructor-parse-twice': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8246
-  'intl402/Locale/constructor-tag': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8244
-  'intl402/Locale/constructor-getter-order': [FAIL],
-  'intl402/Locale/constructor-locale-object': [FAIL],
-  'intl402/Locale/constructor-options-language-grandfathered': [FAIL],
-  'intl402/Locale/constructor-options-language-invalid': [FAIL],
-  'intl402/Locale/constructor-options-region-invalid': [FAIL],
-  'intl402/Locale/constructor-options-region-valid': [FAIL],
-  'intl402/Locale/constructor-options-script-invalid': [FAIL],
-  'intl402/Locale/constructor-options-script-valid': [FAIL],
-  'intl402/Locale/getters': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8243
-  'intl402/Locale/extensions-private': [FAIL],
-  'intl402/Locale/getters-privateuse': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8236
-  'intl402/Locale/likely-subtags': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8242
-  'intl402/Locale/extensions-grandfathered': [FAIL],
-  'intl402/Locale/getters-grandfathered': [FAIL],
-  'intl402/Locale/likely-subtags-grandfathered': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6705
-  'built-ins/Object/assign/strings-and-symbol-order': [FAIL],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7472
+  'intl402/NumberFormat/currency-digits': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7831
   'language/statements/generators/generator-created-after-decl-inst': [FAIL],
@@ -624,31 +470,107 @@
   'language/expressions/async-generator/generator-created-after-decl-inst': [FAIL],
   'language/statements/async-generator/generator-created-after-decl-inst': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8099
-  'intl402/NumberFormat/prototype/format/format-negative-numbers': [FAIL],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9611
+  'language/statements/class/elements/private-field-is-visible-in-computed-properties': [SKIP],
 
-  # await tests that require flags
-  'language/expressions/await/async-generator-interleaved': ['--harmony-await-optimization'],
-  'language/expressions/await/await-monkey-patched-promise': ['--harmony-await-optimization'],
-  'language/expressions/await/for-await-of-interleaved': ['--harmony-await-optimization'],
-  'language/expressions/await/async-await-interleaved': ['--harmony-await-optimization'],
+  # https://github.com/tc39/test262/issues/2034
+  'language/expressions/postfix-decrement/arguments': [SKIP],
+  'language/expressions/postfix-decrement/arguments-nostrict': [SKIP],
+  'language/expressions/postfix-decrement/eval': [SKIP],
+  'language/expressions/postfix-decrement/eval-nostrict': [SKIP],
+  'language/expressions/postfix-increment/arguments': [SKIP],
+  'language/expressions/postfix-increment/arguments-nostrict': [SKIP],
+  'language/expressions/postfix-increment/eval': [SKIP],
+  'language/expressions/postfix-increment/eval-nostrict': [SKIP],
+  'language/expressions/prefix-decrement/arguments': [SKIP],
+  'language/expressions/prefix-decrement/arguments-nostrict': [SKIP],
+  'language/expressions/prefix-decrement/eval': [SKIP],
+  'language/expressions/prefix-decrement/eval-nostrict': [SKIP],
+  'language/expressions/prefix-increment/arguments': [SKIP],
+  'language/expressions/prefix-increment/arguments-nostrict': [SKIP],
+  'language/expressions/prefix-increment/eval': [SKIP],
+  'language/expressions/prefix-increment/eval-nostrict': [SKIP],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9047
+  'annexB/built-ins/Function/createdynfn-no-line-terminator-html-close-comment-body': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9049
+  'language/comments/hashbang/use-strict': [SKIP],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9229
+  'language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage': [FAIL],
+  'language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-chained-usage': [FAIL],
+  'language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-function-expression': [FAIL],
+  'language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-recursive': [FAIL],
+  'language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage': [FAIL],
+  'language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-chained-usage': [FAIL],
+  'language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-function-expression': [FAIL],
+  'language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-recursive': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8179
+  #
+  # These tests require exception handling support which is currently
+  #  blocked on landing https://chromium-review.googlesource.com/c/v8/v8/+/1655655
+  'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-job-not-active-throws': [FAIL],
+  'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-callback-throws': [FAIL],
+  'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-cleanup-callback-throws': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8179
+  #
+  # The spec should be changed to make target === holding throw and then we should change these tests.
+  'built-ins/FinalizationGroup/prototype/register/unregisterToken-same-as-holdings-and-target': [FAIL],
+  'built-ins/FinalizationGroup/prototype/register/holdings-same-as-target': [FAIL],
+  'built-ins/FinalizationGroup/prototype/register/return-undefined-register-itself': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8179
+  #
+  # This test has target === holdings which throws, changing holdings to
+  #  { y } makes the test pass.
+  'built-ins/FinalizationGroup/prototype/cleanupSome/cleanup-prevented-with-reference': [FAIL],
+
+  # https://github.com/tc39/test262/issues/2256
+  'built-ins/FinalizationGroup/prototype/cleanupSome/cleanup-prevented-with-unregister': [FAIL],
+
+  # https://github.com/tc39/test262/issues/2239
+  'built-ins/WeakRef/prototype/deref/gc-cleanup-not-prevented-with-wr-deref': [FAIL],
+  'built-ins/FinalizationGroup/prototype/cleanupSome/gc-cleanup-not-prevented-with-wr-deref': [FAIL],
+
+  # https://github.com/tc39/test262/issues/2255
+  'built-ins/FinalizationGroup/prototype/cleanupSome/iterator-holdings-multiple-values': [FAIL],
+
+  # https://github.com/tc39/test262/issues/2260
+  'built-ins/FinalizationGroup/prototype/cleanupSome/return-undefined-with-gc': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9612
+  'intl402/DateTimeFormat/prototype/formatRange/fractionalSecondDigits': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9613
+  'intl402/Intl/getCanonicalLocales/canonicalized-tags': [FAIL],
+  'intl402/Intl/getCanonicalLocales/grandfathered': [FAIL],
+  'intl402/Intl/getCanonicalLocales/invalid-tags': [FAIL],
+  'intl402/Intl/getCanonicalLocales/non-iana-canon': [FAIL],
+  'intl402/Intl/getCanonicalLocales/preferred-grandfathered': [FAIL],
+  'intl402/Intl/getCanonicalLocales/preferred-variant': [FAIL],
+  'intl402/language-tags-invalid': [FAIL],
+  'intl402/ListFormat/constructor/constructor/locales-valid': [FAIL],
+  'intl402/Locale/constructor-non-iana-canon': [FAIL],
+  'intl402/Locale/constructor-options-region-valid': [FAIL],
+  'intl402/Locale/constructor-tag': [FAIL],
+  'intl402/Locale/getters': [FAIL],
+  'intl402/Locale/likely-subtags-grandfathered': [FAIL],
+  'intl402/PluralRules/prototype/resolvedOptions/order': [FAIL],
+  'intl402/RelativeTimeFormat/constructor/constructor/locales-valid': [FAIL],
+  'intl402/Segmenter/constructor/constructor/locales-valid': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
-  # These test failures are specific to the intl402 suite and need investigation
-  # to be either marked as bugs with issues filed for them or as deliberate
-  # incompatibilities if the test cases turn out to be broken or ambiguous.
-  # Some of these are related to v8:4361 in being visible side effects from Intl.
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
+  #
+  # Test262 needs to expose CanBlock
+  'built-ins/Atomics/wait/bigint/cannot-suspend-throws': [SKIP],
   'built-ins/Atomics/wait/cannot-suspend-throws': [SKIP],
+  # Flaky
   'built-ins/Atomics/wait/undefined-index-defaults-to-zero': [SKIP],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8258
-  'intl402/Locale/constructor-options-language-valid-undefined': [FAIL],
-  'intl402/Locale/constructor-options-throwing-getters': [FAIL],
-  'intl402/NumberFormat/prototype/format/format-fraction-digits-precision': [FAIL],
-  'intl402/NumberFormat/prototype/format/format-significant-digits-precision': [FAIL],
 
   ##################### DELIBERATE INCOMPATIBILITIES #####################
 
@@ -656,24 +578,6 @@
   'annexB/language/function-code/block-decl-func-skip-arguments': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=6538
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6541
-  'language/export/escaped-as-export-specifier': [FAIL],
-  'language/export/escaped-from': [FAIL],
-  'language/expressions/object/method-definition/escaped-get': [FAIL],
-  'language/expressions/object/method-definition/escaped-set': [FAIL],
-  'language/import/escaped-as-import-specifier': [FAIL],
-  'language/import/escaped-as-namespace-import': [FAIL],
-  'language/import/escaped-from': [FAIL],
-  'language/statements/for-await-of/escaped-of': [FAIL],
-  'language/statements/for-of/escaped-of': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6543
-  'language/statements/labeled/value-await-non-module-escaped': [FAIL],
-  'language/statements/labeled/value-yield-non-strict-escaped': [FAIL],
-  'language/expressions/async-arrow-function/escaped-async-line-terminator': [FAIL],
-  'language/expressions/class/class-name-ident-await-escaped': [FAIL],
-  'language/statements/class/class-name-ident-await-escaped': [FAIL],
 
   ############################ INVALID TESTS #############################
 
@@ -714,18 +618,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7187
   'built-ins/Function/prototype/toString/line-terminator-normalisation-CR': [SKIP],
-  'language/expressions/class/fields-private-derived-cls-direct-eval-err-contains-supercall': [FAIL],
-  'language/expressions/class/fields-private-derived-cls-direct-eval-err-contains-supercall-1': [FAIL],
-  'language/expressions/class/fields-private-derived-cls-direct-eval-err-contains-supercall-2': [FAIL],
-  'language/expressions/class/fields-private-derived-cls-indirect-eval-err-contains-supercall': [FAIL],
-  'language/expressions/class/fields-private-derived-cls-indirect-eval-err-contains-supercall-1': [FAIL],
-  'language/expressions/class/fields-private-derived-cls-indirect-eval-err-contains-supercall-2': [FAIL],
-  'language/statements/class/fields-private-derived-cls-direct-eval-err-contains-supercall': [FAIL],
-  'language/statements/class/fields-private-derived-cls-direct-eval-err-contains-supercall-1': [FAIL],
-  'language/statements/class/fields-private-derived-cls-direct-eval-err-contains-supercall-2': [FAIL],
-  'language/statements/class/fields-private-derived-cls-indirect-eval-err-contains-supercall': [FAIL],
-  'language/statements/class/fields-private-derived-cls-indirect-eval-err-contains-supercall-1': [FAIL],
-  'language/statements/class/fields-private-derived-cls-indirect-eval-err-contains-supercall-2': [FAIL],
 
   ############################ SLOW TESTS #############################
 
@@ -1035,23 +927,6 @@
   'language/expressions/dynamic-import/reuse-namespace-object': [SKIP],
   'language/expressions/dynamic-import/reuse-namespace-object-from-import': [SKIP],
   'language/expressions/dynamic-import/reuse-namespace-object-from-script': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-10-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-11-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-12-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-13-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-14-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-15-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-16-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-17-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-1-update-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-2-update-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-3-update-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-4-update-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-5-lhs-equals-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-6-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-7-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-8-lhs-assignment-operator-assignment-expression': [SKIP],
-  'language/expressions/dynamic-import/syntax/invalid/invalid-asssignmenttargettype-reference-error-9-lhs-assignment-operator-assignment-expression': [SKIP],
   'language/expressions/dynamic-import/syntax/invalid/nested-arrow-assignment-expression-assignment-expr-not-optional': [SKIP],
   'language/expressions/dynamic-import/syntax/invalid/nested-arrow-assignment-expression-no-new-call-expression': [SKIP],
   'language/expressions/dynamic-import/syntax/invalid/nested-arrow-assignment-expression-no-rest-param': [SKIP],
@@ -1344,6 +1219,14 @@
   'built-ins/SharedArrayBuffer/length-is-too-large-throws': [SKIP],
 }],  # asan == True or msan == True or tsan == True
 
+##############################################################################
+['variant == jitless', {
+  # https://crbug.com/v8/7777
+  'built-ins/RegExp/CharacterClassEscapes/character-class-non-digit-class-escape-plus-quantifier-flags-u': [SKIP],
+  'built-ins/RegExp/CharacterClassEscapes/character-class-non-whitespace-class-escape-plus-quantifier-flags-u': [SKIP],
+  'built-ins/RegExp/CharacterClassEscapes/character-class-non-word-class-escape-plus-quantifier-flags-u': [SKIP],
+}], # variant == jitless
+
 ['variant == no_wasm_traps', {
   '*': [SKIP],
 }],  # variant == no_wasm_traps
@@ -1357,5 +1240,10 @@
   # https://crbug.com/856119
   'intl402/DateTimeFormat/prototype/resolvedOptions/basic': [SKIP],
 }],  # system == windows
+
+##############################################################################
+['variant == jitless and not embedded_builtins', {
+  '*': [SKIP],
+}], # variant == jitless and not embedded_builtins
 
 ]

@@ -3,14 +3,14 @@
 // found in the LICENSE file.
 
 #include "src/compiler/js-typed-lowering.h"
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
-#include "src/isolate-inl.h"
+#include "src/execution/isolate-inl.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
@@ -47,7 +47,7 @@ class JSTypedLoweringTest : public TypedGraphTest {
     JSGraph jsgraph(isolate(), graph(), common(), javascript(), &simplified,
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
-    GraphReducer graph_reducer(zone(), graph());
+    GraphReducer graph_reducer(zone(), graph(), tick_counter());
     JSTypedLowering reducer(&graph_reducer, &jsgraph, broker(), zone());
     return reducer.Reduce(node);
   }
@@ -322,12 +322,13 @@ TEST_F(JSTypedLoweringTest, JSLoadContext) {
       Reduction const r2 = Reduce(graph()->NewNode(
           javascript()->LoadContext(1, index, immutable), context, effect));
       ASSERT_TRUE(r2.Changed());
-      EXPECT_THAT(r2.replacement(),
-                  IsLoadField(AccessBuilder::ForContextSlot(index),
-                              IsLoadField(AccessBuilder::ForContextSlot(
-                                              Context::PREVIOUS_INDEX),
-                                          context, effect, graph()->start()),
-                              _, graph()->start()));
+      EXPECT_THAT(
+          r2.replacement(),
+          IsLoadField(AccessBuilder::ForContextSlot(index),
+                      IsLoadField(AccessBuilder::ForContextSlotKnownPointer(
+                                      Context::PREVIOUS_INDEX),
+                                  context, effect, graph()->start()),
+                      _, graph()->start()));
     }
   }
 }
@@ -357,12 +358,13 @@ TEST_F(JSTypedLoweringTest, JSStoreContext) {
           Reduce(graph()->NewNode(javascript()->StoreContext(1, index), value,
                                   context, effect, control));
       ASSERT_TRUE(r2.Changed());
-      EXPECT_THAT(r2.replacement(),
-                  IsStoreField(AccessBuilder::ForContextSlot(index),
-                               IsLoadField(AccessBuilder::ForContextSlot(
-                                               Context::PREVIOUS_INDEX),
-                                           context, effect, graph()->start()),
-                               value, _, control));
+      EXPECT_THAT(
+          r2.replacement(),
+          IsStoreField(AccessBuilder::ForContextSlot(index),
+                       IsLoadField(AccessBuilder::ForContextSlotKnownPointer(
+                                       Context::PREVIOUS_INDEX),
+                                   context, effect, graph()->start()),
+                       value, _, control));
     }
   }
 }

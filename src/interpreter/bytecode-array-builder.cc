@@ -4,7 +4,7 @@
 
 #include "src/interpreter/bytecode-array-builder.h"
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/interpreter/bytecode-array-writer.h"
 #include "src/interpreter/bytecode-jump-table.h"
 #include "src/interpreter/bytecode-label.h"
@@ -12,7 +12,7 @@
 #include "src/interpreter/bytecode-register-optimizer.h"
 #include "src/interpreter/bytecode-source-info.h"
 #include "src/interpreter/interpreter-intrinsics.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 
 namespace v8 {
@@ -47,7 +47,6 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
       bytecode_generated_(false),
       constant_array_builder_(zone),
       handler_table_builder_(zone),
-      return_seen_in_block_(false),
       parameter_count_(parameter_count),
       local_register_count_(locals_count),
       register_allocator_(fixed_register_count()),
@@ -82,7 +81,7 @@ Register BytecodeArrayBuilder::Local(int index) const {
 }
 
 Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(Isolate* isolate) {
-  DCHECK(return_seen_in_block_);
+  DCHECK(RemainderOfBlockIsDead());
   DCHECK(!bytecode_generated_);
   bytecode_generated_ = true;
 
@@ -144,6 +143,12 @@ void BytecodeArrayBuilder::Write(BytecodeNode* node) {
 void BytecodeArrayBuilder::WriteJump(BytecodeNode* node, BytecodeLabel* label) {
   AttachOrEmitDeferredSourceInfo(node);
   bytecode_array_writer_.WriteJump(node, label);
+}
+
+void BytecodeArrayBuilder::WriteJumpLoop(BytecodeNode* node,
+                                         BytecodeLoopHeader* loop_header) {
+  AttachOrEmitDeferredSourceInfo(node);
+  bytecode_array_writer_.WriteJumpLoop(node, loop_header);
 }
 
 void BytecodeArrayBuilder::WriteSwitch(BytecodeNode* node,
@@ -330,13 +335,18 @@ class BytecodeNodeBuilder {
   template <typename... Operands>                                     \
   void BytecodeArrayBuilder::Output##name(BytecodeLabel* label,       \
                                           Operands... operands) {     \
-    DCHECK(Bytecodes::IsJump(Bytecode::k##name));                     \
+    DCHECK(Bytecodes::IsForwardJump(Bytecode::k##name));              \
     BytecodeNode node(Create##name##Node(operands...));               \
     WriteJump(&node, label);                                          \
-    LeaveBasicBlock();                                                \
   }
 BYTECODE_LIST(DEFINE_BYTECODE_OUTPUT)
 #undef DEFINE_BYTECODE_OUTPUT
+
+void BytecodeArrayBuilder::OutputJumpLoop(BytecodeLoopHeader* loop_header,
+                                          int loop_depth) {
+  BytecodeNode node(CreateJumpLoopNode(0, loop_depth));
+  WriteJumpLoop(&node, loop_header);
+}
 
 void BytecodeArrayBuilder::OutputSwitchOnSmiNoFeedback(
     BytecodeJumpTable* jump_table) {
@@ -344,7 +354,6 @@ void BytecodeArrayBuilder::OutputSwitchOnSmiNoFeedback(
       jump_table->constant_pool_index(), jump_table->size(),
       jump_table->case_value_base()));
   WriteSwitch(&node, jump_table);
-  LeaveBasicBlock();
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperation(Token::Value op,
@@ -397,40 +406,40 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperationSmiLiteral(
     Token::Value op, Smi literal, int feedback_slot) {
   switch (op) {
     case Token::Value::ADD:
-      OutputAddSmi(literal->value(), feedback_slot);
+      OutputAddSmi(literal.value(), feedback_slot);
       break;
     case Token::Value::SUB:
-      OutputSubSmi(literal->value(), feedback_slot);
+      OutputSubSmi(literal.value(), feedback_slot);
       break;
     case Token::Value::MUL:
-      OutputMulSmi(literal->value(), feedback_slot);
+      OutputMulSmi(literal.value(), feedback_slot);
       break;
     case Token::Value::DIV:
-      OutputDivSmi(literal->value(), feedback_slot);
+      OutputDivSmi(literal.value(), feedback_slot);
       break;
     case Token::Value::MOD:
-      OutputModSmi(literal->value(), feedback_slot);
+      OutputModSmi(literal.value(), feedback_slot);
       break;
     case Token::Value::EXP:
-      OutputExpSmi(literal->value(), feedback_slot);
+      OutputExpSmi(literal.value(), feedback_slot);
       break;
     case Token::Value::BIT_OR:
-      OutputBitwiseOrSmi(literal->value(), feedback_slot);
+      OutputBitwiseOrSmi(literal.value(), feedback_slot);
       break;
     case Token::Value::BIT_XOR:
-      OutputBitwiseXorSmi(literal->value(), feedback_slot);
+      OutputBitwiseXorSmi(literal.value(), feedback_slot);
       break;
     case Token::Value::BIT_AND:
-      OutputBitwiseAndSmi(literal->value(), feedback_slot);
+      OutputBitwiseAndSmi(literal.value(), feedback_slot);
       break;
     case Token::Value::SHL:
-      OutputShiftLeftSmi(literal->value(), feedback_slot);
+      OutputShiftLeftSmi(literal.value(), feedback_slot);
       break;
     case Token::Value::SAR:
-      OutputShiftRightSmi(literal->value(), feedback_slot);
+      OutputShiftRightSmi(literal.value(), feedback_slot);
       break;
     case Token::Value::SHR:
-      OutputShiftRightLogicalSmi(literal->value(), feedback_slot);
+      OutputShiftRightLogicalSmi(literal.value(), feedback_slot);
       break;
     default:
       UNREACHABLE();
@@ -506,17 +515,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(
     case Token::Value::INSTANCEOF:
       OutputTestInstanceOf(reg, feedback_slot);
       break;
-    default:
-      UNREACHABLE();
-  }
-  return *this;
-}
-
-BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(Token::Value op,
-                                                             Register reg) {
-  switch (op) {
     case Token::Value::IN:
-      OutputTestIn(reg);
+      OutputTestIn(reg, feedback_slot);
       break;
     default:
       UNREACHABLE();
@@ -573,7 +573,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadConstantPoolEntry(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(Smi smi) {
-  int32_t raw_smi = smi->value();
+  int32_t raw_smi = smi.value();
   if (raw_smi == 0) {
     OutputLdaZero();
   } else {
@@ -810,10 +810,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadKeyedProperty(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::LoadIteratorProperty(
-    Register object, int feedback_slot) {
-  size_t name_index = IteratorSymbolConstantPoolEntry();
-  OutputLdaNamedProperty(object, name_index, feedback_slot);
+BytecodeArrayBuilder& BytecodeArrayBuilder::GetIterator(Register object,
+                                                        int feedback_slot) {
+  OutputGetIterator(object, feedback_slot);
   return *this;
 }
 
@@ -1053,18 +1052,23 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ToNumeric(int feedback_slot) {
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(BytecodeLabel* label) {
+  // Don't generate code for a label which hasn't had a corresponding forward
+  // jump generated already. For backwards jumps, use BindLoopHeader.
+  if (!label->has_referrer_jump()) return *this;
+
   // Flush the register optimizer when binding a label to ensure all
   // expected registers are valid when jumping to this label.
   if (register_optimizer_) register_optimizer_->Flush();
   bytecode_array_writer_.BindLabel(label);
-  LeaveBasicBlock();
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(const BytecodeLabel& target,
-                                                 BytecodeLabel* label) {
-  bytecode_array_writer_.BindLabel(target, label);
-  LeaveBasicBlock();
+BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(
+    BytecodeLoopHeader* loop_header) {
+  // Flush the register optimizer when starting a loop to ensure all expected
+  // registers are valid when jumping to the loop header.
+  if (register_optimizer_) register_optimizer_->Flush();
+  bytecode_array_writer_.BindLoopHeader(loop_header);
   return *this;
 }
 
@@ -1074,7 +1078,33 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(BytecodeJumpTable* jump_table,
   // all expected registers are valid when jumping to this location.
   if (register_optimizer_) register_optimizer_->Flush();
   bytecode_array_writer_.BindJumpTableEntry(jump_table, case_value);
-  LeaveBasicBlock();
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::MarkHandler(
+    int handler_id, HandlerTable::CatchPrediction catch_prediction) {
+  // The handler starts a new basic block, and any reasonable try block won't
+  // let control fall through into it.
+  DCHECK_IMPLIES(register_optimizer_,
+                 register_optimizer_->EnsureAllRegistersAreFlushed());
+  bytecode_array_writer_.BindHandlerTarget(handler_table_builder(), handler_id);
+  handler_table_builder()->SetPrediction(handler_id, catch_prediction);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::MarkTryBegin(int handler_id,
+                                                         Register context) {
+  // Flush registers to make sure everything visible to the handler is
+  // materialized.
+  if (register_optimizer_) register_optimizer_->Flush();
+  bytecode_array_writer_.BindTryRegionStart(handler_table_builder(),
+                                            handler_id);
+  handler_table_builder()->SetContextRegister(handler_id, context);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::MarkTryEnd(int handler_id) {
+  bytecode_array_writer_.BindTryRegionEnd(handler_table_builder(), handler_id);
   return *this;
 }
 
@@ -1128,6 +1158,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfUndefined(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfUndefinedOrNull(
+    BytecodeLabel* label) {
+  DCHECK(!label->is_bound());
+  OutputJumpIfUndefinedOrNull(label, 0);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNotUndefined(
     BytecodeLabel* label) {
   DCHECK(!label->is_bound());
@@ -1178,10 +1215,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfJSReceiver(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::JumpLoop(BytecodeLabel* label,
-                                                     int loop_depth) {
-  DCHECK(label->is_bound());
-  OutputJumpLoop(label, 0, loop_depth);
+BytecodeArrayBuilder& BytecodeArrayBuilder::JumpLoop(
+    BytecodeLoopHeader* loop_header, int loop_depth) {
+  OutputJumpLoop(loop_header, loop_depth);
   return *this;
 }
 
@@ -1233,7 +1269,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Abort(AbortReason reason) {
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::Return() {
   OutputReturn();
-  return_seen_in_block_ = true;
   return *this;
 }
 
@@ -1321,40 +1356,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::SwitchOnGeneratorState(
   BytecodeNode node(CreateSwitchOnGeneratorStateNode(
       generator, jump_table->constant_pool_index(), jump_table->size()));
   WriteSwitch(&node, jump_table);
-  LeaveBasicBlock();
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::ResumeGenerator(
     Register generator, RegisterList registers) {
   OutputResumeGenerator(generator, registers, registers.register_count());
-  return *this;
-}
-
-BytecodeArrayBuilder& BytecodeArrayBuilder::MarkHandler(
-    int handler_id, HandlerTable::CatchPrediction catch_prediction) {
-  BytecodeLabel handler;
-  Bind(&handler);
-  handler_table_builder()->SetHandlerTarget(handler_id, handler.offset());
-  handler_table_builder()->SetPrediction(handler_id, catch_prediction);
-  return *this;
-}
-
-BytecodeArrayBuilder& BytecodeArrayBuilder::MarkTryBegin(int handler_id,
-                                                         Register context) {
-  // TODO(leszeks): Do we need to start a new basic block here? Could we simply
-  // get the current bytecode offset from the array writer instead?
-  BytecodeLabel try_begin;
-  Bind(&try_begin);
-  handler_table_builder()->SetTryRegionStart(handler_id, try_begin.offset());
-  handler_table_builder()->SetContextRegister(handler_id, context);
-  return *this;
-}
-
-BytecodeArrayBuilder& BytecodeArrayBuilder::MarkTryEnd(int handler_id) {
-  BytecodeLabel try_end;
-  Bind(&try_end);
-  handler_table_builder()->SetTryRegionEnd(handler_id, try_end.offset());
   return *this;
 }
 

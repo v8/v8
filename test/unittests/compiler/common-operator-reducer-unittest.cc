@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/common-operator.h"
 #include "src/compiler/common-operator-reducer.h"
+#include "src/codegen/machine-type.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/machine-type.h"
 #include "test/unittests/compiler/graph-reducer-unittest.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
@@ -29,7 +29,7 @@ class CommonOperatorReducerTest : public GraphTest {
   Reduction Reduce(
       AdvancedReducer::Editor* editor, Node* node,
       MachineOperatorBuilder::Flags flags = MachineOperatorBuilder::kNoFlags) {
-    JSHeapBroker broker(isolate(), zone());
+    JSHeapBroker broker(isolate(), zone(), FLAG_trace_heap_broker);
     MachineOperatorBuilder machine(zone(), MachineType::PointerRepresentation(),
                                    flags);
     CommonOperatorReducer reducer(editor, graph(), &broker, common(), &machine,

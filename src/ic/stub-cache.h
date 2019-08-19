@@ -6,6 +6,7 @@
 #define V8_IC_STUB_CACHE_H_
 
 #include "src/objects/name.h"
+#include "src/objects/tagged-value.h"
 
 namespace v8 {
 namespace internal {
@@ -28,19 +29,17 @@ class SCTableReference {
   friend class StubCache;
 };
 
-
-class StubCache {
+class V8_EXPORT_PRIVATE StubCache {
  public:
   struct Entry {
-    // The values here have plain Address types because they are read
-    // directly from generated code. As a nice side effect, this keeps
-    // #includes lightweight.
-    Address key;
+    // {key} is a tagged Name pointer, may be cleared by setting to empty
+    // string.
+    StrongTaggedValue key;
     // {value} is a tagged heap object reference (weak or strong), equivalent
     // to a MaybeObject's payload.
-    Address value;
-    // {map} is a tagged Map pointer, or nullptr.
-    Address map;
+    TaggedValue value;
+    // {map} is a tagged Map pointer, may be cleared by setting to Smi::zero().
+    StrongTaggedValue map;
   };
 
   void Initialize();
@@ -88,6 +87,10 @@ class StubCache {
   static const int kPrimaryTableSize = (1 << kPrimaryTableBits);
   static const int kSecondaryTableBits = 9;
   static const int kSecondaryTableSize = (1 << kSecondaryTableBits);
+
+  // We compute the hash code for a map as follows:
+  //   <code> = <address> ^ (<address> >> kMapKeyShift)
+  static const int kMapKeyShift = kPrimaryTableBits + kCacheIndexShift;
 
   // Some magic number used in the secondary hash computation.
   static const int kSecondaryMagic = 0xb16ca6e5;

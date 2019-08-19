@@ -8,12 +8,12 @@
 #include <vector>
 
 #include "include/v8.h"
-#include "src/counters.h"
-#include "src/globals.h"
-#include "src/handles.h"
-#include "src/objects-inl.h"
+#include "src/common/globals.h"
+#include "src/handles/handles.h"
+#include "src/logging/counters.h"
+#include "src/objects/objects-inl.h"
 #include "src/parsing/scanner.h"
-#include "src/unicode-inl.h"
+#include "src/strings/unicode-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -22,18 +22,18 @@ class ScopedExternalStringLock {
  public:
   explicit ScopedExternalStringLock(ExternalString string) {
     DCHECK(!string.is_null());
-    if (string->IsExternalOneByteString()) {
-      resource_ = ExternalOneByteString::cast(string)->resource();
+    if (string.IsExternalOneByteString()) {
+      resource_ = ExternalOneByteString::cast(string).resource();
     } else {
-      DCHECK(string->IsExternalTwoByteString());
-      resource_ = ExternalTwoByteString::cast(string)->resource();
+      DCHECK(string.IsExternalTwoByteString());
+      resource_ = ExternalTwoByteString::cast(string).resource();
     }
     DCHECK(resource_);
     resource_->Lock();
   }
 
   // Copying a lock increases the locking depth.
-  ScopedExternalStringLock(const ScopedExternalStringLock& other)
+  ScopedExternalStringLock(const ScopedExternalStringLock& other) V8_NOEXCEPT
       : resource_(other.resource_) {
     resource_->Lock();
   }
@@ -50,21 +50,6 @@ const unibrow::uchar kUtf8Bom = 0xFEFF;
 }  // namespace
 
 template <typename Char>
-struct CharTraits;
-
-template <>
-struct CharTraits<uint8_t> {
-  typedef SeqOneByteString String;
-  typedef ExternalOneByteString ExternalString;
-};
-
-template <>
-struct CharTraits<uint16_t> {
-  typedef SeqTwoByteString String;
-  typedef ExternalTwoByteString ExternalString;
-};
-
-template <typename Char>
 struct Range {
   const Char* start;
   const Char* end;
@@ -79,12 +64,12 @@ struct Range {
 template <typename Char>
 class OnHeapStream {
  public:
-  typedef typename CharTraits<Char>::String String;
+  using String = typename CharTraits<Char>::String;
 
   OnHeapStream(Handle<String> string, size_t start_offset, size_t end)
       : string_(string), start_offset_(start_offset), length_(end) {}
 
-  OnHeapStream(const OnHeapStream& other) : start_offset_(0), length_(0) {
+  OnHeapStream(const OnHeapStream&) V8_NOEXCEPT : start_offset_(0), length_(0) {
     UNREACHABLE();
   }
 
@@ -109,17 +94,19 @@ class OnHeapStream {
 // ExternalTwoByteString.
 template <typename Char>
 class ExternalStringStream {
-  typedef typename CharTraits<Char>::ExternalString ExternalString;
+  using ExternalString = typename CharTraits<Char>::ExternalString;
 
  public:
   ExternalStringStream(ExternalString string, size_t start_offset,
                        size_t length)
       : lock_(string),
-        data_(string->GetChars() + start_offset),
+        data_(string.GetChars() + start_offset),
         length_(length) {}
 
-  ExternalStringStream(const ExternalStringStream& other)
-      : lock_(other.lock_), data_(other.data_), length_(other.length_) {}
+  ExternalStringStream(const ExternalStringStream& other) V8_NOEXCEPT
+      : lock_(other.lock_),
+        data_(other.data_),
+        length_(other.length_) {}
 
   // The no_gc argument is only here because of the templated way this class
   // is used along with other implementations that require V8 heap access.
@@ -165,7 +152,7 @@ class ChunkedStream {
   explicit ChunkedStream(ScriptCompiler::ExternalSourceStream* source)
       : source_(source) {}
 
-  ChunkedStream(const ChunkedStream& other) {
+  ChunkedStream(const ChunkedStream&) V8_NOEXCEPT {
     // TODO(rmcilroy): Implement cloning for chunked streams.
     UNREACHABLE();
   }
@@ -372,7 +359,7 @@ class RelocatingCharacterStream
   void UpdateBufferPointers() {
     DisallowHeapAllocation no_gc;
     Range<uint16_t> range =
-        byte_stream_.GetDataAt(0, runtime_call_stats(), &no_gc);
+        byte_stream_.GetDataAt(buffer_pos_, runtime_call_stats(), &no_gc);
     if (range.start != buffer_start_) {
       buffer_cursor_ = (buffer_cursor_ - buffer_start_) + range.start;
       buffer_start_ = range.start;
@@ -429,7 +416,7 @@ bool BufferedUtf16CharacterStream::ReadBlock() {
 //
 // This implementation is fairly complex, since data arrives in chunks which
 // may 'cut' arbitrarily into utf-8 characters. Also, seeking to a given
-// character position is tricky because the byte position cannot be dericed
+// character position is tricky because the byte position cannot be derived
 // from the character position.
 //
 // TODO(verwaest): Decode utf8 chunks into utf16 chunks on the blink side
@@ -442,7 +429,7 @@ class Utf8ExternalStreamingStream : public BufferedUtf16CharacterStream {
       : current_({0, {0, 0, 0, unibrow::Utf8::State::kAccept}}),
         source_stream_(source_stream) {}
   ~Utf8ExternalStreamingStream() final {
-    for (size_t i = 0; i < chunks_.size(); i++) delete[] chunks_[i].data;
+    for (const Chunk& chunk : chunks_) delete[] chunk.data;
   }
 
   bool can_access_heap() const final { return false; }
@@ -512,23 +499,38 @@ bool Utf8ExternalStreamingStream::SkipToPosition(size_t position) {
   unibrow::Utf8::State state = chunk.start.state;
   uint32_t incomplete_char = chunk.start.incomplete_char;
   size_t it = current_.pos.bytes - chunk.start.bytes;
-  size_t chars = chunk.start.chars;
-  while (it < chunk.length && chars < position) {
-    unibrow::uchar t = unibrow::Utf8::ValueOfIncremental(
-        chunk.data[it], &it, &state, &incomplete_char);
-    if (t == kUtf8Bom && current_.pos.chars == 0) {
-      // BOM detected at beginning of the stream. Don't copy it.
-    } else if (t != unibrow::Utf8::kIncomplete) {
+  const uint8_t* cursor = &chunk.data[it];
+  const uint8_t* end = &chunk.data[chunk.length];
+
+  size_t chars = current_.pos.chars;
+
+  if (V8_UNLIKELY(current_.pos.bytes < 3 && chars == 0)) {
+    while (cursor < end) {
+      unibrow::uchar t =
+          unibrow::Utf8::ValueOfIncremental(&cursor, &state, &incomplete_char);
+      if (t == unibrow::Utf8::kIncomplete) continue;
+      if (t != kUtf8Bom) {
+        chars++;
+        if (t > unibrow::Utf16::kMaxNonSurrogateCharCode) chars++;
+      }
+      break;
+    }
+  }
+
+  while (cursor < end && chars < position) {
+    unibrow::uchar t =
+        unibrow::Utf8::ValueOfIncremental(&cursor, &state, &incomplete_char);
+    if (t != unibrow::Utf8::kIncomplete) {
       chars++;
       if (t > unibrow::Utf16::kMaxNonSurrogateCharCode) chars++;
     }
   }
 
-  current_.pos.bytes += it;
+  current_.pos.bytes = chunk.start.bytes + (cursor - chunk.data);
   current_.pos.chars = chars;
   current_.pos.incomplete_char = incomplete_char;
   current_.pos.state = state;
-  current_.chunk_no += (it == chunk.length);
+  current_.chunk_no += (cursor == end);
 
   return current_.pos.chars == position;
 }
@@ -542,8 +544,8 @@ void Utf8ExternalStreamingStream::FillBufferFromCurrentChunk() {
 
   // The buffer_ is writable, but buffer_*_ members are const. So we get a
   // non-const pointer into buffer that points to the same char as buffer_end_.
-  uint16_t* cursor = buffer_ + (buffer_end_ - buffer_start_);
-  DCHECK_EQ(cursor, buffer_end_);
+  uint16_t* output_cursor = buffer_ + (buffer_end_ - buffer_start_);
+  DCHECK_EQ(output_cursor, buffer_end_);
 
   unibrow::Utf8::State state = current_.pos.state;
   uint32_t incomplete_char = current_.pos.incomplete_char;
@@ -554,7 +556,7 @@ void Utf8ExternalStreamingStream::FillBufferFromCurrentChunk() {
     unibrow::uchar t = unibrow::Utf8::ValueOfIncrementalFinish(&state);
     if (t != unibrow::Utf8::kBufferEmpty) {
       DCHECK_EQ(t, unibrow::Utf8::kBadChar);
-      *cursor = static_cast<uc16>(t);
+      *output_cursor = static_cast<uc16>(t);
       buffer_end_++;
       current_.pos.chars++;
       current_.pos.incomplete_char = 0;
@@ -564,30 +566,60 @@ void Utf8ExternalStreamingStream::FillBufferFromCurrentChunk() {
   }
 
   size_t it = current_.pos.bytes - chunk.start.bytes;
-  while (it < chunk.length && cursor + 1 < buffer_start_ + kBufferSize) {
-    unibrow::uchar t = unibrow::Utf8::ValueOfIncremental(
-        chunk.data[it], &it, &state, &incomplete_char);
-    if (V8_LIKELY(t < kUtf8Bom)) {
-      *(cursor++) = static_cast<uc16>(t);  // The by most frequent case.
-    } else if (t == unibrow::Utf8::kIncomplete) {
-      continue;
-    } else if (t == kUtf8Bom && current_.pos.bytes + it == 3) {
-      // BOM detected at beginning of the stream. Don't copy it.
-    } else if (t <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
-      *(cursor++) = static_cast<uc16>(t);
-    } else {
-      *(cursor++) = unibrow::Utf16::LeadSurrogate(t);
-      *(cursor++) = unibrow::Utf16::TrailSurrogate(t);
+  const uint8_t* cursor = chunk.data + it;
+  const uint8_t* end = chunk.data + chunk.length;
+
+  // Deal with possible BOM.
+  if (V8_UNLIKELY(current_.pos.bytes < 3 && current_.pos.chars == 0)) {
+    while (cursor < end) {
+      unibrow::uchar t =
+          unibrow::Utf8::ValueOfIncremental(&cursor, &state, &incomplete_char);
+      if (V8_LIKELY(t < kUtf8Bom)) {
+        *(output_cursor++) = static_cast<uc16>(t);  // The most frequent case.
+      } else if (t == unibrow::Utf8::kIncomplete) {
+        continue;
+      } else if (t == kUtf8Bom) {
+        // BOM detected at beginning of the stream. Don't copy it.
+      } else if (t <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
+        *(output_cursor++) = static_cast<uc16>(t);
+      } else {
+        *(output_cursor++) = unibrow::Utf16::LeadSurrogate(t);
+        *(output_cursor++) = unibrow::Utf16::TrailSurrogate(t);
+      }
+      break;
     }
   }
 
-  current_.pos.bytes = chunk.start.bytes + it;
-  current_.pos.chars += (cursor - buffer_end_);
+  const uint16_t* max_buffer_end = buffer_start_ + kBufferSize;
+  while (cursor < end && output_cursor + 1 < max_buffer_end) {
+    unibrow::uchar t =
+        unibrow::Utf8::ValueOfIncremental(&cursor, &state, &incomplete_char);
+    if (V8_LIKELY(t <= unibrow::Utf16::kMaxNonSurrogateCharCode)) {
+      *(output_cursor++) = static_cast<uc16>(t);  // The most frequent case.
+    } else if (t == unibrow::Utf8::kIncomplete) {
+      continue;
+    } else {
+      *(output_cursor++) = unibrow::Utf16::LeadSurrogate(t);
+      *(output_cursor++) = unibrow::Utf16::TrailSurrogate(t);
+    }
+    // Fast path for ascii sequences.
+    size_t remaining = end - cursor;
+    size_t max_buffer = max_buffer_end - output_cursor;
+    int max_length = static_cast<int>(Min(remaining, max_buffer));
+    DCHECK_EQ(state, unibrow::Utf8::State::kAccept);
+    int ascii_length = NonAsciiStart(cursor, max_length);
+    CopyChars(output_cursor, cursor, ascii_length);
+    cursor += ascii_length;
+    output_cursor += ascii_length;
+  }
+
+  current_.pos.bytes = chunk.start.bytes + (cursor - chunk.data);
+  current_.pos.chars += (output_cursor - buffer_end_);
   current_.pos.incomplete_char = incomplete_char;
   current_.pos.state = state;
-  current_.chunk_no += (it == chunk.length);
+  current_.chunk_no += (cursor == end);
 
-  buffer_end_ = cursor;
+  buffer_end_ = output_cursor;
 }
 
 bool Utf8ExternalStreamingStream::FetchChunk() {
@@ -724,9 +756,9 @@ Utf16CharacterStream* ScannerStream::For(Isolate* isolate, Handle<String> data,
   size_t start_offset = 0;
   if (data->IsSlicedString()) {
     SlicedString string = SlicedString::cast(*data);
-    start_offset = string->offset();
-    String parent = string->parent();
-    if (parent->IsThinString()) parent = ThinString::cast(parent)->actual();
+    start_offset = string.offset();
+    String parent = string.parent();
+    if (parent.IsThinString()) parent = ThinString::cast(parent).actual();
     data = handle(parent, isolate);
   } else {
     data = String::Flatten(isolate, data);

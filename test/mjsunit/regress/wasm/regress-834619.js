@@ -4,7 +4,6 @@
 
 // Flags: --wasm-lazy-compilation
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function ExportedFunctionsImportedOrder() {
@@ -27,13 +26,14 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     let builder = new WasmModuleBuilder();
     builder.addImport("q", "f2", kSig_i_v);
     builder.addImport("q", "f1", kSig_i_v);
+    builder.addTable(kWasmAnyFunc, 4);
     builder.addFunction("main", kSig_i_i)
       .addBody([
         kExprGetLocal, 0,
         kExprCallIndirect, 0, kTableZero
       ])
       .exportFunc();
-    builder.addElementSegment(0, false, [0, 1, 1, 0]);
+    builder.addElementSegment(0, 0, false, [0, 1, 1, 0]);
 
     return builder.instantiate({q: {f2: i1.exports.f2, f1: i1.exports.f1}});
   })();

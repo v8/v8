@@ -9,7 +9,7 @@
 #include "src/compiler/node.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
-#include "src/handles-inl.h"
+#include "src/handles/handles-inl.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -179,7 +179,6 @@ SelectParameters const& SelectParametersOf(const Operator* const op) {
 
 CallDescriptor const* CallDescriptorOf(const Operator* const op) {
   DCHECK(op->opcode() == IrOpcode::kCall ||
-         op->opcode() == IrOpcode::kCallWithCallerSavedRegisters ||
          op->opcode() == IrOpcode::kTailCall);
   return OpParameter<CallDescriptor const*>(op);
 }
@@ -464,7 +463,8 @@ IfValueParameters const& IfValueParametersOf(const Operator* op) {
   V(LoopExitEffect, Operator::kNoThrow, 0, 1, 1, 0, 1, 0)                     \
   V(Checkpoint, Operator::kKontrol, 0, 1, 1, 0, 1, 0)                         \
   V(FinishRegion, Operator::kKontrol, 1, 1, 0, 1, 1, 0)                       \
-  V(Retain, Operator::kKontrol, 1, 1, 0, 0, 1, 0)
+  V(Retain, Operator::kKontrol, 1, 1, 0, 0, 1, 0)                             \
+  V(StaticAssert, Operator::kFoldable, 1, 1, 0, 0, 1, 0)
 
 #define CACHED_BRANCH_LIST(V)   \
   V(None, CriticalSafetyCheck)  \
@@ -881,11 +881,13 @@ struct CommonOperatorGlobalCache final {
 #undef CACHED_STATE_VALUES
 };
 
-static base::LazyInstance<CommonOperatorGlobalCache>::type
-    kCommonOperatorGlobalCache = LAZY_INSTANCE_INITIALIZER;
+namespace {
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(CommonOperatorGlobalCache,
+                                GetCommonOperatorGlobalCache)
+}
 
 CommonOperatorBuilder::CommonOperatorBuilder(Zone* zone)
-    : cache_(kCommonOperatorGlobalCache.Get()), zone_(zone) {}
+    : cache_(*GetCommonOperatorGlobalCache()), zone_(zone) {}
 
 #define CACHED(Name, properties, value_input_count, effect_input_count,      \
                control_input_count, value_output_count, effect_output_count, \
@@ -1213,8 +1215,18 @@ const Operator* CommonOperatorBuilder::HeapConstant(
       value);                                         // parameter
 }
 
+const Operator* CommonOperatorBuilder::CompressedHeapConstant(
+    const Handle<HeapObject>& value) {
+  return new (zone()) Operator1<Handle<HeapObject>>(       // --
+      IrOpcode::kCompressedHeapConstant, Operator::kPure,  // opcode
+      "CompressedHeapConstant",                            // name
+      0, 0, 0, 1, 0, 0,                                    // counts
+      value);                                              // parameter
+}
+
 Handle<HeapObject> HeapConstantOf(const Operator* op) {
-  DCHECK_EQ(IrOpcode::kHeapConstant, op->opcode());
+  DCHECK(IrOpcode::kHeapConstant == op->opcode() ||
+         IrOpcode::kCompressedHeapConstant == op->opcode());
   return OpParameter<Handle<HeapObject>>(op);
 }
 
@@ -1451,31 +1463,6 @@ const Operator* CommonOperatorBuilder::Call(
     explicit CallOperator(const CallDescriptor* call_descriptor)
         : Operator1<const CallDescriptor*>(
               IrOpcode::kCall, call_descriptor->properties(), "Call",
-              call_descriptor->InputCount() +
-                  call_descriptor->FrameStateCount(),
-              Operator::ZeroIfPure(call_descriptor->properties()),
-              Operator::ZeroIfEliminatable(call_descriptor->properties()),
-              call_descriptor->ReturnCount(),
-              Operator::ZeroIfPure(call_descriptor->properties()),
-              Operator::ZeroIfNoThrow(call_descriptor->properties()),
-              call_descriptor) {}
-
-    void PrintParameter(std::ostream& os,
-                        PrintVerbosity verbose) const override {
-      os << "[" << *parameter() << "]";
-    }
-  };
-  return new (zone()) CallOperator(call_descriptor);
-}
-
-const Operator* CommonOperatorBuilder::CallWithCallerSavedRegisters(
-    const CallDescriptor* call_descriptor) {
-  class CallOperator final : public Operator1<const CallDescriptor*> {
-   public:
-    explicit CallOperator(const CallDescriptor* call_descriptor)
-        : Operator1<const CallDescriptor*>(
-              IrOpcode::kCallWithCallerSavedRegisters,
-              call_descriptor->properties(), "CallWithCallerSavedRegisters",
               call_descriptor->InputCount() +
                   call_descriptor->FrameStateCount(),
               Operator::ZeroIfPure(call_descriptor->properties()),

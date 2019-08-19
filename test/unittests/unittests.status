@@ -20,4 +20,36 @@
   # Uses too much memory.
   'Parameterized/WasmCodeManagerTest.GrowingVsFixedModule/Fixed': [SKIP]
 }],  # '(arch == arm or arch == mips) and not simulator_run'
+
+##############################################################################
+['lite_mode or variant == jitless', {
+  # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+  'ValueSerializerTestWithSharedArrayBufferClone.RoundTripWebAssemblyMemory': [SKIP],
+  'ValueSerializerTestWithWasm.*': [SKIP],
+  'Parameterized/WasmCodeManagerTest.*': [SKIP],
+}], # lite_mode or variant == jitless
+
+##############################################################################
+['variant == jitless and not embedded_builtins', {
+  '*': [SKIP],
+}], # variant == jitless and not embedded_builtins
+
+['system == windows and asan', {
+  # BUG(893437).
+  'Torque*': [SKIP],
+}],  # 'system == windows and asan'
+
+['system == windows and arch == x64 and mode == release', {
+  # BUG(992783).
+  'Torque.ConditionalFields': [SKIP],
+  'Torque.UsingUnderscorePrefixedIdentifierError': [SKIP],
+}],  # 'system == windows and arch == x64 and mode == release'
+
+##############################################################################
+['tsan == True', {
+  # https://crbug.com/v8/9380
+  # The test is broken and needs to be fixed to use separate isolates.
+  'BackingStoreTest.RacyGrowWasmMemoryInPlace': [SKIP],
+}],  # 'tsan == True'
+
 ]

@@ -7,7 +7,7 @@
 
 #include "src/objects/allocation-site.h"
 
-#include "src/heap/heap-inl.h"
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/js-objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -21,8 +21,8 @@ OBJECT_CONSTRUCTORS_IMPL(AllocationSite, Struct)
 
 NEVER_READ_ONLY_SPACE_IMPL(AllocationSite)
 
-CAST_ACCESSOR2(AllocationMemento)
-CAST_ACCESSOR2(AllocationSite)
+CAST_ACCESSOR(AllocationMemento)
+CAST_ACCESSOR(AllocationSite)
 
 ACCESSORS(AllocationSite, transition_info_or_boilerplate, Object,
           kTransitionInfoOrBoilerplateOffset)
@@ -30,7 +30,7 @@ ACCESSORS(AllocationSite, nested_site, Object, kNestedSiteOffset)
 INT32_ACCESSORS(AllocationSite, pretenure_data, kPretenureDataOffset)
 INT32_ACCESSORS(AllocationSite, pretenure_create_count,
                 kPretenureCreateCountOffset)
-ACCESSORS2(AllocationSite, dependent_code, DependentCode, kDependentCodeOffset)
+ACCESSORS(AllocationSite, dependent_code, DependentCode, kDependentCodeOffset)
 ACCESSORS_CHECKED(AllocationSite, weak_next, Object, kWeakNextOffset,
                   HasWeakNext())
 ACCESSORS(AllocationMemento, allocation_site, Object, kAllocationSiteOffset)
@@ -46,7 +46,7 @@ void AllocationSite::set_boilerplate(JSObject object, WriteBarrierMode mode) {
 
 int AllocationSite::transition_info() const {
   DCHECK(!PointsToLiteral());
-  return Smi::cast(transition_info_or_boilerplate())->value();
+  return Smi::cast(transition_info_or_boilerplate()).value();
 }
 
 void AllocationSite::set_transition_info(int value) {
@@ -104,10 +104,10 @@ void AllocationSite::SetDoNotInlineCall() {
 }
 
 bool AllocationSite::PointsToLiteral() const {
-  Object* raw_value = transition_info_or_boilerplate();
-  DCHECK_EQ(!raw_value->IsSmi(),
-            raw_value->IsJSArray() || raw_value->IsJSObject());
-  return !raw_value->IsSmi();
+  Object raw_value = transition_info_or_boilerplate();
+  DCHECK_EQ(!raw_value.IsSmi(),
+            raw_value.IsJSArray() || raw_value.IsJSObject());
+  return !raw_value.IsSmi();
 }
 
 // Heuristic: We only need to create allocation site info if the boilerplate
@@ -181,8 +181,8 @@ inline void AllocationSite::IncrementMementoCreateCount() {
 }
 
 bool AllocationMemento::IsValid() const {
-  return allocation_site()->IsAllocationSite() &&
-         !AllocationSite::cast(allocation_site())->IsZombie();
+  return allocation_site().IsAllocationSite() &&
+         !AllocationSite::cast(allocation_site()).IsZombie();
 }
 
 AllocationSite AllocationMemento::GetAllocationSite() const {
@@ -191,7 +191,65 @@ AllocationSite AllocationMemento::GetAllocationSite() const {
 }
 
 Address AllocationMemento::GetAllocationSiteUnchecked() const {
-  return reinterpret_cast<Address>(allocation_site());
+  return allocation_site().ptr();
+}
+
+template <AllocationSiteUpdateMode update_or_check>
+bool AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
+                                              ElementsKind to_kind) {
+  Isolate* isolate = site->GetIsolate();
+  bool result = false;
+
+  if (site->PointsToLiteral() && site->boilerplate().IsJSArray()) {
+    Handle<JSArray> boilerplate(JSArray::cast(site->boilerplate()), isolate);
+    ElementsKind kind = boilerplate->GetElementsKind();
+    // if kind is holey ensure that to_kind is as well.
+    if (IsHoleyElementsKind(kind)) {
+      to_kind = GetHoleyElementsKind(to_kind);
+    }
+    if (IsMoreGeneralElementsKindTransition(kind, to_kind)) {
+      // If the array is huge, it's not likely to be defined in a local
+      // function, so we shouldn't make new instances of it very often.
+      uint32_t length = 0;
+      CHECK(boilerplate->length().ToArrayLength(&length));
+      if (length <= kMaximumArrayBytesToPretransition) {
+        if (update_or_check == AllocationSiteUpdateMode::kCheckOnly) {
+          return true;
+        }
+        if (FLAG_trace_track_allocation_sites) {
+          bool is_nested = site->IsNested();
+          PrintF("AllocationSite: JSArray %p boilerplate %supdated %s->%s\n",
+                 reinterpret_cast<void*>(site->ptr()),
+                 is_nested ? "(nested)" : " ", ElementsKindToString(kind),
+                 ElementsKindToString(to_kind));
+        }
+        JSObject::TransitionElementsKind(boilerplate, to_kind);
+        site->dependent_code().DeoptimizeDependentCodeGroup(
+            isolate, DependentCode::kAllocationSiteTransitionChangedGroup);
+        result = true;
+      }
+    }
+  } else {
+    // The AllocationSite is for a constructed Array.
+    ElementsKind kind = site->GetElementsKind();
+    // if kind is holey ensure that to_kind is as well.
+    if (IsHoleyElementsKind(kind)) {
+      to_kind = GetHoleyElementsKind(to_kind);
+    }
+    if (IsMoreGeneralElementsKindTransition(kind, to_kind)) {
+      if (update_or_check == AllocationSiteUpdateMode::kCheckOnly) return true;
+      if (FLAG_trace_track_allocation_sites) {
+        PrintF("AllocationSite: JSArray %p site updated %s->%s\n",
+               reinterpret_cast<void*>(site->ptr()), ElementsKindToString(kind),
+               ElementsKindToString(to_kind));
+      }
+      site->SetElementsKind(to_kind);
+      site->dependent_code().DeoptimizeDependentCodeGroup(
+          isolate, DependentCode::kAllocationSiteTransitionChangedGroup);
+      result = true;
+    }
+  }
+  return result;
 }
 
 }  // namespace internal

@@ -6,6 +6,7 @@
 #define V8_OBJECTS_PROPERTY_CELL_H_
 
 #include "src/objects/heap-object.h"
+#include "torque-generated/field-offsets-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -16,14 +17,14 @@ namespace internal {
 class PropertyCell : public HeapObject {
  public:
   // [name]: the name of the global property.
-  DECL_ACCESSORS2(name, Name)
+  DECL_ACCESSORS(name, Name)
   // [property_details]: details of the global property.
-  DECL_ACCESSORS(property_details_raw, Object)
+  DECL_ACCESSORS(property_details_raw, Smi)
   // [value]: value of the global property.
   DECL_ACCESSORS(value, Object)
   // [dependent_code]: dependent code that depends on the type of the global
   // property.
-  DECL_ACCESSORS2(dependent_code, DependentCode)
+  DECL_ACCESSORS(dependent_code, DependentCode)
 
   inline PropertyDetails property_details() const;
   inline void set_property_details(PropertyDetails details);
@@ -46,29 +47,20 @@ class PropertyCell : public HeapObject {
   static Handle<PropertyCell> InvalidateEntry(
       Isolate* isolate, Handle<GlobalDictionary> dictionary, int entry);
 
-  static void SetValueWithInvalidation(Isolate* isolate,
+  static void SetValueWithInvalidation(Isolate* isolate, const char* cell_name,
                                        Handle<PropertyCell> cell,
                                        Handle<Object> new_value);
 
-  DECL_CAST2(PropertyCell)
+  DECL_CAST(PropertyCell)
 
   // Dispatched behavior.
   DECL_PRINTER(PropertyCell)
   DECL_VERIFIER(PropertyCell)
 
-// Layout description.
-#define PROPERTY_CELL_FIELDS(V)        \
-  V(kDetailsOffset, kTaggedSize)       \
-  V(kNameOffset, kTaggedSize)          \
-  V(kValueOffset, kTaggedSize)         \
-  V(kDependentCodeOffset, kTaggedSize) \
-  /* Total size. */                    \
-  V(kSize, 0)
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_PROPERTY_CELL_FIELDS)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, PROPERTY_CELL_FIELDS)
-#undef PROPERTY_CELL_FIELDS
-
-  typedef FixedBodyDescriptor<kNameOffset, kSize, kSize> BodyDescriptor;
+  using BodyDescriptor = FixedBodyDescriptor<kNameOffset, kSize, kSize>;
 
   OBJECT_CONSTRUCTORS(PropertyCell, HeapObject);
 };

@@ -5,20 +5,23 @@
 #ifndef V8_HEAP_ARRAY_BUFFER_TRACKER_INL_H_
 #define V8_HEAP_ARRAY_BUFFER_TRACKER_INL_H_
 
-#include "src/conversions-inl.h"
 #include "src/heap/array-buffer-tracker.h"
-#include "src/heap/heap.h"
-#include "src/heap/spaces.h"
-#include "src/objects.h"
+#include "src/heap/heap-inl.h"
+#include "src/heap/spaces-inl.h"
+#include "src/numbers/conversions-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {
 
 void ArrayBufferTracker::RegisterNew(Heap* heap, JSArrayBuffer buffer) {
-  if (buffer->backing_store() == nullptr) return;
+  if (buffer.backing_store() == nullptr) return;
 
-  const size_t length = buffer->byte_length();
+  // ArrayBuffer tracking works only for small objects.
+  DCHECK(!heap->IsLargeObject(buffer));
+
+  const size_t length = buffer.byte_length();
   Page* page = Page::FromHeapObject(buffer);
   {
     base::MutexGuard guard(page->mutex());
@@ -39,10 +42,10 @@ void ArrayBufferTracker::RegisterNew(Heap* heap, JSArrayBuffer buffer) {
 }
 
 void ArrayBufferTracker::Unregister(Heap* heap, JSArrayBuffer buffer) {
-  if (buffer->backing_store() == nullptr) return;
+  if (buffer.backing_store() == nullptr) return;
 
   Page* page = Page::FromHeapObject(buffer);
-  const size_t length = buffer->byte_length();
+  const size_t length = buffer.byte_length();
   {
     base::MutexGuard guard(page->mutex());
     LocalArrayBufferTracker* tracker = page->local_tracker();
@@ -53,8 +56,6 @@ void ArrayBufferTracker::Unregister(Heap* heap, JSArrayBuffer buffer) {
   // TODO(wez): Remove backing-store from external memory accounting.
   heap->update_external_memory(-static_cast<intptr_t>(length));
 }
-
-Space* LocalArrayBufferTracker::space() { return page_->owner(); }
 
 template <typename Callback>
 void LocalArrayBufferTracker::Free(Callback should_free) {
@@ -107,8 +108,8 @@ void LocalArrayBufferTracker::Add(JSArrayBuffer buffer, size_t length) {
 void LocalArrayBufferTracker::AddInternal(JSArrayBuffer buffer, size_t length) {
   auto ret = array_buffers_.insert(
       {buffer,
-       {buffer->backing_store(), length, buffer->backing_store(),
-        buffer->is_wasm_memory()}});
+       {buffer.backing_store(), length, buffer.backing_store(),
+        buffer.is_wasm_memory()}});
   USE(ret);
   // Check that we indeed inserted a new value and did not overwrite an existing
   // one (which would be a bug).

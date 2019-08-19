@@ -27,15 +27,39 @@
 #define TARGET_ARCH_OPCODE_LIST(V)
 #define TARGET_ADDRESSING_MODE_LIST(V)
 #endif
-#include "src/globals.h"
-#include "src/utils.h"
+#include "src/compiler/write-barrier-kind.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
 // Modes for ArchStoreWithWriteBarrier below.
-enum class RecordWriteMode { kValueIsMap, kValueIsPointer, kValueIsAny };
+enum class RecordWriteMode {
+  kValueIsMap,
+  kValueIsPointer,
+  kValueIsEphemeronKey,
+  kValueIsAny,
+};
+
+inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
+    WriteBarrierKind write_barrier_kind) {
+  switch (write_barrier_kind) {
+    case kMapWriteBarrier:
+      return RecordWriteMode::kValueIsMap;
+    case kPointerWriteBarrier:
+      return RecordWriteMode::kValueIsPointer;
+    case kEphemeronKeyWriteBarrier:
+      return RecordWriteMode::kValueIsEphemeronKey;
+    case kFullWriteBarrier:
+      return RecordWriteMode::kValueIsAny;
+    case kNoWriteBarrier:
+    // Should not be passed as argument.
+    default:
+      break;
+  }
+  UNREACHABLE();
+}
 
 // Target-specific opcodes that specify which assembly sequence to emit.
 // Most opcodes specify a single instruction.
@@ -58,19 +82,19 @@ enum class RecordWriteMode { kValueIsMap, kValueIsPointer, kValueIsAny };
   V(ArchLookupSwitch)                     \
   V(ArchTableSwitch)                      \
   V(ArchNop)                              \
-  V(ArchDebugAbort)                       \
+  V(ArchAbortCSAAssert)                   \
   V(ArchDebugBreak)                       \
   V(ArchComment)                          \
   V(ArchThrowTerminator)                  \
   V(ArchDeoptimize)                       \
   V(ArchRet)                              \
-  V(ArchStackPointer)                     \
   V(ArchFramePointer)                     \
   V(ArchParentFramePointer)               \
   V(ArchTruncateDoubleToI)                \
   V(ArchStoreWithWriteBarrier)            \
   V(ArchStackSlot)                        \
   V(ArchWordPoisonOnSpeculation)          \
+  V(ArchStackPointerGreaterThan)          \
   V(Word32AtomicLoadInt8)                 \
   V(Word32AtomicLoadUint8)                \
   V(Word32AtomicLoadInt16)                \
@@ -214,6 +238,9 @@ enum FlagsCondition {
   kNegative
 };
 
+static constexpr FlagsCondition kStackPointerGreaterThanCondition =
+    kUnsignedGreaterThan;
+
 inline FlagsCondition NegateFlagsCondition(FlagsCondition condition) {
   return static_cast<FlagsCondition>(condition ^ 1);
 }
@@ -233,17 +260,17 @@ enum MemoryAccessMode {
 // what code to emit for an instruction in the code generator. It is not
 // interesting to the register allocator, as the inputs and flags on the
 // instructions specify everything of interest.
-typedef int32_t InstructionCode;
+using InstructionCode = int32_t;
 
 // Helpers for encoding / decoding InstructionCode into the fields needed
 // for code generation. We encode the instruction, addressing mode, and flags
 // continuation into a single InstructionCode which is stored as part of
 // the instruction.
-typedef BitField<ArchOpcode, 0, 9> ArchOpcodeField;
-typedef BitField<AddressingMode, 9, 5> AddressingModeField;
-typedef BitField<FlagsMode, 14, 3> FlagsModeField;
-typedef BitField<FlagsCondition, 17, 5> FlagsConditionField;
-typedef BitField<int, 22, 10> MiscField;
+using ArchOpcodeField = BitField<ArchOpcode, 0, 9>;
+using AddressingModeField = BitField<AddressingMode, 9, 5>;
+using FlagsModeField = BitField<FlagsMode, 14, 3>;
+using FlagsConditionField = BitField<FlagsCondition, 17, 5>;
+using MiscField = BitField<int, 22, 10>;
 
 }  // namespace compiler
 }  // namespace internal

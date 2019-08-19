@@ -4,13 +4,13 @@
 
 #include <functional>
 
-#include "src/codegen.h"
+#include "src/base/overflowing-math.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/objects-inl.h"
-#include "test/cctest/types-fuzz.h"
+#include "src/objects/objects-inl.h"
+#include "test/common/types-fuzz.h"
 #include "test/unittests/compiler/graph-unittest.h"
 
 namespace v8 {
@@ -22,7 +22,7 @@ class TyperTest : public TypedGraphTest {
  public:
   TyperTest()
       : TypedGraphTest(3),
-        broker_(isolate(), zone()),
+        broker_(isolate(), zone(), FLAG_trace_heap_broker),
         operation_typer_(&broker_, zone()),
         types_(zone(), isolate(), random_number_generator()),
         javascript_(zone()),
@@ -253,8 +253,8 @@ class TyperTest : public TypedGraphTest {
     }
   }
 
-  typedef std::function<Type(Type)> UnaryTyper;
-  typedef std::function<Type(Type, Type)> BinaryTyper;
+  using UnaryTyper = std::function<Type(Type)>;
+  using BinaryTyper = std::function<Type(Type, Type)>;
 
   void TestUnaryMonotonicity(UnaryTyper typer, Type upper1 = Type::Any()) {
     Type type1 = Type::Intersect(types_.Fuzz(), upper1, zone());
@@ -303,11 +303,14 @@ class TyperTest : public TypedGraphTest {
 
 namespace {
 
-int32_t shift_left(int32_t x, int32_t y) { return x << (y & 0x1F); }
+int32_t shift_left(int32_t x, int32_t y) {
+  return static_cast<uint32_t>(x) << (y & 0x1F);
+}
 int32_t shift_right(int32_t x, int32_t y) { return x >> (y & 0x1F); }
 int32_t bit_or(int32_t x, int32_t y) { return x | y; }
 int32_t bit_and(int32_t x, int32_t y) { return x & y; }
 int32_t bit_xor(int32_t x, int32_t y) { return x ^ y; }
+double divide_double_double(double x, double y) { return base::Divide(x, y); }
 double modulo_double_double(double x, double y) { return Modulo(x, y); }
 
 }  // namespace
@@ -332,7 +335,7 @@ TEST_F(TyperTest, TypeJSMultiply) {
 }
 
 TEST_F(TyperTest, TypeJSDivide) {
-  TestBinaryArithOp(javascript_.Divide(), std::divides<double>());
+  TestBinaryArithOp(javascript_.Divide(), divide_double_double);
 }
 
 TEST_F(TyperTest, TypeJSModulus) {
@@ -505,7 +508,7 @@ TEST_MONOTONICITY(ToBoolean)
     TestBinaryMonotonicity(simplified_.name(), Type::Number(), \
                            Type::Number());                    \
   }
-SIMPLIFIED_NUMBER_BINOP_LIST(TEST_MONOTONICITY);
+SIMPLIFIED_NUMBER_BINOP_LIST(TEST_MONOTONICITY)
 #undef TEST_MONOTONICITY
 
 // SIMPLIFIED BINOPs without hint, without input restriction

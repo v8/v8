@@ -2,18 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/assembler-inl.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/code-stub-assembler.h"
-#include "src/codegen.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/linkage.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
+#include "src/execution/isolate.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
-#include "src/optimized-compilation-info.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
@@ -30,8 +29,10 @@ namespace {
 int GetSlotSizeInBytes(MachineRepresentation rep) {
   switch (rep) {
     case MachineRepresentation::kTagged:
+      // Spill slots for tagged values are always uncompressed.
+      return kSystemPointerSize;
     case MachineRepresentation::kFloat32:
-      return kPointerSize;
+      return kSystemPointerSize;
     case MachineRepresentation::kFloat64:
       return kDoubleSize;
     case MachineRepresentation::kSimd128:
@@ -158,11 +159,11 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
 // ~~~
 // FixedArray teardown(CodeObject* /* unused  */, FixedArray result,
 //                     // Tagged registers.
-//                     Object* r0, Object* r1, ...,
+//                     Object r0, Object r1, ...,
 //                     // FP registers.
 //                     Float32 s0, Float64 d1, ...,
 //                     // Mixed stack slots.
-//                     Float64 mem0, Object* mem1, Float32 mem2, ...) {
+//                     Float64 mem0, Object mem1, Float32 mem2, ...) {
 //   result[0] = r0;
 //   result[1] = r1;
 //   ...
@@ -191,9 +192,9 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
 //
 // Finally, it is important that this function does not call `RecordWrite` which
 // is why "setup" is in charge of all allocations and we are using
-// SKIP_WRITE_BARRIER. The reason for this is that `RecordWrite` may clobber the
-// top 64 bits of Simd128 registers. This is the case on x64, ia32 and Arm64 for
-// example.
+// UNSAFE_SKIP_WRITE_BARRIER. The reason for this is that `RecordWrite` may
+// clobber the top 64 bits of Simd128 registers. This is the case on x64, ia32
+// and Arm64 for example.
 Handle<Code> BuildTeardownFunction(Isolate* isolate,
                                    CallDescriptor* call_descriptor,
                                    std::vector<AllocatedOperand> parameters) {
@@ -205,7 +206,8 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
     Node* param = __ Parameter(i + 2);
     switch (parameters[i].representation()) {
       case MachineRepresentation::kTagged:
-        __ StoreFixedArrayElement(result_array, i, param, SKIP_WRITE_BARRIER);
+        __ StoreFixedArrayElement(result_array, i, param,
+                                  UNSAFE_SKIP_WRITE_BARRIER);
         break;
       // Box FP values into HeapNumbers.
       case MachineRepresentation::kFloat32:
@@ -228,7 +230,7 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
                       ->I32x4ExtractLane(lane),
                   param));
           __ StoreFixedArrayElement(vector, lane, lane_value,
-                                    SKIP_WRITE_BARRIER);
+                                    UNSAFE_SKIP_WRITE_BARRIER);
         }
         break;
       }
@@ -248,7 +250,7 @@ void PrintStateValue(std::ostream& os, Isolate* isolate, Handle<Object> value,
   switch (operand.representation()) {
     case MachineRepresentation::kTagged:
       if (value->IsSmi()) {
-        os << Smi::cast(*value)->value();
+        os << Smi::cast(*value).value();
       } else {
         os << value->Number();
       }
@@ -261,7 +263,7 @@ void PrintStateValue(std::ostream& os, Isolate* isolate, Handle<Object> value,
       FixedArray vector = FixedArray::cast(*value);
       os << "[";
       for (int lane = 0; lane < 4; lane++) {
-        os << Smi::cast(*vector->GetValueChecked<Smi>(isolate, lane))->value();
+        os << Smi::cast(vector.get(lane)).value();
         if (lane < 3) {
           os << ", ";
         }
@@ -271,7 +273,6 @@ void PrintStateValue(std::ostream& os, Isolate* isolate, Handle<Object> value,
     }
     default:
       UNREACHABLE();
-      break;
   }
   os << " (" << operand.representation() << " ";
   if (operand.location_kind() == AllocatedOperand::REGISTER) {
@@ -383,7 +384,7 @@ class TestEnvironment : public HandleAndZoneScope {
 
   TestEnvironment()
       : blocks_(1, NewBlock(main_zone(), RpoNumber::FromInt(0)), main_zone()),
-        code_(main_isolate(), main_zone(), &blocks_),
+        instructions_(main_isolate(), main_zone(), &blocks_),
         rng_(CcTest::random_number_generator()),
         supported_reps_({MachineRepresentation::kTagged,
                          MachineRepresentation::kFloat32,
@@ -399,11 +400,11 @@ class TestEnvironment : public HandleAndZoneScope {
     // ~~~
     // FixedArray f(CodeObject* teardown, FixedArray preallocated_result,
     //              // Tagged registers.
-    //              Object*, Object*, ...,
+    //              Object, Object, ...,
     //              // FP registers.
     //              Float32, Float64, Simd128, ...,
     //              // Mixed stack slots.
-    //              Float64, Object*, Float32, Simd128, ...);
+    //              Float64, Object, Float32, Simd128, ...);
     // ~~~
     LocationSignature::Builder test_signature(
         main_zone(), 1,
@@ -522,7 +523,7 @@ class TestEnvironment : public HandleAndZoneScope {
         // Keep a map of (MachineRepresentation . std::vector<int>) with
         // allocated slots to pick from for each representation.
         int slot = slot_parameter_n;
-        slot_parameter_n -= (GetSlotSizeInBytes(rep) / kPointerSize);
+        slot_parameter_n -= (GetSlotSizeInBytes(rep) / kSystemPointerSize);
         AddStackSlot(&test_signature, rep, slot);
         entry->second--;
       }
@@ -536,7 +537,7 @@ class TestEnvironment : public HandleAndZoneScope {
     for (int i = 0; i < kSmiConstantCount; i++) {
       intptr_t smi_value = static_cast<intptr_t>(
           Smi::FromInt(rng_->NextInt(Smi::kMaxValue)).ptr());
-      Constant constant = kPointerSize == 8
+      Constant constant = kSystemPointerSize == 8
                               ? Constant(static_cast<int64_t>(smi_value))
                               : Constant(static_cast<int32_t>(smi_value));
       AddConstant(MachineRepresentation::kTagged, AllocateConstant(constant));
@@ -574,8 +575,8 @@ class TestEnvironment : public HandleAndZoneScope {
   }
 
   int AllocateConstant(Constant constant) {
-    int virtual_register = code_.NextVirtualRegister();
-    code_.AddConstant(virtual_register, constant);
+    int virtual_register = instructions_.NextVirtualRegister();
+    instructions_.AddConstant(virtual_register, constant);
     return virtual_register;
   }
 
@@ -722,8 +723,8 @@ class TestEnvironment : public HandleAndZoneScope {
           OperandToStatePosition(AllocatedOperand::cast(move->destination()));
       InstructionOperand from = move->source();
       if (from.IsConstant()) {
-        Constant constant =
-            code_.GetConstant(ConstantOperand::cast(from).virtual_register());
+        Constant constant = instructions_.GetConstant(
+            ConstantOperand::cast(from).virtual_register());
         Handle<Object> constant_value;
         switch (constant.type()) {
           case Constant::kInt32:
@@ -751,8 +752,7 @@ class TestEnvironment : public HandleAndZoneScope {
         state_out->set(to_index, *constant_value);
       } else {
         int from_index = OperandToStatePosition(AllocatedOperand::cast(from));
-        state_out->set(to_index, *state_out->GetValueChecked<Object>(
-                                     main_isolate(), from_index));
+        state_out->set(to_index, state_out->get(from_index));
       }
     }
     return state_out;
@@ -772,10 +772,8 @@ class TestEnvironment : public HandleAndZoneScope {
           OperandToStatePosition(AllocatedOperand::cast(swap->destination()));
       int rhs_index =
           OperandToStatePosition(AllocatedOperand::cast(swap->source()));
-      Handle<Object> lhs =
-          state_out->GetValueChecked<Object>(main_isolate(), lhs_index);
-      Handle<Object> rhs =
-          state_out->GetValueChecked<Object>(main_isolate(), rhs_index);
+      Handle<Object> lhs{state_out->get(lhs_index), main_isolate()};
+      Handle<Object> rhs{state_out->get(rhs_index), main_isolate()};
       state_out->set(lhs_index, *rhs);
       state_out->set(rhs_index, *lhs);
     }
@@ -785,10 +783,8 @@ class TestEnvironment : public HandleAndZoneScope {
   // Compare the given state with a reference.
   void CheckState(Handle<FixedArray> actual, Handle<FixedArray> expected) {
     for (int i = 0; i < static_cast<int>(layout_.size()); i++) {
-      Handle<Object> actual_value =
-          actual->GetValueChecked<Object>(main_isolate(), i);
-      Handle<Object> expected_value =
-          expected->GetValueChecked<Object>(main_isolate(), i);
+      Handle<Object> actual_value{actual->get(i), main_isolate()};
+      Handle<Object> expected_value{expected->get(i), main_isolate()};
       if (!CompareValues(actual_value, expected_value,
                          layout_[i].representation())) {
         std::ostringstream expected_str;
@@ -796,8 +792,8 @@ class TestEnvironment : public HandleAndZoneScope {
                         layout_[i]);
         std::ostringstream actual_str;
         PrintStateValue(actual_str, main_isolate(), actual_value, layout_[i]);
-        V8_Fatal(__FILE__, __LINE__, "Expected: '%s' but got '%s'",
-                 expected_str.str().c_str(), actual_str.str().c_str());
+        FATAL("Expected: '%s' but got '%s'", expected_str.str().c_str(),
+              actual_str.str().c_str());
       }
     }
   }
@@ -811,13 +807,11 @@ class TestEnvironment : public HandleAndZoneScope {
         return actual->StrictEquals(*expected);
       case MachineRepresentation::kSimd128:
         for (int lane = 0; lane < 4; lane++) {
-          Handle<Smi> actual_lane =
-              FixedArray::cast(*actual)->GetValueChecked<Smi>(main_isolate(),
-                                                              lane);
-          Handle<Smi> expected_lane =
-              FixedArray::cast(*expected)->GetValueChecked<Smi>(main_isolate(),
-                                                                lane);
-          if (*actual_lane != *expected_lane) {
+          int actual_lane =
+              Smi::cast(FixedArray::cast(*actual).get(lane)).value();
+          int expected_lane =
+              Smi::cast(FixedArray::cast(*expected).get(lane)).value();
+          if (actual_lane != expected_lane) {
             return false;
           }
         }
@@ -925,13 +919,13 @@ class TestEnvironment : public HandleAndZoneScope {
   }
 
   v8::base::RandomNumberGenerator* rng() const { return rng_; }
-  InstructionSequence* code() { return &code_; }
+  InstructionSequence* instructions() { return &instructions_; }
   CallDescriptor* test_descriptor() { return test_descriptor_; }
   int stack_slot_count() const { return stack_slot_count_; }
 
  private:
   ZoneVector<InstructionBlock*> blocks_;
-  InstructionSequence code_;
+  InstructionSequence instructions_;
   v8::base::RandomNumberGenerator* rng_;
   // The layout describes the type of each element in the environment, in order.
   std::vector<AllocatedOperand> layout_;
@@ -968,7 +962,8 @@ class CodeGeneratorTester {
       : zone_(environment->main_zone()),
         info_(ArrayVector("test"), environment->main_zone(), Code::STUB),
         linkage_(environment->test_descriptor()),
-        frame_(environment->test_descriptor()->CalculateFixedFrameSize()) {
+        frame_(environment->test_descriptor()->CalculateFixedFrameSize(
+            Code::STUB)) {
     // Pick half of the stack parameters at random and move them into spill
     // slots, separated by `extra_stack_space` bytes.
     // When testing a move with stack slots using CheckAssembleMove or
@@ -996,9 +991,10 @@ class CodeGeneratorTester {
     }
 
     generator_ = new CodeGenerator(
-        environment->main_zone(), &frame_, &linkage_, environment->code(),
-        &info_, environment->main_isolate(), base::Optional<OsrHelper>(),
-        kNoSourcePosition, nullptr, PoisoningMitigationLevel::kDontPoison,
+        environment->main_zone(), &frame_, &linkage_,
+        environment->instructions(), &info_, environment->main_isolate(),
+        base::Optional<OsrHelper>(), kNoSourcePosition, nullptr,
+        PoisoningMitigationLevel::kDontPoison,
         AssemblerOptions::Default(environment->main_isolate()),
         Builtins::kNoBuiltinId);
 
@@ -1110,6 +1106,8 @@ class CodeGeneratorTester {
     generator_->FinishCode();
     generator_->safepoints()->Emit(generator_->tasm(),
                                    frame_.GetTotalFrameSlotCount());
+    generator_->MaybeEmitOutOfLineConstantPool();
+
     return generator_->FinalizeCode().ToHandleChecked();
   }
 
@@ -1122,7 +1120,7 @@ class CodeGeneratorTester {
       generator_->AssembleMove(&move.second, &move.first);
     }
 
-    InstructionSequence* sequence = generator_->code();
+    InstructionSequence* sequence = generator_->instructions();
 
     sequence->StartBlock(RpoNumber::FromInt(0));
     // The environment expects this code to tail-call to it's first parameter

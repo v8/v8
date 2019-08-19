@@ -25,15 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 #include "test/cctest/assembler-helper-arm.h"
 #include "test/cctest/cctest.h"
 
-#include "src/assembler-inl.h"
-#include "src/disassembler.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/diagnostics/disassembler.h"
+#include "src/execution/simulator.h"
 #include "src/heap/factory.h"
-#include "src/macro-assembler.h"
-#include "src/simulator.h"
 
 namespace v8 {
 namespace internal {
@@ -352,7 +352,7 @@ TEST(simulator_invalidate_exclusive_access_threaded) {
   TestData test_data(1);
 
   MemoryAccessThread thread;
-  thread.Start();
+  CHECK(thread.Start());
 
   MemoryAccess ldrex_w(Kind::LoadExcl, Size::Word, offsetof(TestData, w));
   MemoryAccess strex_w(Kind::StoreExcl, Size::Word, offsetof(TestData, w), 7);

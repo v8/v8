@@ -188,14 +188,8 @@ InspectedContext* V8InspectorImpl::getContext(int contextId) const {
   return getContext(contextGroupId(contextId), contextId);
 }
 
-v8::MaybeLocal<v8::Context> V8InspectorImpl::contextById(
-    int groupId, v8::Maybe<int> contextId) {
-  if (contextId.IsNothing()) {
-    v8::Local<v8::Context> context =
-        client()->ensureDefaultContextInGroup(groupId);
-    return context.IsEmpty() ? v8::MaybeLocal<v8::Context>() : context;
-  }
-  InspectedContext* context = getContext(contextId.FromJust());
+v8::MaybeLocal<v8::Context> V8InspectorImpl::contextById(int contextId) {
+  InspectedContext* context = getContext(contextId);
   return context ? context->context() : v8::MaybeLocal<v8::Context>();
 }
 

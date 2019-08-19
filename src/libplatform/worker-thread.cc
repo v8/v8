@@ -12,14 +12,12 @@ namespace platform {
 
 WorkerThread::WorkerThread(TaskQueue* queue)
     : Thread(Options("V8 WorkerThread")), queue_(queue) {
-  Start();
+  CHECK(Start());
 }
-
 
 WorkerThread::~WorkerThread() {
   Join();
 }
-
 
 void WorkerThread::Run() {
   while (std::unique_ptr<Task> task = queue_->GetNext()) {

@@ -5,13 +5,16 @@
 #ifndef V8_WASM_DECODER_H_
 #define V8_WASM_DECODER_H_
 
+#include <cinttypes>
 #include <cstdarg>
 #include <memory>
 
 #include "src/base/compiler-specific.h"
-#include "src/flags.h"
-#include "src/signature.h"
-#include "src/v8memory.h"
+#include "src/base/memory.h"
+#include "src/codegen/signature.h"
+#include "src/flags/flags.h"
+#include "src/utils/utils.h"
+#include "src/utils/vector.h"
 #include "src/wasm/wasm-result.h"
 #include "src/zone/zone-containers.h"
 
@@ -44,7 +47,7 @@ class Decoder {
   Decoder(const byte* start, const byte* end, uint32_t buffer_offset = 0)
       : Decoder(start, start, end, buffer_offset) {}
   explicit Decoder(const Vector<const byte> bytes, uint32_t buffer_offset = 0)
-      : Decoder(bytes.start(), bytes.start() + bytes.length(), buffer_offset) {}
+      : Decoder(bytes.begin(), bytes.begin() + bytes.length(), buffer_offset) {}
   Decoder(const byte* start, const byte* pc, const byte* end,
           uint32_t buffer_offset = 0)
       : start_(start), pc_(pc), end_(end), buffer_offset_(buffer_offset) {
@@ -57,8 +60,7 @@ class Decoder {
 
   inline bool validate_size(const byte* pc, uint32_t length, const char* msg) {
     DCHECK_LE(start_, pc);
-    DCHECK_LE(pc, end_);
-    if (V8_UNLIKELY(length > static_cast<uint32_t>(end_ - pc))) {
+    if (V8_UNLIKELY(pc > end_ || length > static_cast<uint32_t>(end_ - pc))) {
       error(pc, msg);
       return false;
     }
@@ -218,10 +220,10 @@ class Decoder {
   template <typename T, typename U = typename std::remove_reference<T>::type>
   Result<U> toResult(T&& val) {
     if (failed()) {
-      TRACE("Result error: %s\n", error_msg_.c_str());
-      return Result<U>::Error(error_offset_, std::move(error_msg_));
+      TRACE("Result error: %s\n", error_.message().c_str());
+      return Result<U>{error_};
     }
-    return Result<U>(std::forward<T>(val));
+    return Result<U>{std::forward<T>(val)};
   }
 
   // Resets the boundaries of this decoder.
@@ -232,17 +234,17 @@ class Decoder {
     pc_ = start;
     end_ = end;
     buffer_offset_ = buffer_offset;
-    error_offset_ = 0;
-    error_msg_.clear();
+    error_ = {};
   }
 
   void Reset(Vector<const uint8_t> bytes, uint32_t buffer_offset = 0) {
     Reset(bytes.begin(), bytes.end(), buffer_offset);
   }
 
-  bool ok() const { return error_msg_.empty(); }
+  bool ok() const { return error_.empty(); }
   bool failed() const { return !ok(); }
   bool more() const { return pc_ < end_; }
+  const WasmError& error() const { return error_; }
 
   const byte* start() const { return start_; }
   const byte* pc() const { return pc_; }
@@ -271,8 +273,7 @@ class Decoder {
   const byte* end_;
   // The offset of the current buffer in the module. Needed for streaming.
   uint32_t buffer_offset_;
-  uint32_t error_offset_ = 0;
-  std::string error_msg_;
+  WasmError error_;
 
  private:
   void verrorf(uint32_t offset, const char* format, va_list args) {
@@ -287,8 +288,7 @@ class Decoder {
     EmbeddedVector<char, kMaxErrorMsg> buffer;
     int len = VSNPrintF(buffer, format, args);
     CHECK_LT(0, len);
-    error_msg_.assign(buffer.start(), len);
-    error_offset_ = offset;
+    error_ = {offset, {buffer.begin(), static_cast<size_t>(len)}};
     onFirstError();
   }
 
@@ -299,7 +299,7 @@ class Decoder {
     } else if (!validate_size(pc, sizeof(IntType), msg)) {
       return IntType{0};
     }
-    return ReadLittleEndianValue<IntType>(reinterpret_cast<Address>(pc));
+    return base::ReadLittleEndianValue<IntType>(reinterpret_cast<Address>(pc));
   }
 
   template <typename IntType>
@@ -336,14 +336,15 @@ class Decoder {
     static_assert(byte_index < kMaxLength, "invalid template instantiation");
     constexpr int shift = byte_index * 7;
     constexpr bool is_last_byte = byte_index == kMaxLength - 1;
-    DCHECK_LE(pc, end_);
-    const bool at_end = validate && pc == end_;
+    const bool at_end = validate && pc >= end_;
     byte b = 0;
     if (!at_end) {
       DCHECK_LT(pc, end_);
       b = *pc;
       TRACE_IF(trace, "%02x ", b);
-      result = result | ((static_cast<IntType>(b) & 0x7f) << shift);
+      using Unsigned = typename std::make_unsigned<IntType>::type;
+      result = result |
+               (static_cast<Unsigned>(static_cast<IntType>(b) & 0x7f) << shift);
     }
     if (!is_last_byte && (b & 0x80)) {
       // Make sure that we only instantiate the template for valid byte indexes.

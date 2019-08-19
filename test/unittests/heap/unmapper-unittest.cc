@@ -5,9 +5,10 @@
 #include <map>
 
 #include "src/base/region-allocator.h"
+#include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/spaces-inl.h"
-#include "src/isolate.h"
+#include "src/utils/ostreams.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -160,8 +161,8 @@ class TrackingPageAllocator : public ::v8::PageAllocator {
   }
 
  private:
-  typedef std::map<Address, PageAllocator::Permission> PagePermissionsMap;
-  typedef std::function<void(PagePermissionsMap::value_type*)> ForEachFn;
+  using PagePermissionsMap = std::map<Address, PageAllocator::Permission>;
+  using ForEachFn = std::function<void(PagePermissionsMap::value_type*)>;
 
   static void PrintRegion(std::ostream& os, Address start, Address end,
                           PageAllocator::Permission access) {
@@ -266,6 +267,9 @@ TrackingPageAllocator* SequentialUnmapperTest::tracking_page_allocator_ =
 v8::PageAllocator* SequentialUnmapperTest::old_page_allocator_ = nullptr;
 bool SequentialUnmapperTest::old_flag_;
 
+// TODO(v8:7464): Enable these once there is a good way to free the shared
+// read-only space.
+#ifndef V8_SHARED_RO_HEAP
 // See v8:5945.
 TEST_F(SequentialUnmapperTest, UnmapOnTeardownAfterAlreadyFreeingPooled) {
   Page* page = allocator()->AllocatePage(
@@ -325,6 +329,7 @@ TEST_F(SequentialUnmapperTest, UnmapOnTeardown) {
     tracking_page_allocator()->CheckIsFree(page->address(), page_size);
   }
 }
+#endif  // V8_SHARED_RO_HEAP
 
 }  // namespace internal
 }  // namespace v8

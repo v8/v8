@@ -10,6 +10,7 @@ group("gn_all") {
 
   data_deps = [
     ":v8_check_static_initializers",
+    "debug_helper:v8_debug_helper",
     "gcmole:v8_run_gcmole",
     "jsfunfuzz:v8_jsfunfuzz",
   ]
@@ -43,6 +44,7 @@ group("v8_testrunner") {
   testonly = true
 
   data_deps = [
+    "..:v8_python_base",
     "..:v8_dump_build_config",
     ":v8_android_test_runner_deps",
   ]

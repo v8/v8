@@ -13,6 +13,9 @@ BUILD.gn. Just compile to check whether there are any violations to the rule
 that each header must be includable in isolation.
 """
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import argparse
 import os
 import os.path
@@ -27,10 +30,12 @@ V8_DIR = os.path.dirname(MY_DIR)
 OUT_DIR = os.path.join(V8_DIR, 'check-header-includes')
 AUTO_EXCLUDE = [
   # flag-definitions.h needs a mode set for being included.
-  'src/flag-definitions.h',
+  'src/flags/flag-definitions.h',
 ]
 AUTO_EXCLUDE_PATTERNS = [
   'src/base/atomicops_internals_.*',
+  # TODO(petermarshall): Enable once Perfetto is built by default.
+  'src/libplatform/tracing/perfetto*',
 ] + [
   # platform-specific headers
   '\\b{}\\b'.format(p) for p in
@@ -58,7 +63,7 @@ def parse_args():
 
 def printv(line):
   if args.verbose:
-    print line
+    print(line)
 
 
 def find_all_headers():

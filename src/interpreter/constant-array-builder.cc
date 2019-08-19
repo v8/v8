@@ -12,8 +12,8 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/base/functional.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
+#include "src/execution/isolate.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -71,7 +71,7 @@ void ConstantArrayBuilder::ConstantArraySlice::CheckAllElementsAreUnique(
   std::set<const AstRawString*> strings;
   std::set<const char*> bigints;
   std::set<const Scope*> scopes;
-  std::set<Object*> deferred_objects;
+  std::set<Object, Object::Comparer> deferred_objects;
   for (const Entry& entry : constants_) {
     bool duplicate = false;
     switch (entry.tag_) {
@@ -179,7 +179,7 @@ MaybeHandle<Object> ConstantArrayBuilder::At(size_t index,
 
 Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(Isolate* isolate) {
   Handle<FixedArray> fixed_array = isolate->factory()->NewFixedArrayWithHoles(
-      static_cast<int>(size()), PretenureFlag::TENURED);
+      static_cast<int>(size()), AllocationType::kOld);
   int array_index = 0;
   for (const ConstantArraySlice* slice : idx_slice_) {
     DCHECK_EQ(slice->reserved(), 0);
@@ -284,7 +284,6 @@ ConstantArrayBuilder::OperandSizeToSlice(OperandSize operand_size) const {
   switch (operand_size) {
     case OperandSize::kNone:
       UNREACHABLE();
-      break;
     case OperandSize::kByte:
       slice = idx_slice_[0];
       break;
@@ -379,7 +378,7 @@ Handle<Object> ConstantArrayBuilder::Entry::ToHandle(Isolate* isolate) const {
     case Tag::kRawString:
       return raw_string_->string();
     case Tag::kHeapNumber:
-      return isolate->factory()->NewNumber(heap_number_, TENURED);
+      return isolate->factory()->NewNumber(heap_number_, AllocationType::kOld);
     case Tag::kBigInt:
       // This should never fail: the parser will never create a BigInt
       // literal that cannot be allocated.

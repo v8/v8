@@ -201,6 +201,8 @@ struct ExtendingLoadMatcher {
     DCHECK(m.IsWord64Sar());
     if (m.left().IsLoad() && m.right().Is(32) &&
         selector_->CanCover(m.node(), m.left().node())) {
+      DCHECK_EQ(selector_->GetEffectLevel(node),
+                selector_->GetEffectLevel(m.left().node()));
       MachineRepresentation rep =
           LoadRepresentationOf(m.left().node()->op()).representation();
       DCHECK_EQ(3, ElementSizeLog2Of(rep));
@@ -332,9 +334,9 @@ void InstructionSelector::VisitStackSlot(Node* node) {
        sequence()->AddImmediate(Constant(alignment)), 0, nullptr);
 }
 
-void InstructionSelector::VisitDebugAbort(Node* node) {
+void InstructionSelector::VisitAbortCSAAssert(Node* node) {
   Mips64OperandGenerator g(this);
-  Emit(kArchDebugAbort, g.NoOutput(), g.UseFixed(node->InputAt(0), a0));
+  Emit(kArchAbortCSAAssert, g.NoOutput(), g.UseFixed(node->InputAt(0), a0));
 }
 
 void EmitLoad(InstructionSelector* selector, Node* node, InstructionCode opcode,
@@ -388,9 +390,11 @@ void InstructionSelector::VisitLoad(Node* node) {
     case MachineRepresentation::kSimd128:
       opcode = kMips64MsaLd;
       break;
+    case MachineRepresentation::kCompressedSigned:   // Fall through.
+    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
-      return;
   }
   if (node->opcode() == IrOpcode::kPoisonedLoad) {
     CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
@@ -418,28 +422,16 @@ void InstructionSelector::VisitStore(Node* node) {
   MachineRepresentation rep = store_rep.representation();
 
   // TODO(mips): I guess this could be done in a better way.
-  if (write_barrier_kind != kNoWriteBarrier) {
+  if (write_barrier_kind != kNoWriteBarrier &&
+      V8_LIKELY(!FLAG_disable_write_barriers)) {
     DCHECK(CanBeTaggedPointer(rep));
     InstructionOperand inputs[3];
     size_t input_count = 0;
     inputs[input_count++] = g.UseUniqueRegister(base);
     inputs[input_count++] = g.UseUniqueRegister(index);
     inputs[input_count++] = g.UseUniqueRegister(value);
-    RecordWriteMode record_write_mode = RecordWriteMode::kValueIsAny;
-    switch (write_barrier_kind) {
-      case kNoWriteBarrier:
-        UNREACHABLE();
-        break;
-      case kMapWriteBarrier:
-        record_write_mode = RecordWriteMode::kValueIsMap;
-        break;
-      case kPointerWriteBarrier:
-        record_write_mode = RecordWriteMode::kValueIsPointer;
-        break;
-      case kFullWriteBarrier:
-        record_write_mode = RecordWriteMode::kValueIsAny;
-        break;
-    }
+    RecordWriteMode record_write_mode =
+        WriteBarrierKindToRecordWriteMode(write_barrier_kind);
     InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
     size_t const temp_count = arraysize(temps);
     InstructionCode code = kArchStoreWithWriteBarrier;
@@ -473,6 +465,9 @@ void InstructionSelector::VisitStore(Node* node) {
       case MachineRepresentation::kSimd128:
         opcode = kMips64MsaSt;
         break;
+      case MachineRepresentation::kCompressedSigned:   // Fall through.
+      case MachineRepresentation::kCompressedPointer:  // Fall through.
+      case MachineRepresentation::kCompressed:         // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
         return;
@@ -1367,7 +1362,8 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
   if (CanCover(node, value)) {
     switch (value->opcode()) {
       case IrOpcode::kWord64Sar: {
-        if (TryEmitExtendingLoad(this, value, node)) {
+        if (CanCoverTransitively(node, value, value->InputAt(0)) &&
+            TryEmitExtendingLoad(this, value, node)) {
           return;
         } else {
           Int64BinopMatcher m(value);
@@ -1677,7 +1673,6 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) {
     case MachineRepresentation::kBit:  // Fall through.
     case MachineRepresentation::kWord8:
       UNREACHABLE();
-      break;
     case MachineRepresentation::kWord16:
       opcode = load_rep.IsUnsigned() ? kMips64Ulhu : kMips64Ulh;
       break;
@@ -1693,9 +1688,11 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) {
     case MachineRepresentation::kSimd128:
       opcode = kMips64MsaLd;
       break;
+    case MachineRepresentation::kCompressedSigned:   // Fall through.
+    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
-      return;
   }
 
   if (g.CanBeImmediate(index, opcode)) {
@@ -1729,7 +1726,6 @@ void InstructionSelector::VisitUnalignedStore(Node* node) {
     case MachineRepresentation::kBit:  // Fall through.
     case MachineRepresentation::kWord8:
       UNREACHABLE();
-      break;
     case MachineRepresentation::kWord16:
       opcode = kMips64Ush;
       break;
@@ -1745,9 +1741,11 @@ void InstructionSelector::VisitUnalignedStore(Node* node) {
     case MachineRepresentation::kSimd128:
       opcode = kMips64MsaSt;
       break;
+    case MachineRepresentation::kCompressedSigned:   // Fall through.
+    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
-      return;
   }
 
   if (g.CanBeImmediate(index, opcode)) {
@@ -1949,7 +1947,17 @@ void VisitWord32Compare(InstructionSelector* selector, Node* node,
   // in those cases. Unfortunately, the solution is not complete because
   // it might skip cases where Word32 full compare is needed, so
   // basically it is a hack.
+  // When call to a host function in simulator, if the function return a
+  // int32 value, the simulator do not sign-extended to int64 because in
+  // simulator we do not know the function whether return a int32 or int64.
+  // so we need do a full word32 compare in this case.
+#ifndef USE_SIMULATOR
   if (IsNodeUnsigned(node->InputAt(0)) != IsNodeUnsigned(node->InputAt(1))) {
+#else
+  if (IsNodeUnsigned(node->InputAt(0)) != IsNodeUnsigned(node->InputAt(1)) ||
+      node->InputAt(0)->opcode() == IrOpcode::kCall ||
+      node->InputAt(1)->opcode() == IrOpcode::kCall ) {
+#endif
     VisitFullWord32Compare(selector, node, kMips64Cmp, cont);
   } else {
     VisitOptimizedWord32Compare(selector, node, kMips64Cmp, cont);
@@ -2401,6 +2409,11 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
        g.UseRegister(left), g.UseRegister(right));
 }
 
+void InstructionSelector::VisitMemoryBarrier(Node* node) {
+  Mips64OperandGenerator g(this);
+  Emit(kMips64Sync, g.NoOutput());
+}
+
 void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());
   ArchOpcode opcode = kArchNop;
@@ -2418,7 +2431,6 @@ void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
       break;
     default:
       UNREACHABLE();
-      return;
   }
   VisitAtomicLoad(this, node, opcode);
 }
@@ -2438,7 +2450,6 @@ void InstructionSelector::VisitWord32AtomicStore(Node* node) {
       break;
     default:
       UNREACHABLE();
-      return;
   }
 
   VisitAtomicStore(this, node, opcode);
@@ -2462,7 +2473,6 @@ void InstructionSelector::VisitWord64AtomicLoad(Node* node) {
       break;
     default:
       UNREACHABLE();
-      return;
   }
   VisitAtomicLoad(this, node, opcode);
 }
@@ -2485,7 +2495,6 @@ void InstructionSelector::VisitWord64AtomicStore(Node* node) {
       break;
     default:
       UNREACHABLE();
-      return;
   }
 
   VisitAtomicStore(this, node, opcode);
@@ -2645,8 +2654,6 @@ void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {
 void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   UNREACHABLE();
 }
-
-void InstructionSelector::VisitSpeculationFence(Node* node) { UNREACHABLE(); }
 
 #define SIMD_TYPE_LIST(V) \
   V(F32x4)                \

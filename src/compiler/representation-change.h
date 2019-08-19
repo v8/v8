@@ -29,8 +29,13 @@ class Truncation final {
   static Truncation Word32() {
     return Truncation(TruncationKind::kWord32, kIdentifyZeros);
   }
-  static Truncation Float64(IdentifyZeros identify_zeros = kDistinguishZeros) {
-    return Truncation(TruncationKind::kFloat64, identify_zeros);
+  static Truncation Word64() {
+    return Truncation(TruncationKind::kWord64, kIdentifyZeros);
+  }
+  static Truncation OddballAndBigIntToNumber(
+      IdentifyZeros identify_zeros = kDistinguishZeros) {
+    return Truncation(TruncationKind::kOddballAndBigIntToNumber,
+                      identify_zeros);
   }
   static Truncation Any(IdentifyZeros identify_zeros = kDistinguishZeros) {
     return Truncation(TruncationKind::kAny, identify_zeros);
@@ -50,8 +55,11 @@ class Truncation final {
   bool IsUsedAsWord32() const {
     return LessGeneral(kind_, TruncationKind::kWord32);
   }
-  bool IsUsedAsFloat64() const {
-    return LessGeneral(kind_, TruncationKind::kFloat64);
+  bool IsUsedAsWord64() const {
+    return LessGeneral(kind_, TruncationKind::kWord64);
+  }
+  bool TruncatesOddballAndBigIntToNumber() const {
+    return LessGeneral(kind_, TruncationKind::kOddballAndBigIntToNumber);
   }
   bool IdentifiesUndefinedAndZero() {
     return LessGeneral(kind_, TruncationKind::kWord32) ||
@@ -81,13 +89,15 @@ class Truncation final {
     kNone,
     kBool,
     kWord32,
-    kFloat64,
+    kWord64,
+    kOddballAndBigIntToNumber,
     kAny
   };
 
   explicit Truncation(TruncationKind kind, IdentifyZeros identify_zeros)
       : kind_(kind), identify_zeros_(identify_zeros) {
-    DCHECK(kind == TruncationKind::kAny || kind == TruncationKind::kFloat64 ||
+    DCHECK(kind == TruncationKind::kAny ||
+           kind == TruncationKind::kOddballAndBigIntToNumber ||
            identify_zeros == kIdentifyZeros);
   }
   TruncationKind kind() const { return kind_; }
@@ -109,7 +119,8 @@ enum class TypeCheckKind : uint8_t {
   kSigned64,
   kNumber,
   kNumberOrOddball,
-  kHeapObject
+  kHeapObject,
+  kBigInt,
 };
 
 inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
@@ -128,6 +139,8 @@ inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
       return os << "NumberOrOddball";
     case TypeCheckKind::kHeapObject:
       return os << "HeapObject";
+    case TypeCheckKind::kBigInt:
+      return os << "BigInt";
   }
   UNREACHABLE();
 }
@@ -160,6 +173,13 @@ class UseInfo {
   static UseInfo TruncatingWord32() {
     return UseInfo(MachineRepresentation::kWord32, Truncation::Word32());
   }
+  static UseInfo TruncatingWord64() {
+    return UseInfo(MachineRepresentation::kWord64, Truncation::Word64());
+  }
+  static UseInfo CheckedBigIntTruncatingWord64(const VectorSlotPair& feedback) {
+    return UseInfo(MachineRepresentation::kWord64, Truncation::Word64(),
+                   TypeCheckKind::kBigInt, feedback);
+  }
   static UseInfo Word64() {
     return UseInfo(MachineRepresentation::kWord64, Truncation::Any());
   }
@@ -175,7 +195,7 @@ class UseInfo {
   static UseInfo TruncatingFloat64(
       IdentifyZeros identify_zeros = kDistinguishZeros) {
     return UseInfo(MachineRepresentation::kFloat64,
-                   Truncation::Float64(identify_zeros));
+                   Truncation::OddballAndBigIntToNumber(identify_zeros));
   }
   static UseInfo AnyTagged() {
     return UseInfo(MachineRepresentation::kTagged, Truncation::Any());
@@ -186,12 +206,29 @@ class UseInfo {
   static UseInfo TaggedPointer() {
     return UseInfo(MachineRepresentation::kTaggedPointer, Truncation::Any());
   }
+  static UseInfo AnyCompressed() {
+    return UseInfo(MachineRepresentation::kCompressed, Truncation::Any());
+  }
+  static UseInfo CompressedSigned() {
+    return UseInfo(MachineRepresentation::kCompressedSigned, Truncation::Any());
+  }
+  static UseInfo CompressedPointer() {
+    return UseInfo(MachineRepresentation::kCompressedPointer,
+                   Truncation::Any());
+  }
 
   // Possibly deoptimizing conversions.
-  static UseInfo CheckedHeapObjectAsTaggedPointer() {
+  static UseInfo CheckedHeapObjectAsTaggedPointer(
+      const VectorSlotPair& feedback) {
     return UseInfo(MachineRepresentation::kTaggedPointer, Truncation::Any(),
-                   TypeCheckKind::kHeapObject);
+                   TypeCheckKind::kHeapObject, feedback);
   }
+
+  static UseInfo CheckedBigIntAsTaggedPointer(const VectorSlotPair& feedback) {
+    return UseInfo(MachineRepresentation::kTaggedPointer, Truncation::Any(),
+                   TypeCheckKind::kBigInt, feedback);
+  }
+
   static UseInfo CheckedSignedSmallAsTaggedSigned(
       const VectorSlotPair& feedback,
       IdentifyZeros identify_zeros = kDistinguishZeros) {
@@ -272,9 +309,9 @@ class UseInfo {
 // Contains logic related to changing the representation of values for constants
 // and other nodes, as well as lowering Simplified->Machine operators.
 // Eagerly folds any representation changes for constants.
-class RepresentationChanger final {
+class V8_EXPORT_PRIVATE RepresentationChanger final {
  public:
-  RepresentationChanger(JSGraph* jsgraph, Isolate* isolate);
+  RepresentationChanger(JSGraph* jsgraph, JSHeapBroker* broker);
 
   // Changes representation from {output_type} to {use_rep}. The {truncation}
   // parameter is only used for sanity checking - if the changer cannot figure
@@ -302,9 +339,9 @@ class RepresentationChanger final {
   }
 
  private:
-  TypeCache const& cache_;
+  TypeCache const* cache_;
   JSGraph* jsgraph_;
-  Isolate* isolate_;
+  JSHeapBroker* broker_;
 
   friend class RepresentationChangerTester;  // accesses the below fields.
 
@@ -321,6 +358,17 @@ class RepresentationChanger final {
                                           UseInfo use_info);
   Node* GetTaggedRepresentationFor(Node* node, MachineRepresentation output_rep,
                                    Type output_type, Truncation truncation);
+  Node* GetCompressedSignedRepresentationFor(Node* node,
+                                             MachineRepresentation output_rep,
+                                             Type output_type, Node* use_node,
+                                             UseInfo use_info);
+  Node* GetCompressedPointerRepresentationFor(Node* node,
+                                              MachineRepresentation output_rep,
+                                              Type output_type, Node* use_node,
+                                              UseInfo use_info);
+  Node* GetCompressedRepresentationFor(Node* node,
+                                       MachineRepresentation output_rep,
+                                       Type output_type, Truncation truncation);
   Node* GetFloat32RepresentationFor(Node* node,
                                     MachineRepresentation output_rep,
                                     Type output_type, Truncation truncation);
@@ -347,12 +395,18 @@ class RepresentationChanger final {
   Node* InsertChangeTaggedSignedToInt32(Node* node);
   Node* InsertChangeTaggedToFloat64(Node* node);
   Node* InsertChangeUint32ToFloat64(Node* node);
+  Node* InsertChangeCompressedPointerToTaggedPointer(Node* node);
+  Node* InsertChangeCompressedSignedToTaggedSigned(Node* node);
+  Node* InsertChangeCompressedToTagged(Node* node);
+  Node* InsertCheckedFloat64ToInt32(Node* node, CheckForMinusZeroMode check,
+                                    const VectorSlotPair& feedback,
+                                    Node* use_node);
   Node* InsertConversion(Node* node, const Operator* op, Node* use_node);
   Node* InsertTruncateInt64ToInt32(Node* node);
   Node* InsertUnconditionalDeopt(Node* node, DeoptimizeReason reason);
 
   JSGraph* jsgraph() const { return jsgraph_; }
-  Isolate* isolate() const { return isolate_; }
+  Isolate* isolate() const;
   Factory* factory() const { return isolate()->factory(); }
   SimplifiedOperatorBuilder* simplified() { return jsgraph()->simplified(); }
   MachineOperatorBuilder* machine() { return jsgraph()->machine(); }

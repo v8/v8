@@ -7,19 +7,20 @@
 #include <sstream>
 
 #include "include/v8-platform.h"
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/base/platform/semaphore.h"
 #include "src/base/template-utils.h"
-#include "src/compiler.h"
-#include "src/flags.h"
-#include "src/handles.h"
-#include "src/objects-inl.h"
+#include "src/codegen/compiler.h"
+#include "src/flags/flags.h"
+#include "src/handles/handles.h"
+#include "src/init/v8.h"
+#include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
-#include "src/v8.h"
+#include "src/zone/zone-list-inl.h"
 #include "test/unittests/test-helpers.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -58,11 +59,11 @@ class CompilerDispatcherTest : public TestWithNativeContext {
 
   static void SetUpTestCase() {
     CompilerDispatcherTestFlags::SetFlagsForTest();
-    TestWithNativeContext ::SetUpTestCase();
+    TestWithNativeContext::SetUpTestCase();
   }
 
   static void TearDownTestCase() {
-    TestWithNativeContext ::TearDownTestCase();
+    TestWithNativeContext::TearDownTestCase();
     CompilerDispatcherTestFlags::RestoreFlags();
   }
 
@@ -93,7 +94,7 @@ class CompilerDispatcherTest : public TestWithNativeContext {
             FunctionLiteral::kNoDuplicateParameters,
             FunctionLiteral::kAnonymousExpression,
             FunctionLiteral::kShouldEagerCompile, shared->StartPosition(), true,
-            shared->FunctionLiteralId(isolate), nullptr);
+            shared->function_literal_id(), nullptr);
 
     return dispatcher->Enqueue(outer_parse_info.get(), function_name,
                                function_literal);
@@ -292,7 +293,7 @@ class MockPlatform : public v8::Platform {
     void PostDelayedTask(std::unique_ptr<Task> task,
                          double delay_in_seconds) override {
       UNREACHABLE();
-    };
+    }
 
     void PostIdleTask(std::unique_ptr<IdleTask> task) override {
       DCHECK(IdleTasksEnabled());
@@ -301,7 +302,7 @@ class MockPlatform : public v8::Platform {
       platform_->idle_task_ = task.release();
     }
 
-    bool IdleTasksEnabled() override { return true; };
+    bool IdleTasksEnabled() override { return true; }
 
    private:
     MockPlatform* platform_;

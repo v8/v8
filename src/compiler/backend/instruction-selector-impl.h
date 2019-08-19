@@ -5,12 +5,12 @@
 #ifndef V8_COMPILER_BACKEND_INSTRUCTION_SELECTOR_IMPL_H_
 #define V8_COMPILER_BACKEND_INSTRUCTION_SELECTOR_IMPL_H_
 
+#include "src/codegen/macro-assembler.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/schedule.h"
-#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -29,11 +29,11 @@ inline bool operator<(const CaseInfo& l, const CaseInfo& r) {
 // Helper struct containing data about a table or lookup switch.
 class SwitchInfo {
  public:
-  SwitchInfo(ZoneVector<CaseInfo>& cases, int32_t min_value, int32_t max_value,
-             BasicBlock* default_branch)
+  SwitchInfo(ZoneVector<CaseInfo>& cases,  // NOLINT(runtime/references)
+             int32_t min_value, int32_t max_value, BasicBlock* default_branch)
       : cases_(cases),
         min_value_(min_value),
-        max_value_(min_value),
+        max_value_(max_value),
         default_branch_(default_branch) {
     if (cases.size() != 0) {
       DCHECK_LE(min_value, max_value);
@@ -109,13 +109,9 @@ class OperandGenerator {
   }
 
   InstructionOperand DefineAsConstant(Node* node) {
-    return DefineAsConstant(node, ToConstant(node));
-  }
-
-  InstructionOperand DefineAsConstant(Node* node, Constant constant) {
     selector()->MarkAsDefined(node);
     int virtual_register = GetVReg(node);
-    sequence()->AddConstant(virtual_register, constant);
+    sequence()->AddConstant(virtual_register, ToConstant(node));
     return ConstantOperand(virtual_register);
   }
 
@@ -326,6 +322,8 @@ class OperandGenerator {
       }
       case IrOpcode::kHeapConstant:
         return Constant(HeapConstantOf(node->op()));
+      case IrOpcode::kCompressedHeapConstant:
+        return Constant(HeapConstantOf(node->op()), true);
       case IrOpcode::kDelayedStringConstant:
         return Constant(StringConstantBaseOf(node->op()));
       case IrOpcode::kDeadValue: {
@@ -335,6 +333,9 @@ class OperandGenerator {
           case MachineRepresentation::kTagged:
           case MachineRepresentation::kTaggedSigned:
           case MachineRepresentation::kTaggedPointer:
+          case MachineRepresentation::kCompressed:
+          case MachineRepresentation::kCompressedSigned:
+          case MachineRepresentation::kCompressedPointer:
             return Constant(static_cast<int32_t>(0));
           case MachineRepresentation::kFloat64:
             return Constant(static_cast<double>(0));

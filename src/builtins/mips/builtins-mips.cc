@@ -4,22 +4,24 @@
 
 #if V8_TARGET_ARCH_MIPS
 
-#include "src/api-arguments.h"
-#include "src/code-factory.h"
-#include "src/counters.h"
+#include "src/api/api-arguments.h"
+#include "src/codegen/code-factory.h"
 #include "src/debug/debug.h"
-#include "src/deoptimizer.h"
-#include "src/frame-constants.h"
-#include "src/frames.h"
-#include "src/macro-assembler-inl.h"
-#include "src/mips/constants-mips.h"
-#include "src/objects-inl.h"
+#include "src/deoptimizer/deoptimizer.h"
+#include "src/execution/frame-constants.h"
+#include "src/execution/frames.h"
+#include "src/logging/counters.h"
+// For interpreter_entry_return_pc_offset. TODO(jkummerow): Drop.
+#include "src/codegen/macro-assembler-inl.h"
+#include "src/codegen/mips/constants-mips.h"
+#include "src/codegen/register-configuration.h"
+#include "src/heap/heap-inl.h"
 #include "src/objects/cell.h"
 #include "src/objects/foreign.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/js-generator.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
-#include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -28,17 +30,10 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address,
-                                ExitFrameType exit_frame_type) {
+void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address) {
   __ li(kJavaScriptCallExtraArg1Register, ExternalReference::Create(address));
-  if (exit_frame_type == BUILTIN_EXIT) {
-    __ Jump(BUILTIN_CODE(masm->isolate(), AdaptorWithBuiltinExitFrame),
-            RelocInfo::CODE_TARGET);
-  } else {
-    DCHECK(exit_frame_type == EXIT);
-    __ Jump(BUILTIN_CODE(masm->isolate(), AdaptorWithExitFrame),
-            RelocInfo::CODE_TARGET);
-  }
+  __ Jump(BUILTIN_CODE(masm->isolate(), AdaptorWithBuiltinExitFrame),
+          RelocInfo::CODE_TARGET);
 }
 
 void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
@@ -47,8 +42,6 @@ void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
   //  -- ra     : return address
   //  -- sp[...]: constructor arguments
   // -----------------------------------
-  Label generic_array_code, one_or_more_arguments, two_or_more_arguments;
-
   if (FLAG_debug_code) {
     // Initial map for the builtin InternalArray functions should be maps.
     __ lw(a2, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
@@ -69,7 +62,6 @@ void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
 static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
                                            Runtime::FunctionId function_id) {
   // ----------- S t a t e -------------
-  //  -- a0 : argument count (preserved for callee)
   //  -- a1 : target function (preserved for callee)
   //  -- a3 : new target (preserved for callee)
   // -----------------------------------
@@ -77,14 +69,12 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
     FrameScope scope(masm, StackFrame::INTERNAL);
     // Push a copy of the target function and the new target.
     // Push function as parameter to the runtime call.
-    __ SmiTag(a0);
-    __ Push(a0, a1, a3, a1);
+    __ Push(a1, a3, a1);
 
     __ CallRuntime(function_id, 1);
 
     // Restore target function and new target.
-    __ Pop(a0, a1, a3);
-    __ SmiUntag(a0);
+    __ Pop(a1, a3);
   }
 
   static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
@@ -210,8 +200,9 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
     __ lw(t2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
     __ lw(t2, FieldMemOperand(t2, SharedFunctionInfo::kFlagsOffset));
-    __ And(t2, t2, Operand(SharedFunctionInfo::IsDerivedConstructorBit::kMask));
-    __ Branch(&not_create_implicit_receiver, ne, t2, Operand(zero_reg));
+    __ DecodeField<SharedFunctionInfo::FunctionKindBits>(t2);
+    __ JumpIfIsInRange(t2, kDefaultDerivedConstructor, kDerivedConstructor,
+                       &not_create_implicit_receiver);
 
     // If not derived class constructor: Allocate the new receiver object.
     __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1,
@@ -370,20 +361,21 @@ void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
   __ CallRuntime(Runtime::kThrowConstructedNonConstructable);
 }
 
-// Clobbers a2; preserves all other registers.
-static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc) {
+// Clobbers scratch1 and scratch2; preserves all other registers.
+static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc,
+                                        Register scratch1, Register scratch2) {
   // Check the stack for overflow. We are not trying to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
   Label okay;
-  __ LoadRoot(a2, RootIndex::kRealStackLimit);
+  __ LoadRoot(scratch1, RootIndex::kRealStackLimit);
   // Make a2 the space we have left. The stack might already be overflowed
   // here which will cause a2 to become negative.
-  __ Subu(a2, sp, a2);
+  __ Subu(scratch1, sp, scratch1);
   // Check if the arguments will overflow the stack.
-  __ sll(t3, argc, kPointerSizeLog2);
+  __ sll(scratch2, argc, kPointerSizeLog2);
   // Signed comparison.
-  __ Branch(&okay, gt, a2, Operand(t3));
+  __ Branch(&okay, gt, scratch1, Operand(scratch2));
 
   // Out of stack space.
   __ CallRuntime(Runtime::kThrowStackOverflow);
@@ -393,53 +385,50 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc) {
 
 namespace {
 
+// Used by JSEntryTrampoline to refer C++ parameter to JSEntryVariant.
+constexpr int kPushedStackSpace =
+    kCArgsSlotsSize + (kNumCalleeSaved + 1) * kPointerSize +
+    kNumCalleeSavedFPU * kDoubleSize + 4 * kPointerSize +
+    EntryFrameConstants::kCallerFPOffset;
+
 // Called with the native C calling convention. The corresponding function
-// signature is:
+// signature is either:
 //
-//  using JSEntryFunction = GeneratedCode<Address(
-//      Address new_target, Address target, Address receiver, int argc,
-//      Address** args, Address root_register_value)>;
+//   using JSEntryFunction = GeneratedCode<Address(
+//       Address root_register_value, Address new_target, Address target,
+//       Address receiver, intptr_t argc, Address** argv)>;
+// or
+//   using JSEntryFunction = GeneratedCode<Address(
+//       Address root_register_value, MicrotaskQueue* microtask_queue)>;
+//
+// Passes through a0, a1, a2, a3 and stack to JSEntryTrampoline.
 void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
                              Builtins::Name entry_trampoline) {
   Label invoke, handler_entry, exit;
 
-  static constexpr int kPushedStackSpace =
-      (kNumCalleeSaved + 1) * kPointerSize + kNumCalleeSavedFPU * kDoubleSize;
-
+  int pushed_stack_space = kCArgsSlotsSize;
   {
     NoRootArrayScope no_root_array(masm);
 
     // Registers:
-    // a0: entry address
-    // a1: function
-    // a2: receiver
-    // a3: argc
-    //
-    // Stack:
-    // 4 arg slots
-    // argv
-    // root register value
+    // a0: root_register_value
 
     // Save callee saved registers on the stack.
     __ MultiPush(kCalleeSaved | ra.bit());
+    pushed_stack_space +=
+        kNumCalleeSaved * kPointerSize + kPointerSize /* ra */;
 
     // Save callee-saved FPU registers.
     __ MultiPushFPU(kCalleeSavedFPU);
+    pushed_stack_space += kNumCalleeSavedFPU * kDoubleSize;
+
     // Set up the reserved register for 0.0.
     __ Move(kDoubleRegZero, 0.0);
 
     // Initialize the root register.
-    // C calling convention. The sixth argument is passed on the stack.
-    static constexpr int kOffsetToRootRegisterValue =
-        kPushedStackSpace + kCArgsSlotsSize +
-        EntryFrameConstants::kRootRegisterValueOffset;
-    __ lw(kRootRegister, MemOperand(sp, kOffsetToRootRegisterValue));
+    // C calling convention. The first argument is passed in a0.
+    __ mov(kRootRegister, a0);
   }
-
-  // Load argv in s0 register.
-  static constexpr int kOffsetToArgv =
-      kPushedStackSpace + kCArgsSlotsSize + EntryFrameConstants::kArgvOffset;
-  __ lw(s0, MemOperand(sp, kOffsetToArgv));
 
   // We build an EntryFrame.
   __ li(t3, Operand(-1));  // Push a bad frame pointer to fail if it is used.
@@ -449,15 +438,14 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
                                       masm->isolate()));
   __ lw(t0, MemOperand(t0));
   __ Push(t3, t2, t1, t0);
+  pushed_stack_space += 4 * kPointerSize;
+
   // Set up frame pointer for the frame to be pushed.
   __ addiu(fp, sp, -EntryFrameConstants::kCallerFPOffset);
+  pushed_stack_space += EntryFrameConstants::kCallerFPOffset;
 
   // Registers:
-  // a0: entry_address
-  // a1: function
-  // a2: receiver_pointer
-  // a3: argc
-  // s0: argv
+  // a0: root_register_value
   //
   // Stack:
   // caller fp          |
@@ -466,7 +454,6 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // bad fp (0xFF...F)  |
   // callee saved registers + ra
   // 4 args slots
-  // args
 
   // If this is the outermost JS call, set js_entry_sp value.
   Label non_outermost_js;
@@ -513,24 +500,19 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // restores all kCalleeSaved registers (including cp and fp) to their
   // saved values before returning a failure to C.
   //
-  // Registers:
-  // a0: entry_address
-  // a1: function
-  // a2: receiver_pointer
-  // a3: argc
-  // s0: argv
+  // Preserve a1, a2 and a3 passed by C++ and pass them to the trampoline.
   //
   // Stack:
   // handler frame
   // entry frame
   // callee saved registers + ra
   // 4 args slots
-  // args
   //
   // Invoke the function by calling through JS entry trampoline builtin and
   // pop the faked function when we return.
   Handle<Code> trampoline_code =
       masm->isolate()->builtins()->builtin_handle(entry_trampoline);
+  DCHECK_EQ(kPushedStackSpace, pushed_stack_space);
   __ Call(trampoline_code, RelocInfo::CODE_TARGET);
 
   // Unlink this frame from the handler chain.
@@ -577,17 +559,19 @@ void Builtins::Generate_JSConstructEntry(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_JSRunMicrotasksEntry(MacroAssembler* masm) {
-  Generate_JSEntryVariant(masm, StackFrame::ENTRY, Builtins::kRunMicrotasks);
+  Generate_JSEntryVariant(masm, StackFrame::ENTRY,
+                          Builtins::kRunMicrotasksTrampoline);
 }
 
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
   // ----------- S t a t e -------------
-  //  -- a0: new.target
-  //  -- a1: function
-  //  -- a2: receiver_pointer
-  //  -- a3: argc
-  //  -- s0: argv
+  //  -- a0: root_register_value (unused)
+  //  -- a1: new.target
+  //  -- a2: function
+  //  -- a3: receiver_pointer
+  //  -- [fp + kPushedStackSpace + 0 * kPointerSize]: argc
+  //  -- [fp + kPushedStackSpace + 1 * kPointerSize]: argv
   // -----------------------------------
 
   // Enter an internal frame.
@@ -601,20 +585,31 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ lw(cp, MemOperand(cp));
 
     // Push the function and the receiver onto the stack.
-    __ Push(a1, a2);
+    __ Push(a2, a3);
+
+    __ mov(a3, a1);
+    __ mov(a1, a2);
+
+    __ lw(s0, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+    __ lw(a0,
+          MemOperand(s0, kPushedStackSpace + EntryFrameConstants::kArgcOffset));
+    __ lw(s0,
+          MemOperand(s0, kPushedStackSpace + EntryFrameConstants::kArgvOffset));
+
+    // a0: argc
+    // a1: function
+    // a3: new.target
+    // s0: argv
 
     // Check if we have enough stack space to push all arguments.
-    // Clobbers a2.
-    Generate_CheckStackOverflow(masm, a3);
-
-    // Remember new.target.
-    __ mov(t1, a0);
+    // Clobbers a2 and t0.
+    Generate_CheckStackOverflow(masm, a0, a2, t0);
 
     // Copy arguments to the stack in a loop.
-    // a3: argc
+    // a0: argc
     // s0: argv, i.e. points to first arg
     Label loop, entry;
-    __ Lsa(t2, s0, a3, kPointerSizeLog2);
+    __ Lsa(t2, s0, a0, kPointerSizeLog2);
     __ b(&entry);
     __ nop();  // Branch delay slot nop.
     // t2 points past last arg.
@@ -626,13 +621,14 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ bind(&entry);
     __ Branch(&loop, ne, s0, Operand(t2));
 
-    // Setup new.target and argc.
-    __ mov(a0, a3);
-    __ mov(a3, t1);
+    // a0: argc
+    // a1: function
+    // a3: new.target
 
     // Initialize all JavaScript callee-saved registers, since they will be seen
     // by the garbage collector as part of handlers.
     __ LoadRoot(t0, RootIndex::kUndefinedValue);
+    __ mov(s0, t0);
     __ mov(s1, t0);
     __ mov(s2, t0);
     __ mov(s3, t0);
@@ -659,6 +655,12 @@ void Builtins::Generate_JSEntryTrampoline(MacroAssembler* masm) {
 
 void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
   Generate_JSEntryTrampolineHelper(masm, true);
+}
+
+void Builtins::Generate_RunMicrotasksTrampoline(MacroAssembler* masm) {
+  // a1: microtask_queue
+  __ mov(RunMicrotasksDescriptor::MicrotaskQueueRegister(), a1);
+  __ Jump(BUILTIN_CODE(masm->isolate(), RunMicrotasks), RelocInfo::CODE_TARGET);
 }
 
 static void GetSharedFunctionInfoBytecode(MacroAssembler* masm,
@@ -848,13 +850,11 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
                                            Register scratch1, Register scratch2,
                                            Register scratch3) {
   // ----------- S t a t e -------------
-  //  -- a0 : argument count (preserved for callee if needed, and caller)
   //  -- a3 : new target (preserved for callee if needed, and caller)
   //  -- a1 : target function (preserved for callee if needed, and caller)
   //  -- feedback vector (preserved for caller if needed)
   // -----------------------------------
-  DCHECK(
-      !AreAliased(feedback_vector, a0, a1, a3, scratch1, scratch2, scratch3));
+  DCHECK(!AreAliased(feedback_vector, a1, a3, scratch1, scratch2, scratch3));
 
   Label optimized_code_slot_is_weak_ref, fallthrough;
 
@@ -862,7 +862,8 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
   Register optimized_code_entry = scratch1;
 
   __ lw(optimized_code_entry,
-        FieldMemOperand(feedback_vector, FeedbackVector::kOptimizedCodeOffset));
+        FieldMemOperand(feedback_vector,
+                        FeedbackVector::kOptimizedCodeWeakOrSmiOffset));
 
   // Check if the code entry is a Smi. If yes, we interpret it as an
   // optimisation marker. Otherwise, interpret it as a weak cell to a code
@@ -1012,26 +1013,34 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   Register closure = a1;
   Register feedback_vector = a2;
 
-  // Load the feedback vector from the closure.
-  __ lw(feedback_vector,
-        FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
-  __ lw(feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
-  // Read off the optimized code slot in the feedback vector, and if there
-  // is optimized code or an optimization marker, call that instead.
-  MaybeTailCallOptimizedCodeSlot(masm, feedback_vector, t0, t3, t1);
-
-  // Open a frame scope to indicate that there is a frame on the stack.  The
-  // MANUAL indicates that the scope shouldn't actually generate code to set up
-  // the frame (that is done below).
-  FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ PushStandardFrame(closure);
-
   // Get the bytecode array from the function object and load it into
   // kInterpreterBytecodeArrayRegister.
   __ lw(a0, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   __ lw(kInterpreterBytecodeArrayRegister,
         FieldMemOperand(a0, SharedFunctionInfo::kFunctionDataOffset));
   GetSharedFunctionInfoBytecode(masm, kInterpreterBytecodeArrayRegister, t0);
+
+  // The bytecode array could have been flushed from the shared function info,
+  // if so, call into CompileLazy.
+  Label compile_lazy;
+  __ GetObjectType(kInterpreterBytecodeArrayRegister, a0, a0);
+  __ Branch(&compile_lazy, ne, a0, Operand(BYTECODE_ARRAY_TYPE));
+
+  // Load the feedback vector from the closure.
+  __ lw(feedback_vector,
+        FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
+  __ lw(feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
+
+  Label push_stack_frame;
+  // Check if feedback vector is valid. If valid, check for optimized code
+  // and update invocation count. Otherwise, setup the stack frame.
+  __ lw(t0, FieldMemOperand(feedback_vector, HeapObject::kMapOffset));
+  __ lhu(t0, FieldMemOperand(t0, Map::kInstanceTypeOffset));
+  __ Branch(&push_stack_frame, ne, t0, Operand(FEEDBACK_VECTOR_TYPE));
+
+  // Read off the optimized code slot in the feedback vector, and if there
+  // is optimized code or an optimization marker, call that instead.
+  MaybeTailCallOptimizedCodeSlot(masm, feedback_vector, t0, t3, t1);
 
   // Increment invocation count for the function.
   __ lw(t0, FieldMemOperand(feedback_vector,
@@ -1040,22 +1049,21 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ sw(t0, FieldMemOperand(feedback_vector,
                             FeedbackVector::kInvocationCountOffset));
 
-  // Check function data field is actually a BytecodeArray object.
-  if (FLAG_debug_code) {
-    __ SmiTst(kInterpreterBytecodeArrayRegister, t0);
-    __ Assert(ne,
-              AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry,
-              t0, Operand(zero_reg));
-    __ GetObjectType(kInterpreterBytecodeArrayRegister, t0, t0);
-    __ Assert(eq,
-              AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry,
-              t0, Operand(BYTECODE_ARRAY_TYPE));
-  }
+  // Open a frame scope to indicate that there is a frame on the stack.  The
+  // MANUAL indicates that the scope shouldn't actually generate code to set up
+  // the frame (that is done below).
+  __ bind(&push_stack_frame);
+  FrameScope frame_scope(masm, StackFrame::MANUAL);
+  __ PushStandardFrame(closure);
 
-  // Reset code age.
-  DCHECK_EQ(0, BytecodeArray::kNoAgeBytecodeAge);
-  __ sb(zero_reg, FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                                  BytecodeArray::kBytecodeAgeOffset));
+  // Reset code age and the OSR arming. The OSR field and BytecodeAgeOffset are
+  // 8-bit fields next to each other, so we could just optimize by writing a
+  // 16-bit. These static asserts guard our assumption is valid.
+  STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
+                BytecodeArray::kOsrNestingLevelOffset + kCharSize);
+  STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
+  __ sh(zero_reg, FieldMemOperand(kInterpreterBytecodeArrayRegister,
+                                  BytecodeArray::kOsrNestingLevelOffset));
 
   // Load initial bytecode offset.
   __ li(kInterpreterBytecodeOffsetRegister,
@@ -1145,6 +1153,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // The return value is in v0.
   LeaveInterpreterFrame(masm, t0);
   __ Jump(ra);
+
+  __ bind(&compile_lazy);
+  GenerateTailCallToReturnedCode(masm, Runtime::kCompileLazy);
+  // Unreachable code.
+  __ break_(0xCC);
 }
 
 static void Generate_InterpreterPushArgs(MacroAssembler* masm,
@@ -1298,7 +1311,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ lw(t0, MemOperand(t0));
 
   __ bind(&trampoline_loaded);
-  __ Addu(ra, t0, Operand(interpreter_entry_return_pc_offset->value()));
+  __ Addu(ra, t0, Operand(interpreter_entry_return_pc_offset.value()));
 
   // Initialize the dispatch table register.
   __ li(kInterpreterDispatchTableRegister,
@@ -1458,11 +1471,13 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
   }
   __ lw(fp, MemOperand(
                 sp, BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
+  // Load builtin index (stored as a Smi) and use it to get the builtin start
+  // address from the builtins table.
   __ Pop(t0);
   __ Addu(sp, sp,
           Operand(BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
   __ Pop(ra);
-  __ Addu(t0, t0, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ LoadEntryFromBuiltinIndex(t0);
   __ Jump(t0);
 }
 }  // namespace
@@ -2473,7 +2488,10 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ Push(kWasmInstanceRegister, kWasmCompileLazyFuncIndexRegister);
     // Load the correct CEntry builtin from the instance object.
     __ lw(a2, FieldMemOperand(kWasmInstanceRegister,
-                              WasmInstanceObject::kCEntryStubOffset));
+                              WasmInstanceObject::kIsolateRootOffset));
+    auto centry_id =
+        Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit;
+    __ lw(a2, MemOperand(a2, IsolateData::builtin_slot_offset(centry_id)));
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
     __ Move(kContextRegister, Smi::zero());
@@ -2553,7 +2571,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ LoadRoot(t0, RootIndex::kTheHoleValue);
     // Cannot use check here as it attempts to generate call into runtime.
     __ Branch(&okay, eq, t0, Operand(a2));
-    __ stop("Unexpected pending exception");
+    __ stop();
     __ bind(&okay);
   }
 
@@ -2622,7 +2640,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 }
 
 void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
-  Label out_of_range, only_low, negate, done;
+  Label done;
   Register result_reg = t0;
 
   Register scratch = GetRegisterThatIsNotOneOf(result_reg);
@@ -2671,7 +2689,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   __ lw(input_high,
         MemOperand(sp, kArgumentOffset + Register::kExponentOffset));
 
-  Label normal_exponent, restore_sign;
+  Label normal_exponent;
   // Extract the biased exponent in result.
   __ Ext(result_reg, input_high, HeapNumber::kExponentShift,
          HeapNumber::kExponentBits);
@@ -2749,106 +2767,6 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   __ Ret();
 }
 
-void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
-  const Register exponent = a2;
-  const DoubleRegister double_base = f2;
-  const DoubleRegister double_exponent = f4;
-  const DoubleRegister double_result = f0;
-  const DoubleRegister double_scratch = f6;
-  const FPURegister single_scratch = f8;
-  const Register scratch = t5;
-  const Register scratch2 = t3;
-
-  Label call_runtime, done, int_exponent;
-
-  Label int_exponent_convert;
-  // Detect integer exponents stored as double.
-  __ EmitFPUTruncate(kRoundToMinusInf, scratch, double_exponent, kScratchReg,
-                     double_scratch, scratch2, kCheckForInexactConversion);
-  // scratch2 == 0 means there was no conversion error.
-  __ Branch(&int_exponent_convert, eq, scratch2, Operand(zero_reg));
-
-  __ push(ra);
-  {
-    AllowExternalCallThatCantCauseGC scope(masm);
-    __ PrepareCallCFunction(0, 2, scratch2);
-    __ MovToFloatParameters(double_base, double_exponent);
-    __ CallCFunction(ExternalReference::power_double_double_function(), 0, 2);
-  }
-  __ pop(ra);
-  __ MovFromFloatResult(double_result);
-  __ jmp(&done);
-
-  __ bind(&int_exponent_convert);
-
-  // Calculate power with integer exponent.
-  __ bind(&int_exponent);
-
-  // Get two copies of exponent in the registers scratch and exponent.
-  // Exponent has previously been stored into scratch as untagged integer.
-  __ mov(exponent, scratch);
-
-  __ mov_d(double_scratch, double_base);  // Back up base.
-  __ Move(double_result, 1.0);
-
-  // Get absolute value of exponent.
-  Label positive_exponent, bail_out;
-  __ Branch(&positive_exponent, ge, scratch, Operand(zero_reg));
-  __ Subu(scratch, zero_reg, scratch);
-  // Check when Subu overflows and we get negative result
-  // (happens only when input is MIN_INT).
-  __ Branch(&bail_out, gt, zero_reg, Operand(scratch));
-  __ bind(&positive_exponent);
-  __ Assert(ge, AbortReason::kUnexpectedNegativeValue, scratch,
-            Operand(zero_reg));
-
-  Label while_true, no_carry, loop_end;
-  __ bind(&while_true);
-
-  __ And(scratch2, scratch, 1);
-
-  __ Branch(&no_carry, eq, scratch2, Operand(zero_reg));
-  __ mul_d(double_result, double_result, double_scratch);
-  __ bind(&no_carry);
-
-  __ sra(scratch, scratch, 1);
-
-  __ Branch(&loop_end, eq, scratch, Operand(zero_reg));
-  __ mul_d(double_scratch, double_scratch, double_scratch);
-
-  __ Branch(&while_true);
-
-  __ bind(&loop_end);
-
-  __ Branch(&done, ge, exponent, Operand(zero_reg));
-  __ Move(double_scratch, 1.0);
-  __ div_d(double_result, double_scratch, double_result);
-  // Test whether result is zero.  Bail out to check for subnormal result.
-  // Due to subnormals, x^-y == (1/x)^y does not hold in all cases.
-  __ CompareF64(EQ, double_result, kDoubleRegZero);
-  __ BranchFalseShortF(&done);
-
-  // double_exponent may not contain the exponent value if the input was a
-  // smi.  We set it with exponent value before bailing out.
-  __ bind(&bail_out);
-  __ mtc1(exponent, single_scratch);
-  __ cvt_d_w(double_exponent, single_scratch);
-
-  // Returning or bailing out.
-  __ push(ra);
-  {
-    AllowExternalCallThatCantCauseGC scope(masm);
-    __ PrepareCallCFunction(0, 2, scratch);
-    __ MovToFloatParameters(double_base, double_exponent);
-    __ CallCFunction(ExternalReference::power_double_double_function(), 0, 2);
-  }
-  __ pop(ra);
-  __ MovFromFloatResult(double_result);
-
-  __ bind(&done);
-  __ Ret();
-}
-
 void Builtins::Generate_InternalArrayConstructorImpl(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0 : argc
@@ -2919,18 +2837,23 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
 
   DCHECK(function_address == a1 || function_address == a2);
 
-  Label profiler_disabled;
-  Label end_profiler_check;
+  Label profiler_enabled, end_profiler_check;
   __ li(t9, ExternalReference::is_profiling_address(isolate));
   __ lb(t9, MemOperand(t9, 0));
-  __ Branch(&profiler_disabled, eq, t9, Operand(zero_reg));
-
-  // Additional parameter is the address of the actual callback.
-  __ li(t9, thunk_ref);
-  __ jmp(&end_profiler_check);
-
-  __ bind(&profiler_disabled);
-  __ mov(t9, function_address);
+  __ Branch(&profiler_enabled, ne, t9, Operand(zero_reg));
+  __ li(t9, ExternalReference::address_of_runtime_stats_flag());
+  __ lw(t9, MemOperand(t9, 0));
+  __ Branch(&profiler_enabled, ne, t9, Operand(zero_reg));
+  {
+    // Call the api function directly.
+    __ mov(t9, function_address);
+    __ Branch(&end_profiler_check);
+  }
+  __ bind(&profiler_enabled);
+  {
+    // Additional parameter is the address of the actual callback.
+    __ li(t9, thunk_ref);
+  }
   __ bind(&end_profiler_check);
 
   // Allocate HandleScope in callee-save registers.
@@ -2941,25 +2864,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ Addu(s2, s2, Operand(1));
   __ sw(s2, MemOperand(s5, kLevelOffset));
 
-  if (FLAG_log_timer_events) {
-    FrameScope frame(masm, StackFrame::MANUAL);
-    __ PushSafepointRegisters();
-    __ PrepareCallCFunction(1, a0);
-    __ li(a0, ExternalReference::isolate_address(isolate));
-    __ CallCFunction(ExternalReference::log_enter_external_function(), 1);
-    __ PopSafepointRegisters();
-  }
-
   __ StoreReturnAddressAndCall(t9);
-
-  if (FLAG_log_timer_events) {
-    FrameScope frame(masm, StackFrame::MANUAL);
-    __ PushSafepointRegisters();
-    __ PrepareCallCFunction(1, a0);
-    __ li(a0, ExternalReference::isolate_address(isolate));
-    __ CallCFunction(ExternalReference::log_leave_external_function(), 1);
-    __ PopSafepointRegisters();
-  }
 
   Label promote_scheduled_exception;
   Label delete_allocated_handles;
@@ -3031,34 +2936,29 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
 
 void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- cp                  : kTargetContext
-  //  -- a1                  : kApiFunctionAddress
-  //  -- a2                  : kArgc
+  //  -- cp                  : context
+  //  -- a1                  : api function address
+  //  -- a2                  : arguments count (not including the receiver)
+  //  -- a3                  : call data
+  //  -- a0                  : holder
   //  --
   //  -- sp[0]               : last argument
   //  -- ...
   //  -- sp[(argc - 1) * 4]  : first argument
   //  -- sp[(argc + 0) * 4]  : receiver
-  //  -- sp[(argc + 1) * 4]  : kHolder
-  //  -- sp[(argc + 2) * 4]  : kCallData
   // -----------------------------------
 
   Register api_function_address = a1;
   Register argc = a2;
+  Register call_data = a3;
+  Register holder = a0;
   Register scratch = t0;
   Register base = t1;  // For addressing MemOperands on the stack.
 
-  DCHECK(!AreAliased(api_function_address, argc, scratch, base));
+  DCHECK(!AreAliased(api_function_address, argc, call_data,
+                     holder, scratch, base));
 
-  // Stack offsets (without argc).
-  static constexpr int kReceiverOffset = 0 * kPointerSize;
-  static constexpr int kHolderOffset = kReceiverOffset + kPointerSize;
-  static constexpr int kCallDataOffset = kHolderOffset + kPointerSize;
-
-  // Extra stack arguments are: the receiver, kHolder, kCallData.
-  static constexpr int kExtraStackArgumentCount = 3;
-
-  typedef FunctionCallbackArguments FCA;
+  using FCA = FunctionCallbackArguments;
 
   STATIC_ASSERT(FCA::kArgsLength == 6);
   STATIC_ASSERT(FCA::kNewTargetIndex == 5);
@@ -3086,22 +2986,22 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   __ Subu(sp, sp, Operand(FCA::kArgsLength * kPointerSize));
 
   // kHolder.
-  __ lw(scratch, MemOperand(base, kHolderOffset));
-  __ sw(scratch, MemOperand(sp, 0 * kPointerSize));
+  __ sw(holder, MemOperand(sp, 0 * kPointerSize));
 
   // kIsolate.
   __ li(scratch, ExternalReference::isolate_address(masm->isolate()));
   __ sw(scratch, MemOperand(sp, 1 * kPointerSize));
 
-  // kReturnValueDefaultValue, kReturnValue, and kNewTarget.
+  // kReturnValueDefaultValue and kReturnValue.
   __ LoadRoot(scratch, RootIndex::kUndefinedValue);
   __ sw(scratch, MemOperand(sp, 2 * kPointerSize));
   __ sw(scratch, MemOperand(sp, 3 * kPointerSize));
-  __ sw(scratch, MemOperand(sp, 5 * kPointerSize));
 
   // kData.
-  __ lw(scratch, MemOperand(base, kCallDataOffset));
-  __ sw(scratch, MemOperand(sp, 4 * kPointerSize));
+  __ sw(call_data, MemOperand(sp, 4 * kPointerSize));
+
+  // kNewTarget.
+  __ sw(scratch, MemOperand(sp, 5 * kPointerSize));
 
   // Keep a pointer to kHolder (= implicit_args) in a scratch register.
   // We use it below to set up the FunctionCallbackInfo object.
@@ -3130,7 +3030,7 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   // from the API function here.
   // Note: Unlike on other architectures, this stores the number of slots to
   // drop, not the number of bytes.
-  __ Addu(scratch, argc, Operand(FCA::kArgsLength + kExtraStackArgumentCount));
+  __ Addu(scratch, argc, Operand(FCA::kArgsLength + 1 /* receiver */));
   __ sw(scratch, MemOperand(sp, 4 * kPointerSize));
 
   // v8::InvocationCallback's argument.
@@ -3175,7 +3075,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   Register api_function_address = a2;
 
   // Here and below +1 is for name() pushed after the args_ array.
-  typedef PropertyCallbackArguments PCA;
+  using PCA = PropertyCallbackArguments;
   __ Subu(sp, sp, (PCA::kArgsLength + 1) * kPointerSize);
   __ sw(receiver, MemOperand(sp, (PCA::kThisIndex + 1) * kPointerSize));
   __ lw(scratch, FieldMemOperand(callback, AccessorInfo::kDataOffset));
@@ -3188,7 +3088,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ sw(scratch, MemOperand(sp, (PCA::kIsolateIndex + 1) * kPointerSize));
   __ sw(holder, MemOperand(sp, (PCA::kHolderIndex + 1) * kPointerSize));
   // should_throw_on_error -> false
-  DCHECK_NULL(Smi::kZero);
+  DCHECK_EQ(0, Smi::kZero.ptr());
   __ sw(zero_reg,
         MemOperand(sp, (PCA::kShouldThrowOnErrorIndex + 1) * kPointerSize));
   __ lw(scratch, FieldMemOperand(callback, AccessorInfo::kNameOffset));
@@ -3254,6 +3154,517 @@ void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
   }
 
   __ Jump(t9);
+}
+
+void Builtins::Generate_MemCopyUint8Uint8(MacroAssembler* masm) {
+  // This code assumes that cache lines are 32 bytes and if the cache line is
+  // larger it will not work correctly.
+  {
+    Label lastb, unaligned, aligned, chkw, loop16w, chk1w, wordCopy_loop,
+        skip_pref, lastbloop, leave, ua_chk16w, ua_loop16w, ua_skip_pref,
+        ua_chkw, ua_chk1w, ua_wordCopy_loop, ua_smallCopy, ua_smallCopy_loop;
+
+    // The size of each prefetch.
+    uint32_t pref_chunk = 32;
+    // The maximum size of a prefetch, it must not be less than pref_chunk.
+    // If the real size of a prefetch is greater than max_pref_size and
+    // the kPrefHintPrepareForStore hint is used, the code will not work
+    // correctly.
+    uint32_t max_pref_size = 128;
+    DCHECK(pref_chunk < max_pref_size);
+
+    // pref_limit is set based on the fact that we never use an offset
+    // greater then 5 on a store pref and that a single pref can
+    // never be larger then max_pref_size.
+    uint32_t pref_limit = (5 * pref_chunk) + max_pref_size;
+    int32_t pref_hint_load = kPrefHintLoadStreamed;
+    int32_t pref_hint_store = kPrefHintPrepareForStore;
+    uint32_t loadstore_chunk = 4;
+
+    // The initial prefetches may fetch bytes that are before the buffer being
+    // copied. Start copies with an offset of 4 so avoid this situation when
+    // using kPrefHintPrepareForStore.
+    DCHECK(pref_hint_store != kPrefHintPrepareForStore ||
+           pref_chunk * 4 >= max_pref_size);
+
+    // If the size is less than 8, go to lastb. Regardless of size,
+    // copy dst pointer to v0 for the retuen value.
+    __ slti(t2, a2, 2 * loadstore_chunk);
+    __ bne(t2, zero_reg, &lastb);
+    __ mov(v0, a0);  // In delay slot.
+
+    // If src and dst have different alignments, go to unaligned, if they
+    // have the same alignment (but are not actually aligned) do a partial
+    // load/store to make them aligned. If they are both already aligned
+    // we can start copying at aligned.
+    __ xor_(t8, a1, a0);
+    __ andi(t8, t8, loadstore_chunk - 1);  // t8 is a0/a1 word-displacement.
+    __ bne(t8, zero_reg, &unaligned);
+    __ subu(a3, zero_reg, a0);  // In delay slot.
+
+    __ andi(a3, a3, loadstore_chunk - 1);  // Copy a3 bytes to align a0/a1.
+    __ beq(a3, zero_reg, &aligned);        // Already aligned.
+    __ subu(a2, a2, a3);  // In delay slot. a2 is the remining bytes count.
+
+    if (kArchEndian == kLittle) {
+      __ lwr(t8, MemOperand(a1));
+      __ addu(a1, a1, a3);
+      __ swr(t8, MemOperand(a0));
+      __ addu(a0, a0, a3);
+    } else {
+      __ lwl(t8, MemOperand(a1));
+      __ addu(a1, a1, a3);
+      __ swl(t8, MemOperand(a0));
+      __ addu(a0, a0, a3);
+    }
+    // Now dst/src are both aligned to (word) aligned addresses. Set a2 to
+    // count how many bytes we have to copy after all the 64 byte chunks are
+    // copied and a3 to the dst pointer after all the 64 byte chunks have been
+    // copied. We will loop, incrementing a0 and a1 until a0 equals a3.
+    __ bind(&aligned);
+    __ andi(t8, a2, 0x3F);
+    __ beq(a2, t8, &chkw);  // Less than 64?
+    __ subu(a3, a2, t8);    // In delay slot.
+    __ addu(a3, a0, a3);    // Now a3 is the final dst after loop.
+
+    // When in the loop we prefetch with kPrefHintPrepareForStore hint,
+    // in this case the a0+x should be past the "t0-32" address. This means:
+    // for x=128 the last "safe" a0 address is "t0-160". Alternatively, for
+    // x=64 the last "safe" a0 address is "t0-96". In the current version we
+    // will use "pref hint, 128(a0)", so "t0-160" is the limit.
+    if (pref_hint_store == kPrefHintPrepareForStore) {
+      __ addu(t0, a0, a2);          // t0 is the "past the end" address.
+      __ Subu(t9, t0, pref_limit);  // t9 is the "last safe pref" address.
+    }
+
+    __ Pref(pref_hint_load, MemOperand(a1, 0 * pref_chunk));
+    __ Pref(pref_hint_load, MemOperand(a1, 1 * pref_chunk));
+    __ Pref(pref_hint_load, MemOperand(a1, 2 * pref_chunk));
+    __ Pref(pref_hint_load, MemOperand(a1, 3 * pref_chunk));
+
+    if (pref_hint_store != kPrefHintPrepareForStore) {
+      __ Pref(pref_hint_store, MemOperand(a0, 1 * pref_chunk));
+      __ Pref(pref_hint_store, MemOperand(a0, 2 * pref_chunk));
+      __ Pref(pref_hint_store, MemOperand(a0, 3 * pref_chunk));
+    }
+    __ bind(&loop16w);
+    __ lw(t0, MemOperand(a1));
+
+    if (pref_hint_store == kPrefHintPrepareForStore) {
+      __ sltu(v1, t9, a0);  // If a0 > t9, don't use next prefetch.
+      __ Branch(USE_DELAY_SLOT, &skip_pref, gt, v1, Operand(zero_reg));
+    }
+    __ lw(t1, MemOperand(a1, 1, loadstore_chunk));  // Maybe in delay slot.
+
+    __ Pref(pref_hint_store, MemOperand(a0, 4 * pref_chunk));
+    __ Pref(pref_hint_store, MemOperand(a0, 5 * pref_chunk));
+
+    __ bind(&skip_pref);
+    __ lw(t2, MemOperand(a1, 2, loadstore_chunk));
+    __ lw(t3, MemOperand(a1, 3, loadstore_chunk));
+    __ lw(t4, MemOperand(a1, 4, loadstore_chunk));
+    __ lw(t5, MemOperand(a1, 5, loadstore_chunk));
+    __ lw(t6, MemOperand(a1, 6, loadstore_chunk));
+    __ lw(t7, MemOperand(a1, 7, loadstore_chunk));
+    __ Pref(pref_hint_load, MemOperand(a1, 4 * pref_chunk));
+
+    __ sw(t0, MemOperand(a0));
+    __ sw(t1, MemOperand(a0, 1, loadstore_chunk));
+    __ sw(t2, MemOperand(a0, 2, loadstore_chunk));
+    __ sw(t3, MemOperand(a0, 3, loadstore_chunk));
+    __ sw(t4, MemOperand(a0, 4, loadstore_chunk));
+    __ sw(t5, MemOperand(a0, 5, loadstore_chunk));
+    __ sw(t6, MemOperand(a0, 6, loadstore_chunk));
+    __ sw(t7, MemOperand(a0, 7, loadstore_chunk));
+
+    __ lw(t0, MemOperand(a1, 8, loadstore_chunk));
+    __ lw(t1, MemOperand(a1, 9, loadstore_chunk));
+    __ lw(t2, MemOperand(a1, 10, loadstore_chunk));
+    __ lw(t3, MemOperand(a1, 11, loadstore_chunk));
+    __ lw(t4, MemOperand(a1, 12, loadstore_chunk));
+    __ lw(t5, MemOperand(a1, 13, loadstore_chunk));
+    __ lw(t6, MemOperand(a1, 14, loadstore_chunk));
+    __ lw(t7, MemOperand(a1, 15, loadstore_chunk));
+    __ Pref(pref_hint_load, MemOperand(a1, 5 * pref_chunk));
+
+    __ sw(t0, MemOperand(a0, 8, loadstore_chunk));
+    __ sw(t1, MemOperand(a0, 9, loadstore_chunk));
+    __ sw(t2, MemOperand(a0, 10, loadstore_chunk));
+    __ sw(t3, MemOperand(a0, 11, loadstore_chunk));
+    __ sw(t4, MemOperand(a0, 12, loadstore_chunk));
+    __ sw(t5, MemOperand(a0, 13, loadstore_chunk));
+    __ sw(t6, MemOperand(a0, 14, loadstore_chunk));
+    __ sw(t7, MemOperand(a0, 15, loadstore_chunk));
+    __ addiu(a0, a0, 16 * loadstore_chunk);
+    __ bne(a0, a3, &loop16w);
+    __ addiu(a1, a1, 16 * loadstore_chunk);  // In delay slot.
+    __ mov(a2, t8);
+
+    // Here we have src and dest word-aligned but less than 64-bytes to go.
+    // Check for a 32 bytes chunk and copy if there is one. Otherwise jump
+    // down to chk1w to handle the tail end of the copy.
+    __ bind(&chkw);
+    __ Pref(pref_hint_load, MemOperand(a1, 0 * pref_chunk));
+    __ andi(t8, a2, 0x1F);
+    __ beq(a2, t8, &chk1w);  // Less than 32?
+    __ nop();                // In delay slot.
+    __ lw(t0, MemOperand(a1));
+    __ lw(t1, MemOperand(a1, 1, loadstore_chunk));
+    __ lw(t2, MemOperand(a1, 2, loadstore_chunk));
+    __ lw(t3, MemOperand(a1, 3, loadstore_chunk));
+    __ lw(t4, MemOperand(a1, 4, loadstore_chunk));
+    __ lw(t5, MemOperand(a1, 5, loadstore_chunk));
+    __ lw(t6, MemOperand(a1, 6, loadstore_chunk));
+    __ lw(t7, MemOperand(a1, 7, loadstore_chunk));
+    __ addiu(a1, a1, 8 * loadstore_chunk);
+    __ sw(t0, MemOperand(a0));
+    __ sw(t1, MemOperand(a0, 1, loadstore_chunk));
+    __ sw(t2, MemOperand(a0, 2, loadstore_chunk));
+    __ sw(t3, MemOperand(a0, 3, loadstore_chunk));
+    __ sw(t4, MemOperand(a0, 4, loadstore_chunk));
+    __ sw(t5, MemOperand(a0, 5, loadstore_chunk));
+    __ sw(t6, MemOperand(a0, 6, loadstore_chunk));
+    __ sw(t7, MemOperand(a0, 7, loadstore_chunk));
+    __ addiu(a0, a0, 8 * loadstore_chunk);
+
+    // Here we have less than 32 bytes to copy. Set up for a loop to copy
+    // one word at a time. Set a2 to count how many bytes we have to copy
+    // after all the word chunks are copied and a3 to the dst pointer after
+    // all the word chunks have been copied. We will loop, incrementing a0
+    // and a1 until a0 equals a3.
+    __ bind(&chk1w);
+    __ andi(a2, t8, loadstore_chunk - 1);
+    __ beq(a2, t8, &lastb);
+    __ subu(a3, t8, a2);  // In delay slot.
+    __ addu(a3, a0, a3);
+
+    __ bind(&wordCopy_loop);
+    __ lw(t3, MemOperand(a1));
+    __ addiu(a0, a0, loadstore_chunk);
+    __ addiu(a1, a1, loadstore_chunk);
+    __ bne(a0, a3, &wordCopy_loop);
+    __ sw(t3, MemOperand(a0, -1, loadstore_chunk));  // In delay slot.
+
+    __ bind(&lastb);
+    __ Branch(&leave, le, a2, Operand(zero_reg));
+    __ addu(a3, a0, a2);
+
+    __ bind(&lastbloop);
+    __ lb(v1, MemOperand(a1));
+    __ addiu(a0, a0, 1);
+    __ addiu(a1, a1, 1);
+    __ bne(a0, a3, &lastbloop);
+    __ sb(v1, MemOperand(a0, -1));  // In delay slot.
+
+    __ bind(&leave);
+    __ jr(ra);
+    __ nop();
+
+    // Unaligned case. Only the dst gets aligned so we need to do partial
+    // loads of the source followed by normal stores to the dst (once we
+    // have aligned the destination).
+    __ bind(&unaligned);
+    __ andi(a3, a3, loadstore_chunk - 1);  // Copy a3 bytes to align a0/a1.
+    __ beq(a3, zero_reg, &ua_chk16w);
+    __ subu(a2, a2, a3);  // In delay slot.
+
+    if (kArchEndian == kLittle) {
+      __ lwr(v1, MemOperand(a1));
+      __ lwl(v1,
+             MemOperand(a1, 1, loadstore_chunk, MemOperand::offset_minus_one));
+      __ addu(a1, a1, a3);
+      __ swr(v1, MemOperand(a0));
+      __ addu(a0, a0, a3);
+    } else {
+      __ lwl(v1, MemOperand(a1));
+      __ lwr(v1,
+             MemOperand(a1, 1, loadstore_chunk, MemOperand::offset_minus_one));
+      __ addu(a1, a1, a3);
+      __ swl(v1, MemOperand(a0));
+      __ addu(a0, a0, a3);
+    }
+
+    // Now the dst (but not the source) is aligned. Set a2 to count how many
+    // bytes we have to copy after all the 64 byte chunks are copied and a3 to
+    // the dst pointer after all the 64 byte chunks have been copied. We will
+    // loop, incrementing a0 and a1 until a0 equals a3.
+    __ bind(&ua_chk16w);
+    __ andi(t8, a2, 0x3F);
+    __ beq(a2, t8, &ua_chkw);
+    __ subu(a3, a2, t8);  // In delay slot.
+    __ addu(a3, a0, a3);
+
+    if (pref_hint_store == kPrefHintPrepareForStore) {
+      __ addu(t0, a0, a2);
+      __ Subu(t9, t0, pref_limit);
+    }
+
+    __ Pref(pref_hint_load, MemOperand(a1, 0 * pref_chunk));
+    __ Pref(pref_hint_load, MemOperand(a1, 1 * pref_chunk));
+    __ Pref(pref_hint_load, MemOperand(a1, 2 * pref_chunk));
+
+    if (pref_hint_store != kPrefHintPrepareForStore) {
+      __ Pref(pref_hint_store, MemOperand(a0, 1 * pref_chunk));
+      __ Pref(pref_hint_store, MemOperand(a0, 2 * pref_chunk));
+      __ Pref(pref_hint_store, MemOperand(a0, 3 * pref_chunk));
+    }
+
+    __ bind(&ua_loop16w);
+    __ Pref(pref_hint_load, MemOperand(a1, 3 * pref_chunk));
+    if (kArchEndian == kLittle) {
+      __ lwr(t0, MemOperand(a1));
+      __ lwr(t1, MemOperand(a1, 1, loadstore_chunk));
+      __ lwr(t2, MemOperand(a1, 2, loadstore_chunk));
+
+      if (pref_hint_store == kPrefHintPrepareForStore) {
+        __ sltu(v1, t9, a0);
+        __ Branch(USE_DELAY_SLOT, &ua_skip_pref, gt, v1, Operand(zero_reg));
+      }
+      __ lwr(t3, MemOperand(a1, 3, loadstore_chunk));  // Maybe in delay slot.
+
+      __ Pref(pref_hint_store, MemOperand(a0, 4 * pref_chunk));
+      __ Pref(pref_hint_store, MemOperand(a0, 5 * pref_chunk));
+
+      __ bind(&ua_skip_pref);
+      __ lwr(t4, MemOperand(a1, 4, loadstore_chunk));
+      __ lwr(t5, MemOperand(a1, 5, loadstore_chunk));
+      __ lwr(t6, MemOperand(a1, 6, loadstore_chunk));
+      __ lwr(t7, MemOperand(a1, 7, loadstore_chunk));
+      __ lwl(t0,
+             MemOperand(a1, 1, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t1,
+             MemOperand(a1, 2, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t2,
+             MemOperand(a1, 3, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t3,
+             MemOperand(a1, 4, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t4,
+             MemOperand(a1, 5, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t5,
+             MemOperand(a1, 6, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t6,
+             MemOperand(a1, 7, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t7,
+             MemOperand(a1, 8, loadstore_chunk, MemOperand::offset_minus_one));
+    } else {
+      __ lwl(t0, MemOperand(a1));
+      __ lwl(t1, MemOperand(a1, 1, loadstore_chunk));
+      __ lwl(t2, MemOperand(a1, 2, loadstore_chunk));
+
+      if (pref_hint_store == kPrefHintPrepareForStore) {
+        __ sltu(v1, t9, a0);
+        __ Branch(USE_DELAY_SLOT, &ua_skip_pref, gt, v1, Operand(zero_reg));
+      }
+      __ lwl(t3, MemOperand(a1, 3, loadstore_chunk));  // Maybe in delay slot.
+
+      __ Pref(pref_hint_store, MemOperand(a0, 4 * pref_chunk));
+      __ Pref(pref_hint_store, MemOperand(a0, 5 * pref_chunk));
+
+      __ bind(&ua_skip_pref);
+      __ lwl(t4, MemOperand(a1, 4, loadstore_chunk));
+      __ lwl(t5, MemOperand(a1, 5, loadstore_chunk));
+      __ lwl(t6, MemOperand(a1, 6, loadstore_chunk));
+      __ lwl(t7, MemOperand(a1, 7, loadstore_chunk));
+      __ lwr(t0,
+             MemOperand(a1, 1, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t1,
+             MemOperand(a1, 2, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t2,
+             MemOperand(a1, 3, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t3,
+             MemOperand(a1, 4, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t4,
+             MemOperand(a1, 5, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t5,
+             MemOperand(a1, 6, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t6,
+             MemOperand(a1, 7, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t7,
+             MemOperand(a1, 8, loadstore_chunk, MemOperand::offset_minus_one));
+    }
+    __ Pref(pref_hint_load, MemOperand(a1, 4 * pref_chunk));
+    __ sw(t0, MemOperand(a0));
+    __ sw(t1, MemOperand(a0, 1, loadstore_chunk));
+    __ sw(t2, MemOperand(a0, 2, loadstore_chunk));
+    __ sw(t3, MemOperand(a0, 3, loadstore_chunk));
+    __ sw(t4, MemOperand(a0, 4, loadstore_chunk));
+    __ sw(t5, MemOperand(a0, 5, loadstore_chunk));
+    __ sw(t6, MemOperand(a0, 6, loadstore_chunk));
+    __ sw(t7, MemOperand(a0, 7, loadstore_chunk));
+    if (kArchEndian == kLittle) {
+      __ lwr(t0, MemOperand(a1, 8, loadstore_chunk));
+      __ lwr(t1, MemOperand(a1, 9, loadstore_chunk));
+      __ lwr(t2, MemOperand(a1, 10, loadstore_chunk));
+      __ lwr(t3, MemOperand(a1, 11, loadstore_chunk));
+      __ lwr(t4, MemOperand(a1, 12, loadstore_chunk));
+      __ lwr(t5, MemOperand(a1, 13, loadstore_chunk));
+      __ lwr(t6, MemOperand(a1, 14, loadstore_chunk));
+      __ lwr(t7, MemOperand(a1, 15, loadstore_chunk));
+      __ lwl(t0,
+             MemOperand(a1, 9, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t1,
+             MemOperand(a1, 10, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t2,
+             MemOperand(a1, 11, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t3,
+             MemOperand(a1, 12, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t4,
+             MemOperand(a1, 13, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t5,
+             MemOperand(a1, 14, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t6,
+             MemOperand(a1, 15, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t7,
+             MemOperand(a1, 16, loadstore_chunk, MemOperand::offset_minus_one));
+    } else {
+      __ lwl(t0, MemOperand(a1, 8, loadstore_chunk));
+      __ lwl(t1, MemOperand(a1, 9, loadstore_chunk));
+      __ lwl(t2, MemOperand(a1, 10, loadstore_chunk));
+      __ lwl(t3, MemOperand(a1, 11, loadstore_chunk));
+      __ lwl(t4, MemOperand(a1, 12, loadstore_chunk));
+      __ lwl(t5, MemOperand(a1, 13, loadstore_chunk));
+      __ lwl(t6, MemOperand(a1, 14, loadstore_chunk));
+      __ lwl(t7, MemOperand(a1, 15, loadstore_chunk));
+      __ lwr(t0,
+             MemOperand(a1, 9, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t1,
+             MemOperand(a1, 10, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t2,
+             MemOperand(a1, 11, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t3,
+             MemOperand(a1, 12, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t4,
+             MemOperand(a1, 13, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t5,
+             MemOperand(a1, 14, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t6,
+             MemOperand(a1, 15, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t7,
+             MemOperand(a1, 16, loadstore_chunk, MemOperand::offset_minus_one));
+    }
+    __ Pref(pref_hint_load, MemOperand(a1, 5 * pref_chunk));
+    __ sw(t0, MemOperand(a0, 8, loadstore_chunk));
+    __ sw(t1, MemOperand(a0, 9, loadstore_chunk));
+    __ sw(t2, MemOperand(a0, 10, loadstore_chunk));
+    __ sw(t3, MemOperand(a0, 11, loadstore_chunk));
+    __ sw(t4, MemOperand(a0, 12, loadstore_chunk));
+    __ sw(t5, MemOperand(a0, 13, loadstore_chunk));
+    __ sw(t6, MemOperand(a0, 14, loadstore_chunk));
+    __ sw(t7, MemOperand(a0, 15, loadstore_chunk));
+    __ addiu(a0, a0, 16 * loadstore_chunk);
+    __ bne(a0, a3, &ua_loop16w);
+    __ addiu(a1, a1, 16 * loadstore_chunk);  // In delay slot.
+    __ mov(a2, t8);
+
+    // Here less than 64-bytes. Check for
+    // a 32 byte chunk and copy if there is one. Otherwise jump down to
+    // ua_chk1w to handle the tail end of the copy.
+    __ bind(&ua_chkw);
+    __ Pref(pref_hint_load, MemOperand(a1));
+    __ andi(t8, a2, 0x1F);
+
+    __ beq(a2, t8, &ua_chk1w);
+    __ nop();  // In delay slot.
+    if (kArchEndian == kLittle) {
+      __ lwr(t0, MemOperand(a1));
+      __ lwr(t1, MemOperand(a1, 1, loadstore_chunk));
+      __ lwr(t2, MemOperand(a1, 2, loadstore_chunk));
+      __ lwr(t3, MemOperand(a1, 3, loadstore_chunk));
+      __ lwr(t4, MemOperand(a1, 4, loadstore_chunk));
+      __ lwr(t5, MemOperand(a1, 5, loadstore_chunk));
+      __ lwr(t6, MemOperand(a1, 6, loadstore_chunk));
+      __ lwr(t7, MemOperand(a1, 7, loadstore_chunk));
+      __ lwl(t0,
+             MemOperand(a1, 1, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t1,
+             MemOperand(a1, 2, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t2,
+             MemOperand(a1, 3, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t3,
+             MemOperand(a1, 4, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t4,
+             MemOperand(a1, 5, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t5,
+             MemOperand(a1, 6, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t6,
+             MemOperand(a1, 7, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwl(t7,
+             MemOperand(a1, 8, loadstore_chunk, MemOperand::offset_minus_one));
+    } else {
+      __ lwl(t0, MemOperand(a1));
+      __ lwl(t1, MemOperand(a1, 1, loadstore_chunk));
+      __ lwl(t2, MemOperand(a1, 2, loadstore_chunk));
+      __ lwl(t3, MemOperand(a1, 3, loadstore_chunk));
+      __ lwl(t4, MemOperand(a1, 4, loadstore_chunk));
+      __ lwl(t5, MemOperand(a1, 5, loadstore_chunk));
+      __ lwl(t6, MemOperand(a1, 6, loadstore_chunk));
+      __ lwl(t7, MemOperand(a1, 7, loadstore_chunk));
+      __ lwr(t0,
+             MemOperand(a1, 1, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t1,
+             MemOperand(a1, 2, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t2,
+             MemOperand(a1, 3, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t3,
+             MemOperand(a1, 4, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t4,
+             MemOperand(a1, 5, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t5,
+             MemOperand(a1, 6, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t6,
+             MemOperand(a1, 7, loadstore_chunk, MemOperand::offset_minus_one));
+      __ lwr(t7,
+             MemOperand(a1, 8, loadstore_chunk, MemOperand::offset_minus_one));
+    }
+    __ addiu(a1, a1, 8 * loadstore_chunk);
+    __ sw(t0, MemOperand(a0));
+    __ sw(t1, MemOperand(a0, 1, loadstore_chunk));
+    __ sw(t2, MemOperand(a0, 2, loadstore_chunk));
+    __ sw(t3, MemOperand(a0, 3, loadstore_chunk));
+    __ sw(t4, MemOperand(a0, 4, loadstore_chunk));
+    __ sw(t5, MemOperand(a0, 5, loadstore_chunk));
+    __ sw(t6, MemOperand(a0, 6, loadstore_chunk));
+    __ sw(t7, MemOperand(a0, 7, loadstore_chunk));
+    __ addiu(a0, a0, 8 * loadstore_chunk);
+
+    // Less than 32 bytes to copy. Set up for a loop to
+    // copy one word at a time.
+    __ bind(&ua_chk1w);
+    __ andi(a2, t8, loadstore_chunk - 1);
+    __ beq(a2, t8, &ua_smallCopy);
+    __ subu(a3, t8, a2);  // In delay slot.
+    __ addu(a3, a0, a3);
+
+    __ bind(&ua_wordCopy_loop);
+    if (kArchEndian == kLittle) {
+      __ lwr(v1, MemOperand(a1));
+      __ lwl(v1,
+             MemOperand(a1, 1, loadstore_chunk, MemOperand::offset_minus_one));
+    } else {
+      __ lwl(v1, MemOperand(a1));
+      __ lwr(v1,
+             MemOperand(a1, 1, loadstore_chunk, MemOperand::offset_minus_one));
+    }
+    __ addiu(a0, a0, loadstore_chunk);
+    __ addiu(a1, a1, loadstore_chunk);
+    __ bne(a0, a3, &ua_wordCopy_loop);
+    __ sw(v1, MemOperand(a0, -1, loadstore_chunk));  // In delay slot.
+
+    // Copy the last 8 bytes.
+    __ bind(&ua_smallCopy);
+    __ beq(a2, zero_reg, &leave);
+    __ addu(a3, a0, a2);  // In delay slot.
+
+    __ bind(&ua_smallCopy_loop);
+    __ lb(v1, MemOperand(a1));
+    __ addiu(a0, a0, 1);
+    __ addiu(a1, a1, 1);
+    __ bne(a0, a3, &ua_smallCopy_loop);
+    __ sb(v1, MemOperand(a0, -1));  // In delay slot.
+
+    __ jr(ra);
+    __ nop();
+  }
 }
 
 #undef __

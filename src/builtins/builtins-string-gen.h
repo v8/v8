@@ -5,7 +5,7 @@
 #ifndef V8_BUILTINS_BUILTINS_STRING_GEN_H_
 #define V8_BUILTINS_BUILTINS_STRING_GEN_H_
 
-#include "src/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -28,9 +28,12 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                                                     Label* if_true,
                                                     Label* if_false);
 
- protected:
-  TNode<JSArray> StringToList(TNode<Context> context, TNode<String> string);
+  TNode<Int32T> LoadSurrogatePairAt(SloppyTNode<String> string,
+                                    SloppyTNode<IntPtrT> length,
+                                    SloppyTNode<IntPtrT> index,
+                                    UnicodeEncoding encoding);
 
+ protected:
   void StringEqual_Loop(Node* lhs, Node* lhs_instance_type,
                         MachineType lhs_type, Node* rhs,
                         Node* rhs_instance_type, MachineType rhs_type,
@@ -59,23 +62,8 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   void GenerateStringRelationalComparison(Node* context, Node* left,
                                           Node* right, Operation op);
 
-  TNode<Smi> ToSmiBetweenZeroAnd(SloppyTNode<Context> context,
-                                 SloppyTNode<Object> value,
-                                 SloppyTNode<Smi> limit);
-
-  typedef std::function<TNode<Object>(
-      TNode<String> receiver, TNode<IntPtrT> length, TNode<IntPtrT> index)>
-      StringAtAccessor;
-
-  void GenerateStringAt(const char* method_name, TNode<Context> context,
-                        Node* receiver, TNode<Object> maybe_position,
-                        TNode<Object> default_return,
-                        const StringAtAccessor& accessor);
-
-  TNode<Int32T> LoadSurrogatePairAt(SloppyTNode<String> string,
-                                    SloppyTNode<IntPtrT> length,
-                                    SloppyTNode<IntPtrT> index,
-                                    UnicodeEncoding encoding);
+  using StringAtAccessor = std::function<TNode<Object>(
+      TNode<String> receiver, TNode<IntPtrT> length, TNode<IntPtrT> index)>;
 
   void StringIndexOf(Node* const subject_string, Node* const search_string,
                      Node* const position,
@@ -87,9 +75,6 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                                TNode<String> subject_string,
                                TNode<Smi> subject_length,
                                TNode<Number> limit_number);
-
-  void RequireObjectCoercible(Node* const context, Node* const value,
-                              const char* method_name);
 
   TNode<BoolT> SmiIsNegative(TNode<Smi> value) {
     return SmiLessThan(value, SmiConstant(0));
@@ -107,14 +92,15 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   //
   // Contains fast paths for Smi and RegExp objects.
   // Important: {regexp_call} may not contain any code that can call into JS.
-  typedef std::function<void()> NodeFunction0;
-  typedef std::function<void(Node* fn)> NodeFunction1;
-  void MaybeCallFunctionAtSymbol(Node* const context, Node* const object,
-                                 Node* const maybe_string,
-                                 Handle<Symbol> symbol,
-                                 DescriptorIndexAndName symbol_index,
-                                 const NodeFunction0& regexp_call,
-                                 const NodeFunction1& generic_call);
+  using NodeFunction0 = std::function<void()>;
+  using NodeFunction1 = std::function<void(Node* fn)>;
+  using DescriptorIndexNameValue =
+      PrototypeCheckAssembler::DescriptorIndexNameValue;
+  void MaybeCallFunctionAtSymbol(
+      Node* const context, Node* const object, Node* const maybe_string,
+      Handle<Symbol> symbol,
+      DescriptorIndexNameValue additional_property_to_check,
+      const NodeFunction0& regexp_call, const NodeFunction1& generic_call);
 };
 
 class StringIncludesIndexOfAssembler : public StringBuiltinsAssembler {
@@ -134,8 +120,8 @@ class StringTrimAssembler : public StringBuiltinsAssembler {
   explicit StringTrimAssembler(compiler::CodeAssemblerState* state)
       : StringBuiltinsAssembler(state) {}
 
-  void GotoIfNotWhiteSpaceOrLineTerminator(Node* const char_code,
-                                           Label* const if_not_whitespace);
+  V8_EXPORT_PRIVATE void GotoIfNotWhiteSpaceOrLineTerminator(
+      Node* const char_code, Label* const if_not_whitespace);
 
  protected:
   void Generate(String::TrimMode mode, const char* method, TNode<IntPtrT> argc,

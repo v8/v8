@@ -4,10 +4,10 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/code-factory.h"
-#include "src/conversions.h"
-#include "src/counters.h"
-#include "src/objects-inl.h"
+#include "src/codegen/code-factory.h"
+#include "src/logging/counters.h"
+#include "src/numbers/conversions.h"
+#include "src/objects/objects-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
 #endif
@@ -25,8 +25,8 @@ BUILTIN(NumberPrototypeToExponential) {
   Handle<Object> fraction_digits = args.atOrUndefined(isolate, 1);
 
   // Unwrap the receiver {value}.
-  if (value->IsJSValue()) {
-    value = handle(Handle<JSValue>::cast(value)->value(), isolate);
+  if (value->IsJSPrimitiveWrapper()) {
+    value = handle(Handle<JSPrimitiveWrapper>::cast(value)->value(), isolate);
   }
   if (!value->IsNumber()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -70,8 +70,8 @@ BUILTIN(NumberPrototypeToFixed) {
   Handle<Object> fraction_digits = args.atOrUndefined(isolate, 1);
 
   // Unwrap the receiver {value}.
-  if (value->IsJSValue()) {
-    value = handle(Handle<JSValue>::cast(value)->value(), isolate);
+  if (value->IsJSPrimitiveWrapper()) {
+    value = handle(Handle<JSPrimitiveWrapper>::cast(value)->value(), isolate);
   }
   if (!value->IsNumber()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -117,8 +117,8 @@ BUILTIN(NumberPrototypeToLocaleString) {
   Handle<Object> value = args.at(0);
 
   // Unwrap the receiver {value}.
-  if (value->IsJSValue()) {
-    value = handle(Handle<JSValue>::cast(value)->value(), isolate);
+  if (value->IsJSPrimitiveWrapper()) {
+    value = handle(Handle<JSPrimitiveWrapper>::cast(value)->value(), isolate);
   }
   // 1. Let x be ? thisNumberValue(this value)
   if (!value->IsNumber()) {
@@ -147,8 +147,8 @@ BUILTIN(NumberPrototypeToPrecision) {
   Handle<Object> precision = args.atOrUndefined(isolate, 1);
 
   // Unwrap the receiver {value}.
-  if (value->IsJSValue()) {
-    value = handle(Handle<JSValue>::cast(value)->value(), isolate);
+  if (value->IsJSPrimitiveWrapper()) {
+    value = handle(Handle<JSPrimitiveWrapper>::cast(value)->value(), isolate);
   }
   if (!value->IsNumber()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -192,8 +192,8 @@ BUILTIN(NumberPrototypeToString) {
   Handle<Object> radix = args.atOrUndefined(isolate, 1);
 
   // Unwrap the receiver {value}.
-  if (value->IsJSValue()) {
-    value = handle(Handle<JSValue>::cast(value)->value(), isolate);
+  if (value->IsJSPrimitiveWrapper()) {
+    value = handle(Handle<JSPrimitiveWrapper>::cast(value)->value(), isolate);
   }
   if (!value->IsNumber()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -225,7 +225,7 @@ BUILTIN(NumberPrototypeToString) {
 
   // Fast case where the result is a one character string.
   if ((IsUint32Double(value_number) && value_number < radix_number) ||
-      value_number == -0.0) {
+      IsMinusZero(value_number)) {
     // Character array used for conversion.
     static const char kCharTable[] = "0123456789abcdefghijklmnopqrstuvwxyz";
     return *isolate->factory()->LookupSingleCharacterStringFromCode(

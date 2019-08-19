@@ -4,10 +4,10 @@
 
 #include "src/compiler/js-graph.h"
 
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/typer.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -125,14 +125,24 @@ void JSGraph::GetCachedNodes(NodeVector* nodes) {
 #undef DO_CACHED_FIELD
 }
 
-DEFINE_GETTER(AllocateInNewSpaceStubConstant,
-              HeapConstant(BUILTIN_CODE(isolate(), AllocateInNewSpace)))
+DEFINE_GETTER(AllocateInYoungGenerationStubConstant,
+              HeapConstant(BUILTIN_CODE(isolate(), AllocateInYoungGeneration)))
 
-DEFINE_GETTER(AllocateInOldSpaceStubConstant,
-              HeapConstant(BUILTIN_CODE(isolate(), AllocateInOldSpace)))
+DEFINE_GETTER(AllocateRegularInYoungGenerationStubConstant,
+              HeapConstant(BUILTIN_CODE(isolate(),
+                                        AllocateRegularInYoungGeneration)))
+
+DEFINE_GETTER(AllocateInOldGenerationStubConstant,
+              HeapConstant(BUILTIN_CODE(isolate(), AllocateInOldGeneration)))
+
+DEFINE_GETTER(AllocateRegularInOldGenerationStubConstant,
+              HeapConstant(BUILTIN_CODE(isolate(),
+                                        AllocateRegularInOldGeneration)))
 
 DEFINE_GETTER(ArrayConstructorStubConstant,
               HeapConstant(BUILTIN_CODE(isolate(), ArrayConstructorImpl)))
+
+DEFINE_GETTER(BigIntMapConstant, HeapConstant(factory()->bigint_map()))
 
 DEFINE_GETTER(BooleanMapConstant, HeapConstant(factory()->boolean_map()))
 

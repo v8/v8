@@ -6,7 +6,8 @@
 #define V8_AST_VARIABLES_H_
 
 #include "src/ast/ast-value-factory.h"
-#include "src/globals.h"
+#include "src/base/threaded-list.h"
+#include "src/common/globals.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -55,11 +56,14 @@ class Variable final : public ZoneObject {
   Handle<String> name() const { return name_->string(); }
   const AstRawString* raw_name() const { return name_; }
   VariableMode mode() const { return VariableModeField::decode(bit_field_); }
+  void set_mode(VariableMode mode) {
+    bit_field_ = VariableModeField::update(bit_field_, mode);
+  }
   bool has_forced_context_allocation() const {
     return ForceContextAllocationField::decode(bit_field_);
   }
   void ForceContextAllocation() {
-    DCHECK(IsUnallocated() || IsContextSlot() ||
+    DCHECK(IsUnallocated() || IsContextSlot() || IsLookupSlot() ||
            location() == VariableLocation::MODULE);
     bit_field_ = ForceContextAllocationField::update(bit_field_, true);
   }
@@ -68,8 +72,22 @@ class Variable final : public ZoneObject {
   MaybeAssignedFlag maybe_assigned() const {
     return MaybeAssignedFlagField::decode(bit_field_);
   }
-  void set_maybe_assigned() {
-    bit_field_ = MaybeAssignedFlagField::update(bit_field_, kMaybeAssigned);
+  void SetMaybeAssigned() {
+    // If this variable is dynamically shadowing another variable, then that
+    // variable could also be assigned (in the non-shadowing case).
+    if (has_local_if_not_shadowed()) {
+      // Avoid repeatedly marking the same tree of variables by only recursing
+      // when this variable's maybe_assigned status actually changes.
+      if (!maybe_assigned()) {
+        local_if_not_shadowed()->SetMaybeAssigned();
+      }
+      DCHECK(local_if_not_shadowed()->maybe_assigned());
+    }
+    set_maybe_assigned();
+  }
+
+  bool requires_brand_check() const {
+    return IsPrivateMethodOrAccessorVariableMode(mode());
   }
 
   int initializer_position() { return initializer_position_; }
@@ -99,7 +117,8 @@ class Variable final : public ZoneObject {
   // declaration time. Only returns valid results after scope analysis.
   bool binding_needs_init() const {
     DCHECK_IMPLIES(initialization_flag() == kNeedsInitialization,
-                   IsLexicalVariableMode(mode()));
+                   IsLexicalVariableMode(mode()) ||
+                       IsPrivateMethodOrAccessorVariableMode(mode()));
     DCHECK_IMPLIES(ForceHoleInitializationField::decode(bit_field_),
                    initialization_flag() == kNeedsInitialization);
 
@@ -123,7 +142,8 @@ class Variable final : public ZoneObject {
   // be required at runtime.
   void ForceHoleInitialization() {
     DCHECK_EQ(kNeedsInitialization, initialization_flag());
-    DCHECK(IsLexicalVariableMode(mode()));
+    DCHECK(IsLexicalVariableMode(mode()) ||
+           IsPrivateMethodOrAccessorVariableMode(mode()));
     bit_field_ = ForceHoleInitializationField::update(bit_field_, true);
   }
 
@@ -136,10 +156,20 @@ class Variable final : public ZoneObject {
     return kind() == SLOPPY_FUNCTION_NAME_VARIABLE;
   }
 
+  bool is_parameter() const { return kind() == PARAMETER_VARIABLE; }
+  bool is_sloppy_block_function() {
+    return kind() == SLOPPY_BLOCK_FUNCTION_VARIABLE;
+  }
+
   Variable* local_if_not_shadowed() const {
-    DCHECK(mode() == VariableMode::kDynamicLocal &&
-           local_if_not_shadowed_ != nullptr);
+    DCHECK((mode() == VariableMode::kDynamicLocal ||
+            mode() == VariableMode::kDynamic) &&
+           has_local_if_not_shadowed());
     return local_if_not_shadowed_;
+  }
+
+  bool has_local_if_not_shadowed() const {
+    return local_if_not_shadowed_ != nullptr;
   }
 
   void set_local_if_not_shadowed(Variable* local) {
@@ -174,44 +204,49 @@ class Variable final : public ZoneObject {
     index_ = index;
   }
 
+  void MakeParameterNonSimple() {
+    DCHECK(is_parameter());
+    bit_field_ = VariableModeField::update(bit_field_, VariableMode::kLet);
+    bit_field_ =
+        InitializationFlagField::update(bit_field_, kNeedsInitialization);
+  }
+
   static InitializationFlag DefaultInitializationFlag(VariableMode mode) {
     DCHECK(IsDeclaredVariableMode(mode));
     return mode == VariableMode::kVar ? kCreatedInitialized
                                       : kNeedsInitialization;
   }
 
-  typedef base::ThreadedList<Variable> List;
+  using List = base::ThreadedList<Variable>;
 
  private:
   Scope* scope_;
   const AstRawString* name_;
 
   // If this field is set, this variable references the stored locally bound
-  // variable, but it might be shadowed by variable bindings introduced by
-  // sloppy 'eval' calls between the reference scope (inclusive) and the
-  // binding scope (exclusive).
+  // variable, but it might be shadowed by variable bindings introduced by with
+  // blocks or sloppy 'eval' calls between the reference scope (inclusive) and
+  // the binding scope (exclusive).
   Variable* local_if_not_shadowed_;
   Variable* next_;
   int index_;
   int initializer_position_;
   uint16_t bit_field_;
 
-  class VariableModeField : public BitField16<VariableMode, 0, 3> {};
-  class VariableKindField
-      : public BitField16<VariableKind, VariableModeField::kNext, 3> {};
-  class LocationField
-      : public BitField16<VariableLocation, VariableKindField::kNext, 3> {};
-  class ForceContextAllocationField
-      : public BitField16<bool, LocationField::kNext, 1> {};
-  class IsUsedField
-      : public BitField16<bool, ForceContextAllocationField::kNext, 1> {};
-  class InitializationFlagField
-      : public BitField16<InitializationFlag, IsUsedField::kNext, 1> {};
-  class ForceHoleInitializationField
-      : public BitField16<bool, InitializationFlagField::kNext, 1> {};
-  class MaybeAssignedFlagField
-      : public BitField16<MaybeAssignedFlag,
-                          ForceHoleInitializationField::kNext, 1> {};
+  void set_maybe_assigned() {
+    bit_field_ = MaybeAssignedFlagField::update(bit_field_, kMaybeAssigned);
+  }
+
+  using VariableModeField = BitField16<VariableMode, 0, 4>;
+  using VariableKindField = VariableModeField::Next<VariableKind, 3>;
+  using LocationField = VariableKindField::Next<VariableLocation, 3>;
+  using ForceContextAllocationField = LocationField::Next<bool, 1>;
+  using IsUsedField = ForceContextAllocationField::Next<bool, 1>;
+  using InitializationFlagField = IsUsedField::Next<InitializationFlag, 1>;
+  using ForceHoleInitializationField = InitializationFlagField::Next<bool, 1>;
+  using MaybeAssignedFlagField =
+      ForceHoleInitializationField::Next<MaybeAssignedFlag, 1>;
+
   Variable** next() { return &next_; }
   friend List;
   friend base::ThreadedListTraits<Variable>;

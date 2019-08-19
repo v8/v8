@@ -4,8 +4,11 @@
 
 #include <iostream>
 
+#include "src/common/globals.h"
+#include "src/torque/ast.h"
 #include "src/torque/declarable.h"
 #include "src/torque/type-oracle.h"
+#include "src/torque/type-visitor.h"
 #include "src/torque/types.h"
 
 namespace v8 {
@@ -45,6 +48,13 @@ bool Type::IsSubtypeOf(const Type* supertype) const {
   return false;
 }
 
+base::Optional<const ClassType*> Type::ClassSupertype() const {
+  for (const Type* t = this; t != nullptr; t = t->parent()) {
+    if (auto* class_type = ClassType::DynamicCast(t)) return class_type;
+  }
+  return base::nullopt;
+}
+
 // static
 const Type* Type::CommonSupertype(const Type* a, const Type* b) {
   int diff = a->Depth() - b->Depth();
@@ -74,7 +84,25 @@ bool Type::IsAbstractName(const std::string& name) const {
   return AbstractType::cast(this)->name() == name;
 }
 
-std::string AbstractType::GetGeneratedTNodeTypeName() const {
+std::string Type::GetGeneratedTypeName() const {
+  std::string result = GetGeneratedTypeNameImpl();
+  if (result.empty() || result == "compiler::TNode<>") {
+    ReportError("Generated type is required for type '", ToString(),
+                "'. Use 'generates' clause in definition.");
+  }
+  return result;
+}
+
+std::string Type::GetGeneratedTNodeTypeName() const {
+  std::string result = GetGeneratedTNodeTypeNameImpl();
+  if (result.empty() || IsConstexpr()) {
+    ReportError("Generated TNode type is required for type '", ToString(),
+                "'. Use 'generates' clause in definition.");
+  }
+  return result;
+}
+
+std::string AbstractType::GetGeneratedTNodeTypeNameImpl() const {
   return generated_type_;
 }
 
@@ -123,7 +151,7 @@ std::string UnionType::MangledName() const {
   return result.str();
 }
 
-std::string UnionType::GetGeneratedTNodeTypeName() const {
+std::string UnionType::GetGeneratedTNodeTypeNameImpl() const {
   if (types_.size() <= 3) {
     std::set<std::string> members;
     for (const Type* t : types_) {
@@ -137,19 +165,6 @@ std::string UnionType::GetGeneratedTNodeTypeName() const {
     }
   }
   return parent()->GetGeneratedTNodeTypeName();
-}
-
-const Type* UnionType::NonConstexprVersion() const {
-  if (IsConstexpr()) {
-    auto it = types_.begin();
-    UnionType result((*it)->NonConstexprVersion());
-    ++it;
-    for (; it != types_.end(); ++it) {
-      result.Extend((*it)->NonConstexprVersion());
-    }
-    return TypeOracle::GetUnionType(std::move(result));
-  }
-  return this;
 }
 
 void UnionType::RecomputeParent() {
@@ -182,16 +197,285 @@ const Type* SubtractType(const Type* a, const Type* b) {
   return TypeOracle::GetUnionType(result);
 }
 
-std::string StructType::ToExplicitString() const {
+void AggregateType::CheckForDuplicateFields() const {
+  // Check the aggregate hierarchy and currently defined class for duplicate
+  // field declarations.
+  auto hierarchy = GetHierarchy();
+  std::map<std::string, const AggregateType*> field_names;
+  for (const AggregateType* aggregate_type : hierarchy) {
+    for (const Field& field : aggregate_type->fields()) {
+      const std::string& field_name = field.name_and_type.name;
+      auto i = field_names.find(field_name);
+      if (i != field_names.end()) {
+        CurrentSourcePosition::Scope current_source_position(field.pos);
+        std::string aggregate_type_name =
+            aggregate_type->IsClassType() ? "class" : "struct";
+        if (i->second == this) {
+          ReportError(aggregate_type_name, " '", name(),
+                      "' declares a field with the name '", field_name,
+                      "' more than once");
+        } else {
+          ReportError(aggregate_type_name, " '", name(),
+                      "' declares a field with the name '", field_name,
+                      "' that masks an inherited field from class '",
+                      i->second->name(), "'");
+        }
+      }
+      field_names[field_name] = aggregate_type;
+    }
+  }
+}
+
+std::vector<const AggregateType*> AggregateType::GetHierarchy() const {
+  if (!is_finalized_) Finalize();
+  std::vector<const AggregateType*> hierarchy;
+  const AggregateType* current_container_type = this;
+  while (current_container_type != nullptr) {
+    hierarchy.push_back(current_container_type);
+    current_container_type =
+        current_container_type->IsClassType()
+            ? ClassType::cast(current_container_type)->GetSuperClass()
+            : nullptr;
+  }
+  std::reverse(hierarchy.begin(), hierarchy.end());
+  return hierarchy;
+}
+
+bool AggregateType::HasField(const std::string& name) const {
+  if (!is_finalized_) Finalize();
+  for (auto& field : fields_) {
+    if (field.name_and_type.name == name) return true;
+  }
+  if (parent() != nullptr) {
+    if (auto parent_class = ClassType::DynamicCast(parent())) {
+      return parent_class->HasField(name);
+    }
+  }
+  return false;
+}
+
+const Field& AggregateType::LookupFieldInternal(const std::string& name) const {
+  for (auto& field : fields_) {
+    if (field.name_and_type.name == name) return field;
+  }
+  if (parent() != nullptr) {
+    if (auto parent_class = ClassType::DynamicCast(parent())) {
+      return parent_class->LookupField(name);
+    }
+  }
+  ReportError("no field ", name, " found");
+}
+
+const Field& AggregateType::LookupField(const std::string& name) const {
+  if (!is_finalized_) Finalize();
+  return LookupFieldInternal(name);
+}
+
+std::string StructType::GetGeneratedTypeNameImpl() const {
+  return "TorqueStruct" + MangledName();
+}
+
+// static
+std::string StructType::ComputeName(
+    const std::string& basename,
+    StructType::MaybeSpecializationKey specialized_from) {
+  if (!specialized_from) return basename;
+  std::stringstream s;
+  s << basename << "<";
+  bool first = true;
+  for (auto t : specialized_from->specialized_types) {
+    if (!first) {
+      s << ", ";
+    }
+    s << t->ToString();
+    first = false;
+  }
+  s << ">";
+  return s.str();
+}
+
+std::string StructType::MangledName() const {
   std::stringstream result;
-  result << "{";
-  PrintCommaSeparatedList(result, fields_);
-  result << "}";
+  // TODO(gsps): Add 'ST' as a prefix once we can control the generated type
+  // name from Torque code
+  result << basename_;
+  if (specialized_from_) {
+    for (const Type* t : specialized_from_->specialized_types) {
+      std::string arg_type_string = t->MangledName();
+      result << arg_type_string.size() << arg_type_string;
+    }
+  }
   return result.str();
 }
 
-std::string StructType::GetGeneratedTypeName() const {
-  return namespace_->ExternalName() + "::" + GetStructName();
+// static
+base::Optional<const Type*> StructType::MatchUnaryGeneric(
+    const Type* type, GenericStructType* generic) {
+  if (auto* struct_type = StructType::DynamicCast(type)) {
+    return MatchUnaryGeneric(struct_type, generic);
+  }
+  return base::nullopt;
+}
+
+// static
+base::Optional<const Type*> StructType::MatchUnaryGeneric(
+    const StructType* type, GenericStructType* generic) {
+  DCHECK_EQ(generic->generic_parameters().size(), 1);
+  if (!type->specialized_from_) {
+    return base::nullopt;
+  }
+  auto& key = type->specialized_from_.value();
+  if (key.generic != generic || key.specialized_types.size() != 1) {
+    return base::nullopt;
+  }
+  return {key.specialized_types[0]};
+}
+
+std::vector<Method*> AggregateType::Methods(const std::string& name) const {
+  if (!is_finalized_) Finalize();
+  std::vector<Method*> result;
+  std::copy_if(methods_.begin(), methods_.end(), std::back_inserter(result),
+               [name](Macro* macro) { return macro->ReadableName() == name; });
+  return result;
+}
+
+std::string StructType::ToExplicitString() const {
+  std::stringstream result;
+  result << "struct " << name();
+  return result.str();
+}
+
+constexpr ClassFlags ClassType::kInternalFlags;
+
+ClassType::ClassType(const Type* parent, Namespace* nspace,
+                     const std::string& name, ClassFlags flags,
+                     const std::string& generates, const ClassDeclaration* decl,
+                     const TypeAlias* alias)
+    : AggregateType(Kind::kClassType, parent, nspace, name),
+      size_(0),
+      flags_(flags & ~(kInternalFlags)),
+      generates_(generates),
+      decl_(decl),
+      alias_(alias) {
+  DCHECK_EQ(flags & kInternalFlags, 0);
+}
+
+bool ClassType::HasIndexedField() const {
+  if (!is_finalized_) Finalize();
+  return flags_ & ClassFlag::kHasIndexedField;
+}
+
+std::string ClassType::GetGeneratedTNodeTypeNameImpl() const {
+  return generates_;
+}
+
+std::string ClassType::GetGeneratedTypeNameImpl() const {
+  return IsConstexpr() ? GetGeneratedTNodeTypeName()
+                       : "compiler::TNode<" + GetGeneratedTNodeTypeName() + ">";
+}
+
+std::string ClassType::ToExplicitString() const {
+  std::stringstream result;
+  result << "class " << name();
+  return result.str();
+}
+
+bool ClassType::AllowInstantiation() const {
+  return (!IsExtern() || nspace()->IsDefaultNamespace()) &&
+         (!IsAbstract() || IsInstantiatedAbstractClass());
+}
+
+void ClassType::Finalize() const {
+  if (is_finalized_) return;
+  CurrentScope::Scope scope_activator(alias_->ParentScope());
+  CurrentSourcePosition::Scope position_activator(decl_->pos);
+  if (parent()) {
+    if (const ClassType* super_class = ClassType::DynamicCast(parent())) {
+      if (super_class->HasIndexedField()) flags_ |= ClassFlag::kHasIndexedField;
+      if (!super_class->IsAbstract() && !HasSameInstanceTypeAsParent()) {
+        Error(
+            "Super class must either be abstract (annotate super class with "
+            "@abstract) "
+            "or this class must have the same instance type as the super class "
+            "(annotate this class with @hasSameInstanceTypeAsParent).")
+            .Position(this->decl_->name->pos);
+      }
+    }
+  }
+  TypeVisitor::VisitClassFieldsAndMethods(const_cast<ClassType*>(this),
+                                          this->decl_);
+  is_finalized_ = true;
+  if (GenerateCppClassDefinitions() || !IsExtern()) {
+    for (const Field& f : fields()) {
+      if (f.is_weak) {
+        Error("Generation of C++ class for Torque class ", name(),
+              " is not supported yet, because field ", f.name_and_type.name,
+              ": ", *f.name_and_type.type, " is a weak field.")
+            .Position(f.pos);
+      }
+    }
+  }
+  CheckForDuplicateFields();
+}
+
+std::vector<Field> ClassType::ComputeAllFields() const {
+  std::vector<Field> all_fields;
+  const ClassType* super_class = this->GetSuperClass();
+  if (super_class) {
+    all_fields = super_class->ComputeAllFields();
+  }
+  const std::vector<Field>& fields = this->fields();
+  all_fields.insert(all_fields.end(), fields.begin(), fields.end());
+  return all_fields;
+}
+
+void ClassType::GenerateAccessors() {
+  // For each field, construct AST snippets that implement a CSA accessor
+  // function and define a corresponding '.field' operator. The
+  // implementation iterator will turn the snippets into code.
+  for (auto& field : fields_) {
+    if (field.index || field.name_and_type.type == TypeOracle::GetVoidType()) {
+      continue;
+    }
+    CurrentSourcePosition::Scope position_activator(field.pos);
+    IdentifierExpression* parameter =
+        MakeNode<IdentifierExpression>(MakeNode<Identifier>(std::string{"o"}));
+
+    // Load accessor
+    std::string camel_field_name = CamelifyString(field.name_and_type.name);
+    std::string load_macro_name = "Load" + this->name() + camel_field_name;
+    Signature load_signature;
+    load_signature.parameter_names.push_back(MakeNode<Identifier>("o"));
+    load_signature.parameter_types.types.push_back(this);
+    load_signature.parameter_types.var_args = false;
+    load_signature.return_type = field.name_and_type.type;
+    Statement* load_body =
+        MakeNode<ReturnStatement>(MakeNode<FieldAccessExpression>(
+            parameter, MakeNode<Identifier>(field.name_and_type.name)));
+    Declarations::DeclareMacro(load_macro_name, true, base::nullopt,
+                               load_signature, load_body, base::nullopt);
+
+    // Store accessor
+    IdentifierExpression* value = MakeNode<IdentifierExpression>(
+        std::vector<std::string>{}, MakeNode<Identifier>(std::string{"v"}));
+    std::string store_macro_name = "Store" + this->name() + camel_field_name;
+    Signature store_signature;
+    store_signature.parameter_names.push_back(MakeNode<Identifier>("o"));
+    store_signature.parameter_names.push_back(MakeNode<Identifier>("v"));
+    store_signature.parameter_types.types.push_back(this);
+    store_signature.parameter_types.types.push_back(field.name_and_type.type);
+    store_signature.parameter_types.var_args = false;
+    // TODO(danno): Store macros probably should return their value argument
+    store_signature.return_type = TypeOracle::GetVoidType();
+    Statement* store_body =
+        MakeNode<ExpressionStatement>(MakeNode<AssignmentExpression>(
+            MakeNode<FieldAccessExpression>(
+                parameter, MakeNode<Identifier>(field.name_and_type.name)),
+            value));
+    Declarations::DeclareMacro(store_macro_name, true, base::nullopt,
+                               store_signature, store_body, base::nullopt,
+                               false);
+  }
 }
 
 void PrintSignature(std::ostream& os, const Signature& sig, bool with_names) {
@@ -234,6 +518,14 @@ std::ostream& operator<<(std::ostream& os, const NameAndType& name_and_type) {
   return os;
 }
 
+std::ostream& operator<<(std::ostream& os, const Field& field) {
+  os << field.name_and_type;
+  if (field.is_weak) {
+    os << " (weak)";
+  }
+  return os;
+}
+
 std::ostream& operator<<(std::ostream& os, const Signature& sig) {
   PrintSignature(os, sig, true);
   return os;
@@ -255,8 +547,8 @@ std::ostream& operator<<(std::ostream& os, const ParameterTypes& p) {
 
 bool Signature::HasSameTypesAs(const Signature& other,
                                ParameterMode mode) const {
-  auto compare_types = GetTypes();
-  auto other_compare_types = other.GetTypes();
+  auto compare_types = types();
+  auto other_compare_types = other.types();
   if (mode == ParameterMode::kIgnoreImplicit) {
     compare_types = GetExplicitTypes();
     other_compare_types = other.GetExplicitTypes();
@@ -290,17 +582,21 @@ bool operator<(const Type& a, const Type& b) {
 
 VisitResult ProjectStructField(VisitResult structure,
                                const std::string& fieldname) {
-  DCHECK(structure.IsOnStack());
   BottomOffset begin = structure.stack_range().begin();
+
+  // Check constructor this super classes for fields.
   const StructType* type = StructType::cast(structure.type());
-  for (auto& field : type->fields()) {
-    BottomOffset end = begin + LoweredSlotCount(field.type);
-    if (field.name == fieldname) {
-      return VisitResult(field.type, StackRange{begin, end});
+  auto& fields = type->fields();
+  for (auto& field : fields) {
+    BottomOffset end = begin + LoweredSlotCount(field.name_and_type.type);
+    if (field.name_and_type.name == fieldname) {
+      return VisitResult(field.name_and_type.type, StackRange{begin, end});
     }
     begin = end;
   }
-  UNREACHABLE();
+
+  ReportError("struct '", type->name(), "' doesn't contain a field '",
+              fieldname, "'");
 }
 
 namespace {
@@ -309,8 +605,8 @@ void AppendLoweredTypes(const Type* type, std::vector<const Type*>* result) {
   if (type->IsConstexpr()) return;
   if (type == TypeOracle::GetVoidType()) return;
   if (auto* s = StructType::DynamicCast(type)) {
-    for (const NameAndType& field : s->fields()) {
-      AppendLoweredTypes(field.type, result);
+    for (const Field& field : s->fields()) {
+      AppendLoweredTypes(field.name_and_type.type, result);
     }
   } else {
     result->push_back(type);
@@ -348,6 +644,52 @@ VisitResult VisitResult::NeverResult() {
   VisitResult result;
   result.type_ = TypeOracle::GetNeverType();
   return result;
+}
+
+std::tuple<size_t, std::string> Field::GetFieldSizeInformation() const {
+  std::string size_string = "#no size";
+  const Type* field_type = this->name_and_type.type;
+  size_t field_size = 0;
+  if (field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+    field_size = kTaggedSize;
+    size_string = "kTaggedSize";
+  } else if (field_type->IsSubtypeOf(TypeOracle::GetRawPtrType())) {
+    field_size = kSystemPointerSize;
+    size_string = "kSystemPointerSize";
+  } else if (field_type->IsSubtypeOf(TypeOracle::GetVoidType())) {
+    field_size = 0;
+    size_string = "0";
+  } else if (field_type->IsSubtypeOf(TypeOracle::GetInt8Type())) {
+    field_size = kUInt8Size;
+    size_string = "kUInt8Size";
+  } else if (field_type->IsSubtypeOf(TypeOracle::GetUint8Type())) {
+    field_size = kUInt8Size;
+    size_string = "kUInt8Size";
+  } else if (field_type->IsSubtypeOf(TypeOracle::GetInt16Type())) {
+    field_size = kUInt16Size;
+    size_string = "kUInt16Size";
+  } else if (field_type->IsSubtypeOf(TypeOracle::GetUint16Type())) {
+    field_size = kUInt16Size;
+    size_string = "kUInt16Size";
+  } else if (field_type->IsSubtypeOf(TypeOracle::GetInt32Type())) {
+    field_size = kInt32Size;
+    size_string = "kInt32Size";
+  } else if (field_type->IsSubtypeOf(TypeOracle::GetUint32Type())) {
+    field_size = kInt32Size;
+    size_string = "kInt32Size";
+  } else if (field_type->IsSubtypeOf(TypeOracle::GetFloat64Type())) {
+    field_size = kDoubleSize;
+    size_string = "kDoubleSize";
+  } else if (field_type->IsSubtypeOf(TypeOracle::GetIntPtrType())) {
+    field_size = kIntptrSize;
+    size_string = "kIntptrSize";
+  } else if (field_type->IsSubtypeOf(TypeOracle::GetUIntPtrType())) {
+    field_size = kIntptrSize;
+    size_string = "kIntptrSize";
+  } else {
+    ReportError("fields of type ", *field_type, " are not (yet) supported");
+  }
+  return std::make_tuple(field_size, size_string);
 }
 
 }  // namespace torque

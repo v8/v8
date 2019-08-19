@@ -565,9 +565,9 @@ snippet: "
         }
   
 "
-frame size: 3
+frame size: 2
 parameter count: 1
-bytecode array length: 46
+bytecode array length: 43
 bytecodes: [
                 B(CreateMappedArguments),
                 B(Star), R(0),
@@ -577,17 +577,15 @@ bytecodes: [
   /*  111 S> */ B(LdaGlobal), U8(0), U8(2),
                 B(Star), R(1),
                 B(LdaSmi), I8(3),
-  /*  115 E> */ B(StaNamedPropertyNoFeedback), R(1), U8(1), U8(0),
+  /*  115 E> */ B(StaNamedProperty), R(1), U8(1), U8(4),
   /*  130 S> */ B(LdaGlobal), U8(0), U8(2),
                 B(Star), R(1),
                 B(LdaSmi), I8(4),
-  /*  134 E> */ B(StaNamedPropertyNoFeedback), R(1), U8(2), U8(0),
-  /*  149 S> */ B(LdaUndefined),
-                B(Star), R(2),
-                B(LdaGlobal), U8(3), U8(4),
+  /*  134 E> */ B(StaNamedProperty), R(1), U8(2), U8(6),
+  /*  149 S> */ B(LdaGlobal), U8(3), U8(8),
                 B(Star), R(1),
-  /*  149 E> */ B(CallNoFeedback), R(1), R(2), U8(1),
-  /*  182 S> */ B(LdaNamedPropertyNoFeedback), R(0), U8(4),
+  /*  149 E> */ B(CallUndefinedReceiver0), R(1), U8(10),
+  /*  182 S> */ B(LdaNamedProperty), R(0), U8(4), U8(12),
   /*  189 S> */ B(Return),
 ]
 constant pool: [

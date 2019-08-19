@@ -9,6 +9,7 @@
 #include "src/objects/hash-table.h"
 #include "src/objects/js-regexp.h"
 #include "src/objects/shared-function-info.h"
+#include "src/roots/roots.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -18,7 +19,7 @@ namespace internal {
 
 class CompilationCacheShape : public BaseShape<HashTableKey*> {
  public:
-  static inline bool IsMatch(HashTableKey* key, Object* value) {
+  static inline bool IsMatch(HashTableKey* key, Object value) {
     return key->IsMatch(value);
   }
 
@@ -33,7 +34,7 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
                                           LanguageMode language_mode,
                                           int position);
 
-  static inline uint32_t HashForObject(Isolate* isolate, Object* object);
+  static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
 
   static const int kPrefixSize = 0;
   static const int kEntrySize = 3;
@@ -105,11 +106,11 @@ class CompilationCacheTable
   static Handle<CompilationCacheTable> PutRegExp(
       Isolate* isolate, Handle<CompilationCacheTable> cache, Handle<String> src,
       JSRegExp::Flags flags, Handle<FixedArray> value);
-  void Remove(Object* value);
+  void Remove(Object value);
   void Age();
   static const int kHashGenerations = 10;
 
-  DECL_CAST2(CompilationCacheTable)
+  DECL_CAST(CompilationCacheTable)
 
  private:
   OBJECT_CONSTRUCTORS(CompilationCacheTable,

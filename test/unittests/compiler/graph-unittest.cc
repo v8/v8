@@ -7,7 +7,7 @@
 #include "src/compiler/js-heap-copy-reducer.h"
 #include "src/compiler/node-properties.h"
 #include "src/heap/factory.h"
-#include "src/objects-inl.h"  // TODO(everyone): Make typer.h IWYU compliant.
+#include "src/objects/objects-inl.h"  // TODO(everyone): Make typer.h IWYU compliant.
 #include "test/unittests/compiler/node-test-utils.h"
 
 namespace v8 {
@@ -18,14 +18,13 @@ GraphTest::GraphTest(int num_parameters)
     : canonical_(isolate()),
       common_(zone()),
       graph_(zone()),
-      broker_(isolate(), zone()),
+      broker_(isolate(), zone(), FLAG_trace_heap_broker),
       source_positions_(&graph_),
       node_origins_(&graph_) {
   graph()->SetStart(graph()->NewNode(common()->Start(num_parameters)));
   graph()->SetEnd(graph()->NewNode(common()->End(1), graph()->start()));
   broker()->SetNativeContextRef();
 }
-
 
 GraphTest::~GraphTest() = default;
 
@@ -117,7 +116,8 @@ Matcher<Node*> GraphTest::IsUndefinedConstant() {
 }
 
 TypedGraphTest::TypedGraphTest(int num_parameters)
-    : GraphTest(num_parameters), typer_(broker(), Typer::kNoFlags, graph()) {}
+    : GraphTest(num_parameters),
+      typer_(broker(), Typer::kNoFlags, graph(), tick_counter()) {}
 
 TypedGraphTest::~TypedGraphTest() = default;
 

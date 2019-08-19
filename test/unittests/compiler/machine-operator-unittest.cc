@@ -25,8 +25,8 @@ class MachineOperatorTestWithParam
   const T& GetParam() const { return ::testing::get<1>(B::GetParam()); }
 
  private:
-  typedef ::testing::WithParamInterface<
-      ::testing::tuple<MachineRepresentation, T> > B;
+  using B = ::testing::WithParamInterface<
+      ::testing::tuple<MachineRepresentation, T> >;
 };
 
 
@@ -51,10 +51,8 @@ const MachineRepresentation kRepresentationsForStore[] = {
 // -----------------------------------------------------------------------------
 // Load operator.
 
-
-typedef MachineOperatorTestWithParam<LoadRepresentation>
-    MachineLoadOperatorTest;
-
+using MachineLoadOperatorTest =
+    MachineOperatorTestWithParam<LoadRepresentation>;
 
 TEST_P(MachineLoadOperatorTest, InstancesAreGloballyShared) {
   MachineOperatorBuilder machine1(zone(), representation());
@@ -89,12 +87,10 @@ TEST_P(MachineLoadOperatorTest, ParameterIsCorrect) {
   EXPECT_EQ(GetParam(), LoadRepresentationOf(machine.Load(GetParam())));
 }
 
-
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     MachineOperatorTest, MachineLoadOperatorTest,
     ::testing::Combine(::testing::ValuesIn(kMachineReps),
                        ::testing::ValuesIn(kMachineTypesForAccess)));
-
 
 // -----------------------------------------------------------------------------
 // Store operator.
@@ -149,8 +145,7 @@ TEST_P(MachineStoreOperatorTest, ParameterIsCorrect) {
   EXPECT_EQ(GetParam(), StoreRepresentationOf(machine.Store(GetParam())));
 }
 
-
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     MachineOperatorTest, MachineStoreOperatorTest,
     ::testing::Combine(
         ::testing::ValuesIn(kMachineReps),
@@ -250,7 +245,7 @@ const PureOperator kPureOperators[] = {
     PURE(Float64Equal, 2, 0, 1),              // --
     PURE(Float64LessThan, 2, 0, 1),           // --
     PURE(Float64LessThanOrEqual, 2, 0, 1),    // --
-    PURE(LoadStackPointer, 0, 0, 1),          // --
+    PURE(StackPointerGreaterThan, 1, 0, 1),   // --
     PURE(Float64ExtractLowWord32, 1, 0, 1),   // --
     PURE(Float64ExtractHighWord32, 1, 0, 1),  // --
     PURE(Float64InsertLowWord32, 2, 0, 1),    // --
@@ -350,9 +345,7 @@ TEST_F(MachineOptionalOperatorTest, OptionalOperators) {
 // -----------------------------------------------------------------------------
 // Pseudo operators.
 
-
-typedef TestWithZone MachineOperatorTest;
-
+using MachineOperatorTest = TestWithZone;
 
 TEST_F(MachineOperatorTest, PseudoOperatorsWhenWordSizeIs32Bit) {
   MachineOperatorBuilder machine(zone(), MachineRepresentation::kWord32);

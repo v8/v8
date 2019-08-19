@@ -11,6 +11,10 @@ For simplicity, we check all pyl files on any changes in this folder.
 import ast
 import os
 
+try:
+  basestring       # Python 2
+except NameError:  # Python 3
+  basestring = str
 
 SUPPORTED_BUILDER_SPEC_KEYS = [
   'swarming_dimensions',
@@ -29,7 +33,9 @@ SUPPORTED_SWARMING_DIMENSIONS = [
 ]
 
 # This is not an exhaustive list. It only reflects what we currently use. If
-# there's need to specify a different property, just add it here.
+# there's need to specify a different property, add it here and update the
+# properties passed to swarming in:
+# //build/scripts/slave/recipe_modules/v8/testing.py.
 SUPPORTED_SWARMING_TASK_ATTRS = [
   'expiration',
   'hard_timeout',

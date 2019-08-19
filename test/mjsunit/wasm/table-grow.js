@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 let kMaxTableSize = 10000000;
@@ -133,7 +132,7 @@ let id = (() => {  // identity exported function
 
   builder.addImportedTable("q", "table", 5, 32);
   let g = builder.addImportedGlobal("q", "base", kWasmI32);
-  builder.addElementSegment(g, true,
+  builder.addElementSegment(0, g, true,
       [funcs.mul.index, funcs.add.index, funcs.sub.index]);
   builder.addExportOfKind("table", kExternalTable, 0);
   let module = new WebAssembly.Module(builder.toBuffer());
@@ -180,9 +179,7 @@ let id = (() => {  // identity exported function
   let t = builder.addImport("q", "exp_ten", sig_i_v);
 
   builder.setTableBounds(7, 35);
-  // builder.addElementSegment(g1, true,
-  //     [funcs.mul.index, funcs.add.index, funcs.sub.index]);
-  builder.addElementSegment(g1, true, [a, i, t]);
+  builder.addElementSegment(0, g1, true, [a, i, t]);
 
   builder.addExportOfKind("table", kExternalTable, 0);
   let module = new WebAssembly.Module(builder.toBuffer());
@@ -215,7 +212,7 @@ let id = (() => {  // identity exported function
   let funcs = addFunctions(builder1);
 
   builder1.addImportedTable("q", "table", 6, 36);
-  builder1.addElementSegment(g, true,
+  builder1.addElementSegment(0, g, true,
       [funcs.mul.index, funcs.add.index, funcs.sub.index]);
   let module1 = new WebAssembly.Module(builder1.toBuffer());
 
@@ -267,7 +264,7 @@ let id = (() => {  // identity exported function
         kExprGetLocal, 0,
         kExprCallIndirect, index_i_ii, kTableZero])
       .exportAs("main");
-    builder.addElementSegment(0, false, [0], true);
+    builder.addElementSegment(0, 0, false, [0]);
     return new WebAssembly.Module(builder.toBuffer());
   }
 

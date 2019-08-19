@@ -7,12 +7,11 @@
 #include <limits>
 
 #include "src/base/bits.h"
+#include "src/base/overflowing-math.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/codegen.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
-#include "test/cctest/compiler/graph-builder-tester.h"
 #include "test/cctest/compiler/value-helper.h"
 
 
@@ -52,7 +51,7 @@ void RunLoadInt32(const TestAlignment t) {
   }
 
   FOR_INT32_INPUTS(i) {
-    p1 = *i;
+    p1 = i;
     CHECK_EQ(p1, m.Call());
   }
 }
@@ -79,7 +78,7 @@ void RunLoadInt32Offset(TestAlignment t) {
     }
 
     FOR_INT32_INPUTS(j) {
-      p1 = *j;
+      p1 = j;
       CHECK_EQ(p1, m.Call());
     }
   }
@@ -90,9 +89,10 @@ void RunLoadStoreFloat32Offset(TestAlignment t) {
   float p2 = 0.0f;  // and stores directly into this location.
 
   FOR_INT32_INPUTS(i) {
-    int32_t magic = 0x2342AABB + *i * 3;
+    int32_t magic =
+        base::AddWithWraparound(0x2342AABB, base::MulWithWraparound(i, 3));
     RawMachineAssemblerTester<int32_t> m;
-    int32_t offset = *i;
+    int32_t offset = i;
     byte* from = reinterpret_cast<byte*>(&p1) - offset;
     byte* to = reinterpret_cast<byte*>(&p2) - offset;
     // generate load [#base + #index]
@@ -114,8 +114,8 @@ void RunLoadStoreFloat32Offset(TestAlignment t) {
     m.Return(m.Int32Constant(magic));
 
     FOR_FLOAT32_INPUTS(j) {
-      p1 = *j;
-      p2 = *j - 5;
+      p1 = j;
+      p2 = j - 5;
       CHECK_EQ(magic, m.Call());
       CHECK_DOUBLE_EQ(p1, p2);
     }
@@ -127,9 +127,10 @@ void RunLoadStoreFloat64Offset(TestAlignment t) {
   double p2 = 0;  // and stores directly into this location.
 
   FOR_INT32_INPUTS(i) {
-    int32_t magic = 0x2342AABB + *i * 3;
+    int32_t magic =
+        base::AddWithWraparound(0x2342AABB, base::MulWithWraparound(i, 3));
     RawMachineAssemblerTester<int32_t> m;
-    int32_t offset = *i;
+    int32_t offset = i;
     byte* from = reinterpret_cast<byte*>(&p1) - offset;
     byte* to = reinterpret_cast<byte*>(&p2) - offset;
     // generate load [#base + #index]
@@ -150,8 +151,8 @@ void RunLoadStoreFloat64Offset(TestAlignment t) {
     m.Return(m.Int32Constant(magic));
 
     FOR_FLOAT64_INPUTS(j) {
-      p1 = *j;
-      p2 = *j - 5;
+      p1 = j;
+      p2 = j - 5;
       CHECK_EQ(magic, m.Call());
       CHECK_DOUBLE_EQ(p1, p2);
     }
@@ -187,12 +188,39 @@ TEST(RunUnalignedLoadStoreFloat64Offset) {
 
 namespace {
 
+// Mostly same as CHECK_EQ() but customized for compressed tagged values.
+template <typename CType>
+void CheckEq(CType in_value, CType out_value) {
+  CHECK_EQ(in_value, out_value);
+}
+
+#ifdef V8_COMPRESS_POINTERS
+// Specializations for checking the result of compressing store.
+template <>
+void CheckEq<Object>(Object in_value, Object out_value) {
+  // Compare only lower 32-bits of the value because tagged load/stores are
+  // 32-bit operations anyway.
+  CHECK_EQ(static_cast<Tagged_t>(in_value.ptr()),
+           static_cast<Tagged_t>(out_value.ptr()));
+}
+
+template <>
+void CheckEq<HeapObject>(HeapObject in_value, HeapObject out_value) {
+  return CheckEq<Object>(in_value, out_value);
+}
+
+template <>
+void CheckEq<Smi>(Smi in_value, Smi out_value) {
+  return CheckEq<Object>(in_value, out_value);
+}
+#endif
+
 // Initializes the buffer with some raw data respecting requested representation
 // of the values.
 template <typename CType>
-void InitBuffer(CType* buffer, size_t length, MachineType rep) {
+void InitBuffer(CType* buffer, size_t length, MachineType type) {
   const size_t kBufferSize = sizeof(CType) * length;
-  if (!rep.IsTagged()) {
+  if (!type.IsTagged()) {
     byte* raw = reinterpret_cast<byte*>(buffer);
     for (size_t i = 0; i < kBufferSize; i++) {
       raw[i] = static_cast<byte>((i + kBufferSize) ^ 0xAA);
@@ -204,13 +232,13 @@ void InitBuffer(CType* buffer, size_t length, MachineType rep) {
   // pointer decompression that may be happenning during load.
   Isolate* isolate = CcTest::InitIsolateOnce();
   Smi* smi_view = reinterpret_cast<Smi*>(&buffer[0]);
-  if (rep.IsTaggedSigned()) {
+  if (type.IsTaggedSigned()) {
     for (size_t i = 0; i < length; i++) {
       smi_view[i] = Smi::FromInt(static_cast<int>(i + kBufferSize) ^ 0xABCDEF0);
     }
   } else {
     memcpy(&buffer[0], &isolate->roots_table(), kBufferSize);
-    if (!rep.IsTaggedPointer()) {
+    if (!type.IsTaggedPointer()) {
       // Also add some Smis if we are checking AnyTagged case.
       for (size_t i = 0; i < length / 2; i++) {
         smi_view[i] =
@@ -221,11 +249,11 @@ void InitBuffer(CType* buffer, size_t length, MachineType rep) {
 }
 
 template <typename CType>
-void RunLoadImmIndex(MachineType rep, TestAlignment t) {
+void RunLoadImmIndex(MachineType type, TestAlignment t) {
   const int kNumElems = 16;
   CType buffer[kNumElems];
 
-  InitBuffer(buffer, kNumElems, rep);
+  InitBuffer(buffer, kNumElems, type);
 
   // Test with various large and small offsets.
   for (int offset = -1; offset <= 200000; offset *= -5) {
@@ -233,45 +261,39 @@ void RunLoadImmIndex(MachineType rep, TestAlignment t) {
       BufferedRawMachineAssemblerTester<CType> m;
       void* base_pointer = &buffer[0] - offset;
 #ifdef V8_COMPRESS_POINTERS
-      if (rep.IsTagged()) {
+      if (type.IsTagged()) {
         // When pointer compression is enabled then we need to access only
         // the lower 32-bit of the tagged value while the buffer contains
         // full 64-bit values.
-        base_pointer = LSB(base_pointer, kPointerSize / 2);
+        base_pointer = LSB(base_pointer, kTaggedSize);
       }
 #endif
       Node* base = m.PointerConstant(base_pointer);
       Node* index = m.Int32Constant((offset + i) * sizeof(buffer[0]));
       if (t == TestAlignment::kAligned) {
-        m.Return(m.Load(rep, base, index));
+        m.Return(m.Load(type, base, index));
       } else if (t == TestAlignment::kUnaligned) {
-        m.Return(m.UnalignedLoad(rep, base, index));
+        m.Return(m.UnalignedLoad(type, base, index));
       } else {
         UNREACHABLE();
       }
 
-      CHECK_EQ(buffer[i], m.Call());
+      CheckEq<CType>(buffer[i], m.Call());
     }
   }
 }
 
 template <typename CType>
-CType NullValue() {
-  return CType{0};
-}
-
-template <>
-HeapObject NullValue<HeapObject>() {
-  return HeapObject();
-}
-
-template <typename CType>
-void RunLoadStore(MachineType rep, TestAlignment t) {
+void RunLoadStore(MachineType type, TestAlignment t) {
   const int kNumElems = 16;
   CType in_buffer[kNumElems];
   CType out_buffer[kNumElems];
+  uintptr_t zap_data[] = {kZapValue, kZapValue};
+  CType zap_value;
 
-  InitBuffer(in_buffer, kNumElems, rep);
+  STATIC_ASSERT(sizeof(CType) <= sizeof(zap_data));
+  MemCopy(&zap_value, &zap_data, sizeof(CType));
+  InitBuffer(in_buffer, kNumElems, type);
 
   for (int32_t x = 0; x < kNumElems; x++) {
     int32_t y = kNumElems - x - 1;
@@ -283,32 +305,36 @@ void RunLoadStore(MachineType rep, TestAlignment t) {
     Node* out_base = m.PointerConstant(out_buffer);
     Node* out_index = m.IntPtrConstant(y * sizeof(CType));
     if (t == TestAlignment::kAligned) {
-      Node* load = m.Load(rep, in_base, in_index);
-      m.Store(rep.representation(), out_base, out_index, load, kNoWriteBarrier);
+      Node* load = m.Load(type, in_base, in_index);
+      m.Store(type.representation(), out_base, out_index, load,
+              kNoWriteBarrier);
     } else if (t == TestAlignment::kUnaligned) {
-      Node* load = m.UnalignedLoad(rep, in_base, in_index);
-      m.UnalignedStore(rep.representation(), out_base, out_index, load);
+      Node* load = m.UnalignedLoad(type, in_base, in_index);
+      m.UnalignedStore(type.representation(), out_base, out_index, load);
     }
 
     m.Return(m.Int32Constant(OK));
 
-    memset(out_buffer, 0, sizeof(out_buffer));
+    for (int32_t z = 0; z < kNumElems; z++) {
+      out_buffer[z] = zap_value;
+    }
     CHECK_NE(in_buffer[x], out_buffer[y]);
     CHECK_EQ(OK, m.Call());
-    CHECK_EQ(in_buffer[x], out_buffer[y]);
+    // Mostly same as CHECK_EQ() but customized for compressed tagged values.
+    CheckEq<CType>(in_buffer[x], out_buffer[y]);
     for (int32_t z = 0; z < kNumElems; z++) {
-      if (z != y) CHECK_EQ(NullValue<CType>(), out_buffer[z]);
+      if (z != y) CHECK_EQ(zap_value, out_buffer[z]);
     }
   }
 }
 
 template <typename CType>
-void RunUnalignedLoadStoreUnalignedAccess(MachineType rep) {
+void RunUnalignedLoadStoreUnalignedAccess(MachineType type) {
   CType in, out;
   byte in_buffer[2 * sizeof(CType)];
   byte out_buffer[2 * sizeof(CType)];
 
-  InitBuffer(&in, 1, rep);
+  InitBuffer(&in, 1, type);
 
   for (int x = 0; x < static_cast<int>(sizeof(CType)); x++) {
     // Direct write to &in_buffer[x] may cause unaligned access in C++ code so
@@ -321,11 +347,11 @@ void RunUnalignedLoadStoreUnalignedAccess(MachineType rep) {
 
       Node* in_base = m.PointerConstant(in_buffer);
       Node* in_index = m.IntPtrConstant(x);
-      Node* load = m.UnalignedLoad(rep, in_base, in_index);
+      Node* load = m.UnalignedLoad(type, in_base, in_index);
 
       Node* out_base = m.PointerConstant(out_buffer);
       Node* out_index = m.IntPtrConstant(y);
-      m.UnalignedStore(rep.representation(), out_base, out_index, load);
+      m.UnalignedStore(type.representation(), out_base, out_index, load);
 
       m.Return(m.Int32Constant(OK));
 
@@ -333,7 +359,8 @@ void RunUnalignedLoadStoreUnalignedAccess(MachineType rep) {
       // Direct read of &out_buffer[y] may cause unaligned access in C++ code
       // so we use MemCopy() to handle that.
       MemCopy(&out, &out_buffer[y], sizeof(CType));
-      CHECK_EQ(in, out);
+      // Mostly same as CHECK_EQ() but customized for compressed tagged values.
+      CheckEq<CType>(in, out);
     }
   }
 }
@@ -350,7 +377,7 @@ TEST(RunLoadImmIndex) {
   RunLoadImmIndex<Smi>(MachineType::TaggedSigned(), TestAlignment::kAligned);
   RunLoadImmIndex<HeapObject>(MachineType::TaggedPointer(),
                               TestAlignment::kAligned);
-  RunLoadImmIndex<Object*>(MachineType::AnyTagged(), TestAlignment::kAligned);
+  RunLoadImmIndex<Object>(MachineType::AnyTagged(), TestAlignment::kAligned);
   RunLoadImmIndex<float>(MachineType::Float32(), TestAlignment::kAligned);
   RunLoadImmIndex<double>(MachineType::Float64(), TestAlignment::kAligned);
 #if V8_TARGET_ARCH_64_BIT
@@ -365,10 +392,6 @@ TEST(RunUnalignedLoadImmIndex) {
   RunLoadImmIndex<int32_t>(MachineType::Int32(), TestAlignment::kUnaligned);
   RunLoadImmIndex<uint32_t>(MachineType::Uint32(), TestAlignment::kUnaligned);
   RunLoadImmIndex<void*>(MachineType::Pointer(), TestAlignment::kUnaligned);
-  RunLoadImmIndex<Smi>(MachineType::TaggedSigned(), TestAlignment::kUnaligned);
-  RunLoadImmIndex<HeapObject>(MachineType::TaggedPointer(),
-                              TestAlignment::kUnaligned);
-  RunLoadImmIndex<Object*>(MachineType::AnyTagged(), TestAlignment::kUnaligned);
   RunLoadImmIndex<float>(MachineType::Float32(), TestAlignment::kUnaligned);
   RunLoadImmIndex<double>(MachineType::Float64(), TestAlignment::kUnaligned);
 #if V8_TARGET_ARCH_64_BIT
@@ -388,7 +411,7 @@ TEST(RunLoadStore) {
   RunLoadStore<Smi>(MachineType::TaggedSigned(), TestAlignment::kAligned);
   RunLoadStore<HeapObject>(MachineType::TaggedPointer(),
                            TestAlignment::kAligned);
-  RunLoadStore<Object*>(MachineType::AnyTagged(), TestAlignment::kAligned);
+  RunLoadStore<Object>(MachineType::AnyTagged(), TestAlignment::kAligned);
   RunLoadStore<float>(MachineType::Float32(), TestAlignment::kAligned);
   RunLoadStore<double>(MachineType::Float64(), TestAlignment::kAligned);
 #if V8_TARGET_ARCH_64_BIT
@@ -402,10 +425,6 @@ TEST(RunUnalignedLoadStore) {
   RunLoadStore<int32_t>(MachineType::Int32(), TestAlignment::kUnaligned);
   RunLoadStore<uint32_t>(MachineType::Uint32(), TestAlignment::kUnaligned);
   RunLoadStore<void*>(MachineType::Pointer(), TestAlignment::kUnaligned);
-  RunLoadStore<Smi>(MachineType::TaggedSigned(), TestAlignment::kUnaligned);
-  RunLoadStore<HeapObject>(MachineType::TaggedPointer(),
-                           TestAlignment::kUnaligned);
-  RunLoadStore<Object*>(MachineType::AnyTagged(), TestAlignment::kUnaligned);
   RunLoadStore<float>(MachineType::Float32(), TestAlignment::kUnaligned);
   RunLoadStore<double>(MachineType::Float64(), TestAlignment::kUnaligned);
 #if V8_TARGET_ARCH_64_BIT
@@ -419,10 +438,6 @@ TEST(RunUnalignedLoadStoreUnalignedAccess) {
   RunUnalignedLoadStoreUnalignedAccess<int32_t>(MachineType::Int32());
   RunUnalignedLoadStoreUnalignedAccess<uint32_t>(MachineType::Uint32());
   RunUnalignedLoadStoreUnalignedAccess<void*>(MachineType::Pointer());
-  RunUnalignedLoadStoreUnalignedAccess<Smi>(MachineType::TaggedSigned());
-  RunUnalignedLoadStoreUnalignedAccess<HeapObject>(
-      MachineType::TaggedPointer());
-  RunUnalignedLoadStoreUnalignedAccess<Object*>(MachineType::AnyTagged());
   RunUnalignedLoadStoreUnalignedAccess<float>(MachineType::Float32());
   RunUnalignedLoadStoreUnalignedAccess<double>(MachineType::Float64());
 #if V8_TARGET_ARCH_64_BIT
@@ -456,12 +471,12 @@ void RunLoadStoreSignExtend32(TestAlignment t) {
   m.Return(load8);
 
   FOR_INT32_INPUTS(i) {
-    buffer[0] = *i;
+    buffer[0] = i;
 
-    CHECK_EQ(static_cast<int8_t>(*i & 0xFF), m.Call());
-    CHECK_EQ(static_cast<int8_t>(*i & 0xFF), buffer[1]);
-    CHECK_EQ(static_cast<int16_t>(*i & 0xFFFF), buffer[2]);
-    CHECK_EQ(*i, buffer[3]);
+    CHECK_EQ(static_cast<int8_t>(i & 0xFF), m.Call());
+    CHECK_EQ(static_cast<int8_t>(i & 0xFF), buffer[1]);
+    CHECK_EQ(static_cast<int16_t>(i & 0xFFFF), buffer[2]);
+    CHECK_EQ(i, buffer[3]);
   }
 }
 
@@ -489,12 +504,12 @@ void RunLoadStoreZeroExtend32(TestAlignment t) {
   m.Return(load8);
 
   FOR_UINT32_INPUTS(i) {
-    buffer[0] = *i;
+    buffer[0] = i;
 
-    CHECK_EQ((*i & 0xFF), m.Call());
-    CHECK_EQ((*i & 0xFF), buffer[1]);
-    CHECK_EQ((*i & 0xFFFF), buffer[2]);
-    CHECK_EQ(*i, buffer[3]);
+    CHECK_EQ((i & 0xFF), m.Call());
+    CHECK_EQ((i & 0xFF), buffer[1]);
+    CHECK_EQ((i & 0xFFFF), buffer[2]);
+    CHECK_EQ(i, buffer[3]);
   }
 }
 }  // namespace
@@ -550,18 +565,18 @@ void RunLoadStoreSignExtend64(TestAlignment t) {
   m.Return(load8);
 
   FOR_INT64_INPUTS(i) {
-    buffer[0] = *i;
+    buffer[0] = i;
 
-    CHECK_EQ(static_cast<int8_t>(*i & 0xFF), m.Call());
-    CHECK_EQ(static_cast<int8_t>(*i & 0xFF), buffer[1]);
-    CHECK_EQ(static_cast<int16_t>(*i & 0xFFFF), buffer[2]);
-    CHECK_EQ(static_cast<int32_t>(*i & 0xFFFFFFFF), buffer[3]);
-    CHECK_EQ(*i, buffer[4]);
+    CHECK_EQ(static_cast<int8_t>(i & 0xFF), m.Call());
+    CHECK_EQ(static_cast<int8_t>(i & 0xFF), buffer[1]);
+    CHECK_EQ(static_cast<int16_t>(i & 0xFFFF), buffer[2]);
+    CHECK_EQ(static_cast<int32_t>(i & 0xFFFFFFFF), buffer[3]);
+    CHECK_EQ(i, buffer[4]);
   }
 }
 
 void RunLoadStoreZeroExtend64(TestAlignment t) {
-  if (kPointerSize < 8) return;
+  if (kSystemPointerSize < 8) return;
   uint64_t buffer[5];
   RawMachineAssemblerTester<uint64_t> m;
   Node* load8 = m.LoadFromPointer(LSB(&buffer[0], 1), MachineType::Uint8());
@@ -593,13 +608,13 @@ void RunLoadStoreZeroExtend64(TestAlignment t) {
   m.Return(load8);
 
   FOR_UINT64_INPUTS(i) {
-    buffer[0] = *i;
+    buffer[0] = i;
 
-    CHECK_EQ((*i & 0xFF), m.Call());
-    CHECK_EQ((*i & 0xFF), buffer[1]);
-    CHECK_EQ((*i & 0xFFFF), buffer[2]);
-    CHECK_EQ((*i & 0xFFFFFFFF), buffer[3]);
-    CHECK_EQ(*i, buffer[4]);
+    CHECK_EQ((i & 0xFF), m.Call());
+    CHECK_EQ((i & 0xFF), buffer[1]);
+    CHECK_EQ((i & 0xFFFF), buffer[2]);
+    CHECK_EQ((i & 0xFFFFFFFF), buffer[3]);
+    CHECK_EQ(i, buffer[4]);
   }
 }
 

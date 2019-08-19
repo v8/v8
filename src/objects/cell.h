@@ -6,6 +6,7 @@
 #define V8_OBJECTS_CELL_H_
 
 #include "src/objects/heap-object.h"
+#include "torque-generated/field-offsets-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -18,7 +19,7 @@ class Cell : public HeapObject {
   // [value]: value of the cell.
   DECL_ACCESSORS(value, Object)
 
-  DECL_CAST2(Cell)
+  DECL_CAST(Cell)
 
   static inline Cell FromValueAddress(Address value);
 
@@ -28,12 +29,10 @@ class Cell : public HeapObject {
   DECL_PRINTER(Cell)
   DECL_VERIFIER(Cell)
 
-  // Layout description.
-  static const int kValueOffset = HeapObject::kHeaderSize;
-  static const int kSize = kValueOffset + kPointerSize;
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_CELL_FIELDS)
 
-  typedef FixedBodyDescriptor<kValueOffset, kValueOffset + kPointerSize, kSize>
-      BodyDescriptor;
+  using BodyDescriptor = FixedBodyDescriptor<kValueOffset, kSize, kSize>;
 
   OBJECT_CONSTRUCTORS(Cell, HeapObject);
 };

@@ -7,7 +7,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/iterator.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
@@ -38,7 +38,7 @@ V8_EXPORT_PRIVATE DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
                                               const WasmFeatures& enabled,
                                               const WasmModule* module,
                                               WasmFeatures* detected,
-                                              FunctionBody& body);
+                                              const FunctionBody& body);
 
 enum PrintLocals { kPrintLocals, kOmitLocals };
 V8_EXPORT_PRIVATE

@@ -4,7 +4,7 @@
 #ifndef V8_COMPILER_JS_GENERIC_LOWERING_H_
 #define V8_COMPILER_JS_GENERIC_LOWERING_H_
 
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/opcodes.h"
@@ -21,9 +21,9 @@ class Linkage;
 
 
 // Lowers JS-level operators to runtime and IC calls in the "generic" case.
-class JSGenericLowering final : public Reducer {
+class JSGenericLowering final : public AdvancedReducer {
  public:
-  explicit JSGenericLowering(JSGraph* jsgraph);
+  JSGenericLowering(JSGraph* jsgraph, Editor* editor);
   ~JSGenericLowering() final;
 
   const char* reducer_name() const override { return "JSGenericLowering"; }

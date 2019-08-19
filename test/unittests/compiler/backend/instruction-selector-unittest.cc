@@ -4,12 +4,13 @@
 
 #include "test/unittests/compiler/backend/instruction-selector-unittest.h"
 
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
+#include "src/codegen/tick-counter.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/schedule.h"
-#include "src/flags.h"
-#include "src/objects-inl.h"
+#include "src/flags/flags.h"
+#include "src/objects/objects-inl.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 
 namespace v8 {
@@ -24,7 +25,7 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
     InstructionSelector::Features features,
     InstructionSelectorTest::StreamBuilderMode mode,
     InstructionSelector::SourcePositionMode source_position_mode) {
-  Schedule* schedule = Export();
+  Schedule* schedule = ExportForTest();
   if (FLAG_trace_turbo) {
     StdoutStream{} << "=== Schedule before instruction selection ==="
                    << std::endl
@@ -38,11 +39,12 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   InstructionSequence sequence(test_->isolate(), test_->zone(),
                                instruction_blocks);
   SourcePositionTable source_position_table(graph());
+  TickCounter tick_counter;
   InstructionSelector selector(
       test_->zone(), node_count, &linkage, &sequence, schedule,
       &source_position_table, nullptr,
-      InstructionSelector::kEnableSwitchJumpTable, source_position_mode,
-      features, InstructionSelector::kDisableScheduling,
+      InstructionSelector::kEnableSwitchJumpTable, &tick_counter,
+      source_position_mode, features, InstructionSelector::kDisableScheduling,
       InstructionSelector::kEnableRootsRelativeAddressing,
       PoisoningMitigationLevel::kPoisonAll);
   selector.SelectInstructions();
@@ -243,8 +245,8 @@ TARGET_TEST_F(InstructionSelectorTest, FinishRegion) {
 // -----------------------------------------------------------------------------
 // Phi.
 
-typedef InstructionSelectorTestWithParam<MachineType>
-    InstructionSelectorPhiTest;
+using InstructionSelectorPhiTest =
+    InstructionSelectorTestWithParam<MachineType>;
 
 TARGET_TEST_P(InstructionSelectorPhiTest, Doubleness) {
   const MachineType type = GetParam();
@@ -284,7 +286,7 @@ TARGET_TEST_P(InstructionSelectorPhiTest, Referenceness) {
   EXPECT_EQ(s.IsReference(phi), s.IsReference(param1));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     InstructionSelectorTest, InstructionSelectorPhiTest,
     ::testing::Values(MachineType::Float64(), MachineType::Int8(),
                       MachineType::Uint8(), MachineType::Int16(),

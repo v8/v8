@@ -24,7 +24,7 @@ static const int kMaxAsyncTaskStacks = 128 * 1024;
 static const int kNoBreakpointId = 0;
 
 template <typename Map>
-void cleanupExpiredWeakPointers(Map& map) {
+void cleanupExpiredWeakPointers(Map& map) {  // NOLINT(runtime/references)
   for (auto it = map.begin(); it != map.end();) {
     if (it->second.expired()) {
       it = map.erase(it);
@@ -42,7 +42,9 @@ class MatchPrototypePredicate : public v8::debug::QueryObjectPredicate {
       : m_inspector(inspector), m_context(context), m_prototype(prototype) {}
 
   bool Filter(v8::Local<v8::Object> object) override {
-    v8::Local<v8::Context> objectContext = object->CreationContext();
+    if (object->IsModuleNamespaceObject()) return false;
+    v8::Local<v8::Context> objectContext =
+        v8::debug::GetCreationContext(object);
     if (objectContext != m_context) return false;
     if (!m_inspector->client()->isInspectableHeapObject(object)) return false;
     // Get prototype chain for current object until first visited prototype.
@@ -59,6 +61,7 @@ class MatchPrototypePredicate : public v8::debug::QueryObjectPredicate {
   v8::Local<v8::Context> m_context;
   v8::Local<v8::Value> m_prototype;
 };
+
 }  // namespace
 
 V8Debugger::V8Debugger(v8::Isolate* isolate, V8InspectorImpl* inspector)
@@ -76,7 +79,7 @@ V8Debugger::~V8Debugger() {
   m_isolate->RemoveCallCompletedCallback(
       &V8Debugger::terminateExecutionCompletedCallback);
   m_isolate->RemoveMicrotasksCompletedCallback(
-      &V8Debugger::terminateExecutionCompletedCallback);
+      &V8Debugger::terminateExecutionCompletedCallbackIgnoringData);
 }
 
 void V8Debugger::enable() {
@@ -119,26 +122,24 @@ bool V8Debugger::isPausedInContextGroup(int contextGroupId) const {
 
 bool V8Debugger::enabled() const { return m_enableCount > 0; }
 
-void V8Debugger::getCompiledScripts(
-    int contextGroupId,
-    std::vector<std::unique_ptr<V8DebuggerScript>>& result) {
+std::vector<std::unique_ptr<V8DebuggerScript>> V8Debugger::getCompiledScripts(
+    int contextGroupId, V8DebuggerAgentImpl* agent) {
+  std::vector<std::unique_ptr<V8DebuggerScript>> result;
   v8::HandleScope scope(m_isolate);
   v8::PersistentValueVector<v8::debug::Script> scripts(m_isolate);
   v8::debug::GetLoadedScripts(m_isolate, scripts);
   for (size_t i = 0; i < scripts.Size(); ++i) {
     v8::Local<v8::debug::Script> script = scripts.Get(i);
     if (!script->WasCompiled()) continue;
-    if (script->IsEmbedded()) {
-      result.push_back(V8DebuggerScript::Create(m_isolate, script, false,
-                                                m_inspector->client()));
-      continue;
+    if (!script->IsEmbedded()) {
+      int contextId;
+      if (!script->ContextId().To(&contextId)) continue;
+      if (m_inspector->contextGroupId(contextId) != contextGroupId) continue;
     }
-    int contextId;
-    if (!script->ContextId().To(&contextId)) continue;
-    if (m_inspector->contextGroupId(contextId) != contextGroupId) continue;
-    result.push_back(V8DebuggerScript::Create(m_isolate, script, false,
+    result.push_back(V8DebuggerScript::Create(m_isolate, script, false, agent,
                                               m_inspector->client()));
   }
+  return result;
 }
 
 void V8Debugger::setBreakpointsActive(bool active) {
@@ -249,6 +250,7 @@ void V8Debugger::stepOutOfFunction(int targetContextGroupId) {
 
 bool V8Debugger::asyncStepOutOfFunction(int targetContextGroupId,
                                         bool onlyAtReturn) {
+  v8::HandleScope handleScope(m_isolate);
   auto iterator = v8::debug::StackTraceIterator::Create(m_isolate);
   DCHECK(!iterator->Done());
   bool atReturn = !iterator->GetReturnValue().IsEmpty();
@@ -301,7 +303,7 @@ void V8Debugger::terminateExecution(
   m_isolate->AddCallCompletedCallback(
       &V8Debugger::terminateExecutionCompletedCallback);
   m_isolate->AddMicrotasksCompletedCallback(
-      &V8Debugger::terminateExecutionCompletedCallback);
+      &V8Debugger::terminateExecutionCompletedCallbackIgnoringData);
   m_isolate->TerminateExecution();
 }
 
@@ -310,7 +312,7 @@ void V8Debugger::reportTermination() {
   m_isolate->RemoveCallCompletedCallback(
       &V8Debugger::terminateExecutionCompletedCallback);
   m_isolate->RemoveMicrotasksCompletedCallback(
-      &V8Debugger::terminateExecutionCompletedCallback);
+      &V8Debugger::terminateExecutionCompletedCallbackIgnoringData);
   m_isolate->CancelTerminateExecution();
   m_terminateExecutionCallback->sendSuccess();
   m_terminateExecutionCallback.reset();
@@ -321,6 +323,11 @@ void V8Debugger::terminateExecutionCompletedCallback(v8::Isolate* isolate) {
       static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
   V8Debugger* debugger = inspector->debugger();
   debugger->reportTermination();
+}
+
+void V8Debugger::terminateExecutionCompletedCallbackIgnoringData(
+    v8::Isolate* isolate, void*) {
+  terminateExecutionCompletedCallback(isolate);
 }
 
 Response V8Debugger::continueToLocation(
@@ -483,7 +490,8 @@ void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
          &client](V8InspectorSessionImpl* session) {
           if (!session->debuggerAgent()->enabled()) return;
           session->debuggerAgent()->didParseSource(
-              V8DebuggerScript::Create(isolate, script, is_live_edited, client),
+              V8DebuggerScript::Create(isolate, script, is_live_edited,
+                                       session->debuggerAgent(), client),
               !has_compile_error);
         });
   }
@@ -1014,6 +1022,7 @@ std::unique_ptr<V8StackTraceImpl> V8Debugger::captureStackTrace(
 
 int V8Debugger::currentContextGroupId() {
   if (!m_isolate->InContext()) return 0;
+  v8::HandleScope handleScope(m_isolate);
   return m_inspector->contextGroupId(m_isolate->GetCurrentContext());
 }
 

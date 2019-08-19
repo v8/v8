@@ -5,16 +5,22 @@
 #ifndef V8_OBJECTS_BIGINT_H_
 #define V8_OBJECTS_BIGINT_H_
 
-#include "src/globals.h"
-#include "src/objects.h"
+#include "src/common/globals.h"
 #include "src/objects/heap-object.h"
-#include "src/utils.h"
+#include "src/objects/objects.h"
+#include "src/utils/utils.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+void MutableBigInt_AbsoluteAddAndCanonicalize(Address result_addr,
+                                              Address x_addr, Address y_addr);
+int32_t MutableBigInt_AbsoluteCompare(Address x_addr, Address y_addr);
+void MutableBigInt_AbsoluteSubAndCanonicalize(Address result_addr,
+                                              Address x_addr, Address y_addr);
 
 class BigInt;
 class ValueDeserializer;
@@ -25,17 +31,17 @@ class ValueSerializer;
 class BigIntBase : public HeapObject {
  public:
   inline int length() const {
-    int32_t bitfield = RELAXED_READ_INT32_FIELD(this, kBitfieldOffset);
+    int32_t bitfield = RELAXED_READ_INT32_FIELD(*this, kBitfieldOffset);
     return LengthBits::decode(static_cast<uint32_t>(bitfield));
   }
 
   // For use by the GC.
   inline int synchronized_length() const {
-    int32_t bitfield = ACQUIRE_READ_INT32_FIELD(this, kBitfieldOffset);
+    int32_t bitfield = ACQUIRE_READ_INT32_FIELD(*this, kBitfieldOffset);
     return LengthBits::decode(static_cast<uint32_t>(bitfield));
   }
 
-  static inline BigIntBase unchecked_cast(ObjectPtr o) {
+  static inline BigIntBase unchecked_cast(Object o) {
     return bit_cast<BigIntBase>(o);
   }
 
@@ -51,9 +57,9 @@ class BigIntBase : public HeapObject {
   // able to read the length concurrently, the getters and setters are atomic.
   static const int kLengthFieldBits = 30;
   STATIC_ASSERT(kMaxLength <= ((1 << kLengthFieldBits) - 1));
-  class SignBits : public BitField<bool, 0, 1> {};
-  class LengthBits : public BitField<int, SignBits::kNext, kLengthFieldBits> {};
-  STATIC_ASSERT(LengthBits::kNext <= 32);
+  using SignBits = BitField<bool, 0, 1>;
+  using LengthBits = SignBits::Next<int, kLengthFieldBits>;
+  STATIC_ASSERT(LengthBits::kLastUsedBit < 32);
 
   // Layout description.
 #define BIGINT_FIELDS(V)                                                  \
@@ -66,11 +72,15 @@ class BigIntBase : public HeapObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, BIGINT_FIELDS)
 #undef BIGINT_FIELDS
 
+  static constexpr bool HasOptionalPadding() {
+    return FIELD_SIZE(kOptionalPaddingOffset) > 0;
+  }
+
  private:
   friend class ::v8::internal::BigInt;  // MSVC wants full namespace.
   friend class MutableBigInt;
 
-  typedef uintptr_t digit_t;
+  using digit_t = uintptr_t;
   static const int kDigitSize = sizeof(digit_t);
   // kMaxLength definition assumes this:
   STATIC_ASSERT(kDigitSize == kSystemPointerSize);
@@ -81,14 +91,13 @@ class BigIntBase : public HeapObject {
 
   // sign() == true means negative.
   inline bool sign() const {
-    int32_t bitfield = RELAXED_READ_INT32_FIELD(this, kBitfieldOffset);
+    int32_t bitfield = RELAXED_READ_INT32_FIELD(*this, kBitfieldOffset);
     return SignBits::decode(static_cast<uint32_t>(bitfield));
   }
 
   inline digit_t digit(int n) const {
     SLOW_DCHECK(0 <= n && n < length());
-    Address address = FIELD_ADDR(this, kDigitsOffset + n * kDigitSize);
-    return *reinterpret_cast<digit_t*>(address);
+    return ReadField<digit_t>(kDigitsOffset + n * kDigitSize);
   }
 
   bool is_zero() const { return length() == 0; }
@@ -112,8 +121,8 @@ class FreshlyAllocatedBigInt : public BigIntBase {
   //   (and no explicit operator is provided either).
 
  public:
-  inline static FreshlyAllocatedBigInt cast(Object* object);
-  inline static FreshlyAllocatedBigInt unchecked_cast(ObjectPtr o) {
+  inline static FreshlyAllocatedBigInt cast(Object object);
+  inline static FreshlyAllocatedBigInt unchecked_cast(Object o) {
     return bit_cast<FreshlyAllocatedBigInt>(o);
   }
 
@@ -134,7 +143,7 @@ class FreshlyAllocatedBigInt : public BigIntBase {
 };
 
 // Arbitrary precision integers in JavaScript.
-class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
+class BigInt : public BigIntBase {
  public:
   // Implementation of the Spec methods, see:
   // https://tc39.github.io/proposal-bigint/#sec-numeric-types
@@ -181,6 +190,8 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
     return is_zero() ? 0 : ComputeLongHash(static_cast<uint64_t>(digit(0)));
   }
 
+  bool IsNegative() const { return sign(); }
+
   static bool EqualToString(Isolate* isolate, Handle<BigInt> x,
                             Handle<String> y);
   static bool EqualToNumber(Handle<BigInt> x, Handle<Object> y);
@@ -188,7 +199,8 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
                                           Handle<String> y);
   static ComparisonResult CompareToNumber(Handle<BigInt> x, Handle<Object> y);
   // Exposed for tests, do not call directly. Use CompareToNumber() instead.
-  static ComparisonResult CompareToDouble(Handle<BigInt> x, double y);
+  V8_EXPORT_PRIVATE static ComparisonResult CompareToDouble(Handle<BigInt> x,
+                                                            double y);
 
   static Handle<BigInt> AsIntN(Isolate* isolate, uint64_t n, Handle<BigInt> x);
   static MaybeHandle<BigInt> AsUintN(Isolate* isolate, uint64_t n,
@@ -204,7 +216,7 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
   int Words64Count();
   void ToWordsArray64(int* sign_bit, int* words64_count, uint64_t* words);
 
-  DECL_CAST2(BigInt)
+  DECL_CAST(BigInt)
   DECL_VERIFIER(BigInt)
   DECL_PRINTER(BigInt)
   void BigIntShortPrint(std::ostream& os);
@@ -222,8 +234,8 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
   static Handle<Object> ToNumber(Isolate* isolate, Handle<BigInt> x);
 
   // ECMAScript's NumberToBigInt
-  static MaybeHandle<BigInt> FromNumber(Isolate* isolate,
-                                        Handle<Object> number);
+  V8_EXPORT_PRIVATE static MaybeHandle<BigInt> FromNumber(
+      Isolate* isolate, Handle<Object> number);
 
   // ECMAScript's ToBigInt (throws for Number input)
   static MaybeHandle<BigInt> FromObject(Isolate* isolate, Handle<Object> obj);
@@ -239,7 +251,7 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
   static Handle<BigInt> Zero(Isolate* isolate);
   static MaybeHandle<FreshlyAllocatedBigInt> AllocateFor(
       Isolate* isolate, int radix, int charcount, ShouldThrow should_throw,
-      PretenureFlag pretenure);
+      AllocationType allocation);
   static void InplaceMultiplyAdd(Handle<FreshlyAllocatedBigInt> x,
                                  uintptr_t factor, uintptr_t summand);
   static Handle<BigInt> Finalize(Handle<FreshlyAllocatedBigInt> x, bool sign);
@@ -252,7 +264,7 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
   void SerializeDigits(uint8_t* storage);
   V8_WARN_UNUSED_RESULT static MaybeHandle<BigInt> FromSerializedDigits(
       Isolate* isolate, uint32_t bitfield, Vector<const uint8_t> digits_storage,
-      PretenureFlag pretenure);
+      AllocationType allocation);
 
   OBJECT_CONSTRUCTORS(BigInt, BigIntBase);
 };

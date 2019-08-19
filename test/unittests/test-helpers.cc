@@ -5,12 +5,12 @@
 #include "test/unittests/test-helpers.h"
 
 #include "include/v8.h"
-#include "src/api.h"
+#include "src/api/api.h"
 #include "src/base/template-utils.h"
-#include "src/handles.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
-#include "src/objects.h"
+#include "src/execution/isolate.h"
+#include "src/handles/handles.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/scanner.h"
 
@@ -42,11 +42,11 @@ Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
           isolate->factory()->NewStringFromAsciiChecked("f"),
           Builtins::kCompileLazy);
   int function_literal_id = 1;
+  shared->set_function_literal_id(function_literal_id);
   // Ensure that the function can be compiled lazily.
   shared->set_uncompiled_data(
-      *isolate->factory()->NewUncompiledDataWithoutPreParsedScope(
-          ReadOnlyRoots(isolate).empty_string_handle(), 0, source->length(),
-          function_literal_id));
+      *isolate->factory()->NewUncompiledDataWithoutPreparseData(
+          ReadOnlyRoots(isolate).empty_string_handle(), 0, source->length()));
   // Make sure we have an outer scope info, even though it's empty
   shared->set_raw_outer_scope_info_or_feedback_metadata(
       ScopeInfo::Empty(isolate));

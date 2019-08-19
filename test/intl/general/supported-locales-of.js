@@ -27,11 +27,17 @@
 
 // Tests supportedLocalesOf method.
 
+// Flags: --harmony-intl-segmenter
+
 var services = [
-  Intl.DateTimeFormat,
   Intl.Collator,
+  Intl.DateTimeFormat,
   Intl.NumberFormat,
-  Intl.PluralRules
+  Intl.ListFormat,
+  Intl.PluralRules,
+  Intl.RelativeTimeFormat,
+  Intl.Segmenter,
+  Intl.v8BreakIterator,
 ];
 
 for (const service of services) {
@@ -80,8 +86,10 @@ for (const service of services) {
   privateuseLocale2 = service.supportedLocalesOf("x-twain");
   assertEquals(undefined, privateuseLocale2[0]);
 
-  grandfatheredLocale = service.supportedLocalesOf("art-lojban");
-  assertEquals(undefined, grandfatheredLocale[0]);
+  if (service != Intl.PluralRules) {
+    grandfatheredLocale = service.supportedLocalesOf("art-lojban");
+    assertEquals(undefined, grandfatheredLocale[0]);
+  }
 
   grandfatheredLocale2 = service.supportedLocalesOf("i-pwn");
   assertEquals(undefined, grandfatheredLocale2[0]);

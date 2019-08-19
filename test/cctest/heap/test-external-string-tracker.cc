@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/api-inl.h"
-#include "src/api.h"
+#include "src/api/api-inl.h"
+#include "src/api/api.h"
+#include "src/execution/isolate.h"
+#include "src/heap/heap-inl.h"
 #include "src/heap/spaces.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -112,7 +113,7 @@ TEST(ExternalString_ExternalBackingStoreSizeIncreasesMarkCompact) {
         isolate, new TestOneByteResource(i::StrDup(TEST_STR))).ToLocalChecked();
     v8::internal::Handle<v8::internal::String> esh = v8::Utils::OpenHandle(*es);
 
-    Page* page_before_gc = Page::FromAddress(esh->address());
+    Page* page_before_gc = Page::FromHeapObject(*esh);
     heap::ForceEvacuationCandidate(page_before_gc);
 
     CcTest::CollectAllGarbage();
@@ -193,7 +194,7 @@ TEST(ExternalString_PromotedThinString) {
     i::Handle<i::String> isymbol1 = factory->InternalizeString(string1);
     CHECK(isymbol1->IsInternalizedString());
     CHECK(string1->IsExternalString());
-    CHECK(!heap->InNewSpace(*isymbol1));
+    CHECK(!heap->InYoungGeneration(*isymbol1));
 
     // New external string in the young space. This string has the same content
     // as the previous one (that was already internalized).
@@ -209,7 +210,7 @@ TEST(ExternalString_PromotedThinString) {
     i::Handle<i::String> isymbol2 = factory->InternalizeString(istring);
     CHECK(isymbol2->IsInternalizedString());
     CHECK(istring->IsThinString());
-    CHECK(heap->InNewSpace(*istring));
+    CHECK(heap->InYoungGeneration(*istring));
 
     // Collect thin string. References to the thin string will be updated to
     // point to the actual external string in the old space.

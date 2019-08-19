@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/typed-optimization.h"
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-graph.h"
@@ -11,7 +11,7 @@
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
-#include "src/isolate-inl.h"
+#include "src/execution/isolate-inl.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
@@ -27,7 +27,7 @@ namespace typed_optimization_unittest {
 class TypedOptimizationTest : public TypedGraphTest {
  public:
   TypedOptimizationTest()
-      : TypedGraphTest(3), simplified_(zone()), deps_(isolate(), zone()) {}
+      : TypedGraphTest(3), simplified_(zone()), deps_(broker(), zone()) {}
   ~TypedOptimizationTest() override = default;
 
  protected:
@@ -37,7 +37,7 @@ class TypedOptimizationTest : public TypedGraphTest {
     JSGraph jsgraph(isolate(), graph(), common(), &javascript, simplified(),
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
-    GraphReducer graph_reducer(zone(), graph());
+    GraphReducer graph_reducer(zone(), graph(), tick_counter());
     TypedOptimization reducer(&graph_reducer, &deps_, &jsgraph, broker());
     return reducer.Reduce(node);
   }

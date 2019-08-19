@@ -6,31 +6,88 @@
 #include <iostream>
 #include <limits>
 
-#include "src/objects.h"
-#include "src/objects-inl.h"
-
-#include "src/handles.h"
-#include "src/handles-inl.h"
-
+#include "src/handles/handles-inl.h"
 #include "src/heap/heap.h"
+#include "src/heap/spaces-inl.h"
+#include "src/objects/objects-inl.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
 
-typedef TestWithIsolate HeapTest;
-typedef TestWithIsolateAndPointerCompression HeapWithPointerCompressionTest;
+using HeapTest = TestWithIsolate;
+using HeapWithPointerCompressionTest = TestWithIsolateAndPointerCompression;
 
-TEST(Heap, SemiSpaceSize) {
+TEST(Heap, YoungGenerationSizeFromOldGenerationSize) {
+  const size_t MB = static_cast<size_t>(i::MB);
   const size_t KB = static_cast<size_t>(i::KB);
+  const size_t pm = i::Heap::kPointerMultiplier;
+  ASSERT_EQ(3 * 512u * pm * KB,
+            i::Heap::YoungGenerationSizeFromOldGenerationSize(128u * pm * MB));
+  ASSERT_EQ(3 * 2048u * pm * KB,
+            i::Heap::YoungGenerationSizeFromOldGenerationSize(256u * pm * MB));
+  ASSERT_EQ(3 * 4096u * pm * KB,
+            i::Heap::YoungGenerationSizeFromOldGenerationSize(512u * pm * MB));
+  ASSERT_EQ(3 * 8192u * pm * KB,
+            i::Heap::YoungGenerationSizeFromOldGenerationSize(1024u * pm * MB));
+}
+
+TEST(Heap, GenerationSizesFromHeapSize) {
+  const size_t MB = static_cast<size_t>(i::MB);
+  const size_t KB = static_cast<size_t>(i::KB);
+  const size_t pm = i::Heap::kPointerMultiplier;
+  size_t old, young;
+
+  i::Heap::GenerationSizesFromHeapSize(1 * KB, &young, &old);
+  ASSERT_EQ(0u, old);
+  ASSERT_EQ(0u, young);
+
+  i::Heap::GenerationSizesFromHeapSize(1 * KB + 3 * 512u * pm * KB, &young,
+                                       &old);
+  ASSERT_EQ(1 * KB, old);
+  ASSERT_EQ(3 * 512u * pm * KB, young);
+
+  i::Heap::GenerationSizesFromHeapSize(128 * pm * MB + 3 * 512 * pm * KB,
+                                       &young, &old);
+  ASSERT_EQ(128u * pm * MB, old);
+  ASSERT_EQ(3 * 512u * pm * KB, young);
+
+  i::Heap::GenerationSizesFromHeapSize(256u * pm * MB + 3 * 2048 * pm * KB,
+                                       &young, &old);
+  ASSERT_EQ(256u * pm * MB, old);
+  ASSERT_EQ(3 * 2048u * pm * KB, young);
+
+  i::Heap::GenerationSizesFromHeapSize(512u * pm * MB + 3 * 4096 * pm * KB,
+                                       &young, &old);
+  ASSERT_EQ(512u * pm * MB, old);
+  ASSERT_EQ(3 * 4096u * pm * KB, young);
+
+  i::Heap::GenerationSizesFromHeapSize(1024u * pm * MB + 3 * 8192 * pm * KB,
+                                       &young, &old);
+  ASSERT_EQ(1024u * pm * MB, old);
+  ASSERT_EQ(3 * 8192u * pm * KB, young);
+}
+
+TEST(Heap, HeapSizeFromPhysicalMemory) {
   const size_t MB = static_cast<size_t>(i::MB);
   const size_t pm = i::Heap::kPointerMultiplier;
-  ASSERT_EQ(1u * pm * MB / 2, i::Heap::ComputeMaxSemiSpaceSize(0u) * KB);
-  ASSERT_EQ(1u * pm * MB / 2, i::Heap::ComputeMaxSemiSpaceSize(512u * MB) * KB);
-  ASSERT_EQ(2u * pm * MB, i::Heap::ComputeMaxSemiSpaceSize(1024u * MB) * KB);
-  ASSERT_EQ(5u * pm * MB, i::Heap::ComputeMaxSemiSpaceSize(2024u * MB) * KB);
-  ASSERT_EQ(8u * pm * MB, i::Heap::ComputeMaxSemiSpaceSize(4095u * MB) * KB);
+
+  // The expected value is old_generation_size + 3 * semi_space_size.
+  ASSERT_EQ(128 * pm * MB + 3 * 512 * pm * KB,
+            i::Heap::HeapSizeFromPhysicalMemory(0u));
+  ASSERT_EQ(128 * pm * MB + 3 * 512 * pm * KB,
+            i::Heap::HeapSizeFromPhysicalMemory(512u * MB));
+  ASSERT_EQ(256 * pm * MB + 3 * 2048 * pm * KB,
+            i::Heap::HeapSizeFromPhysicalMemory(1024u * MB));
+  ASSERT_EQ(512 * pm * MB + 3 * 4096 * pm * KB,
+            i::Heap::HeapSizeFromPhysicalMemory(2048u * MB));
+  ASSERT_EQ(
+      1024 * pm * MB + 3 * 8192 * pm * KB,
+      i::Heap::HeapSizeFromPhysicalMemory(static_cast<uint64_t>(4096u) * MB));
+  ASSERT_EQ(
+      1024 * pm * MB + 3 * 8192 * pm * KB,
+      i::Heap::HeapSizeFromPhysicalMemory(static_cast<uint64_t>(8192u) * MB));
 }
 
 TEST_F(HeapTest, ASLR) {

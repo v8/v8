@@ -6,19 +6,20 @@
 
 #include "src/ast/modules.h"
 #include "src/builtins/builtins-utils.h"
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/allocation-builder.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/type-cache.h"
 #include "src/compiler/types.h"
-#include "src/objects-inl.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -536,12 +537,16 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
       // JSAdd("", x:primitive) => JSToString(x)
       NodeProperties::ReplaceValueInputs(node, r.right());
       NodeProperties::ChangeOp(node, javascript()->ToString());
+      NodeProperties::SetType(
+          node, Type::Intersect(r.type(), Type::String(), graph()->zone()));
       Reduction const reduction = ReduceJSToString(node);
       return reduction.Changed() ? reduction : Changed(node);
     } else if (r.RightInputIs(empty_string_type_)) {
       // JSAdd(x:primitive, "") => JSToString(x)
       NodeProperties::ReplaceValueInputs(node, r.left());
       NodeProperties::ChangeOp(node, javascript()->ToString());
+      NodeProperties::SetType(
+          node, Type::Intersect(r.type(), Type::String(), graph()->zone()));
       Reduction const reduction = ReduceJSToString(node);
       return reduction.Changed() ? reduction : Changed(node);
     }
@@ -608,7 +613,7 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
       }
       control = graph()->NewNode(common()->IfTrue(), branch);
       length = effect =
-          graph()->NewNode(common()->TypeGuard(type_cache_.kStringLengthType),
+          graph()->NewNode(common()->TypeGuard(type_cache_->kStringLengthType),
                            length, effect, control);
     }
 
@@ -923,7 +928,7 @@ Reduction JSTypedLowering::ReduceJSToName(Node* node) {
 Reduction JSTypedLowering::ReduceJSToLength(Node* node) {
   Node* input = NodeProperties::GetValueInput(node, 0);
   Type input_type = NodeProperties::GetType(input);
-  if (input_type.Is(type_cache_.kIntegerOrMinusZero)) {
+  if (input_type.Is(type_cache_->kIntegerOrMinusZero)) {
     if (input_type.IsNone() || input_type.Max() <= 0.0) {
       input = jsgraph()->ZeroConstant();
     } else if (input_type.Min() >= kMaxSafeInteger) {
@@ -959,8 +964,9 @@ Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
   }
   if (input_type.IsHeapConstant()) {
     HeapObjectRef input_value = input_type.AsHeapConstant()->Ref();
-    if (input_value.map().oddball_type() != OddballType::kNone) {
-      return Replace(jsgraph()->Constant(input_value.OddballToNumber()));
+    double value;
+    if (input_value.OddballToNumber().To(&value)) {
+      return Replace(jsgraph()->Constant(value));
     }
   }
   if (input_type.Is(Type::Number())) {
@@ -1314,7 +1320,7 @@ Reduction JSTypedLowering::ReduceJSLoadContext(Node* node) {
   for (size_t i = 0; i < access.depth(); ++i) {
     context = effect = graph()->NewNode(
         simplified()->LoadField(
-            AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX)),
+            AccessBuilder::ForContextSlotKnownPointer(Context::PREVIOUS_INDEX)),
         context, effect, control);
   }
   node->ReplaceInput(0, context);
@@ -1336,7 +1342,7 @@ Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
   for (size_t i = 0; i < access.depth(); ++i) {
     context = effect = graph()->NewNode(
         simplified()->LoadField(
-            AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX)),
+            AccessBuilder::ForContextSlotKnownPointer(Context::PREVIOUS_INDEX)),
         context, effect, control);
   }
   node->ReplaceInput(0, context);
@@ -1359,20 +1365,21 @@ Node* JSTypedLowering::BuildGetModuleCell(Node* node) {
   Type module_type = NodeProperties::GetType(module);
 
   if (module_type.IsHeapConstant()) {
-    ModuleRef module_constant = module_type.AsHeapConstant()->Ref().AsModule();
+    SourceTextModuleRef module_constant =
+        module_type.AsHeapConstant()->Ref().AsSourceTextModule();
     CellRef cell_constant = module_constant.GetCell(cell_index);
     return jsgraph()->Constant(cell_constant);
   }
 
   FieldAccess field_access;
   int index;
-  if (ModuleDescriptor::GetCellIndexKind(cell_index) ==
-      ModuleDescriptor::kExport) {
+  if (SourceTextModuleDescriptor::GetCellIndexKind(cell_index) ==
+      SourceTextModuleDescriptor::kExport) {
     field_access = AccessBuilder::ForModuleRegularExports();
     index = cell_index - 1;
   } else {
-    DCHECK_EQ(ModuleDescriptor::GetCellIndexKind(cell_index),
-              ModuleDescriptor::kImport);
+    DCHECK_EQ(SourceTextModuleDescriptor::GetCellIndexKind(cell_index),
+              SourceTextModuleDescriptor::kImport);
     field_access = AccessBuilder::ForModuleRegularImports();
     index = -cell_index - 1;
   }
@@ -1403,9 +1410,9 @@ Reduction JSTypedLowering::ReduceJSStoreModule(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* value = NodeProperties::GetValueInput(node, 1);
-  DCHECK_EQ(
-      ModuleDescriptor::GetCellIndexKind(OpParameter<int32_t>(node->op())),
-      ModuleDescriptor::kExport);
+  DCHECK_EQ(SourceTextModuleDescriptor::GetCellIndexKind(
+                OpParameter<int32_t>(node->op())),
+            SourceTextModuleDescriptor::kExport);
 
   Node* cell = BuildGetModuleCell(node);
   if (cell->op()->EffectOutputCount() > 0) effect = cell;
@@ -1441,16 +1448,15 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, int builtin_index, int arity,
 
   const bool is_construct = (node->opcode() == IrOpcode::kJSConstruct);
 
-  DCHECK(Builtins::HasCppImplementation(builtin_index));
-
   Node* target = NodeProperties::GetValueInput(node, 0);
   Node* new_target = is_construct
                          ? NodeProperties::GetValueInput(node, arity + 1)
                          : jsgraph->UndefinedConstant();
 
-  // API and CPP builtins are implemented in C++, and we can inline both.
-  // CPP builtins create a builtin exit frame, API builtins don't.
-  const bool has_builtin_exit_frame = Builtins::IsCpp(builtin_index);
+  // CPP builtins are implemented in C++, and we can inline it.
+  // CPP builtins create a builtin exit frame.
+  DCHECK(Builtins::IsCpp(builtin_index));
+  const bool has_builtin_exit_frame = true;
 
   Node* stub = jsgraph->CEntryStubConstant(1, kDontSaveFPRegs, kArgvOnStack,
                                            has_builtin_exit_frame);
@@ -1611,7 +1617,7 @@ Reduction JSTypedLowering::ReduceJSCallForwardVarargs(Node* node) {
 Reduction JSTypedLowering::ReduceJSCall(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
-  int const arity = static_cast<int>(p.arity() - 2);
+  int arity = static_cast<int>(p.arity() - 2);
   ConvertReceiverMode convert_mode = p.convert_mode();
   Node* target = NodeProperties::GetValueInput(node, 0);
   Type target_type = NodeProperties::GetType(target);
@@ -1669,23 +1675,53 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     // Compute flags for the call.
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     Node* new_target = jsgraph()->UndefinedConstant();
-    Node* argument_count = jsgraph()->Constant(arity);
 
     if (NeedsArgumentAdaptorFrame(shared, arity)) {
-      // Patch {node} to an indirect call via the ArgumentsAdaptorTrampoline.
-      Callable callable = CodeFactory::ArgumentAdaptor(isolate());
-      node->InsertInput(graph()->zone(), 0,
-                        jsgraph()->HeapConstant(callable.code()));
-      node->InsertInput(graph()->zone(), 2, new_target);
-      node->InsertInput(graph()->zone(), 3, argument_count);
-      node->InsertInput(
-          graph()->zone(), 4,
-          jsgraph()->Constant(shared.internal_formal_parameter_count()));
-      NodeProperties::ChangeOp(
-          node, common()->Call(Linkage::GetStubCallDescriptor(
-                    graph()->zone(), callable.descriptor(), 1 + arity, flags)));
-    } else if (shared.HasBuiltinId() &&
-               Builtins::HasCppImplementation(shared.builtin_id())) {
+      // Check if it's safe to skip the arguments adaptor for {shared},
+      // that is whether the target function anyways cannot observe the
+      // actual arguments. Details can be found in this document at
+      // https://bit.ly/v8-faster-calls-with-arguments-mismatch and
+      // on the tracking bug at https://crbug.com/v8/8895
+      if (shared.is_safe_to_skip_arguments_adaptor()) {
+        // Currently we only support skipping arguments adaptor frames
+        // for strict mode functions, since there's Function.arguments
+        // legacy accessor, which is still available in sloppy mode.
+        DCHECK_EQ(LanguageMode::kStrict, shared.language_mode());
+
+        // Massage the arguments to match the expected number of arguments.
+        int expected_argument_count = shared.internal_formal_parameter_count();
+        for (; arity > expected_argument_count; --arity) {
+          node->RemoveInput(arity + 1);
+        }
+        for (; arity < expected_argument_count; ++arity) {
+          node->InsertInput(graph()->zone(), arity + 2,
+                            jsgraph()->UndefinedConstant());
+        }
+
+        // Patch {node} to a direct call.
+        node->InsertInput(graph()->zone(), arity + 2, new_target);
+        node->InsertInput(graph()->zone(), arity + 3,
+                          jsgraph()->Constant(arity));
+        NodeProperties::ChangeOp(node,
+                                 common()->Call(Linkage::GetJSCallDescriptor(
+                                     graph()->zone(), false, 1 + arity,
+                                     flags | CallDescriptor::kCanUseRoots)));
+      } else {
+        // Patch {node} to an indirect call via the ArgumentsAdaptorTrampoline.
+        Callable callable = CodeFactory::ArgumentAdaptor(isolate());
+        node->InsertInput(graph()->zone(), 0,
+                          jsgraph()->HeapConstant(callable.code()));
+        node->InsertInput(graph()->zone(), 2, new_target);
+        node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
+        node->InsertInput(
+            graph()->zone(), 4,
+            jsgraph()->Constant(shared.internal_formal_parameter_count()));
+        NodeProperties::ChangeOp(
+            node,
+            common()->Call(Linkage::GetStubCallDescriptor(
+                graph()->zone(), callable.descriptor(), 1 + arity, flags)));
+      }
+    } else if (shared.HasBuiltinId() && Builtins::IsCpp(shared.builtin_id())) {
       // Patch {node} to a direct CEntry call.
       ReduceBuiltin(jsgraph(), node, shared.builtin_id(), arity, flags);
     } else if (shared.HasBuiltinId() &&
@@ -1701,12 +1737,12 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       Node* stub_code = jsgraph()->HeapConstant(callable.code());
       node->InsertInput(graph()->zone(), 0, stub_code);  // Code object.
       node->InsertInput(graph()->zone(), 2, new_target);
-      node->InsertInput(graph()->zone(), 3, argument_count);
+      node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
       NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
     } else {
       // Patch {node} to a direct call.
       node->InsertInput(graph()->zone(), arity + 2, new_target);
-      node->InsertInput(graph()->zone(), arity + 3, argument_count);
+      node->InsertInput(graph()->zone(), arity + 3, jsgraph()->Constant(arity));
       NodeProperties::ChangeOp(node,
                                common()->Call(Linkage::GetJSCallDescriptor(
                                    graph()->zone(), false, 1 + arity,
@@ -2227,9 +2263,9 @@ Reduction JSTypedLowering::ReduceJSParseInt(Node* node) {
   Type radix_type = NodeProperties::GetType(radix);
   // We need kTenOrUndefined and kZeroOrUndefined because
   // the type representing {0,10} would become the range 1-10.
-  if (value_type.Is(type_cache_.kSafeInteger) &&
-      (radix_type.Is(type_cache_.kTenOrUndefined) ||
-       radix_type.Is(type_cache_.kZeroOrUndefined))) {
+  if (value_type.Is(type_cache_->kSafeInteger) &&
+      (radix_type.Is(type_cache_->kTenOrUndefined) ||
+       radix_type.Is(type_cache_->kZeroOrUndefined))) {
     // Number.parseInt(a:safe-integer) -> a
     // Number.parseInt(a:safe-integer,b:#0\/undefined) -> a
     // Number.parseInt(a:safe-integer,b:#10\/undefined) -> a

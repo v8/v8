@@ -110,6 +110,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_BitcastDoubleToInt64:
     case kPPC_ByteRev32:
     case kPPC_ByteRev64:
+    case kPPC_DecompressSigned:
+    case kPPC_DecompressPointer:
+    case kPPC_DecompressAny:
+    case kPPC_CompressSigned:
+    case kPPC_CompressPointer:
+    case kPPC_CompressAny:
       return kNoOpcodeFlags;
 
     case kPPC_LoadWordS8:
@@ -121,6 +127,11 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_LoadWord64:
     case kPPC_LoadFloat32:
     case kPPC_LoadDouble:
+    case kPPC_AtomicLoadUint8:
+    case kPPC_AtomicLoadUint16:
+    case kPPC_AtomicLoadWord32:
+    case kPPC_AtomicLoadWord64:
+    case kPPC_Peek:
       return kIsLoadOperation;
 
     case kPPC_StoreWord8:
@@ -132,13 +143,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_Push:
     case kPPC_PushFrame:
     case kPPC_StoreToStackSlot:
+    case kPPC_Sync:
       return kHasSideEffect;
-
-    case kPPC_AtomicLoadUint8:
-    case kPPC_AtomicLoadUint16:
-    case kPPC_AtomicLoadWord32:
-    case kPPC_AtomicLoadWord64:
-      return kIsLoadOperation;
 
     case kPPC_AtomicStoreUint8:
     case kPPC_AtomicStoreUint16:

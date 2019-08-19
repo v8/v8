@@ -5,15 +5,23 @@
 #ifndef V8_WASM_COMPILATION_ENVIRONMENT_H_
 #define V8_WASM_COMPILATION_ENVIRONMENT_H_
 
+#include <memory>
+
+#include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-tier.h"
 
 namespace v8 {
 namespace internal {
+
+class Counters;
+
 namespace wasm {
 
 class NativeModule;
-class ResultBase;
+class WasmCode;
+class WasmError;
 
 enum RuntimeExceptionSupport : bool {
   kRuntimeExceptionSupport = true,
@@ -47,11 +55,15 @@ struct CompilationEnv {
   // bytes.
   const uint64_t max_memory_size;
 
+  // Features enabled for this compilation.
+  const WasmFeatures enabled_features;
+
   const LowerSimd lower_simd;
 
   constexpr CompilationEnv(const WasmModule* module,
                            UseTrapHandler use_trap_handler,
                            RuntimeExceptionSupport runtime_exception_support,
+                           const WasmFeatures& enabled_features,
                            LowerSimd lower_simd = kNoLowerSimd)
       : module(module),
         use_trap_handler(use_trap_handler),
@@ -62,6 +74,7 @@ struct CompilationEnv {
                              ? module->maximum_pages
                              : kV8MaxWasmMemoryPages) *
                         uint64_t{kWasmPageSize}),
+        enabled_features(enabled_features),
         lower_simd(lower_simd) {}
 };
 
@@ -90,26 +103,40 @@ enum class CompilationEvent : uint8_t {
 // This is the PIMPL interface to that private class.
 class CompilationState {
  public:
-  using callback_t = std::function<void(CompilationEvent, const ResultBase*)>;
+  using callback_t = std::function<void(CompilationEvent)>;
+
   ~CompilationState();
 
-  void CancelAndWait();
+  void AbortCompilation();
 
-  void SetError(uint32_t func_index, const ResultBase& error_result);
+  void SetError();
 
   void SetWireBytesStorage(std::shared_ptr<WireBytesStorage>);
 
-  std::shared_ptr<WireBytesStorage> GetWireBytesStorage() const;
+  V8_EXPORT_PRIVATE std::shared_ptr<WireBytesStorage> GetWireBytesStorage()
+      const;
 
   void AddCallback(callback_t);
 
   bool failed() const;
+  V8_EXPORT_PRIVATE bool baseline_compilation_finished() const;
+  V8_EXPORT_PRIVATE bool top_tier_compilation_finished() const;
+
+  // Override {operator delete} to avoid implicit instantiation of {operator
+  // delete} with {size_t} argument. The {size_t} argument would be incorrect.
+  void operator delete(void* ptr) { ::operator delete(ptr); }
 
  private:
+  // NativeModule is allowed to call the static {New} method.
   friend class NativeModule;
+
   CompilationState() = delete;
 
-  static std::unique_ptr<CompilationState> New(Isolate*, NativeModule*);
+  // The CompilationState keeps a {std::weak_ptr} back to the {NativeModule}
+  // such that it can keep it alive (by regaining a {std::shared_ptr}) in
+  // certain scopes.
+  static std::unique_ptr<CompilationState> New(
+      const std::shared_ptr<NativeModule>&, std::shared_ptr<Counters>);
 };
 
 }  // namespace wasm

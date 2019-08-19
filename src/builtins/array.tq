@@ -33,27 +33,19 @@ namespace array {
   }
 
   macro IsJSArray(implicit context: Context)(o: Object): bool {
-    try {
-      const array: JSArray = Cast<JSArray>(o) otherwise NotArray;
-      return true;
-    }
-    label NotArray {
-      return false;
+    typeswitch (o) {
+      case (JSArray): {
+        return true;
+      }
+      case (Object): {
+        return false;
+      }
     }
   }
 
   macro LoadElementOrUndefined(a: FixedArray, i: Smi): Object {
-    const e: Object = a[i];
-    return e == Hole ? Undefined : e;
-  }
-
-  macro LoadElementOrUndefined(a: FixedArray, i: intptr): Object {
-    const e: Object = a[i];
-    return e == Hole ? Undefined : e;
-  }
-
-  macro LoadElementOrUndefined(a: FixedArray, i: constexpr int31): Object {
-    return LoadElementOrUndefined(a, Convert<intptr>(i));
+    const e: Object = a.objects[i];
+    return e == TheHole ? Undefined : e;
   }
 
   macro LoadElementOrUndefined(a: FixedDoubleArray, i: Smi): NumberOrUndefined {
@@ -66,47 +58,12 @@ namespace array {
     }
   }
 
-  macro LoadElementOrUndefined(a: FixedDoubleArray, i: intptr):
-      NumberOrUndefined {
-    try {
-      const f: float64 = LoadDoubleWithHoleCheck(a, i) otherwise IfHole;
-      return AllocateHeapNumberWithValue(f);
-    }
-    label IfHole {
-      return Undefined;
-    }
-  }
-
-  macro LoadElementOrUndefined(a: FixedDoubleArray, i: constexpr int31):
-      NumberOrUndefined {
-    return LoadElementOrUndefined(a, Convert<intptr>(i));
-  }
-
   macro StoreArrayHole(elements: FixedDoubleArray, k: Smi): void {
     StoreFixedDoubleArrayHoleSmi(elements, k);
   }
 
   macro StoreArrayHole(elements: FixedArray, k: Smi): void {
-    elements[k] = Hole;
-  }
-
-  macro CopyArrayElement(
-      elements: FixedArray, newElements: FixedArray, from: Smi, to: Smi): void {
-    const e: Object = elements[from];
-    newElements[to] = e;
-  }
-
-  macro CopyArrayElement(
-      elements: FixedDoubleArray, newElements: FixedDoubleArray, from: Smi,
-      to: Smi): void {
-    try {
-      const floatValue: float64 = LoadDoubleWithHoleCheck(elements, from)
-          otherwise FoundHole;
-      newElements[to] = floatValue;
-    }
-    label FoundHole {
-      StoreArrayHole(newElements, to);
-    }
+    elements.objects[k] = TheHole;
   }
 
   extern macro SetPropertyLength(implicit context: Context)(Object, Number);

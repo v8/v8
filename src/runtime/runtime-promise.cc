@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/api-inl.h"
-#include "src/arguments-inl.h"
-#include "src/counters.h"
+#include "src/api/api-inl.h"
 #include "src/debug/debug.h"
-#include "src/elements.h"
-#include "src/microtask-queue.h"
-#include "src/objects-inl.h"
+#include "src/execution/arguments-inl.h"
+#include "src/execution/microtask-queue.h"
+#include "src/logging/counters.h"
+#include "src/objects/elements.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/js-promise-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/oddball-inl.h"
 #include "src/runtime/runtime-utils.h"
 
@@ -76,9 +76,12 @@ RUNTIME_FUNCTION(Runtime_EnqueueMicrotask) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  Handle<CallableTask> microtask =
-      isolate->factory()->NewCallableTask(function, isolate->native_context());
-  isolate->native_context()->microtask_queue()->EnqueueMicrotask(*microtask);
+
+  Handle<CallableTask> microtask = isolate->factory()->NewCallableTask(
+      function, handle(function->native_context(), isolate));
+  MicrotaskQueue* microtask_queue =
+      function->native_context().microtask_queue();
+  if (microtask_queue) microtask_queue->EnqueueMicrotask(*microtask);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -114,7 +117,7 @@ RUNTIME_FUNCTION(Runtime_PromiseMarkAsHandled) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(JSPromise, promise, 0);
 
-  promise->set_has_handler(true);
+  promise.set_has_handler(true);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -158,7 +161,8 @@ Handle<JSPromise> AwaitPromisesInitCommon(Isolate* isolate,
       Object::SetProperty(
           isolate, reject_handler,
           isolate->factory()->promise_forwarding_handler_symbol(),
-          isolate->factory()->true_value(), LanguageMode::kStrict)
+          isolate->factory()->true_value(), StoreOrigin::kMaybeKeyed,
+          Just(ShouldThrow::kThrowOnError))
           .Check();
       Handle<JSPromise>::cast(value)->set_handled_hint(is_predicted_as_caught);
     }
@@ -167,7 +171,8 @@ Handle<JSPromise> AwaitPromisesInitCommon(Isolate* isolate,
     // Promise is found on the Promise stack
     Object::SetProperty(isolate, throwaway,
                         isolate->factory()->promise_handled_by_symbol(),
-                        outer_promise, LanguageMode::kStrict)
+                        outer_promise, StoreOrigin::kMaybeKeyed,
+                        Just(ShouldThrow::kThrowOnError))
         .Check();
   }
 

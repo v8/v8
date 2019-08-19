@@ -4,7 +4,8 @@
 
 #include <memory>
 
-#include "src/objects-inl.h"
+#include "src/execution/microtask-queue.h"
+#include "src/objects/objects-inl.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module-builder.h"
@@ -94,7 +95,7 @@ class SharedEngineIsolate {
   }
 
   SharedModule ExportInstance(Handle<WasmInstanceObject> instance) {
-    return instance->module_object()->shared_native_module();
+    return instance->module_object().shared_native_module();
   }
 
   int32_t Run(Handle<WasmInstanceObject> instance) {
@@ -137,7 +138,7 @@ ZoneBuffer* BuildReturnConstantModule(Zone* zone, int constant) {
   byte code[] = {WASM_I32V_2(constant)};
   f->EmitCode(code, sizeof(code));
   f->Emit(kExprEnd);
-  builder->WriteTo(*buffer);
+  builder->WriteTo(buffer);
   return buffer;
 }
 
@@ -158,8 +159,9 @@ class MockInstantiationResolver : public InstantiationResultResolver {
 
 class MockCompilationResolver : public CompilationResultResolver {
  public:
-  MockCompilationResolver(SharedEngineIsolate& isolate,
-                          Handle<Object>* out_instance)
+  MockCompilationResolver(
+      SharedEngineIsolate& isolate,  // NOLINT(runtime/references)
+      Handle<Object>* out_instance)
       : isolate_(isolate), out_instance_(out_instance) {}
   void OnCompilationSucceeded(Handle<WasmModuleObject> result) override {
     isolate_.isolate()->wasm_engine()->AsyncInstantiate(
@@ -176,21 +178,25 @@ class MockCompilationResolver : public CompilationResultResolver {
   Handle<Object>* out_instance_;
 };
 
-void PumpMessageLoop(SharedEngineIsolate& isolate) {
+void PumpMessageLoop(
+    SharedEngineIsolate& isolate) {  // NOLINT(runtime/references)
   v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),
                                 isolate.v8_isolate(),
                                 platform::MessageLoopBehavior::kWaitForWork);
-  isolate.isolate()->RunMicrotasks();
+  isolate.isolate()->default_microtask_queue()->RunMicrotasks(
+      isolate.isolate());
 }
 
 Handle<WasmInstanceObject> CompileAndInstantiateAsync(
-    SharedEngineIsolate& isolate, ZoneBuffer* buffer) {
+    SharedEngineIsolate& isolate,  // NOLINT(runtime/references)
+    ZoneBuffer* buffer) {
   Handle<Object> maybe_instance = handle(Smi::kZero, isolate.isolate());
   auto enabled_features = WasmFeaturesFromIsolate(isolate.isolate());
+  constexpr const char* kAPIMethodName = "Test.CompileAndInstantiateAsync";
   isolate.isolate()->wasm_engine()->AsyncCompile(
       isolate.isolate(), enabled_features,
       base::make_unique<MockCompilationResolver>(isolate, &maybe_instance),
-      ModuleWireBytes(buffer->begin(), buffer->end()), true);
+      ModuleWireBytes(buffer->begin(), buffer->end()), true, kAPIMethodName);
   while (!maybe_instance->IsWasmInstanceObject()) PumpMessageLoop(isolate);
   Handle<WasmInstanceObject> instance =
       Handle<WasmInstanceObject>::cast(maybe_instance);
@@ -244,17 +250,13 @@ TEST(SharedEngineRunImported) {
     Handle<WasmInstanceObject> instance = isolate.CompileAndInstantiate(buffer);
     module = isolate.ExportInstance(instance);
     CHECK_EQ(23, isolate.Run(instance));
-    CHECK_EQ(2, module.use_count());
   }
-  CHECK_EQ(1, module.use_count());
   {
     SharedEngineIsolate isolate(&engine);
     HandleScope scope(isolate.isolate());
     Handle<WasmInstanceObject> instance = isolate.ImportInstance(module);
     CHECK_EQ(23, isolate.Run(instance));
-    CHECK_EQ(2, module.use_count());
   }
-  CHECK_EQ(1, module.use_count());
 }
 
 TEST(SharedEngineRunThreadedBuildingSync) {
@@ -271,8 +273,8 @@ TEST(SharedEngineRunThreadedBuildingSync) {
     Handle<WasmInstanceObject> instance = isolate.CompileAndInstantiate(buffer);
     CHECK_EQ(42, isolate.Run(instance));
   });
-  thread1.Start();
-  thread2.Start();
+  CHECK(thread1.Start());
+  CHECK(thread2.Start());
   thread1.Join();
   thread2.Join();
 }
@@ -293,8 +295,8 @@ TEST(SharedEngineRunThreadedBuildingAsync) {
         CompileAndInstantiateAsync(isolate, buffer);
     CHECK_EQ(42, isolate.Run(instance));
   });
-  thread1.Start();
-  thread2.Start();
+  CHECK(thread1.Start());
+  CHECK(thread2.Start());
   thread1.Join();
   thread2.Join();
 }
@@ -319,8 +321,8 @@ TEST(SharedEngineRunThreadedExecution) {
     Handle<WasmInstanceObject> instance = isolate.ImportInstance(module);
     CHECK_EQ(23, isolate.Run(instance));
   });
-  thread1.Start();
-  thread2.Start();
+  CHECK(thread1.Start());
+  CHECK(thread2.Start());
   thread1.Join();
   thread2.Join();
 }
@@ -353,10 +355,10 @@ TEST(SharedEngineRunThreadedTierUp) {
     WasmFeatures detected = kNoWasmFeatures;
     WasmCompilationUnit::CompileWasmFunction(
         isolate.isolate(), module.get(), &detected,
-        &module->module()->functions[0], ExecutionTier::kOptimized);
+        &module->module()->functions[0], ExecutionTier::kTurbofan);
     CHECK_EQ(23, isolate.Run(instance));
   });
-  for (auto& thread : threads) thread.Start();
+  for (auto& thread : threads) CHECK(thread.Start());
   for (auto& thread : threads) thread.Join();
 }
 

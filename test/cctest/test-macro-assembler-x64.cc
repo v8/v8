@@ -27,14 +27,16 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/base/platform/platform.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/codegen/x64/assembler-x64-inl.h"
+#include "src/execution/simulator.h"
 #include "src/heap/factory.h"
-#include "src/macro-assembler.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
-#include "src/simulator.h"
+#include "src/utils/ostreams.h"
 #include "test/cctest/cctest.h"
 #include "test/common/assembler-tester.h"
 
@@ -51,7 +53,7 @@ namespace test_macro_assembler_x64 {
 // This calling convention is used on Linux, with GCC, and on Mac OS,
 // with GCC.  A different convention is used on 64-bit windows.
 
-typedef int(F0)();
+using F0 = int();
 
 #define __ masm->
 
@@ -82,7 +84,7 @@ TEST(Smi) {
         Smi smi_from_int = Smi::FromInt(static_cast<int32_t>(number));
         CHECK_EQ(smi_from_int, smi_from_intptr);
       }
-      int64_t smi_value = smi_from_intptr->value();
+      int64_t smi_value = smi_from_intptr.value();
       CHECK_EQ(number, smi_value);
     }
   }
@@ -101,10 +103,9 @@ static void TestMoveSmi(MacroAssembler* masm, Label* exit, int id, Smi value) {
 TEST(SmiMove) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
-                           v8::internal::CodeObjectRequired::kYes);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
   EntryCode(masm);
   Label exit;
@@ -129,9 +130,9 @@ TEST(SmiMove) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  MakeAssemblerBufferExecutable(buffer, allocated);
+  buffer->MakeExecutable();
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer->start());
   int result = f.Call();
   CHECK_EQ(0, result);
 }
@@ -186,11 +187,9 @@ void TestSmiCompare(MacroAssembler* masm, Label* exit, int id, int x, int y) {
 TEST(SmiCompare) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  size_t allocated;
-  byte* buffer =
-      AllocateAssemblerBuffer(&allocated, 2 * Assembler::kMinimalBufferSize);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
-                           v8::internal::CodeObjectRequired::kYes);
+  auto buffer = AllocateAssemblerBuffer(2 * Assembler::kMinimalBufferSize);
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -223,9 +222,9 @@ TEST(SmiCompare) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  MakeAssemblerBufferExecutable(buffer, allocated);
+  buffer->MakeExecutable();
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer->start());
   int result = f.Call();
   CHECK_EQ(0, result);
 }
@@ -233,10 +232,9 @@ TEST(SmiCompare) {
 TEST(SmiTag) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
-                           v8::internal::CodeObjectRequired::kYes);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -322,9 +320,9 @@ TEST(SmiTag) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  MakeAssemblerBufferExecutable(buffer, allocated);
+  buffer->MakeExecutable();
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer->start());
   int result = f.Call();
   CHECK_EQ(0, result);
 }
@@ -332,10 +330,9 @@ TEST(SmiTag) {
 TEST(SmiCheck) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
-                           v8::internal::CodeObjectRequired::kYes);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -398,9 +395,9 @@ TEST(SmiCheck) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  MakeAssemblerBufferExecutable(buffer, allocated);
+  buffer->MakeExecutable();
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer->start());
   int result = f.Call();
   CHECK_EQ(0, result);
 }
@@ -428,13 +425,65 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
   }
 }
 
+TEST(EmbeddedObj) {
+#ifdef V8_COMPRESS_POINTERS
+  FLAG_always_compact = true;
+  v8::V8::Initialize();
+
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
+
+  MacroAssembler* masm = &assembler;
+  EntryCode(masm);
+  Label exit;
+  Handle<HeapObject> old_array = isolate->factory()->NewFixedArray(2000);
+  Handle<HeapObject> my_array = isolate->factory()->NewFixedArray(1000);
+  __ Move(rcx, my_array, RelocInfo::COMPRESSED_EMBEDDED_OBJECT);
+  __ Move(rax, old_array, RelocInfo::FULL_EMBEDDED_OBJECT);
+  __ bind(&exit);
+  ExitCode(masm);
+  __ ret(0);
+
+  CodeDesc desc;
+  masm->GetCode(isolate, &desc);
+  Handle<Code> code = Factory::CodeBuilder(isolate, desc, Code::STUB).Build();
+#ifdef OBJECT_PRINT
+  StdoutStream os;
+  code->Print(os);
+#endif
+  using myF0 = Address();
+  auto f = GeneratedCode<myF0>::FromAddress(isolate, code->entry());
+  Object result = Object(f.Call());
+  CHECK_EQ(old_array->ptr(), result.ptr());
+
+  // Collect garbage to ensure reloc info can be walked by the heap.
+  CcTest::CollectAllGarbage();
+  CcTest::CollectAllGarbage();
+  CcTest::CollectAllGarbage();
+
+  // Test the user-facing reloc interface.
+  const int mode_mask = RelocInfo::EmbeddedObjectModeMask();
+  for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
+    RelocInfo::Mode mode = it.rinfo()->rmode();
+    if (RelocInfo::IsCompressedEmbeddedObject(mode)) {
+      CHECK_EQ(*my_array, it.rinfo()->target_object());
+    } else {
+      CHECK(RelocInfo::IsFullEmbeddedObject(mode));
+      CHECK_EQ(*old_array, it.rinfo()->target_object());
+    }
+  }
+#endif  // V8_COMPRESS_POINTERS
+}
+
 TEST(SmiIndex) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
-                           v8::internal::CodeObjectRequired::kYes);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -453,9 +502,9 @@ TEST(SmiIndex) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  MakeAssemblerBufferExecutable(buffer, allocated);
+  buffer->MakeExecutable();
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer->start());
   int result = f.Call();
   CHECK_EQ(0, result);
 }
@@ -466,10 +515,9 @@ TEST(OperandOffset) {
 
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
-                           v8::internal::CodeObjectRequired::kYes);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
 
   MacroAssembler* masm = &assembler;
   Label exit;
@@ -535,7 +583,8 @@ TEST(OperandOffset) {
   __ j(not_equal, &exit);
   __ incq(rax);
 
-  Operand sp2c2 = Operand(rsp, rcx, times_pointer_size, 2 * kSystemPointerSize);
+  Operand sp2c2 =
+      Operand(rsp, rcx, times_system_pointer_size, 2 * kSystemPointerSize);
 
   // Test 6.
   __ movl(rdx, sp2c2);  // Sanity check.
@@ -589,7 +638,7 @@ TEST(OperandOffset) {
   __ incq(rax);
 
   Operand bp2c4 =
-      Operand(rbp, rcx, times_pointer_size, -4 * kSystemPointerSize);
+      Operand(rbp, rcx, times_system_pointer_size, -4 * kSystemPointerSize);
 
   // Test 14:
   __ movl(rdx, bp2c4);  // Sanity check.
@@ -645,7 +694,7 @@ TEST(OperandOffset) {
   __ incq(rax);
 
   Operand bx2c2 =
-      Operand(rbx, rcx, times_pointer_size, -2 * kSystemPointerSize);
+      Operand(rbx, rcx, times_system_pointer_size, -2 * kSystemPointerSize);
 
   // Test 23.
   __ movl(rdx, bx2c2);  // Sanity check.
@@ -807,178 +856,16 @@ TEST(OperandOffset) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  MakeAssemblerBufferExecutable(buffer, allocated);
+  buffer->MakeExecutable();
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
-  int result = f.Call();
-  CHECK_EQ(0, result);
-}
-
-
-TEST(LoadAndStoreWithRepresentation) {
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope handles(isolate);
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
-                           v8::internal::CodeObjectRequired::kYes);
-
-  MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
-  EntryCode(masm);
-  __ subq(rsp, Immediate(1 * kSystemPointerSize));
-  Label exit;
-
-  // Test 1.
-  __ movq(rax, Immediate(1));  // Test number.
-  __ movq(Operand(rsp, 0 * kSystemPointerSize), Immediate(0));
-  __ movq(rcx, Immediate(-1));
-  __ Store(Operand(rsp, 0 * kSystemPointerSize), rcx,
-           Representation::UInteger8());
-  __ movq(rcx, Operand(rsp, 0 * kSystemPointerSize));
-  __ movl(rdx, Immediate(255));
-  __ cmpq(rcx, rdx);
-  __ j(not_equal, &exit);
-  __ Load(rdx, Operand(rsp, 0 * kSystemPointerSize),
-          Representation::UInteger8());
-  __ cmpq(rcx, rdx);
-  __ j(not_equal, &exit);
-
-  // Test 2.
-  __ movq(rax, Immediate(2));  // Test number.
-  __ movq(Operand(rsp, 0 * kSystemPointerSize), Immediate(0));
-  __ Set(rcx, V8_2PART_UINT64_C(0xDEADBEAF, 12345678));
-  __ Store(Operand(rsp, 0 * kSystemPointerSize), rcx, Representation::Smi());
-  __ movq(rcx, Operand(rsp, 0 * kSystemPointerSize));
-  __ Set(rdx, V8_2PART_UINT64_C(0xDEADBEAF, 12345678));
-  __ cmpq(rcx, rdx);
-  __ j(not_equal, &exit);
-  __ Load(rdx, Operand(rsp, 0 * kSystemPointerSize), Representation::Smi());
-  __ cmpq(rcx, rdx);
-  __ j(not_equal, &exit);
-
-  // Test 3.
-  __ movq(rax, Immediate(3));  // Test number.
-  __ movq(Operand(rsp, 0 * kSystemPointerSize), Immediate(0));
-  __ movq(rcx, Immediate(-1));
-  __ Store(Operand(rsp, 0 * kSystemPointerSize), rcx,
-           Representation::Integer32());
-  __ movq(rcx, Operand(rsp, 0 * kSystemPointerSize));
-  __ movl(rdx, Immediate(-1));
-  __ cmpq(rcx, rdx);
-  __ j(not_equal, &exit);
-  __ Load(rdx, Operand(rsp, 0 * kSystemPointerSize),
-          Representation::Integer32());
-  __ cmpq(rcx, rdx);
-  __ j(not_equal, &exit);
-
-  // Test 4.
-  __ movq(rax, Immediate(4));  // Test number.
-  __ movq(Operand(rsp, 0 * kSystemPointerSize), Immediate(0));
-  __ movl(rcx, Immediate(0x44332211));
-  __ Store(Operand(rsp, 0 * kSystemPointerSize), rcx,
-           Representation::HeapObject());
-  __ movq(rcx, Operand(rsp, 0 * kSystemPointerSize));
-  __ movl(rdx, Immediate(0x44332211));
-  __ cmpq(rcx, rdx);
-  __ j(not_equal, &exit);
-  __ Load(rdx, Operand(rsp, 0 * kSystemPointerSize),
-          Representation::HeapObject());
-  __ cmpq(rcx, rdx);
-  __ j(not_equal, &exit);
-
-  // Test 5.
-  __ movq(rax, Immediate(5));  // Test number.
-  __ movq(Operand(rsp, 0 * kSystemPointerSize), Immediate(0));
-  __ Set(rcx, V8_2PART_UINT64_C(0x12345678, DEADBEAF));
-  __ Store(Operand(rsp, 0 * kSystemPointerSize), rcx, Representation::Tagged());
-  __ movq(rcx, Operand(rsp, 0 * kSystemPointerSize));
-  __ Set(rdx, V8_2PART_UINT64_C(0x12345678, DEADBEAF));
-  __ cmpq(rcx, rdx);
-  __ j(not_equal, &exit);
-  __ Load(rdx, Operand(rsp, 0 * kSystemPointerSize), Representation::Tagged());
-  __ cmpq(rcx, rdx);
-  __ j(not_equal, &exit);
-
-  // Test 6.
-  __ movq(rax, Immediate(6));  // Test number.
-  __ movq(Operand(rsp, 0 * kSystemPointerSize), Immediate(0));
-  __ Set(rcx, V8_2PART_UINT64_C(0x11223344, 55667788));
-  __ Store(Operand(rsp, 0 * kSystemPointerSize), rcx,
-           Representation::External());
-  __ movq(rcx, Operand(rsp, 0 * kSystemPointerSize));
-  __ Set(rdx, V8_2PART_UINT64_C(0x11223344, 55667788));
-  __ cmpq(rcx, rdx);
-  __ j(not_equal, &exit);
-  __ Load(rdx, Operand(rsp, 0 * kSystemPointerSize),
-          Representation::External());
-  __ cmpq(rcx, rdx);
-  __ j(not_equal, &exit);
-
-  // Test 7.
-  __ movq(rax, Immediate(7));  // Test number.
-  __ movq(Operand(rsp, 0 * kSystemPointerSize), Immediate(0));
-  __ movq(rcx, Immediate(-1));
-  __ Store(Operand(rsp, 0 * kSystemPointerSize), rcx,
-           Representation::Integer8());
-  __ movq(rcx, Operand(rsp, 0 * kSystemPointerSize));
-  __ movl(rdx, Immediate(255));
-  __ cmpq(rcx, rdx);
-  __ j(not_equal, &exit);
-  __ Load(rdx, Operand(rsp, 0 * kSystemPointerSize),
-          Representation::Integer8());
-  __ movq(rcx, Immediate(-1));
-  __ cmpq(rcx, rdx);
-  __ j(not_equal, &exit);
-
-  // Test 8.
-  __ movq(rax, Immediate(8));  // Test number.
-  __ movq(Operand(rsp, 0 * kSystemPointerSize), Immediate(0));
-  __ movq(rcx, Immediate(-1));
-  __ Store(Operand(rsp, 0 * kSystemPointerSize), rcx,
-           Representation::Integer16());
-  __ movq(rcx, Operand(rsp, 0 * kSystemPointerSize));
-  __ movl(rdx, Immediate(65535));
-  __ cmpq(rcx, rdx);
-  __ j(not_equal, &exit);
-  __ Load(rdx, Operand(rsp, 0 * kSystemPointerSize),
-          Representation::Integer16());
-  __ movq(rcx, Immediate(-1));
-  __ cmpq(rcx, rdx);
-  __ j(not_equal, &exit);
-
-  // Test 9.
-  __ movq(rax, Immediate(9));  // Test number.
-  __ movq(Operand(rsp, 0 * kSystemPointerSize), Immediate(0));
-  __ movq(rcx, Immediate(-1));
-  __ Store(Operand(rsp, 0 * kSystemPointerSize), rcx,
-           Representation::UInteger16());
-  __ movq(rcx, Operand(rsp, 0 * kSystemPointerSize));
-  __ movl(rdx, Immediate(65535));
-  __ cmpq(rcx, rdx);
-  __ j(not_equal, &exit);
-  __ Load(rdx, Operand(rsp, 0 * kSystemPointerSize),
-          Representation::UInteger16());
-  __ cmpq(rcx, rdx);
-  __ j(not_equal, &exit);
-
-  __ xorq(rax, rax);  // Success.
-  __ bind(&exit);
-  __ addq(rsp, Immediate(1 * kSystemPointerSize));
-  ExitCode(masm);
-  __ ret(0);
-
-  CodeDesc desc;
-  masm->GetCode(isolate, &desc);
-  MakeAssemblerBufferExecutable(buffer, allocated);
-  // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer->start());
   int result = f.Call();
   CHECK_EQ(0, result);
 }
 
 void TestFloat32x4Abs(MacroAssembler* masm, Label* exit, float x, float y,
                       float z, float w) {
-  __ subq(rsp, Immediate(kSimd128Size));
+  __ AllocateStackSpace(kSimd128Size);
 
   __ Move(xmm1, x);
   __ Movss(Operand(rsp, 0 * kFloatSize), xmm1);
@@ -1015,7 +902,7 @@ void TestFloat32x4Abs(MacroAssembler* masm, Label* exit, float x, float y,
 
 void TestFloat32x4Neg(MacroAssembler* masm, Label* exit, float x, float y,
                       float z, float w) {
-  __ subq(rsp, Immediate(kSimd128Size));
+  __ AllocateStackSpace(kSimd128Size);
 
   __ Move(xmm1, x);
   __ Movss(Operand(rsp, 0 * kFloatSize), xmm1);
@@ -1051,7 +938,7 @@ void TestFloat32x4Neg(MacroAssembler* masm, Label* exit, float x, float y,
 }
 
 void TestFloat64x2Abs(MacroAssembler* masm, Label* exit, double x, double y) {
-  __ subq(rsp, Immediate(kSimd128Size));
+  __ AllocateStackSpace(kSimd128Size);
 
   __ Move(xmm1, x);
   __ Movsd(Operand(rsp, 0 * kDoubleSize), xmm1);
@@ -1075,7 +962,7 @@ void TestFloat64x2Abs(MacroAssembler* masm, Label* exit, double x, double y) {
 }
 
 void TestFloat64x2Neg(MacroAssembler* masm, Label* exit, double x, double y) {
-  __ subq(rsp, Immediate(kSimd128Size));
+  __ AllocateStackSpace(kSimd128Size);
 
   __ Move(xmm1, x);
   __ Movsd(Operand(rsp, 0 * kDoubleSize), xmm1);
@@ -1101,10 +988,9 @@ void TestFloat64x2Neg(MacroAssembler* masm, Label* exit, double x, double y) {
 TEST(SIMDMacros) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
-                           v8::internal::CodeObjectRequired::kYes);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -1123,9 +1009,9 @@ TEST(SIMDMacros) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  MakeAssemblerBufferExecutable(buffer, allocated);
+  buffer->MakeExecutable();
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer->start());
   int result = f.Call();
   CHECK_EQ(0, result);
 }

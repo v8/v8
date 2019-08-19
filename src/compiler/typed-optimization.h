@@ -6,8 +6,8 @@
 #define V8_COMPILER_TYPED_OPTIMIZATION_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/common/globals.h"
 #include "src/compiler/graph-reducer.h"
-#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -86,7 +86,7 @@ class V8_EXPORT_PRIVATE TypedOptimization final
   JSHeapBroker* broker_;
   Type const true_type_;
   Type const false_type_;
-  TypeCache const& type_cache_;
+  TypeCache const* type_cache_;
 
   DISALLOW_COPY_AND_ASSIGN(TypedOptimization);
 };

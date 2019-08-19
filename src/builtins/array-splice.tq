@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array {
+namespace array_splice {
   // Given {elements}, we want to create a non-zero length array of type
   // FixedArrayType. Most of this behavior is outsourced to ExtractFixedArray(),
   // but the special case of wanting to have a FixedDoubleArray when given a
@@ -39,7 +39,7 @@ namespace array {
   macro StoreHoles<FixedArrayType: type>(
       elements: FixedArrayType, holeStartIndex: Smi, holeEndIndex: Smi): void {
     for (let i: Smi = holeStartIndex; i < holeEndIndex; i++) {
-      StoreArrayHole(elements, i);
+      array::StoreArrayHole(elements, i);
     }
   }
 
@@ -53,11 +53,10 @@ namespace array {
 
   macro FastSplice<FixedArrayType: type, ElementType: type>(implicit context:
                                                                   Context)(
-      args: constexpr Arguments, a: JSArray, length: Smi, newLength: Smi,
-      lengthDelta: Smi, actualStart: Smi, insertCount: Smi,
-      actualDeleteCount: Smi): void labels Bailout {
+      args: Arguments, a: JSArray, length: Smi, newLength: Smi,
+      actualStart: Smi, insertCount: Smi, actualDeleteCount: Smi): void {
     // Make sure elements are writable.
-    EnsureWriteableFastElements(a);
+    array::EnsureWriteableFastElements(a);
 
     if (insertCount != actualDeleteCount) {
       const elements: FixedArrayBase = a.elements;
@@ -77,7 +76,7 @@ namespace array {
               UnsafeCast<FixedArrayType>(elements), dstIndex, srcIndex, count);
         } else {
           // Grow.
-          let capacity: Smi = CalculateNewElementsCapacity(newLength);
+          const capacity: Smi = CalculateNewElementsCapacity(newLength);
           const newElements: FixedArrayType =
               Extract<FixedArrayType>(elements, 0, actualStart, capacity);
           a.elements = newElements;
@@ -95,7 +94,8 @@ namespace array {
     if (insertCount > 0) {
       const typedNewElements: FixedArrayType =
           UnsafeCast<FixedArrayType>(a.elements);
-      for (let e: Object of args [2: ]) {
+      for (let i: intptr = 2; i < args.length; ++i) {
+        const e: Object = args[i];
         // The argument elements were already validated to be an appropriate
         // {ElementType} to store in {FixedArrayType}.
         typedNewElements[k++] = UnsafeCast<ElementType>(e);
@@ -107,7 +107,7 @@ namespace array {
   }
 
   transitioning macro FastArraySplice(
-      context: Context, args: constexpr Arguments, o: JSReceiver,
+      context: Context, args: Arguments, o: JSReceiver,
       originalLengthNumber: Number, actualStartNumber: Number, insertCount: Smi,
       actualDeleteCountNumber: Number): Object
       labels Bailout {
@@ -131,7 +131,8 @@ namespace array {
     if (!IsFastElementsKind(elementsKind)) goto Bailout;
 
     const oldElementsKind: ElementsKind = elementsKind;
-    for (let e: Object of args [2: ]) {
+    for (let i: intptr = 2; i < args.length; ++i) {
+      const e: Object = args[i];
       if (IsFastSmiElementsKind(elementsKind)) {
         if (TaggedIsNotSmi(e)) {
           const heapObject: HeapObject = UnsafeCast<HeapObject>(e);
@@ -166,12 +167,12 @@ namespace array {
 
     if (IsFastSmiOrTaggedElementsKind(elementsKind)) {
       FastSplice<FixedArray, Object>(
-          args, a, length, newLength, lengthDelta, actualStart, insertCount,
-          actualDeleteCount) otherwise Bailout;
+          args, a, length, newLength, actualStart, insertCount,
+          actualDeleteCount);
     } else {
       FastSplice<FixedDoubleArray, Number>(
-          args, a, length, newLength, lengthDelta, actualStart, insertCount,
-          actualDeleteCount) otherwise Bailout;
+          args, a, length, newLength, actualStart, insertCount,
+          actualDeleteCount);
     }
 
     return deletedResult;
@@ -197,7 +198,7 @@ namespace array {
         const fromValue: Object = GetProperty(o, from);
 
         // ii. Perform ? CreateDataPropertyOrThrow(A, ! ToString(k), fromValue).
-        CreateDataProperty(a, k, fromValue);
+        FastCreateDataProperty(a, k, fromValue);
       }
 
       // d. Increment k by 1.
@@ -296,11 +297,9 @@ namespace array {
   }
 
   transitioning macro SlowSplice(
-      context: Context, arguments: constexpr Arguments, o: JSReceiver,
-      len: Number, actualStart: Number, insertCount: Smi,
+      context: Context, arguments: Arguments, o: JSReceiver, len: Number,
+      actualStart: Number, insertCount: Smi,
       actualDeleteCount: Number): Object {
-    const affected: Number = len - actualStart - actualDeleteCount;
-
     // 9. Let A be ? ArraySpeciesCreate(O, actualDeleteCount).
     const a: JSReceiver = ArraySpeciesCreate(context, o, actualDeleteCount);
     const itemCount: Number = insertCount;
@@ -332,7 +331,8 @@ namespace array {
     //   a. Remove the first element from items and let E be the value of that
     //   element.
     if (arguments.length > 2) {
-      for (let e: Object of arguments [2: ]) {
+      for (let i: intptr = 2; i < arguments.length; ++i) {
+        const e: Object = arguments[i];
         // b. Perform ? Set(O, ! ToString(k), E, true).
         SetProperty(o, k, e);
 
@@ -350,8 +350,8 @@ namespace array {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.splice
   transitioning javascript builtin
-  ArrayPrototypeSplice(context: Context, receiver: Object, ...arguments):
-      Object {
+  ArrayPrototypeSplice(js-implicit context: Context, receiver: Object)(
+      ...arguments): Object {
     // 1. Let O be ? ToObject(this value).
     const o: JSReceiver = ToObject(context, receiver);
 
@@ -398,7 +398,7 @@ namespace array {
     //    Bailout exception.
     const newLength: Number = len + insertCount - actualDeleteCount;
     if (newLength > kMaxSafeInteger) {
-      ThrowTypeError(context, kInvalidArrayLength, start);
+      ThrowTypeError(kInvalidArrayLength, start);
     }
 
     try {

@@ -12,10 +12,10 @@
 #include <set>
 #include <string>
 
+#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/isolate.h"
-#include "src/objects.h"
 #include "src/objects/managed.h"
+#include "src/objects/objects.h"
 #include "unicode/uversion.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -30,12 +30,11 @@ namespace internal {
 
 class JSRelativeTimeFormat : public JSObject {
  public:
-  // Initializes relative time format object with properties derived from input
+  // Creates relative time format object with properties derived from input
   // locales and options.
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSRelativeTimeFormat> Initialize(
-      Isolate* isolate,
-      Handle<JSRelativeTimeFormat> relative_time_format_holder,
-      Handle<Object> locales, Handle<Object> options);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSRelativeTimeFormat> New(
+      Isolate* isolate, Handle<Map> map, Handle<Object> locales,
+      Handle<Object> options);
 
   V8_WARN_UNUSED_RESULT static Handle<JSObject> ResolvedOptions(
       Isolate* isolate, Handle<JSRelativeTimeFormat> format_holder);
@@ -44,30 +43,32 @@ class JSRelativeTimeFormat : public JSObject {
   Handle<String> NumericAsString() const;
 
   // ecma402/#sec-Intl.RelativeTimeFormat.prototype.format
-  // ecma402/#sec-Intl.RelativeTimeFormat.prototype.formatToParts
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Format(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> Format(
       Isolate* isolate, Handle<Object> value_obj, Handle<Object> unit_obj,
-      Handle<JSRelativeTimeFormat> format_holder, const char* func_name,
-      bool to_parts);
+      Handle<JSRelativeTimeFormat> format);
 
-  static std::set<std::string> GetAvailableLocales();
+  // ecma402/#sec-Intl.RelativeTimeFormat.prototype.formatToParts
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> FormatToParts(
+      Isolate* isolate, Handle<Object> value_obj, Handle<Object> unit_obj,
+      Handle<JSRelativeTimeFormat> format);
 
-  DECL_CAST2(JSRelativeTimeFormat)
+  V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
+
+  DECL_CAST(JSRelativeTimeFormat)
 
   // RelativeTimeFormat accessors.
-  DECL_ACCESSORS2(locale, String)
+  DECL_ACCESSORS(locale, String)
 
-  DECL_ACCESSORS2(icu_formatter, Managed<icu::RelativeDateTimeFormatter>)
+  DECL_ACCESSORS(icu_formatter, Managed<icu::RelativeDateTimeFormatter>)
 
   // Style: identifying the relative time format style used.
   //
   // ecma402/#sec-properties-of-intl-relativetimeformat-instances
 
   enum class Style {
-    LONG,    // Everything spelled out.
-    SHORT,   // Abbreviations used when possible.
-    NARROW,  // Use the shortest possible form.
-    COUNT
+    LONG,   // Everything spelled out.
+    SHORT,  // Abbreviations used when possible.
+    NARROW  // Use the shortest possible form.
   };
   inline void set_style(Style style);
   inline Style style() const;
@@ -79,9 +80,8 @@ class JSRelativeTimeFormat : public JSObject {
   // ecma402/#sec-properties-of-intl-relativetimeformat-instances
   enum class Numeric {
     ALWAYS,  // numerical descriptions are always used ("1 day ago")
-    AUTO,    // numerical descriptions are used only when no more specific
+    AUTO     // numerical descriptions are used only when no more specific
              // version is available ("yesterday")
-    COUNT
   };
   inline void set_numeric(Numeric numeric);
   inline Numeric numeric() const;
@@ -106,17 +106,8 @@ class JSRelativeTimeFormat : public JSObject {
   DECL_VERIFIER(JSRelativeTimeFormat)
 
   // Layout description.
-#define JS_RELATIVE_TIME_FORMAT_FIELDS(V)     \
-  V(kJSRelativeTimeFormatOffset, kTaggedSize) \
-  V(kLocaleOffset, kTaggedSize)               \
-  V(kICUFormatterOffset, kTaggedSize)         \
-  V(kFlagsOffset, kTaggedSize)                \
-  /* Header size. */                          \
-  V(kSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                JS_RELATIVE_TIME_FORMAT_FIELDS)
-#undef JS_RELATIVE_TIME_FORMAT_FIELDS
+                                TORQUE_GENERATED_JSRELATIVE_TIME_FORMAT_FIELDS)
 
  private:
   static Style getStyle(const char* str);

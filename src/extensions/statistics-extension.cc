@@ -4,9 +4,9 @@
 
 #include "src/extensions/statistics-extension.h"
 
-#include "src/counters.h"
+#include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
-#include "src/isolate.h"
+#include "src/logging/counters.h"
 
 namespace v8 {
 namespace internal {
@@ -76,14 +76,15 @@ void StatisticsExtension::GetCounters(
     v8::internal::StatsCounter* counter;
     const char* name;
   };
+  // clang-format off
   const StatisticsCounter counter_list[] = {
-#define ADD_COUNTER(name, caption) \
-  { counters->name(), #name }      \
-  ,
-
-      STATS_COUNTER_LIST_1(ADD_COUNTER) STATS_COUNTER_LIST_2(ADD_COUNTER)
+#define ADD_COUNTER(name, caption) {counters->name(), #name},
+      STATS_COUNTER_LIST_1(ADD_COUNTER)
+      STATS_COUNTER_LIST_2(ADD_COUNTER)
+      STATS_COUNTER_NATIVE_CODE_LIST(ADD_COUNTER)
 #undef ADD_COUNTER
   };  // End counter_list array.
+  // clang-format on
 
   for (size_t i = 0; i < arraysize(counter_list); i++) {
     AddCounter(args.GetIsolate(), result, counter_list[i].counter,
@@ -123,21 +124,22 @@ void StatisticsExtension::GetCounters(
               "amount_of_external_allocated_memory");
   args.GetReturnValue().Set(result);
 
-  HeapIterator iterator(reinterpret_cast<Isolate*>(args.GetIsolate())->heap());
+  HeapObjectIterator iterator(
+      reinterpret_cast<Isolate*>(args.GetIsolate())->heap());
   int reloc_info_total = 0;
   int source_position_table_total = 0;
-  for (HeapObject obj = iterator.next(); !obj.is_null();
-       obj = iterator.next()) {
-    if (obj->IsCode()) {
+  for (HeapObject obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
+    if (obj.IsCode()) {
       Code code = Code::cast(obj);
-      reloc_info_total += code->relocation_info()->Size();
-      ByteArray source_position_table = code->SourcePositionTable();
-      if (source_position_table->length() > 0) {
-        source_position_table_total += code->SourcePositionTable()->Size();
+      reloc_info_total += code.relocation_info().Size();
+      ByteArray source_position_table = code.SourcePositionTable();
+      if (source_position_table.length() > 0) {
+        source_position_table_total += code.SourcePositionTable().Size();
       }
-    } else if (obj->IsBytecodeArray()) {
+    } else if (obj.IsBytecodeArray()) {
       source_position_table_total +=
-          BytecodeArray::cast(obj)->SourcePositionTable()->Size();
+          BytecodeArray::cast(obj).SourcePositionTable().Size();
     }
   }
 

@@ -7,9 +7,9 @@
 #include <stdint.h>
 
 #include "include/v8.h"
+#include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
-#include "src/isolate-inl.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
 #include "test/common/wasm/flag-utils.h"
@@ -55,5 +55,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   if (compiles) {
     i::wasm::fuzzer::InterpretAndExecuteModule(i_isolate, module_object);
   }
+
+  // Pump the message loop and run micro tasks, e.g. GC finalization tasks.
+  support->PumpMessageLoop(v8::platform::MessageLoopBehavior::kDoNotWait);
+  isolate->RunMicrotasks();
   return 0;
 }

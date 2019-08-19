@@ -5,7 +5,7 @@
 #include "src/regexp/regexp-macro-assembler-tracer.h"
 
 #include "src/ast/ast.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -162,23 +162,18 @@ void RegExpMacroAssemblerTracer::ReadStackPointerFromRegister(int reg) {
   assembler_->ReadStackPointerFromRegister(reg);
 }
 
-
-void RegExpMacroAssemblerTracer::LoadCurrentCharacter(int cp_offset,
-                                                      Label* on_end_of_input,
-                                                      bool check_bounds,
-                                                      int characters) {
+void RegExpMacroAssemblerTracer::LoadCurrentCharacterImpl(
+    int cp_offset, Label* on_end_of_input, bool check_bounds, int characters,
+    int eats_at_least) {
   const char* check_msg = check_bounds ? "" : " (unchecked)";
-  PrintF(" LoadCurrentCharacter(cp_offset=%d, label[%08x]%s (%d chars));\n",
-         cp_offset,
-         LabelToInt(on_end_of_input),
-         check_msg,
-         characters);
-  assembler_->LoadCurrentCharacter(cp_offset,
-                                   on_end_of_input,
-                                   check_bounds,
-                                   characters);
+  PrintF(
+      " LoadCurrentCharacter(cp_offset=%d, label[%08x]%s (%d chars) (eats at "
+      "least %d));\n",
+      cp_offset, LabelToInt(on_end_of_input), check_msg, characters,
+      eats_at_least);
+  assembler_->LoadCurrentCharacter(cp_offset, on_end_of_input, check_bounds,
+                                   characters, eats_at_least);
 }
-
 
 class PrintablePrinter {
  public:

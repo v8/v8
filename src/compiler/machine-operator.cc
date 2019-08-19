@@ -89,6 +89,8 @@ MachineType AtomicOpType(Operator const* op) {
   return OpParameter<MachineType>(op);
 }
 
+// The format is:
+// V(Name, properties, value_input_count, control_input_count, output_count)
 #define PURE_BINARY_OP_LIST_32(V)                                           \
   V(Word32And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
   V(Word32Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
@@ -112,6 +114,8 @@ MachineType AtomicOpType(Operator const* op) {
   V(Uint32Mod, Operator::kNoProperties, 2, 1, 1)                            \
   V(Uint32MulHigh, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)
 
+// The format is:
+// V(Name, properties, value_input_count, control_input_count, output_count)
 #define PURE_BINARY_OP_LIST_64(V)                                        \
   V(Word64And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1) \
   V(Word64Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)  \
@@ -133,212 +137,267 @@ MachineType AtomicOpType(Operator const* op) {
   V(Uint64LessThan, Operator::kNoProperties, 2, 0, 1)                    \
   V(Uint64LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)
 
-#define MACHINE_PURE_OP_LIST(V)                                           \
-  PURE_BINARY_OP_LIST_32(V)                                               \
-  PURE_BINARY_OP_LIST_64(V)                                               \
-  V(Word32Clz, Operator::kNoProperties, 1, 0, 1)                          \
-  V(Word64Clz, Operator::kNoProperties, 1, 0, 1)                          \
-  V(Word32ReverseBytes, Operator::kNoProperties, 1, 0, 1)                 \
-  V(Word64ReverseBytes, Operator::kNoProperties, 1, 0, 1)                 \
-  V(BitcastWordToTaggedSigned, Operator::kNoProperties, 1, 0, 1)          \
-  V(TruncateFloat64ToWord32, Operator::kNoProperties, 1, 0, 1)            \
-  V(ChangeFloat32ToFloat64, Operator::kNoProperties, 1, 0, 1)             \
-  V(ChangeFloat64ToInt32, Operator::kNoProperties, 1, 0, 1)               \
-  V(ChangeFloat64ToInt64, Operator::kNoProperties, 1, 0, 1)               \
-  V(ChangeFloat64ToUint32, Operator::kNoProperties, 1, 0, 1)              \
-  V(ChangeFloat64ToUint64, Operator::kNoProperties, 1, 0, 1)              \
-  V(TruncateFloat64ToInt64, Operator::kNoProperties, 1, 0, 1)             \
-  V(TruncateFloat64ToUint32, Operator::kNoProperties, 1, 0, 1)            \
-  V(TruncateFloat32ToInt32, Operator::kNoProperties, 1, 0, 1)             \
-  V(TruncateFloat32ToUint32, Operator::kNoProperties, 1, 0, 1)            \
-  V(TryTruncateFloat32ToInt64, Operator::kNoProperties, 1, 0, 2)          \
-  V(TryTruncateFloat64ToInt64, Operator::kNoProperties, 1, 0, 2)          \
-  V(TryTruncateFloat32ToUint64, Operator::kNoProperties, 1, 0, 2)         \
-  V(TryTruncateFloat64ToUint64, Operator::kNoProperties, 1, 0, 2)         \
-  V(ChangeInt32ToFloat64, Operator::kNoProperties, 1, 0, 1)               \
-  V(ChangeInt64ToFloat64, Operator::kNoProperties, 1, 0, 1)               \
-  V(Float64SilenceNaN, Operator::kNoProperties, 1, 0, 1)                  \
-  V(RoundFloat64ToInt32, Operator::kNoProperties, 1, 0, 1)                \
-  V(RoundInt32ToFloat32, Operator::kNoProperties, 1, 0, 1)                \
-  V(RoundInt64ToFloat32, Operator::kNoProperties, 1, 0, 1)                \
-  V(RoundInt64ToFloat64, Operator::kNoProperties, 1, 0, 1)                \
-  V(RoundUint32ToFloat32, Operator::kNoProperties, 1, 0, 1)               \
-  V(RoundUint64ToFloat32, Operator::kNoProperties, 1, 0, 1)               \
-  V(RoundUint64ToFloat64, Operator::kNoProperties, 1, 0, 1)               \
-  V(ChangeInt32ToInt64, Operator::kNoProperties, 1, 0, 1)                 \
-  V(ChangeUint32ToFloat64, Operator::kNoProperties, 1, 0, 1)              \
-  V(ChangeUint32ToUint64, Operator::kNoProperties, 1, 0, 1)               \
-  V(TruncateFloat64ToFloat32, Operator::kNoProperties, 1, 0, 1)           \
-  V(TruncateInt64ToInt32, Operator::kNoProperties, 1, 0, 1)               \
-  V(BitcastFloat32ToInt32, Operator::kNoProperties, 1, 0, 1)              \
-  V(BitcastFloat64ToInt64, Operator::kNoProperties, 1, 0, 1)              \
-  V(BitcastInt32ToFloat32, Operator::kNoProperties, 1, 0, 1)              \
-  V(BitcastInt64ToFloat64, Operator::kNoProperties, 1, 0, 1)              \
-  V(SignExtendWord8ToInt32, Operator::kNoProperties, 1, 0, 1)             \
-  V(SignExtendWord16ToInt32, Operator::kNoProperties, 1, 0, 1)            \
-  V(SignExtendWord8ToInt64, Operator::kNoProperties, 1, 0, 1)             \
-  V(SignExtendWord16ToInt64, Operator::kNoProperties, 1, 0, 1)            \
-  V(SignExtendWord32ToInt64, Operator::kNoProperties, 1, 0, 1)            \
-  V(Float32Abs, Operator::kNoProperties, 1, 0, 1)                         \
-  V(Float32Add, Operator::kCommutative, 2, 0, 1)                          \
-  V(Float32Sub, Operator::kNoProperties, 2, 0, 1)                         \
-  V(Float32Mul, Operator::kCommutative, 2, 0, 1)                          \
-  V(Float32Div, Operator::kNoProperties, 2, 0, 1)                         \
-  V(Float32Neg, Operator::kNoProperties, 1, 0, 1)                         \
-  V(Float32Sqrt, Operator::kNoProperties, 1, 0, 1)                        \
-  V(Float32Max, Operator::kAssociative | Operator::kCommutative, 2, 0, 1) \
-  V(Float32Min, Operator::kAssociative | Operator::kCommutative, 2, 0, 1) \
-  V(Float64Abs, Operator::kNoProperties, 1, 0, 1)                         \
-  V(Float64Acos, Operator::kNoProperties, 1, 0, 1)                        \
-  V(Float64Acosh, Operator::kNoProperties, 1, 0, 1)                       \
-  V(Float64Asin, Operator::kNoProperties, 1, 0, 1)                        \
-  V(Float64Asinh, Operator::kNoProperties, 1, 0, 1)                       \
-  V(Float64Atan, Operator::kNoProperties, 1, 0, 1)                        \
-  V(Float64Atan2, Operator::kNoProperties, 2, 0, 1)                       \
-  V(Float64Atanh, Operator::kNoProperties, 1, 0, 1)                       \
-  V(Float64Cbrt, Operator::kNoProperties, 1, 0, 1)                        \
-  V(Float64Cos, Operator::kNoProperties, 1, 0, 1)                         \
-  V(Float64Cosh, Operator::kNoProperties, 1, 0, 1)                        \
-  V(Float64Exp, Operator::kNoProperties, 1, 0, 1)                         \
-  V(Float64Expm1, Operator::kNoProperties, 1, 0, 1)                       \
-  V(Float64Log, Operator::kNoProperties, 1, 0, 1)                         \
-  V(Float64Log1p, Operator::kNoProperties, 1, 0, 1)                       \
-  V(Float64Log2, Operator::kNoProperties, 1, 0, 1)                        \
-  V(Float64Log10, Operator::kNoProperties, 1, 0, 1)                       \
-  V(Float64Max, Operator::kAssociative | Operator::kCommutative, 2, 0, 1) \
-  V(Float64Min, Operator::kAssociative | Operator::kCommutative, 2, 0, 1) \
-  V(Float64Neg, Operator::kNoProperties, 1, 0, 1)                         \
-  V(Float64Add, Operator::kCommutative, 2, 0, 1)                          \
-  V(Float64Sub, Operator::kNoProperties, 2, 0, 1)                         \
-  V(Float64Mul, Operator::kCommutative, 2, 0, 1)                          \
-  V(Float64Div, Operator::kNoProperties, 2, 0, 1)                         \
-  V(Float64Mod, Operator::kNoProperties, 2, 0, 1)                         \
-  V(Float64Pow, Operator::kNoProperties, 2, 0, 1)                         \
-  V(Float64Sin, Operator::kNoProperties, 1, 0, 1)                         \
-  V(Float64Sinh, Operator::kNoProperties, 1, 0, 1)                        \
-  V(Float64Sqrt, Operator::kNoProperties, 1, 0, 1)                        \
-  V(Float64Tan, Operator::kNoProperties, 1, 0, 1)                         \
-  V(Float64Tanh, Operator::kNoProperties, 1, 0, 1)                        \
-  V(Float32Equal, Operator::kCommutative, 2, 0, 1)                        \
-  V(Float32LessThan, Operator::kNoProperties, 2, 0, 1)                    \
-  V(Float32LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)             \
-  V(Float64Equal, Operator::kCommutative, 2, 0, 1)                        \
-  V(Float64LessThan, Operator::kNoProperties, 2, 0, 1)                    \
-  V(Float64LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)             \
-  V(Float64ExtractLowWord32, Operator::kNoProperties, 1, 0, 1)            \
-  V(Float64ExtractHighWord32, Operator::kNoProperties, 1, 0, 1)           \
-  V(Float64InsertLowWord32, Operator::kNoProperties, 2, 0, 1)             \
-  V(Float64InsertHighWord32, Operator::kNoProperties, 2, 0, 1)            \
-  V(LoadStackPointer, Operator::kNoProperties, 0, 0, 1)                   \
-  V(LoadFramePointer, Operator::kNoProperties, 0, 0, 1)                   \
-  V(LoadParentFramePointer, Operator::kNoProperties, 0, 0, 1)             \
-  V(Int32PairAdd, Operator::kNoProperties, 4, 0, 2)                       \
-  V(Int32PairSub, Operator::kNoProperties, 4, 0, 2)                       \
-  V(Int32PairMul, Operator::kNoProperties, 4, 0, 2)                       \
-  V(Word32PairShl, Operator::kNoProperties, 3, 0, 2)                      \
-  V(Word32PairShr, Operator::kNoProperties, 3, 0, 2)                      \
-  V(Word32PairSar, Operator::kNoProperties, 3, 0, 2)                      \
-  V(F32x4Splat, Operator::kNoProperties, 1, 0, 1)                         \
-  V(F32x4SConvertI32x4, Operator::kNoProperties, 1, 0, 1)                 \
-  V(F32x4UConvertI32x4, Operator::kNoProperties, 1, 0, 1)                 \
-  V(F32x4Abs, Operator::kNoProperties, 1, 0, 1)                           \
-  V(F32x4Neg, Operator::kNoProperties, 1, 0, 1)                           \
-  V(F32x4RecipApprox, Operator::kNoProperties, 1, 0, 1)                   \
-  V(F32x4RecipSqrtApprox, Operator::kNoProperties, 1, 0, 1)               \
-  V(F32x4Add, Operator::kCommutative, 2, 0, 1)                            \
-  V(F32x4AddHoriz, Operator::kNoProperties, 2, 0, 1)                      \
-  V(F32x4Sub, Operator::kNoProperties, 2, 0, 1)                           \
-  V(F32x4Mul, Operator::kCommutative, 2, 0, 1)                            \
-  V(F32x4Min, Operator::kCommutative, 2, 0, 1)                            \
-  V(F32x4Max, Operator::kCommutative, 2, 0, 1)                            \
-  V(F32x4Eq, Operator::kCommutative, 2, 0, 1)                             \
-  V(F32x4Ne, Operator::kCommutative, 2, 0, 1)                             \
-  V(F32x4Lt, Operator::kNoProperties, 2, 0, 1)                            \
-  V(F32x4Le, Operator::kNoProperties, 2, 0, 1)                            \
-  V(I32x4Splat, Operator::kNoProperties, 1, 0, 1)                         \
-  V(I32x4SConvertF32x4, Operator::kNoProperties, 1, 0, 1)                 \
-  V(I32x4SConvertI16x8Low, Operator::kNoProperties, 1, 0, 1)              \
-  V(I32x4SConvertI16x8High, Operator::kNoProperties, 1, 0, 1)             \
-  V(I32x4Neg, Operator::kNoProperties, 1, 0, 1)                           \
-  V(I32x4Add, Operator::kCommutative, 2, 0, 1)                            \
-  V(I32x4AddHoriz, Operator::kNoProperties, 2, 0, 1)                      \
-  V(I32x4Sub, Operator::kNoProperties, 2, 0, 1)                           \
-  V(I32x4Mul, Operator::kCommutative, 2, 0, 1)                            \
-  V(I32x4MinS, Operator::kCommutative, 2, 0, 1)                           \
-  V(I32x4MaxS, Operator::kCommutative, 2, 0, 1)                           \
-  V(I32x4Eq, Operator::kCommutative, 2, 0, 1)                             \
-  V(I32x4Ne, Operator::kCommutative, 2, 0, 1)                             \
-  V(I32x4GtS, Operator::kNoProperties, 2, 0, 1)                           \
-  V(I32x4GeS, Operator::kNoProperties, 2, 0, 1)                           \
-  V(I32x4UConvertF32x4, Operator::kNoProperties, 1, 0, 1)                 \
-  V(I32x4UConvertI16x8Low, Operator::kNoProperties, 1, 0, 1)              \
-  V(I32x4UConvertI16x8High, Operator::kNoProperties, 1, 0, 1)             \
-  V(I32x4MinU, Operator::kCommutative, 2, 0, 1)                           \
-  V(I32x4MaxU, Operator::kCommutative, 2, 0, 1)                           \
-  V(I32x4GtU, Operator::kNoProperties, 2, 0, 1)                           \
-  V(I32x4GeU, Operator::kNoProperties, 2, 0, 1)                           \
-  V(I16x8Splat, Operator::kNoProperties, 1, 0, 1)                         \
-  V(I16x8SConvertI8x16Low, Operator::kNoProperties, 1, 0, 1)              \
-  V(I16x8SConvertI8x16High, Operator::kNoProperties, 1, 0, 1)             \
-  V(I16x8Neg, Operator::kNoProperties, 1, 0, 1)                           \
-  V(I16x8SConvertI32x4, Operator::kNoProperties, 2, 0, 1)                 \
-  V(I16x8Add, Operator::kCommutative, 2, 0, 1)                            \
-  V(I16x8AddSaturateS, Operator::kCommutative, 2, 0, 1)                   \
-  V(I16x8AddHoriz, Operator::kNoProperties, 2, 0, 1)                      \
-  V(I16x8Sub, Operator::kNoProperties, 2, 0, 1)                           \
-  V(I16x8SubSaturateS, Operator::kNoProperties, 2, 0, 1)                  \
-  V(I16x8Mul, Operator::kCommutative, 2, 0, 1)                            \
-  V(I16x8MinS, Operator::kCommutative, 2, 0, 1)                           \
-  V(I16x8MaxS, Operator::kCommutative, 2, 0, 1)                           \
-  V(I16x8Eq, Operator::kCommutative, 2, 0, 1)                             \
-  V(I16x8Ne, Operator::kCommutative, 2, 0, 1)                             \
-  V(I16x8GtS, Operator::kNoProperties, 2, 0, 1)                           \
-  V(I16x8GeS, Operator::kNoProperties, 2, 0, 1)                           \
-  V(I16x8UConvertI8x16Low, Operator::kNoProperties, 1, 0, 1)              \
-  V(I16x8UConvertI8x16High, Operator::kNoProperties, 1, 0, 1)             \
-  V(I16x8UConvertI32x4, Operator::kNoProperties, 2, 0, 1)                 \
-  V(I16x8AddSaturateU, Operator::kCommutative, 2, 0, 1)                   \
-  V(I16x8SubSaturateU, Operator::kNoProperties, 2, 0, 1)                  \
-  V(I16x8MinU, Operator::kCommutative, 2, 0, 1)                           \
-  V(I16x8MaxU, Operator::kCommutative, 2, 0, 1)                           \
-  V(I16x8GtU, Operator::kNoProperties, 2, 0, 1)                           \
-  V(I16x8GeU, Operator::kNoProperties, 2, 0, 1)                           \
-  V(I8x16Splat, Operator::kNoProperties, 1, 0, 1)                         \
-  V(I8x16Neg, Operator::kNoProperties, 1, 0, 1)                           \
-  V(I8x16SConvertI16x8, Operator::kNoProperties, 2, 0, 1)                 \
-  V(I8x16Add, Operator::kCommutative, 2, 0, 1)                            \
-  V(I8x16AddSaturateS, Operator::kCommutative, 2, 0, 1)                   \
-  V(I8x16Sub, Operator::kNoProperties, 2, 0, 1)                           \
-  V(I8x16SubSaturateS, Operator::kNoProperties, 2, 0, 1)                  \
-  V(I8x16Mul, Operator::kCommutative, 2, 0, 1)                            \
-  V(I8x16MinS, Operator::kCommutative, 2, 0, 1)                           \
-  V(I8x16MaxS, Operator::kCommutative, 2, 0, 1)                           \
-  V(I8x16Eq, Operator::kCommutative, 2, 0, 1)                             \
-  V(I8x16Ne, Operator::kCommutative, 2, 0, 1)                             \
-  V(I8x16GtS, Operator::kNoProperties, 2, 0, 1)                           \
-  V(I8x16GeS, Operator::kNoProperties, 2, 0, 1)                           \
-  V(I8x16UConvertI16x8, Operator::kNoProperties, 2, 0, 1)                 \
-  V(I8x16AddSaturateU, Operator::kCommutative, 2, 0, 1)                   \
-  V(I8x16SubSaturateU, Operator::kNoProperties, 2, 0, 1)                  \
-  V(I8x16MinU, Operator::kCommutative, 2, 0, 1)                           \
-  V(I8x16MaxU, Operator::kCommutative, 2, 0, 1)                           \
-  V(I8x16GtU, Operator::kNoProperties, 2, 0, 1)                           \
-  V(I8x16GeU, Operator::kNoProperties, 2, 0, 1)                           \
-  V(S128Load, Operator::kNoProperties, 2, 0, 1)                           \
-  V(S128Store, Operator::kNoProperties, 3, 0, 1)                          \
-  V(S128Zero, Operator::kNoProperties, 0, 0, 1)                           \
-  V(S128And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
-  V(S128Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
-  V(S128Xor, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
-  V(S128Not, Operator::kNoProperties, 1, 0, 1)                            \
-  V(S128Select, Operator::kNoProperties, 3, 0, 1)                         \
-  V(S1x4AnyTrue, Operator::kNoProperties, 1, 0, 1)                        \
-  V(S1x4AllTrue, Operator::kNoProperties, 1, 0, 1)                        \
-  V(S1x8AnyTrue, Operator::kNoProperties, 1, 0, 1)                        \
-  V(S1x8AllTrue, Operator::kNoProperties, 1, 0, 1)                        \
-  V(S1x16AnyTrue, Operator::kNoProperties, 1, 0, 1)                       \
-  V(S1x16AllTrue, Operator::kNoProperties, 1, 0, 1)
+// The format is:
+// V(Name, properties, value_input_count, control_input_count, output_count)
+#define MACHINE_PURE_OP_LIST(V)                                               \
+  PURE_BINARY_OP_LIST_32(V)                                                   \
+  PURE_BINARY_OP_LIST_64(V)                                                   \
+  V(Word32Clz, Operator::kNoProperties, 1, 0, 1)                              \
+  V(Word64Clz, Operator::kNoProperties, 1, 0, 1)                              \
+  V(Word32ReverseBytes, Operator::kNoProperties, 1, 0, 1)                     \
+  V(Word64ReverseBytes, Operator::kNoProperties, 1, 0, 1)                     \
+  V(BitcastTaggedSignedToWord, Operator::kNoProperties, 1, 0, 1)              \
+  V(BitcastWordToTaggedSigned, Operator::kNoProperties, 1, 0, 1)              \
+  V(BitcastWord32ToCompressedSigned, Operator::kNoProperties, 1, 0, 1)        \
+  V(BitcastCompressedSignedToWord32, Operator::kNoProperties, 1, 0, 1)        \
+  V(TruncateFloat64ToWord32, Operator::kNoProperties, 1, 0, 1)                \
+  V(ChangeFloat32ToFloat64, Operator::kNoProperties, 1, 0, 1)                 \
+  V(ChangeFloat64ToInt32, Operator::kNoProperties, 1, 0, 1)                   \
+  V(ChangeFloat64ToInt64, Operator::kNoProperties, 1, 0, 1)                   \
+  V(ChangeFloat64ToUint32, Operator::kNoProperties, 1, 0, 1)                  \
+  V(ChangeFloat64ToUint64, Operator::kNoProperties, 1, 0, 1)                  \
+  V(TruncateFloat64ToInt64, Operator::kNoProperties, 1, 0, 1)                 \
+  V(TruncateFloat64ToUint32, Operator::kNoProperties, 1, 0, 1)                \
+  V(TruncateFloat32ToInt32, Operator::kNoProperties, 1, 0, 1)                 \
+  V(TruncateFloat32ToUint32, Operator::kNoProperties, 1, 0, 1)                \
+  V(TryTruncateFloat32ToInt64, Operator::kNoProperties, 1, 0, 2)              \
+  V(TryTruncateFloat64ToInt64, Operator::kNoProperties, 1, 0, 2)              \
+  V(TryTruncateFloat32ToUint64, Operator::kNoProperties, 1, 0, 2)             \
+  V(TryTruncateFloat64ToUint64, Operator::kNoProperties, 1, 0, 2)             \
+  V(ChangeInt32ToFloat64, Operator::kNoProperties, 1, 0, 1)                   \
+  V(ChangeInt64ToFloat64, Operator::kNoProperties, 1, 0, 1)                   \
+  V(Float64SilenceNaN, Operator::kNoProperties, 1, 0, 1)                      \
+  V(RoundFloat64ToInt32, Operator::kNoProperties, 1, 0, 1)                    \
+  V(RoundInt32ToFloat32, Operator::kNoProperties, 1, 0, 1)                    \
+  V(RoundInt64ToFloat32, Operator::kNoProperties, 1, 0, 1)                    \
+  V(RoundInt64ToFloat64, Operator::kNoProperties, 1, 0, 1)                    \
+  V(RoundUint32ToFloat32, Operator::kNoProperties, 1, 0, 1)                   \
+  V(RoundUint64ToFloat32, Operator::kNoProperties, 1, 0, 1)                   \
+  V(RoundUint64ToFloat64, Operator::kNoProperties, 1, 0, 1)                   \
+  V(ChangeInt32ToInt64, Operator::kNoProperties, 1, 0, 1)                     \
+  V(ChangeUint32ToFloat64, Operator::kNoProperties, 1, 0, 1)                  \
+  V(ChangeUint32ToUint64, Operator::kNoProperties, 1, 0, 1)                   \
+  V(ChangeTaggedToCompressed, Operator::kNoProperties, 1, 0, 1)               \
+  V(ChangeTaggedPointerToCompressedPointer, Operator::kNoProperties, 1, 0, 1) \
+  V(ChangeTaggedSignedToCompressedSigned, Operator::kNoProperties, 1, 0, 1)   \
+  V(ChangeCompressedToTagged, Operator::kNoProperties, 1, 0, 1)               \
+  V(ChangeCompressedPointerToTaggedPointer, Operator::kNoProperties, 1, 0, 1) \
+  V(ChangeCompressedSignedToTaggedSigned, Operator::kNoProperties, 1, 0, 1)   \
+  V(TruncateFloat64ToFloat32, Operator::kNoProperties, 1, 0, 1)               \
+  V(TruncateInt64ToInt32, Operator::kNoProperties, 1, 0, 1)                   \
+  V(BitcastFloat32ToInt32, Operator::kNoProperties, 1, 0, 1)                  \
+  V(BitcastFloat64ToInt64, Operator::kNoProperties, 1, 0, 1)                  \
+  V(BitcastInt32ToFloat32, Operator::kNoProperties, 1, 0, 1)                  \
+  V(BitcastInt64ToFloat64, Operator::kNoProperties, 1, 0, 1)                  \
+  V(SignExtendWord8ToInt32, Operator::kNoProperties, 1, 0, 1)                 \
+  V(SignExtendWord16ToInt32, Operator::kNoProperties, 1, 0, 1)                \
+  V(SignExtendWord8ToInt64, Operator::kNoProperties, 1, 0, 1)                 \
+  V(SignExtendWord16ToInt64, Operator::kNoProperties, 1, 0, 1)                \
+  V(SignExtendWord32ToInt64, Operator::kNoProperties, 1, 0, 1)                \
+  V(Float32Abs, Operator::kNoProperties, 1, 0, 1)                             \
+  V(Float32Add, Operator::kCommutative, 2, 0, 1)                              \
+  V(Float32Sub, Operator::kNoProperties, 2, 0, 1)                             \
+  V(Float32Mul, Operator::kCommutative, 2, 0, 1)                              \
+  V(Float32Div, Operator::kNoProperties, 2, 0, 1)                             \
+  V(Float32Neg, Operator::kNoProperties, 1, 0, 1)                             \
+  V(Float32Sqrt, Operator::kNoProperties, 1, 0, 1)                            \
+  V(Float32Max, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
+  V(Float32Min, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
+  V(Float64Abs, Operator::kNoProperties, 1, 0, 1)                             \
+  V(Float64Acos, Operator::kNoProperties, 1, 0, 1)                            \
+  V(Float64Acosh, Operator::kNoProperties, 1, 0, 1)                           \
+  V(Float64Asin, Operator::kNoProperties, 1, 0, 1)                            \
+  V(Float64Asinh, Operator::kNoProperties, 1, 0, 1)                           \
+  V(Float64Atan, Operator::kNoProperties, 1, 0, 1)                            \
+  V(Float64Atan2, Operator::kNoProperties, 2, 0, 1)                           \
+  V(Float64Atanh, Operator::kNoProperties, 1, 0, 1)                           \
+  V(Float64Cbrt, Operator::kNoProperties, 1, 0, 1)                            \
+  V(Float64Cos, Operator::kNoProperties, 1, 0, 1)                             \
+  V(Float64Cosh, Operator::kNoProperties, 1, 0, 1)                            \
+  V(Float64Exp, Operator::kNoProperties, 1, 0, 1)                             \
+  V(Float64Expm1, Operator::kNoProperties, 1, 0, 1)                           \
+  V(Float64Log, Operator::kNoProperties, 1, 0, 1)                             \
+  V(Float64Log1p, Operator::kNoProperties, 1, 0, 1)                           \
+  V(Float64Log2, Operator::kNoProperties, 1, 0, 1)                            \
+  V(Float64Log10, Operator::kNoProperties, 1, 0, 1)                           \
+  V(Float64Max, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
+  V(Float64Min, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
+  V(Float64Neg, Operator::kNoProperties, 1, 0, 1)                             \
+  V(Float64Add, Operator::kCommutative, 2, 0, 1)                              \
+  V(Float64Sub, Operator::kNoProperties, 2, 0, 1)                             \
+  V(Float64Mul, Operator::kCommutative, 2, 0, 1)                              \
+  V(Float64Div, Operator::kNoProperties, 2, 0, 1)                             \
+  V(Float64Mod, Operator::kNoProperties, 2, 0, 1)                             \
+  V(Float64Pow, Operator::kNoProperties, 2, 0, 1)                             \
+  V(Float64Sin, Operator::kNoProperties, 1, 0, 1)                             \
+  V(Float64Sinh, Operator::kNoProperties, 1, 0, 1)                            \
+  V(Float64Sqrt, Operator::kNoProperties, 1, 0, 1)                            \
+  V(Float64Tan, Operator::kNoProperties, 1, 0, 1)                             \
+  V(Float64Tanh, Operator::kNoProperties, 1, 0, 1)                            \
+  V(Float32Equal, Operator::kCommutative, 2, 0, 1)                            \
+  V(Float32LessThan, Operator::kNoProperties, 2, 0, 1)                        \
+  V(Float32LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)                 \
+  V(Float64Equal, Operator::kCommutative, 2, 0, 1)                            \
+  V(Float64LessThan, Operator::kNoProperties, 2, 0, 1)                        \
+  V(Float64LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)                 \
+  V(Float64ExtractLowWord32, Operator::kNoProperties, 1, 0, 1)                \
+  V(Float64ExtractHighWord32, Operator::kNoProperties, 1, 0, 1)               \
+  V(Float64InsertLowWord32, Operator::kNoProperties, 2, 0, 1)                 \
+  V(Float64InsertHighWord32, Operator::kNoProperties, 2, 0, 1)                \
+  V(LoadFramePointer, Operator::kNoProperties, 0, 0, 1)                       \
+  V(LoadParentFramePointer, Operator::kNoProperties, 0, 0, 1)                 \
+  V(Int32PairAdd, Operator::kNoProperties, 4, 0, 2)                           \
+  V(Int32PairSub, Operator::kNoProperties, 4, 0, 2)                           \
+  V(Int32PairMul, Operator::kNoProperties, 4, 0, 2)                           \
+  V(Word32PairShl, Operator::kNoProperties, 3, 0, 2)                          \
+  V(Word32PairShr, Operator::kNoProperties, 3, 0, 2)                          \
+  V(Word32PairSar, Operator::kNoProperties, 3, 0, 2)                          \
+  V(F64x2Splat, Operator::kNoProperties, 1, 0, 1)                             \
+  V(F64x2Abs, Operator::kNoProperties, 1, 0, 1)                               \
+  V(F64x2Neg, Operator::kNoProperties, 1, 0, 1)                               \
+  V(F64x2Add, Operator::kCommutative, 2, 0, 1)                                \
+  V(F64x2Sub, Operator::kNoProperties, 2, 0, 1)                               \
+  V(F64x2Mul, Operator::kCommutative, 2, 0, 1)                                \
+  V(F64x2Div, Operator::kNoProperties, 2, 0, 1)                               \
+  V(F64x2Min, Operator::kCommutative, 2, 0, 1)                                \
+  V(F64x2Max, Operator::kCommutative, 2, 0, 1)                                \
+  V(F64x2Eq, Operator::kCommutative, 2, 0, 1)                                 \
+  V(F64x2Ne, Operator::kCommutative, 2, 0, 1)                                 \
+  V(F64x2Lt, Operator::kNoProperties, 2, 0, 1)                                \
+  V(F64x2Le, Operator::kNoProperties, 2, 0, 1)                                \
+  V(F32x4Splat, Operator::kNoProperties, 1, 0, 1)                             \
+  V(F32x4SConvertI32x4, Operator::kNoProperties, 1, 0, 1)                     \
+  V(F32x4UConvertI32x4, Operator::kNoProperties, 1, 0, 1)                     \
+  V(F32x4Abs, Operator::kNoProperties, 1, 0, 1)                               \
+  V(F32x4Neg, Operator::kNoProperties, 1, 0, 1)                               \
+  V(F32x4RecipApprox, Operator::kNoProperties, 1, 0, 1)                       \
+  V(F32x4RecipSqrtApprox, Operator::kNoProperties, 1, 0, 1)                   \
+  V(F32x4Add, Operator::kCommutative, 2, 0, 1)                                \
+  V(F32x4AddHoriz, Operator::kNoProperties, 2, 0, 1)                          \
+  V(F32x4Sub, Operator::kNoProperties, 2, 0, 1)                               \
+  V(F32x4Mul, Operator::kCommutative, 2, 0, 1)                                \
+  V(F32x4Min, Operator::kCommutative, 2, 0, 1)                                \
+  V(F32x4Max, Operator::kCommutative, 2, 0, 1)                                \
+  V(F32x4Eq, Operator::kCommutative, 2, 0, 1)                                 \
+  V(F32x4Ne, Operator::kCommutative, 2, 0, 1)                                 \
+  V(F32x4Lt, Operator::kNoProperties, 2, 0, 1)                                \
+  V(F32x4Le, Operator::kNoProperties, 2, 0, 1)                                \
+  V(I64x2Splat, Operator::kNoProperties, 1, 0, 1)                             \
+  V(I64x2Neg, Operator::kNoProperties, 1, 0, 1)                               \
+  V(I64x2Shl, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I64x2ShrS, Operator::kNoProperties, 2, 0, 1)                              \
+  V(I64x2Add, Operator::kCommutative, 2, 0, 1)                                \
+  V(I64x2Sub, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I64x2Mul, Operator::kCommutative, 2, 0, 1)                                \
+  V(I64x2MinS, Operator::kCommutative, 2, 0, 1)                               \
+  V(I64x2MaxS, Operator::kCommutative, 2, 0, 1)                               \
+  V(I64x2Eq, Operator::kCommutative, 2, 0, 1)                                 \
+  V(I64x2Ne, Operator::kCommutative, 2, 0, 1)                                 \
+  V(I64x2GtS, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I64x2GeS, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I64x2ShrU, Operator::kNoProperties, 2, 0, 1)                              \
+  V(I64x2MinU, Operator::kCommutative, 2, 0, 1)                               \
+  V(I64x2MaxU, Operator::kCommutative, 2, 0, 1)                               \
+  V(I64x2GtU, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I64x2GeU, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I32x4Splat, Operator::kNoProperties, 1, 0, 1)                             \
+  V(I32x4SConvertF32x4, Operator::kNoProperties, 1, 0, 1)                     \
+  V(I32x4SConvertI16x8Low, Operator::kNoProperties, 1, 0, 1)                  \
+  V(I32x4SConvertI16x8High, Operator::kNoProperties, 1, 0, 1)                 \
+  V(I32x4Neg, Operator::kNoProperties, 1, 0, 1)                               \
+  V(I32x4Shl, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I32x4ShrS, Operator::kNoProperties, 2, 0, 1)                              \
+  V(I32x4Add, Operator::kCommutative, 2, 0, 1)                                \
+  V(I32x4AddHoriz, Operator::kNoProperties, 2, 0, 1)                          \
+  V(I32x4Sub, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I32x4Mul, Operator::kCommutative, 2, 0, 1)                                \
+  V(I32x4MinS, Operator::kCommutative, 2, 0, 1)                               \
+  V(I32x4MaxS, Operator::kCommutative, 2, 0, 1)                               \
+  V(I32x4Eq, Operator::kCommutative, 2, 0, 1)                                 \
+  V(I32x4Ne, Operator::kCommutative, 2, 0, 1)                                 \
+  V(I32x4GtS, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I32x4GeS, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I32x4UConvertF32x4, Operator::kNoProperties, 1, 0, 1)                     \
+  V(I32x4UConvertI16x8Low, Operator::kNoProperties, 1, 0, 1)                  \
+  V(I32x4UConvertI16x8High, Operator::kNoProperties, 1, 0, 1)                 \
+  V(I32x4ShrU, Operator::kNoProperties, 2, 0, 1)                              \
+  V(I32x4MinU, Operator::kCommutative, 2, 0, 1)                               \
+  V(I32x4MaxU, Operator::kCommutative, 2, 0, 1)                               \
+  V(I32x4GtU, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I32x4GeU, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I16x8Splat, Operator::kNoProperties, 1, 0, 1)                             \
+  V(I16x8SConvertI8x16Low, Operator::kNoProperties, 1, 0, 1)                  \
+  V(I16x8SConvertI8x16High, Operator::kNoProperties, 1, 0, 1)                 \
+  V(I16x8Neg, Operator::kNoProperties, 1, 0, 1)                               \
+  V(I16x8Shl, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I16x8ShrS, Operator::kNoProperties, 2, 0, 1)                              \
+  V(I16x8SConvertI32x4, Operator::kNoProperties, 2, 0, 1)                     \
+  V(I16x8Add, Operator::kCommutative, 2, 0, 1)                                \
+  V(I16x8AddSaturateS, Operator::kCommutative, 2, 0, 1)                       \
+  V(I16x8AddHoriz, Operator::kNoProperties, 2, 0, 1)                          \
+  V(I16x8Sub, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I16x8SubSaturateS, Operator::kNoProperties, 2, 0, 1)                      \
+  V(I16x8Mul, Operator::kCommutative, 2, 0, 1)                                \
+  V(I16x8MinS, Operator::kCommutative, 2, 0, 1)                               \
+  V(I16x8MaxS, Operator::kCommutative, 2, 0, 1)                               \
+  V(I16x8Eq, Operator::kCommutative, 2, 0, 1)                                 \
+  V(I16x8Ne, Operator::kCommutative, 2, 0, 1)                                 \
+  V(I16x8GtS, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I16x8GeS, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I16x8UConvertI8x16Low, Operator::kNoProperties, 1, 0, 1)                  \
+  V(I16x8UConvertI8x16High, Operator::kNoProperties, 1, 0, 1)                 \
+  V(I16x8ShrU, Operator::kNoProperties, 2, 0, 1)                              \
+  V(I16x8UConvertI32x4, Operator::kNoProperties, 2, 0, 1)                     \
+  V(I16x8AddSaturateU, Operator::kCommutative, 2, 0, 1)                       \
+  V(I16x8SubSaturateU, Operator::kNoProperties, 2, 0, 1)                      \
+  V(I16x8MinU, Operator::kCommutative, 2, 0, 1)                               \
+  V(I16x8MaxU, Operator::kCommutative, 2, 0, 1)                               \
+  V(I16x8GtU, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I16x8GeU, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I8x16Splat, Operator::kNoProperties, 1, 0, 1)                             \
+  V(I8x16Neg, Operator::kNoProperties, 1, 0, 1)                               \
+  V(I8x16Shl, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I8x16ShrS, Operator::kNoProperties, 2, 0, 1)                              \
+  V(I8x16SConvertI16x8, Operator::kNoProperties, 2, 0, 1)                     \
+  V(I8x16Add, Operator::kCommutative, 2, 0, 1)                                \
+  V(I8x16AddSaturateS, Operator::kCommutative, 2, 0, 1)                       \
+  V(I8x16Sub, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I8x16SubSaturateS, Operator::kNoProperties, 2, 0, 1)                      \
+  V(I8x16Mul, Operator::kCommutative, 2, 0, 1)                                \
+  V(I8x16MinS, Operator::kCommutative, 2, 0, 1)                               \
+  V(I8x16MaxS, Operator::kCommutative, 2, 0, 1)                               \
+  V(I8x16Eq, Operator::kCommutative, 2, 0, 1)                                 \
+  V(I8x16Ne, Operator::kCommutative, 2, 0, 1)                                 \
+  V(I8x16GtS, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I8x16GeS, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I8x16ShrU, Operator::kNoProperties, 2, 0, 1)                              \
+  V(I8x16UConvertI16x8, Operator::kNoProperties, 2, 0, 1)                     \
+  V(I8x16AddSaturateU, Operator::kCommutative, 2, 0, 1)                       \
+  V(I8x16SubSaturateU, Operator::kNoProperties, 2, 0, 1)                      \
+  V(I8x16MinU, Operator::kCommutative, 2, 0, 1)                               \
+  V(I8x16MaxU, Operator::kCommutative, 2, 0, 1)                               \
+  V(I8x16GtU, Operator::kNoProperties, 2, 0, 1)                               \
+  V(I8x16GeU, Operator::kNoProperties, 2, 0, 1)                               \
+  V(S128Load, Operator::kNoProperties, 2, 0, 1)                               \
+  V(S128Store, Operator::kNoProperties, 3, 0, 1)                              \
+  V(S128Zero, Operator::kNoProperties, 0, 0, 1)                               \
+  V(S128And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)        \
+  V(S128Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)         \
+  V(S128Xor, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)        \
+  V(S128Not, Operator::kNoProperties, 1, 0, 1)                                \
+  V(S128Select, Operator::kNoProperties, 3, 0, 1)                             \
+  V(S1x2AnyTrue, Operator::kNoProperties, 1, 0, 1)                            \
+  V(S1x2AllTrue, Operator::kNoProperties, 1, 0, 1)                            \
+  V(S1x4AnyTrue, Operator::kNoProperties, 1, 0, 1)                            \
+  V(S1x4AllTrue, Operator::kNoProperties, 1, 0, 1)                            \
+  V(S1x8AnyTrue, Operator::kNoProperties, 1, 0, 1)                            \
+  V(S1x8AllTrue, Operator::kNoProperties, 1, 0, 1)                            \
+  V(S1x16AnyTrue, Operator::kNoProperties, 1, 0, 1)                           \
+  V(S1x16AllTrue, Operator::kNoProperties, 1, 0, 1)                           \
+  V(StackPointerGreaterThan, Operator::kNoProperties, 1, 0, 1)
 
+// The format is:
+// V(Name, properties, value_input_count, control_input_count, output_count)
 #define PURE_OPTIONAL_OP_LIST(V)                            \
   V(Word32Ctz, Operator::kNoProperties, 1, 0, 1)            \
   V(Word64Ctz, Operator::kNoProperties, 1, 0, 1)            \
@@ -358,6 +417,8 @@ MachineType AtomicOpType(Operator const* op) {
   V(Float32RoundTiesEven, Operator::kNoProperties, 1, 0, 1) \
   V(Float64RoundTiesEven, Operator::kNoProperties, 1, 0, 1)
 
+// The format is:
+// V(Name, properties, value_input_count, control_input_count, output_count)
 #define OVERFLOW_OP_LIST(V)                                                \
   V(Int32AddWithOverflow, Operator::kAssociative | Operator::kCommutative) \
   V(Int32SubWithOverflow, Operator::kNoProperties)                         \
@@ -380,7 +441,10 @@ MachineType AtomicOpType(Operator const* op) {
   V(Pointer)                 \
   V(TaggedSigned)            \
   V(TaggedPointer)           \
-  V(AnyTagged)
+  V(AnyTagged)               \
+  V(CompressedSigned)        \
+  V(CompressedPointer)       \
+  V(AnyCompressed)
 
 #define MACHINE_REPRESENTATION_LIST(V) \
   V(kFloat32)                          \
@@ -392,7 +456,10 @@ MachineType AtomicOpType(Operator const* op) {
   V(kWord64)                           \
   V(kTaggedSigned)                     \
   V(kTaggedPointer)                    \
-  V(kTagged)
+  V(kTagged)                           \
+  V(kCompressedSigned)                 \
+  V(kCompressedPointer)                \
+  V(kCompressed)
 
 #define ATOMIC_U32_TYPE_LIST(V) \
   V(Uint8)                      \
@@ -427,15 +494,12 @@ MachineType AtomicOpType(Operator const* op) {
   V(Exchange)
 
 #define SIMD_LANE_OP_LIST(V) \
+  V(F64x2, 2)                \
   V(F32x4, 4)                \
+  V(I64x2, 2)                \
   V(I32x4, 4)                \
   V(I16x8, 8)                \
   V(I8x16, 16)
-
-#define SIMD_FORMAT_LIST(V) \
-  V(32x4, 32)               \
-  V(16x8, 16)               \
-  V(8x16, 8)
 
 #define STACK_SLOT_CACHED_SIZES_ALIGNMENTS_LIST(V) \
   V(4, 0) V(8, 0) V(16, 0) V(4, 4) V(8, 8) V(16, 16)
@@ -523,61 +587,75 @@ struct MachineOperatorGlobalCache {
   STACK_SLOT_CACHED_SIZES_ALIGNMENTS_LIST(STACKSLOT)
 #undef STACKSLOT
 
-#define STORE(Type)                                                            \
-  struct Store##Type##Operator : public Operator1<StoreRepresentation> {       \
-    explicit Store##Type##Operator(WriteBarrierKind write_barrier_kind)        \
-        : Operator1<StoreRepresentation>(                                      \
-              IrOpcode::kStore,                                                \
-              Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow,     \
-              "Store", 3, 1, 1, 0, 1, 0,                                       \
-              StoreRepresentation(MachineRepresentation::Type,                 \
-                                  write_barrier_kind)) {}                      \
-  };                                                                           \
-  struct Store##Type##NoWriteBarrier##Operator final                           \
-      : public Store##Type##Operator {                                         \
-    Store##Type##NoWriteBarrier##Operator()                                    \
-        : Store##Type##Operator(kNoWriteBarrier) {}                            \
-  };                                                                           \
-  struct Store##Type##MapWriteBarrier##Operator final                          \
-      : public Store##Type##Operator {                                         \
-    Store##Type##MapWriteBarrier##Operator()                                   \
-        : Store##Type##Operator(kMapWriteBarrier) {}                           \
-  };                                                                           \
-  struct Store##Type##PointerWriteBarrier##Operator final                      \
-      : public Store##Type##Operator {                                         \
-    Store##Type##PointerWriteBarrier##Operator()                               \
-        : Store##Type##Operator(kPointerWriteBarrier) {}                       \
-  };                                                                           \
-  struct Store##Type##FullWriteBarrier##Operator final                         \
-      : public Store##Type##Operator {                                         \
-    Store##Type##FullWriteBarrier##Operator()                                  \
-        : Store##Type##Operator(kFullWriteBarrier) {}                          \
-  };                                                                           \
-  struct UnalignedStore##Type##Operator final                                  \
-      : public Operator1<UnalignedStoreRepresentation> {                       \
-    UnalignedStore##Type##Operator()                                           \
-        : Operator1<UnalignedStoreRepresentation>(                             \
-              IrOpcode::kUnalignedStore,                                       \
-              Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow,     \
-              "UnalignedStore", 3, 1, 1, 0, 1, 0,                              \
-              MachineRepresentation::Type) {}                                  \
-  };                                                                           \
-  struct ProtectedStore##Type##Operator                                        \
-      : public Operator1<StoreRepresentation> {                                \
-    explicit ProtectedStore##Type##Operator()                                  \
-        : Operator1<StoreRepresentation>(                                      \
-              IrOpcode::kProtectedStore,                                       \
-              Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow,     \
-              "Store", 3, 1, 1, 0, 1, 0,                                       \
-              StoreRepresentation(MachineRepresentation::Type,                 \
-                                  kNoWriteBarrier)) {}                         \
-  };                                                                           \
-  Store##Type##NoWriteBarrier##Operator kStore##Type##NoWriteBarrier;          \
-  Store##Type##MapWriteBarrier##Operator kStore##Type##MapWriteBarrier;        \
-  Store##Type##PointerWriteBarrier##Operator                                   \
-      kStore##Type##PointerWriteBarrier;                                       \
-  Store##Type##FullWriteBarrier##Operator kStore##Type##FullWriteBarrier;      \
-  UnalignedStore##Type##Operator kUnalignedStore##Type;                        \
+#define STORE(Type)                                                        \
+  struct Store##Type##Operator : public Operator1<StoreRepresentation> {   \
+    explicit Store##Type##Operator(WriteBarrierKind write_barrier_kind)    \
+        : Operator1<StoreRepresentation>(                                  \
+              IrOpcode::kStore,                                            \
+              Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow, \
+              "Store", 3, 1, 1, 0, 1, 0,                                   \
+              StoreRepresentation(MachineRepresentation::Type,             \
+                                  write_barrier_kind)) {}                  \
+  };                                                                       \
+  struct Store##Type##NoWriteBarrier##Operator final                       \
+      : public Store##Type##Operator {                                     \
+    Store##Type##NoWriteBarrier##Operator()                                \
+        : Store##Type##Operator(kNoWriteBarrier) {}                        \
+  };                                                                       \
+  struct Store##Type##AssertNoWriteBarrier##Operator final                 \
+      : public Store##Type##Operator {                                     \
+    Store##Type##AssertNoWriteBarrier##Operator()                          \
+        : Store##Type##Operator(kAssertNoWriteBarrier) {}                  \
+  };                                                                       \
+  struct Store##Type##MapWriteBarrier##Operator final                      \
+      : public Store##Type##Operator {                                     \
+    Store##Type##MapWriteBarrier##Operator()                               \
+        : Store##Type##Operator(kMapWriteBarrier) {}                       \
+  };                                                                       \
+  struct Store##Type##PointerWriteBarrier##Operator final                  \
+      : public Store##Type##Operator {                                     \
+    Store##Type##PointerWriteBarrier##Operator()                           \
+        : Store##Type##Operator(kPointerWriteBarrier) {}                   \
+  };                                                                       \
+  struct Store##Type##EphemeronKeyWriteBarrier##Operator final             \
+      : public Store##Type##Operator {                                     \
+    Store##Type##EphemeronKeyWriteBarrier##Operator()                      \
+        : Store##Type##Operator(kEphemeronKeyWriteBarrier) {}              \
+  };                                                                       \
+  struct Store##Type##FullWriteBarrier##Operator final                     \
+      : public Store##Type##Operator {                                     \
+    Store##Type##FullWriteBarrier##Operator()                              \
+        : Store##Type##Operator(kFullWriteBarrier) {}                      \
+  };                                                                       \
+  struct UnalignedStore##Type##Operator final                              \
+      : public Operator1<UnalignedStoreRepresentation> {                   \
+    UnalignedStore##Type##Operator()                                       \
+        : Operator1<UnalignedStoreRepresentation>(                         \
+              IrOpcode::kUnalignedStore,                                   \
+              Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow, \
+              "UnalignedStore", 3, 1, 1, 0, 1, 0,                          \
+              MachineRepresentation::Type) {}                              \
+  };                                                                       \
+  struct ProtectedStore##Type##Operator                                    \
+      : public Operator1<StoreRepresentation> {                            \
+    explicit ProtectedStore##Type##Operator()                              \
+        : Operator1<StoreRepresentation>(                                  \
+              IrOpcode::kProtectedStore,                                   \
+              Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow, \
+              "Store", 3, 1, 1, 0, 1, 0,                                   \
+              StoreRepresentation(MachineRepresentation::Type,             \
+                                  kNoWriteBarrier)) {}                     \
+  };                                                                       \
+  Store##Type##NoWriteBarrier##Operator kStore##Type##NoWriteBarrier;      \
+  Store##Type##AssertNoWriteBarrier##Operator                              \
+      kStore##Type##AssertNoWriteBarrier;                                  \
+  Store##Type##MapWriteBarrier##Operator kStore##Type##MapWriteBarrier;    \
+  Store##Type##PointerWriteBarrier##Operator                               \
+      kStore##Type##PointerWriteBarrier;                                   \
+  Store##Type##EphemeronKeyWriteBarrier##Operator                          \
+      kStore##Type##EphemeronKeyWriteBarrier;                              \
+  Store##Type##FullWriteBarrier##Operator kStore##Type##FullWriteBarrier;  \
+  UnalignedStore##Type##Operator kUnalignedStore##Type;                    \
   ProtectedStore##Type##Operator kProtectedStore##Type;
   MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
@@ -728,6 +806,14 @@ struct MachineOperatorGlobalCache {
   };
   Word32AtomicPairCompareExchangeOperator kWord32AtomicPairCompareExchange;
 
+  struct MemoryBarrierOperator : public Operator {
+    MemoryBarrierOperator()
+        : Operator(IrOpcode::kMemoryBarrier,
+                   Operator::kNoDeopt | Operator::kNoThrow, "MemoryBarrier", 0,
+                   1, 1, 0, 1, 0) {}
+  };
+  MemoryBarrierOperator kMemoryBarrier;
+
   // The {BitcastWordToTagged} operator must not be marked as pure (especially
   // not idempotent), because otherwise the splitting logic in the Scheduler
   // might decide to split these operators, thus potentially creating live
@@ -781,19 +867,12 @@ struct MachineOperatorGlobalCache {
   };
   Word64PoisonOnSpeculation kWord64PoisonOnSpeculation;
 
-  struct SpeculationFenceOperator : public Operator {
-    SpeculationFenceOperator()
-        : Operator(IrOpcode::kSpeculationFence, Operator::kNoThrow,
-                   "SpeculationFence", 0, 1, 1, 0, 1, 0) {}
+  struct AbortCSAAssertOperator : public Operator {
+    AbortCSAAssertOperator()
+        : Operator(IrOpcode::kAbortCSAAssert, Operator::kNoThrow,
+                   "AbortCSAAssert", 1, 1, 1, 0, 1, 0) {}
   };
-  SpeculationFenceOperator kSpeculationFence;
-
-  struct DebugAbortOperator : public Operator {
-    DebugAbortOperator()
-        : Operator(IrOpcode::kDebugAbort, Operator::kNoThrow, "DebugAbort", 1,
-                   1, 1, 0, 1, 0) {}
-  };
-  DebugAbortOperator kDebugAbort;
+  AbortCSAAssertOperator kAbortCSAAssert;
 
   struct DebugBreakOperator : public Operator {
     DebugBreakOperator()
@@ -816,14 +895,16 @@ struct CommentOperator : public Operator1<const char*> {
                                "Comment", 0, 1, 1, 0, 1, 0, msg) {}
 };
 
-static base::LazyInstance<MachineOperatorGlobalCache>::type
-    kMachineOperatorGlobalCache = LAZY_INSTANCE_INITIALIZER;
+namespace {
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(MachineOperatorGlobalCache,
+                                GetMachineOperatorGlobalCache)
+}
 
 MachineOperatorBuilder::MachineOperatorBuilder(
     Zone* zone, MachineRepresentation word, Flags flags,
     AlignmentRequirements alignmentRequirements)
     : zone_(zone),
-      cache_(kMachineOperatorGlobalCache.Get()),
+      cache_(*GetMachineOperatorGlobalCache()),
       word_(word),
       flags_(flags),
       alignment_requirements_(alignmentRequirements) {
@@ -926,18 +1007,22 @@ const Operator* MachineOperatorBuilder::StackSlot(MachineRepresentation rep,
 
 const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
   switch (store_rep.representation()) {
-#define STORE(kRep)                                         \
-  case MachineRepresentation::kRep:                         \
-    switch (store_rep.write_barrier_kind()) {               \
-      case kNoWriteBarrier:                                 \
-        return &cache_.k##Store##kRep##NoWriteBarrier;      \
-      case kMapWriteBarrier:                                \
-        return &cache_.k##Store##kRep##MapWriteBarrier;     \
-      case kPointerWriteBarrier:                            \
-        return &cache_.k##Store##kRep##PointerWriteBarrier; \
-      case kFullWriteBarrier:                               \
-        return &cache_.k##Store##kRep##FullWriteBarrier;    \
-    }                                                       \
+#define STORE(kRep)                                              \
+  case MachineRepresentation::kRep:                              \
+    switch (store_rep.write_barrier_kind()) {                    \
+      case kNoWriteBarrier:                                      \
+        return &cache_.k##Store##kRep##NoWriteBarrier;           \
+      case kAssertNoWriteBarrier:                                \
+        return &cache_.k##Store##kRep##AssertNoWriteBarrier;     \
+      case kMapWriteBarrier:                                     \
+        return &cache_.k##Store##kRep##MapWriteBarrier;          \
+      case kPointerWriteBarrier:                                 \
+        return &cache_.k##Store##kRep##PointerWriteBarrier;      \
+      case kEphemeronKeyWriteBarrier:                            \
+        return &cache_.k##Store##kRep##EphemeronKeyWriteBarrier; \
+      case kFullWriteBarrier:                                    \
+        return &cache_.k##Store##kRep##FullWriteBarrier;         \
+    }                                                            \
     break;
     MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
@@ -980,8 +1065,8 @@ const Operator* MachineOperatorBuilder::BitcastMaybeObjectToWord() {
   return &cache_.kBitcastMaybeObjectToWord;
 }
 
-const Operator* MachineOperatorBuilder::DebugAbort() {
-  return &cache_.kDebugAbort;
+const Operator* MachineOperatorBuilder::AbortCSAAssert() {
+  return &cache_.kAbortCSAAssert;
 }
 
 const Operator* MachineOperatorBuilder::DebugBreak() {
@@ -990,6 +1075,10 @@ const Operator* MachineOperatorBuilder::DebugBreak() {
 
 const Operator* MachineOperatorBuilder::Comment(const char* msg) {
   return new (zone_) CommentOperator(msg);
+}
+
+const Operator* MachineOperatorBuilder::MemBarrier() {
+  return &cache_.kMemoryBarrier;
 }
 
 const Operator* MachineOperatorBuilder::Word32AtomicLoad(
@@ -1226,11 +1315,6 @@ const Operator* MachineOperatorBuilder::Word64PoisonOnSpeculation() {
   return &cache_.kWord64PoisonOnSpeculation;
 }
 
-const OptionalOperator MachineOperatorBuilder::SpeculationFence() {
-  return OptionalOperator(flags_ & kSpeculationFence,
-                          &cache_.kSpeculationFence);
-}
-
 #define SIMD_LANE_OPS(Type, lane_count)                                     \
   const Operator* MachineOperatorBuilder::Type##ExtractLane(                \
       int32_t lane_index) {                                                 \
@@ -1249,28 +1333,6 @@ const OptionalOperator MachineOperatorBuilder::SpeculationFence() {
 SIMD_LANE_OP_LIST(SIMD_LANE_OPS)
 #undef SIMD_LANE_OPS
 
-#define SIMD_SHIFT_OPS(format, bits)                                           \
-  const Operator* MachineOperatorBuilder::I##format##Shl(int32_t shift) {      \
-    DCHECK(0 <= shift && shift < bits);                                        \
-    return new (zone_)                                                         \
-        Operator1<int32_t>(IrOpcode::kI##format##Shl, Operator::kPure,         \
-                           "Shift left", 1, 0, 0, 1, 0, 0, shift);             \
-  }                                                                            \
-  const Operator* MachineOperatorBuilder::I##format##ShrS(int32_t shift) {     \
-    DCHECK(0 < shift && shift <= bits);                                        \
-    return new (zone_)                                                         \
-        Operator1<int32_t>(IrOpcode::kI##format##ShrS, Operator::kPure,        \
-                           "Arithmetic shift right", 1, 0, 0, 1, 0, 0, shift); \
-  }                                                                            \
-  const Operator* MachineOperatorBuilder::I##format##ShrU(int32_t shift) {     \
-    DCHECK(0 <= shift && shift < bits);                                        \
-    return new (zone_)                                                         \
-        Operator1<int32_t>(IrOpcode::kI##format##ShrU, Operator::kPure,        \
-                           "Shift right", 1, 0, 0, 1, 0, 0, shift);            \
-  }
-SIMD_FORMAT_LIST(SIMD_SHIFT_OPS)
-#undef SIMD_SHIFT_OPS
-
 const Operator* MachineOperatorBuilder::S8x16Shuffle(
     const uint8_t shuffle[16]) {
   uint8_t* array = zone_->NewArray<uint8_t>(16);
@@ -1278,6 +1340,11 @@ const Operator* MachineOperatorBuilder::S8x16Shuffle(
   return new (zone_)
       Operator1<uint8_t*>(IrOpcode::kS8x16Shuffle, Operator::kPure, "Shuffle",
                           2, 0, 0, 1, 0, 0, array);
+}
+
+const uint8_t* S8x16ShuffleOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kS8x16Shuffle, op->opcode());
+  return OpParameter<uint8_t*>(op);
 }
 
 #undef PURE_BINARY_OP_LIST_32
@@ -1293,7 +1360,6 @@ const Operator* MachineOperatorBuilder::S8x16Shuffle(
 #undef ATOMIC_REPRESENTATION_LIST
 #undef ATOMIC64_REPRESENTATION_LIST
 #undef SIMD_LANE_OP_LIST
-#undef SIMD_FORMAT_LIST
 #undef STACK_SLOT_CACHED_SIZES_ALIGNMENTS_LIST
 
 }  // namespace compiler

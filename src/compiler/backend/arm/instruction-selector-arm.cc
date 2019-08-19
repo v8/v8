@@ -4,6 +4,7 @@
 
 #include "src/base/adapters.h"
 #include "src/base/bits.h"
+#include "src/base/enum-set.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -73,17 +74,6 @@ class ArmOperandGenerator : public OperandGenerator {
     }
     return false;
   }
-
-  // Use the stack pointer if the node is LoadStackPointer, otherwise assign a
-  // register.
-  InstructionOperand UseRegisterOrStackPointer(Node* node) {
-    if (node->opcode() == IrOpcode::kLoadStackPointer) {
-      return LocationOperand(LocationOperand::EXPLICIT,
-                             LocationOperand::REGISTER,
-                             MachineRepresentation::kWord32, sp.code());
-    }
-    return UseRegister(node);
-  }
 };
 
 namespace {
@@ -99,6 +89,15 @@ void VisitRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)),
                  g.UseRegister(node->InputAt(1)));
+}
+
+void VisitSimdShiftRRR(InstructionSelector* selector, ArchOpcode opcode,
+                       Node* node) {
+  ArmOperandGenerator g(selector);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseRegister(node->InputAt(0)),
+                 g.UseRegister(node->InputAt(1)), arraysize(temps), temps);
 }
 
 void VisitRRRShuffle(InstructionSelector* selector, ArchOpcode opcode,
@@ -440,9 +439,9 @@ void InstructionSelector::VisitStackSlot(Node* node) {
        sequence()->AddImmediate(Constant(slot)), 0, nullptr);
 }
 
-void InstructionSelector::VisitDebugAbort(Node* node) {
+void InstructionSelector::VisitAbortCSAAssert(Node* node) {
   ArmOperandGenerator g(this);
-  Emit(kArchDebugAbort, g.NoOutput(), g.UseFixed(node->InputAt(0), r1));
+  Emit(kArchAbortCSAAssert, g.NoOutput(), g.UseFixed(node->InputAt(0), r1));
 }
 
 void InstructionSelector::VisitLoad(Node* node) {
@@ -475,10 +474,12 @@ void InstructionSelector::VisitLoad(Node* node) {
     case MachineRepresentation::kSimd128:
       opcode = kArmVld1S128;
       break;
-    case MachineRepresentation::kWord64:  // Fall through.
+    case MachineRepresentation::kCompressedSigned:   // Fall through.
+    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressed:         // Fall through.
+    case MachineRepresentation::kWord64:             // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
-      return;
   }
   if (node->opcode() == IrOpcode::kPoisonedLoad) {
     CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
@@ -506,7 +507,8 @@ void InstructionSelector::VisitStore(Node* node) {
   WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
   MachineRepresentation rep = store_rep.representation();
 
-  if (write_barrier_kind != kNoWriteBarrier) {
+  if (write_barrier_kind != kNoWriteBarrier &&
+      V8_LIKELY(!FLAG_disable_write_barriers)) {
     DCHECK(CanBeTaggedPointer(rep));
     AddressingMode addressing_mode;
     InstructionOperand inputs[3];
@@ -522,27 +524,12 @@ void InstructionSelector::VisitStore(Node* node) {
       addressing_mode = kMode_Offset_RR;
     }
     inputs[input_count++] = g.UseUniqueRegister(value);
-    RecordWriteMode record_write_mode = RecordWriteMode::kValueIsAny;
-    switch (write_barrier_kind) {
-      case kNoWriteBarrier:
-        UNREACHABLE();
-        break;
-      case kMapWriteBarrier:
-        record_write_mode = RecordWriteMode::kValueIsMap;
-        break;
-      case kPointerWriteBarrier:
-        record_write_mode = RecordWriteMode::kValueIsPointer;
-        break;
-      case kFullWriteBarrier:
-        record_write_mode = RecordWriteMode::kValueIsAny;
-        break;
-    }
-    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
-    size_t const temp_count = arraysize(temps);
+    RecordWriteMode record_write_mode =
+        WriteBarrierKindToRecordWriteMode(write_barrier_kind);
     InstructionCode code = kArchStoreWithWriteBarrier;
     code |= AddressingModeField::encode(addressing_mode);
     code |= MiscField::encode(static_cast<int>(record_write_mode));
-    Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
+    Emit(code, 0, nullptr, input_count, inputs);
   } else {
     InstructionCode opcode = kArchNop;
     switch (rep) {
@@ -568,7 +555,10 @@ void InstructionSelector::VisitStore(Node* node) {
       case MachineRepresentation::kSimd128:
         opcode = kArmVst1S128;
         break;
-      case MachineRepresentation::kWord64:  // Fall through.
+      case MachineRepresentation::kCompressedSigned:   // Fall through.
+      case MachineRepresentation::kCompressedPointer:  // Fall through.
+      case MachineRepresentation::kCompressed:         // Fall through.
+      case MachineRepresentation::kWord64:             // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
         return;
@@ -653,7 +643,6 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) {
     default:
       // All other cases should support unaligned accesses.
       UNREACHABLE();
-      return;
   }
 }
 
@@ -744,7 +733,6 @@ void InstructionSelector::VisitUnalignedStore(Node* node) {
     default:
       // All other cases should support unaligned accesses.
       UNREACHABLE();
-      return;
   }
 }
 
@@ -768,6 +756,7 @@ void EmitBic(InstructionSelector* selector, Node* node, Node* left,
 
 void EmitUbfx(InstructionSelector* selector, Node* node, Node* left,
               uint32_t lsb, uint32_t width) {
+  DCHECK_LE(lsb, 31u);
   DCHECK_LE(1u, width);
   DCHECK_LE(width, 32u - lsb);
   ArmOperandGenerator g(selector);
@@ -897,6 +886,15 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
   VisitBinop(this, node, kArmEor, kArmEor);
 }
 
+void InstructionSelector::VisitStackPointerGreaterThan(
+    Node* node, FlagsContinuation* cont) {
+  Node* const value = node->InputAt(0);
+  InstructionCode opcode = kArchStackPointerGreaterThan;
+
+  ArmOperandGenerator g(this);
+  EmitWithContinuation(opcode, g.UseRegister(value), cont);
+}
+
 namespace {
 
 template <typename TryMatchShift>
@@ -947,7 +945,7 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
       uint32_t value = (mleft.right().Value() >> lsb) << lsb;
       uint32_t width = base::bits::CountPopulation(value);
       uint32_t msb = base::bits::CountLeadingZeros32(value);
-      if (msb + width + lsb == 32) {
+      if ((width != 0) && (msb + width + lsb == 32)) {
         DCHECK_EQ(lsb, base::bits::CountTrailingZeros32(value));
         return EmitUbfx(this, node, mleft.left().node(), lsb, width);
       }
@@ -1122,11 +1120,6 @@ void InstructionSelector::VisitWord32ReverseBytes(Node* node) {
 }
 
 void InstructionSelector::VisitWord32Popcnt(Node* node) { UNREACHABLE(); }
-
-void InstructionSelector::VisitSpeculationFence(Node* node) {
-  ArmOperandGenerator g(this);
-  Emit(kArmDsbIsb, g.NoOutput());
-}
 
 void InstructionSelector::VisitInt32Add(Node* node) {
   ArmOperandGenerator g(this);
@@ -1671,7 +1664,6 @@ void MaybeReplaceCmpZeroWithFlagSettingBinop(InstructionSelector* selector,
       break;
     default:
       UNREACHABLE();
-      return;
   }
   if (selector->CanCover(*node, binop)) {
     // The comparison is the only user of {node}.
@@ -1702,17 +1694,17 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 
   if (TryMatchImmediateOrShift(selector, &opcode, m.right().node(),
                                &input_count, &inputs[1])) {
-    inputs[0] = g.UseRegisterOrStackPointer(m.left().node());
+    inputs[0] = g.UseRegister(m.left().node());
     input_count++;
   } else if (TryMatchImmediateOrShift(selector, &opcode, m.left().node(),
                                       &input_count, &inputs[1])) {
     if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
-    inputs[0] = g.UseRegisterOrStackPointer(m.right().node());
+    inputs[0] = g.UseRegister(m.right().node());
     input_count++;
   } else {
     opcode |= AddressingModeField::encode(kMode_Operand2_R);
-    inputs[input_count++] = g.UseRegisterOrStackPointer(m.left().node());
-    inputs[input_count++] = g.UseRegisterOrStackPointer(m.right().node());
+    inputs[input_count++] = g.UseRegister(m.left().node());
+    inputs[input_count++] = g.UseRegister(m.right().node());
   }
 
   if (has_result) {
@@ -1864,6 +1856,9 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
         return VisitShift(this, value, TryMatchLSR, cont);
       case IrOpcode::kWord32Ror:
         return VisitShift(this, value, TryMatchROR, cont);
+      case IrOpcode::kStackPointerGreaterThan:
+        cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
+        return VisitStackPointerGreaterThan(value, cont);
       default:
         break;
     }
@@ -2036,6 +2031,11 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
        g.UseRegister(right));
 }
 
+void InstructionSelector::VisitMemoryBarrier(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmDmbIsh, g.NoOutput());
+}
+
 void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());
   ArmOperandGenerator g(this);
@@ -2056,7 +2056,6 @@ void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
       break;
     default:
       UNREACHABLE();
-      return;
   }
   Emit(opcode | AddressingModeField::encode(kMode_Offset_RR),
        g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(index));
@@ -2081,7 +2080,6 @@ void InstructionSelector::VisitWord32AtomicStore(Node* node) {
       break;
     default:
       UNREACHABLE();
-      return;
   }
 
   AddressingMode addressing_mode = kMode_Offset_RR;
@@ -2501,7 +2499,7 @@ SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 
 #define SIMD_VISIT_SHIFT_OP(Name)                     \
   void InstructionSelector::Visit##Name(Node* node) { \
-    VisitRRI(this, kArm##Name, node);                 \
+    VisitSimdShiftRRR(this, kArm##Name, node);        \
   }
 SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 #undef SIMD_VISIT_SHIFT_OP
@@ -2692,8 +2690,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
-  MachineOperatorBuilder::Flags flags =
-      MachineOperatorBuilder::kSpeculationFence;
+  MachineOperatorBuilder::Flags flags = MachineOperatorBuilder::kNoFlags;
   if (CpuFeatures::IsSupported(SUDIV)) {
     // The sdiv and udiv instructions correctly return 0 if the divisor is 0,
     // but the fall-back implementation does not.
@@ -2720,7 +2717,7 @@ InstructionSelector::SupportedMachineOperatorFlags() {
 // static
 MachineOperatorBuilder::AlignmentRequirements
 InstructionSelector::AlignmentRequirements() {
-  EnumSet<MachineRepresentation> req_aligned;
+  base::EnumSet<MachineRepresentation> req_aligned;
   req_aligned.Add(MachineRepresentation::kFloat32);
   req_aligned.Add(MachineRepresentation::kFloat64);
   return MachineOperatorBuilder::AlignmentRequirements::

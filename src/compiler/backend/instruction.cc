@@ -6,12 +6,12 @@
 
 #include <iomanip>
 
+#include "src/codegen/register-configuration.h"
+#include "src/codegen/source-position.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/state-values-utils.h"
-#include "src/register-configuration.h"
-#include "src/source-position.h"
 
 namespace v8 {
 namespace internal {
@@ -56,7 +56,6 @@ FlagsCondition CommuteFlagsCondition(FlagsCondition condition) {
     case kPositiveOrZero:
     case kNegative:
       UNREACHABLE();
-      break;
     case kEqual:
     case kNotEqual:
     case kOverflow:
@@ -230,6 +229,15 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
           break;
         case MachineRepresentation::kTagged:
           os << "|t";
+          break;
+        case MachineRepresentation::kCompressedSigned:
+          os << "|cs";
+          break;
+        case MachineRepresentation::kCompressedPointer:
+          os << "|cp";
+          break;
+        case MachineRepresentation::kCompressed:
+          os << "|c";
           break;
       }
       return os << "]";
@@ -522,7 +530,7 @@ Constant::Constant(RelocatablePtrConstantInfo info) {
 }
 
 Handle<HeapObject> Constant::ToHeapObject() const {
-  DCHECK_EQ(kHeapObject, type());
+  DCHECK(kHeapObject == type() || kCompressedHeapObject == type());
   Handle<HeapObject> value(
       reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
   return value;
@@ -553,7 +561,8 @@ std::ostream& operator<<(std::ostream& os, const Constant& constant) {
       return os << constant.ToFloat64().value();
     case Constant::kExternalReference:
       return os << constant.ToExternalReference().address();
-    case Constant::kHeapObject:
+    case Constant::kHeapObject:  // Fall through.
+    case Constant::kCompressedHeapObject:
       return os << Brief(*constant.ToHeapObject());
     case Constant::kRpoNumber:
       return os << "RPO" << constant.ToRpoNumber().ToInt();
@@ -629,6 +638,10 @@ static InstructionBlock* InstructionBlockFor(Zone* zone,
   for (BasicBlock* predecessor : block->predecessors()) {
     instr_block->predecessors().push_back(GetRpo(predecessor));
   }
+  if (block->PredecessorCount() == 1 &&
+      block->predecessors()[0]->control() == BasicBlock::Control::kSwitch) {
+    instr_block->set_switch_target(true);
+  }
   return instr_block;
 }
 
@@ -638,7 +651,11 @@ std::ostream& operator<<(std::ostream& os,
   const InstructionSequence* code = printable_block.code_;
 
   os << "B" << block->rpo_number();
-  os << ": AO#" << block->ao_number();
+  if (block->ao_number().IsValid()) {
+    os << ": AO#" << block->ao_number();
+  } else {
+    os << ": AO#?";
+  }
   if (block->IsDeferred()) os << " (deferred)";
   if (!block->needs_frame()) os << " (no frame)";
   if (block->must_construct_frame()) os << " (construct frame)";
@@ -782,6 +799,9 @@ void InstructionSequence::ComputeAssemblyOrder() {
       }
       block->set_alignment(header_align);
     }
+    if (block->loop_header().IsValid() && block->IsSwitchTarget()) {
+      block->set_alignment(true);
+    }
     block->set_ao_number(RpoNumber::FromInt(ao++));
     ao_blocks_->push_back(block);
   }
@@ -885,6 +905,9 @@ static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kFloat32:
     case MachineRepresentation::kFloat64:
     case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kCompressedSigned:
+    case MachineRepresentation::kCompressedPointer:
+    case MachineRepresentation::kCompressed:
       return rep;
     case MachineRepresentation::kNone:
       break;
@@ -994,6 +1017,29 @@ FrameStateDescriptor::FrameStateDescriptor(
       values_(zone),
       shared_info_(shared_info),
       outer_state_(outer_state) {}
+
+size_t FrameStateDescriptor::GetHeight() const {
+  // TODO(jgruber): Unify how the height is handled. Currently, we seem to add
+  // and subtract 1 at random spots. For example, for interpreted functions we
+  // add 1 here, and subtract it in DoComputeInterpretedFrame. For builtin
+  // continuation frames, we add 1 in CreateNextTranslatedFrame, and subtract
+  // it in DoComputeBuiltinContinuation. Arguments adaptor frames thread through
+  // the height unmodified.
+  // Handling in all these cases should ideally be consistent and use named
+  // constants.
+  switch (type()) {
+    case FrameStateType::kInterpretedFunction:
+      return locals_count() + 1;  // +1 for the accumulator.
+    case FrameStateType::kConstructStub:
+      return parameters_count() + 1;  // +1 for the context.
+    case FrameStateType::kArgumentsAdaptor:
+    case FrameStateType::kBuiltinContinuation:
+    case FrameStateType::kJavaScriptBuiltinContinuation:
+    case FrameStateType::kJavaScriptBuiltinContinuationWithCatch:
+      return parameters_count();
+  }
+  UNREACHABLE();
+}
 
 size_t FrameStateDescriptor::GetSize() const {
   return 1 + parameters_count() + locals_count() + stack_count() +

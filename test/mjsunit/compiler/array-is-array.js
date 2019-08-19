@@ -11,6 +11,7 @@
     return Array.isArray([]);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo());
   assertTrue(foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -24,6 +25,7 @@
     return Array.isArray(new Proxy([], {}));
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertTrue(foo());
   assertTrue(foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -37,6 +39,7 @@
     return Array.isArray({});
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo());
   assertFalse(foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -50,6 +53,7 @@
     return Array.isArray(new Proxy({}, {}));
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo());
   assertFalse(foo());
   %OptimizeFunctionOnNextCall(foo);
@@ -63,6 +67,7 @@
     return Array.isArray(x);
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertFalse(foo({}));
   assertFalse(foo(new Proxy({}, {})));
   assertTrue(foo([]));
@@ -97,9 +102,96 @@
     }
   }
 
+  %PrepareFunctionForOptimization(foo);
   assertInstanceof(foo([]), TypeError);
   assertInstanceof(foo({}), TypeError);
   %OptimizeFunctionOnNextCall(foo);
   assertInstanceof(foo([]), TypeError);
   assertInstanceof(foo({}), TypeError);
+})();
+
+// Packed
+// Test JSObjectIsArray in JSTypedLowering for the case that the
+// input value is known to be a non-extensible Array literal.
+(function() {
+  function foo() {
+    return Array.isArray(Object.preventExtensions([]));
+  }
+
+  %PrepareFunctionForOptimization(foo);
+  assertTrue(foo());
+  assertTrue(foo());
+  %OptimizeFunctionOnNextCall(foo);
+  assertTrue(foo());
+})();
+
+// Test JSObjectIsArray in JSTypedLowering for the case that the
+// input value is known to be a sealed Array literal.
+(function() {
+  function foo() {
+    return Array.isArray(Object.seal([]));
+  }
+
+  %PrepareFunctionForOptimization(foo);
+  assertTrue(foo());
+  assertTrue(foo());
+  %OptimizeFunctionOnNextCall(foo);
+  assertTrue(foo());
+})();
+
+// Test JSObjectIsArray in JSTypedLowering for the case that the
+// input value is known to be a frozen Array literal.
+(function() {
+  function foo() {
+    return Array.isArray(Object.freeze([]));
+  }
+
+  %PrepareFunctionForOptimization(foo);
+  assertTrue(foo());
+  assertTrue(foo());
+  %OptimizeFunctionOnNextCall(foo);
+  assertTrue(foo());
+})();
+
+// Holey
+// Test JSObjectIsArray in JSTypedLowering for the case that the
+// input value is known to be a non-extensible Array literal.
+(function() {
+  function foo() {
+    return Array.isArray(Object.preventExtensions([,]));
+  }
+
+  %PrepareFunctionForOptimization(foo);
+  assertTrue(foo());
+  assertTrue(foo());
+  %OptimizeFunctionOnNextCall(foo);
+  assertTrue(foo());
+})();
+
+// Test JSObjectIsArray in JSTypedLowering for the case that the
+// input value is known to be a sealed Array literal.
+(function() {
+  function foo() {
+    return Array.isArray(Object.seal([,]));
+  }
+
+  %PrepareFunctionForOptimization(foo);
+  assertTrue(foo());
+  assertTrue(foo());
+  %OptimizeFunctionOnNextCall(foo);
+  assertTrue(foo());
+})();
+
+// Test JSObjectIsArray in JSTypedLowering for the case that the
+// input value is known to be a frozen Array literal.
+(function() {
+  function foo() {
+    return Array.isArray(Object.freeze([,]));
+  }
+
+  %PrepareFunctionForOptimization(foo);
+  assertTrue(foo());
+  assertTrue(foo());
+  %OptimizeFunctionOnNextCall(foo);
+  assertTrue(foo());
 })();

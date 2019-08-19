@@ -47,14 +47,14 @@ bool TrueCallback(Local<v8::Context>, Local<v8::String>) { return true; }
 
 bool FalseCallback(Local<v8::Context>, Local<v8::String>) { return false; }
 
-typedef bool (*CallbackFn)(Local<v8::Context>, Local<v8::String>);
+using CallbackFn = bool (*)(Local<v8::Context>, Local<v8::String>);
 
 // Defines the Callback to use for the corresponding TestValue.
 CallbackFn Callback[kNumTestValues] = {nullptr, FalseCallback, TrueCallback};
 
 void BuildTrivialModule(Zone* zone, ZoneBuffer* buffer) {
   WasmModuleBuilder* builder = new (zone) WasmModuleBuilder(zone);
-  builder->WriteTo(*buffer);
+  builder->WriteTo(buffer);
 }
 
 bool TestModule(Isolate* isolate, v8::MemorySpan<const uint8_t> wire_bytes) {

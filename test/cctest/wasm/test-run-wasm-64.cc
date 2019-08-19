@@ -6,9 +6,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "src/assembler-inl.h"
 #include "src/base/bits.h"
-#include "src/objects-inl.h"
+#include "src/base/overflowing-math.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/objects/objects-inl.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
@@ -31,9 +32,9 @@ WASM_EXEC_TEST(I64Const) {
 
 WASM_EXEC_TEST(I64Const_many) {
   int cntr = 0;
-  FOR_INT32_INPUTS(i) {
+  FOR_UINT32_INPUTS(i) {
     WasmRunner<int64_t> r(execution_tier);
-    const int64_t kExpectedValue = (static_cast<int64_t>(*i) << 32) | cntr;
+    const int64_t kExpectedValue = (static_cast<uint64_t>(i) << 32) | cntr;
     // return(kExpectedValue)
     BUILD(r, WASM_I64V(kExpectedValue));
     CHECK_EQ(kExpectedValue, r.Call());
@@ -46,14 +47,16 @@ WASM_EXEC_TEST(Return_I64) {
 
   BUILD(r, WASM_RETURN1(WASM_GET_LOCAL(0)));
 
-  FOR_INT64_INPUTS(i) { CHECK_EQ(*i, r.Call(*i)); }
+  FOR_INT64_INPUTS(i) { CHECK_EQ(i, r.Call(i)); }
 }
 
 WASM_EXEC_TEST(I64Add) {
   WasmRunner<int64_t, int64_t, int64_t> r(execution_tier);
   BUILD(r, WASM_I64_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   FOR_INT64_INPUTS(i) {
-    FOR_INT64_INPUTS(j) { CHECK_EQ(*i + *j, r.Call(*i, *j)); }
+    FOR_INT64_INPUTS(j) {
+      CHECK_EQ(base::AddWithWraparound(i, j), r.Call(i, j));
+    }
   }
 }
 
@@ -75,7 +78,9 @@ WASM_EXEC_TEST(I64Sub) {
   WasmRunner<int64_t, int64_t, int64_t> r(execution_tier);
   BUILD(r, WASM_I64_SUB(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   FOR_INT64_INPUTS(i) {
-    FOR_INT64_INPUTS(j) { CHECK_EQ(*i - *j, r.Call(*i, *j)); }
+    FOR_INT64_INPUTS(j) {
+      CHECK_EQ(base::SubWithWraparound(i, j), r.Call(i, j));
+    }
   }
 }
 
@@ -94,7 +99,8 @@ WASM_EXEC_TEST(I64AddUseOnlyLowWord) {
                WASM_I64_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))));
   FOR_INT64_INPUTS(i) {
     FOR_INT64_INPUTS(j) {
-      CHECK_EQ(static_cast<int32_t>(*i + *j), r.Call(*i, *j));
+      CHECK_EQ(static_cast<int32_t>(base::AddWithWraparound(i, j)),
+               r.Call(i, j));
     }
   }
 }
@@ -105,7 +111,8 @@ WASM_EXEC_TEST(I64SubUseOnlyLowWord) {
                WASM_I64_SUB(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))));
   FOR_INT64_INPUTS(i) {
     FOR_INT64_INPUTS(j) {
-      CHECK_EQ(static_cast<int32_t>(*i - *j), r.Call(*i, *j));
+      CHECK_EQ(static_cast<int32_t>(base::SubWithWraparound(i, j)),
+               r.Call(i, j));
     }
   }
 }
@@ -116,7 +123,8 @@ WASM_EXEC_TEST(I64MulUseOnlyLowWord) {
                WASM_I64_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))));
   FOR_INT64_INPUTS(i) {
     FOR_INT64_INPUTS(j) {
-      CHECK_EQ(static_cast<int32_t>(*i * *j), r.Call(*i, *j));
+      CHECK_EQ(static_cast<int32_t>(base::MulWithWraparound(i, j)),
+               r.Call(i, j));
     }
   }
 }
@@ -127,8 +135,8 @@ WASM_EXEC_TEST(I64ShlUseOnlyLowWord) {
                WASM_I64_SHL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))));
   FOR_INT64_INPUTS(i) {
     FOR_INT64_INPUTS(j) {
-      int32_t expected = static_cast<int32_t>((*i) << (*j & 0x3F));
-      CHECK_EQ(expected, r.Call(*i, *j));
+      int32_t expected = static_cast<int32_t>(base::ShlWithWraparound(i, j));
+      CHECK_EQ(expected, r.Call(i, j));
     }
   }
 }
@@ -139,8 +147,8 @@ WASM_EXEC_TEST(I64ShrUseOnlyLowWord) {
                WASM_I64_SHR(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))));
   FOR_UINT64_INPUTS(i) {
     FOR_UINT64_INPUTS(j) {
-      int32_t expected = static_cast<int32_t>((*i) >> (*j & 0x3F));
-      CHECK_EQ(expected, r.Call(*i, *j));
+      int32_t expected = static_cast<int32_t>((i) >> (j & 0x3F));
+      CHECK_EQ(expected, r.Call(i, j));
     }
   }
 }
@@ -151,8 +159,8 @@ WASM_EXEC_TEST(I64SarUseOnlyLowWord) {
                WASM_I64_SAR(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))));
   FOR_INT64_INPUTS(i) {
     FOR_INT64_INPUTS(j) {
-      int32_t expected = static_cast<int32_t>((*i) >> (*j & 0x3F));
-      CHECK_EQ(expected, r.Call(*i, *j));
+      int32_t expected = static_cast<int32_t>((i) >> (j & 0x3F));
+      CHECK_EQ(expected, r.Call(i, j));
     }
   }
 }
@@ -162,12 +170,12 @@ WASM_EXEC_TEST(I64DivS) {
   BUILD(r, WASM_I64_DIVS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   FOR_INT64_INPUTS(i) {
     FOR_INT64_INPUTS(j) {
-      if (*j == 0) {
-        CHECK_TRAP64(r.Call(*i, *j));
-      } else if (*j == -1 && *i == std::numeric_limits<int64_t>::min()) {
-        CHECK_TRAP64(r.Call(*i, *j));
+      if (j == 0) {
+        CHECK_TRAP64(r.Call(i, j));
+      } else if (j == -1 && i == std::numeric_limits<int64_t>::min()) {
+        CHECK_TRAP64(r.Call(i, j));
       } else {
-        CHECK_EQ(*i / *j, r.Call(*i, *j));
+        CHECK_EQ(i / j, r.Call(i, j));
       }
     }
   }
@@ -202,10 +210,10 @@ WASM_EXEC_TEST(I64DivU) {
   BUILD(r, WASM_I64_DIVU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   FOR_UINT64_INPUTS(i) {
     FOR_UINT64_INPUTS(j) {
-      if (*j == 0) {
-        CHECK_TRAP64(r.Call(*i, *j));
+      if (j == 0) {
+        CHECK_TRAP64(r.Call(i, j));
       } else {
-        CHECK_EQ(*i / *j, r.Call(*i, *j));
+        CHECK_EQ(i / j, r.Call(i, j));
       }
     }
   }
@@ -240,10 +248,10 @@ WASM_EXEC_TEST(I64RemS) {
   BUILD(r, WASM_I64_REMS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   FOR_INT64_INPUTS(i) {
     FOR_INT64_INPUTS(j) {
-      if (*j == 0) {
-        CHECK_TRAP64(r.Call(*i, *j));
+      if (j == 0) {
+        CHECK_TRAP64(r.Call(i, j));
       } else {
-        CHECK_EQ(*i % *j, r.Call(*i, *j));
+        CHECK_EQ(i % j, r.Call(i, j));
       }
     }
   }
@@ -264,10 +272,10 @@ WASM_EXEC_TEST(I64RemU) {
   BUILD(r, WASM_I64_REMU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   FOR_UINT64_INPUTS(i) {
     FOR_UINT64_INPUTS(j) {
-      if (*j == 0) {
-        CHECK_TRAP64(r.Call(*i, *j));
+      if (j == 0) {
+        CHECK_TRAP64(r.Call(i, j));
       } else {
-        CHECK_EQ(*i % *j, r.Call(*i, *j));
+        CHECK_EQ(i % j, r.Call(i, j));
       }
     }
   }
@@ -286,7 +294,7 @@ WASM_EXEC_TEST(I64And) {
   WasmRunner<int64_t, int64_t, int64_t> r(execution_tier);
   BUILD(r, WASM_I64_AND(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   FOR_INT64_INPUTS(i) {
-    FOR_INT64_INPUTS(j) { CHECK_EQ((*i) & (*j), r.Call(*i, *j)); }
+    FOR_INT64_INPUTS(j) { CHECK_EQ((i) & (j), r.Call(i, j)); }
   }
 }
 
@@ -294,7 +302,7 @@ WASM_EXEC_TEST(I64Ior) {
   WasmRunner<int64_t, int64_t, int64_t> r(execution_tier);
   BUILD(r, WASM_I64_IOR(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   FOR_INT64_INPUTS(i) {
-    FOR_INT64_INPUTS(j) { CHECK_EQ((*i) | (*j), r.Call(*i, *j)); }
+    FOR_INT64_INPUTS(j) { CHECK_EQ((i) | (j), r.Call(i, j)); }
   }
 }
 
@@ -302,7 +310,7 @@ WASM_EXEC_TEST(I64Xor) {
   WasmRunner<int64_t, int64_t, int64_t> r(execution_tier);
   BUILD(r, WASM_I64_XOR(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   FOR_INT64_INPUTS(i) {
-    FOR_INT64_INPUTS(j) { CHECK_EQ((*i) ^ (*j), r.Call(*i, *j)); }
+    FOR_INT64_INPUTS(j) { CHECK_EQ((i) ^ (j), r.Call(i, j)); }
   }
 }
 
@@ -313,30 +321,30 @@ WASM_EXEC_TEST(I64Shl) {
 
     FOR_UINT64_INPUTS(i) {
       FOR_UINT64_INPUTS(j) {
-        uint64_t expected = (*i) << (*j & 0x3F);
-        CHECK_EQ(expected, r.Call(*i, *j));
+        uint64_t expected = (i) << (j & 0x3F);
+        CHECK_EQ(expected, r.Call(i, j));
       }
     }
   }
   {
     WasmRunner<uint64_t, int64_t> r(execution_tier);
     BUILD(r, WASM_I64_SHL(WASM_GET_LOCAL(0), WASM_I64V_1(0)));
-    FOR_UINT64_INPUTS(i) { CHECK_EQ(*i << 0, r.Call(*i)); }
+    FOR_UINT64_INPUTS(i) { CHECK_EQ(i << 0, r.Call(i)); }
   }
   {
     WasmRunner<uint64_t, int64_t> r(execution_tier);
     BUILD(r, WASM_I64_SHL(WASM_GET_LOCAL(0), WASM_I64V_1(32)));
-    FOR_UINT64_INPUTS(i) { CHECK_EQ(*i << 32, r.Call(*i)); }
+    FOR_UINT64_INPUTS(i) { CHECK_EQ(i << 32, r.Call(i)); }
   }
   {
     WasmRunner<uint64_t, int64_t> r(execution_tier);
     BUILD(r, WASM_I64_SHL(WASM_GET_LOCAL(0), WASM_I64V_1(20)));
-    FOR_UINT64_INPUTS(i) { CHECK_EQ(*i << 20, r.Call(*i)); }
+    FOR_UINT64_INPUTS(i) { CHECK_EQ(i << 20, r.Call(i)); }
   }
   {
     WasmRunner<uint64_t, int64_t> r(execution_tier);
     BUILD(r, WASM_I64_SHL(WASM_GET_LOCAL(0), WASM_I64V_1(40)));
-    FOR_UINT64_INPUTS(i) { CHECK_EQ(*i << 40, r.Call(*i)); }
+    FOR_UINT64_INPUTS(i) { CHECK_EQ(i << 40, r.Call(i)); }
   }
 }
 
@@ -347,30 +355,30 @@ WASM_EXEC_TEST(I64ShrU) {
 
     FOR_UINT64_INPUTS(i) {
       FOR_UINT64_INPUTS(j) {
-        uint64_t expected = (*i) >> (*j & 0x3F);
-        CHECK_EQ(expected, r.Call(*i, *j));
+        uint64_t expected = (i) >> (j & 0x3F);
+        CHECK_EQ(expected, r.Call(i, j));
       }
     }
   }
   {
     WasmRunner<uint64_t, int64_t> r(execution_tier);
     BUILD(r, WASM_I64_SHR(WASM_GET_LOCAL(0), WASM_I64V_1(0)));
-    FOR_UINT64_INPUTS(i) { CHECK_EQ(*i >> 0, r.Call(*i)); }
+    FOR_UINT64_INPUTS(i) { CHECK_EQ(i >> 0, r.Call(i)); }
   }
   {
     WasmRunner<uint64_t, int64_t> r(execution_tier);
     BUILD(r, WASM_I64_SHR(WASM_GET_LOCAL(0), WASM_I64V_1(32)));
-    FOR_UINT64_INPUTS(i) { CHECK_EQ(*i >> 32, r.Call(*i)); }
+    FOR_UINT64_INPUTS(i) { CHECK_EQ(i >> 32, r.Call(i)); }
   }
   {
     WasmRunner<uint64_t, int64_t> r(execution_tier);
     BUILD(r, WASM_I64_SHR(WASM_GET_LOCAL(0), WASM_I64V_1(20)));
-    FOR_UINT64_INPUTS(i) { CHECK_EQ(*i >> 20, r.Call(*i)); }
+    FOR_UINT64_INPUTS(i) { CHECK_EQ(i >> 20, r.Call(i)); }
   }
   {
     WasmRunner<uint64_t, int64_t> r(execution_tier);
     BUILD(r, WASM_I64_SHR(WASM_GET_LOCAL(0), WASM_I64V_1(40)));
-    FOR_UINT64_INPUTS(i) { CHECK_EQ(*i >> 40, r.Call(*i)); }
+    FOR_UINT64_INPUTS(i) { CHECK_EQ(i >> 40, r.Call(i)); }
   }
 }
 
@@ -381,30 +389,30 @@ WASM_EXEC_TEST(I64ShrS) {
 
     FOR_INT64_INPUTS(i) {
       FOR_INT64_INPUTS(j) {
-        int64_t expected = (*i) >> (*j & 0x3F);
-        CHECK_EQ(expected, r.Call(*i, *j));
+        int64_t expected = (i) >> (j & 0x3F);
+        CHECK_EQ(expected, r.Call(i, j));
       }
     }
   }
   {
     WasmRunner<int64_t, int64_t> r(execution_tier);
     BUILD(r, WASM_I64_SAR(WASM_GET_LOCAL(0), WASM_I64V_1(0)));
-    FOR_INT64_INPUTS(i) { CHECK_EQ(*i >> 0, r.Call(*i)); }
+    FOR_INT64_INPUTS(i) { CHECK_EQ(i >> 0, r.Call(i)); }
   }
   {
     WasmRunner<int64_t, int64_t> r(execution_tier);
     BUILD(r, WASM_I64_SAR(WASM_GET_LOCAL(0), WASM_I64V_1(32)));
-    FOR_INT64_INPUTS(i) { CHECK_EQ(*i >> 32, r.Call(*i)); }
+    FOR_INT64_INPUTS(i) { CHECK_EQ(i >> 32, r.Call(i)); }
   }
   {
     WasmRunner<int64_t, int64_t> r(execution_tier);
     BUILD(r, WASM_I64_SAR(WASM_GET_LOCAL(0), WASM_I64V_1(20)));
-    FOR_INT64_INPUTS(i) { CHECK_EQ(*i >> 20, r.Call(*i)); }
+    FOR_INT64_INPUTS(i) { CHECK_EQ(i >> 20, r.Call(i)); }
   }
   {
     WasmRunner<int64_t, int64_t> r(execution_tier);
     BUILD(r, WASM_I64_SAR(WASM_GET_LOCAL(0), WASM_I64V_1(40)));
-    FOR_INT64_INPUTS(i) { CHECK_EQ(*i >> 40, r.Call(*i)); }
+    FOR_INT64_INPUTS(i) { CHECK_EQ(i >> 40, r.Call(i)); }
   }
 }
 
@@ -412,7 +420,7 @@ WASM_EXEC_TEST(I64Eq) {
   WasmRunner<int32_t, int64_t, int64_t> r(execution_tier);
   BUILD(r, WASM_I64_EQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   FOR_INT64_INPUTS(i) {
-    FOR_INT64_INPUTS(j) { CHECK_EQ(*i == *j ? 1 : 0, r.Call(*i, *j)); }
+    FOR_INT64_INPUTS(j) { CHECK_EQ(i == j ? 1 : 0, r.Call(i, j)); }
   }
 }
 
@@ -420,7 +428,7 @@ WASM_EXEC_TEST(I64Ne) {
   WasmRunner<int32_t, int64_t, int64_t> r(execution_tier);
   BUILD(r, WASM_I64_NE(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   FOR_INT64_INPUTS(i) {
-    FOR_INT64_INPUTS(j) { CHECK_EQ(*i != *j ? 1 : 0, r.Call(*i, *j)); }
+    FOR_INT64_INPUTS(j) { CHECK_EQ(i != j ? 1 : 0, r.Call(i, j)); }
   }
 }
 
@@ -428,7 +436,7 @@ WASM_EXEC_TEST(I64LtS) {
   WasmRunner<int32_t, int64_t, int64_t> r(execution_tier);
   BUILD(r, WASM_I64_LTS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   FOR_INT64_INPUTS(i) {
-    FOR_INT64_INPUTS(j) { CHECK_EQ(*i < *j ? 1 : 0, r.Call(*i, *j)); }
+    FOR_INT64_INPUTS(j) { CHECK_EQ(i < j ? 1 : 0, r.Call(i, j)); }
   }
 }
 
@@ -436,7 +444,7 @@ WASM_EXEC_TEST(I64LeS) {
   WasmRunner<int32_t, int64_t, int64_t> r(execution_tier);
   BUILD(r, WASM_I64_LES(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   FOR_INT64_INPUTS(i) {
-    FOR_INT64_INPUTS(j) { CHECK_EQ(*i <= *j ? 1 : 0, r.Call(*i, *j)); }
+    FOR_INT64_INPUTS(j) { CHECK_EQ(i <= j ? 1 : 0, r.Call(i, j)); }
   }
 }
 
@@ -444,7 +452,7 @@ WASM_EXEC_TEST(I64LtU) {
   WasmRunner<int32_t, int64_t, int64_t> r(execution_tier);
   BUILD(r, WASM_I64_LTU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   FOR_UINT64_INPUTS(i) {
-    FOR_UINT64_INPUTS(j) { CHECK_EQ(*i < *j ? 1 : 0, r.Call(*i, *j)); }
+    FOR_UINT64_INPUTS(j) { CHECK_EQ(i < j ? 1 : 0, r.Call(i, j)); }
   }
 }
 
@@ -452,7 +460,7 @@ WASM_EXEC_TEST(I64LeU) {
   WasmRunner<int32_t, int64_t, int64_t> r(execution_tier);
   BUILD(r, WASM_I64_LEU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   FOR_UINT64_INPUTS(i) {
-    FOR_UINT64_INPUTS(j) { CHECK_EQ(*i <= *j ? 1 : 0, r.Call(*i, *j)); }
+    FOR_UINT64_INPUTS(j) { CHECK_EQ(i <= j ? 1 : 0, r.Call(i, j)); }
   }
 }
 
@@ -460,7 +468,7 @@ WASM_EXEC_TEST(I64GtS) {
   WasmRunner<int32_t, int64_t, int64_t> r(execution_tier);
   BUILD(r, WASM_I64_GTS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   FOR_INT64_INPUTS(i) {
-    FOR_INT64_INPUTS(j) { CHECK_EQ(*i > *j ? 1 : 0, r.Call(*i, *j)); }
+    FOR_INT64_INPUTS(j) { CHECK_EQ(i > j ? 1 : 0, r.Call(i, j)); }
   }
 }
 
@@ -468,7 +476,7 @@ WASM_EXEC_TEST(I64GeS) {
   WasmRunner<int32_t, int64_t, int64_t> r(execution_tier);
   BUILD(r, WASM_I64_GES(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   FOR_INT64_INPUTS(i) {
-    FOR_INT64_INPUTS(j) { CHECK_EQ(*i >= *j ? 1 : 0, r.Call(*i, *j)); }
+    FOR_INT64_INPUTS(j) { CHECK_EQ(i >= j ? 1 : 0, r.Call(i, j)); }
   }
 }
 
@@ -476,7 +484,7 @@ WASM_EXEC_TEST(I64GtU) {
   WasmRunner<int32_t, int64_t, int64_t> r(execution_tier);
   BUILD(r, WASM_I64_GTU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   FOR_UINT64_INPUTS(i) {
-    FOR_UINT64_INPUTS(j) { CHECK_EQ(*i > *j ? 1 : 0, r.Call(*i, *j)); }
+    FOR_UINT64_INPUTS(j) { CHECK_EQ(i > j ? 1 : 0, r.Call(i, j)); }
   }
 }
 
@@ -484,28 +492,28 @@ WASM_EXEC_TEST(I64GeU) {
   WasmRunner<int32_t, int64_t, int64_t> r(execution_tier);
   BUILD(r, WASM_I64_GEU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   FOR_UINT64_INPUTS(i) {
-    FOR_UINT64_INPUTS(j) { CHECK_EQ(*i >= *j ? 1 : 0, r.Call(*i, *j)); }
+    FOR_UINT64_INPUTS(j) { CHECK_EQ(i >= j ? 1 : 0, r.Call(i, j)); }
   }
 }
 
 WASM_EXEC_TEST(I32ConvertI64) {
   FOR_INT64_INPUTS(i) {
     WasmRunner<int32_t> r(execution_tier);
-    BUILD(r, WASM_I32_CONVERT_I64(WASM_I64V(*i)));
-    CHECK_EQ(static_cast<int32_t>(*i), r.Call());
+    BUILD(r, WASM_I32_CONVERT_I64(WASM_I64V(i)));
+    CHECK_EQ(static_cast<int32_t>(i), r.Call());
   }
 }
 
 WASM_EXEC_TEST(I64SConvertI32) {
   WasmRunner<int64_t, int32_t> r(execution_tier);
   BUILD(r, WASM_I64_SCONVERT_I32(WASM_GET_LOCAL(0)));
-  FOR_INT32_INPUTS(i) { CHECK_EQ(static_cast<int64_t>(*i), r.Call(*i)); }
+  FOR_INT32_INPUTS(i) { CHECK_EQ(static_cast<int64_t>(i), r.Call(i)); }
 }
 
 WASM_EXEC_TEST(I64UConvertI32) {
   WasmRunner<int64_t, uint32_t> r(execution_tier);
   BUILD(r, WASM_I64_UCONVERT_I32(WASM_GET_LOCAL(0)));
-  FOR_UINT32_INPUTS(i) { CHECK_EQ(static_cast<int64_t>(*i), r.Call(*i)); }
+  FOR_UINT32_INPUTS(i) { CHECK_EQ(static_cast<int64_t>(i), r.Call(i)); }
 }
 
 WASM_EXEC_TEST(I64Popcnt) {
@@ -528,7 +536,7 @@ WASM_EXEC_TEST(I64Popcnt) {
 WASM_EXEC_TEST(F32SConvertI64) {
   WasmRunner<float, int64_t> r(execution_tier);
   BUILD(r, WASM_F32_SCONVERT_I64(WASM_GET_LOCAL(0)));
-  FOR_INT64_INPUTS(i) { CHECK_FLOAT_EQ(static_cast<float>(*i), r.Call(*i)); }
+  FOR_INT64_INPUTS(i) { CHECK_FLOAT_EQ(static_cast<float>(i), r.Call(i)); }
 }
 
 WASM_EXEC_TEST(F32UConvertI64) {
@@ -610,7 +618,9 @@ WASM_EXEC_TEST(F32UConvertI64) {
                 {0x8000008000000000, 0x5F000000},
                 {0x8000008000000001, 0x5F000001},
                 {0x8000000000000400, 0x5F000000},
-                {0x8000000000000401, 0x5F000000}};
+                {0x8000000000000401, 0x5F000000},
+                {0x20000020000001, 0x5a000001},
+                {0xFFFFFe8000000001, 0x5f7FFFFF}};
   WasmRunner<float, uint64_t> r(execution_tier);
   BUILD(r, WASM_F32_UCONVERT_I64(WASM_GET_LOCAL(0)));
   for (size_t i = 0; i < arraysize(values); i++) {
@@ -621,7 +631,7 @@ WASM_EXEC_TEST(F32UConvertI64) {
 WASM_EXEC_TEST(F64SConvertI64) {
   WasmRunner<double, int64_t> r(execution_tier);
   BUILD(r, WASM_F64_SCONVERT_I64(WASM_GET_LOCAL(0)));
-  FOR_INT64_INPUTS(i) { CHECK_DOUBLE_EQ(static_cast<double>(*i), r.Call(*i)); }
+  FOR_INT64_INPUTS(i) { CHECK_DOUBLE_EQ(static_cast<double>(i), r.Call(i)); }
 }
 
 WASM_EXEC_TEST(F64UConvertI64) {
@@ -715,11 +725,11 @@ WASM_EXEC_TEST(I64SConvertF32) {
   BUILD(r, WASM_I64_SCONVERT_F32(WASM_GET_LOCAL(0)));
 
   FOR_FLOAT32_INPUTS(i) {
-    if (*i < static_cast<float>(std::numeric_limits<int64_t>::max()) &&
-        *i >= static_cast<float>(std::numeric_limits<int64_t>::min())) {
-      CHECK_EQ(static_cast<int64_t>(*i), r.Call(*i));
+    if (i < static_cast<float>(std::numeric_limits<int64_t>::max()) &&
+        i >= static_cast<float>(std::numeric_limits<int64_t>::min())) {
+      CHECK_EQ(static_cast<int64_t>(i), r.Call(i));
     } else {
-      CHECK_TRAP64(r.Call(*i));
+      CHECK_TRAP64(r.Call(i));
     }
   }
 }
@@ -730,17 +740,17 @@ WASM_EXEC_TEST(I64SConvertSatF32) {
   BUILD(r, WASM_I64_SCONVERT_SAT_F32(WASM_GET_LOCAL(0)));
   FOR_FLOAT32_INPUTS(i) {
     int64_t expected;
-    if (*i < static_cast<float>(std::numeric_limits<int64_t>::max()) &&
-        *i >= static_cast<float>(std::numeric_limits<int64_t>::min())) {
-      expected = static_cast<int64_t>(*i);
-    } else if (std::isnan(*i)) {
+    if (i < static_cast<float>(std::numeric_limits<int64_t>::max()) &&
+        i >= static_cast<float>(std::numeric_limits<int64_t>::min())) {
+      expected = static_cast<int64_t>(i);
+    } else if (std::isnan(i)) {
       expected = static_cast<int64_t>(0);
-    } else if (*i < 0.0) {
+    } else if (i < 0.0) {
       expected = std::numeric_limits<int64_t>::min();
     } else {
       expected = std::numeric_limits<int64_t>::max();
     }
-    int64_t found = r.Call(*i);
+    int64_t found = r.Call(i);
     CHECK_EQ(expected, found);
   }
 }
@@ -750,11 +760,11 @@ WASM_EXEC_TEST(I64SConvertF64) {
   BUILD(r, WASM_I64_SCONVERT_F64(WASM_GET_LOCAL(0)));
 
   FOR_FLOAT64_INPUTS(i) {
-    if (*i < static_cast<double>(std::numeric_limits<int64_t>::max()) &&
-        *i >= static_cast<double>(std::numeric_limits<int64_t>::min())) {
-      CHECK_EQ(static_cast<int64_t>(*i), r.Call(*i));
+    if (i < static_cast<double>(std::numeric_limits<int64_t>::max()) &&
+        i >= static_cast<double>(std::numeric_limits<int64_t>::min())) {
+      CHECK_EQ(static_cast<int64_t>(i), r.Call(i));
     } else {
-      CHECK_TRAP64(r.Call(*i));
+      CHECK_TRAP64(r.Call(i));
     }
   }
 }
@@ -765,17 +775,17 @@ WASM_EXEC_TEST(I64SConvertSatF64) {
   BUILD(r, WASM_I64_SCONVERT_SAT_F64(WASM_GET_LOCAL(0)));
   FOR_FLOAT64_INPUTS(i) {
     int64_t expected;
-    if (*i < static_cast<double>(std::numeric_limits<int64_t>::max()) &&
-        *i >= static_cast<double>(std::numeric_limits<int64_t>::min())) {
-      expected = static_cast<int64_t>(*i);
-    } else if (std::isnan(*i)) {
+    if (i < static_cast<double>(std::numeric_limits<int64_t>::max()) &&
+        i >= static_cast<double>(std::numeric_limits<int64_t>::min())) {
+      expected = static_cast<int64_t>(i);
+    } else if (std::isnan(i)) {
       expected = static_cast<int64_t>(0);
-    } else if (*i < 0.0) {
+    } else if (i < 0.0) {
       expected = std::numeric_limits<int64_t>::min();
     } else {
       expected = std::numeric_limits<int64_t>::max();
     }
-    int64_t found = r.Call(*i);
+    int64_t found = r.Call(i);
     CHECK_EQ(expected, found);
   }
 }
@@ -785,11 +795,11 @@ WASM_EXEC_TEST(I64UConvertF32) {
   BUILD(r, WASM_I64_UCONVERT_F32(WASM_GET_LOCAL(0)));
 
   FOR_FLOAT32_INPUTS(i) {
-    if (*i < static_cast<float>(std::numeric_limits<uint64_t>::max()) &&
-        *i > -1) {
-      CHECK_EQ(static_cast<uint64_t>(*i), r.Call(*i));
+    if (i < static_cast<float>(std::numeric_limits<uint64_t>::max()) &&
+        i > -1) {
+      CHECK_EQ(static_cast<uint64_t>(i), r.Call(i));
     } else {
-      CHECK_TRAP64(r.Call(*i));
+      CHECK_TRAP64(r.Call(i));
     }
   }
 }
@@ -800,17 +810,17 @@ WASM_EXEC_TEST(I64UConvertSatF32) {
   BUILD(r, WASM_I64_UCONVERT_SAT_F32(WASM_GET_LOCAL(0)));
   FOR_FLOAT32_INPUTS(i) {
     uint64_t expected;
-    if (*i < static_cast<float>(std::numeric_limits<uint64_t>::max()) &&
-        *i > -1) {
-      expected = static_cast<uint64_t>(*i);
-    } else if (std::isnan(*i)) {
+    if (i < static_cast<float>(std::numeric_limits<uint64_t>::max()) &&
+        i > -1) {
+      expected = static_cast<uint64_t>(i);
+    } else if (std::isnan(i)) {
       expected = static_cast<uint64_t>(0);
-    } else if (*i < 0.0) {
+    } else if (i < 0.0) {
       expected = std::numeric_limits<uint64_t>::min();
     } else {
       expected = std::numeric_limits<uint64_t>::max();
     }
-    uint64_t found = r.Call(*i);
+    uint64_t found = r.Call(i);
     CHECK_EQ(expected, found);
   }
 }
@@ -820,11 +830,11 @@ WASM_EXEC_TEST(I64UConvertF64) {
   BUILD(r, WASM_I64_UCONVERT_F64(WASM_GET_LOCAL(0)));
 
   FOR_FLOAT64_INPUTS(i) {
-    if (*i < static_cast<float>(std::numeric_limits<uint64_t>::max()) &&
-        *i > -1) {
-      CHECK_EQ(static_cast<uint64_t>(*i), r.Call(*i));
+    if (i < static_cast<float>(std::numeric_limits<uint64_t>::max()) &&
+        i > -1) {
+      CHECK_EQ(static_cast<uint64_t>(i), r.Call(i));
     } else {
-      CHECK_TRAP64(r.Call(*i));
+      CHECK_TRAP64(r.Call(i));
     }
   }
 }
@@ -835,17 +845,17 @@ WASM_EXEC_TEST(I64UConvertSatF64) {
   BUILD(r, WASM_I64_UCONVERT_SAT_F64(WASM_GET_LOCAL(0)));
   FOR_FLOAT64_INPUTS(i) {
     int64_t expected;
-    if (*i < static_cast<float>(std::numeric_limits<uint64_t>::max()) &&
-        *i > -1) {
-      expected = static_cast<uint64_t>(*i);
-    } else if (std::isnan(*i)) {
+    if (i < static_cast<float>(std::numeric_limits<uint64_t>::max()) &&
+        i > -1) {
+      expected = static_cast<uint64_t>(i);
+    } else if (std::isnan(i)) {
       expected = static_cast<uint64_t>(0);
-    } else if (*i < 0.0) {
+    } else if (i < 0.0) {
       expected = std::numeric_limits<uint64_t>::min();
     } else {
       expected = std::numeric_limits<uint64_t>::max();
     }
-    int64_t found = r.Call(*i);
+    int64_t found = r.Call(i);
     CHECK_EQ(expected, found);
   }
 }
@@ -1107,50 +1117,50 @@ WASM_EXEC_TEST(I64Popcnt2) {
 // Test the WasmRunner with an Int64 return value and different numbers of
 // Int64 parameters.
 WASM_EXEC_TEST(I64WasmRunner) {
-  {FOR_INT64_INPUTS(i){WasmRunner<int64_t> r(execution_tier);
-  BUILD(r, WASM_I64V(*i));
-  CHECK_EQ(*i, r.Call());
-}
-}
-{
-  WasmRunner<int64_t, int64_t> r(execution_tier);
-  BUILD(r, WASM_GET_LOCAL(0));
-  FOR_INT64_INPUTS(i) { CHECK_EQ(*i, r.Call(*i)); }
-}
-{
-  WasmRunner<int64_t, int64_t, int64_t> r(execution_tier);
-  BUILD(r, WASM_I64_XOR(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   FOR_INT64_INPUTS(i) {
-    FOR_INT64_INPUTS(j) { CHECK_EQ(*i ^ *j, r.Call(*i, *j)); }
+    WasmRunner<int64_t> r(execution_tier);
+    BUILD(r, WASM_I64V(i));
+    CHECK_EQ(i, r.Call());
   }
-}
-{
-  WasmRunner<int64_t, int64_t, int64_t, int64_t> r(execution_tier);
-  BUILD(r, WASM_I64_XOR(WASM_GET_LOCAL(0),
-                        WASM_I64_XOR(WASM_GET_LOCAL(1), WASM_GET_LOCAL(2))));
-  FOR_INT64_INPUTS(i) {
-    FOR_INT64_INPUTS(j) {
-      CHECK_EQ(*i ^ *j ^ *j, r.Call(*i, *j, *j));
-      CHECK_EQ(*j ^ *i ^ *j, r.Call(*j, *i, *j));
-      CHECK_EQ(*j ^ *j ^ *i, r.Call(*j, *j, *i));
+  {
+    WasmRunner<int64_t, int64_t> r(execution_tier);
+    BUILD(r, WASM_GET_LOCAL(0));
+    FOR_INT64_INPUTS(i) { CHECK_EQ(i, r.Call(i)); }
+  }
+  {
+    WasmRunner<int64_t, int64_t, int64_t> r(execution_tier);
+    BUILD(r, WASM_I64_XOR(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+    FOR_INT64_INPUTS(i) {
+      FOR_INT64_INPUTS(j) { CHECK_EQ(i ^ j, r.Call(i, j)); }
     }
   }
-}
-{
-  WasmRunner<int64_t, int64_t, int64_t, int64_t, int64_t> r(execution_tier);
-  BUILD(r, WASM_I64_XOR(WASM_GET_LOCAL(0),
-                        WASM_I64_XOR(WASM_GET_LOCAL(1),
-                                     WASM_I64_XOR(WASM_GET_LOCAL(2),
-                                                  WASM_GET_LOCAL(3)))));
-  FOR_INT64_INPUTS(i) {
-    FOR_INT64_INPUTS(j) {
-      CHECK_EQ(*i ^ *j ^ *j ^ *j, r.Call(*i, *j, *j, *j));
-      CHECK_EQ(*j ^ *i ^ *j ^ *j, r.Call(*j, *i, *j, *j));
-      CHECK_EQ(*j ^ *j ^ *i ^ *j, r.Call(*j, *j, *i, *j));
-      CHECK_EQ(*j ^ *j ^ *j ^ *i, r.Call(*j, *j, *j, *i));
+  {
+    WasmRunner<int64_t, int64_t, int64_t, int64_t> r(execution_tier);
+    BUILD(r, WASM_I64_XOR(WASM_GET_LOCAL(0),
+                          WASM_I64_XOR(WASM_GET_LOCAL(1), WASM_GET_LOCAL(2))));
+    FOR_INT64_INPUTS(i) {
+      FOR_INT64_INPUTS(j) {
+        CHECK_EQ(i ^ j ^ j, r.Call(i, j, j));
+        CHECK_EQ(j ^ i ^ j, r.Call(j, i, j));
+        CHECK_EQ(j ^ j ^ i, r.Call(j, j, i));
+      }
     }
   }
-}
+  {
+    WasmRunner<int64_t, int64_t, int64_t, int64_t, int64_t> r(execution_tier);
+    BUILD(r, WASM_I64_XOR(WASM_GET_LOCAL(0),
+                          WASM_I64_XOR(WASM_GET_LOCAL(1),
+                                       WASM_I64_XOR(WASM_GET_LOCAL(2),
+                                                    WASM_GET_LOCAL(3)))));
+    FOR_INT64_INPUTS(i) {
+      FOR_INT64_INPUTS(j) {
+        CHECK_EQ(i ^ j ^ j ^ j, r.Call(i, j, j, j));
+        CHECK_EQ(j ^ i ^ j ^ j, r.Call(j, i, j, j));
+        CHECK_EQ(j ^ j ^ i ^ j, r.Call(j, j, i, j));
+        CHECK_EQ(j ^ j ^ j ^ i, r.Call(j, j, j, i));
+      }
+    }
+  }
 }
 
 WASM_EXEC_TEST(Call_Int64Sub) {
@@ -1164,16 +1174,9 @@ WASM_EXEC_TEST(Call_Int64Sub) {
   BUILD(r, WASM_CALL_FUNCTION(t.function_index(), WASM_GET_LOCAL(0),
                               WASM_GET_LOCAL(1)));
 
-  FOR_INT32_INPUTS(i) {
-    FOR_INT32_INPUTS(j) {
-      int64_t a = static_cast<int64_t>(*i) << 32 |
-                  (static_cast<int64_t>(*j) | 0xFFFFFFFF);
-      int64_t b = static_cast<int64_t>(*j) << 32 |
-                  (static_cast<int64_t>(*i) | 0xFFFFFFFF);
-
-      int64_t expected = static_cast<int64_t>(static_cast<uint64_t>(a) -
-                                              static_cast<uint64_t>(b));
-      CHECK_EQ(expected, r.Call(a, b));
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) {
+      CHECK_EQ(base::SubWithWraparound(i, j), r.Call(i, j));
     }
   }
 }
@@ -1209,7 +1212,8 @@ WASM_EXEC_TEST(LoadStoreI64_sx) {
       r.builder().BlankMemory();
       memory[size - 1] = static_cast<byte>(i);  // set the high order byte.
 
-      int64_t expected = static_cast<int64_t>(i) << ((size - 1) * 8);
+      int64_t expected = static_cast<uint64_t>(static_cast<int64_t>(i))
+                         << ((size - 1) * 8);
 
       CHECK_EQ(expected, r.Call());
       CHECK_EQ(static_cast<byte>(i), memory[8 + size - 1]);
@@ -1230,7 +1234,8 @@ WASM_EXEC_TEST(I64ReinterpretF64) {
                WASM_LOAD_MEM(MachineType::Float64(), WASM_ZERO)));
 
   FOR_INT32_INPUTS(i) {
-    int64_t expected = static_cast<int64_t>(*i) * 0x300010001;
+    int64_t expected =
+        base::MulWithWraparound(static_cast<int64_t>(i), int64_t{0x300010001L});
     r.builder().WriteMemory(&memory[0], expected);
     CHECK_EQ(expected, r.Call());
   }
@@ -1255,7 +1260,8 @@ WASM_EXEC_TEST(F64ReinterpretI64) {
         WASM_GET_LOCAL(0));
 
   FOR_INT32_INPUTS(i) {
-    int64_t expected = static_cast<int64_t>(*i) * 0x300010001;
+    int64_t expected =
+        base::MulWithWraparound(static_cast<int64_t>(i), int64_t{0x300010001L});
     CHECK_EQ(expected, r.Call(expected));
     CHECK_EQ(expected, r.builder().ReadMemory<int64_t>(&memory[0]));
   }
@@ -1370,8 +1376,8 @@ WASM_EXEC_TEST(I64Eqz) {
   BUILD(r, WASM_I64_EQZ(WASM_GET_LOCAL(0)));
 
   FOR_INT64_INPUTS(i) {
-    int32_t result = *i == 0 ? 1 : 0;
-    CHECK_EQ(result, r.Call(*i));
+    int32_t result = i == 0 ? 1 : 0;
+    CHECK_EQ(result, r.Call(i));
   }
 }
 
@@ -1381,8 +1387,8 @@ WASM_EXEC_TEST(I64Ror) {
 
   FOR_UINT64_INPUTS(i) {
     FOR_UINT64_INPUTS(j) {
-      int64_t expected = base::bits::RotateRight64(*i, *j & 0x3F);
-      CHECK_EQ(expected, r.Call(*i, *j));
+      int64_t expected = base::bits::RotateRight64(i, j & 0x3F);
+      CHECK_EQ(expected, r.Call(i, j));
     }
   }
 }
@@ -1393,8 +1399,8 @@ WASM_EXEC_TEST(I64Rol) {
 
   FOR_UINT64_INPUTS(i) {
     FOR_UINT64_INPUTS(j) {
-      int64_t expected = base::bits::RotateLeft64(*i, *j & 0x3F);
-      CHECK_EQ(expected, r.Call(*i, *j));
+      int64_t expected = base::bits::RotateLeft64(i, j & 0x3F);
+      CHECK_EQ(expected, r.Call(i, j));
     }
   }
 }

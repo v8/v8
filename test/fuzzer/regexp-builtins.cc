@@ -11,8 +11,8 @@
 
 #include "include/v8.h"
 #include "src/heap/factory.h"
-#include "src/objects-inl.h"
-#include "src/regexp/jsregexp.h"
+#include "src/objects/objects-inl.h"
+#include "src/regexp/regexp.h"
 #include "test/fuzzer/fuzzer-support.h"
 
 // This is a hexdump of test/fuzzer/regexp_builtins/mjsunit.js generated using
@@ -61,9 +61,8 @@ enum RegExpBuiltin {
 REGEXP_BUILTINS(CASE)
 #undef CASE
 
-v8::Local<v8::String> v8_str(const char* s) {
-  return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), s,
-                                 v8::NewStringType::kNormal)
+v8::Local<v8::String> v8_str(v8::Isolate* isolate, const char* s) {
+  return v8::String::NewFromUtf8(isolate, s, v8::NewStringType::kNormal)
       .ToLocalChecked();
 }
 
@@ -71,7 +70,7 @@ v8::MaybeLocal<v8::Value> CompileRun(v8::Local<v8::Context> context,
                                      const char* source) {
   v8::Local<v8::Script> script;
   v8::MaybeLocal<v8::Script> maybe_script =
-      v8::Script::Compile(context, v8_str(source));
+      v8::Script::Compile(context, v8_str(context->GetIsolate(), source));
 
   if (!maybe_script.ToLocal(&script)) return v8::MaybeLocal<v8::Value>();
   return script->Run(context);
@@ -242,7 +241,7 @@ std::string PickLimitForSplit(FuzzerArgs* args) {
 }
 
 std::string GenerateRandomFlags(FuzzerArgs* args) {
-  constexpr size_t kFlagCount = JSRegExp::FlagCount();
+  constexpr size_t kFlagCount = JSRegExp::kFlagCount;
   CHECK_EQ(JSRegExp::kDotAll, 1 << (kFlagCount - 1));
   STATIC_ASSERT((1 << kFlagCount) - 1 < 0xFF);
 
@@ -316,7 +315,13 @@ std::string GenerateSourceString(FuzzerArgs* args, const std::string& test) {
      << "const slow = test();\n"
      << "%SetForceSlowPath(false);\n";
   // clang-format on
-  return ss.str();
+
+  std::string source = ss.str();
+  if (kVerbose) {
+    fprintf(stderr, "Generated source:\n```\n%s\n```\n", source.c_str());
+  }
+
+  return source;
 }
 
 void PrintExceptionMessage(v8::Isolate* isolate, v8::TryCatch* try_catch) {
@@ -368,8 +373,7 @@ void CompileRunAndVerify(FuzzerArgs* args, const std::string& source) {
     uint32_t hash = StringHasher::HashSequentialString(
         args->input_data, static_cast<int>(args->input_length),
         kRegExpBuiltinsFuzzerHashSeed);
-    V8_Fatal(__FILE__, __LINE__,
-             "!ResultAreIdentical(args); RegExpBuiltinsFuzzerHash=%x", hash);
+    FATAL("!ResultAreIdentical(args); RegExpBuiltinsFuzzerHash=%x", hash);
   }
 }
 

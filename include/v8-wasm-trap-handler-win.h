@@ -6,7 +6,8 @@
 #define V8_WASM_TRAP_HANDLER_WIN_H_
 
 #include <windows.h>
-#include "include/v8config.h"
+
+#include "v8config.h"  // NOLINT(build/include)
 
 namespace v8 {
 /**

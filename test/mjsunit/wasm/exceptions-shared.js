@@ -4,7 +4,6 @@
 
 // Flags: --expose-wasm --experimental-wasm-eh
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 // Helper function to return a new exported exception with the {kSig_v_v} type
@@ -33,7 +32,9 @@ function NewExportedException() {
       .addBody([
         kExprTry, kWasmStmt,
           kExprCallFunction, fun,
-        kExprCatch, except,
+        kExprCatch,
+          kExprBrOnExn, 0, except,
+          kExprRethrow,
         kExprEnd,
       ]).exportFunc();
   let ex_obj = new Error("my exception");
@@ -65,7 +66,9 @@ function NewExportedException() {
       .addBody([
         kExprTry, kWasmStmt,
           kExprCallFunction, fun,
-        kExprCatch, except,
+        kExprCatch,
+          kExprBrOnExn, 0, except,
+          kExprRethrow,
         kExprEnd,
       ]).exportFunc();
   let ex_obj = new Error("my exception");
@@ -100,7 +103,9 @@ function NewExportedException() {
       .addBody([
         kExprTry, kWasmStmt,
           kExprCallFunction, fun,
-        kExprCatch, except1,
+        kExprCatch,
+          kExprBrOnExn, 0, except1,
+          kExprRethrow,
         kExprEnd,
       ]).exportFunc();
   let ex_obj = new Error("my exception");
@@ -139,7 +144,9 @@ function NewExportedException() {
       .addBody([
         kExprTry, kWasmStmt,
           kExprCallFunction, fun,
-        kExprCatch, except,
+        kExprCatch,
+          kExprBrOnExn, 0, except,
+          kExprRethrow,
         kExprEnd,
       ]).exportFunc();
   let ex_obj = new Error("my exception");

@@ -5,12 +5,12 @@
 #include <vector>
 
 #include "src/compiler/types.h"
+#include "src/execution/isolate.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/heap.h"
-#include "src/isolate.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/types-fuzz.h"
+#include "test/common/types-fuzz.h"
 
 namespace v8 {
 namespace internal {
@@ -25,11 +25,11 @@ static bool IsInteger(double x) {
   return nearbyint(x) == x && !i::IsMinusZero(x);  // Allows for infinities.
 }
 
-typedef uint32_t bitset;
+using bitset = uint32_t;
 
 struct Tests {
-  typedef Types::TypeVector::iterator TypeIterator;
-  typedef Types::ValueVector::iterator ValueIterator;
+  using TypeIterator = Types::TypeVector::iterator;
+  using ValueIterator = Types::ValueVector::iterator;
 
   Isolate* isolate;
   HandleScope scope;

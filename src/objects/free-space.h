@@ -6,6 +6,7 @@
 #define V8_OBJECTS_FREE_SPACE_H_
 
 #include "src/objects/heap-object.h"
+#include "torque-generated/field-offsets-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -34,17 +35,17 @@ class FreeSpace : public HeapObject {
   inline void set_next(FreeSpace next);
 
   inline static FreeSpace cast(HeapObject obj);
-  inline static FreeSpace unchecked_cast(const Object* obj);
+  inline static FreeSpace unchecked_cast(const Object obj);
 
   // Dispatched behavior.
   DECL_PRINTER(FreeSpace)
   DECL_VERIFIER(FreeSpace)
 
-  // Layout description.
-  // Size is smi tagged when it is stored.
-  static const int kSizeOffset = HeapObject::kHeaderSize;
-  static const int kNextOffset = POINTER_SIZE_ALIGN(kSizeOffset + kPointerSize);
-  static const int kSize = kNextOffset + kPointerSize;
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_FREE_SPACE_FIELDS)
+
+ private:
+  inline bool IsValid();
 
   OBJECT_CONSTRUCTORS(FreeSpace, HeapObject);
 };

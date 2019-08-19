@@ -56,13 +56,13 @@ class TestRangeBuilder {
       LifetimePosition start = LifetimePosition::FromInt(pair.first);
       LifetimePosition end = LifetimePosition::FromInt(pair.second);
       CHECK(start < end);
-      range->AddUseInterval(start, end, zone_);
+      range->AddUseInterval(start, end, zone_, FLAG_trace_turbo_alloc);
     }
     for (int pos : uses_) {
       UsePosition* use_position =
           new (zone_) UsePosition(LifetimePosition::FromInt(pos), nullptr,
                                   nullptr, UsePositionHintType::kNone);
-      range->AddUsePosition(use_position);
+      range->AddUsePosition(use_position, FLAG_trace_turbo_alloc);
     }
 
     pairs_.clear();
@@ -70,8 +70,8 @@ class TestRangeBuilder {
   }
 
  private:
-  typedef std::pair<int, int> Interval;
-  typedef std::vector<Interval> IntervalList;
+  using Interval = std::pair<int, int>;
+  using IntervalList = std::vector<Interval>;
   int id_;
   IntervalList pairs_;
   std::set<int> uses_;
@@ -129,10 +129,10 @@ TEST_F(LiveRangeUnitTest, InvalidConstruction) {
   // Build a range manually, because the builder guards against empty cases.
   TopLevelLiveRange* range =
       new (zone()) TopLevelLiveRange(1, MachineRepresentation::kTagged);
-  V8_ASSERT_DEBUG_DEATH(
-      range->AddUseInterval(LifetimePosition::FromInt(0),
-                            LifetimePosition::FromInt(0), zone()),
-      ".*");
+  V8_ASSERT_DEBUG_DEATH(range->AddUseInterval(LifetimePosition::FromInt(0),
+                                              LifetimePosition::FromInt(0),
+                                              zone(), FLAG_trace_turbo_alloc),
+                        ".*");
 }
 
 TEST_F(LiveRangeUnitTest, SplitInvalidStart) {

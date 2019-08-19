@@ -48,9 +48,6 @@
   # works as intended.
   'test-api/DisallowJavascriptExecutionScope': [FAIL],
 
-  # TODO(gc): Temporarily disabled in the GC branch.
-  'test-log/EquivalenceOfLoggingAndTraversal': [PASS, FAIL],
-
   # We do not yet shrink weak maps after they have been emptied by the GC
   'test-weakmaps/Shrinking': [FAIL],
   'test-weaksets/WeakSet_Shrinking': [FAIL],
@@ -74,23 +71,14 @@
 
   # BUG(5193). The cpu profiler tests are notoriously flaky.
   'test-profile-generator/RecordStackTraceAtStartProfiling': [SKIP],
-  'test-cpu-profiler/CollectCpuProfile': [SKIP],
-  'test-cpu-profiler/CollectCpuProfileCallerLineNumbers': [SKIP],
-  'test-cpu-profiler/CollectCpuProfileSamples': [SKIP],
   'test-cpu-profiler/CollectDeoptEvents': [SKIP],
-  'test-cpu-profiler/CpuProfileDeepStack': [SKIP],
-  'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [SKIP],
-  'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [SKIP],
-  'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
-  'test-cpu-profiler/FunctionApplySample': [SKIP],
-  'test-cpu-profiler/HotDeoptNoFrameEntry': [SKIP],
+  'test-cpu-profiler/CollectCpuProfile': [SKIP],
   'test-cpu-profiler/JsNative1JsNative2JsSample': [SKIP],
   'test-cpu-profiler/JsNativeJsRuntimeJsSample': [SKIP],
   'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [SKIP],
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
-  'test-cpu-profiler/NativeAccessorUninitializedIC': [SKIP],
+  'test-cpu-profiler/HotDeoptNoFrameEntry': [SKIP],
   'test-cpu-profiler/SampleWhenFrameIsNotSetup': [SKIP],
-  'test-cpu-profiler/TracingCpuProfiler': [SKIP],
   'test-sampler/LibSamplerCollectSample': [SKIP],
 
   # BUG(7202). The test is flaky.
@@ -118,9 +106,17 @@
   # BUG(v8:8296). Flaky OOM test.
   'test-heap/OutOfMemorySmallObjects': [SKIP],
 
+  # BUG(v8:8739). Wasm interpreter does not create proper stack traces.
+  'test-wasm-stack/RunWasmInterpreter_CollectDetailedWasmStack_WasmError': [SKIP],
+
+  # https://crbug.com/v8/8919
+  'test-platform/StackAlignment': [PASS, ['not is_clang', SKIP]],
+
   ############################################################################
   # Slow tests.
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
+  'test-heap-profiler/ManyLocalsInSharedContext': [PASS, SLOW],
+  'test-jump-table-assembler/JumpTablePatchingStress': [PASS, SLOW],
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
   'test-parsing/ObjectRestNegativeTestSlow': [PASS, ['mode == debug', SKIP]],
@@ -157,37 +153,12 @@
   'test-api/Threading*': [SKIP],
 }],  # 'arch == arm64 and simulator_run'
 
-['arch == arm64 and (mode == debug) and simulator_run', {
-
-  # Pass but take too long with the simulator in debug mode.
-  'test-api/ExternalDoubleArray': [SKIP],
-  'test-api/ExternalFloat32Array': [SKIP],
-  'test-api/ExternalFloat64Array': [SKIP],
-  'test-api/ExternalFloatArray': [SKIP],
-  'test-api/Float32Array': [SKIP],
-  'test-api/Float64Array': [SKIP],
-  'test-api/Uint8Array': [SKIP],
-}],  # 'arch == arm64 and (mode == debug) and simulator_run'
-
 ##############################################################################
 ['variant == nooptimization and (arch == arm or arch == arm64) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
   'test-cpu-profiler/MultipleIsolates': [SKIP],
-
-  # Slow but tolarable tests.
-  'test-api/FixedFloat64Array': [PASS, SLOW],
-  'test-api/FixedUint16Array': [PASS, SLOW],
-  'test-api/Int8Array': [PASS, SLOW],
-  'test-api/SharedFloat64Array': [PASS, SLOW],
-  'test-api/SharedUint16Array': [PASS, SLOW],
-  'test-api/Uint16Array': [PASS, SLOW],
 }],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
 
-##############################################################################
-# TODO(ahaas): Port multiple return values to ARM, MIPS, S390 and PPC
-['arch == s390 or arch == s390x or arch == ppc or arch == ppc64', {
-  'test-multiple-return/*': [SKIP],
-}],
 ##############################################################################
 ['asan == True', {
   # Skip tests not suitable for ASAN.
@@ -219,10 +190,18 @@
   # support.
   'test-serialize/CustomSnapshotDataBlobWithWarmup': [SKIP],
   'test-serialize/SnapshotDataBlobWithWarmup': [SKIP],
+  # Fails the embedded blob <-> Isolate verification step.
+  'test-serialize/CustomSnapshotDataBlobWithLocker': [SKIP],
 
   # https://crbug.com/v8/7763
   'test-lockers/ExtensionsRegistration': [SKIP],
 }],  # 'no_snap == True'
+
+##############################################################################
+['no_snap == True and system != windows and mode == debug', {
+  # BUG(v8:9400).
+  'test-heap/Regress615489': [SKIP],
+}], # 'no_snap == True and system != windows and mode == debug'
 
 ##############################################################################
 # TODO(machenbach): Fix application of '*'. Nosnap windows needs a separate
@@ -231,6 +210,14 @@
   # Windows doesn't support nosnap mode.
   'test-serialize/*': [SKIP],
 }],  # 'no_snap == True and system == windows'
+
+##############################################################################
+['is_full_debug', {
+  # Tests too slow in non-optimized debug mode.
+  'test-api/InternalFieldsSubclassing': [SKIP],
+  'test-cpu-profiler/Inlining2': [SKIP],
+  'test-heap/TestInternalWeakLists': [SKIP],
+}],  # 'is_full_debug'
 
 ##############################################################################
 ['byteorder == big', {
@@ -250,7 +237,7 @@
   # BUG(v8:4642).
   'test-lockers/LockAndUnlockDifferentIsolates': [PASS, NO_VARIANTS],
 
-  # BUG(v8:2999,v8:4751).
+  # BUG(v8:8744).
   'test-cpu-profiler/FunctionCallSample': [SKIP],
 
   # BUG(5920): Flaky crash.
@@ -351,6 +338,12 @@
 }],  # 'arch == mipsel or arch == mips64el or arch == mips or arch == mips64'
 
 ##############################################################################
+['arch == mips64el or arch == mipsel', {
+  # TODO(mips-team): support concurrent patching of jump table.
+  'test-jump-table-assembler/*': [SKIP],
+}],  # 'arch == mips64el or arch == mipsel'
+
+##############################################################################
 ['mips_arch_variant == r6', {
   # For MIPS[64] architecture release 6, fusion multiply-accumulate instructions
   # will cause failures on several tests that expect exact floating-point
@@ -383,14 +376,6 @@
 }],  # 'system != android and arch in [arm, arm64] and not simulator_run'
 
 ##############################################################################
-['system == aix and arch == ppc64', {
-
-  # BUG 2857
-  'test-log/EquivalenceOfLoggingAndTraversal' : [SKIP],
-
-}],  # 'system == aix and arch == ppc64'
-
-##############################################################################
 ['system == aix or (arch == ppc64 and byteorder == big)', {
 
   # TODO(ppc): Fix for platforms with function desciptors.
@@ -417,10 +402,15 @@
 ##############################################################################
 ['arch == ppc or arch == ppc64 or arch == s390 or arch == s390x', {
 
-  # TODO(ppc/s390): implement atomic operations
-  'test-run-wasm-atomics/*': [SKIP],
+  # TODO(ppc/s390): support concurrent patching of jump table
+  'test-jump-table-assembler/*': [SKIP],
 
 }],  # 'arch == ppc or arch == ppc64 or arch == s390 or arch == s390x'
+
+['arch == ppc64', {
+  # https://crbug.com/v8/8766
+  'test-bytecode-generator/WideRegisters': [SKIP],
+}],
 
 ##############################################################################
 ['variant == stress_incremental_marking', {
@@ -429,14 +419,15 @@
 
 ##############################################################################
 # The test relies on deterministic compilation.
-['variant == stress_background_compile', {
+['variant == stress_js_bg_compile_wasm_code_gc', {
   'test-compiler/DecideToPretenureDuringCompilation': [SKIP],
-}],  # variant == stress_background_compile
+}],  # variant == stress_js_bg_compile_wasm_code_gc
 
 ##############################################################################
 ['variant == no_wasm_traps', {
   'test-accessors/*': [SKIP],
   'test-api-interceptors/*': [SKIP],
+  'test-api-stack-traces/*': [SKIP],
   'test-api/*': [SKIP],
   'test-bignum-dtoa/*': [SKIP],
   'test-cpu-profiler/*': [SKIP],
@@ -465,26 +456,72 @@
 }],
 
 ##############################################################################
-['lite_mode == True', {
+# Windows stack unwinding is only supported on x64.
+['arch != x64 or system != windows', {
+  'test-stack-unwinding-x64/*': [SKIP]
+}],
 
-  # TODO(8394): First execution events don't work in lite_mode. Enable this after
-  # we fix the lite mode to track the first execution.
-  'test-log/LogFunctionEvents': [SKIP],
+##############################################################################
+['lite_mode or variant == jitless', {
 
-  # Skip tests for weak references in feedback vector.
-  'test-weak-references/WeakReferencesBasic': [SKIP],
-  'test-weak-references/WeakReferencesOldToOld': [SKIP],
-  'test-weak-references/WeakReferencesOldToNew': [SKIP],
-  'test-weak-references/WeakReferencesOldToNewScavenged': [SKIP],
-  'test-weak-references/WeakReferencesOldToCleared': [SKIP],
-  'test-weak-references/ObjectMovesBeforeClearingWeakField': [SKIP],
-  'test-weak-references/ObjectWithWeakFieldDies': [SKIP],
-  'test-weak-references/ObjectWithWeakReferencePromoted': [SKIP],
-  'test-weak-references/ObjectWithClearedWeakReferencePromoted': [SKIP],
-  'test-weak-references/WeakReferenceWriteBarrier': [SKIP],
-  'test-heap-profiler/WeakReference': [SKIP],
+  # Slow tests
+  'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [SKIP],
 
-  # Skip compiler tests that need optimizer to be enabled.
+  # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+  'test-api/WasmI32AtomicWaitCallback': [SKIP],
+  'test-api/WasmI64AtomicWaitCallback': [SKIP],
+  'test-api/WasmStreaming*': [SKIP],
+  'test-c-wasm-entry/*': [SKIP],
+  'test-jump-table-assembler/*': [SKIP],
+  'test-run-wasm-64/*': [SKIP],
+  'test-run-wasm-asmjs/*': [SKIP],
+  'test-run-wasm-atomics64/*': [SKIP],
+  'test-run-wasm-atomics/*': [SKIP],
+  'test-run-wasm-bulk-memory/*': [SKIP],
+  'test-run-wasm/*': [SKIP],
+  'test-run-wasm-exceptions/*': [SKIP],
+  'test-run-wasm-interpreter/*': [SKIP],
+  'test-run-wasm-js/*': [SKIP],
+  'test-run-wasm-module/*': [SKIP],
+  'test-run-wasm-sign-extension/*': [SKIP],
+  'test-run-wasm-simd/*': [SKIP],
+  'test-streaming-compilation/*': [SKIP],
+  'test-wasm-breakpoints/*': [SKIP],
+  'test-wasm-codegen/*': [SKIP],
+  'test-wasm-import-wrapper-cache/*': [SKIP],
+  'test-wasm-interpreter-entry/*': [SKIP],
+  'test-wasm-serialization/*': [SKIP],
+  'test-wasm-shared-engine/*': [SKIP],
+  'test-wasm-stack/*': [SKIP],
+  'test-wasm-trap-position/*': [SKIP],
+  'wasm-run-utils/*': [SKIP],
+
+  # Tests that generate code at runtime.
+  'codegen-tester/*': [SKIP],
+  'test-accessor-assembler/*': [SKIP],
+  'test-assembler-*': [SKIP],
+  'test-basic-block-profiler/*': [SKIP],
+  'test-branch-combine/*': [SKIP],
+  'test-code-assembler/*': [SKIP],
+  'test-code-generator/*': [SKIP],
+  'test-code-stub-assembler/*': [SKIP],
+  'test-js-context-specialization/*': [SKIP],
+  'test-multiple-return/*': [SKIP],
+  'test-regexp/MacroAssemblernativeAtStart': [SKIP],
+  'test-regexp/MacroAssemblerNativeBackReferenceLATIN1': [SKIP],
+  'test-regexp/MacroAssemblerNativeBackReferenceUC16': [SKIP],
+  'test-regexp/MacroAssemblerNativeBackRefNoCase': [SKIP],
+  'test-regexp/MacroAssemblerNativeBacktrack': [SKIP],
+  'test-regexp/MacroAssemblerNativeLotsOfRegisters': [SKIP],
+  'test-regexp/MacroAssemblerNativeRegisters': [SKIP],
+  'test-regexp/MacroAssemblerNativeSimple': [SKIP],
+  'test-regexp/MacroAssemblerNativeSimpleUC16': [SKIP],
+  'test-regexp/MacroAssemblerNativeSuccess': [SKIP],
+  'test-regexp/MacroAssemblerStackOverflow': [SKIP],
+  'test-regexp/Graph': [SKIP],
+  'test-run-bytecode-graph-builder/*': [SKIP],
+  'test-run-calls-to-external-references/*': [SKIP],
+  'test-run-deopt/*': [SKIP],
   'test-run-intrinsics/*': [SKIP],
   'test-run-jsbranches/*': [SKIP],
   'test-run-jscalls/*': [SKIP],
@@ -499,17 +536,78 @@
   'test-run-tail-calls/*': [SKIP],
   'test-run-unwinding-info/*': [SKIP],
   'test-run-variables/*': [SKIP],
-  'test-run-bytecode-graph-builder/*': [SKIP],
-  'test-run-deopt/*': [SKIP],
-  'test-js-context-specialization/*': [SKIP],
-  'test-code-assembler/*': [SKIP],
-  'test-code-stub-assembler/*': [SKIP],
-  'test-accessor-assembler/*': [SKIP],
   'test-torque/*': [SKIP],
-  'test-code-generator/*': [SKIP],
+  'test-macro-assembler-x64/EmbeddedObj': [SKIP],
 
-  # Slow tests
-  'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [SKIP],
-}],
+  # Field representation tracking is disabled in jitless mode.
+  'test-field-type-tracking/*': [SKIP],
+
+  # Instruction cache flushing is disabled in jitless mode.
+  'test-icache/*': [SKIP],
+}], # lite_mode or variant == jitless
+
+##############################################################################
+['lite_mode', {
+  # TODO(v8:8510): Tests that currently fail with lazy source positions.
+  'test-cpu-profiler/Inlining2': [SKIP],
+
+  # TODO(mythria): Code logging tests that currently fail with lazy feedback
+  # allocation. Fix logging to work without feedback vectors and enable these
+  # tests in lite_mode.
+  'test-log/ExternalCodeEventListenerWithInterpretedFramesNativeStack': [SKIP],
+  'test-log/LogInterpretedFramesNativeStack': [SKIP],
+  'test-log/LogInterpretedFramesNativeStackWithSerialization': [SKIP],
+  'test-serialize/CodeSerializerOnePlusOneWithInterpretedFramesNativeStack': [SKIP]
+}], # lite_mode
+
+##############################################################################
+['variant == jitless', {
+  # https://crbug.com/v8/7777
+  'serializer-tester/SerializeCallAnyReceiver': [SKIP],
+  'serializer-tester/SerializeCallArguments': [SKIP],
+  'serializer-tester/SerializeCallProperty': [SKIP],
+  'serializer-tester/SerializeCallProperty2': [SKIP],
+  'serializer-tester/SerializeCallUndefinedReceiver': [SKIP],
+  'serializer-tester/SerializeCallUndefinedReceiver2': [SKIP],
+  'serializer-tester/SerializeCallWithSpread': [SKIP],
+  'serializer-tester/SerializeConstruct': [SKIP],
+  'serializer-tester/SerializeConstructWithSpread': [SKIP],
+  'serializer-tester/SerializeInlinedClosure': [SKIP],
+  'serializer-tester/SerializeInlinedFunction': [SKIP],
+  'test-api/TurboAsmDisablesDetach': [SKIP],
+  'test-cpu-profiler/TickLinesOptimized': [SKIP],
+  'test-heap/TestOptimizeAfterBytecodeFlushingCandidate': [SKIP],
+  'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchCallDirect': [SKIP],
+  'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchCallExternal': [SKIP],
+  'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchCallIndirect': [SKIP],
+  'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchThrow': [SKIP],
+  'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchTrapTypeError': [SKIP],
+  'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchCallDirect': [SKIP],
+  'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchCallExternal': [SKIP],
+  'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchCallIndirect': [SKIP],
+  'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchThrow': [SKIP],
+  'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchTrapTypeError': [SKIP],
+  'test-run-wasm-exceptions/RunWasmTurbofan_TryCatchCallDirect': [SKIP],
+  'test-run-wasm-exceptions/RunWasmTurbofan_TryCatchCallExternal': [SKIP],
+  'test-run-wasm-exceptions/RunWasmTurbofan_TryCatchCallIndirect': [SKIP],
+  'test-run-wasm-exceptions/RunWasmTurbofan_TryCatchThrow': [SKIP],
+  'test-run-wasm-exceptions/RunWasmTurbofan_TryCatchTrapTypeError': [SKIP],
+
+  # --interpreted-frames-native-stack tests
+  'test-log/ExternalCodeEventListenerWithInterpretedFramesNativeStack': [SKIP],
+  'test-log/LogInterpretedFramesNativeStack': [SKIP],
+  'test-log/LogInterpretedFramesNativeStackWithSerialization': [SKIP],
+  'test-serialize/CodeSerializerOnePlusOneWithInterpretedFramesNativeStack': [SKIP],
+
+  # Crashes on native arm.
+  'test-macro-assembler-arm/ExtractLane': [PASS, ['arch == arm and not simulator_run', SKIP]],
+  'test-macro-assembler-arm/LoadAndStoreWithRepresentation': [PASS, ['arch == arm and not simulator_run', SKIP]],
+  'test-macro-assembler-arm/ReplaceLane': [PASS, ['arch == arm and not simulator_run', SKIP]],
+}], # variant == jitless
+
+##############################################################################
+['variant == jitless and not embedded_builtins', {
+  '*': [SKIP],
+}], # variant == jitless and not embedded_builtins
 
 ]

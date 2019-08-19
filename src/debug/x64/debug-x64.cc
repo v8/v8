@@ -6,11 +6,11 @@
 
 #include "src/debug/debug.h"
 
-#include "src/assembler.h"
+#include "src/codegen/assembler.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/debug/liveedit.h"
-#include "src/frames-inl.h"
-#include "src/macro-assembler.h"
-#include "src/objects-inl.h"
+#include "src/execution/frames-inl.h"
+#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -35,16 +35,12 @@ void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
   // - Leave the frame.
   // - Restart the frame by calling the function.
 
-  Register decompr_scratch_for_debug =
-      COMPRESS_POINTERS_BOOL ? kScratchRegister : no_reg;
-
-  __ movp(rbp, rbx);
-  __ movp(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+  __ movq(rbp, rbx);
+  __ movq(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
   __ leave();
 
   __ LoadTaggedPointerField(
-      rbx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset),
-      decompr_scratch_for_debug);
+      rbx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
   __ movzxwq(
       rbx, FieldOperand(rbx, SharedFunctionInfo::kFormalParameterCountOffset));
 

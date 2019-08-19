@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/arguments-inl.h"
-#include "src/counters.h"
-#include "src/isolate-inl.h"
-#include "src/objects-inl.h"
+#include "src/execution/arguments-inl.h"
+#include "src/execution/isolate-inl.h"
+#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
+#include "src/logging/counters.h"
+#include "src/objects/objects-inl.h"
 #include "src/runtime/runtime-utils.h"
-#include "src/string-builder-inl.h"
+#include "src/strings/string-builder-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -26,8 +27,9 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateSymbol) {
 
 RUNTIME_FUNCTION(Runtime_CreatePrivateNameSymbol) {
   HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  Handle<Symbol> symbol = isolate->factory()->NewPrivateNameSymbol();
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  Handle<Symbol> symbol = isolate->factory()->NewPrivateNameSymbol(name);
   return *symbol;
 }
 
@@ -37,7 +39,7 @@ RUNTIME_FUNCTION(Runtime_SymbolDescriptiveString) {
   CONVERT_ARG_HANDLE_CHECKED(Symbol, symbol, 0);
   IncrementalStringBuilder builder(isolate);
   builder.AppendCString("Symbol(");
-  if (symbol->name()->IsString()) {
+  if (symbol->name().IsString()) {
     builder.AppendString(handle(String::cast(symbol->name()), isolate));
   }
   builder.AppendCharacter(')');
@@ -49,7 +51,7 @@ RUNTIME_FUNCTION(Runtime_SymbolIsPrivate) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Symbol, symbol, 0);
-  return isolate->heap()->ToBoolean(symbol->is_private());
+  return isolate->heap()->ToBoolean(symbol.is_private());
 }
 }  // namespace internal
 }  // namespace v8

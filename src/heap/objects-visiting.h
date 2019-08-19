@@ -5,81 +5,69 @@
 #ifndef V8_HEAP_OBJECTS_VISITING_H_
 #define V8_HEAP_OBJECTS_VISITING_H_
 
-#include "src/allocation.h"
-#include "src/layout-descriptor.h"
-#include "src/objects-body-descriptors.h"
-#include "src/objects.h"
-#include "src/objects/hash-table.h"
-#include "src/objects/ordered-hash-table.h"
-#include "src/objects/string.h"
-#include "src/visitors.h"
+#include "src/objects/fixed-array.h"
+#include "src/objects/map.h"
+#include "src/objects/objects.h"
+#include "src/objects/visitors.h"
 
 namespace v8 {
 namespace internal {
 
-class BigInt;
-class BytecodeArray;
-class DataHandler;
-class EmbedderDataArray;
-class JSArrayBuffer;
-class JSDataView;
-class JSRegExp;
-class JSTypedArray;
-class JSWeakCell;
-class JSWeakRef;
-class JSWeakCollection;
-class NativeContext;
-class UncompiledDataWithoutPreParsedScope;
-class UncompiledDataWithPreParsedScope;
-class WasmInstanceObject;
-
-#define TYPED_VISITOR_ID_LIST(V)                                              \
-  V(AllocationSite, AllocationSite)                                           \
-  V(BigInt, BigInt)                                                           \
-  V(ByteArray, ByteArray)                                                     \
-  V(BytecodeArray, BytecodeArray)                                             \
-  V(Cell, Cell)                                                               \
-  V(Code, Code)                                                               \
-  V(CodeDataContainer, CodeDataContainer)                                     \
-  V(ConsString, ConsString)                                                   \
-  V(Context, Context)                                                         \
-  V(DataHandler, DataHandler)                                                 \
-  V(DescriptorArray, DescriptorArray)                                         \
-  V(EmbedderDataArray, EmbedderDataArray)                                     \
-  V(EphemeronHashTable, EphemeronHashTable)                                   \
-  V(FeedbackCell, FeedbackCell)                                               \
-  V(FeedbackVector, FeedbackVector)                                           \
-  V(FixedArray, FixedArray)                                                   \
-  V(FixedDoubleArray, FixedDoubleArray)                                       \
-  V(FixedFloat64Array, FixedFloat64Array)                                     \
-  V(FixedTypedArrayBase, FixedTypedArrayBase)                                 \
-  V(JSArrayBuffer, JSArrayBuffer)                                             \
-  V(JSDataView, JSDataView)                                                   \
-  V(JSObject, JSObject)                                                       \
-  V(JSTypedArray, JSTypedArray)                                               \
-  V(JSWeakCell, JSWeakCell)                                                   \
-  V(JSWeakCollection, JSWeakCollection)                                       \
-  V(JSWeakRef, JSWeakRef)                                                     \
-  V(Map, Map)                                                                 \
-  V(NativeContext, NativeContext)                                             \
-  V(Oddball, Oddball)                                                         \
-  V(PreParsedScopeData, PreParsedScopeData)                                   \
-  V(PropertyArray, PropertyArray)                                             \
-  V(PropertyCell, PropertyCell)                                               \
-  V(PrototypeInfo, PrototypeInfo)                                             \
-  V(SeqOneByteString, SeqOneByteString)                                       \
-  V(SeqTwoByteString, SeqTwoByteString)                                       \
-  V(SharedFunctionInfo, SharedFunctionInfo)                                   \
-  V(SlicedString, SlicedString)                                               \
-  V(SmallOrderedHashMap, SmallOrderedHashMap)                                 \
-  V(SmallOrderedHashSet, SmallOrderedHashSet)                                 \
-  V(SmallOrderedNameDictionary, SmallOrderedNameDictionary)                   \
-  V(Symbol, Symbol)                                                           \
-  V(ThinString, ThinString)                                                   \
-  V(TransitionArray, TransitionArray)                                         \
-  V(UncompiledDataWithoutPreParsedScope, UncompiledDataWithoutPreParsedScope) \
-  V(UncompiledDataWithPreParsedScope, UncompiledDataWithPreParsedScope)       \
+// TODO(jkummerow): Drop the duplication: V(x, x) -> V(x).
+#define TYPED_VISITOR_ID_LIST(V)                                          \
+  V(AllocationSite, AllocationSite)                                       \
+  V(BigInt, BigInt)                                                       \
+  V(ByteArray, ByteArray)                                                 \
+  V(BytecodeArray, BytecodeArray)                                         \
+  V(Cell, Cell)                                                           \
+  V(Code, Code)                                                           \
+  V(CodeDataContainer, CodeDataContainer)                                 \
+  V(ConsString, ConsString)                                               \
+  V(Context, Context)                                                     \
+  V(DataHandler, DataHandler)                                             \
+  V(DescriptorArray, DescriptorArray)                                     \
+  V(EmbedderDataArray, EmbedderDataArray)                                 \
+  V(EphemeronHashTable, EphemeronHashTable)                               \
+  V(FeedbackCell, FeedbackCell)                                           \
+  V(FeedbackVector, FeedbackVector)                                       \
+  V(FixedArray, FixedArray)                                               \
+  V(FixedDoubleArray, FixedDoubleArray)                                   \
+  V(JSArrayBuffer, JSArrayBuffer)                                         \
+  V(JSDataView, JSDataView)                                               \
+  V(JSFunction, JSFunction)                                               \
+  V(JSObject, JSObject)                                                   \
+  V(JSTypedArray, JSTypedArray)                                           \
+  V(WeakCell, WeakCell)                                                   \
+  V(JSWeakCollection, JSWeakCollection)                                   \
+  V(JSWeakRef, JSWeakRef)                                                 \
+  V(Map, Map)                                                             \
+  V(NativeContext, NativeContext)                                         \
+  V(Oddball, Oddball)                                                     \
+  V(PreparseData, PreparseData)                                           \
+  V(PropertyArray, PropertyArray)                                         \
+  V(PropertyCell, PropertyCell)                                           \
+  V(PrototypeInfo, PrototypeInfo)                                         \
+  V(SeqOneByteString, SeqOneByteString)                                   \
+  V(SeqTwoByteString, SeqTwoByteString)                                   \
+  V(SharedFunctionInfo, SharedFunctionInfo)                               \
+  V(SlicedString, SlicedString)                                           \
+  V(SmallOrderedHashMap, SmallOrderedHashMap)                             \
+  V(SmallOrderedHashSet, SmallOrderedHashSet)                             \
+  V(SmallOrderedNameDictionary, SmallOrderedNameDictionary)               \
+  V(SourceTextModule, SourceTextModule)                                   \
+  V(Symbol, Symbol)                                                       \
+  V(SyntheticModule, SyntheticModule)                                     \
+  V(ThinString, ThinString)                                               \
+  V(TransitionArray, TransitionArray)                                     \
+  V(UncompiledDataWithoutPreparseData, UncompiledDataWithoutPreparseData) \
+  V(UncompiledDataWithPreparseData, UncompiledDataWithPreparseData)       \
+  V(WasmCapiFunctionData, WasmCapiFunctionData)                           \
+  V(WasmIndirectFunctionTable, WasmIndirectFunctionTable)                 \
   V(WasmInstanceObject, WasmInstanceObject)
+
+#define FORWARD_DECLARE(TypeName, Type) class Type;
+TYPED_VISITOR_ID_LIST(FORWARD_DECLARE)
+#undef FORWARD_DECLARE
 
 // The base class for visitors that need to dispatch on object type. The default
 // behavior of all visit functions is to iterate body of the given object using
@@ -106,7 +94,7 @@ class HeapVisitor : public ObjectVisitor {
   // Guard predicate for visiting the objects map pointer separately.
   V8_INLINE bool ShouldVisitMapPointer() { return true; }
   // A callback for visiting the map pointer in the object header.
-  V8_INLINE void VisitMapPointer(HeapObject host, MapWordSlot map_slot);
+  V8_INLINE void VisitMapPointer(HeapObject host);
   // If this predicate returns false, then the heap visitor will fail
   // in default Visit implemention for subclasses of JSObject.
   V8_INLINE bool AllowDefaultJSObjectVisit() { return true; }
@@ -143,7 +131,7 @@ class NewSpaceVisitor : public HeapVisitor<int, ConcreteVisitor> {
   }
 
   int VisitSharedFunctionInfo(Map map, SharedFunctionInfo object);
-  int VisitJSWeakCell(Map map, JSWeakCell js_weak_cell);
+  int VisitWeakCell(Map map, WeakCell weak_cell);
 };
 
 class WeakObjectRetainer;
@@ -154,9 +142,9 @@ class WeakObjectRetainer;
 // pointers. The template parameter T is a WeakListVisitor that defines how to
 // access the next-element pointers.
 template <class T>
-Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer);
+Object VisitWeakList(Heap* heap, Object list, WeakObjectRetainer* retainer);
 template <class T>
-Object* VisitWeakList2(Heap* heap, Object* list, WeakObjectRetainer* retainer);
+Object VisitWeakList2(Heap* heap, Object list, WeakObjectRetainer* retainer);
 }  // namespace internal
 }  // namespace v8
 

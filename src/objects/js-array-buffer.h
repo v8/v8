@@ -32,7 +32,7 @@ class JSArrayBuffer : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(byte_length, size_t)
 
   // [backing_store]: backing memory for this array
-  DECL_ACCESSORS(backing_store, void)
+  DECL_ACCESSORS(backing_store, void*)
 
   // For non-wasm, allocation_length and allocation_base are byte_length and
   // backing_store, respectively.
@@ -52,7 +52,6 @@ class JSArrayBuffer : public JSObject {
   V(IsDetachableBit, bool, 1, _)               \
   V(WasDetachedBit, bool, 1, _)                \
   V(IsSharedBit, bool, 1, _)                   \
-  V(IsGrowableBit, bool, 1, _)                 \
   V(IsWasmMemoryBit, bool, 1, _)
   DEFINE_BIT_FIELDS(JS_ARRAY_BUFFER_BIT_FIELD_FIELDS)
 #undef JS_ARRAY_BUFFER_BIT_FIELD_FIELDS
@@ -71,13 +70,10 @@ class JSArrayBuffer : public JSObject {
   // [is_shared]: tells whether this is an ArrayBuffer or a SharedArrayBuffer.
   DECL_BOOLEAN_ACCESSORS(is_shared)
 
-  // [is_growable]: indicates whether it's possible to grow this buffer.
-  DECL_BOOLEAN_ACCESSORS(is_growable)
-
   // [is_wasm_memory]: whether the buffer is tracked by the WasmMemoryTracker.
   DECL_BOOLEAN_ACCESSORS(is_wasm_memory)
 
-  DECL_CAST2(JSArrayBuffer)
+  DECL_CAST(JSArrayBuffer)
 
   void Detach();
 
@@ -95,8 +91,9 @@ class JSArrayBuffer : public JSObject {
     bool is_wasm_memory;
   };
 
-  void FreeBackingStoreFromMainThread();
-  static void FreeBackingStore(Isolate* isolate, Allocation allocation);
+  V8_EXPORT_PRIVATE void FreeBackingStoreFromMainThread();
+  V8_EXPORT_PRIVATE static void FreeBackingStore(Isolate* isolate,
+                                                 Allocation allocation);
 
   V8_EXPORT_PRIVATE static void Setup(
       Handle<JSArrayBuffer> array_buffer, Isolate* isolate, bool is_external,
@@ -111,7 +108,7 @@ class JSArrayBuffer : public JSObject {
 
   // Returns false if array buffer contents could not be allocated.
   // In this case, |array_buffer| will not be set up.
-  static bool SetupAllocatingData(
+  V8_EXPORT_PRIVATE static bool SetupAllocatingData(
       Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
       size_t allocated_length, bool initialize = true,
       SharedFlag shared_flag = SharedFlag::kNotShared) V8_WARN_UNUSED_RESULT;
@@ -155,7 +152,7 @@ class JSArrayBufferView : public JSObject {
   // [byte_length]: length of typed array in bytes.
   DECL_PRIMITIVE_ACCESSORS(byte_length, size_t)
 
-  DECL_CAST2(JSArrayBufferView)
+  DECL_CAST(JSArrayBufferView)
 
   DECL_VERIFIER(JSArrayBufferView)
 
@@ -175,31 +172,46 @@ class JSArrayBufferView : public JSObject {
                                 JS_ARRAY_BUFFER_VIEW_FIELDS)
 #undef JS_ARRAY_BUFFER_VIEW_FIELDS
 
-  class BodyDescriptor;
+  STATIC_ASSERT(IsAligned(kByteOffsetOffset, kUIntptrSize));
+  STATIC_ASSERT(IsAligned(kByteLengthOffset, kUIntptrSize));
 
   OBJECT_CONSTRUCTORS(JSArrayBufferView, JSObject);
 };
 
 class JSTypedArray : public JSArrayBufferView {
  public:
+  // TODO(v8:4153): This should be equal to JSArrayBuffer::kMaxByteLength
+  // eventually.
+  static constexpr size_t kMaxLength = v8::TypedArray::kMaxLength;
+
   // [length]: length of typed array in elements.
-  DECL_ACCESSORS(length, Object)
-  inline size_t length_value() const;
+  DECL_PRIMITIVE_ACCESSORS(length, size_t)
+
+  // [external_pointer]: TODO(v8:4153)
+  DECL_PRIMITIVE_ACCESSORS(external_pointer, void*)
+
+  // [base_pointer]: TODO(v8:4153)
+  DECL_ACCESSORS(base_pointer, Object)
 
   // ES6 9.4.5.3
   V8_WARN_UNUSED_RESULT static Maybe<bool> DefineOwnProperty(
       Isolate* isolate, Handle<JSTypedArray> o, Handle<Object> key,
-      PropertyDescriptor* desc, ShouldThrow should_throw);
+      PropertyDescriptor* desc, Maybe<ShouldThrow> should_throw);
 
-  DECL_CAST2(JSTypedArray)
+  DECL_CAST(JSTypedArray)
 
   ExternalArrayType type();
   V8_EXPORT_PRIVATE size_t element_size();
 
-  Handle<JSArrayBuffer> GetBuffer();
+  V8_EXPORT_PRIVATE Handle<JSArrayBuffer> GetBuffer();
+
+  // Use with care: returns raw pointer into heap.
+  inline void* DataPtr();
 
   // Whether the buffer's backing store is on-heap or off-heap.
   inline bool is_on_heap() const;
+
+  static inline void* ExternalPointerForOnHeapArray();
 
   static inline MaybeHandle<JSTypedArray> Validate(Isolate* isolate,
                                                    Handle<Object> receiver,
@@ -210,42 +222,69 @@ class JSTypedArray : public JSArrayBufferView {
   DECL_VERIFIER(JSTypedArray)
 
 // Layout description.
-#define JS_TYPED_ARRAY_FIELDS(V)       \
-  /* Raw data fields. */               \
-  V(kLengthOffset, kSystemPointerSize) \
-  /* Header size. */                   \
+#define JS_TYPED_ARRAY_FIELDS(V)                \
+  /* Raw data fields. */                        \
+  V(kLengthOffset, kUIntptrSize)                \
+  V(kExternalPointerOffset, kSystemPointerSize) \
+  V(kBasePointerOffset, kTaggedSize)            \
+  /* Header size. */                            \
   V(kHeaderSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSArrayBufferView::kHeaderSize,
                                 JS_TYPED_ARRAY_FIELDS)
 #undef JS_TYPED_ARRAY_FIELDS
 
+  STATIC_ASSERT(IsAligned(kLengthOffset, kUIntptrSize));
+  STATIC_ASSERT(IsAligned(kExternalPointerOffset, kSystemPointerSize));
+
   static const int kSizeWithEmbedderFields =
       kHeaderSize +
       v8::ArrayBufferView::kEmbedderFieldCount * kEmbedderDataSlotSize;
 
+  class BodyDescriptor;
+
+#ifdef V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP
+  static constexpr size_t kMaxSizeInHeap = V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP;
+#else
+  static constexpr size_t kMaxSizeInHeap = 64;
+#endif
+
  private:
   static Handle<JSArrayBuffer> MaterializeArrayBuffer(
       Handle<JSTypedArray> typed_array);
-#ifdef VERIFY_HEAP
-  DECL_ACCESSORS(raw_length, Object)
-#endif
 
   OBJECT_CONSTRUCTORS(JSTypedArray, JSArrayBufferView);
 };
 
 class JSDataView : public JSArrayBufferView {
  public:
-  DECL_CAST2(JSDataView)
+  // [data_pointer]: pointer to the actual data.
+  DECL_PRIMITIVE_ACCESSORS(data_pointer, void*)
+
+  DECL_CAST(JSDataView)
 
   // Dispatched behavior.
   DECL_PRINTER(JSDataView)
   DECL_VERIFIER(JSDataView)
 
   // Layout description.
+#define JS_DATA_VIEW_FIELDS(V)       \
+  /* Raw data fields. */             \
+  V(kDataPointerOffset, kIntptrSize) \
+  /* Header size. */                 \
+  V(kHeaderSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSArrayBufferView::kHeaderSize,
+                                JS_DATA_VIEW_FIELDS)
+#undef JS_DATA_VIEW_FIELDS
+
+  STATIC_ASSERT(IsAligned(kDataPointerOffset, kUIntptrSize));
+
   static const int kSizeWithEmbedderFields =
       kHeaderSize +
       v8::ArrayBufferView::kEmbedderFieldCount * kEmbedderDataSlotSize;
+
+  class BodyDescriptor;
 
   OBJECT_CONSTRUCTORS(JSDataView, JSArrayBufferView);
 };

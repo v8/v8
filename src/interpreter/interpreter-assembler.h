@@ -5,13 +5,13 @@
 #ifndef V8_INTERPRETER_INTERPRETER_ASSEMBLER_H_
 #define V8_INTERPRETER_INTERPRETER_ASSEMBLER_H_
 
-#include "src/allocation.h"
 #include "src/builtins/builtins.h"
-#include "src/code-stub-assembler.h"
-#include "src/globals.h"
+#include "src/codegen/code-stub-assembler.h"
+#include "src/common/globals.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/runtime/runtime.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {
@@ -144,12 +144,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Load and untag constant at |index| in the constant pool.
   compiler::Node* LoadAndUntagConstantPoolEntry(compiler::Node* index);
 
-  // Load the FeedbackVector for the current function.
-  compiler::TNode<FeedbackVector> LoadFeedbackVector();
-
-  // Load the FeedbackVector for the current function. The returned node
-  // could be undefined.
-  compiler::Node* LoadFeedbackVectorUnchecked();
+  // Load the FeedbackVector for the current function. The retuned node could be
+  // undefined.
+  compiler::TNode<HeapObject> LoadFeedbackVector();
 
   // Increment the call count for a CALL_IC or construct call.
   // The call count is located at feedback_vector[slot_id + 1].
@@ -240,7 +237,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void UpdateInterruptBudgetOnReturn();
 
   // Returns the OSR nesting level from the bytecode header.
-  compiler::Node* LoadOSRNestingLevel();
+  compiler::Node* LoadOsrNestingLevel();
 
   // Dispatch to the bytecode.
   compiler::Node* Dispatch();
@@ -430,8 +427,6 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   bool made_call_;
   bool reloaded_frame_ptr_;
   bool bytecode_array_valid_;
-  bool disable_stack_check_across_call_;
-  compiler::Node* stack_pointer_before_call_;
 
   DISALLOW_COPY_AND_ASSIGN(InterpreterAssembler);
 };

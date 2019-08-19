@@ -29,15 +29,15 @@
 
 #include <memory>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
 #include "src/base/platform/platform.h"
-#include "src/compilation-cache.h"
-#include "src/execution.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
-#include "src/unicode-inl.h"
-#include "src/utils.h"
+#include "src/codegen/compilation-cache.h"
+#include "src/execution/execution.h"
+#include "src/execution/isolate.h"
+#include "src/objects/objects-inl.h"
+#include "src/strings/unicode-inl.h"
+#include "src/utils/utils.h"
 #include "test/cctest/cctest.h"
 
 namespace {
@@ -58,7 +58,6 @@ class DeoptimizeCodeThread : public v8::base::Thread {
     v8::Local<v8::Context> context =
         v8::Local<v8::Context>::New(isolate_, context_);
     v8::Context::Scope context_scope(context);
-    CHECK_EQ(isolate_, v8::Isolate::GetCurrent());
     // This code triggers deoptimization of some function that will be
     // used in a different thread.
     CompileRun(source_);
@@ -73,7 +72,7 @@ class DeoptimizeCodeThread : public v8::base::Thread {
 };
 
 void UnlockForDeoptimization(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = args.GetIsolate();
   // Gets the pointer to the thread that will trigger the deoptimization of the
   // code.
   DeoptimizeCodeThread* deoptimizer =
@@ -83,7 +82,7 @@ void UnlockForDeoptimization(const v8::FunctionCallbackInfo<v8::Value>& args) {
     isolate->Exit();
     v8::Unlocker unlocker(isolate);
     // Starts the deoptimizing thread.
-    deoptimizer->Start();
+    CHECK(deoptimizer->Start());
     // Waits for deoptimization to finish.
     deoptimizer->Join();
   }
@@ -94,7 +93,7 @@ void UnlockForDeoptimization(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 void UnlockForDeoptimizationIfReady(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = args.GetIsolate();
   bool* ready_to_deoptimize = reinterpret_cast<bool*>(isolate->GetData(1));
   if (*ready_to_deoptimize) {
     // The test should enter here only once, so put the flag back to false.
@@ -108,7 +107,7 @@ void UnlockForDeoptimizationIfReady(
       isolate->Exit();
       v8::Unlocker unlocker(isolate);
       // Starts the thread that deoptimizes the function.
-      deoptimizer->Start();
+      CHECK(deoptimizer->Start());
       // Waits for the deoptimizing thread to finish.
       deoptimizer->Join();
     }
@@ -157,6 +156,7 @@ TEST(LazyDeoptimizationMultithread) {
         "function f() { g(); return obj.x; }"
         "function g() { if (b) { unlock_for_deoptimization(); } }"
         "%NeverOptimizeFunction(g);"
+        "%PrepareFunctionForOptimization(f);"
         "f(); f(); %OptimizeFunctionOnNextCall(f);"
         "f();");
 
@@ -212,6 +212,7 @@ TEST(LazyDeoptimizationMultithreadWithNatives) {
         "function g() { "
         "  unlock_for_deoptimization(); }"
         "%NeverOptimizeFunction(g);"
+        "%PrepareFunctionForOptimization(f);"
         "f(); f(); %OptimizeFunctionOnNextCall(f);");
 
     // Trigger the unlocking.
@@ -262,6 +263,7 @@ TEST(EagerDeoptimizationMultithread) {
     // Optimizes a function f, which will be deoptimized by another thread.
     CompileRun(
         "function f(obj) { unlock_for_deoptimization(); return obj.x; }"
+        "%PrepareFunctionForOptimization(f);"
         "f({x: 1}); f({x: 1});"
         "%OptimizeFunctionOnNextCall(f);"
         "f({x: 1});");
@@ -294,7 +296,6 @@ class KangarooThread : public v8::base::Thread {
     {
       v8::Locker locker(isolate_);
       v8::Isolate::Scope isolate_scope(isolate_);
-      CHECK_EQ(isolate_, v8::Isolate::GetCurrent());
       v8::HandleScope scope(isolate_);
       v8::Local<v8::Context> context =
           v8::Local<v8::Context>::New(isolate_, context_);
@@ -335,11 +336,10 @@ TEST(KangarooIsolates) {
     v8::HandleScope handle_scope(isolate);
     v8::Local<v8::Context> context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(context);
-    CHECK_EQ(isolate, v8::Isolate::GetCurrent());
     CompileRun("function getValue() { return 30; }");
     thread1.reset(new KangarooThread(isolate, context));
   }
-  thread1->Start();
+  CHECK(thread1->Start());
   thread1->Join();
 }
 
@@ -364,9 +364,7 @@ class JoinableThread {
 
   virtual ~JoinableThread() = default;
 
-  void Start() {
-    thread_.Start();
-  }
+  void Start() { CHECK(thread_.Start()); }
 
   void Join() {
     semaphore_.Wait();
@@ -413,7 +411,6 @@ class IsolateLockingThreadWithLocalContext : public JoinableThread {
     v8::Isolate::Scope isolate_scope(isolate_);
     v8::HandleScope handle_scope(isolate_);
     LocalContext local_context(isolate_);
-    CHECK_EQ(isolate_, v8::Isolate::GetCurrent());
     CalcFibAndCheck(local_context.local());
   }
  private:
@@ -938,32 +935,17 @@ class IsolateGenesisThread : public JoinableThread {
 TEST(ExtensionsRegistration) {
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
   const int kNThreads = 10;
-#elif V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
-  const int kNThreads = 4;
 #elif V8_TARGET_ARCH_S390 && V8_TARGET_ARCH_32_BIT
   const int kNThreads = 10;
 #else
   const int kNThreads = 40;
 #endif
-  v8::RegisterExtension(new v8::Extension("test0",
-                                          kSimpleExtensionSource));
-  v8::RegisterExtension(new v8::Extension("test1",
-                                          kSimpleExtensionSource));
-  v8::RegisterExtension(new v8::Extension("test2",
-                                          kSimpleExtensionSource));
-  v8::RegisterExtension(new v8::Extension("test3",
-                                          kSimpleExtensionSource));
-  v8::RegisterExtension(new v8::Extension("test4",
-                                          kSimpleExtensionSource));
-  v8::RegisterExtension(new v8::Extension("test5",
-                                          kSimpleExtensionSource));
-  v8::RegisterExtension(new v8::Extension("test6",
-                                          kSimpleExtensionSource));
-  v8::RegisterExtension(new v8::Extension("test7",
-                                          kSimpleExtensionSource));
-  const char* extension_names[] = { "test0", "test1",
-                                    "test2", "test3", "test4",
-                                    "test5", "test6", "test7" };
+  const char* extension_names[] = {"test0", "test1", "test2", "test3",
+                                   "test4", "test5", "test6", "test7"};
+  for (const char* name : extension_names) {
+    v8::RegisterExtension(
+        v8::base::make_unique<v8::Extension>(name, kSimpleExtensionSource));
+  }
   std::vector<JoinableThread*> threads;
   threads.reserve(kNThreads);
   for (int i = 0; i < kNThreads; i++) {

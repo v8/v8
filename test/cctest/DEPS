@@ -1,4 +1,6 @@
 include_rules = [
   "+src",
-  "+torque-generated"
+  "+tools",
+  "+torque-generated",
+  "+perfetto",
 ]

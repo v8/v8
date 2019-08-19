@@ -45,16 +45,6 @@ std::unique_ptr<v8::Platform> NewDefaultPlatform(
   return std::move(platform);
 }
 
-v8::Platform* CreateDefaultPlatform(
-    int thread_pool_size, IdleTaskSupport idle_task_support,
-    InProcessStackDumping in_process_stack_dumping,
-    v8::TracingController* tracing_controller) {
-  return NewDefaultPlatform(
-             thread_pool_size, idle_task_support, in_process_stack_dumping,
-             std::unique_ptr<v8::TracingController>(tracing_controller))
-      .release();
-}
-
 bool PumpMessageLoop(v8::Platform* platform, v8::Isolate* isolate,
                      MessageLoopBehavior behavior) {
   return static_cast<DefaultPlatform*>(platform)->PumpMessageLoop(isolate,
@@ -109,14 +99,6 @@ void DefaultPlatform::SetThreadPoolSize(int thread_pool_size) {
       std::max(std::min(thread_pool_size, kMaxThreadPoolSize), 1);
 }
 
-void DefaultPlatform::EnsureBackgroundTaskRunnerInitialized() {
-  base::MutexGuard guard(&lock_);
-  if (!worker_threads_task_runner_) {
-    worker_threads_task_runner_ =
-        std::make_shared<DefaultWorkerThreadsTaskRunner>(thread_pool_size_);
-  }
-}
-
 namespace {
 
 double DefaultTimeFunction() {
@@ -125,6 +107,17 @@ double DefaultTimeFunction() {
 }
 
 }  // namespace
+
+void DefaultPlatform::EnsureBackgroundTaskRunnerInitialized() {
+  base::MutexGuard guard(&lock_);
+  if (!worker_threads_task_runner_) {
+    worker_threads_task_runner_ =
+        std::make_shared<DefaultWorkerThreadsTaskRunner>(
+            thread_pool_size_, time_function_for_testing_
+                                   ? time_function_for_testing_
+                                   : DefaultTimeFunction);
+  }
+}
 
 void DefaultPlatform::SetTimeFunctionForTesting(
     DefaultPlatform::TimeFunction time_function) {

@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { View } from "../src/view"
-import { anyToString, ViewElements, isIterable } from "../src/util"
-import { MySelection } from "../src/selection"
+import { PhaseView } from "../src/view";
+import { anyToString, ViewElements, isIterable } from "../src/util";
+import { MySelection } from "../src/selection";
 import { SourceResolver } from "./source-resolver";
 import { SelectionBroker } from "./selection-broker";
 import { NodeSelectionHandler, BlockSelectionHandler } from "./selection-handler";
 
-export abstract class TextView extends View {
+export abstract class TextView extends PhaseView {
   selectionHandler: NodeSelectionHandler;
   blockSelectionHandler: BlockSelectionHandler;
   selection: MySelection;
@@ -25,7 +25,7 @@ export abstract class TextView extends View {
 
   constructor(id, broker) {
     super(id);
-    let view = this;
+    const view = this;
     view.textListNode = view.divNode.getElementsByTagName('ul')[0];
     view.patterns = null;
     view.nodeIdToHtmlElementsMap = new Map();
@@ -59,7 +59,7 @@ export abstract class TextView extends View {
     };
     this.selectionHandler = selectionHandler;
     broker.addNodeHandler(selectionHandler);
-    view.divNode.addEventListener('click', (e) => {
+    view.divNode.addEventListener('click', e => {
       if (!e.shiftKey) {
         view.selectionHandler.clear();
       }
@@ -136,7 +136,7 @@ export abstract class TextView extends View {
         element.classList.toggle("selected", isSelected);
       }
     }
-    const elementsToSelect = view.divNode.querySelectorAll(`[data-pc-offset]`)
+    const elementsToSelect = view.divNode.querySelectorAll(`[data-pc-offset]`);
     for (const el of elementsToSelect) {
       el.classList.toggle("selected", false);
     }
@@ -161,15 +161,13 @@ export abstract class TextView extends View {
   }
 
   clearText() {
-    let view = this;
-    while (view.textListNode.firstChild) {
-      view.textListNode.removeChild(view.textListNode.firstChild);
+    while (this.textListNode.firstChild) {
+      this.textListNode.removeChild(this.textListNode.firstChild);
     }
   }
 
   createFragment(text, style) {
-    let view = this;
-    let fragment = document.createElement("SPAN");
+    const fragment = document.createElement("SPAN");
 
     if (typeof style.associateData == 'function') {
       style.associateData(text, fragment);
@@ -180,26 +178,26 @@ export abstract class TextView extends View {
           fragment.classList.add(cls);
         }
       }
-      fragment.innerHTML = text;
+      fragment.innerText = text;
     }
 
     return fragment;
   }
 
   processLine(line) {
-    let view = this;
-    let result = [];
+    const view = this;
+    const result = [];
     let patternSet = 0;
     while (true) {
-      let beforeLine = line;
-      for (let pattern of view.patterns[patternSet]) {
-        let matches = line.match(pattern[0]);
+      const beforeLine = line;
+      for (const pattern of view.patterns[patternSet]) {
+        const matches = line.match(pattern[0]);
         if (matches != null) {
           if (matches[0] != '') {
-            let style = pattern[1] != null ? pattern[1] : {};
-            let text = matches[0];
+            const style = pattern[1] != null ? pattern[1] : {};
+            const text = matches[0];
             if (text != '') {
-              let fragment = view.createFragment(matches[0], style);
+              const fragment = view.createFragment(matches[0], style);
               result.push(fragment);
             }
             line = line.substr(matches[0].length);
@@ -225,15 +223,15 @@ export abstract class TextView extends View {
   }
 
   processText(text) {
-    let view = this;
-    let textLines = text.split(/[\n]/);
+    const view = this;
+    const textLines = text.split(/[\n]/);
     let lineNo = 0;
-    for (let line of textLines) {
-      let li = document.createElement("LI");
+    for (const line of textLines) {
+      const li = document.createElement("LI");
       li.className = "nolinenums";
       li.dataset.lineNo = "" + lineNo++;
-      let fragments = view.processLine(line);
-      for (let fragment of fragments) {
+      const fragments = view.processLine(line);
+      for (const fragment of fragments) {
         li.appendChild(fragment);
       }
       view.textListNode.appendChild(li);
@@ -241,13 +239,12 @@ export abstract class TextView extends View {
   }
 
   initializeContent(data, rememberedSelection) {
-    let view = this;
-    view.clearText();
-    view.processText(data);
+    this.clearText();
+    this.processText(data);
+    this.show();
   }
 
-  deleteContent() {
-  }
+  public onresize(): void {}
 
   isScrollable() {
     return true;

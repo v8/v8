@@ -1424,6 +1424,30 @@ Running test: testError
     }
 }
 
+Running test: testCustomError
+'class CustomError extends Error {}; a = new CustomError(); delete a.stack; a', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : CustomError
+        description : CustomError
+        objectId : <objectId>
+        subtype : error
+        type : object
+    }
+}
+
+Running test: testCustomErrorWithMessage
+'class CustomMsgError extends Error {}; a = new CustomMsgError(); delete a.stack; a.message = 'foobar'; a', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : CustomMsgError
+        description : CustomMsgError: foobar
+        objectId : <objectId>
+        subtype : error
+        type : object
+    }
+}
+
 Running test: testProxy
 'new Proxy({}, {})', returnByValue: false, generatePreview: false
 {

@@ -9,19 +9,15 @@
 #include <vector>
 
 #include "src/base/macros.h"
-#include "src/vector.h"
+#include "src/utils/vector.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-result.h"
 
 namespace v8 {
 namespace internal {
-
-template <typename T>
-class Handle;
-class WasmModuleObject;
-
 namespace wasm {
+class NativeModule;
 
 // This class is an interface for the StreamingDecoder to start the processing
 // of the incoming module bytes.
@@ -40,7 +36,7 @@ class V8_EXPORT_PRIVATE StreamingProcessor {
 
   // Process the start of the code section. Returns true if the processing
   // finished successfully and the decoding should continue.
-  virtual bool ProcessCodeSectionHeader(size_t num_functions, uint32_t offset,
+  virtual bool ProcessCodeSectionHeader(int num_functions, uint32_t offset,
                                         std::shared_ptr<WireBytesStorage>) = 0;
 
   // Process a function body. Returns true if the processing finished
@@ -55,7 +51,7 @@ class V8_EXPORT_PRIVATE StreamingProcessor {
   // empty array is passed.
   virtual void OnFinishedStream(OwnedVector<uint8_t> bytes) = 0;
   // Report an error detected in the StreamingDecoder.
-  virtual void OnError(VoidResult result) = 0;
+  virtual void OnError(const WasmError&) = 0;
   // Report the abortion of the stream.
   virtual void OnAbort() = 0;
 
@@ -90,7 +86,8 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   // Passes previously compiled module bytes from the embedder's cache.
   bool SetCompiledModuleBytes(Vector<const uint8_t> compiled_module_bytes);
 
-  void NotifyRuntimeObjectsCreated(Handle<WasmModuleObject>);
+  void NotifyNativeModuleCreated(
+      const std::shared_ptr<NativeModule>& native_module);
 
  private:
   // TODO(ahaas): Put the whole private state of the StreamingDecoder into the
@@ -205,14 +202,14 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
                                  size_t length,
                                  Vector<const uint8_t> length_bytes);
 
-  std::unique_ptr<DecodingState> Error(VoidResult result) {
-    if (ok()) processor_->OnError(std::move(result));
+  std::unique_ptr<DecodingState> Error(const WasmError& error) {
+    if (ok()) processor_->OnError(error);
     Fail();
     return std::unique_ptr<DecodingState>(nullptr);
   }
 
   std::unique_ptr<DecodingState> Error(std::string message) {
-    return Error(VoidResult::Error(module_offset_ - 1, std::move(message)));
+    return Error(WasmError{module_offset_ - 1, std::move(message)});
   }
 
   void ProcessModuleHeader() {
@@ -230,7 +227,7 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
     }
   }
 
-  void StartCodeSection(size_t num_functions,
+  void StartCodeSection(int num_functions,
                         std::shared_ptr<WireBytesStorage> wire_bytes_storage) {
     if (!ok()) return;
     // The offset passed to {ProcessCodeSectionHeader} is an error offset and
@@ -259,14 +256,14 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
 
   uint32_t module_offset() const { return module_offset_; }
 
-  bool deserializing() const { return !compiled_module_bytes_.is_empty(); }
+  bool deserializing() const { return !compiled_module_bytes_.empty(); }
 
   std::unique_ptr<StreamingProcessor> processor_;
   std::unique_ptr<DecodingState> state_;
   std::vector<std::shared_ptr<SectionBuffer>> section_buffers_;
+  bool code_section_processed_ = false;
   uint32_t module_offset_ = 0;
   size_t total_size_ = 0;
-  uint8_t next_section_id_ = kFirstSectionInModule;
 
   // Caching support.
   ModuleCompiledCallback module_compiled_callback_ = nullptr;

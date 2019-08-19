@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/api-inl.h"
-#include "src/assembler-inl.h"
+#include "src/api/api-inl.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/trap-handler/trap-handler.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
@@ -21,16 +21,15 @@ using v8::Utils;
 
 namespace {
 
-#define CHECK_CSTREQ(exp, found)                                           \
-  do {                                                                     \
-    const char* exp_ = (exp);                                              \
-    const char* found_ = (found);                                          \
-    DCHECK_NOT_NULL(exp);                                                  \
-    if (V8_UNLIKELY(found_ == nullptr || strcmp(exp_, found_) != 0)) {     \
-      V8_Fatal(__FILE__, __LINE__,                                         \
-               "Check failed: (%s) != (%s) ('%s' vs '%s').", #exp, #found, \
-               exp_, found_ ? found_ : "<null>");                          \
-    }                                                                      \
+#define CHECK_CSTREQ(exp, found)                                              \
+  do {                                                                        \
+    const char* exp_ = (exp);                                                 \
+    const char* found_ = (found);                                             \
+    DCHECK_NOT_NULL(exp);                                                     \
+    if (V8_UNLIKELY(found_ == nullptr || strcmp(exp_, found_) != 0)) {        \
+      FATAL("Check failed: (%s) != (%s) ('%s' vs '%s').", #exp, #found, exp_, \
+            found_ ? found_ : "<null>");                                      \
+    }                                                                         \
   } while (false)
 
 struct ExceptionInfo {
@@ -84,7 +83,7 @@ WASM_EXEC_TEST(Unreachable) {
   Isolate* isolate = js_wasm_wrapper->GetIsolate();
   isolate->SetCaptureStackTraceForUncaughtExceptions(true, 10,
                                                      v8::StackTrace::kOverview);
-  Handle<Object> global(isolate->context()->global_object(), isolate);
+  Handle<Object> global(isolate->context().global_object(), isolate);
   MaybeHandle<Object> maybe_exc;
   Handle<Object> args[] = {js_wasm_wrapper};
   MaybeHandle<Object> returnObjMaybe =
@@ -94,7 +93,7 @@ WASM_EXEC_TEST(Unreachable) {
 
   // Line and column are 1-based, so add 1 for the expected wasm output.
   ExceptionInfo expected_exceptions[] = {
-      {"main", static_cast<int>(wasm_index) + 1, 2},  // --
+      {"main", static_cast<int>(wasm_index) + 1, 7},  // --
       {"callFn", 1, 24}                               // --
   };
   CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
@@ -127,7 +126,7 @@ WASM_EXEC_TEST(IllegalLoad) {
   Isolate* isolate = js_wasm_wrapper->GetIsolate();
   isolate->SetCaptureStackTraceForUncaughtExceptions(true, 10,
                                                      v8::StackTrace::kOverview);
-  Handle<Object> global(isolate->context()->global_object(), isolate);
+  Handle<Object> global(isolate->context().global_object(), isolate);
   MaybeHandle<Object> maybe_exc;
   Handle<Object> args[] = {js_wasm_wrapper};
   MaybeHandle<Object> returnObjMaybe =
@@ -137,9 +136,9 @@ WASM_EXEC_TEST(IllegalLoad) {
 
   // Line and column are 1-based, so add 1 for the expected wasm output.
   ExceptionInfo expected_exceptions[] = {
-      {"main", static_cast<int>(wasm_index_1) + 1, 8},       // --
-      {"call_main", static_cast<int>(wasm_index_2) + 1, 3},  // --
-      {"callFn", 1, 24}                                      // --
+      {"main", static_cast<int>(wasm_index_1) + 1, 13},       // --
+      {"call_main", static_cast<int>(wasm_index_2) + 1, 30},  // --
+      {"callFn", 1, 24}                                       // --
   };
   CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
                       expected_exceptions);

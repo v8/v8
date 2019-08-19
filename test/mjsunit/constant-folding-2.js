@@ -29,6 +29,7 @@
 // Flags: --allow-natives-syntax --nostress-opt --opt
 
 function test(f, iterations) {
+  %PrepareFunctionForOptimization(f);
   f();
   f();
   // Some of the tests need to learn until they stabilize.
@@ -36,6 +37,7 @@ function test(f, iterations) {
   for (let i = 0; i < n; i++) {
     %OptimizeFunctionOnNextCall(f);
     f();
+    %PrepareFunctionForOptimization(f);
   }
   // Assert that the function finally stabilized.
   assertOptimized(f);

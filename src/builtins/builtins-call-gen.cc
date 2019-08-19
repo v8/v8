@@ -6,14 +6,19 @@
 
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
-#include "src/globals.h"
-#include "src/isolate.h"
-#include "src/macro-assembler.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/common/globals.h"
+#include "src/execution/isolate.h"
+#include "src/objects/api-callbacks.h"
 #include "src/objects/arguments.h"
 #include "src/objects/property-cell.h"
+#include "src/objects/templates.h"
 
 namespace v8 {
 namespace internal {
+
+template <typename T>
+using TNode = compiler::TNode<T>;
 
 void Builtins::Generate_CallFunction_ReceiverIsNullOrUndefined(
     MacroAssembler* masm) {
@@ -146,7 +151,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
 
     TNode<Int32T> kind = LoadMapElementsKind(arguments_list_map);
 
-    GotoIf(Int32GreaterThan(kind, Int32Constant(LAST_FAST_ELEMENTS_KIND)),
+    GotoIf(IsElementsKindGreaterThan(kind, LAST_FROZEN_ELEMENTS_KIND),
            &if_runtime);
     Branch(Word32And(kind, Int32Constant(1)), &if_holey_array, &if_done);
   }
@@ -301,11 +306,13 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
     var_elements = LoadElements(spread_array);
 
     // Check elements kind of {spread}.
-    GotoIf(Int32LessThan(spread_kind, Int32Constant(PACKED_DOUBLE_ELEMENTS)),
+    GotoIf(IsElementsKindLessThanOrEqual(spread_kind, HOLEY_ELEMENTS),
            &if_smiorobject);
+    GotoIf(IsElementsKindLessThanOrEqual(spread_kind, LAST_FAST_ELEMENTS_KIND),
+           &if_double);
     Branch(
-        Int32GreaterThan(spread_kind, Int32Constant(LAST_FAST_ELEMENTS_KIND)),
-        &if_generic, &if_double);
+        IsElementsKindLessThanOrEqual(spread_kind, LAST_FROZEN_ELEMENTS_KIND),
+        &if_smiorobject, &if_generic);
   }
 
   BIND(&if_generic);
@@ -371,6 +378,223 @@ TF_BUILTIN(CallWithSpread, CallOrConstructBuiltinsAssembler) {
       UncheckedCast<Int32T>(Parameter(Descriptor::kArgumentsCount));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   CallOrConstructWithSpread(target, new_target, spread, args_count, context);
+}
+
+TNode<JSReceiver> CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
+    TNode<JSReceiver> receiver, TNode<HeapObject> signature,
+    TNode<Context> context) {
+  // Walk up the hidden prototype chain to find the compatible holder
+  // for the {signature}, starting with the {receiver} itself.
+  //
+  // Be careful, these loops are hand-tuned for (close to) ideal CSA
+  // code generation. Especially the sharing of the {var_template}
+  // below is intentional (even though it reads a bit funny in the
+  // first loop).
+  TVARIABLE(HeapObject, var_holder, receiver);
+  Label holder_loop(this, &var_holder), holder_found(this, &var_holder),
+      holder_next(this, Label::kDeferred);
+  Goto(&holder_loop);
+  BIND(&holder_loop);
+  {
+    // Find the template to compare against the {signature}. We don't
+    // bother checking that the template is a FunctionTemplateInfo here,
+    // but instead do that as part of the template loop below. The only
+    // thing we care about is that the template is actually a HeapObject.
+    TNode<HeapObject> holder = var_holder.value();
+    TVARIABLE(HeapObject, var_template, LoadMap(holder));
+    Label template_map_loop(this, &var_template),
+        template_loop(this, &var_template),
+        template_from_closure(this, &var_template);
+    Goto(&template_map_loop);
+    BIND(&template_map_loop);
+    {
+      // Load the constructor field from the current map (in the
+      // {var_template} variable), and see if that is a HeapObject.
+      // If it's a Smi then it is non-instance prototype on some
+      // initial map, which cannot be the case for API instances.
+      TNode<Object> constructor = LoadObjectField(
+          var_template.value(), Map::kConstructorOrBackPointerOffset);
+      GotoIf(TaggedIsSmi(constructor), &holder_next);
+
+      // Now there are three cases for {constructor} that we care
+      // about here:
+      //
+      //  1. {constructor} is a JSFunction, and we can load the template
+      //     from its SharedFunctionInfo::function_data field (which
+      //     may not actually be a FunctionTemplateInfo).
+      //  2. {constructor} is a Map, in which case it's not a constructor
+      //     but a back-pointer and we follow that.
+      //  3. {constructor} is a FunctionTemplateInfo (or some other
+      //     HeapObject), in which case we can directly use that for
+      //     the template loop below (non-FunctionTemplateInfo objects
+      //     will be ruled out there).
+      //
+      var_template = CAST(constructor);
+      TNode<Int32T> template_type = LoadInstanceType(var_template.value());
+      GotoIf(InstanceTypeEqual(template_type, JS_FUNCTION_TYPE),
+             &template_from_closure);
+      Branch(InstanceTypeEqual(template_type, MAP_TYPE), &template_map_loop,
+             &template_loop);
+    }
+
+    BIND(&template_from_closure);
+    {
+      // The first case from above, where we load the template from the
+      // SharedFunctionInfo of the closure. We only check that the
+      // SharedFunctionInfo::function_data is a HeapObject and blindly
+      // use that as a template, since a non-FunctionTemplateInfo objects
+      // will be ruled out automatically by the template loop below.
+      TNode<SharedFunctionInfo> template_shared =
+          LoadObjectField<SharedFunctionInfo>(
+              var_template.value(), JSFunction::kSharedFunctionInfoOffset);
+      TNode<Object> template_data = LoadObjectField(
+          template_shared, SharedFunctionInfo::kFunctionDataOffset);
+      GotoIf(TaggedIsSmi(template_data), &holder_next);
+      var_template = CAST(template_data);
+      Goto(&template_loop);
+    }
+
+    BIND(&template_loop);
+    {
+      // This loop compares the template to the expected {signature},
+      // following the chain of parent templates until it hits the
+      // end, in which case we continue with the next holder (the
+      // hidden prototype) if there's any.
+      TNode<HeapObject> current = var_template.value();
+      GotoIf(WordEqual(current, signature), &holder_found);
+
+      GotoIfNot(IsFunctionTemplateInfoMap(LoadMap(current)), &holder_next);
+
+      TNode<HeapObject> current_rare = LoadObjectField<HeapObject>(
+          current, FunctionTemplateInfo::kFunctionTemplateRareDataOffset);
+      GotoIf(IsUndefined(current_rare), &holder_next);
+      var_template = LoadObjectField<HeapObject>(
+          current_rare, FunctionTemplateRareData::kParentTemplateOffset);
+      Goto(&template_loop);
+    }
+
+    BIND(&holder_next);
+    {
+      // Continue with the hidden prototype of the {holder} if it is a
+      // JSGlobalProxy (the hidden prototype can either be null or a
+      // JSObject in that case), or throw an illegal invocation exception,
+      // since the receiver did not pass the {signature} check.
+      TNode<Map> holder_map = LoadMap(holder);
+      var_holder = LoadMapPrototype(holder_map);
+      GotoIf(IsJSGlobalProxyMap(holder_map), &holder_loop);
+      ThrowTypeError(context, MessageTemplate::kIllegalInvocation);
+    }
+  }
+
+  BIND(&holder_found);
+  return CAST(var_holder.value());
+}
+
+// This calls an API callback by passing a {FunctionTemplateInfo},
+// does appropriate access and compatible receiver checks.
+void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
+    CallFunctionTemplateMode mode,
+    TNode<FunctionTemplateInfo> function_template_info, TNode<IntPtrT> argc,
+    TNode<Context> context) {
+  CodeStubArguments args(this, argc);
+  Label throw_illegal_invocation(this, Label::kDeferred);
+
+  // For API callbacks the receiver is always a JSReceiver (since
+  // they are treated like sloppy mode functions). We might need
+  // to perform access checks in the current {context}, depending
+  // on whether the "needs access check" bit is set on the receiver
+  // _and_ the {function_template_info} doesn't have the "accepts
+  // any receiver" bit set.
+  TNode<JSReceiver> receiver = CAST(args.GetReceiver());
+  if (mode == CallFunctionTemplateMode::kCheckAccess ||
+      mode == CallFunctionTemplateMode::kCheckAccessAndCompatibleReceiver) {
+    TNode<Map> receiver_map = LoadMap(receiver);
+    Label receiver_needs_access_check(this, Label::kDeferred),
+        receiver_done(this);
+    GotoIfNot(
+        IsSetWord32<Map::IsAccessCheckNeededBit>(LoadMapBitField(receiver_map)),
+        &receiver_done);
+    TNode<WordT> function_template_info_flags = LoadAndUntagObjectField(
+        function_template_info, FunctionTemplateInfo::kFlagOffset);
+    Branch(IsSetWord(function_template_info_flags,
+                     1 << FunctionTemplateInfo::kAcceptAnyReceiver),
+           &receiver_done, &receiver_needs_access_check);
+
+    BIND(&receiver_needs_access_check);
+    {
+      CallRuntime(Runtime::kAccessCheck, context, receiver);
+      Goto(&receiver_done);
+    }
+
+    BIND(&receiver_done);
+  }
+
+  // Figure out the API holder for the {receiver} depending on the
+  // {mode} and the signature on the {function_template_info}.
+  TNode<JSReceiver> holder;
+  if (mode == CallFunctionTemplateMode::kCheckAccess) {
+    // We did the access check (including the ToObject) above, so
+    // {receiver} is a JSReceiver at this point, and we don't need
+    // to perform any "compatible receiver check", so {holder} is
+    // actually the {receiver}.
+    holder = receiver;
+  } else {
+    // If the {function_template_info} doesn't specify any signature, we
+    // just use the receiver as the holder for the API callback, otherwise
+    // we need to look for a compatible holder in the receiver's hidden
+    // prototype chain.
+    TNode<HeapObject> signature = LoadObjectField<HeapObject>(
+        function_template_info, FunctionTemplateInfo::kSignatureOffset);
+    holder = Select<JSReceiver>(
+        IsUndefined(signature),  // --
+        [&]() { return receiver; },
+        [&]() { return GetCompatibleReceiver(receiver, signature, context); });
+  }
+
+  // Perform the actual API callback invocation via CallApiCallback.
+  TNode<CallHandlerInfo> call_handler_info = LoadObjectField<CallHandlerInfo>(
+      function_template_info, FunctionTemplateInfo::kCallCodeOffset);
+  TNode<Foreign> foreign = LoadObjectField<Foreign>(
+      call_handler_info, CallHandlerInfo::kJsCallbackOffset);
+  TNode<RawPtrT> callback =
+      LoadObjectField<RawPtrT>(foreign, Foreign::kForeignAddressOffset);
+  TNode<Object> call_data =
+      LoadObjectField<Object>(call_handler_info, CallHandlerInfo::kDataOffset);
+  TailCallStub(CodeFactory::CallApiCallback(isolate()), context, callback, argc,
+               call_data, holder);
+}
+
+TF_BUILTIN(CallFunctionTemplate_CheckAccess, CallOrConstructBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<FunctionTemplateInfo> function_template_info =
+      CAST(Parameter(Descriptor::kFunctionTemplateInfo));
+  TNode<IntPtrT> argc =
+      UncheckedCast<IntPtrT>(Parameter(Descriptor::kArgumentsCount));
+  CallFunctionTemplate(CallFunctionTemplateMode::kCheckAccess,
+                       function_template_info, argc, context);
+}
+
+TF_BUILTIN(CallFunctionTemplate_CheckCompatibleReceiver,
+           CallOrConstructBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<FunctionTemplateInfo> function_template_info =
+      CAST(Parameter(Descriptor::kFunctionTemplateInfo));
+  TNode<IntPtrT> argc =
+      UncheckedCast<IntPtrT>(Parameter(Descriptor::kArgumentsCount));
+  CallFunctionTemplate(CallFunctionTemplateMode::kCheckCompatibleReceiver,
+                       function_template_info, argc, context);
+}
+
+TF_BUILTIN(CallFunctionTemplate_CheckAccessAndCompatibleReceiver,
+           CallOrConstructBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<FunctionTemplateInfo> function_template_info =
+      CAST(Parameter(Descriptor::kFunctionTemplateInfo));
+  TNode<IntPtrT> argc =
+      UncheckedCast<IntPtrT>(Parameter(Descriptor::kArgumentsCount));
+  CallFunctionTemplate(
+      CallFunctionTemplateMode::kCheckAccessAndCompatibleReceiver,
+      function_template_info, argc, context);
 }
 
 }  // namespace internal

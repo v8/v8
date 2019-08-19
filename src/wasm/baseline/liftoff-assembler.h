@@ -10,9 +10,9 @@
 
 #include "src/base/bits.h"
 #include "src/base/small-vector.h"
-#include "src/frames.h"
-#include "src/macro-assembler.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/wasm/baseline/liftoff-assembler-defs.h"
+#include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/baseline/liftoff-register.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
@@ -40,7 +40,7 @@ class LiftoffAssembler : public TurboAssembler {
 
   class VarState {
    public:
-    enum Location : uint8_t { kStack, kRegister, KIntConst };
+    enum Location : uint8_t { kStack, kRegister, kIntConst };
 
     explicit VarState(ValueType type) : loc_(kStack), type_(type) {}
     explicit VarState(ValueType type, LiftoffRegister r)
@@ -48,7 +48,7 @@ class LiftoffAssembler : public TurboAssembler {
       DCHECK_EQ(r.reg_class(), reg_class_for(type));
     }
     explicit VarState(ValueType type, int32_t i32_const)
-        : loc_(KIntConst), type_(type), i32_const_(i32_const) {
+        : loc_(kIntConst), type_(type), i32_const_(i32_const) {
       DCHECK(type_ == kWasmI32 || type_ == kWasmI64);
     }
 
@@ -60,7 +60,7 @@ class LiftoffAssembler : public TurboAssembler {
           return true;
         case kRegister:
           return reg_ == other.reg_;
-        case KIntConst:
+        case kIntConst:
           return i32_const_ == other.i32_const_;
       }
       UNREACHABLE();
@@ -70,19 +70,19 @@ class LiftoffAssembler : public TurboAssembler {
     bool is_gp_reg() const { return loc_ == kRegister && reg_.is_gp(); }
     bool is_fp_reg() const { return loc_ == kRegister && reg_.is_fp(); }
     bool is_reg() const { return loc_ == kRegister; }
-    bool is_const() const { return loc_ == KIntConst; }
+    bool is_const() const { return loc_ == kIntConst; }
 
     ValueType type() const { return type_; }
 
     Location loc() const { return loc_; }
 
     int32_t i32_const() const {
-      DCHECK_EQ(loc_, KIntConst);
+      DCHECK_EQ(loc_, kIntConst);
       return i32_const_;
     }
     WasmValue constant() const {
       DCHECK(type_ == kWasmI32 || type_ == kWasmI64);
-      DCHECK_EQ(loc_, KIntConst);
+      DCHECK_EQ(loc_, kIntConst);
       return type_ == kWasmI32 ? WasmValue(i32_const_)
                                : WasmValue(int64_t{i32_const_});
     }
@@ -105,7 +105,7 @@ class LiftoffAssembler : public TurboAssembler {
 
     union {
       LiftoffRegister reg_;  // used if loc_ == kRegister
-      int32_t i32_const_;    // used if loc_ == KIntConst
+      int32_t i32_const_;    // used if loc_ == kIntConst
     };
   };
 
@@ -247,7 +247,7 @@ class LiftoffAssembler : public TurboAssembler {
     CacheState(const CacheState&) = delete;
   };
 
-  LiftoffAssembler();
+  explicit LiftoffAssembler(std::unique_ptr<AssemblerBuffer>);
   ~LiftoffAssembler() override;
 
   LiftoffRegister PopToRegister(LiftoffRegList pinned = {});
@@ -384,12 +384,12 @@ class LiftoffAssembler : public TurboAssembler {
   inline void Spill(uint32_t index, WasmValue);
   inline void Fill(LiftoffRegister, uint32_t index, ValueType);
   // Only used on 32-bit systems: Fill a register from a "half stack slot", i.e.
-  // 4 bytes on the stack holding half of a 64-bit value. The two half_indexes
-  // corresponding to slot {index} are {2*index} and {2*index-1}.
-  inline void FillI64Half(Register, uint32_t half_index);
+  // 4 bytes on the stack holding half of a 64-bit value.
+  inline void FillI64Half(Register, uint32_t index, RegPairHalf);
 
   // i32 binops.
   inline void emit_i32_add(Register dst, Register lhs, Register rhs);
+  inline void emit_i32_add(Register dst, Register lhs, int32_t imm);
   inline void emit_i32_sub(Register dst, Register lhs, Register rhs);
   inline void emit_i32_mul(Register dst, Register lhs, Register rhs);
   inline void emit_i32_divs(Register dst, Register lhs, Register rhs,
@@ -402,8 +402,11 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_i32_remu(Register dst, Register lhs, Register rhs,
                             Label* trap_rem_by_zero);
   inline void emit_i32_and(Register dst, Register lhs, Register rhs);
+  inline void emit_i32_and(Register dst, Register lhs, int32_t imm);
   inline void emit_i32_or(Register dst, Register lhs, Register rhs);
+  inline void emit_i32_or(Register dst, Register lhs, int32_t imm);
   inline void emit_i32_xor(Register dst, Register lhs, Register rhs);
+  inline void emit_i32_xor(Register dst, Register lhs, int32_t imm);
   inline void emit_i32_shl(Register dst, Register src, Register amount,
                            LiftoffRegList pinned = {});
   inline void emit_i32_sar(Register dst, Register src, Register amount,
@@ -420,6 +423,8 @@ class LiftoffAssembler : public TurboAssembler {
   // i64 binops.
   inline void emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
                            LiftoffRegister rhs);
+  inline void emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
+                           int32_t imm);
   inline void emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,
                            LiftoffRegister rhs);
   inline void emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
@@ -435,10 +440,16 @@ class LiftoffAssembler : public TurboAssembler {
                             LiftoffRegister rhs, Label* trap_rem_by_zero);
   inline void emit_i64_and(LiftoffRegister dst, LiftoffRegister lhs,
                            LiftoffRegister rhs);
+  inline void emit_i64_and(LiftoffRegister dst, LiftoffRegister lhs,
+                           int32_t imm);
   inline void emit_i64_or(LiftoffRegister dst, LiftoffRegister lhs,
                           LiftoffRegister rhs);
+  inline void emit_i64_or(LiftoffRegister dst, LiftoffRegister lhs,
+                          int32_t imm);
   inline void emit_i64_xor(LiftoffRegister dst, LiftoffRegister lhs,
                            LiftoffRegister rhs);
+  inline void emit_i64_xor(LiftoffRegister dst, LiftoffRegister lhs,
+                           int32_t imm);
   inline void emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
                            Register amount, LiftoffRegList pinned = {});
   inline void emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
@@ -479,6 +490,14 @@ class LiftoffAssembler : public TurboAssembler {
       emit_i64_shr(LiftoffRegister(dst), LiftoffRegister(src), amount);
     } else {
       emit_i32_shr(dst, src, amount);
+    }
+  }
+
+  inline void emit_ptrsize_add(Register dst, Register lhs, int32_t imm) {
+    if (kSystemPointerSize == 8) {
+      emit_i64_add(LiftoffRegister(dst), LiftoffRegister(lhs), imm);
+    } else {
+      emit_i32_add(dst, lhs, imm);
     }
   }
 
@@ -616,13 +635,16 @@ class LiftoffAssembler : public TurboAssembler {
   CacheState* cache_state() { return &cache_state_; }
   const CacheState* cache_state() const { return &cache_state_; }
 
-  bool did_bailout() { return bailout_reason_ != nullptr; }
-  const char* bailout_reason() const { return bailout_reason_; }
+  bool did_bailout() { return bailout_reason_ != kSuccess; }
+  LiftoffBailoutReason bailout_reason() const { return bailout_reason_; }
+  const char* bailout_detail() const { return bailout_detail_; }
 
-  void bailout(const char* reason) {
-    if (bailout_reason_ != nullptr) return;
+  void bailout(LiftoffBailoutReason reason, const char* detail) {
+    DCHECK_NE(kSuccess, reason);
+    if (bailout_reason_ != kSuccess) return;
     AbortCompilation();
     bailout_reason_ = reason;
+    bailout_detail_ = detail;
   }
 
  private:
@@ -636,7 +658,8 @@ class LiftoffAssembler : public TurboAssembler {
                 "Reconsider this inlining if ValueType gets bigger");
   CacheState cache_state_;
   uint32_t num_used_spill_slots_ = 0;
-  const char* bailout_reason_ = nullptr;
+  LiftoffBailoutReason bailout_reason_ = kSuccess;
+  const char* bailout_detail_ = nullptr;
 
   LiftoffRegister SpillOneRegister(LiftoffRegList candidates,
                                    LiftoffRegList pinned);
@@ -676,6 +699,34 @@ void EmitI64IndependentHalfOperation(LiftoffAssembler* assm,
   (assm->*op)(dst.high_gp(), lhs.high_gp(), rhs.high_gp());
   assm->Move(dst.low_gp(), tmp, kWasmI32);
 }
+
+template <void (LiftoffAssembler::*op)(Register, Register, int32_t)>
+void EmitI64IndependentHalfOperationImm(LiftoffAssembler* assm,
+                                        LiftoffRegister dst,
+                                        LiftoffRegister lhs, int32_t imm) {
+  // Top half of the immediate sign extended, either 0 or -1.
+  int32_t sign_extend = imm < 0 ? -1 : 0;
+  // If {dst.low_gp()} does not overlap with {lhs.high_gp()},
+  // just first compute the lower half, then the upper half.
+  if (dst.low() != lhs.high()) {
+    (assm->*op)(dst.low_gp(), lhs.low_gp(), imm);
+    (assm->*op)(dst.high_gp(), lhs.high_gp(), sign_extend);
+    return;
+  }
+  // If {dst.high_gp()} does not overlap with {lhs.low_gp()},
+  // we can compute this the other way around.
+  if (dst.high() != lhs.low()) {
+    (assm->*op)(dst.high_gp(), lhs.high_gp(), sign_extend);
+    (assm->*op)(dst.low_gp(), lhs.low_gp(), imm);
+    return;
+  }
+  // Otherwise, we need a temporary register.
+  Register tmp =
+      assm->GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(lhs)).gp();
+  (assm->*op)(tmp, lhs.low_gp(), imm);
+  (assm->*op)(dst.high_gp(), lhs.high_gp(), sign_extend);
+  assm->Move(dst.low_gp(), tmp, kWasmI32);
+}
 }  // namespace liftoff
 
 void LiftoffAssembler::emit_i64_and(LiftoffRegister dst, LiftoffRegister lhs,
@@ -684,16 +735,34 @@ void LiftoffAssembler::emit_i64_and(LiftoffRegister dst, LiftoffRegister lhs,
       this, dst, lhs, rhs);
 }
 
+void LiftoffAssembler::emit_i64_and(LiftoffRegister dst, LiftoffRegister lhs,
+                                    int32_t imm) {
+  liftoff::EmitI64IndependentHalfOperationImm<&LiftoffAssembler::emit_i32_and>(
+      this, dst, lhs, imm);
+}
+
 void LiftoffAssembler::emit_i64_or(LiftoffRegister dst, LiftoffRegister lhs,
                                    LiftoffRegister rhs) {
   liftoff::EmitI64IndependentHalfOperation<&LiftoffAssembler::emit_i32_or>(
       this, dst, lhs, rhs);
 }
 
+void LiftoffAssembler::emit_i64_or(LiftoffRegister dst, LiftoffRegister lhs,
+                                   int32_t imm) {
+  liftoff::EmitI64IndependentHalfOperationImm<&LiftoffAssembler::emit_i32_or>(
+      this, dst, lhs, imm);
+}
+
 void LiftoffAssembler::emit_i64_xor(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
   liftoff::EmitI64IndependentHalfOperation<&LiftoffAssembler::emit_i32_xor>(
       this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i64_xor(LiftoffRegister dst, LiftoffRegister lhs,
+                                    int32_t imm) {
+  liftoff::EmitI64IndependentHalfOperationImm<&LiftoffAssembler::emit_i32_xor>(
+      this, dst, lhs, imm);
 }
 
 #endif  // V8_TARGET_ARCH_32_BIT

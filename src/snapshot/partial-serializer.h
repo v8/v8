@@ -5,16 +5,16 @@
 #ifndef V8_SNAPSHOT_PARTIAL_SERIALIZER_H_
 #define V8_SNAPSHOT_PARTIAL_SERIALIZER_H_
 
-#include "src/address-map.h"
-#include "src/contexts.h"
+#include "src/objects/contexts.h"
 #include "src/snapshot/serializer.h"
+#include "src/utils/address-map.h"
 
 namespace v8 {
 namespace internal {
 
 class StartupSerializer;
 
-class PartialSerializer : public Serializer {
+class V8_EXPORT_PRIVATE PartialSerializer : public Serializer {
  public:
   PartialSerializer(Isolate* isolate, StartupSerializer* startup_serializer,
                     v8::SerializeEmbedderFieldsCallback callback);
@@ -27,13 +27,11 @@ class PartialSerializer : public Serializer {
   bool can_be_rehashed() const { return can_be_rehashed_; }
 
  private:
-  void SerializeObject(HeapObject o, HowToCode how_to_code,
-                       WhereToPoint where_to_point, int skip) override;
+  void SerializeObject(HeapObject o) override;
 
   bool ShouldBeInThePartialSnapshotCache(HeapObject o);
 
-  bool SerializeJSObjectWithEmbedderFields(Object* obj, HowToCode how_to_code,
-                                           WhereToPoint where_to_point);
+  bool SerializeJSObjectWithEmbedderFields(Object obj);
 
   void CheckRehashability(HeapObject obj);
 

@@ -5,8 +5,8 @@
 #ifndef V8_OBJECTS_DEBUG_OBJECTS_H_
 #define V8_OBJECTS_DEBUG_OBJECTS_H_
 
-#include "src/objects.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/objects.h"
 #include "src/objects/struct.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -33,13 +33,13 @@ class DebugInfo : public Struct {
     kDebugExecutionMode = 1 << 5
   };
 
-  typedef base::Flags<Flag> Flags;
+  using Flags = base::Flags<Flag>;
 
   // A bitfield that lists uses of the current instance.
   DECL_INT_ACCESSORS(flags)
 
   // The shared function info for the source being debugged.
-  DECL_ACCESSORS2(shared, SharedFunctionInfo)
+  DECL_ACCESSORS(shared, SharedFunctionInfo)
 
   // Bit field containing various information collected for debugging.
   DECL_INT_ACCESSORS(debugger_hints)
@@ -92,7 +92,7 @@ class DebugInfo : public Struct {
   DECL_ACCESSORS(debug_bytecode_array, Object)
 
   // Fixed array holding status information for each active break point.
-  DECL_ACCESSORS2(break_points, FixedArray)
+  DECL_ACCESSORS(break_points, FixedArray)
 
   // Check if there is a break point at a source position.
   bool HasBreakPoint(Isolate* isolate, int source_position);
@@ -139,7 +139,7 @@ class DebugInfo : public Struct {
 
   // Id assigned to the function for debugging.
   // This could also be implemented as a weak hash table.
-  DECL_INT_ACCESSORS(debugging_id);
+  DECL_INT_ACCESSORS(debugging_id)
 
 // Bit positions in |debugger_hints|.
 #define DEBUGGER_HINTS_BIT_FIELDS(V, _)       \
@@ -162,33 +162,21 @@ class DebugInfo : public Struct {
   void ClearCoverageInfo(Isolate* isolate);
   DECL_ACCESSORS(coverage_info, Object)
 
-  DECL_CAST2(DebugInfo)
+  DECL_CAST(DebugInfo)
 
   // Dispatched behavior.
   DECL_PRINTER(DebugInfo)
   DECL_VERIFIER(DebugInfo)
 
-// Layout description.
-#define DEBUG_INFO_FIELDS(V)                   \
-  V(kSharedFunctionInfoOffset, kTaggedSize)    \
-  V(kDebuggerHintsOffset, kTaggedSize)         \
-  V(kScriptOffset, kTaggedSize)                \
-  V(kOriginalBytecodeArrayOffset, kTaggedSize) \
-  V(kDebugBytecodeArrayOffset, kTaggedSize)    \
-  V(kBreakPointsStateOffset, kTaggedSize)      \
-  V(kFlagsOffset, kTaggedSize)                 \
-  V(kCoverageInfoOffset, kTaggedSize)          \
-  /* Total size. */                            \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, DEBUG_INFO_FIELDS)
-#undef DEBUG_INFO_FIELDS
+  // Layout description.
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
+                                TORQUE_GENERATED_DEBUG_INFO_FIELDS)
 
   static const int kEstimatedNofBreakPointsInFunction = 4;
 
  private:
   // Get the break point info object for a source position.
-  Object* GetBreakPointInfo(Isolate* isolate, int source_position);
+  Object GetBreakPointInfo(Isolate* isolate, int source_position);
 
   OBJECT_CONSTRUCTORS(DebugInfo, Struct);
 };
@@ -217,7 +205,7 @@ class BreakPointInfo : public Tuple2 {
 
   int GetStatementPosition(Handle<DebugInfo> debug_info);
 
-  DECL_CAST2(BreakPointInfo)
+  DECL_CAST(BreakPointInfo)
 
   static const int kSourcePositionOffset = kValue1Offset;
   static const int kBreakPointsOffset = kValue2Offset;
@@ -242,15 +230,10 @@ class CoverageInfo : public FixedArray {
     return slot_count * kSlotIndexCount + kFirstSlotIndex;
   }
 
-  DECL_CAST2(CoverageInfo)
+  DECL_CAST(CoverageInfo)
 
   // Print debug info.
   void Print(std::unique_ptr<char[]> function_name);
-
- private:
-  static int FirstIndexForSlot(int slot_index) {
-    return kFirstSlotIndex + slot_index * kSlotIndexCount;
-  }
 
   static const int kFirstSlotIndex = 0;
 
@@ -259,7 +242,17 @@ class CoverageInfo : public FixedArray {
   static const int kSlotStartSourcePositionIndex = 0;
   static const int kSlotEndSourcePositionIndex = 1;
   static const int kSlotBlockCountIndex = 2;
-  static const int kSlotIndexCount = 3;
+  static const int kSlotPaddingIndex = 3;  // Padding to make the index count 4.
+  static const int kSlotIndexCount = 4;
+
+  static const int kSlotIndexCountLog2 = 2;
+  static const int kSlotIndexCountMask = (kSlotIndexCount - 1);
+  STATIC_ASSERT(1 << kSlotIndexCountLog2 == kSlotIndexCount);
+
+ private:
+  static int FirstIndexForSlot(int slot_index) {
+    return kFirstSlotIndex + slot_index * kSlotIndexCount;
+  }
 
   OBJECT_CONSTRUCTORS(CoverageInfo, FixedArray);
 };
@@ -268,9 +261,9 @@ class CoverageInfo : public FixedArray {
 class BreakPoint : public Tuple2 {
  public:
   DECL_INT_ACCESSORS(id)
-  DECL_ACCESSORS2(condition, String)
+  DECL_ACCESSORS(condition, String)
 
-  DECL_CAST2(BreakPoint)
+  DECL_CAST(BreakPoint)
 
   static const int kIdOffset = kValue1Offset;
   static const int kConditionOffset = kValue2Offset;

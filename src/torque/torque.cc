@@ -2,79 +2,66 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <fstream>
-#include <iostream>
-
-#include "src/torque/declarable.h"
-#include "src/torque/declaration-visitor.h"
-#include "src/torque/global-context.h"
-#include "src/torque/implementation-visitor.h"
-#include "src/torque/torque-parser.h"
-#include "src/torque/type-oracle.h"
-#include "src/torque/types.h"
-#include "src/torque/utils.h"
+#include "src/torque/source-positions.h"
+#include "src/torque/torque-compiler.h"
 
 namespace v8 {
 namespace internal {
 namespace torque {
 
+std::string ErrorPrefixFor(TorqueMessage::Kind kind) {
+  switch (kind) {
+    case TorqueMessage::Kind::kError:
+      return "Torque Error";
+    case TorqueMessage::Kind::kLint:
+      return "Lint error";
+  }
+}
+
 int WrappedMain(int argc, const char** argv) {
   std::string output_directory;
-  bool verbose = false;
-  SourceFileMap::Scope source_file_map_scope;
-  CurrentSourceFile::Scope unknown_sourcefile_scope(
-      SourceFileMap::AddSource("<unknown>"));
-  CurrentAst::Scope ast_scope;
-  LintErrorStatus::Scope lint_error_status_scope;
+  std::string v8_root;
+  std::vector<std::string> files;
 
   for (int i = 1; i < argc; ++i) {
     // Check for options
-    if (!strcmp("-o", argv[i])) {
+    if (std::string(argv[i]) == "-o") {
       output_directory = argv[++i];
-      continue;
-    }
-    if (!strcmp("-v", argv[i])) {
-      verbose = true;
-      continue;
-    }
-
-    // Otherwise it's a .tq
-    // file, parse it and
-    // remember the syntax tree
-    std::string path = argv[i];
-    SourceId source_id = SourceFileMap::AddSource(path);
-    CurrentSourceFile::Scope source_id_scope(source_id);
-    std::ifstream file_stream(path);
-    std::string file_content = {std::istreambuf_iterator<char>(file_stream),
-                                std::istreambuf_iterator<char>()};
-    ParseTorque(file_content);
-  }
-
-  GlobalContext::Scope global_context(std::move(CurrentAst::Get()));
-  if (verbose) GlobalContext::SetVerbose();
-  TypeOracle::Scope type_oracle;
-
-  if (output_directory.length() != 0) {
-    DeclarationVisitor().Visit(GlobalContext::Get().ast());
-
-    ImplementationVisitor visitor;
-    for (Namespace* n : GlobalContext::Get().GetNamespaces()) {
-      visitor.BeginNamespaceFile(n);
-    }
-
-    visitor.VisitAllDeclarables();
-
-    std::string output_header_path = output_directory;
-    output_header_path += "/builtin-definitions-from-dsl.h";
-    visitor.GenerateBuiltinDefinitions(output_header_path);
-
-    for (Namespace* n : GlobalContext::Get().GetNamespaces()) {
-      visitor.EndNamespaceFile(n);
-      visitor.GenerateImplementation(output_directory, n);
+    } else if (std::string(argv[i]) == "-v8-root") {
+      v8_root = std::string(argv[++i]);
+    } else {
+      // Otherwise it's a .tq file. Remember it for compilation.
+      files.emplace_back(argv[i]);
+      if (!StringEndsWith(files.back(), ".tq")) {
+        std::cerr << "Unexpected command-line argument \"" << files.back()
+                  << "\", expected a .tq file.\n";
+        base::OS::Abort();
+      }
     }
   }
 
-  if (LintErrorStatus::HasLintErrors()) std::abort();
+  TorqueCompilerOptions options;
+  options.output_directory = std::move(output_directory);
+  options.v8_root = std::move(v8_root);
+  options.collect_language_server_data = false;
+  options.force_assert_statements = false;
+
+  TorqueCompilerResult result = CompileTorque(files, options);
+
+  // PositionAsString requires the SourceFileMap to be set to
+  // resolve the file name. Needed to report errors and lint warnings.
+  SourceFileMap::Scope source_file_map_scope(*result.source_file_map);
+
+  for (const TorqueMessage& message : result.messages) {
+    if (message.position) {
+      std::cerr << *message.position << ": ";
+    }
+
+    std::cerr << ErrorPrefixFor(message.kind) << ": " << message.message
+              << "\n";
+  }
+
+  if (!result.messages.empty()) v8::base::OS::Abort();
 
   return 0;
 }

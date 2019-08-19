@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/constant-folding-reducer.h"
-#include "src/code-factory.h"
+#include "src/codegen/code-factory.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-graph.h"
@@ -11,7 +11,7 @@
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
-#include "src/isolate-inl.h"
+#include "src/execution/isolate-inl.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
@@ -63,9 +63,9 @@ class ConstantFoldingReducerTest : public TypedGraphTest {
  public:
   ConstantFoldingReducerTest()
       : TypedGraphTest(3),
-        broker_(isolate(), zone()),
+        broker_(isolate(), zone(), FLAG_trace_heap_broker),
         simplified_(zone()),
-        deps_(isolate(), zone()) {}
+        deps_(&broker_, zone()) {}
   ~ConstantFoldingReducerTest() override = default;
 
  protected:
@@ -75,7 +75,7 @@ class ConstantFoldingReducerTest : public TypedGraphTest {
     JSGraph jsgraph(isolate(), graph(), common(), &javascript, simplified(),
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
-    GraphReducer graph_reducer(zone(), graph());
+    GraphReducer graph_reducer(zone(), graph(), tick_counter());
     ConstantFoldingReducer reducer(&graph_reducer, &jsgraph, broker());
     return reducer.Reduce(node);
   }

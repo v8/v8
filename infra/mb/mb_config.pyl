@@ -89,10 +89,14 @@
       'V8 Linux64 TSAN - builder': 'release_x64_tsan',
       'V8 Linux - arm64 - sim - MSAN': 'release_simulate_arm64_msan',
       # Misc.
-      'V8 Linux gcc 4.8': 'release_x86_gcc',
-      'V8 Linux64 gcc 4.8 - debug': 'debug_x64_gcc',
+      'V8 Linux gcc': 'release_x86_gcc',
+      'V8 Linux64 gcc - debug': 'debug_x64_gcc',
       # FYI.
+      'V8 iOS - sim': 'release_x64_ios_simulator',
+      'V8 Linux64 - debug - perfetto - builder': 'debug_x64_perfetto',
       'V8 Linux64 - pointer compression': 'release_x64_pointer_compression',
+      'V8 Linux64 - pointer compression without dchecks':
+          'release_x64_pointer_compression_without_dchecks',
       'V8 Linux64 - arm64 - sim - pointer compression - builder':
           'release_simulate_arm64_pointer_compression',
       'V8 Linux - noembed': 'release_x86_noembed',
@@ -101,12 +105,10 @@
       'V8 Fuchsia - debug': 'debug_x64_fuchsia',
       'V8 Linux64 - cfi': 'release_x64_cfi',
       'V8 Linux64 UBSan': 'release_x64_ubsan',
-      'V8 Linux64 UBSanVptr': 'release_x64_ubsan_vptr',
       'V8 Linux - vtunejit': 'debug_x86_vtunejit',
       'V8 Linux64 - gcov coverage': 'release_x64_gcc_coverage',
       'V8 Linux - predictable': 'release_x86_predictable',
       'V8 Linux - full debug': 'full_debug_x86',
-      'V8 Linux - interpreted regexp': 'release_x86_interpreted_regexp',
       'V8 Random Deopt Fuzzer - debug': 'debug_x64',
     },
     'client.v8.clusterfuzz': {
@@ -138,8 +140,8 @@
       'V8 Clusterfuzz Linux MSAN chained origins':
           'release_simulate_arm64_msan_edge',
       'V8 Clusterfuzz Linux64 TSAN - release builder': 'release_x64_tsan',
-      'V8 Clusterfuzz Linux64 UBSanVptr - release builder':
-          'release_x64_ubsan_vptr_recover_edge',
+      'V8 Clusterfuzz Linux64 UBSan - release builder':
+          'release_x64_ubsan_recover_edge',
     },
     'client.v8.ports': {
       # Arm.
@@ -153,6 +155,7 @@
       # Arm64.
       'V8 Android Arm64 - builder': 'release_android_arm64',
       'V8 Android Arm64 - debug builder': 'debug_android_arm64',
+      'V8 Arm64 - builder': 'release_arm64',
       'V8 Linux - arm64 - sim': 'release_simulate_arm64',
       'V8 Linux - arm64 - sim - debug': 'debug_simulate_arm64',
       'V8 Linux - arm64 - sim - nosnap - debug':
@@ -193,12 +196,14 @@
       'v8_android_arm64_compile_dbg': 'debug_android_arm64',
       'v8_android_arm64_n5x_rel_ng': 'release_android_arm64',
       'v8_fuchsia_rel_ng': 'release_x64_fuchsia_trybot',
+      'v8_ios_simulator': 'release_x64_ios_simulator',
       'v8_linux_noembed_rel_ng': 'release_x86_noembed_trybot',
       'v8_linux_rel_ng': 'release_x86_gcmole_trybot',
       'v8_linux_optional_rel_ng': 'release_x86_trybot',
       'v8_linux_verify_csa_rel_ng': 'release_x86_verify_csa',
       'v8_linux_nodcheck_rel_ng': 'release_x86_minimal_symbols',
       'v8_linux_dbg_ng': 'debug_x86_trybot',
+      'v8_linux_noi18n_compile_dbg': 'debug_x86_no_i18n',
       'v8_linux_noi18n_rel_ng': 'release_x86_no_i18n_trybot',
       'v8_linux_gc_stress_dbg': 'debug_x86_trybot',
       'v8_linux_nosnap_rel': 'release_x86_no_snap_trybot',
@@ -210,9 +215,12 @@
           'release_simulate_arm64_pointer_compression',
       'v8_linux64_compile_rel_xg': 'release_x64_test_features_trybot',
       'v8_linux64_dbg_ng': 'debug_x64_trybot',
+      'v8_linux64_gc_stress_custom_snapshot_dbg_ng': 'debug_x64_trybot_custom',
       'v8_linux64_gcc_compile_dbg': 'debug_x64_gcc',
       'v8_linux64_header_includes_dbg': 'debug_x64_header_includes',
       'v8_linux64_fyi_rel_ng': 'release_x64_test_features_trybot',
+      'v8_linux64_nodcheck_rel_ng': 'release_x64',
+      'v8_linux64_perfetto_dbg_ng': 'debug_x64_perfetto',
       'v8_linux64_pointer_compression_rel_ng': 'release_x64_pointer_compression',
       'v8_linux64_rel_ng': 'release_x64_test_features_trybot',
       'v8_linux64_shared_compile_rel': 'release_x64_shared_verify_heap',
@@ -227,7 +235,7 @@
       'v8_linux64_tsan_rel': 'release_x64_tsan_minimal_symbols',
       'v8_linux64_tsan_isolates_rel_ng':
           'release_x64_tsan_minimal_symbols',
-      'v8_linux64_ubsan_rel_ng': 'release_x64_ubsan_vptr_minimal_symbols',
+      'v8_linux64_ubsan_rel_ng': 'release_x64_ubsan_minimal_symbols',
       'v8_odroid_arm_rel_ng': 'release_arm',
       # TODO(machenbach): Remove after switching to x64 on infra side.
       'v8_win_dbg': 'debug_x86_trybot',
@@ -391,6 +399,8 @@
     # Release configs for arm.
     'release_arm': [
       'release_bot', 'arm', 'hard_float'],
+    'release_arm64': [
+      'release_bot', 'arm64', 'hard_float'],
     'release_android_arm': [
       'release_bot', 'arm', 'android', 'minimal_symbols',
       'android_strip_outputs'],
@@ -432,7 +442,10 @@
     'release_x64_fuchsia_trybot': [
       'release_trybot', 'x64', 'fuchsia'],
     'release_x64_gcc_coverage': [
-      'release_bot', 'x64', 'coverage', 'gcc', 'no_custom_libcxx', 'no_sysroot'],
+      'release_bot', 'x64', 'coverage', 'gcc', 'no_custom_libcxx',
+      'no_sysroot'],
+    'release_x64_ios_simulator': [
+      'release_bot', 'x64', 'ios_simulator'],
     'release_x64_internal': [
       'release_bot', 'x64', 'v8_snapshot_internal'],
     'release_x64_jumbo': [
@@ -448,6 +461,8 @@
     'release_x64_pointer_compression': [
       'release_bot', 'x64', 'dcheck_always_on', 'v8_enable_slow_dchecks',
       'v8_enable_pointer_compression'],
+    'release_x64_pointer_compression_without_dchecks': [
+      'release_bot', 'x64', 'v8_enable_pointer_compression'],
     'release_x64_trybot': [
       'release_trybot', 'x64'],
     'release_x64_test_features_trybot': [
@@ -458,12 +473,10 @@
       'release_bot', 'x64', 'tsan', 'minimal_symbols'],
     'release_x64_ubsan': [
       'release_bot', 'x64', 'ubsan'],
-    'release_x64_ubsan_vptr': [
-      'release_bot', 'x64', 'ubsan_vptr'],
-    'release_x64_ubsan_vptr_recover_edge': [
-      'release_bot', 'x64', 'edge', 'ubsan_vptr_recover'],
-    'release_x64_ubsan_vptr_minimal_symbols': [
-      'release_bot', 'x64', 'ubsan_vptr', 'minimal_symbols'],
+    'release_x64_ubsan_minimal_symbols': [
+      'release_bot', 'x64', 'ubsan', 'minimal_symbols'],
+    'release_x64_ubsan_recover_edge': [
+      'release_bot', 'x64', 'edge', 'ubsan_recover'],
     'release_x64_shared_verify_heap': [
       'release_bot', 'x64', 'shared', 'v8_verify_heap'],
     'release_x64_verify_csa': [
@@ -483,7 +496,7 @@
     'debug_x64_fuchsia': [
       'debug_bot', 'x64', 'fuchsia'],
     'debug_x64_gcc': [
-      'debug_bot', 'x64', 'gcc'],
+      'debug_bot', 'x64', 'gcc', 'v8_check_header_includes'],
     'debug_x64_header_includes': [
       'debug_bot', 'x64', 'v8_check_header_includes'],
     'debug_x64_jumbo': [
@@ -492,8 +505,12 @@
       'debug_bot', 'x64', 'jumbo_limited'],
     'debug_x64_minimal_symbols': [
       'debug_bot', 'x64', 'minimal_symbols'],
+    'debug_x64_perfetto': [
+      'debug_bot', 'x64', 'perfetto'],
     'debug_x64_trybot': [
       'debug_trybot', 'x64'],
+    'debug_x64_trybot_custom': [
+      'debug_trybot', 'x64', 'v8_snapshot_custom'],
 
     # Debug configs for x86.
     'debug_x86': [
@@ -513,8 +530,7 @@
     'debug_x86_vtunejit': [
       'debug_bot', 'x86', 'v8_enable_vtunejit'],
     'full_debug_x86': [
-      'debug', 'x86', 'goma', 'static', 'v8_enable_slow_dchecks',
-      'v8_full_debug'],
+      'debug', 'x86', 'goma', 'v8_enable_slow_dchecks', 'v8_full_debug'],
 
     # Release configs for x86.
     'release_x86': [
@@ -524,15 +540,14 @@
     'release_x86_noembed_trybot': [
       'release_trybot', 'x86', 'v8_no_enable_embedded_builtins'],
     'release_x86_gcc': [
-      'release_bot', 'x86', 'gcc'],
+      'release_bot', 'x86', 'gcc', 'v8_check_header_includes'],
     'release_x86_gcc_minimal_symbols': [
-      'release_bot', 'x86', 'gcc', 'minimal_symbols'],
+      'release_bot', 'x86', 'gcc', 'minimal_symbols',
+      'v8_check_header_includes'],
     'release_x86_gcmole': [
       'release_bot', 'x86', 'gcmole'],
     'release_x86_gcmole_trybot': [
       'release_trybot', 'x86', 'gcmole'],
-    'release_x86_interpreted_regexp': [
-      'release_bot', 'x86', 'v8_interpreted_regexp'],
     'release_x86_minimal_symbols': [
       'release_bot', 'x86', 'minimal_symbols'],
     'release_x86_no_i18n_trybot': [
@@ -649,6 +664,10 @@
       'gn_args': 'arm_float_abi="hard"',
     },
 
+    'ios_simulator': {
+      'gn_args': 'target_cpu="x64" target_os="ios"',
+    },
+
     'jumbo': {
       'gn_args': 'use_jumbo_build=true',
     },
@@ -700,6 +719,10 @@
 
     'no_sysroot': {
       'gn_args': 'use_sysroot=false',
+    },
+
+    'perfetto': {
+      'gn_args': 'v8_use_perfetto=true',
     },
 
     'release': {
@@ -762,21 +785,13 @@
       # TODO(krasin): Remove is_ubsan_no_recover=true when
       # https://llvm.org/bugs/show_bug.cgi?id=25569 is fixed and just use
       # ubsan instead.
-      'gn_args': 'is_ubsan=true is_ubsan_no_recover=true',
+      'gn_args': 'is_ubsan=true is_ubsan_no_recover=true is_ubsan_vptr=true',
     },
 
-    'ubsan_vptr': {
+    'ubsan_recover': {
       'mixins': ['v8_enable_test_features'],
-      # TODO(krasin): Remove is_ubsan_no_recover=true when
-      # https://llvm.org/bugs/show_bug.cgi?id=25569 is fixed and just use
-      # ubsan_vptr instead.
-      'gn_args': 'is_ubsan_vptr=true is_ubsan_no_recover=true',
-    },
-
-    'ubsan_vptr_recover': {
-      'mixins': ['v8_enable_test_features'],
-      # Ubsan vptr with recovery.
-      'gn_args': 'is_ubsan_vptr=true is_ubsan_no_recover=false',
+      # Ubsan with recovery.
+      'gn_args': 'is_ubsan=true is_ubsan_no_recover=false is_ubsan_vptr=true',
     },
 
     'v8_check_header_includes': {
@@ -818,10 +833,6 @@
 
     'v8_full_debug': {
       'gn_args': 'v8_optimized_debug=false',
-    },
-
-    'v8_interpreted_regexp': {
-      'gn_args': 'v8_interpreted_regexp=true',
     },
 
     'v8_optimized_debug': {

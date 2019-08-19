@@ -16,7 +16,7 @@ Debugger.scriptParsed.stackTrace should contain only one frame
             callFrames : [
                 [0] : {
                     columnNumber : 17
-                    functionName : setTimeout
+                    functionName : 
                     lineNumber : 0
                     scriptId : <scriptId>
                     url : 

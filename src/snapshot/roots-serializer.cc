@@ -4,9 +4,9 @@
 
 #include "src/snapshot/roots-serializer.h"
 
+#include "src/execution/isolate.h"
 #include "src/heap/heap.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 
 namespace v8 {
@@ -28,7 +28,7 @@ int RootsSerializer::SerializeInObjectCache(HeapObject heap_object) {
   if (!object_cache_index_map_.LookupOrInsert(heap_object, &index)) {
     // This object is not part of the object cache yet. Add it to the cache so
     // we can refer to it via cache index from the delegating snapshot.
-    SerializeObject(heap_object, kPlain, kStartOfObject, 0);
+    SerializeObject(heap_object);
   }
   return index;
 }
@@ -40,7 +40,7 @@ void RootsSerializer::Synchronize(VisitorSynchronization::SyncTag tag) {
 void RootsSerializer::VisitRootPointers(Root root, const char* description,
                                         FullObjectSlot start,
                                         FullObjectSlot end) {
-  RootsTable& roots_table = isolate()->heap()->roots_table();
+  RootsTable& roots_table = isolate()->roots_table();
   if (start ==
       roots_table.begin() + static_cast<int>(first_root_to_be_serialized_)) {
     // Serializing the root list needs special handling:
@@ -58,8 +58,8 @@ void RootsSerializer::VisitRootPointers(Root root, const char* description,
 
 void RootsSerializer::CheckRehashability(HeapObject obj) {
   if (!can_be_rehashed_) return;
-  if (!obj->NeedsRehashing()) return;
-  if (obj->CanBeRehashed()) return;
+  if (!obj.NeedsRehashing()) return;
+  if (obj.CanBeRehashed()) return;
   can_be_rehashed_ = false;
 }
 

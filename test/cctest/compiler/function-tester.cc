@@ -4,15 +4,14 @@
 
 #include "test/cctest/compiler/function-tester.h"
 
-#include "src/api-inl.h"
-#include "src/assembler.h"
-#include "src/compiler.h"
+#include "src/api/api-inl.h"
+#include "src/codegen/assembler.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
-#include "src/execution.h"
-#include "src/handles.h"
-#include "src/objects-inl.h"
-#include "src/optimized-compilation-info.h"
+#include "src/execution/execution.h"
+#include "src/handles/handles.h"
+#include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "test/cctest/cctest.h"
 
@@ -138,31 +137,12 @@ Handle<JSFunction> FunctionTester::ForMachineGraph(Graph* graph,
     p = *f.function;
   }
   return Handle<JSFunction>(
-      p, p->GetIsolate());  // allocated in outer handle scope.
+      p, p.GetIsolate());  // allocated in outer handle scope.
 }
 
 Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
-  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-  IsCompiledScope is_compiled_scope(shared->is_compiled_scope());
-  CHECK(is_compiled_scope.is_compiled() ||
-        Compiler::Compile(function, Compiler::CLEAR_EXCEPTION,
-                          &is_compiled_scope));
-
   Zone zone(isolate->allocator(), ZONE_NAME);
-  OptimizedCompilationInfo info(&zone, isolate, shared, function);
-
-  if (flags_ & OptimizedCompilationInfo::kInliningEnabled) {
-    info.MarkAsInliningEnabled();
-  }
-
-  CHECK(info.shared_info()->HasBytecodeArray());
-  JSFunction::EnsureFeedbackVector(function);
-
-  Handle<Code> code =
-      Pipeline::GenerateCodeForTesting(&info, isolate).ToHandleChecked();
-  info.native_context()->AddOptimizedCode(*code);
-  function->set_code(*code);
-  return function;
+  return Optimize(function, &zone, isolate, flags_);
 }
 
 // Compile the given machine graph instead of the source of the function

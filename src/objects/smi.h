@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_SMI_H_
 #define V8_OBJECTS_SMI_H_
 
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/objects/heap-object.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -20,12 +20,12 @@ namespace internal {
 // For long smis it has the following format:
 //     [32 bit signed int] [31 bits zero padding] 0
 // Smi stands for small integer.
-class Smi : public ObjectPtr {
+class Smi : public Object {
  public:
   // This replaces the OBJECT_CONSTRUCTORS macro, because Smis are special
   // in that we want them to be constexprs.
-  constexpr Smi() : ObjectPtr() {}
-  explicit constexpr Smi(Address ptr) : ObjectPtr(ptr) {
+  constexpr Smi() : Object() {}
+  explicit constexpr Smi(Address ptr) : Object(ptr) {
 #if V8_CAN_HAVE_DCHECK_IN_CONSTEXPR
     DCHECK(HAS_SMI_TAG(ptr));
 #endif
@@ -41,13 +41,8 @@ class Smi : public ObjectPtr {
   }
 
   // Convert a Smi object to an int.
-  static inline int ToInt(const Object* object);
-  static inline int ToInt(ObjectPtr object);
-
-  // TODO(3770): Drop this when merging Object and ObjectPtr.
-  bool ToInt32(int32_t* value) {
-    *value = this->value();
-    return true;
+  static inline int ToInt(const Object object) {
+    return Smi::cast(object).value();
   }
 
   // Convert a value to a Smi object.
@@ -61,7 +56,14 @@ class Smi : public ObjectPtr {
   static inline Smi FromIntptr(intptr_t value) {
     DCHECK(Smi::IsValid(value));
     int smi_shift_bits = kSmiTagSize + kSmiShiftSize;
-    return Smi((value << smi_shift_bits) | kSmiTag);
+    return Smi((static_cast<Address>(value) << smi_shift_bits) | kSmiTag);
+  }
+
+  // Given {value} in [0, 2^31-1], force it into Smi range by changing at most
+  // the MSB (leaving the lower 31 bit unchanged).
+  static inline Smi From31BitPattern(int value) {
+    return Smi::FromInt((value << (32 - kSmiValueSize)) >>
+                        (32 - kSmiValueSize));
   }
 
   template <typename E,
@@ -87,24 +89,27 @@ class Smi : public ObjectPtr {
   //  1 if x > y.
   // Returns the result (a tagged Smi) as a raw Address for ExternalReference
   // usage.
-  static Address LexicographicCompare(Isolate* isolate, Smi x, Smi y);
+  V8_EXPORT_PRIVATE static Address LexicographicCompare(Isolate* isolate, Smi x,
+                                                        Smi y);
 
-  DECL_CAST2(Smi)
+  DECL_CAST(Smi)
 
   // Dispatched behavior.
   V8_EXPORT_PRIVATE void SmiPrint(std::ostream& os) const;  // NOLINT
   DECL_VERIFIER(Smi)
 
   // C++ does not allow us to have an object of type Smi within class Smi,
-  // so the kZero value has type ObjectPtr. Consider it deprecated; new code
+  // so the kZero value has type Object. Consider it deprecated; new code
   // should use zero() instead.
-  V8_EXPORT_PRIVATE static constexpr ObjectPtr kZero = ObjectPtr(0);
+  V8_EXPORT_PRIVATE static constexpr Object kZero = Object(0);
   // If you need something with type Smi, call zero() instead. Since it is
   // a constexpr, "calling" it is just as efficient as reading kZero.
   static inline constexpr Smi zero() { return Smi::FromInt(0); }
   static constexpr int kMinValue = kSmiMinValue;
   static constexpr int kMaxValue = kSmiMaxValue;
 };
+
+CAST_ACCESSOR(Smi)
 
 }  // namespace internal
 }  // namespace v8

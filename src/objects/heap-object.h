@@ -5,9 +5,11 @@
 #ifndef V8_OBJECTS_HEAP_OBJECT_H_
 #define V8_OBJECTS_HEAP_OBJECT_H_
 
-#include "src/globals.h"
+#include "src/common/globals.h"
+#include "src/roots/roots.h"
 
-#include "src/objects.h"
+#include "src/objects/objects.h"
+#include "src/objects/tagged-field.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -15,181 +17,36 @@
 namespace v8 {
 namespace internal {
 
-// This is the new way to represent the Object class. It is temporarily
-// separate to allow an incremental transition.
-// For a design overview, see https://goo.gl/Ph4CGz.
-class ObjectPtr {
- public:
-  constexpr ObjectPtr() : ptr_(kNullAddress) {}
-  explicit constexpr ObjectPtr(Address ptr) : ptr_(ptr) {}
-  static ObjectPtr cast(Object* obj) { return ObjectPtr(obj->ptr()); }
-
-  // Enable incremental transition.
-  operator Object*() const { return reinterpret_cast<Object*>(ptr()); }
-  // Make clang on Linux catch what MSVC complains about on Windows:
-  operator bool() const = delete;
-
-  bool operator==(const ObjectPtr other) const {
-    return this->ptr() == other.ptr();
-  }
-  bool operator!=(const ObjectPtr other) const {
-    return this->ptr() != other.ptr();
-  }
-  // Usage in std::set requires operator<.
-  bool operator<(const ObjectPtr other) const {
-    return this->ptr() < other.ptr();
-  }
-
-  // Returns the tagged "(heap) object pointer" representation of this object.
-  constexpr Address ptr() const { return ptr_; }
-
-  ObjectPtr* operator->() { return this; }
-  const ObjectPtr* operator->() const { return this; }
-
-#define IS_TYPE_FUNCTION_DECL(Type) V8_INLINE bool Is##Type() const;
-  OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
-  HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
-#undef IS_TYPE_FUNCTION_DECL
-#define DECL_STRUCT_PREDICATE(NAME, Name, name) V8_INLINE bool Is##Name() const;
-  STRUCT_LIST(DECL_STRUCT_PREDICATE)
-#undef DECL_STRUCT_PREDICATE
-#define IS_TYPE_FUNCTION_DECL(Type, Value)            \
-  V8_INLINE bool Is##Type(Isolate* isolate) const;    \
-  V8_INLINE bool Is##Type(ReadOnlyRoots roots) const; \
-  V8_INLINE bool Is##Type() const;
-  ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
-#undef IS_TYPE_FUNCTION_DECL
-  inline bool IsHashTableBase() const;
-  V8_INLINE bool IsSmallOrderedHashTable() const;
-
-  inline bool IsObject() const { return true; }
-  inline double Number() const;
-  inline bool ToInt32(int32_t* value) const;
-  inline bool ToUint32(uint32_t* value) const;
-
-  // ECMA-262 9.2.
-  bool BooleanValue(Isolate* isolate);
-
-  inline bool FilterKey(PropertyFilter filter);
-
-  // Returns the permanent hash code associated with this object. May return
-  // undefined if not yet created.
-  inline Object* GetHash();
-
-  // Returns the permanent hash code associated with this object depending on
-  // the actual object type. May create and store a hash code if needed and none
-  // exists.
-  Smi GetOrCreateHash(Isolate* isolate);
-
-  // Checks whether this object has the same value as the given one.  This
-  // function is implemented according to ES5, section 9.12 and can be used
-  // to implement the Object.is function.
-  V8_EXPORT_PRIVATE bool SameValue(Object* other);
-
-  // Tries to convert an object to an array index. Returns true and sets the
-  // output parameter if it succeeds. Equivalent to ToArrayLength, but does not
-  // allow kMaxUInt32.
-  V8_WARN_UNUSED_RESULT inline bool ToArrayIndex(uint32_t* index) const;
-
-  //
-  // The following GetHeapObjectXX methods mimic corresponding functionality
-  // in MaybeObject. Having them here allows us to unify code that processes
-  // ObjectSlots and MaybeObjectSlots.
-  //
-
-  // If this Object is a strong pointer to a HeapObject, returns true and
-  // sets *result. Otherwise returns false.
-  inline bool GetHeapObjectIfStrong(HeapObject* result) const;
-
-  // If this Object is a strong pointer to a HeapObject (weak pointers are not
-  // expected), returns true and sets *result. Otherwise returns false.
-  inline bool GetHeapObject(HeapObject* result) const;
-
-  // DCHECKs that this Object is a strong pointer to a HeapObject and returns
-  // the HeapObject.
-  inline HeapObject GetHeapObject() const;
-
-  // Always returns false because Object is not expected to be a weak pointer
-  // to a HeapObject.
-  inline bool GetHeapObjectIfWeak(HeapObject* result) const {
-    DCHECK(!HasWeakHeapObjectTag(ptr()));
-    return false;
-  }
-  // Always returns false because Object is not expected to be a weak pointer
-  // to a HeapObject.
-  inline bool IsCleared() const { return false; }
-
-#ifdef VERIFY_HEAP
-  void ObjectVerify(Isolate* isolate) {
-    reinterpret_cast<Object*>(ptr())->ObjectVerify(isolate);
-  }
-  // Verify a pointer is a valid object pointer.
-  static void VerifyPointer(Isolate* isolate, Object* p);
-#endif
-
-  inline void VerifyApiCallResultType();
-
-  inline void ShortPrint(FILE* out = stdout) const;
-  void ShortPrint(std::ostream& os) const;  // NOLINT
-  void ShortPrint(StringStream* accumulator);
-  inline void Print() const;
-  inline void Print(std::ostream& os) const;
-
-  // For use with std::unordered_set.
-  struct Hasher {
-    size_t operator()(const ObjectPtr o) const {
-      return std::hash<v8::internal::Address>{}(o.ptr());
-    }
-  };
-
-  // For use with std::map.
-  struct Compare {
-    bool operator()(const ObjectPtr a, const ObjectPtr b) const {
-      return a.ptr() < b.ptr();
-    }
-  };
-
- private:
-  friend class FullObjectSlot;
-  friend class CompressedObjectSlot;
-  Address ptr_;
-};
-
-// In heap-objects.h to be usable without heap-objects-inl.h inclusion.
-bool ObjectPtr::IsSmi() const { return HAS_SMI_TAG(ptr()); }
-bool ObjectPtr::IsHeapObject() const {
-  DCHECK_EQ(!IsSmi(), Internals::HasHeapObjectTag(ptr()));
-  return !IsSmi();
-}
-
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                           const ObjectPtr& obj);
+class Heap;
 
 // HeapObject is the superclass for all classes describing heap allocated
 // objects.
-class HeapObject : public ObjectPtr {
+class HeapObject : public Object {
  public:
-  bool is_null() const { return ptr() == kNullAddress; }
+  bool is_null() const {
+    return static_cast<Tagged_t>(ptr()) == static_cast<Tagged_t>(kNullAddress);
+  }
 
   // [map]: Contains a map which contains the object's reflective
   // information.
-  inline Map map() const;
+  DECL_GETTER(map, Map)
   inline void set_map(Map value);
 
-  inline MapWordSlot map_slot() const;
+  inline ObjectSlot map_slot() const;
 
   // The no-write-barrier version.  This is OK if the object is white and in
   // new space, or if the value is an immortal immutable object, like the maps
   // of primitive (non-JS) objects like strings, heap numbers etc.
   inline void set_map_no_write_barrier(Map value);
 
-  // Get the map using acquire load.
-  inline Map synchronized_map() const;
-  inline MapWord synchronized_map_word() const;
-
-  // Set the map using release store
+  // Access the map using acquire load and release store.
+  DECL_GETTER(synchronized_map, Map)
   inline void synchronized_set_map(Map value);
-  inline void synchronized_set_map_word(MapWord map_word);
+
+  // Compare-and-swaps map word using release store, returns true if the map
+  // word was actually swapped.
+  inline bool synchronized_compare_and_swap_map_word(MapWord old_map_word,
+                                                     MapWord new_map_word);
 
   // Initialize the map immediately after the object is allocated.
   // Do not use this outside Heap.
@@ -198,8 +55,12 @@ class HeapObject : public ObjectPtr {
 
   // During garbage collection, the map word of a heap object does not
   // necessarily contain a map pointer.
-  inline MapWord map_word() const;
+  DECL_GETTER(map_word, MapWord)
   inline void set_map_word(MapWord map_word);
+
+  // Access the map word using acquire load and release store.
+  DECL_GETTER(synchronized_map_word, MapWord)
+  inline void synchronized_set_map_word(MapWord map_word);
 
   // TODO(v8:7464): Once RO_SPACE is shared between isolates, this method can be
   // removed as ReadOnlyRoots will be accessible from a global variable. For now
@@ -207,12 +68,19 @@ class HeapObject : public ObjectPtr {
   // way that doesn't require passing Isolate/Heap down huge call chains or to
   // places where it might not be safe to access it.
   inline ReadOnlyRoots GetReadOnlyRoots() const;
+  // This version is intended to be used for the isolate values produced by
+  // i::GetIsolateForPtrCompr(HeapObject) function which may return nullptr.
+  inline ReadOnlyRoots GetReadOnlyRoots(Isolate* isolate) const;
 
-#define IS_TYPE_FUNCTION_DECL(Type) V8_INLINE bool Is##Type() const;
+#define IS_TYPE_FUNCTION_DECL(Type) \
+  V8_INLINE bool Is##Type() const;  \
+  V8_INLINE bool Is##Type(Isolate* isolate) const;
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
+  IS_TYPE_FUNCTION_DECL(HashTableBase)
+  IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
 #undef IS_TYPE_FUNCTION_DECL
 
-  V8_INLINE bool IsExternal(Isolate* isolate) const;
+  bool IsExternal(Isolate* isolate) const;
 
 // Oddball checks are faster when they are raw pointer comparisons, so the
 // isolate/read-only roots overloads should be preferred where possible.
@@ -221,18 +89,20 @@ class HeapObject : public ObjectPtr {
   V8_INLINE bool Is##Type(ReadOnlyRoots roots) const; \
   V8_INLINE bool Is##Type() const;
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
+  IS_TYPE_FUNCTION_DECL(NullOrUndefined, /* unused */)
 #undef IS_TYPE_FUNCTION_DECL
 
-  V8_INLINE bool IsNullOrUndefined(Isolate* isolate) const;
-  V8_INLINE bool IsNullOrUndefined(ReadOnlyRoots roots) const;
-  V8_INLINE bool IsNullOrUndefined() const;
-
-#define DECL_STRUCT_PREDICATE(NAME, Name, name) V8_INLINE bool Is##Name() const;
+#define DECL_STRUCT_PREDICATE(NAME, Name, name) \
+  V8_INLINE bool Is##Name() const;              \
+  V8_INLINE bool Is##Name(Isolate* isolate) const;
   STRUCT_LIST(DECL_STRUCT_PREDICATE)
 #undef DECL_STRUCT_PREDICATE
 
   // Converts an address to a HeapObject pointer.
-  static inline HeapObject FromAddress(Address address);
+  static inline HeapObject FromAddress(Address address) {
+    DCHECK_TAG_ALIGNED(address);
+    return HeapObject(address + kHeapObjectTag);
+  }
 
   // Returns the address of this HeapObject.
   inline Address address() const { return ptr() - kHeapObjectTag; }
@@ -263,7 +133,7 @@ class HeapObject : public ObjectPtr {
   // Returns true if the object contains a tagged value at given offset.
   // It is used for invalid slots filtering. If the offset points outside
   // of the object or to the map word, the result is UNDEFINED (!!!).
-  bool IsValidSlot(Map map, int offset);
+  V8_EXPORT_PRIVATE bool IsValidSlot(Map map, int offset);
 
   // Returns the heap object's size in bytes
   inline int Size() const;
@@ -271,18 +141,16 @@ class HeapObject : public ObjectPtr {
   // Given a heap object's map pointer, returns the heap size in bytes
   // Useful when the map pointer field is used for other purposes.
   // GC internal.
-  inline int SizeFromMap(Map map) const;
+  V8_EXPORT_PRIVATE int SizeFromMap(Map map) const;
 
-  // Returns the field at offset in obj, as a read/write Object* reference.
+  // Returns the field at offset in obj, as a read/write Object reference.
   // Does no checking, and is safe to use during GC, while maps are invalid.
   // Does not invoke write barrier, so should only be assigned to
   // during marking GC.
   inline ObjectSlot RawField(int byte_offset) const;
-  static inline ObjectSlot RawField(const HeapObject obj, int offset);
   inline MaybeObjectSlot RawMaybeWeakField(int byte_offset) const;
-  static inline MaybeObjectSlot RawMaybeWeakField(HeapObject obj, int offset);
 
-  DECL_CAST2(HeapObject)
+  DECL_CAST(HeapObject)
 
   // Return the write barrier mode for this. Callers of this function
   // must be able to present a reference to an DisallowHeapAllocation
@@ -298,7 +166,7 @@ class HeapObject : public ObjectPtr {
   void PrintHeader(std::ostream& os, const char* id);  // NOLINT
 #endif
   DECL_PRINTER(HeapObject)
-  DECL_VERIFIER(HeapObject)
+  EXPORT_DECL_VERIFIER(HeapObject)
 #ifdef VERIFY_HEAP
   inline void VerifyObjectField(Isolate* isolate, int offset);
   inline void VerifySmiField(int offset);
@@ -306,7 +174,7 @@ class HeapObject : public ObjectPtr {
 
   // Verify a pointer is a valid HeapObject pointer that points to object
   // areas in the heap.
-  static void VerifyHeapPointer(Isolate* isolate, Object* p);
+  static void VerifyHeapPointer(Isolate* isolate, Object p);
 #endif
 
   static inline AllocationAlignment RequiredAlignment(Map map);
@@ -314,7 +182,7 @@ class HeapObject : public ObjectPtr {
   // Whether the object needs rehashing. That is the case if the object's
   // content depends on FLAG_hash_seed. When the object is deserialized into
   // a heap with a different hash seed, these objects need to adapt.
-  inline bool NeedsRehashing() const;
+  bool NeedsRehashing() const;
 
   // Rehashing support is not implemented for all objects that need rehashing.
   // With objects that need rehashing but cannot be rehashed, rehashing has to
@@ -322,14 +190,20 @@ class HeapObject : public ObjectPtr {
   bool CanBeRehashed() const;
 
   // Rehash the object based on the layout inferred from its map.
-  void RehashBasedOnMap(Isolate* isolate);
+  void RehashBasedOnMap(ReadOnlyRoots root);
 
   // Layout description.
-  // First field in a heap object is map.
-  static const int kMapOffset = Object::kHeaderSize;
-  static const int kHeaderSize = kMapOffset + kPointerSize;
+#define HEAP_OBJECT_FIELDS(V) \
+  V(kMapOffset, kTaggedSize)  \
+  /* Header size. */          \
+  V(kHeaderSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Object::kHeaderSize, HEAP_OBJECT_FIELDS)
+#undef HEAP_OBJECT_FIELDS
 
   STATIC_ASSERT(kMapOffset == Internals::kHeapObjectMapOffset);
+
+  using MapField = TaggedField<MapWord, HeapObject::kMapOffset>;
 
   inline Address GetFieldAddress(int field_offset) const;
 
@@ -339,23 +213,11 @@ class HeapObject : public ObjectPtr {
   enum class AllowInlineSmiStorage { kRequireHeapObjectTag, kAllowBeingASmi };
   inline HeapObject(Address ptr, AllowInlineSmiStorage allow_smi);
 
-  OBJECT_CONSTRUCTORS(HeapObject, ObjectPtr);
+  OBJECT_CONSTRUCTORS(HeapObject, Object);
 };
 
-// Replacement for NeverReadOnlySpaceObject, temporarily separate for
-// incremental transition.
-// Helper class for objects that can never be in RO space.
-// TODO(leszeks): Add checks in the factory that we never allocate these objects
-// in RO space.
-// TODO(3770): Get rid of the duplication.
-class NeverReadOnlySpaceObjectPtr {
- public:
-  // The Heap the object was allocated in. Used also to access Isolate.
-  static inline Heap* GetHeap(const HeapObject object);
-
-  // Convenience method to get current isolate.
-  static inline Isolate* GetIsolate(const HeapObject object);
-};
+OBJECT_CONSTRUCTORS_IMPL(HeapObject, Object)
+CAST_ACCESSOR(HeapObject)
 
 }  // namespace internal
 }  // namespace v8

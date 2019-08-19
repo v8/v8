@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/arguments-inl.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
-#include "src/conversions-inl.h"
-#include "src/counters.h"
+#include "src/execution/arguments-inl.h"
 #include "src/heap/factory.h"
+#include "src/logging/counters.h"
+#include "src/numbers/conversions-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/runtime/runtime-utils.h"
 
@@ -218,35 +218,33 @@ inline int64_t FromObject<int64_t>(Handle<Object> bigint) {
   return Handle<BigInt>::cast(bigint)->AsInt64();
 }
 
-inline Object* ToObject(Isolate* isolate, int8_t t) { return Smi::FromInt(t); }
+inline Object ToObject(Isolate* isolate, int8_t t) { return Smi::FromInt(t); }
 
-inline Object* ToObject(Isolate* isolate, uint8_t t) { return Smi::FromInt(t); }
+inline Object ToObject(Isolate* isolate, uint8_t t) { return Smi::FromInt(t); }
 
-inline Object* ToObject(Isolate* isolate, int16_t t) { return Smi::FromInt(t); }
+inline Object ToObject(Isolate* isolate, int16_t t) { return Smi::FromInt(t); }
 
-inline Object* ToObject(Isolate* isolate, uint16_t t) {
-  return Smi::FromInt(t);
-}
+inline Object ToObject(Isolate* isolate, uint16_t t) { return Smi::FromInt(t); }
 
-inline Object* ToObject(Isolate* isolate, int32_t t) {
+inline Object ToObject(Isolate* isolate, int32_t t) {
   return *isolate->factory()->NewNumber(t);
 }
 
-inline Object* ToObject(Isolate* isolate, uint32_t t) {
+inline Object ToObject(Isolate* isolate, uint32_t t) {
   return *isolate->factory()->NewNumber(t);
 }
 
-inline Object* ToObject(Isolate* isolate, int64_t t) {
+inline Object ToObject(Isolate* isolate, int64_t t) {
   return *BigInt::FromInt64(isolate, t);
 }
 
-inline Object* ToObject(Isolate* isolate, uint64_t t) {
+inline Object ToObject(Isolate* isolate, uint64_t t) {
   return *BigInt::FromUint64(isolate, t);
 }
 
 template <typename T>
 struct Load {
-  static inline Object* Do(Isolate* isolate, void* buffer, size_t index) {
+  static inline Object Do(Isolate* isolate, void* buffer, size_t index) {
     T result = LoadSeqCst(static_cast<T*>(buffer) + index);
     return ToObject(isolate, result);
   }
@@ -263,8 +261,8 @@ struct Store {
 
 template <typename T>
 struct Exchange {
-  static inline Object* Do(Isolate* isolate, void* buffer, size_t index,
-                           Handle<Object> obj) {
+  static inline Object Do(Isolate* isolate, void* buffer, size_t index,
+                          Handle<Object> obj) {
     T value = FromObject<T>(obj);
     T result = ExchangeSeqCst(static_cast<T*>(buffer) + index, value);
     return ToObject(isolate, result);
@@ -272,8 +270,8 @@ struct Exchange {
 };
 
 template <typename T>
-inline Object* DoCompareExchange(Isolate* isolate, void* buffer, size_t index,
-                                 Handle<Object> oldobj, Handle<Object> newobj) {
+inline Object DoCompareExchange(Isolate* isolate, void* buffer, size_t index,
+                                Handle<Object> oldobj, Handle<Object> newobj) {
   T oldval = FromObject<T>(oldobj);
   T newval = FromObject<T>(newobj);
   T result =
@@ -283,8 +281,8 @@ inline Object* DoCompareExchange(Isolate* isolate, void* buffer, size_t index,
 
 template <typename T>
 struct Add {
-  static inline Object* Do(Isolate* isolate, void* buffer, size_t index,
-                           Handle<Object> obj) {
+  static inline Object Do(Isolate* isolate, void* buffer, size_t index,
+                          Handle<Object> obj) {
     T value = FromObject<T>(obj);
     T result = AddSeqCst(static_cast<T*>(buffer) + index, value);
     return ToObject(isolate, result);
@@ -293,8 +291,8 @@ struct Add {
 
 template <typename T>
 struct Sub {
-  static inline Object* Do(Isolate* isolate, void* buffer, size_t index,
-                           Handle<Object> obj) {
+  static inline Object Do(Isolate* isolate, void* buffer, size_t index,
+                          Handle<Object> obj) {
     T value = FromObject<T>(obj);
     T result = SubSeqCst(static_cast<T*>(buffer) + index, value);
     return ToObject(isolate, result);
@@ -303,8 +301,8 @@ struct Sub {
 
 template <typename T>
 struct And {
-  static inline Object* Do(Isolate* isolate, void* buffer, size_t index,
-                           Handle<Object> obj) {
+  static inline Object Do(Isolate* isolate, void* buffer, size_t index,
+                          Handle<Object> obj) {
     T value = FromObject<T>(obj);
     T result = AndSeqCst(static_cast<T*>(buffer) + index, value);
     return ToObject(isolate, result);
@@ -313,8 +311,8 @@ struct And {
 
 template <typename T>
 struct Or {
-  static inline Object* Do(Isolate* isolate, void* buffer, size_t index,
-                           Handle<Object> obj) {
+  static inline Object Do(Isolate* isolate, void* buffer, size_t index,
+                          Handle<Object> obj) {
     T value = FromObject<T>(obj);
     T result = OrSeqCst(static_cast<T*>(buffer) + index, value);
     return ToObject(isolate, result);
@@ -323,8 +321,8 @@ struct Or {
 
 template <typename T>
 struct Xor {
-  static inline Object* Do(Isolate* isolate, void* buffer, size_t index,
-                           Handle<Object> obj) {
+  static inline Object Do(Isolate* isolate, void* buffer, size_t index,
+                          Handle<Object> obj) {
     T value = FromObject<T>(obj);
     T result = XorSeqCst(static_cast<T*>(buffer) + index, value);
     return ToObject(isolate, result);
@@ -347,7 +345,7 @@ struct Xor {
 // but also includes the ToInteger/ToBigInt conversion that's part of
 // https://tc39.github.io/ecma262/#sec-atomicreadmodifywrite
 template <template <typename> class Op>
-Object* GetModifySetValueInBuffer(Arguments args, Isolate* isolate) {
+Object GetModifySetValueInBuffer(Arguments args, Isolate* isolate) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
@@ -363,7 +361,7 @@ Object* GetModifySetValueInBuffer(Arguments args, Isolate* isolate) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, bigint,
                                        BigInt::FromObject(isolate, value_obj));
     // SharedArrayBuffers are not detachable.
-    CHECK_LT(index, NumberToSize(sta->length()));
+    CHECK_LT(index, sta->length());
     if (sta->type() == kExternalBigInt64Array) {
       return Op<int64_t>::Do(isolate, source, index, bigint);
     }
@@ -375,7 +373,7 @@ Object* GetModifySetValueInBuffer(Arguments args, Isolate* isolate) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
                                      Object::ToInteger(isolate, value_obj));
   // SharedArrayBuffers are not detachable.
-  CHECK_LT(index, NumberToSize(sta->length()));
+  CHECK_LT(index, sta->length());
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype) \
@@ -405,7 +403,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsLoad64) {
   DCHECK(sta->type() == kExternalBigInt64Array ||
          sta->type() == kExternalBigUint64Array);
   // SharedArrayBuffers are not detachable.
-  CHECK_LT(index, NumberToSize(sta->length()));
+  CHECK_LT(index, sta->length());
   if (sta->type() == kExternalBigInt64Array) {
     return Load<int64_t>::Do(isolate, source, index);
   }
@@ -431,7 +429,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsStore64) {
   DCHECK(sta->type() == kExternalBigInt64Array ||
          sta->type() == kExternalBigUint64Array);
   // SharedArrayBuffers are not detachable.
-  CHECK_LT(index, NumberToSize(sta->length()));
+  CHECK_LT(index, sta->length());
   if (sta->type() == kExternalBigInt64Array) {
     Store<int64_t>::Do(isolate, source, index, bigint);
     return *bigint;
@@ -453,7 +451,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
   CONVERT_ARG_HANDLE_CHECKED(Object, old_value_obj, 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, new_value_obj, 3);
   CHECK(sta->GetBuffer()->is_shared());
-  CHECK_LT(index, NumberToSize(sta->length()));
+  CHECK_LT(index, sta->length());
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
                     sta->byte_offset();
@@ -466,7 +464,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, new_bigint, BigInt::FromObject(isolate, new_value_obj));
     // SharedArrayBuffers are not detachable.
-    CHECK_LT(index, NumberToSize(sta->length()));
+    CHECK_LT(index, sta->length());
     if (sta->type() == kExternalBigInt64Array) {
       return DoCompareExchange<int64_t>(isolate, source, index, old_bigint,
                                         new_bigint);
@@ -483,7 +481,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, new_value,
                                      Object::ToInteger(isolate, new_value_obj));
   // SharedArrayBuffers are not detachable.
-  CHECK_LT(index, NumberToSize(sta->length()));
+  CHECK_LT(index, sta->length());
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype)                  \

@@ -8,6 +8,8 @@
 #include <sstream>
 #include <string>
 
+#include "src/codegen/optimized-compilation-info.h"
+#include "src/codegen/source-position.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/backend/register-allocator.h"
 #include "src/compiler/compiler-source-position-table.h"
@@ -23,9 +25,8 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info.h"
-#include "src/optimized-compilation-info.h"
-#include "src/ostreams.h"
-#include "src/source-position.h"
+#include "src/utils/ostreams.h"
+#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -62,6 +63,30 @@ std::ostream& operator<<(std::ostream& out, const NodeOriginAsJSON& asJSON) {
   return out;
 }
 
+class JSONEscaped {
+ public:
+  explicit JSONEscaped(const std::ostringstream& os) : str_(os.str()) {}
+
+  friend std::ostream& operator<<(std::ostream& os, const JSONEscaped& e) {
+    for (char c : e.str_) PipeCharacter(os, c);
+    return os;
+  }
+
+ private:
+  static std::ostream& PipeCharacter(std::ostream& os, char c) {
+    if (c == '"') return os << "\\\"";
+    if (c == '\\') return os << "\\\\";
+    if (c == '\b') return os << "\\b";
+    if (c == '\f') return os << "\\f";
+    if (c == '\n') return os << "\\n";
+    if (c == '\r') return os << "\\r";
+    if (c == '\t') return os << "\\t";
+    return os << c;
+  }
+
+  const std::string str_;
+};
+
 void JsonPrintFunctionSource(std::ostream& os, int source_id,
                              std::unique_ptr<char[]> function_name,
                              Handle<Script> script, Isolate* isolate,
@@ -75,10 +100,12 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
   int start = 0;
   int end = 0;
   if (!script.is_null() && !script->IsUndefined(isolate) && !shared.is_null()) {
-    Object* source_name = script->name();
+    Object source_name = script->name();
     os << ", \"sourceName\": \"";
-    if (source_name->IsString()) {
-      os << String::cast(source_name)->ToCString().get();
+    if (source_name.IsString()) {
+      std::ostringstream escaped_name;
+      escaped_name << String::cast(source_name).ToCString().get();
+      os << JSONEscaped(escaped_name);
     }
     os << "\"";
     {
@@ -139,13 +166,14 @@ void JsonPrintAllSourceWithPositions(std::ostream& os,
   AllowDeferredHandleDereference allow_deference_for_print_code;
   os << "\"sources\" : {";
   Handle<Script> script =
-      (info->shared_info().is_null() || !info->shared_info()->script())
+      (info->shared_info().is_null() ||
+       info->shared_info()->script() == Object())
           ? Handle<Script>()
           : handle(Script::cast(info->shared_info()->script()), isolate);
   JsonPrintFunctionSource(os, -1,
                           info->shared_info().is_null()
                               ? std::unique_ptr<char[]>(new char[1]{0})
-                              : info->shared_info()->DebugName()->ToCString(),
+                              : info->shared_info()->DebugName().ToCString(),
                           script, isolate, info->shared_info(), true);
   const auto& inlined = info->inlined_functions();
   SourceIdAssigner id_assigner(info->inlined_functions().size());
@@ -153,7 +181,7 @@ void JsonPrintAllSourceWithPositions(std::ostream& os,
     os << ", ";
     Handle<SharedFunctionInfo> shared = inlined[id].shared_info;
     const int source_id = id_assigner.GetIdFor(shared);
-    JsonPrintFunctionSource(os, source_id, shared->DebugName()->ToCString(),
+    JsonPrintFunctionSource(os, source_id, shared->DebugName().ToCString(),
                             handle(Script::cast(shared->script()), isolate),
                             isolate, shared, true);
   }
@@ -188,19 +216,19 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   EmbeddedVector<char, 256> source_file(0);
   bool source_available = false;
   if (FLAG_trace_file_names && info->has_shared_info() &&
-      info->shared_info()->script()->IsScript()) {
-    Object* source_name = Script::cast(info->shared_info()->script())->name();
-    if (source_name->IsString()) {
+      info->shared_info()->script().IsScript()) {
+    Object source_name = Script::cast(info->shared_info()->script()).name();
+    if (source_name.IsString()) {
       String str = String::cast(source_name);
-      if (str->length() > 0) {
-        SNPrintF(source_file, "%s", str->ToCString().get());
-        std::replace(source_file.start(),
-                     source_file.start() + source_file.length(), '/', '_');
+      if (str.length() > 0) {
+        SNPrintF(source_file, "%s", str.ToCString().get());
+        std::replace(source_file.begin(),
+                     source_file.begin() + source_file.length(), '/', '_');
         source_available = true;
       }
     }
   }
-  std::replace(filename.start(), filename.start() + filename.length(), ' ',
+  std::replace(filename.begin(), filename.begin() + filename.length(), ' ',
                '_');
 
   EmbeddedVector<char, 256> base_dir;
@@ -213,21 +241,21 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
 
   EmbeddedVector<char, 256> full_filename;
   if (phase == nullptr && !source_available) {
-    SNPrintF(full_filename, "%s%s.%s", base_dir.start(), filename.start(),
+    SNPrintF(full_filename, "%s%s.%s", base_dir.begin(), filename.begin(),
              suffix);
   } else if (phase != nullptr && !source_available) {
-    SNPrintF(full_filename, "%s%s-%s.%s", base_dir.start(), filename.start(),
+    SNPrintF(full_filename, "%s%s-%s.%s", base_dir.begin(), filename.begin(),
              phase, suffix);
   } else if (phase == nullptr && source_available) {
-    SNPrintF(full_filename, "%s%s_%s.%s", base_dir.start(), filename.start(),
-             source_file.start(), suffix);
+    SNPrintF(full_filename, "%s%s_%s.%s", base_dir.begin(), filename.begin(),
+             source_file.begin(), suffix);
   } else {
-    SNPrintF(full_filename, "%s%s_%s-%s.%s", base_dir.start(), filename.start(),
-             source_file.start(), phase, suffix);
+    SNPrintF(full_filename, "%s%s_%s-%s.%s", base_dir.begin(), filename.begin(),
+             source_file.begin(), phase, suffix);
   }
 
   char* buffer = new char[full_filename.length() + 1];
-  memcpy(buffer, full_filename.start(), full_filename.length());
+  memcpy(buffer, full_filename.begin(), full_filename.length());
   buffer[full_filename.length()] = '\0';
   return std::unique_ptr<char[]>(buffer);
 }
@@ -237,30 +265,6 @@ static int SafeId(Node* node) { return node == nullptr ? -1 : node->id(); }
 static const char* SafeMnemonic(Node* node) {
   return node == nullptr ? "null" : node->op()->mnemonic();
 }
-
-class JSONEscaped {
- public:
-  explicit JSONEscaped(const std::ostringstream& os) : str_(os.str()) {}
-
-  friend std::ostream& operator<<(std::ostream& os, const JSONEscaped& e) {
-    for (char c : e.str_) PipeCharacter(os, c);
-    return os;
-  }
-
- private:
-  static std::ostream& PipeCharacter(std::ostream& os, char c) {
-    if (c == '"') return os << "\\\"";
-    if (c == '\\') return os << "\\\\";
-    if (c == '\b') return os << "\\b";
-    if (c == '\f') return os << "\\f";
-    if (c == '\n') return os << "\\n";
-    if (c == '\r') return os << "\\r";
-    if (c == '\t') return os << "\\t";
-    return os << c;
-  }
-
-  const std::string str_;
-};
 
 class JSONGraphNodeWriter {
  public:
@@ -775,7 +779,11 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
     os_ << " " << parent->vreg() << ":" << parent->relative_id();
 
     // TODO(herhut) Find something useful to print for the hint field
-    os_ << " unknown";
+    if (range->get_bundle() != nullptr) {
+      os_ << " B" << range->get_bundle()->id();
+    } else {
+      os_ << " unknown";
+    }
 
     for (const UseInterval* interval = range->first_interval();
          interval != nullptr; interval = interval->next()) {
@@ -1164,7 +1172,8 @@ std::ostream& operator<<(std::ostream& os, const InstructionBlockAsJSON& b) {
   const InstructionSequence* code = b.code_;
   os << "{";
   os << "\"id\": " << block->rpo_number() << ",";
-  os << "\"deferred\": " << block->IsDeferred() << ",";
+  os << "\"deferred\": " << (block->IsDeferred() ? "true" : "false");
+  os << ",";
   os << "\"loop_header\": " << block->IsLoopHeader() << ",";
   if (block->IsLoopHeader()) {
     os << "\"loop_end\": " << block->loop_end() << ",";

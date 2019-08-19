@@ -2,14 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/accessors.h"
+#include "src/builtins/accessors.h"
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/counters.h"
-#include "src/messages.h"
-#include "src/objects-inl.h"
+#include "src/execution/isolate-inl.h"
+#include "src/execution/messages.h"
+#include "src/logging/counters.h"
 #include "src/objects/api-callbacks.h"
-#include "src/property-descriptor.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/property-descriptor.h"
 
 namespace v8 {
 namespace internal {
@@ -30,10 +31,11 @@ BUILTIN(ErrorConstructor) {
   }
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, ErrorUtils::Construct(isolate, args.target(),
-                                     Handle<Object>::cast(args.new_target()),
-                                     args.atOrUndefined(isolate, 1), mode,
-                                     caller, false));
+      isolate,
+      ErrorUtils::Construct(isolate, args.target(),
+                            Handle<Object>::cast(args.new_target()),
+                            args.atOrUndefined(isolate, 1), mode, caller,
+                            ErrorUtils::StackTraceCollection::kDetailed));
 }
 
 // static
@@ -85,8 +87,8 @@ BUILTIN(ErrorPrototypeToString) {
 
 namespace {
 
-Object* MakeGenericError(Isolate* isolate, BuiltinArguments args,
-                         Handle<JSFunction> constructor) {
+Object MakeGenericError(Isolate* isolate, BuiltinArguments args,
+                        Handle<JSFunction> constructor) {
   Handle<Object> template_index = args.atOrUndefined(isolate, 1);
   Handle<Object> arg0 = args.atOrUndefined(isolate, 2);
   Handle<Object> arg1 = args.atOrUndefined(isolate, 3);

@@ -28,11 +28,12 @@
 // Tests of profiles generator and utilities.
 
 #include "include/v8-profiler.h"
-#include "src/api-inl.h"
-#include "src/objects-inl.h"
+#include "src/api/api-inl.h"
+#include "src/init/v8.h"
+#include "src/logging/log.h"
+#include "src/objects/objects-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
-#include "src/v8.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/profiler-extension.h"
 
@@ -379,8 +380,9 @@ TEST(RecordTickSample) {
   CpuProfilesCollection profiles(isolate);
   CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
-  profiles.StartProfiling("", false);
-  ProfileGenerator generator(&profiles);
+  profiles.StartProfiling("");
+  CodeMap code_map;
+  ProfileGenerator generator(&profiles, &code_map);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = new CodeEntry(i::Logger::FUNCTION_TAG, "bbb");
   CodeEntry* entry3 = new CodeEntry(i::Logger::FUNCTION_TAG, "ccc");
@@ -447,8 +449,9 @@ TEST(SampleIds) {
   CpuProfilesCollection profiles(isolate);
   CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
-  profiles.StartProfiling("", true);
-  ProfileGenerator generator(&profiles);
+  profiles.StartProfiling("", {CpuProfilingMode::kLeafNodeLineNumbers});
+  CodeMap code_map;
+  ProfileGenerator generator(&profiles, &code_map);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = new CodeEntry(i::Logger::FUNCTION_TAG, "bbb");
   CodeEntry* entry3 = new CodeEntry(i::Logger::FUNCTION_TAG, "ccc");
@@ -490,7 +493,7 @@ TEST(SampleIds) {
   CHECK_EQ(3, profile->samples_count());
   unsigned expected_id[] = {3, 5, 7};
   for (int i = 0; i < 3; i++) {
-    CHECK_EQ(expected_id[i], profile->sample(i)->id());
+    CHECK_EQ(expected_id[i], profile->sample(i).node->id());
   }
 }
 
@@ -501,8 +504,9 @@ TEST(NoSamples) {
   CpuProfilesCollection profiles(isolate);
   CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
-  profiles.StartProfiling("", false);
-  ProfileGenerator generator(&profiles);
+  profiles.StartProfiling("");
+  CodeMap code_map;
+  ProfileGenerator generator(&profiles, &code_map);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   generator.code_map()->AddCode(ToAddress(0x1500), entry1, 0x200);
 
@@ -538,7 +542,7 @@ TEST(RecordStackTraceAtStartProfiling) {
   i::FLAG_turbo_inlining = false;
 
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   std::unique_ptr<i::CpuProfiler> iprofiler(
       new i::CpuProfiler(CcTest::i_isolate()));
@@ -589,10 +593,10 @@ TEST(Issue51919) {
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {
     i::Vector<char> title = i::Vector<char>::New(16);
     i::SNPrintF(title, "%d", i);
-    CHECK(collection.StartProfiling(title.start(), false));
-    titles[i] = title.start();
+    CHECK(collection.StartProfiling(title.begin()));
+    titles[i] = title.begin();
   }
-  CHECK(!collection.StartProfiling("maximum", false));
+  CHECK(!collection.StartProfiling("maximum"));
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i)
     i::DeleteArray(titles[i]);
 }
@@ -616,21 +620,19 @@ TEST(ProfileNodeScriptId) {
   i::FLAG_turbo_inlining = false;
 
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   std::unique_ptr<CpuProfiler> iprofiler(new CpuProfiler(CcTest::i_isolate()));
   i::ProfilerExtension::set_profiler(iprofiler.get());
 
   v8::Local<v8::Script> script_a =
       v8_compile(v8_str("function a() { startProfiling(); }\n"));
-  script_a->Run(v8::Isolate::GetCurrent()->GetCurrentContext())
-      .ToLocalChecked();
+  script_a->Run(env).ToLocalChecked();
   v8::Local<v8::Script> script_b =
       v8_compile(v8_str("function b() { a(); }\n"
                         "b();\n"
                         "stopProfiling();\n"));
-  script_b->Run(v8::Isolate::GetCurrent()->GetCurrentContext())
-      .ToLocalChecked();
+  script_b->Run(env).ToLocalChecked();
   CHECK_EQ(1, iprofiler->GetProfilesCount());
   const v8::CpuProfile* profile = i::ProfilerExtension::last_profile;
   const v8::CpuProfileNode* current = profile->GetTopDownRoot();
@@ -670,14 +672,15 @@ static const char* line_number_test_source_profile_time_functions =
 "bar_at_the_second_line();\n"
 "function lazy_func_at_6th_line() {}";
 
-int GetFunctionLineNumber(CpuProfiler& profiler, LocalContext& env,
+int GetFunctionLineNumber(CpuProfiler& profiler,  // NOLINT(runtime/references)
+                          LocalContext& env,      // NOLINT(runtime/references)
                           const char* name) {
   CodeMap* code_map = profiler.generator()->code_map();
   i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           env->Global()->Get(env.local(), v8_str(name)).ToLocalChecked())));
   CodeEntry* func_entry =
-      code_map->FindEntry(func->abstract_code()->InstructionStart());
+      code_map->FindEntry(func->abstract_code().InstructionStart());
   if (!func_entry) FATAL("%s", name);
   return func_entry->line_number();
 }
@@ -716,7 +719,7 @@ TEST(BailoutReason) {
   i::FLAG_always_opt = false;
   i::FLAG_opt = true;
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   std::unique_ptr<CpuProfiler> iprofiler(new CpuProfiler(CcTest::i_isolate()));
   i::ProfilerExtension::set_profiler(iprofiler.get());
@@ -733,6 +736,7 @@ TEST(BailoutReason) {
   USE(i_function);
 
   CompileRun(
+      "%PrepareFunctionForOptimization(Debugger);"
       "%OptimizeFunctionOnNextCall(Debugger);"
       "%NeverOptimizeFunction(Debugger);"
       "Debugger();"
@@ -755,6 +759,65 @@ TEST(BailoutReason) {
   CHECK(
       !strcmp("Optimization is always disabled", current->GetBailoutReason()));
 #endif  // V8_LITE_MODE
+}
+
+TEST(NodeSourceTypes) {
+  ProfileTree tree(CcTest::i_isolate());
+  CodeEntry function_entry(CodeEventListener::FUNCTION_TAG, "function");
+  tree.AddPathFromEnd({&function_entry});
+  CodeEntry builtin_entry(CodeEventListener::BUILTIN_TAG, "builtin");
+  tree.AddPathFromEnd({&builtin_entry});
+  CodeEntry callback_entry(CodeEventListener::CALLBACK_TAG, "callback");
+  tree.AddPathFromEnd({&callback_entry});
+  CodeEntry regex_entry(CodeEventListener::REG_EXP_TAG, "regex");
+  tree.AddPathFromEnd({&regex_entry});
+  CodeEntry stub_entry(CodeEventListener::STUB_TAG, "stub");
+  tree.AddPathFromEnd({&stub_entry});
+
+  tree.AddPathFromEnd({CodeEntry::gc_entry()});
+  tree.AddPathFromEnd({CodeEntry::idle_entry()});
+  tree.AddPathFromEnd({CodeEntry::program_entry()});
+  tree.AddPathFromEnd({CodeEntry::unresolved_entry()});
+
+  auto* root = tree.root();
+  CHECK(root);
+  CHECK_EQ(root->source_type(), v8::CpuProfileNode::kInternal);
+
+  auto* function_node = PickChild(root, "function");
+  CHECK(function_node);
+  CHECK_EQ(function_node->source_type(), v8::CpuProfileNode::kScript);
+
+  auto* builtin_node = PickChild(root, "builtin");
+  CHECK(builtin_node);
+  CHECK_EQ(builtin_node->source_type(), v8::CpuProfileNode::kBuiltin);
+
+  auto* callback_node = PickChild(root, "callback");
+  CHECK(callback_node);
+  CHECK_EQ(callback_node->source_type(), v8::CpuProfileNode::kCallback);
+
+  auto* regex_node = PickChild(root, "regex");
+  CHECK(regex_node);
+  CHECK_EQ(regex_node->source_type(), v8::CpuProfileNode::kInternal);
+
+  auto* stub_node = PickChild(root, "stub");
+  CHECK(stub_node);
+  CHECK_EQ(stub_node->source_type(), v8::CpuProfileNode::kInternal);
+
+  auto* gc_node = PickChild(root, "(garbage collector)");
+  CHECK(gc_node);
+  CHECK_EQ(gc_node->source_type(), v8::CpuProfileNode::kInternal);
+
+  auto* idle_node = PickChild(root, "(idle)");
+  CHECK(idle_node);
+  CHECK_EQ(idle_node->source_type(), v8::CpuProfileNode::kInternal);
+
+  auto* program_node = PickChild(root, "(program)");
+  CHECK(program_node);
+  CHECK_EQ(program_node->source_type(), v8::CpuProfileNode::kInternal);
+
+  auto* unresolved_node = PickChild(root, "(unresolved function)");
+  CHECK(unresolved_node);
+  CHECK_EQ(unresolved_node->source_type(), v8::CpuProfileNode::kUnresolved);
 }
 
 }  // namespace test_profile_generator

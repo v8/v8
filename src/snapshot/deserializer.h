@@ -5,6 +5,7 @@
 #ifndef V8_SNAPSHOT_DESERIALIZER_H_
 #define V8_SNAPSHOT_DESERIALIZER_H_
 
+#include <utility>
 #include <vector>
 
 #include "src/objects/allocation-site.h"
@@ -22,7 +23,6 @@ namespace internal {
 
 class HeapObject;
 class Object;
-class UnalignedSlot;
 
 // Used for platforms with embedded constant pools to trigger deserialization
 // of objects found in code.
@@ -35,11 +35,14 @@ class UnalignedSlot;
 #endif
 
 // A Deserializer reads a snapshot and reconstructs the Object graph it defines.
-class Deserializer : public SerializerDeserializer {
+class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
  public:
   ~Deserializer() override;
 
   void SetRehashability(bool v) { can_rehash_ = v; }
+  std::pair<uint32_t, uint32_t> GetChecksum() const {
+    return source_.GetChecksum();
+  }
 
  protected:
   // Create a deserializer from a snapshot byte source.
@@ -48,8 +51,6 @@ class Deserializer : public SerializerDeserializer {
       : isolate_(nullptr),
         source_(data->Payload()),
         magic_number_(data->GetMagicNumber()),
-        external_reference_table_(nullptr),
-        allocator_(this),
         deserializing_user_code_(deserializing_user_code),
         can_rehash_(false) {
     allocator()->DecodeReservation(data->Reservations());
@@ -68,7 +69,7 @@ class Deserializer : public SerializerDeserializer {
 
   // This returns the address of an object that has been described in the
   // snapshot by chunk index and offset.
-  HeapObject GetBackReferencedObject(int space);
+  HeapObject GetBackReferencedObject(SnapshotSpace space);
 
   // Add an object to back an attached reference. The order to add objects must
   // mirror the order they are added in the serializer.
@@ -113,42 +114,57 @@ class Deserializer : public SerializerDeserializer {
 
   void Synchronize(VisitorSynchronization::SyncTag tag) override;
 
-  void UnalignedCopy(UnalignedSlot dest, MaybeObject value);
-  void UnalignedCopy(UnalignedSlot dest, Address value);
+  template <typename TSlot>
+  inline TSlot Write(TSlot dest, MaybeObject value);
+
+  template <typename TSlot>
+  inline TSlot WriteAddress(TSlot dest, Address value);
 
   // Fills in some heap data in an area from start to end (non-inclusive).  The
   // space id is used for the write barrier.  The object_address is the address
   // of the object we are writing into, or nullptr if we are not writing into an
   // object, i.e. if we are writing a series of tagged values that are not on
   // the heap. Return false if the object content has been deferred.
-  bool ReadData(UnalignedSlot start, UnalignedSlot end, int space,
+  template <typename TSlot>
+  bool ReadData(TSlot start, TSlot end, SnapshotSpace space,
                 Address object_address);
 
   // A helper function for ReadData, templatized on the bytecode for efficiency.
   // Returns the new value of {current}.
-  template <int where, int how, int within, int space_number_if_any>
-  inline UnalignedSlot ReadDataCase(Isolate* isolate, UnalignedSlot current,
-                                    Address current_object_address, byte data,
-                                    bool write_barrier_needed);
+  template <typename TSlot, Bytecode bytecode,
+            SnapshotSpace space_number_if_any>
+  inline TSlot ReadDataCase(Isolate* isolate, TSlot current,
+                            Address current_object_address, byte data,
+                            bool write_barrier_needed);
 
   // A helper function for ReadData for reading external references.
-  // Returns the new value of {current}.
-  inline UnalignedSlot ReadExternalReferenceCase(
-      HowToCode how, UnalignedSlot current, Address current_object_address);
+  inline Address ReadExternalReferenceCase();
 
-  void ReadObject(int space_number, UnalignedSlot write_back,
-                  HeapObjectReferenceType reference_type);
+  HeapObject ReadObject();
+  HeapObject ReadObject(SnapshotSpace space_number);
+  void ReadCodeObjectBody(SnapshotSpace space_number,
+                          Address code_object_address);
+
+ public:
+  void VisitCodeTarget(Code host, RelocInfo* rinfo);
+  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo);
+  void VisitRuntimeEntry(Code host, RelocInfo* rinfo);
+  void VisitExternalReference(Code host, RelocInfo* rinfo);
+  void VisitInternalReference(Code host, RelocInfo* rinfo);
+  void VisitOffHeapTarget(Code host, RelocInfo* rinfo);
+
+ private:
+  template <typename TSlot>
+  TSlot ReadRepeatedObject(TSlot current, int repeat_count);
 
   // Special handling for serialized code like hooking up internalized strings.
-  HeapObject PostProcessNewObject(HeapObject obj, int space);
+  HeapObject PostProcessNewObject(HeapObject obj, SnapshotSpace space);
 
   // Objects from the attached object descriptions in the serialized user code.
   std::vector<Handle<HeapObject>> attached_objects_;
 
   SnapshotByteSource source_;
   uint32_t magic_number_;
-
-  ExternalReferenceTable* external_reference_table_;
 
   std::vector<Map> new_maps_;
   std::vector<AllocationSite> new_allocation_sites_;
@@ -177,19 +193,21 @@ class Deserializer : public SerializerDeserializer {
 };
 
 // Used to insert a deserialized internalized string into the string table.
-class StringTableInsertionKey : public StringTableKey {
+class StringTableInsertionKey final : public StringTableKey {
  public:
   explicit StringTableInsertionKey(String string);
 
-  bool IsMatch(Object* string) override;
+  bool IsMatch(String string) override;
 
   V8_WARN_UNUSED_RESULT Handle<String> AsHandle(Isolate* isolate) override;
+
+  String string() const { return string_; }
 
  private:
   uint32_t ComputeHashField(String string);
 
   String string_;
-  DISALLOW_HEAP_ALLOCATION(no_gc);
+  DISALLOW_HEAP_ALLOCATION(no_gc)
 };
 
 }  // namespace internal

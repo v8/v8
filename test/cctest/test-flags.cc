@@ -27,8 +27,8 @@
 
 #include <stdlib.h>
 
-#include "src/flags.h"
-#include "src/v8.h"
+#include "src/flags/flags.h"
+#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -80,7 +80,7 @@ TEST(Flags2b) {
       "-notesting-maybe-bool-flag   "
       "-testing_float_flag=.25  "
       "--testing_string_flag   no_way!  ";
-  CHECK_EQ(0, FlagList::SetFlagsFromString(str, StrLength(str)));
+  CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
   CHECK(!FLAG_testing_bool_flag);
   CHECK(FLAG_testing_maybe_bool_flag.has_value);
   CHECK(!FLAG_testing_maybe_bool_flag.value);
@@ -117,7 +117,7 @@ TEST(Flags3b) {
       "--testing_int_flag -666 "
       "--testing_float_flag -12E10 "
       "-testing-string-flag=foo-bar";
-  CHECK_EQ(0, FlagList::SetFlagsFromString(str, StrLength(str)));
+  CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
   CHECK(FLAG_testing_bool_flag);
   CHECK(FLAG_testing_maybe_bool_flag.has_value);
   CHECK(FLAG_testing_maybe_bool_flag.value);
@@ -142,7 +142,7 @@ TEST(Flags4) {
 TEST(Flags4b) {
   SetFlagsToDefault();
   const char* str = "--testing_bool_flag --foo";
-  CHECK_EQ(2, FlagList::SetFlagsFromString(str, StrLength(str)));
+  CHECK_EQ(2, FlagList::SetFlagsFromString(str, strlen(str)));
   CHECK(!FLAG_testing_maybe_bool_flag.has_value);
 }
 
@@ -161,7 +161,7 @@ TEST(Flags5) {
 TEST(Flags5b) {
   SetFlagsToDefault();
   const char* str = "                     --testing_int_flag=\"foobar\"";
-  CHECK_EQ(1, FlagList::SetFlagsFromString(str, StrLength(str)));
+  CHECK_EQ(1, FlagList::SetFlagsFromString(str, strlen(str)));
 }
 
 
@@ -180,7 +180,7 @@ TEST(Flags6) {
 TEST(Flags6b) {
   SetFlagsToDefault();
   const char* str = "       --testing-int-flag 0      --testing_float_flag    ";
-  CHECK_EQ(3, FlagList::SetFlagsFromString(str, StrLength(str)));
+  CHECK_EQ(3, FlagList::SetFlagsFromString(str, strlen(str)));
 }
 
 TEST(FlagsRemoveIncomplete) {
@@ -188,12 +188,31 @@ TEST(FlagsRemoveIncomplete) {
   // if the list of arguments ends unexpectedly.
   SetFlagsToDefault();
   int argc = 3;
-  const char* argv[] = {"", "--testing-bool-flag", "--expose-natives-as"};
+  const char* argv[] = {"", "--testing-bool-flag", "--expose-gc-as"};
   CHECK_EQ(2, FlagList::SetFlagsFromCommandLine(&argc,
                                                 const_cast<char **>(argv),
                                                 true));
   CHECK(argv[1]);
   CHECK_EQ(2, argc);
+}
+
+TEST(FlagsJitlessImplications) {
+  if (FLAG_jitless) {
+    // Double-check implications work as expected. Our implication system is
+    // fairly primitive and can break easily depending on the implication
+    // definition order in flag-definitions.h.
+    CHECK(!FLAG_opt);
+    CHECK(!FLAG_validate_asm);
+    CHECK(FLAG_wasm_interpret_all);
+    CHECK(!FLAG_asm_wasm_lazy_compilation);
+    CHECK(!FLAG_wasm_lazy_compilation);
+  }
+}
+
+TEST(FlagsRegexpInterpretAllImplications) {
+  if (FLAG_regexp_interpret_all) {
+    CHECK(!FLAG_regexp_tier_up);
+  }
 }
 
 }  // namespace internal

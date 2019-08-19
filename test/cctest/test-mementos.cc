@@ -25,10 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/heap/heap.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"
+#include "src/heap/heap-inl.h"
+#include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -50,11 +50,11 @@ static void SetUpNewSpaceWithPoisonedMementoAtTop() {
   // Create an allocation memento behind the string with a garbage allocation
   // site pointer.
   AllocationMemento memento = AllocationMemento::unchecked_cast(
-      ObjectPtr(new_space->top() + kHeapObjectTag));
-  memento->set_map_after_allocation(
-      ReadOnlyRoots(heap).allocation_memento_map(), SKIP_WRITE_BARRIER);
-  memento->set_allocation_site(
-      AllocationSite::unchecked_cast(ObjectPtr(kHeapObjectTag)),
+      Object(new_space->top() + kHeapObjectTag));
+  memento.set_map_after_allocation(ReadOnlyRoots(heap).allocation_memento_map(),
+                                   SKIP_WRITE_BARRIER);
+  memento.set_allocation_site(
+      AllocationSite::unchecked_cast(Object(kHeapObjectTag)),
       SKIP_WRITE_BARRIER);
 }
 

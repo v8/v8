@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/codegen/macro-assembler.h"
 #include "src/compiler/backend/instruction-scheduler.h"
-#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -318,6 +318,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64Ush:
     case kMips64Usw:
     case kMips64Uswc1:
+    case kMips64Sync:
     case kMips64Word64AtomicStoreWord8:
     case kMips64Word64AtomicStoreWord16:
     case kMips64Word64AtomicStoreWord32:
@@ -1263,7 +1264,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return AssembleArchLookupSwitchLatency(instr);
     case kArchTableSwitch:
       return AssembleArchTableSwitchLatency();
-    case kArchDebugAbort:
+    case kArchAbortCSAAssert:
       return CallLatency() + 1;
     case kArchDebugBreak:
       return 1;

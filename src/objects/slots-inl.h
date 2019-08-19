@@ -8,14 +8,12 @@
 #include "src/objects/slots.h"
 
 #include "src/base/atomic-utils.h"
-#include "src/memcopy.h"
-#include "src/objects.h"
-#include "src/objects/heap-object-inl.h"
+#include "src/common/ptr-compr-inl.h"
+#include "src/objects/compressed-slots.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/maybe-object.h"
-
-#ifdef V8_COMPRESS_POINTERS
-#include "src/ptr-compr-inl.h"
-#endif
+#include "src/objects/objects.h"
+#include "src/utils/memcopy.h"
 
 namespace v8 {
 namespace internal {
@@ -24,68 +22,44 @@ namespace internal {
 // FullObjectSlot implementation.
 //
 
-FullObjectSlot::FullObjectSlot(ObjectPtr* object)
+FullObjectSlot::FullObjectSlot(Object* object)
     : SlotBase(reinterpret_cast<Address>(&object->ptr_)) {}
 
 bool FullObjectSlot::contains_value(Address raw_value) const {
   return base::AsAtomicPointer::Relaxed_Load(location()) == raw_value;
 }
 
-Object* FullObjectSlot::operator*() const {
-  return reinterpret_cast<Object*>(*location());
+const Object FullObjectSlot::operator*() const { return Object(*location()); }
+
+void FullObjectSlot::store(Object value) const { *location() = value.ptr(); }
+
+Object FullObjectSlot::Acquire_Load() const {
+  return Object(base::AsAtomicPointer::Acquire_Load(location()));
 }
 
-ObjectPtr FullObjectSlot::load() const { return ObjectPtr(*location()); }
-
-void FullObjectSlot::store(Object* value) const { *location() = value->ptr(); }
-
-void FullObjectSlot::store(ObjectPtr value) const { *location() = value.ptr(); }
-
-ObjectPtr FullObjectSlot::Acquire_Load() const {
-  return ObjectPtr(base::AsAtomicPointer::Acquire_Load(location()));
+Object FullObjectSlot::Relaxed_Load() const {
+  return Object(base::AsAtomicPointer::Relaxed_Load(location()));
 }
 
-Object* FullObjectSlot::Acquire_Load1() const {
-  return reinterpret_cast<Object*>(
-      base::AsAtomicPointer::Acquire_Load(location()));
+void FullObjectSlot::Relaxed_Store(Object value) const {
+  base::AsAtomicPointer::Relaxed_Store(location(), value.ptr());
 }
 
-ObjectPtr FullObjectSlot::Relaxed_Load() const {
-  return ObjectPtr(base::AsAtomicPointer::Relaxed_Load(location()));
+void FullObjectSlot::Release_Store(Object value) const {
+  base::AsAtomicPointer::Release_Store(location(), value.ptr());
 }
 
-void FullObjectSlot::Relaxed_Store(ObjectPtr value) const {
-  base::AsAtomicPointer::Relaxed_Store(location(), value->ptr());
-}
-
-void FullObjectSlot::Relaxed_Store1(Object* value) const {
-  base::AsAtomicPointer::Relaxed_Store(location(), value->ptr());
-}
-
-void FullObjectSlot::Release_Store1(Object* value) const {
-  base::AsAtomicPointer::Release_Store(location(), value->ptr());
-}
-
-void FullObjectSlot::Release_Store(ObjectPtr value) const {
-  base::AsAtomicPointer::Release_Store(location(), value->ptr());
-}
-
-ObjectPtr FullObjectSlot::Release_CompareAndSwap(ObjectPtr old,
-                                                 ObjectPtr target) const {
+Object FullObjectSlot::Release_CompareAndSwap(Object old, Object target) const {
   Address result = base::AsAtomicPointer::Release_CompareAndSwap(
-      location(), old->ptr(), target->ptr());
-  return ObjectPtr(result);
+      location(), old.ptr(), target.ptr());
+  return Object(result);
 }
 
 //
 // FullMaybeObjectSlot implementation.
 //
 
-MaybeObject FullMaybeObjectSlot::operator*() const {
-  return MaybeObject(*location());
-}
-
-MaybeObject FullMaybeObjectSlot::load() const {
+const MaybeObject FullMaybeObjectSlot::operator*() const {
   return MaybeObject(*location());
 }
 
@@ -94,23 +68,24 @@ void FullMaybeObjectSlot::store(MaybeObject value) const {
 }
 
 MaybeObject FullMaybeObjectSlot::Relaxed_Load() const {
-  return MaybeObject(AsAtomicTagged::Relaxed_Load(location()));
+  return MaybeObject(base::AsAtomicPointer::Relaxed_Load(location()));
 }
 
 void FullMaybeObjectSlot::Relaxed_Store(MaybeObject value) const {
-  AsAtomicTagged::Relaxed_Store(location(), value->ptr());
+  base::AsAtomicPointer::Relaxed_Store(location(), value->ptr());
 }
 
 void FullMaybeObjectSlot::Release_CompareAndSwap(MaybeObject old,
                                                  MaybeObject target) const {
-  AsAtomicTagged::Release_CompareAndSwap(location(), old.ptr(), target.ptr());
+  base::AsAtomicPointer::Release_CompareAndSwap(location(), old.ptr(),
+                                                target.ptr());
 }
 
 //
 // FullHeapObjectSlot implementation.
 //
 
-HeapObjectReference FullHeapObjectSlot::operator*() const {
+const HeapObjectReference FullHeapObjectSlot::operator*() const {
   return HeapObjectReference(*location());
 }
 
@@ -120,28 +95,41 @@ void FullHeapObjectSlot::store(HeapObjectReference value) const {
 
 HeapObject FullHeapObjectSlot::ToHeapObject() const {
   DCHECK((*location() & kHeapObjectTagMask) == kHeapObjectTag);
-  return HeapObject::cast(ObjectPtr(*location()));
+  return HeapObject::cast(Object(*location()));
 }
 
 void FullHeapObjectSlot::StoreHeapObject(HeapObject value) const {
-  *location() = value->ptr();
+  *location() = value.ptr();
 }
 
 //
 // Utils.
 //
 
+// Copies tagged words from |src| to |dst|. The data spans must not overlap.
+// |src| and |dst| must be kTaggedSize-aligned.
+inline void CopyTagged(Address dst, const Address src, size_t num_tagged) {
+  static const size_t kBlockCopyLimit = 16;
+  CopyImpl<kBlockCopyLimit>(reinterpret_cast<Tagged_t*>(dst),
+                            reinterpret_cast<const Tagged_t*>(src), num_tagged);
+}
+
 // Sets |counter| number of kTaggedSize-sized values starting at |start| slot.
-inline void MemsetTagged(ObjectSlot start, Object* value, size_t counter) {
-  // TODO(ishell): revisit this implementation, maybe use "rep stosl"
-  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
-  MemsetPointer(start.location(), reinterpret_cast<Address>(value), counter);
+inline void MemsetTagged(ObjectSlot start, Object value, size_t counter) {
+#ifdef V8_COMPRESS_POINTERS
+  Tagged_t raw_value = CompressTagged(value.ptr());
+  STATIC_ASSERT(kTaggedSize == kInt32Size);
+  MemsetInt32(start.location(), raw_value, counter);
+#else
+  Address raw_value = value.ptr();
+  MemsetPointer(start.location(), raw_value, counter);
+#endif
 }
 
 // Sets |counter| number of kSystemPointerSize-sized values starting at |start|
 // slot.
-inline void MemsetPointer(FullObjectSlot start, Object* value, size_t counter) {
-  MemsetPointer(start.location(), reinterpret_cast<Address>(value), counter);
+inline void MemsetPointer(FullObjectSlot start, Object value, size_t counter) {
+  MemsetPointer(start.location(), value.ptr(), counter);
 }
 
 }  // namespace internal

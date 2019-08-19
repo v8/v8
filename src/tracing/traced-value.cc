@@ -5,7 +5,8 @@
 #include "src/tracing/traced-value.h"
 
 #include "src/base/platform/platform.h"
-#include "src/conversions.h"
+#include "src/numbers/conversions.h"
+#include "src/utils/vector.h"
 
 namespace v8 {
 namespace tracing {
@@ -66,6 +67,7 @@ void EscapeAndAppendString(const char* value, std::string* result) {
 
 }  // namespace
 
+// static
 std::unique_ptr<TracedValue> TracedValue::Create() {
   return std::unique_ptr<TracedValue>(new TracedValue());
 }
@@ -103,6 +105,14 @@ void TracedValue::SetString(const char* name, const char* value) {
   DCHECK_CURRENT_CONTAINER_IS(kStackTypeDict);
   WriteName(name);
   EscapeAndAppendString(value, &data_);
+}
+
+void TracedValue::SetValue(const char* name, TracedValue* value) {
+  DCHECK_CURRENT_CONTAINER_IS(kStackTypeDict);
+  WriteName(name);
+  std::string tmp;
+  value->AppendAsTraceFormat(&tmp);
+  data_ += tmp;
 }
 
 void TracedValue::BeginDictionary(const char* name) {

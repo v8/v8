@@ -5,8 +5,8 @@
 #ifndef V8_OBJECTS_PROPERTY_DESCRIPTOR_OBJECT_H_
 #define V8_OBJECTS_PROPERTY_DESCRIPTOR_OBJECT_H_
 
-#include "src/objects.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/objects.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -32,7 +32,7 @@ class PropertyDescriptorObject : public FixedArray {
 
   enum { kFlagsIndex, kValueIndex, kGetIndex, kSetIndex, kLength };
 
-  DECL_CAST2(PropertyDescriptorObject)
+  DECL_CAST(PropertyDescriptorObject)
 
   static const int kRegularAccessorPropertyBits =
       HasEnumerableBit::kMask | HasConfigurableBit::kMask | HasGetBit::kMask |
@@ -56,7 +56,7 @@ class PropertyDescriptorObject : public FixedArray {
   static const int kSetOffset =
       FixedArray::OffsetOfElementAt(PropertyDescriptorObject::kSetIndex);
 
-  OBJECT_CONSTRUCTORS(PropertyDescriptorObject, FixedArray)
+  OBJECT_CONSTRUCTORS(PropertyDescriptorObject, FixedArray);
 };
 
 }  // namespace internal

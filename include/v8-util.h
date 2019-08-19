@@ -195,17 +195,6 @@ class PersistentValueMapBase {
   }
 
   /**
-   * Call V8::RegisterExternallyReferencedObject with the map value for given
-   * key.
-   */
-  void RegisterExternallyReferencedObject(K& key) {
-    assert(Contains(key));
-    V8::RegisterExternallyReferencedObject(
-        reinterpret_cast<internal::Address*>(FromVal(Traits::Get(&impl_, key))),
-        reinterpret_cast<internal::Isolate*>(GetIsolate()));
-  }
-
-  /**
    * Return value for key and remove it from the map.
    */
   Global<V> Remove(const K& key) {
@@ -354,7 +343,6 @@ class PersistentValueMapBase {
   typename Traits::Impl impl_;
   const char* label_;
 };
-
 
 template <typename K, typename V, typename Traits>
 class PersistentValueMap : public PersistentValueMapBase<K, V, Traits> {

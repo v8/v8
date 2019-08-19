@@ -4,14 +4,14 @@
 
 #include "src/compiler/linkage.h"
 
-#include "src/assembler-inl.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/frame.h"
 #include "src/compiler/node.h"
 #include "src/compiler/osr.h"
 #include "src/compiler/pipeline.h"
-#include "src/macro-assembler.h"
-#include "src/optimized-compilation-info.h"
 
 namespace v8 {
 namespace internal {
@@ -36,6 +36,9 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k) {
       break;
     case CallDescriptor::kCallAddress:
       os << "Addr";
+      break;
+    case CallDescriptor::kCallWasmCapiFunction:
+      os << "WasmExit";
       break;
     case CallDescriptor::kCallWasmFunction:
       os << "WasmFunction";
@@ -119,17 +122,34 @@ int CallDescriptor::GetStackParameterDelta(
   return stack_param_delta;
 }
 
+int CallDescriptor::GetTaggedParameterSlots() const {
+  int result = 0;
+  for (size_t i = 0; i < InputCount(); ++i) {
+    LinkageLocation operand = GetInputLocation(i);
+    if (!operand.IsRegister() && operand.GetType().IsTagged()) {
+      ++result;
+    }
+  }
+  return result;
+}
+
 bool CallDescriptor::CanTailCall(const Node* node) const {
   return HasSameReturnLocationsAs(CallDescriptorOf(node->op()));
 }
 
-int CallDescriptor::CalculateFixedFrameSize() const {
+// TODO(jkummerow, sigurds): Arguably frame size calculation should be
+// keyed on code/frame type, not on CallDescriptor kind. Think about a
+// good way to organize this logic.
+int CallDescriptor::CalculateFixedFrameSize(Code::Kind code_kind) const {
   switch (kind_) {
     case kCallJSFunction:
       return PushArgumentCount()
                  ? OptimizedBuiltinFrameConstants::kFixedSlotCount
                  : StandardFrameConstants::kFixedSlotCount;
     case kCallAddress:
+      if (code_kind == Code::C_WASM_ENTRY) {
+        return CWasmEntryFrameConstants::kFixedSlotCount;
+      }
       return CommonFrameConstants::kFixedSlotCountAboveFp +
              CommonFrameConstants::kCPSlotCount;
     case kCallCodeObject:
@@ -138,6 +158,8 @@ int CallDescriptor::CalculateFixedFrameSize() const {
     case kCallWasmFunction:
     case kCallWasmImportWrapper:
       return WasmCompiledFrameConstants::kFixedSlotCount;
+    case kCallWasmCapiFunction:
+      return WasmExitFrameConstants::kFixedSlotCount;
   }
   UNREACHABLE();
 }
@@ -150,7 +172,7 @@ CallDescriptor* Linkage::ComputeIncoming(Zone* zone,
     // plus the receiver.
     SharedFunctionInfo shared = info->closure()->shared();
     return GetJSCallDescriptor(zone, info->is_osr(),
-                               1 + shared->internal_formal_parameter_count(),
+                               1 + shared.internal_formal_parameter_count(),
                                CallDescriptor::kCanUseRoots);
   }
   return nullptr;  // TODO(titzer): ?
@@ -164,7 +186,7 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     // not to call into arbitrary JavaScript, not to throw, and not to lazily
     // deoptimize are whitelisted here and can be called without a FrameState.
     case Runtime::kAbort:
-    case Runtime::kAllocateInTargetSpace:
+    case Runtime::kAllocateInOldGeneration:
     case Runtime::kCreateIterResultObject:
     case Runtime::kIncBlockCounter:
     case Runtime::kIsFunction:
@@ -186,6 +208,7 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
 
     // Some inline intrinsics are also safe to call without a FrameState.
     case Runtime::kInlineCreateIterResultObject:
+    case Runtime::kInlineIncBlockCounter:
     case Runtime::kInlineGeneratorClose:
     case Runtime::kInlineGeneratorGetResumeMode:
     case Runtime::kInlineCreateJSGeneratorObject:
@@ -193,7 +216,6 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kInlineIsJSReceiver:
     case Runtime::kInlineIsRegExp:
     case Runtime::kInlineIsSmi:
-    case Runtime::kInlineIsTypedArray:
       return false;
 
     default:

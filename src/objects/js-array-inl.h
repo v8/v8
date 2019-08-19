@@ -7,7 +7,7 @@
 
 #include "src/objects/js-array.h"
 
-#include "src/objects-inl.h"  // Needed for write barriers
+#include "src/objects/objects-inl.h"  // Needed for write barriers
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -18,14 +18,14 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(JSArray, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(JSArrayIterator, JSObject)
 
-CAST_ACCESSOR2(JSArray)
-CAST_ACCESSOR2(JSArrayIterator)
+CAST_ACCESSOR(JSArray)
+CAST_ACCESSOR(JSArrayIterator)
 
 ACCESSORS(JSArray, length, Object, kLengthOffset)
 
 void JSArray::set_length(Smi length) {
   // Don't need a write barrier for a Smi.
-  set_length(static_cast<Object*>(length), SKIP_WRITE_BARRIER);
+  set_length(Object(length.ptr()), SKIP_WRITE_BARRIER);
 }
 
 bool JSArray::SetLengthWouldNormalize(Heap* heap, uint32_t new_length) {
@@ -33,8 +33,8 @@ bool JSArray::SetLengthWouldNormalize(Heap* heap, uint32_t new_length) {
 }
 
 bool JSArray::AllowsSetLength() {
-  bool result = elements()->IsFixedArray() || elements()->IsFixedDoubleArray();
-  DCHECK(result == !HasFixedTypedArrayElements());
+  bool result = elements().IsFixedArray() || elements().IsFixedDoubleArray();
+  DCHECK(result == !HasTypedArrayElements());
   return result;
 }
 
@@ -55,19 +55,20 @@ void JSArray::SetContent(Handle<JSArray> array,
 }
 
 bool JSArray::HasArrayPrototype(Isolate* isolate) {
-  return map()->prototype() == *isolate->initial_array_prototype();
+  return map().prototype() == *isolate->initial_array_prototype();
 }
 
 ACCESSORS(JSArrayIterator, iterated_object, Object, kIteratedObjectOffset)
 ACCESSORS(JSArrayIterator, next_index, Object, kNextIndexOffset)
 
+SMI_ACCESSORS(JSArrayIterator, raw_kind, kKindOffset)
+
 IterationKind JSArrayIterator::kind() const {
-  return static_cast<IterationKind>(
-      Smi::cast(READ_FIELD(this, kKindOffset))->value());
+  return static_cast<IterationKind>(raw_kind());
 }
 
 void JSArrayIterator::set_kind(IterationKind kind) {
-  WRITE_FIELD(this, kKindOffset, Smi::FromInt(static_cast<int>(kind)));
+  set_raw_kind(static_cast<int>(kind));
 }
 
 }  // namespace internal

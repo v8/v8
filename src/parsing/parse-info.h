@@ -10,11 +10,12 @@
 #include <vector>
 
 #include "include/v8.h"
-#include "src/globals.h"
-#include "src/handles.h"
+#include "src/common/globals.h"
+#include "src/handles/handles.h"
+#include "src/objects/function-kind.h"
 #include "src/objects/script.h"
-#include "src/parsing/preparsed-scope-data.h"
-#include "src/pending-compilation-error-handler.h"
+#include "src/parsing/pending-compilation-error-handler.h"
+#include "src/parsing/preparse-data.h"
 
 namespace v8 {
 
@@ -72,7 +73,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
   FLAG_ACCESSOR(kEager, is_eager, set_eager)
   FLAG_ACCESSOR(kEval, is_eval, set_eval)
   FLAG_ACCESSOR(kStrictMode, is_strict_mode, set_strict_mode)
-  FLAG_ACCESSOR(kNative, is_native, set_native)
   FLAG_ACCESSOR(kModule, is_module, set_module)
   FLAG_ACCESSOR(kAllowLazyParsing, allow_lazy_parsing, set_allow_lazy_parsing)
   FLAG_ACCESSOR(kIsNamedExpression, is_named_expression,
@@ -83,6 +83,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   FLAG_ACCESSOR(kIsAsmWasmBroken, is_asm_wasm_broken, set_asm_wasm_broken)
   FLAG_ACCESSOR(kContainsAsmModule, contains_asm_module,
                 set_contains_asm_module)
+  FLAG_ACCESSOR(kCoverageEnabled, coverage_enabled, set_coverage_enabled)
   FLAG_ACCESSOR(kBlockCoverageEnabled, block_coverage_enabled,
                 set_block_coverage_enabled)
   FLAG_ACCESSOR(kOnBackgroundThread, on_background_thread,
@@ -93,27 +94,24 @@ class V8_EXPORT_PRIVATE ParseInfo {
   FLAG_ACCESSOR(kIsDeclaration, is_declaration, set_declaration)
   FLAG_ACCESSOR(kRequiresInstanceMembersInitializer,
                 requires_instance_members_initializer,
-                set_requires_instance_members_initializer);
+                set_requires_instance_members_initializer)
   FLAG_ACCESSOR(kMightAlwaysOpt, might_always_opt, set_might_always_opt)
   FLAG_ACCESSOR(kAllowNativeSyntax, allow_natives_syntax,
                 set_allow_natives_syntax)
   FLAG_ACCESSOR(kAllowLazyCompile, allow_lazy_compile, set_allow_lazy_compile)
   FLAG_ACCESSOR(kAllowNativeSyntax, allow_native_syntax,
-                set_allow_native_syntax);
-  FLAG_ACCESSOR(kAllowHarmonyPublicFields, allow_harmony_public_fields,
-                set_allow_harmony_public_fields);
-  FLAG_ACCESSOR(kAllowHarmonyStaticFields, allow_harmony_static_fields,
-                set_allow_harmony_static_fields);
+                set_allow_native_syntax)
   FLAG_ACCESSOR(kAllowHarmonyDynamicImport, allow_harmony_dynamic_import,
-                set_allow_harmony_dynamic_import);
+                set_allow_harmony_dynamic_import)
   FLAG_ACCESSOR(kAllowHarmonyImportMeta, allow_harmony_import_meta,
-                set_allow_harmony_import_meta);
-  FLAG_ACCESSOR(kAllowHarmonyNumericSeparator, allow_harmony_numeric_separator,
-                set_allow_harmony_numeric_separator);
-  FLAG_ACCESSOR(kAllowHarmonyPrivateFields, allow_harmony_private_fields,
-                set_allow_harmony_private_fields);
+                set_allow_harmony_import_meta)
+  FLAG_ACCESSOR(kAllowHarmonyOptionalChaining, allow_harmony_optional_chaining,
+                set_allow_harmony_optional_chaining)
   FLAG_ACCESSOR(kAllowHarmonyPrivateMethods, allow_harmony_private_methods,
-                set_allow_harmony_private_methods);
+                set_allow_harmony_private_methods)
+  FLAG_ACCESSOR(kIsOneshotIIFE, is_oneshot_iife, set_is_oneshot_iife)
+  FLAG_ACCESSOR(kCollectSourcePositions, collect_source_positions,
+                set_collect_source_positions)
 #undef FLAG_ACCESSOR
 
   void set_parse_restriction(ParseRestriction restriction) {
@@ -135,12 +133,11 @@ class V8_EXPORT_PRIVATE ParseInfo {
   v8::Extension* extension() const { return extension_; }
   void set_extension(v8::Extension* extension) { extension_ = extension; }
 
-  void set_consumed_preparsed_scope_data(
-      std::unique_ptr<ConsumedPreParsedScopeData> data) {
-    consumed_preparsed_scope_data_.swap(data);
+  void set_consumed_preparse_data(std::unique_ptr<ConsumedPreparseData> data) {
+    consumed_preparse_data_.swap(data);
   }
-  ConsumedPreParsedScopeData* consumed_preparsed_scope_data() {
-    return consumed_preparsed_scope_data_.get();
+  ConsumedPreparseData* consumed_preparse_data() {
+    return consumed_preparse_data_.get();
   }
 
   DeclarationScope* script_scope() const { return script_scope_; }
@@ -232,8 +229,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
     void Enqueue(ParseInfo* outer_parse_info, const AstRawString* function_name,
                  FunctionLiteral* literal);
 
-    typedef std::forward_list<std::pair<FunctionLiteral*, uintptr_t>>::iterator
-        EnqueuedJobsIterator;
+    using EnqueuedJobsIterator =
+        std::forward_list<std::pair<FunctionLiteral*, uintptr_t>>::iterator;
 
     EnqueuedJobsIterator begin() { return enqueued_jobs_.begin(); }
     EnqueuedJobsIterator end() { return enqueued_jobs_.end(); }
@@ -293,24 +290,27 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kIsNamedExpression = 1 << 8,
     kLazyCompile = 1 << 9,
     kCollectTypeProfile = 1 << 10,
-    kBlockCoverageEnabled = 1 << 11,
-    kIsAsmWasmBroken = 1 << 12,
-    kOnBackgroundThread = 1 << 13,
-    kWrappedAsFunction = 1 << 14,  // Implicitly wrapped as function.
-    kAllowEvalCache = 1 << 15,
-    kIsDeclaration = 1 << 16,
-    kRequiresInstanceMembersInitializer = 1 << 17,
-    kContainsAsmModule = 1 << 18,
-    kMightAlwaysOpt = 1 << 19,
-    kAllowLazyCompile = 1 << 20,
-    kAllowNativeSyntax = 1 << 21,
-    kAllowHarmonyPublicFields = 1 << 22,
-    kAllowHarmonyStaticFields = 1 << 23,
-    kAllowHarmonyDynamicImport = 1 << 24,
-    kAllowHarmonyImportMeta = 1 << 25,
-    kAllowHarmonyNumericSeparator = 1 << 26,
-    kAllowHarmonyPrivateFields = 1 << 27,
-    kAllowHarmonyPrivateMethods = 1 << 28
+    kCoverageEnabled = 1 << 11,
+    kBlockCoverageEnabled = 1 << 12,
+    kIsAsmWasmBroken = 1 << 13,
+    kOnBackgroundThread = 1 << 14,
+    kWrappedAsFunction = 1 << 15,  // Implicitly wrapped as function.
+    kAllowEvalCache = 1 << 16,
+    kIsDeclaration = 1 << 17,
+    kRequiresInstanceMembersInitializer = 1 << 18,
+    kContainsAsmModule = 1 << 19,
+    kMightAlwaysOpt = 1 << 20,
+    kAllowLazyCompile = 1 << 21,
+    kAllowNativeSyntax = 1 << 22,
+    kAllowHarmonyPublicFields = 1 << 23,
+    kAllowHarmonyStaticFields = 1 << 24,
+    kAllowHarmonyDynamicImport = 1 << 25,
+    kAllowHarmonyImportMeta = 1 << 26,
+    kAllowHarmonyOptionalChaining = 1 << 27,
+    kAllowHarmonyPrivateFields = 1 << 28,
+    kAllowHarmonyPrivateMethods = 1 << 29,
+    kIsOneshotIIFE = 1 << 30,
+    kCollectSourcePositions = 1 << 31,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
@@ -334,7 +334,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   //----------- Inputs+Outputs of parsing and scope analysis -----------------
   std::unique_ptr<Utf16CharacterStream> character_stream_;
-  std::unique_ptr<ConsumedPreParsedScopeData> consumed_preparsed_scope_data_;
+  std::unique_ptr<ConsumedPreparseData> consumed_preparse_data_;
   std::unique_ptr<AstValueFactory> ast_value_factory_;
   const class AstStringConstants* ast_string_constants_;
   const AstRawString* function_name_;

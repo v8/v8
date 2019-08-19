@@ -5,12 +5,15 @@
 #ifndef V8_COMPILER_TYPER_H_
 #define V8_COMPILER_TYPER_H_
 
+#include "src/common/globals.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/operation-typer.h"
-#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
+
+class TickCounter;
+
 namespace compiler {
 
 // Forward declarations.
@@ -23,9 +26,10 @@ class V8_EXPORT_PRIVATE Typer {
     kThisIsReceiver = 1u << 0,       // Parameter this is an Object.
     kNewTargetIsReceiver = 1u << 1,  // Parameter new.target is an Object.
   };
-  typedef base::Flags<Flag> Flags;
+  using Flags = base::Flags<Flag>;
 
-  Typer(JSHeapBroker* broker, Flags flags, Graph* graph);
+  Typer(JSHeapBroker* broker, Flags flags, Graph* graph,
+        TickCounter* tick_counter);
   ~Typer();
 
   void Run();
@@ -46,9 +50,10 @@ class V8_EXPORT_PRIVATE Typer {
   Flags const flags_;
   Graph* const graph_;
   Decorator* decorator_;
-  TypeCache const& cache_;
+  TypeCache const* cache_;
   JSHeapBroker* broker_;
   OperationTyper operation_typer_;
+  TickCounter* const tick_counter_;
 
   Type singleton_false_;
   Type singleton_true_;
@@ -56,7 +61,7 @@ class V8_EXPORT_PRIVATE Typer {
   DISALLOW_COPY_AND_ASSIGN(Typer);
 };
 
-DEFINE_OPERATORS_FOR_FLAGS(Typer::Flags);
+DEFINE_OPERATORS_FOR_FLAGS(Typer::Flags)
 
 }  // namespace compiler
 }  // namespace internal

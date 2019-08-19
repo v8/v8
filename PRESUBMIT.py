@@ -43,6 +43,9 @@ _EXCLUDED_PATHS = (
     r"^tools[\\\/].*",
 )
 
+_LICENSE_FILE = (
+    r"LICENSE"
+)
 
 # Regular expression that matches code which should not be run through cpplint.
 _NO_LINT_PATHS = (
@@ -74,7 +77,7 @@ def _V8PresubmitChecks(input_api, output_api):
   sys.path.append(input_api.os_path.join(
         input_api.PresubmitLocalPath(), 'tools'))
   from v8_presubmit import CppLintProcessor
-  from v8_presubmit import TorqueFormatProcessor
+  from v8_presubmit import TorqueLintProcessor
   from v8_presubmit import SourceProcessor
   from v8_presubmit import StatusFilesProcessor
 
@@ -93,7 +96,7 @@ def _V8PresubmitChecks(input_api, output_api):
   if not CppLintProcessor().RunOnFiles(
       input_api.AffectedFiles(file_filter=FilterFile, include_deletes=False)):
     results.append(output_api.PresubmitError("C++ lint check failed"))
-  if not TorqueFormatProcessor().RunOnFiles(
+  if not TorqueLintProcessor().RunOnFiles(
       input_api.AffectedFiles(file_filter=FilterTorqueFile,
                               include_deletes=False)):
     results.append(output_api.PresubmitError("Torque format check failed"))
@@ -311,8 +314,13 @@ def _CommonChecks(input_api, output_api):
   results.extend(_CheckCommitMessageBugEntry(input_api, output_api))
   results.extend(input_api.canned_checks.CheckPatchFormatted(
       input_api, output_api))
+
+  # License files are taken as is, even if they include gendered pronouns.
+  license_filter = lambda path: input_api.FilterSourceFile(
+      path, black_list=_LICENSE_FILE)
   results.extend(input_api.canned_checks.CheckGenderNeutral(
-      input_api, output_api))
+      input_api, output_api, source_file_filter=license_filter))
+
   results.extend(_V8PresubmitChecks(input_api, output_api))
   results.extend(_CheckUnwantedDependencies(input_api, output_api))
   results.extend(
@@ -425,6 +433,8 @@ def _CheckMacroUndefs(input_api, output_api):
 
         undef_match = undef_pattern.match(line)
         if undef_match:
+          if "// NOLINT" in line:
+            continue
           name = undef_match.group(1)
           if not name in defined_macros:
             errors.append('{}:{}: Macro named \'{}\' was not defined before.'
@@ -457,14 +467,20 @@ def _CheckNoexceptAnnotations(input_api, output_api):
   tools/presubmit.py (https://crbug.com/v8/8616).
   """
 
+  def FilterFile(affected_file):
+    return input_api.FilterSourceFile(
+        affected_file,
+        white_list=(r'src/.*', r'test/.*'))
+
+
   # matches any class name.
-  class_name = r'\b([A-Z][A-Za-z0-9_]*)(?:::\1)?'
+  class_name = r'\b([A-Z][A-Za-z0-9_:]*)(?:::\1)?'
   # initial class name is potentially followed by this to declare an assignment
   # operator.
-  potential_assignment = r'(?:&\s+operator=)?\s*'
+  potential_assignment = r'(?:&\s+(?:\1::)?operator=)?\s*'
   # matches an argument list that contains only a reference to a class named
   # like the first capture group, potentially const.
-  single_class_ref_arg = r'\((?:const\s+)?\1(?:::\1)?&&?[^,;)]*\)'
+  single_class_ref_arg = r'\(\s*(?:const\s+)?\1(?:::\1)?&&?[^,;)]*\)'
   # matches anything but a sequence of whitespaces followed by either
   # V8_NOEXCEPT or "= delete".
   not_followed_by_noexcept = r'(?!\s+(?:V8_NOEXCEPT|=\s+delete)\b)'
@@ -473,7 +489,8 @@ def _CheckNoexceptAnnotations(input_api, output_api):
   regexp = input_api.re.compile(full_pattern, re.MULTILINE)
 
   errors = []
-  for f in input_api.AffectedFiles(include_deletes=False):
+  for f in input_api.AffectedFiles(file_filter=FilterFile,
+                                   include_deletes=False):
     with open(f.LocalPath()) as fh:
       for match in re.finditer(regexp, fh.read()):
         errors.append('in {}: {}'.format(f.LocalPath(),

@@ -5,27 +5,27 @@
 #include 'src/builtins/builtins-collections-gen.h'
 
 namespace collections {
+  @export
   macro LoadKeyValuePairNoSideEffects(implicit context: Context)(o: Object):
-      KeyValuePair
-      labels MayHaveSideEffects {
+      KeyValuePair labels MayHaveSideEffects {
     typeswitch (o) {
       case (a: FastJSArray): {
         const length: Smi = a.length;
         typeswitch (a.elements) {
           case (elements: FixedArray): {
             return KeyValuePair{
-              length > 0 ? array::LoadElementOrUndefined(elements, 0) :
-                           Undefined,
-              length > 1 ? array::LoadElementOrUndefined(elements, 1) :
-                           Undefined
+              key: length > 0 ? array::LoadElementOrUndefined(elements, 0) :
+                                Undefined,
+              value: length > 1 ? array::LoadElementOrUndefined(elements, 1) :
+                                  Undefined
             };
           }
           case (elements: FixedDoubleArray): {
             return KeyValuePair{
-              length > 0 ? array::LoadElementOrUndefined(elements, 0) :
-                           Undefined,
-              length > 1 ? array::LoadElementOrUndefined(elements, 1) :
-                           Undefined
+              key: length > 0 ? array::LoadElementOrUndefined(elements, 0) :
+                                Undefined,
+              value: length > 1 ? array::LoadElementOrUndefined(elements, 1) :
+                                  Undefined
             };
           }
           case (Object): deferred {
@@ -33,15 +33,16 @@ namespace collections {
           }
         }
       }
-      case (receiver: JSReceiver): {
+      case (JSReceiver): {
         goto MayHaveSideEffects;
       }
       case (o: Object): deferred {
-        ThrowTypeError(context, kIteratorValueNotAnObject, o);
+        ThrowTypeError(kIteratorValueNotAnObject, o);
       }
     }
   }
 
+  @export
   transitioning macro LoadKeyValuePair(implicit context: Context)(o: Object):
       KeyValuePair {
     try {
@@ -49,8 +50,8 @@ namespace collections {
     }
     label Generic {
       return KeyValuePair{
-        GetProperty(o, Convert<Smi>(0)),
-        GetProperty(o, Convert<Smi>(1))
+        key: GetProperty(o, Convert<Smi>(0)),
+        value: GetProperty(o, Convert<Smi>(1))
       };
     }
   }

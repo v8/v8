@@ -32,14 +32,15 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
+#include "src/init/v8.h"
 
-#include "src/api-inl.h"
+#include "src/api/api-inl.h"
 #include "src/base/platform/elapsed-timer.h"
+#include "src/execution/messages.h"
 #include "src/heap/factory.h"
-#include "src/messages.h"
-#include "src/objects-inl.h"
-#include "src/unicode-decoder.h"
+#include "src/heap/heap-inl.h"
+#include "src/objects/objects-inl.h"
+#include "src/strings/unicode-decoder.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
@@ -320,23 +321,23 @@ void ConsStringGenerationData::Reset() {
 }
 
 void AccumulateStats(ConsString cons_string, ConsStringStats* stats) {
-  int left_length = cons_string->first()->length();
-  int right_length = cons_string->second()->length();
-  CHECK(cons_string->length() == left_length + right_length);
+  int left_length = cons_string.first().length();
+  int right_length = cons_string.second().length();
+  CHECK(cons_string.length() == left_length + right_length);
   // Check left side.
-  bool left_is_cons = cons_string->first()->IsConsString();
+  bool left_is_cons = cons_string.first().IsConsString();
   if (left_is_cons) {
     stats->left_traversals_++;
-    AccumulateStats(ConsString::cast(cons_string->first()), stats);
+    AccumulateStats(ConsString::cast(cons_string.first()), stats);
   } else {
     CHECK_NE(left_length, 0);
     stats->leaves_++;
     stats->chars_ += left_length;
   }
   // Check right side.
-  if (cons_string->second()->IsConsString()) {
+  if (cons_string.second().IsConsString()) {
     stats->right_traversals_++;
-    AccumulateStats(ConsString::cast(cons_string->second()), stats);
+    AccumulateStats(ConsString::cast(cons_string.second()), stats);
   } else {
     if (right_length == 0) {
       stats->empty_leaves_++;
@@ -365,7 +366,7 @@ void AccumulateStatsWithOperator(ConsString cons_string,
     // Accumulate stats.
     CHECK_EQ(0, offset);
     stats->leaves_++;
-    stats->chars_ += string->length();
+    stats->chars_ += string.length();
   }
 }
 
@@ -624,8 +625,8 @@ TEST(ConsStringWithEmptyFirstFlatten) {
   i::Handle<i::String> new_fst = isolate->factory()->empty_string();
   i::Handle<i::String> new_snd =
       isolate->factory()->NewStringFromAsciiChecked("snd012345012345678");
-  cons->set_first(isolate, *new_fst);
-  cons->set_second(isolate, *new_snd);
+  cons->set_first(*new_fst);
+  cons->set_second(*new_snd);
   CHECK(!cons->IsFlat());
   CHECK_EQ(initial_length, new_fst->length() + new_snd->length());
   CHECK_EQ(initial_length, cons->length());
@@ -639,10 +640,10 @@ TEST(ConsStringWithEmptyFirstFlatten) {
 
 static void VerifyCharacterStream(String flat_string, String cons_string) {
   // Do not want to test ConString traversal on flat string.
-  CHECK(flat_string->IsFlat() && !flat_string->IsConsString());
-  CHECK(cons_string->IsConsString());
+  CHECK(flat_string.IsFlat() && !flat_string.IsConsString());
+  CHECK(cons_string.IsConsString());
   // TODO(dcarney) Test stream reset as well.
-  int length = flat_string->length();
+  int length = flat_string.length();
   // Iterate start search in multiple places in the string.
   int outer_iterations = length > 20 ? 20 : length;
   for (int j = 0; j <= outer_iterations; j++) {
@@ -653,7 +654,7 @@ static void VerifyCharacterStream(String flat_string, String cons_string) {
     StringCharacterStream flat_stream(flat_string, offset);
     StringCharacterStream cons_stream(cons_string, offset);
     for (int i = offset; i < length; i++) {
-      uint16_t c = flat_string->Get(i);
+      uint16_t c = flat_string.Get(i);
       CHECK(flat_stream.HasMore());
       CHECK(cons_stream.HasMore());
       CHECK_EQ(c, flat_stream.GetNext());
@@ -703,7 +704,7 @@ void TestStringCharacterStream(BuildString build, int test_cases) {
     cons_string_stats.VerifyEqual(data.stats_);
     VerifyConsString(cons_string, &data);
     String flat_string_ptr = flat_string->IsConsString()
-                                 ? ConsString::cast(*flat_string)->first()
+                                 ? ConsString::cast(*flat_string).first()
                                  : *flat_string;
     VerifyCharacterStream(flat_string_ptr, *cons_string);
   }
@@ -829,7 +830,6 @@ static void InitializeGenerationData(
       break;
     default:
       UNREACHABLE();
-      break;
   }
   // Must remove the influence of the above decision.
   test_case /= kBalances;
@@ -853,7 +853,6 @@ static void InitializeGenerationData(
       break;
     default:
       UNREACHABLE();
-      break;
   }
   // Must remove the influence of the above decision.
   test_case /= kTreeLengths;
@@ -915,10 +914,10 @@ TEST(Utf8Conversion) {
   const char* one_byte_string = "abcdef12345";
   int len = v8::String::NewFromUtf8(CcTest::isolate(), one_byte_string,
                                     v8::NewStringType::kNormal,
-                                    StrLength(one_byte_string))
+                                    static_cast<int>(strlen(one_byte_string)))
                 .ToLocalChecked()
                 ->Utf8Length(CcTest::isolate());
-  CHECK_EQ(StrLength(one_byte_string), len);
+  CHECK_EQ(strlen(one_byte_string), len);
   // A mixed one-byte and two-byte string
   // U+02E4 -> CB A4
   // U+0064 -> 64
@@ -1227,7 +1226,6 @@ TEST(JSONStringifySliceMadeExternal) {
 }
 
 TEST(JSONStringifyWellFormed) {
-  FLAG_harmony_json_stringify = true;
   CcTest::InitializeVM();
   v8::HandleScope handle_scope(CcTest::isolate());
   v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
@@ -1383,11 +1381,11 @@ TEST(SliceFromCons) {
   // After slicing, the original string becomes a flat cons.
   CHECK(parent->IsFlat());
   CHECK(slice->IsSlicedString());
-  CHECK_EQ(SlicedString::cast(*slice)->parent(),
-           // Parent could have been short-circuited.
-           parent->IsConsString() ? ConsString::cast(*parent)->first()
-                                  : *parent);
-  CHECK(SlicedString::cast(*slice)->parent()->IsSeqString());
+  CHECK_EQ(
+      SlicedString::cast(*slice).parent(),
+      // Parent could have been short-circuited.
+      parent->IsConsString() ? ConsString::cast(*parent).first() : *parent);
+  CHECK(SlicedString::cast(*slice).parent().IsSeqString());
   CHECK(slice->IsFlat());
 }
 
@@ -1398,7 +1396,8 @@ class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
       : data_(vector) {}
   ~OneByteVectorResource() override = default;
   size_t length() const override { return data_.length(); }
-  const char* data() const override { return data_.start(); }
+  const char* data() const override { return data_.begin(); }
+
  private:
   i::Vector<const char> data_;
 };
@@ -1425,7 +1424,7 @@ TEST(InternalizeExternal) {
     Handle<String> string = v8::Utils::OpenHandle(*ext_string);
     CHECK(string->IsExternalString());
     CHECK(!string->IsInternalizedString());
-    CHECK(!i::Heap::InNewSpace(*string));
+    CHECK(!i::Heap::InYoungGeneration(*string));
     CHECK_EQ(
         isolate->factory()->string_table()->LookupStringIfExists_NoAllocate(
             isolate, string->ptr()),
@@ -1433,7 +1432,7 @@ TEST(InternalizeExternal) {
     factory->InternalizeName(string);
     CHECK(string->IsExternalString());
     CHECK(string->IsInternalizedString());
-    CHECK(!i::Heap::InNewSpace(*string));
+    CHECK(!i::Heap::InYoungGeneration(*string));
   }
   CcTest::CollectGarbage(i::OLD_SPACE);
   CcTest::CollectGarbage(i::OLD_SPACE);
@@ -1452,8 +1451,8 @@ TEST(SliceFromExternal) {
   Handle<String> slice = factory->NewSubString(string, 1, 25);
   CHECK(slice->IsSlicedString());
   CHECK(string->IsExternalString());
-  CHECK_EQ(SlicedString::cast(*slice)->parent(), *string);
-  CHECK(SlicedString::cast(*slice)->parent()->IsExternalString());
+  CHECK_EQ(SlicedString::cast(*slice).parent(), *string);
+  CHECK(SlicedString::cast(*slice).parent().IsExternalString());
   CHECK(slice->IsFlat());
   // This avoids the GC from trying to free stack allocated resources.
   i::Handle<i::ExternalOneByteString>::cast(string)->SetResource(
@@ -1508,14 +1507,14 @@ TEST(SliceFromSlice) {
   CHECK(result->IsString());
   string = v8::Utils::OpenHandle(v8::String::Cast(*result));
   CHECK(string->IsSlicedString());
-  CHECK(SlicedString::cast(*string)->parent()->IsSeqString());
+  CHECK(SlicedString::cast(*string).parent().IsSeqString());
   CHECK_EQ(0, strcmp("bcdefghijklmnopqrstuvwxy", string->ToCString().get()));
 
   result = CompileRun(slice_from_slice);
   CHECK(result->IsString());
   string = v8::Utils::OpenHandle(v8::String::Cast(*result));
   CHECK(string->IsSlicedString());
-  CHECK(SlicedString::cast(*string)->parent()->IsSeqString());
+  CHECK(SlicedString::cast(*string).parent().IsSeqString());
   CHECK_EQ(0, strcmp("cdefghijklmnopqrstuvwx", string->ToCString().get()));
 }
 
@@ -1523,11 +1522,11 @@ TEST(SliceFromSlice) {
 UNINITIALIZED_TEST(OneByteArrayJoin) {
   v8::Isolate::CreateParams create_params;
   // Set heap limits.
-  create_params.constraints.set_max_semi_space_size_in_kb(1024);
+  create_params.constraints.set_max_young_generation_size_in_bytes(3 * MB);
 #ifdef DEBUG
-  create_params.constraints.set_max_old_space_size(20);
+  create_params.constraints.set_max_old_generation_size_in_bytes(20 * MB);
 #else
-  create_params.constraints.set_max_old_space_size(7);
+  create_params.constraints.set_max_old_generation_size_in_bytes(7 * MB);
 #endif
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -1705,7 +1704,6 @@ TEST(InvalidExternalString) {
   }
 }
 
-
 #define INVALID_STRING_TEST(FUN, TYPE)                                         \
   TEST(StringOOM##FUN) {                                                       \
     CcTest::InitializeVM();                                                    \
@@ -1715,9 +1713,9 @@ TEST(InvalidExternalString) {
     static const int invalid = String::kMaxLength + 1;                         \
     HandleScope scope(isolate);                                                \
     Vector<TYPE> dummy = Vector<TYPE>::New(invalid);                           \
-    memset(dummy.start(), 0x0, dummy.length() * sizeof(TYPE));                 \
+    memset(dummy.begin(), 0x0, dummy.length() * sizeof(TYPE));                 \
     CHECK(isolate->factory()->FUN(Vector<const TYPE>::cast(dummy)).is_null()); \
-    memset(dummy.start(), 0x20, dummy.length() * sizeof(TYPE));                \
+    memset(dummy.begin(), 0x20, dummy.length() * sizeof(TYPE));                \
     CHECK(isolate->has_pending_exception());                                   \
     isolate->clear_pending_exception();                                        \
     dummy.Dispose();                                                           \
@@ -1738,8 +1736,8 @@ TEST(FormatMessage) {
   Handle<String> arg1 = isolate->factory()->NewStringFromAsciiChecked("arg1");
   Handle<String> arg2 = isolate->factory()->NewStringFromAsciiChecked("arg2");
   Handle<String> result =
-      MessageFormatter::FormatMessage(
-          isolate, MessageTemplate::kPropertyNotFunction, arg0, arg1, arg2)
+      MessageFormatter::Format(isolate, MessageTemplate::kPropertyNotFunction,
+                               arg0, arg1, arg2)
           .ToHandleChecked();
   Handle<String> expected = isolate->factory()->NewStringFromAsciiChecked(
       "'arg0' returned for property 'arg1' of object 'arg2' is not a function");
@@ -1817,7 +1815,7 @@ TEST(ExternalStringIndexOf) {
             ->NewStringFromOneByte(Vector<const uint8_t>(                      \
                 reinterpret_cast<const uint8_t*>(buf), len))                   \
             .ToHandleChecked();                                                \
-    CHECK(Heap::InNewSpace(*main_string));                                     \
+    CHECK(Heap::InYoungGeneration(*main_string));                              \
     /* Next allocation will cause GC. */                                       \
     heap::SimulateFullSpace(CcTest::i_isolate()->heap()->new_space());         \
     /* Offset by two to check substring-ing. */                                \
@@ -1947,8 +1945,8 @@ TEST(Regress876759) {
   factory->InternalizeString(parent);
   CHECK(parent->IsThinString());
   Handle<String> grandparent =
-      handle(ThinString::cast(*parent)->actual(), isolate);
-  CHECK_EQ(*parent, SlicedString::cast(*sliced)->parent());
+      handle(ThinString::cast(*parent).actual(), isolate);
+  CHECK_EQ(*parent, SlicedString::cast(*sliced).parent());
   OneByteStringResource* resource =
       new OneByteStringResource(external_one_byte_buf, kLength);
   grandparent->MakeExternal(resource);

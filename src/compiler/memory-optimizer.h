@@ -10,6 +10,9 @@
 
 namespace v8 {
 namespace internal {
+
+class TickCounter;
+
 namespace compiler {
 
 // Forward declarations.
@@ -23,7 +26,7 @@ class Operator;
 
 // NodeIds are identifying numbers for nodes that can be used to index auxiliary
 // out-of-line data associated with each node.
-typedef uint32_t NodeId;
+using NodeId = uint32_t;
 
 // Lowers all simplified memory access and allocation related nodes (i.e.
 // Allocate, LoadField, StoreField and friends) to machine operators.
@@ -35,7 +38,8 @@ class MemoryOptimizer final {
 
   MemoryOptimizer(JSGraph* jsgraph, Zone* zone,
                   PoisoningMitigationLevel poisoning_level,
-                  AllocationFolding allocation_folding);
+                  AllocationFolding allocation_folding,
+                  const char* function_debug_name, TickCounter* tick_counter);
   ~MemoryOptimizer() = default;
 
   void Optimize();
@@ -45,21 +49,23 @@ class MemoryOptimizer final {
   // together.
   class AllocationGroup final : public ZoneObject {
    public:
-    AllocationGroup(Node* node, PretenureFlag pretenure, Zone* zone);
-    AllocationGroup(Node* node, PretenureFlag pretenure, Node* size,
+    AllocationGroup(Node* node, AllocationType allocation, Zone* zone);
+    AllocationGroup(Node* node, AllocationType allocation, Node* size,
                     Zone* zone);
     ~AllocationGroup() = default;
 
     void Add(Node* object);
     bool Contains(Node* object) const;
-    bool IsNewSpaceAllocation() const { return pretenure() == NOT_TENURED; }
+    bool IsYoungGenerationAllocation() const {
+      return allocation() == AllocationType::kYoung;
+    }
 
-    PretenureFlag pretenure() const { return pretenure_; }
+    AllocationType allocation() const { return allocation_; }
     Node* size() const { return size_; }
 
    private:
     ZoneSet<NodeId> node_ids_;
-    PretenureFlag const pretenure_;
+    AllocationType const allocation_;
     Node* const size_;
 
     DISALLOW_IMPLICIT_CONSTRUCTORS(AllocationGroup);
@@ -79,7 +85,7 @@ class MemoryOptimizer final {
       return new (zone) AllocationState(group, size, top);
     }
 
-    bool IsNewSpaceAllocation() const;
+    bool IsYoungGenerationAllocation() const;
 
     AllocationGroup* group() const { return group_; }
     Node* top() const { return top_; }
@@ -100,7 +106,7 @@ class MemoryOptimizer final {
   };
 
   // An array of allocation states used to collect states on merges.
-  typedef ZoneVector<AllocationState const*> AllocationStates;
+  using AllocationStates = ZoneVector<AllocationState const*>;
 
   // We thread through tokens to represent the current state on a given effect
   // path through the graph.
@@ -112,15 +118,18 @@ class MemoryOptimizer final {
   void VisitNode(Node*, AllocationState const*);
   void VisitAllocateRaw(Node*, AllocationState const*);
   void VisitCall(Node*, AllocationState const*);
-  void VisitCallWithCallerSavedRegisters(Node*, AllocationState const*);
+  void VisitLoadFromObject(Node*, AllocationState const*);
   void VisitLoadElement(Node*, AllocationState const*);
   void VisitLoadField(Node*, AllocationState const*);
+  void VisitStoreToObject(Node*, AllocationState const*);
   void VisitStoreElement(Node*, AllocationState const*);
   void VisitStoreField(Node*, AllocationState const*);
+  void VisitStore(Node*, AllocationState const*);
   void VisitOtherEffect(Node*, AllocationState const*);
 
   Node* ComputeIndex(ElementAccess const&, Node*);
-  WriteBarrierKind ComputeWriteBarrierKind(Node* object,
+  WriteBarrierKind ComputeWriteBarrierKind(Node* node, Node* object,
+                                           Node* value,
                                            AllocationState const* state,
                                            WriteBarrierKind);
 
@@ -131,6 +140,11 @@ class MemoryOptimizer final {
   void EnqueueUse(Node*, int, AllocationState const*);
 
   bool NeedsPoisoning(LoadSensitivity load_sensitivity) const;
+
+  // Returns true if the AllocationType of the current AllocateRaw node that we
+  // are visiting needs to be updated to kOld, due to propagation of tenuring
+  // from outer to inner allocations.
+  bool AllocationTypeNeedsUpdateToOld(Node* const user, const Edge edge);
 
   AllocationState const* empty_state() const { return empty_state_; }
   Graph* graph() const;
@@ -150,6 +164,8 @@ class MemoryOptimizer final {
   GraphAssembler graph_assembler_;
   PoisoningMitigationLevel poisoning_level_;
   AllocationFolding allocation_folding_;
+  const char* function_debug_name_;
+  TickCounter* const tick_counter_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MemoryOptimizer);
 };

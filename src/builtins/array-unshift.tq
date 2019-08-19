@@ -2,27 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array {
-  extern builtin ArrayUnshift(Context, JSFunction, Object, int32);
-
-  macro TryFastArrayUnshift(
-      context: Context, receiver: Object, arguments: constexpr Arguments): never
-      labels Slow {
-    const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
-    EnsureWriteableFastElements(array);
-
-    const map: Map = array.map;
-    if (!IsExtensibleMap(map)) goto Slow;
-    EnsureArrayLengthWritable(map) otherwise Slow;
-
-    tail ArrayUnshift(
-        context, LoadTargetFromFrame(), Undefined,
-        Convert<int32>(arguments.length));
-  }
+namespace array_unshift {
+  extern builtin ArrayUnshift(Context, JSFunction, Object, int32): Object;
 
   transitioning macro GenericArrayUnshift(
-      context: Context, receiver: Object,
-      arguments: constexpr Arguments): Number {
+      context: Context, receiver: Object, arguments: Arguments): Number {
     // 1. Let O be ? ToObject(this value).
     const object: JSReceiver = ToObject_Inline(context, receiver);
 
@@ -36,7 +20,7 @@ namespace array {
     if (argCount > 0) {
       // a. If len + argCount > 2**53 - 1, throw a TypeError exception.
       if (length + argCount > kMaxSafeInteger) {
-        ThrowTypeError(context, kInvalidArrayLength);
+        ThrowTypeError(kInvalidArrayLength);
       }
 
       // b. Let k be len.
@@ -94,11 +78,20 @@ namespace array {
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.unshift
   transitioning javascript builtin ArrayPrototypeUnshift(
-      context: Context, receiver: Object, ...arguments): Object {
+      js-implicit context: Context, receiver: Object)(...arguments): Object {
     try {
-      TryFastArrayUnshift(context, receiver, arguments) otherwise Baseline;
+      const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
+      array::EnsureWriteableFastElements(array);
+
+      const map: Map = array.map;
+      if (!IsExtensibleMap(map)) goto Slow;
+      EnsureArrayLengthWritable(map) otherwise Slow;
+
+      tail ArrayUnshift(
+          context, LoadTargetFromFrame(), Undefined,
+          Convert<int32>(arguments.length));
     }
-    label Baseline {
+    label Slow {
       return GenericArrayUnshift(context, receiver, arguments);
     }
   }

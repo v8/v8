@@ -4,14 +4,15 @@
 
 #include "src/compiler/backend/code-generator.h"
 
-#include "src/assembler-inl.h"
-#include "src/callable.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/callable.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/code-generator-impl.h"
 #include "src/compiler/backend/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
-#include "src/macro-assembler.h"
-#include "src/optimized-compilation-info.h"
+#include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -72,6 +73,7 @@ class S390OperandConverter final : public InstructionOperandConverter {
       case Constant::kDelayedStringConstant:
         return Operand::EmbeddedStringConstant(
             constant.ToDelayedStringConstant());
+      case Constant::kCompressedHeapObject:
       case Constant::kHeapObject:
       case Constant::kRpoNumber:
         break;
@@ -216,7 +218,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       // We need to save and restore r14 if the frame was elided.
       __ Push(r14);
     }
-    if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
+    if (mode_ == RecordWriteMode::kValueIsEphemeronKey) {
+      __ CallEphemeronKeyBarrier(object_, scratch1_, save_fp_mode);
+    } else if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
       __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
                              save_fp_mode, wasm::WasmCode::kWasmRecordWrite);
     } else {
@@ -1215,7 +1219,6 @@ void FlushPendingPushRegisters(TurboAssembler* tasm,
       break;
     default:
       UNREACHABLE();
-      break;
   }
   frame_access_state->IncreaseSPDelta(pending_pushes->size());
   pending_pushes->clear();
@@ -1243,8 +1246,9 @@ void AdjustStackPointerForTailCall(
   }
 }
 
-void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
-                                   S390OperandConverter& i) {
+void EmitWordLoadPoisoningIfNeeded(
+    CodeGenerator* codegen, Instruction* instr,
+    S390OperandConverter& i) {  // NOLINT(runtime/references)
   const MemoryAccessMode access_mode =
       static_cast<MemoryAccessMode>(MiscField::decode(instr->opcode()));
   if (access_mode == kMemoryAccessPoisoned) {
@@ -1325,12 +1329,8 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ LoadW(ip,
            FieldMemOperand(ip, CodeDataContainer::kKindSpecificFlagsOffset));
   __ TestBit(ip, Code::kMarkedForDeoptimizationBit);
-  // Ensure we're not serializing (otherwise we'd need to use an indirection to
-  // access the builtin below).
-  DCHECK(!isolate()->ShouldLoadConstantsFromRootList());
-  Handle<Code> code = isolate()->builtins()->builtin_handle(
-      Builtins::kCompileLazyDeoptimizedCode);
-  __ Jump(code, RelocInfo::CODE_TARGET, ne);
+  __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
+          RelocInfo::CODE_TARGET, ne);
 }
 
 void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
@@ -1372,11 +1372,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         DCHECK_IMPLIES(
             HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
-        __ AddP(reg, reg, Operand(Code::kHeaderSize - kHeapObjectTag));
-        __ Call(reg);
+        __ CallCodeObject(reg);
       } else {
         __ Call(i.InputCode(0), RelocInfo::CODE_TARGET);
       }
+      RecordCallPosition(instr);
+      frame_access_state()->ClearSPDelta();
+      break;
+    }
+    case kArchCallBuiltinPointer: {
+      DCHECK(!instr->InputAt(0)->IsImmediate());
+      Register builtin_index = i.InputRegister(0);
+      __ CallBuiltinByIndex(builtin_index);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
@@ -1411,8 +1418,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         DCHECK_IMPLIES(
             HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
-        __ AddP(reg, reg, Operand(Code::kHeaderSize - kHeapObjectTag));
-        __ Jump(reg);
+        __ JumpCodeObject(reg);
       } else {
         // We cannot use the constant pool to load the target since
         // we've already restored the caller's frame.
@@ -1463,8 +1469,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
       __ LoadP(r4, FieldMemOperand(func, JSFunction::kCodeOffset));
-      __ AddP(r4, r4, Operand(Code::kHeaderSize - kHeapObjectTag));
-      __ Call(r4);
+      __ CallCodeObject(r4);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
@@ -1506,6 +1511,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchCallCFunction: {
       int const num_parameters = MiscField::decode(instr->opcode());
+      Label return_location;
+      // Put the return address in a stack slot.
+      if (linkage()->GetIncomingDescriptor()->IsWasmCapiFunction()) {
+        // Put the return address in a stack slot.
+        __ larl(r0, &return_location);
+        __ StoreP(r0, MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
+      }
       if (instr->InputAt(0)->IsImmediate()) {
         ExternalReference ref = i.InputExternalReference(0);
         __ CallCFunction(ref, num_parameters);
@@ -1513,6 +1525,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Register func = i.InputRegister(0);
         __ CallCFunction(func, num_parameters);
       }
+      __ bind(&return_location);
+      RecordSafepoint(instr->reference_map(), Safepoint::kNoLazyDeopt);
       frame_access_state()->SetFrameAccessToDefault();
       // Ideally, we should decrement SP delta to match the change of stack
       // pointer in CallCFunction. However, for certain architectures (e.g.
@@ -1544,40 +1558,34 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchTableSwitch:
       AssembleArchTableSwitch(instr);
       break;
-    case kArchDebugAbort:
+    case kArchAbortCSAAssert:
       DCHECK(i.InputRegister(0) == r3);
-      if (!frame_access_state()->has_frame()) {
+      {
         // We don't actually want to generate a pile of code for this, so just
         // claim there is a stack frame, without generating one.
         FrameScope scope(tasm(), StackFrame::NONE);
-        __ Call(isolate()->builtins()->builtin_handle(Builtins::kAbortJS),
-                RelocInfo::CODE_TARGET);
-      } else {
-        __ Call(isolate()->builtins()->builtin_handle(Builtins::kAbortJS),
-                RelocInfo::CODE_TARGET);
+        __ Call(
+            isolate()->builtins()->builtin_handle(Builtins::kAbortCSAAssert),
+            RelocInfo::CODE_TARGET);
       }
-      __ stop("kArchDebugAbort");
+      __ stop();
       break;
     case kArchDebugBreak:
-      __ stop("kArchDebugBreak");
+      __ stop();
       break;
     case kArchNop:
     case kArchThrowTerminator:
       // don't emit code for nops.
       break;
     case kArchDeoptimize: {
-      int deopt_state_id =
+      DeoptimizationExit* exit =
           BuildTranslation(instr, -1, 0, OutputFrameStateCombine::Ignore());
-      CodeGenResult result =
-          AssembleDeoptimizerCall(deopt_state_id, current_source_position_);
+      CodeGenResult result = AssembleDeoptimizerCall(exit);
       if (result != kSuccess) return result;
       break;
     }
     case kArchRet:
       AssembleReturn(instr->InputAt(0));
-      break;
-    case kArchStackPointer:
-      __ LoadRR(i.OutputRegister(), sp);
       break;
     case kArchFramePointer:
       __ LoadRR(i.OutputRegister(), fp);
@@ -1589,6 +1597,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ LoadRR(i.OutputRegister(), fp);
       }
       break;
+    case kArchStackPointerGreaterThan: {
+      constexpr size_t kValueIndex = 0;
+      DCHECK(instr->InputAt(kValueIndex)->IsRegister());
+      __ CmpLogicalP(sp, i.InputRegister(kValueIndex));
+      break;
+    }
     case kArchTruncateDoubleToI:
       __ TruncateDoubleToI(isolate(), zone(), i.OutputRegister(),
                            i.InputDoubleRegister(0), DetermineStubCallMode());
@@ -1635,6 +1649,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(i.OutputRegister(), i.InputRegister(0));
       __ AndP(i.InputRegister(0), kSpeculationPoisonRegister);
       break;
+    case kS390_Peek: {
+      // The incoming value is 0-based, but we need a 1-based value.
+      int reverse_slot = i.InputInt32(0) + 1;
+      int offset =
+          FrameSlotToFPOffset(frame()->GetTotalFrameSlotCount() - reverse_slot);
+      if (instr->OutputAt(0)->IsFPRegister()) {
+        LocationOperand* op = LocationOperand::cast(instr->OutputAt(0));
+        if (op->representation() == MachineRepresentation::kFloat64) {
+          __ LoadDouble(i.OutputDoubleRegister(), MemOperand(fp, offset));
+        } else {
+          DCHECK_EQ(MachineRepresentation::kFloat32, op->representation());
+          __ LoadFloat32(i.OutputFloatRegister(), MemOperand(fp, offset));
+        }
+      } else {
+        __ LoadP(i.OutputRegister(), MemOperand(fp, offset));
+      }
+      break;
+    }
     case kS390_Abs32:
       // TODO(john.yan): zero-ext
       __ lpr(i.OutputRegister(0), i.InputRegister(0));
@@ -2065,11 +2097,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIeee754Float64Log10:
       ASSEMBLE_IEEE754_UNOP(log10);
       break;
-    case kIeee754Float64Pow: {
-      __ Call(BUILTIN_CODE(isolate(), MathPowInternal), RelocInfo::CODE_TARGET);
-      __ Move(d1, d3);
+    case kIeee754Float64Pow:
+      ASSEMBLE_IEEE754_BINOP(pow);
       break;
-    }
     case kS390_Neg32:
       __ lcr(i.OutputRegister(), i.InputRegister(0));
       CHECK_AND_ZERO_EXT_OUTPUT(1);
@@ -2638,7 +2668,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
       Register output = i.OutputRegister();
-      Label two, unaligned, done;
+      Label two, done;
       __ la(r1, MemOperand(base, index));
       __ tmll(r1, Operand(3));
       __ b(Condition(2), &two);
@@ -2783,7 +2813,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     default:
       UNREACHABLE();
-      break;
   }
   return kSuccess;
 }  // NOLINT(readability/fn_size)
@@ -2871,10 +2900,9 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
         ReferenceMap* reference_map =
             new (gen_->zone()) ReferenceMap(gen_->zone());
-        gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
-                              Safepoint::kNoLazyDeopt);
+        gen_->RecordSafepoint(reference_map, Safepoint::kNoLazyDeopt);
         if (FLAG_debug_code) {
-          __ stop(GetAbortReason(AbortReason::kUnexpectedReturnFromWasmTrap));
+          __ stop();
         }
       }
     }
@@ -2997,8 +3025,14 @@ void CodeGenerator::AssembleConstructFrame() {
 
   if (frame_access_state()->has_frame()) {
     if (call_descriptor->IsCFunctionCall()) {
-      __ Push(r14, fp);
-      __ LoadRR(fp, sp);
+      if (info()->GetOutputStackFrameType() == StackFrame::C_WASM_ENTRY) {
+        __ StubPrologue(StackFrame::C_WASM_ENTRY);
+        // Reserve stack space for saving the c_entry_fp later.
+        __ lay(sp, MemOperand(sp, -kSystemPointerSize));
+      } else {
+        __ Push(r14, fp);
+        __ LoadRR(fp, sp);
+      }
     } else if (call_descriptor->IsJSFunctionCall()) {
       __ Prologue(ip);
       if (call_descriptor->PushArgumentCount()) {
@@ -3011,7 +3045,8 @@ void CodeGenerator::AssembleConstructFrame() {
       __ StubPrologue(type);
       if (call_descriptor->IsWasmFunctionCall()) {
         __ Push(kWasmInstanceRegister);
-      } else if (call_descriptor->IsWasmImportWrapper()) {
+      } else if (call_descriptor->IsWasmImportWrapper() ||
+                 call_descriptor->IsWasmCapiFunction()) {
         // WASM import wrappers are passed a tuple in the place of the instance.
         // Unpack the tuple into the instance and the target callable.
         // This must be done here in the codegen because it cannot be expressed
@@ -3021,12 +3056,16 @@ void CodeGenerator::AssembleConstructFrame() {
         __ LoadP(kWasmInstanceRegister,
                  FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
         __ Push(kWasmInstanceRegister);
+        if (call_descriptor->IsWasmCapiFunction()) {
+          // Reserve space for saving the PC later.
+          __ lay(sp, MemOperand(sp, -kSystemPointerSize));
+        }
       }
     }
   }
 
-  int shrink_slots = frame()->GetTotalFrameSlotCount() -
-                     call_descriptor->CalculateFixedFrameSize();
+  int required_slots =
+      frame()->GetTotalFrameSlotCount() - frame()->GetFixedSlotCount();
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
     __ Abort(AbortReason::kShouldNotDirectlyEnterOsrFunction);
@@ -3037,15 +3076,15 @@ void CodeGenerator::AssembleConstructFrame() {
     // remaining stack slots.
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
-    shrink_slots -= osr_helper()->UnoptimizedFrameSlots();
+    required_slots -= osr_helper()->UnoptimizedFrameSlots();
     ResetSpeculationPoison();
   }
 
   const RegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
   const RegList saves = call_descriptor->CalleeSavedRegisters();
 
-  if (shrink_slots > 0) {
-    if (info()->IsWasm() && shrink_slots > 128) {
+  if (required_slots > 0) {
+    if (info()->IsWasm() && required_slots > 128) {
       // For WebAssembly functions with big frames we have to do the stack
       // overflow check before we construct the frame. Otherwise we may not
       // have enough space on the stack to call the runtime for the stack
@@ -3055,39 +3094,35 @@ void CodeGenerator::AssembleConstructFrame() {
       // If the frame is bigger than the stack, we throw the stack overflow
       // exception unconditionally. Thereby we can avoid the integer overflow
       // check in the condition code.
-      if ((shrink_slots * kSystemPointerSize) < (FLAG_stack_size * 1024)) {
+      if ((required_slots * kSystemPointerSize) < (FLAG_stack_size * 1024)) {
         Register scratch = r1;
         __ LoadP(
             scratch,
             FieldMemOperand(kWasmInstanceRegister,
                             WasmInstanceObject::kRealStackLimitAddressOffset));
         __ LoadP(scratch, MemOperand(scratch));
-        __ AddP(scratch, scratch, Operand(shrink_slots * kSystemPointerSize));
+        __ AddP(scratch, scratch, Operand(required_slots * kSystemPointerSize));
         __ CmpLogicalP(sp, scratch);
         __ bge(&done);
       }
 
-      __ LoadP(r4, FieldMemOperand(kWasmInstanceRegister,
-                                   WasmInstanceObject::kCEntryStubOffset));
-      __ Move(cp, Smi::zero());
-      __ CallRuntimeWithCEntry(Runtime::kThrowWasmStackOverflow, r4);
+      __ Call(wasm::WasmCode::kWasmStackOverflow, RelocInfo::WASM_STUB_CALL);
       // We come from WebAssembly, there are no references for the GC.
       ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
-      RecordSafepoint(reference_map, Safepoint::kSimple, 0,
-                      Safepoint::kNoLazyDeopt);
+      RecordSafepoint(reference_map, Safepoint::kNoLazyDeopt);
       if (FLAG_debug_code) {
-        __ stop(GetAbortReason(AbortReason::kUnexpectedReturnFromThrow));
+        __ stop();
       }
 
       __ bind(&done);
     }
 
     // Skip callee-saved and return slots, which are pushed below.
-    shrink_slots -= base::bits::CountPopulation(saves);
-    shrink_slots -= frame()->GetReturnSlotCount();
-    shrink_slots -= (kDoubleSize / kSystemPointerSize) *
-                    base::bits::CountPopulation(saves_fp);
-    __ lay(sp, MemOperand(sp, -shrink_slots * kSystemPointerSize));
+    required_slots -= base::bits::CountPopulation(saves);
+    required_slots -= frame()->GetReturnSlotCount();
+    required_slots -= (kDoubleSize / kSystemPointerSize) *
+                      base::bits::CountPopulation(saves_fp);
+    __ lay(sp, MemOperand(sp, -required_slots * kSystemPointerSize));
   }
 
   // Save callee-saved Double registers.
@@ -3159,6 +3194,8 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
 }
 
 void CodeGenerator::FinishCode() {}
+
+void CodeGenerator::PrepareForDeoptimizationExits(int deopt_count) {}
 
 void CodeGenerator::AssembleMove(InstructionOperand* source,
                                  InstructionOperand* destination) {
@@ -3234,6 +3271,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           }
           break;
         }
+        case Constant::kCompressedHeapObject:
+          UNREACHABLE();
+          break;
         case Constant::kRpoNumber:
           UNREACHABLE();  // TODO(dcarney): loading RPO constants on S390.
           break;

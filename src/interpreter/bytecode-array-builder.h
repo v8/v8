@@ -7,7 +7,7 @@
 
 #include "src/ast/ast.h"
 #include "src/base/compiler-specific.h"
-#include "src/globals.h"
+#include "src/common/globals.h"
 #include "src/interpreter/bytecode-array-writer.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecode-register-allocator.h"
@@ -27,6 +27,7 @@ class Isolate;
 namespace interpreter {
 
 class BytecodeLabel;
+class BytecodeLoopHeader;
 class BytecodeNode;
 class BytecodeRegisterOptimizer;
 class BytecodeJumpTable;
@@ -126,9 +127,10 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
   // Keyed load property. The key should be in the accumulator.
   BytecodeArrayBuilder& LoadKeyedProperty(Register object, int feedback_slot);
+
   // Named load property of the @@iterator symbol.
-  BytecodeArrayBuilder& LoadIteratorProperty(Register object,
-                                             int feedback_slot);
+  BytecodeArrayBuilder& GetIterator(Register object, int feedback_slot);
+
   // Named load property of the @@asyncIterator symbol.
   BytecodeArrayBuilder& LoadAsyncIteratorProperty(Register object,
                                                   int feedback_slot);
@@ -379,7 +381,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // Tests.
   BytecodeArrayBuilder& CompareOperation(Token::Value op, Register reg,
                                          int feedback_slot);
-  BytecodeArrayBuilder& CompareOperation(Token::Value op, Register reg);
   BytecodeArrayBuilder& CompareReference(Register reg);
   BytecodeArrayBuilder& CompareUndetectable();
   BytecodeArrayBuilder& CompareUndefined();
@@ -397,21 +398,28 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& ToNumber(int feedback_slot);
   BytecodeArrayBuilder& ToNumeric(int feedback_slot);
 
+  // Exception handling.
+  BytecodeArrayBuilder& MarkHandler(int handler_id,
+                                    HandlerTable::CatchPrediction will_catch);
+  BytecodeArrayBuilder& MarkTryBegin(int handler_id, Register context);
+  BytecodeArrayBuilder& MarkTryEnd(int handler_id);
+
   // Flow Control.
   BytecodeArrayBuilder& Bind(BytecodeLabel* label);
-  BytecodeArrayBuilder& Bind(const BytecodeLabel& target, BytecodeLabel* label);
+  BytecodeArrayBuilder& Bind(BytecodeLoopHeader* label);
   BytecodeArrayBuilder& Bind(BytecodeJumpTable* jump_table, int case_value);
 
   BytecodeArrayBuilder& Jump(BytecodeLabel* label);
-  BytecodeArrayBuilder& JumpLoop(BytecodeLabel* label, int loop_depth);
+  BytecodeArrayBuilder& JumpLoop(BytecodeLoopHeader* loop_header,
+                                 int loop_depth);
 
   BytecodeArrayBuilder& JumpIfTrue(ToBooleanMode mode, BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfFalse(ToBooleanMode mode, BytecodeLabel* label);
-  BytecodeArrayBuilder& JumpIfNotHole(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfJSReceiver(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfNull(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfNotNull(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfUndefined(BytecodeLabel* label);
+  BytecodeArrayBuilder& JumpIfUndefinedOrNull(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfNotUndefined(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfNil(BytecodeLabel* label, Token::Value op,
                                   NilValue nil);
@@ -458,12 +466,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
                                                BytecodeJumpTable* jump_table);
   BytecodeArrayBuilder& ResumeGenerator(Register generator,
                                         RegisterList registers);
-
-  // Exception handling.
-  BytecodeArrayBuilder& MarkHandler(int handler_id,
-                                    HandlerTable::CatchPrediction will_catch);
-  BytecodeArrayBuilder& MarkTryBegin(int handler_id, Register context);
-  BytecodeArrayBuilder& MarkTryEnd(int handler_id);
 
   // Creates a new handler table entry and returns a {hander_id} identifying the
   // entry, so that it can be referenced by above exception handling support.
@@ -520,7 +522,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
     }
   }
 
-  bool RequiresImplicitReturn() const { return !return_seen_in_block_; }
   bool RemainderOfBlockIsDead() const {
     return bytecode_array_writer_.RemainderOfBlockIsDead();
   }
@@ -569,6 +570,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BYTECODE_LIST(DECLARE_BYTECODE_OUTPUT)
 #undef DECLARE_OPERAND_TYPE_INFO
 
+  V8_INLINE void OutputJumpLoop(BytecodeLoopHeader* loop_header,
+                                int loop_depth);
   V8_INLINE void OutputSwitchOnSmiNoFeedback(BytecodeJumpTable* jump_table);
 
   bool RegisterIsValid(Register reg) const;
@@ -584,6 +587,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // Write bytecode to bytecode array.
   void Write(BytecodeNode* node);
   void WriteJump(BytecodeNode* node, BytecodeLabel* label);
+  void WriteJumpLoop(BytecodeNode* node, BytecodeLoopHeader* loop_header);
   void WriteSwitch(BytecodeNode* node, BytecodeJumpTable* label);
 
   // Not implemented as the illegal bytecode is used inside internally
@@ -593,8 +597,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
   template <Bytecode bytecode, AccumulatorUse accumulator_use>
   void PrepareToOutputBytecode();
-
-  void LeaveBasicBlock() { return_seen_in_block_ = false; }
 
   BytecodeArrayWriter* bytecode_array_writer() {
     return &bytecode_array_writer_;
@@ -614,7 +616,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   bool bytecode_generated_;
   ConstantArrayBuilder constant_array_builder_;
   HandlerTableBuilder handler_table_builder_;
-  bool return_seen_in_block_;
   int parameter_count_;
   int local_register_count_;
   BytecodeRegisterAllocator register_allocator_;

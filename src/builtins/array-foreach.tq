@@ -2,10 +2,49 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array {
-  transitioning macro ArrayForEachTorqueContinuation(
-      context: Context, o: JSReceiver, len: Number, callbackfn: Callable,
-      thisArg: Object, initialK: Number): Object {
+namespace array_foreach {
+  transitioning javascript builtin
+  ArrayForEachLoopEagerDeoptContinuation(
+      js-implicit context: Context, receiver: Object)(
+      callback: Object, thisArg: Object, initialK: Object,
+      length: Object): Object {
+    // All continuation points in the optimized forEach implemntation are
+    // after the ToObject(O) call that ensures we are dealing with a
+    // JSReceiver.
+    const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
+    const callbackfn = Cast<Callable>(callback) otherwise unreachable;
+    const numberK = Cast<Number>(initialK) otherwise unreachable;
+    const numberLength = Cast<Number>(length) otherwise unreachable;
+
+    return ArrayForEachLoopContinuation(
+        jsreceiver, callbackfn, thisArg, Undefined, jsreceiver, numberK,
+        numberLength, Undefined);
+  }
+
+  transitioning javascript builtin
+  ArrayForEachLoopLazyDeoptContinuation(
+      js-implicit context: Context, receiver: Object)(
+      callback: Object, thisArg: Object, initialK: Object, length: Object,
+      _result: Object): Object {
+    // All continuation points in the optimized forEach implemntation are
+    // after the ToObject(O) call that ensures we are dealing with a
+    // JSReceiver.
+    const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
+    const callbackfn = Cast<Callable>(callback) otherwise unreachable;
+    const numberK = Cast<Number>(initialK) otherwise unreachable;
+    const numberLength = Cast<Number>(length) otherwise unreachable;
+
+    return ArrayForEachLoopContinuation(
+        jsreceiver, callbackfn, thisArg, Undefined, jsreceiver, numberK,
+        numberLength, Undefined);
+  }
+
+  transitioning builtin ArrayForEachLoopContinuation(implicit context: Context)(
+      _receiver: JSReceiver, callbackfn: Callable, thisArg: Object,
+      _array: Object, o: JSReceiver, initialK: Number, len: Number,
+      _to: Object): Object {
+    // variables {array} and {to} are ignored.
+
     // 5. Let k be 0.
     // 6. Repeat, while k < len
     for (let k: Number = initialK; k < len; k = k + 1) {
@@ -30,117 +69,33 @@ namespace array {
     return Undefined;
   }
 
-  transitioning javascript builtin ArrayForEachLoopEagerDeoptContinuation(
-      context: Context, receiver: Object, callback: Object, thisArg: Object,
-      initialK: Object, length: Object): Object {
-    // The unsafe Cast is safe because all continuation points in forEach are
-    // after the ToObject(O) call that ensures we are dealing with a
-    // JSReceiver.
-    const jsreceiver: JSReceiver = UnsafeCast<JSReceiver>(receiver);
-    return ArrayForEachLoopContinuation(
-        context, jsreceiver, callback, thisArg, Undefined, jsreceiver, initialK,
-        length, Undefined);
-  }
-
-  transitioning javascript builtin ArrayForEachLoopLazyDeoptContinuation(
-      context: Context, receiver: Object, callback: Object, thisArg: Object,
-      initialK: Object, length: Object, result: Object): Object {
-    // The unsafe Cast is safe because all continuation points in forEach are
-    // after the ToObject(O) call that ensures we are dealing with a
-    // JSReceiver.
-    const jsreceiver: JSReceiver = UnsafeCast<JSReceiver>(receiver);
-    return ArrayForEachLoopContinuation(
-        context, jsreceiver, callback, thisArg, Undefined, jsreceiver, initialK,
-        length, Undefined);
-  }
-
-  transitioning builtin ArrayForEachLoopContinuation(
-      context: Context, receiver: JSReceiver, callback: Object, thisArg: Object,
-      array: Object, object: Object, initialK: Object, length: Object,
-      to: Object): Object {
-    try {
-      const callbackfn: Callable =
-          Cast<Callable>(callback) otherwise Unexpected;
-      const k: Number = Cast<Number>(initialK) otherwise Unexpected;
-      const numberLength: Number = Cast<Number>(length) otherwise Unexpected;
-
-      return ArrayForEachTorqueContinuation(
-          context, receiver, numberLength, callbackfn, thisArg, k);
-    }
-    label Unexpected deferred {
-      unreachable;
-    }
-  }
-
-  transitioning macro VisitAllElements<FixedArrayType: type>(
-      context: Context, a: JSArray, len: Smi, callbackfn: Callable,
-      thisArg: Object): void labels Bailout(Smi) {
-    let k: Smi = 0;
-    const map: Map = a.map;
-
-    try {
-      // Build a fast loop over the smi array.
-      for (; k < len; k = k + 1) {
-        // Ensure that the map didn't change.
-        if (map != a.map) goto Slow;
-        // Ensure that we haven't walked beyond a possibly updated length.
-        if (k >= a.length) goto Slow;
-
-        try {
-          const value: Object =
-              LoadElementNoHole<FixedArrayType>(a, k) otherwise FoundHole;
-          Call(context, callbackfn, thisArg, value, k, a);
-        }
-        label FoundHole {
-          // If we found the hole, we need to bail out if the initial
-          // array prototype has had elements inserted. This is preferable
-          // to walking the prototype chain looking for elements.
-
-          if (IsNoElementsProtectorCellInvalid()) goto Bailout(k);
-        }
-      }
-    }
-    label Slow deferred {
-      goto Bailout(k);
-    }
-  }
-
-  transitioning macro FastArrayForEach(
-      context: Context, o: JSReceiver, len: Number, callbackfn: Callable,
-      thisArg: Object): Object
+  transitioning macro FastArrayForEach(implicit context: Context)(
+      o: JSReceiver, len: Number, callbackfn: Callable, thisArg: Object): Object
       labels Bailout(Smi) {
     let k: Smi = 0;
-    try {
-      const smiLen: Smi = Cast<Smi>(len) otherwise Slow;
-      const a: JSArray = Cast<JSArray>(o) otherwise Slow;
-      const map: Map = a.map;
+    const smiLen = Cast<Smi>(len) otherwise goto Bailout(k);
+    const fastO = Cast<FastJSArray>(o) otherwise goto Bailout(k);
+    let fastOW = NewFastJSArrayWitness(fastO);
 
-      if (!IsPrototypeInitialArrayPrototype(map)) goto Slow;
-      const elementsKind: ElementsKind = map.elements_kind;
-      if (!IsFastElementsKind(elementsKind)) goto Slow;
+    // Build a fast loop over the smi array.
+    for (; k < smiLen; k++) {
+      fastOW.Recheck() otherwise goto Bailout(k);
 
-      if (IsElementsKindGreaterThan(elementsKind, HOLEY_ELEMENTS)) {
-        VisitAllElements<FixedDoubleArray>(
-            context, a, smiLen, callbackfn, thisArg)
-            otherwise Bailout;
-      } else {
-        VisitAllElements<FixedArray>(context, a, smiLen, callbackfn, thisArg)
-            otherwise Bailout;
-      }
-    }
-    label Slow deferred {
-      goto Bailout(k);
+      // Ensure that we haven't walked beyond a possibly updated length.
+      if (k >= fastOW.Get().length) goto Bailout(k);
+      const value: Object = fastOW.LoadElementNoHole(k)
+          otherwise continue;
+      Call(context, callbackfn, thisArg, value, k, fastOW.Get());
     }
     return Undefined;
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.foreach
   transitioning javascript builtin
-  ArrayForEach(context: Context, receiver: Object, ...arguments): Object {
+  ArrayForEach(js-implicit context: Context, receiver: Object)(...arguments):
+      Object {
     try {
-      if (IsNullOrUndefined(receiver)) {
-        goto NullOrUndefinedError;
-      }
+      RequireObjectCoercible(receiver, 'Array.prototype.forEach');
 
       // 1. Let O be ? ToObject(this value).
       const o: JSReceiver = ToObject_Inline(context, receiver);
@@ -152,8 +107,7 @@ namespace array {
       if (arguments.length == 0) {
         goto TypeError;
       }
-      const callbackfn: Callable =
-          Cast<Callable>(arguments[0]) otherwise TypeError;
+      const callbackfn = Cast<Callable>(arguments[0]) otherwise TypeError;
 
       // 4. If thisArg is present, let T be thisArg; else let T be undefined.
       const thisArg: Object = arguments.length > 1 ? arguments[1] : Undefined;
@@ -161,22 +115,18 @@ namespace array {
       // Special cases.
       let k: Number = 0;
       try {
-        return FastArrayForEach(context, o, len, callbackfn, thisArg)
+        return FastArrayForEach(o, len, callbackfn, thisArg)
             otherwise Bailout;
       }
       label Bailout(kValue: Smi) deferred {
         k = kValue;
       }
 
-      return ArrayForEachTorqueContinuation(
-          context, o, len, callbackfn, thisArg, k);
+      return ArrayForEachLoopContinuation(
+          o, callbackfn, thisArg, Undefined, o, k, len, Undefined);
     }
     label TypeError deferred {
-      ThrowTypeError(context, kCalledNonCallable, arguments[0]);
-    }
-    label NullOrUndefinedError deferred {
-      ThrowTypeError(
-          context, kCalledOnNullOrUndefined, 'Array.prototype.forEach');
+      ThrowTypeError(kCalledNonCallable, arguments[0]);
     }
   }
 }

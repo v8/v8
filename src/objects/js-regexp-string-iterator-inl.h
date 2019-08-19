@@ -7,7 +7,7 @@
 
 #include "src/objects/js-regexp-string-iterator.h"
 
-#include "src/objects-inl.h"  // Needed for write barriers
+#include "src/objects/objects-inl.h"  // Needed for write barriers
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -19,15 +19,15 @@ OBJECT_CONSTRUCTORS_IMPL(JSRegExpStringIterator, JSObject)
 
 ACCESSORS(JSRegExpStringIterator, iterating_regexp, Object,
           kIteratingRegExpOffset)
-ACCESSORS2(JSRegExpStringIterator, iterating_string, String,
-           kIteratedStringOffset)
+ACCESSORS(JSRegExpStringIterator, iterating_string, String,
+          kIteratedStringOffset)
 
 SMI_ACCESSORS(JSRegExpStringIterator, flags, kFlagsOffset)
 BOOL_ACCESSORS(JSRegExpStringIterator, flags, done, kDoneBit)
 BOOL_ACCESSORS(JSRegExpStringIterator, flags, global, kGlobalBit)
 BOOL_ACCESSORS(JSRegExpStringIterator, flags, unicode, kUnicodeBit)
 
-CAST_ACCESSOR2(JSRegExpStringIterator)
+CAST_ACCESSOR(JSRegExpStringIterator)
 
 }  // namespace internal
 }  // namespace v8

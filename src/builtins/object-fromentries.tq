@@ -11,7 +11,7 @@ namespace object {
         const elements: FixedArray =
             Cast<FixedArray>(array.elements) otherwise IfSlow;
         const length: Smi = array.length;
-        const result: JSObject = AllocateEmptyJSObject();
+        const result: JSObject = NewJSObject();
 
         for (let k: Smi = 0; k < length; ++k) {
           const value: Object = array::LoadElementOrUndefined(elements, k);
@@ -22,7 +22,7 @@ namespace object {
           // Symbol.toPrimitive, toString, and valueOf, which could
           // invalidate assumptions about the iterable.
           if (Is<JSReceiver>(pair.key)) goto IfSlow;
-          CreateDataProperty(result, pair.key, pair.value);
+          FastCreateDataProperty(result, pair.key, pair.value);
         }
         return result;
       }
@@ -33,29 +33,28 @@ namespace object {
   }
 
   transitioning javascript builtin
-  ObjectFromEntries(implicit context: Context)(receiver: Object, ...arguments):
-      Object {
+  ObjectFromEntries(js-implicit context: Context, receiver: Object)(
+      ...arguments): Object {
     const iterable: Object = arguments[0];
     try {
       if (IsNullOrUndefined(iterable)) goto Throw;
       return ObjectFromEntriesFastCase(iterable) otherwise IfSlow;
     }
     label IfSlow {
-      const result: JSObject = AllocateEmptyJSObject();
-      const fastIteratorResultMap: Map =
-          Cast<Map>(LoadNativeContext(context)[ITERATOR_RESULT_MAP_INDEX])
-          otherwise unreachable;
+      const result: JSObject = NewJSObject();
+      const fastIteratorResultMap: Map = GetIteratorResultMap();
       let i: iterator::IteratorRecord = iterator::GetIterator(iterable);
       try {
         assert(!IsNullOrUndefined(i.object));
         while (true) {
-          const step: Object = iterator::IteratorStep(i, fastIteratorResultMap)
+          const step: JSReceiver =
+              iterator::IteratorStep(i, fastIteratorResultMap)
               otherwise return result;
           const iteratorValue: Object =
               iterator::IteratorValue(step, fastIteratorResultMap);
           const pair: KeyValuePair =
               collections::LoadKeyValuePair(iteratorValue);
-          CreateDataProperty(result, pair.key, pair.value);
+          FastCreateDataProperty(result, pair.key, pair.value);
         }
         return result;
       } catch (e) deferred {
@@ -63,7 +62,7 @@ namespace object {
       }
     }
     label Throw deferred {
-      ThrowTypeError(context, kNotIterable);
+      ThrowTypeError(kNotIterable);
     }
   }
 }  // namespace object

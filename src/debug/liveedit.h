@@ -7,8 +7,8 @@
 
 #include <vector>
 
-#include "src/globals.h"
-#include "src/handles.h"
+#include "src/common/globals.h"
+#include "src/handles/handles.h"
 
 namespace v8 {
 namespace debug {
@@ -54,7 +54,7 @@ struct SourceChangeRange {
   9. swap scripts.
  */
 
-class LiveEdit : AllStatic {
+class V8_EXPORT_PRIVATE LiveEdit : AllStatic {
  public:
   static void InitializeThreadLocal(Debug* debug);
 
