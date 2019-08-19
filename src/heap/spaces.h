@@ -373,7 +373,7 @@ class FreeList {
   FreeListCategory** categories_ = nullptr;
 
   // |available_|: The number of bytes in this freelist.
-  std::atomic<size_t> available_{0};
+  size_t available_ = 0;
 
   friend class FreeListCategory;
   friend class Page;
