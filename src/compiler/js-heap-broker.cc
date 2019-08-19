@@ -4007,16 +4007,18 @@ base::Optional<ObjectRef> GlobalAccessFeedback::GetConstantHint() const {
 }
 
 KeyedAccessMode KeyedAccessMode::FromNexus(FeedbackNexus const& nexus) {
-  if (IsKeyedLoadICKind(nexus.kind())) {
+  FeedbackSlotKind kind = nexus.kind();
+  if (IsKeyedLoadICKind(kind)) {
     return KeyedAccessMode(AccessMode::kLoad, nexus.GetKeyedAccessLoadMode());
   }
-  if (IsKeyedHasICKind(nexus.kind())) {
+  if (IsKeyedHasICKind(kind)) {
     return KeyedAccessMode(AccessMode::kHas, nexus.GetKeyedAccessLoadMode());
   }
-  if (IsKeyedStoreICKind(nexus.kind())) {
+  if (IsKeyedStoreICKind(kind)) {
     return KeyedAccessMode(AccessMode::kStore, nexus.GetKeyedAccessStoreMode());
   }
-  if (IsStoreInArrayLiteralICKind(nexus.kind())) {
+  if (IsStoreInArrayLiteralICKind(kind) ||
+      IsStoreDataPropertyInLiteralKind(kind)) {
     return KeyedAccessMode(AccessMode::kStoreInLiteral,
                            nexus.GetKeyedAccessStoreMode());
   }

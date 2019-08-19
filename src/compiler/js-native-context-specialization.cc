@@ -1091,6 +1091,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
          node->opcode() == IrOpcode::kJSLoadProperty ||
          node->opcode() == IrOpcode::kJSStoreProperty ||
          node->opcode() == IrOpcode::kJSStoreNamedOwn ||
+         node->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral ||
          node->opcode() == IrOpcode::kJSHasProperty ||
          node->opcode() == IrOpcode::kJSGetIterator);
   Node* receiver = NodeProperties::GetValueInput(node, 0);
@@ -1524,6 +1525,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
          node->opcode() == IrOpcode::kJSStoreProperty ||
          node->opcode() == IrOpcode::kJSStoreInArrayLiteral ||
+         node->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral ||
          node->opcode() == IrOpcode::kJSHasProperty);
 
   Node* receiver = NodeProperties::GetValueInput(node, 0);
@@ -1828,6 +1830,7 @@ Reduction JSNativeContextSpecialization::ReducePropertyAccess(
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
          node->opcode() == IrOpcode::kJSStoreProperty ||
          node->opcode() == IrOpcode::kJSStoreInArrayLiteral ||
+         node->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral ||
          node->opcode() == IrOpcode::kJSHasProperty ||
          node->opcode() == IrOpcode::kJSLoadNamed ||
          node->opcode() == IrOpcode::kJSStoreNamed ||
@@ -2434,76 +2437,16 @@ JSNativeContextSpecialization::BuildPropertyStore(
 
 Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
     Node* node) {
+  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
   DCHECK_EQ(IrOpcode::kJSStoreDataPropertyInLiteral, node->opcode());
-
   FeedbackParameter const& p = FeedbackParameterOf(node->op());
+  Node* const key = NodeProperties::GetValueInput(node, 1);
+  Node* const value = NodeProperties::GetValueInput(node, 2);
 
   if (!p.feedback().IsValid()) return NoChange();
-
-  FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
-  if (nexus.IsUninitialized()) {
-    return NoChange();
-  }
-
-  if (nexus.ic_state() == MEGAMORPHIC) {
-    return NoChange();
-  }
-
-  DCHECK_EQ(MONOMORPHIC, nexus.ic_state());
-
-  Map map = nexus.GetFirstMap();
-  if (map.is_null()) {
-    // Maps are weakly held in the type feedback vector, we may not have one.
-    return NoChange();
-  }
-
-  Handle<Map> receiver_map(map, isolate());
-  if (!Map::TryUpdate(isolate(), receiver_map).ToHandle(&receiver_map))
-    return NoChange();
-
-  NameRef cached_name(
-      broker(),
-      handle(Name::cast(nexus.GetFeedbackExtra()->GetHeapObjectAssumeStrong()),
-             isolate()));
-
-  AccessInfoFactory access_info_factory(broker(), dependencies(),
-                                        graph()->zone());
-  PropertyAccessInfo access_info =
-      access_info_factory.ComputePropertyAccessInfo(
-          receiver_map, cached_name.object(), AccessMode::kStoreInLiteral);
-  if (access_info.IsInvalid()) return NoChange();
-  access_info.RecordDependencies(dependencies());
-
-  Node* receiver = NodeProperties::GetValueInput(node, 0);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-
-  // Monomorphic property access.
-  PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
-  access_builder.BuildCheckMaps(receiver, &effect, control,
-                                access_info.receiver_maps());
-
-  // Ensure that {name} matches the cached name.
-  Node* name = NodeProperties::GetValueInput(node, 1);
-  Node* check = graph()->NewNode(simplified()->ReferenceEqual(), name,
-                                 jsgraph()->Constant(cached_name));
-  effect = graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kWrongName),
-                            check, effect, control);
-
-  Node* value = NodeProperties::GetValueInput(node, 2);
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* frame_state_lazy = NodeProperties::GetFrameStateInput(node);
-
-  // Generate the actual property access.
-  ValueEffectControl continuation = BuildPropertyAccess(
-      receiver, value, context, frame_state_lazy, effect, control, cached_name,
-      nullptr, access_info, AccessMode::kStoreInLiteral);
-  value = continuation.value();
-  effect = continuation.effect();
-  control = continuation.control();
-
-  ReplaceWithValue(node, value, effect, control);
-  return Replace(value);
+  return ReducePropertyAccess(node, key, base::nullopt, value,
+                              FeedbackSource(p.feedback()),
+                              AccessMode::kStoreInLiteral);
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSStoreInArrayLiteral(

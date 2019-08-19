@@ -203,6 +203,7 @@ namespace compiler {
   V(Return)                           \
   V(StaContextSlot)                   \
   V(StaCurrentContextSlot)            \
+  V(StaDataPropertyInLiteral)         \
   V(StaGlobal)                        \
   V(StaInArrayLiteral)                \
   V(StaKeyedProperty)                 \
@@ -2651,6 +2652,17 @@ void SerializerForBackgroundCompilation::VisitStaInArrayLiteral(
   FeedbackSlot slot = iterator->GetSlotOperand(2);
   ProcessKeyedPropertyAccess(receiver, key, slot, AccessMode::kStoreInLiteral,
                              true);
+}
+
+void SerializerForBackgroundCompilation::VisitStaDataPropertyInLiteral(
+    BytecodeArrayIterator* iterator) {
+  Hints const& receiver =
+      environment()->register_hints(iterator->GetRegisterOperand(0));
+  Hints const& key =
+      environment()->register_hints(iterator->GetRegisterOperand(1));
+  FeedbackSlot slot = iterator->GetSlotOperand(3);
+  ProcessKeyedPropertyAccess(receiver, key, slot, AccessMode::kStoreInLiteral,
+                             false);
 }
 
 #define DEFINE_CLEAR_ENVIRONMENT(name, ...)             \
