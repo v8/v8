@@ -33,9 +33,7 @@ class IntlBuiltinsAssembler : public CodeStubAssembler {
 };
 
 TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
-  Node* const string = Parameter(Descriptor::kString);
-
-  CSA_ASSERT(this, IsString(string));
+  TNode<String> const string = CAST(Parameter(Descriptor::kString));
 
   Label call_c(this), return_string(this), runtime(this, Label::kDeferred);
 
@@ -49,7 +47,7 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
       state(), string, ToDirectStringAssembler::kDontUnpackSlicedStrings);
   to_direct.TryToDirect(&runtime);
 
-  Node* const instance_type = to_direct.instance_type();
+  TNode<Int32T> const instance_type = to_direct.instance_type();
   CSA_ASSERT(this,
              Word32BinaryNot(IsIndirectStringInstanceType(instance_type)));
   GotoIfNot(IsOneByteStringInstanceType(instance_type), &runtime);
@@ -67,7 +65,7 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
     VARIABLE(var_cursor, MachineType::PointerRepresentation(),
              IntPtrConstant(0));
 
-    Node* const start_address = to_direct.PointerToData(&call_c);
+    TNode<RawPtrT> const start_address = to_direct.PointerToData(&call_c);
     TNode<IntPtrT> const end_address =
         Signed(IntPtrAdd(start_address, ChangeUint32ToWord(length)));
 
@@ -105,7 +103,7 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
   // String ConvertOneByteToLower(String src, String dst);
   BIND(&call_c);
   {
-    Node* const src = to_direct.string();
+    TNode<String> const src = to_direct.string();
 
     Node* const function_addr =
         ExternalConstant(ExternalReference::intl_convert_one_byte_to_lower());

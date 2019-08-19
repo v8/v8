@@ -6886,10 +6886,9 @@ TNode<Int32T> CodeStubAssembler::StringCharCodeAt(SloppyTNode<String> string,
 
   ToDirectStringAssembler to_direct(state(), string);
   to_direct.TryToDirect(&if_runtime);
-  Node* const offset = IntPtrAdd(index, to_direct.offset());
-  Node* const instance_type = to_direct.instance_type();
-
-  Node* const string_data = to_direct.PointerToData(&if_runtime);
+  TNode<IntPtrT> const offset = IntPtrAdd(index, to_direct.offset());
+  TNode<Int32T> const instance_type = to_direct.instance_type();
+  TNode<RawPtrT> const string_data = to_direct.PointerToData(&if_runtime);
 
   // Check if the {string} is a TwoByteSeqString or a OneByteSeqString.
   Branch(IsOneByteStringInstanceType(instance_type), &if_stringisonebyte,
@@ -7050,7 +7049,7 @@ TNode<String> CodeStubAssembler::SubString(TNode<String> string,
 
   TNode<String> direct_string = to_direct.TryToDirect(&runtime);
   TNode<IntPtrT> offset = IntPtrAdd(from, to_direct.offset());
-  Node* const instance_type = to_direct.instance_type();
+  TNode<Int32T> const instance_type = to_direct.instance_type();
 
   // The subject string can only be external or sequential string of either
   // encoding at this point.
@@ -7108,7 +7107,8 @@ TNode<String> CodeStubAssembler::SubString(TNode<String> string,
   // Handle external string.
   BIND(&external_string);
   {
-    Node* const fake_sequential_string = to_direct.PointerToString(&runtime);
+    TNode<RawPtrT> const fake_sequential_string =
+        to_direct.PointerToString(&runtime);
 
     var_result = AllocAndCopyStringCharacters(
         fake_sequential_string, instance_type, offset, substr_length);
@@ -7163,21 +7163,13 @@ TNode<String> CodeStubAssembler::SubString(TNode<String> string,
 }
 
 ToDirectStringAssembler::ToDirectStringAssembler(
-    compiler::CodeAssemblerState* state, Node* string, Flags flags)
+    compiler::CodeAssemblerState* state, TNode<String> string, Flags flags)
     : CodeStubAssembler(state),
-      var_string_(this, MachineRepresentation::kTagged, string),
-      var_instance_type_(this, MachineRepresentation::kWord32),
-      var_offset_(this, MachineType::PointerRepresentation()),
-      var_is_external_(this, MachineRepresentation::kWord32),
-      flags_(flags) {
-  CSA_ASSERT(this, TaggedIsNotSmi(string));
-  CSA_ASSERT(this, IsString(string));
-
-  var_string_.Bind(string);
-  var_offset_.Bind(IntPtrConstant(0));
-  var_instance_type_.Bind(LoadInstanceType(string));
-  var_is_external_.Bind(Int32Constant(0));
-}
+      var_string_(string, this),
+      var_instance_type_(LoadInstanceType(string), this),
+      var_offset_(IntPtrConstant(0), this),
+      var_is_external_(Int32Constant(0), this),
+      flags_(flags) {}
 
 TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
   VariableList vars({&var_string_, &var_offset_, &var_instance_type_}, zone());
@@ -7203,7 +7195,7 @@ TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
     };
     STATIC_ASSERT(arraysize(values) == arraysize(labels));
 
-    Node* const representation = Word32And(
+    TNode<Word32T> const representation = Word32And(
         var_instance_type_.value(), Int32Constant(kStringRepresentationMask));
     Switch(representation, if_bailout, values, labels, arraysize(values));
   }
@@ -7212,13 +7204,15 @@ TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
   // Flat cons strings have an empty second part.
   BIND(&if_iscons);
   {
-    Node* const string = var_string_.value();
-    GotoIfNot(IsEmptyString(LoadObjectField(string, ConsString::kSecondOffset)),
+    TNode<String> const string = var_string_.value();
+    GotoIfNot(IsEmptyString(
+                  LoadObjectField<String>(string, ConsString::kSecondOffset)),
               if_bailout);
 
-    Node* const lhs = LoadObjectField(string, ConsString::kFirstOffset);
-    var_string_.Bind(lhs);
-    var_instance_type_.Bind(LoadInstanceType(lhs));
+    TNode<String> const lhs =
+        LoadObjectField<String>(string, ConsString::kFirstOffset);
+    var_string_ = lhs;
+    var_instance_type_ = LoadInstanceType(lhs);
 
     Goto(&dispatch);
   }
@@ -7229,14 +7223,15 @@ TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
     if (!FLAG_string_slices || (flags_ & kDontUnpackSlicedStrings)) {
       Goto(if_bailout);
     } else {
-      Node* const string = var_string_.value();
-      Node* const sliced_offset =
+      TNode<String> const string = var_string_.value();
+      TNode<IntPtrT> const sliced_offset =
           LoadAndUntagObjectField(string, SlicedString::kOffsetOffset);
-      var_offset_.Bind(IntPtrAdd(var_offset_.value(), sliced_offset));
+      var_offset_ = IntPtrAdd(var_offset_.value(), sliced_offset);
 
-      Node* const parent = LoadObjectField(string, SlicedString::kParentOffset);
-      var_string_.Bind(parent);
-      var_instance_type_.Bind(LoadInstanceType(parent));
+      TNode<String> const parent =
+          LoadObjectField<String>(string, SlicedString::kParentOffset);
+      var_string_ = parent;
+      var_instance_type_ = LoadInstanceType(parent);
 
       Goto(&dispatch);
     }
@@ -7245,24 +7240,24 @@ TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
   // Thin string. Fetch the actual string.
   BIND(&if_isthin);
   {
-    Node* const string = var_string_.value();
-    Node* const actual_string =
-        LoadObjectField(string, ThinString::kActualOffset);
-    Node* const actual_instance_type = LoadInstanceType(actual_string);
+    TNode<String> const string = var_string_.value();
+    TNode<String> const actual_string =
+        LoadObjectField<String>(string, ThinString::kActualOffset);
+    TNode<Uint16T> const actual_instance_type = LoadInstanceType(actual_string);
 
-    var_string_.Bind(actual_string);
-    var_instance_type_.Bind(actual_instance_type);
+    var_string_ = actual_string;
+    var_instance_type_ = actual_instance_type;
 
     Goto(&dispatch);
   }
 
   // External string.
   BIND(&if_isexternal);
-  var_is_external_.Bind(Int32Constant(1));
+  var_is_external_ = Int32Constant(1);
   Goto(&out);
 
   BIND(&out);
-  return CAST(var_string_.value());
+  return var_string_.value();
 }
 
 TNode<RawPtrT> ToDirectStringAssembler::TryToSequential(
@@ -7291,7 +7286,7 @@ TNode<RawPtrT> ToDirectStringAssembler::TryToSequential(
     GotoIf(IsUncachedExternalStringInstanceType(var_instance_type_.value()),
            if_bailout);
 
-    TNode<String> string = CAST(var_string_.value());
+    TNode<String> string = var_string_.value();
     TNode<IntPtrT> result =
         LoadObjectField<IntPtrT>(string, ExternalString::kResourceDataOffset);
     if (ptr_kind == PTR_TO_STRING) {
@@ -7306,35 +7301,33 @@ TNode<RawPtrT> ToDirectStringAssembler::TryToSequential(
   return var_result.value();
 }
 
-void CodeStubAssembler::BranchIfCanDerefIndirectString(Node* string,
-                                                       Node* instance_type,
-                                                       Label* can_deref,
-                                                       Label* cannot_deref) {
-  CSA_ASSERT(this, IsString(string));
+void CodeStubAssembler::BranchIfCanDerefIndirectString(
+    TNode<String> string, TNode<Int32T> instance_type, Label* can_deref,
+    Label* cannot_deref) {
   Node* representation =
       Word32And(instance_type, Int32Constant(kStringRepresentationMask));
   GotoIf(Word32Equal(representation, Int32Constant(kThinStringTag)), can_deref);
   GotoIf(Word32NotEqual(representation, Int32Constant(kConsStringTag)),
          cannot_deref);
   // Cons string.
-  Node* rhs = LoadObjectField(string, ConsString::kSecondOffset);
+  TNode<String> rhs =
+      LoadObjectField<String>(string, ConsString::kSecondOffset);
   GotoIf(IsEmptyString(rhs), can_deref);
   Goto(cannot_deref);
 }
 
-Node* CodeStubAssembler::DerefIndirectString(TNode<String> string,
-                                             TNode<Int32T> instance_type,
-                                             Label* cannot_deref) {
+TNode<String> CodeStubAssembler::DerefIndirectString(
+    TNode<String> string, TNode<Int32T> instance_type, Label* cannot_deref) {
   Label deref(this);
   BranchIfCanDerefIndirectString(string, instance_type, &deref, cannot_deref);
   BIND(&deref);
   STATIC_ASSERT(static_cast<int>(ThinString::kActualOffset) ==
                 static_cast<int>(ConsString::kFirstOffset));
-  return LoadObjectField(string, ThinString::kActualOffset);
+  return LoadObjectField<String>(string, ThinString::kActualOffset);
 }
 
-void CodeStubAssembler::DerefIndirectString(Variable* var_string,
-                                            Node* instance_type) {
+void CodeStubAssembler::DerefIndirectString(TVariable<String>* var_string,
+                                            TNode<Int32T> instance_type) {
 #ifdef DEBUG
   Label can_deref(this), cannot_deref(this);
   BranchIfCanDerefIndirectString(var_string->value(), instance_type, &can_deref,
@@ -7347,12 +7340,12 @@ void CodeStubAssembler::DerefIndirectString(Variable* var_string,
 
   STATIC_ASSERT(static_cast<int>(ThinString::kActualOffset) ==
                 static_cast<int>(ConsString::kFirstOffset));
-  var_string->Bind(
-      LoadObjectField(var_string->value(), ThinString::kActualOffset));
+  *var_string =
+      LoadObjectField<String>(var_string->value(), ThinString::kActualOffset);
 }
 
-void CodeStubAssembler::MaybeDerefIndirectString(Variable* var_string,
-                                                 Node* instance_type,
+void CodeStubAssembler::MaybeDerefIndirectString(TVariable<String>* var_string,
+                                                 TNode<Int32T> instance_type,
                                                  Label* did_deref,
                                                  Label* cannot_deref) {
   Label deref(this);
@@ -7366,11 +7359,10 @@ void CodeStubAssembler::MaybeDerefIndirectString(Variable* var_string,
   }
 }
 
-void CodeStubAssembler::MaybeDerefIndirectStrings(Variable* var_left,
-                                                  Node* left_instance_type,
-                                                  Variable* var_right,
-                                                  Node* right_instance_type,
-                                                  Label* did_something) {
+void CodeStubAssembler::MaybeDerefIndirectStrings(
+    TVariable<String>* var_left, TNode<Int32T> left_instance_type,
+    TVariable<String>* var_right, TNode<Int32T> right_instance_type,
+    Label* did_something) {
   Label did_nothing_left(this), did_something_left(this),
       didnt_do_anything(this);
   MaybeDerefIndirectString(var_left, left_instance_type, &did_something_left,
@@ -7435,13 +7427,13 @@ TNode<String> CodeStubAssembler::StringAdd(Node* context, TNode<String> left,
     BIND(&non_cons);
 
     Comment("Full string concatenate");
-    Node* left_instance_type = LoadInstanceType(var_left.value());
-    Node* right_instance_type = LoadInstanceType(var_right.value());
+    TNode<Int32T> left_instance_type = LoadInstanceType(var_left.value());
+    TNode<Int32T> right_instance_type = LoadInstanceType(var_right.value());
     // Compute intersection and difference of instance types.
 
-    Node* ored_instance_types =
+    TNode<Word32T> ored_instance_types =
         Word32Or(left_instance_type, right_instance_type);
-    Node* xored_instance_types =
+    TNode<Word32T> xored_instance_types =
         Word32Xor(left_instance_type, right_instance_type);
 
     // Check if both strings have the same encoding and both are sequential.
@@ -8343,7 +8335,8 @@ void CodeStubAssembler::TryToName(Node* key, Label* if_keyisindex,
   Goto(if_keyisunique);
 
   BIND(&if_thinstring);
-  var_unique->Bind(LoadObjectField(key, ThinString::kActualOffset));
+  var_unique->Bind(
+      LoadObjectField<String>(CAST(key), ThinString::kActualOffset));
   Goto(if_keyisunique);
 
   BIND(&if_hascachedindex);
@@ -14003,7 +13996,7 @@ void CodeStubAssembler::SetPropertyLength(TNode<Context> context,
 
 TNode<String> CodeStubAssembler::TaggedToDirectString(TNode<Object> value,
                                                       Label* fail) {
-  ToDirectStringAssembler to_direct(state(), value);
+  ToDirectStringAssembler to_direct(state(), CAST(value));
   to_direct.TryToDirect(fail);
   to_direct.PointerToData(fail);
   return CAST(value);

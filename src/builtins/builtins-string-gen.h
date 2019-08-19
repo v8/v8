@@ -58,16 +58,17 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   void ConvertAndBoundsCheckStartArgument(Node* context, Variable* var_start,
                                           Node* start, Node* string_length);
 
-  void GenerateStringEqual(Node* left, Node* right);
-  void GenerateStringRelationalComparison(Node* left, Node* right,
-                                          Operation op);
+  void GenerateStringEqual(TNode<String> left, TNode<String> right);
+  void GenerateStringRelationalComparison(TNode<String> left,
+                                          TNode<String> right, Operation op);
 
   using StringAtAccessor = std::function<TNode<Object>(
       TNode<String> receiver, TNode<IntPtrT> length, TNode<IntPtrT> index)>;
 
-  void StringIndexOf(Node* const subject_string, Node* const search_string,
-                     Node* const position,
-                     const std::function<void(Node*)>& f_return);
+  void StringIndexOf(TNode<String> const subject_string,
+                     TNode<String> const search_string,
+                     TNode<Smi> const position,
+                     const std::function<void(TNode<Smi>)>& f_return);
 
   TNode<Smi> IndexOfDollarChar(Node* const context, Node* const string);
 

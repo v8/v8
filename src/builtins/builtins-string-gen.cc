@@ -128,9 +128,10 @@ Node* StringBuiltinsAssembler::PointerToStringDataAtIndex(
   return IntPtrAdd(string_data, offset_in_bytes);
 }
 
-void StringBuiltinsAssembler::GenerateStringEqual(Node* left, Node* right) {
-  VARIABLE(var_left, MachineRepresentation::kTagged, left);
-  VARIABLE(var_right, MachineRepresentation::kTagged, right);
+void StringBuiltinsAssembler::GenerateStringEqual(TNode<String> left,
+                                                  TNode<String> right) {
+  TVARIABLE(String, var_left, left);
+  TVARIABLE(String, var_right, right);
   Label if_equal(this), if_notequal(this), if_indirect(this, Label::kDeferred),
       restart(this, {&var_left, &var_right});
 
@@ -142,11 +143,11 @@ void StringBuiltinsAssembler::GenerateStringEqual(Node* left, Node* right) {
 
   Goto(&restart);
   BIND(&restart);
-  Node* lhs = var_left.value();
-  Node* rhs = var_right.value();
+  TNode<String> lhs = var_left.value();
+  TNode<String> rhs = var_right.value();
 
-  Node* lhs_instance_type = LoadInstanceType(lhs);
-  Node* rhs_instance_type = LoadInstanceType(rhs);
+  TNode<Uint16T> lhs_instance_type = LoadInstanceType(lhs);
+  TNode<Uint16T> rhs_instance_type = LoadInstanceType(rhs);
 
   StringEqual_Core(lhs, lhs_instance_type, rhs, rhs_instance_type, lhs_length,
                    &if_equal, &if_notequal, &if_indirect);
@@ -324,11 +325,10 @@ TF_BUILTIN(SubString, StringBuiltinsAssembler) {
   Return(SubString(string, SmiUntag(from), SmiUntag(to)));
 }
 
-void StringBuiltinsAssembler::GenerateStringRelationalComparison(Node* left,
-                                                                 Node* right,
-                                                                 Operation op) {
-  VARIABLE(var_left, MachineRepresentation::kTagged, left);
-  VARIABLE(var_right, MachineRepresentation::kTagged, right);
+void StringBuiltinsAssembler::GenerateStringRelationalComparison(
+    TNode<String> left, TNode<String> right, Operation op) {
+  TVARIABLE(String, var_left, left);
+  TVARIABLE(String, var_right, right);
 
   Variable* input_vars[2] = {&var_left, &var_right};
   Label if_less(this), if_equal(this), if_greater(this);
@@ -336,18 +336,18 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(Node* left,
   Goto(&restart);
   BIND(&restart);
 
-  Node* lhs = var_left.value();
-  Node* rhs = var_right.value();
+  TNode<String> lhs = var_left.value();
+  TNode<String> rhs = var_right.value();
   // Fast check to see if {lhs} and {rhs} refer to the same String object.
   GotoIf(WordEqual(lhs, rhs), &if_equal);
 
   // Load instance types of {lhs} and {rhs}.
-  Node* lhs_instance_type = LoadInstanceType(lhs);
-  Node* rhs_instance_type = LoadInstanceType(rhs);
+  TNode<Uint16T> lhs_instance_type = LoadInstanceType(lhs);
+  TNode<Uint16T> rhs_instance_type = LoadInstanceType(rhs);
 
   // Combine the instance types into a single 16-bit value, so we can check
   // both of them at once.
-  Node* both_instance_types = Word32Or(
+  TNode<Word32T> both_instance_types = Word32Or(
       lhs_instance_type, Word32Shl(rhs_instance_type, Int32Constant(8)));
 
   // Check that both {lhs} and {rhs} are flat one-byte strings.
@@ -496,32 +496,32 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(Node* left,
 }
 
 TF_BUILTIN(StringEqual, StringBuiltinsAssembler) {
-  Node* left = Parameter(Descriptor::kLeft);
-  Node* right = Parameter(Descriptor::kRight);
+  TNode<String> left = CAST(Parameter(Descriptor::kLeft));
+  TNode<String> right = CAST(Parameter(Descriptor::kRight));
   GenerateStringEqual(left, right);
 }
 
 TF_BUILTIN(StringLessThan, StringBuiltinsAssembler) {
-  Node* left = Parameter(Descriptor::kLeft);
-  Node* right = Parameter(Descriptor::kRight);
+  TNode<String> left = CAST(Parameter(Descriptor::kLeft));
+  TNode<String> right = CAST(Parameter(Descriptor::kRight));
   GenerateStringRelationalComparison(left, right, Operation::kLessThan);
 }
 
 TF_BUILTIN(StringLessThanOrEqual, StringBuiltinsAssembler) {
-  Node* left = Parameter(Descriptor::kLeft);
-  Node* right = Parameter(Descriptor::kRight);
+  TNode<String> left = CAST(Parameter(Descriptor::kLeft));
+  TNode<String> right = CAST(Parameter(Descriptor::kRight));
   GenerateStringRelationalComparison(left, right, Operation::kLessThanOrEqual);
 }
 
 TF_BUILTIN(StringGreaterThan, StringBuiltinsAssembler) {
-  Node* left = Parameter(Descriptor::kLeft);
-  Node* right = Parameter(Descriptor::kRight);
+  TNode<String> left = CAST(Parameter(Descriptor::kLeft));
+  TNode<String> right = CAST(Parameter(Descriptor::kRight));
   GenerateStringRelationalComparison(left, right, Operation::kGreaterThan);
 }
 
 TF_BUILTIN(StringGreaterThanOrEqual, StringBuiltinsAssembler) {
-  Node* left = Parameter(Descriptor::kLeft);
-  Node* right = Parameter(Descriptor::kRight);
+  TNode<String> left = CAST(Parameter(Descriptor::kLeft));
+  TNode<String> right = CAST(Parameter(Descriptor::kRight));
   GenerateStringRelationalComparison(left, right,
                                      Operation::kGreaterThanOrEqual);
 }
@@ -682,12 +682,9 @@ TF_BUILTIN(StringFromCharCode, CodeStubAssembler) {
 }
 
 void StringBuiltinsAssembler::StringIndexOf(
-    Node* const subject_string, Node* const search_string, Node* const position,
-    const std::function<void(Node*)>& f_return) {
-  CSA_ASSERT(this, IsString(subject_string));
-  CSA_ASSERT(this, IsString(search_string));
-  CSA_ASSERT(this, TaggedIsSmi(position));
-
+    TNode<String> const subject_string, TNode<String> const search_string,
+    TNode<Smi> const position,
+    const std::function<void(TNode<Smi>)>& f_return) {
   TNode<IntPtrT> const int_zero = IntPtrConstant(0);
   TNode<IntPtrT> const search_length = LoadStringLengthAsWord(search_string);
   TNode<IntPtrT> const subject_length = LoadStringLengthAsWord(subject_string);
@@ -719,13 +716,13 @@ void StringBuiltinsAssembler::StringIndexOf(
   search_to_direct.TryToDirect(&call_runtime_unchecked);
 
   // Load pointers to string data.
-  Node* const subject_ptr =
+  TNode<RawPtrT> const subject_ptr =
       subject_to_direct.PointerToData(&call_runtime_unchecked);
-  Node* const search_ptr =
+  TNode<RawPtrT> const search_ptr =
       search_to_direct.PointerToData(&call_runtime_unchecked);
 
-  Node* const subject_offset = subject_to_direct.offset();
-  Node* const search_offset = search_to_direct.offset();
+  TNode<IntPtrT> const subject_offset = subject_to_direct.offset();
+  TNode<IntPtrT> const search_offset = search_to_direct.offset();
 
   // Like String::IndexOf, the actual matching is done by the optimized
   // SearchString method in string-search.h. Dispatch based on string instance
@@ -844,9 +841,9 @@ void StringBuiltinsAssembler::StringIndexOf(
     // Simplified version of the runtime call where the types of the arguments
     // are already known due to type checks in this stub.
     Comment("Call Runtime Unchecked");
-    Node* result =
-        CallRuntime(Runtime::kStringIndexOfUnchecked, NoContextConstant(),
-                    subject_string, search_string, position);
+    TNode<Smi> result =
+        CAST(CallRuntime(Runtime::kStringIndexOfUnchecked, NoContextConstant(),
+                         subject_string, search_string, position));
     f_return(result);
   }
 }
@@ -855,11 +852,11 @@ void StringBuiltinsAssembler::StringIndexOf(
 // #sec-string.prototype.indexof
 // Unchecked helper for builtins lowering.
 TF_BUILTIN(StringIndexOf, StringBuiltinsAssembler) {
-  Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* search_string = Parameter(Descriptor::kSearchString);
-  Node* position = Parameter(Descriptor::kPosition);
+  TNode<String> receiver = CAST(Parameter(Descriptor::kReceiver));
+  TNode<String> search_string = CAST(Parameter(Descriptor::kSearchString));
+  TNode<Smi> position = CAST(Parameter(Descriptor::kPosition));
   StringIndexOf(receiver, search_string, position,
-                [this](Node* result) { this->Return(result); });
+                [this](TNode<Smi> result) { this->Return(result); });
 }
 
 // ES6 String.prototype.includes(searchString [, position])
@@ -926,13 +923,15 @@ void StringIncludesIndexOfAssembler::Generate(SearchVariant variant,
     GotoIfNot(IsString(receiver), &call_runtime);
     GotoIfNot(IsString(search), &call_runtime);
 
-    StringIndexOf(receiver, search, position, [&](Node* result) {
-      CSA_ASSERT(this, TaggedIsSmi(result));
-      arguments.PopAndReturn((variant == kIndexOf)
-                                 ? result
-                                 : SelectBooleanConstant(SmiGreaterThanOrEqual(
-                                       CAST(result), SmiConstant(0))));
-    });
+    StringIndexOf(CAST(receiver), CAST(search), CAST(position),
+                  [&](TNode<Smi> result) {
+                    if (variant == kIndexOf) {
+                      arguments.PopAndReturn(result);
+                    } else {
+                      arguments.PopAndReturn(SelectBooleanConstant(
+                          SmiGreaterThanOrEqual(result, SmiConstant(0))));
+                    }
+                  });
   }
   BIND(&call_runtime);
   {
@@ -1517,8 +1516,8 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
     TNode<FixedArray> elements = CAST(AllocateFixedArray(
         PACKED_ELEMENTS, length, AllocationFlag::kAllowLargeObjectAllocation));
     // Don't allocate anything while {string_data} is live!
-    TNode<RawPtrT> string_data = UncheckedCast<RawPtrT>(
-        to_direct.PointerToData(&fill_thehole_and_call_runtime));
+    TNode<RawPtrT> string_data =
+        to_direct.PointerToData(&fill_thehole_and_call_runtime);
     TNode<IntPtrT> string_data_offset = to_direct.offset();
     TNode<Object> cache = LoadRoot(RootIndex::kSingleCharacterStringCache);
 
@@ -1818,10 +1817,11 @@ void StringTrimAssembler::Generate(String::TrimMode mode,
 
   ToDirectStringAssembler to_direct(state(), string);
   to_direct.TryToDirect(&if_runtime);
-  Node* const string_data = to_direct.PointerToData(&if_runtime);
-  Node* const instance_type = to_direct.instance_type();
-  Node* const is_stringonebyte = IsOneByteStringInstanceType(instance_type);
-  Node* const string_data_offset = to_direct.offset();
+  TNode<RawPtrT> const string_data = to_direct.PointerToData(&if_runtime);
+  TNode<Int32T> const instance_type = to_direct.instance_type();
+  TNode<BoolT> const is_stringonebyte =
+      IsOneByteStringInstanceType(instance_type);
+  TNode<IntPtrT> const string_data_offset = to_direct.offset();
 
   TVARIABLE(IntPtrT, var_start, IntPtrConstant(0));
   TVARIABLE(IntPtrT, var_end, IntPtrSub(string_length, IntPtrConstant(1)));

@@ -2422,21 +2422,27 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Check if |string| is an indirect (thin or flat cons) string type that can
   // be dereferenced by DerefIndirectString.
-  void BranchIfCanDerefIndirectString(Node* string, Node* instance_type,
+  void BranchIfCanDerefIndirectString(TNode<String> string,
+                                      TNode<Int32T> instance_type,
                                       Label* can_deref, Label* cannot_deref);
   // Unpack an indirect (thin or flat cons) string type.
-  void DerefIndirectString(Variable* var_string, Node* instance_type);
+  void DerefIndirectString(TVariable<String>* var_string,
+                           TNode<Int32T> instance_type);
   // Check if |var_string| has an indirect (thin or flat cons) string type,
   // and unpack it if so.
-  void MaybeDerefIndirectString(Variable* var_string, Node* instance_type,
-                                Label* did_deref, Label* cannot_deref);
+  void MaybeDerefIndirectString(TVariable<String>* var_string,
+                                TNode<Int32T> instance_type, Label* did_deref,
+                                Label* cannot_deref);
   // Check if |var_left| or |var_right| has an indirect (thin or flat cons)
   // string type, and unpack it/them if so. Fall through if nothing was done.
-  void MaybeDerefIndirectStrings(Variable* var_left, Node* left_instance_type,
-                                 Variable* var_right, Node* right_instance_type,
+  void MaybeDerefIndirectStrings(TVariable<String>* var_left,
+                                 TNode<Int32T> left_instance_type,
+                                 TVariable<String>* var_right,
+                                 TNode<Int32T> right_instance_type,
                                  Label* did_something);
-  Node* DerefIndirectString(TNode<String> string, TNode<Int32T> instance_type,
-                            Label* cannot_deref);
+  TNode<String> DerefIndirectString(TNode<String> string,
+                                    TNode<Int32T> instance_type,
+                                    Label* cannot_deref);
 
   TNode<String> StringFromSingleUTF16EncodedCodePoint(TNode<Int32T> codepoint);
 
@@ -3705,8 +3711,8 @@ class ToDirectStringAssembler : public CodeStubAssembler {
   };
   using Flags = base::Flags<Flag>;
 
-  ToDirectStringAssembler(compiler::CodeAssemblerState* state, Node* string,
-                          Flags flags = Flags());
+  ToDirectStringAssembler(compiler::CodeAssemblerState* state,
+                          TNode<String> string, Flags flags = Flags());
 
   // Converts flat cons, thin, and sliced strings and returns the direct
   // string. The result can be either a sequential or external string.
@@ -3726,20 +3732,18 @@ class ToDirectStringAssembler : public CodeStubAssembler {
     return TryToSequential(PTR_TO_STRING, if_bailout);
   }
 
-  Node* string() { return var_string_.value(); }
-  Node* instance_type() { return var_instance_type_.value(); }
-  TNode<IntPtrT> offset() {
-    return UncheckedCast<IntPtrT>(var_offset_.value());
-  }
-  Node* is_external() { return var_is_external_.value(); }
+  TNode<String> string() { return var_string_.value(); }
+  TNode<Int32T> instance_type() { return var_instance_type_.value(); }
+  TNode<IntPtrT> offset() { return var_offset_.value(); }
+  TNode<Word32T> is_external() { return var_is_external_.value(); }
 
  private:
   TNode<RawPtrT> TryToSequential(StringPointerKind ptr_kind, Label* if_bailout);
 
-  Variable var_string_;
-  Variable var_instance_type_;
-  Variable var_offset_;
-  Variable var_is_external_;
+  TVariable<String> var_string_;
+  TVariable<Int32T> var_instance_type_;
+  TVariable<IntPtrT> var_offset_;
+  TVariable<Word32T> var_is_external_;
 
   const Flags flags_;
 };
