@@ -10,7 +10,7 @@
 // A function to be called from Wasm code.
 auto callback(
   const wasm::Val args[], wasm::Val results[]
-) -> wasm::own<wasm::Trap*> {
+) -> wasm::own<wasm::Trap> {
   std::cout << "Calling back..." << std::endl;
   std::cout << "> " << (args[0].ref() ? args[0].ref()->get_host_info() : nullptr) << std::endl;
   results[0] = args[0].copy();
@@ -18,7 +18,7 @@ auto callback(
 }
 
 
-auto get_export_func(const wasm::vec<wasm::Extern*>& exports, size_t i) -> const wasm::Func* {
+auto get_export_func(const wasm::ownvec<wasm::Extern>& exports, size_t i) -> const wasm::Func* {
   if (exports.size() <= i || !exports[i]->func()) {
     std::cout << "> Error accessing function export " << i << "/" << exports.size() << "!" << std::endl;
     exit(1);
@@ -28,7 +28,7 @@ auto get_export_func(const wasm::vec<wasm::Extern*>& exports, size_t i) -> const
 
 void call_r_v(const wasm::Func* func, const wasm::Ref* ref) {
   std::cout << "call_r_v... " << std::flush;
-  wasm::Val args[1] = {wasm::Val::ref(ref ? ref->copy() : wasm::own<wasm::Ref*>())};
+  wasm::Val args[1] = {wasm::Val::ref(ref ? ref->copy() : wasm::own<wasm::Ref>())};
   if (func->call(args, nullptr)) {
     std::cout << "> Error calling function!" << std::endl;
     exit(1);
@@ -36,7 +36,7 @@ void call_r_v(const wasm::Func* func, const wasm::Ref* ref) {
   std::cout << "okay" << std::endl;
 }
 
-auto call_v_r(const wasm::Func* func) -> wasm::own<wasm::Ref*> {
+auto call_v_r(const wasm::Func* func) -> wasm::own<wasm::Ref> {
   std::cout << "call_v_r... " << std::flush;
   wasm::Val results[1];
   if (func->call(nullptr, results)) {
@@ -47,9 +47,9 @@ auto call_v_r(const wasm::Func* func) -> wasm::own<wasm::Ref*> {
   return results[0].release_ref();
 }
 
-auto call_r_r(const wasm::Func* func, const wasm::Ref* ref) -> wasm::own<wasm::Ref*> {
+auto call_r_r(const wasm::Func* func, const wasm::Ref* ref) -> wasm::own<wasm::Ref> {
   std::cout << "call_r_r... " << std::flush;
-  wasm::Val args[1] = {wasm::Val::ref(ref ? ref->copy() : wasm::own<wasm::Ref*>())};
+  wasm::Val args[1] = {wasm::Val::ref(ref ? ref->copy() : wasm::own<wasm::Ref>())};
   wasm::Val results[1];
   if (func->call(args, results)) {
     std::cout << "> Error calling function!" << std::endl;
@@ -61,7 +61,7 @@ auto call_r_r(const wasm::Func* func, const wasm::Ref* ref) -> wasm::own<wasm::R
 
 void call_ir_v(const wasm::Func* func, int32_t i, const wasm::Ref* ref) {
   std::cout << "call_ir_v... " << std::flush;
-  wasm::Val args[2] = {wasm::Val::i32(i), wasm::Val::ref(ref ? ref->copy() : wasm::own<wasm::Ref*>())};
+  wasm::Val args[2] = {wasm::Val::i32(i), wasm::Val::ref(ref ? ref->copy() : wasm::own<wasm::Ref>())};
   if (func->call(args, nullptr)) {
     std::cout << "> Error calling function!" << std::endl;
     exit(1);
@@ -69,7 +69,7 @@ void call_ir_v(const wasm::Func* func, int32_t i, const wasm::Ref* ref) {
   std::cout << "okay" << std::endl;
 }
 
-auto call_i_r(const wasm::Func* func, int32_t i) -> wasm::own<wasm::Ref*> {
+auto call_i_r(const wasm::Func* func, int32_t i) -> wasm::own<wasm::Ref> {
   std::cout << "call_i_r... " << std::flush;
   wasm::Val args[1] = {wasm::Val::i32(i)};
   wasm::Val results[1];
@@ -81,7 +81,7 @@ auto call_i_r(const wasm::Func* func, int32_t i) -> wasm::own<wasm::Ref*> {
   return results[0].release_ref();
 }
 
-void check(wasm::own<wasm::Ref*> actual, const wasm::Ref* expected) {
+void check(wasm::own<wasm::Ref> actual, const wasm::Ref* expected) {
   if (actual.get() != expected &&
       !(actual && expected && actual->same(expected))) {
     std::cout << "> Error reading reference, expected "
@@ -123,8 +123,8 @@ void run() {
   // Create external callback function.
   std::cout << "Creating callback..." << std::endl;
   auto callback_type = wasm::FuncType::make(
-    wasm::vec<wasm::ValType*>::make(wasm::ValType::make(wasm::ANYREF)),
-    wasm::vec<wasm::ValType*>::make(wasm::ValType::make(wasm::ANYREF))
+    wasm::ownvec<wasm::ValType>::make(wasm::ValType::make(wasm::ANYREF)),
+    wasm::ownvec<wasm::ValType>::make(wasm::ValType::make(wasm::ANYREF))
   );
   auto callback_func = wasm::Func::make(store, callback_type.get(), callback);
 

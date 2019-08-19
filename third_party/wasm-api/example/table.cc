@@ -10,14 +10,14 @@
 // A function to be called from Wasm code.
 auto neg_callback(
   const wasm::Val args[], wasm::Val results[]
-) -> wasm::own<wasm::Trap*> {
+) -> wasm::own<wasm::Trap> {
   std::cout << "Calling back..." << std::endl;
   results[0] = wasm::Val(-args[0].i32());
   return nullptr;
 }
 
 
-auto get_export_table(wasm::vec<wasm::Extern*>& exports, size_t i) -> wasm::Table* {
+auto get_export_table(wasm::ownvec<wasm::Extern>& exports, size_t i) -> wasm::Table* {
   if (exports.size() <= i || !exports[i]->table()) {
     std::cout << "> Error accessing table export " << i << "!" << std::endl;
     exit(1);
@@ -25,7 +25,7 @@ auto get_export_table(wasm::vec<wasm::Extern*>& exports, size_t i) -> wasm::Tabl
   return exports[i]->table();
 }
 
-auto get_export_func(const wasm::vec<wasm::Extern*>& exports, size_t i) -> const wasm::Func* {
+auto get_export_func(const wasm::ownvec<wasm::Extern>& exports, size_t i) -> const wasm::Func* {
   if (exports.size() <= i || !exports[i]->func()) {
     std::cout << "> Error accessing function export " << i << "!" << std::endl;
     exit(1);
@@ -118,8 +118,8 @@ void run() {
   // Create external function.
   std::cout << "Creating callback..." << std::endl;
   auto neg_type = wasm::FuncType::make(
-    wasm::vec<wasm::ValType*>::make(wasm::ValType::make(wasm::I32)),
-    wasm::vec<wasm::ValType*>::make(wasm::ValType::make(wasm::I32))
+    wasm::ownvec<wasm::ValType>::make(wasm::ValType::make(wasm::I32)),
+    wasm::ownvec<wasm::ValType>::make(wasm::ValType::make(wasm::I32))
   );
   auto h = wasm::Func::make(store, neg_type.get(), neg_callback);
 

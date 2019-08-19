@@ -7,7 +7,7 @@
 #include "wasm.hh"
 
 
-auto get_export_global(wasm::vec<wasm::Extern*>& exports, size_t i) -> wasm::Global* {
+auto get_export_global(wasm::ownvec<wasm::Extern>& exports, size_t i) -> wasm::Global* {
   if (exports.size() <= i || !exports[i]->global()) {
     std::cout << "> Error accessing global export " << i << "!" << std::endl;
     exit(1);
@@ -15,7 +15,7 @@ auto get_export_global(wasm::vec<wasm::Extern*>& exports, size_t i) -> wasm::Glo
   return exports[i]->global();
 }
 
-auto get_export_func(const wasm::vec<wasm::Extern*>& exports, size_t i) -> const wasm::Func* {
+auto get_export_func(const wasm::ownvec<wasm::Extern>& exports, size_t i) -> const wasm::Func* {
   if (exports.size() <= i || !exports[i]->func()) {
     std::cout << "> Error accessing function export " << i << "!" << std::endl;
     exit(1);

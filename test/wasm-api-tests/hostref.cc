@@ -15,7 +15,7 @@ using ::wasm::Message;
 
 namespace {
 
-own<Trap*> IdentityCallback(const Val args[], Val results[]) {
+own<Trap> IdentityCallback(const Val args[], Val results[]) {
   results[0] = args[0].copy();
   return nullptr;
 }
@@ -55,10 +55,10 @@ TEST_F(WasmCapiTest, HostRef) {
   AddExportedFunction(CStrVector("func.call"), func_call_code,
                       sizeof(func_call_code), &r_r_sig);
 
-  own<FuncType*> func_type =
-      FuncType::make(vec<ValType*>::make(ValType::make(::wasm::ANYREF)),
-                     vec<ValType*>::make(ValType::make(::wasm::ANYREF)));
-  own<Func*> callback = Func::make(store(), func_type.get(), IdentityCallback);
+  own<FuncType> func_type =
+      FuncType::make(ownvec<ValType>::make(ValType::make(::wasm::ANYREF)),
+                     ownvec<ValType>::make(ValType::make(::wasm::ANYREF)));
+  own<Func> callback = Func::make(store(), func_type.get(), IdentityCallback);
   Extern* imports[] = {callback.get()};
   Instantiate(imports);
 
@@ -68,8 +68,8 @@ TEST_F(WasmCapiTest, HostRef) {
   const Func* table_get = GetExportedFunction(3);
   const Func* func_call = GetExportedFunction(4);
 
-  own<Foreign*> host1 = Foreign::make(store());
-  own<Foreign*> host2 = Foreign::make(store());
+  own<Foreign> host1 = Foreign::make(store());
+  own<Foreign> host2 = Foreign::make(store());
   host1->set_host_info(reinterpret_cast<void*>(1));
   host2->set_host_info(reinterpret_cast<void*>(2));
 
@@ -78,14 +78,14 @@ TEST_F(WasmCapiTest, HostRef) {
   EXPECT_TRUE(host2->copy()->same(host2.get()));
   Val val = Val::ref(host1->copy());
   EXPECT_TRUE(val.ref()->copy()->same(host1.get()));
-  own<Ref*> ref = val.release_ref();
+  own<Ref> ref = val.release_ref();
   EXPECT_EQ(nullptr, val.ref());
   EXPECT_TRUE(ref->copy()->same(host1.get()));
 
   // Interact with the Global.
   Val args[2];
   Val results[1];
-  own<Trap*> trap = global_get->call(nullptr, results);
+  own<Trap> trap = global_get->call(nullptr, results);
   EXPECT_EQ(nullptr, trap);
   EXPECT_EQ(nullptr, results[0].release_ref());
   args[0] = Val::ref(host1.get()->copy());
@@ -100,7 +100,7 @@ TEST_F(WasmCapiTest, HostRef) {
   trap = global_get->call(nullptr, results);
   EXPECT_EQ(nullptr, trap);
   EXPECT_TRUE(results[0].release_ref()->same(host2.get()));
-  args[0] = Val::ref(own<Ref*>());
+  args[0] = Val::ref(own<Ref>());
   trap = global_set->call(args, nullptr);
   EXPECT_EQ(nullptr, trap);
   trap = global_get->call(nullptr, results);
@@ -133,7 +133,7 @@ TEST_F(WasmCapiTest, HostRef) {
   EXPECT_EQ(nullptr, trap);
   EXPECT_TRUE(results[0].release_ref()->same(host2.get()));
   args[0] = Val::i32(0);
-  args[1] = Val::ref(own<Ref*>());
+  args[1] = Val::ref(own<Ref>());
   trap = table_set->call(args, nullptr);
   EXPECT_EQ(nullptr, trap);
   trap = table_get->call(args, results);
@@ -141,7 +141,7 @@ TEST_F(WasmCapiTest, HostRef) {
   EXPECT_EQ(nullptr, results[0].release_ref());
 
   // Interact with the Function.
-  args[0] = Val::ref(own<Ref*>());
+  args[0] = Val::ref(own<Ref>());
   trap = func_call->call(args, results);
   EXPECT_EQ(nullptr, trap);
   EXPECT_EQ(nullptr, results[0].release_ref());

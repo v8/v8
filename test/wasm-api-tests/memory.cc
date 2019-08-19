@@ -73,7 +73,7 @@ TEST_F(WasmCapiTest, Memory) {
   EXPECT_EQ(0, result[0].i32());
   // load(0x20000) -> trap
   args[0] = Val::i32(0x20000);
-  own<Trap*> trap = load_func->call(args, result);
+  own<Trap> trap = load_func->call(args, result);
   EXPECT_NE(nullptr, trap.get());
 
   // Mutate memory.
@@ -114,8 +114,8 @@ TEST_F(WasmCapiTest, Memory) {
 
   // Create standalone memory.
   // TODO(wasm): Once Wasm allows multiple memories, turn this into an import.
-  own<MemoryType*> mem_type = MemoryType::make(Limits(5, 5));
-  own<Memory*> memory2 = Memory::make(store(), mem_type.get());
+  own<MemoryType> mem_type = MemoryType::make(Limits(5, 5));
+  own<Memory> memory2 = Memory::make(store(), mem_type.get());
   EXPECT_EQ(5u, memory2->size());
   EXPECT_EQ(false, memory2->grow(1));
   EXPECT_EQ(true, memory2->grow(0));

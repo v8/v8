@@ -9,7 +9,7 @@
 // A function to be called from Wasm code.
 auto fail_callback(
   void* env, const wasm::Val args[], wasm::Val results[]
-) -> wasm::own<wasm::Trap*> {
+) -> wasm::own<wasm::Trap> {
   std::cout << "Calling back..." << std::endl;
   auto store = reinterpret_cast<wasm::Store*>(env);
   auto message = wasm::Name::make(std::string("callback abort"));
@@ -57,8 +57,8 @@ void run() {
   // Create external print functions.
   std::cout << "Creating callback..." << std::endl;
   auto fail_type = wasm::FuncType::make(
-    wasm::vec<wasm::ValType*>::make(),
-    wasm::vec<wasm::ValType*>::make(wasm::ValType::make(wasm::I32))
+    wasm::ownvec<wasm::ValType>::make(),
+    wasm::ownvec<wasm::ValType>::make(wasm::ValType::make(wasm::I32))
   );
   auto fail_func =
     wasm::Func::make(store, fail_type.get(), fail_callback, store);

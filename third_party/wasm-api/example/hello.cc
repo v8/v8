@@ -10,7 +10,7 @@
 // A function to be called from Wasm code.
 auto hello_callback(
   const wasm::Val args[], wasm::Val results[]
-) -> wasm::own<wasm::Trap*> {
+) -> wasm::own<wasm::Trap> {
   std::cout << "Calling back..." << std::endl;
   std::cout << "> Hello world!" << std::endl;
   return nullptr;
@@ -49,7 +49,7 @@ void run() {
   // Create external print functions.
   std::cout << "Creating callback..." << std::endl;
   auto hello_type = wasm::FuncType::make(
-    wasm::vec<wasm::ValType*>::make(), wasm::vec<wasm::ValType*>::make()
+    wasm::ownvec<wasm::ValType>::make(), wasm::ownvec<wasm::ValType>::make()
   );
   auto hello_func = wasm::Func::make(store, hello_type.get(), hello_callback);
 

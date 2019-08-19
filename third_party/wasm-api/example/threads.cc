@@ -11,7 +11,7 @@ const int N_REPS = 3;
 // A function to be called from Wasm code.
 auto callback(
   void* env, const wasm::Val args[], wasm::Val results[]
-) -> wasm::own<wasm::Trap*> {
+) -> wasm::own<wasm::Trap> {
   assert(args[0].kind() == wasm::I32);
   std::lock_guard<std::mutex>(*reinterpret_cast<std::mutex*>(env));
   std::cout << "Thread " << args[0].i32() << " running..." << std::endl;
@@ -42,8 +42,8 @@ void run(
 
     // Create imports.
     auto func_type = wasm::FuncType::make(
-      wasm::vec<wasm::ValType*>::make(wasm::ValType::make(wasm::I32)),
-      wasm::vec<wasm::ValType*>::make()
+      wasm::ownvec<wasm::ValType>::make(wasm::ValType::make(wasm::I32)),
+      wasm::ownvec<wasm::ValType>::make()
     );
     auto func = wasm::Func::make(store, func_type.get(), callback, mutex);
 

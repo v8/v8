@@ -36,7 +36,7 @@ auto operator<<(std::ostream& out, const wasm::Val& val) -> std::ostream& {
 // A function to be called from Wasm code.
 auto print_callback(
   const wasm::Val args[], wasm::Val results[]
-) -> wasm::own<wasm::Trap*> {
+) -> wasm::own<wasm::Trap> {
   std::cout << "Calling back..." << std::endl << "> " << args[0] << std::endl;
   results[0] = args[0].copy();
   return nullptr;
@@ -46,7 +46,7 @@ auto print_callback(
 // A function closure.
 auto closure_callback(
   void* env, const wasm::Val args[], wasm::Val results[]
-) -> wasm::own<wasm::Trap*> {
+) -> wasm::own<wasm::Trap> {
   auto i = *reinterpret_cast<int*>(env);
   std::cout << "Calling back closure..." << std::endl;
   std::cout << "> " << i << std::endl;
@@ -87,8 +87,8 @@ void run() {
   // Create external print functions.
   std::cout << "Creating callback..." << std::endl;
   auto print_type = wasm::FuncType::make(
-    wasm::vec<wasm::ValType*>::make(wasm::ValType::make(wasm::I32)),
-    wasm::vec<wasm::ValType*>::make(wasm::ValType::make(wasm::I32))
+    wasm::ownvec<wasm::ValType>::make(wasm::ValType::make(wasm::I32)),
+    wasm::ownvec<wasm::ValType>::make(wasm::ValType::make(wasm::I32))
   );
   auto print_func = wasm::Func::make(store, print_type.get(), print_callback);
 
@@ -96,8 +96,8 @@ void run() {
   std::cout << "Creating closure..." << std::endl;
   int i = 42;
   auto closure_type = wasm::FuncType::make(
-    wasm::vec<wasm::ValType*>::make(),
-    wasm::vec<wasm::ValType*>::make(wasm::ValType::make(wasm::I32))
+    wasm::ownvec<wasm::ValType>::make(),
+    wasm::ownvec<wasm::ValType>::make(wasm::ValType::make(wasm::I32))
   );
   auto closure_func = wasm::Func::make(store, closure_type.get(), closure_callback, &i);
 

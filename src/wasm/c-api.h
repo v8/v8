@@ -28,7 +28,7 @@ class StoreImpl {
   }
 
  private:
-  friend own<Store*> Store::make(Engine*);
+  friend own<Store> Store::make(Engine*);
 
   StoreImpl() {}
 

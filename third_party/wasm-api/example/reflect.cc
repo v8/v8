@@ -33,7 +33,7 @@ auto operator<<(std::ostream& out, const wasm::ValType& type) -> std::ostream& {
   return out;
 }
 
-auto operator<<(std::ostream& out, const wasm::vec<wasm::ValType*>& types) -> std::ostream& {
+auto operator<<(std::ostream& out, const wasm::ownvec<wasm::ValType>& types) -> std::ostream& {
   bool first = true;
   for (size_t i = 0; i < types.size(); ++i) {
     if (first) {

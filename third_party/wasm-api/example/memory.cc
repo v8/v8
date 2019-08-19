@@ -7,7 +7,7 @@
 #include "wasm.hh"
 
 
-auto get_export_memory(wasm::vec<wasm::Extern*>& exports, size_t i) -> wasm::Memory* {
+auto get_export_memory(wasm::ownvec<wasm::Extern>& exports, size_t i) -> wasm::Memory* {
   if (exports.size() <= i || !exports[i]->memory()) {
     std::cout << "> Error accessing memory export " << i << "!" << std::endl;
     exit(1);
@@ -15,7 +15,7 @@ auto get_export_memory(wasm::vec<wasm::Extern*>& exports, size_t i) -> wasm::Mem
   return exports[i]->memory();
 }
 
-auto get_export_func(const wasm::vec<wasm::Extern*>& exports, size_t i) -> const wasm::Func* {
+auto get_export_func(const wasm::ownvec<wasm::Extern>& exports, size_t i) -> const wasm::Func* {
   if (exports.size() <= i || !exports[i]->func()) {
     std::cout << "> Error accessing function export " << i << "!" << std::endl;
     exit(1);

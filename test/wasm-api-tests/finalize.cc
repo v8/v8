@@ -49,15 +49,15 @@ TEST_F(WasmCapiTest, InstanceFinalization) {
   static const int kIterations = 10;
   for (int iteration = 0; iteration < kIterations; iteration++) {
     void* finalizer_data = reinterpret_cast<void*>(iteration);
-    own<Instance*> instance = Instance::make(store(), module(), nullptr);
+    own<Instance> instance = Instance::make(store(), module(), nullptr);
     EXPECT_NE(nullptr, instance.get());
     instance->set_host_info(finalizer_data, &FinalizeInstance);
 
-    own<Func*> func = instance->exports()[0]->func()->copy();
+    own<Func> func = instance->exports()[0]->func()->copy();
     ASSERT_NE(func, nullptr);
     func->set_host_info(finalizer_data, &FinalizeFunction);
 
-    own<Foreign*> foreign = Foreign::make(store());
+    own<Foreign> foreign = Foreign::make(store());
     foreign->set_host_info(finalizer_data, &FinalizeForeign);
   }
   Shutdown();
