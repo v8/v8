@@ -172,7 +172,14 @@ class TranslatedFrame {
   Kind kind() const { return kind_; }
   BailoutId node_id() const { return node_id_; }
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
+
+  // TODO(jgruber): Simplify/clarify the semantics of this field. The name
+  // `height` is slightly misleading. Yes, this value is related to stack frame
+  // height, but must undergo additional mutations to arrive at the real stack
+  // frame height (e.g.: addition/subtraction of context, accumulator, fixed
+  // frame sizes, padding).
   int height() const { return height_; }
+
   int return_value_offset() const { return return_value_offset_; }
   int return_value_count() const { return return_value_count_; }
 

@@ -247,9 +247,13 @@ Node* JSInliner::CreateArtificialFrameState(Node* node, Node* outer_frame_state,
       bailout_id, OutputFrameStateCombine::Ignore(), state_info);
   const Operator* op0 = common()->StateValues(0, SparseInputMask::Dense());
   Node* node0 = graph()->NewNode(op0);
+
+  static constexpr int kTargetInputIndex = 0;
+  static constexpr int kReceiverInputIndex = 1;
+  const int parameter_count_with_receiver = parameter_count + 1;
   NodeVector params(local_zone_);
-  for (int parameter = 0; parameter < parameter_count + 1; ++parameter) {
-    params.push_back(node->InputAt(1 + parameter));
+  for (int i = 0; i < parameter_count_with_receiver; i++) {
+    params.push_back(node->InputAt(kReceiverInputIndex + i));
   }
   const Operator* op_param = common()->StateValues(
       static_cast<int>(params.size()), SparseInputMask::Dense());
@@ -259,7 +263,7 @@ Node* JSInliner::CreateArtificialFrameState(Node* node, Node* outer_frame_state,
     context = jsgraph()->UndefinedConstant();
   }
   return graph()->NewNode(op, params_node, node0, node0, context,
-                          node->InputAt(0), outer_frame_state);
+                          node->InputAt(kTargetInputIndex), outer_frame_state);
 }
 
 namespace {

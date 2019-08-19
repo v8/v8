@@ -1019,23 +1019,22 @@ FrameStateDescriptor::FrameStateDescriptor(
       outer_state_(outer_state) {}
 
 size_t FrameStateDescriptor::GetHeight() const {
-  // TODO(jgruber): Unify how the height is handled. Currently, we seem to add
-  // and subtract 1 at random spots. For example, for interpreted functions we
-  // add 1 here, and subtract it in DoComputeInterpretedFrame. For builtin
-  // continuation frames, we add 1 in CreateNextTranslatedFrame, and subtract
-  // it in DoComputeBuiltinContinuation. Arguments adaptor frames thread through
-  // the height unmodified.
-  // Handling in all these cases should ideally be consistent and use named
-  // constants.
   switch (type()) {
     case FrameStateType::kInterpretedFunction:
-      return locals_count() + 1;  // +1 for the accumulator.
-    case FrameStateType::kConstructStub:
-      return parameters_count() + 1;  // +1 for the context.
-    case FrameStateType::kArgumentsAdaptor:
+      return locals_count();  // The accumulator is *not* included.
     case FrameStateType::kBuiltinContinuation:
+      // Custom, non-JS calling convention (that does not have a notion of
+      // a receiver or context).
+      return parameters_count();
+    case FrameStateType::kArgumentsAdaptor:
+    case FrameStateType::kConstructStub:
     case FrameStateType::kJavaScriptBuiltinContinuation:
     case FrameStateType::kJavaScriptBuiltinContinuationWithCatch:
+      // JS linkage. The parameters count
+      // - includes the receiver (input 1 in CreateArtificialFrameState, and
+      //   passed as part of stack parameters to
+      //   CreateJavaScriptBuiltinContinuationFrameState), and
+      // - does *not* include the context.
       return parameters_count();
   }
   UNREACHABLE();
