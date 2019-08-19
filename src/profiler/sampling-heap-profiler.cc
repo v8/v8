@@ -81,7 +81,8 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
 
   // Mark the new block as FreeSpace to make sure the heap is iterable while we
   // are taking the sample.
-  heap_->CreateFillerObjectAt(soon_object, static_cast<int>(size));
+  heap_->CreateFillerObjectAt(soon_object, static_cast<int>(size),
+                              ClearRecordedSlots::kNo);
 
   Local<v8::Value> loc = v8::Utils::ToLocal(obj);
 

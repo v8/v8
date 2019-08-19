@@ -48,14 +48,16 @@ void LocalAllocator::FreeLast(AllocationSpace space, HeapObject object,
 void LocalAllocator::FreeLastInNewSpace(HeapObject object, int object_size) {
   if (!new_space_lab_.TryFreeLast(object, object_size)) {
     // We couldn't free the last object so we have to write a proper filler.
-    heap_->CreateFillerObjectAt(object.address(), object_size);
+    heap_->CreateFillerObjectAt(object.address(), object_size,
+                                ClearRecordedSlots::kNo);
   }
 }
 
 void LocalAllocator::FreeLastInOldSpace(HeapObject object, int object_size) {
   if (!compaction_spaces_.Get(OLD_SPACE)->TryFreeLast(object, object_size)) {
     // We couldn't free the last object so we have to write a proper filler.
-    heap_->CreateFillerObjectAt(object.address(), object_size);
+    heap_->CreateFillerObjectAt(object.address(), object_size,
+                                ClearRecordedSlots::kNo);
   }
 }
 
