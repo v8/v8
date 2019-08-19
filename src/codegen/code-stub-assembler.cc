@@ -1464,7 +1464,8 @@ TNode<Map> CodeStubAssembler::GetStructMap(InstanceType instance_type) {
 }
 
 TNode<Map> CodeStubAssembler::LoadMap(SloppyTNode<HeapObject> object) {
-  return LoadObjectField<Map>(object, HeapObject::kMapOffset);
+  return UncheckedCast<Map>(LoadObjectField(object, HeapObject::kMapOffset,
+                                            MachineType::TaggedPointer()));
 }
 
 TNode<Uint16T> CodeStubAssembler::LoadInstanceType(
@@ -1619,7 +1620,8 @@ TNode<Uint32T> CodeStubAssembler::LoadMapBitField3(SloppyTNode<Map> map) {
 }
 
 TNode<Uint16T> CodeStubAssembler::LoadMapInstanceType(SloppyTNode<Map> map) {
-  return LoadObjectField<Uint16T>(map, Map::kInstanceTypeOffset);
+  return UncheckedCast<Uint16T>(
+      LoadObjectField(map, Map::kInstanceTypeOffset, MachineType::Uint16()));
 }
 
 TNode<Int32T> CodeStubAssembler::LoadMapElementsKind(SloppyTNode<Map> map) {
@@ -1636,12 +1638,12 @@ TNode<Int32T> CodeStubAssembler::LoadElementsKind(
 TNode<DescriptorArray> CodeStubAssembler::LoadMapDescriptors(
     SloppyTNode<Map> map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
-  return LoadObjectField<DescriptorArray>(map, Map::kInstanceDescriptorsOffset);
+  return CAST(LoadObjectField(map, Map::kInstanceDescriptorsOffset));
 }
 
 TNode<HeapObject> CodeStubAssembler::LoadMapPrototype(SloppyTNode<Map> map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
-  return LoadObjectField<HeapObject>(map, Map::kPrototypeOffset);
+  return CAST(LoadObjectField(map, Map::kPrototypeOffset));
 }
 
 TNode<PrototypeInfo> CodeStubAssembler::LoadMapPrototypeInfo(
@@ -2653,8 +2655,7 @@ TNode<Map> CodeStubAssembler::LoadJSArrayElementsMap(
 TNode<BoolT> CodeStubAssembler::IsGeneratorFunction(
     TNode<JSFunction> function) {
   TNode<SharedFunctionInfo> const shared_function_info =
-      LoadObjectField<SharedFunctionInfo>(
-          function, JSFunction::kSharedFunctionInfoOffset);
+      CAST(LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset));
 
   TNode<Uint32T> const function_kind =
       DecodeWord32<SharedFunctionInfo::FunctionKindBits>(LoadObjectField(
@@ -2694,20 +2695,22 @@ void CodeStubAssembler::GotoIfPrototypeRequiresRuntimeLookup(
          runtime);
 }
 
-Node* CodeStubAssembler::LoadJSFunctionPrototype(TNode<JSFunction> function,
+Node* CodeStubAssembler::LoadJSFunctionPrototype(Node* function,
                                                  Label* if_bailout) {
+  CSA_ASSERT(this, TaggedIsNotSmi(function));
+  CSA_ASSERT(this, IsJSFunction(function));
   CSA_ASSERT(this, IsFunctionWithPrototypeSlotMap(LoadMap(function)));
   CSA_ASSERT(this, IsClearWord32<Map::HasNonInstancePrototypeBit>(
                        LoadMapBitField(LoadMap(function))));
-  TNode<HeapObject> proto_or_map = LoadObjectField<HeapObject>(
-      function, JSFunction::kPrototypeOrInitialMapOffset);
+  Node* proto_or_map =
+      LoadObjectField(function, JSFunction::kPrototypeOrInitialMapOffset);
   GotoIf(IsTheHole(proto_or_map), if_bailout);
 
-  TVARIABLE(HeapObject, var_result, proto_or_map);
+  VARIABLE(var_result, MachineRepresentation::kTagged, proto_or_map);
   Label done(this, &var_result);
   GotoIfNot(IsMap(proto_or_map), &done);
 
-  var_result = LoadMapPrototype(CAST(proto_or_map));
+  var_result.Bind(LoadMapPrototype(proto_or_map));
   Goto(&done);
 
   BIND(&done);
@@ -2820,6 +2823,16 @@ void CodeStubAssembler::StoreObjectFieldRoot(Node* object, int offset,
   } else {
     return StoreObjectField(object, offset, LoadRoot(root_index));
   }
+}
+
+void CodeStubAssembler::StoreJSArrayLength(TNode<JSArray> array,
+                                           TNode<Smi> length) {
+  StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length);
+}
+
+void CodeStubAssembler::StoreElements(TNode<Object> object,
+                                      TNode<FixedArrayBase> elements) {
+  StoreObjectField(object, JSObject::kElementsOffset, elements);
 }
 
 void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
@@ -9596,7 +9609,7 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
 
       GotoIfPrototypeRequiresRuntimeLookup(CAST(receiver), CAST(receiver_map),
                                            if_bailout);
-      var_value.Bind(LoadJSFunctionPrototype(CAST(receiver), if_bailout));
+      var_value.Bind(LoadJSFunctionPrototype(receiver, if_bailout));
       Goto(&done);
     }
 
@@ -9867,8 +9880,8 @@ void CodeStubAssembler::TryPrototypeChainLookup(
   GotoIf(TaggedIsSmi(receiver), if_bailout);
   CSA_ASSERT(this, TaggedIsNotSmi(object));
 
-  TNode<Map> map = LoadMap(object);
-  TNode<Int32T> instance_type = LoadMapInstanceType(map);
+  Node* map = LoadMap(object);
+  Node* instance_type = LoadMapInstanceType(map);
   {
     Label if_objectisreceiver(this);
     STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
@@ -9889,18 +9902,19 @@ void CodeStubAssembler::TryPrototypeChainLookup(
 
   BIND(&if_iskeyunique);
   {
-    TVARIABLE(HeapObject, var_holder, CAST(object));
-    TVARIABLE(Map, var_holder_map, map);
-    TVARIABLE(Int32T, var_holder_instance_type, instance_type);
+    VARIABLE(var_holder, MachineRepresentation::kTagged, object);
+    VARIABLE(var_holder_map, MachineRepresentation::kTagged, map);
+    VARIABLE(var_holder_instance_type, MachineRepresentation::kWord32,
+             instance_type);
 
-    VariableList merged_variables(
-        {&var_holder, &var_holder_map, &var_holder_instance_type}, zone());
-    Label loop(this, merged_variables);
+    Variable* merged_variables[] = {&var_holder, &var_holder_map,
+                                    &var_holder_instance_type};
+    Label loop(this, arraysize(merged_variables), merged_variables);
     Goto(&loop);
     BIND(&loop);
     {
       Node* holder_map = var_holder_map.value();
-      TNode<Int32T> holder_instance_type = var_holder_instance_type.value();
+      Node* holder_instance_type = var_holder_instance_type.value();
 
       Label next_proto(this), check_integer_indexed_exotic(this);
       lookup_property_in_holder(receiver, var_holder.value(), holder_map,
@@ -9919,28 +9933,29 @@ void CodeStubAssembler::TryPrototypeChainLookup(
 
       BIND(&next_proto);
 
-      TNode<HeapObject> proto = LoadMapPrototype(holder_map);
+      Node* proto = LoadMapPrototype(holder_map);
 
       GotoIf(IsNull(proto), if_end);
 
-      TNode<Map> map = LoadMap(proto);
-      TNode<Int32T> instance_type = LoadMapInstanceType(map);
+      Node* map = LoadMap(proto);
+      Node* instance_type = LoadMapInstanceType(map);
 
-      var_holder = proto;
-      var_holder_map = map;
-      var_holder_instance_type = instance_type;
+      var_holder.Bind(proto);
+      var_holder_map.Bind(map);
+      var_holder_instance_type.Bind(instance_type);
       Goto(&loop);
     }
   }
   BIND(&if_keyisindex);
   {
-    TVARIABLE(HeapObject, var_holder, CAST(object));
-    TVARIABLE(Map, var_holder_map, map);
-    TVARIABLE(Int32T, var_holder_instance_type, instance_type);
+    VARIABLE(var_holder, MachineRepresentation::kTagged, object);
+    VARIABLE(var_holder_map, MachineRepresentation::kTagged, map);
+    VARIABLE(var_holder_instance_type, MachineRepresentation::kWord32,
+             instance_type);
 
-    VariableList merged_variables(
-        {&var_holder, &var_holder_map, &var_holder_instance_type}, zone());
-    Label loop(this, merged_variables);
+    Variable* merged_variables[] = {&var_holder, &var_holder_map,
+                                    &var_holder_instance_type};
+    Label loop(this, arraysize(merged_variables), merged_variables);
     Goto(&loop);
     BIND(&loop);
     {
@@ -9951,16 +9966,16 @@ void CodeStubAssembler::TryPrototypeChainLookup(
                                var_index.value(), &next_proto, if_bailout);
       BIND(&next_proto);
 
-      TNode<HeapObject> proto = LoadMapPrototype(var_holder_map.value());
+      Node* proto = LoadMapPrototype(var_holder_map.value());
 
       GotoIf(IsNull(proto), if_end);
 
-      TNode<Map> map = LoadMap(proto);
-      TNode<Int32T> instance_type = LoadMapInstanceType(map);
+      Node* map = LoadMap(proto);
+      Node* instance_type = LoadMapInstanceType(map);
 
-      var_holder = proto;
-      var_holder_map = map;
-      var_holder_instance_type = instance_type;
+      var_holder.Bind(proto);
+      var_holder_map.Bind(map);
+      var_holder_instance_type.Bind(instance_type);
       Goto(&loop);
     }
   }
@@ -10044,27 +10059,28 @@ Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
   GotoIf(TaggedIsSmi(callable), &return_runtime);
 
   // Load map of {callable}.
-  TNode<Map> callable_map = LoadMap(callable);
+  Node* callable_map = LoadMap(callable);
 
   // Goto runtime if {callable} is not a JSFunction.
-  TNode<Uint16T> callable_instance_type = LoadMapInstanceType(callable_map);
+  Node* callable_instance_type = LoadMapInstanceType(callable_map);
   GotoIfNot(InstanceTypeEqual(callable_instance_type, JS_FUNCTION_TYPE),
             &return_runtime);
 
-  GotoIfPrototypeRequiresRuntimeLookup(CAST(callable), callable_map,
+  GotoIfPrototypeRequiresRuntimeLookup(CAST(callable), CAST(callable_map),
                                        &return_runtime);
 
   // Get the "prototype" (or initial map) of the {callable}.
-  TNode<HeapObject> callable_prototype = LoadObjectField<HeapObject>(
-      CAST(callable), JSFunction::kPrototypeOrInitialMapOffset);
+  Node* callable_prototype =
+      LoadObjectField(callable, JSFunction::kPrototypeOrInitialMapOffset);
   {
     Label no_initial_map(this), walk_prototype_chain(this);
-    TVARIABLE(HeapObject, var_callable_prototype, callable_prototype);
+    VARIABLE(var_callable_prototype, MachineRepresentation::kTagged,
+             callable_prototype);
 
     // Resolve the "prototype" if the {callable} has an initial map.
     GotoIfNot(IsMap(callable_prototype), &no_initial_map);
-    var_callable_prototype =
-        LoadObjectField<HeapObject>(callable_prototype, Map::kPrototypeOffset);
+    var_callable_prototype.Bind(
+        LoadObjectField(callable_prototype, Map::kPrototypeOffset));
     Goto(&walk_prototype_chain);
 
     BIND(&no_initial_map);
@@ -10142,8 +10158,8 @@ TNode<BoolT> CodeStubAssembler::IsOffsetInBounds(SloppyTNode<IntPtrT> offset,
 TNode<HeapObject> CodeStubAssembler::LoadFeedbackCellValue(
     SloppyTNode<JSFunction> closure) {
   TNode<FeedbackCell> feedback_cell =
-      LoadObjectField<FeedbackCell>(closure, JSFunction::kFeedbackCellOffset);
-  return LoadObjectField<HeapObject>(feedback_cell, FeedbackCell::kValueOffset);
+      CAST(LoadObjectField(closure, JSFunction::kFeedbackCellOffset));
+  return CAST(LoadObjectField(feedback_cell, FeedbackCell::kValueOffset));
 }
 
 TNode<HeapObject> CodeStubAssembler::LoadFeedbackVector(

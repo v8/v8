@@ -601,22 +601,21 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadFeedbackVector) {
                  c::IsIntPtrConstant(Register::function_closure().ToOperand() *
                                      kSystemPointerSize)));
 #ifdef V8_COMPRESS_POINTERS
-    Matcher<Node*> load_vector_cell_matcher =
-        IsChangeCompressedPointerToTaggedPointer(m.IsLoadFromObject(
-            MachineType::CompressedPointer(), load_function_matcher,
-            c::IsIntPtrConstant(JSFunction::kFeedbackCellOffset -
-                                kHeapObjectTag)));
+    Matcher<Node*> load_vector_cell_matcher = IsChangeCompressedToTagged(
+        m.IsLoadFromObject(MachineType::AnyCompressed(), load_function_matcher,
+                           c::IsIntPtrConstant(JSFunction::kFeedbackCellOffset -
+                                               kHeapObjectTag)));
     EXPECT_THAT(load_feedback_vector,
-                IsChangeCompressedPointerToTaggedPointer(m.IsLoadFromObject(
-                    MachineType::CompressedPointer(), load_vector_cell_matcher,
+                IsChangeCompressedToTagged(m.IsLoadFromObject(
+                    MachineType::AnyCompressed(), load_vector_cell_matcher,
                     c::IsIntPtrConstant(Cell::kValueOffset - kHeapObjectTag))));
 #else
     Matcher<Node*> load_vector_cell_matcher = m.IsLoadFromObject(
-        MachineType::TaggedPointer(), load_function_matcher,
+        MachineType::AnyTagged(), load_function_matcher,
         c::IsIntPtrConstant(JSFunction::kFeedbackCellOffset - kHeapObjectTag));
     EXPECT_THAT(load_feedback_vector,
                 m.IsLoadFromObject(
-                    MachineType::TaggedPointer(), load_vector_cell_matcher,
+                    MachineType::AnyTagged(), load_vector_cell_matcher,
                     c::IsIntPtrConstant(Cell::kValueOffset - kHeapObjectTag)));
 #endif
   }
