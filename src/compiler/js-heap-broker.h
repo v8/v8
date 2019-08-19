@@ -56,10 +56,11 @@ struct FeedbackSource {
       broker->Trace() << x << '\n';                                  \
   } while (false)
 
-#define TRACE_BROKER_MISSING(broker, x)                             \
-  do {                                                              \
-    if (broker->tracing_enabled())                                  \
-      broker->Trace() << __FUNCTION__ << ": missing " << x << '\n'; \
+#define TRACE_BROKER_MISSING(broker, x)                        \
+  do {                                                         \
+    if (broker->tracing_enabled())                             \
+      broker->Trace() << __FUNCTION__ << " (line " << __LINE__ \
+                      << "): missing " << x << std::endl;      \
   } while (false)
 
 struct PropertyAccessTarget {

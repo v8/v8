@@ -4460,7 +4460,13 @@ void ElementAccessFeedback::AddGroup(TransitionGroup&& group) {
 }
 
 std::ostream& operator<<(std::ostream& os, const ObjectRef& ref) {
-  return os << ref.data();
+  if (ref.broker()->mode() == JSHeapBroker::kDisabled) {
+    // If the broker is disabled we cannot be in a background thread so it's
+    // safe to read the heap.
+    return os << ref.data() << " {" << ref.object() << "}";
+  } else {
+    return os << ref.data();
+  }
 }
 
 base::Optional<NameRef> JSHeapBroker::GetNameFeedback(

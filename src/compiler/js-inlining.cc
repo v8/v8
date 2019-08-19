@@ -373,13 +373,14 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // Determine the call target.
   base::Optional<SharedFunctionInfoRef> shared_info(DetermineCallTarget(node));
   if (!shared_info.has_value()) return NoChange();
-
   DCHECK(shared_info->IsInlineable());
+
+  SharedFunctionInfoRef outer_shared_info(broker(), info_->shared_info());
 
   // Constructor must be constructable.
   if (node->opcode() == IrOpcode::kJSConstruct &&
       !IsConstructable(shared_info->kind())) {
-    TRACE("Not inlining " << *shared_info << " into " << info_->shared_info()
+    TRACE("Not inlining " << *shared_info << " into " << outer_shared_info
                           << " because constructor is not constructable.");
     return NoChange();
   }
@@ -388,7 +389,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
   if (node->opcode() == IrOpcode::kJSCall &&
       IsClassConstructor(shared_info->kind())) {
-    TRACE("Not inlining " << *shared_info << " into " << info_->shared_info()
+    TRACE("Not inlining " << *shared_info << " into " << outer_shared_info
                           << " because callee is a class constructor.");
     return NoChange();
   }
@@ -402,7 +403,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     nesting_level++;
     if (nesting_level > kMaxDepthForInlining) {
       TRACE("Not inlining "
-            << *shared_info << " into " << info_->shared_info()
+            << *shared_info << " into " << outer_shared_info
             << " because call has exceeded the maximum depth for function "
                "inlining.");
       return NoChange();
@@ -417,14 +418,14 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // passing the IsInlineable check, The broker holds a reference to the
   // bytecode array, which prevents it from getting flushed.
   // Therefore, the following check should always hold true.
-  CHECK(shared_info.value().is_compiled());
+  CHECK(shared_info->is_compiled());
 
   if (!FLAG_concurrent_inlining && info_->is_source_positions_enabled()) {
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate(),
                                                        shared_info->object());
   }
 
-  TRACE("Inlining " << *shared_info << " into " << info_->shared_info()
+  TRACE("Inlining " << *shared_info << " into " << outer_shared_info
                     << ((exception_target != nullptr) ? " (inside try-block)"
                                                       : ""));
   // Determine the targets feedback vector and its context.
@@ -432,7 +433,8 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   FeedbackVectorRef feedback_vector = DetermineCallContext(node, &context);
 
   if (FLAG_concurrent_inlining &&
-      !shared_info.value().IsSerializedForCompilation(feedback_vector)) {
+      !shared_info->IsSerializedForCompilation(feedback_vector)) {
+    // TODO(neis): Should this be a broker message?
     TRACE("Missed opportunity to inline a function ("
           << *shared_info << " with " << feedback_vector << ")");
     return NoChange();
@@ -442,12 +444,12 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // After this point, we've made a decision to inline this function.
   // We shall not bailout from inlining if we got here.
 
-  BytecodeArrayRef bytecode_array = shared_info.value().GetBytecodeArray();
+  BytecodeArrayRef bytecode_array = shared_info->GetBytecodeArray();
 
   // Remember that we inlined this function.
-  int inlining_id = info_->AddInlinedFunction(
-      shared_info.value().object(), bytecode_array.object(),
-      source_positions_->GetSourcePosition(node));
+  int inlining_id =
+      info_->AddInlinedFunction(shared_info->object(), bytecode_array.object(),
+                                source_positions_->GetSourcePosition(node));
 
   // Create the subgraph for the inlinee.
   Node* start;
@@ -473,11 +475,11 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       AllowCodeDependencyChange allow_code_dep_change;
       CallFrequency frequency = call.frequency();
       Handle<NativeContext> native_context(info_->native_context(), isolate());
-      BuildGraphFromBytecode(
-          broker(), zone(), bytecode_array.object(),
-          shared_info.value().object(), feedback_vector.object(),
-          BailoutId::None(), jsgraph(), frequency, source_positions_,
-          native_context, inlining_id, flags, &info_->tick_counter());
+      BuildGraphFromBytecode(broker(), zone(), bytecode_array.object(),
+                             shared_info->object(), feedback_vector.object(),
+                             BailoutId::None(), jsgraph(), frequency,
+                             source_positions_, native_context, inlining_id,
+                             flags, &info_->tick_counter());
     }
 
     // Extract the inlinee start/end nodes.
@@ -525,13 +527,13 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     // where execution continues at {construct_stub_create_deopt_pc_offset}).
     Node* receiver = jsgraph()->TheHoleConstant();  // Implicit receiver.
     Node* context = NodeProperties::GetContextInput(node);
-    if (NeedsImplicitReceiver(shared_info.value())) {
+    if (NeedsImplicitReceiver(*shared_info)) {
       Node* effect = NodeProperties::GetEffectInput(node);
       Node* control = NodeProperties::GetControlInput(node);
       Node* frame_state_inside = CreateArtificialFrameState(
           node, frame_state, call.formal_arguments(),
           BailoutId::ConstructStubCreate(), FrameStateType::kConstructStub,
-          shared_info.value(), context);
+          *shared_info, context);
       Node* create =
           graph()->NewNode(javascript()->Create(), call.target(), new_target,
                            context, frame_state_inside, effect, control);
@@ -586,7 +588,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     frame_state = CreateArtificialFrameState(
         node, frame_state, call.formal_arguments(),
         BailoutId::ConstructStubInvoke(), FrameStateType::kConstructStub,
-        shared_info.value(), context);
+        *shared_info, context);
   }
 
   // Insert a JSConvertReceiver node for sloppy callees. Note that the context
@@ -615,7 +617,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   if (call.formal_arguments() != parameter_count) {
     frame_state = CreateArtificialFrameState(
         node, frame_state, call.formal_arguments(), BailoutId::None(),
-        FrameStateType::kArgumentsAdaptor, shared_info.value());
+        FrameStateType::kArgumentsAdaptor, *shared_info);
   }
 
   return InlineCall(node, new_target, context, frame_state, start, end,

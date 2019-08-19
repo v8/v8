@@ -3247,8 +3247,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     if (target_ref.IsJSFunction()) {
       JSFunctionRef function = target_ref.AsJSFunction();
       if (FLAG_concurrent_inlining && !function.serialized()) {
-        TRACE_BROKER_MISSING(broker(),
-                             "function, not serialized: " << function);
+        TRACE_BROKER_MISSING(broker(), "data for function " << function);
         return NoChange();
       }
 
@@ -3261,8 +3260,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     } else if (target_ref.IsJSBoundFunction()) {
       JSBoundFunctionRef function = target_ref.AsJSBoundFunction();
       if (FLAG_concurrent_inlining && !function.serialized()) {
-        TRACE_BROKER_MISSING(broker(),
-                             "function, not serialized: " << function);
+        TRACE_BROKER_MISSING(broker(), "data for function " << function);
         return NoChange();
       }
 
