@@ -1094,4 +1094,9 @@
   '*': [SKIP],
 }], # variant == jitless and not embedded_builtins
 
+['not embedded_builtins', {
+  # Explicitly sets jitless flag.
+  'regress/regress-992389': [SKIP],
+}], # not embedded_builtins
+
 ]
