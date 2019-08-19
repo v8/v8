@@ -211,6 +211,8 @@ bool IsStringConstant(JSHeapBroker* broker, Node* node) {
 
 Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionEnter(
     Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+
   DCHECK_EQ(IrOpcode::kJSAsyncFunctionEnter, node->opcode());
   Node* closure = NodeProperties::GetValueInput(node, 0);
   Node* receiver = NodeProperties::GetValueInput(node, 1);
@@ -227,11 +229,12 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionEnter(
 
   // Create the JSAsyncFunctionObject based on the SharedFunctionInfo
   // extracted from the top-most frame in {frame_state}.
-  Handle<SharedFunctionInfo> shared =
-      FrameStateInfoOf(frame_state->op()).shared_info().ToHandleChecked();
-  DCHECK(shared->is_compiled());
-  int register_count = shared->internal_formal_parameter_count() +
-                       shared->GetBytecodeArray().register_count();
+  SharedFunctionInfoRef shared(
+      broker(),
+      FrameStateInfoOf(frame_state->op()).shared_info().ToHandleChecked());
+  DCHECK(shared.is_compiled());
+  int register_count = shared.internal_formal_parameter_count() +
+                       shared.GetBytecodeArray().register_count();
   Node* value = effect =
       graph()->NewNode(javascript()->CreateAsyncFunctionObject(register_count),
                        closure, receiver, promise, context, effect, control);
@@ -241,6 +244,8 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionEnter(
 
 Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionReject(
     Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+
   DCHECK_EQ(IrOpcode::kJSAsyncFunctionReject, node->opcode());
   Node* async_function_object = NodeProperties::GetValueInput(node, 0);
   Node* reason = NodeProperties::GetValueInput(node, 1);
@@ -277,6 +282,8 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionReject(
 
 Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionResolve(
     Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+
   DCHECK_EQ(IrOpcode::kJSAsyncFunctionResolve, node->opcode());
   Node* async_function_object = NodeProperties::GetValueInput(node, 0);
   Node* value = NodeProperties::GetValueInput(node, 1);
