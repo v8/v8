@@ -52,17 +52,6 @@ bool HasOnlyJSArrayMaps(JSHeapBroker* broker,
   return true;
 }
 
-void TryUpdateThenDropDeprecated(Isolate* isolate, MapHandles* maps) {
-  for (auto it = maps->begin(); it != maps->end();) {
-    if (Map::TryUpdate(isolate, *it).ToHandle(&*it)) {
-      DCHECK(!(*it)->is_deprecated());
-      ++it;
-    } else {
-      it = maps->erase(it);
-    }
-  }
-}
-
 }  // namespace
 
 JSNativeContextSpecialization::JSNativeContextSpecialization(
@@ -383,9 +372,7 @@ Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
-  // TODO(neis): Eliminate heap accesses.
-  AllowHandleDereference allow_handle_dereference;
-  AllowHandleAllocation allow_handle_allocation;
+  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
 
   DCHECK_EQ(IrOpcode::kJSInstanceOf, node->opcode());
   FeedbackParameter const& p = FeedbackParameterOf(node->op());
@@ -403,10 +390,13 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
   if (m.HasValue() && m.Ref(broker()).IsJSObject()) {
     receiver = m.Ref(broker()).AsJSObject().object();
   } else if (p.feedback().IsValid()) {
-    FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
-    if (!nexus.GetConstructorFeedback().ToHandle(&receiver)) {
-      return NoChange();
-    }
+    ProcessedFeedback const& feedback =
+        broker()->GetFeedbackForInstanceOf(FeedbackSource(p.feedback()));
+    if (feedback.IsInsufficient()) return NoChange();
+    base::Optional<JSObjectRef> maybe_receiver =
+        feedback.AsInstanceOf().value();
+    if (!maybe_receiver.has_value()) return NoChange();
+    receiver = maybe_receiver->object();
   } else {
     return NoChange();
   }
@@ -1002,69 +992,88 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
 
 Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
   DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
+
   DCHECK_EQ(IrOpcode::kJSLoadGlobal, node->opcode());
   LoadGlobalParameters const& p = LoadGlobalParametersOf(node->op());
   if (!p.feedback().IsValid()) return NoChange();
-  FeedbackSource source(p.feedback());
 
-  // TODO(neis): Make consistent with other feedback processing code.
-  GlobalAccessFeedback const* processed =
-      FLAG_concurrent_inlining
-          ? broker()->GetGlobalAccessFeedback(source)
-          : broker()->ProcessFeedbackForGlobalAccess(source);
-  if (processed == nullptr) return NoChange();
+  ProcessedFeedback const& processed =
+      broker()->GetFeedbackForGlobalAccess(FeedbackSource(p.feedback()));
+  if (processed.IsInsufficient()) return NoChange();
 
-  if (processed->IsScriptContextSlot()) {
+  GlobalAccessFeedback const& feedback = processed.AsGlobalAccess();
+  if (feedback.IsScriptContextSlot()) {
     Node* effect = NodeProperties::GetEffectInput(node);
-    Node* script_context = jsgraph()->Constant(processed->script_context());
+    Node* script_context = jsgraph()->Constant(feedback.script_context());
     Node* value = effect =
-        graph()->NewNode(javascript()->LoadContext(0, processed->slot_index(),
-                                                   processed->immutable()),
+        graph()->NewNode(javascript()->LoadContext(0, feedback.slot_index(),
+                                                   feedback.immutable()),
                          script_context, effect);
     ReplaceWithValue(node, value, effect);
     return Replace(value);
+  } else if (feedback.IsPropertyCell()) {
+    return ReduceGlobalAccess(node, nullptr, nullptr,
+                              NameRef(broker(), p.name()), AccessMode::kLoad,
+                              nullptr, feedback.property_cell());
+  } else {
+    DCHECK(feedback.IsMegamorphic());
+    return NoChange();
   }
-
-  CHECK(processed->IsPropertyCell());
-  return ReduceGlobalAccess(node, nullptr, nullptr, NameRef(broker(), p.name()),
-                            AccessMode::kLoad, nullptr,
-                            processed->property_cell());
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
   DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
+
   DCHECK_EQ(IrOpcode::kJSStoreGlobal, node->opcode());
   Node* value = NodeProperties::GetValueInput(node, 0);
-
   StoreGlobalParameters const& p = StoreGlobalParametersOf(node->op());
   if (!p.feedback().IsValid()) return NoChange();
-  FeedbackSource source(p.feedback());
 
-  GlobalAccessFeedback const* processed =
-      FLAG_concurrent_inlining
-          ? broker()->GetGlobalAccessFeedback(source)
-          : broker()->ProcessFeedbackForGlobalAccess(source);
-  if (processed == nullptr) return NoChange();
+  ProcessedFeedback const& processed =
+      broker()->GetFeedbackForGlobalAccess(FeedbackSource(p.feedback()));
+  if (processed.IsInsufficient()) return NoChange();
 
-  if (processed->IsScriptContextSlot()) {
-    if (processed->immutable()) return NoChange();
+  GlobalAccessFeedback const& feedback = processed.AsGlobalAccess();
+  if (feedback.IsScriptContextSlot()) {
+    if (feedback.immutable()) return NoChange();
     Node* effect = NodeProperties::GetEffectInput(node);
     Node* control = NodeProperties::GetControlInput(node);
-    Node* script_context = jsgraph()->Constant(processed->script_context());
+    Node* script_context = jsgraph()->Constant(feedback.script_context());
     effect =
-        graph()->NewNode(javascript()->StoreContext(0, processed->slot_index()),
+        graph()->NewNode(javascript()->StoreContext(0, feedback.slot_index()),
                          value, script_context, effect, control);
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
-  }
-
-  if (processed->IsPropertyCell()) {
+  } else if (feedback.IsPropertyCell()) {
     return ReduceGlobalAccess(node, nullptr, value, NameRef(broker(), p.name()),
                               AccessMode::kStore, nullptr,
-                              processed->property_cell());
+                              feedback.property_cell());
+  } else {
+    DCHECK(feedback.IsMegamorphic());
+    return NoChange();
   }
+}
 
-  UNREACHABLE();
+void JSNativeContextSpecialization::FilterMapsAndGetPropertyAccessInfos(
+    NamedAccessFeedback const& feedback, AccessMode access_mode, Node* receiver,
+    Node* effect, ZoneVector<PropertyAccessInfo>* access_infos) {
+  ZoneVector<Handle<Map>> receiver_maps(zone());
+
+  // Either infer maps from the graph or use the feedback.
+  if (!InferReceiverMaps(receiver, effect, &receiver_maps)) {
+    receiver_maps = feedback.maps();
+  }
+  RemoveImpossibleReceiverMaps(receiver, &receiver_maps);
+
+  for (Handle<Map> map_handle : receiver_maps) {
+    MapRef map(broker(), map_handle);
+    CHECK(!map.is_deprecated());
+    PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
+        map, feedback.name(), access_mode, dependencies(),
+        FLAG_concurrent_inlining ? SerializationPolicy::kAssumeSerialized
+                                 : SerializationPolicy::kSerializeIfNeeded);
+    access_infos->push_back(access_info);
+  }
 }
 
 Reduction JSNativeContextSpecialization::ReduceNamedAccess(
@@ -1083,10 +1092,13 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
+  ZoneVector<PropertyAccessInfo> access_infos_for_feedback(zone());
   ZoneVector<PropertyAccessInfo> access_infos(zone());
+  FilterMapsAndGetPropertyAccessInfos(feedback, access_mode, receiver, effect,
+                                      &access_infos_for_feedback);
   AccessInfoFactory access_info_factory(broker(), dependencies(), zone());
   if (!access_info_factory.FinalizePropertyAccessInfos(
-          feedback.access_infos(), access_mode, &access_infos)) {
+          access_infos_for_feedback, access_mode, &access_infos)) {
     return NoChange();
   }
 
@@ -1459,9 +1471,48 @@ base::Optional<JSTypedArrayRef> GetTypedArrayConstant(JSHeapBroker* broker,
 }
 }  // namespace
 
+void JSNativeContextSpecialization::RemoveImpossibleReceiverMaps(
+    Node* receiver, ZoneVector<Handle<Map>>* receiver_maps) const {
+  // TODO(neis): Decide what to do about this for concurrent inlining.
+  AllowHandleAllocation allow_handle_allocation;
+  AllowHandleDereference allow_handle_dereference;
+  Handle<Map> root_map;
+  if (InferReceiverRootMap(receiver).ToHandle(&root_map)) {
+    DCHECK(!root_map->is_abandoned_prototype_map());
+    Isolate* isolate = this->isolate();
+    receiver_maps->erase(
+        std::remove_if(receiver_maps->begin(), receiver_maps->end(),
+                       [root_map, isolate](Handle<Map> map) {
+                         return map->is_abandoned_prototype_map() ||
+                                map->FindRootMap(isolate) != *root_map;
+                       }),
+        receiver_maps->end());
+  }
+}
+
+// Possibly refine the feedback using inferred map information from the graph.
+ElementAccessFeedback const&
+JSNativeContextSpecialization::TryRefineElementAccessFeedback(
+    ElementAccessFeedback const& feedback, Node* receiver, Node* effect) const {
+  AccessMode access_mode = feedback.keyed_mode().access_mode();
+  bool use_inference =
+      access_mode == AccessMode::kLoad || access_mode == AccessMode::kHas;
+  if (!use_inference) return feedback;
+
+  ZoneVector<Handle<Map>> inferred_maps(zone());
+  if (!InferReceiverMaps(receiver, effect, &inferred_maps)) return feedback;
+
+  RemoveImpossibleReceiverMaps(receiver, &inferred_maps);
+  // TODO(neis): After Refine, the resulting feedback can still contain
+  // impossible maps when a target is kept only because more than one of its
+  // sources was inferred. Think of a way to completely rule out impossible
+  // maps.
+  return feedback.Refine(inferred_maps, zone());
+}
+
 Reduction JSNativeContextSpecialization::ReduceElementAccess(
     Node* node, Node* index, Node* value,
-    ElementAccessFeedback const& processed) {
+    ElementAccessFeedback const& feedback) {
   DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
          node->opcode() == IrOpcode::kJSStoreProperty ||
@@ -1474,30 +1525,34 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   Node* frame_state =
       NodeProperties::FindFrameStateBefore(node, jsgraph()->Dead());
 
-  AccessMode access_mode = processed.keyed_mode.access_mode();
+  // TODO(neis): It's odd that we do optimizations below that don't really care
+  // about the feedback, but we don't do them when the feedback is megamorphic.
+  if (feedback.transition_groups().empty()) return NoChange();
+
+  ElementAccessFeedback const& refined_feedback =
+      TryRefineElementAccessFeedback(feedback, receiver, effect);
+
+  AccessMode access_mode = refined_feedback.keyed_mode().access_mode();
   if ((access_mode == AccessMode::kLoad || access_mode == AccessMode::kHas) &&
       receiver->opcode() == IrOpcode::kHeapConstant) {
     Reduction reduction = ReduceElementLoadFromHeapConstant(
-        node, index, access_mode, processed.keyed_mode.load_mode());
+        node, index, access_mode, refined_feedback.keyed_mode().load_mode());
     if (reduction.Changed()) return reduction;
   }
 
-  if (HasOnlyStringMaps(broker(), processed.receiver_maps)) {
-    DCHECK(processed.transitions.empty());
+  if (!refined_feedback.transition_groups().empty() &&
+      refined_feedback.HasOnlyStringMaps(broker())) {
     return ReduceElementAccessOnString(node, index, value,
-                                       processed.keyed_mode);
+                                       refined_feedback.keyed_mode());
   }
 
-  // Compute element access infos for the receiver maps.
   AccessInfoFactory access_info_factory(broker(), dependencies(),
                                         graph()->zone());
   ZoneVector<ElementAccessInfo> access_infos(zone());
-  if (!access_info_factory.ComputeElementAccessInfos(processed, access_mode,
-                                                     &access_infos)) {
+  if (!access_info_factory.ComputeElementAccessInfos(refined_feedback,
+                                                     &access_infos) ||
+      access_infos.empty()) {
     return NoChange();
-  } else if (access_infos.empty()) {
-    return ReduceSoftDeoptimize(
-        node, DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
   }
 
   // For holey stores or growing stores, we need to check that the prototype
@@ -1516,7 +1571,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         // then we need to check that all prototypes have stable maps with
         // fast elements (and we need to guard against changes to that below).
         if ((IsHoleyOrDictionaryElementsKind(receiver_map.elements_kind()) ||
-             IsGrowStoreMode(processed.keyed_mode.store_mode())) &&
+             IsGrowStoreMode(feedback.keyed_mode().store_mode())) &&
             !receiver_map.HasOnlyStablePrototypesWithFastElements(
                 &prototype_maps)) {
           return NoChange();
@@ -1587,7 +1642,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     // Access the actual element.
     ValueEffectControl continuation =
         BuildElementAccess(receiver, index, value, effect, control, access_info,
-                           processed.keyed_mode);
+                           feedback.keyed_mode());
     value = continuation.value();
     effect = continuation.effect();
     control = continuation.control();
@@ -1654,7 +1709,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
       // Access the actual element.
       ValueEffectControl continuation =
           BuildElementAccess(this_receiver, this_index, this_value, this_effect,
-                             this_control, access_info, processed.keyed_mode);
+                             this_control, access_info, feedback.keyed_mode());
       values.push_back(continuation.value());
       effects.push_back(continuation.effect());
       controls.push_back(continuation.control());
@@ -1772,58 +1827,21 @@ Reduction JSNativeContextSpecialization::ReducePropertyAccess(
          node->opcode() == IrOpcode::kJSStoreNamedOwn ||
          node->opcode() == IrOpcode::kJSGetIterator);
 
-  Node* receiver = NodeProperties::GetValueInput(node, 0);
-  Node* effect = NodeProperties::GetEffectInput(node);
-
-  ProcessedFeedback const* processed = nullptr;
-  if (FLAG_concurrent_inlining) {
-    processed = broker()->GetFeedback(source);
-    // TODO(neis): Infer maps from the graph and consolidate with feedback/hints
-    // and filter impossible candidates based on inferred root map.
-  } else {
-    // TODO(neis): Try to unify this with the similar code in the serializer.
-    FeedbackNexus nexus(source.vector, source.slot);
-    if (nexus.ic_state() == UNINITIALIZED) {
-      processed = new (zone()) InsufficientFeedback();
-    } else {
-      MapHandles receiver_maps;
-      if (!ExtractReceiverMaps(receiver, effect, nexus, &receiver_maps)) {
-        processed = new (zone()) InsufficientFeedback();
-      } else if (!receiver_maps.empty()) {
-        base::Optional<NameRef> name = static_name.has_value()
-                                           ? static_name
-                                           : broker()->GetNameFeedback(nexus);
-        if (name.has_value()) {
-          ZoneVector<PropertyAccessInfo> access_infos(zone());
-          AccessInfoFactory access_info_factory(broker(), dependencies(),
-                                                zone());
-          access_info_factory.ComputePropertyAccessInfos(
-              receiver_maps, name->object(), access_mode, &access_infos);
-          processed = new (zone()) NamedAccessFeedback(*name, access_infos);
-        } else if (nexus.GetKeyType() == ELEMENT &&
-                   MEGAMORPHIC != nexus.ic_state()) {
-          processed = broker()->ProcessFeedbackMapsForElementAccess(
-              receiver_maps, KeyedAccessMode::FromNexus(nexus));
-        }
-      }
-    }
-  }
-
-  if (processed == nullptr) return NoChange();
-  switch (processed->kind()) {
+  ProcessedFeedback const& feedback =
+      broker()->GetFeedbackForPropertyAccess(source, access_mode, static_name);
+  switch (feedback.kind()) {
     case ProcessedFeedback::kInsufficient:
       return ReduceSoftDeoptimize(
           node,
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
     case ProcessedFeedback::kNamedAccess:
-      return ReduceNamedAccess(node, value, *processed->AsNamedAccess(),
+      return ReduceNamedAccess(node, value, feedback.AsNamedAccess(),
                                access_mode, key);
     case ProcessedFeedback::kElementAccess:
-      CHECK_EQ(processed->AsElementAccess()->keyed_mode.access_mode(),
-               access_mode);
-      return ReduceElementAccess(node, key, value,
-                                 *processed->AsElementAccess());
-    case ProcessedFeedback::kGlobalAccess:
+      DCHECK_EQ(feedback.AsElementAccess().keyed_mode().access_mode(),
+                access_mode);
+      return ReduceElementAccess(node, key, value, feedback.AsElementAccess());
+    default:
       UNREACHABLE();
   }
 }
@@ -3235,47 +3253,9 @@ bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
   return dependencies()->DependOnNoElementsProtector();
 }
 
-// Returns false iff we have insufficient feedback (uninitialized or obsolete).
-bool JSNativeContextSpecialization::ExtractReceiverMaps(
-    Node* receiver, Node* effect, FeedbackNexus const& nexus,
-    MapHandles* receiver_maps) {
-  DCHECK(receiver_maps->empty());
-  if (nexus.IsUninitialized()) return false;
-
-  // See if we can infer a concrete type for the {receiver}. Solely relying on
-  // the inference is not safe for keyed stores, because we would potentially
-  // miss out on transitions that need to be performed.
-  {
-    FeedbackSlotKind kind = nexus.kind();
-    bool use_inference =
-        !IsKeyedStoreICKind(kind) && !IsStoreInArrayLiteralICKind(kind);
-    if (use_inference && InferReceiverMaps(receiver, effect, receiver_maps)) {
-      TryUpdateThenDropDeprecated(isolate(), receiver_maps);
-      return true;
-    }
-  }
-
-  if (nexus.ExtractMaps(receiver_maps) == 0) return true;
-
-  // Try to filter impossible candidates based on inferred root map.
-  Handle<Map> root_map;
-  if (InferReceiverRootMap(receiver).ToHandle(&root_map)) {
-    DCHECK(!root_map->is_abandoned_prototype_map());
-    Isolate* isolate = this->isolate();
-    receiver_maps->erase(
-        std::remove_if(receiver_maps->begin(), receiver_maps->end(),
-                       [root_map, isolate](Handle<Map> map) {
-                         return map->is_abandoned_prototype_map() ||
-                                map->FindRootMap(isolate) != *root_map;
-                       }),
-        receiver_maps->end());
-  }
-  TryUpdateThenDropDeprecated(isolate(), receiver_maps);
-  return !receiver_maps->empty();
-}
-
 bool JSNativeContextSpecialization::InferReceiverMaps(
-    Node* receiver, Node* effect, MapHandles* receiver_maps) {
+    Node* receiver, Node* effect,
+    ZoneVector<Handle<Map>>* receiver_maps) const {
   ZoneHandleSet<Map> maps;
   NodeProperties::InferReceiverMapsResult result =
       NodeProperties::InferReceiverMapsUnsafe(broker(), receiver, effect,
@@ -3301,7 +3281,7 @@ bool JSNativeContextSpecialization::InferReceiverMaps(
 }
 
 MaybeHandle<Map> JSNativeContextSpecialization::InferReceiverRootMap(
-    Node* receiver) {
+    Node* receiver) const {
   HeapObjectMatcher m(receiver);
   if (m.HasValue()) {
     return handle(m.Value()->map().FindRootMap(isolate()), isolate());

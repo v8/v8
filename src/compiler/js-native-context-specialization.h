@@ -213,18 +213,25 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   // code dependencies and might use the array protector cell.
   bool CanTreatHoleAsUndefined(ZoneVector<Handle<Map>> const& receiver_maps);
 
-  // Extract receiver maps from {nexus} and filter based on {receiver} if
-  // possible.
-  bool ExtractReceiverMaps(Node* receiver, Node* effect,
-                           FeedbackNexus const& nexus,
-                           MapHandles* receiver_maps);
+  void RemoveImpossibleReceiverMaps(
+      Node* receiver, ZoneVector<Handle<Map>>* receiver_maps) const;
+
+  ElementAccessFeedback const& TryRefineElementAccessFeedback(
+      ElementAccessFeedback const& feedback, Node* receiver,
+      Node* effect) const;
+
+  void FilterMapsAndGetPropertyAccessInfos(
+      NamedAccessFeedback const& feedback, AccessMode access_mode,
+      Node* receiver, Node* effect,
+      ZoneVector<PropertyAccessInfo>* access_infos);
 
   // Try to infer maps for the given {receiver} at the current {effect}.
   bool InferReceiverMaps(Node* receiver, Node* effect,
-                         MapHandles* receiver_maps);
+                         ZoneVector<Handle<Map>>* receiver_maps) const;
+
   // Try to infer a root map for the {receiver} independent of the current
   // program location.
-  MaybeHandle<Map> InferReceiverRootMap(Node* receiver);
+  MaybeHandle<Map> InferReceiverRootMap(Node* receiver) const;
 
   // Checks if we know at compile time that the {receiver} either definitely
   // has the {prototype} in it's prototype chain, or the {receiver} definitely
