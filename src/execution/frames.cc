@@ -270,6 +270,7 @@ SafeStackFrameIterator::SafeStackFrameIterator(Isolate* isolate, Address pc,
       low_bound_(sp),
       high_bound_(js_entry_sp),
       top_frame_type_(StackFrame::NONE),
+      top_context_address_(kNullAddress),
       external_callback_scope_(isolate->external_callback_scope()),
       top_link_register_(lr) {
   StackFrame::State state;
@@ -342,6 +343,13 @@ SafeStackFrameIterator::SafeStackFrameIterator(Isolate* isolate, Address pc,
       if (type != StackFrame::INTERPRETED) {
         advance_frame = true;
       }
+      MSAN_MEMORY_IS_INITIALIZED(
+          fp + CommonFrameConstants::kContextOrFrameTypeOffset,
+          kSystemPointerSize);
+      Address type_or_context_address =
+          Memory<Address>(fp + CommonFrameConstants::kContextOrFrameTypeOffset);
+      if (!StackFrame::IsTypeMarker(type_or_context_address))
+        top_context_address_ = type_or_context_address;
     } else {
       // Mark the frame as OPTIMIZED if we cannot determine its type.
       // We chose OPTIMIZED rather than INTERPRETED because it's closer to

@@ -161,7 +161,14 @@ void ProfilerEventsProcessor::StopSynchronously() {
 bool ProfilerEventsProcessor::ProcessCodeEvent() {
   CodeEventsContainer record;
   if (events_buffer_.Dequeue(&record)) {
-    code_observer_->CodeEventHandlerInternal(record);
+    if (record.generic.type == CodeEventRecord::NATIVE_CONTEXT_MOVE) {
+      NativeContextMoveEventRecord& nc_record =
+          record.NativeContextMoveEventRecord_;
+      generator_->UpdateNativeContextAddress(nc_record.from_address,
+                                             nc_record.to_address);
+    } else {
+      code_observer_->CodeEventHandlerInternal(record);
+    }
     last_processed_code_event_id_ = record.generic.order;
     return true;
   }
@@ -174,6 +181,7 @@ void ProfilerEventsProcessor::CodeEventHandler(
     case CodeEventRecord::CODE_CREATION:
     case CodeEventRecord::CODE_MOVE:
     case CodeEventRecord::CODE_DISABLE_OPT:
+    case CodeEventRecord::NATIVE_CONTEXT_MOVE:
       Enqueue(evt_rec);
       break;
     case CodeEventRecord::CODE_DEOPT: {

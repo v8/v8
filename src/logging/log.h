@@ -216,6 +216,8 @@ class Logger : public CodeEventListener {
 
   void SharedFunctionInfoMoveEvent(Address from, Address to) override;
 
+  void NativeContextMoveEvent(Address from, Address to) override {}
+
   void CodeNameEvent(Address addr, int pos, const char* code_name);
 
   void CodeDeoptEvent(Code code, DeoptimizeKind kind, Address pc,
@@ -401,6 +403,7 @@ class V8_EXPORT_PRIVATE CodeEventLogger : public CodeEventListener {
   void GetterCallbackEvent(Name name, Address entry_point) override {}
   void SetterCallbackEvent(Name name, Address entry_point) override {}
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
+  void NativeContextMoveEvent(Address from, Address to) override {}
   void CodeMovingGCEvent() override {}
   void CodeDeoptEvent(Code code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta) override {}
@@ -453,6 +456,7 @@ class ExternalCodeEventListener : public CodeEventListener {
   void GetterCallbackEvent(Name name, Address entry_point) override {}
   void SetterCallbackEvent(Name name, Address entry_point) override {}
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
+  void NativeContextMoveEvent(Address from, Address to) override {}
   void CodeMoveEvent(AbstractCode from, AbstractCode to) override {}
   void CodeDisableOptEvent(AbstractCode code,
                            SharedFunctionInfo shared) override {}

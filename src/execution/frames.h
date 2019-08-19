@@ -1285,6 +1285,7 @@ class SafeStackFrameIterator : public StackFrameIteratorBase {
   void Advance();
 
   StackFrame::Type top_frame_type() const { return top_frame_type_; }
+  Address top_context_address() const { return top_context_address_; }
 
  private:
   void AdvanceOneFrame();
@@ -1308,6 +1309,7 @@ class SafeStackFrameIterator : public StackFrameIteratorBase {
   const Address low_bound_;
   const Address high_bound_;
   StackFrame::Type top_frame_type_;
+  Address top_context_address_;
   ExternalCallbackScope* external_callback_scope_;
   Address top_link_register_;
 };

@@ -26,6 +26,10 @@ struct CpuProfileDeoptFrame {
   size_t position;
 };
 
+namespace internal {
+class CpuProfile;
+}  // namespace internal
+
 }  // namespace v8
 
 #ifdef V8_OS_WIN
@@ -94,6 +98,10 @@ struct V8_EXPORT TickSample {
    *                                register state rather than the one provided
    *                                with |state| argument. Otherwise the method
    *                                will use provided register |state| as is.
+   * \param contexts If set, contexts[i] will be set to the address of the
+   *                 incumbent native context associated with frames[i]. It
+   *                 should be large enough to hold |frames_limit| frame
+   *                 contexts.
    * \note GetStackSample is thread and signal safe and should only be called
    *                      when the JS thread is paused or interrupted.
    *                      Otherwise the behavior is undefined.
@@ -102,7 +110,8 @@ struct V8_EXPORT TickSample {
                              RecordCEntryFrame record_c_entry_frame,
                              void** frames, size_t frames_limit,
                              v8::SampleInfo* sample_info,
-                             bool use_simulator_reg_state = true);
+                             bool use_simulator_reg_state = true,
+                             void** contexts = nullptr);
   StateTag state;  // The state of the VM.
   void* pc;        // Instruction pointer.
   union {
@@ -112,6 +121,8 @@ struct V8_EXPORT TickSample {
   static const unsigned kMaxFramesCountLog2 = 8;
   static const unsigned kMaxFramesCount = (1 << kMaxFramesCountLog2) - 1;
   void* stack[kMaxFramesCount];                 // Call stack.
+  void* contexts[kMaxFramesCount];  // Stack of associated native contexts.
+  void* top_context = nullptr;      // Address of the incumbent native context.
   unsigned frames_count : kMaxFramesCountLog2;  // Number of captured frames.
   bool has_external_callback : 1;
   bool update_stats : 1;  // Whether the sample should update aggregated stats.
@@ -337,21 +348,25 @@ class V8_EXPORT CpuProfilingOptions {
    *                             zero, the sampling interval will be equal to
    *                             the profiler's sampling interval.
    */
-  CpuProfilingOptions(CpuProfilingMode mode = kLeafNodeLineNumbers,
-                      unsigned max_samples = kNoSampleLimit,
-                      int sampling_interval_us = 0)
-      : mode_(mode),
-        max_samples_(max_samples),
-        sampling_interval_us_(sampling_interval_us) {}
+  CpuProfilingOptions(
+      CpuProfilingMode mode = kLeafNodeLineNumbers,
+      unsigned max_samples = kNoSampleLimit, int sampling_interval_us = 0,
+      MaybeLocal<Context> filter_context = MaybeLocal<Context>());
 
   CpuProfilingMode mode() const { return mode_; }
   unsigned max_samples() const { return max_samples_; }
   int sampling_interval_us() const { return sampling_interval_us_; }
 
  private:
+  friend class internal::CpuProfile;
+
+  bool has_filter_context() const { return !filter_context_.IsEmpty(); }
+  void* raw_filter_context() const;
+
   CpuProfilingMode mode_;
   unsigned max_samples_;
   int sampling_interval_us_;
+  CopyablePersistentTraits<Context>::CopyablePersistent filter_context_;
 };
 
 /**

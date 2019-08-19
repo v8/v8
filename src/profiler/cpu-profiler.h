@@ -13,6 +13,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
 #include "src/execution/isolate.h"
+#include "src/handles/maybe-handles.h"
 #include "src/libsampler/sampler.h"
 #include "src/profiler/circular-queue.h"
 #include "src/profiler/profiler-listener.h"
@@ -30,21 +31,21 @@ class CpuProfile;
 class CpuProfilesCollection;
 class ProfileGenerator;
 
-#define CODE_EVENTS_TYPE_LIST(V)                         \
-  V(CODE_CREATION, CodeCreateEventRecord)                \
-  V(CODE_MOVE, CodeMoveEventRecord)                      \
-  V(CODE_DISABLE_OPT, CodeDisableOptEventRecord)         \
-  V(CODE_DEOPT, CodeDeoptEventRecord)                    \
+#define CODE_EVENTS_TYPE_LIST(V)                 \
+  V(CODE_CREATION, CodeCreateEventRecord)        \
+  V(CODE_MOVE, CodeMoveEventRecord)              \
+  V(CODE_DISABLE_OPT, CodeDisableOptEventRecord) \
+  V(CODE_DEOPT, CodeDeoptEventRecord)            \
   V(REPORT_BUILTIN, ReportBuiltinEventRecord)
 
+#define VM_EVENTS_TYPE_LIST(V) \
+  CODE_EVENTS_TYPE_LIST(V)     \
+  V(NATIVE_CONTEXT_MOVE, NativeContextMoveEventRecord)
 
 class CodeEventRecord {
  public:
 #define DECLARE_TYPE(type, ignore) type,
-  enum Type {
-    NONE = 0,
-    CODE_EVENTS_TYPE_LIST(DECLARE_TYPE)
-  };
+  enum Type { NONE = 0, VM_EVENTS_TYPE_LIST(DECLARE_TYPE) };
 #undef DECLARE_TYPE
 
   Type type;
@@ -102,6 +103,12 @@ class ReportBuiltinEventRecord : public CodeEventRecord {
   V8_INLINE void UpdateCodeMap(CodeMap* code_map);
 };
 
+// Signals that a native context's address has changed.
+class NativeContextMoveEventRecord : public CodeEventRecord {
+ public:
+  Address from_address;
+  Address to_address;
+};
 
 class TickSampleEventRecord {
  public:
@@ -124,7 +131,7 @@ class CodeEventsContainer {
   union  {
     CodeEventRecord generic;
 #define DECLARE_CLASS(ignore, type) type type##_;
-    CODE_EVENTS_TYPE_LIST(DECLARE_CLASS)
+    VM_EVENTS_TYPE_LIST(DECLARE_CLASS)
 #undef DECLARE_CLASS
   };
 };
@@ -293,6 +300,7 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   void CollectSample();
   void StartProfiling(const char* title, CpuProfilingOptions options = {});
   void StartProfiling(String title, CpuProfilingOptions options = {});
+
   CpuProfile* StopProfiling(const char* title);
   CpuProfile* StopProfiling(String title);
   int GetProfilesCount();
