@@ -1550,12 +1550,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Allocate a SeqOneByteString with the given length.
   TNode<String> AllocateSeqOneByteString(uint32_t length,
                                          AllocationFlags flags = kNone);
-  TNode<String> AllocateSeqOneByteString(Node* context, TNode<Uint32T> length,
+  TNode<String> AllocateSeqOneByteString(TNode<Uint32T> length,
                                          AllocationFlags flags = kNone);
   // Allocate a SeqTwoByteString with the given length.
   TNode<String> AllocateSeqTwoByteString(uint32_t length,
                                          AllocationFlags flags = kNone);
-  TNode<String> AllocateSeqTwoByteString(Node* context, TNode<Uint32T> length,
+  TNode<String> AllocateSeqTwoByteString(TNode<Uint32T> length,
                                          AllocationFlags flags = kNone);
 
   // Allocate a SlicedOneByteString with the given length, parent and offset.

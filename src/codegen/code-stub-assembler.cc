@@ -3307,9 +3307,8 @@ TNode<BoolT> CodeStubAssembler::IsZeroOrContext(SloppyTNode<Object> object) {
 }
 
 TNode<String> CodeStubAssembler::AllocateSeqOneByteString(
-    Node* context, TNode<Uint32T> length, AllocationFlags flags) {
+    TNode<Uint32T> length, AllocationFlags flags) {
   Comment("AllocateSeqOneByteString");
-  CSA_SLOW_ASSERT(this, IsZeroOrContext(context));
   VARIABLE(var_result, MachineRepresentation::kTagged);
 
   // Compute the SeqOneByteString size and check if it fits into new space.
@@ -3343,8 +3342,9 @@ TNode<String> CodeStubAssembler::AllocateSeqOneByteString(
   BIND(&if_notsizeissmall);
   {
     // We might need to allocate in large object space, go to the runtime.
-    Node* result = CallRuntime(Runtime::kAllocateSeqOneByteString, context,
-                               ChangeUint32ToTagged(length));
+    Node* result =
+        CallRuntime(Runtime::kAllocateSeqOneByteString, NoContextConstant(),
+                    ChangeUint32ToTagged(length));
     var_result.Bind(result);
     Goto(&if_join);
   }
@@ -3378,8 +3378,7 @@ TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
 }
 
 TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
-    Node* context, TNode<Uint32T> length, AllocationFlags flags) {
-  CSA_SLOW_ASSERT(this, IsZeroOrContext(context));
+    TNode<Uint32T> length, AllocationFlags flags) {
   Comment("AllocateSeqTwoByteString");
   VARIABLE(var_result, MachineRepresentation::kTagged);
 
@@ -3414,8 +3413,9 @@ TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
   BIND(&if_notsizeissmall);
   {
     // We might need to allocate in large object space, go to the runtime.
-    Node* result = CallRuntime(Runtime::kAllocateSeqTwoByteString, context,
-                               ChangeUint32ToTagged(length));
+    Node* result =
+        CallRuntime(Runtime::kAllocateSeqTwoByteString, NoContextConstant(),
+                    ChangeUint32ToTagged(length));
     var_result.Bind(result);
     Goto(&if_join);
   }
@@ -7011,7 +7011,7 @@ TNode<String> CodeStubAssembler::AllocAndCopyStringCharacters(
   BIND(&one_byte_sequential);
   {
     TNode<String> result = AllocateSeqOneByteString(
-        NoContextConstant(), Unsigned(TruncateIntPtrToInt32(character_count)));
+        Unsigned(TruncateIntPtrToInt32(character_count)));
     CopyStringCharacters(from, result, from_index, IntPtrConstant(0),
                          character_count, String::ONE_BYTE_ENCODING,
                          String::ONE_BYTE_ENCODING);
@@ -7023,7 +7023,7 @@ TNode<String> CodeStubAssembler::AllocAndCopyStringCharacters(
   BIND(&two_byte_sequential);
   {
     TNode<String> result = AllocateSeqTwoByteString(
-        NoContextConstant(), Unsigned(TruncateIntPtrToInt32(character_count)));
+        Unsigned(TruncateIntPtrToInt32(character_count)));
     CopyStringCharacters(from, result, from_index, IntPtrConstant(0),
                          character_count, String::TWO_BYTE_ENCODING,
                          String::TWO_BYTE_ENCODING);
@@ -7470,7 +7470,7 @@ TNode<String> CodeStubAssembler::StringAdd(Node* context, TNode<String> left,
                        Int32Constant(kTwoByteStringTag)),
            &two_byte);
     // One-byte sequential string case
-    result = AllocateSeqOneByteString(context, new_length);
+    result = AllocateSeqOneByteString(new_length);
     CopyStringCharacters(var_left.value(), result.value(), IntPtrConstant(0),
                          IntPtrConstant(0), word_left_length,
                          String::ONE_BYTE_ENCODING, String::ONE_BYTE_ENCODING);
@@ -7482,7 +7482,7 @@ TNode<String> CodeStubAssembler::StringAdd(Node* context, TNode<String> left,
     BIND(&two_byte);
     {
       // Two-byte sequential string case
-      result = AllocateSeqTwoByteString(context, new_length);
+      result = AllocateSeqTwoByteString(new_length);
       CopyStringCharacters(var_left.value(), result.value(), IntPtrConstant(0),
                            IntPtrConstant(0), word_left_length,
                            String::TWO_BYTE_ENCODING,

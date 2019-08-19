@@ -1166,9 +1166,9 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
 
     BIND(&slow_compare);
     StringBuiltinsAssembler string_asm(state());
-    string_asm.StringEqual_Core(context, search_element_string, search_type,
-                                element_k, element_k_type, search_length,
-                                &return_found, &continue_loop, &runtime);
+    string_asm.StringEqual_Core(search_element_string, search_type, element_k,
+                                element_k_type, search_length, &return_found,
+                                &continue_loop, &runtime);
     BIND(&runtime);
     TNode<Object> result = CallRuntime(Runtime::kStringEqual, context,
                                        search_element_string, element_k);

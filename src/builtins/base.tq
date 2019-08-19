@@ -3001,10 +3001,8 @@ transitioning macro GetMethod(implicit context: Context)(
 
 extern macro NumberToString(Number): String;
 extern macro IsOneByteStringInstanceType(InstanceType): bool;
-extern macro AllocateSeqOneByteString(implicit context: Context)(uint32):
-    String;
-extern macro AllocateSeqTwoByteString(implicit context: Context)(uint32):
-    String;
+extern macro AllocateSeqOneByteString(uint32): String;
+extern macro AllocateSeqTwoByteString(uint32): String;
 extern macro ConvertToRelativeIndex(implicit context: Context)(
     Object, intptr): intptr;
 

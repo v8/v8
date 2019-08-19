@@ -34,7 +34,6 @@ class IntlBuiltinsAssembler : public CodeStubAssembler {
 
 TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
   Node* const string = Parameter(Descriptor::kString);
-  Node* const context = Parameter(Descriptor::kContext);
 
   CSA_ASSERT(this, IsString(string));
 
@@ -57,7 +56,7 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
 
   // For short strings, do the conversion in CSA through the lookup table.
 
-  Node* const dst = AllocateSeqOneByteString(context, length);
+  Node* const dst = AllocateSeqOneByteString(length);
 
   const int kMaxShortStringLength = 24;  // Determined empirically.
   GotoIf(Uint32GreaterThan(length, Uint32Constant(kMaxShortStringLength)),

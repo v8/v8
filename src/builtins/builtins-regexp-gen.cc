@@ -1269,7 +1269,7 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
   // char for each set flag.
 
   {
-    Node* const result = AllocateSeqOneByteString(context, var_length.value());
+    Node* const result = AllocateSeqOneByteString(var_length.value());
 
     VARIABLE(var_offset, MachineType::PointerRepresentation(),
              IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag));
