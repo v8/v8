@@ -2469,7 +2469,9 @@ Variable* ClassScope::LookupPrivateName(VariableProxy* proxy) {
     if (var == nullptr && !class_scope->scope_info_.is_null()) {
       var = class_scope->LookupPrivateNameInScopeInfo(proxy->raw_name());
     }
-    return var;
+    if (var != nullptr) {
+      return var;
+    }
   }
   return nullptr;
 }
