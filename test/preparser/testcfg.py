@@ -66,7 +66,8 @@ class TestSuite(testsuite.TestSuite):
           testsource = testsource.replace("$" + key, replacement[key]);
         Test(testname, testsource, expectation)
       return MkTest
-    execfile(pathname, {"Test": Test, "Template": Template})
+    with open(pathname) as in_file:
+      exec(in_file.read(), {"Test": Test, "Template": Template})
 
   def ListTests(self):
     result = []
