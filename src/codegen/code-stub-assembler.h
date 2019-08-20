@@ -220,7 +220,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // fewer live ranges. Thus only convert indices to untagged value on 64-bit
   // platforms.
   ParameterMode OptimalParameterMode() const {
-    return Is64() ? INTPTR_PARAMETERS : SMI_PARAMETERS;
+    return !COMPRESS_POINTERS_BOOL && Is64() ? INTPTR_PARAMETERS
+                                             : SMI_PARAMETERS;
   }
 
   MachineRepresentation ParameterRepresentation(ParameterMode mode) const {
@@ -275,7 +276,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return false;
   }
 
-#if defined(V8_HOST_ARCH_32_BIT)
+#if defined(V8_HOST_ARCH_32_BIT) || defined(V8_COMPRESS_POINTERS)
   TNode<Smi> BIntToSmi(TNode<BInt> source) { return source; }
   TNode<IntPtrT> BIntToIntPtr(TNode<BInt> source) {
     return SmiToIntPtr(source);
