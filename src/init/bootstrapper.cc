@@ -284,6 +284,10 @@ class Genesis {
   void TransferNamedProperties(Handle<JSObject> from, Handle<JSObject> to);
   void TransferIndexedProperties(Handle<JSObject> from, Handle<JSObject> to);
 
+  Handle<Map> CreateInitialMapForArraySubclass(int size,
+                                               int inobject_properties,
+                                               int additional_properties = 0);
+
   static bool CompileExtension(Isolate* isolate, v8::Extension* extension);
 
   Isolate* isolate_;
@@ -4414,6 +4418,17 @@ void Genesis::InitializeGlobal_harmony_promise_all_settled() {
   }
 }
 
+void Genesis::InitializeGlobal_harmony_regexp_match_indices() {
+  if (!FLAG_harmony_regexp_match_indices) return;
+
+  // Add indices accessor to JSRegExpResult's initial map.
+  Handle<Map> initial_map(native_context()->regexp_result_map(), isolate());
+  Descriptor d = Descriptor::AccessorConstant(
+      factory()->indices_string(), factory()->regexp_result_indices_accessor(),
+      NONE);
+  initial_map->AppendDescriptor(isolate(), &d);
+}
+
 #ifdef V8_INTL_SUPPORT
 
 void Genesis::InitializeGlobal_harmony_intl_date_format_range() {
@@ -4895,42 +4910,12 @@ bool Genesis::InstallNatives() {
   // predefines the properties index, input, and groups).
   {
     // JSRegExpResult initial map.
-
-    // Find global.Array.prototype to inherit from.
-    Handle<JSFunction> array_constructor(native_context()->array_function(),
-                                         isolate());
-    Handle<JSObject> array_prototype(
-        JSObject::cast(array_constructor->instance_prototype()), isolate());
-
-    // Add initial map.
-    Handle<Map> initial_map = factory()->NewMap(
-        JS_ARRAY_TYPE, JSRegExpResult::kSize, TERMINAL_FAST_ELEMENTS_KIND,
-        JSRegExpResult::kInObjectPropertyCount);
-    initial_map->SetConstructor(*array_constructor);
-
-    // Set prototype on map.
-    initial_map->set_has_non_instance_prototype(false);
-    Map::SetPrototype(isolate(), initial_map, array_prototype);
-
-    // Update map with length accessor from Array and add "index", "input" and
-    // "groups".
-    Map::EnsureDescriptorSlack(isolate(), initial_map,
-                               JSRegExpResult::kInObjectPropertyCount + 1);
-
-    // length descriptor.
-    {
-      JSFunction array_function = native_context()->array_function();
-      Handle<DescriptorArray> array_descriptors(
-          array_function.initial_map().instance_descriptors(), isolate());
-      Handle<String> length = factory()->length_string();
-      int old = array_descriptors->SearchWithCache(
-          isolate(), *length, array_function.initial_map());
-      DCHECK_NE(old, DescriptorArray::kNotFound);
-      Descriptor d = Descriptor::AccessorConstant(
-          length, handle(array_descriptors->GetStrongValue(old), isolate()),
-          array_descriptors->GetDetails(old).attributes());
-      initial_map->AppendDescriptor(isolate(), &d);
-    }
+    // Add additional slack to the initial map in case regexp_match_indices
+    // are enabled to account for the additional descriptor.
+    int additional_slack = 1;
+    Handle<Map> initial_map = CreateInitialMapForArraySubclass(
+        JSRegExpResult::kSize, JSRegExpResult::kInObjectPropertyCount,
+        additional_slack);
 
     // index descriptor.
     {
@@ -4957,6 +4942,27 @@ bool Genesis::InstallNatives() {
     }
 
     native_context()->set_regexp_result_map(*initial_map);
+  }
+
+  // Create a constructor for JSRegExpResultIndices (a variant of Array that
+  // predefines the groups property).
+  {
+    // JSRegExpResultIndices initial map.
+    Handle<Map> initial_map = CreateInitialMapForArraySubclass(
+        JSRegExpResultIndices::kSize,
+        JSRegExpResultIndices::kInObjectPropertyCount);
+
+    // groups descriptor.
+    {
+      Descriptor d = Descriptor::DataField(
+          isolate(), factory()->groups_string(),
+          JSRegExpResultIndices::kGroupsIndex, NONE, Representation::Tagged());
+      initial_map->AppendDescriptor(isolate(), &d);
+      DCHECK_EQ(initial_map->LastAdded(),
+                JSRegExpResultIndices::kGroupsDescriptorIndex);
+    }
+
+    native_context()->set_regexp_result_indices_map(*initial_map);
   }
 
   // Add @@iterator method to the arguments object maps.
@@ -5358,6 +5364,47 @@ void Genesis::TransferObject(Handle<JSObject> from, Handle<JSObject> to) {
   // Transfer the prototype (new map is needed).
   Handle<HeapObject> proto(from->map().prototype(), isolate());
   JSObject::ForceSetPrototype(to, proto);
+}
+
+Handle<Map> Genesis::CreateInitialMapForArraySubclass(int size,
+                                                      int inobject_properties,
+                                                      int additional_slack) {
+  // Find global.Array.prototype to inherit from.
+  Handle<JSFunction> array_constructor(native_context()->array_function(),
+                                       isolate());
+  Handle<JSObject> array_prototype(native_context()->initial_array_prototype(),
+                                   isolate());
+
+  // Add initial map.
+  Handle<Map> initial_map = factory()->NewMap(
+      JS_ARRAY_TYPE, size, TERMINAL_FAST_ELEMENTS_KIND, inobject_properties);
+  initial_map->SetConstructor(*array_constructor);
+
+  // Set prototype on map.
+  initial_map->set_has_non_instance_prototype(false);
+  Map::SetPrototype(isolate(), initial_map, array_prototype);
+
+  // Update map with length accessor from Array.
+  static constexpr int kTheLengthAccessor = 1;
+  Map::EnsureDescriptorSlack(
+      isolate(), initial_map,
+      inobject_properties + kTheLengthAccessor + additional_slack);
+
+  // length descriptor.
+  {
+    JSFunction array_function = native_context()->array_function();
+    Handle<DescriptorArray> array_descriptors(
+        array_function.initial_map().instance_descriptors(), isolate());
+    Handle<String> length = factory()->length_string();
+    int old = array_descriptors->SearchWithCache(isolate(), *length,
+                                                 array_function.initial_map());
+    DCHECK_NE(old, DescriptorArray::kNotFound);
+    Descriptor d = Descriptor::AccessorConstant(
+        length, handle(array_descriptors->GetStrongValue(old), isolate()),
+        array_descriptors->GetDetails(old).attributes());
+    initial_map->AppendDescriptor(isolate(), &d);
+  }
+  return initial_map;
 }
 
 Genesis::Genesis(

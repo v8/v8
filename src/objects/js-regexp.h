@@ -199,9 +199,23 @@ DEFINE_OPERATORS_FOR_FLAGS(JSRegExp::Flags)
 // After creation the result must be treated as a JSArray in all regards.
 class JSRegExpResult : public JSArray {
  public:
+  DECL_CAST(JSRegExpResult)
+
+  // TODO(joshualitt): We would like to add printers and verifiers to
+  // JSRegExpResult, and maybe JSRegExpResultIndices, but both have the same
+  // instance type as JSArray.
+
+  // cached_indices_or_match_info and names, are used to construct the
+  // JSRegExpResultIndices returned from the indices property lazily.
+  DECL_ACCESSORS(cached_indices_or_match_info, Object)
+  DECL_ACCESSORS(names, Object)
+
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(JSArray::kSize,
                                 TORQUE_GENERATED_JSREG_EXP_RESULT_FIELDS)
+
+  static Handle<JSArray> GetAndCacheIndices(
+      Isolate* isolate, Handle<JSRegExpResult> regexp_result);
 
   // Indices of in-object properties.
   static const int kIndexIndex = 0;
@@ -209,8 +223,35 @@ class JSRegExpResult : public JSArray {
   static const int kGroupsIndex = 2;
   static const int kInObjectPropertyCount = 3;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSRegExpResult);
+  OBJECT_CONSTRUCTORS(JSRegExpResult, JSArray);
+};
+
+// JSRegExpResultIndices is just a JSArray with a specific initial map.
+// This initial map adds in-object properties for "group"
+// properties, as assigned by RegExp.prototype.exec, which allows
+// faster creation of RegExp exec results.
+// This class just holds constants used when creating the result.
+// After creation the result must be treated as a JSArray in all regards.
+class JSRegExpResultIndices : public JSArray {
+ public:
+  DECL_CAST(JSRegExpResultIndices)
+
+  // Layout description.
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+      JSArray::kSize, TORQUE_GENERATED_JSREG_EXP_RESULT_INDICES_FIELDS)
+
+  static Handle<JSRegExpResultIndices> BuildIndices(
+      Isolate* isolate, Handle<RegExpMatchInfo> match_info,
+      Handle<Object> maybe_names);
+
+  // Indices of in-object properties.
+  static const int kGroupsIndex = 0;
+  static const int kInObjectPropertyCount = 1;
+
+  // Descriptor index of groups.
+  static const int kGroupsDescriptorIndex = 1;
+
+  OBJECT_CONSTRUCTORS(JSRegExpResultIndices, JSArray);
 };
 
 }  // namespace internal
