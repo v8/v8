@@ -974,6 +974,9 @@ class MapData : public HeapObjectData {
   bool IsMapOfCurrentGlobalProxy() const {
     return is_map_of_current_global_proxy_;
   }
+  bool is_abandoned_prototype_map() const {
+    return is_abandoned_prototype_map_;
+  }
 
   // Extra information.
 
@@ -991,6 +994,9 @@ class MapData : public HeapObjectData {
   DescriptorArrayData* instance_descriptors() const {
     return instance_descriptors_;
   }
+
+  void SerializeRootMap(JSHeapBroker* broker);
+  MapData* FindRootMap() const;
 
   void SerializeConstructor(JSHeapBroker* broker);
   ObjectData* GetConstructor() const {
@@ -1031,6 +1037,7 @@ class MapData : public HeapObjectData {
   bool const supports_fast_array_iteration_;
   bool const supports_fast_array_resize_;
   bool const is_map_of_current_global_proxy_;
+  bool const is_abandoned_prototype_map_;
 
   bool serialized_elements_kind_generalizations_ = false;
   ZoneVector<MapData*> elements_kind_generalizations_;
@@ -1046,6 +1053,9 @@ class MapData : public HeapObjectData {
 
   bool serialized_prototype_ = false;
   ObjectData* prototype_ = nullptr;
+
+  bool serialized_root_map_ = false;
+  MapData* root_map_ = nullptr;
 
   bool serialized_for_element_load_ = false;
 
@@ -1155,6 +1165,7 @@ MapData::MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object)
           SupportsFastArrayResize(broker->isolate(), object)),
       is_map_of_current_global_proxy_(
           object->IsMapOfGlobalProxy(broker->isolate()->native_context())),
+      is_abandoned_prototype_map_(object->is_abandoned_prototype_map()),
       elements_kind_generalizations_(broker->zone()) {}
 
 JSFunctionData::JSFunctionData(JSHeapBroker* broker, ObjectData** storage,
@@ -2008,6 +2019,19 @@ void MapData::SerializeOwnDescriptor(JSHeapBroker* broker,
                                      << instance_descriptors_ << " ("
                                      << contents.size() << " total)");
 }
+
+void MapData::SerializeRootMap(JSHeapBroker* broker) {
+  if (serialized_root_map_) return;
+  serialized_root_map_ = true;
+
+  TraceScope tracer(broker, this, "MapData::SerializeRootMap");
+  Handle<Map> map = Handle<Map>::cast(object());
+  DCHECK_NULL(root_map_);
+  root_map_ =
+      broker->GetOrCreateData(map->FindRootMap(broker->isolate()))->AsMap();
+}
+
+MapData* MapData::FindRootMap() const { return root_map_; }
 
 void JSObjectData::SerializeRecursiveAsBoilerplate(JSHeapBroker* broker,
                                                    int depth) {
@@ -3091,6 +3115,7 @@ BIMODAL_ACCESSOR(Map, HeapObject, prototype)
 BIMODAL_ACCESSOR_C(Map, InstanceType, instance_type)
 BIMODAL_ACCESSOR(Map, Object, GetConstructor)
 BIMODAL_ACCESSOR(Map, HeapObject, GetBackPointer)
+BIMODAL_ACCESSOR_C(Map, bool, is_abandoned_prototype_map)
 
 #define DEF_NATIVE_CONTEXT_ACCESSOR(type, name) \
   BIMODAL_ACCESSOR(NativeContext, type, name)
@@ -3226,6 +3251,26 @@ ObjectRef MapRef::GetStrongValue(int descriptor_index) const {
                             broker()->isolate()));
   }
   return ObjectRef(broker(), data()->AsMap()->GetStrongValue(descriptor_index));
+}
+
+void MapRef::SerializeRootMap() {
+  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  data()->AsMap()->SerializeRootMap(broker());
+}
+
+base::Optional<MapRef> MapRef::FindRootMap() const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleDereference allow_handle_dereference;
+    return MapRef(broker(), handle(object()->FindRootMap(broker()->isolate()),
+                                   broker()->isolate()));
+  }
+  MapData* map_data = data()->AsMap()->FindRootMap();
+  if (map_data) {
+    return MapRef(broker(), map_data);
+  }
+  TRACE_BROKER_MISSING(broker(), "root map for object " << object());
+  return base::nullopt;
 }
 
 void* JSTypedArrayRef::external_pointer() const {
@@ -4401,7 +4446,10 @@ ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
   MapHandles possible_transition_targets;
   possible_transition_targets.reserve(maps.size());
   for (Handle<Map> map : maps) {
-    if (CanInlineElementAccess(MapRef(this, map)) &&
+    MapRef map_ref(this, map);
+    map_ref.SerializeRootMap();
+
+    if (CanInlineElementAccess(map_ref) &&
         IsFastElementsKind(map->elements_kind()) &&
         GetInitialFastElementsKind() != map->elements_kind()) {
       possible_transition_targets.push_back(map);

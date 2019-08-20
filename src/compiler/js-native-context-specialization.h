@@ -231,7 +231,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
 
   // Try to infer a root map for the {receiver} independent of the current
   // program location.
-  MaybeHandle<Map> InferReceiverRootMap(Node* receiver) const;
+  base::Optional<MapRef> InferReceiverRootMap(Node* receiver) const;
 
   // Checks if we know at compile time that the {receiver} either definitely
   // has the {prototype} in it's prototype chain, or the {receiver} definitely
