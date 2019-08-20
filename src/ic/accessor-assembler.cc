@@ -302,7 +302,10 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
   TNode<IntPtrT> handler_kind =
       Signed(DecodeWord<LoadHandler::KindBits>(handler_word));
   if (support_elements == kSupportElements) {
-    Label if_element(this), if_indexed_string(this), if_property(this);
+    TVARIABLE(IntPtrT, var_intptr_index);
+    Label if_element(this), if_indexed_string(this), if_property(this),
+        if_hole(this), unimplemented_elements_kind(this),
+        if_oob(this, Label::kDeferred);
     GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kElement)),
            &if_element);
 
@@ -318,18 +321,18 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
     }
 
     BIND(&if_element);
-    Comment("element_load");
-    Node* intptr_index = TryToIntptr(p->name(), miss);
-    Node* is_jsarray_condition =
-        IsSetWord<LoadHandler::IsJsArrayBits>(handler_word);
-    Node* elements_kind =
-        DecodeWord32FromWord<LoadHandler::ElementsKindBits>(handler_word);
-    Label if_hole(this), unimplemented_elements_kind(this),
-        if_oob(this, Label::kDeferred);
-    EmitElementLoad(holder, elements_kind, intptr_index, is_jsarray_condition,
-                    &if_hole, &rebox_double, &var_double_value,
-                    &unimplemented_elements_kind, &if_oob, miss, exit_point,
-                    access_mode);
+    {
+      Comment("element_load");
+      var_intptr_index = TryToIntptr(p->name(), miss);
+      Node* is_jsarray_condition =
+          IsSetWord<LoadHandler::IsJsArrayBits>(handler_word);
+      Node* elements_kind =
+          DecodeWord32FromWord<LoadHandler::ElementsKindBits>(handler_word);
+      EmitElementLoad(holder, elements_kind, var_intptr_index.value(),
+                      is_jsarray_condition, &if_hole, &rebox_double,
+                      &var_double_value, &unimplemented_elements_kind, &if_oob,
+                      miss, exit_point, access_mode);
+    }
 
     BIND(&unimplemented_elements_kind);
     {
@@ -355,7 +358,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
       // in case of typed arrays, where integer indexed properties
       // aren't looked up in the prototype chain.
       GotoIf(IsJSTypedArray(holder), &return_undefined);
-      GotoIf(IntPtrLessThan(intptr_index, IntPtrConstant(0)), miss);
+      GotoIf(IntPtrLessThan(var_intptr_index.value(), IntPtrConstant(0)), miss);
 
       // For all other receivers we need to check that the prototype chain
       // doesn't contain any elements.
