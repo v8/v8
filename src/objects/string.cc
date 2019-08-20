@@ -123,7 +123,7 @@ void String::MakeThin(Isolate* isolate, String internalized) {
   int size_delta = old_size - ThinString::kSize;
   if (size_delta != 0) {
     Heap* heap = isolate->heap();
-    heap->CreateFillerObjectAt(thin_end, size_delta, ClearRecordedSlots::kNo);
+    heap->CreateFillerObjectAt(thin_end, size_delta);
   }
 }
 
@@ -177,8 +177,8 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
   // Byte size of the external String object.
   int new_size = this->SizeFromMap(new_map);
-  isolate->heap()->CreateFillerObjectAt(
-      this->address() + new_size, size - new_size, ClearRecordedSlots::kNo);
+  isolate->heap()->CreateFillerObjectAt(this->address() + new_size,
+                                        size - new_size);
   if (has_pointers) {
     isolate->heap()->ClearRecordedSlotRange(this->address(),
                                             this->address() + new_size);
@@ -249,8 +249,8 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
 
   // Byte size of the external String object.
   int new_size = this->SizeFromMap(new_map);
-  isolate->heap()->CreateFillerObjectAt(
-      this->address() + new_size, size - new_size, ClearRecordedSlots::kNo);
+  isolate->heap()->CreateFillerObjectAt(this->address() + new_size,
+                                        size - new_size);
   if (has_pointers) {
     isolate->heap()->ClearRecordedSlotRange(this->address(),
                                             this->address() + new_size);
@@ -1405,8 +1405,7 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
   Heap* heap = Heap::FromWritableHeapObject(*string);
   // Sizes are pointer size aligned, so that we can use filler objects
   // that are a multiple of pointer size.
-  heap->CreateFillerObjectAt(start_of_string + new_size, delta,
-                             ClearRecordedSlots::kNo);
+  heap->CreateFillerObjectAt(start_of_string + new_size, delta);
   // We are storing the new length using release store after creating a filler
   // for the left-over space to avoid races with the sweeper thread.
   string->synchronized_set_length(new_length);
