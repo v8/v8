@@ -2342,7 +2342,8 @@ Local<Module> Module::CreateSyntheticModule(
   i::Handle<i::FixedArray> i_export_names = i_isolate->factory()->NewFixedArray(
       static_cast<int>(export_names.size()));
   for (int i = 0; i < i_export_names->length(); ++i) {
-    i::Handle<i::String> str = Utils::OpenHandle(*export_names[i]);
+    i::Handle<i::String> str = i_isolate->factory()->InternalizeString(
+        Utils::OpenHandle(*export_names[i]));
     i_export_names->set(i, *str);
   }
   return v8::Utils::ToLocal(
