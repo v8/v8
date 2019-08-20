@@ -409,6 +409,7 @@ class SerializerForBackgroundCompilation {
   PropertyAccessInfo ProcessMapForRegExpTest(MapRef map);
   void ProcessHintsForFunctionCall(Hints const& target_hints);
   void ProcessHintsForFunctionBind(Hints const& receiver_hints);
+  void ProcessHintsForObjectGetPrototype(Hints const& object_hints);
   void ProcessConstantForOrdinaryHasInstance(HeapObjectRef const& constructor,
                                              bool* walk_prototypes);
   void ProcessConstantForInstanceOf(ObjectRef const& constant,
@@ -1853,6 +1854,21 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
         ProcessHintsForFunctionBind(arguments[0]);
       }
       break;
+    case Builtins::kObjectGetPrototypeOf:
+    case Builtins::kReflectGetPrototypeOf:
+      if (arguments.size() >= 2) {
+        ProcessHintsForObjectGetPrototype(arguments[1]);
+      } else {
+        Hints undefined_hint = Hints::SingleConstant(
+            broker()->isolate()->factory()->undefined_value(), zone());
+        ProcessHintsForObjectGetPrototype(undefined_hint);
+      }
+      break;
+    case Builtins::kObjectPrototypeGetProto:
+      if (arguments.size() >= 1) {
+        ProcessHintsForObjectGetPrototype(arguments[0]);
+      }
+      break;
     default:
       break;
   }
@@ -1999,6 +2015,20 @@ void SerializerForBackgroundCompilation::ProcessHintsForFunctionBind(
     if (!map->IsJSFunctionMap()) continue;
     MapRef map_ref(broker(), map);
     ProcessMapForFunctionBind(map_ref);
+  }
+}
+
+void SerializerForBackgroundCompilation::ProcessHintsForObjectGetPrototype(
+    Hints const& object_hints) {
+  for (auto constant : object_hints.constants()) {
+    if (!constant->IsHeapObject()) continue;
+    HeapObjectRef object(broker(), constant);
+    object.map().SerializePrototype();
+  }
+
+  for (auto map : object_hints.maps()) {
+    MapRef map_ref(broker(), map);
+    map_ref.SerializePrototype();
   }
 }
 

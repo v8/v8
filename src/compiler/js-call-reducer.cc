@@ -180,6 +180,8 @@ Reduction JSCallReducer::ReduceMathMinMax(Node* node, const Operator* op,
 }
 
 Reduction JSCallReducer::Reduce(Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+
   switch (node->opcode()) {
     case IrOpcode::kJSConstruct:
       return ReduceJSConstruct(node);
@@ -616,13 +618,19 @@ Reduction JSCallReducer::ReduceObjectGetPrototype(Node* node, Node* object) {
   MapHandles const& object_maps = inference.GetMaps();
 
   MapRef candidate_map(broker(), object_maps[0]);
-  candidate_map.SerializePrototype();
+  if (FLAG_concurrent_inlining && !candidate_map.serialized_prototype()) {
+    TRACE_BROKER_MISSING(broker(), "prototype for map " << candidate_map);
+    return inference.NoChange();
+  }
   ObjectRef candidate_prototype = candidate_map.prototype();
 
   // Check if we can constant-fold the {candidate_prototype}.
   for (size_t i = 0; i < object_maps.size(); ++i) {
     MapRef object_map(broker(), object_maps[i]);
-    object_map.SerializePrototype();
+    if (FLAG_concurrent_inlining && !object_map.serialized_prototype()) {
+      TRACE_BROKER_MISSING(broker(), "prototype for map " << object_map);
+      return inference.NoChange();
+    }
     if (IsSpecialReceiverInstanceType(object_map.instance_type()) ||
         !object_map.prototype().equals(candidate_prototype)) {
       // We exclude special receivers, like JSProxy or API objects that
@@ -3228,10 +3236,6 @@ bool ShouldUseCallICFeedback(Node* node) {
 }  // namespace
 
 Reduction JSCallReducer::ReduceJSCall(Node* node) {
-  // TODO(mslekova): Remove once ReduceJSCall is brokerized.
-  AllowHandleDereference allow_handle_dereference;
-  AllowHandleAllocation allow_handle_allocation;
-
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
   Node* target = NodeProperties::GetValueInput(node, 0);
@@ -3725,17 +3729,13 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       break;
   }
 
-  if (shared.object()->IsApiFunction()) {
+  if (shared.function_template_info().has_value()) {
     return ReduceCallApiFunction(node, shared);
   }
   return NoChange();
 }
 
 Reduction JSCallReducer::ReduceJSCallWithArrayLike(Node* node) {
-  // TODO(mslekova): Remove once ReduceJSCallWithArrayLike is brokerized.
-  AllowHandleDereference allow_handle_dereference;
-  AllowHandleAllocation allow_handle_allocation;
-
   DCHECK_EQ(IrOpcode::kJSCallWithArrayLike, node->opcode());
   CallFrequency frequency = CallFrequencyOf(node->op());
   VectorSlotPair feedback;
@@ -3755,10 +3755,6 @@ Reduction JSCallReducer::ReduceJSCallWithSpread(Node* node) {
 }
 
 Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
-  // TODO(mslekova): Remove once ReduceJSConstruct is brokerized.
-  AllowHandleDereference allow_handle_dereference;
-  AllowHandleAllocation allow_handle_allocation;
-
   DCHECK_EQ(IrOpcode::kJSConstruct, node->opcode());
   ConstructParameters const& p = ConstructParametersOf(node->op());
   DCHECK_LE(2u, p.arity());
@@ -6260,8 +6256,13 @@ Reduction JSCallReducer::ReduceTypedArrayPrototypeToStringTag(Node* node) {
         jsgraph()->Constant(TYPE##_ELEMENTS -                          \
                             FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND));   \
     control = graph()->NewNode(common()->Branch(), check, control);    \
-    values.push_back(jsgraph()->HeapConstant(                          \
-        factory()->InternalizeUtf8String(#Type "Array")));             \
+    if (FLAG_concurrent_inlining) {                                    \
+      values.push_back(jsgraph()->Constant(                            \
+          broker()->GetTypedArrayStringTag(TYPE##_ELEMENTS)));         \
+    } else {                                                           \
+      values.push_back(jsgraph()->HeapConstant(                        \
+          factory()->InternalizeUtf8String(#Type "Array")));           \
+    }                                                                  \
     effects.push_back(effect);                                         \
     controls.push_back(graph()->NewNode(common()->IfTrue(), control)); \
     control = graph()->NewNode(common()->IfFalse(), control);          \
@@ -6503,9 +6504,10 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
     MapInference inference(broker(), receiver, effect);
     if (!inference.HaveMaps()) return NoChange();
     MapHandles const& receiver_maps = inference.GetMaps();
-    receiver_instance_type = receiver_maps[0]->instance_type();
+    receiver_instance_type = MapRef(broker(), receiver_maps[0]).instance_type();
     for (size_t i = 1; i < receiver_maps.size(); ++i) {
-      if (receiver_maps[i]->instance_type() != receiver_instance_type) {
+      if (MapRef(broker(), receiver_maps[i]).instance_type() !=
+          receiver_instance_type) {
         return inference.NoChange();
       }
     }

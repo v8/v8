@@ -185,6 +185,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       CompilationDependencies* dependencies,
       SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
 
+  StringRef GetTypedArrayStringTag(ElementsKind kind);
+
   std::ostream& Trace();
   void IncrementTracingIndentation();
   void DecrementTracingIndentation();
@@ -213,6 +215,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   void SerializeShareableObjects();
   void CollectArrayAndObjectPrototypes();
+  void SerializeTypedArrayStringTags();
 
   Isolate* const isolate_;
   Zone* const broker_zone_;
@@ -243,6 +246,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   ZoneUnorderedMap<PropertyAccessTarget, PropertyAccessInfo,
                    PropertyAccessTarget::Hash, PropertyAccessTarget::Equal>
       property_access_infos_;
+
+  ZoneVector<ObjectData*> typed_array_string_tags_;
 
   static const size_t kMinimalRefsBucketCount = 8;     // must be power of 2
   static const size_t kInitialRefsBucketCount = 1024;  // must be power of 2
