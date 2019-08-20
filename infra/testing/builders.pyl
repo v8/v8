@@ -1390,7 +1390,7 @@
       'os': 'Ubuntu-16.04',
     },
     'tests': [
-      {'name': 'mjsunit_sp_frame_access'},
+      {'name': 'mjsunit_sp_frame_access', 'shards': 4},
       {'name': 'mozilla'},
       {'name': 'test262'},
       {'name': 'v8testing', 'shards': 8},
