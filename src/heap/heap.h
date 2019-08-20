@@ -439,6 +439,8 @@ class Heap {
   V8_EXPORT_PRIVATE void RightTrimFixedArray(FixedArrayBase obj,
                                              int elements_to_trim);
   void RightTrimWeakFixedArray(WeakFixedArray obj, int elements_to_trim);
+  void RemoveRecordedSlotsAfterObjectShrinking(HeapObject object, int new_size,
+                                               int old_size);
 
   // Converts the given boolean condition to JavaScript boolean value.
   inline Oddball ToBoolean(bool condition);
