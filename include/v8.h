@@ -841,7 +841,24 @@ class TracedGlobal {
   /**
    * Move constructor initializing TracedGlobal from an existing one.
    */
-  V8_INLINE TracedGlobal(TracedGlobal&& other);
+  V8_INLINE TracedGlobal(TracedGlobal&& other) {
+    // Forward to operator=.
+    *this = std::move(other);
+  }
+
+  /**
+   * Move constructor initializing TracedGlobal from an existing one.
+   */
+  template <typename S>
+  V8_INLINE TracedGlobal(TracedGlobal<S>&& other) {
+    // Forward to operator=.
+    *this = std::move(other);
+  }
+
+  /**
+   * Move assignment operator initializing TracedGlobal from an existing one.
+   */
+  V8_INLINE TracedGlobal& operator=(TracedGlobal&& rhs);
 
   /**
    * Move assignment operator initializing TracedGlobal from an existing one.
@@ -10094,13 +10111,18 @@ void TracedGlobal<T>::Reset(Isolate* isolate, const Local<S>& other) {
 }
 
 template <class T>
-TracedGlobal<T>::TracedGlobal(TracedGlobal&& other) : val_(other.val_) {
-  if (other.val_ != nullptr) {
-    V8::MoveTracedGlobalReference(
-        reinterpret_cast<internal::Address**>(&other.val_),
-        reinterpret_cast<internal::Address**>(&this->val_));
-    other.val_ = nullptr;
+TracedGlobal<T>& TracedGlobal<T>::operator=(TracedGlobal&& rhs) {
+  if (this != &rhs) {
+    this->Reset();
+    if (rhs.val_ != nullptr) {
+      this->val_ = rhs.val_;
+      V8::MoveTracedGlobalReference(
+          reinterpret_cast<internal::Address**>(&rhs.val_),
+          reinterpret_cast<internal::Address**>(&this->val_));
+      rhs.val_ = nullptr;
+    }
   }
+  return *this;
 }
 
 template <class T>
