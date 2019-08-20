@@ -1516,6 +1516,49 @@ static Handle<SharedFunctionInfo> CompileScriptAndProduceCache(
   return sfi;
 }
 
+TEST(CodeSerializerWithProfiler) {
+  FLAG_enable_lazy_source_positions = true;
+
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
+
+  v8::HandleScope scope(CcTest::isolate());
+
+  const char* source = "1 + 1";
+
+  Handle<String> orig_source = isolate->factory()
+                                   ->NewStringFromUtf8(CStrVector(source))
+                                   .ToHandleChecked();
+  Handle<String> copy_source = isolate->factory()
+                                   ->NewStringFromUtf8(CStrVector(source))
+                                   .ToHandleChecked();
+  CHECK(!orig_source.is_identical_to(copy_source));
+  CHECK(orig_source->Equals(*copy_source));
+
+  ScriptData* cache = nullptr;
+
+  Handle<SharedFunctionInfo> orig = CompileScriptAndProduceCache(
+      isolate, orig_source, Handle<String>(), &cache,
+      v8::ScriptCompiler::kNoCompileOptions);
+
+  CHECK(!orig->GetBytecodeArray().HasSourcePositionTable());
+
+  isolate->set_is_profiling(true);
+
+  // This does not assert that no compilation can happen as source position
+  // collection could trigger it.
+  Handle<SharedFunctionInfo> copy =
+      CompileScript(isolate, copy_source, Handle<String>(), cache,
+                    v8::ScriptCompiler::kConsumeCodeCache);
+
+  // Since the profiler is now enabled, source positions should be collected
+  // after deserialization.
+  CHECK(copy->GetBytecodeArray().HasSourcePositionTable());
+
+  delete cache;
+}
+
 void TestCodeSerializerOnePlusOneImpl(bool verify_builtins_count = true) {
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
