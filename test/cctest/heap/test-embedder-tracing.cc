@@ -16,6 +16,13 @@
 #include "test/cctest/heap/heap-utils.h"
 
 namespace v8 {
+
+// See test below: TracedGlobalNoDestructor.
+template <>
+struct TracedGlobalTrait<v8::TracedGlobal<v8::Value>> {
+  static constexpr bool kRequiresExplicitDestruction = false;
+};
+
 namespace internal {
 namespace heap {
 
@@ -560,6 +567,74 @@ TEST(TracePrologueCallingIntoV8WriteBarrier) {
                                 std::move(global));
   heap::TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
   SimulateIncrementalMarking(CcTest::i_isolate()->heap());
+}
+
+namespace {
+
+bool all_zeroes(char* begin, size_t len) {
+  return std::all_of(begin, begin + len, [](char byte) { return byte == 0; });
+}
+
+}  // namespace
+
+TEST(TracedGlobalWithDestructor) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  TestEmbedderHeapTracer tracer;
+  heap::TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
+
+  void* first_field = reinterpret_cast<void*>(0x2);
+
+  char* memory = new char[sizeof(v8::TracedGlobal<v8::Object>)];
+  auto* traced = new (memory) v8::TracedGlobal<v8::Object>();
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Object> object(ConstructTraceableJSApiObject(
+        isolate->GetCurrentContext(), first_field, nullptr));
+    CHECK(traced->IsEmpty());
+    *traced = v8::TracedGlobal<v8::Object>(isolate, object);
+    CHECK(!traced->IsEmpty());
+  }
+
+  traced->~TracedGlobal<v8::Object>();
+  // Note: The following checks refer to the implementation detail that a
+  // cleared handle is zeroed out.
+  CHECK(all_zeroes(memory, sizeof(v8::TracedGlobal<v8::Object>)));
+  heap::InvokeMarkSweep();
+  CHECK(all_zeroes(memory, sizeof(v8::TracedGlobal<v8::Object>)));
+  delete[] memory;
+}
+
+TEST(TracedGlobalNoDestructor) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  TestEmbedderHeapTracer tracer;
+  heap::TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
+
+  void* first_field = reinterpret_cast<void*>(0x2);
+
+  char* memory = new char[sizeof(v8::TracedGlobal<v8::Value>)];
+  auto* traced = new (memory) v8::TracedGlobal<v8::Value>();
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Value> object(ConstructTraceableJSApiObject(
+        isolate->GetCurrentContext(), first_field, nullptr));
+    CHECK(traced->IsEmpty());
+    *traced = v8::TracedGlobal<v8::Value>(isolate, object);
+    CHECK(!traced->IsEmpty());
+  }
+
+  traced->~TracedGlobal<v8::Value>();
+  // Note: The following checks refer to the implementation detail that a
+  // cleared handle is zeroed out.
+  CHECK(!all_zeroes(memory, sizeof(v8::TracedGlobal<v8::Value>)));
+  heap::InvokeMarkSweep();
+  CHECK(all_zeroes(memory, sizeof(v8::TracedGlobal<v8::Value>)));
+  delete[] memory;
 }
 
 }  // namespace heap

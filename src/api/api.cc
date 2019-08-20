@@ -10314,8 +10314,7 @@ void EmbedderHeapTracer::RegisterEmbedderReference(
   if (ref.IsEmpty()) return;
 
   i::Heap* const heap = reinterpret_cast<i::Isolate*>(isolate_)->heap();
-  heap->RegisterExternallyReferencedObject(
-      reinterpret_cast<i::Address*>(ref.val_));
+  heap->RegisterExternallyReferencedObject(reinterpret_cast<i::Address*>(*ref));
 }
 
 void EmbedderHeapTracer::IterateTracedGlobalHandles(
