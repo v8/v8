@@ -108,13 +108,12 @@ V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<NameAndExpression>::id =
         ParseResultTypeId::kNameAndExpression;
 template <>
-V8_EXPORT_PRIVATE const ParseResultTypeId
-    ParseResultHolder<ConditionalAnnotation>::id =
-        ParseResultTypeId::kConditionalAnnotation;
+V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<Annotation>::id =
+    ParseResultTypeId::kAnnotation;
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
-    ParseResultHolder<base::Optional<ConditionalAnnotation>>::id =
-        ParseResultTypeId::kOptionalConditionalAnnotation;
+    ParseResultHolder<std::vector<Annotation>>::id =
+        ParseResultTypeId::kVectorOfAnnotation;
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<ClassFieldExpression>::id =
@@ -661,30 +660,57 @@ base::Optional<ParseResult> MakeMethodDeclaration(
 class AnnotationSet {
  public:
   AnnotationSet(ParseResultIterator* iter,
-                const std::set<std::string>& allowed) {
-    auto list = iter->NextAs<std::vector<Identifier*>>();
-    for (const Identifier* i : list) {
-      if (allowed.find(i->value) == allowed.end()) {
-        Lint("Annotation ", i->value, " is not allowed here").Position(i->pos);
-      }
-      if (!set_.insert(i->value).second) {
-        Lint("Duplicate annotation ", i->value).Position(i->pos);
+                const std::set<std::string>& allowed_without_param,
+                const std::set<std::string>& allowed_with_param) {
+    auto list = iter->NextAs<std::vector<Annotation>>();
+    for (const Annotation& a : list) {
+      if (a.param.has_value()) {
+        if (allowed_with_param.find(a.name->value) ==
+            allowed_with_param.end()) {
+          const char* error_message =
+              allowed_without_param.find(a.name->value) ==
+                      allowed_without_param.end()
+                  ? " is not allowed here"
+                  : " cannot have parameter here";
+          Lint("Annotation ", a.name->value, error_message)
+              .Position(a.name->pos);
+        }
+        map_[a.name->value].push_back(*a.param);
+      } else {
+        if (allowed_without_param.find(a.name->value) ==
+            allowed_without_param.end()) {
+          const char* error_message =
+              allowed_with_param.find(a.name->value) == allowed_with_param.end()
+                  ? " is not allowed here"
+                  : " requires a parameter here";
+          Lint("Annotation ", a.name->value, error_message)
+              .Position(a.name->pos);
+        }
+        if (!set_.insert(a.name->value).second) {
+          Lint("Duplicate annotation ", a.name->value).Position(a.name->pos);
+        }
       }
     }
   }
 
   bool Contains(const std::string& s) { return set_.find(s) != set_.end(); }
+  const std::vector<std::string>& GetParams(const std::string& s) {
+    return map_[s];
+  }
 
  private:
   std::set<std::string> set_;
+  std::map<std::string, std::vector<std::string>> map_;
 };
 
 base::Optional<ParseResult> MakeClassDeclaration(
     ParseResultIterator* child_results) {
   AnnotationSet annotations(
-      child_results, {"@generatePrint", "@noVerifier", "@abstract",
-                      "@dirtyInstantiatedAbstractClass",
-                      "@hasSameInstanceTypeAsParent", "@generateCppClass"});
+      child_results,
+      {"@generatePrint", "@noVerifier", "@abstract",
+       "@dirtyInstantiatedAbstractClass", "@hasSameInstanceTypeAsParent",
+       "@generateCppClass"},
+      {});
   ClassFlags flags = ClassFlag::kNone;
   bool generate_print = annotations.Contains("@generatePrint");
   if (generate_print) flags |= ClassFlag::kGeneratePrint;
@@ -720,15 +746,18 @@ base::Optional<ParseResult> MakeClassDeclaration(
 
   // Filter to only include fields that should be present based on decoration.
   std::vector<ClassFieldExpression> fields;
-  std::copy_if(fields_raw.begin(), fields_raw.end(), std::back_inserter(fields),
-               [](const ClassFieldExpression& exp) {
-                 if (!exp.conditional.has_value()) return true;
-                 const ConditionalAnnotation& conditional = *exp.conditional;
-                 return conditional.type == ConditionalAnnotationType::kPositive
-                            ? BuildFlags::GetFlag(conditional.condition, "@if")
-                            : !BuildFlags::GetFlag(conditional.condition,
-                                                   "@ifnot");
-               });
+  std::copy_if(
+      fields_raw.begin(), fields_raw.end(), std::back_inserter(fields),
+      [](const ClassFieldExpression& exp) {
+        for (const ConditionalAnnotation& condition : exp.conditions) {
+          if (condition.type == ConditionalAnnotationType::kPositive
+                  ? !BuildFlags::GetFlag(condition.condition, "@if")
+                  : BuildFlags::GetFlag(condition.condition, "@ifnot")) {
+            return false;
+          }
+        }
+        return true;
+      });
 
   Declaration* result = MakeNode<ClassDeclaration>(
       name, flags, std::move(extends), std::move(generates), std::move(methods),
@@ -1322,22 +1351,22 @@ base::Optional<ParseResult> MakeNameAndExpressionFromExpression(
   ReportError("Constructor parameters need to be named.");
 }
 
-base::Optional<ParseResult> MakeConditionalAnnotation(
-    ParseResultIterator* child_results) {
-  auto type_str = child_results->NextAs<Identifier*>()->value;
-  DCHECK(type_str == "@if" || type_str == "@ifnot");
-  ConditionalAnnotationType type = type_str == "@if"
-                                       ? ConditionalAnnotationType::kPositive
-                                       : ConditionalAnnotationType::kNegative;
-  auto condition = child_results->NextAs<std::string>();
-  return ParseResult{ConditionalAnnotation{condition, type}};
+base::Optional<ParseResult> MakeAnnotation(ParseResultIterator* child_results) {
+  return ParseResult{
+      Annotation{child_results->NextAs<Identifier*>(),
+                 child_results->NextAs<base::Optional<std::string>>()}};
 }
 
 base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
-  auto conditional =
-      child_results->NextAs<base::Optional<ConditionalAnnotation>>();
-  AnnotationSet annotations(child_results, {"@noVerifier"});
+  AnnotationSet annotations(child_results, {"@noVerifier"}, {"@if", "@ifnot"});
   bool generate_verify = !annotations.Contains("@noVerifier");
+  std::vector<ConditionalAnnotation> conditions;
+  for (const std::string& condition : annotations.GetParams("@if")) {
+    conditions.push_back({condition, ConditionalAnnotationType::kPositive});
+  }
+  for (const std::string& condition : annotations.GetParams("@ifnot")) {
+    conditions.push_back({condition, ConditionalAnnotationType::kNegative});
+  }
   auto weak = child_results->NextAs<bool>();
   auto const_qualified = child_results->NextAs<bool>();
   auto name = child_results->NextAs<Identifier*>();
@@ -1345,7 +1374,7 @@ base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
   auto type = child_results->NextAs<TypeExpression*>();
   return ParseResult{ClassFieldExpression{{name, type},
                                           index,
-                                          conditional,
+                                          std::move(conditions),
                                           weak,
                                           const_qualified,
                                           generate_verify}};
@@ -1474,11 +1503,8 @@ struct TorqueGrammar : Grammar {
   Symbol name = {Rule({&identifier}, MakeIdentifier)};
 
   // Result: Identifier*
-  Symbol annotation = {
+  Symbol annotationName = {
       Rule({Pattern(MatchAnnotation)}, MakeIdentifierFromMatchedInput)};
-
-  // Result: std::vector<Identifier*>
-  Symbol* annotations = List<Identifier*>(&annotation);
 
   // Result: std::string
   Symbol intrinsicName = {
@@ -1495,6 +1521,22 @@ struct TorqueGrammar : Grammar {
   Symbol decimalLiteral = {
       Rule({Pattern(MatchDecimalLiteral)}, YieldMatchedInput),
       Rule({Pattern(MatchHexLiteral)}, YieldMatchedInput)};
+
+  // Result: std::string
+  Symbol annotationParameter = {Rule({&identifier}), Rule({&decimalLiteral}),
+                                Rule({&externalString})};
+
+  // Result: std::string
+  Symbol annotationParameters = {
+      Rule({Token("("), &annotationParameter, Token(")")})};
+
+  // Result: Annotation
+  Symbol annotation = {
+      Rule({&annotationName, Optional<std::string>(&annotationParameters)},
+           MakeAnnotation)};
+
+  // Result: std::vector<Annotation>
+  Symbol* annotations = List<Annotation>(&annotation);
 
   // Result: TypeList
   Symbol* typeList = List<TypeExpression*>(&type, Token(","));
@@ -1573,14 +1615,8 @@ struct TorqueGrammar : Grammar {
   Symbol* optionalArraySpecifier =
       Optional<std::string>(Sequence({Token("["), &identifier, Token("]")}));
 
-  // Result: ConditionalAnnotation
-  Symbol conditionalAnnotation = {
-      Rule({OneOf({"@if", "@ifnot"}), Token("("), &identifier, Token(")")},
-           MakeConditionalAnnotation)};
-
   Symbol classField = {
-      Rule({Optional<ConditionalAnnotation>(&conditionalAnnotation),
-            annotations, CheckIf(Token("weak")), CheckIf(Token("const")), &name,
+      Rule({annotations, CheckIf(Token("weak")), CheckIf(Token("const")), &name,
             optionalArraySpecifier, Token(":"), &type, Token(";")},
            MakeClassField)};
 

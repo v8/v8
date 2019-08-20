@@ -841,10 +841,15 @@ struct ConditionalAnnotation {
   ConditionalAnnotationType type;
 };
 
+struct Annotation {
+  Identifier* name;
+  base::Optional<std::string> param;
+};
+
 struct ClassFieldExpression {
   NameAndTypeExpression name_and_type;
   base::Optional<std::string> index;
-  base::Optional<ConditionalAnnotation> conditional;
+  std::vector<ConditionalAnnotation> conditions;
   bool weak;
   bool const_qualified;
   bool generate_verify;
