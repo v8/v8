@@ -384,10 +384,6 @@ DEFINE_BOOL(feedback_normalization, false,
 DEFINE_BOOL_READONLY(internalize_on_the_fly, true,
                      "internalize string keys for generic keyed ICs on the fly")
 
-// Flag to faster calls with arguments mismatches (https://crbug.com/v8/8895)
-DEFINE_BOOL(fast_calls_with_arguments_mismatches, true,
-            "skip arguments adaptor frames when it's provably safe")
-
 // Flag for one shot optimiztions.
 DEFINE_BOOL(enable_one_shot_optimization, true,
             "Enable size optimizations for the code that will "

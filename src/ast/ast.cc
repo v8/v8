@@ -217,13 +217,7 @@ bool FunctionLiteral::AllowsLazyCompilation() {
 }
 
 bool FunctionLiteral::SafeToSkipArgumentsAdaptor() const {
-  // TODO(bmeurer,verwaest): The --fast_calls_with_arguments_mismatches
-  // is mostly here for checking the real-world impact of the calling
-  // convention. There's not really a point in turning off this flag
-  // otherwise, so we should remove it at some point, when we're done
-  // with the experiments (https://crbug.com/v8/8895).
-  return FLAG_fast_calls_with_arguments_mismatches &&
-         language_mode() == LanguageMode::kStrict &&
+  return language_mode() == LanguageMode::kStrict &&
          scope()->arguments() == nullptr &&
          scope()->rest_parameter() == nullptr;
 }
