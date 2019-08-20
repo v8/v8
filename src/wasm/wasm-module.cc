@@ -150,15 +150,46 @@ Handle<String> ToValueTypeString(Isolate* isolate, ValueType type) {
 
 }  // namespace
 
+Handle<JSObject> GetTypeForFunction(Isolate* isolate, FunctionSig* sig) {
+  Factory* factory = isolate->factory();
+
+  // Extract values for the {ValueType[]} arrays.
+  int param_index = 0;
+  int param_count = static_cast<int>(sig->parameter_count());
+  Handle<FixedArray> param_values = factory->NewFixedArray(param_count);
+  for (ValueType type : sig->parameters()) {
+    Handle<String> type_value = ToValueTypeString(isolate, type);
+    param_values->set(param_index++, *type_value);
+  }
+  int result_index = 0;
+  int result_count = static_cast<int>(sig->return_count());
+  Handle<FixedArray> result_values = factory->NewFixedArray(result_count);
+  for (ValueType type : sig->returns()) {
+    Handle<String> type_value = ToValueTypeString(isolate, type);
+    result_values->set(result_index++, *type_value);
+  }
+
+  // Create the resulting {FunctionType} object.
+  Handle<JSFunction> object_function = isolate->object_function();
+  Handle<JSObject> object = factory->NewJSObject(object_function);
+  Handle<JSArray> params = factory->NewJSArrayWithElements(param_values);
+  Handle<JSArray> results = factory->NewJSArrayWithElements(result_values);
+  Handle<String> params_string = factory->InternalizeUtf8String("parameters");
+  Handle<String> results_string = factory->InternalizeUtf8String("results");
+  JSObject::AddProperty(isolate, object, params_string, params, NONE);
+  JSObject::AddProperty(isolate, object, results_string, results, NONE);
+
+  return object;
+}
+
 Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
                                   ValueType type) {
   Factory* factory = isolate->factory();
 
-  Handle<String> mutable_string = factory->InternalizeUtf8String("mutable");
-  Handle<String> value_string = factory->InternalizeUtf8String("value");
-
   Handle<JSFunction> object_function = isolate->object_function();
   Handle<JSObject> object = factory->NewJSObject(object_function);
+  Handle<String> mutable_string = factory->InternalizeUtf8String("mutable");
+  Handle<String> value_string = factory->InternalizeUtf8String("value");
   JSObject::AddProperty(isolate, object, mutable_string,
                         factory->ToBoolean(is_mutable), NONE);
   JSObject::AddProperty(isolate, object, value_string,
@@ -204,6 +235,10 @@ Handle<JSArray> GetImports(Isolate* isolate,
     Handle<JSObject> type_value;
     switch (import.kind) {
       case kExternalFunction:
+        if (enabled_features.type_reflection) {
+          auto& func = module->functions[import.index];
+          type_value = GetTypeForFunction(isolate, func.sig);
+        }
         import_kind = function_string;
         break;
       case kExternalTable:
@@ -284,6 +319,10 @@ Handle<JSArray> GetExports(Isolate* isolate,
     Handle<JSObject> type_value;
     switch (exp.kind) {
       case kExternalFunction:
+        if (enabled_features.type_reflection) {
+          auto& func = module->functions[exp.index];
+          type_value = GetTypeForFunction(isolate, func.sig);
+        }
         export_kind = function_string;
         break;
       case kExternalTable:

@@ -131,11 +131,13 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   let imports = WebAssembly.Module.imports(module);
 
   assertEquals("a", imports[0].name);
+  assertEquals("m", imports[0].module);
   assertTrue("type" in imports[0]);
   assertEquals("i32", imports[0].type.value);
   assertEquals(false, imports[0].type.mutable);
 
   assertEquals("b", imports[1].name);
+  assertEquals("m", imports[1].module);
   assertTrue("type" in imports[1]);
   assertEquals("f64", imports[1].type.value);
   assertEquals(true, imports[1].type.mutable);
@@ -339,6 +341,45 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
     let instance = builder.instantiate();
     let type = WebAssembly.Function.type(instance.exports.fun);
     assertEquals(expected, type)
+  });
+})();
+
+(function TestFunctionExports() {
+  let testcases = [
+    [kSig_v_v, {parameters:[], results:[]}],
+    [kSig_v_i, {parameters:["i32"], results:[]}],
+    [kSig_i_l, {parameters:["i64"], results:["i32"]}],
+    [kSig_v_ddi, {parameters:["f64", "f64", "i32"], results:[]}],
+    [kSig_f_f, {parameters:["f32"], results:["f32"]}],
+  ];
+  testcases.forEach(function([sig, expected]) {
+    let builder = new WasmModuleBuilder();
+    builder.addFunction("fun", sig).addBody([kExprUnreachable]).exportFunc();
+    let module = new WebAssembly.Module(builder.toBuffer());
+    let exports = WebAssembly.Module.exports(module);
+    assertEquals("fun", exports[0].name);
+    assertTrue("type" in exports[0]);
+    assertEquals(expected, exports[0].type);
+  });
+})();
+
+(function TestFunctionImports() {
+  let testcases = [
+    [kSig_v_v, {parameters:[], results:[]}],
+    [kSig_v_i, {parameters:["i32"], results:[]}],
+    [kSig_i_l, {parameters:["i64"], results:["i32"]}],
+    [kSig_v_ddi, {parameters:["f64", "f64", "i32"], results:[]}],
+    [kSig_f_f, {parameters:["f32"], results:["f32"]}],
+  ];
+  testcases.forEach(function([sig, expected]) {
+    let builder = new WasmModuleBuilder();
+    builder.addImport("m", "fun", sig);
+    let module = new WebAssembly.Module(builder.toBuffer());
+    let imports = WebAssembly.Module.imports(module);
+    assertEquals("fun", imports[0].name);
+    assertEquals("m", imports[0].module);
+    assertTrue("type" in imports[0]);
+    assertEquals(expected, imports[0].type);
   });
 })();
 

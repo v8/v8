@@ -1495,39 +1495,6 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
-// Converts the given {type} into a string representation that can be used in
-// reflective functions. Should be kept in sync with the {GetValueType} helper.
-// TODO(mstarzinger): Remove once {WebAssemblyFunctionType} has been ported to
-// use the internal API instead.
-Local<String> ToValueTypeString(Isolate* isolate, i::wasm::ValueType type) {
-  Local<String> string;
-  switch (type) {
-    case i::wasm::kWasmI32: {
-      string = v8_str(isolate, "i32");
-      break;
-    }
-    case i::wasm::kWasmI64: {
-      string = v8_str(isolate, "i64");
-      break;
-    }
-    case i::wasm::kWasmF32: {
-      string = v8_str(isolate, "f32");
-      break;
-    }
-    case i::wasm::kWasmF64: {
-      string = v8_str(isolate, "f64");
-      break;
-    }
-    case i::wasm::kWasmAnyRef: {
-      string = v8_str(isolate, "anyref");
-      break;
-    }
-    default:
-      UNREACHABLE();
-  }
-  return string;
-}
-
 // WebAssembly.Function.type(WebAssembly.Function) -> FunctionType
 void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
@@ -1547,36 +1514,8 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  // Extract values for the {ValueType[]} arrays.
-  size_t param_index = 0;
-  i::ScopedVector<Local<Value>> param_values(sig->parameter_count());
-  for (i::wasm::ValueType type : sig->parameters()) {
-    param_values[param_index++] = ToValueTypeString(isolate, type);
-  }
-  size_t result_index = 0;
-  i::ScopedVector<Local<Value>> result_values(sig->return_count());
-  for (i::wasm::ValueType type : sig->returns()) {
-    result_values[result_index++] = ToValueTypeString(isolate, type);
-  }
-
-  // Create the resulting {FunctionType} object.
-  Local<Object> ret = v8::Object::New(isolate);
-  Local<Context> context = isolate->GetCurrentContext();
-  Local<Array> params =
-      v8::Array::New(isolate, param_values.begin(), param_values.size());
-  if (!ret->CreateDataProperty(context, v8_str(isolate, "parameters"), params)
-           .IsJust()) {
-    return;
-  }
-  Local<Array> results =
-      v8::Array::New(isolate, result_values.begin(), result_values.size());
-  if (!ret->CreateDataProperty(context, v8_str(isolate, "results"), results)
-           .IsJust()) {
-    return;
-  }
-
-  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
-  return_value.Set(ret);
+  auto type = i::wasm::GetTypeForFunction(i_isolate, sig);
+  args.GetReturnValue().Set(Utils::ToLocal(type));
 }
 
 constexpr const char* kName_WasmGlobalObject = "WebAssembly.Global";
