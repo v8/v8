@@ -1391,7 +1391,7 @@
     },
     'tests': [
       {'name': 'mjsunit_sp_frame_access', 'shards': 4},
-      {'name': 'mozilla'},
+      {'name': 'mozilla', 'shards': 4},
       {'name': 'test262'},
       {'name': 'v8testing', 'shards': 8},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 4},
