@@ -6920,7 +6920,7 @@ CallDescriptor* GetWasmCallDescriptor(
                                 wasm::kFpReturnRegisters);
 
   int parameter_slots = params.NumStackSlots();
-  if (kPadArguments) parameter_slots = RoundUp(parameter_slots, 2);
+  if (ShouldPadArguments(parameter_slots)) parameter_slots++;
 
   rets.SetStackOffset(parameter_slots);
 

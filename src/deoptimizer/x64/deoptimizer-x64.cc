@@ -220,8 +220,6 @@ Float32 RegisterValues::GetFloatRegister(unsigned n) const {
       static_cast<uint32_t>(double_registers_[n].get_bits()));
 }
 
-bool Deoptimizer::PadTopOfStackRegister() { return false; }
-
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
   if (kPCOnStackSize == 2 * kSystemPointerSize) {
     // Zero out the high-32 bit of PC for x32 port.

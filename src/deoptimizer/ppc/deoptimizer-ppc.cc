@@ -224,8 +224,6 @@ Float32 RegisterValues::GetFloatRegister(unsigned n) const {
   return Float32::FromBits(bit_cast<uint32_t>(float_val));
 }
 
-bool Deoptimizer::PadTopOfStackRegister() { return false; }
-
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
   SetFrameSlot(offset, value);
 }

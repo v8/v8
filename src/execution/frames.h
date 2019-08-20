@@ -1313,6 +1313,140 @@ class SafeStackFrameIterator : public StackFrameIteratorBase {
   ExternalCallbackScope* external_callback_scope_;
   Address top_link_register_;
 };
+
+// Frame layout helper classes. Used by the deoptimizer and instruction
+// selector.
+// -------------------------------------------------------------------------
+
+// How to calculate the frame layout information. Precise, when all information
+// is available during deoptimization. Conservative, when an overapproximation
+// is fine.
+enum class FrameInfoKind {
+  kPrecise,
+  kConservative,
+};
+
+// Used by the deoptimizer. Corresponds to frame kinds:
+enum class BuiltinContinuationMode {
+  STUB,                        // BuiltinContinuationFrame
+  JAVASCRIPT,                  // JavaScriptBuiltinContinuationFrame
+  JAVASCRIPT_WITH_CATCH,       // JavaScriptBuiltinContinuationWithCatchFrame
+  JAVASCRIPT_HANDLE_EXCEPTION  // JavaScriptBuiltinContinuationWithCatchFrame
+};
+
+class InterpretedFrameInfo {
+ public:
+  // Note: parameters_count includes the receiver, it's thus equal to
+  // `SharedFunctionInfo::internal_formal_parameter_count + 1`.
+  static InterpretedFrameInfo Precise(int parameters_count_with_receiver,
+                                      int translation_height, bool is_topmost) {
+    return {parameters_count_with_receiver, translation_height, is_topmost,
+            FrameInfoKind::kPrecise};
+  }
+
+  uint32_t register_stack_slot_count() const {
+    return register_stack_slot_count_;
+  }
+  uint32_t frame_size_in_bytes_without_fixed() const {
+    return frame_size_in_bytes_without_fixed_;
+  }
+  uint32_t frame_size_in_bytes() const { return frame_size_in_bytes_; }
+
+ private:
+  InterpretedFrameInfo(int parameters_count_with_receiver,
+                       int translation_height, bool is_topmost,
+                       FrameInfoKind frame_info_kind);
+
+  uint32_t register_stack_slot_count_;
+  uint32_t frame_size_in_bytes_without_fixed_;
+  uint32_t frame_size_in_bytes_;
+};
+
+class ArgumentsAdaptorFrameInfo {
+ public:
+  static ArgumentsAdaptorFrameInfo Precise(int translation_height) {
+    return ArgumentsAdaptorFrameInfo{translation_height};
+  }
+
+  uint32_t frame_size_in_bytes_without_fixed() const {
+    return frame_size_in_bytes_without_fixed_;
+  }
+  uint32_t frame_size_in_bytes() const { return frame_size_in_bytes_; }
+
+ private:
+  explicit ArgumentsAdaptorFrameInfo(int translation_height);
+
+  uint32_t frame_size_in_bytes_without_fixed_;
+  uint32_t frame_size_in_bytes_;
+};
+
+class ConstructStubFrameInfo {
+ public:
+  static ConstructStubFrameInfo Precise(int translation_height,
+                                        bool is_topmost) {
+    return {translation_height, is_topmost, FrameInfoKind::kPrecise};
+  }
+
+  uint32_t frame_size_in_bytes_without_fixed() const {
+    return frame_size_in_bytes_without_fixed_;
+  }
+  uint32_t frame_size_in_bytes() const { return frame_size_in_bytes_; }
+
+ private:
+  ConstructStubFrameInfo(int translation_height, bool is_topmost,
+                         FrameInfoKind frame_info_kind);
+
+  uint32_t frame_size_in_bytes_without_fixed_;
+  uint32_t frame_size_in_bytes_;
+};
+
+// Used by BuiltinContinuationFrameInfo.
+class CallInterfaceDescriptor;
+class RegisterConfiguration;
+
+class BuiltinContinuationFrameInfo {
+ public:
+  static BuiltinContinuationFrameInfo Precise(
+      int translation_height,
+      const CallInterfaceDescriptor& continuation_descriptor,
+      const RegisterConfiguration* register_config, bool is_topmost,
+      DeoptimizeKind deopt_kind, BuiltinContinuationMode continuation_mode) {
+    return {translation_height,
+            continuation_descriptor,
+            register_config,
+            is_topmost,
+            deopt_kind,
+            continuation_mode,
+            FrameInfoKind::kPrecise};
+  }
+
+  bool frame_has_result_stack_slot() const {
+    return frame_has_result_stack_slot_;
+  }
+  uint32_t translated_stack_parameter_count() const {
+    return translated_stack_parameter_count_;
+  }
+  uint32_t stack_parameter_count() const { return stack_parameter_count_; }
+  uint32_t frame_size_in_bytes() const { return frame_size_in_bytes_; }
+  uint32_t frame_size_in_bytes_above_fp() const {
+    return frame_size_in_bytes_above_fp_;
+  }
+
+ private:
+  BuiltinContinuationFrameInfo(
+      int translation_height,
+      const CallInterfaceDescriptor& continuation_descriptor,
+      const RegisterConfiguration* register_config, bool is_topmost,
+      DeoptimizeKind deopt_kind, BuiltinContinuationMode continuation_mode,
+      FrameInfoKind frame_info_kind);
+
+  bool frame_has_result_stack_slot_;
+  uint32_t translated_stack_parameter_count_;
+  uint32_t stack_parameter_count_;
+  uint32_t frame_size_in_bytes_;
+  uint32_t frame_size_in_bytes_above_fp_;
+};
+
 }  // namespace internal
 }  // namespace v8
 

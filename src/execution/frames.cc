@@ -8,6 +8,7 @@
 #include <sstream>
 
 #include "src/base/bits.h"
+#include "src/codegen/interface-descriptors.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/safepoint-table.h"
@@ -2268,5 +2269,161 @@ InnerPointerToCodeCache::GetCacheEntry(Address inner_pointer) {
   }
   return entry;
 }
+
+// Frame layout helper class implementation.
+// -------------------------------------------------------------------------
+
+namespace {
+
+int ArgumentPaddingSlots(int arg_count) {
+  return ShouldPadArguments(arg_count) ? 1 : 0;
+}
+
+// Some architectures need to push padding together with the TOS register
+// in order to maintain stack alignment.
+constexpr int TopOfStackRegisterPaddingSlots() { return kPadArguments ? 1 : 0; }
+
+bool BuiltinContinuationModeIsWithCatch(BuiltinContinuationMode mode) {
+  switch (mode) {
+    case BuiltinContinuationMode::STUB:
+    case BuiltinContinuationMode::JAVASCRIPT:
+      return false;
+    case BuiltinContinuationMode::JAVASCRIPT_WITH_CATCH:
+    case BuiltinContinuationMode::JAVASCRIPT_HANDLE_EXCEPTION:
+      return true;
+  }
+  UNREACHABLE();
+}
+
+}  // namespace
+
+InterpretedFrameInfo::InterpretedFrameInfo(int parameters_count_with_receiver,
+                                           int translation_height,
+                                           bool is_topmost,
+                                           FrameInfoKind frame_info_kind) {
+  const int locals_count = translation_height;
+
+  register_stack_slot_count_ =
+      InterpreterFrameConstants::RegisterStackSlotCount(locals_count);
+
+  static constexpr int kTheAccumulator = 1;
+  static constexpr int kTopOfStackPadding = TopOfStackRegisterPaddingSlots();
+  int maybe_additional_slots =
+      (is_topmost || frame_info_kind == FrameInfoKind::kConservative)
+          ? (kTheAccumulator + kTopOfStackPadding)
+          : 0;
+  frame_size_in_bytes_without_fixed_ =
+      (register_stack_slot_count_ + maybe_additional_slots) *
+      kSystemPointerSize;
+
+  // The 'fixed' part of the frame consists of the incoming parameters and
+  // the part described by InterpreterFrameConstants. This will include
+  // argument padding, when needed.
+  const int parameter_padding_slots =
+      ArgumentPaddingSlots(parameters_count_with_receiver);
+  const int fixed_frame_size =
+      InterpreterFrameConstants::kFixedFrameSize +
+      (parameters_count_with_receiver + parameter_padding_slots) *
+          kSystemPointerSize;
+  frame_size_in_bytes_ = frame_size_in_bytes_without_fixed_ + fixed_frame_size;
+}
+
+ArgumentsAdaptorFrameInfo::ArgumentsAdaptorFrameInfo(int translation_height) {
+  // Note: This is according to the Translation's notion of 'parameters' which
+  // differs to that of the SharedFunctionInfo, e.g. by including the receiver.
+  const int parameters_count = translation_height;
+  frame_size_in_bytes_without_fixed_ =
+      (parameters_count + ArgumentPaddingSlots(parameters_count)) *
+      kSystemPointerSize;
+  frame_size_in_bytes_ = frame_size_in_bytes_without_fixed_ +
+                         ArgumentsAdaptorFrameConstants::kFixedFrameSize;
+}
+
+ConstructStubFrameInfo::ConstructStubFrameInfo(int translation_height,
+                                               bool is_topmost,
+                                               FrameInfoKind frame_info_kind) {
+  // TODO(jgruber): Support conservative frame layout calculation.
+  DCHECK_EQ(frame_info_kind, FrameInfoKind::kPrecise);
+
+  // Note: This is according to the Translation's notion of 'parameters' which
+  // differs to that of the SharedFunctionInfo, e.g. by including the receiver.
+  const int parameters_count = translation_height;
+
+  // If the construct frame appears to be topmost we should ensure that the
+  // value of result register is preserved during continuation execution.
+  // We do this here by "pushing" the result of the constructor function to
+  // the top of the reconstructed stack and popping it in
+  // {Builtins::kNotifyDeoptimized}.
+
+  static constexpr int kTopOfStackPadding = TopOfStackRegisterPaddingSlots();
+  static constexpr int kTheResult = 1;
+  const int argument_padding = ArgumentPaddingSlots(parameters_count);
+
+  const int adjusted_height = is_topmost ? parameters_count + argument_padding +
+                                               kTheResult + kTopOfStackPadding
+                                         : parameters_count + argument_padding;
+  frame_size_in_bytes_without_fixed_ = adjusted_height * kSystemPointerSize;
+  frame_size_in_bytes_ = frame_size_in_bytes_without_fixed_ +
+                         ConstructFrameConstants::kFixedFrameSize;
+}
+
+BuiltinContinuationFrameInfo::BuiltinContinuationFrameInfo(
+    int translation_height,
+    const CallInterfaceDescriptor& continuation_descriptor,
+    const RegisterConfiguration* register_config, bool is_topmost,
+    DeoptimizeKind deopt_kind, BuiltinContinuationMode continuation_mode,
+    FrameInfoKind frame_info_kind) {
+  // TODO(jgruber): Support conservative frame layout calculation.
+  DCHECK_EQ(frame_info_kind, FrameInfoKind::kPrecise);
+
+  // Note: This is according to the Translation's notion of 'parameters' which
+  // differs to that of the SharedFunctionInfo, e.g. by including the receiver.
+  const int parameters_count = translation_height;
+
+  frame_has_result_stack_slot_ =
+      !is_topmost || deopt_kind == DeoptimizeKind::kLazy;
+  const int result_slot_count = frame_has_result_stack_slot_ ? 1 : 0;
+
+  const int exception_slot_count =
+      (BuiltinContinuationModeIsWithCatch(continuation_mode) ? 1 : 0);
+
+  const int allocatable_register_count =
+      register_config->num_allocatable_general_registers();
+  const int padding_slot_count =
+      BuiltinContinuationFrameConstants::PaddingSlotCount(
+          allocatable_register_count);
+
+  const int register_parameter_count =
+      continuation_descriptor.GetRegisterParameterCount();
+  translated_stack_parameter_count_ =
+      parameters_count - register_parameter_count;
+  stack_parameter_count_ = translated_stack_parameter_count_ +
+                           result_slot_count + exception_slot_count;
+  const int stack_param_pad_count =
+      ArgumentPaddingSlots(stack_parameter_count_);
+
+  // If the builtins frame appears to be topmost we should ensure that the
+  // value of result register is preserved during continuation execution.
+  // We do this here by "pushing" the result of callback function to the
+  // top of the reconstructed stack and popping it in
+  // {Builtins::kNotifyDeoptimized}.
+  static constexpr int kTopOfStackPadding = TopOfStackRegisterPaddingSlots();
+  static constexpr int kTheResult = 1;
+  const int push_result_count =
+      is_topmost ? kTheResult + kTopOfStackPadding : 0;
+
+  frame_size_in_bytes_ =
+      kSystemPointerSize * (stack_parameter_count_ + stack_param_pad_count +
+                            allocatable_register_count + padding_slot_count +
+                            push_result_count) +
+      BuiltinContinuationFrameConstants::kFixedFrameSize;
+
+  frame_size_in_bytes_above_fp_ =
+      kSystemPointerSize * (allocatable_register_count + padding_slot_count +
+                            push_result_count) +
+      (BuiltinContinuationFrameConstants::kFixedFrameSize -
+       BuiltinContinuationFrameConstants::kFixedFrameSizeAboveFp);
+}
+
 }  // namespace internal
 }  // namespace v8

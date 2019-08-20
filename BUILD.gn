@@ -2125,6 +2125,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/codegen/register-arch.h",
     "src/codegen/register-configuration.cc",
     "src/codegen/register-configuration.h",
+    "src/codegen/register.cc",
     "src/codegen/register.h",
     "src/codegen/reglist.h",
     "src/codegen/reloc-info.cc",
