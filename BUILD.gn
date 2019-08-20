@@ -188,8 +188,8 @@ declare_args() {
   # Sets -DV8_SHARED_RO_HEAP.
   v8_enable_shared_ro_heap = ""
 
-  # Disable lazy source positions by default.
-  v8_enable_lazy_source_positions = false
+  # Enable lazy source positions by default.
+  v8_enable_lazy_source_positions = true
 
   # Disable write barriers when GCs are non-incremental and
   # heap has single generation.
