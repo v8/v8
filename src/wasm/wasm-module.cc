@@ -113,13 +113,69 @@ bool IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
              v8::Utils::ToLocal(isolate->factory()->empty_string()));
 }
 
+namespace {
+
+// Converts the given {type} into a string representation that can be used in
+// reflective functions. Should be kept in sync with the {GetValueType} helper.
+Handle<String> ToValueTypeString(Isolate* isolate, ValueType type) {
+  Factory* factory = isolate->factory();
+  Handle<String> string;
+  switch (type) {
+    case i::wasm::kWasmI32: {
+      string = factory->InternalizeUtf8String("i32");
+      break;
+    }
+    case i::wasm::kWasmI64: {
+      string = factory->InternalizeUtf8String("i64");
+      break;
+    }
+    case i::wasm::kWasmF32: {
+      string = factory->InternalizeUtf8String("f32");
+      break;
+    }
+    case i::wasm::kWasmF64: {
+      string = factory->InternalizeUtf8String("f64");
+      break;
+    }
+    // TODO(mstarzinger): Add support and tests for exnref and funcref.
+    case i::wasm::kWasmAnyRef: {
+      string = factory->InternalizeUtf8String("anyref");
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+  return string;
+}
+
+}  // namespace
+
+Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
+                                  ValueType type) {
+  Factory* factory = isolate->factory();
+
+  Handle<String> mutable_string = factory->InternalizeUtf8String("mutable");
+  Handle<String> value_string = factory->InternalizeUtf8String("value");
+
+  Handle<JSFunction> object_function = isolate->object_function();
+  Handle<JSObject> object = factory->NewJSObject(object_function);
+  JSObject::AddProperty(isolate, object, mutable_string,
+                        factory->ToBoolean(is_mutable), NONE);
+  JSObject::AddProperty(isolate, object, value_string,
+                        ToValueTypeString(isolate, type), NONE);
+
+  return object;
+}
+
 Handle<JSArray> GetImports(Isolate* isolate,
                            Handle<WasmModuleObject> module_object) {
+  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(isolate);
   Factory* factory = isolate->factory();
 
   Handle<String> module_string = factory->InternalizeUtf8String("module");
   Handle<String> name_string = factory->InternalizeUtf8String("name");
   Handle<String> kind_string = factory->InternalizeUtf8String("kind");
+  Handle<String> type_string = factory->InternalizeUtf8String("type");
 
   Handle<String> function_string = factory->InternalizeUtf8String("function");
   Handle<String> table_string = factory->InternalizeUtf8String("table");
@@ -145,6 +201,7 @@ Handle<JSArray> GetImports(Isolate* isolate,
     Handle<JSObject> entry = factory->NewJSObject(object_function);
 
     Handle<String> import_kind;
+    Handle<JSObject> type_value;
     switch (import.kind) {
       case kExternalFunction:
         import_kind = function_string;
@@ -156,6 +213,11 @@ Handle<JSArray> GetImports(Isolate* isolate,
         import_kind = memory_string;
         break;
       case kExternalGlobal:
+        if (enabled_features.type_reflection) {
+          auto& global = module->globals[import.index];
+          type_value =
+              GetTypeForGlobal(isolate, global.mutability, global.type);
+        }
         import_kind = global_string;
         break;
       case kExternalException:
@@ -178,6 +240,9 @@ Handle<JSArray> GetImports(Isolate* isolate,
     JSObject::AddProperty(isolate, entry, name_string,
                           import_name.ToHandleChecked(), NONE);
     JSObject::AddProperty(isolate, entry, kind_string, import_kind, NONE);
+    if (!type_value.is_null()) {
+      JSObject::AddProperty(isolate, entry, type_string, type_value, NONE);
+    }
 
     storage->set(index, *entry);
   }
@@ -187,10 +252,12 @@ Handle<JSArray> GetImports(Isolate* isolate,
 
 Handle<JSArray> GetExports(Isolate* isolate,
                            Handle<WasmModuleObject> module_object) {
+  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(isolate);
   Factory* factory = isolate->factory();
 
   Handle<String> name_string = factory->InternalizeUtf8String("name");
   Handle<String> kind_string = factory->InternalizeUtf8String("kind");
+  Handle<String> type_string = factory->InternalizeUtf8String("type");
 
   Handle<String> function_string = factory->InternalizeUtf8String("function");
   Handle<String> table_string = factory->InternalizeUtf8String("table");
@@ -214,6 +281,7 @@ Handle<JSArray> GetExports(Isolate* isolate,
     const WasmExport& exp = module->export_table[index];
 
     Handle<String> export_kind;
+    Handle<JSObject> type_value;
     switch (exp.kind) {
       case kExternalFunction:
         export_kind = function_string;
@@ -225,6 +293,11 @@ Handle<JSArray> GetExports(Isolate* isolate,
         export_kind = memory_string;
         break;
       case kExternalGlobal:
+        if (enabled_features.type_reflection) {
+          auto& global = module->globals[exp.index];
+          type_value =
+              GetTypeForGlobal(isolate, global.mutability, global.type);
+        }
         export_kind = global_string;
         break;
       case kExternalException:
@@ -243,6 +316,9 @@ Handle<JSArray> GetExports(Isolate* isolate,
     JSObject::AddProperty(isolate, entry, name_string,
                           export_name.ToHandleChecked(), NONE);
     JSObject::AddProperty(isolate, entry, kind_string, export_kind, NONE);
+    if (!type_value.is_null()) {
+      JSObject::AddProperty(isolate, entry, type_string, type_value, NONE);
+    }
 
     storage->set(index, *entry);
   }

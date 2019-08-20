@@ -1497,6 +1497,8 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 // Converts the given {type} into a string representation that can be used in
 // reflective functions. Should be kept in sync with the {GetValueType} helper.
+// TODO(mstarzinger): Remove once {WebAssemblyFunctionType} has been ported to
+// use the internal API instead.
 Local<String> ToValueTypeString(Isolate* isolate, i::wasm::ValueType type) {
   Local<String> string;
   switch (type) {
@@ -1981,24 +1983,9 @@ void WebAssemblyGlobalType(const v8::FunctionCallbackInfo<v8::Value>& args) {
   auto maybe_global = GetFirstArgumentAsGlobal(args, &thrower);
   if (thrower.error()) return;
   i::Handle<i::WasmGlobalObject> global = maybe_global.ToHandleChecked();
-  v8::Local<v8::Object> ret = v8::Object::New(isolate);
-
-  if (!ret->CreateDataProperty(isolate->GetCurrentContext(),
-                               v8_str(isolate, "mutable"),
-                               v8::Boolean::New(isolate, global->is_mutable()))
-           .IsJust()) {
-    return;
-  }
-
-  Local<String> type = ToValueTypeString(isolate, global->type());
-  if (!ret->CreateDataProperty(isolate->GetCurrentContext(),
-                               v8_str(isolate, "value"), type)
-           .IsJust()) {
-    return;
-  }
-
-  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
-  return_value.Set(ret);
+  auto type = i::wasm::GetTypeForGlobal(i_isolate, global->is_mutable(),
+                                        global->type());
+  args.GetReturnValue().Set(Utils::ToLocal(type));
 }
 
 }  // namespace

@@ -105,6 +105,42 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 })();
 
+(function TestGlobalExports() {
+  let builder = new WasmModuleBuilder();
+  builder.addGlobal(kWasmI32).exportAs("a");
+  builder.addGlobal(kWasmF64, true).exportAs("b");
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let exports = WebAssembly.Module.exports(module);
+
+  assertEquals("a", exports[0].name);
+  assertTrue("type" in exports[0]);
+  assertEquals("i32", exports[0].type.value);
+  assertEquals(false, exports[0].type.mutable);
+
+  assertEquals("b", exports[1].name);
+  assertTrue("type" in exports[1]);
+  assertEquals("f64", exports[1].type.value);
+  assertEquals(true, exports[1].type.mutable);
+})();
+
+(function TestGlobalImports() {
+  let builder = new WasmModuleBuilder();
+  builder.addImportedGlobal("m", "a", kWasmI32);
+  builder.addImportedGlobal("m", "b", kWasmF64, true);
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let imports = WebAssembly.Module.imports(module);
+
+  assertEquals("a", imports[0].name);
+  assertTrue("type" in imports[0]);
+  assertEquals("i32", imports[0].type.value);
+  assertEquals(false, imports[0].type.mutable);
+
+  assertEquals("b", imports[1].name);
+  assertTrue("type" in imports[1]);
+  assertEquals("f64", imports[1].type.value);
+  assertEquals(true, imports[1].type.mutable);
+})();
+
 (function TestMemoryConstructorWithMinimum() {
   let mem = new WebAssembly.Memory({minimum: 1});
   assertTrue(mem instanceof WebAssembly.Memory);
