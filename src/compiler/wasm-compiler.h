@@ -34,6 +34,7 @@ class Operator;
 class SourcePositionTable;
 class WasmDecorator;
 enum class TrapId : uint32_t;
+struct Int64LoweringSpecialCase;
 }  // namespace compiler
 
 namespace wasm {
@@ -362,7 +363,9 @@ class WasmGraphBuilder {
 
   wasm::FunctionSig* GetFunctionSignature() { return sig_; }
 
-  V8_EXPORT_PRIVATE void LowerInt64();
+  enum CallOrigin : bool { kCalledFromWasm, kCalledFromJS };
+
+  V8_EXPORT_PRIVATE void LowerInt64(CallOrigin origin);
 
   V8_EXPORT_PRIVATE void SimdScalarLoweringForTesting();
 
@@ -453,6 +456,8 @@ class WasmGraphBuilder {
   compiler::WasmDecorator* decorator_ = nullptr;
 
   compiler::SourcePositionTable* const source_position_table_ = nullptr;
+
+  std::unique_ptr<Int64LoweringSpecialCase> lowering_special_case_;
 
   Node* NoContextConstant();
 
@@ -626,7 +631,7 @@ V8_EXPORT_PRIVATE CallDescriptor* GetWasmCallDescriptor(
     WasmCallKind kind = kWasmFunction);
 
 V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptor(
-    Zone* zone, CallDescriptor* call_descriptor);
+    Zone* zone, const CallDescriptor* call_descriptor);
 
 V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptorForSimd(
     Zone* zone, CallDescriptor* call_descriptor);

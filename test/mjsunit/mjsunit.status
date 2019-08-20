@@ -1082,7 +1082,6 @@
 ['arch in [arm, android_arm, android_ia32, ia32, ppc, s390, s390x, mipsel, mips]', {
   # TODO(ssauleau): implement BigInt<>Wasm conversion for other arch -
   # crbug.com/v8/7741
-  'wasm/bigint': [SKIP],
   'wasm/bigint-i64-to-imported-js-func': [SKIP],
 }], # arch in [arm, android_arm, android_ia32, ia32, ppc, s390, s390x, mipsel, mips]
 

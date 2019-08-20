@@ -365,7 +365,7 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
     FATAL("Verification failed; pc = +%x, msg = %s", result.error().offset(),
           result.error().message().c_str());
   }
-  builder->LowerInt64();
+  builder->LowerInt64(compiler::WasmGraphBuilder::kCalledFromWasm);
   if (!CpuFeatures::SupportsWasmSimd128()) {
     builder->SimdScalarLoweringForTesting();
   }

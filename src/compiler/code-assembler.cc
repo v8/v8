@@ -188,6 +188,7 @@ Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state,
 }
 
 bool CodeAssembler::Is64() const { return raw_assembler()->machine()->Is64(); }
+bool CodeAssembler::Is32() const { return raw_assembler()->machine()->Is32(); }
 
 bool CodeAssembler::IsFloat64RoundUpSupported() const {
   return raw_assembler()->machine()->Float64RoundUp().IsSupported();
