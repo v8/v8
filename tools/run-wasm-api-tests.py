@@ -38,7 +38,7 @@ CLANG_PATH = os.path.join(CHECKOUT_PATH, "third_party", "llvm-build",
                           "Release+Asserts", "bin")
 
 EXAMPLES = ["hello", "callback", "trap", "reflect", "global", "table",
-            "memory", "finalize", "serialize", "threads", "hostref"]
+            "memory", "finalize", "serialize", "threads", "hostref", "multi"]
 
 CLANG = {
   "name": "Clang",
