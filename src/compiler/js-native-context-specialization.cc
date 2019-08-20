@@ -70,6 +70,8 @@ JSNativeContextSpecialization::JSNativeContextSpecialization(
       type_cache_(TypeCache::Get()) {}
 
 Reduction JSNativeContextSpecialization::Reduce(Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
+
   switch (node->opcode()) {
     case IrOpcode::kJSAdd:
       return ReduceJSAdd(node);
@@ -211,8 +213,6 @@ bool IsStringConstant(JSHeapBroker* broker, Node* node) {
 
 Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionEnter(
     Node* node) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
-
   DCHECK_EQ(IrOpcode::kJSAsyncFunctionEnter, node->opcode());
   Node* closure = NodeProperties::GetValueInput(node, 0);
   Node* receiver = NodeProperties::GetValueInput(node, 1);
@@ -244,8 +244,6 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionEnter(
 
 Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionReject(
     Node* node) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
-
   DCHECK_EQ(IrOpcode::kJSAsyncFunctionReject, node->opcode());
   Node* async_function_object = NodeProperties::GetValueInput(node, 0);
   Node* reason = NodeProperties::GetValueInput(node, 1);
@@ -282,8 +280,6 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionReject(
 
 Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionResolve(
     Node* node) {
-  DisallowHeapAccessIf disallow_heap_access(FLAG_concurrent_inlining);
-
   DCHECK_EQ(IrOpcode::kJSAsyncFunctionResolve, node->opcode());
   Node* async_function_object = NodeProperties::GetValueInput(node, 0);
   Node* value = NodeProperties::GetValueInput(node, 1);
@@ -379,8 +375,6 @@ Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
-
   DCHECK_EQ(IrOpcode::kJSInstanceOf, node->opcode());
   FeedbackParameter const& p = FeedbackParameterOf(node->op());
   Node* object = NodeProperties::GetValueInput(node, 0);
@@ -579,8 +573,6 @@ JSNativeContextSpecialization::InferHasInPrototypeChain(
 
 Reduction JSNativeContextSpecialization::ReduceJSHasInPrototypeChain(
     Node* node) {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
-
   DCHECK_EQ(IrOpcode::kJSHasInPrototypeChain, node->opcode());
   Node* value = NodeProperties::GetValueInput(node, 0);
   Node* prototype = NodeProperties::GetValueInput(node, 1);
@@ -604,8 +596,6 @@ Reduction JSNativeContextSpecialization::ReduceJSHasInPrototypeChain(
 
 Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
     Node* node) {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
-
   DCHECK_EQ(IrOpcode::kJSOrdinaryHasInstance, node->opcode());
   Node* constructor = NodeProperties::GetValueInput(node, 0);
   Node* object = NodeProperties::GetValueInput(node, 1);
@@ -700,7 +690,6 @@ Reduction JSNativeContextSpecialization::ReduceJSPromiseResolve(Node* node) {
 
 // ES section #sec-promise-resolve-functions
 Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
   DCHECK_EQ(IrOpcode::kJSResolvePromise, node->opcode());
   Node* promise = NodeProperties::GetValueInput(node, 0);
   Node* resolution = NodeProperties::GetValueInput(node, 1);
@@ -998,8 +987,6 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
-  DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
-
   DCHECK_EQ(IrOpcode::kJSLoadGlobal, node->opcode());
   LoadGlobalParameters const& p = LoadGlobalParametersOf(node->op());
   if (!p.feedback().IsValid()) return NoChange();
@@ -1029,8 +1016,6 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
-  DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
-
   DCHECK_EQ(IrOpcode::kJSStoreGlobal, node->opcode());
   Node* value = NodeProperties::GetValueInput(node, 0);
   StoreGlobalParameters const& p = StoreGlobalParametersOf(node->op());
@@ -1361,7 +1346,6 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccessFromNexus(
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
   DCHECK_EQ(IrOpcode::kJSLoadNamed, node->opcode());
   NamedAccess const& p = NamedAccessOf(node->op());
   Node* const receiver = NodeProperties::GetValueInput(node, 0);
@@ -1405,7 +1389,6 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSGetIterator(Node* node) {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
   DCHECK_EQ(IrOpcode::kJSGetIterator, node->opcode());
   PropertyAccess const& p = PropertyAccessOf(node->op());
   NameRef name(broker(), factory()->iterator_symbol());
@@ -1415,7 +1398,6 @@ Reduction JSNativeContextSpecialization::ReduceJSGetIterator(Node* node) {
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSStoreNamed(Node* node) {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
   DCHECK_EQ(IrOpcode::kJSStoreNamed, node->opcode());
   NamedAccess const& p = NamedAccessOf(node->op());
   Node* const value = NodeProperties::GetValueInput(node, 1);
@@ -1427,7 +1409,6 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreNamed(Node* node) {
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSStoreNamedOwn(Node* node) {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
   DCHECK_EQ(IrOpcode::kJSStoreNamedOwn, node->opcode());
   StoreNamedOwnParameters const& p = StoreNamedOwnParametersOf(node->op());
   Node* const value = NodeProperties::GetValueInput(node, 1);
@@ -1519,7 +1500,6 @@ JSNativeContextSpecialization::TryRefineElementAccessFeedback(
 Reduction JSNativeContextSpecialization::ReduceElementAccess(
     Node* node, Node* index, Node* value,
     ElementAccessFeedback const& feedback) {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
          node->opcode() == IrOpcode::kJSStoreProperty ||
          node->opcode() == IrOpcode::kJSStoreInArrayLiteral ||
@@ -1877,7 +1857,6 @@ Reduction JSNativeContextSpecialization::ReduceSoftDeoptimize(
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSHasProperty(Node* node) {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
   DCHECK_EQ(IrOpcode::kJSHasProperty, node->opcode());
   PropertyAccess const& p = PropertyAccessOf(node->op());
   Node* key = NodeProperties::GetValueInput(node, 1);
@@ -1995,7 +1974,6 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadPropertyWithEnumeratedKey(
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSLoadProperty(Node* node) {
-  DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
   DCHECK_EQ(IrOpcode::kJSLoadProperty, node->opcode());
   PropertyAccess const& p = PropertyAccessOf(node->op());
   Node* name = NodeProperties::GetValueInput(node, 1);
@@ -2012,7 +1990,6 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadProperty(Node* node) {
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSStoreProperty(Node* node) {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
   DCHECK_EQ(IrOpcode::kJSStoreProperty, node->opcode());
   PropertyAccess const& p = PropertyAccessOf(node->op());
   Node* const key = NodeProperties::GetValueInput(node, 1);
@@ -2438,7 +2415,6 @@ JSNativeContextSpecialization::BuildPropertyStore(
 
 Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
     Node* node) {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
   DCHECK_EQ(IrOpcode::kJSStoreDataPropertyInLiteral, node->opcode());
   FeedbackParameter const& p = FeedbackParameterOf(node->op());
   Node* const key = NodeProperties::GetValueInput(node, 1);
@@ -2452,7 +2428,6 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
 
 Reduction JSNativeContextSpecialization::ReduceJSStoreInArrayLiteral(
     Node* node) {
-  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
   DCHECK_EQ(IrOpcode::kJSStoreInArrayLiteral, node->opcode());
   FeedbackParameter const& p = FeedbackParameterOf(node->op());
   Node* const index = NodeProperties::GetValueInput(node, 1);
