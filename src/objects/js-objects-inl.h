@@ -369,10 +369,10 @@ void JSObject::RawFastDoublePropertyAsBitsAtPut(FieldIndex index,
 
 void JSObject::FastPropertyAtPut(FieldIndex index, Object value) {
   if (IsUnboxedDoubleField(index)) {
-    DCHECK(value.IsMutableHeapNumber());
+    DCHECK(value.IsHeapNumber());
     // Ensure that all bits of the double value are preserved.
-    RawFastDoublePropertyAsBitsAtPut(
-        index, MutableHeapNumber::cast(value).value_as_bits());
+    RawFastDoublePropertyAsBitsAtPut(index,
+                                     HeapNumber::cast(value).value_as_bits());
   } else {
     RawFastPropertyAtPut(index, value);
   }
@@ -401,7 +401,7 @@ void JSObject::WriteToField(int descriptor, PropertyDetails details,
     if (IsUnboxedDoubleField(index)) {
       RawFastDoublePropertyAsBitsAtPut(index, bits);
     } else {
-      auto box = MutableHeapNumber::cast(RawFastPropertyAt(index));
+      auto box = HeapNumber::cast(RawFastPropertyAt(index));
       box.set_value_as_bits(bits);
     }
   } else {

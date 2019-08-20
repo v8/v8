@@ -520,7 +520,7 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
     // Copy over in-object properties.
     Label continue_with_write_barrier(this), done_init(this);
     TVARIABLE(IntPtrT, offset, IntPtrConstant(JSObject::kHeaderSize));
-    // Mutable heap numbers only occur on 32-bit platforms.
+    // Heap numbers are only mutable on 32-bit platforms.
     bool may_use_mutable_heap_numbers = !FLAG_unbox_double_fields;
     {
       Comment("Copy in-object properties fast");
@@ -532,7 +532,9 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
         TNode<Object> field = LoadObjectField(boilerplate, offset.value());
         Label store_field(this);
         GotoIf(TaggedIsSmi(field), &store_field);
-        GotoIf(IsMutableHeapNumber(CAST(field)), &continue_with_write_barrier);
+        // TODO(leszeks): Read the field descriptor to decide if this heap
+        // number is mutable or not.
+        GotoIf(IsHeapNumber(CAST(field)), &continue_with_write_barrier);
         Goto(&store_field);
         BIND(&store_field);
         StoreObjectFieldNoWriteBarrier(copy, offset.value(), field);
@@ -571,18 +573,17 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
           offset.value(), instance_size,
           [=](Node* offset) {
             Node* field = LoadObjectField(copy, offset);
-            Label copy_mutable_heap_number(this, Label::kDeferred),
-                continue_loop(this);
+            Label copy_heap_number(this, Label::kDeferred), continue_loop(this);
             // We only have to clone complex field values.
             GotoIf(TaggedIsSmi(field), &continue_loop);
-            Branch(IsMutableHeapNumber(field), &copy_mutable_heap_number,
-                   &continue_loop);
-            BIND(&copy_mutable_heap_number);
+            // TODO(leszeks): Read the field descriptor to decide if this heap
+            // number is mutable or not.
+            Branch(IsHeapNumber(field), &copy_heap_number, &continue_loop);
+            BIND(&copy_heap_number);
             {
               Node* double_value = LoadHeapNumberValue(field);
-              Node* mutable_heap_number =
-                  AllocateMutableHeapNumberWithValue(double_value);
-              StoreObjectField(copy, offset, mutable_heap_number);
+              Node* heap_number = AllocateHeapNumberWithValue(double_value);
+              StoreObjectField(copy, offset, heap_number);
               Goto(&continue_loop);
             }
             BIND(&continue_loop);

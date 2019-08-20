@@ -534,7 +534,6 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
 
   switch (HeapObject::cast(*object).map().instance_type()) {
     case HEAP_NUMBER_TYPE:
-    case MUTABLE_HEAP_NUMBER_TYPE:
       if (deferred_string_key) SerializeDeferredKey(comma, key);
       return SerializeHeapNumber(Handle<HeapNumber>::cast(object));
     case BIGINT_TYPE:

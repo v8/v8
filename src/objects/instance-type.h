@@ -133,7 +133,6 @@ enum InstanceType : uint16_t {
 
   // "Data", objects that cannot contain non-map-word pointers to heap
   // objects.
-  MUTABLE_HEAP_NUMBER_TYPE,
   FOREIGN_TYPE,
   BYTE_ARRAY_TYPE,
   BYTECODE_ARRAY_TYPE,
@@ -462,7 +461,6 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(JSWeakSet, JS_WEAK_SET_TYPE)                                             \
   V(LoadHandler, LOAD_HANDLER_TYPE)                                          \
   V(Map, MAP_TYPE)                                                           \
-  V(MutableHeapNumber, MUTABLE_HEAP_NUMBER_TYPE)                             \
   V(NameDictionary, NAME_DICTIONARY_TYPE)                                    \
   V(NativeContext, NATIVE_CONTEXT_TYPE)                                      \
   V(NumberDictionary, NUMBER_DICTIONARY_TYPE)                                \

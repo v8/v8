@@ -2776,15 +2776,15 @@ TEST(TransitionAccessorConstantToSameAccessorConstant) {
 // TODO(ishell): add this test once IS_ACCESSOR_FIELD_SUPPORTED is supported.
 // TEST(TransitionAccessorConstantToAnotherAccessorConstant)
 
-TEST(HoleyMutableHeapNumber) {
+TEST(HoleyHeapNumber) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  auto mhn = isolate->factory()->NewMutableHeapNumberWithHoleNaN();
+  auto mhn = isolate->factory()->NewHeapNumberWithHoleNaN();
   CHECK_EQ(kHoleNanInt64, mhn->value_as_bits());
 
-  mhn = isolate->factory()->NewMutableHeapNumber(0.0);
+  mhn = isolate->factory()->NewHeapNumber(0.0);
   CHECK_EQ(uint64_t{0}, mhn->value_as_bits());
 
   mhn->set_value_as_bits(kHoleNanInt64);
@@ -2796,12 +2796,12 @@ TEST(HoleyMutableHeapNumber) {
   Handle<Object> obj =
       Object::NewStorageFor(isolate, isolate->factory()->uninitialized_value(),
                             Representation::Double());
-  CHECK(obj->IsMutableHeapNumber());
-  CHECK_EQ(kHoleNanInt64, MutableHeapNumber::cast(*obj).value_as_bits());
+  CHECK(obj->IsHeapNumber());
+  CHECK_EQ(kHoleNanInt64, HeapNumber::cast(*obj).value_as_bits());
 
   obj = Object::NewStorageFor(isolate, mhn, Representation::Double());
-  CHECK(obj->IsMutableHeapNumber());
-  CHECK_EQ(kHoleNanInt64, MutableHeapNumber::cast(*obj).value_as_bits());
+  CHECK(obj->IsHeapNumber());
+  CHECK_EQ(kHoleNanInt64, HeapNumber::cast(*obj).value_as_bits());
 }
 
 namespace {

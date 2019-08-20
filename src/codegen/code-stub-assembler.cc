@@ -2748,12 +2748,6 @@ void CodeStubAssembler::StoreHeapNumberValue(SloppyTNode<HeapNumber> object,
                                  MachineRepresentation::kFloat64);
 }
 
-void CodeStubAssembler::StoreMutableHeapNumberValue(
-    SloppyTNode<MutableHeapNumber> object, SloppyTNode<Float64T> value) {
-  StoreObjectFieldNoWriteBarrier(object, MutableHeapNumber::kValueOffset, value,
-                                 MachineRepresentation::kFloat64);
-}
-
 void CodeStubAssembler::StoreObjectField(Node* object, int offset,
                                          Node* value) {
   DCHECK_NE(HeapObject::kMapOffset, offset);  // Use StoreMap instead.
@@ -3115,36 +3109,24 @@ TNode<HeapNumber> CodeStubAssembler::AllocateHeapNumberWithValue(
   return result;
 }
 
-TNode<MutableHeapNumber> CodeStubAssembler::AllocateMutableHeapNumber() {
-  Node* result = Allocate(MutableHeapNumber::kSize, kNone);
-  RootIndex heap_map_index = RootIndex::kMutableHeapNumberMap;
-  StoreMapNoWriteBarrier(result, heap_map_index);
-  return UncheckedCast<MutableHeapNumber>(result);
-}
-
 TNode<Object> CodeStubAssembler::CloneIfMutablePrimitive(TNode<Object> object) {
   TVARIABLE(Object, result, object);
   Label done(this);
 
   GotoIf(TaggedIsSmi(object), &done);
-  GotoIfNot(IsMutableHeapNumber(UncheckedCast<HeapObject>(object)), &done);
+  // TODO(leszeks): Read the field descriptor to decide if this heap number is
+  // mutable or not.
+  GotoIfNot(IsHeapNumber(UncheckedCast<HeapObject>(object)), &done);
   {
     // Mutable heap number found --- allocate a clone.
     TNode<Float64T> value =
         LoadHeapNumberValue(UncheckedCast<HeapNumber>(object));
-    result = AllocateMutableHeapNumberWithValue(value);
+    result = AllocateHeapNumberWithValue(value);
     Goto(&done);
   }
 
   BIND(&done);
   return result.value();
-}
-
-TNode<MutableHeapNumber> CodeStubAssembler::AllocateMutableHeapNumberWithValue(
-    SloppyTNode<Float64T> value) {
-  TNode<MutableHeapNumber> result = AllocateMutableHeapNumber();
-  StoreMutableHeapNumberValue(result, value);
-  return result;
 }
 
 TNode<BigInt> CodeStubAssembler::AllocateBigInt(TNode<IntPtrT> length) {
@@ -5194,8 +5176,8 @@ void CodeStubAssembler::CopyPropertyArrayValues(Node* from_array,
   bool needs_write_barrier = barrier_mode == UPDATE_WRITE_BARRIER;
 
   if (destroy_source == DestroySource::kNo) {
-    // PropertyArray may contain MutableHeapNumbers, which will be cloned on the
-    // heap, requiring a write barrier.
+    // PropertyArray may contain mutable HeapNumbers, which will be cloned on
+    // the heap, requiring a write barrier.
     needs_write_barrier = true;
   }
 
@@ -6526,12 +6508,6 @@ TNode<BoolT> CodeStubAssembler::IsAllocationSite(
   return IsAllocationSiteInstanceType(LoadInstanceType(object));
 }
 
-TNode<BoolT> CodeStubAssembler::IsAnyHeapNumber(
-    SloppyTNode<HeapObject> object) {
-  return UncheckedCast<BoolT>(
-      Word32Or(IsMutableHeapNumber(object), IsHeapNumber(object)));
-}
-
 TNode<BoolT> CodeStubAssembler::IsHeapNumber(SloppyTNode<HeapObject> object) {
   return IsHeapNumberMap(LoadMap(object));
 }
@@ -6548,11 +6524,6 @@ TNode<BoolT> CodeStubAssembler::IsOddball(SloppyTNode<HeapObject> object) {
 TNode<BoolT> CodeStubAssembler::IsOddballInstanceType(
     SloppyTNode<Int32T> instance_type) {
   return InstanceTypeEqual(instance_type, ODDBALL_TYPE);
-}
-
-TNode<BoolT> CodeStubAssembler::IsMutableHeapNumber(
-    SloppyTNode<HeapObject> object) {
-  return IsMutableHeapNumberMap(LoadMap(object));
 }
 
 TNode<BoolT> CodeStubAssembler::IsFeedbackCell(SloppyTNode<HeapObject> object) {
@@ -9422,8 +9393,8 @@ void CodeStubAssembler::LoadPropertyFromFastObject(
           var_double_value.Bind(
               LoadObjectField(object, field_offset, MachineType::Float64()));
         } else {
-          Node* mutable_heap_number = LoadObjectField(object, field_offset);
-          var_double_value.Bind(LoadHeapNumberValue(mutable_heap_number));
+          Node* heap_number = LoadObjectField(object, field_offset);
+          var_double_value.Bind(LoadHeapNumberValue(heap_number));
         }
         Goto(&rebox_double);
       }

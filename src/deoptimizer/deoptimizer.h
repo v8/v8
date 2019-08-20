@@ -361,8 +361,8 @@ class TranslatedState {
   void UpdateFromPreviouslyMaterializedObjects();
   void MaterializeFixedDoubleArray(TranslatedFrame* frame, int* value_index,
                                    TranslatedValue* slot, Handle<Map> map);
-  void MaterializeMutableHeapNumber(TranslatedFrame* frame, int* value_index,
-                                    TranslatedValue* slot);
+  void MaterializeHeapNumber(TranslatedFrame* frame, int* value_index,
+                             TranslatedValue* slot);
 
   void EnsureObjectAllocatedAt(TranslatedValue* slot);
 

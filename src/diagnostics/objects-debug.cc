@@ -164,9 +164,6 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case HEAP_NUMBER_TYPE:
       CHECK(IsHeapNumber());
       break;
-    case MUTABLE_HEAP_NUMBER_TYPE:
-      CHECK(IsMutableHeapNumber());
-      break;
     case BIGINT_TYPE:
       BigInt::cast(*this).BigIntVerify(isolate);
       break;
@@ -582,7 +579,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
       // There are two reasons why this can happen:
       // - in the middle of StoreTransitionStub when the new extended backing
       //   store is already set into the object and the allocation of the
-      //   MutableHeapNumber triggers GC while the map isn't updated yet.
+      //   HeapNumber triggers GC while the map isn't updated yet.
       // - deletion of the last property can leave additional backing store
       //   capacity behind.
       CHECK_GT(actual_unused_property_fields, map().UnusedPropertyFields());
@@ -607,7 +604,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
           VerifyObjectField(isolate, index.offset());
         }
         Object value = RawFastPropertyAt(index);
-        if (r.IsDouble()) DCHECK(value.IsMutableHeapNumber());
+        if (r.IsDouble()) DCHECK(value.IsHeapNumber());
         if (value.IsUninitialized(isolate)) continue;
         if (r.IsSmi()) DCHECK(value.IsSmi());
         if (r.IsHeapObject()) DCHECK(value.IsHeapObject());

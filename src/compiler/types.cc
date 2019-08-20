@@ -324,7 +324,6 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
 
     // Remaining instance types are unsupported for now. If any of them do
     // require bit set types, they should get kOtherInternal.
-    case MUTABLE_HEAP_NUMBER_TYPE:
     case FREE_SPACE_TYPE:
     case FILLER_TYPE:
     case ACCESS_CHECK_INFO_TYPE:

@@ -184,7 +184,7 @@ class Internals {
 
   static const int kFirstNonstringType = 0x40;
   static const int kOddballType = 0x43;
-  static const int kForeignType = 0x47;
+  static const int kForeignType = 0x46;
   static const int kJSSpecialApiObjectType = 0x410;
   static const int kJSApiObjectType = 0x420;
   static const int kJSObjectType = 0x421;

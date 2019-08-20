@@ -1654,12 +1654,11 @@ Node* JSCreateLowering::AllocateFastLiteral(Node* effect, Node* control,
         value = effect = AllocateFastLiteral(effect, control,
                                              boilerplate_object, allocation);
       } else if (property_details.representation().IsDouble()) {
-        double number = boilerplate_value.AsMutableHeapNumber().value();
+        double number = boilerplate_value.AsHeapNumber().value();
         // Allocate a mutable HeapNumber box and store the value into it.
         AllocationBuilder builder(jsgraph(), effect, control);
         builder.Allocate(HeapNumber::kSize, allocation);
-        builder.Store(AccessBuilder::ForMap(),
-                      factory()->mutable_heap_number_map());
+        builder.Store(AccessBuilder::ForMap(), factory()->heap_number_map());
         builder.Store(AccessBuilder::ForHeapNumberValue(),
                       jsgraph()->Constant(number));
         value = effect = builder.Finish();

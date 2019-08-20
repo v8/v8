@@ -259,8 +259,8 @@ void AccessorAssembler::HandleLoadField(Node* holder, Node* handler_word,
       var_double_value->Bind(
           LoadObjectField(holder, offset, MachineType::Float64()));
     } else {
-      Node* mutable_heap_number = LoadObjectField(holder, offset);
-      var_double_value->Bind(LoadHeapNumberValue(mutable_heap_number));
+      Node* heap_number = LoadObjectField(holder, offset);
+      var_double_value->Bind(LoadHeapNumberValue(heap_number));
     }
     Goto(rebox_double);
   }
@@ -1117,12 +1117,7 @@ void AccessorAssembler::CheckFieldType(TNode<DescriptorArray> descriptors,
   BIND(&r_double);
   {
     GotoIf(TaggedIsSmi(value), &all_fine);
-    Node* value_map = LoadMap(value);
-    // While supporting mutable HeapNumbers would be straightforward, such
-    // objects should not end up here anyway.
-    CSA_ASSERT(this, WordNotEqual(value_map,
-                                  LoadRoot(RootIndex::kMutableHeapNumberMap)));
-    Branch(IsHeapNumberMap(value_map), &all_fine, bailout);
+    Branch(IsHeapNumber(value), &all_fine, bailout);
   }
 
   BIND(&r_heapobject);
@@ -1215,19 +1210,17 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
                                          MachineRepresentation::kFloat64);
         } else {
           if (do_transitioning_store) {
-            Node* mutable_heap_number =
-                AllocateMutableHeapNumberWithValue(double_value);
+            Node* heap_number = AllocateHeapNumberWithValue(double_value);
             StoreMap(object, object_map);
-            StoreObjectField(object, field_offset, mutable_heap_number);
+            StoreObjectField(object, field_offset, heap_number);
           } else {
-            Node* mutable_heap_number = LoadObjectField(object, field_offset);
+            Node* heap_number = LoadObjectField(object, field_offset);
             Label if_mutable(this);
             GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
-            TNode<Float64T> current_value =
-                LoadHeapNumberValue(mutable_heap_number);
+            TNode<Float64T> current_value = LoadHeapNumberValue(heap_number);
             BranchIfSameNumberValue(current_value, double_value, &done, slow);
             BIND(&if_mutable);
-            StoreHeapNumberValue(mutable_heap_number, double_value);
+            StoreHeapNumberValue(heap_number, double_value);
           }
         }
         Goto(&done);
@@ -1268,9 +1261,8 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
                  &cont);
           {
             Node* double_value = ChangeNumberToFloat64(CAST(value));
-            Node* mutable_heap_number =
-                AllocateMutableHeapNumberWithValue(double_value);
-            var_value.Bind(mutable_heap_number);
+            Node* heap_number = AllocateHeapNumberWithValue(double_value);
+            var_value.Bind(heap_number);
             Goto(&cont);
           }
           BIND(&cont);
@@ -1291,18 +1283,17 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
             &double_rep, &tagged_rep);
         BIND(&double_rep);
         {
-          Node* mutable_heap_number =
+          Node* heap_number =
               LoadPropertyArrayElement(properties, backing_store_index);
           TNode<Float64T> double_value = ChangeNumberToFloat64(CAST(value));
 
           Label if_mutable(this);
           GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
-          TNode<Float64T> current_value =
-              LoadHeapNumberValue(mutable_heap_number);
+          TNode<Float64T> current_value = LoadHeapNumberValue(heap_number);
           BranchIfSameNumberValue(current_value, double_value, &done, slow);
 
           BIND(&if_mutable);
-          StoreHeapNumberValue(mutable_heap_number, double_value);
+          StoreHeapNumberValue(heap_number, double_value);
           Goto(&done);
         }
         BIND(&tagged_rep);
@@ -3773,8 +3764,8 @@ void AccessorAssembler::GenerateCloneObjectIC() {
     TNode<IntPtrT> field_offset_difference =
         TimesTaggedSize(IntPtrSub(result_start, source_start));
 
-    // Just copy the fields as raw data (pretending that there are no
-    // MutableHeapNumbers). This doesn't need write barriers.
+    // Just copy the fields as raw data (pretending that there are no mutable
+    // HeapNumbers). This doesn't need write barriers.
     BuildFastLoop(
         source_start, source_size,
         [=](Node* field_index) {
@@ -3788,7 +3779,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
         },
         1, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
 
-    // If MutableHeapNumbers can occur, we need to go through the {object}
+    // If mutable HeapNumbers can occur, we need to go through the {object}
     // again here and properly clone them. We use a second loop here to
     // ensure that the GC (and heap verifier) always sees properly initialized
     // objects, i.e. never hits undefined values in double fields.
@@ -3802,11 +3793,10 @@ void AccessorAssembler::GenerateCloneObjectIC() {
             TNode<Object> field = LoadObjectField(object, result_offset);
             Label if_done(this), if_mutableheapnumber(this, Label::kDeferred);
             GotoIf(TaggedIsSmi(field), &if_done);
-            Branch(IsMutableHeapNumber(CAST(field)), &if_mutableheapnumber,
-                   &if_done);
+            Branch(IsHeapNumber(CAST(field)), &if_mutableheapnumber, &if_done);
             BIND(&if_mutableheapnumber);
             {
-              TNode<Object> value = AllocateMutableHeapNumberWithValue(
+              TNode<Object> value = AllocateHeapNumberWithValue(
                   LoadHeapNumberValue(UncheckedCast<HeapNumber>(field)));
               StoreObjectField(object, result_offset, value);
               Goto(&if_done);

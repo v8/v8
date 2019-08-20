@@ -130,11 +130,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       HeapNumber::cast(*this).HeapNumberPrint(os);
       os << "\n";
       break;
-    case MUTABLE_HEAP_NUMBER_TYPE:
-      os << "<mutable ";
-      MutableHeapNumber::cast(*this).MutableHeapNumberPrint(os);
-      os << ">\n";
-      break;
     case BIGINT_TYPE:
       BigInt::cast(*this).BigIntPrint(os);
       os << "\n";
@@ -2463,10 +2458,6 @@ void TaggedImpl<kRefType, StorageType>::Print(std::ostream& os) {
 #endif  // OBJECT_PRINT
 
 void HeapNumber::HeapNumberPrint(std::ostream& os) { os << value(); }
-
-void MutableHeapNumber::MutableHeapNumberPrint(std::ostream& os) {
-  os << value();
-}
 
 // TODO(cbruni): remove once the new maptracer is in place.
 void Name::NameShortPrint() {

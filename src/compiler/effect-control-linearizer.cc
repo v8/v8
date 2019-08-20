@@ -4797,7 +4797,7 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
   }
 
   // The field is a Double field, either unboxed in the object on 64-bit
-  // architectures, or as MutableHeapNumber.
+  // architectures, or a mutable HeapNumber.
   __ Bind(&if_double);
   {
     auto done_double = __ MakeLabel(MachineRepresentation::kFloat64);

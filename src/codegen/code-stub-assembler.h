@@ -68,7 +68,6 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(ManyClosuresCellMap, many_closures_cell_map, ManyClosuresCellMap)          \
   V(MetaMap, meta_map, MetaMap)                                                \
   V(MinusZeroValue, minus_zero_value, MinusZero)                               \
-  V(MutableHeapNumberMap, mutable_heap_number_map, MutableHeapNumberMap)       \
   V(NanValue, nan_value, Nan)                                                  \
   V(NoClosuresCellMap, no_closures_cell_map, NoClosuresCellMap)                \
   V(NullValue, null_value, Null)                                               \
@@ -1300,8 +1299,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Store the floating point value of a HeapNumber.
   void StoreHeapNumberValue(SloppyTNode<HeapNumber> object,
                             SloppyTNode<Float64T> value);
-  void StoreMutableHeapNumberValue(SloppyTNode<MutableHeapNumber> object,
-                                   SloppyTNode<Float64T> value);
   // Store a field to an object on the heap.
   void StoreObjectField(Node* object, int offset, Node* value);
   void StoreObjectField(Node* object, Node* offset, Node* value);
@@ -1519,10 +1516,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<HeapNumber> AllocateHeapNumberWithValue(double value) {
     return AllocateHeapNumberWithValue(Float64Constant(value));
   }
-
-  // Allocate a MutableHeapNumber with a specific value.
-  TNode<MutableHeapNumber> AllocateMutableHeapNumberWithValue(
-      SloppyTNode<Float64T> value);
 
   // Allocate a BigInt with {length} digits. Sets the sign bit to {false}.
   // Does not initialize the digits.
@@ -1778,7 +1771,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // array word by word. The source may be destroyed at the end of this macro.
   //
   // Otherwise, specify DestroySource::kNo for operations where an Object is
-  // being cloned, to ensure that MutableHeapNumbers are unique between the
+  // being cloned, to ensure that mutable HeapNumbers are unique between the
   // source and cloned object.
   void CopyPropertyArrayValues(Node* from_array, Node* to_array, Node* length,
                                WriteBarrierMode barrier_mode,
@@ -2199,7 +2192,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsAccessorInfo(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsAccessorPair(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsAllocationSite(SloppyTNode<HeapObject> object);
-  TNode<BoolT> IsAnyHeapNumber(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsNoElementsProtectorCellInvalid();
   TNode<BoolT> IsArrayIteratorProtectorCellInvalid();
   TNode<BoolT> IsBigIntInstanceType(SloppyTNode<Int32T> instance_type);
@@ -2273,7 +2265,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSPrimitiveWrapperMap(SloppyTNode<Map> map);
   TNode<BoolT> IsJSPrimitiveWrapper(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsMap(SloppyTNode<HeapObject> object);
-  TNode<BoolT> IsMutableHeapNumber(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsName(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsNameInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsNativeContext(SloppyTNode<HeapObject> object);
@@ -3501,8 +3492,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<JSArray> ArrayCreate(TNode<Context> context, TNode<Number> length);
 
-  // Allocate a clone of a mutable primitive, if {object} is a
-  // MutableHeapNumber.
+  // Allocate a clone of a mutable primitive, if {object} is a mutable
+  // HeapNumber.
   TNode<Object> CloneIfMutablePrimitive(TNode<Object> object);
 
  private:
@@ -3542,9 +3533,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<String> AllocateSlicedString(RootIndex map_root_index,
                                      TNode<Uint32T> length,
                                      TNode<String> parent, TNode<Smi> offset);
-
-  // Allocate a MutableHeapNumber without initializing its value.
-  TNode<MutableHeapNumber> AllocateMutableHeapNumber();
 
   Node* SelectImpl(TNode<BoolT> condition, const NodeGenerator& true_body,
                    const NodeGenerator& false_body, MachineRepresentation rep);

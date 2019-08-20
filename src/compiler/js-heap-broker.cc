@@ -590,18 +590,6 @@ class HeapNumberData : public HeapObjectData {
   double const value_;
 };
 
-class MutableHeapNumberData : public HeapObjectData {
- public:
-  MutableHeapNumberData(JSHeapBroker* broker, ObjectData** storage,
-                        Handle<MutableHeapNumber> object)
-      : HeapObjectData(broker, storage, object), value_(object->value()) {}
-
-  double value() const { return value_; }
-
- private:
-  double const value_;
-};
-
 class ContextData : public HeapObjectData {
  public:
   ContextData(JSHeapBroker* broker, ObjectData** storage,
@@ -2121,15 +2109,16 @@ void JSObjectData::SerializeRecursiveAsBoilerplate(JSHeapBroker* broker,
     } else {
       Handle<Object> value(boilerplate->RawFastPropertyAt(field_index),
                            isolate);
-      // In case of unboxed double fields we use a sentinel NaN value to mark
+      // In case of double fields we use a sentinel NaN value to mark
       // uninitialized fields. A boilerplate value with such a field may migrate
-      // from its unboxed double to a tagged representation. In the process the
-      // raw double is converted to a heap number. The sentinel value carries no
-      // special meaning when it occurs in a heap number, so we would like to
-      // recover the uninitialized value.
-      // We check for the sentinel here, specifically, since migrations might
-      // have been triggered as part of boilerplate serialization.
-      if (value->IsHeapNumber() &&
+      // from its double to a tagged representation. If the double is unboxed,
+      // the raw double is converted to a heap number, otherwise the (boxed)
+      // double ceases to be mutable, and becomes a normal heap number. The
+      // sentinel value carries no special meaning when it occurs in a heap
+      // number, so we would like to recover the uninitialized value. We check
+      // for the sentinel here, specifically, since migrations might have been
+      // triggered as part of boilerplate serialization.
+      if (!details.representation().IsDouble() && value->IsHeapNumber() &&
           HeapNumber::cast(*value).value_as_bits() == kHoleNanInt64) {
         value = isolate->factory()->uninitialized_value();
       }
@@ -2417,7 +2406,6 @@ void JSHeapBroker::SerializeStandardObjects() {
   GetOrCreateData(f->length_string());
   GetOrCreateData(f->many_closures_cell_map());
   GetOrCreateData(f->minus_zero_value());
-  GetOrCreateData(f->mutable_heap_number_map());
   GetOrCreateData(f->name_dictionary_map());
   GetOrCreateData(f->NaN_string());
   GetOrCreateData(f->null_map());
@@ -3517,11 +3505,6 @@ base::Optional<ObjectRef> JSArrayRef::GetOwnCowElement(
 double HeapNumberRef::value() const {
   IF_BROKER_DISABLED_ACCESS_HANDLE_C(HeapNumber, value);
   return data()->AsHeapNumber()->value();
-}
-
-double MutableHeapNumberRef::value() const {
-  IF_BROKER_DISABLED_ACCESS_HANDLE_C(MutableHeapNumber, value);
-  return data()->AsMutableHeapNumber()->value();
 }
 
 uint64_t BigIntRef::AsUint64() const {

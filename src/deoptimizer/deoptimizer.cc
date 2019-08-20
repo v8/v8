@@ -3381,7 +3381,7 @@ void TranslatedState::InitializeCapturedObjectAt(
 
   // Handle the special cases.
   switch (map->instance_type()) {
-    case MUTABLE_HEAP_NUMBER_TYPE:
+    case HEAP_NUMBER_TYPE:
     case FIXED_DOUBLE_ARRAY_TYPE:
       return;
 
@@ -3459,15 +3459,14 @@ void TranslatedState::MaterializeFixedDoubleArray(TranslatedFrame* frame,
   slot->set_storage(array);
 }
 
-void TranslatedState::MaterializeMutableHeapNumber(TranslatedFrame* frame,
-                                                   int* value_index,
-                                                   TranslatedValue* slot) {
+void TranslatedState::MaterializeHeapNumber(TranslatedFrame* frame,
+                                            int* value_index,
+                                            TranslatedValue* slot) {
   CHECK_NE(TranslatedValue::kCapturedObject,
            frame->values_[*value_index].kind());
   Handle<Object> value = frame->values_[*value_index].GetValue();
   CHECK(value->IsNumber());
-  Handle<MutableHeapNumber> box =
-      isolate()->factory()->NewMutableHeapNumber(value->Number());
+  Handle<HeapNumber> box = isolate()->factory()->NewHeapNumber(value->Number());
   (*value_index)++;
   slot->set_storage(box);
 }
@@ -3523,10 +3522,10 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
       // there is no need to process the children.
       return MaterializeFixedDoubleArray(frame, &value_index, slot, map);
 
-    case MUTABLE_HEAP_NUMBER_TYPE:
+    case HEAP_NUMBER_TYPE:
       // Materialize (i.e. allocate&initialize) the heap number and return.
       // There is no need to process the children.
-      return MaterializeMutableHeapNumber(frame, &value_index, slot);
+      return MaterializeHeapNumber(frame, &value_index, slot);
 
     case FIXED_ARRAY_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
@@ -3744,7 +3743,7 @@ void TranslatedState::InitializeJSObjectAt(
       }
       object_storage->WriteField<double>(offset, double_field_value);
     } else if (marker == kStoreMutableHeapNumber) {
-      CHECK(field_value->IsMutableHeapNumber());
+      CHECK(field_value->IsHeapNumber());
       WRITE_FIELD(*object_storage, offset, *field_value);
       WRITE_BARRIER(*object_storage, offset, *field_value);
     } else {
@@ -3779,10 +3778,9 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
     int offset = i * kTaggedSize;
     uint8_t marker = object_storage->ReadField<uint8_t>(offset);
     if (i > 1 && marker == kStoreMutableHeapNumber) {
-      CHECK(field_value->IsMutableHeapNumber());
+      CHECK(field_value->IsHeapNumber());
     } else {
       CHECK(marker == kStoreTagged || i == 1);
-      CHECK(!field_value->IsMutableHeapNumber());
     }
 
     WRITE_FIELD(*object_storage, offset, *field_value);

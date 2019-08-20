@@ -82,7 +82,7 @@ class FieldStatsCollector : public ObjectVisitor {
       raw_fields_count_in_object -=
           field_stats.unboxed_double_fields_count_ * kDoubleSize / kTaggedSize;
       *unboxed_double_fields_count_ += field_stats.unboxed_double_fields_count_;
-    } else if (host.IsHeapNumber() || host.IsMutableHeapNumber()) {
+    } else if (host.IsHeapNumber()) {
       DCHECK_LE(kDoubleSize / kTaggedSize, raw_fields_count_in_object);
       raw_fields_count_in_object -= kDoubleSize / kTaggedSize;
       *boxed_double_fields_count_ += 1;

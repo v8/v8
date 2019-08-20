@@ -193,12 +193,12 @@ Handle<FieldType> Object::OptimalType(Isolate* isolate,
 Handle<Object> Object::NewStorageFor(Isolate* isolate, Handle<Object> object,
                                      Representation representation) {
   if (!representation.IsDouble()) return object;
-  auto result = isolate->factory()->NewMutableHeapNumberWithHoleNaN();
+  auto result = isolate->factory()->NewHeapNumberWithHoleNaN();
   if (object->IsUninitialized(isolate)) {
     result->set_value_as_bits(kHoleNanInt64);
-  } else if (object->IsMutableHeapNumber()) {
+  } else if (object->IsHeapNumber()) {
     // Ensure that all bits of the double value are preserved.
-    result->set_value_as_bits(MutableHeapNumber::cast(*object).value_as_bits());
+    result->set_value_as_bits(HeapNumber::cast(*object).value_as_bits());
   } else {
     result->set_value(object->Number());
   }
@@ -213,7 +213,7 @@ Handle<Object> Object::WrapForRead(Isolate* isolate, Handle<Object> object,
     return object;
   }
   return isolate->factory()->NewHeapNumberFromBits(
-      MutableHeapNumber::cast(*object).value_as_bits());
+      HeapNumber::cast(*object).value_as_bits());
 }
 
 MaybeHandle<JSReceiver> Object::ToObjectImpl(Isolate* isolate,
@@ -2075,12 +2075,6 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       os << "<HeapNumber ";
       HeapNumber::cast(*this).HeapNumberPrint(os);
       os << ">";
-      break;
-    }
-    case MUTABLE_HEAP_NUMBER_TYPE: {
-      os << "<MutableHeapNumber ";
-      MutableHeapNumber::cast(*this).MutableHeapNumberPrint(os);
-      os << '>';
       break;
     }
     case BIGINT_TYPE: {

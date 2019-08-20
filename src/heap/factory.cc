@@ -2232,15 +2232,6 @@ Handle<HeapNumber> Factory::NewHeapNumberForCodeAssembler(double value) {
                                   : AllocationType::kOld);
 }
 
-Handle<MutableHeapNumber> Factory::NewMutableHeapNumber(
-    AllocationType allocation) {
-  STATIC_ASSERT(HeapNumber::kSize <= kMaxRegularHeapObjectSize);
-  Map map = *mutable_heap_number_map();
-  HeapObject result = AllocateRawWithImmortalMap(
-      MutableHeapNumber::kSize, allocation, map, kDoubleUnaligned);
-  return handle(MutableHeapNumber::cast(result), isolate());
-}
-
 Handle<FreshlyAllocatedBigInt> Factory::NewBigInt(int length,
                                                   AllocationType allocation) {
   if (length < 0 || length > BigInt::kMaxLength) {

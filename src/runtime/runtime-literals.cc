@@ -113,9 +113,12 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
           copy->map(isolate).instance_descriptors(isolate), isolate);
       int limit = copy->map(isolate).NumberOfOwnDescriptors();
       for (int i = 0; i < limit; i++) {
-        DCHECK_EQ(kField, descriptors->GetDetails(i).location());
-        DCHECK_EQ(kData, descriptors->GetDetails(i).kind());
-        FieldIndex index = FieldIndex::ForDescriptor(copy->map(isolate), i);
+        PropertyDetails details = descriptors->GetDetails(i);
+        DCHECK_EQ(kField, details.location());
+        DCHECK_EQ(kData, details.kind());
+        FieldIndex index = FieldIndex::ForPropertyIndex(
+            copy->map(isolate), details.field_index(),
+            details.representation());
         if (copy->IsUnboxedDoubleField(isolate, index)) continue;
         Object raw = copy->RawFastPropertyAt(isolate, index);
         if (raw.IsJSObject(isolate)) {
@@ -123,11 +126,9 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
           ASSIGN_RETURN_ON_EXCEPTION(
               isolate, value, VisitElementOrProperty(copy, value), JSObject);
           if (copying) copy->FastPropertyAtPut(index, *value);
-        } else if (copying && raw.IsMutableHeapNumber(isolate)) {
-          DCHECK(descriptors->GetDetails(i).representation().IsDouble());
-          uint64_t double_value = MutableHeapNumber::cast(raw).value_as_bits();
-          auto value =
-              isolate->factory()->NewMutableHeapNumberFromBits(double_value);
+        } else if (copying && details.representation().IsDouble()) {
+          uint64_t double_value = HeapNumber::cast(raw).value_as_bits();
+          auto value = isolate->factory()->NewHeapNumberFromBits(double_value);
           copy->FastPropertyAtPut(index, *value);
         }
       }

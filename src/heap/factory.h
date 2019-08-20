@@ -591,13 +591,7 @@ class V8_EXPORT_PRIVATE Factory {
   // space.
   Handle<HeapNumber> NewHeapNumberForCodeAssembler(double value);
 
-  Handle<MutableHeapNumber> NewMutableHeapNumber(
-      AllocationType allocation = AllocationType::kYoung);
-  inline Handle<MutableHeapNumber> NewMutableHeapNumber(
-      double value, AllocationType allocation = AllocationType::kYoung);
-  inline Handle<MutableHeapNumber> NewMutableHeapNumberFromBits(
-      uint64_t bits, AllocationType allocation = AllocationType::kYoung);
-  inline Handle<MutableHeapNumber> NewMutableHeapNumberWithHoleNaN(
+  inline Handle<HeapNumber> NewHeapNumberWithHoleNaN(
       AllocationType allocation = AllocationType::kYoung);
 
   // Allocates a new BigInt with {length} digits. Only to be used by

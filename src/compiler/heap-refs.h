@@ -90,7 +90,6 @@ enum class OddballType : uint8_t {
   V(HeapNumber)                    \
   V(JSReceiver)                    \
   V(Map)                           \
-  V(MutableHeapNumber)             \
   V(Name)                          \
   V(ObjectBoilerplateDescription)  \
   V(PropertyCell)                  \
@@ -351,15 +350,6 @@ class HeapNumberRef : public HeapObjectRef {
   DEFINE_REF_CONSTRUCTOR(HeapNumber, HeapObjectRef)
 
   Handle<HeapNumber> object() const;
-
-  double value() const;
-};
-
-class MutableHeapNumberRef : public HeapObjectRef {
- public:
-  DEFINE_REF_CONSTRUCTOR(MutableHeapNumber, HeapObjectRef)
-
-  Handle<MutableHeapNumber> object() const;
 
   double value() const;
 };

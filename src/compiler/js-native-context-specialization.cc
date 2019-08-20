@@ -2258,12 +2258,11 @@ JSNativeContextSpecialization::BuildPropertyStore(
                              effect, control);
         if (!field_index.is_inobject() || !FLAG_unbox_double_fields) {
           if (access_info.HasTransitionMap()) {
-            // Allocate a MutableHeapNumber for the new property.
+            // Allocate a HeapNumber for the new property.
             AllocationBuilder a(jsgraph(), effect, control);
             a.Allocate(HeapNumber::kSize, AllocationType::kYoung,
                        Type::OtherInternal());
-            a.Store(AccessBuilder::ForMap(),
-                    factory()->mutable_heap_number_map());
+            a.Store(AccessBuilder::ForMap(), factory()->heap_number_map());
             FieldAccess value_field_access =
                 AccessBuilder::ForHeapNumberValue();
             value_field_access.const_field_info = field_access.const_field_info;
@@ -2275,7 +2274,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
                 MachineType::TypeCompressedTaggedPointer();
             field_access.write_barrier_kind = kPointerWriteBarrier;
           } else {
-            // We just store directly to the MutableHeapNumber.
+            // We just store directly to the HeapNumber.
             FieldAccess const storage_access = {
                 kTaggedBase,
                 field_index.offset(),
