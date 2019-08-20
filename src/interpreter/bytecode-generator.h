@@ -299,7 +299,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitRestArgumentsArray(Variable* rest);
   void VisitCallSuper(Call* call);
   void BuildThrowPrivateMethodWriteError(const AstRawString* name);
-  void BuildPrivateClassMemberNameAssignment(ClassLiteral::Property* property);
   void BuildClassLiteral(ClassLiteral* expr, Register name);
   void VisitClassLiteral(ClassLiteral* expr, Register name);
   void VisitNewTargetVariable(Variable* variable);
@@ -311,9 +310,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitBlockDeclarationsAndStatements(Block* stmt);
   void VisitSetHomeObject(Register value, Register home_object,
                           LiteralProperty* property);
-  void VisitObjectLiteralAccessor(Register home_object,
-                                  ObjectLiteralProperty* property,
-                                  Register value_out);
+  void VisitLiteralAccessor(Register home_object, LiteralProperty* property,
+                            Register value_out);
   void VisitForInAssignment(Expression* expr);
   void VisitModuleNamespaceImports();
 

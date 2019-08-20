@@ -16,6 +16,26 @@
   new C;
 }
 
+// Accessing super in private accessors.
+{
+  class A { foo(val) {} }
+  class C extends A {
+    set #a(val) { super.foo(val); }
+  }
+  new C();
+
+  class D extends A {
+    get #a() { return super.foo; }
+  }
+  new D();
+
+  class E extends A {
+    set #a(val) { super.foo(val); }
+    get #a() { return super.foo; }
+  }
+  new E();
+}
+
 // Nested private accessors.
 {
   class C {

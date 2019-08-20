@@ -1369,12 +1369,6 @@ class ObjectLiteral final : public AggregateLiteral {
       static_cast<int>(AggregateLiteral::kNeedsInitialAllocationSite) <
       static_cast<int>(kFastElements));
 
-  struct Accessors: public ZoneObject {
-    Accessors() : getter(nullptr), setter(nullptr) {}
-    ObjectLiteralProperty* getter;
-    ObjectLiteralProperty* setter;
-  };
-
  private:
   friend class AstNodeFactory;
 
