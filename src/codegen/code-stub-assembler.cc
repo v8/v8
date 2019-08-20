@@ -1464,7 +1464,10 @@ TNode<Map> CodeStubAssembler::GetStructMap(InstanceType instance_type) {
 }
 
 TNode<Map> CodeStubAssembler::LoadMap(SloppyTNode<HeapObject> object) {
-  return LoadObjectField<Map>(object, HeapObject::kMapOffset);
+  // TODO(v8:9637): Do a proper LoadObjectField<Map> and remove UncheckedCast
+  // when we can avoid making Large code objects due to TNodification.
+  return UncheckedCast<Map>(LoadObjectField(object, HeapObject::kMapOffset,
+                                            MachineType::TaggedPointer()));
 }
 
 TNode<Uint16T> CodeStubAssembler::LoadInstanceType(
