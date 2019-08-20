@@ -1475,9 +1475,20 @@ void BytecodeGraphBuilder::VisitStaDataPropertyInLiteral() {
   int flags = bytecode_iterator().GetFlagOperand(2);
   VectorSlotPair feedback =
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(3));
-
   const Operator* op = javascript()->StoreDataPropertyInLiteral(feedback);
-  Node* node = NewNode(op, object, name, value, jsgraph()->Constant(flags));
+
+  JSTypeHintLowering::LoweringResult lowering =
+      TryBuildSimplifiedStoreKeyed(op, object, name, value, feedback.slot());
+  if (lowering.IsExit()) return;
+
+  Node* node = nullptr;
+  if (lowering.IsSideEffectFree()) {
+    node = lowering.value();
+  } else {
+    DCHECK(!lowering.Changed());
+    node = NewNode(op, object, name, value, jsgraph()->Constant(flags));
+  }
+
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 

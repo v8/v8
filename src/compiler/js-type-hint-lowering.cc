@@ -529,7 +529,8 @@ JSTypeHintLowering::ReduceStoreKeyedOperation(const Operator* op, Node* obj,
                                               Node* effect, Node* control,
                                               FeedbackSlot slot) const {
   DCHECK(op->opcode() == IrOpcode::kJSStoreProperty ||
-         op->opcode() == IrOpcode::kJSStoreInArrayLiteral);
+         op->opcode() == IrOpcode::kJSStoreInArrayLiteral ||
+         op->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral);
   if (Node* node = TryBuildSoftDeopt(
           slot, effect, control,
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess)) {
