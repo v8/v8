@@ -802,7 +802,7 @@ const Operator* JSOperatorBuilder::StoreDataPropertyInLiteral(
       IrOpcode::kJSStoreDataPropertyInLiteral,
       Operator::kNoThrow,              // opcode
       "JSStoreDataPropertyInLiteral",  // name
-      4, 1, 1, 0, 1, 0,                // counts
+      4, 1, 1, 0, 1, 1,                // counts
       parameters);                     // parameter
 }
 

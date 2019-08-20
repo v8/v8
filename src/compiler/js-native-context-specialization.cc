@@ -1836,6 +1836,7 @@ Reduction JSNativeContextSpecialization::ReducePropertyAccess(
          node->opcode() == IrOpcode::kJSStoreNamed ||
          node->opcode() == IrOpcode::kJSStoreNamedOwn ||
          node->opcode() == IrOpcode::kJSGetIterator);
+  DCHECK_GE(node->op()->ControlOutputCount(), 1);
 
   ProcessedFeedback const& feedback =
       broker()->GetFeedbackForPropertyAccess(source, access_mode, static_name);

@@ -309,6 +309,7 @@ void JSGenericLowering::LowerJSStoreGlobal(Node* node) {
 
 void JSGenericLowering::LowerJSStoreDataPropertyInLiteral(Node* node) {
   FeedbackParameter const& p = FeedbackParameterOf(node->op());
+  RelaxControls(node);
   node->InsertInputs(zone(), 4, 2);
   node->ReplaceInput(4, jsgraph()->HeapConstant(p.feedback().vector()));
   node->ReplaceInput(5, jsgraph()->SmiConstant(p.feedback().index()));
