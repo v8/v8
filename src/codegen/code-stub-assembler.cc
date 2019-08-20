@@ -1582,7 +1582,7 @@ TNode<IntPtrT> CodeStubAssembler::LoadFeedbackVectorLength(
 
 TNode<Smi> CodeStubAssembler::LoadWeakFixedArrayLength(
     TNode<WeakFixedArray> array) {
-  return CAST(LoadObjectField(array, WeakFixedArray::kLengthOffset));
+  return LoadObjectField<Smi>(array, WeakFixedArray::kLengthOffset);
 }
 
 TNode<IntPtrT> CodeStubAssembler::LoadAndUntagWeakFixedArrayLength(

@@ -649,7 +649,8 @@ Node* InterpreterAssembler::LoadConstantPoolEntry(Node* index) {
       constant_pool, UncheckedCast<IntPtrT>(index), LoadSensitivity::kCritical);
 }
 
-Node* InterpreterAssembler::LoadAndUntagConstantPoolEntry(Node* index) {
+TNode<IntPtrT> InterpreterAssembler::LoadAndUntagConstantPoolEntry(
+    Node* index) {
   return SmiUntag(LoadConstantPoolEntry(index));
 }
 
@@ -660,7 +661,8 @@ Node* InterpreterAssembler::LoadConstantPoolEntryAtOperandIndex(
   return LoadConstantPoolEntry(index);
 }
 
-Node* InterpreterAssembler::LoadAndUntagConstantPoolEntryAtOperandIndex(
+TNode<IntPtrT>
+InterpreterAssembler::LoadAndUntagConstantPoolEntryAtOperandIndex(
     int operand_index) {
   return SmiUntag(LoadConstantPoolEntryAtOperandIndex(operand_index));
 }
