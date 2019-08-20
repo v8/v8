@@ -3412,7 +3412,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseSuperExpression(
       // TODO(rossberg): This might not be the correct FunctionState for the
       // method here.
       expression_scope()->RecordThisUse();
-      UseThis()->SetMaybeAssigned();
+      UseThis();
       return impl()->NewSuperCallReference(pos);
     }
   }
