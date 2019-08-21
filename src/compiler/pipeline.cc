@@ -1497,7 +1497,8 @@ struct GenericLoweringPhase {
     GraphReducer graph_reducer(temp_zone, data->graph(),
                                &data->info()->tick_counter(),
                                data->jsgraph()->Dead());
-    JSGenericLowering generic_lowering(data->jsgraph(), &graph_reducer);
+    JSGenericLowering generic_lowering(data->jsgraph(), &graph_reducer,
+                                       data->broker());
     AddReducer(data, &graph_reducer, &generic_lowering);
     graph_reducer.ReduceGraph();
   }
