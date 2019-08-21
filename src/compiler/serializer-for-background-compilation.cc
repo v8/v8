@@ -402,6 +402,9 @@ class SerializerForBackgroundCompilation {
                             ElementAccessFeedback const& feedback,
                             AccessMode access_mode);
 
+  void ProcessModuleVariableAccess(
+      interpreter::BytecodeArrayIterator* iterator);
+
   void ProcessMapHintsForPromises(Hints const& receiver_hints);
   void ProcessHintsForPromiseResolve(Hints const& resolution_hints);
   void ProcessHintsForHasInPrototypeChain(Hints const& instance_hints);
@@ -438,7 +441,7 @@ class SerializerForBackgroundCompilation {
 
   void ProcessContextAccess(Hints const& context_hints, int slot, int depth,
                             ContextProcessingMode mode,
-                            Hints* new_accumulator_hints = nullptr);
+                            Hints* result_hints = nullptr);
   void ProcessImmutableLoad(ContextRef const& context, int slot,
                             ContextProcessingMode mode,
                             Hints* new_accumulator_hints);
@@ -1164,20 +1167,20 @@ void SerializerForBackgroundCompilation::VisitPopContext(
 
 void SerializerForBackgroundCompilation::ProcessImmutableLoad(
     ContextRef const& context_ref, int slot, ContextProcessingMode mode,
-    Hints* new_accumulator_hints) {
+    Hints* result_hints) {
   DCHECK_EQ(mode, kSerializeSlot);
   base::Optional<ObjectRef> slot_value =
       context_ref.get(slot, SerializationPolicy::kSerializeIfNeeded);
 
-  // If requested, record the object as a new hint for the accumulator.
-  if (new_accumulator_hints != nullptr && slot_value.has_value()) {
-    new_accumulator_hints->AddConstant(slot_value.value().object());
+  // If requested, record the object as a hint for the result value.
+  if (result_hints != nullptr && slot_value.has_value()) {
+    result_hints->AddConstant(slot_value.value().object());
   }
 }
 
 void SerializerForBackgroundCompilation::ProcessContextAccess(
     Hints const& context_hints, int slot, int depth, ContextProcessingMode mode,
-    Hints* new_accumulator_hints) {
+    Hints* result_hints) {
   // This function is for JSContextSpecialization::ReduceJSLoadContext and
   // ReduceJSStoreContext. Those reductions attempt to eliminate as many
   // loads as possible by making use of constant Context objects. In the
@@ -1191,7 +1194,7 @@ void SerializerForBackgroundCompilation::ProcessContextAccess(
       context_ref = context_ref.previous(
           &remaining_depth, SerializationPolicy::kSerializeIfNeeded);
       if (remaining_depth == 0 && mode != kIgnoreSlot) {
-        ProcessImmutableLoad(context_ref, slot, mode, new_accumulator_hints);
+        ProcessImmutableLoad(context_ref, slot, mode, result_hints);
       }
     }
   }
@@ -1202,7 +1205,7 @@ void SerializerForBackgroundCompilation::ProcessContextAccess(
       context_ref = context_ref.previous(
           &remaining_depth, SerializationPolicy::kSerializeIfNeeded);
       if (remaining_depth == 0 && mode != kIgnoreSlot) {
-        ProcessImmutableLoad(context_ref, slot, mode, new_accumulator_hints);
+        ProcessImmutableLoad(context_ref, slot, mode, result_hints);
       }
     }
   }
@@ -1258,20 +1261,30 @@ void SerializerForBackgroundCompilation::VisitLdaImmutableCurrentContextSlot(
   environment()->accumulator_hints().Add(new_accumulator_hints);
 }
 
-void SerializerForBackgroundCompilation::VisitLdaModuleVariable(
+void SerializerForBackgroundCompilation::ProcessModuleVariableAccess(
     BytecodeArrayIterator* iterator) {
   const int slot = Context::EXTENSION_INDEX;
   const int depth = iterator->GetUnsignedImmediateOperand(1);
   Hints const& context_hints = environment()->current_context_hints();
-  ProcessContextAccess(context_hints, slot, depth, kSerializeSlot);
+
+  Hints result_hints(zone());
+  ProcessContextAccess(context_hints, slot, depth, kSerializeSlot,
+                       &result_hints);
+  for (Handle<Object> constant : result_hints.constants()) {
+    ObjectRef object(broker(), constant);
+    // For JSTypedLowering::BuildGetModuleCell.
+    if (object.IsSourceTextModule()) object.AsSourceTextModule().Serialize();
+  }
+}
+
+void SerializerForBackgroundCompilation::VisitLdaModuleVariable(
+    BytecodeArrayIterator* iterator) {
+  ProcessModuleVariableAccess(iterator);
 }
 
 void SerializerForBackgroundCompilation::VisitStaModuleVariable(
     BytecodeArrayIterator* iterator) {
-  const int slot = Context::EXTENSION_INDEX;
-  const int depth = iterator->GetUnsignedImmediateOperand(1);
-  Hints const& context_hints = environment()->current_context_hints();
-  ProcessContextAccess(context_hints, slot, depth, kSerializeSlot);
+  ProcessModuleVariableAccess(iterator);
 }
 
 void SerializerForBackgroundCompilation::VisitStaLookupSlot(

@@ -1709,7 +1709,7 @@ class SourceTextModuleData : public HeapObjectData {
                        Handle<SourceTextModule> object);
   void Serialize(JSHeapBroker* broker);
 
-  CellData* GetCell(int cell_index) const;
+  CellData* GetCell(JSHeapBroker* broker, int cell_index) const;
 
  private:
   bool serialized_ = false;
@@ -1724,8 +1724,14 @@ SourceTextModuleData::SourceTextModuleData(JSHeapBroker* broker,
       imports_(broker->zone()),
       exports_(broker->zone()) {}
 
-CellData* SourceTextModuleData::GetCell(int cell_index) const {
-  CHECK(serialized_);
+CellData* SourceTextModuleData::GetCell(JSHeapBroker* broker,
+                                        int cell_index) const {
+  if (!serialized_) {
+    DCHECK(imports_.empty());
+    TRACE_BROKER_MISSING(broker,
+                         "module cell " << cell_index << " on " << this);
+    return nullptr;
+  }
   CellData* cell;
   switch (SourceTextModuleDescriptor::GetCellIndexKind(cell_index)) {
     case SourceTextModuleDescriptor::kImport:
@@ -3509,14 +3515,16 @@ uint64_t BigIntRef::AsUint64() const {
   return data()->AsBigInt()->AsUint64();
 }
 
-CellRef SourceTextModuleRef::GetCell(int cell_index) const {
+base::Optional<CellRef> SourceTextModuleRef::GetCell(int cell_index) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference allow_handle_dereference;
     return CellRef(broker(),
                    handle(object()->GetCell(cell_index), broker()->isolate()));
   }
-  return CellRef(broker(), data()->AsSourceTextModule()->GetCell(cell_index));
+  CellData* cell = data()->AsSourceTextModule()->GetCell(broker(), cell_index);
+  if (cell == nullptr) return base::nullopt;
+  return CellRef(broker(), cell);
 }
 
 ObjectRef::ObjectRef(JSHeapBroker* broker, Handle<Object> object,

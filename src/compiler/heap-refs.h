@@ -838,7 +838,7 @@ class SourceTextModuleRef : public HeapObjectRef {
 
   void Serialize();
 
-  CellRef GetCell(int cell_index) const;
+  base::Optional<CellRef> GetCell(int cell_index) const;
 };
 
 class CellRef : public HeapObjectRef {
