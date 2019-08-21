@@ -110,9 +110,20 @@ void DeclareMethods(AggregateType* container_type,
 const StructType* TypeVisitor::ComputeType(
     StructDeclaration* decl,
     StructType::MaybeSpecializationKey specialized_from) {
+  StructType* struct_type = TypeOracle::GetStructType(decl, specialized_from);
+  CurrentScope::Scope struct_namespace_scope(struct_type->nspace());
   CurrentSourcePosition::Scope position_activator(decl->pos);
-  StructType* struct_type =
-      TypeOracle::GetStructType(decl->name->value, specialized_from);
+
+  if (specialized_from) {
+    auto& params = specialized_from->generic->generic_parameters();
+    auto arg_types_iterator = specialized_from->specialized_types.begin();
+    for (auto param : params) {
+      TypeAlias* alias = Declarations::DeclareType(param, *arg_types_iterator);
+      alias->SetIsUserDefined(false);
+      arg_types_iterator++;
+    }
+  }
+
   size_t offset = 0;
   for (auto& field : decl->fields) {
     CurrentSourcePosition::Scope position_activator(
@@ -132,7 +143,6 @@ const StructType* TypeVisitor::ComputeType(
                                 false});
     offset += LoweredSlotCount(field_type);
   }
-  DeclareMethods(struct_type, decl->methods);
   return struct_type;
 }
 
@@ -318,6 +328,11 @@ void TypeVisitor::VisitClassFieldsAndMethods(
   DeclareMethods(class_type, class_declaration->methods);
 }
 
+void TypeVisitor::VisitStructMethods(
+    StructType* struct_type, const StructDeclaration* struct_declaration) {
+  DeclareMethods(struct_type, struct_declaration->methods);
+}
+
 const StructType* TypeVisitor::ComputeTypeForStructExpression(
     TypeExpression* type_expression,
     const std::vector<const Type*>& term_argument_types) {
@@ -350,9 +365,11 @@ const StructType* TypeVisitor::ComputeTypeForStructExpression(
     term_parameters.push_back(field.name_and_type.type);
   }
 
+  CurrentScope::Scope generic_scope(generic_struct->ParentScope());
   TypeArgumentInference inference(
       generic_struct->declaration()->generic_parameters,
       explicit_type_arguments, term_parameters, term_argument_types);
+
   if (inference.HasFailed()) {
     ReportError("failed to infer type arguments for struct ", basic->name,
                 " initialization: ", inference.GetFailureReason());

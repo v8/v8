@@ -27,6 +27,8 @@ class TypeVisitor {
   static const Type* ComputeType(TypeExpression* type_expression);
   static void VisitClassFieldsAndMethods(
       ClassType* class_type, const ClassDeclaration* class_declaration);
+  static void VisitStructMethods(StructType* struct_type,
+                                 const StructDeclaration* struct_declaration);
   static Signature MakeSignature(const CallableDeclaration* declaration);
   static const StructType* ComputeTypeForStructExpression(
       TypeExpression* type_expression,

@@ -298,7 +298,7 @@ std::string StructType::MangledName() const {
   std::stringstream result;
   // TODO(gsps): Add 'ST' as a prefix once we can control the generated type
   // name from Torque code
-  result << basename_;
+  result << decl_->name->value;
   if (specialized_from_) {
     for (const Type* t : specialized_from_->specialized_types) {
       std::string arg_type_string = t->MangledName();
@@ -343,6 +343,17 @@ std::string StructType::ToExplicitString() const {
   std::stringstream result;
   result << "struct " << name();
   return result.str();
+}
+
+void StructType::Finalize() const {
+  if (is_finalized_) return;
+  {
+    CurrentScope::Scope scope_activator(nspace());
+    CurrentSourcePosition::Scope position_activator(decl_->pos);
+    TypeVisitor::VisitStructMethods(const_cast<StructType*>(this), decl_);
+  }
+  is_finalized_ = true;
+  CheckForDuplicateFields();
 }
 
 constexpr ClassFlags ClassType::kInternalFlags;

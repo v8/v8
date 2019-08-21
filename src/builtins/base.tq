@@ -992,6 +992,8 @@ extern class WasmDebugInfo extends Struct {
 
 extern class WasmExceptionTag extends Struct { index: Smi; }
 
+const kTaggedSize: constexpr int31 generates 'kTaggedSize';
+
 const kSmiTagSize: constexpr int31 generates 'kSmiTagSize';
 const V8_INFINITY: constexpr float64 generates 'V8_INFINITY';
 

@@ -20,6 +20,10 @@ TypeArgumentInference::TypeArgumentInference(
     Fail("more explicit type arguments than expected");
     return;
   }
+  if (term_parameters.size() != term_argument_types.size()) {
+    Fail("number of term parameters does not match number of term arguments!");
+    return;
+  }
 
   for (size_t i = 0; i < type_parameters.size(); i++) {
     type_parameter_from_name_[type_parameters[i]->value] = i;
@@ -28,7 +32,6 @@ TypeArgumentInference::TypeArgumentInference(
     inferred_[i] = {explicit_type_arguments[i]};
   }
 
-  DCHECK_EQ(term_parameters.size(), term_argument_types.size());
   for (size_t i = 0; i < term_parameters.size(); i++) {
     Match(term_parameters[i], term_argument_types[i]);
     if (HasFailed()) return;

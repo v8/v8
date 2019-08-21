@@ -75,6 +75,7 @@ TypeArgumentInference Generic::InferSpecializationTypes(
   std::vector<TypeExpression*> explicit_parameters(
       parameters.begin() + implicit_count, parameters.end());
 
+  CurrentScope::Scope generic_scope(ParentScope());
   TypeArgumentInference inference(generic_parameters(),
                                   explicit_specialization_types,
                                   explicit_parameters, arguments);

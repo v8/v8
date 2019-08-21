@@ -484,6 +484,20 @@ TEST(TestReferences) {
   ft.Call();
 }
 
+TEST(TestSlices) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  CodeAssemblerTester asm_tester(isolate);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    m.TestSlices();
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
+}
+
 TEST(TestStaticAssert) {
   CcTest::InitializeVM();
   Isolate* isolate(CcTest::i_isolate());

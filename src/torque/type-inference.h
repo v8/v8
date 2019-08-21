@@ -48,6 +48,11 @@ namespace torque {
 // In the above case the inference simply ignores inconsistent constraints on
 // `T`. Similarly, we ignore all constraints arising from formal parameters
 // that are function- or union-typed.
+//
+// Finally, note that term parameters are passed as type expressions, since
+// we have no way of expressing a reference to type parameter as a Type. These
+// type expressions are resolved during matching, so TypeArgumentInference
+// should be instantiated in the appropriate scope.
 class TypeArgumentInference {
  public:
   TypeArgumentInference(const NameVector& type_parameters,

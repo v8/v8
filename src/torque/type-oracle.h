@@ -31,11 +31,12 @@ class TypeOracle : public ContextualClass<TypeOracle> {
   }
 
   static StructType* GetStructType(
-      const std::string& basename,
+      const StructDeclaration* decl,
       StructType::MaybeSpecializationKey specialized_from) {
-    StructType* result =
-        new StructType(CurrentNamespace(), basename, specialized_from);
+    Namespace* nspace = new Namespace(STRUCT_NAMESPACE_STRING);
+    StructType* result = new StructType(nspace, decl, specialized_from);
     Get().aggregate_types_.push_back(std::unique_ptr<StructType>(result));
+    Get().struct_namespaces_.push_back(std::unique_ptr<Namespace>(nspace));
     return result;
   }
 
@@ -260,6 +261,7 @@ class TypeOracle : public ContextualClass<TypeOracle> {
   std::vector<std::unique_ptr<Type>> nominal_types_;
   std::vector<std::unique_ptr<AggregateType>> aggregate_types_;
   std::vector<std::unique_ptr<Type>> top_types_;
+  std::vector<std::unique_ptr<Namespace>> struct_namespaces_;
 };
 
 }  // namespace torque

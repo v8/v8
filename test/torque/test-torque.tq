@@ -843,6 +843,31 @@ namespace test {
   }
 
   @export
+  macro TestSlices() {
+    const fixedArray: FixedArray = AllocateZeroedFixedArray(3);
+    // TODO(gsps): Directly reference fixedArray.objects once supported
+    let slice = torque_internal::UnsafeNewSlice<Smi>(
+        fixedArray,
+        (& fixedArray.length).offset + torque_internal::SizeOf<Smi>(), 3);
+
+    for (let i: intptr = 0; i < slice.length; i++) {
+      let ref = slice.Access(i) otherwise unreachable;
+      check(* ref == 0);
+      * ref = Convert<Smi>(i) + 7;
+    }
+
+    let it = slice.Iterator();
+    let count: Smi = 0;
+    while (true) {
+      let ref = it.Next() otherwise break;
+      check(* ref == count + 7);
+      count++;
+    }
+    check(count == 3);
+    check(it.Empty());
+  }
+
+  @export
   macro TestStaticAssert() {
     StaticAssert(1 + 2 == 3);
   }

@@ -39,17 +39,6 @@ const StructType* TypeOracle::GetGenericStructTypeInstance(
     return *specialization;
   } else {
     CurrentScope::Scope generic_scope(generic_struct->ParentScope());
-    // Create a temporary fake-namespace just to temporarily declare the
-    // specialization aliases for the generic types to create a signature.
-    Namespace tmp_namespace("_tmp");
-    CurrentScope::Scope tmp_namespace_scope(&tmp_namespace);
-    auto arg_types_iterator = arg_types.begin();
-    for (auto param : params) {
-      TypeAlias* alias = Declarations::DeclareType(param, *arg_types_iterator);
-      alias->SetIsUserDefined(false);
-      arg_types_iterator++;
-    }
-
     auto struct_type = TypeVisitor::ComputeType(generic_struct->declaration(),
                                                 {{generic_struct, arg_types}});
     specializations.Add(arg_types, struct_type);
