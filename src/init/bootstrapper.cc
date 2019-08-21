@@ -285,8 +285,7 @@ class Genesis {
   void TransferIndexedProperties(Handle<JSObject> from, Handle<JSObject> to);
 
   Handle<Map> CreateInitialMapForArraySubclass(int size,
-                                               int inobject_properties,
-                                               int additional_properties = 0);
+                                               int inobject_properties);
 
   static bool CompileExtension(Isolate* isolate, v8::Extension* extension);
 
@@ -4426,6 +4425,7 @@ void Genesis::InitializeGlobal_harmony_regexp_match_indices() {
   Descriptor d = Descriptor::AccessorConstant(
       factory()->indices_string(), factory()->regexp_result_indices_accessor(),
       NONE);
+  Map::EnsureDescriptorSlack(isolate(), initial_map, 1);
   initial_map->AppendDescriptor(isolate(), &d);
 }
 
@@ -4912,10 +4912,8 @@ bool Genesis::InstallNatives() {
     // JSRegExpResult initial map.
     // Add additional slack to the initial map in case regexp_match_indices
     // are enabled to account for the additional descriptor.
-    int additional_slack = 1;
     Handle<Map> initial_map = CreateInitialMapForArraySubclass(
-        JSRegExpResult::kSize, JSRegExpResult::kInObjectPropertyCount,
-        additional_slack);
+        JSRegExpResult::kSize, JSRegExpResult::kInObjectPropertyCount);
 
     // index descriptor.
     {
@@ -5367,8 +5365,7 @@ void Genesis::TransferObject(Handle<JSObject> from, Handle<JSObject> to) {
 }
 
 Handle<Map> Genesis::CreateInitialMapForArraySubclass(int size,
-                                                      int inobject_properties,
-                                                      int additional_slack) {
+                                                      int inobject_properties) {
   // Find global.Array.prototype to inherit from.
   Handle<JSFunction> array_constructor(native_context()->array_function(),
                                        isolate());
@@ -5386,9 +5383,8 @@ Handle<Map> Genesis::CreateInitialMapForArraySubclass(int size,
 
   // Update map with length accessor from Array.
   static constexpr int kTheLengthAccessor = 1;
-  Map::EnsureDescriptorSlack(
-      isolate(), initial_map,
-      inobject_properties + kTheLengthAccessor + additional_slack);
+  Map::EnsureDescriptorSlack(isolate(), initial_map,
+                             inobject_properties + kTheLengthAccessor);
 
   // length descriptor.
   {
