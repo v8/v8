@@ -34,11 +34,25 @@ class OsrHelper;
 class LinkageLocation {
  public:
   bool operator==(const LinkageLocation& other) const {
-    return bit_field_ == other.bit_field_;
+    return bit_field_ == other.bit_field_ &&
+           machine_type_ == other.machine_type_;
   }
 
   bool operator!=(const LinkageLocation& other) const {
     return !(*this == other);
+  }
+
+  static bool IsSameLocation(const LinkageLocation& a,
+                             const LinkageLocation& b) {
+    // Different MachineTypes may end up at the same physical location. With the
+    // sub-type check we make sure that types like {AnyTagged} and
+    // {TaggedPointer} which would end up with the same physical location are
+    // considered equal here.
+    return (a.bit_field_ == b.bit_field_) &&
+           (IsSubtype(a.machine_type_.representation(),
+                      b.machine_type_.representation()) ||
+            IsSubtype(b.machine_type_.representation(),
+                      a.machine_type_.representation()));
   }
 
   static LinkageLocation ForAnyRegister(
@@ -316,8 +330,6 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   const char* debug_name() const { return debug_name_; }
 
   bool UsesOnlyRegisters() const;
-
-  bool HasSameReturnLocationsAs(const CallDescriptor* other) const;
 
   // Returns the first stack slot that is not used by the stack parameters.
   int GetFirstUnusedStackSlot() const;

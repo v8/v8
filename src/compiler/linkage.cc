@@ -73,15 +73,6 @@ MachineSignature* CallDescriptor::GetMachineSignature(Zone* zone) const {
   return new (zone) MachineSignature(return_count, param_count, types);
 }
 
-bool CallDescriptor::HasSameReturnLocationsAs(
-    const CallDescriptor* other) const {
-  if (ReturnCount() != other->ReturnCount()) return false;
-  for (size_t i = 0; i < ReturnCount(); ++i) {
-    if (GetReturnLocation(i) != other->GetReturnLocation(i)) return false;
-  }
-  return true;
-}
-
 int CallDescriptor::GetFirstUnusedStackSlot() const {
   int slots_above_sp = 0;
   for (size_t i = 0; i < InputCount(); ++i) {
@@ -129,7 +120,13 @@ int CallDescriptor::GetTaggedParameterSlots() const {
 }
 
 bool CallDescriptor::CanTailCall(const CallDescriptor* callee) const {
-  return HasSameReturnLocationsAs(callee);
+  if (ReturnCount() != callee->ReturnCount()) return false;
+  for (size_t i = 0; i < ReturnCount(); ++i) {
+    if (!LinkageLocation::IsSameLocation(GetReturnLocation(i),
+                                         callee->GetReturnLocation(i)))
+      return false;
+  }
+  return true;
 }
 
 // TODO(jkummerow, sigurds): Arguably frame size calculation should be
