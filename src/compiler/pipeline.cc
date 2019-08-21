@@ -1268,7 +1268,8 @@ struct InliningPhase {
                                      : JSInliningHeuristic::kRestrictedInlining,
                                  temp_zone, data->info(), data->jsgraph(),
                                  data->broker(), data->source_positions());
-    JSIntrinsicLowering intrinsic_lowering(&graph_reducer, data->jsgraph());
+    JSIntrinsicLowering intrinsic_lowering(&graph_reducer, data->jsgraph(),
+                                           data->broker());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &checkpoint_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
