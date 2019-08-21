@@ -1903,14 +1903,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmI32x4Shl: {
-      QwNeonRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      QwNeonRegister tmp = i.TempSimd128Register(0);
       __ vdup(Neon32, tmp, i.InputRegister(1));
       __ vshl(NeonS32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               tmp);
       break;
     }
     case kArmI32x4ShrS: {
-      QwNeonRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      QwNeonRegister tmp = i.TempSimd128Register(0);
       __ vdup(Neon32, tmp, i.InputRegister(1));
       __ vneg(Neon32, tmp, tmp);
       __ vshl(NeonS32, i.OutputSimd128Register(), i.InputSimd128Register(0),
@@ -1982,7 +1982,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmI32x4ShrU: {
-      QwNeonRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      QwNeonRegister tmp = i.TempSimd128Register(0);
       __ vdup(Neon32, tmp, i.InputRegister(1));
       __ vneg(Neon32, tmp, tmp);
       __ vshl(NeonU32, i.OutputSimd128Register(), i.InputSimd128Register(0),
@@ -2038,14 +2038,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmI16x8Shl: {
-      QwNeonRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      QwNeonRegister tmp = i.TempSimd128Register(0);
       __ vdup(Neon16, tmp, i.InputRegister(1));
       __ vshl(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               tmp);
       break;
     }
     case kArmI16x8ShrS: {
-      QwNeonRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      QwNeonRegister tmp = i.TempSimd128Register(0);
       __ vdup(Neon16, tmp, i.InputRegister(1));
       __ vneg(Neon16, tmp, tmp);
       __ vshl(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(0),
@@ -2126,7 +2126,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmI16x8ShrU: {
-      QwNeonRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      QwNeonRegister tmp = i.TempSimd128Register(0);
       __ vdup(Neon16, tmp, i.InputRegister(1));
       __ vneg(Neon16, tmp, tmp);
       __ vshl(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
@@ -2185,14 +2185,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmI8x16Shl: {
-      QwNeonRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      QwNeonRegister tmp = i.TempSimd128Register(0);
       __ vdup(Neon8, tmp, i.InputRegister(1));
       __ vshl(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               tmp);
       break;
     }
     case kArmI8x16ShrS: {
-      QwNeonRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      QwNeonRegister tmp = i.TempSimd128Register(0);
       __ vdup(Neon8, tmp, i.InputRegister(1));
       __ vneg(Neon8, tmp, tmp);
       __ vshl(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(0),
@@ -2259,7 +2259,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmI8x16ShrU: {
-      QwNeonRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      QwNeonRegister tmp = i.TempSimd128Register(0);
       __ vdup(Neon8, tmp, i.InputRegister(1));
       __ vneg(Neon8, tmp, tmp);
       __ vshl(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),

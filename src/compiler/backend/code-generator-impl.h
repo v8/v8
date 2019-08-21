@@ -116,6 +116,10 @@ class InstructionOperandConverter {
     return ToSimd128Register(instr_->Output());
   }
 
+  Simd128Register TempSimd128Register(size_t index) {
+    return ToSimd128Register(instr_->TempAt(index));
+  }
+
   // -- Conversions for operands -----------------------------------------------
 
   Label* ToLabel(InstructionOperand* op) {

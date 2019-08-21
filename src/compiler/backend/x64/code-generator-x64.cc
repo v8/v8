@@ -588,18 +588,18 @@ void EmitWordLoadPoisoningIfNeeded(
     __ opcode(i.OutputSimd128Register(), i.InputSimd128Register(1), imm); \
   } while (false)
 
-#define ASSEMBLE_SIMD_ALL_TRUE(opcode)                        \
-  do {                                                        \
-    CpuFeatureScope sse_scope(tasm(), SSE4_1);                \
-    Register dst = i.OutputRegister();                        \
-    Register tmp1 = i.TempRegister(0);                        \
-    XMMRegister tmp2 = i.ToSimd128Register(instr->TempAt(1)); \
-    __ movq(tmp1, Immediate(1));                              \
-    __ xorq(dst, dst);                                        \
-    __ pxor(tmp2, tmp2);                                      \
-    __ opcode(tmp2, i.InputSimd128Register(0));               \
-    __ ptest(tmp2, tmp2);                                     \
-    __ cmovq(zero, dst, tmp1);                                \
+#define ASSEMBLE_SIMD_ALL_TRUE(opcode)           \
+  do {                                           \
+    CpuFeatureScope sse_scope(tasm(), SSE4_1);   \
+    Register dst = i.OutputRegister();           \
+    Register tmp1 = i.TempRegister(0);           \
+    XMMRegister tmp2 = i.TempSimd128Register(1); \
+    __ movq(tmp1, Immediate(1));                 \
+    __ xorq(dst, dst);                           \
+    __ pxor(tmp2, tmp2);                         \
+    __ opcode(tmp2, i.InputSimd128Register(0));  \
+    __ ptest(tmp2, tmp2);                        \
+    __ cmovq(zero, dst, tmp1);                   \
   } while (false)
 
 void CodeGenerator::AssembleDeconstructFrame() {
@@ -2571,7 +2571,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I64x2Shl: {
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister tmp = i.TempSimd128Register(0);
       __ movq(tmp, i.InputRegister(1));
       __ psllq(i.OutputSimd128Register(), tmp);
       break;
@@ -2610,8 +2610,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       XMMRegister left = i.InputSimd128Register(0);
       XMMRegister right = i.InputSimd128Register(1);
-      XMMRegister tmp1 = i.ToSimd128Register(instr->TempAt(0));
-      XMMRegister tmp2 = i.ToSimd128Register(instr->TempAt(1));
+      XMMRegister tmp1 = i.TempSimd128Register(0);
+      XMMRegister tmp2 = i.TempSimd128Register(1);
 
       __ movaps(tmp1, left);
       __ movaps(tmp2, right);
@@ -2636,7 +2636,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         CpuFeatureScope sse_scope_4_2(tasm(), SSE4_2);
         XMMRegister dst = i.OutputSimd128Register();
         XMMRegister src = i.InputSimd128Register(1);
-        XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+        XMMRegister tmp = i.TempSimd128Register(0);
         DCHECK_EQ(dst, i.InputSimd128Register(0));
         DCHECK_EQ(src, xmm0);
 
@@ -2648,7 +2648,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         CpuFeatureScope sse_scope_4_1(tasm(), SSE4_1);
         XMMRegister dst = i.OutputSimd128Register();
         XMMRegister src = i.InputSimd128Register(1);
-        XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+        XMMRegister tmp = i.TempSimd128Register(0);
         Register tmp1 = i.TempRegister(1);
         Register tmp2 = i.TempRegister(2);
         DCHECK_EQ(dst, i.InputSimd128Register(0));
@@ -2682,7 +2682,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope_4_2(tasm(), SSE4_2);
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(1);
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister tmp = i.TempSimd128Register(0);
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       DCHECK_EQ(src, xmm0);
 
@@ -2700,7 +2700,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64I64x2Ne: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister tmp = i.TempSimd128Register(0);
       __ pcmpeqq(i.OutputSimd128Register(), i.InputSimd128Register(1));
       __ pcmpeqq(tmp, tmp);
       __ pxor(i.OutputSimd128Register(), tmp);
@@ -2717,7 +2717,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope(tasm(), SSE4_2);
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(1);
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister tmp = i.TempSimd128Register(0);
 
       __ movaps(tmp, src);
       __ pcmpgtq(tmp, dst);
@@ -2726,7 +2726,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I64x2ShrU: {
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister tmp = i.TempSimd128Register(0);
       __ movq(tmp, i.InputRegister(1));
       __ psrlq(i.OutputSimd128Register(), tmp);
       break;
@@ -2736,8 +2736,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope_4_1(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(1);
-      XMMRegister src_tmp = i.ToSimd128Register(instr->TempAt(0));
-      XMMRegister dst_tmp = i.ToSimd128Register(instr->TempAt(1));
+      XMMRegister src_tmp = i.TempSimd128Register(0);
+      XMMRegister dst_tmp = i.TempSimd128Register(1);
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       DCHECK_EQ(src, xmm0);
 
@@ -2760,8 +2760,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope_4_1(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(1);
-      XMMRegister src_tmp = i.ToSimd128Register(instr->TempAt(0));
-      XMMRegister dst_tmp = i.ToSimd128Register(instr->TempAt(1));
+      XMMRegister src_tmp = i.TempSimd128Register(0);
+      XMMRegister dst_tmp = i.TempSimd128Register(1);
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       DCHECK_EQ(src, xmm0);
 
@@ -2783,7 +2783,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope(tasm(), SSE4_2);
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(1);
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister tmp = i.TempSimd128Register(0);
 
       __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
       __ psllq(kScratchDoubleReg, 63);
@@ -2799,7 +2799,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope(tasm(), SSE4_2);
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(1);
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister tmp = i.TempSimd128Register(0);
 
       __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
       __ psllq(kScratchDoubleReg, 63);
@@ -2840,7 +2840,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64I32x4SConvertF32x4: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister tmp = i.TempSimd128Register(0);
       // NAN->0
       __ movaps(tmp, dst);
       __ cmpeqps(tmp, tmp);
@@ -2882,13 +2882,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I32x4Shl: {
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister tmp = i.TempSimd128Register(0);
       __ movq(tmp, i.InputRegister(1));
       __ pslld(i.OutputSimd128Register(), tmp);
       break;
     }
     case kX64I32x4ShrS: {
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister tmp = i.TempSimd128Register(0);
       __ movq(tmp, i.InputRegister(1));
       __ psrad(i.OutputSimd128Register(), tmp);
       break;
@@ -2926,7 +2926,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I32x4Ne: {
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister tmp = i.TempSimd128Register(0);
       __ pcmpeqd(i.OutputSimd128Register(), i.InputSimd128Register(1));
       __ pcmpeqd(tmp, tmp);
       __ pxor(i.OutputSimd128Register(), tmp);
@@ -2948,8 +2948,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
-      XMMRegister tmp2 = i.ToSimd128Register(instr->TempAt(1));
+      XMMRegister tmp = i.TempSimd128Register(0);
+      XMMRegister tmp2 = i.TempSimd128Register(1);
       // NAN->0, negative->0
       __ pxor(tmp2, tmp2);
       __ maxps(dst, tmp2);
@@ -2986,7 +2986,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I32x4ShrU: {
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister tmp = i.TempSimd128Register(0);
       __ movq(tmp, i.InputRegister(1));
       __ psrld(i.OutputSimd128Register(), tmp);
       break;
@@ -3005,7 +3005,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(1);
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister tmp = i.TempSimd128Register(0);
       __ pmaxud(dst, src);
       __ pcmpeqd(dst, src);
       __ pcmpeqd(tmp, tmp);
@@ -3079,13 +3079,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I16x8Shl: {
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister tmp = i.TempSimd128Register(0);
       __ movq(tmp, i.InputRegister(1));
       __ psllw(i.OutputSimd128Register(), tmp);
       break;
     }
     case kX64I16x8ShrS: {
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister tmp = i.TempSimd128Register(0);
       __ movq(tmp, i.InputRegister(1));
       __ psraw(i.OutputSimd128Register(), tmp);
       break;
@@ -3136,7 +3136,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I16x8Ne: {
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister tmp = i.TempSimd128Register(0);
       __ pcmpeqw(i.OutputSimd128Register(), i.InputSimd128Register(1));
       __ pcmpeqw(tmp, tmp);
       __ pxor(i.OutputSimd128Register(), tmp);
@@ -3167,7 +3167,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I16x8ShrU: {
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister tmp = i.TempSimd128Register(0);
       __ movq(tmp, i.InputRegister(1));
       __ psrlw(i.OutputSimd128Register(), tmp);
       break;
@@ -3206,7 +3206,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(1);
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister tmp = i.TempSimd128Register(0);
       __ pmaxuw(dst, src);
       __ pcmpeqw(dst, src);
       __ pcmpeqw(tmp, tmp);
@@ -3273,7 +3273,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       // Temp registers for shift mask andadditional moves to XMM registers.
       Register tmp = i.ToRegister(instr->TempAt(0));
-      XMMRegister tmp_simd = i.ToSimd128Register(instr->TempAt(1));
+      XMMRegister tmp_simd = i.TempSimd128Register(1);
       // Mask off the unwanted bits before word-shifting.
       __ pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
       __ movq(tmp, i.InputRegister(1));
@@ -3291,7 +3291,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       // Temp registers for shift mask andadditional moves to XMM registers.
       Register tmp = i.ToRegister(instr->TempAt(0));
-      XMMRegister tmp_simd = i.ToSimd128Register(instr->TempAt(1));
+      XMMRegister tmp_simd = i.TempSimd128Register(1);
       // Unpack the bytes into words, do arithmetic shifts, and repack.
       __ punpckhbw(kScratchDoubleReg, dst);
       __ punpcklbw(dst, dst);
@@ -3324,7 +3324,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputSimd128Register();
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       XMMRegister right = i.InputSimd128Register(1);
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister tmp = i.TempSimd128Register(0);
       // I16x8 view of I8x16
       // left = AAaa AAaa ... AAaa AAaa
       // right= BBbb BBbb ... BBbb BBbb
@@ -3368,7 +3368,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I8x16Ne: {
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister tmp = i.TempSimd128Register(0);
       __ pcmpeqb(i.OutputSimd128Register(), i.InputSimd128Register(1));
       __ pcmpeqb(tmp, tmp);
       __ pxor(i.OutputSimd128Register(), tmp);
@@ -3404,7 +3404,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(dst, i.InputSimd128Register(0));
       // Temp registers for shift mask andadditional moves to XMM registers.
       Register tmp = i.ToRegister(instr->TempAt(0));
-      XMMRegister tmp_simd = i.ToSimd128Register(instr->TempAt(1));
+      XMMRegister tmp_simd = i.TempSimd128Register(1);
       __ punpckhbw(kScratchDoubleReg, dst);
       __ punpcklbw(dst, dst);
       // Prepare shift value
@@ -3438,7 +3438,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(1);
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      XMMRegister tmp = i.TempSimd128Register(0);
       __ pmaxub(dst, src);
       __ pcmpeqb(dst, src);
       __ pcmpeqb(tmp, tmp);
