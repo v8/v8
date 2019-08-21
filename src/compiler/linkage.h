@@ -28,7 +28,6 @@ namespace compiler {
 
 const RegList kNoCalleeSaved = 0;
 
-class Node;
 class OsrHelper;
 
 // Describes the location for a parameter or a return value to a call.
@@ -327,7 +326,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   int GetTaggedParameterSlots() const;
 
-  bool CanTailCall(const Node* call) const;
+  bool CanTailCall(const CallDescriptor* callee) const;
 
   int CalculateFixedFrameSize(Code::Kind code_kind) const;
 

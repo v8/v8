@@ -2824,7 +2824,7 @@ void InstructionSelector::VisitTailCall(Node* node) {
   auto call_descriptor = CallDescriptorOf(node->op());
 
   CallDescriptor* caller = linkage()->GetIncomingDescriptor();
-  DCHECK(caller->CanTailCall(node));
+  DCHECK(caller->CanTailCall(CallDescriptorOf(node->op())));
   const CallDescriptor* callee = CallDescriptorOf(node->op());
   int stack_param_delta = callee->GetStackParameterDelta(caller);
   CallBuffer buffer(zone(), call_descriptor, nullptr);

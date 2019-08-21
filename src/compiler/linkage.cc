@@ -7,9 +7,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
-#include "src/compiler/common-operator.h"
 #include "src/compiler/frame.h"
-#include "src/compiler/node.h"
 #include "src/compiler/osr.h"
 #include "src/compiler/pipeline.h"
 
@@ -130,8 +128,8 @@ int CallDescriptor::GetTaggedParameterSlots() const {
   return result;
 }
 
-bool CallDescriptor::CanTailCall(const Node* node) const {
-  return HasSameReturnLocationsAs(CallDescriptorOf(node->op()));
+bool CallDescriptor::CanTailCall(const CallDescriptor* callee) const {
+  return HasSameReturnLocationsAs(callee);
 }
 
 // TODO(jkummerow, sigurds): Arguably frame size calculation should be
