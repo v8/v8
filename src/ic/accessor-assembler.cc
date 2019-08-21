@@ -238,7 +238,7 @@ void AccessorAssembler::HandleLoadAccessor(
 
 void AccessorAssembler::HandleLoadField(Node* holder, Node* handler_word,
                                         Variable* var_double_value,
-                                        Label* rebox_double,
+                                        Label* rebox_double, Label* miss,
                                         ExitPoint* exit_point) {
   Comment("field_load");
   Node* index = DecodeWord<LoadHandler::FieldIndexBits>(handler_word);
@@ -260,6 +260,11 @@ void AccessorAssembler::HandleLoadField(Node* holder, Node* handler_word,
           LoadObjectField(holder, offset, MachineType::Float64()));
     } else {
       Node* heap_number = LoadObjectField(holder, offset);
+      // This is not an "old" Smi value from before a Smi->Double transition.
+      // Rather, it's possible that since the last update of this IC, the Double
+      // field transitioned to a Tagged field, and was then assigned a Smi.
+      GotoIf(TaggedIsSmi(heap_number), miss);
+      GotoIfNot(IsHeapNumber(heap_number), miss);
       var_double_value->Bind(LoadHeapNumberValue(heap_number));
     }
     Goto(rebox_double);
@@ -460,7 +465,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
          &module_export, &interceptor);
 
   BIND(&field);
-  HandleLoadField(holder, handler_word, var_double_value, rebox_double,
+  HandleLoadField(holder, handler_word, var_double_value, rebox_double, miss,
                   exit_point);
 
   BIND(&nonexistent);

@@ -112,7 +112,9 @@ class Representation {
     // smi and tagged values. Doubles, however, would require a box allocation.
     if (IsNone()) return !other.IsDouble();
     if (!FLAG_modify_field_representation_inplace) return false;
-    return (IsSmi() || IsHeapObject()) && other.IsTagged();
+    return (IsSmi() || (!FLAG_unbox_double_fields && IsDouble()) ||
+            IsHeapObject()) &&
+           other.IsTagged();
   }
 
   bool is_more_general_than(const Representation& other) const {
