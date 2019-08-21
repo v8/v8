@@ -198,6 +198,24 @@ Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
   return object;
 }
 
+Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
+                                  base::Optional<uint32_t> max_size) {
+  Factory* factory = isolate->factory();
+
+  Handle<JSFunction> object_function = isolate->object_function();
+  Handle<JSObject> object = factory->NewJSObject(object_function);
+  Handle<String> minimum_string = factory->InternalizeUtf8String("minimum");
+  Handle<String> maximum_string = factory->InternalizeUtf8String("maximum");
+  JSObject::AddProperty(isolate, object, minimum_string,
+                        factory->NewNumberFromUint(min_size), NONE);
+  if (max_size.has_value()) {
+    JSObject::AddProperty(isolate, object, maximum_string,
+                          factory->NewNumberFromUint(max_size.value()), NONE);
+  }
+
+  return object;
+}
+
 Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
                                  uint32_t min_size,
                                  base::Optional<uint32_t> max_size) {
@@ -283,6 +301,15 @@ Handle<JSArray> GetImports(Isolate* isolate,
         import_kind = table_string;
         break;
       case kExternalMemory:
+        if (enabled_features.type_reflection) {
+          DCHECK_EQ(0, import.index);  // Only one memory supported.
+          base::Optional<uint32_t> maximum_size;
+          if (module->has_maximum_pages) {
+            maximum_size.emplace(module->maximum_pages);
+          }
+          type_value =
+              GetTypeForMemory(isolate, module->initial_pages, maximum_size);
+        }
         import_kind = memory_string;
         break;
       case kExternalGlobal:
@@ -374,6 +401,15 @@ Handle<JSArray> GetExports(Isolate* isolate,
         export_kind = table_string;
         break;
       case kExternalMemory:
+        if (enabled_features.type_reflection) {
+          DCHECK_EQ(0, exp.index);  // Only one memory supported.
+          base::Optional<uint32_t> maximum_size;
+          if (module->has_maximum_pages) {
+            maximum_size.emplace(module->maximum_pages);
+          }
+          type_value =
+              GetTypeForMemory(isolate, module->initial_pages, maximum_size);
+        }
         export_kind = memory_string;
         break;
       case kExternalGlobal:

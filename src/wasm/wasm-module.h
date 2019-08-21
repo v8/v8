@@ -305,6 +305,8 @@ V8_EXPORT_PRIVATE bool IsWasmCodegenAllowed(Isolate* isolate,
 Handle<JSObject> GetTypeForFunction(Isolate* isolate, FunctionSig* sig);
 Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
                                   ValueType type);
+Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
+                                  base::Optional<uint32_t> max_size);
 Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
                                  uint32_t min_size,
                                  base::Optional<uint32_t> max_size);

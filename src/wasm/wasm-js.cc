@@ -1731,33 +1731,18 @@ void WebAssemblyMemoryType(const v8::FunctionCallbackInfo<v8::Value>& args) {
   auto maybe_memory = GetFirstArgumentAsMemory(args, &thrower);
   if (thrower.error()) return;
   i::Handle<i::WasmMemoryObject> memory = maybe_memory.ToHandleChecked();
-  v8::Local<v8::Object> ret = v8::Object::New(isolate);
   i::Handle<i::JSArrayBuffer> buffer(memory->array_buffer(), i_isolate);
-
   size_t curr_size = buffer->byte_length() / i::wasm::kWasmPageSize;
   DCHECK_LE(curr_size, std::numeric_limits<uint32_t>::max());
-  if (!ret->CreateDataProperty(isolate->GetCurrentContext(),
-                               v8_str(isolate, "minimum"),
-                               v8::Integer::NewFromUnsigned(
-                                   isolate, static_cast<uint32_t>(curr_size)))
-           .IsJust()) {
-    return;
-  }
-
+  uint32_t min_size = static_cast<uint32_t>(curr_size);
+  base::Optional<uint32_t> max_size;
   if (memory->has_maximum_pages()) {
-    uint64_t max_size = memory->maximum_pages();
-    DCHECK_LE(max_size, std::numeric_limits<uint32_t>::max());
-    if (!ret->CreateDataProperty(isolate->GetCurrentContext(),
-                                 v8_str(isolate, "maximum"),
-                                 v8::Integer::NewFromUnsigned(
-                                     isolate, static_cast<uint32_t>(max_size)))
-             .IsJust()) {
-      return;
-    }
+    uint64_t max_size64 = memory->maximum_pages();
+    DCHECK_LE(max_size64, std::numeric_limits<uint32_t>::max());
+    max_size.emplace(static_cast<uint32_t>(max_size64));
   }
-
-  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
-  return_value.Set(ret);
+  auto type = i::wasm::GetTypeForMemory(i_isolate, min_size, max_size);
+  args.GetReturnValue().Set(Utils::ToLocal(type));
 }
 
 void WebAssemblyGlobalGetValueCommon(

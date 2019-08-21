@@ -57,6 +57,52 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 })();
 
+(function TestMemoryExports() {
+  let builder = new WasmModuleBuilder();
+  builder.addMemory(1).exportMemoryAs("a")
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let exports = WebAssembly.Module.exports(module);
+
+  assertEquals("a", exports[0].name);
+  assertTrue("type" in exports[0]);
+  assertEquals(1, exports[0].type.minimum);
+  assertFalse("maximum" in exports[0].type);
+
+  builder = new WasmModuleBuilder();
+  builder.addMemory(2, 16).exportMemoryAs("b")
+  module = new WebAssembly.Module(builder.toBuffer());
+  exports = WebAssembly.Module.exports(module);
+
+  assertEquals("b", exports[0].name);
+  assertTrue("type" in exports[0]);
+  assertEquals(2, exports[0].type.minimum);
+  assertEquals(16, exports[0].type.maximum);
+})();
+
+(function TestMemoryImports() {
+  let builder = new WasmModuleBuilder();
+  builder.addImportedMemory("m", "a", 1);
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let imports = WebAssembly.Module.imports(module);
+
+  assertEquals("a", imports[0].name);
+  assertEquals("m", imports[0].module);
+  assertTrue("type" in imports[0]);
+  assertEquals(1, imports[0].type.minimum);
+  assertFalse("maximum" in imports[0].type);
+
+  builder = new WasmModuleBuilder();
+  builder.addImportedMemory("m", "b", 2, 16);
+  module = new WebAssembly.Module(builder.toBuffer());
+  imports = WebAssembly.Module.imports(module);
+
+  assertEquals("b", imports[0].name);
+  assertEquals("m", imports[0].module);
+  assertTrue("type" in imports[0]);
+  assertEquals(2, imports[0].type.minimum);
+  assertEquals(16, imports[0].type.maximum);
+})();
+
 (function TestTableType() {
   let table = new WebAssembly.Table({initial: 1, element: "anyfunc"});
   let type = WebAssembly.Table.type(table);
