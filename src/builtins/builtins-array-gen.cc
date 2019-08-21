@@ -353,16 +353,24 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
                                 Int32Constant(TERMINAL_FAST_ELEMENTS_KIND)),
            &fast_elements);
 
-    Node* value = LoadFixedDoubleArrayElement(CAST(elements), new_length,
-                                              &return_undefined);
+    {
+      TNode<FixedDoubleArray> elements_known_double_array =
+          ReinterpretCast<FixedDoubleArray>(elements);
+      TNode<Float64T> value = LoadFixedDoubleArrayElement(
+          elements_known_double_array, new_length, &return_undefined);
 
-    StoreFixedDoubleArrayHole(CAST(elements), new_length);
-    args.PopAndReturn(AllocateHeapNumberWithValue(value));
+      StoreFixedDoubleArrayHole(elements_known_double_array, new_length);
+      args.PopAndReturn(AllocateHeapNumberWithValue(value));
+    }
 
     BIND(&fast_elements);
     {
-      Node* value = LoadFixedArrayElement(CAST(elements), new_length);
-      StoreFixedArrayElement(CAST(elements), new_length, TheHoleConstant());
+      TNode<FixedArray> elements_known_fixed_array =
+          ReinterpretCast<FixedArray>(elements);
+      TNode<Object> value =
+          LoadFixedArrayElement(elements_known_fixed_array, new_length);
+      StoreFixedArrayElement(elements_known_fixed_array, new_length,
+                             TheHoleConstant());
       GotoIf(WordEqual(value, TheHoleConstant()), &return_undefined);
       args.PopAndReturn(value);
     }
@@ -426,16 +434,16 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
   // the most generic implementation for the rest of the array.
   BIND(&smi_transition);
   {
-    Node* arg = args.AtIndex(arg_index.value());
+    TNode<Object> arg = args.AtIndex(arg_index.value());
     GotoIf(TaggedIsSmi(arg), &default_label);
-    Node* length = LoadJSArrayLength(array_receiver);
+    TNode<Number> length = LoadJSArrayLength(array_receiver);
     // TODO(danno): Use the KeyedStoreGeneric stub here when possible,
     // calling into the runtime to do the elements transition is overkill.
-    SetPropertyStrict(context, array_receiver, CAST(length), CAST(arg));
+    SetPropertyStrict(context, array_receiver, length, arg);
     Increment(&arg_index);
     // The runtime SetProperty call could have converted the array to dictionary
     // mode, which must be detected to abort the fast-path.
-    Node* kind = LoadElementsKind(array_receiver);
+    TNode<Int32T> kind = LoadElementsKind(array_receiver);
     GotoIf(Word32Equal(kind, Int32Constant(DICTIONARY_ELEMENTS)),
            &default_label);
 
@@ -451,14 +459,14 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
 
   BIND(&object_push);
   {
-    Node* new_length = BuildAppendJSArray(PACKED_ELEMENTS, array_receiver,
-                                          &args, &arg_index, &default_label);
+    TNode<Smi> new_length = BuildAppendJSArray(
+        PACKED_ELEMENTS, array_receiver, &args, &arg_index, &default_label);
     args.PopAndReturn(new_length);
   }
 
   BIND(&double_push);
   {
-    Node* new_length =
+    TNode<Smi> new_length =
         BuildAppendJSArray(PACKED_DOUBLE_ELEMENTS, array_receiver, &args,
                            &arg_index, &double_transition);
     args.PopAndReturn(new_length);
@@ -470,16 +478,16 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
   // on the most generic implementation for the rest of the array.
   BIND(&double_transition);
   {
-    Node* arg = args.AtIndex(arg_index.value());
+    TNode<Object> arg = args.AtIndex(arg_index.value());
     GotoIfNumber(arg, &default_label);
-    Node* length = LoadJSArrayLength(array_receiver);
+    TNode<Number> length = LoadJSArrayLength(array_receiver);
     // TODO(danno): Use the KeyedStoreGeneric stub here when possible,
     // calling into the runtime to do the elements transition is overkill.
-    SetPropertyStrict(context, array_receiver, CAST(length), CAST(arg));
+    SetPropertyStrict(context, array_receiver, length, arg);
     Increment(&arg_index);
     // The runtime SetProperty call could have converted the array to dictionary
     // mode, which must be detected to abort the fast-path.
-    Node* kind = LoadElementsKind(array_receiver);
+    TNode<Int32T> kind = LoadElementsKind(array_receiver);
     GotoIf(Word32Equal(kind, Int32Constant(DICTIONARY_ELEMENTS)),
            &default_label);
     Goto(&object_push);
@@ -491,8 +499,8 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
   {
     args.ForEach(
         [this, array_receiver, context](Node* arg) {
-          Node* length = LoadJSArrayLength(array_receiver);
-          SetPropertyStrict(context, array_receiver, CAST(length), CAST(arg));
+          TNode<Number> length = LoadJSArrayLength(array_receiver);
+          SetPropertyStrict(context, array_receiver, length, CAST(arg));
         },
         arg_index.value());
     args.PopAndReturn(LoadJSArrayLength(array_receiver));
