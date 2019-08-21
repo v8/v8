@@ -16,6 +16,7 @@
 #include "src/sanitizer/msan.h"
 
 namespace v8 {
+namespace internal {
 namespace {
 
 bool IsSamePage(i::Address ptr1, i::Address ptr2) {
@@ -77,11 +78,6 @@ bool IsNoFrameRegion(i::Address address) {
   }
   return false;
 }
-
-}  // namespace
-
-namespace internal {
-namespace {
 
 #if defined(USE_SIMULATOR)
 class SimulatorHelper {
@@ -184,16 +180,13 @@ Address ScrapeNativeContextAddress(Heap* heap, Address context_address) {
 }
 
 }  // namespace
-}  // namespace internal
 
-//
-// StackTracer implementation
-//
 DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
                                    const RegisterState& reg_state,
                                    RecordCEntryFrame record_c_entry_frame,
                                    bool update_stats,
-                                   bool use_simulator_reg_state) {
+                                   bool use_simulator_reg_state,
+                                   base::TimeDelta sampling_interval) {
   this->update_stats = update_stats;
   SampleInfo info;
   RegisterState regs = reg_state;
@@ -229,6 +222,8 @@ DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
   } else {
     tos = nullptr;
   }
+  this->sampling_interval = sampling_interval;
+  timestamp = base::TimeTicks::HighResolutionNow();
 }
 
 bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
@@ -366,20 +361,6 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
   }
   sample_info->frames_count = i;
   return true;
-}
-
-namespace internal {
-
-void TickSample::Init(Isolate* isolate, const v8::RegisterState& state,
-                      RecordCEntryFrame record_c_entry_frame, bool update_stats,
-                      bool use_simulator_reg_state,
-                      base::TimeDelta sampling_interval) {
-  v8::TickSample::Init(reinterpret_cast<v8::Isolate*>(isolate), state,
-                       record_c_entry_frame, update_stats,
-                       use_simulator_reg_state);
-  this->sampling_interval = sampling_interval;
-  if (pc == nullptr) return;
-  timestamp = base::TimeTicks::HighResolutionNow();
 }
 
 void TickSample::print() const {

@@ -323,7 +323,7 @@ TEST(Issue1398) {
   v8::internal::TickSample sample;
   sample.pc = reinterpret_cast<void*>(code.InstructionStart());
   sample.tos = nullptr;
-  sample.frames_count = v8::TickSample::kMaxFramesCount;
+  sample.frames_count = TickSample::kMaxFramesCount;
   for (unsigned i = 0; i < sample.frames_count; ++i) {
     sample.stack[i] = reinterpret_cast<void*>(code.InstructionStart());
   }
@@ -341,7 +341,7 @@ TEST(Issue1398) {
     ++actual_depth;
   }
 
-  CHECK_EQ(1 + v8::TickSample::kMaxFramesCount, actual_depth);  // +1 for PC.
+  CHECK_EQ(1 + TickSample::kMaxFramesCount, actual_depth);  // +1 for PC.
 }
 
 TEST(DeleteAllCpuProfiles) {

@@ -15,13 +15,13 @@
 
 namespace v8 {
 
-struct TickSample;
-
 namespace sampler {
 class Sampler;
 }
 
 namespace internal {
+
+struct TickSample;
 
 // Logger is used for collecting logging information from V8 during
 // execution. The result is dumped to a file.
