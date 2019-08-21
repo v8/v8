@@ -79,7 +79,7 @@ TEST(GetObjectProperties) {
   CHECK(props->type == std::string("v8::internal::Smi"));
   CHECK_EQ(props->num_properties, 0);
 
-  v = CompileRun("[\"a\", \"b\"]");
+  v = CompileRun("[\"a\", \"bc\"]");
   o = v8::Utils::OpenHandle(*v);
   props = d::GetObjectProperties(o->ptr(), &ReadMemory, roots);
   CHECK(props->type_check_result == d::TypeCheckResult::kUsedMap);
@@ -144,11 +144,17 @@ TEST(GetObjectProperties) {
       props->properties[2]->address + sizeof(i::Tagged_t));
   props = d::GetObjectProperties(second_string_address, &ReadMemory, roots);
   CHECK(props->type_check_result == d::TypeCheckResult::kUsedMap);
-  CHECK(props->type == std::string("v8::internal::String"));
-  CHECK_EQ(props->num_properties, 3);
+  CHECK(props->type == std::string("v8::internal::SeqOneByteString"));
+  CHECK_EQ(props->num_properties, 4);
   CheckProp(*props->properties[0], "v8::internal::Map", "map");
   CheckProp(*props->properties[1], "uint32_t", "hash_field");
-  CheckProp(*props->properties[2], "int32_t", "length", 1);
+  CheckProp(*props->properties[2], "int32_t", "length", 2);
+  CheckProp(*props->properties[3], "char", "chars",
+            d::PropertyKind::kArrayOfKnownSize, 2);
+  CHECK_EQ(
+      strncmp("bc",
+              reinterpret_cast<const char*>(props->properties[3]->address), 2),
+      0);
 
   // Read the second string again, using a type hint instead of the map. All of
   // its properties should match what we read last time.
@@ -170,7 +176,7 @@ TEST(GetObjectProperties) {
               *reinterpret_cast<i::Tagged_t*>(props->properties[0]->address));
     CheckProp(*props2->properties[1], "uint32_t", "hash_field",
               *reinterpret_cast<int32_t*>(props->properties[1]->address));
-    CheckProp(*props2->properties[2], "int32_t", "length", 1);
+    CheckProp(*props2->properties[2], "int32_t", "length", 2);
   }
 
   // Try a weak reference.
@@ -179,13 +185,13 @@ TEST(GetObjectProperties) {
   std::string weak_ref_prefix = "weak ref to ";
   CHECK(weak_ref_prefix + props->brief == props2->brief);
   CHECK(props2->type_check_result == d::TypeCheckResult::kUsedMap);
-  CHECK(props2->type == std::string("v8::internal::String"));
-  CHECK_EQ(props2->num_properties, 3);
+  CHECK(props2->type == std::string("v8::internal::SeqOneByteString"));
+  CHECK_EQ(props2->num_properties, 4);
   CheckProp(*props2->properties[0], "v8::internal::Map", "map",
             *reinterpret_cast<i::Tagged_t*>(props->properties[0]->address));
   CheckProp(*props2->properties[1], "uint32_t", "hash_field",
             *reinterpret_cast<i::Tagged_t*>(props->properties[1]->address));
-  CheckProp(*props2->properties[2], "int32_t", "length", 1);
+  CheckProp(*props2->properties[2], "int32_t", "length", 2);
 }
 
 }  // namespace internal

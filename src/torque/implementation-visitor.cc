@@ -2738,15 +2738,31 @@ class FieldOffsetsGenerator {
  public:
   explicit FieldOffsetsGenerator(const ClassType* type) : type_(type) {}
 
-  virtual void WriteField(const Field& f) = 0;
+  virtual void WriteField(const Field& f, const std::string& size_string) = 0;
   virtual void WriteMarker(const std::string& marker) = 0;
+  virtual void BeginPrivateOffsets() = 0;
 
   virtual ~FieldOffsetsGenerator() { CHECK(is_finished_); }
 
   void RecordOffsetFor(const Field& f) {
     CHECK(!is_finished_);
     UpdateSection(f);
-    WriteField(f);
+    // We don't know statically how much space an indexed field takes, so report
+    // it as zero.
+    std::string size_string = "0";
+    if (!f.index.has_value()) {
+      size_t field_size;
+      std::tie(field_size, size_string) = f.GetFieldSizeInformation();
+    }
+    WriteField(f, size_string);
+
+    // Offsets for anything after an indexed field are likely to cause
+    // confusion, because the indexed field itself takes up a variable amount of
+    // space. We could not emit them at all, but that might allow an inherited
+    // kSize to be accessible (and wrong), so we emit them as private.
+    if (f.index.has_value()) {
+      BeginPrivateOffsets();
+    }
   }
 
   void Finish() {
@@ -2827,16 +2843,15 @@ class MacroFieldOffsetsGenerator : public FieldOffsetsGenerator {
     out_ << "TORQUE_GENERATED_" << CapifyStringWithUnderscores(type_->name())
          << "_FIELDS(V) \\\n";
   }
-  virtual void WriteField(const Field& f) {
-    size_t field_size;
-    std::string size_string;
-    std::string machine_type;
-    std::tie(field_size, size_string) = f.GetFieldSizeInformation();
+  void WriteField(const Field& f, const std::string& size_string) override {
     out_ << "V(k" << CamelifyString(f.name_and_type.name) << "Offset, "
          << size_string << ") \\\n";
   }
-  virtual void WriteMarker(const std::string& marker) {
+  void WriteMarker(const std::string& marker) override {
     out_ << "V(" << marker << ", 0) \\\n";
+  }
+  void BeginPrivateOffsets() override {
+    // Can't do anything meaningful here in the macro generator.
   }
 
  private:
@@ -2950,11 +2965,7 @@ class ClassFieldOffsetGenerator : public FieldOffsetsGenerator {
       : FieldOffsetsGenerator(type),
         hdr_(header),
         previous_field_end_("P::kHeaderSize") {}
-  virtual void WriteField(const Field& f) {
-    size_t field_size;
-    std::string size_string;
-    std::string machine_type;
-    std::tie(field_size, size_string) = f.GetFieldSizeInformation();
+  void WriteField(const Field& f, const std::string& size_string) override {
     std::string field = "k" + CamelifyString(f.name_and_type.name) + "Offset";
     std::string field_end = field + "End";
     hdr_ << "  static constexpr int " << field << " = " << previous_field_end_
@@ -2963,9 +2974,14 @@ class ClassFieldOffsetGenerator : public FieldOffsetsGenerator {
          << size_string << " - 1;\n";
     previous_field_end_ = field_end + " + 1";
   }
-  virtual void WriteMarker(const std::string& marker) {
+  void WriteMarker(const std::string& marker) override {
     hdr_ << "  static constexpr int " << marker << " = " << previous_field_end_
          << ";\n";
+  }
+  void BeginPrivateOffsets() override {
+    // The following section must re-establish public mode (currently done by
+    // GenerateClassConstructors).
+    hdr_ << " private:\n";
   }
 
  private:
@@ -3022,7 +3038,7 @@ void CppClassGenerator::GenerateClass() {
   hdr_ << "  static_assert(std::is_same<" << super_->name() << ", P>::value,\n"
        << "    \"Pass in " << super_->name()
        << " as second template parameter for " << gen_name_ << ".\");\n";
-  hdr_ << "public: \n";
+  hdr_ << " public: \n";
   hdr_ << "  using Super = P;\n";
   for (const Field& f : type_->fields()) {
     GenerateFieldAccessor(f);
@@ -3074,7 +3090,7 @@ void CppClassGenerator::GenerateClassCasts() {
 }
 
 void CppClassGenerator::GenerateClassConstructors() {
-  hdr_ << "public:\n";
+  hdr_ << " public:\n";
   hdr_ << "  template <class DAlias = D>\n";
   hdr_ << "  constexpr " << gen_name_ << "() : P() {\n";
   hdr_ << "    static_assert(std::is_base_of<" << gen_name_ << ", \n";

@@ -87,16 +87,32 @@ void GenerateClassDebugReader(const ClassType& type, std::ostream& h_contents,
 
     std::string indexed_field_info;
     if (field.index) {
-      if ((*field.index)->name_and_type.type != TypeOracle::GetSmiType()) {
-        Error("Non-SMI values are not (yet) supported as indexes.");
+      const Type* index_type = (*field.index)->name_and_type.type;
+      std::string index_type_name;
+      std::string index_value;
+      if (index_type == TypeOracle::GetSmiType()) {
+        index_type_name = "uintptr_t";
+        index_value =
+            "i::PlatformSmiTagging::SmiToInt(indexed_field_count.value)";
+      } else if (!index_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+        const Type* constexpr_index = index_type->ConstexprVersion();
+        if (constexpr_index == nullptr) {
+          Error("Type '", index_type->ToString(),
+                "' requires a constexpr representation");
+          continue;
+        }
+        index_type_name = constexpr_index->GetGeneratedTypeName();
+        index_value = "indexed_field_count.value";
+      } else {
+        Error("Unsupported index type: ", index_type);
         continue;
       }
-      get_props_impl << "  Value<uintptr_t> indexed_field_count = Get"
+      get_props_impl << "  Value<" << index_type_name
+                     << "> indexed_field_count = Get"
                      << CamelifyString((*field.index)->name_and_type.name)
                      << "Value(accessor);\n";
       indexed_field_info =
-          ", i::PlatformSmiTagging::SmiToInt(indexed_field_count.value), "
-          "GetArrayKind(indexed_field_count.validity)";
+          ", " + index_value + ", GetArrayKind(indexed_field_count.validity)";
     }
     get_props_impl
         << "  result.push_back(v8::base::make_unique<ObjectProperty>(\""

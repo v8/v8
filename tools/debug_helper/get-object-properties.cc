@@ -8,6 +8,7 @@
 #include "heap-constants.h"
 #include "include/v8-internal.h"
 #include "src/common/ptr-compr-inl.h"
+#include "src/objects/string-inl.h"
 #include "torque-generated/class-debug-readers-tq.h"
 
 namespace i = v8::internal;
@@ -141,71 +142,117 @@ std::string AppendAddressAndType(const std::string& brief, uintptr_t address,
                        : brief + " (" + brief_stream.str() + ")";
 }
 
+struct TypeNameAndProps {
+  TypeNameAndProps(d::TypeCheckResult type_check_result, std::string&& type,
+                   std::vector<std::unique_ptr<ObjectProperty>>&& properties)
+      : type_check_result(type_check_result),
+        type_name(std::move(type)),
+        props(std::move(properties)) {}
+  explicit TypeNameAndProps(d::TypeCheckResult type_check_result)
+      : type_check_result(type_check_result) {}
+  d::TypeCheckResult type_check_result;
+  std::string type_name;
+  std::vector<std::unique_ptr<ObjectProperty>> props;
+};
+
+TypeNameAndProps GetTypeNameAndPropsByHint(uintptr_t address,
+                                           d::MemoryAccessor accessor,
+                                           std::string type_hint_string) {
+#define TYPE_NAME_CASE(ClassName, ...)                       \
+  if (type_hint_string == "v8::internal::" #ClassName) {     \
+    return {d::TypeCheckResult::kUsedTypeHint, #ClassName,   \
+            Tq##ClassName(address).GetProperties(accessor)}; \
+  }
+
+  TQ_INSTANCE_TYPES_SINGLE(TYPE_NAME_CASE)
+  TQ_INSTANCE_TYPES_RANGE(TYPE_NAME_CASE)
+
+#undef TYPE_NAME_CASE
+
+  return TypeNameAndProps(d::TypeCheckResult::kUnknownTypeHint);
+}
+
+TypeNameAndProps GetTypeNameAndPropsForString(uintptr_t address,
+                                              d::MemoryAccessor accessor,
+                                              i::InstanceType type) {
+  class StringGetDispatcher : public i::AllStatic {
+   public:
+#define DEFINE_METHOD(ClassName)                             \
+  static inline TypeNameAndProps Handle##ClassName(          \
+      uintptr_t address, d::MemoryAccessor accessor) {       \
+    return {d::TypeCheckResult::kUsedMap, #ClassName,        \
+            Tq##ClassName(address).GetProperties(accessor)}; \
+  }
+    STRING_CLASS_TYPES(DEFINE_METHOD)
+#undef DEFINE_METHOD
+    static inline TypeNameAndProps HandleInvalidString(
+        uintptr_t address, d::MemoryAccessor accessor) {
+      return TypeNameAndProps(d::TypeCheckResult::kUnknownInstanceType);
+    }
+  };
+
+  return i::StringShape(type)
+      .DispatchToSpecificTypeWithoutCast<StringGetDispatcher, TypeNameAndProps>(
+          address, accessor);
+}
+
 std::unique_ptr<ObjectPropertiesResult> GetHeapObjectProperties(
     uintptr_t address, d::MemoryAccessor accessor, Value<i::InstanceType> type,
     const char* type_hint, std::string brief) {
-  std::vector<std::unique_ptr<ObjectProperty>> props;
-  std::string type_name;
-  d::TypeCheckResult type_check_result = d::TypeCheckResult::kUsedMap;
+  TypeNameAndProps tnp(d::TypeCheckResult::kUsedMap);
 
   if (type.validity == d::MemoryAccessResult::kOk) {
     // Dispatch to the appropriate method for each instance type. After calling
     // the generated method to fetch properties, we can add custom properties.
     switch (type.value) {
-#define INSTANCE_TYPE_CASE(ClassName, INSTANCE_TYPE)        \
-  case i::INSTANCE_TYPE:                                    \
-    type_name = #ClassName;                                 \
-    props = Tq##ClassName(address).GetProperties(accessor); \
+#define INSTANCE_TYPE_CASE(ClassName, INSTANCE_TYPE)            \
+  case i::INSTANCE_TYPE:                                        \
+    tnp.type_name = #ClassName;                                 \
+    tnp.props = Tq##ClassName(address).GetProperties(accessor); \
     break;
       TQ_INSTANCE_TYPES_SINGLE(INSTANCE_TYPE_CASE)
 #undef INSTANCE_TYPE_CASE
 
       default:
 
+        // Special case: concrete subtypes of String are not included in the
+        // main instance type list because they use the low bits of the instance
+        // type enum as flags.
+        if (type.value <= i::LAST_STRING_TYPE) {
+          tnp = GetTypeNameAndPropsForString(address, accessor, type.value);
+          break;
+        }
+
 #define INSTANCE_RANGE_CASE(ClassName, FIRST_TYPE, LAST_TYPE)      \
   if (type.value >= i::FIRST_TYPE && type.value <= i::LAST_TYPE) { \
-    type_name = #ClassName;                                        \
-    props = Tq##ClassName(address).GetProperties(accessor);        \
+    tnp.type_name = #ClassName;                                    \
+    tnp.props = Tq##ClassName(address).GetProperties(accessor);    \
     break;                                                         \
   }
         TQ_INSTANCE_TYPES_RANGE(INSTANCE_RANGE_CASE)
 #undef INSTANCE_RANGE_CASE
 
-        type_check_result = d::TypeCheckResult::kUnknownInstanceType;
+        tnp.type_check_result = d::TypeCheckResult::kUnknownInstanceType;
         break;
     }
   } else if (type_hint != nullptr) {
     // Try to use the provided type hint, since the real instance type is
     // unavailable.
-    std::string type_hint_string(type_hint);
-    type_check_result = d::TypeCheckResult::kUsedTypeHint;
-
-#define TYPE_NAME_CASE(ClassName, ...)                      \
-  if (type_hint_string == "v8::internal::" #ClassName) {    \
-    type_name = #ClassName;                                 \
-    props = Tq##ClassName(address).GetProperties(accessor); \
-  } else
-    TQ_INSTANCE_TYPES_SINGLE(TYPE_NAME_CASE)
-    TQ_INSTANCE_TYPES_RANGE(TYPE_NAME_CASE)
-    /*else*/ {
-      type_check_result = d::TypeCheckResult::kUnknownTypeHint;
-    }
-#undef TYPE_NAME_CASE
-
+    tnp = GetTypeNameAndPropsByHint(address, accessor, type_hint);
   } else {
     // TODO(v8:9376): Use known maps here. If known map is just a guess (because
     // root pointers weren't provided), then create a synthetic property with
     // the more specific type. Then the caller could presumably ask us again
     // with the type hint we provided. Otherwise, just go ahead and use it to
     // generate properties.
-    type_check_result =
+    tnp.type_check_result =
         type.validity == d::MemoryAccessResult::kAddressNotValid
             ? d::TypeCheckResult::kMapPointerInvalid
             : d::TypeCheckResult::kMapPointerValidButInaccessible;
   }
 
-  if (type_name.empty()) {
-    type_name = "Object";
+  if (tnp.type_name.empty()) {
+    tnp.type_name = "Object";
   }
 
   // TODO(v8:9376): Many object types need additional data that is not included
@@ -215,10 +262,11 @@ std::unique_ptr<ObjectPropertiesResult> GetHeapObjectProperties(
   // is available, we should instead represent those properties (and any out-of-
   // object properties) using their JavaScript property names.
 
-  brief = AppendAddressAndType(brief, address, type_name.c_str());
+  brief = AppendAddressAndType(brief, address, tnp.type_name.c_str());
 
   return v8::base::make_unique<ObjectPropertiesResult>(
-      type_check_result, brief, "v8::internal::" + type_name, std::move(props));
+      tnp.type_check_result, brief, "v8::internal::" + tnp.type_name,
+      std::move(tnp.props));
 }
 
 #undef STRUCT_INSTANCE_TYPE_ADAPTER
