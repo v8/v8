@@ -1614,12 +1614,12 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
         value, RemoteObject::SubtypeEnum::Regexp,
         descriptionForRegExp(isolate, value.As<v8::RegExp>()));
   }
-  if (value->IsFunction()) {
-    return v8::base::make_unique<FunctionMirror>(value);
-  }
   if (value->IsProxy()) {
     return v8::base::make_unique<ObjectMirror>(
         value, RemoteObject::SubtypeEnum::Proxy, "Proxy");
+  }
+  if (value->IsFunction()) {
+    return v8::base::make_unique<FunctionMirror>(value);
   }
   if (value->IsDate()) {
     return v8::base::make_unique<ObjectMirror>(
