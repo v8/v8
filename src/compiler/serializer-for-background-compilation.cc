@@ -405,6 +405,7 @@ class SerializerForBackgroundCompilation {
   void ProcessModuleVariableAccess(
       interpreter::BytecodeArrayIterator* iterator);
 
+  void ProcessHintsForObjectCreate(Hints const& prototype);
   void ProcessMapHintsForPromises(Hints const& receiver_hints);
   void ProcessHintsForPromiseResolve(Hints const& resolution_hints);
   void ProcessHintsForHasInPrototypeChain(Hints const& instance_hints);
@@ -1787,6 +1788,14 @@ void SerializerForBackgroundCompilation::ProcessReceiverMapForApiCall(
   }
 }
 
+void SerializerForBackgroundCompilation::ProcessHintsForObjectCreate(
+    Hints const& prototype) {
+  for (Handle<Object> constant_handle : prototype.constants()) {
+    ObjectRef constant(broker(), constant_handle);
+    if (constant.IsJSObject()) constant.AsJSObject().SerializeObjectCreateMap();
+  }
+}
+
 void SerializerForBackgroundCompilation::ProcessBuiltinCall(
     Handle<SharedFunctionInfo> target, const HintsVector& arguments,
     SpeculationMode speculation_mode) {
@@ -1795,6 +1804,15 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
   const char* name = Builtins::name(builtin_id);
   TRACE_BROKER(broker(), "Serializing for call to builtin " << name);
   switch (builtin_id) {
+    case Builtins::kObjectCreate: {
+      if (arguments.size() >= 2) {
+        ProcessHintsForObjectCreate(arguments[1]);
+      } else {
+        ProcessHintsForObjectCreate(Hints::SingleConstant(
+            broker()->isolate()->factory()->undefined_value(), zone()));
+      }
+      break;
+    }
     case Builtins::kPromisePrototypeCatch: {
       // For JSCallReducer::ReducePromisePrototypeCatch.
       if (speculation_mode != SpeculationMode::kDisallowSpeculation) {
@@ -2465,8 +2483,9 @@ void SerializerForBackgroundCompilation::ProcessNamedAccess(
                                        new_accumulator_hints);
     }
     // For JSNativeContextSpecialization::ReduceNamedAccessFromNexus.
-    // TODO(neis): This should be done even if megamorphic.
     if (object.equals(global_proxy)) {
+      // TODO(neis): Record accumulator hint? Also for string.length and maybe
+      // more.
       global_proxy.GetPropertyCell(feedback.name(),
                                    SerializationPolicy::kSerializeIfNeeded);
     }
@@ -2474,7 +2493,11 @@ void SerializerForBackgroundCompilation::ProcessNamedAccess(
     if (access_mode == AccessMode::kLoad && object.IsJSFunction() &&
         feedback.name().equals(ObjectRef(
             broker(), broker()->isolate()->factory()->prototype_string()))) {
-      object.AsJSFunction().Serialize();
+      JSFunctionRef function = object.AsJSFunction();
+      function.Serialize();
+      if (new_accumulator_hints != nullptr && function.has_prototype()) {
+        new_accumulator_hints->AddConstant(function.prototype().object());
+      }
     }
   }
 }

@@ -279,8 +279,12 @@ class JSObjectData : public JSReceiverData {
   FixedArrayBaseData* elements() const;
 
   void SerializeObjectCreateMap(JSHeapBroker* broker);
-  MapData* object_create_map() const {  // Can be nullptr.
-    CHECK(serialized_object_create_map_);
+
+  MapData* object_create_map(JSHeapBroker* broker) const {  // Can be nullptr.
+    if (!serialized_object_create_map_) {
+      DCHECK_NULL(object_create_map_);
+      TRACE_MISSING(broker, "object_create_map on " << this);
+    }
     return object_create_map_;
   }
 
@@ -2533,7 +2537,7 @@ base::Optional<MapRef> JSObjectRef::GetObjectCreateMap() const {
       return base::Optional<MapRef>();
     }
   }
-  MapData* map_data = data()->AsJSObject()->object_create_map();
+  MapData* map_data = data()->AsJSObject()->object_create_map(broker());
   return map_data != nullptr ? MapRef(broker(), map_data)
                              : base::Optional<MapRef>();
 }
