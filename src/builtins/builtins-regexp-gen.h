@@ -87,6 +87,9 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                              MessageTemplate msg_template,
                              char const* method_name);
 
+  TNode<BoolT> IsReceiverInitialRegExpPrototype(SloppyTNode<Context> context,
+                                                SloppyTNode<Object> receiver);
+
   // Fast path check logic.
   //
   // Are you afraid? If not, you should be.

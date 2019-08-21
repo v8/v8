@@ -863,8 +863,6 @@ namespace internal {
   TFJ(RegExpPrototypeMultilineGetter, 0, kReceiver)                            \
   /* ES #sec-regexp.prototype-@@search */                                      \
   TFJ(RegExpPrototypeSearch, 1, kReceiver, kString)                            \
-  /* ES #sec-get-regexp.prototype.source */                                    \
-  TFJ(RegExpPrototypeSourceGetter, 0, kReceiver)                               \
   /* ES #sec-get-regexp.prototype.sticky */                                    \
   TFJ(RegExpPrototypeStickyGetter, 0, kReceiver)                               \
   CPP(RegExpPrototypeToString)                                                 \

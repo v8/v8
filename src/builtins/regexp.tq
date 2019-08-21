@@ -29,4 +29,7 @@ namespace regexp {
   RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResultFast(
       implicit context: Context)(JSRegExp, String):
       RegExpMatchInfo labels IfDidNotMatch;
+
+  extern macro RegExpBuiltinsAssembler::IsReceiverInitialRegExpPrototype(
+      implicit context: Context)(Object): bool;
 }

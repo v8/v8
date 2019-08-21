@@ -919,6 +919,17 @@ Node* RegExpBuiltinsAssembler::ThrowIfNotJSReceiver(
   return var_value_map.value();
 }
 
+TNode<BoolT> RegExpBuiltinsAssembler::IsReceiverInitialRegExpPrototype(
+    SloppyTNode<Context> context, SloppyTNode<Object> receiver) {
+  TNode<Context> native_context = LoadNativeContext(context);
+  Node* const regexp_fun =
+      LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX);
+  Node* const initial_map =
+      LoadObjectField(regexp_fun, JSFunction::kPrototypeOrInitialMapOffset);
+  TNode<Object> const initial_prototype = LoadMapPrototype(initial_map);
+  return WordEqual(receiver, initial_prototype);
+}
+
 Node* RegExpBuiltinsAssembler::IsFastRegExpNoPrototype(Node* const context,
                                                        Node* const object,
                                                        Node* const map) {
@@ -1568,54 +1579,6 @@ TF_BUILTIN(RegExpPrototypeCompile, RegExpBuiltinsAssembler) {
   Return(result);
 }
 
-// ES6 21.2.5.10.
-// ES #sec-get-regexp.prototype.source
-TF_BUILTIN(RegExpPrototypeSourceGetter, RegExpBuiltinsAssembler) {
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-
-  // Check whether we have an unmodified regexp instance.
-  Label if_isjsregexp(this), if_isnotjsregexp(this, Label::kDeferred);
-
-  GotoIf(TaggedIsSmi(receiver), &if_isnotjsregexp);
-  Branch(IsJSRegExp(CAST(receiver)), &if_isjsregexp, &if_isnotjsregexp);
-
-  BIND(&if_isjsregexp);
-  Return(LoadObjectField(CAST(receiver), JSRegExp::kSourceOffset));
-
-  BIND(&if_isnotjsregexp);
-  {
-    Isolate* isolate = this->isolate();
-    Node* const native_context = LoadNativeContext(context);
-    Node* const regexp_fun =
-        LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX);
-    Node* const initial_map =
-        LoadObjectField(regexp_fun, JSFunction::kPrototypeOrInitialMapOffset);
-    Node* const initial_prototype = LoadMapPrototype(initial_map);
-
-    Label if_isprototype(this), if_isnotprototype(this);
-    Branch(WordEqual(receiver, initial_prototype), &if_isprototype,
-           &if_isnotprototype);
-
-    BIND(&if_isprototype);
-    {
-      const int counter = v8::Isolate::kRegExpPrototypeSourceGetter;
-      Node* const counter_smi = SmiConstant(counter);
-      CallRuntime(Runtime::kIncrementUseCounter, context, counter_smi);
-
-      Node* const result =
-          HeapConstant(isolate->factory()->NewStringFromAsciiChecked("(?:)"));
-      Return(result);
-    }
-
-    BIND(&if_isnotprototype);
-    {
-      ThrowTypeError(context, MessageTemplate::kRegExpNonRegExp,
-                     "RegExp.prototype.source");
-    }
-  }
-}
-
 // Fast-path implementation for flag checks on an unmodified JSRegExp instance.
 TNode<Int32T> RegExpBuiltinsAssembler::FastFlagGetter(TNode<JSRegExp> regexp,
                                                       JSRegExp::Flag flag) {
@@ -1701,15 +1664,8 @@ void RegExpBuiltinsAssembler::FlagGetter(Node* context, Node* receiver,
 
   BIND(&if_isnotunmodifiedjsregexp);
   {
-    Node* const native_context = LoadNativeContext(context);
-    Node* const regexp_fun =
-        LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX);
-    Node* const initial_map =
-        LoadObjectField(regexp_fun, JSFunction::kPrototypeOrInitialMapOffset);
-    Node* const initial_prototype = LoadMapPrototype(initial_map);
-
     Label if_isprototype(this), if_isnotprototype(this);
-    Branch(WordEqual(receiver, initial_prototype), &if_isprototype,
+    Branch(IsReceiverInitialRegExpPrototype(context, receiver), &if_isprototype,
            &if_isnotprototype);
 
     BIND(&if_isprototype);
