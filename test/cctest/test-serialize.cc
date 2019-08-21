@@ -1518,6 +1518,7 @@ static Handle<SharedFunctionInfo> CompileScriptAndProduceCache(
 
 TEST(CodeSerializerWithProfiler) {
   FLAG_enable_lazy_source_positions = true;
+  FLAG_stress_lazy_source_positions = false;
 
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
