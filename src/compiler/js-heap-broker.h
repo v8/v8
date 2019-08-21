@@ -167,22 +167,11 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   base::Optional<NameRef> GetNameFeedback(FeedbackNexus const& nexus);
 
-  // If there is no result stored for {map}, we return an Invalid
-  // PropertyAccessInfo.
-  PropertyAccessInfo GetAccessInfoForLoadingExec(MapRef map);
-  PropertyAccessInfo GetAccessInfoForLoadingHasInstance(MapRef map);
-  PropertyAccessInfo GetAccessInfoForLoadingThen(MapRef map);
-  PropertyAccessInfo const& CreateAccessInfoForLoadingExec(
-      MapRef map, CompilationDependencies* dependencies);
-  PropertyAccessInfo const& CreateAccessInfoForLoadingHasInstance(
-      MapRef map, CompilationDependencies* dependencies);
-  void CreateAccessInfoForLoadingThen(MapRef map,
-                                      CompilationDependencies* dependencies);
-  void StorePropertyAccessInfo(MapRef map, NameRef name, AccessMode mode,
-                               PropertyAccessInfo const& access_info);
+  // If {policy} is {kAssumeSerialized} and the broker doesn't know about the
+  // combination of {map}, {name}, and {access_mode}, returns Invalid.
   PropertyAccessInfo GetPropertyAccessInfo(
       MapRef map, NameRef name, AccessMode access_mode,
-      CompilationDependencies* dependencies,
+      CompilationDependencies* dependencies = nullptr,
       SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
 
   StringRef GetTypedArrayStringTag(ElementsKind kind);
@@ -234,15 +223,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
                    FeedbackSource::Hash, FeedbackSource::Equal>
       feedback_;
   ZoneUnorderedMap<ObjectData*, BytecodeAnalysis*> bytecode_analyses_;
-  typedef ZoneUnorderedMap<MapRef, PropertyAccessInfo, ObjectRef::Hash,
-                           ObjectRef::Equal>
-      MapToAccessInfos;
-
-  // TODO(neis): Replaceby uses of property_access_infos_.
-  MapToAccessInfos ais_for_loading_exec_;
-  MapToAccessInfos ais_for_loading_has_instance_;
-  MapToAccessInfos ais_for_loading_then_;
-
   ZoneUnorderedMap<PropertyAccessTarget, PropertyAccessInfo,
                    PropertyAccessTarget::Hash, PropertyAccessTarget::Equal>
       property_access_infos_;

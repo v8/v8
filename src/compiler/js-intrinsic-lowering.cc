@@ -25,6 +25,8 @@ JSIntrinsicLowering::JSIntrinsicLowering(Editor* editor, JSGraph* jsgraph)
     : AdvancedReducer(editor), jsgraph_(jsgraph) {}
 
 Reduction JSIntrinsicLowering::Reduce(Node* node) {
+  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
+
   if (node->opcode() != IrOpcode::kJSCallRuntime) return NoChange();
   const Runtime::Function* const f =
       Runtime::FunctionForId(CallRuntimeParametersOf(node->op()).id());

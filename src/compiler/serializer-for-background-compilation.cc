@@ -1911,8 +1911,11 @@ void SerializerForBackgroundCompilation::ProcessHintsForHasInPrototypeChain(
 void SerializerForBackgroundCompilation::ProcessHintsForPromiseResolve(
     Hints const& resolution_hints) {
   auto processMap = [&](Handle<Map> map) {
-    broker()->CreateAccessInfoForLoadingThen(MapRef(broker(), map),
-                                             dependencies());
+    broker()->GetPropertyAccessInfo(
+        MapRef(broker(), map),
+        NameRef(broker(), broker()->isolate()->factory()->then_string()),
+        AccessMode::kLoad, dependencies(),
+        SerializationPolicy::kSerializeIfNeeded);
   };
 
   for (auto hint : resolution_hints.constants()) {
@@ -1942,8 +1945,10 @@ void SerializerForBackgroundCompilation::ProcessMapHintsForPromises(
 
 PropertyAccessInfo SerializerForBackgroundCompilation::ProcessMapForRegExpTest(
     MapRef map) {
-  PropertyAccessInfo ai_exec =
-      broker()->CreateAccessInfoForLoadingExec(map, dependencies());
+  PropertyAccessInfo ai_exec = broker()->GetPropertyAccessInfo(
+      map, NameRef(broker(), broker()->isolate()->factory()->exec_string()),
+      AccessMode::kLoad, dependencies(),
+      SerializationPolicy::kSerializeIfNeeded);
 
   Handle<JSObject> holder;
   if (ai_exec.IsDataConstant() && ai_exec.holder().ToHandle(&holder)) {
@@ -2286,7 +2291,7 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
         name, SerializationPolicy::kSerializeIfNeeded);
   }
 
-  PropertyAccessInfo const& access_info = broker()->GetPropertyAccessInfo(
+  PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
       receiver_map, name, access_mode, dependencies(),
       SerializationPolicy::kSerializeIfNeeded);
 
@@ -2597,9 +2602,11 @@ void SerializerForBackgroundCompilation::ProcessConstantForInstanceOf(
   if (!constructor.IsHeapObject()) return;
   HeapObjectRef constructor_heap_object = constructor.AsHeapObject();
 
-  PropertyAccessInfo const& access_info =
-      broker()->CreateAccessInfoForLoadingHasInstance(
-          constructor_heap_object.map(), dependencies());
+  PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
+      constructor_heap_object.map(),
+      NameRef(broker(), broker()->isolate()->factory()->has_instance_symbol()),
+      AccessMode::kLoad, dependencies(),
+      SerializationPolicy::kSerializeIfNeeded);
 
   if (access_info.IsNotFound()) {
     ProcessConstantForOrdinaryHasInstance(constructor_heap_object,

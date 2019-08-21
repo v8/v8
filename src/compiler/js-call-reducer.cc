@@ -7119,8 +7119,9 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
     // Obtain precomputed access infos from the broker.
     for (auto map : regexp_maps) {
       MapRef map_ref(broker(), map);
-      PropertyAccessInfo access_info =
-          broker()->GetAccessInfoForLoadingExec(map_ref);
+      PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
+          map_ref, NameRef(broker(), isolate()->factory()->exec_string()),
+          AccessMode::kLoad);
       access_infos.push_back(access_info);
     }
   } else {

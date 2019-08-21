@@ -407,7 +407,10 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
 
   PropertyAccessInfo access_info = PropertyAccessInfo::Invalid(graph()->zone());
   if (FLAG_concurrent_inlining) {
-    access_info = broker()->GetAccessInfoForLoadingHasInstance(receiver_map);
+    access_info = broker()->GetPropertyAccessInfo(
+        receiver_map,
+        NameRef(broker(), isolate()->factory()->has_instance_symbol()),
+        AccessMode::kLoad);
   } else {
     AccessInfoFactory access_info_factory(broker(), dependencies(),
                                           graph()->zone());
@@ -714,7 +717,9 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
     // Obtain pre-computed access infos from the broker.
     for (auto map : resolution_maps) {
       MapRef map_ref(broker(), map);
-      access_infos.push_back(broker()->GetAccessInfoForLoadingThen(map_ref));
+      access_infos.push_back(broker()->GetPropertyAccessInfo(
+          map_ref, NameRef(broker(), isolate()->factory()->then_string()),
+          AccessMode::kLoad));
     }
   }
   PropertyAccessInfo access_info =
