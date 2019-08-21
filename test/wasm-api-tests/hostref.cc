@@ -35,9 +35,10 @@ TEST_F(WasmCapiTest, HostRef) {
   uint32_t func_index = builder()->AddImport(CStrVector("f"), &r_r_sig);
   const bool kMutable = true;
   const WasmInitExpr global_init(WasmInitExpr::kRefNullConst, 0);
-  uint32_t global_index =
-      builder()->AddGlobal(kWasmAnyRef, kMutable, global_init);
+  uint32_t global_index = builder()->AddExportedGlobal(
+      kWasmAnyRef, kMutable, global_init, CStrVector("global"));
   uint32_t table_index = builder()->AddTable(kWasmAnyRef, 10);
+  builder()->AddExport(CStrVector("table"), kExternalTable, table_index);
   byte global_set_code[] = {WASM_SET_GLOBAL(global_index, WASM_GET_LOCAL(0))};
   AddExportedFunction(CStrVector("global.set"), global_set_code,
                       sizeof(global_set_code), &v_r_sig);
@@ -62,11 +63,13 @@ TEST_F(WasmCapiTest, HostRef) {
   Extern* imports[] = {callback.get()};
   Instantiate(imports);
 
-  const Func* global_set = GetExportedFunction(0);
-  const Func* global_get = GetExportedFunction(1);
-  const Func* table_set = GetExportedFunction(2);
-  const Func* table_get = GetExportedFunction(3);
-  const Func* func_call = GetExportedFunction(4);
+  Global* global = GetExportedGlobal(0);
+  Table* table = GetExportedTable(1);
+  const Func* global_set = GetExportedFunction(2);
+  const Func* global_get = GetExportedFunction(3);
+  const Func* table_set = GetExportedFunction(4);
+  const Func* table_get = GetExportedFunction(5);
+  const Func* func_call = GetExportedFunction(6);
 
   own<Foreign> host1 = Foreign::make(store());
   own<Foreign> host2 = Foreign::make(store());
@@ -107,6 +110,13 @@ TEST_F(WasmCapiTest, HostRef) {
   EXPECT_EQ(nullptr, trap);
   EXPECT_EQ(nullptr, results[0].release_ref());
 
+  EXPECT_EQ(nullptr, global->get().release_ref());
+  global->set(Val(host2->copy()));
+  trap = global_get->call(nullptr, results);
+  EXPECT_EQ(nullptr, trap);
+  EXPECT_TRUE(results[0].release_ref()->same(host2.get()));
+  EXPECT_TRUE(global->get().release_ref()->same(host2.get()));
+
   // Interact with the Table.
   args[0] = Val::i32(0);
   trap = table_get->call(args, results);
@@ -139,6 +149,14 @@ TEST_F(WasmCapiTest, HostRef) {
   trap = table_get->call(args, results);
   EXPECT_EQ(nullptr, trap);
   EXPECT_EQ(nullptr, results[0].release_ref());
+
+  EXPECT_EQ(nullptr, table->get(2));
+  table->set(2, host1.get());
+  args[0] = Val::i32(2);
+  trap = table_get->call(args, results);
+  EXPECT_EQ(nullptr, trap);
+  EXPECT_TRUE(results[0].release_ref()->same(host1.get()));
+  EXPECT_TRUE(table->get(2)->same(host1.get()));
 
   // Interact with the Function.
   args[0] = Val::ref(own<Ref>());

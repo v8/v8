@@ -1,8 +1,8 @@
 (module
   (import "" "f" (func $fun (param anyref) (result anyref)))
 
-  (global $glob (mut anyref) (ref.null))
-  (table $tab 10 anyref)
+  (global $glob (export "global") (mut anyref) (ref.null))
+  (table $tab (export "table") 10 anyref)
 
   (func (export "global.set") (param $r anyref)
     (global.set $glob (local.get $r))

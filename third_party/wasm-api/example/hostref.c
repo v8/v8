@@ -28,6 +28,23 @@ wasm_func_t* get_export_func(const wasm_extern_vec_t* exports, size_t i) {
   return wasm_extern_as_func(exports->data[i]);
 }
 
+wasm_global_t* get_export_global(const wasm_extern_vec_t* exports, size_t i) {
+  if (exports->size <= i || !wasm_extern_as_global(exports->data[i])) {
+    printf("> Error accessing global export %zu!\n", i);
+    exit(1);
+  }
+  return wasm_extern_as_global(exports->data[i]);
+}
+
+wasm_table_t* get_export_table(const wasm_extern_vec_t* exports, size_t i) {
+  if (exports->size <= i || !wasm_extern_as_table(exports->data[i])) {
+    printf("> Error accessing table export %zu!\n", i);
+    exit(1);
+  }
+  return wasm_extern_as_table(exports->data[i]);
+}
+
+
 own wasm_ref_t* call_v_r(const wasm_func_t* func) {
   printf("call_v_r... "); fflush(stdout);
   wasm_val_t results[1];
@@ -165,6 +182,8 @@ int main(int argc, const char* argv[]) {
   own wasm_extern_vec_t exports;
   wasm_instance_exports(instance, &exports);
   size_t i = 0;
+  wasm_global_t* global = get_export_global(&exports, i++);
+  wasm_table_t* table = get_export_table(&exports, i++);
   wasm_func_t* global_set = get_export_func(&exports, i++);
   wasm_func_t* global_get = get_export_func(&exports, i++);
   wasm_func_t* table_set = get_export_func(&exports, i++);
@@ -190,9 +209,8 @@ int main(int argc, const char* argv[]) {
   val.of.ref = wasm_ref_copy(host1);
   check(wasm_ref_copy(val.of.ref), host1);
   own wasm_ref_t* ref = val.of.ref;
-  val.of.ref = NULL;
   check(wasm_ref_copy(ref), host1);
-  wasm_ref_delete(ref);
+  wasm_val_delete(&val);
 
   // Interact.
   printf("Accessing global...\n");
@@ -204,6 +222,16 @@ int main(int argc, const char* argv[]) {
   call_r_v(global_set, NULL);
   check(call_v_r(global_get), NULL);
 
+  wasm_global_get(global, &val);
+  assert(val.kind == WASM_ANYREF);
+  check(val.of.ref, NULL);
+  val.of.ref = host2;
+  wasm_global_set(global, &val);
+  check(call_v_r(global_get), host2);
+  wasm_global_get(global, &val);
+  assert(val.kind == WASM_ANYREF);
+  check(val.of.ref, host2);
+
   printf("Accessing table...\n");
   check(call_i_r(table_get, 0), NULL);
   check(call_i_r(table_get, 1), NULL);
@@ -213,6 +241,11 @@ int main(int argc, const char* argv[]) {
   check(call_i_r(table_get, 1), host2);
   call_ir_v(table_set, 0, NULL);
   check(call_i_r(table_get, 0), NULL);
+
+  check(wasm_table_get(table, 2), NULL);
+  wasm_table_set(table, 2, host1);
+  check(call_i_r(table_get, 2), host1);
+  check(wasm_table_get(table, 2), host1);
 
   printf("Accessing function...\n");
   check(call_r_r(func_call, NULL), NULL);

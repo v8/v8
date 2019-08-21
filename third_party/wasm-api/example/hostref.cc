@@ -26,6 +26,23 @@ auto get_export_func(const wasm::ownvec<wasm::Extern>& exports, size_t i) -> con
   return exports[i]->func();
 }
 
+auto get_export_global(wasm::ownvec<wasm::Extern>& exports, size_t i) -> wasm::Global* {
+  if (exports.size() <= i || !exports[i]->global()) {
+    std::cout << "> Error accessing global export " << i << "!" << std::endl;
+    exit(1);
+  }
+  return exports[i]->global();
+}
+
+auto get_export_table(wasm::ownvec<wasm::Extern>& exports, size_t i) -> wasm::Table* {
+  if (exports.size() <= i || !exports[i]->table()) {
+    std::cout << "> Error accessing table export " << i << "!" << std::endl;
+    exit(1);
+  }
+  return exports[i]->table();
+}
+
+
 void call_r_v(const wasm::Func* func, const wasm::Ref* ref) {
   std::cout << "call_r_v... " << std::flush;
   wasm::Val args[1] = {wasm::Val::ref(ref ? ref->copy() : wasm::own<wasm::Ref>())};
@@ -141,6 +158,8 @@ void run() {
   std::cout << "Extracting exports..." << std::endl;
   auto exports = instance->exports();
   size_t i = 0;
+  auto global = get_export_global(exports, i++);
+  auto table = get_export_table(exports, i++);
   auto global_set = get_export_func(exports, i++);
   auto global_get = get_export_func(exports, i++);
   auto table_set = get_export_func(exports, i++);
@@ -175,6 +194,11 @@ void run() {
   call_r_v(global_set, nullptr);
   check(call_v_r(global_get), nullptr);
 
+  check(global->get().release_ref(), nullptr);
+  global->set(wasm::Val(host2->copy()));
+  check(call_v_r(global_get), host2.get());
+  check(global->get().release_ref(), host2.get());
+
   std::cout << "Accessing table..." << std::endl;
   check(call_i_r(table_get, 0), nullptr);
   check(call_i_r(table_get, 1), nullptr);
@@ -184,6 +208,11 @@ void run() {
   check(call_i_r(table_get, 1), host2.get());
   call_ir_v(table_set, 0, nullptr);
   check(call_i_r(table_get, 0), nullptr);
+
+  check(table->get(2), nullptr);
+  table->set(2, host1.get());
+  check(call_i_r(table_get, 2), host1.get());
+  check(table->get(2), host1.get());
 
   std::cout << "Accessing function..." << std::endl;
   check(call_r_r(func_call, nullptr), nullptr);

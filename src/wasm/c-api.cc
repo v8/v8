@@ -1340,6 +1340,17 @@ auto Func::result_arity() const -> size_t {
 
 namespace {
 
+own<Ref> V8RefValueToWasm(StoreImpl* store, i::Handle<i::Object> value) {
+  if (value->IsNull(store->i_isolate())) return nullptr;
+  return implement<Ref>::type::make(store,
+                                    i::Handle<i::JSReceiver>::cast(value));
+}
+
+i::Handle<i::Object> WasmRefToV8(i::Isolate* isolate, const Ref* ref) {
+  if (ref == nullptr) return i::ReadOnlyRoots(isolate).null_value_handle();
+  return impl(ref)->v8_object();
+}
+
 void PrepareFunctionData(i::Isolate* isolate,
                          i::Handle<i::WasmExportedFunctionData> function_data,
                          i::wasm::FunctionSig* sig) {
@@ -1378,15 +1389,9 @@ void PushArgs(i::wasm::FunctionSig* sig, const Val args[],
         packer->Push(args[i].f64());
         break;
       case i::wasm::kWasmAnyRef:
-      case i::wasm::kWasmFuncRef: {
-        Ref* ref = args[i].ref();
-        if (ref == nullptr) {
-          packer->Push(store->i_isolate()->factory()->null_value()->ptr());
-        } else {
-          packer->Push(impl(ref)->v8_object()->ptr());
-        }
+      case i::wasm::kWasmFuncRef:
+        packer->Push(WasmRefToV8(store->i_isolate(), args[i].ref())->ptr());
         break;
-      }
       case i::wasm::kWasmExnRef:
         // TODO(jkummerow): Implement these.
         UNIMPLEMENTED();
@@ -1418,14 +1423,8 @@ void PopArgs(i::wasm::FunctionSig* sig, Val results[],
       case i::wasm::kWasmAnyRef:
       case i::wasm::kWasmFuncRef: {
         i::Address raw = packer->Pop<i::Address>();
-        if (raw == i::kNullAddress ||
-            i::Object(raw).IsNull(store->i_isolate())) {
-          results[i] = Val(nullptr);
-        } else {
-          i::JSReceiver raw_obj = i::JSReceiver::cast(i::Object(raw));
-          i::Handle<i::JSReceiver> obj(raw_obj, store->i_isolate());
-          results[i] = Val(implement<Ref>::type::make(store, obj));
-        }
+        i::Handle<i::Object> obj(i::Object(raw), store->i_isolate());
+        results[i] = Val(V8RefValueToWasm(store, obj));
         break;
       }
       case i::wasm::kWasmExnRef:
@@ -1527,7 +1526,8 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
 
 i::Address FuncData::v8_callback(void* data, i::Address argv) {
   FuncData* self = reinterpret_cast<FuncData*>(data);
-  i::Isolate* isolate = impl(self->store)->i_isolate();
+  StoreImpl* store = impl(self->store);
+  i::Isolate* isolate = store->i_isolate();
   i::HandleScope scope(isolate);
 
   const ownvec<ValType>& param_types = self->type->params();
@@ -1561,13 +1561,8 @@ i::Address FuncData::v8_callback(void* data, i::Address argv) {
       case FUNCREF: {
         i::Address raw = v8::base::ReadUnalignedValue<i::Address>(p);
         p += sizeof(raw);
-        if (raw == i::kNullAddress || i::Object(raw).IsNull(isolate)) {
-          params[i] = Val(nullptr);
-        } else {
-          i::JSReceiver raw_obj = i::JSReceiver::cast(i::Object(raw));
-          i::Handle<i::JSReceiver> obj(raw_obj, isolate);
-          params[i] = Val(implement<Ref>::type::make(impl(self->store), obj));
-        }
+        i::Handle<i::Object> obj(i::Object(raw), isolate);
+        params[i] = Val(V8RefValueToWasm(store, obj));
         break;
       }
     }
@@ -1608,12 +1603,8 @@ i::Address FuncData::v8_callback(void* data, i::Address argv) {
         break;
       case ANYREF:
       case FUNCREF: {
-        if (results[i].ref() == nullptr) {
-          v8::base::WriteUnalignedValue(p, i::kNullAddress);
-        } else {
-          v8::base::WriteUnalignedValue(
-              p, impl(results[i].ref())->v8_object()->ptr());
-        }
+        v8::base::WriteUnalignedValue(
+            p, WasmRefToV8(isolate, results[i].ref())->ptr());
         p += sizeof(i::Address);
         break;
       }
@@ -1678,15 +1669,11 @@ auto Global::get() const -> Val {
       return Val(v8_global->GetF32());
     case F64:
       return Val(v8_global->GetF64());
-    case ANYREF: {
-      i::Handle<i::JSReceiver> obj =
-          i::Handle<i::JSReceiver>::cast(v8_global->GetRef());
-      return Val(RefImpl<Ref, i::JSReceiver>::make(impl(this)->store(), obj));
-    }
+    case ANYREF:
     case FUNCREF: {
-      i::Handle<i::JSFunction> obj =
-          i::Handle<i::JSFunction>::cast(v8_global->GetRef());
-      return Val(implement<Func>::type::make(impl(this)->store(), obj));
+      StoreImpl* store = impl(this)->store();
+      i::HandleScope scope(store->i_isolate());
+      return Val(V8RefValueToWasm(store, v8_global->GetRef()));
     }
     default:
       // TODO(wasm+): support new value types
@@ -1706,10 +1693,12 @@ void Global::set(const Val& val) {
     case F64:
       return v8_global->SetF64(val.f64());
     case ANYREF:
-      return v8_global->SetAnyRef(impl(val.ref())->v8_object());
+      return v8_global->SetAnyRef(
+          WasmRefToV8(impl(this)->store()->i_isolate(), val.ref()));
     case FUNCREF: {
-      bool result = v8_global->SetFuncRef(impl(this)->store()->i_isolate(),
-                                          impl(val.ref())->v8_object());
+      i::Isolate* isolate = impl(this)->store()->i_isolate();
+      bool result =
+          v8_global->SetFuncRef(isolate, WasmRefToV8(isolate, val.ref()));
       DCHECK(result);
       USE(result);
       return;
@@ -1807,12 +1796,10 @@ auto Table::get(size_t index) const -> own<Ref> {
   i::HandleScope handle_scope(isolate);
   i::Handle<i::Object> result =
       i::WasmTableObject::Get(isolate, table, static_cast<uint32_t>(index));
-  if (result->IsNull(isolate)) return own<Ref>();
   // TODO(jkummerow): If we support both JavaScript and the C-API at the same
   // time, we need to handle Smis and other JS primitives here.
-  DCHECK(result->IsJSReceiver());
-  return implement<Ref>::type::make(impl(this)->store(),
-                                    i::Handle<i::JSReceiver>::cast(result));
+  DCHECK(result->IsNull(isolate) || result->IsJSReceiver());
+  return V8RefValueToWasm(impl(this)->store(), result);
 }
 
 auto Table::set(size_t index, const Ref* ref) -> bool {
@@ -1820,10 +1807,7 @@ auto Table::set(size_t index, const Ref* ref) -> bool {
   if (index >= table->current_length()) return false;
   i::Isolate* isolate = table->GetIsolate();
   i::HandleScope handle_scope(isolate);
-  i::Handle<i::Object> obj =
-      ref ? i::Handle<i::Object>::cast(impl(ref)->v8_object())
-          : i::Handle<i::Object>::cast(
-                i::ReadOnlyRoots(isolate).null_value_handle());
+  i::Handle<i::Object> obj = WasmRefToV8(isolate, ref);
   i::WasmTableObject::Set(isolate, table, static_cast<uint32_t>(index), obj);
   return true;
 }
@@ -1837,10 +1821,7 @@ auto Table::grow(size_t delta, const Ref* ref) -> bool {
   i::Handle<i::WasmTableObject> table = impl(this)->v8_object();
   i::Isolate* isolate = table->GetIsolate();
   i::HandleScope scope(isolate);
-  i::Handle<i::Object> init_value =
-      ref == nullptr
-          ? i::Handle<i::Object>::cast(isolate->factory()->null_value())
-          : i::Handle<i::Object>::cast(impl(ref)->v8_object());
+  i::Handle<i::Object> init_value = WasmRefToV8(isolate, ref);
   int result = i::WasmTableObject::Grow(
       isolate, table, static_cast<uint32_t>(delta), init_value);
   return result >= 0;
@@ -2629,7 +2610,7 @@ struct borrowed_val {
   explicit borrowed_val(wasm::Val&& v) : it(std::move(v)) {}
   borrowed_val(borrowed_val&& that) : it(std::move(that.it)) {}
   ~borrowed_val() {
-    if (it.is_ref()) it.release_ref();
+    if (it.is_ref()) it.release_ref().release();
   }
 };
 
