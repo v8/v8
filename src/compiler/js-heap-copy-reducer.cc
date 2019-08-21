@@ -38,16 +38,20 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       break;
     }
     case IrOpcode::kJSCreateArray: {
-      CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
-      Handle<AllocationSite> site;
-      if (p.site().ToHandle(&site)) AllocationSiteRef(broker(), site);
+      if (!FLAG_concurrent_inlining) {
+        CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
+        Handle<AllocationSite> site;
+        if (p.site().ToHandle(&site)) AllocationSiteRef(broker(), site);
+      }
       break;
     }
     case IrOpcode::kJSCreateArguments: {
-      Node* const frame_state = NodeProperties::GetFrameStateInput(node);
-      FrameStateInfo state_info = FrameStateInfoOf(frame_state->op());
-      SharedFunctionInfoRef shared(broker(),
-                                   state_info.shared_info().ToHandleChecked());
+      if (!FLAG_concurrent_inlining) {
+        Node* const frame_state = NodeProperties::GetFrameStateInput(node);
+        FrameStateInfo state_info = FrameStateInfoOf(frame_state->op());
+        SharedFunctionInfoRef shared(
+            broker(), state_info.shared_info().ToHandleChecked());
+      }
       break;
     }
     case IrOpcode::kJSCreateBlockContext: {
@@ -57,9 +61,11 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       break;
     }
     case IrOpcode::kJSCreateBoundFunction: {
-      CreateBoundFunctionParameters const& p =
-          CreateBoundFunctionParametersOf(node->op());
-      MapRef(broker(), p.map());
+      if (!FLAG_concurrent_inlining) {
+        CreateBoundFunctionParameters const& p =
+            CreateBoundFunctionParametersOf(node->op());
+        MapRef(broker(), p.map());
+      }
       break;
     }
     case IrOpcode::kJSCreateCatchContext: {
@@ -76,8 +82,10 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       break;
     }
     case IrOpcode::kJSCreateEmptyLiteralArray: {
-      FeedbackParameter const& p = FeedbackParameterOf(node->op());
-      FeedbackVectorRef(broker(), p.feedback().vector()).SerializeSlots();
+      if (!FLAG_concurrent_inlining) {
+        FeedbackParameter const& p = FeedbackParameterOf(node->op());
+        FeedbackVectorRef(broker(), p.feedback().vector()).SerializeSlots();
+      }
       break;
     }
     case IrOpcode::kJSCreateFunctionContext: {
@@ -121,35 +129,44 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
     }
     case IrOpcode::kStoreField:
     case IrOpcode::kLoadField: {
-      FieldAccess access = FieldAccessOf(node->op());
-      Handle<Map> map_handle;
-      if (access.map.ToHandle(&map_handle)) {
-        MapRef(broker(), map_handle);
-      }
-      Handle<Name> name_handle;
-      if (access.name.ToHandle(&name_handle)) {
-        NameRef(broker(), name_handle);
+      if (!FLAG_concurrent_inlining) {
+        FieldAccess access = FieldAccessOf(node->op());
+        Handle<Map> map_handle;
+        if (access.map.ToHandle(&map_handle)) {
+          MapRef(broker(), map_handle);
+        }
+        Handle<Name> name_handle;
+        if (access.name.ToHandle(&name_handle)) {
+          NameRef(broker(), name_handle);
+        }
       }
       break;
     }
     case IrOpcode::kMapGuard: {
-      ZoneHandleSet<Map> const& maps = MapGuardMapsOf(node->op());
-      for (Handle<Map> map : maps) {
-        MapRef(broker(), map);
+      if (!FLAG_concurrent_inlining) {
+        ZoneHandleSet<Map> const& maps = MapGuardMapsOf(node->op());
+        for (Handle<Map> map : maps) {
+          MapRef(broker(), map);
+        }
       }
       break;
     }
     case IrOpcode::kCheckMaps: {
-      ZoneHandleSet<Map> const& maps = CheckMapsParametersOf(node->op()).maps();
-      for (Handle<Map> map : maps) {
-        MapRef(broker(), map);
+      if (!FLAG_concurrent_inlining) {
+        ZoneHandleSet<Map> const& maps =
+            CheckMapsParametersOf(node->op()).maps();
+        for (Handle<Map> map : maps) {
+          MapRef(broker(), map);
+        }
       }
       break;
     }
     case IrOpcode::kCompareMaps: {
-      ZoneHandleSet<Map> const& maps = CompareMapsParametersOf(node->op());
-      for (Handle<Map> map : maps) {
-        MapRef(broker(), map);
+      if (!FLAG_concurrent_inlining) {
+        ZoneHandleSet<Map> const& maps = CompareMapsParametersOf(node->op());
+        for (Handle<Map> map : maps) {
+          MapRef(broker(), map);
+        }
       }
       break;
     }
