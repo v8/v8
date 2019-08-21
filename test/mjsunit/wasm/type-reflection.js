@@ -558,3 +558,15 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
     () => builder.instantiate({ m: { fun: fun3 }}), WebAssembly.LinkError,
     /imported function does not match the expected type/);
 })();
+
+(function TestFunctionModuleImportReExport () {
+  let builder = new WasmModuleBuilder();
+  let fun = new WebAssembly.Function({parameters:[], results:["i32"]}, _ => 7);
+  let fun_index = builder.addImport("m", "fun", kSig_i_v)
+  builder.addExport("fun1", fun_index);
+  builder.addExport("fun2", fun_index);
+  let instance = builder.instantiate({ m: { fun: fun }});
+  assertSame(instance.exports.fun1, instance.exports.fun2);
+  // TODO(7742): Fix after https://github.com/WebAssembly/js-types/issues/11.
+  assertNotSame(fun, instance.exports.fun1);
+})();
