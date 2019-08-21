@@ -19,6 +19,26 @@
 
 [
   {
+    "bisect_buildername": "V8 Linux gcc",
+    "bisect_mastername": "client.v8",
+    "bug_url": "https://crbug.com/v8/9639",
+    "build_config": "Release",
+    "extra_args": [],
+    "isolated_name": "bot_default",
+    "num_shards": 2,
+    "repetitions": 5000,
+    "swarming_dimensions": [
+      "cpu:x86-64",
+      "gpu:none",
+      "os:Ubuntu-16.04",
+      "pool:Chrome",
+    ],
+    "test_name": "cctest/test-embedder-tracing/TracedGlobalWithDestructor",
+    "timeout_sec": 60,
+    "total_timeout_sec": 120,
+    "variant": "jitless",
+  },
+  {
     "bisect_buildername": "V8 Linux64 - shared",
     "bisect_mastername": "client.v8",
     "bug_url": "https://crbug.com/v8/9054",
