@@ -73,6 +73,56 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(3, Object.getOwnPropertyNames(type).length);
 })();
 
+(function TestTableExports() {
+  let builder = new WasmModuleBuilder();
+  builder.addTable(kWasmAnyFunc, 20).exportAs("a");
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let exports = WebAssembly.Module.exports(module);
+
+  assertEquals("a", exports[0].name);
+  assertTrue("type" in exports[0]);
+  assertEquals("anyfunc", exports[0].type.element);
+  assertEquals(20, exports[0].type.minimum);
+  assertFalse("maximum" in exports[0].type);
+
+  builder = new WasmModuleBuilder();
+  builder.addTable(kWasmAnyFunc, 15, 25).exportAs("b");
+  module = new WebAssembly.Module(builder.toBuffer());
+  exports = WebAssembly.Module.exports(module);
+
+  assertEquals("b", exports[0].name);
+  assertTrue("type" in exports[0]);
+  assertEquals("anyfunc", exports[0].type.element);
+  assertEquals(15, exports[0].type.minimum);
+  assertEquals(25, exports[0].type.maximum);
+})();
+
+(function TestTableImports() {
+  let builder = new WasmModuleBuilder();
+  builder.addImportedTable("m", "a", 20, undefined, kWasmAnyFunc);
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let imports = WebAssembly.Module.imports(module);
+
+  assertEquals("a", imports[0].name);
+  assertEquals("m", imports[0].module);
+  assertTrue("type" in imports[0]);
+  assertEquals("anyfunc", imports[0].type.element);
+  assertEquals(20, imports[0].type.minimum);
+  assertFalse("maximum" in imports[0].type);
+
+  builder = new WasmModuleBuilder();
+  builder.addImportedTable("m", "b", 15, 25, kWasmAnyFunc);
+  module = new WebAssembly.Module(builder.toBuffer());
+  imports = WebAssembly.Module.imports(module);
+
+  assertEquals("b", imports[0].name);
+  assertEquals("m", imports[0].module);
+  assertTrue("type" in imports[0]);
+  assertEquals("anyfunc", imports[0].type.element);
+  assertEquals(15, imports[0].type.minimum);
+  assertEquals(25, imports[0].type.maximum);
+})();
+
 (function TestGlobalType() {
   let global = new WebAssembly.Global({value: "i32", mutable: true});
   let type = WebAssembly.Global.type(global);

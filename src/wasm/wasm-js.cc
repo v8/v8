@@ -1643,48 +1643,15 @@ void WebAssemblyTableType(const v8::FunctionCallbackInfo<v8::Value>& args) {
   auto maybe_table = GetFirstArgumentAsTable(args, &thrower);
   if (thrower.error()) return;
   i::Handle<i::WasmTableObject> table = maybe_table.ToHandleChecked();
-  v8::Local<v8::Object> ret = v8::Object::New(isolate);
-
-  Local<String> element;
-  auto enabled_features = i::wasm::WasmFeaturesFromFlags();
-  if (table->type() == i::wasm::ValueType::kWasmFuncRef) {
-    element = v8_str(isolate, "anyfunc");
-  } else if (enabled_features.anyref &&
-             table->type() == i::wasm::ValueType::kWasmAnyRef) {
-    element = v8_str(isolate, "anyref");
-  } else {
-    UNREACHABLE();
-  }
-  if (!ret->CreateDataProperty(isolate->GetCurrentContext(),
-                               v8_str(isolate, "element"), element)
-           .IsJust()) {
-    return;
-  }
-
-  uint32_t curr_size = table->current_length();
-  DCHECK_LE(curr_size, std::numeric_limits<uint32_t>::max());
-  if (!ret->CreateDataProperty(isolate->GetCurrentContext(),
-                               v8_str(isolate, "minimum"),
-                               v8::Integer::NewFromUnsigned(
-                                   isolate, static_cast<uint32_t>(curr_size)))
-           .IsJust()) {
-    return;
-  }
-
+  base::Optional<uint32_t> max_size;
   if (!table->maximum_length().IsUndefined()) {
-    uint64_t max_size = table->maximum_length().Number();
-    DCHECK_LE(max_size, std::numeric_limits<uint32_t>::max());
-    if (!ret->CreateDataProperty(isolate->GetCurrentContext(),
-                                 v8_str(isolate, "maximum"),
-                                 v8::Integer::NewFromUnsigned(
-                                     isolate, static_cast<uint32_t>(max_size)))
-             .IsJust()) {
-      return;
-    }
+    uint64_t max_size64 = table->maximum_length().Number();
+    DCHECK_LE(max_size64, std::numeric_limits<uint32_t>::max());
+    max_size.emplace(static_cast<uint32_t>(max_size64));
   }
-
-  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
-  return_value.Set(ret);
+  auto type = i::wasm::GetTypeForTable(i_isolate, table->type(),
+                                       table->current_length(), max_size);
+  args.GetReturnValue().Set(Utils::ToLocal(type));
 }
 
 // WebAssembly.Memory.grow(num) -> num
