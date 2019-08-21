@@ -363,12 +363,14 @@ V8_INLINE Token::Value Scanner::ScanSingleToken() {
           return Select(token);
 
         case Token::CONDITIONAL:
-          // ? ?.
+          // ? ?. ??
           Advance();
           if (allow_harmony_optional_chaining() && c0_ == '.') {
             Advance();
             if (!IsDecimalDigit(c0_)) return Token::QUESTION_PERIOD;
             PushBack('.');
+          } else if (allow_harmony_nullish() && c0_ == '?') {
+            return Select(Token::NULLISH);
           }
           return Token::CONDITIONAL;
 

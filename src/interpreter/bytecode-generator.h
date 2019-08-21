@@ -162,12 +162,14 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitCommaExpression(BinaryOperation* binop);
   void VisitLogicalOrExpression(BinaryOperation* binop);
   void VisitLogicalAndExpression(BinaryOperation* binop);
+  void VisitNullishExpression(BinaryOperation* binop);
 
   // Dispatched from VisitNaryOperation.
   void VisitNaryArithmeticExpression(NaryOperation* expr);
   void VisitNaryCommaExpression(NaryOperation* expr);
   void VisitNaryLogicalOrExpression(NaryOperation* expr);
   void VisitNaryLogicalAndExpression(NaryOperation* expr);
+  void VisitNaryNullishExpression(NaryOperation* expr);
 
   // Dispatched from VisitUnaryOperation.
   void VisitVoid(UnaryOperation* expr);
@@ -321,6 +323,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                         int right_coverage_slot);
   void VisitNaryLogicalTest(Token::Value token, NaryOperation* expr,
                             const NaryCodeCoverageSlots* coverage_slots);
+
   // Visit a (non-RHS) test for a logical op, which falls through if the test
   // fails or jumps to the appropriate labels if it succeeds.
   void VisitLogicalTestSubExpression(Token::Value token, Expression* expr,
@@ -334,6 +337,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   bool VisitLogicalAndSubExpression(Expression* expr,
                                     BytecodeLabels* end_labels,
                                     int coverage_slot);
+
+  // Helper for binary and nary nullish op value expressions.
+  bool VisitNullishSubExpression(Expression* expr, BytecodeLabels* end_labels,
+                                 int coverage_slot);
 
   // Visit the body of a loop iteration.
   void VisitIterationBody(IterationStatement* stmt, LoopBuilder* loop_builder);
@@ -376,6 +383,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitForEffect(Expression* expr);
   void VisitForTest(Expression* expr, BytecodeLabels* then_labels,
                     BytecodeLabels* else_labels, TestFallthrough fallthrough);
+  void VisitForNullishTest(Expression* expr, BytecodeLabels* then_labels,
+                           BytecodeLabels* test_next_labels,
+                           BytecodeLabels* else_labels);
 
   void VisitInSameTestExecutionScope(Expression* expr);
 

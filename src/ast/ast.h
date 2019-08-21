@@ -246,6 +246,14 @@ class Expression : public AstNode {
   // that this also checks for loads of the global "undefined" variable.
   bool IsUndefinedLiteral() const;
 
+  // True if either null literal or undefined literal.
+  inline bool IsNullOrUndefinedLiteral() const {
+    return IsNullLiteral() || IsUndefinedLiteral();
+  }
+
+  // True if a literal and not null or undefined.
+  bool IsLiteralButNotNullOrUndefined() const;
+
   bool IsCompileTimeValue();
 
   bool IsPattern() {

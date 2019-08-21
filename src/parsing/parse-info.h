@@ -112,6 +112,9 @@ class V8_EXPORT_PRIVATE ParseInfo {
   FLAG_ACCESSOR(kIsOneshotIIFE, is_oneshot_iife, set_is_oneshot_iife)
   FLAG_ACCESSOR(kCollectSourcePositions, collect_source_positions,
                 set_collect_source_positions)
+  FLAG_ACCESSOR(kAllowHarmonyNullish, allow_harmony_nullish,
+                set_allow_harmony_nullish)
+
 #undef FLAG_ACCESSOR
 
   void set_parse_restriction(ParseRestriction restriction) {
@@ -277,7 +280,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   void SetFunctionInfo(T function);
 
   // Various configuration flags for parsing.
-  enum Flag {
+  enum Flag : uint64_t {
     // ---------- Input flags ---------------------------
     kToplevel = 1 << 0,
     kEager = 1 << 1,
@@ -310,12 +313,13 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kAllowHarmonyPrivateFields = 1 << 28,
     kAllowHarmonyPrivateMethods = 1 << 29,
     kIsOneshotIIFE = 1 << 30,
-    kCollectSourcePositions = 1 << 31,
+    kCollectSourcePositions = static_cast<uint64_t>(1) << 31,
+    kAllowHarmonyNullish = static_cast<uint64_t>(1) << 32,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
   std::unique_ptr<Zone> zone_;
-  unsigned flags_;
+  uint64_t flags_;
   v8::Extension* extension_;
   DeclarationScope* script_scope_;
   uintptr_t stack_limit_;

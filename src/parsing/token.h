@@ -96,6 +96,7 @@ namespace internal {
   /* IsBinaryOp() relies on this block of enum values */           \
   /* being contiguous and sorted in the same order! */             \
   T(COMMA, ",", 1)                                                 \
+  T(NULLISH, "??", 3)                                              \
   T(OR, "||", 4)                                                   \
   T(AND, "&&", 5)                                                  \
                                                                    \

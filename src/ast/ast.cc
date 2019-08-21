@@ -122,6 +122,10 @@ bool Expression::IsUndefinedLiteral() const {
          var_proxy->raw_name()->IsOneByteEqualTo("undefined");
 }
 
+bool Expression::IsLiteralButNotNullOrUndefined() const {
+  return IsLiteral() && !IsNullOrUndefinedLiteral();
+}
+
 bool Expression::ToBooleanIsTrue() const {
   return IsLiteral() && AsLiteral()->ToBooleanIsTrue();
 }
