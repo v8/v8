@@ -3950,17 +3950,21 @@ Signature<MachineRepresentation>* CreateMachineSignature(
   Signature<MachineRepresentation>::Builder builder(zone, sig->return_count(),
                                                     sig->parameter_count());
   for (auto ret : sig->returns()) {
-    builder.AddReturn(wasm::ValueTypes::MachineRepresentationFor(ret));
+    if (origin == WasmGraphBuilder::kCalledFromJS) {
+      builder.AddReturn(MachineRepresentation::kTagged);
+    } else {
+      builder.AddReturn(wasm::ValueTypes::MachineRepresentationFor(ret));
+    }
   }
 
   for (auto param : sig->parameters()) {
-    if (origin == WasmGraphBuilder::kCalledFromWasm) {
-      builder.AddParam(wasm::ValueTypes::MachineRepresentationFor(param));
-    } else {
+    if (origin == WasmGraphBuilder::kCalledFromJS) {
       // Parameters coming from JavaScript are always tagged values. Especially
       // when the signature says that it's an I64 value, then a BigInt object is
       // provided by JavaScript, and not two 32-bit parameters.
       builder.AddParam(MachineRepresentation::kTagged);
+    } else {
+      builder.AddParam(wasm::ValueTypes::MachineRepresentationFor(param));
     }
   }
   return builder.Build();
@@ -7089,9 +7093,18 @@ CallDescriptor* ReplaceTypeInCallDescriptorWith(
 
   LocationSignature::Builder locations(zone, return_count, parameter_count);
 
+  // The last parameter may be the special callable parameter. In that case we
+  // have to preserve it as the last parameter, i.e. we allocate it in the new
+  // location signature again in the same register.
+  bool has_callable_param =
+      (call_descriptor->GetInputLocation(call_descriptor->InputCount() - 1) ==
+       LinkageLocation::ForRegister(kJSFunctionRegister.code(),
+                                    MachineType::TaggedPointer()));
   LinkageLocationAllocator params(wasm::kGpParamRegisters,
                                   wasm::kFpParamRegisters);
-  for (size_t i = 0; i < call_descriptor->ParameterCount(); i++) {
+  for (size_t i = 0, e = call_descriptor->ParameterCount() -
+                         (has_callable_param ? 1 : 0);
+       i < e; i++) {
     if (call_descriptor->GetParameterType(i) == input_type) {
       for (size_t j = 0; j < num_replacements; j++) {
         locations.AddParam(params.Next(output_type));
@@ -7100,6 +7113,10 @@ CallDescriptor* ReplaceTypeInCallDescriptorWith(
       locations.AddParam(
           params.Next(call_descriptor->GetParameterType(i).representation()));
     }
+  }
+  if (has_callable_param) {
+    locations.AddParam(LinkageLocation::ForRegister(
+        kJSFunctionRegister.code(), MachineType::TaggedPointer()));
   }
 
   LinkageLocationAllocator rets(wasm::kGpReturnRegisters,

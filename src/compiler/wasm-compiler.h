@@ -363,7 +363,7 @@ class WasmGraphBuilder {
 
   wasm::FunctionSig* GetFunctionSignature() { return sig_; }
 
-  enum CallOrigin : bool { kCalledFromWasm, kCalledFromJS };
+  enum CallOrigin { kCalledFromWasm, kCalledFromJS };
 
   V8_EXPORT_PRIVATE void LowerInt64(CallOrigin origin);
 
