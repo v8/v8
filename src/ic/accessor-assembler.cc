@@ -301,6 +301,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
   TNode<WordT> handler_word = SmiUntag(smi_handler);
   TNode<IntPtrT> handler_kind =
       Signed(DecodeWord<LoadHandler::KindBits>(handler_word));
+
   if (support_elements == kSupportElements) {
     TVARIABLE(IntPtrT, var_intptr_index);
     Label if_element(this), if_indexed_string(this), if_property(this),
@@ -429,9 +430,11 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
       module_export(this, Label::kDeferred), proxy(this, Label::kDeferred),
       native_data_property(this, Label::kDeferred),
       api_getter(this, Label::kDeferred);
+
   GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kField)), &field);
 
-  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kConstant)),
+  GotoIf(WordEqual(handler_kind,
+                   IntPtrConstant(LoadHandler::kConstantFromPrototype)),
          &constant);
 
   GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kNonExistent)),
@@ -479,11 +482,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
   BIND(&constant);
   {
     Comment("constant_load");
-    TNode<IntPtrT> descriptor =
-        Signed(DecodeWord<LoadHandler::DescriptorBits>(handler_word));
-    Node* value = LoadDescriptorValue(LoadMap(holder), descriptor);
-
-    exit_point->Return(value);
+    exit_point->Return(holder);
   }
 
   BIND(&normal);
@@ -625,7 +624,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerHasNamedCase(
   GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kField)),
          &return_true);
 
-  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kConstant)),
+  GotoIf(WordEqual(handler_kind,
+                   IntPtrConstant(LoadHandler::kConstantFromPrototype)),
          &return_true);
 
   GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kNonExistent)),
@@ -835,21 +835,37 @@ void AccessorAssembler::HandleLoadICProtoHandler(
       },
       miss, ic_mode);
 
-  TNode<MaybeObject> maybe_holder = LoadHandlerDataField(handler, 1);
+  TNode<MaybeObject> maybe_holder_or_constant =
+      LoadHandlerDataField(handler, 1);
 
-  Label load_from_cached_holder(this), done(this);
+  Label load_from_cached_holder(this), is_smi(this), done(this);
 
-  Branch(IsStrongReferenceTo(maybe_holder, NullConstant()), &done,
+  GotoIf(TaggedIsSmi(maybe_holder_or_constant), &is_smi);
+  Branch(IsStrongReferenceTo(maybe_holder_or_constant, NullConstant()), &done,
          &load_from_cached_holder);
+
+  BIND(&is_smi);
+  {
+    CSA_ASSERT(
+        this,
+        WordEqual(
+            Signed(DecodeWord<LoadHandler::KindBits>(SmiUntag(smi_handler))),
+            IntPtrConstant(LoadHandler::kConstantFromPrototype)));
+    if (access_mode == LoadAccessMode::kHas) {
+      exit_point->Return(TrueConstant());
+    } else {
+      exit_point->Return(maybe_holder_or_constant);
+    }
+  }
 
   BIND(&load_from_cached_holder);
   {
-    // For regular holders, having passed the receiver map check and the
-    // validity cell check implies that |holder| is alive. However, for global
-    // object receivers, |maybe_holder| may be cleared.
-    CSA_ASSERT(this, IsWeakOrCleared(maybe_holder));
-    Node* holder = GetHeapObjectAssumeWeak(maybe_holder, miss);
-
+    // For regular holders, having passed the receiver map check and
+    // the validity cell check implies that |holder| is
+    // alive. However, for global object receivers, |maybe_holder| may
+    // be cleared.
+    CSA_ASSERT(this, IsWeakOrCleared(maybe_holder_or_constant));
+    Node* holder = GetHeapObjectAssumeWeak(maybe_holder_or_constant, miss);
     var_holder->Bind(holder);
     Goto(&done);
   }
