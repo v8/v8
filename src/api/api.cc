@@ -262,7 +262,7 @@ void CheckMicrotasksScopesConsistency(i::MicrotaskQueue* microtask_queue) {
 template <bool do_callback>
 class CallDepthScope {
  public:
-  CallDepthScope(i::Isolate* isolate, Local<Context> context)
+  explicit CallDepthScope(i::Isolate* isolate, Local<Context> context)
       : isolate_(isolate),
         context_(context),
         escaped_(false),
@@ -273,7 +273,7 @@ class CallDepthScope {
                                      ? i::InterruptsScope::kRunInterrupts
                                      : i::InterruptsScope::kPostponeInterrupts)
                               : i::InterruptsScope::kNoop) {
-    isolate_->thread_local_top()->IncrementCallDepth(this);
+    isolate_->handle_scope_implementer()->IncrementCallDepth();
     isolate_->set_next_v8_call_is_safe_for_termination(false);
     if (!context.IsEmpty()) {
       i::Handle<i::Context> env = Utils::OpenHandle(*context);
@@ -297,7 +297,7 @@ class CallDepthScope {
       i::Handle<i::Context> env = Utils::OpenHandle(*context_);
       microtask_queue = env->native_context().microtask_queue();
     }
-    if (!escaped_) isolate_->thread_local_top()->DecrementCallDepth(this);
+    if (!escaped_) isolate_->handle_scope_implementer()->DecrementCallDepth();
     if (do_callback) isolate_->FireCallCompletedCallback(microtask_queue);
 // TODO(jochen): This should be #ifdef DEBUG
 #ifdef V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY
@@ -309,10 +309,11 @@ class CallDepthScope {
   void Escape() {
     DCHECK(!escaped_);
     escaped_ = true;
-    auto thread_local_top = isolate_->thread_local_top();
-    thread_local_top->DecrementCallDepth(this);
-    bool clear_exception = thread_local_top->CallDepthIsZero() &&
-                           thread_local_top->try_catch_handler_ == nullptr;
+    auto handle_scope_implementer = isolate_->handle_scope_implementer();
+    handle_scope_implementer->DecrementCallDepth();
+    bool clear_exception =
+        handle_scope_implementer->CallDepthIsZero() &&
+        isolate_->thread_local_top()->try_catch_handler_ == nullptr;
     isolate_->OptionalRescheduleException(clear_exception);
   }
 
@@ -323,12 +324,6 @@ class CallDepthScope {
   bool do_callback_;
   bool safe_for_termination_;
   i::InterruptsScope interrupts_scope_;
-  i::Address previous_stack_height_;
-
-  friend class i::ThreadLocalTop;
-
-  DISALLOW_NEW_AND_DELETE()
-  DISALLOW_COPY_AND_ASSIGN(CallDepthScope);
 };
 
 }  // namespace
@@ -8073,13 +8068,13 @@ Isolate::SuppressMicrotaskExecutionScope::SuppressMicrotaskExecutionScope(
     Isolate* isolate)
     : isolate_(reinterpret_cast<i::Isolate*>(isolate)),
       microtask_queue_(isolate_->default_microtask_queue()) {
-  isolate_->thread_local_top()->IncrementCallDepth(this);
+  isolate_->handle_scope_implementer()->IncrementCallDepth();
   microtask_queue_->IncrementMicrotasksSuppressions();
 }
 
 Isolate::SuppressMicrotaskExecutionScope::~SuppressMicrotaskExecutionScope() {
   microtask_queue_->DecrementMicrotasksSuppressions();
-  isolate_->thread_local_top()->DecrementCallDepth(this);
+  isolate_->handle_scope_implementer()->DecrementCallDepth();
 }
 
 Isolate::SafeForTerminationScope::SafeForTerminationScope(v8::Isolate* isolate)
