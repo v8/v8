@@ -129,6 +129,7 @@ class PropertyCallbackArguments;
 class FunctionCallbackArguments;
 class GlobalHandles;
 class ScopedExternalStringLock;
+class ThreadLocalTop;
 
 namespace wasm {
 class NativeModule;
@@ -7664,6 +7665,9 @@ class V8_EXPORT Isolate {
    private:
     internal::Isolate* const isolate_;
     internal::MicrotaskQueue* const microtask_queue_;
+    internal::Address previous_stack_height_;
+
+    friend class internal::ThreadLocalTop;
   };
 
   /**

@@ -2023,7 +2023,7 @@ void Isolate::CancelScheduledExceptionFromTryCatch(v8::TryCatch* handler) {
     DCHECK_EQ(scheduled_exception(),
               ReadOnlyRoots(heap()).termination_exception());
     // Clear termination once we returned from all V8 frames.
-    if (handle_scope_implementer()->CallDepthIsZero()) {
+    if (thread_local_top()->CallDepthIsZero()) {
       thread_local_top()->external_caught_exception_ = false;
       clear_scheduled_exception();
     }
@@ -4250,7 +4250,7 @@ void Isolate::RemoveCallCompletedCallback(CallCompletedCallback callback) {
 }
 
 void Isolate::FireCallCompletedCallback(MicrotaskQueue* microtask_queue) {
-  if (!handle_scope_implementer()->CallDepthIsZero()) return;
+  if (!thread_local_top()->CallDepthIsZero()) return;
 
   bool run_microtasks =
       microtask_queue && microtask_queue->size() &&
