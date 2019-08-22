@@ -1800,6 +1800,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_CASE(kArm64F64x2Div, Fdiv, 2D);
       SIMD_BINOP_CASE(kArm64F64x2Min, Fmin, 2D);
       SIMD_BINOP_CASE(kArm64F64x2Max, Fmax, 2D);
+      SIMD_BINOP_CASE(kArm64F64x2Eq, Fcmeq, 2D);
+    case kArm64F64x2Ne: {
+      VRegister dst = i.OutputSimd128Register().V2D();
+      __ Fcmeq(dst, i.InputSimd128Register(0).V2D(),
+               i.InputSimd128Register(1).V2D());
+      __ Mvn(dst, dst);
+      break;
+    }
+    case kArm64F64x2Lt: {
+      __ Fcmgt(i.OutputSimd128Register().V2D(), i.InputSimd128Register(1).V2D(),
+               i.InputSimd128Register(0).V2D());
+      break;
+    }
+    case kArm64F64x2Le: {
+      __ Fcmge(i.OutputSimd128Register().V2D(), i.InputSimd128Register(1).V2D(),
+               i.InputSimd128Register(0).V2D());
+      break;
+    }
     case kArm64F32x4Splat: {
       __ Dup(i.OutputSimd128Register().V4S(), i.InputSimd128Register(0).S(), 0);
       break;

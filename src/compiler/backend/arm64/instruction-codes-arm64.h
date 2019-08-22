@@ -181,6 +181,10 @@ namespace compiler {
   V(Arm64F64x2Div)                          \
   V(Arm64F64x2Min)                          \
   V(Arm64F64x2Max)                          \
+  V(Arm64F64x2Eq)                           \
+  V(Arm64F64x2Ne)                           \
+  V(Arm64F64x2Lt)                           \
+  V(Arm64F64x2Le)                           \
   V(Arm64F32x4Splat)                        \
   V(Arm64F32x4ExtractLane)                  \
   V(Arm64F32x4ReplaceLane)                  \

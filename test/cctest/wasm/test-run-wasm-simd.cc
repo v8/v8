@@ -279,7 +279,7 @@ T Sqrt(T a) {
   return std::sqrt(a);
 }
 
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 // only used for F64x2 tests below
 int64_t Equal(double a, double b) { return a == b ? -1 : 0; }
 
@@ -292,7 +292,7 @@ int64_t GreaterEqual(double a, double b) { return a >= b ? -1 : 0; }
 int64_t Less(double a, double b) { return a < b ? -1 : 0; }
 
 int64_t LessEqual(double a, double b) { return a <= b ? -1 : 0; }
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 }  // namespace
 
@@ -1183,10 +1183,7 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Mul) {
 WASM_SIMD_TEST_NO_LOWERING(F64x2Div) {
   RunF64x2BinOpTest(execution_tier, lower_simd, kExprF64x2Div, Div);
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
-#if V8_TARGET_ARCH_X64
 void RunF64x2CompareOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                            WasmOpcode opcode, DoubleCompareOp expected_op) {
   WasmRunner<int32_t, double, double> r(execution_tier, lower_simd);
@@ -1240,7 +1237,6 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Lt) {
 WASM_SIMD_TEST_NO_LOWERING(F64x2Le) {
   RunF64x2CompareOpTest(execution_tier, lower_simd, kExprF64x2Le, LessEqual);
 }
-#endif  // V8_TARGET_ARCH_X64
 
 WASM_SIMD_TEST_NO_LOWERING(F64x2Min) {
   RunF64x2BinOpTest(execution_tier, lower_simd, kExprF64x2Min, JSMin);

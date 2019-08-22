@@ -148,6 +148,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64F64x2Div:
     case kArm64F64x2Min:
     case kArm64F64x2Max:
+    case kArm64F64x2Eq:
+    case kArm64F64x2Ne:
+    case kArm64F64x2Lt:
+    case kArm64F64x2Le:
     case kArm64F32x4Splat:
     case kArm64F32x4ExtractLane:
     case kArm64F32x4ReplaceLane:
