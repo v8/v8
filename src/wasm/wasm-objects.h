@@ -41,6 +41,7 @@ class WasmCapiFunction;
 class WasmDebugInfo;
 class WasmExceptionTag;
 class WasmExportedFunction;
+class WasmExternalFunction;
 class WasmInstanceObject;
 class WasmJSFunction;
 class WasmModuleObject;
@@ -440,7 +441,7 @@ class WasmInstanceObject : public JSObject {
   DECL_OPTIONAL_ACCESSORS(indirect_function_table_refs, FixedArray)
   DECL_OPTIONAL_ACCESSORS(managed_native_allocations, Foreign)
   DECL_OPTIONAL_ACCESSORS(exceptions_table, FixedArray)
-  DECL_OPTIONAL_ACCESSORS(wasm_exported_functions, FixedArray)
+  DECL_OPTIONAL_ACCESSORS(wasm_external_functions, FixedArray)
   DECL_PRIMITIVE_ACCESSORS(memory_start, byte*)
   DECL_PRIMITIVE_ACCESSORS(memory_size, size_t)
   DECL_PRIMITIVE_ACCESSORS(memory_mask, size_t)
@@ -499,7 +500,7 @@ class WasmInstanceObject : public JSObject {
   V(kIndirectFunctionTablesOffset, kTaggedSize)                           \
   V(kManagedNativeAllocationsOffset, kTaggedSize)                         \
   V(kExceptionsTableOffset, kTaggedSize)                                  \
-  V(kWasmExportedFunctionsOffset, kTaggedSize)                            \
+  V(kWasmExternalFunctionsOffset, kTaggedSize)                            \
   V(kRealStackLimitAddressOffset, kSystemPointerSize)                     \
   V(kDataSegmentStartsOffset, kSystemPointerSize)                         \
   V(kDataSegmentSizesOffset, kSystemPointerSize)                          \
@@ -538,7 +539,7 @@ class WasmInstanceObject : public JSObject {
       kIndirectFunctionTablesOffset,
       kManagedNativeAllocationsOffset,
       kExceptionsTableOffset,
-      kWasmExportedFunctionsOffset};
+      kWasmExternalFunctionsOffset};
 
   V8_EXPORT_PRIVATE const wasm::WasmModule* module();
 
@@ -581,22 +582,22 @@ class WasmInstanceObject : public JSObject {
   // Iterates all fields in the object except the untagged fields.
   class BodyDescriptor;
 
-  static MaybeHandle<WasmExportedFunction> GetWasmExportedFunction(
+  static MaybeHandle<WasmExternalFunction> GetWasmExternalFunction(
       Isolate* isolate, Handle<WasmInstanceObject> instance, int index);
 
-  // Acquires the {WasmExportedFunction} for a given {function_index} from the
+  // Acquires the {WasmExternalFunction} for a given {function_index} from the
   // cache of the given {instance}, or creates a new {WasmExportedFunction} if
   // it does not exist yet. The new {WasmExportedFunction} is added to the
   // cache of the {instance} immediately.
-  V8_EXPORT_PRIVATE static Handle<WasmExportedFunction>
-  GetOrCreateWasmExportedFunction(Isolate* isolate,
+  V8_EXPORT_PRIVATE static Handle<WasmExternalFunction>
+  GetOrCreateWasmExternalFunction(Isolate* isolate,
                                   Handle<WasmInstanceObject> instance,
                                   int function_index);
 
-  static void SetWasmExportedFunction(Isolate* isolate,
+  static void SetWasmExternalFunction(Isolate* isolate,
                                       Handle<WasmInstanceObject> instance,
                                       int index,
-                                      Handle<WasmExportedFunction> val);
+                                      Handle<WasmExternalFunction> val);
 
   // Imports a constructed {WasmJSFunction} into the indirect function table of
   // this instance. Note that this might trigger wrapper compilation, since a
@@ -717,6 +718,19 @@ class WasmCapiFunction : public JSFunction {
 
   DECL_CAST(WasmCapiFunction)
   OBJECT_CONSTRUCTORS(WasmCapiFunction, JSFunction);
+};
+
+// Any external function that can be imported/exported in modules. This abstract
+// class just dispatches to the following concrete classes:
+//  - {WasmExportedFunction}: A proper Wasm function exported from a module.
+//  - {WasmJSFunction}: A function constructed via WebAssembly.Function in JS.
+// // TODO(wasm): Potentially {WasmCapiFunction} will be added here as well.
+class WasmExternalFunction : public JSFunction {
+ public:
+  static bool IsWasmExternalFunction(Object object);
+
+  DECL_CAST(WasmExternalFunction)
+  OBJECT_CONSTRUCTORS(WasmExternalFunction, JSFunction);
 };
 
 class WasmIndirectFunctionTable : public Struct {

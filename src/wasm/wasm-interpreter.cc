@@ -3046,8 +3046,8 @@ class ThreadImpl {
                                                            code->at(pc));
           HandleScope handle_scope(isolate_);  // Avoid leaking handles.
 
-          Handle<WasmExportedFunction> function =
-              WasmInstanceObject::GetOrCreateWasmExportedFunction(
+          Handle<WasmExternalFunction> function =
+              WasmInstanceObject::GetOrCreateWasmExternalFunction(
                   isolate_, instance_object_, imm.index);
           Push(WasmValue(function));
           len = 1 + imm.length;

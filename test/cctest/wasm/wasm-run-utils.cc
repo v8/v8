@@ -159,7 +159,7 @@ void TestingModuleBuilder::FreezeSignatureMapAndInitializeWrapperCache() {
 Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   FreezeSignatureMapAndInitializeWrapperCache();
   SetExecutable();
-  return WasmInstanceObject::GetOrCreateWasmExportedFunction(
+  return WasmInstanceObject::GetOrCreateWasmExternalFunction(
       isolate_, instance_object(), index);
 }
 

@@ -430,8 +430,8 @@ RUNTIME_FUNCTION(Runtime_WasmRefFunc) {
   isolate->set_context(instance->native_context());
   CONVERT_UINT32_ARG_CHECKED(function_index, 0);
 
-  Handle<WasmExportedFunction> function =
-      WasmInstanceObject::GetOrCreateWasmExportedFunction(isolate, instance,
+  Handle<WasmExternalFunction> function =
+      WasmInstanceObject::GetOrCreateWasmExternalFunction(isolate, instance,
                                                           function_index);
 
   return *function;

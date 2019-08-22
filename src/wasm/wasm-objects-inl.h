@@ -261,8 +261,8 @@ OPTIONAL_ACCESSORS(WasmInstanceObject, managed_native_allocations, Foreign,
                    kManagedNativeAllocationsOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, exceptions_table, FixedArray,
                    kExceptionsTableOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, wasm_exported_functions, FixedArray,
-                   kWasmExportedFunctionsOffset)
+OPTIONAL_ACCESSORS(WasmInstanceObject, wasm_external_functions, FixedArray,
+                   kWasmExternalFunctionsOffset)
 
 void WasmInstanceObject::clear_padding() {
   if (FIELD_SIZE(kOptionalPaddingOffset) != 0) {
@@ -362,6 +362,12 @@ PRIMITIVE_ACCESSORS(WasmCapiFunctionData, embedder_data, void*,
 ACCESSORS(WasmCapiFunctionData, wrapper_code, Code, kWrapperCodeOffset)
 ACCESSORS(WasmCapiFunctionData, serialized_signature, PodArray<wasm::ValueType>,
           kSerializedSignatureOffset)
+
+// WasmExternalFunction
+WasmExternalFunction::WasmExternalFunction(Address ptr) : JSFunction(ptr) {
+  SLOW_DCHECK(IsWasmExternalFunction(*this));
+}
+CAST_ACCESSOR(WasmExternalFunction)
 
 // WasmIndirectFunctionTable
 OBJECT_CONSTRUCTORS_IMPL(WasmIndirectFunctionTable, Struct)

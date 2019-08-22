@@ -1465,13 +1465,16 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
   }
   if (WasmExportedFunction::IsWasmExportedFunction(*this)) {
     WasmExportedFunction function = WasmExportedFunction::cast(*this);
-    os << "\n - WASM instance "
-       << reinterpret_cast<void*>(function.instance().ptr());
-    os << "\n - WASM function index " << function.function_index();
+    os << "\n - WASM instance: " << Brief(function.instance());
+    os << "\n - WASM function index: " << function.function_index();
+  }
+  if (WasmJSFunction::IsWasmJSFunction(*this)) {
+    WasmJSFunction function = WasmJSFunction::cast(*this);
+    os << "\n - WASM wrapper around: " << Brief(function.GetCallable());
   }
   shared().PrintSourceCode(os);
   JSObjectPrintBody(os, *this);
-  os << "\n - feedback vector: ";
+  os << " - feedback vector: ";
   if (!shared().HasFeedbackMetadata()) {
     os << "feedback metadata is not available in SFI\n";
   } else if (has_feedback_vector()) {

@@ -613,6 +613,5 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   builder.addExport("fun2", fun_index);
   let instance = builder.instantiate({ m: { fun: fun }});
   assertSame(instance.exports.fun1, instance.exports.fun2);
-  // TODO(7742): Fix after https://github.com/WebAssembly/js-types/issues/11.
-  assertNotSame(fun, instance.exports.fun1);
+  assertSame(fun, instance.exports.fun1);
 })();

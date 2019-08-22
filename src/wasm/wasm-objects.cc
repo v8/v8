@@ -963,7 +963,7 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
 
   // Check if we already compiled a wrapper for the function but did not store
   // it in the table slot yet.
-  entry = WasmInstanceObject::GetOrCreateWasmExportedFunction(isolate, instance,
+  entry = WasmInstanceObject::GetOrCreateWasmExternalFunction(isolate, instance,
                                                               function_index);
   entries->set(entry_index, *entry);
   return entry;
@@ -1858,27 +1858,27 @@ bool WasmInstanceObject::InitTableEntries(Isolate* isolate,
                                dst, src, count);
 }
 
-MaybeHandle<WasmExportedFunction> WasmInstanceObject::GetWasmExportedFunction(
+MaybeHandle<WasmExternalFunction> WasmInstanceObject::GetWasmExternalFunction(
     Isolate* isolate, Handle<WasmInstanceObject> instance, int index) {
-  MaybeHandle<WasmExportedFunction> result;
-  if (instance->has_wasm_exported_functions()) {
-    Object val = instance->wasm_exported_functions().get(index);
+  MaybeHandle<WasmExternalFunction> result;
+  if (instance->has_wasm_external_functions()) {
+    Object val = instance->wasm_external_functions().get(index);
     if (!val.IsUndefined(isolate)) {
-      result = Handle<WasmExportedFunction>(WasmExportedFunction::cast(val),
+      result = Handle<WasmExternalFunction>(WasmExternalFunction::cast(val),
                                             isolate);
     }
   }
   return result;
 }
 
-Handle<WasmExportedFunction>
-WasmInstanceObject::GetOrCreateWasmExportedFunction(
+Handle<WasmExternalFunction>
+WasmInstanceObject::GetOrCreateWasmExternalFunction(
     Isolate* isolate, Handle<WasmInstanceObject> instance, int function_index) {
-  MaybeHandle<WasmExportedFunction> maybe_result =
-      WasmInstanceObject::GetWasmExportedFunction(isolate, instance,
+  MaybeHandle<WasmExternalFunction> maybe_result =
+      WasmInstanceObject::GetWasmExternalFunction(isolate, instance,
                                                   function_index);
 
-  Handle<WasmExportedFunction> result;
+  Handle<WasmExternalFunction> result;
   if (maybe_result.ToHandle(&result)) {
     return result;
   }
@@ -1903,27 +1903,27 @@ WasmInstanceObject::GetOrCreateWasmExportedFunction(
         isolate, function.sig, function.imported);
     module_object->export_wrappers().set(wrapper_index, *wrapper);
   }
-  result = WasmExportedFunction::New(
+  result = Handle<WasmExternalFunction>::cast(WasmExportedFunction::New(
       isolate, instance, function_index,
-      static_cast<int>(function.sig->parameter_count()), wrapper);
+      static_cast<int>(function.sig->parameter_count()), wrapper));
 
-  WasmInstanceObject::SetWasmExportedFunction(isolate, instance, function_index,
+  WasmInstanceObject::SetWasmExternalFunction(isolate, instance, function_index,
                                               result);
   return result;
 }
 
-void WasmInstanceObject::SetWasmExportedFunction(
+void WasmInstanceObject::SetWasmExternalFunction(
     Isolate* isolate, Handle<WasmInstanceObject> instance, int index,
-    Handle<WasmExportedFunction> val) {
+    Handle<WasmExternalFunction> val) {
   Handle<FixedArray> functions;
-  if (!instance->has_wasm_exported_functions()) {
-    // lazily-allocate the wasm exported functions.
+  if (!instance->has_wasm_external_functions()) {
+    // Lazily allocate the wasm external functions array.
     functions = isolate->factory()->NewFixedArray(
         static_cast<int>(instance->module()->functions.size()));
-    instance->set_wasm_exported_functions(*functions);
+    instance->set_wasm_external_functions(*functions);
   } else {
     functions =
-        Handle<FixedArray>(instance->wasm_exported_functions(), isolate);
+        Handle<FixedArray>(instance->wasm_external_functions(), isolate);
   }
   functions->set(index, *val);
 }
@@ -2341,6 +2341,11 @@ Address WasmCapiFunction::GetHostCallTarget() const {
 
 PodArray<wasm::ValueType> WasmCapiFunction::GetSerializedSignature() const {
   return shared().wasm_capi_function_data().serialized_signature();
+}
+
+bool WasmExternalFunction::IsWasmExternalFunction(Object object) {
+  return WasmExportedFunction::IsWasmExportedFunction(object) ||
+         WasmJSFunction::IsWasmJSFunction(object);
 }
 
 Handle<WasmExceptionTag> WasmExceptionTag::New(Isolate* isolate, int index) {
