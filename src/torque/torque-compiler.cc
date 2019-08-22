@@ -53,6 +53,7 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   if (options.force_assert_statements) {
     GlobalContext::SetForceAssertStatements();
   }
+  TargetArchitecture::Scope target_architecture(options.force_32bit_output);
   TypeOracle::Scope type_oracle;
 
   // Two-step process of predeclaration + resolution allows to resolve type

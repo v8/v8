@@ -11,9 +11,6 @@
 namespace v8 {
 namespace internal {
 namespace torque {
-
-DEFINE_CONTEXTUAL_VARIABLE(GlobalContext)
-
 namespace {
 
 template <class T>

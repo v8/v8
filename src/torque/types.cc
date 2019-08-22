@@ -4,9 +4,9 @@
 
 #include <iostream>
 
-#include "src/common/globals.h"
 #include "src/torque/ast.h"
 #include "src/torque/declarable.h"
+#include "src/torque/global-context.h"
 #include "src/torque/type-oracle.h"
 #include "src/torque/type-visitor.h"
 #include "src/torque/types.h"
@@ -662,10 +662,10 @@ std::tuple<size_t, std::string> Field::GetFieldSizeInformation() const {
   const Type* field_type = this->name_and_type.type;
   size_t field_size = 0;
   if (field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-    field_size = kTaggedSize;
+    field_size = TargetArchitecture::TaggedSize();
     size_string = "kTaggedSize";
   } else if (field_type->IsSubtypeOf(TypeOracle::GetRawPtrType())) {
-    field_size = kSystemPointerSize;
+    field_size = TargetArchitecture::RawPtrSize();
     size_string = "kSystemPointerSize";
   } else if (field_type->IsSubtypeOf(TypeOracle::GetVoidType())) {
     field_size = 0;
@@ -692,10 +692,10 @@ std::tuple<size_t, std::string> Field::GetFieldSizeInformation() const {
     field_size = kDoubleSize;
     size_string = "kDoubleSize";
   } else if (field_type->IsSubtypeOf(TypeOracle::GetIntPtrType())) {
-    field_size = kIntptrSize;
+    field_size = TargetArchitecture::RawPtrSize();
     size_string = "kIntptrSize";
   } else if (field_type->IsSubtypeOf(TypeOracle::GetUIntPtrType())) {
-    field_size = kIntptrSize;
+    field_size = TargetArchitecture::RawPtrSize();
     size_string = "kIntptrSize";
   } else {
     ReportError("fields of type ", *field_type, " are not (yet) supported");

@@ -314,7 +314,8 @@ void TypeVisitor::VisitClassFieldsAndMethods(
       std::string machine_type;
       std::tie(field_size, size_string) = field.GetFieldSizeInformation();
       // Our allocations don't support alignments beyond kTaggedSize.
-      size_t alignment = std::min(size_t{kTaggedSize}, field_size);
+      size_t alignment = std::min(
+          static_cast<size_t>(TargetArchitecture::TaggedSize()), field_size);
       if (alignment > 0 && class_offset % alignment != 0) {
         ReportError("field ", field_expression.name_and_type.name,
                     " at offset ", class_offset, " is not ", alignment,
