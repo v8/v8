@@ -1833,12 +1833,19 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
 // Shared routine for multiple word compare operations.
 void VisitWordCompare(InstructionSelector* selector, Node* node,
                       InstructionCode opcode, FlagsContinuation* cont,
-                      bool commutative, ImmediateMode immediate_mode) {
+                      ImmediateMode immediate_mode) {
   Arm64OperandGenerator g(selector);
+
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
 
-  // Match immediates on left or right side of comparison.
+  // If one of the two inputs is an immediate, make sure it's on the right.
+  if (!g.CanBeImmediate(right, immediate_mode) &&
+      g.CanBeImmediate(left, immediate_mode)) {
+    cont->Commute();
+    std::swap(left, right);
+  }
+
   if (g.CanBeImmediate(right, immediate_mode)) {
     VisitCompare(selector, opcode, g.UseRegister(left), g.UseImmediate(right),
                  cont);
@@ -2369,8 +2376,7 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
         if (m.right().Is(0)) {
           Node* const left = m.left().node();
           if (CanCover(value, left) && left->opcode() == IrOpcode::kWord64And) {
-            return VisitWordCompare(this, left, kArm64Tst, cont, true,
-                                    kLogical64Imm);
+            return VisitWordCompare(this, left, kArm64Tst, cont, kLogical64Imm);
           }
           // Merge the Word64Equal(x, 0) comparison into a cbz instruction.
           if ((cont->IsBranch() || cont->IsDeoptimize()) &&
@@ -2380,25 +2386,20 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
             return;
           }
         }
-        return VisitWordCompare(this, value, kArm64Cmp, cont, false,
-                                kArithmeticImm);
+        return VisitWordCompare(this, value, kArm64Cmp, cont, kArithmeticImm);
       }
       case IrOpcode::kInt64LessThan:
         cont->OverwriteAndNegateIfEqual(kSignedLessThan);
-        return VisitWordCompare(this, value, kArm64Cmp, cont, false,
-                                kArithmeticImm);
+        return VisitWordCompare(this, value, kArm64Cmp, cont, kArithmeticImm);
       case IrOpcode::kInt64LessThanOrEqual:
         cont->OverwriteAndNegateIfEqual(kSignedLessThanOrEqual);
-        return VisitWordCompare(this, value, kArm64Cmp, cont, false,
-                                kArithmeticImm);
+        return VisitWordCompare(this, value, kArm64Cmp, cont, kArithmeticImm);
       case IrOpcode::kUint64LessThan:
         cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
-        return VisitWordCompare(this, value, kArm64Cmp, cont, false,
-                                kArithmeticImm);
+        return VisitWordCompare(this, value, kArm64Cmp, cont, kArithmeticImm);
       case IrOpcode::kUint64LessThanOrEqual:
         cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
-        return VisitWordCompare(this, value, kArm64Cmp, cont, false,
-                                kArithmeticImm);
+        return VisitWordCompare(this, value, kArm64Cmp, cont, kArithmeticImm);
       case IrOpcode::kFloat32Equal:
         cont->OverwriteAndNegateIfEqual(kEqual);
         return VisitFloat32Compare(this, value, cont);
@@ -2460,16 +2461,13 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
         }
         break;
       case IrOpcode::kInt32Add:
-        return VisitWordCompare(this, value, kArm64Cmn32, cont, true,
-                                kArithmeticImm);
+        return VisitWordCompare(this, value, kArm64Cmn32, cont, kArithmeticImm);
       case IrOpcode::kInt32Sub:
         return VisitWord32Compare(this, value, cont);
       case IrOpcode::kWord32And:
-        return VisitWordCompare(this, value, kArm64Tst32, cont, true,
-                                kLogical32Imm);
+        return VisitWordCompare(this, value, kArm64Tst32, cont, kLogical32Imm);
       case IrOpcode::kWord64And:
-        return VisitWordCompare(this, value, kArm64Tst, cont, true,
-                                kLogical64Imm);
+        return VisitWordCompare(this, value, kArm64Tst, cont, kLogical64Imm);
       case IrOpcode::kStackPointerGreaterThan:
         cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
         return VisitStackPointerGreaterThan(value, cont);
@@ -2532,7 +2530,7 @@ void InstructionSelector::VisitWord32Equal(Node* const node) {
         case IrOpcode::kWord32And:
           return VisitWord32Compare(this, node, &cont);
         case IrOpcode::kInt32Sub:
-          return VisitWordCompare(this, value, kArm64Cmp32, &cont, false,
+          return VisitWordCompare(this, value, kArm64Cmp32, &cont,
                                   kArithmeticImm);
         case IrOpcode::kWord32Equal: {
           // Word32Equal(Word32Equal(x, y), 0) => Word32Compare(x, y, ne).
@@ -2589,15 +2587,14 @@ void InstructionSelector::VisitWord64Equal(Node* const node) {
     if (CanCover(user, value)) {
       switch (value->opcode()) {
         case IrOpcode::kWord64And:
-          return VisitWordCompare(this, value, kArm64Tst, &cont, true,
-                                  kLogical64Imm);
+          return VisitWordCompare(this, value, kArm64Tst, &cont, kLogical64Imm);
         default:
           break;
       }
       return VisitWord64Test(this, value, &cont);
     }
   }
-  VisitWordCompare(this, node, kArm64Cmp, &cont, false, kArithmeticImm);
+  VisitWordCompare(this, node, kArm64Cmp, &cont, kArithmeticImm);
 }
 
 void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
@@ -2655,24 +2652,24 @@ void InstructionSelector::VisitInt64SubWithOverflow(Node* node) {
 
 void InstructionSelector::VisitInt64LessThan(Node* node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kSignedLessThan, node);
-  VisitWordCompare(this, node, kArm64Cmp, &cont, false, kArithmeticImm);
+  VisitWordCompare(this, node, kArm64Cmp, &cont, kArithmeticImm);
 }
 
 void InstructionSelector::VisitInt64LessThanOrEqual(Node* node) {
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kSignedLessThanOrEqual, node);
-  VisitWordCompare(this, node, kArm64Cmp, &cont, false, kArithmeticImm);
+  VisitWordCompare(this, node, kArm64Cmp, &cont, kArithmeticImm);
 }
 
 void InstructionSelector::VisitUint64LessThan(Node* node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kUnsignedLessThan, node);
-  VisitWordCompare(this, node, kArm64Cmp, &cont, false, kArithmeticImm);
+  VisitWordCompare(this, node, kArm64Cmp, &cont, kArithmeticImm);
 }
 
 void InstructionSelector::VisitUint64LessThanOrEqual(Node* node) {
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kUnsignedLessThanOrEqual, node);
-  VisitWordCompare(this, node, kArm64Cmp, &cont, false, kArithmeticImm);
+  VisitWordCompare(this, node, kArm64Cmp, &cont, kArithmeticImm);
 }
 
 void InstructionSelector::VisitFloat32Neg(Node* node) {
