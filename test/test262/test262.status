@@ -549,10 +549,6 @@
   'intl402/RelativeTimeFormat/constructor/constructor/locales-valid': [FAIL],
   'intl402/Segmenter/constructor/constructor/locales-valid': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9646
-  'built-ins/ThrowTypeError/name': [FAIL],
-  'language/expressions/class/name': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9647
   'language/expressions/assignment/dstr/ident-name-prop-name-literal-break-escaped': [FAIL],
   'language/expressions/assignment/dstr/ident-name-prop-name-literal-case-escaped': [FAIL],
