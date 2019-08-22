@@ -349,11 +349,23 @@ RUNTIME_FUNCTION(Runtime_EnsureFeedbackVectorForFunction) {
 
 RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
+  DCHECK(args.length() == 1 || args.length() == 2);
   if (!args[0].IsJSFunction()) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+
+  bool allow_heuristic_optimization = false;
+  if (args.length() == 2) {
+    CONVERT_ARG_HANDLE_CHECKED(Object, sync_object, 1);
+    if (!sync_object->IsString())
+      return ReadOnlyRoots(isolate).undefined_value();
+    Handle<String> sync = Handle<String>::cast(sync_object);
+    if (sync->IsOneByteEqualTo(
+            StaticCharVector("allow heuristic optimization"))) {
+      allow_heuristic_optimization = true;
+    }
+  }
 
   if (!EnsureFeedbackVector(function)) {
     return ReadOnlyRoots(isolate).undefined_value();
@@ -375,7 +387,8 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
   // Hold onto the bytecode array between marking and optimization to ensure
   // it's not flushed.
   if (FLAG_testing_d8_test_runner) {
-    PendingOptimizationTable::PreparedForOptimization(isolate, function);
+    PendingOptimizationTable::PreparedForOptimization(
+        isolate, function, allow_heuristic_optimization);
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
