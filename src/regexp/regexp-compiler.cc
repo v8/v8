@@ -274,7 +274,7 @@ RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
   isolate->IncreaseTotalRegexpCodeGenerated(code->Size());
   work_list_ = nullptr;
 #ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_code && !FLAG_regexp_interpret_all) {
+  if (FLAG_print_code && code->IsCode()) {
     CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
     OFStream os(trace_scope.file());
     Handle<Code>::cast(code)->Disassemble(pattern->ToCString().get(), os);
