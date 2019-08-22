@@ -1321,13 +1321,6 @@ class SafeStackFrameIterator : public StackFrameIteratorBase {
 // How to calculate the frame layout information. Precise, when all information
 // is available during deoptimization. Conservative, when an overapproximation
 // is fine.
-// TODO(jgruber): Investigate whether the conservative kind can be removed. It
-// seems possible: 1. is_topmost should be known through the outer_state chain
-// of FrameStateDescriptor; 2. the deopt_kind may be a property of the bailout
-// id; 3. for continuation_mode, we only care whether it is a mode with catch,
-// and that is likewise known at compile-time.
-// There is nothing specific blocking this, the investigation just requires time
-// and it is not that important to get the exact frame height at compile-time.
 enum class FrameInfoKind {
   kPrecise,
   kConservative,
@@ -1343,16 +1336,12 @@ enum class BuiltinContinuationMode {
 
 class InterpretedFrameInfo {
  public:
+  // Note: parameters_count includes the receiver, it's thus equal to
+  // `SharedFunctionInfo::internal_formal_parameter_count + 1`.
   static InterpretedFrameInfo Precise(int parameters_count_with_receiver,
                                       int translation_height, bool is_topmost) {
     return {parameters_count_with_receiver, translation_height, is_topmost,
             FrameInfoKind::kPrecise};
-  }
-
-  static InterpretedFrameInfo Conservative(int parameters_count_with_receiver,
-                                           int locals_count) {
-    return {parameters_count_with_receiver, locals_count, false,
-            FrameInfoKind::kConservative};
   }
 
   uint32_t register_stack_slot_count() const {
@@ -1379,10 +1368,6 @@ class ArgumentsAdaptorFrameInfo {
     return ArgumentsAdaptorFrameInfo{translation_height};
   }
 
-  static ArgumentsAdaptorFrameInfo Conservative(int parameters_count) {
-    return ArgumentsAdaptorFrameInfo{parameters_count};
-  }
-
   uint32_t frame_size_in_bytes_without_fixed() const {
     return frame_size_in_bytes_without_fixed_;
   }
@@ -1400,10 +1385,6 @@ class ConstructStubFrameInfo {
   static ConstructStubFrameInfo Precise(int translation_height,
                                         bool is_topmost) {
     return {translation_height, is_topmost, FrameInfoKind::kPrecise};
-  }
-
-  static ConstructStubFrameInfo Conservative(int parameters_count) {
-    return {parameters_count, false, FrameInfoKind::kConservative};
   }
 
   uint32_t frame_size_in_bytes_without_fixed() const {
@@ -1437,21 +1418,6 @@ class BuiltinContinuationFrameInfo {
             deopt_kind,
             continuation_mode,
             FrameInfoKind::kPrecise};
-  }
-
-  static BuiltinContinuationFrameInfo Conservative(
-      int parameters_count,
-      const CallInterfaceDescriptor& continuation_descriptor,
-      const RegisterConfiguration* register_config) {
-    // It doesn't matter what we pass as is_topmost, deopt_kind and
-    // continuation_mode; these values are ignored in conservative mode.
-    return {parameters_count,
-            continuation_descriptor,
-            register_config,
-            false,
-            DeoptimizeKind::kEager,
-            BuiltinContinuationMode::STUB,
-            FrameInfoKind::kConservative};
   }
 
   bool frame_has_result_stack_slot() const {

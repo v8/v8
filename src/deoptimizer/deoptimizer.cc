@@ -824,10 +824,9 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
     PrintF(trace_scope_->file(), "  translating interpreted frame ");
     std::unique_ptr<char[]> name = shared.DebugName().ToCString();
     PrintF(trace_scope_->file(), "%s", name.get());
-    PrintF(trace_scope_->file(),
-           " => bytecode_offset=%d, variable_frame_size=%d, frame_size=%d%s\n",
+    PrintF(trace_scope_->file(), " => bytecode_offset=%d, height=%d%s\n",
            real_bytecode_offset, frame_info.frame_size_in_bytes_without_fixed(),
-           output_frame_size, goto_catch_handler ? " (throw)" : "");
+           goto_catch_handler ? " (throw)" : "");
   }
 
   // Allocate and store the output frame description.
@@ -1063,17 +1062,16 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
   const int parameters_count = translated_frame->height();
   ArgumentsAdaptorFrameInfo frame_info =
       ArgumentsAdaptorFrameInfo::Precise(parameters_count);
-  const uint32_t output_frame_size = frame_info.frame_size_in_bytes();
 
   TranslatedFrame::iterator function_iterator = value_iterator++;
   if (trace_scope_ != nullptr) {
     PrintF(trace_scope_->file(),
-           "  translating arguments adaptor => variable_frame_size=%d, "
-           "frame_size=%d\n",
-           frame_info.frame_size_in_bytes_without_fixed(), output_frame_size);
+           "  translating arguments adaptor => height=%d\n",
+           frame_info.frame_size_in_bytes_without_fixed());
   }
 
   // Allocate and store the output frame description.
+  const uint32_t output_frame_size = frame_info.frame_size_in_bytes();
   FrameDescription* output_frame = new (output_frame_size)
       FrameDescription(output_frame_size, parameters_count);
   FrameWriter frame_writer(this, output_frame, trace_scope_);
@@ -1171,19 +1169,18 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   const int parameters_count = translated_frame->height();
   ConstructStubFrameInfo frame_info =
       ConstructStubFrameInfo::Precise(parameters_count, is_topmost);
-  const uint32_t output_frame_size = frame_info.frame_size_in_bytes();
 
   TranslatedFrame::iterator function_iterator = value_iterator++;
   if (trace_scope_ != nullptr) {
     PrintF(trace_scope_->file(),
-           "  translating construct stub => bailout_id=%d (%s), "
-           "variable_frame_size=%d, frame_size=%d\n",
+           "  translating construct stub => bailout_id=%d (%s), height=%d\n",
            bailout_id.ToInt(),
            bailout_id == BailoutId::ConstructStubCreate() ? "create" : "invoke",
-           frame_info.frame_size_in_bytes_without_fixed(), output_frame_size);
+           frame_info.frame_size_in_bytes_without_fixed());
   }
 
   // Allocate and store the output frame description.
+  const unsigned output_frame_size = frame_info.frame_size_in_bytes();
   FrameDescription* output_frame = new (output_frame_size)
       FrameDescription(output_frame_size, parameters_count);
   FrameWriter frame_writer(this, output_frame, trace_scope_);
@@ -1473,10 +1470,10 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   if (trace_scope_ != nullptr) {
     PrintF(trace_scope_->file(),
            "  translating BuiltinContinuation to %s,"
-           " => register_param_count=%d,"
-           " stack_param_count=%d, frame_size=%d\n",
+           " register param count %d,"
+           " stack param count %d\n",
            Builtins::name(builtin_name), register_parameter_count,
-           frame_info.stack_parameter_count(), output_frame_size);
+           frame_info.stack_parameter_count());
   }
 
   FrameDescription* output_frame = new (output_frame_size)

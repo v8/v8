@@ -3039,9 +3039,8 @@ bool InstructionSelector::CanProduceSignalingNaN(Node* node) {
   return true;
 }
 
-namespace {
-
-FrameStateDescriptor* GetFrameStateDescriptorInternal(Zone* zone, Node* state) {
+FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
+    Node* state) {
   DCHECK_EQ(IrOpcode::kFrameState, state->opcode());
   DCHECK_EQ(kFrameStateInputCount, state->InputCount());
   FrameStateInfo state_info = FrameStateInfoOf(state->op());
@@ -3059,24 +3058,13 @@ FrameStateDescriptor* GetFrameStateDescriptorInternal(Zone* zone, Node* state) {
   FrameStateDescriptor* outer_state = nullptr;
   Node* outer_node = state->InputAt(kFrameStateOuterStateInput);
   if (outer_node->opcode() == IrOpcode::kFrameState) {
-    outer_state = GetFrameStateDescriptorInternal(zone, outer_node);
+    outer_state = GetFrameStateDescriptor(outer_node);
   }
 
-  return new (zone)
-      FrameStateDescriptor(zone, state_info.type(), state_info.bailout_id(),
-                           state_info.state_combine(), parameters, locals,
-                           stack, state_info.shared_info(), outer_state);
-}
-
-}  // namespace
-
-FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
-    Node* state) {
-  auto* desc = GetFrameStateDescriptorInternal(instruction_zone(), state);
-  max_unoptimized_frame_height_ =
-      std::max(max_unoptimized_frame_height_,
-               desc->total_conservative_frame_size_in_bytes());
-  return desc;
+  return new (instruction_zone()) FrameStateDescriptor(
+      instruction_zone(), state_info.type(), state_info.bailout_id(),
+      state_info.state_combine(), parameters, locals, stack,
+      state_info.shared_info(), outer_state);
 }
 
 // static
