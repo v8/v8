@@ -1097,15 +1097,14 @@ TEST(BreakPointApiFunction) {
   ExpectInt32("f()", 2);
   CHECK_EQ(2, break_point_hit_count);
 
-  // Direct call through API does not trigger breakpoint.
   function->Call(env.local(), v8::Undefined(env->GetIsolate()), 0, nullptr)
       .ToLocalChecked();
-  CHECK_EQ(2, break_point_hit_count);
+  CHECK_EQ(3, break_point_hit_count);
 
   // Run without breakpoints.
   ClearBreakPoint(bp);
   ExpectInt32("f()", 2);
-  CHECK_EQ(2, break_point_hit_count);
+  CHECK_EQ(3, break_point_hit_count);
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
@@ -1138,14 +1137,13 @@ TEST(BreakPointApiConstructor) {
   CompileRun("new f()");
   CHECK_EQ(2, break_point_hit_count);
 
-  // Direct call through API does not trigger breakpoint.
   function->NewInstance(env.local()).ToLocalChecked();
-  CHECK_EQ(2, break_point_hit_count);
+  CHECK_EQ(3, break_point_hit_count);
 
   // Run without breakpoints.
   ClearBreakPoint(bp);
   CompileRun("new f()");
-  CHECK_EQ(2, break_point_hit_count);
+  CHECK_EQ(3, break_point_hit_count);
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
@@ -1190,16 +1188,15 @@ TEST(BreakPointApiGetter) {
   // Run with breakpoint.
   bp = SetBreakPoint(function, 0);
   CompileRun("get_wrapper(o, 'f')");
-  CHECK_EQ(0, break_point_hit_count);
+  CHECK_EQ(1, break_point_hit_count);
 
   CompileRun("o.f");
-  CHECK_EQ(1, break_point_hit_count);
+  CHECK_EQ(2, break_point_hit_count);
 
   // Run without breakpoints.
   ClearBreakPoint(bp);
   CompileRun("get_wrapper(o, 'f', 2)");
-  CompileRun("o.f");
-  CHECK_EQ(1, break_point_hit_count);
+  CHECK_EQ(2, break_point_hit_count);
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
@@ -1248,12 +1245,12 @@ TEST(BreakPointApiSetter) {
   CHECK_EQ(1, break_point_hit_count);
 
   CompileRun("set_wrapper(o, 'f', 2)");
-  CHECK_EQ(1, break_point_hit_count);
+  CHECK_EQ(2, break_point_hit_count);
 
   // Run without breakpoints.
   ClearBreakPoint(bp);
   CompileRun("o.f = 3");
-  CHECK_EQ(1, break_point_hit_count);
+  CHECK_EQ(2, break_point_hit_count);
 
   // === Test API builtin as setter, with condition ===
   break_point_hit_count = 0;
@@ -1264,16 +1261,15 @@ TEST(BreakPointApiSetter) {
   CHECK_EQ(0, break_point_hit_count);
 
   CompileRun("set_wrapper(o, 'f', 3)");
-  CHECK_EQ(0, break_point_hit_count);
+  CHECK_EQ(1, break_point_hit_count);
 
   CompileRun("o.f = 3");
-  CHECK_EQ(1, break_point_hit_count);
+  CHECK_EQ(2, break_point_hit_count);
 
   // Run without breakpoints.
   ClearBreakPoint(bp);
   CompileRun("set_wrapper(o, 'f', 2)");
-  CompileRun("o.f = 3");
-  CHECK_EQ(1, break_point_hit_count);
+  CHECK_EQ(2, break_point_hit_count);
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();

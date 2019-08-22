@@ -357,6 +357,7 @@ class HandleScopeImplementer {
   explicit HandleScopeImplementer(Isolate* isolate)
       : isolate_(isolate),
         spare_(nullptr),
+        call_depth_(0),
         last_handle_before_deferred_block_(nullptr) {}
 
   ~HandleScopeImplementer() { DeleteArray(spare_); }
@@ -374,6 +375,11 @@ class HandleScopeImplementer {
 
   inline internal::Address* GetSpareOrNewBlock();
   inline void DeleteExtensions(internal::Address* prev_limit);
+
+  // Call depth represents nested v8 api calls.
+  inline void IncrementCallDepth() { call_depth_++; }
+  inline void DecrementCallDepth() { call_depth_--; }
+  inline bool CallDepthIsZero() { return call_depth_ == 0; }
 
   inline void EnterContext(Context context);
   inline void LeaveContext();
@@ -411,6 +417,7 @@ class HandleScopeImplementer {
     saved_contexts_.detach();
     spare_ = nullptr;
     last_handle_before_deferred_block_ = nullptr;
+    call_depth_ = 0;
   }
 
   void Free() {
@@ -427,7 +434,7 @@ class HandleScopeImplementer {
       DeleteArray(spare_);
       spare_ = nullptr;
     }
-    DCHECK(isolate_->thread_local_top()->CallDepthIsZero());
+    DCHECK_EQ(call_depth_, 0);
   }
 
   void BeginDeferredScope();
@@ -447,6 +454,8 @@ class HandleScopeImplementer {
   // Used as a stack to keep track of saved contexts.
   DetachableVector<Context> saved_contexts_;
   Address* spare_;
+  int call_depth_;
+
   Address* last_handle_before_deferred_block_;
   // This is only used for threading support.
   HandleScopeData handle_scope_data_;
