@@ -306,7 +306,8 @@ void EvacuationVerifier::VerifyEvacuation(PagedSpace* space) {
     if (p->Contains(space->top())) {
       CodePageMemoryModificationScope memory_modification_scope(p);
       heap_->CreateFillerObjectAt(
-          space->top(), static_cast<int>(space->limit() - space->top()));
+          space->top(), static_cast<int>(space->limit() - space->top()),
+          ClearRecordedSlots::kNo);
     }
     VerifyEvacuationOnPage(p->area_start(), p->area_end());
   }
@@ -2096,7 +2097,8 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   if (!heap()->IsLargeObject(compiled_data)) {
     heap()->CreateFillerObjectAt(
         compiled_data.address() + UncompiledDataWithoutPreparseData::kSize,
-        compiled_data_size - UncompiledDataWithoutPreparseData::kSize);
+        compiled_data_size - UncompiledDataWithoutPreparseData::kSize,
+        ClearRecordedSlots::kNo);
   }
 
   // Initialize the uncompiled data.
@@ -2237,7 +2239,8 @@ void MarkCompactCollector::RightTrimDescriptorArray(DescriptorArray array,
   RememberedSet<OLD_TO_OLD>::RemoveRange(MemoryChunk::FromHeapObject(array),
                                          start, end,
                                          SlotSet::PREFREE_EMPTY_BUCKETS);
-  heap()->CreateFillerObjectAt(start, static_cast<int>(end - start));
+  heap()->CreateFillerObjectAt(start, static_cast<int>(end - start),
+                               ClearRecordedSlots::kNo);
   array.set_number_of_all_descriptors(new_nof_all_descriptors);
 }
 
@@ -4372,7 +4375,8 @@ void MinorMarkCompactCollector::MakeIterable(
       if (free_space_mode == ZAP_FREE_SPACE) {
         ZapCode(free_start, size);
       }
-      p->heap()->CreateFillerObjectAt(free_start, static_cast<int>(size));
+      p->heap()->CreateFillerObjectAt(free_start, static_cast<int>(size),
+                                      ClearRecordedSlots::kNo);
     }
     Map map = object.synchronized_map();
     int size = object.SizeFromMap(map);
@@ -4388,7 +4392,8 @@ void MinorMarkCompactCollector::MakeIterable(
     if (free_space_mode == ZAP_FREE_SPACE) {
       ZapCode(free_start, size);
     }
-    p->heap()->CreateFillerObjectAt(free_start, static_cast<int>(size));
+    p->heap()->CreateFillerObjectAt(free_start, static_cast<int>(size),
+                                    ClearRecordedSlots::kNo);
   }
 
   if (marking_mode == MarkingTreatmentMode::CLEAR) {

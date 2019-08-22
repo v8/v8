@@ -1481,7 +1481,7 @@ void Heap::EnsureFillerObjectAtTop() {
   Page* page = Page::FromAddress(to_top - kTaggedSize);
   if (page->Contains(to_top)) {
     int remaining_in_page = static_cast<int>(page->area_end() - to_top);
-    CreateFillerObjectAt(to_top, remaining_in_page);
+    CreateFillerObjectAt(to_top, remaining_in_page, ClearRecordedSlots::kNo);
   }
 }
 
@@ -1812,7 +1812,8 @@ bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
             // Mark with a free list node, in case we have a GC before
             // deserializing.
             Address free_space_address = free_space.address();
-            CreateFillerObjectAt(free_space_address, Map::kSize);
+            CreateFillerObjectAt(free_space_address, Map::kSize,
+                                 ClearRecordedSlots::kNo);
             maps->push_back(free_space_address);
           } else {
             perform_gc = true;
@@ -1843,7 +1844,8 @@ bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
             // Mark with a free list node, in case we have a GC before
             // deserializing.
             Address free_space_address = free_space.address();
-            CreateFillerObjectAt(free_space_address, size);
+            CreateFillerObjectAt(free_space_address, size,
+                                 ClearRecordedSlots::kNo);
             DCHECK(IsPreAllocatedSpace(static_cast<SnapshotSpace>(space)));
             chunk.start = free_space_address;
             chunk.end = free_space_address + size;
@@ -2748,7 +2750,7 @@ size_t Heap::GetCodeRangeReservedAreaSize() {
 }
 
 HeapObject Heap::PrecedeWithFiller(HeapObject object, int filler_size) {
-  CreateFillerObjectAt(object.address(), filler_size);
+  CreateFillerObjectAt(object.address(), filler_size, ClearRecordedSlots::kNo);
   return HeapObject::FromAddress(object.address() + filler_size);
 }
 
@@ -2763,7 +2765,8 @@ HeapObject Heap::AlignWithFiller(HeapObject object, int object_size,
     filler_size -= pre_filler;
   }
   if (filler_size) {
-    CreateFillerObjectAt(object.address() + object_size, filler_size);
+    CreateFillerObjectAt(object.address() + object_size, filler_size,
+                         ClearRecordedSlots::kNo);
   }
   return object;
 }
@@ -2813,6 +2816,7 @@ void Heap::FlushNumberStringCache() {
 }
 
 HeapObject Heap::CreateFillerObjectAt(Address addr, int size,
+                                      ClearRecordedSlots clear_slots_mode,
                                       ClearFreedMemoryMode clear_memory_mode) {
   if (size == 0) return HeapObject();
   HeapObject filler = HeapObject::FromAddress(addr);
@@ -2838,6 +2842,9 @@ HeapObject Heap::CreateFillerObjectAt(Address addr, int size,
       MemsetTagged(ObjectSlot(addr) + 2, Object(kClearedFreeMemoryValue),
                    (size / kTaggedSize) - 2);
     }
+  }
+  if (clear_slots_mode == ClearRecordedSlots::kYes) {
+    ClearRecordedSlotRange(addr, addr + size);
   }
 
   // At this point, we may be deserializing the heap from a snapshot, and
@@ -2978,7 +2985,8 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
   // Technically in new space this write might be omitted (except for
   // debug mode which iterates through the heap), but to play safer
   // we still do it.
-  HeapObject filler = CreateFillerObjectAt(old_start, bytes_to_trim);
+  HeapObject filler =
+      CreateFillerObjectAt(old_start, bytes_to_trim, ClearRecordedSlots::kNo);
 
   // Initialize header of the trimmed array. Since left trimming is only
   // performed on pages which are not concurrently swept creating a filler
@@ -3099,7 +3107,8 @@ void Heap::CreateFillerForArray(T object, int elements_to_trim,
   // we still do it.
   // We do not create a filler for objects in a large object space.
   if (!IsLargeObject(object)) {
-    HeapObject filler = CreateFillerObjectAt(new_end, bytes_to_trim);
+    HeapObject filler =
+        CreateFillerObjectAt(new_end, bytes_to_trim, ClearRecordedSlots::kNo);
     DCHECK(!filler.is_null());
     // Clear the mark bits of the black area that belongs now to the filler.
     // This is an optimization. The sweeper will release black fillers anyway.
@@ -4869,7 +4878,8 @@ HeapObject Heap::EnsureImmovableCode(HeapObject heap_object, int object_size) {
     } else {
       // Discard the first code allocation, which was on a page where it could
       // be moved.
-      CreateFillerObjectAt(heap_object.address(), object_size);
+      CreateFillerObjectAt(heap_object.address(), object_size,
+                           ClearRecordedSlots::kNo);
       heap_object = AllocateRawCodeInLargeObjectSpace(object_size);
       UnprotectAndRegisterMemoryChunk(heap_object);
       ZapCodeObject(heap_object.address(), object_size);

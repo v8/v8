@@ -1083,7 +1083,8 @@ size_t Page::ShrinkToHighWaterMark() {
     }
     heap()->CreateFillerObjectAt(
         filler.address(),
-        static_cast<int>(area_end() - filler.address() - unused));
+        static_cast<int>(area_end() - filler.address() - unused),
+        ClearRecordedSlots::kNo);
     heap()->memory_allocator()->PartialFreeMemory(
         this, address() + size() - unused, unused, area_end() - unused);
     if (filler.address() != area_end()) {
@@ -1558,7 +1559,7 @@ void Space::AllocationStep(int bytes_since_last, Address soon_object,
 
   DCHECK(!heap()->allocation_step_in_progress());
   heap()->set_allocation_step_in_progress(true);
-  heap()->CreateFillerObjectAt(soon_object, size);
+  heap()->CreateFillerObjectAt(soon_object, size, ClearRecordedSlots::kNo);
   for (AllocationObserver* observer : allocation_observers_) {
     observer->AllocationStep(bytes_since_last, soon_object, size);
   }
@@ -2290,7 +2291,8 @@ bool SemiSpace::EnsureCurrentCapacity() {
       current_page->SetFlags(first_page()->GetFlags(),
                              static_cast<uintptr_t>(Page::kCopyAllFlags));
       heap()->CreateFillerObjectAt(current_page->area_start(),
-                                   static_cast<int>(current_page->area_size()));
+                                   static_cast<int>(current_page->area_size()),
+                                   ClearRecordedSlots::kNo);
     }
   }
   return true;
@@ -2300,7 +2302,8 @@ LinearAllocationArea LocalAllocationBuffer::Close() {
   if (IsValid()) {
     heap_->CreateFillerObjectAt(
         allocation_info_.top(),
-        static_cast<int>(allocation_info_.limit() - allocation_info_.top()));
+        static_cast<int>(allocation_info_.limit() - allocation_info_.top()),
+        ClearRecordedSlots::kNo);
     const LinearAllocationArea old_info = allocation_info_;
     allocation_info_ = LinearAllocationArea(kNullAddress, kNullAddress);
     return old_info;
@@ -2315,7 +2318,8 @@ LocalAllocationBuffer::LocalAllocationBuffer(
   if (IsValid()) {
     heap_->CreateFillerObjectAt(
         allocation_info_.top(),
-        static_cast<int>(allocation_info_.limit() - allocation_info_.top()));
+        static_cast<int>(allocation_info_.limit() - allocation_info_.top()),
+        ClearRecordedSlots::kNo);
   }
 }
 
@@ -2395,7 +2399,7 @@ bool NewSpace::AddFreshPage() {
   // Clear remainder of current page.
   Address limit = Page::FromAllocationAreaAddress(top)->area_end();
   int remaining_in_page = static_cast<int>(limit - top);
-  heap()->CreateFillerObjectAt(top, remaining_in_page);
+  heap()->CreateFillerObjectAt(top, remaining_in_page, ClearRecordedSlots::kNo);
   UpdateLinearAllocationArea();
 
   return true;
@@ -3619,7 +3623,7 @@ void ReadOnlySpace::RepairFreeListsAfterDeserialization() {
       start += filler.Size();
     }
     CHECK_EQ(size, static_cast<int>(end - start));
-    heap()->CreateFillerObjectAt(start, size);
+    heap()->CreateFillerObjectAt(start, size, ClearRecordedSlots::kNo);
   }
 }
 
@@ -3765,7 +3769,8 @@ LargePage* LargeObjectSpace::AllocateLargePage(int object_size,
 
   HeapObject object = page->GetObject();
 
-  heap()->CreateFillerObjectAt(object.address(), object_size);
+  heap()->CreateFillerObjectAt(object.address(), object_size,
+                               ClearRecordedSlots::kNo);
   return page;
 }
 
