@@ -904,7 +904,9 @@ own<Frame> Trap::origin() const {
       isolate->CreateMessage(impl(this)->v8_object(), nullptr);
   i::Handle<i::FixedArray> frames(i::FixedArray::cast(message->stack_frames()),
                                   isolate);
-  DCHECK_GT(frames->length(), 0);
+  if (frames->length() == 0) {
+    return own<Frame>();
+  }
   return CreateFrameFromInternal(frames, 0, isolate, impl(this)->store());
 }
 
@@ -917,7 +919,7 @@ ownvec<Frame> Trap::trace() const {
   i::Handle<i::FixedArray> frames(i::FixedArray::cast(message->stack_frames()),
                                   isolate);
   int num_frames = frames->length();
-  DCHECK_GT(num_frames, 0);
+  // {num_frames} can be 0; the code below can handle that case.
   ownvec<Frame> result = ownvec<Frame>::make_uninitialized(num_frames);
   for (int i = 0; i < num_frames; i++) {
     result[i] =
@@ -966,13 +968,6 @@ auto Module::validate(Store* store_abs, const vec<byte_t>& binary) -> bool {
   return isolate->wasm_engine()->SyncValidate(isolate, features, bytes);
 }
 
-class NopErrorThrower : public i::wasm::ErrorThrower {
- public:
-  explicit NopErrorThrower(i::Isolate* isolate)
-      : i::wasm::ErrorThrower(isolate, "ignored") {}
-  ~NopErrorThrower() { Reset(); }
-};
-
 auto Module::make(Store* store_abs, const vec<byte_t>& binary) -> own<Module> {
   StoreImpl* store = impl(store_abs);
   i::Isolate* isolate = store->i_isolate();
@@ -980,11 +975,12 @@ auto Module::make(Store* store_abs, const vec<byte_t>& binary) -> own<Module> {
   i::wasm::ModuleWireBytes bytes(
       {reinterpret_cast<const uint8_t*>(binary.get()), binary.size()});
   i::wasm::WasmFeatures features = i::wasm::WasmFeaturesFromIsolate(isolate);
-  NopErrorThrower thrower(isolate);
+  i::wasm::ErrorThrower thrower(isolate, "ignored");
   i::Handle<i::WasmModuleObject> module;
   if (!isolate->wasm_engine()
            ->SyncCompile(isolate, features, &thrower, bytes)
            .ToHandle(&module)) {
+    thrower.Reset();  // The API provides no way to expose the error.
     return nullptr;
   }
   return implement<Module>::type::make(store, module);
@@ -1447,6 +1443,25 @@ own<Trap> CallWasmCapiFunction(i::WasmCapiFunctionData data, const Val args[],
   return (func_data->callback_with_env)(func_data->env, args, results);
 }
 
+i::Handle<i::JSReceiver> GetProperException(
+    i::Isolate* isolate, i::Handle<i::Object> maybe_exception) {
+  if (maybe_exception->IsJSReceiver()) {
+    return i::Handle<i::JSReceiver>::cast(maybe_exception);
+  }
+  i::MaybeHandle<i::String> maybe_string =
+      i::Object::ToString(isolate, maybe_exception);
+  i::Handle<i::String> string = isolate->factory()->empty_string();
+  if (!maybe_string.ToHandle(&string)) {
+    // If converting the {maybe_exception} to string threw another exception,
+    // just give up and leave {string} as the empty string.
+    isolate->clear_pending_exception();
+  }
+  // {NewError} cannot fail when its input is a plain String, so we always
+  // get an Error object here.
+  return i::Handle<i::JSReceiver>::cast(
+      isolate->factory()->NewError(isolate->error_function(), string));
+}
+
 }  // namespace
 
 auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
@@ -1507,17 +1522,8 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
   if (isolate->has_pending_exception()) {
     i::Handle<i::Object> exception(isolate->pending_exception(), isolate);
     isolate->clear_pending_exception();
-    if (!exception->IsJSReceiver()) {
-      i::MaybeHandle<i::String> maybe_string =
-          i::Object::ToString(isolate, exception);
-      i::Handle<i::String> string = maybe_string.is_null()
-                                        ? isolate->factory()->empty_string()
-                                        : maybe_string.ToHandleChecked();
-      exception =
-          isolate->factory()->NewError(isolate->error_function(), string);
-    }
-    return implement<Trap>::type::make(
-        store, i::Handle<i::JSReceiver>::cast(exception));
+    return implement<Trap>::type::make(store,
+                                       GetProperException(isolate, exception));
   }
 
   PopArgs(sig, results, &packer, store);
@@ -1903,8 +1909,8 @@ Instance::~Instance() {}
 
 auto Instance::copy() const -> own<Instance> { return impl(this)->copy(); }
 
-auto Instance::make(Store* store_abs, const Module* module_abs,
-                    const Extern* const imports[]) -> own<Instance> {
+own<Instance> Instance::make(Store* store_abs, const Module* module_abs,
+                             const Extern* const imports[], own<Trap>* trap) {
   StoreImpl* store = impl(store_abs);
   const implement<Module>::type* module = impl(module_abs);
   i::Isolate* isolate = store->i_isolate();
@@ -1912,6 +1918,7 @@ auto Instance::make(Store* store_abs, const Module* module_abs,
 
   DCHECK_EQ(module->v8_object()->GetIsolate(), isolate);
 
+  if (trap) *trap = nullptr;
   ownvec<ImportType> import_types = module_abs->imports();
   i::Handle<i::JSObject> imports_obj =
       isolate->factory()->NewJSObject(isolate->object_function());
@@ -1934,14 +1941,33 @@ auto Instance::make(Store* store_abs, const Module* module_abs,
     ignore(i::Object::SetProperty(isolate, module_obj, name_str,
                                   impl(imports[i])->v8_object()));
   }
-
-  NopErrorThrower thrower(isolate);
-  i::Handle<i::WasmInstanceObject> instance_obj =
-      isolate->wasm_engine()
-          ->SyncInstantiate(isolate, &thrower, module->v8_object(), imports_obj,
-                            i::MaybeHandle<i::JSArrayBuffer>())
-          .ToHandleChecked();
-  return implement<Instance>::type::make(store, instance_obj);
+  i::wasm::ErrorThrower thrower(isolate, "instantiation");
+  i::MaybeHandle<i::WasmInstanceObject> instance_obj =
+      isolate->wasm_engine()->SyncInstantiate(
+          isolate, &thrower, module->v8_object(), imports_obj,
+          i::MaybeHandle<i::JSArrayBuffer>());
+  if (trap) {
+    if (thrower.error()) {
+      *trap = implement<Trap>::type::make(
+          store, GetProperException(isolate, thrower.Reify()));
+      DCHECK(!thrower.error());  // Reify() called Reset().
+      DCHECK(!isolate->has_pending_exception());  // Hasn't been thrown yet.
+      return own<Instance>();
+    } else if (isolate->has_pending_exception()) {
+      i::Handle<i::Object> maybe_exception(isolate->pending_exception(),
+                                           isolate);
+      *trap = implement<Trap>::type::make(
+          store, GetProperException(isolate, maybe_exception));
+      isolate->clear_pending_exception();
+      return own<Instance>();
+    }
+  } else if (instance_obj.is_null()) {
+    // If no {trap} output is specified, silently swallow all errors.
+    thrower.Reset();
+    isolate->clear_pending_exception();
+    return own<Instance>();
+  }
+  return implement<Instance>::type::make(store, instance_obj.ToHandleChecked());
 }
 
 namespace {
@@ -2995,9 +3021,14 @@ WASM_DEFINE_REF(instance, wasm::Instance)
 
 wasm_instance_t* wasm_instance_new(wasm_store_t* store,
                                    const wasm_module_t* module,
-                                   const wasm_extern_t* const imports[]) {
-  return release_instance(wasm::Instance::make(
-      store, module, reinterpret_cast<const wasm::Extern* const*>(imports)));
+                                   const wasm_extern_t* const imports[],
+                                   wasm_trap_t** trap) {
+  wasm::own<wasm::Trap> error;
+  wasm_instance_t* instance = release_instance(wasm::Instance::make(
+      store, module, reinterpret_cast<const wasm::Extern* const*>(imports),
+      &error));
+  if (trap) *trap = hide_trap(error.release());
+  return instance;
 }
 
 void wasm_instance_exports(const wasm_instance_t* instance,

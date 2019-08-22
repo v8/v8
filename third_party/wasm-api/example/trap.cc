@@ -87,7 +87,7 @@ void run() {
     std::cout << "Calling export " << i << "..." << std::endl;
     auto trap = exports[i]->func()->call();
     if (!trap) {
-      std::cout << "> Error calling function!" << std::endl;
+      std::cout << "> Error calling function, expected trap!" << std::endl;
       exit(1);
     }
 

@@ -719,7 +719,8 @@ public:
   ~Instance();
 
   static auto make(
-    Store*, const Module*, const Extern* const[]) -> own<Instance>;
+    Store*, const Module*, const Extern* const[], own<Trap>* = nullptr
+  ) -> own<Instance>;
   auto copy() const -> own<Instance>;
 
   auto exports() const -> ownvec<Extern>;

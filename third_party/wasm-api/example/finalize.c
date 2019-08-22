@@ -52,7 +52,8 @@ int main(int argc, const char* argv[]) {
   printf("Instantiating modules...\n");
   for (int i = 0; i <= iterations; ++i) {
     if (i % (iterations / 10) == 0) printf("%d\n", i);
-    own wasm_instance_t* instance = wasm_instance_new(store, module, NULL);
+    own wasm_instance_t* instance =
+      wasm_instance_new(store, module, NULL, NULL);
     if (!instance) {
       printf("> Error instantiating module %d!\n", i);
       return 1;

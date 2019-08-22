@@ -503,7 +503,9 @@ const wasm_memory_t* wasm_extern_as_memory_const(const wasm_extern_t*);
 WASM_DECLARE_REF(instance)
 
 own wasm_instance_t* wasm_instance_new(
-  wasm_store_t*, const wasm_module_t*, const wasm_extern_t* const imports[]);
+  wasm_store_t*, const wasm_module_t*, const wasm_extern_t* const imports[],
+  own wasm_trap_t**
+);
 
 void wasm_instance_exports(const wasm_instance_t*, own wasm_extern_vec_t* out);
 

@@ -66,15 +66,18 @@ int main(int argc, const char* argv[]) {
 
   // Create external print functions.
   printf("Creating callback...\n");
-  own wasm_functype_t* fail_type = wasm_functype_new_0_1(wasm_valtype_new_i32());
-  own wasm_func_t* fail_func = wasm_func_new_with_env(store, fail_type, fail_callback, store, NULL);
+  own wasm_functype_t* fail_type =
+    wasm_functype_new_0_1(wasm_valtype_new_i32());
+  own wasm_func_t* fail_func =
+    wasm_func_new_with_env(store, fail_type, fail_callback, store, NULL);
 
   wasm_functype_delete(fail_type);
 
   // Instantiate.
   printf("Instantiating module...\n");
   const wasm_extern_t* imports[] = { wasm_func_as_extern(fail_func) };
-  own wasm_instance_t* instance = wasm_instance_new(store, module, imports);
+  own wasm_instance_t* instance =
+    wasm_instance_new(store, module, imports, NULL);
   if (!instance) {
     printf("> Error instantiating module!\n");
     return 1;
@@ -104,8 +107,8 @@ int main(int argc, const char* argv[]) {
 
     printf("Calling export %d...\n", i);
     own wasm_trap_t* trap = wasm_func_call(func, NULL, NULL);
-    if (! trap) {
-      printf("> Error calling function!\n");
+    if (!trap) {
+      printf("> Error calling function, expected trap!\n");
       return 1;
     }
 

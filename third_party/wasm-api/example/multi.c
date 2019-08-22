@@ -79,14 +79,16 @@ int main(int argc, const char* argv[]) {
   wasm_valtype_vec_new(&tuple1, 4, types);
   wasm_valtype_vec_copy(&tuple2, &tuple1);
   own wasm_functype_t* callback_type = wasm_functype_new(&tuple1, &tuple2);
-  own wasm_func_t* callback_func = wasm_func_new(store, callback_type, callback);
+  own wasm_func_t* callback_func =
+    wasm_func_new(store, callback_type, callback);
 
   wasm_functype_delete(callback_type);
 
   // Instantiate.
   printf("Instantiating module...\n");
   const wasm_extern_t* imports[] = {wasm_func_as_extern(callback_func)};
-  own wasm_instance_t* instance = wasm_instance_new(store, module, imports);
+  own wasm_instance_t* instance =
+    wasm_instance_new(store, module, imports, NULL);
   if (!instance) {
     printf("> Error instantiating module!\n");
     return 1;

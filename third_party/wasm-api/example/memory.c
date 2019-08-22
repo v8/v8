@@ -132,7 +132,8 @@ int main(int argc, const char* argv[]) {
 
   // Instantiate.
   printf("Instantiating module...\n");
-  own wasm_instance_t* instance = wasm_instance_new(store, module, NULL);
+  own wasm_instance_t* instance =
+    wasm_instance_new(store, module, NULL, NULL);
   if (!instance) {
     printf("> Error instantiating module!\n");
     return 1;
