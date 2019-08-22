@@ -783,6 +783,10 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   ZoneVector<std::pair<int, int>> instr_origins_;
   EnableTraceTurboJson trace_turbo_;
   TickCounter* const tick_counter_;
+
+  // Store the maximal unoptimized frame height. Later used to apply an offset
+  // to stack checks.
+  size_t max_unoptimized_frame_height_ = 0;
 };
 
 }  // namespace compiler
