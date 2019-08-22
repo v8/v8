@@ -157,9 +157,9 @@ bool ShouldUseMegamorphicLoadBuiltin(VectorSlotPair const& vector_slot_pair,
       broker->GetFeedback(FeedbackSource(vector_slot_pair));
 
   if (feedback.kind() == ProcessedFeedback::kElementAccess) {
-    return !feedback.AsElementAccess().transition_groups().empty();
+    return feedback.AsElementAccess().transition_groups().empty();
   } else if (feedback.kind() == ProcessedFeedback::kNamedAccess) {
-    return !feedback.AsNamedAccess().maps().empty();
+    return feedback.AsNamedAccess().maps().empty();
   } else if (feedback.kind() == ProcessedFeedback::kInsufficient) {
     return false;
   }
