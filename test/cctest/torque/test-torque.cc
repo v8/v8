@@ -114,7 +114,7 @@ TEST(TestBuiltinSpecialization) {
   CodeAssemblerTester asm_tester(isolate, 0);
   TestTorqueAssembler m(asm_tester.state());
   {
-    Node* temp = m.SmiConstant(0);
+    TNode<Object> temp = m.SmiConstant(0);
     m.TestBuiltinSpecialization(m.UncheckedCast<Context>(temp));
     m.Return(m.UndefinedConstant());
   }
@@ -171,7 +171,7 @@ TEST(TestFunctionPointerToGeneric) {
   CodeAssemblerTester asm_tester(isolate, 0);
   TestTorqueAssembler m(asm_tester.state());
   {
-    Node* temp = m.SmiConstant(0);
+    TNode<Object> temp = m.SmiConstant(0);
     m.TestFunctionPointerToGeneric(m.UncheckedCast<Context>(temp));
     m.Return(m.UndefinedConstant());
   }
@@ -184,8 +184,8 @@ TEST(TestUnsafeCast) {
   CodeAssemblerTester asm_tester(isolate, 0);
   TestTorqueAssembler m(asm_tester.state());
   {
-    Node* temp = m.SmiConstant(0);
-    Node* n = m.SmiConstant(10);
+    TNode<Object> temp = m.SmiConstant(0);
+    TNode<Smi> n = m.SmiConstant(10);
     m.Return(m.TestUnsafeCast(m.UncheckedCast<Context>(temp),
                               m.UncheckedCast<Number>(n)));
   }

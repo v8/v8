@@ -70,7 +70,7 @@ TEST(CallCFunction) {
   CodeStubAssembler m(asm_tester.state());
 
   {
-    Node* const fun_constant = m.ExternalConstant(
+    TNode<ExternalReference> const fun_constant = m.ExternalConstant(
         ExternalReference::Create(reinterpret_cast<Address>(sum10)));
 
     MachineType type_intptr = MachineType::IntPtr();
@@ -104,7 +104,7 @@ TEST(CallCFunctionWithCallerSavedRegisters) {
   CodeStubAssembler m(asm_tester.state());
 
   {
-    Node* const fun_constant = m.ExternalConstant(
+    TNode<ExternalReference> const fun_constant = m.ExternalConstant(
         ExternalReference::Create(reinterpret_cast<Address>(sum3)));
 
     MachineType type_intptr = MachineType::IntPtr();
@@ -1036,8 +1036,8 @@ TEST(TryHasOwnProperty) {
     Label passed(&m), failed(&m);
     Label if_found(&m), if_not_found(&m), if_bailout(&m);
 
-    Node* map = m.LoadMap(object);
-    Node* instance_type = m.LoadMapInstanceType(map);
+    TNode<Map> map = m.LoadMap(object);
+    TNode<Uint16T> instance_type = m.LoadMapInstanceType(map);
 
     m.TryHasOwnProperty(object, map, instance_type, unique_name, &if_found,
                         &if_not_found, &if_bailout);
@@ -1228,8 +1228,8 @@ TEST(TryGetOwnProperty) {
     Variable var_value(&m, MachineRepresentation::kTagged);
     Label if_found(&m), if_not_found(&m), if_bailout(&m);
 
-    Node* map = m.LoadMap(object);
-    Node* instance_type = m.LoadMapInstanceType(map);
+    TNode<Map> map = m.LoadMap(object);
+    TNode<Uint16T> instance_type = m.LoadMapInstanceType(map);
 
     m.TryGetOwnProperty(context, object, object, map, instance_type,
                         unique_name, &if_found, &var_value, &if_not_found,
@@ -1442,14 +1442,14 @@ TEST(TryLookupElement) {
   enum Result { kFound, kAbsent, kNotFound, kBailout };
   {
     Node* object = m.Parameter(0);
-    Node* index = m.SmiUntag(m.Parameter(1));
+    TNode<IntPtrT> index = m.SmiUntag(m.Parameter(1));
     Node* expected_result = m.Parameter(2);
 
     Label passed(&m), failed(&m);
     Label if_found(&m), if_not_found(&m), if_bailout(&m), if_absent(&m);
 
-    Node* map = m.LoadMap(object);
-    Node* instance_type = m.LoadMapInstanceType(map);
+    TNode<Map> map = m.LoadMap(object);
+    TNode<Uint16T> instance_type = m.LoadMapInstanceType(map);
 
     m.TryLookupElement(object, map, instance_type, index, &if_found, &if_absent,
                        &if_not_found, &if_bailout);
@@ -1673,7 +1673,8 @@ TEST(AllocateJSObjectFromMap) {
     Node* properties = m.Parameter(1);
     Node* elements = m.Parameter(2);
 
-    Node* result = m.AllocateJSObjectFromMap(map, properties, elements);
+    TNode<JSObject> result =
+        m.AllocateJSObjectFromMap(map, properties, elements);
 
     CodeStubAssembler::Label done(&m);
     m.GotoIfNot(m.IsJSArrayMap(map), &done);
@@ -1743,7 +1744,8 @@ TEST(AllocateNameDictionary) {
 
   {
     Node* capacity = m.Parameter(0);
-    Node* result = m.AllocateNameDictionary(m.SmiUntag(capacity));
+    TNode<NameDictionary> result =
+        m.AllocateNameDictionary(m.SmiUntag(capacity));
     m.Return(result);
   }
 
@@ -2389,7 +2391,7 @@ TEST(CreatePromiseResolvingFunctionsContext) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  Node* const native_context = m.LoadNativeContext(context);
+  TNode<Context> const native_context = m.LoadNativeContext(context);
   Node* const promise =
       m.AllocateAndInitJSPromise(context, m.UndefinedConstant());
   Node* const promise_context = m.CreatePromiseResolvingFunctionsContext(
@@ -2417,13 +2419,13 @@ TEST(CreatePromiseResolvingFunctions) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  Node* const native_context = m.LoadNativeContext(context);
+  TNode<Context> const native_context = m.LoadNativeContext(context);
   Node* const promise =
       m.AllocateAndInitJSPromise(context, m.UndefinedConstant());
   Node *resolve, *reject;
   std::tie(resolve, reject) = m.CreatePromiseResolvingFunctions(
       promise, m.BooleanConstant(false), native_context);
-  Node* const kSize = m.IntPtrConstant(2);
+  TNode<IntPtrT> const kSize = m.IntPtrConstant(2);
   TNode<FixedArray> const arr =
       m.Cast(m.AllocateFixedArray(PACKED_ELEMENTS, kSize));
   m.StoreFixedArrayElement(arr, 0, resolve);
@@ -2507,15 +2509,15 @@ TEST(AllocateFunctionWithMapAndContext) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  Node* const native_context = m.LoadNativeContext(context);
+  TNode<Context> const native_context = m.LoadNativeContext(context);
   Node* const promise =
       m.AllocateAndInitJSPromise(context, m.UndefinedConstant());
   Node* promise_context = m.CreatePromiseResolvingFunctionsContext(
       promise, m.BooleanConstant(false), native_context);
-  Node* resolve_info = m.LoadContextElement(
+  TNode<Object> resolve_info = m.LoadContextElement(
       native_context,
       Context::PROMISE_CAPABILITY_DEFAULT_RESOLVE_SHARED_FUN_INDEX);
-  Node* const map = m.LoadContextElement(
+  TNode<Object> const map = m.LoadContextElement(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
   Node* const resolve =
       m.AllocateFunctionWithMapAndContext(map, resolve_info, promise_context);
@@ -2545,9 +2547,9 @@ TEST(CreatePromiseGetCapabilitiesExecutorContext) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  Node* const native_context = m.LoadNativeContext(context);
+  TNode<Context> const native_context = m.LoadNativeContext(context);
 
-  Node* const map = m.LoadRoot(RootIndex::kPromiseCapabilityMap);
+  TNode<Object> const map = m.LoadRoot(RootIndex::kPromiseCapabilityMap);
   Node* const capability = m.AllocateStruct(map);
   m.StoreObjectFieldNoWriteBarrier(
       capability, PromiseCapability::kPromiseOffset, m.UndefinedConstant());
@@ -2581,12 +2583,12 @@ TEST(NewPromiseCapability) {
     PromiseBuiltinsAssembler m(asm_tester.state());
 
     Node* const context = m.Parameter(kNumParams + 2);
-    Node* const native_context = m.LoadNativeContext(context);
-    Node* const promise_constructor =
+    TNode<Context> const native_context = m.LoadNativeContext(context);
+    TNode<Object> const promise_constructor =
         m.LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
 
-    Node* const debug_event = m.TrueConstant();
-    Node* const capability =
+    TNode<Oddball> const debug_event = m.TrueConstant();
+    TNode<Object> const capability =
         m.CallBuiltin(Builtins::kNewPromiseCapability, context,
                       promise_constructor, debug_event);
     m.Return(capability);
@@ -2629,9 +2631,9 @@ TEST(NewPromiseCapability) {
     Node* const context = m.Parameter(kNumParams + 2);
 
     Node* const constructor = m.Parameter(1);
-    Node* const debug_event = m.TrueConstant();
-    Node* const capability = m.CallBuiltin(Builtins::kNewPromiseCapability,
-                                           context, constructor, debug_event);
+    TNode<Oddball> const debug_event = m.TrueConstant();
+    TNode<Object> const capability = m.CallBuiltin(
+        Builtins::kNewPromiseCapability, context, constructor, debug_event);
     m.Return(capability);
 
     FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -2695,12 +2697,13 @@ TEST(DirectMemoryTest8BitWord32Immediate) {
   const int element_count = 8;
   Label bad(&m);
 
-  Node* buffer_node = m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
+  TNode<IntPtrT> buffer_node =
+      m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
   for (size_t i = 0; i < element_count; ++i) {
     for (size_t j = 0; j < element_count; ++j) {
       Node* loaded = m.LoadBufferObject(buffer_node, static_cast<int>(i),
                                         MachineType::Uint8());
-      Node* masked = m.Word32And(loaded, m.Int32Constant(buffer[j]));
+      TNode<Word32T> masked = m.Word32And(loaded, m.Int32Constant(buffer[j]));
       if ((buffer[j] & buffer[i]) != 0) {
         m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);
       } else {
@@ -2727,13 +2730,14 @@ TEST(DirectMemoryTest16BitWord32Immediate) {
   const int element_count = 8;
   Label bad(&m);
 
-  Node* buffer_node = m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
+  TNode<IntPtrT> buffer_node =
+      m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
   for (size_t i = 0; i < element_count; ++i) {
     for (size_t j = 0; j < element_count; ++j) {
       Node* loaded =
           m.LoadBufferObject(buffer_node, static_cast<int>(i * sizeof(int16_t)),
                              MachineType::Uint16());
-      Node* masked = m.Word32And(loaded, m.Int32Constant(buffer[j]));
+      TNode<Word32T> masked = m.Word32And(loaded, m.Int32Constant(buffer[j]));
       if ((buffer[j] & buffer[i]) != 0) {
         m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);
       } else {
@@ -2761,7 +2765,8 @@ TEST(DirectMemoryTest8BitWord32) {
   Label bad(&m);
   Node* constants[element_count];
 
-  Node* buffer_node = m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
+  TNode<IntPtrT> buffer_node =
+      m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
   for (size_t i = 0; i < element_count; ++i) {
     constants[i] = m.LoadBufferObject(buffer_node, static_cast<int>(i),
                                       MachineType::Uint8());
@@ -2771,7 +2776,7 @@ TEST(DirectMemoryTest8BitWord32) {
     for (size_t j = 0; j < element_count; ++j) {
       Node* loaded = m.LoadBufferObject(buffer_node, static_cast<int>(i),
                                         MachineType::Uint8());
-      Node* masked = m.Word32And(loaded, constants[j]);
+      TNode<Word32T> masked = m.Word32And(loaded, constants[j]);
       if ((buffer[j] & buffer[i]) != 0) {
         m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);
       } else {
@@ -2806,20 +2811,22 @@ TEST(DirectMemoryTest16BitWord32) {
   Label bad(&m);
   Node* constants[element_count];
 
-  Node* buffer_node1 = m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
+  TNode<IntPtrT> buffer_node1 =
+      m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
   for (size_t i = 0; i < element_count; ++i) {
     constants[i] =
         m.LoadBufferObject(buffer_node1, static_cast<int>(i * sizeof(int16_t)),
                            MachineType::Uint16());
   }
-  Node* buffer_node2 = m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
+  TNode<IntPtrT> buffer_node2 =
+      m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
 
   for (size_t i = 0; i < element_count; ++i) {
     for (size_t j = 0; j < element_count; ++j) {
       Node* loaded = m.LoadBufferObject(buffer_node1,
                                         static_cast<int>(i * sizeof(int16_t)),
                                         MachineType::Uint16());
-      Node* masked = m.Word32And(loaded, constants[j]);
+      TNode<Word32T> masked = m.Word32And(loaded, constants[j]);
       if ((buffer[j] & buffer[i]) != 0) {
         m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);
       } else {
@@ -2862,8 +2869,8 @@ TEST(LoadJSArrayElementsMap) {
   {
     CodeStubAssembler m(asm_tester.state());
     Node* context = m.Parameter(kNumParams + 2);
-    Node* native_context = m.LoadNativeContext(context);
-    Node* kind = m.SmiToInt32(m.Parameter(0));
+    TNode<Context> native_context = m.LoadNativeContext(context);
+    TNode<Int32T> kind = m.SmiToInt32(m.Parameter(0));
     m.Return(m.LoadJSArrayElementsMap(kind, native_context));
   }
 
@@ -3309,8 +3316,8 @@ TEST(ExtractFixedArraySimpleIntPtrParameters) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   {
     CodeStubAssembler m(asm_tester.state());
-    Node* p1_untagged = m.SmiUntag(m.Parameter(1));
-    Node* p2_untagged = m.SmiUntag(m.Parameter(2));
+    TNode<IntPtrT> p1_untagged = m.SmiUntag(m.Parameter(1));
+    TNode<IntPtrT> p2_untagged = m.SmiUntag(m.Parameter(2));
     m.Return(m.ExtractFixedArray(m.Parameter(0), p1_untagged, p2_untagged));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -3507,7 +3514,7 @@ TEST(TestCallBuiltinInlineTrampoline) {
   Node* str = m.Parameter(0);
   Node* context = m.Parameter(kNumParams + kContextOffset);
 
-  Node* index = m.SmiConstant(2);
+  TNode<Smi> index = m.SmiConstant(2);
 
   m.Return(m.CallStub(Builtins::CallableFor(isolate, Builtins::kStringRepeat),
                       context, str, index));
@@ -3532,7 +3539,7 @@ TEST(TestCallBuiltinIndirectLoad) {
   Node* str = m.Parameter(0);
   Node* context = m.Parameter(kNumParams + kContextOffset);
 
-  Node* index = m.SmiConstant(2);
+  TNode<Smi> index = m.SmiConstant(2);
 
   m.Return(m.CallStub(Builtins::CallableFor(isolate, Builtins::kStringRepeat),
                       context, str, index));

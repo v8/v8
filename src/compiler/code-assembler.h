@@ -739,7 +739,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
         if (std::is_same<PreviousType, MaybeObject>::value) {
           code_assembler_->GenerateCheckMaybeObjectIsObject(node_, location_);
         }
-        Node* function = code_assembler_->ExternalConstant(
+        TNode<ExternalReference> function = code_assembler_->ExternalConstant(
             ExternalReference::check_object_type());
         code_assembler_->CallCFunction(
             function, MachineType::AnyTagged(),
@@ -1426,7 +1426,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* CallJS(Callable const& callable, Node* context, Node* function,
                Node* receiver, TArgs... args) {
     int argc = static_cast<int>(sizeof...(args));
-    Node* arity = Int32Constant(argc);
+    TNode<Int32T> arity = Int32Constant(argc);
     return CallStub(callable, context, function, arity, receiver, args...);
   }
 
@@ -1434,8 +1434,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* ConstructJSWithTarget(Callable const& callable, Node* context,
                               Node* target, Node* new_target, TArgs... args) {
     int argc = static_cast<int>(sizeof...(args));
-    Node* arity = Int32Constant(argc);
-    Node* receiver = LoadRoot(RootIndex::kUndefinedValue);
+    TNode<Int32T> arity = Int32Constant(argc);
+    TNode<Object> receiver = LoadRoot(RootIndex::kUndefinedValue);
 
     // Construct(target, new_target, arity, receiver, arguments...)
     return CallStub(callable, context, target, new_target, arity, receiver,

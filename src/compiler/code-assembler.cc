@@ -229,7 +229,7 @@ void CodeAssembler::GenerateCheckMaybeObjectIsObject(Node* node,
          &ok);
   EmbeddedVector<char, 1024> message;
   SNPrintF(message, "no Object: %s", location);
-  Node* message_node = StringConstant(message.begin());
+  TNode<String> message_node = StringConstant(message.begin());
   // This somewhat misuses the AbortCSAAssert runtime function. This will print
   // "abort: CSA_ASSERT failed: <message>", which is good enough.
   AbortCSAAssert(message_node);
@@ -384,6 +384,9 @@ TNode<Context> CodeAssembler::GetJSContextParameter() {
 }
 
 void CodeAssembler::Return(SloppyTNode<Object> value) {
+  // TODO(leszeks): This could also return a non-object, depending on the call
+  // descriptor. We should probably have multiple return overloads with
+  // different TNode types which DCHECK the call descriptor.
   return raw_assembler()->Return(value);
 }
 
@@ -990,7 +993,7 @@ TNode<Object> CodeAssembler::LoadRoot(RootIndex root_index) {
   // TODO(jgruber): In theory we could generate better code for this by
   // letting the macro assembler decide how to load from the roots list. In most
   // cases, it would boil down to loading from a fixed kRootRegister offset.
-  Node* isolate_root =
+  TNode<ExternalReference> isolate_root =
       ExternalConstant(ExternalReference::isolate_root(isolate()));
   int offset = IsolateData::root_slot_offset(root_index);
   return UncheckedCast<Object>(
@@ -1130,7 +1133,7 @@ Node* CodeAssembler::AtomicCompareExchange(MachineType type, Node* base,
 
 Node* CodeAssembler::StoreRoot(RootIndex root_index, Node* value) {
   DCHECK(!RootsTable::IsImmortalImmovable(root_index));
-  Node* isolate_root =
+  TNode<ExternalReference> isolate_root =
       ExternalConstant(ExternalReference::isolate_root(isolate()));
   int offset = IsolateData::root_slot_offset(root_index);
   return StoreFullTaggedNoWriteBarrier(isolate_root, IntPtrConstant(offset),
@@ -1245,8 +1248,9 @@ TNode<Object> CodeAssembler::CallRuntimeWithCEntryImpl(
       Runtime::MayAllocate(function) ? CallDescriptor::kNoFlags
                                      : CallDescriptor::kNoAllocate);
 
-  Node* ref = ExternalConstant(ExternalReference::Create(function));
-  Node* arity = Int32Constant(argc);
+  TNode<ExternalReference> ref =
+      ExternalConstant(ExternalReference::Create(function));
+  TNode<Int32T> arity = Int32Constant(argc);
 
   NodeArray<kMaxNumArgs + 4> inputs;
   inputs.Add(centry);
@@ -1282,7 +1286,8 @@ void CodeAssembler::TailCallRuntimeWithCEntryImpl(
       zone(), function, argc, Operator::kNoProperties,
       CallDescriptor::kNoFlags);
 
-  Node* ref = ExternalConstant(ExternalReference::Create(function));
+  TNode<ExternalReference> ref =
+      ExternalConstant(ExternalReference::Create(function));
 
   NodeArray<kMaxNumArgs + 4> inputs;
   inputs.Add(centry);

@@ -223,7 +223,7 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
         TNode<FixedArray> vector =
             __ Cast(__ LoadFixedArrayElement(result_array, i));
         for (int lane = 0; lane < 4; lane++) {
-          Node* lane_value =
+          TNode<Smi> lane_value =
               __ SmiFromInt32(tester.raw_assembler_for_testing()->AddNode(
                   tester.raw_assembler_for_testing()
                       ->machine()
