@@ -1352,19 +1352,6 @@ uint32_t String::ComputeAndSetHash() {
   return result;
 }
 
-int String::AsArrayIndex_NoAllocation(Address key_addr) {
-  DisallowHeapAllocation no_gc;
-  String key(key_addr);
-  uint32_t index;
-  bool found = key.AsArrayIndex(&index);
-  if (!found) {
-    STATIC_ASSERT(JSArray::kMaxArrayIndex < kMaxUInt32);
-    return kMaxUInt32;
-  }
-
-  return index;
-}
-
 bool String::ComputeArrayIndex(uint32_t* index) {
   int length = this->length();
   if (length == 0 || length > kMaxArrayIndexSize) return false;

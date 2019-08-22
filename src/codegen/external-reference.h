@@ -166,7 +166,6 @@ class StatsCounter;
   V(search_string_raw_two_one, "search_string_raw_two_one")                   \
   V(search_string_raw_two_two, "search_string_raw_two_two")                   \
   V(smi_lexicographic_compare_function, "smi_lexicographic_compare_function") \
-  V(string_as_array_index_function, "String::AsArrayIndex_NoAllocation")      \
   V(store_buffer_overflow_function, "StoreBuffer::StoreBufferOverflow")       \
   V(try_internalize_string_function, "try_internalize_string_function")       \
   V(wasm_call_trap_callback_for_testing,                                      \

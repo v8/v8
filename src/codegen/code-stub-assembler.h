@@ -3481,8 +3481,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                      Node* receiver, Label* if_bailout,
                                      GetOwnPropertyMode mode = kCallJSGetter);
 
-  TNode<IntPtrT> TryToIntptr(Node* key, Label* miss,
-                             TVariable<Int32T>* var_instance_type = nullptr);
+  TNode<IntPtrT> TryToIntptr(Node* key, Label* miss);
 
   void BranchIfPrototypesHaveNoElements(Node* receiver_map,
                                         Label* definitely_no_elements,

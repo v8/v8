@@ -311,7 +311,6 @@ class String : public TorqueGeneratedString<String, Name> {
   // Conversion.
   inline bool AsArrayIndex(uint32_t* index);
   uint32_t inline ToValidIndex(Object number);
-  static int AsArrayIndex_NoAllocation(Address key);
 
   // Trimming.
   enum TrimMode { kTrim, kTrimStart, kTrimEnd };

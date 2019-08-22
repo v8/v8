@@ -969,8 +969,8 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
     TNode<Object> value, Maybe<LanguageMode> language_mode) {
   TVARIABLE(IntPtrT, var_index);
   TVARIABLE(Object, var_unique, key);
-  Label if_index(this, &var_index), if_unique_name(this),
-      not_internalized(this), slow(this);
+  Label if_index(this), if_unique_name(this), not_internalized(this),
+      slow(this);
 
   GotoIf(TaggedIsSmi(receiver), &slow);
   TNode<Map> receiver_map = LoadMap(CAST(receiver));
