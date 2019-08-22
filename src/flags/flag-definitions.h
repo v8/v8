@@ -828,7 +828,7 @@ DEFINE_BOOL(
     trace_allocations_origins, false,
     "Show statistics about the origins of allocations. "
     "Combine with --no-inline-new to track allocations from generated code")
-DEFINE_INT(gc_freelist_strategy, 0,
+DEFINE_INT(gc_freelist_strategy, 5,
            "Freelist strategy to use: "
            "0:FreeListLegacy. "
            "1:FreeListFastAlloc. "
