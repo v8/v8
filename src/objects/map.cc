@@ -680,10 +680,6 @@ void Map::UpdateFieldType(Isolate* isolate, int descriptor, Handle<Name> name,
   if (details.location() != kField) return;
   DCHECK_EQ(kData, details.kind());
 
-  if (new_constness != details.constness() && is_prototype_map()) {
-    JSObject::InvalidatePrototypeChains(*this);
-  }
-
   Zone zone(isolate->allocator(), ZONE_NAME);
   ZoneQueue<Map> backlog(&zone);
   backlog.push(*this);

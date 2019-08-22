@@ -51,8 +51,8 @@ Handle<Smi> LoadHandler::LoadField(Isolate* isolate, FieldIndex field_index) {
   return handle(Smi::FromInt(config), isolate);
 }
 
-Handle<Smi> LoadHandler::LoadConstantFromPrototype(Isolate* isolate) {
-  int config = KindBits::encode(kConstantFromPrototype);
+Handle<Smi> LoadHandler::LoadConstant(Isolate* isolate, int descriptor) {
+  int config = KindBits::encode(kConstant) | DescriptorBits::encode(descriptor);
   return handle(Smi::FromInt(config), isolate);
 }
 

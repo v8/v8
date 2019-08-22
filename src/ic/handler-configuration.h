@@ -37,7 +37,7 @@ class LoadHandler final : public DataHandler {
     kNormal,
     kGlobal,
     kField,
-    kConstantFromPrototype,
+    kConstant,
     kAccessor,
     kNativeDataProperty,
     kApiGetter,
@@ -116,9 +116,8 @@ class LoadHandler final : public DataHandler {
   // Creates a Smi-handler for loading a field from fast object.
   static inline Handle<Smi> LoadField(Isolate* isolate, FieldIndex field_index);
 
-  // Creates a Smi-handler for loading a cached constant from fast
-  // prototype object.
-  static inline Handle<Smi> LoadConstantFromPrototype(Isolate* isolate);
+  // Creates a Smi-handler for loading a constant from fast object.
+  static inline Handle<Smi> LoadConstant(Isolate* isolate, int descriptor);
 
   // Creates a Smi-handler for calling a getter on a fast object.
   static inline Handle<Smi> LoadAccessor(Isolate* isolate, int descriptor);
