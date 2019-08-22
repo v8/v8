@@ -795,6 +795,7 @@ enum class OptimizationStatus {
   kIsExecuting = 1 << 10,
   kTopmostFrameIsTurboFanned = 1 << 11,
   kLiteMode = 1 << 12,
+  kMarkedForDeoptimization = 1 << 13,
 };
 
 }  // namespace internal

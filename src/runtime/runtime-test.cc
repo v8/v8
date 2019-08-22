@@ -521,7 +521,11 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   }
 
   if (function->IsOptimized()) {
-    status |= static_cast<int>(OptimizationStatus::kOptimized);
+    if (function->code().marked_for_deoptimization()) {
+      status |= static_cast<int>(OptimizationStatus::kMarkedForDeoptimization);
+    } else {
+      status |= static_cast<int>(OptimizationStatus::kOptimized);
+    }
     if (function->code().is_turbofanned()) {
       status |= static_cast<int>(OptimizationStatus::kTurboFanned);
     }
