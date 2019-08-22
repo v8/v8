@@ -106,6 +106,11 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       if (m.IsChangeInt31ToTaggedSigned() || m.IsChangeInt32ToTagged()) {
         return Replace(m.InputAt(0));
       }
+      if (m.IsChangeCompressedSignedToTaggedSigned()) {
+        Node* new_node = graph()->NewNode(
+            simplified()->ChangeCompressedSignedToInt32(), m.InputAt(0));
+        return Replace(new_node);
+      }
       break;
     }
     case IrOpcode::kChangeTaggedToUint32: {
@@ -167,6 +172,13 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
         // In the current node, we can skip the decompression since we are going
         // to have a Decompression + Compression combo.
         return Replace(new_checked);
+      }
+      break;
+    }
+    case IrOpcode::kChangeCompressedSignedToInt32: {
+      NodeMatcher m(node->InputAt(0));
+      if (m.IsCheckedInt32ToCompressedSigned()) {
+        return Replace(m.InputAt(0));
       }
       break;
     }
