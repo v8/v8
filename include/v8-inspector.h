@@ -232,9 +232,12 @@ struct V8_EXPORT V8StackTraceId {
   bool should_pause = false;
 
   V8StackTraceId();
+  V8StackTraceId(const V8StackTraceId&) = default;
   V8StackTraceId(uintptr_t id, const std::pair<int64_t, int64_t> debugger_id);
   V8StackTraceId(uintptr_t id, const std::pair<int64_t, int64_t> debugger_id,
                  bool should_pause);
+  V8StackTraceId& operator=(const V8StackTraceId&) = default;
+  V8StackTraceId& operator=(V8StackTraceId&&) noexcept = default;
   ~V8StackTraceId() = default;
 
   bool IsInvalid() const;
