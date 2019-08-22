@@ -283,6 +283,28 @@ class LoadElimination::AliasStateInfo {
   MaybeHandle<Map> map_;
 };
 
+LoadElimination::AbstractField const* LoadElimination::AbstractField::KillConst(
+    Node* object, Zone* zone) const {
+  for (auto pair : this->info_for_node_) {
+    if (pair.first->IsDead()) continue;
+    // If we previously recorded information about a const store on the given
+    // 'object', we might not have done it on the same node; e.g. we might now
+    // identify the object by a FinishRegion node, whereas the initial const
+    // store was performed on the Allocate node. We therefore remove information
+    // on all nodes that must alias with 'object'.
+    if (MustAlias(object, pair.first)) {
+      AbstractField* that = new (zone) AbstractField(zone);
+      for (auto pair : this->info_for_node_) {
+        if (!MustAlias(object, pair.first)) {
+          that->info_for_node_.insert(pair);
+        }
+      }
+      return that;
+    }
+  }
+  return this;
+}
+
 LoadElimination::AbstractField const* LoadElimination::AbstractField::Kill(
     const AliasStateInfo& alias_info, MaybeHandle<Name> name,
     Zone* zone) const {
@@ -539,6 +561,24 @@ LoadElimination::AbstractState const* LoadElimination::AbstractState::AddField(
     }
   }
   return that;
+}
+
+LoadElimination::AbstractState const*
+LoadElimination::AbstractState::KillConstField(Node* object,
+                                               IndexRange index_range,
+                                               Zone* zone) const {
+  AliasStateInfo alias_info(this, object);
+  AbstractState* that = nullptr;
+  for (int index : index_range) {
+    if (AbstractField const* this_field = this->const_fields_[index]) {
+      this_field = this_field->KillConst(object, zone);
+      if (this->const_fields_[index] != this_field) {
+        if (!that) that = new (zone) AbstractState(*this);
+        that->const_fields_[index] = this_field;
+      }
+    }
+  }
+  return that ? that : this;
 }
 
 LoadElimination::AbstractState const* LoadElimination::AbstractState::KillField(
@@ -964,7 +1004,8 @@ Reduction LoadElimination::ReduceStoreField(Node* node,
         // At runtime, we should never encounter
         // - any store replacing existing info with a different, incompatible
         //   representation, nor
-        // - two consecutive const stores.
+        // - two consecutive const stores, unless the latter is a store into
+        //   a literal.
         // However, we may see such code statically, so we guard against
         // executing it by emitting Unreachable.
         // TODO(gsps): Re-enable the double const store check even for
@@ -974,7 +1015,9 @@ Reduction LoadElimination::ReduceStoreField(Node* node,
         bool incompatible_representation =
             !lookup_result->name.is_null() &&
             !IsCompatible(representation, lookup_result->representation);
-        if (incompatible_representation || is_const_store) {
+        bool illegal_double_const_store =
+            is_const_store && !access.is_store_in_literal;
+        if (incompatible_representation || illegal_double_const_store) {
           Node* control = NodeProperties::GetControlInput(node);
           Node* unreachable =
               graph()->NewNode(common()->Unreachable(), effect, control);
@@ -989,6 +1032,12 @@ Reduction LoadElimination::ReduceStoreField(Node* node,
       // Kill all potentially aliasing fields and record the new value.
       FieldInfo new_info(new_value, representation, access.name,
                          access.const_field_info);
+      if (is_const_store && access.is_store_in_literal) {
+        // We only kill const information when there is a chance that we
+        // previously stored information about the given const field (namely,
+        // when we observe const stores to literals).
+        state = state->KillConstField(object, field_index, zone());
+      }
       state = state->KillField(object, field_index, access.name, zone());
       state = state->AddField(object, field_index, new_info, zone());
       if (is_const_store) {

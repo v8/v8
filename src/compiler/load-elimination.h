@@ -140,6 +140,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
       return that;
     }
     FieldInfo const* Lookup(Node* object) const;
+    AbstractField const* KillConst(Node* object, Zone* zone) const;
     AbstractField const* Kill(const AliasStateInfo& alias_info,
                               MaybeHandle<Name> name, Zone* zone) const;
     bool Equals(AbstractField const* that) const {
@@ -241,6 +242,8 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
     AbstractState const* AddField(Node* object, IndexRange index,
                                   FieldInfo info, Zone* zone) const;
+    AbstractState const* KillConstField(Node* object, IndexRange index_range,
+                                        Zone* zone) const;
     AbstractState const* KillField(const AliasStateInfo& alias_info,
                                    IndexRange index, MaybeHandle<Name> name,
                                    Zone* zone) const;

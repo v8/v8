@@ -57,7 +57,8 @@ bool operator==(FieldAccess const& lhs, FieldAccess const& rhs) {
   return lhs.base_is_tagged == rhs.base_is_tagged && lhs.offset == rhs.offset &&
          lhs.map.address() == rhs.map.address() &&
          lhs.machine_type == rhs.machine_type &&
-         lhs.const_field_info == rhs.const_field_info;
+         lhs.const_field_info == rhs.const_field_info &&
+         lhs.is_store_in_literal == rhs.is_store_in_literal;
 }
 
 size_t hash_value(FieldAccess const& access) {
@@ -65,7 +66,8 @@ size_t hash_value(FieldAccess const& access) {
   // really only relevant for eliminating loads and they don't care about the
   // write barrier mode.
   return base::hash_combine(access.base_is_tagged, access.offset,
-                            access.machine_type, access.const_field_info);
+                            access.machine_type, access.const_field_info,
+                            access.is_store_in_literal);
 }
 
 size_t hash_value(LoadSensitivity load_sensitivity) {
@@ -99,6 +101,9 @@ std::ostream& operator<<(std::ostream& os, FieldAccess const& access) {
 #endif
   os << access.type << ", " << access.machine_type << ", "
      << access.write_barrier_kind << ", " << access.const_field_info;
+  if (access.is_store_in_literal) {
+    os << " (store in literal)";
+  }
   if (FLAG_untrusted_code_mitigations) {
     os << ", " << access.load_sensitivity;
   }

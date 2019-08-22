@@ -79,6 +79,7 @@ struct FieldAccess {
   LoadSensitivity load_sensitivity;     // load safety for poisoning.
   ConstFieldInfo const_field_info;      // the constness of this access, and the
                                     // field owner map, if the access is const
+  bool is_store_in_literal;  // originates from a kStoreInLiteral access
 
   FieldAccess()
       : base_is_tagged(kTaggedBase),
@@ -87,13 +88,15 @@ struct FieldAccess {
         machine_type(MachineType::None()),
         write_barrier_kind(kFullWriteBarrier),
         load_sensitivity(LoadSensitivity::kUnsafe),
-        const_field_info(ConstFieldInfo::None()) {}
+        const_field_info(ConstFieldInfo::None()),
+        is_store_in_literal(false) {}
 
   FieldAccess(BaseTaggedness base_is_tagged, int offset, MaybeHandle<Name> name,
               MaybeHandle<Map> map, Type type, MachineType machine_type,
               WriteBarrierKind write_barrier_kind,
               LoadSensitivity load_sensitivity = LoadSensitivity::kUnsafe,
-              ConstFieldInfo const_field_info = ConstFieldInfo::None())
+              ConstFieldInfo const_field_info = ConstFieldInfo::None(),
+              bool is_store_in_literal = false)
       : base_is_tagged(base_is_tagged),
         offset(offset),
         name(name),
@@ -102,7 +105,8 @@ struct FieldAccess {
         machine_type(machine_type),
         write_barrier_kind(write_barrier_kind),
         load_sensitivity(load_sensitivity),
-        const_field_info(const_field_info) {}
+        const_field_info(const_field_info),
+        is_store_in_literal(is_store_in_literal) {}
 
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };

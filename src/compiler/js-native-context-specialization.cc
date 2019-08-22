@@ -2254,7 +2254,8 @@ JSNativeContextSpecialization::BuildPropertyStore(
         MachineType::TypeForRepresentation(field_representation),
         kFullWriteBarrier,
         LoadSensitivity::kUnsafe,
-        access_info.GetConstFieldInfo()};
+        access_info.GetConstFieldInfo(),
+        access_mode == AccessMode::kStoreInLiteral};
 
     switch (field_representation) {
       case MachineRepresentation::kFloat64: {
@@ -2289,7 +2290,8 @@ JSNativeContextSpecialization::BuildPropertyStore(
                 MachineType::TypeCompressedTaggedPointer(),
                 kPointerWriteBarrier,
                 LoadSensitivity::kUnsafe,
-                access_info.GetConstFieldInfo()};
+                access_info.GetConstFieldInfo(),
+                access_mode == AccessMode::kStoreInLiteral};
             storage = effect =
                 graph()->NewNode(simplified()->LoadField(storage_access),
                                  storage, effect, control);
