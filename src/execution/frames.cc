@@ -2342,9 +2342,6 @@ ArgumentsAdaptorFrameInfo::ArgumentsAdaptorFrameInfo(int translation_height) {
 ConstructStubFrameInfo::ConstructStubFrameInfo(int translation_height,
                                                bool is_topmost,
                                                FrameInfoKind frame_info_kind) {
-  // TODO(jgruber): Support conservative frame layout calculation.
-  DCHECK_EQ(frame_info_kind, FrameInfoKind::kPrecise);
-
   // Note: This is according to the Translation's notion of 'parameters' which
   // differs to that of the SharedFunctionInfo, e.g. by including the receiver.
   const int parameters_count = translation_height;
@@ -2359,9 +2356,11 @@ ConstructStubFrameInfo::ConstructStubFrameInfo(int translation_height,
   static constexpr int kTheResult = 1;
   const int argument_padding = ArgumentPaddingSlots(parameters_count);
 
-  const int adjusted_height = is_topmost ? parameters_count + argument_padding +
-                                               kTheResult + kTopOfStackPadding
-                                         : parameters_count + argument_padding;
+  const int adjusted_height =
+      (is_topmost || frame_info_kind == FrameInfoKind::kConservative)
+          ? parameters_count + argument_padding + kTheResult +
+                kTopOfStackPadding
+          : parameters_count + argument_padding;
   frame_size_in_bytes_without_fixed_ = adjusted_height * kSystemPointerSize;
   frame_size_in_bytes_ = frame_size_in_bytes_without_fixed_ +
                          ConstructFrameConstants::kFixedFrameSize;
@@ -2373,19 +2372,20 @@ BuiltinContinuationFrameInfo::BuiltinContinuationFrameInfo(
     const RegisterConfiguration* register_config, bool is_topmost,
     DeoptimizeKind deopt_kind, BuiltinContinuationMode continuation_mode,
     FrameInfoKind frame_info_kind) {
-  // TODO(jgruber): Support conservative frame layout calculation.
-  DCHECK_EQ(frame_info_kind, FrameInfoKind::kPrecise);
+  const bool is_conservative = frame_info_kind == FrameInfoKind::kConservative;
 
   // Note: This is according to the Translation's notion of 'parameters' which
   // differs to that of the SharedFunctionInfo, e.g. by including the receiver.
   const int parameters_count = translation_height;
-
   frame_has_result_stack_slot_ =
       !is_topmost || deopt_kind == DeoptimizeKind::kLazy;
-  const int result_slot_count = frame_has_result_stack_slot_ ? 1 : 0;
+  const int result_slot_count =
+      (frame_has_result_stack_slot_ || is_conservative) ? 1 : 0;
 
   const int exception_slot_count =
-      (BuiltinContinuationModeIsWithCatch(continuation_mode) ? 1 : 0);
+      (BuiltinContinuationModeIsWithCatch(continuation_mode) || is_conservative)
+          ? 1
+          : 0;
 
   const int allocatable_register_count =
       register_config->num_allocatable_general_registers();
@@ -2410,7 +2410,7 @@ BuiltinContinuationFrameInfo::BuiltinContinuationFrameInfo(
   static constexpr int kTopOfStackPadding = TopOfStackRegisterPaddingSlots();
   static constexpr int kTheResult = 1;
   const int push_result_count =
-      is_topmost ? kTheResult + kTopOfStackPadding : 0;
+      (is_topmost || is_conservative) ? kTheResult + kTopOfStackPadding : 0;
 
   frame_size_in_bytes_ =
       kSystemPointerSize * (stack_parameter_count_ + stack_param_pad_count +

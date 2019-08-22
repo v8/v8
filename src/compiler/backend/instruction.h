@@ -1277,6 +1277,13 @@ class FrameStateDescriptor : public ZoneObject {
   // slot kinds depend on the frame type.
   size_t GetHeight() const;
 
+  // Returns an overapproximation of the unoptimized stack frame size in bytes,
+  // as later produced by the deoptimizer. Considers both this and the chain of
+  // outer states.
+  size_t total_conservative_frame_size_in_bytes() const {
+    return total_conservative_frame_size_in_bytes_;
+  }
+
   size_t GetSize() const;
   size_t GetTotalSize() const;
   size_t GetFrameCount() const;
@@ -1290,12 +1297,13 @@ class FrameStateDescriptor : public ZoneObject {
   FrameStateType type_;
   BailoutId bailout_id_;
   OutputFrameStateCombine frame_state_combine_;
-  size_t parameters_count_;
-  size_t locals_count_;
-  size_t stack_count_;
+  const size_t parameters_count_;
+  const size_t locals_count_;
+  const size_t stack_count_;
+  const size_t total_conservative_frame_size_in_bytes_;
   StateValueList values_;
   MaybeHandle<SharedFunctionInfo> const shared_info_;
-  FrameStateDescriptor* outer_state_;
+  FrameStateDescriptor* const outer_state_;
 };
 
 // A deoptimization entry is a pair of the reason why we deoptimize and the
