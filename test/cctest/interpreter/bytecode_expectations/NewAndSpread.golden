@@ -92,7 +92,7 @@ snippet: "
   class A { constructor(...args) { this.args = args; } }
   new A(0, ...[1, 2, 3], 4);
 "
-frame size: 10
+frame size: 9
 parameter count: 1
 bytecode array length: 130
 bytecodes: [
@@ -127,12 +127,12 @@ bytecodes: [
                 B(LdaNamedProperty), R(6), U8(6), U8(6),
                 B(Star), R(5),
                 B(CallProperty0), R(5), R(6), U8(15),
-                B(Star), R(9),
+                B(Star), R(7),
                 B(JumpIfJSReceiver), U8(7),
-                B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(9), U8(1),
-                B(LdaNamedProperty), R(9), U8(7), U8(17),
+                B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(7), U8(1),
+                B(LdaNamedProperty), R(7), U8(7), U8(17),
                 B(JumpIfToBooleanTrue), U8(19),
-                B(LdaNamedProperty), R(9), U8(8), U8(8),
+                B(LdaNamedProperty), R(7), U8(8), U8(8),
                 B(StaInArrayLiteral), R(4), R(3), U8(13),
                 B(Ldar), R(3),
                 B(Inc), U8(12),

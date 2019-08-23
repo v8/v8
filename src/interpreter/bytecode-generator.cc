@@ -14,6 +14,7 @@
 #include "src/interpreter/bytecode-jump-table.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-register-allocator.h"
+#include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/control-flow-builders.h"
 #include "src/logging/log.h"
 #include "src/objects/debug-objects.h"
@@ -5300,11 +5301,12 @@ void BytecodeGenerator::VisitImportCallExpression(ImportCallExpression* expr) {
 }
 
 void BytecodeGenerator::BuildGetIterator(IteratorType hint) {
-  RegisterList args = register_allocator()->NewRegisterList(1);
-  Register method = register_allocator()->NewRegister();
-  Register obj = args[0];
-
   if (hint == IteratorType::kAsync) {
+    RegisterAllocationScope scope(this);
+
+    Register obj = register_allocator()->NewRegister();
+    Register method = register_allocator()->NewRegister();
+
     // Set method to GetMethod(obj, @@asyncIterator)
     builder()->StoreAccumulatorInRegister(obj).LoadAsyncIteratorProperty(
         obj, feedback_index(feedback_spec()->AddLoadICSlot()));
@@ -5314,7 +5316,8 @@ void BytecodeGenerator::BuildGetIterator(IteratorType hint) {
 
     // Let iterator be Call(method, obj)
     builder()->StoreAccumulatorInRegister(method).CallProperty(
-        method, args, feedback_index(feedback_spec()->AddCallICSlot()));
+        method, RegisterList(obj),
+        feedback_index(feedback_spec()->AddCallICSlot()));
 
     // If Type(iterator) is not Object, throw a TypeError exception.
     builder()->JumpIfJSReceiver(&done);
@@ -5328,7 +5331,7 @@ void BytecodeGenerator::BuildGetIterator(IteratorType hint) {
         .StoreAccumulatorInRegister(method);
 
     //     Let syncIterator be Call(syncMethod, obj)
-    builder()->CallProperty(method, args,
+    builder()->CallProperty(method, RegisterList(obj),
                             feedback_index(feedback_spec()->AddCallICSlot()));
 
     // Return CreateAsyncFromSyncIterator(syncIterator)
@@ -5339,15 +5342,22 @@ void BytecodeGenerator::BuildGetIterator(IteratorType hint) {
 
     builder()->Bind(&done);
   } else {
-    // Let method be GetMethod(obj, @@iterator).
-    builder()
-        ->StoreAccumulatorInRegister(obj)
-        .GetIterator(obj, feedback_index(feedback_spec()->AddLoadICSlot()))
-        .StoreAccumulatorInRegister(method);
+    {
+      RegisterAllocationScope scope(this);
 
-    // Let iterator be Call(method, obj).
-    builder()->CallProperty(method, args,
-                            feedback_index(feedback_spec()->AddCallICSlot()));
+      Register obj = register_allocator()->NewRegister();
+      Register method = register_allocator()->NewRegister();
+
+      // Let method be GetMethod(obj, @@iterator).
+      builder()
+          ->StoreAccumulatorInRegister(obj)
+          .GetIterator(obj, feedback_index(feedback_spec()->AddLoadICSlot()))
+          .StoreAccumulatorInRegister(method);
+
+      // Let iterator be Call(method, obj).
+      builder()->CallProperty(method, RegisterList(obj),
+                              feedback_index(feedback_spec()->AddCallICSlot()));
+    }
 
     // If Type(iterator) is not Object, throw a TypeError exception.
     BytecodeLabel no_type_error;
