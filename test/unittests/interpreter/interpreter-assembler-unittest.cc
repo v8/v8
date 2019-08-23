@@ -573,11 +573,11 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallRuntime) {
 
         Node* call_runtime =
             m.CallRuntimeN(function_id, context, registers, result_size);
-        EXPECT_THAT(
-            call_runtime,
-            c::IsCall(_, c::IsHeapConstant(builtin.code()),
-                      registers.reg_count(), registers.base_reg_location(),
-                      function_entry, Eq(context), _, _));
+        EXPECT_THAT(call_runtime,
+                    c::IsCall(_, c::IsHeapConstant(builtin.code()),
+                              Eq(registers.reg_count()),
+                              Eq(registers.base_reg_location()), function_entry,
+                              Eq(context), _, _));
       }
     }
   }

@@ -26,7 +26,7 @@ class SharedArrayBufferBuiltinsAssembler : public CodeStubAssembler {
                                                      Node* value,
                                                      Node* value_high);
   void ValidateSharedTypedArray(Node* tagged, Node* context,
-                                Node** out_elements_kind,
+                                TNode<Int32T>* out_elements_kind,
                                 Node** out_backing_store);
   Node* ConvertTaggedAtomicIndexToWord32(Node* tagged, Node* context,
                                          Node** number_index);
@@ -46,7 +46,7 @@ class SharedArrayBufferBuiltinsAssembler : public CodeStubAssembler {
 };
 
 void SharedArrayBufferBuiltinsAssembler::ValidateSharedTypedArray(
-    Node* tagged, Node* context, Node** out_elements_kind,
+    Node* tagged, Node* context, TNode<Int32T>* out_elements_kind,
     Node** out_backing_store) {
   Label not_float_or_clamped(this), invalid(this);
 
@@ -69,7 +69,7 @@ void SharedArrayBufferBuiltinsAssembler::ValidateSharedTypedArray(
   STATIC_ASSERT(UINT8_ELEMENTS < FLOAT32_ELEMENTS);
   STATIC_ASSERT(UINT16_ELEMENTS < FLOAT32_ELEMENTS);
   STATIC_ASSERT(UINT32_ELEMENTS < FLOAT32_ELEMENTS);
-  Node* elements_kind = LoadMapElementsKind(tagged_map);
+  TNode<Int32T> elements_kind = LoadMapElementsKind(tagged_map);
   GotoIf(Int32LessThan(elements_kind, Int32Constant(FLOAT32_ELEMENTS)),
          &not_float_or_clamped);
   STATIC_ASSERT(BIGINT64_ELEMENTS > UINT8_CLAMPED_ELEMENTS);
@@ -167,7 +167,7 @@ TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
   Node* index = Parameter(Descriptor::kIndex);
   Node* context = Parameter(Descriptor::kContext);
 
-  Node* elements_kind;
+  TNode<Int32T> elements_kind;
   Node* backing_store;
   ValidateSharedTypedArray(array, context, &elements_kind, &backing_store);
 
@@ -239,7 +239,7 @@ TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
   Node* value = Parameter(Descriptor::kValue);
   Node* context = Parameter(Descriptor::kContext);
 
-  Node* elements_kind;
+  TNode<Int32T> elements_kind;
   Node* backing_store;
   ValidateSharedTypedArray(array, context, &elements_kind, &backing_store);
 
@@ -313,7 +313,7 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
   Node* value = Parameter(Descriptor::kValue);
   Node* context = Parameter(Descriptor::kContext);
 
-  Node* elements_kind;
+  TNode<Int32T> elements_kind;
   Node* backing_store;
   ValidateSharedTypedArray(array, context, &elements_kind, &backing_store);
 
@@ -415,7 +415,7 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
   Node* new_value = Parameter(Descriptor::kNewValue);
   Node* context = Parameter(Descriptor::kContext);
 
-  Node* elements_kind;
+  TNode<Int32T> elements_kind;
   Node* backing_store;
   ValidateSharedTypedArray(array, context, &elements_kind, &backing_store);
 
@@ -543,7 +543,7 @@ BINOP_BUILTIN(Xor)
 void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
     Node* array, Node* index, Node* value, Node* context,
     AssemblerFunction function, Runtime::FunctionId runtime_function) {
-  Node* elements_kind;
+  TNode<Int32T> elements_kind;
   Node* backing_store;
   ValidateSharedTypedArray(array, context, &elements_kind, &backing_store);
 

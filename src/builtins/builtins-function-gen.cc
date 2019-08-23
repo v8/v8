@@ -17,7 +17,8 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
 
   // TODO(ishell): use constants from Descriptor once the JSFunction linkage
   // arguments are reordered.
-  Node* argc = Parameter(Descriptor::kJSActualArgumentsCount);
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
   Node* context = Parameter(Descriptor::kContext);
   Node* new_target = Parameter(Descriptor::kJSNewTarget);
 
@@ -62,7 +63,7 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
     const int length_index = JSFunction::kLengthDescriptorIndex;
     TNode<Name> maybe_length =
         LoadKeyByDescriptorEntry(descriptors, length_index);
-    GotoIf(WordNotEqual(maybe_length, LoadRoot(RootIndex::klength_string)),
+    GotoIf(TaggedNotEqual(maybe_length, LoadRoot(RootIndex::klength_string)),
            &slow);
 
     TNode<Object> maybe_length_accessor =
@@ -73,7 +74,8 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
 
     const int name_index = JSFunction::kNameDescriptorIndex;
     TNode<Name> maybe_name = LoadKeyByDescriptorEntry(descriptors, name_index);
-    GotoIf(WordNotEqual(maybe_name, LoadRoot(RootIndex::kname_string)), &slow);
+    GotoIf(TaggedNotEqual(maybe_name, LoadRoot(RootIndex::kname_string)),
+           &slow);
 
     TNode<Object> maybe_name_accessor =
         LoadValueByDescriptorEntry(descriptors, name_index);
@@ -108,9 +110,10 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
 
   // Verify that __proto__ matches that of a the target bound function.
   Comment("Verify that __proto__ matches target bound function");
-  Node* prototype = LoadMapPrototype(receiver_map);
-  Node* expected_prototype = LoadMapPrototype(bound_function_map.value());
-  GotoIf(WordNotEqual(prototype, expected_prototype), &slow);
+  TNode<Object> prototype = LoadMapPrototype(receiver_map);
+  TNode<Object> expected_prototype =
+      LoadMapPrototype(bound_function_map.value());
+  GotoIf(TaggedNotEqual(prototype, expected_prototype), &slow);
 
   // Allocate the arguments array.
   Comment("Allocate the arguments array");
@@ -126,12 +129,13 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
     VARIABLE(index, MachineType::PointerRepresentation());
     index.Bind(IntPtrConstant(0));
     VariableList foreach_vars({&index}, zone());
-    args.ForEach(foreach_vars,
-                 [this, elements, &index](Node* arg) {
-                   StoreFixedArrayElement(elements, index.value(), arg);
-                   Increment(&index);
-                 },
-                 IntPtrConstant(1));
+    args.ForEach(
+        foreach_vars,
+        [this, elements, &index](Node* arg) {
+          StoreFixedArrayElement(elements, index.value(), arg);
+          Increment(&index);
+        },
+        IntPtrConstant(1));
     argument_array.Bind(elements);
     Goto(&arguments_done);
 

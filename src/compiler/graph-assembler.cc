@@ -94,6 +94,17 @@ PURE_ASSEMBLER_MACH_BINOP_LIST(PURE_BINOP_DEF)
 CHECKED_ASSEMBLER_MACH_BINOP_LIST(CHECKED_BINOP_DEF)
 #undef CHECKED_BINOP_DEF
 
+Node* GraphAssembler::IntPtrEqual(Node* left, Node* right) {
+  return WordEqual(left, right);
+}
+
+Node* GraphAssembler::TaggedEqual(Node* left, Node* right) {
+  if (machine()->Is64() && COMPRESS_POINTERS_BOOL) {
+    return Word32Equal(TruncateInt64ToInt32(left), TruncateInt64ToInt32(right));
+  }
+  return WordEqual(left, right);
+}
+
 Node* GraphAssembler::Float64RoundDown(Node* value) {
   CHECK(machine()->Float64RoundDown().IsSupported());
   return graph()->NewNode(machine()->Float64RoundDown().op(), value);

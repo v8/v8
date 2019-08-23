@@ -63,8 +63,8 @@ struct SmiTagging<4> {
 
   V8_INLINE static int SmiToInt(const internal::Address value) {
     int shift_bits = kSmiTagSize + kSmiShiftSize;
-    // Shift down (requires >> to be sign extending).
-    return static_cast<int>(static_cast<intptr_t>(value)) >> shift_bits;
+    // Truncate and shift down (requires >> to be sign extending).
+    return static_cast<int32_t>(static_cast<uint32_t>(value)) >> shift_bits;
   }
   V8_INLINE static constexpr bool IsValidSmi(intptr_t value) {
     // Is value in range [kSmiMinValue, kSmiMaxValue].

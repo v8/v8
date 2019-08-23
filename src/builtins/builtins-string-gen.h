@@ -19,10 +19,10 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   Node* GetSubstitution(Node* context, Node* subject_string,
                         Node* match_start_index, Node* match_end_index,
                         Node* replace_string);
-  void StringEqual_Core(Node* lhs, Node* lhs_instance_type, Node* rhs,
-                        Node* rhs_instance_type, TNode<IntPtrT> length,
-                        Label* if_equal, Label* if_not_equal,
-                        Label* if_indirect);
+  void StringEqual_Core(SloppyTNode<String> lhs, Node* lhs_instance_type,
+                        SloppyTNode<String> rhs, Node* rhs_instance_type,
+                        TNode<IntPtrT> length, Label* if_equal,
+                        Label* if_not_equal, Label* if_indirect);
   void BranchIfStringPrimitiveWithNoCustomIteration(TNode<Object> object,
                                                     TNode<Context> context,
                                                     Label* if_true,
@@ -122,21 +122,19 @@ class StringTrimAssembler : public StringBuiltinsAssembler {
       : StringBuiltinsAssembler(state) {}
 
   V8_EXPORT_PRIVATE void GotoIfNotWhiteSpaceOrLineTerminator(
-      Node* const char_code, Label* const if_not_whitespace);
+      TNode<Word32T> const char_code, Label* const if_not_whitespace);
 
  protected:
   void Generate(String::TrimMode mode, const char* method, TNode<IntPtrT> argc,
                 TNode<Context> context);
 
-  void ScanForNonWhiteSpaceOrLineTerminator(Node* const string_data,
-                                            Node* const string_data_offset,
-                                            Node* const is_stringonebyte,
-                                            Variable* const var_index,
-                                            Node* const end, int increment,
-                                            Label* const if_none_found);
+  void ScanForNonWhiteSpaceOrLineTerminator(
+      Node* const string_data, Node* const string_data_offset,
+      Node* const is_stringonebyte, TVariable<IntPtrT>* const var_index,
+      TNode<IntPtrT> const end, int increment, Label* const if_none_found);
 
-  void BuildLoop(Variable* const var_index, Node* const end, int increment,
-                 Label* const if_none_found, Label* const out,
+  void BuildLoop(TVariable<IntPtrT>* const var_index, TNode<IntPtrT> const end,
+                 int increment, Label* const if_none_found, Label* const out,
                  const std::function<Node*(Node*)>& get_character);
 };
 

@@ -68,7 +68,7 @@ class AsyncGeneratorBuiltinsAssembler : public AsyncBuiltinsAssembler {
   inline TNode<BoolT> IsGeneratorAwaiting(Node* const generator) {
     TNode<Object> is_generator_awaiting =
         LoadObjectField(generator, JSAsyncGeneratorObject::kIsAwaitingOffset);
-    return WordEqual(is_generator_awaiting, SmiConstant(1));
+    return TaggedEqual(is_generator_awaiting, SmiConstant(1));
   }
 
   inline void SetGeneratorAwaiting(Node* const generator) {
@@ -94,7 +94,7 @@ class AsyncGeneratorBuiltinsAssembler : public AsyncBuiltinsAssembler {
   inline Node* IsFastJSIterResult(Node* const value, Node* const context) {
     CSA_ASSERT(this, TaggedIsNotSmi(value));
     Node* const native_context = LoadNativeContext(context);
-    return WordEqual(
+    return TaggedEqual(
         LoadMap(value),
         LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX));
   }

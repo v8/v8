@@ -5,9 +5,9 @@
 #ifndef V8_COMPILER_CODE_ASSEMBLER_H_
 #define V8_COMPILER_CODE_ASSEMBLER_H_
 
+#include <initializer_list>
 #include <map>
 #include <memory>
-#include <initializer_list>
 
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
@@ -970,12 +970,24 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   }
   Node* Load(MachineType type, Node* base, Node* offset,
              LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
+  template <class Type>
+  TNode<Type> Load(Node* base,
+                   LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
+    return UncheckedCast<Type>(
+        Load(MachineTypeOf<Type>::value, base, needs_poisoning));
+  }
+  template <class Type>
+  TNode<Type> Load(Node* base, SloppyTNode<WordT> offset,
+                   LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
+    return UncheckedCast<Type>(
+        Load(MachineTypeOf<Type>::value, base, offset, needs_poisoning));
+  }
   Node* AtomicLoad(MachineType type, Node* base, Node* offset);
   // Load uncompressed tagged value from (most likely off JS heap) memory
   // location.
-  Node* LoadFullTagged(
+  TNode<Object> LoadFullTagged(
       Node* base, LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
-  Node* LoadFullTagged(
+  TNode<Object> LoadFullTagged(
       Node* base, Node* offset,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
 
@@ -1112,50 +1124,13 @@ class V8_EXPORT_PRIVATE CodeAssembler {
         Word32Or(static_cast<Node*>(left), static_cast<Node*>(right)));
   }
 
-  template <class Left, class Right,
-            class = typename std::enable_if<
-                std::is_base_of<Object, Left>::value &&
-                std::is_base_of<Object, Right>::value>::type>
-  TNode<BoolT> WordEqual(TNode<Left> left, TNode<Right> right) {
-    return WordEqual(ReinterpretCast<WordT>(left),
-                     ReinterpretCast<WordT>(right));
-  }
-  TNode<BoolT> WordEqual(TNode<Object> left, Node* right) {
-    return WordEqual(ReinterpretCast<WordT>(left),
-                     ReinterpretCast<WordT>(right));
-  }
-  TNode<BoolT> WordEqual(Node* left, TNode<Object> right) {
-    return WordEqual(ReinterpretCast<WordT>(left),
-                     ReinterpretCast<WordT>(right));
-  }
-  template <class Left, class Right,
-            class = typename std::enable_if<
-                std::is_base_of<Object, Left>::value &&
-                std::is_base_of<Object, Right>::value>::type>
-  TNode<BoolT> WordNotEqual(TNode<Left> left, TNode<Right> right) {
-    return WordNotEqual(ReinterpretCast<WordT>(left),
-                        ReinterpretCast<WordT>(right));
-  }
-  TNode<BoolT> WordNotEqual(TNode<Object> left, Node* right) {
-    return WordNotEqual(ReinterpretCast<WordT>(left),
-                        ReinterpretCast<WordT>(right));
-  }
-  TNode<BoolT> WordNotEqual(Node* left, TNode<Object> right) {
-    return WordNotEqual(ReinterpretCast<WordT>(left),
-                        ReinterpretCast<WordT>(right));
-  }
-
-  TNode<BoolT> IntPtrEqual(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
-  TNode<BoolT> WordEqual(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
-  TNode<BoolT> WordNotEqual(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
-  TNode<BoolT> Word32Equal(SloppyTNode<Word32T> left,
-                           SloppyTNode<Word32T> right);
-  TNode<BoolT> Word32NotEqual(SloppyTNode<Word32T> left,
-                              SloppyTNode<Word32T> right);
-  TNode<BoolT> Word64Equal(SloppyTNode<Word64T> left,
-                           SloppyTNode<Word64T> right);
-  TNode<BoolT> Word64NotEqual(SloppyTNode<Word64T> left,
-                              SloppyTNode<Word64T> right);
+  TNode<BoolT> IntPtrEqual(TNode<WordT> left, TNode<WordT> right);
+  TNode<BoolT> WordEqual(TNode<WordT> left, TNode<WordT> right);
+  TNode<BoolT> WordNotEqual(TNode<WordT> left, TNode<WordT> right);
+  TNode<BoolT> Word32Equal(TNode<Word32T> left, TNode<Word32T> right);
+  TNode<BoolT> Word32NotEqual(TNode<Word32T> left, TNode<Word32T> right);
+  TNode<BoolT> Word64Equal(TNode<Word64T> left, TNode<Word64T> right);
+  TNode<BoolT> Word64NotEqual(TNode<Word64T> left, TNode<Word64T> right);
 
   TNode<BoolT> Word32Or(TNode<BoolT> left, TNode<BoolT> right) {
     return UncheckedCast<BoolT>(
@@ -1227,6 +1202,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return UncheckedCast<IntPtrT>(WordSar(static_cast<Node*>(value), shift));
   }
   TNode<Word32T> Word32Shr(SloppyTNode<Word32T> value, int shift);
+  TNode<Word32T> Word32Sar(SloppyTNode<Word32T> value, int shift);
 
   TNode<WordT> WordOr(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
   TNode<WordT> WordAnd(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
@@ -1836,8 +1812,10 @@ class V8_EXPORT_PRIVATE CodeAssemblerScopedExceptionHandler {
 }  // namespace compiler
 
 #if defined(V8_HOST_ARCH_32_BIT) || defined(V8_COMPRESS_POINTERS)
+#define BINT_IS_SMI
 using BInt = Smi;
 #elif defined(V8_HOST_ARCH_64_BIT)
+#define BINT_IS_INTPTR
 using BInt = IntPtrT;
 #else
 #error Unknown architecture.

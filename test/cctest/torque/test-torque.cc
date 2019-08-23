@@ -328,7 +328,7 @@ TEST(TestCatch1) {
     TNode<Smi> result =
         m.TestCatch1(m.UncheckedCast<Context>(m.HeapConstant(context)));
     USE(result);
-    CSA_ASSERT(&m, m.WordEqual(result, m.SmiConstant(1)));
+    CSA_ASSERT(&m, m.TaggedEqual(result, m.SmiConstant(1)));
     m.Return(m.UndefinedConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);
@@ -347,7 +347,7 @@ TEST(TestCatch2) {
     TNode<Smi> result =
         m.TestCatch2(m.UncheckedCast<Context>(m.HeapConstant(context)));
     USE(result);
-    CSA_ASSERT(&m, m.WordEqual(result, m.SmiConstant(2)));
+    CSA_ASSERT(&m, m.TaggedEqual(result, m.SmiConstant(2)));
     m.Return(m.UndefinedConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);
@@ -366,7 +366,7 @@ TEST(TestCatch3) {
     TNode<Smi> result =
         m.TestCatch3(m.UncheckedCast<Context>(m.HeapConstant(context)));
     USE(result);
-    CSA_ASSERT(&m, m.WordEqual(result, m.SmiConstant(2)));
+    CSA_ASSERT(&m, m.TaggedEqual(result, m.SmiConstant(2)));
     m.Return(m.UndefinedConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);

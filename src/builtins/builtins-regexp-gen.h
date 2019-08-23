@@ -139,9 +139,11 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
 
   // Performs fast path checks on the given object itself, but omits prototype
   // checks.
-  Node* IsFastRegExpNoPrototype(Node* const context, Node* const object);
-  Node* IsFastRegExpNoPrototype(Node* const context, Node* const object,
-                                Node* const map);
+  Node* IsFastRegExpNoPrototype(SloppyTNode<Context> context,
+                                SloppyTNode<Object> object);
+  Node* IsFastRegExpNoPrototype(SloppyTNode<Context> context,
+                                SloppyTNode<Object> object,
+                                SloppyTNode<Map> map);
 
   // For debugging only. Uses a slow GetProperty call to fetch object.exec.
   TNode<BoolT> IsFastRegExpWithOriginalExec(TNode<Context> context,
@@ -150,7 +152,8 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   void BranchIfFastRegExpResult(Node* const context, Node* const object,
                                 Label* if_isunmodified, Label* if_ismodified);
 
-  Node* FlagsGetter(Node* const context, Node* const regexp, bool is_fastpath);
+  TNode<String> FlagsGetter(Node* const context, Node* const regexp,
+                            bool is_fastpath);
 
   TNode<Int32T> FastFlagGetter(TNode<JSRegExp> regexp, JSRegExp::Flag flag);
   TNode<BoolT> FastFlagGetterGlobal(TNode<JSRegExp> regexp) {
@@ -164,8 +167,8 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   TNode<Int32T> FlagGetter(TNode<Context> context, TNode<Object> regexp,
                            JSRegExp::Flag flag, bool is_fastpath);
 
-  void FlagGetter(Node* context, Node* receiver, JSRegExp::Flag flag,
-                  int counter, const char* method_name);
+  void FlagGetter(TNode<Context> context, TNode<Object> receiver,
+                  JSRegExp::Flag flag, int counter, const char* method_name);
 
   Node* RegExpInitialize(Node* const context, Node* const regexp,
                          Node* const maybe_pattern, Node* const maybe_flags);

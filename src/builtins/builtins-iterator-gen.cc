@@ -76,8 +76,9 @@ IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
 }
 
 TNode<JSReceiver> IteratorBuiltinsAssembler::IteratorStep(
-    Node* context, const IteratorRecord& iterator, Label* if_done,
-    Node* fast_iterator_result_map, Label* if_exception, Variable* exception) {
+    TNode<Context> context, const IteratorRecord& iterator, Label* if_done,
+    base::Optional<TNode<Map>> fast_iterator_result_map, Label* if_exception,
+    Variable* exception) {
   DCHECK_NOT_NULL(if_done);
   // 1. a. Let result be ? Invoke(iterator, "next", « »).
   Callable callable = CodeFactory::Call(isolate());
@@ -87,14 +88,14 @@ TNode<JSReceiver> IteratorBuiltinsAssembler::IteratorStep(
   // 3. If Type(result) is not Object, throw a TypeError exception.
   Label if_notobject(this, Label::kDeferred), return_result(this);
   GotoIf(TaggedIsSmi(result), &if_notobject);
-  Node* result_map = LoadMap(result);
+  TNode<Map> result_map = LoadMap(result);
 
-  if (fast_iterator_result_map != nullptr) {
+  if (fast_iterator_result_map) {
     // Fast iterator result case:
     Label if_generic(this);
 
     // 4. Return result.
-    GotoIfNot(WordEqual(result_map, fast_iterator_result_map), &if_generic);
+    GotoIfNot(TaggedEqual(result_map, *fast_iterator_result_map), &if_generic);
 
     // IteratorComplete
     // 2. Return ToBoolean(? Get(iterResult, "done")).
@@ -137,8 +138,8 @@ TNode<Object> IteratorBuiltinsAssembler::IteratorValue(
   if (fast_iterator_result_map) {
     // Fast iterator result case:
     Label if_generic(this);
-    Node* map = LoadMap(result);
-    GotoIfNot(WordEqual(map, *fast_iterator_result_map), &if_generic);
+    TNode<Map> map = LoadMap(result);
+    GotoIfNot(TaggedEqual(map, *fast_iterator_result_map), &if_generic);
     var_value = LoadObjectField(result, JSIteratorResult::kValueOffset);
     Goto(&exit);
 

@@ -887,12 +887,12 @@ namespace test {
     const v1 = box.value;
     box.unrelated = 999;
     const v2 = (box.unrelated == 0) ? box.value : box.value;
-    StaticAssert(WordEqual(v1, v2));
+    StaticAssert(TaggedEqual(v1, v2));
 
     box.value = 11;
     const v3 = box.value;
     const eleven: Smi = 11;
-    StaticAssert(WordEqual(v3, eleven));
+    StaticAssert(TaggedEqual(v3, eleven));
   }
 
   @export
@@ -903,8 +903,8 @@ namespace test {
     const u1 = a.objects[box.value + 2];
     const v2 = a.objects[box.value];
     const u2 = a.objects[box.value + 2];
-    StaticAssert(WordEqual(v1, v2));
-    StaticAssert(WordEqual(u1, u2));
+    StaticAssert(TaggedEqual(v1, v2));
+    StaticAssert(TaggedEqual(u1, u2));
   }
 
   @export

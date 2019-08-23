@@ -81,7 +81,7 @@ TF_BUILTIN(GlobalIsNaN, CodeStubAssembler) {
     BIND(&if_numisheapnumber);
     {
       // Check if {num} contains a NaN.
-      Node* num_value = LoadHeapNumberValue(num);
+      TNode<Float64T> num_value = LoadHeapNumberValue(num);
       BranchIfFloat64IsNaN(num_value, &return_true, &return_false);
     }
 

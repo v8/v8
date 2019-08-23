@@ -1681,22 +1681,22 @@ macro Float64IsNaN(n: float64): bool {
   BranchIfFloat64IsNaN(n) otherwise return true, return false;
 }
 
-// The type of all tagged values that can safely be compared with WordEqual.
+// The type of all tagged values that can safely be compared with TaggedEqual.
 type TaggedWithIdentity =
     JSReceiver | FixedArrayBase | Oddball | Map | EmptyString;
 
-extern operator '==' macro WordEqual(TaggedWithIdentity, Object): bool;
-extern operator '==' macro WordEqual(Object, TaggedWithIdentity): bool;
-extern operator '==' macro WordEqual(
+extern operator '==' macro TaggedEqual(TaggedWithIdentity, Object): bool;
+extern operator '==' macro TaggedEqual(Object, TaggedWithIdentity): bool;
+extern operator '==' macro TaggedEqual(
     TaggedWithIdentity, TaggedWithIdentity): bool;
-extern operator '!=' macro WordNotEqual(TaggedWithIdentity, Object): bool;
-extern operator '!=' macro WordNotEqual(Object, TaggedWithIdentity): bool;
-extern operator '!=' macro WordNotEqual(
+extern operator '!=' macro TaggedNotEqual(TaggedWithIdentity, Object): bool;
+extern operator '!=' macro TaggedNotEqual(Object, TaggedWithIdentity): bool;
+extern operator '!=' macro TaggedNotEqual(
     TaggedWithIdentity, TaggedWithIdentity): bool;
 // Do not overload == and != if it is unclear if object identity is the right
 // equality.
-extern macro WordEqual(Object, Object): bool;
-extern macro WordNotEqual(Object, Object): bool;
+extern macro TaggedEqual(Object, Object): bool;
+extern macro TaggedNotEqual(Object, Object): bool;
 
 extern operator '+' macro SmiAdd(Smi, Smi): Smi;
 extern operator '-' macro SmiSub(Smi, Smi): Smi;

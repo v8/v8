@@ -55,8 +55,8 @@ InterpreterAssembler::InterpreterAssembler(CodeAssemblerState* state,
   RegisterCallGenerationCallbacks([this] { CallPrologue(); },
                                   [this] { CallEpilogue(); });
 
-  // Save the bytecode offset immediately if bytecode will make a call along the
-  // critical path, or it is a return bytecode.
+  // Save the bytecode offset immediately if bytecode will make a call along
+  // the critical path, or it is a return bytecode.
   if (Bytecodes::MakesCallAlongCriticalPath(bytecode) ||
       Bytecodes::Returns(bytecode)) {
     SaveBytecodeOffset();
@@ -135,7 +135,7 @@ Node* InterpreterAssembler::GetAccumulatorUnchecked() {
   return accumulator_.value();
 }
 
-Node* InterpreterAssembler::GetAccumulator() {
+TNode<Object> InterpreterAssembler::GetAccumulator() {
   DCHECK(Bytecodes::ReadsAccumulator(bytecode_));
   accumulator_use_ = accumulator_use_ | AccumulatorUse::kRead;
   return TaggedPoisonOnSpeculation(GetAccumulatorUnchecked());
@@ -147,20 +147,18 @@ void InterpreterAssembler::SetAccumulator(Node* value) {
   accumulator_.Bind(value);
 }
 
-Node* InterpreterAssembler::GetContext() {
-  return LoadRegister(Register::current_context());
+TNode<Context> InterpreterAssembler::GetContext() {
+  return CAST(LoadRegister(Register::current_context()));
 }
 
-void InterpreterAssembler::SetContext(Node* value) {
+void InterpreterAssembler::SetContext(TNode<Context> value) {
   StoreRegister(value, Register::current_context());
 }
 
-Node* InterpreterAssembler::GetContextAtDepth(Node* context, Node* depth) {
-  Variable cur_context(this, MachineRepresentation::kTaggedPointer);
-  cur_context.Bind(context);
-
-  Variable cur_depth(this, MachineRepresentation::kWord32);
-  cur_depth.Bind(depth);
+Node* InterpreterAssembler::GetContextAtDepth(TNode<Context> context,
+                                              TNode<Uint32T> depth) {
+  TVARIABLE(Context, cur_context, context);
+  TVARIABLE(Uint32T, cur_depth, depth);
 
   Label context_found(this);
 
@@ -173,9 +171,9 @@ Node* InterpreterAssembler::GetContextAtDepth(Node* context, Node* depth) {
   // Loop until the depth is 0.
   BIND(&context_search);
   {
-    cur_depth.Bind(Int32Sub(cur_depth.value(), Int32Constant(1)));
-    cur_context.Bind(
-        LoadContextElement(cur_context.value(), Context::PREVIOUS_INDEX));
+    cur_depth = Unsigned(Int32Sub(cur_depth.value(), Int32Constant(1)));
+    cur_context =
+        CAST(LoadContextElement(cur_context.value(), Context::PREVIOUS_INDEX));
 
     Branch(Word32Equal(cur_depth.value(), Int32Constant(0)), &context_found,
            &context_search);
@@ -185,14 +183,10 @@ Node* InterpreterAssembler::GetContextAtDepth(Node* context, Node* depth) {
   return cur_context.value();
 }
 
-void InterpreterAssembler::GotoIfHasContextExtensionUpToDepth(Node* context,
-                                                              Node* depth,
-                                                              Label* target) {
-  Variable cur_context(this, MachineRepresentation::kTaggedPointer);
-  cur_context.Bind(context);
-
-  Variable cur_depth(this, MachineRepresentation::kWord32);
-  cur_depth.Bind(depth);
+void InterpreterAssembler::GotoIfHasContextExtensionUpToDepth(
+    TNode<Context> context, TNode<Uint32T> depth, Label* target) {
+  TVARIABLE(Context, cur_context, context);
+  TVARIABLE(Uint32T, cur_depth, depth);
 
   Variable* context_search_loop_variables[2] = {&cur_depth, &cur_context};
   Label context_search(this, 2, context_search_loop_variables);
@@ -205,57 +199,58 @@ void InterpreterAssembler::GotoIfHasContextExtensionUpToDepth(Node* context,
     // eval, we could pass in a context chain bitmask to figure out which
     // contexts actually need to be checked.
 
-    Node* extension_slot =
+    TNode<Object> extension_slot =
         LoadContextElement(cur_context.value(), Context::EXTENSION_INDEX);
 
     // Jump to the target if the extension slot is not a hole.
-    GotoIf(WordNotEqual(extension_slot, TheHoleConstant()), target);
+    GotoIf(TaggedNotEqual(extension_slot, TheHoleConstant()), target);
 
-    cur_depth.Bind(Int32Sub(cur_depth.value(), Int32Constant(1)));
-    cur_context.Bind(
-        LoadContextElement(cur_context.value(), Context::PREVIOUS_INDEX));
+    cur_depth = Unsigned(Int32Sub(cur_depth.value(), Int32Constant(1)));
+    cur_context =
+        CAST(LoadContextElement(cur_context.value(), Context::PREVIOUS_INDEX));
 
     GotoIf(Word32NotEqual(cur_depth.value(), Int32Constant(0)),
            &context_search);
   }
 }
 
-Node* InterpreterAssembler::RegisterLocation(Node* reg_index) {
-  return WordPoisonOnSpeculation(
-      IntPtrAdd(GetInterpretedFramePointer(), RegisterFrameOffset(reg_index)));
+TNode<IntPtrT> InterpreterAssembler::RegisterLocation(Node* reg_index) {
+  return Signed(WordPoisonOnSpeculation(
+      IntPtrAdd(GetInterpretedFramePointer(), RegisterFrameOffset(reg_index))));
 }
 
-Node* InterpreterAssembler::RegisterLocation(Register reg) {
+TNode<IntPtrT> InterpreterAssembler::RegisterLocation(Register reg) {
   return RegisterLocation(IntPtrConstant(reg.ToOperand()));
 }
 
-Node* InterpreterAssembler::RegisterFrameOffset(Node* index) {
-  return TimesSystemPointerSize(index);
+TNode<IntPtrT> InterpreterAssembler::RegisterFrameOffset(Node* index) {
+  return Signed(TimesSystemPointerSize(index));
 }
 
-Node* InterpreterAssembler::LoadRegister(Node* reg_index) {
+TNode<Object> InterpreterAssembler::LoadRegister(Node* reg_index) {
   return LoadFullTagged(GetInterpretedFramePointer(),
                         RegisterFrameOffset(reg_index),
                         LoadSensitivity::kCritical);
 }
 
-Node* InterpreterAssembler::LoadRegister(Register reg) {
+TNode<Object> InterpreterAssembler::LoadRegister(Register reg) {
   return LoadFullTagged(GetInterpretedFramePointer(),
                         IntPtrConstant(reg.ToOperand() * kSystemPointerSize));
 }
 
-Node* InterpreterAssembler::LoadAndUntagRegister(Register reg) {
+TNode<IntPtrT> InterpreterAssembler::LoadAndUntagRegister(Register reg) {
   return LoadAndUntagSmi(GetInterpretedFramePointer(),
                          reg.ToOperand() * kSystemPointerSize);
 }
 
-Node* InterpreterAssembler::LoadRegisterAtOperandIndex(int operand_index) {
+TNode<Object> InterpreterAssembler::LoadRegisterAtOperandIndex(
+    int operand_index) {
   return LoadRegister(
       BytecodeOperandReg(operand_index, LoadSensitivity::kSafe));
 }
 
-std::pair<Node*, Node*> InterpreterAssembler::LoadRegisterPairAtOperandIndex(
-    int operand_index) {
+std::pair<TNode<Object>, TNode<Object>>
+InterpreterAssembler::LoadRegisterPairAtOperandIndex(int operand_index) {
   DCHECK_EQ(OperandType::kRegPair,
             Bytecodes::GetOperandType(bytecode_, operand_index));
   Node* first_reg_index =
@@ -271,9 +266,9 @@ InterpreterAssembler::GetRegisterListAtOperandIndex(int operand_index) {
       Bytecodes::GetOperandType(bytecode_, operand_index)));
   DCHECK_EQ(OperandType::kRegCount,
             Bytecodes::GetOperandType(bytecode_, operand_index + 1));
-  Node* base_reg = RegisterLocation(
+  TNode<IntPtrT> base_reg = RegisterLocation(
       BytecodeOperandReg(operand_index, LoadSensitivity::kSafe));
-  Node* reg_count = BytecodeOperandCount(operand_index + 1);
+  TNode<Uint32T> reg_count = BytecodeOperandCount(operand_index + 1);
   return RegListNodePair(base_reg, reg_count);
 }
 
@@ -284,14 +279,14 @@ Node* InterpreterAssembler::LoadRegisterFromRegisterList(
   return LoadFullTagged(location);
 }
 
-Node* InterpreterAssembler::RegisterLocationInRegisterList(
+TNode<IntPtrT> InterpreterAssembler::RegisterLocationInRegisterList(
     const RegListNodePair& reg_list, int index) {
   CSA_ASSERT(this,
              Uint32GreaterThan(reg_list.reg_count(), Int32Constant(index)));
-  Node* offset = RegisterFrameOffset(IntPtrConstant(index));
+  TNode<IntPtrT> offset = RegisterFrameOffset(IntPtrConstant(index));
   // Register indexes are negative, so subtract index from base location to get
   // location.
-  return IntPtrSub(reg_list.base_reg_location(), offset);
+  return Signed(IntPtrSub(reg_list.base_reg_location(), offset));
 }
 
 void InterpreterAssembler::StoreRegister(Node* value, Register reg) {
@@ -341,9 +336,9 @@ void InterpreterAssembler::StoreRegisterTripleAtOperandIndex(
   StoreRegister(value3, third_reg_index);
 }
 
-Node* InterpreterAssembler::NextRegister(Node* reg_index) {
+TNode<IntPtrT> InterpreterAssembler::NextRegister(Node* reg_index) {
   // Register indexes are negative, so the next index is minus one.
-  return IntPtrAdd(reg_index, IntPtrConstant(-1));
+  return Signed(IntPtrAdd(reg_index, IntPtrConstant(-1)));
 }
 
 Node* InterpreterAssembler::OperandOffset(int operand_index) {
@@ -351,27 +346,29 @@ Node* InterpreterAssembler::OperandOffset(int operand_index) {
       Bytecodes::GetOperandOffset(bytecode_, operand_index, operand_scale()));
 }
 
-Node* InterpreterAssembler::BytecodeOperandUnsignedByte(
+TNode<Uint8T> InterpreterAssembler::BytecodeOperandUnsignedByte(
     int operand_index, LoadSensitivity needs_poisoning) {
   DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
   DCHECK_EQ(OperandSize::kByte, Bytecodes::GetOperandSize(
                                     bytecode_, operand_index, operand_scale()));
   Node* operand_offset = OperandOffset(operand_index);
-  return Load(MachineType::Uint8(), BytecodeArrayTaggedPointer(),
-              IntPtrAdd(BytecodeOffset(), operand_offset), needs_poisoning);
+  return Load<Uint8T>(BytecodeArrayTaggedPointer(),
+                      IntPtrAdd(BytecodeOffset(), operand_offset),
+                      needs_poisoning);
 }
 
-Node* InterpreterAssembler::BytecodeOperandSignedByte(
+TNode<Int8T> InterpreterAssembler::BytecodeOperandSignedByte(
     int operand_index, LoadSensitivity needs_poisoning) {
   DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
   DCHECK_EQ(OperandSize::kByte, Bytecodes::GetOperandSize(
                                     bytecode_, operand_index, operand_scale()));
   Node* operand_offset = OperandOffset(operand_index);
-  return Load(MachineType::Int8(), BytecodeArrayTaggedPointer(),
-              IntPtrAdd(BytecodeOffset(), operand_offset), needs_poisoning);
+  return Load<Int8T>(BytecodeArrayTaggedPointer(),
+                     IntPtrAdd(BytecodeOffset(), operand_offset),
+                     needs_poisoning);
 }
 
-Node* InterpreterAssembler::BytecodeOperandReadUnaligned(
+TNode<Word32T> InterpreterAssembler::BytecodeOperandReadUnaligned(
     int relative_offset, MachineType result_type,
     LoadSensitivity needs_poisoning) {
   static const int kMaxCount = 4;
@@ -404,17 +401,18 @@ Node* InterpreterAssembler::BytecodeOperandReadUnaligned(
   // Read the most signicant bytecode into bytes[0] and then in order
   // down to least significant in bytes[count - 1].
   DCHECK_LE(count, kMaxCount);
-  Node* bytes[kMaxCount];
+  TNode<Word32T> bytes[kMaxCount];
   for (int i = 0; i < count; i++) {
     MachineType machine_type = (i == 0) ? msb_type : MachineType::Uint8();
     Node* offset = IntPtrConstant(relative_offset + msb_offset + i * kStep);
     Node* array_offset = IntPtrAdd(BytecodeOffset(), offset);
-    bytes[i] = Load(machine_type, BytecodeArrayTaggedPointer(), array_offset,
-                    needs_poisoning);
+    bytes[i] =
+        UncheckedCast<Word32T>(Load(machine_type, BytecodeArrayTaggedPointer(),
+                                    array_offset, needs_poisoning));
   }
 
   // Pack LSB to MSB.
-  Node* result = bytes[--count];
+  TNode<Word32T> result = bytes[--count];
   for (int i = 1; --count >= 0; i++) {
     Node* shift = Int32Constant(i * kBitsPerByte);
     Node* value = Word32Shl(bytes[count], shift);
@@ -423,7 +421,7 @@ Node* InterpreterAssembler::BytecodeOperandReadUnaligned(
   return result;
 }
 
-Node* InterpreterAssembler::BytecodeOperandUnsignedShort(
+TNode<Uint16T> InterpreterAssembler::BytecodeOperandUnsignedShort(
     int operand_index, LoadSensitivity needs_poisoning) {
   DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
   DCHECK_EQ(
@@ -432,16 +430,17 @@ Node* InterpreterAssembler::BytecodeOperandUnsignedShort(
   int operand_offset =
       Bytecodes::GetOperandOffset(bytecode_, operand_index, operand_scale());
   if (TargetSupportsUnalignedAccess()) {
-    return Load(MachineType::Uint16(), BytecodeArrayTaggedPointer(),
-                IntPtrAdd(BytecodeOffset(), IntPtrConstant(operand_offset)),
-                needs_poisoning);
+    return Load<Uint16T>(
+        BytecodeArrayTaggedPointer(),
+        IntPtrAdd(BytecodeOffset(), IntPtrConstant(operand_offset)),
+        needs_poisoning);
   } else {
-    return BytecodeOperandReadUnaligned(operand_offset, MachineType::Uint16(),
-                                        needs_poisoning);
+    return UncheckedCast<Uint16T>(BytecodeOperandReadUnaligned(
+        operand_offset, MachineType::Uint16(), needs_poisoning));
   }
 }
 
-Node* InterpreterAssembler::BytecodeOperandSignedShort(
+TNode<Int16T> InterpreterAssembler::BytecodeOperandSignedShort(
     int operand_index, LoadSensitivity needs_poisoning) {
   DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
   DCHECK_EQ(
@@ -450,16 +449,17 @@ Node* InterpreterAssembler::BytecodeOperandSignedShort(
   int operand_offset =
       Bytecodes::GetOperandOffset(bytecode_, operand_index, operand_scale());
   if (TargetSupportsUnalignedAccess()) {
-    return Load(MachineType::Int16(), BytecodeArrayTaggedPointer(),
-                IntPtrAdd(BytecodeOffset(), IntPtrConstant(operand_offset)),
-                needs_poisoning);
+    return Load<Int16T>(
+        BytecodeArrayTaggedPointer(),
+        IntPtrAdd(BytecodeOffset(), IntPtrConstant(operand_offset)),
+        needs_poisoning);
   } else {
-    return BytecodeOperandReadUnaligned(operand_offset, MachineType::Int16(),
-                                        needs_poisoning);
+    return UncheckedCast<Int16T>(BytecodeOperandReadUnaligned(
+        operand_offset, MachineType::Int16(), needs_poisoning));
   }
 }
 
-Node* InterpreterAssembler::BytecodeOperandUnsignedQuad(
+TNode<Uint32T> InterpreterAssembler::BytecodeOperandUnsignedQuad(
     int operand_index, LoadSensitivity needs_poisoning) {
   DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
   DCHECK_EQ(OperandSize::kQuad, Bytecodes::GetOperandSize(
@@ -467,16 +467,17 @@ Node* InterpreterAssembler::BytecodeOperandUnsignedQuad(
   int operand_offset =
       Bytecodes::GetOperandOffset(bytecode_, operand_index, operand_scale());
   if (TargetSupportsUnalignedAccess()) {
-    return Load(MachineType::Uint32(), BytecodeArrayTaggedPointer(),
-                IntPtrAdd(BytecodeOffset(), IntPtrConstant(operand_offset)),
-                needs_poisoning);
+    return Load<Uint32T>(
+        BytecodeArrayTaggedPointer(),
+        IntPtrAdd(BytecodeOffset(), IntPtrConstant(operand_offset)),
+        needs_poisoning);
   } else {
-    return BytecodeOperandReadUnaligned(operand_offset, MachineType::Uint32(),
-                                        needs_poisoning);
+    return UncheckedCast<Uint32T>(BytecodeOperandReadUnaligned(
+        operand_offset, MachineType::Uint32(), needs_poisoning));
   }
 }
 
-Node* InterpreterAssembler::BytecodeOperandSignedQuad(
+TNode<Int32T> InterpreterAssembler::BytecodeOperandSignedQuad(
     int operand_index, LoadSensitivity needs_poisoning) {
   DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
   DCHECK_EQ(OperandSize::kQuad, Bytecodes::GetOperandSize(
@@ -484,16 +485,17 @@ Node* InterpreterAssembler::BytecodeOperandSignedQuad(
   int operand_offset =
       Bytecodes::GetOperandOffset(bytecode_, operand_index, operand_scale());
   if (TargetSupportsUnalignedAccess()) {
-    return Load(MachineType::Int32(), BytecodeArrayTaggedPointer(),
-                IntPtrAdd(BytecodeOffset(), IntPtrConstant(operand_offset)),
-                needs_poisoning);
+    return Load<Int32T>(
+        BytecodeArrayTaggedPointer(),
+        IntPtrAdd(BytecodeOffset(), IntPtrConstant(operand_offset)),
+        needs_poisoning);
   } else {
-    return BytecodeOperandReadUnaligned(operand_offset, MachineType::Int32(),
-                                        needs_poisoning);
+    return UncheckedCast<Int32T>(BytecodeOperandReadUnaligned(
+        operand_offset, MachineType::Int32(), needs_poisoning));
   }
 }
 
-Node* InterpreterAssembler::BytecodeSignedOperand(
+TNode<Int32T> InterpreterAssembler::BytecodeSignedOperand(
     int operand_index, OperandSize operand_size,
     LoadSensitivity needs_poisoning) {
   DCHECK(!Bytecodes::IsUnsignedOperandType(
@@ -508,10 +510,9 @@ Node* InterpreterAssembler::BytecodeSignedOperand(
     case OperandSize::kNone:
       UNREACHABLE();
   }
-  return nullptr;
 }
 
-Node* InterpreterAssembler::BytecodeUnsignedOperand(
+TNode<Uint32T> InterpreterAssembler::BytecodeUnsignedOperand(
     int operand_index, OperandSize operand_size,
     LoadSensitivity needs_poisoning) {
   DCHECK(Bytecodes::IsUnsignedOperandType(
@@ -526,10 +527,9 @@ Node* InterpreterAssembler::BytecodeUnsignedOperand(
     case OperandSize::kNone:
       UNREACHABLE();
   }
-  return nullptr;
 }
 
-Node* InterpreterAssembler::BytecodeOperandCount(int operand_index) {
+TNode<Uint32T> InterpreterAssembler::BytecodeOperandCount(int operand_index) {
   DCHECK_EQ(OperandType::kRegCount,
             Bytecodes::GetOperandType(bytecode_, operand_index));
   OperandSize operand_size =
@@ -546,7 +546,7 @@ Node* InterpreterAssembler::BytecodeOperandFlag(int operand_index) {
   return BytecodeUnsignedOperand(operand_index, operand_size);
 }
 
-Node* InterpreterAssembler::BytecodeOperandUImm(int operand_index) {
+TNode<Uint32T> InterpreterAssembler::BytecodeOperandUImm(int operand_index) {
   DCHECK_EQ(OperandType::kUImm,
             Bytecodes::GetOperandType(bytecode_, operand_index));
   OperandSize operand_size =
@@ -559,7 +559,7 @@ Node* InterpreterAssembler::BytecodeOperandUImmWord(int operand_index) {
 }
 
 Node* InterpreterAssembler::BytecodeOperandUImmSmi(int operand_index) {
-  return SmiFromInt32(BytecodeOperandUImm(operand_index));
+  return SmiFromInt32(Signed(BytecodeOperandUImm(operand_index)));
 }
 
 Node* InterpreterAssembler::BytecodeOperandImm(int operand_index) {
@@ -718,7 +718,7 @@ void InterpreterAssembler::CollectCallableFeedback(Node* target, Node* context,
 
   // Check if it is a megamorphic {target}.
   Comment("check if megamorphic");
-  Node* is_megamorphic = WordEqual(
+  Node* is_megamorphic = TaggedEqual(
       feedback, HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())));
   Branch(is_megamorphic, &done, &extra_checks);
 
@@ -727,7 +727,7 @@ void InterpreterAssembler::CollectCallableFeedback(Node* target, Node* context,
     Label initialize(this), mark_megamorphic(this);
 
     Comment("check if weak reference");
-    Node* is_uninitialized = WordEqual(
+    Node* is_uninitialized = TaggedEqual(
         feedback,
         HeapConstant(FeedbackVector::UninitializedSentinel(isolate())));
     GotoIf(is_uninitialized, &initialize);
@@ -763,11 +763,13 @@ void InterpreterAssembler::CollectCallableFeedback(Node* target, Node* context,
         {
           // Check that the JSFunction {current} is in the current native
           // context.
-          Node* current_context =
-              LoadObjectField(current, JSFunction::kContextOffset);
-          Node* current_native_context = LoadNativeContext(current_context);
-          Branch(WordEqual(LoadNativeContext(context), current_native_context),
-                 &done_loop, &mark_megamorphic);
+          TNode<Context> current_context =
+              CAST(LoadObjectField(current, JSFunction::kContextOffset));
+          TNode<Context> current_native_context =
+              LoadNativeContext(current_context);
+          Branch(
+              TaggedEqual(LoadNativeContext(context), current_native_context),
+              &done_loop, &mark_megamorphic);
         }
 
         BIND(&if_boundfunction);
@@ -913,8 +915,8 @@ void InterpreterAssembler::CallJSWithSpreadAndDispatch(
   accumulator_use_ = accumulator_use_ | AccumulatorUse::kWrite;
 }
 
-Node* InterpreterAssembler::Construct(Node* target, Node* context,
-                                      Node* new_target,
+Node* InterpreterAssembler::Construct(SloppyTNode<Object> target, Node* context,
+                                      SloppyTNode<Object> new_target,
                                       const RegListNodePair& args,
                                       Node* slot_id, Node* feedback_vector) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
@@ -930,8 +932,7 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
   // Check if we have monomorphic {new_target} feedback already.
   TNode<MaybeObject> feedback =
       LoadFeedbackVectorSlot(feedback_vector, slot_id);
-  Branch(IsWeakReferenceTo(feedback, CAST(new_target)), &construct,
-         &extra_checks);
+  Branch(IsWeakReferenceTo(feedback, new_target), &construct, &extra_checks);
 
   BIND(&extra_checks);
   {
@@ -940,7 +941,7 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
 
     // Check if it is a megamorphic {new_target}..
     Comment("check if megamorphic");
-    Node* is_megamorphic = WordEqual(
+    Node* is_megamorphic = TaggedEqual(
         feedback, HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())));
     GotoIf(is_megamorphic, &construct);
 
@@ -960,10 +961,10 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
       GotoIfNot(IsAllocationSite(strong_feedback), &check_initialized);
 
       // Make sure that {target} and {new_target} are the Array constructor.
-      Node* array_function = LoadContextElement(LoadNativeContext(context),
-                                                Context::ARRAY_FUNCTION_INDEX);
-      GotoIfNot(WordEqual(target, array_function), &mark_megamorphic);
-      GotoIfNot(WordEqual(new_target, array_function), &mark_megamorphic);
+      TNode<Object> array_function = LoadContextElement(
+          LoadNativeContext(context), Context::ARRAY_FUNCTION_INDEX);
+      GotoIfNot(TaggedEqual(target, array_function), &mark_megamorphic);
+      GotoIfNot(TaggedEqual(new_target, array_function), &mark_megamorphic);
       var_site.Bind(strong_feedback);
       Goto(&construct_array);
     }
@@ -973,7 +974,7 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
       // Check if it is uninitialized.
       Comment("check if uninitialized");
       Node* is_uninitialized =
-          WordEqual(feedback, LoadRoot(RootIndex::kuninitialized_symbol));
+          TaggedEqual(feedback, LoadRoot(RootIndex::kuninitialized_symbol));
       Branch(is_uninitialized, &initialize, &mark_megamorphic);
     }
 
@@ -1001,11 +1002,13 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
         {
           // Check that the JSFunction {current} is in the current native
           // context.
-          Node* current_context =
-              LoadObjectField(current, JSFunction::kContextOffset);
-          Node* current_native_context = LoadNativeContext(current_context);
-          Branch(WordEqual(LoadNativeContext(context), current_native_context),
-                 &done_loop, &mark_megamorphic);
+          TNode<Context> current_context =
+              CAST(LoadObjectField(current, JSFunction::kContextOffset));
+          TNode<Context> current_native_context =
+              LoadNativeContext(current_context);
+          Branch(
+              TaggedEqual(LoadNativeContext(context), current_native_context),
+              &done_loop, &mark_megamorphic);
         }
 
         BIND(&if_boundfunction);
@@ -1021,10 +1024,10 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
       // Create an AllocationSite if {target} and {new_target} refer
       // to the current native context's Array constructor.
       Label create_allocation_site(this), store_weak_reference(this);
-      GotoIfNot(WordEqual(target, new_target), &store_weak_reference);
-      Node* array_function = LoadContextElement(LoadNativeContext(context),
-                                                Context::ARRAY_FUNCTION_INDEX);
-      Branch(WordEqual(target, array_function), &create_allocation_site,
+      GotoIfNot(TaggedEqual(target, new_target), &store_weak_reference);
+      TNode<Object> array_function = LoadContextElement(
+          LoadNativeContext(context), Context::ARRAY_FUNCTION_INDEX);
+      Branch(TaggedEqual(target, array_function), &create_allocation_site,
              &store_weak_reference);
 
       BIND(&create_allocation_site);
@@ -1120,7 +1123,7 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
 
     // Check if it is a megamorphic {new_target}.
     Comment("check if megamorphic");
-    Node* is_megamorphic = WordEqual(
+    Node* is_megamorphic = TaggedEqual(
         feedback, HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())));
     GotoIf(is_megamorphic, &construct);
 
@@ -1137,7 +1140,7 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
       // Check if it is uninitialized.
       Comment("check if uninitialized");
       Node* is_uninitialized =
-          WordEqual(feedback, LoadRoot(RootIndex::kuninitialized_symbol));
+          TaggedEqual(feedback, LoadRoot(RootIndex::kuninitialized_symbol));
       Branch(is_uninitialized, &initialize, &mark_megamorphic);
     }
 
@@ -1165,11 +1168,13 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
         {
           // Check that the JSFunction {current} is in the current native
           // context.
-          Node* current_context =
-              LoadObjectField(current, JSFunction::kContextOffset);
-          Node* current_native_context = LoadNativeContext(current_context);
-          Branch(WordEqual(LoadNativeContext(context), current_native_context),
-                 &done_loop, &mark_megamorphic);
+          TNode<Context> current_context =
+              CAST(LoadObjectField(current, JSFunction::kContextOffset));
+          TNode<Context> current_native_context =
+              LoadNativeContext(current_context);
+          Branch(
+              TaggedEqual(LoadNativeContext(context), current_native_context),
+              &done_loop, &mark_megamorphic);
         }
 
         BIND(&if_boundfunction);
@@ -1327,35 +1332,39 @@ void InterpreterAssembler::JumpConditional(Node* condition, Node* delta) {
   Dispatch();
 }
 
-void InterpreterAssembler::JumpIfWordEqual(Node* lhs, Node* rhs, Node* delta) {
-  JumpConditional(WordEqual(lhs, rhs), delta);
+void InterpreterAssembler::JumpIfTaggedEqual(TNode<Object> lhs,
+                                             TNode<Object> rhs, Node* delta) {
+  JumpConditional(TaggedEqual(lhs, rhs), delta);
 }
 
-void InterpreterAssembler::JumpIfWordNotEqual(Node* lhs, Node* rhs,
-                                              Node* delta) {
-  JumpConditional(WordNotEqual(lhs, rhs), delta);
+void InterpreterAssembler::JumpIfTaggedNotEqual(TNode<Object> lhs,
+                                                TNode<Object> rhs,
+                                                Node* delta) {
+  JumpConditional(TaggedNotEqual(lhs, rhs), delta);
 }
 
-Node* InterpreterAssembler::LoadBytecode(Node* bytecode_offset) {
+TNode<WordT> InterpreterAssembler::LoadBytecode(Node* bytecode_offset) {
   Node* bytecode =
       Load(MachineType::Uint8(), BytecodeArrayTaggedPointer(), bytecode_offset);
   return ChangeUint32ToWord(bytecode);
 }
 
-Node* InterpreterAssembler::StarDispatchLookahead(Node* target_bytecode) {
+TNode<WordT> InterpreterAssembler::StarDispatchLookahead(
+    TNode<WordT> target_bytecode) {
   Label do_inline_star(this), done(this);
 
-  Variable var_bytecode(this, MachineType::PointerRepresentation());
-  var_bytecode.Bind(target_bytecode);
+  TVARIABLE(WordT, var_bytecode, target_bytecode);
 
-  Node* star_bytecode = IntPtrConstant(static_cast<int>(Bytecode::kStar));
-  Node* is_star = WordEqual(target_bytecode, star_bytecode);
+  TNode<Int32T> star_bytecode =
+      Int32Constant(static_cast<int>(Bytecode::kStar));
+  Node* is_star =
+      Word32Equal(TruncateWordToInt32(target_bytecode), star_bytecode);
   Branch(is_star, &do_inline_star, &done);
 
   BIND(&do_inline_star);
   {
     InlineStar();
-    var_bytecode.Bind(LoadBytecode(BytecodeOffset()));
+    var_bytecode = LoadBytecode(BytecodeOffset());
     Goto(&done);
   }
   BIND(&done);
@@ -1386,7 +1395,7 @@ Node* InterpreterAssembler::Dispatch() {
   Comment("========= Dispatch");
   DCHECK_IMPLIES(Bytecodes::MakesCallAlongCriticalPath(bytecode_), made_call_);
   Node* target_offset = Advance();
-  Node* target_bytecode = LoadBytecode(target_offset);
+  TNode<WordT> target_bytecode = LoadBytecode(target_offset);
 
   if (Bytecodes::IsStarLookahead(bytecode_, operand_scale_)) {
     target_bytecode = StarDispatchLookahead(target_bytecode);
@@ -1501,7 +1510,8 @@ void InterpreterAssembler::Abort(AbortReason abort_reason) {
   CallRuntime(Runtime::kAbort, GetContext(), abort_id);
 }
 
-void InterpreterAssembler::AbortIfWordNotEqual(Node* lhs, Node* rhs,
+void InterpreterAssembler::AbortIfWordNotEqual(TNode<WordT> lhs,
+                                               TNode<WordT> rhs,
                                                AbortReason abort_reason) {
   Label ok(this), abort(this, Label::kDeferred);
   Branch(WordEqual(lhs, rhs), &ok, &abort);
@@ -1517,8 +1527,8 @@ void InterpreterAssembler::MaybeDropFrames(Node* context) {
   Node* restart_fp_address =
       ExternalConstant(ExternalReference::debug_restart_fp_address(isolate()));
 
-  Node* restart_fp = Load(MachineType::Pointer(), restart_fp_address);
-  Node* null = IntPtrConstant(0);
+  TNode<IntPtrT> restart_fp = Load<IntPtrT>(restart_fp_address);
+  TNode<IntPtrT> null = IntPtrConstant(0);
 
   Label ok(this), drop_frames(this);
   Branch(IntPtrEqual(restart_fp, null), &ok, &drop_frames);
@@ -1546,8 +1556,7 @@ void InterpreterAssembler::TraceBytecodeDispatch(Node* target_bytecode) {
 
   Node* counter_offset = TimesSystemPointerSize(
       IntPtrAdd(source_bytecode_table_index, target_bytecode));
-  Node* old_counter =
-      Load(MachineType::IntPtr(), counters_table, counter_offset);
+  TNode<IntPtrT> old_counter = Load<IntPtrT>(counters_table, counter_offset);
 
   Label counter_ok(this), counter_saturated(this, Label::kDeferred);
 

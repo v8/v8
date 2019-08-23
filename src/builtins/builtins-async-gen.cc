@@ -66,9 +66,10 @@ Node* AsyncBuiltinsAssembler::AwaitOld(Node* context, Node* generator,
       LoadObjectField(promise_fun, JSFunction::kPrototypeOrInitialMapOffset);
   // Assert that the JSPromise map has an instance size is
   // JSPromise::kSizeWithEmbedderFields.
-  CSA_ASSERT(this, WordEqual(LoadMapInstanceSizeInWords(promise_map),
-                             IntPtrConstant(JSPromise::kSizeWithEmbedderFields /
-                                            kTaggedSize)));
+  CSA_ASSERT(this,
+             IntPtrEqual(LoadMapInstanceSizeInWords(promise_map),
+                         IntPtrConstant(JSPromise::kSizeWithEmbedderFields /
+                                        kTaggedSize)));
   TNode<HeapObject> wrapped_value = InnerAllocate(base, kWrappedPromiseOffset);
   {
     // Initialize Promise
@@ -196,16 +197,16 @@ Node* AsyncBuiltinsAssembler::Await(Node* context, Node* generator, Node* value,
   // to allocate the wrapper promise and can just use the `AwaitOptimized`
   // logic.
   GotoIf(TaggedIsSmi(value), &if_old);
-  Node* const value_map = LoadMap(value);
+  TNode<Map> const value_map = LoadMap(value);
   GotoIfNot(IsJSPromiseMap(value_map), &if_old);
   // We can skip the "constructor" lookup on {value} if it's [[Prototype]]
   // is the (initial) Promise.prototype and the @@species protector is
   // intact, as that guards the lookup path for "constructor" on
   // JSPromise instances which have the (initial) Promise.prototype.
-  Node* const native_context = LoadNativeContext(context);
-  Node* const promise_prototype =
+  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<Object> const promise_prototype =
       LoadContextElement(native_context, Context::PROMISE_PROTOTYPE_INDEX);
-  GotoIfNot(WordEqual(LoadMapPrototype(value_map), promise_prototype),
+  GotoIfNot(TaggedEqual(LoadMapPrototype(value_map), promise_prototype),
             &if_slow_constructor);
   Branch(IsPromiseSpeciesProtectorCellInvalid(), &if_slow_constructor, &if_new);
 
@@ -214,11 +215,11 @@ Node* AsyncBuiltinsAssembler::Await(Node* context, Node* generator, Node* value,
   // have the %Promise% as its "constructor", so we need to check that as well.
   BIND(&if_slow_constructor);
   {
-    Node* const value_constructor =
+    TNode<Object> const value_constructor =
         GetProperty(context, value, isolate()->factory()->constructor_string());
-    Node* const promise_function =
+    TNode<Object> const promise_function =
         LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
-    Branch(WordEqual(value_constructor, promise_function), &if_new, &if_old);
+    Branch(TaggedEqual(value_constructor, promise_function), &if_new, &if_old);
   }
 
   BIND(&if_old);
@@ -245,9 +246,10 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(Node* context,
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
   // Ensure that we don't have to initialize prototype_or_initial_map field of
   // JSFunction.
-  CSA_ASSERT(this, WordEqual(LoadMapInstanceSizeInWords(function_map),
-                             IntPtrConstant(JSFunction::kSizeWithoutPrototype /
-                                            kTaggedSize)));
+  CSA_ASSERT(this,
+             IntPtrEqual(LoadMapInstanceSizeInWords(function_map),
+                         IntPtrConstant(JSFunction::kSizeWithoutPrototype /
+                                        kTaggedSize)));
   STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kTaggedSize);
   StoreMapNoWriteBarrier(function, function_map);
   StoreObjectFieldRoot(function, JSObject::kPropertiesOrHashOffset,

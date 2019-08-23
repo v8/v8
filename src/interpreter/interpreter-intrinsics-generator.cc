@@ -47,7 +47,7 @@ class IntrinsicsGenerator {
   Node* IntrinsicAsBuiltinCall(
       const InterpreterAssembler::RegListNodePair& args, Node* context,
       Builtins::Name name);
-  void AbortIfArgCountMismatch(int expected, compiler::Node* actual);
+  void AbortIfArgCountMismatch(int expected, compiler::TNode<Word32T> actual);
 
 #define DECLARE_INTRINSIC_HELPER(name, lower_case, count) \
   Node* name(const InterpreterAssembler::RegListNodePair& args, Node* context);
@@ -395,7 +395,8 @@ Node* IntrinsicsGenerator::AsyncGeneratorYield(
   return IntrinsicAsBuiltinCall(args, context, Builtins::kAsyncGeneratorYield);
 }
 
-void IntrinsicsGenerator::AbortIfArgCountMismatch(int expected, Node* actual) {
+void IntrinsicsGenerator::AbortIfArgCountMismatch(int expected,
+                                                  TNode<Word32T> actual) {
   InterpreterAssembler::Label match(assembler_);
   TNode<BoolT> comparison = __ Word32Equal(actual, __ Int32Constant(expected));
   __ GotoIf(comparison, &match);

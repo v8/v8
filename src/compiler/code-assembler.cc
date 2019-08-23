@@ -568,6 +568,10 @@ TNode<Word32T> CodeAssembler::Word32Shr(SloppyTNode<Word32T> value, int shift) {
   return (shift != 0) ? Word32Shr(value, Int32Constant(shift)) : value;
 }
 
+TNode<Word32T> CodeAssembler::Word32Sar(SloppyTNode<Word32T> value, int shift) {
+  return (shift != 0) ? Word32Sar(value, Int32Constant(shift)) : value;
+}
+
 TNode<WordT> CodeAssembler::WordOr(SloppyTNode<WordT> left,
                                    SloppyTNode<WordT> right) {
   intptr_t left_constant;
@@ -880,14 +884,13 @@ TNode<Word64T> CodeAssembler::Word64Sar(SloppyTNode<Word64T> left,
   return UncheckedCast<Word64T>(raw_assembler()->Word64Sar(left, right));
 }
 
-#define CODE_ASSEMBLER_COMPARE(Name, ArgT, VarT, ToConstant, op)     \
-  TNode<BoolT> CodeAssembler::Name(SloppyTNode<ArgT> left,           \
-                                   SloppyTNode<ArgT> right) {        \
-    VarT lhs, rhs;                                                   \
-    if (ToConstant(left, &lhs) && ToConstant(right, &rhs)) {         \
-      return BoolConstant(lhs op rhs);                               \
-    }                                                                \
-    return UncheckedCast<BoolT>(raw_assembler()->Name(left, right)); \
+#define CODE_ASSEMBLER_COMPARE(Name, ArgT, VarT, ToConstant, op)          \
+  TNode<BoolT> CodeAssembler::Name(TNode<ArgT> left, TNode<ArgT> right) { \
+    VarT lhs, rhs;                                                        \
+    if (ToConstant(left, &lhs) && ToConstant(right, &rhs)) {              \
+      return BoolConstant(lhs op rhs);                                    \
+    }                                                                     \
+    return UncheckedCast<BoolT>(raw_assembler()->Name(left, right));      \
   }
 
 CODE_ASSEMBLER_COMPARE(IntPtrEqual, WordT, intptr_t, ToIntPtrConstant, ==)
@@ -959,14 +962,14 @@ Node* CodeAssembler::Load(MachineType type, Node* base, Node* offset,
   return raw_assembler()->Load(type, base, offset, needs_poisoning);
 }
 
-Node* CodeAssembler::LoadFullTagged(Node* base,
-                                    LoadSensitivity needs_poisoning) {
+TNode<Object> CodeAssembler::LoadFullTagged(Node* base,
+                                            LoadSensitivity needs_poisoning) {
   return BitcastWordToTagged(
       Load(MachineType::Pointer(), base, needs_poisoning));
 }
 
-Node* CodeAssembler::LoadFullTagged(Node* base, Node* offset,
-                                    LoadSensitivity needs_poisoning) {
+TNode<Object> CodeAssembler::LoadFullTagged(Node* base, Node* offset,
+                                            LoadSensitivity needs_poisoning) {
   return BitcastWordToTagged(
       Load(MachineType::Pointer(), base, offset, needs_poisoning));
 }

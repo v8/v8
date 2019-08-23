@@ -75,21 +75,21 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
     VARIABLE(var_did_change, MachineRepresentation::kWord32, Int32Constant(0));
 
     VariableList push_vars({&var_cursor, &var_did_change}, zone());
-    BuildFastLoop(push_vars, start_address, end_address,
-                  [=, &var_cursor, &var_did_change](Node* current) {
-                    Node* c = Load(MachineType::Uint8(), current);
-                    Node* lower =
-                        Load(MachineType::Uint8(), to_lower_table_addr,
-                             ChangeInt32ToIntPtr(c));
-                    StoreNoWriteBarrier(MachineRepresentation::kWord8, dst_ptr,
-                                        var_cursor.value(), lower);
+    BuildFastLoop(
+        push_vars, start_address, end_address,
+        [=, &var_cursor, &var_did_change](Node* current) {
+          TNode<Uint8T> c = Load<Uint8T>(current);
+          TNode<Uint8T> lower =
+              Load<Uint8T>(to_lower_table_addr, ChangeInt32ToIntPtr(c));
+          StoreNoWriteBarrier(MachineRepresentation::kWord8, dst_ptr,
+                              var_cursor.value(), lower);
 
-                    var_did_change.Bind(Word32Or(Word32NotEqual(c, lower),
-                                                 var_did_change.value()));
+          var_did_change.Bind(
+              Word32Or(Word32NotEqual(c, lower), var_did_change.value()));
 
-                    Increment(&var_cursor);
-                  },
-                  kCharSize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+          Increment(&var_cursor);
+        },
+        kCharSize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
 
     // Return the original string if it remained unchanged in order to preserve
     // e.g. internalization and private symbols (such as the preserved object

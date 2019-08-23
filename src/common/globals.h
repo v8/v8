@@ -890,14 +890,14 @@ constexpr int kIeeeDoubleExponentWordOffset = 0;
 // Testers for test.
 
 #define HAS_SMI_TAG(value) \
-  ((static_cast<intptr_t>(value) & ::i::kSmiTagMask) == ::i::kSmiTag)
+  ((static_cast<i::Tagged_t>(value) & ::i::kSmiTagMask) == ::i::kSmiTag)
 
-#define HAS_STRONG_HEAP_OBJECT_TAG(value)                       \
-  (((static_cast<intptr_t>(value) & ::i::kHeapObjectTagMask) == \
+#define HAS_STRONG_HEAP_OBJECT_TAG(value)                          \
+  (((static_cast<i::Tagged_t>(value) & ::i::kHeapObjectTagMask) == \
     ::i::kHeapObjectTag))
 
-#define HAS_WEAK_HEAP_OBJECT_TAG(value)                         \
-  (((static_cast<intptr_t>(value) & ::i::kHeapObjectTagMask) == \
+#define HAS_WEAK_HEAP_OBJECT_TAG(value)                            \
+  (((static_cast<i::Tagged_t>(value) & ::i::kHeapObjectTagMask) == \
     ::i::kWeakHeapObjectTag))
 
 // OBJECT_POINTER_ALIGN returns the value aligned as a HeapObject pointer

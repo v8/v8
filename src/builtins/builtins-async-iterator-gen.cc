@@ -167,15 +167,15 @@ std::pair<Node*, Node*> AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
       done(this), if_notanobject(this, Label::kDeferred);
   GotoIf(TaggedIsSmi(iter_result), &if_notanobject);
 
-  Node* const iter_result_map = LoadMap(iter_result);
+  TNode<Map> const iter_result_map = LoadMap(iter_result);
   GotoIfNot(IsJSReceiverMap(iter_result_map), &if_notanobject);
 
-  Node* const fast_iter_result_map =
+  TNode<Object> const fast_iter_result_map =
       LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
 
   VARIABLE(var_value, MachineRepresentation::kTagged);
   VARIABLE(var_done, MachineRepresentation::kTagged);
-  Branch(WordEqual(iter_result_map, fast_iter_result_map), &if_fastpath,
+  Branch(TaggedEqual(iter_result_map, fast_iter_result_map), &if_fastpath,
          &if_slowpath);
 
   BIND(&if_fastpath);

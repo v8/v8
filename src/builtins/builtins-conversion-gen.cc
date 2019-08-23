@@ -407,7 +407,8 @@ TF_BUILTIN(ToObject, CodeStubAssembler) {
   Node* instance_type = LoadMapInstanceType(map);
   GotoIf(IsJSReceiverInstanceType(instance_type), &if_jsreceiver);
 
-  Node* constructor_function_index = LoadMapConstructorFunctionIndex(map);
+  TNode<IntPtrT> constructor_function_index =
+      LoadMapConstructorFunctionIndex(map);
   GotoIf(WordEqual(constructor_function_index,
                    IntPtrConstant(Map::kNoConstructorFunctionIndex)),
          &if_noconstructor);

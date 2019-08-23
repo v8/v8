@@ -43,7 +43,7 @@ ArgumentsBuiltinsAssembler::AllocateArgumentsObject(Node* map,
   TNode<Object> result = Allocate(size);
   Comment("Initialize arguments object");
   StoreMapNoWriteBarrier(result, map);
-  Node* empty_fixed_array = LoadRoot(RootIndex::kEmptyFixedArray);
+  TNode<Object> empty_fixed_array = LoadRoot(RootIndex::kEmptyFixedArray);
   StoreObjectField(result, JSArray::kPropertiesOrHashOffset, empty_fixed_array);
   Node* smi_arguments_count = ParameterToTagged(arguments_count, mode);
   StoreObjectFieldNoWriteBarrier(result, JSArray::kLengthOffset,
@@ -53,7 +53,7 @@ ArgumentsBuiltinsAssembler::AllocateArgumentsObject(Node* map,
     arguments = InnerAllocate(CAST(result), elements_offset);
     StoreObjectFieldNoWriteBarrier(arguments, FixedArray::kLengthOffset,
                                    smi_arguments_count);
-    Node* fixed_array_map = LoadRoot(RootIndex::kFixedArrayMap);
+    TNode<Object> fixed_array_map = LoadRoot(RootIndex::kFixedArrayMap);
     StoreMapNoWriteBarrier(arguments, fixed_array_map);
   }
   Node* parameter_map = nullptr;
@@ -164,7 +164,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewStrictArguments(Node* context,
   Label done(this, &result), empty(this), runtime(this, Label::kDeferred);
 
   ParameterMode mode = OptimalParameterMode();
-  Node* zero = IntPtrOrSmiConstant(0, mode);
+  TNode<BInt> zero = BIntConstant(0);
 
   TorqueStructArgumentsInfo info = GetArgumentsFrameAndCount(
       CAST(context), UncheckedCast<JSFunction>(function));
@@ -176,7 +176,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewStrictArguments(Node* context,
   Node* const native_context = LoadNativeContext(context);
   Node* const map =
       LoadContextElement(native_context, Context::STRICT_ARGUMENTS_MAP_INDEX);
-  GotoIf(WordEqual(info.argument_count, zero), &empty);
+  GotoIf(BIntEqual(info.argument_count, zero), &empty);
 
   result.Bind(ConstructParametersObjectFromArgs(
       map, info.frame, info.argument_count, zero, info.argument_count, mode,
@@ -209,7 +209,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
   VARIABLE(result, MachineRepresentation::kTagged);
 
   ParameterMode mode = OptimalParameterMode();
-  Node* zero = IntPtrOrSmiConstant(0, mode);
+  TNode<BInt> zero = BIntConstant(0);
 
   Label done(this, &result), empty(this), no_parameters(this),
       runtime(this, Label::kDeferred);
@@ -217,9 +217,9 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
   TorqueStructArgumentsInfo info = GetArgumentsFrameAndCount(
       CAST(context), UncheckedCast<JSFunction>(function));
 
-  GotoIf(WordEqual(info.argument_count, zero), &empty);
+  GotoIf(BIntEqual(info.argument_count, zero), &empty);
 
-  GotoIf(WordEqual(info.formal_parameter_count, zero), &no_parameters);
+  GotoIf(BIntEqual(info.formal_parameter_count, zero), &no_parameters);
 
   {
     Comment("Mapped parameter JSSloppyArgumentsObject");

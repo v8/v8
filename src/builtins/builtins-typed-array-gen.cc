@@ -858,17 +858,17 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
     TNode<SharedFunctionInfo> shared_info = LoadObjectField<SharedFunctionInfo>(
         CAST(iterator_fn), JSFunction::kSharedFunctionInfoOffset);
     GotoIfNot(
-        WordEqual(LoadObjectField(shared_info,
-                                  SharedFunctionInfo::kFunctionDataOffset),
-                  SmiConstant(Builtins::kTypedArrayPrototypeValues)),
+        TaggedEqual(LoadObjectField(shared_info,
+                                    SharedFunctionInfo::kFunctionDataOffset),
+                    SmiConstant(Builtins::kTypedArrayPrototypeValues)),
         &check_iterator);
     // Check that the ArrayIterator prototype's "next" method hasn't been
     // overridden
     TNode<PropertyCell> protector_cell =
         CAST(LoadRoot(RootIndex::kArrayIteratorProtector));
     GotoIfNot(
-        WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                  SmiConstant(Isolate::kProtectorValid)),
+        TaggedEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
+                    SmiConstant(Isolate::kProtectorValid)),
         &check_iterator);
 
     // Source is a TypedArray with unmodified iterator behavior. Use the

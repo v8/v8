@@ -431,35 +431,38 @@ TEST(TryToName) {
   enum Result { kKeyIsIndex, kKeyIsUnique, kBailout };
   {
     Node* key = m.Parameter(0);
-    Node* expected_result = m.Parameter(1);
-    Node* expected_arg = m.Parameter(2);
+    TNode<MaybeObject> expected_result =
+        m.UncheckedCast<MaybeObject>(m.Parameter(1));
+    TNode<Object> expected_arg = m.CAST(m.Parameter(2));
 
     Label passed(&m), failed(&m);
     Label if_keyisindex(&m), if_keyisunique(&m), if_bailout(&m);
     {
-      Variable var_index(&m, MachineType::PointerRepresentation());
-      Variable var_unique(&m, MachineRepresentation::kTagged);
+      TYPED_VARIABLE_DEF(IntPtrT, var_index, &m);
+      TYPED_VARIABLE_DEF(Object, var_unique, &m);
 
       m.TryToName(key, &if_keyisindex, &var_index, &if_keyisunique, &var_unique,
                   &if_bailout);
 
       m.BIND(&if_keyisindex);
-      m.GotoIfNot(m.WordEqual(expected_result,
-                              m.SmiConstant(Smi::FromInt(kKeyIsIndex))),
+      m.GotoIfNot(m.TaggedEqual(expected_result,
+                                m.SmiConstant(Smi::FromInt(kKeyIsIndex))),
                   &failed);
-      m.Branch(m.WordEqual(m.SmiUntag(expected_arg), var_index.value()),
-               &passed, &failed);
+      m.Branch(
+          m.IntPtrEqual(m.SmiUntag(m.CAST(expected_arg)), var_index.value()),
+          &passed, &failed);
 
       m.BIND(&if_keyisunique);
-      m.GotoIfNot(m.WordEqual(expected_result,
-                              m.SmiConstant(Smi::FromInt(kKeyIsUnique))),
+      m.GotoIfNot(m.TaggedEqual(expected_result,
+                                m.SmiConstant(Smi::FromInt(kKeyIsUnique))),
                   &failed);
-      m.Branch(m.WordEqual(expected_arg, var_unique.value()), &passed, &failed);
+      m.Branch(m.TaggedEqual(expected_arg, var_unique.value()), &passed,
+               &failed);
     }
 
     m.BIND(&if_bailout);
     m.Branch(
-        m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kBailout))),
+        m.TaggedEqual(expected_result, m.SmiConstant(Smi::FromInt(kBailout))),
         &passed, &failed);
 
     m.BIND(&passed);
@@ -654,7 +657,7 @@ void TestNameDictionaryLookup() {
                                        &var_name_index, &if_not_found);
     m.BIND(&if_found);
     m.GotoIfNot(
-        m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
+        m.TaggedEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
         &failed);
     m.Branch(
         m.WordEqual(m.SmiUntag(m.CAST(expected_arg)), var_name_index.value()),
@@ -662,7 +665,7 @@ void TestNameDictionaryLookup() {
 
     m.BIND(&if_not_found);
     m.Branch(
-        m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kNotFound))),
+        m.TaggedEqual(expected_result, m.SmiConstant(Smi::FromInt(kNotFound))),
         &passed, &failed);
 
     m.BIND(&passed);
@@ -757,14 +760,14 @@ TEST(NumberDictionaryLookup) {
                              &if_not_found);
     m.BIND(&if_found);
     m.GotoIfNot(
-        m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
+        m.TaggedEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
         &failed);
     m.Branch(m.WordEqual(m.SmiUntag(m.CAST(expected_arg)), var_entry.value()),
              &passed, &failed);
 
     m.BIND(&if_not_found);
     m.Branch(
-        m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kNotFound))),
+        m.TaggedEqual(expected_result, m.SmiConstant(Smi::FromInt(kNotFound))),
         &passed, &failed);
 
     m.BIND(&passed);
@@ -848,12 +851,12 @@ TEST(TransitionLookup) {
                        &if_not_found);
 
       BIND(&if_found);
-      GotoIfNot(WordEqual(expected_result, SmiConstant(kFound)), &failed);
-      Branch(WordEqual(expected_arg, SmiTag(var_transition_index.value())),
+      GotoIfNot(TaggedEqual(expected_result, SmiConstant(kFound)), &failed);
+      Branch(TaggedEqual(expected_arg, SmiTag(var_transition_index.value())),
              &passed, &failed);
 
       BIND(&if_not_found);
-      Branch(WordEqual(expected_result, SmiConstant(kNotFound)), &passed,
+      Branch(TaggedEqual(expected_result, SmiConstant(kNotFound)), &passed,
              &failed);
 
       BIND(&passed);
@@ -1011,7 +1014,8 @@ TEST(TryHasOwnProperty) {
   {
     Node* object = m.Parameter(0);
     Node* unique_name = m.Parameter(1);
-    Node* expected_result = m.Parameter(2);
+    TNode<MaybeObject> expected_result =
+        m.UncheckedCast<MaybeObject>(m.Parameter(2));
 
     Label passed(&m), failed(&m);
     Label if_found(&m), if_not_found(&m), if_bailout(&m);
@@ -1023,17 +1027,18 @@ TEST(TryHasOwnProperty) {
                         &if_not_found, &if_bailout);
 
     m.BIND(&if_found);
-    m.Branch(m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
-             &passed, &failed);
+    m.Branch(
+        m.TaggedEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
+        &passed, &failed);
 
     m.BIND(&if_not_found);
     m.Branch(
-        m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kNotFound))),
+        m.TaggedEqual(expected_result, m.SmiConstant(Smi::FromInt(kNotFound))),
         &passed, &failed);
 
     m.BIND(&if_bailout);
     m.Branch(
-        m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kBailout))),
+        m.TaggedEqual(expected_result, m.SmiConstant(Smi::FromInt(kBailout))),
         &passed, &failed);
 
     m.BIND(&passed);
@@ -1423,7 +1428,8 @@ TEST(TryLookupElement) {
   {
     Node* object = m.Parameter(0);
     TNode<IntPtrT> index = m.SmiUntag(m.Parameter(1));
-    Node* expected_result = m.Parameter(2);
+    TNode<MaybeObject> expected_result =
+        m.UncheckedCast<MaybeObject>(m.Parameter(2));
 
     Label passed(&m), failed(&m);
     Label if_found(&m), if_not_found(&m), if_bailout(&m), if_absent(&m);
@@ -1435,21 +1441,23 @@ TEST(TryLookupElement) {
                        &if_not_found, &if_bailout);
 
     m.BIND(&if_found);
-    m.Branch(m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
-             &passed, &failed);
+    m.Branch(
+        m.TaggedEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
+        &passed, &failed);
 
     m.BIND(&if_absent);
-    m.Branch(m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kAbsent))),
-             &passed, &failed);
+    m.Branch(
+        m.TaggedEqual(expected_result, m.SmiConstant(Smi::FromInt(kAbsent))),
+        &passed, &failed);
 
     m.BIND(&if_not_found);
     m.Branch(
-        m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kNotFound))),
+        m.TaggedEqual(expected_result, m.SmiConstant(Smi::FromInt(kNotFound))),
         &passed, &failed);
 
     m.BIND(&if_bailout);
     m.Branch(
-        m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kBailout))),
+        m.TaggedEqual(expected_result, m.SmiConstant(Smi::FromInt(kBailout))),
         &passed, &failed);
 
     m.BIND(&passed);
@@ -1934,11 +1942,11 @@ TEST(Arguments) {
   CodeStubArguments arguments(&m, m.IntPtrConstant(3));
 
   CSA_ASSERT(
-      &m, m.WordEqual(arguments.AtIndex(0), m.SmiConstant(Smi::FromInt(12))));
+      &m, m.TaggedEqual(arguments.AtIndex(0), m.SmiConstant(Smi::FromInt(12))));
   CSA_ASSERT(
-      &m, m.WordEqual(arguments.AtIndex(1), m.SmiConstant(Smi::FromInt(13))));
+      &m, m.TaggedEqual(arguments.AtIndex(1), m.SmiConstant(Smi::FromInt(13))));
   CSA_ASSERT(
-      &m, m.WordEqual(arguments.AtIndex(2), m.SmiConstant(Smi::FromInt(14))));
+      &m, m.TaggedEqual(arguments.AtIndex(2), m.SmiConstant(Smi::FromInt(14))));
 
   arguments.PopAndReturn(arguments.GetReceiver());
 
@@ -1962,17 +1970,17 @@ TEST(ArgumentsWithSmiConstantIndices) {
                               CodeStubAssembler::SMI_PARAMETERS);
 
   CSA_ASSERT(&m,
-             m.WordEqual(arguments.AtIndex(m.SmiConstant(0),
-                                           CodeStubAssembler::SMI_PARAMETERS),
-                         m.SmiConstant(Smi::FromInt(12))));
+             m.TaggedEqual(arguments.AtIndex(m.SmiConstant(0),
+                                             CodeStubAssembler::SMI_PARAMETERS),
+                           m.SmiConstant(Smi::FromInt(12))));
   CSA_ASSERT(&m,
-             m.WordEqual(arguments.AtIndex(m.SmiConstant(1),
-                                           CodeStubAssembler::SMI_PARAMETERS),
-                         m.SmiConstant(Smi::FromInt(13))));
+             m.TaggedEqual(arguments.AtIndex(m.SmiConstant(1),
+                                             CodeStubAssembler::SMI_PARAMETERS),
+                           m.SmiConstant(Smi::FromInt(13))));
   CSA_ASSERT(&m,
-             m.WordEqual(arguments.AtIndex(m.SmiConstant(2),
-                                           CodeStubAssembler::SMI_PARAMETERS),
-                         m.SmiConstant(Smi::FromInt(14))));
+             m.TaggedEqual(arguments.AtIndex(m.SmiConstant(2),
+                                             CodeStubAssembler::SMI_PARAMETERS),
+                           m.SmiConstant(Smi::FromInt(14))));
 
   arguments.PopAndReturn(arguments.GetReceiver());
 
@@ -2015,17 +2023,17 @@ TEST(ArgumentsWithSmiIndices) {
                               CodeStubAssembler::SMI_PARAMETERS);
 
   CSA_ASSERT(&m,
-             m.WordEqual(arguments.AtIndex(NonConstantSmi(&m, 0),
-                                           CodeStubAssembler::SMI_PARAMETERS),
-                         m.SmiConstant(Smi::FromInt(12))));
+             m.TaggedEqual(arguments.AtIndex(NonConstantSmi(&m, 0),
+                                             CodeStubAssembler::SMI_PARAMETERS),
+                           m.SmiConstant(Smi::FromInt(12))));
   CSA_ASSERT(&m,
-             m.WordEqual(arguments.AtIndex(NonConstantSmi(&m, 1),
-                                           CodeStubAssembler::SMI_PARAMETERS),
-                         m.SmiConstant(Smi::FromInt(13))));
+             m.TaggedEqual(arguments.AtIndex(NonConstantSmi(&m, 1),
+                                             CodeStubAssembler::SMI_PARAMETERS),
+                           m.SmiConstant(Smi::FromInt(13))));
   CSA_ASSERT(&m,
-             m.WordEqual(arguments.AtIndex(NonConstantSmi(&m, 2),
-                                           CodeStubAssembler::SMI_PARAMETERS),
-                         m.SmiConstant(Smi::FromInt(14))));
+             m.TaggedEqual(arguments.AtIndex(NonConstantSmi(&m, 2),
+                                             CodeStubAssembler::SMI_PARAMETERS),
+                           m.SmiConstant(Smi::FromInt(14))));
 
   arguments.PopAndReturn(arguments.GetReceiver());
 
@@ -3342,8 +3350,9 @@ TEST(SingleInputPhiElimination) {
     Label end_label(&m, {&temp1, &temp2});
     temp1.Bind(m.Parameter(1));
     temp2.Bind(m.Parameter(1));
-    m.Branch(m.WordEqual(m.Parameter(0), m.Parameter(1)), &end_label,
-             &temp_label);
+    m.Branch(m.TaggedEqual(m.UncheckedCast<Object>(m.Parameter(0)),
+                           m.UncheckedCast<Object>(m.Parameter(1))),
+             &end_label, &temp_label);
     temp1.Bind(m.Parameter(2));
     temp2.Bind(m.Parameter(2));
     m.BIND(&temp_label);

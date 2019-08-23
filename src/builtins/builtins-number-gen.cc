@@ -118,7 +118,7 @@ TF_BUILTIN(NumberIsNaN, CodeStubAssembler) {
   GotoIfNot(IsHeapNumber(number), &return_false);
 
   // Check if {number} contains a NaN value.
-  Node* number_value = LoadHeapNumberValue(number);
+  TNode<Float64T> number_value = LoadHeapNumberValue(number);
   BranchIfFloat64IsNaN(number_value, &return_true, &return_false);
 
   BIND(&return_true);
@@ -229,15 +229,15 @@ TF_BUILTIN(NumberParseFloat, CodeStubAssembler) {
 
 // ES6 #sec-number.parseint
 TF_BUILTIN(ParseInt, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* input = Parameter(Descriptor::kString);
-  Node* radix = Parameter(Descriptor::kRadix);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> input = CAST(Parameter(Descriptor::kString));
+  TNode<Object> radix = CAST(Parameter(Descriptor::kRadix));
 
   // Check if {radix} is treated as 10 (i.e. undefined, 0 or 10).
   Label if_radix10(this), if_generic(this, Label::kDeferred);
   GotoIf(IsUndefined(radix), &if_radix10);
-  GotoIf(WordEqual(radix, SmiConstant(10)), &if_radix10);
-  GotoIf(WordEqual(radix, SmiConstant(0)), &if_radix10);
+  GotoIf(TaggedEqual(radix, SmiConstant(10)), &if_radix10);
+  GotoIf(TaggedEqual(radix, SmiConstant(0)), &if_radix10);
   Goto(&if_generic);
 
   BIND(&if_radix10);
@@ -246,7 +246,7 @@ TF_BUILTIN(ParseInt, CodeStubAssembler) {
     Label if_inputissmi(this), if_inputisheapnumber(this),
         if_inputisstring(this);
     GotoIf(TaggedIsSmi(input), &if_inputissmi);
-    Node* input_map = LoadMap(input);
+    Node* input_map = LoadMap(CAST(input));
     GotoIf(IsHeapNumberMap(input_map), &if_inputisheapnumber);
     Node* input_instance_type = LoadMapInstanceType(input_map);
     Branch(IsStringInstanceType(input_instance_type), &if_inputisstring,
@@ -262,7 +262,7 @@ TF_BUILTIN(ParseInt, CodeStubAssembler) {
     {
       // Check if the {input} value is in Signed32 range.
       Label if_inputissigned32(this);
-      Node* input_value = LoadHeapNumberValue(input);
+      Node* input_value = LoadHeapNumberValue(CAST(input));
       Node* input_value32 = TruncateFloat64ToWord32(input_value);
       GotoIf(Float64Equal(input_value, ChangeInt32ToFloat64(input_value32)),
              &if_inputissigned32);
@@ -286,7 +286,7 @@ TF_BUILTIN(ParseInt, CodeStubAssembler) {
     BIND(&if_inputisstring);
     {
       // Check if the String {input} has a cached array index.
-      Node* input_hash = LoadNameHashField(input);
+      Node* input_hash = LoadNameHashField(CAST(input));
       GotoIf(IsSetWord32(input_hash, Name::kDoesNotContainCachedArrayIndexMask),
              &if_generic);
 
@@ -851,8 +851,8 @@ TF_BUILTIN(Divide, NumberBuiltinsAssembler) {
     }
     BIND(&dividend_is_not_zero);
 
-    Node* untagged_divisor = SmiToInt32(divisor);
-    Node* untagged_dividend = SmiToInt32(dividend);
+    TNode<Int32T> untagged_divisor = SmiToInt32(divisor);
+    TNode<Int32T> untagged_dividend = SmiToInt32(dividend);
 
     // Do floating point division if {dividend} is kMinInt (or kMinInt - 1
     // if the Smi size is 31) and {divisor} is -1.
@@ -872,8 +872,9 @@ TF_BUILTIN(Divide, NumberBuiltinsAssembler) {
 
     // TODO(epertoso): consider adding a machine instruction that returns
     // both the result and the remainder.
-    Node* untagged_result = Int32Div(untagged_dividend, untagged_divisor);
-    Node* truncated = Int32Mul(untagged_result, untagged_divisor);
+    TNode<Int32T> untagged_result =
+        Int32Div(untagged_dividend, untagged_divisor);
+    TNode<Int32T> truncated = Int32Mul(untagged_result, untagged_divisor);
     // Do floating point division if the remainder is not 0.
     GotoIf(Word32NotEqual(untagged_dividend, truncated), &bailout);
     Return(SmiFromInt32(untagged_result));

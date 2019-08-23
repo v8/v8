@@ -458,8 +458,13 @@ class MachineRepresentationChecker {
             break;
           case IrOpcode::kWord64Equal:
             if (Is64()) {
-              CheckValueInputIsTaggedOrPointer(node, 0);
-              CheckValueInputIsTaggedOrPointer(node, 1);
+              if (COMPRESS_POINTERS_BOOL) {
+                CheckValueInputForInt64Op(node, 0);
+                CheckValueInputForInt64Op(node, 1);
+              } else {
+                CheckValueInputIsTaggedOrPointer(node, 0);
+                CheckValueInputIsTaggedOrPointer(node, 1);
+              }
               if (!is_stub_) {
                 CheckValueInputRepresentationIs(
                     node, 1, inferrer_->GetRepresentation(node->InputAt(0)));

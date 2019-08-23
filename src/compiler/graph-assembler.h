@@ -224,6 +224,9 @@ class GraphAssembler {
 
   Node* Unreachable();
 
+  Node* IntPtrEqual(Node* left, Node* right);
+  Node* TaggedEqual(Node* left, Node* right);
+
   Node* Float64RoundDown(Node* value);
   Node* Float64RoundTruncate(Node* value);
 

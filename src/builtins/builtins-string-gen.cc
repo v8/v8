@@ -169,15 +169,13 @@ void StringBuiltinsAssembler::GenerateStringEqual(TNode<String> left,
 }
 
 void StringBuiltinsAssembler::StringEqual_Core(
-    Node* lhs, Node* lhs_instance_type, Node* rhs, Node* rhs_instance_type,
-    TNode<IntPtrT> length, Label* if_equal, Label* if_not_equal,
-    Label* if_indirect) {
-  CSA_ASSERT(this, IsString(lhs));
-  CSA_ASSERT(this, IsString(rhs));
+    SloppyTNode<String> lhs, Node* lhs_instance_type, SloppyTNode<String> rhs,
+    Node* rhs_instance_type, TNode<IntPtrT> length, Label* if_equal,
+    Label* if_not_equal, Label* if_indirect) {
   CSA_ASSERT(this, WordEqual(LoadStringLengthAsWord(lhs), length));
   CSA_ASSERT(this, WordEqual(LoadStringLengthAsWord(rhs), length));
   // Fast check to see if {lhs} and {rhs} refer to the same String object.
-  GotoIf(WordEqual(lhs, rhs), if_equal);
+  GotoIf(TaggedEqual(lhs, rhs), if_equal);
 
   // Combine the instance types into a single 16-bit value, so we can check
   // both of them at once.
@@ -214,7 +212,7 @@ void StringBuiltinsAssembler::StringEqual_Core(
   int const kOneTwoByteStringTag = kOneByteStringTag | (kTwoByteStringTag << 8);
   Label if_oneonebytestring(this), if_twotwobytestring(this),
       if_onetwobytestring(this), if_twoonebytestring(this);
-  Node* masked_instance_types =
+  TNode<Word32T> masked_instance_types =
       Word32And(both_instance_types, Int32Constant(kBothStringEncodingMask));
   GotoIf(
       Word32Equal(masked_instance_types, Int32Constant(kOneOneByteStringTag)),
@@ -271,14 +269,14 @@ void StringBuiltinsAssembler::StringEqual_Loop(
     GotoIf(WordEqual(var_offset.value(), length), if_equal);
 
     // Load the next characters from {lhs} and {rhs}.
-    Node* lhs_value =
+    TNode<Word32T> lhs_value = UncheckedCast<Word32T>(
         Load(lhs_type, lhs_data,
              WordShl(var_offset.value(),
-                     ElementSizeLog2Of(lhs_type.representation())));
-    Node* rhs_value =
+                     ElementSizeLog2Of(lhs_type.representation()))));
+    TNode<Word32T> rhs_value = UncheckedCast<Word32T>(
         Load(rhs_type, rhs_data,
              WordShl(var_offset.value(),
-                     ElementSizeLog2Of(rhs_type.representation())));
+                     ElementSizeLog2Of(rhs_type.representation()))));
 
     // Check if the characters match.
     GotoIf(Word32NotEqual(lhs_value, rhs_value), if_not_equal);
@@ -339,7 +337,7 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
   TNode<String> lhs = var_left.value();
   TNode<String> rhs = var_right.value();
   // Fast check to see if {lhs} and {rhs} refer to the same String object.
-  GotoIf(WordEqual(lhs, rhs), &if_equal);
+  GotoIf(TaggedEqual(lhs, rhs), &if_equal);
 
   // Load instance types of {lhs} and {rhs}.
   TNode<Uint16T> lhs_instance_type = LoadInstanceType(lhs);
@@ -392,8 +390,8 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
       BIND(&if_notdone);
       {
         // Load the next characters from {lhs} and {rhs}.
-        Node* lhs_value = Load(MachineType::Uint8(), lhs, var_offset.value());
-        Node* rhs_value = Load(MachineType::Uint8(), rhs, var_offset.value());
+        TNode<Uint8T> lhs_value = Load<Uint8T>(lhs, var_offset.value());
+        TNode<Uint8T> rhs_value = Load<Uint8T>(rhs, var_offset.value());
 
         // Check if the characters match.
         Label if_valueissame(this), if_valueisnotsame(this);
@@ -703,7 +701,7 @@ void StringBuiltinsAssembler::StringIndexOf(
   // If the string pointers are identical, we can just return 0. Note that this
   // implies {start_position} == 0 since we've passed the check above.
   Label return_zero(this);
-  GotoIf(WordEqual(subject_string, search_string), &return_zero);
+  GotoIf(TaggedEqual(subject_string, search_string), &return_zero);
 
   // Try to unpack subject and search strings. Bail to runtime if either needs
   // to be flattened.
@@ -765,11 +763,11 @@ void StringBuiltinsAssembler::StringIndexOf(
 
       Node* const memchr =
           ExternalConstant(ExternalReference::libc_memchr_function());
-      Node* const result_address =
+      TNode<IntPtrT> const result_address = UncheckedCast<IntPtrT>(
           CallCFunction(memchr, MachineType::Pointer(),
                         std::make_pair(MachineType::Pointer(), string_addr),
                         std::make_pair(MachineType::IntPtr(), search_byte),
-                        std::make_pair(MachineType::UintPtr(), search_length));
+                        std::make_pair(MachineType::UintPtr(), search_length)));
       GotoIf(WordEqual(result_address, int_zero), &return_minus_1);
       Node* const result_index =
           IntPtrAdd(IntPtrSub(result_address, string_addr), start_position);
@@ -883,8 +881,8 @@ void StringIncludesIndexOfAssembler::Generate(SearchVariant variant,
   CodeStubArguments arguments(this, argc);
   Node* const receiver = arguments.GetReceiver();
 
-  VARIABLE(var_search_string, MachineRepresentation::kTagged);
-  VARIABLE(var_position, MachineRepresentation::kTagged);
+  TVARIABLE(Object, var_search_string);
+  TVARIABLE(Object, var_position);
   Label argc_1(this), argc_2(this), call_runtime(this, Label::kDeferred),
       fast_path(this);
 
@@ -893,23 +891,23 @@ void StringIncludesIndexOfAssembler::Generate(SearchVariant variant,
   {
     Comment("0 Argument case");
     CSA_ASSERT(this, IntPtrEqual(argc, IntPtrConstant(0)));
-    Node* const undefined = UndefinedConstant();
-    var_search_string.Bind(undefined);
-    var_position.Bind(undefined);
+    TNode<Oddball> undefined = UndefinedConstant();
+    var_search_string = undefined;
+    var_position = undefined;
     Goto(&call_runtime);
   }
   BIND(&argc_1);
   {
     Comment("1 Argument case");
-    var_search_string.Bind(arguments.AtIndex(0));
-    var_position.Bind(SmiConstant(0));
+    var_search_string = arguments.AtIndex(0);
+    var_position = SmiConstant(0);
     Goto(&fast_path);
   }
   BIND(&argc_2);
   {
     Comment("2 Argument case");
-    var_search_string.Bind(arguments.AtIndex(0));
-    var_position.Bind(arguments.AtIndex(1));
+    var_search_string = arguments.AtIndex(0);
+    var_position = arguments.AtIndex(1);
     GotoIfNot(TaggedIsSmi(var_position.value()), &call_runtime);
     Goto(&fast_path);
   }
@@ -1611,8 +1609,7 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   Label return_empty_array(this);
 
   // Shortcut for {limit} == 0.
-  GotoIf(WordEqual<Object, Object>(limit_number, smi_zero),
-         &return_empty_array);
+  GotoIf(TaggedEqual(limit_number, smi_zero), &return_empty_array);
 
   // ECMA-262 says that if {separator} is undefined, the result should
   // be an array of size 1 containing the entire string.
@@ -1851,8 +1848,8 @@ void StringTrimAssembler::Generate(String::TrimMode mode,
 
 void StringTrimAssembler::ScanForNonWhiteSpaceOrLineTerminator(
     Node* const string_data, Node* const string_data_offset,
-    Node* const is_stringonebyte, Variable* const var_index, Node* const end,
-    int increment, Label* const if_none_found) {
+    Node* const is_stringonebyte, TVariable<IntPtrT>* const var_index,
+    TNode<IntPtrT> const end, int increment, Label* const if_none_found) {
   Label if_stringisonebyte(this), out(this);
 
   GotoIf(is_stringonebyte, &if_stringisonebyte);
@@ -1876,14 +1873,14 @@ void StringTrimAssembler::ScanForNonWhiteSpaceOrLineTerminator(
 }
 
 void StringTrimAssembler::BuildLoop(
-    Variable* const var_index, Node* const end, int increment,
-    Label* const if_none_found, Label* const out,
+    TVariable<IntPtrT>* const var_index, TNode<IntPtrT> const end,
+    int increment, Label* const if_none_found, Label* const out,
     const std::function<Node*(Node*)>& get_character) {
   Label loop(this, var_index);
   Goto(&loop);
   BIND(&loop);
   {
-    Node* const index = var_index->value();
+    TNode<IntPtrT> index = var_index->value();
     GotoIf(IntPtrEqual(index, end), if_none_found);
     GotoIfNotWhiteSpaceOrLineTerminator(
         UncheckedCast<Uint32T>(get_character(index)), out);
@@ -1893,7 +1890,7 @@ void StringTrimAssembler::BuildLoop(
 }
 
 void StringTrimAssembler::GotoIfNotWhiteSpaceOrLineTerminator(
-    Node* const char_code, Label* const if_not_whitespace) {
+    TNode<Word32T> const char_code, Label* const if_not_whitespace) {
   Label out(this);
 
   // 0x0020 - SPACE (Intentionally out of order to fast path a commmon case)
@@ -2020,11 +2017,13 @@ void StringBuiltinsAssembler::BranchIfStringPrimitiveWithNoCustomIteration(
 
   // Check that the String iterator hasn't been modified in a way that would
   // affect iteration.
-  Node* protector_cell = LoadRoot(RootIndex::kStringIteratorProtector);
+  TNode<PropertyCell> protector_cell =
+      CAST(LoadRoot(RootIndex::kStringIteratorProtector));
   DCHECK(isolate()->heap()->string_iterator_protector().IsPropertyCell());
-  Branch(WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                   SmiConstant(Isolate::kProtectorValid)),
-         if_true, if_false);
+  Branch(
+      TaggedEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
+                  SmiConstant(Isolate::kProtectorValid)),
+      if_true, if_false);
 }
 
 }  // namespace internal

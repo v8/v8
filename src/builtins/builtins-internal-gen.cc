@@ -116,7 +116,7 @@ TF_BUILTIN(NewArgumentsElements, CodeStubAssembler) {
         TNode<IntPtrT> index = var_index.value();
 
         // Check if we are done.
-        GotoIf(WordEqual(index, number_of_holes), &done_loop1);
+        GotoIf(IntPtrEqual(index, number_of_holes), &done_loop1);
 
         // Store the hole into the {result}.
         StoreFixedArrayElement(result, index, the_hole, SKIP_WRITE_BARRIER);
@@ -139,7 +139,7 @@ TF_BUILTIN(NewArgumentsElements, CodeStubAssembler) {
         TNode<IntPtrT> index = var_index.value();
 
         // Check if we are done.
-        GotoIf(WordEqual(index, length), &done_loop2);
+        GotoIf(IntPtrEqual(index, length), &done_loop2);
 
         // Load the parameter at the given {index}.
         TNode<Object> value = BitcastWordToTagged(
@@ -266,12 +266,12 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     }
   }
 
-  Node* ShouldSkipFPRegs(Node* mode) {
-    return WordEqual(mode, SmiConstant(kDontSaveFPRegs));
+  Node* ShouldSkipFPRegs(SloppyTNode<Object> mode) {
+    return TaggedEqual(mode, SmiConstant(kDontSaveFPRegs));
   }
 
-  Node* ShouldEmitRememberSet(Node* remembered_set) {
-    return WordEqual(remembered_set, SmiConstant(EMIT_REMEMBERED_SET));
+  Node* ShouldEmitRememberSet(SloppyTNode<Object> remembered_set) {
+    return TaggedEqual(remembered_set, SmiConstant(EMIT_REMEMBERED_SET));
   }
 
   void CallCFunction1WithCallerSavedRegistersMode(MachineType return_type,
@@ -334,11 +334,12 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     StoreNoWriteBarrier(MachineType::PointerRepresentation(),
                         store_buffer_top_addr, new_store_buffer_top);
 
-    Node* test = WordAnd(new_store_buffer_top,
-                         IntPtrConstant(Heap::store_buffer_mask_constant()));
+    TNode<WordT> test =
+        WordAnd(new_store_buffer_top,
+                IntPtrConstant(Heap::store_buffer_mask_constant()));
 
     Label overflow(this);
-    Branch(WordEqual(test, IntPtrConstant(0)), &overflow, next);
+    Branch(IntPtrEqual(test, IntPtrConstant(0)), &overflow, next);
 
     BIND(&overflow);
     {
@@ -679,7 +680,8 @@ class SetOrCopyDataPropertiesAssembler : public CodeStubAssembler {
       // handled explicitly by Object.assign() and CopyDataProperties.
       GotoIfNot(IsStringInstanceType(source_instance_type), &if_done);
       TNode<IntPtrT> source_length = LoadStringLengthAsWord(CAST(source));
-      Branch(WordEqual(source_length, IntPtrConstant(0)), &if_done, if_runtime);
+      Branch(IntPtrEqual(source_length, IntPtrConstant(0)), &if_done,
+             if_runtime);
     }
 
     BIND(&if_done);
@@ -695,7 +697,7 @@ TF_BUILTIN(CopyDataProperties, SetOrCopyDataPropertiesAssembler) {
   TNode<Object> source = CAST(Parameter(Descriptor::kSource));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
-  CSA_ASSERT(this, WordNotEqual(target, source));
+  CSA_ASSERT(this, TaggedNotEqual(target, source));
 
   Label if_runtime(this, Label::kDeferred);
   Return(SetOrCopyDataProperties(context, target, source, &if_runtime, false));
@@ -1005,7 +1007,7 @@ TF_BUILTIN(GetPropertyWithReceiver, CodeStubAssembler) {
   Node* key = Parameter(Descriptor::kKey);
   Node* context = Parameter(Descriptor::kContext);
   Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* on_non_existent = Parameter(Descriptor::kOnNonExistent);
+  TNode<Object> on_non_existent = CAST(Parameter(Descriptor::kOnNonExistent));
   Label if_notfound(this), if_proxy(this, Label::kDeferred),
       if_slow(this, Label::kDeferred);
 
@@ -1037,11 +1039,11 @@ TF_BUILTIN(GetPropertyWithReceiver, CodeStubAssembler) {
 
   BIND(&if_notfound);
   Label throw_reference_error(this);
-  GotoIf(WordEqual(on_non_existent,
-                   SmiConstant(OnNonExistent::kThrowReferenceError)),
+  GotoIf(TaggedEqual(on_non_existent,
+                     SmiConstant(OnNonExistent::kThrowReferenceError)),
          &throw_reference_error);
-  CSA_ASSERT(this, WordEqual(on_non_existent,
-                             SmiConstant(OnNonExistent::kReturnUndefined)));
+  CSA_ASSERT(this, TaggedEqual(on_non_existent,
+                               SmiConstant(OnNonExistent::kReturnUndefined)));
   Return(UndefinedConstant());
 
   BIND(&throw_reference_error);

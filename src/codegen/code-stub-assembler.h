@@ -37,7 +37,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(PromiseSpeciesProtector, promise_species_protector,                    \
     PromiseSpeciesProtector)                                               \
   V(TypedArraySpeciesProtector, typed_array_species_protector,             \
-    TypedArraySpeciesProtector)                                            \
+    TypedArraySpeciesProtector)
 
 #define HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(V)                                \
   V(AccessorInfoMap, accessor_info_map, AccessorInfoMap)                       \
@@ -139,8 +139,8 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 #define CSA_ASSERT_JS_ARGC_OP(csa, Op, op, expected)                         \
   (csa)->Assert(                                                             \
       [&]() -> compiler::Node* {                                             \
-        compiler::Node* const argc =                                         \
-            (csa)->Parameter(Descriptor::kJSActualArgumentsCount);           \
+        TNode<Word32T> const argc = UncheckedCast<Word32T>(                  \
+            (csa)->Parameter(Descriptor::kJSActualArgumentsCount));          \
         return (csa)->Op(argc, (csa)->Int32Constant(expected));              \
       },                                                                     \
       "argc " #op " " #expected, __FILE__, __LINE__,                         \
@@ -220,8 +220,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // fewer live ranges. Thus only convert indices to untagged value on 64-bit
   // platforms.
   ParameterMode OptimalParameterMode() const {
-    return !COMPRESS_POINTERS_BOOL && Is64() ? INTPTR_PARAMETERS
-                                             : SMI_PARAMETERS;
+#if defined(BINT_IS_SMI)
+    return SMI_PARAMETERS;
+#elif defined(BINT_IS_INTPTR)
+    return INTPTR_PARAMETERS;
+#else
+#error Unknown BInt type.
+#endif
   }
 
   MachineRepresentation ParameterRepresentation(ParameterMode mode) const {
@@ -276,7 +281,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return false;
   }
 
-#if defined(V8_HOST_ARCH_32_BIT) || defined(V8_COMPRESS_POINTERS)
+#if defined(BINT_IS_SMI)
   TNode<Smi> BIntToSmi(TNode<BInt> source) { return source; }
   TNode<IntPtrT> BIntToIntPtr(TNode<BInt> source) {
     return SmiToIntPtr(source);
@@ -285,7 +290,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BInt> IntPtrToBInt(TNode<IntPtrT> source) {
     return SmiFromIntPtr(source);
   }
-#elif defined(V8_HOST_ARCH_64_BIT)
+#elif defined(BINT_IS_INTPTR)
   TNode<Smi> BIntToSmi(TNode<BInt> source) { return SmiFromIntPtr(source); }
   TNode<IntPtrT> BIntToIntPtr(TNode<BInt> source) { return source; }
   TNode<BInt> SmiToBInt(TNode<Smi> source) { return SmiToIntPtr(source); }
@@ -403,6 +408,36 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   intptr_t ConstexprWordNot(intptr_t a) { return ~a; }
   uintptr_t ConstexprWordNot(uintptr_t a) { return ~a; }
 
+  TNode<BoolT> TaggedEqual(TNode<UnionT<Object, MaybeObject>> a,
+                           TNode<UnionT<Object, MaybeObject>> b) {
+    // We use very sketchy looking ReinterpretCasts here to avoid adding bit
+    // casts (which mess with GVN since they introduce themselves into the
+    // effect chain). It happens to be safe here, but don't try this at home!
+    if (kTaggedSize == kInt64Size) {
+      return WordEqual(ReinterpretCast<WordT>(a), ReinterpretCast<WordT>(b));
+    } else {
+      DCHECK_EQ(kTaggedSize, kInt32Size);
+      // These casts will also truncate under pointer compression.
+      return Word32Equal(ReinterpretCast<Word32T>(a),
+                         ReinterpretCast<Word32T>(b));
+    }
+  }
+
+  TNode<BoolT> TaggedNotEqual(TNode<UnionT<Object, MaybeObject>> a,
+                              TNode<UnionT<Object, MaybeObject>> b) {
+    // We use very sketchy looking ReinterpretCasts here to avoid adding bit
+    // casts (which mess with GVN since they introduce themselves into the
+    // effect chain). It happens to be safe here, but don't try this at home!
+    if (kTaggedSize == kInt64Size) {
+      return WordNotEqual(ReinterpretCast<WordT>(a), ReinterpretCast<WordT>(b));
+    } else {
+      DCHECK_EQ(kTaggedSize, kInt32Size);
+      // These casts will also truncate under pointer compression.
+      return Word32NotEqual(ReinterpretCast<Word32T>(a),
+                            ReinterpretCast<Word32T>(b));
+    }
+  }
+
   TNode<Object> NoContextConstant();
 
 #define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name)  \
@@ -425,7 +460,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   HEAP_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_TEST)
 #undef HEAP_CONSTANT_TEST
 
+  TNode<BInt> BIntConstant(int value);
+
   Node* IntPtrOrSmiConstant(int value, ParameterMode mode);
+  TNode<BoolT> IntPtrOrSmiEqual(Node* left, Node* right, ParameterMode mode);
+  TNode<BoolT> IntPtrOrSmiNotEqual(Node* left, Node* right, ParameterMode mode);
 
   bool IsIntPtrOrSmiConstantZero(Node* test, ParameterMode mode);
   bool TryGetIntPtrOrSmiConstantValue(Node* maybe_constant, int* value,
@@ -511,15 +550,35 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   TNode<Smi> SmiShr(TNode<Smi> a, int shift) {
-    return BitcastWordToTaggedSigned(
-        WordAnd(WordShr(BitcastTaggedSignedToWord(a), shift),
-                BitcastTaggedSignedToWord(SmiConstant(-1))));
+    if (kTaggedSize == kInt64Size) {
+      return BitcastWordToTaggedSigned(
+          WordAnd(WordShr(BitcastTaggedSignedToWord(a), shift),
+                  BitcastTaggedSignedToWord(SmiConstant(-1))));
+    } else {
+      // For pointer compressed Smis, we want to make sure that we truncate to
+      // int32 before shifting, to avoid the values of the top 32-bits from
+      // leaking into the sign bit of the smi.
+      return BitcastWordToTaggedSigned(WordAnd(
+          ChangeInt32ToIntPtr(Word32Shr(
+              TruncateWordToInt32(BitcastTaggedSignedToWord(a)), shift)),
+          BitcastTaggedSignedToWord(SmiConstant(-1))));
+    }
   }
 
   TNode<Smi> SmiSar(TNode<Smi> a, int shift) {
-    return BitcastWordToTaggedSigned(
-        WordAnd(WordSar(BitcastTaggedSignedToWord(a), shift),
-                BitcastTaggedSignedToWord(SmiConstant(-1))));
+    if (kTaggedSize == kInt64Size) {
+      return BitcastWordToTaggedSigned(
+          WordAnd(WordSar(BitcastTaggedSignedToWord(a), shift),
+                  BitcastTaggedSignedToWord(SmiConstant(-1))));
+    } else {
+      // For pointer compressed Smis, we want to make sure that we truncate to
+      // int32 before shifting, to avoid the values of the top 32-bits from
+      // changing the sign bit of the smi.
+      return BitcastWordToTaggedSigned(WordAnd(
+          ChangeInt32ToIntPtr(Word32Sar(
+              TruncateWordToInt32(BitcastTaggedSignedToWord(a)), shift)),
+          BitcastTaggedSignedToWord(SmiConstant(-1))));
+    }
   }
 
   Node* WordOrSmiShl(Node* a, int shift, ParameterMode mode) {
@@ -542,10 +601,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
 #define SMI_COMPARISON_OP(SmiOpName, IntPtrOpName, Int32OpName)                \
   TNode<BoolT> SmiOpName(TNode<Smi> a, TNode<Smi> b) {                         \
-    if (SmiValuesAre32Bits()) {                                                \
+    if (kTaggedSize == kInt64Size) {                                           \
       return IntPtrOpName(BitcastTaggedSignedToWord(a),                        \
                           BitcastTaggedSignedToWord(b));                       \
     } else {                                                                   \
+      DCHECK_EQ(kTaggedSize, kInt32Size);                                      \
       DCHECK(SmiValuesAre31Bits());                                            \
       if (kSystemPointerSize == kInt64Size) {                                  \
         CSA_ASSERT(this, IsValidSmi(a));                                       \
@@ -584,6 +644,31 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   //  0 iff x == y.
   //  1 iff x > y.
   TNode<Smi> SmiLexicographicCompare(TNode<Smi> x, TNode<Smi> y);
+
+#ifdef BINT_IS_SMI
+#define BINT_COMPARISON_OP(BIntOpName, SmiOpName, IntPtrOpName) \
+  TNode<BoolT> BIntOpName(TNode<BInt> a, TNode<BInt> b) {       \
+    return SmiOpName(a, b);                                     \
+  }
+#else
+#define BINT_COMPARISON_OP(BIntOpName, SmiOpName, IntPtrOpName) \
+  TNode<BoolT> BIntOpName(TNode<BInt> a, TNode<BInt> b) {       \
+    return IntPtrOpName(a, b);                                  \
+  }
+#endif
+  BINT_COMPARISON_OP(BIntEqual, SmiEqual, WordEqual)
+  BINT_COMPARISON_OP(BIntNotEqual, SmiNotEqual, WordNotEqual)
+  BINT_COMPARISON_OP(BIntAbove, SmiAbove, UintPtrGreaterThan)
+  BINT_COMPARISON_OP(BIntAboveOrEqual, SmiAboveOrEqual,
+                     UintPtrGreaterThanOrEqual)
+  BINT_COMPARISON_OP(BIntBelow, SmiBelow, UintPtrLessThan)
+  BINT_COMPARISON_OP(BIntLessThan, SmiLessThan, IntPtrLessThan)
+  BINT_COMPARISON_OP(BIntLessThanOrEqual, SmiLessThanOrEqual,
+                     IntPtrLessThanOrEqual)
+  BINT_COMPARISON_OP(BIntGreaterThan, SmiGreaterThan, IntPtrGreaterThan)
+  BINT_COMPARISON_OP(BIntGreaterThanOrEqual, SmiGreaterThanOrEqual,
+                     IntPtrGreaterThanOrEqual)
+#undef BINT_COMPARISON_OP
 
   // Smi | HeapNumber operations.
   TNode<Number> NumberInc(SloppyTNode<Number> value);
@@ -718,6 +803,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
             single_char[0]));
   }
 
+  TNode<Int32T> TruncateWordToInt32(SloppyTNode<WordT> value);
   TNode<Int32T> TruncateIntPtrToInt32(SloppyTNode<IntPtrT> value);
 
   // Check a value for smi-ness
@@ -756,21 +842,25 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     Branch(SmiLessThanOrEqual(a, b), if_true, if_false);
   }
 
-  void BranchIfFloat64IsNaN(Node* value, Label* if_true, Label* if_false) {
+  void BranchIfFloat64IsNaN(TNode<Float64T> value, Label* if_true,
+                            Label* if_false) {
     Branch(Float64Equal(value, value), if_false, if_true);
   }
 
   // Branches to {if_true} if ToBoolean applied to {value} yields true,
   // otherwise goes to {if_false}.
-  void BranchIfToBooleanIsTrue(Node* value, Label* if_true, Label* if_false);
+  void BranchIfToBooleanIsTrue(SloppyTNode<Object> value, Label* if_true,
+                               Label* if_false);
 
   // Branches to {if_false} if ToBoolean applied to {value} yields false,
   // otherwise goes to {if_true}.
-  void BranchIfToBooleanIsFalse(Node* value, Label* if_false, Label* if_true) {
+  void BranchIfToBooleanIsFalse(SloppyTNode<Object> value, Label* if_false,
+                                Label* if_true) {
     BranchIfToBooleanIsTrue(value, if_true, if_false);
   }
 
-  void BranchIfJSReceiver(Node* object, Label* if_true, Label* if_false);
+  void BranchIfJSReceiver(SloppyTNode<Object> object, Label* if_true,
+                          Label* if_false);
 
   // Branches to {if_true} when --force-slow-path flag has been passed.
   // It's used for testing to ensure that slow path implementation behave
@@ -909,7 +999,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void StoreAndTagSmi(Node* base, int offset, Node* value);
 
   // Load the floating point value of a HeapNumber.
-  TNode<Float64T> LoadHeapNumberValue(SloppyTNode<HeapNumber> object);
+  TNode<Float64T> LoadHeapNumberValue(SloppyTNode<HeapObject> object);
   // Load the Map of an HeapObject.
   TNode<Map> LoadMap(SloppyTNode<HeapObject> object);
   // Load the instance type of an HeapObject.
@@ -980,7 +1070,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load the constructor of a Map (equivalent to Map::GetConstructor()).
   TNode<Object> LoadMapConstructor(SloppyTNode<Map> map);
   // Load the EnumLength of a Map.
-  Node* LoadMapEnumLength(SloppyTNode<Map> map);
+  TNode<WordT> LoadMapEnumLength(SloppyTNode<Map> map);
   // Load the back-pointer of a Map.
   TNode<Object> LoadMapBackPointer(SloppyTNode<Map> map);
   // Checks that |map| has only simple properties, returns bitfield3.
@@ -1273,9 +1363,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Calling this is only valid if there's a module context in the chain.
   TNode<Context> LoadModuleContext(SloppyTNode<Context> context);
 
-  void GotoIfContextElementEqual(Node* value, Node* native_context,
-                                 int slot_index, Label* if_equal) {
-    GotoIf(WordEqual(value, LoadContextElement(native_context, slot_index)),
+  void GotoIfContextElementEqual(SloppyTNode<Object> value,
+                                 Node* native_context, int slot_index,
+                                 Label* if_equal) {
+    GotoIf(TaggedEqual(value, LoadContextElement(native_context, slot_index)),
            if_equal);
   }
 
@@ -1589,7 +1680,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <typename CollectionType>
   void FindOrderedHashTableEntry(
       Node* table, Node* hash,
-      const std::function<void(Node*, Label*, Label*)>& key_compare,
+      const std::function<void(TNode<Object>, Label*, Label*)>& key_compare,
       Variable* entry_start_position, Label* entry_found, Label* not_found);
 
   template <typename CollectionType>
@@ -1858,16 +1949,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<FixedDoubleArray> HeapObjectToFixedDoubleArray(TNode<HeapObject> base,
                                                        Label* cast_fail) {
-    GotoIf(
-        WordNotEqual(LoadMap(base), LoadRoot(RootIndex::kFixedDoubleArrayMap)),
-        cast_fail);
+    GotoIf(TaggedNotEqual(LoadMap(base),
+                          LoadRoot(RootIndex::kFixedDoubleArrayMap)),
+           cast_fail);
     return UncheckedCast<FixedDoubleArray>(base);
   }
 
   TNode<SloppyArgumentsElements> HeapObjectToSloppyArgumentsElements(
       TNode<HeapObject> base, Label* cast_fail) {
-    GotoIf(WordNotEqual(LoadMap(base),
-                        LoadRoot(RootIndex::kSloppyArgumentsElementsMap)),
+    GotoIf(TaggedNotEqual(LoadMap(base),
+                          LoadRoot(RootIndex::kSloppyArgumentsElementsMap)),
            cast_fail);
     return UncheckedCast<SloppyArgumentsElements>(base);
   }
@@ -1970,7 +2061,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // HOLEY_SMI_ELEMENTS kind, and a conversion took place, the result will be
   // compatible only with HOLEY_ELEMENTS and PACKED_ELEMENTS.
   TNode<FixedArray> ExtractToFixedArray(
-      Node* source, Node* first, Node* count, Node* capacity, Node* source_map,
+      SloppyTNode<FixedArrayBase> source, Node* first, Node* count,
+      Node* capacity, SloppyTNode<Map> source_map,
       ElementsKind from_kind = PACKED_ELEMENTS,
       AllocationFlags allocation_flags = AllocationFlag::kNone,
       ExtractFixedArrayFlags extract_flags =
@@ -2624,7 +2716,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Returns true if all of the mask's bits in given |word| are clear.
   TNode<BoolT> IsClearWord(SloppyTNode<WordT> word, uint32_t mask) {
-    return WordEqual(WordAnd(word, IntPtrConstant(mask)), IntPtrConstant(0));
+    return IntPtrEqual(WordAnd(word, IntPtrConstant(mask)), IntPtrConstant(0));
   }
 
   void SetCounter(StatsCounter* counter, int value);
@@ -2982,7 +3074,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Returns true if {object} has {prototype} somewhere in it's prototype
   // chain, otherwise false is returned. Might cause arbitrary side effects
   // due to [[GetPrototypeOf]] invocations.
-  Node* HasInPrototypeChain(Node* context, Node* object, Node* prototype);
+  Node* HasInPrototypeChain(Node* context, Node* object,
+                            SloppyTNode<Object> prototype);
   // ES6 section 7.3.19 OrdinaryHasInstance (C, O)
   Node* OrdinaryHasInstance(Node* context, Node* callable, Node* object);
 
@@ -3023,7 +3116,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Check if a property name might require protector invalidation when it is
   // used for a property store or deletion.
-  void CheckForAssociatedProtector(Node* name, Label* if_protector);
+  void CheckForAssociatedProtector(SloppyTNode<Name> name, Label* if_protector);
 
   TNode<Map> LoadReceiverMap(SloppyTNode<Object> receiver);
 
@@ -3081,7 +3174,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                         Variable* maybe_converted_value = nullptr);
 
   Node* CheckForCapacityGrow(Node* object, Node* elements, ElementsKind kind,
-                             Node* length, Node* key, ParameterMode mode,
+                             SloppyTNode<UintPtrT> length,
+                             SloppyTNode<WordT> key, ParameterMode mode,
                              Label* bailout);
 
   Node* CopyElementsOnWrite(Node* object, Node* elements, ElementsKind kind,
@@ -3174,11 +3268,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void InitializeFieldsWithRoot(Node* object, Node* start_offset,
                                 Node* end_offset, RootIndex root);
 
-  Node* RelationalComparison(Operation op, Node* left, Node* right,
-                             Node* context,
+  Node* RelationalComparison(Operation op, SloppyTNode<Object> left,
+                             SloppyTNode<Object> right,
+                             SloppyTNode<Context> context,
                              Variable* var_type_feedback = nullptr);
 
-  void BranchIfNumberRelationalComparison(Operation op, Node* left, Node* right,
+  void BranchIfNumberRelationalComparison(Operation op,
+                                          SloppyTNode<Number> left,
+                                          SloppyTNode<Number> right,
                                           Label* if_true, Label* if_false);
 
   void BranchIfNumberEqual(TNode<Number> left, TNode<Number> right,
@@ -3224,7 +3321,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void GotoIfNumberGreaterThanOrEqual(Node* left, Node* right, Label* if_false);
 
-  Node* Equal(Node* lhs, Node* rhs, Node* context,
+  Node* Equal(SloppyTNode<Object> lhs, SloppyTNode<Object> rhs,
+              SloppyTNode<Context> context,
               Variable* var_type_feedback = nullptr);
 
   TNode<Oddball> StrictEqual(SloppyTNode<Object> lhs, SloppyTNode<Object> rhs,
@@ -3234,7 +3332,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Similar to StrictEqual except that NaNs are treated as equal and minus zero
   // differs from positive zero.
   enum class SameValueMode { kNumbersOnly, kFull };
-  void BranchIfSameValue(Node* lhs, Node* rhs, Label* if_true, Label* if_false,
+  void BranchIfSameValue(SloppyTNode<Object> lhs, SloppyTNode<Object> rhs,
+                         Label* if_true, Label* if_false,
                          SameValueMode mode = SameValueMode::kFull);
   // A part of BranchIfSameValue() that handles two double values.
   // Treats NaN == NaN and +0 != -0.
@@ -3547,7 +3646,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                    TNode<Uint32T> entry_index);
 
   TNode<Smi> CollectFeedbackForString(SloppyTNode<Int32T> instance_type);
-  void GenerateEqual_Same(Node* value, Label* if_equal, Label* if_notequal,
+  void GenerateEqual_Same(SloppyTNode<Object> value, Label* if_equal,
+                          Label* if_notequal,
                           Variable* var_type_feedback = nullptr);
   TNode<String> AllocAndCopyStringCharacters(Node* from,
                                              Node* from_instance_type,

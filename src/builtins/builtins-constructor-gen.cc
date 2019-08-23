@@ -189,16 +189,18 @@ compiler::TNode<JSObject> ConstructorBuiltinsAssembler::EmitFastNewObject(
   BIND(&fast);
 
   // Load the initial map and verify that it's in fact a map.
-  Node* initial_map =
+  TNode<Object> initial_map_or_proto =
       LoadObjectField(new_target, JSFunction::kPrototypeOrInitialMapOffset);
-  GotoIf(TaggedIsSmi(initial_map), call_runtime);
-  GotoIf(DoesntHaveInstanceType(initial_map, MAP_TYPE), call_runtime);
+  GotoIf(TaggedIsSmi(initial_map_or_proto), call_runtime);
+  GotoIf(DoesntHaveInstanceType(CAST(initial_map_or_proto), MAP_TYPE),
+         call_runtime);
+  TNode<Map> initial_map = CAST(initial_map_or_proto);
 
   // Fall back to runtime if the target differs from the new target's
   // initial map constructor.
-  Node* new_target_constructor =
+  TNode<Object> new_target_constructor =
       LoadObjectField(initial_map, Map::kConstructorOrBackPointerOffset);
-  GotoIf(WordNotEqual(target, new_target_constructor), call_runtime);
+  GotoIf(TaggedNotEqual(target, new_target_constructor), call_runtime);
 
   VARIABLE(properties, MachineRepresentation::kTagged);
 
@@ -525,7 +527,7 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
     {
       Comment("Copy in-object properties fast");
       Label continue_fast(this, &offset);
-      Branch(WordEqual(offset.value(), instance_size), &done_init,
+      Branch(IntPtrEqual(offset.value(), instance_size), &done_init,
              &continue_fast);
       BIND(&continue_fast);
       if (may_use_mutable_heap_numbers) {
@@ -639,14 +641,14 @@ TF_BUILTIN(ObjectConstructor, ConstructorBuiltinsAssembler) {
       ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
   Node* context = Parameter(Descriptor::kContext);
-  Node* new_target = Parameter(Descriptor::kJSNewTarget);
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
 
   VARIABLE(var_result, MachineRepresentation::kTagged);
   Label if_subclass(this, Label::kDeferred), if_notsubclass(this),
       return_result(this);
   GotoIf(IsUndefined(new_target), &if_notsubclass);
   TNode<JSFunction> target = CAST(Parameter(Descriptor::kJSTarget));
-  Branch(WordEqual(new_target, target), &if_notsubclass, &if_subclass);
+  Branch(TaggedEqual(new_target, target), &if_notsubclass, &if_subclass);
 
   BIND(&if_subclass);
   {
@@ -688,14 +690,14 @@ TF_BUILTIN(ObjectConstructor, ConstructorBuiltinsAssembler) {
 // ES #sec-number-constructor
 TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
   Node* context = Parameter(Descriptor::kContext);
-  Node* argc =
+  TNode<WordT> argc =
       ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
   // 1. If no arguments were passed to this function invocation, let n be +0.
   VARIABLE(var_n, MachineRepresentation::kTagged, SmiConstant(0));
   Label if_nloaded(this, &var_n);
-  GotoIf(WordEqual(argc, IntPtrConstant(0)), &if_nloaded);
+  GotoIf(IntPtrEqual(argc, IntPtrConstant(0)), &if_nloaded);
 
   // 2. Else,
   //    a. Let prim be ? ToNumeric(value).
