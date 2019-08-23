@@ -158,7 +158,6 @@ class ZoneForwardList;
   V(JSReceiver)                                \
   V(JSRegExp)                                  \
   V(JSRegExpResult)                            \
-  V(JSRegExpResultIndices)                     \
   V(JSRegExpStringIterator)                    \
   V(JSSet)                                     \
   V(JSSetIterator)                             \
