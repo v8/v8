@@ -2433,6 +2433,23 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   return code;
 }
 
+struct BlockStartsAsJSON {
+  const ZoneVector<int>* block_starts;
+};
+
+std::ostream& operator<<(std::ostream& out, const BlockStartsAsJSON& s) {
+  out << ", \"blockIdToOffset\": {";
+  bool need_comma = false;
+  for (size_t i = 0; i < s.block_starts->size(); ++i) {
+    if (need_comma) out << ", ";
+    int offset = (*s.block_starts)[i];
+    out << "\"" << i << "\":" << offset;
+    need_comma = true;
+  }
+  out << "},";
+  return out;
+}
+
 // static
 wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
     wasm::WasmEngine* wasm_engine, CallDescriptor* call_descriptor,
@@ -2503,7 +2520,9 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
 
   if (info.trace_turbo_json_enabled()) {
     TurboJsonFile json_of(&info, std::ios_base::app);
-    json_of << "{\"name\":\"disassembly\",\"type\":\"disassembly\",\"data\":\"";
+    json_of << "{\"name\":\"disassembly\",\"type\":\"disassembly\""
+            << BlockStartsAsJSON{&code_generator->block_starts()}
+            << "\"data\":\"";
 #ifdef ENABLE_DISASSEMBLER
     std::stringstream disassembler_stream;
     Disassembler::Decode(
@@ -2696,7 +2715,9 @@ void Pipeline::GenerateCodeForWasmFunction(
 
   if (data.info()->trace_turbo_json_enabled()) {
     TurboJsonFile json_of(data.info(), std::ios_base::app);
-    json_of << "{\"name\":\"disassembly\",\"type\":\"disassembly\",\"data\":\"";
+    json_of << "{\"name\":\"disassembly\",\"type\":\"disassembly\""
+            << BlockStartsAsJSON{&code_generator->block_starts()}
+            << "\"data\":\"";
 #ifdef ENABLE_DISASSEMBLER
     std::stringstream disassembler_stream;
     Disassembler::Decode(
@@ -2932,23 +2953,6 @@ void PipelineImpl::AssembleCode(Linkage* linkage,
   }
   data->DeleteInstructionZone();
   data->EndPhaseKind();
-}
-
-struct BlockStartsAsJSON {
-  const ZoneVector<int>* block_starts;
-};
-
-std::ostream& operator<<(std::ostream& out, const BlockStartsAsJSON& s) {
-  out << ", \"blockIdToOffset\": {";
-  bool need_comma = false;
-  for (size_t i = 0; i < s.block_starts->size(); ++i) {
-    if (need_comma) out << ", ";
-    int offset = (*s.block_starts)[i];
-    out << "\"" << i << "\":" << offset;
-    need_comma = true;
-  }
-  out << "},";
-  return out;
 }
 
 MaybeHandle<Code> PipelineImpl::FinalizeCode(bool retire_broker) {

@@ -32,7 +32,7 @@ export class DisassemblyView extends TextView {
     pane.setAttribute('id', "disassembly");
     pane.innerHTML =
       `<pre id='disassembly-text-pre' class='prettyprint prettyprinted'>
-       <ul id='disassembly-list' class='nolinenums noindent'>
+       <ul class='disassembly-list nolinenums noindent'>
        </ul>
      </pre>`;
 
@@ -46,6 +46,16 @@ export class DisassemblyView extends TextView {
       associateData: (text, fragment: HTMLElement) => {
         const matches = text.match(/(?<address>0?x?[0-9a-fA-F]{8,16})(?<addressSpace>\s+)(?<offset>[0-9a-f]+)(?<offsetSpace>\s*)/);
         const offset = Number.parseInt(matches.groups["offset"], 16);
+        const blockIds = view.sourceResolver.getBlockIdsForOffset(offset);
+        const blockIdElement = document.createElement("SPAN");
+        blockIdElement.className = "block-id com linkable-text";
+        blockIdElement.innerText = "";
+        if (blockIds && blockIds.length > 0) {
+          blockIds.forEach(blockId => view.addHtmlElementForBlockId(blockId, fragment));
+          blockIdElement.innerText = `B${blockIds.join(",")}:`;
+          blockIdElement.dataset.blockId = `${blockIds.join(",")}`;
+        }
+        fragment.appendChild(blockIdElement);
         const addressElement = document.createElement("SPAN");
         addressElement.className = "instruction-address";
         addressElement.innerText = matches.groups["address"];
@@ -58,11 +68,13 @@ export class DisassemblyView extends TextView {
         fragment.classList.add('tag');
 
         if (!Number.isNaN(offset)) {
-          const pcOffset = view.sourceResolver.getKeyPcOffset(offset);
+          let pcOffset = view.sourceResolver.getKeyPcOffset(offset);
+          if (pcOffset == -1) pcOffset = Number(offset);
           fragment.dataset.pcOffset = `${pcOffset}`;
           addressElement.classList.add('linkable-text');
           offsetElement.classList.add('linkable-text');
         }
+        return true;
       }
     };
     const UNCLASSIFIED_STYLE = {
@@ -79,11 +91,20 @@ export class DisassemblyView extends TextView {
         fragment.innerHTML = text;
         const replacer = (match, hexOffset) => {
           const offset = Number.parseInt(hexOffset, 16);
-          const keyOffset = view.sourceResolver.getKeyPcOffset(offset);
-          return `<span class="tag linkable-text" data-pc-offset="${keyOffset}">${match}</span>`;
+          let keyOffset = view.sourceResolver.getKeyPcOffset(offset);
+          if (keyOffset == -1) keyOffset = Number(offset);
+          const blockIds = view.sourceResolver.getBlockIdsForOffset(offset);
+          let block = "";
+          let blockIdData = "";
+          if (blockIds && blockIds.length > 0) {
+            block = `B${blockIds.join(",")} `;
+            blockIdData = `data-block-id="${blockIds.join(",")}"`;
+          }
+          return `<span class="tag linkable-text" data-pc-offset="${keyOffset}" ${blockIdData}>${block}${match}</span>`;
         };
         const html = text.replace(/<.0?x?([0-9a-fA-F]+)>/g, replacer);
         fragment.innerHTML = html;
+        return true;
       }
     };
     const OPCODE_STYLE = {
@@ -91,12 +112,14 @@ export class DisassemblyView extends TextView {
     };
     const BLOCK_HEADER_STYLE = {
       associateData: function (text, fragment) {
+        if (view.sourceResolver.hasBlockStartInfo()) return false;
         const matches = /\d+/.exec(text);
-        if (!matches) return;
+        if (!matches) return true;
         const blockId = matches[0];
         fragment.dataset.blockId = blockId;
         fragment.innerHTML = text;
         fragment.className = "com block";
+        return true;
       }
     };
     const SOURCE_POSITION_HEADER_STYLE = {
@@ -135,7 +158,7 @@ export class DisassemblyView extends TextView {
 
     const linkHandler = (e: MouseEvent) => {
       if (!(e.target instanceof HTMLElement)) return;
-      const offsetAsString = e.target.dataset.pcOffset ? e.target.dataset.pcOffset : e.target.parentElement.dataset.pcOffset;
+      const offsetAsString = typeof e.target.dataset.pcOffset != "undefined" ? e.target.dataset.pcOffset : e.target.parentElement.dataset.pcOffset;
       const offset = Number.parseInt(offsetAsString, 10);
       if ((typeof offsetAsString) != "undefined" && !Number.isNaN(offset)) {
         view.offsetSelection.select([offset], true);
@@ -156,12 +179,12 @@ export class DisassemblyView extends TextView {
 
     const linkHandlerBlock = e => {
       const blockId = e.target.dataset.blockId;
-      if (typeof blockId != "undefined" && !Number.isNaN(blockId)) {
-        e.stopPropagation();
+      if (typeof blockId != "undefined") {
+        const blockIds = blockId.split(",");
         if (!e.shiftKey) {
           view.selectionHandler.clear();
         }
-        view.blockSelectionHandler.select([blockId], true);
+        view.blockSelectionHandler.select(blockIds, true);
       }
     };
     view.divNode.addEventListener('click', linkHandlerBlock);
