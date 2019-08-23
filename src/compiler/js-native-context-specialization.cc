@@ -1094,7 +1094,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   ZoneVector<PropertyAccessInfo> access_infos(zone());
   FilterMapsAndGetPropertyAccessInfos(feedback, access_mode, receiver, effect,
                                       &access_infos_for_feedback);
-  AccessInfoFactory access_info_factory(broker(), dependencies(), zone());
+  AccessInfoFactory access_info_factory(broker(), dependencies(),
+                                        graph()->zone());
   if (!access_info_factory.FinalizePropertyAccessInfos(
           access_infos_for_feedback, access_mode, &access_infos)) {
     return NoChange();
