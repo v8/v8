@@ -13,6 +13,7 @@ const toolboxHTML = `<div id="disassembly-toolbox">
 <form>
   <label><input id="show-instruction-address" type="checkbox" name="instruction-address">Show addresses</label>
   <label><input id="show-instruction-binary" type="checkbox" name="instruction-binary">Show binary literal</label>
+  <label><input id="highlight-gap-instructions" type="checkbox" name="instruction-binary">Highlight gap instructions</label>
 </form>
 </div>`;
 
@@ -26,6 +27,7 @@ export class DisassemblyView extends TextView {
   offsetSelection: MySelection;
   showInstructionAddressHandler: () => void;
   showInstructionBinaryHandler: () => void;
+  highlightGapInstructionsHandler: () => void;
 
   createViewElement() {
     const pane = document.createElement('div');
@@ -46,6 +48,9 @@ export class DisassemblyView extends TextView {
       associateData: (text, fragment: HTMLElement) => {
         const matches = text.match(/(?<address>0?x?[0-9a-fA-F]{8,16})(?<addressSpace>\s+)(?<offset>[0-9a-f]+)(?<offsetSpace>\s*)/);
         const offset = Number.parseInt(matches.groups["offset"], 16);
+        const instructionKind = view.sourceResolver.getInstructionKindForPCOffset(offset);
+        fragment.dataset.instructionKind = instructionKind;
+        fragment.title = view.sourceResolver.instructionKindToReadableName(instructionKind);
         const blockIds = view.sourceResolver.getBlockIdsForOffset(offset);
         const blockIdElement = document.createElement("SPAN");
         blockIdElement.className = "block-id com linkable-text";
@@ -242,6 +247,17 @@ export class DisassemblyView extends TextView {
     };
     instructionBinaryInput.addEventListener("change", showInstructionBinaryHandler);
     this.showInstructionBinaryHandler = showInstructionBinaryHandler;
+
+    const highlightGapInstructionsInput: HTMLInputElement = view.divNode.querySelector("#highlight-gap-instructions");
+    const lastHighlightGapInstructions = window.sessionStorage.getItem("highlight-gap-instructions");
+    highlightGapInstructionsInput.checked = lastHighlightGapInstructions == 'true';
+    const highlightGapInstructionsHandler = () => {
+      window.sessionStorage.setItem("highlight-gap-instructions", `${highlightGapInstructionsInput.checked}`);
+      view.divNode.classList.toggle("highlight-gap-instructions", highlightGapInstructionsInput.checked);
+    };
+
+    highlightGapInstructionsInput.addEventListener("change", highlightGapInstructionsHandler);
+    this.highlightGapInstructionsHandler = highlightGapInstructionsHandler;
   }
 
   updateSelection(scrollIntoView: boolean = false) {
@@ -308,6 +324,7 @@ export class DisassemblyView extends TextView {
     super.initializeContent(data, null);
     this.showInstructionAddressHandler();
     this.showInstructionBinaryHandler();
+    this.highlightGapInstructionsHandler();
     console.timeEnd("disassembly-view");
   }
 

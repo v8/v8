@@ -2921,7 +2921,7 @@ void PipelineImpl::VerifyGeneratedCodeIsIdempotent() {
 }
 
 struct InstructionStartsAsJSON {
-  const ZoneVector<int>* instr_starts;
+  const ZoneVector<TurbolizerInstructionStartInfo>* instr_starts;
 };
 
 std::ostream& operator<<(std::ostream& out, const InstructionStartsAsJSON& s) {
@@ -2929,10 +2929,35 @@ std::ostream& operator<<(std::ostream& out, const InstructionStartsAsJSON& s) {
   bool need_comma = false;
   for (size_t i = 0; i < s.instr_starts->size(); ++i) {
     if (need_comma) out << ", ";
-    int offset = (*s.instr_starts)[i];
-    out << "\"" << i << "\":" << offset;
+    const TurbolizerInstructionStartInfo& info = (*s.instr_starts)[i];
+    out << "\"" << i << "\": {";
+    out << "\"gap\": " << info.gap_pc_offset;
+    out << ", \"arch\": " << info.arch_instr_pc_offset;
+    out << ", \"condition\": " << info.condition_pc_offset;
+    out << "}";
     need_comma = true;
   }
+  out << "}";
+  return out;
+}
+
+struct TurbolizerCodeOffsetsInfoAsJSON {
+  const TurbolizerCodeOffsetsInfo* offsets_info;
+};
+
+std::ostream& operator<<(std::ostream& out,
+                         const TurbolizerCodeOffsetsInfoAsJSON& s) {
+  out << ", \"codeOffsetsInfo\": {";
+  out << "\"codeStartRegisterCheck\": "
+      << s.offsets_info->code_start_register_check << ", ";
+  out << "\"deoptCheck\": " << s.offsets_info->deopt_check << ", ";
+  out << "\"initPoison\": " << s.offsets_info->init_poison << ", ";
+  out << "\"blocksStart\": " << s.offsets_info->blocks_start << ", ";
+  out << "\"outOfLineCode\": " << s.offsets_info->out_of_line_code << ", ";
+  out << "\"deoptimizationExits\": " << s.offsets_info->deoptimization_exits
+      << ", ";
+  out << "\"pools\": " << s.offsets_info->pools << ", ";
+  out << "\"jumpTables\": " << s.offsets_info->jump_tables;
   out << "}";
   return out;
 }
@@ -2948,7 +2973,9 @@ void PipelineImpl::AssembleCode(Linkage* linkage,
     TurboJsonFile json_of(data->info(), std::ios_base::app);
     json_of << "{\"name\":\"code generation\""
             << ", \"type\":\"instructions\""
-            << InstructionStartsAsJSON{&data->code_generator()->instr_starts()};
+            << InstructionStartsAsJSON{&data->code_generator()->instr_starts()}
+            << TurbolizerCodeOffsetsInfoAsJSON{
+                   &data->code_generator()->offsets_info()};
     json_of << "},\n";
   }
   data->DeleteInstructionZone();

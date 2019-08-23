@@ -85,6 +85,25 @@ class DeoptimizationLiteral {
   const StringConstantBase* string_ = nullptr;
 };
 
+// These structs hold pc offsets for generated instructions and is only used
+// when tracing for turbolizer is enabled.
+struct TurbolizerCodeOffsetsInfo {
+  int code_start_register_check = -1;
+  int deopt_check = -1;
+  int init_poison = -1;
+  int blocks_start = -1;
+  int out_of_line_code = -1;
+  int deoptimization_exits = -1;
+  int pools = -1;
+  int jump_tables = -1;
+};
+
+struct TurbolizerInstructionStartInfo {
+  int gap_pc_offset = -1;
+  int arch_instr_pc_offset = -1;
+  int condition_pc_offset = -1;
+};
+
 // Generates native code for a sequence of instructions.
 class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
  public:
@@ -139,7 +158,13 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   size_t GetHandlerTableOffset() const { return handler_table_offset_; }
 
   const ZoneVector<int>& block_starts() const { return block_starts_; }
-  const ZoneVector<int>& instr_starts() const { return instr_starts_; }
+  const ZoneVector<TurbolizerInstructionStartInfo>& instr_starts() const {
+    return instr_starts_;
+  }
+
+  const TurbolizerCodeOffsetsInfo& offsets_info() const {
+    return offsets_info_;
+  }
 
   static constexpr int kBinarySearchSwitchMinimalCases = 4;
 
@@ -182,7 +207,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   void GenerateSpeculationPoisonFromCodeStartRegister();
 
   // Assemble code for the specified instruction.
-  CodeGenResult AssembleInstruction(Instruction* instr,
+  CodeGenResult AssembleInstruction(int instruction_index,
                                     const InstructionBlock* block);
   void AssembleGaps(Instruction* instr);
 
@@ -419,7 +444,8 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   CodeGenResult result_;
   PoisoningMitigationLevel poisoning_level_;
   ZoneVector<int> block_starts_;
-  ZoneVector<int> instr_starts_;
+  TurbolizerCodeOffsetsInfo offsets_info_;
+  ZoneVector<TurbolizerInstructionStartInfo> instr_starts_;
 };
 
 }  // namespace compiler

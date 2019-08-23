@@ -148,7 +148,7 @@ void CodeGenerator::AssembleCode() {
   if (info->is_source_positions_enabled()) {
     AssembleSourcePosition(start_source_position());
   }
-
+  offsets_info_.code_start_register_check = tasm()->pc_offset();
   // Check that {kJavaScriptCallCodeStartRegister} has been set correctly.
   if (FLAG_debug_code && (info->code_kind() == Code::OPTIMIZED_FUNCTION ||
                           info->code_kind() == Code::BYTECODE_HANDLER)) {
@@ -156,6 +156,7 @@ void CodeGenerator::AssembleCode() {
     AssembleCodeStartRegisterCheck();
   }
 
+  offsets_info_.deopt_check = tasm()->pc_offset();
   // We want to bailout only from JS functions, which are the only ones
   // that are optimized.
   if (info->IsOptimizing()) {
@@ -164,6 +165,7 @@ void CodeGenerator::AssembleCode() {
     BailoutIfDeoptimized();
   }
 
+  offsets_info_.init_poison = tasm()->pc_offset();
   InitializeSpeculationPoison();
 
   // Define deoptimization literals for all inlined functions.
@@ -193,10 +195,10 @@ void CodeGenerator::AssembleCode() {
 
   if (info->trace_turbo_json_enabled()) {
     block_starts_.assign(instructions()->instruction_blocks().size(), -1);
-    instr_starts_.assign(instructions()->instructions().size(), -1);
+    instr_starts_.assign(instructions()->instructions().size(), {});
   }
-
   // Assemble instructions in assembly order.
+  offsets_info_.blocks_start = tasm()->pc_offset();
   for (const InstructionBlock* block : instructions()->ao_blocks()) {
     // Align loop headers on vendor recommended boundaries.
     if (block->ShouldAlign() && !tasm()->jump_optimization_info()) {
@@ -254,6 +256,7 @@ void CodeGenerator::AssembleCode() {
   }
 
   // Assemble all out-of-line code.
+  offsets_info_.out_of_line_code = tasm()->pc_offset();
   if (ools_) {
     tasm()->RecordComment("-- Out of line code --");
     for (OutOfLineCode* ool = ools_; ool; ool = ool->next()) {
@@ -277,6 +280,7 @@ void CodeGenerator::AssembleCode() {
   }
 
   // Assemble deoptimization exits.
+  offsets_info_.deoptimization_exits = tasm()->pc_offset();
   int last_updated = 0;
   for (DeoptimizationExit* exit : deoptimization_exits_) {
     if (exit->emitted()) continue;
@@ -298,12 +302,14 @@ void CodeGenerator::AssembleCode() {
     if (result_ != kSuccess) return;
   }
 
+  offsets_info_.pools = tasm()->pc_offset();
   // TODO(jgruber): Move all inlined metadata generation into a new,
   // architecture-independent version of FinishCode. Currently, this includes
   // the safepoint table, handler table, constant pool, and code comments, in
   // that order.
   FinishCode();
 
+  offsets_info_.jump_tables = tasm()->pc_offset();
   // Emit the jump tables.
   if (jump_tables_) {
     tasm()->Align(kSystemPointerSize);
@@ -489,11 +495,7 @@ bool CodeGenerator::IsMaterializableFromRoot(Handle<HeapObject> object,
 CodeGenerator::CodeGenResult CodeGenerator::AssembleBlock(
     const InstructionBlock* block) {
   for (int i = block->code_start(); i < block->code_end(); ++i) {
-    if (info()->trace_turbo_json_enabled()) {
-      instr_starts_[i] = tasm()->pc_offset();
-    }
-    Instruction* instr = instructions()->InstructionAt(i);
-    CodeGenResult result = AssembleInstruction(instr, block);
+    CodeGenResult result = AssembleInstruction(i, block);
     if (result != kSuccess) return result;
   }
   return kSuccess;
@@ -647,7 +649,11 @@ RpoNumber CodeGenerator::ComputeBranchInfo(BranchInfo* branch,
 }
 
 CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
-    Instruction* instr, const InstructionBlock* block) {
+    int instruction_index, const InstructionBlock* block) {
+  Instruction* instr = instructions()->InstructionAt(instruction_index);
+  if (info()->trace_turbo_json_enabled()) {
+    instr_starts_[instruction_index].gap_pc_offset = tasm()->pc_offset();
+  }
   int first_unused_stack_slot;
   FlagsMode mode = FlagsModeField::decode(instr->opcode());
   if (mode != kFlags_trap) {
@@ -665,9 +671,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
   if (instr->IsJump() && block->must_deconstruct_frame()) {
     AssembleDeconstructFrame();
   }
+  if (info()->trace_turbo_json_enabled()) {
+    instr_starts_[instruction_index].arch_instr_pc_offset = tasm()->pc_offset();
+  }
   // Assemble architecture-specific code for the instruction.
   CodeGenResult result = AssembleArchInstruction(instr);
   if (result != kSuccess) return result;
+
+  if (info()->trace_turbo_json_enabled()) {
+    instr_starts_[instruction_index].condition_pc_offset = tasm()->pc_offset();
+  }
 
   FlagsCondition condition = FlagsConditionField::decode(instr->opcode());
   switch (mode) {
