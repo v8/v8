@@ -7378,7 +7378,7 @@ class V8_EXPORT EmbedderHeapTracer {
   /**
    * Called at the beginning of a GC cycle.
    */
-  V8_DEPRECATE_SOON("Use version with flags.", virtual void TracePrologue()) {}
+  V8_DEPRECATED("Use version with flags.", virtual void TracePrologue()) {}
   virtual void TracePrologue(TraceFlags flags);
 
   /**
@@ -7406,8 +7406,9 @@ class V8_EXPORT EmbedderHeapTracer {
    * overriden to fill a |TraceSummary| that is used by V8 to schedule future
    * garbage collections.
    */
-  virtual void TraceEpilogue() {}
-  virtual void TraceEpilogue(TraceSummary* trace_summary) { TraceEpilogue(); }
+  V8_DEPRECATE_SOON("Use version with parameter.",
+                    virtual void TraceEpilogue()) {}
+  virtual void TraceEpilogue(TraceSummary* trace_summary);
 
   /**
    * Called upon entering the final marking pause. No more incremental marking

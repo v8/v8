@@ -10274,6 +10274,17 @@ void EmbedderHeapTracer::TracePrologue(TraceFlags flags) {
 #endif
 }
 
+void EmbedderHeapTracer::TraceEpilogue(TraceSummary* trace_summary) {
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated"
+#endif
+  TraceEpilogue();
+#if __clang__
+#pragma clang diagnostic pop
+#endif
+}
+
 void EmbedderHeapTracer::FinalizeTracing() {
   if (isolate_) {
     i::Isolate* isolate = reinterpret_cast<i::Isolate*>(isolate_);
