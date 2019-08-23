@@ -1152,8 +1152,11 @@ CompilationJob::Status WasmHeapStubCompilationJob::ExecuteJobImpl() {
 CompilationJob::Status WasmHeapStubCompilationJob::FinalizeJobImpl(
     Isolate* isolate) {
   Handle<Code> code;
-  if (pipeline_.FinalizeCode(call_descriptor_).ToHandle(&code) &&
-      pipeline_.CommitDependencies(code)) {
+  if (!pipeline_.FinalizeCode(call_descriptor_).ToHandle(&code)) {
+    V8::FatalProcessOutOfMemory(isolate,
+                                "WasmHeapStubCompilationJob::FinalizeJobImpl");
+  }
+  if (pipeline_.CommitDependencies(code)) {
     info_.SetCode(code);
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_opt_code) {
