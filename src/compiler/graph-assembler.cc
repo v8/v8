@@ -248,7 +248,7 @@ Node* GraphAssembler::Word32PoisonOnSpeculation(Node* value) {
 }
 
 Node* GraphAssembler::DeoptimizeIf(DeoptimizeReason reason,
-                                   VectorSlotPair const& feedback,
+                                   FeedbackSource const& feedback,
                                    Node* condition, Node* frame_state,
                                    IsSafetyCheck is_safety_check) {
   return current_control_ = current_effect_ = graph()->NewNode(
@@ -258,7 +258,7 @@ Node* GraphAssembler::DeoptimizeIf(DeoptimizeReason reason,
 }
 
 Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeReason reason,
-                                      VectorSlotPair const& feedback,
+                                      FeedbackSource const& feedback,
                                       Node* condition, Node* frame_state,
                                       IsSafetyCheck is_safety_check) {
   return current_control_ = current_effect_ = graph()->NewNode(

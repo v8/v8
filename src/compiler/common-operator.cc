@@ -99,7 +99,8 @@ bool operator!=(DeoptimizeParameters lhs, DeoptimizeParameters rhs) {
 }
 
 size_t hash_value(DeoptimizeParameters p) {
-  return base::hash_combine(p.kind(), p.reason(), p.feedback(),
+  FeedbackSource::Hash feebdack_hash;
+  return base::hash_combine(p.kind(), p.reason(), feebdack_hash(p.feedback()),
                             p.is_safety_check());
 }
 
@@ -728,7 +729,7 @@ struct CommonOperatorGlobalCache final {
               Operator::kFoldable | Operator::kNoThrow,  // properties
               "Deoptimize",                              // name
               1, 1, 1, 0, 0, 1,                          // counts
-              DeoptimizeParameters(kKind, kReason, VectorSlotPair(),
+              DeoptimizeParameters(kKind, kReason, FeedbackSource(),
                                    IsSafetyCheck::kNoSafetyCheck)) {}
   };
 #define CACHED_DEOPTIMIZE(Kind, Reason)                                    \
@@ -746,7 +747,7 @@ struct CommonOperatorGlobalCache final {
               Operator::kFoldable | Operator::kNoThrow,  // properties
               "DeoptimizeIf",                            // name
               2, 1, 1, 0, 1, 1,                          // counts
-              DeoptimizeParameters(kKind, kReason, VectorSlotPair(),
+              DeoptimizeParameters(kKind, kReason, FeedbackSource(),
                                    is_safety_check)) {}
   };
 #define CACHED_DEOPTIMIZE_IF(Kind, Reason, IsCheck)                          \
@@ -766,7 +767,7 @@ struct CommonOperatorGlobalCache final {
               Operator::kFoldable | Operator::kNoThrow,  // properties
               "DeoptimizeUnless",                        // name
               2, 1, 1, 0, 1, 1,                          // counts
-              DeoptimizeParameters(kKind, kReason, VectorSlotPair(),
+              DeoptimizeParameters(kKind, kReason, FeedbackSource(),
                                    is_safety_check)) {}
   };
 #define CACHED_DEOPTIMIZE_UNLESS(Kind, Reason, IsCheck) \
@@ -947,7 +948,7 @@ const Operator* CommonOperatorBuilder::Branch(BranchHint hint,
 
 const Operator* CommonOperatorBuilder::Deoptimize(
     DeoptimizeKind kind, DeoptimizeReason reason,
-    VectorSlotPair const& feedback) {
+    FeedbackSource const& feedback) {
 #define CACHED_DEOPTIMIZE(Kind, Reason)                               \
   if (kind == DeoptimizeKind::k##Kind &&                              \
       reason == DeoptimizeReason::k##Reason && !feedback.IsValid()) { \
@@ -968,7 +969,7 @@ const Operator* CommonOperatorBuilder::Deoptimize(
 
 const Operator* CommonOperatorBuilder::DeoptimizeIf(
     DeoptimizeKind kind, DeoptimizeReason reason,
-    VectorSlotPair const& feedback, IsSafetyCheck is_safety_check) {
+    FeedbackSource const& feedback, IsSafetyCheck is_safety_check) {
 #define CACHED_DEOPTIMIZE_IF(Kind, Reason, IsCheck)                          \
   if (kind == DeoptimizeKind::k##Kind &&                                     \
       reason == DeoptimizeReason::k##Reason &&                               \
@@ -989,7 +990,7 @@ const Operator* CommonOperatorBuilder::DeoptimizeIf(
 
 const Operator* CommonOperatorBuilder::DeoptimizeUnless(
     DeoptimizeKind kind, DeoptimizeReason reason,
-    VectorSlotPair const& feedback, IsSafetyCheck is_safety_check) {
+    FeedbackSource const& feedback, IsSafetyCheck is_safety_check) {
 #define CACHED_DEOPTIMIZE_UNLESS(Kind, Reason, IsCheck)                      \
   if (kind == DeoptimizeKind::k##Kind &&                                     \
       reason == DeoptimizeReason::k##Reason &&                               \

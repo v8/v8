@@ -61,7 +61,7 @@ bool PropertyAccessBuilder::TryBuildStringCheck(
     // Monormorphic string access (ignoring the fact that there are multiple
     // String maps).
     *receiver = *effect =
-        graph()->NewNode(simplified()->CheckString(VectorSlotPair()), *receiver,
+        graph()->NewNode(simplified()->CheckString(FeedbackSource()), *receiver,
                          *effect, control);
     return true;
   }
@@ -74,7 +74,7 @@ bool PropertyAccessBuilder::TryBuildNumberCheck(
   if (HasOnlyNumberMaps(broker, maps)) {
     // Monomorphic number access (we also deal with Smis here).
     *receiver = *effect =
-        graph()->NewNode(simplified()->CheckNumber(VectorSlotPair()), *receiver,
+        graph()->NewNode(simplified()->CheckNumber(FeedbackSource()), *receiver,
                          *effect, control);
     return true;
   }

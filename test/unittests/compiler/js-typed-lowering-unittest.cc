@@ -375,7 +375,7 @@ TEST_F(JSTypedLoweringTest, JSStoreContext) {
 
 
 TEST_F(JSTypedLoweringTest, JSLoadNamedStringLength) {
-  VectorSlotPair feedback;
+  FeedbackSource feedback;
   Handle<Name> name = factory()->length_string();
   Node* const receiver = Parameter(Type::String(), 0);
   Node* const context = UndefinedConstant();

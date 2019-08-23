@@ -762,7 +762,7 @@ Instruction* InstructionSelector::EmitWithContinuation(
 
 void InstructionSelector::AppendDeoptimizeArguments(
     InstructionOperandVector* args, DeoptimizeKind kind,
-    DeoptimizeReason reason, VectorSlotPair const& feedback,
+    DeoptimizeReason reason, FeedbackSource const& feedback,
     Node* frame_state) {
   OperandGenerator g(this);
   FrameStateDescriptor* const descriptor = GetFrameStateDescriptor(frame_state);
@@ -779,7 +779,7 @@ void InstructionSelector::AppendDeoptimizeArguments(
 Instruction* InstructionSelector::EmitDeoptimize(
     InstructionCode opcode, size_t output_count, InstructionOperand* outputs,
     size_t input_count, InstructionOperand* inputs, DeoptimizeKind kind,
-    DeoptimizeReason reason, VectorSlotPair const& feedback,
+    DeoptimizeReason reason, FeedbackSource const& feedback,
     Node* frame_state) {
   InstructionOperandVector args(instruction_zone());
   for (size_t i = 0; i < input_count; ++i) {
@@ -990,7 +990,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
 
     int const state_id = sequence()->AddDeoptimizationEntry(
         buffer->frame_state_descriptor, DeoptimizeKind::kLazy,
-        DeoptimizeReason::kUnknown, VectorSlotPair());
+        DeoptimizeReason::kUnknown, FeedbackSource());
     buffer->instruction_args.push_back(g.TempImmediate(state_id));
 
     StateObjectDeduplicator deduplicator(instruction_zone());
@@ -2978,7 +2978,7 @@ void InstructionSelector::EmitIdentity(Node* node) {
 
 void InstructionSelector::VisitDeoptimize(DeoptimizeKind kind,
                                           DeoptimizeReason reason,
-                                          VectorSlotPair const& feedback,
+                                          FeedbackSource const& feedback,
                                           Node* value) {
   EmitDeoptimize(kArchDeoptimize, 0, nullptr, 0, nullptr, kind, reason,
                  feedback, value);

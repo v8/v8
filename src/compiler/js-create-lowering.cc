@@ -471,7 +471,7 @@ Reduction JSCreateLowering::ReduceNewArray(
   // This has to be kept in sync with src/runtime/runtime-array.cc,
   // where this limit is protected.
   length = effect = graph()->NewNode(
-      simplified()->CheckBounds(VectorSlotPair()), length,
+      simplified()->CheckBounds(FeedbackSource()), length,
       jsgraph()->Constant(JSArray::kInitialMaxFastElementArray), effect,
       control);
 
@@ -566,14 +566,14 @@ Reduction JSCreateLowering::ReduceNewArray(
     for (auto& value : values) {
       if (!NodeProperties::GetType(value).Is(Type::SignedSmall())) {
         value = effect = graph()->NewNode(
-            simplified()->CheckSmi(VectorSlotPair()), value, effect, control);
+            simplified()->CheckSmi(FeedbackSource()), value, effect, control);
       }
     }
   } else if (IsDoubleElementsKind(elements_kind)) {
     for (auto& value : values) {
       if (!NodeProperties::GetType(value).Is(Type::Number())) {
         value = effect =
-            graph()->NewNode(simplified()->CheckNumber(VectorSlotPair()), value,
+            graph()->NewNode(simplified()->CheckNumber(FeedbackSource()), value,
                              effect, control);
       }
       // Make sure we do not store signaling NaNs into double arrays.
@@ -1073,8 +1073,12 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralArrayOrObject(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  FeedbackVectorRef feedback_vector(broker(), p.feedback().vector());
-  ObjectRef feedback = feedback_vector.get(p.feedback().slot());
+  FeedbackVectorRef feedback_vector(broker(), p.feedback().vector);
+  ObjectRef feedback = feedback_vector.get(p.feedback().slot);
+  // TODO(turbofan):  we should consider creating a ProcessedFeedback for
+  // allocation sites/boiler plates so that we use GetFeedback here. Then
+  // we can eventually get rid of the additional copy of feedback slots that
+  // we currently have in FeedbackVectorData.
   if (feedback.IsAllocationSite()) {
     AllocationSiteRef site = feedback.AsAllocationSite();
     if (site.IsFastLiteral()) {
@@ -1096,8 +1100,12 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralArrayOrObject(Node* node) {
 Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralArray(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateEmptyLiteralArray, node->opcode());
   FeedbackParameter const& p = FeedbackParameterOf(node->op());
-  FeedbackVectorRef fv(broker(), p.feedback().vector());
-  ObjectRef feedback = fv.get(p.feedback().slot());
+  FeedbackVectorRef fv(broker(), p.feedback().vector);
+  ObjectRef feedback = fv.get(p.feedback().slot);
+  // TODO(turbofan):  we should consider creating a ProcessedFeedback for
+  // allocation sites/boiler plates so that we use GetFeedback here. Then
+  // we can eventually get rid of the additional copy of feedback slots that
+  // we currently have in FeedbackVectorData.
   if (feedback.IsAllocationSite()) {
     AllocationSiteRef site = feedback.AsAllocationSite();
     DCHECK(!site.PointsToLiteral());
@@ -1154,8 +1162,12 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralRegExp(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  FeedbackVectorRef feedback_vector(broker(), p.feedback().vector());
-  ObjectRef feedback = feedback_vector.get(p.feedback().slot());
+  FeedbackVectorRef feedback_vector(broker(), p.feedback().vector);
+  ObjectRef feedback = feedback_vector.get(p.feedback().slot);
+  // TODO(turbofan):  we should consider creating a ProcessedFeedback for
+  // allocation sites/boiler plates so that we use GetFeedback here. Then
+  // we can eventually get rid of the additional copy of feedback slots that
+  // we currently have in FeedbackVectorData.
   if (feedback.IsJSRegExp()) {
     JSRegExpRef boilerplate = feedback.AsJSRegExp();
     Node* value = effect = AllocateLiteralRegExp(effect, control, boilerplate);
