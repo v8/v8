@@ -7,6 +7,7 @@
 
 #include "src/objects/js-regexp.h"
 
+#include "src/objects/js-array-inl.h"
 #include "src/objects/objects-inl.h"  // Needed for write barriers
 #include "src/objects/smi.h"
 #include "src/objects/string.h"
@@ -18,13 +19,21 @@ namespace v8 {
 namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(JSRegExp, JSObject)
+OBJECT_CONSTRUCTORS_IMPL(JSRegExpResult, JSArray)
+OBJECT_CONSTRUCTORS_IMPL(JSRegExpResultIndices, JSArray)
 
 CAST_ACCESSOR(JSRegExp)
+CAST_ACCESSOR(JSRegExpResult)
+CAST_ACCESSOR(JSRegExpResultIndices)
 
 ACCESSORS(JSRegExp, data, Object, kDataOffset)
 ACCESSORS(JSRegExp, flags, Object, kFlagsOffset)
 ACCESSORS(JSRegExp, source, Object, kSourceOffset)
 ACCESSORS(JSRegExp, last_index, Object, kLastIndexOffset)
+
+ACCESSORS(JSRegExpResult, cached_indices_or_match_info, Object,
+          kCachedIndicesOrMatchInfoOffset)
+ACCESSORS(JSRegExpResult, names, Object, kNamesOffset)
 
 JSRegExp::Type JSRegExp::TypeTag() const {
   Object data = this->data();

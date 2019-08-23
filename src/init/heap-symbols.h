@@ -202,6 +202,7 @@
   V(_, illegal_access_string, "illegal access")                      \
   V(_, illegal_argument_string, "illegal argument")                  \
   V(_, index_string, "index")                                        \
+  V(_, indices_string, "indices")                                    \
   V(_, Infinity_string, "Infinity")                                  \
   V(_, infinity_string, "infinity")                                  \
   V(_, input_string, "input")                                        \
