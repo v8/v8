@@ -16,6 +16,7 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
+#include "src/objects/function-syntax-kind.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/smi.h"
 #include "src/parsing/token.h"
@@ -2200,14 +2201,6 @@ class Throw final : public Expression {
 
 class FunctionLiteral final : public Expression {
  public:
-  enum FunctionType {
-    kAnonymousExpression,
-    kNamedExpression,
-    kDeclaration,
-    kAccessorOrMethod,
-    kWrapped,
-  };
-
   enum ParameterFlag : uint8_t {
     kNoDuplicateParameters,
     kHasDuplicateParameters
@@ -2229,12 +2222,8 @@ class FunctionLiteral final : public Expression {
   int function_token_position() const { return function_token_position_; }
   int start_position() const;
   int end_position() const;
-  bool is_declaration() const { return function_type() == kDeclaration; }
-  bool is_named_expression() const {
-    return function_type() == kNamedExpression;
-  }
   bool is_anonymous_expression() const {
-    return function_type() == kAnonymousExpression;
+    return syntax_kind() == FunctionSyntaxKind::kAnonymousExpression;
   }
 
   void mark_as_oneshot_iife() {
@@ -2244,7 +2233,6 @@ class FunctionLiteral final : public Expression {
   bool is_toplevel() const {
     return function_literal_id() == kFunctionLiteralIdTopLevel;
   }
-  bool is_wrapped() const { return function_type() == kWrapped; }
   V8_EXPORT_PRIVATE LanguageMode language_mode() const;
 
   static bool NeedsHomeObject(Expression* expr);
@@ -2314,8 +2302,8 @@ class FunctionLiteral final : public Expression {
   V8_EXPORT_PRIVATE bool ShouldEagerCompile() const;
   V8_EXPORT_PRIVATE void SetShouldEagerCompile();
 
-  FunctionType function_type() const {
-    return FunctionTypeBits::decode(bit_field_);
+  FunctionSyntaxKind syntax_kind() const {
+    return FunctionSyntaxKindBits::decode(bit_field_);
   }
   FunctionKind kind() const;
 
@@ -2367,7 +2355,7 @@ class FunctionLiteral final : public Expression {
                   AstValueFactory* ast_value_factory, DeclarationScope* scope,
                   const ScopedPtrList<Statement>& body,
                   int expected_property_count, int parameter_count,
-                  int function_length, FunctionType function_type,
+                  int function_length, FunctionSyntaxKind function_syntax_kind,
                   ParameterFlag has_duplicate_parameters,
                   EagerCompileHint eager_compile_hint, int position,
                   bool has_braces, int function_literal_id,
@@ -2384,19 +2372,21 @@ class FunctionLiteral final : public Expression {
         body_(0, nullptr),
         raw_inferred_name_(ast_value_factory->empty_cons_string()),
         produced_preparse_data_(produced_preparse_data) {
-    bit_field_ |=
-        FunctionTypeBits::encode(function_type) | Pretenure::encode(false) |
-        HasDuplicateParameters::encode(has_duplicate_parameters ==
-                                       kHasDuplicateParameters) |
-        DontOptimizeReasonField::encode(BailoutReason::kNoReason) |
-        RequiresInstanceMembersInitializer::encode(false) |
-        HasBracesField::encode(has_braces) | OneshotIIFEBit::encode(false);
+    bit_field_ |= FunctionSyntaxKindBits::encode(function_syntax_kind) |
+                  Pretenure::encode(false) |
+                  HasDuplicateParameters::encode(has_duplicate_parameters ==
+                                                 kHasDuplicateParameters) |
+                  DontOptimizeReasonField::encode(BailoutReason::kNoReason) |
+                  RequiresInstanceMembersInitializer::encode(false) |
+                  HasBracesField::encode(has_braces) |
+                  OneshotIIFEBit::encode(false);
     if (eager_compile_hint == kShouldEagerCompile) SetShouldEagerCompile();
     body.CopyTo(&body_, zone);
   }
 
-  using FunctionTypeBits = Expression::NextBitField<FunctionType, 3>;
-  using Pretenure = FunctionTypeBits::Next<bool, 1>;
+  using FunctionSyntaxKindBits =
+      Expression::NextBitField<FunctionSyntaxKind, 3>;
+  using Pretenure = FunctionSyntaxKindBits::Next<bool, 1>;
   using HasDuplicateParameters = Pretenure::Next<bool, 1>;
   using DontOptimizeReasonField =
       HasDuplicateParameters::Next<BailoutReason, 8>;
@@ -3221,13 +3211,13 @@ class AstNodeFactory final {
       const ScopedPtrList<Statement>& body, int expected_property_count,
       int parameter_count, int function_length,
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
-      FunctionLiteral::FunctionType function_type,
+      FunctionSyntaxKind function_syntax_kind,
       FunctionLiteral::EagerCompileHint eager_compile_hint, int position,
       bool has_braces, int function_literal_id,
       ProducedPreparseData* produced_preparse_data = nullptr) {
     return new (zone_) FunctionLiteral(
         zone_, name, ast_value_factory_, scope, body, expected_property_count,
-        parameter_count, function_length, function_type,
+        parameter_count, function_length, function_syntax_kind,
         has_duplicate_parameters, eager_compile_hint, position, has_braces,
         function_literal_id, produced_preparse_data);
   }
@@ -3241,7 +3231,7 @@ class AstNodeFactory final {
     return new (zone_) FunctionLiteral(
         zone_, ast_value_factory_->empty_string(), ast_value_factory_, scope,
         body, expected_property_count, parameter_count, parameter_count,
-        FunctionLiteral::kAnonymousExpression,
+        FunctionSyntaxKind::kAnonymousExpression,
         FunctionLiteral::kNoDuplicateParameters,
         FunctionLiteral::kShouldLazyCompile, 0, /* has_braces */ false,
         kFunctionLiteralIdTopLevel);

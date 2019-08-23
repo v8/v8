@@ -5335,12 +5335,9 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
                                               lit->end_position());
     needs_position_info = false;
   }
-  shared_info->set_is_declaration(lit->is_declaration());
-  shared_info->set_is_named_expression(lit->is_named_expression());
-  shared_info->set_is_anonymous_expression(lit->is_anonymous_expression());
+  shared_info->set_syntax_kind(lit->syntax_kind());
   shared_info->set_allows_lazy_compilation(lit->AllowsLazyCompilation());
   shared_info->set_language_mode(lit->language_mode());
-  shared_info->set_is_wrapped(lit->is_wrapped());
   shared_info->set_function_literal_id(lit->function_literal_id());
   //  shared_info->set_kind(lit->kind());
   // FunctionKind must have already been set.

@@ -1508,6 +1508,7 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
     os << "\n - inferred name: " << Brief(inferred_name());
   }
   os << "\n - kind: " << kind();
+  os << "\n - syntax kind: " << syntax_kind();
   if (needs_home_object()) {
     os << "\n - needs_home_object";
   }
@@ -1524,13 +1525,6 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   // Script files are often large, hard to read.
   // os << "\n - script =";
   // script()->Print(os);
-  if (is_named_expression()) {
-    os << "\n - named expression";
-  } else if (is_anonymous_expression()) {
-    os << "\n - anonymous expression";
-  } else if (is_declaration()) {
-    os << "\n - declaration";
-  }
   os << "\n - function token position: " << function_token_position();
   os << "\n - start position: " << StartPosition();
   os << "\n - end position: " << EndPosition();

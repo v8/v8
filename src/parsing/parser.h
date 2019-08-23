@@ -291,7 +291,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void ParseAndRewriteAsyncGeneratorFunctionBody(
       int pos, FunctionKind kind, ScopedPtrList<Statement>* body);
   void DeclareFunctionNameVar(const AstRawString* function_name,
-                              FunctionLiteral::FunctionType function_type,
+                              FunctionSyntaxKind function_syntax_kind,
                               DeclarationScope* function_scope);
 
   Statement* DeclareFunction(const AstRawString* variable_name,
@@ -366,7 +366,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   FunctionLiteral* ParseFunctionLiteral(
       const AstRawString* name, Scanner::Location function_name_location,
       FunctionNameValidity function_name_validity, FunctionKind kind,
-      int function_token_position, FunctionLiteral::FunctionType type,
+      int function_token_position, FunctionSyntaxKind type,
       LanguageMode language_mode,
       ZonePtrList<const AstRawString>* arguments_for_wrapped_function);
 
@@ -418,7 +418,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // parsing or could not identify an error correctly, meaning the caller needs
   // to fully reparse. In this case it resets the scanner and preparser state.
   bool SkipFunction(const AstRawString* function_name, FunctionKind kind,
-                    FunctionLiteral::FunctionType function_type,
+                    FunctionSyntaxKind function_syntax_kind,
                     DeclarationScope* function_scope, int* num_parameters,
                     int* function_length,
                     ProducedPreparseData** produced_preparsed_scope_data);
@@ -429,7 +429,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   void ParseFunction(
       ScopedPtrList<Statement>* body, const AstRawString* function_name,
-      int pos, FunctionKind kind, FunctionLiteral::FunctionType function_type,
+      int pos, FunctionKind kind, FunctionSyntaxKind function_syntax_kind,
       DeclarationScope* function_scope, int* num_parameters,
       int* function_length, bool* has_duplicate_parameters,
       int* expected_property_count, int* suspend_count,

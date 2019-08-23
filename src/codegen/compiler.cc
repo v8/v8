@@ -2107,7 +2107,7 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
     script->set_wrapped_arguments(*arguments);
 
     parse_info.set_eval();  // Use an eval scope as declaration scope.
-    parse_info.set_wrapped_as_function();
+    parse_info.set_function_syntax_kind(FunctionSyntaxKind::kWrapped);
     // TODO(delphick): Remove this and instead make the wrapped and wrapper
     // functions fully non-lazy instead thus preventing source positions from
     // being omitted.

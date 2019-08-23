@@ -1128,7 +1128,7 @@ class ParserBase {
   void ParseFunctionBody(StatementListT* body, IdentifierT function_name,
                          int pos, const FormalParametersT& parameters,
                          FunctionKind kind,
-                         FunctionLiteral::FunctionType function_type,
+                         FunctionSyntaxKind function_syntax_kind,
                          FunctionBodyType body_type);
 
   // Check if the scope has conflicting var/let declarations from different
@@ -2236,7 +2236,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
 
       ExpressionT value = impl()->ParseFunctionLiteral(
           prop_info->name, scanner()->location(), kSkipFunctionNameCheck, kind,
-          name_token_position, FunctionLiteral::kAccessorOrMethod,
+          name_token_position, FunctionSyntaxKind::kAccessorOrMethod,
           language_mode(), nullptr);
 
       ClassLiteralPropertyT result = factory()->NewClassLiteralProperty(
@@ -2268,7 +2268,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
 
       FunctionLiteralT value = impl()->ParseFunctionLiteral(
           prop_info->name, scanner()->location(), kSkipFunctionNameCheck, kind,
-          name_token_position, FunctionLiteral::kAccessorOrMethod,
+          name_token_position, FunctionSyntaxKind::kAccessorOrMethod,
           language_mode(), nullptr);
 
       ClassLiteralProperty::Kind property_kind =
@@ -2449,8 +2449,8 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ParsePropertyInfo* prop_info,
 
       ExpressionT value = impl()->ParseFunctionLiteral(
           name, scanner()->location(), kSkipFunctionNameCheck, kind,
-          next_loc.beg_pos, FunctionLiteral::kAccessorOrMethod, language_mode(),
-          nullptr);
+          next_loc.beg_pos, FunctionSyntaxKind::kAccessorOrMethod,
+          language_mode(), nullptr);
 
       ObjectLiteralPropertyT result = factory()->NewObjectLiteralProperty(
           name_expression, value, ObjectLiteralProperty::COMPUTED,
@@ -2481,8 +2481,8 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ParsePropertyInfo* prop_info,
 
       FunctionLiteralT value = impl()->ParseFunctionLiteral(
           name, scanner()->location(), kSkipFunctionNameCheck, kind,
-          next_loc.beg_pos, FunctionLiteral::kAccessorOrMethod, language_mode(),
-          nullptr);
+          next_loc.beg_pos, FunctionSyntaxKind::kAccessorOrMethod,
+          language_mode(), nullptr);
 
       ObjectLiteralPropertyT result = factory()->NewObjectLiteralProperty(
           name_expression, value,
@@ -3355,8 +3355,8 @@ ParserBase<Impl>::ParseFunctionExpression() {
   IdentifierT name = impl()->NullIdentifier();
   bool is_strict_reserved_name = Token::IsStrictReservedWord(peek());
   Scanner::Location function_name_location = Scanner::Location::invalid();
-  FunctionLiteral::FunctionType function_type =
-      FunctionLiteral::kAnonymousExpression;
+  FunctionSyntaxKind function_syntax_kind =
+      FunctionSyntaxKind::kAnonymousExpression;
   if (impl()->ParsingDynamicFunctionDeclaration()) {
     // We don't want dynamic functions to actually declare their name
     // "anonymous". We just want that name in the toString().
@@ -3367,14 +3367,14 @@ ParserBase<Impl>::ParseFunctionExpression() {
   } else if (peek_any_identifier()) {
     name = ParseIdentifier(function_kind);
     function_name_location = scanner()->location();
-    function_type = FunctionLiteral::kNamedExpression;
+    function_syntax_kind = FunctionSyntaxKind::kNamedExpression;
   }
   FunctionLiteralT result = impl()->ParseFunctionLiteral(
       name, function_name_location,
       is_strict_reserved_name ? kFunctionNameIsStrictReserved
                               : kFunctionNameValidityUnknown,
-      function_kind, function_token_position, function_type, language_mode(),
-      nullptr);
+      function_kind, function_token_position, function_syntax_kind,
+      language_mode(), nullptr);
   // TODO(verwaest): FailureFunctionLiteral?
   if (impl()->IsNull(result)) return impl()->FailureExpression();
   return result;
@@ -3882,7 +3882,7 @@ ParserBase<Impl>::ParseHoistableDeclaration(
 
   FunctionLiteralT function = impl()->ParseFunctionLiteral(
       name, scanner()->location(), name_validity, function_kind, pos,
-      FunctionLiteral::kDeclaration, language_mode(), nullptr);
+      FunctionSyntaxKind::kDeclaration, language_mode(), nullptr);
 
   // In ES6, a function behaves as a lexical binding, except in
   // a script scope, or the initial scope of eval or another function.
@@ -3992,7 +3992,7 @@ template <typename Impl>
 void ParserBase<Impl>::ParseFunctionBody(
     StatementListT* body, IdentifierT function_name, int pos,
     const FormalParametersT& parameters, FunctionKind kind,
-    FunctionLiteral::FunctionType function_type, FunctionBodyType body_type) {
+    FunctionSyntaxKind function_syntax_kind, FunctionBodyType body_type) {
   FunctionBodyParsingScope body_parsing_scope(impl());
 
   if (IsResumableFunction(kind)) impl()->PrepareGeneratorVariables();
@@ -4035,9 +4035,9 @@ void ParserBase<Impl>::ParseFunctionBody(
       DCHECK_EQ(FunctionBodyType::kBlock, body_type);
       // If we are parsing the source as if it is wrapped in a function, the
       // source ends without a closing brace.
-      Token::Value closing_token = function_type == FunctionLiteral::kWrapped
-                                       ? Token::EOS
-                                       : Token::RBRACE;
+      Token::Value closing_token =
+          function_syntax_kind == FunctionSyntaxKind::kWrapped ? Token::EOS
+                                                               : Token::RBRACE;
 
       if (IsAsyncGeneratorFunction(kind)) {
         impl()->ParseAndRewriteAsyncGeneratorFunctionBody(pos, kind,
@@ -4110,7 +4110,8 @@ void ParserBase<Impl>::ParseFunctionBody(
     function_scope->DeclareArguments(ast_value_factory());
   }
 
-  impl()->DeclareFunctionNameVar(function_name, function_type, function_scope);
+  impl()->DeclareFunctionNameVar(function_name, function_syntax_kind,
+                                 function_scope);
 
   inner_body.MergeInto(body);
 }
@@ -4237,7 +4238,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         int dummy_function_length = -1;
         DCHECK_NE(kind & FunctionKind::kArrowFunction, 0);
         bool did_preparse_successfully = impl()->SkipFunction(
-            nullptr, kind, FunctionLiteral::kAnonymousExpression,
+            nullptr, kind, FunctionSyntaxKind::kAnonymousExpression,
             formal_parameters.scope, &dummy_num_parameters,
             &dummy_function_length, &produced_preparse_data);
 
@@ -4273,7 +4274,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
           AcceptINScope scope(this, true);
           ParseFunctionBody(&body, impl()->NullIdentifier(), kNoSourcePosition,
                             parameters, kind,
-                            FunctionLiteral::kAnonymousExpression,
+                            FunctionSyntaxKind::kAnonymousExpression,
                             FunctionBodyType::kBlock);
           CHECK(has_error());
           return impl()->FailureExpression();
@@ -4283,7 +4284,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         AcceptINScope scope(this, true);
         ParseFunctionBody(&body, impl()->NullIdentifier(), kNoSourcePosition,
                           formal_parameters, kind,
-                          FunctionLiteral::kAnonymousExpression,
+                          FunctionSyntaxKind::kAnonymousExpression,
                           FunctionBodyType::kBlock);
         expected_property_count = function_state.expected_property_count();
       }
@@ -4292,7 +4293,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
       has_braces = false;
       ParseFunctionBody(&body, impl()->NullIdentifier(), kNoSourcePosition,
                         formal_parameters, kind,
-                        FunctionLiteral::kAnonymousExpression,
+                        FunctionSyntaxKind::kAnonymousExpression,
                         FunctionBodyType::kExpression);
       expected_property_count = function_state.expected_property_count();
     }
@@ -4312,7 +4313,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
       expected_property_count, formal_parameters.num_parameters(),
       formal_parameters.function_length,
       FunctionLiteral::kNoDuplicateParameters,
-      FunctionLiteral::kAnonymousExpression, eager_compile_hint,
+      FunctionSyntaxKind::kAnonymousExpression, eager_compile_hint,
       formal_parameters.scope->start_position(), has_braces,
       function_literal_id, produced_preparse_data);
 
@@ -4476,7 +4477,7 @@ ParserBase<Impl>::ParseAsyncFunctionLiteral() {
   int pos = position();
   Consume(Token::FUNCTION);
   IdentifierT name = impl()->NullIdentifier();
-  FunctionLiteral::FunctionType type = FunctionLiteral::kAnonymousExpression;
+  FunctionSyntaxKind syntax_kind = FunctionSyntaxKind::kAnonymousExpression;
 
   ParseFunctionFlags flags = ParseFunctionFlag::kIsAsync;
   if (Check(Token::MUL)) flags |= ParseFunctionFlag::kIsGenerator;
@@ -4494,14 +4495,14 @@ ParserBase<Impl>::ParseAsyncFunctionLiteral() {
                    scanner()->CurrentSymbol(ast_value_factory()) ==
                        ast_value_factory()->anonymous_string());
   } else if (peek_any_identifier()) {
-    type = FunctionLiteral::kNamedExpression;
+    syntax_kind = FunctionSyntaxKind::kNamedExpression;
     name = ParseIdentifier(kind);
   }
   FunctionLiteralT result = impl()->ParseFunctionLiteral(
       name, scanner()->location(),
       is_strict_reserved ? kFunctionNameIsStrictReserved
                          : kFunctionNameValidityUnknown,
-      kind, pos, type, language_mode(), nullptr);
+      kind, pos, syntax_kind, language_mode(), nullptr);
   if (impl()->IsNull(result)) return impl()->FailureExpression();
   return result;
 }

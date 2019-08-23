@@ -78,8 +78,8 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
       name, function_scope, body, expected_property_count, parameter_count,
       parameter_count, FunctionLiteral::kNoDuplicateParameters,
-      FunctionLiteral::kAnonymousExpression, default_eager_compile_hint(), pos,
-      true, GetNextFunctionLiteralId());
+      FunctionSyntaxKind::kAnonymousExpression, default_eager_compile_hint(),
+      pos, true, GetNextFunctionLiteralId());
   return function_literal;
 }
 
@@ -677,7 +677,7 @@ void Parser::ParseWrapped(Isolate* isolate, ParseInfo* info,
 
   FunctionLiteral* function_literal = ParseFunctionLiteral(
       function_name, location, kSkipFunctionNameCheck, kNormalFunction,
-      kNoSourcePosition, FunctionLiteral::kWrapped, LanguageMode::kSloppy,
+      kNoSourcePosition, FunctionSyntaxKind::kWrapped, LanguageMode::kSloppy,
       arguments_for_wrapped_function);
 
   Statement* return_statement = factory()->NewReturnStatement(
@@ -729,20 +729,6 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   return result;
 }
 
-static FunctionLiteral::FunctionType ComputeFunctionType(ParseInfo* info) {
-  if (info->is_wrapped_as_function()) {
-    return FunctionLiteral::kWrapped;
-  } else if (info->is_declaration()) {
-    return FunctionLiteral::kDeclaration;
-  } else if (info->is_named_expression()) {
-    return FunctionLiteral::kNamedExpression;
-  } else if (IsConciseMethod(info->function_kind()) ||
-             IsAccessorFunction(info->function_kind())) {
-    return FunctionLiteral::kAccessorOrMethod;
-  }
-  return FunctionLiteral::kAnonymousExpression;
-}
-
 FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
                                          const AstRawString* raw_name) {
   DCHECK_EQ(parsing_on_main_thread_, isolate != nullptr);
@@ -771,8 +757,10 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
     BlockState block_state(&scope_, outer);
     DCHECK(is_sloppy(outer->language_mode()) ||
            is_strict(info->language_mode()));
-    FunctionLiteral::FunctionType function_type = ComputeFunctionType(info);
     FunctionKind kind = info->function_kind();
+    DCHECK_IMPLIES(
+        IsConciseMethod(kind) || IsAccessorFunction(kind),
+        info->function_syntax_kind() == FunctionSyntaxKind::kAccessorOrMethod);
 
     if (IsArrowFunction(kind)) {
       if (IsAsyncFunction(kind)) {
@@ -858,8 +846,8 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
               : nullptr;
       result = ParseFunctionLiteral(
           raw_name, Scanner::Location::invalid(), kSkipFunctionNameCheck, kind,
-          kNoSourcePosition, function_type, info->language_mode(),
-          arguments_for_wrapped_function);
+          kNoSourcePosition, info->function_syntax_kind(),
+          info->language_mode(), arguments_for_wrapped_function);
     }
 
     if (has_error()) return nullptr;
@@ -1793,9 +1781,9 @@ void Parser::ParseAndRewriteAsyncGeneratorFunctionBody(
 }
 
 void Parser::DeclareFunctionNameVar(const AstRawString* function_name,
-                                    FunctionLiteral::FunctionType function_type,
+                                    FunctionSyntaxKind function_syntax_kind,
                                     DeclarationScope* function_scope) {
-  if (function_type == FunctionLiteral::kNamedExpression &&
+  if (function_syntax_kind == FunctionSyntaxKind::kNamedExpression &&
       function_scope->LookupLocal(function_name) == nullptr) {
     DCHECK_EQ(function_scope, scope());
     function_scope->DeclareFunctionVar(function_name);
@@ -2240,7 +2228,7 @@ void Parser::PrepareGeneratorVariables() {
 FunctionLiteral* Parser::ParseFunctionLiteral(
     const AstRawString* function_name, Scanner::Location function_name_location,
     FunctionNameValidity function_name_validity, FunctionKind kind,
-    int function_token_pos, FunctionLiteral::FunctionType function_type,
+    int function_token_pos, FunctionSyntaxKind function_syntax_kind,
     LanguageMode language_mode,
     ZonePtrList<const AstRawString>* arguments_for_wrapped_function) {
   // Function ::
@@ -2252,7 +2240,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // Setter ::
   //   '(' PropertySetParameterList ')' '{' FunctionBody '}'
 
-  bool is_wrapped = function_type == FunctionLiteral::kWrapped;
+  bool is_wrapped = function_syntax_kind == FunctionSyntaxKind::kWrapped;
   DCHECK_EQ(is_wrapped, arguments_for_wrapped_function != nullptr);
 
   int pos = function_token_pos == kNoSourcePosition ? peek_position()
@@ -2387,15 +2375,15 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // try to lazy parse in the first place, we'll have to parse eagerly.
   bool did_preparse_successfully =
       should_preparse &&
-      SkipFunction(function_name, kind, function_type, scope, &num_parameters,
-                   &function_length, &produced_preparse_data);
+      SkipFunction(function_name, kind, function_syntax_kind, scope,
+                   &num_parameters, &function_length, &produced_preparse_data);
 
   if (!did_preparse_successfully) {
     // If skipping aborted, it rewound the scanner until before the LPAREN.
     // Consume it in that case.
     if (should_preparse) Consume(Token::LPAREN);
     should_post_parallel_task = false;
-    ParseFunction(&body, function_name, pos, kind, function_type, scope,
+    ParseFunction(&body, function_name, pos, kind, function_syntax_kind, scope,
                   &num_parameters, &function_length, &has_duplicate_parameters,
                   &expected_property_count, &suspend_count,
                   arguments_for_wrapped_function);
@@ -2441,8 +2429,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // Note that the FunctionLiteral needs to be created in the main Zone again.
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
       function_name, scope, body, expected_property_count, num_parameters,
-      function_length, duplicate_parameters, function_type, eager_compile_hint,
-      pos, true, function_literal_id, produced_preparse_data);
+      function_length, duplicate_parameters, function_syntax_kind,
+      eager_compile_hint, pos, true, function_literal_id,
+      produced_preparse_data);
   function_literal->set_function_token_position(function_token_pos);
   function_literal->set_suspend_count(suspend_count);
 
@@ -2460,7 +2449,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 }
 
 bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
-                          FunctionLiteral::FunctionType function_type,
+                          FunctionSyntaxKind function_syntax_kind,
                           DeclarationScope* function_scope, int* num_parameters,
                           int* function_length,
                           ProducedPreparseData** produced_preparse_data) {
@@ -2515,7 +2504,7 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.PreParse");
 
   PreParser::PreParseResult result = reusable_preparser()->PreParseFunction(
-      function_name, kind, function_type, function_scope, use_counts_,
+      function_name, kind, function_syntax_kind, function_scope, use_counts_,
       produced_preparse_data, this->script_id());
 
   if (result == PreParser::kPreParseStackOverflow) {
@@ -2680,7 +2669,7 @@ Expression* Parser::BuildInitialYield(int pos, FunctionKind kind) {
 
 void Parser::ParseFunction(
     ScopedPtrList<Statement>* body, const AstRawString* function_name, int pos,
-    FunctionKind kind, FunctionLiteral::FunctionType function_type,
+    FunctionKind kind, FunctionSyntaxKind function_syntax_kind,
     DeclarationScope* function_scope, int* num_parameters, int* function_length,
     bool* has_duplicate_parameters, int* expected_property_count,
     int* suspend_count,
@@ -2689,7 +2678,7 @@ void Parser::ParseFunction(
 
   FunctionState function_state(&function_state_, &scope_, function_scope);
 
-  bool is_wrapped = function_type == FunctionLiteral::kWrapped;
+  bool is_wrapped = function_syntax_kind == FunctionSyntaxKind::kWrapped;
 
   int expected_parameters_end_pos = parameters_end_pos_;
   if (expected_parameters_end_pos != kNoSourcePosition) {
@@ -2751,8 +2740,8 @@ void Parser::ParseFunction(
   *function_length = formals.function_length;
 
   AcceptINScope scope(this, true);
-  ParseFunctionBody(body, function_name, pos, formals, kind, function_type,
-                    FunctionBodyType::kBlock);
+  ParseFunctionBody(body, function_name, pos, formals, kind,
+                    function_syntax_kind, FunctionBodyType::kBlock);
 
   *has_duplicate_parameters = formals.has_duplicate();
 
@@ -2882,7 +2871,7 @@ FunctionLiteral* Parser::CreateInitializerFunction(
   FunctionLiteral* result = factory()->NewFunctionLiteral(
       ast_value_factory()->GetOneByteString(name), scope, statements, 0, 0, 0,
       FunctionLiteral::kNoDuplicateParameters,
-      FunctionLiteral::kAnonymousExpression,
+      FunctionSyntaxKind::kAccessorOrMethod,
       FunctionLiteral::kShouldEagerCompile, scope->start_position(), false,
       GetNextFunctionLiteralId());
 

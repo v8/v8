@@ -200,14 +200,13 @@ int SharedFunctionInfo::function_token_position() const {
   }
 }
 
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_wrapped,
-                    SharedFunctionInfo::IsWrappedBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, syntax_kind,
+                    SharedFunctionInfo::FunctionSyntaxKindBits)
+
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, allows_lazy_compilation,
                     SharedFunctionInfo::AllowLazyCompilationBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, has_duplicate_parameters,
                     SharedFunctionInfo::HasDuplicateParametersBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_declaration,
-                    SharedFunctionInfo::IsDeclarationBit)
 
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, native,
                     SharedFunctionInfo::IsNativeBit)
@@ -219,13 +218,9 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags,
 
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, name_should_print_as_anonymous,
                     SharedFunctionInfo::NameShouldPrintAsAnonymousBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_anonymous_expression,
-                    SharedFunctionInfo::IsAnonymousExpressionBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, has_reported_binary_coverage,
                     SharedFunctionInfo::HasReportedBinaryCoverageBit)
 
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_named_expression,
-                    SharedFunctionInfo::IsNamedExpressionBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_toplevel,
                     SharedFunctionInfo::IsTopLevelBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags,
@@ -269,6 +264,10 @@ void SharedFunctionInfo::set_kind(FunctionKind kind) {
   hints = IsClassConstructorBit::update(hints, IsClassConstructor(kind));
   set_flags(hints);
   UpdateFunctionMapIndex();
+}
+
+bool SharedFunctionInfo::is_wrapped() const {
+  return syntax_kind() == FunctionSyntaxKind::kWrapped;
 }
 
 bool SharedFunctionInfo::needs_home_object() const {
