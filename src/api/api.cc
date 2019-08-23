@@ -8688,7 +8688,11 @@ MicrotasksScope::MicrotasksScope(Isolate* isolate,
 MicrotasksScope::~MicrotasksScope() {
   if (run_) {
     microtask_queue_->DecrementMicrotasksScopeDepth();
-    if (MicrotasksPolicy::kScoped == microtask_queue_->microtasks_policy()) {
+    if (MicrotasksPolicy::kScoped == microtask_queue_->microtasks_policy() &&
+        !isolate_->has_scheduled_exception()) {
+      DCHECK_IMPLIES(isolate_->has_scheduled_exception(),
+                     isolate_->scheduled_exception() ==
+                         i::ReadOnlyRoots(isolate_).termination_exception());
       microtask_queue_->PerformCheckpoint(reinterpret_cast<Isolate*>(isolate_));
     }
   }
