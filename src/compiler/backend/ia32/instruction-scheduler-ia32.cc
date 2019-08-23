@@ -120,6 +120,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXF32x4Sub:
     case kSSEF32x4Mul:
     case kAVXF32x4Mul:
+    case kSSEF32x4Div:
+    case kAVXF32x4Div:
     case kSSEF32x4Min:
     case kAVXF32x4Min:
     case kSSEF32x4Max:

@@ -1839,6 +1839,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
+    case kArmF32x4Div: {
+      QwNeonRegister dst = i.OutputSimd128Register();
+      QwNeonRegister src1 = i.InputSimd128Register(0);
+      QwNeonRegister src2 = i.InputSimd128Register(1);
+      DCHECK_EQ(dst, q0);
+      DCHECK_EQ(src1, q0);
+      DCHECK_EQ(src2, q1);
+#define S_FROM_Q(reg, lane) SwVfpRegister::from_code(reg.code() * 4 + lane)
+      __ vdiv(S_FROM_Q(dst, 0), S_FROM_Q(src1, 0), S_FROM_Q(src2, 0));
+      __ vdiv(S_FROM_Q(dst, 1), S_FROM_Q(src1, 1), S_FROM_Q(src2, 1));
+      __ vdiv(S_FROM_Q(dst, 2), S_FROM_Q(src1, 2), S_FROM_Q(src2, 2));
+      __ vdiv(S_FROM_Q(dst, 3), S_FROM_Q(src1, 3), S_FROM_Q(src2, 3));
+#undef S_FROM_Q
+      break;
+    }
     case kArmF32x4Min: {
       __ vmin(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));

@@ -2004,6 +2004,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 i.InputOperand(1));
       break;
     }
+    case kSSEF32x4Div: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ divps(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXF32x4Div: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vdivps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputOperand(1));
+      break;
+    }
     case kSSEF32x4Min: {
       XMMRegister src1 = i.InputSimd128Register(1),
                   dst = i.OutputSimd128Register();

@@ -139,6 +139,8 @@ namespace compiler {
   V(AVXF32x4Sub)                   \
   V(SSEF32x4Mul)                   \
   V(AVXF32x4Mul)                   \
+  V(SSEF32x4Div)                   \
+  V(AVXF32x4Div)                   \
   V(SSEF32x4Min)                   \
   V(AVXF32x4Min)                   \
   V(SSEF32x4Max)                   \

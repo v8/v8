@@ -183,6 +183,7 @@ namespace compiler {
   V(X64F32x4AddHoriz)                     \
   V(X64F32x4Sub)                          \
   V(X64F32x4Mul)                          \
+  V(X64F32x4Div)                          \
   V(X64F32x4Min)                          \
   V(X64F32x4Max)                          \
   V(X64F32x4Eq)                           \

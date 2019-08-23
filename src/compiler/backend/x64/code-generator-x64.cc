@@ -2474,6 +2474,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ mulps(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
+    case kX64F32x4Div: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ divps(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
     case kX64F32x4Min: {
       XMMRegister src1 = i.InputSimd128Register(1),
                   dst = i.OutputSimd128Register();

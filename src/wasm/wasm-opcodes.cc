@@ -239,6 +239,7 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_F64x2_OP(Mul, "mul")
     CASE_I64x2_OP(Mul, "mul")
     CASE_F64x2_OP(Div, "div")
+    CASE_F32x4_OP(Div, "div")
     CASE_F64x2_OP(Splat, "splat")
     CASE_F64x2_OP(Lt, "lt")
     CASE_F64x2_OP(Le, "le")

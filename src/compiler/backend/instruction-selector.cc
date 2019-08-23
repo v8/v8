@@ -1903,6 +1903,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitF32x4Sub(node);
     case IrOpcode::kF32x4Mul:
       return MarkAsSimd128(node), VisitF32x4Mul(node);
+    case IrOpcode::kF32x4Div:
+      return MarkAsSimd128(node), VisitF32x4Div(node);
     case IrOpcode::kF32x4Min:
       return MarkAsSimd128(node), VisitF32x4Min(node);
     case IrOpcode::kF32x4Max:

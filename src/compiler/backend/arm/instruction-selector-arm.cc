@@ -2513,6 +2513,14 @@ SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
 #undef SIMD_BINOP_LIST
 
+void InstructionSelector::VisitF32x4Div(Node* node) {
+  ArmOperandGenerator g(this);
+  // Use fixed registers in the lower 8 Q-registers so we can directly access
+  // mapped registers S0-S31.
+  Emit(kArmF32x4Div, g.DefineAsFixed(node, q0),
+       g.UseFixed(node->InputAt(0), q0), g.UseFixed(node->InputAt(1), q1));
+}
+
 void InstructionSelector::VisitS128Select(Node* node) {
   ArmOperandGenerator g(this);
   Emit(kArmS128Select, g.DefineSameAsFirst(node),

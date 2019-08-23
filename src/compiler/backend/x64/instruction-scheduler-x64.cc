@@ -152,6 +152,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64F32x4AddHoriz:
     case kX64F32x4Sub:
     case kX64F32x4Mul:
+    case kX64F32x4Div:
     case kX64F32x4Min:
     case kX64F32x4Max:
     case kX64F32x4Eq:

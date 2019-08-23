@@ -660,6 +660,9 @@ WASM_SIMD_TEST(F32x4Sub) {
 WASM_SIMD_TEST(F32x4Mul) {
   RunF32x4BinOpTest(execution_tier, lower_simd, kExprF32x4Mul, Mul);
 }
+WASM_SIMD_TEST(F32x4Div) {
+  RunF32x4BinOpTest(execution_tier, lower_simd, kExprF32x4Div, Div);
+}
 WASM_SIMD_TEST(F32x4Min) {
   RunF32x4BinOpTest(execution_tier, lower_simd, kExprF32x4Min, JSMin);
 }

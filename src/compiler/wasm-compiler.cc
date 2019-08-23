@@ -4074,6 +4074,9 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
     case wasm::kExprF32x4Mul:
       return graph()->NewNode(mcgraph()->machine()->F32x4Mul(), inputs[0],
                               inputs[1]);
+    case wasm::kExprF32x4Div:
+      return graph()->NewNode(mcgraph()->machine()->F32x4Div(), inputs[0],
+                              inputs[1]);
     case wasm::kExprF32x4Min:
       return graph()->NewNode(mcgraph()->machine()->F32x4Min(), inputs[0],
                               inputs[1]);
