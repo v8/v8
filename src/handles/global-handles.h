@@ -101,8 +101,9 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
     return Handle<T>::cast(Create(Object(value)));
   }
 
-  Handle<Object> CreateTraced(Object value, Address* slot);
-  Handle<Object> CreateTraced(Address value, Address* slot);
+  Handle<Object> CreateTraced(Object value, Address* slot, bool has_destructor);
+  Handle<Object> CreateTraced(Address value, Address* slot,
+                              bool has_destructor);
 
   void RecordStats(HeapStats* stats);
 

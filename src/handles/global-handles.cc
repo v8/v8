@@ -22,6 +22,10 @@ namespace internal {
 
 namespace {
 
+// Specifies whether V8 expects the holder memory of a global handle to be live
+// or dead.
+enum class HandleHolder { kLive, kDead };
+
 constexpr size_t kBlockSize = 256;
 
 }  // namespace
@@ -532,7 +536,8 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
     set_state(NEAR_DEATH);
   }
 
-  void ResetPhantomHandle() {
+  void ResetPhantomHandle(HandleHolder handle_holder) {
+    DCHECK_EQ(HandleHolder::kLive, handle_holder);
     DCHECK_EQ(PHANTOM_WEAK_RESET_HANDLE, weakness_type());
     DCHECK_EQ(PENDING, state());
     DCHECK_NULL(weak_callback_);
@@ -614,6 +619,9 @@ class GlobalHandles::TracedNode final
   bool is_root() const { return IsRoot::decode(flags_); }
   void set_root(bool v) { flags_ = IsRoot::update(flags_, v); }
 
+  bool has_destructor() const { return HasDestructor::decode(flags_); }
+  void set_has_destructor(bool v) { flags_ = HasDestructor::update(flags_, v); }
+
   void SetFinalizationCallback(void* parameter,
                                WeakCallbackInfo<void>::Callback callback) {
     set_parameter(parameter);
@@ -640,10 +648,12 @@ class GlobalHandles::TracedNode final
     set_state(NEAR_DEATH);
   }
 
-  void ResetPhantomHandle() {
+  void ResetPhantomHandle(HandleHolder handle_holder) {
     DCHECK(IsInUse());
-    Address** handle = reinterpret_cast<Address**>(data_.parameter);
-    *handle = nullptr;
+    if (handle_holder == HandleHolder::kLive) {
+      Address** handle = reinterpret_cast<Address**>(data_.parameter);
+      *handle = nullptr;
+    }
     NodeSpace<TracedNode>::Release(this);
     DCHECK(!IsInUse());
   }
@@ -652,6 +662,7 @@ class GlobalHandles::TracedNode final
   using NodeState = BitField8<State, 0, 2>;
   using IsInYoungList = NodeState::Next<bool, 1>;
   using IsRoot = IsInYoungList::Next<bool, 1>;
+  using HasDestructor = IsRoot::Next<bool, 1>;
 
   void ClearImplFields() {
     set_root(true);
@@ -690,18 +701,21 @@ Handle<Object> GlobalHandles::Create(Address value) {
   return Create(Object(value));
 }
 
-Handle<Object> GlobalHandles::CreateTraced(Object value, Address* slot) {
+Handle<Object> GlobalHandles::CreateTraced(Object value, Address* slot,
+                                           bool has_destructor) {
   GlobalHandles::TracedNode* result = traced_nodes_->Acquire(value);
   if (ObjectInYoungGeneration(value) && !result->is_in_young_list()) {
     traced_young_nodes_.push_back(result);
     result->set_in_young_list(true);
   }
   result->set_parameter(slot);
+  result->set_has_destructor(has_destructor);
   return result->handle();
 }
 
-Handle<Object> GlobalHandles::CreateTraced(Address value, Address* slot) {
-  return CreateTraced(Object(value), slot);
+Handle<Object> GlobalHandles::CreateTraced(Address value, Address* slot,
+                                           bool has_destructor) {
+  return CreateTraced(Object(value), slot, has_destructor);
 }
 
 Handle<Object> GlobalHandles::CopyGlobal(Address* location) {
@@ -808,7 +822,7 @@ void GlobalHandles::IterateWeakRootsForPhantomHandles(
         should_reset_handle(isolate()->heap(), node->location())) {
       if (node->IsPhantomResetHandle()) {
         node->MarkPending();
-        node->ResetPhantomHandle();
+        node->ResetPhantomHandle(HandleHolder::kLive);
         ++number_of_phantom_handle_resets_;
       } else if (node->IsPhantomCallback()) {
         node->MarkPending();
@@ -820,7 +834,8 @@ void GlobalHandles::IterateWeakRootsForPhantomHandles(
     if (node->IsInUse() &&
         should_reset_handle(isolate()->heap(), node->location())) {
       if (node->IsPhantomResetHandle()) {
-        node->ResetPhantomHandle();
+        node->ResetPhantomHandle(node->has_destructor() ? HandleHolder::kLive
+                                                        : HandleHolder::kDead);
         ++number_of_phantom_handle_resets_;
       } else {
         node->CollectPhantomCallbackData(&traced_pending_phantom_callbacks_);
@@ -906,7 +921,7 @@ void GlobalHandles::IterateYoungWeakUnmodifiedRootsForPhantomHandles(
         DCHECK(node->IsPhantomResetHandle() || node->IsPhantomCallback());
         if (node->IsPhantomResetHandle()) {
           node->MarkPending();
-          node->ResetPhantomHandle();
+          node->ResetPhantomHandle(HandleHolder::kLive);
           ++number_of_phantom_handle_resets_;
         } else if (node->IsPhantomCallback()) {
           node->MarkPending();
@@ -921,6 +936,9 @@ void GlobalHandles::IterateYoungWeakUnmodifiedRootsForPhantomHandles(
       }
     }
   }
+
+  LocalEmbedderHeapTracer* const tracer =
+      isolate()->heap()->local_embedder_heap_tracer();
   for (TracedNode* node : traced_young_nodes_) {
     if (!node->IsInUse()) continue;
 
@@ -928,7 +946,18 @@ void GlobalHandles::IterateYoungWeakUnmodifiedRootsForPhantomHandles(
                    !should_reset_handle(isolate_->heap(), node->location()));
     if (should_reset_handle(isolate_->heap(), node->location())) {
       if (node->IsPhantomResetHandle()) {
-        node->ResetPhantomHandle();
+        if (node->has_destructor()) {
+          // For handles with destructor it is guaranteed that the embedder
+          // memory is still alive as the destructor would have otherwise
+          // removed the memory.
+          node->ResetPhantomHandle(HandleHolder::kLive);
+        } else {
+          v8::Value* value = ToApi<v8::Value>(node->handle());
+          tracer->ResetHandleInNonTracingGC(
+              *reinterpret_cast<v8::TracedGlobal<v8::Value>*>(&value));
+          DCHECK(!node->IsInUse());
+        }
+
         ++number_of_phantom_handle_resets_;
       } else {
         node->CollectPhantomCallbackData(&traced_pending_phantom_callbacks_);

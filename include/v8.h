@@ -798,10 +798,13 @@ template <typename T>
 struct TracedGlobalTrait {
   /**
    * Specifies whether |TracedGlobal<T>| should clear its handle on destruction.
-   * The handle is cleared upon garbage collection as well when the object that
-   * it is referring to is considered as unreachable. It is the responsibility
-   * of the embedder to ensure that the memory holding |TracedGlobal<T>| is
-   * still alive at that point in time.
+   *
+   * V8 will *not* clear the embedder-side memory of the handle. The embedder is
+   * expected to report all |TracedGlobal<T>| handles through
+   * |EmbedderHeapTracer| upon garabge collection.
+   *
+   * See |EmbedderHeapTracer::IsRootForNonTracingGC| for handling with
+   * non-tracing GCs in V8.
    */
   static constexpr bool kRequiresExplicitDestruction = true;
 };
@@ -7426,13 +7429,36 @@ class V8_EXPORT EmbedderHeapTracer {
   /**
    * Returns true if the TracedGlobal handle should be considered as root for
    * the currently running non-tracing garbage collection and false otherwise.
+   * The default implementation will keep all TracedGlobal references as roots.
    *
-   * Default implementation will keep all TracedGlobal references as roots.
+   * If this returns false, then V8 may decide that the object referred to by
+   * such a handle is reclaimed. In that case:
+   * - No action is required if handles are used with destructors.
+   * - When run without destructors (by specializing
+   * |TracedGlobalTrait::kRequiresExplicitDestruction|) V8 calls
+   * |ResetHandleInNonTracingGC|.
+   *
+   * Note that the |handle| is different from the |TracedGlobal<T>| handle that
+   * the embedder holds for retaining the object. The embedder may use
+   * |TracedGlobal<T>::WrapperClassId()| to distinguish cases where it wants
+   * handles to be treated as roots from not being treated as roots.
    */
   virtual bool IsRootForNonTracingGC(
       const v8::TracedGlobal<v8::Value>& handle) {
     return true;
   }
+
+  /**
+   * Used in combination with |IsRootForNonTracingGC|. Called by V8 when an
+   * object that is backed by a handle is reclaimed by a non-tracing garbage
+   * collection. It is up to the embedder to reset the original handle.
+   *
+   * Note that the |handle| is different from the |TracedGlobal<T>| handle that
+   * the embedder holds for retaining the object. It is up to the embedder to
+   * find the orignal |TracedGlobal<T>| handle via the object or class id.
+   */
+  virtual void ResetHandleInNonTracingGC(
+      const v8::TracedGlobal<v8::Value>& handle) {}
 
   /*
    * Called by the embedder to immediately perform a full garbage collection.
@@ -8996,7 +9022,8 @@ class V8_EXPORT V8 {
                                                internal::Address* handle);
   static internal::Address* GlobalizeTracedReference(internal::Isolate* isolate,
                                                      internal::Address* handle,
-                                                     internal::Address* slot);
+                                                     internal::Address* slot,
+                                                     bool has_destructor);
   static void MoveGlobalReference(internal::Address** from,
                                   internal::Address** to);
   static void MoveTracedGlobalReference(internal::Address** from,
@@ -10095,7 +10122,8 @@ T* TracedGlobal<T>::New(Isolate* isolate, T* that, void* slot) {
   internal::Address* p = reinterpret_cast<internal::Address*>(that);
   return reinterpret_cast<T*>(V8::GlobalizeTracedReference(
       reinterpret_cast<internal::Isolate*>(isolate), p,
-      reinterpret_cast<internal::Address*>(slot)));
+      reinterpret_cast<internal::Address*>(slot),
+      TracedGlobalTrait<TracedGlobal<T>>::kRequiresExplicitDestruction));
 }
 
 template <class T>

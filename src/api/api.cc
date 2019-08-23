@@ -1033,10 +1033,11 @@ i::Address* V8::GlobalizeReference(i::Isolate* isolate, i::Address* obj) {
 }
 
 i::Address* V8::GlobalizeTracedReference(i::Isolate* isolate, i::Address* obj,
-                                         internal::Address* slot) {
+                                         internal::Address* slot,
+                                         bool has_destructor) {
   LOG_API(isolate, TracedGlobal, New);
   i::Handle<i::Object> result =
-      isolate->global_handles()->CreateTraced(*obj, slot);
+      isolate->global_handles()->CreateTraced(*obj, slot, has_destructor);
 #ifdef VERIFY_HEAP
   if (i::FLAG_verify_heap) {
     i::Object(*obj).ObjectVerify(isolate);
