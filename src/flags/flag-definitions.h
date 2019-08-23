@@ -208,7 +208,6 @@ DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
   V(harmony_regexp_sequence, "RegExp Unicode sequence properties")        \
   V(harmony_weak_refs, "harmony weak references")                         \
   V(harmony_optional_chaining, "harmony optional chaining syntax")        \
-  V(harmony_regexp_match_indices, "harmony regexp match indices")         \
   V(harmony_nullish, "harmony nullish operator")
 
 #ifdef V8_INTL_SUPPORT
@@ -385,13 +384,17 @@ DEFINE_BOOL(feedback_normalization, false,
 DEFINE_BOOL_READONLY(internalize_on_the_fly, true,
                      "internalize string keys for generic keyed ICs on the fly")
 
+// Flag to faster calls with arguments mismatches (https://crbug.com/v8/8895)
+DEFINE_BOOL(fast_calls_with_arguments_mismatches, true,
+            "skip arguments adaptor frames when it's provably safe")
+
 // Flag for one shot optimiztions.
 DEFINE_BOOL(enable_one_shot_optimization, true,
             "Enable size optimizations for the code that will "
             "only be executed once")
 
 // Flag for sealed, frozen elements kind instead of dictionary elements kind
-DEFINE_BOOL_READONLY(enable_sealed_frozen_elements_kind, false,
+DEFINE_BOOL_READONLY(enable_sealed_frozen_elements_kind, true,
                      "Enable sealed, frozen elements kind")
 
 // Flags for data representation optimizations
@@ -713,13 +716,6 @@ DEFINE_STRING(dump_wasm_module_path, nullptr,
 FOREACH_WASM_FEATURE_FLAG(DECL_WASM_FLAG)
 #undef DECL_WASM_FLAG
 
-DEFINE_BOOL(wasm_staging, false, "enable staged wasm features")
-
-#define WASM_STAGING_IMPLICATION(feat, desc, val) \
-  DEFINE_IMPLICATION(wasm_staging, experimental_wasm_##feat)
-FOREACH_WASM_STAGING_FEATURE_FLAG(WASM_STAGING_IMPLICATION)
-#undef WASM_STAGING_IMPLICATION
-
 DEFINE_BOOL(wasm_opt, false, "enable wasm optimization")
 DEFINE_BOOL(wasm_no_bounds_checks, false,
             "disable bounds checks (performance testing only)")
@@ -828,14 +824,9 @@ DEFINE_BOOL(
     trace_allocations_origins, false,
     "Show statistics about the origins of allocations. "
     "Combine with --no-inline-new to track allocations from generated code")
-DEFINE_INT(gc_freelist_strategy, 5,
+DEFINE_INT(gc_freelist_strategy, 0,
            "Freelist strategy to use: "
-           "0:FreeListLegacy. "
-           "1:FreeListFastAlloc. "
-           "2:FreeListMany. "
-           "3:FreeListManyCached. "
-           "4:FreeListManyCachedFastPath. "
-           "5:FreeListManyCachedOrigin. ")
+           "1=FreeListFastAlloc. 2=FreeListMany. Anything else=FreeListLegacy")
 
 DEFINE_INT(trace_allocation_stack_interval, -1,
            "print stack trace after <n> free-list allocations")
