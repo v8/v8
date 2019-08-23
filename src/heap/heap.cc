@@ -2998,11 +2998,6 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
   FixedArrayBase new_object =
       FixedArrayBase::cast(HeapObject::FromAddress(new_start));
 
-  // Remove recorded slots for the new map and length offset.
-  ClearRecordedSlot(new_object, new_object.RawField(0));
-  ClearRecordedSlot(new_object,
-                    new_object.RawField(FixedArrayBase::kLengthOffset));
-
   // Handle invalidated old-to-old slots.
   if (incremental_marking()->IsCompacting() &&
       MayContainRecordedSlots(new_object)) {
