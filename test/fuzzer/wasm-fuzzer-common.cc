@@ -140,6 +140,8 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
         "can be\n"
         "// found in the LICENSE file.\n"
         "\n"
+        "// Flags: --wasm-staging\n"
+        "\n"
         "load('test/mjsunit/wasm/wasm-module-builder.js');\n"
         "\n"
         "(function() {\n"
@@ -249,6 +251,11 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 
 void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
                                          bool require_valid) {
+  // We explicitly enable staged WebAssembly features here to increase fuzzer
+  // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
+  // the flag by itself.
+  FlagScope<bool> enable_staged_features(&FLAG_wasm_staging, true);
+
   // Strictly enforce the input size limit. Note that setting "max_len" on the
   // fuzzer target is not enough, since different fuzzers are used and not all
   // respect that limit.

@@ -20,6 +20,13 @@
 namespace i = v8::internal;
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+  // We explicitly enable staged WebAssembly features here to increase fuzzer
+  // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
+  // the flag by itself.
+  i::FlagScope<bool> enable_staged_features(&i::FLAG_wasm_staging, true);
+
+  // We reduce the maximum memory size and table size of WebAssembly instances
+  // to avoid OOMs in the fuzzer.
   i::FlagScope<uint32_t> max_mem_flag_scope(&i::FLAG_wasm_max_mem_pages, 32);
   i::FlagScope<uint32_t> max_table_size_scope(&i::FLAG_wasm_max_table_size,
                                               100);
