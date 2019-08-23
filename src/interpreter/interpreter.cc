@@ -210,10 +210,20 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompileIgnitionFinalization");
 
-  Handle<BytecodeArray> bytecodes =
-      generator()->FinalizeBytecode(isolate, parse_info()->script());
-  if (generator()->HasStackOverflow()) {
-    return FAILED;
+  Handle<BytecodeArray> bytecodes = compilation_info_.bytecode_array();
+  if (bytecodes.is_null()) {
+    bytecodes = generator()->FinalizeBytecode(isolate, parse_info()->script());
+    if (generator()->HasStackOverflow()) {
+      return FAILED;
+    }
+    compilation_info()->SetBytecodeArray(bytecodes);
+  }
+
+  if (compilation_info()->SourcePositionRecordingMode() ==
+      SourcePositionTableBuilder::RecordingMode::RECORD_SOURCE_POSITIONS) {
+    Handle<ByteArray> source_position_table =
+        generator()->FinalizeSourcePositionTable(isolate);
+    bytecodes->set_source_position_table(*source_position_table);
   }
 
   if (ShouldPrintBytecode(shared_info)) {
@@ -226,7 +236,6 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
     os << std::flush;
   }
 
-  compilation_info()->SetBytecodeArray(bytecodes);
   return SUCCEEDED;
 }
 
@@ -236,6 +245,16 @@ std::unique_ptr<UnoptimizedCompilationJob> Interpreter::NewCompilationJob(
     std::vector<FunctionLiteral*>* eager_inner_literals) {
   return base::make_unique<InterpreterCompilationJob>(
       parse_info, literal, allocator, eager_inner_literals);
+}
+
+std::unique_ptr<UnoptimizedCompilationJob>
+Interpreter::NewSourcePositionCollectionJob(
+    ParseInfo* parse_info, FunctionLiteral* literal,
+    Handle<BytecodeArray> existing_bytecode, AccountingAllocator* allocator) {
+  auto job = base::make_unique<InterpreterCompilationJob>(parse_info, literal,
+                                                          allocator, nullptr);
+  job->compilation_info()->SetBytecodeArray(existing_bytecode);
+  return job;
 }
 
 void Interpreter::ForEachBytecode(

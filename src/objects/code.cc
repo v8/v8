@@ -1089,15 +1089,5 @@ const char* DependentCode::DependencyGroupName(DependencyGroup group) {
   UNREACHABLE();
 }
 
-bool BytecodeArray::IsBytecodeEqual(const BytecodeArray other) const {
-  if (length() != other.length()) return false;
-
-  for (int i = 0; i < length(); ++i) {
-    if (get(i) != other.get(i)) return false;
-  }
-
-  return true;
-}
-
 }  // namespace internal
 }  // namespace v8

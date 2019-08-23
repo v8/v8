@@ -827,9 +827,6 @@ class BytecodeArray : public FixedArrayBase {
   // is deterministic.
   inline void clear_padding();
 
-  // Compares only the bytecode array but not any of the header fields.
-  bool IsBytecodeEqual(const BytecodeArray other) const;
-
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(FixedArrayBase::kHeaderSize,
                                 TORQUE_GENERATED_BYTECODE_ARRAY_FIELDS)

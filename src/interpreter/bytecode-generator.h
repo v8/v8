@@ -18,6 +18,7 @@ namespace internal {
 
 class AstNodeSourceRanges;
 class AstStringConstants;
+class BytecodeArray;
 class UnoptimizedCompilationInfo;
 enum class SourceRangeKind;
 
@@ -38,6 +39,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void GenerateBytecode(uintptr_t stack_limit);
   Handle<BytecodeArray> FinalizeBytecode(Isolate* isolate,
                                          Handle<Script> script);
+  Handle<ByteArray> FinalizeSourcePositionTable(Isolate* isolate);
 
 #define DECLARE_VISIT(type) void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)

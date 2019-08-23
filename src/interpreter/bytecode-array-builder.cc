@@ -23,7 +23,8 @@ class RegisterTransferWriter final
     : public NON_EXPORTED_BASE(BytecodeRegisterOptimizer::BytecodeWriter),
       public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  RegisterTransferWriter(BytecodeArrayBuilder* builder) : builder_(builder) {}
+  explicit RegisterTransferWriter(BytecodeArrayBuilder* builder)
+      : builder_(builder) {}
   ~RegisterTransferWriter() override = default;
 
   void EmitLdar(Register input) override { builder_->OutputLdarRaw(input); }
@@ -96,6 +97,20 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(Isolate* isolate) {
       handler_table_builder()->ToHandlerTable(isolate);
   return bytecode_array_writer_.ToBytecodeArray(
       isolate, register_count, parameter_count(), handler_table);
+}
+
+#ifdef DEBUG
+void BytecodeArrayBuilder::CheckBytecodeMatches(
+    Handle<BytecodeArray> bytecode) {
+  bytecode_array_writer_.CheckBytecodeMatches(bytecode);
+}
+#endif
+
+Handle<ByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
+    Isolate* isolate) {
+  DCHECK(RemainderOfBlockIsDead());
+
+  return bytecode_array_writer_.ToSourcePositionTable(isolate);
 }
 
 BytecodeSourceInfo BytecodeArrayBuilder::CurrentSourcePosition(

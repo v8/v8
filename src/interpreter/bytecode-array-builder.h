@@ -21,6 +21,7 @@
 namespace v8 {
 namespace internal {
 
+class BytecodeArray;
 class FeedbackVectorSpec;
 class Isolate;
 
@@ -42,6 +43,11 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
           SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS);
 
   Handle<BytecodeArray> ToBytecodeArray(Isolate* isolate);
+  Handle<ByteArray> ToSourcePositionTable(Isolate* isolate);
+
+#ifdef DEBUG
+  void CheckBytecodeMatches(Handle<BytecodeArray> bytecode);
+#endif
 
   // Get the number of parameters expected by function.
   int parameter_count() const {

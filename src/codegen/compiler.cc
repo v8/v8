@@ -535,20 +535,16 @@ std::unique_ptr<UnoptimizedCompilationJob> GenerateUnoptimizedCode(
   DisallowHeapAccess no_heap_access;
   DCHECK(inner_function_jobs->empty());
 
-  if (!Compiler::Analyze(parse_info)) {
-    return std::unique_ptr<UnoptimizedCompilationJob>();
+  std::unique_ptr<UnoptimizedCompilationJob> job;
+  if (Compiler::Analyze(parse_info)) {
+    job = ExecuteUnoptimizedCompileJobs(parse_info, parse_info->literal(),
+                                        allocator, inner_function_jobs);
   }
-
-  // Prepare and execute compilation of the outer-most function.
-  std::unique_ptr<UnoptimizedCompilationJob> outer_function_job(
-      ExecuteUnoptimizedCompileJobs(parse_info, parse_info->literal(),
-                                    allocator, inner_function_jobs));
-  if (!outer_function_job) return std::unique_ptr<UnoptimizedCompilationJob>();
 
   // Character stream shouldn't be used again.
   parse_info->ResetCharacterStream();
 
-  return outer_function_job;
+  return job;
 }
 
 MaybeHandle<SharedFunctionInfo> GenerateUnoptimizedCodeForToplevel(
@@ -1234,51 +1230,41 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
         isolate, &parse_info, Compiler::ClearExceptionFlag::CLEAR_EXCEPTION);
   }
 
+  // Character stream shouldn't be used again.
+  parse_info.ResetCharacterStream();
+
   // Generate the unoptimized bytecode.
   // TODO(v8:8510): Consider forcing preparsing of inner functions to avoid
   // wasting time fully parsing them when they won't ever be used.
-  UnoptimizedCompilationJobList inner_function_jobs;
-  std::unique_ptr<UnoptimizedCompilationJob> outer_function_job(
-      GenerateUnoptimizedCode(&parse_info, isolate->allocator(),
-                              &inner_function_jobs));
-  if (!outer_function_job) {
-    // Recompiling failed probably as a result of stack exhaustion.
-    bytecode->SetSourcePositionsFailedToCollect();
-    return FailWithPendingException(
-        isolate, &parse_info, Compiler::ClearExceptionFlag::CLEAR_EXCEPTION);
-  }
-
-  DCHECK(outer_function_job->compilation_info()->collect_source_positions());
-
-  // TODO(v8:8510) Avoid re-allocating bytecode array/constant pool and
-  // re-internalizeing the ast values. Maybe we could use the
-  // unoptimized_compilation_flag to signal that all we need is the source
-  // position table (and we could do the DCHECK that the bytecode array is the
-  // same in the bytecode-generator, by comparing the real bytecode array on the
-  // SFI with the off-heap bytecode array).
-
-  // Internalize ast values onto the heap.
-  parse_info.ast_value_factory()->Internalize(isolate);
-
+  std::unique_ptr<UnoptimizedCompilationJob> job;
   {
-    // Allocate scope infos for the literal.
-    DeclarationScope::AllocateScopeInfos(&parse_info, isolate);
-    CHECK_EQ(outer_function_job->FinalizeJob(shared_info, isolate),
-             CompilationJob::SUCCEEDED);
+    if (!Compiler::Analyze(&parse_info)) {
+      // Recompiling failed probably as a result of stack exhaustion.
+      bytecode->SetSourcePositionsFailedToCollect();
+      return FailWithPendingException(
+          isolate, &parse_info, Compiler::ClearExceptionFlag::CLEAR_EXCEPTION);
+    }
+
+    job = interpreter::Interpreter::NewSourcePositionCollectionJob(
+        &parse_info, parse_info.literal(), bytecode, isolate->allocator());
+
+    if (!job || job->ExecuteJob() != CompilationJob::SUCCEEDED ||
+        job->FinalizeJob(shared_info, isolate) != CompilationJob::SUCCEEDED) {
+      // Recompiling failed probably as a result of stack exhaustion.
+      bytecode->SetSourcePositionsFailedToCollect();
+      return FailWithPendingException(
+          isolate, &parse_info, Compiler::ClearExceptionFlag::CLEAR_EXCEPTION);
+    }
   }
 
-  // Update the source position table on the original bytecode.
-  DCHECK(bytecode->IsBytecodeEqual(
-      *outer_function_job->compilation_info()->bytecode_array()));
-  DCHECK(outer_function_job->compilation_info()->has_bytecode_array());
-  ByteArray source_position_table = outer_function_job->compilation_info()
-                                        ->bytecode_array()
-                                        ->SourcePositionTable();
-  bytecode->set_source_position_table(source_position_table);
+  DCHECK(job->compilation_info()->collect_source_positions());
+
   // If debugging, make sure that instrumented bytecode has the source position
   // table set on it as well.
   if (shared_info->HasDebugInfo() &&
       shared_info->GetDebugInfo().HasInstrumentedBytecodeArray()) {
+    ByteArray source_position_table =
+        job->compilation_info()->bytecode_array()->SourcePositionTable();
     shared_info->GetDebugBytecodeArray().set_source_position_table(
         source_position_table);
   }

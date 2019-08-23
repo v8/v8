@@ -15,6 +15,7 @@
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-register-allocator.h"
 #include "src/interpreter/control-flow-builders.h"
+#include "src/logging/log.h"
 #include "src/objects/debug-objects.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/objects-inl.h"
@@ -1065,6 +1066,28 @@ Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
   return bytecode_array;
 }
 
+Handle<ByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
+    Isolate* isolate) {
+  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+#ifdef DEBUG
+  // Unoptimized compilation should be context-independent. Verify that we don't
+  // access the native context by nulling it out during finalization.
+  NullContextScope null_context_scope(isolate);
+
+  builder()->CheckBytecodeMatches(info_->bytecode_array());
+#endif
+
+  Handle<ByteArray> source_position_table =
+      builder()->ToSourcePositionTable(isolate);
+
+  LOG_CODE_EVENT(isolate,
+                 CodeLinePosInfoRecordEvent(
+                     info_->bytecode_array()->GetFirstBytecodeAddress(),
+                     *source_position_table));
+
+  return source_position_table;
+}
+
 void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate,
                                                   Handle<Script> script) {
   // Build global declaration pair arrays.
@@ -1412,8 +1435,9 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
       BuildVariableAssignment(variable, Token::INIT, HoleCheckMode::kElided);
       break;
   }
-  DCHECK_IMPLIES(decl->fun()->ShouldEagerCompile(),
-                 IsInEagerLiterals(decl->fun(), *eager_inner_literals_));
+  DCHECK_IMPLIES(
+      eager_inner_literals_ != nullptr && decl->fun()->ShouldEagerCompile(),
+      IsInEagerLiterals(decl->fun(), *eager_inner_literals_));
 }
 
 void BytecodeGenerator::VisitModuleNamespaceImports() {
