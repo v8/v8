@@ -2568,9 +2568,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<String> ToString_Inline(SloppyTNode<Context> context,
                                 SloppyTNode<Object> input);
 
-  // Convert any object to a Primitive.
-  Node* JSReceiverToPrimitive(Node* context, Node* input);
-
   TNode<JSReceiver> ToObject(SloppyTNode<Context> context,
                              SloppyTNode<Object> input);
 

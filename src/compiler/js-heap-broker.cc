@@ -2300,8 +2300,8 @@ void JSHeapBroker::SerializeShareableObjects() {
         Builtins::kJSBuiltinsConstructStub,
         Builtins::kJSConstructStubGeneric,
         Builtins::kStringAdd_CheckNone,
-        Builtins::kStringAdd_ConvertLeft,
-        Builtins::kStringAdd_ConvertRight,
+        Builtins::kStringAddConvertLeft,
+        Builtins::kStringAddConvertRight,
         Builtins::kToNumber,
         Builtins::kToObject,
     };

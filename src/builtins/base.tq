@@ -1561,6 +1561,8 @@ transitioning builtin ToString(context: Context, o: Object): String {
 extern transitioning runtime ToStringRT(Context, Object): String;
 extern transitioning builtin NonPrimitiveToPrimitive_String(
     Context, Object): Object;
+extern transitioning builtin NonPrimitiveToPrimitive_Default(
+    Context, Object): Object;
 
 extern transitioning runtime NormalizeElements(Context, JSObject);
 extern transitioning runtime TransitionElementsKindWithKind(

@@ -179,4 +179,22 @@ namespace string {
     obj.value = s;
     return obj;
   }
+
+  transitioning builtin StringAddConvertLeft(implicit context: Context)(
+      left: Object, right: String): String {
+    let temp: Object = left;
+    if (Is<JSReceiver>(temp)) {
+      temp = NonPrimitiveToPrimitive_Default(context, temp);
+    }
+    return ToStringImpl(context, temp) + right;
+  }
+
+  transitioning builtin StringAddConvertRight(implicit context: Context)(
+      left: String, right: Object): String {
+    let temp: Object = right;
+    if (Is<JSReceiver>(temp)) {
+      temp = NonPrimitiveToPrimitive_Default(context, temp);
+    }
+    return left + ToStringImpl(context, temp);
+  }
 }

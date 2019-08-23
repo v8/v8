@@ -294,28 +294,6 @@ TF_BUILTIN(StringAdd_CheckNone, StringBuiltinsAssembler) {
   Return(StringAdd(context, left, right));
 }
 
-TF_BUILTIN(StringAdd_ConvertLeft, StringBuiltinsAssembler) {
-  TNode<Object> left = CAST(Parameter(Descriptor::kLeft));
-  TNode<String> right = CAST(Parameter(Descriptor::kRight));
-  Node* context = Parameter(Descriptor::kContext);
-  // TODO(danno): The ToString and JSReceiverToPrimitive below could be
-  // combined to avoid duplicate smi and instance type checks.
-  left =
-      ToStringImpl(CAST(context), CAST(JSReceiverToPrimitive(context, left)));
-  TailCallBuiltin(Builtins::kStringAdd_CheckNone, context, left, right);
-}
-
-TF_BUILTIN(StringAdd_ConvertRight, StringBuiltinsAssembler) {
-  TNode<String> left = CAST(Parameter(Descriptor::kLeft));
-  TNode<Object> right = CAST(Parameter(Descriptor::kRight));
-  Node* context = Parameter(Descriptor::kContext);
-  // TODO(danno): The ToString and JSReceiverToPrimitive below could be
-  // combined to avoid duplicate smi and instance type checks.
-  right =
-      ToStringImpl(CAST(context), CAST(JSReceiverToPrimitive(context, right)));
-  TailCallBuiltin(Builtins::kStringAdd_CheckNone, context, left, right);
-}
-
 TF_BUILTIN(SubString, StringBuiltinsAssembler) {
   TNode<String> string = CAST(Parameter(Descriptor::kString));
   TNode<Smi> from = CAST(Parameter(Descriptor::kFrom));

@@ -8086,31 +8086,6 @@ TNode<String> CodeStubAssembler::ToString_Inline(SloppyTNode<Context> context,
   return CAST(var_result.value());
 }
 
-Node* CodeStubAssembler::JSReceiverToPrimitive(Node* context, Node* input) {
-  Label if_isreceiver(this, Label::kDeferred), if_isnotreceiver(this);
-  VARIABLE(result, MachineRepresentation::kTagged);
-  Label done(this, &result);
-
-  BranchIfJSReceiver(input, &if_isreceiver, &if_isnotreceiver);
-
-  BIND(&if_isreceiver);
-  {
-    // Convert {input} to a primitive first passing Number hint.
-    Callable callable = CodeFactory::NonPrimitiveToPrimitive(isolate());
-    result.Bind(CallStub(callable, context, input));
-    Goto(&done);
-  }
-
-  BIND(&if_isnotreceiver);
-  {
-    result.Bind(input);
-    Goto(&done);
-  }
-
-  BIND(&done);
-  return result.value();
-}
-
 TNode<JSReceiver> CodeStubAssembler::ToObject(SloppyTNode<Context> context,
                                               SloppyTNode<Object> input) {
   return CAST(CallBuiltin(Builtins::kToObject, context, input));
