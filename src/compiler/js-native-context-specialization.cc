@@ -521,12 +521,11 @@ JSNativeContextSpecialization::InferHasInPrototypeChain(
   bool none = true;
   for (size_t i = 0; i < receiver_maps.size(); ++i) {
     MapRef map(broker(), receiver_maps[i]);
+    if (result == NodeProperties::kUnreliableReceiverMaps && !map.is_stable()) {
+      return kMayBeInPrototypeChain;
+    }
     while (true) {
       if (IsSpecialReceiverInstanceType(map.instance_type())) {
-        return kMayBeInPrototypeChain;
-      }
-      if (result == NodeProperties::kUnreliableReceiverMaps &&
-          !map.is_stable()) {
         return kMayBeInPrototypeChain;
       }
       if (!map.IsJSObjectMap()) {
@@ -542,6 +541,7 @@ JSNativeContextSpecialization::InferHasInPrototypeChain(
         break;
       }
       map = map.prototype().map();
+      if (!map.is_stable()) return kMayBeInPrototypeChain;
       if (map.oddball_type() == OddballType::kNull) {
         all = false;
         break;
