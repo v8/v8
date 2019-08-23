@@ -27,6 +27,7 @@ class JSRegExp;
 class JSTypedArray;
 class NativeContext;
 class ScriptContextTable;
+class VectorSlotPair;
 
 namespace compiler {
 

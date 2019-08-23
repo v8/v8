@@ -12,7 +12,6 @@
 #include "src/compiler/backend/instruction-scheduler.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/common-operator.h"
-#include "src/compiler/feedback-source.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
@@ -61,7 +60,7 @@ class FlagsContinuation final {
   static FlagsContinuation ForDeoptimize(FlagsCondition condition,
                                          DeoptimizeKind kind,
                                          DeoptimizeReason reason,
-                                         FeedbackSource const& feedback,
+                                         VectorSlotPair const& feedback,
                                          Node* frame_state) {
     return FlagsContinuation(kFlags_deoptimize, condition, kind, reason,
                              feedback, frame_state);
@@ -70,7 +69,7 @@ class FlagsContinuation final {
   // Creates a new flags continuation for an eager deoptimization exit.
   static FlagsContinuation ForDeoptimizeAndPoison(
       FlagsCondition condition, DeoptimizeKind kind, DeoptimizeReason reason,
-      FeedbackSource const& feedback, Node* frame_state) {
+      VectorSlotPair const& feedback, Node* frame_state) {
     return FlagsContinuation(kFlags_deoptimize_and_poison, condition, kind,
                              reason, feedback, frame_state);
   }
@@ -111,7 +110,7 @@ class FlagsContinuation final {
     DCHECK(IsDeoptimize());
     return reason_;
   }
-  FeedbackSource const& feedback() const {
+  VectorSlotPair const& feedback() const {
     DCHECK(IsDeoptimize());
     return feedback_;
   }
@@ -197,7 +196,7 @@ class FlagsContinuation final {
 
   FlagsContinuation(FlagsMode mode, FlagsCondition condition,
                     DeoptimizeKind kind, DeoptimizeReason reason,
-                    FeedbackSource const& feedback, Node* frame_state)
+                    VectorSlotPair const& feedback, Node* frame_state)
       : mode_(mode),
         condition_(condition),
         kind_(kind),
@@ -227,7 +226,7 @@ class FlagsContinuation final {
   FlagsCondition condition_;
   DeoptimizeKind kind_;          // Only valid if mode_ == kFlags_deoptimize*
   DeoptimizeReason reason_;      // Only valid if mode_ == kFlags_deoptimize*
-  FeedbackSource feedback_;      // Only valid if mode_ == kFlags_deoptimize*
+  VectorSlotPair feedback_;      // Only valid if mode_ == kFlags_deoptimize*
   Node* frame_state_or_result_;  // Only valid if mode_ == kFlags_deoptimize*
                                  // or mode_ == kFlags_set.
   BasicBlock* true_block_;       // Only valid if mode_ == kFlags_branch*.
@@ -353,7 +352,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
                               InstructionOperand* outputs, size_t input_count,
                               InstructionOperand* inputs, DeoptimizeKind kind,
                               DeoptimizeReason reason,
-                              FeedbackSource const& feedback,
+                              VectorSlotPair const& feedback,
                               Node* frame_state);
 
   // ===========================================================================
@@ -498,7 +497,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   void AppendDeoptimizeArguments(InstructionOperandVector* args,
                                  DeoptimizeKind kind, DeoptimizeReason reason,
-                                 FeedbackSource const& feedback,
+                                 VectorSlotPair const& feedback,
                                  Node* frame_state);
 
   void EmitTableSwitch(
@@ -632,7 +631,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitBranch(Node* input, BasicBlock* tbranch, BasicBlock* fbranch);
   void VisitSwitch(Node* node, const SwitchInfo& sw);
   void VisitDeoptimize(DeoptimizeKind kind, DeoptimizeReason reason,
-                       FeedbackSource const& feedback, Node* value);
+                       VectorSlotPair const& feedback, Node* value);
   void VisitReturn(Node* ret);
   void VisitThrow(Node* node);
   void VisitRetain(Node* node);

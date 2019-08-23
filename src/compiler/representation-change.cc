@@ -1778,7 +1778,7 @@ Node* RepresentationChanger::InsertChangeCompressedToTagged(Node* node) {
 }
 
 Node* RepresentationChanger::InsertCheckedFloat64ToInt32(
-    Node* node, CheckForMinusZeroMode check, const FeedbackSource& feedback,
+    Node* node, CheckForMinusZeroMode check, const VectorSlotPair& feedback,
     Node* use_node) {
   return InsertConversion(
       node, simplified()->CheckedFloat64ToInt32(check, feedback), use_node);

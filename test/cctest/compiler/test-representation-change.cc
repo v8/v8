@@ -401,11 +401,11 @@ TEST(Word64) {
   CheckChange(
       IrOpcode::kCheckedInt64ToInt32, MachineRepresentation::kWord64,
       TypeCache::Get()->kSafeInteger, MachineRepresentation::kWord32,
-      UseInfo::CheckedSigned32AsWord32(kIdentifyZeros, FeedbackSource()));
+      UseInfo::CheckedSigned32AsWord32(kIdentifyZeros, VectorSlotPair()));
   CheckChange(
       IrOpcode::kCheckedUint64ToInt32, MachineRepresentation::kWord64,
       TypeCache::Get()->kPositiveSafeInteger, MachineRepresentation::kWord32,
-      UseInfo::CheckedSigned32AsWord32(kIdentifyZeros, FeedbackSource()));
+      UseInfo::CheckedSigned32AsWord32(kIdentifyZeros, VectorSlotPair()));
 
   CheckChange(IrOpcode::kChangeFloat64ToInt64, MachineRepresentation::kFloat64,
               Type::Signed32(), MachineRepresentation::kWord64);
@@ -420,7 +420,7 @@ TEST(Word64) {
   CheckChange(
       IrOpcode::kCheckedFloat64ToInt64, MachineRepresentation::kFloat64,
       Type::Number(), MachineRepresentation::kWord64,
-      UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, FeedbackSource()));
+      UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, VectorSlotPair()));
 
   CheckChange(IrOpcode::kChangeInt64ToFloat64, MachineRepresentation::kWord64,
               Type::Signed32(), MachineRepresentation::kFloat64);
@@ -449,7 +449,7 @@ TEST(Word64) {
       IrOpcode::kChangeFloat32ToFloat64, IrOpcode::kCheckedFloat64ToInt64,
       MachineRepresentation::kFloat32, Type::Number(),
       MachineRepresentation::kWord64,
-      UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, FeedbackSource()));
+      UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, VectorSlotPair()));
 
   CheckTwoChanges(IrOpcode::kChangeInt64ToFloat64,
                   IrOpcode::kTruncateFloat64ToFloat32,
@@ -470,11 +470,11 @@ TEST(Word64) {
   CheckChange(
       IrOpcode::kCheckedTaggedToInt64, MachineRepresentation::kTagged,
       Type::Number(), MachineRepresentation::kWord64,
-      UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, FeedbackSource()));
+      UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, VectorSlotPair()));
   CheckChange(
       IrOpcode::kCheckedTaggedToInt64, MachineRepresentation::kTaggedPointer,
       Type::Number(), MachineRepresentation::kWord64,
-      UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, FeedbackSource()));
+      UseInfo::CheckedSigned64AsWord64(kIdentifyZeros, VectorSlotPair()));
 
   CheckTwoChanges(IrOpcode::kTruncateInt64ToInt32,
                   IrOpcode::kChangeInt31ToTaggedSigned,
@@ -507,12 +507,12 @@ TEST(Word64) {
   CheckChange(IrOpcode::kCheckedInt64ToTaggedSigned,
               MachineRepresentation::kWord64, TypeCache::Get()->kSafeInteger,
               MachineRepresentation::kTaggedSigned,
-              UseInfo::CheckedSignedSmallAsTaggedSigned(FeedbackSource()));
+              UseInfo::CheckedSignedSmallAsTaggedSigned(VectorSlotPair()));
   CheckChange(IrOpcode::kCheckedUint64ToTaggedSigned,
               MachineRepresentation::kWord64,
               TypeCache::Get()->kPositiveSafeInteger,
               MachineRepresentation::kTaggedSigned,
-              UseInfo::CheckedSignedSmallAsTaggedSigned(FeedbackSource()));
+              UseInfo::CheckedSignedSmallAsTaggedSigned(VectorSlotPair()));
 
   CheckTwoChanges(
       IrOpcode::kChangeInt64ToFloat64, IrOpcode::kChangeFloat64ToTaggedPointer,
@@ -630,7 +630,7 @@ TEST(SignednessInWord32) {
   CheckChange(IrOpcode::kCheckedTruncateTaggedToWord32,
               MachineRepresentation::kTagged, Type::NonInternal(),
               MachineRepresentation::kWord32,
-              UseInfo::CheckedNumberOrOddballAsWord32(FeedbackSource()));
+              UseInfo::CheckedNumberOrOddballAsWord32(VectorSlotPair()));
 
   CheckTwoChanges(IrOpcode::kChangeInt32ToFloat64,
                   IrOpcode::kTruncateFloat64ToFloat32,
@@ -644,7 +644,7 @@ TEST(SignednessInWord32) {
   CheckChange(
       IrOpcode::kCheckedUint32ToInt32, MachineRepresentation::kWord32,
       Type::Unsigned32(),
-      UseInfo::CheckedSigned32AsWord32(kIdentifyZeros, FeedbackSource()));
+      UseInfo::CheckedSigned32AsWord32(kIdentifyZeros, VectorSlotPair()));
 }
 
 TEST(CompressedAndTagged) {
@@ -698,19 +698,19 @@ static void TestMinusZeroCheck(IrOpcode::Value expected, Type from_type) {
 
   CheckChange(
       expected, MachineRepresentation::kFloat64, from_type,
-      UseInfo::CheckedSignedSmallAsWord32(kDistinguishZeros, FeedbackSource()));
+      UseInfo::CheckedSignedSmallAsWord32(kDistinguishZeros, VectorSlotPair()));
 
   CheckChange(
       expected, MachineRepresentation::kFloat64, from_type,
-      UseInfo::CheckedSignedSmallAsWord32(kIdentifyZeros, FeedbackSource()));
+      UseInfo::CheckedSignedSmallAsWord32(kIdentifyZeros, VectorSlotPair()));
 
   CheckChange(
       expected, MachineRepresentation::kFloat64, from_type,
-      UseInfo::CheckedSigned32AsWord32(kDistinguishZeros, FeedbackSource()));
+      UseInfo::CheckedSigned32AsWord32(kDistinguishZeros, VectorSlotPair()));
 
   CheckChange(
       expected, MachineRepresentation::kFloat64, from_type,
-      UseInfo::CheckedSigned32AsWord32(kDistinguishZeros, FeedbackSource()));
+      UseInfo::CheckedSigned32AsWord32(kDistinguishZeros, VectorSlotPair()));
 }
 
 TEST(MinusZeroCheck) {

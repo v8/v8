@@ -16,6 +16,7 @@
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/per-isolate-compiler-cache.h"
+#include "src/compiler/vector-slot-pair.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/api-callbacks.h"
@@ -3962,9 +3963,6 @@ bool CanInlineElementAccess(MapRef const& map) {
   return false;
 }
 
-ProcessedFeedback::ProcessedFeedback(Kind kind, FeedbackSlotKind slot_kind)
-    : kind_(kind), slot_kind_(slot_kind) {}
-
 KeyedAccessMode ElementAccessFeedback::keyed_mode() const {
   return keyed_mode_;
 }
@@ -3977,7 +3975,7 @@ ElementAccessFeedback::transition_groups() const {
 ElementAccessFeedback const& ElementAccessFeedback::Refine(
     ZoneVector<Handle<Map>> const& inferred_maps, Zone* zone) const {
   ElementAccessFeedback& refined_feedback =
-      *new (zone) ElementAccessFeedback(zone, keyed_mode(), slot_kind());
+      *new (zone) ElementAccessFeedback(zone, keyed_mode());
   if (inferred_maps.empty()) return refined_feedback;
 
   ZoneUnorderedSet<Handle<Map>, Handle<Map>::hash, Handle<Map>::equal_to>
@@ -4011,33 +4009,26 @@ ElementAccessFeedback const& ElementAccessFeedback::Refine(
   return refined_feedback;
 }
 
-InsufficientFeedback::InsufficientFeedback(FeedbackSlotKind slot_kind)
-    : ProcessedFeedback(kInsufficient, slot_kind) {}
+InsufficientFeedback::InsufficientFeedback()
+    : ProcessedFeedback(kInsufficient) {}
 
-GlobalAccessFeedback::GlobalAccessFeedback(PropertyCellRef cell,
-                                           FeedbackSlotKind slot_kind)
-    : ProcessedFeedback(kGlobalAccess, slot_kind),
+GlobalAccessFeedback::GlobalAccessFeedback(PropertyCellRef cell)
+    : ProcessedFeedback(kGlobalAccess),
       cell_or_context_(cell),
-      index_and_immutable_(0 /* doesn't matter */) {
-  DCHECK(IsGlobalICKind(slot_kind));
-}
+      index_and_immutable_(0 /* doesn't matter */) {}
 
-GlobalAccessFeedback::GlobalAccessFeedback(FeedbackSlotKind slot_kind)
-    : ProcessedFeedback(kGlobalAccess, slot_kind),
-      index_and_immutable_(0 /* doesn't matter */) {
-  DCHECK(IsGlobalICKind(slot_kind));
-}
+GlobalAccessFeedback::GlobalAccessFeedback()
+    : ProcessedFeedback(kGlobalAccess),
+      index_and_immutable_(0 /* doesn't matter */) {}
 
 GlobalAccessFeedback::GlobalAccessFeedback(ContextRef script_context,
-                                           int slot_index, bool immutable,
-                                           FeedbackSlotKind slot_kind)
-    : ProcessedFeedback(kGlobalAccess, slot_kind),
+                                           int slot_index, bool immutable)
+    : ProcessedFeedback(kGlobalAccess),
       cell_or_context_(script_context),
       index_and_immutable_(FeedbackNexus::SlotIndexBits::encode(slot_index) |
                            FeedbackNexus::ImmutabilityBit::encode(immutable)) {
   DCHECK_EQ(this->slot_index(), slot_index);
   DCHECK_EQ(this->immutable(), immutable);
-  DCHECK(IsGlobalICKind(slot_kind));
 }
 
 bool GlobalAccessFeedback::IsMegamorphic() const {
@@ -4134,16 +4125,10 @@ KeyedAccessMode::KeyedAccessMode(AccessMode access_mode,
 }
 
 ElementAccessFeedback::ElementAccessFeedback(Zone* zone,
-                                             KeyedAccessMode const& keyed_mode,
-                                             FeedbackSlotKind slot_kind)
-    : ProcessedFeedback(kElementAccess, slot_kind),
+                                             KeyedAccessMode const& keyed_mode)
+    : ProcessedFeedback(kElementAccess),
       keyed_mode_(keyed_mode),
-      transition_groups_(zone) {
-  DCHECK(IsKeyedLoadICKind(slot_kind) || IsKeyedHasICKind(slot_kind) ||
-         IsStoreDataPropertyInLiteralKind(slot_kind) ||
-         IsKeyedStoreICKind(slot_kind) ||
-         IsStoreInArrayLiteralICKind(slot_kind));
-}
+      transition_groups_(zone) {}
 
 bool ElementAccessFeedback::HasOnlyStringMaps(JSHeapBroker* broker) const {
   for (auto const& group : transition_groups()) {
@@ -4155,15 +4140,23 @@ bool ElementAccessFeedback::HasOnlyStringMaps(JSHeapBroker* broker) const {
 }
 
 NamedAccessFeedback::NamedAccessFeedback(NameRef const& name,
-                                         ZoneVector<Handle<Map>> const& maps,
-                                         FeedbackSlotKind slot_kind)
-    : ProcessedFeedback(kNamedAccess, slot_kind), name_(name), maps_(maps) {
-  DCHECK(IsLoadICKind(slot_kind) || IsStoreICKind(slot_kind) ||
-         IsStoreOwnICKind(slot_kind) || IsKeyedLoadICKind(slot_kind) ||
-         IsKeyedHasICKind(slot_kind) || IsKeyedStoreICKind(slot_kind) ||
-         IsStoreInArrayLiteralICKind(slot_kind) ||
-         IsStoreDataPropertyInLiteralKind(slot_kind));
+                                         ZoneVector<Handle<Map>> const& maps)
+    : ProcessedFeedback(kNamedAccess), name_(name), maps_(maps) {}
+
+FeedbackSource::FeedbackSource(Handle<FeedbackVector> vector_,
+                               FeedbackSlot slot_)
+    : vector(vector_), slot(slot_) {
+  DCHECK(!slot.IsInvalid());
 }
+
+FeedbackSource::FeedbackSource(FeedbackVectorRef vector_, FeedbackSlot slot_)
+    : FeedbackSource(vector_.object(), slot_) {}
+
+FeedbackSource::FeedbackSource(FeedbackNexus const& nexus)
+    : FeedbackSource(nexus.vector_handle(), nexus.slot()) {}
+
+FeedbackSource::FeedbackSource(VectorSlotPair const& pair)
+    : FeedbackSource(pair.vector(), pair.slot()) {}
 
 void JSHeapBroker::SetFeedback(FeedbackSource const& source,
                                ProcessedFeedback const* feedback) {
@@ -4177,20 +4170,9 @@ bool JSHeapBroker::HasFeedback(FeedbackSource const& source) const {
 
 ProcessedFeedback const& JSHeapBroker::GetFeedback(
     FeedbackSource const& source) const {
-  DCHECK(source.IsValid());
   auto it = feedback_.find(source);
   CHECK_NE(it, feedback_.end());
   return *it->second;
-}
-
-FeedbackSlotKind JSHeapBroker::GetFeedbackSlotKind(
-    FeedbackSource const& source) const {
-  if (FLAG_concurrent_inlining) {
-    ProcessedFeedback const& processed = GetFeedback(source);
-    return processed.slot_kind();
-  }
-  FeedbackNexus nexus(source.vector, source.slot);
-  return nexus.kind();
 }
 
 bool JSHeapBroker::FeedbackIsInsufficient(FeedbackSource const& source) const {
@@ -4218,25 +4200,24 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
     FeedbackSource const& source, AccessMode mode,
     base::Optional<NameRef> static_name) {
   FeedbackNexus nexus(source.vector, source.slot);
-  FeedbackSlotKind kind = nexus.kind();
-  if (nexus.IsUninitialized()) return *new (zone()) InsufficientFeedback(kind);
+  if (nexus.IsUninitialized()) return *new (zone()) InsufficientFeedback();
 
   MapHandles maps;
   nexus.ExtractMaps(&maps);
   DCHECK_NE(nexus.ic_state(), PREMONOMORPHIC);
   if (!maps.empty()) {
     maps = GetRelevantReceiverMaps(isolate(), maps);
-    if (maps.empty()) return *new (zone()) InsufficientFeedback(kind);
+    if (maps.empty()) return *new (zone()) InsufficientFeedback();
   }
 
   base::Optional<NameRef> name =
       static_name.has_value() ? static_name : GetNameFeedback(nexus);
   if (name.has_value()) {
     return *new (zone()) NamedAccessFeedback(
-        *name, ZoneVector<Handle<Map>>(maps.begin(), maps.end(), zone()), kind);
+        *name, ZoneVector<Handle<Map>>(maps.begin(), maps.end(), zone()));
   } else if (nexus.GetKeyType() == ELEMENT && !maps.empty()) {
     return ProcessFeedbackMapsForElementAccess(
-        maps, KeyedAccessMode::FromNexus(nexus), kind);
+        maps, KeyedAccessMode::FromNexus(nexus));
   } else {
     // No actionable feedback.
     DCHECK(maps.empty());
@@ -4244,7 +4225,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
     // megamorphic (also for global accesses).
     // TODO(neis): Using ElementAccessFeedback here is kind of an abuse.
     return *new (zone())
-        ElementAccessFeedback(zone(), KeyedAccessMode::FromNexus(nexus), kind);
+        ElementAccessFeedback(zone(), KeyedAccessMode::FromNexus(nexus));
   }
 }
 
@@ -4255,11 +4236,9 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
          nexus.kind() == FeedbackSlotKind::kLoadGlobalNotInsideTypeof ||
          nexus.kind() == FeedbackSlotKind::kStoreGlobalSloppy ||
          nexus.kind() == FeedbackSlotKind::kStoreGlobalStrict);
-  if (nexus.IsUninitialized()) {
-    return *new (zone()) InsufficientFeedback(nexus.kind());
-  }
+  if (nexus.IsUninitialized()) return *new (zone()) InsufficientFeedback();
   if (nexus.ic_state() != MONOMORPHIC || nexus.GetFeedback()->IsCleared()) {
-    return *new (zone()) GlobalAccessFeedback(nexus.kind());
+    return *new (zone()) GlobalAccessFeedback();
   }
 
   Handle<Object> feedback_value(nexus.GetFeedback()->GetHeapObjectOrSmi(),
@@ -4287,8 +4266,8 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
       context_ref.get(context_slot_index,
                       SerializationPolicy::kSerializeIfNeeded);
     }
-    return *new (zone()) GlobalAccessFeedback(context_ref, context_slot_index,
-                                              immutable, nexus.kind());
+    return *new (zone())
+        GlobalAccessFeedback(context_ref, context_slot_index, immutable);
   }
 
   CHECK(feedback_value->IsPropertyCell());
@@ -4296,7 +4275,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
   // object and the feedback is the cell holding its value.
   PropertyCellRef cell(this, Handle<PropertyCell>::cast(feedback_value));
   cell.Serialize();
-  return *new (zone()) GlobalAccessFeedback(cell, nexus.kind());
+  return *new (zone()) GlobalAccessFeedback(cell);
 }
 
 BinaryOperationHint JSHeapBroker::ReadFeedbackForBinaryOperation(
@@ -4318,8 +4297,7 @@ ForInHint JSHeapBroker::ReadFeedbackForForIn(
 ProcessedFeedback const& JSHeapBroker::ReadFeedbackForInstanceOf(
     FeedbackSource const& source) {
   FeedbackNexus nexus(source.vector, source.slot);
-  if (nexus.IsUninitialized())
-    return *new (zone()) InsufficientFeedback(nexus.kind());
+  if (nexus.IsUninitialized()) return *new (zone()) InsufficientFeedback();
 
   base::Optional<JSObjectRef> optional_constructor;
   {
@@ -4329,14 +4307,13 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForInstanceOf(
       optional_constructor = JSObjectRef(this, constructor);
     }
   }
-  return *new (zone()) InstanceOfFeedback(optional_constructor, nexus.kind());
+  return *new (zone()) InstanceOfFeedback(optional_constructor);
 }
 
 ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCall(
     FeedbackSource const& source) {
   FeedbackNexus nexus(source.vector, source.slot);
-  if (nexus.IsUninitialized())
-    return *new (zone()) InsufficientFeedback(nexus.kind());
+  if (nexus.IsUninitialized()) return *new (zone()) InsufficientFeedback();
 
   base::Optional<HeapObjectRef> target_ref;
   {
@@ -4348,7 +4325,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCall(
   }
   float frequency = nexus.ComputeCallFrequency();
   SpeculationMode mode = nexus.GetSpeculationMode();
-  return *new (zone()) CallFeedback(target_ref, frequency, mode, nexus.kind());
+  return *new (zone()) CallFeedback(target_ref, frequency, mode);
 }
 
 BinaryOperationHint JSHeapBroker::GetFeedbackForBinaryOperation(
@@ -4407,11 +4384,9 @@ ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForBinaryOperation(
   BinaryOperationHint hint = ReadFeedbackForBinaryOperation(source);
   ProcessedFeedback const* feedback;
   if (hint == BinaryOperationHint::kNone) {
-    feedback =
-        new (zone()) InsufficientFeedback(source.vector->GetKind(source.slot));
+    feedback = new (zone()) InsufficientFeedback();
   } else {
-    feedback = new (zone())
-        BinaryOperationFeedback(hint, source.vector->GetKind(source.slot));
+    feedback = new (zone()) BinaryOperationFeedback(hint);
   }
   SetFeedback(source, feedback);
   return *feedback;
@@ -4423,11 +4398,9 @@ ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForCompareOperation(
   CompareOperationHint hint = ReadFeedbackForCompareOperation(source);
   ProcessedFeedback const* feedback;
   if (hint == CompareOperationHint::kNone) {
-    feedback =
-        new (zone()) InsufficientFeedback(source.vector->GetKind(source.slot));
+    feedback = new (zone()) InsufficientFeedback();
   } else {
-    feedback = new (zone())
-        CompareOperationFeedback(hint, source.vector->GetKind(source.slot));
+    feedback = new (zone()) CompareOperationFeedback(hint);
   }
   SetFeedback(source, feedback);
   return *feedback;
@@ -4439,11 +4412,9 @@ ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForForIn(
   ForInHint hint = ReadFeedbackForForIn(source);
   ProcessedFeedback const* feedback;
   if (hint == ForInHint::kNone) {
-    feedback =
-        new (zone()) InsufficientFeedback(source.vector->GetKind(source.slot));
+    feedback = new (zone()) InsufficientFeedback();
   } else {
-    feedback =
-        new (zone()) ForInFeedback(hint, source.vector->GetKind(source.slot));
+    feedback = new (zone()) ForInFeedback(hint);
   }
   SetFeedback(source, feedback);
   return *feedback;
@@ -4484,8 +4455,7 @@ ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForGlobalAccess(
 }
 
 ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
-    MapHandles const& maps, KeyedAccessMode const& keyed_mode,
-    FeedbackSlotKind slot_kind) {
+    MapHandles const& maps, KeyedAccessMode const& keyed_mode) {
   DCHECK(!maps.empty());
 
   // Collect possible transition targets.
@@ -4527,7 +4497,7 @@ ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
   }
 
   ElementAccessFeedback* result =
-      new (zone()) ElementAccessFeedback(zone(), keyed_mode, slot_kind);
+      new (zone()) ElementAccessFeedback(zone(), keyed_mode);
   for (auto entry : transition_groups) {
     result->AddGroup(std::move(entry.second));
   }

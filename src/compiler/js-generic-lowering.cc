@@ -148,14 +148,13 @@ void JSGenericLowering::LowerJSStrictEqual(Node* node) {
 }
 
 namespace {
-bool ShouldUseMegamorphicLoadBuiltin(FeedbackSource const& source,
+bool ShouldUseMegamorphicLoadBuiltin(VectorSlotPair const& vector_slot_pair,
                                      JSHeapBroker* broker) {
   if (!FLAG_concurrent_inlining) {
-    AllowHandleDereference allow_deref;
-    FeedbackNexus nexus(source.vector, source.slot);
-    return nexus.ic_state() == MEGAMORPHIC;
+    return vector_slot_pair.ic_state() == MEGAMORPHIC;
   }
-  ProcessedFeedback const& feedback = broker->GetFeedback(source);
+  ProcessedFeedback const& feedback =
+      broker->GetFeedback(FeedbackSource(vector_slot_pair));
 
   if (feedback.kind() == ProcessedFeedback::kElementAccess) {
     return feedback.AsElementAccess().transition_groups().empty();
@@ -185,7 +184,7 @@ void JSGenericLowering::LowerJSLoadProperty(Node* node) {
         isolate(), ShouldUseMegamorphicLoadBuiltin(p.feedback(), broker())
                        ? Builtins::kKeyedLoadIC_Megamorphic
                        : Builtins::kKeyedLoadIC);
-    Node* vector = jsgraph()->HeapConstant(p.feedback().vector);
+    Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
     node->InsertInput(zone(), 3, vector);
     ReplaceWithStubCall(node, callable, flags);
   }
@@ -215,7 +214,7 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
         isolate(), ShouldUseMegamorphicLoadBuiltin(p.feedback(), broker())
                        ? Builtins::kLoadIC_Megamorphic
                        : Builtins::kLoadIC);
-    Node* vector = jsgraph()->HeapConstant(p.feedback().vector);
+    Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
     node->InsertInput(zone(), 3, vector);
     ReplaceWithStubCall(node, callable, flags);
   }
@@ -234,7 +233,7 @@ void JSGenericLowering::LowerJSLoadGlobal(Node* node) {
   } else {
     Callable callable =
         CodeFactory::LoadGlobalICInOptimizedCode(isolate(), p.typeof_mode());
-    Node* vector = jsgraph()->HeapConstant(p.feedback().vector);
+    Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
     node->InsertInput(zone(), 2, vector);
     ReplaceWithStubCall(node, callable, flags);
   }
@@ -244,7 +243,7 @@ void JSGenericLowering::LowerJSGetIterator(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   const PropertyAccess& p = PropertyAccessOf(node->op());
   node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.feedback().index()));
-  Node* vector = jsgraph()->HeapConstant(p.feedback().vector);
+  Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
   node->InsertInput(zone(), 2, vector);
   Callable callable =
       Builtins::CallableFor(isolate(), Builtins::kGetIteratorWithFeedback);
@@ -264,7 +263,7 @@ void JSGenericLowering::LowerJSStoreProperty(Node* node) {
   } else {
     Callable callable =
         Builtins::CallableFor(isolate(), Builtins::kKeyedStoreIC);
-    Node* vector = jsgraph()->HeapConstant(p.feedback().vector);
+    Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
     node->InsertInput(zone(), 4, vector);
     ReplaceWithStubCall(node, callable, flags);
   }
@@ -287,7 +286,7 @@ void JSGenericLowering::LowerJSStoreNamed(Node* node) {
     ReplaceWithStubCall(node, callable, flags);
   } else {
     Callable callable = Builtins::CallableFor(isolate(), Builtins::kStoreIC);
-    Node* vector = jsgraph()->HeapConstant(p.feedback().vector);
+    Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
     node->InsertInput(zone(), 4, vector);
     ReplaceWithStubCall(node, callable, flags);
   }
@@ -305,7 +304,7 @@ void JSGenericLowering::LowerJSStoreNamedOwn(Node* node) {
     ReplaceWithStubCall(node, callable, flags);
   } else {
     Callable callable = CodeFactory::StoreOwnICInOptimizedCode(isolate());
-    Node* vector = jsgraph()->HeapConstant(p.feedback().vector);
+    Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
     node->InsertInput(zone(), 4, vector);
     ReplaceWithStubCall(node, callable, flags);
   }
@@ -325,7 +324,7 @@ void JSGenericLowering::LowerJSStoreGlobal(Node* node) {
   } else {
     Callable callable =
         Builtins::CallableFor(isolate(), Builtins::kStoreGlobalIC);
-    Node* vector = jsgraph()->HeapConstant(p.feedback().vector);
+    Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
     node->InsertInput(zone(), 3, vector);
     ReplaceWithStubCall(node, callable, flags);
   }
@@ -335,7 +334,7 @@ void JSGenericLowering::LowerJSStoreDataPropertyInLiteral(Node* node) {
   FeedbackParameter const& p = FeedbackParameterOf(node->op());
   RelaxControls(node);
   node->InsertInputs(zone(), 4, 2);
-  node->ReplaceInput(4, jsgraph()->HeapConstant(p.feedback().vector));
+  node->ReplaceInput(4, jsgraph()->HeapConstant(p.feedback().vector()));
   node->ReplaceInput(5, jsgraph()->SmiConstant(p.feedback().index()));
   ReplaceWithRuntimeCall(node, Runtime::kDefineDataPropertyInLiteral);
 }
@@ -347,7 +346,7 @@ void JSGenericLowering::LowerJSStoreInArrayLiteral(Node* node) {
   FeedbackParameter const& p = FeedbackParameterOf(node->op());
   RelaxControls(node);
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
-  node->InsertInput(zone(), 4, jsgraph()->HeapConstant(p.feedback().vector));
+  node->InsertInput(zone(), 4, jsgraph()->HeapConstant(p.feedback().vector()));
   ReplaceWithStubCall(node, callable, flags);
 }
 
@@ -549,7 +548,7 @@ void JSGenericLowering::LowerJSCreateTypedArray(Node* node) {
 void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
-  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.feedback().vector));
+  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.feedback().vector()));
   node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.feedback().index()));
   node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
 
@@ -569,7 +568,7 @@ void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
 void JSGenericLowering::LowerJSCreateEmptyLiteralArray(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   FeedbackParameter const& p = FeedbackParameterOf(node->op());
-  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.feedback().vector));
+  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.feedback().vector()));
   node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.feedback().index()));
   node->RemoveInput(4);  // control
   Callable callable =
@@ -587,7 +586,7 @@ void JSGenericLowering::LowerJSCreateArrayFromIterable(Node* node) {
 void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
-  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.feedback().vector));
+  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.feedback().vector()));
   node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.feedback().index()));
   node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
@@ -612,7 +611,7 @@ void JSGenericLowering::LowerJSCloneObject(Node* node) {
       Builtins::CallableFor(isolate(), Builtins::kCloneObjectIC);
   node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.flags()));
   node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
-  node->InsertInput(zone(), 3, jsgraph()->HeapConstant(p.feedback().vector));
+  node->InsertInput(zone(), 3, jsgraph()->HeapConstant(p.feedback().vector()));
   ReplaceWithStubCall(node, callable, flags);
 }
 
@@ -625,7 +624,7 @@ void JSGenericLowering::LowerJSCreateLiteralRegExp(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   Callable callable =
       Builtins::CallableFor(isolate(), Builtins::kCreateRegExpLiteral);
-  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.feedback().vector));
+  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.feedback().vector()));
   node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.feedback().index()));
   node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));

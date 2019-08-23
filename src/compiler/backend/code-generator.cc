@@ -1070,9 +1070,9 @@ DeoptimizationExit* CodeGenerator::BuildTranslation(
                           update_feedback_count, zone());
   if (entry.feedback().IsValid()) {
     DeoptimizationLiteral literal =
-        DeoptimizationLiteral(entry.feedback().vector);
+        DeoptimizationLiteral(entry.feedback().vector());
     int literal_id = DefineDeoptimizationLiteral(literal);
-    translation.AddUpdateFeedback(literal_id, entry.feedback().slot.ToInt());
+    translation.AddUpdateFeedback(literal_id, entry.feedback().slot().ToInt());
   }
   InstructionOperandIterator iter(instr, frame_state_offset);
   BuildTranslationForFrameStateDescriptor(descriptor, &iter, &translation,

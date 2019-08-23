@@ -200,14 +200,14 @@ class JSBinopReduction final {
   void CheckInputsToString() {
     if (!left_type().Is(Type::String())) {
       Node* left_input =
-          graph()->NewNode(simplified()->CheckString(FeedbackSource()), left(),
+          graph()->NewNode(simplified()->CheckString(VectorSlotPair()), left(),
                            effect(), control());
       node_->ReplaceInput(0, left_input);
       update_effect(left_input);
     }
     if (!right_type().Is(Type::String())) {
       Node* right_input =
-          graph()->NewNode(simplified()->CheckString(FeedbackSource()), right(),
+          graph()->NewNode(simplified()->CheckString(VectorSlotPair()), right(),
                            effect(), control());
       node_->ReplaceInput(1, right_input);
       update_effect(right_input);
@@ -576,7 +576,7 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
       // and thus potentially reduces the number of live ranges and allows for
       // more truncations.
       length = effect = graph()->NewNode(
-          simplified()->CheckBounds(FeedbackSource()), length,
+          simplified()->CheckBounds(VectorSlotPair()), length,
           jsgraph()->Constant(String::kMaxLength + 1), effect, control);
     } else {
       // Check if we would overflow the allowed maximum string length.

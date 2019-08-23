@@ -14,7 +14,6 @@
 #include "src/compiler/access-info.h"
 #include "src/compiler/allocation-builder.h"
 #include "src/compiler/compilation-dependencies.h"
-#include "src/compiler/feedback-source.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/map-inference.h"
@@ -22,6 +21,7 @@
 #include "src/compiler/property-access-builder.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
+#include "src/compiler/vector-slot-pair.h"
 #include "src/ic/call-optimization.h"
 #include "src/logging/counters.h"
 #include "src/objects/arguments-inl.h"
@@ -390,11 +390,11 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
   // TODO(mslekova): Since this introduces a Call that will get optimized by
   // the JSCallReducer, we basically might have to do all the serialization
   // that we do for that here as well. The only difference is that here we
-  // disable speculation (cf. the empty FeedbackSource above), causing the
+  // disable speculation (cf. the empty VectorSlotPair above), causing the
   // JSCallReducer to do much less work. We should revisit this later.
   NodeProperties::ChangeOp(
       node,
-      javascript()->Call(arity, p.frequency(), FeedbackSource(), convert_mode));
+      javascript()->Call(arity, p.frequency(), VectorSlotPair(), convert_mode));
   // Try to further reduce the JSCall {node}.
   Reduction const reduction = ReduceJSCall(node);
   return reduction.Changed() ? reduction : Changed(node);
@@ -574,7 +574,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
   }
   NodeProperties::ChangeOp(
       node,
-      javascript()->Call(arity, p.frequency(), FeedbackSource(), convert_mode));
+      javascript()->Call(arity, p.frequency(), VectorSlotPair(), convert_mode));
   // Try to further reduce the JSCall {node}.
   Reduction const reduction = ReduceJSCall(node);
   return reduction.Changed() ? reduction : Changed(node);
@@ -981,7 +981,7 @@ Reduction JSCallReducer::ReduceReflectHas(Node* node) {
   {
     // TODO(magardn): collect feedback so this can be optimized
     vtrue = etrue = if_true =
-        graph()->NewNode(javascript()->HasProperty(FeedbackSource()), target,
+        graph()->NewNode(javascript()->HasProperty(VectorSlotPair()), target,
                          key, context, frame_state, etrue, if_true);
   }
 
@@ -2162,7 +2162,7 @@ Node* JSCallReducer::DoFilterPostCallbackWork(ElementsKind kind, Node** control,
         IsDoubleElementsKind(kind) ? GrowFastElementsMode::kDoubleElements
                                    : GrowFastElementsMode::kSmiOrObjectElements;
     elements = etrue = graph()->NewNode(
-        simplified()->MaybeGrowFastElements(mode, FeedbackSource()), a,
+        simplified()->MaybeGrowFastElements(mode, VectorSlotPair()), a,
         elements, checked_to, elements_length, etrue, if_true);
 
     // Update the length of {a}.
@@ -2232,7 +2232,7 @@ void JSCallReducer::RewirePostCallbackExceptionEdges(Node* check_throw,
 
 Node* JSCallReducer::SafeLoadElement(ElementsKind kind, Node* receiver,
                                      Node* control, Node** effect, Node** k,
-                                     const FeedbackSource& feedback) {
+                                     const VectorSlotPair& feedback) {
   // Make sure that the access is still in bounds, since the callback could
   // have changed the array's size.
   Node* length = *effect = graph()->NewNode(
@@ -3007,7 +3007,7 @@ bool IsSafeArgumentsElements(Node* node) {
 
 Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
     Node* node, int arity, CallFrequency const& frequency,
-    FeedbackSource const& feedback) {
+    VectorSlotPair const& feedback) {
   DCHECK(node->opcode() == IrOpcode::kJSCallWithArrayLike ||
          node->opcode() == IrOpcode::kJSCallWithSpread ||
          node->opcode() == IrOpcode::kJSConstructWithArrayLike ||
@@ -3289,7 +3289,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
       }
 
       NodeProperties::ChangeOp(
-          node, javascript()->Call(arity, p.frequency(), FeedbackSource(),
+          node, javascript()->Call(arity, p.frequency(), VectorSlotPair(),
                                    convert_mode));
 
       // Try to further reduce the JSCall {node}.
@@ -3337,7 +3337,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
             ? ConvertReceiverMode::kAny
             : ConvertReceiverMode::kNotNullOrUndefined;
     NodeProperties::ChangeOp(
-        node, javascript()->Call(arity, p.frequency(), FeedbackSource(),
+        node, javascript()->Call(arity, p.frequency(), VectorSlotPair(),
                                  convert_mode));
 
     // Try to further reduce the JSCall {node}.
@@ -3738,8 +3738,9 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
 Reduction JSCallReducer::ReduceJSCallWithArrayLike(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCallWithArrayLike, node->opcode());
   CallFrequency frequency = CallFrequencyOf(node->op());
+  VectorSlotPair feedback;
   return ReduceCallOrConstructWithArrayLikeOrSpread(node, 2, frequency,
-                                                    FeedbackSource());
+                                                    feedback);
 }
 
 Reduction JSCallReducer::ReduceJSCallWithSpread(Node* node) {
@@ -3748,7 +3749,7 @@ Reduction JSCallReducer::ReduceJSCallWithSpread(Node* node) {
   DCHECK_LE(3u, p.arity());
   int arity = static_cast<int>(p.arity() - 1);
   CallFrequency frequency = p.frequency();
-  FeedbackSource feedback = p.feedback();
+  VectorSlotPair feedback = p.feedback();
   return ReduceCallOrConstructWithArrayLikeOrSpread(node, arity, frequency,
                                                     feedback);
 }
@@ -3765,7 +3766,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
 
   if (p.feedback().IsValid()) {
     ProcessedFeedback const& feedback =
-        broker()->GetFeedbackForCall(p.feedback());
+        broker()->GetFeedbackForCall(FeedbackSource(p.feedback()));
     if (feedback.IsInsufficient()) {
       return ReduceSoftDeoptimize(
           node, DeoptimizeReason::kInsufficientTypeFeedbackForConstruct);
@@ -3935,7 +3936,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       // Update the JSConstruct operator on {node}.
       NodeProperties::ChangeOp(
           node,
-          javascript()->Construct(arity + 2, p.frequency(), FeedbackSource()));
+          javascript()->Construct(arity + 2, p.frequency(), VectorSlotPair()));
 
       // Try to further reduce the JSConstruct {node}.
       Reduction const reduction = ReduceJSConstruct(node);
@@ -3976,7 +3977,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
     // Update the JSConstruct operator on {node}.
     NodeProperties::ChangeOp(
         node,
-        javascript()->Construct(arity + 2, p.frequency(), FeedbackSource()));
+        javascript()->Construct(arity + 2, p.frequency(), VectorSlotPair()));
 
     // Try to further reduce the JSConstruct {node}.
     Reduction const reduction = ReduceJSConstruct(node);
@@ -4296,8 +4297,9 @@ Reduction JSCallReducer::ReduceStringPrototypeSubstr(Node* node) {
 Reduction JSCallReducer::ReduceJSConstructWithArrayLike(Node* node) {
   DCHECK_EQ(IrOpcode::kJSConstructWithArrayLike, node->opcode());
   CallFrequency frequency = CallFrequencyOf(node->op());
+  VectorSlotPair feedback;
   return ReduceCallOrConstructWithArrayLikeOrSpread(node, 1, frequency,
-                                                    FeedbackSource());
+                                                    feedback);
 }
 
 Reduction JSCallReducer::ReduceJSConstructWithSpread(Node* node) {
@@ -4306,7 +4308,7 @@ Reduction JSCallReducer::ReduceJSConstructWithSpread(Node* node) {
   DCHECK_LE(3u, p.arity());
   int arity = static_cast<int>(p.arity() - 2);
   CallFrequency frequency = p.frequency();
-  FeedbackSource feedback = p.feedback();
+  VectorSlotPair feedback = p.feedback();
   return ReduceCallOrConstructWithArrayLikeOrSpread(node, arity, frequency,
                                                     feedback);
 }
@@ -4327,7 +4329,7 @@ Reduction JSCallReducer::ReduceSoftDeoptimize(Node* node,
   Node* frame_state =
       NodeProperties::FindFrameStateBefore(node, jsgraph()->Dead());
   Node* deoptimize = graph()->NewNode(
-      common()->Deoptimize(DeoptimizeKind::kSoft, reason, FeedbackSource()),
+      common()->Deoptimize(DeoptimizeKind::kSoft, reason, VectorSlotPair()),
       frame_state, effect, control);
   // TODO(bmeurer): This should be on the AdvancedReducer somehow.
   NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
@@ -5767,7 +5769,7 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
 
   // 9. Call executor with both resolving functions
   effect = control = graph()->NewNode(
-      javascript()->Call(4, p.frequency(), FeedbackSource(),
+      javascript()->Call(4, p.frequency(), VectorSlotPair(),
                          ConvertReceiverMode::kNullOrUndefined,
                          SpeculationMode::kDisallowSpeculation),
       executor, jsgraph()->UndefinedConstant(), resolve, reject, context,
@@ -5780,7 +5782,7 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
         common()->IfException(), exception_control, exception_effect);
     // 10a. Call reject if the call to executor threw.
     exception_effect = exception_control = graph()->NewNode(
-        javascript()->Call(3, p.frequency(), FeedbackSource(),
+        javascript()->Call(3, p.frequency(), VectorSlotPair(),
                            ConvertReceiverMode::kNullOrUndefined,
                            SpeculationMode::kDisallowSpeculation),
         reject, jsgraph()->UndefinedConstant(), reason, context, frame_state,

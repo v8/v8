@@ -92,7 +92,7 @@ MachineRepresentation MachineRepresentationFromArrayType(
 }
 
 UseInfo CheckedUseInfoAsWord32FromHint(
-    NumberOperationHint hint, const FeedbackSource& feedback = FeedbackSource(),
+    NumberOperationHint hint, const VectorSlotPair& feedback = VectorSlotPair(),
     IdentifyZeros identify_zeros = kDistinguishZeros) {
   switch (hint) {
     case NumberOperationHint::kSignedSmall:
@@ -109,7 +109,7 @@ UseInfo CheckedUseInfoAsWord32FromHint(
 }
 
 UseInfo CheckedUseInfoAsFloat64FromHint(
-    NumberOperationHint hint, const FeedbackSource& feedback,
+    NumberOperationHint hint, const VectorSlotPair& feedback,
     IdentifyZeros identify_zeros = kDistinguishZeros) {
   switch (hint) {
     case NumberOperationHint::kSignedSmall:
@@ -1092,7 +1092,7 @@ class RepresentationSelector {
       if (lower()) DeferReplacement(node, node->InputAt(0));
     } else {
       VisitUnop(node,
-                UseInfo::CheckedHeapObjectAsTaggedPointer(FeedbackSource()),
+                UseInfo::CheckedHeapObjectAsTaggedPointer(VectorSlotPair()),
                 MachineRepresentation::kTaggedPointer);
     }
   }
@@ -1442,13 +1442,13 @@ class RepresentationSelector {
           !right_feedback_type.Maybe(Type::MinusZero())) {
         left_identify_zeros = kIdentifyZeros;
       }
-      UseInfo left_use = CheckedUseInfoAsWord32FromHint(hint, FeedbackSource(),
+      UseInfo left_use = CheckedUseInfoAsWord32FromHint(hint, VectorSlotPair(),
                                                         left_identify_zeros);
       // For CheckedInt32Add and CheckedInt32Sub, we don't need to do
       // a minus zero check for the right hand side, since we already
       // know that the left hand side is a proper Signed32 value,
       // potentially guarded by a check.
-      UseInfo right_use = CheckedUseInfoAsWord32FromHint(hint, FeedbackSource(),
+      UseInfo right_use = CheckedUseInfoAsWord32FromHint(hint, VectorSlotPair(),
                                                          kIdentifyZeros);
       VisitBinop(node, left_use, right_use, MachineRepresentation::kWord32,
                  Type::Signed32());
@@ -1481,7 +1481,7 @@ class RepresentationSelector {
     // default case => Float64Add/Sub
     VisitBinop(node,
                UseInfo::CheckedNumberOrOddballAsFloat64(kDistinguishZeros,
-                                                        FeedbackSource()),
+                                                        VectorSlotPair()),
                MachineRepresentation::kFloat64, Type::Number());
     if (lower()) {
       ChangeToPureOp(node, Float64Op(node));
@@ -1544,9 +1544,9 @@ class RepresentationSelector {
       // right hand side doesn't matter anyways, so in particular there's
       // no observable difference between a 0 and a -0 then.
       UseInfo const lhs_use = CheckedUseInfoAsWord32FromHint(
-          hint, FeedbackSource(), truncation.identify_zeros());
+          hint, VectorSlotPair(), truncation.identify_zeros());
       UseInfo const rhs_use = CheckedUseInfoAsWord32FromHint(
-          hint, FeedbackSource(), kIdentifyZeros);
+          hint, VectorSlotPair(), kIdentifyZeros);
       if (truncation.IsUsedAsWord32()) {
         VisitBinop(node, lhs_use, rhs_use, MachineRepresentation::kWord32);
         if (lower()) DeferReplacement(node, lowering->Int32Mod(node));
@@ -1587,9 +1587,9 @@ class RepresentationSelector {
     // right hand side doesn't matter anyways, so in particular there's
     // no observable difference between a 0 and a -0 then.
     UseInfo const lhs_use = UseInfo::CheckedNumberOrOddballAsFloat64(
-        truncation.identify_zeros(), FeedbackSource());
+        truncation.identify_zeros(), VectorSlotPair());
     UseInfo const rhs_use = UseInfo::CheckedNumberOrOddballAsFloat64(
-        kIdentifyZeros, FeedbackSource());
+        kIdentifyZeros, VectorSlotPair());
     VisitBinop(node, lhs_use, rhs_use, MachineRepresentation::kFloat64,
                Type::Number());
     if (lower()) ChangeToPureOp(node, Float64Op(node));
@@ -1929,7 +1929,7 @@ class RepresentationSelector {
           case NumberOperationHint::kSignedSmall:
             if (propagate()) {
               VisitBinop(node,
-                         CheckedUseInfoAsWord32FromHint(hint, FeedbackSource(),
+                         CheckedUseInfoAsWord32FromHint(hint, VectorSlotPair(),
                                                         kIdentifyZeros),
                          MachineRepresentation::kBit);
             } else if (retype()) {
@@ -1942,7 +1942,7 @@ class RepresentationSelector {
                   IsNodeRepresentationTagged(rhs)) {
                 VisitBinop(node,
                            UseInfo::CheckedSignedSmallAsTaggedSigned(
-                               FeedbackSource(), kIdentifyZeros),
+                               VectorSlotPair(), kIdentifyZeros),
                            MachineRepresentation::kBit);
                 ChangeToPureOp(
                     node, changer_->TaggedSignedOperatorFor(node->opcode()));
@@ -1950,7 +1950,7 @@ class RepresentationSelector {
               } else {
                 VisitBinop(node,
                            CheckedUseInfoAsWord32FromHint(
-                               hint, FeedbackSource(), kIdentifyZeros),
+                               hint, VectorSlotPair(), kIdentifyZeros),
                            MachineRepresentation::kBit);
                 ChangeToPureOp(node, Int32Op(node));
               }
@@ -1967,7 +1967,7 @@ class RepresentationSelector {
             V8_FALLTHROUGH;
           case NumberOperationHint::kNumber:
             VisitBinop(node,
-                       CheckedUseInfoAsFloat64FromHint(hint, FeedbackSource(),
+                       CheckedUseInfoAsFloat64FromHint(hint, VectorSlotPair(),
                                                        kIdentifyZeros),
                        MachineRepresentation::kBit);
             if (lower()) ChangeToPureOp(node, Float64Op(node));
@@ -2052,7 +2052,7 @@ class RepresentationSelector {
         // Checked float64 x float64 => float64
         VisitBinop(node,
                    UseInfo::CheckedNumberOrOddballAsFloat64(kDistinguishZeros,
-                                                            FeedbackSource()),
+                                                            VectorSlotPair()),
                    MachineRepresentation::kFloat64, Type::Number());
         if (lower()) ChangeToPureOp(node, Float64Op(node));
         return;
@@ -2148,7 +2148,7 @@ class RepresentationSelector {
         // default case => Float64Div
         VisitBinop(node,
                    UseInfo::CheckedNumberOrOddballAsFloat64(kDistinguishZeros,
-                                                            FeedbackSource()),
+                                                            VectorSlotPair()),
                    MachineRepresentation::kFloat64, Type::Number());
         if (lower()) ChangeToPureOp(node, Float64Op(node));
         return;
@@ -2318,7 +2318,7 @@ class RepresentationSelector {
           if (lower()) {
             node->RemoveInput(1);
             NodeProperties::ChangeOp(
-                node, simplified()->CheckedUint32ToInt32(FeedbackSource()));
+                node, simplified()->CheckedUint32ToInt32(VectorSlotPair()));
           }
           return;
         }
@@ -2705,14 +2705,14 @@ class RepresentationSelector {
       case IrOpcode::kSpeculativeBigIntAdd: {
         if (truncation.IsUsedAsWord64()) {
           VisitBinop(node,
-                     UseInfo::CheckedBigIntTruncatingWord64(FeedbackSource{}),
+                     UseInfo::CheckedBigIntTruncatingWord64(VectorSlotPair{}),
                      MachineRepresentation::kWord64);
           if (lower()) {
             ChangeToPureOp(node, lowering->machine()->Int64Add());
           }
         } else {
           VisitBinop(node,
-                     UseInfo::CheckedBigIntAsTaggedPointer(FeedbackSource{}),
+                     UseInfo::CheckedBigIntAsTaggedPointer(VectorSlotPair{}),
                      MachineRepresentation::kTaggedPointer);
           if (lower()) {
             NodeProperties::ChangeOp(node, lowering->simplified()->BigIntAdd());
@@ -2723,7 +2723,7 @@ class RepresentationSelector {
       case IrOpcode::kSpeculativeBigIntNegate: {
         if (truncation.IsUsedAsWord64()) {
           VisitUnop(node,
-                    UseInfo::CheckedBigIntTruncatingWord64(FeedbackSource{}),
+                    UseInfo::CheckedBigIntTruncatingWord64(VectorSlotPair{}),
                     MachineRepresentation::kWord64);
           if (lower()) {
             ChangeUnaryToPureBinaryOp(node, lowering->machine()->Int64Sub(), 0,
@@ -2731,7 +2731,7 @@ class RepresentationSelector {
           }
         } else {
           VisitUnop(node,
-                    UseInfo::CheckedBigIntAsTaggedPointer(FeedbackSource{}),
+                    UseInfo::CheckedBigIntAsTaggedPointer(VectorSlotPair{}),
                     MachineRepresentation::kTaggedPointer);
           if (lower()) {
             ChangeToPureOp(node, lowering->simplified()->BigIntNegate());
@@ -2820,7 +2820,7 @@ class RepresentationSelector {
                     MachineRepresentation::kTaggedPointer);
         } else {
           VisitUnop(node,
-                    UseInfo::CheckedHeapObjectAsTaggedPointer(FeedbackSource()),
+                    UseInfo::CheckedHeapObjectAsTaggedPointer(VectorSlotPair()),
                     MachineRepresentation::kTaggedPointer);
         }
         if (lower()) DeferReplacement(node, node->InputAt(0));
@@ -3415,12 +3415,12 @@ class RepresentationSelector {
       }
       case IrOpcode::kTransitionElementsKind: {
         return VisitUnop(
-            node, UseInfo::CheckedHeapObjectAsTaggedPointer(FeedbackSource()),
+            node, UseInfo::CheckedHeapObjectAsTaggedPointer(VectorSlotPair()),
             MachineRepresentation::kNone);
       }
       case IrOpcode::kCompareMaps:
         return VisitUnop(
-            node, UseInfo::CheckedHeapObjectAsTaggedPointer(FeedbackSource()),
+            node, UseInfo::CheckedHeapObjectAsTaggedPointer(VectorSlotPair()),
             MachineRepresentation::kBit);
       case IrOpcode::kEnsureWritableFastElements:
         return VisitBinop(node, UseInfo::AnyTagged(),

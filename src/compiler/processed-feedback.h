@@ -35,7 +35,6 @@ class ProcessedFeedback : public ZoneObject {
   };
   Kind kind() const { return kind_; }
 
-  FeedbackSlotKind slot_kind() const { return slot_kind_; }
   bool IsInsufficient() const { return kind() == kInsufficient; }
 
   BinaryOperationFeedback const& AsBinaryOperation() const;
@@ -48,24 +47,23 @@ class ProcessedFeedback : public ZoneObject {
   NamedAccessFeedback const& AsNamedAccess() const;
 
  protected:
-  ProcessedFeedback(Kind kind, FeedbackSlotKind slot_kind);
+  explicit ProcessedFeedback(Kind kind) : kind_(kind) {}
 
  private:
   Kind const kind_;
-  FeedbackSlotKind const slot_kind_;
 };
 
 class InsufficientFeedback final : public ProcessedFeedback {
  public:
-  explicit InsufficientFeedback(FeedbackSlotKind slot_kind);
+  InsufficientFeedback();
 };
 
 class GlobalAccessFeedback : public ProcessedFeedback {
  public:
-  GlobalAccessFeedback(PropertyCellRef cell, FeedbackSlotKind slot_kind);
+  explicit GlobalAccessFeedback(PropertyCellRef cell);
   GlobalAccessFeedback(ContextRef script_context, int slot_index,
-                       bool immutable, FeedbackSlotKind slot_kind);
-  explicit GlobalAccessFeedback(FeedbackSlotKind slot_kind);  // Megamorphic
+                       bool immutable);
+  GlobalAccessFeedback();  // Megamorphic
 
   bool IsMegamorphic() const;
 
@@ -109,8 +107,7 @@ class KeyedAccessMode {
 
 class ElementAccessFeedback : public ProcessedFeedback {
  public:
-  ElementAccessFeedback(Zone* zone, KeyedAccessMode const& keyed_mode,
-                        FeedbackSlotKind slot_kind);
+  ElementAccessFeedback(Zone* zone, KeyedAccessMode const& keyed_mode);
 
   KeyedAccessMode keyed_mode() const;
 
@@ -148,8 +145,7 @@ class ElementAccessFeedback : public ProcessedFeedback {
 
 class NamedAccessFeedback : public ProcessedFeedback {
  public:
-  NamedAccessFeedback(NameRef const& name, ZoneVector<Handle<Map>> const& maps,
-                      FeedbackSlotKind slot_kind);
+  NamedAccessFeedback(NameRef const& name, ZoneVector<Handle<Map>> const& maps);
 
   NameRef const& name() const { return name_; }
   ZoneVector<Handle<Map>> const& maps() const { return maps_; }
@@ -162,8 +158,8 @@ class NamedAccessFeedback : public ProcessedFeedback {
 class CallFeedback : public ProcessedFeedback {
  public:
   CallFeedback(base::Optional<HeapObjectRef> target, float frequency,
-               SpeculationMode mode, FeedbackSlotKind slot_kind)
-      : ProcessedFeedback(kCall, slot_kind),
+               SpeculationMode mode)
+      : ProcessedFeedback(kCall),
         target_(target),
         frequency_(frequency),
         mode_(mode) {}
@@ -181,14 +177,7 @@ class CallFeedback : public ProcessedFeedback {
 template <class T, ProcessedFeedback::Kind K>
 class SingleValueFeedback : public ProcessedFeedback {
  public:
-  explicit SingleValueFeedback(T value, FeedbackSlotKind slot_kind)
-      : ProcessedFeedback(K, slot_kind), value_(value) {
-    DCHECK(
-        (K == kBinaryOperation && slot_kind == FeedbackSlotKind::kBinaryOp) ||
-        (K == kCompareOperation && slot_kind == FeedbackSlotKind::kCompareOp) ||
-        (K == kForIn && slot_kind == FeedbackSlotKind::kForIn) ||
-        (K == kInstanceOf && slot_kind == FeedbackSlotKind::kInstanceOf));
-  }
+  explicit SingleValueFeedback(T value) : ProcessedFeedback(K), value_(value) {}
 
   T value() const { return value_; }
 

@@ -449,7 +449,7 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceToNumberOperation(
   if (BinaryOperationHintToNumberOperationHint(GetBinaryOperationHint(slot),
                                                &hint)) {
     Node* node = jsgraph()->graph()->NewNode(
-        jsgraph()->simplified()->SpeculativeToNumber(hint, FeedbackSource()),
+        jsgraph()->simplified()->SpeculativeToNumber(hint, VectorSlotPair()),
         input, effect, control);
     return LoweringResult::SideEffectFree(node, node, control);
   }
@@ -549,7 +549,7 @@ Node* JSTypeHintLowering::TryBuildSoftDeopt(FeedbackSlot slot, Node* effect,
 
   Node* deoptimize = jsgraph()->graph()->NewNode(
       jsgraph()->common()->Deoptimize(DeoptimizeKind::kSoft, reason,
-                                      FeedbackSource()),
+                                      VectorSlotPair()),
       jsgraph()->Dead(), effect, control);
   Node* frame_state =
       NodeProperties::FindFrameStateBefore(deoptimize, jsgraph()->Dead());

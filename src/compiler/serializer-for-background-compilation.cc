@@ -11,6 +11,7 @@
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-heap-broker.h"
+#include "src/compiler/vector-slot-pair.h"
 #include "src/handles/handles-inl.h"
 #include "src/ic/call-optimization.h"
 #include "src/interpreter/bytecode-array-iterator.h"

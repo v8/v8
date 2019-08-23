@@ -76,7 +76,7 @@ TEST(DeoptInMiddleOfBasicBlock) {
   // Dummy node for FlagsContinuation::ForDeoptimize (which won't accept
   // nullptr).
   Node* node = Node::New(zone, 0, nullptr, 0, nullptr, false);
-  FeedbackSource feedback;
+  VectorSlotPair feedback;
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
       kEqual, DeoptimizeKind::kEager, DeoptimizeReason::kUnknown, feedback,
       node);
