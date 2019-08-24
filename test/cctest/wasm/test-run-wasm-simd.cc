@@ -2900,11 +2900,10 @@ WASM_SIMD_TEST(SimdLoadStoreLoad) {
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 || \
     V8_TARGET_ARCH_ARM
-// V8:8665 - Tracking bug to enable reduction tests in the interpreter,
-// and for SIMD lowering.
 #define WASM_SIMD_ANYTRUE_TEST(format, lanes, max, param_type)                \
-  WASM_SIMD_TEST_NO_LOWERING(S##format##AnyTrue) {                            \
+  WASM_SIMD_TEST(S##format##AnyTrue) {                                        \
     WasmRunner<int32_t, param_type> r(execution_tier, lower_simd);            \
+    if (lanes == 2 && lower_simd == kLowerSimd) return;                       \
     byte simd = r.AllocateLocal(kWasmS128);                                   \
     BUILD(                                                                    \
         r,                                                                    \
@@ -2922,8 +2921,9 @@ WASM_SIMD_ANYTRUE_TEST(16x8, 8, 0xffff, int32_t)
 WASM_SIMD_ANYTRUE_TEST(8x16, 16, 0xff, int32_t)
 
 #define WASM_SIMD_ALLTRUE_TEST(format, lanes, max, param_type)                \
-  WASM_SIMD_TEST_NO_LOWERING(S##format##AllTrue) {                            \
+  WASM_SIMD_TEST(S##format##AllTrue) {                                        \
     WasmRunner<int32_t, param_type> r(execution_tier, lower_simd);            \
+    if (lanes == 2 && lower_simd == kLowerSimd) return;                       \
     byte simd = r.AllocateLocal(kWasmS128);                                   \
     BUILD(                                                                    \
         r,                                                                    \
