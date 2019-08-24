@@ -7002,6 +7002,10 @@ typedef void (*WasmStreamingCallback)(const FunctionCallbackInfo<Value>&);
 // --- Callback for checking if WebAssembly threads are enabled ---
 typedef bool (*WasmThreadsEnabledCallback)(Local<Context> context);
 
+// --- Callback for loading source map file for WASM profiling support
+typedef Local<String> (*WasmLoadSourceMapCallback)(Isolate* isolate,
+                                                   const char* name);
+
 // --- Garbage Collection Callbacks ---
 
 /**
@@ -8660,6 +8664,8 @@ class V8_EXPORT Isolate {
   void SetWasmStreamingCallback(WasmStreamingCallback callback);
 
   void SetWasmThreadsEnabledCallback(WasmThreadsEnabledCallback callback);
+
+  void SetWasmLoadSourceMapCallback(WasmLoadSourceMapCallback callback);
 
   /**
   * Check if V8 is dead and therefore unusable.  This is the case after

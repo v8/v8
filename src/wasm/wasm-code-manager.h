@@ -23,6 +23,7 @@
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
+#include "src/wasm/wasm-module-sourcemap.h"
 #include "src/wasm/wasm-tier.h"
 
 namespace v8 {
@@ -405,6 +406,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   WasmCode* GetCode(uint32_t index) const;
   bool HasCode(uint32_t index) const;
 
+  void SetWasmSourceMap(std::unique_ptr<WasmModuleSourceMap> source_map);
+  WasmModuleSourceMap* GetWasmSourceMap() const;
+
   Address runtime_stub_entry(WasmCode::RuntimeStubId index) const {
     DCHECK_LT(index, WasmCode::kRuntimeStubCount);
     Address entry_address = runtime_stub_entries_[index];
@@ -569,6 +573,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // The decoded module, stored in a shared_ptr such that background compile
   // tasks can keep this alive.
   std::shared_ptr<const WasmModule> module_;
+
+  std::unique_ptr<WasmModuleSourceMap> source_map_;
 
   // Wire bytes, held in a shared_ptr so they can be kept alive by the
   // {WireBytesStorage}, held by background compile tasks.

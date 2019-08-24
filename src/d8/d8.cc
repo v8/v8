@@ -1944,6 +1944,9 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   EscapableHandleScope handle_scope(isolate);
   Local<Context> context = Context::New(isolate, nullptr, global_template);
   DCHECK(!context.IsEmpty());
+  if (i::FLAG_perf_prof_annotate_wasm) {
+    isolate->SetWasmLoadSourceMapCallback(ReadFile);
+  }
   InitializeModuleEmbedderData(context);
   if (options.include_arguments) {
     Context::Scope scope(context);

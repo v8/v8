@@ -8528,6 +8528,9 @@ CALLBACK_SETTER(WasmStreamingCallback, WasmStreamingCallback,
 CALLBACK_SETTER(WasmThreadsEnabledCallback, WasmThreadsEnabledCallback,
                 wasm_threads_enabled_callback)
 
+CALLBACK_SETTER(WasmLoadSourceMapCallback, WasmLoadSourceMapCallback,
+                wasm_load_source_map_callback)
+
 void Isolate::AddNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
                                        void* data) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);

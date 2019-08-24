@@ -25,6 +25,7 @@
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"
+#include "src/wasm/wasm-module-sourcemap.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-objects.h"
@@ -181,6 +182,19 @@ void WasmCode::LogCode(Isolate* isolate) const {
   WireBytesRef name_ref =
       native_module()->module()->LookupFunctionName(wire_bytes, index());
   WasmName name_vec = wire_bytes.GetNameOrNull(name_ref);
+
+  const std::string& source_map_url = native_module()->module()->source_map_url;
+  auto load_wasm_source_map = isolate->wasm_load_source_map_callback();
+  auto source_map = native_module()->GetWasmSourceMap();
+  if (!source_map && !source_map_url.empty() && load_wasm_source_map) {
+    HandleScope scope(isolate);
+    v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+    Local<v8::String> source_map_str =
+        load_wasm_source_map(v8_isolate, source_map_url.c_str());
+    native_module()->SetWasmSourceMap(
+        base::make_unique<WasmModuleSourceMap>(v8_isolate, source_map_str));
+  }
+
   if (!name_vec.empty()) {
     HandleScope scope(isolate);
     MaybeHandle<String> maybe_name = isolate->factory()->NewStringFromUtf8(
@@ -1094,6 +1108,15 @@ bool NativeModule::HasCode(uint32_t index) const {
   DCHECK_LT(index, num_functions());
   DCHECK_LE(module_->num_imported_functions, index);
   return code_table_[index - module_->num_imported_functions] != nullptr;
+}
+
+void NativeModule::SetWasmSourceMap(
+    std::unique_ptr<WasmModuleSourceMap> source_map) {
+  source_map_ = std::move(source_map);
+}
+
+WasmModuleSourceMap* NativeModule::GetWasmSourceMap() const {
+  return source_map_.get();
 }
 
 WasmCode* NativeModule::CreateEmptyJumpTableInRegion(

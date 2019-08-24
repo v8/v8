@@ -2952,6 +2952,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/wasm/wasm-memory.h",
     "src/wasm/wasm-module-builder.cc",
     "src/wasm/wasm-module-builder.h",
+    "src/wasm/wasm-module-sourcemap.cc",
+    "src/wasm/wasm-module-sourcemap.h",
     "src/wasm/wasm-module.cc",
     "src/wasm/wasm-module.h",
     "src/wasm/wasm-objects-inl.h",
