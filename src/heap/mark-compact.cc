@@ -2689,8 +2689,7 @@ void MarkCompactCollector::EvacuateEpilogue() {
   for (Page* p : *heap()->old_space()) {
     DCHECK_NULL((p->slot_set<OLD_TO_OLD, AccessMode::ATOMIC>()));
     DCHECK_NULL((p->typed_slot_set<OLD_TO_OLD, AccessMode::ATOMIC>()));
-    DCHECK_NULL(p->invalidated_slots<OLD_TO_OLD>());
-    DCHECK_NULL(p->invalidated_slots<OLD_TO_NEW>());
+    DCHECK_NULL(p->invalidated_slots());
   }
 #endif
 }
@@ -3411,32 +3410,16 @@ class RememberedSetUpdatingItem : public UpdatingItem {
 
   void UpdateUntypedPointers() {
     if (chunk_->slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() != nullptr) {
-      InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(chunk_);
       RememberedSet<OLD_TO_NEW>::Iterate(
           chunk_,
-          [this, &filter](MaybeObjectSlot slot) {
-            if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
+          [this](MaybeObjectSlot slot) {
             return CheckAndUpdateOldToNewSlot(slot);
           },
           SlotSet::PREFREE_EMPTY_BUCKETS);
     }
-
-    if (chunk_->invalidated_slots<OLD_TO_NEW>() != nullptr) {
-#ifdef DEBUG
-      for (auto object_size : *chunk_->invalidated_slots<OLD_TO_NEW>()) {
-        HeapObject object = object_size.first;
-        int size = object_size.second;
-        DCHECK_LE(object.SizeFromMap(object.map()), size);
-      }
-#endif
-      // The invalidated slots are not needed after old-to-new slots were
-      // processed.
-      chunk_->ReleaseInvalidatedSlots<OLD_TO_NEW>();
-    }
-
     if ((updating_mode_ == RememberedSetUpdatingMode::ALL) &&
         (chunk_->slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>() != nullptr)) {
-      InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToOld(chunk_);
+      InvalidatedSlotsFilter filter(chunk_);
       RememberedSet<OLD_TO_OLD>::Iterate(
           chunk_,
           [&filter](MaybeObjectSlot slot) {
@@ -3446,9 +3429,9 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           SlotSet::PREFREE_EMPTY_BUCKETS);
     }
     if ((updating_mode_ == RememberedSetUpdatingMode::ALL) &&
-        chunk_->invalidated_slots<OLD_TO_OLD>() != nullptr) {
+        chunk_->invalidated_slots() != nullptr) {
 #ifdef DEBUG
-      for (auto object_size : *chunk_->invalidated_slots<OLD_TO_OLD>()) {
+      for (auto object_size : *chunk_->invalidated_slots()) {
         HeapObject object = object_size.first;
         int size = object_size.second;
         DCHECK_LE(object.SizeFromMap(object.map()), size);
@@ -3456,7 +3439,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
 #endif
       // The invalidated slots are not needed after old-to-old slots were
       // processsed.
-      chunk_->ReleaseInvalidatedSlots<OLD_TO_OLD>();
+      chunk_->ReleaseInvalidatedSlots();
     }
   }
 
@@ -3570,17 +3553,13 @@ int MarkCompactCollectorBase::CollectRememberedSetUpdatingItems(
     const bool contains_old_to_new_slots =
         chunk->slot_set<OLD_TO_NEW>() != nullptr ||
         chunk->typed_slot_set<OLD_TO_NEW>() != nullptr;
-    const bool contains_old_to_old_invalidated_slots =
-        chunk->invalidated_slots<OLD_TO_OLD>() != nullptr;
-    const bool contains_old_to_new_invalidated_slots =
-        chunk->invalidated_slots<OLD_TO_NEW>() != nullptr;
+    const bool contains_invalidated_slots =
+        chunk->invalidated_slots() != nullptr;
     if (!contains_old_to_new_slots && !contains_old_to_old_slots &&
-        !contains_old_to_old_invalidated_slots &&
-        !contains_old_to_new_invalidated_slots)
+        !contains_invalidated_slots)
       continue;
     if (mode == RememberedSetUpdatingMode::ALL || contains_old_to_new_slots ||
-        contains_old_to_old_invalidated_slots ||
-        contains_old_to_new_invalidated_slots) {
+        contains_invalidated_slots) {
       job->AddItem(CreateRememberedSetUpdatingItem(chunk, mode));
       pages++;
     }
@@ -4657,11 +4636,9 @@ class PageMarkingItem : public MarkingItem {
   inline Heap* heap() { return chunk_->heap(); }
 
   void MarkUntypedPointers(YoungGenerationMarkingTask* task) {
-    InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(chunk_);
     RememberedSet<OLD_TO_NEW>::Iterate(
         chunk_,
-        [this, task, &filter](MaybeObjectSlot slot) {
-          if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
+        [this, task](MaybeObjectSlot slot) {
           return CheckAndMarkObject(task, slot);
         },
         SlotSet::PREFREE_EMPTY_BUCKETS);

@@ -8,7 +8,6 @@
 #include "src/heap/barrier.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/invalidated-slots-inl.h"
 #include "src/heap/item-parallel-job.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/objects-visiting-inl.h"
@@ -432,28 +431,12 @@ void Scavenger::AddPageToSweeperIfNecessary(MemoryChunk* page) {
 
 void Scavenger::ScavengePage(MemoryChunk* page) {
   CodePageMemoryModificationScope memory_modification_scope(page);
-  InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(page);
   RememberedSet<OLD_TO_NEW>::Iterate(
       page,
-      [this, &filter](MaybeObjectSlot addr) {
-        if (!filter.IsValid(addr.address())) return REMOVE_SLOT;
+      [this](MaybeObjectSlot addr) {
         return CheckAndScavengeObject(heap_, addr);
       },
       SlotSet::KEEP_EMPTY_BUCKETS);
-
-  if (page->invalidated_slots<OLD_TO_NEW>() != nullptr) {
-#ifdef DEBUG
-    for (auto object_size : *page->invalidated_slots<OLD_TO_NEW>()) {
-      HeapObject object = object_size.first;
-      int size = object_size.second;
-      DCHECK_LE(object.SizeFromMap(object.map()), size);
-    }
-#endif
-    // The invalidated slots are not needed after old-to-new slots were
-    // processed.
-    page->ReleaseInvalidatedSlots<OLD_TO_NEW>();
-  }
-
   RememberedSet<OLD_TO_NEW>::IterateTyped(
       page, [=](SlotType type, Address addr) {
         return UpdateTypedSlotHelper::UpdateTypedSlot(
