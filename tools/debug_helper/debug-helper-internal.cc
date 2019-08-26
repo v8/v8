@@ -4,6 +4,7 @@
 
 #include "debug-helper-internal.h"
 #include "src/common/ptr-compr-inl.h"
+#include "torque-generated/class-debug-readers-tq.h"
 
 namespace i = v8::internal;
 
@@ -44,8 +45,14 @@ d::PropertyKind GetArrayKind(d::MemoryAccessResult mem_result) {
 }
 
 std::vector<std::unique_ptr<ObjectProperty>> TqObject::GetProperties(
-    d::MemoryAccessor accessor) {
+    d::MemoryAccessor accessor) const {
   return std::vector<std::unique_ptr<ObjectProperty>>();
+}
+
+const char* TqObject::GetName() const { return "v8::internal::Object"; }
+
+void TqObject::Visit(TqObjectVisitor* visitor) const {
+  visitor->VisitObject(this);
 }
 
 }  // namespace v8_debug_helper_internal

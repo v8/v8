@@ -12,7 +12,7 @@ namespace torque {
 
 namespace {
 void GenerateClassDebugReader(const ClassType& type, std::ostream& h_contents,
-                              std::ostream& cc_contents,
+                              std::ostream& cc_contents, std::ostream& visitor,
                               std::unordered_set<const ClassType*>* done) {
   // Make sure each class only gets generated once.
   if (!type.IsExtern() || !done->insert(&type).second) return;
@@ -21,7 +21,8 @@ void GenerateClassDebugReader(const ClassType& type, std::ostream& h_contents,
   // We must emit the classes in dependency order. If the super class hasn't
   // been emitted yet, go handle it first.
   if (super_type != nullptr) {
-    GenerateClassDebugReader(*super_type, h_contents, cc_contents, done);
+    GenerateClassDebugReader(*super_type, h_contents, cc_contents, visitor,
+                             done);
   }
 
   const std::string name = type.name();
@@ -32,7 +33,24 @@ void GenerateClassDebugReader(const ClassType& type, std::ostream& h_contents,
   h_contents << "  inline Tq" << name << "(uintptr_t address) : Tq"
              << super_name << "(address) {}\n";
   h_contents << "  std::vector<std::unique_ptr<ObjectProperty>> "
-                "GetProperties(d::MemoryAccessor accessor);\n";
+                "GetProperties(d::MemoryAccessor accessor) const override;\n";
+  h_contents << "  const char* GetName() const override;\n";
+  h_contents << "  void Visit(TqObjectVisitor* visitor) const override;\n";
+
+  cc_contents << "\nconst char* Tq" << name << "::GetName() const {\n";
+  cc_contents << "  return \"v8::internal::" << name << "\";\n";
+  cc_contents << "}\n";
+
+  cc_contents << "\nvoid Tq" << name
+              << "::Visit(TqObjectVisitor* visitor) const {\n";
+  cc_contents << "  visitor->Visit" << name << "(this);\n";
+  cc_contents << "}\n";
+
+  visitor << "  virtual void Visit" << name << "(const Tq" << name
+          << "* object) {\n";
+  visitor << "    Visit" << super_name << "(object);\n";
+  visitor << "  }\n";
+
   std::stringstream get_props_impl;
 
   for (const Field& field : type.fields()) {
@@ -86,6 +104,8 @@ void GenerateClassDebugReader(const ClassType& type, std::ostream& h_contents,
         "Get" + CamelifyString(field_name) + "Address";
 
     std::string indexed_field_info;
+    std::string index_param;
+    std::string index_offset;
     if (field.index) {
       const Type* index_type = (*field.index)->name_and_type.type;
       std::string index_type_name;
@@ -113,6 +133,8 @@ void GenerateClassDebugReader(const ClassType& type, std::ostream& h_contents,
                      << "Value(accessor);\n";
       indexed_field_info =
           ", " + index_value + ", GetArrayKind(indexed_field_count.validity)";
+      index_param = ", size_t offset";
+      index_offset = " + offset * sizeof(value)";
     }
     get_props_impl
         << "  result.push_back(v8::base::make_unique<ObjectProperty>(\""
@@ -120,20 +142,21 @@ void GenerateClassDebugReader(const ClassType& type, std::ostream& h_contents,
         << field_cc_type << "\", " << address_getter << "()"
         << indexed_field_info << "));\n";
 
-    h_contents << "  uintptr_t " << address_getter << "();\n";
+    h_contents << "  uintptr_t " << address_getter << "() const;\n";
     h_contents << "  Value<" << field_value_type << "> " << field_getter
-               << "(d::MemoryAccessor accessor);\n";
+               << "(d::MemoryAccessor accessor " << index_param << ") const;\n";
     cc_contents << "\nuintptr_t Tq" << name << "::" << address_getter
-                << "() {\n";
+                << "() const {\n";
     cc_contents << "  return address_ - i::kHeapObjectTag + " << field.offset
                 << ";\n";
     cc_contents << "}\n";
     cc_contents << "\nValue<" << field_value_type << "> Tq" << name
-                << "::" << field_getter << "(d::MemoryAccessor accessor) {\n";
+                << "::" << field_getter << "(d::MemoryAccessor accessor"
+                << index_param << ") const {\n";
     cc_contents << "  " << field_value_type_compressed << " value{};\n";
     cc_contents << "  d::MemoryAccessResult validity = accessor("
-                << address_getter
-                << "(), reinterpret_cast<uint8_t*>(&value), sizeof(value));\n";
+                << address_getter << "()" << index_offset
+                << ", reinterpret_cast<uint8_t*>(&value), sizeof(value));\n";
     cc_contents << "  return {validity, "
                 << (is_field_tagged ? "Decompress(value, address_)" : "value")
                 << "};\n";
@@ -143,7 +166,7 @@ void GenerateClassDebugReader(const ClassType& type, std::ostream& h_contents,
   h_contents << "};\n";
 
   cc_contents << "\nstd::vector<std::unique_ptr<ObjectProperty>> Tq" << name
-              << "::GetProperties(d::MemoryAccessor accessor) {\n";
+              << "::GetProperties(d::MemoryAccessor accessor) const {\n";
   cc_contents << "  std::vector<std::unique_ptr<ObjectProperty>> result = Tq"
               << super_name << "::GetProperties(accessor);\n";
   cc_contents << get_props_impl.str();
@@ -176,11 +199,19 @@ void ImplementationVisitor::GenerateClassDebugReaders(
     NamespaceScope h_namespaces(h_contents, {"v8_debug_helper_internal"});
     NamespaceScope cc_namespaces(cc_contents, {"v8_debug_helper_internal"});
 
+    std::stringstream visitor;
+    visitor << "\nclass TqObjectVisitor {\n";
+    visitor << " public:\n";
+    visitor << "  virtual void VisitObject(const TqObject* object) {}\n";
+
     std::unordered_set<const ClassType*> done;
     for (const TypeAlias* alias : GlobalContext::GetClasses()) {
       const ClassType* type = ClassType::DynamicCast(alias->type());
-      GenerateClassDebugReader(*type, h_contents, cc_contents, &done);
+      GenerateClassDebugReader(*type, h_contents, cc_contents, visitor, &done);
     }
+
+    visitor << "};\n";
+    h_contents << visitor.str();
   }
   WriteFile(output_directory + "/" + file_name + ".h", h_contents.str());
   WriteFile(output_directory + "/" + file_name + ".cc", cc_contents.str());

@@ -9,6 +9,7 @@
 #include "include/v8-internal.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/objects/string-inl.h"
+#include "src/strings/unicode-inl.h"
 #include "torque-generated/class-debug-readers-tq.h"
 
 namespace i = v8::internal;
@@ -142,26 +143,20 @@ std::string AppendAddressAndType(const std::string& brief, uintptr_t address,
                        : brief + " (" + brief_stream.str() + ")";
 }
 
-struct TypeNameAndProps {
-  TypeNameAndProps(d::TypeCheckResult type_check_result, std::string&& type,
-                   std::vector<std::unique_ptr<ObjectProperty>>&& properties)
-      : type_check_result(type_check_result),
-        type_name(std::move(type)),
-        props(std::move(properties)) {}
-  explicit TypeNameAndProps(d::TypeCheckResult type_check_result)
-      : type_check_result(type_check_result) {}
+struct TypedObject {
+  TypedObject(d::TypeCheckResult type_check_result,
+              std::unique_ptr<TqObject> object)
+      : type_check_result(type_check_result), object(std::move(object)) {}
   d::TypeCheckResult type_check_result;
-  std::string type_name;
-  std::vector<std::unique_ptr<ObjectProperty>> props;
+  std::unique_ptr<TqObject> object;
 };
 
-TypeNameAndProps GetTypeNameAndPropsByHint(uintptr_t address,
-                                           d::MemoryAccessor accessor,
-                                           std::string type_hint_string) {
-#define TYPE_NAME_CASE(ClassName, ...)                       \
-  if (type_hint_string == "v8::internal::" #ClassName) {     \
-    return {d::TypeCheckResult::kUsedTypeHint, #ClassName,   \
-            Tq##ClassName(address).GetProperties(accessor)}; \
+TypedObject GetTypedObjectByHint(uintptr_t address,
+                                 std::string type_hint_string) {
+#define TYPE_NAME_CASE(ClassName, ...)                      \
+  if (type_hint_string == "v8::internal::" #ClassName) {    \
+    return {d::TypeCheckResult::kUsedTypeHint,              \
+            v8::base::make_unique<Tq##ClassName>(address)}; \
   }
 
   TQ_INSTANCE_TYPES_SINGLE(TYPE_NAME_CASE)
@@ -169,47 +164,53 @@ TypeNameAndProps GetTypeNameAndPropsByHint(uintptr_t address,
 
 #undef TYPE_NAME_CASE
 
-  return TypeNameAndProps(d::TypeCheckResult::kUnknownTypeHint);
+  return {d::TypeCheckResult::kUnknownTypeHint,
+          v8::base::make_unique<TqHeapObject>(address)};
 }
 
-TypeNameAndProps GetTypeNameAndPropsForString(uintptr_t address,
-                                              d::MemoryAccessor accessor,
-                                              i::InstanceType type) {
+TypedObject GetTypedObjectForString(uintptr_t address, i::InstanceType type) {
   class StringGetDispatcher : public i::AllStatic {
    public:
-#define DEFINE_METHOD(ClassName)                             \
-  static inline TypeNameAndProps Handle##ClassName(          \
-      uintptr_t address, d::MemoryAccessor accessor) {       \
-    return {d::TypeCheckResult::kUsedMap, #ClassName,        \
-            Tq##ClassName(address).GetProperties(accessor)}; \
+#define DEFINE_METHOD(ClassName)                                   \
+  static inline TypedObject Handle##ClassName(uintptr_t address) { \
+    return {d::TypeCheckResult::kUsedMap,                          \
+            v8::base::make_unique<Tq##ClassName>(address)};        \
   }
     STRING_CLASS_TYPES(DEFINE_METHOD)
 #undef DEFINE_METHOD
-    static inline TypeNameAndProps HandleInvalidString(
-        uintptr_t address, d::MemoryAccessor accessor) {
-      return TypeNameAndProps(d::TypeCheckResult::kUnknownInstanceType);
+    static inline TypedObject HandleInvalidString(uintptr_t address) {
+      return {d::TypeCheckResult::kUnknownInstanceType,
+              v8::base::make_unique<TqString>(address)};
     }
   };
 
   return i::StringShape(type)
-      .DispatchToSpecificTypeWithoutCast<StringGetDispatcher, TypeNameAndProps>(
-          address, accessor);
+      .DispatchToSpecificTypeWithoutCast<StringGetDispatcher, TypedObject>(
+          address);
 }
 
-std::unique_ptr<ObjectPropertiesResult> GetHeapObjectProperties(
-    uintptr_t address, d::MemoryAccessor accessor, Value<i::InstanceType> type,
-    const char* type_hint, std::string brief) {
-  TypeNameAndProps tnp(d::TypeCheckResult::kUsedMap);
+TypedObject GetTypedHeapObject(uintptr_t address, d::MemoryAccessor accessor,
+                               const char* type_hint) {
+  auto heap_object = v8::base::make_unique<TqHeapObject>(address);
+  Value<uintptr_t> map_ptr = heap_object->GetMapValue(accessor);
+
+  if (map_ptr.validity != d::MemoryAccessResult::kOk) {
+    return {map_ptr.validity == d::MemoryAccessResult::kAddressNotValid
+                ? d::TypeCheckResult::kObjectPointerInvalid
+                : d::TypeCheckResult::kObjectPointerValidButInaccessible,
+            std::move(heap_object)};
+  }
+  Value<i::InstanceType> type =
+      TqMap(map_ptr.value).GetInstanceTypeValue(accessor);
 
   if (type.validity == d::MemoryAccessResult::kOk) {
     // Dispatch to the appropriate method for each instance type. After calling
     // the generated method to fetch properties, we can add custom properties.
     switch (type.value) {
-#define INSTANCE_TYPE_CASE(ClassName, INSTANCE_TYPE)            \
-  case i::INSTANCE_TYPE:                                        \
-    tnp.type_name = #ClassName;                                 \
-    tnp.props = Tq##ClassName(address).GetProperties(accessor); \
-    break;
+#define INSTANCE_TYPE_CASE(ClassName, INSTANCE_TYPE) \
+  case i::INSTANCE_TYPE:                             \
+    return {d::TypeCheckResult::kUsedMap,            \
+            v8::base::make_unique<Tq##ClassName>(address)};
       TQ_INSTANCE_TYPES_SINGLE(INSTANCE_TYPE_CASE)
 #undef INSTANCE_TYPE_CASE
 
@@ -219,54 +220,36 @@ std::unique_ptr<ObjectPropertiesResult> GetHeapObjectProperties(
         // main instance type list because they use the low bits of the instance
         // type enum as flags.
         if (type.value <= i::LAST_STRING_TYPE) {
-          tnp = GetTypeNameAndPropsForString(address, accessor, type.value);
-          break;
+          return GetTypedObjectForString(address, type.value);
         }
 
 #define INSTANCE_RANGE_CASE(ClassName, FIRST_TYPE, LAST_TYPE)      \
   if (type.value >= i::FIRST_TYPE && type.value <= i::LAST_TYPE) { \
-    tnp.type_name = #ClassName;                                    \
-    tnp.props = Tq##ClassName(address).GetProperties(accessor);    \
-    break;                                                         \
+    return {d::TypeCheckResult::kUsedMap,                          \
+            v8::base::make_unique<Tq##ClassName>(address)};        \
   }
         TQ_INSTANCE_TYPES_RANGE(INSTANCE_RANGE_CASE)
 #undef INSTANCE_RANGE_CASE
 
-        tnp.type_check_result = d::TypeCheckResult::kUnknownInstanceType;
+        return {d::TypeCheckResult::kUnknownInstanceType,
+                std::move(heap_object)};
         break;
     }
   } else if (type_hint != nullptr) {
     // Try to use the provided type hint, since the real instance type is
     // unavailable.
-    tnp = GetTypeNameAndPropsByHint(address, accessor, type_hint);
+    return GetTypedObjectByHint(address, type_hint);
   } else {
     // TODO(v8:9376): Use known maps here. If known map is just a guess (because
     // root pointers weren't provided), then create a synthetic property with
     // the more specific type. Then the caller could presumably ask us again
     // with the type hint we provided. Otherwise, just go ahead and use it to
     // generate properties.
-    tnp.type_check_result =
-        type.validity == d::MemoryAccessResult::kAddressNotValid
-            ? d::TypeCheckResult::kMapPointerInvalid
-            : d::TypeCheckResult::kMapPointerValidButInaccessible;
+    return {type.validity == d::MemoryAccessResult::kAddressNotValid
+                ? d::TypeCheckResult::kMapPointerInvalid
+                : d::TypeCheckResult::kMapPointerValidButInaccessible,
+            std::move(heap_object)};
   }
-
-  if (tnp.type_name.empty()) {
-    tnp.type_name = "Object";
-  }
-
-  // TODO(v8:9376): Many object types need additional data that is not included
-  // in their Torque layout definitions. For example, JSObject has an array of
-  // in-object properties after its Torque-defined fields, which at a minimum
-  // should be represented as an array in this response. If the relevant memory
-  // is available, we should instead represent those properties (and any out-of-
-  // object properties) using their JavaScript property names.
-
-  brief = AppendAddressAndType(brief, address, tnp.type_name.c_str());
-
-  return v8::base::make_unique<ObjectPropertiesResult>(
-      tnp.type_check_result, brief, "v8::internal::" + tnp.type_name,
-      std::move(tnp.props));
 }
 
 #undef STRUCT_INSTANCE_TYPE_ADAPTER
@@ -274,6 +257,194 @@ std::unique_ptr<ObjectPropertiesResult> GetHeapObjectProperties(
 #undef TQ_INSTANCE_TYPES_SINGLE
 #undef TQ_INSTANCE_TYPES_SINGLE_NOSTRUCTS
 #undef TQ_INSTANCE_TYPES_RANGE
+
+// An object visitor that accumulates the first few characters of a string.
+class ReadStringVisitor : public TqObjectVisitor {
+ public:
+  ReadStringVisitor(d::MemoryAccessor accessor)
+      : accessor_(accessor), index_(0), limit_(INT32_MAX), done_(false) {}
+
+  // Returns the result as UTF-8 once visiting is complete.
+  std::string GetString() {
+    std::vector<char> result(
+        string_.size() * unibrow::Utf16::kMaxExtraUtf8BytesForOneUtf16CodeUnit);
+    unsigned write_index = 0;
+    int prev_char = unibrow::Utf16::kNoPreviousCharacter;
+    for (size_t read_index = 0; read_index < string_.size(); ++read_index) {
+      uint16_t character = string_[read_index];
+      write_index +=
+          unibrow::Utf8::Encode(result.data() + write_index, character,
+                                prev_char, /*replace_invalid=*/true);
+      prev_char = character;
+    }
+    return {result.data(), write_index};
+  }
+
+  template <typename T>
+  void ReadSeqString(const T* object) {
+    int32_t length = GetOrFinish(object->GetLengthValue(accessor_));
+    for (; index_ < length && index_ < limit_ && !done_; ++index_) {
+      char16_t c = static_cast<char16_t>(
+          GetOrFinish(object->GetCharsValue(accessor_, index_)));
+      if (!done_) AddCharacter(c);
+    }
+  }
+
+  void VisitSeqOneByteString(const TqSeqOneByteString* object) override {
+    ReadSeqString(object);
+  }
+
+  void VisitSeqTwoByteString(const TqSeqTwoByteString* object) override {
+    ReadSeqString(object);
+  }
+
+  void VisitConsString(const TqConsString* object) override {
+    uintptr_t first_address = GetOrFinish(object->GetFirstValue(accessor_));
+    if (done_) return;
+    auto first = GetTypedHeapObject(first_address, accessor_, nullptr).object;
+    first->Visit(this);
+    if (done_) return;
+    int32_t first_length = GetOrFinish(
+        static_cast<TqString*>(first.get())->GetLengthValue(accessor_));
+    uintptr_t second = GetOrFinish(object->GetSecondValue(accessor_));
+    if (done_) return;
+    IndexModifier modifier(this, -first_length, -first_length);
+    GetTypedHeapObject(second, accessor_, nullptr).object->Visit(this);
+  }
+
+  void VisitSlicedString(const TqSlicedString* object) override {
+    uintptr_t parent = GetOrFinish(object->GetParentValue(accessor_));
+    int32_t length = GetOrFinish(object->GetLengthValue(accessor_));
+    int32_t offset = i::PlatformSmiTagging::SmiToInt(
+        GetOrFinish(object->GetOffsetValue(accessor_)));
+    if (done_) return;
+    int32_t limit_adjust = offset + length - limit_;
+    IndexModifier modifier(this, offset, limit_adjust < 0 ? limit_adjust : 0);
+    GetTypedHeapObject(parent, accessor_, nullptr).object->Visit(this);
+  }
+
+  void VisitThinString(const TqThinString* object) override {
+    uintptr_t actual = GetOrFinish(object->GetActualValue(accessor_));
+    if (done_) return;
+    GetTypedHeapObject(actual, accessor_, nullptr).object->Visit(this);
+  }
+
+  void VisitExternalString(const TqExternalString* object) override {
+    // TODO(v8:9376): External strings are very common and important when
+    // attempting to print the source of a function in the browser. For now
+    // we're just ignoring them, but eventually we'll want some kind of
+    // mechanism where the user of this library can provide a callback function
+    // that fetches data from external strings.
+    AddEllipsisAndFinish();
+  }
+
+  void VisitObject(const TqObject* object) override {
+    // If we fail to find a specific type for a sub-object within a cons string,
+    // sliced string, or thin string, we will end up here.
+    AddEllipsisAndFinish();
+  }
+
+ private:
+  // Unpacks a value that was fetched from the debuggee. If the value indicates
+  // that it couldn't successfully fetch memory, then prevents further work.
+  template <typename T>
+  T GetOrFinish(Value<T> value) {
+    if (value.validity != d::MemoryAccessResult::kOk) {
+      AddEllipsisAndFinish();
+    }
+    return value.value;
+  }
+
+  void AddEllipsisAndFinish() {
+    if (!done_) {
+      string_ += u"...";
+      done_ = true;
+    }
+  }
+
+  void AddCharacter(char16_t c) {
+    if (string_.size() >= kMaxCharacters) {
+      AddEllipsisAndFinish();
+    } else {
+      string_.push_back(c);
+    }
+  }
+
+  // Temporarily adds offsets to both index_ and limit_, to handle ConsString
+  // and SlicedString.
+  class IndexModifier {
+   public:
+    IndexModifier(ReadStringVisitor* that, int32_t index_adjust,
+                  int32_t limit_adjust)
+        : that_(that),
+          index_adjust_(index_adjust),
+          limit_adjust_(limit_adjust) {
+      that_->index_ += index_adjust_;
+      that_->limit_ += limit_adjust_;
+    }
+    ~IndexModifier() {
+      that_->index_ -= index_adjust_;
+      that_->limit_ -= limit_adjust_;
+    }
+
+   private:
+    ReadStringVisitor* that_;
+    int32_t index_adjust_;
+    int32_t limit_adjust_;
+    DISALLOW_COPY_AND_ASSIGN(IndexModifier);
+  };
+
+  static constexpr int kMaxCharacters = 80;  // How many characters to print.
+
+  std::u16string string_;  // Result string.
+  d::MemoryAccessor accessor_;
+  int32_t index_;  // Index of next char to read.
+  int32_t limit_;  // Don't read past this index (set by SlicedString).
+  bool done_;      // Whether to stop further work.
+};
+
+// An object visitor that adds extra debugging information for some types.
+class AddInfoVisitor : public TqObjectVisitor {
+ public:
+  AddInfoVisitor(const std::string& brief, d::MemoryAccessor accessor)
+      : accessor_(accessor), brief_(brief) {}
+
+  // Returns the brief object description, once visiting is complete.
+  const std::string& GetBrief() { return brief_; }
+
+  void VisitString(const TqString* object) override {
+    ReadStringVisitor visitor(accessor_);
+    object->Visit(&visitor);
+    if (!brief_.empty()) brief_ += " ";
+    brief_ += "\"" + visitor.GetString() + "\"";
+  }
+
+ private:
+  d::MemoryAccessor accessor_;
+  std::string brief_;
+};
+
+std::unique_ptr<ObjectPropertiesResult> GetHeapObjectProperties(
+    uintptr_t address, d::MemoryAccessor accessor, const char* type_hint,
+    std::string brief) {
+  TypedObject typed = GetTypedHeapObject(address, accessor, type_hint);
+
+  // TODO(v8:9376): Many object types need additional data that is not included
+  // in their Torque layout definitions. For example, JSObject has an array of
+  // in-object properties after its Torque-defined fields, which at a minimum
+  // should be represented as an array in this response. If the relevant memory
+  // is available, we should instead represent those properties (and any out-of-
+  // object properties) using their JavaScript property names.
+  AddInfoVisitor visitor(brief, accessor);
+  typed.object->Visit(&visitor);
+  brief = visitor.GetBrief();
+
+  brief = AppendAddressAndType(brief, address, typed.object->GetName());
+
+  return v8::base::make_unique<ObjectPropertiesResult>(
+      typed.type_check_result, brief, typed.object->GetName(),
+      typed.object->GetProperties(accessor));
+}
 
 std::unique_ptr<ObjectPropertiesResult> GetHeapObjectProperties(
     uintptr_t address, d::MemoryAccessor memory_accessor, const d::Roots& roots,
@@ -306,22 +477,7 @@ std::unique_ptr<ObjectPropertiesResult> GetHeapObjectProperties(
   // Regardless of whether we can read the object itself, maybe we can find its
   // pointer in the list of known objects.
   std::string brief = FindKnownObject(address, roots);
-
-  TqHeapObject heap_object(address);
-  Value<uintptr_t> map_ptr = heap_object.GetMapValue(memory_accessor);
-  if (map_ptr.validity != d::MemoryAccessResult::kOk) {
-    brief = AppendAddressAndType(brief, address, "v8::internal::Object");
-    return v8::base::make_unique<ObjectPropertiesResult>(
-        map_ptr.validity == d::MemoryAccessResult::kAddressNotValid
-            ? d::TypeCheckResult::kObjectPointerInvalid
-            : d::TypeCheckResult::kObjectPointerValidButInaccessible,
-        brief, "v8::internal::Object",
-        std::vector<std::unique_ptr<ObjectProperty>>());
-  }
-  Value<i::InstanceType> instance_type =
-      TqMap(map_ptr.value).GetInstanceTypeValue(memory_accessor);
-  return GetHeapObjectProperties(address, memory_accessor, instance_type,
-                                 type_hint, brief);
+  return GetHeapObjectProperties(address, memory_accessor, type_hint, brief);
 }
 
 std::unique_ptr<ObjectPropertiesResult> GetObjectPropertiesImpl(

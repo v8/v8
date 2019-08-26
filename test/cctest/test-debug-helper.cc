@@ -109,8 +109,9 @@ TEST(GetObjectProperties) {
     props = d::GetObjectProperties(properties_or_hash, &ReadMemory, roots);
     CHECK(props->type_check_result ==
           d::TypeCheckResult::kObjectPointerValidButInaccessible);
-    CHECK(props->type == std::string("v8::internal::Object"));
-    CHECK_EQ(props->num_properties, 0);
+    CHECK(props->type == std::string("v8::internal::HeapObject"));
+    CHECK_EQ(props->num_properties, 1);
+    CheckProp(*props->properties[0], "v8::internal::Map", "map");
     CHECK(std::string(props->brief).substr(0, 21) ==
           std::string("maybe EmptyFixedArray"));
 
@@ -123,8 +124,9 @@ TEST(GetObjectProperties) {
     props = d::GetObjectProperties(properties_or_hash, &ReadMemory, roots);
     CHECK(props->type_check_result ==
           d::TypeCheckResult::kObjectPointerValidButInaccessible);
-    CHECK(props->type == std::string("v8::internal::Object"));
-    CHECK_EQ(props->num_properties, 0);
+    CHECK(props->type == std::string("v8::internal::HeapObject"));
+    CHECK_EQ(props->num_properties, 1);
+    CheckProp(*props->properties[0], "v8::internal::Map", "map");
     CHECK(std::string(props->brief).substr(0, 15) ==
           std::string("EmptyFixedArray"));
   }
@@ -192,6 +194,33 @@ TEST(GetObjectProperties) {
   CheckProp(*props2->properties[1], "uint32_t", "hash_field",
             *reinterpret_cast<i::Tagged_t*>(props->properties[1]->address));
   CheckProp(*props2->properties[2], "int32_t", "length", 2);
+
+  // Build a complicated string (multi-level cons with slices inside) to test
+  // string printing.
+  v = CompileRun(R"(
+    const alphabet = "abcdefghijklmnopqrstuvwxyz";
+    alphabet.substr(3,20) + alphabet.toUpperCase().substr(5,15) + "7")");
+  o = v8::Utils::OpenHandle(*v);
+  props = d::GetObjectProperties(o->ptr(), &ReadMemory, roots);
+  CHECK(std::string(props->brief).substr(0, 38) ==
+        std::string("\"defghijklmnopqrstuvwFGHIJKLMNOPQRST7\""));
+
+  // Cause a failure when reading the "second" pointer within the top-level
+  // ConsString.
+  {
+    CheckProp(*props->properties[4], "v8::internal::String", "second");
+    uintptr_t second_address = props->properties[4]->address;
+    MemoryFailureRegion failure(second_address, second_address + 4);
+    props = d::GetObjectProperties(o->ptr(), &ReadMemory, roots);
+    CHECK(std::string(props->brief).substr(0, 40) ==
+          std::string("\"defghijklmnopqrstuvwFGHIJKLMNOPQRST...\""));
+  }
+
+  // Build a very long string.
+  v = CompileRun("'a'.repeat(1000)");
+  o = v8::Utils::OpenHandle(*v);
+  props = d::GetObjectProperties(o->ptr(), &ReadMemory, roots);
+  CHECK(std::string(props->brief).substr(79, 7) == std::string("aa...\" "));
 }
 
 }  // namespace internal
