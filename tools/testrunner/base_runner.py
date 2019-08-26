@@ -46,8 +46,10 @@ DEFAULT_OUT_GN = 'out.gn'
 # Map of test name synonyms to lists of test suites. Should be ordered by
 # expected runtimes (suites with slow test cases first). These groups are
 # invoked in separate steps on the bots.
+# The mapping from names used here to GN targets (which must stay in sync)
+# is defined in infra/mb/gn_isolate_map.pyl.
 TEST_MAP = {
-  # This needs to stay in sync with test/bot_default.isolate.
+  # This needs to stay in sync with group("v8_bot_default") in test/BUILD.gn.
   "bot_default": [
     "debugger",
     "mjsunit",
@@ -62,8 +64,9 @@ TEST_MAP = {
     "preparser",
     "intl",
     "unittests",
+    "wasm-api-tests",
   ],
-  # This needs to stay in sync with test/default.isolate.
+  # This needs to stay in sync with group("v8_default") in test/BUILD.gn.
   "default": [
     "debugger",
     "mjsunit",
@@ -77,8 +80,9 @@ TEST_MAP = {
     "preparser",
     "intl",
     "unittests",
+    "wasm-api-tests",
   ],
-  # This needs to stay in sync with test/d8_default.isolate.
+  # This needs to stay in sync with group("v8_d8_default") in test/BUILD.gn.
   "d8_default": [
     "debugger",
     "mjsunit",
@@ -87,7 +91,7 @@ TEST_MAP = {
     "preparser",
     "intl",
   ],
-  # This needs to stay in sync with test/optimize_for_size.isolate.
+  # This needs to stay in sync with "v8_optimize_for_size" in test/BUILD.gn.
   "optimize_for_size": [
     "debugger",
     "mjsunit",
