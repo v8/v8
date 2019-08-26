@@ -5657,6 +5657,14 @@ TEST(PrivateMethodsErrors) {
     "set #constructor(test) {}",
     "#constructor() {}",
     "get #constructor() {}",
+
+    "static async *#constructor() {}",
+    "static *#constructor() {}",
+    "static async #constructor() {}",
+    "static set #constructor(test) {}",
+    "static #constructor() {}",
+    "static get #constructor() {}",
+
     nullptr
   };
   // clang-format on

@@ -6062,15 +6062,14 @@ void ParserBase<Impl>::CheckClassMethodName(IdentifierT name,
 
   AstValueFactory* avf = ast_value_factory();
 
-  if (is_static) {
+  if (impl()->IdentifierEquals(name, avf->private_constructor_string())) {
+    ReportMessage(MessageTemplate::kConstructorIsPrivate);
+    return;
+  } else if (is_static) {
     if (impl()->IdentifierEquals(name, avf->prototype_string())) {
       ReportMessage(MessageTemplate::kStaticPrototype);
       return;
     }
-  } else if (impl()->IdentifierEquals(name,
-                                      avf->private_constructor_string())) {
-    ReportMessage(MessageTemplate::kConstructorIsPrivate);
-    return;
   } else if (impl()->IdentifierEquals(name, avf->constructor_string())) {
     if (flags != ParseFunctionFlag::kIsNormal || IsAccessor(type)) {
       MessageTemplate msg = (flags & ParseFunctionFlag::kIsGenerator) != 0
