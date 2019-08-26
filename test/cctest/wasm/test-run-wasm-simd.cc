@@ -2882,7 +2882,7 @@ WASM_SIMD_TEST(SimdF32x4SetGlobal) {
   CHECK_EQ(GetScalar(global, 3), 65.0f);
 }
 
-WASM_SIMD_COMPILED_TEST(SimdLoadStoreLoad) {
+WASM_SIMD_TEST(SimdLoadStoreLoad) {
   WasmRunner<int32_t> r(execution_tier, lower_simd);
   int32_t* memory =
       r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));

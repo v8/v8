@@ -1676,7 +1676,7 @@ class ThreadImpl {
         converter<ctype, mtype>{}(ReadLittleEndianValue<mtype>(addr)));
 
     Push(result);
-    *len = 1 + imm.length;
+    *len += imm.length;
 
     if (FLAG_trace_wasm_memory) {
       MemoryTracingInfo info(imm.offset + index, false, rep);
@@ -1702,7 +1702,7 @@ class ThreadImpl {
       return false;
     }
     WriteLittleEndianValue<mtype>(addr, converter<mtype, ctype>{}(val));
-    *len = 1 + imm.length;
+    *len += imm.length;
 
     if (FLAG_trace_wasm_memory) {
       MemoryTracingInfo info(imm.offset + index, true, rep);
