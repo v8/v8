@@ -16,6 +16,7 @@
 #include "src/objects/heap-number.h"
 #include "src/objects/module.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/property-details.h"
 #include "src/objects/smi.h"
 
 namespace v8 {
@@ -1662,6 +1663,24 @@ Node* AccessorAssembler::PrepareValueForStore(Node* handler_word, Node* holder,
                                               Node* value, Label* bailout) {
   if (representation.IsDouble()) {
     value = TryTaggedToFloat64(value, bailout);
+
+    // We have to check that the representation is still Double. Checking the
+    // value is nor enough, as we could have transitioned to Tagged but still
+    // be holding a HeapNumber, which would no longer be allowed to be mutable.
+
+    // TODO(leszeks): We could skip the representation check in favor of a
+    // constant value check in StoreNamedField here, but then StoreNamedField
+    // would need an IsHeapNumber check in case both the representation changed
+    // and the value is no longer a HeapNumber.
+    TNode<IntPtrT> descriptor_entry =
+        Signed(DecodeWord<StoreHandler::DescriptorBits>(handler_word));
+    TNode<DescriptorArray> descriptors = LoadMapDescriptors(LoadMap(holder));
+    TNode<Uint32T> details =
+        LoadDetailsByDescriptorEntry(descriptors, descriptor_entry);
+
+    GotoIfNot(IsEqualInWord32<PropertyDetails::RepresentationField>(
+                  details, Representation::kDouble),
+              bailout);
 
   } else if (representation.IsHeapObject()) {
     GotoIf(TaggedIsSmi(value), bailout);
