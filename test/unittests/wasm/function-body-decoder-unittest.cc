@@ -3525,6 +3525,24 @@ TEST_F(WasmOpcodeLengthTest, VariableLength) {
   ExpectLength(4, kExprRefFunc, U32V_3(44));
   ExpectLength(5, kExprRefFunc, U32V_4(66));
   ExpectLength(6, kExprRefFunc, U32V_5(77));
+
+  ExpectLength(2, kExprTableGet, U32V_1(1));
+  ExpectLength(3, kExprTableGet, U32V_2(33));
+  ExpectLength(4, kExprTableGet, U32V_3(44));
+  ExpectLength(5, kExprTableGet, U32V_4(66));
+  ExpectLength(6, kExprTableGet, U32V_5(77));
+
+  ExpectLength(2, kExprTableSet, U32V_1(1));
+  ExpectLength(3, kExprTableSet, U32V_2(33));
+  ExpectLength(4, kExprTableSet, U32V_3(44));
+  ExpectLength(5, kExprTableSet, U32V_4(66));
+  ExpectLength(6, kExprTableSet, U32V_5(77));
+
+  ExpectLength(3, kExprCallIndirect, U32V_1(1), U32V_1(1));
+  ExpectLength(4, kExprCallIndirect, U32V_1(1), U32V_2(33));
+  ExpectLength(5, kExprCallIndirect, U32V_1(1), U32V_3(44));
+  ExpectLength(6, kExprCallIndirect, U32V_1(1), U32V_4(66));
+  ExpectLength(7, kExprCallIndirect, U32V_1(1), U32V_5(77));
 }
 
 TEST_F(WasmOpcodeLengthTest, LoadsAndStores) {

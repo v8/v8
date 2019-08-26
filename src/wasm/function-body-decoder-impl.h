@@ -339,35 +339,6 @@ struct BranchOnExceptionImmediate {
 };
 
 template <Decoder::ValidateFlag validate>
-struct CallIndirectImmediate {
-  uint32_t table_index;
-  uint32_t sig_index;
-  FunctionSig* sig = nullptr;
-  uint32_t length = 0;
-  inline CallIndirectImmediate(const WasmFeatures enabled, Decoder* decoder,
-                               const byte* pc) {
-    uint32_t len = 0;
-    sig_index = decoder->read_u32v<validate>(pc + 1, &len, "signature index");
-    table_index = decoder->read_u8<validate>(pc + 1 + len, "table index");
-    if (!VALIDATE(table_index == 0 || enabled.anyref)) {
-      decoder->errorf(pc + 1 + len, "expected table index 0, found %u",
-                      table_index);
-    }
-    length = 1 + len;
-  }
-};
-
-template <Decoder::ValidateFlag validate>
-struct CallFunctionImmediate {
-  uint32_t index;
-  FunctionSig* sig = nullptr;
-  uint32_t length;
-  inline CallFunctionImmediate(Decoder* decoder, const byte* pc) {
-    index = decoder->read_u32v<validate>(pc + 1, &length, "function index");
-  }
-};
-
-template <Decoder::ValidateFlag validate>
 struct FunctionIndexImmediate {
   uint32_t index = 0;
   uint32_t length = 1;
@@ -396,6 +367,36 @@ struct TableIndexImmediate {
   inline TableIndexImmediate() = default;
   inline TableIndexImmediate(Decoder* decoder, const byte* pc) {
     index = decoder->read_u32v<validate>(pc + 1, &length, "table index");
+  }
+};
+
+template <Decoder::ValidateFlag validate>
+struct CallIndirectImmediate {
+  uint32_t table_index;
+  uint32_t sig_index;
+  FunctionSig* sig = nullptr;
+  uint32_t length = 0;
+  inline CallIndirectImmediate(const WasmFeatures enabled, Decoder* decoder,
+                               const byte* pc) {
+    uint32_t len = 0;
+    sig_index = decoder->read_u32v<validate>(pc + 1, &len, "signature index");
+    TableIndexImmediate<validate> table(decoder, pc + len);
+    if (!VALIDATE((table.index == 0 && table.length == 1) || enabled.anyref)) {
+      decoder->errorf(pc + 1 + len, "expected table index 0, found %u",
+                      table.index);
+    }
+    table_index = table.index;
+    length = len + table.length;
+  }
+};
+
+template <Decoder::ValidateFlag validate>
+struct CallFunctionImmediate {
+  uint32_t index;
+  FunctionSig* sig = nullptr;
+  uint32_t length;
+  inline CallFunctionImmediate(Decoder* decoder, const byte* pc) {
+    index = decoder->read_u32v<validate>(pc + 1, &length, "function index");
   }
 };
 
