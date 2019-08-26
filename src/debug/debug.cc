@@ -1757,9 +1757,6 @@ bool Debug::IsFrameBlackboxed(JavaScriptFrame* frame) {
 
 void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
                         v8::debug::ExceptionType exception_type) {
-  // TODO(kozyatinskiy): regress-662674.js test fails on arm without this.
-  if (!AllowJavascriptExecution::IsAllowed(isolate_)) return;
-
   Isolate::CatchType catch_type = isolate_->PredictExceptionCatcher();
 
   // Don't notify listener of exceptions that are internal to a desugaring.
@@ -1803,6 +1800,7 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
   DisableBreak no_recursive_break(this);
 
   Handle<Context> native_context(isolate_->native_context());
+  AllowJavascriptExecution for_callback(isolate_);
   debug_delegate_->ExceptionThrown(
       v8::Utils::ToLocal(native_context), v8::Utils::ToLocal(exception),
       v8::Utils::ToLocal(promise), uncaught, exception_type);

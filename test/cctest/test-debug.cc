@@ -3482,6 +3482,36 @@ TEST(SyntaxErrorEventOnSyntaxException) {
   CHECK_EQ(3, delegate.compile_error_event_count);
 }
 
+class ExceptionEventCounter : public v8::debug::DebugDelegate {
+ public:
+  void ExceptionThrown(v8::Local<v8::Context> paused_context,
+                       v8::Local<v8::Value> exception,
+                       v8::Local<v8::Value> promise, bool is_uncaught,
+                       v8::debug::ExceptionType) override {
+    exception_event_count++;
+  }
+  int exception_event_count = 0;
+};
+
+TEST(BreakOnStackOverflow) {
+  i::FLAG_stack_size = 100;
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  // For this test, we want to break on uncaught exceptions:
+  ChangeBreakOnException(true, true);
+
+  ExceptionEventCounter delegate;
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
+  CHECK_EQ(0, delegate.exception_event_count);
+
+  CompileRun(
+      "function f() { return f(); }"
+      "try { f() } catch {}");
+
+  CHECK_EQ(1, delegate.exception_event_count);
+}
+
 // Tests that break event is sent when event listener is reset.
 TEST(BreakEventWhenEventListenerIsReset) {
   LocalContext env;
