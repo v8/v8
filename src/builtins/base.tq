@@ -1000,7 +1000,7 @@ extern class WasmJSFunctionData extends Struct {
 
 extern class WasmCapiFunctionData extends Struct {
   call_target: RawPtr;
-  embedder_data: RawPtr;
+  embedder_data: Foreign;  // Managed<wasm::FuncData>
   wrapper_code: Code;
   serialized_signature: ByteArray;  // PodArray<wasm::ValueType>
 }

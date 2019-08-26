@@ -357,8 +357,7 @@ OBJECT_CONSTRUCTORS_IMPL(WasmCapiFunctionData, Struct)
 CAST_ACCESSOR(WasmCapiFunctionData)
 PRIMITIVE_ACCESSORS(WasmCapiFunctionData, call_target, Address,
                     kCallTargetOffset)
-PRIMITIVE_ACCESSORS(WasmCapiFunctionData, embedder_data, void*,
-                    kEmbedderDataOffset)
+ACCESSORS(WasmCapiFunctionData, embedder_data, Foreign, kEmbedderDataOffset)
 ACCESSORS(WasmCapiFunctionData, wrapper_code, Code, kWrapperCodeOffset)
 ACCESSORS(WasmCapiFunctionData, serialized_signature, PodArray<wasm::ValueType>,
           kSerializedSignatureOffset)

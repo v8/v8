@@ -29,6 +29,8 @@
 #include "include/libplatform/libplatform.h"
 #include "src/api/api-inl.h"
 #include "src/compiler/wasm-compiler.h"
+#include "src/objects/js-collection-inl.h"
+#include "src/objects/managed.h"
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/module-instantiate.h"
@@ -270,6 +272,38 @@ StoreImpl::~StoreImpl() {
   delete create_params_.array_buffer_allocator;
 }
 
+struct ManagedData {
+  ManagedData(void* info, void (*finalizer)(void*))
+      : info(info), finalizer(finalizer) {}
+
+  ~ManagedData() {
+    if (finalizer) (*finalizer)(info);
+  }
+
+  void* info;
+  void (*finalizer)(void*);
+};
+
+void StoreImpl::SetHostInfo(i::Handle<i::Object> object, void* info,
+                            void (*finalizer)(void*)) {
+  i::HandleScope scope(i_isolate());
+  // Ideally we would specify the total size kept alive by {info} here,
+  // but all we get from the embedder is a {void*}, so our best estimate
+  // is the size of the metadata.
+  size_t estimated_size = sizeof(ManagedData);
+  i::Handle<i::Object> wrapper = i::Managed<ManagedData>::FromRawPtr(
+      i_isolate(), estimated_size, new ManagedData(info, finalizer));
+  int32_t hash = object->GetOrCreateHash(i_isolate()).value();
+  i::JSWeakCollection::Set(host_info_map_, object, wrapper, hash);
+}
+
+void* StoreImpl::GetHostInfo(i::Handle<i::Object> key) {
+  i::Object raw =
+      i::EphemeronHashTable::cast(host_info_map_->table()).Lookup(key);
+  if (raw.IsTheHole(i_isolate())) return nullptr;
+  return i::Managed<ManagedData>::cast(raw).raw()->info;
+}
+
 template <>
 struct implement<Store> {
   using type = StoreImpl;
@@ -286,26 +320,29 @@ auto Store::make(Engine*) -> own<Store> {
   // Create isolate.
   store->create_params_.array_buffer_allocator =
       v8::ArrayBuffer::Allocator::NewDefaultAllocator();
-  auto isolate = v8::Isolate::New(store->create_params_);
+  v8::Isolate* isolate = v8::Isolate::New(store->create_params_);
   if (!isolate) return own<Store>();
+  store->isolate_ = isolate;
+  isolate->SetData(0, store.get());
+  // We intentionally do not call isolate->Enter() here, because that would
+  // prevent embedders from using stores with overlapping but non-nested
+  // lifetimes. The consequence is that Isolate::Current() is dysfunctional
+  // and hence must not be called by anything reachable via this file.
 
   {
     v8::HandleScope handle_scope(isolate);
 
     // Create context.
-    auto context = v8::Context::New(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
     if (context.IsEmpty()) return own<Store>();
-    v8::Context::Scope context_scope(context);
-
-    store->isolate_ = isolate;
+    context->Enter();  // The Exit() call is in ~StoreImpl.
     store->context_ = v8::Eternal<v8::Context>(isolate, context);
+
+    // Create weak map for Refs with host info.
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    store->host_info_map_ = i_isolate->global_handles()->Create(
+        *i_isolate->factory()->NewJSWeakMap());
   }
-  // We intentionally do not call isolate->Enter() here, because that would
-  // prevent embedders from using stores with overlapping but non-nested
-  // lifetimes. The consequence is that Isolate::Current() is dysfunctional
-  // and hence must not be called by anything reachable via this file.
-  store->context()->Enter();
-  isolate->SetData(0, store.get());
   // We want stack traces for traps.
   constexpr int kStackLimit = 10;
   isolate->SetCaptureStackTraceForUncaughtExceptions(true, kStackLimit,
@@ -712,15 +749,7 @@ class RefImpl {
     return make_own(seal<Ref>(self));
   }
 
-  void Reset() {
-    i::GlobalHandles::Destroy(location());
-    if (host_data_) {
-      if (host_data_->finalizer) {
-        host_data_->finalizer(host_data_->info);
-      }
-      delete host_data_;
-    }
-  }
+  ~RefImpl() { i::GlobalHandles::Destroy(location()); }
 
   own<Ref> copy() const { return make(store(), v8_object()); }
 
@@ -730,41 +759,20 @@ class RefImpl {
 
   i::Handle<JSType> v8_object() const { return i::Handle<JSType>::cast(val_); }
 
-  void* get_host_info() const {
-    if (host_data_ == nullptr) return nullptr;
-    return host_data_->info;
-  }
+  void* get_host_info() const { return store()->GetHostInfo(v8_object()); }
 
   void set_host_info(void* info, void (*finalizer)(void*)) {
-    host_data_ = new HostData(location(), info, finalizer);
-    i::GlobalHandles::MakeWeak(host_data_->location, host_data_, &v8_finalizer,
-                               v8::WeakCallbackType::kParameter);
+    store()->SetHostInfo(v8_object(), info, finalizer);
   }
 
  private:
-  struct HostData {
-    HostData(i::Address* location, void* info, void (*finalizer)(void*))
-        : location(location), info(info), finalizer(finalizer) {}
-    i::Address* location;
-    void* info;
-    void (*finalizer)(void*);
-  };
-
   RefImpl() {}
-
-  static void v8_finalizer(const v8::WeakCallbackInfo<void>& info) {
-    HostData* data = reinterpret_cast<HostData*>(info.GetParameter());
-    i::GlobalHandles::Destroy(data->location);
-    if (data->finalizer) (*data->finalizer)(data->info);
-    delete data;
-  }
 
   i::Address* location() const {
     return reinterpret_cast<i::Address*>(val_.address());
   }
 
   i::Handle<i::JSReceiver> val_;
-  HostData* host_data_ = nullptr;
 };
 
 template <>
@@ -773,7 +781,6 @@ struct implement<Ref> {
 };
 
 Ref::~Ref() {
-  impl(this)->Reset();
   delete impl(this);
 }
 
@@ -1197,8 +1204,7 @@ struct FuncData {
     if (finalizer) (*finalizer)(env);
   }
 
-  static i::Address v8_callback(void* data, i::Address argv);
-  static void finalize_func_data(void* data);
+  static i::Address v8_callback(i::Address host_data_foreign, i::Address argv);
 };
 
 namespace {
@@ -1270,11 +1276,12 @@ auto make_func(Store* store_abs, FuncData* data) -> own<Func> {
   auto store = impl(store_abs);
   i::Isolate* isolate = store->i_isolate();
   i::HandleScope handle_scope(isolate);
+  i::Handle<i::Managed<FuncData>> embedder_data =
+      i::Managed<FuncData>::FromRawPtr(isolate, sizeof(FuncData), data);
   i::Handle<i::WasmCapiFunction> function = i::WasmCapiFunction::New(
-      isolate, reinterpret_cast<i::Address>(&FuncData::v8_callback), data,
-      SignatureHelper::Serialize(isolate, data->type.get()));
+      isolate, reinterpret_cast<i::Address>(&FuncData::v8_callback),
+      embedder_data, SignatureHelper::Serialize(isolate, data->type.get()));
   auto func = implement<Func>::type::make(store, function);
-  func->set_host_info(data, &FuncData::finalize_func_data);
   return func;
 }
 
@@ -1435,7 +1442,7 @@ void PopArgs(i::wasm::FunctionSig* sig, Val results[],
 
 own<Trap> CallWasmCapiFunction(i::WasmCapiFunctionData data, const Val args[],
                                Val results[]) {
-  FuncData* func_data = reinterpret_cast<FuncData*>(data.embedder_data());
+  FuncData* func_data = i::Managed<FuncData>::cast(data.embedder_data()).raw();
   if (func_data->kind == FuncData::kCallback) {
     return (func_data->callback)(args, results);
   }
@@ -1530,8 +1537,10 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
   return nullptr;
 }
 
-i::Address FuncData::v8_callback(void* data, i::Address argv) {
-  FuncData* self = reinterpret_cast<FuncData*>(data);
+i::Address FuncData::v8_callback(i::Address host_data_foreign,
+                                 i::Address argv) {
+  FuncData* self =
+      i::Managed<FuncData>::cast(i::Object(host_data_foreign))->raw();
   StoreImpl* store = impl(self->store);
   i::Isolate* isolate = store->i_isolate();
   i::HandleScope scope(isolate);
@@ -1617,10 +1626,6 @@ i::Address FuncData::v8_callback(void* data, i::Address argv) {
     }
   }
   return i::kNullAddress;
-}
-
-void FuncData::finalize_func_data(void* data) {
-  delete reinterpret_cast<FuncData*>(data);
 }
 
 // Global Instances
@@ -2251,7 +2256,7 @@ extern "C++" inline auto hide_mutability(wasm::Mutability mutability)
   return static_cast<wasm_mutability_t>(mutability);
 }
 
-extern "C++" inline auto reveal_mutability(wasm_mutability_enum mutability)
+extern "C++" inline auto reveal_mutability(wasm_mutability_t mutability)
     -> wasm::Mutability {
   return static_cast<wasm::Mutability>(mutability);
 }
@@ -2278,7 +2283,7 @@ extern "C++" inline auto hide_externkind(wasm::ExternKind kind)
   return static_cast<wasm_externkind_t>(kind);
 }
 
-extern "C++" inline auto reveal_externkind(wasm_externkind_enum kind)
+extern "C++" inline auto reveal_externkind(wasm_externkind_t kind)
     -> wasm::ExternKind {
   return static_cast<wasm::ExternKind>(kind);
 }
@@ -2330,8 +2335,7 @@ WASM_DEFINE_TYPE(globaltype, wasm::GlobalType)
 wasm_globaltype_t* wasm_globaltype_new(wasm_valtype_t* content,
                                        wasm_mutability_t mutability) {
   return release_globaltype(wasm::GlobalType::make(
-      adopt_valtype(content),
-      reveal_mutability(static_cast<wasm_mutability_enum>(mutability))));
+      adopt_valtype(content), reveal_mutability(mutability)));
 }
 
 const wasm_valtype_t* wasm_globaltype_content(const wasm_globaltype_t* gt) {

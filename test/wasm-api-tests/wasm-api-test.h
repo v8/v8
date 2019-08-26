@@ -115,6 +115,7 @@ class WasmCapiTest : public ::testing::Test {
   }
 
   void Shutdown() {
+    exports_.reset();
     instance_.reset();
     module_.reset();
     store_.reset();

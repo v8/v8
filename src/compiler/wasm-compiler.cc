@@ -5952,9 +5952,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* sfi_data = LOAD_RAW(
         shared, SharedFunctionInfo::kFunctionDataOffset - kHeapObjectTag,
         MachineType::TypeCompressedTagged());
-    Node* host_data = LOAD_RAW(
+    Node* host_data_foreign = LOAD_RAW(
         sfi_data, WasmCapiFunctionData::kEmbedderDataOffset - kHeapObjectTag,
-        MachineType::Pointer());
+        MachineType::TypeCompressedTagged());
 
     BuildModifyThreadInWasmFlag(false);
     Node* isolate_root = BuildLoadIsolateRoot();
@@ -5968,11 +5968,12 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* function =
         graph()->NewNode(mcgraph()->common()->ExternalConstant(ref));
 
-    // Parameters: void* data, Address arguments.
+    // Parameters: Address host_data_foreign, Address arguments.
     MachineType host_sig_types[] = {
         MachineType::Pointer(), MachineType::Pointer(), MachineType::Pointer()};
     MachineSignature host_sig(1, 2, host_sig_types);
-    Node* return_value = BuildCCall(&host_sig, function, host_data, values);
+    Node* return_value =
+        BuildCCall(&host_sig, function, host_data_foreign, values);
 
     BuildModifyThreadInWasmFlag(true);
 

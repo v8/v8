@@ -707,7 +707,7 @@ class WasmCapiFunction : public JSFunction {
   static bool IsWasmCapiFunction(Object object);
 
   static Handle<WasmCapiFunction> New(
-      Isolate* isolate, Address call_target, void* embedder_data,
+      Isolate* isolate, Address call_target, Handle<Foreign> embedder_data,
       Handle<PodArray<wasm::ValueType>> serialized_signature);
 
   Address GetHostCallTarget() const;
@@ -764,7 +764,7 @@ class WasmIndirectFunctionTable : public Struct {
 class WasmCapiFunctionData : public Struct {
  public:
   DECL_PRIMITIVE_ACCESSORS(call_target, Address)
-  DECL_PRIMITIVE_ACCESSORS(embedder_data, void*)
+  DECL_ACCESSORS(embedder_data, Foreign)
   DECL_ACCESSORS(wrapper_code, Code)
   DECL_ACCESSORS(serialized_signature, PodArray<wasm::ValueType>)
 
@@ -776,7 +776,7 @@ class WasmCapiFunctionData : public Struct {
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 TORQUE_GENERATED_WASM_CAPI_FUNCTION_DATA_FIELDS)
 
-  STATIC_ASSERT(kStartOfStrongFieldsOffset == kWrapperCodeOffset);
+  STATIC_ASSERT(kStartOfStrongFieldsOffset == kEmbedderDataOffset);
   using BodyDescriptor = FlexibleBodyDescriptor<kStartOfStrongFieldsOffset>;
 
   OBJECT_CONSTRUCTORS(WasmCapiFunctionData, Struct);

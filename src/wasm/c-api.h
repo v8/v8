@@ -7,7 +7,16 @@
 
 #include "include/v8.h"
 #include "src/common/globals.h"
+#include "src/handles/handles.h"
 #include "third_party/wasm-api/wasm.hh"
+
+namespace v8 {
+namespace internal {
+
+class JSWeakMap;
+
+}  // namespace internal
+}  // namespace v8
 
 namespace wasm {
 
@@ -27,6 +36,10 @@ class StoreImpl {
         reinterpret_cast<v8::Isolate*>(isolate)->GetData(0));
   }
 
+  void SetHostInfo(i::Handle<i::Object> object, void* info,
+                   void (*finalizer)(void*));
+  void* GetHostInfo(i::Handle<i::Object> key);
+
  private:
   friend own<Store> Store::make(Engine*);
 
@@ -35,6 +48,7 @@ class StoreImpl {
   v8::Isolate::CreateParams create_params_;
   v8::Isolate* isolate_ = nullptr;
   v8::Eternal<v8::Context> context_;
+  i::Handle<i::JSWeakMap> host_info_map_;
 };
 
 }  // namespace wasm
