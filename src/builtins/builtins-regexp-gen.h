@@ -154,20 +154,17 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   TNode<String> FlagsGetter(Node* const context, Node* const regexp,
                             bool is_fastpath);
 
-  TNode<Int32T> FastFlagGetter(TNode<JSRegExp> regexp, JSRegExp::Flag flag);
+  TNode<BoolT> FastFlagGetter(TNode<JSRegExp> regexp, JSRegExp::Flag flag);
   TNode<BoolT> FastFlagGetterGlobal(TNode<JSRegExp> regexp) {
-    return ReinterpretCast<BoolT>(FastFlagGetter(regexp, JSRegExp::kGlobal));
+    return FastFlagGetter(regexp, JSRegExp::kGlobal);
   }
   TNode<BoolT> FastFlagGetterUnicode(TNode<JSRegExp> regexp) {
-    return ReinterpretCast<BoolT>(FastFlagGetter(regexp, JSRegExp::kUnicode));
+    return FastFlagGetter(regexp, JSRegExp::kUnicode);
   }
-  TNode<Int32T> SlowFlagGetter(TNode<Context> context, TNode<Object> regexp,
-                               JSRegExp::Flag flag);
-  TNode<Int32T> FlagGetter(TNode<Context> context, TNode<Object> regexp,
-                           JSRegExp::Flag flag, bool is_fastpath);
-
-  void FlagGetter(TNode<Context> context, TNode<Object> receiver,
-                  JSRegExp::Flag flag, int counter, const char* method_name);
+  TNode<BoolT> SlowFlagGetter(TNode<Context> context, TNode<Object> regexp,
+                              JSRegExp::Flag flag);
+  TNode<BoolT> FlagGetter(TNode<Context> context, TNode<Object> regexp,
+                          JSRegExp::Flag flag, bool is_fastpath);
 
   Node* RegExpInitialize(Node* const context, Node* const regexp,
                          Node* const maybe_pattern, Node* const maybe_flags);
@@ -207,8 +204,8 @@ class RegExpMatchAllAssembler : public RegExpBuiltinsAssembler {
   TNode<Object> CreateRegExpStringIterator(TNode<Context> native_context,
                                            TNode<Object> regexp,
                                            TNode<String> string,
-                                           TNode<Int32T> global,
-                                           TNode<Int32T> full_unicode);
+                                           TNode<BoolT> global,
+                                           TNode<BoolT> full_unicode);
   void Generate(TNode<Context> context, TNode<Context> native_context,
                 TNode<Object> receiver, TNode<Object> maybe_string);
 };

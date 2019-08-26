@@ -847,27 +847,15 @@ namespace internal {
   TFJ(RegExpPrototypeCompile, 2, kReceiver, kPattern, kFlags)                  \
   /* ES #sec-regexp.prototype.exec */                                          \
   TFJ(RegExpPrototypeExec, 1, kReceiver, kString)                              \
-  /* ES #sec-get-regexp.prototype.dotAll */                                    \
-  TFJ(RegExpPrototypeDotAllGetter, 0, kReceiver)                               \
   /* ES #sec-get-regexp.prototype.flags */                                     \
   TFJ(RegExpPrototypeFlagsGetter, 0, kReceiver)                                \
-  /* ES #sec-get-regexp.prototype.global */                                    \
-  TFJ(RegExpPrototypeGlobalGetter, 0, kReceiver)                               \
-  /* ES #sec-get-regexp.prototype.ignorecase */                                \
-  TFJ(RegExpPrototypeIgnoreCaseGetter, 0, kReceiver)                           \
   /* ES #sec-regexp.prototype-@@match */                                       \
   TFJ(RegExpPrototypeMatch, 1, kReceiver, kString)                             \
   /* https://tc39.github.io/proposal-string-matchall/ */                       \
   TFJ(RegExpPrototypeMatchAll, 1, kReceiver, kString)                          \
-  /* ES #sec-get-regexp.prototype.multiline */                                 \
-  TFJ(RegExpPrototypeMultilineGetter, 0, kReceiver)                            \
   /* ES #sec-regexp.prototype-@@search */                                      \
   TFJ(RegExpPrototypeSearch, 1, kReceiver, kString)                            \
-  /* ES #sec-get-regexp.prototype.sticky */                                    \
-  TFJ(RegExpPrototypeStickyGetter, 0, kReceiver)                               \
   CPP(RegExpPrototypeToString)                                                 \
-  /* ES #sec-get-regexp.prototype.unicode */                                   \
-  TFJ(RegExpPrototypeUnicodeGetter, 0, kReceiver)                              \
   CPP(RegExpRightContextGetter)                                                \
                                                                                \
   /* ES #sec-regexp.prototype-@@split */                                       \

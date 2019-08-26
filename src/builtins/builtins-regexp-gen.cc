@@ -1562,20 +1562,21 @@ TF_BUILTIN(RegExpPrototypeCompile, RegExpBuiltinsAssembler) {
 }
 
 // Fast-path implementation for flag checks on an unmodified JSRegExp instance.
-TNode<Int32T> RegExpBuiltinsAssembler::FastFlagGetter(TNode<JSRegExp> regexp,
-                                                      JSRegExp::Flag flag) {
+TNode<BoolT> RegExpBuiltinsAssembler::FastFlagGetter(TNode<JSRegExp> regexp,
+                                                     JSRegExp::Flag flag) {
   TNode<Smi> flags = CAST(LoadObjectField(regexp, JSRegExp::kFlagsOffset));
   TNode<Smi> mask = SmiConstant(flag);
-  return SmiToInt32(SmiShr(SmiAnd(flags, mask), base::bits::CountTrailingZeros(
-                                                    static_cast<int>(flag))));
+  return ReinterpretCast<BoolT>(SmiToInt32(
+      SmiShr(SmiAnd(flags, mask),
+             base::bits::CountTrailingZeros(static_cast<int>(flag)))));
 }
 
 // Load through the GetProperty stub.
-TNode<Int32T> RegExpBuiltinsAssembler::SlowFlagGetter(TNode<Context> context,
-                                                      TNode<Object> regexp,
-                                                      JSRegExp::Flag flag) {
+TNode<BoolT> RegExpBuiltinsAssembler::SlowFlagGetter(TNode<Context> context,
+                                                     TNode<Object> regexp,
+                                                     JSRegExp::Flag flag) {
   Label out(this);
-  TVARIABLE(Int32T, var_result);
+  TVARIABLE(BoolT, var_result);
 
   Handle<String> name;
   switch (flag) {
@@ -1607,122 +1608,23 @@ TNode<Int32T> RegExpBuiltinsAssembler::SlowFlagGetter(TNode<Context> context,
   BranchIfToBooleanIsTrue(value, &if_true, &if_false);
 
   BIND(&if_true);
-  var_result = Int32Constant(1);
+  var_result = BoolConstant(true);
   Goto(&out);
 
   BIND(&if_false);
-  var_result = Int32Constant(0);
+  var_result = BoolConstant(false);
   Goto(&out);
 
   BIND(&out);
   return var_result.value();
 }
 
-TNode<Int32T> RegExpBuiltinsAssembler::FlagGetter(TNode<Context> context,
-                                                  TNode<Object> regexp,
-                                                  JSRegExp::Flag flag,
-                                                  bool is_fastpath) {
+TNode<BoolT> RegExpBuiltinsAssembler::FlagGetter(TNode<Context> context,
+                                                 TNode<Object> regexp,
+                                                 JSRegExp::Flag flag,
+                                                 bool is_fastpath) {
   return is_fastpath ? FastFlagGetter(CAST(regexp), flag)
                      : SlowFlagGetter(context, regexp, flag);
-}
-
-void RegExpBuiltinsAssembler::FlagGetter(TNode<Context> context,
-                                         TNode<Object> receiver,
-                                         JSRegExp::Flag flag, int counter,
-                                         const char* method_name) {
-  // Check whether we have an unmodified regexp instance.
-  Label if_isunmodifiedjsregexp(this),
-      if_isnotunmodifiedjsregexp(this, Label::kDeferred);
-
-  GotoIf(TaggedIsSmi(receiver), &if_isnotunmodifiedjsregexp);
-  Branch(IsJSRegExp(CAST(receiver)), &if_isunmodifiedjsregexp,
-         &if_isnotunmodifiedjsregexp);
-
-  BIND(&if_isunmodifiedjsregexp);
-  {
-    // Refer to JSRegExp's flag property on the fast-path.
-    TNode<Int32T> is_flag_set = FastFlagGetter(CAST(receiver), flag);
-    Return(
-        SelectBooleanConstant(Word32NotEqual(is_flag_set, Int32Constant(0))));
-  }
-
-  BIND(&if_isnotunmodifiedjsregexp);
-  {
-    Label if_isprototype(this), if_isnotprototype(this);
-    Branch(IsReceiverInitialRegExpPrototype(context, receiver), &if_isprototype,
-           &if_isnotprototype);
-
-    BIND(&if_isprototype);
-    {
-      if (counter != -1) {
-        Node* const counter_smi = SmiConstant(counter);
-        CallRuntime(Runtime::kIncrementUseCounter, context, counter_smi);
-      }
-      Return(UndefinedConstant());
-    }
-
-    BIND(&if_isnotprototype);
-    { ThrowTypeError(context, MessageTemplate::kRegExpNonRegExp, method_name); }
-  }
-}
-
-// ES6 21.2.5.4.
-// ES #sec-get-regexp.prototype.global
-TF_BUILTIN(RegExpPrototypeGlobalGetter, RegExpBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  FlagGetter(context, receiver, JSRegExp::kGlobal,
-             v8::Isolate::kRegExpPrototypeOldFlagGetter,
-             "RegExp.prototype.global");
-}
-
-// ES6 21.2.5.5.
-// ES #sec-get-regexp.prototype.ignorecase
-TF_BUILTIN(RegExpPrototypeIgnoreCaseGetter, RegExpBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  FlagGetter(context, receiver, JSRegExp::kIgnoreCase,
-             v8::Isolate::kRegExpPrototypeOldFlagGetter,
-             "RegExp.prototype.ignoreCase");
-}
-
-// ES6 21.2.5.7.
-// ES #sec-get-regexp.prototype.multiline
-TF_BUILTIN(RegExpPrototypeMultilineGetter, RegExpBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  FlagGetter(context, receiver, JSRegExp::kMultiline,
-             v8::Isolate::kRegExpPrototypeOldFlagGetter,
-             "RegExp.prototype.multiline");
-}
-
-// ES #sec-get-regexp.prototype.dotAll
-TF_BUILTIN(RegExpPrototypeDotAllGetter, RegExpBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  static const int kNoCounter = -1;
-  FlagGetter(context, receiver, JSRegExp::kDotAll, kNoCounter,
-             "RegExp.prototype.dotAll");
-}
-
-// ES6 21.2.5.12.
-// ES #sec-get-regexp.prototype.sticky
-TF_BUILTIN(RegExpPrototypeStickyGetter, RegExpBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  FlagGetter(context, receiver, JSRegExp::kSticky,
-             v8::Isolate::kRegExpPrototypeStickyGetter,
-             "RegExp.prototype.sticky");
-}
-
-// ES6 21.2.5.15.
-// ES #sec-get-regexp.prototype.unicode
-TF_BUILTIN(RegExpPrototypeUnicodeGetter, RegExpBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  FlagGetter(context, receiver, JSRegExp::kUnicode,
-             v8::Isolate::kRegExpPrototypeUnicodeGetter,
-             "RegExp.prototype.unicode");
 }
 
 // ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
@@ -2035,8 +1937,8 @@ void RegExpMatchAllAssembler::Generate(TNode<Context> context,
   TNode<String> string = ToString_Inline(context, maybe_string);
 
   TVARIABLE(Object, var_matcher);
-  TVARIABLE(Int32T, var_global);
-  TVARIABLE(Int32T, var_unicode);
+  TVARIABLE(BoolT, var_global);
+  TVARIABLE(BoolT, var_unicode);
   Label create_iterator(this), if_fast_regexp(this),
       if_slow_regexp(this, Label::kDeferred);
 
@@ -2105,8 +2007,7 @@ void RegExpMatchAllAssembler::Generate(TNode<Context> context,
     TNode<Smi> global_ix =
         CAST(CallBuiltin(Builtins::kStringIndexOf, context, flags_string,
                          global_char_string, SmiZero()));
-    var_global =
-        SelectInt32Constant(SmiEqual(global_ix, SmiConstant(-1)), 0, 1);
+    var_global = SmiNotEqual(global_ix, SmiConstant(-1));
 
     // 11. If flags contains "u", let fullUnicode be true.
     // 12. Else, let fullUnicode be false.
@@ -2114,8 +2015,7 @@ void RegExpMatchAllAssembler::Generate(TNode<Context> context,
     TNode<Smi> unicode_ix =
         CAST(CallBuiltin(Builtins::kStringIndexOf, context, flags_string,
                          unicode_char_string, SmiZero()));
-    var_unicode =
-        SelectInt32Constant(SmiEqual(unicode_ix, SmiConstant(-1)), 0, 1);
+    var_unicode = SmiNotEqual(unicode_ix, SmiConstant(-1));
     Goto(&create_iterator);
   }
 
@@ -2144,7 +2044,7 @@ void RegExpMatchAllAssembler::Generate(TNode<Context> context,
 // CreateRegExpStringIterator ( R, S, global, fullUnicode )
 TNode<Object> RegExpMatchAllAssembler::CreateRegExpStringIterator(
     TNode<Context> native_context, TNode<Object> regexp, TNode<String> string,
-    TNode<Int32T> global, TNode<Int32T> full_unicode) {
+    TNode<BoolT> global, TNode<BoolT> full_unicode) {
   TNode<Map> map = CAST(LoadContextElement(
       native_context,
       Context::INITIAL_REGEXP_STRING_ITERATOR_PROTOTYPE_MAP_INDEX));
@@ -2168,23 +2068,15 @@ TNode<Object> RegExpMatchAllAssembler::CreateRegExpStringIterator(
   StoreObjectFieldNoWriteBarrier(
       iterator, JSRegExpStringIterator::kIteratedStringOffset, string);
 
-#ifdef DEBUG
-  // Verify global and full_unicode can be bitwise shifted without masking.
-  TNode<Int32T> zero = Int32Constant(0);
-  TNode<Int32T> one = Int32Constant(1);
-  CSA_ASSERT(this,
-             Word32Or(Word32Equal(global, zero), Word32Equal(global, one)));
-  CSA_ASSERT(this, Word32Or(Word32Equal(full_unicode, zero),
-                            Word32Equal(full_unicode, one)));
-#endif  // DEBUG
-
   // 7. Set iterator.[[Global]] to global.
   // 8. Set iterator.[[Unicode]] to fullUnicode.
   // 9. Set iterator.[[Done]] to false.
   TNode<Int32T> global_flag =
-      Word32Shl(global, Int32Constant(JSRegExpStringIterator::kGlobalBit));
-  TNode<Int32T> unicode_flag = Word32Shl(
-      full_unicode, Int32Constant(JSRegExpStringIterator::kUnicodeBit));
+      Word32Shl(ReinterpretCast<Int32T>(global),
+                Int32Constant(JSRegExpStringIterator::kGlobalBit));
+  TNode<Int32T> unicode_flag =
+      Word32Shl(ReinterpretCast<Int32T>(full_unicode),
+                Int32Constant(JSRegExpStringIterator::kUnicodeBit));
   TNode<Word32T> iterator_flags = Word32Or(global_flag, unicode_flag);
   StoreObjectFieldNoWriteBarrier(iterator, JSRegExpStringIterator::kFlagsOffset,
                                  SmiFromInt32(Signed(iterator_flags)));

@@ -6,9 +6,6 @@
 
 namespace regexp {
 
-  const kRegExpNonRegExp: constexpr MessageTemplate
-  generates 'MessageTemplate::kRegExpNonRegExp';
-  extern runtime IncrementUseCounter(Context, Smi): void;
   const kRegExpPrototypeSourceGetter: constexpr int31
   generates 'v8::Isolate::kRegExpPrototypeSourceGetter';
 
