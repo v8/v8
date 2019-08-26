@@ -185,7 +185,7 @@ void KeyedStoreGenericAssembler::BranchIfPrototypesHaveNonFastElements(
     GotoIf(IsNull(prototype), only_fast_elements);
     Node* prototype_map = LoadMap(prototype);
     var_map.Bind(prototype_map);
-    TNode<Int32T> instance_type = LoadMapInstanceType(prototype_map);
+    TNode<Uint16T> instance_type = LoadMapInstanceType(prototype_map);
     GotoIf(IsCustomElementsReceiverInstanceType(instance_type),
            non_fast_elements);
     TNode<Int32T> elements_kind = LoadMapElementsKind(prototype_map);
@@ -326,7 +326,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
 
   Label check_double_elements(this), check_cow_elements(this);
   TNode<Map> elements_map = LoadMap(elements);
-  GotoIf(TaggedNotEqual(elements_map, LoadRoot(RootIndex::kFixedArrayMap)),
+  GotoIf(TaggedNotEqual(elements_map, FixedArrayMapConstant()),
          &check_double_elements);
 
   // FixedArray backing store -> Smi or object elements.
@@ -388,7 +388,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     {
       Label transition_to_double(this), transition_to_object(this);
       Node* native_context = LoadNativeContext(context);
-      Branch(TaggedEqual(LoadMap(value), LoadRoot(RootIndex::kHeapNumberMap)),
+      Branch(TaggedEqual(LoadMap(value), HeapNumberMapConstant()),
              &transition_to_double, &transition_to_object);
       BIND(&transition_to_double);
       {
@@ -428,8 +428,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
   }
 
   BIND(&check_double_elements);
-  TNode<Object> fixed_double_array_map =
-      LoadRoot(RootIndex::kFixedDoubleArrayMap);
+  TNode<Map> fixed_double_array_map = FixedDoubleArrayMapConstant();
   GotoIf(TaggedNotEqual(elements_map, fixed_double_array_map),
          &check_cow_elements);
   // FixedDoubleArray backing store -> double elements.
@@ -977,7 +976,7 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
 
   GotoIf(TaggedIsSmi(receiver), &slow);
   TNode<Map> receiver_map = LoadMap(CAST(receiver));
-  TNode<Int32T> instance_type = LoadMapInstanceType(receiver_map);
+  TNode<Uint16T> instance_type = LoadMapInstanceType(receiver_map);
   // Receivers requiring non-standard element accesses (interceptors, access
   // checks, strings and string wrappers, proxies) are handled in the runtime.
   GotoIf(IsCustomElementsReceiverInstanceType(instance_type), &slow);
@@ -1058,7 +1057,7 @@ void KeyedStoreGenericAssembler::StoreIC_NoFeedback() {
 
   GotoIf(TaggedIsSmi(receiver), &miss);
   TNode<Map> receiver_map = LoadMap(receiver);
-  TNode<Int32T> instance_type = LoadMapInstanceType(receiver_map);
+  TNode<Uint16T> instance_type = LoadMapInstanceType(receiver_map);
   // Receivers requiring non-standard element accesses (interceptors, access
   // checks, strings and string wrappers, proxies) are handled in the runtime.
   GotoIf(IsSpecialReceiverInstanceType(instance_type), &miss);

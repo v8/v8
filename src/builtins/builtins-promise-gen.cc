@@ -137,7 +137,7 @@ void PromiseBuiltinsAssembler::ExtractHandlerContext(Node* handler,
     };
     static_assert(arraysize(case_values) == arraysize(case_labels), "");
     TNode<Map> handler_map = LoadMap(var_handler.value());
-    TNode<Int32T> handler_type = LoadMapInstanceType(handler_map);
+    TNode<Uint16T> handler_type = LoadMapInstanceType(handler_map);
     Switch(handler_type, &done, case_values, case_labels,
            arraysize(case_labels));
 
@@ -426,7 +426,7 @@ void PromiseBuiltinsAssembler::PerformPromiseThen(
 
     BIND(&if_fulfilled);
     {
-      var_map.Bind(LoadRoot(RootIndex::kPromiseFulfillReactionJobTaskMap));
+      var_map.Bind(PromiseFulfillReactionJobTaskMapConstant());
       var_handler.Bind(on_fulfilled);
 
       Label use_fallback(this, Label::kDeferred), done(this);
@@ -445,7 +445,7 @@ void PromiseBuiltinsAssembler::PerformPromiseThen(
     BIND(&if_rejected);
     {
       CSA_ASSERT(this, IsPromiseStatus(status, v8::Promise::kRejected));
-      var_map.Bind(LoadRoot(RootIndex::kPromiseRejectReactionJobTaskMap));
+      var_map.Bind(PromiseRejectReactionJobTaskMapConstant());
       var_handler.Bind(on_rejected);
 
       Label use_fallback(this, Label::kDeferred), done(this);
@@ -531,16 +531,6 @@ Node* PromiseBuiltinsAssembler::AllocatePromiseReactionJobTask(
   return microtask;
 }
 
-Node* PromiseBuiltinsAssembler::AllocatePromiseReactionJobTask(
-    RootIndex map_root_index, Node* context, Node* argument, Node* handler,
-    Node* promise_or_capability) {
-  DCHECK(map_root_index == RootIndex::kPromiseFulfillReactionJobTaskMap ||
-         map_root_index == RootIndex::kPromiseRejectReactionJobTaskMap);
-  Node* const map = LoadRoot(map_root_index);
-  return AllocatePromiseReactionJobTask(map, context, argument, handler,
-                                        promise_or_capability);
-}
-
 Node* PromiseBuiltinsAssembler::AllocatePromiseResolveThenableJobTask(
     Node* promise_to_resolve, Node* then, Node* thenable, Node* context) {
   Node* const microtask = Allocate(PromiseResolveThenableJobTask::kSize);
@@ -574,8 +564,7 @@ Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
     // PromiseReaction instances and not actual JavaScript values (which
     // would indicate that we're rejecting or resolving an already settled
     // promise), see https://crbug.com/931640 for details on this.
-    TNode<Map> promise_reaction_map =
-        CAST(LoadRoot(RootIndex::kPromiseReactionMap));
+    TNode<Map> promise_reaction_map = PromiseReactionMapConstant();
 
     Label loop(this, {&var_current, &var_reversed}), done_loop(this);
     Goto(&loop);
@@ -1014,7 +1003,7 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
   BIND(&if_targetismodified);
   {
     ConstructorBuiltinsAssembler constructor_assembler(this->state());
-    TNode<Object> instance = constructor_assembler.EmitFastNewObject(
+    TNode<JSObject> instance = constructor_assembler.EmitFastNewObject(
         context, promise_fun, CAST(new_target));
     PromiseInit(instance);
     var_result.Bind(instance);
@@ -1150,7 +1139,7 @@ TF_BUILTIN(PromisePrototypeThen, PromiseBuiltinsAssembler) {
       native_context, promise_map, &fast_promise_capability, &slow_constructor);
 
   BIND(&slow_constructor);
-  TNode<Object> constructor =
+  TNode<JSReceiver> constructor =
       SpeciesConstructor(native_context, promise, promise_fun);
   Branch(TaggedEqual(constructor, promise_fun), &fast_promise_capability,
          &slow_promise_capability);

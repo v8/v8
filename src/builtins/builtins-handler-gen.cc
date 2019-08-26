@@ -180,7 +180,7 @@ void HandlerBuiltinsAssembler::DispatchForElementsKindTransition(
   STATIC_ASSERT(arraysize(combined_elements_kinds) ==
                 arraysize(elements_kind_labels));
 
-  TNode<Word32T> combined_elements_kind =
+  TNode<Int32T> combined_elements_kind =
       Word32Or(Word32Shl(from_kind, Int32Constant(kBitsPerByte)), to_kind);
 
   Switch(combined_elements_kind, &if_unknown_type, combined_elements_kinds,

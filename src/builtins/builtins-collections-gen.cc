@@ -430,7 +430,7 @@ void BaseCollectionsAssembler::GenerateConstructor(
   GotoIf(IsUndefined(new_target), &if_undefined);
 
   TNode<Context> native_context = LoadNativeContext(context);
-  TNode<Object> collection = AllocateJSCollection(
+  TNode<JSObject> collection = AllocateJSCollection(
       context, GetConstructor(variant, native_context), CAST(new_target));
 
   AddConstructorEntries(variant, context, native_context, collection, iterable);
@@ -856,8 +856,7 @@ void CollectionsBuiltinsAssembler::SameValueZeroSmi(
 
 void CollectionsBuiltinsAssembler::BranchIfMapIteratorProtectorValid(
     Label* if_true, Label* if_false) {
-  TNode<HeapObject> protector_cell =
-      CAST(LoadRoot(RootIndex::kMapIteratorProtector));
+  TNode<PropertyCell> protector_cell = MapIteratorProtectorConstant();
   DCHECK(isolate()->heap()->map_iterator_protector().IsPropertyCell());
   Branch(
       TaggedEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
@@ -916,7 +915,7 @@ void BranchIfIterableWithOriginalKeyOrValueMapIterator(
 
 void CollectionsBuiltinsAssembler::BranchIfSetIteratorProtectorValid(
     Label* if_true, Label* if_false) {
-  Node* const protector_cell = LoadRoot(RootIndex::kSetIteratorProtector);
+  Node* const protector_cell = SetIteratorProtectorConstant();
   DCHECK(isolate()->heap()->set_iterator_protector().IsPropertyCell());
   Branch(
       TaggedEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),

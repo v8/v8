@@ -496,7 +496,7 @@ class DeletePropertyBaseAssembler : public AccessorAssembler {
     GotoIf(IsSetWord32(details, PropertyDetails::kAttributesDontDeleteMask),
            dont_delete);
     // Overwrite the entry itself (see NameDictionary::SetEntry).
-    TNode<HeapObject> filler = TheHoleConstant();
+    TNode<Oddball> filler = TheHoleConstant();
     DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kTheHoleValue));
     StoreFixedArrayElement(properties, key_index, filler, SKIP_WRITE_BARRIER);
     StoreValueByKeyIndex<NameDictionary>(properties, key_index, filler,
@@ -539,7 +539,7 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
 
   GotoIf(TaggedIsSmi(receiver), &slow);
   TNode<Map> receiver_map = LoadMap(CAST(receiver));
-  TNode<Int32T> instance_type = LoadMapInstanceType(receiver_map);
+  TNode<Uint16T> instance_type = LoadMapInstanceType(receiver_map);
   GotoIf(InstanceTypeEqual(instance_type, JS_PROXY_TYPE), &if_proxy);
   GotoIf(IsCustomElementsReceiverInstanceType(instance_type), &slow);
   TryToName(key, &if_index, &var_index, &if_unique_name, &var_unique, &slow,
@@ -632,7 +632,7 @@ class SetOrCopyDataPropertiesAssembler : public CodeStubAssembler {
     // Otherwise check if {source} is a proper JSObject, and if not, defer
     // to testing for non-empty strings below.
     TNode<Map> source_map = LoadMap(CAST(source));
-    TNode<Int32T> source_instance_type = LoadMapInstanceType(source_map);
+    TNode<Uint16T> source_instance_type = LoadMapInstanceType(source_map);
     GotoIfNot(IsJSObjectInstanceType(source_instance_type),
               &if_sourcenotjsobject);
 

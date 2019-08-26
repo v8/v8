@@ -35,7 +35,7 @@ TNode<MaybeObject> AccessorAssembler::LoadHandlerDataField(
     SloppyTNode<DataHandler> handler, int data_index) {
 #ifdef DEBUG
   TNode<Map> handler_map = LoadMap(handler);
-  TNode<Int32T> instance_type = LoadMapInstanceType(handler_map);
+  TNode<Uint16T> instance_type = LoadMapInstanceType(handler_map);
 #endif
   CSA_ASSERT(this,
              Word32Or(InstanceTypeEqual(instance_type, LOAD_HANDLER_TYPE),
@@ -207,7 +207,7 @@ void AccessorAssembler::HandleLoadAccessor(
 
   CSA_ASSERT(this, IsWeakOrCleared(maybe_context));
   CSA_CHECK(this, IsNotCleared(maybe_context));
-  TNode<Object> context = GetHeapObjectAssumeWeak(maybe_context);
+  TNode<HeapObject> context = GetHeapObjectAssumeWeak(maybe_context);
 
   TNode<Foreign> foreign = CAST(
       LoadObjectField(call_handler_info, CallHandlerInfo::kJsCallbackOffset));
@@ -303,7 +303,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
   VARIABLE(var_double_value, MachineRepresentation::kFloat64);
   Label rebox_double(this, &var_double_value);
 
-  TNode<WordT> handler_word = SmiUntag(smi_handler);
+  TNode<IntPtrT> handler_word = SmiUntag(smi_handler);
   TNode<IntPtrT> handler_kind =
       Signed(DecodeWord<LoadHandler::KindBits>(handler_word));
   if (support_elements == kSupportElements) {
@@ -327,7 +327,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
     TNode<IntPtrT> intptr_index = TryToIntptr(p->name(), miss);
     TNode<BoolT> is_jsarray_condition =
         IsSetWord<LoadHandler::IsJsArrayBits>(handler_word);
-    TNode<Word32T> elements_kind =
+    TNode<Uint32T> elements_kind =
         DecodeWord32FromWord<LoadHandler::ElementsKindBits>(handler_word);
     Label if_hole(this), unimplemented_elements_kind(this),
         if_oob(this, Label::kDeferred);
@@ -891,7 +891,7 @@ void AccessorAssembler::JumpIfDataProperty(Node* details, Label* writable,
     CSA_ASSERT(this, IsNotSetWord32(details,
                                     PropertyDetails::kAttributesReadOnlyMask));
   }
-  TNode<Word32T> kind = DecodeWord32<PropertyDetails::KindField>(details);
+  TNode<Uint32T> kind = DecodeWord32<PropertyDetails::KindField>(details);
   GotoIf(Word32Equal(kind, Int32Constant(kData)), writable);
   // Fall through if it's an accessor property.
 }
@@ -930,7 +930,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     STATIC_ASSERT(StoreHandler::kNormal + 1 == StoreHandler::kProxy);
     STATIC_ASSERT(StoreHandler::kProxy + 1 == StoreHandler::kKindsNumber);
 
-    TNode<WordT> handler_kind =
+    TNode<UintPtrT> handler_kind =
         DecodeWord<StoreHandler::KindBits>(handler_word);
     GotoIf(IntPtrLessThan(handler_kind,
                           IntPtrConstant(StoreHandler::kGlobalProxy)),
@@ -962,7 +962,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
     BIND(&if_fast_smi);
     {
-      TNode<WordT> handler_kind =
+      TNode<UintPtrT> handler_kind =
           DecodeWord<StoreHandler::KindBits>(handler_word);
 
       Label data(this), accessor(this), native_data_property(this);
@@ -1051,7 +1051,7 @@ void AccessorAssembler::HandleStoreICTransitionMapHandlerCase(
   GotoIf(IsSetWord32<Map::IsDeprecatedBit>(bitfield3), miss);
 
   // Load last descriptor details.
-  TNode<WordT> nof =
+  TNode<UintPtrT> nof =
       DecodeWordFromWord32<Map::NumberOfOwnDescriptorsBits>(bitfield3);
   CSA_ASSERT(this, WordNotEqual(nof, IntPtrConstant(0)));
   TNode<DescriptorArray> descriptors = LoadMapDescriptors(transition_map);
@@ -1175,17 +1175,19 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
 
   BIND(&if_field);
   {
-    TNode<Word32T> representation =
+    TNode<Uint32T> representation =
         DecodeWord32<PropertyDetails::RepresentationField>(details);
 
     CheckFieldType(CAST(descriptors), descriptor_name_index, representation,
                    value, slow);
 
-    TNode<WordT> field_index =
+    TNode<UintPtrT> field_index =
         DecodeWordFromWord32<PropertyDetails::FieldIndexField>(details);
-    field_index = IntPtrAdd(field_index,
-                            LoadMapInobjectPropertiesStartInWords(object_map));
-    Node* instance_size_in_words = LoadMapInstanceSizeInWords(object_map);
+    field_index = Unsigned(
+        IntPtrAdd(field_index,
+                  Unsigned(LoadMapInobjectPropertiesStartInWords(object_map))));
+    TNode<IntPtrT> instance_size_in_words =
+        LoadMapInstanceSizeInWords(object_map);
 
     Label inobject(this), backing_store(this);
     Branch(UintPtrLessThan(field_index, instance_size_in_words), &inobject,
@@ -1424,16 +1426,16 @@ void AccessorAssembler::HandleStoreICProtoHandler(
         if_accessor(this), if_native_data_property(this);
 
     CSA_ASSERT(this, TaggedIsSmi(smi_handler));
-    TNode<WordT> handler_word = SmiUntag(smi_handler);
+    TNode<IntPtrT> handler_word = SmiUntag(smi_handler);
 
-    TNode<WordT> handler_kind =
+    TNode<UintPtrT> handler_kind =
         DecodeWord<StoreHandler::KindBits>(handler_word);
     GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kNormal)),
            &if_add_normal);
 
     TNode<MaybeObject> maybe_holder = LoadHandlerDataField(handler, 1);
     CSA_ASSERT(this, IsWeakOrCleared(maybe_holder));
-    TNode<Object> holder = GetHeapObjectAssumeWeak(maybe_holder, miss);
+    TNode<HeapObject> holder = GetHeapObjectAssumeWeak(maybe_holder, miss);
 
     GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kGlobalProxy)),
            &if_store_global_proxy);
@@ -1574,7 +1576,8 @@ void AccessorAssembler::HandleStoreICSmiHandlerCase(Node* handler_word,
                                                     Label* miss) {
   Comment("field store");
 #ifdef DEBUG
-  TNode<WordT> handler_kind = DecodeWord<StoreHandler::KindBits>(handler_word);
+  TNode<UintPtrT> handler_kind =
+      DecodeWord<StoreHandler::KindBits>(handler_word);
   CSA_ASSERT(
       this,
       Word32Or(
@@ -1582,7 +1585,7 @@ void AccessorAssembler::HandleStoreICSmiHandlerCase(Node* handler_word,
           WordEqual(handler_kind, IntPtrConstant(StoreHandler::kConstField))));
 #endif
 
-  TNode<WordT> field_representation =
+  TNode<UintPtrT> field_representation =
       DecodeWord<StoreHandler::FieldRepresentationBits>(handler_word);
 
   Label if_smi_field(this), if_double_field(this), if_heap_object_field(this),
@@ -2136,7 +2139,7 @@ void AccessorAssembler::GenericElementLoad(Node* receiver, Node* receiver_map,
   // Receivers requiring non-standard element accesses (interceptors, access
   // checks, strings and string wrappers, proxies) are handled in the runtime.
   GotoIf(IsCustomElementsReceiverInstanceType(instance_type), &if_custom);
-  TNode<Word32T> elements_kind = LoadMapElementsKind(receiver_map);
+  TNode<Int32T> elements_kind = LoadMapElementsKind(receiver_map);
   Node* is_jsarray_condition = InstanceTypeEqual(instance_type, JS_ARRAY_TYPE);
   VARIABLE(var_double_value, MachineRepresentation::kFloat64);
   Label rebox_double(this, &var_double_value);
@@ -2607,8 +2610,7 @@ void AccessorAssembler::LoadIC_Noninlined(const LoadICParameters* p,
 
   {
     // Check megamorphic case.
-    GotoIfNot(TaggedEqual(feedback, LoadRoot(RootIndex::kmegamorphic_symbol)),
-              miss);
+    GotoIfNot(TaggedEqual(feedback, MegamorphicSymbolConstant()), miss);
 
     TryProbeStubCache(isolate()->load_stub_cache(), p->receiver(), p->name(),
                       if_handler, var_handler, miss);
@@ -2723,8 +2725,7 @@ void AccessorAssembler::LoadGlobalIC_TryHandlerCase(
   TNode<MaybeObject> feedback_element =
       LoadFeedbackVectorSlot(vector, slot, kTaggedSize, slot_mode);
   TNode<Object> handler = CAST(feedback_element);
-  GotoIf(TaggedEqual(handler, LoadRoot(RootIndex::kuninitialized_symbol)),
-         miss);
+  GotoIf(TaggedEqual(handler, UninitializedSymbolConstant()), miss);
 
   OnNonExistent on_nonexistent = typeof_mode == NOT_INSIDE_TYPEOF
                                      ? OnNonExistent::kThrowReferenceError
@@ -2786,9 +2787,8 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p,
   {
     // Check megamorphic case.
     Comment("KeyedLoadIC_try_megamorphic");
-    Branch(
-        TaggedEqual(strong_feedback, LoadRoot(RootIndex::kmegamorphic_symbol)),
-        &generic, &try_uninitialized);
+    Branch(TaggedEqual(strong_feedback, MegamorphicSymbolConstant()), &generic,
+           &try_uninitialized);
   }
 
   BIND(&generic);
@@ -2805,9 +2805,8 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p,
   {
     // Check uninitialized case.
     Comment("KeyedLoadIC_try_uninitialized");
-    Branch(TaggedEqual(strong_feedback,
-                       LoadRoot(RootIndex::kuninitialized_symbol)),
-           &miss, &try_polymorphic_name);
+    Branch(TaggedEqual(strong_feedback, UninitializedSymbolConstant()), &miss,
+           &try_polymorphic_name);
   }
 
   BIND(&try_polymorphic_name);
@@ -3035,9 +3034,7 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
   BIND(&try_megamorphic);
   {
     // Check megamorphic case.
-    GotoIfNot(
-        TaggedEqual(strong_feedback, LoadRoot(RootIndex::kmegamorphic_symbol)),
-        &miss);
+    GotoIfNot(TaggedEqual(strong_feedback, MegamorphicSymbolConstant()), &miss);
 
     TryProbeStubCache(isolate()->store_stub_cache(), p->receiver(), p->name(),
                       &if_handler, &var_handler, &miss);
@@ -3069,9 +3066,7 @@ void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
     // interceptors because the property doesn't exist yet. Using
     // pre-monomorphic state gives it a chance to find more information the
     // second time.
-    GotoIf(TaggedEqual(maybe_weak_ref,
-                       LoadRoot(RootIndex::kpremonomorphic_symbol)),
-           &miss);
+    GotoIf(TaggedEqual(maybe_weak_ref, PremonomorphicSymbolConstant()), &miss);
 
     CSA_ASSERT(this, IsWeakOrCleared(maybe_weak_ref));
     TNode<PropertyCell> property_cell =
@@ -3087,8 +3082,7 @@ void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
       TNode<MaybeObject> handler = LoadFeedbackVectorSlot(
           pp->vector(), pp->slot(), kTaggedSize, SMI_PARAMETERS);
 
-      GotoIf(TaggedEqual(handler, LoadRoot(RootIndex::kuninitialized_symbol)),
-             &miss);
+      GotoIf(TaggedEqual(handler, UninitializedSymbolConstant()), &miss);
 
       DCHECK_NULL(pp->receiver());
       Node* native_context = LoadNativeContext(pp->context());
@@ -3141,7 +3135,7 @@ void AccessorAssembler::StoreGlobalIC_PropertyCellCase(Node* property_cell,
              Word32Equal(DecodeWord32<PropertyDetails::KindField>(details),
                          Int32Constant(kData)));
 
-  TNode<Word32T> type =
+  TNode<Uint32T> type =
       DecodeWord32<PropertyDetails::PropertyCellTypeField>(details);
 
   Label constant(this), store(this), not_smi(this);
@@ -3229,8 +3223,7 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p) {
     {
       // Check megamorphic case.
       Comment("KeyedStoreIC_try_megamorphic");
-      Branch(TaggedEqual(strong_feedback,
-                         LoadRoot(RootIndex::kmegamorphic_symbol)),
+      Branch(TaggedEqual(strong_feedback, MegamorphicSymbolConstant()),
              &no_feedback, &try_polymorphic_name);
     }
 
@@ -3322,12 +3315,9 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
       Comment("StoreInArrayLiteralIC_try_megamorphic");
       CSA_ASSERT(
           this,
-          Word32Or(TaggedEqual(strong_feedback,
-                               LoadRoot(RootIndex::kuninitialized_symbol)),
-                   TaggedEqual(strong_feedback,
-                               LoadRoot(RootIndex::kmegamorphic_symbol))));
-      GotoIfNot(TaggedEqual(strong_feedback,
-                            LoadRoot(RootIndex::kmegamorphic_symbol)),
+          Word32Or(TaggedEqual(strong_feedback, UninitializedSymbolConstant()),
+                   TaggedEqual(strong_feedback, MegamorphicSymbolConstant())));
+      GotoIfNot(TaggedEqual(strong_feedback, MegamorphicSymbolConstant()),
                 &miss);
       TailCallRuntime(Runtime::kStoreInArrayLiteralIC_Slow, p->context(),
                       p->value(), p->receiver(), p->name());
@@ -3815,7 +3805,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
             Branch(IsHeapNumber(CAST(field)), &if_mutableheapnumber, &if_done);
             BIND(&if_mutableheapnumber);
             {
-              TNode<Object> value = AllocateHeapNumberWithValue(
+              TNode<HeapNumber> value = AllocateHeapNumberWithValue(
                   LoadHeapNumberValue(UncheckedCast<HeapNumber>(field)));
               StoreObjectField(object, result_offset, value);
               Goto(&if_done);
@@ -3840,14 +3830,11 @@ void AccessorAssembler::GenerateCloneObjectIC() {
   BIND(&try_megamorphic);
   {
     Comment("CloneObjectIC_try_megamorphic");
-    CSA_ASSERT(this,
-               Word32Or(TaggedEqual(strong_feedback,
-                                    LoadRoot(RootIndex::kuninitialized_symbol)),
-                        TaggedEqual(strong_feedback,
-                                    LoadRoot(RootIndex::kmegamorphic_symbol))));
-    GotoIfNot(
-        TaggedEqual(strong_feedback, LoadRoot(RootIndex::kmegamorphic_symbol)),
-        &miss);
+    CSA_ASSERT(
+        this,
+        Word32Or(TaggedEqual(strong_feedback, UninitializedSymbolConstant()),
+                 TaggedEqual(strong_feedback, MegamorphicSymbolConstant())));
+    GotoIfNot(TaggedEqual(strong_feedback, MegamorphicSymbolConstant()), &miss);
     Goto(&slow);
   }
 

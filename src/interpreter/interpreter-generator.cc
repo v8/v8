@@ -2039,7 +2039,7 @@ IGNITION_HANDLER(TestTypeOf, InterpreterAssembler) {
     Comment("IfFunction");
     GotoIf(TaggedIsSmi(object), &if_false);
     // Check if callable bit is set and not undetectable.
-    TNode<Word32T> map_bitfield = LoadMapBitField(LoadMap(CAST(object)));
+    TNode<Int32T> map_bitfield = LoadMapBitField(LoadMap(CAST(object)));
     TNode<Word32T> callable_undetectable =
         Word32And(map_bitfield, Int32Constant(Map::IsUndetectableBit::kMask |
                                               Map::IsCallableBit::kMask));
@@ -2058,7 +2058,7 @@ IGNITION_HANDLER(TestTypeOf, InterpreterAssembler) {
     // Check if the object is a receiver type and is not undefined or callable.
     TNode<Map> map = LoadMap(CAST(object));
     GotoIfNot(IsJSReceiverMap(map), &if_false);
-    TNode<Word32T> map_bitfield = LoadMapBitField(map);
+    TNode<Int32T> map_bitfield = LoadMapBitField(map);
     TNode<Word32T> callable_undetectable =
         Word32And(map_bitfield, Int32Constant(Map::IsUndetectableBit::kMask |
                                               Map::IsCallableBit::kMask));
@@ -2671,8 +2671,9 @@ IGNITION_HANDLER(CreateClosure, InterpreterAssembler) {
   Node* slot = BytecodeOperandIdx(1);
 
   Label if_undefined(this);
-  TNode<FixedArray> feedback_cell_array = LoadClosureFeedbackArray(
-      CAST(LoadRegister(Register::function_closure())));
+  TNode<ClosureFeedbackCellArray> feedback_cell_array =
+      LoadClosureFeedbackArray(
+          CAST(LoadRegister(Register::function_closure())));
   TNode<FeedbackCell> feedback_cell =
       CAST(LoadFixedArrayElement(feedback_cell_array, slot));
 

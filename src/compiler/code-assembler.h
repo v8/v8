@@ -843,7 +843,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<Oddball> BooleanConstant(bool value);
   TNode<ExternalReference> ExternalConstant(ExternalReference address);
   TNode<Float64T> Float64Constant(double value);
-  TNode<HeapNumber> NaNConstant();
   TNode<BoolT> Int32TrueConstant() {
     return ReinterpretCast<BoolT>(Int32Constant(1));
   }

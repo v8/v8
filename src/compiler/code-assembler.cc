@@ -300,10 +300,6 @@ TNode<Float64T> CodeAssembler::Float64Constant(double value) {
   return UncheckedCast<Float64T>(raw_assembler()->Float64Constant(value));
 }
 
-TNode<HeapNumber> CodeAssembler::NaNConstant() {
-  return UncheckedCast<HeapNumber>(LoadRoot(RootIndex::kNanValue));
-}
-
 bool CodeAssembler::ToInt32Constant(Node* node, int32_t* out_value) {
   {
     Int64Matcher m(node);

@@ -40,20 +40,20 @@ ArgumentsBuiltinsAssembler::AllocateArgumentsObject(Node* map,
       empty ? IntPtrConstant(base_size)
             : ElementOffsetFromIndex(element_count, PACKED_ELEMENTS, mode,
                                      base_size + FixedArray::kHeaderSize);
-  TNode<Object> result = Allocate(size);
+  TNode<HeapObject> result = Allocate(size);
   Comment("Initialize arguments object");
   StoreMapNoWriteBarrier(result, map);
-  TNode<Object> empty_fixed_array = LoadRoot(RootIndex::kEmptyFixedArray);
+  TNode<FixedArray> empty_fixed_array = EmptyFixedArrayConstant();
   StoreObjectField(result, JSArray::kPropertiesOrHashOffset, empty_fixed_array);
   Node* smi_arguments_count = ParameterToTagged(arguments_count, mode);
   StoreObjectFieldNoWriteBarrier(result, JSArray::kLengthOffset,
                                  smi_arguments_count);
   Node* arguments = nullptr;
   if (!empty) {
-    arguments = InnerAllocate(CAST(result), elements_offset);
+    arguments = InnerAllocate(result, elements_offset);
     StoreObjectFieldNoWriteBarrier(arguments, FixedArray::kLengthOffset,
                                    smi_arguments_count);
-    TNode<Object> fixed_array_map = LoadRoot(RootIndex::kFixedArrayMap);
+    TNode<Map> fixed_array_map = FixedArrayMapConstant();
     StoreMapNoWriteBarrier(arguments, fixed_array_map);
   }
   Node* parameter_map = nullptr;
@@ -63,8 +63,7 @@ ArgumentsBuiltinsAssembler::AllocateArgumentsObject(Node* map,
     parameter_map = InnerAllocate(CAST(arguments), parameter_map_offset);
     StoreObjectFieldNoWriteBarrier(result, JSArray::kElementsOffset,
                                    parameter_map);
-    Node* sloppy_elements_map =
-        LoadRoot(RootIndex::kSloppyArgumentsElementsMap);
+    Node* sloppy_elements_map = SloppyArgumentsElementsMapConstant();
     StoreMapNoWriteBarrier(parameter_map, sloppy_elements_map);
     parameter_map_count = ParameterToTagged(parameter_map_count, mode);
     StoreObjectFieldNoWriteBarrier(parameter_map, FixedArray::kLengthOffset,
@@ -97,13 +96,14 @@ Node* ArgumentsBuiltinsAssembler::ConstructParametersObjectFromArgs(
   VARIABLE(offset, MachineType::PointerRepresentation());
   offset.Bind(IntPtrConstant(FixedArrayBase::kHeaderSize - kHeapObjectTag));
   VariableList list({&offset}, zone());
-  arguments.ForEach(list,
-                    [this, elements, &offset](Node* arg) {
-                      StoreNoWriteBarrier(MachineRepresentation::kTagged,
-                                          elements, offset.value(), arg);
-                      Increment(&offset, kTaggedSize);
-                    },
-                    first_arg, nullptr, param_mode);
+  arguments.ForEach(
+      list,
+      [this, elements, &offset](Node* arg) {
+        StoreNoWriteBarrier(MachineRepresentation::kTagged, elements,
+                            offset.value(), arg);
+        Increment(&offset, kTaggedSize);
+      },
+      first_arg, nullptr, param_mode);
   return result;
 }
 

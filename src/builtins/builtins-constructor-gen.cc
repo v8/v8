@@ -109,7 +109,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   // Create a new closure from the given function info in new space
   TNode<IntPtrT> instance_size_in_bytes =
       TimesTaggedSize(LoadMapInstanceSizeInWords(function_map));
-  TNode<Object> result = Allocate(instance_size_in_bytes);
+  TNode<HeapObject> result = Allocate(instance_size_in_bytes);
   StoreMapNoWriteBarrier(result, function_map);
   InitializeJSObjectBodyNoSlackTracking(result, function_map,
                                         instance_size_in_bytes,
@@ -260,7 +260,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
                                  Context::kNativeContextOffset, native_context);
 
   // Initialize the varrest of the slots to undefined.
-  TNode<HeapObject> undefined = UndefinedConstant();
+  TNode<Oddball> undefined = UndefinedConstant();
   TNode<IntPtrT> start_offset = IntPtrConstant(Context::kTodoHeaderSize);
   CodeStubAssembler::VariableList vars(0, zone());
   BuildFastLoop(
@@ -690,7 +690,7 @@ TF_BUILTIN(ObjectConstructor, ConstructorBuiltinsAssembler) {
 // ES #sec-number-constructor
 TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
   Node* context = Parameter(Descriptor::kContext);
-  TNode<WordT> argc =
+  TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 

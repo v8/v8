@@ -123,7 +123,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
   StoreRoot(RootIndex::kCurrentMicrotask, microtask);
   TNode<IntPtrT> saved_entered_context_count = GetEnteredContextCount();
   TNode<Map> microtask_map = LoadMap(microtask);
-  TNode<Int32T> microtask_type = LoadMapInstanceType(microtask_map);
+  TNode<Uint16T> microtask_type = LoadMapInstanceType(microtask_map);
 
   VARIABLE(var_exception, MachineRepresentation::kTagged, TheHoleConstant());
   Label if_exception(this, Label::kDeferred);

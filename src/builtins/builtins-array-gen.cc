@@ -97,7 +97,7 @@ void ArrayBuiltinsAssembler::FillFixedArrayWithSmiZero(TNode<FixedArray> array,
   CSA_ASSERT(this, Word32BinaryNot(IsFixedDoubleArray(array)));
 
   TNode<IntPtrT> length = SmiToIntPtr(smi_length);
-  TNode<WordT> byte_length = TimesTaggedSize(length);
+  TNode<IntPtrT> byte_length = TimesTaggedSize(length);
   CSA_ASSERT(this, UintPtrLessThan(length, byte_length));
 
   static const int32_t fa_base_data_offset =
@@ -326,9 +326,8 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
 
     // 3) Check that the elements backing store isn't copy-on-write.
     TNode<FixedArrayBase> elements = LoadElements(array_receiver);
-    GotoIf(
-        TaggedEqual(LoadMap(elements), LoadRoot(RootIndex::kFixedCOWArrayMap)),
-        &runtime);
+    GotoIf(TaggedEqual(LoadMap(elements), FixedCOWArrayMapConstant()),
+           &runtime);
 
     TNode<IntPtrT> new_length = IntPtrSub(length, IntPtrConstant(1));
 
@@ -857,7 +856,7 @@ TF_BUILTIN(ArrayIsArray, CodeStubAssembler) {
   Label call_runtime(this), return_true(this), return_false(this);
 
   GotoIf(TaggedIsSmi(object), &return_false);
-  TNode<Int32T> instance_type = LoadInstanceType(CAST(object));
+  TNode<Uint16T> instance_type = LoadInstanceType(CAST(object));
 
   GotoIf(InstanceTypeEqual(instance_type, JS_ARRAY_TYPE), &return_true);
 
@@ -1510,7 +1509,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
 
   // Dispatch based on the type of the {array}.
   TNode<Map> array_map = LoadMap(array);
-  TNode<Int32T> array_type = LoadMapInstanceType(array_map);
+  TNode<Uint16T> array_type = LoadMapInstanceType(array_map);
   GotoIf(InstanceTypeEqual(array_type, JS_ARRAY_TYPE), &if_array);
   Branch(InstanceTypeEqual(array_type, JS_TYPED_ARRAY_TYPE), &if_typedarray,
          &if_other);
@@ -1935,7 +1934,7 @@ TF_BUILTIN(ArrayConstructor, ArrayBuiltinsAssembler) {
       SelectConstant<Object>(IsUndefined(new_target), function, new_target);
 
   // Run the native code for the Array function called as a normal function.
-  TNode<Object> no_allocation_site = UndefinedConstant();
+  TNode<Oddball> no_allocation_site = UndefinedConstant();
   TailCallBuiltin(Builtins::kArrayConstructorImpl, context, function,
                   new_target, argc, no_allocation_site);
 }

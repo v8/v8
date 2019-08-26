@@ -63,8 +63,7 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
     const int length_index = JSFunction::kLengthDescriptorIndex;
     TNode<Name> maybe_length =
         LoadKeyByDescriptorEntry(descriptors, length_index);
-    GotoIf(TaggedNotEqual(maybe_length, LoadRoot(RootIndex::klength_string)),
-           &slow);
+    GotoIf(TaggedNotEqual(maybe_length, LengthStringConstant()), &slow);
 
     TNode<Object> maybe_length_accessor =
         LoadValueByDescriptorEntry(descriptors, length_index);
@@ -74,8 +73,7 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
 
     const int name_index = JSFunction::kNameDescriptorIndex;
     TNode<Name> maybe_name = LoadKeyByDescriptorEntry(descriptors, name_index);
-    GotoIf(TaggedNotEqual(maybe_name, LoadRoot(RootIndex::kname_string)),
-           &slow);
+    GotoIf(TaggedNotEqual(maybe_name, NameStringConstant()), &slow);
 
     TNode<Object> maybe_name_accessor =
         LoadValueByDescriptorEntry(descriptors, name_index);
@@ -110,8 +108,8 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
 
   // Verify that __proto__ matches that of a the target bound function.
   Comment("Verify that __proto__ matches target bound function");
-  TNode<Object> prototype = LoadMapPrototype(receiver_map);
-  TNode<Object> expected_prototype =
+  TNode<HeapObject> prototype = LoadMapPrototype(receiver_map);
+  TNode<HeapObject> expected_prototype =
       LoadMapPrototype(bound_function_map.value());
   GotoIf(TaggedNotEqual(prototype, expected_prototype), &slow);
 

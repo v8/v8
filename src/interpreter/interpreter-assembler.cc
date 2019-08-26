@@ -974,7 +974,7 @@ Node* InterpreterAssembler::Construct(SloppyTNode<Object> target, Node* context,
       // Check if it is uninitialized.
       Comment("check if uninitialized");
       Node* is_uninitialized =
-          TaggedEqual(feedback, LoadRoot(RootIndex::kuninitialized_symbol));
+          TaggedEqual(feedback, UninitializedSymbolConstant());
       Branch(is_uninitialized, &initialize, &mark_megamorphic);
     }
 
@@ -1140,7 +1140,7 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
       // Check if it is uninitialized.
       Comment("check if uninitialized");
       Node* is_uninitialized =
-          TaggedEqual(feedback, LoadRoot(RootIndex::kuninitialized_symbol));
+          TaggedEqual(feedback, UninitializedSymbolConstant());
       Branch(is_uninitialized, &initialize, &mark_megamorphic);
     }
 
@@ -1710,8 +1710,7 @@ Node* InterpreterAssembler::ImportRegisterFile(
         IntPtrSub(IntPtrConstant(Register(0).ToOperand()), index);
     StoreRegister(value, reg_index);
 
-    StoreFixedArrayElement(array, array_index,
-                           LoadRoot(RootIndex::kStaleRegister));
+    StoreFixedArrayElement(array, array_index, StaleRegisterConstant());
 
     var_index = IntPtrAdd(index, IntPtrConstant(1));
     Goto(&loop);

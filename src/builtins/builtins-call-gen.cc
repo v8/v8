@@ -292,8 +292,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
 
   // Check that the Array.prototype hasn't been modified in a way that would
   // affect iteration.
-  TNode<PropertyCell> protector_cell =
-      CAST(LoadRoot(RootIndex::kArrayIteratorProtector));
+  TNode<PropertyCell> protector_cell = ArrayIteratorProtectorConstant();
   GotoIf(
       TaggedEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
                   SmiConstant(Isolate::kProtectorInvalid)),
@@ -431,7 +430,7 @@ TNode<JSReceiver> CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
       //     will be ruled out there).
       //
       var_template = CAST(constructor);
-      TNode<Int32T> template_type = LoadInstanceType(var_template.value());
+      TNode<Uint16T> template_type = LoadInstanceType(var_template.value());
       GotoIf(InstanceTypeEqual(template_type, JS_FUNCTION_TYPE),
              &template_from_closure);
       Branch(InstanceTypeEqual(template_type, MAP_TYPE), &template_map_loop,
@@ -515,7 +514,7 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
     GotoIfNot(
         IsSetWord32<Map::IsAccessCheckNeededBit>(LoadMapBitField(receiver_map)),
         &receiver_done);
-    TNode<WordT> function_template_info_flags = LoadAndUntagObjectField(
+    TNode<IntPtrT> function_template_info_flags = LoadAndUntagObjectField(
         function_template_info, FunctionTemplateInfo::kFlagOffset);
     Branch(IsSetWord(function_template_info_flags,
                      1 << FunctionTemplateInfo::kAcceptAnyReceiver),

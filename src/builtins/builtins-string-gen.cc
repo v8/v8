@@ -323,7 +323,7 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
 
   // Combine the instance types into a single 16-bit value, so we can check
   // both of them at once.
-  TNode<Word32T> both_instance_types = Word32Or(
+  TNode<Int32T> both_instance_types = Word32Or(
       lhs_instance_type, Word32Shl(rhs_instance_type, Int32Constant(8)));
 
   // Check that both {lhs} and {rhs} are flat one-byte strings.
@@ -1476,7 +1476,7 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
       fill_thehole_and_call_runtime(this, Label::kDeferred);
   TVARIABLE(JSArray, result_array);
 
-  TNode<Int32T> instance_type = LoadInstanceType(subject_string);
+  TNode<Uint16T> instance_type = LoadInstanceType(subject_string);
   GotoIfNot(IsOneByteStringInstanceType(instance_type), &call_runtime);
 
   // Try to use cached one byte characters.
@@ -1495,7 +1495,7 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
     TNode<RawPtrT> string_data =
         to_direct.PointerToData(&fill_thehole_and_call_runtime);
     TNode<IntPtrT> string_data_offset = to_direct.offset();
-    TNode<Object> cache = LoadRoot(RootIndex::kSingleCharacterStringCache);
+    TNode<FixedArray> cache = SingleCharacterStringCacheConstant();
 
     BuildFastLoop(
         IntPtrConstant(0), length,
@@ -1508,7 +1508,7 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
               UncheckedCast<Int32T>(Load(MachineType::Uint8(), string_data,
                                          IntPtrAdd(index, string_data_offset)));
           Node* code_index = ChangeUint32ToWord(char_code);
-          TNode<Object> entry = LoadFixedArrayElement(CAST(cache), code_index);
+          TNode<Object> entry = LoadFixedArrayElement(cache, code_index);
 
           // If we cannot find a char in the cache, fill the hole for the fixed
           // array, and call runtime.
@@ -1995,8 +1995,7 @@ void StringBuiltinsAssembler::BranchIfStringPrimitiveWithNoCustomIteration(
 
   // Check that the String iterator hasn't been modified in a way that would
   // affect iteration.
-  TNode<PropertyCell> protector_cell =
-      CAST(LoadRoot(RootIndex::kStringIteratorProtector));
+  TNode<PropertyCell> protector_cell = StringIteratorProtectorConstant();
   DCHECK(isolate()->heap()->string_iterator_protector().IsPropertyCell());
   Branch(
       TaggedEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),

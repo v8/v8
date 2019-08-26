@@ -1602,9 +1602,6 @@ extern macro LoadBufferObject(RawPtr, constexpr int32): Object;
 extern macro LoadBufferPointer(RawPtr, constexpr int32): RawPtr;
 extern macro LoadBufferSmi(RawPtr, constexpr int32): Smi;
 
-extern macro LoadRoot(constexpr RootIndex): Object;
-extern macro StoreRoot(constexpr RootIndex, Object): Object;
-
 extern runtime StringEqual(Context, String, String): Oddball;
 extern builtin StringLessThan(Context, String, String): Boolean;
 extern macro StringCharCodeAt(String, intptr): int32;
@@ -2646,13 +2643,15 @@ macro UnsafeCast<A: type>(implicit context: Context)(o: Object): A {
   return %RawDownCast<A>(o);
 }
 
-const kFixedArrayMap: Map =
-    %RawDownCast<Map>(LoadRoot(kFixedArrayMapRootIndex));
-const kCOWMap: Map = %RawDownCast<Map>(LoadRoot(kFixedCOWArrayMapRootIndex));
-const kEmptyByteArray: ByteArray =
-    %RawDownCast<ByteArray>(LoadRoot(kEmptyByteArrayRootIndex));
-const kEmptyFixedArray: FixedArray =
-    %RawDownCast<FixedArray>(LoadRoot(kEmptyFixedArrayRootIndex));
+extern macro FixedArrayMapConstant(): Map;
+extern macro FixedCOWArrayMapConstant(): Map;
+extern macro EmptyByteArrayConstant(): ByteArray;
+extern macro EmptyFixedArrayConstant(): FixedArray;
+
+const kFixedArrayMap: Map = FixedArrayMapConstant();
+const kCOWMap: Map = FixedCOWArrayMapConstant();
+const kEmptyByteArray: ByteArray = EmptyByteArrayConstant();
+const kEmptyFixedArray: FixedArray = EmptyFixedArrayConstant();
 
 extern macro IsPrototypeInitialArrayPrototype(implicit context: Context)(Map):
     bool;

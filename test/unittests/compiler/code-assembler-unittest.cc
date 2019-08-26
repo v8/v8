@@ -51,7 +51,7 @@ TARGET_TEST_F(CodeAssemblerTest, IntPtrAdd) {
   {
     TNode<IntPtrT> a = m.IntPtrConstant(22);
     TNode<IntPtrT> b = m.IntPtrConstant(33);
-    TNode<WordT> c = m.IntPtrAdd(a, b);
+    TNode<IntPtrT> c = m.IntPtrAdd(a, b);
     EXPECT_THAT(c, IsIntPtrConstant(55));
   }
 }
@@ -76,7 +76,7 @@ TARGET_TEST_F(CodeAssemblerTest, IntPtrSub) {
   {
     TNode<IntPtrT> a = m.IntPtrConstant(100);
     TNode<IntPtrT> b = m.IntPtrConstant(1);
-    TNode<WordT> c = m.IntPtrSub(a, b);
+    TNode<IntPtrT> c = m.IntPtrSub(a, b);
     EXPECT_THAT(c, IsIntPtrConstant(99));
   }
 }
@@ -108,7 +108,7 @@ TARGET_TEST_F(CodeAssemblerTest, IntPtrMul) {
   {
     TNode<IntPtrT> a = m.IntPtrConstant(100);
     TNode<IntPtrT> b = m.IntPtrConstant(5);
-    TNode<WordT> c = m.IntPtrMul(a, b);
+    TNode<IntPtrT> c = m.IntPtrMul(a, b);
     EXPECT_THAT(c, IsIntPtrConstant(500));
   }
   // x * 2^CONST  => x << CONST
@@ -204,13 +204,13 @@ TARGET_TEST_F(CodeAssemblerTest, WordShr) {
   // +CONST_a >> CONST_b  => CONST_c
   {
     TNode<IntPtrT> a = m.IntPtrConstant(4096);
-    TNode<WordT> shr = m.WordShr(a, 2);
+    TNode<IntPtrT> shr = m.WordShr(a, 2);
     EXPECT_THAT(shr, IsIntPtrConstant(1024));
   }
   // -CONST_a >> CONST_b  => CONST_c
   {
     TNode<IntPtrT> a = m.IntPtrConstant(-1234);
-    TNode<WordT> shr = m.WordShr(a, 2);
+    TNode<IntPtrT> shr = m.WordShr(a, 2);
     EXPECT_THAT(shr, IsIntPtrConstant(static_cast<uintptr_t>(-1234) >> 2));
   }
 }
@@ -232,13 +232,13 @@ TARGET_TEST_F(CodeAssemblerTest, WordSar) {
   // +CONST_a >>> CONST_b  => CONST_c
   {
     TNode<IntPtrT> a = m.IntPtrConstant(4096);
-    TNode<WordT> sar = m.WordSar(a, m.IntPtrConstant(2));
+    TNode<IntPtrT> sar = m.WordSar(a, m.IntPtrConstant(2));
     EXPECT_THAT(sar, IsIntPtrConstant(1024));
   }
   // -CONST_a >>> CONST_b  => CONST_c
   {
     TNode<IntPtrT> a = m.IntPtrConstant(-1234);
-    TNode<WordT> sar = m.WordSar(a, m.IntPtrConstant(2));
+    TNode<IntPtrT> sar = m.WordSar(a, m.IntPtrConstant(2));
     EXPECT_THAT(sar, IsIntPtrConstant(static_cast<intptr_t>(-1234) >> 2));
   }
 }
@@ -282,7 +282,7 @@ TARGET_TEST_F(CodeAssemblerTest, WordAnd) {
   // CONST_a & CONST_b  => CONST_c
   {
     TNode<IntPtrT> a = m.IntPtrConstant(3);
-    TNode<WordT> b = m.WordAnd(a, m.IntPtrConstant(7));
+    TNode<IntPtrT> b = m.WordAnd(a, m.IntPtrConstant(7));
     EXPECT_THAT(b, IsIntPtrConstant(3));
   }
 }

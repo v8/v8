@@ -194,11 +194,11 @@ TF_BUILTIN(DatePrototypeToPrimitive, CodeStubAssembler) {
       hint_is_invalid(this, Label::kDeferred);
 
   // Fast cases for internalized strings.
-  TNode<Object> number_string = LoadRoot(RootIndex::knumber_string);
+  TNode<String> number_string = numberStringConstant();
   GotoIf(TaggedEqual(hint, number_string), &hint_is_number);
-  TNode<Object> default_string = LoadRoot(RootIndex::kdefault_string);
+  TNode<String> default_string = DefaultStringConstant();
   GotoIf(TaggedEqual(hint, default_string), &hint_is_string);
-  TNode<Object> string_string = LoadRoot(RootIndex::kstring_string);
+  TNode<String> string_string = StringStringConstant();
   GotoIf(TaggedEqual(hint, string_string), &hint_is_string);
 
   // Slow-case with actual string comparisons.

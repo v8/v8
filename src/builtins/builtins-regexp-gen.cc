@@ -132,7 +132,7 @@ void RegExpBuiltinsAssembler::FastStoreLastIndex(TNode<JSRegExp> regexp,
 void RegExpBuiltinsAssembler::SlowStoreLastIndex(SloppyTNode<Context> context,
                                                  SloppyTNode<Object> regexp,
                                                  SloppyTNode<Number> value) {
-  TNode<Name> name = HeapConstant(isolate()->factory()->lastIndex_string());
+  TNode<String> name = HeapConstant(isolate()->factory()->lastIndex_string());
   SetPropertyStrict(context, regexp, name, value);
 }
 
@@ -375,7 +375,9 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
           data, IntPtrConstant(JSRegExp::kTagIndex));
 
       int32_t values[] = {
-          JSRegExp::IRREGEXP, JSRegExp::ATOM, JSRegExp::NOT_COMPILED,
+          JSRegExp::IRREGEXP,
+          JSRegExp::ATOM,
+          JSRegExp::NOT_COMPILED,
       };
       Label* labels[] = {&next, &atom, &runtime};
 
@@ -911,7 +913,7 @@ TNode<BoolT> RegExpBuiltinsAssembler::IsReceiverInitialRegExpPrototype(
       LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX);
   Node* const initial_map =
       LoadObjectField(regexp_fun, JSFunction::kPrototypeOrInitialMapOffset);
-  TNode<Object> const initial_prototype = LoadMapPrototype(initial_map);
+  TNode<HeapObject> const initial_prototype = LoadMapPrototype(initial_map);
   return TaggedEqual(receiver, initial_prototype);
 }
 
@@ -2150,7 +2152,7 @@ TNode<Object> RegExpMatchAllAssembler::CreateRegExpStringIterator(
   // 4. Let iterator be ObjectCreate(%RegExpStringIteratorPrototype%, «
   // [[IteratingRegExp]], [[IteratedString]], [[Global]], [[Unicode]],
   // [[Done]] »).
-  TNode<Object> iterator = Allocate(JSRegExpStringIterator::kSize);
+  TNode<HeapObject> iterator = Allocate(JSRegExpStringIterator::kSize);
   StoreMapNoWriteBarrier(iterator, map);
   StoreObjectFieldRoot(iterator,
                        JSRegExpStringIterator::kPropertiesOrHashOffset,
@@ -2179,9 +2181,9 @@ TNode<Object> RegExpMatchAllAssembler::CreateRegExpStringIterator(
   // 7. Set iterator.[[Global]] to global.
   // 8. Set iterator.[[Unicode]] to fullUnicode.
   // 9. Set iterator.[[Done]] to false.
-  TNode<Word32T> global_flag =
+  TNode<Int32T> global_flag =
       Word32Shl(global, Int32Constant(JSRegExpStringIterator::kGlobalBit));
-  TNode<Word32T> unicode_flag = Word32Shl(
+  TNode<Int32T> unicode_flag = Word32Shl(
       full_unicode, Int32Constant(JSRegExpStringIterator::kUnicodeBit));
   TNode<Word32T> iterator_flags = Word32Or(global_flag, unicode_flag);
   StoreObjectFieldNoWriteBarrier(iterator, JSRegExpStringIterator::kFlagsOffset,

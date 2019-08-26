@@ -437,7 +437,7 @@ void ProxiesCodeStubAssembler::CheckDeleteTrapResult(TNode<Context> context,
 
   // 10. Let targetDesc be ? target.[[GetOwnProperty]](P).
   GotoIfNot(IsUniqueNameNoIndex(name), &check_in_runtime);
-  TNode<Int32T> instance_type = LoadInstanceType(target);
+  TNode<Uint16T> instance_type = LoadInstanceType(target);
   TryGetOwnProperty(context, target, target, target_map, instance_type, name,
                     &if_found_value, &var_value, &var_details, &var_raw_value,
                     &check_passed, &check_in_runtime, kReturnAccessorPair);

@@ -378,7 +378,7 @@ TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
   BIND(&if_objectisnotsmi);
 
   Node* map = LoadMap(object);
-  TNode<Int32T> instance_type = LoadMapInstanceType(map);
+  TNode<Uint16T> instance_type = LoadMapInstanceType(map);
 
   {
     VARIABLE(var_index, MachineType::PointerRepresentation());
@@ -477,7 +477,7 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
   GotoIf(TaggedIsSmi(object), &if_slow);
   Node* object_map = LoadMap(object);
   Node* object_bit_field3 = LoadMapBitField3(object_map);
-  TNode<WordT> object_enum_length =
+  TNode<UintPtrT> object_enum_length =
       DecodeWordFromWord32<Map::EnumLengthBits>(object_bit_field3);
   GotoIf(
       WordEqual(object_enum_length, IntPtrConstant(kInvalidEnumCacheSentinel)),
@@ -562,7 +562,7 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
   // has any elements.
   GotoIf(TaggedIsSmi(object), &if_slow);
   Node* object_map = LoadMap(object);
-  TNode<Int32T> instance_type = LoadMapInstanceType(object_map);
+  TNode<Uint16T> instance_type = LoadMapInstanceType(object_map);
   GotoIf(IsCustomElementsReceiverInstanceType(instance_type), &if_slow);
   Node* object_elements = LoadElements(object);
   GotoIf(IsEmptyFixedArray(object_elements), &if_empty_elements);
@@ -572,14 +572,14 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
   // Check if the {object} has a usable enum cache.
   BIND(&if_empty_elements);
   Node* object_bit_field3 = LoadMapBitField3(object_map);
-  TNode<WordT> object_enum_length =
+  TNode<UintPtrT> object_enum_length =
       DecodeWordFromWord32<Map::EnumLengthBits>(object_bit_field3);
   GotoIf(
       WordEqual(object_enum_length, IntPtrConstant(kInvalidEnumCacheSentinel)),
       &try_fast);
 
   // Check whether all own properties are enumerable.
-  TNode<WordT> number_descriptors =
+  TNode<UintPtrT> number_descriptors =
       DecodeWordFromWord32<Map::NumberOfOwnDescriptorsBits>(object_bit_field3);
   GotoIfNot(WordEqual(object_enum_length, number_descriptors), &if_slow);
 
@@ -783,13 +783,13 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
 
   BIND(&if_arguments);
   {
-    var_default.Bind(LoadRoot(RootIndex::karguments_to_string));
+    var_default.Bind(ArgumentsToStringConstant());
     Goto(&checkstringtag);
   }
 
   BIND(&if_array);
   {
-    var_default.Bind(LoadRoot(RootIndex::karray_to_string));
+    var_default.Bind(ArrayToStringConstant());
     Goto(&checkstringtag);
   }
 
@@ -802,26 +802,26 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
         boolean_constructor, JSFunction::kPrototypeOrInitialMapOffset);
     Node* boolean_prototype =
         LoadObjectField(boolean_initial_map, Map::kPrototypeOffset);
-    var_default.Bind(LoadRoot(RootIndex::kboolean_to_string));
+    var_default.Bind(BooleanToStringConstant());
     var_holder.Bind(boolean_prototype);
     Goto(&checkstringtag);
   }
 
   BIND(&if_date);
   {
-    var_default.Bind(LoadRoot(RootIndex::kdate_to_string));
+    var_default.Bind(DateToStringConstant());
     Goto(&checkstringtag);
   }
 
   BIND(&if_error);
   {
-    var_default.Bind(LoadRoot(RootIndex::kerror_to_string));
+    var_default.Bind(ErrorToStringConstant());
     Goto(&checkstringtag);
   }
 
   BIND(&if_function);
   {
-    var_default.Bind(LoadRoot(RootIndex::kfunction_to_string));
+    var_default.Bind(FunctionToStringConstant());
     Goto(&checkstringtag);
   }
 
@@ -834,7 +834,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
         number_constructor, JSFunction::kPrototypeOrInitialMapOffset);
     Node* number_prototype =
         LoadObjectField(number_initial_map, Map::kPrototypeOffset);
-    var_default.Bind(LoadRoot(RootIndex::knumber_to_string));
+    var_default.Bind(NumberToStringConstant());
     var_holder.Bind(number_prototype);
     Goto(&checkstringtag);
   }
@@ -842,7 +842,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
   BIND(&if_object);
   {
     CSA_ASSERT(this, IsJSReceiver(receiver));
-    var_default.Bind(LoadRoot(RootIndex::kobject_to_string));
+    var_default.Bind(ObjectToStringConstant());
     Goto(&checkstringtag);
   }
 
@@ -857,10 +857,10 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     GotoIf(IsSymbolMap(receiver_map), &if_symbol);
     GotoIf(IsUndefined(receiver), &return_undefined);
     CSA_ASSERT(this, IsNull(receiver));
-    Return(LoadRoot(RootIndex::knull_to_string));
+    Return(NullToStringConstant());
 
     BIND(&return_undefined);
-    Return(LoadRoot(RootIndex::kundefined_to_string));
+    Return(UndefinedToStringConstant());
   }
 
   BIND(&if_proxy);
@@ -873,13 +873,12 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     Node* receiver_is_array =
         CallRuntime(Runtime::kArrayIsArray, context, receiver);
     TNode<String> builtin_tag = Select<String>(
-        IsTrue(receiver_is_array),
-        [=] { return CAST(LoadRoot(RootIndex::kArray_string)); },
+        IsTrue(receiver_is_array), [=] { return ArrayStringConstant(); },
         [=] {
           return Select<String>(
               IsCallableMap(receiver_map),
-              [=] { return CAST(LoadRoot(RootIndex::kFunction_string)); },
-              [=] { return CAST(LoadRoot(RootIndex::kObject_string)); });
+              [=] { return FunctionStringConstant(); },
+              [=] { return ObjectStringConstant(); });
         });
 
     // Lookup the @@toStringTag property on the {receiver}.
@@ -900,7 +899,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
 
   BIND(&if_regexp);
   {
-    var_default.Bind(LoadRoot(RootIndex::kregexp_to_string));
+    var_default.Bind(RegexpToStringConstant());
     Goto(&checkstringtag);
   }
 
@@ -913,7 +912,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
         string_constructor, JSFunction::kPrototypeOrInitialMapOffset);
     Node* string_prototype =
         LoadObjectField(string_initial_map, Map::kPrototypeOffset);
-    var_default.Bind(LoadRoot(RootIndex::kstring_to_string));
+    var_default.Bind(StringToStringConstant());
     var_holder.Bind(string_prototype);
     Goto(&checkstringtag);
   }
@@ -927,7 +926,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
         symbol_constructor, JSFunction::kPrototypeOrInitialMapOffset);
     Node* symbol_prototype =
         LoadObjectField(symbol_initial_map, Map::kPrototypeOffset);
-    var_default.Bind(LoadRoot(RootIndex::kobject_to_string));
+    var_default.Bind(ObjectToStringConstant());
     var_holder.Bind(symbol_prototype);
     Goto(&checkstringtag);
   }
@@ -941,7 +940,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
         bigint_constructor, JSFunction::kPrototypeOrInitialMapOffset);
     Node* bigint_prototype =
         LoadObjectField(bigint_initial_map, Map::kPrototypeOffset);
-    var_default.Bind(LoadRoot(RootIndex::kobject_to_string));
+    var_default.Bind(ObjectToStringConstant());
     var_holder.Bind(bigint_prototype);
     Goto(&checkstringtag);
   }
@@ -972,31 +971,31 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
 
     BIND(&if_value_is_number);
     {
-      var_default.Bind(LoadRoot(RootIndex::knumber_to_string));
+      var_default.Bind(NumberToStringConstant());
       Goto(&checkstringtag);
     }
 
     BIND(&if_value_is_boolean);
     {
-      var_default.Bind(LoadRoot(RootIndex::kboolean_to_string));
+      var_default.Bind(BooleanToStringConstant());
       Goto(&checkstringtag);
     }
 
     BIND(&if_value_is_string);
     {
-      var_default.Bind(LoadRoot(RootIndex::kstring_to_string));
+      var_default.Bind(StringToStringConstant());
       Goto(&checkstringtag);
     }
 
     BIND(&if_value_is_bigint);
     {
-      var_default.Bind(LoadRoot(RootIndex::kobject_to_string));
+      var_default.Bind(ObjectToStringConstant());
       Goto(&checkstringtag);
     }
 
     BIND(&if_value_is_symbol);
     {
-      var_default.Bind(LoadRoot(RootIndex::kobject_to_string));
+      var_default.Bind(ObjectToStringConstant());
       Goto(&checkstringtag);
     }
   }
@@ -1024,7 +1023,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
     BIND(&return_generic);
     {
       Node* tag = GetProperty(context, ToObject(context, receiver),
-                              LoadRoot(RootIndex::kto_string_tag_symbol));
+                              ToStringTagSymbolConstant());
       GotoIf(TaggedIsSmi(tag), &return_default);
       GotoIfNot(IsString(tag), &return_default);
       ReturnToStringFormat(context, tag);
@@ -1137,9 +1136,9 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     Node* properties_map = LoadMap(CAST(properties));
     GotoIf(IsSpecialReceiverMap(properties_map), &call_runtime);
     // Stay on the fast path only if there are no elements.
-    GotoIfNot(TaggedEqual(LoadElements(CAST(properties)),
-                          LoadRoot(RootIndex::kEmptyFixedArray)),
-              &call_runtime);
+    GotoIfNot(
+        TaggedEqual(LoadElements(CAST(properties)), EmptyFixedArrayConstant()),
+        &call_runtime);
     // Handle dictionary objects or fast objects with properties in runtime.
     Node* bit_field3 = LoadMapBitField3(properties_map);
     GotoIf(IsSetWord32<Map::IsDictionaryMapBit>(bit_field3), &call_runtime);
@@ -1348,7 +1347,7 @@ TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
       call_runtime(this, Label::kDeferred),
       return_undefined(this, Label::kDeferred), if_notunique_name(this);
   Node* map = LoadMap(object);
-  TNode<Int32T> instance_type = LoadMapInstanceType(map);
+  TNode<Uint16T> instance_type = LoadMapInstanceType(map);
   GotoIf(IsSpecialReceiverInstanceType(instance_type), &call_runtime);
   {
     VARIABLE(var_index, MachineType::PointerRepresentation(),

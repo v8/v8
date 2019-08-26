@@ -1609,19 +1609,19 @@ TEST(TryLookupElement) {
     CHECK_NOT_FOUND(object, 42);
   }
 
-// TODO(ishell): uncomment once NO_ELEMENTS kind is supported.
-//  {
-//    Handle<Map> map = Map::Create(isolate, 0);
-//    map->set_elements_kind(NO_ELEMENTS);
-//    Handle<JSObject> object = factory->NewJSObjectFromMap(map);
-//    CHECK_EQ(NO_ELEMENTS, object->map()->elements_kind());
-//
-//    CHECK_NOT_FOUND(object, 0);
-//    CHECK_NOT_FOUND(object, 1);
-//    CHECK_NOT_FOUND(object, 7);
-//    CHECK_NOT_FOUND(object, 13);
-//    CHECK_NOT_FOUND(object, 42);
-//  }
+  // TODO(ishell): uncomment once NO_ELEMENTS kind is supported.
+  //  {
+  //    Handle<Map> map = Map::Create(isolate, 0);
+  //    map->set_elements_kind(NO_ELEMENTS);
+  //    Handle<JSObject> object = factory->NewJSObjectFromMap(map);
+  //    CHECK_EQ(NO_ELEMENTS, object->map()->elements_kind());
+  //
+  //    CHECK_NOT_FOUND(object, 0);
+  //    CHECK_NOT_FOUND(object, 1);
+  //    CHECK_NOT_FOUND(object, 7);
+  //    CHECK_NOT_FOUND(object, 13);
+  //    CHECK_NOT_FOUND(object, 42);
+  //  }
 
 #undef CHECK_FOUND
 #undef CHECK_NOT_FOUND
@@ -2537,7 +2537,7 @@ TEST(CreatePromiseGetCapabilitiesExecutorContext) {
   Node* const context = m.Parameter(kNumParams + 2);
   TNode<Context> const native_context = m.LoadNativeContext(context);
 
-  TNode<Object> const map = m.LoadRoot(RootIndex::kPromiseCapabilityMap);
+  TNode<Map> const map = m.PromiseCapabilityMapConstant();
   Node* const capability = m.AllocateStruct(map);
   m.StoreObjectFieldNoWriteBarrier(
       capability, PromiseCapability::kPromiseOffset, m.UndefinedConstant());
