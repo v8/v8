@@ -7,14 +7,14 @@
 namespace string {
   // ES6 #sec-string.prototype.tostring
   transitioning javascript builtin
-  StringPrototypeToString(js-implicit context: Context)(receiver: Object):
+  StringPrototypeToString(js-implicit context: Context, receiver: Object)():
       Object {
     return ToThisValue(receiver, kString, 'String.prototype.toString');
   }
 
   // ES6 #sec-string.prototype.valueof
   transitioning javascript builtin
-  StringPrototypeValueOf(js-implicit context: Context)(receiver: Object):
+  StringPrototypeValueOf(js-implicit context: Context, receiver: Object)():
       Object {
     return ToThisValue(receiver, kString, 'String.prototype.valueOf');
   }

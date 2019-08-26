@@ -2645,7 +2645,7 @@ void ImplementationVisitor::GenerateBuiltinDefinitions(
     for (auto& declarable : GlobalContext::AllDeclarables()) {
       Builtin* builtin = Builtin::DynamicCast(declarable.get());
       if (!builtin || builtin->IsExternal()) continue;
-      int firstParameterIndex = 1;
+      size_t firstParameterIndex = 1;
       bool declareParameters = true;
       if (builtin->IsStub()) {
         new_contents_stream << "TFS(" << builtin->ExternalName();
@@ -2656,24 +2656,22 @@ void ImplementationVisitor::GenerateBuiltinDefinitions(
               << ", SharedFunctionInfo::kDontAdaptArgumentsSentinel";
           declareParameters = false;
         } else {
-          assert(builtin->IsFixedArgsJavaScript());
+          DCHECK(builtin->IsFixedArgsJavaScript());
           // FixedArg javascript builtins need to offer the parameter
           // count.
-          int size = static_cast<int>(builtin->parameter_names().size());
-          assert(size >= 1);
-          new_contents_stream << ", " << (std::max(size - 2, 0));
+          int parameter_count =
+              static_cast<int>(builtin->signature().ExplicitCount());
+          new_contents_stream << ", " << parameter_count;
           // And the receiver is explicitly declared.
           new_contents_stream << ", kReceiver";
-          firstParameterIndex = 2;
+          firstParameterIndex = builtin->signature().implicit_count;
         }
       }
       if (declareParameters) {
-        int index = 0;
-        for (const auto& parameter : builtin->parameter_names()) {
-          if (index >= firstParameterIndex) {
-            new_contents_stream << ", k" << CamelifyString(parameter->value);
-          }
-          index++;
+        for (size_t i = firstParameterIndex;
+             i < builtin->parameter_names().size(); ++i) {
+          Identifier* parameter = builtin->parameter_names()[i];
+          new_contents_stream << ", k" << CamelifyString(parameter->value);
         }
       }
       new_contents_stream << ") \\\n";

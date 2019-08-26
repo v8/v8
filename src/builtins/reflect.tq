@@ -8,8 +8,8 @@ namespace reflect {
   generates 'MessageTemplate::kCalledOnNonObject';
 
   // ES6 section 26.1.10 Reflect.isExtensible
-  transitioning javascript builtin ReflectIsExtensible(
-      js-implicit context: Context)(_receiver: Object, object: Object): Object {
+  transitioning javascript builtin
+  ReflectIsExtensible(js-implicit context: Context)(object: Object): Object {
     const objectJSReceiver = Cast<JSReceiver>(object)
         otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.isExtensible');
     return object::ObjectIsExtensible(objectJSReceiver);
@@ -17,15 +17,15 @@ namespace reflect {
 
   // ES6 section 26.1.12 Reflect.preventExtensions
   transitioning javascript builtin ReflectPreventExtensions(
-      js-implicit context: Context)(_receiver: Object, object: Object): Object {
+      js-implicit context: Context)(object: Object): Object {
     const objectJSReceiver = Cast<JSReceiver>(object)
         otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.preventExtensions');
     return object::ObjectPreventExtensionsDontThrow(objectJSReceiver);
   }
 
   // ES6 section 26.1.8 Reflect.getPrototypeOf
-  transitioning javascript builtin ReflectGetPrototypeOf(
-      js-implicit context: Context)(_receiver: Object, object: Object): Object {
+  transitioning javascript builtin
+  ReflectGetPrototypeOf(js-implicit context: Context)(object: Object): Object {
     const objectJSReceiver = Cast<JSReceiver>(object)
         otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.getPrototypeOf');
     return object::JSReceiverGetPrototypeOf(objectJSReceiver);
@@ -33,8 +33,7 @@ namespace reflect {
 
   // ES6 section 26.1.14 Reflect.setPrototypeOf
   transitioning javascript builtin ReflectSetPrototypeOf(
-      js-implicit context:
-          Context)(_receiver: Object, object: Object, proto: Object): Object {
+      js-implicit context: Context)(object: Object, proto: Object): Object {
     const objectJSReceiver = Cast<JSReceiver>(object)
         otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.setPrototypeOf');
     if (proto == Null || Is<JSReceiver>(proto)) {
@@ -67,8 +66,7 @@ namespace reflect {
 
   // ES6 section 26.1.4 Reflect.deleteProperty
   transitioning javascript builtin ReflectDeleteProperty(
-      js-implicit context:
-          Context)(_receiver: Object, object: Object, key: Object): Object {
+      js-implicit context: Context)(object: Object, key: Object): Object {
     const objectJSReceiver = Cast<JSReceiver>(object)
         otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.deleteProperty');
     return DeleteProperty(objectJSReceiver, key, kSloppy);

@@ -94,8 +94,8 @@ namespace object {
 
 namespace object_isextensible {
   // ES6 section 19.1.2.11 Object.isExtensible ( O )
-  transitioning javascript builtin ObjectIsExtensible(
-      js-implicit context: Context)(_receiver: Object, object: Object): Object {
+  transitioning javascript builtin
+  ObjectIsExtensible(js-implicit context: Context)(object: Object): Object {
     return object::ObjectIsExtensible(object);
   }
 }  // namespace object_isextensible
@@ -103,15 +103,15 @@ namespace object_isextensible {
 namespace object_preventextensions {
   // ES6 section 19.1.2.11 Object.isExtensible ( O )
   transitioning javascript builtin ObjectPreventExtensions(
-      js-implicit context: Context)(_receiver: Object, object: Object): Object {
+      js-implicit context: Context)(object: Object): Object {
     return object::ObjectPreventExtensionsThrow(object);
   }
 }  // namespace object_preventextensions
 
 namespace object_getprototypeof {
   // ES6 section 19.1.2.9 Object.getPrototypeOf ( O )
-  transitioning javascript builtin ObjectGetPrototypeOf(
-      js-implicit context: Context)(_receiver: Object, object: Object): Object {
+  transitioning javascript builtin
+  ObjectGetPrototypeOf(js-implicit context: Context)(object: Object): Object {
     return object::ObjectGetPrototypeOf(object);
   }
 }  // namespace object_getprototypeof
@@ -119,8 +119,7 @@ namespace object_getprototypeof {
 namespace object_setprototypeof {
   // ES6 section 19.1.2.21 Object.setPrototypeOf ( O, proto )
   transitioning javascript builtin ObjectSetPrototypeOf(
-      js-implicit context:
-          Context)(_receiver: Object, object: Object, proto: Object): Object {
+      js-implicit context: Context)(object: Object, proto: Object): Object {
     // 1. Set O to ? RequireObjectCoercible(O).
     RequireObjectCoercible(object, 'Object.setPrototypeOf');
 
