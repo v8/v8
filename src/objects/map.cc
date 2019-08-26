@@ -1730,6 +1730,12 @@ Handle<Map> Map::CopyReplaceDescriptors(
       descriptors->GeneralizeAllFields();
       result->InitializeDescriptors(isolate, *descriptors,
                                     LayoutDescriptor::FastPointerLayout());
+      // If we were trying to insert a transition but failed because there are
+      // too many transitions already, mark the object as a prototype to avoid
+      // tracking transitions from the detached map.
+      if (flag == INSERT_TRANSITION) {
+        result->set_is_prototype_map(true);
+      }
     }
   } else {
     result->InitializeDescriptors(isolate, *descriptors, *layout_descriptor);

@@ -825,8 +825,12 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
               cont_stack.back().type() == JsonContinuation::kArrayElement &&
               cont_stack.back().index < element_stack.size() &&
               element_stack.back()->IsJSObject()) {
-            feedback =
-                handle(JSObject::cast(*element_stack.back()).map(), isolate_);
+            Map maybe_feedback = JSObject::cast(*element_stack.back()).map();
+            // Don't consume feedback from objects with a map that's detached
+            // from the transition tree.
+            if (!maybe_feedback.GetBackPointer().IsUndefined(isolate_)) {
+              feedback = handle(maybe_feedback, isolate_);
+            }
           }
           value = BuildJsonObject(cont, property_stack, feedback);
           property_stack.resize(cont.index);
