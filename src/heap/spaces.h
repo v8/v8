@@ -636,7 +636,8 @@ class MemoryChunk : public BasicMemoryChunk {
       + kSystemPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES  // SlotSet* array
       + kSystemPointerSize *
             NUMBER_OF_REMEMBERED_SET_TYPES  // TypedSlotSet* array
-      + kSystemPointerSize  // InvalidatedSlots* invalidated_slots_
+      + kSystemPointerSize *
+            NUMBER_OF_REMEMBERED_SET_TYPES  // InvalidatedSlots* array
       + kSystemPointerSize  // std::atomic<intptr_t> high_water_mark_
       + kSystemPointerSize  // base::Mutex* mutex_
       + kSystemPointerSize  // std::atomic<ConcurrentSweepingState>
@@ -722,7 +723,7 @@ class MemoryChunk : public BasicMemoryChunk {
   template <RememberedSetType type>
   bool ContainsSlots() {
     return slot_set<type>() != nullptr || typed_slot_set<type>() != nullptr ||
-           invalidated_slots() != nullptr;
+           invalidated_slots<type>() != nullptr;
   }
 
   template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
@@ -750,15 +751,23 @@ class MemoryChunk : public BasicMemoryChunk {
   template <RememberedSetType type>
   void ReleaseTypedSlotSet();
 
+  template <RememberedSetType type>
   InvalidatedSlots* AllocateInvalidatedSlots();
+  template <RememberedSetType type>
   void ReleaseInvalidatedSlots();
+  template <RememberedSetType type>
   V8_EXPORT_PRIVATE void RegisterObjectWithInvalidatedSlots(HeapObject object,
                                                             int size);
   // Updates invalidated_slots after array left-trimming.
+  template <RememberedSetType type>
   void MoveObjectWithInvalidatedSlots(HeapObject old_start,
                                       HeapObject new_start);
+  template <RememberedSetType type>
   bool RegisteredObjectWithInvalidatedSlots(HeapObject object);
-  InvalidatedSlots* invalidated_slots() { return invalidated_slots_; }
+  template <RememberedSetType type>
+  InvalidatedSlots* invalidated_slots() {
+    return invalidated_slots_[type];
+  }
 
   void ReleaseLocalTracker();
 
@@ -934,7 +943,7 @@ class MemoryChunk : public BasicMemoryChunk {
   // is ceil(size() / kPageSize).
   SlotSet* slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES];
   TypedSlotSet* typed_slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES];
-  InvalidatedSlots* invalidated_slots_;
+  InvalidatedSlots* invalidated_slots_[NUMBER_OF_REMEMBERED_SET_TYPES];
 
   // Assuming the initial allocation on a page is sequential,
   // count highest number of bytes ever allocated on the page.
