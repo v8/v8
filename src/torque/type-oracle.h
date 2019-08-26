@@ -144,6 +144,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(HEAP_OBJECT_TYPE_STRING);
   }
 
+  static const Type* GetJSAnyType() {
+    return Get().GetBuiltinType(JSANY_TYPE_STRING);
+  }
+
   static const Type* GetJSObjectType() {
     return Get().GetBuiltinType(JSOBJECT_TYPE_STRING);
   }

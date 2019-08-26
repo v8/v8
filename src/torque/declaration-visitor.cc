@@ -69,6 +69,21 @@ Builtin* DeclarationVisitor::CreateBuiltin(BuiltinDeclaration* decl,
           " to be a JavaScript builtin");
   }
 
+  if (javascript) {
+    if (!signature.return_type->IsSubtypeOf(TypeOracle::GetJSAnyType())) {
+      Error("Return type of JavaScript-linkage builtins has to be JSAny.")
+          .Position(decl->return_type->pos);
+    }
+    for (size_t i = signature.implicit_count;
+         i < signature.parameter_types.types.size(); ++i) {
+      const Type* parameter_type = signature.parameter_types.types[i];
+      if (parameter_type != TypeOracle::GetJSAnyType()) {
+        Error("Parameters of JavaScript-linkage builtins have to be JSAny.")
+            .Position(decl->parameters.types[i]->pos);
+      }
+    }
+  }
+
   for (size_t i = 0; i < signature.types().size(); ++i) {
     if (const StructType* type =
             StructType::DynamicCast(signature.types()[i])) {
