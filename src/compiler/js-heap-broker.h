@@ -9,6 +9,7 @@
 #include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-info.h"
+#include "src/compiler/feedback-source.h"
 #include "src/compiler/processed-feedback.h"
 #include "src/compiler/refs-map.h"
 #include "src/handles/handles.h"
@@ -26,29 +27,6 @@ namespace compiler {
 class BytecodeAnalysis;
 class ObjectRef;
 std::ostream& operator<<(std::ostream& os, const ObjectRef& ref);
-
-struct FeedbackSource {
-  FeedbackSource(Handle<FeedbackVector> vector_, FeedbackSlot slot_);
-  FeedbackSource(FeedbackVectorRef vector_, FeedbackSlot slot_);
-  explicit FeedbackSource(FeedbackNexus const& nexus);
-  explicit FeedbackSource(VectorSlotPair const& pair);
-
-  Handle<FeedbackVector> const vector;
-  FeedbackSlot const slot;
-
-  struct Hash {
-    size_t operator()(FeedbackSource const& source) const {
-      return base::hash_combine(source.vector.address(), source.slot);
-    }
-  };
-
-  struct Equal {
-    bool operator()(FeedbackSource const& lhs,
-                    FeedbackSource const& rhs) const {
-      return lhs.vector.equals(rhs.vector) && lhs.slot == rhs.slot;
-    }
-  };
-};
 
 #define TRACE_BROKER(broker, x)                                      \
   do {                                                               \
@@ -117,15 +95,15 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   bool IsArrayOrObjectPrototype(const JSObjectRef& object) const;
 
   bool HasFeedback(FeedbackSource const& source) const;
-  // The processed {feedback} can be {nullptr}, indicating that the original
-  // feedback didn't contain information relevant for Turbofan.
   void SetFeedback(FeedbackSource const& source,
                    ProcessedFeedback const* feedback);
   ProcessedFeedback const& GetFeedback(FeedbackSource const& source) const;
+  FeedbackSlotKind GetFeedbackSlotKind(FeedbackSource const& source) const;
 
   // TODO(neis): Move these into serializer when we're always in the background.
   ElementAccessFeedback const& ProcessFeedbackMapsForElementAccess(
-      MapHandles const& maps, KeyedAccessMode const& keyed_mode);
+      MapHandles const& maps, KeyedAccessMode const& keyed_mode,
+      FeedbackSlotKind slot_kind);
   BytecodeAnalysis const& GetBytecodeAnalysis(
       Handle<BytecodeArray> bytecode_array, BailoutId osr_offset,
       bool analyze_liveness,

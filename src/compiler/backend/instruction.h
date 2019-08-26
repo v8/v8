@@ -17,6 +17,7 @@
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-codes.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/feedback-source.h"
 #include "src/compiler/frame.h"
 #include "src/compiler/opcodes.h"
 #include "src/numbers/double.h"
@@ -1312,7 +1313,7 @@ class DeoptimizationEntry final {
  public:
   DeoptimizationEntry() = default;
   DeoptimizationEntry(FrameStateDescriptor* descriptor, DeoptimizeKind kind,
-                      DeoptimizeReason reason, VectorSlotPair const& feedback)
+                      DeoptimizeReason reason, FeedbackSource const& feedback)
       : descriptor_(descriptor),
         kind_(kind),
         reason_(reason),
@@ -1321,13 +1322,13 @@ class DeoptimizationEntry final {
   FrameStateDescriptor* descriptor() const { return descriptor_; }
   DeoptimizeKind kind() const { return kind_; }
   DeoptimizeReason reason() const { return reason_; }
-  VectorSlotPair const& feedback() const { return feedback_; }
+  FeedbackSource const& feedback() const { return feedback_; }
 
  private:
   FrameStateDescriptor* descriptor_ = nullptr;
   DeoptimizeKind kind_ = DeoptimizeKind::kEager;
   DeoptimizeReason reason_ = DeoptimizeReason::kUnknown;
-  VectorSlotPair feedback_ = VectorSlotPair();
+  FeedbackSource feedback_ = FeedbackSource();
 };
 
 using DeoptimizationVector = ZoneVector<DeoptimizationEntry>;
@@ -1592,7 +1593,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
 
   int AddDeoptimizationEntry(FrameStateDescriptor* descriptor,
                              DeoptimizeKind kind, DeoptimizeReason reason,
-                             VectorSlotPair const& feedback);
+                             FeedbackSource const& feedback);
   DeoptimizationEntry const& GetDeoptimizationEntry(int deoptimization_id);
   int GetDeoptimizationEntryCount() const {
     return static_cast<int>(deoptimization_entries_.size());

@@ -9,6 +9,7 @@
 #include "src/common/ptr-compr-inl.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/compiler-source-position-table.h"
+#include "src/compiler/feedback-source.h"
 #include "src/compiler/graph-assembler.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
@@ -209,13 +210,13 @@ class EffectControlLinearizer {
 
   Node* AllocateHeapNumberWithValue(Node* node);
   Node* BuildCheckedFloat64ToInt32(CheckForMinusZeroMode mode,
-                                   const VectorSlotPair& feedback, Node* value,
+                                   const FeedbackSource& feedback, Node* value,
                                    Node* frame_state);
   Node* BuildCheckedFloat64ToInt64(CheckForMinusZeroMode mode,
-                                   const VectorSlotPair& feedback, Node* value,
+                                   const FeedbackSource& feedback, Node* value,
                                    Node* frame_state);
   Node* BuildCheckedHeapNumberOrOddballToFloat64(CheckTaggedInputMode mode,
-                                                 const VectorSlotPair& feedback,
+                                                 const FeedbackSource& feedback,
                                                  Node* value,
                                                  Node* frame_state);
   Node* BuildReverseBytes(ExternalArrayType type, Node* value);
@@ -1937,7 +1938,7 @@ Node* EffectControlLinearizer::LowerCheckReceiver(Node* node,
   STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
   Node* check = __ Uint32LessThanOrEqual(
       __ Uint32Constant(FIRST_JS_RECEIVER_TYPE), value_instance_type);
-  __ DeoptimizeIfNot(DeoptimizeReason::kNotAJavaScriptObject, VectorSlotPair(),
+  __ DeoptimizeIfNot(DeoptimizeReason::kNotAJavaScriptObject, FeedbackSource(),
                      check, frame_state);
   return value;
 }
@@ -1956,12 +1957,12 @@ Node* EffectControlLinearizer::LowerCheckReceiverOrNullOrUndefined(
   Node* check0 = __ Uint32LessThanOrEqual(__ Uint32Constant(ODDBALL_TYPE),
                                           value_instance_type);
   __ DeoptimizeIfNot(DeoptimizeReason::kNotAJavaScriptObjectOrNullOrUndefined,
-                     VectorSlotPair(), check0, frame_state);
+                     FeedbackSource(), check0, frame_state);
 
   // Rule out booleans.
   Node* check1 = __ TaggedEqual(value_map, __ BooleanMapConstant());
   __ DeoptimizeIf(DeoptimizeReason::kNotAJavaScriptObjectOrNullOrUndefined,
-                  VectorSlotPair(), check1, frame_state);
+                  FeedbackSource(), check1, frame_state);
   return value;
 }
 
@@ -1972,7 +1973,7 @@ Node* EffectControlLinearizer::LowerCheckSymbol(Node* node, Node* frame_state) {
 
   Node* check =
       __ TaggedEqual(value_map, __ HeapConstant(factory()->symbol_map()));
-  __ DeoptimizeIfNot(DeoptimizeReason::kNotASymbol, VectorSlotPair(), check,
+  __ DeoptimizeIfNot(DeoptimizeReason::kNotASymbol, FeedbackSource(), check,
                      frame_state);
   return value;
 }
@@ -2004,7 +2005,7 @@ Node* EffectControlLinearizer::LowerCheckInternalizedString(Node* node,
       __ Word32And(value_instance_type,
                    __ Int32Constant(kIsNotStringMask | kIsNotInternalizedMask)),
       __ Int32Constant(kInternalizedTag));
-  __ DeoptimizeIfNot(DeoptimizeReason::kWrongInstanceType, VectorSlotPair(),
+  __ DeoptimizeIfNot(DeoptimizeReason::kWrongInstanceType, FeedbackSource(),
                      check, frame_state);
 
   return value;
@@ -2041,7 +2042,7 @@ Node* EffectControlLinearizer::LowerCheckedInt32Add(Node* node,
 
   Node* value = __ Int32AddWithOverflow(lhs, rhs);
   Node* check = __ Projection(1, value);
-  __ DeoptimizeIf(DeoptimizeReason::kOverflow, VectorSlotPair(), check,
+  __ DeoptimizeIf(DeoptimizeReason::kOverflow, FeedbackSource(), check,
                   frame_state);
   return __ Projection(0, value);
 }
@@ -2053,7 +2054,7 @@ Node* EffectControlLinearizer::LowerCheckedInt32Sub(Node* node,
 
   Node* value = __ Int32SubWithOverflow(lhs, rhs);
   Node* check = __ Projection(1, value);
-  __ DeoptimizeIf(DeoptimizeReason::kOverflow, VectorSlotPair(), check,
+  __ DeoptimizeIf(DeoptimizeReason::kOverflow, FeedbackSource(), check,
                   frame_state);
   return __ Projection(0, value);
 }
@@ -2076,7 +2077,7 @@ Node* EffectControlLinearizer::LowerCheckedInt32Div(Node* node,
     Node* mask = __ Int32Constant(divisor - 1);
     Node* shift = __ Int32Constant(WhichPowerOf2(divisor));
     Node* check = __ Word32Equal(__ Word32And(lhs, mask), zero);
-    __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, VectorSlotPair(),
+    __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, FeedbackSource(),
                        check, frame_state);
     return __ Word32Sar(lhs, shift);
   } else {
@@ -2101,12 +2102,12 @@ Node* EffectControlLinearizer::LowerCheckedInt32Div(Node* node,
 
       // Check if {rhs} is zero.
       Node* check_rhs_zero = __ Word32Equal(rhs, zero);
-      __ DeoptimizeIf(DeoptimizeReason::kDivisionByZero, VectorSlotPair(),
+      __ DeoptimizeIf(DeoptimizeReason::kDivisionByZero, FeedbackSource(),
                       check_rhs_zero, frame_state);
 
       // Check if {lhs} is zero, as that would produce minus zero.
       Node* check_lhs_zero = __ Word32Equal(lhs, zero);
-      __ DeoptimizeIf(DeoptimizeReason::kMinusZero, VectorSlotPair(),
+      __ DeoptimizeIf(DeoptimizeReason::kMinusZero, FeedbackSource(),
                       check_lhs_zero, frame_state);
 
       // Check if {lhs} is kMinInt and {rhs} is -1, in which case we'd have
@@ -2119,7 +2120,7 @@ Node* EffectControlLinearizer::LowerCheckedInt32Div(Node* node,
       {
         // Check that {rhs} is not -1, otherwise result would be -kMinInt.
         Node* check_rhs_minusone = __ Word32Equal(rhs, __ Int32Constant(-1));
-        __ DeoptimizeIf(DeoptimizeReason::kOverflow, VectorSlotPair(),
+        __ DeoptimizeIf(DeoptimizeReason::kOverflow, FeedbackSource(),
                         check_rhs_minusone, frame_state);
 
         // Perform the actual integer division.
@@ -2138,7 +2139,7 @@ Node* EffectControlLinearizer::LowerCheckedInt32Div(Node* node,
 
     // Check if the remainder is non-zero.
     Node* check = __ Word32Equal(lhs, __ Int32Mul(value, rhs));
-    __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, VectorSlotPair(),
+    __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, FeedbackSource(),
                        check, frame_state);
 
     return value;
@@ -2220,7 +2221,7 @@ Node* EffectControlLinearizer::LowerCheckedInt32Mod(Node* node,
     Node* vtrue0 = __ Int32Sub(zero, rhs);
 
     // Ensure that {rhs} is not zero, otherwise we'd have to return NaN.
-    __ DeoptimizeIf(DeoptimizeReason::kDivisionByZero, VectorSlotPair(),
+    __ DeoptimizeIf(DeoptimizeReason::kDivisionByZero, FeedbackSource(),
                     __ Word32Equal(vtrue0, zero), frame_state);
     __ Goto(&rhs_checked, vtrue0);
   }
@@ -2243,7 +2244,7 @@ Node* EffectControlLinearizer::LowerCheckedInt32Mod(Node* node,
     Node* res = __ Uint32Mod(__ Int32Sub(zero, lhs), rhs);
 
     // Check if we would have to return -0.
-    __ DeoptimizeIf(DeoptimizeReason::kMinusZero, VectorSlotPair(),
+    __ DeoptimizeIf(DeoptimizeReason::kMinusZero, FeedbackSource(),
                     __ Word32Equal(res, zero), frame_state);
     __ Goto(&done, __ Int32Sub(zero, res));
   }
@@ -2270,13 +2271,13 @@ Node* EffectControlLinearizer::LowerCheckedUint32Div(Node* node,
     Node* mask = __ Uint32Constant(divisor - 1);
     Node* shift = __ Uint32Constant(WhichPowerOf2(divisor));
     Node* check = __ Word32Equal(__ Word32And(lhs, mask), zero);
-    __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, VectorSlotPair(),
+    __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, FeedbackSource(),
                        check, frame_state);
     return __ Word32Shr(lhs, shift);
   } else {
     // Ensure that {rhs} is not zero, otherwise we'd have to return NaN.
     Node* check = __ Word32Equal(rhs, zero);
-    __ DeoptimizeIf(DeoptimizeReason::kDivisionByZero, VectorSlotPair(), check,
+    __ DeoptimizeIf(DeoptimizeReason::kDivisionByZero, FeedbackSource(), check,
                     frame_state);
 
     // Perform the actual unsigned integer division.
@@ -2284,7 +2285,7 @@ Node* EffectControlLinearizer::LowerCheckedUint32Div(Node* node,
 
     // Check if the remainder is non-zero.
     check = __ Word32Equal(lhs, __ Int32Mul(rhs, value));
-    __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, VectorSlotPair(),
+    __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, FeedbackSource(),
                        check, frame_state);
     return value;
   }
@@ -2299,7 +2300,7 @@ Node* EffectControlLinearizer::LowerCheckedUint32Mod(Node* node,
 
   // Ensure that {rhs} is not zero, otherwise we'd have to return NaN.
   Node* check = __ Word32Equal(rhs, zero);
-  __ DeoptimizeIf(DeoptimizeReason::kDivisionByZero, VectorSlotPair(), check,
+  __ DeoptimizeIf(DeoptimizeReason::kDivisionByZero, FeedbackSource(), check,
                   frame_state);
 
   // Perform the actual unsigned integer modulus.
@@ -2314,7 +2315,7 @@ Node* EffectControlLinearizer::LowerCheckedInt32Mul(Node* node,
 
   Node* projection = __ Int32MulWithOverflow(lhs, rhs);
   Node* check = __ Projection(1, projection);
-  __ DeoptimizeIf(DeoptimizeReason::kOverflow, VectorSlotPair(), check,
+  __ DeoptimizeIf(DeoptimizeReason::kOverflow, FeedbackSource(), check,
                   frame_state);
 
   Node* value = __ Projection(0, projection);
@@ -2330,7 +2331,7 @@ Node* EffectControlLinearizer::LowerCheckedInt32Mul(Node* node,
     __ Bind(&if_zero);
     // We may need to return negative zero.
     Node* check_or = __ Int32LessThan(__ Word32Or(lhs, rhs), zero);
-    __ DeoptimizeIf(DeoptimizeReason::kMinusZero, VectorSlotPair(), check_or,
+    __ DeoptimizeIf(DeoptimizeReason::kMinusZero, FeedbackSource(), check_or,
                     frame_state);
     __ Goto(&check_done);
 
@@ -2490,7 +2491,7 @@ Node* EffectControlLinearizer::LowerCheckedUint64ToTaggedSigned(
 }
 
 Node* EffectControlLinearizer::BuildCheckedFloat64ToInt32(
-    CheckForMinusZeroMode mode, const VectorSlotPair& feedback, Node* value,
+    CheckForMinusZeroMode mode, const FeedbackSource& feedback, Node* value,
     Node* frame_state) {
   Node* value32 = __ RoundFloat64ToInt32(value);
   Node* check_same = __ Float64Equal(value, __ ChangeInt32ToFloat64(value32));
@@ -2529,7 +2530,7 @@ Node* EffectControlLinearizer::LowerCheckedFloat64ToInt32(Node* node,
 }
 
 Node* EffectControlLinearizer::BuildCheckedFloat64ToInt64(
-    CheckForMinusZeroMode mode, const VectorSlotPair& feedback, Node* value,
+    CheckForMinusZeroMode mode, const FeedbackSource& feedback, Node* value,
     Node* frame_state) {
   Node* value64 = __ TruncateFloat64ToInt64(value);
   Node* check_same = __ Float64Equal(value, __ ChangeInt64ToFloat64(value64));
@@ -2638,7 +2639,7 @@ Node* EffectControlLinearizer::LowerCheckedTaggedToInt64(Node* node,
 }
 
 Node* EffectControlLinearizer::BuildCheckedHeapNumberOrOddballToFloat64(
-    CheckTaggedInputMode mode, const VectorSlotPair& feedback, Node* value,
+    CheckTaggedInputMode mode, const FeedbackSource& feedback, Node* value,
     Node* frame_state) {
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* check_number = __ TaggedEqual(value_map, __ HeapNumberMapConstant());
@@ -4291,7 +4292,7 @@ Node* EffectControlLinearizer::LowerBigIntAdd(Node* node, Node* frame_state) {
               rhs, __ NoContextConstant());
 
   // Check for exception sentinel: Smi is returned to signal BigIntTooBig.
-  __ DeoptimizeIf(DeoptimizeReason::kBigIntTooBig, VectorSlotPair{},
+  __ DeoptimizeIf(DeoptimizeReason::kBigIntTooBig, FeedbackSource{},
                   ObjectIsSmi(value), frame_state);
 
   return value;
@@ -4345,7 +4346,7 @@ Node* EffectControlLinearizer::LowerCheckNotTaggedHole(Node* node,
                                                        Node* frame_state) {
   Node* value = node->InputAt(0);
   Node* check = __ TaggedEqual(value, __ TheHoleConstant());
-  __ DeoptimizeIf(DeoptimizeReason::kHole, VectorSlotPair(), check,
+  __ DeoptimizeIf(DeoptimizeReason::kHole, FeedbackSource(), check,
                   frame_state);
   return value;
 }
@@ -4383,7 +4384,7 @@ void EffectControlLinearizer::LowerCheckEqualsInternalizedString(
   __ Bind(&if_notsame);
   {
     // Now {val} could still be a non-internalized String that matches {exp}.
-    __ DeoptimizeIf(DeoptimizeReason::kWrongName, VectorSlotPair(),
+    __ DeoptimizeIf(DeoptimizeReason::kWrongName, FeedbackSource(),
                     ObjectIsSmi(val), frame_state);
     Node* val_map = __ LoadField(AccessBuilder::ForMap(), val);
     Node* val_instance_type =
@@ -4402,7 +4403,7 @@ void EffectControlLinearizer::LowerCheckEqualsInternalizedString(
       // Check that the {val} is a non-internalized String, if it's anything
       // else it cannot match the recorded feedback {exp} anyways.
       __ DeoptimizeIfNot(
-          DeoptimizeReason::kWrongName, VectorSlotPair(),
+          DeoptimizeReason::kWrongName, FeedbackSource(),
           __ Word32Equal(__ Word32And(val_instance_type,
                                       __ Int32Constant(kIsNotStringMask |
                                                        kIsNotInternalizedMask)),
@@ -4425,7 +4426,7 @@ void EffectControlLinearizer::LowerCheckEqualsInternalizedString(
                   try_internalize_string_function, isolate_ptr, val);
 
       // Now see if the results match.
-      __ DeoptimizeIfNot(DeoptimizeReason::kWrongName, VectorSlotPair(),
+      __ DeoptimizeIfNot(DeoptimizeReason::kWrongName, FeedbackSource(),
                          __ TaggedEqual(exp, val_internalized), frame_state);
       __ Goto(&if_same);
     }
@@ -4435,7 +4436,7 @@ void EffectControlLinearizer::LowerCheckEqualsInternalizedString(
       // The {val} is a ThinString, let's check the actual value.
       Node* val_actual =
           __ LoadField(AccessBuilder::ForThinStringActual(), val);
-      __ DeoptimizeIfNot(DeoptimizeReason::kWrongName, VectorSlotPair(),
+      __ DeoptimizeIfNot(DeoptimizeReason::kWrongName, FeedbackSource(),
                          __ TaggedEqual(exp, val_actual), frame_state);
       __ Goto(&if_same);
     }
@@ -4449,7 +4450,7 @@ void EffectControlLinearizer::LowerCheckEqualsSymbol(Node* node,
   Node* exp = node->InputAt(0);
   Node* val = node->InputAt(1);
   Node* check = __ TaggedEqual(exp, val);
-  __ DeoptimizeIfNot(DeoptimizeReason::kWrongName, VectorSlotPair(), check,
+  __ DeoptimizeIfNot(DeoptimizeReason::kWrongName, FeedbackSource(), check,
                      frame_state);
 }
 
