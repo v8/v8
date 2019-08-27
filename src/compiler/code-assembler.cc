@@ -34,9 +34,9 @@ namespace compiler {
 
 static_assert(std::is_convertible<TNode<Number>, TNode<Object>>::value,
               "test subtyping");
-static_assert(std::is_convertible<TNode<UnionT<Smi, HeapNumber>>,
-                                  TNode<UnionT<Smi, HeapObject>>>::value,
-              "test subtyping");
+static_assert(
+    std::is_convertible<TNode<Number>, TNode<UnionT<Smi, HeapObject>>>::value,
+    "test subtyping");
 static_assert(
     !std::is_convertible<TNode<UnionT<Smi, HeapObject>>, TNode<Number>>::value,
     "test subtyping");

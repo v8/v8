@@ -732,10 +732,12 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
 template <typename IteratorType>
 Node* CollectionsBuiltinsAssembler::AllocateJSCollectionIterator(
     SloppyTNode<Context> context, int map_index, Node* collection) {
-  Node* const table = LoadObjectField(collection, JSCollection::kTableOffset);
-  Node* const native_context = LoadNativeContext(context);
-  Node* const iterator_map = LoadContextElement(native_context, map_index);
-  Node* const iterator = AllocateInNewSpace(IteratorType::kSize);
+  TNode<Object> const table =
+      LoadObjectField(collection, JSCollection::kTableOffset);
+  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<Object> const iterator_map =
+      LoadContextElement(native_context, map_index);
+  TNode<HeapObject> const iterator = AllocateInNewSpace(IteratorType::kSize);
   StoreMapNoWriteBarrier(iterator, iterator_map);
   StoreObjectFieldRoot(iterator, IteratorType::kPropertiesOrHashOffset,
                        RootIndex::kEmptyFixedArray);
@@ -777,9 +779,9 @@ TF_BUILTIN(SetConstructor, CollectionsBuiltinsAssembler) {
 
 TNode<Smi> CollectionsBuiltinsAssembler::CallGetOrCreateHashRaw(
     SloppyTNode<HeapObject> const key) {
-  Node* const function_addr =
+  TNode<ExternalReference> const function_addr =
       ExternalConstant(ExternalReference::get_or_create_hash_raw());
-  Node* const isolate_ptr =
+  TNode<ExternalReference> const isolate_ptr =
       ExternalConstant(ExternalReference::isolate_address(isolate()));
 
   MachineType type_ptr = MachineType::Pointer();
@@ -794,9 +796,9 @@ TNode<Smi> CollectionsBuiltinsAssembler::CallGetOrCreateHashRaw(
 
 TNode<IntPtrT> CollectionsBuiltinsAssembler::CallGetHashRaw(
     SloppyTNode<HeapObject> const key) {
-  Node* const function_addr =
+  TNode<ExternalReference> const function_addr =
       ExternalConstant(ExternalReference::orderedhashmap_gethash_raw());
-  Node* const isolate_ptr =
+  TNode<ExternalReference> const isolate_ptr =
       ExternalConstant(ExternalReference::isolate_address(isolate()));
 
   MachineType type_ptr = MachineType::Pointer();
@@ -874,7 +876,7 @@ void CollectionsBuiltinsAssembler::
   // Check if iterator is a keys or values JSMapIterator.
   GotoIf(TaggedIsSmi(iterator), if_false);
   TNode<Map> iter_map = LoadMap(CAST(iterator));
-  Node* const instance_type = LoadMapInstanceType(iter_map);
+  TNode<Uint16T> const instance_type = LoadMapInstanceType(iter_map);
   GotoIf(InstanceTypeEqual(instance_type, JS_MAP_KEY_ITERATOR_TYPE),
          &if_key_or_value_iterator);
   Branch(InstanceTypeEqual(instance_type, JS_MAP_VALUE_ITERATOR_TYPE),
@@ -889,7 +891,7 @@ void CollectionsBuiltinsAssembler::
 
   BIND(&extra_checks);
   // Check if the iterator object has the original %MapIteratorPrototype%.
-  Node* const native_context = LoadNativeContext(context);
+  TNode<Context> const native_context = LoadNativeContext(context);
   TNode<Object> const initial_map_iter_proto = LoadContextElement(
       native_context, Context::INITIAL_MAP_ITERATOR_PROTOTYPE_INDEX);
   TNode<HeapObject> const map_iter_proto = LoadMapPrototype(iter_map);
@@ -915,7 +917,7 @@ void BranchIfIterableWithOriginalKeyOrValueMapIterator(
 
 void CollectionsBuiltinsAssembler::BranchIfSetIteratorProtectorValid(
     Label* if_true, Label* if_false) {
-  Node* const protector_cell = SetIteratorProtectorConstant();
+  TNode<PropertyCell> const protector_cell = SetIteratorProtectorConstant();
   DCHECK(isolate()->heap()->set_iterator_protector().IsPropertyCell());
   Branch(
       TaggedEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
@@ -952,7 +954,7 @@ void CollectionsBuiltinsAssembler::BranchIfIterableWithOriginalValueSetIterator(
   GotoIfNot(TaggedEqual(index, SmiConstant(0)), if_false);
 
   // Check if the iterator object has the original SetIterator prototype.
-  Node* const native_context = LoadNativeContext(context);
+  TNode<Context> const native_context = LoadNativeContext(context);
   TNode<Object> const initial_set_iter_proto = LoadContextElement(
       native_context, Context::INITIAL_SET_ITERATOR_PROTOTYPE_INDEX);
   TNode<HeapObject> const set_iter_proto = LoadMapPrototype(iterable_map);
@@ -1077,7 +1079,7 @@ TNode<JSArray> CollectionsBuiltinsAssembler::SetOrSetIteratorToList(
   TVARIABLE(OrderedHashSet, var_table);
   Label if_set(this), if_iterator(this), copy(this);
 
-  Node* const instance_type = LoadInstanceType(CAST(iterable));
+  TNode<Uint16T> const instance_type = LoadInstanceType(CAST(iterable));
   Branch(InstanceTypeEqual(instance_type, JS_SET_TYPE), &if_set, &if_iterator);
 
   BIND(&if_set);
@@ -1295,7 +1297,8 @@ void CollectionsBuiltinsAssembler::SameValueZeroHeapNumber(
 
   {
     // {candidate_key} is a heap number.
-    Node* const candidate_float = LoadHeapNumberValue(CAST(candidate_key));
+    TNode<Float64T> const candidate_float =
+        LoadHeapNumberValue(CAST(candidate_key));
     GotoIf(Float64Equal(key_float, candidate_float), if_same);
 
     // SameValueZero needs to treat NaNs as equal. First check if {key_float}
@@ -1312,7 +1315,7 @@ void CollectionsBuiltinsAssembler::SameValueZeroHeapNumber(
 
   BIND(&if_smi);
   {
-    Node* const candidate_float = SmiToFloat64(CAST(candidate_key));
+    TNode<Float64T> const candidate_float = SmiToFloat64(CAST(candidate_key));
     Branch(Float64Equal(key_float, candidate_float), if_same, if_not_same);
   }
 }
@@ -1463,7 +1466,7 @@ TF_BUILTIN(MapPrototypeGet, CollectionsBuiltinsAssembler) {
 
   ThrowIfNotInstanceType(context, receiver, JS_MAP_TYPE, "Map.prototype.get");
 
-  Node* const table = LoadObjectField(receiver, JSMap::kTableOffset);
+  TNode<Object> const table = LoadObjectField(receiver, JSMap::kTableOffset);
   TNode<Smi> index = CAST(
       CallBuiltin(Builtins::kFindOrderedHashMapEntry, context, table, key));
 
@@ -1488,7 +1491,7 @@ TF_BUILTIN(MapPrototypeHas, CollectionsBuiltinsAssembler) {
 
   ThrowIfNotInstanceType(context, receiver, JS_MAP_TYPE, "Map.prototype.has");
 
-  Node* const table = LoadObjectField(receiver, JSMap::kTableOffset);
+  TNode<Object> const table = LoadObjectField(receiver, JSMap::kTableOffset);
   TNode<Smi> index = CAST(
       CallBuiltin(Builtins::kFindOrderedHashMapEntry, context, table, key));
 
@@ -1509,7 +1512,7 @@ Node* CollectionsBuiltinsAssembler::NormalizeNumberKey(Node* const key) {
 
   GotoIf(TaggedIsSmi(key), &done);
   GotoIfNot(IsHeapNumber(key), &done);
-  Node* const number = LoadHeapNumberValue(key);
+  TNode<Float64T> const number = LoadHeapNumberValue(key);
   GotoIfNot(Float64Equal(number, Float64Constant(0.0)), &done);
   // We know the value is zero, so we take the key to be Smi 0.
   // Another option would be to normalize to Smi here.
@@ -1572,10 +1575,10 @@ TF_BUILTIN(MapPrototypeSet, CollectionsBuiltinsAssembler) {
         table, OrderedHashMap::NumberOfBucketsIndex()))));
 
     STATIC_ASSERT(OrderedHashMap::kLoadFactor == 2);
-    Node* const capacity = WordShl(number_of_buckets.value(), 1);
-    Node* const number_of_elements = SmiUntag(
+    TNode<WordT> const capacity = WordShl(number_of_buckets.value(), 1);
+    TNode<IntPtrT> const number_of_elements = SmiUntag(
         CAST(LoadObjectField(table, OrderedHashMap::NumberOfElementsOffset())));
-    Node* const number_of_deleted = SmiUntag(CAST(LoadObjectField(
+    TNode<IntPtrT> const number_of_deleted = SmiUntag(CAST(LoadObjectField(
         table, OrderedHashMap::NumberOfDeletedElementsOffset())));
     occupancy.Bind(IntPtrAdd(number_of_elements, number_of_deleted));
     GotoIf(IntPtrLessThan(occupancy.value(), capacity), &store_new_entry);
@@ -1586,9 +1589,9 @@ TF_BUILTIN(MapPrototypeSet, CollectionsBuiltinsAssembler) {
     table_var = CAST(LoadObjectField(receiver, JSMap::kTableOffset));
     number_of_buckets.Bind(SmiUntag(CAST(UnsafeLoadFixedArrayElement(
         table_var.value(), OrderedHashMap::NumberOfBucketsIndex()))));
-    Node* const new_number_of_elements = SmiUntag(CAST(LoadObjectField(
+    TNode<IntPtrT> const new_number_of_elements = SmiUntag(CAST(LoadObjectField(
         table_var.value(), OrderedHashMap::NumberOfElementsOffset())));
-    Node* const new_number_of_deleted = SmiUntag(CAST(LoadObjectField(
+    TNode<IntPtrT> const new_number_of_deleted = SmiUntag(CAST(LoadObjectField(
         table_var.value(), OrderedHashMap::NumberOfDeletedElementsOffset())));
     occupancy.Bind(IntPtrAdd(new_number_of_elements, new_number_of_deleted));
     Goto(&store_new_entry);
@@ -1604,13 +1607,13 @@ TF_BUILTIN(MapPrototypeSet, CollectionsBuiltinsAssembler) {
 void CollectionsBuiltinsAssembler::StoreOrderedHashMapNewEntry(
     TNode<OrderedHashMap> const table, Node* const key, Node* const value,
     Node* const hash, Node* const number_of_buckets, Node* const occupancy) {
-  Node* const bucket =
+  TNode<WordT> const bucket =
       WordAnd(hash, IntPtrSub(number_of_buckets, IntPtrConstant(1)));
   TNode<Smi> bucket_entry = CAST(UnsafeLoadFixedArrayElement(
       table, bucket, OrderedHashMap::HashTableStartIndex() * kTaggedSize));
 
   // Store the entry elements.
-  Node* const entry_start = IntPtrAdd(
+  TNode<WordT> const entry_start = IntPtrAdd(
       IntPtrMul(occupancy, IntPtrConstant(OrderedHashMap::kEntrySize)),
       number_of_buckets);
   UnsafeStoreFixedArrayElement(
@@ -1746,10 +1749,10 @@ TF_BUILTIN(SetPrototypeAdd, CollectionsBuiltinsAssembler) {
         table, OrderedHashSet::NumberOfBucketsIndex()))));
 
     STATIC_ASSERT(OrderedHashSet::kLoadFactor == 2);
-    Node* const capacity = WordShl(number_of_buckets.value(), 1);
-    Node* const number_of_elements = SmiUntag(
+    TNode<WordT> const capacity = WordShl(number_of_buckets.value(), 1);
+    TNode<IntPtrT> const number_of_elements = SmiUntag(
         CAST(LoadObjectField(table, OrderedHashSet::NumberOfElementsOffset())));
-    Node* const number_of_deleted = SmiUntag(CAST(LoadObjectField(
+    TNode<IntPtrT> const number_of_deleted = SmiUntag(CAST(LoadObjectField(
         table, OrderedHashSet::NumberOfDeletedElementsOffset())));
     occupancy.Bind(IntPtrAdd(number_of_elements, number_of_deleted));
     GotoIf(IntPtrLessThan(occupancy.value(), capacity), &store_new_entry);
@@ -1760,9 +1763,9 @@ TF_BUILTIN(SetPrototypeAdd, CollectionsBuiltinsAssembler) {
     table_var = CAST(LoadObjectField(receiver, JSMap::kTableOffset));
     number_of_buckets.Bind(SmiUntag(CAST(UnsafeLoadFixedArrayElement(
         table_var.value(), OrderedHashSet::NumberOfBucketsIndex()))));
-    Node* const new_number_of_elements = SmiUntag(CAST(LoadObjectField(
+    TNode<IntPtrT> const new_number_of_elements = SmiUntag(CAST(LoadObjectField(
         table_var.value(), OrderedHashSet::NumberOfElementsOffset())));
-    Node* const new_number_of_deleted = SmiUntag(CAST(LoadObjectField(
+    TNode<IntPtrT> const new_number_of_deleted = SmiUntag(CAST(LoadObjectField(
         table_var.value(), OrderedHashSet::NumberOfDeletedElementsOffset())));
     occupancy.Bind(IntPtrAdd(new_number_of_elements, new_number_of_deleted));
     Goto(&store_new_entry);
@@ -1778,13 +1781,13 @@ TF_BUILTIN(SetPrototypeAdd, CollectionsBuiltinsAssembler) {
 void CollectionsBuiltinsAssembler::StoreOrderedHashSetNewEntry(
     TNode<OrderedHashSet> const table, Node* const key, Node* const hash,
     Node* const number_of_buckets, Node* const occupancy) {
-  Node* const bucket =
+  TNode<WordT> const bucket =
       WordAnd(hash, IntPtrSub(number_of_buckets, IntPtrConstant(1)));
   TNode<Smi> bucket_entry = CAST(UnsafeLoadFixedArrayElement(
       table, bucket, OrderedHashSet::HashTableStartIndex() * kTaggedSize));
 
   // Store the entry elements.
-  Node* const entry_start = IntPtrAdd(
+  TNode<WordT> const entry_start = IntPtrAdd(
       IntPtrMul(occupancy, IntPtrConstant(OrderedHashSet::kEntrySize)),
       number_of_buckets);
   UnsafeStoreFixedArrayElement(
@@ -1879,7 +1882,8 @@ TF_BUILTIN(MapPrototypeGetSize, CollectionsBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
   ThrowIfNotInstanceType(context, receiver, JS_MAP_TYPE,
                          "get Map.prototype.size");
-  Node* const table = LoadObjectField(receiver, JSMap::kTableOffset);
+  TNode<OrderedHashMap> const table =
+      CAST(LoadObjectField(receiver, JSMap::kTableOffset));
   Return(LoadObjectField(table, OrderedHashMap::NumberOfElementsOffset()));
 }
 
@@ -1888,20 +1892,20 @@ TF_BUILTIN(MapPrototypeForEach, CollectionsBuiltinsAssembler) {
   Node* const argc = Parameter(Descriptor::kJSActualArgumentsCount);
   Node* const context = Parameter(Descriptor::kContext);
   CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
-  Node* const receiver = args.GetReceiver();
-  Node* const callback = args.GetOptionalArgumentValue(0);
-  Node* const this_arg = args.GetOptionalArgumentValue(1);
+  TNode<Object> const receiver = args.GetReceiver();
+  TNode<Object> const callback = args.GetOptionalArgumentValue(0);
+  TNode<Object> const this_arg = args.GetOptionalArgumentValue(1);
 
   ThrowIfNotInstanceType(context, receiver, JS_MAP_TYPE, kMethodName);
 
   // Ensure that {callback} is actually callable.
   Label callback_not_callable(this, Label::kDeferred);
   GotoIf(TaggedIsSmi(callback), &callback_not_callable);
-  GotoIfNot(IsCallable(callback), &callback_not_callable);
+  GotoIfNot(IsCallable(CAST(callback)), &callback_not_callable);
 
   TVARIABLE(IntPtrT, var_index, IntPtrConstant(0));
   TVARIABLE(OrderedHashMap, var_table,
-            CAST(LoadObjectField(receiver, JSMap::kTableOffset)));
+            CAST(LoadObjectField(CAST(receiver), JSMap::kTableOffset)));
   Label loop(this, {&var_index, &var_table}), done_loop(this);
   Goto(&loop);
   BIND(&loop);
@@ -1920,7 +1924,7 @@ TF_BUILTIN(MapPrototypeForEach, CollectionsBuiltinsAssembler) {
         NextSkipHoles<OrderedHashMap>(table, index, &done_loop);
 
     // Load the entry value as well.
-    Node* entry_value = LoadFixedArrayElement(
+    TNode<Object> entry_value = LoadFixedArrayElement(
         table, entry_start_position,
         (OrderedHashMap::HashTableStartIndex() + OrderedHashMap::kValueOffset) *
             kTaggedSize);
@@ -1971,7 +1975,7 @@ TF_BUILTIN(MapIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   // Ensure that the {receiver} is actually a JSMapIterator.
   Label if_receiver_valid(this), if_receiver_invalid(this, Label::kDeferred);
   GotoIf(TaggedIsSmi(receiver), &if_receiver_invalid);
-  Node* const receiver_instance_type = LoadInstanceType(receiver);
+  TNode<Uint16T> const receiver_instance_type = LoadInstanceType(receiver);
   GotoIf(
       InstanceTypeEqual(receiver_instance_type, JS_MAP_KEY_VALUE_ITERATOR_TYPE),
       &if_receiver_valid);
@@ -2025,7 +2029,7 @@ TF_BUILTIN(MapIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
 
   BIND(&return_value);
   {
-    Node* result =
+    TNode<JSObject> result =
         AllocateJSIteratorResult(context, var_value.value(), var_done.value());
     Return(result);
   }
@@ -2045,7 +2049,7 @@ TF_BUILTIN(SetPrototypeHas, CollectionsBuiltinsAssembler) {
 
   ThrowIfNotInstanceType(context, receiver, JS_SET_TYPE, "Set.prototype.has");
 
-  Node* const table = LoadObjectField(receiver, JSMap::kTableOffset);
+  TNode<Object> const table = LoadObjectField(receiver, JSMap::kTableOffset);
 
   VARIABLE(entry_start_position, MachineType::PointerRepresentation(),
            IntPtrConstant(0));
@@ -2055,8 +2059,8 @@ TF_BUILTIN(SetPrototypeHas, CollectionsBuiltinsAssembler) {
 
   GotoIf(TaggedIsSmi(key), &if_key_smi);
 
-  Node* key_map = LoadMap(key);
-  Node* key_instance_type = LoadMapInstanceType(key_map);
+  TNode<Map> key_map = LoadMap(key);
+  TNode<Uint16T> key_instance_type = LoadMapInstanceType(key_map);
 
   GotoIf(IsStringInstanceType(key_instance_type), &if_key_string);
   GotoIf(IsHeapNumberMap(key_map), &if_key_heap_number);
@@ -2110,7 +2114,8 @@ TF_BUILTIN(SetPrototypeGetSize, CollectionsBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
   ThrowIfNotInstanceType(context, receiver, JS_SET_TYPE,
                          "get Set.prototype.size");
-  Node* const table = LoadObjectField(receiver, JSSet::kTableOffset);
+  TNode<OrderedHashSet> const table =
+      CAST(LoadObjectField(receiver, JSSet::kTableOffset));
   Return(LoadObjectField(table, OrderedHashSet::NumberOfElementsOffset()));
 }
 
@@ -2119,20 +2124,20 @@ TF_BUILTIN(SetPrototypeForEach, CollectionsBuiltinsAssembler) {
   Node* const argc = Parameter(Descriptor::kJSActualArgumentsCount);
   Node* const context = Parameter(Descriptor::kContext);
   CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
-  Node* const receiver = args.GetReceiver();
-  Node* const callback = args.GetOptionalArgumentValue(0);
-  Node* const this_arg = args.GetOptionalArgumentValue(1);
+  TNode<Object> const receiver = args.GetReceiver();
+  TNode<Object> const callback = args.GetOptionalArgumentValue(0);
+  TNode<Object> const this_arg = args.GetOptionalArgumentValue(1);
 
   ThrowIfNotInstanceType(context, receiver, JS_SET_TYPE, kMethodName);
 
   // Ensure that {callback} is actually callable.
   Label callback_not_callable(this, Label::kDeferred);
   GotoIf(TaggedIsSmi(callback), &callback_not_callable);
-  GotoIfNot(IsCallable(callback), &callback_not_callable);
+  GotoIfNot(IsCallable(CAST(callback)), &callback_not_callable);
 
   TVARIABLE(IntPtrT, var_index, IntPtrConstant(0));
   TVARIABLE(OrderedHashSet, var_table,
-            CAST(LoadObjectField(receiver, JSSet::kTableOffset)));
+            CAST(LoadObjectField(CAST(receiver), JSSet::kTableOffset)));
   Label loop(this, {&var_index, &var_table}), done_loop(this);
   Goto(&loop);
   BIND(&loop);
@@ -2187,7 +2192,7 @@ TF_BUILTIN(SetIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   // Ensure that the {receiver} is actually a JSSetIterator.
   Label if_receiver_valid(this), if_receiver_invalid(this, Label::kDeferred);
   GotoIf(TaggedIsSmi(receiver), &if_receiver_invalid);
-  Node* const receiver_instance_type = LoadInstanceType(receiver);
+  TNode<Uint16T> const receiver_instance_type = LoadInstanceType(receiver);
   GotoIf(InstanceTypeEqual(receiver_instance_type, JS_SET_VALUE_ITERATOR_TYPE),
          &if_receiver_valid);
   Branch(
@@ -2233,7 +2238,7 @@ TF_BUILTIN(SetIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
 
   BIND(&return_value);
   {
-    Node* result =
+    TNode<JSObject> result =
         AllocateJSIteratorResult(context, var_value.value(), var_done.value());
     Return(result);
   }
@@ -2255,8 +2260,8 @@ void CollectionsBuiltinsAssembler::TryLookupOrderedHashTableIndex(
 
   GotoIf(TaggedIsSmi(key), &if_key_smi);
 
-  Node* key_map = LoadMap(key);
-  Node* key_instance_type = LoadMapInstanceType(key_map);
+  TNode<Map> key_map = LoadMap(key);
+  TNode<Uint16T> key_instance_type = LoadMapInstanceType(key_map);
 
   GotoIf(IsStringInstanceType(key_instance_type), &if_key_string);
   GotoIf(IsHeapNumberMap(key_map), &if_key_heap_number);

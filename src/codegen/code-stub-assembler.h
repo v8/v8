@@ -3510,7 +3510,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <class... TArgs>
   Node* MakeTypeError(MessageTemplate message, Node* context, TArgs... args) {
     STATIC_ASSERT(sizeof...(TArgs) <= 3);
-    Node* const make_type_error = LoadContextElement(
+    TNode<Object> const make_type_error = LoadContextElement(
         LoadNativeContext(context), Context::MAKE_TYPE_ERROR_INDEX);
     return CallJS(CodeFactory::Call(isolate()), context, make_type_error,
                   UndefinedConstant(), SmiConstant(message), args...);

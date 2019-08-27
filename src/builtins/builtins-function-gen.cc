@@ -25,12 +25,12 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
 
   // Check that receiver has instance type of JS_FUNCTION_TYPE
-  Node* receiver = args.GetReceiver();
+  TNode<Object> receiver = args.GetReceiver();
   GotoIf(TaggedIsSmi(receiver), &slow);
 
-  TNode<Map> receiver_map = LoadMap(receiver);
+  TNode<Map> receiver_map = LoadMap(CAST(receiver));
   {
-    Node* instance_type = LoadMapInstanceType(receiver_map);
+    TNode<Uint16T> instance_type = LoadMapInstanceType(receiver_map);
     GotoIfNot(
         Word32Or(InstanceTypeEqual(instance_type, JS_FUNCTION_TYPE),
                  InstanceTypeEqual(instance_type, JS_BOUND_FUNCTION_TYPE)),
@@ -68,7 +68,7 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
     TNode<Object> maybe_length_accessor =
         LoadValueByDescriptorEntry(descriptors, length_index);
     GotoIf(TaggedIsSmi(maybe_length_accessor), &slow);
-    Node* length_value_map = LoadMap(CAST(maybe_length_accessor));
+    TNode<Map> length_value_map = LoadMap(CAST(maybe_length_accessor));
     GotoIfNot(IsAccessorInfoMap(length_value_map), &slow);
 
     const int name_index = JSFunction::kNameDescriptorIndex;
@@ -89,7 +89,7 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   {
     Label with_constructor(this);
     VariableList vars({&bound_function_map}, zone());
-    Node* native_context = LoadNativeContext(context);
+    TNode<Context> native_context = LoadNativeContext(context);
 
     Label map_done(this, vars);
     GotoIf(IsConstructorMap(receiver_map), &with_constructor);
@@ -164,7 +164,7 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   // Allocate the resulting bound function.
   Comment("Allocate the resulting bound function");
   {
-    Node* bound_function = Allocate(JSBoundFunction::kSize);
+    TNode<HeapObject> bound_function = Allocate(JSBoundFunction::kSize);
     StoreMapNoWriteBarrier(bound_function, bound_function_map.value());
     StoreObjectFieldNoWriteBarrier(
         bound_function, JSBoundFunction::kBoundTargetFunctionOffset, receiver);
@@ -174,7 +174,7 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
     StoreObjectFieldNoWriteBarrier(bound_function,
                                    JSBoundFunction::kBoundArgumentsOffset,
                                    argument_array.value());
-    Node* empty_fixed_array = EmptyFixedArrayConstant();
+    TNode<FixedArray> empty_fixed_array = EmptyFixedArrayConstant();
     StoreObjectFieldNoWriteBarrier(
         bound_function, JSObject::kPropertiesOrHashOffset, empty_fixed_array);
     StoreObjectFieldNoWriteBarrier(bound_function, JSObject::kElementsOffset,

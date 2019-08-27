@@ -89,12 +89,12 @@ TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<JSFunction> target = CAST(Parameter(Descriptor::kJSTarget));
   TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
-  Node* argc =
+  TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
-  Node* arg1 = args.GetOptionalArgumentValue(0);
-  Node* arg2 = args.GetOptionalArgumentValue(1);
-  Node* arg3 = args.GetOptionalArgumentValue(2);
+  TNode<Object> arg1 = args.GetOptionalArgumentValue(0);
+  TNode<Object> arg2 = args.GetOptionalArgumentValue(1);
+  TNode<Object> arg3 = args.GetOptionalArgumentValue(2);
 
   // If NewTarget is undefined, throw a TypeError exception.
   // All the TypedArray constructors have this as the first step:
@@ -102,8 +102,8 @@ TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
   Label throwtypeerror(this, Label::kDeferred);
   GotoIf(IsUndefined(new_target), &throwtypeerror);
 
-  Node* result = CallBuiltin(Builtins::kCreateTypedArray, context, target,
-                             new_target, arg1, arg2, arg3);
+  TNode<Object> result = CallBuiltin(Builtins::kCreateTypedArray, context,
+                                     target, new_target, arg1, arg2, arg3);
   args.PopAndReturn(result);
 
   BIND(&throwtypeerror);
@@ -649,7 +649,7 @@ TF_BUILTIN(TypedArrayPrototypeToStringTag, TypedArrayBuiltinsAssembler) {
   // that this can be turned into a non-sparse table switch for ideal
   // performance.
   BIND(&if_receiverisheapobject);
-  Node* elements_kind =
+  TNode<Int32T> elements_kind =
       Int32Sub(LoadElementsKind(receiver),
                Int32Constant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND));
   Switch(elements_kind, &return_undefined, elements_kinds, elements_kind_labels,
@@ -893,7 +893,7 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
 
     // This is not a spec'd limit, so it doesn't particularly matter when we
     // throw the range error for typed array length > MaxSmi.
-    TNode<UnionT<Smi, HeapNumber>> raw_length = LoadJSArrayLength(values);
+    TNode<Number> raw_length = LoadJSArrayLength(values);
     GotoIfNot(TaggedIsSmi(raw_length), &if_length_not_smi);
 
     final_length = CAST(raw_length);

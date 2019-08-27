@@ -28,7 +28,7 @@ void DateBuiltinsAssembler::Generate_DatePrototype_GetField(Node* context,
   Label receiver_not_date(this, Label::kDeferred);
 
   GotoIf(TaggedIsSmi(receiver), &receiver_not_date);
-  Node* receiver_instance_type = LoadInstanceType(receiver);
+  TNode<Uint16T> receiver_instance_type = LoadInstanceType(receiver);
   GotoIfNot(InstanceTypeEqual(receiver_instance_type, JS_DATE_TYPE),
             &receiver_not_date);
 
@@ -50,8 +50,8 @@ void DateBuiltinsAssembler::Generate_DatePrototype_GetField(Node* context,
       BIND(&stamp_mismatch);
     }
 
-    Node* field_index_smi = SmiConstant(field_index);
-    Node* function =
+    TNode<Smi> field_index_smi = SmiConstant(field_index);
+    TNode<ExternalReference> function =
         ExternalConstant(ExternalReference::get_date_field_function());
     Node* result = CallCFunction(
         function, MachineType::AnyTagged(),
@@ -223,7 +223,7 @@ TF_BUILTIN(DatePrototypeToPrimitive, CodeStubAssembler) {
   {
     Callable callable = CodeFactory::OrdinaryToPrimitive(
         isolate(), OrdinaryToPrimitiveHint::kNumber);
-    Node* result = CallStub(callable, context, receiver);
+    TNode<Object> result = CallStub(callable, context, receiver);
     Return(result);
   }
 
@@ -232,7 +232,7 @@ TF_BUILTIN(DatePrototypeToPrimitive, CodeStubAssembler) {
   {
     Callable callable = CodeFactory::OrdinaryToPrimitive(
         isolate(), OrdinaryToPrimitiveHint::kString);
-    Node* result = CallStub(callable, context, receiver);
+    TNode<Object> result = CallStub(callable, context, receiver);
     Return(result);
   }
 

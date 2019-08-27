@@ -35,7 +35,7 @@ TF_BUILTIN(CopyFastSmiOrObjectElements, CodeStubAssembler) {
   Node* object = Parameter(Descriptor::kObject);
 
   // Load the {object}s elements.
-  Node* source = LoadObjectField(object, JSObject::kElementsOffset);
+  TNode<Object> source = LoadObjectField(object, JSObject::kElementsOffset);
   Node* target = CloneFixedArray(source, ExtractFixedArrayFlag::kFixedArrays);
   StoreObjectField(object, JSObject::kElementsOffset, target);
   Return(target);
@@ -104,7 +104,7 @@ TF_BUILTIN(NewArgumentsElements, CodeStubAssembler) {
       // the mapped elements (i.e. the first {mapped_count}) with the hole, but
       // make sure not to overshoot the {length} if some arguments are missing.
       TNode<IntPtrT> number_of_holes = IntPtrMin(mapped_count, length);
-      Node* the_hole = TheHoleConstant();
+      TNode<Oddball> the_hole = TheHoleConstant();
 
       // Fill the first elements up to {number_of_holes} with the hole.
       TVARIABLE(IntPtrT, var_index, IntPtrConstant(0));
@@ -213,7 +213,7 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
   Node* IsMarking() {
-    Node* is_marking_addr = ExternalConstant(
+    TNode<ExternalReference> is_marking_addr = ExternalConstant(
         ExternalReference::heap_is_marking_flag_address(this->isolate()));
     return Load(MachineType::Uint8(), is_marking_addr);
   }
@@ -323,13 +323,13 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
 
   void InsertToStoreBufferAndGoto(Node* isolate, Node* slot, Node* mode,
                                   Label* next) {
-    Node* store_buffer_top_addr =
+    TNode<ExternalReference> store_buffer_top_addr =
         ExternalConstant(ExternalReference::store_buffer_top(this->isolate()));
     Node* store_buffer_top =
         Load(MachineType::Pointer(), store_buffer_top_addr);
     StoreNoWriteBarrier(MachineType::PointerRepresentation(), store_buffer_top,
                         slot);
-    Node* new_store_buffer_top =
+    TNode<WordT> new_store_buffer_top =
         IntPtrAdd(store_buffer_top, IntPtrConstant(kSystemPointerSize));
     StoreNoWriteBarrier(MachineType::PointerRepresentation(),
                         store_buffer_top_addr, new_store_buffer_top);
@@ -343,7 +343,7 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
 
     BIND(&overflow);
     {
-      Node* function =
+      TNode<ExternalReference> function =
           ExternalConstant(ExternalReference::store_buffer_overflow_function());
       CallCFunction1WithCallerSavedRegistersMode(MachineType::Int32(),
                                                  MachineType::Pointer(),
@@ -396,7 +396,7 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
 
     BIND(&store_buffer_exit);
     {
-      Node* isolate_constant =
+      TNode<ExternalReference> isolate_constant =
           ExternalConstant(ExternalReference::isolate_address(isolate()));
       Node* fp_mode = Parameter(Descriptor::kFPMode);
       InsertToStoreBufferAndGoto(isolate_constant, slot, fp_mode, &exit);
@@ -404,7 +404,7 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
 
     BIND(&store_buffer_incremental_wb);
     {
-      Node* isolate_constant =
+      TNode<ExternalReference> isolate_constant =
           ExternalConstant(ExternalReference::isolate_address(isolate()));
       Node* fp_mode = Parameter(Descriptor::kFPMode);
       InsertToStoreBufferAndGoto(isolate_constant, slot, fp_mode,
@@ -436,9 +436,9 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
 
     BIND(&call_incremental_wb);
     {
-      Node* function = ExternalConstant(
+      TNode<ExternalReference> function = ExternalConstant(
           ExternalReference::incremental_marking_record_write_function());
-      Node* isolate_constant =
+      TNode<ExternalReference> isolate_constant =
           ExternalConstant(ExternalReference::isolate_address(isolate()));
       Node* fp_mode = Parameter(Descriptor::kFPMode);
       TNode<IntPtrT> object =
@@ -458,12 +458,12 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
 TF_BUILTIN(EphemeronKeyBarrier, RecordWriteCodeStubAssembler) {
   Label exit(this);
 
-  Node* function = ExternalConstant(
+  TNode<ExternalReference> function = ExternalConstant(
       ExternalReference::ephemeron_key_write_barrier_function());
-  Node* isolate_constant =
+  TNode<ExternalReference> isolate_constant =
       ExternalConstant(ExternalReference::isolate_address(isolate()));
   Node* address = Parameter(Descriptor::kSlotAddress);
-  Node* object = BitcastTaggedToWord(Parameter(Descriptor::kObject));
+  TNode<IntPtrT> object = BitcastTaggedToWord(Parameter(Descriptor::kObject));
   Node* fp_mode = Parameter(Descriptor::kFPMode);
   CallCFunction3WithCallerSavedRegistersMode(
       MachineType::Int32(), MachineType::Pointer(), MachineType::Pointer(),
@@ -991,7 +991,7 @@ TF_BUILTIN(GetProperty, CodeStubAssembler) {
   BIND(&if_proxy);
   {
     // Convert the {key} to a Name first.
-    Node* name = CallBuiltin(Builtins::kToName, context, key);
+    TNode<Object> name = CallBuiltin(Builtins::kToName, context, key);
 
     // The {object} is a JSProxy instance, look up the {name} on it, passing
     // {object} both as receiver and holder. If {name} is absent we can safely
@@ -1056,7 +1056,7 @@ TF_BUILTIN(GetPropertyWithReceiver, CodeStubAssembler) {
   BIND(&if_proxy);
   {
     // Convert the {key} to a Name first.
-    Node* name = CallBuiltin(Builtins::kToName, context, key);
+    TNode<Name> name = CAST(CallBuiltin(Builtins::kToName, context, key));
 
     // Proxy cannot handle private symbol so bailout.
     GotoIf(IsPrivateSymbol(name), &if_slow);

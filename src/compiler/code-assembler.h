@@ -644,7 +644,7 @@ TNode<Float64T> Float64Add(TNode<Float64T> a, TNode<Float64T> b);
   V(BitcastInt32ToFloat32, Float32T, Word32T)                  \
   V(BitcastFloat32ToInt32, Uint32T, Float32T)                  \
   V(RoundFloat64ToInt32, Int32T, Float64T)                     \
-  V(RoundInt32ToFloat32, Int32T, Float32T)                     \
+  V(RoundInt32ToFloat32, Float32T, Int32T)                     \
   V(Float64SilenceNaN, Float64T, Float64T)                     \
   V(Float64RoundDown, Float64T, Float64T)                      \
   V(Float64RoundUp, Float64T, Float64T)                        \

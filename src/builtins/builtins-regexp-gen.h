@@ -48,7 +48,7 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   void FastStoreLastIndex(TNode<JSRegExp> regexp, TNode<Smi> value);
   void SlowStoreLastIndex(SloppyTNode<Context> context,
                           SloppyTNode<Object> regexp,
-                          SloppyTNode<Number> value);
+                          SloppyTNode<Object> value);
   void StoreLastIndex(TNode<Context> context, TNode<Object> regexp,
                       TNode<Number> value, bool is_fastpath);
 

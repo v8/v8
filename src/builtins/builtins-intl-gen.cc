@@ -54,7 +54,7 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
 
   // For short strings, do the conversion in CSA through the lookup table.
 
-  Node* const dst = AllocateSeqOneByteString(length);
+  TNode<String> const dst = AllocateSeqOneByteString(length);
 
   const int kMaxShortStringLength = 24;  // Determined empirically.
   GotoIf(Uint32GreaterThan(length, Uint32Constant(kMaxShortStringLength)),
@@ -69,7 +69,7 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
     TNode<IntPtrT> const end_address =
         Signed(IntPtrAdd(start_address, ChangeUint32ToWord(length)));
 
-    Node* const to_lower_table_addr =
+    TNode<ExternalReference> const to_lower_table_addr =
         ExternalConstant(ExternalReference::intl_to_latin1_lower_table());
 
     VARIABLE(var_did_change, MachineRepresentation::kWord32, Int32Constant(0));
@@ -105,7 +105,7 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
   {
     TNode<String> const src = to_direct.string();
 
-    Node* const function_addr =
+    TNode<ExternalReference> const function_addr =
         ExternalConstant(ExternalReference::intl_convert_one_byte_to_lower());
 
     MachineType type_tagged = MachineType::AnyTagged();
@@ -122,8 +122,8 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
 
   BIND(&runtime);
   {
-    Node* const result = CallRuntime(Runtime::kStringToLowerCaseIntl,
-                                     NoContextConstant(), string);
+    TNode<Object> const result = CallRuntime(Runtime::kStringToLowerCaseIntl,
+                                             NoContextConstant(), string);
     Return(result);
   }
 }

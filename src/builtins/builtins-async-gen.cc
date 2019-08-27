@@ -28,7 +28,7 @@ Node* AsyncBuiltinsAssembler::AwaitOld(Node* context, Node* generator,
                                        Node* on_resolve_context_index,
                                        Node* on_reject_context_index,
                                        Node* is_predicted_as_caught) {
-  Node* const native_context = LoadNativeContext(context);
+  TNode<Context> const native_context = LoadNativeContext(context);
 
   static const int kWrappedPromiseOffset =
       FixedArray::SizeFor(Context::MIN_CONTEXT_SLOTS);
@@ -46,7 +46,7 @@ Node* AsyncBuiltinsAssembler::AwaitOld(Node* context, Node* generator,
     StoreMapNoWriteBarrier(closure_context, RootIndex::kAwaitContextMap);
     StoreObjectFieldNoWriteBarrier(closure_context, Context::kLengthOffset,
                                    SmiConstant(Context::MIN_CONTEXT_SLOTS));
-    Node* const empty_scope_info =
+    TNode<Object> const empty_scope_info =
         LoadContextElement(native_context, Context::SCOPE_INFO_INDEX);
     StoreContextElementNoWriteBarrier(
         closure_context, Context::SCOPE_INFO_INDEX, empty_scope_info);
@@ -59,11 +59,11 @@ Node* AsyncBuiltinsAssembler::AwaitOld(Node* context, Node* generator,
   }
 
   // Let promiseCapability be ! NewPromiseCapability(%Promise%).
-  Node* const promise_fun =
-      LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+  TNode<JSFunction> const promise_fun =
+      CAST(LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX));
   CSA_ASSERT(this, IsFunctionWithPrototypeSlotMap(LoadMap(promise_fun)));
-  Node* const promise_map =
-      LoadObjectField(promise_fun, JSFunction::kPrototypeOrInitialMapOffset);
+  TNode<Map> const promise_map = CAST(
+      LoadObjectField(promise_fun, JSFunction::kPrototypeOrInitialMapOffset));
   // Assert that the JSPromise map has an instance size is
   // JSPromise::kSizeWithEmbedderFields.
   CSA_ASSERT(this,
@@ -119,7 +119,7 @@ Node* AsyncBuiltinsAssembler::AwaitOptimized(Node* context, Node* generator,
                                              Node* on_resolve_context_index,
                                              Node* on_reject_context_index,
                                              Node* is_predicted_as_caught) {
-  Node* const native_context = LoadNativeContext(context);
+  TNode<Context> const native_context = LoadNativeContext(context);
   CSA_ASSERT(this, IsJSPromise(promise));
 
   static const int kResolveClosureOffset =
@@ -140,7 +140,7 @@ Node* AsyncBuiltinsAssembler::AwaitOptimized(Node* context, Node* generator,
     StoreMapNoWriteBarrier(closure_context, RootIndex::kAwaitContextMap);
     StoreObjectFieldNoWriteBarrier(closure_context, Context::kLengthOffset,
                                    SmiConstant(Context::MIN_CONTEXT_SLOTS));
-    Node* const empty_scope_info =
+    TNode<Object> const empty_scope_info =
         LoadContextElement(native_context, Context::SCOPE_INFO_INDEX);
     StoreContextElementNoWriteBarrier(
         closure_context, Context::SCOPE_INFO_INDEX, empty_scope_info);
@@ -278,12 +278,10 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(Node* context,
 
 Node* AsyncBuiltinsAssembler::CreateUnwrapClosure(Node* native_context,
                                                   Node* done) {
-  Node* const map = LoadContextElement(
+  TNode<Object> const map = LoadContextElement(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
-  Node* const on_fulfilled_shared = LoadContextElement(
-      native_context, Context::ASYNC_ITERATOR_VALUE_UNWRAP_SHARED_FUN);
-  CSA_ASSERT(this,
-             HasInstanceType(on_fulfilled_shared, SHARED_FUNCTION_INFO_TYPE));
+  TNode<SharedFunctionInfo> const on_fulfilled_shared = CAST(LoadContextElement(
+      native_context, Context::ASYNC_ITERATOR_VALUE_UNWRAP_SHARED_FUN));
   Node* const closure_context =
       AllocateAsyncIteratorValueUnwrapContext(native_context, done);
   return AllocateFunctionWithMapAndContext(map, on_fulfilled_shared,
@@ -306,10 +304,11 @@ TF_BUILTIN(AsyncIteratorValueUnwrap, AsyncBuiltinsAssembler) {
   Node* const value = Parameter(Descriptor::kValue);
   Node* const context = Parameter(Descriptor::kContext);
 
-  Node* const done = LoadContextElement(context, ValueUnwrapContext::kDoneSlot);
-  CSA_ASSERT(this, IsBoolean(done));
+  TNode<Object> const done =
+      LoadContextElement(context, ValueUnwrapContext::kDoneSlot);
+  CSA_ASSERT(this, IsBoolean(CAST(done)));
 
-  Node* const unwrapped_value =
+  TNode<Object> const unwrapped_value =
       CallBuiltin(Builtins::kCreateIterResultObject, context, value, done);
 
   Return(unwrapped_value);

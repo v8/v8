@@ -263,8 +263,8 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait(
   TNode<Object> value = CAST(Parameter(Descriptor::kValue));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
-  Node* outer_promise = LoadObjectField(async_function_object,
-                                        JSAsyncFunctionObject::kPromiseOffset);
+  TNode<Object> outer_promise = LoadObjectField(
+      async_function_object, JSAsyncFunctionObject::kPromiseOffset);
 
   Label after_debug_hook(this), call_debug_hook(this, Label::kDeferred);
   GotoIf(HasAsyncEventDelegate(), &call_debug_hook);
