@@ -418,7 +418,7 @@ HEAP_TEST(InvalidatedSlotsCleanupRightTrim) {
 
   // After cleanup the invalidated object should be smaller
   InvalidatedSlots* invalidated_slots = page->invalidated_slots<OLD_TO_NEW>();
-  CHECK_EQ((*invalidated_slots)[HeapObject::FromAddress(invalidated.address())],
+  CHECK_GE((*invalidated_slots)[HeapObject::FromAddress(invalidated.address())],
            invalidated.Size());
   CHECK_EQ(invalidated_slots->size(), 1);
 }

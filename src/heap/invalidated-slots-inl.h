@@ -82,16 +82,11 @@ void InvalidatedSlotsCleanup::Free(Address free_start, Address free_end) {
   while (free_end > invalidated_start_) {
     // Case: Free region starts before current invalidated object
     if (free_start <= invalidated_start_) {
-      CHECK(invalidated_end_ <= free_end);
       iterator_ = invalidated_slots_->erase(iterator_);
 
     } else {
       // Case: Free region starts within current invalidated object
       // (Can happen for right-trimmed objects)
-      iterator_->second =
-          static_cast<int>(free_start - iterator_->first.address());
-
-      CHECK(free_end >= invalidated_end_);
       iterator_++;
     }
 
