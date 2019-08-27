@@ -2829,6 +2829,9 @@ HeapObject Heap::CreateFillerObjectAt(Address addr, int size,
                                       ClearFreedMemoryMode clear_memory_mode) {
   if (size == 0) return HeapObject();
   HeapObject filler = HeapObject::FromAddress(addr);
+  bool clear_memory =
+      (clear_memory_mode == ClearFreedMemoryMode::kClearFreedMemory ||
+       clear_slots_mode == ClearRecordedSlots::kYes);
   if (size == kTaggedSize) {
     filler.set_map_after_allocation(
         Map::unchecked_cast(isolate()->root(RootIndex::kOnePointerFillerMap)),
@@ -2837,9 +2840,9 @@ HeapObject Heap::CreateFillerObjectAt(Address addr, int size,
     filler.set_map_after_allocation(
         Map::unchecked_cast(isolate()->root(RootIndex::kTwoPointerFillerMap)),
         SKIP_WRITE_BARRIER);
-    if (clear_memory_mode == ClearFreedMemoryMode::kClearFreedMemory) {
-      Memory<Tagged_t>(addr + kTaggedSize) =
-          static_cast<Tagged_t>(kClearedFreeMemoryValue);
+    if (clear_memory) {
+      AtomicSlot slot(ObjectSlot(addr) + 1);
+      *slot = static_cast<Tagged_t>(kClearedFreeMemoryValue);
     }
   } else {
     DCHECK_GT(size, 2 * kTaggedSize);
@@ -2847,7 +2850,7 @@ HeapObject Heap::CreateFillerObjectAt(Address addr, int size,
         Map::unchecked_cast(isolate()->root(RootIndex::kFreeSpaceMap)),
         SKIP_WRITE_BARRIER);
     FreeSpace::cast(filler).relaxed_write_size(size);
-    if (clear_memory_mode == ClearFreedMemoryMode::kClearFreedMemory) {
+    if (clear_memory) {
       MemsetTagged(ObjectSlot(addr) + 2, Object(kClearedFreeMemoryValue),
                    (size / kTaggedSize) - 2);
     }
@@ -2991,11 +2994,21 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
         object, HeapObject::FromAddress(new_start));
   }
 
+#ifdef DEBUG
+  if (MayContainRecordedSlots(object)) {
+    MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+    DCHECK(!chunk->RegisteredObjectWithInvalidatedSlots<OLD_TO_OLD>(object));
+    DCHECK(!chunk->RegisteredObjectWithInvalidatedSlots<OLD_TO_NEW>(object));
+  }
+#endif
+
   // Technically in new space this write might be omitted (except for
   // debug mode which iterates through the heap), but to play safer
   // we still do it.
-  HeapObject filler =
-      CreateFillerObjectAt(old_start, bytes_to_trim, ClearRecordedSlots::kYes);
+  CreateFillerObjectAt(old_start, bytes_to_trim,
+                       MayContainRecordedSlots(object)
+                           ? ClearRecordedSlots::kYes
+                           : ClearRecordedSlots::kNo);
 
   // Initialize header of the trimmed array. Since left trimming is only
   // performed on pages which are not concurrently swept creating a filler
@@ -3007,30 +3020,6 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
   FixedArrayBase new_object =
       FixedArrayBase::cast(HeapObject::FromAddress(new_start));
 
-#ifdef DEBUG
-  if (MayContainRecordedSlots(object)) {
-    MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-    DCHECK(!chunk->RegisteredObjectWithInvalidatedSlots<OLD_TO_NEW>(object));
-  }
-#endif
-
-  // Handle invalidated old-to-old slots.
-  if (incremental_marking()->IsCompacting() &&
-      MayContainRecordedSlots(new_object)) {
-    // If the array was right-trimmed before, then it is registered in
-    // the invalidated_slots.
-    MemoryChunk::FromHeapObject(new_object)
-        ->MoveObjectWithInvalidatedSlots<OLD_TO_OLD>(filler, new_object);
-    // We have to clear slots in the free space to avoid stale old-to-old slots.
-    // Note we cannot use ClearFreedMemoryMode of CreateFillerObjectAt because
-    // we need pointer granularity writes to avoid race with the concurrent
-    // marking.
-    if (filler.Size() > FreeSpace::kSize) {
-      MemsetTagged(filler.RawField(FreeSpace::kSize),
-                   ReadOnlyRoots(this).undefined_value(),
-                   (filler.Size() - FreeSpace::kSize) / kTaggedSize);
-    }
-  }
   // Notify the heap profiler of change in object layout.
   OnMoveEvent(new_object, object, new_object.Size());
 
@@ -3103,29 +3092,20 @@ void Heap::CreateFillerForArray(T object, int elements_to_trim,
   if (MayContainRecordedSlots(object)) {
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
     DCHECK(!chunk->RegisteredObjectWithInvalidatedSlots<OLD_TO_NEW>(object));
+    DCHECK(!chunk->RegisteredObjectWithInvalidatedSlots<OLD_TO_OLD>(object));
   }
 #endif
 
-  // Register the array as an object with invalidated old-to-old slots. We
-  // cannot use NotifyObjectLayoutChange as it would mark the array black,
-  // which is not safe for left-trimming because left-trimming re-pushes
-  // only grey arrays onto the marking worklist.
-  if (incremental_marking()->IsCompacting() &&
-      MayContainRecordedSlots(object)) {
-    // Ensure that the object survives because the InvalidatedSlotsFilter will
-    // compute its size from its map during pointers updating phase.
-    incremental_marking()->WhiteToGreyAndPush(object);
-    MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-    chunk->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object, old_size);
-  }
+  bool clear_slots = MayContainRecordedSlots(object);
 
   // Technically in new space this write might be omitted (except for
   // debug mode which iterates through the heap), but to play safer
   // we still do it.
   // We do not create a filler for objects in a large object space.
   if (!IsLargeObject(object)) {
-    HeapObject filler =
-        CreateFillerObjectAt(new_end, bytes_to_trim, ClearRecordedSlots::kNo);
+    HeapObject filler = CreateFillerObjectAt(
+        new_end, bytes_to_trim,
+        clear_slots ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
     DCHECK(!filler.is_null());
     // Clear the mark bits of the black area that belongs now to the filler.
     // This is an optimization. The sweeper will release black fillers anyway.
@@ -3136,6 +3116,11 @@ void Heap::CreateFillerForArray(T object, int elements_to_trim,
           page->AddressToMarkbitIndex(new_end),
           page->AddressToMarkbitIndex(new_end + bytes_to_trim));
     }
+  } else if (clear_slots) {
+    // Large objects are not swept, so it is not necessary to clear the
+    // recorded slot.
+    MemsetTagged(ObjectSlot(new_end), Object(kClearedFreeMemoryValue),
+                 (old_end - new_end) / kTaggedSize);
   }
 
   // Initialize header of the trimmed array. We are storing the new length
