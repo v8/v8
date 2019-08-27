@@ -232,6 +232,10 @@ class MachineRepresentationInferrer {
           case IrOpcode::kWord64PoisonOnSpeculation:
             representation_vector_[node->id()] = MachineRepresentation::kWord64;
             break;
+          case IrOpcode::kCompressedHeapConstant:
+            representation_vector_[node->id()] =
+                MachineRepresentation::kCompressedPointer;
+            break;
           case IrOpcode::kExternalConstant:
             representation_vector_[node->id()] =
                 MachineType::PointerRepresentation();
@@ -516,8 +520,15 @@ class MachineRepresentationChecker {
                     node, 1, inferrer_->GetRepresentation(node->InputAt(0)));
               }
             } else {
-              CheckValueIsCompressedOrInt32(node, 0);
-              CheckValueIsCompressedOrInt32(node, 1);
+              if (COMPRESS_POINTERS_BOOL) {
+                // We explicitly allow 64-bit tagged values into Word32Equal,
+                // for truncating tagged pointer comparison.
+                CheckValueIsCompressedOrTaggedOrInt32(node, 0);
+                CheckValueIsCompressedOrTaggedOrInt32(node, 0);
+              } else {
+                CheckValueIsCompressedOrInt32(node, 0);
+                CheckValueIsCompressedOrInt32(node, 1);
+              }
             }
             break;
 
@@ -771,11 +782,6 @@ class MachineRepresentationChecker {
       case MachineRepresentation::kCompressedPointer:
       case MachineRepresentation::kCompressedSigned:
         return;
-      case MachineRepresentation::kNone:
-        if (input->opcode() == IrOpcode::kCompressedHeapConstant) {
-          return;
-        }
-        break;
       default:
         break;
     }
@@ -878,17 +884,6 @@ class MachineRepresentationChecker {
       case MachineRepresentation::kCompressedSigned:
       case MachineRepresentation::kCompressedPointer:
         return;
-      case MachineRepresentation::kNone: {
-        if (input->opcode() == IrOpcode::kCompressedHeapConstant) {
-          return;
-        }
-        std::ostringstream str;
-        str << "TypeError: node #" << input->id() << ":" << *input->op()
-            << " is untyped.";
-        PrintDebugHelp(str, node);
-        FATAL("%s", str.str().c_str());
-        break;
-      }
       default:
         break;
     }
@@ -896,6 +891,34 @@ class MachineRepresentationChecker {
     str << "TypeError: node #" << node->id() << ":" << *node->op()
         << " uses node #" << input->id() << ":" << *input->op()
         << " which doesn't have a compressed or int32-compatible "
+           "representation.";
+    PrintDebugHelp(str, node);
+    FATAL("%s", str.str().c_str());
+  }
+
+  void CheckValueIsCompressedOrTaggedOrInt32(Node const* node, int index) {
+    Node const* input = node->InputAt(index);
+    switch (inferrer_->GetRepresentation(input)) {
+      case MachineRepresentation::kBit:
+      case MachineRepresentation::kWord8:
+      case MachineRepresentation::kWord16:
+      case MachineRepresentation::kWord32:
+        return;
+      case MachineRepresentation::kTagged:
+      case MachineRepresentation::kTaggedPointer:
+      case MachineRepresentation::kTaggedSigned:
+        return;
+      case MachineRepresentation::kCompressed:
+      case MachineRepresentation::kCompressedSigned:
+      case MachineRepresentation::kCompressedPointer:
+        return;
+      default:
+        break;
+    }
+    std::ostringstream str;
+    str << "TypeError: node #" << node->id() << ":" << *node->op()
+        << " uses node #" << input->id() << ":" << *input->op()
+        << " which doesn't have a compressed, tagged, or int32-compatible "
            "representation.";
     PrintDebugHelp(str, node);
     FATAL("%s", str.str().c_str());
