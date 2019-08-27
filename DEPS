@@ -245,8 +245,6 @@ deps = {
     'condition': 'checkout_mac',
     'dep_type': 'cipd',
   },
-  'v8/test/wasm-js/data':
-    Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + 'd22a7659e5f2f09be9532e2c72c04407134cc08e',
   'v8/third_party/perfetto':
     Var('android_url') + '/platform/external/perfetto.git' + '@' + '3150f3961532dccfe18a6c87c9494f754d3b6a51',
   'v8/third_party/protobuf':
@@ -359,6 +357,17 @@ hooks = [
                 '-u',
                 '--bucket', 'v8-wasm-spec-tests',
                 '-s', 'v8/test/wasm-spec-tests/tests.tar.gz.sha1',
+    ],
+  },
+  {
+    'name': 'wasm_js',
+    'pattern': '.',
+    'action': [ 'download_from_google_storage',
+                '--no_resume',
+                '--no_auth',
+                '-u',
+                '--bucket', 'v8-wasm-spec-tests',
+                '-s', 'v8/test/wasm-js/tests.tar.gz.sha1',
     ],
   },
   {
