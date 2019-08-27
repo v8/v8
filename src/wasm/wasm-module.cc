@@ -137,9 +137,16 @@ Handle<String> ToValueTypeString(Isolate* isolate, ValueType type) {
       string = factory->InternalizeUtf8String("f64");
       break;
     }
-    // TODO(mstarzinger): Add support and tests for exnref and funcref.
     case i::wasm::kWasmAnyRef: {
       string = factory->InternalizeUtf8String("anyref");
+      break;
+    }
+    case i::wasm::kWasmFuncRef: {
+      string = factory->InternalizeUtf8String("anyfunc");
+      break;
+    }
+    case i::wasm::kWasmExnRef: {
+      string = factory->InternalizeUtf8String("exnref");
       break;
     }
     default:
