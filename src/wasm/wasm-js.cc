@@ -1223,6 +1223,9 @@ bool GetValueType(Isolate* isolate, MaybeLocal<Value> maybe,
   } else if (enabled_features.anyref &&
              string->StringEquals(v8_str(isolate, "anyfunc"))) {
     *type = i::wasm::kWasmFuncRef;
+  } else if (enabled_features.eh &&
+             string->StringEquals(v8_str(isolate, "exnref"))) {
+    *type = i::wasm::kWasmExnRef;
   } else {
     // Unrecognized type.
     *type = i::wasm::kWasmStmt;
@@ -1337,7 +1340,8 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       global_obj->SetF64(f64_value);
       break;
     }
-    case i::wasm::kWasmAnyRef: {
+    case i::wasm::kWasmAnyRef:
+    case i::wasm::kWasmExnRef: {
       if (args.Length() < 2) {
         // When no inital value is provided, we have to use the WebAssembly
         // default value 'null', and not the JS default value 'undefined'.
