@@ -219,6 +219,8 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   name(this, CSA_DEBUG_INFO(name), __VA_ARGS__)
 #define TYPED_VARIABLE_DEF(type, name, ...) \
   TVariable<type> name(CSA_DEBUG_INFO(name), __VA_ARGS__)
+#define TYPED_VARIABLE_CONSTRUCTOR(name, ...) \
+  name(CSA_DEBUG_INFO(name), __VA_ARGS__)
 #else  // DEBUG
 #define CSA_ASSERT(csa, ...) ((void)0)
 #define CSA_ASSERT_BRANCH(csa, ...) ((void)0)
@@ -227,9 +229,12 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 #define VARIABLE(name, ...) Variable name(this, __VA_ARGS__)
 #define VARIABLE_CONSTRUCTOR(name, ...) name(this, __VA_ARGS__)
 #define TYPED_VARIABLE_DEF(type, name, ...) TVariable<type> name(__VA_ARGS__)
+#define TYPED_VARIABLE_CONSTRUCTOR(name, ...) name(__VA_ARGS__)
 #endif  // DEBUG
 
 #define TVARIABLE(...) EXPAND(TYPED_VARIABLE_DEF(__VA_ARGS__, this))
+#define TVARIABLE_CONSTRUCTOR(...) \
+  EXPAND(TYPED_VARIABLE_CONSTRUCTOR(__VA_ARGS__, this))
 
 #ifdef ENABLE_SLOW_DCHECKS
 #define CSA_SLOW_ASSERT(csa, ...) \
@@ -970,9 +975,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<IntPtrT> LoadAndUntagObjectField(SloppyTNode<HeapObject> object,
                                          int offset);
   // Load a SMI field, untag it, and convert to Word32.
-  TNode<Int32T> LoadAndUntagToWord32ObjectField(Node* object, int offset);
-  // Load a SMI and untag it.
-  TNode<IntPtrT> LoadAndUntagSmi(Node* base, int index);
+  TNode<Int32T> LoadAndUntagToWord32ObjectField(SloppyTNode<HeapObject> object,
+                                                int offset);
 
   TNode<MaybeObject> LoadMaybeWeakObjectField(SloppyTNode<HeapObject> object,
                                               int offset) {
@@ -1038,9 +1042,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     StoreToObject(MachineRepresentationOf<T>::value, reference.object, offset,
                   value, StoreToObjectWriteBarrier::kNone);
   }
-
-  // Tag a smi and store it.
-  void StoreAndTagSmi(Node* base, int offset, Node* value);
 
   // Load the floating point value of a HeapNumber.
   TNode<Float64T> LoadHeapNumberValue(SloppyTNode<HeapObject> object);

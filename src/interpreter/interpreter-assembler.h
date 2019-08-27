@@ -119,7 +119,6 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   std::pair<compiler::TNode<Object>, compiler::TNode<Object>>
   LoadRegisterPairAtOperandIndex(int operand_index);
   void StoreRegister(compiler::Node* value, Register reg);
-  void StoreAndTagRegister(compiler::Node* value, Register reg);
   void StoreRegisterAtOperandIndex(compiler::Node* value, int operand_index);
   void StoreRegisterPairAtOperandIndex(compiler::Node* value1,
                                        compiler::Node* value2,
@@ -269,7 +268,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void MaybeDropFrames(compiler::Node* context);
 
   // Returns the offset from the BytecodeArrayPointer of the current bytecode.
-  compiler::Node* BytecodeOffset();
+  TNode<IntPtrT> BytecodeOffset();
 
  protected:
   Bytecode bytecode() const { return bytecode_; }
@@ -291,7 +290,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
 
   // Returns the frame pointer for the interpreted frame of the function being
   // interpreted.
-  compiler::Node* GetInterpretedFramePointer();
+  TNode<RawPtrT> GetInterpretedFramePointer();
 
   // Operations on registers.
   compiler::TNode<IntPtrT> RegisterLocation(Register reg);
@@ -386,16 +385,16 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Save the bytecode offset to the interpreter frame.
   void SaveBytecodeOffset();
   // Reload the bytecode offset from the interpreter frame.
-  Node* ReloadBytecodeOffset();
+  TNode<IntPtrT> ReloadBytecodeOffset();
 
   // Updates and returns BytecodeOffset() advanced by the current bytecode's
   // size. Traces the exit of the current bytecode.
-  compiler::Node* Advance();
+  TNode<IntPtrT> Advance();
 
   // Updates and returns BytecodeOffset() advanced by delta bytecodes.
   // Traces the exit of the current bytecode.
-  compiler::Node* Advance(int delta);
-  compiler::Node* Advance(compiler::Node* delta, bool backward = false);
+  TNode<IntPtrT> Advance(int delta);
+  TNode<IntPtrT> Advance(SloppyTNode<IntPtrT> delta, bool backward = false);
 
   // Load the bytecode at |bytecode_offset|.
   compiler::TNode<WordT> LoadBytecode(compiler::Node* bytecode_offset);
@@ -425,9 +424,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
 
   Bytecode bytecode_;
   OperandScale operand_scale_;
-  CodeStubAssembler::Variable interpreted_frame_pointer_;
+  TVariable<RawPtrT> interpreted_frame_pointer_;
   CodeStubAssembler::Variable bytecode_array_;
-  CodeStubAssembler::Variable bytecode_offset_;
+  TVariable<IntPtrT> bytecode_offset_;
   CodeStubAssembler::Variable dispatch_table_;
   CodeStubAssembler::Variable accumulator_;
   AccumulatorUse accumulator_use_;

@@ -31,14 +31,14 @@ InterpreterAssembler::InterpreterAssembler(CodeAssemblerState* state,
     : CodeStubAssembler(state),
       bytecode_(bytecode),
       operand_scale_(operand_scale),
-      VARIABLE_CONSTRUCTOR(interpreted_frame_pointer_,
-                           MachineType::PointerRepresentation()),
+      TVARIABLE_CONSTRUCTOR(interpreted_frame_pointer_),
       VARIABLE_CONSTRUCTOR(
           bytecode_array_, MachineRepresentation::kTagged,
           Parameter(InterpreterDispatchDescriptor::kBytecodeArray)),
-      VARIABLE_CONSTRUCTOR(
-          bytecode_offset_, MachineType::PointerRepresentation(),
-          Parameter(InterpreterDispatchDescriptor::kBytecodeOffset)),
+      TVARIABLE_CONSTRUCTOR(
+          bytecode_offset_,
+          UncheckedCast<IntPtrT>(
+              Parameter(InterpreterDispatchDescriptor::kBytecodeOffset))),
       VARIABLE_CONSTRUCTOR(
           dispatch_table_, MachineType::PointerRepresentation(),
           Parameter(InterpreterDispatchDescriptor::kDispatchTable)),
@@ -71,27 +71,27 @@ InterpreterAssembler::~InterpreterAssembler() {
   UnregisterCallGenerationCallbacks();
 }
 
-Node* InterpreterAssembler::GetInterpretedFramePointer() {
+TNode<RawPtrT> InterpreterAssembler::GetInterpretedFramePointer() {
   if (!interpreted_frame_pointer_.IsBound()) {
-    interpreted_frame_pointer_.Bind(LoadParentFramePointer());
+    interpreted_frame_pointer_ = LoadParentFramePointer();
   } else if (Bytecodes::MakesCallAlongCriticalPath(bytecode_) && made_call_ &&
              !reloaded_frame_ptr_) {
-    interpreted_frame_pointer_.Bind(LoadParentFramePointer());
+    interpreted_frame_pointer_ = LoadParentFramePointer();
     reloaded_frame_ptr_ = true;
   }
   return interpreted_frame_pointer_.value();
 }
 
-Node* InterpreterAssembler::BytecodeOffset() {
+TNode<IntPtrT> InterpreterAssembler::BytecodeOffset() {
   if (Bytecodes::MakesCallAlongCriticalPath(bytecode_) && made_call_ &&
       (bytecode_offset_.value() ==
        Parameter(InterpreterDispatchDescriptor::kBytecodeOffset))) {
-    bytecode_offset_.Bind(ReloadBytecodeOffset());
+    bytecode_offset_ = ReloadBytecodeOffset();
   }
   return bytecode_offset_.value();
 }
 
-Node* InterpreterAssembler::ReloadBytecodeOffset() {
+TNode<IntPtrT> InterpreterAssembler::ReloadBytecodeOffset() {
   TNode<IntPtrT> offset = LoadAndUntagRegister(Register::bytecode_offset());
   if (operand_scale() != OperandScale::kSingle) {
     // Add one to the offset such that it points to the actual bytecode rather
@@ -102,13 +102,31 @@ Node* InterpreterAssembler::ReloadBytecodeOffset() {
 }
 
 void InterpreterAssembler::SaveBytecodeOffset() {
-  Node* offset = BytecodeOffset();
+  TNode<IntPtrT> bytecode_offset = BytecodeOffset();
   if (operand_scale() != OperandScale::kSingle) {
-    // Subtract one from the offset such that it points to the Wide / ExtraWide
-    // prefix bytecode.
-    offset = IntPtrSub(BytecodeOffset(), IntPtrConstant(1));
+    // Subtract one from the bytecode_offset such that it points to the Wide /
+    // ExtraWide prefix bytecode.
+    bytecode_offset = IntPtrSub(BytecodeOffset(), IntPtrConstant(1));
   }
-  StoreAndTagRegister(offset, Register::bytecode_offset());
+  int store_offset =
+      Register::bytecode_offset().ToOperand() * kSystemPointerSize;
+  TNode<RawPtrT> base = GetInterpretedFramePointer();
+
+  if (SmiValuesAre32Bits()) {
+    int zero_offset = store_offset + 4;
+    int payload_offset = store_offset;
+#if V8_TARGET_LITTLE_ENDIAN
+    std::swap(zero_offset, payload_offset);
+#endif
+    StoreNoWriteBarrier(MachineRepresentation::kWord32, base,
+                        IntPtrConstant(zero_offset), Int32Constant(0));
+    StoreNoWriteBarrier(MachineRepresentation::kWord32, base,
+                        IntPtrConstant(payload_offset),
+                        TruncateIntPtrToInt32(bytecode_offset));
+  } else {
+    StoreNoWriteBarrier(MachineRepresentation::kTaggedSigned, base,
+                        IntPtrConstant(store_offset), SmiTag(bytecode_offset));
+  }
 }
 
 Node* InterpreterAssembler::BytecodeArrayTaggedPointer() {
@@ -239,8 +257,18 @@ TNode<Object> InterpreterAssembler::LoadRegister(Register reg) {
 }
 
 TNode<IntPtrT> InterpreterAssembler::LoadAndUntagRegister(Register reg) {
-  return LoadAndUntagSmi(GetInterpretedFramePointer(),
-                         reg.ToOperand() * kSystemPointerSize);
+  TNode<RawPtrT> base = GetInterpretedFramePointer();
+  int index = reg.ToOperand() * kSystemPointerSize;
+  if (SmiValuesAre32Bits()) {
+#if V8_TARGET_LITTLE_ENDIAN
+    index += 4;
+#endif
+    return ChangeInt32ToIntPtr(
+        Load(MachineType::Int32(), base, IntPtrConstant(index)));
+  } else {
+    return SmiToIntPtr(
+        Load(MachineType::TaggedSigned(), base, IntPtrConstant(index)));
+  }
 }
 
 TNode<Object> InterpreterAssembler::LoadRegisterAtOperandIndex(
@@ -298,11 +326,6 @@ void InterpreterAssembler::StoreRegister(Node* value, Register reg) {
 void InterpreterAssembler::StoreRegister(Node* value, Node* reg_index) {
   StoreFullTaggedNoWriteBarrier(GetInterpretedFramePointer(),
                                 RegisterFrameOffset(reg_index), value);
-}
-
-void InterpreterAssembler::StoreAndTagRegister(Node* value, Register reg) {
-  int offset = reg.ToOperand() * kSystemPointerSize;
-  StoreAndTagSmi(GetInterpretedFramePointer(), offset, value);
 }
 
 void InterpreterAssembler::StoreRegisterAtOperandIndex(Node* value,
@@ -1292,19 +1315,22 @@ void InterpreterAssembler::UpdateInterruptBudget(Node* weight, bool backward) {
   Comment("] UpdateInterruptBudget");
 }
 
-Node* InterpreterAssembler::Advance() { return Advance(CurrentBytecodeSize()); }
+TNode<IntPtrT> InterpreterAssembler::Advance() {
+  return Advance(CurrentBytecodeSize());
+}
 
-Node* InterpreterAssembler::Advance(int delta) {
+TNode<IntPtrT> InterpreterAssembler::Advance(int delta) {
   return Advance(IntPtrConstant(delta));
 }
 
-Node* InterpreterAssembler::Advance(Node* delta, bool backward) {
+TNode<IntPtrT> InterpreterAssembler::Advance(SloppyTNode<IntPtrT> delta,
+                                             bool backward) {
 #ifdef V8_TRACE_IGNITION
   TraceBytecode(Runtime::kInterpreterTraceBytecodeExit);
 #endif
-  TNode<WordT> next_offset = backward ? IntPtrSub(BytecodeOffset(), delta)
-                                      : IntPtrAdd(BytecodeOffset(), delta);
-  bytecode_offset_.Bind(next_offset);
+  TNode<IntPtrT> next_offset = backward ? IntPtrSub(BytecodeOffset(), delta)
+                                        : IntPtrAdd(BytecodeOffset(), delta);
+  bytecode_offset_ = next_offset;
   return next_offset;
 }
 

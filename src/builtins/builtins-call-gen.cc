@@ -135,10 +135,11 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
   TVARIABLE(Int32T, var_length);
   BIND(&if_array);
   {
+    TNode<JSObject> js_object = CAST(arguments_list);
     // Try to extract the elements from a JSArray object.
-    var_elements = LoadElements(CAST(arguments_list));
+    var_elements = LoadElements(js_object);
     var_length =
-        LoadAndUntagToWord32ObjectField(arguments_list, JSArray::kLengthOffset);
+        LoadAndUntagToWord32ObjectField(js_object, JSArray::kLengthOffset);
 
     // Holey arrays and double backing stores need special treatment.
     STATIC_ASSERT(PACKED_SMI_ELEMENTS == 0);
