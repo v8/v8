@@ -1349,6 +1349,16 @@ bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
     // Collect source positions immediately to try and flush out bytecode
     // mismatches.
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared_info);
+
+    // Do the same for eagerly compiled inner functions.
+    for (auto&& inner_job : inner_function_jobs) {
+      Handle<SharedFunctionInfo> inner_shared_info =
+          Compiler::GetSharedFunctionInfo(
+              inner_job->compilation_info()->literal(), parse_info.script(),
+              isolate);
+      SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate,
+                                                         inner_shared_info);
+    }
   }
 
   return true;
