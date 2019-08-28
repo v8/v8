@@ -433,7 +433,8 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
     }
 
     // Copy the backing store if it is copy-on-write.
-    if (IsSmiOrObjectElementsKind(to) || IsSealedElementsKind(to)) {
+    if (IsSmiOrObjectElementsKind(to) || IsSealedElementsKind(to) ||
+        IsNonextensibleElementsKind(to)) {
       JSObject::EnsureWritableFastElements(holder_obj);
     }
     return;
@@ -1137,9 +1138,10 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
                                              : NOT_FOUND;
     }
     property_details_ = accessor->GetDetails(js_object, number_);
-    if (map.has_frozen_or_sealed_elements()) {
-      PropertyAttributes attrs = map.has_sealed_elements() ? SEALED : FROZEN;
-      property_details_ = property_details_.CopyAddAttributes(attrs);
+    if (map.has_frozen_elements()) {
+      property_details_ = property_details_.CopyAddAttributes(FROZEN);
+    } else if (map.has_sealed_elements()) {
+      property_details_ = property_details_.CopyAddAttributes(SEALED);
     }
   } else if (!map.is_dictionary_map()) {
     DescriptorArray descriptors = map.instance_descriptors(isolate_);

@@ -2048,7 +2048,7 @@ MaybeHandle<JSObject> JSObject::ObjectCreate(Isolate* isolate,
 void JSObject::EnsureWritableFastElements(Handle<JSObject> object) {
   DCHECK(object->HasSmiOrObjectElements() ||
          object->HasFastStringWrapperElements() ||
-         object->HasFrozenOrSealedElements());
+         object->HasAnyNonextensibleElements());
   FixedArray raw_elems = FixedArray::cast(object->elements());
   Isolate* isolate = object->GetIsolate();
   if (raw_elems.map() != ReadOnlyRoots(isolate).fixed_cow_array_map()) return;
@@ -3469,7 +3469,8 @@ Handle<NumberDictionary> JSObject::NormalizeElements(Handle<JSObject> object) {
 
   DCHECK(object->HasSmiOrObjectElements() || object->HasDoubleElements() ||
          object->HasFastArgumentsElements() ||
-         object->HasFastStringWrapperElements() || object->HasSealedElements());
+         object->HasFastStringWrapperElements() ||
+         object->HasSealedElements() || object->HasNonextensibleElements());
 
   Handle<NumberDictionary> dictionary =
       object->GetElementsAccessor()->Normalize(object);
@@ -3642,6 +3643,7 @@ bool TestElementsIntegrityLevel(JSObject object, PropertyAttributes level) {
   }
   if (IsFrozenElementsKind(kind)) return true;
   if (IsSealedElementsKind(kind) && level != FROZEN) return true;
+  if (IsNonextensibleElementsKind(kind) && level == NONE) return true;
 
   ElementsAccessor* accessor = ElementsAccessor::ForKind(kind);
   // Only DICTIONARY_ELEMENTS and SLOW_SLOPPY_ARGUMENTS_ELEMENTS have
@@ -3800,9 +3802,9 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   if (attrs == NONE && !object->map().is_extensible()) return Just(true);
   {
     ElementsKind old_elements_kind = object->map().elements_kind();
+    if (IsFrozenElementsKind(old_elements_kind)) return Just(true);
     if (attrs != FROZEN && IsSealedElementsKind(old_elements_kind))
       return Just(true);
-    if (old_elements_kind == PACKED_FROZEN_ELEMENTS) return Just(true);
   }
 
   if (object->IsJSGlobalProxy()) {
@@ -3847,8 +3849,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   // elements kind change in one go. If seal or freeze with Smi or Double
   // elements kind, we will transition to Object elements kind first to make
   // sure of valid element access.
-  if (FLAG_enable_sealed_frozen_elements_kind &&
-      (attrs == SEALED || attrs == FROZEN)) {
+  if (FLAG_enable_sealed_frozen_elements_kind) {
     switch (object->map().elements_kind()) {
       case PACKED_SMI_ELEMENTS:
       case PACKED_DOUBLE_ELEMENTS:
@@ -3876,9 +3877,9 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
     DCHECK(transition_map->has_dictionary_elements() ||
            transition_map->has_typed_array_elements() ||
            transition_map->elements_kind() == SLOW_STRING_WRAPPER_ELEMENTS ||
-           transition_map->has_frozen_or_sealed_elements());
+           transition_map->has_any_nonextensible_elements());
     DCHECK(!transition_map->is_extensible());
-    if (!transition_map->has_frozen_or_sealed_elements()) {
+    if (!transition_map->has_any_nonextensible_elements()) {
       new_element_dictionary = CreateElementDictionary(isolate, object);
     }
     JSObject::MigrateToMap(isolate, object, transition_map);
@@ -3886,7 +3887,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
     // Create a new descriptor array with the appropriate property attributes
     Handle<Map> new_map = Map::CopyForPreventExtensions(
         isolate, old_map, attrs, transition_marker, "CopyForPreventExtensions");
-    if (!new_map->has_frozen_or_sealed_elements()) {
+    if (!new_map->has_any_nonextensible_elements()) {
       new_element_dictionary = CreateElementDictionary(isolate, object);
     }
     JSObject::MigrateToMap(isolate, object, new_map);
@@ -3927,7 +3928,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
     }
   }
 
-  if (object->map().has_frozen_or_sealed_elements()) {
+  if (object->map().has_any_nonextensible_elements()) {
     DCHECK(new_element_dictionary.is_null());
     return Just(true);
   }
@@ -3985,6 +3986,7 @@ bool JSObject::HasEnumerableElements() {
     case PACKED_ELEMENTS:
     case PACKED_FROZEN_ELEMENTS:
     case PACKED_SEALED_ELEMENTS:
+    case PACKED_NONEXTENSIBLE_ELEMENTS:
     case PACKED_DOUBLE_ELEMENTS: {
       int length = object.IsJSArray()
                        ? Smi::ToInt(JSArray::cast(object).length())
@@ -3994,6 +3996,7 @@ bool JSObject::HasEnumerableElements() {
     case HOLEY_SMI_ELEMENTS:
     case HOLEY_FROZEN_ELEMENTS:
     case HOLEY_SEALED_ELEMENTS:
+    case HOLEY_NONEXTENSIBLE_ELEMENTS:
     case HOLEY_ELEMENTS: {
       FixedArray elements = FixedArray::cast(object.elements());
       int length = object.IsJSArray()
@@ -4696,8 +4699,9 @@ void JSObject::TransitionElementsKind(Handle<JSObject> object,
   if (from_kind == to_kind) return;
 
   // This method should never be called for any other case.
-  DCHECK(IsFastElementsKind(from_kind));
-  DCHECK(IsFastElementsKind(to_kind));
+  DCHECK(IsFastElementsKind(from_kind) ||
+         IsNonextensibleElementsKind(from_kind));
+  DCHECK(IsFastElementsKind(to_kind) || IsNonextensibleElementsKind(to_kind));
   DCHECK_NE(TERMINAL_FAST_ELEMENTS_KIND, from_kind);
 
   UpdateAllocationSite(object, to_kind);
@@ -4740,6 +4744,7 @@ int JSObject::GetFastElementsUsage() {
     case PACKED_ELEMENTS:
     case PACKED_FROZEN_ELEMENTS:
     case PACKED_SEALED_ELEMENTS:
+    case PACKED_NONEXTENSIBLE_ELEMENTS:
       return IsJSArray() ? Smi::ToInt(JSArray::cast(*this).length())
                          : store.length();
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
@@ -4749,6 +4754,7 @@ int JSObject::GetFastElementsUsage() {
     case HOLEY_ELEMENTS:
     case HOLEY_FROZEN_ELEMENTS:
     case HOLEY_SEALED_ELEMENTS:
+    case HOLEY_NONEXTENSIBLE_ELEMENTS:
     case FAST_STRING_WRAPPER_ELEMENTS:
       return HoleyElementsUsage(*this, FixedArray::cast(store));
     case HOLEY_DOUBLE_ELEMENTS:

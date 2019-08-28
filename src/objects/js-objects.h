@@ -323,8 +323,9 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   // Returns true if an object has elements of PACKED_ELEMENTS
   DECL_GETTER(HasPackedElements, bool)
-  DECL_GETTER(HasFrozenOrSealedElements, bool)
+  DECL_GETTER(HasAnyNonextensibleElements, bool)
   DECL_GETTER(HasSealedElements, bool)
+  DECL_GETTER(HasNonextensibleElements, bool)
 
   DECL_GETTER(HasTypedArrayElements, bool)
 

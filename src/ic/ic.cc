@@ -1106,7 +1106,7 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
                                     is_js_array, load_mode);
   }
   DCHECK(IsFastElementsKind(elements_kind) ||
-         IsFrozenOrSealedElementsKind(elements_kind) ||
+         IsAnyNonextensibleElementsKind(elements_kind) ||
          IsTypedArrayElementsKind(elements_kind));
   bool convert_hole_to_undefined =
       (elements_kind == HOLEY_SMI_ELEMENTS ||
@@ -1816,6 +1816,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
         CodeFactory::KeyedStoreIC_SloppyArguments(isolate(), store_mode).code();
   } else if (receiver_map->has_fast_elements() ||
              receiver_map->has_sealed_elements() ||
+             receiver_map->has_nonextensible_elements() ||
              receiver_map->has_typed_array_elements()) {
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreFastElementStub);
     code = CodeFactory::StoreFastElementIC(isolate(), store_mode).code();

@@ -635,7 +635,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
   // pointer may point to a one pointer filler map.
   if (ElementsAreSafeToExamine(isolate)) {
     CHECK_EQ((map().has_fast_smi_or_object_elements() ||
-              map().has_frozen_or_sealed_elements() ||
+              map().has_any_nonextensible_elements() ||
               (elements() == GetReadOnlyRoots().empty_fixed_array()) ||
               HasFastStringWrapperElements()),
              (elements().map() == GetReadOnlyRoots().fixed_array_map() ||
@@ -678,7 +678,7 @@ void Map::MapVerify(Isolate* isolate) {
   CHECK_IMPLIES(IsJSObjectMap() && !CanHaveFastTransitionableElementsKind(),
                 IsDictionaryElementsKind(elements_kind()) ||
                     IsTerminalElementsKind(elements_kind()) ||
-                    IsHoleyFrozenOrSealedElementsKind(elements_kind()));
+                    IsAnyHoleyNonextensibleElementsKind(elements_kind()));
   CHECK_IMPLIES(is_deprecated(), !is_stable());
   if (is_prototype_map()) {
     DCHECK(prototype_info() == Smi::kZero ||
@@ -1182,10 +1182,11 @@ void JSArray::JSArrayVerify(Isolate* isolate) {
     CHECK_EQ(elements(), ReadOnlyRoots(isolate).empty_fixed_array());
   }
   // Verify that the length and the elements backing store are in sync.
-  if (length().IsSmi() && (HasFastElements() || HasFrozenOrSealedElements())) {
+  if (length().IsSmi() &&
+      (HasFastElements() || HasAnyNonextensibleElements())) {
     if (elements().length() > 0) {
       CHECK_IMPLIES(HasDoubleElements(), elements().IsFixedDoubleArray());
-      CHECK_IMPLIES(HasSmiOrObjectElements() || HasFrozenOrSealedElements(),
+      CHECK_IMPLIES(HasSmiOrObjectElements() || HasAnyNonextensibleElements(),
                     elements().IsFixedArray());
     }
     int size = Smi::ToInt(length());
@@ -1863,9 +1864,11 @@ void JSObject::IncrementSpillStatistics(Isolate* isolate,
     case HOLEY_ELEMENTS:
     case HOLEY_FROZEN_ELEMENTS:
     case HOLEY_SEALED_ELEMENTS:
+    case HOLEY_NONEXTENSIBLE_ELEMENTS:
     case PACKED_ELEMENTS:
     case PACKED_FROZEN_ELEMENTS:
     case PACKED_SEALED_ELEMENTS:
+    case PACKED_NONEXTENSIBLE_ELEMENTS:
     case FAST_STRING_WRAPPER_ELEMENTS: {
       info->number_of_objects_with_fast_elements_++;
       int holes = 0;

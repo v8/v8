@@ -774,7 +774,8 @@ DEF_GETTER(JSObject, GetElementsKind, ElementsKind) {
       DCHECK(fixed_array.IsFixedArray(isolate));
       DCHECK(fixed_array.IsNumberDictionary(isolate));
     } else {
-      DCHECK(kind > DICTIONARY_ELEMENTS || IsFrozenOrSealedElementsKind(kind));
+      DCHECK(kind > DICTIONARY_ELEMENTS ||
+             IsAnyNonextensibleElementsKind(kind));
     }
     DCHECK(
         !IsSloppyArgumentsElementsKind(kind) ||
@@ -824,12 +825,16 @@ DEF_GETTER(JSObject, HasPackedElements, bool) {
   return GetElementsKind(isolate) == PACKED_ELEMENTS;
 }
 
-DEF_GETTER(JSObject, HasFrozenOrSealedElements, bool) {
-  return IsFrozenOrSealedElementsKind(GetElementsKind(isolate));
+DEF_GETTER(JSObject, HasAnyNonextensibleElements, bool) {
+  return IsAnyNonextensibleElementsKind(GetElementsKind(isolate));
 }
 
 DEF_GETTER(JSObject, HasSealedElements, bool) {
   return IsSealedElementsKind(GetElementsKind(isolate));
+}
+
+DEF_GETTER(JSObject, HasNonextensibleElements, bool) {
+  return IsNonextensibleElementsKind(GetElementsKind(isolate));
 }
 
 DEF_GETTER(JSObject, HasFastArgumentsElements, bool) {

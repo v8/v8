@@ -1904,34 +1904,36 @@ void AccessorAssembler::EmitElementLoad(
   Label if_typed_array(this), if_fast(this), if_fast_packed(this),
       if_fast_holey(this), if_fast_double(this), if_fast_holey_double(this),
       if_nonfast(this), if_dictionary(this);
-  Branch(
-      Int32GreaterThan(elements_kind, Int32Constant(LAST_FROZEN_ELEMENTS_KIND)),
-      &if_nonfast, &if_fast);
+  Branch(Int32GreaterThan(elements_kind,
+                          Int32Constant(LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND)),
+         &if_nonfast, &if_fast);
 
   BIND(&if_fast);
   {
     TNode<FixedArrayBase> elements = LoadJSObjectElements(CAST(object));
     EmitFastElementsBoundsCheck(object, elements, intptr_index,
                                 is_jsarray_condition, out_of_bounds);
-    int32_t kinds[] = {// Handled by if_fast_packed.
-                       PACKED_SMI_ELEMENTS, PACKED_ELEMENTS,
-                       PACKED_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS,
-                       // Handled by if_fast_holey.
-                       HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS,
-                       HOLEY_FROZEN_ELEMENTS, HOLEY_SEALED_ELEMENTS,
-                       // Handled by if_fast_double.
-                       PACKED_DOUBLE_ELEMENTS,
-                       // Handled by if_fast_holey_double.
-                       HOLEY_DOUBLE_ELEMENTS};
-    Label* labels[] = {
-        // FAST_{SMI,}_ELEMENTS
-        &if_fast_packed, &if_fast_packed, &if_fast_packed, &if_fast_packed,
-        // FAST_HOLEY_{SMI,}_ELEMENTS
-        &if_fast_holey, &if_fast_holey, &if_fast_holey, &if_fast_holey,
-        // PACKED_DOUBLE_ELEMENTS
-        &if_fast_double,
-        // HOLEY_DOUBLE_ELEMENTS
-        &if_fast_holey_double};
+    int32_t kinds[] = {
+        // Handled by if_fast_packed.
+        PACKED_SMI_ELEMENTS, PACKED_ELEMENTS, PACKED_NONEXTENSIBLE_ELEMENTS,
+        PACKED_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS,
+        // Handled by if_fast_holey.
+        HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS, HOLEY_NONEXTENSIBLE_ELEMENTS,
+        HOLEY_FROZEN_ELEMENTS, HOLEY_SEALED_ELEMENTS,
+        // Handled by if_fast_double.
+        PACKED_DOUBLE_ELEMENTS,
+        // Handled by if_fast_holey_double.
+        HOLEY_DOUBLE_ELEMENTS};
+    Label* labels[] = {// FAST_{SMI,}_ELEMENTS
+                       &if_fast_packed, &if_fast_packed, &if_fast_packed,
+                       &if_fast_packed, &if_fast_packed,
+                       // FAST_HOLEY_{SMI,}_ELEMENTS
+                       &if_fast_holey, &if_fast_holey, &if_fast_holey,
+                       &if_fast_holey, &if_fast_holey,
+                       // PACKED_DOUBLE_ELEMENTS
+                       &if_fast_double,
+                       // HOLEY_DOUBLE_ELEMENTS
+                       &if_fast_holey_double};
     Switch(elements_kind, unimplemented_elements_kind, kinds, labels,
            arraysize(kinds));
 

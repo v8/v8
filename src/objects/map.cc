@@ -966,7 +966,7 @@ Map Map::TryUpdateSlow(Isolate* isolate, Map old_map) {
     DCHECK(to_kind == DICTIONARY_ELEMENTS ||
            to_kind == SLOW_STRING_WRAPPER_ELEMENTS ||
            IsTypedArrayElementsKind(to_kind) ||
-           IsHoleyFrozenOrSealedElementsKind(to_kind));
+           IsAnyHoleyNonextensibleElementsKind(to_kind));
     to_kind = info.integrity_level_source_map.elements_kind();
   }
   if (from_kind != to_kind) {
@@ -2012,6 +2012,15 @@ Handle<Map> Map::CopyForPreventExtensions(
             new_kind = PACKED_SEALED_ELEMENTS;
           } else if (attrs_to_add == FROZEN) {
             new_kind = PACKED_FROZEN_ELEMENTS;
+          } else {
+            new_kind = PACKED_NONEXTENSIBLE_ELEMENTS;
+          }
+          break;
+        case PACKED_NONEXTENSIBLE_ELEMENTS:
+          if (attrs_to_add == SEALED) {
+            new_kind = PACKED_SEALED_ELEMENTS;
+          } else if (attrs_to_add == FROZEN) {
+            new_kind = PACKED_FROZEN_ELEMENTS;
           }
           break;
         case PACKED_SEALED_ELEMENTS:
@@ -2020,6 +2029,15 @@ Handle<Map> Map::CopyForPreventExtensions(
           }
           break;
         case HOLEY_ELEMENTS:
+          if (attrs_to_add == SEALED) {
+            new_kind = HOLEY_SEALED_ELEMENTS;
+          } else if (attrs_to_add == FROZEN) {
+            new_kind = HOLEY_FROZEN_ELEMENTS;
+          } else {
+            new_kind = HOLEY_NONEXTENSIBLE_ELEMENTS;
+          }
+          break;
+        case HOLEY_NONEXTENSIBLE_ELEMENTS:
           if (attrs_to_add == SEALED) {
             new_kind = HOLEY_SEALED_ELEMENTS;
           } else if (attrs_to_add == FROZEN) {

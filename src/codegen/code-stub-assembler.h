@@ -2361,7 +2361,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsNameDictionary(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsGlobalDictionary(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsExtensibleMap(SloppyTNode<Map> map);
-  TNode<BoolT> IsFrozenOrSealedElementsKindMap(SloppyTNode<Map> map);
   TNode<BoolT> IsExtensibleNonPrototypeMap(TNode<Map> map);
   TNode<BoolT> IsExternalStringInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsFeedbackCell(SloppyTNode<HeapObject> object);

@@ -1620,9 +1620,10 @@ TNode<Smi> CodeStubAssembler::LoadFastJSArrayLength(
     SloppyTNode<JSArray> array) {
   TNode<Number> length = LoadJSArrayLength(array);
   CSA_ASSERT(this, Word32Or(IsFastElementsKind(LoadElementsKind(array)),
-                            IsElementsKindInRange(LoadElementsKind(array),
-                                                  PACKED_SEALED_ELEMENTS,
-                                                  HOLEY_FROZEN_ELEMENTS)));
+                            IsElementsKindInRange(
+                                LoadElementsKind(array),
+                                FIRST_ANY_NONEXTENSIBLE_ELEMENTS_KIND,
+                                LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND)));
   // JSArray length is always a positive Smi for fast arrays.
   CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
   return UncheckedCast<Smi>(length);
@@ -2562,20 +2563,21 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayBaseElementAsTagged(
   Label done(this), if_packed(this), if_holey(this), if_packed_double(this),
       if_holey_double(this), if_dictionary(this, Label::kDeferred);
 
-  int32_t kinds[] = {// Handled by if_packed.
-                     PACKED_SMI_ELEMENTS, PACKED_ELEMENTS,
-                     PACKED_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS,
-                     // Handled by if_holey.
-                     HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS, HOLEY_SEALED_ELEMENTS,
-                     HOLEY_FROZEN_ELEMENTS,
-                     // Handled by if_packed_double.
-                     PACKED_DOUBLE_ELEMENTS,
-                     // Handled by if_holey_double.
-                     HOLEY_DOUBLE_ELEMENTS};
+  int32_t kinds[] = {
+      // Handled by if_packed.
+      PACKED_SMI_ELEMENTS, PACKED_ELEMENTS, PACKED_NONEXTENSIBLE_ELEMENTS,
+      PACKED_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS,
+      // Handled by if_holey.
+      HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS, HOLEY_NONEXTENSIBLE_ELEMENTS,
+      HOLEY_SEALED_ELEMENTS, HOLEY_FROZEN_ELEMENTS,
+      // Handled by if_packed_double.
+      PACKED_DOUBLE_ELEMENTS,
+      // Handled by if_holey_double.
+      HOLEY_DOUBLE_ELEMENTS};
   Label* labels[] = {// PACKED_{SMI,}_ELEMENTS
-                     &if_packed, &if_packed, &if_packed, &if_packed,
+                     &if_packed, &if_packed, &if_packed, &if_packed, &if_packed,
                      // HOLEY_{SMI,}_ELEMENTS
-                     &if_holey, &if_holey, &if_holey, &if_holey,
+                     &if_holey, &if_holey, &if_holey, &if_holey, &if_holey,
                      // PACKED_DOUBLE_ELEMENTS
                      &if_packed_double,
                      // HOLEY_DOUBLE_ELEMENTS
@@ -4293,9 +4295,10 @@ Node* CodeStubAssembler::CloneFastJSArray(Node* context, Node* array,
 
   BIND(&allocate_jsarray);
 
-  // Handle sealed, frozen elements kinds
-  CSA_ASSERT(this, IsElementsKindLessThanOrEqual(var_elements_kind.value(),
-                                                 LAST_FROZEN_ELEMENTS_KIND));
+  // Handle any nonextensible elements kinds
+  CSA_ASSERT(this, IsElementsKindLessThanOrEqual(
+                       var_elements_kind.value(),
+                       LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND));
   GotoIf(IsElementsKindLessThanOrEqual(var_elements_kind.value(),
                                        LAST_FAST_ELEMENTS_KIND),
          &allocate_jsarray_main);
@@ -6143,13 +6146,6 @@ TNode<BoolT> CodeStubAssembler::IsExtensibleMap(SloppyTNode<Map> map) {
   return IsSetWord32<Map::IsExtensibleBit>(LoadMapBitField3(map));
 }
 
-TNode<BoolT> CodeStubAssembler::IsFrozenOrSealedElementsKindMap(
-    SloppyTNode<Map> map) {
-  CSA_ASSERT(this, IsMap(map));
-  return IsElementsKindInRange(LoadMapElementsKind(map), PACKED_SEALED_ELEMENTS,
-                               HOLEY_FROZEN_ELEMENTS);
-}
-
 TNode<BoolT> CodeStubAssembler::IsExtensibleNonPrototypeMap(TNode<Map> map) {
   int kMask = Map::IsExtensibleBit::kMask | Map::IsPrototypeMapBit::kMask;
   int kExpected = Map::IsExtensibleBit::kMask;
@@ -6574,7 +6570,8 @@ TNode<BoolT> CodeStubAssembler::IsFixedArrayWithKind(
   if (IsDoubleElementsKind(kind)) {
     return IsFixedDoubleArray(object);
   } else {
-    DCHECK(IsSmiOrObjectElementsKind(kind) || IsSealedElementsKind(kind));
+    DCHECK(IsSmiOrObjectElementsKind(kind) || IsSealedElementsKind(kind) ||
+           IsNonextensibleElementsKind(kind));
     return IsFixedArraySubclass(object);
   }
 }
@@ -9753,8 +9750,9 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   int32_t values[] = {
       // Handled by {if_isobjectorsmi}.
       PACKED_SMI_ELEMENTS, HOLEY_SMI_ELEMENTS, PACKED_ELEMENTS, HOLEY_ELEMENTS,
-      PACKED_SEALED_ELEMENTS, HOLEY_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS,
-      HOLEY_FROZEN_ELEMENTS,
+      PACKED_NONEXTENSIBLE_ELEMENTS, PACKED_SEALED_ELEMENTS,
+      HOLEY_NONEXTENSIBLE_ELEMENTS, HOLEY_SEALED_ELEMENTS,
+      PACKED_FROZEN_ELEMENTS, HOLEY_FROZEN_ELEMENTS,
       // Handled by {if_isdouble}.
       PACKED_DOUBLE_ELEMENTS, HOLEY_DOUBLE_ELEMENTS,
       // Handled by {if_isdictionary}.
@@ -9781,7 +9779,8 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   Label* labels[] = {
       &if_isobjectorsmi, &if_isobjectorsmi, &if_isobjectorsmi,
       &if_isobjectorsmi, &if_isobjectorsmi, &if_isobjectorsmi,
-      &if_isobjectorsmi, &if_isobjectorsmi,
+      &if_isobjectorsmi, &if_isobjectorsmi, &if_isobjectorsmi,
+      &if_isobjectorsmi,
       &if_isdouble, &if_isdouble,
       &if_isdictionary,
       &if_isfaststringwrapper,
@@ -10703,7 +10702,8 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
 
   TNode<FixedArrayBase> elements = LoadElements(object);
   if (!(IsSmiOrObjectElementsKind(elements_kind) ||
-        IsSealedElementsKind(elements_kind))) {
+        IsSealedElementsKind(elements_kind) ||
+        IsNonextensibleElementsKind(elements_kind))) {
     CSA_ASSERT(this, Word32BinaryNot(IsFixedCOWArrayMap(LoadMap(elements))));
   } else if (!IsCOWHandlingStoreMode(store_mode)) {
     GotoIf(IsFixedCOWArrayMap(LoadMap(elements)), bailout);
@@ -10822,7 +10822,8 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
     return;
   }
   DCHECK(IsFastElementsKind(elements_kind) ||
-         IsSealedElementsKind(elements_kind));
+         IsSealedElementsKind(elements_kind) ||
+         IsNonextensibleElementsKind(elements_kind));
 
   Node* length = SelectImpl(
       IsJSArray(object), [=]() { return LoadJSArrayLength(object); },
@@ -10839,7 +10840,9 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
     value = TryTaggedToFloat64(value, bailout);
   }
 
-  if (IsGrowStoreMode(store_mode) && !IsSealedElementsKind(elements_kind)) {
+  if (IsGrowStoreMode(store_mode) &&
+      !(IsSealedElementsKind(elements_kind) ||
+        IsNonextensibleElementsKind(elements_kind))) {
     elements =
         CAST(CheckForCapacityGrow(object, elements, elements_kind, length,
                                   intptr_key, parameter_mode, bailout));
@@ -10848,7 +10851,8 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
   }
 
   // Cannot store to a hole in holey sealed elements so bailout.
-  if (elements_kind == HOLEY_SEALED_ELEMENTS) {
+  if (elements_kind == HOLEY_SEALED_ELEMENTS ||
+      elements_kind == HOLEY_NONEXTENSIBLE_ELEMENTS) {
     TNode<Object> target_value =
         LoadFixedArrayElement(CAST(elements), intptr_key);
     GotoIf(IsTheHole(target_value), bailout);
@@ -10857,7 +10861,8 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
   // If we didn't grow {elements}, it might still be COW, in which case we
   // copy it now.
   if (!(IsSmiOrObjectElementsKind(elements_kind) ||
-        IsSealedElementsKind(elements_kind))) {
+        IsSealedElementsKind(elements_kind) ||
+        IsNonextensibleElementsKind(elements_kind))) {
     CSA_ASSERT(this, Word32BinaryNot(IsFixedCOWArrayMap(LoadMap(elements))));
   } else if (IsCOWHandlingStoreMode(store_mode)) {
     elements = CAST(CopyElementsOnWrite(object, elements, elements_kind, length,
@@ -13597,13 +13602,15 @@ TNode<BoolT> CodeStubAssembler::IsHoleyFastElementsKind(
 
 TNode<BoolT> CodeStubAssembler::IsHoleyFastElementsKindForRead(
     TNode<Int32T> elements_kind) {
-  CSA_ASSERT(this,
-             Uint32LessThanOrEqual(elements_kind,
-                                   Int32Constant(LAST_FROZEN_ELEMENTS_KIND)));
+  CSA_ASSERT(this, Uint32LessThanOrEqual(
+                       elements_kind,
+                       Int32Constant(LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND)));
 
   STATIC_ASSERT(HOLEY_SMI_ELEMENTS == (PACKED_SMI_ELEMENTS | 1));
   STATIC_ASSERT(HOLEY_ELEMENTS == (PACKED_ELEMENTS | 1));
   STATIC_ASSERT(HOLEY_DOUBLE_ELEMENTS == (PACKED_DOUBLE_ELEMENTS | 1));
+  STATIC_ASSERT(HOLEY_NONEXTENSIBLE_ELEMENTS ==
+                (PACKED_NONEXTENSIBLE_ELEMENTS | 1));
   STATIC_ASSERT(HOLEY_SEALED_ELEMENTS == (PACKED_SEALED_ELEMENTS | 1));
   STATIC_ASSERT(HOLEY_FROZEN_ELEMENTS == (PACKED_FROZEN_ELEMENTS | 1));
   return IsSetWord32(elements_kind, 1);

@@ -2284,7 +2284,9 @@ TEST(ElementsKindTransitionFromMapOwningDescriptor) {
       {SEALED, factory->sealed_symbol(),
        FLAG_enable_sealed_frozen_elements_kind ? HOLEY_SEALED_ELEMENTS
                                                : DICTIONARY_ELEMENTS},
-      {NONE, factory->nonextensible_symbol(), DICTIONARY_ELEMENTS}};
+      {NONE, factory->nonextensible_symbol(),
+       FLAG_enable_sealed_frozen_elements_kind ? HOLEY_NONEXTENSIBLE_ELEMENTS
+                                               : DICTIONARY_ELEMENTS}};
   for (size_t i = 0; i < arraysize(configs); i++) {
     TestGeneralizeFieldWithSpecialTransition(
         configs[i],
@@ -2350,7 +2352,9 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
       {SEALED, factory->sealed_symbol(),
        FLAG_enable_sealed_frozen_elements_kind ? HOLEY_SEALED_ELEMENTS
                                                : DICTIONARY_ELEMENTS},
-      {NONE, factory->nonextensible_symbol(), DICTIONARY_ELEMENTS}};
+      {NONE, factory->nonextensible_symbol(),
+       FLAG_enable_sealed_frozen_elements_kind ? HOLEY_NONEXTENSIBLE_ELEMENTS
+                                               : DICTIONARY_ELEMENTS}};
   for (size_t i = 0; i < arraysize(configs); i++) {
     TestGeneralizeFieldWithSpecialTransition(
         configs[i],

@@ -151,8 +151,9 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
 
     TNode<Int32T> kind = LoadMapElementsKind(arguments_list_map);
 
-    GotoIf(IsElementsKindGreaterThan(kind, LAST_FROZEN_ELEMENTS_KIND),
-           &if_runtime);
+    GotoIf(
+        IsElementsKindGreaterThan(kind, LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND),
+        &if_runtime);
     Branch(Word32And(kind, Int32Constant(1)), &if_holey_array, &if_done);
   }
 
@@ -310,9 +311,9 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
            &if_smiorobject);
     GotoIf(IsElementsKindLessThanOrEqual(spread_kind, LAST_FAST_ELEMENTS_KIND),
            &if_double);
-    Branch(
-        IsElementsKindLessThanOrEqual(spread_kind, LAST_FROZEN_ELEMENTS_KIND),
-        &if_smiorobject, &if_generic);
+    Branch(IsElementsKindLessThanOrEqual(spread_kind,
+                                         LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND),
+           &if_smiorobject, &if_generic);
   }
 
   BIND(&if_generic);

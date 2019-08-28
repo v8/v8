@@ -819,8 +819,10 @@ uint32_t EstimateElementCount(Isolate* isolate, Handle<JSArray> array) {
     case PACKED_ELEMENTS:
     case PACKED_FROZEN_ELEMENTS:
     case PACKED_SEALED_ELEMENTS:
+    case PACKED_NONEXTENSIBLE_ELEMENTS:
     case HOLEY_FROZEN_ELEMENTS:
     case HOLEY_SEALED_ELEMENTS:
+    case HOLEY_NONEXTENSIBLE_ELEMENTS:
     case HOLEY_ELEMENTS: {
       // Fast elements can't have lengths that are not representable by
       // a 32-bit signed integer.
@@ -887,9 +889,11 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
     case PACKED_ELEMENTS:
     case PACKED_FROZEN_ELEMENTS:
     case PACKED_SEALED_ELEMENTS:
+    case PACKED_NONEXTENSIBLE_ELEMENTS:
     case HOLEY_SMI_ELEMENTS:
     case HOLEY_FROZEN_ELEMENTS:
     case HOLEY_SEALED_ELEMENTS:
+    case HOLEY_NONEXTENSIBLE_ELEMENTS:
     case HOLEY_ELEMENTS: {
       DisallowHeapAllocation no_gc;
       FixedArray elements = FixedArray::cast(object->elements());
@@ -1063,9 +1067,11 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
     case PACKED_ELEMENTS:
     case PACKED_FROZEN_ELEMENTS:
     case PACKED_SEALED_ELEMENTS:
+    case PACKED_NONEXTENSIBLE_ELEMENTS:
     case HOLEY_SMI_ELEMENTS:
     case HOLEY_FROZEN_ELEMENTS:
     case HOLEY_SEALED_ELEMENTS:
+    case HOLEY_NONEXTENSIBLE_ELEMENTS:
     case HOLEY_ELEMENTS: {
       // Run through the elements FixedArray and use HasElement and GetElement
       // to check the prototype for missing elements.
@@ -1219,7 +1225,7 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
       if (length_estimate != 0) {
         ElementsKind array_kind =
             GetPackedElementsKind(array->GetElementsKind());
-        if (IsFrozenOrSealedElementsKind(array_kind)) {
+        if (IsAnyNonextensibleElementsKind(array_kind)) {
           array_kind = PACKED_ELEMENTS;
         }
         kind = GetMoreGeneralElementsKind(kind, array_kind);
@@ -1315,9 +1321,11 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
             case HOLEY_ELEMENTS:
             case HOLEY_FROZEN_ELEMENTS:
             case HOLEY_SEALED_ELEMENTS:
+            case HOLEY_NONEXTENSIBLE_ELEMENTS:
             case PACKED_ELEMENTS:
             case PACKED_FROZEN_ELEMENTS:
             case PACKED_SEALED_ELEMENTS:
+            case PACKED_NONEXTENSIBLE_ELEMENTS:
             case DICTIONARY_ELEMENTS:
             case NO_ELEMENTS:
               DCHECK_EQ(0u, length);

@@ -1043,8 +1043,8 @@ const PACKED_DOUBLE_ELEMENTS:
     constexpr ElementsKind generates 'PACKED_DOUBLE_ELEMENTS';
 const HOLEY_DOUBLE_ELEMENTS:
     constexpr ElementsKind generates 'HOLEY_DOUBLE_ELEMENTS';
-const LAST_FROZEN_ELEMENTS_KIND:
-    constexpr ElementsKind generates 'LAST_FROZEN_ELEMENTS_KIND';
+const LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND: constexpr ElementsKind
+    generates 'LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND';
 const DICTIONARY_ELEMENTS:
     constexpr ElementsKind generates 'DICTIONARY_ELEMENTS';
 
@@ -2275,7 +2275,8 @@ Cast<FastJSArrayForRead>(implicit context: Context)(o: HeapObject):
 
   // Bailout if receiver has slow elements.
   const elementsKind: ElementsKind = LoadMapElementsKind(map);
-  if (!IsElementsKindLessThanOrEqual(elementsKind, LAST_FROZEN_ELEMENTS_KIND))
+  if (!IsElementsKindLessThanOrEqual(
+          elementsKind, LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND))
     goto CastError;
 
   // Verify that our prototype is the initial array prototype.

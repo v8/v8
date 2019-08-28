@@ -259,25 +259,27 @@ TF_BUILTIN(ElementsTransitionAndStore_NoTransitionHandleCOW,
 
 // All elements kinds handled by EmitElementStore. Specifically, this includes
 // fast elements and fixed typed array elements.
-#define ELEMENTS_KINDS(V)   \
-  V(PACKED_SMI_ELEMENTS)    \
-  V(HOLEY_SMI_ELEMENTS)     \
-  V(PACKED_ELEMENTS)        \
-  V(PACKED_SEALED_ELEMENTS) \
-  V(HOLEY_ELEMENTS)         \
-  V(HOLEY_SEALED_ELEMENTS)  \
-  V(PACKED_DOUBLE_ELEMENTS) \
-  V(HOLEY_DOUBLE_ELEMENTS)  \
-  V(UINT8_ELEMENTS)         \
-  V(INT8_ELEMENTS)          \
-  V(UINT16_ELEMENTS)        \
-  V(INT16_ELEMENTS)         \
-  V(UINT32_ELEMENTS)        \
-  V(INT32_ELEMENTS)         \
-  V(FLOAT32_ELEMENTS)       \
-  V(FLOAT64_ELEMENTS)       \
-  V(UINT8_CLAMPED_ELEMENTS) \
-  V(BIGUINT64_ELEMENTS)     \
+#define ELEMENTS_KINDS(V)          \
+  V(PACKED_SMI_ELEMENTS)           \
+  V(HOLEY_SMI_ELEMENTS)            \
+  V(PACKED_ELEMENTS)               \
+  V(PACKED_NONEXTENSIBLE_ELEMENTS) \
+  V(PACKED_SEALED_ELEMENTS)        \
+  V(HOLEY_ELEMENTS)                \
+  V(HOLEY_NONEXTENSIBLE_ELEMENTS)  \
+  V(HOLEY_SEALED_ELEMENTS)         \
+  V(PACKED_DOUBLE_ELEMENTS)        \
+  V(HOLEY_DOUBLE_ELEMENTS)         \
+  V(UINT8_ELEMENTS)                \
+  V(INT8_ELEMENTS)                 \
+  V(UINT16_ELEMENTS)               \
+  V(INT16_ELEMENTS)                \
+  V(UINT32_ELEMENTS)               \
+  V(INT32_ELEMENTS)                \
+  V(FLOAT32_ELEMENTS)              \
+  V(FLOAT64_ELEMENTS)              \
+  V(UINT8_CLAMPED_ELEMENTS)        \
+  V(BIGUINT64_ELEMENTS)            \
   V(BIGINT64_ELEMENTS)
 
 void HandlerBuiltinsAssembler::DispatchByElementsKind(
@@ -311,7 +313,7 @@ void HandlerBuiltinsAssembler::DispatchByElementsKind(
   BIND(&if_##KIND);                                              \
   {                                                              \
     if (!FLAG_enable_sealed_frozen_elements_kind &&              \
-        IsFrozenOrSealedElementsKindUnchecked(KIND)) {           \
+        IsAnyNonextensibleElementsKindUnchecked(KIND)) {         \
       /* Disable support for frozen or sealed elements kinds. */ \
       Unreachable();                                             \
     } else if (!handle_typed_elements_kind &&                    \

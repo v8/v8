@@ -978,9 +978,9 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant,
       &if_packed_doubles);
   GotoIf(ElementsKindEqual(elements_kind, Int32Constant(HOLEY_DOUBLE_ELEMENTS)),
          &if_holey_doubles);
-  GotoIf(
-      IsElementsKindLessThanOrEqual(elements_kind, LAST_FROZEN_ELEMENTS_KIND),
-      &if_smiorobjects);
+  GotoIf(IsElementsKindLessThanOrEqual(elements_kind,
+                                       LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND),
+         &if_smiorobjects);
   Goto(&return_not_found);
 
   BIND(&if_smiorobjects);
