@@ -16,11 +16,16 @@ META_TIMEOUT_REGEXP = re.compile(r"META:\s*timeout=(.*)")
 proposal_flags = [{
                     'name': 'reference-types',
                     'flags': ['--experimental-wasm-anyref',
-                               '--no-experimental-wasm-bulk-memory']
+                              '--no-experimental-wasm-bulk-memory']
                   },
                   {
                     'name': 'bulk-memory-operations',
                     'flags': ['--experimental-wasm-bulk-memory']
+                  },
+                  {
+                    'name': 'js-types',
+                    'flags': ['--experimental-wasm-type-reflection',
+                              '--no-experimental-wasm-bulk-memory']
                   }]
 
 

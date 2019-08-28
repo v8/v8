@@ -19,6 +19,10 @@
   'proposals/bulk-memory-operations/table_copy': [FAIL],
   'proposals/bulk-memory-operations/elem': [FAIL],
   'proposals/bulk-memory-operations/binary': [FAIL],
+  # TODO(mstarzinger): Roll newest tests into "js-types" repository.
+  'proposals/js-types/exports': [FAIL],
+  'proposals/js-types/globals': [FAIL],
+  'proposals/js-types/linking': [FAIL],
 }],  # ALWAYS
 
 ['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {
