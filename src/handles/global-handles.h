@@ -81,6 +81,7 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   //
 
   static void MoveTracedGlobal(Address** from, Address** to);
+  static void CopyTracedGlobal(const Address* const* from, Address** to);
   static void DestroyTraced(Address* location);
   static void SetFinalizationCallbackForTraced(
       Address* location, void* parameter,

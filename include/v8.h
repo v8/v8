@@ -810,9 +810,9 @@ struct TracedGlobalTrait {
 };
 
 /**
- * A traced handle with move semantics, similar to std::unique_ptr. The handle
- * is to be used together with |v8::EmbedderHeapTracer| and specifies edges from
- * the embedder into V8's heap.
+ * A traced handle with copy and move semantics. The handle is to be used
+ * together with |v8::EmbedderHeapTracer| and specifies edges from the embedder
+ * into V8's heap.
  *
  * The exact semantics are:
  * - Tracing garbage collections use |v8::EmbedderHeapTracer|.
@@ -860,6 +860,23 @@ class TracedGlobal {
   }
 
   /**
+   * Copy constructor initializing TracedGlobal from an existing one.
+   */
+  V8_INLINE TracedGlobal(const TracedGlobal& other) {
+    // Forward to operator=;
+    *this = other;
+  }
+
+  /**
+   * Copy constructor initializing TracedGlobal from an existing one.
+   */
+  template <typename S>
+  V8_INLINE TracedGlobal(const TracedGlobal<S>& other) {
+    // Forward to operator=;
+    *this = other;
+  }
+
+  /**
    * Move assignment operator initializing TracedGlobal from an existing one.
    */
   V8_INLINE TracedGlobal& operator=(TracedGlobal&& rhs);
@@ -871,10 +888,21 @@ class TracedGlobal {
   V8_INLINE TracedGlobal& operator=(TracedGlobal<S>&& rhs);
 
   /**
-   * TracedGlobal only supports move semantics and forbids copying.
+   * Copy assignment operator initializing TracedGlobal from an existing one.
+   *
+   * Note: Prohibited when |other| has a finalization callback set through
+   * |SetFinalizationCallback|.
    */
-  TracedGlobal(const TracedGlobal&) = delete;
-  void operator=(const TracedGlobal&) = delete;
+  V8_INLINE TracedGlobal& operator=(const TracedGlobal& rhs);
+
+  /**
+   * Copy assignment operator initializing TracedGlobal from an existing one.
+   *
+   * Note: Prohibited when |other| has a finalization callback set through
+   * |SetFinalizationCallback|.
+   */
+  template <class S>
+  V8_INLINE TracedGlobal& operator=(const TracedGlobal<S>& rhs);
 
   /**
    * Returns true if this TracedGlobal is empty, i.e., has not been assigned an
@@ -9035,6 +9063,8 @@ class V8_EXPORT V8 {
                                   internal::Address** to);
   static void MoveTracedGlobalReference(internal::Address** from,
                                         internal::Address** to);
+  static void CopyTracedGlobalReference(const internal::Address* const* from,
+                                        internal::Address** to);
   static internal::Address* CopyGlobalReference(internal::Address* from);
   static void DisposeGlobal(internal::Address* global_handle);
   static void DisposeTracedGlobal(internal::Address* global_handle);
@@ -10150,6 +10180,22 @@ void TracedGlobal<T>::Reset(Isolate* isolate, const Local<S>& other) {
 }
 
 template <class T>
+template <class S>
+TracedGlobal<T>& TracedGlobal<T>::operator=(TracedGlobal<S>&& rhs) {
+  TYPE_CHECK(T, S);
+  *this = std::move(rhs.template As<T>());
+  return *this;
+}
+
+template <class T>
+template <class S>
+TracedGlobal<T>& TracedGlobal<T>::operator=(const TracedGlobal<S>& rhs) {
+  TYPE_CHECK(T, S);
+  *this = rhs.template As<T>();
+  return *this;
+}
+
+template <class T>
 TracedGlobal<T>& TracedGlobal<T>::operator=(TracedGlobal&& rhs) {
   if (this != &rhs) {
     this->Reset();
@@ -10165,17 +10211,13 @@ TracedGlobal<T>& TracedGlobal<T>::operator=(TracedGlobal&& rhs) {
 }
 
 template <class T>
-template <class S>
-TracedGlobal<T>& TracedGlobal<T>::operator=(TracedGlobal<S>&& rhs) {
-  TYPE_CHECK(T, S);
+TracedGlobal<T>& TracedGlobal<T>::operator=(const TracedGlobal& rhs) {
   if (this != &rhs) {
     this->Reset();
     if (rhs.val_ != nullptr) {
-      this->val_ = rhs.val_;
-      V8::MoveTracedGlobalReference(
-          reinterpret_cast<internal::Address**>(&rhs.val_),
+      V8::CopyTracedGlobalReference(
+          reinterpret_cast<const internal::Address* const*>(&rhs.val_),
           reinterpret_cast<internal::Address**>(&this->val_));
-      rhs.val_ = nullptr;
     }
   }
   return *this;

@@ -36,6 +36,7 @@ class GlobalHandles::NodeBlock final {
   using BlockType = NodeBlock<_NodeType>;
   using NodeType = _NodeType;
 
+  V8_INLINE static const NodeBlock* From(const NodeType* node);
   V8_INLINE static NodeBlock* From(NodeType* node);
 
   NodeBlock(GlobalHandles* global_handles,
@@ -69,6 +70,16 @@ class GlobalHandles::NodeBlock final {
 
   DISALLOW_COPY_AND_ASSIGN(NodeBlock);
 };
+
+template <class NodeType>
+const GlobalHandles::NodeBlock<NodeType>*
+GlobalHandles::NodeBlock<NodeType>::From(const NodeType* node) {
+  uintptr_t ptr = reinterpret_cast<const uintptr_t>(node) -
+                  sizeof(NodeType) * node->index();
+  const BlockType* block = reinterpret_cast<const BlockType*>(ptr);
+  DCHECK_EQ(node, block->at(node->index()));
+  return block;
+}
 
 template <class NodeType>
 GlobalHandles::NodeBlock<NodeType>* GlobalHandles::NodeBlock<NodeType>::From(
@@ -243,6 +254,10 @@ void GlobalHandles::NodeSpace<NodeType>::Free(NodeType* node) {
 template <class Child>
 class NodeBase {
  public:
+  static const Child* FromLocation(const Address* location) {
+    return reinterpret_cast<const Child*>(location);
+  }
+
   static Child* FromLocation(Address* location) {
     return reinterpret_cast<Child*>(location);
   }
@@ -728,6 +743,27 @@ Handle<Object> GlobalHandles::CopyGlobal(Address* location) {
   }
 #endif  // VERIFY_HEAP
   return global_handles->Create(*location);
+}
+
+// static
+void GlobalHandles::CopyTracedGlobal(const Address* const* from, Address** to) {
+  DCHECK_NOT_NULL(*from);
+  DCHECK_NULL(*to);
+  const TracedNode* node = TracedNode::FromLocation(*from);
+  // Copying a traced handle with finalization callback is prohibited because
+  // the callback may require knowing about multiple copies of the traced
+  // handle.
+  CHECK(!node->HasFinalizationCallback());
+  GlobalHandles* global_handles =
+      NodeBlock<TracedNode>::From(node)->global_handles();
+  Handle<Object> o = global_handles->CreateTraced(
+      node->object(), reinterpret_cast<Address*>(to), node->has_destructor());
+  *to = o.location();
+#ifdef VERIFY_HEAP
+  if (i::FLAG_verify_heap) {
+    Object(**to).ObjectVerify(global_handles->isolate());
+  }
+#endif  // VERIFY_HEAP
 }
 
 void GlobalHandles::MoveGlobal(Address** from, Address** to) {

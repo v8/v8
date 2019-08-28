@@ -1060,6 +1060,11 @@ void V8::MoveTracedGlobalReference(internal::Address** from,
   i::GlobalHandles::MoveTracedGlobal(from, to);
 }
 
+void V8::CopyTracedGlobalReference(const internal::Address* const* from,
+                                   internal::Address** to) {
+  i::GlobalHandles::CopyTracedGlobal(from, to);
+}
+
 void V8::MakeWeak(i::Address* location, void* parameter,
                   WeakCallbackInfo<void>::Callback weak_callback,
                   WeakCallbackType type) {

@@ -353,6 +353,85 @@ TEST(TracedGlobalInStdVector) {
   CHECK(vec[0].IsEmpty());
 }
 
+TEST(TracedGlobalCopyWithDestructor) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  i::GlobalHandles* global_handles = CcTest::i_isolate()->global_handles();
+
+  static_assert(TracedGlobalTrait<
+                    v8::TracedGlobal<v8::Object>>::kRequiresExplicitDestruction,
+                "destructor expected");
+
+  const size_t initial_count = global_handles->handles_count();
+  v8::TracedGlobal<v8::Object> global1;
+  {
+    v8::HandleScope scope(isolate);
+    global1.Reset(isolate, v8::Object::New(isolate));
+  }
+  v8::TracedGlobal<v8::Object> global2(global1);
+  v8::TracedGlobal<v8::Object> global3;
+  global3 = global2;
+  CHECK_EQ(initial_count + 3, global_handles->handles_count());
+  CHECK(!global1.IsEmpty());
+  CHECK_EQ(global1, global2);
+  CHECK_EQ(global2, global3);
+  {
+    v8::HandleScope scope(isolate);
+    auto tmp = v8::Local<v8::Object>::New(isolate, global3);
+    CHECK(!tmp.IsEmpty());
+    InvokeMarkSweep();
+  }
+  CHECK_EQ(initial_count + 3, global_handles->handles_count());
+  CHECK(!global1.IsEmpty());
+  CHECK_EQ(global1, global2);
+  CHECK_EQ(global2, global3);
+  InvokeMarkSweep();
+  CHECK_EQ(initial_count, global_handles->handles_count());
+  CHECK(global1.IsEmpty());
+  CHECK_EQ(global1, global2);
+  CHECK_EQ(global2, global3);
+}
+
+TEST(TracedGlobalCopyNoDestructor) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  i::GlobalHandles* global_handles = CcTest::i_isolate()->global_handles();
+
+  static_assert(!TracedGlobalTrait<
+                    v8::TracedGlobal<v8::Value>>::kRequiresExplicitDestruction,
+                "no destructor expected");
+
+  const size_t initial_count = global_handles->handles_count();
+  v8::TracedGlobal<v8::Value> global1;
+  {
+    v8::HandleScope scope(isolate);
+    global1.Reset(isolate, v8::Object::New(isolate));
+  }
+  v8::TracedGlobal<v8::Value> global2(global1);
+  v8::TracedGlobal<v8::Value> global3;
+  global3 = global2;
+  CHECK_EQ(initial_count + 3, global_handles->handles_count());
+  CHECK(!global1.IsEmpty());
+  CHECK_EQ(global1, global2);
+  CHECK_EQ(global2, global3);
+  {
+    v8::HandleScope scope(isolate);
+    auto tmp = v8::Local<v8::Value>::New(isolate, global3);
+    CHECK(!tmp.IsEmpty());
+    InvokeMarkSweep();
+  }
+  CHECK_EQ(initial_count + 3, global_handles->handles_count());
+  CHECK(!global1.IsEmpty());
+  CHECK_EQ(global1, global2);
+  CHECK_EQ(global2, global3);
+  InvokeMarkSweep();
+  CHECK_EQ(initial_count, global_handles->handles_count());
+}
+
 TEST(TracedGlobalInStdUnorderedMap) {
   ManualGCScope manual_gc;
   CcTest::InitializeVM();
