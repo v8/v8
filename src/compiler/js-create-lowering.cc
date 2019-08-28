@@ -406,7 +406,7 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
     int size = parameter_count_no_receiver +
                shared.GetBytecodeArray().register_count();
     AllocationBuilder ab(jsgraph(), effect, control);
-    ab.AllocateArray(size, factory()->fixed_array_map());
+    ab.AllocateArray(size, MapRef(broker(), factory()->fixed_array_map()));
     for (int i = 0; i < size; ++i) {
       ab.Store(AccessBuilder::ForFixedArraySlot(i),
                jsgraph()->UndefinedConstant());
@@ -762,7 +762,8 @@ Reduction JSCreateLowering::ReduceJSCreateAsyncFunctionObject(Node* node) {
 
   // Create the register file.
   AllocationBuilder ab(jsgraph(), effect, control);
-  ab.AllocateArray(register_count, factory()->fixed_array_map());
+  ab.AllocateArray(register_count,
+                   MapRef(broker(), factory()->fixed_array_map()));
   for (int i = 0; i < register_count; ++i) {
     ab.Store(AccessBuilder::ForFixedArraySlot(i),
              jsgraph()->UndefinedConstant());
@@ -873,7 +874,7 @@ Reduction JSCreateLowering::ReduceJSCreateBoundFunction(Node* node) {
   Node* bound_arguments = jsgraph()->EmptyFixedArrayConstant();
   if (arity > 0) {
     AllocationBuilder a(jsgraph(), effect, control);
-    a.AllocateArray(arity, factory()->fixed_array_map());
+    a.AllocateArray(arity, MapRef(broker(), factory()->fixed_array_map()));
     for (int i = 0; i < arity; ++i) {
       a.Store(AccessBuilder::ForFixedArraySlot(i),
               NodeProperties::GetValueInput(node, 2 + i));
@@ -1019,7 +1020,7 @@ Reduction JSCreateLowering::ReduceJSCreateKeyValueArray(Node* node) {
   Node* length = jsgraph()->Constant(2);
 
   AllocationBuilder aa(jsgraph(), effect, graph()->start());
-  aa.AllocateArray(2, factory()->fixed_array_map());
+  aa.AllocateArray(2, MapRef(broker(), factory()->fixed_array_map()));
   aa.Store(AccessBuilder::ForFixedArrayElement(PACKED_ELEMENTS),
            jsgraph()->ZeroConstant(), key);
   aa.Store(AccessBuilder::ForFixedArrayElement(PACKED_ELEMENTS),
@@ -1206,7 +1207,7 @@ Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {
       default:
         UNREACHABLE();
     }
-    a.AllocateContext(context_length, map);
+    a.AllocateContext(context_length, MapRef(broker(), map));
     a.Store(AccessBuilder::ForContextSlot(Context::SCOPE_INFO_INDEX),
             scope_info);
     a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
@@ -1234,7 +1235,8 @@ Reduction JSCreateLowering::ReduceJSCreateWithContext(Node* node) {
 
   AllocationBuilder a(jsgraph(), effect, control);
   STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
-  a.AllocateContext(Context::MIN_CONTEXT_SLOTS, factory()->with_context_map());
+  a.AllocateContext(Context::MIN_CONTEXT_SLOTS,
+                    MapRef(broker(), factory()->with_context_map()));
   a.Store(AccessBuilder::ForContextSlot(Context::SCOPE_INFO_INDEX), scope_info);
   a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
   a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
@@ -1257,7 +1259,7 @@ Reduction JSCreateLowering::ReduceJSCreateCatchContext(Node* node) {
   AllocationBuilder a(jsgraph(), effect, control);
   STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
   a.AllocateContext(Context::MIN_CONTEXT_SLOTS + 1,
-                    factory()->catch_context_map());
+                    MapRef(broker(), factory()->catch_context_map()));
   a.Store(AccessBuilder::ForContextSlot(Context::SCOPE_INFO_INDEX), scope_info);
   a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
   a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
@@ -1285,7 +1287,8 @@ Reduction JSCreateLowering::ReduceJSCreateBlockContext(Node* node) {
 
     AllocationBuilder a(jsgraph(), effect, control);
     STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
-    a.AllocateContext(context_length, factory()->block_context_map());
+    a.AllocateContext(context_length,
+                      MapRef(broker(), factory()->block_context_map()));
     a.Store(AccessBuilder::ForContextSlot(Context::SCOPE_INFO_INDEX),
             scope_info);
     a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
@@ -1415,7 +1418,8 @@ Node* JSCreateLowering::AllocateArguments(Node* effect, Node* control,
 
   // Actually allocate the backing store.
   AllocationBuilder a(jsgraph(), effect, control);
-  a.AllocateArray(argument_count, factory()->fixed_array_map());
+  a.AllocateArray(argument_count,
+                  MapRef(broker(), factory()->fixed_array_map()));
   for (int i = 0; i < argument_count; ++i, ++parameters_it) {
     DCHECK_NOT_NULL((*parameters_it).node);
     a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(i),
@@ -1446,7 +1450,7 @@ Node* JSCreateLowering::AllocateRestArguments(Node* effect, Node* control,
 
   // Actually allocate the backing store.
   AllocationBuilder a(jsgraph(), effect, control);
-  a.AllocateArray(num_elements, factory()->fixed_array_map());
+  a.AllocateArray(num_elements, MapRef(broker(), factory()->fixed_array_map()));
   for (int i = 0; i < num_elements; ++i, ++parameters_it) {
     DCHECK_NOT_NULL((*parameters_it).node);
     a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(i),
@@ -1485,7 +1489,8 @@ Node* JSCreateLowering::AllocateAliasedArguments(
   // another indirection away and then linked into the parameter map below,
   // whereas mapped argument values are replaced with a hole instead.
   AllocationBuilder aa(jsgraph(), effect, control);
-  aa.AllocateArray(argument_count, factory()->fixed_array_map());
+  aa.AllocateArray(argument_count,
+                   MapRef(broker(), factory()->fixed_array_map()));
   for (int i = 0; i < mapped_count; ++i, ++parameters_it) {
     aa.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(i),
              jsgraph()->TheHoleConstant());
@@ -1499,7 +1504,8 @@ Node* JSCreateLowering::AllocateAliasedArguments(
 
   // Actually allocate the backing store.
   AllocationBuilder a(jsgraph(), arguments, control);
-  a.AllocateArray(mapped_count + 2, factory()->sloppy_arguments_elements_map());
+  a.AllocateArray(mapped_count + 2,
+                  MapRef(broker(), factory()->sloppy_arguments_elements_map()));
   a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(0),
           context);
   a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(1),
@@ -1544,7 +1550,8 @@ Node* JSCreateLowering::AllocateAliasedArguments(
 
   // Actually allocate the backing store.
   AllocationBuilder a(jsgraph(), arguments, control);
-  a.AllocateArray(mapped_count + 2, factory()->sloppy_arguments_elements_map());
+  a.AllocateArray(mapped_count + 2,
+                  MapRef(broker(), factory()->sloppy_arguments_elements_map()));
   a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(0),
           context);
   a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(1),
@@ -1579,7 +1586,7 @@ Node* JSCreateLowering::AllocateElements(Node* effect, Node* control,
 
   // Actually allocate the backing store.
   AllocationBuilder a(jsgraph(), effect, control);
-  a.AllocateArray(capacity, elements_map, allocation);
+  a.AllocateArray(capacity, MapRef(broker(), elements_map), allocation);
   for (int i = 0; i < capacity; ++i) {
     Node* index = jsgraph()->Constant(i);
     a.Store(access, index, value);
@@ -1604,7 +1611,7 @@ Node* JSCreateLowering::AllocateElements(Node* effect, Node* control,
 
   // Actually allocate the backing store.
   AllocationBuilder a(jsgraph(), effect, control);
-  a.AllocateArray(capacity, elements_map, allocation);
+  a.AllocateArray(capacity, MapRef(broker(), elements_map), allocation);
   for (int i = 0; i < capacity; ++i) {
     Node* index = jsgraph()->Constant(i);
     a.Store(access, index, values[i]);
@@ -1670,7 +1677,8 @@ Node* JSCreateLowering::AllocateFastLiteral(Node* effect, Node* control,
         // Allocate a mutable HeapNumber box and store the value into it.
         AllocationBuilder builder(jsgraph(), effect, control);
         builder.Allocate(HeapNumber::kSize, allocation);
-        builder.Store(AccessBuilder::ForMap(), factory()->heap_number_map());
+        builder.Store(AccessBuilder::ForMap(),
+                      MapRef(broker(), factory()->heap_number_map()));
         builder.Store(AccessBuilder::ForHeapNumberValue(),
                       jsgraph()->Constant(number));
         value = effect = builder.Finish();
@@ -1763,7 +1771,7 @@ Node* JSCreateLowering::AllocateFastLiteralElements(Node* effect, Node* control,
 
   // Allocate the backing store array and store the elements.
   AllocationBuilder builder(jsgraph(), effect, control);
-  builder.AllocateArray(elements_length, elements_map.object(), allocation);
+  builder.AllocateArray(elements_length, elements_map, allocation);
   ElementAccess const access =
       (elements_map.instance_type() == FIXED_DOUBLE_ARRAY_TYPE)
           ? AccessBuilder::ForFixedDoubleArrayElement()

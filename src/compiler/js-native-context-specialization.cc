@@ -2268,7 +2268,8 @@ JSNativeContextSpecialization::BuildPropertyStore(
             AllocationBuilder a(jsgraph(), effect, control);
             a.Allocate(HeapNumber::kSize, AllocationType::kYoung,
                        Type::OtherInternal());
-            a.Store(AccessBuilder::ForMap(), factory()->heap_number_map());
+            a.Store(AccessBuilder::ForMap(),
+                    MapRef(broker(), factory()->heap_number_map()));
             FieldAccess value_field_access =
                 AccessBuilder::ForHeapNumberValue();
             value_field_access.const_field_info = field_access.const_field_info;
