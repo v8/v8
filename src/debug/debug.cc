@@ -1795,12 +1795,16 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
     if (it.done()) return;  // Do not trigger an event with an empty stack.
   }
 
+  // Do not trigger exception event on stack overflow. We cannot perform
+  // anything useful for debugging in that situation.
+  StackLimitCheck stack_limit_check(isolate_);
+  if (stack_limit_check.JsHasOverflowed()) return;
+
   DebugScope debug_scope(this);
   HandleScope scope(isolate_);
   DisableBreak no_recursive_break(this);
 
   Handle<Context> native_context(isolate_->native_context());
-  AllowJavascriptExecution for_callback(isolate_);
   debug_delegate_->ExceptionThrown(
       v8::Utils::ToLocal(native_context), v8::Utils::ToLocal(exception),
       v8::Utils::ToLocal(promise), uncaught, exception_type);

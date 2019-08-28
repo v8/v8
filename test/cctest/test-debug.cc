@@ -3493,12 +3493,11 @@ class ExceptionEventCounter : public v8::debug::DebugDelegate {
   int exception_event_count = 0;
 };
 
-TEST(BreakOnStackOverflow) {
+TEST(NoBreakOnStackOverflow) {
   i::FLAG_stack_size = 100;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  // For this test, we want to break on uncaught exceptions:
   ChangeBreakOnException(true, true);
 
   ExceptionEventCounter delegate;
@@ -3509,7 +3508,7 @@ TEST(BreakOnStackOverflow) {
       "function f() { return f(); }"
       "try { f() } catch {}");
 
-  CHECK_EQ(1, delegate.exception_event_count);
+  CHECK_EQ(0, delegate.exception_event_count);
 }
 
 // Tests that break event is sent when event listener is reset.
