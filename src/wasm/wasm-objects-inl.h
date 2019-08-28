@@ -324,7 +324,7 @@ SMI_ACCESSORS(WasmExportedFunctionData, jump_table_offset,
               kJumpTableOffsetOffset)
 SMI_ACCESSORS(WasmExportedFunctionData, function_index, kFunctionIndexOffset)
 ACCESSORS(WasmExportedFunctionData, c_wrapper_code, Object, kCWrapperCodeOffset)
-ACCESSORS(WasmExportedFunctionData, wasm_call_target, Smi,
+ACCESSORS(WasmExportedFunctionData, wasm_call_target, Object,
           kWasmCallTargetOffset)
 SMI_ACCESSORS(WasmExportedFunctionData, packed_args_size, kPackedArgsSizeOffset)
 
