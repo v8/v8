@@ -695,7 +695,7 @@ RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
   int num_scripts = static_cast<int>(coverage->size());
   // Prepare property keys.
   Handle<FixedArray> scripts_array = factory->NewFixedArray(num_scripts);
-  Handle<String> script_string = factory->NewStringFromStaticChars("script");
+  Handle<String> script_string = factory->script_string();
   for (int i = 0; i < num_scripts; i++) {
     const auto& script_data = coverage->at(i);
     HandleScope inner_scope(isolate);

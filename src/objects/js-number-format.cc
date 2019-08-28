@@ -1036,7 +1036,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
             isolate,
             NewTypeError(MessageTemplate::kInvalidUnit,
                          factory->NewStringFromStaticChars("Intl.NumberFormat"),
-                         factory->NewStringFromStaticChars("")),
+                         factory->empty_string()),
             JSNumberFormat);
       }
 
