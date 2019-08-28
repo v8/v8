@@ -4167,6 +4167,7 @@ NamedAccessFeedback::NamedAccessFeedback(NameRef const& name,
 
 void JSHeapBroker::SetFeedback(FeedbackSource const& source,
                                ProcessedFeedback const* feedback) {
+  CHECK(source.IsValid());
   auto insertion = feedback_.insert({source, feedback});
   CHECK(insertion.second);
 }
