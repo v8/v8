@@ -269,7 +269,11 @@ bool JsonStringifier::InitializeReplacer(Handle<Object> replacer) {
       if (key.is_null()) continue;
       // Object keys are internalized, so do it here.
       key = factory()->InternalizeString(key);
-      set = OrderedHashSet::Add(isolate_, set, key);
+      MaybeHandle<OrderedHashSet> set_candidate =
+          OrderedHashSet::Add(isolate_, set, key);
+      if (!set_candidate.ToHandle(&set)) {
+        return false;
+      }
     }
     property_list_ = OrderedHashSet::ConvertToKeysArray(
         isolate_, set, GetKeysConversion::kKeepNumbers);

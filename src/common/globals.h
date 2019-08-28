@@ -1583,6 +1583,11 @@ constexpr int kSmallOrderedHashMapMinCapacity = 4;
 // has correct value range (see Issue 830 for more details).
 enum StackFrameId { ID_MIN_VALUE = kMinInt, ID_MAX_VALUE = kMaxInt, NO_ID = 0 };
 
+enum class ExceptionStatus : bool { kException = false, kSuccess = true };
+V8_INLINE bool operator!(ExceptionStatus status) {
+  return !static_cast<bool>(status);
+}
+
 }  // namespace internal
 }  // namespace v8
 

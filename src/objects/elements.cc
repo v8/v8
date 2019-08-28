@@ -68,6 +68,17 @@ namespace internal {
 
 namespace {
 
+#define RETURN_NOTHING_IF_NOT_SUCCESSFUL(call) \
+  do {                                         \
+    if (!(call)) return Nothing<bool>();       \
+  } while (false)
+
+#define RETURN_FAILURE_IF_NOT_SUCCESSFUL(call)          \
+  do {                                                  \
+    ExceptionStatus status_enum_result = (call);        \
+    if (!status_enum_result) return status_enum_result; \
+  } while (false)
+
 static const int kPackedSizeNotKnown = -1;
 
 enum Where { AT_START, AT_END };
@@ -992,8 +1003,8 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     DCHECK_EQ(*nof_items, 0);
     KeyAccumulator accumulator(isolate, KeyCollectionMode::kOwnOnly,
                                ALL_PROPERTIES);
-    Subclass::CollectElementIndicesImpl(
-        object, handle(object->elements(), isolate), &accumulator);
+    RETURN_NOTHING_IF_NOT_SUCCESSFUL(Subclass::CollectElementIndicesImpl(
+        object, handle(object->elements(), isolate), &accumulator));
     Handle<FixedArray> keys = accumulator.GetKeys();
 
     int count = 0;
@@ -1055,16 +1066,16 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     return Just(true);
   }
 
-  void CollectElementIndices(Handle<JSObject> object,
-                             Handle<FixedArrayBase> backing_store,
-                             KeyAccumulator* keys) final {
-    if (keys->filter() & ONLY_ALL_CAN_READ) return;
-    Subclass::CollectElementIndicesImpl(object, backing_store, keys);
+  V8_WARN_UNUSED_RESULT ExceptionStatus CollectElementIndices(
+      Handle<JSObject> object, Handle<FixedArrayBase> backing_store,
+      KeyAccumulator* keys) final {
+    if (keys->filter() & ONLY_ALL_CAN_READ) return ExceptionStatus::kSuccess;
+    return Subclass::CollectElementIndicesImpl(object, backing_store, keys);
   }
 
-  static void CollectElementIndicesImpl(Handle<JSObject> object,
-                                        Handle<FixedArrayBase> backing_store,
-                                        KeyAccumulator* keys) {
+  V8_WARN_UNUSED_RESULT static ExceptionStatus CollectElementIndicesImpl(
+      Handle<JSObject> object, Handle<FixedArrayBase> backing_store,
+      KeyAccumulator* keys) {
     DCHECK_NE(DICTIONARY_ELEMENTS, kind());
     // Non-dictionary elements can't have all-can-read accessors.
     uint32_t length = Subclass::GetMaxIndex(*object, *backing_store);
@@ -1074,9 +1085,11 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     for (uint32_t i = 0; i < length; i++) {
       if (Subclass::HasElementImpl(isolate, *object, i, *backing_store,
                                    filter)) {
-        keys->AddKey(factory->NewNumberFromUint(i));
+        RETURN_FAILURE_IF_NOT_SUCCESSFUL(
+            keys->AddKey(factory->NewNumberFromUint(i)));
       }
     }
+    return ExceptionStatus::kSuccess;
   }
 
   static Handle<FixedArray> DirectCollectElementIndicesImpl(
@@ -1189,10 +1202,11 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     return combined_keys;
   }
 
-  void AddElementsToKeyAccumulator(Handle<JSObject> receiver,
-                                   KeyAccumulator* accumulator,
-                                   AddKeyConversion convert) final {
-    Subclass::AddElementsToKeyAccumulatorImpl(receiver, accumulator, convert);
+  V8_WARN_UNUSED_RESULT ExceptionStatus AddElementsToKeyAccumulator(
+      Handle<JSObject> receiver, KeyAccumulator* accumulator,
+      AddKeyConversion convert) final {
+    return Subclass::AddElementsToKeyAccumulatorImpl(receiver, accumulator,
+                                                     convert);
   }
 
   static uint32_t GetCapacityImpl(JSObject holder,
@@ -1529,10 +1543,10 @@ class DictionaryElementsAccessor
     return FilterKey(dictionary, entry, raw_key, filter);
   }
 
-  static void CollectElementIndicesImpl(Handle<JSObject> object,
-                                        Handle<FixedArrayBase> backing_store,
-                                        KeyAccumulator* keys) {
-    if (keys->filter() & SKIP_STRINGS) return;
+  V8_WARN_UNUSED_RESULT static ExceptionStatus CollectElementIndicesImpl(
+      Handle<JSObject> object, Handle<FixedArrayBase> backing_store,
+      KeyAccumulator* keys) {
+    if (keys->filter() & SKIP_STRINGS) return ExceptionStatus::kSuccess;
     Isolate* isolate = keys->isolate();
     Handle<NumberDictionary> dictionary =
         Handle<NumberDictionary>::cast(backing_store);
@@ -1555,8 +1569,9 @@ class DictionaryElementsAccessor
     }
     SortIndices(isolate, elements, insertion_index);
     for (int i = 0; i < insertion_index; i++) {
-      keys->AddKey(elements->get(i));
+      RETURN_FAILURE_IF_NOT_SUCCESSFUL(keys->AddKey(elements->get(i)));
     }
+    return ExceptionStatus::kSuccess;
   }
 
   static Handle<FixedArray> DirectCollectElementIndicesImpl(
@@ -1581,9 +1596,9 @@ class DictionaryElementsAccessor
     return list;
   }
 
-  static void AddElementsToKeyAccumulatorImpl(Handle<JSObject> receiver,
-                                              KeyAccumulator* accumulator,
-                                              AddKeyConversion convert) {
+  V8_WARN_UNUSED_RESULT static ExceptionStatus AddElementsToKeyAccumulatorImpl(
+      Handle<JSObject> receiver, KeyAccumulator* accumulator,
+      AddKeyConversion convert) {
     Isolate* isolate = accumulator->isolate();
     Handle<NumberDictionary> dictionary(
         NumberDictionary::cast(receiver->elements()), isolate);
@@ -1596,8 +1611,9 @@ class DictionaryElementsAccessor
       DCHECK(!value.IsTheHole(isolate));
       DCHECK(!value.IsAccessorPair());
       DCHECK(!value.IsAccessorInfo());
-      accumulator->AddKey(value, convert);
+      RETURN_FAILURE_IF_NOT_SUCCESSFUL(accumulator->AddKey(value, convert));
     }
+    return ExceptionStatus::kSuccess;
   }
 
   static bool IncludesValueFastPath(Isolate* isolate, Handle<JSObject> receiver,
@@ -2007,18 +2023,20 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     return count;
   }
 
-  static void AddElementsToKeyAccumulatorImpl(Handle<JSObject> receiver,
-                                              KeyAccumulator* accumulator,
-                                              AddKeyConversion convert) {
+  V8_WARN_UNUSED_RESULT static ExceptionStatus AddElementsToKeyAccumulatorImpl(
+      Handle<JSObject> receiver, KeyAccumulator* accumulator,
+      AddKeyConversion convert) {
     Isolate* isolate = accumulator->isolate();
     Handle<FixedArrayBase> elements(receiver->elements(), isolate);
     uint32_t length = Subclass::GetMaxNumberOfEntries(*receiver, *elements);
     for (uint32_t i = 0; i < length; i++) {
       if (IsFastPackedElementsKind(KindTraits::Kind) ||
           HasEntryImpl(isolate, *elements, i)) {
-        accumulator->AddKey(Subclass::GetImpl(isolate, *elements, i), convert);
+        RETURN_FAILURE_IF_NOT_SUCCESSFUL(accumulator->AddKey(
+            Subclass::GetImpl(isolate, *elements, i), convert));
       }
     }
+    return ExceptionStatus::kSuccess;
   }
 
   static void ValidateContents(JSObject holder, int length) {
@@ -3006,16 +3024,17 @@ class TypedElementsAccessor
     return AccessorClass::GetCapacityImpl(receiver, backing_store);
   }
 
-  static void AddElementsToKeyAccumulatorImpl(Handle<JSObject> receiver,
-                                              KeyAccumulator* accumulator,
-                                              AddKeyConversion convert) {
+  V8_WARN_UNUSED_RESULT static ExceptionStatus AddElementsToKeyAccumulatorImpl(
+      Handle<JSObject> receiver, KeyAccumulator* accumulator,
+      AddKeyConversion convert) {
     Isolate* isolate = receiver->GetIsolate();
     Handle<FixedArrayBase> elements(receiver->elements(), isolate);
     uint32_t length = AccessorClass::GetCapacityImpl(*receiver, *elements);
     for (uint32_t i = 0; i < length; i++) {
       Handle<Object> value = AccessorClass::GetInternalImpl(receiver, i);
-      accumulator->AddKey(value, convert);
+      RETURN_FAILURE_IF_NOT_SUCCESSFUL(accumulator->AddKey(value, convert));
     }
+    return ExceptionStatus::kSuccess;
   }
 
   static Maybe<bool> CollectValuesOrEntriesImpl(
@@ -3886,17 +3905,18 @@ class SloppyArgumentsElementsAccessor
            ArgumentsAccessor::NumberOfElementsImpl(receiver, arguments);
   }
 
-  static void AddElementsToKeyAccumulatorImpl(Handle<JSObject> receiver,
-                                              KeyAccumulator* accumulator,
-                                              AddKeyConversion convert) {
+  V8_WARN_UNUSED_RESULT static ExceptionStatus AddElementsToKeyAccumulatorImpl(
+      Handle<JSObject> receiver, KeyAccumulator* accumulator,
+      AddKeyConversion convert) {
     Isolate* isolate = accumulator->isolate();
     Handle<FixedArrayBase> elements(receiver->elements(), isolate);
     uint32_t length = GetCapacityImpl(*receiver, *elements);
     for (uint32_t entry = 0; entry < length; entry++) {
       if (!HasEntryImpl(isolate, *elements, entry)) continue;
       Handle<Object> value = GetImpl(isolate, *elements, entry);
-      accumulator->AddKey(value, convert);
+      RETURN_FAILURE_IF_NOT_SUCCESSFUL(accumulator->AddKey(value, convert));
     }
+    return ExceptionStatus::kSuccess;
   }
 
   static bool HasEntryImpl(Isolate* isolate, FixedArrayBase parameters,
@@ -3986,9 +4006,9 @@ class SloppyArgumentsElementsAccessor
     UNREACHABLE();
   }
 
-  static void CollectElementIndicesImpl(Handle<JSObject> object,
-                                        Handle<FixedArrayBase> backing_store,
-                                        KeyAccumulator* keys) {
+  V8_WARN_UNUSED_RESULT static ExceptionStatus CollectElementIndicesImpl(
+      Handle<JSObject> object, Handle<FixedArrayBase> backing_store,
+      KeyAccumulator* keys) {
     Isolate* isolate = keys->isolate();
     uint32_t nof_indices = 0;
     Handle<FixedArray> indices = isolate->factory()->NewFixedArray(
@@ -3998,8 +4018,9 @@ class SloppyArgumentsElementsAccessor
                                     ENUMERABLE_STRINGS, indices, &nof_indices);
     SortIndices(isolate, indices, nof_indices);
     for (uint32_t i = 0; i < nof_indices; i++) {
-      keys->AddKey(indices->get(i));
+      RETURN_FAILURE_IF_NOT_SUCCESSFUL(keys->AddKey(indices->get(i)));
     }
+    return ExceptionStatus::kSuccess;
   }
 
   static Handle<FixedArray> DirectCollectElementIndicesImpl(
@@ -4418,33 +4439,34 @@ class StringWrapperElementsAccessor
                                           attributes);
   }
 
-  static void AddElementsToKeyAccumulatorImpl(Handle<JSObject> receiver,
-                                              KeyAccumulator* accumulator,
-                                              AddKeyConversion convert) {
+  V8_WARN_UNUSED_RESULT static ExceptionStatus AddElementsToKeyAccumulatorImpl(
+      Handle<JSObject> receiver, KeyAccumulator* accumulator,
+      AddKeyConversion convert) {
     Isolate* isolate = receiver->GetIsolate();
     Handle<String> string(GetString(*receiver), isolate);
     string = String::Flatten(isolate, string);
     uint32_t length = static_cast<uint32_t>(string->length());
     for (uint32_t i = 0; i < length; i++) {
-      accumulator->AddKey(
+      Handle<String> key =
           isolate->factory()->LookupSingleCharacterStringFromCode(
-              string->Get(i)),
-          convert);
+              string->Get(i));
+      RETURN_FAILURE_IF_NOT_SUCCESSFUL(accumulator->AddKey(key, convert));
     }
-    BackingStoreAccessor::AddElementsToKeyAccumulatorImpl(receiver, accumulator,
-                                                          convert);
+    return BackingStoreAccessor::AddElementsToKeyAccumulatorImpl(
+        receiver, accumulator, convert);
   }
 
-  static void CollectElementIndicesImpl(Handle<JSObject> object,
-                                        Handle<FixedArrayBase> backing_store,
-                                        KeyAccumulator* keys) {
+  V8_WARN_UNUSED_RESULT static ExceptionStatus CollectElementIndicesImpl(
+      Handle<JSObject> object, Handle<FixedArrayBase> backing_store,
+      KeyAccumulator* keys) {
     uint32_t length = GetString(*object).length();
     Factory* factory = keys->isolate()->factory();
     for (uint32_t i = 0; i < length; i++) {
-      keys->AddKey(factory->NewNumberFromUint(i));
+      RETURN_FAILURE_IF_NOT_SUCCESSFUL(
+          keys->AddKey(factory->NewNumberFromUint(i)));
     }
-    BackingStoreAccessor::CollectElementIndicesImpl(object, backing_store,
-                                                    keys);
+    return BackingStoreAccessor::CollectElementIndicesImpl(object,
+                                                           backing_store, keys);
   }
 
   static void GrowCapacityAndConvertImpl(Handle<JSObject> object,
@@ -4737,5 +4759,7 @@ Handle<JSArray> ElementsAccessor::Concat(Isolate* isolate, Arguments* args,
 ElementsAccessor** ElementsAccessor::elements_accessors_ = nullptr;
 
 #undef ELEMENTS_LIST
+#undef RETURN_NOTHING_IF_NOT_SUCCESSFUL
+#undef RETURN_FAILURE_IF_NOT_SUCCESSFUL
 }  // namespace internal
 }  // namespace v8

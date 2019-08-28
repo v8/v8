@@ -686,16 +686,19 @@ Handle<SmallOrderedNameDictionary> Factory::NewSmallOrderedNameDictionary(
 }
 
 Handle<OrderedHashSet> Factory::NewOrderedHashSet() {
-  return OrderedHashSet::Allocate(isolate(), OrderedHashSet::kMinCapacity);
+  return OrderedHashSet::Allocate(isolate(), OrderedHashSet::kMinCapacity)
+      .ToHandleChecked();
 }
 
 Handle<OrderedHashMap> Factory::NewOrderedHashMap() {
-  return OrderedHashMap::Allocate(isolate(), OrderedHashMap::kMinCapacity);
+  return OrderedHashMap::Allocate(isolate(), OrderedHashMap::kMinCapacity)
+      .ToHandleChecked();
 }
 
 Handle<OrderedNameDictionary> Factory::NewOrderedNameDictionary() {
   return OrderedNameDictionary::Allocate(isolate(),
-                                         OrderedNameDictionary::kMinCapacity);
+                                         OrderedNameDictionary::kMinCapacity)
+      .ToHandleChecked();
 }
 
 Handle<AccessorPair> Factory::NewAccessorPair() {
