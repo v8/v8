@@ -29,7 +29,7 @@ namespace internal {
 // used for tracking the last usage (used for regexp code flushing).
 // - max number of registers used by irregexp implementations.
 // - number of capture registers (output values) of the regexp.
-class JSRegExp : public JSObject {
+class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
  public:
   // Meaning of Type:
   // NOT_COMPILED: Initial value. No data has been stored in the JSRegExp yet.
@@ -82,10 +82,7 @@ class JSRegExp : public JSObject {
   STATIC_ASSERT(static_cast<int>(kDotAll) == v8::RegExp::kDotAll);
   STATIC_ASSERT(kFlagCount == v8::RegExp::kFlagCount);
 
-  DECL_ACCESSORS(data, Object)
-  DECL_ACCESSORS(flags, Object)
   DECL_ACCESSORS(last_index, Object)
-  DECL_ACCESSORS(source, Object)
 
   V8_EXPORT_PRIVATE static MaybeHandle<JSRegExp> New(Isolate* isolate,
                                                      Handle<String> source,
@@ -133,15 +130,10 @@ class JSRegExp : public JSObject {
   inline bool HasCompiledCode() const;
   inline void DiscardCompiledCodeForSerialization();
 
-  DECL_CAST(JSRegExp)
-
   // Dispatched behavior.
   DECL_PRINTER(JSRegExp)
   DECL_VERIFIER(JSRegExp)
 
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSREG_EXP_FIELDS)
   /* This is already an in-object field. */
   // TODO(v8:8944): improve handling of in-object fields
   static constexpr int kLastIndexOffset = kSize;
@@ -203,7 +195,7 @@ class JSRegExp : public JSObject {
   // The uninitialized value for a regexp code object.
   static const int kUninitializedValue = -1;
 
-  OBJECT_CONSTRUCTORS(JSRegExp, JSObject);
+  TQ_OBJECT_CONSTRUCTORS(JSRegExp)
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(JSRegExp::Flags)

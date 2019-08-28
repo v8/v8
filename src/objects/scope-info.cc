@@ -879,9 +879,9 @@ std::ostream& operator<<(std::ostream& os,
 }
 
 Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
-    Isolate* isolate, Handle<Object> export_name, Handle<Object> local_name,
-    Handle<Object> import_name, int module_request, int cell_index, int beg_pos,
-    int end_pos) {
+    Isolate* isolate, Handle<HeapObject> export_name,
+    Handle<HeapObject> local_name, Handle<HeapObject> import_name,
+    int module_request, int cell_index, int beg_pos, int end_pos) {
   Handle<SourceTextModuleInfoEntry> result =
       Handle<SourceTextModuleInfoEntry>::cast(isolate->factory()->NewStruct(
           SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE, AllocationType::kOld));

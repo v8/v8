@@ -865,8 +865,8 @@ void JSRegExp::JSRegExpPrint(std::ostream& os) {  // NOLINT
 void JSRegExpStringIterator::JSRegExpStringIteratorPrint(
     std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, *this, "JSRegExpStringIterator");
-  os << "\n - regex: " << Brief(iterating_regexp());
-  os << "\n - string: " << Brief(iterating_string());
+  os << "\n - regex: " << Brief(iterating_reg_exp());
+  os << "\n - string: " << Brief(iterated_string());
   os << "\n - done: " << done();
   os << "\n - global: " << global();
   os << "\n - unicode: " << unicode();

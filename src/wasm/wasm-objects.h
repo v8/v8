@@ -921,7 +921,8 @@ class WasmDebugInfo : public Struct {
 // header. They are referenced by the following fields:
 //  - {WasmExceptionObject::exception_tag}  : The tag of the exception object.
 //  - {WasmInstanceObject::exceptions_table}: List of tags used by an instance.
-class WasmExceptionTag : public Struct {
+class WasmExceptionTag
+    : public TorqueGeneratedWasmExceptionTag<WasmExceptionTag, Struct> {
  public:
   V8_EXPORT_PRIVATE static Handle<WasmExceptionTag> New(Isolate* isolate,
                                                         int index);
@@ -931,14 +932,9 @@ class WasmExceptionTag : public Struct {
   // least one field, hence this also serves as a padding field for now.
   DECL_INT_ACCESSORS(index)
 
-  DECL_CAST(WasmExceptionTag)
   DECL_PRINTER(WasmExceptionTag)
-  DECL_VERIFIER(WasmExceptionTag)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
-                                TORQUE_GENERATED_WASM_EXCEPTION_TAG_FIELDS)
-
-  OBJECT_CONSTRUCTORS(WasmExceptionTag, Struct);
+  TQ_OBJECT_CONSTRUCTORS(WasmExceptionTag)
 };
 
 class AsmWasmData : public Struct {

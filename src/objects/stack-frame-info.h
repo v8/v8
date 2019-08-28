@@ -71,22 +71,15 @@ class StackFrameInfo : public Struct {
 // The first time any of the Get* or Is* methods is called, a
 // StackFrameInfo object is allocated and all necessary information
 // retrieved.
-class StackTraceFrame : public Struct {
+class StackTraceFrame
+    : public TorqueGeneratedStackTraceFrame<StackTraceFrame, Struct> {
  public:
   NEVER_READ_ONLY_SPACE
-  DECL_ACCESSORS(frame_array, Object)
   DECL_INT_ACCESSORS(frame_index)
-  DECL_ACCESSORS(frame_info, Object)
   DECL_INT_ACCESSORS(id)
-
-  DECL_CAST(StackTraceFrame)
 
   // Dispatched behavior.
   DECL_PRINTER(StackTraceFrame)
-  DECL_VERIFIER(StackTraceFrame)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
-                                TORQUE_GENERATED_STACK_TRACE_FRAME_FIELDS)
 
   static int GetLineNumber(Handle<StackTraceFrame> frame);
   static int GetOneBasedLineNumber(Handle<StackTraceFrame> frame);
@@ -116,10 +109,10 @@ class StackTraceFrame : public Struct {
   static bool IsPromiseAll(Handle<StackTraceFrame> frame);
 
  private:
-  OBJECT_CONSTRUCTORS(StackTraceFrame, Struct);
-
   static Handle<StackFrameInfo> GetFrameInfo(Handle<StackTraceFrame> frame);
   static void InitializeFrameInfo(Handle<StackTraceFrame> frame);
+
+  TQ_OBJECT_CONSTRUCTORS(StackTraceFrame)
 };
 
 // Small helper that retrieves the FrameArray from a stack-trace

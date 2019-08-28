@@ -17,13 +17,8 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(JSRegExp, JSObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExp)
 
-CAST_ACCESSOR(JSRegExp)
-
-ACCESSORS(JSRegExp, data, Object, kDataOffset)
-ACCESSORS(JSRegExp, flags, Object, kFlagsOffset)
-ACCESSORS(JSRegExp, source, Object, kSourceOffset)
 ACCESSORS(JSRegExp, last_index, Object, kLastIndexOffset)
 
 JSRegExp::Type JSRegExp::TypeTag() const {

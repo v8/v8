@@ -31,9 +31,9 @@ namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(JSReceiver, HeapObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSObject)
-OBJECT_CONSTRUCTORS_IMPL(JSAsyncFromSyncIterator, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(JSBoundFunction, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(JSDate, JSObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSAsyncFromSyncIterator)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSBoundFunction)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSDate)
 OBJECT_CONSTRUCTORS_IMPL(JSFunction, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(JSGlobalObject, JSObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSGlobalProxy)
@@ -44,9 +44,6 @@ OBJECT_CONSTRUCTORS_IMPL(JSStringIterator, JSObject)
 
 NEVER_READ_ONLY_SPACE_IMPL(JSReceiver)
 
-CAST_ACCESSOR(JSAsyncFromSyncIterator)
-CAST_ACCESSOR(JSBoundFunction)
-CAST_ACCESSOR(JSDate)
 CAST_ACCESSOR(JSFunction)
 CAST_ACCESSOR(JSGlobalObject)
 CAST_ACCESSOR(JSIteratorResult)
@@ -450,11 +447,6 @@ void JSObject::InitializeBody(Map map, int start_offset,
   }
 }
 
-ACCESSORS(JSBoundFunction, bound_target_function, JSReceiver,
-          kBoundTargetFunctionOffset)
-ACCESSORS(JSBoundFunction, bound_this, Object, kBoundThisOffset)
-ACCESSORS(JSBoundFunction, bound_arguments, FixedArray, kBoundArgumentsOffset)
-
 ACCESSORS(JSFunction, raw_feedback_cell, FeedbackCell, kFeedbackCellOffset)
 
 ACCESSORS(JSGlobalObject, native_context, NativeContext, kNativeContextOffset)
@@ -711,16 +703,6 @@ void JSFunction::ResetIfBytecodeFlushed() {
     raw_feedback_cell().reset();
   }
 }
-
-ACCESSORS(JSDate, value, Object, kValueOffset)
-ACCESSORS(JSDate, cache_stamp, Object, kCacheStampOffset)
-ACCESSORS(JSDate, year, Object, kYearOffset)
-ACCESSORS(JSDate, month, Object, kMonthOffset)
-ACCESSORS(JSDate, day, Object, kDayOffset)
-ACCESSORS(JSDate, weekday, Object, kWeekdayOffset)
-ACCESSORS(JSDate, hour, Object, kHourOffset)
-ACCESSORS(JSDate, min, Object, kMinOffset)
-ACCESSORS(JSDate, sec, Object, kSecOffset)
 
 bool JSMessageObject::DidEnsureSourcePositionsAvailable() const {
   return shared_info().IsUndefined();
@@ -1024,10 +1006,6 @@ inline int JSGlobalProxy::SizeWithEmbedderFields(int embedder_field_count) {
 
 ACCESSORS(JSIteratorResult, value, Object, kValueOffset)
 ACCESSORS(JSIteratorResult, done, Object, kDoneOffset)
-
-ACCESSORS(JSAsyncFromSyncIterator, sync_iterator, JSReceiver,
-          kSyncIteratorOffset)
-ACCESSORS(JSAsyncFromSyncIterator, next, Object, kNextOffset)
 
 ACCESSORS(JSStringIterator, string, String, kStringOffset)
 SMI_ACCESSORS(JSStringIterator, index, kNextIndexOffset)

@@ -49,14 +49,11 @@ BOOL_ACCESSORS(StackFrameInfo, flag, is_toplevel, kIsToplevelBit)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_async, kIsAsyncBit)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_promise_all, kIsPromiseAllBit)
 
-OBJECT_CONSTRUCTORS_IMPL(StackTraceFrame, Struct)
+TQ_OBJECT_CONSTRUCTORS_IMPL(StackTraceFrame)
 NEVER_READ_ONLY_SPACE_IMPL(StackTraceFrame)
-CAST_ACCESSOR(StackTraceFrame)
 
-ACCESSORS(StackTraceFrame, frame_array, Object, kFrameArrayOffset)
-SMI_ACCESSORS(StackTraceFrame, frame_index, kFrameIndexOffset)
-ACCESSORS(StackTraceFrame, frame_info, Object, kFrameInfoOffset)
-SMI_ACCESSORS(StackTraceFrame, id, kIdOffset)
+TQ_SMI_ACCESSORS(StackTraceFrame, frame_index)
+TQ_SMI_ACCESSORS(StackTraceFrame, id)
 
 }  // namespace internal
 }  // namespace v8

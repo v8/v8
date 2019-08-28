@@ -28,7 +28,7 @@ namespace v8 {
 namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(WasmExceptionObject, JSObject)
-OBJECT_CONSTRUCTORS_IMPL(WasmExceptionTag, Struct)
+TQ_OBJECT_CONSTRUCTORS_IMPL(WasmExceptionTag)
 OBJECT_CONSTRUCTORS_IMPL(WasmExportedFunctionData, Struct)
 OBJECT_CONSTRUCTORS_IMPL(WasmDebugInfo, Struct)
 OBJECT_CONSTRUCTORS_IMPL(WasmGlobalObject, JSObject)
@@ -42,7 +42,6 @@ NEVER_READ_ONLY_SPACE_IMPL(WasmDebugInfo)
 
 CAST_ACCESSOR(WasmDebugInfo)
 CAST_ACCESSOR(WasmExceptionObject)
-CAST_ACCESSOR(WasmExceptionTag)
 CAST_ACCESSOR(WasmExportedFunctionData)
 CAST_ACCESSOR(WasmGlobalObject)
 CAST_ACCESSOR(WasmInstanceObject)
@@ -403,7 +402,7 @@ wasm::ValueType WasmTableObject::type() {
 bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }
 
 // WasmExceptionTag
-SMI_ACCESSORS(WasmExceptionTag, index, kIndexOffset)
+TQ_SMI_ACCESSORS(WasmExceptionTag, index)
 
 // AsmWasmData
 ACCESSORS(AsmWasmData, managed_native_module, Managed<wasm::NativeModule>,

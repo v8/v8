@@ -218,7 +218,6 @@ type DirectString extends String;
 type RootIndex generates 'TNode<Int32T>' constexpr 'RootIndex';
 
 @abstract
-@generateCppClass
 extern class FixedArrayBase extends HeapObject {
   length: Smi;
 }
@@ -442,7 +441,9 @@ extern class JSPrimitiveWrapper extends JSObject {
   value: JSAny;
 }
 
-extern class JSArgumentsObject extends JSObject {}
+@generateCppClass
+extern class JSArgumentsObject extends JSObject {
+}
 
 // Just a starting shape for JSObject; properties can move after initialization.
 @noVerifier
@@ -519,8 +520,8 @@ type NoSharedNameSentinel extends Smi;
 
 @generateCppClass
 extern class CallHandlerInfo extends Struct {
-  callback: Foreign | Undefined;
-  js_callback: Foreign | Undefined;
+  callback: NonNullForeign | Undefined | Zero;
+  js_callback: NonNullForeign | Undefined | Zero;
   data: Object;
 }
 
@@ -537,18 +538,37 @@ extern class Module extends HeapObject {
 
 type SourceTextModuleInfo extends FixedArray;
 
+@generateCppClass
 extern class SourceTextModule extends Module {
+  // The code representing this module, or an abstraction thereof.
   code: SharedFunctionInfo | JSFunction |
       JSGeneratorObject | SourceTextModuleInfo;
+
+  // Arrays of cells corresponding to regular exports and regular imports.
+  // A cell's position in the array is determined by the cell index of the
+  // associated module entry (which coincides with the variable index of the
+  // associated variable).
   regular_exports: FixedArray;
   regular_imports: FixedArray;
+
+  // Modules imported or re-exported by this module.
+  // Corresponds 1-to-1 to the module specifier strings in
+  // SourceTextModuleInfo::module_requests.
   requested_modules: FixedArray;
+
+  // Script from which the module originates.
   script: Script;
+
+  // The value of import.meta inside of this module.
+  // Lazily initialized on first access. It's the hole before first access and
+  // a JSObject afterwards.
   import_meta: TheHole | JSObject;
+
   dfs_index: Smi;
   dfs_ancestor_index: Smi;
 }
 
+@generateCppClass
 extern class SyntheticModule extends Module {
   name: String;
   export_names: FixedArray;
@@ -556,6 +576,7 @@ extern class SyntheticModule extends Module {
 }
 
 @abstract
+@generateCppClass
 extern class JSModuleNamespace extends JSObject {
   module: Module;
 }
@@ -566,14 +587,23 @@ extern class TemplateList extends FixedArray {
 }
 
 @abstract
+@generateCppClass
 extern class JSWeakCollection extends JSObject {
+  // The backing hash table mapping keys to values.
   table: Object;
 }
-extern class JSWeakSet extends JSWeakCollection {}
-extern class JSWeakMap extends JSWeakCollection {}
+@generateCppClass
+extern class JSWeakSet extends JSWeakCollection {
+}
+@generateCppClass
+extern class JSWeakMap extends JSWeakCollection {
+}
 
+@generateCppClass
 extern class JSCollectionIterator extends JSObject {
+  // The backing hash table mapping keys to values.
   table: Object;
+  // The index into the data table.
   index: Object;
 }
 
@@ -628,7 +658,10 @@ extern class Script extends Struct {
   host_defined_options: Object;
 }
 
-extern class EmbedderDataArray extends HeapObject { length: Smi; }
+@generateCppClass
+extern class EmbedderDataArray extends HeapObject {
+  length: Smi;
+}
 
 type ScopeInfo extends HeapObject generates 'TNode<ScopeInfo>';
 
@@ -658,9 +691,15 @@ extern class SharedFunctionInfo extends HeapObject {
   @if(V8_SFI_HAS_UNIQUE_ID) unique_id: int32;
 }
 
+@generateCppClass
 extern class JSBoundFunction extends JSObject {
+  // The wrapped function object.
   bound_target_function: Callable;
+  // The value that is always passed as the this value when calling the wrapped
+  // function.
   bound_this: JSAny;
+  // A list of values whose elements are used as the first arguments to any call
+  // to the wrapped function.
   bound_arguments: FixedArray;
 }
 
@@ -756,14 +795,26 @@ extern class JSTypedArray extends JSArrayBufferView {
 }
 
 @abstract
+@generateCppClass
 extern class JSCollection extends JSObject {
+  // The backing hash table.
   table: Object;
 }
-extern class JSSet extends JSCollection {}
-extern class JSMap extends JSCollection {}
+@generateCppClass
+extern class JSSet extends JSCollection {
+}
+@generateCppClass
+extern class JSMap extends JSCollection {
+}
 
+@generateCppClass
 extern class JSDate extends JSObject {
+  // If one component is NaN, all of them are, indicating a NaN time value.
+
+  // The time value.
   value: NumberOrUndefined;
+
+  // Cached values:
   year: Undefined | Smi | NaN;
   month: Undefined | Smi | NaN;
   day: Undefined | Smi | NaN;
@@ -771,6 +822,9 @@ extern class JSDate extends JSObject {
   hour: Undefined | Smi | NaN;
   min: Undefined | Smi | NaN;
   sec: Undefined | Smi | NaN;
+
+  // Sample of the date cache stamp at the moment when chached fields were
+  // cached.
   cache_stamp: Undefined | Smi | NaN;
 }
 
@@ -779,8 +833,11 @@ extern class JSGlobalObject extends JSObject {
   global_proxy: JSGlobalProxy;
 }
 
+@generateCppClass
 extern class JSAsyncFromSyncIterator extends JSObject {
   sync_iterator: JSReceiver;
+  // The "next" method is loaded during GetIterator, and is not reloaded for
+  // subsequent "next" invocations.
   next: Object;
 }
 
@@ -790,6 +847,7 @@ extern class JSStringIterator extends JSObject {
 }
 
 @abstract
+@generateCppClass
 extern class TemplateInfo extends Struct {
   tag: Object;
   serial_number: Object;
@@ -799,12 +857,15 @@ extern class TemplateInfo extends Struct {
 }
 
 @generatePrint
+@generateCppClass
 extern class TemplateObjectDescription extends Struct {
   raw_strings: FixedArray;
   cooked_strings: FixedArray;
 }
 
+@generateCppClass
 extern class FunctionTemplateRareData extends Struct {
+  // See DECL_RARE_ACCESSORS in FunctionTemplateInfo.
   prototype_template: Object;
   prototype_provider_template: Object;
   parent_template: Object;
@@ -815,17 +876,31 @@ extern class FunctionTemplateRareData extends Struct {
   access_check_info: Object;
 }
 
+@generateCppClass
 extern class FunctionTemplateInfo extends TemplateInfo {
+  // Handler invoked when calling an instance of this FunctionTemplateInfo.
+  // Either CallInfoHandler or Undefined.
   call_code: Object;
   class_name: Object;
+  // If the signature is a FunctionTemplateInfo it is used to check whether the
+  // receiver calling the associated JSFunction is a compatible receiver, i.e.
+  // it is an instance of the signature FunctionTemplateInfo or any of the
+  // receiver's prototypes are.
   signature: Object;
-  function_template_rare_data: Object;
+  // If any of the setters declared by DECL_RARE_ACCESSORS are used then a
+  // FunctionTemplateRareData will be stored here. Until then this contains
+  // undefined.
+  rare_data: HeapObject;
   shared_function_info: Object;
   flag: Smi;
   length: Smi;
+  // Either the_hole or a private symbol. Used to cache the result on
+  // the receiver under the the cached_property_name when this
+  // FunctionTemplateInfo is used as a getter.
   cached_property_name: Object;
 }
 
+@generateCppClass
 extern class ObjectTemplateInfo extends TemplateInfo {
   constructor: Object;
   data: Object;
@@ -867,6 +942,7 @@ const UTF32:
 
 extern class Foreign extends HeapObject { foreign_address: RawPtr; }
 
+@generateCppClass
 extern class InterceptorInfo extends Struct {
   getter: NonNullForeign | Zero | Undefined;
   setter: NonNullForeign | Zero | Undefined;
@@ -879,6 +955,7 @@ extern class InterceptorInfo extends Struct {
   flags: Smi;
 }
 
+@generateCppClass
 extern class AccessCheckInfo extends Struct {
   callback: Foreign | Zero | Undefined;
   named_interceptor: InterceptorInfo | Zero | Undefined;
@@ -886,14 +963,21 @@ extern class AccessCheckInfo extends Struct {
   data: Object;
 }
 
+@generateCppClass
 extern class ArrayBoilerplateDescription extends Struct {
   flags: Smi;
   constant_elements: FixedArrayBase;
 }
 
-extern class AliasedArgumentsEntry extends Struct { aliased_context_slot: Smi; }
+@generateCppClass
+extern class AliasedArgumentsEntry extends Struct {
+  aliased_context_slot: Smi;
+}
 
-extern class Cell extends HeapObject { value: Object; }
+@generateCppClass
+extern class Cell extends HeapObject {
+  value: Object;
+}
 
 extern class DataHandler extends Struct {
   smi_handler: Smi | Code;
@@ -908,39 +992,58 @@ extern class DataHandler extends Struct {
 
 @abstract
 @dirtyInstantiatedAbstractClass
+@generateCppClass
 extern class JSGeneratorObject extends JSObject {
   function: JSFunction;
   context: Context;
   receiver: JSAny;
+
+  // For executing generators: the most recent input value.
+  // For suspended generators: debug information (bytecode offset).
+  // There is currently no need to remember the most recent input value for a
+  // suspended generator.
   input_or_debug_pos: Object;
+
   resume_mode: Smi;
   continuation: Smi;
+
+  // Saved interpreter register file.
   parameters_and_registers: FixedArray;
 }
 
+@generateCppClass
 extern class JSAsyncFunctionObject extends JSGeneratorObject {
   promise: JSPromise;
 }
 
+@generateCppClass
 extern class JSAsyncGeneratorObject extends JSGeneratorObject {
+  // Pointer to the head of a singly linked list of AsyncGeneratorRequest, or
+  // undefined.
   queue: HeapObject;
   is_awaiting: Smi;
 }
 
+@generateCppClass
 extern class JSPromise extends JSObject {
+  // Smi 0 terminated list of PromiseReaction objects in case the JSPromise was
+  // not settled yet, otherwise the result.
   reactions_or_result: Object;
   flags: Smi;
 }
 
 @abstract
+@generateCppClass
 extern class Microtask extends Struct {
 }
 
+@generateCppClass
 extern class CallbackTask extends Microtask {
   callback: Foreign;
   data: Foreign;
 }
 
+@generateCppClass
 extern class CallableTask extends Microtask {
   callable: JSReceiver;
   context: Context;
@@ -964,6 +1067,7 @@ extern class StackFrameInfo extends Struct {
 
 type FrameArray extends FixedArray;
 
+@generateCppClass
 extern class StackTraceFrame extends Struct {
   frame_array: FrameArray | Undefined;
   frame_index: Smi;
@@ -971,6 +1075,7 @@ extern class StackTraceFrame extends Struct {
   id: Smi;
 }
 
+@generateCppClass
 extern class ClassPositions extends Struct {
   start: Smi;
   end: Smi;
@@ -1023,7 +1128,10 @@ extern class WasmDebugInfo extends Struct {
   c_wasm_entry_map: Foreign | Undefined;  // Managed<wasm::SignatureMap>
 }
 
-extern class WasmExceptionTag extends Struct { index: Smi; }
+@generateCppClass
+extern class WasmExceptionTag extends Struct {
+  index: Smi;
+}
 
 const kTaggedSize: constexpr int31 generates 'kTaggedSize';
 
@@ -1238,6 +1346,7 @@ const SKIP_WRITE_BARRIER:
 const UNSAFE_SKIP_WRITE_BARRIER:
     constexpr WriteBarrierMode generates 'UNSAFE_SKIP_WRITE_BARRIER';
 
+@generateCppClass
 extern class AsyncGeneratorRequest extends Struct {
   next: AsyncGeneratorRequest | Undefined;
   resume_mode: Smi;
@@ -1245,6 +1354,7 @@ extern class AsyncGeneratorRequest extends Struct {
   promise: JSPromise;
 }
 
+@generateCppClass
 extern class SourceTextModuleInfoEntry extends Struct {
   export_name: String | Undefined;
   local_name: String | Undefined;
@@ -1255,31 +1365,43 @@ extern class SourceTextModuleInfoEntry extends Struct {
   end_pos: Smi;
 }
 
+@generateCppClass
 extern class PromiseCapability extends Struct {
   promise: JSReceiver | Undefined;
   resolve: Object;
   reject: Object;
 }
 
+@generateCppClass
 extern class PromiseReaction extends Struct {
   next: PromiseReaction | Zero;
   reject_handler: Callable | Undefined;
   fulfill_handler: Callable | Undefined;
+  // Either a JSPromise (in case of native promises), a PromiseCapability
+  // (general case), or undefined (in case of await).
   promise_or_capability: JSPromise | PromiseCapability | Undefined;
 }
 
 @abstract
+@generateCppClass
 extern class PromiseReactionJobTask extends Microtask {
   argument: Object;
   context: Context;
   handler: Callable | Undefined;
+  // Either a JSPromise (in case of native promises), a PromiseCapability
+  // (general case), or undefined (in case of await).
   promise_or_capability: JSPromise | PromiseCapability | Undefined;
 }
 
-extern class PromiseFulfillReactionJobTask extends PromiseReactionJobTask {}
+@generateCppClass
+extern class PromiseFulfillReactionJobTask extends PromiseReactionJobTask {
+}
 
-extern class PromiseRejectReactionJobTask extends PromiseReactionJobTask {}
+@generateCppClass
+extern class PromiseRejectReactionJobTask extends PromiseReactionJobTask {
+}
 
+@generateCppClass
 extern class PromiseResolveThenableJobTask extends Microtask {
   context: Context;
   promise_to_resolve: JSPromise;
@@ -1287,6 +1409,7 @@ extern class PromiseResolveThenableJobTask extends Microtask {
   thenable: JSReceiver;
 }
 
+@generateCppClass
 extern class JSRegExp extends JSObject {
   data: FixedArray | Undefined;
   source: String | Undefined;
@@ -1318,8 +1441,11 @@ extern class JSRegExpResult extends JSArray {
   groups: JSAny;
 }
 
+@generateCppClass
 extern class JSRegExpStringIterator extends JSObject {
+  // The [[IteratingRegExp]] internal property.
   iterating_reg_exp: JSAny;
+  // The [[IteratedString]] internal property.
   iterated_string: String;
   flags: Smi;
 }

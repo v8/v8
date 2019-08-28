@@ -696,8 +696,6 @@ void Map::DictionaryMapVerify(Isolate* isolate) {
   CHECK_EQ(Map::GetVisitorId(*this), visitor_id());
 }
 
-USE_TORQUE_VERIFIER(AliasedArgumentsEntry)
-
 void EmbedderDataArray::EmbedderDataArrayVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::EmbedderDataArrayVerify(*this, isolate);
   EmbedderDataSlot start(*this, 0);
@@ -910,8 +908,6 @@ void SloppyArgumentsElements::SloppyArgumentsElementsVerify(Isolate* isolate,
   CHECK_LE(maxMappedIndex, context_object.length());
   CHECK_LE(maxMappedIndex, arg_elements.length());
 }
-
-USE_TORQUE_VERIFIER(JSGeneratorObject)
 
 void JSAsyncFunctionObject::JSAsyncFunctionObjectVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSAsyncFunctionObjectVerify(*this, isolate);
@@ -1137,8 +1133,6 @@ void Oddball::OddballVerify(Isolate* isolate) {
   }
 }
 
-USE_TORQUE_VERIFIER(Cell)
-
 USE_TORQUE_VERIFIER(PropertyCell)
 
 void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
@@ -1213,8 +1207,6 @@ void JSArray::JSArrayVerify(Isolate* isolate) {
   }
 }
 
-USE_TORQUE_VERIFIER(JSCollection)
-
 void JSSet::JSSetVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSSetVerify(*this, isolate);
   CHECK(table().IsOrderedHashSet() || table().IsUndefined(isolate));
@@ -1226,8 +1218,6 @@ void JSMap::JSMapVerify(Isolate* isolate) {
   CHECK(table().IsOrderedHashMap() || table().IsUndefined(isolate));
   // TODO(arv): Verify OrderedHashTable too.
 }
-
-USE_TORQUE_VERIFIER(JSCollectionIterator)
 
 void JSSetIterator::JSSetIteratorVerify(Isolate* isolate) {
   CHECK(IsJSSetIterator());
@@ -1326,35 +1316,15 @@ void JSStringIterator::JSStringIteratorVerify(Isolate* isolate) {
   CHECK_LE(index(), String::kMaxLength);
 }
 
-USE_TORQUE_VERIFIER(JSAsyncFromSyncIterator)
-
-USE_TORQUE_VERIFIER(JSWeakCollection)
-
 void JSWeakSet::JSWeakSetVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSWeakSetVerify(*this, isolate);
   CHECK(table().IsEphemeronHashTable() || table().IsUndefined(isolate));
 }
 
-USE_TORQUE_VERIFIER(Microtask)
-
 void CallableTask::CallableTaskVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::CallableTaskVerify(*this, isolate);
   CHECK(callable().IsCallable());
 }
-
-USE_TORQUE_VERIFIER(CallbackTask)
-
-USE_TORQUE_VERIFIER(PromiseReactionJobTask)
-
-USE_TORQUE_VERIFIER(PromiseFulfillReactionJobTask)
-
-USE_TORQUE_VERIFIER(PromiseRejectReactionJobTask)
-
-USE_TORQUE_VERIFIER(PromiseResolveThenableJobTask)
-
-USE_TORQUE_VERIFIER(PromiseCapability)
-
-USE_TORQUE_VERIFIER(PromiseReaction)
 
 void JSPromise::JSPromiseVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSPromiseVerify(*this, isolate);
@@ -1489,8 +1459,6 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
   }
 }
 
-USE_TORQUE_VERIFIER(JSRegExpStringIterator)
-
 void JSProxy::JSProxyVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSProxyVerify(*this, isolate);
   CHECK(map().GetConstructor().IsJSFunction());
@@ -1547,8 +1515,6 @@ void BigInt::BigIntVerify(Isolate* isolate) {
   CHECK_GE(length(), 0);
   CHECK_IMPLIES(is_zero(), !sign());  // There is no -0n.
 }
-
-USE_TORQUE_VERIFIER(JSModuleNamespace)
 
 void SourceTextModuleInfoEntry::SourceTextModuleInfoEntryVerify(
     Isolate* isolate) {
@@ -1634,8 +1600,6 @@ void PrototypeUsers::Verify(WeakArrayList array) {
   CHECK_EQ(weak_maps_count + empty_slots_count + 1, array.length());
 }
 
-USE_TORQUE_VERIFIER(TemplateObjectDescription)
-
 void EnumCache::EnumCacheVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::EnumCacheVerify(*this, isolate);
   Heap* heap = isolate->heap();
@@ -1645,8 +1609,6 @@ void EnumCache::EnumCacheVerify(Isolate* isolate) {
   }
 }
 
-USE_TORQUE_VERIFIER(ClassPositions)
-
 void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionVerify(
     Isolate* isolate) {
   CHECK(IsObjectBoilerplateDescription());
@@ -1655,13 +1617,9 @@ void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionVerify(
   this->FixedArrayVerify(isolate);
 }
 
-USE_TORQUE_VERIFIER(ArrayBoilerplateDescription)
-
 USE_TORQUE_VERIFIER(AsmWasmData)
 
 USE_TORQUE_VERIFIER(WasmDebugInfo)
-
-USE_TORQUE_VERIFIER(WasmExceptionTag)
 
 void WasmInstanceObject::WasmInstanceObjectVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
@@ -1723,8 +1681,6 @@ USE_TORQUE_VERIFIER(AccessorInfo)
 
 USE_TORQUE_VERIFIER(AccessorPair)
 
-USE_TORQUE_VERIFIER(AccessCheckInfo)
-
 void CallHandlerInfo::CallHandlerInfoVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::CallHandlerInfoVerify(*this, isolate);
   CHECK(map() == ReadOnlyRoots(isolate).side_effect_call_handler_info_map() ||
@@ -1734,21 +1690,11 @@ void CallHandlerInfo::CallHandlerInfoVerify(Isolate* isolate) {
                      .next_call_side_effect_free_call_handler_info_map());
 }
 
-USE_TORQUE_VERIFIER(InterceptorInfo)
-
-USE_TORQUE_VERIFIER(TemplateInfo)
-
-USE_TORQUE_VERIFIER(FunctionTemplateInfo)
-
-USE_TORQUE_VERIFIER(FunctionTemplateRareData)
-
 USE_TORQUE_VERIFIER(WasmCapiFunctionData)
 
 USE_TORQUE_VERIFIER(WasmJSFunctionData)
 
 USE_TORQUE_VERIFIER(WasmIndirectFunctionTable)
-
-USE_TORQUE_VERIFIER(ObjectTemplateInfo)
 
 void AllocationSite::AllocationSiteVerify(Isolate* isolate) {
   CHECK(IsAllocationSite());
@@ -1788,8 +1734,6 @@ void NormalizedMapCache::NormalizedMapCacheVerify(Isolate* isolate) {
 }
 
 USE_TORQUE_VERIFIER(DebugInfo)
-
-USE_TORQUE_VERIFIER(StackTraceFrame)
 
 USE_TORQUE_VERIFIER(StackFrameInfo)
 

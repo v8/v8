@@ -2943,13 +2943,15 @@ void ImplementationVisitor::GenerateClassFieldOffsets(
 
       // TODO(danno): Remove this once all classes use ClassFieldOffsetGenerator
       // to generate field offsets without the use of macros.
-      MacroFieldOffsetsGenerator g(header, type);
-      for (auto f : type->fields()) {
-        CurrentSourcePosition::Scope scope(f.pos);
-        g.RecordOffsetFor(f);
+      if (!type->GenerateCppClassDefinitions()) {
+        MacroFieldOffsetsGenerator g(header, type);
+        for (auto f : type->fields()) {
+          CurrentSourcePosition::Scope scope(f.pos);
+          g.RecordOffsetFor(f);
+        }
+        g.Finish();
+        header << "\n";
       }
-      g.Finish();
-      header << "\n";
     }
   }
   const std::string output_header_path = output_directory + "/" + file_name;
@@ -3028,8 +3030,6 @@ class CppClassGenerator {
 };
 
 void CppClassGenerator::GenerateClass() {
-  hdr_ << "class " << name_ << ";\n\n";
-
   hdr_ << template_decl() << "\n";
   hdr_ << "class " << gen_name_ << " : public P {\n";
   hdr_ << "  static_assert(std::is_same<" << name_ << ", D>::value,\n"
@@ -3201,9 +3201,9 @@ void CppClassGenerator::GenerateFieldAccessorForObject(const Field& f) {
   DCHECK(field_type->IsSubtypeOf(TypeOracle::GetObjectType()));
   const std::string& name = f.name_and_type.name;
   const std::string offset = "k" + CamelifyString(name) + "Offset";
-  const ClassType* class_type = ClassType::DynamicCast(field_type);
+  base::Optional<const ClassType*> class_type = field_type->ClassSupertype();
 
-  std::string type = class_type ? class_type->name() : "Object";
+  std::string type = class_type ? (*class_type)->name() : "Object";
 
   // Generate declarations in header.
   if (!class_type && field_type != TypeOracle::GetObjectType()) {
@@ -3275,19 +3275,41 @@ void ImplementationVisitor::GenerateClassDefinitions(
 
     IncludeGuardScope inline_header_guard(inline_header, basename + "-inl.h");
     inline_header << "#include \"torque-generated/class-definitions-tq.h\"\n\n";
-    inline_header << "#include \"src/objects/objects-inl.h\"\n\n";
+    inline_header << "#include \"src/objects/js-promise.h\"\n";
+    inline_header << "#include \"src/objects/module.h\"\n";
+    inline_header << "#include \"src/objects/objects-inl.h\"\n";
+    inline_header << "#include \"src/objects/script.h\"\n\n";
     IncludeObjectMacrosScope inline_header_macros(inline_header);
     NamespaceScope inline_header_namespaces(inline_header, {"v8", "internal"});
 
     implementation
         << "#include \"torque-generated/class-definitions-tq.h\"\n\n";
     implementation << "#include \"torque-generated/class-verifiers-tq.h\"\n\n";
-    implementation << "#include \"src/objects/struct-inl.h\"\n\n";
+    implementation << "#include \"src/objects/arguments-inl.h\"\n";
+    implementation << "#include \"src/objects/js-collection-inl.h\"\n";
+    implementation << "#include \"src/objects/embedder-data-array-inl.h\"\n";
+    implementation << "#include \"src/objects/js-generator-inl.h\"\n";
+    implementation << "#include \"src/objects/js-regexp-inl.h\"\n";
+    implementation
+        << "#include \"src/objects/js-regexp-string-iterator-inl.h\"\n";
+    implementation << "#include \"src/objects/literal-objects-inl.h\"\n";
+    implementation << "#include \"src/objects/microtask-inl.h\"\n";
+    implementation << "#include \"src/objects/module-inl.h\"\n";
+    implementation << "#include \"src/objects/promise-inl.h\"\n";
+    implementation << "#include \"src/objects/stack-frame-info-inl.h\"\n";
+    implementation << "#include \"src/objects/struct-inl.h\"\n";
+    implementation << "#include \"src/objects/template-objects-inl.h\"\n\n";
     implementation
         << "#include "
            "\"torque-generated/internal-class-definitions-tq-inl.h\"\n\n";
     NamespaceScope implementation_namespaces(implementation,
                                              {"v8", "internal"});
+
+    // Generate forward declarations for every class.
+    for (const TypeAlias* alias : GlobalContext::GetClasses()) {
+      const ClassType* type = ClassType::DynamicCast(alias->type());
+      header << "class " << type->name() << ";\n";
+    }
 
     for (const TypeAlias* alias : GlobalContext::GetClasses()) {
       const ClassType* type = ClassType::DynamicCast(alias->type());
