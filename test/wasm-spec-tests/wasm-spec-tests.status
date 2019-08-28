@@ -52,16 +52,21 @@
   # These tests fail because ppc float min and max doesn't convert sNaN to qNaN.
   'f32': [SKIP],
   'f64': [SKIP],
+  'proposals/js-types/f32': [SKIP],
+  'proposals/js-types/f64': [SKIP],
   # This test fails because ppc float to double doesn't convert sNaN to qNaN.
   'conversions': [SKIP],
-   'proposals/reference-types/conversions':  [SKIP],
-   'proposals/bulk-memory-operations/conversions': [SKIP],
+  'proposals/reference-types/conversions':  [SKIP],
+  'proposals/bulk-memory-operations/conversions': [SKIP],
+  'proposals/js-types/conversions': [SKIP],
 }],  # 'arch == ppc or arch == ppc64'
 
 ['arch == s390 or arch == s390x', {
   # These tests fail because s390 float min and max doesn't convert sNaN to qNaN.
   'f32': [SKIP],
   'f64': [SKIP],
+  'proposals/js-types/f32': [SKIP],
+  'proposals/js-types/f64': [SKIP],
 }],  # 'arch == s390 or arch == s390x'
 
 ##############################################################################
