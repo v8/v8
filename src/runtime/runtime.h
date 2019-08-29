@@ -37,17 +37,17 @@ namespace internal {
 // inline), use the F macro below. To declare the runtime version and the inline
 // version simultaneously, use the I macro below.
 
-#define FOR_EACH_INTRINSIC_ARRAY(F, I)    \
-  F(ArrayIncludes_Slow, 3, 1)             \
-  F(ArrayIndexOf, 3, 1)                   \
-  F(ArrayIsArray, 1, 1)                   \
-  F(ArraySpeciesConstructor, 1, 1)        \
-  F(GrowArrayElements, 2, 1)              \
-  I(IsArray, 1, 1)                        \
-  F(NewArray, -1 /* >= 3 */, 1)           \
-  F(NormalizeElements, 1, 1)              \
-  F(TransitionElementsKind, 2, 1)         \
-  F(TransitionElementsKindWithKind, 2, 1) \
+#define FOR_EACH_INTRINSIC_ARRAY(F, I) \
+  F(ArrayIncludes_Slow, 3, 1)          \
+  F(ArrayIndexOf, 3, 1)                \
+  F(ArrayIsArray, 1, 1)                \
+  F(ArraySpeciesConstructor, 1, 1)     \
+  F(GrowArrayElements, 2, 1)           \
+  I(IsArray, 1, 1)                     \
+  F(NewArray, -1 /* >= 3 */, 1)        \
+  F(NormalizeElements, 1, 1)           \
+  F(TransitionElementsKind, 2, 1)      \
+  F(TransitionElementsKindWithKind, 2, 1)
 
 #define FOR_EACH_INTRINSIC_ATOMICS(F, I) \
   F(AtomicsLoad64, 2, 1)                 \
@@ -236,7 +236,7 @@ namespace internal {
   F(ThrowIteratorError, 1, 1)                        \
   F(ThrowIteratorResultNotAnObject, 1, 1)            \
   F(ThrowNotConstructor, 1, 1)                       \
-  F(ThrowPatternAssignmentNonCoercible, 0, 1)        \
+  F(ThrowPatternAssignmentNonCoercible, 1, 1)        \
   F(ThrowRangeError, -1 /* >= 1 */, 1)               \
   F(ThrowReferenceError, 1, 1)                       \
   F(ThrowAccessedUninitializedVariable, 1, 1)        \
@@ -731,7 +731,6 @@ class Runtime : public AllStatic {
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ThrowIteratorError(
       Isolate* isolate, Handle<Object> object);
 };
-
 
 class RuntimeState {
  public:

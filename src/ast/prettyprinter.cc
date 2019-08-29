@@ -27,6 +27,8 @@ CallPrinter::CallPrinter(Isolate* isolate, bool is_user_js)
   is_call_error_ = false;
   is_iterator_error_ = false;
   is_async_iterator_error_ = false;
+  destructuring_prop_ = nullptr;
+  destructuring_assignment_ = nullptr;
   is_user_js_ = is_user_js;
   function_kind_ = kNormalFunction;
   InitializeAstVisitor(isolate);
@@ -299,24 +301,50 @@ void CallPrinter::VisitVariableProxy(VariableProxy* node) {
 
 
 void CallPrinter::VisitAssignment(Assignment* node) {
-  Find(node->target());
-  if (node->target()->IsArrayLiteral()) {
-    // Special case the visit for destructuring array assignment.
-    bool was_found = false;
-    if (node->value()->position() == position_) {
-      is_iterator_error_ = true;
+  bool was_found = false;
+  if (node->target()->IsObjectLiteral()) {
+    ObjectLiteral* target = node->target()->AsObjectLiteral();
+    if (target->position() == position_) {
       was_found = !found_;
-      if (was_found) {
-        found_ = true;
+      found_ = true;
+      destructuring_assignment_ = node;
+    } else {
+      for (ObjectLiteralProperty* prop : *target->properties()) {
+        if (prop->value()->position() == position_) {
+          was_found = !found_;
+          found_ = true;
+          destructuring_prop_ = prop;
+          destructuring_assignment_ = node;
+          break;
+        }
       }
     }
-    Find(node->value(), true);
-    if (was_found) {
-      done_ = true;
-      found_ = false;
+  }
+  if (!was_found) {
+    Find(node->target());
+    if (node->target()->IsArrayLiteral()) {
+      // Special case the visit for destructuring array assignment.
+      bool was_found = false;
+      if (node->value()->position() == position_) {
+        is_iterator_error_ = true;
+        was_found = !found_;
+        found_ = true;
+      }
+      Find(node->value(), true);
+      if (was_found) {
+        done_ = true;
+        found_ = false;
+      }
+    } else {
+      Find(node->value());
     }
   } else {
-    Find(node->value());
+    Find(node->value(), true);
+  }
+
+  if (was_found) {
+    done_ = true;
+    found_ = false;
   }
 }
 

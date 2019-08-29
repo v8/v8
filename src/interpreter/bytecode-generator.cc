@@ -3713,22 +3713,6 @@ void BytecodeGenerator::BuildDestructuringObjectAssignment(
     LookupHoistingMode lookup_hoisting_mode) {
   RegisterAllocationScope scope(this);
 
-  // if (value === null || value === undefined)
-  //   throw new TypeError(kNonCoercible);
-  //
-  // TODO(leszeks): Eliminate check if value is known to be non-null (e.g.
-  // an object literal).
-  BytecodeLabel is_null_or_undefined, not_null_or_undefined;
-  builder()
-      ->JumpIfNull(&is_null_or_undefined)
-      .JumpIfNotUndefined(&not_null_or_undefined);
-
-  {
-    builder()->Bind(&is_null_or_undefined);
-    builder()->SetExpressionPosition(pattern);
-    builder()->CallRuntime(Runtime::kThrowPatternAssignmentNonCoercible);
-  }
-
   // Store the assignment value in a register.
   Register value;
   RegisterList rest_runtime_callargs;
@@ -3739,7 +3723,34 @@ void BytecodeGenerator::BuildDestructuringObjectAssignment(
   } else {
     value = register_allocator()->NewRegister();
   }
-  builder()->Bind(&not_null_or_undefined).StoreAccumulatorInRegister(value);
+  builder()->StoreAccumulatorInRegister(value);
+
+  // if (value === null || value === undefined)
+  //   throw new TypeError(kNonCoercible);
+  //
+  // Since the first property access on null/undefined will also trigger a
+  // TypeError, we can elide this check. The exception is when there are no
+  // properties and no rest property (this is an empty literal), or when the
+  // first property is a computed name and accessing it can have side effects.
+  //
+  // TODO(leszeks): Also eliminate this check if the value is known to be
+  // non-null (e.g. an object literal).
+  if (pattern->properties()->is_empty() ||
+      (pattern->properties()->at(0)->is_computed_name() &&
+       pattern->properties()->at(0)->kind() != ObjectLiteralProperty::SPREAD)) {
+    BytecodeLabel is_null_or_undefined, not_null_or_undefined;
+    builder()
+        ->JumpIfUndefinedOrNull(&is_null_or_undefined)
+        .Jump(&not_null_or_undefined);
+
+    {
+      builder()->Bind(&is_null_or_undefined);
+      builder()->SetExpressionPosition(pattern);
+      builder()->CallRuntime(Runtime::kThrowPatternAssignmentNonCoercible,
+                             value);
+    }
+    builder()->Bind(&not_null_or_undefined);
+  }
 
   int i = 0;
   for (ObjectLiteralProperty* pattern_property : *pattern->properties()) {

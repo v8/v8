@@ -14,6 +14,7 @@
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
+#include "src/execution/runtime-profiler.h"
 #include "src/handles/handles-inl.h"
 #include "src/ic/call-optimization.h"
 #include "src/ic/handler-configuration-inl.h"
@@ -28,14 +29,13 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/module-inl.h"
-#include "src/objects/struct-inl.h"
-#include "src/utils/ostreams.h"
-#include "src/execution/runtime-profiler.h"
 #include "src/objects/prototype.h"
+#include "src/objects/struct-inl.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 #include "src/tracing/trace-event.h"
 #include "src/tracing/tracing-category-observer.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {
@@ -391,11 +391,17 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
     }
 
     if (*name == ReadOnlyRoots(isolate()).iterator_symbol()) {
-      return Runtime::ThrowIteratorError(isolate(), object);
+      return isolate()->Throw<Object>(
+          ErrorUtils::NewIteratorError(isolate(), object));
     }
-    return TypeError(IsAnyHas() ? MessageTemplate::kInvalidInOperatorUse
-                                : MessageTemplate::kNonObjectPropertyLoad,
-                     object, name);
+
+    if (IsAnyHas()) {
+      return TypeError(MessageTemplate::kInvalidInOperatorUse, object, name);
+    } else {
+      DCHECK(object->IsNullOrUndefined(isolate()));
+      ErrorUtils::ThrowLoadFromNullOrUndefined(isolate(), object, name);
+      return MaybeHandle<Object>();
+    }
   }
 
   if (MigrateDeprecated(isolate(), object)) use_ic = false;

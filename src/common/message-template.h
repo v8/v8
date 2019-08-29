@@ -118,9 +118,9 @@ namespace internal {
   T(NoAccess, "no access")                                                     \
   T(NonCallableInInstanceOfCheck,                                              \
     "Right-hand side of 'instanceof' is not callable")                         \
-  T(NonCoercible, "Cannot destructure 'undefined' or 'null'.")                 \
+  T(NonCoercible, "Cannot destructure '%' as it is %.")                        \
   T(NonCoercibleWithProperty,                                                  \
-    "Cannot destructure property `%` of 'undefined' or 'null'.")               \
+    "Cannot destructure property '%' of '%' as it is %.")                      \
   T(NonExtensibleProto, "% is not extensible")                                 \
   T(NonObjectInInstanceOfCheck,                                                \
     "Right-hand side of 'instanceof' is not an object")                        \
