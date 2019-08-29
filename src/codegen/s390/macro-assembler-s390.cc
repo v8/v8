@@ -193,6 +193,13 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
   jump(code, RelocInfo::RELATIVE_CODE_TARGET, cond);
 }
 
+void TurboAssembler::Jump(const ExternalReference& reference) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Move(scratch, reference);
+  Jump(scratch);
+}
+
 void TurboAssembler::Call(Register target) {
   // Branch to target via indirect branch
   basr(r14, target);

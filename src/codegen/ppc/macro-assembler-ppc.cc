@@ -205,6 +205,13 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
   Jump(static_cast<intptr_t>(code.address()), rmode, cond, cr);
 }
 
+void TurboAssembler::Jump(const ExternalReference& reference) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Move(scratch, reference);
+  Jump(scratch);
+}
+
 void TurboAssembler::Call(Register target) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   // branch via link register and set LK bit for return point
