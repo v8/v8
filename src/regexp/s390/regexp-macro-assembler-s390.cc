@@ -178,9 +178,10 @@ void RegExpMacroAssemblerS390::CheckCharacterGT(uc16 limit, Label* on_greater) {
   BranchOrBacktrack(gt, on_greater);
 }
 
-void RegExpMacroAssemblerS390::CheckAtStart(Label* on_at_start) {
+void RegExpMacroAssemblerS390::CheckAtStart(int cp_offset, Label* on_at_start) {
   __ LoadP(r3, MemOperand(frame_pointer(), kStringStartMinusOne));
-  __ AddP(r2, current_input_offset(), Operand(-char_size()));
+  __ AddP(r2, current_input_offset(),
+          Operand(-char_size() + cp_offset * char_size()));
   __ CmpP(r2, r3);
   BranchOrBacktrack(eq, on_at_start);
 }
