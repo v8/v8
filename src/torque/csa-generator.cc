@@ -708,8 +708,13 @@ void CSAGenerator::EmitInstruction(const UnsafeCastInstruction& instruction,
 void CSAGenerator::EmitInstruction(
     const CreateFieldReferenceInstruction& instruction,
     Stack<std::string>* stack) {
-  const Field& field =
-      instruction.class_type->LookupField(instruction.field_name);
+  base::Optional<const ClassType*> class_type =
+      instruction.type->ClassSupertype();
+  if (!class_type.has_value()) {
+    ReportError("Cannot create field reference of type ", instruction.type,
+                " which does not inherit from a class type");
+  }
+  const Field& field = class_type.value()->LookupField(instruction.field_name);
   std::string offset_name = FreshNodeName();
   stack->Push(offset_name);
 

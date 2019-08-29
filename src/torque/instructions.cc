@@ -292,26 +292,23 @@ void UnsafeCastInstruction::TypeInstruction(Stack<const Type*>* stack,
 
 void CreateFieldReferenceInstruction::TypeInstruction(
     Stack<const Type*>* stack, ControlFlowGraph* cfg) const {
-  ExpectSubtype(stack->Pop(), class_type);
-  stack->Push(TypeOracle::GetHeapObjectType());
+  ExpectSubtype(stack->Top(), type);
   stack->Push(TypeOracle::GetIntPtrType());
 }
 
-// TODO(gsps): Remove in favor of a method on Reference<T>
 void LoadReferenceInstruction::TypeInstruction(Stack<const Type*>* stack,
                                                ControlFlowGraph* cfg) const {
   ExpectType(TypeOracle::GetIntPtrType(), stack->Pop());
-  ExpectType(TypeOracle::GetHeapObjectType(), stack->Pop());
+  ExpectSubtype(stack->Pop(), TypeOracle::GetHeapObjectType());
   DCHECK_EQ(std::vector<const Type*>{type}, LowerType(type));
   stack->Push(type);
 }
 
-// TODO(gsps): Remove in favor of a method on Reference<T>
 void StoreReferenceInstruction::TypeInstruction(Stack<const Type*>* stack,
                                                 ControlFlowGraph* cfg) const {
   ExpectSubtype(stack->Pop(), type);
   ExpectType(TypeOracle::GetIntPtrType(), stack->Pop());
-  ExpectType(TypeOracle::GetHeapObjectType(), stack->Pop());
+  ExpectSubtype(stack->Pop(), TypeOracle::GetHeapObjectType());
 }
 
 bool CallRuntimeInstruction::IsBlockTerminator() const {

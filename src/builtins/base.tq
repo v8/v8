@@ -1140,6 +1140,7 @@ extern class WasmExceptionTag extends Struct {
 }
 
 const kTaggedSize: constexpr int31 generates 'kTaggedSize';
+const kDoubleSize: constexpr int31 generates 'kDoubleSize';
 
 const kSmiTagSize: constexpr int31 generates 'kSmiTagSize';
 const V8_INFINITY: constexpr float64 generates 'V8_INFINITY';
@@ -2539,6 +2540,7 @@ extern macro IntPtrConstant(constexpr ContextSlot): ContextSlot;
 extern macro IntPtrConstant(constexpr intptr): intptr;
 extern macro PointerConstant(constexpr RawPtr): RawPtr;
 extern macro SingleCharacterStringConstant(constexpr string): String;
+extern macro Float64SilenceNaN(float64): float64;
 
 extern macro BitcastWordToTaggedSigned(intptr): Smi;
 extern macro BitcastWordToTaggedSigned(uintptr): Smi;

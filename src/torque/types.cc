@@ -263,7 +263,7 @@ const Field& AggregateType::LookupFieldInternal(const std::string& name) const {
       return parent_class->LookupField(name);
     }
   }
-  ReportError("no field ", name, " found");
+  ReportError("no field ", name, " found in ", this->ToString());
 }
 
 const Field& AggregateType::LookupField(const std::string& name) const {

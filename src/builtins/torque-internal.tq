@@ -6,13 +6,16 @@ namespace torque_internal {
   // TODO(gsps): Synthesize SizeOf<T> in the compiler
 
   macro SizeOf<T: type>(): constexpr int31;
-  SizeOf<Smi>(): constexpr int31 {
+  SizeOf<Object>(): constexpr int31 {
     return kTaggedSize;
+  }
+  SizeOf<float64>(): constexpr int31 {
+    return kDoubleSize;
   }
 
   // Unsafe is a marker that we require to be passed when calling internal APIs
-  // // that might lead to unsoundness when used incorrectly. Unsafe markers
-  // should therefore not be instantiated anywhere outside of this namespace.
+  // that might lead to unsoundness when used incorrectly. Unsafe markers should
+  // therefore not be instantiated anywhere outside of this namespace.
   struct Unsafe {}
 
   struct Reference<T: type> {
@@ -30,13 +33,27 @@ namespace torque_internal {
   }
 
   struct Slice<T: type> {
-    Access(index: intptr):&T labels OutOfBounds {
+    TryAtIndex(index: intptr):&T labels OutOfBounds {
       if (Convert<uintptr>(index) < Convert<uintptr>(this.length)) {
         return UnsafeNewReference<T>(
             this.object, this.offset + index * SizeOf<T>());
       } else {
         goto OutOfBounds;
       }
+    }
+
+    AtIndex(index: intptr):&T {
+      return this.TryAtIndex(index) otherwise unreachable;
+    }
+
+    AtIndex(index: constexpr int31):&T {
+      const i: intptr = Convert<intptr>(index);
+      return this.TryAtIndex(i) otherwise unreachable;
+    }
+
+    AtIndex(index: Smi):&T {
+      const i: intptr = Convert<intptr>(index);
+      return this.TryAtIndex(i) otherwise unreachable;
     }
 
     Iterator(): SliceIterator<T> {

@@ -843,27 +843,60 @@ namespace test {
 
   @export
   macro TestSlices() {
-    const fixedArray: FixedArray = AllocateZeroedFixedArray(3);
-    // TODO(gsps): Directly reference fixedArray.objects once supported
-    let slice = torque_internal::UnsafeNewSlice<Smi>(
-        fixedArray,
-        (& fixedArray.length).offset + torque_internal::SizeOf<Smi>(), 3);
+    const it = TestIterator{count: 3};
+    const a = new FixedArray{map: kFixedArrayMap, length: 3, objects: ...it};
+    check(a.length == 3);
 
+    const oneTwoThree = Convert<Smi>(123);
+    a.objects[0] = oneTwoThree;
+    const firstRef:&Object = & a.objects[0];
+    check(TaggedEqual(* firstRef, oneTwoThree));
+
+    const slice: torque_internal::Slice<Object> = & a.objects;
+    const firstRefAgain:&Object = slice.TryAtIndex(0) otherwise unreachable;
+    check(TaggedEqual(* firstRefAgain, oneTwoThree));
+
+    const threeTwoOne = Convert<Smi>(321);
+    * firstRefAgain = threeTwoOne;
+    check(TaggedEqual(a.objects[0], threeTwoOne));
+
+    // *slice;             // error, not allowed
+    // a.objects;          // error, not allowed
+    // a.objects = slice;  // error, not allowed
+
+    // TODO(gsps): Currently errors, but should be allowed:
+    // const _sameSlice: torque_internal::Slice<Object> = &(*slice);
+    // (*slice)[0] : Smi
+  }
+
+  @export
+  macro TestSliceEnumeration(implicit context: Context)(): Undefined {
+    const fixedArray: FixedArray = AllocateZeroedFixedArray(3);
+    for (let i: intptr = 0; i < 3; i++) {
+      check(UnsafeCast<Smi>(fixedArray.objects[i]) == 0);
+      fixedArray.objects[i] = Convert<Smi>(i) + 3;
+    }
+
+    let slice = & fixedArray.objects;
     for (let i: intptr = 0; i < slice.length; i++) {
-      let ref = slice.Access(i) otherwise unreachable;
-      check(* ref == 0);
-      * ref = Convert<Smi>(i) + 7;
+      let ref = slice.TryAtIndex(i) otherwise unreachable;
+      const value = UnsafeCast<Smi>(* ref);
+      check(value == Convert<Smi>(i) + 3);
+      * ref = value + 4;
     }
 
     let it = slice.Iterator();
     let count: Smi = 0;
     while (true) {
       let ref = it.Next() otherwise break;
-      check(* ref == count + 7);
+      const value = UnsafeCast<Smi>(* ref);
+      check(value == count + 7);
       count++;
     }
     check(count == 3);
     check(it.Empty());
+
+    return Undefined;
   }
 
   @export

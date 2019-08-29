@@ -292,7 +292,7 @@ T* CheckNotNull(T* x) {
 }
 
 template <class T>
-inline std::ostream& operator<<(std::ostream& os, Stack<T>& t) {
+inline std::ostream& operator<<(std::ostream& os, const Stack<T>& t) {
   os << "Stack{";
   PrintCommaSeparatedList(os, t);
   os << "}";

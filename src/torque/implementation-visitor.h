@@ -58,6 +58,15 @@ class LocationReference {
     result.heap_reference_ = std::move(heap_reference);
     return result;
   }
+  // A reference to an array on the heap. That is, a tagged value, an offset to
+  // encode an inner pointer, and the number of elements.
+  static LocationReference HeapSlice(VisitResult heap_slice) {
+    LocationReference result;
+    DCHECK(StructType::MatchUnaryGeneric(heap_slice.type(),
+                                         TypeOracle::GetSliceGeneric()));
+    result.heap_slice_ = std::move(heap_slice);
+    return result;
+  }
   static LocationReference ArrayAccess(VisitResult base, VisitResult offset) {
     LocationReference result;
     result.eval_function_ = std::string{"[]"};
@@ -71,26 +80,6 @@ class LocationReference {
     result.eval_function_ = "." + fieldname;
     result.assign_function_ = "." + fieldname + "=";
     result.call_arguments_ = {object};
-    result.index_field_ = base::nullopt;
-    return result;
-  }
-  static LocationReference IndexedFieldIndexedAccess(
-      const LocationReference& indexed_field, VisitResult index) {
-    LocationReference result;
-    DCHECK(indexed_field.IsIndexedFieldAccess());
-    std::string fieldname = *indexed_field.index_field_;
-    result.eval_function_ = "." + fieldname + "[]";
-    result.assign_function_ = "." + fieldname + "[]=";
-    result.call_arguments_ = indexed_field.call_arguments_;
-    result.call_arguments_.push_back(index);
-    result.index_field_ = fieldname;
-    return result;
-  }
-  static LocationReference IndexedFieldAccess(VisitResult object,
-                                              std::string fieldname) {
-    LocationReference result;
-    result.call_arguments_ = {object};
-    result.index_field_ = fieldname;
     return result;
   }
 
@@ -111,17 +100,26 @@ class LocationReference {
     DCHECK(IsHeapReference());
     return *heap_reference_;
   }
+  bool IsHeapSlice() const { return heap_slice_.has_value(); }
+  const VisitResult& heap_slice() const {
+    DCHECK(IsHeapSlice());
+    return *heap_slice_;
+  }
 
   const Type* ReferencedType() const {
     if (IsHeapReference()) {
       return *StructType::MatchUnaryGeneric(heap_reference().type(),
                                             TypeOracle::GetReferenceGeneric());
+    } else if (IsHeapSlice()) {
+      return *StructType::MatchUnaryGeneric(heap_slice().type(),
+                                            TypeOracle::GetSliceGeneric());
     }
     return GetVisitResult().type();
   }
 
   const VisitResult& GetVisitResult() const {
     if (IsVariableAccess()) return variable();
+    if (IsHeapSlice()) return heap_slice();
     DCHECK(IsTemporary());
     return temporary();
   }
@@ -132,13 +130,6 @@ class LocationReference {
     return *temporary_description_;
   }
 
-  bool IsArrayField() const { return index_field_.has_value(); }
-  bool IsIndexedFieldAccess() const {
-    return IsArrayField() && !IsCallAccess();
-  }
-  bool IsIndexedFieldIndexedAccess() const {
-    return IsArrayField() && IsCallAccess();
-  }
   bool IsCallAccess() const {
     bool is_call_access = eval_function_.has_value();
     DCHECK_EQ(is_call_access, assign_function_.has_value());
@@ -166,10 +157,10 @@ class LocationReference {
   base::Optional<VisitResult> temporary_;
   base::Optional<std::string> temporary_description_;
   base::Optional<VisitResult> heap_reference_;
+  base::Optional<VisitResult> heap_slice_;
   base::Optional<std::string> eval_function_;
   base::Optional<std::string> assign_function_;
   VisitResultVector call_arguments_;
-  base::Optional<std::string> index_field_;
   base::Optional<Binding<LocalValue>*> binding_;
 
   LocationReference() = default;
@@ -573,7 +564,8 @@ class ImplementationVisitor {
                            const Arguments& arguments,
                            const TypeVector& specialization_types);
 
-  Method* LookupMethod(const std::string& name, LocationReference target,
+  Method* LookupMethod(const std::string& name,
+                       const AggregateType* receiver_type,
                        const Arguments& arguments,
                        const TypeVector& specialization_types);
 

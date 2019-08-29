@@ -72,9 +72,18 @@ class TypeOracle : public ContextualClass<TypeOracle> {
         {TORQUE_INTERNAL_NAMESPACE_STRING}, REFERENCE_TYPE_STRING));
   }
 
+  static GenericStructType* GetSliceGeneric() {
+    return Declarations::LookupUniqueGenericStructType(
+        QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING}, SLICE_TYPE_STRING));
+  }
+
   static const StructType* GetReferenceType(const Type* referenced_type) {
     return GetGenericStructTypeInstance(GetReferenceGeneric(),
                                         {referenced_type});
+  }
+
+  static const StructType* GetSliceType(const Type* referenced_type) {
+    return GetGenericStructTypeInstance(GetSliceGeneric(), {referenced_type});
   }
 
   static const std::vector<const BuiltinPointerType*>&

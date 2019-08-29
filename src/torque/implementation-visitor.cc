@@ -1727,14 +1727,13 @@ Callable* ImplementationVisitor::LookupCallable(
 }
 
 Method* ImplementationVisitor::LookupMethod(
-    const std::string& name, LocationReference this_reference,
+    const std::string& name, const AggregateType* receiver_type,
     const Arguments& arguments, const TypeVector& specialization_types) {
   TypeVector types(arguments.parameters.ComputeTypeVector());
-  types.insert(types.begin(), this_reference.ReferencedType());
-  return Method::cast(LookupCallable(
-      {{}, name},
-      AggregateType::cast(this_reference.ReferencedType())->Methods(name),
-      types, arguments.labels, specialization_types));
+  types.insert(types.begin(), receiver_type);
+  return Method::cast(LookupCallable({{}, name}, receiver_type->Methods(name),
+                                     types, arguments.labels,
+                                     specialization_types));
 }
 
 const Type* ImplementationVisitor::GetCommonType(const Type* left,
@@ -1855,7 +1854,33 @@ LocationReference ImplementationVisitor::GetLocationReference(
         LanguageServerData::AddDefinition(expr->field->pos, field.pos);
       }
       if (field.index) {
-        return LocationReference::IndexedFieldAccess(object_result, fieldname);
+        assembler().Emit(
+            CreateFieldReferenceInstruction{object_result.type(), fieldname});
+        // Fetch the length from the object
+        {
+          StackScope length_scope(this);
+          // Get a reference to the length
+          const Field* index_field = field.index.value();
+          GenerateCopy(object_result);
+          assembler().Emit(CreateFieldReferenceInstruction{
+              object_result.type(), index_field->name_and_type.name});
+          VisitResult length_reference(
+              TypeOracle::GetReferenceType(index_field->name_and_type.type),
+              assembler().TopRange(2));
+
+          // Load the length from the reference and convert it to intptr
+          VisitResult length = GenerateFetchFromLocation(
+              LocationReference::HeapReference(length_reference));
+          VisitResult converted_length =
+              GenerateCall("Convert", {{length}, {}},
+                           {TypeOracle::GetIntPtrType(), length.type()}, false);
+          DCHECK_EQ(converted_length.stack_range().Size(), 1);
+          length_scope.Yield(converted_length);
+        }
+        const Type* slice_type =
+            TypeOracle::GetSliceType(field.name_and_type.type);
+        return LocationReference::HeapSlice(
+            VisitResult(slice_type, assembler().TopRange(3)));
       } else {
         assembler().Emit(
             CreateFieldReferenceInstruction{*class_type, fieldname});
@@ -1873,8 +1898,13 @@ LocationReference ImplementationVisitor::GetLocationReference(
     ElementAccessExpression* expr) {
   LocationReference reference = GetLocationReference(expr->array);
   VisitResult index = Visit(expr->index);
-  if (reference.IsIndexedFieldAccess()) {
-    return LocationReference::IndexedFieldIndexedAccess(reference, index);
+  if (reference.IsHeapSlice()) {
+    Arguments arguments{{index}, {}};
+    const AggregateType* slice_type =
+        AggregateType::cast(reference.heap_slice().type());
+    Method* method = LookupMethod("AtIndex", slice_type, arguments, {});
+    return LocationReference::HeapReference(
+        GenerateCall(method, reference, arguments, {}, false));
   } else {
     return LocationReference::ArrayAccess(GenerateFetchFromLocation(reference),
                                           index);
@@ -1974,7 +2004,7 @@ VisitResult ImplementationVisitor::GenerateFetchFromLocation(
     DCHECK_EQ(1, LoweredSlotCount(reference.ReferencedType()));
     return VisitResult(reference.ReferencedType(), assembler().TopRange(1));
   } else {
-    if (reference.IsIndexedFieldAccess()) {
+    if (reference.IsHeapSlice()) {
       ReportError(
           "fetching a value directly from an indexed field isn't allowed");
     }
@@ -2002,12 +2032,19 @@ void ImplementationVisitor::GenerateAssignToLocation(
     if (reference.binding()) {
       (*reference.binding())->SetWritten();
     }
-  } else if (reference.IsIndexedFieldAccess()) {
+  } else if (reference.IsHeapSlice()) {
     ReportError("assigning a value directly to an indexed field isn't allowed");
   } else if (reference.IsHeapReference()) {
     const Type* referenced_type = reference.ReferencedType();
     GenerateCopy(reference.heap_reference());
-    GenerateImplicitConvert(referenced_type, assignment_value);
+    VisitResult converted_assignment_value =
+        GenerateImplicitConvert(referenced_type, assignment_value);
+    if (referenced_type == TypeOracle::GetFloat64Type()) {
+      VisitResult silenced_float_value =
+          GenerateCall("Float64SilenceNaN", {{assignment_value}, {}});
+      assembler().Poke(converted_assignment_value.stack_range(),
+                       silenced_float_value.stack_range(), referenced_type);
+    }
     assembler().Emit(StoreReferenceInstruction{referenced_type});
   } else {
     DCHECK(reference.IsTemporary());
@@ -2126,8 +2163,8 @@ VisitResult ImplementationVisitor::GenerateCall(
   if (this_reference) {
     DCHECK(callable->IsMethod());
     Method* method = Method::cast(callable);
-    // By now, the this reference should either be a variable or
-    // a temporary, in both cases the fetch of the VisitResult should succeed.
+    // By now, the this reference should either be a variable, a temporary or
+    // a Slice. In either case the fetch of the VisitResult should succeed.
     VisitResult this_value = this_reference->GetVisitResult();
     if (method->ShouldBeInlined()) {
       if (!this_value.type()->IsSubtypeOf(method->aggregate_type())) {
@@ -2345,6 +2382,7 @@ VisitResult ImplementationVisitor::Visit(CallExpression* expr,
     if (auto* loc_expr = LocationExpression::DynamicCast(expr->arguments[0])) {
       LocationReference ref = GetLocationReference(loc_expr);
       if (ref.IsHeapReference()) return scope.Yield(ref.heap_reference());
+      if (ref.IsHeapSlice()) return scope.Yield(ref.heap_slice());
     }
     ReportError("Unable to create a heap reference.");
   }
@@ -2398,7 +2436,7 @@ VisitResult ImplementationVisitor::Visit(CallMethodExpression* expr) {
   DCHECK_EQ(expr->method->namespace_qualification.size(), 0);
   QualifiedName qualified_name = QualifiedName(method_name);
   Callable* callable = nullptr;
-  callable = LookupMethod(method_name, target, arguments, {});
+  callable = LookupMethod(method_name, target_type, arguments, {});
   if (GlobalContext::collect_language_server_data()) {
     LanguageServerData::AddDefinition(expr->method->name->pos,
                                       callable->IdentifierPosition());
@@ -3664,6 +3702,16 @@ void ReportAllUnusedMacros() {
 
     if (macro->IsTorqueMacro() && TorqueMacro::cast(macro)->IsExportedToCSA()) {
       continue;
+    }
+    // TODO(gsps): Mark methods of generic structs used if they are used in any
+    // instantiation
+    if (Method* method = Method::DynamicCast(macro)) {
+      if (StructType* struct_type =
+              StructType::DynamicCast(method->aggregate_type())) {
+        if (struct_type->GetSpecializedFrom().has_value()) {
+          continue;
+        }
+      }
     }
 
     std::vector<std::string> ignored_prefixes = {"Convert<", "Cast<",
