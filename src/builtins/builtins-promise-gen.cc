@@ -1459,11 +1459,11 @@ TF_BUILTIN(PromiseResolveTrampoline, PromiseBuiltinsAssembler) {
   //  1. Let C be the this value.
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* value = Parameter(Descriptor::kValue);
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   // 2. If Type(C) is not Object, throw a TypeError exception.
-  ThrowIfNotJSReceiver(context, receiver, MessageTemplate::kCalledOnNonObject,
-                       "PromiseResolve");
+  ThrowIfNotJSReceiver(context, CAST(receiver),
+                       MessageTemplate::kCalledOnNonObject, "PromiseResolve");
 
   // 3. Return ? PromiseResolve(C, x).
   Return(CallBuiltin(Builtins::kPromiseResolve, context, receiver, value));
@@ -1767,10 +1767,11 @@ TF_BUILTIN(PromisePrototypeFinally, PromiseBuiltinsAssembler) {
   // 1.  Let promise be the this value.
   Node* const receiver = Parameter(Descriptor::kReceiver);
   Node* const on_finally = Parameter(Descriptor::kOnFinally);
-  Node* const context = Parameter(Descriptor::kContext);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   // 2. If Type(promise) is not Object, throw a TypeError exception.
-  ThrowIfNotJSReceiver(context, receiver, MessageTemplate::kCalledOnNonObject,
+  ThrowIfNotJSReceiver(context, CAST(receiver),
+                       MessageTemplate::kCalledOnNonObject,
                        "Promise.prototype.finally");
 
   // 3. Let C be ? SpeciesConstructor(promise, %Promise%).
@@ -2570,8 +2571,8 @@ TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
 
   Node* const receiver = Parameter(Descriptor::kReceiver);
   TNode<Context> const context = CAST(Parameter(Descriptor::kContext));
-  ThrowIfNotJSReceiver(context, receiver, MessageTemplate::kCalledOnNonObject,
-                       "Promise.race");
+  ThrowIfNotJSReceiver(context, CAST(receiver),
+                       MessageTemplate::kCalledOnNonObject, "Promise.race");
 
   // Let promiseCapability be ? NewPromiseCapability(C).
   // Don't fire debugEvent so that forwarding the rejection through all does not

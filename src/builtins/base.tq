@@ -1665,6 +1665,9 @@ extern macro ThrowTypeError(implicit context: Context)(
 extern transitioning runtime ThrowTypeErrorIfStrict(implicit context: Context)(
     Smi, Object, Object): void;
 
+extern transitioning macro ThrowIfNotJSReceiver(implicit context: Context)(
+    JSAny, constexpr MessageTemplate, constexpr string): void;
+
 extern macro ArraySpeciesCreate(Context, JSAny, Number): JSReceiver;
 extern macro ArrayCreate(implicit context: Context)(Number): JSArray;
 extern macro BuildAppendJSArray(

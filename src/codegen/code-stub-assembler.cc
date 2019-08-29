@@ -6052,27 +6052,26 @@ Node* CodeStubAssembler::ThrowIfNotInstanceType(Node* context, Node* value,
   return var_value_map.value();
 }
 
-Node* CodeStubAssembler::ThrowIfNotJSReceiver(Node* context, Node* value,
-                                              MessageTemplate msg_template,
-                                              const char* method_name) {
-  Label out(this), throw_exception(this, Label::kDeferred);
-  VARIABLE(var_value_map, MachineRepresentation::kTagged);
+void CodeStubAssembler::ThrowIfNotJSReceiver(TNode<Context> context,
+                                             TNode<Object> value,
+                                             MessageTemplate msg_template,
+                                             const char* method_name) {
+  Label done(this), throw_exception(this, Label::kDeferred);
 
   GotoIf(TaggedIsSmi(value), &throw_exception);
 
   // Load the instance type of the {value}.
-  var_value_map.Bind(LoadMap(value));
-  TNode<Uint16T> const value_instance_type =
-      LoadMapInstanceType(var_value_map.value());
+  TNode<Map> value_map = LoadMap(CAST(value));
+  TNode<Uint16T> const value_instance_type = LoadMapInstanceType(value_map);
 
-  Branch(IsJSReceiverInstanceType(value_instance_type), &out, &throw_exception);
+  Branch(IsJSReceiverInstanceType(value_instance_type), &done,
+         &throw_exception);
 
   // The {value} is not a compatible receiver for this method.
   BIND(&throw_exception);
-  ThrowTypeError(context, msg_template, method_name);
+  ThrowTypeError(context, msg_template, StringConstant(method_name), value);
 
-  BIND(&out);
-  return var_value_map.value();
+  BIND(&done);
 }
 
 void CodeStubAssembler::ThrowIfNotCallable(TNode<Context> context,
@@ -13008,7 +13007,7 @@ TNode<JSReceiver> CodeStubAssembler::SpeciesConstructor(
 
   // 4. If Type(C) is not Object, throw a TypeError exception.
   ThrowIfNotJSReceiver(context, constructor,
-                       MessageTemplate::kConstructorNotReceiver);
+                       MessageTemplate::kConstructorNotReceiver, "");
 
   // 5. Let S be ? Get(C, @@species).
   TNode<Object> species =

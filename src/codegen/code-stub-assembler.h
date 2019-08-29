@@ -2321,10 +2321,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                InstanceType instance_type,
                                char const* method_name);
   // Throws a TypeError for {method_name} if {value} is not a JSReceiver.
-  // Returns the {value}'s map.
-  Node* ThrowIfNotJSReceiver(Node* context, Node* value,
-                             MessageTemplate msg_template,
-                             const char* method_name = nullptr);
+  void ThrowIfNotJSReceiver(TNode<Context> context, TNode<Object> value,
+                            MessageTemplate msg_template,
+                            const char* method_name);
   void ThrowIfNotCallable(TNode<Context> context, TNode<Object> value,
                           const char* method_name);
 

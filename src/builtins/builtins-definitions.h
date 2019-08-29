@@ -847,8 +847,6 @@ namespace internal {
   TFJ(RegExpPrototypeCompile, 2, kReceiver, kPattern, kFlags)                  \
   /* ES #sec-regexp.prototype.exec */                                          \
   TFJ(RegExpPrototypeExec, 1, kReceiver, kString)                              \
-  /* ES #sec-get-regexp.prototype.flags */                                     \
-  TFJ(RegExpPrototypeFlagsGetter, 0, kReceiver)                                \
   /* ES #sec-regexp.prototype-@@match */                                       \
   TFJ(RegExpPrototypeMatch, 1, kReceiver, kString)                             \
   /* https://tc39.github.io/proposal-string-matchall/ */                       \

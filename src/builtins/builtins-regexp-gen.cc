@@ -893,34 +893,6 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpPrototypeExecBody(
   return var_result.value();
 }
 
-Node* RegExpBuiltinsAssembler::ThrowIfNotJSReceiver(
-    Node* context, Node* maybe_receiver, MessageTemplate msg_template,
-    char const* method_name) {
-  Label out(this), throw_exception(this, Label::kDeferred);
-  VARIABLE(var_value_map, MachineRepresentation::kTagged);
-
-  GotoIf(TaggedIsSmi(maybe_receiver), &throw_exception);
-
-  // Load the instance type of the {value}.
-  var_value_map.Bind(LoadMap(maybe_receiver));
-  TNode<Uint16T> const value_instance_type =
-      LoadMapInstanceType(var_value_map.value());
-
-  Branch(IsJSReceiverInstanceType(value_instance_type), &out, &throw_exception);
-
-  // The {value} is not a compatible receiver for this method.
-  BIND(&throw_exception);
-  {
-    TNode<Object> const value_str =
-        CallBuiltin(Builtins::kToString, context, maybe_receiver);
-    ThrowTypeError(context, msg_template, StringConstant(method_name),
-                   value_str);
-  }
-
-  BIND(&out);
-  return var_value_map.value();
-}
-
 TNode<BoolT> RegExpBuiltinsAssembler::IsReceiverInitialRegExpPrototype(
     SloppyTNode<Context> context, SloppyTNode<Object> receiver) {
   TNode<Context> native_context = LoadNativeContext(context);
@@ -1211,8 +1183,8 @@ TF_BUILTIN(RegExpPrototypeExec, RegExpBuiltinsAssembler) {
                      string));
 }
 
-TNode<String> RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
-                                                   Node* const regexp,
+TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
+                                                   TNode<Object> regexp,
                                                    bool is_fastpath) {
   Isolate* isolate = this->isolate();
 
@@ -1225,9 +1197,9 @@ TNode<String> RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
 
   if (is_fastpath) {
     // Refer to JSRegExp's flag property on the fast-path.
-    CSA_ASSERT(this, IsJSRegExp(regexp));
+    CSA_ASSERT(this, IsJSRegExp(CAST(regexp)));
     TNode<Smi> const flags_smi =
-        CAST(LoadObjectField(regexp, JSRegExp::kFlagsOffset));
+        CAST(LoadObjectField(CAST(regexp), JSRegExp::kFlagsOffset));
     var_flags = SmiUntag(flags_smi);
 
 #define CASE_FOR_FLAG(FLAG)                                        \
@@ -1380,29 +1352,6 @@ Node* RegExpBuiltinsAssembler::RegExpInitialize(Node* const context,
 
   return CallRuntime(Runtime::kRegExpInitializeAndCompile, context, regexp,
                      pattern, flags);
-}
-
-// ES #sec-get-regexp.prototype.flags
-TF_BUILTIN(RegExpPrototypeFlagsGetter, RegExpBuiltinsAssembler) {
-  TNode<Object> maybe_receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-
-  ThrowIfNotJSReceiver(context, maybe_receiver,
-                       MessageTemplate::kRegExpNonObject,
-                       "RegExp.prototype.flags");
-  TNode<JSReceiver> receiver = CAST(maybe_receiver);
-
-  // The check is strict because the following code relies on individual flag
-  // getters on the regexp prototype (e.g.: global, sticky, ...). We don't
-  // bother to check these individually.
-  Label if_isfastpath(this), if_isslowpath(this, Label::kDeferred);
-  BranchIfFastRegExp_Strict(context, receiver, &if_isfastpath, &if_isslowpath);
-
-  BIND(&if_isfastpath);
-  Return(FlagsGetter(context, receiver, true));
-
-  BIND(&if_isslowpath);
-  Return(FlagsGetter(context, receiver, false));
 }
 
 // ES#sec-regexp-pattern-flags
@@ -1562,7 +1511,7 @@ TF_BUILTIN(RegExpPrototypeCompile, RegExpBuiltinsAssembler) {
       BIND(&next);
     }
 
-    TNode<String> const new_flags = FlagsGetter(context, pattern, true);
+    TNode<String> const new_flags = FlagsGetter(context, CAST(pattern), true);
     TNode<Object> const new_pattern =
         LoadObjectField(pattern, JSRegExp::kSourceOffset);
 
@@ -1645,8 +1594,8 @@ TNode<BoolT> RegExpBuiltinsAssembler::FlagGetter(TNode<Context> context,
 }
 
 // ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
-TNode<Object> RegExpBuiltinsAssembler::RegExpExec(Node* context, Node* regexp,
-                                                  Node* string) {
+TNode<Object> RegExpBuiltinsAssembler::RegExpExec(TNode<Context> context,
+                                                  Node* regexp, Node* string) {
   TVARIABLE(Object, var_result);
   Label out(this);
 
@@ -2157,7 +2106,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSearchBodyFast(
 }
 
 void RegExpBuiltinsAssembler::RegExpPrototypeSearchBodySlow(
-    Node* const context, Node* const regexp, Node* const string) {
+    TNode<Context> context, Node* const regexp, Node* const string) {
   CSA_ASSERT(this, IsJSReceiver(regexp));
   CSA_ASSERT(this, IsString(string));
 
@@ -2167,7 +2116,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSearchBodySlow(
 
   // Grab the initial value of last index.
   TNode<Object> const previous_last_index =
-      SlowLoadLastIndex(CAST(context), CAST(regexp));
+      SlowLoadLastIndex(context, CAST(regexp));
 
   // Ensure last index is 0.
   {
@@ -2187,7 +2136,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSearchBodySlow(
   {
     Label next(this), slow(this, Label::kDeferred);
     TNode<Object> const current_last_index =
-        SlowLoadLastIndex(CAST(context), CAST(regexp));
+        SlowLoadLastIndex(context, CAST(regexp));
 
     BranchIfSameValue(current_last_index, previous_last_index, &next, &slow);
 

@@ -84,10 +84,6 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                                             TNode<String> string,
                                             const bool is_fastpath);
 
-  Node* ThrowIfNotJSReceiver(Node* context, Node* maybe_receiver,
-                             MessageTemplate msg_template,
-                             char const* method_name);
-
   TNode<BoolT> IsReceiverInitialRegExpPrototype(SloppyTNode<Context> context,
                                                 SloppyTNode<Object> receiver);
 
@@ -153,8 +149,8 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   void BranchIfFastRegExpResult(Node* const context, Node* const object,
                                 Label* if_isunmodified, Label* if_ismodified);
 
-  TNode<String> FlagsGetter(Node* const context, Node* const regexp,
-                            bool is_fastpath);
+  TNode<String> FlagsGetter(TNode<Context> context, TNode<Object> regexp,
+                            const bool is_fastpath);
 
   TNode<BoolT> FastFlagGetter(TNode<JSRegExp> regexp, JSRegExp::Flag flag);
   TNode<BoolT> FastFlagGetterGlobal(TNode<JSRegExp> regexp) {
@@ -171,7 +167,7 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   Node* RegExpInitialize(Node* const context, Node* const regexp,
                          Node* const maybe_pattern, Node* const maybe_flags);
 
-  TNode<Object> RegExpExec(Node* context, Node* regexp, Node* string);
+  TNode<Object> RegExpExec(TNode<Context> context, Node* regexp, Node* string);
 
   TNode<Number> AdvanceStringIndex(SloppyTNode<String> string,
                                    SloppyTNode<Number> index,
@@ -190,7 +186,7 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   void RegExpPrototypeSearchBodyFast(TNode<Context> context,
                                      TNode<JSRegExp> regexp,
                                      TNode<String> string);
-  void RegExpPrototypeSearchBodySlow(Node* const context, Node* const regexp,
+  void RegExpPrototypeSearchBodySlow(TNode<Context> context, Node* const regexp,
                                      Node* const string);
 
   void RegExpPrototypeSplitBody(TNode<Context> context, TNode<JSRegExp> regexp,

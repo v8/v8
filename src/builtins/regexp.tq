@@ -130,4 +130,35 @@ namespace regexp {
         receiver, kUnicode, kRegExpPrototypeUnicodeGetter,
         'RegExp.prototype.unicode');
   }
+
+  extern transitioning macro
+  RegExpBuiltinsAssembler::FlagsGetter(implicit context: Context)(
+      Object, constexpr bool): String;
+
+  transitioning macro
+  FastFlagsGetter(implicit context: Context)(receiver: FastJSRegExp): String {
+    return FlagsGetter(receiver, true);
+  }
+
+  transitioning macro SlowFlagsGetter(implicit context:
+                                          Context)(receiver: JSAny): String {
+    return FlagsGetter(receiver, false);
+  }
+
+  const kRegExpNonObject: constexpr MessageTemplate
+  generates 'MessageTemplate::kRegExpNonObject';
+
+  // ES #sec-get-regexp.prototype.flags
+  // TFJ(RegExpPrototypeFlagsGetter, 0, kReceiver) \
+  transitioning javascript builtin RegExpPrototypeFlagsGetter(
+      js-implicit context: Context, receiver: JSAny)(): String {
+    ThrowIfNotJSReceiver(receiver, kRegExpNonObject, 'RegExp.prototype.flags');
+
+    // The check is strict because the following code relies on individual flag
+    // getters on the regexp prototype (e.g.: global, sticky, ...). We don't
+    // bother to check these individually.
+    const fastRegexp = Cast<FastJSRegExp>(receiver)
+        otherwise return SlowFlagsGetter(receiver);
+    return FastFlagsGetter(fastRegexp);
+  }
 }
