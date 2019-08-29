@@ -48,6 +48,8 @@ namespace internal {
  *
  * The stack will have the following content, in some order, indexable from the
  * frame pointer (see, e.g., kStackHighEnd):
+ *    - Address regexp       (address of the JSRegExp object; unused in native
+ *                            code, passed to match signature of interpreter)
  *    - Isolate* isolate     (address of the current isolate)
  *    - direct_call          (if 1, direct call from JavaScript code, if 0 call
  *                            through the runtime system)
@@ -75,9 +77,8 @@ namespace internal {
  * "character -1" in the string (i.e., char_size() bytes before the first
  * character of the string).  The remaining registers starts out uninitialized.
  *
- * The first seven values must be provided by the calling code by
- * calling the code's entry address cast to a function pointer with the
- * following signature:
+ * The argument values must be provided by the calling code by calling the
+ * code's entry address cast to a function pointer with the following signature:
  * int (*match)(String input_string,
  *              int start_index,
  *              Address start,
@@ -86,7 +87,8 @@ namespace internal {
  *              int num_capture_registers,
  *              byte* stack_area_base,
  *              bool direct_call = false,
- *              Isolate* isolate);
+ *              Isolate* isolate,
+ *              Address regexp);
  */
 
 #define __ ACCESS_MASM((&masm_))

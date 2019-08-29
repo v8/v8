@@ -516,6 +516,7 @@ class RegExpCompiler {
 
     const char* const error_message = nullptr;
     Object code;
+    Object bytecode;
     int num_registers = 0;
   };
 

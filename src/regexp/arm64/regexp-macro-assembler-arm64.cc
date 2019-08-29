@@ -55,7 +55,10 @@ namespace internal {
  *              (as referred to in
  *              the code)
  *
- *  - fp[96]   isolate            Address of the current isolate.
+ *  - fp[104]  Address regexp      Address of the JSRegExp object. Unused in
+ *                                 native code, passed to match signature of
+ *                                 the interpreter.
+ *  - fp[96]   isolate             Address of the current isolate.
  *  ^^^ sp when called ^^^
  *  - fp[88]    lr                 Return from the RegExp code.
  *  - fp[80]    r29                Old frame pointer (CalleeSaved).
@@ -93,7 +96,8 @@ namespace internal {
  *              int num_capture_registers,
  *              byte* stack_area_base,
  *              bool direct_call = false,
- *              Isolate* isolate);
+ *              Isolate* isolate,
+ *              Address regexp);
  * The call is performed by NativeRegExpMacroAssembler::Execute()
  * (in regexp-macro-assembler.cc) via the GeneratedCode wrapper.
  */

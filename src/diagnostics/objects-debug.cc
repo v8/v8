@@ -1448,22 +1448,34 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
       break;
     }
     case JSRegExp::IRREGEXP: {
-      bool can_be_native = RegExp::CanGenerateNativeCode();
       bool can_be_interpreted = RegExp::CanGenerateBytecode();
 
       FixedArray arr = FixedArray::cast(data());
       Object one_byte_data = arr.get(JSRegExp::kIrregexpLatin1CodeIndex);
       // Smi : Not compiled yet (-1).
-      // Code/ByteArray: Compiled code.
+      // Code: Compiled irregexp code or trampoline to the interpreter.
       CHECK((one_byte_data.IsSmi() &&
              Smi::ToInt(one_byte_data) == JSRegExp::kUninitializedValue) ||
-            (can_be_interpreted && one_byte_data.IsByteArray()) ||
-            (can_be_native && one_byte_data.IsCode()));
+            one_byte_data.IsCode());
       Object uc16_data = arr.get(JSRegExp::kIrregexpUC16CodeIndex);
       CHECK((uc16_data.IsSmi() &&
              Smi::ToInt(uc16_data) == JSRegExp::kUninitializedValue) ||
-            (can_be_interpreted && uc16_data.IsByteArray()) ||
-            (can_be_native && uc16_data.IsCode()));
+            uc16_data.IsCode());
+
+      Object one_byte_bytecode =
+          arr.get(JSRegExp::kIrregexpLatin1BytecodeIndex);
+      // Smi : Not compiled yet (-1).
+      // ByteArray: Bytecode to interpret regexp.
+      CHECK((one_byte_bytecode.IsSmi() &&
+             Smi::ToInt(one_byte_bytecode) == JSRegExp::kUninitializedValue) ||
+            (can_be_interpreted && one_byte_bytecode.IsByteArray()));
+      Object uc16_bytecode = arr.get(JSRegExp::kIrregexpUC16BytecodeIndex);
+      CHECK((uc16_bytecode.IsSmi() &&
+             Smi::ToInt(uc16_bytecode) == JSRegExp::kUninitializedValue) ||
+            (can_be_interpreted && uc16_bytecode.IsByteArray()));
+
+      CHECK_IMPLIES(one_byte_data.IsSmi(), one_byte_bytecode.IsSmi());
+      CHECK_IMPLIES(uc16_data.IsSmi(), uc16_bytecode.IsSmi());
 
       CHECK(arr.get(JSRegExp::kIrregexpCaptureCountIndex).IsSmi());
       CHECK(arr.get(JSRegExp::kIrregexpMaxRegisterCountIndex).IsSmi());

@@ -6141,6 +6141,10 @@ Object JSRegExp::Code(bool is_latin1) const {
   return DataAt(code_index(is_latin1));
 }
 
+Object JSRegExp::Bytecode(bool is_latin1) const {
+  return DataAt(bytecode_index(is_latin1));
+}
+
 bool JSRegExp::ShouldProduceBytecode() {
   return FLAG_regexp_interpret_all ||
          (FLAG_regexp_tier_up && !MarkedForTierUp());

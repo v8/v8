@@ -10,6 +10,7 @@
 #include "src/builtins/growable-fixed-array-gen.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/execution/protectors.h"
 #include "src/heap/factory-inl.h"
 #include "src/logging/counters.h"
@@ -25,10 +26,58 @@ using compiler::Node;
 template <class T>
 using TNode = compiler::TNode<T>;
 
+// Tail calls the regular expression interpreter.
+// static
+void Builtins::Generate_RegExpInterpreterTrampoline(MacroAssembler* masm) {
+  ExternalReference interpreter_code_entry =
+      ExternalReference::re_match_for_call_from_js(masm->isolate());
+  masm->Jump(interpreter_code_entry);
+}
+
 TNode<Smi> RegExpBuiltinsAssembler::SmiZero() { return SmiConstant(0); }
 
 TNode<IntPtrT> RegExpBuiltinsAssembler::IntPtrZero() {
   return IntPtrConstant(0);
+}
+
+// If code is a builtin, return the address to the (possibly embedded) builtin
+// code entry, otherwise return the entry of the code object itself.
+TNode<RawPtrT> RegExpBuiltinsAssembler::LoadCodeObjectEntry(TNode<Code> code) {
+  TVARIABLE(RawPtrT, var_result);
+
+  Label if_code_is_off_heap(this), out(this);
+  {
+    // TODO(pthier): A potential optimization for the future is to make this
+    // decision based on the builtin index instead of flags, and avoid the
+    // additional load below.
+    TNode<Int32T> code_flags = UncheckedCast<Int32T>(
+        LoadObjectField(code, Code::kFlagsOffset, MachineType::Int32()));
+    GotoIf(IsSetWord32(code_flags, Code::IsOffHeapTrampoline::kMask),
+           &if_code_is_off_heap);
+    var_result = ReinterpretCast<RawPtrT>(
+        IntPtrAdd(BitcastTaggedToWord(code),
+                  IntPtrConstant(Code::kHeaderSize - kHeapObjectTag)));
+    Goto(&out);
+  }
+
+  BIND(&if_code_is_off_heap);
+  {
+    TNode<Int32T> builtin_index = UncheckedCast<Int32T>(
+        LoadObjectField(code, Code::kBuiltinIndexOffset, MachineType::Int32()));
+    TNode<IntPtrT> builtin_entry_offset_from_isolate_root =
+        IntPtrAdd(IntPtrConstant(IsolateData::builtin_entry_table_offset()),
+                  ChangeInt32ToIntPtr(Word32Shl(
+                      builtin_index, Int32Constant(kSystemPointerSizeLog2))));
+
+    var_result = ReinterpretCast<RawPtrT>(
+        Load(MachineType::Pointer(),
+             ExternalConstant(ExternalReference::isolate_root(isolate())),
+             builtin_entry_offset_from_isolate_root));
+    Goto(&out);
+  }
+
+  BIND(&out);
+  return var_result.value();
 }
 
 // -----------------------------------------------------------------------------
@@ -336,8 +385,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
   ToDirectStringAssembler to_direct(state(), string);
 
   TVARIABLE(HeapObject, var_result);
-  Label out(this), interpreted(this), atom(this),
-      runtime(this, Label::kDeferred);
+  Label out(this), atom(this), runtime(this, Label::kDeferred);
 
   // External constants.
   TNode<ExternalReference> isolate_address =
@@ -406,12 +454,13 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 
   to_direct.TryToDirect(&runtime);
 
-  // Load the irregexp code object and offsets into the subject string. Both
-  // depend on whether the string is one- or two-byte.
+  // Load the irregexp code or bytecode object and offsets into the subject
+  // string. Both depend on whether the string is one- or two-byte.
 
   TVARIABLE(RawPtrT, var_string_start);
   TVARIABLE(RawPtrT, var_string_end);
   TVARIABLE(Object, var_code);
+  TVARIABLE(Object, var_bytecode);
 
   {
     TNode<RawPtrT> direct_string_data = to_direct.PointerToData(&runtime);
@@ -427,6 +476,8 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
                         &var_string_start, &var_string_end);
       var_code =
           UnsafeLoadFixedArrayElement(data, JSRegExp::kIrregexpLatin1CodeIndex);
+      var_bytecode = UnsafeLoadFixedArrayElement(
+          data, JSRegExp::kIrregexpLatin1BytecodeIndex);
       Goto(&next);
     }
 
@@ -437,6 +488,8 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
                         &var_string_start, &var_string_end);
       var_code =
           UnsafeLoadFixedArrayElement(data, JSRegExp::kIrregexpUC16CodeIndex);
+      var_bytecode = UnsafeLoadFixedArrayElement(
+          data, JSRegExp::kIrregexpUC16BytecodeIndex);
       Goto(&next);
     }
 
@@ -458,14 +511,28 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 #endif
 
   GotoIf(TaggedIsSmi(var_code.value()), &runtime);
-  GotoIfNot(IsCode(CAST(var_code.value())), &interpreted);
   TNode<Code> code = CAST(var_code.value());
 
-  // Ensure that a RegExp stack is allocated when using compiled Irregexp.
+  // Tier-up in runtime if ticks are non-zero and tier-up hasn't happened yet
+  // and ensure that a RegExp stack is allocated when using compiled Irregexp.
   {
+    Label next(this);
+    GotoIfNot(TaggedIsSmi(var_bytecode.value()), &next);
+    CSA_ASSERT(this, SmiEqual(CAST(var_bytecode.value()),
+                              SmiConstant(JSRegExp::kUninitializedValue)));
+
+    // Ensure RegExp stack is allocated.
     TNode<IntPtrT> stack_size = UncheckedCast<IntPtrT>(
         Load(MachineType::IntPtr(), regexp_stack_memory_size_address));
     GotoIf(IntPtrEqual(stack_size, IntPtrZero()), &runtime);
+
+    // Check if tier-up is requested.
+    TNode<Smi> ticks = CAST(
+        UnsafeLoadFixedArrayElement(data, JSRegExp::kIrregexpTierUpTicksIndex));
+    GotoIf(SmiToInt32(ticks), &runtime);
+
+    Goto(&next);
+    BIND(&next);
   }
 
   Label if_success(this), if_exception(this, Label::kDeferred);
@@ -489,11 +556,13 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     MachineType arg1_type = type_int32;
     TNode<Int32T> arg1 = TruncateIntPtrToInt32(int_last_index);
 
-    // Argument 2: Start of string data.
+    // Argument 2: Start of string data. This argument is ignored in the
+    // interpreter.
     MachineType arg2_type = type_ptr;
     TNode<RawPtrT> arg2 = var_string_start.value();
 
-    // Argument 3: End of string data.
+    // Argument 3: End of string data. This argument is ignored in the
+    // interpreter.
     MachineType arg3_type = type_ptr;
     TNode<RawPtrT> arg3 = var_string_end.value();
 
@@ -501,13 +570,25 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     MachineType arg4_type = type_ptr;
     TNode<ExternalReference> arg4 = static_offsets_vector_address;
 
-    // Argument 5: Set the number of capture registers to zero to force global
-    // regexps to behave as non-global.  This does not affect non-global
-    // regexps.
-    MachineType arg5_type = type_int32;
-    TNode<Int32T> arg5 = Int32Constant(0);
+    // Argument 5: Number of capture registers.
+    // Setting this to the number of registers required to store all captures
+    // forces global regexps to behave as non-global.
+    TNode<Smi> capture_count = CAST(UnsafeLoadFixedArrayElement(
+        data, JSRegExp::kIrregexpCaptureCountIndex));
+    // capture_count is the number of captures without the match itself.
+    // Required registers = (capture_count + 1) * 2.
+    STATIC_ASSERT(Internals::IsValidSmi((JSRegExp::kMaxCaptures + 1) << 1));
+    TNode<Smi> register_count =
+        SmiShl(SmiAdd(capture_count, SmiConstant(1)), 1);
 
-    // Argument 6: Start (high end) of backtracking stack memory area.
+    MachineType arg5_type = type_int32;
+    TNode<Int32T> arg5 = SmiToInt32(register_count);
+
+    // Argument 6: Start (high end) of backtracking stack memory area. This
+    // argument is ignored in the interpreter.
+    // TODO(pthier): We should consider creating a dedicated external reference
+    // for top of regexp stack instead of calculating it here for every
+    // execution.
     TNode<RawPtrT> stack_start = UncheckedCast<RawPtrT>(
         Load(MachineType::Pointer(), regexp_stack_memory_address_address));
     TNode<IntPtrT> stack_size = UncheckedCast<IntPtrT>(
@@ -520,98 +601,30 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 
     // Argument 7: Indicate that this is a direct call from JavaScript.
     MachineType arg7_type = type_int32;
-    TNode<Int32T> arg7 = Int32Constant(1);
+    TNode<Int32T> arg7 = Int32Constant(RegExp::CallOrigin::kFromJs);
 
     // Argument 8: Pass current isolate address.
     MachineType arg8_type = type_ptr;
     TNode<ExternalReference> arg8 = isolate_address;
 
-    TNode<RawPtrT> code_entry = ReinterpretCast<RawPtrT>(
-        IntPtrAdd(BitcastTaggedToWord(code),
-                  IntPtrConstant(Code::kHeaderSize - kHeapObjectTag)));
+    // Argument 9: Regular expression object. This argument is ignored in native
+    // irregexp code.
+    MachineType arg9_type = type_tagged;
+    TNode<JSRegExp> arg9 = regexp;
+
+    TNode<RawPtrT> code_entry = LoadCodeObjectEntry(code);
 
     TNode<Int32T> result = UncheckedCast<Int32T>(CallCFunction(
         code_entry, retval_type, std::make_pair(arg0_type, arg0),
         std::make_pair(arg1_type, arg1), std::make_pair(arg2_type, arg2),
         std::make_pair(arg3_type, arg3), std::make_pair(arg4_type, arg4),
         std::make_pair(arg5_type, arg5), std::make_pair(arg6_type, arg6),
-        std::make_pair(arg7_type, arg7), std::make_pair(arg8_type, arg8)));
+        std::make_pair(arg7_type, arg7), std::make_pair(arg8_type, arg8),
+        std::make_pair(arg9_type, arg9)));
 
     // Check the result.
     // We expect exactly one result since we force the called regexp to behave
     // as non-global.
-    TNode<IntPtrT> int_result = ChangeInt32ToIntPtr(result);
-    GotoIf(
-        IntPtrEqual(int_result, IntPtrConstant(RegExp::kInternalRegExpSuccess)),
-        &if_success);
-    GotoIf(
-        IntPtrEqual(int_result, IntPtrConstant(RegExp::kInternalRegExpFailure)),
-        &if_failure);
-    GotoIf(IntPtrEqual(int_result,
-                       IntPtrConstant(RegExp::kInternalRegExpException)),
-           &if_exception);
-
-    CSA_ASSERT(this, IntPtrEqual(int_result,
-                                 IntPtrConstant(RegExp::kInternalRegExpRetry)));
-    Goto(&runtime);
-  }
-
-  BIND(&interpreted);
-  {
-    // Tier-up in runtime to compiler if ticks are non-zero.
-    TNode<Smi> ticks = CAST(
-        UnsafeLoadFixedArrayElement(data, JSRegExp::kIrregexpTierUpTicksIndex));
-    GotoIf(SmiToInt32(ticks), &runtime);
-
-    IncrementCounter(isolate()->counters()->regexp_entry_native(), 1);
-
-    // Set up args for the final call into IrregexpInterpreter.
-
-    MachineType type_int32 = MachineType::Int32();
-    MachineType type_tagged = MachineType::AnyTagged();
-    MachineType type_ptr = MachineType::Pointer();
-
-    // Result: A IrregexpInterpreter::Result return code.
-    MachineType retval_type = type_int32;
-
-    // Argument 0: Pass current isolate address.
-    MachineType arg0_type = type_ptr;
-    TNode<ExternalReference> arg0 = isolate_address;
-
-    // Argument 1: Regular expression object.
-    MachineType arg1_type = type_tagged;
-    TNode<JSRegExp> arg1 = regexp;
-
-    // Argument 2: Original subject string.
-    MachineType arg2_type = type_tagged;
-    TNode<String> arg2 = string;
-
-    // Argument 3: Static offsets vector buffer.
-    MachineType arg3_type = type_ptr;
-    TNode<ExternalReference> arg3 = static_offsets_vector_address;
-
-    // Argument 4: Length of static offsets vector buffer.
-    TNode<Smi> capture_count = CAST(UnsafeLoadFixedArrayElement(
-        data, JSRegExp::kIrregexpCaptureCountIndex));
-    TNode<Smi> register_count =
-        SmiShl(SmiAdd(capture_count, SmiConstant(1)), 1);
-
-    MachineType arg4_type = type_int32;
-    TNode<Int32T> arg4 = SmiToInt32(register_count);
-
-    // Argument 5: Previous index.
-    MachineType arg5_type = type_int32;
-    TNode<Int32T> arg5 = TruncateIntPtrToInt32(int_last_index);
-
-    TNode<ExternalReference> code_entry = ExternalConstant(
-        ExternalReference::re_match_for_call_from_js(isolate()));
-
-    TNode<Int32T> result = UncheckedCast<Int32T>(CallCFunction(
-        code_entry, retval_type, std::make_pair(arg0_type, arg0),
-        std::make_pair(arg1_type, arg1), std::make_pair(arg2_type, arg2),
-        std::make_pair(arg3_type, arg3), std::make_pair(arg4_type, arg4),
-        std::make_pair(arg5_type, arg5)));
-
     TNode<IntPtrT> int_result = ChangeInt32ToIntPtr(result);
     GotoIf(
         IntPtrEqual(int_result, IntPtrConstant(RegExp::kInternalRegExpSuccess)),
@@ -1812,7 +1825,6 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(TNode<Context> context,
         TNode<RegExpMatchInfo> match_indices =
             RegExpPrototypeExecBodyWithoutResult(context, CAST(regexp), string,
                                                  &if_didnotmatch, true);
-
         Label dosubstring(this), donotsubstring(this);
         Branch(var_atom.value(), &donotsubstring, &dosubstring);
 

@@ -354,7 +354,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void RetpolineCall(Address destination, RelocInfo::Mode rmode);
 
   void Jump(Address destination, RelocInfo::Mode rmode);
-  void Jump(ExternalReference ext);
+  void Jump(const ExternalReference& reference) override;
   void Jump(Operand op);
   void Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
             Condition cc = always);

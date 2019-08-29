@@ -30,6 +30,8 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   TNode<Smi> SmiZero();
   TNode<IntPtrT> IntPtrZero();
 
+  TNode<RawPtrT> LoadCodeObjectEntry(TNode<Code> code);
+
   // Allocate a RegExpResult with the given length (the number of captures,
   // including the match itself), index (the index where the match starts),
   // and input string.

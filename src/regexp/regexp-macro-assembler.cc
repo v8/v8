@@ -219,7 +219,7 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
 }
 
 // Returns a {Result} sentinel, or the number of successful matches.
-int NativeRegExpMacroAssembler::Match(Handle<Code> regexp_code,
+int NativeRegExpMacroAssembler::Match(Handle<JSRegExp> regexp,
                                       Handle<String> subject,
                                       int* offsets_vector,
                                       int offsets_vector_length,
@@ -262,31 +262,36 @@ int NativeRegExpMacroAssembler::Match(Handle<Code> regexp_code,
       StringCharacterPosition(subject_ptr, start_offset + slice_offset, no_gc);
   int byte_length = char_length << char_size_shift;
   const byte* input_end = input_start + byte_length;
-  return Execute(*regexp_code, *subject, start_offset, input_start, input_end,
-                 offsets_vector, offsets_vector_length, isolate);
+  return Execute(*subject, start_offset, input_start, input_end, offsets_vector,
+                 offsets_vector_length, isolate, *regexp);
 }
 
 // Returns a {Result} sentinel, or the number of successful matches.
+// TODO(pthier): The JSRegExp object is passed to native irregexp code to match
+// the signature of the interpreter. We should get rid of JS objects passed to
+// internal methods.
 int NativeRegExpMacroAssembler::Execute(
-    Code code,
     String input,  // This needs to be the unpacked (sliced, cons) string.
     int start_offset, const byte* input_start, const byte* input_end,
-    int* output, int output_size, Isolate* isolate) {
+    int* output, int output_size, Isolate* isolate, JSRegExp regexp) {
   // Ensure that the minimum stack has been allocated.
   RegExpStackScope stack_scope(isolate);
   Address stack_base = stack_scope.stack()->stack_base();
 
-  int direct_call = 0;
+  bool is_one_byte = String::IsOneByteRepresentationUnderneath(input);
+  Code code = Code::cast(regexp.Code(is_one_byte));
+  RegExp::CallOrigin call_origin = RegExp::CallOrigin::kFromRuntime;
 
   using RegexpMatcherSig = int(
       Address input_string, int start_offset,  // NOLINT(readability/casting)
       const byte* input_start, const byte* input_end, int* output,
-      int output_size, Address stack_base, int direct_call, Isolate* isolate);
+      int output_size, Address stack_base, int call_origin, Isolate* isolate,
+      Address regexp);
 
   auto fn = GeneratedCode<RegexpMatcherSig>::FromCode(code);
-  int result =
-      fn.CallIrregexp(input.ptr(), start_offset, input_start, input_end, output,
-                      output_size, stack_base, direct_call, isolate);
+  int result = fn.CallIrregexp(input.ptr(), start_offset, input_start,
+                               input_end, output, output_size, stack_base,
+                               call_origin, isolate, regexp.ptr());
   DCHECK(result >= RETRY);
 
   if (result == EXCEPTION && !isolate->has_pending_exception()) {

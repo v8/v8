@@ -863,6 +863,7 @@ namespace internal {
   /* RegExp helpers */                                                         \
   TFS(RegExpExecAtom, kRegExp, kString, kLastIndex, kMatchInfo)                \
   TFS(RegExpExecInternal, kRegExp, kString, kLastIndex, kMatchInfo)            \
+  ASM(RegExpInterpreterTrampoline, CCall)                                      \
   TFS(RegExpMatchFast, kReceiver, kPattern)                                    \
   TFS(RegExpPrototypeExecSlow, kReceiver, kString)                             \
   TFS(RegExpSearchFast, kReceiver, kPattern)                                   \

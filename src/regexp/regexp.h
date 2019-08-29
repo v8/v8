@@ -23,8 +23,8 @@ struct RegExpCompileData {
   // The compiled Node graph as produced by RegExpTree::ToNode methods.
   RegExpNode* node = nullptr;
 
-  // The generated code as produced by the compiler. Either a Code object (for
-  // irregexp native code) or a ByteArray (for irregexp bytecode).
+  // Either the generated code as produced by the compiler or a trampoline
+  // to the interpreter.
   Object code;
 
   // True, iff the pattern is a 'simple' atom with zero captures. In other

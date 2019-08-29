@@ -1867,6 +1867,13 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
   }
 }
 
+void TurboAssembler::Jump(const ExternalReference& reference) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  Mov(scratch, reference);
+  Jump(scratch);
+}
+
 void TurboAssembler::Call(Register target) {
   BlockPoolsScope scope(this);
   Blr(target);

@@ -811,7 +811,7 @@ IrregexpInterpreter::Result IrregexpInterpreter::Match(
   }
 
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(subject_string);
-  ByteArray code_array = ByteArray::cast(regexp.Code(is_one_byte));
+  ByteArray code_array = ByteArray::cast(regexp.Bytecode(is_one_byte));
 
   return MatchInternal(isolate, code_array, subject_string, registers,
                        registers_length, start_position, call_origin);
@@ -856,10 +856,12 @@ IrregexpInterpreter::Result IrregexpInterpreter::MatchInternal(
 // This method is called through an external reference from RegExpExecInternal
 // builtin.
 IrregexpInterpreter::Result IrregexpInterpreter::MatchForCallFromJs(
-    Isolate* isolate, Address regexp, Address subject, int* registers,
-    int32_t registers_length, int32_t start_position) {
+    Address subject, int32_t start_position, Address, Address, int* registers,
+    int32_t registers_length, Address, RegExp::CallOrigin call_origin,
+    Isolate* isolate, Address regexp) {
   DCHECK_NOT_NULL(isolate);
   DCHECK_NOT_NULL(registers);
+  DCHECK(call_origin == RegExp::CallOrigin::kFromJs);
 
   DisallowHeapAllocation no_gc;
   DisallowJavascriptExecution no_js(isolate);
@@ -868,7 +870,7 @@ IrregexpInterpreter::Result IrregexpInterpreter::MatchForCallFromJs(
   JSRegExp regexp_obj = JSRegExp::cast(Object(regexp));
 
   return Match(isolate, regexp_obj, subject_string, registers, registers_length,
-               start_position, RegExp::CallOrigin::kFromJs);
+               start_position, call_origin);
 }
 
 IrregexpInterpreter::Result IrregexpInterpreter::MatchForCallFromRuntime(

@@ -103,6 +103,10 @@ class JSRegExp : public JSObject {
   void MarkTierUpForNextExec();
 
   inline Type TypeTag() const;
+
+  // Maximum number of captures allowed.
+  static constexpr int kMaxCaptures = 1 << 16;
+
   // Number of captures (without the match itself).
   inline int CaptureCount();
   inline Flags GetFlags();
@@ -112,16 +116,19 @@ class JSRegExp : public JSObject {
   // Set implementation data after the object has been prepared.
   inline void SetDataAt(int index, Object value);
 
-  static int code_index(bool is_latin1) {
-    if (is_latin1) {
-      return kIrregexpLatin1CodeIndex;
-    } else {
-      return kIrregexpUC16CodeIndex;
-    }
+  static constexpr int code_index(bool is_latin1) {
+    return is_latin1 ? kIrregexpLatin1CodeIndex : kIrregexpUC16CodeIndex;
   }
 
-  // This could be a Smi kUninitializedValue, a ByteArray, or Code.
+  static constexpr int bytecode_index(bool is_latin1) {
+    return is_latin1 ? kIrregexpLatin1BytecodeIndex
+                     : kIrregexpUC16BytecodeIndex;
+  }
+
+  // This could be a Smi kUninitializedValue or Code.
   Object Code(bool is_latin1) const;
+  // This could be a Smi kUninitializedValue or ByteArray.
+  Object Bytecode(bool is_latin1) const;
   bool ShouldProduceBytecode();
   inline bool HasCompiledCode() const;
   inline void DiscardCompiledCodeForSerialization();
@@ -151,23 +158,33 @@ class JSRegExp : public JSObject {
 
   static const int kAtomDataSize = kAtomPatternIndex + 1;
 
-  // Irregexp compiled code or bytecode for Latin1. If compilation
-  // fails, this fields hold an exception object that should be
+  // Irregexp compiled code or trampoline to interpreter for Latin1. If
+  // compilation fails, this fields hold an exception object that should be
   // thrown if the regexp is used again.
   static const int kIrregexpLatin1CodeIndex = kDataIndex;
-  // Irregexp compiled code or bytecode for UC16.  If compilation
-  // fails, this fields hold an exception object that should be
+  // Irregexp compiled code or trampoline to interpreter for UC16.  If
+  // compilation fails, this fields hold an exception object that should be
   // thrown if the regexp is used again.
   static const int kIrregexpUC16CodeIndex = kDataIndex + 1;
+  // Bytecode to interpret the regexp for Latin1. Contains kUninitializedValue
+  // if we haven't compiled the regexp yet, regexp are always compiled or if
+  // tier-up has happened (i.e. when kIrregexpLatin1CodeIndex contains native
+  // irregexp code).
+  static const int kIrregexpLatin1BytecodeIndex = kDataIndex + 2;
+  // Bytecode to interpret the regexp for UC16. Contains kUninitializedValue if
+  // we haven't compiled the regxp yet, regexp are always compiled or if tier-up
+  // has happened (i.e. when kIrregexpUC16CodeIndex contains native irregexp
+  // code).
+  static const int kIrregexpUC16BytecodeIndex = kDataIndex + 3;
   // Maximal number of registers used by either Latin1 or UC16.
   // Only used to check that there is enough stack space
-  static const int kIrregexpMaxRegisterCountIndex = kDataIndex + 2;
+  static const int kIrregexpMaxRegisterCountIndex = kDataIndex + 4;
   // Number of captures in the compiled regexp.
-  static const int kIrregexpCaptureCountIndex = kDataIndex + 3;
+  static const int kIrregexpCaptureCountIndex = kDataIndex + 5;
   // Maps names of named capture groups (at indices 2i) to their corresponding
   // (1-based) capture group indices (at indices 2i + 1).
-  static const int kIrregexpCaptureNameMapIndex = kDataIndex + 4;
-  static const int kIrregexpTierUpTicksIndex = kDataIndex + 5;
+  static const int kIrregexpCaptureNameMapIndex = kDataIndex + 6;
+  static const int kIrregexpTierUpTicksIndex = kDataIndex + 7;
 
   static const int kIrregexpDataSize = kIrregexpTierUpTicksIndex + 1;
 
