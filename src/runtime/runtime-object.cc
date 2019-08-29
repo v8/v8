@@ -2,13 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/ast/prettyprinter.h"
 #include "src/common/message-template.h"
 #include "src/debug/debug.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
-#include "src/execution/messages.h"
-#include "src/handles/maybe-handles.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
@@ -27,8 +24,13 @@ MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
                                                Handle<Object> key,
                                                bool* is_found_out) {
   if (object->IsNullOrUndefined(isolate)) {
-    ErrorUtils::ThrowLoadFromNullOrUndefined(isolate, object, key);
-    return MaybeHandle<Object>();
+    if (*key == ReadOnlyRoots(isolate).iterator_symbol()) {
+      return Runtime::ThrowIteratorError(isolate, object);
+    }
+    THROW_NEW_ERROR(
+        isolate,
+        NewTypeError(MessageTemplate::kNonObjectPropertyLoad, key, object),
+        Object);
   }
 
   bool success = false;
@@ -776,6 +778,7 @@ RUNTIME_FUNCTION(Runtime_HasProperty) {
   return isolate->heap()->ToBoolean(maybe.FromJust());
 }
 
+
 RUNTIME_FUNCTION(Runtime_GetOwnPropertyKeys) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -792,6 +795,7 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyKeys) {
   return *isolate->factory()->NewJSArrayWithElements(keys);
 }
 
+
 RUNTIME_FUNCTION(Runtime_ToFastProperties) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -803,11 +807,13 @@ RUNTIME_FUNCTION(Runtime_ToFastProperties) {
   return *object;
 }
 
+
 RUNTIME_FUNCTION(Runtime_AllocateHeapNumber) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   return *isolate->factory()->NewHeapNumber(0);
 }
+
 
 RUNTIME_FUNCTION(Runtime_NewObject) {
   HandleScope scope(isolate);
@@ -839,6 +845,7 @@ RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTrackingForMap) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+
 RUNTIME_FUNCTION(Runtime_TryMigrateInstance) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -855,9 +862,11 @@ RUNTIME_FUNCTION(Runtime_TryMigrateInstance) {
   return *object;
 }
 
+
 static bool IsValidAccessor(Isolate* isolate, Handle<Object> obj) {
   return obj->IsNullOrUndefined(isolate) || obj->IsCallable();
 }
+
 
 // Implements part of 8.12.9 DefineOwnProperty.
 // There are 3 cases that lead here:
@@ -881,6 +890,7 @@ RUNTIME_FUNCTION(Runtime_DefineAccessorPropertyUnchecked) {
       isolate, JSObject::DefineAccessor(obj, name, getter, setter, attrs));
   return ReadOnlyRoots(isolate).undefined_value();
 }
+
 
 RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
   HandleScope scope(isolate);
@@ -973,12 +983,14 @@ RUNTIME_FUNCTION(Runtime_HasFastPackedElements) {
       IsFastPackedElementsKind(obj.map().elements_kind()));
 }
 
+
 RUNTIME_FUNCTION(Runtime_IsJSReceiver) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Object, obj, 0);
   return isolate->heap()->ToBoolean(obj.IsJSReceiver());
 }
+
 
 RUNTIME_FUNCTION(Runtime_ClassOf) {
   SealHandleScope shs(isolate);
@@ -1056,9 +1068,9 @@ RUNTIME_FUNCTION(Runtime_CopyDataPropertiesWithExcludedProperties) {
   DCHECK_LE(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, source, 0);
 
-  // If source is undefined or null, throw a non-coercible error.
-  if (source->IsNullOrUndefined(isolate)) {
-    return ErrorUtils::ThrowLoadFromNullOrUndefined(isolate, source);
+  // 2. If source is undefined or null, let keys be an empty List.
+  if (source->IsUndefined(isolate) || source->IsNull(isolate)) {
+    return ReadOnlyRoots(isolate).undefined_value();
   }
 
   ScopedVector<Handle<Object>> excluded_properties(args.length() - 1);
@@ -1128,6 +1140,7 @@ RUNTIME_FUNCTION(Runtime_ToNumeric) {
   RETURN_RESULT_OR_FAILURE(isolate, Object::ToNumeric(isolate, input));
 }
 
+
 RUNTIME_FUNCTION(Runtime_ToLength) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -1160,6 +1173,7 @@ RUNTIME_FUNCTION(Runtime_HasInPrototypeChain) {
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return isolate->heap()->ToBoolean(result.FromJust());
 }
+
 
 // ES6 section 7.4.7 CreateIterResultObject ( value, done )
 RUNTIME_FUNCTION(Runtime_CreateIterResultObject) {

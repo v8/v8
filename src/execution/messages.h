@@ -283,18 +283,6 @@ class ErrorUtils : public AllStatic {
   static MaybeHandle<Object> FormatStackTrace(Isolate* isolate,
                                               Handle<JSObject> error,
                                               Handle<Object> stack_trace);
-
-  static Handle<Object> NewIteratorError(Isolate* isolate,
-                                         Handle<Object> source);
-  static Handle<Object> NewCalledNonCallableError(Isolate* isolate,
-                                                  Handle<Object> source);
-  static Handle<Object> NewConstructedNonConstructable(Isolate* isolate,
-                                                       Handle<Object> source);
-  static Object ThrowLoadFromNullOrUndefined(Isolate* isolate,
-                                             Handle<Object> object);
-  static Object ThrowLoadFromNullOrUndefined(Isolate* isolate,
-                                             Handle<Object> object,
-                                             MaybeHandle<Object> key);
 };
 
 class MessageFormatter {

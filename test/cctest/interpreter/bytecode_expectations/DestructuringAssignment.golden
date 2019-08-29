@@ -366,14 +366,18 @@ snippet: "
   var x, a = {x:1};
   ({x} = a);
 "
-frame size: 2
+frame size: 3
 parameter count: 1
-bytecode array length: 15
+bytecode array length: 26
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   45 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
                 B(Star), R(1),
-  /*   54 S> */ B(LdaNamedProperty), R(1), U8(1), U8(1),
+  /*   52 S> */ B(JumpIfNull), U8(4),
+                B(JumpIfNotUndefined), U8(7),
+  /*   53 E> */ B(CallRuntime), U16(Runtime::kThrowPatternAssignmentNonCoercible), R(0), U8(0),
+                B(Star), R(2),
+  /*   54 S> */ B(LdaNamedProperty), R(2), U8(1), U8(1),
                 B(Star), R(0),
                 B(LdaUndefined),
   /*   63 S> */ B(Return),
@@ -390,16 +394,20 @@ snippet: "
   var x={}, a = {y:1};
   ({y:x.foo} = a);
 "
-frame size: 2
+frame size: 3
 parameter count: 1
-bytecode array length: 20
+bytecode array length: 31
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   40 S> */ B(CreateEmptyObjectLiteral),
                 B(Star), R(0),
   /*   48 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
                 B(Star), R(1),
-  /*   61 S> */ B(LdaNamedProperty), R(1), U8(1), U8(1),
+  /*   55 S> */ B(JumpIfNull), U8(4),
+                B(JumpIfNotUndefined), U8(7),
+  /*   56 E> */ B(CallRuntime), U16(Runtime::kThrowPatternAssignmentNonCoercible), R(0), U8(0),
+  /*   61 S> */ B(Star), R(2),
+                B(LdaNamedProperty), R(2), U8(1), U8(1),
                 B(StaNamedProperty), R(0), U8(2), U8(3),
                 B(LdaUndefined),
   /*   72 S> */ B(Return),
@@ -419,15 +427,18 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 33
+bytecode array length: 41
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   45 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
                 B(Star), R(1),
+  /*   62 S> */ B(JumpIfNull), U8(4),
+                B(JumpIfNotUndefined), U8(7),
+  /*   63 E> */ B(CallRuntime), U16(Runtime::kThrowPatternAssignmentNonCoercible), R(0), U8(0),
+                B(Star), R(2),
   /*   64 S> */ B(LdaConstant), U8(1),
                 B(Star), R(3),
-                B(LdaNamedProperty), R(1), U8(1), U8(1),
-                B(Mov), R(1), R(2),
+                B(LdaNamedProperty), R(2), U8(1), U8(1),
                 B(JumpIfNotUndefined), U8(3),
                 B(LdaZero),
                 B(Star), R(0),
