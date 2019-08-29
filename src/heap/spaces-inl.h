@@ -172,9 +172,7 @@ bool PagedSpace::Contains(Object o) {
 void PagedSpace::UnlinkFreeListCategories(Page* page) {
   DCHECK_EQ(this, page->owner());
   page->ForAllFreeListCategories([this](FreeListCategory* category) {
-    DCHECK_EQ(free_list(), category->owner());
     free_list()->RemoveCategory(category);
-    category->set_free_list(nullptr);
   });
 }
 
@@ -182,9 +180,8 @@ size_t PagedSpace::RelinkFreeListCategories(Page* page) {
   DCHECK_EQ(this, page->owner());
   size_t added = 0;
   page->ForAllFreeListCategories([this, &added](FreeListCategory* category) {
-    category->set_free_list(free_list());
     added += category->available();
-    category->Relink();
+    category->Relink(free_list());
   });
 
   DCHECK_IMPLIES(!page->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE),
@@ -315,17 +312,51 @@ MemoryChunk* OldGenerationMemoryChunkIterator::next() {
   UNREACHABLE();
 }
 
-FreeList* FreeListCategory::owner() { return free_list_; }
-
-bool FreeListCategory::is_linked() {
+bool FreeListCategory::is_linked(FreeList* owner) const {
   return prev_ != nullptr || next_ != nullptr ||
-         free_list_->categories_[type_] == this;
+         owner->categories_[type_] == this;
 }
 
 void FreeListCategory::UpdateCountersAfterAllocation(size_t allocation_size) {
   available_ -= allocation_size;
-  length_--;
-  free_list_->DecreaseAvailableBytes(allocation_size);
+}
+
+Page* FreeList::GetPageForCategoryType(FreeListCategoryType type) {
+  FreeListCategory* category_top = top(type);
+  if (category_top != nullptr) {
+    DCHECK(!category_top->top().is_null());
+    return Page::FromHeapObject(category_top->top());
+  } else {
+    return nullptr;
+  }
+}
+
+Page* FreeListLegacy::GetPageForSize(size_t size_in_bytes) {
+  const int minimum_category =
+      static_cast<int>(SelectFreeListCategoryType(size_in_bytes));
+  Page* page = GetPageForCategoryType(kHuge);
+  if (!page && static_cast<int>(kLarge) >= minimum_category)
+    page = GetPageForCategoryType(kLarge);
+  if (!page && static_cast<int>(kMedium) >= minimum_category)
+    page = GetPageForCategoryType(kMedium);
+  if (!page && static_cast<int>(kSmall) >= minimum_category)
+    page = GetPageForCategoryType(kSmall);
+  if (!page && static_cast<int>(kTiny) >= minimum_category)
+    page = GetPageForCategoryType(kTiny);
+  if (!page && static_cast<int>(kTiniest) >= minimum_category)
+    page = GetPageForCategoryType(kTiniest);
+  return page;
+}
+
+Page* FreeListFastAlloc::GetPageForSize(size_t size_in_bytes) {
+  const int minimum_category =
+      static_cast<int>(SelectFreeListCategoryType(size_in_bytes));
+  Page* page = GetPageForCategoryType(kHuge);
+  if (!page && static_cast<int>(kLarge) >= minimum_category)
+    page = GetPageForCategoryType(kLarge);
+  if (!page && static_cast<int>(kMedium) >= minimum_category)
+    page = GetPageForCategoryType(kMedium);
+  return page;
 }
 
 AllocationResult LocalAllocationBuffer::AllocateRawAligned(

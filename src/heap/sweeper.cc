@@ -509,11 +509,14 @@ void Sweeper::AddPage(AllocationSpace space, Page* page,
 }
 
 void Sweeper::PrepareToBeSweptPage(AllocationSpace space, Page* page) {
+#ifdef DEBUG
   DCHECK_GE(page->area_size(),
             static_cast<size_t>(marking_state_->live_bytes(page)));
   DCHECK_EQ(Page::kSweepingDone, page->concurrent_sweeping_state());
-  page->ForAllFreeListCategories(
-      [](FreeListCategory* category) { DCHECK(!category->is_linked()); });
+  page->ForAllFreeListCategories([page](FreeListCategory* category) {
+    DCHECK(!category->is_linked(page->owner()->free_list()));
+  });
+#endif  // DEBUG
   page->set_concurrent_sweeping_state(Page::kSweepingPending);
   heap_->paged_space(space)->IncreaseAllocatedBytes(
       marking_state_->live_bytes(page), page);

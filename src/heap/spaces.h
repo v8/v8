@@ -121,7 +121,7 @@ class Space;
 #define DCHECK_CODEOBJECT_SIZE(size, code_space) \
   DCHECK((0 < size) && (size <= code_space->AreaSize()))
 
-using FreeListCategoryType = int;
+using FreeListCategoryType = int32_t;
 
 static const FreeListCategoryType kFirstCategory = 0;
 static const FreeListCategoryType kInvalidCategory = -1;
@@ -139,32 +139,23 @@ enum RememberedSetType {
 // A free list category maintains a linked list of free memory blocks.
 class FreeListCategory {
  public:
-  FreeListCategory(FreeList* free_list, Page* page)
-      : free_list_(free_list),
-        page_(page),
-        type_(kInvalidCategory),
-        available_(0),
-        length_(0),
-        prev_(nullptr),
-        next_(nullptr) {}
-
   void Initialize(FreeListCategoryType type) {
     type_ = type;
     available_ = 0;
-    length_ = 0;
     prev_ = nullptr;
     next_ = nullptr;
   }
 
-  void Reset();
+  void Reset(FreeList* owner);
 
   void RepairFreeList(Heap* heap);
 
   // Relinks the category into the currently owning free list. Requires that the
   // category is currently unlinked.
-  void Relink();
+  void Relink(FreeList* owner);
 
-  void Free(Address address, size_t size_in_bytes, FreeMode mode);
+  void Free(Address address, size_t size_in_bytes, FreeMode mode,
+            FreeList* owner);
 
   // Performs a single try to pick a node of at least |minimum_size| from the
   // category. Stores the actual size in |node_size|. Returns nullptr if no
@@ -175,16 +166,12 @@ class FreeListCategory {
   // actual size in |node_size|. Returns nullptr if no node is found.
   FreeSpace SearchForNodeInList(size_t minimum_size, size_t* node_size);
 
-  inline FreeList* owner();
-  inline Page* page() const { return page_; }
-  inline bool is_linked();
+  inline bool is_linked(FreeList* owner) const;
   bool is_empty() { return top().is_null(); }
-  size_t available() const { return available_; }
-
-  void set_free_list(FreeList* free_list) { free_list_ = free_list; }
+  uint32_t available() const { return available_; }
 
   size_t SumFreeList();
-  int FreeListLength() { return length_; }
+  int FreeListLength();
 
  private:
   // For debug builds we accurately compute free lists lengths up until
@@ -202,34 +189,23 @@ class FreeListCategory {
   FreeListCategory* next() { return next_; }
   void set_next(FreeListCategory* next) { next_ = next; }
 
-  // This FreeListCategory is owned by the given free_list_.
-  FreeList* free_list_;
-
-  // This FreeListCategory holds free list entries of the given page_.
-  Page* const page_;
-
   // |type_|: The type of this free list category.
-  FreeListCategoryType type_;
+  FreeListCategoryType type_ = kInvalidCategory;
 
   // |available_|: Total available bytes in all blocks of this free list
   // category.
-  size_t available_;
-
-  // |length_|: Total blocks in this free list category.
-  int length_;
+  uint32_t available_ = 0;
 
   // |top_|: Points to the top FreeSpace in the free list category.
   FreeSpace top_;
 
-  FreeListCategory* prev_;
-  FreeListCategory* next_;
+  FreeListCategory* prev_ = nullptr;
+  FreeListCategory* next_ = nullptr;
 
   friend class FreeList;
   friend class FreeListManyCached;
   friend class PagedSpace;
   friend class MapSpace;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FreeListCategory);
 };
 
 // A free list maintains free blocks of memory. The free list is organized in
@@ -293,7 +269,6 @@ class FreeList {
   void RepairLists(Heap* heap);
 
   V8_EXPORT_PRIVATE size_t EvictFreeListItems(Page* page);
-  bool ContainsPageFreeListItems(Page* page);
 
   int number_of_categories() { return number_of_categories_; }
   FreeListCategoryType last_category() { return last_category_; }
@@ -364,9 +339,7 @@ class FreeList {
     return categories_[type];
   }
 
-  Page* GetPageForCategoryType(FreeListCategoryType type) {
-    return top(type) ? top(type)->page() : nullptr;
-  }
+  inline Page* GetPageForCategoryType(FreeListCategoryType type);
 
   int number_of_categories_ = 0;
   FreeListCategoryType last_category_ = 0;
@@ -1829,22 +1802,7 @@ class V8_EXPORT_PRIVATE FreeListLegacy : public FreeList {
     return maximum_freed;
   }
 
-  Page* GetPageForSize(size_t size_in_bytes) override {
-    const int minimum_category =
-        static_cast<int>(SelectFreeListCategoryType(size_in_bytes));
-    Page* page = GetPageForCategoryType(kHuge);
-    if (!page && static_cast<int>(kLarge) >= minimum_category)
-      page = GetPageForCategoryType(kLarge);
-    if (!page && static_cast<int>(kMedium) >= minimum_category)
-      page = GetPageForCategoryType(kMedium);
-    if (!page && static_cast<int>(kSmall) >= minimum_category)
-      page = GetPageForCategoryType(kSmall);
-    if (!page && static_cast<int>(kTiny) >= minimum_category)
-      page = GetPageForCategoryType(kTiny);
-    if (!page && static_cast<int>(kTiniest) >= minimum_category)
-      page = GetPageForCategoryType(kTiniest);
-    return page;
-  }
+  inline Page* GetPageForSize(size_t size_in_bytes) override;
 
   FreeListLegacy();
   ~FreeListLegacy();
@@ -1928,16 +1886,7 @@ class V8_EXPORT_PRIVATE FreeListFastAlloc : public FreeList {
     return kHugeAllocationMax;
   }
 
-  Page* GetPageForSize(size_t size_in_bytes) override {
-    const int minimum_category =
-        static_cast<int>(SelectFreeListCategoryType(size_in_bytes));
-    Page* page = GetPageForCategoryType(kHuge);
-    if (!page && static_cast<int>(kLarge) >= minimum_category)
-      page = GetPageForCategoryType(kLarge);
-    if (!page && static_cast<int>(kMedium) >= minimum_category)
-      page = GetPageForCategoryType(kMedium);
-    return page;
-  }
+  inline Page* GetPageForSize(size_t size_in_bytes) override;
 
   FreeListFastAlloc();
   ~FreeListFastAlloc();
@@ -1970,10 +1919,6 @@ class V8_EXPORT_PRIVATE FreeListFastAlloc : public FreeList {
       return kLarge;
     }
     return kHuge;
-  }
-
-  Page* GetPageForCategoryType(FreeListCategoryType type) {
-    return top(type) ? top(type)->page() : nullptr;
   }
 };
 
