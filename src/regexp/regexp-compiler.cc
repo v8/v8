@@ -5,13 +5,11 @@
 #include "src/regexp/regexp-compiler.h"
 
 #include "src/base/safe_conversions.h"
-#include "src/diagnostics/code-tracer.h"
 #include "src/execution/isolate.h"
 #include "src/objects/objects-inl.h"
 #include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-macro-assembler-tracer.h"
 #include "src/strings/unicode-inl.h"
-#include "src/utils/ostreams.h"
 #include "src/zone/zone-list-inl.h"
 
 #ifdef V8_INTL_SUPPORT
@@ -273,13 +271,7 @@ RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
   Handle<HeapObject> code = macro_assembler_->GetCode(pattern);
   isolate->IncreaseTotalRegexpCodeGenerated(code->Size());
   work_list_ = nullptr;
-#ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_code && code->IsCode()) {
-    CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
-    OFStream os(trace_scope.file());
-    Handle<Code>::cast(code)->Disassemble(pattern->ToCString().get(), os);
-  }
-#endif
+
 #ifdef DEBUG
   if (FLAG_trace_regexp_assembler) {
     delete macro_assembler_;

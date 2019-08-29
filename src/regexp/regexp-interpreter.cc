@@ -30,9 +30,10 @@
 namespace v8 {
 namespace internal {
 
-static bool BackRefMatchesNoCase(Isolate* isolate, int from, int current,
-                                 int len, Vector<const uc16> subject,
-                                 bool unicode) {
+namespace {
+
+bool BackRefMatchesNoCase(Isolate* isolate, int from, int current, int len,
+                          Vector<const uc16> subject, bool unicode) {
   Address offset_a =
       reinterpret_cast<Address>(const_cast<uc16*>(&subject.at(from)));
   Address offset_b =
@@ -42,9 +43,8 @@ static bool BackRefMatchesNoCase(Isolate* isolate, int from, int current,
              offset_a, offset_b, length, unicode ? nullptr : isolate) == 1;
 }
 
-static bool BackRefMatchesNoCase(Isolate* isolate, int from, int current,
-                                 int len, Vector<const uint8_t> subject,
-                                 bool unicode) {
+bool BackRefMatchesNoCase(Isolate* isolate, int from, int current, int len,
+                          Vector<const uint8_t> subject, bool unicode) {
   // For Latin1 characters the unicode flag makes no difference.
   for (int i = 0; i < len; i++) {
     unsigned int old_char = subject[from++];
@@ -63,42 +63,48 @@ static bool BackRefMatchesNoCase(Isolate* isolate, int from, int current,
   return true;
 }
 
+void DisassembleSingleBytecode(const byte* code_base, const byte* pc) {
+  PrintF("%s", RegExpBytecodeName(*pc));
+
+  // Args and the bytecode as hex.
+  for (int i = 0; i < RegExpBytecodeLength(*pc); i++) {
+    PrintF(", %02x", pc[i]);
+  }
+  PrintF(" ");
+
+  // Args as ascii.
+  for (int i = 1; i < RegExpBytecodeLength(*pc); i++) {
+    unsigned char b = pc[i];
+    PrintF("%c", std::isprint(b) ? b : '.');
+  }
+  PrintF("\n");
+}
+
 #ifdef DEBUG
-static void TraceInterpreter(const byte* code_base, const byte* pc,
-                             int stack_depth, int current_position,
-                             uint32_t current_char, int bytecode_length,
-                             const char* bytecode_name) {
+void MaybeTraceInterpreter(const byte* code_base, const byte* pc,
+                           int stack_depth, int current_position,
+                           uint32_t current_char, int bytecode_length,
+                           const char* bytecode_name) {
   if (FLAG_trace_regexp_bytecodes) {
-    bool printable = (current_char < 127 && current_char >= 32);
+    const bool printable = std::isprint(current_char);
     const char* format =
         printable
-            ? "pc = %02x, sp = %d, curpos = %d, curchar = %08x (%c), bc = %s"
-            : "pc = %02x, sp = %d, curpos = %d, curchar = %08x .%c., bc = %s";
+            ? "pc = %02x, sp = %d, curpos = %d, curchar = %08x (%c), bc = "
+            : "pc = %02x, sp = %d, curpos = %d, curchar = %08x .%c., bc = ";
     PrintF(format, pc - code_base, stack_depth, current_position, current_char,
-           printable ? current_char : '.', bytecode_name);
-    for (int i = 0; i < bytecode_length; i++) {
-      printf(", %02x", pc[i]);
-    }
-    printf(" ");
-    for (int i = 1; i < bytecode_length; i++) {
-      unsigned char b = pc[i];
-      if (b < 127 && b >= 32) {
-        printf("%c", b);
-      } else {
-        printf(".");
-      }
-    }
-    printf("\n");
+           printable ? current_char : '.');
+
+    DisassembleSingleBytecode(code_base, pc);
   }
 }
 #endif  // DEBUG
 
-static int32_t Load32Aligned(const byte* pc) {
+int32_t Load32Aligned(const byte* pc) {
   DCHECK_EQ(0, reinterpret_cast<intptr_t>(pc) & 3);
   return *reinterpret_cast<const int32_t*>(pc);
 }
 
-static int32_t Load16Aligned(const byte* pc) {
+int32_t Load16Aligned(const byte* pc) {
   DCHECK_EQ(0, reinterpret_cast<intptr_t>(pc) & 1);
   return *reinterpret_cast<const uint16_t*>(pc);
 }
@@ -139,8 +145,6 @@ class BacktrackStack {
 
   DISALLOW_COPY_AND_ASSIGN(BacktrackStack);
 };
-
-namespace {
 
 IrregexpInterpreter::Result StackOverflow(Isolate* isolate,
                                           RegExp::CallOrigin call_origin) {
@@ -268,18 +272,18 @@ IrregexpInterpreter::Result HandleInterrupts(
 // don't hit the cache and have to fetch the next handler address from physical
 // memory, instructions between ADVANCE/SET_PC_FROM_OFFSET and DISPATCH can
 // potentially be executed unconditionally, reducing memory stall.
-#define ADVANCE(name)                \
-  next_pc = pc + BC_##name##_LENGTH; \
+#define ADVANCE(name)                             \
+  next_pc = pc + RegExpBytecodeLength(BC_##name); \
   DECODE()
 #define SET_PC_FROM_OFFSET(offset) \
   next_pc = code_base + offset;    \
   DECODE()
 
 #ifdef DEBUG
-#define BYTECODE(name)                                                         \
-  BC_LABEL(name)                                                               \
-  TraceInterpreter(code_base, pc, backtrack_stack.sp(), current, current_char, \
-                   BC_##name##_LENGTH, #name);
+#define BYTECODE(name)                                                \
+  BC_LABEL(name)                                                      \
+  MaybeTraceInterpreter(code_base, pc, backtrack_stack.sp(), current, \
+                        current_char, RegExpBytecodeLength(BC_##name), #name);
 #else
 #define BYTECODE(name) BC_LABEL(name)
 #endif  // DEBUG
@@ -778,6 +782,25 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate, ByteArray code_array,
 #undef V8_USE_COMPUTED_GOTO
 
 }  // namespace
+
+// static
+void IrregexpInterpreter::Disassemble(ByteArray byte_array,
+                                      const std::string& pattern) {
+  DisallowHeapAllocation no_gc;
+
+  PrintF("[generated bytecode for regexp pattern: '%s']\n", pattern.c_str());
+
+  const byte* const code_base = byte_array.GetDataStartAddress();
+  const int byte_array_length = byte_array.length();
+  ptrdiff_t offset = 0;
+
+  while (offset < byte_array_length) {
+    const byte* const pc = code_base + offset;
+    PrintF("%p  %4" V8PRIxPTRDIFF "  ", pc, offset);
+    DisassembleSingleBytecode(code_base, pc);
+    offset += RegExpBytecodeLength(*pc);
+  }
+}
 
 // static
 IrregexpInterpreter::Result IrregexpInterpreter::Match(

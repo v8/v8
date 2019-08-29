@@ -5,6 +5,7 @@
 #include "src/regexp/regexp.h"
 
 #include "src/codegen/compilation-cache.h"
+#include "src/diagnostics/code-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/regexp/regexp-bytecode-generator.h"
@@ -14,6 +15,7 @@
 #include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-parser.h"
 #include "src/strings/string-search.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {
@@ -572,14 +574,15 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(
 
   subject = String::Flatten(isolate, subject);
 
-  // Prepare space for the return values.
 #ifdef DEBUG
-  if (FLAG_regexp_interpret_all && FLAG_trace_regexp_bytecodes) {
+  if (FLAG_trace_regexp_bytecodes && regexp->ShouldProduceBytecode()) {
     String pattern = regexp->Pattern();
     PrintF("\n\nRegexp match:   /%s/\n\n", pattern.ToCString().get());
     PrintF("\n\nSubject string: '%s'\n\n", subject->ToCString().get());
   }
 #endif
+
+  // Prepare space for the return values.
   int required_registers = RegExp::IrregexpPrepare(isolate, regexp, subject);
   if (required_registers < 0) {
     // Compiling failed with an exception.
@@ -829,6 +832,26 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
 
   RegExpCompiler::CompilationResult result = compiler.Assemble(
       isolate, macro_assembler.get(), node, data->capture_count, pattern);
+
+  // Code / bytecode printing.
+  {
+#ifdef ENABLE_DISASSEMBLER
+    if (FLAG_print_regexp_code &&
+        data->compilation_target == RegExpCompilationTarget::kNative) {
+      CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
+      OFStream os(trace_scope.file());
+      Handle<Code> c(Code::cast(result.code), isolate);
+      auto pattern_cstring = pattern->ToCString();
+      c->Disassemble(pattern_cstring.get(), os);
+    }
+#endif
+    if (FLAG_print_regexp_bytecode &&
+        data->compilation_target == RegExpCompilationTarget::kBytecode) {
+      Handle<ByteArray> bytecode(ByteArray::cast(result.code), isolate);
+      auto pattern_cstring = pattern->ToCString();
+      IrregexpInterpreter::Disassemble(*bytecode, pattern_cstring.get());
+    }
+  }
 
   if (FLAG_correctness_fuzzer_suppressions &&
       strncmp(result.error_message, "Stack overflow", 15) == 0) {

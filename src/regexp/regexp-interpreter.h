@@ -41,6 +41,8 @@ class V8_EXPORT_PRIVATE IrregexpInterpreter : public AllStatic {
                               int registers_length, int start_position,
                               RegExp::CallOrigin call_origin);
 
+  static void Disassemble(ByteArray byte_array, const std::string& pattern);
+
  private:
   static Result Match(Isolate* isolate, JSRegExp regexp, String subject_string,
                       int* registers, int registers_length, int start_position,

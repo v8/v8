@@ -1514,7 +1514,6 @@ DEFINE_BOOL(trace_elements_transitions, false, "trace elements transitions")
 DEFINE_BOOL(trace_creation_allocation_sites, false,
             "trace the creation of allocation sites")
 
-// codegen-ia32.cc / codegen-arm.cc
 DEFINE_BOOL(print_code, false, "print generated code")
 DEFINE_BOOL(print_opt_code, false, "print optimized code")
 DEFINE_STRING(print_opt_code_filter, "*", "filter for printing optimized code")
@@ -1522,6 +1521,8 @@ DEFINE_BOOL(print_code_verbose, false, "print more information for code")
 DEFINE_BOOL(print_builtin_code, false, "print generated code for builtins")
 DEFINE_STRING(print_builtin_code_filter, "*",
               "filter for printing builtin code")
+DEFINE_BOOL(print_regexp_code, false, "print generated regexp code")
+DEFINE_BOOL(print_regexp_bytecode, false, "print generated regexp bytecode")
 DEFINE_BOOL(print_builtin_size, false, "print code size for builtins")
 
 #ifdef ENABLE_DISASSEMBLER
@@ -1538,6 +1539,7 @@ DEFINE_IMPLICATION(print_all_code, print_code)
 DEFINE_IMPLICATION(print_all_code, print_opt_code)
 DEFINE_IMPLICATION(print_all_code, print_code_verbose)
 DEFINE_IMPLICATION(print_all_code, print_builtin_code)
+DEFINE_IMPLICATION(print_all_code, print_regexp_code)
 DEFINE_IMPLICATION(print_all_code, code_comments)
 #endif
 
