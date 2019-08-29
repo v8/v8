@@ -188,6 +188,7 @@ v8_source_set("unittests_sources") {
     "logging/counters-unittest.cc",
     "numbers/bigint-unittest.cc",
     "numbers/conversions-unittest.cc",
+    "objects/backing-store-unittest.cc",
     "objects/object-unittest.cc",
     "objects/value-serializer-unittest.cc",
     "parser/ast-value-unittest.cc",

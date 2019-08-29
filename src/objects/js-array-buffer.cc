@@ -31,167 +31,103 @@ bool CanonicalNumericIndexString(Isolate* isolate, Handle<Object> s,
   *index = result;
   return true;
 }
-
-inline int ConvertToMb(size_t size) {
-  return static_cast<int>(size / static_cast<size_t>(MB));
-}
-
 }  // anonymous namespace
 
-void JSArrayBuffer::Detach() {
-  CHECK(is_detachable());
-  CHECK(!was_detached());
-  CHECK(is_external());
+void JSArrayBuffer::SetupEmpty(SharedFlag shared) {
+  clear_padding();
+  set_bit_field(0);
+  set_is_shared(shared == SharedFlag::kShared);
+  set_is_detachable(shared != SharedFlag::kShared);
   set_backing_store(nullptr);
   set_byte_length(0);
-  set_was_detached(true);
-  set_is_detachable(false);
-  // Invalidate the detaching protector.
+}
+
+std::shared_ptr<BackingStore> JSArrayBuffer::Detach(
+    bool force_for_wasm_memory) {
+  if (was_detached()) return nullptr;
+
+  if (force_for_wasm_memory) {
+    // Skip the is_detachable() check.
+  } else if (!is_detachable()) {
+    // Not detachable, do nothing.
+    return nullptr;
+  }
+
   Isolate* const isolate = GetIsolate();
+  auto backing_store = isolate->heap()->UnregisterBackingStore(*this);
+  CHECK_IMPLIES(force_for_wasm_memory && backing_store,
+                backing_store->is_wasm_memory());
+
   if (isolate->IsArrayBufferDetachingIntact()) {
     isolate->InvalidateArrayBufferDetachingProtector();
   }
-}
 
-void JSArrayBuffer::FreeBackingStoreFromMainThread() {
-  if (allocation_base() == nullptr) {
-    return;
-  }
-  FreeBackingStore(GetIsolate(), {allocation_base(), allocation_length(),
-                                  backing_store(), is_wasm_memory()});
-  // Zero out the backing store and allocation base to avoid dangling
-  // pointers.
+  DCHECK(!is_shared());
+  DCHECK(!is_asmjs_memory());
   set_backing_store(nullptr);
+  set_byte_length(0);
+  set_was_detached(true);
+
+  return backing_store;
 }
 
-// static
-void JSArrayBuffer::FreeBackingStore(Isolate* isolate, Allocation allocation) {
-  if (allocation.is_wasm_memory) {
-    wasm::WasmMemoryTracker* memory_tracker =
-        isolate->wasm_engine()->memory_tracker();
-    memory_tracker->FreeWasmMemory(isolate, allocation.backing_store);
-  } else {
-    isolate->array_buffer_allocator()->Free(allocation.allocation_base,
-                                            allocation.length);
-  }
+void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
+  SetupEmpty(backing_store->is_shared() ? SharedFlag::kShared
+                                        : SharedFlag::kNotShared);
+
+  if (backing_store->is_wasm_memory()) set_is_detachable(false);
+
+  set_backing_store(backing_store->buffer_start());
+  set_byte_length(backing_store->byte_length());
+  if (!backing_store->free_on_destruct()) set_is_external(true);
+
+  GetIsolate()->heap()->RegisterBackingStore(*this, std::move(backing_store));
 }
 
-void JSArrayBuffer::Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
-                          bool is_external, void* data, size_t byte_length,
-                          SharedFlag shared_flag, bool is_wasm_memory) {
-  DCHECK_EQ(array_buffer->GetEmbedderFieldCount(),
-            v8::ArrayBuffer::kEmbedderFieldCount);
-  DCHECK_LE(byte_length, JSArrayBuffer::kMaxByteLength);
-  for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
-    array_buffer->SetEmbedderField(i, Smi::kZero);
-  }
-  array_buffer->set_byte_length(byte_length);
-  array_buffer->set_bit_field(0);
-  array_buffer->clear_padding();
-  array_buffer->set_is_external(is_external);
-  array_buffer->set_is_detachable(shared_flag == SharedFlag::kNotShared);
-  array_buffer->set_is_shared(shared_flag == SharedFlag::kShared);
-  array_buffer->set_is_wasm_memory(is_wasm_memory);
-  // Initialize backing store at last to avoid handling of |JSArrayBuffers| that
-  // are currently being constructed in the |ArrayBufferTracker|. The
-  // registration method below handles the case of registering a buffer that has
-  // already been promoted.
-  array_buffer->set_backing_store(data);
-
-  if (data && !is_external) {
-    isolate->heap()->RegisterNewArrayBuffer(*array_buffer);
-  }
-}
-
-void JSArrayBuffer::SetupAsEmpty(Handle<JSArrayBuffer> array_buffer,
-                                 Isolate* isolate) {
-  Setup(array_buffer, isolate, false, nullptr, 0, SharedFlag::kNotShared);
-}
-
-bool JSArrayBuffer::SetupAllocatingData(Handle<JSArrayBuffer> array_buffer,
-                                        Isolate* isolate,
-                                        size_t allocated_length,
-                                        bool initialize,
-                                        SharedFlag shared_flag) {
-  void* data;
-  CHECK_NOT_NULL(isolate->array_buffer_allocator());
-  if (allocated_length != 0) {
-    if (allocated_length >= MB)
-      isolate->counters()->array_buffer_big_allocations()->AddSample(
-          ConvertToMb(allocated_length));
-    if (shared_flag == SharedFlag::kShared)
-      isolate->counters()->shared_array_allocations()->AddSample(
-          ConvertToMb(allocated_length));
-    if (initialize) {
-      data = isolate->array_buffer_allocator()->Allocate(allocated_length);
-    } else {
-      data = isolate->array_buffer_allocator()->AllocateUninitialized(
-          allocated_length);
-    }
-    if (data == nullptr) {
-      isolate->counters()->array_buffer_new_size_failures()->AddSample(
-          ConvertToMb(allocated_length));
-      SetupAsEmpty(array_buffer, isolate);
-      return false;
-    }
-  } else {
-    data = nullptr;
-  }
-
-  const bool is_external = false;
-  JSArrayBuffer::Setup(array_buffer, isolate, is_external, data,
-                       allocated_length, shared_flag);
-  return true;
-}
-
-Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
-    Handle<JSTypedArray> typed_array) {
-  DCHECK(typed_array->is_on_heap());
-
-  Isolate* isolate = typed_array->GetIsolate();
-
-  DCHECK(IsTypedArrayElementsKind(typed_array->GetElementsKind()));
-
-  Handle<JSArrayBuffer> buffer(JSArrayBuffer::cast(typed_array->buffer()),
-                               isolate);
-  // This code does not know how to materialize from wasm buffers.
-  DCHECK(!buffer->is_wasm_memory());
-
-  void* backing_store =
-      isolate->array_buffer_allocator()->AllocateUninitialized(
-          typed_array->byte_length());
-  if (backing_store == nullptr) {
-    isolate->heap()->FatalProcessOutOfMemory(
-        "JSTypedArray::MaterializeArrayBuffer");
-  }
-  buffer->set_is_external(false);
-  DCHECK_EQ(buffer->byte_length(), typed_array->byte_length());
-  // Initialize backing store at last to avoid handling of |JSArrayBuffers| that
-  // are currently being constructed in the |ArrayBufferTracker|. The
-  // registration method below handles the case of registering a buffer that has
-  // already been promoted.
-  buffer->set_backing_store(backing_store);
-  // RegisterNewArrayBuffer expects a valid length for adjusting counters.
-  isolate->heap()->RegisterNewArrayBuffer(*buffer);
-  memcpy(buffer->backing_store(), typed_array->DataPtr(),
-         typed_array->byte_length());
-
-  typed_array->set_elements(ReadOnlyRoots(isolate).empty_byte_array());
-  typed_array->set_external_pointer(backing_store);
-  typed_array->set_base_pointer(Smi::kZero);
-  DCHECK(!typed_array->is_on_heap());
-
-  return buffer;
+std::shared_ptr<BackingStore> JSArrayBuffer::GetBackingStore() {
+  return GetIsolate()->heap()->LookupBackingStore(*this);
 }
 
 Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
+  Isolate* isolate = GetIsolate();
+  Handle<JSTypedArray> self(*this, isolate);
+  DCHECK(IsTypedArrayElementsKind(self->GetElementsKind()));
+
+  Handle<JSArrayBuffer> array_buffer(JSArrayBuffer::cast(self->buffer()),
+                                     isolate);
   if (!is_on_heap()) {
-    Handle<JSArrayBuffer> array_buffer(JSArrayBuffer::cast(buffer()),
-                                       GetIsolate());
+    // Already is off heap, so return the existing buffer.
     return array_buffer;
   }
-  Handle<JSTypedArray> self(*this, GetIsolate());
-  return MaterializeArrayBuffer(self);
+
+  // The existing array buffer should be empty.
+  DCHECK_NULL(array_buffer->backing_store());
+
+  // Allocate a new backing store and attach it to the existing array buffer.
+  size_t byte_length = self->byte_length();
+  auto backing_store =
+      BackingStore::Allocate(isolate, byte_length, SharedFlag::kNotShared,
+                             InitializedFlag::kUninitialized);
+
+  if (!backing_store) {
+    isolate->heap()->FatalProcessOutOfMemory("JSTypedArray::GetBuffer");
+  }
+
+  // Copy the elements into the backing store of the array buffer.
+  if (byte_length > 0) {
+    memcpy(backing_store->buffer_start(), self->DataPtr(), byte_length);
+  }
+
+  // Attach the backing store to the array buffer.
+  array_buffer->Attach(std::move(backing_store));
+
+  // Clear the elements of the typed array.
+  self->set_elements(ReadOnlyRoots(isolate).empty_byte_array());
+  self->set_external_pointer(array_buffer->backing_store());
+  self->set_base_pointer(Smi::kZero);
+  DCHECK(!self->is_on_heap());
+
+  return array_buffer;
 }
 
 // ES#sec-integer-indexed-exotic-objects-defineownproperty-p-desc

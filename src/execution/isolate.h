@@ -1407,6 +1407,8 @@ class Isolate final : private HiddenFactory {
   void AddDetachedContext(Handle<Context> context);
   void CheckDetachedContextsAfterGC();
 
+  void AddSharedWasmMemory(Handle<WasmMemoryObject> memory_object);
+
   std::vector<Object>* partial_snapshot_cache() {
     return &partial_snapshot_cache_;
   }
