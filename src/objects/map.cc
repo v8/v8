@@ -787,8 +787,7 @@ void Map::GeneralizeField(Isolate* isolate, Handle<Map> map, int modify_index,
     map->PrintGeneralization(
         isolate, stdout, "field type generalization", modify_index,
         map->NumberOfOwnDescriptors(), map->NumberOfOwnDescriptors(), false,
-        details.representation(),
-        descriptors->GetDetails(modify_index).representation(), old_constness,
+        details.representation(), details.representation(), old_constness,
         new_constness, old_field_type, MaybeHandle<Object>(), new_field_type,
         MaybeHandle<Object>());
   }
