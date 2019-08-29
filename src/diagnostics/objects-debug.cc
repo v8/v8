@@ -1749,19 +1749,6 @@ void PreparseData::PreparseDataVerify(Isolate* isolate) {
   }
 }
 
-void UncompiledDataWithPreparseData::UncompiledDataWithPreparseDataVerify(
-    Isolate* isolate) {
-  CHECK(IsUncompiledDataWithPreparseData());
-  VerifyPointer(isolate, inferred_name());
-  VerifyPointer(isolate, preparse_data());
-}
-
-void UncompiledDataWithoutPreparseData::UncompiledDataWithoutPreparseDataVerify(
-    Isolate* isolate) {
-  CHECK(IsUncompiledDataWithoutPreparseData());
-  VerifyPointer(isolate, inferred_name());
-}
-
 USE_TORQUE_VERIFIER(InterpreterData)
 
 #ifdef V8_INTL_SUPPORT

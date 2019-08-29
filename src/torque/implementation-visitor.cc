@@ -3316,7 +3316,8 @@ void ImplementationVisitor::GenerateClassDefinitions(
     inline_header << "#include \"src/objects/js-promise.h\"\n";
     inline_header << "#include \"src/objects/module.h\"\n";
     inline_header << "#include \"src/objects/objects-inl.h\"\n";
-    inline_header << "#include \"src/objects/script.h\"\n\n";
+    inline_header << "#include \"src/objects/script.h\"\n";
+    inline_header << "#include \"src/objects/shared-function-info.h\"\n\n";
     IncludeObjectMacrosScope inline_header_macros(inline_header);
     NamespaceScope inline_header_namespaces(inline_header, {"v8", "internal"});
 

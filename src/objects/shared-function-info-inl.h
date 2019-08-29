@@ -84,26 +84,9 @@ void PreparseData::set_child(int index, PreparseData value,
   CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
 }
 
-OBJECT_CONSTRUCTORS_IMPL(UncompiledData, HeapObject)
-OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithoutPreparseData, UncompiledData)
-OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithPreparseData, UncompiledData)
-CAST_ACCESSOR(UncompiledData)
-ACCESSORS(UncompiledData, inferred_name, String, kInferredNameOffset)
-INT32_ACCESSORS(UncompiledData, start_position, kStartPositionOffset)
-INT32_ACCESSORS(UncompiledData, end_position, kEndPositionOffset)
-
-void UncompiledData::clear_padding() {
-  if (FIELD_SIZE(kOptionalPaddingOffset) == 0) return;
-  DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
-  memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
-         FIELD_SIZE(kOptionalPaddingOffset));
-}
-
-CAST_ACCESSOR(UncompiledDataWithoutPreparseData)
-
-CAST_ACCESSOR(UncompiledDataWithPreparseData)
-ACCESSORS(UncompiledDataWithPreparseData, preparse_data, PreparseData,
-          kPreparseDataOffset)
+TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledData)
+TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithoutPreparseData)
+TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithPreparseData)
 
 DEF_GETTER(HeapObject, IsUncompiledData, bool) {
   return IsUncompiledDataWithoutPreparseData(isolate) ||
@@ -618,7 +601,7 @@ void SharedFunctionInfo::ClearPreparseData() {
   STATIC_ASSERT(UncompiledDataWithoutPreparseData::kSize <
                 UncompiledDataWithPreparseData::kSize);
   STATIC_ASSERT(UncompiledDataWithoutPreparseData::kSize ==
-                UncompiledData::kSize);
+                UncompiledData::kHeaderSize);
   data.synchronized_set_map(
       GetReadOnlyRoots().uncompiled_data_without_preparse_data_map());
 
@@ -644,7 +627,6 @@ void UncompiledData::Initialize(
       data, data.RawField(UncompiledData::kInferredNameOffset), inferred_name);
   data.set_start_position(start_position);
   data.set_end_position(end_position);
-  data.clear_padding();
 }
 
 void UncompiledDataWithPreparseData::Initialize(

@@ -100,14 +100,9 @@ class PreparseData : public HeapObject {
 
 // Abstract class representing extra data for an uncompiled function, which is
 // not stored in the SharedFunctionInfo.
-class UncompiledData : public HeapObject {
+class UncompiledData
+    : public TorqueGeneratedUncompiledData<UncompiledData, HeapObject> {
  public:
-  DECL_ACCESSORS(inferred_name, String)
-  DECL_INT32_ACCESSORS(start_position)
-  DECL_INT32_ACCESSORS(end_position)
-
-  DECL_CAST(UncompiledData)
-
   inline static void Initialize(
       UncompiledData data, String inferred_name, int start_position,
       int end_position,
@@ -115,56 +110,35 @@ class UncompiledData : public HeapObject {
           gc_notify_updated_slot =
               [](HeapObject object, ObjectSlot slot, HeapObject target) {});
 
-  // Layout description.
-#define UNCOMPILED_DATA_FIELDS(V)                                         \
-  V(kStartOfStrongFieldsOffset, 0)                                        \
-  V(kInferredNameOffset, kTaggedSize)                                     \
-  V(kEndOfStrongFieldsOffset, 0)                                          \
-  /* Raw data fields. */                                                  \
-  V(kStartPositionOffset, kInt32Size)                                     \
-  V(kEndPositionOffset, kInt32Size)                                       \
-  V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
-  /* Header size. */                                                      \
-  V(kSize, 0)
+  using BodyDescriptor =
+      FixedBodyDescriptor<kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
+                          kHeaderSize>;
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, UNCOMPILED_DATA_FIELDS)
-#undef UNCOMPILED_DATA_FIELDS
-
-  using BodyDescriptor = FixedBodyDescriptor<kStartOfStrongFieldsOffset,
-                                             kEndOfStrongFieldsOffset, kSize>;
-
-  // Clear uninitialized padding space.
-  inline void clear_padding();
-
-  OBJECT_CONSTRUCTORS(UncompiledData, HeapObject);
+  TQ_OBJECT_CONSTRUCTORS(UncompiledData)
 };
 
 // Class representing data for an uncompiled function that does not have any
 // data from the pre-parser, either because it's a leaf function or because the
 // pre-parser bailed out.
-class UncompiledDataWithoutPreparseData : public UncompiledData {
+class UncompiledDataWithoutPreparseData
+    : public TorqueGeneratedUncompiledDataWithoutPreparseData<
+          UncompiledDataWithoutPreparseData, UncompiledData> {
  public:
-  DECL_CAST(UncompiledDataWithoutPreparseData)
   DECL_PRINTER(UncompiledDataWithoutPreparseData)
-  DECL_VERIFIER(UncompiledDataWithoutPreparseData)
-
-  static const int kSize = UncompiledData::kSize;
 
   // No extra fields compared to UncompiledData.
   using BodyDescriptor = UncompiledData::BodyDescriptor;
 
-  OBJECT_CONSTRUCTORS(UncompiledDataWithoutPreparseData, UncompiledData);
+  TQ_OBJECT_CONSTRUCTORS(UncompiledDataWithoutPreparseData)
 };
 
 // Class representing data for an uncompiled function that has pre-parsed scope
 // data.
-class UncompiledDataWithPreparseData : public UncompiledData {
+class UncompiledDataWithPreparseData
+    : public TorqueGeneratedUncompiledDataWithPreparseData<
+          UncompiledDataWithPreparseData, UncompiledData> {
  public:
-  DECL_ACCESSORS(preparse_data, PreparseData)
-
-  DECL_CAST(UncompiledDataWithPreparseData)
   DECL_PRINTER(UncompiledDataWithPreparseData)
-  DECL_VERIFIER(UncompiledDataWithPreparseData)
 
   inline static void Initialize(
       UncompiledDataWithPreparseData data, String inferred_name,
@@ -173,28 +147,12 @@ class UncompiledDataWithPreparseData : public UncompiledData {
           gc_notify_updated_slot =
               [](HeapObject object, ObjectSlot slot, HeapObject target) {});
 
-  // Layout description.
-
-#define UNCOMPILED_DATA_WITH_PREPARSE_DATA_FIELDS(V) \
-  V(kStartOfStrongFieldsOffset, 0)                   \
-  V(kPreparseDataOffset, kTaggedSize)                \
-  V(kEndOfStrongFieldsOffset, 0)                     \
-  /* Total size. */                                  \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(UncompiledData::kSize,
-                                UNCOMPILED_DATA_WITH_PREPARSE_DATA_FIELDS)
-#undef UNCOMPILED_DATA_WITH_PREPARSE_DATA_FIELDS
-
-  // Make sure the size is aligned
-  STATIC_ASSERT(IsAligned(kSize, kTaggedSize));
-
   using BodyDescriptor = SubclassBodyDescriptor<
       UncompiledData::BodyDescriptor,
       FixedBodyDescriptor<kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
                           kSize>>;
 
-  OBJECT_CONSTRUCTORS(UncompiledDataWithPreparseData, UncompiledData);
+  TQ_OBJECT_CONSTRUCTORS(UncompiledDataWithPreparseData)
 };
 
 class InterpreterData : public Struct {

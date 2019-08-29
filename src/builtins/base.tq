@@ -697,6 +697,23 @@ extern class SharedFunctionInfo extends HeapObject {
   @if(V8_SFI_HAS_UNIQUE_ID) unique_id: int32;
 }
 
+@abstract
+@generateCppClass
+extern class UncompiledData extends HeapObject {
+  inferred_name: String;
+  start_position: int32;
+  end_position: int32;
+}
+
+@generateCppClass
+extern class UncompiledDataWithoutPreparseData extends UncompiledData {
+}
+
+@generateCppClass
+extern class UncompiledDataWithPreparseData extends UncompiledData {
+  preparse_data: PreparseData;
+}
+
 @generateCppClass
 extern class JSBoundFunction extends JSObject {
   // The wrapped function object.
