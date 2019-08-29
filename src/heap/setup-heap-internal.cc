@@ -461,14 +461,13 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(AWAIT_CONTEXT_TYPE, await_context)
     ALLOCATE_VARSIZE_MAP(BLOCK_CONTEXT_TYPE, block_context)
     ALLOCATE_VARSIZE_MAP(MODULE_CONTEXT_TYPE, module_context)
+    ALLOCATE_VARSIZE_MAP(NATIVE_CONTEXT_TYPE, native_context)
     ALLOCATE_VARSIZE_MAP(EVAL_CONTEXT_TYPE, eval_context)
     ALLOCATE_VARSIZE_MAP(SCRIPT_CONTEXT_TYPE, script_context)
     ALLOCATE_VARSIZE_MAP(SCRIPT_CONTEXT_TABLE_TYPE, script_context_table)
 
     ALLOCATE_VARSIZE_MAP(OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
                          object_boilerplate_description)
-
-    ALLOCATE_MAP(NATIVE_CONTEXT_TYPE, NativeContext::kSize, native_context)
 
     ALLOCATE_MAP(CALL_HANDLER_INFO_TYPE, CallHandlerInfo::kSize,
                  side_effect_call_handler_info)

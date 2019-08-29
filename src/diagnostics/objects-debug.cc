@@ -765,7 +765,7 @@ void Context::ContextVerify(Isolate* isolate) {
 void NativeContext::NativeContextVerify(Isolate* isolate) {
   ContextVerify(isolate);
   CHECK_EQ(length(), NativeContext::NATIVE_CONTEXT_SLOTS);
-  CHECK_EQ(kSize, map().instance_size());
+  CHECK_EQ(kVariableSizeSentinel, map().instance_size());
 }
 
 void FeedbackMetadata::FeedbackMetadataVerify(Isolate* isolate) {
