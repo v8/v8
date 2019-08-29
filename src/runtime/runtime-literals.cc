@@ -655,15 +655,16 @@ RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
     DCHECK(maybe_vector->IsFeedbackVector());
     vector = Handle<FeedbackVector>::cast(maybe_vector);
   }
-  Handle<Object> boilerplate;
   if (vector.is_null()) {
+    Handle<JSRegExp> new_regexp;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, boilerplate,
+        isolate, new_regexp,
         JSRegExp::New(isolate, pattern, JSRegExp::Flags(flags)));
-    return *JSRegExp::Copy(Handle<JSRegExp>::cast(boilerplate));
+    return *new_regexp;
   }
 
   // Check if boilerplate exists. If not, create it first.
+  Handle<JSRegExp> boilerplate;
   Handle<Object> literal_site(vector->Get(literal_slot)->cast<Object>(),
                               isolate);
   if (!HasBoilerplate(literal_site)) {
@@ -676,7 +677,7 @@ RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
     }
     vector->Set(literal_slot, *boilerplate);
   }
-  return *JSRegExp::Copy(Handle<JSRegExp>::cast(boilerplate));
+  return *JSRegExp::Copy(boilerplate);
 }
 
 }  // namespace internal
