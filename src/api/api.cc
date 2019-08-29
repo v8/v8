@@ -4713,6 +4713,11 @@ bool v8::Object::IsConstructor() {
   return self->IsConstructor();
 }
 
+bool v8::Object::IsApiWrapper() {
+  auto self = i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
+  return self->IsApiWrapper();
+}
+
 MaybeLocal<Value> Object::CallAsFunction(Local<Context> context,
                                          Local<Value> recv, int argc,
                                          Local<Value> argv[]) {

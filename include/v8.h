@@ -3786,6 +3786,15 @@ class V8_EXPORT Object : public Value {
   bool IsConstructor();
 
   /**
+   * True if this object can carry information relevant to the embedder in its
+   * embedder fields, false otherwise. This is generally true for objects
+   * constructed through function templates but also holds for other types where
+   * V8 automatically adds internal fields at compile time, such as e.g.
+   * v8::ArrayBuffer.
+   */
+  bool IsApiWrapper();
+
+  /**
    * Call an Object as a function if a callback is set by the
    * ObjectTemplate::SetCallAsFunctionHandler method.
    */
