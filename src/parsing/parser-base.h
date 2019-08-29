@@ -1293,18 +1293,7 @@ class ParserBase {
                                            Scope* scope) {
     if (impl()->IsIdentifier(expression) &&
         impl()->IsEval(impl()->AsIdentifier(expression))) {
-      scope->RecordInnerScopeEvalCall();
       function_state_->RecordFunctionOrEvalCall();
-      if (is_sloppy(scope->language_mode())) {
-        // For sloppy scopes we also have to record the call at function level,
-        // in case it includes declarations that will be hoisted.
-        scope->GetDeclarationScope()->RecordEvalCall();
-      }
-
-      // This call is only necessary to track evals that may be
-      // inside arrow function parameter lists. In that case,
-      // Scope::Snapshot::Reparent will move this bit down into
-      // the arrow function's scope.
       scope->RecordEvalCall();
 
       return Call::IS_POSSIBLY_EVAL;

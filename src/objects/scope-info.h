@@ -51,7 +51,7 @@ class ScopeInfo : public FixedArray {
   bool is_class_scope() const;
 
   // Does this scope make a sloppy eval call?
-  bool CallsSloppyEval() const;
+  bool SloppyEvalCanExtendVars() const;
 
   // Return the number of context slots for code if a context is allocated. This
   // number consists of three parts:
@@ -221,9 +221,9 @@ class ScopeInfo : public FixedArray {
 
   // Properties of scopes.
   using ScopeTypeField = BitField<ScopeType, 0, 4>;
-  using CallsSloppyEvalField = ScopeTypeField::Next<bool, 1>;
+  using SloppyEvalCanExtendVarsField = ScopeTypeField::Next<bool, 1>;
   STATIC_ASSERT(LanguageModeSize == 2);
-  using LanguageModeField = CallsSloppyEvalField::Next<LanguageMode, 1>;
+  using LanguageModeField = SloppyEvalCanExtendVarsField::Next<LanguageMode, 1>;
   using DeclarationScopeField = LanguageModeField::Next<bool, 1>;
   using ReceiverVariableField =
       DeclarationScopeField::Next<VariableAllocationInfo, 2>;

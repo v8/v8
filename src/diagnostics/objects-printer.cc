@@ -2275,7 +2275,7 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - context locals : " << ContextLocalCount();
 
   os << "\n - scope type: " << scope_type();
-  if (CallsSloppyEval()) os << "\n - sloppy eval";
+  if (SloppyEvalCanExtendVars()) os << "\n - sloppy eval";
   os << "\n - language mode: " << language_mode();
   if (is_declaration_scope()) os << "\n - declaration scope";
   if (HasReceiver()) {

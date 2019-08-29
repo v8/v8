@@ -168,7 +168,6 @@ Scope::Scope(Zone* zone, ScopeType scope_type, Handle<ScopeInfo> scope_info)
 #ifdef DEBUG
   already_resolved_ = true;
 #endif
-  if (scope_info->CallsSloppyEval()) scope_calls_eval_ = true;
   set_language_mode(scope_info->language_mode());
   num_heap_slots_ = scope_info->ContextLength();
   DCHECK_LE(Context::MIN_CONTEXT_SLOTS, num_heap_slots_);
@@ -184,6 +183,10 @@ DeclarationScope::DeclarationScope(Zone* zone, ScopeType scope_type,
       params_(0, zone) {
   DCHECK_NE(scope_type, SCRIPT_SCOPE);
   SetDefaults();
+  if (scope_info->SloppyEvalCanExtendVars()) {
+    DCHECK(!is_eval_scope());
+    sloppy_eval_can_extend_vars_ = true;
+  }
 }
 
 Scope::Scope(Zone* zone, const AstRawString* catch_variable_name,
@@ -256,7 +259,8 @@ void Scope::SetDefaults() {
 
   set_language_mode(LanguageMode::kSloppy);
 
-  scope_calls_eval_ = false;
+  calls_eval_ = false;
+  sloppy_eval_can_extend_vars_ = false;
   scope_nonlinear_ = false;
   is_hidden_ = false;
   is_debug_evaluate_scope_ = false;
@@ -621,7 +625,7 @@ Variable* DeclarationScope::DeclareFunctionVar(const AstRawString* name,
                                                  : NORMAL_VARIABLE;
   function_ = new (zone())
       Variable(this, name, VariableMode::kConst, kind, kCreatedInitialized);
-  if (calls_sloppy_eval()) {
+  if (sloppy_eval_can_extend_vars()) {
     cache->NonLocal(name, VariableMode::kDynamic);
   } else {
     cache->variables_.Add(zone(), function_);
@@ -647,7 +651,8 @@ Scope* Scope::FinalizeBlockScope() {
 #endif
 
   if (variables_.occupancy() > 0 ||
-      (is_declaration_scope() && AsDeclarationScope()->calls_sloppy_eval())) {
+      (is_declaration_scope() &&
+       AsDeclarationScope()->sloppy_eval_can_extend_vars())) {
     return this;
   }
 
@@ -677,10 +682,10 @@ Scope* Scope::FinalizeBlockScope() {
 
   if (inner_scope_calls_eval_) outer_scope()->inner_scope_calls_eval_ = true;
 
-  // No need to propagate scope_calls_eval_, since if it was relevant to
-  // this scope we would have had to bail out at the top.
-  DCHECK(!scope_calls_eval_ || !is_declaration_scope() ||
-         !is_sloppy(language_mode()));
+  // No need to propagate sloppy_eval_can_extend_vars_, since if it was relevant
+  // to this scope we would have had to bail out at the top.
+  DCHECK(!is_declaration_scope() ||
+         !AsDeclarationScope()->sloppy_eval_can_extend_vars());
 
   // This block does not need a context.
   num_heap_slots_ = 0;
@@ -745,8 +750,8 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) {
   outer_closure->locals_.Rewind(top_local_);
 
   // Move eval calls since Snapshot's creation into new_parent.
-  if (outer_scope_and_calls_eval_->scope_calls_eval_) {
-    new_parent->scope_calls_eval_ = true;
+  if (outer_scope_and_calls_eval_->calls_eval_) {
+    new_parent->RecordDeclarationScopeEvalCall();
     new_parent->inner_scope_calls_eval_ = true;
   }
 
@@ -1241,7 +1246,7 @@ int Scope::ContextChainLengthUntilOutermostSloppyEval() const {
     if (!s->NeedsContext()) continue;
     length++;
     if (s->is_declaration_scope() &&
-        s->AsDeclarationScope()->calls_sloppy_eval()) {
+        s->AsDeclarationScope()->sloppy_eval_can_extend_vars()) {
       result = length;
     }
   }
@@ -1670,7 +1675,8 @@ void Scope::Print(int n) {
     Indent(n1, "// strict mode scope\n");
   }
   if (IsAsmModule()) Indent(n1, "// scope is an asm module\n");
-  if (is_declaration_scope() && AsDeclarationScope()->calls_sloppy_eval()) {
+  if (is_declaration_scope() &&
+      AsDeclarationScope()->sloppy_eval_can_extend_vars()) {
     Indent(n1, "// scope calls sloppy 'eval'\n");
   }
   if (is_declaration_scope() && AsDeclarationScope()->NeedsHomeObject()) {
@@ -1834,8 +1840,9 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
       return LookupWith(proxy, scope, outer_scope_end, entry_point,
                         force_context_allocation);
     }
-    if (V8_UNLIKELY(scope->is_declaration_scope() &&
-                    scope->AsDeclarationScope()->calls_sloppy_eval())) {
+    if (V8_UNLIKELY(
+            scope->is_declaration_scope() &&
+            scope->AsDeclarationScope()->sloppy_eval_can_extend_vars())) {
       return LookupSloppyEval(proxy, scope, outer_scope_end, entry_point,
                               force_context_allocation);
     }
@@ -1906,7 +1913,7 @@ Variable* Scope::LookupSloppyEval(VariableProxy* proxy, Scope* scope,
                                   Scope* outer_scope_end, Scope* entry_point,
                                   bool force_context_allocation) {
   DCHECK(scope->is_declaration_scope() &&
-         scope->AsDeclarationScope()->calls_sloppy_eval());
+         scope->AsDeclarationScope()->sloppy_eval_can_extend_vars());
 
   // If we're compiling eval, it's possible that the outer scope is the first
   // ScopeInfo-backed scope.
@@ -2256,9 +2263,9 @@ void Scope::AllocateVariablesRecursively() {
         scope->is_with_scope() || scope->is_module_scope() ||
         scope->IsAsmModule() || scope->ForceContextForLanguageMode() ||
         (scope->is_function_scope() &&
-         scope->AsDeclarationScope()->calls_sloppy_eval()) ||
+         scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) ||
         (scope->is_block_scope() && scope->is_declaration_scope() &&
-         scope->AsDeclarationScope()->calls_sloppy_eval());
+         scope->AsDeclarationScope()->sloppy_eval_can_extend_vars());
 
     // If we didn't allocate any locals in the local context, then we only
     // need the minimal number of slots if we must have a context.

@@ -386,7 +386,7 @@ PreParserBlock PreParser::BuildParameterInitializationBlock(
     const PreParserFormalParameters& parameters) {
   DCHECK(!parameters.is_simple);
   DCHECK(scope()->is_function_scope());
-  if (scope()->AsDeclarationScope()->calls_sloppy_eval() &&
+  if (scope()->AsDeclarationScope()->sloppy_eval_can_extend_vars() &&
       preparse_data_builder_ != nullptr) {
     // We cannot replicate the Scope structure constructed by the Parser,
     // because we've lost information whether each individual parameter was

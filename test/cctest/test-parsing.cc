@@ -1098,7 +1098,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
       }
       if (is_sloppy(scope->language_mode())) {
         CHECK_EQ((source_data[i].expected & EVAL) != 0,
-                 scope->AsDeclarationScope()->calls_sloppy_eval());
+                 scope->AsDeclarationScope()->sloppy_eval_can_extend_vars());
       }
     }
   }

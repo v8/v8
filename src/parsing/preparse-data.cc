@@ -21,8 +21,9 @@ namespace internal {
 
 namespace {
 
-using ScopeCallsSloppyEvalField = BitField8<bool, 0, 1>;
-using InnerScopeCallsEvalField = ScopeCallsSloppyEvalField::Next<bool, 1>;
+using ScopeSloppyEvalCanExtendVarsField = BitField8<bool, 0, 1>;
+using InnerScopeCallsEvalField =
+    ScopeSloppyEvalCanExtendVarsField::Next<bool, 1>;
 
 using VariableMaybeAssignedField = BitField8<bool, 0, 1>;
 using VariableContextAllocatedField = VariableMaybeAssignedField::Next<bool, 1>;
@@ -352,9 +353,9 @@ void PreparseDataBuilder::SaveDataForScope(Scope* scope) {
 #endif
 
   uint8_t eval =
-      ScopeCallsSloppyEvalField::encode(
+      ScopeSloppyEvalCanExtendVarsField::encode(
           scope->is_declaration_scope() &&
-          scope->AsDeclarationScope()->calls_sloppy_eval()) |
+          scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) |
       InnerScopeCallsEvalField::encode(scope->inner_scope_calls_eval());
   byte_data_.Reserve(kUint8Size);
   byte_data_.WriteUint8(eval);
@@ -599,7 +600,7 @@ void BaseConsumedPreparseData<Data>::RestoreDataForScope(Scope* scope) {
 
   CHECK(scope_data_->HasRemainingBytes(ByteData::kUint8Size));
   uint32_t eval = scope_data_->ReadUint8();
-  if (ScopeCallsSloppyEvalField::decode(eval)) scope->RecordEvalCall();
+  if (ScopeSloppyEvalCanExtendVarsField::decode(eval)) scope->RecordEvalCall();
   if (InnerScopeCallsEvalField::decode(eval)) scope->RecordInnerScopeEvalCall();
 
   if (scope->is_function_scope()) {

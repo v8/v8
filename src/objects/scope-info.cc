@@ -166,7 +166,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
 
     bool has_simple_parameters = false;
     bool is_asm_module = false;
-    bool calls_sloppy_eval = false;
+    bool sloppy_eval_can_extend_vars = false;
     if (scope->is_function_scope()) {
       DeclarationScope* function_scope = scope->AsDeclarationScope();
       has_simple_parameters = function_scope->has_simple_parameters();
@@ -175,13 +175,14 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
     FunctionKind function_kind = kNormalFunction;
     if (scope->is_declaration_scope()) {
       function_kind = scope->AsDeclarationScope()->function_kind();
-      calls_sloppy_eval = scope->AsDeclarationScope()->calls_sloppy_eval();
+      sloppy_eval_can_extend_vars =
+          scope->AsDeclarationScope()->sloppy_eval_can_extend_vars();
     }
 
     // Encode the flags.
     int flags =
         ScopeTypeField::encode(scope->scope_type()) |
-        CallsSloppyEvalField::encode(calls_sloppy_eval) |
+        SloppyEvalCanExtendVarsField::encode(sloppy_eval_can_extend_vars) |
         LanguageModeField::encode(scope->language_mode()) |
         DeclarationScopeField::encode(scope->is_declaration_scope()) |
         ReceiverVariableField::encode(receiver_info) |
@@ -356,7 +357,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
 
   // Encode the flags.
   int flags =
-      ScopeTypeField::encode(WITH_SCOPE) | CallsSloppyEvalField::encode(false) |
+      ScopeTypeField::encode(WITH_SCOPE) |
+      SloppyEvalCanExtendVarsField::encode(false) |
       LanguageModeField::encode(LanguageMode::kSloppy) |
       DeclarationScopeField::encode(false) |
       ReceiverVariableField::encode(NONE) | HasClassBrandField::encode(false) |
@@ -418,7 +420,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
 
   // Encode the flags.
   int flags =
-      ScopeTypeField::encode(type) | CallsSloppyEvalField::encode(false) |
+      ScopeTypeField::encode(type) |
+      SloppyEvalCanExtendVarsField::encode(false) |
       LanguageModeField::encode(LanguageMode::kSloppy) |
       DeclarationScopeField::encode(true) |
       ReceiverVariableField::encode(is_empty_function ? UNUSED : CONTEXT) |
@@ -491,12 +494,12 @@ ScopeType ScopeInfo::scope_type() const {
   return ScopeTypeField::decode(Flags());
 }
 
-bool ScopeInfo::CallsSloppyEval() const {
-  bool calls_sloppy_eval =
-      length() > 0 && CallsSloppyEvalField::decode(Flags());
-  DCHECK_IMPLIES(calls_sloppy_eval, is_sloppy(language_mode()));
-  DCHECK_IMPLIES(calls_sloppy_eval, is_declaration_scope());
-  return calls_sloppy_eval;
+bool ScopeInfo::SloppyEvalCanExtendVars() const {
+  bool sloppy_eval_can_extend_vars =
+      length() > 0 && SloppyEvalCanExtendVarsField::decode(Flags());
+  DCHECK_IMPLIES(sloppy_eval_can_extend_vars, is_sloppy(language_mode()));
+  DCHECK_IMPLIES(sloppy_eval_can_extend_vars, is_declaration_scope());
+  return sloppy_eval_can_extend_vars;
 }
 
 LanguageMode ScopeInfo::language_mode() const {
@@ -517,9 +520,9 @@ int ScopeInfo::ContextLength() const {
     bool has_context =
         context_locals > 0 || force_context || function_name_context_slot ||
         scope_type() == WITH_SCOPE || scope_type() == CLASS_SCOPE ||
-        (scope_type() == BLOCK_SCOPE && CallsSloppyEval() &&
+        (scope_type() == BLOCK_SCOPE && SloppyEvalCanExtendVars() &&
          is_declaration_scope()) ||
-        (scope_type() == FUNCTION_SCOPE && CallsSloppyEval()) ||
+        (scope_type() == FUNCTION_SCOPE && SloppyEvalCanExtendVars()) ||
         (scope_type() == FUNCTION_SCOPE && IsAsmModule()) ||
         scope_type() == MODULE_SCOPE;
 
