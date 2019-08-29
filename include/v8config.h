@@ -216,6 +216,7 @@
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT \
     (__has_attribute(warn_unused_result))
 
+# define V8_HAS_BUILTIN_ASSUME_ALIGNED (__has_builtin(__builtin_assume_aligned))
 # define V8_HAS_BUILTIN_BSWAP16 (__has_builtin(__builtin_bswap16))
 # define V8_HAS_BUILTIN_BSWAP32 (__has_builtin(__builtin_bswap32))
 # define V8_HAS_BUILTIN_BSWAP64 (__has_builtin(__builtin_bswap64))
@@ -262,6 +263,7 @@
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT \
     (!V8_CC_INTEL && V8_GNUC_PREREQ(4, 1, 0))
 
+# define V8_HAS_BUILTIN_ASSUME_ALIGNED (V8_GNUC_PREREQ(4, 7, 0))
 # define V8_HAS_BUILTIN_CLZ (V8_GNUC_PREREQ(3, 4, 0))
 # define V8_HAS_BUILTIN_CTZ (V8_GNUC_PREREQ(3, 4, 0))
 # define V8_HAS_BUILTIN_EXPECT (V8_GNUC_PREREQ(2, 96, 0))
@@ -300,6 +302,12 @@
 # define V8_INLINE inline
 #endif
 
+#if V8_HAS_BUILTIN_ASSUME_ALIGNED
+# define V8_ASSUME_ALIGNED(ptr, alignment) \
+  __builtin_assume_aligned((ptr), (alignment))
+#else
+# define V8_ASSUME_ALIGNED(ptr) (ptr)
+#endif
 
 // A macro used to tell the compiler to never inline a particular function.
 // Don't bother for debug builds.
