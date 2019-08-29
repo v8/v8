@@ -22,13 +22,13 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   void AdvanceRegister(int reg, int by) override;  // r[reg] += by.
   void Backtrack() override;
   void Bind(Label* label) override;
-  void CheckAtStart(Label* on_at_start) override;
   void CheckCharacter(unsigned c, Label* on_equal) override;
   void CheckCharacterAfterAnd(unsigned c, unsigned and_with,
                               Label* on_equal) override;
   void CheckCharacterGT(uc16 limit, Label* on_greater) override;
   void CheckCharacterLT(uc16 limit, Label* on_less) override;
   void CheckGreedyLoop(Label* on_tos_equals_current_position) override;
+  void CheckAtStart(int cp_offset, Label* on_at_start) override;
   void CheckNotAtStart(int cp_offset, Label* on_not_at_start) override;
   void CheckNotBackReference(int start_reg, bool read_backward,
                              Label* on_no_match) override;

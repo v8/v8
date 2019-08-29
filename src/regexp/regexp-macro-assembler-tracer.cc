@@ -227,12 +227,12 @@ void RegExpMacroAssemblerTracer::CheckCharacter(unsigned c, Label* on_equal) {
   assembler_->CheckCharacter(c, on_equal);
 }
 
-
-void RegExpMacroAssemblerTracer::CheckAtStart(Label* on_at_start) {
-  PrintF(" CheckAtStart(label[%08x]);\n", LabelToInt(on_at_start));
-  assembler_->CheckAtStart(on_at_start);
+void RegExpMacroAssemblerTracer::CheckAtStart(int cp_offset,
+                                              Label* on_at_start) {
+  PrintF(" CheckAtStart(cp_offset=%d, label[%08x]);\n", cp_offset,
+         LabelToInt(on_at_start));
+  assembler_->CheckAtStart(cp_offset, on_at_start);
 }
-
 
 void RegExpMacroAssemblerTracer::CheckNotAtStart(int cp_offset,
                                                  Label* on_not_at_start) {

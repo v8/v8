@@ -201,13 +201,13 @@ void RegExpMacroAssemblerARM64::CheckCharacterGT(uc16 limit,
   CompareAndBranchOrBacktrack(current_character(), limit, hi, on_greater);
 }
 
-
-void RegExpMacroAssemblerARM64::CheckAtStart(Label* on_at_start) {
-  __ Add(w10, current_input_offset(), Operand(-char_size()));
+void RegExpMacroAssemblerARM64::CheckAtStart(int cp_offset,
+                                             Label* on_at_start) {
+  __ Add(w10, current_input_offset(),
+         Operand(-char_size() + cp_offset * char_size()));
   __ Cmp(w10, string_start_minus_one());
   BranchOrBacktrack(eq, on_at_start);
 }
-
 
 void RegExpMacroAssemblerARM64::CheckNotAtStart(int cp_offset,
                                                 Label* on_not_at_start) {

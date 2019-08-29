@@ -2083,12 +2083,7 @@ void EmitHat(RegExpCompiler* compiler, RegExpNode* on_success, Trace* trace) {
   if (may_be_at_or_before_subject_string_start) {
     // The start of input counts as a newline in this context, so skip to ok if
     // we are at the start.
-    // TODO(jgruber): It would be less awkward to use CheckAtStart here, but
-    // that currently does not support a non-zero cp_offset.
-    Label not_at_start;
-    assembler->CheckNotAtStart(new_trace.cp_offset(), &not_at_start);
-    assembler->GoTo(&ok);
-    assembler->Bind(&not_at_start);
+    assembler->CheckAtStart(new_trace.cp_offset(), &ok);
   }
 
   // If we've already checked that we are not at the start of input, it's okay
@@ -2181,12 +2176,7 @@ void AssertionNode::BacktrackIfPrevious(
   if (may_be_at_or_before_subject_string_start) {
     // The start of input counts as a non-word character, so the question is
     // decided if we are at the start.
-    // TODO(jgruber): It would be less awkward to use CheckAtStart here, but
-    // that currently does not support a non-zero cp_offset.
-    Label not_at_start;
-    assembler->CheckNotAtStart(new_trace.cp_offset(), &not_at_start);
-    assembler->GoTo(non_word);
-    assembler->Bind(&not_at_start);
+    assembler->CheckAtStart(new_trace.cp_offset(), non_word);
   }
 
   // If we've already checked that we are not at the start of input, it's okay

@@ -24,7 +24,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   void AdvanceRegister(int reg, int by) override;
   void Backtrack() override;
   void Bind(Label* label) override;
-  void CheckAtStart(Label* on_at_start) override;
+  void CheckAtStart(int cp_offset, Label* on_at_start) override;
   void CheckCharacter(uint32_t c, Label* on_equal) override;
   void CheckCharacterAfterAnd(uint32_t c, uint32_t mask,
                               Label* on_equal) override;

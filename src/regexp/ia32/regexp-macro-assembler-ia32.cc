@@ -161,13 +161,11 @@ void RegExpMacroAssemblerIA32::CheckCharacterGT(uc16 limit, Label* on_greater) {
   BranchOrBacktrack(greater, on_greater);
 }
 
-
-void RegExpMacroAssemblerIA32::CheckAtStart(Label* on_at_start) {
-  __ lea(eax, Operand(edi, -char_size()));
+void RegExpMacroAssemblerIA32::CheckAtStart(int cp_offset, Label* on_at_start) {
+  __ lea(eax, Operand(edi, -char_size() + cp_offset * char_size()));
   __ cmp(eax, Operand(ebp, kStringStartMinusOne));
   BranchOrBacktrack(equal, on_at_start);
 }
-
 
 void RegExpMacroAssemblerIA32::CheckNotAtStart(int cp_offset,
                                                Label* on_not_at_start) {

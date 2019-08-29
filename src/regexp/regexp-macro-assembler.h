@@ -71,7 +71,6 @@ class RegExpMacroAssembler {
   // stack by an earlier PushBacktrack(Label*).
   virtual void Backtrack() = 0;
   virtual void Bind(Label* label) = 0;
-  virtual void CheckAtStart(Label* on_at_start) = 0;
   // Dispatch after looking the current character up in a 2-bits-per-entry
   // map.  The destinations vector has up to 4 labels.
   virtual void CheckCharacter(unsigned c, Label* on_equal) = 0;
@@ -83,6 +82,7 @@ class RegExpMacroAssembler {
   virtual void CheckCharacterGT(uc16 limit, Label* on_greater) = 0;
   virtual void CheckCharacterLT(uc16 limit, Label* on_less) = 0;
   virtual void CheckGreedyLoop(Label* on_tos_equals_current_position) = 0;
+  virtual void CheckAtStart(int cp_offset, Label* on_at_start) = 0;
   virtual void CheckNotAtStart(int cp_offset, Label* on_not_at_start) = 0;
   virtual void CheckNotBackReference(int start_reg, bool read_backward,
                                      Label* on_no_match) = 0;

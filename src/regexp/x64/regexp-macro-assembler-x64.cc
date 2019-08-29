@@ -172,13 +172,11 @@ void RegExpMacroAssemblerX64::CheckCharacterGT(uc16 limit, Label* on_greater) {
   BranchOrBacktrack(greater, on_greater);
 }
 
-
-void RegExpMacroAssemblerX64::CheckAtStart(Label* on_at_start) {
-  __ leaq(rax, Operand(rdi, -char_size()));
+void RegExpMacroAssemblerX64::CheckAtStart(int cp_offset, Label* on_at_start) {
+  __ leaq(rax, Operand(rdi, -char_size() + cp_offset * char_size()));
   __ cmpq(rax, Operand(rbp, kStringStartMinusOne));
   BranchOrBacktrack(equal, on_at_start);
 }
-
 
 void RegExpMacroAssemblerX64::CheckNotAtStart(int cp_offset,
                                               Label* on_not_at_start) {

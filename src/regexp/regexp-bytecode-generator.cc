@@ -230,8 +230,8 @@ void RegExpBytecodeGenerator::CheckCharacter(uint32_t c, Label* on_equal) {
   EmitOrLink(on_equal);
 }
 
-void RegExpBytecodeGenerator::CheckAtStart(Label* on_at_start) {
-  Emit(BC_CHECK_AT_START, 0);
+void RegExpBytecodeGenerator::CheckAtStart(int cp_offset, Label* on_at_start) {
+  Emit(BC_CHECK_AT_START, cp_offset);
   EmitOrLink(on_at_start);
 }
 

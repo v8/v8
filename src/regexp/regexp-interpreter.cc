@@ -729,7 +729,7 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate, ByteArray code_array,
       DISPATCH();
     }
     BYTECODE(CHECK_AT_START) {
-      if (current == 0) {
+      if (current + (insn >> BYTECODE_SHIFT) == 0) {
         SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
       } else {
         ADVANCE(CHECK_AT_START);
