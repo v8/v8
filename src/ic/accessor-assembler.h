@@ -275,7 +275,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
   void HandleLoadField(Node* holder, Node* handler_word,
                        Variable* var_double_value, Label* rebox_double,
-                       Label* miss, ExitPoint* exit_point);
+                       ExitPoint* exit_point);
 
   void EmitAccessCheck(TNode<Context> expected_native_context,
                        TNode<Context> context, Node* receiver,
