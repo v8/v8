@@ -2556,13 +2556,14 @@ WASM_SIMD_COMPILED_TEST(S8x16MultiShuffleFuzz) {
 // Boolean unary operations are 'AllTrue' and 'AnyTrue', which return an integer
 // result. Use relational ops on numeric vectors to create the boolean vector
 // test inputs. Test inputs with all true, all false, one true, and one false.
-#define WASM_SIMD_BOOL_REDUCTION_TEST(format, lanes)                           \
+#define WASM_SIMD_BOOL_REDUCTION_TEST(format, lanes, int_type)                 \
   WASM_SIMD_TEST(ReductionTest##lanes) {                                       \
     WasmRunner<int32_t> r(execution_tier, lower_simd);                         \
+    if (lanes == 2 && lower_simd == kLowerSimd) return;                        \
     byte zero = r.AllocateLocal(kWasmS128);                                    \
     byte one_one = r.AllocateLocal(kWasmS128);                                 \
     byte reduced = r.AllocateLocal(kWasmI32);                                  \
-    BUILD(r, WASM_SET_LOCAL(zero, WASM_SIMD_I##format##_SPLAT(WASM_ZERO)),     \
+    BUILD(r, WASM_SET_LOCAL(zero, WASM_SIMD_I##format##_SPLAT(int_type(0))),   \
           WASM_SET_LOCAL(                                                      \
               reduced, WASM_SIMD_UNOP(kExprS1x##lanes##AnyTrue,                \
                                       WASM_SIMD_BINOP(kExprI##format##Eq,      \
@@ -2593,7 +2594,7 @@ WASM_SIMD_COMPILED_TEST(S8x16MultiShuffleFuzz) {
                   WASM_RETURN1(WASM_ZERO)),                                    \
           WASM_SET_LOCAL(one_one,                                              \
                          WASM_SIMD_I##format##_REPLACE_LANE(                   \
-                             lanes - 1, WASM_GET_LOCAL(zero), WASM_ONE)),      \
+                             lanes - 1, WASM_GET_LOCAL(zero), int_type(1))),   \
           WASM_SET_LOCAL(                                                      \
               reduced, WASM_SIMD_UNOP(kExprS1x##lanes##AnyTrue,                \
                                       WASM_SIMD_BINOP(kExprI##format##Eq,      \
@@ -2626,9 +2627,12 @@ WASM_SIMD_COMPILED_TEST(S8x16MultiShuffleFuzz) {
     CHECK_EQ(1, r.Call());                                                     \
   }
 
-WASM_SIMD_BOOL_REDUCTION_TEST(32x4, 4)
-WASM_SIMD_BOOL_REDUCTION_TEST(16x8, 8)
-WASM_SIMD_BOOL_REDUCTION_TEST(8x16, 16)
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+WASM_SIMD_BOOL_REDUCTION_TEST(64x2, 2, WASM_I64V)
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+WASM_SIMD_BOOL_REDUCTION_TEST(32x4, 4, WASM_I32V)
+WASM_SIMD_BOOL_REDUCTION_TEST(16x8, 8, WASM_I32V)
+WASM_SIMD_BOOL_REDUCTION_TEST(8x16, 16, WASM_I32V)
 
 WASM_SIMD_TEST(SimdI32x4ExtractWithF32x4) {
   WasmRunner<int32_t> r(execution_tier, lower_simd);
