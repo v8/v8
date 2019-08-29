@@ -26,6 +26,7 @@ InstructionSelector::InstructionSelector(
     InstructionSequence* sequence, Schedule* schedule,
     SourcePositionTable* source_positions, Frame* frame,
     EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
+    size_t* max_unoptimized_frame_height,
     SourcePositionMode source_position_mode, Features features,
     EnableScheduling enable_scheduling,
     EnableRootsRelativeAddressing enable_roots_relative_addressing,
@@ -56,7 +57,10 @@ InstructionSelector::InstructionSelector(
       instruction_selection_failed_(false),
       instr_origins_(sequence->zone()),
       trace_turbo_(trace_turbo),
-      tick_counter_(tick_counter) {
+      tick_counter_(tick_counter),
+      max_unoptimized_frame_height_(max_unoptimized_frame_height) {
+  DCHECK_EQ(*max_unoptimized_frame_height, 0);  // Caller-initialized.
+
   instructions_.reserve(node_count);
   continuation_inputs_.reserve(5);
   continuation_outputs_.reserve(2);
@@ -3073,8 +3077,8 @@ FrameStateDescriptor* GetFrameStateDescriptorInternal(Zone* zone, Node* state) {
 FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
     Node* state) {
   auto* desc = GetFrameStateDescriptorInternal(instruction_zone(), state);
-  max_unoptimized_frame_height_ =
-      std::max(max_unoptimized_frame_height_,
+  *max_unoptimized_frame_height_ =
+      std::max(*max_unoptimized_frame_height_,
                desc->total_conservative_frame_size_in_bytes());
   return desc;
 }

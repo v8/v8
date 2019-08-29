@@ -115,6 +115,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
                          JumpOptimizationInfo* jump_opt,
                          PoisoningMitigationLevel poisoning_level,
                          const AssemblerOptions& options, int32_t builtin_index,
+                         size_t max_unoptimized_frame_height,
                          std::unique_ptr<AssemblerBuffer> = {});
 
   // Generate native code. After calling AssembleCode, call FinalizeCode to
@@ -421,6 +422,10 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   TranslationBuffer translations_;
   int handler_table_offset_ = 0;
   int last_lazy_deopt_pc_ = 0;
+
+  // The maximal combined height of all frames produced upon deoptimization.
+  // Applied as an offset to the first stack check of an optimized function.
+  const size_t max_unoptimized_frame_height_;
 
   // kArchCallCFunction could be reached either:
   //   kArchCallCFunction;

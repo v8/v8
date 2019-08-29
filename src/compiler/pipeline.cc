@@ -323,6 +323,13 @@ class PipelineData {
     return assembler_options_;
   }
 
+  size_t* address_of_max_unoptimized_frame_height() {
+    return &max_unoptimized_frame_height_;
+  }
+  size_t max_unoptimized_frame_height() const {
+    return max_unoptimized_frame_height_;
+  }
+
   CodeTracer* GetCodeTracer() const {
     return wasm_engine_ == nullptr ? isolate_->GetCodeTracer()
                                    : wasm_engine_->GetCodeTracer();
@@ -437,7 +444,8 @@ class PipelineData {
         codegen_zone(), frame(), linkage, sequence(), info(), isolate(),
         osr_helper_, start_source_position_, jump_optimization_info_,
         info()->GetPoisoningMitigationLevel(), assembler_options_,
-        info_->builtin_index(), std::move(buffer));
+        info_->builtin_index(), max_unoptimized_frame_height(),
+        std::move(buffer));
   }
 
   void BeginPhaseKind(const char* phase_kind_name) {
@@ -523,6 +531,11 @@ class PipelineData {
 
   JumpOptimizationInfo* jump_optimization_info_ = nullptr;
   AssemblerOptions assembler_options_;
+
+  // The maximal combined height of all inlined frames in their unoptimized
+  // state. Calculated during instruction selection, applied during code
+  // generation.
+  size_t max_unoptimized_frame_height_ = 0;
 
   DISALLOW_COPY_AND_ASSIGN(PipelineData);
 };
@@ -1873,6 +1886,7 @@ struct InstructionSelectionPhase {
             ? InstructionSelector::kEnableSwitchJumpTable
             : InstructionSelector::kDisableSwitchJumpTable,
         &data->info()->tick_counter(),
+        data->address_of_max_unoptimized_frame_height(),
         data->info()->is_source_positions_enabled()
             ? InstructionSelector::kAllSourcePositions
             : InstructionSelector::kCallSourcePositions,

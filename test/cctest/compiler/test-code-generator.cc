@@ -990,13 +990,14 @@ class CodeGeneratorTester {
       i++;
     }
 
+    static constexpr size_t kMaxUnoptimizedFrameHeight = 0;
     generator_ = new CodeGenerator(
         environment->main_zone(), &frame_, &linkage_,
         environment->instructions(), &info_, environment->main_isolate(),
         base::Optional<OsrHelper>(), kNoSourcePosition, nullptr,
         PoisoningMitigationLevel::kDontPoison,
         AssemblerOptions::Default(environment->main_isolate()),
-        Builtins::kNoBuiltinId);
+        Builtins::kNoBuiltinId, kMaxUnoptimizedFrameHeight);
 
     // Force a frame to be created.
     generator_->frame_access_state()->MarkHasFrame(true);

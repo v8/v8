@@ -271,6 +271,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
       InstructionSequence* sequence, Schedule* schedule,
       SourcePositionTable* source_positions, Frame* frame,
       EnableSwitchJumpTable enable_switch_jump_table, TickCounter* tick_counter,
+      size_t* max_unoptimized_frame_height,
       SourcePositionMode source_position_mode = kCallSourcePositions,
       Features features = SupportedFeatures(),
       EnableScheduling enable_scheduling = FLAG_turbo_instruction_scheduling
@@ -787,7 +788,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   // Store the maximal unoptimized frame height. Later used to apply an offset
   // to stack checks.
-  size_t max_unoptimized_frame_height_ = 0;
+  size_t* max_unoptimized_frame_height_;
 };
 
 }  // namespace compiler

@@ -47,7 +47,8 @@ CodeGenerator::CodeGenerator(
     Isolate* isolate, base::Optional<OsrHelper> osr_helper,
     int start_source_position, JumpOptimizationInfo* jump_opt,
     PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options,
-    int32_t builtin_index, std::unique_ptr<AssemblerBuffer> buffer)
+    int32_t builtin_index, size_t max_unoptimized_frame_height,
+    std::unique_ptr<AssemblerBuffer> buffer)
     : zone_(codegen_zone),
       isolate_(isolate),
       frame_access_state_(nullptr),
@@ -66,6 +67,7 @@ CodeGenerator::CodeGenerator(
       deoptimization_exits_(zone()),
       deoptimization_literals_(zone()),
       translations_(zone()),
+      max_unoptimized_frame_height_(max_unoptimized_frame_height),
       caller_registers_saved_(false),
       jump_tables_(nullptr),
       ools_(nullptr),
