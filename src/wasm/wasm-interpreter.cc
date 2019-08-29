@@ -2450,19 +2450,26 @@ class ThreadImpl {
     Push(WasmValue(Simd128(res)));               \
     return true;                                 \
   }
-        SHIFT_CASE(I64x2Shl, i64x2, int2, 2, static_cast<uint64_t>(a) << shift)
-        SHIFT_CASE(I64x2ShrS, i64x2, int2, 2, a >> shift)
-        SHIFT_CASE(I64x2ShrU, i64x2, int2, 2, static_cast<uint64_t>(a) >> shift)
-        SHIFT_CASE(I32x4Shl, i32x4, int4, 4, static_cast<uint32_t>(a) << shift)
-        SHIFT_CASE(I32x4ShrS, i32x4, int4, 4, a >> shift)
-        SHIFT_CASE(I32x4ShrU, i32x4, int4, 4, static_cast<uint32_t>(a) >> shift)
-        SHIFT_CASE(I16x8Shl, i16x8, int8, 8, static_cast<uint16_t>(a) << shift)
-        SHIFT_CASE(I16x8ShrS, i16x8, int8, 8, a >> shift)
-        SHIFT_CASE(I16x8ShrU, i16x8, int8, 8, static_cast<uint16_t>(a) >> shift)
-        SHIFT_CASE(I8x16Shl, i8x16, int16, 16, static_cast<uint8_t>(a) << shift)
-        SHIFT_CASE(I8x16ShrS, i8x16, int16, 16, a >> shift)
+        SHIFT_CASE(I64x2Shl, i64x2, int2, 2,
+                   static_cast<uint64_t>(a) << (shift % 64))
+        SHIFT_CASE(I64x2ShrS, i64x2, int2, 2, a >> (shift % 64))
+        SHIFT_CASE(I64x2ShrU, i64x2, int2, 2,
+                   static_cast<uint64_t>(a) >> (shift % 64))
+        SHIFT_CASE(I32x4Shl, i32x4, int4, 4,
+                   static_cast<uint32_t>(a) << (shift % 32))
+        SHIFT_CASE(I32x4ShrS, i32x4, int4, 4, a >> (shift % 32))
+        SHIFT_CASE(I32x4ShrU, i32x4, int4, 4,
+                   static_cast<uint32_t>(a) >> (shift % 32))
+        SHIFT_CASE(I16x8Shl, i16x8, int8, 8,
+                   static_cast<uint16_t>(a) << (shift % 16))
+        SHIFT_CASE(I16x8ShrS, i16x8, int8, 8, a >> (shift % 16))
+        SHIFT_CASE(I16x8ShrU, i16x8, int8, 8,
+                   static_cast<uint16_t>(a) >> (shift % 16))
+        SHIFT_CASE(I8x16Shl, i8x16, int16, 16,
+                   static_cast<uint8_t>(a) << (shift % 8))
+        SHIFT_CASE(I8x16ShrS, i8x16, int16, 16, a >> (shift % 8))
         SHIFT_CASE(I8x16ShrU, i8x16, int16, 16,
-                   static_cast<uint8_t>(a) >> shift)
+                   static_cast<uint8_t>(a) >> (shift % 8))
 #undef SHIFT_CASE
 #define CONVERT_CASE(op, src_type, name, dst_type, count, start_index, ctype, \
                      expr)                                                    \

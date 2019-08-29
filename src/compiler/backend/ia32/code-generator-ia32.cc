@@ -2212,28 +2212,40 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kSSEI32x4Shl: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       XMMRegister tmp = i.TempSimd128Register(0);
-      __ movd(tmp, i.InputRegister(1));
+      Register shift = i.InputRegister(1);
+      // Take shift value modulo 32.
+      __ and_(shift, 31);
+      __ movd(tmp, shift);
       __ pslld(i.OutputSimd128Register(), tmp);
       break;
     }
     case kAVXI32x4Shl: {
       CpuFeatureScope avx_scope(tasm(), AVX);
       XMMRegister tmp = i.TempSimd128Register(0);
-      __ movd(tmp, i.InputRegister(1));
+      Register shift = i.InputRegister(1);
+      // Take shift value modulo 32.
+      __ and_(shift, 31);
+      __ movd(tmp, shift);
       __ vpslld(i.OutputSimd128Register(), i.InputSimd128Register(0), tmp);
       break;
     }
     case kSSEI32x4ShrS: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       XMMRegister tmp = i.TempSimd128Register(0);
-      __ movd(tmp, i.InputRegister(1));
+      Register shift = i.InputRegister(1);
+      // Take shift value modulo 32.
+      __ and_(shift, 31);
+      __ movd(tmp, shift);
       __ psrad(i.OutputSimd128Register(), tmp);
       break;
     }
     case kAVXI32x4ShrS: {
       CpuFeatureScope avx_scope(tasm(), AVX);
       XMMRegister tmp = i.TempSimd128Register(0);
-      __ movd(tmp, i.InputRegister(1));
+      Register shift = i.InputRegister(1);
+      // Take shift value modulo 32.
+      __ and_(shift, 31);
+      __ movd(tmp, shift);
       __ vpsrad(i.OutputSimd128Register(), i.InputSimd128Register(0), tmp);
       break;
     }
@@ -2430,14 +2442,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kSSEI32x4ShrU: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       XMMRegister tmp = i.TempSimd128Register(0);
-      __ movd(tmp, i.InputRegister(1));
+      Register shift = i.InputRegister(1);
+      // Take shift value modulo 32.
+      __ and_(shift, 31);
+      __ movd(tmp, shift);
       __ psrld(i.OutputSimd128Register(), tmp);
       break;
     }
     case kAVXI32x4ShrU: {
       CpuFeatureScope avx_scope(tasm(), AVX);
       XMMRegister tmp = i.TempSimd128Register(0);
-      __ movd(tmp, i.InputRegister(1));
+      Register shift = i.InputRegister(1);
+      // Take shift value modulo 32.
+      __ and_(shift, 31);
+      __ movd(tmp, shift);
       __ vpsrld(i.OutputSimd128Register(), i.InputSimd128Register(0), tmp);
       break;
     }
@@ -2553,28 +2571,40 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kSSEI16x8Shl: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       XMMRegister tmp = i.TempSimd128Register(0);
-      __ movd(tmp, i.InputRegister(1));
+      Register shift = i.InputRegister(1);
+      // Take shift value modulo 16.
+      __ and_(shift, 15);
+      __ movd(tmp, shift);
       __ psllw(i.OutputSimd128Register(), tmp);
       break;
     }
     case kAVXI16x8Shl: {
       CpuFeatureScope avx_scope(tasm(), AVX);
       XMMRegister tmp = i.TempSimd128Register(0);
-      __ movd(tmp, i.InputRegister(1));
+      Register shift = i.InputRegister(1);
+      // Take shift value modulo 16.
+      __ and_(shift, 15);
+      __ movd(tmp, shift);
       __ vpsllw(i.OutputSimd128Register(), i.InputSimd128Register(0), tmp);
       break;
     }
     case kSSEI16x8ShrS: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       XMMRegister tmp = i.TempSimd128Register(0);
-      __ movd(tmp, i.InputRegister(1));
+      Register shift = i.InputRegister(1);
+      // Take shift value modulo 16.
+      __ and_(shift, 15);
+      __ movd(tmp, shift);
       __ psraw(i.OutputSimd128Register(), tmp);
       break;
     }
     case kAVXI16x8ShrS: {
       CpuFeatureScope avx_scope(tasm(), AVX);
       XMMRegister tmp = i.TempSimd128Register(0);
-      __ movd(tmp, i.InputRegister(1));
+      Register shift = i.InputRegister(1);
+      // Take shift value modulo 16.
+      __ and_(shift, 15);
+      __ movd(tmp, shift);
       __ vpsraw(i.OutputSimd128Register(), i.InputSimd128Register(0), tmp);
       break;
     }
@@ -2745,14 +2775,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kSSEI16x8ShrU: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       XMMRegister tmp = i.TempSimd128Register(0);
-      __ movd(tmp, i.InputRegister(1));
+      Register shift = i.InputRegister(1);
+      // Take shift value modulo 16.
+      __ and_(shift, 15);
+      __ movd(tmp, shift);
       __ psrlw(i.OutputSimd128Register(), tmp);
       break;
     }
     case kAVXI16x8ShrU: {
       CpuFeatureScope avx_scope(tasm(), AVX);
       XMMRegister tmp = i.TempSimd128Register(0);
-      __ movd(tmp, i.InputRegister(1));
+      Register shift = i.InputRegister(1);
+      // Take shift value modulo 16.
+      __ and_(shift, 15);
+      __ movd(tmp, shift);
       __ vpsrlw(i.OutputSimd128Register(), i.InputSimd128Register(0), tmp);
       break;
     }
@@ -2919,6 +2955,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register shift = i.InputRegister(1);
       Register tmp = i.ToRegister(instr->TempAt(0));
       XMMRegister tmp_simd = i.TempSimd128Register(1);
+      // Take shift value modulo 8.
+      __ and_(shift, 7);
       // Mask off the unwanted bits before word-shifting.
       __ pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
       __ mov(tmp, shift);
@@ -2938,6 +2976,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register shift = i.InputRegister(1);
       Register tmp = i.ToRegister(instr->TempAt(0));
       XMMRegister tmp_simd = i.TempSimd128Register(1);
+      // Take shift value modulo 8.
+      __ and_(shift, 7);
       // Mask off the unwanted bits before word-shifting.
       __ vpcmpeqw(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
       __ mov(tmp, shift);
@@ -2959,6 +2999,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ punpckhbw(kScratchDoubleReg, dst);
       __ punpcklbw(dst, dst);
       __ mov(tmp, i.InputRegister(1));
+      // Take shift value modulo 8.
+      __ and_(tmp, 7);
       __ add(tmp, Immediate(8));
       __ movd(tmp_simd, tmp);
       __ psraw(kScratchDoubleReg, tmp_simd);
@@ -3223,6 +3265,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ punpckhbw(kScratchDoubleReg, dst);
       __ punpcklbw(dst, dst);
       __ mov(tmp, i.InputRegister(1));
+      // Take shift value modulo 8.
+      __ and_(tmp, 7);
       __ add(tmp, Immediate(8));
       __ movd(tmp_simd, tmp);
       __ psrlw(kScratchDoubleReg, tmp_simd);

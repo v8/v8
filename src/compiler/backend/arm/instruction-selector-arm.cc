@@ -94,7 +94,7 @@ void VisitRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
 void VisitSimdShiftRRR(InstructionSelector* selector, ArchOpcode opcode,
                        Node* node) {
   ArmOperandGenerator g(selector);
-  InstructionOperand temps[] = {g.TempSimd128Register()};
+  InstructionOperand temps[] = {g.TempSimd128Register(), g.TempRegister()};
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)),
                  g.UseRegister(node->InputAt(1)), arraysize(temps), temps);
