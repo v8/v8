@@ -10263,9 +10263,8 @@ void CodeStubAssembler::ReportFeedbackUpdate(
     SloppyTNode<FeedbackVector> feedback_vector, SloppyTNode<IntPtrT> slot_id,
     const char* reason) {
   // Reset profiler ticks.
-  StoreObjectFieldNoWriteBarrier(
-      feedback_vector, FeedbackVector::kProfilerTicksOffset, Int32Constant(0),
-      MachineRepresentation::kWord32);
+  StoreFeedbackVectorProfilerTicksSinceLastFeedbackChange(feedback_vector,
+                                                          Int32Constant(0));
 
 #ifdef V8_TRACE_FEEDBACK_UPDATES
   // Trace the update.

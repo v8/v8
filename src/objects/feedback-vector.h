@@ -204,12 +204,14 @@ class FeedbackVector : public HeapObject {
   // [invocation_count]: The number of times this function has been invoked.
   DECL_INT32_ACCESSORS(invocation_count)
 
-  // [profiler_ticks]: The number of times this function has been seen by the
-  // runtime profiler.
-  DECL_INT32_ACCESSORS(profiler_ticks)
+  // [profiler_ticks_since_last_feedback_change]: The number of times this
+  // function has been seen by the runtime profiler since the last optimization
+  // or feedback change.
+  DECL_INT32_ACCESSORS(profiler_ticks_since_last_feedback_change)
 
-  // Initialize the padding if necessary.
-  inline void clear_padding();
+  // [total_profiler_ticks]: Total profiler ticks, not reset on feedback changes
+  // or optimizations.
+  DECL_INT32_ACCESSORS(total_profiler_ticks)
 
   inline void clear_invocation_count();
 

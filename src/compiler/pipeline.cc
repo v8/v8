@@ -1188,7 +1188,17 @@ struct GraphBuilderPhase {
     if (data->info()->is_bailout_on_uninitialized()) {
       flags |= BytecodeGraphBuilderFlag::kBailoutOnUninitialized;
     }
-    CallFrequency frequency(1.0f);
+    double invocation_count =
+        data->info()->closure()->feedback_vector().invocation_count();
+    double total_ticks =
+        data->info()->closure()->feedback_vector().total_profiler_ticks();
+    if (total_ticks == 0) {
+      // This can only happen in tests when forcing optimization.
+      // Pick a small number so that inlining still happens.
+      total_ticks = 1.0 / FLAG_interrupt_budget;
+    }
+    double executed_bytecode_bytes = total_ticks * FLAG_interrupt_budget;
+    CallFrequency frequency(invocation_count / (executed_bytecode_bytes / KB));
     BuildGraphFromBytecode(
         data->broker(), temp_zone, data->info()->bytecode_array(),
         data->info()->shared_info(),

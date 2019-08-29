@@ -25,6 +25,16 @@ namespace {
 bool IsSmall(BytecodeArrayRef bytecode) {
   return bytecode.length() <= FLAG_max_inlined_bytecode_size_small;
 }
+double CallFrequencyLimit(BytecodeArrayRef bytecode) {
+  if (IsSmall(bytecode)) return 0;
+  int length = bytecode.length();
+  DCHECK_GT(length, FLAG_max_inlined_bytecode_size_small);
+  DCHECK_LE(length, FLAG_max_inlined_bytecode_size);
+  return FLAG_min_inlining_frequency *
+         (length - FLAG_max_inlined_bytecode_size_small) /
+         (FLAG_max_inlined_bytecode_size -
+          FLAG_max_inlined_bytecode_size_small);
+}
 }  // namespace
 
 JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
@@ -107,6 +117,15 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
     return NoChange();
   }
 
+  // Gather feedback on how often this call site has been hit before.
+  if (node->opcode() == IrOpcode::kJSCall) {
+    CallParameters const p = CallParametersOf(node->op());
+    candidate.frequency = p.frequency();
+  } else {
+    ConstructParameters const p = ConstructParametersOf(node->op());
+    candidate.frequency = p.frequency();
+  }
+
   bool can_inline_candidate = false, candidate_is_small = true;
   candidate.total_size = 0;
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
@@ -135,7 +154,10 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
     SharedFunctionInfoRef shared = candidate.functions[i].has_value()
                                        ? candidate.functions[i].value().shared()
                                        : candidate.shared_info.value();
-    candidate.can_inline_function[i] = shared.IsInlineable();
+    if (!shared.IsInlineable()) {
+      candidate.can_inline_function[i] = false;
+      continue;
+    }
     // Do not allow direct recursion i.e. f() -> f(). We still allow indirect
     // recurion like f() -> g() -> f(). The indirect recursion is helpful in
     // cases where f() is a small dispatch function that calls the appropriate
@@ -150,26 +172,26 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
       TRACE("Not considering call site #%d:%s, because of recursive inlining\n",
             node->id(), node->op()->mnemonic());
       candidate.can_inline_function[i] = false;
+      continue;
     }
     // A function reaching this point should always have its bytecode
     // serialized.
     BytecodeArrayRef bytecode = candidate.bytecode[i].value();
-    if (candidate.can_inline_function[i]) {
-      can_inline_candidate = true;
-      candidate.total_size += bytecode.length();
+    // Don't consider a {candidate} whose call frequency is below the threshold.
+    // The frequency is the estimated call count per KB of executed bytecode of
+    // the function we're optimizing. The threshold is scaled linearly based on
+    // the size of the {candidate}.
+    if (candidate.frequency.IsKnown() &&
+        candidate.frequency.value() < CallFrequencyLimit(bytecode)) {
+      candidate.can_inline_function[i] = false;
+      continue;
     }
+    candidate.can_inline_function[i] = true;
+    can_inline_candidate = true;
+    candidate.total_size += bytecode.length();
     candidate_is_small = candidate_is_small && IsSmall(bytecode);
   }
   if (!can_inline_candidate) return NoChange();
-
-  // Gather feedback on how often this call site has been hit before.
-  if (node->opcode() == IrOpcode::kJSCall) {
-    CallParameters const p = CallParametersOf(node->op());
-    candidate.frequency = p.frequency();
-  } else {
-    ConstructParameters const p = ConstructParametersOf(node->op());
-    candidate.frequency = p.frequency();
-  }
 
   // Handling of special inlining modes right away:
   //  - For restricted inlining: stop all handling at this point.
@@ -181,14 +203,6 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
       return InlineCandidate(candidate, false);
     case kGeneralInlining:
       break;
-  }
-
-  // Don't consider a {candidate} whose frequency is below the
-  // threshold, i.e. a call site that is only hit once every N
-  // invocations of the caller.
-  if (candidate.frequency.IsKnown() &&
-      candidate.frequency.value() < FLAG_min_inlining_frequency) {
-    return NoChange();
   }
 
   // Forcibly inline small functions here. In the case of polymorphic inlining

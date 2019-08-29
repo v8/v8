@@ -245,7 +245,8 @@ Handle<FeedbackVector> FeedbackVector::New(
           FLAG_log_function_events ? OptimizationMarker::kLogFirstExecution
                                    : OptimizationMarker::kNone)));
   DCHECK_EQ(vector->invocation_count(), 0);
-  DCHECK_EQ(vector->profiler_ticks(), 0);
+  DCHECK_EQ(vector->profiler_ticks_since_last_feedback_change(), 0);
+  DCHECK_EQ(vector->total_profiler_ticks(), 0);
 
   // Ensure we can skip the write barrier
   Handle<Object> uninitialized_sentinel = UninitializedSentinel(isolate);

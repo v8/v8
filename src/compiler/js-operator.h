@@ -29,6 +29,8 @@ struct JSOperatorGlobalCache;
 
 // Defines the frequency a given Call/Construct site was executed. For some
 // call sites the frequency is not known.
+// Call frequency is measured as invocations per KB of executed bytecode of the
+// function we're optimizing, based on runtime profiler ticks.
 class CallFrequency final {
  public:
   CallFrequency() : value_(std::numeric_limits<float>::quiet_NaN()) {}

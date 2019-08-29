@@ -5,6 +5,7 @@
 #include "src/execution/runtime-profiler.h"
 
 #include "src/base/platform/platform.h"
+#include "src/base/safe_conversions.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
@@ -150,7 +151,8 @@ void RuntimeProfiler::MaybeOptimize(JSFunction function,
 }
 
 bool RuntimeProfiler::MaybeOSR(JSFunction function, InterpretedFrame* frame) {
-  int ticks = function.feedback_vector().profiler_ticks();
+  int ticks =
+      function.feedback_vector().profiler_ticks_since_last_feedback_change();
   // TODO(rmcilroy): Also ensure we only OSR top-level code if it is smaller
   // than kMaxToplevelSourceSize.
 
@@ -172,7 +174,8 @@ bool RuntimeProfiler::MaybeOSR(JSFunction function, InterpretedFrame* frame) {
 
 OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction function,
                                                    BytecodeArray bytecode) {
-  int ticks = function.feedback_vector().profiler_ticks();
+  int ticks =
+      function.feedback_vector().profiler_ticks_since_last_feedback_change();
   int ticks_for_optimization =
       kProfilerTicksBeforeOptimization +
       (bytecode.length() / kBytecodeSizeAllowancePerTick);
@@ -227,10 +230,13 @@ void RuntimeProfiler::MarkCandidatesForOptimization() {
 
     // TODO(leszeks): Move this increment to before the maybe optimize checks,
     // and update the tests to assume the increment has already happened.
-    int ticks = function.feedback_vector().profiler_ticks();
-    if (ticks < Smi::kMaxValue) {
-      function.feedback_vector().set_profiler_ticks(ticks + 1);
-    }
+    int64_t stable_ticks =
+        function.feedback_vector().profiler_ticks_since_last_feedback_change();
+    function.feedback_vector().set_profiler_ticks_since_last_feedback_change(
+        base::saturated_cast<int32_t>(stable_ticks + 1));
+    int64_t total_ticks = function.feedback_vector().total_profiler_ticks();
+    function.feedback_vector().set_total_profiler_ticks(
+        base::saturated_cast<int32_t>(total_ticks + 1));
   }
   any_ic_changed_ = false;
 }

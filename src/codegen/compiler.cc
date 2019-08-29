@@ -830,7 +830,7 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
 
   // Reset profiler ticks, function is no longer considered hot.
   DCHECK(shared->is_compiled());
-  function->feedback_vector().set_profiler_ticks(0);
+  function->feedback_vector().set_profiler_ticks_since_last_feedback_change(0);
 
   VMState<COMPILER> state(isolate);
   TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
@@ -2273,7 +2273,9 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
   Handle<SharedFunctionInfo> shared = compilation_info->shared_info();
 
   // Reset profiler ticks, function is no longer considered hot.
-  compilation_info->closure()->feedback_vector().set_profiler_ticks(0);
+  compilation_info->closure()
+      ->feedback_vector()
+      .set_profiler_ticks_since_last_feedback_change(0);
 
   DCHECK(!shared->HasBreakInfo());
 

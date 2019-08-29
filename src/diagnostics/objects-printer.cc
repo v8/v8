@@ -1127,7 +1127,9 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
     os << optimization_marker();
   }
   os << "\n - invocation count: " << invocation_count();
-  os << "\n - profiler ticks: " << profiler_ticks();
+  os << "\n - profiler ticks since last feedback change: "
+     << profiler_ticks_since_last_feedback_change();
+  os << "\n - total profiler ticks: " << total_profiler_ticks();
 
   FeedbackMetadataIterator iter(metadata());
   while (iter.HasNext()) {
