@@ -1139,43 +1139,28 @@ void MacroAssembler::PushMultipleTimes(CPURegister src, Register count) {
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireSameSizeAs(count);
 
-  if (FLAG_optimize_for_size) {
-    Label loop, done;
+  Label loop, leftover2, leftover1, done;
 
-    Subs(temp, count, 1);
-    B(mi, &done);
+  Subs(temp, count, 4);
+  B(mi, &leftover2);
 
-    // Push all registers individually, to save code size.
-    Bind(&loop);
-    Subs(temp, temp, 1);
-    PushHelper(1, src.SizeInBytes(), src, NoReg, NoReg, NoReg);
-    B(pl, &loop);
+  // Push groups of four first.
+  Bind(&loop);
+  Subs(temp, temp, 4);
+  PushHelper(4, src.SizeInBytes(), src, src, src, src);
+  B(pl, &loop);
 
-    Bind(&done);
-  } else {
-    Label loop, leftover2, leftover1, done;
+  // Push groups of two.
+  Bind(&leftover2);
+  Tbz(count, 1, &leftover1);
+  PushHelper(2, src.SizeInBytes(), src, src, NoReg, NoReg);
 
-    Subs(temp, count, 4);
-    B(mi, &leftover2);
+  // Push the last one (if required).
+  Bind(&leftover1);
+  Tbz(count, 0, &done);
+  PushHelper(1, src.SizeInBytes(), src, NoReg, NoReg, NoReg);
 
-    // Push groups of four first.
-    Bind(&loop);
-    Subs(temp, temp, 4);
-    PushHelper(4, src.SizeInBytes(), src, src, src, src);
-    B(pl, &loop);
-
-    // Push groups of two.
-    Bind(&leftover2);
-    Tbz(count, 1, &leftover1);
-    PushHelper(2, src.SizeInBytes(), src, src, NoReg, NoReg);
-
-    // Push the last one (if required).
-    Bind(&leftover1);
-    Tbz(count, 0, &done);
-    PushHelper(1, src.SizeInBytes(), src, NoReg, NoReg, NoReg);
-
-    Bind(&done);
-  }
+  Bind(&done);
 }
 
 void TurboAssembler::PushHelper(int count, int size, const CPURegister& src0,
