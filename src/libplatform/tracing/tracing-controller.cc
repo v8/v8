@@ -14,9 +14,9 @@
 
 #ifdef V8_USE_PERFETTO
 #include "base/trace_event/common/trace_event_common.h"
-#include "perfetto/trace/chrome/chrome_trace_event.pbzero.h"
-#include "perfetto/trace/trace_packet.pbzero.h"
 #include "perfetto/tracing.h"
+#include "protos/perfetto/trace/chrome/chrome_trace_event.pbzero.h"
+#include "protos/perfetto/trace/trace_packet.pbzero.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/semaphore.h"
 #include "src/libplatform/tracing/json-trace-event-listener.h"
