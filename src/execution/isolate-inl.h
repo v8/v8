@@ -145,14 +145,6 @@ bool Isolate::IsTypedArraySpeciesLookupChainIntact() {
          Smi::ToInt(species_cell.value()) == kProtectorValid;
 }
 
-bool Isolate::IsRegExpSpeciesLookupChainIntact(
-    Handle<NativeContext> native_context) {
-  DCHECK_EQ(*native_context, this->raw_native_context());
-  PropertyCell species_cell = native_context->regexp_species_protector();
-  return species_cell.value().IsSmi() &&
-         Smi::ToInt(species_cell.value()) == kProtectorValid;
-}
-
 bool Isolate::IsPromiseSpeciesLookupChainIntact() {
   PropertyCell species_cell =
       PropertyCell::cast(root(RootIndex::kPromiseSpeciesProtector));

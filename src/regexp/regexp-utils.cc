@@ -5,6 +5,7 @@
 #include "src/regexp/regexp-utils.h"
 
 #include "src/execution/isolate.h"
+#include "src/execution/protectors-inl.h"
 #include "src/heap/factory.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/objects-inl.h"
@@ -185,7 +186,8 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
   // property. Similar spots in CSA would use BranchIfFastRegExp_Strict in this
   // case.
 
-  if (!isolate->IsRegExpSpeciesLookupChainIntact(isolate->native_context())) {
+  if (!Protectors::IsRegExpSpeciesLookupChainProtectorIntact(
+          isolate->native_context())) {
     return false;
   }
 

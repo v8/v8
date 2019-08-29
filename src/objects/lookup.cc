@@ -6,6 +6,7 @@
 
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/isolate-inl.h"
+#include "src/execution/protectors-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/objects/elements.h"
@@ -241,7 +242,8 @@ void LookupIterator::InternalUpdateProtector() {
   if (*name_ == roots.constructor_string()) {
     if (!isolate_->IsArraySpeciesLookupChainIntact() &&
         !isolate_->IsPromiseSpeciesLookupChainIntact() &&
-        !isolate_->IsRegExpSpeciesLookupChainIntact(native_context) &&
+        !Protectors::IsRegExpSpeciesLookupChainProtectorIntact(
+            native_context) &&
         !isolate_->IsTypedArraySpeciesLookupChainIntact()) {
       return;
     }
@@ -257,8 +259,12 @@ void LookupIterator::InternalUpdateProtector() {
       isolate_->InvalidatePromiseSpeciesProtector();
       return;
     } else if (receiver->IsJSRegExp(isolate_)) {
-      if (!isolate_->IsRegExpSpeciesLookupChainIntact(native_context)) return;
-      isolate_->InvalidateRegExpSpeciesProtector(native_context);
+      if (!Protectors::IsRegExpSpeciesLookupChainProtectorIntact(
+              native_context)) {
+        return;
+      }
+      Protectors::InvalidateRegExpSpeciesLookupChainProtector(isolate_,
+                                                              native_context);
       return;
     } else if (receiver->IsJSTypedArray(isolate_)) {
       if (!isolate_->IsTypedArraySpeciesLookupChainIntact()) return;
@@ -284,8 +290,12 @@ void LookupIterator::InternalUpdateProtector() {
         isolate_->InvalidatePromiseSpeciesProtector();
       } else if (isolate_->IsInAnyContext(*receiver,
                                           Context::REGEXP_PROTOTYPE_INDEX)) {
-        if (!isolate_->IsRegExpSpeciesLookupChainIntact(native_context)) return;
-        isolate_->InvalidateRegExpSpeciesProtector(native_context);
+        if (!Protectors::IsRegExpSpeciesLookupChainProtectorIntact(
+                native_context)) {
+          return;
+        }
+        Protectors::InvalidateRegExpSpeciesLookupChainProtector(isolate_,
+                                                                native_context);
       } else if (isolate_->IsInAnyContext(
                      receiver->map(isolate_).prototype(isolate_),
                      Context::TYPED_ARRAY_PROTOTYPE_INDEX)) {
@@ -323,7 +333,8 @@ void LookupIterator::InternalUpdateProtector() {
   } else if (*name_ == roots.species_symbol()) {
     if (!isolate_->IsArraySpeciesLookupChainIntact() &&
         !isolate_->IsPromiseSpeciesLookupChainIntact() &&
-        !isolate_->IsRegExpSpeciesLookupChainIntact(native_context) &&
+        !Protectors::IsRegExpSpeciesLookupChainProtectorIntact(
+            native_context) &&
         !isolate_->IsTypedArraySpeciesLookupChainIntact()) {
       return;
     }
@@ -340,8 +351,12 @@ void LookupIterator::InternalUpdateProtector() {
       isolate_->InvalidatePromiseSpeciesProtector();
     } else if (isolate_->IsInAnyContext(*receiver,
                                         Context::REGEXP_FUNCTION_INDEX)) {
-      if (!isolate_->IsRegExpSpeciesLookupChainIntact(native_context)) return;
-      isolate_->InvalidateRegExpSpeciesProtector(native_context);
+      if (!Protectors::IsRegExpSpeciesLookupChainProtectorIntact(
+              native_context)) {
+        return;
+      }
+      Protectors::InvalidateRegExpSpeciesLookupChainProtector(isolate_,
+                                                              native_context);
     } else if (IsTypedArrayFunctionInAnyContext(isolate_, *receiver)) {
       if (!isolate_->IsTypedArraySpeciesLookupChainIntact()) return;
       isolate_->InvalidateTypedArraySpeciesProtector();

@@ -10,6 +10,7 @@
 #include "src/builtins/growable-fixed-array-gen.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/code-stub-assembler.h"
+#include "src/execution/protectors.h"
 #include "src/heap/factory-inl.h"
 #include "src/logging/counters.h"
 #include "src/objects/js-regexp-string-iterator.h"

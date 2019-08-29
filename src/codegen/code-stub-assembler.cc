@@ -6215,8 +6215,7 @@ TNode<BoolT> CodeStubAssembler::IsTypedArraySpeciesProtectorCellInvalid() {
 }
 
 TNode<BoolT> CodeStubAssembler::IsRegExpSpeciesProtectorCellInvalid(
-    TNode<Context> native_context) {
-  CSA_ASSERT(this, IsNativeContext(native_context));
+    TNode<NativeContext> native_context) {
   TNode<PropertyCell> cell = CAST(LoadContextElement(
       native_context, Context::REGEXP_SPECIES_PROTECTOR_INDEX));
   TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);

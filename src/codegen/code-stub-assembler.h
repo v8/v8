@@ -2471,7 +2471,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsArraySpeciesProtectorCellInvalid();
   TNode<BoolT> IsTypedArraySpeciesProtectorCellInvalid();
   TNode<BoolT> IsRegExpSpeciesProtectorCellInvalid(
-      TNode<Context> native_context);
+      TNode<NativeContext> native_context);
   TNode<BoolT> IsPromiseSpeciesProtectorCellInvalid();
 
   TNode<BoolT> IsMockArrayBufferAllocatorFlag() {
