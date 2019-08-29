@@ -560,7 +560,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     // Tier-up in runtime to compiler if ticks are non-zero.
     TNode<Smi> ticks = CAST(
         UnsafeLoadFixedArrayElement(data, JSRegExp::kIrregexpTierUpTicksIndex));
-    GotoIf(TruncateIntPtrToInt32(BitcastTaggedSignedToWord(ticks)), &runtime);
+    GotoIf(SmiToInt32(ticks), &runtime);
 
     IncrementCounter(isolate()->counters()->regexp_entry_native(), 1);
 
