@@ -3712,8 +3712,7 @@ void TranslatedState::InitializeJSObjectAt(
   CHECK_GE(slot->GetChildrenCount(), 2);
 
   // Notify the concurrent marker about the layout change.
-  isolate()->heap()->NotifyObjectLayoutChange(
-      *object_storage, slot->GetChildrenCount() * kTaggedSize, no_allocation);
+  isolate()->heap()->NotifyObjectLayoutChange(*object_storage, no_allocation);
 
   // Fill the property array field.
   {
@@ -3772,8 +3771,7 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
   }
 
   // Notify the concurrent marker about the layout change.
-  isolate()->heap()->NotifyObjectLayoutChange(
-      *object_storage, slot->GetChildrenCount() * kTaggedSize, no_allocation);
+  isolate()->heap()->NotifyObjectLayoutChange(*object_storage, no_allocation);
 
   // Write the fields to the object.
   for (int i = 1; i < slot->GetChildrenCount(); i++) {

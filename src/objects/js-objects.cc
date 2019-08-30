@@ -2776,9 +2776,7 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
 
   Heap* heap = isolate->heap();
 
-  int old_instance_size = old_map->instance_size();
-
-  heap->NotifyObjectLayoutChange(*object, old_instance_size, no_allocation);
+  heap->NotifyObjectLayoutChange(*object, no_allocation);
 
   // Copy (real) inobject properties. If necessary, stop at number_of_fields to
   // avoid overwriting |one_pointer_filler_map|.
@@ -2809,6 +2807,7 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
   object->SetProperties(*array);
 
   // Create filler object past the new instance size.
+  int old_instance_size = old_map->instance_size();
   int new_instance_size = new_map->instance_size();
   int instance_size_delta = old_instance_size - new_instance_size;
   DCHECK_GE(instance_size_delta, 0);
@@ -2891,10 +2890,10 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
   DisallowHeapAllocation no_allocation;
 
   Heap* heap = isolate->heap();
-  int old_instance_size = map->instance_size();
-  heap->NotifyObjectLayoutChange(*object, old_instance_size, no_allocation);
+  heap->NotifyObjectLayoutChange(*object, no_allocation);
 
   // Resize the object in the heap if necessary.
+  int old_instance_size = map->instance_size();
   int new_instance_size = new_map->instance_size();
   int instance_size_delta = old_instance_size - new_instance_size;
   DCHECK_GE(instance_size_delta, 0);

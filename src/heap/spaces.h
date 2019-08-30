@@ -729,12 +729,7 @@ class MemoryChunk : public BasicMemoryChunk {
   template <RememberedSetType type>
   void ReleaseInvalidatedSlots();
   template <RememberedSetType type>
-  V8_EXPORT_PRIVATE void RegisterObjectWithInvalidatedSlots(HeapObject object,
-                                                            int size);
-  // Updates invalidated_slots after array left-trimming.
-  template <RememberedSetType type>
-  void MoveObjectWithInvalidatedSlots(HeapObject old_start,
-                                      HeapObject new_start);
+  V8_EXPORT_PRIVATE void RegisterObjectWithInvalidatedSlots(HeapObject object);
   template <RememberedSetType type>
   bool RegisteredObjectWithInvalidatedSlots(HeapObject object);
   template <RememberedSetType type>
