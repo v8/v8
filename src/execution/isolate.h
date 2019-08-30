@@ -1779,6 +1779,8 @@ class Isolate final : private HiddenFactory {
   interpreter::Interpreter* interpreter_ = nullptr;
 
   compiler::PerIsolateCompilerCache* compiler_cache_ = nullptr;
+  // The following zone is for compiler-related objects that should live
+  // through all compilations (and thus all JSHeapBroker instances).
   Zone* compiler_zone_ = nullptr;
 
   CompilerDispatcher* compiler_dispatcher_ = nullptr;

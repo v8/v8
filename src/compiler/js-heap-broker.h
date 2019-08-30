@@ -67,20 +67,21 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
  public:
   JSHeapBroker(Isolate* isolate, Zone* broker_zone, bool tracing_enabled);
 
-  void SetNativeContextRef(Handle<NativeContext> context);
-  void SerializeStandardObjects(Handle<NativeContext> context);
+  // The compilation target's native context. We need the setter because at
+  // broker construction time we don't yet have the canonical handle.
+  NativeContextRef target_native_context() const {
+    return target_native_context_.value();
+  }
+  void SetTargetNativeContextRef(Handle<NativeContext> native_context);
+
+  void InitializeAndStartSerializing(Handle<NativeContext> native_context);
 
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return current_zone_; }
   bool tracing_enabled() const { return tracing_enabled_; }
-  NativeContextRef target_native_context() const {
-    return target_native_context_.value();
-  }
-  PerIsolateCompilerCache* compiler_cache() const { return compiler_cache_; }
 
   enum BrokerMode { kDisabled, kSerializing, kSerialized, kRetired };
   BrokerMode mode() const { return mode_; }
-  void StartSerializing();
   void StopSerializing();
   void Retire();
   bool SerializingAllowed() const;
@@ -182,13 +183,15 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       FeedbackSource const& source, AccessMode mode,
       base::Optional<NameRef> static_name);
 
-  void SerializeShareableObjects();
+  void InitializeRefsMap();
   void CollectArrayAndObjectPrototypes();
   void SerializeTypedArrayStringTags();
 
+  PerIsolateCompilerCache* compiler_cache() const { return compiler_cache_; }
+
   Isolate* const isolate_;
   Zone* const broker_zone_;
-  Zone* current_zone_;
+  Zone* current_zone_ = nullptr;
   base::Optional<NativeContextRef> target_native_context_;
   RefsMap* refs_;
   ZoneUnorderedSet<Handle<JSObject>, Handle<JSObject>::hash,
@@ -198,7 +201,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   bool const tracing_enabled_;
   StdoutStream trace_out_;
   unsigned trace_indentation_ = 0;
-  PerIsolateCompilerCache* compiler_cache_;
+  PerIsolateCompilerCache* compiler_cache_ = nullptr;
   ZoneUnorderedMap<FeedbackSource, ProcessedFeedback const*,
                    FeedbackSource::Hash, FeedbackSource::Equal>
       feedback_;

@@ -1358,11 +1358,11 @@ struct UntyperPhase {
   }
 };
 
-struct SerializeStandardObjectsPhase {
-  static const char* phase_name() { return "V8.TFSerializeStandardObjects"; }
+struct HeapBrokerInitializationPhase {
+  static const char* phase_name() { return "V8.TFHeapBrokerInitialization"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    data->broker()->SerializeStandardObjects(data->native_context());
+    data->broker()->InitializeAndStartSerializing(data->native_context());
   }
 };
 
@@ -1384,11 +1384,8 @@ struct CopyMetadataForConcurrentCompilePhase {
   }
 };
 
-// TODO(turbofan): Move all calls from CopyMetaDataForConcurrentCompilePhase
-// here. Also all the calls to Serialize* methods that are currently sprinkled
-// over inlining will move here as well.
 struct SerializationPhase {
-  static const char* phase_name() { return "V8.TFSerializeBytecode"; }
+  static const char* phase_name() { return "V8.TFSerialization"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     SerializerForBackgroundCompilationFlags flags;
@@ -2212,17 +2209,10 @@ bool PipelineImpl::CreateGraph() {
     data->node_origins()->AddDecorator();
   }
 
+  data->broker()->SetTargetNativeContextRef(data->native_context());
   if (FLAG_concurrent_inlining) {
-    // The following is a workaround for the NativeContexRef storage being
-    // unpopulated when we start the SerializeStandardObjectsPhase, therefore
-    // stopping us from the ability to use the target_native_context getter
-    // in the MapData constructor.
-    data->broker()->SetNativeContextRef(data->native_context());
-    data->broker()->StartSerializing();
-    Run<SerializeStandardObjectsPhase>();
+    Run<HeapBrokerInitializationPhase>();
     Run<SerializationPhase>();
-  } else {
-    data->broker()->SetNativeContextRef(data->native_context());
   }
 
   Run<GraphBuilderPhase>();
@@ -2261,8 +2251,7 @@ bool PipelineImpl::CreateGraph() {
       Run<CopyMetadataForConcurrentCompilePhase>();
       data->broker()->StopSerializing();
     } else {
-      data->broker()->StartSerializing();
-      Run<SerializeStandardObjectsPhase>();
+      Run<HeapBrokerInitializationPhase>();
       Run<CopyMetadataForConcurrentCompilePhase>();
       data->broker()->StopSerializing();
     }

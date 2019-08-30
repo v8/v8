@@ -2258,24 +2258,17 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
       bytecode_analyses_(zone()),
       property_access_infos_(zone()),
       typed_array_string_tags_(zone()) {
-  // Note that this initialization of the refs_ pointer with the minimal
-  // initial capacity is redundant in the normal use case (concurrent
-  // compilation enabled, standard objects to be serialized), as the map
-  // is going to be replaced immediatelly with a larger capacity one.
-  // It doesn't seem to affect the performance in a noticeable way though.
+  // Note that this initialization of {refs_} with the minimal initial capacity
+  // is redundant in the normal use case (concurrent compilation enabled,
+  // standard objects to be serialized), as the map is going to be replaced
+  // immediately with a larger-capacity one.  It doesn't seem to affect the
+  // performance in a noticeable way though.
   TRACE(this, "Constructing heap broker");
 }
 
 std::ostream& JSHeapBroker::Trace() {
   return trace_out_ << "[" << this << "] "
                     << std::string(trace_indentation_ * 2, ' ');
-}
-
-void JSHeapBroker::StartSerializing() {
-  CHECK_EQ(mode_, kDisabled);
-  TRACE(this, "Starting serialization");
-  mode_ = kSerializing;
-  refs_->Clear();
 }
 
 void JSHeapBroker::StopSerializing() {
@@ -2292,39 +2285,51 @@ void JSHeapBroker::Retire() {
 
 bool JSHeapBroker::SerializingAllowed() const { return mode() == kSerializing; }
 
-void JSHeapBroker::SetNativeContextRef(Handle<NativeContext> context) {
-  // At the broker construction time, we don't yet have the canonical handle
-  // for the native context, that's why we need the explicit setter
-  target_native_context_ = NativeContextRef(this, context);
+void JSHeapBroker::SetTargetNativeContextRef(
+    Handle<NativeContext> native_context) {
+  // The MapData constructor uses {target_native_context_}. This creates a
+  // benign cycle that we break by setting {target_native_context_} right before
+  // starting to serialize (thus creating dummy data), and then again properly
+  // right after.
+  DCHECK((mode() == kDisabled && !target_native_context_.has_value()) ||
+         (mode() == kSerializing &&
+          target_native_context_->object().equals(native_context) &&
+          target_native_context_->data_->kind() == kUnserializedHeapObject));
+  target_native_context_ = NativeContextRef(this, native_context);
 }
 
 bool IsShareable(Handle<Object> object, Isolate* isolate) {
-  Builtins* const b = isolate->builtins();
-
   int index;
   RootIndex root_index;
-  return (object->IsHeapObject() &&
-          b->IsBuiltinHandle(Handle<HeapObject>::cast(object), &index)) ||
+  bool is_builtin_handle =
+      object->IsHeapObject() && isolate->builtins()->IsBuiltinHandle(
+                                    Handle<HeapObject>::cast(object), &index);
+  return is_builtin_handle ||
          isolate->roots_table().IsRootHandle(object, &root_index);
 }
 
-void JSHeapBroker::SerializeShareableObjects() {
+void JSHeapBroker::InitializeRefsMap() {
+  TraceScope tracer(this, "JSHeapBroker::InitializeRefsMap");
+
+  DCHECK_NULL(compiler_cache_);
   PerIsolateCompilerCache::Setup(isolate());
   compiler_cache_ = isolate()->compiler_cache();
 
   if (compiler_cache_->HasSnapshot()) {
-    RefsMap* snapshot = compiler_cache_->GetSnapshot();
-
-    refs_ = new (zone()) RefsMap(snapshot, zone());
+    TRACE(this, "Importing existing RefsMap snapshot");
+    DCHECK_NULL(refs_);
+    refs_ = new (zone()) RefsMap(compiler_cache_->GetSnapshot(), zone());
     return;
   }
 
-  TraceScope tracer(
-      this, "JSHeapBroker::SerializeShareableObjects (building snapshot)");
-
+  TRACE(this, "Building RefsMap snapshot");
+  DCHECK_NULL(refs_);
   refs_ =
       new (zone()) RefsMap(kInitialRefsBucketCount, AddressMatcher(), zone());
 
+  // Temporarily use the "compiler zone" for serialization, such that the
+  // serialized data survives this compilation.
+  DCHECK_EQ(current_zone_, broker_zone_);
   current_zone_ = compiler_cache_->zone();
 
   Builtins* const b = isolate()->builtins();
@@ -2360,12 +2365,13 @@ void JSHeapBroker::SerializeShareableObjects() {
     }
   }
 
+  // TODO(mslekova): Serialize root objects (from factory).
+
+  // Verify.
   for (RefsMap::Entry* p = refs_->Start(); p != nullptr; p = refs_->Next(p)) {
     CHECK(IsShareable(p->value->object(), isolate()));
   }
 
-  // TODO(mslekova):
-  // Serialize root objects (from factory).
   compiler_cache()->SetSnapshot(refs_);
   current_zone_ = broker_zone_;
 }
@@ -2420,21 +2426,24 @@ bool JSHeapBroker::IsArrayOrObjectPrototype(const JSObjectRef& object) const {
          array_and_object_prototypes_.end();
 }
 
-void JSHeapBroker::SerializeStandardObjects(Handle<NativeContext> context) {
-  if (mode() == kDisabled) return;
-  CHECK_EQ(mode(), kSerializing);
+void JSHeapBroker::InitializeAndStartSerializing(
+    Handle<NativeContext> native_context) {
+  TraceScope tracer(this, "JSHeapBroker::InitializeAndStartSerializing");
 
-  SerializeShareableObjects();
+  CHECK_EQ(mode_, kDisabled);
+  mode_ = kSerializing;
 
-  TraceScope tracer(this, "JSHeapBroker::SerializeStandardObjects");
+  // Throw away the dummy data that we created while disabled.
+  refs_->Clear();
+  refs_ = nullptr;
+
+  InitializeRefsMap();
+
+  SetTargetNativeContextRef(native_context);
+  target_native_context().Serialize();
 
   CollectArrayAndObjectPrototypes();
   SerializeTypedArrayStringTags();
-
-  // It's important that this serialization happens after the
-  // CollectArrayAndObjectPrototypes is done.
-  SetNativeContextRef(context);
-  target_native_context().Serialize();
 
   Factory* const f = isolate()->factory();
 

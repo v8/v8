@@ -165,6 +165,7 @@ class V8_EXPORT_PRIVATE ObjectRef {
   friend class JSArrayData;
   friend class JSGlobalProxyRef;
   friend class JSGlobalProxyData;
+  friend class JSHeapBroker;
   friend class JSObjectData;
   friend class StringData;
 
