@@ -8,12 +8,40 @@
 
 // Complementary private accessors.
 {
+  let store = 1;
   class C {
-    get #a() {  }
-    set #a(val) { }
+    get #a() { return store; }
+    set #a(val) { store = val; }
+    incA() { this.#a++; }  // CountOperation
+    setA(val) { this.#a = val; }
+    getA() { return this.#a; }
   }
 
-  new C;
+  const c = new C;
+  assertEquals(store, c.getA());
+  assertEquals(1, c.getA());
+  c.setA(2);
+  assertEquals(store, c.getA());
+  assertEquals(2, c.getA());
+  c.incA();
+  assertEquals(store, c.getA());
+  assertEquals(3, c.getA());
+}
+
+// Compound assignment.
+{
+  let store;
+  class A {
+    get #a() { return store; }
+    set #a(val) { store = val; }
+    getA() { return this.#a; }
+    constructor(val) {
+      ({ y: this.#a } = val);
+    }
+  }
+
+  const a = new A({y: 'test'});
+  assertEquals('test', a.getA());
 }
 
 // Accessing super in private accessors.
@@ -39,13 +67,20 @@
 // Nested private accessors.
 {
   class C {
-    a() { this.#a; }
     get #a() {
-      class D { get #a() { } }
+      let storeD = 'd';
+      class D {
+        // Shadows outer #a
+        get #a() { return storeD; }
+        getD() { return this.#a; }
+      }
       return new D;
     }
+    getA() {
+      return this.#a;
+    }
   }
-  new C().a();
+  assertEquals('d', new C().getA().getD());
 }
 
 // Duplicate private accessors.

@@ -46,7 +46,7 @@ MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
     Handle<Object> name_string(Symbol::cast(*key).name(), isolate);
     DCHECK(name_string->IsString());
     THROW_NEW_ERROR(isolate,
-                    NewTypeError(MessageTemplate::kInvalidPrivateFieldRead,
+                    NewTypeError(MessageTemplate::kInvalidPrivateMemberRead,
                                  name_string, object),
                     Object);
   }
@@ -413,7 +413,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(
     Handle<Object> name_string(Symbol::cast(*key).name(), isolate);
     DCHECK(name_string->IsString());
     THROW_NEW_ERROR(isolate,
-                    NewTypeError(MessageTemplate::kInvalidPrivateFieldWrite,
+                    NewTypeError(MessageTemplate::kInvalidPrivateMemberWrite,
                                  name_string, object),
                     Object);
   }

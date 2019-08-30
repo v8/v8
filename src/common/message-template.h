@@ -413,11 +413,15 @@ namespace internal {
   T(InvalidOrUnexpectedToken, "Invalid or unexpected token")                   \
   T(InvalidPrivateFieldResolution,                                             \
     "Private field '%' must be declared in an enclosing class")                \
-  T(InvalidPrivateFieldRead,                                                   \
-    "Read of private field % from an object which did not contain the field")  \
-  T(InvalidPrivateFieldWrite,                                                  \
-    "Write of private field % to an object which did not contain the field")   \
+  T(InvalidPrivateMemberRead,                                                  \
+    "Cannot read private member % from an object whose class did not declare " \
+    "it")                                                                      \
+  T(InvalidPrivateMemberWrite,                                                 \
+    "Cannot write private member % to an object whose class did not declare "  \
+    "it")                                                                      \
   T(InvalidPrivateMethodWrite, "Private method '%' is not writable")           \
+  T(InvalidPrivateGetterAccess, "'%' was defined without a getter")            \
+  T(InvalidPrivateSetterAccess, "'%' was defined without a setter")            \
   T(JsonParseUnexpectedEOS, "Unexpected end of JSON input")                    \
   T(JsonParseUnexpectedToken, "Unexpected token % in JSON at position %")      \
   T(JsonParseUnexpectedTokenNumber, "Unexpected number in JSON at position %") \

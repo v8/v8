@@ -2329,12 +2329,13 @@ void BytecodeGenerator::VisitInitializeClassMembersStatement(
   }
 }
 
-void BytecodeGenerator::BuildThrowPrivateMethodWriteError(
-    const AstRawString* name) {
+void BytecodeGenerator::BuildInvalidPropertyAccess(MessageTemplate tmpl,
+                                                   Property* property) {
   RegisterAllocationScope register_scope(this);
+  const AstRawString* name = property->key()->AsVariableProxy()->raw_name();
   RegisterList args = register_allocator()->NewRegisterList(2);
   builder()
-      ->LoadLiteral(Smi::FromEnum(MessageTemplate::kInvalidPrivateMethodWrite))
+      ->LoadLiteral(Smi::FromEnum(tmpl))
       .StoreAccumulatorInRegister(args[0])
       .LoadLiteral(name)
       .StoreAccumulatorInRegister(args[1])
@@ -3887,15 +3888,28 @@ void BytecodeGenerator::BuildAssignment(
       break;
     }
     case PRIVATE_METHOD: {
-      BuildThrowPrivateMethodWriteError(
-          lhs_data.expr()->AsProperty()->key()->AsVariableProxy()->raw_name());
+      BuildInvalidPropertyAccess(MessageTemplate::kInvalidPrivateMethodWrite,
+                                 lhs_data.expr()->AsProperty());
       break;
     }
-    case PRIVATE_GETTER_ONLY:
+    case PRIVATE_GETTER_ONLY: {
+      BuildInvalidPropertyAccess(MessageTemplate::kInvalidPrivateSetterAccess,
+                                 lhs_data.expr()->AsProperty());
+      break;
+    }
     case PRIVATE_SETTER_ONLY:
     case PRIVATE_GETTER_AND_SETTER: {
-      // TODO(joyee): implement private accessors.
-      return;
+      Register value = register_allocator()->NewRegister();
+      builder()->StoreAccumulatorInRegister(value);
+      Property* property = lhs_data.expr()->AsProperty();
+      Register object = VisitForRegisterValue(property->obj());
+      Register key = VisitForRegisterValue(property->key());
+      BuildPrivateBrandCheck(property, object);
+      BuildPrivateSetterAccess(object, key, value);
+      if (!execution_result()->IsEffect()) {
+        builder()->LoadAccumulatorWithRegister(value);
+      }
+      break;
     }
   }
 }
@@ -3942,16 +3956,13 @@ void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
                              lhs_data.super_property_args().Truncate(3));
       break;
     }
-    case PRIVATE_METHOD: {
-      BuildThrowPrivateMethodWriteError(
-          lhs_data.expr()->AsProperty()->key()->AsVariableProxy()->raw_name());
-      break;
-    }
-    case PRIVATE_SETTER_ONLY:
+    case PRIVATE_METHOD:
     case PRIVATE_GETTER_ONLY:
+    case PRIVATE_SETTER_ONLY:
     case PRIVATE_GETTER_AND_SETTER: {
-      // TODO(joyee): implement private accessors.
-      return;
+      // ({ #foo: name } = obj) is currently syntactically invalid.
+      UNREACHABLE();
+      break;
     }
   }
 
@@ -4418,30 +4429,68 @@ void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* property) {
     case KEYED_SUPER_PROPERTY:
       VisitKeyedSuperPropertyLoad(property, Register::invalid_value());
       break;
+    case PRIVATE_SETTER_ONLY: {
+      BuildInvalidPropertyAccess(MessageTemplate::kInvalidPrivateGetterAccess,
+                                 property);
+      break;
+    }
+    case PRIVATE_GETTER_ONLY:
+    case PRIVATE_GETTER_AND_SETTER: {
+      Register key = VisitForRegisterValue(property->key());
+      BuildPrivateBrandCheck(property, obj);
+      BuildPrivateGetterAccess(obj, key);
+      break;
+    }
     case PRIVATE_METHOD: {
-      Variable* private_name = property->key()->AsVariableProxy()->var();
-
-      // Perform the brand check.
-      DCHECK(private_name->requires_brand_check());
-      ClassScope* scope = private_name->scope()->AsClassScope();
-      Variable* brand = scope->brand();
-      BuildVariableLoadForAccumulatorValue(brand, HoleCheckMode::kElided);
-      builder()->SetExpressionPosition(property);
-      builder()->LoadKeyedProperty(
-          obj, feedback_index(feedback_spec()->AddKeyedLoadICSlot()));
-
+      BuildPrivateBrandCheck(property, obj);
       // In the case of private methods, property->key() is the function to be
       // loaded (stored in a context slot), so load this directly.
       VisitForAccumulatorValue(property->key());
       break;
     }
-    case PRIVATE_SETTER_ONLY:
-    case PRIVATE_GETTER_ONLY:
-    case PRIVATE_GETTER_AND_SETTER: {
-      // TODO(joyee): implement private accessors.
-      return;
-    }
   }
+}
+
+void BytecodeGenerator::BuildPrivateGetterAccess(Register object,
+                                                 Register accessor_pair) {
+  RegisterAllocationScope scope(this);
+  Register accessor = register_allocator()->NewRegister();
+  RegisterList args = register_allocator()->NewRegisterList(1);
+
+  builder()
+      ->CallRuntime(Runtime::kLoadPrivateGetter, accessor_pair)
+      .StoreAccumulatorInRegister(accessor)
+      .MoveRegister(object, args[0])
+      .CallProperty(accessor, args,
+                    feedback_index(feedback_spec()->AddCallICSlot()));
+}
+
+void BytecodeGenerator::BuildPrivateSetterAccess(Register object,
+                                                 Register accessor_pair,
+                                                 Register value) {
+  RegisterAllocationScope scope(this);
+  Register accessor = register_allocator()->NewRegister();
+  RegisterList args = register_allocator()->NewRegisterList(2);
+
+  builder()
+      ->CallRuntime(Runtime::kLoadPrivateSetter, accessor_pair)
+      .StoreAccumulatorInRegister(accessor)
+      .MoveRegister(object, args[0])
+      .MoveRegister(value, args[1])
+      .CallProperty(accessor, args,
+                    feedback_index(feedback_spec()->AddCallICSlot()));
+}
+
+void BytecodeGenerator::BuildPrivateBrandCheck(Property* property,
+                                               Register object) {
+  Variable* private_name = property->key()->AsVariableProxy()->var();
+  DCHECK(private_name->requires_brand_check());
+  ClassScope* scope = private_name->scope()->AsClassScope();
+  Variable* brand = scope->brand();
+  BuildVariableLoadForAccumulatorValue(brand, HoleCheckMode::kElided);
+  builder()->SetExpressionPosition(property);
+  builder()->LoadKeyedProperty(
+      object, feedback_index(feedback_spec()->AddKeyedLoadICSlot()));
 }
 
 void BytecodeGenerator::VisitPropertyLoadForRegister(Register obj,
@@ -5030,15 +5079,26 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
       break;
     }
     case PRIVATE_METHOD: {
-      BuildThrowPrivateMethodWriteError(
-          property->key()->AsVariableProxy()->raw_name());
-      break;
-    }
-    case PRIVATE_GETTER_ONLY:
-    case PRIVATE_SETTER_ONLY:
-    case PRIVATE_GETTER_AND_SETTER: {
-      // TODO(joyee): implement private accessors.
+      BuildInvalidPropertyAccess(MessageTemplate::kInvalidPrivateMethodWrite,
+                                 property);
       return;
+    }
+    case PRIVATE_GETTER_ONLY: {
+      BuildInvalidPropertyAccess(MessageTemplate::kInvalidPrivateSetterAccess,
+                                 property);
+      return;
+    }
+    case PRIVATE_SETTER_ONLY: {
+      BuildInvalidPropertyAccess(MessageTemplate::kInvalidPrivateGetterAccess,
+                                 property);
+      return;
+    }
+    case PRIVATE_GETTER_AND_SETTER: {
+      object = VisitForRegisterValue(property->obj());
+      key = VisitForRegisterValue(property->key());
+      BuildPrivateBrandCheck(property, object);
+      BuildPrivateGetterAccess(object, key);
+      break;
     }
   }
 
@@ -5106,16 +5166,19 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
           .CallRuntime(Runtime::kStoreKeyedToSuper, super_property_args);
       break;
     }
-    case PRIVATE_METHOD: {
-      BuildThrowPrivateMethodWriteError(
-          property->key()->AsVariableProxy()->raw_name());
-      break;
-    }
-    case PRIVATE_GETTER_ONLY:
     case PRIVATE_SETTER_ONLY:
-    case PRIVATE_GETTER_AND_SETTER: {
-      // TODO(joyee): implement private accessors.
+    case PRIVATE_GETTER_ONLY:
+    case PRIVATE_METHOD: {
       UNREACHABLE();
+    }
+    case PRIVATE_GETTER_AND_SETTER: {
+      Register value = register_allocator()->NewRegister();
+      builder()->StoreAccumulatorInRegister(value);
+      BuildPrivateSetterAccess(object, key, value);
+      if (!execution_result()->IsEffect()) {
+        builder()->LoadAccumulatorWithRegister(value);
+      }
+      break;
     }
   }
 
