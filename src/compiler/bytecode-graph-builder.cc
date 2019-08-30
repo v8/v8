@@ -1935,15 +1935,12 @@ void BytecodeGraphBuilder::VisitCreateClosure() {
           ? AllocationType::kOld
           : AllocationType::kYoung;
 
-  // TODO(mslekova): Remove this allocation.
-  AllowHandleAllocation allow_handle_alloc;
-  AllowHandleDereference allow_handle_deref;
   const Operator* op = javascript()->CreateClosure(
       shared_info.object(),
-      feedback_vector().object()->GetClosureFeedbackCell(
-          bytecode_iterator().GetIndexOperand(1)),
-      handle(jsgraph()->isolate()->builtins()->builtin(Builtins::kCompileLazy),
-             isolate()),
+      feedback_vector()
+          .GetClosureFeedbackCell(bytecode_iterator().GetIndexOperand(1))
+          .object(),
+      jsgraph()->isolate()->builtins()->builtin_handle(Builtins::kCompileLazy),
       allocation);
   Node* closure = NewNode(op);
   environment()->BindAccumulator(closure);

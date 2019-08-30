@@ -1267,17 +1267,38 @@ class FeedbackVectorData : public HeapObjectData {
   FeedbackVectorData(JSHeapBroker* broker, ObjectData** storage,
                      Handle<FeedbackVector> object);
 
+  FeedbackCellData* GetClosureFeedbackCell(JSHeapBroker* broker,
+                                           int index) const;
+
   void SerializeSlots(JSHeapBroker* broker);
 
  private:
   bool serialized_ = false;
   ZoneVector<ObjectData*> feedback_;
+  ZoneVector<ObjectData*> closure_feedback_cell_array_;
 };
 
 FeedbackVectorData::FeedbackVectorData(JSHeapBroker* broker,
                                        ObjectData** storage,
                                        Handle<FeedbackVector> object)
-    : HeapObjectData(broker, storage, object), feedback_(broker->zone()) {}
+    : HeapObjectData(broker, storage, object),
+      feedback_(broker->zone()),
+      closure_feedback_cell_array_(broker->zone()) {}
+
+FeedbackCellData* FeedbackVectorData::GetClosureFeedbackCell(
+    JSHeapBroker* broker, int index) const {
+  CHECK_GE(index, 0);
+
+  size_t cell_array_size = closure_feedback_cell_array_.size();
+  if (!serialized_) {
+    DCHECK_EQ(cell_array_size, 0);
+    TRACE_BROKER_MISSING(broker,
+                         " closure feedback cell array for vector " << this);
+    return nullptr;
+  }
+  CHECK_LT(index, cell_array_size);
+  return closure_feedback_cell_array_[index]->AsFeedbackCell();
+}
 
 void FeedbackVectorData::SerializeSlots(JSHeapBroker* broker) {
   if (serialized_) return;
@@ -1304,6 +1325,16 @@ void FeedbackVectorData::SerializeSlots(JSHeapBroker* broker) {
   }
   DCHECK_EQ(vector->length(), feedback_.size());
   TRACE(broker, "Copied " << feedback_.size() << " slots");
+
+  DCHECK(closure_feedback_cell_array_.empty());
+  int length = vector->closure_feedback_cell_array().length();
+  closure_feedback_cell_array_.reserve(length);
+  for (int i = 0; i < length; ++i) {
+    Handle<FeedbackCell> cell = vector->GetClosureFeedbackCell(i);
+    ObjectData* cell_data = broker->GetOrCreateData(cell);
+    closure_feedback_cell_array_.push_back(cell_data);
+  }
+  TRACE(broker, "Copied " << length << " feedback cells");
 }
 
 class FixedArrayBaseData : public HeapObjectData {
@@ -2721,6 +2752,18 @@ ObjectRef FeedbackVectorRef::get(FeedbackSlot slot) const {
   }
   int i = FeedbackVector::GetIndex(slot);
   return ObjectRef(broker(), data()->AsFeedbackVector()->feedback().at(i));
+}
+
+FeedbackCellRef FeedbackVectorRef::GetClosureFeedbackCell(int index) const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleAllocation handle_allocation;
+    AllowHandleDereference handle_dereference;
+    return FeedbackCellRef(broker(), object()->GetClosureFeedbackCell(index));
+  }
+
+  return FeedbackCellRef(
+      broker(),
+      data()->AsFeedbackVector()->GetClosureFeedbackCell(broker(), index));
 }
 
 double JSObjectRef::RawFastDoublePropertyAt(FieldIndex index) const {

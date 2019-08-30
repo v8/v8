@@ -491,6 +491,7 @@ class FeedbackVectorRef : public HeapObjectRef {
   Handle<FeedbackVector> object() const;
 
   ObjectRef get(FeedbackSlot slot) const;
+  FeedbackCellRef GetClosureFeedbackCell(int index) const;
 
   void SerializeSlots();
 };
