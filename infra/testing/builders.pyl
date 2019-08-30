@@ -825,7 +825,7 @@
     },
     'tests': [
       {'name': 'mozilla', 'variant': 'default'},
-      {'name': 'test262', 'variant': 'default', 'shards': 4},
+      {'name': 'test262', 'variant': 'default', 'shards': 6},
       {'name': 'v8testing', 'variant': 'default', 'shards': 3},
     ],
   },
