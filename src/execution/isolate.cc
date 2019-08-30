@@ -4681,6 +4681,27 @@ void Isolate::SetIdle(bool is_idle) {
   }
 }
 
+void Isolate::CollectSourcePositionsForAllBytecodeArrays() {
+  HandleScope scope(this);
+  std::vector<Handle<SharedFunctionInfo>> sfis;
+  {
+    DisallowHeapAllocation no_gc;
+    HeapObjectIterator iterator(heap());
+    for (HeapObject obj = iterator.Next(); !obj.is_null();
+         obj = iterator.Next()) {
+      if (obj.IsSharedFunctionInfo()) {
+        SharedFunctionInfo sfi = SharedFunctionInfo::cast(obj);
+        if (sfi.HasBytecodeArray()) {
+          sfis.push_back(Handle<SharedFunctionInfo>(sfi, this));
+        }
+      }
+    }
+  }
+  for (auto sfi : sfis) {
+    SharedFunctionInfo::EnsureSourcePositionsAvailable(this, sfi);
+  }
+}
+
 #ifdef V8_INTL_SUPPORT
 icu::UMemory* Isolate::get_cached_icu_object(ICUObjectCacheType cache_type) {
   return icu_object_cache_[cache_type].get();
