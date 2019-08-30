@@ -889,7 +889,6 @@ DEFINE_BOOL(trace_gc_object_stats, false,
 DEFINE_BOOL(trace_zone_stats, false, "trace zone memory usage")
 DEFINE_BOOL(track_retaining_path, false,
             "enable support for tracking retaining path")
-DEFINE_DEBUG_BOOL(trace_backing_store, false, "trace backing store events")
 DEFINE_BOOL(concurrent_array_buffer_freeing, true,
             "free array buffer allocations on a background thread")
 DEFINE_INT(gc_stats, 0, "Used by tracing internally to enable gc statistics")

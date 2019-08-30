@@ -1381,6 +1381,7 @@ void JSArrayBuffer::JSArrayBufferPrint(std::ostream& os) {  // NOLINT
   if (is_detachable()) os << "\n - detachable";
   if (was_detached()) os << "\n - detached";
   if (is_shared()) os << "\n - shared";
+  if (is_wasm_memory()) os << "\n - is_wasm_memory";
   JSObjectPrintBody(os, *this, !was_detached());
 }
 

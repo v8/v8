@@ -475,19 +475,21 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
 
     // Make a copy of the payload data in the section.
     size_t size = section.payload.length();
-    MaybeHandle<JSArrayBuffer> result =
-        isolate->factory()->NewJSArrayBufferAndBackingStore(
-            size, InitializedFlag::kUninitialized);
-    Handle<JSArrayBuffer> array_buffer;
-    if (!result.ToHandle(&array_buffer)) {
+    void* memory =
+        size == 0 ? nullptr : isolate->array_buffer_allocator()->Allocate(size);
+
+    if (size && !memory) {
       thrower->RangeError("out of memory allocating custom section data");
       return Handle<JSArray>();
     }
-    memcpy(array_buffer->backing_store(),
-           wire_bytes.begin() + section.payload.offset(),
+    Handle<JSArrayBuffer> buffer =
+        isolate->factory()->NewJSArrayBuffer(SharedFlag::kNotShared);
+    constexpr bool is_external = false;
+    JSArrayBuffer::Setup(buffer, isolate, is_external, memory, size);
+    memcpy(memory, wire_bytes.begin() + section.payload.offset(),
            section.payload.length());
 
-    matching_sections.push_back(array_buffer);
+    matching_sections.push_back(buffer);
   }
 
   int num_custom_sections = static_cast<int>(matching_sections.size());

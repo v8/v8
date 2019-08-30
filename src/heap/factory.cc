@@ -2062,13 +2062,6 @@ void initialize_length<PropertyArray>(Handle<PropertyArray> array, int length) {
   array->initialize_length(length);
 }
 
-inline void ZeroEmbedderFields(i::Handle<i::JSObject> obj) {
-  auto count = obj->GetEmbedderFieldCount();
-  for (int i = 0; i < count; i++) {
-    obj->SetEmbedderField(i, Smi::kZero);
-  }
-}
-
 }  // namespace
 
 template <typename T>
@@ -3093,46 +3086,15 @@ Handle<SyntheticModule> Factory::NewSyntheticModule(
   return module;
 }
 
-Handle<JSArrayBuffer> Factory::NewJSArrayBuffer(AllocationType allocation) {
-  Handle<Map> map(isolate()->native_context()->array_buffer_fun().initial_map(),
-                  isolate());
-  auto result =
-      Handle<JSArrayBuffer>::cast(NewJSObjectFromMap(map, allocation));
-  ZeroEmbedderFields(result);
-  result->SetupEmpty(SharedFlag::kNotShared);
-  return result;
-}
-
-MaybeHandle<JSArrayBuffer> Factory::NewJSArrayBufferAndBackingStore(
-    size_t byte_length, InitializedFlag initialized,
-    AllocationType allocation) {
-  // TODO(titzer): Don't bother allocating a 0-length backing store.
-  // This is currently required because the embedder API for
-  // TypedArray::HasBuffer() checks if the backing store is nullptr.
-  // That check should be changed.
-
-  std::unique_ptr<BackingStore> backing_store = BackingStore::Allocate(
-      isolate(), byte_length, SharedFlag::kNotShared, initialized);
-  if (!backing_store) return MaybeHandle<JSArrayBuffer>();
-  Handle<Map> map(isolate()->native_context()->array_buffer_fun().initial_map(),
-                  isolate());
-  auto array_buffer =
-      Handle<JSArrayBuffer>::cast(NewJSObjectFromMap(map, allocation));
-  array_buffer->Attach(std::move(backing_store));
-  ZeroEmbedderFields(array_buffer);
-  return array_buffer;
-}
-
-Handle<JSArrayBuffer> Factory::NewJSSharedArrayBuffer(
-    AllocationType allocation) {
-  Handle<Map> map(
-      isolate()->native_context()->shared_array_buffer_fun().initial_map(),
+Handle<JSArrayBuffer> Factory::NewJSArrayBuffer(SharedFlag shared,
+                                                AllocationType allocation) {
+  Handle<JSFunction> array_buffer_fun(
+      shared == SharedFlag::kShared
+          ? isolate()->native_context()->shared_array_buffer_fun()
+          : isolate()->native_context()->array_buffer_fun(),
       isolate());
-  auto result =
-      Handle<JSArrayBuffer>::cast(NewJSObjectFromMap(map, allocation));
-  ZeroEmbedderFields(result);
-  result->SetupEmpty(SharedFlag::kShared);
-  return result;
+  Handle<Map> map(array_buffer_fun->initial_map(), isolate());
+  return Handle<JSArrayBuffer>::cast(NewJSObjectFromMap(map, allocation));
 }
 
 Handle<JSIteratorResult> Factory::NewJSIteratorResult(Handle<Object> value,
@@ -3221,7 +3183,9 @@ Handle<JSArrayBufferView> Factory::NewJSArrayBufferView(
   array_buffer_view->set_buffer(*buffer);
   array_buffer_view->set_byte_offset(byte_offset);
   array_buffer_view->set_byte_length(byte_length);
-  ZeroEmbedderFields(array_buffer_view);
+  for (int i = 0; i < v8::ArrayBufferView::kEmbedderFieldCount; i++) {
+    array_buffer_view->SetEmbedderField(i, Smi::kZero);
+  }
   DCHECK_EQ(array_buffer_view->GetEmbedderFieldCount(),
             v8::ArrayBufferView::kEmbedderFieldCount);
   return array_buffer_view;
@@ -4182,7 +4146,9 @@ Handle<JSPromise> Factory::NewJSPromiseWithoutHook(AllocationType allocation) {
       NewJSObject(isolate()->promise_function(), allocation));
   promise->set_reactions_or_result(Smi::kZero);
   promise->set_flags(0);
-  ZeroEmbedderFields(promise);
+  for (int i = 0; i < v8::Promise::kEmbedderFieldCount; i++) {
+    promise->SetEmbedderField(i, Smi::kZero);
+  }
   return promise;
 }
 
