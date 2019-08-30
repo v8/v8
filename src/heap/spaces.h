@@ -1922,8 +1922,8 @@ class V8_EXPORT_PRIVATE FreeListFastAlloc : public FreeList {
   }
 };
 
-// Use 47 Freelists: on per size between 24 and 256, and then a few ones for
-// larger sizes. See the variable |categories_max| for the size of each
+// Use 24 Freelists: on per 16 bytes between 24 and 256, and then a few ones for
+// larger sizes. See the variable |categories_min| for the size of each
 // Freelist.  Allocation is done using a best-fit strategy (considering only the
 // first element of each category though).
 // Performances are expected to be worst than FreeListLegacy, but memory
@@ -1953,28 +1953,25 @@ class V8_EXPORT_PRIVATE FreeListMany : public FreeList {
 
   // Categories boundaries generated with:
   // perl -E '
-  //   @cat = map {$_*8} 3..32, 48, 64;
-  //   while ($cat[-1] <= 32768) {
-  //     push @cat, $cat[-1]+$cat[-3], $cat[-1]*2
-  //   }
-  //   say join ", ", @cat;
-  //   say "\n", scalar @cat'
-  static const int kNumberOfCategories = 46;
+  //      @cat = (24, map {$_*16} 2..16, 48, 64);
+  //      while ($cat[-1] <= 32768) {
+  //        push @cat, $cat[-1]*2
+  //      }
+  //      say join ", ", @cat;
+  //      say "\n", scalar @cat'
+  static const int kNumberOfCategories = 24;
   static constexpr unsigned int categories_min[kNumberOfCategories] = {
-      24,    32,    40,    48,    56,    64,   72,   80,   88,   96,
-      104,   112,   120,   128,   136,   144,  152,  160,  168,  176,
-      184,   192,   200,   208,   216,   224,  232,  240,  248,  256,
-      384,   512,   768,   1024,  1536,  2048, 3072, 4096, 6144, 8192,
-      12288, 16384, 24576, 32768, 49152, 65536};
+      24,  32,  48,  64,  80,  96,   112,  128,  144,  160,   176,   192,
+      208, 224, 240, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536};
 
   // Return the smallest category that could hold |size_in_bytes| bytes.
   FreeListCategoryType SelectFreeListCategoryType(
       size_t size_in_bytes) override {
     if (size_in_bytes <= kPreciseCategoryMaxSize) {
       if (size_in_bytes < categories_min[1]) return 0;
-      return static_cast<FreeListCategoryType>(size_in_bytes >> 3) - 3;
+      return static_cast<FreeListCategoryType>(size_in_bytes >> 4) - 1;
     }
-    for (int cat = (kPreciseCategoryMaxSize >> 3) - 3; cat < last_category_;
+    for (int cat = (kPreciseCategoryMaxSize >> 4) - 1; cat < last_category_;
          cat++) {
       if (size_in_bytes < categories_min[cat + 1]) {
         return cat;
@@ -2078,13 +2075,13 @@ class V8_EXPORT_PRIVATE FreeListManyCachedFastPath : public FreeListManyCached {
                                            AllocationOrigin origin) override;
 
  protected:
-  // Objects in the 36th category are at least 2048 bytes
-  static const FreeListCategoryType kFastPathFirstCategory = 35;
+  // Objects in the 18th category are at least 2048 bytes
+  static const FreeListCategoryType kFastPathFirstCategory = 18;
   static const size_t kFastPathStart = 2048;
   static const size_t kTinyObjectMaxSize = 128;
   static const size_t kFastPathOffset = kFastPathStart - kTinyObjectMaxSize;
-  // Objects in the 30th category are at least 256 bytes
-  static const FreeListCategoryType kFastPathFallBackTiny = 29;
+  // Objects in the 15th category are at least 256 bytes
+  static const FreeListCategoryType kFastPathFallBackTiny = 15;
 
   STATIC_ASSERT(categories_min[kFastPathFirstCategory] == kFastPathStart);
   STATIC_ASSERT(categories_min[kFastPathFallBackTiny] ==
