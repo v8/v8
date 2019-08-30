@@ -627,7 +627,7 @@ void SharedFunctionInfo::ClearPreparseData() {
       data.address() + UncompiledDataWithoutPreparseData::kSize,
       UncompiledDataWithPreparseData::kSize -
           UncompiledDataWithoutPreparseData::kSize,
-      ClearRecordedSlots::kNo);
+      ClearRecordedSlots::kYes);
 
   // Ensure that the clear was successful.
   DCHECK(HasUncompiledDataWithoutPreparseData());
