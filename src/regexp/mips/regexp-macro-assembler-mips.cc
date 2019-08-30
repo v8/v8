@@ -178,9 +178,10 @@ void RegExpMacroAssemblerMIPS::CheckCharacterGT(uc16 limit, Label* on_greater) {
 }
 
 
-void RegExpMacroAssemblerMIPS::CheckAtStart(Label* on_at_start) {
+void RegExpMacroAssemblerMIPS::CheckAtStart(int cp_offset, Label* on_at_start) {
   __ lw(a1, MemOperand(frame_pointer(), kStringStartMinusOne));
-  __ Addu(a0, current_input_offset(), Operand(-char_size()));
+  __ Addu(a0, current_input_offset(),
+          Operand(-char_size() + cp_offset * char_size()));
   BranchOrBacktrack(on_at_start, eq, a0, Operand(a1));
 }
 
