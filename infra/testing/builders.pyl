@@ -541,7 +541,7 @@
   # Win64
   'v8_win64_asan_rel_ng_triggered': {
     'swarming_dimensions' : {
-      'os': 'Windows-10',
+      'os': 'Windows-10-15063',
     },
     'tests': [
       {'name': 'v8testing', 'shards': 5},
@@ -1248,7 +1248,7 @@
   },
   'V8 Win64 ASAN': {
     'swarming_dimensions': {
-      'os': 'Windows-10',
+      'os': 'Windows-10-15063',
     },
     'tests': [
       {'name': 'v8testing', 'shards': 5},
