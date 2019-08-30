@@ -446,7 +446,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
     CallOptimization optimization(isolate(), accessor);
     if (!optimization.is_simple_api_call() ||
         optimization.IsCrossContextLazyAccessorPair(
-            *broker()->native_context().object(), *map)) {
+            *broker()->target_native_context().object(), *map)) {
       return PropertyAccessInfo::Invalid(zone());
     }
 
@@ -557,7 +557,8 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
       // Perform the implicit ToObject for primitives here.
       // Implemented according to ES6 section 7.3.2 GetV (V, P).
       Handle<JSFunction> constructor;
-      if (Map::GetConstructorFunction(map, broker()->native_context().object())
+      if (Map::GetConstructorFunction(
+              map, broker()->target_native_context().object())
               .ToHandle(&constructor)) {
         map = handle(constructor->initial_map(), isolate());
         DCHECK(map->prototype().IsJSObject());

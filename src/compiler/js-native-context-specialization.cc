@@ -55,14 +55,14 @@ bool HasOnlyJSArrayMaps(JSHeapBroker* broker,
 
 JSNativeContextSpecialization::JSNativeContextSpecialization(
     Editor* editor, JSGraph* jsgraph, JSHeapBroker* broker, Flags flags,
-    Handle<Context> native_context, CompilationDependencies* dependencies,
-    Zone* zone, Zone* shared_zone)
+    CompilationDependencies* dependencies, Zone* zone, Zone* shared_zone)
     : AdvancedReducer(editor),
       jsgraph_(jsgraph),
       broker_(broker),
       flags_(flags),
-      global_object_(native_context->global_object(), jsgraph->isolate()),
-      global_proxy_(native_context->global_proxy(), jsgraph->isolate()),
+      global_object_(broker->target_native_context().global_object().object()),
+      global_proxy_(
+          broker->target_native_context().global_proxy_object().object()),
       dependencies_(dependencies),
       zone_(zone),
       shared_zone_(shared_zone),
@@ -668,7 +668,7 @@ Reduction JSNativeContextSpecialization::ReduceJSPromiseResolve(Node* node) {
   // Check if the {constructor} is the %Promise% function.
   HeapObjectMatcher m(constructor);
   if (!m.HasValue() ||
-      !m.Ref(broker()).equals(broker()->native_context().promise_function())) {
+      !m.Ref(broker()).equals(native_context().promise_function())) {
     return NoChange();
   }
 
@@ -1107,7 +1107,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   // to the current native context's global object instead.
   if (access_infos.size() == 1 && access_infos[0].receiver_maps().size() == 1) {
     MapRef receiver_map(broker(), access_infos[0].receiver_maps()[0]);
-    if (receiver_map.IsMapOfCurrentGlobalProxy()) {
+    if (receiver_map.IsMapOfTargetGlobalProxy()) {
       return ReduceGlobalAccess(node, receiver, value, feedback.name(),
                                 access_mode, key);
     }

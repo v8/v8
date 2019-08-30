@@ -305,7 +305,7 @@ base::Optional<SharedFunctionInfoRef> JSInliner::DetermineCallTarget(
     // TODO(turbofan): We might want to revisit this restriction later when we
     // have a need for this, and we know how to model different native contexts
     // in the same graph in a compositional way.
-    if (!function.native_context().equals(broker()->native_context())) {
+    if (!function.native_context().equals(broker()->target_native_context())) {
       return base::nullopt;
     }
 
@@ -466,20 +466,11 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       flags |= BytecodeGraphBuilderFlag::kBailoutOnUninitialized;
     }
     {
-      // TODO(mslekova): Remove the following once bytecode graph builder
-      // is brokerized. Also, remove the context argument from
-      // BuildGraphFromBytecode and extract it from the broker there.
-      AllowHandleDereference allow_handle_deref;
-      AllowHandleAllocation allow_handle_alloc;
-      AllowHeapAllocation allow_heap_alloc;
-      AllowCodeDependencyChange allow_code_dep_change;
       CallFrequency frequency = call.frequency();
-      Handle<NativeContext> native_context(info_->native_context(), isolate());
-      BuildGraphFromBytecode(broker(), zone(), bytecode_array.object(),
-                             shared_info->object(), feedback_vector.object(),
-                             BailoutId::None(), jsgraph(), frequency,
-                             source_positions_, native_context, inlining_id,
-                             flags, &info_->tick_counter());
+      BuildGraphFromBytecode(
+          broker(), zone(), bytecode_array.object(), shared_info->object(),
+          feedback_vector.object(), BailoutId::None(), jsgraph(), frequency,
+          source_positions_, inlining_id, flags, &info_->tick_counter());
     }
 
     // Extract the inlinee start/end nodes.
@@ -598,8 +589,8 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     Node* effect = NodeProperties::GetEffectInput(node);
     if (NodeProperties::CanBePrimitive(broker(), call.receiver(), effect)) {
       CallParameters const& p = CallParametersOf(node->op());
-      Node* global_proxy =
-          jsgraph()->Constant(broker()->native_context().global_proxy_object());
+      Node* global_proxy = jsgraph()->Constant(
+          broker()->target_native_context().global_proxy_object());
       Node* receiver = effect =
           graph()->NewNode(simplified()->ConvertReceiver(p.convert_mode()),
                            call.receiver(), global_proxy, effect, start);

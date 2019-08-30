@@ -7259,7 +7259,7 @@ Isolate* JSCallReducer::isolate() const { return jsgraph()->isolate(); }
 Factory* JSCallReducer::factory() const { return isolate()->factory(); }
 
 NativeContextRef JSCallReducer::native_context() const {
-  return broker()->native_context();
+  return broker()->target_native_context();
 }
 
 CommonOperatorBuilder* JSCallReducer::common() const {

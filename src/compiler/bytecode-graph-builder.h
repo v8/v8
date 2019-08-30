@@ -45,7 +45,6 @@ void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
                             BailoutId osr_offset, JSGraph* jsgraph,
                             CallFrequency const& invocation_frequency,
                             SourcePositionTable* source_positions,
-                            Handle<NativeContext> native_context,
                             int inlining_id, BytecodeGraphBuilderFlags flags,
                             TickCounter* tick_counter);
 

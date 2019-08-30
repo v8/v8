@@ -1310,12 +1310,13 @@ namespace {
 base::Optional<MapRef> GetObjectCreateMap(JSHeapBroker* broker,
                                           HeapObjectRef prototype) {
   MapRef standard_map =
-      broker->native_context().object_function().initial_map();
+      broker->target_native_context().object_function().initial_map();
   if (prototype.equals(standard_map.prototype())) {
     return standard_map;
   }
   if (prototype.map().oddball_type() == OddballType::kNull) {
-    return broker->native_context().slow_object_with_null_prototype_map();
+    return broker->target_native_context()
+        .slow_object_with_null_prototype_map();
   }
   if (prototype.IsJSObject()) {
     return prototype.AsJSObject().GetObjectCreateMap();
@@ -1831,7 +1832,7 @@ SimplifiedOperatorBuilder* JSCreateLowering::simplified() const {
 }
 
 NativeContextRef JSCreateLowering::native_context() const {
-  return broker()->native_context();
+  return broker()->target_native_context();
 }
 
 }  // namespace compiler

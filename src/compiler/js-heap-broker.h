@@ -67,13 +67,15 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
  public:
   JSHeapBroker(Isolate* isolate, Zone* broker_zone, bool tracing_enabled);
 
-  void SetNativeContextRef();
-  void SerializeStandardObjects();
+  void SetNativeContextRef(Handle<NativeContext> context);
+  void SerializeStandardObjects(Handle<NativeContext> context);
 
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return current_zone_; }
   bool tracing_enabled() const { return tracing_enabled_; }
-  NativeContextRef native_context() const { return native_context_.value(); }
+  NativeContextRef target_native_context() const {
+    return target_native_context_.value();
+  }
   PerIsolateCompilerCache* compiler_cache() const { return compiler_cache_; }
 
   enum BrokerMode { kDisabled, kSerializing, kSerialized, kRetired };
@@ -187,7 +189,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   Isolate* const isolate_;
   Zone* const broker_zone_;
   Zone* current_zone_;
-  base::Optional<NativeContextRef> native_context_;
+  base::Optional<NativeContextRef> target_native_context_;
   RefsMap* refs_;
   ZoneUnorderedSet<Handle<JSObject>, Handle<JSObject>::hash,
                    Handle<JSObject>::equal_to>

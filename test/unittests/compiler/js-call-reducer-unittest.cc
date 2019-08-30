@@ -24,7 +24,7 @@ class JSCallReducerTest : public TypedGraphTest {
  public:
   JSCallReducerTest()
       : TypedGraphTest(3), javascript_(zone()), deps_(broker(), zone()) {
-    broker()->SerializeStandardObjects();
+    broker()->SerializeStandardObjects(isolate()->native_context());
   }
   ~JSCallReducerTest() override = default;
 

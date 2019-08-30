@@ -1554,8 +1554,8 @@ void SerializerForBackgroundCompilation::VisitCallJSRuntime(
   // BytecodeGraphBuilder::VisitCallJSRuntime needs the {runtime_index}
   // slot in the native context to be serialized.
   const int runtime_index = iterator->GetNativeContextIndexOperand(0);
-  broker()->native_context().get(runtime_index,
-                                 SerializationPolicy::kSerializeIfNeeded);
+  broker()->target_native_context().get(
+      runtime_index, SerializationPolicy::kSerializeIfNeeded);
   environment()->accumulator_hints().Clear();
 }
 
@@ -1758,7 +1758,7 @@ void SerializerForBackgroundCompilation::ProcessApiCall(
     if (hint->IsUndefined()) {
       // The receiver is the global proxy.
       Handle<JSGlobalProxy> global_proxy =
-          broker()->native_context().global_proxy_object().object();
+          broker()->target_native_context().global_proxy_object().object();
       ProcessReceiverMapForApiCall(
           target_template_info,
           handle(global_proxy->map(), broker()->isolate()));
@@ -2316,8 +2316,8 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
   receiver_map.SerializeRootMap();
 
   // For JSNativeContextSpecialization::ReduceNamedAccess.
-  if (receiver_map.IsMapOfCurrentGlobalProxy()) {
-    broker()->native_context().global_proxy_object().GetPropertyCell(
+  if (receiver_map.IsMapOfTargetGlobalProxy()) {
+    broker()->target_native_context().global_proxy_object().GetPropertyCell(
         name, SerializationPolicy::kSerializeIfNeeded);
   }
 
@@ -2472,7 +2472,7 @@ void SerializerForBackgroundCompilation::ProcessNamedAccess(
   }
 
   JSGlobalProxyRef global_proxy =
-      broker()->native_context().global_proxy_object();
+      broker()->target_native_context().global_proxy_object();
   for (Handle<Object> hint : receiver.constants()) {
     ObjectRef object(broker(), hint);
     if (access_mode == AccessMode::kLoad && object.IsJSObject()) {

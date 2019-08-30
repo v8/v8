@@ -1217,8 +1217,8 @@ struct GraphBuilderPhase {
         data->info()->shared_info(),
         handle(data->info()->closure()->feedback_vector(), data->isolate()),
         data->info()->osr_offset(), data->jsgraph(), frequency,
-        data->source_positions(), data->native_context(),
-        SourcePosition::kNotInlined, flags, &data->info()->tick_counter());
+        data->source_positions(), SourcePosition::kNotInlined, flags,
+        &data->info()->tick_counter());
   }
 };
 
@@ -1287,7 +1287,7 @@ struct InliningPhase {
     // that need to live until code generation.
     JSNativeContextSpecialization native_context_specialization(
         &graph_reducer, data->jsgraph(), data->broker(), flags,
-        data->native_context(), data->dependencies(), temp_zone, info->zone());
+        data->dependencies(), temp_zone, info->zone());
     JSInliningHeuristic inlining(&graph_reducer,
                                  data->info()->is_inlining_enabled()
                                      ? JSInliningHeuristic::kGeneralInlining
@@ -1362,7 +1362,7 @@ struct SerializeStandardObjectsPhase {
   static const char* phase_name() { return "V8.TFSerializeStandardObjects"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    data->broker()->SerializeStandardObjects();
+    data->broker()->SerializeStandardObjects(data->native_context());
   }
 };
 
@@ -2213,11 +2213,16 @@ bool PipelineImpl::CreateGraph() {
   }
 
   if (FLAG_concurrent_inlining) {
+    // The following is a workaround for the NativeContexRef storage being
+    // unpopulated when we start the SerializeStandardObjectsPhase, therefore
+    // stopping us from the ability to use the target_native_context getter
+    // in the MapData constructor.
+    data->broker()->SetNativeContextRef(data->native_context());
     data->broker()->StartSerializing();
     Run<SerializeStandardObjectsPhase>();
     Run<SerializationPhase>();
   } else {
-    data->broker()->SetNativeContextRef();
+    data->broker()->SetNativeContextRef(data->native_context());
   }
 
   Run<GraphBuilderPhase>();

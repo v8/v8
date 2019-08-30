@@ -962,8 +962,8 @@ class MapData : public HeapObjectData {
   bool supports_fast_array_resize() const {
     return supports_fast_array_resize_;
   }
-  bool IsMapOfCurrentGlobalProxy() const {
-    return is_map_of_current_global_proxy_;
+  bool IsMapOfTargetGlobalProxy() const {
+    return is_map_of_target_global_proxy_;
   }
   bool is_abandoned_prototype_map() const {
     return is_abandoned_prototype_map_;
@@ -1027,7 +1027,7 @@ class MapData : public HeapObjectData {
   int const unused_property_fields_;
   bool const supports_fast_array_iteration_;
   bool const supports_fast_array_resize_;
-  bool const is_map_of_current_global_proxy_;
+  bool const is_map_of_target_global_proxy_;
   bool const is_abandoned_prototype_map_;
 
   bool serialized_elements_kind_generalizations_ = false;
@@ -1154,8 +1154,8 @@ MapData::MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object)
           SupportsFastArrayIteration(broker->isolate(), object)),
       supports_fast_array_resize_(
           SupportsFastArrayResize(broker->isolate(), object)),
-      is_map_of_current_global_proxy_(
-          object->IsMapOfGlobalProxy(broker->isolate()->native_context())),
+      is_map_of_target_global_proxy_(
+          object->IsMapOfGlobalProxy(broker->target_native_context().object())),
       is_abandoned_prototype_map_(object->is_abandoned_prototype_map()),
       elements_kind_generalizations_(broker->zone()) {}
 
@@ -1836,6 +1836,17 @@ void CellData::Serialize(JSHeapBroker* broker) {
   value_ = broker->GetOrCreateData(cell->value());
 }
 
+class JSGlobalObjectData : public JSObjectData {
+ public:
+  JSGlobalObjectData(JSHeapBroker* broker, ObjectData** storage,
+                     Handle<JSGlobalObject> object);
+};
+
+JSGlobalObjectData::JSGlobalObjectData(JSHeapBroker* broker,
+                                       ObjectData** storage,
+                                       Handle<JSGlobalObject> object)
+    : JSObjectData(broker, storage, object) {}
+
 class JSGlobalProxyData : public JSObjectData {
  public:
   JSGlobalProxyData(JSHeapBroker* broker, ObjectData** storage,
@@ -1860,10 +1871,11 @@ JSGlobalProxyData::JSGlobalProxyData(JSHeapBroker* broker, ObjectData** storage,
 namespace {
 base::Optional<PropertyCellRef> GetPropertyCellFromHeap(JSHeapBroker* broker,
                                                         Handle<Name> name) {
-  LookupIterator it(broker->isolate(),
-                    handle(broker->native_context().object()->global_object(),
-                           broker->isolate()),
-                    name, LookupIterator::OWN);
+  LookupIterator it(
+      broker->isolate(),
+      handle(broker->target_native_context().object()->global_object(),
+             broker->isolate()),
+      name, LookupIterator::OWN);
   it.TryLookupCachedProperty();
   if (it.state() == LookupIterator::DATA &&
       it.GetHolder<JSObject>()->IsJSGlobalObject()) {
@@ -2280,8 +2292,10 @@ void JSHeapBroker::Retire() {
 
 bool JSHeapBroker::SerializingAllowed() const { return mode() == kSerializing; }
 
-void JSHeapBroker::SetNativeContextRef() {
-  native_context_ = NativeContextRef(this, isolate()->native_context());
+void JSHeapBroker::SetNativeContextRef(Handle<NativeContext> context) {
+  // At the broker construction time, we don't yet have the canonical handle
+  // for the native context, that's why we need the explicit setter
+  target_native_context_ = NativeContextRef(this, context);
 }
 
 bool IsShareable(Handle<Object> object, Isolate* isolate) {
@@ -2406,7 +2420,7 @@ bool JSHeapBroker::IsArrayOrObjectPrototype(const JSObjectRef& object) const {
          array_and_object_prototypes_.end();
 }
 
-void JSHeapBroker::SerializeStandardObjects() {
+void JSHeapBroker::SerializeStandardObjects(Handle<NativeContext> context) {
   if (mode() == kDisabled) return;
   CHECK_EQ(mode(), kSerializing);
 
@@ -2417,8 +2431,10 @@ void JSHeapBroker::SerializeStandardObjects() {
   CollectArrayAndObjectPrototypes();
   SerializeTypedArrayStringTags();
 
-  SetNativeContextRef();
-  native_context().Serialize();
+  // It's important that this serialization happens after the
+  // CollectArrayAndObjectPrototypes is done.
+  SetNativeContextRef(context);
+  target_native_context().Serialize();
 
   Factory* const f = isolate()->factory();
 
@@ -2677,13 +2693,14 @@ bool MapRef::supports_fast_array_resize() const {
   return data()->AsMap()->supports_fast_array_resize();
 }
 
-bool MapRef::IsMapOfCurrentGlobalProxy() const {
+bool MapRef::IsMapOfTargetGlobalProxy() const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference allow_handle_dereference;
     AllowHandleAllocation handle_allocation;
-    return object()->IsMapOfGlobalProxy(broker()->isolate()->native_context());
+    return object()->IsMapOfGlobalProxy(
+        broker()->target_native_context().object());
   }
-  return data()->AsMap()->IsMapOfCurrentGlobalProxy();
+  return data()->AsMap()->IsMapOfTargetGlobalProxy();
 }
 
 int JSFunctionRef::InitialMapInstanceSizeWithMinSlack() const {
@@ -3837,8 +3854,8 @@ JSArrayRef SharedFunctionInfoRef::GetTemplateObject(
         Handle<TemplateObjectDescription>::cast(description.object());
     Handle<JSArray> template_object =
         TemplateObjectDescription::GetTemplateObject(
-            broker()->isolate(), broker()->native_context().object(), tod,
-            object(), slot.ToInt());
+            broker()->isolate(), broker()->target_native_context().object(),
+            tod, object(), slot.ToInt());
     return JSArrayRef(broker(), template_object);
   }
 
@@ -3852,7 +3869,7 @@ JSArrayRef SharedFunctionInfoRef::GetTemplateObject(
       Handle<TemplateObjectDescription>::cast(description.object());
   Handle<JSArray> template_object =
       TemplateObjectDescription::GetTemplateObject(
-          broker()->isolate(), broker()->native_context().object(), tod,
+          broker()->isolate(), broker()->target_native_context().object(), tod,
           object(), slot.ToInt());
   array = broker()->GetOrCreateData(template_object)->AsJSArray();
   data()->AsSharedFunctionInfo()->SetTemplateObject(slot, array);
@@ -4318,7 +4335,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
     int const context_slot_index = FeedbackNexus::SlotIndexBits::decode(number);
     bool const immutable = FeedbackNexus::ImmutabilityBit::decode(number);
     Handle<Context> context = ScriptContextTable::GetContext(
-        isolate(), native_context().script_context_table().object(),
+        isolate(), target_native_context().script_context_table().object(),
         script_context_index);
     {
       ObjectRef contents(this,

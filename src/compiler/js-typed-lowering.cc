@@ -1652,7 +1652,8 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     // require data from a foreign native context.
     if (is_sloppy(shared.language_mode()) && !shared.native() &&
         !receiver_type.Is(Type::Receiver())) {
-      if (!function.native_context().equals(broker()->native_context())) {
+      if (!function.native_context().equals(
+              broker()->target_native_context())) {
         return NoChange();
       }
       Node* global_proxy =

@@ -53,7 +53,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
 
   JSNativeContextSpecialization(Editor* editor, JSGraph* jsgraph,
                                 JSHeapBroker* broker, Flags flags,
-                                Handle<Context> native_context,
                                 CompilationDependencies* dependencies,
                                 Zone* zone, Zone* shared_zone);
 
@@ -256,7 +255,9 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Flags flags() const { return flags_; }
   Handle<JSGlobalObject> global_object() const { return global_object_; }
   Handle<JSGlobalProxy> global_proxy() const { return global_proxy_; }
-  NativeContextRef native_context() const { return broker()->native_context(); }
+  NativeContextRef native_context() const {
+    return broker()->target_native_context();
+  }
   CompilationDependencies* dependencies() const { return dependencies_; }
   Zone* zone() const { return zone_; }
   Zone* shared_zone() const { return shared_zone_; }

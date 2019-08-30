@@ -574,7 +574,7 @@ void CompilationDependencies::DependOnStablePrototypeChains(
       // Perform the implicit ToObject for primitives here.
       // Implemented according to ES6 section 7.3.2 GetV (V, P).
       base::Optional<JSFunctionRef> constructor =
-          broker_->native_context().GetConstructorFunction(receiver_map);
+          broker_->target_native_context().GetConstructorFunction(receiver_map);
       if (constructor.has_value()) receiver_map = constructor->initial_map();
     }
     DependOnStablePrototypeChain(this, receiver_map, last_prototype);

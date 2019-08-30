@@ -4072,7 +4072,6 @@ void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
                             BailoutId osr_offset, JSGraph* jsgraph,
                             CallFrequency const& invocation_frequency,
                             SourcePositionTable* source_positions,
-                            Handle<NativeContext> native_context,
                             int inlining_id, BytecodeGraphBuilderFlags flags,
                             TickCounter* tick_counter) {
   BytecodeArrayRef bytecode_array_ref(broker, bytecode_array);
@@ -4080,11 +4079,10 @@ void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
   FeedbackVectorRef feedback_vector_ref(broker, feedback_vector);
   SharedFunctionInfoRef shared_ref(broker, shared);
   DCHECK(shared_ref.IsSerializedForCompilation(feedback_vector_ref));
-  NativeContextRef native_context_ref(broker, native_context);
   BytecodeGraphBuilder builder(
       broker, local_zone, bytecode_array_ref, shared_ref, feedback_vector_ref,
       osr_offset, jsgraph, invocation_frequency, source_positions,
-      native_context_ref, inlining_id, flags, tick_counter);
+      broker->target_native_context(), inlining_id, flags, tick_counter);
   builder.CreateGraph();
 }
 

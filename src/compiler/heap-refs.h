@@ -54,6 +54,7 @@ enum class OddballType : uint8_t {
   V(JSBoundFunction)               \
   V(JSDataView)                    \
   V(JSFunction)                    \
+  V(JSGlobalObject)                \
   V(JSGlobalProxy)                 \
   V(JSRegExp)                      \
   V(JSTypedArray)                  \
@@ -388,6 +389,7 @@ class ContextRef : public HeapObjectRef {
   V(JSFunction, promise_then)                                         \
   V(JSFunction, string_function)                                      \
   V(JSFunction, symbol_function)                                      \
+  V(JSGlobalObject, global_object)                                    \
   V(JSGlobalProxy, global_proxy_object)                               \
   V(JSObject, promise_prototype)                                      \
   V(Map, bound_function_with_constructor_map)                         \
@@ -581,7 +583,7 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   bool is_migration_target() const;
   bool supports_fast_array_iteration() const;
   bool supports_fast_array_resize() const;
-  bool IsMapOfCurrentGlobalProxy() const;
+  bool IsMapOfTargetGlobalProxy() const;
   bool is_abandoned_prototype_map() const;
 
   OddballType oddball_type() const;
@@ -848,6 +850,13 @@ class CellRef : public HeapObjectRef {
   Handle<Cell> object() const;
 
   ObjectRef value() const;
+};
+
+class JSGlobalObjectRef : public JSObjectRef {
+ public:
+  DEFINE_REF_CONSTRUCTOR(JSGlobalObject, JSObjectRef)
+
+  Handle<JSGlobalObject> object() const;
 };
 
 class JSGlobalProxyRef : public JSObjectRef {

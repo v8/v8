@@ -452,7 +452,7 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMapsUnsafe(
       }
       case IrOpcode::kJSCreatePromise: {
         if (IsSame(receiver, effect)) {
-          *maps_return = ZoneHandleSet<Map>(broker->native_context()
+          *maps_return = ZoneHandleSet<Map>(broker->target_native_context()
                                                 .promise_function()
                                                 .initial_map()
                                                 .object());
