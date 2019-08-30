@@ -1405,7 +1405,6 @@ class ObjectLiteral final : public AggregateLiteral {
   void set_has_null_protoype(bool has_null_prototype) {
     bit_field_ = HasNullPrototypeField::update(bit_field_, has_null_prototype);
   }
-
   uint32_t boilerplate_properties_;
   Handle<ObjectBoilerplateDescription> boilerplate_description_;
   ZoneList<Property*> properties_;
