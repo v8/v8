@@ -4079,10 +4079,26 @@ void ShiftByRegister(Simulator* simulator, int Vd, int Vm, int Vn) {
   simulator->get_neon_register<T, SIZE>(Vm, src);
   simulator->get_neon_register<S_T, SIZE>(Vn, shift);
   for (int i = 0; i < kElems; i++) {
-    if ((shift[i]) >= 0) {
-      src[i] <<= shift[i];
+    // Take lowest 8 bits of shift value (see F6.1.217 of ARM Architecture
+    // Reference Manual ARMv8), as signed 8-bit value.
+    int8_t shift_value = static_cast<int8_t>(shift[i]);
+    int size = static_cast<int>(sizeof(T) * 8);
+    // When shift value is greater/equal than size, we end up relying on
+    // undefined behavior, handle that and emulate what the hardware does.
+    if ((shift_value) >= 0) {
+      // If the shift value is greater/equal than size, zero out the result.
+      if (shift_value >= size) {
+        src[i] = 0;
+      } else {
+        src[i] <<= shift_value;
+      }
     } else {
-      src[i] = ArithmeticShiftRight(src[i], -shift[i]);
+      // If the shift value is greater/equal than size, always end up with -1.
+      if (-shift_value >= size) {
+        src[i] = -1;
+      } else {
+        src[i] = ArithmeticShiftRight(src[i], -shift_value);
+      }
     }
   }
   simulator->set_neon_register<T, SIZE>(Vd, src);
