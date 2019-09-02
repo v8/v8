@@ -393,7 +393,8 @@ namespace compiler {
   V(M2I)  /* [      %r2*2 + K] */      \
   V(M4I)  /* [      %r2*4 + K] */      \
   V(M8I)  /* [      %r2*8 + K] */      \
-  V(MI)   /* [              K] */
+  V(MI)   /* [              K] */      \
+  V(Root) /* [%root       + K] */
 
 }  // namespace compiler
 }  // namespace internal

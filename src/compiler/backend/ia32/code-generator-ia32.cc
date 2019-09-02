@@ -165,6 +165,11 @@ class IA32OperandConverter : public InstructionOperandConverter {
         Constant ctant = ToConstant(instr_->InputAt(NextOffset(offset)));
         return Operand(ctant.ToInt32(), ctant.rmode());
       }
+      case kMode_Root: {
+        Register base = kRootRegister;
+        int32_t disp = InputInt32(NextOffset(offset));
+        return Operand(base, disp);
+      }
       case kMode_None:
         UNREACHABLE();
     }

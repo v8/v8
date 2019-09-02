@@ -152,6 +152,21 @@ class IA32OperandGenerator final : public OperandGenerator {
   AddressingMode GetEffectiveAddressMemoryOperand(Node* node,
                                                   InstructionOperand inputs[],
                                                   size_t* input_count) {
+    {
+      LoadMatcher<ExternalReferenceMatcher> m(node);
+      if (m.index().HasValue() && m.object().HasValue() &&
+          selector()->CanAddressRelativeToRootsRegister(m.object().Value())) {
+        ptrdiff_t const delta =
+            m.index().Value() +
+            TurboAssemblerBase::RootRegisterOffsetForExternalReference(
+                selector()->isolate(), m.object().Value());
+        if (is_int32(delta)) {
+          inputs[(*input_count)++] = TempImmediate(static_cast<int32_t>(delta));
+          return kMode_Root;
+        }
+      }
+    }
+
     BaseWithIndexAndDisplacement32Matcher m(node, AddressOption::kAllowAll);
     DCHECK(m.matches());
     if ((m.displacement() == nullptr || CanBeImmediate(m.displacement()))) {
