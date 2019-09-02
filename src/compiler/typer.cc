@@ -10,6 +10,7 @@
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/loop-variable-optimizer.h"
@@ -1526,6 +1527,10 @@ Type Typer::Visitor::JSCallTyper(Type fun, Typer* t) {
     return Type::NonInternal();
   }
   JSFunctionRef function = fun.AsHeapConstant()->Ref().AsJSFunction();
+  if (!function.serialized()) {
+    TRACE_BROKER_MISSING(t->broker(), "data for function " << function);
+    return Type::NonInternal();
+  }
   if (!function.shared().HasBuiltinId()) {
     return Type::NonInternal();
   }

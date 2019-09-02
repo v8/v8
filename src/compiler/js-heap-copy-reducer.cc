@@ -28,8 +28,8 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kHeapConstant: {
       ObjectRef object(broker(), HeapConstantOf(node->op()));
-      if (object.IsJSFunction()) object.AsJSFunction().Serialize();
       if (!FLAG_concurrent_inlining) {
+        if (object.IsJSFunction()) object.AsJSFunction().Serialize();
         if (object.IsJSObject()) {
           object.AsJSObject().SerializeObjectCreateMap();
         }
@@ -77,10 +77,13 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       break;
     }
     case IrOpcode::kJSCreateClosure: {
-      CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
-      SharedFunctionInfoRef(broker(), p.shared_info());
-      FeedbackCellRef(broker(), p.feedback_cell());
-      HeapObjectRef(broker(), p.code());
+      if (!FLAG_concurrent_inlining) {
+        CreateClosureParameters const& p =
+            CreateClosureParametersOf(node->op());
+        SharedFunctionInfoRef(broker(), p.shared_info());
+        FeedbackCellRef(broker(), p.feedback_cell());
+        HeapObjectRef(broker(), p.code());
+      }
       break;
     }
     case IrOpcode::kJSCreateEmptyLiteralArray: {

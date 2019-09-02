@@ -2332,6 +2332,7 @@ void JSHeapBroker::InitializeRefsMap() {
   DCHECK_EQ(current_zone_, broker_zone_);
   current_zone_ = compiler_cache_->zone();
 
+  // Serialize various builtins.
   Builtins* const b = isolate()->builtins();
   {
     Builtins::Name builtins[] = {
@@ -2345,6 +2346,7 @@ void JSHeapBroker::InitializeRefsMap() {
         Builtins::kCallFunction_ReceiverIsAny,
         Builtins::kCallFunction_ReceiverIsNotNullOrUndefined,
         Builtins::kCallFunction_ReceiverIsNullOrUndefined,
+        Builtins::kCompileLazy,
         Builtins::kConstructFunctionForwardVarargs,
         Builtins::kForInFilter,
         Builtins::kJSBuiltinsConstructStub,
@@ -2445,9 +2447,10 @@ void JSHeapBroker::InitializeAndStartSerializing(
   CollectArrayAndObjectPrototypes();
   SerializeTypedArrayStringTags();
 
+  // Serialize standard objects.
+  //
+  // - Maps, strings, oddballs
   Factory* const f = isolate()->factory();
-
-  // Maps, strings, oddballs
   GetOrCreateData(f->arguments_marker_map());
   GetOrCreateData(f->bigint_string());
   GetOrCreateData(f->block_context_map());
@@ -2495,8 +2498,7 @@ void JSHeapBroker::InitializeAndStartSerializing(
   GetOrCreateData(f->uninitialized_map());
   GetOrCreateData(f->with_context_map());
   GetOrCreateData(f->zero_string());
-
-  // Protector cells
+  // - Cells
   GetOrCreateData(f->array_buffer_detaching_protector())
       ->AsPropertyCell()
       ->Serialize(this);
@@ -2507,6 +2509,7 @@ void JSHeapBroker::InitializeAndStartSerializing(
   GetOrCreateData(f->array_species_protector())
       ->AsPropertyCell()
       ->Serialize(this);
+  GetOrCreateData(f->many_closures_cell())->AsFeedbackCell();
   GetOrCreateData(f->no_elements_protector())
       ->AsPropertyCell()
       ->Serialize(this);
@@ -2520,8 +2523,7 @@ void JSHeapBroker::InitializeAndStartSerializing(
       ->AsPropertyCell()
       ->Serialize(this);
   GetOrCreateData(f->string_length_protector())->AsCell()->Serialize(this);
-
-  // CEntry stub
+  // - CEntry stub
   GetOrCreateData(
       CodeFactory::CEntry(isolate(), 1, kDontSaveFPRegs, kArgvOnStack, true));
 
@@ -4270,8 +4272,7 @@ bool JSHeapBroker::FeedbackIsInsufficient(FeedbackSource const& source) const {
 }
 
 namespace {
-template <class MapContainer>
-MapHandles GetRelevantReceiverMaps(Isolate* isolate, MapContainer const& maps) {
+MapHandles GetRelevantReceiverMaps(Isolate* isolate, MapHandles const& maps) {
   MapHandles result;
   for (Handle<Map> map : maps) {
     if (Map::TryUpdate(isolate, map).ToHandle(&map) &&
@@ -4281,7 +4282,7 @@ MapHandles GetRelevantReceiverMaps(Isolate* isolate, MapContainer const& maps) {
     }
   }
   return result;
-}
+}  // namespace
 }  // namespace
 
 ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(

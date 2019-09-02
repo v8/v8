@@ -91,7 +91,6 @@ namespace compiler {
   V(JumpIfUndefinedOrNullConstant)
 
 #define IGNORED_BYTECODE_LIST(V)      \
-  V(CallNoFeedback)                   \
   V(IncBlockCounter)                  \
   V(StackCheck)                       \
   V(ThrowSuperAlreadyCalledIfNotHole) \
@@ -145,6 +144,7 @@ namespace compiler {
 #define SUPPORTED_BYTECODE_LIST(V)    \
   V(CallAnyReceiver)                  \
   V(CallJSRuntime)                    \
+  V(CallNoFeedback)                   \
   V(CallProperty)                     \
   V(CallProperty0)                    \
   V(CallProperty1)                    \
@@ -377,8 +377,9 @@ class SerializerForBackgroundCompilation {
   void ProcessCallOrConstruct(Hints callee, base::Optional<Hints> new_target,
                               const HintsVector& arguments, FeedbackSlot slot,
                               bool with_spread = false);
-  void ProcessCallVarArgs(interpreter::BytecodeArrayIterator* iterator,
-                          ConvertReceiverMode receiver_mode,
+  void ProcessCallVarArgs(ConvertReceiverMode receiver_mode,
+                          Hints const& callee, interpreter::Register first_reg,
+                          int reg_count, FeedbackSlot slot,
                           bool with_spread = false);
   void ProcessApiCall(Handle<SharedFunctionInfo> target,
                       const HintsVector& arguments);
@@ -1447,7 +1448,13 @@ void SerializerForBackgroundCompilation::VisitCreateClosure(
 
 void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver(
     BytecodeArrayIterator* iterator) {
-  ProcessCallVarArgs(iterator, ConvertReceiverMode::kNullOrUndefined);
+  const Hints& callee =
+      environment()->register_hints(iterator->GetRegisterOperand(0));
+  interpreter::Register first_reg = iterator->GetRegisterOperand(1);
+  int reg_count = static_cast<int>(iterator->GetRegisterCountOperand(2));
+  FeedbackSlot slot = iterator->GetSlotOperand(3);
+  ProcessCallVarArgs(ConvertReceiverMode::kNullOrUndefined, callee, first_reg,
+                     reg_count, slot);
 }
 
 void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver0(
@@ -1494,12 +1501,34 @@ void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver2(
 
 void SerializerForBackgroundCompilation::VisitCallAnyReceiver(
     BytecodeArrayIterator* iterator) {
-  ProcessCallVarArgs(iterator, ConvertReceiverMode::kAny);
+  const Hints& callee =
+      environment()->register_hints(iterator->GetRegisterOperand(0));
+  interpreter::Register first_reg = iterator->GetRegisterOperand(1);
+  int reg_count = static_cast<int>(iterator->GetRegisterCountOperand(2));
+  FeedbackSlot slot = iterator->GetSlotOperand(3);
+  ProcessCallVarArgs(ConvertReceiverMode::kAny, callee, first_reg, reg_count,
+                     slot);
+}
+
+void SerializerForBackgroundCompilation::VisitCallNoFeedback(
+    BytecodeArrayIterator* iterator) {
+  const Hints& callee =
+      environment()->register_hints(iterator->GetRegisterOperand(0));
+  interpreter::Register first_reg = iterator->GetRegisterOperand(1);
+  int reg_count = static_cast<int>(iterator->GetRegisterCountOperand(2));
+  ProcessCallVarArgs(ConvertReceiverMode::kAny, callee, first_reg, reg_count,
+                     FeedbackSlot::Invalid());
 }
 
 void SerializerForBackgroundCompilation::VisitCallProperty(
     BytecodeArrayIterator* iterator) {
-  ProcessCallVarArgs(iterator, ConvertReceiverMode::kNullOrUndefined);
+  const Hints& callee =
+      environment()->register_hints(iterator->GetRegisterOperand(0));
+  interpreter::Register first_reg = iterator->GetRegisterOperand(1);
+  int reg_count = static_cast<int>(iterator->GetRegisterCountOperand(2));
+  FeedbackSlot slot = iterator->GetSlotOperand(3);
+  ProcessCallVarArgs(ConvertReceiverMode::kNotNullOrUndefined, callee,
+                     first_reg, reg_count, slot);
 }
 
 void SerializerForBackgroundCompilation::VisitCallProperty0(
@@ -1546,17 +1575,28 @@ void SerializerForBackgroundCompilation::VisitCallProperty2(
 
 void SerializerForBackgroundCompilation::VisitCallWithSpread(
     BytecodeArrayIterator* iterator) {
-  ProcessCallVarArgs(iterator, ConvertReceiverMode::kAny, true);
+  const Hints& callee =
+      environment()->register_hints(iterator->GetRegisterOperand(0));
+  interpreter::Register first_reg = iterator->GetRegisterOperand(1);
+  int reg_count = static_cast<int>(iterator->GetRegisterCountOperand(2));
+  FeedbackSlot slot = iterator->GetSlotOperand(3);
+  ProcessCallVarArgs(ConvertReceiverMode::kAny, callee, first_reg, reg_count,
+                     slot, true);
 }
 
 void SerializerForBackgroundCompilation::VisitCallJSRuntime(
     BytecodeArrayIterator* iterator) {
-  // BytecodeGraphBuilder::VisitCallJSRuntime needs the {runtime_index}
-  // slot in the native context to be serialized.
   const int runtime_index = iterator->GetNativeContextIndexOperand(0);
-  broker()->target_native_context().get(
-      runtime_index, SerializationPolicy::kSerializeIfNeeded);
-  environment()->accumulator_hints().Clear();
+  ObjectRef constant =
+      broker()
+          ->target_native_context()
+          .get(runtime_index, SerializationPolicy::kSerializeIfNeeded)
+          .value();
+  Hints callee = Hints::SingleConstant(constant.object(), zone());
+  interpreter::Register first_reg = iterator->GetRegisterOperand(1);
+  int reg_count = static_cast<int>(iterator->GetRegisterCountOperand(2));
+  ProcessCallVarArgs(ConvertReceiverMode::kNullOrUndefined, callee, first_reg,
+                     reg_count, FeedbackSlot::Invalid());
 }
 
 Hints SerializerForBackgroundCompilation::RunChildSerializer(
@@ -1650,25 +1690,28 @@ MaybeHandle<JSFunction> UnrollBoundFunction(
 void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
     Hints callee, base::Optional<Hints> new_target,
     const HintsVector& arguments, FeedbackSlot slot, bool with_spread) {
-  FeedbackSource source(feedback_vector(), slot);
-  ProcessedFeedback const& feedback = broker()->ProcessFeedbackForCall(source);
-  if (BailoutOnUninitialized(feedback)) return;
-
-  // Incorporate feedback into hints copy to simplify processing.
   SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation;
-  if (!feedback.IsInsufficient()) {
-    speculation_mode = feedback.AsCall().speculation_mode();
-    base::Optional<HeapObjectRef> target = feedback.AsCall().target();
-    if (target.has_value() && target->map().is_callable()) {
-      // TODO(mvstanton): if the map isn't callable then we have an allocation
-      // site, and it may make sense to add the Array JSFunction constant.
-      if (new_target.has_value()) {
-        // Construct; feedback is new_target, which often is also the callee.
-        new_target->AddConstant(target->object());
-        callee.AddConstant(target->object());
-      } else {
-        // Call; target is callee.
-        callee.AddConstant(target->object());
+  if (!slot.IsInvalid()) {
+    FeedbackSource source(feedback_vector(), slot);
+    ProcessedFeedback const& feedback =
+        broker()->ProcessFeedbackForCall(source);
+    if (BailoutOnUninitialized(feedback)) return;
+
+    // Incorporate feedback into hints copy to simplify processing.
+    if (!feedback.IsInsufficient()) {
+      speculation_mode = feedback.AsCall().speculation_mode();
+      base::Optional<HeapObjectRef> target = feedback.AsCall().target();
+      if (target.has_value() && target->map().is_callable()) {
+        // TODO(mvstanton): if the map isn't callable then we have an allocation
+        // site, and it may make sense to add the Array JSFunction constant.
+        if (new_target.has_value()) {
+          // Construct; feedback is new_target, which often is also the callee.
+          new_target->AddConstant(target->object());
+          callee.AddConstant(target->object());
+        } else {
+          // Call; target is callee.
+          callee.AddConstant(target->object());
+        }
       }
     }
   }
@@ -1717,14 +1760,9 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
 }
 
 void SerializerForBackgroundCompilation::ProcessCallVarArgs(
-    BytecodeArrayIterator* iterator, ConvertReceiverMode receiver_mode,
+    ConvertReceiverMode receiver_mode, Hints const& callee,
+    interpreter::Register first_reg, int reg_count, FeedbackSlot slot,
     bool with_spread) {
-  const Hints& callee =
-      environment()->register_hints(iterator->GetRegisterOperand(0));
-  interpreter::Register first_reg = iterator->GetRegisterOperand(1);
-  int reg_count = static_cast<int>(iterator->GetRegisterCountOperand(2));
-  FeedbackSlot slot = iterator->GetSlotOperand(3);
-
   HintsVector arguments(zone());
   // The receiver is either given in the first register or it is implicitly
   // the {undefined} value.
@@ -1860,11 +1898,41 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
         ProcessHintsForRegExpTest(regexp_hints);
       }
       break;
-    case Builtins::kFunctionPrototypeCall:
-      if (arguments.size() >= 1 &&
+    case Builtins::kArrayEvery:
+    case Builtins::kArrayFilter:
+    case Builtins::kArrayForEach:
+    case Builtins::kArrayPrototypeFind:
+    case Builtins::kArrayPrototypeFindIndex:
+    case Builtins::kArrayMap:
+    case Builtins::kArrayReduce:
+    case Builtins::kArrayReduceRight:
+    case Builtins::kArraySome:
+      if (arguments.size() >= 2 &&
           speculation_mode != SpeculationMode::kDisallowSpeculation) {
-        Hints const& target_hints = arguments[0];
-        ProcessHintsForFunctionCall(target_hints);
+        Hints const& callback_hints = arguments[1];
+        ProcessHintsForFunctionCall(callback_hints);
+      }
+      break;
+    case Builtins::kFunctionPrototypeApply:
+    case Builtins::kFunctionPrototypeCall:
+    case Builtins::kPromiseConstructor:
+      // TODO(mslekova): Since the reducer for all these introduce a
+      // JSCall/JSConstruct that will again get optimized by the JSCallReducer,
+      // we basically might have to do all the serialization that we do for that
+      // here as well.  The only difference is that the new JSCall/JSConstruct
+      // has speculation disabled, causing the JSCallReducer to do much less
+      // work. To account for that, ProcessCallOrConstruct should have a way of
+      // taking the speculation mode as an argument rather than getting that
+      // from the feedback. (Also applies to Reflect.apply and
+      // Reflect.construct.)
+      if (arguments.size() >= 1) {
+        ProcessHintsForFunctionCall(arguments[0]);
+      }
+      break;
+    case Builtins::kReflectApply:
+    case Builtins::kReflectConstruct:
+      if (arguments.size() >= 2) {
+        ProcessHintsForFunctionCall(arguments[1]);
       }
       break;
     case Builtins::kObjectPrototypeIsPrototypeOf:
@@ -2018,9 +2086,7 @@ void SerializerForBackgroundCompilation::ProcessHintsForRegExpTest(
 void SerializerForBackgroundCompilation::ProcessHintsForFunctionCall(
     Hints const& target_hints) {
   for (auto constant : target_hints.constants()) {
-    if (!constant->IsJSFunction()) continue;
-    JSFunctionRef func(broker(), constant);
-    func.Serialize();
+    if (constant->IsJSFunction()) JSFunctionRef(broker(), constant).Serialize();
   }
 }
 
@@ -2573,6 +2639,8 @@ void SerializerForBackgroundCompilation::VisitLdaNamedProperty(
   ProcessNamedPropertyAccess(receiver, name, slot, AccessMode::kLoad);
 }
 
+// TODO(neis): Do feedback-independent serialization also for *NoFeedback
+// bytecodes.
 void SerializerForBackgroundCompilation::VisitLdaNamedPropertyNoFeedback(
     BytecodeArrayIterator* iterator) {
   NameRef(broker(),
