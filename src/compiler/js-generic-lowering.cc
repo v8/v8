@@ -150,11 +150,6 @@ void JSGenericLowering::LowerJSStrictEqual(Node* node) {
 namespace {
 bool ShouldUseMegamorphicLoadBuiltin(FeedbackSource const& source,
                                      JSHeapBroker* broker) {
-  if (!FLAG_concurrent_inlining) {
-    // TODO(mslekova): This temporary patch might result in a performance
-    // issue. Remove it once the flag is no longer relevant.
-    return false;
-  }
   ProcessedFeedback const& feedback = broker->GetFeedback(source);
 
   if (feedback.kind() == ProcessedFeedback::kElementAccess) {

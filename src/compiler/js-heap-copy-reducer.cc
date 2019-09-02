@@ -121,11 +121,21 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       }
       break;
     }
-    case IrOpcode::kJSLoadNamed:
+    case IrOpcode::kJSLoadNamed: {
+      if (!FLAG_concurrent_inlining) {
+        NamedAccess const& p = NamedAccessOf(node->op());
+        NameRef name(broker(), p.name());
+        if (p.feedback().IsValid()) {
+          broker()->ProcessFeedbackForPropertyAccess(p.feedback(),
+                                                     AccessMode::kLoad, name);
+        }
+      }
+      break;
+    }
     case IrOpcode::kJSStoreNamed: {
       if (!FLAG_concurrent_inlining) {
         NamedAccess const& p = NamedAccessOf(node->op());
-        NameRef(broker(), p.name());
+        NameRef name(broker(), p.name());
       }
       break;
     }
@@ -172,7 +182,17 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       }
       break;
     }
-
+    case IrOpcode::kJSLoadProperty: {
+      if (!FLAG_concurrent_inlining) {
+        PropertyAccess const& p = PropertyAccessOf(node->op());
+        AccessMode access_mode = AccessMode::kLoad;
+        if (p.feedback().IsValid()) {
+          broker()->ProcessFeedbackForPropertyAccess(p.feedback(), access_mode,
+                                                     base::nullopt);
+        }
+      }
+      break;
+    }
     default:
       break;
   }

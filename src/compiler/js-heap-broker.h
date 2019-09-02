@@ -115,10 +115,10 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   // Binary, comparison and for-in hints can be fully expressed via
   // an enum. Insufficient feedback is signaled by <Hint enum>::kNone.
   BinaryOperationHint GetFeedbackForBinaryOperation(
-      FeedbackSource const& source) const;
+      FeedbackSource const& source);
   CompareOperationHint GetFeedbackForCompareOperation(
-      FeedbackSource const& source) const;
-  ForInHint GetFeedbackForForIn(FeedbackSource const& source) const;
+      FeedbackSource const& source);
+  ForInHint GetFeedbackForForIn(FeedbackSource const& source);
 
   ProcessedFeedback const& GetFeedbackForCall(FeedbackSource const& source);
   ProcessedFeedback const& GetFeedbackForGlobalAccess(

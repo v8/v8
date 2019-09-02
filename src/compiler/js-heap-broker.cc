@@ -4422,25 +4422,27 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCall(
 }
 
 BinaryOperationHint JSHeapBroker::GetFeedbackForBinaryOperation(
-    FeedbackSource const& source) const {
-  if (!FLAG_concurrent_inlining) return ReadFeedbackForBinaryOperation(source);
-  ProcessedFeedback const& feedback = GetFeedback(source);
+    FeedbackSource const& source) {
+  ProcessedFeedback const& feedback =
+      FLAG_concurrent_inlining ? GetFeedback(source)
+                               : ProcessFeedbackForBinaryOperation(source);
   return feedback.IsInsufficient() ? BinaryOperationHint::kNone
                                    : feedback.AsBinaryOperation().value();
 }
 
 CompareOperationHint JSHeapBroker::GetFeedbackForCompareOperation(
-    FeedbackSource const& source) const {
-  if (!FLAG_concurrent_inlining) return ReadFeedbackForCompareOperation(source);
-  ProcessedFeedback const& feedback = GetFeedback(source);
+    FeedbackSource const& source) {
+  ProcessedFeedback const& feedback =
+      FLAG_concurrent_inlining ? GetFeedback(source)
+                               : ProcessFeedbackForCompareOperation(source);
   return feedback.IsInsufficient() ? CompareOperationHint::kNone
                                    : feedback.AsCompareOperation().value();
 }
 
-ForInHint JSHeapBroker::GetFeedbackForForIn(
-    FeedbackSource const& source) const {
-  if (!FLAG_concurrent_inlining) return ReadFeedbackForForIn(source);
-  ProcessedFeedback const& feedback = GetFeedback(source);
+ForInHint JSHeapBroker::GetFeedbackForForIn(FeedbackSource const& source) {
+  ProcessedFeedback const& feedback = FLAG_concurrent_inlining
+                                          ? GetFeedback(source)
+                                          : ProcessFeedbackForForIn(source);
   return feedback.IsInsufficient() ? ForInHint::kNone
                                    : feedback.AsForIn().value();
 }
@@ -4450,25 +4452,25 @@ ProcessedFeedback const& JSHeapBroker::GetFeedbackForPropertyAccess(
     base::Optional<NameRef> static_name) {
   return FLAG_concurrent_inlining
              ? GetFeedback(source)
-             : ReadFeedbackForPropertyAccess(source, mode, static_name);
+             : ProcessFeedbackForPropertyAccess(source, mode, static_name);
 }
 
 ProcessedFeedback const& JSHeapBroker::GetFeedbackForInstanceOf(
     FeedbackSource const& source) {
   return FLAG_concurrent_inlining ? GetFeedback(source)
-                                  : ReadFeedbackForInstanceOf(source);
+                                  : ProcessFeedbackForInstanceOf(source);
 }
 
 ProcessedFeedback const& JSHeapBroker::GetFeedbackForCall(
     FeedbackSource const& source) {
   return FLAG_concurrent_inlining ? GetFeedback(source)
-                                  : ReadFeedbackForCall(source);
+                                  : ProcessFeedbackForCall(source);
 }
 
 ProcessedFeedback const& JSHeapBroker::GetFeedbackForGlobalAccess(
     FeedbackSource const& source) {
   return FLAG_concurrent_inlining ? GetFeedback(source)
-                                  : ReadFeedbackForGlobalAccess(source);
+                                  : ProcessFeedbackForGlobalAccess(source);
 }
 
 ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForBinaryOperation(
