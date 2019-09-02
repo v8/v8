@@ -6251,7 +6251,7 @@ MaybeLocal<String> v8::String::NewExternalTwoByte(
 
 MaybeLocal<String> v8::String::NewExternalOneByte(
     Isolate* isolate, v8::String::ExternalOneByteStringResource* resource) {
-  CHECK(resource && resource->data());
+  CHECK_NOT_NULL(resource);
   // TODO(dcarney): throw a context free exception.
   if (resource->length() > static_cast<size_t>(i::String::kMaxLength)) {
     return MaybeLocal<String>();
@@ -6259,16 +6259,16 @@ MaybeLocal<String> v8::String::NewExternalOneByte(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   LOG_API(i_isolate, String, NewExternalOneByte);
-  if (resource->length() > 0) {
-    i::Handle<i::String> string = i_isolate->factory()
-                                      ->NewExternalStringFromOneByte(resource)
-                                      .ToHandleChecked();
-    return Utils::ToLocal(string);
-  } else {
+  if (resource->length() == 0) {
     // The resource isn't going to be used, free it immediately.
     resource->Dispose();
     return Utils::ToLocal(i_isolate->factory()->empty_string());
   }
+  CHECK_NOT_NULL(resource->data());
+  i::Handle<i::String> string = i_isolate->factory()
+                                    ->NewExternalStringFromOneByte(resource)
+                                    .ToHandleChecked();
+  return Utils::ToLocal(string);
 }
 
 bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
