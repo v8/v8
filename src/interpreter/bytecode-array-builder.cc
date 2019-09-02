@@ -100,9 +100,8 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(Isolate* isolate) {
 }
 
 #ifdef DEBUG
-void BytecodeArrayBuilder::CheckBytecodeMatches(
-    Handle<BytecodeArray> bytecode) {
-  bytecode_array_writer_.CheckBytecodeMatches(bytecode);
+int BytecodeArrayBuilder::CheckBytecodeMatches(Handle<BytecodeArray> bytecode) {
+  return bytecode_array_writer_.CheckBytecodeMatches(bytecode);
 }
 #endif
 

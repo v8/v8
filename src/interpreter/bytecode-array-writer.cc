@@ -62,14 +62,27 @@ Handle<ByteArray> BytecodeArrayWriter::ToSourcePositionTable(Isolate* isolate) {
 }
 
 #ifdef DEBUG
-void BytecodeArrayWriter::CheckBytecodeMatches(Handle<BytecodeArray> bytecode) {
+int BytecodeArrayWriter::CheckBytecodeMatches(Handle<BytecodeArray> bytecode) {
+  int mismatches = false;
   int bytecode_size = static_cast<int>(bytecodes()->size());
   const byte* bytecode_ptr = &bytecodes()->front();
-  CHECK_EQ(bytecode_size, bytecode->length());
+  if (bytecode_size != bytecode->length()) mismatches = true;
 
-  for (int i = 0; i < bytecode_size; ++i) {
-    CHECK_EQ(bytecode_ptr[i], bytecode->get(i));
+  // If there's a mismatch only in the length of the bytecode (very unlikely)
+  // then the first mismatch will be the first extra bytecode.
+  int first_mismatch = std::min(bytecode_size, bytecode->length());
+  for (int i = 0; i < first_mismatch; ++i) {
+    if (bytecode_ptr[i] != bytecode->get(i)) {
+      mismatches = true;
+      first_mismatch = i;
+      break;
+    }
   }
+
+  if (mismatches) {
+    return first_mismatch;
+  }
+  return -1;
 }
 #endif
 

@@ -46,7 +46,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   Handle<ByteArray> ToSourcePositionTable(Isolate* isolate);
 
 #ifdef DEBUG
-  void CheckBytecodeMatches(Handle<BytecodeArray> bytecode);
+  int CheckBytecodeMatches(Handle<BytecodeArray> bytecode);
 #endif
 
   // Get the number of parameters expected by function.

@@ -1074,8 +1074,6 @@ Handle<ByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
   // Unoptimized compilation should be context-independent. Verify that we don't
   // access the native context by nulling it out during finalization.
   NullContextScope null_context_scope(isolate);
-
-  builder()->CheckBytecodeMatches(info_->bytecode_array());
 #endif
 
   Handle<ByteArray> source_position_table =
@@ -1088,6 +1086,12 @@ Handle<ByteArray> BytecodeGenerator::FinalizeSourcePositionTable(
 
   return source_position_table;
 }
+
+#ifdef DEBUG
+int BytecodeGenerator::CheckBytecodeMatches(Handle<BytecodeArray> bytecode) {
+  return builder()->CheckBytecodeMatches(bytecode);
+}
+#endif
 
 void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate,
                                                   Handle<Script> script) {

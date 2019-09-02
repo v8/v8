@@ -41,6 +41,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                          Handle<Script> script);
   Handle<ByteArray> FinalizeSourcePositionTable(Isolate* isolate);
 
+#ifdef DEBUG
+  int CheckBytecodeMatches(Handle<BytecodeArray> bytecode);
+#endif
+
 #define DECLARE_VISIT(type) void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT

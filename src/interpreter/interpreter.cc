@@ -9,6 +9,7 @@
 
 #include "builtins-generated/bytecodes-builtins-list.h"
 #include "src/ast/prettyprinter.h"
+#include "src/ast/scopes.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/unoptimized-compilation-info.h"
 #include "src/init/bootstrapper.h"
@@ -42,6 +43,8 @@ class InterpreterCompilationJob final : public UnoptimizedCompilationJob {
 
  private:
   BytecodeGenerator* generator() { return &generator_; }
+  void CheckAndPrintBytecodeMismatch(Isolate* isolate,
+                                     Handle<BytecodeArray> bytecode);
 
   Zone zone_;
   UnoptimizedCompilationInfo compilation_info_;
@@ -202,6 +205,25 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
   return SUCCEEDED;
 }
 
+#ifdef DEBUG
+void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
+    Isolate* isolate, Handle<BytecodeArray> bytecode) {
+  int first_mismatch = generator()->CheckBytecodeMatches(bytecode);
+  if (first_mismatch >= 0) {
+    parse_info()->ast_value_factory()->Internalize(isolate);
+    DeclarationScope::AllocateScopeInfos(parse_info(), isolate);
+
+    Handle<BytecodeArray> new_bytecode =
+        generator()->FinalizeBytecode(isolate, parse_info()->script());
+    std::cerr << "Bytecode mismatch\nOriginal bytecode:\n";
+    bytecode->Disassemble(std::cerr);
+    std::cerr << "\nNew bytecode:\n";
+    new_bytecode->Disassemble(std::cerr);
+    FATAL("Bytecode mismatch at offset %d\n", first_mismatch);
+  }
+}
+#endif
+
 InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
     Handle<SharedFunctionInfo> shared_info, Isolate* isolate) {
   RuntimeCallTimerScope runtimeTimerScope(
@@ -235,6 +257,10 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
     bytecodes->Disassemble(os);
     os << std::flush;
   }
+
+#ifdef DEBUG
+  CheckAndPrintBytecodeMismatch(isolate, bytecodes);
+#endif
 
   return SUCCEEDED;
 }
