@@ -24,6 +24,7 @@
 #include "src/logging/counters.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-regexp-inl.h"
 #include "src/objects/smi.h"
 #include "src/snapshot/natives.h"
 #include "src/trap-handler/trap-handler.h"
@@ -1045,6 +1046,24 @@ RUNTIME_FUNCTION(Runtime_SetWasmThreadsEnabled) {
   v8_isolate->SetWasmThreadsEnabledCallback(flag ? EnableWasmThreads
                                                  : DisableWasmThreads);
   return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_RegexpHasBytecode) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_CHECKED(JSRegExp, regexp, 0);
+  CONVERT_BOOLEAN_ARG_CHECKED(is_latin1, 1);
+  bool is_irregexp_bytecode = regexp.Bytecode(is_latin1).IsByteArray();
+  return isolate->heap()->ToBoolean(is_irregexp_bytecode);
+}
+
+RUNTIME_FUNCTION(Runtime_RegexpHasNativeCode) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_CHECKED(JSRegExp, regexp, 0);
+  CONVERT_BOOLEAN_ARG_CHECKED(is_latin1, 1);
+  bool is_irregexp_native_code = regexp.Code(is_latin1).IsCode();
+  return isolate->heap()->ToBoolean(is_irregexp_native_code);
 }
 
 #define ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(Name)      \

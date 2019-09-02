@@ -497,6 +497,8 @@ namespace internal {
   F(IsThreadInWasm, 0, 1)                     \
   F(IsWasmCode, 1, 1)                         \
   F(IsWasmTrapHandlerEnabled, 0, 1)           \
+  F(RegexpHasBytecode, 2, 1)                  \
+  F(RegexpHasNativeCode, 2, 1)                \
   F(MapIteratorProtector, 0, 1)               \
   F(NeverOptimizeFunction, 1, 1)              \
   F(NotifyContextDisposed, 0, 1)              \
