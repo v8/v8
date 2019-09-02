@@ -2566,6 +2566,7 @@ void ParserBase<Impl>::ParseArguments(
   Consume(Token::LPAREN);
   AccumulationScope accumulation_scope(expression_scope());
 
+  int variable_index = 0;
   while (peek() != Token::RPAREN) {
     int start_pos = peek_position();
     bool is_spread = Check(Token::ELLIPSIS);
@@ -2593,6 +2594,10 @@ void ParserBase<Impl>::ParseArguments(
       argument = factory()->NewSpread(argument, start_pos, expr_pos);
     }
     args->Add(argument);
+
+    variable_index =
+        expression_scope()->SetInitializers(variable_index, peek_position());
+
     if (!Check(Token::COMMA)) break;
   }
 
@@ -3123,7 +3128,6 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
     ParseArguments(&args, &has_spread, kMaybeArrowHead);
     if (V8_LIKELY(peek() == Token::ARROW)) {
       fni_.RemoveAsyncKeywordFromEnd();
-      expression_scope()->SetInitializers(0, peek_position());
       next_arrow_function_info_.scope = maybe_arrow.ValidateAndCreateScope();
       scope_snapshot.Reparent(next_arrow_function_info_.scope);
       // async () => ...
