@@ -1130,16 +1130,76 @@ void SerializerForBackgroundCompilation::VisitInvokeIntrinsic(
   Runtime::FunctionId functionId = iterator->GetIntrinsicIdOperand(0);
   // For JSNativeContextSpecialization::ReduceJSAsyncFunctionResolve and
   // JSNativeContextSpecialization::ReduceJSResolvePromise.
-  if (functionId == Runtime::kInlineAsyncFunctionResolve) {
-    interpreter::Register first_reg = iterator->GetRegisterOperand(1);
-    size_t reg_count = iterator->GetRegisterCountOperand(2);
-    CHECK_EQ(reg_count, 3);
-    HintsVector arguments(zone());
-    environment()->ExportRegisterHints(first_reg, reg_count, &arguments);
-    Hints const& resolution_hints = arguments[1];  // The resolution object.
-    ProcessHintsForPromiseResolve(resolution_hints);
-    environment()->accumulator_hints().Clear();
-    return;
+  switch (functionId) {
+    case Runtime::kInlineAsyncFunctionResolve: {
+      ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+                              Builtins::kAsyncFunctionResolve));
+      interpreter::Register first_reg = iterator->GetRegisterOperand(1);
+      size_t reg_count = iterator->GetRegisterCountOperand(2);
+      CHECK_EQ(reg_count, 3);
+      HintsVector arguments(zone());
+      environment()->ExportRegisterHints(first_reg, reg_count, &arguments);
+      Hints const& resolution_hints = arguments[1];  // The resolution object.
+      ProcessHintsForPromiseResolve(resolution_hints);
+      environment()->accumulator_hints().Clear();
+      return;
+    }
+    case Runtime::kInlineAsyncGeneratorReject:
+    case Runtime::kAsyncGeneratorReject: {
+      ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+                              Builtins::kAsyncGeneratorReject));
+      break;
+    }
+    case Runtime::kInlineAsyncGeneratorResolve:
+    case Runtime::kAsyncGeneratorResolve: {
+      ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+                              Builtins::kAsyncGeneratorResolve));
+      break;
+    }
+    case Runtime::kInlineAsyncGeneratorYield:
+    case Runtime::kAsyncGeneratorYield: {
+      ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+                              Builtins::kAsyncGeneratorYield));
+      break;
+    }
+    case Runtime::kInlineAsyncGeneratorAwaitUncaught:
+    case Runtime::kAsyncGeneratorAwaitUncaught: {
+      ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+                              Builtins::kAsyncGeneratorAwaitUncaught));
+      break;
+    }
+    case Runtime::kInlineAsyncGeneratorAwaitCaught:
+    case Runtime::kAsyncGeneratorAwaitCaught: {
+      ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+                              Builtins::kAsyncGeneratorAwaitCaught));
+      break;
+    }
+    case Runtime::kInlineAsyncFunctionAwaitUncaught:
+    case Runtime::kAsyncFunctionAwaitUncaught: {
+      ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+                              Builtins::kAsyncFunctionAwaitUncaught));
+      break;
+    }
+    case Runtime::kInlineAsyncFunctionAwaitCaught:
+    case Runtime::kAsyncFunctionAwaitCaught: {
+      ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+                              Builtins::kAsyncFunctionAwaitCaught));
+      break;
+    }
+    case Runtime::kInlineAsyncFunctionReject:
+    case Runtime::kAsyncFunctionReject: {
+      ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+                              Builtins::kAsyncFunctionReject));
+      break;
+    }
+    case Runtime::kAsyncFunctionResolve: {
+      ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+                              Builtins::kAsyncFunctionResolve));
+      break;
+    }
+    default: {
+      break;
+    }
   }
   environment()->ClearEphemeralHints();
 }
@@ -1976,6 +2036,18 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
       if (arguments.size() >= 1) {
         ProcessHintsForObjectGetPrototype(arguments[0]);
       }
+      break;
+    case Builtins::kMapIteratorPrototypeNext:
+      ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+                              Builtins::kOrderedHashTableHealIndex));
+      ObjectRef(broker(),
+                broker()->isolate()->factory()->empty_ordered_hash_map());
+      break;
+    case Builtins::kSetIteratorPrototypeNext:
+      ObjectRef(broker(), broker()->isolate()->builtins()->builtin_handle(
+                              Builtins::kOrderedHashTableHealIndex));
+      ObjectRef(broker(),
+                broker()->isolate()->factory()->empty_ordered_hash_set());
       break;
     default:
       break;
