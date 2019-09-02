@@ -646,6 +646,9 @@ TEST(TracePrologueCallingIntoV8WriteBarrier) {
                                 std::move(global));
   heap::TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
   SimulateIncrementalMarking(CcTest::i_isolate()->heap());
+  // Finish GC to avoid removing the tracer while GC is running which may end up
+  // in an infinite loop because of unprocessed objects.
+  heap::InvokeMarkSweep();
 }
 
 TEST(TracedGlobalWithDestructor) {

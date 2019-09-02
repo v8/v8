@@ -4811,6 +4811,8 @@ bool JSObject::IsApiWrapper() {
   return instance_type == JS_API_OBJECT_TYPE ||
          instance_type == JS_ARRAY_BUFFER_TYPE ||
          instance_type == JS_DATA_VIEW_TYPE ||
+         instance_type == JS_GLOBAL_OBJECT_TYPE ||
+         instance_type == JS_GLOBAL_PROXY_TYPE ||
          instance_type == JS_SPECIAL_API_OBJECT_TYPE ||
          instance_type == JS_TYPED_ARRAY_TYPE;
 }
