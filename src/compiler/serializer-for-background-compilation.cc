@@ -983,7 +983,12 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
   BytecodeArrayIterator iterator(bytecode_array());
   ExceptionHandlerMatcher handler_matcher(iterator, bytecode_array());
 
+  bool has_one_shot_bytecode = false;
   for (; !iterator.done(); iterator.Advance()) {
+    has_one_shot_bytecode =
+        has_one_shot_bytecode ||
+        interpreter::Bytecodes::IsOneShotBytecode(iterator.current_bytecode());
+
     int const current_offset = iterator.current_offset();
     IncorporateJumpTargetEnvironment(current_offset);
 
@@ -1021,6 +1026,11 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
         break;
       }
     }
+  }
+
+  if (has_one_shot_bytecode) {
+    broker()->isolate()->CountUsage(
+        v8::Isolate::UseCounterFeature::kOptimizedFunctionWithOneShotBytecode);
   }
 }
 

@@ -1322,7 +1322,7 @@ void BytecodeGraphBuilder::VisitBytecodes() {
     VisitSingleBytecode();
   }
 
-  if (has_one_shot_bytecode) {
+  if (!FLAG_concurrent_inlining && has_one_shot_bytecode) {
     isolate()->CountUsage(
         v8::Isolate::UseCounterFeature::kOptimizedFunctionWithOneShotBytecode);
   }
