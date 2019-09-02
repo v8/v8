@@ -34,11 +34,11 @@ std::ostream& operator<<(std::ostream& os, const ObjectRef& ref);
       broker->Trace() << x << '\n';                                  \
   } while (false)
 
-#define TRACE_BROKER_MISSING(broker, x)                        \
-  do {                                                         \
-    if (broker->tracing_enabled())                             \
-      broker->Trace() << __FUNCTION__ << " (line " << __LINE__ \
-                      << "): missing " << x << std::endl;      \
+#define TRACE_BROKER_MISSING(broker, x)                             \
+  do {                                                              \
+    if (broker->tracing_enabled())                                  \
+      broker->Trace() << "Missing " << x << " (" << __FILE__ << ":" \
+                      << __LINE__ << ")" << std::endl;              \
   } while (false)
 
 struct PropertyAccessTarget {
