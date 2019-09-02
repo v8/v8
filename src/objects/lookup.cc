@@ -236,10 +236,17 @@ void LookupIterator::InternalUpdateProtector() {
   if (!receiver_->IsHeapObject()) return;
   Handle<HeapObject> receiver = Handle<HeapObject>::cast(receiver_);
 
+  // Getting the native_context from the isolate as a fallback. If possible, we
+  // use the receiver's creation context instead.
   Handle<NativeContext> native_context = isolate_->native_context();
 
   ReadOnlyRoots roots(isolate_);
   if (*name_ == roots.constructor_string()) {
+    // Fetching the context in here since the operation is rather expensive.
+    if (receiver->IsJSReceiver()) {
+      native_context = Handle<JSReceiver>::cast(receiver)->GetCreationContext();
+    }
+
     if (!isolate_->IsArraySpeciesLookupChainIntact() &&
         !isolate_->IsPromiseSpeciesLookupChainIntact() &&
         !Protectors::IsRegExpSpeciesLookupChainProtectorIntact(
@@ -331,6 +338,11 @@ void LookupIterator::InternalUpdateProtector() {
       isolate_->InvalidateStringIteratorProtector();
     }
   } else if (*name_ == roots.species_symbol()) {
+    // Fetching the context in here since the operation is rather expensive.
+    if (receiver->IsJSReceiver()) {
+      native_context = Handle<JSReceiver>::cast(receiver)->GetCreationContext();
+    }
+
     if (!isolate_->IsArraySpeciesLookupChainIntact() &&
         !isolate_->IsPromiseSpeciesLookupChainIntact() &&
         !Protectors::IsRegExpSpeciesLookupChainProtectorIntact(

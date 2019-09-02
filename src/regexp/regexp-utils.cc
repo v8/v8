@@ -187,7 +187,7 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
   // case.
 
   if (!Protectors::IsRegExpSpeciesLookupChainProtectorIntact(
-          isolate->native_context())) {
+          recv.GetCreationContext())) {
     return false;
   }
 
