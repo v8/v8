@@ -462,13 +462,8 @@ class MachineRepresentationChecker {
             break;
           case IrOpcode::kWord64Equal:
             if (Is64()) {
-              if (COMPRESS_POINTERS_BOOL) {
-                CheckValueInputForInt64Op(node, 0);
-                CheckValueInputForInt64Op(node, 1);
-              } else {
-                CheckValueInputIsTaggedOrPointer(node, 0);
-                CheckValueInputIsTaggedOrPointer(node, 1);
-              }
+              CheckValueInputIsTaggedOrPointer(node, 0);
+              CheckValueInputIsTaggedOrPointer(node, 1);
               if (!is_stub_) {
                 CheckValueInputRepresentationIs(
                     node, 1, inferrer_->GetRepresentation(node->InputAt(0)));
@@ -520,15 +515,8 @@ class MachineRepresentationChecker {
                     node, 1, inferrer_->GetRepresentation(node->InputAt(0)));
               }
             } else {
-              if (COMPRESS_POINTERS_BOOL) {
-                // We explicitly allow 64-bit tagged values into Word32Equal,
-                // for truncating tagged pointer comparison.
-                CheckValueIsCompressedOrTaggedOrInt32(node, 0);
-                CheckValueIsCompressedOrTaggedOrInt32(node, 0);
-              } else {
-                CheckValueIsCompressedOrInt32(node, 0);
-                CheckValueIsCompressedOrInt32(node, 1);
-              }
+              CheckValueIsCompressedOrInt32(node, 0);
+              CheckValueIsCompressedOrInt32(node, 1);
             }
             break;
 
@@ -891,34 +879,6 @@ class MachineRepresentationChecker {
     str << "TypeError: node #" << node->id() << ":" << *node->op()
         << " uses node #" << input->id() << ":" << *input->op()
         << " which doesn't have a compressed or int32-compatible "
-           "representation.";
-    PrintDebugHelp(str, node);
-    FATAL("%s", str.str().c_str());
-  }
-
-  void CheckValueIsCompressedOrTaggedOrInt32(Node const* node, int index) {
-    Node const* input = node->InputAt(index);
-    switch (inferrer_->GetRepresentation(input)) {
-      case MachineRepresentation::kBit:
-      case MachineRepresentation::kWord8:
-      case MachineRepresentation::kWord16:
-      case MachineRepresentation::kWord32:
-        return;
-      case MachineRepresentation::kTagged:
-      case MachineRepresentation::kTaggedPointer:
-      case MachineRepresentation::kTaggedSigned:
-        return;
-      case MachineRepresentation::kCompressed:
-      case MachineRepresentation::kCompressedSigned:
-      case MachineRepresentation::kCompressedPointer:
-        return;
-      default:
-        break;
-    }
-    std::ostringstream str;
-    str << "TypeError: node #" << node->id() << ":" << *node->op()
-        << " uses node #" << input->id() << ":" << *input->op()
-        << " which doesn't have a compressed, tagged, or int32-compatible "
            "representation.";
     PrintDebugHelp(str, node);
     FATAL("%s", str.str().c_str());

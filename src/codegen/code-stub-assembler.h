@@ -470,32 +470,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<BoolT> TaggedEqual(TNode<UnionT<Object, MaybeObject>> a,
                            TNode<UnionT<Object, MaybeObject>> b) {
-    // We use very sketchy looking ReinterpretCasts here to avoid adding bit
-    // casts (which mess with GVN since they introduce themselves into the
-    // effect chain). It happens to be safe here, but don't try this at home!
-    if (kTaggedSize == kInt64Size) {
-      return WordEqual(ReinterpretCast<WordT>(a), ReinterpretCast<WordT>(b));
-    } else {
-      DCHECK_EQ(kTaggedSize, kInt32Size);
-      // These casts will also truncate under pointer compression.
-      return Word32Equal(ReinterpretCast<Word32T>(a),
-                         ReinterpretCast<Word32T>(b));
-    }
+    // In pointer-compressed architectures, the instruction selector will narrow
+    // this comparison to a 32-bit one.
+    return WordEqual(ReinterpretCast<WordT>(a), ReinterpretCast<WordT>(b));
   }
 
   TNode<BoolT> TaggedNotEqual(TNode<UnionT<Object, MaybeObject>> a,
                               TNode<UnionT<Object, MaybeObject>> b) {
-    // We use very sketchy looking ReinterpretCasts here to avoid adding bit
-    // casts (which mess with GVN since they introduce themselves into the
-    // effect chain). It happens to be safe here, but don't try this at home!
-    if (kTaggedSize == kInt64Size) {
-      return WordNotEqual(ReinterpretCast<WordT>(a), ReinterpretCast<WordT>(b));
-    } else {
-      DCHECK_EQ(kTaggedSize, kInt32Size);
-      // These casts will also truncate under pointer compression.
-      return Word32NotEqual(ReinterpretCast<Word32T>(a),
-                            ReinterpretCast<Word32T>(b));
-    }
+    // In pointer-compressed architectures, the instruction selector will narrow
+    // this comparison to a 32-bit one.
+    return WordNotEqual(ReinterpretCast<WordT>(a), ReinterpretCast<WordT>(b));
   }
 
   TNode<Object> NoContextConstant();
