@@ -132,7 +132,8 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   // for properties stored in the descriptor array.
   if (details.location() == kField) {
     DisallowHeapAllocation no_allocation;
-    isolate->heap()->NotifyObjectLayoutChange(*receiver, no_allocation);
+    isolate->heap()->NotifyObjectLayoutChange(
+        *receiver, receiver_map->instance_size(), no_allocation);
     FieldIndex index =
         FieldIndex::ForPropertyIndex(*receiver_map, details.field_index());
     // Special case deleting the last out-of object property.

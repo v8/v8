@@ -613,7 +613,8 @@ void SharedFunctionInfo::ClearPreparseData() {
   Heap* heap = GetHeapFromWritableObject(data);
 
   // Swap the map.
-  heap->NotifyObjectLayoutChange(data, no_gc);
+  heap->NotifyObjectLayoutChange(data, UncompiledDataWithPreparseData::kSize,
+                                 no_gc);
   STATIC_ASSERT(UncompiledDataWithoutPreparseData::kSize <
                 UncompiledDataWithPreparseData::kSize);
   STATIC_ASSERT(UncompiledDataWithoutPreparseData::kSize ==

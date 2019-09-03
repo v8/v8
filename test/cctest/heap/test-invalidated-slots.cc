@@ -70,7 +70,8 @@ HEAP_TEST(InvalidatedSlotsSomeInvalidatedRanges) {
   Page* page = AllocateByteArraysOnPage(heap, &byte_arrays);
   // Register every second byte arrays as invalidated.
   for (size_t i = 0; i < byte_arrays.size(); i += 2) {
-    page->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(byte_arrays[i]);
+    page->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(byte_arrays[i],
+                                                         byte_arrays[i].Size());
   }
   InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToOld(page);
   for (size_t i = 0; i < byte_arrays.size(); i++) {
@@ -94,7 +95,8 @@ HEAP_TEST(InvalidatedSlotsAllInvalidatedRanges) {
   Page* page = AllocateByteArraysOnPage(heap, &byte_arrays);
   // Register the all byte arrays as invalidated.
   for (size_t i = 0; i < byte_arrays.size(); i++) {
-    page->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(byte_arrays[i]);
+    page->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(byte_arrays[i],
+                                                         byte_arrays[i].Size());
   }
   InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToOld(page);
   for (size_t i = 0; i < byte_arrays.size(); i++) {
@@ -115,7 +117,8 @@ HEAP_TEST(InvalidatedSlotsAfterTrimming) {
   Page* page = AllocateByteArraysOnPage(heap, &byte_arrays);
   // Register the all byte arrays as invalidated.
   for (size_t i = 0; i < byte_arrays.size(); i++) {
-    page->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(byte_arrays[i]);
+    page->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(byte_arrays[i],
+                                                         byte_arrays[i].Size());
   }
   // Trim byte arrays and check that the slots outside the byte arrays are
   // considered invalid if the old space page was swept.
@@ -142,7 +145,8 @@ HEAP_TEST(InvalidatedSlotsEvacuationCandidate) {
   // This should be no-op because the page is marked as evacuation
   // candidate.
   for (size_t i = 0; i < byte_arrays.size(); i++) {
-    page->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(byte_arrays[i]);
+    page->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(byte_arrays[i],
+                                                         byte_arrays[i].Size());
   }
   // All slots must still be valid.
   InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToOld(page);
@@ -165,7 +169,8 @@ HEAP_TEST(InvalidatedSlotsResetObjectRegression) {
   heap->RightTrimFixedArray(byte_arrays[0], byte_arrays[0].length() - 8);
   // Register the all byte arrays as invalidated.
   for (size_t i = 0; i < byte_arrays.size(); i++) {
-    page->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(byte_arrays[i]);
+    page->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(byte_arrays[i],
+                                                         byte_arrays[i].Size());
   }
   // All slots must still be invalid.
   InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToOld(page);
@@ -354,7 +359,8 @@ HEAP_TEST(InvalidatedSlotsCleanupFull) {
   Page* page = AllocateByteArraysOnPage(heap, &byte_arrays);
   // Register all byte arrays as invalidated.
   for (size_t i = 0; i < byte_arrays.size(); i++) {
-    page->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(byte_arrays[i]);
+    page->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(byte_arrays[i],
+                                                         byte_arrays[i].Size());
   }
 
   // Mark full page as free
@@ -373,7 +379,8 @@ HEAP_TEST(InvalidatedSlotsCleanupEachObject) {
   Page* page = AllocateByteArraysOnPage(heap, &byte_arrays);
   // Register all byte arrays as invalidated.
   for (size_t i = 0; i < byte_arrays.size(); i++) {
-    page->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(byte_arrays[i]);
+    page->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(byte_arrays[i],
+                                                         byte_arrays[i].Size());
   }
 
   // Mark each object as free on page
@@ -398,9 +405,11 @@ HEAP_TEST(InvalidatedSlotsCleanupRightTrim) {
 
   CHECK_GT(byte_arrays.size(), 1);
   ByteArray& invalidated = byte_arrays[1];
+  int invalidated_size = invalidated.Size();
 
   heap->RightTrimFixedArray(invalidated, invalidated.length() - 8);
-  page->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(invalidated);
+  page->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(invalidated,
+                                                       invalidated_size);
 
   // Free memory at end of invalidated object
   InvalidatedSlotsCleanup cleanup = InvalidatedSlotsCleanup::OldToNew(page);
@@ -409,6 +418,8 @@ HEAP_TEST(InvalidatedSlotsCleanupRightTrim) {
 
   // After cleanup the invalidated object should be smaller
   InvalidatedSlots* invalidated_slots = page->invalidated_slots<OLD_TO_NEW>();
+  CHECK_GE((*invalidated_slots)[HeapObject::FromAddress(invalidated.address())],
+           invalidated.Size());
   CHECK_EQ(invalidated_slots->size(), 1);
 }
 

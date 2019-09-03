@@ -3420,6 +3420,13 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     }
 
     if (chunk_->invalidated_slots<OLD_TO_NEW>() != nullptr) {
+#ifdef DEBUG
+      for (auto object_size : *chunk_->invalidated_slots<OLD_TO_NEW>()) {
+        HeapObject object = object_size.first;
+        int size = object_size.second;
+        DCHECK_LE(object.SizeFromMap(object.map()), size);
+      }
+#endif
       // The invalidated slots are not needed after old-to-new slots were
       // processed.
       chunk_->ReleaseInvalidatedSlots<OLD_TO_NEW>();
@@ -3438,6 +3445,13 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     }
     if ((updating_mode_ == RememberedSetUpdatingMode::ALL) &&
         chunk_->invalidated_slots<OLD_TO_OLD>() != nullptr) {
+#ifdef DEBUG
+      for (auto object_size : *chunk_->invalidated_slots<OLD_TO_OLD>()) {
+        HeapObject object = object_size.first;
+        int size = object_size.second;
+        DCHECK_LE(object.SizeFromMap(object.map()), size);
+      }
+#endif
       // The invalidated slots are not needed after old-to-old slots were
       // processsed.
       chunk_->ReleaseInvalidatedSlots<OLD_TO_OLD>();

@@ -895,7 +895,8 @@ class Heap {
 
   // The runtime uses this function to notify potentially unsafe object layout
   // changes that require special synchronization with the concurrent marker.
-  void NotifyObjectLayoutChange(HeapObject object,
+  // The old size is the size of the object before layout change.
+  void NotifyObjectLayoutChange(HeapObject object, int old_size,
                                 const DisallowHeapAllocation&);
 
 #ifdef VERIFY_HEAP

@@ -3,35 +3,52 @@
 // found in the LICENSE file.
 
 #include "src/heap/invalidated-slots.h"
-#include "src/heap/invalidated-slots-inl.h"
 #include "src/heap/spaces.h"
-#include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 
 InvalidatedSlotsFilter InvalidatedSlotsFilter::OldToOld(MemoryChunk* chunk) {
-  return InvalidatedSlotsFilter(chunk, chunk->invalidated_slots<OLD_TO_OLD>());
+  // The sweeper removes invalid slots and makes free space available for
+  // allocation. Slots for new objects can be recorded in the free space.
+  // Note that we cannot simply check for SweepingDone because pages in large
+  // object space are not swept but have SweepingDone() == true.
+  bool slots_in_free_space_are_valid =
+      chunk->SweepingDone() && chunk->InOldSpace();
+  return InvalidatedSlotsFilter(chunk, chunk->invalidated_slots<OLD_TO_OLD>(),
+                                slots_in_free_space_are_valid);
 }
 
 InvalidatedSlotsFilter InvalidatedSlotsFilter::OldToNew(MemoryChunk* chunk) {
-  return InvalidatedSlotsFilter(chunk, chunk->invalidated_slots<OLD_TO_NEW>());
+  // Always treat these slots as valid for old-to-new for now. Invalid
+  // old-to-new slots are always cleared.
+  bool slots_in_free_space_are_valid = true;
+  return InvalidatedSlotsFilter(chunk, chunk->invalidated_slots<OLD_TO_NEW>(),
+                                slots_in_free_space_are_valid);
 }
 
 InvalidatedSlotsFilter::InvalidatedSlotsFilter(
-    MemoryChunk* chunk, InvalidatedSlots* invalidated_slots) {
+    MemoryChunk* chunk, InvalidatedSlots* invalidated_slots,
+    bool slots_in_free_space_are_valid) {
+  // Adjust slots_in_free_space_are_valid_ if more spaces are added.
+  DCHECK_IMPLIES(invalidated_slots != nullptr,
+                 chunk->InOldSpace() || chunk->InLargeObjectSpace());
+
+  slots_in_free_space_are_valid_ = slots_in_free_space_are_valid;
   invalidated_slots = invalidated_slots ? invalidated_slots : &empty_;
 
   iterator_ = invalidated_slots->begin();
   iterator_end_ = invalidated_slots->end();
   sentinel_ = chunk->area_end();
-
-  // Invoke NextInvalidatedObject twice, to initialize
-  // invalidated_start_ to the first invalidated object and
-  // next_invalidated_object_ to the second one.
-  NextInvalidatedObject();
-  NextInvalidatedObject();
-
+  if (iterator_ != iterator_end_) {
+    invalidated_start_ = iterator_->first.address();
+    invalidated_end_ = invalidated_start_ + iterator_->second;
+  } else {
+    invalidated_start_ = sentinel_;
+    invalidated_end_ = sentinel_;
+  }
+  // These values will be lazily set when needed.
+  invalidated_object_size_ = 0;
 #ifdef DEBUG
   last_slot_ = chunk->area_start();
 #endif
@@ -52,7 +69,13 @@ InvalidatedSlotsCleanup::InvalidatedSlotsCleanup(
   iterator_end_ = invalidated_slots_->end();
   sentinel_ = chunk->area_end();
 
-  NextInvalidatedObject();
+  if (iterator_ != iterator_end_) {
+    invalidated_start_ = iterator_->first.address();
+    invalidated_end_ = invalidated_start_ + iterator_->second;
+  } else {
+    invalidated_start_ = sentinel_;
+    invalidated_end_ = sentinel_;
+  }
 
 #ifdef DEBUG
   last_free_ = chunk->area_start();
