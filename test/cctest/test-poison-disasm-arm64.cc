@@ -49,8 +49,8 @@ TEST(DisasmPoisonMonomorphicLoad) {
       "b.ne",                                              // deopt if different
       "csel " + kPReg + ", xzr, " + kPReg + ", ne",        // update the poison
       "csdb",                                              // spec. barrier
-      "ldursw <<Field:x[0-9]+>>, \\[<<Obj>>, #[0-9]+\\]",  // load the field
-      "and <<Field>>, <<Field>>, " + kPReg,                // apply the poison
+      "ldursw x<<Field:[0-9]+>>, \\[<<Obj>>, #[0-9]+\\]",  // load the field
+      "and x<<Field>>, x<<Field>>, " + kPReg,              // apply the poison
   };
 #else
   std::vector<std::string> patterns_array = {
@@ -150,57 +150,6 @@ TEST(DisasmPoisonPolymorphicLoad) {
   };
 #endif
   CHECK(CheckDisassemblyRegexPatterns("poly", patterns_array));
-#endif  // ENABLE_DISASSEMBLER
-}
-
-TEST(DisasmPoisonMonomorphicLoadFloat64) {
-#ifdef ENABLE_DISASSEMBLER
-  if (i::FLAG_always_opt || !i::FLAG_opt) return;
-
-  i::FLAG_allow_natives_syntax = true;
-  i::FLAG_untrusted_code_mitigations = true;
-
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-
-  CompileRun(
-      "function mono(o) { return o.x; }"
-      "%PrepareFunctionForOptimization(mono);"
-      "mono({ x : 1.1 });"
-      "mono({ x : 1.1 });"
-      "%OptimizeFunctionOnNextCall(mono);"
-      "mono({ x : 1.1 });");
-
-  // Matches that the property access sequence is instrumented with
-  // poisoning.
-#if defined(V8_COMPRESS_POINTERS)
-  std::vector<std::string> patterns_array = {
-      "ldur <<Map:w[0-9]+>>, \\[<<Obj:x[0-9]+>>, #-1\\]",  // load map
-      "ldr <<ExpMap:w[0-9]+>>, pc",                        // load expected map
-      "cmp <<Map>>, <<ExpMap>>",                           // compare maps
-      "b.ne",                                              // deopt if differ
-      "csel " + kPReg + ", xzr, " + kPReg + ", ne",        // update the poison
-      "csdb",                                              // spec. barrier
-      "ldursw <<F1:x[0-9]+>>, \\[<<Obj>>, #11\\]",         // load field
-      "add <<F1>>, x26, <<F1>>",                           // Decompress ref
-      "add <<Addr:x[0-9]+>>, <<F1>>, #0x[0-9a-f]+",        // addr. calculation
-      "and <<Addr>>, <<Addr>>, " + kPReg,                  // apply the poison
-      "ldr d[0-9]+, \\[<<Addr>>\\]",                       // load Float64
-  };
-#else
-  std::vector<std::string> patterns_array = {
-      "ldur <<Map:x[0-9]+>>, \\[<<Obj:x[0-9]+>>, #-1\\]",  // load map
-      "ldr <<ExpMap:x[0-9]+>>, pc",                        // load expected map
-      "cmp <<Map>>, <<ExpMap>>",                           // compare maps
-      "b.ne",                                              // deopt if differ
-      "csel " + kPReg + ", xzr, " + kPReg + ", ne",        // update the poison
-      "csdb",                                              // spec. barrier
-      "add <<Addr:x[0-9]+>>, <<Obj>>, #0x[0-9a-f]+",       // addr. calculation
-      "and <<Addr>>, <<Addr>>, " + kPReg,                  // apply the poison
-      "ldr d[0-9]+, \\[<<Addr>>\\]",                       // load Float64
-  };
-#endif
-  CHECK(CheckDisassemblyRegexPatterns("mono", patterns_array));
 #endif  // ENABLE_DISASSEMBLER
 }
 

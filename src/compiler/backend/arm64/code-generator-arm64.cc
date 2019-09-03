@@ -389,36 +389,6 @@ void EmitWordLoadPoisoningIfNeeded(
   }
 }
 
-void EmitMaybePoisonedFPLoad(CodeGenerator* codegen, InstructionCode opcode,
-                             Arm64OperandConverter* i, VRegister output_reg) {
-  const MemoryAccessMode access_mode =
-      static_cast<MemoryAccessMode>(MiscField::decode(opcode));
-  AddressingMode address_mode = AddressingModeField::decode(opcode);
-  if (access_mode == kMemoryAccessPoisoned && address_mode != kMode_Root) {
-    UseScratchRegisterScope temps(codegen->tasm());
-    Register address = temps.AcquireX();
-    switch (address_mode) {
-      case kMode_MRI:  // Fall through.
-      case kMode_MRR:
-        codegen->tasm()->Add(address, i->InputRegister(0), i->InputOperand(1));
-        break;
-      case kMode_Operand2_R_LSL_I:
-        codegen->tasm()->Add(address, i->InputRegister(0),
-                             i->InputOperand2_64(1));
-        break;
-      default:
-        // Note: we don't need poisoning for kMode_Root loads as those loads
-        // target a fixed offset from root register which is set once when
-        // initializing the vm.
-        UNREACHABLE();
-    }
-    codegen->tasm()->And(address, address, Operand(kSpeculationPoisonRegister));
-    codegen->tasm()->Ldr(output_reg, MemOperand(address));
-  } else {
-    codegen->tasm()->Ldr(output_reg, i->MemoryOperand());
-  }
-}
-
 }  // namespace
 
 #define ASSEMBLE_SHIFT(asm_instr, width)                                    \
@@ -1629,13 +1599,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArm64LdrS:
-      EmitMaybePoisonedFPLoad(this, opcode, &i, i.OutputDoubleRegister().S());
+      __ Ldr(i.OutputDoubleRegister().S(), i.MemoryOperand());
       break;
     case kArm64StrS:
       __ Str(i.InputFloat32OrZeroRegister(0), i.MemoryOperand(1));
       break;
     case kArm64LdrD:
-      EmitMaybePoisonedFPLoad(this, opcode, &i, i.OutputDoubleRegister());
+      __ Ldr(i.OutputDoubleRegister(), i.MemoryOperand());
       break;
     case kArm64StrD:
       __ Str(i.InputFloat64OrZeroRegister(0), i.MemoryOperand(1));
