@@ -96,7 +96,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   FeedbackSlot sloppy_store_global_slot =
       feedback_spec.AddStoreGlobalICSlot(LanguageMode::kSloppy);
   FeedbackSlot load_slot = feedback_spec.AddLoadICSlot();
-  FeedbackSlot call_slot = feedback_spec.AddCallICSlot();
   FeedbackSlot keyed_load_slot = feedback_spec.AddKeyedLoadICSlot();
   FeedbackSlot sloppy_store_slot =
       feedback_spec.AddStoreICSlot(LanguageMode::kSloppy);
@@ -153,7 +152,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreInArrayLiteral(reg, reg, store_array_element_slot.ToInt());
 
   // Emit Iterator-protocol operations
-  builder.GetIterator(reg, load_slot.ToInt(), call_slot.ToInt());
+  builder.GetIterator(reg, load_slot.ToInt());
 
   // Emit load / store lookup slots.
   builder.LoadLookupSlot(name, TypeofMode::NOT_INSIDE_TYPEOF)

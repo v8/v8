@@ -91,9 +91,9 @@ snippet: "
     test = new B(1, 2, 3).constructor;
   })();
 "
-frame size: 11
+frame size: 12
 parameter count: 1
-bytecode array length: 119
+bytecode array length: 124
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(3),
@@ -111,7 +111,9 @@ bytecodes: [
                 B(Ldar), R(6),
                 B(Inc), U8(3),
   /*  152 S> */ B(Star), R(6),
-                B(GetIterator), R(3), U8(4), U8(6),
+                B(GetIterator), R(3), U8(4),
+                B(Star), R(11),
+                B(CallProperty0), R(11), R(3), U8(6),
                 B(Mov), R(1), R(4),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),

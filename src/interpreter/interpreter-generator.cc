@@ -1913,7 +1913,7 @@ IGNITION_HANDLER(TestIn, InterpreterAssembler) {
 IGNITION_HANDLER(TestInstanceOf, InterpreterAssembler) {
   TNode<Object> object = LoadRegisterAtOperandIndex(0);
   TNode<Object> callable = GetAccumulator();
-  TNode<IntPtrT> slot_id = UncheckedCast<IntPtrT>(BytecodeOperandIdx(1));
+  Node* slot_id = BytecodeOperandIdx(1);
   TNode<HeapObject> feedback_vector = LoadFeedbackVector();
   TNode<Context> context = GetContext();
 
@@ -1921,7 +1921,7 @@ IGNITION_HANDLER(TestInstanceOf, InterpreterAssembler) {
   GotoIf(IsUndefined(feedback_vector), &feedback_done);
 
   // Record feedback for the {callable} in the {feedback_vector}.
-  CollectCallableFeedback(callable, context, CAST(feedback_vector), slot_id);
+  CollectCallableFeedback(callable, context, feedback_vector, slot_id);
   Goto(&feedback_done);
 
   BIND(&feedback_done);
@@ -3195,24 +3195,21 @@ IGNITION_HANDLER(ForInStep, InterpreterAssembler) {
 
 // GetIterator <object>
 //
-// Retrieves the object[Symbol.iterator] method, calls it and stores
-// the result in the accumulator
-// TODO(swapnilgaikwad): Extend the functionality of the bytecode to
-// check if the result is a JSReceiver else throw SymbolIteratorInvalid
-// runtime exception
+// Retrieves the object[Symbol.iterator] method and stores the result
+// in the accumulator
+// TODO(swapnilgaikwad): Extend the functionality of the bytecode to call
+// iterator method for an object
 IGNITION_HANDLER(GetIterator, InterpreterAssembler) {
   TNode<Object> receiver = LoadRegisterAtOperandIndex(0);
   TNode<Context> context = GetContext();
   TNode<HeapObject> feedback_vector = LoadFeedbackVector();
-  Node* load_feedback_slot = BytecodeOperandIdx(1);
-  Node* call_feedback_slot = BytecodeOperandIdx(2);
-  TNode<Smi> load_slot_smi = SmiTag(load_feedback_slot);
-  TNode<Smi> call_slot_smi = SmiTag(call_feedback_slot);
+  Node* feedback_slot = BytecodeOperandIdx(1);
+  TNode<Smi> smi_slot = SmiTag(feedback_slot);
 
-  TNode<Object> iterator =
+  TNode<Object> result =
       CallBuiltin(Builtins::kGetIteratorWithFeedback, context, receiver,
-                  load_slot_smi, call_slot_smi, feedback_vector);
-  SetAccumulator(iterator);
+                  smi_slot, feedback_vector);
+  SetAccumulator(result);
   Dispatch();
 }
 

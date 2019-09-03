@@ -149,6 +149,24 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // undefined.
   compiler::TNode<HeapObject> LoadFeedbackVector();
 
+  // Increment the call count for a CALL_IC or construct call.
+  // The call count is located at feedback_vector[slot_id + 1].
+  void IncrementCallCount(compiler::Node* feedback_vector,
+                          compiler::Node* slot_id);
+
+  // Collect the callable |target| feedback for either a CALL_IC or
+  // an INSTANCEOF_IC in the |feedback_vector| at |slot_id|.
+  void CollectCallableFeedback(compiler::Node* target, compiler::Node* context,
+                               compiler::Node* feedback_vector,
+                               compiler::Node* slot_id);
+
+  // Collect CALL_IC feedback for |target| function in the
+  // |feedback_vector| at |slot_id|, and the call counts in
+  // the |feedback_vector| at |slot_id+1|.
+  void CollectCallFeedback(compiler::Node* target, compiler::Node* context,
+                           compiler::Node* maybe_feedback_vector,
+                           compiler::Node* slot_id);
+
   // Call JSFunction or Callable |function| with |args| arguments, possibly
   // including the receiver depending on |receiver_mode|. After the call returns
   // directly dispatches to the next bytecode.

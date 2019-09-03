@@ -1036,18 +1036,12 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
 
 void SerializerForBackgroundCompilation::VisitGetIterator(
     BytecodeArrayIterator* iterator) {
+  AccessMode mode = AccessMode::kLoad;
   Hints const& receiver =
       environment()->register_hints(iterator->GetRegisterOperand(0));
   Handle<Name> name = broker()->isolate()->factory()->iterator_symbol();
-  FeedbackSlot load_slot = iterator->GetSlotOperand(1);
-  ProcessNamedPropertyAccess(receiver, NameRef(broker(), name), load_slot,
-                             AccessMode::kLoad);
-  if (environment()->IsDead()) return;
-
-  const Hints& callee = Hints(zone());
-  FeedbackSlot call_slot = iterator->GetSlotOperand(2);
-  HintsVector parameters({receiver}, zone());
-  ProcessCallOrConstruct(callee, base::nullopt, parameters, call_slot);
+  FeedbackSlot slot = iterator->GetSlotOperand(1);
+  ProcessNamedPropertyAccess(receiver, NameRef(broker(), name), slot, mode);
 }
 
 void SerializerForBackgroundCompilation::VisitGetSuperConstructor(

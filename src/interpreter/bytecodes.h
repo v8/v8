@@ -356,8 +356,7 @@ namespace interpreter {
     OperandType::kRegOutList, OperandType::kRegCount)                          \
                                                                                \
   /* Iterator protocol operations */                                           \
-  V(GetIterator, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kIdx, \
-    OperandType::kIdx)                                                         \
+  V(GetIterator, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kIdx) \
                                                                                \
   /* Debugger */                                                               \
   V(Debugger, AccumulatorUse::kNone)                                           \

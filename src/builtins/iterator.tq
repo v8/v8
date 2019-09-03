@@ -43,29 +43,17 @@ namespace iterator {
                                                     Context)(JSAny);
 
   transitioning builtin GetIteratorWithFeedback(
-      context: Context, receiver: JSAny, loadSlot: Smi, callSlot: Smi,
+      context: Context, receiver: JSAny, feedbackSlot: Smi,
       feedback: Undefined | FeedbackVector): JSAny {
-    let iteratorMethod: JSAny;
     typeswitch (feedback) {
       case (Undefined): {
-        iteratorMethod = GetProperty(receiver, IteratorSymbolConstant());
+        return GetProperty(receiver, IteratorSymbolConstant());
       }
       case (feedback: FeedbackVector): {
-        iteratorMethod = LoadIC(
-            context, receiver, IteratorSymbolConstant(), loadSlot, feedback);
+        return LoadIC(
+            context, receiver, IteratorSymbolConstant(), feedbackSlot,
+            feedback);
       }
     }
-    return CallIteratorWithFeedback(
-        context, receiver, iteratorMethod, callSlot, feedback);
-  }
-
-  transitioning builtin CallIteratorWithFeedback(
-      context: Context, receiver: JSAny, iteratorMethod: JSAny, callSlot: Smi,
-      feedback: Undefined | FeedbackVector): JSAny {
-    const callSlotUnTagged: intptr = SmiUntag(callSlot);
-    CollectCallFeedback(iteratorMethod, context, feedback, callSlotUnTagged);
-    const iteratorCallable: Callable = Cast<Callable>(iteratorMethod)
-        otherwise ThrowCalledNonCallable(iteratorMethod);
-    return Call(context, iteratorCallable, receiver);
   }
 }

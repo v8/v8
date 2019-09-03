@@ -1654,8 +1654,6 @@ extern transitioning builtin HasProperty(implicit context: Context)(
 extern transitioning macro HasProperty_Inline(implicit context: Context)(
     JSReceiver, JSAny): Boolean;
 extern builtin LoadIC(Context, JSAny, JSAny, Smi, FeedbackVector): JSAny;
-extern macro CollectCallFeedback(
-    JSAny, Context, Undefined | FeedbackVector, intptr);
 
 extern macro ThrowRangeError(implicit context: Context)(
     constexpr MessageTemplate): never;
@@ -1673,8 +1671,6 @@ extern macro ThrowTypeError(implicit context: Context)(
     constexpr MessageTemplate, Object, Object, Object): never;
 extern transitioning runtime ThrowTypeErrorIfStrict(implicit context: Context)(
     Smi, Object, Object): void;
-extern transitioning runtime ThrowCalledNonCallable(implicit context: Context)(
-    JSAny): never;
 
 extern transitioning macro ThrowIfNotJSReceiver(implicit context: Context)(
     JSAny, constexpr MessageTemplate, constexpr string): void;
@@ -2352,12 +2348,6 @@ Cast<JSRegExp>(o: HeapObject): JSRegExp
 Cast<Map>(implicit context: Context)(o: HeapObject): Map
     labels CastError {
   if (IsMap(o)) return %RawDownCast<Map>(o);
-  goto CastError;
-}
-
-Cast<FeedbackVector>(implicit context: Context)(o: HeapObject): FeedbackVector
-    labels CastError {
-  if (IsFeedbackVector(o)) return %RawDownCast<FeedbackVector>(o);
   goto CastError;
 }
 
@@ -3256,7 +3246,6 @@ extern macro PerformStackCheck(implicit context: Context)(): void;
 
 extern macro IsCallable(HeapObject): bool;
 extern macro IsConstructor(HeapObject): bool;
-extern macro IsFeedbackVector(HeapObject): bool;
 extern macro IsJSArray(HeapObject): bool;
 extern macro IsJSProxy(HeapObject): bool;
 extern macro IsJSRegExp(HeapObject): bool;

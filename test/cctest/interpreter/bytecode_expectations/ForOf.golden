@@ -11,12 +11,14 @@ snippet: "
 "
 frame size: 13
 parameter count: 1
-bytecode array length: 165
+bytecode array length: 170
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   48 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(37),
                 B(Star), R(4),
-                B(GetIterator), R(4), U8(1), U8(3),
+                B(GetIterator), R(4), U8(1),
+                B(Star), R(5),
+                B(CallProperty0), R(5), R(4), U8(3),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star), R(3),
@@ -96,8 +98,8 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
 ]
 handlers: [
-  [32, 75, 83],
-  [107, 140, 142],
+  [37, 80, 88],
+  [112, 145, 147],
 ]
 
 ---
@@ -107,12 +109,14 @@ snippet: "
 "
 frame size: 14
 parameter count: 1
-bytecode array length: 173
+bytecode array length: 178
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
                 B(Star), R(0),
-  /*   68 S> */ B(GetIterator), R(0), U8(0), U8(2),
+  /*   68 S> */ B(GetIterator), R(0), U8(0),
+                B(Star), R(6),
+                B(CallProperty0), R(6), R(0), U8(2),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star), R(4),
@@ -198,8 +202,8 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [30, 77, 85],
-  [109, 142, 144],
+  [35, 82, 90],
+  [114, 147, 149],
 ]
 
 ---
@@ -211,12 +215,14 @@ snippet: "
 "
 frame size: 13
 parameter count: 1
-bytecode array length: 181
+bytecode array length: 186
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   48 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(37),
                 B(Star), R(4),
-                B(GetIterator), R(4), U8(1), U8(3),
+                B(GetIterator), R(4), U8(1),
+                B(Star), R(5),
+                B(CallProperty0), R(5), R(4), U8(3),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star), R(3),
@@ -303,8 +309,8 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
 ]
 handlers: [
-  [32, 91, 99],
-  [123, 156, 158],
+  [37, 96, 104],
+  [128, 161, 163],
 ]
 
 ---
@@ -314,14 +320,16 @@ snippet: "
 "
 frame size: 13
 parameter count: 1
-bytecode array length: 187
+bytecode array length: 192
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
                 B(Star), R(0),
   /*   77 S> */ B(CreateArrayLiteral), U8(1), U8(1), U8(37),
                 B(Star), R(3),
-                B(GetIterator), R(3), U8(2), U8(4),
+                B(GetIterator), R(3), U8(2),
+                B(Star), R(4),
+                B(CallProperty0), R(4), R(3), U8(4),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star), R(2),
@@ -411,7 +419,7 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [38, 91, 99],
-  [123, 156, 158],
+  [43, 96, 104],
+  [128, 161, 163],
 ]
 
