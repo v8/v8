@@ -105,6 +105,7 @@ Name GetNameFromWireBytes(const i::wasm::WireBytesRef& ref,
                           const i::Vector<const uint8_t>& wire_bytes) {
   DCHECK_LE(ref.offset(), wire_bytes.length());
   DCHECK_LE(ref.end_offset(), wire_bytes.length());
+  if (ref.length() == 0) return Name::make();
   Name name = Name::make_uninitialized(ref.length());
   std::memcpy(name.get(), wire_bytes.begin() + ref.offset(), ref.length());
   return name;
