@@ -33,13 +33,12 @@ namespace compiler {
 class BytecodeGraphBuilder {
  public:
   BytecodeGraphBuilder(JSHeapBroker* broker, Zone* local_zone,
-                       BytecodeArrayRef bytecode_array,
-                       SharedFunctionInfoRef shared,
-                       FeedbackVectorRef feedback_vector, BailoutId osr_offset,
-                       JSGraph* jsgraph,
+                       NativeContextRef const& native_context,
+                       SharedFunctionInfoRef const& shared_info,
+                       FeedbackVectorRef const& feedback_vector,
+                       BailoutId osr_offset, JSGraph* jsgraph,
                        CallFrequency const& invocation_frequency,
-                       SourcePositionTable* source_positions,
-                       NativeContextRef native_context, int inlining_id,
+                       SourcePositionTable* source_positions, int inlining_id,
                        BytecodeGraphBuilderFlags flags,
                        TickCounter* tick_counter);
 
@@ -310,7 +309,6 @@ class BytecodeGraphBuilder {
     int context_register_;  // Index of register holding handler context.
   };
 
-  // Field accessors
   Graph* graph() const { return jsgraph_->graph(); }
   CommonOperatorBuilder* common() const { return jsgraph_->common(); }
   Zone* graph_zone() const { return graph()->zone(); }
@@ -321,55 +319,44 @@ class BytecodeGraphBuilder {
     return jsgraph_->simplified();
   }
   Zone* local_zone() const { return local_zone_; }
-  const BytecodeArrayRef bytecode_array() const { return bytecode_array_; }
-  FeedbackVectorRef feedback_vector() const { return feedback_vector_; }
+  BytecodeArrayRef bytecode_array() const {
+    return shared_info().GetBytecodeArray();
+  }
+  FeedbackVectorRef const& feedback_vector() const { return feedback_vector_; }
   const JSTypeHintLowering& type_hint_lowering() const {
     return type_hint_lowering_;
   }
   const FrameStateFunctionInfo* frame_state_function_info() const {
     return frame_state_function_info_;
   }
-
   SourcePositionTableIterator& source_position_iterator() {
     return *source_position_iterator_.get();
   }
-
   interpreter::BytecodeArrayIterator& bytecode_iterator() {
     return bytecode_iterator_;
   }
-
   BytecodeAnalysis const& bytecode_analysis() const {
     return bytecode_analysis_;
   }
-
   int currently_peeled_loop_offset() const {
     return currently_peeled_loop_offset_;
   }
-
   void set_currently_peeled_loop_offset(int offset) {
     currently_peeled_loop_offset_ = offset;
   }
-
   bool skip_next_stack_check() const { return skip_next_stack_check_; }
-
   void unset_skip_next_stack_check() { skip_next_stack_check_ = false; }
-
-  int current_exception_handler() { return current_exception_handler_; }
-
+  int current_exception_handler() const { return current_exception_handler_; }
   void set_current_exception_handler(int index) {
     current_exception_handler_ = index;
   }
-
   bool needs_eager_checkpoint() const { return needs_eager_checkpoint_; }
   void mark_as_needing_eager_checkpoint(bool value) {
     needs_eager_checkpoint_ = value;
   }
-
-  SharedFunctionInfoRef shared_info() const { return shared_info_; }
-
-  NativeContextRef native_context() const { return native_context_; }
-
   JSHeapBroker* broker() const { return broker_; }
+  NativeContextRef native_context() const { return native_context_; }
+  SharedFunctionInfoRef shared_info() const { return shared_info_; }
 
 #define DECLARE_VISIT_BYTECODE(name, ...) void Visit##name();
   BYTECODE_LIST(DECLARE_VISIT_BYTECODE)
@@ -378,9 +365,11 @@ class BytecodeGraphBuilder {
   JSHeapBroker* const broker_;
   Zone* const local_zone_;
   JSGraph* const jsgraph_;
+  // The native context for which we optimize.
+  NativeContextRef const native_context_;
+  SharedFunctionInfoRef const shared_info_;
+  FeedbackVectorRef const feedback_vector_;
   CallFrequency const invocation_frequency_;
-  BytecodeArrayRef const bytecode_array_;
-  FeedbackVectorRef feedback_vector_;
   JSTypeHintLowering const type_hint_lowering_;
   const FrameStateFunctionInfo* const frame_state_function_info_;
   std::unique_ptr<SourcePositionTableIterator> source_position_iterator_;
@@ -430,11 +419,6 @@ class BytecodeGraphBuilder {
   SourcePositionTable* const source_positions_;
 
   SourcePosition const start_position_;
-
-  SharedFunctionInfoRef const shared_info_;
-
-  // The native context for which we optimize.
-  NativeContextRef const native_context_;
 
   TickCounter* const tick_counter_;
 
@@ -937,18 +921,20 @@ Node* BytecodeGraphBuilder::Environment::Checkpoint(
 }
 
 BytecodeGraphBuilder::BytecodeGraphBuilder(
-    JSHeapBroker* broker, Zone* local_zone, BytecodeArrayRef bytecode_array,
-    SharedFunctionInfoRef shared_info, FeedbackVectorRef feedback_vector,
-    BailoutId osr_offset, JSGraph* jsgraph,
-    CallFrequency const& invocation_frequency,
-    SourcePositionTable* source_positions, NativeContextRef native_context,
-    int inlining_id, BytecodeGraphBuilderFlags flags, TickCounter* tick_counter)
+    JSHeapBroker* broker, Zone* local_zone,
+    NativeContextRef const& native_context,
+    SharedFunctionInfoRef const& shared_info,
+    FeedbackVectorRef const& feedback_vector, BailoutId osr_offset,
+    JSGraph* jsgraph, CallFrequency const& invocation_frequency,
+    SourcePositionTable* source_positions, int inlining_id,
+    BytecodeGraphBuilderFlags flags, TickCounter* tick_counter)
     : broker_(broker),
       local_zone_(local_zone),
       jsgraph_(jsgraph),
-      invocation_frequency_(invocation_frequency),
-      bytecode_array_(bytecode_array),
+      native_context_(native_context),
+      shared_info_(shared_info),
       feedback_vector_(feedback_vector),
+      invocation_frequency_(invocation_frequency),
       type_hint_lowering_(
           broker, jsgraph, feedback_vector,
           (flags & BytecodeGraphBuilderFlag::kBailoutOnUninitialized)
@@ -956,12 +942,12 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
               : JSTypeHintLowering::kNoFlags),
       frame_state_function_info_(common()->CreateFrameStateFunctionInfo(
           FrameStateType::kInterpretedFunction,
-          bytecode_array.parameter_count(), bytecode_array.register_count(),
+          bytecode_array().parameter_count(), bytecode_array().register_count(),
           shared_info.object())),
       bytecode_iterator_(
-          base::make_unique<OffHeapBytecodeArray>(bytecode_array)),
+          base::make_unique<OffHeapBytecodeArray>(bytecode_array())),
       bytecode_analysis_(broker_->GetBytecodeAnalysis(
-          bytecode_array.object(), osr_offset,
+          bytecode_array().object(), osr_offset,
           flags & BytecodeGraphBuilderFlag::kAnalyzeEnvironmentLiveness,
           FLAG_concurrent_inlining ? SerializationPolicy::kAssumeSerialized
                                    : SerializationPolicy::kSerializeIfNeeded)),
@@ -981,19 +967,17 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       state_values_cache_(jsgraph),
       source_positions_(source_positions),
       start_position_(shared_info.StartPosition(), inlining_id),
-      shared_info_(shared_info),
-      native_context_(native_context),
       tick_counter_(tick_counter) {
   if (FLAG_concurrent_inlining) {
     // With concurrent inlining on, the source position address doesn't change
     // because it's been copied from the heap.
     source_position_iterator_ = base::make_unique<SourcePositionTableIterator>(
-        Vector<const byte>(bytecode_array.source_positions_address(),
-                           bytecode_array.source_positions_size()));
+        Vector<const byte>(bytecode_array().source_positions_address(),
+                           bytecode_array().source_positions_size()));
   } else {
     // Otherwise, we need to access the table through a handle.
     source_position_iterator_ = base::make_unique<SourcePositionTableIterator>(
-        handle(bytecode_array.object()->SourcePositionTableIfCollected(),
+        handle(bytecode_array().object()->SourcePositionTableIfCollected(),
                isolate()));
   }
 }
@@ -4066,23 +4050,18 @@ void BytecodeGraphBuilder::UpdateSourcePosition(int offset) {
 }
 
 void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
-                            Handle<BytecodeArray> bytecode_array,
-                            Handle<SharedFunctionInfo> shared,
-                            Handle<FeedbackVector> feedback_vector,
+                            SharedFunctionInfoRef const& shared_info,
+                            FeedbackVectorRef const& feedback_vector,
                             BailoutId osr_offset, JSGraph* jsgraph,
                             CallFrequency const& invocation_frequency,
                             SourcePositionTable* source_positions,
                             int inlining_id, BytecodeGraphBuilderFlags flags,
                             TickCounter* tick_counter) {
-  BytecodeArrayRef bytecode_array_ref(broker, bytecode_array);
-  DCHECK(bytecode_array_ref.IsSerializedForCompilation());
-  FeedbackVectorRef feedback_vector_ref(broker, feedback_vector);
-  SharedFunctionInfoRef shared_ref(broker, shared);
-  DCHECK(shared_ref.IsSerializedForCompilation(feedback_vector_ref));
+  DCHECK(shared_info.IsSerializedForCompilation(feedback_vector));
   BytecodeGraphBuilder builder(
-      broker, local_zone, bytecode_array_ref, shared_ref, feedback_vector_ref,
-      osr_offset, jsgraph, invocation_frequency, source_positions,
-      broker->target_native_context(), inlining_id, flags, tick_counter);
+      broker, local_zone, broker->target_native_context(), shared_info,
+      feedback_vector, osr_offset, jsgraph, invocation_frequency,
+      source_positions, inlining_id, flags, tick_counter);
   builder.CreateGraph();
 }
 

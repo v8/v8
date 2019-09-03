@@ -89,7 +89,7 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
     case IrOpcode::kJSCreateEmptyLiteralArray: {
       if (!FLAG_concurrent_inlining) {
         FeedbackParameter const& p = FeedbackParameterOf(node->op());
-        FeedbackVectorRef(broker(), p.feedback().vector).SerializeSlots();
+        FeedbackVectorRef(broker(), p.feedback().vector).Serialize();
       }
       break;
     }
@@ -106,7 +106,7 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       if (!FLAG_concurrent_inlining) {
         CreateLiteralParameters const& p =
             CreateLiteralParametersOf(node->op());
-        FeedbackVectorRef(broker(), p.feedback().vector).SerializeSlots();
+        FeedbackVectorRef(broker(), p.feedback().vector).Serialize();
       }
       break;
     }
@@ -114,7 +114,7 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       if (!FLAG_concurrent_inlining) {
         CreateLiteralParameters const& p =
             CreateLiteralParametersOf(node->op());
-        FeedbackVectorRef(broker(), p.feedback().vector).SerializeSlots();
+        FeedbackVectorRef(broker(), p.feedback().vector).Serialize();
       }
       break;
     }
