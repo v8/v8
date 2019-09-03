@@ -194,35 +194,21 @@ void StackGuard::FreeThreadResources() {
   per_thread->set_stack_limit(thread_local_.real_climit_);
 }
 
-void StackGuard::ThreadLocal::Clear() {
-  real_jslimit_ = kIllegalLimit;
-  set_jslimit(kIllegalLimit);
-  real_climit_ = kIllegalLimit;
-  set_climit(kIllegalLimit);
+void StackGuard::ThreadLocal::Initialize(Isolate* isolate,
+                                         const ExecutionAccess& lock) {
+  const uintptr_t kLimitSize = FLAG_stack_size * KB;
+  DCHECK_GT(GetCurrentStackPosition(), kLimitSize);
+  uintptr_t limit = GetCurrentStackPosition() - kLimitSize;
+  real_jslimit_ = SimulatorStack::JsLimitFromCLimit(isolate, limit);
+  set_jslimit(SimulatorStack::JsLimitFromCLimit(isolate, limit));
+  real_climit_ = limit;
+  set_climit(limit);
   interrupt_scopes_ = nullptr;
   interrupt_flags_ = 0;
-}
-
-void StackGuard::ThreadLocal::Initialize(Isolate* isolate) {
-  if (real_climit_ == kIllegalLimit) {
-    const uintptr_t kLimitSize = FLAG_stack_size * KB;
-    DCHECK_GT(GetCurrentStackPosition(), kLimitSize);
-    uintptr_t limit = GetCurrentStackPosition() - kLimitSize;
-    real_jslimit_ = SimulatorStack::JsLimitFromCLimit(isolate, limit);
-    set_jslimit(SimulatorStack::JsLimitFromCLimit(isolate, limit));
-    real_climit_ = limit;
-    set_climit(limit);
-  }
-  interrupt_scopes_ = nullptr;
-  interrupt_flags_ = 0;
-}
-
-void StackGuard::ClearThread(const ExecutionAccess& lock) {
-  thread_local_.Clear();
 }
 
 void StackGuard::InitThread(const ExecutionAccess& lock) {
-  thread_local_.Initialize(isolate_);
+  thread_local_.Initialize(isolate_, lock);
   Isolate::PerIsolateThreadData* per_thread =
       isolate_->FindOrAllocatePerThreadDataForThisThread();
   uintptr_t stored_limit = per_thread->stack_limit();

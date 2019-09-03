@@ -38,12 +38,8 @@ class V8_EXPORT_PRIVATE StackGuard final {
   char* RestoreStackGuard(char* from);
   static int ArchiveSpacePerThread() { return sizeof(ThreadLocal); }
   void FreeThreadResources();
-  // Sets up the default stack guard for this thread if it has not
-  // already been set up.
+  // Sets up the default stack guard for this thread.
   void InitThread(const ExecutionAccess& lock);
-  // Clears the stack guard for this thread so it does not look as if
-  // it has been set up.
-  void ClearThread(const ExecutionAccess& lock);
 
 #define INTERRUPT_LIST(V)                                         \
   V(TERMINATE_EXECUTION, TerminateExecution, 0)                   \
@@ -127,12 +123,9 @@ class V8_EXPORT_PRIVATE StackGuard final {
 
   class ThreadLocal final {
    public:
-    ThreadLocal() { Clear(); }
-    // You should hold the ExecutionAccess lock when you call Initialize or
-    // Clear.
-    void Clear();
+    ThreadLocal() {}
 
-    void Initialize(Isolate* isolate);
+    void Initialize(Isolate* isolate, const ExecutionAccess& lock);
 
     // The stack limit is split into a JavaScript and a C++ stack limit. These
     // two are the same except when running on a simulator where the C++ and
@@ -143,13 +136,16 @@ class V8_EXPORT_PRIVATE StackGuard final {
     // break or preemption) in which case it is lowered to make stack checks
     // fail. Both the generated code and the runtime system check against the
     // one without the real_ prefix.
-    uintptr_t real_jslimit_;  // Actual JavaScript stack limit set for the VM.
-    uintptr_t real_climit_;   // Actual C++ stack limit set for the VM.
+
+    // Actual JavaScript stack limit set for the VM.
+    uintptr_t real_jslimit_ = kIllegalLimit;
+    // Actual C++ stack limit set for the VM.
+    uintptr_t real_climit_ = kIllegalLimit;
 
     // jslimit_ and climit_ can be read without any lock.
     // Writing requires the ExecutionAccess lock.
-    base::AtomicWord jslimit_;
-    base::AtomicWord climit_;
+    base::AtomicWord jslimit_ = kIllegalLimit;
+    base::AtomicWord climit_ = kIllegalLimit;
 
     uintptr_t jslimit() {
       return bit_cast<uintptr_t>(base::Relaxed_Load(&jslimit_));
@@ -166,8 +162,8 @@ class V8_EXPORT_PRIVATE StackGuard final {
                                  static_cast<base::AtomicWord>(limit));
     }
 
-    InterruptsScope* interrupt_scopes_;
-    intptr_t interrupt_flags_;
+    InterruptsScope* interrupt_scopes_ = nullptr;
+    intptr_t interrupt_flags_ = 0;
   };
 
   // TODO(isolates): Technically this could be calculated directly from a

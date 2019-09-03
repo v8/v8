@@ -2649,21 +2649,12 @@ Handle<Context> Isolate::GetIncumbentContext() {
 char* Isolate::ArchiveThread(char* to) {
   MemCopy(to, reinterpret_cast<char*>(thread_local_top()),
           sizeof(ThreadLocalTop));
-  InitializeThreadLocal();
-  clear_pending_exception();
-  clear_pending_message();
-  clear_scheduled_exception();
   return to + sizeof(ThreadLocalTop);
 }
 
 char* Isolate::RestoreThread(char* from) {
   MemCopy(reinterpret_cast<char*>(thread_local_top()), from,
           sizeof(ThreadLocalTop));
-// This might be just paranoia, but it seems to be needed in case a
-// thread_local_top_ is restored on a separate OS thread.
-#ifdef USE_SIMULATOR
-  thread_local_top()->simulator_ = Simulator::current(this);
-#endif
   DCHECK(context().is_null() || context().IsContext());
   return from + sizeof(ThreadLocalTop);
 }
@@ -3148,7 +3139,12 @@ Isolate::~Isolate() {
   default_microtask_queue_ = nullptr;
 }
 
-void Isolate::InitializeThreadLocal() { thread_local_top()->Initialize(this); }
+void Isolate::InitializeThreadLocal() {
+  thread_local_top()->Initialize(this);
+  clear_pending_exception();
+  clear_pending_message();
+  clear_scheduled_exception();
+}
 
 void Isolate::SetTerminationOnExternalTryCatch() {
   if (try_catch_handler() == nullptr) return;

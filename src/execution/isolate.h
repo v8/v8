@@ -960,6 +960,7 @@ class Isolate final : private HiddenFactory {
   void set_deoptimizer_lazy_throw(bool value) {
     deoptimizer_lazy_throw_ = value;
   }
+  void InitializeThreadLocal();
   ThreadLocalTop* thread_local_top() {
     return &isolate_data_.thread_local_top_;
   }
@@ -1632,8 +1633,6 @@ class Isolate final : private HiddenFactory {
 
   static void SetIsolateThreadLocals(Isolate* isolate,
                                      PerIsolateThreadData* data);
-
-  void InitializeThreadLocal();
 
   void MarkCompactPrologue(bool is_compacting,
                            ThreadLocalTop* archived_thread_data);
