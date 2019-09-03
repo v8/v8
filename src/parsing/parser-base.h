@@ -5865,6 +5865,7 @@ typename ParserBase<Impl>::ForStatementT ParserBase<Impl>::ParseStandardForLoop(
     int stmt_pos, ZonePtrList<const AstRawString>* labels,
     ZonePtrList<const AstRawString>* own_labels, ExpressionT* cond,
     StatementT* next, StatementT* body) {
+  CheckStackOverflow();
   ForStatementT loop = factory()->NewForStatement(labels, own_labels, stmt_pos);
   TargetT target(this, loop);
 
