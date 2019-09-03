@@ -52,6 +52,7 @@ namespace internal {
   V(FastNewFunctionContext)           \
   V(FastNewObject)                    \
   V(FrameDropperTrampoline)           \
+  V(GetIteratorStackParameter)        \
   V(GetProperty)                      \
   V(GrowArrayElements)                \
   V(InterpreterCEntry1)               \
@@ -768,6 +769,16 @@ class AsyncFunctionStackParameterDescriptor final
   DEFINE_PARAMETERS(kPromise, kResult)
   DEFINE_PARAMETER_TYPES(MachineType::TaggedPointer(), MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(AsyncFunctionStackParameterDescriptor,
+                     CallInterfaceDescriptor)
+};
+
+class GetIteratorStackParameterDescriptor final
+    : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kReceiver, kCallSlot, kFeedback, kResult)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(), MachineType::AnyTagged(),
+                         MachineType::AnyTagged(), MachineType::AnyTagged())
+  DECLARE_DESCRIPTOR(GetIteratorStackParameterDescriptor,
                      CallInterfaceDescriptor)
 };
 

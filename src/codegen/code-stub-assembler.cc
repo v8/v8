@@ -135,6 +135,141 @@ void CodeStubAssembler::Check(SloppyTNode<Word32T> condition_node,
   Check(branch, message, file, line, extra_nodes);
 }
 
+void CodeStubAssembler::CollectCallableFeedback(
+    TNode<Object> target, TNode<Context> context,
+    TNode<FeedbackVector> feedback_vector, TNode<IntPtrT> slot_id) {
+  Label extra_checks(this, Label::kDeferred), done(this);
+
+  // Check if we have monomorphic {target} feedback already.
+  TNode<MaybeObject> feedback =
+      LoadFeedbackVectorSlot(feedback_vector, slot_id);
+  Comment("check if monomorphic");
+  TNode<BoolT> is_monomorphic = IsWeakReferenceTo(feedback, target);
+  GotoIf(is_monomorphic, &done);
+
+  // Check if it is a megamorphic {target}.
+  Comment("check if megamorphic");
+  TNode<BoolT> is_megamorphic = TaggedEqual(
+      feedback, HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())));
+  Branch(is_megamorphic, &done, &extra_checks);
+
+  BIND(&extra_checks);
+  {
+    Label initialize(this), mark_megamorphic(this);
+
+    Comment("check if weak reference");
+    TNode<BoolT> is_uninitialized = TaggedEqual(
+        feedback,
+        HeapConstant(FeedbackVector::UninitializedSentinel(isolate())));
+    GotoIf(is_uninitialized, &initialize);
+    CSA_ASSERT(this, IsWeakOrCleared(feedback));
+
+    // If the weak reference is cleared, we have a new chance to become
+    // monomorphic.
+    Comment("check if weak reference is cleared");
+    Branch(IsCleared(feedback), &initialize, &mark_megamorphic);
+
+    BIND(&initialize);
+    {
+      Comment("check if function in same native context");
+      GotoIf(TaggedIsSmi(target), &mark_megamorphic);
+      // Check if the {target} is a JSFunction or JSBoundFunction
+      // in the current native context.
+      VARIABLE(var_current, MachineRepresentation::kTagged, target);
+      Label loop(this, &var_current), done_loop(this);
+      Goto(&loop);
+      BIND(&loop);
+      {
+        Label if_boundfunction(this), if_function(this);
+        Node* current = var_current.value();
+        CSA_ASSERT(this, TaggedIsNotSmi(current));
+        TNode<Uint16T> current_instance_type = LoadInstanceType(current);
+        GotoIf(InstanceTypeEqual(current_instance_type, JS_BOUND_FUNCTION_TYPE),
+               &if_boundfunction);
+        Branch(InstanceTypeEqual(current_instance_type, JS_FUNCTION_TYPE),
+               &if_function, &mark_megamorphic);
+
+        BIND(&if_function);
+        {
+          // Check that the JSFunction {current} is in the current native
+          // context.
+          TNode<Context> current_context =
+              CAST(LoadObjectField(current, JSFunction::kContextOffset));
+          TNode<Context> current_native_context =
+              LoadNativeContext(current_context);
+          Branch(
+              TaggedEqual(LoadNativeContext(context), current_native_context),
+              &done_loop, &mark_megamorphic);
+        }
+
+        BIND(&if_boundfunction);
+        {
+          // Continue with the [[BoundTargetFunction]] of {target}.
+          var_current.Bind(LoadObjectField(
+              current, JSBoundFunction::kBoundTargetFunctionOffset));
+          Goto(&loop);
+        }
+      }
+      BIND(&done_loop);
+      StoreWeakReferenceInFeedbackVector(feedback_vector, slot_id,
+                                         CAST(target));
+      ReportFeedbackUpdate(feedback_vector, slot_id, "Call:Initialize");
+      Goto(&done);
+    }
+
+    BIND(&mark_megamorphic);
+    {
+      // MegamorphicSentinel is an immortal immovable object so
+      // write-barrier is not needed.
+      Comment("transition to megamorphic");
+      DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kmegamorphic_symbol));
+      StoreFeedbackVectorSlot(
+          feedback_vector, slot_id,
+          HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())),
+          SKIP_WRITE_BARRIER);
+      ReportFeedbackUpdate(feedback_vector, slot_id,
+                           "Call:TransitionMegamorphic");
+      Goto(&done);
+    }
+  }
+
+  BIND(&done);
+}
+
+void CodeStubAssembler::CollectCallFeedback(
+    SloppyTNode<Object> target, SloppyTNode<Context> context,
+    SloppyTNode<HeapObject> maybe_feedback_vector,
+    SloppyTNode<IntPtrT> slot_id) {
+  Label feedback_done(this);
+  // If feedback_vector is not valid, then nothing to do.
+  GotoIf(IsUndefined(maybe_feedback_vector), &feedback_done);
+
+  // Increment the call count.
+  TNode<FeedbackVector> feedback_vector = CAST(maybe_feedback_vector);
+  IncrementCallCount(feedback_vector, slot_id);
+
+  // Collect the callable {target} feedback.
+  CollectCallableFeedback(target, context, feedback_vector, slot_id);
+  Goto(&feedback_done);
+
+  BIND(&feedback_done);
+}
+
+void CodeStubAssembler::IncrementCallCount(
+    SloppyTNode<FeedbackVector> feedback_vector, SloppyTNode<IntPtrT> slot_id) {
+  Comment("increment call count");
+  TNode<Smi> call_count =
+      CAST(LoadFeedbackVectorSlot(feedback_vector, slot_id, kTaggedSize));
+  // The lowest {FeedbackNexus::CallCountField::kShift} bits of the call
+  // count are used as flags. To increment the call count by 1 we hence
+  // have to increment by 1 << {FeedbackNexus::CallCountField::kShift}.
+  TNode<Smi> new_count = SmiAdd(
+      call_count, SmiConstant(1 << FeedbackNexus::CallCountField::kShift));
+  // Count is Smi, so we don't need a write barrier.
+  StoreFeedbackVectorSlot(feedback_vector, slot_id, new_count,
+                          SKIP_WRITE_BARRIER, kTaggedSize);
+}
+
 void CodeStubAssembler::FastCheck(TNode<BoolT> condition) {
   Label ok(this), not_ok(this, Label::kDeferred);
   Branch(condition, &ok, &not_ok);

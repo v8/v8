@@ -568,6 +568,9 @@ namespace internal {
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   CPP(AsyncFunctionConstructor)                                                \
                                                                                \
+  /* Iterator Protocol */                                                      \
+  TFC(GetIteratorWithFeedbackLazyDeoptContinuation, GetIteratorStackParameter) \
+                                                                               \
   /* Global object */                                                          \
   CPP(GlobalDecodeURI)                                                         \
   CPP(GlobalDecodeURIComponent)                                                \

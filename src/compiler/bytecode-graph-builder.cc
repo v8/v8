@@ -216,6 +216,9 @@ class BytecodeGraphBuilder {
                                                             FeedbackSlot slot);
   JSTypeHintLowering::LoweringResult TryBuildSimplifiedConstruct(
       const Operator* op, Node* const* args, int arg_count, FeedbackSlot slot);
+  JSTypeHintLowering::LoweringResult TryBuildSimplifiedGetIterator(
+      const Operator* op, Node* receiver, FeedbackSlot load_slot,
+      FeedbackSlot call_slot);
   JSTypeHintLowering::LoweringResult TryBuildSimplifiedLoadNamed(
       const Operator* op, Node* receiver, FeedbackSlot slot);
   JSTypeHintLowering::LoweringResult TryBuildSimplifiedLoadKeyed(
@@ -3312,19 +3315,21 @@ void BytecodeGraphBuilder::VisitForInStep() {
 
 void BytecodeGraphBuilder::VisitGetIterator() {
   PrepareEagerCheckpoint();
-  Node* object =
+  Node* receiver =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  FeedbackSource feedback =
+  FeedbackSource load_feedback =
       CreateFeedbackSource(bytecode_iterator().GetIndexOperand(1));
-  const Operator* op = javascript()->GetIterator(feedback);
+  FeedbackSource call_feedback =
+      CreateFeedbackSource(bytecode_iterator().GetIndexOperand(2));
+  const Operator* op = javascript()->GetIterator(load_feedback, call_feedback);
 
-  JSTypeHintLowering::LoweringResult lowering =
-      TryBuildSimplifiedLoadNamed(op, object, feedback.slot);
+  JSTypeHintLowering::LoweringResult lowering = TryBuildSimplifiedGetIterator(
+      op, receiver, load_feedback.slot, call_feedback.slot);
   if (lowering.IsExit()) return;
 
   DCHECK(!lowering.Changed());
-  Node* node = NewNode(op, object);
-  environment()->BindAccumulator(node, Environment::kAttachFrameState);
+  Node* iterator = NewNode(op, receiver);
+  environment()->BindAccumulator(iterator, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::VisitSuspendGenerator() {
@@ -3788,6 +3793,20 @@ BytecodeGraphBuilder::TryBuildSimplifiedConstruct(const Operator* op,
                                                     control, slot);
   ApplyEarlyReduction(result);
   return result;
+}
+
+JSTypeHintLowering::LoweringResult
+BytecodeGraphBuilder::TryBuildSimplifiedGetIterator(const Operator* op,
+                                                    Node* receiver,
+                                                    FeedbackSlot load_slot,
+                                                    FeedbackSlot call_slot) {
+  Node* effect = environment()->GetEffectDependency();
+  Node* control = environment()->GetControlDependency();
+  JSTypeHintLowering::LoweringResult early_reduction =
+      type_hint_lowering().ReduceGetIteratorOperation(
+          op, receiver, effect, control, load_slot, call_slot);
+  ApplyEarlyReduction(early_reduction);
+  return early_reduction;
 }
 
 JSTypeHintLowering::LoweringResult

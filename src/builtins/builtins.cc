@@ -88,14 +88,16 @@ const BuiltinMetadata builtin_metadata[] = {BUILTIN_LIST(
 }  // namespace
 
 BailoutId Builtins::GetContinuationBailoutId(Name name) {
-  DCHECK(Builtins::KindOf(name) == TFJ || Builtins::KindOf(name) == TFC);
+  DCHECK(Builtins::KindOf(name) == TFJ || Builtins::KindOf(name) == TFC ||
+         Builtins::KindOf(name) == TFS);
   return BailoutId(BailoutId::kFirstBuiltinContinuationId + name);
 }
 
 Builtins::Name Builtins::GetBuiltinFromBailoutId(BailoutId id) {
   int builtin_index = id.ToInt() - BailoutId::kFirstBuiltinContinuationId;
   DCHECK(Builtins::KindOf(builtin_index) == TFJ ||
-         Builtins::KindOf(builtin_index) == TFC);
+         Builtins::KindOf(builtin_index) == TFC ||
+         Builtins::KindOf(builtin_index) == TFS);
   return static_cast<Name>(builtin_index);
 }
 

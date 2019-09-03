@@ -5405,7 +5405,8 @@ void BytecodeGenerator::BuildGetIterator(IteratorType hint) {
     // If method is undefined,
     //     Let syncMethod be GetMethod(obj, @@iterator)
     builder()
-        ->GetIterator(obj, feedback_index(feedback_spec()->AddLoadICSlot()))
+        ->LoadIteratorProperty(obj,
+                               feedback_index(feedback_spec()->AddLoadICSlot()))
         .StoreAccumulatorInRegister(method);
 
     //     Let syncIterator be Call(syncMethod, obj)
@@ -5424,17 +5425,15 @@ void BytecodeGenerator::BuildGetIterator(IteratorType hint) {
       RegisterAllocationScope scope(this);
 
       Register obj = register_allocator()->NewRegister();
-      Register method = register_allocator()->NewRegister();
+      int load_feedback_index =
+          feedback_index(feedback_spec()->AddLoadICSlot());
+      int call_feedback_index =
+          feedback_index(feedback_spec()->AddCallICSlot());
 
-      // Let method be GetMethod(obj, @@iterator).
-      builder()
-          ->StoreAccumulatorInRegister(obj)
-          .GetIterator(obj, feedback_index(feedback_spec()->AddLoadICSlot()))
-          .StoreAccumulatorInRegister(method);
-
-      // Let iterator be Call(method, obj).
-      builder()->CallProperty(method, RegisterList(obj),
-                              feedback_index(feedback_spec()->AddCallICSlot()));
+      // Let method be GetMethod(obj, @@iterator) and
+      // iterator be Call(method, obj).
+      builder()->StoreAccumulatorInRegister(obj).GetIterator(
+          obj, load_feedback_index, call_feedback_index);
     }
 
     // If Type(iterator) is not Object, throw a TypeError exception.

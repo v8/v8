@@ -411,13 +411,13 @@ class StoreGlobalParameters final {
       : language_mode_(language_mode), name_(name), feedback_(feedback) {}
 
   LanguageMode language_mode() const { return language_mode_; }
-  const FeedbackSource& feedback() const { return feedback_; }
-  const Handle<Name>& name() const { return name_; }
+  FeedbackSource const& feedback() const { return feedback_; }
+  Handle<Name> const& name() const { return name_; }
 
  private:
-  const LanguageMode language_mode_;
-  const Handle<Name> name_;
-  const FeedbackSource feedback_;
+  LanguageMode const language_mode_;
+  Handle<Name> const name_;
+  FeedbackSource const feedback_;
 };
 
 bool operator==(StoreGlobalParameters const&, StoreGlobalParameters const&);
@@ -655,6 +655,31 @@ std::ostream& operator<<(std::ostream&, CloneObjectParameters const&);
 
 const CloneObjectParameters& CloneObjectParametersOf(const Operator* op);
 
+// Defines the shared information for the iterator symbol thats loaded and
+// called. This is used as a parameter by JSGetIterator operator.
+class GetIteratorParameters final {
+ public:
+  GetIteratorParameters(const FeedbackSource& load_feedback,
+                        const FeedbackSource& call_feedback)
+      : load_feedback_(load_feedback), call_feedback_(call_feedback) {}
+
+  FeedbackSource const& loadFeedback() const { return load_feedback_; }
+  FeedbackSource const& callFeedback() const { return call_feedback_; }
+
+ private:
+  FeedbackSource const load_feedback_;
+  FeedbackSource const call_feedback_;
+};
+
+bool operator==(GetIteratorParameters const&, GetIteratorParameters const&);
+bool operator!=(GetIteratorParameters const&, GetIteratorParameters const&);
+
+size_t hash_value(GetIteratorParameters const&);
+
+std::ostream& operator<<(std::ostream&, GetIteratorParameters const&);
+
+const GetIteratorParameters& GetIteratorParametersOf(const Operator* op);
+
 // Descriptor used by the JSForInPrepare and JSForInNext opcodes.
 enum class ForInMode : uint8_t {
   kUseEnumCacheKeysAndIndices,
@@ -858,7 +883,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* ParseInt();
   const Operator* RegExpTest();
 
-  const Operator* GetIterator(FeedbackSource const& feedback);
+  const Operator* GetIterator(FeedbackSource const& load_feedback,
+                              FeedbackSource const& call_feedback);
 
  private:
   Zone* zone() const { return zone_; }
