@@ -8,9 +8,10 @@
 
 #include "include/v8.h"
 #include "src/execution/isolate.h"
-#include "src/utils/ostreams.h"
 #include "src/objects/objects-inl.h"
+#include "src/utils/ostreams.h"
 #include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-feature-flags.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -254,7 +255,10 @@ void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
   // We explicitly enable staged WebAssembly features here to increase fuzzer
   // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
   // the flag by itself.
-  FlagScope<bool> enable_staged_features(&FLAG_wasm_staging, true);
+#define ENABLE_STAGED_FEATURES(feat, desc, val) \
+  FlagScope<bool> enable_##feat(&FLAG_experimental_wasm_##feat, true);
+  FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_STAGED_FEATURES)
+#undef ENABLE_STAGED_FEATURES
 
   // Strictly enforce the input size limit. Note that setting "max_len" on the
   // fuzzer target is not enough, since different fuzzers are used and not all
