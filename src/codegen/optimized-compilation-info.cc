@@ -21,7 +21,6 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
     Zone* zone, Isolate* isolate, Handle<SharedFunctionInfo> shared,
     Handle<JSFunction> closure)
     : OptimizedCompilationInfo(Code::OPTIMIZED_FUNCTION, zone) {
-  DCHECK_EQ(*shared, closure->shared());
   DCHECK(shared->is_compiled());
   bytecode_array_ = handle(shared->GetBytecodeArray(), isolate);
   shared_info_ = shared;

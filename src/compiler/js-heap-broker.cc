@@ -1262,21 +1262,17 @@ FeedbackCellData::FeedbackCellData(JSHeapBroker* broker, ObjectData** storage,
 
 class FeedbackVectorData : public HeapObjectData {
  public:
+  const ZoneVector<ObjectData*>& feedback() { return feedback_; }
+
   FeedbackVectorData(JSHeapBroker* broker, ObjectData** storage,
                      Handle<FeedbackVector> object);
 
-  double invocation_count() const { return invocation_count_; }
-  double total_profiler_ticks() const { return total_profiler_ticks_; }
-
-  void Serialize(JSHeapBroker* broker);
-  const ZoneVector<ObjectData*>& feedback() { return feedback_; }
   FeedbackCellData* GetClosureFeedbackCell(JSHeapBroker* broker,
                                            int index) const;
 
- private:
-  double const invocation_count_;
-  double const total_profiler_ticks_;
+  void SerializeSlots(JSHeapBroker* broker);
 
+ private:
   bool serialized_ = false;
   ZoneVector<ObjectData*> feedback_;
   ZoneVector<ObjectData*> closure_feedback_cell_array_;
@@ -1286,8 +1282,6 @@ FeedbackVectorData::FeedbackVectorData(JSHeapBroker* broker,
                                        ObjectData** storage,
                                        Handle<FeedbackVector> object)
     : HeapObjectData(broker, storage, object),
-      invocation_count_(object->invocation_count()),
-      total_profiler_ticks_(object->total_profiler_ticks()),
       feedback_(broker->zone()),
       closure_feedback_cell_array_(broker->zone()) {}
 
@@ -1306,11 +1300,11 @@ FeedbackCellData* FeedbackVectorData::GetClosureFeedbackCell(
   return closure_feedback_cell_array_[index]->AsFeedbackCell();
 }
 
-void FeedbackVectorData::Serialize(JSHeapBroker* broker) {
+void FeedbackVectorData::SerializeSlots(JSHeapBroker* broker) {
   if (serialized_) return;
   serialized_ = true;
 
-  TraceScope tracer(broker, this, "FeedbackVectorData::Serialize");
+  TraceScope tracer(broker, this, "FeedbackVectorData::SerializeSlots");
   Handle<FeedbackVector> vector = Handle<FeedbackVector>::cast(object());
   DCHECK(feedback_.empty());
   feedback_.reserve(vector->length());
@@ -3158,9 +3152,6 @@ BIMODAL_ACCESSOR_C(BytecodeArray, interpreter::Register,
 
 BIMODAL_ACCESSOR(Cell, Object, value)
 
-BIMODAL_ACCESSOR_C(FeedbackVector, double, invocation_count)
-BIMODAL_ACCESSOR_C(FeedbackVector, double, total_profiler_ticks)
-
 BIMODAL_ACCESSOR(HeapObject, Map, map)
 
 BIMODAL_ACCESSOR(JSArray, Object, length)
@@ -3727,8 +3718,8 @@ Float64 FixedDoubleArrayData::Get(int i) const {
   return contents_[i];
 }
 
-void FeedbackVectorRef::Serialize() {
-  data()->AsFeedbackVector()->Serialize(broker());
+void FeedbackVectorRef::SerializeSlots() {
+  data()->AsFeedbackVector()->SerializeSlots(broker());
 }
 
 bool NameRef::IsUniqueName() const {
@@ -3905,6 +3896,7 @@ void SharedFunctionInfoRef::SetSerializedForCompilation(
 
 void SharedFunctionInfoRef::SerializeFunctionTemplateInfo() {
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+
   data()->AsSharedFunctionInfo()->SerializeFunctionTemplateInfo(broker());
 }
 

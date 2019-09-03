@@ -921,7 +921,7 @@ Hints SerializerForBackgroundCompilation::Run() {
                                                        shared.object());
   }
 
-  feedback_vector_ref.Serialize();
+  feedback_vector_ref.SerializeSlots();
   TraverseBytecode();
   return environment()->return_value_hints();
 }
