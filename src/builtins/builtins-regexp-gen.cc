@@ -1709,29 +1709,29 @@ TNode<Number> RegExpBuiltinsAssembler::AdvanceStringIndex(
   return var_result.value();
 }
 
-void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(TNode<Context> context,
-                                                       TNode<Object> regexp,
-                                                       TNode<String> string,
-                                                       const bool is_fastpath) {
+TNode<Object> RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(
+    TNode<Context> context, TNode<Object> regexp, TNode<String> string,
+    const bool is_fastpath) {
   if (is_fastpath) {
     CSA_ASSERT_BRANCH(this, [&](Label* ok, Label* not_ok) {
       BranchIfFastRegExp_Strict(context, CAST(regexp), ok, not_ok);
     });
   }
 
+  TVARIABLE(Object, var_result);
+
   TNode<BoolT> const is_global =
       FlagGetter(context, regexp, JSRegExp::kGlobal, is_fastpath);
 
-  Label if_isglobal(this), if_isnotglobal(this);
+  Label if_isglobal(this), if_isnotglobal(this), done(this);
   Branch(is_global, &if_isglobal, &if_isnotglobal);
 
   BIND(&if_isnotglobal);
   {
-    TNode<Object> const result =
-        is_fastpath
-            ? RegExpPrototypeExecBody(context, CAST(regexp), string, true)
-            : RegExpExec(context, regexp, string);
-    Return(result);
+    var_result = is_fastpath ? RegExpPrototypeExecBody(context, CAST(regexp),
+                                                       string, true)
+                             : RegExpExec(context, regexp, string);
+    Goto(&done);
   }
 
   BIND(&if_isglobal);
@@ -1814,7 +1814,8 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(TNode<Context> context,
       {
         // Return null if there were no matches, otherwise just exit the loop.
         GotoIfNot(IntPtrEqual(array.length(), IntPtrZero()), &out);
-        Return(NullConstant());
+        var_result = NullConstant();
+        Goto(&done);
       }
 
       BIND(&if_didmatch);
@@ -1858,41 +1859,13 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(TNode<Context> context,
     {
       // Wrap the match in a JSArray.
 
-      TNode<JSArray> const result = array.ToJSArray(context);
-      Return(result);
+      var_result = array.ToJSArray(context);
+      Goto(&done);
     }
   }
-}
 
-// ES#sec-regexp.prototype-@@match
-// RegExp.prototype [ @@match ] ( string )
-TF_BUILTIN(RegExpPrototypeMatch, RegExpBuiltinsAssembler) {
-  TNode<Object> maybe_receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> maybe_string = CAST(Parameter(Descriptor::kString));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-
-  // Ensure {maybe_receiver} is a JSReceiver.
-  ThrowIfNotJSReceiver(context, maybe_receiver,
-                       MessageTemplate::kIncompatibleMethodReceiver,
-                       "RegExp.prototype.@@match");
-  TNode<JSReceiver> receiver = CAST(maybe_receiver);
-
-  // Convert {maybe_string} to a String.
-  TNode<String> const string = ToString_Inline(context, maybe_string);
-
-  // Strict: Reads global and unicode properties.
-  // TODO(jgruber): Handle slow flag accesses on the fast path and make this
-  // permissive.
-  Label fast_path(this), slow_path(this);
-  BranchIfFastRegExp_Strict(context, receiver, &fast_path, &slow_path);
-
-  BIND(&fast_path);
-  // TODO(pwong): Could be optimized to remove the overhead of calling the
-  //              builtin (at the cost of a larger builtin).
-  Return(CallBuiltin(Builtins::kRegExpMatchFast, context, receiver, string));
-
-  BIND(&slow_path);
-  RegExpPrototypeMatchBody(context, receiver, string, false);
+  BIND(&done);
+  return var_result.value();
 }
 
 void RegExpMatchAllAssembler::Generate(TNode<Context> context,
@@ -2064,17 +2037,6 @@ TF_BUILTIN(RegExpPrototypeMatchAll, RegExpMatchAllAssembler) {
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   TNode<Object> maybe_string = CAST(Parameter(Descriptor::kString));
   Generate(context, native_context, receiver, maybe_string);
-}
-
-// Helper that skips a few initial checks. and assumes...
-// 1) receiver is a "fast" RegExp
-// 2) pattern is a string
-TF_BUILTIN(RegExpMatchFast, RegExpBuiltinsAssembler) {
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<String> string = CAST(Parameter(Descriptor::kPattern));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-
-  RegExpPrototypeMatchBody(context, receiver, string, true);
 }
 
 void RegExpBuiltinsAssembler::RegExpPrototypeSearchBodyFast(

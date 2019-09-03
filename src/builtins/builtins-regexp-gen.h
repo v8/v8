@@ -179,9 +179,10 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
     return CAST(AdvanceStringIndex(string, index, is_unicode, true));
   }
 
-  void RegExpPrototypeMatchBody(TNode<Context> context, TNode<Object> regexp,
-                                TNode<String> const string,
-                                const bool is_fastpath);
+  TNode<Object> RegExpPrototypeMatchBody(TNode<Context> context,
+                                         TNode<Object> regexp,
+                                         TNode<String> const string,
+                                         const bool is_fastpath);
 
   void RegExpPrototypeSearchBodyFast(TNode<Context> context,
                                      TNode<JSRegExp> regexp,

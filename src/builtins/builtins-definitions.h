@@ -850,8 +850,6 @@ namespace internal {
   TFJ(RegExpPrototypeCompile, 2, kReceiver, kPattern, kFlags)                  \
   /* ES #sec-regexp.prototype.exec */                                          \
   TFJ(RegExpPrototypeExec, 1, kReceiver, kString)                              \
-  /* ES #sec-regexp.prototype-@@match */                                       \
-  TFJ(RegExpPrototypeMatch, 1, kReceiver, kString)                             \
   /* https://tc39.github.io/proposal-string-matchall/ */                       \
   TFJ(RegExpPrototypeMatchAll, 1, kReceiver, kString)                          \
   /* ES #sec-regexp.prototype-@@search */                                      \
@@ -865,7 +863,6 @@ namespace internal {
   TFS(RegExpExecAtom, kRegExp, kString, kLastIndex, kMatchInfo)                \
   TFS(RegExpExecInternal, kRegExp, kString, kLastIndex, kMatchInfo)            \
   ASM(RegExpInterpreterTrampoline, CCall)                                      \
-  TFS(RegExpMatchFast, kReceiver, kPattern)                                    \
   TFS(RegExpPrototypeExecSlow, kReceiver, kString)                             \
   TFS(RegExpSearchFast, kReceiver, kPattern)                                   \
   TFS(RegExpSplit, kRegExp, kString, kLimit)                                   \
