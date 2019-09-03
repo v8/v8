@@ -67,7 +67,7 @@ void Heap::update_external_memory(int64_t delta) {
   isolate()->isolate_data()->external_memory_ += delta;
 }
 
-void Heap::update_external_memory_concurrently_freed(intptr_t freed) {
+void Heap::update_external_memory_concurrently_freed(uintptr_t freed) {
   external_memory_concurrently_freed_ += freed;
 }
 
