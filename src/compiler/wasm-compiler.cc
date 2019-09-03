@@ -6397,10 +6397,7 @@ std::pair<WasmImportCallKind, Handle<JSReceiver>> ResolveWasmImportCall(
         COMPARE_SIG_FOR_BUILTIN_F64(Exp);
         COMPARE_SIG_FOR_BUILTIN_F64(Log);
         COMPARE_SIG_FOR_BUILTIN_F64(Atan2);
-        //===========================================================
-        // TODO(8505): Math.pow for wasm does not match JS.
-        //        COMPARE_SIG_FOR_BUILTIN_F64(Pow);
-        //===========================================================
+        COMPARE_SIG_FOR_BUILTIN_F64(Pow);
         COMPARE_SIG_FOR_BUILTIN_F32_F64(Min);
         COMPARE_SIG_FOR_BUILTIN_F32_F64(Max);
         COMPARE_SIG_FOR_BUILTIN_F32_F64(Abs);
