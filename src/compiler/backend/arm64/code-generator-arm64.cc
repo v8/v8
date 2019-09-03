@@ -1903,6 +1903,65 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
       SIMD_BINOP_CASE(kArm64I64x2Add, Add, 2D);
       SIMD_BINOP_CASE(kArm64I64x2Sub, Sub, 2D);
+    case kArm64I64x2Mul: {
+      UseScratchRegisterScope scope(tasm());
+      VRegister dst = i.OutputSimd128Register();
+      VRegister src1 = i.InputSimd128Register(0);
+      VRegister src2 = i.InputSimd128Register(1);
+      VRegister tmp1 = scope.AcquireSameSizeAs(dst);
+      VRegister tmp2 = scope.AcquireSameSizeAs(dst);
+      VRegister tmp3 = i.ToSimd128Register(instr->TempAt(0));
+
+      // This 2x64-bit multiplication is performed with several 32-bit
+      // multiplications.
+
+      // 64-bit numbers x and y, can be represented as:
+      //   x = a + 2^32(b)
+      //   y = c + 2^32(d)
+
+      // A 64-bit multiplication is:
+      //   x * y = ac + 2^32(ad + bc) + 2^64(bd)
+      // note: `2^64(bd)` can be ignored, the value is too large to fit in
+      // 64-bits.
+
+      // This sequence implements a 2x64bit multiply, where the registers
+      // `src1` and `src2` are split up into 32-bit components:
+      //   src1 = |d|c|b|a|
+      //   src2 = |h|g|f|e|
+      //
+      //   src1 * src2 = |cg + 2^32(ch + dg)|ae + 2^32(af + be)|
+
+      // Reverse the 32-bit elements in the 64-bit words.
+      //   tmp2 = |g|h|e|f|
+      __ Rev64(tmp2.V4S(), src2.V4S());
+
+      // Calculate the high half components.
+      //   tmp2 = |dg|ch|be|af|
+      __ Mul(tmp2.V4S(), tmp2.V4S(), src1.V4S());
+
+      // Extract the low half components of src1.
+      //   tmp1 = |c|a|
+      __ Xtn(tmp1.V2S(), src1.V2D());
+
+      // Sum the respective high half components.
+      //   tmp2 = |dg+ch|be+af||dg+ch|be+af|
+      __ Addp(tmp2.V4S(), tmp2.V4S(), tmp2.V4S());
+
+      // Extract the low half components of src2.
+      //   tmp3 = |g|e|
+      __ Xtn(tmp3.V2S(), src2.V2D());
+
+      // Shift the high half components, into the high half.
+      //   dst = |dg+ch << 32|be+af << 32|
+      __ Shll(dst.V2D(), tmp2.V2S(), 32);
+
+      // Multiply the low components together, and accumulate with the high
+      // half.
+      //   dst = |dst[1] + cg|dst[0] + ae|
+      __ Umlal(dst.V2D(), tmp3.V2S(), tmp1.V2S());
+
+      break;
+    }
       SIMD_BINOP_CASE(kArm64I64x2Eq, Cmeq, 2D);
     case kArm64I64x2Ne: {
       VRegister dst = i.OutputSimd128Register().V2D();
