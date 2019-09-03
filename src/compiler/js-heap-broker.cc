@@ -2342,23 +2342,13 @@ void JSHeapBroker::InitializeRefsMap() {
         Builtins::kAllocateRegularInOldGeneration,
         Builtins::kArgumentsAdaptorTrampoline,
         Builtins::kArrayConstructorImpl,
-        Builtins::kArrayIncludesHoleyDoubles,
-        Builtins::kArrayIncludesPackedDoubles,
-        Builtins::kArrayIncludesSmiOrObject,
-        Builtins::kArrayIndexOfHoleyDoubles,
-        Builtins::kArrayIndexOfPackedDoubles,
-        Builtins::kArrayIndexOfSmiOrObject,
-        Builtins::kCallApiCallback,
         Builtins::kCallFunctionForwardVarargs,
         Builtins::kCallFunction_ReceiverIsAny,
         Builtins::kCallFunction_ReceiverIsNotNullOrUndefined,
         Builtins::kCallFunction_ReceiverIsNullOrUndefined,
-        Builtins::kCloneFastJSArray,
         Builtins::kCompileLazy,
         Builtins::kConstructFunctionForwardVarargs,
         Builtins::kForInFilter,
-        Builtins::kGetProperty,
-        Builtins::kIncBlockCounter,
         Builtins::kJSBuiltinsConstructStub,
         Builtins::kJSConstructStubGeneric,
         Builtins::kStringAdd_CheckNone,
@@ -2492,8 +2482,6 @@ void JSHeapBroker::InitializeAndStartSerializing(
   GetOrCreateData(f->optimized_out());
   GetOrCreateData(f->optimized_out_map());
   GetOrCreateData(f->property_array_map());
-  GetOrCreateData(f->ReflectHas_string());
-  GetOrCreateData(f->ReflectGet_string());
   GetOrCreateData(f->sloppy_arguments_elements_map());
   GetOrCreateData(f->stale_register());
   GetOrCreateData(f->stale_register_map());
