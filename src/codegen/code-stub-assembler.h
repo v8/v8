@@ -2715,16 +2715,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return Word32Equal(Word32And(word32, const_mask), const_mask);
   }
 
-  // Returns true if the bit field |BitField| in |word32| is equal to a given.
-  // constant |value|. Avoids a shift compared to using DecodeWord32.
-  template <typename BitField>
-  TNode<BoolT> IsEqualInWord32(TNode<Word32T> word32,
-                               typename BitField::FieldType value) {
-    TNode<Word32T> masked_word32 =
-        Word32And(word32, Int32Constant(BitField::kMask));
-    return Word32Equal(masked_word32, Int32Constant(BitField::encode(value)));
-  }
-
   // Returns true if any of the |T|'s bits in given |word| are set.
   template <typename T>
   TNode<BoolT> IsSetWord(SloppyTNode<WordT> word) {
