@@ -7,6 +7,7 @@
 #include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 
+#include "src/execution/protectors-inl.h"
 #include "src/heap/heap.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
@@ -115,12 +116,12 @@ void TestSpeciesProtector(char* code,
 
       v8::internal::Isolate* i_isolate =
           reinterpret_cast<v8::internal::Isolate*>(isolate);
-      CHECK(i_isolate->IsTypedArraySpeciesLookupChainIntact());
+      CHECK(Protectors::IsTypedArraySpeciesLookupChainIntact(i_isolate));
       CompileRun(code);
       if (invalidates_species_protector) {
-        CHECK(!i_isolate->IsTypedArraySpeciesLookupChainIntact());
+        CHECK(!Protectors::IsTypedArraySpeciesLookupChainIntact(i_isolate));
       } else {
-        CHECK(i_isolate->IsTypedArraySpeciesLookupChainIntact());
+        CHECK(Protectors::IsTypedArraySpeciesLookupChainIntact(i_isolate));
       }
 
       v8::Local<v8::Value> my_typed_array = CompileRun("MyTypedArray");

@@ -251,7 +251,7 @@ void LookupIterator::InternalUpdateProtector() {
         !isolate_->IsPromiseSpeciesLookupChainIntact() &&
         !Protectors::IsRegExpSpeciesLookupChainProtectorIntact(
             native_context) &&
-        !isolate_->IsTypedArraySpeciesLookupChainIntact()) {
+        !Protectors::IsTypedArraySpeciesLookupChainIntact(isolate_)) {
       return;
     }
     // Setting the constructor property could change an instance's @@species
@@ -274,8 +274,8 @@ void LookupIterator::InternalUpdateProtector() {
                                                               native_context);
       return;
     } else if (receiver->IsJSTypedArray(isolate_)) {
-      if (!isolate_->IsTypedArraySpeciesLookupChainIntact()) return;
-      isolate_->InvalidateTypedArraySpeciesProtector();
+      if (!Protectors::IsTypedArraySpeciesLookupChainIntact(isolate_)) return;
+      Protectors::InvalidateTypedArraySpeciesLookupChain(isolate_);
       return;
     }
     if (receiver->map(isolate_).is_prototype_map()) {
@@ -306,8 +306,8 @@ void LookupIterator::InternalUpdateProtector() {
       } else if (isolate_->IsInAnyContext(
                      receiver->map(isolate_).prototype(isolate_),
                      Context::TYPED_ARRAY_PROTOTYPE_INDEX)) {
-        if (!isolate_->IsTypedArraySpeciesLookupChainIntact()) return;
-        isolate_->InvalidateTypedArraySpeciesProtector();
+        if (!Protectors::IsTypedArraySpeciesLookupChainIntact(isolate_)) return;
+        Protectors::InvalidateTypedArraySpeciesLookupChain(isolate_);
       }
     }
   } else if (*name_ == roots.next_string()) {
@@ -347,7 +347,7 @@ void LookupIterator::InternalUpdateProtector() {
         !isolate_->IsPromiseSpeciesLookupChainIntact() &&
         !Protectors::IsRegExpSpeciesLookupChainProtectorIntact(
             native_context) &&
-        !isolate_->IsTypedArraySpeciesLookupChainIntact()) {
+        !Protectors::IsTypedArraySpeciesLookupChainIntact(isolate_)) {
       return;
     }
     // Setting the Symbol.species property of any Array, Promise or TypedArray
@@ -370,8 +370,8 @@ void LookupIterator::InternalUpdateProtector() {
       Protectors::InvalidateRegExpSpeciesLookupChainProtector(isolate_,
                                                               native_context);
     } else if (IsTypedArrayFunctionInAnyContext(isolate_, *receiver)) {
-      if (!isolate_->IsTypedArraySpeciesLookupChainIntact()) return;
-      isolate_->InvalidateTypedArraySpeciesProtector();
+      if (!Protectors::IsTypedArraySpeciesLookupChainIntact(isolate_)) return;
+      Protectors::InvalidateTypedArraySpeciesLookupChain(isolate_);
     }
   } else if (*name_ == roots.is_concat_spreadable_symbol()) {
     if (!isolate_->IsIsConcatSpreadableLookupChainIntact()) return;

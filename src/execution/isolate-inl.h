@@ -119,13 +119,6 @@ bool Isolate::IsArrayConstructorIntact() {
   return array_constructor_cell.value() == Smi::FromInt(kProtectorValid);
 }
 
-bool Isolate::IsTypedArraySpeciesLookupChainIntact() {
-  PropertyCell species_cell =
-      PropertyCell::cast(root(RootIndex::kTypedArraySpeciesProtector));
-  return species_cell.value().IsSmi() &&
-         Smi::ToInt(species_cell.value()) == kProtectorValid;
-}
-
 bool Isolate::IsPromiseSpeciesLookupChainIntact() {
   PropertyCell species_cell =
       PropertyCell::cast(root(RootIndex::kPromiseSpeciesProtector));

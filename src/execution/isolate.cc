@@ -3999,16 +3999,6 @@ void Isolate::InvalidateArrayConstructorProtector() {
   DCHECK(!IsArrayConstructorIntact());
 }
 
-void Isolate::InvalidateTypedArraySpeciesProtector() {
-  DCHECK(factory()->typed_array_species_protector()->value().IsSmi());
-  DCHECK(IsTypedArraySpeciesLookupChainIntact());
-  PropertyCell::SetValueWithInvalidation(
-      this, "typed_array_species_protector",
-      factory()->typed_array_species_protector(),
-      handle(Smi::FromInt(kProtectorInvalid), this));
-  DCHECK(!IsTypedArraySpeciesLookupChainIntact());
-}
-
 void Isolate::InvalidatePromiseSpeciesProtector() {
   DCHECK(factory()->promise_species_protector()->value().IsSmi());
   DCHECK(IsPromiseSpeciesLookupChainIntact());

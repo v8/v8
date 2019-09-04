@@ -18,8 +18,10 @@ class Protectors : public AllStatic {
 #define DECLARED_PROTECTORS_ON_NATIVE_CONTEXT(V) \
   V(RegExpSpeciesLookupChainProtector, regexp_species_protector)
 
-#define DECLARED_PROTECTORS_ON_ISOLATE(V) \
-  V(ArraySpeciesLookupChain, ArraySpeciesProtector, array_species_protector)
+#define DECLARED_PROTECTORS_ON_ISOLATE(V)                                    \
+  V(ArraySpeciesLookupChain, ArraySpeciesProtector, array_species_protector) \
+  V(TypedArraySpeciesLookupChain, TypedArraySpeciesProtector,                \
+    typed_array_species_protector)
 
 #define DECLARE_PROTECTOR_ON_NATIVE_CONTEXT(name, unused_cell)               \
   static inline bool Is##name##Intact(Handle<NativeContext> native_context); \
