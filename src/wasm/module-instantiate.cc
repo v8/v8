@@ -314,7 +314,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     DCHECK_IMPLIES(native_module->use_trap_handler(),
                    is_asmjs_module(module_) || memory->is_wasm_memory() ||
                        memory->backing_store() == nullptr);
-  } else if (initial_pages > 0 || native_module->use_trap_handler()) {
+  } else if (initial_pages > 0 ||
+             (module_->has_memory && native_module->use_trap_handler())) {
     // We need to unconditionally create a guard region if using trap handlers,
     // even when the size is zero to prevent null-dereference issues
     // (e.g. https://crbug.com/769637).
