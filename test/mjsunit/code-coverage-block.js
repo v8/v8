@@ -206,21 +206,6 @@ TestCoverage(
 );
 
 TestCoverage(
-"for-await-of statements",
-`
-!async function() {                       // 0000
-  for await (var x of [0,1,2,3]) {        // 0050
-    nop();                                // 0100
-  }                                       // 0150
-}();                                      // 0200
-%PerformMicrotaskCheckpoint();            // 0250
-`,
-[{"start":0,"end":299,"count":1},
- {"start":1,"end":201,"count":1},
- {"start":83,"end":153,"count":4}]
-);
-
-TestCoverage(
 "while and do-while statements",
 `
 function g() {}                           // 0000
@@ -656,20 +641,6 @@ try {                                     // 0200
  {"start":65,"end":100,"count":0},
  {"start":264,"end":353,"count":1},
  {"start":317,"end":352,"count":0}]
-);
-
-TestCoverage(
-"await expressions",
-`
-async function f() {                      // 0000
-  await 42;                               // 0050
-  await 42;                               // 0100
-};                                        // 0150
-f();                                      // 0200
-%PerformMicrotaskCheckpoint();            // 0250
-`,
-[{"start":0,"end":299,"count":1},
- {"start":0,"end":151,"count":1}]
 );
 
 TestCoverage(

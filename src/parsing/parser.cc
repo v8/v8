@@ -3250,7 +3250,7 @@ void Parser::RewriteAsyncFunctionBody(ScopedPtrList<Statement>* body,
   //   })
   // }
 
-  block->statements()->Add(factory()->NewAsyncReturnStatement(
+  block->statements()->Add(factory()->NewSyntheticAsyncReturnStatement(
                                return_value, return_value->position()),
                            zone());
   block = BuildRejectPromiseOnException(block);

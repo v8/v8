@@ -724,11 +724,14 @@ class BreakStatement final : public JumpStatement {
 
 class ReturnStatement final : public JumpStatement {
  public:
-  enum Type { kNormal, kAsyncReturn };
+  enum Type { kNormal, kAsyncReturn, kSyntheticAsyncReturn };
   Expression* expression() const { return expression_; }
 
   Type type() const { return TypeField::decode(bit_field_); }
-  bool is_async_return() const { return type() == kAsyncReturn; }
+  bool is_async_return() const { return type() != kNormal; }
+  bool is_synthetic_async_return() const {
+    return type() == kSyntheticAsyncReturn;
+  }
 
   int end_position() const { return end_position_; }
 
@@ -745,7 +748,7 @@ class ReturnStatement final : public JumpStatement {
   Expression* expression_;
   int end_position_;
 
-  using TypeField = JumpStatement::NextBitField<Type, 1>;
+  using TypeField = JumpStatement::NextBitField<Type, 2>;
 };
 
 
@@ -915,6 +918,10 @@ class TryCatchStatement final : public TryStatement {
       HandlerTable::CatchPrediction outer_catch_prediction) const {
     return catch_prediction_ != HandlerTable::UNCAUGHT ||
            outer_catch_prediction != HandlerTable::UNCAUGHT;
+  }
+
+  bool is_try_catch_for_async() {
+    return catch_prediction_ == HandlerTable::ASYNC_AWAIT;
   }
 
  private:
@@ -2883,6 +2890,12 @@ class AstNodeFactory final {
       Expression* expression, int pos, int end_position = kNoSourcePosition) {
     return new (zone_) ReturnStatement(
         expression, ReturnStatement::kAsyncReturn, pos, end_position);
+  }
+
+  ReturnStatement* NewSyntheticAsyncReturnStatement(
+      Expression* expression, int pos, int end_position = kNoSourcePosition) {
+    return new (zone_) ReturnStatement(
+        expression, ReturnStatement::kSyntheticAsyncReturn, pos, end_position);
   }
 
   WithStatement* NewWithStatement(Scope* scope,
