@@ -2066,6 +2066,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 i.InputSimd128Register(1));
       break;
     }
+    case kMipsF32x4Div: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ fdiv_w(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputSimd128Register(1));
+      break;
+    }
     case kMipsF32x4Max: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ fmax_w(i.OutputSimd128Register(), i.InputSimd128Register(0),

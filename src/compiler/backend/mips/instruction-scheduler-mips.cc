@@ -51,6 +51,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsF32x4Max:
     case kMipsF32x4Min:
     case kMipsF32x4Mul:
+    case kMipsF32x4Div:
     case kMipsF32x4Ne:
     case kMipsF32x4Neg:
     case kMipsF32x4RecipApprox:
