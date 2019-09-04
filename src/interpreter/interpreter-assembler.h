@@ -28,44 +28,44 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   compiler::TNode<Uint32T> BytecodeOperandCount(int operand_index);
   // Returns the 32-bit unsigned flag for bytecode operand |operand_index|
   // in the current bytecode.
-  compiler::Node* BytecodeOperandFlag(int operand_index);
+  compiler::TNode<Uint32T> BytecodeOperandFlag(int operand_index);
   // Returns the 32-bit zero-extended index immediate for bytecode operand
   // |operand_index| in the current bytecode.
-  compiler::Node* BytecodeOperandIdxInt32(int operand_index);
+  compiler::TNode<Uint32T> BytecodeOperandIdxInt32(int operand_index);
   // Returns the word zero-extended index immediate for bytecode operand
   // |operand_index| in the current bytecode.
-  compiler::Node* BytecodeOperandIdx(int operand_index);
+  compiler::TNode<UintPtrT> BytecodeOperandIdx(int operand_index);
   // Returns the smi index immediate for bytecode operand |operand_index|
   // in the current bytecode.
-  compiler::Node* BytecodeOperandIdxSmi(int operand_index);
+  compiler::TNode<Smi> BytecodeOperandIdxSmi(int operand_index);
   // Returns the 32-bit unsigned immediate for bytecode operand |operand_index|
   // in the current bytecode.
   compiler::TNode<Uint32T> BytecodeOperandUImm(int operand_index);
   // Returns the word-size unsigned immediate for bytecode operand
   // |operand_index| in the current bytecode.
-  compiler::Node* BytecodeOperandUImmWord(int operand_index);
+  compiler::TNode<UintPtrT> BytecodeOperandUImmWord(int operand_index);
   // Returns the unsigned smi immediate for bytecode operand |operand_index| in
   // the current bytecode.
-  compiler::Node* BytecodeOperandUImmSmi(int operand_index);
+  compiler::TNode<Smi> BytecodeOperandUImmSmi(int operand_index);
   // Returns the 32-bit signed immediate for bytecode operand |operand_index|
   // in the current bytecode.
-  compiler::Node* BytecodeOperandImm(int operand_index);
+  compiler::TNode<Int32T> BytecodeOperandImm(int operand_index);
   // Returns the word-size signed immediate for bytecode operand |operand_index|
   // in the current bytecode.
-  compiler::Node* BytecodeOperandImmIntPtr(int operand_index);
+  compiler::TNode<IntPtrT> BytecodeOperandImmIntPtr(int operand_index);
   // Returns the smi immediate for bytecode operand |operand_index| in the
   // current bytecode.
-  compiler::Node* BytecodeOperandImmSmi(int operand_index);
+  compiler::TNode<Smi> BytecodeOperandImmSmi(int operand_index);
   // Returns the 32-bit unsigned runtime id immediate for bytecode operand
   // |operand_index| in the current bytecode.
-  compiler::Node* BytecodeOperandRuntimeId(int operand_index);
-  // Returns the 32-bit unsigned native context index immediate for bytecode
+  compiler::TNode<Uint32T> BytecodeOperandRuntimeId(int operand_index);
+  // Returns the word zero-extended native context index immediate for bytecode
   // operand |operand_index| in the current bytecode.
-  compiler::Node* BytecodeOperandNativeContextIndex(int operand_index);
+  compiler::TNode<UintPtrT> BytecodeOperandNativeContextIndex(
+      int operand_index);
   // Returns the 32-bit unsigned intrinsic id immediate for bytecode operand
   // |operand_index| in the current bytecode.
-  compiler::Node* BytecodeOperandIntrinsicId(int operand_index);
-
+  compiler::TNode<Uint32T> BytecodeOperandIntrinsicId(int operand_index);
   // Accumulator.
   compiler::TNode<Object> GetAccumulator();
   void SetAccumulator(SloppyTNode<Object> value);
@@ -136,14 +136,15 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
 
   // Load constant at the index specified in operand |operand_index| from the
   // constant pool.
-  compiler::Node* LoadConstantPoolEntryAtOperandIndex(int operand_index);
+  compiler::TNode<Object> LoadConstantPoolEntryAtOperandIndex(
+      int operand_index);
   // Load and untag constant at the index specified in operand |operand_index|
   // from the constant pool.
   TNode<IntPtrT> LoadAndUntagConstantPoolEntryAtOperandIndex(int operand_index);
   // Load constant at |index| in the constant pool.
-  compiler::Node* LoadConstantPoolEntry(compiler::Node* index);
+  compiler::TNode<Object> LoadConstantPoolEntry(compiler::TNode<WordT> index);
   // Load and untag constant at |index| in the constant pool.
-  TNode<IntPtrT> LoadAndUntagConstantPoolEntry(compiler::Node* index);
+  TNode<IntPtrT> LoadAndUntagConstantPoolEntry(compiler::TNode<WordT> index);
 
   // Load the FeedbackVector for the current function. The retuned node could be
   // undefined.
@@ -362,13 +363,13 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Returns the word-size sign-extended register index for bytecode operand
   // |operand_index| in the current bytecode. Value is not poisoned on
   // speculation since the value loaded from the register is poisoned instead.
-  compiler::Node* BytecodeOperandReg(
+  compiler::TNode<IntPtrT> BytecodeOperandReg(
       int operand_index,
       LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
 
   // Returns the word zero-extended index immediate for bytecode operand
   // |operand_index| in the current bytecode for use when loading a .
-  compiler::Node* BytecodeOperandConstantPoolIdx(
+  compiler::TNode<UintPtrT> BytecodeOperandConstantPoolIdx(
       int operand_index,
       LoadSensitivity needs_poisoning = LoadSensitivity::kCritical);
 

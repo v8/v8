@@ -2530,6 +2530,7 @@ extern macro Signed(RawPtr): intptr;
 extern macro TruncateIntPtrToInt32(intptr): int32;
 extern macro SmiTag(intptr): Smi;
 extern macro SmiFromInt32(int32): Smi;
+extern macro SmiFromUint32(uint32): Smi;
 extern macro SmiUntag(Smi): intptr;
 extern macro SmiToInt32(Smi): int32;
 extern macro RoundIntPtrToFloat64(intptr): float64;
@@ -2691,7 +2692,7 @@ Convert<Number, uint32>(ui: uint32): Number {
   return ChangeUint32ToTagged(ui);
 }
 Convert<Smi, uint32>(ui: uint32): Smi {
-  return SmiFromInt32(Signed(ui));
+  return SmiFromUint32(ui);
 }
 Convert<uintptr, uint32>(ui: uint32): uintptr {
   return ChangeUint32ToWord(ui);

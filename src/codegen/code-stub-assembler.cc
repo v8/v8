@@ -595,6 +595,12 @@ TNode<Smi> CodeStubAssembler::SmiFromInt32(SloppyTNode<Int32T> value) {
   return smi;
 }
 
+TNode<Smi> CodeStubAssembler::SmiFromUint32(TNode<Uint32T> value) {
+  CSA_ASSERT(this, IntPtrLessThan(ChangeUint32ToWord(value),
+                                  IntPtrConstant(Smi::kMaxValue)));
+  return SmiFromInt32(Signed(value));
+}
+
 TNode<BoolT> CodeStubAssembler::IsValidPositiveSmi(TNode<IntPtrT> value) {
   intptr_t constant_value;
   if (ToIntPtrConstant(value, &constant_value)) {
