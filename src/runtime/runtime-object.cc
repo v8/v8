@@ -132,8 +132,13 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   // for properties stored in the descriptor array.
   if (details.location() == kField) {
     DisallowHeapAllocation no_allocation;
+    int receiver_size = receiver_map->instance_size();
+
+    // Invalidate slots manually later in case we delete an in-object tagged
+    // property. In this case we might later store an untagged value in the
+    // recorded slot.
     isolate->heap()->NotifyObjectLayoutChange(
-        *receiver, receiver_map->instance_size(), no_allocation);
+        *receiver, receiver_size, no_allocation, InvalidateRecordedSlots::kNo);
     FieldIndex index =
         FieldIndex::ForPropertyIndex(*receiver_map, details.field_index());
     // Special case deleting the last out-of object property.
@@ -151,6 +156,8 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
       if (index.is_inobject() && !receiver_map->IsUnboxedDoubleField(index)) {
         isolate->heap()->ClearRecordedSlot(*receiver,
                                            receiver->RawField(index.offset()));
+        MemoryChunk* chunk = MemoryChunk::FromHeapObject(*receiver);
+        chunk->InvalidateRecordedSlots(*receiver, receiver_size);
       }
     }
   }

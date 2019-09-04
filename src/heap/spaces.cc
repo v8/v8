@@ -1532,6 +1532,20 @@ void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject object,
   }
 }
 
+void MemoryChunk::InvalidateRecordedSlots(HeapObject object, int size) {
+  if (heap()->incremental_marking()->IsCompacting()) {
+    // We cannot check slot_set_[OLD_TO_OLD] here, since the
+    // concurrent markers might insert slots concurrently.
+    RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object, size);
+  }
+
+  heap()->MoveStoreBufferEntriesToRememberedSet();
+
+  if (slot_set_[OLD_TO_NEW] != nullptr) {
+    RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(object, size);
+  }
+}
+
 template bool MemoryChunk::RegisteredObjectWithInvalidatedSlots<OLD_TO_NEW>(
     HeapObject object);
 template bool MemoryChunk::RegisteredObjectWithInvalidatedSlots<OLD_TO_OLD>(

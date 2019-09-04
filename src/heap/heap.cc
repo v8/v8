@@ -3387,17 +3387,20 @@ void Heap::RegisterDeserializedObjectsForBlackAllocation(
   }
 }
 
-void Heap::NotifyObjectLayoutChange(HeapObject object, int size,
-                                    const DisallowHeapAllocation&) {
+void Heap::NotifyObjectLayoutChange(
+    HeapObject object, int size, const DisallowHeapAllocation&,
+    InvalidateRecordedSlots invalidate_recorded_slots) {
   if (incremental_marking()->IsMarking()) {
     incremental_marking()->MarkBlackAndVisitObjectDueToLayoutChange(object);
     if (incremental_marking()->IsCompacting() &&
+        invalidate_recorded_slots == InvalidateRecordedSlots::kYes &&
         MayContainRecordedSlots(object)) {
       MemoryChunk::FromHeapObject(object)
           ->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object, size);
     }
   }
-  if (MayContainRecordedSlots(object)) {
+  if (invalidate_recorded_slots == InvalidateRecordedSlots::kYes &&
+      MayContainRecordedSlots(object)) {
     MemoryChunk::FromHeapObject(object)
         ->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(object, size);
   }
@@ -5527,6 +5530,10 @@ intptr_t Heap::store_buffer_mask_constant() {
 // static
 Address Heap::store_buffer_overflow_function_address() {
   return FUNCTION_ADDR(StoreBuffer::StoreBufferOverflow);
+}
+
+void Heap::MoveStoreBufferEntriesToRememberedSet() {
+  store_buffer()->MoveAllEntriesToRememberedSet();
 }
 
 void Heap::ClearRecordedSlot(HeapObject object, ObjectSlot slot) {

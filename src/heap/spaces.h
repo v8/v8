@@ -735,6 +735,7 @@ class MemoryChunk : public BasicMemoryChunk {
   template <RememberedSetType type>
   void MoveObjectWithInvalidatedSlots(HeapObject old_start,
                                       HeapObject new_start);
+  void InvalidateRecordedSlots(HeapObject object, int size);
   template <RememberedSetType type>
   bool RegisteredObjectWithInvalidatedSlots(HeapObject object);
   template <RememberedSetType type>

@@ -2778,7 +2778,10 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
 
   int old_instance_size = old_map->instance_size();
 
-  heap->NotifyObjectLayoutChange(*object, old_instance_size, no_allocation);
+  // Invalidate slots manually later in case of tagged to untagged translation.
+  // In all other cases the recorded slot remains dereferenceable.
+  heap->NotifyObjectLayoutChange(*object, old_instance_size, no_allocation,
+                                 InvalidateRecordedSlots::kNo);
 
   // Copy (real) inobject properties. If necessary, stop at number_of_fields to
   // avoid overwriting |one_pointer_filler_map|.
@@ -2796,6 +2799,8 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
       if (i < old_number_of_fields && !old_map->IsUnboxedDoubleField(index)) {
         // Transition from tagged to untagged slot.
         heap->ClearRecordedSlot(*object, object->RawField(index.offset()));
+        MemoryChunk* chunk = MemoryChunk::FromHeapObject(*object);
+        chunk->InvalidateRecordedSlots(*object, old_instance_size);
       } else {
 #ifdef DEBUG
         heap->VerifyClearedSlot(*object, object->RawField(index.offset()));
@@ -2892,7 +2897,12 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
 
   Heap* heap = isolate->heap();
   int old_instance_size = map->instance_size();
-  heap->NotifyObjectLayoutChange(*object, old_instance_size, no_allocation);
+
+  // Invalidate slots manually later in case the new map has in-object
+  // properties. If not, it is not possible to store an untagged value
+  // in a recorded slot.
+  heap->NotifyObjectLayoutChange(*object, old_instance_size, no_allocation,
+                                 InvalidateRecordedSlots::kNo);
 
   // Resize the object in the heap if necessary.
   int new_instance_size = new_map->instance_size();
@@ -2918,6 +2928,8 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
     heap->ClearRecordedSlotRange(
         object->address() + map->GetInObjectPropertyOffset(0),
         object->address() + new_instance_size);
+    MemoryChunk* chunk = MemoryChunk::FromHeapObject(*object);
+    chunk->InvalidateRecordedSlots(*object, old_instance_size);
 
     for (int i = 0; i < inobject_properties; i++) {
       FieldIndex index = FieldIndex::ForPropertyIndex(*new_map, i);
