@@ -41,7 +41,7 @@ class ScopeIterator {
   static const int kScopeDetailsFunctionIndex = 5;
   static const int kScopeDetailsSize = 6;
 
-  enum Option { DEFAULT, IGNORE_NESTED_SCOPES, COLLECT_NON_LOCALS };
+  enum Option { DEFAULT, COLLECT_NON_LOCALS };
 
   ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
                 Option options = DEFAULT);
@@ -120,11 +120,12 @@ class ScopeIterator {
     return frame_inspector_->javascript_frame();
   }
 
+  void AdvanceOneScope();
+  void AdvanceToNonHiddenScope();
+
   int GetSourcePosition();
 
   void TryParseAndRetrieveScopes(ScopeIterator::Option option);
-
-  void RetrieveScopeChain(DeclarationScope* scope);
 
   void UnwrapEvaluationContext();
 

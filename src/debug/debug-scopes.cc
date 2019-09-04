@@ -84,6 +84,117 @@ void ScopeIterator::Restart() {
   UnwrapEvaluationContext();
 }
 
+namespace {
+
+// Takes the scope of a parsed script, a function and a break location
+// inside the function. The result is the innermost lexical scope around
+// the break point, which serves as the starting point of the ScopeIterator.
+// And the scope of the function that was passed in (called closure scope).
+//
+// The start scope is guaranteed to be either the closure scope itself,
+// or a child of the closure scope.
+class ScopeChainRetriever {
+ public:
+  ScopeChainRetriever(DeclarationScope* scope, Handle<JSFunction> function,
+                      int position)
+      : scope_(scope),
+        break_scope_start_(function->shared().StartPosition()),
+        break_scope_end_(function->shared().EndPosition()),
+        is_default_constructor_(
+            IsDefaultConstructor(function->shared().kind())),
+        position_(position) {
+    DCHECK_NOT_NULL(scope);
+    RetrieveScopes();
+  }
+
+  DeclarationScope* ClosureScope() { return closure_scope_; }
+  Scope* StartScope() { return start_scope_; }
+
+ private:
+  DeclarationScope* scope_;
+  const int break_scope_start_;
+  const int break_scope_end_;
+  const bool is_default_constructor_;
+  const int position_;
+
+  DeclarationScope* closure_scope_ = nullptr;
+  Scope* start_scope_ = nullptr;
+
+  void RetrieveScopes() {
+    if (is_default_constructor_) {
+      // Even though the DefaultBaseConstructor is a child of a Class scope, the
+      // source positions are *not* nested. This means the actual scope for the
+      // DefaultBaseConstructor needs to be found by doing a DFS.
+      RetrieveScopeChainDefaultConstructor(scope_);
+    } else {
+      RetrieveScopeChain();
+    }
+    DCHECK_NOT_NULL(closure_scope_);
+    DCHECK_NOT_NULL(start_scope_);
+  }
+
+  bool RetrieveScopeChainDefaultConstructor(Scope* scope) {
+    const int beg_pos = scope->start_position();
+    const int end_pos = scope->end_position();
+    if (beg_pos == position_ && end_pos == position_) {
+      DCHECK(scope->is_function_scope());
+      DCHECK(
+          IsDefaultConstructor(scope->AsDeclarationScope()->function_kind()));
+      start_scope_ = scope;
+      closure_scope_ = scope->AsDeclarationScope();
+      return true;
+    }
+
+    for (Scope* inner_scope = scope->inner_scope(); inner_scope != nullptr;
+         inner_scope = inner_scope->sibling()) {
+      if (RetrieveScopeChainDefaultConstructor(inner_scope)) return true;
+    }
+    return false;
+  }
+
+  void RetrieveScopeChain() {
+    Scope* parent = nullptr;
+    Scope* current = scope_;
+    SetClosureScopeIfFound(current);
+
+    while (parent != current) {
+      parent = current;
+      for (Scope* inner_scope = current->inner_scope(); inner_scope != nullptr;
+           inner_scope = inner_scope->sibling()) {
+        if (SetClosureScopeIfFound(inner_scope) ||
+            ContainsPosition(inner_scope)) {
+          current = inner_scope;
+          break;
+        }
+      }
+    }
+    start_scope_ = current;
+  }
+
+  bool SetClosureScopeIfFound(Scope* scope) {
+    const int start = scope->start_position();
+    const int end = scope->end_position();
+    if (start == break_scope_start_ && end == break_scope_end_) {
+      closure_scope_ = scope->AsDeclarationScope();
+      return true;
+    }
+    return false;
+  }
+
+  bool ContainsPosition(Scope* scope) {
+    const int start = scope->start_position();
+    const int end = scope->end_position();
+    // In case the closure_scope_ hasn't been found yet, we are less strict
+    // about recursing downwards. This might be the case for nested arrow
+    // functions that have the same end position.
+    const bool position_fits_end =
+        closure_scope_ ? position_ < end : position_ <= end;
+    return start < position_ && position_fits_end;
+  }
+};
+
+}  // namespace
+
 void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
   // Catch the case when the debugger stops in an internal function.
   Handle<SharedFunctionInfo> shared_info(function_->shared(), isolate_);
@@ -105,7 +216,6 @@ void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
     return;
   }
 
-  DCHECK_NE(IGNORE_NESTED_SCOPES, option);
   bool ignore_nested_scopes = false;
   if (shared_info->HasBreakInfo() && frame_inspector_ != nullptr) {
     // The source position at return is always the end of the function,
@@ -123,38 +233,45 @@ void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
   }
 
   // Reparse the code and analyze the scopes.
-  // Check whether we are in global, eval or function code.
-  if (scope_info->scope_type() == FUNCTION_SCOPE) {
-    // Inner function.
-    info_ = new ParseInfo(isolate_, shared_info);
-  } else {
-    // Global or eval code.
-    Handle<Script> script(Script::cast(shared_info->script()), isolate_);
-    info_ = new ParseInfo(isolate_, script);
-    if (scope_info->scope_type() == EVAL_SCOPE) {
-      info_->set_eval();
-      if (!context_->IsNativeContext()) {
-        info_->set_outer_scope_info(handle(context_->scope_info(), isolate_));
-      }
-      // Language mode may be inherited from the eval caller.
-      // Retrieve it from shared function info.
-      info_->set_language_mode(shared_info->language_mode());
-    } else if (scope_info->scope_type() == MODULE_SCOPE) {
-      DCHECK(info_->is_module());
-    } else {
-      DCHECK_EQ(SCRIPT_SCOPE, scope_info->scope_type());
+  Handle<Script> script(Script::cast(shared_info->script()), isolate_);
+  info_ = new ParseInfo(isolate_, script);
+  info_->set_eager();
+  if (scope_info->scope_type() == EVAL_SCOPE || script->is_wrapped()) {
+    info_->set_eval();
+    if (!context_->IsNativeContext()) {
+      info_->set_outer_scope_info(handle(context_->scope_info(), isolate_));
     }
+    // Language mode may be inherited from the eval caller.
+    // Retrieve it from shared function info.
+    info_->set_language_mode(shared_info->language_mode());
+  } else if (scope_info->scope_type() == MODULE_SCOPE) {
+    DCHECK(info_->is_module());
+  } else {
+    DCHECK(scope_info->scope_type() == SCRIPT_SCOPE ||
+           scope_info->scope_type() == FUNCTION_SCOPE);
   }
 
   if (parsing::ParseAny(info_, shared_info, isolate_) &&
       Rewriter::Rewrite(info_)) {
     info_->ast_value_factory()->Internalize(isolate_);
-    closure_scope_ = info_->literal()->scope();
+    DeclarationScope* literal_scope = info_->literal()->scope();
+
+    ScopeChainRetriever scope_chain_retriever(literal_scope, function_,
+                                              GetSourcePosition());
+    start_scope_ = scope_chain_retriever.StartScope();
+    current_scope_ = start_scope_;
+
+    // In case of a FUNCTION_SCOPE, the ScopeIterator expects
+    // {closure_scope_} to be set to the scope of the function.
+    closure_scope_ = scope_info->scope_type() == FUNCTION_SCOPE
+                         ? scope_chain_retriever.ClosureScope()
+                         : literal_scope;
 
     if (option == COLLECT_NON_LOCALS) {
       DCHECK(non_locals_.is_null());
-      non_locals_ = info_->literal()->scope()->CollectNonLocals(
-          isolate_, info_, StringSet::New(isolate_));
+
+      non_locals_ = closure_scope_->CollectNonLocals(isolate_, info_,
+                                                     StringSet::New(isolate_));
       if (!closure_scope_->has_this_declaration() &&
           closure_scope_->HasThisReference()) {
         non_locals_ = StringSet::Add(isolate_, non_locals_,
@@ -169,9 +286,8 @@ void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
       if (closure_scope_->NeedsContext()) {
         context_ = handle(context_->closure_context(), isolate_);
       }
-    } else {
-      RetrieveScopeChain(closure_scope_);
     }
+
     UnwrapEvaluationContext();
   } else {
     // A failed reparse indicates that the preparser has diverged from the
@@ -260,6 +376,21 @@ bool ScopeIterator::HasContext() const {
   return !InInnerScope() || current_scope_->NeedsContext();
 }
 
+void ScopeIterator::AdvanceOneScope() {
+  if (current_scope_->NeedsContext()) {
+    DCHECK(!context_->previous().is_null());
+    context_ = handle(context_->previous(), isolate_);
+  }
+  DCHECK(current_scope_->outer_scope() != nullptr);
+  current_scope_ = current_scope_->outer_scope();
+}
+
+void ScopeIterator::AdvanceToNonHiddenScope() {
+  do {
+    AdvanceOneScope();
+  } while (current_scope_->is_hidden());
+}
+
 void ScopeIterator::Next() {
   DCHECK(!Done());
 
@@ -287,15 +418,7 @@ void ScopeIterator::Next() {
     context_ = handle(context_->previous(), isolate_);
   } else {
     DCHECK_NOT_NULL(current_scope_);
-    do {
-      if (current_scope_->NeedsContext()) {
-        DCHECK(!context_->previous().is_null());
-        context_ = handle(context_->previous(), isolate_);
-      }
-      DCHECK_IMPLIES(InInnerScope(), current_scope_->outer_scope() != nullptr);
-      current_scope_ = current_scope_->outer_scope();
-      // Repeat to skip hidden scopes.
-    } while (current_scope_->is_hidden());
+    AdvanceToNonHiddenScope();
   }
 
   UnwrapEvaluationContext();
@@ -520,33 +643,15 @@ int ScopeIterator::GetSourcePosition() {
     DCHECK(!generator_.is_null());
     SharedFunctionInfo::EnsureSourcePositionsAvailable(
         isolate_, handle(generator_->function().shared(), isolate_));
-    return generator_->source_position();
+    // The source position of a generator function is equal to the
+    // start_position() of its scope. This would fail the search
+    // in the {ScopeChainRetriever}, which *requires* a
+    // smaller then comparison for correct scopes when hitting break
+    // points at function literals.
+    // To fix this, we nudge the source position of the generator
+    // by 1, so the scope of the generator function is correctly found.
+    return generator_->source_position() + 1;
   }
-}
-
-void ScopeIterator::RetrieveScopeChain(DeclarationScope* scope) {
-  DCHECK_NOT_NULL(scope);
-
-  const int position = GetSourcePosition();
-
-  Scope* parent = nullptr;
-  Scope* current = scope;
-  while (parent != current) {
-    parent = current;
-    for (Scope* inner_scope = current->inner_scope(); inner_scope != nullptr;
-         inner_scope = inner_scope->sibling()) {
-      int beg_pos = inner_scope->start_position();
-      int end_pos = inner_scope->end_position();
-      DCHECK((beg_pos >= 0 && end_pos >= 0) || inner_scope->is_hidden());
-      if (beg_pos < position && position < end_pos) {
-        current = inner_scope;
-        break;
-      }
-    }
-  }
-
-  start_scope_ = current;
-  current_scope_ = current;
 }
 
 void ScopeIterator::VisitScriptScope(const Visitor& visitor) const {
