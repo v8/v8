@@ -197,16 +197,6 @@ bool SetPermissions(v8::PageAllocator* page_allocator, void* address,
   return page_allocator->SetPermissions(address, size, access);
 }
 
-byte* AllocatePage(v8::PageAllocator* page_allocator, void* hint,
-                   size_t* allocated) {
-  DCHECK_NOT_NULL(page_allocator);
-  size_t page_size = page_allocator->AllocatePageSize();
-  void* result = AllocatePages(page_allocator, hint, page_size, page_size,
-                               PageAllocator::kReadWrite);
-  if (result != nullptr) *allocated = page_size;
-  return static_cast<byte*>(result);
-}
-
 bool OnCriticalMemoryPressure(size_t length) {
   // TODO(bbudge) Rework retry logic once embedders implement the more
   // informative overload.
