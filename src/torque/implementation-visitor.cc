@@ -3314,6 +3314,7 @@ void ImplementationVisitor::GenerateClassDefinitions(
     IncludeGuardScope inline_header_guard(inline_header, basename + "-inl.h");
     inline_header << "#include \"torque-generated/class-definitions-tq.h\"\n\n";
     inline_header << "#include \"src/objects/js-promise.h\"\n";
+    inline_header << "#include \"src/objects/js-weak-refs.h\"\n";
     inline_header << "#include \"src/objects/module.h\"\n";
     inline_header << "#include \"src/objects/objects-inl.h\"\n";
     inline_header << "#include \"src/objects/script.h\"\n";
@@ -3329,6 +3330,7 @@ void ImplementationVisitor::GenerateClassDefinitions(
     implementation << "#include \"src/objects/embedder-data-array-inl.h\"\n";
     implementation << "#include \"src/objects/js-generator-inl.h\"\n";
     implementation << "#include \"src/objects/js-regexp-inl.h\"\n";
+    implementation << "#include \"src/objects/js-weak-refs-inl.h\"\n";
     implementation
         << "#include \"src/objects/js-regexp-string-iterator-inl.h\"\n";
     implementation << "#include \"src/objects/literal-objects-inl.h\"\n";

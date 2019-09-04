@@ -800,7 +800,7 @@ FieldAccess AccessBuilder::ForJSStringIteratorString() {
 // static
 FieldAccess AccessBuilder::ForJSStringIteratorIndex() {
   FieldAccess access = {kTaggedBase,
-                        JSStringIterator::kNextIndexOffset,
+                        JSStringIterator::kIndexOffset,
                         Handle<Name>(),
                         MaybeHandle<Map>(),
                         TypeCache::Get()->kStringLengthType,

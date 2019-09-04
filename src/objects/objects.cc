@@ -4989,7 +4989,7 @@ void SharedFunctionInfo::ScriptIterator::Reset(Isolate* isolate,
 }
 
 void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
-                                   Handle<Object> script_object,
+                                   Handle<HeapObject> script_object,
                                    int function_literal_id,
                                    bool reset_preparsed_scope_data) {
   if (shared->script() == *script_object) return;

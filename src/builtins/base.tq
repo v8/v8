@@ -678,10 +678,11 @@ extern class EmbedderDataArray extends HeapObject {
 
 type ScopeInfo extends HeapObject generates 'TNode<ScopeInfo>';
 
+@generateCppClass
 extern class PreparseData extends HeapObject {
   // TODO(v8:8983): Add declaration for variable-sized region.
   data_length: int32;
-  inner_length: int32;
+  children_length: int32;
 }
 
 extern class InterpreterData extends Struct {
@@ -873,9 +874,12 @@ extern class JSAsyncFromSyncIterator extends JSObject {
   next: Object;
 }
 
+@generateCppClass
 extern class JSStringIterator extends JSObject {
+  // The [[IteratedString]] inobject property.
   string: String;
-  next_index: Smi;
+  // The [[StringIteratorNextIndex]] inobject property.
+  index: Smi;
 }
 
 @abstract
@@ -1532,6 +1536,7 @@ extern class AccessorInfo extends Struct {
   data: Object;
 }
 
+@generateCppClass
 extern class AccessorPair extends Struct {
   getter: Object;
   setter: Object;
@@ -1541,12 +1546,19 @@ extern class BreakPoint extends Tuple2 {}
 extern class BreakPointInfo extends Tuple2 {}
 type CoverageInfo extends FixedArray;
 
+@generateCppClass
 extern class DebugInfo extends Struct {
-  shared_function_info: SharedFunctionInfo;
+  shared: SharedFunctionInfo;
   debugger_hints: Smi;
+  // Script field from shared function info.
   script: Undefined | Script;
+  // The original uninstrumented bytecode array for functions with break
+  // points - the instrumented bytecode is held in the shared function info.
   original_bytecode_array: Undefined | BytecodeArray;
+  // The debug instrumented bytecode array for functions with break points
+  // - also pointed to by the shared function info.
   debug_bytecode_array: Undefined | BytecodeArray;
+  // Fixed array holding status information for each active break point.
   break_points: FixedArray;
   flags: Smi;
   coverage_info: CoverageInfo | Undefined;
@@ -1566,6 +1578,7 @@ extern class FeedbackVector extends HeapObject {
   padding: uint32;
 }
 
+@generateCppClass
 extern class FeedbackCell extends Struct {
   value: Undefined | FeedbackVector | FixedArray;
   interrupt_budget: int32;
@@ -1629,22 +1642,35 @@ extern class JSFinalizationGroup extends JSObject {
   flags: Smi;
 }
 
+@generateCppClass
 extern class JSFinalizationGroupCleanupIterator extends JSObject {
   finalization_group: JSFinalizationGroup;
 }
 
+@generateCppClass
 extern class WeakCell extends HeapObject {
   finalization_group: Undefined | JSFinalizationGroup;
   target: Undefined | JSReceiver;
   holdings: Object;
+
+  // For storing doubly linked lists of WeakCells in JSFinalizationGroup's
+  // "active_cells" and "cleared_cells" lists.
   prev: Undefined | WeakCell;
   next: Undefined | WeakCell;
+
+  // For storing doubly linked lists of WeakCells per key in
+  // JSFinalizationGroup's key-based hashmap. WeakCell also needs to know its
+  // key, so that we can remove the key from the key_map when we remove the last
+  // WeakCell associated with it.
   key: Object;
   key_list_prev: Undefined | WeakCell;
   key_list_next: Undefined | WeakCell;
 }
 
-extern class JSWeakRef extends JSObject { target: Undefined | JSReceiver; }
+@generateCppClass
+extern class JSWeakRef extends JSObject {
+  target: Undefined | JSReceiver;
+}
 
 extern class BytecodeArray extends FixedArrayBase {
   // TODO(v8:8983): bytecode array object sizes vary based on their contents.

@@ -22,7 +22,7 @@ class BytecodeArray;
 
 // The DebugInfo class holds additional information for a function being
 // debugged.
-class DebugInfo : public Struct {
+class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
  public:
   NEVER_READ_ONLY_SPACE
   enum Flag {
@@ -40,14 +40,8 @@ class DebugInfo : public Struct {
   // A bitfield that lists uses of the current instance.
   DECL_INT_ACCESSORS(flags)
 
-  // The shared function info for the source being debugged.
-  DECL_ACCESSORS(shared, SharedFunctionInfo)
-
   // Bit field containing various information collected for debugging.
   DECL_INT_ACCESSORS(debugger_hints)
-
-  // Script field from shared function info.
-  DECL_ACCESSORS(script, Object)
 
   // DebugInfo can be detached from the SharedFunctionInfo iff it is empty.
   bool IsEmpty() const;
@@ -84,17 +78,6 @@ class DebugInfo : public Struct {
   void SetBreakAtEntry();
   void ClearBreakAtEntry();
   bool BreakAtEntry() const;
-
-  // The original uninstrumented bytecode array for functions with break
-  // points - the instrumented bytecode is held in the shared function info.
-  DECL_ACCESSORS(original_bytecode_array, Object)
-
-  // The debug instrumented bytecode array for functions with break points
-  // - also pointed to by the shared function info.
-  DECL_ACCESSORS(debug_bytecode_array, Object)
-
-  // Fixed array holding status information for each active break point.
-  DECL_ACCESSORS(break_points, FixedArray)
 
   // Check if there is a break point at a source position.
   bool HasBreakPoint(Isolate* isolate, int source_position);
@@ -162,17 +145,9 @@ class DebugInfo : public Struct {
 
   // Clears all fields related to block coverage.
   void ClearCoverageInfo(Isolate* isolate);
-  DECL_ACCESSORS(coverage_info, Object)
-
-  DECL_CAST(DebugInfo)
 
   // Dispatched behavior.
   DECL_PRINTER(DebugInfo)
-  DECL_VERIFIER(DebugInfo)
-
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
-                                TORQUE_GENERATED_DEBUG_INFO_FIELDS)
 
   static const int kEstimatedNofBreakPointsInFunction = 4;
 
@@ -180,7 +155,7 @@ class DebugInfo : public Struct {
   // Get the break point info object for a source position.
   Object GetBreakPointInfo(Isolate* isolate, int source_position);
 
-  OBJECT_CONSTRUCTORS(DebugInfo, Struct);
+  TQ_OBJECT_CONSTRUCTORS(DebugInfo)
 };
 
 // The BreakPointInfo class holds information for break points set in a

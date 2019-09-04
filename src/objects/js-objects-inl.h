@@ -40,7 +40,7 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSGlobalProxy)
 JSIteratorResult::JSIteratorResult(Address ptr) : JSObject(ptr) {}
 OBJECT_CONSTRUCTORS_IMPL(JSMessageObject, JSObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSPrimitiveWrapper)
-OBJECT_CONSTRUCTORS_IMPL(JSStringIterator, JSObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSStringIterator)
 
 NEVER_READ_ONLY_SPACE_IMPL(JSReceiver)
 
@@ -49,7 +49,6 @@ CAST_ACCESSOR(JSGlobalObject)
 CAST_ACCESSOR(JSIteratorResult)
 CAST_ACCESSOR(JSMessageObject)
 CAST_ACCESSOR(JSReceiver)
-CAST_ACCESSOR(JSStringIterator)
 
 MaybeHandle<Object> JSReceiver::GetProperty(Isolate* isolate,
                                             Handle<JSReceiver> receiver,
@@ -1009,8 +1008,7 @@ inline int JSGlobalProxy::SizeWithEmbedderFields(int embedder_field_count) {
 ACCESSORS(JSIteratorResult, value, Object, kValueOffset)
 ACCESSORS(JSIteratorResult, done, Object, kDoneOffset)
 
-ACCESSORS(JSStringIterator, string, String, kStringOffset)
-SMI_ACCESSORS(JSStringIterator, index, kNextIndexOffset)
+TQ_SMI_ACCESSORS(JSStringIterator, index)
 
 // If the fast-case backing storage takes up much more memory than a dictionary
 // backing storage would, the object should have slow elements.

@@ -1370,25 +1370,18 @@ class JSAsyncFromSyncIterator
   TQ_OBJECT_CONSTRUCTORS(JSAsyncFromSyncIterator)
 };
 
-class JSStringIterator : public JSObject {
+class JSStringIterator
+    : public TorqueGeneratedJSStringIterator<JSStringIterator, JSObject> {
  public:
   // Dispatched behavior.
   DECL_PRINTER(JSStringIterator)
   DECL_VERIFIER(JSStringIterator)
 
-  DECL_CAST(JSStringIterator)
-
-  // [string]: the [[IteratedString]] inobject property.
-  DECL_ACCESSORS(string, String)
-
   // [index]: The [[StringIteratorNextIndex]] inobject property.
   inline int index() const;
   inline void set_index(int value);
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSSTRING_ITERATOR_FIELDS)
-
-  OBJECT_CONSTRUCTORS(JSStringIterator, JSObject);
+  TQ_OBJECT_CONSTRUCTORS(JSStringIterator)
 };
 
 }  // namespace internal

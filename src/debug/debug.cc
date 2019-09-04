@@ -1171,7 +1171,7 @@ void Debug::PrepareFunctionForDebugExecution(
   if (debug_info->flags() & DebugInfo::kPreparedForDebugExecution) return;
 
   // Make a copy of the bytecode array if available.
-  Handle<Object> maybe_original_bytecode_array =
+  Handle<HeapObject> maybe_original_bytecode_array =
       isolate_->factory()->undefined_value();
   if (shared->HasBytecodeArray()) {
     Handle<BytecodeArray> original_bytecode_array =

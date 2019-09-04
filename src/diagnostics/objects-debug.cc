@@ -513,8 +513,6 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
 
 USE_TORQUE_VERIFIER(FreeSpace)
 
-USE_TORQUE_VERIFIER(FeedbackCell)
-
 void FeedbackVector::FeedbackVectorVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::FeedbackVectorVerify(*this, isolate);
   MaybeObject code = optimized_code_weak_or_smi();
@@ -1688,8 +1686,6 @@ void StoreHandler::StoreHandlerVerify(Isolate* isolate) {
 
 USE_TORQUE_VERIFIER(AccessorInfo)
 
-USE_TORQUE_VERIFIER(AccessorPair)
-
 void CallHandlerInfo::CallHandlerInfoVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::CallHandlerInfoVerify(*this, isolate);
   CHECK(map() == ReadOnlyRoots(isolate).side_effect_call_handler_info_map() ||
@@ -1741,8 +1737,6 @@ void NormalizedMapCache::NormalizedMapCacheVerify(Isolate* isolate) {
     }
   }
 }
-
-USE_TORQUE_VERIFIER(DebugInfo)
 
 USE_TORQUE_VERIFIER(StackFrameInfo)
 

@@ -21,11 +21,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(PreparseData, HeapObject)
-
-CAST_ACCESSOR(PreparseData)
-INT_ACCESSORS(PreparseData, data_length, kDataLengthOffset)
-INT_ACCESSORS(PreparseData, children_length, kInnerLengthOffset)
+TQ_OBJECT_CONSTRUCTORS_IMPL(PreparseData)
 
 int PreparseData::inner_start_offset() const {
   return InnerOffset(data_length());
@@ -107,7 +103,7 @@ DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
 
 ACCESSORS(SharedFunctionInfo, name_or_scope_info, Object,
           kNameOrScopeInfoOffset)
-ACCESSORS(SharedFunctionInfo, script_or_debug_info, Object,
+ACCESSORS(SharedFunctionInfo, script_or_debug_info, HeapObject,
           kScriptOrDebugInfoOffset)
 
 INT32_ACCESSORS(SharedFunctionInfo, function_literal_id,
@@ -656,16 +652,16 @@ bool SharedFunctionInfo::HasWasmCapiFunctionData() const {
   return function_data().IsWasmCapiFunctionData();
 }
 
-Object SharedFunctionInfo::script() const {
-  Object maybe_script = script_or_debug_info();
+HeapObject SharedFunctionInfo::script() const {
+  HeapObject maybe_script = script_or_debug_info();
   if (maybe_script.IsDebugInfo()) {
     return DebugInfo::cast(maybe_script).script();
   }
   return maybe_script;
 }
 
-void SharedFunctionInfo::set_script(Object script) {
-  Object maybe_debug_info = script_or_debug_info();
+void SharedFunctionInfo::set_script(HeapObject script) {
+  HeapObject maybe_debug_info = script_or_debug_info();
   if (maybe_debug_info.IsDebugInfo()) {
     DebugInfo::cast(maybe_debug_info).set_script(script);
   } else {
