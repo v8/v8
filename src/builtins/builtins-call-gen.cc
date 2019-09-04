@@ -118,7 +118,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
   GotoIf(TaggedIsSmi(arguments_list), &if_runtime);
 
   TNode<Map> arguments_list_map = LoadMap(CAST(arguments_list));
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
 
   // Check if {arguments_list} is an (unmodified) arguments object.
   TNode<Map> sloppy_arguments_map = CAST(

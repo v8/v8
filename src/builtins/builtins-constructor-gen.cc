@@ -102,7 +102,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
 
   // Get the function map in the current native context and set that
   // as the map of the allocated object.
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   TNode<Map> const function_map =
       CAST(LoadContextElement(native_context, function_map_index));
 
@@ -255,7 +255,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
                                  context);
   StoreObjectFieldNoWriteBarrier(function_context, Context::kExtensionOffset,
                                  TheHoleConstant());
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   StoreObjectFieldNoWriteBarrier(function_context,
                                  Context::kNativeContextOffset, native_context);
 
@@ -402,7 +402,7 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyArrayLiteral(
 
   BIND(&create_empty_array);
   TNode<Int32T> kind = LoadElementsKind(allocation_site.value());
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   Comment("LoadJSArrayElementsMap");
   TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
   TNode<Smi> zero = SmiConstant(0);
@@ -621,7 +621,7 @@ TF_BUILTIN(CreateShallowObjectLiteral, ConstructorBuiltinsAssembler) {
 // Used by the CreateEmptyObjectLiteral bytecode and the Object constructor.
 Node* ConstructorBuiltinsAssembler::EmitCreateEmptyObjectLiteral(
     Node* context) {
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<JSFunction> object_function =
       CAST(LoadContextElement(native_context, Context::OBJECT_FUNCTION_INDEX));
   TNode<Map> map = CAST(LoadObjectField(

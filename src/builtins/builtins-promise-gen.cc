@@ -26,7 +26,7 @@ using TNode = CodeStubAssembler::TNode<T>;
 using IteratorRecord = TorqueStructIteratorRecord;
 
 Node* PromiseBuiltinsAssembler::AllocateJSPromise(Node* context) {
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   TNode<JSFunction> const promise_fun =
       CAST(LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX));
   CSA_ASSERT(this, IsFunctionWithPrototypeSlotMap(LoadMap(promise_fun)));
@@ -182,7 +182,7 @@ TF_BUILTIN(NewPromiseCapability, PromiseBuiltinsAssembler) {
   TNode<Context> const context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> const constructor = CAST(Parameter(Descriptor::kConstructor));
   TNode<Object> const debug_event = CAST(Parameter(Descriptor::kDebugEvent));
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
 
   Label if_not_constructor(this, Label::kDeferred),
       if_notcallable(this, Label::kDeferred), if_fast_promise_capability(this),
@@ -839,7 +839,7 @@ void PromiseBuiltinsAssembler::BranchIfAccessCheckFailed(
   {
     TNode<Context> function_context =
         CAST(LoadObjectField(var_executor.value(), JSFunction::kContextOffset));
-    TNode<Context> native_function_context =
+    TNode<NativeContext> native_function_context =
         LoadNativeContext(function_context);
     Branch(TaggedEqual(native_context, native_function_context), &has_access,
            &call_runtime);
@@ -983,7 +983,7 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
   TNode<Map> const executor_map = LoadMap(CAST(executor));
   GotoIfNot(IsCallableMap(executor_map), &if_notcallable);
 
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   TNode<JSFunction> const promise_fun =
       CAST(LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX));
   Node* const is_debug_active = IsDebugActive();
@@ -1139,7 +1139,7 @@ TF_BUILTIN(PromisePrototypeThen, PromiseBuiltinsAssembler) {
   // 3. Let C be ? SpeciesConstructor(promise, %Promise%).
   Label fast_promise_capability(this), slow_constructor(this, Label::kDeferred),
       slow_promise_capability(this, Label::kDeferred);
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   TNode<JSFunction> promise_fun =
       CAST(LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX));
   TNode<Map> const promise_map = LoadMap(promise);
@@ -1226,7 +1226,7 @@ TF_BUILTIN(PromisePrototypeCatch, PromiseBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
 
   // 2. Return ? Invoke(promise, "then", « undefined, onRejected »).
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   Return(InvokeThen(native_context, receiver, on_fulfilled, on_rejected));
 }
 
@@ -1474,7 +1474,7 @@ TF_BUILTIN(PromiseResolve, PromiseBuiltinsAssembler) {
   TNode<Object> value = CAST(Parameter(Descriptor::kValue));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<JSFunction> promise_fun =
       CAST(LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX));
 
@@ -1583,7 +1583,7 @@ TF_BUILTIN(PromiseReject, PromiseBuiltinsAssembler) {
                        "PromiseReject");
 
   Label if_nativepromise(this), if_custompromise(this, Label::kDeferred);
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
 
   TNode<Object> promise_fun =
       LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
@@ -1693,7 +1693,7 @@ TF_BUILTIN(PromiseThenFinally, PromiseBuiltinsAssembler) {
       CallBuiltin(Builtins::kPromiseResolve, context, constructor, result);
 
   // 7. Let valueThunk be equivalent to a function that returns value.
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   Node* const value_thunk = CreateValueThunkFunction(value, native_context);
 
   // 8. Return ? Invoke(promise, "then", « valueThunk »).
@@ -1754,7 +1754,7 @@ TF_BUILTIN(PromiseCatchFinally, PromiseBuiltinsAssembler) {
       CallBuiltin(Builtins::kPromiseResolve, context, constructor, result);
 
   // 7. Let thrower be equivalent to a function that throws reason.
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   Node* const thrower = CreateThrowerFunction(reason, native_context);
 
   // 8. Return ? Invoke(promise, "then", « thrower »).
@@ -1775,7 +1775,7 @@ TF_BUILTIN(PromisePrototypeFinally, PromiseBuiltinsAssembler) {
                        "Promise.prototype.finally");
 
   // 3. Let C be ? SpeciesConstructor(promise, %Promise%).
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   TNode<Object> const promise_fun =
       LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
   VARIABLE(var_constructor, MachineRepresentation::kTagged, promise_fun);
@@ -1943,7 +1943,7 @@ TF_BUILTIN(ResolvePromise, PromiseBuiltinsAssembler) {
   // is intact, as that guards the lookup path for the "then" property
   // on JSPromise instances which have the (initial) %PromisePrototype%.
   Label if_fast(this), if_receiver(this), if_slow(this, Label::kDeferred);
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   GotoIfForceSlowPath(&if_slow);
   GotoIf(IsPromiseThenProtectorCellInvalid(), &if_slow);
   GotoIfNot(IsJSPromiseMap(resolution_map), &if_receiver);
@@ -2025,7 +2025,7 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
     Label* if_exception, Variable* var_exception) {
   IteratorBuiltinsAssembler iter_assembler(state());
 
-  TNode<NativeContext> native_context = Cast(LoadNativeContext(context));
+  TNode<NativeContext> native_context = LoadNativeContext(context);
 
   // For catch prediction, don't treat the .then calls as handling it;
   // instead, recurse outwards.
@@ -2390,7 +2390,7 @@ void PromiseBuiltinsAssembler::Generate_PromiseAllResolveElementClosure(
       this,
       SmiEqual(LoadObjectField<Smi>(context, Context::kLengthOffset),
                SmiConstant(PromiseBuiltins::kPromiseAllResolveElementLength)));
-  TNode<NativeContext> native_context = Cast(LoadNativeContext(context));
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   StoreObjectField(function, JSFunction::kContextOffset, native_context);
 
   // Update the value depending on whether Promise.all or
@@ -2606,7 +2606,7 @@ TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
     // as that guards the lookup path for the "resolve" property on the
     // Promise constructor.
     Label loop(this), break_loop(this), if_slow(this, Label::kDeferred);
-    TNode<Context> const native_context = LoadNativeContext(context);
+    TNode<NativeContext> const native_context = LoadNativeContext(context);
     TVARIABLE(Object, var_promise_resolve_function, UndefinedConstant());
     GotoIfNotPromiseResolveLookupChainIntact(native_context, receiver,
                                              &if_slow);

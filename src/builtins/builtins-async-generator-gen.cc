@@ -93,7 +93,7 @@ class AsyncGeneratorBuiltinsAssembler : public AsyncBuiltinsAssembler {
 
   inline Node* IsFastJSIterResult(Node* const value, Node* const context) {
     CSA_ASSERT(this, TaggedIsNotSmi(value));
-    TNode<Context> const native_context = LoadNativeContext(context);
+    TNode<NativeContext> const native_context = LoadNativeContext(context);
     return TaggedEqual(
         LoadMap(value),
         LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX));

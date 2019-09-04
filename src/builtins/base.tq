@@ -102,7 +102,7 @@ extern class Context extends HeapObject {
   extension: Object;
   native_context: Object;
 }
-type NativeContext extends Context;
+type NativeContext extends Context generates 'TNode<NativeContext>';
 
 @generateCppClass
 extern class Oddball extends HeapObject {
@@ -2268,6 +2268,12 @@ Cast<Context>(o: HeapObject): Context
   goto CastError;
 }
 
+Cast<NativeContext>(o: HeapObject): NativeContext
+    labels CastError {
+  if (IsNativeContext(o)) return %RawDownCast<NativeContext>(o);
+  goto CastError;
+}
+
 Cast<JSObject>(o: HeapObject): JSObject
     labels CastError {
   if (IsJSObject(o)) return %RawDownCast<JSObject>(o);
@@ -2515,8 +2521,8 @@ extern macro ChangeUint32ToWord(uint32): uintptr;  // Doesn't sign-extend.
 extern macro LoadNativeContext(Context): NativeContext;
 extern macro TruncateFloat64ToFloat32(float64): float32;
 extern macro TruncateHeapNumberValueToWord32(HeapNumber): int32;
-extern macro LoadJSArrayElementsMap(constexpr ElementsKind, Context): Map;
-extern macro LoadJSArrayElementsMap(ElementsKind, Context): Map;
+extern macro LoadJSArrayElementsMap(constexpr ElementsKind, NativeContext): Map;
+extern macro LoadJSArrayElementsMap(ElementsKind, NativeContext): Map;
 extern macro ChangeNonnegativeNumberToUintPtr(Number): uintptr;
 extern macro TryNumberToUintPtr(Number): uintptr labels IfNegative;
 extern macro NumberConstant(constexpr float64): Number;
@@ -3255,6 +3261,7 @@ extern macro IsJSObject(HeapObject): bool;
 extern macro IsJSTypedArray(HeapObject): bool;
 extern macro IsNumberDictionary(HeapObject): bool;
 extern macro IsContext(HeapObject): bool;
+extern macro IsNativeContext(HeapObject): bool;
 extern macro IsJSReceiver(HeapObject): bool;
 extern macro TaggedIsCallable(Object): bool;
 extern macro IsDetachedBuffer(JSArrayBuffer): bool;

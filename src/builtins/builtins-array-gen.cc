@@ -271,7 +271,7 @@ void ArrayBuiltinsAssembler::GenerateArraySpeciesCreate(TNode<Number> len) {
   // element in the input array (maybe the callback deletes an element).
   const ElementsKind elements_kind =
       GetHoleyElementsKind(GetInitialFastElementsKind());
-  TNode<Context> native_context = LoadNativeContext(context());
+  TNode<NativeContext> native_context = LoadNativeContext(context());
   TNode<Map> array_map = LoadJSArrayElementsMap(elements_kind, native_context);
   a_.Bind(AllocateJSArray(PACKED_SMI_ELEMENTS, array_map, len, CAST(len),
                           nullptr, CodeStubAssembler::SMI_PARAMETERS,
@@ -711,7 +711,7 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
     IteratorRecord iterator_record =
         iterator_assembler.GetIterator(context, items, iterator_method);
 
-    TNode<Context> native_context = LoadNativeContext(context);
+    TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<Map> fast_iterator_result_map = CAST(
         LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX));
 
@@ -2177,7 +2177,7 @@ void ArrayBuiltinsAssembler::GenerateConstructor(
 void ArrayBuiltinsAssembler::GenerateArrayNoArgumentConstructor(
     ElementsKind kind, AllocationSiteOverrideMode mode) {
   using Descriptor = ArrayNoArgumentConstructorDescriptor;
-  TNode<Context> native_context = CAST(LoadObjectField(
+  TNode<NativeContext> native_context = CAST(LoadObjectField(
       Parameter(Descriptor::kFunction), JSFunction::kContextOffset));
   bool track_allocation_site =
       AllocationSite::ShouldTrack(kind) && mode != DISABLE_ALLOCATION_SITES;
@@ -2195,7 +2195,7 @@ void ArrayBuiltinsAssembler::GenerateArraySingleArgumentConstructor(
   using Descriptor = ArraySingleArgumentConstructorDescriptor;
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   Node* function = Parameter(Descriptor::kFunction);
-  TNode<Context> native_context =
+  TNode<NativeContext> native_context =
       CAST(LoadObjectField(function, JSFunction::kContextOffset));
   TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
 

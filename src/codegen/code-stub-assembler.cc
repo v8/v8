@@ -2660,9 +2660,9 @@ void CodeStubAssembler::StoreContextElementNoWriteBarrier(
                       IntPtrConstant(offset), value);
 }
 
-TNode<Context> CodeStubAssembler::LoadNativeContext(
+TNode<NativeContext> CodeStubAssembler::LoadNativeContext(
     SloppyTNode<Context> context) {
-  return UncheckedCast<Context>(
+  return UncheckedCast<NativeContext>(
       LoadContextElement(context, Context::NATIVE_CONTEXT_INDEX));
 }
 
@@ -2695,9 +2695,8 @@ TNode<Context> CodeStubAssembler::LoadModuleContext(
 }
 
 TNode<Map> CodeStubAssembler::LoadJSArrayElementsMap(
-    SloppyTNode<Int32T> kind, SloppyTNode<Context> native_context) {
+    SloppyTNode<Int32T> kind, SloppyTNode<NativeContext> native_context) {
   CSA_ASSERT(this, IsFastElementsKind(kind));
-  CSA_ASSERT(this, IsNativeContext(native_context));
   TNode<IntPtrT> offset =
       IntPtrAdd(IntPtrConstant(Context::FIRST_JS_ARRAY_MAP_SLOT),
                 ChangeInt32ToIntPtr(kind));
@@ -2705,8 +2704,7 @@ TNode<Map> CodeStubAssembler::LoadJSArrayElementsMap(
 }
 
 TNode<Map> CodeStubAssembler::LoadJSArrayElementsMap(
-    ElementsKind kind, SloppyTNode<Context> native_context) {
-  CSA_ASSERT(this, IsNativeContext(native_context));
+    ElementsKind kind, SloppyTNode<NativeContext> native_context) {
   return UncheckedCast<Map>(
       LoadContextElement(native_context, Context::ArrayMapIndex(kind)));
 }
@@ -4199,7 +4197,7 @@ Node* CodeStubAssembler::ExtractFastJSArray(Node* context, Node* array,
   TNode<Int32T> elements_kind = LoadMapElementsKind(original_array_map);
 
   // Use the cannonical map for the Array's ElementsKind
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Map> array_map = LoadJSArrayElementsMap(elements_kind, native_context);
 
   TNode<FixedArrayBase> new_elements = ExtractFixedArray(
@@ -4281,7 +4279,7 @@ Node* CodeStubAssembler::CloneFastJSArray(Node* context, Node* array,
 
   BIND(&allocate_jsarray_main);
   // Use the cannonical map for the chosen elements kind.
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Map> array_map =
       LoadJSArrayElementsMap(var_elements_kind.value(), native_context);
 
@@ -6205,7 +6203,7 @@ TNode<BoolT> CodeStubAssembler::IsPromiseSpeciesProtectorCellInvalid() {
 
 TNode<BoolT> CodeStubAssembler::IsPrototypeInitialArrayPrototype(
     SloppyTNode<Context> context, SloppyTNode<Map> map) {
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   TNode<Object> const initial_array_prototype = LoadContextElement(
       native_context, Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
   TNode<HeapObject> proto = LoadMapPrototype(map);
@@ -6214,7 +6212,7 @@ TNode<BoolT> CodeStubAssembler::IsPrototypeInitialArrayPrototype(
 
 TNode<BoolT> CodeStubAssembler::IsPrototypeTypedArrayPrototype(
     SloppyTNode<Context> context, SloppyTNode<Map> map) {
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   TNode<Object> const typed_array_prototype =
       LoadContextElement(native_context, Context::TYPED_ARRAY_PROTOTYPE_INDEX);
   TNode<HeapObject> proto = LoadMapPrototype(map);
@@ -6226,7 +6224,7 @@ TNode<BoolT> CodeStubAssembler::IsPrototypeTypedArrayPrototype(
 
 TNode<BoolT> CodeStubAssembler::IsFastAliasedArgumentsMap(
     TNode<Context> context, TNode<Map> map) {
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   TNode<Object> const arguments_map = LoadContextElement(
       native_context, Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX);
   return TaggedEqual(arguments_map, map);
@@ -6234,7 +6232,7 @@ TNode<BoolT> CodeStubAssembler::IsFastAliasedArgumentsMap(
 
 TNode<BoolT> CodeStubAssembler::IsSlowAliasedArgumentsMap(
     TNode<Context> context, TNode<Map> map) {
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   TNode<Object> const arguments_map = LoadContextElement(
       native_context, Context::SLOW_ALIASED_ARGUMENTS_MAP_INDEX);
   return TaggedEqual(arguments_map, map);
@@ -6242,7 +6240,7 @@ TNode<BoolT> CodeStubAssembler::IsSlowAliasedArgumentsMap(
 
 TNode<BoolT> CodeStubAssembler::IsSloppyArgumentsMap(TNode<Context> context,
                                                      TNode<Map> map) {
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   TNode<Object> const arguments_map =
       LoadContextElement(native_context, Context::SLOPPY_ARGUMENTS_MAP_INDEX);
   return TaggedEqual(arguments_map, map);
@@ -6250,7 +6248,7 @@ TNode<BoolT> CodeStubAssembler::IsSloppyArgumentsMap(TNode<Context> context,
 
 TNode<BoolT> CodeStubAssembler::IsStrictArgumentsMap(TNode<Context> context,
                                                      TNode<Map> map) {
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   TNode<Object> const arguments_map =
       LoadContextElement(native_context, Context::STRICT_ARGUMENTS_MAP_INDEX);
   return TaggedEqual(arguments_map, map);
@@ -10426,7 +10424,7 @@ Node* CodeStubAssembler::EmitKeyedSloppyArguments(
 
 TNode<Context> CodeStubAssembler::LoadScriptContext(
     TNode<Context> context, TNode<IntPtrT> context_index) {
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<ScriptContextTable> script_context_table = CAST(
       LoadContextElement(native_context, Context::SCRIPT_CONTEXT_TABLE_INDEX));
 
@@ -13024,7 +13022,7 @@ Node* CodeStubAssembler::InstanceOf(Node* object, Node* callable,
   // Optimize for the likely case where {inst_of_handler} is the builtin
   // Function.prototype[@@hasInstance] method, and emit a direct call in
   // that case without any additional checking.
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Object> function_has_instance =
       LoadContextElement(native_context, Context::FUNCTION_HAS_INSTANCE_INDEX);
   GotoIfNot(TaggedEqual(inst_of_handler, function_has_instance),
@@ -13258,7 +13256,7 @@ TNode<Number> CodeStubAssembler::BitwiseOp(Node* left32, Node* right32,
 // ES #sec-createarrayiterator
 TNode<JSArrayIterator> CodeStubAssembler::CreateArrayIterator(
     TNode<Context> context, TNode<Object> object, IterationKind kind) {
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Map> iterator_map = CAST(LoadContextElement(
       native_context, Context::INITIAL_ARRAY_ITERATOR_MAP_INDEX));
   TNode<HeapObject> iterator = Allocate(JSArrayIterator::kSize);
@@ -13281,7 +13279,7 @@ TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResult(
     SloppyTNode<Context> context, SloppyTNode<Object> value,
     SloppyTNode<Oddball> done) {
   CSA_ASSERT(this, IsBoolean(done));
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Object> map =
       LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
   TNode<HeapObject> result = Allocate(JSIteratorResult::kSize);
@@ -13298,7 +13296,7 @@ TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResult(
 Node* CodeStubAssembler::AllocateJSIteratorResultForEntry(Node* context,
                                                           Node* key,
                                                           Node* value) {
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Smi> length = SmiConstant(2);
   int const elements_size = FixedArray::SizeFor(2);
   TNode<FixedArray> elements = UncheckedCast<FixedArray>(
@@ -13960,7 +13958,7 @@ TNode<JSArray> CodeStubAssembler::ArrayCreate(TNode<Context> context,
 
   BIND(&runtime);
   {
-    TNode<Context> native_context = LoadNativeContext(context);
+    TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<JSFunction> array_function =
         CAST(LoadContextElement(native_context, Context::ARRAY_FUNCTION_INDEX));
     array = CAST(CallRuntime(Runtime::kNewArray, context, array_function,

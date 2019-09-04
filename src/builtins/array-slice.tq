@@ -4,7 +4,7 @@
 
 namespace array_slice {
   macro HandleSimpleArgumentsSlice(
-      context: Context, args: JSArgumentsObjectWithLength, start: Smi,
+      context: NativeContext, args: JSArgumentsObjectWithLength, start: Smi,
       count: Smi): JSArray
       labels Bailout {
     // If the resulting array doesn't fit in new space, use the slow path.
@@ -27,7 +27,7 @@ namespace array_slice {
   }
 
   macro HandleFastAliasedSloppyArgumentsSlice(
-      context: Context, args: JSArgumentsObjectWithLength, start: Smi,
+      context: NativeContext, args: JSArgumentsObjectWithLength, start: Smi,
       count: Smi): JSArray
       labels Bailout {
     // If the resulting array doesn't fit in new space, use the slow path.
@@ -86,7 +86,7 @@ namespace array_slice {
   }
 
   macro HandleFastSlice(
-      context: Context, o: JSAny, startNumber: Number,
+      context: NativeContext, o: JSAny, startNumber: Number,
       countNumber: Number): JSArray
       labels Bailout {
     const start: Smi = Cast<Smi>(startNumber) otherwise Bailout;
@@ -172,7 +172,8 @@ namespace array_slice {
     assert(count <= len);
 
     try {
-      return HandleFastSlice(context, o, k, count) otherwise Slow;
+      return HandleFastSlice(UnsafeCast<NativeContext>(context), o, k, count)
+          otherwise Slow;
     }
     label Slow {}
 

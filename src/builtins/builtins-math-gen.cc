@@ -206,7 +206,7 @@ TF_BUILTIN(MathPow, MathBuiltinsAssembler) {
 // ES6 #sec-math.random
 TF_BUILTIN(MathRandom, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
 
   // Load cache index.
   TVARIABLE(Smi, smi_index);

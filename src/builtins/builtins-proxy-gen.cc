@@ -22,7 +22,7 @@ compiler::TNode<JSProxy> ProxiesCodeStubAssembler::AllocateProxy(
   Label callable_target(this), constructor_target(this), none_target(this),
       create_proxy(this);
 
-  TNode<Context> nativeContext = LoadNativeContext(context);
+  TNode<NativeContext> nativeContext = LoadNativeContext(context);
 
   Branch(IsCallable(target), &callable_target, &none_target);
 
@@ -105,7 +105,7 @@ Node* ProxiesCodeStubAssembler::AllocateJSArrayForCodeStubArguments(
 
   BIND(&allocate_js_array);
   // Allocate the result JSArray.
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Map> array_map =
       LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
   TNode<JSArray> array =
@@ -127,7 +127,7 @@ Node* ProxiesCodeStubAssembler::CreateProxyRevokeFunctionContext(
 compiler::TNode<JSFunction>
 ProxiesCodeStubAssembler::AllocateProxyRevokeFunction(TNode<Context> context,
                                                       TNode<JSProxy> proxy) {
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
 
   Node* const proxy_context =
       CreateProxyRevokeFunctionContext(proxy, native_context);

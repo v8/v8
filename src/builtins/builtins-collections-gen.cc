@@ -429,7 +429,7 @@ void BaseCollectionsAssembler::GenerateConstructor(
   Label if_undefined(this, Label::kDeferred);
   GotoIf(IsUndefined(new_target), &if_undefined);
 
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<JSObject> collection = AllocateJSCollection(
       context, GetConstructor(variant, native_context), CAST(new_target));
 
@@ -734,7 +734,7 @@ Node* CollectionsBuiltinsAssembler::AllocateJSCollectionIterator(
     SloppyTNode<Context> context, int map_index, Node* collection) {
   TNode<Object> const table =
       LoadObjectField(collection, JSCollection::kTableOffset);
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   TNode<Object> const iterator_map =
       LoadContextElement(native_context, map_index);
   TNode<HeapObject> const iterator = AllocateInNewSpace(IteratorType::kSize);
@@ -891,7 +891,7 @@ void CollectionsBuiltinsAssembler::
 
   BIND(&extra_checks);
   // Check if the iterator object has the original %MapIteratorPrototype%.
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   TNode<Object> const initial_map_iter_proto = LoadContextElement(
       native_context, Context::INITIAL_MAP_ITERATOR_PROTOTYPE_INDEX);
   TNode<HeapObject> const map_iter_proto = LoadMapPrototype(iter_map);
@@ -954,7 +954,7 @@ void CollectionsBuiltinsAssembler::BranchIfIterableWithOriginalValueSetIterator(
   GotoIfNot(TaggedEqual(index, SmiConstant(0)), if_false);
 
   // Check if the iterator object has the original SetIterator prototype.
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   TNode<Object> const initial_set_iter_proto = LoadContextElement(
       native_context, Context::INITIAL_SET_ITERATOR_PROTOTYPE_INDEX);
   TNode<HeapObject> const set_iter_proto = LoadMapPrototype(iterable_map);

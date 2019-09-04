@@ -89,7 +89,7 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   {
     Label with_constructor(this);
     VariableList vars({&bound_function_map}, zone());
-    TNode<Context> native_context = LoadNativeContext(context);
+    TNode<NativeContext> native_context = LoadNativeContext(context);
 
     Label map_done(this, vars);
     GotoIf(IsConstructorMap(receiver_map), &with_constructor);

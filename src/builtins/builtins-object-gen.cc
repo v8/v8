@@ -95,7 +95,7 @@ Node* ObjectBuiltinsAssembler::ConstructAccessorDescriptor(Node* context,
                                                            Node* setter,
                                                            Node* enumerable,
                                                            Node* configurable) {
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Map> map = CAST(LoadContextElement(
       native_context, Context::ACCESSOR_PROPERTY_DESCRIPTOR_MAP_INDEX));
   TNode<JSObject> js_desc = AllocateJSObjectFromMap(map);
@@ -119,7 +119,7 @@ Node* ObjectBuiltinsAssembler::ConstructDataDescriptor(Node* context,
                                                        Node* writable,
                                                        Node* enumerable,
                                                        Node* configurable) {
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Map> map = CAST(LoadContextElement(
       native_context, Context::DATA_PROPERTY_DESCRIPTOR_MAP_INDEX));
   TNode<JSObject> js_desc = AllocateJSObjectFromMap(map);
@@ -182,7 +182,7 @@ void ObjectEntriesValuesBuiltinsAssembler::GetOwnValuesOrEntries(
 
   BIND(&if_no_properties);
   {
-    TNode<Context> native_context = LoadNativeContext(context);
+    TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<Map> array_map =
         LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
     TNode<JSArray> empty_array = AllocateJSArray(
@@ -219,7 +219,7 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
     TNode<Context> context, TNode<JSObject> object,
     Label* if_call_runtime_with_fast_path, Label* if_no_properties,
     CollectType collect_type) {
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Map> array_map =
       LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
   TNode<Map> map = LoadMap(object);
@@ -508,7 +508,7 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
     // Allocate a JSArray and copy the elements from the {object_enum_keys}.
     Node* array = nullptr;
     Node* elements = nullptr;
-    TNode<Context> native_context = LoadNativeContext(context);
+    TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<Map> array_map =
         LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
     TNode<Smi> array_length = SmiTag(Signed(object_enum_length));
@@ -541,7 +541,7 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
   BIND(&if_join);
   {
     // Wrap the elements into a proper JSArray and return that.
-    TNode<Context> native_context = LoadNativeContext(context);
+    TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<Map> array_map =
         LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
     TNode<JSArray> array = AllocateJSArray(
@@ -602,7 +602,7 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
     // Allocate a JSArray and copy the elements from the {object_enum_keys}.
     Node* array = nullptr;
     Node* elements = nullptr;
-    TNode<Context> native_context = LoadNativeContext(context);
+    TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<Map> array_map =
         LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
     TNode<Smi> array_length = SmiTag(Signed(object_enum_length));
@@ -645,7 +645,7 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
   BIND(&if_join);
   {
     // Wrap the elements into a proper JSArray and return that.
-    TNode<Context> native_context = LoadNativeContext(context);
+    TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<Map> array_map =
         LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
     TNode<JSArray> array = AllocateJSArray(
@@ -798,7 +798,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
 
   BIND(&if_boolean);
   {
-    TNode<Context> native_context = LoadNativeContext(context);
+    TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<JSFunction> boolean_constructor = CAST(
         LoadContextElement(native_context, Context::BOOLEAN_FUNCTION_INDEX));
     TNode<Map> boolean_initial_map = CAST(LoadObjectField(
@@ -830,7 +830,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
 
   BIND(&if_number);
   {
-    TNode<Context> native_context = LoadNativeContext(context);
+    TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<JSFunction> number_constructor = CAST(
         LoadContextElement(native_context, Context::NUMBER_FUNCTION_INDEX));
     TNode<Map> number_initial_map = CAST(LoadObjectField(
@@ -908,7 +908,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
 
   BIND(&if_string);
   {
-    TNode<Context> native_context = LoadNativeContext(context);
+    TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<JSFunction> string_constructor = CAST(
         LoadContextElement(native_context, Context::STRING_FUNCTION_INDEX));
     TNode<Map> string_initial_map = CAST(LoadObjectField(
@@ -922,7 +922,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
 
   BIND(&if_symbol);
   {
-    TNode<Context> native_context = LoadNativeContext(context);
+    TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<JSFunction> symbol_constructor = CAST(
         LoadContextElement(native_context, Context::SYMBOL_FUNCTION_INDEX));
     TNode<Map> symbol_initial_map = CAST(LoadObjectField(
@@ -936,7 +936,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
 
   BIND(&if_bigint);
   {
-    TNode<Context> native_context = LoadNativeContext(context);
+    TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<JSFunction> bigint_constructor = CAST(
         LoadContextElement(native_context, Context::BIGINT_FUNCTION_INDEX));
     TNode<Map> bigint_initial_map = CAST(LoadObjectField(
@@ -1049,7 +1049,7 @@ TF_BUILTIN(ObjectPrototypeValueOf, CodeStubAssembler) {
 TF_BUILTIN(CreateObjectWithoutProperties, ObjectBuiltinsAssembler) {
   TNode<Object> const prototype = CAST(Parameter(Descriptor::kPrototypeArg));
   TNode<Context> const context = CAST(Parameter(Descriptor::kContext));
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   Label call_runtime(this, Label::kDeferred), prototype_null(this),
       prototype_jsreceiver(this);
   {
@@ -1225,7 +1225,7 @@ TF_BUILTIN(CreateIterResultObject, ObjectBuiltinsAssembler) {
   Node* const done = Parameter(Descriptor::kDone);
   Node* const context = Parameter(Descriptor::kContext);
 
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   TNode<Map> const map = CAST(
       LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX));
 
@@ -1485,7 +1485,7 @@ Node* ObjectBuiltinsAssembler::FromPropertyDescriptor(Node* context,
 
   BIND(&if_generic_desc);
   {
-    TNode<Context> native_context = LoadNativeContext(context);
+    TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<Map> map = CAST(LoadContextElement(
         native_context, Context::SLOW_OBJECT_WITH_OBJECT_PROTOTYPE_MAP));
     // We want to preallocate the slots for value, writable, get, set,

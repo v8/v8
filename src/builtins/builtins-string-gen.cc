@@ -1240,7 +1240,7 @@ class StringMatchSearchAssembler : public StringBuiltinsAssembler {
       RegExpBuiltinsAssembler regexp_asm(state());
 
       TNode<String> receiver_string = ToString_Inline(context, receiver);
-      TNode<Context> native_context = LoadNativeContext(context);
+      TNode<NativeContext> native_context = LoadNativeContext(context);
       TNode<HeapObject> regexp_function = CAST(
           LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX));
       TNode<Map> initial_map = CAST(LoadObjectField(
@@ -1286,7 +1286,7 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> maybe_regexp = CAST(Parameter(Descriptor::kRegexp));
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
 
   // 1. Let O be ? RequireObjectCoercible(this value).
   RequireObjectCoercible(context, receiver, method_name);
@@ -1339,7 +1339,7 @@ TF_BUILTIN(StringPrototypeSearch, StringMatchSearchAssembler) {
 }
 
 TNode<JSArray> StringBuiltinsAssembler::StringToArray(
-    TNode<Context> context, TNode<String> subject_string,
+    TNode<NativeContext> context, TNode<String> subject_string,
     TNode<Smi> subject_length, TNode<Number> limit_number) {
   CSA_ASSERT(this, SmiGreaterThan(subject_length, SmiConstant(0)));
 
@@ -1424,7 +1424,7 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   TNode<Object> receiver = args.GetReceiver();
   TNode<Object> const separator = args.GetOptionalArgumentValue(kSeparatorArg);
   TNode<Object> const limit = args.GetOptionalArgumentValue(kLimitArg);
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<NativeContext> context = CAST(Parameter(Descriptor::kContext));
 
   TNode<Smi> smi_zero = SmiConstant(0);
 
@@ -1467,7 +1467,7 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
     GotoIfNot(IsUndefined(separator), &next);
 
     const ElementsKind kind = PACKED_ELEMENTS;
-    TNode<Context> const native_context = LoadNativeContext(context);
+    TNode<NativeContext> const native_context = LoadNativeContext(context);
     TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
 
     TNode<Smi> length = SmiConstant(1);
@@ -1505,7 +1505,7 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   BIND(&return_empty_array);
   {
     const ElementsKind kind = PACKED_ELEMENTS;
-    TNode<Context> const native_context = LoadNativeContext(context);
+    TNode<NativeContext> const native_context = LoadNativeContext(context);
     TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
 
     TNode<Smi> length = smi_zero;

@@ -28,7 +28,7 @@ Node* AsyncBuiltinsAssembler::AwaitOld(Node* context, Node* generator,
                                        Node* on_resolve_context_index,
                                        Node* on_reject_context_index,
                                        Node* is_predicted_as_caught) {
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
 
   static const int kWrappedPromiseOffset =
       FixedArray::SizeFor(Context::MIN_CONTEXT_SLOTS);
@@ -119,7 +119,7 @@ Node* AsyncBuiltinsAssembler::AwaitOptimized(Node* context, Node* generator,
                                              Node* on_resolve_context_index,
                                              Node* on_reject_context_index,
                                              Node* is_predicted_as_caught) {
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   CSA_ASSERT(this, IsJSPromise(promise));
 
   static const int kResolveClosureOffset =
@@ -203,7 +203,7 @@ Node* AsyncBuiltinsAssembler::Await(Node* context, Node* generator, Node* value,
   // is the (initial) Promise.prototype and the @@species protector is
   // intact, as that guards the lookup path for "constructor" on
   // JSPromise instances which have the (initial) Promise.prototype.
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   TNode<Object> const promise_prototype =
       LoadContextElement(native_context, Context::PROMISE_PROTOTYPE_INDEX);
   GotoIfNot(TaggedEqual(LoadMapPrototype(value_map), promise_prototype),

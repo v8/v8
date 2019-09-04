@@ -299,7 +299,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     // root list.
 
     TNode<IntPtrT> num_properties = WordSar(names_length, 1);
-    TNode<Context> native_context = LoadNativeContext(context);
+    TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<Map> map = CAST(LoadContextElement(
         native_context, Context::SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP));
     TNode<NameDictionary> properties =
@@ -824,7 +824,7 @@ RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
   BIND(&run_exec);
   {
     // Get last match info from the context.
-    TNode<Context> native_context = LoadNativeContext(context);
+    TNode<NativeContext> native_context = LoadNativeContext(context);
     TNode<RegExpMatchInfo> last_match_info = CAST(LoadContextElement(
         native_context, Context::REGEXP_LAST_MATCH_INFO_INDEX));
 
@@ -897,7 +897,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpPrototypeExecBody(
 
 TNode<BoolT> RegExpBuiltinsAssembler::IsReceiverInitialRegExpPrototype(
     SloppyTNode<Context> context, SloppyTNode<Object> receiver) {
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<JSFunction> const regexp_fun =
       CAST(LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX));
   TNode<Object> const initial_map =
@@ -918,7 +918,7 @@ Node* RegExpBuiltinsAssembler::IsFastRegExpNoPrototype(
   GotoIfForceSlowPath(&out);
 #endif
 
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   TNode<HeapObject> const regexp_fun =
       CAST(LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX));
   TNode<Object> const initial_map =
@@ -957,7 +957,7 @@ TNode<BoolT> RegExpBuiltinsAssembler::IsFastRegExpWithOriginalExec(
   var_result = is_regexp;
   GotoIfNot(is_regexp, &out);
 
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Object> original_exec =
       LoadContextElement(native_context, Context::REGEXP_EXEC_FUNCTION_INDEX);
 
@@ -1004,7 +1004,7 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExp(
   // match the object's native context. That's fine: in case of a mismatch, we
   // will bail in the next step when comparing the object's map against the
   // current native context's initial regexp map.
-  TNode<NativeContext> native_context = CAST(LoadNativeContext(context));
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   GotoIf(IsRegExpSpeciesProtectorCellInvalid(native_context), if_ismodified);
 
   TNode<JSFunction> regexp_fun =
@@ -1066,7 +1066,7 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExpResult(Node* const context,
   // Could be a Smi.
   TNode<Map> const map = LoadReceiverMap(object);
 
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   TNode<Object> const initial_regexp_result_map =
       LoadContextElement(native_context, Context::REGEXP_RESULT_MAP_INDEX);
 
@@ -1374,7 +1374,7 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
   TVARIABLE(Object, var_pattern, pattern);
   TVARIABLE(Object, var_new_target, new_target);
 
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<JSFunction> regexp_function =
       CAST(LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX));
 
@@ -2033,7 +2033,7 @@ TNode<Object> RegExpMatchAllAssembler::CreateRegExpStringIterator(
 // RegExp.prototype [ @@matchAll ] ( string )
 TF_BUILTIN(RegExpPrototypeMatchAll, RegExpMatchAllAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   TNode<Object> maybe_string = CAST(Parameter(Descriptor::kString));
   Generate(context, native_context, receiver, maybe_string);
@@ -2196,7 +2196,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(TNode<Context> context,
   const ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
 
   Node* const allocation_site = nullptr;
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
 
   Label return_empty_array(this, Label::kDeferred);

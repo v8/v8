@@ -35,7 +35,7 @@ void TypedArrayBuiltinsAssembler::SetupTypedArrayEmbedderFields(
 // TODO(bmeurer,v8:4153): Rename this and maybe fix up the implementation a bit.
 TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
     TNode<Context> context, TNode<UintPtrT> byte_length) {
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Map> map =
       CAST(LoadContextElement(native_context, Context::ARRAY_BUFFER_MAP_INDEX));
   TNode<FixedArray> empty_fixed_array = EmptyFixedArrayConstant();

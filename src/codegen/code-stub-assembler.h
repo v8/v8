@@ -1404,7 +1404,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void StoreContextElementNoWriteBarrier(SloppyTNode<Context> context,
                                          int slot_index,
                                          SloppyTNode<Object> value);
-  TNode<Context> LoadNativeContext(SloppyTNode<Context> context);
+  TNode<NativeContext> LoadNativeContext(SloppyTNode<Context> context);
   // Calling this is only valid if there's a module context in the chain.
   TNode<Context> LoadModuleContext(SloppyTNode<Context> context);
 
@@ -1416,9 +1416,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   TNode<Map> LoadJSArrayElementsMap(ElementsKind kind,
-                                    SloppyTNode<Context> native_context);
+                                    SloppyTNode<NativeContext> native_context);
   TNode<Map> LoadJSArrayElementsMap(SloppyTNode<Int32T> kind,
-                                    SloppyTNode<Context> native_context);
+                                    SloppyTNode<NativeContext> native_context);
 
   TNode<BoolT> HasPrototypeSlot(TNode<JSFunction> function);
   TNode<BoolT> IsGeneratorFunction(TNode<JSFunction> function);

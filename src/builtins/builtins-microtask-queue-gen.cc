@@ -149,7 +149,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     // Enter the context of the {microtask}.
     TNode<Context> microtask_context =
         LoadObjectField<Context>(microtask, CallableTask::kContextOffset);
-    TNode<Context> native_context = LoadNativeContext(microtask_context);
+    TNode<NativeContext> native_context = LoadNativeContext(microtask_context);
     PrepareForContext(native_context, &done);
 
     TNode<JSReceiver> callable =
@@ -192,7 +192,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     // Enter the context of the {microtask}.
     TNode<Context> microtask_context = LoadObjectField<Context>(
         microtask, PromiseResolveThenableJobTask::kContextOffset);
-    TNode<Context> native_context = LoadNativeContext(microtask_context);
+    TNode<NativeContext> native_context = LoadNativeContext(microtask_context);
     PrepareForContext(native_context, &done);
 
     TNode<Object> const promise_to_resolve = LoadObjectField(
@@ -216,7 +216,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     // Enter the context of the {microtask}.
     TNode<Context> microtask_context = LoadObjectField<Context>(
         microtask, PromiseReactionJobTask::kContextOffset);
-    TNode<Context> native_context = LoadNativeContext(microtask_context);
+    TNode<NativeContext> native_context = LoadNativeContext(microtask_context);
     PrepareForContext(native_context, &done);
 
     TNode<Object> const argument =
@@ -249,7 +249,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     // Enter the context of the {microtask}.
     TNode<Context> microtask_context = LoadObjectField<Context>(
         microtask, PromiseReactionJobTask::kContextOffset);
-    TNode<Context> native_context = LoadNativeContext(microtask_context);
+    TNode<NativeContext> native_context = LoadNativeContext(microtask_context);
     PrepareForContext(native_context, &done);
 
     TNode<Object> const argument =
@@ -449,7 +449,7 @@ TF_BUILTIN(EnqueueMicrotask, MicrotaskQueueBuiltinsAssembler) {
   TNode<Microtask> microtask =
       UncheckedCast<Microtask>(Parameter(Descriptor::kMicrotask));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<RawPtrT> microtask_queue = GetMicrotaskQueue(native_context);
 
   // Do not store the microtask if MicrotaskQueue is not available, that may

@@ -29,7 +29,8 @@ namespace string {
     const kind = PACKED_ELEMENTS;
     const stringLength: intptr = string.length_intptr;
 
-    const map: Map = LoadJSArrayElementsMap(kind, LoadNativeContext(context));
+    const nativeContext = LoadNativeContext(context);
+    const map: Map = LoadJSArrayElementsMap(kind, nativeContext);
     const array: JSArray = AllocateJSArray(
         kind, map, stringLength, SmiTag(stringLength),
         kAllowLargeObjectAllocation);

@@ -121,7 +121,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewRestParameter(Node* context,
 
   Node* rest_count =
       IntPtrOrSmiSub(info.argument_count, info.formal_parameter_count, mode);
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   TNode<Map> const array_map =
       LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
   GotoIf(IntPtrOrSmiLessThanOrEqual(rest_count, zero, mode),
@@ -173,7 +173,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewStrictArguments(Node* context,
       info.argument_count, &runtime,
       JSStrictArgumentsObject::kSize + FixedArray::kHeaderSize, mode);
 
-  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<NativeContext> const native_context = LoadNativeContext(context);
   TNode<Object> const map =
       LoadContextElement(native_context, Context::STRICT_ARGUMENTS_MAP_INDEX);
   GotoIf(BIntEqual(info.argument_count, zero), &empty);
@@ -237,7 +237,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
         elements_allocated, &runtime,
         JSSloppyArgumentsObject::kSize + FixedArray::kHeaderSize * 2, mode);
 
-    TNode<Context> const native_context = LoadNativeContext(context);
+    TNode<NativeContext> const native_context = LoadNativeContext(context);
     TNode<Object> const map = LoadContextElement(
         native_context, Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX);
     Node* argument_object;
@@ -317,7 +317,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
     GotoIfFixedArraySizeDoesntFitInNewSpace(
         info.argument_count, &runtime,
         JSSloppyArgumentsObject::kSize + FixedArray::kHeaderSize, mode);
-    TNode<Context> const native_context = LoadNativeContext(context);
+    TNode<NativeContext> const native_context = LoadNativeContext(context);
     TNode<Object> const map =
         LoadContextElement(native_context, Context::SLOPPY_ARGUMENTS_MAP_INDEX);
     result.Bind(ConstructParametersObjectFromArgs(
@@ -331,7 +331,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
   BIND(&empty);
   {
     Comment("Empty JSSloppyArgumentsObject");
-    TNode<Context> const native_context = LoadNativeContext(context);
+    TNode<NativeContext> const native_context = LoadNativeContext(context);
     TNode<Object> const map =
         LoadContextElement(native_context, Context::SLOPPY_ARGUMENTS_MAP_INDEX);
     Node* arguments;

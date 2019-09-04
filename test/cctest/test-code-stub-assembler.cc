@@ -2379,7 +2379,7 @@ TEST(CreatePromiseResolvingFunctionsContext) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  TNode<Context> const native_context = m.LoadNativeContext(context);
+  TNode<NativeContext> const native_context = m.LoadNativeContext(context);
   Node* const promise =
       m.AllocateAndInitJSPromise(context, m.UndefinedConstant());
   Node* const promise_context = m.CreatePromiseResolvingFunctionsContext(
@@ -2407,7 +2407,7 @@ TEST(CreatePromiseResolvingFunctions) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  TNode<Context> const native_context = m.LoadNativeContext(context);
+  TNode<NativeContext> const native_context = m.LoadNativeContext(context);
   Node* const promise =
       m.AllocateAndInitJSPromise(context, m.UndefinedConstant());
   Node *resolve, *reject;
@@ -2497,7 +2497,7 @@ TEST(AllocateFunctionWithMapAndContext) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  TNode<Context> const native_context = m.LoadNativeContext(context);
+  TNode<NativeContext> const native_context = m.LoadNativeContext(context);
   Node* const promise =
       m.AllocateAndInitJSPromise(context, m.UndefinedConstant());
   Node* promise_context = m.CreatePromiseResolvingFunctionsContext(
@@ -2535,7 +2535,7 @@ TEST(CreatePromiseGetCapabilitiesExecutorContext) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  TNode<Context> const native_context = m.LoadNativeContext(context);
+  TNode<NativeContext> const native_context = m.LoadNativeContext(context);
 
   TNode<Map> const map = m.PromiseCapabilityMapConstant();
   Node* const capability = m.AllocateStruct(map);
@@ -2571,7 +2571,7 @@ TEST(NewPromiseCapability) {
     PromiseBuiltinsAssembler m(asm_tester.state());
 
     Node* const context = m.Parameter(kNumParams + 2);
-    TNode<Context> const native_context = m.LoadNativeContext(context);
+    TNode<NativeContext> const native_context = m.LoadNativeContext(context);
     TNode<Object> const promise_constructor =
         m.LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
 
@@ -2857,7 +2857,7 @@ TEST(LoadJSArrayElementsMap) {
   {
     CodeStubAssembler m(asm_tester.state());
     Node* context = m.Parameter(kNumParams + 2);
-    TNode<Context> native_context = m.LoadNativeContext(context);
+    TNode<NativeContext> native_context = m.LoadNativeContext(context);
     TNode<Int32T> kind = m.SmiToInt32(m.Parameter(0));
     m.Return(m.LoadJSArrayElementsMap(kind, native_context));
   }

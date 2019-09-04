@@ -422,7 +422,7 @@ TF_BUILTIN(ToObject, CodeStubAssembler) {
   Goto(&if_wrapjs_primitive_wrapper);
 
   BIND(&if_wrapjs_primitive_wrapper);
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<JSFunction> constructor = CAST(LoadContextElement(
       native_context, constructor_function_index_var.value()));
   TNode<Object> initial_map =
