@@ -1063,9 +1063,7 @@ void JSNativeContextSpecialization::FilterMapsAndGetPropertyAccessInfos(
 
   for (Handle<Map> map_handle : receiver_maps) {
     MapRef map(broker(), map_handle);
-    if (map.is_deprecated()) {
-      FATAL("map is deprecated");
-    }
+    if (map.is_deprecated()) continue;
     PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
         map, feedback.name(), access_mode, dependencies(),
         FLAG_concurrent_inlining ? SerializationPolicy::kAssumeSerialized
