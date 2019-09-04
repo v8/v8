@@ -689,13 +689,15 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
       Map map = object->map();
       int nof_descriptors = map.NumberOfOwnDescriptors();
       if (enum_keys->length() != nof_descriptors) {
-        Handle<DescriptorArray> descs =
-            Handle<DescriptorArray>(map.instance_descriptors(), isolate_);
-        for (int i = 0; i < nof_descriptors; i++) {
-          PropertyDetails details = descs->GetDetails(i);
-          if (!details.IsDontEnum()) continue;
-          Object key = descs->GetKey(i);
-          this->AddShadowingKey(key);
+        if (map.prototype(isolate_) != ReadOnlyRoots(isolate_).null_value()) {
+          Handle<DescriptorArray> descs =
+              Handle<DescriptorArray>(map.instance_descriptors(), isolate_);
+          for (int i = 0; i < nof_descriptors; i++) {
+            PropertyDetails details = descs->GetDetails(i);
+            if (!details.IsDontEnum()) continue;
+            Object key = descs->GetKey(i);
+            this->AddShadowingKey(key);
+          }
         }
       }
     } else if (object->IsJSGlobalObject()) {
