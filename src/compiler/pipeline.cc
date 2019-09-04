@@ -992,17 +992,17 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   linkage_ = new (compilation_info()->zone()) Linkage(
       Linkage::ComputeIncoming(compilation_info()->zone(), compilation_info()));
 
-  if (!pipeline_.CreateGraph()) {
-    if (isolate->has_pending_exception()) return FAILED;  // Stack overflowed.
-    return AbortOptimization(BailoutReason::kGraphBuildingFailed);
-  }
-
   if (compilation_info()->is_osr()) data_.InitializeOsrHelper();
 
   // Make sure that we have generated the deopt entries code.  This is in order
   // to avoid triggering the generation of deopt entries later during code
   // assembly.
   Deoptimizer::EnsureCodeForDeoptimizationEntries(isolate);
+
+  if (!pipeline_.CreateGraph()) {
+    if (isolate->has_pending_exception()) return FAILED;  // Stack overflowed.
+    return AbortOptimization(BailoutReason::kGraphBuildingFailed);
+  }
 
   return SUCCEEDED;
 }
@@ -1201,10 +1201,10 @@ struct GraphBuilderPhase {
     if (data->info()->is_bailout_on_uninitialized()) {
       flags |= BytecodeGraphBuilderFlag::kBailoutOnUninitialized;
     }
-    double invocation_count =
-        data->info()->closure()->feedback_vector().invocation_count();
-    double total_ticks =
-        data->info()->closure()->feedback_vector().total_profiler_ticks();
+
+    JSFunctionRef closure(data->broker(), data->info()->closure());
+    double invocation_count = closure.feedback_vector().invocation_count();
+    double total_ticks = closure.feedback_vector().total_profiler_ticks();
     if (total_ticks == 0) {
       // This can only happen in tests when forcing optimization.
       // Pick a small number so that inlining still happens.
@@ -1212,10 +1212,9 @@ struct GraphBuilderPhase {
     }
     double executed_bytecode_bytes = total_ticks * FLAG_interrupt_budget;
     CallFrequency frequency(invocation_count / (executed_bytecode_bytes / KB));
+
     BuildGraphFromBytecode(
-        data->broker(), temp_zone, data->info()->bytecode_array(),
-        data->info()->shared_info(),
-        handle(data->info()->closure()->feedback_vector(), data->isolate()),
+        data->broker(), temp_zone, closure.shared(), closure.feedback_vector(),
         data->info()->osr_offset(), data->jsgraph(), frequency,
         data->source_positions(), SourcePosition::kNotInlined, flags,
         &data->info()->tick_counter());
