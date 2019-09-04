@@ -641,7 +641,7 @@ void TestGeneralizeField(int detach_property_at_index, int property_index,
                                       from.representation, from.type);
     } else {
       map = expectations.AddDataField(map, NONE, PropertyConstness::kConst,
-                                      Representation::Smi(), any_type);
+                                      Representation::Double(), any_type);
       if (i == detach_property_at_index) {
         detach_point_map = map;
       }
@@ -654,10 +654,10 @@ void TestGeneralizeField(int detach_property_at_index, int property_index,
   if (is_detached_map) {
     detach_point_map = Map::ReconfigureProperty(
         isolate, detach_point_map, detach_property_at_index, kData, NONE,
-        Representation::Double(), any_type);
+        Representation::Tagged(), any_type);
     expectations.SetDataField(detach_property_at_index,
                               PropertyConstness::kConst,
-                              Representation::Double(), any_type);
+                              Representation::Tagged(), any_type);
     CHECK(map->is_deprecated());
     CHECK(expectations.Check(*detach_point_map,
                              detach_point_map->NumberOfOwnDescriptors()));
@@ -814,9 +814,7 @@ TEST(GeneralizeDoubleFieldToTagged) {
   TestGeneralizeField(
       {PropertyConstness::kMutable, Representation::Double(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-      FLAG_unbox_double_fields || !FLAG_modify_field_representation_inplace,
-      !FLAG_unbox_double_fields && FLAG_modify_field_representation_inplace);
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
 }
 
 TEST(GeneralizeHeapObjectFieldToTagged) {
@@ -2299,7 +2297,7 @@ TEST(ElementsKindTransitionFromMapOwningDescriptor) {
         {PropertyConstness::kMutable, Representation::Double(), any_type},
         {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
         {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-        FLAG_unbox_double_fields || !FLAG_modify_field_representation_inplace);
+        true);
   }
 }
 
@@ -2367,7 +2365,7 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
         {PropertyConstness::kMutable, Representation::Double(), any_type},
         {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
         {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-        FLAG_unbox_double_fields || !FLAG_modify_field_representation_inplace);
+        true);
   }
 }
 
@@ -2410,8 +2408,7 @@ TEST(PrototypeTransitionFromMapOwningDescriptor) {
   TestGeneralizeFieldWithSpecialTransition(
       config, {PropertyConstness::kMutable, Representation::Double(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-      FLAG_unbox_double_fields || !FLAG_modify_field_representation_inplace);
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type}, true);
 }
 
 TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
@@ -2464,8 +2461,7 @@ TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
   TestGeneralizeFieldWithSpecialTransition(
       config, {PropertyConstness::kMutable, Representation::Double(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type},
-      FLAG_unbox_double_fields || !FLAG_modify_field_representation_inplace);
+      {PropertyConstness::kMutable, Representation::Tagged(), any_type}, true);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
