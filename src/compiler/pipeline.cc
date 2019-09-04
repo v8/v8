@@ -2208,10 +2208,6 @@ bool PipelineImpl::CreateGraph() {
   Run<GraphBuilderPhase>();
   RunPrintAndVerify(GraphBuilderPhase::phase_name(), true);
 
-  if (FLAG_concurrent_inlining) {
-    Run<CopyMetadataForConcurrentCompilePhase>();
-  }
-
   // Perform function context specialization and inlining (if enabled).
   Run<InliningPhase>();
   RunPrintAndVerify(InliningPhase::phase_name(), true);
