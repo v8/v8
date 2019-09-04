@@ -1000,7 +1000,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   Deoptimizer::EnsureCodeForDeoptimizationEntries(isolate);
 
   if (!pipeline_.CreateGraph()) {
-    if (isolate->has_pending_exception()) return FAILED;  // Stack overflowed.
+    CHECK(!isolate->has_pending_exception());
     return AbortOptimization(BailoutReason::kGraphBuildingFailed);
   }
 
