@@ -247,7 +247,7 @@ void LookupIterator::InternalUpdateProtector() {
       native_context = Handle<JSReceiver>::cast(receiver)->GetCreationContext();
     }
 
-    if (!isolate_->IsArraySpeciesLookupChainIntact() &&
+    if (!Protectors::IsArraySpeciesLookupChainIntact(isolate_) &&
         !isolate_->IsPromiseSpeciesLookupChainIntact() &&
         !Protectors::IsRegExpSpeciesLookupChainProtectorIntact(
             native_context) &&
@@ -256,10 +256,10 @@ void LookupIterator::InternalUpdateProtector() {
     }
     // Setting the constructor property could change an instance's @@species
     if (receiver->IsJSArray(isolate_)) {
-      if (!isolate_->IsArraySpeciesLookupChainIntact()) return;
+      if (!Protectors::IsArraySpeciesLookupChainIntact(isolate_)) return;
       isolate_->CountUsage(
           v8::Isolate::UseCounterFeature::kArrayInstanceConstructorModified);
-      isolate_->InvalidateArraySpeciesProtector();
+      Protectors::InvalidateArraySpeciesLookupChain(isolate_);
       return;
     } else if (receiver->IsJSPromise(isolate_)) {
       if (!isolate_->IsPromiseSpeciesLookupChainIntact()) return;
@@ -287,10 +287,10 @@ void LookupIterator::InternalUpdateProtector() {
       // prototype is pointing the same TYPED_ARRAY_PROTOTYPE.
       if (isolate_->IsInAnyContext(*receiver,
                                    Context::INITIAL_ARRAY_PROTOTYPE_INDEX)) {
-        if (!isolate_->IsArraySpeciesLookupChainIntact()) return;
+        if (!Protectors::IsArraySpeciesLookupChainIntact(isolate_)) return;
         isolate_->CountUsage(
             v8::Isolate::UseCounterFeature::kArrayPrototypeConstructorModified);
-        isolate_->InvalidateArraySpeciesProtector();
+        Protectors::InvalidateArraySpeciesLookupChain(isolate_);
       } else if (isolate_->IsInAnyContext(*receiver,
                                           Context::PROMISE_PROTOTYPE_INDEX)) {
         if (!isolate_->IsPromiseSpeciesLookupChainIntact()) return;
@@ -343,7 +343,7 @@ void LookupIterator::InternalUpdateProtector() {
       native_context = Handle<JSReceiver>::cast(receiver)->GetCreationContext();
     }
 
-    if (!isolate_->IsArraySpeciesLookupChainIntact() &&
+    if (!Protectors::IsArraySpeciesLookupChainIntact(isolate_) &&
         !isolate_->IsPromiseSpeciesLookupChainIntact() &&
         !Protectors::IsRegExpSpeciesLookupChainProtectorIntact(
             native_context) &&
@@ -353,10 +353,10 @@ void LookupIterator::InternalUpdateProtector() {
     // Setting the Symbol.species property of any Array, Promise or TypedArray
     // constructor invalidates the @@species protector
     if (isolate_->IsInAnyContext(*receiver, Context::ARRAY_FUNCTION_INDEX)) {
-      if (!isolate_->IsArraySpeciesLookupChainIntact()) return;
+      if (!Protectors::IsArraySpeciesLookupChainIntact(isolate_)) return;
       isolate_->CountUsage(
           v8::Isolate::UseCounterFeature::kArraySpeciesModified);
-      isolate_->InvalidateArraySpeciesProtector();
+      Protectors::InvalidateArraySpeciesLookupChain(isolate_);
     } else if (isolate_->IsInAnyContext(*receiver,
                                         Context::PROMISE_FUNCTION_INDEX)) {
       if (!isolate_->IsPromiseSpeciesLookupChainIntact()) return;

@@ -7,6 +7,7 @@
 #include "src/codegen/code-factory.h"
 #include "src/debug/debug.h"
 #include "src/execution/isolate.h"
+#include "src/execution/protectors-inl.h"
 #include "src/handles/global-handles.h"
 #include "src/logging/counters.h"
 #include "src/objects/contexts.h"
@@ -1468,7 +1469,7 @@ BUILTIN(ArrayConcat) {
   // Avoid a real species read to avoid extra lookups to the array constructor
   if (V8_LIKELY(receiver->IsJSArray() &&
                 Handle<JSArray>::cast(receiver)->HasArrayPrototype(isolate) &&
-                isolate->IsArraySpeciesLookupChainIntact())) {
+                Protectors::IsArraySpeciesLookupChainIntact(isolate))) {
     if (Fast_ArrayConcat(isolate, &args).ToHandle(&result_array)) {
       return *result_array;
     }

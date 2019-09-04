@@ -13,13 +13,22 @@
 namespace v8 {
 namespace internal {
 
-#define DEFINE_PROTECTOR_CHECK(name, cell)                                  \
+#define DEFINE_PROTECTOR_ON_NATIVE_CONTEXT_CHECK(name, cell)                \
   bool Protectors::Is##name##Intact(Handle<NativeContext> native_context) { \
     PropertyCell species_cell = native_context->cell();                     \
     return species_cell.value().IsSmi() &&                                  \
            Smi::ToInt(species_cell.value()) == kProtectorValid;             \
   }
-DECLARED_PROTECTORS(DEFINE_PROTECTOR_CHECK)
+DECLARED_PROTECTORS_ON_NATIVE_CONTEXT(DEFINE_PROTECTOR_ON_NATIVE_CONTEXT_CHECK)
+
+#define DEFINE_PROTECTOR_ON_ISOLATE_CHECK(name, root_index, unused_cell) \
+  bool Protectors::Is##name##Intact(Isolate* isolate) {                  \
+    PropertyCell cell =                                                  \
+        PropertyCell::cast(isolate->root(RootIndex::k##root_index));     \
+    return cell.value().IsSmi() &&                                       \
+           Smi::ToInt(cell.value()) == kProtectorValid;                  \
+  }
+DECLARED_PROTECTORS_ON_ISOLATE(DEFINE_PROTECTOR_ON_ISOLATE_CHECK)
 
 }  // namespace internal
 }  // namespace v8

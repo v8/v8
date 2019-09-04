@@ -1176,7 +1176,6 @@ class Isolate final : private HiddenFactory {
 
   bool IsArrayOrObjectOrStringPrototype(Object object);
 
-  inline bool IsArraySpeciesLookupChainIntact();
   inline bool IsTypedArraySpeciesLookupChainIntact();
 
   // Check that the @@species protector is intact, which guards the lookup of
@@ -1264,7 +1263,6 @@ class Isolate final : private HiddenFactory {
   void TraceProtectorInvalidation(const char* protector_name);
 
   void InvalidateArrayConstructorProtector();
-  void InvalidateArraySpeciesProtector();
   void InvalidateTypedArraySpeciesProtector();
   void InvalidateRegExpSpeciesProtector(Handle<NativeContext> native_context);
   void InvalidatePromiseSpeciesProtector();
