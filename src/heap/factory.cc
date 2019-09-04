@@ -525,8 +525,8 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
                                : OptimizationMarker::kNone)));
   vector->set_length(length);
   vector->set_invocation_count(0);
-  vector->set_profiler_ticks_since_last_feedback_change(0);
-  vector->set_total_profiler_ticks(0);
+  vector->set_profiler_ticks(0);
+  vector->clear_padding();
   vector->set_closure_feedback_cell_array(*closure_feedback_cell_array);
 
   // TODO(leszeks): Initialize based on the feedback metadata.

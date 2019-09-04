@@ -1203,16 +1203,7 @@ struct GraphBuilderPhase {
     }
 
     JSFunctionRef closure(data->broker(), data->info()->closure());
-    double invocation_count = closure.feedback_vector().invocation_count();
-    double total_ticks = closure.feedback_vector().total_profiler_ticks();
-    if (total_ticks == 0) {
-      // This can only happen in tests when forcing optimization.
-      // Pick a small number so that inlining still happens.
-      total_ticks = 1.0 / FLAG_interrupt_budget;
-    }
-    double executed_bytecode_bytes = total_ticks * FLAG_interrupt_budget;
-    CallFrequency frequency(invocation_count / (executed_bytecode_bytes / KB));
-
+    CallFrequency frequency(1.0f);
     BuildGraphFromBytecode(
         data->broker(), temp_zone, closure.shared(), closure.feedback_vector(),
         data->info()->osr_offset(), data->jsgraph(), frequency,

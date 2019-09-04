@@ -284,15 +284,15 @@ void IC::OnFeedbackChanged(const char* reason) {
 void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector vector,
                            FeedbackSlot slot, const char* reason) {
   if (FLAG_trace_opt_verbose) {
-    if (vector.profiler_ticks_since_last_feedback_change() != 0) {
+    if (vector.profiler_ticks() != 0) {
       StdoutStream os;
       os << "[resetting ticks for ";
       vector.shared_function_info().ShortPrint(os);
-      os << " from " << vector.profiler_ticks_since_last_feedback_change()
+      os << " from " << vector.profiler_ticks()
          << " due to IC change: " << reason << "]" << std::endl;
     }
   }
-  vector.set_profiler_ticks_since_last_feedback_change(0);
+  vector.set_profiler_ticks(0);
 
 #ifdef V8_TRACE_FEEDBACK_UPDATES
   if (FLAG_trace_feedback_updates) {

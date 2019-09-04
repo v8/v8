@@ -1266,7 +1266,6 @@ class FeedbackVectorData : public HeapObjectData {
                      Handle<FeedbackVector> object);
 
   double invocation_count() const { return invocation_count_; }
-  double total_profiler_ticks() const { return total_profiler_ticks_; }
 
   void Serialize(JSHeapBroker* broker);
   const ZoneVector<ObjectData*>& feedback() { return feedback_; }
@@ -1275,7 +1274,6 @@ class FeedbackVectorData : public HeapObjectData {
 
  private:
   double const invocation_count_;
-  double const total_profiler_ticks_;
 
   bool serialized_ = false;
   ZoneVector<ObjectData*> feedback_;
@@ -1287,7 +1285,6 @@ FeedbackVectorData::FeedbackVectorData(JSHeapBroker* broker,
                                        Handle<FeedbackVector> object)
     : HeapObjectData(broker, storage, object),
       invocation_count_(object->invocation_count()),
-      total_profiler_ticks_(object->total_profiler_ticks()),
       feedback_(broker->zone()),
       closure_feedback_cell_array_(broker->zone()) {}
 
@@ -3171,7 +3168,6 @@ BIMODAL_ACCESSOR_C(BytecodeArray, interpreter::Register,
 BIMODAL_ACCESSOR(Cell, Object, value)
 
 BIMODAL_ACCESSOR_C(FeedbackVector, double, invocation_count)
-BIMODAL_ACCESSOR_C(FeedbackVector, double, total_profiler_ticks)
 
 BIMODAL_ACCESSOR(HeapObject, Map, map)
 

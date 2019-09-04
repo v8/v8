@@ -494,7 +494,6 @@ class FeedbackVectorRef : public HeapObjectRef {
   Handle<FeedbackVector> object() const;
 
   double invocation_count() const;
-  double total_profiler_ticks() const;
 
   void Serialize();
   ObjectRef get(FeedbackSlot slot) const;
