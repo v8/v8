@@ -1336,7 +1336,7 @@ void RegExpMacroAssemblerX64::CheckPreemption() {
 void RegExpMacroAssemblerX64::CheckStackLimit() {
   Label no_stack_overflow;
   ExternalReference stack_limit =
-      ExternalReference::address_of_regexp_stack_limit(isolate());
+      ExternalReference::address_of_regexp_stack_limit_address(isolate());
   __ load_rax(stack_limit);
   __ cmpq(backtrack_stackpointer(), rax);
   __ j(above, &no_stack_overflow);

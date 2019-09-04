@@ -505,19 +505,25 @@ ExternalReference ExternalReference::address_of_static_offsets_vector(
       reinterpret_cast<Address>(isolate->jsregexp_static_offsets_vector()));
 }
 
-ExternalReference ExternalReference::address_of_regexp_stack_limit(
+ExternalReference ExternalReference::address_of_regexp_stack_limit_address(
     Isolate* isolate) {
-  return ExternalReference(isolate->regexp_stack()->limit_address());
+  return ExternalReference(isolate->regexp_stack()->limit_address_address());
 }
 
 ExternalReference ExternalReference::address_of_regexp_stack_memory_address(
     Isolate* isolate) {
-  return ExternalReference(isolate->regexp_stack()->memory_address());
+  return ExternalReference(isolate->regexp_stack()->memory_address_address());
 }
 
 ExternalReference ExternalReference::address_of_regexp_stack_memory_size(
     Isolate* isolate) {
   return ExternalReference(isolate->regexp_stack()->memory_size_address());
+}
+
+ExternalReference ExternalReference::address_of_regexp_stack_memory_top_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->regexp_stack()->memory_top_address_address());
 }
 
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_acos_function, base::ieee754::acos,

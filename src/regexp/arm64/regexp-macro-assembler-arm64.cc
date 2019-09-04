@@ -1466,7 +1466,7 @@ void RegExpMacroAssemblerARM64::CheckPreemption() {
 
 void RegExpMacroAssemblerARM64::CheckStackLimit() {
   ExternalReference stack_limit =
-      ExternalReference::address_of_regexp_stack_limit(isolate());
+      ExternalReference::address_of_regexp_stack_limit_address(isolate());
   __ Mov(x10, stack_limit);
   __ Ldr(x10, MemOperand(x10));
   __ Cmp(backtrack_stackpointer(), x10);

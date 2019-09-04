@@ -1233,7 +1233,7 @@ void RegExpMacroAssemblerIA32::CheckPreemption() {
 void RegExpMacroAssemblerIA32::CheckStackLimit() {
   Label no_stack_overflow;
   ExternalReference stack_limit =
-      ExternalReference::address_of_regexp_stack_limit(isolate());
+      ExternalReference::address_of_regexp_stack_limit_address(isolate());
   __ cmp(backtrack_stackpointer(), StaticVariable(stack_limit));
   __ j(above, &no_stack_overflow);
 

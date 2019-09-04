@@ -73,9 +73,13 @@ class StatsCounter;
   V(fast_c_call_caller_pc_address,                                             \
     "IsolateData::fast_c_call_caller_pc_address")                              \
   V(stack_is_iterable_address, "IsolateData::stack_is_iterable_address")       \
-  V(address_of_regexp_stack_limit, "RegExpStack::limit_address()")             \
-  V(address_of_regexp_stack_memory_address, "RegExpStack::memory_address()")   \
-  V(address_of_regexp_stack_memory_size, "RegExpStack::memory_size()")         \
+  V(address_of_regexp_stack_limit_address,                                     \
+    "RegExpStack::limit_address_address()")                                    \
+  V(address_of_regexp_stack_memory_address,                                    \
+    "RegExpStack::memory_address_address()")                                   \
+  V(address_of_regexp_stack_memory_size, "RegExpStack::memory_size_address()") \
+  V(address_of_regexp_stack_memory_top_address,                                \
+    "RegExpStack::memory_top_address_address()")                               \
   V(address_of_static_offsets_vector, "OffsetsVector::static_offsets_vector")  \
   V(re_case_insensitive_compare_uc16,                                          \
     "NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16()")                \

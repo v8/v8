@@ -46,14 +46,11 @@ TNode<RawPtrT> RegExpBuiltinsAssembler::LoadCodeObjectEntry(TNode<Code> code) {
   TVARIABLE(RawPtrT, var_result);
 
   Label if_code_is_off_heap(this), out(this);
+  TNode<Int32T> builtin_index = UncheckedCast<Int32T>(
+      LoadObjectField(code, Code::kBuiltinIndexOffset, MachineType::Int32()));
   {
-    // TODO(pthier): A potential optimization for the future is to make this
-    // decision based on the builtin index instead of flags, and avoid the
-    // additional load below.
-    TNode<Int32T> code_flags = UncheckedCast<Int32T>(
-        LoadObjectField(code, Code::kFlagsOffset, MachineType::Int32()));
-    GotoIf(IsSetWord32(code_flags, Code::IsOffHeapTrampoline::kMask),
-           &if_code_is_off_heap);
+    GotoIfNot(Word32Equal(builtin_index, Int32Constant(Builtins::kNoBuiltinId)),
+              &if_code_is_off_heap);
     var_result = ReinterpretCast<RawPtrT>(
         IntPtrAdd(BitcastTaggedToWord(code),
                   IntPtrConstant(Code::kHeaderSize - kHeapObjectTag)));
@@ -62,8 +59,6 @@ TNode<RawPtrT> RegExpBuiltinsAssembler::LoadCodeObjectEntry(TNode<Code> code) {
 
   BIND(&if_code_is_off_heap);
   {
-    TNode<Int32T> builtin_index = UncheckedCast<Int32T>(
-        LoadObjectField(code, Code::kBuiltinIndexOffset, MachineType::Int32()));
     TNode<IntPtrT> builtin_entry_offset_from_isolate_root =
         IntPtrAdd(IntPtrConstant(IsolateData::builtin_entry_table_offset()),
                   ChangeInt32ToIntPtr(Word32Shl(
@@ -390,9 +385,8 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
   // External constants.
   TNode<ExternalReference> isolate_address =
       ExternalConstant(ExternalReference::isolate_address(isolate()));
-  TNode<ExternalReference> regexp_stack_memory_address_address =
-      ExternalConstant(
-          ExternalReference::address_of_regexp_stack_memory_address(isolate()));
+  TNode<ExternalReference> regexp_stack_memory_top_address = ExternalConstant(
+      ExternalReference::address_of_regexp_stack_memory_top_address(isolate()));
   TNode<ExternalReference> regexp_stack_memory_size_address = ExternalConstant(
       ExternalReference::address_of_regexp_stack_memory_size(isolate()));
   TNode<ExternalReference> static_offsets_vector_address = ExternalConstant(
@@ -588,18 +582,11 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 
     // Argument 6: Start (high end) of backtracking stack memory area. This
     // argument is ignored in the interpreter.
-    // TODO(pthier): We should consider creating a dedicated external reference
-    // for top of regexp stack instead of calculating it here for every
-    // execution.
-    TNode<RawPtrT> stack_start = UncheckedCast<RawPtrT>(
-        Load(MachineType::Pointer(), regexp_stack_memory_address_address));
-    TNode<IntPtrT> stack_size = UncheckedCast<IntPtrT>(
-        Load(MachineType::IntPtr(), regexp_stack_memory_size_address));
-    TNode<RawPtrT> stack_end =
-        ReinterpretCast<RawPtrT>(IntPtrAdd(stack_start, stack_size));
+    TNode<RawPtrT> stack_top = UncheckedCast<RawPtrT>(
+        Load(MachineType::Pointer(), regexp_stack_memory_top_address));
 
     MachineType arg6_type = type_ptr;
-    TNode<RawPtrT> arg6 = stack_end;
+    TNode<RawPtrT> arg6 = stack_top;
 
     // Argument 7: Indicate that this is a direct call from JavaScript.
     MachineType arg7_type = type_int32;
