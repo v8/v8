@@ -89,6 +89,12 @@ const char* ValueTypeToConstantName(ValueType type) {
       return "kWasmF32";
     case kWasmF64:
       return "kWasmF64";
+    case kWasmAnyRef:
+      return "kWasmAnyRef";
+    case kWasmFuncRef:
+      return "kWasmFuncRef";
+    case kWasmExnRef:
+      return "kWasmExnRef";
     default:
       UNREACHABLE();
   }
