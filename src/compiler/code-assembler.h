@@ -218,6 +218,10 @@ struct MachineRepresentationOf<
   static const MachineRepresentation value =
       MachineTypeOf<T>::value.representation();
 };
+template <>
+struct MachineRepresentationOf<ExternalReference> {
+  static const MachineRepresentation value = RawPtrT::kMachineRepresentation;
+};
 
 template <class T>
 struct is_valid_type_tag {

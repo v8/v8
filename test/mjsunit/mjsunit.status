@@ -470,11 +470,13 @@
   'array-reduce': [PASS, SLOW],
   'array-sort': [PASS, SLOW],
   'array-splice': [PASS, SLOW],
+  'array-store-and-grow': [PASS, SLOW],
   'bit-not': [PASS, SLOW],
   'compiler/alloc-number': [PASS, SLOW],
   'compiler/osr-with-args': [PASS, SLOW],
   'generated-transition-stub': [PASS, SLOW],
   'json2': [PASS, SLOW],
+  'large-object-literal-slow-elements': [PASS, SLOW],
   'math-floor-of-div-nosudiv': [PASS, SLOW],
   'math-floor-of-div': [PASS, SLOW],
   'messages': [PASS, SLOW],
@@ -486,6 +488,7 @@
   'regress/regress-create-exception': [PASS, SLOW],
   'regress/regress-json-stringify-gc': [PASS, SLOW],
   'string-indexof-2': [PASS, SLOW],
+  'unbox-double-arrays': [PASS, SLOW],
   'unicodelctest-no-optimization': [PASS, SLOW],
   'unicodelctest': [PASS, SLOW],
   'unicode-test': [PASS, SLOW],
@@ -494,14 +497,27 @@
 
   # BUG(v8:7247).
   'regress/regress-779407': [PASS, SLOW, NO_VARIANTS],
-
-  # BUG(v8:9256). Slow with pointer compression.
-  'regress/regress-708247': [PASS, ['pointer_compression', SLOW]],
-  'es6/array-concat': [PASS, ['pointer_compression', SLOW]],
-  'non-extensible-array-reduce': [PASS, ['pointer_compression', SLOW]],
-  'regress/regress-454725': [PASS, ['pointer_compression', SLOW]],
 }],  # 'arch == arm64'
 
+##############################################################################
+['arch == arm64 and simulator_run', {
+  # Slow in simulator builds
+  'compiler/osr-follow': [PASS, SLOW],
+  'es6/array-concat': [PASS, SLOW],
+  'non-extensible-array-reduce': [PASS, SLOW],
+  'regress/regress-454725': [PASS, SLOW],
+  'regress/regress-708247': [PASS, SLOW],
+  'compiler/osr-big': [PASS, SLOW],
+  'frozen-array-reduce': [PASS, SLOW],
+  'json': [PASS, SLOW],
+  'sealed-array-reduce': [PASS, SLOW],
+  'try': [PASS, SLOW],
+
+  # Slow without pointer compression
+  'wasm/asm-wasm-u32': [PASS, ['not pointer_compression', SLOW]],
+}],  # 'arch == arm64 and simulator_run'
+
+##############################################################################
 ['arch == arm64 and mode == debug and simulator_run', {
 
   # Pass but take too long with the simulator in debug mode.

@@ -32,19 +32,19 @@ InterpreterAssembler::InterpreterAssembler(CodeAssemblerState* state,
       bytecode_(bytecode),
       operand_scale_(operand_scale),
       TVARIABLE_CONSTRUCTOR(interpreted_frame_pointer_),
-      VARIABLE_CONSTRUCTOR(
-          bytecode_array_, MachineRepresentation::kTagged,
-          Parameter(InterpreterDispatchDescriptor::kBytecodeArray)),
+      TVARIABLE_CONSTRUCTOR(
+          bytecode_array_,
+          CAST(Parameter(InterpreterDispatchDescriptor::kBytecodeArray))),
       TVARIABLE_CONSTRUCTOR(
           bytecode_offset_,
           UncheckedCast<IntPtrT>(
               Parameter(InterpreterDispatchDescriptor::kBytecodeOffset))),
-      VARIABLE_CONSTRUCTOR(
-          dispatch_table_, MachineType::PointerRepresentation(),
-          Parameter(InterpreterDispatchDescriptor::kDispatchTable)),
-      VARIABLE_CONSTRUCTOR(
-          accumulator_, MachineRepresentation::kTagged,
-          Parameter(InterpreterDispatchDescriptor::kAccumulator)),
+      TVARIABLE_CONSTRUCTOR(
+          dispatch_table_, UncheckedCast<ExternalReference>(Parameter(
+                               InterpreterDispatchDescriptor::kDispatchTable))),
+      TVARIABLE_CONSTRUCTOR(
+          accumulator_,
+          CAST(Parameter(InterpreterDispatchDescriptor::kAccumulator))),
       accumulator_use_(AccumulatorUse::kNone),
       made_call_(false),
       reloaded_frame_ptr_(false),
@@ -129,27 +129,27 @@ void InterpreterAssembler::SaveBytecodeOffset() {
   }
 }
 
-Node* InterpreterAssembler::BytecodeArrayTaggedPointer() {
+TNode<BytecodeArray> InterpreterAssembler::BytecodeArrayTaggedPointer() {
   // Force a re-load of the bytecode array after every call in case the debugger
   // has been activated.
   if (!bytecode_array_valid_) {
-    bytecode_array_.Bind(LoadRegister(Register::bytecode_array()));
+    bytecode_array_ = CAST(LoadRegister(Register::bytecode_array()));
     bytecode_array_valid_ = true;
   }
   return bytecode_array_.value();
 }
 
-Node* InterpreterAssembler::DispatchTableRawPointer() {
+TNode<ExternalReference> InterpreterAssembler::DispatchTablePointer() {
   if (Bytecodes::MakesCallAlongCriticalPath(bytecode_) && made_call_ &&
       (dispatch_table_.value() ==
        Parameter(InterpreterDispatchDescriptor::kDispatchTable))) {
-    dispatch_table_.Bind(ExternalConstant(
-        ExternalReference::interpreter_dispatch_table_address(isolate())));
+    dispatch_table_ = ExternalConstant(
+        ExternalReference::interpreter_dispatch_table_address(isolate()));
   }
   return dispatch_table_.value();
 }
 
-Node* InterpreterAssembler::GetAccumulatorUnchecked() {
+TNode<Object> InterpreterAssembler::GetAccumulatorUnchecked() {
   return accumulator_.value();
 }
 
@@ -159,10 +159,11 @@ TNode<Object> InterpreterAssembler::GetAccumulator() {
   return TaggedPoisonOnSpeculation(GetAccumulatorUnchecked());
 }
 
-void InterpreterAssembler::SetAccumulator(Node* value) {
+// TODO(v8:6949): Remove sloppy-ness from SetAccumulator's value argument.
+void InterpreterAssembler::SetAccumulator(SloppyTNode<Object> value) {
   DCHECK(Bytecodes::WritesAccumulator(bytecode_));
   accumulator_use_ = accumulator_use_ | AccumulatorUse::kWrite;
-  accumulator_.Bind(value);
+  accumulator_ = value;
 }
 
 TNode<Context> InterpreterAssembler::GetContext() {
@@ -1436,9 +1437,8 @@ Node* InterpreterAssembler::DispatchToBytecode(Node* target_bytecode,
     TraceBytecodeDispatch(target_bytecode);
   }
 
-  Node* target_code_entry =
-      Load(MachineType::Pointer(), DispatchTableRawPointer(),
-           TimesSystemPointerSize(target_bytecode));
+  Node* target_code_entry = Load(MachineType::Pointer(), DispatchTablePointer(),
+                                 TimesSystemPointerSize(target_bytecode));
 
   return DispatchToBytecodeHandlerEntry(target_code_entry, new_bytecode_offset,
                                         target_bytecode);
@@ -1462,7 +1462,7 @@ Node* InterpreterAssembler::DispatchToBytecodeHandlerEntry(
   return TailCallBytecodeDispatch(
       InterpreterDispatchDescriptor{}, poisoned_handler_entry,
       GetAccumulatorUnchecked(), bytecode_offset, BytecodeArrayTaggedPointer(),
-      DispatchTableRawPointer());
+      DispatchTablePointer());
 }
 
 void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {
@@ -1493,9 +1493,8 @@ void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {
       UNREACHABLE();
   }
   TNode<WordT> target_index = IntPtrAdd(base_index, next_bytecode);
-  Node* target_code_entry =
-      Load(MachineType::Pointer(), DispatchTableRawPointer(),
-           TimesSystemPointerSize(target_index));
+  Node* target_code_entry = Load(MachineType::Pointer(), DispatchTablePointer(),
+                                 TimesSystemPointerSize(target_index));
 
   DispatchToBytecodeHandlerEntry(target_code_entry, next_bytecode_offset,
                                  next_bytecode);

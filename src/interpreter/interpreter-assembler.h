@@ -68,7 +68,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
 
   // Accumulator.
   compiler::TNode<Object> GetAccumulator();
-  void SetAccumulator(compiler::Node* value);
+  void SetAccumulator(SloppyTNode<Object> value);
 
   // Context.
   compiler::TNode<Context> GetContext();
@@ -277,16 +277,16 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void ToNumberOrNumeric(Object::Conversion mode);
 
  private:
-  // Returns a tagged pointer to the current function's BytecodeArray object.
-  compiler::Node* BytecodeArrayTaggedPointer();
+  // Returns a pointer to the current function's BytecodeArray object.
+  TNode<BytecodeArray> BytecodeArrayTaggedPointer();
 
-  // Returns a raw pointer to first entry in the interpreter dispatch table.
-  compiler::Node* DispatchTableRawPointer();
+  // Returns a pointer to first entry in the interpreter dispatch table.
+  TNode<ExternalReference> DispatchTablePointer();
 
   // Returns the accumulator value without checking whether bytecode
   // uses it. This is intended to be used only in dispatch and in
   // tracing as these need to bypass accumulator use validity checks.
-  compiler::Node* GetAccumulatorUnchecked();
+  TNode<Object> GetAccumulatorUnchecked();
 
   // Returns the frame pointer for the interpreted frame of the function being
   // interpreted.
@@ -424,11 +424,11 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
 
   Bytecode bytecode_;
   OperandScale operand_scale_;
-  TVariable<RawPtrT> interpreted_frame_pointer_;
-  CodeStubAssembler::Variable bytecode_array_;
-  TVariable<IntPtrT> bytecode_offset_;
-  CodeStubAssembler::Variable dispatch_table_;
-  CodeStubAssembler::Variable accumulator_;
+  CodeStubAssembler::TVariable<RawPtrT> interpreted_frame_pointer_;
+  CodeStubAssembler::TVariable<BytecodeArray> bytecode_array_;
+  CodeStubAssembler::TVariable<IntPtrT> bytecode_offset_;
+  CodeStubAssembler::TVariable<ExternalReference> dispatch_table_;
+  CodeStubAssembler::TVariable<Object> accumulator_;
   AccumulatorUse accumulator_use_;
   bool made_call_;
   bool reloaded_frame_ptr_;

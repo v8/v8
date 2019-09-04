@@ -1408,8 +1408,8 @@ Node* CodeAssembler::TailCallBytecodeDispatch(
 // Instantiate TailCallBytecodeDispatch() for argument counts used by
 // CSA-generated code
 template V8_EXPORT_PRIVATE Node* CodeAssembler::TailCallBytecodeDispatch(
-    const CallInterfaceDescriptor& descriptor, Node* target, Node*, Node*,
-    Node*, Node*);
+    const CallInterfaceDescriptor& descriptor, Node* target, TNode<Object>,
+    Node*, TNode<BytecodeArray>, TNode<ExternalReference>);
 
 TNode<Object> CodeAssembler::TailCallJSCode(TNode<Code> code,
                                             TNode<Context> context,

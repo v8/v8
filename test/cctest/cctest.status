@@ -151,6 +151,8 @@
   # Pass but take too long with the simulator.
   'test-api/ExternalArrays': [PASS, SLOW],
   'test-api/Threading*': [SKIP],
+  'test-cpu-profiler/MultipleIsolates': [PASS, SLOW],
+  'test-debug/DebugBreakStackTrace': [PASS, SLOW],
 }],  # 'arch == arm64 and simulator_run'
 
 ##############################################################################
@@ -259,6 +261,7 @@
 ['arch == arm and simulator_run', {
   # Pass but take too long with the simulator.
   'test-api/Threading*': [SKIP],
+  'test-cpu-profiler/MultipleIsolates': [PASS, SLOW],
 }],  # 'arch == arm and simulator_run'
 
 ##############################################################################

@@ -1035,6 +1035,9 @@
 
   #BUG(3152): Avoid C stack overflow.
   'js1_5/extensions/regress-355497': [FAIL_OK, '--sim-stack-size=512'],
+
+  # Slow without pointer compression
+  'js1_5/Regress/regress-80981': [PASS, ['not pointer_compression', SLOW]],
 }],  # 'arch == arm64 and simulator_run'
 
 ['system == android', {
