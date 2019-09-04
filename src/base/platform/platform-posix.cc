@@ -137,10 +137,10 @@ int GetFlagsForMemoryPermission(OS::MemoryPermission access) {
   return flags;
 }
 
-void* Allocate(void* address, size_t size, OS::MemoryPermission access) {
+void* Allocate(void* hint, size_t size, OS::MemoryPermission access) {
   int prot = GetProtectionFromMemoryPermission(access);
   int flags = GetFlagsForMemoryPermission(access);
-  void* result = mmap(address, size, prot, flags, kMmapFd, kMmapFdOffset);
+  void* result = mmap(hint, size, prot, flags, kMmapFd, kMmapFdOffset);
   if (result == MAP_FAILED) return nullptr;
   return result;
 }
@@ -278,16 +278,16 @@ void* OS::GetRandomMmapAddr() {
 // TODO(bbudge) Move Cygwin and Fuchsia stuff into platform-specific files.
 #if !V8_OS_CYGWIN && !V8_OS_FUCHSIA
 // static
-void* OS::Allocate(void* address, size_t size, size_t alignment,
+void* OS::Allocate(void* hint, size_t size, size_t alignment,
                    MemoryPermission access) {
   size_t page_size = AllocatePageSize();
   DCHECK_EQ(0, size % page_size);
   DCHECK_EQ(0, alignment % page_size);
-  address = AlignedAddress(address, alignment);
+  hint = AlignedAddress(hint, alignment);
   // Add the maximum misalignment so we are guaranteed an aligned base address.
   size_t request_size = size + (alignment - page_size);
   request_size = RoundUp(request_size, OS::AllocatePageSize());
-  void* result = base::Allocate(address, request_size, access);
+  void* result = base::Allocate(hint, request_size, access);
   if (result == nullptr) return nullptr;
 
   // Unmap memory allocated before the aligned base address.
