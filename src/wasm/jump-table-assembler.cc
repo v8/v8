@@ -112,8 +112,19 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
 }
 
 void JumpTableAssembler::EmitRuntimeStubSlot(Address builtin_target) {
-  JumpToInstructionStream(builtin_target);
-  ForceConstantPoolEmissionWithoutJump();
+  // This code uses hard-coded registers and instructions (and avoids
+  // {UseScratchRegisterScope} or {InstructionAccurateScope}) because this code
+  // will only be called for the very specific runtime slot table, and we want
+  // to have maximum control over the generated code.
+  // Do not reuse this code without validating that the same assumptions hold.
+  constexpr Register kTmpReg = x16;
+  DCHECK(TmpList()->IncludesAliasOf(kTmpReg));
+  // Load from [pc + 2 * kInstrSize] to {kTmpReg}, then branch there.
+  ldr_pcrel(kTmpReg, 2);  // 1 instruction
+  br(kTmpReg);            // 1 instruction
+  dq(builtin_target);     // 8 bytes (== 2 instructions)
+  STATIC_ASSERT(kInstrSize == kInt32Size);
+  STATIC_ASSERT(kJumpTableStubSlotSize == 4 * kInstrSize);
 }
 
 void JumpTableAssembler::EmitJumpSlot(Address target) {
