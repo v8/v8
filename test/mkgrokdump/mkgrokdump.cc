@@ -97,6 +97,14 @@ static void DumpKnownObject(FILE* out, i::Heap* heap, const char* space_name,
 #undef RO_ROOT_LIST_CASE
 }
 
+static void DumpSpaceFirstPageAddress(FILE* out, i::PagedSpace* space) {
+  const char* name = space->name();
+  i::Address first_page = reinterpret_cast<i::Address>(space->first_page());
+  i::Tagged_t compressed = i::CompressTagged(first_page);
+  uintptr_t unsigned_compressed = static_cast<uint32_t>(compressed);
+  i::PrintF(out, "  0x%08" V8PRIxPTR ": \"%s\",\n", unsigned_compressed, name);
+}
+
 static int DumpHeapConstants(FILE* out, const char* argv0) {
   // Start up V8.
   std::unique_ptr<v8::Platform> platform = v8::platform::NewDefaultPlatform();
@@ -161,6 +169,25 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
           DumpKnownObject(out, heap, sname, o);
         }
       }
+      i::PrintF(out, "}\n");
+    }
+
+    if (COMPRESS_POINTERS_BOOL) {
+      // Dump a list of addresses for the first page of each space that contains
+      // objects in the other tables above. This is only useful if two
+      // assumptions hold:
+      // 1. Those pages are positioned deterministically within the heap
+      //    reservation block during snapshot deserialization.
+      // 2. Those pages cannot ever be moved (such as by compaction).
+      i::PrintF(out,
+                "\n# Lower 32 bits of first page addresses for various heap "
+                "spaces.\n");
+      i::PrintF(out, "HEAP_FIRST_PAGES = {\n");
+      i::PagedSpaceIterator it(heap);
+      for (i::PagedSpace* s = it.Next(); s != nullptr; s = it.Next()) {
+        DumpSpaceFirstPageAddress(out, s);
+      }
+      DumpSpaceFirstPageAddress(out, read_only_heap->read_only_space());
       i::PrintF(out, "}\n");
     }
 

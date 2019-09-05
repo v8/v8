@@ -109,7 +109,7 @@ typedef MemoryAccessResult (*MemoryAccessor)(uintptr_t address,
 // Additional data that can help GetObjectProperties to be more accurate. Any
 // fields you don't know can be set to zero and this library will do the best it
 // can with the information available.
-struct Roots {
+struct HeapAddresses {
   // Beginning of allocated space for various kinds of data. These can help us
   // to detect certain common objects that are placed in memory during startup.
   // These values might be provided via name-value pairs in CrashPad dumps.
@@ -119,9 +119,9 @@ struct Roots {
   //    key stored in v8::internal::Isolate::isolate_key_.
   // 2. Get isolate->heap_.map_space_->memory_chunk_list_.front_ and similar for
   //    old_space_ and read_only_space_.
-  uintptr_t map_space;
-  uintptr_t old_space;
-  uintptr_t read_only_space;
+  uintptr_t map_space_first_page;
+  uintptr_t old_space_first_page;
+  uintptr_t read_only_space_first_page;
 
   // Any valid heap pointer address. On platforms where pointer compression is
   // enabled, this can allow us to get data from compressed pointers even if the
@@ -139,7 +139,8 @@ extern "C" {
 V8_DEBUG_HELPER_EXPORT v8::debug_helper::ObjectPropertiesResult*
 _v8_debug_helper_GetObjectProperties(
     uintptr_t object, v8::debug_helper::MemoryAccessor memory_accessor,
-    const v8::debug_helper::Roots& heap_roots, const char* type_hint);
+    const v8::debug_helper::HeapAddresses& heap_addresses,
+    const char* type_hint);
 V8_DEBUG_HELPER_EXPORT void _v8_debug_helper_Free_ObjectPropertiesResult(
     v8::debug_helper::ObjectPropertiesResult* result);
 }
@@ -166,9 +167,9 @@ using ObjectPropertiesResultPtr =
 // v8::internal::Object.
 inline ObjectPropertiesResultPtr GetObjectProperties(
     uintptr_t object, v8::debug_helper::MemoryAccessor memory_accessor,
-    const Roots& heap_roots, const char* type_hint = nullptr) {
+    const HeapAddresses& heap_addresses, const char* type_hint = nullptr) {
   return ObjectPropertiesResultPtr(_v8_debug_helper_GetObjectProperties(
-      object, memory_accessor, heap_roots, type_hint));
+      object, memory_accessor, heap_addresses, type_hint));
 }
 
 }  // namespace debug_helper

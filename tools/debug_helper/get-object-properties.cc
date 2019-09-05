@@ -241,10 +241,10 @@ TypedObject GetTypedHeapObject(uintptr_t address, d::MemoryAccessor accessor,
     return GetTypedObjectByHint(address, type_hint);
   } else {
     // TODO(v8:9376): Use known maps here. If known map is just a guess (because
-    // root pointers weren't provided), then create a synthetic property with
-    // the more specific type. Then the caller could presumably ask us again
-    // with the type hint we provided. Otherwise, just go ahead and use it to
-    // generate properties.
+    // heap page addresses weren't provided), then create a synthetic property
+    // with the more specific type. Then the caller could presumably ask us
+    // again with the type hint we provided. Otherwise, just go ahead and use it
+    // to generate properties.
     return {type.validity == d::MemoryAccessResult::kAddressNotValid
                 ? d::TypeCheckResult::kMapPointerInvalid
                 : d::TypeCheckResult::kMapPointerValidButInaccessible,
@@ -447,19 +447,24 @@ std::unique_ptr<ObjectPropertiesResult> GetHeapObjectProperties(
 }
 
 std::unique_ptr<ObjectPropertiesResult> GetHeapObjectProperties(
-    uintptr_t address, d::MemoryAccessor memory_accessor, const d::Roots& roots,
-    const char* type_hint) {
+    uintptr_t address, d::MemoryAccessor memory_accessor,
+    d::HeapAddresses heap_addresses, const char* type_hint) {
   // Try to figure out the heap range, for pointer compression (this is unused
   // if pointer compression is disabled).
   uintptr_t any_uncompressed_ptr = 0;
   if (!IsPointerCompressed(address)) any_uncompressed_ptr = address;
-  if (any_uncompressed_ptr == 0) any_uncompressed_ptr = roots.any_heap_pointer;
-  if (any_uncompressed_ptr == 0) any_uncompressed_ptr = roots.map_space;
-  if (any_uncompressed_ptr == 0) any_uncompressed_ptr = roots.old_space;
-  if (any_uncompressed_ptr == 0) any_uncompressed_ptr = roots.read_only_space;
+  if (any_uncompressed_ptr == 0)
+    any_uncompressed_ptr = heap_addresses.any_heap_pointer;
+  if (any_uncompressed_ptr == 0)
+    any_uncompressed_ptr = heap_addresses.map_space_first_page;
+  if (any_uncompressed_ptr == 0)
+    any_uncompressed_ptr = heap_addresses.old_space_first_page;
+  if (any_uncompressed_ptr == 0)
+    any_uncompressed_ptr = heap_addresses.read_only_space_first_page;
+  FillInUnknownHeapAddresses(&heap_addresses, any_uncompressed_ptr);
   if (any_uncompressed_ptr == 0) {
     // We can't figure out the heap range. Just check for known objects.
-    std::string brief = FindKnownObject(address, roots);
+    std::string brief = FindKnownObject(address, heap_addresses);
     brief = AppendAddressAndType(brief, address, "v8::internal::TaggedValue");
     return v8::base::make_unique<ObjectPropertiesResult>(
         d::TypeCheckResult::kUnableToDecompress, brief,
@@ -467,22 +472,18 @@ std::unique_ptr<ObjectPropertiesResult> GetHeapObjectProperties(
         std::vector<std::unique_ptr<ObjectProperty>>());
   }
 
-  // TODO(v8:9376): It seems that the space roots are at predictable offsets
-  // within the heap reservation block when pointer compression is enabled, so
-  // we should be able to set those here.
-
   address = Decompress(address, any_uncompressed_ptr);
   // From here on all addresses should be decompressed.
 
   // Regardless of whether we can read the object itself, maybe we can find its
   // pointer in the list of known objects.
-  std::string brief = FindKnownObject(address, roots);
+  std::string brief = FindKnownObject(address, heap_addresses);
   return GetHeapObjectProperties(address, memory_accessor, type_hint, brief);
 }
 
 std::unique_ptr<ObjectPropertiesResult> GetObjectPropertiesImpl(
-    uintptr_t address, d::MemoryAccessor memory_accessor, const d::Roots& roots,
-    const char* type_hint) {
+    uintptr_t address, d::MemoryAccessor memory_accessor,
+    const d::HeapAddresses& heap_addresses, const char* type_hint) {
   std::vector<std::unique_ptr<ObjectProperty>> props;
   if (static_cast<uint32_t>(address) == i::kClearedWeakHeapObjectLower32) {
     return v8::base::make_unique<ObjectPropertiesResult>(
@@ -494,8 +495,8 @@ std::unique_ptr<ObjectPropertiesResult> GetObjectPropertiesImpl(
     address &= ~i::kWeakHeapObjectMask;
   }
   if (i::Internals::HasHeapObjectTag(address)) {
-    std::unique_ptr<ObjectPropertiesResult> result =
-        GetHeapObjectProperties(address, memory_accessor, roots, type_hint);
+    std::unique_ptr<ObjectPropertiesResult> result = GetHeapObjectProperties(
+        address, memory_accessor, heap_addresses, type_hint);
     if (is_weak) {
       result->Prepend("weak ref to ");
     }
@@ -520,9 +521,9 @@ extern "C" {
 V8_DEBUG_HELPER_EXPORT d::ObjectPropertiesResult*
 _v8_debug_helper_GetObjectProperties(uintptr_t object,
                                      d::MemoryAccessor memory_accessor,
-                                     const d::Roots& heap_roots,
+                                     const d::HeapAddresses& heap_addresses,
                                      const char* type_hint) {
-  return di::GetObjectPropertiesImpl(object, memory_accessor, heap_roots,
+  return di::GetObjectPropertiesImpl(object, memory_accessor, heap_addresses,
                                      type_hint)
       .release()
       ->GetPublicView();
