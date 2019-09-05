@@ -18,7 +18,6 @@ namespace compiler {
 
 namespace {
 
-using Label = CodeAssemblerLabel;
 using Variable = CodeAssemblerVariable;
 
 Node* SmiTag(CodeAssembler& m,  // NOLINT(runtime/references)
@@ -228,7 +227,7 @@ TEST(VariableMerge1) {
   CodeAssemblerTester asm_tester(isolate);
   CodeAssembler m(asm_tester.state());
   Variable var1(&m, MachineRepresentation::kTagged);
-  Label l1(&m), l2(&m), merge(&m);
+  CodeAssemblerLabel l1(&m), l2(&m), merge(&m);
   TNode<Int32T> temp = m.Int32Constant(0);
   var1.Bind(temp);
   m.Branch(m.Int32Constant(1), &l1, &l2);
@@ -247,7 +246,7 @@ TEST(VariableMerge2) {
   CodeAssemblerTester asm_tester(isolate);
   CodeAssembler m(asm_tester.state());
   Variable var1(&m, MachineRepresentation::kTagged);
-  Label l1(&m), l2(&m), merge(&m);
+  CodeAssemblerLabel l1(&m), l2(&m), merge(&m);
   TNode<Int32T> temp = m.Int32Constant(0);
   var1.Bind(temp);
   m.Branch(m.Int32Constant(1), &l1, &l2);
@@ -269,7 +268,7 @@ TEST(VariableMerge3) {
   CodeAssembler m(asm_tester.state());
   Variable var1(&m, MachineRepresentation::kTagged);
   Variable var2(&m, MachineRepresentation::kTagged);
-  Label l1(&m), l2(&m), merge(&m);
+  CodeAssemblerLabel l1(&m), l2(&m), merge(&m);
   TNode<Int32T> temp = m.Int32Constant(0);
   var1.Bind(temp);
   var2.Bind(temp);
@@ -293,7 +292,7 @@ TEST(VariableMergeBindFirst) {
   CodeAssemblerTester asm_tester(isolate);
   CodeAssembler m(asm_tester.state());
   Variable var1(&m, MachineRepresentation::kTagged);
-  Label l1(&m), l2(&m), merge(&m, &var1), end(&m);
+  CodeAssemblerLabel l1(&m), l2(&m), merge(&m, &var1), end(&m);
   TNode<Int32T> temp = m.Int32Constant(0);
   var1.Bind(temp);
   m.Branch(m.Int32Constant(1), &l1, &l2);
@@ -319,8 +318,8 @@ TEST(VariableMergeSwitch) {
   CodeAssemblerTester asm_tester(isolate);
   CodeAssembler m(asm_tester.state());
   Variable var1(&m, MachineRepresentation::kTagged);
-  Label l1(&m), l2(&m), default_label(&m);
-  Label* labels[] = {&l1, &l2};
+  CodeAssemblerLabel l1(&m), l2(&m), default_label(&m);
+  CodeAssemblerLabel* labels[] = {&l1, &l2};
   int32_t values[] = {1, 2};
   TNode<Smi> temp1 = m.SmiConstant(0);
   var1.Bind(temp1);
@@ -345,7 +344,7 @@ TEST(SplitEdgeBranchMerge) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester asm_tester(isolate);
   CodeAssembler m(asm_tester.state());
-  Label l1(&m), merge(&m);
+  CodeAssemblerLabel l1(&m), merge(&m);
   m.Branch(m.Int32Constant(1), &l1, &merge);
   m.Bind(&l1);
   m.Goto(&merge);
@@ -357,8 +356,8 @@ TEST(SplitEdgeSwitchMerge) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester asm_tester(isolate);
   CodeAssembler m(asm_tester.state());
-  Label l1(&m), l2(&m), l3(&m), default_label(&m);
-  Label* labels[] = {&l1, &l2};
+  CodeAssemblerLabel l1(&m), l2(&m), l3(&m), default_label(&m);
+  CodeAssemblerLabel* labels[] = {&l1, &l2};
   int32_t values[] = {1, 2};
   m.Branch(m.Int32Constant(1), &l3, &l1);
   m.Bind(&l3);
@@ -402,12 +401,12 @@ TEST(DeferredCodePhiHints) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester asm_tester(isolate);
   CodeAssembler m(asm_tester.state());
-  Label block1(&m, Label::kDeferred);
+  CodeAssemblerLabel block1(&m, CodeAssemblerLabel::kDeferred);
   m.Goto(&block1);
   m.Bind(&block1);
   {
     Variable var_object(&m, MachineRepresentation::kTagged);
-    Label loop(&m, &var_object);
+    CodeAssemblerLabel loop(&m, &var_object);
     var_object.Bind(m.SmiConstant(0));
     m.Goto(&loop);
     m.Bind(&loop);
@@ -424,10 +423,10 @@ TEST(TestOutOfScopeVariable) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester asm_tester(isolate);
   CodeAssembler m(asm_tester.state());
-  Label block1(&m);
-  Label block2(&m);
-  Label block3(&m);
-  Label block4(&m);
+  CodeAssemblerLabel block1(&m);
+  CodeAssemblerLabel block2(&m);
+  CodeAssemblerLabel block3(&m);
+  CodeAssemblerLabel block4(&m);
   m.Branch(m.WordEqual(m.UncheckedCast<IntPtrT>(m.Parameter(0)),
                        m.IntPtrConstant(0)),
            &block1, &block4);
@@ -463,7 +462,7 @@ TEST(GotoIfException) {
       m.HeapConstant(isolate->factory()->to_string_tag_symbol());
   Variable exception(&m, MachineRepresentation::kTagged);
 
-  Label exception_handler(&m);
+  CodeAssemblerLabel exception_handler(&m);
   Callable to_string = Builtins::CallableFor(isolate, Builtins::kToString);
   TNode<Object> string = m.CallStub(to_string, context, to_string_tag);
   m.GotoIfException(string, &exception_handler, &exception);
@@ -498,9 +497,9 @@ TEST(GotoIfExceptionMultiple) {
   Node* second_value = m.Parameter(1);
   Node* third_value = m.Parameter(2);
 
-  Label exception_handler1(&m);
-  Label exception_handler2(&m);
-  Label exception_handler3(&m);
+  CodeAssemblerLabel exception_handler1(&m);
+  CodeAssemblerLabel exception_handler2(&m);
+  CodeAssemblerLabel exception_handler3(&m);
   Variable return_value(&m, MachineRepresentation::kWord32);
   Variable error(&m, MachineRepresentation::kTagged);
 
@@ -578,7 +577,7 @@ TEST(ExceptionHandler) {
   CodeAssembler m(asm_tester.state());
 
   CodeAssembler::TVariable<Object> var(m.SmiConstant(0), &m);
-  Label exception(&m, {&var}, Label::kDeferred);
+  CodeAssemblerLabel exception(&m, {&var}, CodeAssemblerLabel::kDeferred);
   {
     CodeAssemblerScopedExceptionHandler handler(&m, &exception, &var);
     TNode<Context> context =
