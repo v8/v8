@@ -1460,8 +1460,21 @@ RegExpBuiltinsAssembler::FastStoreLastIndex(FastJSRegExp, Smi): void;
 
 @hasSameInstanceTypeAsParent
 extern class JSRegExpResult extends JSArray {
+  // In-object properties:
+  // The below fields are externally exposed.
   index: JSAny;
   input: JSAny;
+  groups: JSAny;
+
+  // The below fields are for internal use only.
+  cached_indices_or_match_info: JSRegExpResultIndices | RegExpMatchInfo;
+  names: FixedArray | Undefined;
+}
+
+@hasSameInstanceTypeAsParent
+extern class JSRegExpResultIndices extends JSArray {
+  // In-object properties:
+  // The groups field is externally exposed.
   groups: JSAny;
 }
 

@@ -80,7 +80,8 @@ TNode<RawPtrT> RegExpBuiltinsAssembler::LoadCodeObjectEntry(TNode<Code> code) {
 
 TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
     TNode<Context> context, TNode<Smi> length, TNode<Smi> index,
-    TNode<String> input, TNode<FixedArray>* elements_out) {
+    TNode<String> input, TNode<RegExpMatchInfo> match_info,
+    TNode<FixedArray>* elements_out) {
   CSA_ASSERT(this, SmiLessThanOrEqual(
                        length, SmiConstant(JSArray::kMaxFastArrayLength)));
   CSA_ASSERT(this, SmiGreaterThan(length, SmiConstant(0)));
@@ -107,11 +108,22 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
 
   TNode<JSRegExpResult> result = CAST(array);
 
+  // Load undefined value once here to avoid multiple LoadRoots.
+  TNode<Oddball> undefined_value = UncheckedCast<Oddball>(
+      CodeAssembler::LoadRoot(RootIndex::kUndefinedValue));
+
   StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kIndexOffset, index);
   // TODO(jgruber,tebbi): Could skip barrier but the MemoryOptimizer complains.
   StoreObjectField(result, JSRegExpResult::kInputOffset, input);
   StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kGroupsOffset,
-                                 UndefinedConstant());
+                                 undefined_value);
+  StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kNamesOffset,
+                                 undefined_value);
+
+  // Stash match_info in order to build JSRegExpResultIndices lazily when the
+  // 'indices' property is accessed.
+  StoreObjectField(result, JSRegExpResult::kCachedIndicesOrMatchInfoOffset,
+                   match_info);
 
   // Finish elements initialization.
 
@@ -213,7 +225,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
 
   TNode<FixedArray> result_elements;
   TNode<JSRegExpResult> result = AllocateRegExpResult(
-      context, num_results, start, string, &result_elements);
+      context, num_results, start, string, match_info, &result_elements);
 
   UnsafeStoreFixedArrayElement(result_elements, 0, first);
 
@@ -288,6 +300,9 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     TNode<FixedArray> names = CAST(maybe_names);
     TNode<IntPtrT> names_length = LoadAndUntagFixedArrayBaseLength(names);
     CSA_ASSERT(this, IntPtrGreaterThan(names_length, IntPtrZero()));
+
+    // Stash names in case we need them to build the indices array later.
+    StoreObjectField(result, JSRegExpResult::kNamesOffset, names);
 
     // Allocate a new object to store the named capture properties.
     // TODO(jgruber): Could be optimized by adding the object map to the heap

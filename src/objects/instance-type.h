@@ -451,6 +451,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(JSProxy, JS_PROXY_TYPE)                                                  \
   V(JSRegExp, JS_REGEXP_TYPE)                                                \
   V(JSRegExpResult, JS_ARRAY_TYPE)                                           \
+  V(JSRegExpResultIndices, JS_ARRAY_TYPE)                                    \
   V(JSRegExpStringIterator, JS_REGEXP_STRING_ITERATOR_TYPE)                  \
   V(JSSet, JS_SET_TYPE)                                                      \
   V(JSStringIterator, JS_STRING_ITERATOR_TYPE)                               \
