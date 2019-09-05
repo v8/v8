@@ -951,10 +951,13 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     Node* holder = p->receiver();
     TNode<IntPtrT> handler_word = SmiUntag(CAST(handler));
 
-    Label if_fast_smi(this), if_proxy(this);
+    Label if_fast_smi(this), if_proxy(this), if_interceptor(this),
+        if_slow(this);
 
     STATIC_ASSERT(StoreHandler::kGlobalProxy + 1 == StoreHandler::kNormal);
-    STATIC_ASSERT(StoreHandler::kNormal + 1 == StoreHandler::kProxy);
+    STATIC_ASSERT(StoreHandler::kNormal + 1 == StoreHandler::kInterceptor);
+    STATIC_ASSERT(StoreHandler::kInterceptor + 1 == StoreHandler::kSlow);
+    STATIC_ASSERT(StoreHandler::kSlow + 1 == StoreHandler::kProxy);
     STATIC_ASSERT(StoreHandler::kProxy + 1 == StoreHandler::kKindsNumber);
 
     TNode<UintPtrT> handler_kind =
@@ -964,6 +967,10 @@ void AccessorAssembler::HandleStoreICHandlerCase(
            &if_fast_smi);
     GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kProxy)),
            &if_proxy);
+    GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kInterceptor)),
+           &if_interceptor);
+    GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kSlow)),
+           &if_slow);
     CSA_ASSERT(this,
                WordEqual(handler_kind, IntPtrConstant(StoreHandler::kNormal)));
     TNode<NameDictionary> properties = CAST(LoadSlowProperties(holder));
@@ -1012,6 +1019,24 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
     BIND(&if_proxy);
     HandleStoreToProxy(p, holder, miss, support_elements);
+
+    BIND(&if_interceptor);
+    {
+      Comment("store_interceptor");
+      TailCallRuntime(Runtime::kStorePropertyWithInterceptor, p->context(),
+                      p->value(), p->slot(), p->vector(), p->receiver(),
+                      p->name());
+    }
+
+    BIND(&if_slow);
+    {
+      Comment("store_slow");
+      // The slow case calls into the runtime to complete the store without
+      // causing an IC miss that would otherwise cause a transition to the
+      // generic stub.
+      TailCallRuntime(Runtime::kKeyedStoreIC_Slow, p->context(), p->value(),
+                      p->receiver(), p->name());
+    }
   }
 
   BIND(&if_nonsmi_handler);
@@ -1455,7 +1480,8 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
   {
     Label if_add_normal(this), if_store_global_proxy(this), if_api_setter(this),
-        if_accessor(this), if_native_data_property(this);
+        if_accessor(this), if_native_data_property(this), if_slow(this),
+        if_interceptor(this);
 
     CSA_ASSERT(this, TaggedIsSmi(smi_handler));
     TNode<IntPtrT> handler_word = SmiUntag(smi_handler);
@@ -1482,6 +1508,12 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kApiSetter)),
            &if_api_setter);
 
+    GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kSlow)),
+           &if_slow);
+
+    GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kInterceptor)),
+           &if_interceptor);
+
     GotoIf(WordEqual(handler_kind,
                      IntPtrConstant(StoreHandler::kApiSetterHolderIsPrototype)),
            &if_api_setter);
@@ -1489,6 +1521,24 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     CSA_ASSERT(this,
                WordEqual(handler_kind, IntPtrConstant(StoreHandler::kProxy)));
     HandleStoreToProxy(p, holder, miss, support_elements);
+
+    BIND(&if_slow);
+    {
+      Comment("store_slow");
+      // The slow case calls into the runtime to complete the store without
+      // causing an IC miss that would otherwise cause a transition to the
+      // generic stub.
+      TailCallRuntime(Runtime::kKeyedStoreIC_Slow, p->context(), p->value(),
+                      p->receiver(), p->name());
+    }
+
+    BIND(&if_interceptor);
+    {
+      Comment("store_interceptor");
+      TailCallRuntime(Runtime::kStorePropertyWithInterceptor, p->context(),
+                      p->value(), p->slot(), p->vector(), p->receiver(),
+                      p->name());
+    }
 
     BIND(&if_add_normal);
     {

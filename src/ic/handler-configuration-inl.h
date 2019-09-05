@@ -127,6 +127,16 @@ Handle<Smi> StoreHandler::StoreNormal(Isolate* isolate) {
   return handle(Smi::FromInt(config), isolate);
 }
 
+Handle<Smi> StoreHandler::StoreInterceptor(Isolate* isolate) {
+  int config = KindBits::encode(kInterceptor);
+  return handle(Smi::FromInt(config), isolate);
+}
+
+Handle<Smi> StoreHandler::StoreSlow(Isolate* isolate) {
+  int config = KindBits::encode(kSlow);
+  return handle(Smi::FromInt(config), isolate);
+}
+
 Handle<Smi> StoreHandler::StoreProxy(Isolate* isolate) {
   int config = KindBits::encode(kProxy);
   return handle(Smi::FromInt(config), isolate);

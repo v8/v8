@@ -491,17 +491,6 @@ TF_BUILTIN(KeyedStoreIC_SloppyArguments_NoTransitionHandleCOW,
   Generate_KeyedStoreIC_SloppyArguments();
 }
 
-TF_BUILTIN(StoreInterceptorIC, CodeStubAssembler) {
-  Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* name = Parameter(Descriptor::kName);
-  Node* value = Parameter(Descriptor::kValue);
-  Node* slot = Parameter(Descriptor::kSlot);
-  Node* vector = Parameter(Descriptor::kVector);
-  Node* context = Parameter(Descriptor::kContext);
-  TailCallRuntime(Runtime::kStorePropertyWithInterceptor, context, value, slot,
-                  vector, receiver, name);
-}
-
 TF_BUILTIN(LoadIndexedInterceptorIC, CodeStubAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* key = Parameter(Descriptor::kName);

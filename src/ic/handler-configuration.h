@@ -197,6 +197,8 @@ class StoreHandler final : public DataHandler {
     kApiSetterHolderIsPrototype,
     kGlobalProxy,
     kNormal,
+    kInterceptor,
+    kSlow,
     kProxy,
     kKindsNumber  // Keep last
   };
@@ -282,6 +284,12 @@ class StoreHandler final : public DataHandler {
 
   // Creates a Smi-handler for storing a property to a slow object.
   static inline Handle<Smi> StoreNormal(Isolate* isolate);
+
+  // Creates a Smi-handler for storing a property to an interceptor.
+  static inline Handle<Smi> StoreInterceptor(Isolate* isolate);
+
+  // Creates a Smi-handler for storing a property.
+  static inline Handle<Smi> StoreSlow(Isolate* isolate);
 
   // Creates a Smi-handler for storing a property on a proxy.
   static inline Handle<Smi> StoreProxy(Isolate* isolate);
