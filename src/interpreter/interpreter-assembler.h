@@ -118,19 +118,20 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   compiler::TNode<Object> LoadRegisterAtOperandIndex(int operand_index);
   std::pair<compiler::TNode<Object>, compiler::TNode<Object>>
   LoadRegisterPairAtOperandIndex(int operand_index);
-  void StoreRegister(compiler::Node* value, Register reg);
-  void StoreRegisterAtOperandIndex(compiler::Node* value, int operand_index);
-  void StoreRegisterPairAtOperandIndex(compiler::Node* value1,
-                                       compiler::Node* value2,
+  void StoreRegister(compiler::TNode<Object> value, Register reg);
+  void StoreRegisterAtOperandIndex(compiler::TNode<Object> value,
+                                   int operand_index);
+  void StoreRegisterPairAtOperandIndex(compiler::TNode<Object> value1,
+                                       compiler::TNode<Object> value2,
                                        int operand_index);
-  void StoreRegisterTripleAtOperandIndex(compiler::Node* value1,
-                                         compiler::Node* value2,
-                                         compiler::Node* value3,
+  void StoreRegisterTripleAtOperandIndex(compiler::TNode<Object> value1,
+                                         compiler::TNode<Object> value2,
+                                         compiler::TNode<Object> value3,
                                          int operand_index);
 
   RegListNodePair GetRegisterListAtOperandIndex(int operand_index);
-  Node* LoadRegisterFromRegisterList(const RegListNodePair& reg_list,
-                                     int index);
+  TNode<Object> LoadRegisterFromRegisterList(const RegListNodePair& reg_list,
+                                             int index);
   TNode<IntPtrT> RegisterLocationInRegisterList(const RegListNodePair& reg_list,
                                                 int index);
 
@@ -295,10 +296,11 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
 
   // Operations on registers.
   compiler::TNode<IntPtrT> RegisterLocation(Register reg);
-  compiler::TNode<IntPtrT> RegisterLocation(compiler::Node* reg_index);
-  compiler::TNode<IntPtrT> NextRegister(compiler::Node* reg_index);
-  compiler::TNode<Object> LoadRegister(Node* reg_index);
-  void StoreRegister(compiler::Node* value, compiler::Node* reg_index);
+  compiler::TNode<IntPtrT> RegisterLocation(compiler::TNode<IntPtrT> reg_index);
+  compiler::TNode<IntPtrT> NextRegister(compiler::TNode<IntPtrT> reg_index);
+  compiler::TNode<Object> LoadRegister(compiler::TNode<IntPtrT> reg_index);
+  void StoreRegister(compiler::TNode<Object> value,
+                     compiler::TNode<IntPtrT> reg_index);
 
   // Saves and restores interpreter bytecode offset to the interpreter stack
   // frame when performing a call.
@@ -317,7 +319,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void UpdateInterruptBudget(compiler::Node* weight, bool backward);
 
   // Returns the offset of register |index| relative to RegisterFilePointer().
-  compiler::TNode<IntPtrT> RegisterFrameOffset(compiler::Node* index);
+  compiler::TNode<IntPtrT> RegisterFrameOffset(compiler::TNode<IntPtrT> index);
 
   // Returns the offset of an operand relative to the current bytecode offset.
   compiler::Node* OperandOffset(int operand_index);

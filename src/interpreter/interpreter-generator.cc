@@ -1713,8 +1713,8 @@ IGNITION_HANDLER(CallRuntimeForPair, InterpreterAssembler) {
   TNode<Context> context = GetContext();
   Node* result_pair = CallRuntimeN(function_id, context, args, 2);
   // Store the results in <first_return> and <first_return + 1>
-  Node* result0 = Projection(0, result_pair);
-  Node* result1 = Projection(1, result_pair);
+  TNode<Object> result0 = CAST(Projection(0, result_pair));
+  TNode<Object> result1 = CAST(Projection(1, result_pair));
   StoreRegisterPairAtOperandIndex(result0, result1, 3);
   Dispatch();
 }
@@ -3094,8 +3094,8 @@ IGNITION_HANDLER(ForInPrepare, InterpreterAssembler) {
     UpdateFeedback(feedback, maybe_feedback_vector, vector_index);
 
     // Construct the cache info triple.
-    Node* cache_type = enumerator;
-    Node* cache_array = enum_keys;
+    TNode<Map> cache_type = map_enumerator;
+    TNode<FixedArray> cache_array = enum_keys;
     TNode<Smi> cache_length = SmiTag(Signed(enum_length));
     StoreRegisterTripleAtOperandIndex(cache_type, cache_array, cache_length, 0);
     Dispatch();
@@ -3111,8 +3111,8 @@ IGNITION_HANDLER(ForInPrepare, InterpreterAssembler) {
                    vector_index);
 
     // Construct the cache info triple.
-    Node* cache_type = array_enumerator;
-    Node* cache_array = array_enumerator;
+    TNode<FixedArray> cache_type = array_enumerator;
+    TNode<FixedArray> cache_array = array_enumerator;
     TNode<Smi> cache_length = LoadFixedArrayBaseLength(array_enumerator);
     StoreRegisterTripleAtOperandIndex(cache_type, cache_array, cache_length, 0);
     Dispatch();

@@ -146,22 +146,24 @@ Node* IntrinsicsGenerator::IsInstanceType(Node* input, int type) {
 
 Node* IntrinsicsGenerator::IsJSReceiver(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  Node* input = __ LoadRegisterFromRegisterList(args, 0);
+  TNode<Object> input = __ LoadRegisterFromRegisterList(args, 0);
   TNode<Oddball> result = __ Select<Oddball>(
       __ TaggedIsSmi(input), [=] { return __ FalseConstant(); },
-      [=] { return __ SelectBooleanConstant(__ IsJSReceiver(input)); });
+      [=] {
+        return __ SelectBooleanConstant(__ IsJSReceiver(__ CAST(input)));
+      });
   return result;
 }
 
 Node* IntrinsicsGenerator::IsArray(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  Node* input = __ LoadRegisterFromRegisterList(args, 0);
+  TNode<Object> input = __ LoadRegisterFromRegisterList(args, 0);
   return IsInstanceType(input, JS_ARRAY_TYPE);
 }
 
 Node* IntrinsicsGenerator::IsSmi(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  Node* input = __ LoadRegisterFromRegisterList(args, 0);
+  TNode<Object> input = __ LoadRegisterFromRegisterList(args, 0);
   return __ SelectBooleanConstant(__ TaggedIsSmi(input));
 }
 
@@ -229,7 +231,7 @@ Node* IntrinsicsGenerator::ToObject(
 Node* IntrinsicsGenerator::Call(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
   // First argument register contains the function target.
-  Node* function = __ LoadRegisterFromRegisterList(args, 0);
+  TNode<Object> function = __ LoadRegisterFromRegisterList(args, 0);
 
   // The arguments for the target function are from the second runtime call
   // argument.
@@ -260,10 +262,10 @@ Node* IntrinsicsGenerator::CreateAsyncFromSyncIterator(
   InterpreterAssembler::Variable return_value(assembler_,
                                               MachineRepresentation::kTagged);
 
-  Node* sync_iterator = __ LoadRegisterFromRegisterList(args, 0);
+  TNode<Object> sync_iterator = __ LoadRegisterFromRegisterList(args, 0);
 
   __ GotoIf(__ TaggedIsSmi(sync_iterator), &not_receiver);
-  __ GotoIfNot(__ IsJSReceiver(sync_iterator), &not_receiver);
+  __ GotoIfNot(__ IsJSReceiver(__ CAST(sync_iterator)), &not_receiver);
 
   TNode<Object> const next =
       __ GetProperty(context, sync_iterator, factory()->next_string());
@@ -302,7 +304,8 @@ Node* IntrinsicsGenerator::CreateJSGeneratorObject(
 
 Node* IntrinsicsGenerator::GeneratorGetResumeMode(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  Node* generator = __ LoadRegisterFromRegisterList(args, 0);
+  TNode<JSGeneratorObject> generator =
+      __ CAST(__ LoadRegisterFromRegisterList(args, 0));
   TNode<Object> const value =
       __ LoadObjectField(generator, JSGeneratorObject::kResumeModeOffset);
 
@@ -311,7 +314,8 @@ Node* IntrinsicsGenerator::GeneratorGetResumeMode(
 
 Node* IntrinsicsGenerator::GeneratorClose(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  Node* generator = __ LoadRegisterFromRegisterList(args, 0);
+  TNode<JSGeneratorObject> generator =
+      __ CAST(__ LoadRegisterFromRegisterList(args, 0));
   __ StoreObjectFieldNoWriteBarrier(
       generator, JSGeneratorObject::kContinuationOffset,
       __ SmiConstant(JSGeneratorObject::kGeneratorClosed));

@@ -234,7 +234,8 @@ void InterpreterAssembler::GotoIfHasContextExtensionUpToDepth(
   }
 }
 
-TNode<IntPtrT> InterpreterAssembler::RegisterLocation(Node* reg_index) {
+TNode<IntPtrT> InterpreterAssembler::RegisterLocation(
+    TNode<IntPtrT> reg_index) {
   return Signed(WordPoisonOnSpeculation(
       IntPtrAdd(GetInterpretedFramePointer(), RegisterFrameOffset(reg_index))));
 }
@@ -243,11 +244,11 @@ TNode<IntPtrT> InterpreterAssembler::RegisterLocation(Register reg) {
   return RegisterLocation(IntPtrConstant(reg.ToOperand()));
 }
 
-TNode<IntPtrT> InterpreterAssembler::RegisterFrameOffset(Node* index) {
-  return Signed(TimesSystemPointerSize(index));
+TNode<IntPtrT> InterpreterAssembler::RegisterFrameOffset(TNode<IntPtrT> index) {
+  return TimesSystemPointerSize(index);
 }
 
-TNode<Object> InterpreterAssembler::LoadRegister(Node* reg_index) {
+TNode<Object> InterpreterAssembler::LoadRegister(TNode<IntPtrT> reg_index) {
   return LoadFullTagged(GetInterpretedFramePointer(),
                         RegisterFrameOffset(reg_index),
                         LoadSensitivity::kCritical);
@@ -283,7 +284,7 @@ std::pair<TNode<Object>, TNode<Object>>
 InterpreterAssembler::LoadRegisterPairAtOperandIndex(int operand_index) {
   DCHECK_EQ(OperandType::kRegPair,
             Bytecodes::GetOperandType(bytecode_, operand_index));
-  Node* first_reg_index =
+  TNode<IntPtrT> first_reg_index =
       BytecodeOperandReg(operand_index, LoadSensitivity::kSafe);
   TNode<IntPtrT> second_reg_index = NextRegister(first_reg_index);
   return std::make_pair(LoadRegister(first_reg_index),
@@ -302,7 +303,7 @@ InterpreterAssembler::GetRegisterListAtOperandIndex(int operand_index) {
   return RegListNodePair(base_reg, reg_count);
 }
 
-Node* InterpreterAssembler::LoadRegisterFromRegisterList(
+TNode<Object> InterpreterAssembler::LoadRegisterFromRegisterList(
     const RegListNodePair& reg_list, int index) {
   TNode<IntPtrT> location = RegisterLocationInRegisterList(reg_list, index);
   // Location is already poisoned on speculation, so no need to poison here.
@@ -319,29 +320,30 @@ TNode<IntPtrT> InterpreterAssembler::RegisterLocationInRegisterList(
   return Signed(IntPtrSub(reg_list.base_reg_location(), offset));
 }
 
-void InterpreterAssembler::StoreRegister(Node* value, Register reg) {
+void InterpreterAssembler::StoreRegister(TNode<Object> value, Register reg) {
   StoreFullTaggedNoWriteBarrier(
       GetInterpretedFramePointer(),
       IntPtrConstant(reg.ToOperand() * kSystemPointerSize), value);
 }
 
-void InterpreterAssembler::StoreRegister(Node* value, Node* reg_index) {
+void InterpreterAssembler::StoreRegister(TNode<Object> value,
+                                         TNode<IntPtrT> reg_index) {
   StoreFullTaggedNoWriteBarrier(GetInterpretedFramePointer(),
                                 RegisterFrameOffset(reg_index), value);
 }
 
-void InterpreterAssembler::StoreRegisterAtOperandIndex(Node* value,
+void InterpreterAssembler::StoreRegisterAtOperandIndex(TNode<Object> value,
                                                        int operand_index) {
   StoreRegister(value,
                 BytecodeOperandReg(operand_index, LoadSensitivity::kSafe));
 }
 
-void InterpreterAssembler::StoreRegisterPairAtOperandIndex(Node* value1,
-                                                           Node* value2,
+void InterpreterAssembler::StoreRegisterPairAtOperandIndex(TNode<Object> value1,
+                                                           TNode<Object> value2,
                                                            int operand_index) {
   DCHECK_EQ(OperandType::kRegOutPair,
             Bytecodes::GetOperandType(bytecode_, operand_index));
-  Node* first_reg_index =
+  TNode<IntPtrT> first_reg_index =
       BytecodeOperandReg(operand_index, LoadSensitivity::kSafe);
   StoreRegister(value1, first_reg_index);
   TNode<IntPtrT> second_reg_index = NextRegister(first_reg_index);
@@ -349,10 +351,11 @@ void InterpreterAssembler::StoreRegisterPairAtOperandIndex(Node* value1,
 }
 
 void InterpreterAssembler::StoreRegisterTripleAtOperandIndex(
-    Node* value1, Node* value2, Node* value3, int operand_index) {
+    TNode<Object> value1, TNode<Object> value2, TNode<Object> value3,
+    int operand_index) {
   DCHECK_EQ(OperandType::kRegOutTriple,
             Bytecodes::GetOperandType(bytecode_, operand_index));
-  Node* first_reg_index =
+  TNode<IntPtrT> first_reg_index =
       BytecodeOperandReg(operand_index, LoadSensitivity::kSafe);
   StoreRegister(value1, first_reg_index);
   TNode<IntPtrT> second_reg_index = NextRegister(first_reg_index);
@@ -361,7 +364,7 @@ void InterpreterAssembler::StoreRegisterTripleAtOperandIndex(
   StoreRegister(value3, third_reg_index);
 }
 
-TNode<IntPtrT> InterpreterAssembler::NextRegister(Node* reg_index) {
+TNode<IntPtrT> InterpreterAssembler::NextRegister(TNode<IntPtrT> reg_index) {
   // Register indexes are negative, so the next index is minus one.
   return Signed(IntPtrAdd(reg_index, IntPtrConstant(-1)));
 }
@@ -1647,7 +1650,7 @@ TNode<FixedArray> InterpreterAssembler::ExportParametersAndRegisterFile(
   }
 
   {
-    TVARIABLE(WordT, var_index);
+    TVARIABLE(IntPtrT, var_index);
     var_index = IntPtrConstant(0);
 
     // Iterate over parameters and write them into the array.
@@ -1660,11 +1663,11 @@ TNode<FixedArray> InterpreterAssembler::ExportParametersAndRegisterFile(
     Goto(&loop);
     BIND(&loop);
     {
-      TNode<WordT> index = var_index.value();
+      TNode<IntPtrT> index = var_index.value();
       GotoIfNot(UintPtrLessThan(index, formal_parameter_count_intptr),
                 &done_loop);
 
-      TNode<WordT> reg_index = IntPtrSub(reg_base, index);
+      TNode<IntPtrT> reg_index = IntPtrSub(reg_base, index);
       TNode<Object> value = LoadRegister(reg_index);
 
       StoreFixedArrayElement(array, index, value);
@@ -1679,21 +1682,21 @@ TNode<FixedArray> InterpreterAssembler::ExportParametersAndRegisterFile(
     // Iterate over register file and write values into array.
     // The mapping of register to array index must match that used in
     // BytecodeGraphBuilder::VisitResumeGenerator.
-    TVARIABLE(WordT, var_index);
+    TVARIABLE(IntPtrT, var_index);
     var_index = IntPtrConstant(0);
 
     Label loop(this, &var_index), done_loop(this);
     Goto(&loop);
     BIND(&loop);
     {
-      TNode<WordT> index = var_index.value();
+      TNode<IntPtrT> index = var_index.value();
       GotoIfNot(UintPtrLessThan(index, register_count), &done_loop);
 
-      TNode<WordT> reg_index =
+      TNode<IntPtrT> reg_index =
           IntPtrSub(IntPtrConstant(Register(0).ToOperand()), index);
       TNode<Object> value = LoadRegister(reg_index);
 
-      TNode<WordT> array_index =
+      TNode<IntPtrT> array_index =
           IntPtrAdd(formal_parameter_count_intptr, index);
       StoreFixedArrayElement(array, array_index, value);
 
