@@ -4,7 +4,7 @@
 
 #include "src/libplatform/tracing/trace-event-listener.h"
 
-#include "protos/perfetto/trace/trace.pb.h"
+#include "perfetto/trace/trace.pb.h"
 #include "src/base/logging.h"
 
 namespace v8 {

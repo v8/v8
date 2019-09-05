@@ -10,11 +10,11 @@
 #include "test/cctest/cctest.h"
 
 #ifdef V8_USE_PERFETTO
+#include "perfetto/trace/chrome/chrome_trace_event.pb.h"
+#include "perfetto/trace/chrome/chrome_trace_event.pbzero.h"
+#include "perfetto/trace/chrome/chrome_trace_packet.pb.h"
+#include "perfetto/trace/trace.pb.h"
 #include "perfetto/tracing.h"
-#include "protos/perfetto/trace/chrome/chrome_trace_event.pb.h"
-#include "protos/perfetto/trace/chrome/chrome_trace_event.pbzero.h"
-#include "protos/perfetto/trace/chrome/chrome_trace_packet.pb.h"
-#include "protos/perfetto/trace/trace.pb.h"
 #include "src/libplatform/tracing/json-trace-event-listener.h"
 #include "src/libplatform/tracing/trace-event-listener.h"
 #endif  // V8_USE_PERFETTO
