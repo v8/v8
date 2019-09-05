@@ -629,12 +629,16 @@ LoadElimination::AbstractState::KillFields(Node* object, MaybeHandle<Name> name,
 
 LoadElimination::AbstractState const* LoadElimination::AbstractState::KillAll(
     Zone* zone) const {
-  // Kill everything except for const fields
-  for (size_t i = 0; i < const_fields_.size(); ++i) {
-    if (const_fields_[i]) {
-      AbstractState* that = new (zone) AbstractState();
-      that->const_fields_ = const_fields_;
-      return that;
+  // TODO(tebbi): This is not a good way to disable const load elimination.
+  //              It's just the safest to back-merge for crbug:983764.
+  if (FLAG_turbo_load_elimination_use_constness) {
+    // Kill everything except for const fields
+    for (size_t i = 0; i < const_fields_.size(); ++i) {
+      if (const_fields_[i]) {
+        AbstractState* that = new (zone) AbstractState();
+        that->const_fields_ = const_fields_;
+        return that;
+      }
     }
   }
   return LoadElimination::empty_state();
