@@ -23,6 +23,9 @@
   'proposals/js-types/exports': [FAIL],
   'proposals/js-types/globals': [FAIL],
   'proposals/js-types/linking': [FAIL],
+  # TODO(v8:9673): Enable these spec tests once they exist, and the out-dated
+  # tests have been removed.
+  'proposals/JS-BigInt-integration/*': [SKIP],
 }],  # ALWAYS
 
 ['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {
