@@ -648,8 +648,7 @@
     },
 
     'gcc': {
-      # TODO(machenbach): Remove cxx11 restriction when updating gcc version.
-      'gn_args': 'is_clang=false use_cxx11=true',
+      'gn_args': 'is_clang=false',
     },
 
     'gcmole': {
