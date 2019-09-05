@@ -75,8 +75,8 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void SetContext(compiler::TNode<Context> value);
 
   // Context at |depth| in the context chain starting at |context|.
-  compiler::Node* GetContextAtDepth(compiler::TNode<Context> context,
-                                    compiler::TNode<Uint32T> depth);
+  compiler::TNode<Context> GetContextAtDepth(compiler::TNode<Context> context,
+                                             compiler::TNode<Uint32T> depth);
 
   // Goto the given |target| if the context chain starting at |context| has any
   // extensions up to the given |depth|.
@@ -105,12 +105,12 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // - Suspend copies arguments and registers to the generator.
   // - Resume copies only the registers from the generator, the arguments
   //   are copied by the ResumeGenerator trampoline.
-  compiler::Node* ExportParametersAndRegisterFile(
+  compiler::TNode<FixedArray> ExportParametersAndRegisterFile(
       TNode<FixedArray> array, const RegListNodePair& registers,
       TNode<Int32T> formal_parameter_count);
-  compiler::Node* ImportRegisterFile(TNode<FixedArray> array,
-                                     const RegListNodePair& registers,
-                                     TNode<Int32T> formal_parameter_count);
+  compiler::TNode<FixedArray> ImportRegisterFile(
+      TNode<FixedArray> array, const RegListNodePair& registers,
+      TNode<Int32T> formal_parameter_count);
 
   // Loads from and stores to the interpreter register file.
   compiler::TNode<Object> LoadRegister(Register reg);
@@ -221,10 +221,10 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
                                int return_size = 1);
 
   // Jump forward relative to the current bytecode by the |jump_offset|.
-  compiler::Node* Jump(compiler::Node* jump_offset);
+  void Jump(compiler::Node* jump_offset);
 
   // Jump backward relative to the current bytecode by the |jump_offset|.
-  compiler::Node* JumpBackward(compiler::Node* jump_offset);
+  void JumpBackward(compiler::Node* jump_offset);
 
   // Jump forward relative to the current bytecode by |jump_offset| if the
   // word values |lhs| and |rhs| are equal.
@@ -245,15 +245,15 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   compiler::Node* LoadOsrNestingLevel();
 
   // Dispatch to the bytecode.
-  compiler::Node* Dispatch();
+  void Dispatch();
 
   // Dispatch bytecode as wide operand variant.
   void DispatchWide(OperandScale operand_scale);
 
   // Dispatch to |target_bytecode| at |new_bytecode_offset|.
   // |target_bytecode| should be equivalent to loading from the offset.
-  compiler::Node* DispatchToBytecode(compiler::Node* target_bytecode,
-                                     compiler::Node* new_bytecode_offset);
+  void DispatchToBytecode(compiler::TNode<WordT> target_bytecode,
+                          compiler::TNode<IntPtrT> new_bytecode_offset);
 
   // Abort with the given abort reason.
   void Abort(AbortReason abort_reason);
@@ -376,7 +376,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Jump relative to the current bytecode by the |jump_offset|. If |backward|,
   // then jump backward (subtract the offset), otherwise jump forward (add the
   // offset). Helper function for Jump and JumpBackward.
-  compiler::Node* Jump(compiler::Node* jump_offset, bool backward);
+  void Jump(compiler::Node* jump_offset, bool backward);
 
   // Jump forward relative to the current bytecode by |jump_offset| if the
   // |condition| is true. Helper function for JumpIfTaggedEqual and
@@ -398,7 +398,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   TNode<IntPtrT> Advance(SloppyTNode<IntPtrT> delta, bool backward = false);
 
   // Load the bytecode at |bytecode_offset|.
-  compiler::TNode<WordT> LoadBytecode(compiler::Node* bytecode_offset);
+  compiler::TNode<WordT> LoadBytecode(compiler::TNode<IntPtrT> bytecode_offset);
 
   // Look ahead for Star and inline it in a branch. Returns a new target
   // bytecode node for dispatch.
@@ -409,15 +409,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // next dispatch offset.
   void InlineStar();
 
-  // Dispatch to the bytecode handler with code offset |handler|.
-  compiler::Node* DispatchToBytecodeHandler(compiler::Node* handler,
-                                            compiler::Node* bytecode_offset,
-                                            compiler::Node* target_bytecode);
-
   // Dispatch to the bytecode handler with code entry point |handler_entry|.
-  compiler::Node* DispatchToBytecodeHandlerEntry(
-      compiler::Node* handler_entry, compiler::Node* bytecode_offset,
-      compiler::Node* target_bytecode);
+  void DispatchToBytecodeHandlerEntry(compiler::TNode<RawPtrT> handler_entry,
+                                      compiler::TNode<IntPtrT> bytecode_offset);
 
   int CurrentBytecodeSize() const;
 

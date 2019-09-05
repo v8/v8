@@ -965,8 +965,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
   // Tail call a given call descriptor and the given arguments.
   // The call target is passed as part of the {inputs} array.
-  Node* TailCallN(CallDescriptor* call_descriptor, int input_count,
-                  Node* const* inputs);
+  void TailCallN(CallDescriptor* call_descriptor, int input_count,
+                 Node* const* inputs);
 
   // Type representing C function argument with type info.
   using CFunctionArg = std::pair<MachineType, Node*>;

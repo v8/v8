@@ -310,44 +310,6 @@ InterpreterAssemblerTest::InterpreterAssemblerForTest::IsLoadRegisterOperand(
       LoadSensitivity::kCritical));
 }
 
-TARGET_TEST_F(InterpreterAssemblerTest, Jump) {
-  // If debug code is enabled we emit extra code in Jump.
-  if (FLAG_debug_code) return;
-
-  int jump_offsets[] = {-9710, -77, 0, +3, +97109};
-  TRACED_FOREACH(int, jump_offset, jump_offsets) {
-    TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
-      if (!interpreter::Bytecodes::IsJump(bytecode)) return;
-
-      InterpreterAssemblerTestState state(this, bytecode);
-      InterpreterAssemblerForTest m(&state, bytecode);
-      Node* tail_call_node = m.Jump(m.IntPtrConstant(jump_offset));
-
-      Matcher<Node*> next_bytecode_offset_matcher = c::IsIntPtrAdd(
-          c::IsParameter(InterpreterDispatchDescriptor::kBytecodeOffset),
-          c::IsIntPtrConstant(jump_offset));
-      Matcher<Node*> target_bytecode_matcher =
-          m.IsLoad(MachineType::Uint8(), _, next_bytecode_offset_matcher);
-      target_bytecode_matcher =
-          c::IsChangeUint32ToWord(target_bytecode_matcher);
-      Matcher<Node*> code_target_matcher = m.IsLoad(
-          MachineType::Pointer(),
-          c::IsParameter(InterpreterDispatchDescriptor::kDispatchTable),
-          c::IsWordShl(target_bytecode_matcher,
-                       c::IsIntPtrConstant(kSystemPointerSizeLog2)));
-
-      EXPECT_THAT(
-          tail_call_node,
-          c::IsTailCall(
-              _, code_target_matcher,
-              c::IsParameter(InterpreterDispatchDescriptor::kAccumulator),
-              next_bytecode_offset_matcher, _,
-              c::IsParameter(InterpreterDispatchDescriptor::kDispatchTable), _,
-              _));
-    }
-  }
-}
-
 TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
   static const OperandScale kOperandScales[] = {
       OperandScale::kSingle, OperandScale::kDouble, OperandScale::kQuadruple};

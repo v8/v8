@@ -1367,26 +1367,26 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void TailCallStub(Callable const& callable, SloppyTNode<Object> context,
                     TArgs... args) {
     TNode<Code> target = HeapConstant(callable.code());
-    return TailCallStub(callable.descriptor(), target, context, args...);
+    TailCallStub(callable.descriptor(), target, context, args...);
   }
 
   template <class... TArgs>
   void TailCallStub(const CallInterfaceDescriptor& descriptor,
                     SloppyTNode<Code> target, SloppyTNode<Object> context,
                     TArgs... args) {
-    return TailCallStubImpl(descriptor, target, context, {args...});
+    TailCallStubImpl(descriptor, target, context, {args...});
   }
 
   template <class... TArgs>
-  Node* TailCallBytecodeDispatch(const CallInterfaceDescriptor& descriptor,
-                                 Node* target, TArgs... args);
+  void TailCallBytecodeDispatch(const CallInterfaceDescriptor& descriptor,
+                                TNode<RawPtrT> target, TArgs... args);
 
   template <class... TArgs>
-  Node* TailCallStubThenBytecodeDispatch(
+  void TailCallStubThenBytecodeDispatch(
       const CallInterfaceDescriptor& descriptor, Node* target, Node* context,
       TArgs... args) {
-    return TailCallStubThenBytecodeDispatchImpl(descriptor, target, context,
-                                                {args...});
+    TailCallStubThenBytecodeDispatchImpl(descriptor, target, context,
+                                         {args...});
   }
 
   // Tailcalls to the given code object with JSCall linkage. The JS arguments
@@ -1396,10 +1396,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Note that no arguments adaption is going on here - all the JavaScript
   // arguments are left on the stack unmodified. Therefore, this tail call can
   // only be used after arguments adaptation has been performed already.
-  TNode<Object> TailCallJSCode(TNode<Code> code, TNode<Context> context,
-                               TNode<JSFunction> function,
-                               TNode<Object> new_target,
-                               TNode<Int32T> arg_count);
+  void TailCallJSCode(TNode<Code> code, TNode<Context> context,
+                      TNode<JSFunction> function, TNode<Object> new_target,
+                      TNode<Int32T> arg_count);
 
   template <class... TArgs>
   Node* CallJS(Callable const& callable, Node* context, Node* function,
@@ -1515,7 +1514,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                         TNode<Code> target, TNode<Object> context,
                         std::initializer_list<Node*> args);
 
-  Node* TailCallStubThenBytecodeDispatchImpl(
+  void TailCallStubThenBytecodeDispatchImpl(
       const CallInterfaceDescriptor& descriptor, Node* target, Node* context,
       std::initializer_list<Node*> args);
 

@@ -1369,7 +1369,7 @@ Node* CodeAssembler::CallStubRImpl(StubCallMode call_mode,
                    inputs.data());
 }
 
-Node* CodeAssembler::TailCallStubThenBytecodeDispatchImpl(
+void CodeAssembler::TailCallStubThenBytecodeDispatchImpl(
     const CallInterfaceDescriptor& descriptor, Node* target, Node* context,
     std::initializer_list<Node*> args) {
   constexpr size_t kMaxNumArgs = 6;
@@ -1389,33 +1389,33 @@ Node* CodeAssembler::TailCallStubThenBytecodeDispatchImpl(
   for (auto arg : args) inputs.Add(arg);
   inputs.Add(context);
 
-  return raw_assembler()->TailCallN(call_descriptor, inputs.size(),
-                                    inputs.data());
+  raw_assembler()->TailCallN(call_descriptor, inputs.size(), inputs.data());
 }
 
 template <class... TArgs>
-Node* CodeAssembler::TailCallBytecodeDispatch(
-    const CallInterfaceDescriptor& descriptor, Node* target, TArgs... args) {
+void CodeAssembler::TailCallBytecodeDispatch(
+    const CallInterfaceDescriptor& descriptor, TNode<RawPtrT> target,
+    TArgs... args) {
   DCHECK_EQ(descriptor.GetParameterCount(), sizeof...(args));
   auto call_descriptor = Linkage::GetBytecodeDispatchCallDescriptor(
       zone(), descriptor, descriptor.GetStackParameterCount());
 
   Node* nodes[] = {target, args...};
   CHECK_EQ(descriptor.GetParameterCount() + 1, arraysize(nodes));
-  return raw_assembler()->TailCallN(call_descriptor, arraysize(nodes), nodes);
+  raw_assembler()->TailCallN(call_descriptor, arraysize(nodes), nodes);
 }
 
 // Instantiate TailCallBytecodeDispatch() for argument counts used by
 // CSA-generated code
-template V8_EXPORT_PRIVATE Node* CodeAssembler::TailCallBytecodeDispatch(
-    const CallInterfaceDescriptor& descriptor, Node* target, TNode<Object>,
-    Node*, TNode<BytecodeArray>, TNode<ExternalReference>);
+template V8_EXPORT_PRIVATE void CodeAssembler::TailCallBytecodeDispatch(
+    const CallInterfaceDescriptor& descriptor, TNode<RawPtrT> target,
+    TNode<Object>, TNode<IntPtrT>, TNode<BytecodeArray>,
+    TNode<ExternalReference>);
 
-TNode<Object> CodeAssembler::TailCallJSCode(TNode<Code> code,
-                                            TNode<Context> context,
-                                            TNode<JSFunction> function,
-                                            TNode<Object> new_target,
-                                            TNode<Int32T> arg_count) {
+void CodeAssembler::TailCallJSCode(TNode<Code> code, TNode<Context> context,
+                                   TNode<JSFunction> function,
+                                   TNode<Object> new_target,
+                                   TNode<Int32T> arg_count) {
   JSTrampolineDescriptor descriptor;
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), descriptor, descriptor.GetStackParameterCount(),
@@ -1423,8 +1423,7 @@ TNode<Object> CodeAssembler::TailCallJSCode(TNode<Code> code,
 
   Node* nodes[] = {code, function, new_target, arg_count, context};
   CHECK_EQ(descriptor.GetParameterCount() + 2, arraysize(nodes));
-  return UncheckedCast<Object>(
-      raw_assembler()->TailCallN(call_descriptor, arraysize(nodes), nodes));
+  raw_assembler()->TailCallN(call_descriptor, arraysize(nodes), nodes);
 }
 
 Node* CodeAssembler::CallCFunctionN(Signature<MachineType>* signature,
