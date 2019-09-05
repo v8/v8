@@ -22,7 +22,9 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
 }
 
 void JumpTableAssembler::EmitRuntimeStubSlot(Address builtin_target) {
-  JumpToInstructionStream(builtin_target);
+  movq_imm64(kScratchRegister, builtin_target);  // 10 bytes
+  jmp(kScratchRegister);                         // 3 bytes
+  STATIC_ASSERT(kJumpTableStubSlotSize == 13);
 }
 
 void JumpTableAssembler::EmitJumpSlot(Address target) {
@@ -47,7 +49,7 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
 }
 
 void JumpTableAssembler::EmitRuntimeStubSlot(Address builtin_target) {
-  JumpToInstructionStream(builtin_target);
+  jmp(builtin_target, RelocInfo::NONE);
 }
 
 void JumpTableAssembler::EmitJumpSlot(Address target) {

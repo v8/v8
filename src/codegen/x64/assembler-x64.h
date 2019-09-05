@@ -513,11 +513,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void movq_string(Register dst, const StringConstantBase* str);
 
-  // Loads a 64-bit immediate into a register.
+  // Loads a 64-bit immediate into a register, potentially using the constant
+  // pool.
   void movq(Register dst, int64_t value) { movq(dst, Immediate64(value)); }
   void movq(Register dst, uint64_t value) {
     movq(dst, Immediate64(static_cast<int64_t>(value)));
   }
+
+  // Loads a 64-bit immediate into a register without using the constant pool.
+  void movq_imm64(Register dst, int64_t value);
 
   void movsxbl(Register dst, Register src);
   void movsxbl(Register dst, Operand src);

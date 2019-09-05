@@ -1777,6 +1777,13 @@ void Assembler::emit_mov(Register dst, Immediate64 value, int size) {
   }
 }
 
+void Assembler::movq_imm64(Register dst, int64_t value) {
+  EnsureSpace ensure_space(this);
+  emit_rex(dst, kInt64Size);
+  emit(0xB8 | dst.low_bits());
+  emitq(static_cast<uint64_t>(value));
+}
+
 void Assembler::movq_heap_number(Register dst, double value) {
   EnsureSpace ensure_space(this);
   emit_rex(dst, kInt64Size);
