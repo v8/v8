@@ -4801,6 +4801,7 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
   // architectures, or a mutable HeapNumber.
   __ Bind(&if_double);
   {
+    auto loaded_field = __ MakeLabel(MachineRepresentation::kTagged);
     auto done_double = __ MakeLabel(MachineRepresentation::kFloat64);
 
     index = __ WordSar(index, one);
@@ -4818,10 +4819,9 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
         Node* result = __ Load(MachineType::Float64(), object, offset);
         __ Goto(&done_double, result);
       } else {
-        Node* result =
+        Node* field =
             __ Load(MachineType::TypeCompressedTagged(), object, offset);
-        result = __ LoadField(AccessBuilder::ForHeapNumberValue(), result);
-        __ Goto(&done_double, result);
+        __ Goto(&loaded_field, field);
       }
     }
 
@@ -4834,10 +4834,25 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
                                __ IntPtrConstant(kTaggedSizeLog2)),
                     __ IntPtrConstant((FixedArray::kHeaderSize - kTaggedSize) -
                                       kHeapObjectTag));
-      Node* result =
+      Node* field =
           __ Load(MachineType::TypeCompressedTagged(), properties, offset);
-      result = __ LoadField(AccessBuilder::ForHeapNumberValue(), result);
-      __ Goto(&done_double, result);
+      __ Goto(&loaded_field, field);
+    }
+
+    __ Bind(&loaded_field);
+    {
+      Node* field = loaded_field.PhiAt(0);
+      // We may have transitioned in-place away from double, so check that
+      // this is a HeapNumber -- otherwise the load is fine and we don't need
+      // to copy anything anyway.
+      __ GotoIf(ObjectIsSmi(field), &done, field);
+      Node* field_map = __ LoadField(AccessBuilder::ForMap(), field);
+      __ GotoIfNot(
+          __ TaggedEqual(field_map, jsgraph()->HeapNumberMapConstant()), &done,
+          field);
+
+      Node* value = __ LoadField(AccessBuilder::ForHeapNumberValue(), field);
+      __ Goto(&done_double, value);
     }
 
     __ Bind(&done_double);
