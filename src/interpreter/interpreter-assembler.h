@@ -221,28 +221,28 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
                                int return_size = 1);
 
   // Jump forward relative to the current bytecode by the |jump_offset|.
-  void Jump(compiler::Node* jump_offset);
+  void Jump(compiler::TNode<IntPtrT> jump_offset);
 
   // Jump backward relative to the current bytecode by the |jump_offset|.
-  void JumpBackward(compiler::Node* jump_offset);
+  void JumpBackward(compiler::TNode<IntPtrT> jump_offset);
 
   // Jump forward relative to the current bytecode by |jump_offset| if the
   // word values |lhs| and |rhs| are equal.
   void JumpIfTaggedEqual(compiler::TNode<Object> lhs,
                          compiler::TNode<Object> rhs,
-                         compiler::Node* jump_offset);
+                         compiler::TNode<IntPtrT> jump_offset);
 
   // Jump forward relative to the current bytecode by |jump_offset| if the
   // word values |lhs| and |rhs| are not equal.
   void JumpIfTaggedNotEqual(compiler::TNode<Object> lhs,
                             compiler::TNode<Object> rhs,
-                            compiler::Node* jump_offset);
+                            compiler::TNode<IntPtrT> jump_offset);
 
   // Updates the profiler interrupt budget for a return.
   void UpdateInterruptBudgetOnReturn();
 
   // Returns the OSR nesting level from the bytecode header.
-  compiler::Node* LoadOsrNestingLevel();
+  compiler::TNode<Int8T> LoadOsrNestingLevel();
 
   // Dispatch to the bytecode.
   void Dispatch();
@@ -376,12 +376,13 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Jump relative to the current bytecode by the |jump_offset|. If |backward|,
   // then jump backward (subtract the offset), otherwise jump forward (add the
   // offset). Helper function for Jump and JumpBackward.
-  void Jump(compiler::Node* jump_offset, bool backward);
+  void Jump(compiler::TNode<IntPtrT> jump_offset, bool backward);
 
   // Jump forward relative to the current bytecode by |jump_offset| if the
   // |condition| is true. Helper function for JumpIfTaggedEqual and
   // JumpIfTaggedNotEqual.
-  void JumpConditional(compiler::Node* condition, compiler::Node* jump_offset);
+  void JumpConditional(compiler::TNode<BoolT> condition,
+                       compiler::TNode<IntPtrT> jump_offset);
 
   // Save the bytecode offset to the interpreter frame.
   void SaveBytecodeOffset();
@@ -395,7 +396,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Updates and returns BytecodeOffset() advanced by delta bytecodes.
   // Traces the exit of the current bytecode.
   TNode<IntPtrT> Advance(int delta);
-  TNode<IntPtrT> Advance(SloppyTNode<IntPtrT> delta, bool backward = false);
+  TNode<IntPtrT> Advance(TNode<IntPtrT> delta, bool backward = false);
 
   // Load the bytecode at |bytecode_offset|.
   compiler::TNode<WordT> LoadBytecode(compiler::TNode<IntPtrT> bytecode_offset);
