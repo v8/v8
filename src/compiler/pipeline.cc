@@ -551,8 +551,12 @@ class PipelineImpl final {
   // Step A. Run the graph creation and initial optimization passes.
   bool CreateGraph();
 
-  // B. Run the concurrent optimization passes.
+  // Step B. Run the concurrent optimization passes.
   bool OptimizeGraph(Linkage* linkage);
+
+  // Alternative step B. Run minimal concurrent optimization passes for
+  // mid-tier.
+  bool OptimizeGraphForMidTier(Linkage* linkage);
 
   // Substep B.1. Produce a scheduled graph.
   void ComputeScheduledGraph();
@@ -1012,7 +1016,14 @@ PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl() {
       TRACE_DISABLED_BY_DEFAULT("v8.compile"), "v8.optimizingCompile.execute",
       this, TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT, "function",
       compilation_info()->shared_info()->TraceIDRef());
-  if (!pipeline_.OptimizeGraph(linkage_)) return FAILED;
+  bool success;
+  if (FLAG_turboprop) {
+    success = pipeline_.OptimizeGraphForMidTier(linkage_);
+  } else {
+    success = pipeline_.OptimizeGraph(linkage_);
+  }
+  if (!success) return FAILED;
+
   pipeline_.AssembleCode(linkage_);
   return SUCCEEDED;
 }
@@ -2345,6 +2356,77 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   // possible).
   Run<MachineOperatorOptimizationPhase>();
   RunPrintAndVerify(MachineOperatorOptimizationPhase::phase_name(), true);
+
+  data->source_positions()->RemoveDecorator();
+  if (data->info()->trace_turbo_json_enabled()) {
+    data->node_origins()->RemoveDecorator();
+  }
+
+  ComputeScheduledGraph();
+
+  return SelectInstructions(linkage);
+}
+
+bool PipelineImpl::OptimizeGraphForMidTier(Linkage* linkage) {
+  PipelineData* data = this->data_;
+
+  data->BeginPhaseKind("V8.TFLowering");
+
+  // Type the graph and keep the Typer running such that new nodes get
+  // automatically typed when they are created.
+  Run<TyperPhase>(data->CreateTyper());
+  RunPrintAndVerify(TyperPhase::phase_name());
+  Run<TypedLoweringPhase>();
+  RunPrintAndVerify(TypedLoweringPhase::phase_name());
+
+  // TODO(9684): Consider rolling this into the preceeding phase or not creating
+  // LoopExit nodes at all.
+  Run<LoopExitEliminationPhase>();
+  RunPrintAndVerify(LoopExitEliminationPhase::phase_name(), true);
+
+  data->DeleteTyper();
+
+  if (FLAG_assert_types) {
+    Run<TypeAssertionsPhase>();
+    RunPrintAndVerify(TypeAssertionsPhase::phase_name());
+  }
+
+  // Perform simplified lowering. This has to run w/o the Typer decorator,
+  // because we cannot compute meaningful types anyways, and the computed types
+  // might even conflict with the representation/truncation logic.
+  Run<SimplifiedLoweringPhase>();
+  RunPrintAndVerify(SimplifiedLoweringPhase::phase_name(), true);
+
+  // From now on it is invalid to look at types on the nodes, because the types
+  // on the nodes might not make sense after representation selection due to the
+  // way we handle truncations; if we'd want to look at types afterwards we'd
+  // essentially need to re-type (large portions of) the graph.
+
+  // In order to catch bugs related to type access after this point, we now
+  // remove the types from the nodes (currently only in Debug builds).
+#ifdef DEBUG
+  Run<UntyperPhase>();
+  RunPrintAndVerify(UntyperPhase::phase_name(), true);
+#endif
+
+  // Run generic lowering pass.
+  Run<GenericLoweringPhase>();
+  RunPrintAndVerify(GenericLoweringPhase::phase_name(), true);
+
+  data->BeginPhaseKind("V8.TFBlockBuilding");
+
+  Run<EffectControlLinearizationPhase>();
+  RunPrintAndVerify(EffectControlLinearizationPhase::phase_name(), true);
+
+  // TODO(9684): Remove LateOptimizationPhase and move SelectLowering into the
+  // preceeding or subsequent phase.
+  Run<LateOptimizationPhase>();
+  RunPrintAndVerify(LateOptimizationPhase::phase_name(), true);
+
+  // TODO(9684): Consider directly lowering memory operations without memory
+  // optimizations.
+  Run<MemoryOptimizationPhase>();
+  RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
 
   data->source_positions()->RemoveDecorator();
   if (data->info()->trace_turbo_json_enabled()) {

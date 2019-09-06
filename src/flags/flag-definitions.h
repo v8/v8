@@ -470,6 +470,12 @@ DEFINE_BOOL(trace_track_allocation_sites, false,
 DEFINE_BOOL(trace_migration, false, "trace object migration")
 DEFINE_BOOL(trace_generalization, false, "trace map generalization")
 
+// Flags for TurboProp.
+DEFINE_BOOL(turboprop, false,
+            "enable experimental turboprop mid-tier compiler.")
+DEFINE_NEG_IMPLICATION(turboprop, turbo_inlining)
+DEFINE_NEG_IMPLICATION(turboprop, inline_accessors)
+
 // Flags for concurrent recompilation.
 DEFINE_BOOL(concurrent_recompilation, true,
             "optimizing hot functions asynchronously on a separate thread")
