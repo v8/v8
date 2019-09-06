@@ -24,6 +24,8 @@ namespace {
 using ScopeSloppyEvalCanExtendVarsField = BitField8<bool, 0, 1>;
 using InnerScopeCallsEvalField =
     ScopeSloppyEvalCanExtendVarsField::Next<bool, 1>;
+using NeedsPrivateNameContextChainRecalcField =
+    InnerScopeCallsEvalField::Next<bool, 1>;
 
 using VariableMaybeAssignedField = BitField8<bool, 0, 1>;
 using VariableContextAllocatedField = VariableMaybeAssignedField::Next<bool, 1>;
@@ -322,7 +324,7 @@ void PreparseDataBuilder::SaveScopeAllocationData(DeclarationScope* scope,
     if (SaveDataForSkippableFunction(builder)) num_inner_with_data_++;
   }
 
-  // Don't save imcoplete scope information when bailed out.
+  // Don't save incomplete scope information when bailed out.
   if (!bailed_out_) {
 #ifdef DEBUG
   // function data items, kSkippableMinFunctionDataSize each.
@@ -352,13 +354,17 @@ void PreparseDataBuilder::SaveDataForScope(Scope* scope) {
   byte_data_.WriteUint8(scope->scope_type());
 #endif
 
-  uint8_t eval =
+  uint8_t eval_and_private_recalc =
       ScopeSloppyEvalCanExtendVarsField::encode(
           scope->is_declaration_scope() &&
           scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) |
-      InnerScopeCallsEvalField::encode(scope->inner_scope_calls_eval());
+      InnerScopeCallsEvalField::encode(scope->inner_scope_calls_eval()) |
+      NeedsPrivateNameContextChainRecalcField::encode(
+          scope->is_function_scope() &&
+          scope->AsDeclarationScope()
+              ->needs_private_name_context_chain_recalc());
   byte_data_.Reserve(kUint8Size);
-  byte_data_.WriteUint8(eval);
+  byte_data_.WriteUint8(eval_and_private_recalc);
 
   if (scope->is_function_scope()) {
     Variable* function = scope->AsDeclarationScope()->function_var();
@@ -599,9 +605,17 @@ void BaseConsumedPreparseData<Data>::RestoreDataForScope(Scope* scope) {
   DCHECK_EQ(scope_data_->ReadUint8(), scope->scope_type());
 
   CHECK(scope_data_->HasRemainingBytes(ByteData::kUint8Size));
-  uint32_t eval = scope_data_->ReadUint8();
-  if (ScopeSloppyEvalCanExtendVarsField::decode(eval)) scope->RecordEvalCall();
-  if (InnerScopeCallsEvalField::decode(eval)) scope->RecordInnerScopeEvalCall();
+  uint32_t eval_and_private_recalc = scope_data_->ReadUint8();
+  if (ScopeSloppyEvalCanExtendVarsField::decode(eval_and_private_recalc)) {
+    scope->RecordEvalCall();
+  }
+  if (InnerScopeCallsEvalField::decode(eval_and_private_recalc)) {
+    scope->RecordInnerScopeEvalCall();
+  }
+  if (NeedsPrivateNameContextChainRecalcField::decode(
+          eval_and_private_recalc)) {
+    scope->AsDeclarationScope()->RecordNeedsPrivateNameContextChainRecalc();
+  }
 
   if (scope->is_function_scope()) {
     Variable* function = scope->AsDeclarationScope()->function_var();

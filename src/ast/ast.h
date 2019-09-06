@@ -2350,6 +2350,8 @@ class FunctionLiteral final : public Expression {
 
   bool requires_brand_initialization() const;
 
+  bool private_name_lookup_skips_outer_class() const;
+
   ProducedPreparseData* produced_preparse_data() const {
     return produced_preparse_data_;
   }

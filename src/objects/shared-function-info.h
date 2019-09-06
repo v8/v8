@@ -448,6 +448,10 @@ class SharedFunctionInfo : public HeapObject {
   // Indicates that the function has been reported for binary code coverage.
   DECL_BOOLEAN_ACCESSORS(has_reported_binary_coverage)
 
+  // Indicates that the private name lookups inside the function skips the
+  // closest outer class scope.
+  DECL_BOOLEAN_ACCESSORS(private_name_lookup_skips_outer_class)
+
   inline FunctionKind kind() const;
 
   // Defines the index in a native context of closure's map instantiated using
@@ -649,7 +653,8 @@ class SharedFunctionInfo : public HeapObject {
   V(HasReportedBinaryCoverageBit, bool, 1, _)                \
   V(IsTopLevelBit, bool, 1, _)                               \
   V(IsOneshotIIFEOrPropertiesAreFinalBit, bool, 1, _)        \
-  V(IsSafeToSkipArgumentsAdaptorBit, bool, 1, _)
+  V(IsSafeToSkipArgumentsAdaptorBit, bool, 1, _)             \
+  V(PrivateNameLookupSkipsOuterClassBit, bool, 1, _)
   DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
 #undef FLAGS_BIT_FIELDS
 

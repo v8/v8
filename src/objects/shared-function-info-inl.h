@@ -212,6 +212,9 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags,
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags,
                     is_safe_to_skip_arguments_adaptor,
                     SharedFunctionInfo::IsSafeToSkipArgumentsAdaptorBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags,
+                    private_name_lookup_skips_outer_class,
+                    SharedFunctionInfo::PrivateNameLookupSkipsOuterClassBit)
 
 bool SharedFunctionInfo::optimization_disabled() const {
   return disable_optimization_reason() != BailoutReason::kNoReason;

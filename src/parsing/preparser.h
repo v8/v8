@@ -1595,12 +1595,12 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::StringLiteral();
   }
 
-  PreParserExpression ExpressionFromPrivateName(ClassScope* class_scope,
-                                                const PreParserIdentifier& name,
-                                                int start_position) {
+  PreParserExpression ExpressionFromPrivateName(
+      PrivateNameScopeIterator* private_name_scope,
+      const PreParserIdentifier& name, int start_position) {
     VariableProxy* proxy = factory()->ast_node_factory()->NewVariableProxy(
         name.string_, NORMAL_VARIABLE, start_position);
-    class_scope->AddUnresolvedPrivateName(proxy);
+    private_name_scope->AddUnresolvedPrivateName(proxy);
     return PreParserExpression::FromIdentifier(name);
   }
 

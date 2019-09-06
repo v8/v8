@@ -176,6 +176,10 @@ class ScopeInfo : public FixedArray {
   // Return the outer ScopeInfo if present.
   ScopeInfo OuterScopeInfo() const;
 
+  // Returns true if this ScopeInfo was created for a scope that skips the
+  // closest outer class when resolving private names.
+  bool PrivateNameLookupSkipsOuterClass() const;
+
 #ifdef DEBUG
   bool Equals(ScopeInfo other) const;
 #endif
@@ -240,6 +244,8 @@ class ScopeInfo : public FixedArray {
   using HasOuterScopeInfoField = FunctionKindField::Next<bool, 1>;
   using IsDebugEvaluateScopeField = HasOuterScopeInfoField::Next<bool, 1>;
   using ForceContextAllocationField = IsDebugEvaluateScopeField::Next<bool, 1>;
+  using PrivateNameLookupSkipsOuterClassField =
+      ForceContextAllocationField::Next<bool, 1>;
 
   STATIC_ASSERT(kLastFunctionKind <= FunctionKindField::kMax);
 

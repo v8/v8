@@ -102,6 +102,9 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
   DCHECK_NE(SCRIPT_SCOPE, scope_type);
   SetDefaults();
   set_language_mode(outer_scope->language_mode());
+  private_name_lookup_skips_outer_class_ =
+      outer_scope->is_class_scope() &&
+      outer_scope->AsClassScope()->IsParsingHeritage();
   outer_scope_->AddInnerScope(this);
 }
 
@@ -141,13 +144,15 @@ ModuleScope::ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
 }
 
 ClassScope::ClassScope(Zone* zone, Scope* outer_scope)
-    : Scope(zone, outer_scope, CLASS_SCOPE) {
+    : Scope(zone, outer_scope, CLASS_SCOPE),
+      rare_data_and_is_parsing_heritage_(nullptr) {
   set_language_mode(LanguageMode::kStrict);
 }
 
 ClassScope::ClassScope(Zone* zone, AstValueFactory* ast_value_factory,
                        Handle<ScopeInfo> scope_info)
-    : Scope(zone, CLASS_SCOPE, scope_info) {
+    : Scope(zone, CLASS_SCOPE, scope_info),
+      rare_data_and_is_parsing_heritage_(nullptr) {
   set_language_mode(LanguageMode::kStrict);
   if (scope_info->HasClassBrand()) {
     Variable* brand =
@@ -171,6 +176,8 @@ Scope::Scope(Zone* zone, ScopeType scope_type, Handle<ScopeInfo> scope_info)
   set_language_mode(scope_info->language_mode());
   num_heap_slots_ = scope_info->ContextLength();
   DCHECK_LE(Context::MIN_CONTEXT_SLOTS, num_heap_slots_);
+  private_name_lookup_skips_outer_class_ =
+      scope_info->PrivateNameLookupSkipsOuterClass();
   // We don't really need to use the preparsed scope data; this is just to
   // shorten the recursion in SetMustUsePreparseData.
   must_use_preparsed_scope_data_ = true;
@@ -222,6 +229,7 @@ void DeclarationScope::SetDefaults() {
   has_this_reference_ = false;
   has_this_declaration_ =
       (is_function_scope() && !is_arrow_scope()) || is_module_scope();
+  needs_private_name_context_chain_recalc_ = false;
   has_rest_ = false;
   receiver_ = nullptr;
   new_target_ = nullptr;
@@ -269,6 +277,8 @@ void Scope::SetDefaults() {
   force_context_allocation_for_parameters_ = false;
 
   is_declaration_scope_ = false;
+
+  private_name_lookup_skips_outer_class_ = false;
 
   must_use_preparsed_scope_data_ = false;
 }
@@ -1165,9 +1175,9 @@ bool DeclarationScope::AllocateVariables(ParseInfo* info) {
   // to ensure that UpdateNeedsHoleCheck() can detect import variables.
   if (is_module_scope()) AsModuleScope()->AllocateModuleVariables();
 
-  ClassScope* closest_class_scope = GetClassScope();
-  if (closest_class_scope != nullptr &&
-      !closest_class_scope->ResolvePrivateNames(info)) {
+  PrivateNameScopeIterator private_name_scope_iter(this);
+  if (!private_name_scope_iter.Done() &&
+      !private_name_scope_iter.GetScope()->ResolvePrivateNames(info)) {
     DCHECK(info->pending_error_handler()->has_pending_error());
     return false;
   }
@@ -1177,7 +1187,7 @@ bool DeclarationScope::AllocateVariables(ParseInfo* info) {
     return false;
   }
 
-  // // Don't allocate variables of preparsed scopes.
+  // Don't allocate variables of preparsed scopes.
   if (!was_lazily_parsed()) AllocateVariablesRecursively();
 
   return true;
@@ -1252,17 +1262,6 @@ int Scope::ContextChainLengthUntilOutermostSloppyEval() const {
   }
 
   return result;
-}
-
-ClassScope* Scope::GetClassScope() {
-  Scope* scope = this;
-  while (scope != nullptr && !scope->is_class_scope()) {
-    scope = scope->outer_scope();
-  }
-  if (scope != nullptr && scope->is_class_scope()) {
-    return scope->AsClassScope();
-  }
-  return nullptr;
 }
 
 DeclarationScope* Scope::GetDeclarationScope() {
@@ -1683,11 +1682,17 @@ void Scope::Print(int n) {
   if (is_declaration_scope() && AsDeclarationScope()->NeedsHomeObject()) {
     Indent(n1, "// scope needs home object\n");
   }
+  if (private_name_lookup_skips_outer_class()) {
+    Indent(n1, "// scope skips outer class for #-names\n");
+  }
   if (inner_scope_calls_eval_) Indent(n1, "// inner scope calls 'eval'\n");
   if (is_declaration_scope()) {
     DeclarationScope* scope = AsDeclarationScope();
     if (scope->was_lazily_parsed()) Indent(n1, "// lazily parsed\n");
     if (scope->ShouldEagerCompile()) Indent(n1, "// will be compiled\n");
+    if (scope->needs_private_name_context_chain_recalc()) {
+      Indent(n1, "// needs #-name context chain recalc\n");
+    }
   }
   if (num_stack_slots_ > 0) {
     Indent(n1, "// ");
@@ -1724,9 +1729,9 @@ void Scope::Print(int n) {
 
   if (is_class_scope()) {
     ClassScope* class_scope = AsClassScope();
-    if (class_scope->rare_data_ != nullptr) {
+    if (class_scope->GetRareData() != nullptr) {
       PrintMap(n1, "// private name vars:\n",
-               &(class_scope->rare_data_->private_name_map), true, function);
+               &(class_scope->GetRareData()->private_name_map), true, function);
       Variable* brand = class_scope->brand();
       if (brand != nullptr) {
         Indent(n1, "// brand var:\n");
@@ -2303,6 +2308,47 @@ void Scope::AllocateScopeInfosRecursively(Isolate* isolate,
   }
 }
 
+void DeclarationScope::RecalcPrivateNameContextChain() {
+  // The outermost scope in a class heritage expression is marked to skip the
+  // class scope during private name resolution. It is possible, however, that
+  // either the class scope won't require a Context and ScopeInfo, or the
+  // outermost scope in the heritage position won't. Simply copying the bit from
+  // full parse into the ScopeInfo will break lazy compilation. In the former
+  // case the scope that is marked to skip its outer scope will incorrectly skip
+  // a different class scope than the one we intended to skip. In the latter
+  // case variables resolved through an inner scope will incorrectly check the
+  // class scope since we lost the skip bit from the outermost heritage scope.
+  //
+  // This method fixes both cases by, in outermost to innermost order, copying
+  // the value of the skip bit from outer scopes that don't require a Context.
+  DCHECK(needs_private_name_context_chain_recalc_);
+  this->ForEach([](Scope* scope) {
+    Scope* outer = scope->outer_scope();
+    if (!outer) return Iteration::kDescend;
+    if (!outer->NeedsContext()) {
+      scope->private_name_lookup_skips_outer_class_ =
+          outer->private_name_lookup_skips_outer_class();
+    }
+    if (!scope->is_function_scope() ||
+        scope->AsDeclarationScope()->ShouldEagerCompile()) {
+      return Iteration::kDescend;
+    }
+    return Iteration::kContinue;
+  });
+}
+
+void DeclarationScope::RecordNeedsPrivateNameContextChainRecalc() {
+  DCHECK_EQ(GetClosureScope(), this);
+  DeclarationScope* scope;
+  for (scope = this; scope != nullptr;
+       scope = scope->outer_scope() != nullptr
+                   ? scope->outer_scope()->GetClosureScope()
+                   : nullptr) {
+    if (scope->needs_private_name_context_chain_recalc_) return;
+    scope->needs_private_name_context_chain_recalc_ = true;
+  }
+}
+
 // static
 void DeclarationScope::AllocateScopeInfos(ParseInfo* info, Isolate* isolate) {
   DeclarationScope* scope = info->literal()->scope();
@@ -2313,6 +2359,9 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info, Isolate* isolate) {
     outer_scope = scope->outer_scope_->scope_info_;
   }
 
+  if (scope->needs_private_name_context_chain_recalc()) {
+    scope->RecalcPrivateNameContextChain();
+  }
   scope->AllocateScopeInfosRecursively(isolate, outer_scope);
 
   // The debugger expects all shared function infos to contain a scope info.
@@ -2370,38 +2419,42 @@ Variable* ClassScope::DeclarePrivateName(const AstRawString* name,
 }
 
 Variable* ClassScope::LookupLocalPrivateName(const AstRawString* name) {
-  if (rare_data_ == nullptr) {
+  RareData* rare_data = GetRareData();
+  if (rare_data == nullptr) {
     return nullptr;
   }
-  return rare_data_->private_name_map.Lookup(name);
+  return rare_data->private_name_map.Lookup(name);
 }
 
 UnresolvedList::Iterator ClassScope::GetUnresolvedPrivateNameTail() {
-  if (rare_data_ == nullptr) {
+  RareData* rare_data = GetRareData();
+  if (rare_data == nullptr) {
     return UnresolvedList::Iterator();
   }
-  return rare_data_->unresolved_private_names.end();
+  return rare_data->unresolved_private_names.end();
 }
 
 void ClassScope::ResetUnresolvedPrivateNameTail(UnresolvedList::Iterator tail) {
-  if (rare_data_ == nullptr ||
-      rare_data_->unresolved_private_names.end() == tail) {
+  RareData* rare_data = GetRareData();
+  if (rare_data == nullptr ||
+      rare_data->unresolved_private_names.end() == tail) {
     return;
   }
 
   bool tail_is_empty = tail == UnresolvedList::Iterator();
   if (tail_is_empty) {
     // If the saved tail is empty, the list used to be empty, so clear it.
-    rare_data_->unresolved_private_names.Clear();
+    rare_data->unresolved_private_names.Clear();
   } else {
-    rare_data_->unresolved_private_names.Rewind(tail);
+    rare_data->unresolved_private_names.Rewind(tail);
   }
 }
 
 void ClassScope::MigrateUnresolvedPrivateNameTail(
     AstNodeFactory* ast_node_factory, UnresolvedList::Iterator tail) {
-  if (rare_data_ == nullptr ||
-      rare_data_->unresolved_private_names.end() == tail) {
+  RareData* rare_data = GetRareData();
+  if (rare_data == nullptr ||
+      rare_data->unresolved_private_names.end() == tail) {
     return;
   }
   UnresolvedList migrated_names;
@@ -2410,9 +2463,9 @@ void ClassScope::MigrateUnresolvedPrivateNameTail(
   // migrate everything after the head.
   bool tail_is_empty = tail == UnresolvedList::Iterator();
   UnresolvedList::Iterator it =
-      tail_is_empty ? rare_data_->unresolved_private_names.begin() : tail;
+      tail_is_empty ? rare_data->unresolved_private_names.begin() : tail;
 
-  for (; it != rare_data_->unresolved_private_names.end(); ++it) {
+  for (; it != rare_data->unresolved_private_names.end(); ++it) {
     VariableProxy* proxy = *it;
     VariableProxy* copy = ast_node_factory->CopyVariableProxy(proxy);
     migrated_names.Add(copy);
@@ -2420,20 +2473,11 @@ void ClassScope::MigrateUnresolvedPrivateNameTail(
 
   // Replace with the migrated copies.
   if (tail_is_empty) {
-    rare_data_->unresolved_private_names.Clear();
+    rare_data->unresolved_private_names.Clear();
   } else {
-    rare_data_->unresolved_private_names.Rewind(tail);
+    rare_data->unresolved_private_names.Rewind(tail);
   }
-  rare_data_->unresolved_private_names.Append(std::move(migrated_names));
-}
-
-void ClassScope::AddUnresolvedPrivateName(VariableProxy* proxy) {
-  // During a reparse, already_resolved_ may be true here, because
-  // the class scope is deserialized while the function scope inside may
-  // be new.
-  DCHECK(!proxy->is_resolved());
-  DCHECK(proxy->IsPrivateName());
-  EnsureRareData()->unresolved_private_names.Add(proxy);
+  rare_data->unresolved_private_names.Append(std::move(migrated_names));
 }
 
 Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
@@ -2467,15 +2511,14 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
 Variable* ClassScope::LookupPrivateName(VariableProxy* proxy) {
   DCHECK(!proxy->is_resolved());
 
-  for (Scope* scope = this; !scope->is_script_scope();
-       scope = scope->outer_scope_) {
-    if (!scope->is_class_scope()) continue;  // Only search in class scopes
-    ClassScope* class_scope = scope->AsClassScope();
+  for (PrivateNameScopeIterator scope_iter(this); !scope_iter.Done();
+       scope_iter.Next()) {
+    ClassScope* scope = scope_iter.GetScope();
     // Try finding it in the private name map first, if it can't be found,
     // try the deseralized scope info.
-    Variable* var = class_scope->LookupLocalPrivateName(proxy->raw_name());
-    if (var == nullptr && !class_scope->scope_info_.is_null()) {
-      var = class_scope->LookupPrivateNameInScopeInfo(proxy->raw_name());
+    Variable* var = scope->LookupLocalPrivateName(proxy->raw_name());
+    if (var == nullptr && !scope->scope_info_.is_null()) {
+      var = scope->LookupPrivateNameInScopeInfo(proxy->raw_name());
     }
     if (var != nullptr) {
       return var;
@@ -2485,12 +2528,12 @@ Variable* ClassScope::LookupPrivateName(VariableProxy* proxy) {
 }
 
 bool ClassScope::ResolvePrivateNames(ParseInfo* info) {
-  if (rare_data_ == nullptr ||
-      rare_data_->unresolved_private_names.is_empty()) {
+  RareData* rare_data = GetRareData();
+  if (rare_data == nullptr || rare_data->unresolved_private_names.is_empty()) {
     return true;
   }
 
-  UnresolvedList& list = rare_data_->unresolved_private_names;
+  UnresolvedList& list = rare_data->unresolved_private_names;
   for (VariableProxy* proxy : list) {
     Variable* var = LookupPrivateName(proxy);
     if (var == nullptr) {
@@ -2512,20 +2555,20 @@ bool ClassScope::ResolvePrivateNames(ParseInfo* info) {
 }
 
 VariableProxy* ClassScope::ResolvePrivateNamesPartially() {
-  if (rare_data_ == nullptr ||
-      rare_data_->unresolved_private_names.is_empty()) {
+  RareData* rare_data = GetRareData();
+  if (rare_data == nullptr || rare_data->unresolved_private_names.is_empty()) {
     return nullptr;
   }
 
-  ClassScope* outer_class_scope =
-      outer_scope_ == nullptr ? nullptr : outer_scope_->GetClassScope();
-  UnresolvedList& unresolved = rare_data_->unresolved_private_names;
-  bool has_private_names = rare_data_->private_name_map.capacity() > 0;
+  PrivateNameScopeIterator private_name_scope_iter(this);
+  private_name_scope_iter.Next();
+  UnresolvedList& unresolved = rare_data->unresolved_private_names;
+  bool has_private_names = rare_data->private_name_map.capacity() > 0;
 
   // If the class itself does not have private names, nor does it have
-  // an outer class scope, then we are certain any private name access
+  // an outer private name scope, then we are certain any private name access
   // inside cannot be resolved.
-  if (!has_private_names && outer_class_scope == nullptr &&
+  if (!has_private_names && private_name_scope_iter.Done() &&
       !unresolved.is_empty()) {
     return unresolved.first();
   }
@@ -2549,15 +2592,15 @@ VariableProxy* ClassScope::ResolvePrivateNamesPartially() {
     // If the current scope does not have declared private names,
     // try looking from the outer class scope later.
     if (var == nullptr) {
-      // There's no outer class scope so we are certain that the variable
+      // There's no outer private name scope so we are certain that the variable
       // cannot be resolved later.
-      if (outer_class_scope == nullptr) {
+      if (private_name_scope_iter.Done()) {
         return proxy;
       }
 
-      // The private name may be found later in the outer class scope,
-      // so push it to the outer sopce.
-      outer_class_scope->AddUnresolvedPrivateName(proxy);
+      // The private name may be found later in the outer private name scope, so
+      // push it to the outer sopce.
+      private_name_scope_iter.AddUnresolvedPrivateName(proxy);
     }
 
     proxy = next;
@@ -2569,7 +2612,7 @@ VariableProxy* ClassScope::ResolvePrivateNamesPartially() {
 
 Variable* ClassScope::DeclareBrandVariable(AstValueFactory* ast_value_factory,
                                            int class_token_pos) {
-  DCHECK_IMPLIES(rare_data_ != nullptr, rare_data_->brand == nullptr);
+  DCHECK_IMPLIES(GetRareData() != nullptr, GetRareData()->brand == nullptr);
   bool was_added;
   Variable* brand = Declare(zone(), ast_value_factory->dot_brand_string(),
                             VariableMode::kConst, NORMAL_VARIABLE,
@@ -2581,6 +2624,47 @@ Variable* ClassScope::DeclareBrandVariable(AstValueFactory* ast_value_factory,
   EnsureRareData()->brand = brand;
   brand->set_initializer_position(class_token_pos);
   return brand;
+}
+
+PrivateNameScopeIterator::PrivateNameScopeIterator(Scope* start)
+    : start_scope_(start), current_scope_(start) {
+  if (!start->is_class_scope() || start->AsClassScope()->IsParsingHeritage()) {
+    Next();
+  }
+}
+
+void PrivateNameScopeIterator::Next() {
+  DCHECK(!Done());
+  Scope* inner = current_scope_;
+  Scope* scope = inner->outer_scope();
+  while (scope != nullptr) {
+    if (scope->is_class_scope()) {
+      if (!inner->private_name_lookup_skips_outer_class()) {
+        current_scope_ = scope;
+        return;
+      }
+      skipped_any_scopes_ = true;
+    }
+    inner = scope;
+    scope = scope->outer_scope();
+  }
+  current_scope_ = nullptr;
+}
+
+void PrivateNameScopeIterator::AddUnresolvedPrivateName(VariableProxy* proxy) {
+  // During a reparse, current_scope_->already_resolved_ may be true here,
+  // because the class scope is deserialized while the function scope inside may
+  // be new.
+  DCHECK(!proxy->is_resolved());
+  DCHECK(proxy->IsPrivateName());
+  GetScope()->EnsureRareData()->unresolved_private_names.Add(proxy);
+  // Any closure scope that contain uses of private names that skips over a
+  // class scope due to heritage expressions need private name context chain
+  // recalculation, since not all scopes require a Context or ScopeInfo. See
+  // comment in DeclarationScope::RecalcPrivateNameContextChain.
+  if (V8_UNLIKELY(skipped_any_scopes_)) {
+    start_scope_->GetClosureScope()->RecordNeedsPrivateNameContextChainRecalc();
+  }
 }
 
 }  // namespace internal

@@ -146,6 +146,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
           ? scope->AsDeclarationScope()->num_parameters()
           : 0;
   const bool has_outer_scope_info = !outer_scope.is_null();
+
   const int length = kVariablePartIndex + 2 * context_local_count +
                      (has_receiver ? 1 : 0) +
                      (has_function_name ? kFunctionNameEntries : 0) +
@@ -196,7 +197,9 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
         HasOuterScopeInfoField::encode(has_outer_scope_info) |
         IsDebugEvaluateScopeField::encode(scope->is_debug_evaluate_scope()) |
         ForceContextAllocationField::encode(
-            scope->ForceContextForLanguageMode());
+            scope->ForceContextForLanguageMode()) |
+        PrivateNameLookupSkipsOuterClassField::encode(
+            scope->private_name_lookup_skips_outer_class());
     scope_info.SetFlags(flags);
 
     scope_info.SetParameterCount(parameter_count);
@@ -366,7 +369,9 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
       IsAsmModuleField::encode(false) | HasSimpleParametersField::encode(true) |
       FunctionKindField::encode(kNormalFunction) |
       HasOuterScopeInfoField::encode(has_outer_scope_info) |
-      IsDebugEvaluateScopeField::encode(false);
+      IsDebugEvaluateScopeField::encode(false) |
+      ForceContextAllocationField::encode(false) |
+      PrivateNameLookupSkipsOuterClassField::encode(false);
   scope_info->SetFlags(flags);
 
   scope_info->SetParameterCount(0);
@@ -431,7 +436,9 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
       IsAsmModuleField::encode(false) | HasSimpleParametersField::encode(true) |
       FunctionKindField::encode(FunctionKind::kNormalFunction) |
       HasOuterScopeInfoField::encode(false) |
-      IsDebugEvaluateScopeField::encode(false);
+      IsDebugEvaluateScopeField::encode(false) |
+      ForceContextAllocationField::encode(false) |
+      PrivateNameLookupSkipsOuterClassField::encode(false);
   scope_info->SetFlags(flags);
   scope_info->SetParameterCount(parameter_count);
   scope_info->SetContextLocalCount(context_local_count);
@@ -606,6 +613,11 @@ void ScopeInfo::SetIsDebugEvaluateScope() {
   } else {
     UNREACHABLE();
   }
+}
+
+bool ScopeInfo::PrivateNameLookupSkipsOuterClass() const {
+  if (length() == 0) return false;
+  return PrivateNameLookupSkipsOuterClassField::decode(Flags());
 }
 
 bool ScopeInfo::HasContext() const { return ContextLength() > 0; }

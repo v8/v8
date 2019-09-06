@@ -293,6 +293,10 @@ bool FunctionLiteral::requires_brand_initialization() const {
   return outer->AsClassScope()->brand() != nullptr;
 }
 
+bool FunctionLiteral::private_name_lookup_skips_outer_class() const {
+  return scope()->private_name_lookup_skips_outer_class();
+}
+
 ObjectLiteralProperty::ObjectLiteralProperty(Expression* key, Expression* value,
                                              Kind kind, bool is_computed_name)
     : LiteralProperty(key, value, is_computed_name),
