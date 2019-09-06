@@ -2218,12 +2218,13 @@ bool PipelineImpl::CreateGraph() {
 
   // Determine the Typer operation flags.
   {
-    if (is_sloppy(info()->shared_info()->language_mode()) &&
-        info()->shared_info()->IsUserJavaScript()) {
+    SharedFunctionInfoRef shared_info(data->broker(), info()->shared_info());
+    if (is_sloppy(shared_info.language_mode()) &&
+        shared_info.IsUserJavaScript()) {
       // Sloppy mode functions always have an Object for this.
       data->AddTyperFlag(Typer::kThisIsReceiver);
     }
-    if (IsClassConstructor(info()->shared_info()->kind())) {
+    if (IsClassConstructor(shared_info.kind())) {
       // Class constructors cannot be [[Call]]ed.
       data->AddTyperFlag(Typer::kNewTargetIsReceiver);
     }
