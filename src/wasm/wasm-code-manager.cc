@@ -766,8 +766,15 @@ void NativeModule::UseLazyStub(uint32_t func_index) {
 // TODO(mstarzinger): Remove {Isolate} parameter once {V8_EMBEDDED_BUILTINS}
 // was removed and embedded builtins are no longer optional.
 void NativeModule::SetRuntimeStubs(Isolate* isolate) {
+#ifndef V8_EMBEDDED_BUILTINS
+  FATAL(
+      "WebAssembly is not supported in no-embed builds. no-embed builds are "
+      "deprecated. See\n"
+      " - https://groups.google.com/d/msg/v8-users/9F53xqBjpkI/9WmKSbcWBAAJ\n"
+      " - https://crbug.com/v8/8519\n"
+      " - https://crbug.com/v8/8531\n");
+#endif                                                // V8_EMBEDDED_BUILTINS
   DCHECK_EQ(kNullAddress, runtime_stub_entries_[0]);  // Only called once.
-#ifdef V8_EMBEDDED_BUILTINS
   WasmCodeRefScope code_ref_scope;
   DCHECK_EQ(1, code_space_data_.size());
   WasmCode* jump_table = CreateEmptyJumpTableInRegion(
@@ -793,21 +800,6 @@ void NativeModule::SetRuntimeStubs(Isolate* isolate) {
                                                WasmCode::kRuntimeStubCount);
   DCHECK_NULL(runtime_stub_table_);
   runtime_stub_table_ = jump_table;
-#else  // V8_EMBEDDED_BUILTINS
-  HandleScope scope(isolate);
-  WasmCodeRefScope code_ref_scope;
-  USE(runtime_stub_table_);  // Actually unused, but avoids ifdef's in header.
-#define COPY_BUILTIN(Name)                                        \
-  runtime_stub_entries_[WasmCode::k##Name] =                      \
-      AddAndPublishAnonymousCode(                                 \
-          isolate->builtins()->builtin_handle(Builtins::k##Name), \
-          WasmCode::kRuntimeStub, #Name)                          \
-          ->instruction_start();
-#define COPY_BUILTIN_TRAP(Name) COPY_BUILTIN(ThrowWasm##Name)
-  WASM_RUNTIME_STUB_LIST(COPY_BUILTIN, COPY_BUILTIN_TRAP)
-#undef COPY_BUILTIN_TRAP
-#undef COPY_BUILTIN
-#endif  // V8_EMBEDDED_BUILTINS
   DCHECK_NE(kNullAddress, runtime_stub_entries_[0]);
 }
 
