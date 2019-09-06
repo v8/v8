@@ -1115,4 +1115,18 @@
   'regress/regress-992389': [SKIP],
 }], # not embedded_builtins
 
+##############################################################################
+['variant == turboprop', {
+  # Deopts differently than TurboFan.
+  'parallel-optimize-disabled': [SKIP],
+  'compiler/native-context-specialization-hole-check': [SKIP],
+  'compiler/number-comparison-truncations': [SKIP],
+  'compiler/redundancy-elimination': [SKIP],
+
+  # Static asserts for optimizations don't hold due to removed optimization
+  # phases.
+  'compiler/diamond-followedby-branch': [SKIP],
+  'compiler/load-elimination-const-field': [SKIP],
+}],  # variant == turboprop
+
 ]

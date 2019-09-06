@@ -136,4 +136,10 @@
   '*': [SKIP],
 }], # variant == jitless and not embedded_builtins
 
+##############################################################################
+['variant == turboprop', {
+  # Deopts differently than TurboFan.
+  'debug/debug-optimize': [SKIP],
+}],  # variant == turboprop
+
 ]

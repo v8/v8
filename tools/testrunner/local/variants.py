@@ -32,6 +32,7 @@ ALL_VARIANT_FLAGS = {
   "stress_sampling": [["--stress-sampling-allocation-profiler=16384"]],
   "trusted": [["--no-untrusted-code-mitigations"]],
   "no_wasm_traps": [["--no-wasm-trap-handler"]],
+  "turboprop": [["--turboprop"]],
 }
 
 SLOW_VARIANTS = set([
