@@ -86,8 +86,6 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   // scavenge and is going to be re-used.
   void ClearMemoryChunkData(MemoryChunk* chunk);
 
-  int TaskCount() { return task_count_; }
-
   // Checks if all threads are stopped.
   bool IsStopped();
 
@@ -124,7 +122,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   int pending_task_count_ = 0;
   bool is_pending_[kMaxTasks + 1] = {};
   CancelableTaskManager::Id cancelable_id_[kMaxTasks + 1] = {};
-  int task_count_ = 0;
+  int total_task_count_ = 0;
 };
 
 }  // namespace internal
