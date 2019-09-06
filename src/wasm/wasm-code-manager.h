@@ -527,10 +527,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
       OwnedVector<const byte> source_position_table, WasmCode::Kind kind,
       ExecutionTier tier, Vector<uint8_t> code_space);
 
-  // Add and publish anonymous code.
-  WasmCode* AddAndPublishAnonymousCode(Handle<Code>, WasmCode::Kind kind,
-                                       const char* name = nullptr);
-
   WasmCode* CreateEmptyJumpTableInRegion(uint32_t jump_table_size,
                                          base::AddressRegion);
 

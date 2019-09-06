@@ -731,7 +731,92 @@ CompilationEnv NativeModule::CreateCompilationEnv() const {
 }
 
 WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
-  return AddAndPublishAnonymousCode(code, WasmCode::kFunction);
+  // For off-heap builtins, we create a copy of the off-heap instruction stream
+  // instead of the on-heap code object containing the trampoline. Ensure that
+  // we do not apply the on-heap reloc info to the off-heap instructions.
+  const size_t relocation_size =
+      code->is_off_heap_trampoline() ? 0 : code->relocation_size();
+  OwnedVector<byte> reloc_info;
+  if (relocation_size > 0) {
+    reloc_info = OwnedVector<byte>::New(relocation_size);
+    memcpy(reloc_info.start(), code->relocation_start(), relocation_size);
+  }
+  Handle<ByteArray> source_pos_table(code->SourcePositionTable(),
+                                     code->GetIsolate());
+  OwnedVector<byte> source_pos =
+      OwnedVector<byte>::New(source_pos_table->length());
+  if (source_pos_table->length() > 0) {
+    source_pos_table->copy_out(0, source_pos.start(),
+                               source_pos_table->length());
+  }
+  Vector<const byte> instructions(
+      reinterpret_cast<byte*>(code->InstructionStart()),
+      static_cast<size_t>(code->InstructionSize()));
+  const uint32_t stack_slots = static_cast<uint32_t>(
+      code->has_safepoint_info() ? code->stack_slots() : 0);
+
+  // TODO(jgruber,v8:8758): Remove this translation. It exists only because
+  // Code objects contains real offsets but WasmCode expects an offset of 0 to
+  // mean 'empty'.
+  const size_t safepoint_table_offset = static_cast<size_t>(
+      code->has_safepoint_table() ? code->safepoint_table_offset() : 0);
+  const size_t handler_table_offset =
+      static_cast<size_t>(code->handler_table_offset());
+  const size_t constant_pool_offset =
+      static_cast<size_t>(code->constant_pool_offset());
+  const size_t code_comments_offset =
+      static_cast<size_t>(code->code_comments_offset());
+
+  Vector<uint8_t> dst_code_bytes =
+      code_allocator_.AllocateForCode(this, instructions.size());
+  memcpy(dst_code_bytes.begin(), instructions.begin(), instructions.size());
+
+  // Apply the relocation delta by iterating over the RelocInfo.
+  intptr_t delta = reinterpret_cast<Address>(dst_code_bytes.begin()) -
+                   code->InstructionStart();
+  int mode_mask = RelocInfo::kApplyMask |
+                  RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL);
+  Address constant_pool_start =
+      reinterpret_cast<Address>(dst_code_bytes.begin()) + constant_pool_offset;
+  RelocIterator orig_it(*code, mode_mask);
+  for (RelocIterator it(dst_code_bytes, reloc_info.as_vector(),
+                        constant_pool_start, mode_mask);
+       !it.done(); it.next(), orig_it.next()) {
+    RelocInfo::Mode mode = it.rinfo()->rmode();
+    if (RelocInfo::IsWasmStubCall(mode)) {
+      uint32_t stub_call_tag = orig_it.rinfo()->wasm_call_tag();
+      DCHECK_LT(stub_call_tag, WasmCode::kRuntimeStubCount);
+      Address entry = runtime_stub_entry(
+          static_cast<WasmCode::RuntimeStubId>(stub_call_tag));
+      it.rinfo()->set_wasm_stub_call_address(entry, SKIP_ICACHE_FLUSH);
+    } else {
+      it.rinfo()->apply(delta);
+    }
+  }
+
+  // Flush the i-cache after relocation.
+  FlushInstructionCache(dst_code_bytes.begin(), dst_code_bytes.size());
+
+  std::unique_ptr<WasmCode> new_code{new WasmCode{
+      this,                                     // native_module
+      kAnonymousFuncIndex,                      // index
+      dst_code_bytes,                           // instructions
+      stack_slots,                              // stack_slots
+      0,                                        // tagged_parameter_slots
+      safepoint_table_offset,                   // safepoint_table_offset
+      handler_table_offset,                     // handler_table_offset
+      constant_pool_offset,                     // constant_pool_offset
+      code_comments_offset,                     // code_comments_offset
+      instructions.size(),                      // unpadded_binary_size
+      OwnedVector<ProtectedInstructionData>{},  // protected_instructions
+      std::move(reloc_info),                    // reloc_info
+      std::move(source_pos),                    // source positions
+      WasmCode::kFunction,                      // kind
+      ExecutionTier::kNone}};                   // tier
+  new_code->MaybePrint(nullptr);
+  new_code->Validate();
+
+  return PublishCode(std::move(new_code));
 }
 
 void NativeModule::UseLazyStub(uint32_t func_index) {
@@ -801,98 +886,6 @@ void NativeModule::SetRuntimeStubs(Isolate* isolate) {
   DCHECK_NULL(runtime_stub_table_);
   runtime_stub_table_ = jump_table;
   DCHECK_NE(kNullAddress, runtime_stub_entries_[0]);
-}
-
-WasmCode* NativeModule::AddAndPublishAnonymousCode(Handle<Code> code,
-                                                   WasmCode::Kind kind,
-                                                   const char* name) {
-  // For off-heap builtins, we create a copy of the off-heap instruction stream
-  // instead of the on-heap code object containing the trampoline. Ensure that
-  // we do not apply the on-heap reloc info to the off-heap instructions.
-  const size_t relocation_size =
-      code->is_off_heap_trampoline() ? 0 : code->relocation_size();
-  OwnedVector<byte> reloc_info;
-  if (relocation_size > 0) {
-    reloc_info = OwnedVector<byte>::New(relocation_size);
-    memcpy(reloc_info.start(), code->relocation_start(), relocation_size);
-  }
-  Handle<ByteArray> source_pos_table(code->SourcePositionTable(),
-                                     code->GetIsolate());
-  OwnedVector<byte> source_pos =
-      OwnedVector<byte>::New(source_pos_table->length());
-  if (source_pos_table->length() > 0) {
-    source_pos_table->copy_out(0, source_pos.start(),
-                               source_pos_table->length());
-  }
-  Vector<const byte> instructions(
-      reinterpret_cast<byte*>(code->InstructionStart()),
-      static_cast<size_t>(code->InstructionSize()));
-  const uint32_t stack_slots = static_cast<uint32_t>(
-      code->has_safepoint_info() ? code->stack_slots() : 0);
-
-  // TODO(jgruber,v8:8758): Remove this translation. It exists only because
-  // Code objects contains real offsets but WasmCode expects an offset of 0 to
-  // mean 'empty'.
-  const size_t safepoint_table_offset = static_cast<size_t>(
-      code->has_safepoint_table() ? code->safepoint_table_offset() : 0);
-  const size_t handler_table_offset =
-      static_cast<size_t>(code->handler_table_offset());
-  const size_t constant_pool_offset =
-      static_cast<size_t>(code->constant_pool_offset());
-  const size_t code_comments_offset =
-      static_cast<size_t>(code->code_comments_offset());
-
-  Vector<uint8_t> dst_code_bytes =
-      code_allocator_.AllocateForCode(this, instructions.size());
-  memcpy(dst_code_bytes.begin(), instructions.begin(), instructions.size());
-
-  // Apply the relocation delta by iterating over the RelocInfo.
-  intptr_t delta = reinterpret_cast<Address>(dst_code_bytes.begin()) -
-                   code->InstructionStart();
-  int mode_mask = RelocInfo::kApplyMask |
-                  RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL);
-  Address constant_pool_start =
-      reinterpret_cast<Address>(dst_code_bytes.begin()) + constant_pool_offset;
-  RelocIterator orig_it(*code, mode_mask);
-  for (RelocIterator it(dst_code_bytes, reloc_info.as_vector(),
-                        constant_pool_start, mode_mask);
-       !it.done(); it.next(), orig_it.next()) {
-    RelocInfo::Mode mode = it.rinfo()->rmode();
-    if (RelocInfo::IsWasmStubCall(mode)) {
-      uint32_t stub_call_tag = orig_it.rinfo()->wasm_call_tag();
-      DCHECK_LT(stub_call_tag, WasmCode::kRuntimeStubCount);
-      Address entry = runtime_stub_entry(
-          static_cast<WasmCode::RuntimeStubId>(stub_call_tag));
-      it.rinfo()->set_wasm_stub_call_address(entry, SKIP_ICACHE_FLUSH);
-    } else {
-      it.rinfo()->apply(delta);
-    }
-  }
-
-  // Flush the i-cache after relocation.
-  FlushInstructionCache(dst_code_bytes.begin(), dst_code_bytes.size());
-
-  DCHECK_NE(kind, WasmCode::Kind::kInterpreterEntry);
-  std::unique_ptr<WasmCode> new_code{new WasmCode{
-      this,                                     // native_module
-      kAnonymousFuncIndex,                      // index
-      dst_code_bytes,                           // instructions
-      stack_slots,                              // stack_slots
-      0,                                        // tagged_parameter_slots
-      safepoint_table_offset,                   // safepoint_table_offset
-      handler_table_offset,                     // handler_table_offset
-      constant_pool_offset,                     // constant_pool_offset
-      code_comments_offset,                     // code_comments_offset
-      instructions.size(),                      // unpadded_binary_size
-      OwnedVector<ProtectedInstructionData>{},  // protected_instructions
-      std::move(reloc_info),                    // reloc_info
-      std::move(source_pos),                    // source positions
-      kind,                                     // kind
-      ExecutionTier::kNone}};                   // tier
-  new_code->MaybePrint(name);
-  new_code->Validate();
-
-  return PublishCode(std::move(new_code));
 }
 
 std::unique_ptr<WasmCode> NativeModule::AddCode(
