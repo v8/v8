@@ -284,8 +284,7 @@ bool operator!=(PropertyAccess const& lhs, PropertyAccess const& rhs) {
 PropertyAccess const& PropertyAccessOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kJSHasProperty ||
          op->opcode() == IrOpcode::kJSLoadProperty ||
-         op->opcode() == IrOpcode::kJSStoreProperty ||
-         op->opcode() == IrOpcode::kJSGetIterator);
+         op->opcode() == IrOpcode::kJSStoreProperty);
   return OpParameter<PropertyAccess>(op);
 }
 
@@ -560,6 +559,31 @@ std::ostream& operator<<(std::ostream& os, CloneObjectParameters const& p) {
 const CloneObjectParameters& CloneObjectParametersOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kJSCloneObject);
   return OpParameter<CloneObjectParameters>(op);
+}
+
+std::ostream& operator<<(std::ostream& os, GetIteratorParameters const& p) {
+  return os << p.loadFeedback() << ", " << p.callFeedback();
+}
+
+bool operator==(GetIteratorParameters const& lhs,
+                GetIteratorParameters const& rhs) {
+  return lhs.loadFeedback() == rhs.loadFeedback() &&
+         lhs.callFeedback() == rhs.callFeedback();
+}
+
+bool operator!=(GetIteratorParameters const& lhs,
+                GetIteratorParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+GetIteratorParameters const& GetIteratorParametersOf(const Operator* op) {
+  DCHECK(op->opcode() == IrOpcode::kJSGetIterator);
+  return OpParameter<GetIteratorParameters>(op);
+}
+
+size_t hash_value(GetIteratorParameters const& p) {
+  return base::hash_combine(FeedbackSource::Hash()(p.loadFeedback()),
+                            FeedbackSource::Hash()(p.callFeedback()));
 }
 
 size_t hash_value(ForInMode mode) { return static_cast<uint8_t>(mode); }
@@ -957,9 +981,10 @@ const Operator* JSOperatorBuilder::LoadProperty(
       access);                                             // parameter
 }
 
-const Operator* JSOperatorBuilder::GetIterator(FeedbackSource const& feedback) {
-  PropertyAccess access(LanguageMode::kSloppy, feedback);
-  return new (zone()) Operator1<PropertyAccess>(          // --
+const Operator* JSOperatorBuilder::GetIterator(
+    FeedbackSource const& load_feedback, FeedbackSource const& call_feedback) {
+  GetIteratorParameters access(load_feedback, call_feedback);
+  return new (zone()) Operator1<GetIteratorParameters>(   // --
       IrOpcode::kJSGetIterator, Operator::kNoProperties,  // opcode
       "JSGetIterator",                                    // name
       1, 1, 1, 1, 1, 2,                                   // counts

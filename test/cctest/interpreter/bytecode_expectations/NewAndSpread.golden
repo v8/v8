@@ -92,9 +92,9 @@ snippet: "
   class A { constructor(...args) { this.args = args; } }
   new A(0, ...[1, 2, 3], 4);
 "
-frame size: 9
+frame size: 8
 parameter count: 1
-bytecode array length: 130
+bytecode array length: 125
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(CreateBlockContext), U8(0),
@@ -117,9 +117,7 @@ bytecodes: [
                 B(Star), R(3),
   /*  101 S> */ B(CreateArrayLiteral), U8(5), U8(1), U8(37),
                 B(Star), R(7),
-                B(GetIterator), R(7), U8(2),
-                B(Star), R(8),
-                B(CallProperty0), R(8), R(7), U8(4),
+                B(GetIterator), R(7), U8(2), U8(4),
                 B(Mov), R(5), R(2),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
