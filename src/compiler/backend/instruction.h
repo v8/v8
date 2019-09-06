@@ -43,9 +43,8 @@ class V8_EXPORT_PRIVATE InstructionOperand {
     CONSTANT,
     IMMEDIATE,
     // Location operand kinds.
-    EXPLICIT,
     ALLOCATED,
-    FIRST_LOCATION_OPERAND_KIND = EXPLICIT
+    FIRST_LOCATION_OPERAND_KIND = ALLOCATED
     // Location operand kinds must be last.
   };
 
@@ -68,11 +67,6 @@ class V8_EXPORT_PRIVATE InstructionOperand {
   // embedded directly in instructions, e.g. small integers and on some
   // platforms Objects.
   INSTRUCTION_OPERAND_PREDICATE(Immediate, IMMEDIATE)
-  // ExplicitOperands do not participate in register allocation. They are
-  // created by the instruction selector for direct access to registers and
-  // stack slots, completely bypassing the register allocator. They are never
-  // associated with a virtual register
-  INSTRUCTION_OPERAND_PREDICATE(Explicit, EXPLICIT)
   // AllocatedOperands are registers or stack slots that are assigned by the
   // register allocator and are always associated with a virtual register.
   INSTRUCTION_OPERAND_PREDICATE(Allocated, ALLOCATED)
@@ -515,19 +509,6 @@ class LocationOperand : public InstructionOperand {
   using IndexField = BitField64<int32_t, 35, 29>;
 };
 
-class V8_EXPORT_PRIVATE ExplicitOperand
-    : public NON_EXPORTED_BASE(LocationOperand) {
- public:
-  ExplicitOperand(LocationKind kind, MachineRepresentation rep, int index);
-
-  static ExplicitOperand* New(Zone* zone, LocationKind kind,
-                              MachineRepresentation rep, int index) {
-    return InstructionOperand::New(zone, ExplicitOperand(kind, rep, index));
-  }
-
-  INSTRUCTION_OPERAND_CASTS(ExplicitOperand, EXPLICIT)
-};
-
 class AllocatedOperand : public LocationOperand {
  public:
   AllocatedOperand(LocationKind kind, MachineRepresentation rep, int index)
@@ -643,7 +624,7 @@ uint64_t InstructionOperand::GetCanonicalizedValue() const {
     }
     return InstructionOperand::KindField::update(
         LocationOperand::RepresentationField::update(this->value_, canonical),
-        LocationOperand::EXPLICIT);
+        LocationOperand::ALLOCATED);
   }
   return this->value_;
 }

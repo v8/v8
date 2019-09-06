@@ -193,17 +193,6 @@ class OperandGenerator {
                                         reg.code(), GetVReg(node)));
   }
 
-  InstructionOperand UseExplicit(LinkageLocation location) {
-    MachineRepresentation rep = InstructionSequence::DefaultRepresentation();
-    if (location.IsRegister()) {
-      return ExplicitOperand(LocationOperand::REGISTER, rep,
-                             location.AsRegister());
-    } else {
-      return ExplicitOperand(LocationOperand::STACK_SLOT, rep,
-                             location.GetLocation());
-    }
-  }
-
   InstructionOperand UseImmediate(int immediate) {
     return sequence()->AddImmediate(Constant(immediate));
   }

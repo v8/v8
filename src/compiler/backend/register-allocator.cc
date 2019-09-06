@@ -317,7 +317,6 @@ UsePositionHintType UsePosition::HintTypeForOperand(
   switch (op.kind()) {
     case InstructionOperand::CONSTANT:
     case InstructionOperand::IMMEDIATE:
-    case InstructionOperand::EXPLICIT:
       return UsePositionHintType::kNone;
     case InstructionOperand::UNALLOCATED:
       return UsePositionHintType::kUnresolved;
@@ -1940,8 +1939,8 @@ void ConstraintBuilder::MeetConstraintsBefore(int instr_index) {
   // Handle fixed input operands of second instruction.
   for (size_t i = 0; i < second->InputCount(); i++) {
     InstructionOperand* input = second->InputAt(i);
-    if (input->IsImmediate() || input->IsExplicit()) {
-      continue;  // Ignore immediates and explicitly reserved registers.
+    if (input->IsImmediate()) {
+      continue;  // Ignore immediates.
     }
     UnallocatedOperand* cur_input = UnallocatedOperand::cast(input);
     if (cur_input->HasFixedPolicy()) {
@@ -2323,8 +2322,8 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
 
     for (size_t i = 0; i < instr->InputCount(); i++) {
       InstructionOperand* input = instr->InputAt(i);
-      if (input->IsImmediate() || input->IsExplicit()) {
-        continue;  // Ignore immediates and explicitly reserved registers.
+      if (input->IsImmediate()) {
+        continue;  // Ignore immediates.
       }
       LifetimePosition use_pos;
       if (input->IsUnallocated() &&
@@ -2504,10 +2503,10 @@ void LiveRangeBuilder::ProcessPhis(const InstructionBlock* block,
         predecessor_hint_preference |= kNotDeferredBlockPreference;
       }
 
-      // - Prefer hints from allocated (or explicit) operands.
+      // - Prefer hints from allocated operands.
       //
-      // Already-allocated or explicit operands are typically assigned using
-      // the parallel moves on the last instruction. For example:
+      // Already-allocated operands are typically assigned using the parallel
+      // moves on the last instruction. For example:
       //
       //      gap (v101 = [x0|R|w32]) (v100 = v101)
       //      ArchJmp
@@ -2515,7 +2514,7 @@ void LiveRangeBuilder::ProcessPhis(const InstructionBlock* block,
       //    phi: v100 = v101 v102
       //
       // We have already found the END move, so look for a matching START move
-      // from an allocated (or explicit) operand.
+      // from an allocated operand.
       //
       // Note that we cannot simply look up data()->live_ranges()[vreg] here
       // because the live ranges are still being built when this function is
@@ -2527,7 +2526,7 @@ void LiveRangeBuilder::ProcessPhis(const InstructionBlock* block,
         for (MoveOperands* move : *moves) {
           InstructionOperand& to = move->destination();
           if (predecessor_hint->Equals(to)) {
-            if (move->source().IsAllocated() || move->source().IsExplicit()) {
+            if (move->source().IsAllocated()) {
               predecessor_hint_preference |= kMoveIsAllocatedPreference;
             }
             break;

@@ -1055,15 +1055,9 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperandAsJSON& o) {
       }
       break;
     }
-    case InstructionOperand::EXPLICIT:
     case InstructionOperand::ALLOCATED: {
       const LocationOperand* allocated = LocationOperand::cast(op);
-      os << "\"type\": ";
-      if (allocated->IsExplicit()) {
-        os << "\"explicit\", ";
-      } else {
-        os << "\"allocated\", ";
-      }
+      os << "\"type\": \"allocated\", ";
       os << "\"text\": \"";
       if (op->IsStackSlot()) {
         os << "stack:" << allocated->index();
