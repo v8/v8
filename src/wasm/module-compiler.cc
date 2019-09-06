@@ -2209,11 +2209,9 @@ bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
 }
 
 int GetMaxBackgroundTasks() {
-  if (NeedsDeterministicCompile()) return 1;
+  if (NeedsDeterministicCompile()) return 0;
   int num_worker_threads = V8::GetCurrentPlatform()->NumberOfWorkerThreads();
-  int num_compile_tasks =
-      std::min(FLAG_wasm_num_compilation_tasks, num_worker_threads);
-  return std::max(1, num_compile_tasks);
+  return std::min(FLAG_wasm_num_compilation_tasks, num_worker_threads);
 }
 
 CompilationStateImpl::CompilationStateImpl(
@@ -2227,7 +2225,7 @@ CompilationStateImpl::CompilationStateImpl(
                         ? CompileMode::kTiering
                         : CompileMode::kRegular),
       async_counters_(std::move(async_counters)),
-      max_background_tasks_(GetMaxBackgroundTasks()),
+      max_background_tasks_(std::max(GetMaxBackgroundTasks(), 1)),
       compilation_unit_queues_(max_background_tasks_),
       available_task_ids_(max_background_tasks_) {
   for (int i = 0; i < max_background_tasks_; ++i) {
