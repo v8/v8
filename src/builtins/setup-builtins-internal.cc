@@ -264,13 +264,12 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
 namespace {
 
 Code GenerateBytecodeHandler(Isolate* isolate, int builtin_index,
-                             const char* name,
                              interpreter::OperandScale operand_scale,
                              interpreter::Bytecode bytecode) {
   DCHECK(interpreter::Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
   Handle<Code> code = interpreter::GenerateBytecodeHandler(
-      isolate, bytecode, operand_scale, builtin_index,
-      BuiltinAssemblerOptions(isolate, builtin_index));
+      isolate, Builtins::name(builtin_index), bytecode, operand_scale,
+      builtin_index, BuiltinAssemblerOptions(isolate, builtin_index));
   return *code;
 }
 
@@ -314,9 +313,8 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
       CallDescriptors::InterfaceDescriptor, #Name);       \
   AddBuiltin(builtins, index++, code);
 
-#define BUILD_BCH(Name, OperandScale, Bytecode)                         \
-  code = GenerateBytecodeHandler(isolate, index, Builtins::name(index), \
-                                 OperandScale, Bytecode);               \
+#define BUILD_BCH(Name, OperandScale, Bytecode)                           \
+  code = GenerateBytecodeHandler(isolate, index, OperandScale, Bytecode); \
   AddBuiltin(builtins, index++, code);
 
 #define BUILD_ASM(Name, InterfaceDescriptor)                                \
