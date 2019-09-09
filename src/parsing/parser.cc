@@ -2555,7 +2555,7 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
       private_name_scope_iter.GetScope()->MigrateUnresolvedPrivateNameTail(
           factory(), unresolved_private_tail);
     }
-    function_scope->AnalyzePartially(this, factory());
+    function_scope->AnalyzePartially(this, factory(), MaybeParsingArrowhead());
   }
 
   return true;

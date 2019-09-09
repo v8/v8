@@ -1331,6 +1331,11 @@ class ParserBase {
     return expression_scope_;
   }
 
+  bool MaybeParsingArrowhead() const {
+    return expression_scope_ != nullptr &&
+           expression_scope_->has_possible_arrow_parameter_in_scope_chain();
+  }
+
   class AcceptINScope final {
    public:
     AcceptINScope(ParserBase* parser, bool accept_IN)

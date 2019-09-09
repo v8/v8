@@ -610,7 +610,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // list along the way, so full resolution cannot be done afterwards.
   void AnalyzePartially(DeclarationScope* max_outer_scope,
                         AstNodeFactory* ast_node_factory,
-                        UnresolvedList* new_unresolved_list);
+                        UnresolvedList* new_unresolved_list,
+                        bool maybe_in_arrowhead);
   void CollectNonLocals(DeclarationScope* max_outer_scope, Isolate* isolate,
                         ParseInfo* info, Handle<StringSet>* non_locals);
 
@@ -1019,7 +1020,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // this records variables which cannot be resolved inside the Scope (we don't
   // yet know what they will resolve to since the outer Scopes are incomplete)
   // and recreates them with the correct Zone with ast_node_factory.
-  void AnalyzePartially(Parser* parser, AstNodeFactory* ast_node_factory);
+  void AnalyzePartially(Parser* parser, AstNodeFactory* ast_node_factory,
+                        bool maybe_in_arrowhead);
 
   // Allocate ScopeInfos for top scope and any inner scopes that need them.
   // Does nothing if ScopeInfo is already allocated.

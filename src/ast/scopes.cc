@@ -1386,9 +1386,10 @@ void Scope::CollectNonLocals(DeclarationScope* max_outer_scope,
 
 void Scope::AnalyzePartially(DeclarationScope* max_outer_scope,
                              AstNodeFactory* ast_node_factory,
-                             UnresolvedList* new_unresolved_list) {
-  this->ForEach([max_outer_scope, ast_node_factory,
-                 new_unresolved_list](Scope* scope) {
+                             UnresolvedList* new_unresolved_list,
+                             bool maybe_in_arrowhead) {
+  this->ForEach([max_outer_scope, ast_node_factory, new_unresolved_list,
+                 maybe_in_arrowhead](Scope* scope) {
     DCHECK_IMPLIES(scope->is_declaration_scope(),
                    !scope->AsDeclarationScope()->was_lazily_parsed());
 
@@ -1401,7 +1402,8 @@ void Scope::AnalyzePartially(DeclarationScope* max_outer_scope,
         // Don't copy unresolved references to the script scope, unless it's a
         // reference to a private name or method. In that case keep it so we
         // can fail later.
-        if (!max_outer_scope->outer_scope()->is_script_scope()) {
+        if (!max_outer_scope->outer_scope()->is_script_scope() ||
+            maybe_in_arrowhead) {
           VariableProxy* copy = ast_node_factory->CopyVariableProxy(proxy);
           new_unresolved_list->Add(copy);
         }
@@ -1490,17 +1492,19 @@ void DeclarationScope::SavePreparseDataForDeclarationScope(Parser* parser) {
 }
 
 void DeclarationScope::AnalyzePartially(Parser* parser,
-                                        AstNodeFactory* ast_node_factory) {
+                                        AstNodeFactory* ast_node_factory,
+                                        bool maybe_in_arrowhead) {
   DCHECK(!force_eager_compilation_);
   UnresolvedList new_unresolved_list;
   if (!IsArrowFunction(function_kind_) &&
-      (!outer_scope_->is_script_scope() ||
+      (!outer_scope_->is_script_scope() || maybe_in_arrowhead ||
        (preparse_data_builder_ != nullptr &&
         preparse_data_builder_->HasInnerFunctions()))) {
     // Try to resolve unresolved variables for this Scope and migrate those
     // which cannot be resolved inside. It doesn't make sense to try to resolve
     // them in the outer Scopes here, because they are incomplete.
-    Scope::AnalyzePartially(this, ast_node_factory, &new_unresolved_list);
+    Scope::AnalyzePartially(this, ast_node_factory, &new_unresolved_list,
+                            maybe_in_arrowhead);
 
     // Migrate function_ to the right Zone.
     if (function_ != nullptr) {
