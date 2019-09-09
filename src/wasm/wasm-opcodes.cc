@@ -258,7 +258,6 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_F32x4_OP(Le, "le")
     CASE_F32x4_OP(Gt, "gt")
     CASE_F32x4_OP(Ge, "ge")
-    CASE_CONVERT_OP(Convert, F64x2, I64x2, "i64", "convert")
     CASE_CONVERT_OP(Convert, F32x4, I32x4, "i32", "convert")
     CASE_CONVERT_OP(Convert, I32x4, F32x4, "f32", "convert")
     CASE_CONVERT_OP(Convert, I32x4, I16x8Low, "i32", "convert")

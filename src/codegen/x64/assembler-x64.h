@@ -1148,8 +1148,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void cvtdq2ps(XMMRegister dst, XMMRegister src);
   void cvtdq2ps(XMMRegister dst, Operand src);
 
-  void movlhps(XMMRegister dst, XMMRegister src);
-
   // AVX instruction
   void vfmadd132sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
     vfmasd(0x99, dst, src1, src2);

@@ -1272,32 +1272,6 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2MaxU) {
   RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2MaxU,
                     UnsignedMaximum);
 }
-
-WASM_SIMD_TEST_NO_LOWERING(F64x2ConvertI64x2) {
-  WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);
-  // Create two output vectors to hold signed and unsigned results.
-  double* g0 = r.builder().AddGlobal<double>(kWasmS128);
-  double* g1 = r.builder().AddGlobal<double>(kWasmS128);
-  // Build fn to splat test value, perform conversions, and write the results.
-  byte value = 0;
-  byte temp1 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(value))),
-        WASM_SET_GLOBAL(
-            0, WASM_SIMD_UNOP(kExprF64x2SConvertI64x2, WASM_GET_LOCAL(temp1))),
-        WASM_SET_GLOBAL(
-            1, WASM_SIMD_UNOP(kExprF64x2UConvertI64x2, WASM_GET_LOCAL(temp1))),
-        WASM_ONE);
-
-  FOR_INT64_INPUTS(x) {
-    r.Call(x);
-    double expected_signed = static_cast<double>(x);
-    double expected_unsigned = static_cast<double>(static_cast<uint64_t>(x));
-    for (int i = 0; i < 2; i++) {
-      CHECK_EQ(expected_signed, ReadLittleEndianValue<double>(&g0[i]));
-      CHECK_EQ(expected_unsigned, ReadLittleEndianValue<double>(&g1[i]));
-    }
-  }
-}
 #endif  // V8_TARGET_ARCH_X64
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
