@@ -432,10 +432,12 @@ void Scavenger::AddPageToSweeperIfNecessary(MemoryChunk* page) {
 
 void Scavenger::ScavengePage(MemoryChunk* page) {
   CodePageMemoryModificationScope memory_modification_scope(page);
+  InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(page);
   RememberedSet<OLD_TO_NEW>::Iterate(
       page,
-      [this](MaybeObjectSlot addr) {
-        return CheckAndScavengeObject(heap_, addr);
+      [this, &filter](MaybeObjectSlot slot) {
+        CHECK(filter.IsValid(slot.address()));
+        return CheckAndScavengeObject(heap_, slot);
       },
       SlotSet::KEEP_EMPTY_BUCKETS);
 

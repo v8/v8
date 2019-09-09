@@ -3411,9 +3411,11 @@ class RememberedSetUpdatingItem : public UpdatingItem {
 
   void UpdateUntypedPointers() {
     if (chunk_->slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() != nullptr) {
+      InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(chunk_);
       RememberedSet<OLD_TO_NEW>::Iterate(
           chunk_,
-          [this](MaybeObjectSlot slot) {
+          [this, &filter](MaybeObjectSlot slot) {
+            CHECK(filter.IsValid(slot.address()));
             return CheckAndUpdateOldToNewSlot(slot);
           },
           SlotSet::PREFREE_EMPTY_BUCKETS);
