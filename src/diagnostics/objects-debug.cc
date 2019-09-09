@@ -1449,7 +1449,7 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
 
       CHECK(arr.get(JSRegExp::kIrregexpCaptureCountIndex).IsSmi());
       CHECK(arr.get(JSRegExp::kIrregexpMaxRegisterCountIndex).IsSmi());
-      CHECK(arr.get(JSRegExp::kIrregexpTierUpTicksIndex).IsSmi());
+      CHECK(arr.get(JSRegExp::kIrregexpTicksUntilTierUpIndex).IsSmi());
       break;
     }
     default:

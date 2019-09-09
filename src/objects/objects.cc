@@ -6153,27 +6153,40 @@ bool JSRegExp::ShouldProduceBytecode() {
 }
 
 // An irregexp is considered to be marked for tier up if the tier-up ticks value
-// is not zero. An atom is not subject to tier-up implementation, so the tier-up
-// ticks value is not set.
+// reaches zero. An atom is not subject to tier-up implementation, so the
+// tier-up ticks value is not set.
 bool JSRegExp::MarkedForTierUp() {
   DCHECK(data().IsFixedArray());
-  if (TypeTag() == JSRegExp::ATOM) {
+  if (TypeTag() == JSRegExp::ATOM || !FLAG_regexp_tier_up) {
     return false;
   }
-  return Smi::ToInt(DataAt(kIrregexpTierUpTicksIndex)) != 0;
+  return Smi::ToInt(DataAt(kIrregexpTicksUntilTierUpIndex)) == 0;
 }
 
-void JSRegExp::ResetTierUp() {
+void JSRegExp::ResetLastTierUpTick() {
   DCHECK(FLAG_regexp_tier_up);
   DCHECK_EQ(TypeTag(), JSRegExp::IRREGEXP);
-  FixedArray::cast(data()).set(JSRegExp::kIrregexpTierUpTicksIndex, Smi::kZero);
+  int tier_up_ticks = Smi::ToInt(DataAt(kIrregexpTicksUntilTierUpIndex)) + 1;
+  FixedArray::cast(data()).set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
+                               Smi::FromInt(tier_up_ticks));
+}
+
+void JSRegExp::TierUpTick() {
+  DCHECK(FLAG_regexp_tier_up);
+  DCHECK_EQ(TypeTag(), JSRegExp::IRREGEXP);
+  int tier_up_ticks = Smi::ToInt(DataAt(kIrregexpTicksUntilTierUpIndex));
+  if (tier_up_ticks == 0) {
+    return;
+  }
+  FixedArray::cast(data()).set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
+                               Smi::FromInt(tier_up_ticks - 1));
 }
 
 void JSRegExp::MarkTierUpForNextExec() {
   DCHECK(FLAG_regexp_tier_up);
   DCHECK_EQ(TypeTag(), JSRegExp::IRREGEXP);
-  FixedArray::cast(data()).set(JSRegExp::kIrregexpTierUpTicksIndex,
-                               Smi::FromInt(1));
+  FixedArray::cast(data()).set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
+                               Smi::kZero);
 }
 
 namespace {

@@ -522,7 +522,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
   GotoIf(TaggedIsSmi(var_code.value()), &runtime);
   TNode<Code> code = CAST(var_code.value());
 
-  // Tier-up in runtime if ticks are non-zero and tier-up hasn't happened yet
+  // Tier-up in runtime if ticks are zero and tier-up hasn't happened yet
   // and ensure that a RegExp stack is allocated when using compiled Irregexp.
   {
     Label next(this), check_tier_up(this);
@@ -538,9 +538,9 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 
     // Check if tier-up is requested.
     BIND(&check_tier_up);
-    TNode<Smi> ticks = CAST(
-        UnsafeLoadFixedArrayElement(data, JSRegExp::kIrregexpTierUpTicksIndex));
-    GotoIf(SmiToInt32(ticks), &runtime);
+    TNode<Smi> ticks = CAST(UnsafeLoadFixedArrayElement(
+        data, JSRegExp::kIrregexpTicksUntilTierUpIndex));
+    GotoIfNot(SmiToInt32(ticks), &runtime);
 
     Goto(&next);
     BIND(&next);

@@ -574,7 +574,7 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
           // match.
           // We need to reset the tier up to start over with compilation.
           if (FLAG_regexp_tier_up) {
-            regexp->ResetTierUp();
+            regexp->ResetLastTierUpTick();
           }
           is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
           EnsureCompiledIrregexp(isolate, regexp, subject, is_one_byte);

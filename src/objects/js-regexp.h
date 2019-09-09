@@ -96,7 +96,8 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
                                           Handle<String> flags_string);
 
   bool MarkedForTierUp();
-  void ResetTierUp();
+  void ResetLastTierUpTick();
+  void TierUpTick();
   void MarkTierUpForNextExec();
 
   inline Type TypeTag() const;
@@ -176,9 +177,13 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   // Maps names of named capture groups (at indices 2i) to their corresponding
   // (1-based) capture group indices (at indices 2i + 1).
   static const int kIrregexpCaptureNameMapIndex = kDataIndex + 6;
-  static const int kIrregexpTierUpTicksIndex = kDataIndex + 7;
+  // Tier-up ticks are set to the value of the tier-up ticks flag. The value is
+  // decremented on each execution of the bytecode, so that the tier-up
+  // happens once the ticks reach zero.
+  // This value is ignored if the regexp-tier-up flag isn't turned on.
+  static const int kIrregexpTicksUntilTierUpIndex = kDataIndex + 7;
 
-  static const int kIrregexpDataSize = kIrregexpTierUpTicksIndex + 1;
+  static const int kIrregexpDataSize = kIrregexpTicksUntilTierUpIndex + 1;
 
   // In-object fields.
   static const int kLastIndexFieldIndex = 0;

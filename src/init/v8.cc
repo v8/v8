@@ -95,7 +95,11 @@ void V8::InitializeOncePerProcessImpl() {
   // generation.
   CHECK_WITH_MSG(!FLAG_interpreted_frames_native_stack || !FLAG_jitless,
                  "The --jitless and --interpreted-frames-native-stack flags "
-                 "are incompatible.");
+                 "are incompatible");
+
+  CHECK_WITH_MSG(
+      !FLAG_regexp_interpret_all || !FLAG_regexp_tier_up,
+      "The --regexp-interpret-all and --regexp-tier-up flags are incompatible");
 
   base::OS::Initialize(FLAG_hard_abort, FLAG_gc_fake_mmap);
 

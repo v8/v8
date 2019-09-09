@@ -396,6 +396,8 @@
   'regress/regress-crbug-759327': [SKIP],
   'regress/regress-crbug-898974': [SKIP],
   'regexp-tier-up': [SKIP],
+  'regexp-tier-up-multiple': [SKIP],
+  'regress/regress-996234': [SKIP],
 
   # These tests check that we can trace the compiler.
   'tools/compiler-trace-flags': [SKIP],
@@ -983,6 +985,7 @@
 
   # The RegExp code cache means running this test multiple times is invalid.
   'regexp-tier-up': [SKIP],
+  'regexp-tier-up-multiple': [SKIP],
 
   # Flaky crash on Odroid devices: https://crbug.com/v8/7678
   'regress/regress-336820': [PASS, ['arch == arm and not simulator_run', SKIP]],

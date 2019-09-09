@@ -1265,8 +1265,11 @@ DEFINE_BOOL(regexp_optimization, true, "generate optimized regexp code")
 DEFINE_BOOL(regexp_mode_modifiers, false, "enable inline flags in regexp.")
 DEFINE_BOOL(regexp_interpret_all, false, "interpret all regexp code")
 DEFINE_BOOL(regexp_tier_up, false,
-            "enable regexp interpreter and tier up to the compiler")
-DEFINE_NEG_IMPLICATION(regexp_interpret_all, regexp_tier_up)
+            "enable regexp interpreter and tier up to the compiler after the "
+            "number of executions set by the tier up ticks flag")
+DEFINE_INT(regexp_tier_up_ticks, 1,
+           "set the number of executions for the regexp interpreter before "
+           "tiering-up to the compiler")
 
 // Testing flags test/cctest/test-{flags,api,serialization}.cc
 DEFINE_BOOL(testing_bool_flag, true, "testing_bool_flag")

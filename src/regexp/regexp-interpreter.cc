@@ -807,7 +807,7 @@ IrregexpInterpreter::Result IrregexpInterpreter::Match(
     Isolate* isolate, JSRegExp regexp, String subject_string, int* registers,
     int registers_length, int start_position, RegExp::CallOrigin call_origin) {
   if (FLAG_regexp_tier_up) {
-    regexp.MarkTierUpForNextExec();
+    regexp.TierUpTick();
   }
 
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(subject_string);

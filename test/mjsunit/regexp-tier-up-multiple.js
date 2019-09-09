@@ -4,7 +4,7 @@
 
 // Tier-up behavior differs between slow and fast paths in
 // RegExp.prototype.replace with a function as an argument.
-// Flags: --regexp-tier-up --regexp-tier-up-ticks=1
+// Flags: --regexp-tier-up --regexp-tier-up-ticks=5
 // Flags: --allow-natives-syntax --no-force-slow-path --no-regexp-interpret-all
 
 const kLatin1 = true;
@@ -21,40 +21,45 @@ function CheckRegexpNotYetCompiled(regexp) {
 let re = new RegExp('^.$');
 CheckRegexpNotYetCompiled(re);
 
-// Testing first execution of regexp with one-byte string subject.
+// Testing first five executions of regexp with one-byte string subject.
+for (var i = 0; i < 5; i++) {
+  re.test("a");
+  assertTrue(%RegexpHasBytecode(re, kLatin1));
+  assertTrue(!%RegexpHasBytecode(re, kUnicode) &&
+              !%RegexpHasNativeCode(re, kUnicode));
+}
+// Testing the tier-up to native code.
 re.test("a");
-assertTrue(%RegexpHasBytecode(re, kLatin1));
-assertTrue(!%RegexpHasBytecode(re, kUnicode) &&
-            !%RegexpHasNativeCode(re, kUnicode));
-// Testing second execution of regexp now with a two-byte string subject.
-// This will compile to native code because we have a single tick counter
-// for both string representations.
-re.test("π");
-assertTrue(%RegexpHasBytecode(re, kLatin1));
-assertTrue(!%RegexpHasBytecode(re, kUnicode) &&
-            %RegexpHasNativeCode(re,kUnicode));
-// Testing tier-up when we're back to executing the regexp with a one byte
-// string.
-re.test("6");
 assertTrue(!%RegexpHasBytecode(re, kLatin1) &&
             %RegexpHasNativeCode(re,kLatin1));
 assertTrue(!%RegexpHasBytecode(re, kUnicode) &&
-            %RegexpHasNativeCode(re,kUnicode));
-re.test("7");
+            !%RegexpHasNativeCode(re,kUnicode));
+re.test("a");
+assertTrue(!%RegexpHasBytecode(re, kLatin1) &&
+            %RegexpHasNativeCode(re,kLatin1));
+assertTrue(!%RegexpHasBytecode(re, kUnicode) &&
+            !%RegexpHasNativeCode(re,kUnicode));
+// Testing that the regexp will compile to native code for two-byte string
+// subject as well, because we have a single tick counter for both string
+// representations.
+re.test("π");
 assertTrue(!%RegexpHasBytecode(re, kLatin1) &&
             %RegexpHasNativeCode(re,kLatin1));
 assertTrue(!%RegexpHasBytecode(re, kUnicode) &&
             %RegexpHasNativeCode(re,kUnicode));
 
 // Testing String.replace method for non-global regexps.
-var subject = "a11";
+var subject = "a1111";
 re = /\w1/;
 CheckRegexpNotYetCompiled(re);
 
-subject.replace(re, "x");
-assertTrue(%RegexpHasBytecode(re, kLatin1));
-assertTrue(!%RegexpHasBytecode(re, kUnicode) &&
-            !%RegexpHasNativeCode(re, kUnicode));
+for (var i = 0; i < 5; i++) {
+  subject.replace(re, "x");
+  assertTrue(%RegexpHasBytecode(re, kLatin1));
+  assertTrue(!%RegexpHasBytecode(re, kUnicode) &&
+              !%RegexpHasNativeCode(re, kUnicode));
+}
+
 subject.replace(re, "x");
 assertTrue(!%RegexpHasBytecode(re, kLatin1) &&
             %RegexpHasNativeCode(re, kLatin1));
@@ -62,17 +67,20 @@ assertTrue(!%RegexpHasBytecode(re, kUnicode) &&
             !%RegexpHasNativeCode(re, kUnicode));
 
 // Testing String.replace method for global regexps.
-let re_g = /\w111/g;
+let re_g = /\w11111/g;
 CheckRegexpNotYetCompiled(re_g);
 // This regexp will not match, so it will only execute the bytecode once,
-// without tiering-up and recompiling to native code.
-subject.replace(re_g, "x");
-assertTrue(%RegexpHasBytecode(re_g, kLatin1));
-assertTrue(!%RegexpHasBytecode(re_g, kUnicode) &&
-            !%RegexpHasNativeCode(re_g, kUnicode));
+// each time the replace method is invoked, without tiering-up and
+// recompiling to native code.
+for (var i = 0; i < 5; i++) {
+  subject.replace(re_g, "x");
+  assertTrue(%RegexpHasBytecode(re_g, kLatin1));
+  assertTrue(!%RegexpHasBytecode(re_g, kUnicode) &&
+              !%RegexpHasNativeCode(re_g, kUnicode));
+}
 
-// This regexp will match, so it will execute twice, and tier-up.
-re_g = /\w1/g;
+// This regexp will match, so it will execute five times, and tier-up.
+re_g = /\w/g;
 CheckRegexpNotYetCompiled(re_g);
 subject.replace(re_g, "x");
 assertTrue(!%RegexpHasBytecode(re_g, kLatin1) &&
