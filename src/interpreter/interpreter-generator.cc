@@ -1600,26 +1600,20 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
       case 1:
         CallJSAndDispatch(
             function, context, Int32Constant(arg_count), receiver_mode,
-            static_cast<Node*>(
-                LoadRegisterAtOperandIndex(kFirstArgumentOperandIndex)));
+            LoadRegisterAtOperandIndex(kFirstArgumentOperandIndex));
         break;
       case 2:
         CallJSAndDispatch(
             function, context, Int32Constant(arg_count), receiver_mode,
-            static_cast<Node*>(
-                LoadRegisterAtOperandIndex(kFirstArgumentOperandIndex)),
-            static_cast<Node*>(
-                LoadRegisterAtOperandIndex(kFirstArgumentOperandIndex + 1)));
+            LoadRegisterAtOperandIndex(kFirstArgumentOperandIndex),
+            LoadRegisterAtOperandIndex(kFirstArgumentOperandIndex + 1));
         break;
       case 3:
         CallJSAndDispatch(
             function, context, Int32Constant(arg_count), receiver_mode,
-            static_cast<Node*>(
-                LoadRegisterAtOperandIndex(kFirstArgumentOperandIndex)),
-            static_cast<Node*>(
-                LoadRegisterAtOperandIndex(kFirstArgumentOperandIndex + 1)),
-            static_cast<Node*>(
-                LoadRegisterAtOperandIndex(kFirstArgumentOperandIndex + 2)));
+            LoadRegisterAtOperandIndex(kFirstArgumentOperandIndex),
+            LoadRegisterAtOperandIndex(kFirstArgumentOperandIndex + 1),
+            LoadRegisterAtOperandIndex(kFirstArgumentOperandIndex + 2));
         break;
       default:
         UNREACHABLE();

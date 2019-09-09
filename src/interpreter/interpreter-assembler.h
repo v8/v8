@@ -245,12 +245,13 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
                            compiler::TNode<WordT> rhs,
                            AbortReason abort_reason);
   // Abort if |register_count| is invalid for given register file array.
-  void AbortIfRegisterCountInvalid(compiler::Node* parameters_and_registers,
-                                   compiler::Node* formal_parameter_count,
-                                   compiler::Node* register_count);
+  void AbortIfRegisterCountInvalid(
+      compiler::TNode<FixedArrayBase> parameters_and_registers,
+      compiler::TNode<IntPtrT> formal_parameter_count,
+      compiler::TNode<UintPtrT> register_count);
 
   // Dispatch to frame dropper trampoline if necessary.
-  void MaybeDropFrames(compiler::Node* context);
+  void MaybeDropFrames(compiler::TNode<Context> context);
 
   // Returns the offset from the BytecodeArrayPointer of the current bytecode.
   TNode<IntPtrT> BytecodeOffset();
@@ -291,7 +292,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void CallEpilogue();
 
   // Increment the dispatch counter for the (current, next) bytecode pair.
-  void TraceBytecodeDispatch(compiler::Node* target_index);
+  void TraceBytecodeDispatch(TNode<WordT> target_bytecode);
 
   // Traces the current bytecode by calling |function_id|.
   void TraceBytecode(Runtime::FunctionId function_id);
@@ -299,13 +300,13 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Updates the bytecode array's interrupt budget by a 32-bit unsigned |weight|
   // and calls Runtime::kInterrupt if counter reaches zero. If |backward|, then
   // the interrupt budget is decremented, otherwise it is incremented.
-  void UpdateInterruptBudget(compiler::Node* weight, bool backward);
+  void UpdateInterruptBudget(compiler::TNode<Int32T> weight, bool backward);
 
   // Returns the offset of register |index| relative to RegisterFilePointer().
   compiler::TNode<IntPtrT> RegisterFrameOffset(compiler::TNode<IntPtrT> index);
 
   // Returns the offset of an operand relative to the current bytecode offset.
-  compiler::Node* OperandOffset(int operand_index);
+  compiler::TNode<IntPtrT> OperandOffset(int operand_index);
 
   // Returns a value built from an sequence of bytes in the bytecode
   // array starting at |relative_offset| from the current bytecode.

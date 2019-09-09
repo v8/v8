@@ -369,7 +369,7 @@ TNode<IntPtrT> InterpreterAssembler::NextRegister(TNode<IntPtrT> reg_index) {
   return Signed(IntPtrAdd(reg_index, IntPtrConstant(-1)));
 }
 
-Node* InterpreterAssembler::OperandOffset(int operand_index) {
+TNode<IntPtrT> InterpreterAssembler::OperandOffset(int operand_index) {
   return IntPtrConstant(
       Bytecodes::GetOperandOffset(bytecode_, operand_index, operand_scale()));
 }
@@ -379,7 +379,7 @@ TNode<Uint8T> InterpreterAssembler::BytecodeOperandUnsignedByte(
   DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
   DCHECK_EQ(OperandSize::kByte, Bytecodes::GetOperandSize(
                                     bytecode_, operand_index, operand_scale()));
-  Node* operand_offset = OperandOffset(operand_index);
+  TNode<IntPtrT> operand_offset = OperandOffset(operand_index);
   return Load<Uint8T>(BytecodeArrayTaggedPointer(),
                       IntPtrAdd(BytecodeOffset(), operand_offset),
                       needs_poisoning);
@@ -390,7 +390,7 @@ TNode<Int8T> InterpreterAssembler::BytecodeOperandSignedByte(
   DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
   DCHECK_EQ(OperandSize::kByte, Bytecodes::GetOperandSize(
                                     bytecode_, operand_index, operand_scale()));
-  Node* operand_offset = OperandOffset(operand_index);
+  TNode<IntPtrT> operand_offset = OperandOffset(operand_index);
   return Load<Int8T>(BytecodeArrayTaggedPointer(),
                      IntPtrAdd(BytecodeOffset(), operand_offset),
                      needs_poisoning);
@@ -767,9 +767,9 @@ void InterpreterAssembler::CallJSAndDispatch(TNode<Object> function,
 
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
     // The first argument parameter (the receiver) is implied to be undefined.
-    TailCallStubThenBytecodeDispatch(
-        callable.descriptor(), code_target, context, function, arg_count,
-        static_cast<Node*>(UndefinedConstant()), args...);
+    TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target,
+                                     context, function, arg_count,
+                                     UndefinedConstant(), args...);
   } else {
     TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target,
                                      context, function, arg_count, args...);
@@ -785,13 +785,14 @@ template V8_EXPORT_PRIVATE void InterpreterAssembler::CallJSAndDispatch(
     ConvertReceiverMode receiver_mode);
 template V8_EXPORT_PRIVATE void InterpreterAssembler::CallJSAndDispatch(
     TNode<Object> function, TNode<Context> context, TNode<Word32T> arg_count,
-    ConvertReceiverMode receiver_mode, Node*);
+    ConvertReceiverMode receiver_mode, TNode<Object>);
 template V8_EXPORT_PRIVATE void InterpreterAssembler::CallJSAndDispatch(
     TNode<Object> function, TNode<Context> context, TNode<Word32T> arg_count,
-    ConvertReceiverMode receiver_mode, Node*, Node*);
+    ConvertReceiverMode receiver_mode, TNode<Object>, TNode<Object>);
 template V8_EXPORT_PRIVATE void InterpreterAssembler::CallJSAndDispatch(
     TNode<Object> function, TNode<Context> context, TNode<Word32T> arg_count,
-    ConvertReceiverMode receiver_mode, Node*, Node*, Node*);
+    ConvertReceiverMode receiver_mode, TNode<Object>, TNode<Object>,
+    TNode<Object>);
 
 void InterpreterAssembler::CallJSWithSpreadAndDispatch(
     TNode<Object> function, TNode<Context> context, const RegListNodePair& args,
@@ -1130,9 +1131,8 @@ Node* InterpreterAssembler::CallRuntimeN(TNode<Uint32T> function_id,
   TNode<Code> code_target = HeapConstant(callable.code());
 
   // Get the function entry from the function id.
-  // TODO(solanes): ExternalReference
-  Node* function_table = ExternalConstant(
-      ExternalReference::runtime_function_table_address(isolate()));
+  TNode<RawPtrT> function_table = ReinterpretCast<RawPtrT>(ExternalConstant(
+      ExternalReference::runtime_function_table_address(isolate())));
   TNode<Word32T> function_offset =
       Int32Mul(function_id, Int32Constant(sizeof(Runtime::Function)));
   TNode<WordT> function =
@@ -1145,7 +1145,8 @@ Node* InterpreterAssembler::CallRuntimeN(TNode<Uint32T> function_id,
                    args.base_reg_location(), function_entry);
 }
 
-void InterpreterAssembler::UpdateInterruptBudget(Node* weight, bool backward) {
+void InterpreterAssembler::UpdateInterruptBudget(TNode<Int32T> weight,
+                                                 bool backward) {
   Comment("[ UpdateInterruptBudget");
 
   // Assert that the weight is positive (negative weights should be implemented
@@ -1167,7 +1168,7 @@ void InterpreterAssembler::UpdateInterruptBudget(Node* weight, bool backward) {
   TVARIABLE(Int32T, new_budget);
   if (backward) {
     // Update budget by |weight| and check if it reaches zero.
-    new_budget = Signed(Int32Sub(budget_after_bytecode, weight));
+    new_budget = Int32Sub(budget_after_bytecode, weight);
     TNode<BoolT> condition =
         Int32GreaterThanOrEqual(new_budget.value(), Int32Constant(0));
     Label ok(this), interrupt_check(this, Label::kDeferred);
@@ -1181,7 +1182,7 @@ void InterpreterAssembler::UpdateInterruptBudget(Node* weight, bool backward) {
   } else {
     // For a forward jump, we know we only increase the interrupt budget, so
     // no need to check if it's below zero.
-    new_budget = Signed(Int32Add(budget_after_bytecode, weight));
+    new_budget = Int32Add(budget_after_bytecode, weight);
   }
 
   // Update budget.
@@ -1353,7 +1354,7 @@ void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {
     TraceBytecodeDispatch(next_bytecode);
   }
 
-  Node* base_index;
+  TNode<IntPtrT> base_index;
   switch (operand_scale) {
     case OperandScale::kDouble:
       base_index = IntPtrConstant(1 << kBitsPerByte);
@@ -1420,7 +1421,7 @@ void InterpreterAssembler::AbortIfWordNotEqual(TNode<WordT> lhs,
   BIND(&ok);
 }
 
-void InterpreterAssembler::MaybeDropFrames(Node* context) {
+void InterpreterAssembler::MaybeDropFrames(TNode<Context> context) {
   TNode<ExternalReference> restart_fp_address =
       ExternalConstant(ExternalReference::debug_restart_fp_address(isolate()));
 
@@ -1445,7 +1446,7 @@ void InterpreterAssembler::TraceBytecode(Runtime::FunctionId function_id) {
               SmiTag(BytecodeOffset()), GetAccumulatorUnchecked());
 }
 
-void InterpreterAssembler::TraceBytecodeDispatch(Node* target_bytecode) {
+void InterpreterAssembler::TraceBytecodeDispatch(TNode<WordT> target_bytecode) {
   TNode<ExternalReference> counters_table = ExternalConstant(
       ExternalReference::interpreter_dispatch_counters(isolate()));
   TNode<IntPtrT> source_bytecode_table_index = IntPtrConstant(
@@ -1485,8 +1486,8 @@ bool InterpreterAssembler::TargetSupportsUnalignedAccess() {
 }
 
 void InterpreterAssembler::AbortIfRegisterCountInvalid(
-    Node* parameters_and_registers, Node* formal_parameter_count,
-    Node* register_count) {
+    TNode<FixedArrayBase> parameters_and_registers,
+    TNode<IntPtrT> formal_parameter_count, TNode<UintPtrT> register_count) {
   TNode<IntPtrT> array_size =
       LoadAndUntagFixedArrayBaseLength(parameters_and_registers);
 
@@ -1508,7 +1509,7 @@ TNode<FixedArray> InterpreterAssembler::ExportParametersAndRegisterFile(
   // Store the formal parameters (without receiver) followed by the
   // registers into the generator's internal parameters_and_registers field.
   TNode<IntPtrT> formal_parameter_count_intptr =
-      ChangeInt32ToIntPtr(formal_parameter_count);
+      Signed(ChangeUint32ToWord(formal_parameter_count));
   TNode<UintPtrT> register_count = ChangeUint32ToWord(registers.reg_count());
   if (FLAG_debug_code) {
     CSA_ASSERT(this, IntPtrEqual(registers.base_reg_location(),
@@ -1581,7 +1582,7 @@ TNode<FixedArray> InterpreterAssembler::ImportRegisterFile(
     TNode<FixedArray> array, const RegListNodePair& registers,
     TNode<Int32T> formal_parameter_count) {
   TNode<IntPtrT> formal_parameter_count_intptr =
-      ChangeInt32ToIntPtr(formal_parameter_count);
+      Signed(ChangeUint32ToWord(formal_parameter_count));
   TNode<UintPtrT> register_count = ChangeUint32ToWord(registers.reg_count());
   if (FLAG_debug_code) {
     CSA_ASSERT(this, IntPtrEqual(registers.base_reg_location(),
