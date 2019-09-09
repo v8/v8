@@ -643,14 +643,7 @@ int ScopeIterator::GetSourcePosition() {
     DCHECK(!generator_.is_null());
     SharedFunctionInfo::EnsureSourcePositionsAvailable(
         isolate_, handle(generator_->function().shared(), isolate_));
-    // The source position of a generator function is equal to the
-    // start_position() of its scope. This would fail the search
-    // in the {ScopeChainRetriever}, which *requires* a
-    // smaller then comparison for correct scopes when hitting break
-    // points at function literals.
-    // To fix this, we nudge the source position of the generator
-    // by 1, so the scope of the generator function is correctly found.
-    return generator_->source_position() + 1;
+    return generator_->source_position();
   }
 }
 
