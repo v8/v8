@@ -1349,8 +1349,8 @@ void CodeAssembler::TailCallStubImpl(const CallInterfaceDescriptor& descriptor,
 
 Node* CodeAssembler::CallStubRImpl(StubCallMode call_mode,
                                    const CallInterfaceDescriptor& descriptor,
-                                   size_t result_size, Node* target,
-                                   SloppyTNode<Object> context,
+                                   size_t result_size, TNode<Object> target,
+                                   TNode<Object> context,
                                    std::initializer_list<Node*> args) {
   DCHECK(call_mode == StubCallMode::kCallCodeObject ||
          call_mode == StubCallMode::kCallBuiltinPointer);

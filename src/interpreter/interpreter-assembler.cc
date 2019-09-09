@@ -724,14 +724,14 @@ void InterpreterAssembler::CallEpilogue() {
 }
 
 void InterpreterAssembler::CallJSAndDispatch(
-    Node* function, Node* context, const RegListNodePair& args,
+    TNode<Object> function, TNode<Context> context, const RegListNodePair& args,
     ConvertReceiverMode receiver_mode) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   DCHECK(Bytecodes::IsCallOrConstruct(bytecode_) ||
          bytecode_ == Bytecode::kInvokeIntrinsic);
   DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), receiver_mode);
 
-  Node* args_count;
+  TNode<Word32T> args_count;
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
     // The receiver is implied, so it is not in the argument list.
     args_count = args.reg_count();
@@ -753,8 +753,9 @@ void InterpreterAssembler::CallJSAndDispatch(
 }
 
 template <class... TArgs>
-void InterpreterAssembler::CallJSAndDispatch(Node* function, Node* context,
-                                             Node* arg_count,
+void InterpreterAssembler::CallJSAndDispatch(TNode<Object> function,
+                                             TNode<Context> context,
+                                             TNode<Word32T> arg_count,
                                              ConvertReceiverMode receiver_mode,
                                              TArgs... args) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
@@ -780,21 +781,21 @@ void InterpreterAssembler::CallJSAndDispatch(Node* function, Node* context,
 // Instantiate CallJSAndDispatch() for argument counts used by interpreter
 // generator.
 template V8_EXPORT_PRIVATE void InterpreterAssembler::CallJSAndDispatch(
-    Node* function, Node* context, Node* arg_count,
+    TNode<Object> function, TNode<Context> context, TNode<Word32T> arg_count,
     ConvertReceiverMode receiver_mode);
 template V8_EXPORT_PRIVATE void InterpreterAssembler::CallJSAndDispatch(
-    Node* function, Node* context, Node* arg_count,
+    TNode<Object> function, TNode<Context> context, TNode<Word32T> arg_count,
     ConvertReceiverMode receiver_mode, Node*);
 template V8_EXPORT_PRIVATE void InterpreterAssembler::CallJSAndDispatch(
-    Node* function, Node* context, Node* arg_count,
+    TNode<Object> function, TNode<Context> context, TNode<Word32T> arg_count,
     ConvertReceiverMode receiver_mode, Node*, Node*);
 template V8_EXPORT_PRIVATE void InterpreterAssembler::CallJSAndDispatch(
-    Node* function, Node* context, Node* arg_count,
+    TNode<Object> function, TNode<Context> context, TNode<Word32T> arg_count,
     ConvertReceiverMode receiver_mode, Node*, Node*, Node*);
 
 void InterpreterAssembler::CallJSWithSpreadAndDispatch(
-    Node* function, Node* context, const RegListNodePair& args, Node* slot_id,
-    Node* maybe_feedback_vector) {
+    TNode<Object> function, TNode<Context> context, const RegListNodePair& args,
+    TNode<UintPtrT> slot_id, TNode<HeapObject> maybe_feedback_vector) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), ConvertReceiverMode::kAny);
   CollectCallFeedback(function, context, maybe_feedback_vector, slot_id);
@@ -813,16 +814,18 @@ void InterpreterAssembler::CallJSWithSpreadAndDispatch(
   accumulator_use_ = accumulator_use_ | AccumulatorUse::kWrite;
 }
 
-Node* InterpreterAssembler::Construct(SloppyTNode<Object> target, Node* context,
-                                      SloppyTNode<Object> new_target,
-                                      const RegListNodePair& args,
-                                      Node* slot_id, Node* feedback_vector) {
+TNode<Object> InterpreterAssembler::Construct(
+    TNode<Object> target, TNode<Context> context, TNode<Object> new_target,
+    const RegListNodePair& args, TNode<UintPtrT> slot_id,
+    TNode<HeapObject> maybe_feedback_vector) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
-  VARIABLE(var_result, MachineRepresentation::kTagged);
-  VARIABLE(var_site, MachineRepresentation::kTagged);
+  TVARIABLE(Object, var_result);
+  TVARIABLE(AllocationSite, var_site);
   Label extra_checks(this, Label::kDeferred), return_result(this, &var_result),
       construct(this), construct_array(this, &var_site);
-  GotoIf(IsUndefined(feedback_vector), &construct);
+  GotoIf(IsUndefined(maybe_feedback_vector), &construct);
+
+  TNode<FeedbackVector> feedback_vector = CAST(maybe_feedback_vector);
 
   // Increment the call count.
   IncrementCallCount(feedback_vector, slot_id);
@@ -863,7 +866,7 @@ Node* InterpreterAssembler::Construct(SloppyTNode<Object> target, Node* context,
           LoadNativeContext(context), Context::ARRAY_FUNCTION_INDEX);
       GotoIfNot(TaggedEqual(target, array_function), &mark_megamorphic);
       GotoIfNot(TaggedEqual(new_target, array_function), &mark_megamorphic);
-      var_site.Bind(strong_feedback);
+      var_site = CAST(strong_feedback);
       Goto(&construct_array);
     }
 
@@ -882,14 +885,13 @@ Node* InterpreterAssembler::Construct(SloppyTNode<Object> target, Node* context,
       GotoIf(TaggedIsSmi(new_target), &mark_megamorphic);
       // Check if the {new_target} is a JSFunction or JSBoundFunction
       // in the current native context.
-      VARIABLE(var_current, MachineRepresentation::kTagged, new_target);
+      TVARIABLE(HeapObject, var_current, CAST(new_target));
       Label loop(this, &var_current), done_loop(this);
       Goto(&loop);
       BIND(&loop);
       {
         Label if_boundfunction(this), if_function(this);
-        Node* current = var_current.value();
-        CSA_ASSERT(this, TaggedIsNotSmi(current));
+        TNode<HeapObject> current = var_current.value();
         TNode<Uint16T> current_instance_type = LoadInstanceType(current);
         GotoIf(InstanceTypeEqual(current_instance_type, JS_BOUND_FUNCTION_TYPE),
                &if_boundfunction);
@@ -912,8 +914,8 @@ Node* InterpreterAssembler::Construct(SloppyTNode<Object> target, Node* context,
         BIND(&if_boundfunction);
         {
           // Continue with the [[BoundTargetFunction]] of {current}.
-          var_current.Bind(LoadObjectField(
-              current, JSBoundFunction::kBoundTargetFunctionOffset));
+          var_current = LoadObjectField<HeapObject>(
+              current, JSBoundFunction::kBoundTargetFunctionOffset);
           Goto(&loop);
         }
       }
@@ -928,10 +930,12 @@ Node* InterpreterAssembler::Construct(SloppyTNode<Object> target, Node* context,
       Branch(TaggedEqual(target, array_function), &create_allocation_site,
              &store_weak_reference);
 
+      TNode<IntPtrT> slot_id_int_ptr = Signed(slot_id);
+
       BIND(&create_allocation_site);
       {
-        var_site.Bind(CreateAllocationSiteInFeedbackVector(feedback_vector,
-                                                           SmiTag(slot_id)));
+        var_site = CreateAllocationSiteInFeedbackVector(
+            feedback_vector, SmiTag(slot_id_int_ptr));
         ReportFeedbackUpdate(feedback_vector, slot_id,
                              "Construct:CreateAllocationSite");
         Goto(&construct_array);
@@ -939,7 +943,7 @@ Node* InterpreterAssembler::Construct(SloppyTNode<Object> target, Node* context,
 
       BIND(&store_weak_reference);
       {
-        StoreWeakReferenceInFeedbackVector(feedback_vector, slot_id,
+        StoreWeakReferenceInFeedbackVector(feedback_vector, slot_id_int_ptr,
                                            CAST(new_target));
         ReportFeedbackUpdate(feedback_vector, slot_id,
                              "Construct:StoreWeakReference");
@@ -971,9 +975,9 @@ Node* InterpreterAssembler::Construct(SloppyTNode<Object> target, Node* context,
     Callable callable = CodeFactory::InterpreterPushArgsThenConstruct(
         isolate(), InterpreterPushArgsMode::kArrayFunction);
     TNode<Code> code_target = HeapConstant(callable.code());
-    var_result.Bind(CallStub(callable.descriptor(), code_target, context,
-                             args.reg_count(), args.base_reg_location(), target,
-                             new_target, var_site.value()));
+    var_result = CallStub(callable.descriptor(), code_target, context,
+                          args.reg_count(), args.base_reg_location(), target,
+                          new_target, var_site.value());
     Goto(&return_result);
   }
 
@@ -984,9 +988,9 @@ Node* InterpreterAssembler::Construct(SloppyTNode<Object> target, Node* context,
     Callable callable = CodeFactory::InterpreterPushArgsThenConstruct(
         isolate(), InterpreterPushArgsMode::kOther);
     TNode<Code> code_target = HeapConstant(callable.code());
-    var_result.Bind(CallStub(callable.descriptor(), code_target, context,
-                             args.reg_count(), args.base_reg_location(), target,
-                             new_target, UndefinedConstant()));
+    var_result = CallStub(callable.descriptor(), code_target, context,
+                          args.reg_count(), args.base_reg_location(), target,
+                          new_target, UndefinedConstant());
     Goto(&return_result);
   }
 
@@ -994,17 +998,18 @@ Node* InterpreterAssembler::Construct(SloppyTNode<Object> target, Node* context,
   return var_result.value();
 }
 
-Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
-                                                Node* new_target,
-                                                const RegListNodePair& args,
-                                                Node* slot_id,
-                                                Node* feedback_vector) {
+TNode<Object> InterpreterAssembler::ConstructWithSpread(
+    TNode<Object> target, TNode<Context> context, TNode<Object> new_target,
+    const RegListNodePair& args, TNode<UintPtrT> slot_id,
+    TNode<HeapObject> maybe_feedback_vector) {
   // TODO(bmeurer): Unify this with the Construct bytecode feedback
   // above once we have a way to pass the AllocationSite to the Array
   // constructor _and_ spread the last argument at the same time.
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   Label extra_checks(this, Label::kDeferred), construct(this);
-  GotoIf(IsUndefined(feedback_vector), &construct);
+  GotoIf(IsUndefined(maybe_feedback_vector), &construct);
+
+  TNode<FeedbackVector> feedback_vector = CAST(maybe_feedback_vector);
 
   // Increment the call count.
   IncrementCallCount(feedback_vector, slot_id);
@@ -1012,8 +1017,7 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
   // Check if we have monomorphic {new_target} feedback already.
   TNode<MaybeObject> feedback =
       LoadFeedbackVectorSlot(feedback_vector, slot_id);
-  Branch(IsWeakReferenceTo(feedback, CAST(new_target)), &construct,
-         &extra_checks);
+  Branch(IsWeakReferenceTo(feedback, new_target), &construct, &extra_checks);
 
   BIND(&extra_checks);
   {
@@ -1048,14 +1052,13 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
       GotoIf(TaggedIsSmi(new_target), &mark_megamorphic);
       // Check if the {new_target} is a JSFunction or JSBoundFunction
       // in the current native context.
-      VARIABLE(var_current, MachineRepresentation::kTagged, new_target);
+      TVARIABLE(HeapObject, var_current, CAST(new_target));
       Label loop(this, &var_current), done_loop(this);
       Goto(&loop);
       BIND(&loop);
       {
         Label if_boundfunction(this), if_function(this);
-        Node* current = var_current.value();
-        CSA_ASSERT(this, TaggedIsNotSmi(current));
+        TNode<HeapObject> current = var_current.value();
         TNode<Uint16T> current_instance_type = LoadInstanceType(current);
         GotoIf(InstanceTypeEqual(current_instance_type, JS_BOUND_FUNCTION_TYPE),
                &if_boundfunction);
@@ -1078,8 +1081,8 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
         BIND(&if_boundfunction);
         {
           // Continue with the [[BoundTargetFunction]] of {current}.
-          var_current.Bind(LoadObjectField(
-              current, JSBoundFunction::kBoundTargetFunctionOffset));
+          var_current = LoadObjectField<HeapObject>(
+              current, JSBoundFunction::kBoundTargetFunctionOffset);
           Goto(&loop);
         }
       }
@@ -1117,7 +1120,8 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
                   UndefinedConstant());
 }
 
-Node* InterpreterAssembler::CallRuntimeN(Node* function_id, Node* context,
+Node* InterpreterAssembler::CallRuntimeN(TNode<Uint32T> function_id,
+                                         TNode<Context> context,
                                          const RegListNodePair& args,
                                          int result_size) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
@@ -1126,15 +1130,15 @@ Node* InterpreterAssembler::CallRuntimeN(Node* function_id, Node* context,
   TNode<Code> code_target = HeapConstant(callable.code());
 
   // Get the function entry from the function id.
+  // TODO(solanes): ExternalReference
   Node* function_table = ExternalConstant(
       ExternalReference::runtime_function_table_address(isolate()));
   TNode<Word32T> function_offset =
       Int32Mul(function_id, Int32Constant(sizeof(Runtime::Function)));
   TNode<WordT> function =
       IntPtrAdd(function_table, ChangeUint32ToWord(function_offset));
-  Node* function_entry =
-      Load(MachineType::Pointer(), function,
-           IntPtrConstant(offsetof(Runtime::Function, entry)));
+  TNode<RawPtrT> function_entry = Load<RawPtrT>(
+      function, IntPtrConstant(offsetof(Runtime::Function, entry)));
 
   return CallStubR(StubCallMode::kCallCodeObject, callable.descriptor(),
                    result_size, code_target, context, args.reg_count(),

@@ -1520,9 +1520,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   Node* CallStubRImpl(StubCallMode call_mode,
                       const CallInterfaceDescriptor& descriptor,
-                      size_t result_size, Node* target,
-                      SloppyTNode<Object> context,
-                      std::initializer_list<Node*> args);
+                      size_t result_size, TNode<Object> target,
+                      TNode<Object> context, std::initializer_list<Node*> args);
 
   // These two don't have definitions and are here only for catching use cases
   // where the cast is not necessary.

@@ -154,7 +154,8 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Call JSFunction or Callable |function| with |args| arguments, possibly
   // including the receiver depending on |receiver_mode|. After the call returns
   // directly dispatches to the next bytecode.
-  void CallJSAndDispatch(compiler::Node* function, compiler::Node* context,
+  void CallJSAndDispatch(compiler::TNode<Object> function,
+                         compiler::TNode<Context> context,
                          const RegListNodePair& args,
                          ConvertReceiverMode receiver_mode);
 
@@ -163,43 +164,43 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // depending on |receiver_mode|. After the call returns directly dispatches to
   // the next bytecode.
   template <class... TArgs>
-  void CallJSAndDispatch(Node* function, Node* context, Node* arg_count,
+  void CallJSAndDispatch(compiler::TNode<Object> function,
+                         TNode<Context> context, TNode<Word32T> arg_count,
                          ConvertReceiverMode receiver_mode, TArgs... args);
 
   // Call JSFunction or Callable |function| with |args|
   // arguments (not including receiver), and the final argument being spread.
   // After the call returns directly dispatches to the next bytecode.
-  void CallJSWithSpreadAndDispatch(compiler::Node* function,
-                                   compiler::Node* context,
+  void CallJSWithSpreadAndDispatch(compiler::TNode<Object> function,
+                                   compiler::TNode<Context> context,
                                    const RegListNodePair& args,
-                                   compiler::Node* slot_id,
-                                   compiler::Node* feedback_vector);
+                                   compiler::TNode<UintPtrT> slot_id,
+                                   TNode<HeapObject> maybe_feedback_vector);
 
   // Call constructor |target| with |args| arguments (not including receiver).
   // The |new_target| is the same as the |target| for the new keyword, but
   // differs for the super keyword.
-  compiler::Node* Construct(compiler::SloppyTNode<Object> target,
-                            compiler::Node* context,
-                            compiler::SloppyTNode<Object> new_target,
-                            const RegListNodePair& args,
-                            compiler::Node* slot_id,
-                            compiler::Node* feedback_vector);
+  compiler::TNode<Object> Construct(compiler::TNode<Object> target,
+                                    compiler::TNode<Context> context,
+                                    compiler::TNode<Object> new_target,
+                                    const RegListNodePair& args,
+                                    compiler::TNode<UintPtrT> slot_id,
+                                    TNode<HeapObject> maybe_feedback_vector);
 
   // Call constructor |target| with |args| arguments (not including
   // receiver). The last argument is always a spread. The |new_target| is the
   // same as the |target| for the new keyword, but differs for the super
   // keyword.
-  compiler::Node* ConstructWithSpread(compiler::Node* target,
-                                      compiler::Node* context,
-                                      compiler::Node* new_target,
-                                      const RegListNodePair& args,
-                                      compiler::Node* slot_id,
-                                      compiler::Node* feedback_vector);
+  compiler::TNode<Object> ConstructWithSpread(
+      compiler::TNode<Object> target, compiler::TNode<Context> context,
+      compiler::TNode<Object> new_target, const RegListNodePair& args,
+      compiler::TNode<UintPtrT> slot_id,
+      TNode<HeapObject> maybe_feedback_vector);
 
   // Call runtime function with |args| arguments which will return |return_size|
   // number of values.
-  compiler::Node* CallRuntimeN(compiler::Node* function_id,
-                               compiler::Node* context,
+  compiler::Node* CallRuntimeN(compiler::TNode<Uint32T> function_id,
+                               compiler::TNode<Context> context,
                                const RegListNodePair& args,
                                int return_size = 1);
 

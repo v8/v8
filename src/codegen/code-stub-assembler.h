@@ -1909,20 +1909,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // an INSTANCEOF_IC in the |feedback_vector| at |slot_id|.
   void CollectCallableFeedback(TNode<Object> target, TNode<Context> context,
                                TNode<FeedbackVector> feedback_vector,
-                               TNode<IntPtrT> slot_id);
+                               TNode<UintPtrT> slot_id);
 
   // Collect CALL_IC feedback for |target| function in the
   // |feedback_vector| at |slot_id|, and the call counts in
   // the |feedback_vector| at |slot_id+1|.
-  void CollectCallFeedback(SloppyTNode<Object> target,
-                           SloppyTNode<Context> context,
-                           SloppyTNode<HeapObject> maybe_feedback_vector,
-                           SloppyTNode<IntPtrT> slot_id);
+  void CollectCallFeedback(TNode<Object> target, TNode<Context> context,
+                           TNode<HeapObject> maybe_feedback_vector,
+                           TNode<UintPtrT> slot_id);
 
   // Increment the call count for a CALL_IC or construct call.
   // The call count is located at feedback_vector[slot_id + 1].
-  void IncrementCallCount(SloppyTNode<FeedbackVector> feedback_vector,
-                          SloppyTNode<IntPtrT> slot_id);
+  void IncrementCallCount(TNode<FeedbackVector> feedback_vector,
+                          TNode<UintPtrT> slot_id);
 
   // Specify DestroySource::kYes if {from_array} is being supplanted by
   // {to_array}. This offers a slight performance benefit by simply copying the
@@ -3171,8 +3170,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Report that there was a feedback update, performing any tasks that should
   // be done after a feedback update.
-  void ReportFeedbackUpdate(SloppyTNode<FeedbackVector> feedback_vector,
-                            SloppyTNode<IntPtrT> slot_id, const char* reason);
+  void ReportFeedbackUpdate(TNode<FeedbackVector> feedback_vector,
+                            SloppyTNode<UintPtrT> slot_id, const char* reason);
 
   // Combine the new feedback with the existing_feedback. Do nothing if
   // existing_feedback is nullptr.

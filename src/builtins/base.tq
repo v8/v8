@@ -1688,7 +1688,7 @@ extern transitioning macro HasProperty_Inline(implicit context: Context)(
     JSReceiver, JSAny): Boolean;
 extern builtin LoadIC(Context, JSAny, JSAny, Smi, FeedbackVector): JSAny;
 extern macro CollectCallFeedback(
-    JSAny, Context, Undefined | FeedbackVector, intptr);
+    JSAny, Context, Undefined | FeedbackVector, uintptr);
 
 extern macro ThrowRangeError(implicit context: Context)(
     constexpr MessageTemplate): never;

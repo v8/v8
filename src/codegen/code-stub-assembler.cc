@@ -137,7 +137,7 @@ void CodeStubAssembler::Check(SloppyTNode<Word32T> condition_node,
 
 void CodeStubAssembler::CollectCallableFeedback(
     TNode<Object> target, TNode<Context> context,
-    TNode<FeedbackVector> feedback_vector, TNode<IntPtrT> slot_id) {
+    TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot_id) {
   Label extra_checks(this, Label::kDeferred), done(this);
 
   // Check if we have monomorphic {target} feedback already.
@@ -175,14 +175,13 @@ void CodeStubAssembler::CollectCallableFeedback(
       GotoIf(TaggedIsSmi(target), &mark_megamorphic);
       // Check if the {target} is a JSFunction or JSBoundFunction
       // in the current native context.
-      VARIABLE(var_current, MachineRepresentation::kTagged, target);
+      TVARIABLE(HeapObject, var_current, CAST(target));
       Label loop(this, &var_current), done_loop(this);
       Goto(&loop);
       BIND(&loop);
       {
         Label if_boundfunction(this), if_function(this);
-        Node* current = var_current.value();
-        CSA_ASSERT(this, TaggedIsNotSmi(current));
+        TNode<HeapObject> current = var_current.value();
         TNode<Uint16T> current_instance_type = LoadInstanceType(current);
         GotoIf(InstanceTypeEqual(current_instance_type, JS_BOUND_FUNCTION_TYPE),
                &if_boundfunction);
@@ -201,12 +200,11 @@ void CodeStubAssembler::CollectCallableFeedback(
               TaggedEqual(LoadNativeContext(context), current_native_context),
               &done_loop, &mark_megamorphic);
         }
-
         BIND(&if_boundfunction);
         {
           // Continue with the [[BoundTargetFunction]] of {target}.
-          var_current.Bind(LoadObjectField(
-              current, JSBoundFunction::kBoundTargetFunctionOffset));
+          var_current = LoadObjectField<HeapObject>(
+              current, JSBoundFunction::kBoundTargetFunctionOffset);
           Goto(&loop);
         }
       }
@@ -237,9 +235,8 @@ void CodeStubAssembler::CollectCallableFeedback(
 }
 
 void CodeStubAssembler::CollectCallFeedback(
-    SloppyTNode<Object> target, SloppyTNode<Context> context,
-    SloppyTNode<HeapObject> maybe_feedback_vector,
-    SloppyTNode<IntPtrT> slot_id) {
+    TNode<Object> target, TNode<Context> context,
+    TNode<HeapObject> maybe_feedback_vector, TNode<UintPtrT> slot_id) {
   Label feedback_done(this);
   // If feedback_vector is not valid, then nothing to do.
   GotoIf(IsUndefined(maybe_feedback_vector), &feedback_done);
@@ -256,7 +253,7 @@ void CodeStubAssembler::CollectCallFeedback(
 }
 
 void CodeStubAssembler::IncrementCallCount(
-    SloppyTNode<FeedbackVector> feedback_vector, SloppyTNode<IntPtrT> slot_id) {
+    TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot_id) {
   Comment("increment call count");
   TNode<Smi> call_count =
       CAST(LoadFeedbackVectorSlot(feedback_vector, slot_id, kTaggedSize));
@@ -10371,7 +10368,7 @@ void CodeStubAssembler::UpdateFeedback(Node* feedback, Node* maybe_vector,
 }
 
 void CodeStubAssembler::ReportFeedbackUpdate(
-    SloppyTNode<FeedbackVector> feedback_vector, SloppyTNode<IntPtrT> slot_id,
+    TNode<FeedbackVector> feedback_vector, SloppyTNode<UintPtrT> slot_id,
     const char* reason) {
   // Reset profiler ticks.
   StoreObjectFieldNoWriteBarrier(
@@ -10382,7 +10379,7 @@ void CodeStubAssembler::ReportFeedbackUpdate(
   // Trace the update.
   CallRuntime(Runtime::kInterpreterTraceUpdateFeedback, NoContextConstant(),
               LoadFromParentFrame(JavaScriptFrameConstants::kFunctionOffset),
-              SmiTag(slot_id), StringConstant(reason));
+              SmiTag(Signed(slot_id)), StringConstant(reason));
 #endif  // V8_TRACE_FEEDBACK_UPDATES
 }
 
