@@ -5788,14 +5788,14 @@ TNode<Int32T> CodeStubAssembler::TruncateHeapNumberValueToWord32(
 }
 
 void CodeStubAssembler::TryHeapNumberToSmi(TNode<HeapNumber> number,
-                                           TVariable<Smi>& var_result_smi,
+                                           TVariable<Smi>* var_result_smi,
                                            Label* if_smi) {
   TNode<Float64T> value = LoadHeapNumberValue(number);
   TryFloat64ToSmi(value, var_result_smi, if_smi);
 }
 
 void CodeStubAssembler::TryFloat64ToSmi(TNode<Float64T> value,
-                                        TVariable<Smi>& var_result_smi,
+                                        TVariable<Smi>* var_result_smi,
                                         Label* if_smi) {
   TNode<Int32T> value32 = RoundFloat64ToInt32(value);
   TNode<Float64T> value64 = ChangeInt32ToFloat64(value32);
@@ -5812,13 +5812,13 @@ void CodeStubAssembler::TryFloat64ToSmi(TNode<Float64T> value,
   BIND(&if_int32);
   {
     if (SmiValuesAre32Bits()) {
-      var_result_smi = SmiTag(ChangeInt32ToIntPtr(value32));
+      *var_result_smi = SmiTag(ChangeInt32ToIntPtr(value32));
     } else {
       DCHECK(SmiValuesAre31Bits());
       TNode<PairT<Int32T, BoolT>> pair = Int32AddWithOverflow(value32, value32);
       TNode<BoolT> overflow = Projection<1>(pair);
       GotoIf(overflow, &if_heap_number);
-      var_result_smi =
+      *var_result_smi =
           BitcastWordToTaggedSigned(ChangeInt32ToIntPtr(Projection<0>(pair)));
     }
     Goto(if_smi);
@@ -5831,7 +5831,7 @@ TNode<Number> CodeStubAssembler::ChangeFloat64ToTagged(
   Label if_smi(this), done(this);
   TVARIABLE(Smi, var_smi_result);
   TVARIABLE(Number, var_result);
-  TryFloat64ToSmi(value, var_smi_result, &if_smi);
+  TryFloat64ToSmi(value, &var_smi_result, &if_smi);
 
   var_result = AllocateHeapNumberWithValue(value);
   Goto(&done);
@@ -7749,7 +7749,7 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input) {
     Comment("NumberToString - HeapNumber");
     TNode<HeapNumber> heap_number_input = CAST(input);
     // Try normalizing the HeapNumber.
-    TryHeapNumberToSmi(heap_number_input, smi_input, &if_smi);
+    TryHeapNumberToSmi(heap_number_input, &smi_input, &if_smi);
 
     // Make a hash from the two 32-bit values of the double.
     TNode<Int32T> low =

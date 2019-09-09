@@ -742,27 +742,27 @@ uint32_t Assembler::CreateTargetAddress(Instr instr_lui, Instr instr_jic) {
 // before that addition, difference between upper part of the target address and
 // upper part of the sign-extended offset (0xFFFF or 0x0000), will be inserted
 // in jic register with lui instruction.
-void Assembler::UnpackTargetAddress(uint32_t address, int16_t& lui_offset,
-                                    int16_t& jic_offset) {
-  lui_offset = (address & kHiMask) >> kLuiShift;
-  jic_offset = address & kLoMask;
+void Assembler::UnpackTargetAddress(uint32_t address, int16_t* lui_offset,
+                                    int16_t* jic_offset) {
+  *lui_offset = (address & kHiMask) >> kLuiShift;
+  *jic_offset = address & kLoMask;
 
-  if (jic_offset < 0) {
-    lui_offset -= kImm16Mask;
+  if (*jic_offset < 0) {
+    *lui_offset -= kImm16Mask;
   }
 }
 
 void Assembler::UnpackTargetAddressUnsigned(uint32_t address,
-                                            uint32_t& lui_offset,
-                                            uint32_t& jic_offset) {
+                                            uint32_t* lui_offset,
+                                            uint32_t* jic_offset) {
   int16_t lui_offset16 = (address & kHiMask) >> kLuiShift;
   int16_t jic_offset16 = address & kLoMask;
 
   if (jic_offset16 < 0) {
     lui_offset16 -= kImm16Mask;
   }
-  lui_offset = static_cast<uint32_t>(lui_offset16) & kImm16Mask;
-  jic_offset = static_cast<uint32_t>(jic_offset16) & kImm16Mask;
+  *lui_offset = static_cast<uint32_t>(lui_offset16) & kImm16Mask;
+  *jic_offset = static_cast<uint32_t>(jic_offset16) & kImm16Mask;
 }
 
 void Assembler::PatchLuiOriImmediate(int pc, int32_t imm, Instr instr_lui,
@@ -1928,7 +1928,7 @@ void Assembler::lsa(Register rd, Register rt, Register rs, uint8_t sa) {
 
 // ------------Memory-instructions-------------
 
-void Assembler::AdjustBaseAndOffset(MemOperand& src,
+void Assembler::AdjustBaseAndOffset(MemOperand* src,
                                     OffsetAccessType access_type,
                                     int second_access_add_to_offset) {
   // This method is used to adjust the base register and offset pair
@@ -1941,26 +1941,26 @@ void Assembler::AdjustBaseAndOffset(MemOperand& src,
   // pointer register).
   // We preserve the "alignment" of 'offset' by adjusting it by a multiple of 8.
 
-  bool doubleword_aligned = (src.offset() & (kDoubleSize - 1)) == 0;
+  bool doubleword_aligned = (src->offset() & (kDoubleSize - 1)) == 0;
   bool two_accesses = static_cast<bool>(access_type) || !doubleword_aligned;
   DCHECK_LE(second_access_add_to_offset, 7);  // Must be <= 7.
 
   // is_int16 must be passed a signed value, hence the static cast below.
-  if (is_int16(src.offset()) &&
+  if (is_int16(src->offset()) &&
       (!two_accesses || is_int16(static_cast<int32_t>(
-                            src.offset() + second_access_add_to_offset)))) {
+                            src->offset() + second_access_add_to_offset)))) {
     // Nothing to do: 'offset' (and, if needed, 'offset + 4', or other specified
     // value) fits into int16_t.
     return;
   }
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  DCHECK(src.rm() != scratch);  // Must not overwrite the register 'base'
-                                // while loading 'offset'.
+  DCHECK(src->rm() != scratch);  // Must not overwrite the register 'base'
+                                 // while loading 'offset'.
 
 #ifdef DEBUG
   // Remember the "(mis)alignment" of 'offset', it will be checked at the end.
-  uint32_t misalignment = src.offset() & (kDoubleSize - 1);
+  uint32_t misalignment = src->offset() & (kDoubleSize - 1);
 #endif
 
   // Do not load the whole 32-bit 'offset' if it can be represented as
@@ -1972,13 +1972,13 @@ void Assembler::AdjustBaseAndOffset(MemOperand& src,
       0x7FF8;  // Max int16_t that's a multiple of 8.
   constexpr int32_t kMaxOffsetForSimpleAdjustment =
       2 * kMinOffsetForSimpleAdjustment;
-  if (0 <= src.offset() && src.offset() <= kMaxOffsetForSimpleAdjustment) {
-    addiu(at, src.rm(), kMinOffsetForSimpleAdjustment);
-    src.offset_ -= kMinOffsetForSimpleAdjustment;
-  } else if (-kMaxOffsetForSimpleAdjustment <= src.offset() &&
-             src.offset() < 0) {
-    addiu(at, src.rm(), -kMinOffsetForSimpleAdjustment);
-    src.offset_ += kMinOffsetForSimpleAdjustment;
+  if (0 <= src->offset() && src->offset() <= kMaxOffsetForSimpleAdjustment) {
+    addiu(at, src->rm(), kMinOffsetForSimpleAdjustment);
+    src->offset_ -= kMinOffsetForSimpleAdjustment;
+  } else if (-kMaxOffsetForSimpleAdjustment <= src->offset() &&
+             src->offset() < 0) {
+    addiu(at, src->rm(), -kMinOffsetForSimpleAdjustment);
+    src->offset_ += kMinOffsetForSimpleAdjustment;
   } else if (IsMipsArchVariant(kMips32r6)) {
     // On r6 take advantage of the aui instruction, e.g.:
     //   aui   at, base, offset_high
@@ -1989,12 +1989,12 @@ void Assembler::AdjustBaseAndOffset(MemOperand& src,
     //   addiu at, at, 8
     //   lw    reg_lo, (offset_low-8)(at)
     //   lw    reg_hi, (offset_low-4)(at)
-    int16_t offset_high = static_cast<uint16_t>(src.offset() >> 16);
-    int16_t offset_low = static_cast<uint16_t>(src.offset());
+    int16_t offset_high = static_cast<uint16_t>(src->offset() >> 16);
+    int16_t offset_low = static_cast<uint16_t>(src->offset());
     offset_high += (offset_low < 0)
                        ? 1
                        : 0;  // Account for offset sign extension in load/store.
-    aui(scratch, src.rm(), static_cast<uint16_t>(offset_high));
+    aui(scratch, src->rm(), static_cast<uint16_t>(offset_high));
     if (two_accesses && !is_int16(static_cast<int32_t>(
                             offset_low + second_access_add_to_offset))) {
       // Avoid overflow in the 16-bit offset of the load/store instruction when
@@ -2002,7 +2002,7 @@ void Assembler::AdjustBaseAndOffset(MemOperand& src,
       addiu(scratch, scratch, kDoubleSize);
       offset_low -= kDoubleSize;
     }
-    src.offset_ = offset_low;
+    src->offset_ = offset_low;
   } else {
     // Do not load the whole 32-bit 'offset' if it can be represented as
     // a sum of three 16-bit signed offsets. This can save an instruction.
@@ -2013,33 +2013,33 @@ void Assembler::AdjustBaseAndOffset(MemOperand& src,
         2 * kMinOffsetForSimpleAdjustment;
     constexpr int32_t kMaxOffsetForMediumAdjustment =
         3 * kMinOffsetForSimpleAdjustment;
-    if (0 <= src.offset() && src.offset() <= kMaxOffsetForMediumAdjustment) {
-      addiu(scratch, src.rm(), kMinOffsetForMediumAdjustment / 2);
+    if (0 <= src->offset() && src->offset() <= kMaxOffsetForMediumAdjustment) {
+      addiu(scratch, src->rm(), kMinOffsetForMediumAdjustment / 2);
       addiu(scratch, scratch, kMinOffsetForMediumAdjustment / 2);
-      src.offset_ -= kMinOffsetForMediumAdjustment;
-    } else if (-kMaxOffsetForMediumAdjustment <= src.offset() &&
-               src.offset() < 0) {
-      addiu(scratch, src.rm(), -kMinOffsetForMediumAdjustment / 2);
+      src->offset_ -= kMinOffsetForMediumAdjustment;
+    } else if (-kMaxOffsetForMediumAdjustment <= src->offset() &&
+               src->offset() < 0) {
+      addiu(scratch, src->rm(), -kMinOffsetForMediumAdjustment / 2);
       addiu(scratch, scratch, -kMinOffsetForMediumAdjustment / 2);
-      src.offset_ += kMinOffsetForMediumAdjustment;
+      src->offset_ += kMinOffsetForMediumAdjustment;
     } else {
       // Now that all shorter options have been exhausted, load the full 32-bit
       // offset.
-      int32_t loaded_offset = RoundDown(src.offset(), kDoubleSize);
+      int32_t loaded_offset = RoundDown(src->offset(), kDoubleSize);
       lui(scratch, (loaded_offset >> kLuiShift) & kImm16Mask);
       ori(scratch, scratch, loaded_offset & kImm16Mask);  // Load 32-bit offset.
-      addu(scratch, scratch, src.rm());
-      src.offset_ -= loaded_offset;
+      addu(scratch, scratch, src->rm());
+      src->offset_ -= loaded_offset;
     }
   }
-  src.rm_ = scratch;
+  src->rm_ = scratch;
 
-  DCHECK(is_int16(src.offset()));
+  DCHECK(is_int16(src->offset()));
   if (two_accesses) {
     DCHECK(is_int16(
-        static_cast<int32_t>(src.offset() + second_access_add_to_offset)));
+        static_cast<int32_t>(src->offset() + second_access_add_to_offset)));
   }
-  DCHECK(misalignment == (src.offset() & (kDoubleSize - 1)));
+  DCHECK(misalignment == (src->offset() & (kDoubleSize - 1)));
 }
 
 void Assembler::lb(Register rd, const MemOperand& rs) {

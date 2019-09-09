@@ -2926,18 +2926,18 @@ Register TurboAssembler::GetRtAsRegisterHelper(const Operand& rt,
   return r2;
 }
 
-bool TurboAssembler::CalculateOffset(Label* L, int32_t& offset,
+bool TurboAssembler::CalculateOffset(Label* L, int32_t* offset,
                                      OffsetSize bits) {
   if (!is_near(L, bits)) return false;
-  offset = GetOffset(offset, L, bits);
+  *offset = GetOffset(*offset, L, bits);
   return true;
 }
 
-bool TurboAssembler::CalculateOffset(Label* L, int32_t& offset, OffsetSize bits,
-                                     Register& scratch, const Operand& rt) {
+bool TurboAssembler::CalculateOffset(Label* L, int32_t* offset, OffsetSize bits,
+                                     Register* scratch, const Operand& rt) {
   if (!is_near(L, bits)) return false;
-  scratch = GetRtAsRegisterHelper(rt, scratch);
-  offset = GetOffset(offset, L, bits);
+  *scratch = GetRtAsRegisterHelper(rt, *scratch);
+  *offset = GetOffset(*offset, L, bits);
   return true;
 }
 
