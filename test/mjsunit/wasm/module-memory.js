@@ -52,9 +52,7 @@ function testPokeMemory() {
   var array = new Int8Array(buffer);
   assertEquals(kMemSize, array.length);
 
-  for (var i = 0; i < kMemSize; i++) {
-    assertEquals(0, array[i]);
-  }
+  assertTrue(array.every((e => e === 0)));
 
   for (var i = 0; i < 10; i++) {
     assertEquals(0, main(kMemSize - 4));
@@ -99,9 +97,7 @@ function testPokeOuterMemory() {
   var array = new Int8Array(buffer.buffer);
   assertEquals(kMemSize, array.length);
 
-  for (var i = 0; i < kMemSize; i++) {
-    assertEquals(0, array[i]);
-  }
+  assertTrue(array.every((e => e === 0)));
 
   for (var i = 0; i < 10; i++) {
     assertEquals(0, main(kMemSize - 4));
