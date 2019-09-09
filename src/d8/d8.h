@@ -150,6 +150,8 @@ class ExternalizedContents {
   }
   ~ExternalizedContents();
 
+  void* DeleterData() { return deleter_data_; }
+
  private:
   void* data_;
   size_t length_;

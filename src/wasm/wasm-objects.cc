@@ -25,7 +25,6 @@
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
-#include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-text.h"
@@ -1216,66 +1215,17 @@ void WasmIndirectFunctionTable::Resize(Isolate* isolate,
 }
 
 namespace {
-bool AdjustBufferPermissions(Isolate* isolate, Handle<JSArrayBuffer> old_buffer,
-                             size_t new_size) {
-  if (new_size > old_buffer->allocation_length()) return false;
-  void* old_mem_start = old_buffer->backing_store();
-  size_t old_size = old_buffer->byte_length();
-  if (old_size != new_size) {
-    DCHECK_NOT_NULL(old_mem_start);
-    DCHECK_GE(new_size, old_size);
-    // If adjusting permissions fails, propagate error back to return
-    // failure to grow.
-    if (!i::SetPermissions(GetPlatformPageAllocator(), old_mem_start, new_size,
-                           PageAllocator::kReadWrite)) {
-      return false;
-    }
-    reinterpret_cast<v8::Isolate*>(isolate)
-        ->AdjustAmountOfExternalAllocatedMemory(new_size - old_size);
-  }
-  return true;
-}
 
-MaybeHandle<JSArrayBuffer> MemoryGrowBuffer(Isolate* isolate,
-                                            Handle<JSArrayBuffer> old_buffer,
-                                            size_t new_size) {
-  CHECK_EQ(0, new_size % wasm::kWasmPageSize);
-  // Reusing the backing store from externalized buffers causes problems with
-  // Blink's array buffers. The connection between the two is lost, which can
-  // lead to Blink not knowing about the other reference to the buffer and
-  // freeing it too early.
-  if (old_buffer->is_external() || new_size > old_buffer->allocation_length()) {
-    // We couldn't reuse the old backing store, so create a new one and copy the
-    // old contents in.
-    Handle<JSArrayBuffer> new_buffer;
-    if (!wasm::NewArrayBuffer(isolate, new_size).ToHandle(&new_buffer)) {
-      return {};
-    }
-    void* old_mem_start = old_buffer->backing_store();
-    size_t old_size = old_buffer->byte_length();
-    if (old_size == 0) return new_buffer;
-    memcpy(new_buffer->backing_store(), old_mem_start, old_size);
-    DCHECK(old_buffer.is_null() || !old_buffer->is_shared());
-    constexpr bool free_memory = true;
-    i::wasm::DetachMemoryBuffer(isolate, old_buffer, free_memory);
-    return new_buffer;
-  } else {
-    if (!AdjustBufferPermissions(isolate, old_buffer, new_size)) return {};
-    // NOTE: We must allocate a new array buffer here because the spec
-    // assumes that ArrayBuffers do not change size.
-    void* backing_store = old_buffer->backing_store();
-    bool is_external = old_buffer->is_external();
-    // Disconnect buffer early so GC won't free it.
-    i::wasm::DetachMemoryBuffer(isolate, old_buffer, false);
-    Handle<JSArrayBuffer> new_buffer =
-        wasm::SetupArrayBuffer(isolate, backing_store, new_size, is_external);
-    return new_buffer;
-  }
-}
-
-// May GC, because SetSpecializationMemInfoFrom may GC
 void SetInstanceMemory(Handle<WasmInstanceObject> instance,
                        Handle<JSArrayBuffer> buffer) {
+  bool is_wasm_module = instance->module()->origin == wasm::kWasmOrigin;
+  bool use_trap_handler =
+      instance->module_object().native_module()->use_trap_handler();
+  // Wasm modules compiled to use the trap handler don't have bounds checks,
+  // so they must have a memory that has guard regions.
+  CHECK_IMPLIES(is_wasm_module && use_trap_handler,
+                buffer->GetBackingStore()->has_guard_regions());
+
   instance->SetRawMemory(reinterpret_cast<byte*>(buffer->backing_store()),
                          buffer->byte_length());
 #if DEBUG
@@ -1293,7 +1243,6 @@ void SetInstanceMemory(Handle<WasmInstanceObject> instance,
   }
 #endif
 }
-
 }  // namespace
 
 Handle<WasmMemoryObject> WasmMemoryObject::New(
@@ -1301,44 +1250,57 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(
     uint32_t maximum) {
   Handle<JSArrayBuffer> buffer;
   if (!maybe_buffer.ToHandle(&buffer)) {
-    // If no buffer was provided, create a 0-length one.
-    buffer = wasm::SetupArrayBuffer(isolate, nullptr, 0, false);
+    // If no buffer was provided, create a zero-length one.
+    auto backing_store =
+        BackingStore::AllocateWasmMemory(isolate, 0, 0, SharedFlag::kNotShared);
+    buffer = isolate->factory()->NewJSArrayBuffer();
+    buffer->Attach(std::move(backing_store));
   }
 
-  // TODO(kschimpf): Do we need to add an argument that defines the
-  // style of memory the user prefers (with/without trap handling), so
-  // that the memory will match the style of the compiled wasm module.
-  // See issue v8:7143
   Handle<JSFunction> memory_ctor(
       isolate->native_context()->wasm_memory_constructor(), isolate);
 
-  auto memory_obj = Handle<WasmMemoryObject>::cast(
+  auto memory_object = Handle<WasmMemoryObject>::cast(
       isolate->factory()->NewJSObject(memory_ctor, AllocationType::kOld));
-  memory_obj->set_array_buffer(*buffer);
-  memory_obj->set_maximum_pages(maximum);
+  memory_object->set_array_buffer(*buffer);
+  memory_object->set_maximum_pages(maximum);
 
-  return memory_obj;
+  if (buffer->is_shared()) {
+    auto backing_store = buffer->GetBackingStore();
+    backing_store->AttachSharedWasmMemoryObject(isolate, memory_object);
+  }
+
+  return memory_object;
 }
 
 MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
                                                     uint32_t initial,
                                                     uint32_t maximum,
-                                                    bool is_shared_memory) {
-  Handle<JSArrayBuffer> buffer;
-  size_t size = static_cast<size_t>(i::wasm::kWasmPageSize) *
-                static_cast<size_t>(initial);
-  if (is_shared_memory) {
-    size_t max_size = static_cast<size_t>(i::wasm::kWasmPageSize) *
-                      static_cast<size_t>(maximum);
-    if (!i::wasm::NewSharedArrayBuffer(isolate, size, max_size)
-             .ToHandle(&buffer)) {
-      return {};
-    }
-  } else {
-    if (!i::wasm::NewArrayBuffer(isolate, size).ToHandle(&buffer)) {
-      return {};
-    }
+                                                    SharedFlag shared) {
+  auto heuristic_maximum = maximum;
+#ifdef V8_TARGET_ARCH_32_BIT
+  // TODO(wasm): use a better heuristic for reserving more than the initial
+  // number of pages on 32-bit systems. Being too greedy in reserving capacity
+  // limits the number of memories that can be allocated, causing OOMs in many
+  // tests. For now, on 32-bit we never reserve more than initial, unless the
+  // memory is shared.
+  if (shared == SharedFlag::kNotShared || !FLAG_wasm_grow_shared_memory) {
+    heuristic_maximum = initial;
   }
+#endif
+
+  auto backing_store = BackingStore::AllocateWasmMemory(
+      isolate, initial, heuristic_maximum, shared);
+
+  if (!backing_store) return {};
+
+  Handle<JSArrayBuffer> buffer =
+      (shared == SharedFlag::kShared)
+          ? isolate->factory()->NewJSSharedArrayBuffer()
+          : isolate->factory()->NewJSArrayBuffer();
+
+  buffer->Attach(std::move(backing_store));
+
   return New(isolate, buffer, maximum);
 }
 
@@ -1382,11 +1344,11 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
                                uint32_t pages) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "GrowMemory");
   Handle<JSArrayBuffer> old_buffer(memory_object->array_buffer(), isolate);
-  if (old_buffer->is_shared() && !FLAG_wasm_grow_shared_memory) return -1;
-  auto* memory_tracker = isolate->wasm_engine()->memory_tracker();
-  if (!memory_tracker->IsWasmMemoryGrowable(old_buffer)) return -1;
+  // Any buffer used as an asmjs memory cannot be detached, and
+  // therefore this memory cannot be grown.
+  if (old_buffer->is_asmjs_memory()) return -1;
 
-  // Checks for maximum memory size, compute new size.
+  // Checks for maximum memory size.
   uint32_t maximum_pages = wasm::max_mem_pages();
   if (memory_object->has_maximum_pages()) {
     maximum_pages = std::min(
@@ -1401,47 +1363,49 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
       (pages > wasm::max_mem_pages() - old_pages)) {  // exceeds limit
     return -1;
   }
-  size_t new_size =
-      static_cast<size_t>(old_pages + pages) * wasm::kWasmPageSize;
+  std::shared_ptr<BackingStore> backing_store = old_buffer->GetBackingStore();
+  if (!backing_store) return -1;
 
-  // Memory is grown, but the memory objects and instances are not yet updated.
-  // Handle this in the interrupt handler so that it's safe for all the isolates
-  // that share this buffer to be updated safely.
-  Handle<JSArrayBuffer> new_buffer;
+  // Compute new size.
+  size_t new_pages = old_pages + pages;
+  size_t new_byte_length = new_pages * wasm::kWasmPageSize;
+
+  // Try to handle shared memory first.
   if (old_buffer->is_shared()) {
-    // Adjust protections for the buffer.
-    if (!AdjustBufferPermissions(isolate, old_buffer, new_size)) {
-      return -1;
+    if (FLAG_wasm_grow_shared_memory) {
+      // Shared memories can only be grown in place; no copying.
+      if (backing_store->GrowWasmMemoryInPlace(isolate, pages, maximum_pages)) {
+        BackingStore::BroadcastSharedWasmMemoryGrow(isolate, backing_store,
+                                                    new_pages);
+        // Broadcasting the update should update this memory object too.
+        CHECK_NE(*old_buffer, memory_object->array_buffer());
+        CHECK_EQ(new_byte_length, memory_object->array_buffer().byte_length());
+        return static_cast<int32_t>(old_pages);  // success
+      }
     }
-    void* backing_store = old_buffer->backing_store();
-    if (memory_tracker->IsWasmSharedMemory(backing_store)) {
-      // This memory is shared between different isolates.
-      DCHECK(old_buffer->is_shared());
-      // Update pending grow state, and trigger a grow interrupt on all the
-      // isolates that share this buffer.
-      memory_tracker->SetPendingUpdateOnGrow(old_buffer, new_size);
-      // Handle interrupts for this isolate so that the instances with this
-      // isolate are updated.
-      isolate->stack_guard()->HandleInterrupts();
-      // Failure to allocate, or adjust pemissions already handled here, and
-      // updates to instances handled in the interrupt handler safe to return.
-      return static_cast<uint32_t>(old_size / wasm::kWasmPageSize);
-    }
-    // SharedArrayBuffer, but not shared across isolates. Setup a new buffer
-    // with updated permissions and update the instances.
-    new_buffer =
-        wasm::SetupArrayBuffer(isolate, backing_store, new_size,
-                               old_buffer->is_external(), SharedFlag::kShared);
-    memory_object->update_instances(isolate, new_buffer);
-  } else {
-    if (!MemoryGrowBuffer(isolate, old_buffer, new_size)
-             .ToHandle(&new_buffer)) {
-      return -1;
-    }
+    return -1;
   }
-  // Update instances if any.
+
+  // Try to grow non-shared memory in-place.
+  if (backing_store->GrowWasmMemoryInPlace(isolate, pages, maximum_pages)) {
+    // Detach old and create a new one with the grown backing store.
+    old_buffer->Detach(true);
+    Handle<JSArrayBuffer> new_buffer = isolate->factory()->NewJSArrayBuffer();
+    new_buffer->Attach(backing_store);
+    memory_object->update_instances(isolate, new_buffer);
+    return static_cast<int32_t>(old_pages);  // success
+  }
+  // Try allocating a new backing store and copying.
+  std::unique_ptr<BackingStore> new_backing_store =
+      backing_store->CopyWasmMemory(isolate, new_pages);
+  if (!new_backing_store) return -1;
+
+  // Detach old and create a new one with the new backing store.
+  old_buffer->Detach(true);
+  Handle<JSArrayBuffer> new_buffer = isolate->factory()->NewJSArrayBuffer();
+  new_buffer->Attach(std::move(new_backing_store));
   memory_object->update_instances(isolate, new_buffer);
-  return static_cast<uint32_t>(old_size / wasm::kWasmPageSize);
+  return static_cast<int32_t>(old_pages);  // success
 }
 
 // static
@@ -1475,18 +1439,15 @@ MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
     global_obj->set_tagged_buffer(*tagged_buffer);
   } else {
     DCHECK(maybe_tagged_buffer.is_null());
-    Handle<JSArrayBuffer> untagged_buffer;
     uint32_t type_size = wasm::ValueTypes::ElementSizeInBytes(type);
-    if (!maybe_untagged_buffer.ToHandle(&untagged_buffer)) {
-      // If no buffer was provided, create one long enough for the given type.
-      untagged_buffer = isolate->factory()->NewJSArrayBuffer(
-          SharedFlag::kNotShared, AllocationType::kOld);
 
-      const bool initialize = true;
-      if (!JSArrayBuffer::SetupAllocatingData(untagged_buffer, isolate,
-                                              type_size, initialize)) {
-        return {};
-      }
+    Handle<JSArrayBuffer> untagged_buffer;
+    if (!maybe_untagged_buffer.ToHandle(&untagged_buffer)) {
+      MaybeHandle<JSArrayBuffer> result =
+          isolate->factory()->NewJSArrayBufferAndBackingStore(
+              offset + type_size, InitializedFlag::kZeroInitialized);
+
+      if (!result.ToHandle(&untagged_buffer)) return {};
     }
 
     // Check that the offset is in bounds.
