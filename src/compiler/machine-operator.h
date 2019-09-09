@@ -475,6 +475,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
 
   // SIMD operators.
   const Operator* F64x2Splat();
+  const Operator* F64x2SConvertI64x2();
+  const Operator* F64x2UConvertI64x2();
   const Operator* F64x2Abs();
   const Operator* F64x2Neg();
   const Operator* F64x2Add();

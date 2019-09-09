@@ -2287,6 +2287,40 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+    case kX64F64x2SConvertI64x2: {
+      XMMRegister dst = i.OutputSimd128Register();
+      Register tmp1 = i.TempRegister(0);
+      Register tmp2 = i.TempRegister(1);
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+
+      // Move low quardword into tmp1, high quadword into tmp2.
+      __ movq(tmp1, dst);
+      __ pextrq(tmp2, dst, 1);
+      // Convert tmp2, then copy from low to high quadword of dst.
+      __ cvtqsi2sd(dst, tmp2);
+      __ movlhps(dst, dst);
+      // Finally convert tmp1.
+      __ cvtqsi2sd(dst, tmp1);
+      break;
+    }
+    case kX64F64x2UConvertI64x2: {
+      XMMRegister dst = i.OutputSimd128Register();
+      Register tmp = i.TempRegister(0);
+      XMMRegister tmp_xmm = i.TempSimd128Register(1);
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+
+      // Extract high quardword.
+      __ pextrq(tmp, dst, 1);
+      // We cannot convert directly into dst, as the next call to Cvtqui2sd will
+      // zero it out, so be careful to make sure dst is unique to tmp_xmm.
+      __ Cvtqui2sd(tmp_xmm, tmp);
+      // Extract low quadword and convert.
+      __ movq(tmp, dst);
+      __ Cvtqui2sd(dst, tmp);
+      // Move converted high quadword to top of dst.
+      __ movlhps(dst, tmp_xmm);
+      break;
+    }
     case kX64F64x2ExtractLane: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       __ pextrq(kScratchRegister, i.InputSimd128Register(0), i.InputInt8(1));
