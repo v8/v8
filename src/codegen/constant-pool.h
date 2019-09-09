@@ -102,13 +102,13 @@ class ConstantPoolBuilder {
   ConstantPoolEntry::Access AddEntry(int position, intptr_t value,
                                      bool sharing_ok) {
     ConstantPoolEntry entry(position, value, sharing_ok);
-    return AddEntry(entry, ConstantPoolEntry::INTPTR);
+    return AddEntry(&entry, ConstantPoolEntry::INTPTR);
   }
 
   // Add double constant to the embedded constant pool
   ConstantPoolEntry::Access AddEntry(int position, Double value) {
     ConstantPoolEntry entry(position, value);
-    return AddEntry(entry, ConstantPoolEntry::DOUBLE);
+    return AddEntry(&entry, ConstantPoolEntry::DOUBLE);
   }
 
   // Add double constant to the embedded constant pool
