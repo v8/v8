@@ -1484,15 +1484,12 @@ void MemoryChunk::ReleaseInvalidatedSlots() {
 }
 
 template V8_EXPORT_PRIVATE void
-MemoryChunk::RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(HeapObject object,
-                                                            int size);
+MemoryChunk::RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(HeapObject object);
 template V8_EXPORT_PRIVATE void
-MemoryChunk::RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(HeapObject object,
-                                                            int size);
+MemoryChunk::RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(HeapObject object);
 
 template <RememberedSetType type>
-void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject object,
-                                                     int size) {
+void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject object) {
   bool skip_slot_recording;
 
   if (type == OLD_TO_NEW) {
@@ -1509,40 +1506,20 @@ void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject object,
     AllocateInvalidatedSlots<type>();
   }
 
-  InvalidatedSlots* invalidated_slots = this->invalidated_slots<type>();
-  InvalidatedSlots::iterator it = invalidated_slots->lower_bound(object);
-
-  if (it != invalidated_slots->end() && it->first == object) {
-    // object was already inserted
-    CHECK_LE(size, it->second);
-    return;
-  }
-
-  it = invalidated_slots->insert(it, std::make_pair(object, size));
-
-  // prevent overlapping invalidated objects for old-to-new.
-  if (type == OLD_TO_NEW && it != invalidated_slots->begin()) {
-    HeapObject pred = (--it)->first;
-    int pred_size = it->second;
-    DCHECK_LT(pred.address(), object.address());
-
-    if (pred.address() + pred_size > object.address()) {
-      it->second = static_cast<int>(object.address() - pred.address());
-    }
-  }
+  invalidated_slots<type>()->insert(object);
 }
 
-void MemoryChunk::InvalidateRecordedSlots(HeapObject object, int size) {
+void MemoryChunk::InvalidateRecordedSlots(HeapObject object) {
   if (heap()->incremental_marking()->IsCompacting()) {
     // We cannot check slot_set_[OLD_TO_OLD] here, since the
     // concurrent markers might insert slots concurrently.
-    RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object, size);
+    RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object);
   }
 
   heap()->MoveStoreBufferEntriesToRememberedSet();
 
   if (slot_set_[OLD_TO_NEW] != nullptr) {
-    RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(object, size);
+    RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(object);
   }
 }
 
@@ -1558,27 +1535,6 @@ bool MemoryChunk::RegisteredObjectWithInvalidatedSlots(HeapObject object) {
   }
   return invalidated_slots<type>()->find(object) !=
          invalidated_slots<type>()->end();
-}
-
-template void MemoryChunk::MoveObjectWithInvalidatedSlots<OLD_TO_OLD>(
-    HeapObject old_start, HeapObject new_start);
-
-template <RememberedSetType type>
-void MemoryChunk::MoveObjectWithInvalidatedSlots(HeapObject old_start,
-                                                 HeapObject new_start) {
-  DCHECK_LT(old_start, new_start);
-  DCHECK_EQ(MemoryChunk::FromHeapObject(old_start),
-            MemoryChunk::FromHeapObject(new_start));
-  static_assert(type == OLD_TO_OLD, "only use this for old-to-old slots");
-  if (!ShouldSkipEvacuationSlotRecording() && invalidated_slots<type>()) {
-    auto it = invalidated_slots<type>()->find(old_start);
-    if (it != invalidated_slots<type>()->end()) {
-      int old_size = it->second;
-      int delta = static_cast<int>(new_start.address() - old_start.address());
-      invalidated_slots<type>()->erase(it);
-      (*invalidated_slots<type>())[new_start] = old_size - delta;
-    }
-  }
 }
 
 void MemoryChunk::ReleaseLocalTracker() {

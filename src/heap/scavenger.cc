@@ -442,13 +442,6 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
       SlotSet::KEEP_EMPTY_BUCKETS);
 
   if (page->invalidated_slots<OLD_TO_NEW>() != nullptr) {
-#ifdef DEBUG
-    for (auto object_size : *page->invalidated_slots<OLD_TO_NEW>()) {
-      HeapObject object = object_size.first;
-      int size = object_size.second;
-      DCHECK_LE(object.SizeFromMap(object.map()), size);
-    }
-#endif
     // The invalidated slots are not needed after old-to-new slots were
     // processed.
     page->ReleaseInvalidatedSlots<OLD_TO_NEW>();

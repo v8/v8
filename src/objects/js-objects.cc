@@ -2776,11 +2776,9 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
 
   Heap* heap = isolate->heap();
 
-  int old_instance_size = old_map->instance_size();
-
   // Invalidate slots manually later in case of tagged to untagged translation.
   // In all other cases the recorded slot remains dereferenceable.
-  heap->NotifyObjectLayoutChange(*object, old_instance_size, no_allocation,
+  heap->NotifyObjectLayoutChange(*object, no_allocation,
                                  InvalidateRecordedSlots::kNo);
 
   // Copy (real) inobject properties. If necessary, stop at number_of_fields to
@@ -2800,7 +2798,7 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
         // Transition from tagged to untagged slot.
         heap->ClearRecordedSlot(*object, object->RawField(index.offset()));
         MemoryChunk* chunk = MemoryChunk::FromHeapObject(*object);
-        chunk->InvalidateRecordedSlots(*object, old_instance_size);
+        chunk->InvalidateRecordedSlots(*object);
       } else {
 #ifdef DEBUG
         heap->VerifyClearedSlot(*object, object->RawField(index.offset()));
@@ -2814,6 +2812,7 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
   object->SetProperties(*array);
 
   // Create filler object past the new instance size.
+  int old_instance_size = old_map->instance_size();
   int new_instance_size = new_map->instance_size();
   int instance_size_delta = old_instance_size - new_instance_size;
   DCHECK_GE(instance_size_delta, 0);
@@ -2896,15 +2895,15 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
   DisallowHeapAllocation no_allocation;
 
   Heap* heap = isolate->heap();
-  int old_instance_size = map->instance_size();
 
   // Invalidate slots manually later in case the new map has in-object
   // properties. If not, it is not possible to store an untagged value
   // in a recorded slot.
-  heap->NotifyObjectLayoutChange(*object, old_instance_size, no_allocation,
+  heap->NotifyObjectLayoutChange(*object, no_allocation,
                                  InvalidateRecordedSlots::kNo);
 
   // Resize the object in the heap if necessary.
+  int old_instance_size = map->instance_size();
   int new_instance_size = new_map->instance_size();
   int instance_size_delta = old_instance_size - new_instance_size;
   DCHECK_GE(instance_size_delta, 0);
@@ -2929,7 +2928,7 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
         object->address() + map->GetInObjectPropertyOffset(0),
         object->address() + new_instance_size);
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(*object);
-    chunk->InvalidateRecordedSlots(*object, old_instance_size);
+    chunk->InvalidateRecordedSlots(*object);
 
     for (int i = 0; i < inobject_properties; i++) {
       FieldIndex index = FieldIndex::ForPropertyIndex(*new_map, i);

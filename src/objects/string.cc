@@ -113,7 +113,7 @@ void String::MakeThin(Isolate* isolate, String internalized) {
   bool has_pointers = StringShape(*this).IsIndirect();
 
   int old_size = this->Size();
-  isolate->heap()->NotifyObjectLayoutChange(*this, old_size, no_gc);
+  isolate->heap()->NotifyObjectLayoutChange(*this, no_gc);
   bool one_byte = internalized.IsOneByteRepresentation();
   Handle<Map> map = one_byte ? isolate->factory()->thin_one_byte_string_map()
                              : isolate->factory()->thin_string_map();
@@ -158,7 +158,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   bool has_pointers = StringShape(*this).IsIndirect();
 
   if (has_pointers) {
-    isolate->heap()->NotifyObjectLayoutChange(*this, size, no_allocation);
+    isolate->heap()->NotifyObjectLayoutChange(*this, no_allocation);
   }
   // Morph the string to an external string by replacing the map and
   // reinitializing the fields.  This won't work if the space the existing
@@ -232,7 +232,7 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   bool has_pointers = StringShape(*this).IsIndirect();
 
   if (has_pointers) {
-    isolate->heap()->NotifyObjectLayoutChange(*this, size, no_allocation);
+    isolate->heap()->NotifyObjectLayoutChange(*this, no_allocation);
   }
   // Morph the string to an external string by replacing the map and
   // reinitializing the fields.  This won't work if the space the existing

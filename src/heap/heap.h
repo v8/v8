@@ -904,7 +904,7 @@ class Heap {
   // InvalidateRecordedSlots::kNo if this is not necessary or to perform this
   // manually.
   void NotifyObjectLayoutChange(
-      HeapObject object, int old_size, const DisallowHeapAllocation&,
+      HeapObject object, const DisallowHeapAllocation&,
       InvalidateRecordedSlots invalidate_recorded_slots =
           InvalidateRecordedSlots::kYes);
 

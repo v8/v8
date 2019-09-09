@@ -3388,7 +3388,7 @@ void Heap::RegisterDeserializedObjectsForBlackAllocation(
 }
 
 void Heap::NotifyObjectLayoutChange(
-    HeapObject object, int size, const DisallowHeapAllocation&,
+    HeapObject object, const DisallowHeapAllocation&,
     InvalidateRecordedSlots invalidate_recorded_slots) {
   if (incremental_marking()->IsMarking()) {
     incremental_marking()->MarkBlackAndVisitObjectDueToLayoutChange(object);
@@ -3396,13 +3396,13 @@ void Heap::NotifyObjectLayoutChange(
         invalidate_recorded_slots == InvalidateRecordedSlots::kYes &&
         MayContainRecordedSlots(object)) {
       MemoryChunk::FromHeapObject(object)
-          ->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object, size);
+          ->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object);
     }
   }
   if (invalidate_recorded_slots == InvalidateRecordedSlots::kYes &&
       MayContainRecordedSlots(object)) {
     MemoryChunk::FromHeapObject(object)
-        ->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(object, size);
+        ->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(object);
   }
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
