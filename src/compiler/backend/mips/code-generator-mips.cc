@@ -3452,6 +3452,42 @@ void CodeGenerator::AssembleConstructFrame() {
 
   const RegList saves = call_descriptor->CalleeSavedRegisters();
   const RegList saves_fpu = call_descriptor->CalleeSavedFPRegisters();
+
+  if (required_slots > 0) {
+    DCHECK(frame_access_state()->has_frame());
+    if (info()->IsWasm() && required_slots > 128) {
+      // For WebAssembly functions with big frames we have to do the stack
+      // overflow check before we construct the frame. Otherwise we may not
+      // have enough space on the stack to call the runtime for the stack
+      // overflow.
+      Label done;
+
+      // If the frame is bigger than the stack, we throw the stack overflow
+      // exception unconditionally. Thereby we can avoid the integer overflow
+      // check in the condition code.
+      if ((required_slots * kSystemPointerSize) < (FLAG_stack_size * 1024)) {
+        __ Lw(
+             kScratchReg,
+             FieldMemOperand(kWasmInstanceRegister,
+                             WasmInstanceObject::kRealStackLimitAddressOffset));
+        __ Lw(kScratchReg, MemOperand(kScratchReg));
+        __ Addu(kScratchReg, kScratchReg,
+                      Operand(required_slots * kSystemPointerSize));
+        __ Branch(&done, uge, sp, Operand(kScratchReg));
+      }
+
+      __ Call(wasm::WasmCode::kWasmStackOverflow, RelocInfo::WASM_STUB_CALL);
+      // We come from WebAssembly, there are no references for the GC.
+      ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
+      RecordSafepoint(reference_map, Safepoint::kNoLazyDeopt);
+      if (FLAG_debug_code) {
+        __ stop();
+      }
+
+      __ bind(&done);
+    }
+  }
+
   const int returns = frame()->GetReturnSlotCount();
 
   // Skip callee-saved and return slots, which are pushed below.
