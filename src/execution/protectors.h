@@ -20,6 +20,8 @@ class Protectors : public AllStatic {
 
 #define DECLARED_PROTECTORS_ON_ISOLATE(V)                                    \
   V(ArraySpeciesLookupChain, ArraySpeciesProtector, array_species_protector) \
+  V(PromiseSpeciesLookupChain, PromiseSpeciesProtector,                      \
+    promise_species_protector)                                               \
   V(TypedArraySpeciesLookupChain, TypedArraySpeciesProtector,                \
     typed_array_species_protector)
 

@@ -4000,15 +4000,6 @@ void Isolate::InvalidateArrayConstructorProtector() {
   DCHECK(!IsArrayConstructorIntact());
 }
 
-void Isolate::InvalidatePromiseSpeciesProtector() {
-  DCHECK(factory()->promise_species_protector()->value().IsSmi());
-  DCHECK(IsPromiseSpeciesLookupChainIntact());
-  PropertyCell::SetValueWithInvalidation(
-      this, "promise_species_protector", factory()->promise_species_protector(),
-      handle(Smi::FromInt(kProtectorInvalid), this));
-  DCHECK(!IsPromiseSpeciesLookupChainIntact());
-}
-
 void Isolate::InvalidateStringLengthOverflowProtector() {
   DCHECK(factory()->string_length_protector()->value().IsSmi());
   DCHECK(IsStringLengthOverflowIntact());

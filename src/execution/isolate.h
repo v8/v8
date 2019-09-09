@@ -1176,12 +1176,6 @@ class Isolate final : private HiddenFactory {
 
   bool IsArrayOrObjectOrStringPrototype(Object object);
 
-  // Check that the @@species protector is intact, which guards the lookup of
-  // "constructor" on JSPromise instances, whose [[Prototype]] is the initial
-  // %PromisePrototype%, and the Symbol.species lookup on the
-  // %PromisePrototype%.
-  inline bool IsPromiseSpeciesLookupChainIntact();
-
   bool IsIsConcatSpreadableLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact(JSReceiver receiver);
   inline bool IsStringLengthOverflowIntact();
@@ -1262,7 +1256,6 @@ class Isolate final : private HiddenFactory {
 
   void InvalidateArrayConstructorProtector();
   void InvalidateRegExpSpeciesProtector(Handle<NativeContext> native_context);
-  void InvalidatePromiseSpeciesProtector();
   void InvalidateIsConcatSpreadableProtector();
   void InvalidateStringLengthOverflowProtector();
   void InvalidateArrayIteratorProtector();
