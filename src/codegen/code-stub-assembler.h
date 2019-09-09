@@ -1061,9 +1061,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Word32T> IsStringWrapperElementsKind(TNode<Map> map);
   void GotoIfMapHasSlowProperties(TNode<Map> map, Label* if_slow);
 
-  // Load the properties backing store of a JSObject.
-  TNode<HeapObject> LoadSlowProperties(SloppyTNode<JSObject> object);
-  TNode<HeapObject> LoadFastProperties(SloppyTNode<JSObject> object);
+  // Load the properties backing store of a JSReceiver.
+  TNode<HeapObject> LoadSlowProperties(SloppyTNode<JSReceiver> object);
+  TNode<HeapObject> LoadFastProperties(SloppyTNode<JSReceiver> object);
   // Load the elements backing store of a JSObject.
   TNode<FixedArrayBase> LoadElements(SloppyTNode<JSObject> object) {
     return LoadJSObjectElements(object);
@@ -3490,7 +3490,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // for..in helpers
   void CheckPrototypeEnumCache(Node* receiver, Node* receiver_map,
                                Label* if_fast, Label* if_slow);
-  Node* CheckEnumCache(Node* receiver, Label* if_empty, Label* if_runtime);
+  TNode<Map> CheckEnumCache(TNode<HeapObject> receiver, Label* if_empty,
+                            Label* if_runtime);
 
   TNode<Object> GetArgumentValue(TorqueStructArguments args,
                                  TNode<IntPtrT> index);

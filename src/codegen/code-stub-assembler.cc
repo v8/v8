@@ -1695,7 +1695,7 @@ void CodeStubAssembler::GotoIfMapHasSlowProperties(TNode<Map> map,
 }
 
 TNode<HeapObject> CodeStubAssembler::LoadFastProperties(
-    SloppyTNode<JSObject> object) {
+    SloppyTNode<JSReceiver> object) {
   CSA_SLOW_ASSERT(this, Word32BinaryNot(IsDictionaryMap(LoadMap(object))));
   TNode<Object> properties = LoadJSReceiverPropertiesOrHash(object);
   return Select<HeapObject>(
@@ -1704,7 +1704,7 @@ TNode<HeapObject> CodeStubAssembler::LoadFastProperties(
 }
 
 TNode<HeapObject> CodeStubAssembler::LoadSlowProperties(
-    SloppyTNode<JSObject> object) {
+    SloppyTNode<JSReceiver> object) {
   CSA_SLOW_ASSERT(this, IsDictionaryMap(LoadMap(object)));
   TNode<Object> properties = LoadJSReceiverPropertiesOrHash(object);
   return Select<HeapObject>(
@@ -13977,8 +13977,9 @@ void CodeStubAssembler::CheckPrototypeEnumCache(Node* receiver,
   }
 }
 
-Node* CodeStubAssembler::CheckEnumCache(Node* receiver, Label* if_empty,
-                                        Label* if_runtime) {
+TNode<Map> CodeStubAssembler::CheckEnumCache(TNode<HeapObject> receiver,
+                                             Label* if_empty,
+                                             Label* if_runtime) {
   Label if_fast(this), if_cache(this), if_no_cache(this, Label::kDeferred);
   TNode<Map> receiver_map = LoadMap(receiver);
 
@@ -13993,7 +13994,7 @@ Node* CodeStubAssembler::CheckEnumCache(Node* receiver, Label* if_empty,
   {
     // Avoid runtime-call for empty dictionary receivers.
     GotoIfNot(IsDictionaryMap(receiver_map), if_runtime);
-    TNode<NameDictionary> properties = CAST(LoadSlowProperties(receiver));
+    TNode<NameDictionary> properties = CAST(LoadSlowProperties(CAST(receiver)));
     TNode<Smi> length = GetNumberOfElements(properties);
     GotoIfNot(TaggedEqual(length, SmiConstant(0)), if_runtime);
     // Check that there are no elements on the {receiver} and its prototype

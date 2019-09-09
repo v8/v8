@@ -243,7 +243,7 @@ IGNITION_HANDLER(LdaContextSlot, InterpreterAssembler) {
   TNode<Context> context = CAST(LoadRegisterAtOperandIndex(0));
   TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(1));
   TNode<Uint32T> depth = BytecodeOperandUImm(2);
-  Node* slot_context = GetContextAtDepth(context, depth);
+  TNode<Context> slot_context = GetContextAtDepth(context, depth);
   TNode<Object> result = LoadContextElement(slot_context, slot_index);
   SetAccumulator(result);
   Dispatch();
@@ -257,7 +257,7 @@ IGNITION_HANDLER(LdaImmutableContextSlot, InterpreterAssembler) {
   TNode<Context> context = CAST(LoadRegisterAtOperandIndex(0));
   TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(1));
   TNode<Uint32T> depth = BytecodeOperandUImm(2);
-  Node* slot_context = GetContextAtDepth(context, depth);
+  TNode<Context> slot_context = GetContextAtDepth(context, depth);
   TNode<Object> result = LoadContextElement(slot_context, slot_index);
   SetAccumulator(result);
   Dispatch();
@@ -294,7 +294,7 @@ IGNITION_HANDLER(StaContextSlot, InterpreterAssembler) {
   TNode<Context> context = CAST(LoadRegisterAtOperandIndex(0));
   TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(1));
   TNode<Uint32T> depth = BytecodeOperandUImm(2);
-  Node* slot_context = GetContextAtDepth(context, depth);
+  TNode<Context> slot_context = GetContextAtDepth(context, depth);
   StoreContextElement(slot_context, slot_index, value);
   Dispatch();
 }
@@ -355,7 +355,7 @@ class InterpreterLookupContextSlotAssembler : public InterpreterAssembler {
 
     // Fast path does a normal load context.
     {
-      Node* slot_context = GetContextAtDepth(context, depth);
+      TNode<Context> slot_context = GetContextAtDepth(context, depth);
       TNode<Object> result = LoadContextElement(slot_context, slot_index);
       SetAccumulator(result);
       Dispatch();
@@ -730,7 +730,7 @@ IGNITION_HANDLER(LdaModuleVariable, InterpreterAssembler) {
   TNode<IntPtrT> cell_index = BytecodeOperandImmIntPtr(0);
   TNode<Uint32T> depth = BytecodeOperandUImm(1);
 
-  Node* module_context = GetContextAtDepth(GetContext(), depth);
+  TNode<Context> module_context = GetContextAtDepth(GetContext(), depth);
   TNode<SourceTextModule> module =
       CAST(LoadContextElement(module_context, Context::EXTENSION_INDEX));
 
@@ -775,7 +775,7 @@ IGNITION_HANDLER(StaModuleVariable, InterpreterAssembler) {
   TNode<IntPtrT> cell_index = BytecodeOperandImmIntPtr(0);
   TNode<Uint32T> depth = BytecodeOperandUImm(1);
 
-  Node* module_context = GetContextAtDepth(GetContext(), depth);
+  TNode<Context> module_context = GetContextAtDepth(GetContext(), depth);
   TNode<SourceTextModule> module =
       CAST(LoadContextElement(module_context, Context::EXTENSION_INDEX));
 
@@ -1189,14 +1189,14 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
   virtual TNode<Number> SmiOp(TNode<Smi> smi_value, Variable* var_feedback,
                               Label* do_float_op, Variable* var_float) = 0;
   // Must return a Float64 value.
-  virtual Node* FloatOp(Node* float_value) = 0;
+  virtual TNode<Float64T> FloatOp(TNode<Float64T> float_value) = 0;
   // Must return a tagged value.
-  virtual Node* BigIntOp(Node* bigint_value) = 0;
+  virtual TNode<HeapObject> BigIntOp(TNode<HeapObject> bigint_value) = 0;
 
   void UnaryOpWithFeedback() {
-    VARIABLE(var_value, MachineRepresentation::kTagged, GetAccumulator());
-    VARIABLE(var_result, MachineRepresentation::kTagged);
-    VARIABLE(var_float_value, MachineRepresentation::kFloat64);
+    TVARIABLE(Object, var_value, GetAccumulator());
+    TVARIABLE(Object, var_result);
+    TVARIABLE(Float64T, var_float_value);
     TVARIABLE(Smi, var_feedback, SmiConstant(BinaryOperationFeedback::kNone));
     Variable* loop_vars[] = {&var_value, &var_feedback};
     Label start(this, arraysize(loop_vars), loop_vars), end(this);
@@ -1208,9 +1208,11 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
       Label if_smi(this), if_heapnumber(this), if_oddball(this);
       Label if_bigint(this, Label::kDeferred);
       Label if_other(this, Label::kDeferred);
-      Node* value = var_value.value();
+      TNode<Object> value = var_value.value();
       GotoIf(TaggedIsSmi(value), &if_smi);
-      TNode<Map> map = LoadMap(value);
+
+      TNode<HeapObject> value_heap_object = CAST(value);
+      TNode<Map> map = LoadMap(value_heap_object);
       GotoIf(IsHeapNumberMap(map), &if_heapnumber);
       TNode<Uint16T> instance_type = LoadMapInstanceType(map);
       GotoIf(IsBigIntInstanceType(instance_type), &if_bigint);
@@ -1219,20 +1221,20 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
 
       BIND(&if_smi);
       {
-        var_result.Bind(
-            SmiOp(CAST(value), &var_feedback, &do_float_op, &var_float_value));
+        var_result =
+            SmiOp(CAST(value), &var_feedback, &do_float_op, &var_float_value);
         Goto(&end);
       }
 
       BIND(&if_heapnumber);
       {
-        var_float_value.Bind(LoadHeapNumberValue(value));
+        var_float_value = LoadHeapNumberValue(value_heap_object);
         Goto(&do_float_op);
       }
 
       BIND(&if_bigint);
       {
-        var_result.Bind(BigIntOp(value));
+        var_result = BigIntOp(value_heap_object);
         CombineFeedback(&var_feedback, BinaryOperationFeedback::kBigInt);
         Goto(&end);
       }
@@ -1246,7 +1248,8 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
                                   SmiConstant(BinaryOperationFeedback::kNone)));
         OverwriteFeedback(&var_feedback,
                           BinaryOperationFeedback::kNumberOrOddball);
-        var_value.Bind(LoadObjectField(value, Oddball::kToNumberOffset));
+        var_value =
+            LoadObjectField(value_heap_object, Oddball::kToNumberOffset);
         Goto(&start);
       }
 
@@ -1258,8 +1261,8 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
         CSA_ASSERT(this, SmiEqual(var_feedback.value(),
                                   SmiConstant(BinaryOperationFeedback::kNone)));
         OverwriteFeedback(&var_feedback, BinaryOperationFeedback::kAny);
-        var_value.Bind(
-            CallBuiltin(Builtins::kNonNumberToNumeric, GetContext(), value));
+        var_value = CallBuiltin(Builtins::kNonNumberToNumeric, GetContext(),
+                                value_heap_object);
         Goto(&start);
       }
     }
@@ -1267,8 +1270,8 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
     BIND(&do_float_op);
     {
       CombineFeedback(&var_feedback, BinaryOperationFeedback::kNumber);
-      var_result.Bind(
-          AllocateHeapNumberWithValue(FloatOp(var_float_value.value())));
+      var_result =
+          AllocateHeapNumberWithValue(FloatOp(var_float_value.value()));
       Goto(&end);
     }
 
@@ -1315,11 +1318,13 @@ class NegateAssemblerImpl : public UnaryNumericOpAssembler {
     return var_result.value();
   }
 
-  Node* FloatOp(Node* float_value) override { return Float64Neg(float_value); }
+  TNode<Float64T> FloatOp(TNode<Float64T> float_value) override {
+    return Float64Neg(float_value);
+  }
 
-  Node* BigIntOp(Node* bigint_value) override {
-    return CallRuntime(Runtime::kBigIntUnaryOp, GetContext(), bigint_value,
-                       SmiConstant(Operation::kNegate));
+  TNode<HeapObject> BigIntOp(TNode<HeapObject> bigint_value) override {
+    return CAST(CallRuntime(Runtime::kBigIntUnaryOp, GetContext(), bigint_value,
+                            SmiConstant(Operation::kNegate)));
   }
 };
 
@@ -1403,15 +1408,15 @@ class IncDecAssembler : public UnaryNumericOpAssembler {
     return result;
   }
 
-  Node* FloatOp(Node* float_value) override {
+  TNode<Float64T> FloatOp(TNode<Float64T> float_value) override {
     return op() == Operation::kIncrement
                ? Float64Add(float_value, Float64Constant(1.0))
                : Float64Sub(float_value, Float64Constant(1.0));
   }
 
-  Node* BigIntOp(Node* bigint_value) override {
-    return CallRuntime(Runtime::kBigIntUnaryOp, GetContext(), bigint_value,
-                       SmiConstant(op()));
+  TNode<HeapObject> BigIntOp(TNode<HeapObject> bigint_value) override {
+    return CAST(CallRuntime(Runtime::kBigIntUnaryOp, GetContext(), bigint_value,
+                            SmiConstant(op())));
   }
 
   void IncWithFeedback() {
@@ -1762,8 +1767,8 @@ IGNITION_HANDLER(ConstructWithSpread, InterpreterAssembler) {
   TNode<UintPtrT> slot_id = BytecodeOperandIdx(3);
   TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
   TNode<Context> context = GetContext();
-  Node* result = ConstructWithSpread(constructor, context, new_target, args,
-                                     slot_id, maybe_feedback_vector);
+  TNode<Object> result = ConstructWithSpread(
+      constructor, context, new_target, args, slot_id, maybe_feedback_vector);
   SetAccumulator(result);
   Dispatch();
 }
@@ -1781,8 +1786,8 @@ IGNITION_HANDLER(Construct, InterpreterAssembler) {
   TNode<UintPtrT> slot_id = BytecodeOperandIdx(3);
   TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
   TNode<Context> context = GetContext();
-  Node* result = Construct(constructor, context, new_target, args, slot_id,
-                           maybe_feedback_vector);
+  TNode<Object> result = Construct(constructor, context, new_target, args,
+                                   slot_id, maybe_feedback_vector);
   SetAccumulator(result);
   Dispatch();
 }
@@ -1895,9 +1900,9 @@ IGNITION_HANDLER(TestIn, InterpreterAssembler) {
   TNode<HeapObject> feedback_vector = LoadFeedbackVector();
   TNode<Context> context = GetContext();
 
-  VARIABLE(var_result, MachineRepresentation::kTagged);
-  var_result.Bind(CallBuiltin(Builtins::kKeyedHasIC, context, object, name,
-                              smi_slot, feedback_vector));
+  TVARIABLE(Object, var_result);
+  var_result = CallBuiltin(Builtins::kKeyedHasIC, context, object, name,
+                           smi_slot, feedback_vector);
   SetAccumulator(var_result.value());
   Dispatch();
 }
@@ -2800,8 +2805,8 @@ IGNITION_HANDLER(CreateMappedArguments, InterpreterAssembler) {
   // duplicate parameters.
   TNode<SharedFunctionInfo> shared_info = LoadObjectField<SharedFunctionInfo>(
       closure, JSFunction::kSharedFunctionInfoOffset);
-  Node* flags = LoadObjectField(shared_info, SharedFunctionInfo::kFlagsOffset,
-                                MachineType::Uint32());
+  TNode<Uint32T> flags =
+      LoadObjectField<Uint32T>(shared_info, SharedFunctionInfo::kFlagsOffset);
   TNode<BoolT> has_duplicate_parameters =
       IsSetWord32<SharedFunctionInfo::HasDuplicateParametersBit>(flags);
   Branch(has_duplicate_parameters, &if_duplicate_parameters,
@@ -2866,7 +2871,7 @@ IGNITION_HANDLER(StackCheck, InterpreterAssembler) {
 IGNITION_HANDLER(SetPendingMessage, InterpreterAssembler) {
   TNode<ExternalReference> pending_message = ExternalConstant(
       ExternalReference::address_of_pending_message_obj(isolate()));
-  Node* previous_message = Load(MachineType::TaggedPointer(), pending_message);
+  TNode<HeapObject> previous_message = Load<HeapObject>(pending_message);
   TNode<Object> new_message = GetAccumulator();
   StoreFullTaggedNoWriteBarrier(pending_message, new_message);
   SetAccumulator(previous_message);
@@ -2993,7 +2998,7 @@ IGNITION_HANDLER(Debugger, InterpreterAssembler) {
     TNode<Object> accumulator = GetAccumulator();                            \
     TNode<Object> result_pair =                                              \
         CallRuntime(Runtime::kDebugBreakOnBytecode, context, accumulator);   \
-    Node* return_value = Projection(0, result_pair);                         \
+    TNode<Object> return_value = CAST(Projection(0, result_pair));           \
     TNode<IntPtrT> original_bytecode = SmiUntag(Projection(1, result_pair)); \
     MaybeDropFrames(context);                                                \
     SetAccumulator(return_value);                                            \
@@ -3023,11 +3028,11 @@ IGNITION_HANDLER(IncBlockCounter, InterpreterAssembler) {
 // map of the |receiver| if it has a usable enum cache or a fixed array
 // with the keys to enumerate in the accumulator.
 IGNITION_HANDLER(ForInEnumerate, InterpreterAssembler) {
-  TNode<Object> receiver = LoadRegisterAtOperandIndex(0);
+  TNode<HeapObject> receiver = CAST(LoadRegisterAtOperandIndex(0));
   TNode<Context> context = GetContext();
 
   Label if_empty(this), if_runtime(this, Label::kDeferred);
-  Node* receiver_map = CheckEnumCache(receiver, &if_empty, &if_runtime);
+  TNode<Map> receiver_map = CheckEnumCache(receiver, &if_empty, &if_runtime);
   SetAccumulator(receiver_map);
   Dispatch();
 

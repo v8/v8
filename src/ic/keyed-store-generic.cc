@@ -835,7 +835,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
     TVARIABLE(IntPtrT, var_name_index);
     Label dictionary_found(this, &var_name_index), not_found(this);
-    TNode<NameDictionary> properties = CAST(LoadSlowProperties(CAST(receiver)));
+    TNode<NameDictionary> properties = CAST(LoadSlowProperties(receiver));
     NameDictionaryLookup<NameDictionary>(properties, name, &dictionary_found,
                                          &var_name_index, &not_found);
     BIND(&dictionary_found);
