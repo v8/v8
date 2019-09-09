@@ -1185,13 +1185,8 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
     return true;
   }
 
-  if (enabled_.bigint && global.type == kWasmI64) {
-    Handle<BigInt> bigint;
-
-    if (!BigInt::FromObject(isolate_, value).ToHandle(&bigint)) {
-      return false;
-    }
-    WriteGlobalValue(global, bigint->AsInt64());
+  if (enabled_.bigint && global.type == kWasmI64 && value->IsBigInt()) {
+    WriteGlobalValue(global, BigInt::cast(*value).AsInt64());
     return true;
   }
 
