@@ -2242,9 +2242,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                    Node* base_allocation_size,
                                    Node* allocation_site);
 
-  Node* TryTaggedToFloat64(Node* value, Label* if_valueisnotnumber);
-  Node* TruncateTaggedToFloat64(Node* context, Node* value);
-  Node* TruncateTaggedToWord32(Node* context, Node* value);
+  TNode<Float64T> TryTaggedToFloat64(TNode<Object> value,
+                                     Label* if_valueisnotnumber);
+  TNode<Float64T> TruncateTaggedToFloat64(SloppyTNode<Context> context,
+                                          SloppyTNode<Object> value);
+  TNode<Word32T> TruncateTaggedToWord32(SloppyTNode<Context> context,
+                                        SloppyTNode<Object> value);
   void TaggedToWord32OrBigInt(Node* context, Node* value, Label* if_number,
                               Variable* var_word32, Label* if_bigint,
                               Variable* var_bigint);

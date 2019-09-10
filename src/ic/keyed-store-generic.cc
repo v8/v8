@@ -94,7 +94,7 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
   void StoreElementWithCapacity(Node* receiver, TNode<Map> receiver_map,
                                 SloppyTNode<FixedArrayBase> elements,
                                 TNode<Word32T> elements_kind,
-                                TNode<IntPtrT> index, Node* value,
+                                TNode<IntPtrT> index, SloppyTNode<Object> value,
                                 Node* context, Label* slow,
                                 UpdateLength update_length);
 
@@ -306,7 +306,7 @@ void KeyedStoreGenericAssembler::MaybeUpdateLengthAndReturn(
 void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     Node* receiver, TNode<Map> receiver_map,
     SloppyTNode<FixedArrayBase> elements, TNode<Word32T> elements_kind,
-    TNode<IntPtrT> index, Node* value, Node* context, Label* slow,
+    TNode<IntPtrT> index, SloppyTNode<Object> value, Node* context, Label* slow,
     UpdateLength update_length) {
   if (update_length != kDontChangeLength) {
     CSA_ASSERT(this, InstanceTypeEqual(LoadMapInstanceType(receiver_map),
@@ -388,7 +388,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     {
       Label transition_to_double(this), transition_to_object(this);
       TNode<Context> native_context = LoadNativeContext(context);
-      Branch(TaggedEqual(LoadMap(value), HeapNumberMapConstant()),
+      Branch(TaggedEqual(LoadMap(CAST(value)), HeapNumberMapConstant()),
              &transition_to_double, &transition_to_object);
       BIND(&transition_to_double);
       {
@@ -405,7 +405,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
             index, PACKED_DOUBLE_ELEMENTS, INTPTR_PARAMETERS, kHeaderSize);
         // Make sure we do not store signalling NaNs into double arrays.
         TNode<Float64T> double_value =
-            Float64SilenceNaN(LoadHeapNumberValue(value));
+            Float64SilenceNaN(LoadHeapNumberValue(CAST(value)));
         StoreNoWriteBarrier(MachineRepresentation::kFloat64, double_elements,
                             double_offset, double_value);
         MaybeUpdateLengthAndReturn(receiver, index, value, update_length);

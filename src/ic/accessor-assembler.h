@@ -5,6 +5,7 @@
 #ifndef V8_IC_ACCESSOR_ASSEMBLER_H_
 #define V8_IC_ACCESSOR_ASSEMBLER_H_
 
+#include "src/base/optional.h"
 #include "src/codegen/code-stub-assembler.h"
 
 namespace v8 {
@@ -314,22 +315,24 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                                  TNode<StoreHandler> handler, Label* miss,
                                  ICMode ic_mode,
                                  ElementSupport support_elements);
-  void HandleStoreICSmiHandlerCase(Node* handler_word, Node* holder,
-                                   Node* value, Label* miss);
-  void HandleStoreFieldAndReturn(Node* handler_word, Node* holder,
-                                 Representation representation, Node* value,
-                                 Label* miss);
+  void HandleStoreICSmiHandlerCase(SloppyTNode<Word32T> handler_word,
+                                   SloppyTNode<JSObject> holder,
+                                   SloppyTNode<Object> value, Label* miss);
+  void HandleStoreFieldAndReturn(TNode<Word32T> handler_word,
+                                 TNode<JSObject> holder, TNode<Object> value,
+                                 base::Optional<TNode<Float64T>> double_value,
+                                 Representation representation, Label* miss);
 
   void CheckPrototypeValidityCell(TNode<Object> maybe_validity_cell,
                                   Label* miss);
   void HandleStoreICNativeDataProperty(const StoreICParameters* p, Node* holder,
-                                       Node* handler_word);
+                                       TNode<Word32T> handler_word);
 
   void HandleStoreToProxy(const StoreICParameters* p, Node* proxy, Label* miss,
                           ElementSupport support_elements);
 
   void HandleStoreAccessor(const StoreICParameters* p, Node* holder,
-                           Node* handler_word);
+                           TNode<Word32T> handler_word);
 
   // KeyedLoadIC_Generic implementation.
 
@@ -355,17 +358,19 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                            const OnFoundOnReceiver& on_found_on_receiver,
                            Label* miss, ICMode ic_mode);
 
-  Node* PrepareValueForStore(Node* handler_word, Node* holder,
-                             Representation representation, Node* value,
-                             Label* bailout);
+  void CheckHeapObjectTypeMatchesDescriptor(TNode<Word32T> handler_word,
+                                            TNode<JSObject> holder,
+                                            TNode<Object> value,
+                                            Label* bailout);
+  // Double fields store double values in a mutable box, where stores are
+  // writes into this box rather than HeapNumber assignment.
+  void CheckDescriptorConsidersNumbersMutable(TNode<Word32T> handler_word,
+                                              TNode<JSObject> holder,
+                                              Label* bailout);
 
   // Extends properties backing store by JSObject::kFieldsAdded elements,
   // returns updated properties backing store.
   Node* ExtendPropertiesBackingStore(Node* object, Node* index);
-
-  void StoreNamedField(Node* handler_word, Node* object, bool is_inobject,
-                       Representation representation, Node* value,
-                       Label* bailout);
 
   void EmitFastElementsBoundsCheck(Node* object, Node* elements,
                                    Node* intptr_index,

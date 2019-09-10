@@ -204,8 +204,6 @@ class StoreHandler final : public DataHandler {
   };
   using KindBits = BitField<Kind, 0, 4>;
 
-  enum FieldRepresentation { kSmi, kDouble, kHeapObject, kTagged };
-
   // Applicable to kGlobalProxy, kProxy kinds.
 
   // Defines whether access rights check should be done on receiver object.
@@ -233,10 +231,10 @@ class StoreHandler final : public DataHandler {
   // Encoding when KindBits contains kField or kTransitionToField.
   //
   using IsInobjectBits = DescriptorBits::Next<bool, 1>;
-  using FieldRepresentationBits = IsInobjectBits::Next<FieldRepresentation, 2>;
+  using RepresentationBits = IsInobjectBits::Next<Representation::Kind, 3>;
   // +1 here is to cover all possible JSObject header sizes.
   using FieldIndexBits =
-      FieldRepresentationBits::Next<unsigned, kDescriptorIndexBitCount + 1>;
+      RepresentationBits::Next<unsigned, kDescriptorIndexBitCount + 1>;
   // Make sure we don't overflow the smi.
   STATIC_ASSERT(FieldIndexBits::kLastUsedBit < kSmiValueSize);
 

@@ -5609,45 +5609,22 @@ void CodeStubAssembler::InitializeAllocationMemento(Node* base,
   Comment("]");
 }
 
-Node* CodeStubAssembler::TryTaggedToFloat64(Node* value,
-                                            Label* if_valueisnotnumber) {
-  Label out(this);
-  VARIABLE(var_result, MachineRepresentation::kFloat64);
-
-  // Check if the {value} is a Smi or a HeapObject.
-  Label if_valueissmi(this), if_valueisnotsmi(this);
-  Branch(TaggedIsSmi(value), &if_valueissmi, &if_valueisnotsmi);
-
-  BIND(&if_valueissmi);
-  {
-    // Convert the Smi {value}.
-    var_result.Bind(SmiToFloat64(value));
-    Goto(&out);
-  }
-
-  BIND(&if_valueisnotsmi);
-  {
-    // Check if {value} is a HeapNumber.
-    Label if_valueisheapnumber(this);
-    Branch(IsHeapNumber(value), &if_valueisheapnumber, if_valueisnotnumber);
-
-    BIND(&if_valueisheapnumber);
-    {
-      // Load the floating point value.
-      var_result.Bind(LoadHeapNumberValue(value));
-      Goto(&out);
-    }
-  }
-  BIND(&out);
-  return var_result.value();
+TNode<Float64T> CodeStubAssembler::TryTaggedToFloat64(
+    TNode<Object> value, Label* if_valueisnotnumber) {
+  return Select<Float64T>(
+      TaggedIsSmi(value), [&]() { return SmiToFloat64(CAST(value)); },
+      [&]() {
+        GotoIfNot(IsHeapNumber(CAST(value)), if_valueisnotnumber);
+        return LoadHeapNumberValue(CAST(value));
+      });
 }
 
-Node* CodeStubAssembler::TruncateTaggedToFloat64(Node* context, Node* value) {
+TNode<Float64T> CodeStubAssembler::TruncateTaggedToFloat64(
+    SloppyTNode<Context> context, SloppyTNode<Object> value) {
   // We might need to loop once due to ToNumber conversion.
-  VARIABLE(var_value, MachineRepresentation::kTagged);
-  VARIABLE(var_result, MachineRepresentation::kFloat64);
+  TVARIABLE(Object, var_value, value);
+  TVARIABLE(Float64T, var_result);
   Label loop(this, &var_value), done_loop(this, &var_result);
-  var_value.Bind(value);
   Goto(&loop);
   BIND(&loop);
   {
@@ -5658,14 +5635,13 @@ Node* CodeStubAssembler::TruncateTaggedToFloat64(Node* context, Node* value) {
 
     // Convert {value} to Float64 if it is a number and convert it to a number
     // otherwise.
-    Node* const result = TryTaggedToFloat64(value, &if_valueisnotnumber);
-    var_result.Bind(result);
+    var_result = TryTaggedToFloat64(value, &if_valueisnotnumber);
     Goto(&done_loop);
 
     BIND(&if_valueisnotnumber);
     {
       // Convert the {value} to a Number first.
-      var_value.Bind(CallBuiltin(Builtins::kNonNumberToNumber, context, value));
+      var_value = CallBuiltin(Builtins::kNonNumberToNumber, context, value);
       Goto(&loop);
     }
   }
@@ -5673,13 +5649,14 @@ Node* CodeStubAssembler::TruncateTaggedToFloat64(Node* context, Node* value) {
   return var_result.value();
 }
 
-Node* CodeStubAssembler::TruncateTaggedToWord32(Node* context, Node* value) {
+TNode<Word32T> CodeStubAssembler::TruncateTaggedToWord32(
+    SloppyTNode<Context> context, SloppyTNode<Object> value) {
   VARIABLE(var_result, MachineRepresentation::kWord32);
   Label done(this);
   TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumber>(context, value,
                                                             &done, &var_result);
   BIND(&done);
-  return var_result.value();
+  return UncheckedCast<Word32T>(var_result.value());
 }
 
 // Truncate {value} to word32 and jump to {if_number} if it is a Number,
@@ -10945,7 +10922,7 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
   if (IsSmiElementsKind(elements_kind)) {
     GotoIfNot(TaggedIsSmi(value), bailout);
   } else if (IsDoubleElementsKind(elements_kind)) {
-    value = TryTaggedToFloat64(value, bailout);
+    value = TryTaggedToFloat64(CAST(value), bailout);
   }
 
   if (IsGrowStoreMode(store_mode) &&

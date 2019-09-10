@@ -5,6 +5,7 @@
 #include "src/ic/accessor-assembler.h"
 
 #include "src/ast/ast.h"
+#include "src/base/optional.h"
 #include "src/codegen/code-factory.h"
 #include "src/ic/handler-configuration.h"
 #include "src/ic/ic.h"
@@ -924,10 +925,10 @@ void AccessorAssembler::JumpIfDataProperty(Node* details, Label* writable,
 }
 
 void AccessorAssembler::HandleStoreICNativeDataProperty(
-    const StoreICParameters* p, Node* holder, Node* handler_word) {
+    const StoreICParameters* p, Node* holder, TNode<Word32T> handler_word) {
   Comment("native_data_property_store");
   TNode<IntPtrT> descriptor =
-      Signed(DecodeWord<StoreHandler::DescriptorBits>(handler_word));
+      Signed(DecodeWordFromWord32<StoreHandler::DescriptorBits>(handler_word));
   TNode<AccessorInfo> accessor_info =
       CAST(LoadDescriptorValue(LoadMap(holder), descriptor));
 
@@ -949,7 +950,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
   BIND(&if_smi_handler);
   {
     Node* holder = p->receiver();
-    TNode<IntPtrT> handler_word = SmiUntag(CAST(handler));
+    TNode<Int32T> handler_word = SmiToInt32(CAST(handler));
 
     Label if_fast_smi(this), if_proxy(this), if_interceptor(this),
         if_slow(this);
@@ -960,19 +961,19 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     STATIC_ASSERT(StoreHandler::kSlow + 1 == StoreHandler::kProxy);
     STATIC_ASSERT(StoreHandler::kProxy + 1 == StoreHandler::kKindsNumber);
 
-    TNode<UintPtrT> handler_kind =
-        DecodeWord<StoreHandler::KindBits>(handler_word);
-    GotoIf(IntPtrLessThan(handler_kind,
-                          IntPtrConstant(StoreHandler::kGlobalProxy)),
-           &if_fast_smi);
-    GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kProxy)),
+    TNode<Uint32T> handler_kind =
+        DecodeWord32<StoreHandler::KindBits>(handler_word);
+    GotoIf(
+        Int32LessThan(handler_kind, Int32Constant(StoreHandler::kGlobalProxy)),
+        &if_fast_smi);
+    GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kProxy)),
            &if_proxy);
-    GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kInterceptor)),
+    GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kInterceptor)),
            &if_interceptor);
-    GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kSlow)),
+    GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kSlow)),
            &if_slow);
     CSA_ASSERT(this,
-               WordEqual(handler_kind, IntPtrConstant(StoreHandler::kNormal)));
+               Word32Equal(handler_kind, Int32Constant(StoreHandler::kNormal)));
     TNode<NameDictionary> properties = CAST(LoadSlowProperties(holder));
 
     TVARIABLE(IntPtrT, var_name_index);
@@ -996,14 +997,14 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
     BIND(&if_fast_smi);
     {
-      TNode<UintPtrT> handler_kind =
-          DecodeWord<StoreHandler::KindBits>(handler_word);
+      TNode<Uint32T> handler_kind =
+          DecodeWord32<StoreHandler::KindBits>(handler_word);
 
       Label data(this), accessor(this), native_data_property(this);
-      GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kAccessor)),
+      GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kAccessor)),
              &accessor);
-      Branch(WordEqual(handler_kind,
-                       IntPtrConstant(StoreHandler::kNativeDataProperty)),
+      Branch(Word32Equal(handler_kind,
+                         Int32Constant(StoreHandler::kNativeDataProperty)),
              &native_data_property, &data);
 
       BIND(&accessor);
@@ -1408,10 +1409,11 @@ void AccessorAssembler::CheckPrototypeValidityCell(
 }
 
 void AccessorAssembler::HandleStoreAccessor(const StoreICParameters* p,
-                                            Node* holder, Node* handler_word) {
+                                            Node* holder,
+                                            TNode<Word32T> handler_word) {
   Comment("accessor_store");
   TNode<IntPtrT> descriptor =
-      Signed(DecodeWord<StoreHandler::DescriptorBits>(handler_word));
+      Signed(DecodeWordFromWord32<StoreHandler::DescriptorBits>(handler_word));
   TNode<HeapObject> accessor_pair =
       CAST(LoadDescriptorValue(LoadMap(holder), descriptor));
   CSA_ASSERT(this, IsAccessorPair(accessor_pair));
@@ -1484,42 +1486,43 @@ void AccessorAssembler::HandleStoreICProtoHandler(
         if_interceptor(this);
 
     CSA_ASSERT(this, TaggedIsSmi(smi_handler));
-    TNode<IntPtrT> handler_word = SmiUntag(smi_handler);
+    TNode<Int32T> handler_word = SmiToInt32(smi_handler);
 
-    TNode<UintPtrT> handler_kind =
-        DecodeWord<StoreHandler::KindBits>(handler_word);
-    GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kNormal)),
+    TNode<Uint32T> handler_kind =
+        DecodeWord32<StoreHandler::KindBits>(handler_word);
+    GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kNormal)),
            &if_add_normal);
 
     TNode<MaybeObject> maybe_holder = LoadHandlerDataField(handler, 1);
     CSA_ASSERT(this, IsWeakOrCleared(maybe_holder));
     TNode<HeapObject> holder = GetHeapObjectAssumeWeak(maybe_holder, miss);
 
-    GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kGlobalProxy)),
+    GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kGlobalProxy)),
            &if_store_global_proxy);
 
-    GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kAccessor)),
+    GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kAccessor)),
            &if_accessor);
 
-    GotoIf(WordEqual(handler_kind,
-                     IntPtrConstant(StoreHandler::kNativeDataProperty)),
+    GotoIf(Word32Equal(handler_kind,
+                       Int32Constant(StoreHandler::kNativeDataProperty)),
            &if_native_data_property);
 
-    GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kApiSetter)),
+    GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kApiSetter)),
            &if_api_setter);
 
-    GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kSlow)),
+    GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kSlow)),
            &if_slow);
 
-    GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kInterceptor)),
+    GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kInterceptor)),
            &if_interceptor);
 
-    GotoIf(WordEqual(handler_kind,
-                     IntPtrConstant(StoreHandler::kApiSetterHolderIsPrototype)),
-           &if_api_setter);
+    GotoIf(
+        Word32Equal(handler_kind,
+                    Int32Constant(StoreHandler::kApiSetterHolderIsPrototype)),
+        &if_api_setter);
 
     CSA_ASSERT(this,
-               WordEqual(handler_kind, IntPtrConstant(StoreHandler::kProxy)));
+               Word32Equal(handler_kind, Int32Constant(StoreHandler::kProxy)));
     HandleStoreToProxy(p, holder, miss, support_elements);
 
     BIND(&if_slow);
@@ -1575,7 +1578,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       // Context is stored either in data2 or data3 field depending on whether
       // the access check is enabled for this handler or not.
       TNode<MaybeObject> maybe_context = Select<MaybeObject>(
-          IsSetWord<LoadHandler::DoAccessCheckOnReceiverBits>(handler_word),
+          IsSetWord32<LoadHandler::DoAccessCheckOnReceiverBits>(handler_word),
           [=] { return LoadHandlerDataField(handler, 3); },
           [=] { return LoadHandlerDataField(handler, 2); });
 
@@ -1593,13 +1596,13 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
       VARIABLE(api_holder, MachineRepresentation::kTagged, p->receiver());
       Label store(this);
-      GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kApiSetter)),
+      GotoIf(Word32Equal(handler_kind, Int32Constant(StoreHandler::kApiSetter)),
              &store);
 
-      CSA_ASSERT(
-          this,
-          WordEqual(handler_kind,
-                    IntPtrConstant(StoreHandler::kApiSetterHolderIsPrototype)));
+      CSA_ASSERT(this,
+                 Word32Equal(
+                     handler_kind,
+                     Int32Constant(StoreHandler::kApiSetterHolderIsPrototype)));
 
       api_holder.Bind(LoadMapPrototype(LoadMap(p->receiver())));
       Goto(&store);
@@ -1654,146 +1657,200 @@ void AccessorAssembler::HandleStoreToProxy(const StoreICParameters* p,
   }
 }
 
-void AccessorAssembler::HandleStoreICSmiHandlerCase(Node* handler_word,
-                                                    Node* holder, Node* value,
-                                                    Label* miss) {
+void AccessorAssembler::HandleStoreICSmiHandlerCase(
+    SloppyTNode<Word32T> handler_word, SloppyTNode<JSObject> holder,
+    SloppyTNode<Object> value, Label* miss) {
   Comment("field store");
 #ifdef DEBUG
-  TNode<UintPtrT> handler_kind =
-      DecodeWord<StoreHandler::KindBits>(handler_word);
+  TNode<Uint32T> handler_kind =
+      DecodeWord32<StoreHandler::KindBits>(handler_word);
   CSA_ASSERT(
       this,
       Word32Or(
-          WordEqual(handler_kind, IntPtrConstant(StoreHandler::kField)),
-          WordEqual(handler_kind, IntPtrConstant(StoreHandler::kConstField))));
+          Word32Equal(handler_kind, Int32Constant(StoreHandler::kField)),
+          Word32Equal(handler_kind, Int32Constant(StoreHandler::kConstField))));
 #endif
 
-  TNode<UintPtrT> field_representation =
-      DecodeWord<StoreHandler::FieldRepresentationBits>(handler_word);
+  TNode<Uint32T> field_representation =
+      DecodeWord32<StoreHandler::RepresentationBits>(handler_word);
 
   Label if_smi_field(this), if_double_field(this), if_heap_object_field(this),
       if_tagged_field(this);
 
-  GotoIf(WordEqual(field_representation, IntPtrConstant(StoreHandler::kTagged)),
-         &if_tagged_field);
-  GotoIf(WordEqual(field_representation,
-                   IntPtrConstant(StoreHandler::kHeapObject)),
-         &if_heap_object_field);
-  GotoIf(WordEqual(field_representation, IntPtrConstant(StoreHandler::kDouble)),
-         &if_double_field);
-  CSA_ASSERT(this, WordEqual(field_representation,
-                             IntPtrConstant(StoreHandler::kSmi)));
-  Goto(&if_smi_field);
+  int32_t case_values[] = {Representation::kTagged, Representation::kHeapObject,
+                           Representation::kSmi};
+  Label* case_labels[] = {&if_tagged_field, &if_heap_object_field,
+                          &if_smi_field};
+
+  Switch(field_representation, &if_double_field, case_values, case_labels, 3);
 
   BIND(&if_tagged_field);
   {
     Comment("store tagged field");
-    HandleStoreFieldAndReturn(handler_word, holder, Representation::Tagged(),
-                              value, miss);
-  }
-
-  BIND(&if_double_field);
-  {
-    Comment("store double field");
-    HandleStoreFieldAndReturn(handler_word, holder, Representation::Double(),
-                              value, miss);
+    HandleStoreFieldAndReturn(handler_word, holder, value, base::nullopt,
+                              Representation::Tagged(), miss);
   }
 
   BIND(&if_heap_object_field);
   {
+    Comment("heap object field checks");
+    CheckHeapObjectTypeMatchesDescriptor(handler_word, holder, value, miss);
+
     Comment("store heap object field");
-    HandleStoreFieldAndReturn(handler_word, holder,
-                              Representation::HeapObject(), value, miss);
+    HandleStoreFieldAndReturn(handler_word, holder, value, base::nullopt,
+                              Representation::HeapObject(), miss);
   }
 
   BIND(&if_smi_field);
   {
+    Comment("smi field checks");
+    GotoIfNot(TaggedIsSmi(value), miss);
+
     Comment("store smi field");
-    HandleStoreFieldAndReturn(handler_word, holder, Representation::Smi(),
-                              value, miss);
+    HandleStoreFieldAndReturn(handler_word, holder, value, base::nullopt,
+                              Representation::Smi(), miss);
+  }
+
+  BIND(&if_double_field);
+  {
+    CSA_ASSERT(this, Word32Equal(field_representation,
+                                 Int32Constant(Representation::kDouble)));
+    Comment("double field checks");
+    TNode<Float64T> double_value = TryTaggedToFloat64(value, miss);
+    CheckDescriptorConsidersNumbersMutable(handler_word, holder, miss);
+
+    Comment("store double field");
+    HandleStoreFieldAndReturn(handler_word, holder, value, double_value,
+                              Representation::Double(), miss);
   }
 }
 
-void AccessorAssembler::HandleStoreFieldAndReturn(Node* handler_word,
-                                                  Node* holder,
-                                                  Representation representation,
-                                                  Node* value, Label* miss) {
-  Node* prepared_value =
-      PrepareValueForStore(handler_word, holder, representation, value, miss);
+void AccessorAssembler::CheckHeapObjectTypeMatchesDescriptor(
+    TNode<Word32T> handler_word, TNode<JSObject> holder, TNode<Object> value,
+    Label* bailout) {
+  GotoIf(TaggedIsSmi(value), bailout);
 
-  Label if_inobject(this), if_out_of_object(this);
-  Branch(IsSetWord<StoreHandler::IsInobjectBits>(handler_word), &if_inobject,
-         &if_out_of_object);
+  Label done(this);
+  // Skip field type check in favor of constant value check when storing
+  // to constant field.
+  GotoIf(Word32Equal(DecodeWord32<StoreHandler::KindBits>(handler_word),
+                     Int32Constant(StoreHandler::kConstField)),
+         &done);
+  TNode<IntPtrT> descriptor =
+      Signed(DecodeWordFromWord32<StoreHandler::DescriptorBits>(handler_word));
+  TNode<MaybeObject> maybe_field_type =
+      LoadDescriptorValueOrFieldType(LoadMap(holder), descriptor);
 
-  BIND(&if_inobject);
+  GotoIf(TaggedIsSmi(maybe_field_type), &done);
+  // Check that value type matches the field type.
   {
-    StoreNamedField(handler_word, holder, true, representation, prepared_value,
-                    miss);
-    Return(value);
+    TNode<HeapObject> field_type =
+        GetHeapObjectAssumeWeak(maybe_field_type, bailout);
+    Branch(TaggedEqual(LoadMap(CAST(value)), field_type), &done, bailout);
   }
-
-  BIND(&if_out_of_object);
-  {
-    StoreNamedField(handler_word, holder, false, representation, prepared_value,
-                    miss);
-    Return(value);
-  }
+  BIND(&done);
 }
 
-Node* AccessorAssembler::PrepareValueForStore(Node* handler_word, Node* holder,
-                                              Representation representation,
-                                              Node* value, Label* bailout) {
-  if (representation.IsDouble()) {
-    value = TryTaggedToFloat64(value, bailout);
+void AccessorAssembler::CheckDescriptorConsidersNumbersMutable(
+    TNode<Word32T> handler_word, TNode<JSObject> holder, Label* bailout) {
+  // We have to check that the representation is Double. Checking the value
+  // (either in the field or being assigned) is not enough, as we could have
+  // transitioned to Tagged but still be holding a HeapNumber, which would no
+  // longer be allowed to be mutable.
 
-    // We have to check that the representation is still Double. Checking the
-    // value is nor enough, as we could have transitioned to Tagged but still
-    // be holding a HeapNumber, which would no longer be allowed to be mutable.
+  // TODO(leszeks): We could skip the representation check in favor of a
+  // constant value check in HandleStoreFieldAndReturn here, but then
+  // HandleStoreFieldAndReturn would need an IsHeapNumber check in case both the
+  // representation changed and the value is no longer a HeapNumber.
+  TNode<IntPtrT> descriptor_entry =
+      Signed(DecodeWordFromWord32<StoreHandler::DescriptorBits>(handler_word));
+  TNode<DescriptorArray> descriptors = LoadMapDescriptors(LoadMap(holder));
+  TNode<Uint32T> details =
+      LoadDetailsByDescriptorEntry(descriptors, descriptor_entry);
 
-    // TODO(leszeks): We could skip the representation check in favor of a
-    // constant value check in StoreNamedField here, but then StoreNamedField
-    // would need an IsHeapNumber check in case both the representation changed
-    // and the value is no longer a HeapNumber.
-    TNode<IntPtrT> descriptor_entry =
-        Signed(DecodeWord<StoreHandler::DescriptorBits>(handler_word));
-    TNode<DescriptorArray> descriptors = LoadMapDescriptors(LoadMap(holder));
-    TNode<Uint32T> details =
-        LoadDetailsByDescriptorEntry(descriptors, descriptor_entry);
+  GotoIfNot(IsEqualInWord32<PropertyDetails::RepresentationField>(
+                details, Representation::kDouble),
+            bailout);
+}
 
-    GotoIfNot(IsEqualInWord32<PropertyDetails::RepresentationField>(
-                  details, Representation::kDouble),
-              bailout);
+void AccessorAssembler::HandleStoreFieldAndReturn(
+    TNode<Word32T> handler_word, TNode<JSObject> holder, TNode<Object> value,
+    base::Optional<TNode<Float64T>> double_value, Representation representation,
+    Label* miss) {
+  Label done(this);
 
-  } else if (representation.IsHeapObject()) {
-    GotoIf(TaggedIsSmi(value), bailout);
+  bool store_value_as_double = representation.IsDouble();
 
-    Label done(this);
-    // Skip field type check in favor of constant value check when storing
-    // to constant field.
-    GotoIf(WordEqual(DecodeWord<StoreHandler::KindBits>(handler_word),
-                     IntPtrConstant(StoreHandler::kConstField)),
-           &done);
-    TNode<IntPtrT> descriptor =
-        Signed(DecodeWord<StoreHandler::DescriptorBits>(handler_word));
-    TNode<MaybeObject> maybe_field_type =
-        LoadDescriptorValueOrFieldType(LoadMap(holder), descriptor);
+  TNode<BoolT> is_inobject =
+      IsSetWord32<StoreHandler::IsInobjectBits>(handler_word);
+  TNode<HeapObject> property_storage = Select<HeapObject>(
+      is_inobject, [&]() { return holder; },
+      [&]() { return LoadFastProperties(holder); });
 
-    GotoIf(TaggedIsSmi(maybe_field_type), &done);
-    // Check that value type matches the field type.
-    {
-      TNode<HeapObject> field_type =
-          GetHeapObjectAssumeWeak(maybe_field_type, bailout);
-      Branch(TaggedEqual(LoadMap(CAST(value)), field_type), &done, bailout);
+  TNode<UintPtrT> index =
+      DecodeWordFromWord32<StoreHandler::FieldIndexBits>(handler_word);
+  TNode<IntPtrT> offset = Signed(TimesTaggedSize(index));
+
+  // For Double fields, we want to mutate the current double-value
+  // field rather than changing it to point at a new HeapNumber.
+  if (store_value_as_double) {
+    TVARIABLE(HeapObject, actual_property_storage, property_storage);
+    TVARIABLE(IntPtrT, actual_offset, offset);
+
+    Label property_and_offset_ready(this);
+
+    // If we are unboxing double fields, and this is an in-object field, the
+    // property_storage and offset are already pointing to the double-valued
+    // field.
+    if (FLAG_unbox_double_fields) {
+      GotoIf(is_inobject, &property_and_offset_ready);
     }
-    BIND(&done);
 
-  } else if (representation.IsSmi()) {
-    GotoIfNot(TaggedIsSmi(value), bailout);
+    // Store the double value directly into the mutable HeapNumber.
+    TNode<Object> field = LoadObjectField(property_storage, offset);
+    CSA_ASSERT(this, IsHeapNumber(CAST(field)));
+    actual_property_storage = CAST(field);
+    actual_offset = IntPtrConstant(HeapNumber::kValueOffset);
+    Goto(&property_and_offset_ready);
 
-  } else {
-    DCHECK(representation.IsTagged());
+    BIND(&property_and_offset_ready);
+    property_storage = actual_property_storage.value();
+    offset = actual_offset.value();
   }
-  return value;
+
+  // Do constant value check if necessary.
+  Label do_store(this);
+  GotoIfNot(Word32Equal(DecodeWord32<StoreHandler::KindBits>(handler_word),
+                        Int32Constant(StoreHandler::kConstField)),
+            &do_store);
+  {
+    if (store_value_as_double) {
+      Label done(this);
+      TNode<Float64T> current_value =
+          LoadObjectField<Float64T>(property_storage, offset);
+      BranchIfSameNumberValue(current_value, *double_value, &done, miss);
+      BIND(&done);
+      Return(value);
+    } else {
+      TNode<Object> current_value = LoadObjectField(property_storage, offset);
+      GotoIfNot(TaggedEqual(current_value, value), miss);
+      Return(value);
+    }
+  }
+
+  BIND(&do_store);
+  // Do the store.
+  if (store_value_as_double) {
+    StoreObjectFieldNoWriteBarrier(property_storage, offset, *double_value,
+                                   MachineRepresentation::kFloat64);
+  } else if (representation.IsSmi()) {
+    TNode<Smi> value_smi = CAST(value);
+    StoreObjectFieldNoWriteBarrier(property_storage, offset, value_smi);
+  } else {
+    StoreObjectField(property_storage, offset, value);
+  }
+
+  Return(value);
 }
 
 Node* AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
@@ -1891,59 +1948,6 @@ Node* AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
     Goto(&done);
     BIND(&done);
     return var_new_properties.value();
-  }
-}
-
-void AccessorAssembler::StoreNamedField(Node* handler_word, Node* object,
-                                        bool is_inobject,
-                                        Representation representation,
-                                        Node* value, Label* bailout) {
-  bool store_value_as_double = representation.IsDouble();
-  Node* property_storage = object;
-  if (!is_inobject) {
-    property_storage = LoadFastProperties(object);
-  }
-
-  TNode<UintPtrT> index =
-      DecodeWord<StoreHandler::FieldIndexBits>(handler_word);
-  TNode<IntPtrT> offset = Signed(TimesTaggedSize(index));
-  if (representation.IsDouble()) {
-    if (!FLAG_unbox_double_fields || !is_inobject) {
-      // Load the mutable heap number.
-      property_storage = LoadObjectField(property_storage, offset);
-      // Store the double value into it.
-      offset = IntPtrConstant(HeapNumber::kValueOffset);
-    }
-  }
-
-  // Do constant value check if necessary.
-  Label const_checked(this);
-  GotoIfNot(WordEqual(DecodeWord<StoreHandler::KindBits>(handler_word),
-                      IntPtrConstant(StoreHandler::kConstField)),
-            &const_checked);
-  {
-    if (store_value_as_double) {
-      TNode<Float64T> current_value =
-          LoadObjectField<Float64T>(CAST(property_storage), offset);
-      BranchIfSameNumberValue(current_value, UncheckedCast<Float64T>(value),
-                              &const_checked, bailout);
-    } else {
-      TNode<Object> current_value = LoadObjectField(property_storage, offset);
-      Branch(TaggedEqual(current_value, UncheckedCast<Object>(value)),
-             &const_checked, bailout);
-    }
-  }
-
-  BIND(&const_checked);
-  // Do the store.
-  if (store_value_as_double) {
-    StoreObjectFieldNoWriteBarrier(property_storage, offset, value,
-                                   MachineRepresentation::kFloat64);
-  } else if (representation.IsSmi()) {
-    TNode<Smi> value_smi = CAST(value);
-    StoreObjectFieldNoWriteBarrier(property_storage, offset, value_smi);
-  } else {
-    StoreObjectField(property_storage, offset, value);
   }
 }
 
