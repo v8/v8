@@ -113,7 +113,10 @@ void String::MakeThin(Isolate* isolate, String internalized) {
   bool has_pointers = StringShape(*this).IsIndirect();
 
   int old_size = this->Size();
-  isolate->heap()->NotifyObjectLayoutChange(*this, no_gc);
+  // Slot invalidation is not necessary here: ThinString only stores tagged
+  // value, so it can't store an untagged value in a recorded slot.
+  isolate->heap()->NotifyObjectLayoutChange(*this, no_gc,
+                                            InvalidateRecordedSlots::kNo);
   bool one_byte = internalized.IsOneByteRepresentation();
   Handle<Map> map = one_byte ? isolate->factory()->thin_one_byte_string_map()
                              : isolate->factory()->thin_string_map();
