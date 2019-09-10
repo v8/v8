@@ -77,6 +77,8 @@ class ScopeIterator {
   // Set variable value and return true on success.
   bool SetVariableValue(Handle<String> variable_name, Handle<Object> new_value);
 
+  bool ClosureScopeHasThisReference() const;
+
   // Populate the set with collected non-local variable names.
   Handle<StringSet> GetNonLocals();
 

@@ -578,6 +578,11 @@ bool ScopeIterator::SetVariableValue(Handle<String> name,
 
 Handle<StringSet> ScopeIterator::GetNonLocals() { return non_locals_; }
 
+bool ScopeIterator::ClosureScopeHasThisReference() const {
+  return !closure_scope_->has_this_declaration() &&
+         closure_scope_->HasThisReference();
+}
+
 #ifdef DEBUG
 // Debug print of the content of the current scope.
 void ScopeIterator::DebugPrint() {
