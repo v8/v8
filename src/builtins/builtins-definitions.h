@@ -851,8 +851,6 @@ namespace internal {
   TFJ(RegExpPrototypeExec, 1, kReceiver, kString)                              \
   /* https://tc39.github.io/proposal-string-matchall/ */                       \
   TFJ(RegExpPrototypeMatchAll, 1, kReceiver, kString)                          \
-  /* ES #sec-regexp.prototype-@@search */                                      \
-  TFJ(RegExpPrototypeSearch, 1, kReceiver, kString)                            \
   CPP(RegExpPrototypeToString)                                                 \
   CPP(RegExpRightContextGetter)                                                \
                                                                                \
@@ -863,7 +861,6 @@ namespace internal {
   TFS(RegExpExecInternal, kRegExp, kString, kLastIndex, kMatchInfo)            \
   ASM(RegExpInterpreterTrampoline, CCall)                                      \
   TFS(RegExpPrototypeExecSlow, kReceiver, kString)                             \
-  TFS(RegExpSearchFast, kReceiver, kPattern)                                   \
   TFS(RegExpSplit, kRegExp, kString, kLimit)                                   \
                                                                                \
   /* RegExp String Iterator */                                                 \

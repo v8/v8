@@ -1478,6 +1478,8 @@ extern class JSRegExpResultIndices extends JSArray {
   groups: JSAny;
 }
 
+transient type FastJSRegExpResult extends JSRegExpResult;
+
 @generateCppClass
 extern class JSRegExpStringIterator extends JSObject {
   // The [[IteratingRegExp]] internal property.
@@ -2385,6 +2387,13 @@ Cast<BigInt>(o: HeapObject): BigInt labels CastError {
 Cast<JSRegExp>(o: HeapObject): JSRegExp
     labels CastError {
   if (IsJSRegExp(o)) return %RawDownCast<JSRegExp>(o);
+  goto CastError;
+}
+
+Cast<FastJSRegExpResult>(implicit context: Context)(o: HeapObject):
+    FastJSRegExpResult
+    labels CastError {
+  if (regexp::IsFastRegExpResult(o)) return %RawDownCast<FastJSRegExpResult>(o);
   goto CastError;
 }
 

@@ -185,12 +185,6 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                                          TNode<String> const string,
                                          const bool is_fastpath);
 
-  void RegExpPrototypeSearchBodyFast(TNode<Context> context,
-                                     TNode<JSRegExp> regexp,
-                                     TNode<String> string);
-  void RegExpPrototypeSearchBodySlow(TNode<Context> context, Node* const regexp,
-                                     Node* const string);
-
   void RegExpPrototypeSplitBody(TNode<Context> context, TNode<JSRegExp> regexp,
                                 TNode<String> const string,
                                 TNode<Smi> const limit);
