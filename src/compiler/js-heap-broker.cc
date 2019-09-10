@@ -2517,7 +2517,9 @@ void JSHeapBroker::InitializeAndStartSerializing(
   GetOrCreateData(f->array_buffer_detaching_protector())
       ->AsPropertyCell()
       ->Serialize(this);
-  GetOrCreateData(f->array_constructor_protector())->AsCell()->Serialize(this);
+  GetOrCreateData(f->array_constructor_protector())
+      ->AsPropertyCell()
+      ->Serialize(this);
   GetOrCreateData(f->array_iterator_protector())
       ->AsPropertyCell()
       ->Serialize(this);

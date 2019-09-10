@@ -640,7 +640,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
     allocation = dependencies()->DependOnPretenureMode(*site_ref);
     dependencies()->DependOnElementsKind(*site_ref);
   } else {
-    CellRef array_constructor_protector(
+    PropertyCellRef array_constructor_protector(
         broker(), factory()->array_constructor_protector());
     can_inline_call =
         array_constructor_protector.value().AsSmi() == Isolate::kProtectorValid;

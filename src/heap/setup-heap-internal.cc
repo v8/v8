@@ -840,9 +840,12 @@ void Heap::CreateInitialObjects() {
   script->set_origin_options(ScriptOriginOptions(true, false));
   set_empty_script(*script);
 
-  Handle<Cell> array_constructor_cell = factory->NewCell(
-      handle(Smi::FromInt(Isolate::kProtectorValid), isolate()));
-  set_array_constructor_protector(*array_constructor_cell);
+  {
+    Handle<PropertyCell> cell =
+        factory->NewPropertyCell(factory->empty_string());
+    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    set_array_constructor_protector(*cell);
+  }
 
   Handle<PropertyCell> cell = factory->NewPropertyCell(factory->empty_string());
   cell->set_value(Smi::FromInt(Isolate::kProtectorValid));

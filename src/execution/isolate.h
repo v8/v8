@@ -1166,8 +1166,6 @@ class Isolate final : private HiddenFactory {
   static const int kProtectorValid = 1;
   static const int kProtectorInvalid = 0;
 
-  inline bool IsArrayConstructorIntact();
-
   // The version with an explicit context parameter can be used when
   // Isolate::context is not set up, e.g. when calling directly into C++ from
   // CSA.

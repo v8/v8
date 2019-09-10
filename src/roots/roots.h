@@ -216,7 +216,7 @@ class Symbol;
   V(FeedbackCell, many_closures_cell, ManyClosuresCell)                      \
   V(Cell, invalid_prototype_validity_cell, InvalidPrototypeValidityCell)     \
   /* Protectors */                                                           \
-  V(Cell, array_constructor_protector, ArrayConstructorProtector)            \
+  V(PropertyCell, array_constructor_protector, ArrayConstructorProtector)    \
   V(PropertyCell, no_elements_protector, NoElementsProtector)                \
   V(Cell, is_concat_spreadable_protector, IsConcatSpreadableProtector)       \
   V(PropertyCell, array_species_protector, ArraySpeciesProtector)            \

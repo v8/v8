@@ -113,12 +113,6 @@ Isolate::ExceptionScope::~ExceptionScope() {
 NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
 #undef NATIVE_CONTEXT_FIELD_ACCESSOR
 
-bool Isolate::IsArrayConstructorIntact() {
-  Cell array_constructor_cell =
-      Cell::cast(root(RootIndex::kArrayConstructorProtector));
-  return array_constructor_cell.value() == Smi::FromInt(kProtectorValid);
-}
-
 bool Isolate::IsStringLengthOverflowIntact() {
   Cell string_length_cell = Cell::cast(root(RootIndex::kStringLengthProtector));
   return string_length_cell.value() == Smi::FromInt(kProtectorValid);

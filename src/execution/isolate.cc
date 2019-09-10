@@ -3989,17 +3989,6 @@ void Isolate::InvalidateIsConcatSpreadableProtector() {
   DCHECK(!IsIsConcatSpreadableLookupChainIntact());
 }
 
-void Isolate::InvalidateArrayConstructorProtector() {
-  DCHECK(factory()->array_constructor_protector()->value().IsSmi());
-  DCHECK(IsArrayConstructorIntact());
-  if (FLAG_trace_protector_invalidation) {
-    TraceProtectorInvalidation("array_constructor_protector");
-  }
-  factory()->array_constructor_protector()->set_value(
-      Smi::FromInt(kProtectorInvalid));
-  DCHECK(!IsArrayConstructorIntact());
-}
-
 void Isolate::InvalidateStringLengthOverflowProtector() {
   DCHECK(factory()->string_length_protector()->value().IsSmi());
   DCHECK(IsStringLengthOverflowIntact());

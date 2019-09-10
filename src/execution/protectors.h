@@ -18,11 +18,12 @@ class Protectors : public AllStatic {
 #define DECLARED_PROTECTORS_ON_NATIVE_CONTEXT(V) \
   V(RegExpSpeciesLookupChainProtector, regexp_species_protector)
 
-#define DECLARED_PROTECTORS_ON_ISOLATE(V)                                    \
-  V(ArraySpeciesLookupChain, ArraySpeciesProtector, array_species_protector) \
-  V(PromiseSpeciesLookupChain, PromiseSpeciesProtector,                      \
-    promise_species_protector)                                               \
-  V(TypedArraySpeciesLookupChain, TypedArraySpeciesProtector,                \
+#define DECLARED_PROTECTORS_ON_ISOLATE(V)                                     \
+  V(ArraySpeciesLookupChain, ArraySpeciesProtector, array_species_protector)  \
+  V(ArrayConstructor, ArrayConstructorProtector, array_constructor_protector) \
+  V(PromiseSpeciesLookupChain, PromiseSpeciesProtector,                       \
+    promise_species_protector)                                                \
+  V(TypedArraySpeciesLookupChain, TypedArraySpeciesProtector,                 \
     typed_array_species_protector)
 
 #define DECLARE_PROTECTOR_ON_NATIVE_CONTEXT(name, unused_cell)               \
