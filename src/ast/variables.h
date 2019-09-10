@@ -73,6 +73,8 @@ class Variable final : public ZoneObject {
     return MaybeAssignedFlagField::decode(bit_field_);
   }
   void SetMaybeAssigned() {
+    if (mode() == VariableMode::kConst) return;
+
     // If this variable is dynamically shadowing another variable, then that
     // variable could also be assigned (in the non-shadowing case).
     if (has_local_if_not_shadowed()) {
@@ -81,7 +83,8 @@ class Variable final : public ZoneObject {
       if (!maybe_assigned()) {
         local_if_not_shadowed()->SetMaybeAssigned();
       }
-      DCHECK(local_if_not_shadowed()->maybe_assigned());
+      DCHECK_IMPLIES(local_if_not_shadowed()->mode() != VariableMode::kConst,
+                     local_if_not_shadowed()->maybe_assigned());
     }
     set_maybe_assigned();
   }
