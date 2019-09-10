@@ -1693,7 +1693,12 @@ std::map<std::string, std::string> LookupAndValidateUnicodeExtensions(
     status = U_ZERO_ERROR;
     icu_locale->setUnicodeKeywordValue(
         bcp47_key == nullptr ? keyword : bcp47_key, nullptr, status);
-    CHECK(U_SUCCESS(status));
+    // Ignore failures in ICU and skip to the next keyword.
+    //
+    // This is fine.™
+    if (U_FAILURE(status)) {
+      status = U_ZERO_ERROR;
+    }
   }
 
   return extensions;
