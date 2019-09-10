@@ -16,8 +16,6 @@
           "V8 Linux64 TSAN - isolates",
           "V8 Linux - arm - sim - lite",
           "V8 Linux - arm - sim - lite - debug",
-          "V8 Linux - noembed",
-          "V8 Linux - noembed - debug",
           "V8 Linux - full debug",
           "V8 Win64 ASAN"
         ],
