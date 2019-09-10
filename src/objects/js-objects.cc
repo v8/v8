@@ -1094,8 +1094,7 @@ Maybe<bool> SetPropertyWithInterceptorInternal(
 
 Maybe<bool> DefinePropertyWithInterceptorInternal(
     LookupIterator* it, Handle<InterceptorInfo> interceptor,
-    Maybe<ShouldThrow> should_throw,
-    PropertyDescriptor& desc) {  // NOLINT(runtime/references)
+    Maybe<ShouldThrow> should_throw, PropertyDescriptor* desc) {
   Isolate* isolate = it->isolate();
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
@@ -1116,23 +1115,23 @@ Maybe<bool> DefinePropertyWithInterceptorInternal(
 
   std::unique_ptr<v8::PropertyDescriptor> descriptor(
       new v8::PropertyDescriptor());
-  if (PropertyDescriptor::IsAccessorDescriptor(&desc)) {
+  if (PropertyDescriptor::IsAccessorDescriptor(desc)) {
     descriptor.reset(new v8::PropertyDescriptor(
-        v8::Utils::ToLocal(desc.get()), v8::Utils::ToLocal(desc.set())));
-  } else if (PropertyDescriptor::IsDataDescriptor(&desc)) {
-    if (desc.has_writable()) {
+        v8::Utils::ToLocal(desc->get()), v8::Utils::ToLocal(desc->set())));
+  } else if (PropertyDescriptor::IsDataDescriptor(desc)) {
+    if (desc->has_writable()) {
       descriptor.reset(new v8::PropertyDescriptor(
-          v8::Utils::ToLocal(desc.value()), desc.writable()));
+          v8::Utils::ToLocal(desc->value()), desc->writable()));
     } else {
       descriptor.reset(
-          new v8::PropertyDescriptor(v8::Utils::ToLocal(desc.value())));
+          new v8::PropertyDescriptor(v8::Utils::ToLocal(desc->value())));
     }
   }
-  if (desc.has_enumerable()) {
-    descriptor->set_enumerable(desc.enumerable());
+  if (desc->has_enumerable()) {
+    descriptor->set_enumerable(desc->enumerable());
   }
-  if (desc.has_configurable()) {
-    descriptor->set_configurable(desc.configurable());
+  if (desc->has_configurable()) {
+    descriptor->set_configurable(desc->configurable());
   }
 
   if (it->IsElement()) {
@@ -1166,7 +1165,7 @@ Maybe<bool> JSReceiver::OrdinaryDefineOwnProperty(
     if (it->state() == LookupIterator::INTERCEPTOR) {
       if (it->HolderIsReceiverOrHiddenPrototype()) {
         Maybe<bool> result = DefinePropertyWithInterceptorInternal(
-            it, it->GetInterceptor(), should_throw, *desc);
+            it, it->GetInterceptor(), should_throw, desc);
         if (result.IsNothing() || result.FromJust()) {
           return result;
         }

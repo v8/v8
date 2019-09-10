@@ -894,7 +894,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
 
     Handle<StackTraceFrame> frame(StackTraceFrame::cast(elems->get(i)),
                                   isolate);
-    SerializeStackTraceFrame(isolate, frame, builder);
+    SerializeStackTraceFrame(isolate, frame, &builder);
 
     if (isolate->has_pending_exception()) {
       // CallSite.toString threw. Parts of the current frame might have been

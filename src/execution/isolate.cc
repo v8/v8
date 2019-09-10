@@ -2059,7 +2059,7 @@ void Isolate::PrintCurrentStackTrace(FILE* out) {
   for (int i = 0; i < frames->length(); ++i) {
     Handle<StackTraceFrame> frame(StackTraceFrame::cast(frames->get(i)), this);
 
-    SerializeStackTraceFrame(this, frame, builder);
+    SerializeStackTraceFrame(this, frame, &builder);
   }
 
   Handle<String> stack_trace = builder.Finish().ToHandleChecked();
