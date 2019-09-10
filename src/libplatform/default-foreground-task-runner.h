@@ -35,13 +35,14 @@ class V8_PLATFORM_EXPORT DefaultForegroundTaskRunner
 
   // v8::TaskRunner implementation.
   void PostTask(std::unique_ptr<Task> task) override;
-
   void PostDelayedTask(std::unique_ptr<Task> task,
                        double delay_in_seconds) override;
 
   void PostIdleTask(std::unique_ptr<IdleTask> task) override;
-
   bool IdleTasksEnabled() override;
+
+  void PostNonNestableTask(std::unique_ptr<Task> task) override;
+  bool NonNestableTasksEnabled() const override;
 
  private:
   // The same as PostTask, but the lock is already held by the caller. The
