@@ -404,7 +404,6 @@
   'tools/compiler-trace-flags-wasm': [SKIP],
 
   # Too slow on arm64 simulator and debug: https://crbug.com/v8/7783
-  'bit-not': [PASS, ['arch == arm64 and mode == debug and simulator_run', SKIP]],
   'md5': [PASS, ['arch == arm64 and mode == debug and simulator_run', SKIP]],
 
   # Slow with pointer compression.
@@ -476,7 +475,6 @@
   'array-sort': [PASS, SLOW],
   'array-splice': [PASS, SLOW],
   'array-store-and-grow': [PASS, SLOW],
-  'bit-not': [PASS, SLOW],
   'compiler/alloc-number': [PASS, SLOW],
   'compiler/osr-with-args': [PASS, SLOW],
   'generated-transition-stub': [PASS, SLOW],
