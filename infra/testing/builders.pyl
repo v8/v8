@@ -227,7 +227,7 @@
       {'name': 'mozilla'},
       {'name': 'test262'},
       {'name': 'v8testing', 'shards': 7},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
       {'name': 'v8testing', 'variant': 'trusted', 'shards': 2},
     ],
   },
@@ -1394,7 +1394,7 @@
       {'name': 'mozilla', 'shards': 4},
       {'name': 'test262'},
       {'name': 'v8testing', 'shards': 8},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 4},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
       {'name': 'v8testing', 'variant': 'trusted', 'shards': 2},
       # Armv8-a.
       {
