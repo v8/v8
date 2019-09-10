@@ -1549,8 +1549,8 @@ Handle<Context> Factory::NewDebugEvaluateContext(Handle<Context> previous,
                                                  Handle<ScopeInfo> scope_info,
                                                  Handle<JSReceiver> extension,
                                                  Handle<Context> wrapped,
-                                                 Handle<StringSet> whitelist) {
-  STATIC_ASSERT(Context::WHITE_LIST_INDEX == Context::MIN_CONTEXT_SLOTS + 1);
+                                                 Handle<StringSet> blacklist) {
+  STATIC_ASSERT(Context::BLACK_LIST_INDEX == Context::MIN_CONTEXT_SLOTS + 1);
   DCHECK(scope_info->IsDebugEvaluateScope());
   Handle<HeapObject> ext = extension.is_null()
                                ? Handle<HeapObject>::cast(the_hole_value())
@@ -1565,7 +1565,7 @@ Handle<Context> Factory::NewDebugEvaluateContext(Handle<Context> previous,
   c->set_native_context(previous->native_context());
   c->set_extension(*ext);
   if (!wrapped.is_null()) c->set(Context::WRAPPED_CONTEXT_INDEX, *wrapped);
-  if (!whitelist.is_null()) c->set(Context::WHITE_LIST_INDEX, *whitelist);
+  if (!blacklist.is_null()) c->set(Context::BLACK_LIST_INDEX, *blacklist);
   return c;
 }
 

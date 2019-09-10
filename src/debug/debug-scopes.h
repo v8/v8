@@ -80,7 +80,7 @@ class ScopeIterator {
   bool ClosureScopeHasThisReference() const;
 
   // Populate the set with collected non-local variable names.
-  Handle<StringSet> GetNonLocals();
+  Handle<StringSet> GetLocals() { return locals_; }
 
   // Similar to JSFunction::GetName return the function's name or it's inferred
   // name.
@@ -112,7 +112,7 @@ class ScopeIterator {
   Handle<JSFunction> function_;
   Handle<Context> context_;
   Handle<Script> script_;
-  Handle<StringSet> non_locals_;
+  Handle<StringSet> locals_;
   DeclarationScope* closure_scope_ = nullptr;
   Scope* start_scope_ = nullptr;
   Scope* current_scope_ = nullptr;
@@ -124,6 +124,8 @@ class ScopeIterator {
 
   void AdvanceOneScope();
   void AdvanceToNonHiddenScope();
+  void AdvanceContext();
+  void CollectLocalsFromCurrentScope();
 
   int GetSourcePosition();
 

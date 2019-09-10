@@ -83,7 +83,7 @@ class DebugEvaluate : public AllStatic {
     struct ContextChainElement {
       Handle<Context> wrapped_context;
       Handle<JSObject> materialized_object;
-      Handle<StringSet> whitelist;
+      Handle<StringSet> blacklist;
     };
 
     Handle<Context> evaluation_context_;

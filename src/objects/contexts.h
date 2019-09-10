@@ -518,7 +518,7 @@ class Context : public HeapObject {
 
     // These slots hold values in debug evaluate contexts.
     WRAPPED_CONTEXT_INDEX = MIN_CONTEXT_SLOTS,
-    WHITE_LIST_INDEX = MIN_CONTEXT_SLOTS + 1
+    BLACK_LIST_INDEX = MIN_CONTEXT_SLOTS + 1
   };
 
   // A region of native context entries containing maps for functions created

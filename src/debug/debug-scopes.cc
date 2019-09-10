@@ -267,18 +267,6 @@ void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
                          ? scope_chain_retriever.ClosureScope()
                          : literal_scope;
 
-    if (option == COLLECT_NON_LOCALS) {
-      DCHECK(non_locals_.is_null());
-
-      non_locals_ = closure_scope_->CollectNonLocals(isolate_, info_,
-                                                     StringSet::New(isolate_));
-      if (!closure_scope_->has_this_declaration() &&
-          closure_scope_->HasThisReference()) {
-        non_locals_ = StringSet::Add(isolate_, non_locals_,
-                                     isolate_->factory()->this_string());
-      }
-    }
-
     CHECK(DeclarationScope::Analyze(info_));
     if (ignore_nested_scopes) {
       current_scope_ = closure_scope_;
@@ -391,6 +379,23 @@ void ScopeIterator::AdvanceToNonHiddenScope() {
   } while (current_scope_->is_hidden());
 }
 
+void ScopeIterator::AdvanceContext() {
+  DCHECK(!context_->IsNativeContext());
+  context_ = handle(context_->previous(), isolate_);
+
+  // While advancing one context, we need to advance at least one
+  // scope, but until we hit the next scope that actually requires
+  // a context. All the locals collected along the way build the
+  // blacklist for debug-evaluate for this context.
+  locals_ = StringSet::New(isolate_);
+  do {
+    if (!current_scope_ || !current_scope_->outer_scope()) break;
+
+    current_scope_ = current_scope_->outer_scope();
+    CollectLocalsFromCurrentScope();
+  } while (!current_scope_->NeedsContext());
+}
+
 void ScopeIterator::Next() {
   DCHECK(!Done());
 
@@ -414,11 +419,17 @@ void ScopeIterator::Next() {
       context_ = handle(context_->previous(), isolate_);
     }
   } else if (!inner) {
-    DCHECK(!context_->IsNativeContext());
-    context_ = handle(context_->previous(), isolate_);
+    AdvanceContext();
   } else {
     DCHECK_NOT_NULL(current_scope_);
     AdvanceToNonHiddenScope();
+
+    if (!InInnerScope() && current_scope_ != closure_scope_) {
+      // Edge case when we just go past {closure_scope_}. This case
+      // already needs to start collecting locals for the blacklist.
+      locals_ = StringSet::New(isolate_);
+      CollectLocalsFromCurrentScope();
+    }
   }
 
   UnwrapEvaluationContext();
@@ -576,11 +587,19 @@ bool ScopeIterator::SetVariableValue(Handle<String> name,
   return false;
 }
 
-Handle<StringSet> ScopeIterator::GetNonLocals() { return non_locals_; }
-
 bool ScopeIterator::ClosureScopeHasThisReference() const {
   return !closure_scope_->has_this_declaration() &&
          closure_scope_->HasThisReference();
+}
+
+void ScopeIterator::CollectLocalsFromCurrentScope() {
+  DCHECK(locals_->IsStringSet());
+  for (Variable* var : *current_scope_->locals()) {
+    if (var->location() == VariableLocation::PARAMETER ||
+        var->location() == VariableLocation::LOCAL) {
+      locals_ = StringSet::Add(isolate_, locals_, var->name());
+    }
+  }
 }
 
 #ifdef DEBUG

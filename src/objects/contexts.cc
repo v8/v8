@@ -175,7 +175,6 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
   Isolate* isolate = context->GetIsolate();
 
   bool follow_context_chain = (flags & FOLLOW_CONTEXT_CHAIN) != 0;
-  bool failed_whitelist = false;
   *index = kNotFound;
   *attributes = ABSENT;
   *init_flag = kCreatedInitialized;
@@ -357,6 +356,17 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
           return extension;
         }
       }
+
+      // Check blacklist. Names that are listed, cannot be resolved further.
+      Object blacklist = context->get(BLACK_LIST_INDEX);
+      if (blacklist.IsStringSet() &&
+          StringSet::cast(blacklist).Has(isolate, name)) {
+        if (FLAG_trace_contexts) {
+          PrintF(" - name is blacklisted. Aborting.\n");
+        }
+        break;
+      }
+
       // Check the original context, but do not follow its context chain.
       Object obj = context->get(WRAPPED_CONTEXT_INDEX);
       if (obj.IsContext()) {
@@ -366,26 +376,12 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
                             attributes, init_flag, variable_mode);
         if (!result.is_null()) return result;
       }
-      // Check whitelist. Names that do not pass whitelist shall only resolve
-      // to with, script or native contexts up the context chain.
-      obj = context->get(WHITE_LIST_INDEX);
-      if (obj.IsStringSet()) {
-        failed_whitelist =
-            failed_whitelist || !StringSet::cast(obj).Has(isolate, name);
-      }
     }
 
     // 3. Prepare to continue with the previous (next outermost) context.
     if (context->IsNativeContext()) break;
 
-    do {
-      context = Handle<Context>(context->previous(), isolate);
-      // If we come across a whitelist context, and the name is not
-      // whitelisted, then only consider with, script, module or native
-      // contexts.
-    } while (failed_whitelist && !context->IsScriptContext() &&
-             !context->IsNativeContext() && !context->IsWithContext() &&
-             !context->IsModuleContext());
+    context = Handle<Context>(context->previous(), isolate);
   } while (follow_context_chain);
 
   if (FLAG_trace_contexts) {
