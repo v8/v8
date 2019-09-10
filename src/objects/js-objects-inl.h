@@ -540,7 +540,9 @@ Code JSFunction::code() const {
 void JSFunction::set_code(Code value) {
   DCHECK(!ObjectInYoungGeneration(value));
   RELAXED_WRITE_FIELD(*this, kCodeOffset, value);
+#ifndef V8_DISABLE_WRITE_BARRIERS
   MarkingBarrier(*this, RawField(kCodeOffset), value);
+#endif
 }
 
 void JSFunction::set_code_no_write_barrier(Code value) {

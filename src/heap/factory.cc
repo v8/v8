@@ -2703,7 +2703,9 @@ Handle<Code> Factory::CopyCode(Handle<Code> code) {
     // allocation is on.
     heap->incremental_marking()->ProcessBlackAllocatedObject(*new_code);
     // Record all references to embedded objects in the new code object.
+#ifndef V8_DISABLE_WRITE_BARRIERS
     WriteBarrierForCode(*new_code);
+#endif
   }
 
 #ifdef VERIFY_HEAP

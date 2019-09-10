@@ -103,7 +103,8 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc_, sizeof(Address));
   }
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null()) {
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null() &&
+      !FLAG_disable_write_barriers) {
     WriteBarrierForCode(host(), this, target);
   }
 }

@@ -527,9 +527,10 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
   // Write barrier support costs around 1% in startup time.  In fact there
   // are no new space objects in current boot snapshots, so it's not needed,
   // but that may change.
-  bool write_barrier_needed = (current_object_address != kNullAddress &&
-                               source_space != SnapshotSpace::kNew &&
-                               source_space != SnapshotSpace::kCode);
+  bool write_barrier_needed =
+      (current_object_address != kNullAddress &&
+       source_space != SnapshotSpace::kNew &&
+       source_space != SnapshotSpace::kCode && !FLAG_disable_write_barriers);
   while (current < limit) {
     byte data = source_.Get();
     switch (data) {
@@ -846,6 +847,7 @@ TSlot Deserializer::ReadDataCase(Isolate* isolate, TSlot current,
   // Don't update current pointer here as it may be needed for write barrier.
   Write(current, heap_object_ref);
   if (emit_write_barrier && write_barrier_needed) {
+    DCHECK_IMPLIES(FLAG_disable_write_barriers, !write_barrier_needed);
     HeapObject host_object = HeapObject::FromAddress(current_object_address);
     SLOW_DCHECK(isolate->heap()->Contains(host_object));
     GenerationalBarrier(host_object, MaybeObjectSlot(current.address()),

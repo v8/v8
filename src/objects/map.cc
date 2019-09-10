@@ -625,8 +625,10 @@ void Map::ReplaceDescriptors(Isolate* isolate, DescriptorArray new_descriptors,
   // descriptors will not be trimmed in the mark-compactor, we need to mark
   // all its elements.
   Map current = *this;
+#ifndef V8_DISABLE_WRITE_BARRIERS
   MarkingBarrierForDescriptorArray(isolate->heap(), current, to_replace,
                                    to_replace.number_of_descriptors());
+#endif
   while (current.instance_descriptors(isolate) == to_replace) {
     Object next = current.GetBackPointer(isolate);
     if (next.IsUndefined(isolate)) break;  // Stop overwriting at initial map.
@@ -1108,8 +1110,10 @@ void Map::EnsureDescriptorSlack(Isolate* isolate, Handle<Map> map, int slack) {
   // Replace descriptors by new_descriptors in all maps that share it. The old
   // descriptors will not be trimmed in the mark-compactor, we need to mark
   // all its elements.
+#ifndef V8_DISABLE_WRITE_BARRIERS
   MarkingBarrierForDescriptorArray(isolate->heap(), *map, *descriptors,
                                    descriptors->number_of_descriptors());
+#endif
 
   Map current = *map;
   while (current.instance_descriptors() == *descriptors) {
@@ -2548,8 +2552,10 @@ void Map::SetInstanceDescriptors(Isolate* isolate, DescriptorArray descriptors,
                                  int number_of_own_descriptors) {
   set_synchronized_instance_descriptors(descriptors);
   SetNumberOfOwnDescriptors(number_of_own_descriptors);
+#ifndef V8_DISABLE_WRITE_BARRIERS
   MarkingBarrierForDescriptorArray(isolate->heap(), *this, descriptors,
                                    number_of_own_descriptors);
+#endif
 }
 
 // static

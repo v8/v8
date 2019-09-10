@@ -5542,6 +5542,7 @@ void Heap::MoveStoreBufferEntriesToRememberedSet() {
 }
 
 void Heap::ClearRecordedSlot(HeapObject object, ObjectSlot slot) {
+#ifndef V8_DISABLE_WRITE_BARRIERS
   DCHECK(!IsLargeObject(object));
   Page* page = Page::FromAddress(slot.address());
   if (!page->InYoungGeneration()) {
@@ -5549,10 +5550,12 @@ void Heap::ClearRecordedSlot(HeapObject object, ObjectSlot slot) {
     store_buffer()->MoveAllEntriesToRememberedSet();
     RememberedSet<OLD_TO_NEW>::Remove(page, slot.address());
   }
+#endif
 }
 
 #ifdef DEBUG
 void Heap::VerifyClearedSlot(HeapObject object, ObjectSlot slot) {
+#ifndef V8_DISABLE_WRITE_BARRIERS
   DCHECK(!IsLargeObject(object));
   if (InYoungGeneration(object)) return;
   Page* page = Page::FromAddress(slot.address());
@@ -5562,10 +5565,12 @@ void Heap::VerifyClearedSlot(HeapObject object, ObjectSlot slot) {
   // Old to old slots are filtered with invalidated slots.
   CHECK_IMPLIES(RememberedSet<OLD_TO_OLD>::Contains(page, slot.address()),
                 page->RegisteredObjectWithInvalidatedSlots<OLD_TO_OLD>(object));
+#endif
 }
 #endif
 
 void Heap::ClearRecordedSlotRange(Address start, Address end) {
+#ifndef V8_DISABLE_WRITE_BARRIERS
   Page* page = Page::FromAddress(start);
   DCHECK(!page->IsLargePage());
   if (!page->InYoungGeneration()) {
@@ -5574,6 +5579,7 @@ void Heap::ClearRecordedSlotRange(Address start, Address end) {
     RememberedSet<OLD_TO_NEW>::RemoveRange(page, start, end,
                                            SlotSet::KEEP_EMPTY_BUCKETS);
   }
+#endif
 }
 
 PagedSpace* PagedSpaceIterator::Next() {
