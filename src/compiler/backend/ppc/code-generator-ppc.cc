@@ -1024,7 +1024,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Label start_call;
       bool isWasmCapiFunction =
           linkage()->GetIncomingDescriptor()->IsWasmCapiFunction();
+#if defined(_AIX)
+      // AIX/PPC64BE Linux uses a function descriptor
+      // and emits 2 extra Load instrcutions under CallCFunctionHelper.
+      constexpr int offset = 11 * kInstrSize;
+#else
       constexpr int offset = 9 * kInstrSize;
+#endif
       if (isWasmCapiFunction) {
         __ mflr(r0);
         __ bind(&start_call);
@@ -1043,9 +1049,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       // TODO(miladfar): In the above block, kScratchReg must be populated with
       // the strictly-correct PC, which is the return address at this spot. The
-      // offset is set to 36 (9 * kInstrSize) right now, which is counted from
-      // where we are binding to the label and ends at this spot. If failed,
-      // replace it with the correct offset suggested. More info on f5ab7d3.
+      // offset is set to 36 (9 * kInstrSize) on pLinux and 44 on AIX, which is
+      // counted from where we are binding to the label and ends at this spot.
+      // If failed, replace it with the correct offset suggested. More info on
+      // f5ab7d3.
       if (isWasmCapiFunction)
         CHECK_EQ(offset, __ SizeOfCodeGeneratedSince(&start_call));
 
