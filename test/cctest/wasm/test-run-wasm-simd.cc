@@ -2487,7 +2487,7 @@ void AppendShuffle(const Shuffle& shuffle, std::vector<byte>* buffer) {
   for (size_t i = 0; i < kSimd128Size; ++i) buffer->push_back((shuffle[i]));
 }
 
-void BuildShuffle(std::vector<Shuffle>& shuffles,  // NOLINT(runtime/references)
+void BuildShuffle(const std::vector<Shuffle>& shuffles,
                   std::vector<byte>* buffer) {
   // Perform the leaf shuffles on globals 0 and 1.
   size_t row_index = (shuffles.size() - 1) / 2;

@@ -31,9 +31,8 @@ void CheckInvariantsOfAbortedPage(Page* page) {
   CHECK(!page->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
 }
 
-void CheckAllObjectsOnPage(
-    std::vector<Handle<FixedArray>>& handles,  // NOLINT(runtime/references)
-    Page* page) {
+void CheckAllObjectsOnPage(const std::vector<Handle<FixedArray>>& handles,
+                           Page* page) {
   for (Handle<FixedArray> fixed_array : handles) {
     CHECK(Page::FromHeapObject(*fixed_array) == page);
   }

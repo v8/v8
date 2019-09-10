@@ -95,10 +95,10 @@ class InitializedIgnitionHandleScope : public InitializedHandleScope {
   }
 };
 
-void SkipGoldenFileHeader(std::istream& stream) {  // NOLINT
+void SkipGoldenFileHeader(std::istream* stream) {
   std::string line;
   int separators_seen = 0;
-  while (std::getline(stream, line)) {
+  while (std::getline(*stream, line)) {
     if (line == "---") separators_seen += 1;
     if (separators_seen == 2) return;
   }
@@ -107,7 +107,7 @@ void SkipGoldenFileHeader(std::istream& stream) {  // NOLINT
 std::string LoadGolden(const std::string& golden_filename) {
   std::ifstream expected_file((kGoldenFileDirectory + golden_filename).c_str());
   CHECK(expected_file.is_open());
-  SkipGoldenFileHeader(expected_file);
+  SkipGoldenFileHeader(&expected_file);
   std::ostringstream expected_stream;
   // Restore the first separator, which was consumed by SkipGoldenFileHeader
   expected_stream << "---\n" << expected_file.rdbuf();
@@ -125,31 +125,30 @@ std::string BuildActual(const BytecodeExpectationsPrinter& printer,
     if (prologue) source_code += prologue;
     source_code += snippet;
     if (epilogue) source_code += epilogue;
-    printer.PrintExpectation(actual_stream, source_code);
+    printer.PrintExpectation(&actual_stream, source_code);
   }
   return actual_stream.str();
 }
 
 // inplace left trim
-static inline void ltrim(std::string& str) {  // NOLINT(runtime/references)
-  str.erase(str.begin(),
-            std::find_if(str.begin(), str.end(),
-                         [](unsigned char ch) { return !std::isspace(ch); }));
+static inline void ltrim(std::string* str) {
+  str->erase(str->begin(),
+             std::find_if(str->begin(), str->end(),
+                          [](unsigned char ch) { return !std::isspace(ch); }));
 }
 
 // inplace right trim
-static inline void rtrim(std::string& str) {  // NOLINT(runtime/references)
-  str.erase(std::find_if(str.rbegin(), str.rend(),
-                         [](unsigned char ch) { return !std::isspace(ch); })
-                .base(),
-            str.end());
+static inline void rtrim(std::string* str) {
+  str->erase(std::find_if(str->rbegin(), str->rend(),
+                          [](unsigned char ch) { return !std::isspace(ch); })
+                 .base(),
+             str->end());
 }
 
-static inline std::string trim(
-    std::string& str) {  // NOLINT(runtime/references)
+static inline std::string trim(std::string* str) {
   ltrim(str);
   rtrim(str);
-  return str;
+  return *str;
 }
 
 bool CompareTexts(const std::string& generated, const std::string& expected) {
@@ -181,7 +180,7 @@ bool CompareTexts(const std::string& generated, const std::string& expected) {
       return false;
     }
 
-    if (trim(generated_line) != trim(expected_line)) {
+    if (trim(&generated_line) != trim(&expected_line)) {
       std::cerr << "Inputs differ at line " << line_number << "\n";
       std::cerr << "  Generated: '" << generated_line << "'\n";
       std::cerr << "  Expected:  '" << expected_line << "'\n";

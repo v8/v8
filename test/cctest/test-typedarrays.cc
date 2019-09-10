@@ -15,12 +15,11 @@
 namespace v8 {
 namespace internal {
 
-void TestArrayBufferViewContents(
-    LocalContext& env,  // NOLINT(runtime/references)
-    bool should_use_buffer) {
+void TestArrayBufferViewContents(LocalContext* env, bool should_use_buffer) {
   v8::Local<v8::Object> obj_a = v8::Local<v8::Object>::Cast(
-      env->Global()
-          ->Get(env->GetIsolate()->GetCurrentContext(), v8_str("a"))
+      (*env)
+          ->Global()
+          ->Get((*env)->GetIsolate()->GetCurrentContext(), v8_str("a"))
           .ToLocalChecked());
   CHECK(obj_a->IsArrayBufferView());
   v8::Local<v8::ArrayBufferView> array_buffer_view =
@@ -44,7 +43,7 @@ TEST(CopyContentsTypedArray) {
       "a[1] = 1;"
       "a[2] = 2;"
       "a[3] = 3;");
-  TestArrayBufferViewContents(env, false);
+  TestArrayBufferViewContents(&env, false);
 }
 
 
@@ -52,7 +51,7 @@ TEST(CopyContentsArray) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   CompileRun("var a = new Uint8Array([0, 1, 2, 3]);");
-  TestArrayBufferViewContents(env, false);
+  TestArrayBufferViewContents(&env, false);
 }
 
 
@@ -69,7 +68,7 @@ TEST(CopyContentsView) {
       "c[4] = 2;"
       "c[5] = 3;"
       "var a = new DataView(b, 2);");
-  TestArrayBufferViewContents(env, true);
+  TestArrayBufferViewContents(&env, true);
 }
 
 

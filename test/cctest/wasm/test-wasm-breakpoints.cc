@@ -112,20 +112,19 @@ class BreakHandler : public debug::DebugDelegate {
   }
 };
 
-void SetBreakpoint(WasmRunnerBase& runner,  // NOLINT(runtime/references)
-                   int function_index, int byte_offset,
+void SetBreakpoint(WasmRunnerBase* runner, int function_index, int byte_offset,
                    int expected_set_byte_offset = -1) {
   int func_offset =
-      runner.builder().GetFunctionAt(function_index)->code.offset();
+      runner->builder().GetFunctionAt(function_index)->code.offset();
   int code_offset = func_offset + byte_offset;
   if (expected_set_byte_offset == -1) expected_set_byte_offset = byte_offset;
-  Handle<WasmInstanceObject> instance = runner.builder().instance_object();
+  Handle<WasmInstanceObject> instance = runner->builder().instance_object();
   Handle<WasmModuleObject> module_object(instance->module_object(),
-                                         runner.main_isolate());
+                                         runner->main_isolate());
   static int break_index = 0;
   Handle<BreakPoint> break_point =
-      runner.main_isolate()->factory()->NewBreakPoint(
-          break_index++, runner.main_isolate()->factory()->empty_string());
+      runner->main_isolate()->factory()->NewBreakPoint(
+          break_index++, runner->main_isolate()->factory()->empty_string());
   CHECK(WasmModuleObject::SetBreakPoint(module_object, &code_offset,
                                         break_point));
   int set_byte_offset = code_offset - func_offset;
@@ -276,7 +275,7 @@ WASM_COMPILED_EXEC_TEST(WasmSimpleBreak) {
 
   Handle<JSFunction> main_fun_wrapper =
       runner.builder().WrapCode(runner.function_index());
-  SetBreakpoint(runner, runner.function_index(), 4, 4);
+  SetBreakpoint(&runner, runner.function_index(), 4, 4);
 
   BreakHandler count_breaks(isolate, {{4, BreakHandler::Continue}});
 
@@ -298,7 +297,7 @@ WASM_COMPILED_EXEC_TEST(WasmSimpleStepping) {
       runner.builder().WrapCode(runner.function_index());
 
   // Set breakpoint at the first I32Const.
-  SetBreakpoint(runner, runner.function_index(), 1, 1);
+  SetBreakpoint(&runner, runner.function_index(), 1, 1);
 
   BreakHandler count_breaks(isolate,
                             {
@@ -341,7 +340,7 @@ WASM_COMPILED_EXEC_TEST(WasmStepInAndOut) {
       runner.builder().WrapCode(f2.function_index());
 
   // Set first breakpoint on the GetLocal (offset 19) before the Call.
-  SetBreakpoint(runner, f2.function_index(), 19, 19);
+  SetBreakpoint(&runner, f2.function_index(), 19, 19);
 
   BreakHandler count_breaks(isolate,
                             {
@@ -377,7 +376,7 @@ WASM_COMPILED_EXEC_TEST(WasmGetLocalsAndStack) {
 
   // Set breakpoint at the first instruction (7 bytes for local decls: num
   // entries + 3x<count, type>).
-  SetBreakpoint(runner, runner.function_index(), 7, 7);
+  SetBreakpoint(&runner, runner.function_index(), 7, 7);
 
   CollectValuesBreakHandler break_handler(
       isolate,

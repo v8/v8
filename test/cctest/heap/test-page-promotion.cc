@@ -43,8 +43,7 @@ v8::Isolate* NewIsolateForPagePromotion(int min_semi_space_size = 8,
   return isolate;
 }
 
-Page* FindLastPageInNewSpace(
-    std::vector<Handle<FixedArray>>& handles) {  // NOLINT(runtime/references)
+Page* FindLastPageInNewSpace(const std::vector<Handle<FixedArray>>& handles) {
   for (auto rit = handles.rbegin(); rit != handles.rend(); ++rit) {
     // One deref gets the Handle, the second deref gets the FixedArray.
     Page* candidate = Page::FromHeapObject(**rit);

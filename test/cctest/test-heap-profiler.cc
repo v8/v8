@@ -3578,10 +3578,9 @@ TEST(AddressToTraceMap) {
 }
 
 static const v8::AllocationProfile::Node* FindAllocationProfileNode(
-    v8::Isolate* isolate,
-    v8::AllocationProfile& profile,  // NOLINT(runtime/references)
+    v8::Isolate* isolate, v8::AllocationProfile* profile,
     const Vector<const char*>& names) {
-  v8::AllocationProfile::Node* node = profile.GetRootNode();
+  v8::AllocationProfile::Node* node = profile->GetRootNode();
   for (int i = 0; node != nullptr && i < names.length(); ++i) {
     const char* name = names[i];
     auto children = node->children;
@@ -3651,7 +3650,7 @@ TEST(SamplingHeapProfiler) {
     CHECK(profile);
 
     const char* names[] = {"", "foo", "bar"};
-    auto node_bar = FindAllocationProfileNode(env->GetIsolate(), *profile,
+    auto node_bar = FindAllocationProfileNode(env->GetIsolate(), profile.get(),
                                               ArrayVector(names));
     CHECK(node_bar);
 
@@ -3675,12 +3674,12 @@ TEST(SamplingHeapProfiler) {
     CHECK(profile);
 
     const char* names1[] = {"", "start", "f_0_0", "f_0_1", "f_0_2"};
-    auto node1 = FindAllocationProfileNode(env->GetIsolate(), *profile,
+    auto node1 = FindAllocationProfileNode(env->GetIsolate(), profile.get(),
                                            ArrayVector(names1));
     CHECK(node1);
 
     const char* names2[] = {"", "generateFunctions"};
-    auto node2 = FindAllocationProfileNode(env->GetIsolate(), *profile,
+    auto node2 = FindAllocationProfileNode(env->GetIsolate(), profile.get(),
                                            ArrayVector(names2));
     CHECK(node2);
 
@@ -3738,11 +3737,11 @@ TEST(SamplingHeapProfilerRateAgnosticEstimates) {
     CHECK(profile);
 
     const char* path_to_foo[] = {"", "foo"};
-    auto node_foo = FindAllocationProfileNode(env->GetIsolate(), *profile,
+    auto node_foo = FindAllocationProfileNode(env->GetIsolate(), profile.get(),
                                               ArrayVector(path_to_foo));
     CHECK(node_foo);
     const char* path_to_bar[] = {"", "foo", "bar"};
-    auto node_bar = FindAllocationProfileNode(env->GetIsolate(), *profile,
+    auto node_bar = FindAllocationProfileNode(env->GetIsolate(), profile.get(),
                                               ArrayVector(path_to_bar));
     CHECK(node_bar);
 
@@ -3762,11 +3761,11 @@ TEST(SamplingHeapProfilerRateAgnosticEstimates) {
     CHECK(profile);
 
     const char* path_to_foo[] = {"", "foo"};
-    auto node_foo = FindAllocationProfileNode(env->GetIsolate(), *profile,
+    auto node_foo = FindAllocationProfileNode(env->GetIsolate(), profile.get(),
                                               ArrayVector(path_to_foo));
     CHECK(node_foo);
     const char* path_to_bar[] = {"", "foo", "bar"};
-    auto node_bar = FindAllocationProfileNode(env->GetIsolate(), *profile,
+    auto node_bar = FindAllocationProfileNode(env->GetIsolate(), profile.get(),
                                               ArrayVector(path_to_bar));
     CHECK(node_bar);
 
@@ -3805,7 +3804,7 @@ TEST(SamplingHeapProfilerApiAllocation) {
       heap_profiler->GetAllocationProfile());
   CHECK(profile);
   const char* names[] = {"(V8 API)"};
-  auto node = FindAllocationProfileNode(env->GetIsolate(), *profile,
+  auto node = FindAllocationProfileNode(env->GetIsolate(), profile.get(),
                                         ArrayVector(names));
   CHECK(node);
 
@@ -3945,7 +3944,7 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
   heap_profiler->StopSamplingHeapProfiler();
 
   const char* names[] = {"f"};
-  auto node_f = FindAllocationProfileNode(env->GetIsolate(), *profile,
+  auto node_f = FindAllocationProfileNode(env->GetIsolate(), profile.get(),
                                           ArrayVector(names));
   CHECK(node_f);
 
@@ -3975,7 +3974,7 @@ TEST(SamplingHeapProfilerLargeInterval) {
       heap_profiler->GetAllocationProfile());
   CHECK(profile);
   const char* names[] = {"(EXTERNAL)"};
-  auto node = FindAllocationProfileNode(env->GetIsolate(), *profile,
+  auto node = FindAllocationProfileNode(env->GetIsolate(), profile.get(),
                                         ArrayVector(names));
   CHECK(node);
 

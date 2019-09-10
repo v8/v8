@@ -1438,8 +1438,7 @@ struct CheckNormalize {
 //
 template <typename TestConfig, typename Checker>
 static void TestReconfigureProperty_CustomPropertyAfterTargetMap(
-    TestConfig& config,  // NOLINT(runtime/references)
-    Checker& checker) {  // NOLINT(runtime/references)
+    TestConfig* config, Checker* checker) {
   Isolate* isolate = CcTest::i_isolate();
   Handle<FieldType> any_type = FieldType::Any(isolate);
 
@@ -1471,7 +1470,7 @@ static void TestReconfigureProperty_CustomPropertyAfterTargetMap(
     map1 = expectations1.AddDataField(map1, NONE, constness, representation,
                                       any_type);
   }
-  map1 = config.AddPropertyAtBranch(1, expectations1, map1);
+  map1 = config->AddPropertyAtBranch(1, &expectations1, map1);
   for (int i = kCustomPropIndex + 1; i < kPropCount; i++) {
     map1 = expectations1.AddDataField(map1, NONE, constness, representation,
                                       any_type);
@@ -1491,7 +1490,7 @@ static void TestReconfigureProperty_CustomPropertyAfterTargetMap(
     map2 = expectations2.AddDataField(map2, NONE, constness, representation,
                                       any_type);
   }
-  map2 = config.AddPropertyAtBranch(2, expectations2, map2);
+  map2 = config->AddPropertyAtBranch(2, &expectations2, map2);
   for (int i = kCustomPropIndex + 1; i < kPropCount; i++) {
     map2 = expectations2.AddDataField(map2, NONE, constness, representation,
                                       any_type);
@@ -1512,8 +1511,8 @@ static void TestReconfigureProperty_CustomPropertyAfterTargetMap(
   CHECK_NE(*map2, *new_map);
   CHECK(expectations2.Check(*map2));
 
-  config.UpdateExpectations(kCustomPropIndex, expectations1);
-  checker.Check(isolate, map1, new_map, expectations1);
+  config->UpdateExpectations(kCustomPropIndex, &expectations1);
+  checker->Check(isolate, map1, new_map, expectations1);
 }
 
 TEST(ReconfigureDataFieldAttribute_SameDataConstantAfterTargetMap) {
@@ -1528,18 +1527,14 @@ TEST(ReconfigureDataFieldAttribute_SameDataConstantAfterTargetMap) {
       js_func_ = factory->NewFunctionForTest(factory->empty_string());
     }
 
-    Handle<Map> AddPropertyAtBranch(
-        int branch_id,
-        Expectations& expectations,  // NOLINT(runtime/references)
-        Handle<Map> map) {
+    Handle<Map> AddPropertyAtBranch(int branch_id, Expectations* expectations,
+                                    Handle<Map> map) {
       CHECK(branch_id == 1 || branch_id == 2);
       // Add the same data constant property at both transition tree branches.
-      return expectations.AddDataConstant(map, NONE, js_func_);
+      return expectations->AddDataConstant(map, NONE, js_func_);
     }
 
-    void UpdateExpectations(
-        int property_index,
-        Expectations& expectations) {  // NOLINT(runtime/references)
+    void UpdateExpectations(int property_index, Expectations* expectations) {
       // Expectations stay the same.
     }
   };
@@ -1547,7 +1542,7 @@ TEST(ReconfigureDataFieldAttribute_SameDataConstantAfterTargetMap) {
   TestConfig config;
   // Two branches are "compatible" so the |map1| should NOT be deprecated.
   CheckSameMap checker;
-  TestReconfigureProperty_CustomPropertyAfterTargetMap(config, checker);
+  TestReconfigureProperty_CustomPropertyAfterTargetMap(&config, &checker);
 }
 
 
@@ -1577,26 +1572,22 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToDataFieldAfterTargetMap) {
           factory->NewFunction(sloppy_map, info, isolate->native_context());
     }
 
-    Handle<Map> AddPropertyAtBranch(
-        int branch_id,
-        Expectations& expectations,  // NOLINT(runtime/references)
-        Handle<Map> map) {
+    Handle<Map> AddPropertyAtBranch(int branch_id, Expectations* expectations,
+                                    Handle<Map> map) {
       CHECK(branch_id == 1 || branch_id == 2);
       Handle<JSFunction> js_func = branch_id == 1 ? js_func1_ : js_func2_;
-      return expectations.AddDataConstant(map, NONE, js_func);
+      return expectations->AddDataConstant(map, NONE, js_func);
     }
 
-    void UpdateExpectations(
-        int property_index,
-        Expectations& expectations) {  // NOLINT(runtime/references)
-      expectations.SetDataField(property_index, PropertyConstness::kConst,
-                                Representation::HeapObject(), function_type_);
+    void UpdateExpectations(int property_index, Expectations* expectations) {
+      expectations->SetDataField(property_index, PropertyConstness::kConst,
+                                 Representation::HeapObject(), function_type_);
     }
   };
 
   TestConfig config;
   CheckSameMap checker;
-  TestReconfigureProperty_CustomPropertyAfterTargetMap(config, checker);
+  TestReconfigureProperty_CustomPropertyAfterTargetMap(&config, &checker);
 }
 
 
@@ -1614,28 +1605,23 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToAccConstantAfterTargetMap) {
       pair_ = CreateAccessorPair(true, true);
     }
 
-    Handle<Map> AddPropertyAtBranch(
-        int branch_id,
-        Expectations& expectations,  // NOLINT(runtime/references)
-        Handle<Map> map) {
+    Handle<Map> AddPropertyAtBranch(int branch_id, Expectations* expectations,
+                                    Handle<Map> map) {
       CHECK(branch_id == 1 || branch_id == 2);
       if (branch_id == 1) {
-        return expectations.AddDataConstant(map, NONE, js_func_);
+        return expectations->AddDataConstant(map, NONE, js_func_);
       } else {
-        return expectations.AddAccessorConstant(map, NONE, pair_);
+        return expectations->AddAccessorConstant(map, NONE, pair_);
       }
     }
 
-    void UpdateExpectations(
-        int property_index,
-        Expectations& expectations  // NOLINT(runtime/references)
-    ) {}
+    void UpdateExpectations(int property_index, Expectations* expectations) {}
   };
 
   TestConfig config;
   // These are completely separate branches in transition tree.
   CheckUnrelated checker;
-  TestReconfigureProperty_CustomPropertyAfterTargetMap(config, checker);
+  TestReconfigureProperty_CustomPropertyAfterTargetMap(&config, &checker);
 }
 
 
@@ -1647,26 +1633,22 @@ TEST(ReconfigureDataFieldAttribute_SameAccessorConstantAfterTargetMap) {
     Handle<AccessorPair> pair_;
     TestConfig() { pair_ = CreateAccessorPair(true, true); }
 
-    Handle<Map> AddPropertyAtBranch(
-        int branch_id,
-        Expectations& expectations,  // NOLINT(runtime/references)
-        Handle<Map> map) {
+    Handle<Map> AddPropertyAtBranch(int branch_id, Expectations* expectations,
+                                    Handle<Map> map) {
       CHECK(branch_id == 1 || branch_id == 2);
       // Add the same accessor constant property at both transition tree
       // branches.
-      return expectations.AddAccessorConstant(map, NONE, pair_);
+      return expectations->AddAccessorConstant(map, NONE, pair_);
     }
 
-    void UpdateExpectations(
-        int property_index,
-        Expectations& expectations) {  // NOLINT(runtime/references)
+    void UpdateExpectations(int property_index, Expectations* expectations) {
       // Two branches are "compatible" so the |map1| should NOT be deprecated.
     }
   };
 
   TestConfig config;
   CheckSameMap checker;
-  TestReconfigureProperty_CustomPropertyAfterTargetMap(config, checker);
+  TestReconfigureProperty_CustomPropertyAfterTargetMap(&config, &checker);
 }
 
 
@@ -1682,24 +1664,20 @@ TEST(ReconfigureDataFieldAttribute_AccConstantToAccFieldAfterTargetMap) {
       pair2_ = CreateAccessorPair(true, true);
     }
 
-    Handle<Map> AddPropertyAtBranch(
-        int branch_id,
-        Expectations& expectations,  // NOLINT(runtime/references)
-        Handle<Map> map) {
+    Handle<Map> AddPropertyAtBranch(int branch_id, Expectations* expectations,
+                                    Handle<Map> map) {
       CHECK(branch_id == 1 || branch_id == 2);
       Handle<AccessorPair> pair = branch_id == 1 ? pair1_ : pair2_;
-      return expectations.AddAccessorConstant(map, NONE, pair);
+      return expectations->AddAccessorConstant(map, NONE, pair);
     }
 
-    void UpdateExpectations(
-        int property_index,
-        Expectations& expectations) {  // NOLINT(runtime/references)
+    void UpdateExpectations(int property_index, Expectations* expectations) {
       if (IS_ACCESSOR_FIELD_SUPPORTED) {
-        expectations.SetAccessorField(property_index);
+        expectations->SetAccessorField(property_index);
       } else {
         // Currently we have a normalize case and ACCESSOR property becomes
         // ACCESSOR_CONSTANT.
-        expectations.SetAccessorConstant(property_index, pair2_);
+        expectations->SetAccessorConstant(property_index, pair2_);
       }
     }
   };
@@ -1707,11 +1685,11 @@ TEST(ReconfigureDataFieldAttribute_AccConstantToAccFieldAfterTargetMap) {
   TestConfig config;
   if (IS_ACCESSOR_FIELD_SUPPORTED) {
     CheckSameMap checker;
-    TestReconfigureProperty_CustomPropertyAfterTargetMap(config, checker);
+    TestReconfigureProperty_CustomPropertyAfterTargetMap(&config, &checker);
   } else {
     // Currently we have a normalize case.
     CheckNormalize checker;
-    TestReconfigureProperty_CustomPropertyAfterTargetMap(config, checker);
+    TestReconfigureProperty_CustomPropertyAfterTargetMap(&config, &checker);
   }
 }
 
@@ -1724,31 +1702,26 @@ TEST(ReconfigureDataFieldAttribute_AccConstantToDataFieldAfterTargetMap) {
     Handle<AccessorPair> pair_;
     TestConfig() { pair_ = CreateAccessorPair(true, true); }
 
-    Handle<Map> AddPropertyAtBranch(
-        int branch_id,
-        Expectations& expectations,  // NOLINT(runtime/references)
-        Handle<Map> map) {
+    Handle<Map> AddPropertyAtBranch(int branch_id, Expectations* expectations,
+                                    Handle<Map> map) {
       CHECK(branch_id == 1 || branch_id == 2);
       if (branch_id == 1) {
-        return expectations.AddAccessorConstant(map, NONE, pair_);
+        return expectations->AddAccessorConstant(map, NONE, pair_);
       } else {
         Isolate* isolate = CcTest::i_isolate();
         Handle<FieldType> any_type = FieldType::Any(isolate);
-        return expectations.AddDataField(map, NONE, PropertyConstness::kConst,
-                                         Representation::Smi(), any_type);
+        return expectations->AddDataField(map, NONE, PropertyConstness::kConst,
+                                          Representation::Smi(), any_type);
       }
     }
 
-    void UpdateExpectations(
-        int property_index,
-        Expectations& expectations  // NOLINT(runtime/references)
-    ) {}
+    void UpdateExpectations(int property_index, Expectations* expectations) {}
   };
 
   TestConfig config;
   // These are completely separate branches in transition tree.
   CheckUnrelated checker;
-  TestReconfigureProperty_CustomPropertyAfterTargetMap(config, checker);
+  TestReconfigureProperty_CustomPropertyAfterTargetMap(&config, &checker);
 }
 
 
@@ -2143,9 +2116,8 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
 // fixed.
 template <typename TestConfig>
 static void TestGeneralizeFieldWithSpecialTransition(
-    TestConfig& config,  // NOLINT(runtime/references)
-    const CRFTData& from, const CRFTData& to, const CRFTData& expected,
-    bool expected_deprecation) {
+    TestConfig* config, const CRFTData& from, const CRFTData& to,
+    const CRFTData& expected, bool expected_deprecation) {
   Isolate* isolate = CcTest::i_isolate();
 
   Expectations expectations(isolate);
@@ -2165,13 +2137,13 @@ static void TestGeneralizeFieldWithSpecialTransition(
 
   // Apply some special transition to |map|.
   CHECK(map->owns_descriptors());
-  Handle<Map> map2 = config.Transition(map, expectations2);
+  Handle<Map> map2 = config->Transition(map, &expectations2);
 
   // |map| should still match expectations.
   CHECK(!map->is_deprecated());
   CHECK(expectations.Check(*map));
 
-  if (config.generalizes_representations()) {
+  if (config->generalizes_representations()) {
     for (int i = 0; i < kPropCount; i++) {
       expectations2.GeneralizeField(i);
     }
@@ -2208,10 +2180,10 @@ static void TestGeneralizeFieldWithSpecialTransition(
         CHECK_EQ(*new_map2, *tmp_map);
       } else {
         // Equivalent transitions should always find the updated map.
-        CHECK(config.is_non_equivalent_transition());
+        CHECK(config->is_non_equivalent_transition());
       }
 
-      if (config.is_non_equivalent_transition()) {
+      if (config->is_non_equivalent_transition()) {
         // In case of non-equivalent transition currently we generalize all
         // representations.
         for (int i = 0; i < kPropCount; i++) {
@@ -2262,9 +2234,9 @@ TEST(ElementsKindTransitionFromMapOwningDescriptor) {
                ElementsKind kind)
         : attributes(attributes), symbol(symbol), elements_kind(kind) {}
 
-    Handle<Map> Transition(Handle<Map> map, Expectations& expectations) {
-      expectations.SetElementsKind(elements_kind);
-      expectations.ChangeAttributesForAllProperties(attributes);
+    Handle<Map> Transition(Handle<Map> map, Expectations* expectations) {
+      expectations->SetElementsKind(elements_kind);
+      expectations->ChangeAttributesForAllProperties(attributes);
       return Map::CopyForPreventExtensions(CcTest::i_isolate(), map, attributes,
                                            symbol, "CopyForPreventExtensions");
     }
@@ -2289,13 +2261,13 @@ TEST(ElementsKindTransitionFromMapOwningDescriptor) {
                                                : DICTIONARY_ELEMENTS}};
   for (size_t i = 0; i < arraysize(configs); i++) {
     TestGeneralizeFieldWithSpecialTransition(
-        configs[i],
+        &configs[i],
         {PropertyConstness::kMutable, Representation::Smi(), any_type},
         {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
         {PropertyConstness::kMutable, Representation::Tagged(), any_type},
         !FLAG_modify_field_representation_inplace);
     TestGeneralizeFieldWithSpecialTransition(
-        configs[i],
+        &configs[i],
         {PropertyConstness::kMutable, Representation::Double(), any_type},
         {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
         {PropertyConstness::kMutable, Representation::Tagged(), any_type},
@@ -2318,7 +2290,7 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
                ElementsKind kind)
         : attributes(attributes), symbol(symbol), elements_kind(kind) {}
 
-    Handle<Map> Transition(Handle<Map> map, Expectations& expectations) {
+    Handle<Map> Transition(Handle<Map> map, Expectations* expectations) {
       Isolate* isolate = CcTest::i_isolate();
       Handle<FieldType> any_type = FieldType::Any(isolate);
 
@@ -2331,8 +2303,8 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
           .ToHandleChecked();
       CHECK(!map->owns_descriptors());
 
-      expectations.SetElementsKind(elements_kind);
-      expectations.ChangeAttributesForAllProperties(attributes);
+      expectations->SetElementsKind(elements_kind);
+      expectations->ChangeAttributesForAllProperties(attributes);
       return Map::CopyForPreventExtensions(isolate, map, attributes, symbol,
                                            "CopyForPreventExtensions");
     }
@@ -2357,13 +2329,13 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
                                                : DICTIONARY_ELEMENTS}};
   for (size_t i = 0; i < arraysize(configs); i++) {
     TestGeneralizeFieldWithSpecialTransition(
-        configs[i],
+        &configs[i],
         {PropertyConstness::kMutable, Representation::Smi(), any_type},
         {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
         {PropertyConstness::kMutable, Representation::Tagged(), any_type},
         !FLAG_modify_field_representation_inplace);
     TestGeneralizeFieldWithSpecialTransition(
-        configs[i],
+        &configs[i],
         {PropertyConstness::kMutable, Representation::Double(), any_type},
         {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
         {PropertyConstness::kMutable, Representation::Tagged(), any_type},
@@ -2390,9 +2362,7 @@ TEST(PrototypeTransitionFromMapOwningDescriptor) {
       prototype_ = factory->NewJSObjectFromMap(Map::Create(isolate, 0));
     }
 
-    Handle<Map> Transition(
-        Handle<Map> map,
-        Expectations& expectations) {  // NOLINT(runtime/references)
+    Handle<Map> Transition(Handle<Map> map, Expectations* expectations) {
       return Map::TransitionToPrototype(CcTest::i_isolate(), map, prototype_);
     }
     // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
@@ -2403,12 +2373,13 @@ TEST(PrototypeTransitionFromMapOwningDescriptor) {
   };
   TestConfig config;
   TestGeneralizeFieldWithSpecialTransition(
-      config, {PropertyConstness::kMutable, Representation::Smi(), any_type},
+      &config, {PropertyConstness::kMutable, Representation::Smi(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
       {PropertyConstness::kMutable, Representation::Tagged(), any_type},
       !FLAG_modify_field_representation_inplace);
   TestGeneralizeFieldWithSpecialTransition(
-      config, {PropertyConstness::kMutable, Representation::Double(), any_type},
+      &config,
+      {PropertyConstness::kMutable, Representation::Double(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
       {PropertyConstness::kMutable, Representation::Tagged(), any_type},
       FLAG_unbox_double_fields || !FLAG_modify_field_representation_inplace);
@@ -2432,9 +2403,7 @@ TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
       prototype_ = factory->NewJSObjectFromMap(Map::Create(isolate, 0));
     }
 
-    Handle<Map> Transition(
-        Handle<Map> map,
-        Expectations& expectations) {  // NOLINT(runtime/references)
+    Handle<Map> Transition(Handle<Map> map, Expectations* expectations) {
       Isolate* isolate = CcTest::i_isolate();
       Handle<FieldType> any_type = FieldType::Any(isolate);
 
@@ -2457,12 +2426,13 @@ TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
   };
   TestConfig config;
   TestGeneralizeFieldWithSpecialTransition(
-      config, {PropertyConstness::kMutable, Representation::Smi(), any_type},
+      &config, {PropertyConstness::kMutable, Representation::Smi(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
       {PropertyConstness::kMutable, Representation::Tagged(), any_type},
       !FLAG_modify_field_representation_inplace);
   TestGeneralizeFieldWithSpecialTransition(
-      config, {PropertyConstness::kMutable, Representation::Double(), any_type},
+      &config,
+      {PropertyConstness::kMutable, Representation::Double(), any_type},
       {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
       {PropertyConstness::kMutable, Representation::Tagged(), any_type},
       FLAG_unbox_double_fields || !FLAG_modify_field_representation_inplace);
@@ -2490,10 +2460,8 @@ struct TransitionToDataFieldOperator {
         heap_type_(heap_type),
         value_(value) {}
 
-  Handle<Map> DoTransition(
-      Expectations& expectations,  // NOLINT(runtime/references)
-      Handle<Map> map) {
-    return expectations.TransitionToDataField(
+  Handle<Map> DoTransition(Expectations* expectations, Handle<Map> map) {
+    return expectations->TransitionToDataField(
         map, attributes_, constness_, representation_, heap_type_, value_);
   }
 };
@@ -2507,8 +2475,8 @@ struct TransitionToDataConstantOperator {
                                    PropertyAttributes attributes = NONE)
       : attributes_(attributes), value_(value) {}
 
-  Handle<Map> DoTransition(Expectations& expectations, Handle<Map> map) {
-    return expectations.TransitionToDataConstant(map, attributes_, value_);
+  Handle<Map> DoTransition(Expectations* expectations, Handle<Map> map) {
+    return expectations->TransitionToDataConstant(map, attributes_, value_);
   }
 };
 
@@ -2521,8 +2489,8 @@ struct TransitionToAccessorConstantOperator {
                                        PropertyAttributes attributes = NONE)
       : attributes_(attributes), pair_(pair) {}
 
-  Handle<Map> DoTransition(Expectations& expectations, Handle<Map> map) {
-    return expectations.TransitionToAccessorConstant(map, attributes_, pair_);
+  Handle<Map> DoTransition(Expectations* expectations, Handle<Map> map) {
+    return expectations->TransitionToAccessorConstant(map, attributes_, pair_);
   }
 };
 
@@ -2542,12 +2510,10 @@ struct ReconfigureAsDataPropertyOperator {
         attributes_(attributes),
         heap_type_(heap_type) {}
 
-  Handle<Map> DoTransition(
-      Isolate* isolate,
-      Expectations& expectations,  // NOLINT(runtime/references)
-      Handle<Map> map) {
-    expectations.SetDataField(descriptor_, PropertyConstness::kMutable,
-                              representation_, heap_type_);
+  Handle<Map> DoTransition(Isolate* isolate, Expectations* expectations,
+                           Handle<Map> map) {
+    expectations->SetDataField(descriptor_, PropertyConstness::kMutable,
+                               representation_, heap_type_);
     return Map::ReconfigureExistingProperty(isolate, map, descriptor_, kData,
                                             attributes_,
                                             PropertyConstness::kConst);
@@ -2563,9 +2529,9 @@ struct ReconfigureAsAccessorPropertyOperator {
                                         PropertyAttributes attributes = NONE)
       : descriptor_(descriptor), attributes_(attributes) {}
 
-  Handle<Map> DoTransition(Isolate* isolate, Expectations& expectations,
+  Handle<Map> DoTransition(Isolate* isolate, Expectations* expectations,
                            Handle<Map> map) {
-    expectations.SetAccessorField(descriptor_);
+    expectations->SetAccessorField(descriptor_);
     return Map::ReconfigureExistingProperty(isolate, map, descriptor_,
                                             kAccessor, attributes_,
                                             PropertyConstness::kConst);
@@ -2590,9 +2556,8 @@ struct FieldGeneralizationChecker {
         attributes_(attributes),
         heap_type_(heap_type) {}
 
-  void Check(Isolate* isolate,
-             Expectations& expectations2,  // NOLINT(runtime/references)
-             Handle<Map> map1, Handle<Map> map2) {
+  void Check(Isolate* isolate, Expectations* expectations, Handle<Map> map1,
+             Handle<Map> map2) {
     CHECK(!map2->is_deprecated());
 
     CHECK(map1->is_deprecated());
@@ -2601,21 +2566,20 @@ struct FieldGeneralizationChecker {
     CHECK_EQ(*map2, *updated_map);
     CheckMigrationTarget(isolate, *map1, *updated_map);
 
-    expectations2.SetDataField(descriptor_, attributes_, constness_,
+    expectations->SetDataField(descriptor_, attributes_, constness_,
                                representation_, heap_type_);
-    CHECK(expectations2.Check(*map2));
+    CHECK(expectations->Check(*map2));
   }
 };
 
 
 // Checks that existing transition was taken as is.
 struct SameMapChecker {
-  void Check(Isolate* isolate,
-             Expectations& expectations,  // NOLINT(runtime/references)
-             Handle<Map> map1, Handle<Map> map2) {
+  void Check(Isolate* isolate, Expectations* expectations, Handle<Map> map1,
+             Handle<Map> map2) {
     CHECK(!map2->is_deprecated());
     CHECK_EQ(*map1, *map2);
-    CHECK(expectations.Check(*map2));
+    CHECK(expectations->Check(*map2));
   }
 };
 
@@ -2623,12 +2587,11 @@ struct SameMapChecker {
 // Checks that both |map1| and |map2| should stays non-deprecated, this is
 // the case when property kind is change.
 struct PropertyKindReconfigurationChecker {
-  void Check(Expectations& expectations,  // NOLINT(runtime/references)
-             Handle<Map> map1, Handle<Map> map2) {
+  void Check(Expectations* expectations, Handle<Map> map1, Handle<Map> map2) {
     CHECK(!map1->is_deprecated());
     CHECK(!map2->is_deprecated());
     CHECK_NE(*map1, *map2);
-    CHECK(expectations.Check(*map2));
+    CHECK(expectations->Check(*map2));
   }
 };
 
@@ -2649,10 +2612,8 @@ struct PropertyKindReconfigurationChecker {
 // where "p4A" and "p4B" differ only in the attributes.
 //
 template <typename TransitionOp1, typename TransitionOp2, typename Checker>
-static void TestTransitionTo(
-    TransitionOp1& transition_op1,  // NOLINT(runtime/references)
-    TransitionOp2& transition_op2,  // NOLINT(runtime/references)
-    Checker& checker) {             // NOLINT(runtime/references)
+static void TestTransitionTo(TransitionOp1* transition_op1,
+                             TransitionOp2* transition_op2, Checker* checker) {
   Isolate* isolate = CcTest::i_isolate();
   Handle<FieldType> any_type = FieldType::Any(isolate);
 
@@ -2668,14 +2629,14 @@ static void TestTransitionTo(
   CHECK(expectations.Check(*map));
 
   Expectations expectations1 = expectations;
-  Handle<Map> map1 = transition_op1.DoTransition(expectations1, map);
+  Handle<Map> map1 = transition_op1->DoTransition(&expectations1, map);
   CHECK(expectations1.Check(*map1));
 
   Expectations expectations2 = expectations;
-  Handle<Map> map2 = transition_op2.DoTransition(expectations2, map);
+  Handle<Map> map2 = transition_op2->DoTransition(&expectations2, map);
 
   // Let the test customization do the check.
-  checker.Check(isolate, expectations2, map1, map2);
+  checker->Check(isolate, &expectations2, map1, map2);
 }
 
 TEST(TransitionDataFieldToDataField) {
@@ -2696,7 +2657,7 @@ TEST(TransitionDataFieldToDataField) {
   FieldGeneralizationChecker checker(kPropCount - 1,
                                      PropertyConstness::kMutable,
                                      Representation::Double(), any_type);
-  TestTransitionTo(transition_op1, transition_op2, checker);
+  TestTransitionTo(&transition_op1, &transition_op2, &checker);
 }
 
 TEST(TransitionDataConstantToSameDataConstant) {
@@ -2710,7 +2671,7 @@ TEST(TransitionDataConstantToSameDataConstant) {
   TransitionToDataConstantOperator transition_op(js_func);
 
   SameMapChecker checker;
-  TestTransitionTo(transition_op, transition_op, checker);
+  TestTransitionTo(&transition_op, &transition_op, &checker);
 }
 
 
@@ -2736,7 +2697,7 @@ TEST(TransitionDataConstantToAnotherDataConstant) {
   TransitionToDataConstantOperator transition_op2(js_func2);
 
   SameMapChecker checker;
-  TestTransitionTo(transition_op1, transition_op2, checker);
+  TestTransitionTo(&transition_op1, &transition_op2, &checker);
 }
 
 
@@ -2758,12 +2719,12 @@ TEST(TransitionDataConstantToDataField) {
 
   if (FLAG_modify_field_representation_inplace) {
     SameMapChecker checker;
-    TestTransitionTo(transition_op1, transition_op2, checker);
+    TestTransitionTo(&transition_op1, &transition_op2, &checker);
   } else {
     FieldGeneralizationChecker checker(kPropCount - 1,
                                        PropertyConstness::kMutable,
                                        Representation::Tagged(), any_type);
-    TestTransitionTo(transition_op1, transition_op2, checker);
+    TestTransitionTo(&transition_op1, &transition_op2, &checker);
   }
 }
 
@@ -2776,7 +2737,7 @@ TEST(TransitionAccessorConstantToSameAccessorConstant) {
   TransitionToAccessorConstantOperator transition_op(pair);
 
   SameMapChecker checker;
-  TestTransitionTo(transition_op, transition_op, checker);
+  TestTransitionTo(&transition_op, &transition_op, &checker);
 }
 
 // TODO(ishell): add this test once IS_ACCESSOR_FIELD_SUPPORTED is supported.
