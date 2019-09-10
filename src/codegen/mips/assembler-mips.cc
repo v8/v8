@@ -977,7 +977,7 @@ void Assembler::target_at_put(int32_t pos, int32_t target_pos,
 
       if (IsJicOrJialc(instr2)) {
         uint32_t lui_offset_u, jic_offset_u;
-        UnpackTargetAddressUnsigned(imm, lui_offset_u, jic_offset_u);
+        UnpackTargetAddressUnsigned(imm, &lui_offset_u, &jic_offset_u);
         instr_at_put(pos + 0 * kInstrSize, instr1 | lui_offset_u);
         instr_at_put(pos + 1 * kInstrSize, instr2 | jic_offset_u);
       } else {
@@ -2044,31 +2044,31 @@ void Assembler::AdjustBaseAndOffset(MemOperand* src,
 
 void Assembler::lb(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
-  AdjustBaseAndOffset(source);
+  AdjustBaseAndOffset(&source);
   GenInstrImmediate(LB, source.rm(), rd, source.offset());
 }
 
 void Assembler::lbu(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
-  AdjustBaseAndOffset(source);
+  AdjustBaseAndOffset(&source);
   GenInstrImmediate(LBU, source.rm(), rd, source.offset());
 }
 
 void Assembler::lh(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
-  AdjustBaseAndOffset(source);
+  AdjustBaseAndOffset(&source);
   GenInstrImmediate(LH, source.rm(), rd, source.offset());
 }
 
 void Assembler::lhu(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
-  AdjustBaseAndOffset(source);
+  AdjustBaseAndOffset(&source);
   GenInstrImmediate(LHU, source.rm(), rd, source.offset());
 }
 
 void Assembler::lw(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
-  AdjustBaseAndOffset(source);
+  AdjustBaseAndOffset(&source);
   GenInstrImmediate(LW, source.rm(), rd, source.offset());
 }
 
@@ -2088,19 +2088,19 @@ void Assembler::lwr(Register rd, const MemOperand& rs) {
 
 void Assembler::sb(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
-  AdjustBaseAndOffset(source);
+  AdjustBaseAndOffset(&source);
   GenInstrImmediate(SB, source.rm(), rd, source.offset());
 }
 
 void Assembler::sh(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
-  AdjustBaseAndOffset(source);
+  AdjustBaseAndOffset(&source);
   GenInstrImmediate(SH, source.rm(), rd, source.offset());
 }
 
 void Assembler::sw(Register rd, const MemOperand& rs) {
   MemOperand source = rs;
-  AdjustBaseAndOffset(source);
+  AdjustBaseAndOffset(&source);
   GenInstrImmediate(SW, source.rm(), rd, source.offset());
 }
 
@@ -2385,13 +2385,13 @@ void Assembler::seb(Register rd, Register rt) {
 // Load, store, move.
 void Assembler::lwc1(FPURegister fd, const MemOperand& src) {
   MemOperand tmp = src;
-  AdjustBaseAndOffset(tmp);
+  AdjustBaseAndOffset(&tmp);
   GenInstrImmediate(LWC1, tmp.rm(), fd, tmp.offset());
 }
 
 void Assembler::swc1(FPURegister fd, const MemOperand& src) {
   MemOperand tmp = src;
-  AdjustBaseAndOffset(tmp);
+  AdjustBaseAndOffset(&tmp);
   GenInstrImmediate(SWC1, tmp.rm(), fd, tmp.offset());
 }
 
@@ -3473,7 +3473,8 @@ int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
 
       if (IsJicOrJialc(instr2)) {
         uint32_t lui_offset_u, jic_offset_u;
-        Assembler::UnpackTargetAddressUnsigned(imm, lui_offset_u, jic_offset_u);
+        Assembler::UnpackTargetAddressUnsigned(imm,
+                                               &lui_offset_u, &jic_offset_u);
         instr_at_put(pc + 0 * kInstrSize, instr1 | lui_offset_u);
         instr_at_put(pc + 1 * kInstrSize, instr2 | jic_offset_u);
       } else {
@@ -3717,7 +3718,7 @@ void Assembler::set_target_value_at(Address pc, uint32_t target,
   if (IsJicOrJialc(instr2)) {
     // Must use 2 instructions to insure patchable code => use lui and jic
     uint32_t lui_offset, jic_offset;
-    Assembler::UnpackTargetAddressUnsigned(target, lui_offset, jic_offset);
+    Assembler::UnpackTargetAddressUnsigned(target, &lui_offset, &jic_offset);
 
     instr1 &= ~kImm16Mask;
     instr2 &= ~kImm16Mask;

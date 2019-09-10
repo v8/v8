@@ -133,7 +133,7 @@ void Assembler::set_target_internal_reference_encoded_at(Address pc,
   if (Assembler::IsJicOrJialc(instr2)) {
     // Encoded internal references are lui/jic load of 32-bit absolute address.
     uint32_t lui_offset_u, jic_offset_u;
-    Assembler::UnpackTargetAddressUnsigned(imm, lui_offset_u, jic_offset_u);
+    Assembler::UnpackTargetAddressUnsigned(imm, &lui_offset_u, &jic_offset_u);
 
     Assembler::instr_at_put(pc + 0 * kInstrSize, instr1 | lui_offset_u);
     Assembler::instr_at_put(pc + 1 * kInstrSize, instr2 | jic_offset_u);

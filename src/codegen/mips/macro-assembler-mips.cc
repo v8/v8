@@ -3751,8 +3751,8 @@ void TurboAssembler::Jump(Register target, const Operand& offset,
   if (IsMipsArchVariant(kMips32r6) && bd == PROTECT &&
       !is_int16(offset.immediate())) {
     uint32_t aui_offset, jic_offset;
-    Assembler::UnpackTargetAddressUnsigned(offset.immediate(), aui_offset,
-                                           jic_offset);
+    Assembler::UnpackTargetAddressUnsigned(offset.immediate(), &aui_offset,
+                                           &jic_offset);
     RecordRelocInfo(RelocInfo::EXTERNAL_REFERENCE, offset.immediate());
     aui(target, target, aui_offset);
     if (cond == cc_always) {
@@ -3790,7 +3790,7 @@ void TurboAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
   // This is not an issue, t9 is expected to be clobbered anyway.
   if (IsMipsArchVariant(kMips32r6) && bd == PROTECT) {
     uint32_t lui_offset, jic_offset;
-    UnpackTargetAddressUnsigned(target, lui_offset, jic_offset);
+    UnpackTargetAddressUnsigned(target, &lui_offset, &jic_offset);
     if (MustUseReg(rmode)) {
       RecordRelocInfo(rmode, target);
     }
@@ -3940,7 +3940,7 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
   int32_t target_int = static_cast<int32_t>(target);
   if (IsMipsArchVariant(kMips32r6) && bd == PROTECT && cond == cc_always) {
     uint32_t lui_offset, jialc_offset;
-    UnpackTargetAddressUnsigned(target_int, lui_offset, jialc_offset);
+    UnpackTargetAddressUnsigned(target_int, &lui_offset, &jialc_offset);
     if (MustUseReg(rmode)) {
       RecordRelocInfo(rmode, target_int);
     }
