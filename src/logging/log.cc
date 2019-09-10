@@ -816,7 +816,7 @@ class Ticker : public sampler::Sampler {
   Ticker(Isolate* isolate, int interval_microseconds)
       : sampler::Sampler(reinterpret_cast<v8::Isolate*>(isolate)),
         sampling_thread_(
-            base::make_unique<SamplingThread>(this, interval_microseconds)) {}
+            std::make_unique<SamplingThread>(this, interval_microseconds)) {}
 
   ~Ticker() override {
     if (IsActive()) Stop();

@@ -745,13 +745,13 @@ ProducedPreparseData* ZoneConsumedPreparseData::GetChildData(Zone* zone,
 std::unique_ptr<ConsumedPreparseData> ConsumedPreparseData::For(
     Isolate* isolate, Handle<PreparseData> data) {
   DCHECK(!data.is_null());
-  return base::make_unique<OnHeapConsumedPreparseData>(isolate, data);
+  return std::make_unique<OnHeapConsumedPreparseData>(isolate, data);
 }
 
 std::unique_ptr<ConsumedPreparseData> ConsumedPreparseData::For(
     Zone* zone, ZonePreparseData* data) {
   if (data == nullptr) return {};
-  return base::make_unique<ZoneConsumedPreparseData>(zone, data);
+  return std::make_unique<ZoneConsumedPreparseData>(zone, data);
 }
 
 }  // namespace internal

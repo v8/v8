@@ -136,11 +136,10 @@ void GenerateClassDebugReader(const ClassType& type, std::ostream& h_contents,
       index_param = ", size_t offset";
       index_offset = " + offset * sizeof(value)";
     }
-    get_props_impl
-        << "  result.push_back(v8::base::make_unique<ObjectProperty>(\""
-        << field_name << "\", \"" << field_cc_type_compressed << "\", \""
-        << field_cc_type << "\", " << address_getter << "()"
-        << indexed_field_info << "));\n";
+    get_props_impl << "  result.push_back(std::make_unique<ObjectProperty>(\""
+                   << field_name << "\", \"" << field_cc_type_compressed
+                   << "\", \"" << field_cc_type << "\", " << address_getter
+                   << "()" << indexed_field_info << "));\n";
 
     h_contents << "  uintptr_t " << address_getter << "() const;\n";
     h_contents << "  Value<" << field_value_type << "> " << field_getter

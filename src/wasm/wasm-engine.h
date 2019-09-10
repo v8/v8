@@ -154,8 +154,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   template <typename T, typename... Args>
   std::unique_ptr<T> NewBackgroundCompileTask(Args&&... args) {
-    return base::make_unique<T>(&background_compile_task_manager_,
-                                std::forward<Args>(args)...);
+    return std::make_unique<T>(&background_compile_task_manager_,
+                               std::forward<Args>(args)...);
   }
 
   // Trigger code logging for this WasmCode in all Isolates which have access to

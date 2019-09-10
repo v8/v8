@@ -3697,8 +3697,7 @@ void Heap::MemoryPressureNotification(MemoryPressureLevel level,
       isolate()->stack_guard()->RequestGC();
       auto taskrunner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
           reinterpret_cast<v8::Isolate*>(isolate()));
-      taskrunner->PostTask(
-          base::make_unique<MemoryPressureInterruptTask>(this));
+      taskrunner->PostTask(std::make_unique<MemoryPressureInterruptTask>(this));
     }
   }
 }

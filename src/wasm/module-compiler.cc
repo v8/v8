@@ -14,7 +14,6 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
 #include "src/base/platform/time.h"
-#include "src/base/template-utils.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/heap/heap-inl.h"  // For CodeSpaceMemoryModificationScope.
@@ -1466,7 +1465,7 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
 std::shared_ptr<StreamingDecoder> AsyncCompileJob::CreateStreamingDecoder() {
   DCHECK_NULL(stream_);
   stream_.reset(
-      new StreamingDecoder(base::make_unique<AsyncStreamingProcessor>(this)));
+      new StreamingDecoder(std::make_unique<AsyncStreamingProcessor>(this)));
   return stream_;
 }
 
@@ -1705,7 +1704,7 @@ class AsyncCompileJob::CompileTask : public CancelableTask {
 void AsyncCompileJob::StartForegroundTask() {
   DCHECK_NULL(pending_foreground_task_);
 
-  auto new_task = base::make_unique<CompileTask>(this, true);
+  auto new_task = std::make_unique<CompileTask>(this, true);
   pending_foreground_task_ = new_task.get();
   foreground_task_runner_->PostTask(std::move(new_task));
 }
@@ -1713,7 +1712,7 @@ void AsyncCompileJob::StartForegroundTask() {
 void AsyncCompileJob::ExecuteForegroundTaskImmediately() {
   DCHECK_NULL(pending_foreground_task_);
 
-  auto new_task = base::make_unique<CompileTask>(this, true);
+  auto new_task = std::make_unique<CompileTask>(this, true);
   pending_foreground_task_ = new_task.get();
   new_task->Run();
 }
@@ -1725,7 +1724,7 @@ void AsyncCompileJob::CancelPendingForegroundTask() {
 }
 
 void AsyncCompileJob::StartBackgroundTask() {
-  auto task = base::make_unique<CompileTask>(this, false);
+  auto task = std::make_unique<CompileTask>(this, false);
 
   // If --wasm-num-compilation-tasks=0 is passed, do only spawn foreground
   // tasks. This is used to make timing deterministic.
@@ -2613,7 +2612,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
     auto& function = module->functions[exp.index];
     JSToWasmWrapperKey key(function.imported, *function.sig);
     if (queue.insert(key)) {
-      auto unit = base::make_unique<JSToWasmWrapperCompilationUnit>(
+      auto unit = std::make_unique<JSToWasmWrapperCompilationUnit>(
           isolate, isolate->wasm_engine(), function.sig, function.imported,
           enabled_features);
       compilation_units.emplace(key, std::move(unit));
@@ -2624,7 +2623,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
   CancelableTaskManager task_manager;
   const int max_background_tasks = GetMaxBackgroundTasks();
   for (int i = 0; i < max_background_tasks; ++i) {
-    auto task = base::make_unique<CompileJSToWasmWrapperTask>(
+    auto task = std::make_unique<CompileJSToWasmWrapperTask>(
         &task_manager, &queue, &compilation_units);
     V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
   }

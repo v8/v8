@@ -613,7 +613,7 @@ Response V8RuntimeAgentImpl::globalLexicalScopeNames(
 
   v8::PersistentValueVector<v8::String> names(m_inspector->isolate());
   v8::debug::GlobalLexicalScopeNames(scope.context(), &names);
-  *outNames = v8::base::make_unique<protocol::Array<String16>>();
+  *outNames = std::make_unique<protocol::Array<String16>>();
   for (size_t i = 0; i < names.Size(); ++i) {
     (*outNames)->emplace_back(
         toProtocolString(m_inspector->isolate(), names.Get(i)));

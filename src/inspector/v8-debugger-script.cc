@@ -462,17 +462,17 @@ class WasmVirtualScript : public V8DebuggerScript {
 std::unique_ptr<V8DebuggerScript> V8DebuggerScript::Create(
     v8::Isolate* isolate, v8::Local<v8::debug::Script> scriptObj,
     bool isLiveEdit, V8DebuggerAgentImpl* agent, V8InspectorClient* client) {
-  return v8::base::make_unique<ActualScript>(isolate, scriptObj, isLiveEdit,
-                                             agent, client);
+  return std::make_unique<ActualScript>(isolate, scriptObj, isLiveEdit, agent,
+                                        client);
 }
 
 std::unique_ptr<V8DebuggerScript> V8DebuggerScript::CreateWasm(
     v8::Isolate* isolate, WasmTranslation* wasmTranslation,
     v8::Local<v8::debug::WasmScript> underlyingScript, String16 id,
     String16 url, int functionIndex) {
-  return v8::base::make_unique<WasmVirtualScript>(
-      isolate, wasmTranslation, underlyingScript, std::move(id), std::move(url),
-      functionIndex);
+  return std::make_unique<WasmVirtualScript>(isolate, wasmTranslation,
+                                             underlyingScript, std::move(id),
+                                             std::move(url), functionIndex);
 }
 
 V8DebuggerScript::V8DebuggerScript(v8::Isolate* isolate, String16 id,

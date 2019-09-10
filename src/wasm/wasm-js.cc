@@ -433,8 +433,8 @@ class AsyncInstantiateCompileResultResolver
     finished_ = true;
     isolate_->wasm_engine()->AsyncInstantiate(
         isolate_,
-        base::make_unique<InstantiateBytesResultResolver>(isolate_, promise_,
-                                                          result),
+        std::make_unique<InstantiateBytesResultResolver>(isolate_, promise_,
+                                                         result),
         result, maybe_imports_);
   }
 
@@ -596,7 +596,7 @@ void WebAssemblyCompileStreaming(
   i::Handle<i::Managed<WasmStreaming>> data =
       i::Managed<WasmStreaming>::Allocate(
           i_isolate, 0,
-          base::make_unique<WasmStreaming::WasmStreamingImpl>(
+          std::make_unique<WasmStreaming::WasmStreamingImpl>(
               isolate, kAPIMethodName, resolver));
 
   DCHECK_NOT_NULL(i_isolate->wasm_streaming_callback());
@@ -875,7 +875,7 @@ void WebAssemblyInstantiateStreaming(
   i::Handle<i::Managed<WasmStreaming>> data =
       i::Managed<WasmStreaming>::Allocate(
           i_isolate, 0,
-          base::make_unique<WasmStreaming::WasmStreamingImpl>(
+          std::make_unique<WasmStreaming::WasmStreamingImpl>(
               isolate, kAPIMethodName, compilation_resolver));
 
   DCHECK_NOT_NULL(i_isolate->wasm_streaming_callback());

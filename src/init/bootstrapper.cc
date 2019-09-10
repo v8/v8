@@ -130,15 +130,15 @@ static bool isValidCpuTraceMarkFunctionName() {
 }
 
 void Bootstrapper::InitializeOncePerProcess() {
-  v8::RegisterExtension(v8::base::make_unique<FreeBufferExtension>());
-  v8::RegisterExtension(v8::base::make_unique<GCExtension>(GCFunctionName()));
-  v8::RegisterExtension(v8::base::make_unique<ExternalizeStringExtension>());
-  v8::RegisterExtension(v8::base::make_unique<StatisticsExtension>());
-  v8::RegisterExtension(v8::base::make_unique<TriggerFailureExtension>());
-  v8::RegisterExtension(v8::base::make_unique<IgnitionStatisticsExtension>());
+  v8::RegisterExtension(std::make_unique<FreeBufferExtension>());
+  v8::RegisterExtension(std::make_unique<GCExtension>(GCFunctionName()));
+  v8::RegisterExtension(std::make_unique<ExternalizeStringExtension>());
+  v8::RegisterExtension(std::make_unique<StatisticsExtension>());
+  v8::RegisterExtension(std::make_unique<TriggerFailureExtension>());
+  v8::RegisterExtension(std::make_unique<IgnitionStatisticsExtension>());
   if (isValidCpuTraceMarkFunctionName()) {
-    v8::RegisterExtension(v8::base::make_unique<CpuTraceMarkExtension>(
-        FLAG_expose_cputracemark_as));
+    v8::RegisterExtension(
+        std::make_unique<CpuTraceMarkExtension>(FLAG_expose_cputracemark_as));
   }
 }
 

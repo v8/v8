@@ -3135,8 +3135,8 @@ TEST(NoBreakWhenBootstrapping) {
   {
     // Create a context with an extension to make sure that some JavaScript
     // code is executed during bootstrapping.
-    v8::RegisterExtension(v8::base::make_unique<v8::Extension>(
-        "simpletest", kSimpleExtensionSource));
+    v8::RegisterExtension(
+        std::make_unique<v8::Extension>("simpletest", kSimpleExtensionSource));
     const char* extension_names[] = { "simpletest" };
     v8::ExtensionConfiguration extensions(1, extension_names);
     v8::HandleScope handle_scope(isolate);

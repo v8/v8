@@ -2817,7 +2817,7 @@ Isolate* Isolate::New(IsolateAllocationMode mode) {
   // IsolateAllocator allocates the memory for the Isolate object according to
   // the given allocation mode.
   std::unique_ptr<IsolateAllocator> isolate_allocator =
-      base::make_unique<IsolateAllocator>(mode);
+      std::make_unique<IsolateAllocator>(mode);
   // Construct Isolate object in the allocated memory.
   void* isolate_ptr = isolate_allocator->isolate_memory();
   Isolate* isolate = new (isolate_ptr) Isolate(std::move(isolate_allocator));

@@ -153,10 +153,10 @@ struct TypedObject {
 
 TypedObject GetTypedObjectByHint(uintptr_t address,
                                  std::string type_hint_string) {
-#define TYPE_NAME_CASE(ClassName, ...)                      \
-  if (type_hint_string == "v8::internal::" #ClassName) {    \
-    return {d::TypeCheckResult::kUsedTypeHint,              \
-            v8::base::make_unique<Tq##ClassName>(address)}; \
+#define TYPE_NAME_CASE(ClassName, ...)                   \
+  if (type_hint_string == "v8::internal::" #ClassName) { \
+    return {d::TypeCheckResult::kUsedTypeHint,           \
+            std::make_unique<Tq##ClassName>(address)};   \
   }
 
   TQ_INSTANCE_TYPES_SINGLE(TYPE_NAME_CASE)
@@ -165,7 +165,7 @@ TypedObject GetTypedObjectByHint(uintptr_t address,
 #undef TYPE_NAME_CASE
 
   return {d::TypeCheckResult::kUnknownTypeHint,
-          v8::base::make_unique<TqHeapObject>(address)};
+          std::make_unique<TqHeapObject>(address)};
 }
 
 TypedObject GetTypedObjectForString(uintptr_t address, i::InstanceType type) {
@@ -174,13 +174,13 @@ TypedObject GetTypedObjectForString(uintptr_t address, i::InstanceType type) {
 #define DEFINE_METHOD(ClassName)                                   \
   static inline TypedObject Handle##ClassName(uintptr_t address) { \
     return {d::TypeCheckResult::kUsedMap,                          \
-            v8::base::make_unique<Tq##ClassName>(address)};        \
+            std::make_unique<Tq##ClassName>(address)};             \
   }
     STRING_CLASS_TYPES(DEFINE_METHOD)
 #undef DEFINE_METHOD
     static inline TypedObject HandleInvalidString(uintptr_t address) {
       return {d::TypeCheckResult::kUnknownInstanceType,
-              v8::base::make_unique<TqString>(address)};
+              std::make_unique<TqString>(address)};
     }
   };
 
@@ -191,7 +191,7 @@ TypedObject GetTypedObjectForString(uintptr_t address, i::InstanceType type) {
 
 TypedObject GetTypedHeapObject(uintptr_t address, d::MemoryAccessor accessor,
                                const char* type_hint) {
-  auto heap_object = v8::base::make_unique<TqHeapObject>(address);
+  auto heap_object = std::make_unique<TqHeapObject>(address);
   Value<uintptr_t> map_ptr = heap_object->GetMapValue(accessor);
 
   if (map_ptr.validity != d::MemoryAccessResult::kOk) {
@@ -210,7 +210,7 @@ TypedObject GetTypedHeapObject(uintptr_t address, d::MemoryAccessor accessor,
 #define INSTANCE_TYPE_CASE(ClassName, INSTANCE_TYPE) \
   case i::INSTANCE_TYPE:                             \
     return {d::TypeCheckResult::kUsedMap,            \
-            v8::base::make_unique<Tq##ClassName>(address)};
+            std::make_unique<Tq##ClassName>(address)};
       TQ_INSTANCE_TYPES_SINGLE(INSTANCE_TYPE_CASE)
 #undef INSTANCE_TYPE_CASE
 
@@ -226,7 +226,7 @@ TypedObject GetTypedHeapObject(uintptr_t address, d::MemoryAccessor accessor,
 #define INSTANCE_RANGE_CASE(ClassName, FIRST_TYPE, LAST_TYPE)      \
   if (type.value >= i::FIRST_TYPE && type.value <= i::LAST_TYPE) { \
     return {d::TypeCheckResult::kUsedMap,                          \
-            v8::base::make_unique<Tq##ClassName>(address)};        \
+            std::make_unique<Tq##ClassName>(address)};             \
   }
         TQ_INSTANCE_TYPES_RANGE(INSTANCE_RANGE_CASE)
 #undef INSTANCE_RANGE_CASE
@@ -441,7 +441,7 @@ std::unique_ptr<ObjectPropertiesResult> GetHeapObjectProperties(
 
   brief = AppendAddressAndType(brief, address, typed.object->GetName());
 
-  return v8::base::make_unique<ObjectPropertiesResult>(
+  return std::make_unique<ObjectPropertiesResult>(
       typed.type_check_result, brief, typed.object->GetName(),
       typed.object->GetProperties(accessor));
 }
@@ -466,7 +466,7 @@ std::unique_ptr<ObjectPropertiesResult> GetHeapObjectProperties(
     // We can't figure out the heap range. Just check for known objects.
     std::string brief = FindKnownObject(address, heap_addresses);
     brief = AppendAddressAndType(brief, address, "v8::internal::TaggedValue");
-    return v8::base::make_unique<ObjectPropertiesResult>(
+    return std::make_unique<ObjectPropertiesResult>(
         d::TypeCheckResult::kUnableToDecompress, brief,
         "v8::internal::TaggedValue",
         std::vector<std::unique_ptr<ObjectProperty>>());
@@ -486,7 +486,7 @@ std::unique_ptr<ObjectPropertiesResult> GetObjectPropertiesImpl(
     const d::HeapAddresses& heap_addresses, const char* type_hint) {
   std::vector<std::unique_ptr<ObjectProperty>> props;
   if (static_cast<uint32_t>(address) == i::kClearedWeakHeapObjectLower32) {
-    return v8::base::make_unique<ObjectPropertiesResult>(
+    return std::make_unique<ObjectPropertiesResult>(
         d::TypeCheckResult::kWeakRef, "cleared weak ref",
         "v8::internal::HeapObject", std::move(props));
   }
@@ -508,7 +508,7 @@ std::unique_ptr<ObjectPropertiesResult> GetObjectPropertiesImpl(
   int32_t value = i::PlatformSmiTagging::SmiToInt(address);
   std::stringstream stream;
   stream << value << " (0x" << std::hex << value << ")";
-  return v8::base::make_unique<ObjectPropertiesResult>(
+  return std::make_unique<ObjectPropertiesResult>(
       d::TypeCheckResult::kSmi, stream.str(), "v8::internal::Smi",
       std::move(props));
 }

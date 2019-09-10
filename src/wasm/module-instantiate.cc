@@ -1235,7 +1235,7 @@ void InstanceBuilder::CompileImportWrappers(
   CancelableTaskManager task_manager;
   const int max_background_tasks = GetMaxBackgroundTasks();
   for (int i = 0; i < max_background_tasks; ++i) {
-    auto task = base::make_unique<CompileImportWrapperTask>(
+    auto task = std::make_unique<CompileImportWrapperTask>(
         &task_manager, isolate_->wasm_engine(), isolate_->counters(),
         native_module, &import_wrapper_queue, &cache_scope);
     V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));

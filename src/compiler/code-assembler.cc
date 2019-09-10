@@ -1913,7 +1913,7 @@ CodeAssemblerScopedExceptionHandler::CodeAssemblerScopedExceptionHandler(
       compatibility_label_(label),
       exception_(exception) {
   if (has_handler_) {
-    label_ = base::make_unique<CodeAssemblerExceptionHandlerLabel>(
+    label_ = std::make_unique<CodeAssemblerExceptionHandlerLabel>(
         assembler, CodeAssemblerLabel::kDeferred);
     assembler_->state()->PushExceptionHandler(label_.get());
   }

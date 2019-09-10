@@ -1130,7 +1130,7 @@ Pipeline::NewWasmHeapStubCompilationJob(
     CallDescriptor* call_descriptor, std::unique_ptr<Zone> zone, Graph* graph,
     Code::Kind kind, std::unique_ptr<char[]> debug_name,
     const AssemblerOptions& options, SourcePositionTable* source_positions) {
-  return base::make_unique<WasmHeapStubCompilationJob>(
+  return std::make_unique<WasmHeapStubCompilationJob>(
       isolate, wasm_engine, call_descriptor, std::move(zone), graph, kind,
       std::move(debug_name), options, source_positions);
 }
@@ -2707,7 +2707,7 @@ std::unique_ptr<OptimizedCompilationJob> Pipeline::NewCompilationJob(
     Isolate* isolate, Handle<JSFunction> function, bool has_script) {
   Handle<SharedFunctionInfo> shared =
       handle(function->shared(), function->GetIsolate());
-  return base::make_unique<PipelineCompilationJob>(isolate, shared, function);
+  return std::make_unique<PipelineCompilationJob>(isolate, shared, function);
 }
 
 // static
@@ -2788,7 +2788,7 @@ void Pipeline::GenerateCodeForWasmFunction(
   if (!pipeline.SelectInstructions(&linkage)) return;
   pipeline.AssembleCode(&linkage, instruction_buffer->CreateView());
 
-  auto result = base::make_unique<wasm::WasmCompilationResult>();
+  auto result = std::make_unique<wasm::WasmCompilationResult>();
   CodeGenerator* code_generator = pipeline.code_generator();
   code_generator->tasm()->GetCode(
       nullptr, &result->code_desc, code_generator->safepoint_table_builder(),

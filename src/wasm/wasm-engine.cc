@@ -566,7 +566,7 @@ int GetGCTimeMicros(base::TimeTicks start) {
 void WasmEngine::AddIsolate(Isolate* isolate) {
   base::MutexGuard guard(&mutex_);
   DCHECK_EQ(0, isolates_.count(isolate));
-  isolates_.emplace(isolate, base::make_unique<IsolateInfo>(isolate));
+  isolates_.emplace(isolate, std::make_unique<IsolateInfo>(isolate));
 
   // Install sampling GC callback.
   // TODO(v8:7424): For now we sample module sizes in a GC callback. This will
@@ -630,7 +630,7 @@ void WasmEngine::LogCode(WasmCode* code) {
     IsolateInfo* info = isolates_[isolate].get();
     if (info->log_codes == false) continue;
     if (info->log_codes_task == nullptr) {
-      auto new_task = base::make_unique<LogCodesTask>(
+      auto new_task = std::make_unique<LogCodesTask>(
           &mutex_, &info->log_codes_task, isolate, this);
       info->log_codes_task = new_task.get();
       info->foreground_task_runner->PostTask(std::move(new_task));
@@ -687,7 +687,7 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
                                     can_request_more, std::move(module));
   base::MutexGuard lock(&mutex_);
   auto pair = native_modules_.insert(std::make_pair(
-      native_module.get(), base::make_unique<NativeModuleInfo>()));
+      native_module.get(), std::make_unique<NativeModuleInfo>()));
   DCHECK(pair.second);  // inserted new entry.
   pair.first->second.get()->isolates.insert(isolate);
   isolates_[isolate]->native_modules.insert(native_module.get());
@@ -767,7 +767,7 @@ void WasmEngine::SampleTopTierCodeSizeInAllIsolates(
     DCHECK_EQ(1, isolates_.count(isolate));
     IsolateInfo* info = isolates_[isolate].get();
     info->foreground_task_runner->PostTask(
-        base::make_unique<SampleTopTierCodeSizeTask>(isolate, native_module));
+        std::make_unique<SampleTopTierCodeSizeTask>(isolate, native_module));
   }
 }
 
@@ -879,7 +879,7 @@ void WasmEngine::TriggerGC(int8_t gc_sequence_index) {
     for (auto* isolate : native_modules_[entry.first]->isolates) {
       auto& gc_task = current_gc_info_->outstanding_isolates[isolate];
       if (!gc_task) {
-        auto new_task = base::make_unique<WasmGCForegroundTask>(isolate);
+        auto new_task = std::make_unique<WasmGCForegroundTask>(isolate);
         gc_task = new_task.get();
         DCHECK_EQ(1, isolates_.count(isolate));
         isolates_[isolate]->foreground_task_runner->PostTask(

@@ -11,7 +11,6 @@
 #include "src/base/lsan.h"
 #include "src/base/macros.h"
 #include "src/base/platform/semaphore.h"
-#include "src/base/template-utils.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/combined-heap.h"
@@ -220,7 +219,7 @@ void MemoryAllocator::InitializeCodePageAllocator(
                requested));
 
   heap_reservation_ = std::move(reservation);
-  code_page_allocator_instance_ = base::make_unique<base::BoundedPageAllocator>(
+  code_page_allocator_instance_ = std::make_unique<base::BoundedPageAllocator>(
       page_allocator, aligned_base, size,
       static_cast<size_t>(MemoryChunk::kAlignment));
   code_page_allocator_ = code_page_allocator_instance_.get();
@@ -286,7 +285,7 @@ void MemoryAllocator::Unmapper::FreeQueuedChunks() {
       }
       return;
     }
-    auto task = base::make_unique<UnmapFreeMemoryTask>(heap_->isolate(), this);
+    auto task = std::make_unique<UnmapFreeMemoryTask>(heap_->isolate(), this);
     if (FLAG_trace_unmapper) {
       PrintIsolate(heap_->isolate(),
                    "Unmapper::FreeQueuedChunks: new task id=%" PRIu64 "\n",

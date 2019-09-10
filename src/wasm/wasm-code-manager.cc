@@ -192,7 +192,7 @@ void WasmCode::LogCode(Isolate* isolate) const {
     Local<v8::String> source_map_str =
         load_wasm_source_map(v8_isolate, source_map_url.c_str());
     native_module()->SetWasmSourceMap(
-        base::make_unique<WasmModuleSourceMap>(v8_isolate, source_map_str));
+        std::make_unique<WasmModuleSourceMap>(v8_isolate, source_map_str));
   }
 
   if (!name_vec.empty()) {

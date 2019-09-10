@@ -2613,7 +2613,7 @@ ScriptCompiler::ScriptStreamingTask* ScriptCompiler::StartStreamingScript(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   i::ScriptStreamingData* data = source->impl();
   std::unique_ptr<i::BackgroundCompileTask> task =
-      base::make_unique<i::BackgroundCompileTask>(data, isolate);
+      std::make_unique<i::BackgroundCompileTask>(data, isolate);
   data->task = std::move(task);
   return new ScriptCompiler::ScriptStreamingTask(data);
 }

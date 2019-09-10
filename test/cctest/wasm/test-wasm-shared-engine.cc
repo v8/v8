@@ -27,7 +27,7 @@ namespace test_wasm_shared_engine {
 class SharedEngine {
  public:
   explicit SharedEngine(size_t max_committed = kMaxWasmCodeMemory)
-      : wasm_engine_(base::make_unique<WasmEngine>()) {}
+      : wasm_engine_(std::make_unique<WasmEngine>()) {}
   ~SharedEngine() {
     // Ensure no remaining uses exist.
     CHECK(wasm_engine_.unique());
@@ -165,8 +165,7 @@ class MockCompilationResolver : public CompilationResultResolver {
   void OnCompilationSucceeded(Handle<WasmModuleObject> result) override {
     isolate_->isolate()->wasm_engine()->AsyncInstantiate(
         isolate_->isolate(),
-        base::make_unique<MockInstantiationResolver>(out_instance_), result,
-        {});
+        std::make_unique<MockInstantiationResolver>(out_instance_), result, {});
   }
   void OnCompilationFailed(Handle<Object> error_reason) override {
     UNREACHABLE();
@@ -192,7 +191,7 @@ Handle<WasmInstanceObject> CompileAndInstantiateAsync(
   constexpr const char* kAPIMethodName = "Test.CompileAndInstantiateAsync";
   isolate->isolate()->wasm_engine()->AsyncCompile(
       isolate->isolate(), enabled_features,
-      base::make_unique<MockCompilationResolver>(isolate, &maybe_instance),
+      std::make_unique<MockCompilationResolver>(isolate, &maybe_instance),
       ModuleWireBytes(buffer->begin(), buffer->end()), true, kAPIMethodName);
   while (!maybe_instance->IsWasmInstanceObject()) PumpMessageLoop(isolate);
   Handle<WasmInstanceObject> instance =

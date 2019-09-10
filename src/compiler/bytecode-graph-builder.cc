@@ -948,7 +948,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
           bytecode_array().parameter_count(), bytecode_array().register_count(),
           shared_info.object())),
       bytecode_iterator_(
-          base::make_unique<OffHeapBytecodeArray>(bytecode_array())),
+          std::make_unique<OffHeapBytecodeArray>(bytecode_array())),
       bytecode_analysis_(broker_->GetBytecodeAnalysis(
           bytecode_array().object(), osr_offset,
           flags & BytecodeGraphBuilderFlag::kAnalyzeEnvironmentLiveness,
@@ -974,12 +974,12 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
   if (FLAG_concurrent_inlining) {
     // With concurrent inlining on, the source position address doesn't change
     // because it's been copied from the heap.
-    source_position_iterator_ = base::make_unique<SourcePositionTableIterator>(
+    source_position_iterator_ = std::make_unique<SourcePositionTableIterator>(
         Vector<const byte>(bytecode_array().source_positions_address(),
                            bytecode_array().source_positions_size()));
   } else {
     // Otherwise, we need to access the table through a handle.
-    source_position_iterator_ = base::make_unique<SourcePositionTableIterator>(
+    source_position_iterator_ = std::make_unique<SourcePositionTableIterator>(
         handle(bytecode_array().object()->SourcePositionTableIfCollected(),
                isolate()));
   }

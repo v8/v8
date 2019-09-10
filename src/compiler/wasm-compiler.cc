@@ -5076,7 +5076,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
   CallDescriptor* GetI64ToBigIntCallDescriptor() {
     if (!lowering_special_case_) {
-      lowering_special_case_ = base::make_unique<Int64LoweringSpecialCase>();
+      lowering_special_case_ = std::make_unique<Int64LoweringSpecialCase>();
     }
 
     if (lowering_special_case_->i64_to_bigint_call_descriptor) {
@@ -5112,7 +5112,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
   CallDescriptor* GetBigIntToI64CallDescriptor() {
     if (!lowering_special_case_) {
-      lowering_special_case_ = base::make_unique<Int64LoweringSpecialCase>();
+      lowering_special_case_ = std::make_unique<Int64LoweringSpecialCase>();
     }
 
     if (lowering_special_case_->bigint_to_i64_call_descriptor) {
@@ -6287,7 +6287,7 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
   // Create the Graph.
   //----------------------------------------------------------------------------
   std::unique_ptr<Zone> zone =
-      base::make_unique<Zone>(wasm_engine->allocator(), ZONE_NAME);
+      std::make_unique<Zone>(wasm_engine->allocator(), ZONE_NAME);
   Graph* graph = new (zone.get()) Graph(zone.get());
   CommonOperatorBuilder common(zone.get());
   MachineOperatorBuilder machine(
@@ -6702,7 +6702,7 @@ wasm::WasmCompilationResult CompileWasmInterpreterEntry(
 MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
                                        wasm::FunctionSig* sig) {
   std::unique_ptr<Zone> zone =
-      base::make_unique<Zone>(isolate->allocator(), ZONE_NAME);
+      std::make_unique<Zone>(isolate->allocator(), ZONE_NAME);
   Graph* graph = new (zone.get()) Graph(zone.get());
   CommonOperatorBuilder common(zone.get());
   MachineOperatorBuilder machine(
@@ -6749,7 +6749,7 @@ MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
 
 MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
   std::unique_ptr<Zone> zone =
-      base::make_unique<Zone>(isolate->allocator(), ZONE_NAME);
+      std::make_unique<Zone>(isolate->allocator(), ZONE_NAME);
   Graph* graph = new (zone.get()) Graph(zone.get());
   CommonOperatorBuilder common(zone.get());
   MachineOperatorBuilder machine(

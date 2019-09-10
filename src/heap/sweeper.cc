@@ -4,7 +4,6 @@
 
 #include "src/heap/sweeper.h"
 
-#include "src/base/template-utils.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/gc-tracer.h"
@@ -181,7 +180,7 @@ void Sweeper::StartSweeperTasks() {
     ForAllSweepingSpaces([this](AllocationSpace space) {
       DCHECK(IsValidSweepingSpace(space));
       num_sweeping_tasks_++;
-      auto task = base::make_unique<SweeperTask>(
+      auto task = std::make_unique<SweeperTask>(
           heap_->isolate(), this, &pending_sweeper_tasks_semaphore_,
           &num_sweeping_tasks_, space);
       DCHECK_LT(num_tasks_, kMaxSweeperTasks);
@@ -488,7 +487,7 @@ void Sweeper::ScheduleIncrementalSweepingTask() {
     auto taskrunner =
         V8::GetCurrentPlatform()->GetForegroundTaskRunner(isolate);
     taskrunner->PostTask(
-        base::make_unique<IncrementalSweeperTask>(heap_->isolate(), this));
+        std::make_unique<IncrementalSweeperTask>(heap_->isolate(), this));
   }
 }
 
@@ -596,8 +595,8 @@ void Sweeper::StartIterabilityTasks() {
 
   DCHECK(!iterability_task_started_);
   if (FLAG_concurrent_sweeping && !iterability_list_.empty()) {
-    auto task = base::make_unique<IterabilityTask>(
-        heap_->isolate(), this, &iterability_task_semaphore_);
+    auto task = std::make_unique<IterabilityTask>(heap_->isolate(), this,
+                                                  &iterability_task_semaphore_);
     iterability_task_id_ = task->id();
     iterability_task_started_ = true;
     V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));

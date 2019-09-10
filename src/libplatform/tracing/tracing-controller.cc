@@ -280,7 +280,7 @@ void TracingController::StartTracing(TraceConfig* trace_config) {
 #ifdef V8_USE_PERFETTO
   DCHECK_NOT_NULL(output_stream_);
   DCHECK(output_stream_->good());
-  json_listener_ = base::make_unique<JSONTraceEventListener>(output_stream_);
+  json_listener_ = std::make_unique<JSONTraceEventListener>(output_stream_);
 
   // TODO(petermarshall): Set other the params for the config.
   ::perfetto::TraceConfig perfetto_trace_config;

@@ -382,7 +382,7 @@ class BackgroundCompileThread : public base::Thread {
   BackgroundCompileThread(Isolate* isolate, Local<String> source)
       : base::Thread(GetThreadOptions("BackgroundCompileThread")),
         source_(source),
-        streamed_source_(base::make_unique<DummySourceStream>(source, isolate),
+        streamed_source_(std::make_unique<DummySourceStream>(source, isolate),
                          v8::ScriptCompiler::StreamedSource::UTF8),
         task_(v8::ScriptCompiler::StartStreamingScript(isolate,
                                                        &streamed_source_)) {}
@@ -3418,7 +3418,7 @@ int Shell::Main(int argc, char* argv[]) {
   std::unique_ptr<platform::tracing::TracingController> tracing;
   std::ofstream trace_file;
   if (options.trace_enabled && !i::FLAG_verify_predictable) {
-    tracing = base::make_unique<platform::tracing::TracingController>();
+    tracing = std::make_unique<platform::tracing::TracingController>();
     trace_file.open(options.trace_path ? options.trace_path : "v8_trace.json");
     DCHECK(trace_file.good());
 

@@ -129,7 +129,7 @@ void IsolateAllocator::CommitPagesForIsolate(Address heap_address) {
   size_t page_size = RoundUp(size_t{1} << kPageSizeBits,
                              platform_page_allocator->AllocatePageSize());
 
-  page_allocator_instance_ = base::make_unique<base::BoundedPageAllocator>(
+  page_allocator_instance_ = std::make_unique<base::BoundedPageAllocator>(
       platform_page_allocator, heap_address, kPtrComprHeapReservationSize,
       page_size);
   page_allocator_ = page_allocator_instance_.get();

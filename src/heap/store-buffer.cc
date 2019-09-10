@@ -8,7 +8,6 @@
 
 #include "src/base/bits.h"
 #include "src/base/macros.h"
-#include "src/base/template-utils.h"
 #include "src/execution/isolate.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/store-buffer-inl.h"
@@ -128,7 +127,7 @@ void StoreBuffer::FlipStoreBuffers() {
   if (!task_running_ && FLAG_concurrent_store_buffer) {
     task_running_ = true;
     V8::GetCurrentPlatform()->CallOnWorkerThread(
-        base::make_unique<Task>(heap_->isolate(), this));
+        std::make_unique<Task>(heap_->isolate(), this));
   }
 }
 

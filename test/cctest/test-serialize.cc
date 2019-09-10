@@ -3604,13 +3604,13 @@ UNINITIALIZED_TEST(SnapshotCreatorIncludeGlobalProxy) {
       // We can introduce new extensions, which could override functions already
       // in the snapshot.
       auto extension =
-          base::make_unique<v8::Extension>("new extension",
-                                           "function i() { return 24; }"
-                                           "function j() { return 25; }"
-                                           "let a = 26;"
-                                           "try {"
-                                           "  if (o.p == 7) o.p++;"
-                                           "} catch {}");
+          std::make_unique<v8::Extension>("new extension",
+                                          "function i() { return 24; }"
+                                          "function j() { return 25; }"
+                                          "let a = 26;"
+                                          "try {"
+                                          "  if (o.p == 7) o.p++;"
+                                          "} catch {}");
       extension->set_auto_enable(true);
       v8::RegisterExtension(std::move(extension));
       {

@@ -519,7 +519,7 @@ class LiftoffCompiler {
     }
 
     // Allocate the else state.
-    if_block->else_state = base::make_unique<ElseState>();
+    if_block->else_state = std::make_unique<ElseState>();
 
     // Test the condition, jump to else if zero.
     Register value = __ PopToRegister().gp();
