@@ -946,6 +946,7 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
 
   // Now we handle the funcref case.
   if (WasmExportedFunction::IsWasmExportedFunction(*entry) ||
+      WasmJSFunction::IsWasmJSFunction(*entry) ||
       WasmCapiFunction::IsWasmCapiFunction(*entry)) {
     return entry;
   }
