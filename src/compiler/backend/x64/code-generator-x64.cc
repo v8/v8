@@ -2703,15 +2703,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (CpuFeatures::IsSupported(SSE4_2)) {
         CpuFeatureScope sse_scope_4_2(tasm(), SSE4_2);
         XMMRegister dst = i.OutputSimd128Register();
-        XMMRegister src = i.InputSimd128Register(1);
+        XMMRegister src0 = i.InputSimd128Register(0);
+        XMMRegister src1 = i.InputSimd128Register(1);
         XMMRegister tmp = i.TempSimd128Register(0);
-        DCHECK_EQ(dst, i.InputSimd128Register(0));
-        DCHECK_EQ(src, xmm0);
+        DCHECK_EQ(tmp, xmm0);
 
-        __ movaps(tmp, src);
-        __ pcmpgtq(src, dst);
-        __ blendvpd(tmp, dst);  // implicit use of xmm0 as mask
-        __ movaps(dst, tmp);
+        __ movaps(tmp, src1);
+        __ pcmpgtq(tmp, src0);
+        __ movaps(dst, src1);
+        __ blendvpd(dst, src0);  // implicit use of xmm0 as mask
       } else {
         CpuFeatureScope sse_scope_4_1(tasm(), SSE4_1);
         XMMRegister dst = i.OutputSimd128Register();
@@ -2752,11 +2752,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister src = i.InputSimd128Register(1);
       XMMRegister tmp = i.TempSimd128Register(0);
       DCHECK_EQ(dst, i.InputSimd128Register(0));
-      DCHECK_EQ(src, xmm0);
+      DCHECK_EQ(tmp, xmm0);
 
       __ movaps(tmp, src);
-      __ pcmpgtq(src, dst);
-      __ blendvpd(dst, tmp);  // implicit use of xmm0 as mask
+      __ pcmpgtq(tmp, dst);
+      __ blendvpd(dst, src);  // implicit use of xmm0 as mask
       break;
     }
     case kX64I64x2Eq: {
@@ -2806,24 +2806,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope_4_2(tasm(), SSE4_2);
       CpuFeatureScope sse_scope_4_1(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
-      XMMRegister src = i.InputSimd128Register(1);
-      XMMRegister src_tmp = i.TempSimd128Register(0);
-      XMMRegister dst_tmp = i.TempSimd128Register(1);
-      DCHECK_EQ(dst, i.InputSimd128Register(0));
-      DCHECK_EQ(src, xmm0);
+      XMMRegister src0 = i.InputSimd128Register(0);
+      XMMRegister src1 = i.InputSimd128Register(1);
+      XMMRegister tmp0 = i.TempSimd128Register(0);
+      XMMRegister tmp1 = i.TempSimd128Register(1);
+      DCHECK_EQ(tmp1, xmm0);
 
-      __ movaps(src_tmp, src);
-      __ movaps(dst_tmp, dst);
+      __ movaps(dst, src1);
+      __ movaps(tmp0, src0);
 
-      __ pcmpeqd(src, src);
-      __ psllq(src, 63);
+      __ pcmpeqd(tmp1, tmp1);
+      __ psllq(tmp1, 63);
 
-      __ pxor(dst_tmp, src);
-      __ pxor(src, src_tmp);
+      __ pxor(tmp0, tmp1);
+      __ pxor(tmp1, dst);
 
-      __ pcmpgtq(src, dst_tmp);
-      __ blendvpd(src_tmp, dst);  // implicit use of xmm0 as mask
-      __ movaps(dst, src_tmp);
+      __ pcmpgtq(tmp1, tmp0);
+      __ blendvpd(dst, src0);  // implicit use of xmm0 as mask
       break;
     }
     case kX64I64x2MaxU: {
@@ -2831,22 +2830,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope_4_1(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(1);
-      XMMRegister src_tmp = i.TempSimd128Register(0);
-      XMMRegister dst_tmp = i.TempSimd128Register(1);
+      XMMRegister dst_tmp = i.TempSimd128Register(0);
+      XMMRegister tmp = i.TempSimd128Register(1);
       DCHECK_EQ(dst, i.InputSimd128Register(0));
-      DCHECK_EQ(src, xmm0);
+      DCHECK_EQ(tmp, xmm0);
 
-      __ movaps(src_tmp, src);
       __ movaps(dst_tmp, dst);
 
-      __ pcmpeqd(src, src);
-      __ psllq(src, 63);
+      __ pcmpeqd(tmp, tmp);
+      __ psllq(tmp, 63);
 
-      __ pxor(dst_tmp, src);
-      __ pxor(src, src_tmp);
+      __ pxor(dst_tmp, tmp);
+      __ pxor(tmp, src);
 
-      __ pcmpgtq(src, dst_tmp);
-      __ blendvpd(dst, src_tmp);  // implicit use of xmm0 as mask
+      __ pcmpgtq(tmp, dst_tmp);
+      __ blendvpd(dst, src);  // implicit use of xmm0 as mask
       break;
     }
     case kX64I64x2GtU: {

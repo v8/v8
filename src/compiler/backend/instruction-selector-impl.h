@@ -264,6 +264,16 @@ class OperandGenerator {
                               InstructionOperand::kInvalidVirtualRegister);
   }
 
+  template <typename FPRegType>
+  InstructionOperand TempFpRegister(FPRegType reg) {
+    UnallocatedOperand op =
+        UnallocatedOperand(UnallocatedOperand::FIXED_FP_REGISTER, reg.code(),
+                           sequence()->NextVirtualRegister());
+    sequence()->MarkAsRepresentation(MachineRepresentation::kSimd128,
+                                     op.virtual_register());
+    return op;
+  }
+
   InstructionOperand TempImmediate(int32_t imm) {
     return sequence()->AddImmediate(Constant(imm));
   }

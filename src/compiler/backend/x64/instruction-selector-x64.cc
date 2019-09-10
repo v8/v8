@@ -2920,10 +2920,10 @@ void InstructionSelector::VisitI64x2Mul(Node* node) {
 void InstructionSelector::VisitI64x2MinS(Node* node) {
   X64OperandGenerator g(this);
   if (this->IsSupported(SSE4_2)) {
-    InstructionOperand temps[] = {g.TempSimd128Register()};
-    Emit(kX64I64x2MinS, g.DefineSameAsFirst(node),
-         g.UseRegister(node->InputAt(0)), g.UseFixed(node->InputAt(1), xmm0),
-         arraysize(temps), temps);
+    InstructionOperand temps[] = {g.TempFpRegister(xmm0)};
+    Emit(kX64I64x2MinS, g.DefineAsRegister(node),
+         g.UseUniqueRegister(node->InputAt(0)),
+         g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
   } else {
     InstructionOperand temps[] = {g.TempSimd128Register(), g.TempRegister(),
                                   g.TempRegister()};
@@ -2935,27 +2935,27 @@ void InstructionSelector::VisitI64x2MinS(Node* node) {
 
 void InstructionSelector::VisitI64x2MaxS(Node* node) {
   X64OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempSimd128Register()};
+  InstructionOperand temps[] = {g.TempFpRegister(xmm0)};
   Emit(kX64I64x2MaxS, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.UseFixed(node->InputAt(1), xmm0),
+       g.UseRegister(node->InputAt(0)), g.UseUniqueRegister(node->InputAt(1)),
        arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitI64x2MinU(Node* node) {
   X64OperandGenerator g(this);
   InstructionOperand temps[] = {g.TempSimd128Register(),
-                                g.TempSimd128Register()};
-  Emit(kX64I64x2MinU, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.UseFixed(node->InputAt(1), xmm0),
-       arraysize(temps), temps);
+                                g.TempFpRegister(xmm0)};
+  Emit(kX64I64x2MinU, g.DefineAsRegister(node),
+       g.UseUniqueRegister(node->InputAt(0)),
+       g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitI64x2MaxU(Node* node) {
   X64OperandGenerator g(this);
   InstructionOperand temps[] = {g.TempSimd128Register(),
-                                g.TempSimd128Register()};
+                                g.TempFpRegister(xmm0)};
   Emit(kX64I64x2MaxU, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.UseFixed(node->InputAt(1), xmm0),
+       g.UseRegister(node->InputAt(0)), g.UseUniqueRegister(node->InputAt(1)),
        arraysize(temps), temps);
 }
 
