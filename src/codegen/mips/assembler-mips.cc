@@ -2969,7 +2969,7 @@ MSA_BRANCH_LIST(MSA_BRANCH)
 #define MSA_LD_ST(name, opcode)                                  \
   void Assembler::name(MSARegister wd, const MemOperand& rs) {   \
     MemOperand source = rs;                                      \
-    AdjustBaseAndOffset(source);                                 \
+    AdjustBaseAndOffset(&source);                                 \
     if (is_int10(source.offset())) {                             \
       GenInstrMsaMI10(opcode, source.offset(), source.rm(), wd); \
     } else {                                                     \
