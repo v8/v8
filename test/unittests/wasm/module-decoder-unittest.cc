@@ -439,17 +439,15 @@ TEST_F(WasmModuleVerifyTest, ExportMutableGlobal) {
   }
 }
 
-static void AppendUint32v(
-    std::vector<byte>& buffer,  // NOLINT(runtime/references)
-    uint32_t val) {
+static void AppendUint32v(std::vector<byte>* buffer, uint32_t val) {
   while (true) {
     uint32_t next = val >> 7;
     uint32_t out = val & 0x7F;
     if (next) {
-      buffer.push_back(static_cast<byte>(0x80 | out));
+      buffer->push_back(static_cast<byte>(0x80 | out));
       val = next;
     } else {
-      buffer.push_back(static_cast<byte>(out));
+      buffer->push_back(static_cast<byte>(out));
       break;
     }
   }
@@ -469,7 +467,7 @@ TEST_F(WasmModuleVerifyTest, NGlobals) {
     for (size_t g = 0; g != sizeof(globals); ++g) {
       buffer.push_back(globals[g]);
     }
-    AppendUint32v(buffer, i);  // Number of globals.
+    AppendUint32v(&buffer, i);  // Number of globals.
     for (uint32_t j = 0; j < i; j++) {
       buffer.insert(buffer.end(), data, data + sizeof(data));
     }
