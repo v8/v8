@@ -839,13 +839,13 @@ void NativeModule::UseLazyStub(uint32_t func_index) {
 
   // Add jump table entry for jump to the lazy compile stub.
   uint32_t slot_index = func_index - module_->num_imported_functions;
-  DCHECK_NULL(code_table_[slot_index]);
   DCHECK_NE(runtime_stub_entry(WasmCode::kWasmCompileLazy), kNullAddress);
   Address lazy_compile_target =
       lazy_compile_table_->instruction_start() +
       JumpTableAssembler::LazyCompileSlotIndexToOffset(slot_index);
-  base::MutexGuard guard(&allocation_mutex_);
-  PatchJumpTablesLocked(func_index, lazy_compile_target);
+  JumpTableAssembler::PatchJumpTableSlot(main_jump_table_->instruction_start(),
+                                         slot_index, lazy_compile_target,
+                                         WasmCode::kFlushICache);
 }
 
 // TODO(mstarzinger): Remove {Isolate} parameter once {V8_EMBEDDED_BUILTINS}
@@ -1035,7 +1035,9 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
     }
 
     if (update_jump_table) {
-      PatchJumpTablesLocked(code->index(), code->instruction_start());
+      JumpTableAssembler::PatchJumpTableSlot(
+          main_jump_table_->instruction_start(), slot_idx,
+          code->instruction_start(), WasmCode::kFlushICache);
     }
   }
   WasmCodeRefScope::AddRef(code.get());
@@ -1127,19 +1129,6 @@ WasmCode* NativeModule::CreateEmptyJumpTableInRegion(
       WasmCode::kJumpTable,                     // kind
       ExecutionTier::kNone}};                   // tier
   return PublishCode(std::move(code));
-}
-
-void NativeModule::PatchJumpTablesLocked(uint32_t func_index, Address target) {
-  // The caller must hold the {allocation_mutex_}, thus we fail to lock it here.
-  DCHECK(!allocation_mutex_.TryLock());
-
-  uint32_t slot_index = func_index - module_->num_imported_functions;
-  for (auto& code_space_data : code_space_data_) {
-    if (!code_space_data.jump_table) continue;
-    Address jump_table_base = code_space_data.jump_table->instruction_start();
-    JumpTableAssembler::PatchJumpTableSlot(jump_table_base, slot_index, target,
-                                           WasmCode::kFlushICache);
-  }
 }
 
 void NativeModule::AddCodeSpace(base::AddressRegion region) {
