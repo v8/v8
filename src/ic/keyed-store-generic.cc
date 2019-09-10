@@ -869,6 +869,11 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
     BIND(&not_found);
     {
+      // TODO(jkummerow): Also add support to correctly handle integer exotic
+      // cases for typed arrays and remove this check here.
+      GotoIf(InstanceTypeEqual(LoadMapInstanceType(receiver_map),
+                               JS_TYPED_ARRAY_TYPE),
+             slow);
       CheckForAssociatedProtector(name, slow);
       Label extensible(this), is_private_symbol(this);
       TNode<Uint32T> bitfield3 = LoadMapBitField3(receiver_map);
