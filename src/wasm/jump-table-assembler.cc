@@ -240,19 +240,7 @@ void JumpTableAssembler::NopBytes(int bytes) {
 }
 
 #else
-void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
-                                                 Address lazy_compile_target) {
-  UNIMPLEMENTED();
-}
-
-void JumpTableAssembler::EmitJumpSlot(Address target) { UNIMPLEMENTED(); }
-
-void JumpTableAssembler::EmitFarJumpSlot(Address target) { UNIMPLEMENTED(); }
-
-void JumpTableAssembler::NopBytes(int bytes) {
-  DCHECK_LE(0, bytes);
-  UNIMPLEMENTED();
-}
+#error Unknown architecture.
 #endif
 
 }  // namespace wasm
