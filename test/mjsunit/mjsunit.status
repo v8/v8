@@ -81,6 +81,9 @@
   'wasm/shared-memory-worker-explicit-gc-stress': [PASS, ['mode == debug', SKIP], ['tsan', SKIP]],
   'wasm/shared-memory-worker-gc-stress': [PASS, ['mode == debug', SKIP]],
 
+  # Slow in simulator runs.
+  'random-bit-correlations': [PASS, ['simulator_run == True', SLOW]],
+
   ##############################################################################
   # Only RegExp stuff tested, no need for extensive optimizing compiler tests.
   'regexp-global': [PASS, NO_VARIANTS],
