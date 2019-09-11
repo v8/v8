@@ -861,7 +861,8 @@ void NativeModule::SetRuntimeStubs(Isolate* isolate) {
   WasmCodeRefScope code_ref_scope;
   DCHECK_EQ(1, code_space_data_.size());
   WasmCode* jump_table = CreateEmptyJumpTableInRegion(
-      JumpTableAssembler::SizeForNumberOfStubSlots(WasmCode::kRuntimeStubCount),
+      JumpTableAssembler::SizeForNumberOfFarJumpSlots(
+          WasmCode::kRuntimeStubCount),
       code_space_data_[0].region);
   Address base = jump_table->instruction_start();
   EmbeddedData embedded_data = EmbeddedData::FromBlob();
@@ -877,10 +878,10 @@ void NativeModule::SetRuntimeStubs(Isolate* isolate) {
     CHECK(embedded_data.ContainsBuiltin(builtin));
     builtin_address[i] = embedded_data.InstructionStartOfBuiltin(builtin);
     runtime_stub_entries_[i] =
-        base + JumpTableAssembler::StubSlotIndexToOffset(i);
+        base + JumpTableAssembler::FarJumpSlotIndexToOffset(i);
   }
-  JumpTableAssembler::GenerateRuntimeStubTable(base, builtin_address,
-                                               WasmCode::kRuntimeStubCount);
+  JumpTableAssembler::GenerateFarJumpTable(base, builtin_address,
+                                           WasmCode::kRuntimeStubCount);
   DCHECK_NULL(runtime_stub_table_);
   runtime_stub_table_ = jump_table;
   DCHECK_NE(kNullAddress, runtime_stub_entries_[0]);

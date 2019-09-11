@@ -19,7 +19,7 @@ namespace wasm {
 //
 // Additionally to this main jump table, there exist special jump tables for
 // other purposes:
-// - the runtime stub table contains one entry per wasm runtime stub (see
+// - the far stub table contains one entry per wasm runtime stub (see
 //   {WasmCode::RuntimeStubId}, which jumps to the corresponding embedded
 //   builtin.
 // - the lazy compile table contains one entry per wasm function which jumps to
@@ -73,26 +73,25 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
 
   // Determine the size of a jump table containing the given number of slots.
   static constexpr uint32_t SizeForNumberOfSlots(uint32_t slot_count) {
-    // TODO(wasm): Once the {RoundUp} utility handles non-powers of two values,
-    // use: {RoundUp<kJumpTableSlotsPerLine>(slot_count) * kJumpTableLineSize}
     return ((slot_count + kJumpTableSlotsPerLine - 1) /
             kJumpTableSlotsPerLine) *
            kJumpTableLineSize;
   }
 
-  // Translate a stub slot index to an offset into the continuous jump table.
-  static uint32_t StubSlotIndexToOffset(uint32_t slot_index) {
-    return slot_index * kJumpTableStubSlotSize;
+  // Translate a far jump table index to an offset into the table.
+  static uint32_t FarJumpSlotIndexToOffset(uint32_t slot_index) {
+    return slot_index * kFarJumpTableSlotSize;
+  }
+
+  // Determine the size of a far jump table containing the given number of
+  // slots.
+  static constexpr uint32_t SizeForNumberOfFarJumpSlots(int num_stubs) {
+    return num_stubs * kFarJumpTableSlotSize;
   }
 
   // Translate a slot index to an offset into the lazy compile table.
   static uint32_t LazyCompileSlotIndexToOffset(uint32_t slot_index) {
     return slot_index * kLazyCompileTableSlotSize;
-  }
-
-  // Determine the size of a jump table containing only runtime stub slots.
-  static constexpr uint32_t SizeForNumberOfStubSlots(uint32_t slot_count) {
-    return slot_count * kJumpTableStubSlotSize;
   }
 
   // Determine the size of a lazy compile table.
@@ -115,18 +114,17 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
     FlushInstructionCache(base, lazy_compile_table_size);
   }
 
-  static void GenerateRuntimeStubTable(Address base, Address* targets,
-                                       int num_stubs) {
-    uint32_t table_size = num_stubs * kJumpTableStubSlotSize;
+  static void GenerateFarJumpTable(Address base, Address* stub_targets,
+                                   int num_stubs) {
+    uint32_t table_size = num_stubs * kFarJumpTableSlotSize;
     // Assume enough space, so the Assembler does not try to grow the buffer.
     JumpTableAssembler jtasm(base, table_size + 256);
     int offset = 0;
     for (int index = 0; index < num_stubs; ++index) {
-      DCHECK_EQ(offset, StubSlotIndexToOffset(index));
+      DCHECK_EQ(offset, FarJumpSlotIndexToOffset(index));
+      jtasm.EmitFarJumpSlot(stub_targets[index]);
+      offset += kFarJumpTableSlotSize;
       DCHECK_EQ(offset, jtasm.pc_offset());
-      jtasm.EmitRuntimeStubSlot(targets[index]);
-      offset += kJumpTableStubSlotSize;
-      jtasm.NopBytes(offset - jtasm.pc_offset());
     }
     FlushInstructionCache(base, table_size);
   }
@@ -157,48 +155,48 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
 #if V8_TARGET_ARCH_X64
   static constexpr int kJumpTableLineSize = 64;
   static constexpr int kJumpTableSlotSize = 5;
+  static constexpr int kFarJumpTableSlotSize = 16;
   static constexpr int kLazyCompileTableSlotSize = 10;
-  static constexpr int kJumpTableStubSlotSize = 13;
 #elif V8_TARGET_ARCH_IA32
   static constexpr int kJumpTableLineSize = 64;
   static constexpr int kJumpTableSlotSize = 5;
+  static constexpr int kFarJumpTableSlotSize = 5;
   static constexpr int kLazyCompileTableSlotSize = 10;
-  static constexpr int kJumpTableStubSlotSize = 5;
 #elif V8_TARGET_ARCH_ARM
   static constexpr int kJumpTableLineSize = 3 * kInstrSize;
   static constexpr int kJumpTableSlotSize = 3 * kInstrSize;
+  static constexpr int kFarJumpTableSlotSize = 2 * kInstrSize;
   static constexpr int kLazyCompileTableSlotSize = 5 * kInstrSize;
-  static constexpr int kJumpTableStubSlotSize = 2 * kInstrSize;
 #elif V8_TARGET_ARCH_ARM64
   static constexpr int kJumpTableLineSize = 1 * kInstrSize;
   static constexpr int kJumpTableSlotSize = 1 * kInstrSize;
+  static constexpr int kFarJumpTableSlotSize = 4 * kInstrSize;
   static constexpr int kLazyCompileTableSlotSize = 3 * kInstrSize;
-  static constexpr int kJumpTableStubSlotSize = 4 * kInstrSize;
 #elif V8_TARGET_ARCH_S390X
   static constexpr int kJumpTableLineSize = 128;
   static constexpr int kJumpTableSlotSize = 14;
+  static constexpr int kFarJumpTableSlotSize = 14;
   static constexpr int kLazyCompileTableSlotSize = 20;
-  static constexpr int kJumpTableStubSlotSize = 14;
 #elif V8_TARGET_ARCH_PPC64
   static constexpr int kJumpTableLineSize = 64;
   static constexpr int kJumpTableSlotSize = 7 * kInstrSize;
+  static constexpr int kFarJumpTableSlotSize = 7 * kInstrSize;
   static constexpr int kLazyCompileTableSlotSize = 12 * kInstrSize;
-  static constexpr int kJumpTableStubSlotSize = 7 * kInstrSize;
 #elif V8_TARGET_ARCH_MIPS
   static constexpr int kJumpTableLineSize = 6 * kInstrSize;
   static constexpr int kJumpTableSlotSize = 4 * kInstrSize;
+  static constexpr int kFarJumpTableSlotSize = 4 * kInstrSize;
   static constexpr int kLazyCompileTableSlotSize = 6 * kInstrSize;
-  static constexpr int kJumpTableStubSlotSize = 4 * kInstrSize;
 #elif V8_TARGET_ARCH_MIPS64
   static constexpr int kJumpTableLineSize = 8 * kInstrSize;
   static constexpr int kJumpTableSlotSize = 6 * kInstrSize;
+  static constexpr int kFarJumpTableSlotSize = 6 * kInstrSize;
   static constexpr int kLazyCompileTableSlotSize = 8 * kInstrSize;
-  static constexpr int kJumpTableStubSlotSize = 6 * kInstrSize;
 #else
   static constexpr int kJumpTableLineSize = 1;
   static constexpr int kJumpTableSlotSize = 1;
+  static constexpr int kFarJumpTableSlotSize = 1;
   static constexpr int kLazyCompileTableSlotSize = 1;
-  static constexpr int kJumpTableStubSlotSize = 1;
 #endif
 
   static constexpr int kJumpTableSlotsPerLine =
@@ -218,9 +216,9 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
   void EmitLazyCompileJumpSlot(uint32_t func_index,
                                Address lazy_compile_target);
 
-  void EmitRuntimeStubSlot(Address builtin_target);
-
   void EmitJumpSlot(Address target);
+
+  void EmitFarJumpSlot(Address target);
 
   void NopBytes(int bytes);
 };
