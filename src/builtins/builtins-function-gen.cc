@@ -124,12 +124,11 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
         Signed(ChangeUint32ToWord(Unsigned(Int32Sub(argc, Int32Constant(1)))));
     TNode<FixedArray> elements = CAST(AllocateFixedArray(
         PACKED_ELEMENTS, elements_length, kAllowLargeObjectAllocation));
-    VARIABLE(index, MachineType::PointerRepresentation());
-    index.Bind(IntPtrConstant(0));
+    TVARIABLE(IntPtrT, index, IntPtrConstant(0));
     VariableList foreach_vars({&index}, zone());
     args.ForEach(
         foreach_vars,
-        [this, elements, &index](Node* arg) {
+        [&](Node* arg) {
           StoreFixedArrayElement(elements, index.value(), arg);
           Increment(&index);
         },

@@ -321,12 +321,12 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
 
       StoreFixedArrayElement(values_or_entries, var_result_index.value(),
                              value);
-      Increment(&var_result_index, 1);
+      Increment(&var_result_index);
       Goto(&next_descriptor);
 
       BIND(&next_descriptor);
       {
-        Increment(&var_descriptor_number, 1);
+        Increment(&var_descriptor_number);
         Branch(IntPtrEqual(var_result_index.value(), object_enum_length),
                &after_loop, &loop);
       }

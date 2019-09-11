@@ -62,8 +62,7 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
 
   {
     Node* const dst_ptr = PointerToSeqStringData(dst);
-    VARIABLE(var_cursor, MachineType::PointerRepresentation(),
-             IntPtrConstant(0));
+    TVARIABLE(IntPtrT, var_cursor, IntPtrConstant(0));
 
     TNode<RawPtrT> const start_address = to_direct.PointerToData(&call_c);
     TNode<IntPtrT> const end_address =

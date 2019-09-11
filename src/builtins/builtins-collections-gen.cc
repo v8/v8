@@ -1339,8 +1339,8 @@ TF_BUILTIN(OrderedHashTableHealIndex, CollectionsBuiltinsAssembler) {
                      IntPtrConstant(OrderedHashMap::kClearedTableSentinel)),
          &return_zero);
 
-  VARIABLE(var_i, MachineType::PointerRepresentation(), IntPtrConstant(0));
-  VARIABLE(var_index, MachineRepresentation::kTagged, index);
+  TVARIABLE(IntPtrT, var_i, IntPtrConstant(0));
+  TVARIABLE(Smi, var_index, index);
   Label loop(this, {&var_i, &var_index});
   Goto(&loop);
   BIND(&loop);
@@ -1352,7 +1352,7 @@ TF_BUILTIN(OrderedHashTableHealIndex, CollectionsBuiltinsAssembler) {
     TNode<Smi> removed_index = CAST(LoadFixedArrayElement(
         CAST(table), i, OrderedHashMap::RemovedHolesIndex() * kTaggedSize));
     GotoIf(SmiGreaterThanOrEqual(removed_index, index), &return_index);
-    Decrement(&var_index, 1, SMI_PARAMETERS);
+    Decrement(&var_index);
     Increment(&var_i);
     Goto(&loop);
   }

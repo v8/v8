@@ -3154,8 +3154,7 @@ TNode<Smi> CodeStubAssembler::BuildAppendJSArray(ElementsKind kind,
   Label success(this);
   TVARIABLE(Smi, var_tagged_length);
   ParameterMode mode = OptimalParameterMode();
-  VARIABLE(var_length, OptimalParameterRepresentation(),
-           TaggedToParameter(LoadFastJSArrayLength(array), mode));
+  TVARIABLE(BInt, var_length, SmiToBInt(LoadFastJSArrayLength(array)));
   VARIABLE(var_elements, MachineRepresentation::kTagged, LoadElements(array));
 
   // Resize the capacity of the fixed array if it doesn't fit.
@@ -3173,14 +3172,14 @@ TNode<Smi> CodeStubAssembler::BuildAppendJSArray(ElementsKind kind,
   Node* elements = var_elements.value();
   args->ForEach(
       push_vars,
-      [this, kind, mode, elements, &var_length, &pre_bailout](Node* arg) {
+      [=, &var_length, &pre_bailout](Node* arg) {
         TryStoreArrayElement(kind, mode, &pre_bailout, elements,
                              var_length.value(), arg);
-        Increment(&var_length, 1, mode);
+        Increment(&var_length);
       },
       first, nullptr);
   {
-    TNode<Smi> length = ParameterToTagged(var_length.value(), mode);
+    TNode<Smi> length = BIntToSmi(var_length.value());
     var_tagged_length = length;
     StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length);
     Goto(&success);
@@ -3220,8 +3219,7 @@ void CodeStubAssembler::BuildAppendJSArray(ElementsKind kind, Node* array,
   CSA_SLOW_ASSERT(this, IsJSArray(array));
   Comment("BuildAppendJSArray: ", ElementsKindToString(kind));
   ParameterMode mode = OptimalParameterMode();
-  VARIABLE(var_length, OptimalParameterRepresentation(),
-           TaggedToParameter(LoadFastJSArrayLength(array), mode));
+  TVARIABLE(BInt, var_length, SmiToBInt(LoadFastJSArrayLength(array)));
   VARIABLE(var_elements, MachineRepresentation::kTagged, LoadElements(array));
 
   // Resize the capacity of the fixed array if it doesn't fit.
@@ -3233,9 +3231,9 @@ void CodeStubAssembler::BuildAppendJSArray(ElementsKind kind, Node* array,
   // capacity.
   TryStoreArrayElement(kind, mode, bailout, var_elements.value(),
                        var_length.value(), value);
-  Increment(&var_length, 1, mode);
+  Increment(&var_length);
 
-  TNode<Smi> length = ParameterToTagged(var_length.value(), mode);
+  TNode<Smi> length = BIntToSmi(var_length.value());
   StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length);
 }
 
@@ -5428,7 +5426,7 @@ void CodeStubAssembler::CopyStringCharacters(Node* from_string, Node* to_string,
   int from_increment = 1 << ElementsKindToShiftSize(from_kind);
   int to_increment = 1 << ElementsKindToShiftSize(to_kind);
 
-  VARIABLE(current_to_offset, MachineType::PointerRepresentation(), to_offset);
+  TVARIABLE(IntPtrT, current_to_offset, to_offset);
   VariableList vars({&current_to_offset}, zone());
   int to_index_constant = 0, from_index_constant = 0;
   bool index_same = (from_encoding == to_encoding) &&
@@ -5438,8 +5436,7 @@ void CodeStubAssembler::CopyStringCharacters(Node* from_string, Node* to_string,
                       from_index_constant == to_index_constant));
   BuildFastLoop(
       vars, from_offset, limit_offset,
-      [this, from_string, to_string, &current_to_offset, to_increment, type,
-       rep, index_same](Node* offset) {
+      [=, &current_to_offset](Node* offset) {
         Node* value = Load(type, from_string, offset);
         StoreNoWriteBarrier(rep, to_string,
                             index_same ? offset : current_to_offset.value(),
@@ -9302,8 +9299,7 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
     var_is_symbol_processing_loop = Int32TrueConstant();
     // Add DescriptorArray::kEntrySize to make the var_end_key_index exclusive
     // as BuildFastLoop() expects.
-    Increment(&var_end_key_index, DescriptorArray::kEntrySize,
-              INTPTR_PARAMETERS);
+    Increment(&var_end_key_index, DescriptorArray::kEntrySize);
     Goto(&descriptor_array_loop);
 
     BIND(&done);

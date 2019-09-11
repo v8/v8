@@ -2835,23 +2835,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     Increment(variable, -value);
   }
 
-  // TODO(v8:9708): remove once all uses are ported.
-  void Increment(Variable* variable, int value = 1,
-                 ParameterMode mode = INTPTR_PARAMETERS) {
-    if (mode == SMI_PARAMETERS) {
-      return Increment(static_cast<TVariable<Smi>*>(variable), value);
-    } else {
-      DCHECK(mode == INTPTR_PARAMETERS);
-      return Increment(static_cast<TVariable<IntPtrT>*>(variable), value);
-    }
-  }
-
-  // TODO(v8:9708): remove once all uses are ported.
-  void Decrement(Variable* variable, int value = 1,
-                 ParameterMode mode = INTPTR_PARAMETERS) {
-    Increment(variable, -value, mode);
-  }
-
   // Generates "if (false) goto label" code. Useful for marking a label as
   // "live" to avoid assertion failures during graph building. In the resulting
   // code this check will be eliminated.

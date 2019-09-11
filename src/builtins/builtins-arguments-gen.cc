@@ -93,12 +93,12 @@ Node* ArgumentsBuiltinsAssembler::ConstructParametersObjectFromArgs(
       AllocateArgumentsObject(map, rest_count, nullptr, param_mode, base_size);
   DCHECK_NULL(unused);
   CodeStubArguments arguments(this, arg_count, frame_ptr, param_mode);
-  VARIABLE(offset, MachineType::PointerRepresentation());
-  offset.Bind(IntPtrConstant(FixedArrayBase::kHeaderSize - kHeapObjectTag));
+  TVARIABLE(IntPtrT, offset,
+            IntPtrConstant(FixedArrayBase::kHeaderSize - kHeapObjectTag));
   VariableList list({&offset}, zone());
   arguments.ForEach(
       list,
-      [this, elements, &offset](Node* arg) {
+      [&](Node* arg) {
         StoreNoWriteBarrier(MachineRepresentation::kTagged, elements,
                             offset.value(), arg);
         Increment(&offset, kTaggedSize);
@@ -224,15 +224,15 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
   {
     Comment("Mapped parameter JSSloppyArgumentsObject");
 
-    Node* mapped_count =
-        IntPtrOrSmiMin(info.argument_count, info.formal_parameter_count, mode);
+    TNode<BInt> mapped_count =
+        IntPtrOrSmiMin(info.argument_count, info.formal_parameter_count);
 
-    Node* parameter_map_size =
-        IntPtrOrSmiAdd(mapped_count, IntPtrOrSmiConstant(2, mode), mode);
+    TNode<BInt> parameter_map_size =
+        IntPtrOrSmiAdd(mapped_count, BIntConstant(2));
 
     // Verify that the overall allocation will fit in new space.
-    Node* elements_allocated =
-        IntPtrOrSmiAdd(info.argument_count, parameter_map_size, mode);
+    TNode<BInt> elements_allocated =
+        IntPtrOrSmiAdd(info.argument_count, parameter_map_size);
     GotoIfFixedArraySizeDoesntFitInNewSpace(
         elements_allocated, &runtime,
         JSSloppyArgumentsObject::kSize + FixedArray::kHeaderSize * 2, mode);
@@ -259,15 +259,15 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
         ElementOffsetFromIndex(mapped_count, PACKED_ELEMENTS, mode,
                                FixedArray::kHeaderSize - kHeapObjectTag);
     CodeStubArguments arguments(this, info.argument_count, info.frame, mode);
-    VARIABLE(current_argument, MachineType::PointerRepresentation());
-    current_argument.Bind(arguments.AtIndexPtr(info.argument_count, mode));
+    TVARIABLE(IntPtrT, current_argument,
+              Signed(arguments.AtIndexPtr(info.argument_count, mode)));
     VariableList var_list1({&current_argument}, zone());
     mapped_offset = UncheckedCast<IntPtrT>(BuildFastLoop(
         var_list1, argument_offset, mapped_offset,
         [this, elements, &current_argument](Node* offset) {
           Increment(&current_argument, kSystemPointerSize);
           TNode<Object> arg = LoadBufferObject(
-              UncheckedCast<RawPtrT>(current_argument.value()), 0);
+              ReinterpretCast<RawPtrT>(current_argument.value()), 0);
           StoreNoWriteBarrier(MachineRepresentation::kTagged, elements, offset,
                               arg);
         },
@@ -282,11 +282,11 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
     //       MIN_CONTEXT_SLOTS+argument_count-mapped_count
     // We loop from right to left.
     Comment("Fill in mapped parameters");
-    VARIABLE(context_index, OptimalParameterRepresentation());
-    context_index.Bind(IntPtrOrSmiSub(
-        IntPtrOrSmiAdd(IntPtrOrSmiConstant(Context::MIN_CONTEXT_SLOTS, mode),
-                       info.formal_parameter_count, mode),
-        mapped_count, mode));
+    TVARIABLE(
+        BInt, context_index,
+        IntPtrOrSmiSub(IntPtrOrSmiAdd(BIntConstant(Context::MIN_CONTEXT_SLOTS),
+                                      info.formal_parameter_count),
+                       mapped_count));
     TNode<Oddball> the_hole = TheHoleConstant();
     VariableList var_list2({&context_index}, zone());
     const int kParameterMapHeaderSize = FixedArray::OffsetOfElementAt(2);
@@ -302,8 +302,8 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
                               the_hole);
           StoreNoWriteBarrier(MachineRepresentation::kTagged,
                               adjusted_map_array, offset,
-                              ParameterToTagged(context_index.value(), mode));
-          Increment(&context_index, 1, mode);
+                              BIntToSmi(context_index.value()));
+          Increment(&context_index);
         },
         -kTaggedSize, INTPTR_PARAMETERS);
 
