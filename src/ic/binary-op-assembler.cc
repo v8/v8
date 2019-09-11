@@ -15,7 +15,7 @@ using TNode = compiler::TNode<T>;
 TNode<Object> BinaryOpAssembler::Generate_AddWithFeedback(
     TNode<Context> context, TNode<Object> lhs, TNode<Object> rhs,
     TNode<UintPtrT> slot_id, TNode<HeapObject> maybe_feedback_vector,
-    bool rhs_is_smi) {
+    bool rhs_known_smi) {
   // Shared entry for floating point addition.
   Label do_fadd(this), if_lhsisnotnumber(this, Label::kDeferred),
       check_rhsisoddball(this, Label::kDeferred),
@@ -33,14 +33,14 @@ TNode<Object> BinaryOpAssembler::Generate_AddWithFeedback(
   // both Smi and Number operations, so this path should not be marked as
   // Deferred.
   Label if_lhsisnotsmi(this,
-                       rhs_is_smi ? Label::kDeferred : Label::kNonDeferred);
+                       rhs_known_smi ? Label::kDeferred : Label::kNonDeferred);
   Branch(TaggedIsNotSmi(lhs), &if_lhsisnotsmi, &if_lhsissmi);
 
   BIND(&if_lhsissmi);
   {
     Comment("lhs is Smi");
     TNode<Smi> lhs_smi = CAST(lhs);
-    if (!rhs_is_smi) {
+    if (!rhs_known_smi) {
       // Check if the {rhs} is also a Smi.
       Label if_rhsissmi(this), if_rhsisnotsmi(this);
       Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
@@ -67,7 +67,7 @@ TNode<Object> BinaryOpAssembler::Generate_AddWithFeedback(
       // as Deferred.
       TNode<Smi> rhs_smi = CAST(rhs);
       Label if_overflow(this,
-                        rhs_is_smi ? Label::kDeferred : Label::kNonDeferred);
+                        rhs_known_smi ? Label::kDeferred : Label::kNonDeferred);
       TNode<Smi> smi_result = TrySmiAdd(lhs_smi, rhs_smi, &if_overflow);
       // Not overflowed.
       {
@@ -91,7 +91,7 @@ TNode<Object> BinaryOpAssembler::Generate_AddWithFeedback(
     TNode<HeapObject> lhs_heap_object = CAST(lhs);
     GotoIfNot(IsHeapNumber(lhs_heap_object), &if_lhsisnotnumber);
 
-    if (!rhs_is_smi) {
+    if (!rhs_known_smi) {
       // Check if the {rhs} is Smi.
       Label if_rhsissmi(this), if_rhsisnotsmi(this);
       Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
@@ -235,7 +235,7 @@ TNode<Object> BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
     TNode<Context> context, TNode<Object> lhs, TNode<Object> rhs,
     TNode<UintPtrT> slot_id, TNode<HeapObject> maybe_feedback_vector,
     const SmiOperation& smiOperation, const FloatOperation& floatOperation,
-    Operation op, bool rhs_is_smi) {
+    Operation op, bool rhs_known_smi) {
   Label do_float_operation(this), end(this), call_stub(this),
       check_rhsisoddball(this, Label::kDeferred), call_with_any_feedback(this),
       if_lhsisnotnumber(this, Label::kDeferred),
@@ -251,7 +251,7 @@ TNode<Object> BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
   // operation, we want to fast path both Smi and Number operations, so this
   // path should not be marked as Deferred.
   Label if_lhsisnotsmi(this,
-                       rhs_is_smi ? Label::kDeferred : Label::kNonDeferred);
+                       rhs_known_smi ? Label::kDeferred : Label::kNonDeferred);
   Branch(TaggedIsNotSmi(lhs), &if_lhsisnotsmi, &if_lhsissmi);
 
   // Check if the {lhs} is a Smi or a HeapObject.
@@ -259,7 +259,7 @@ TNode<Object> BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
   {
     Comment("lhs is Smi");
     TNode<Smi> lhs_smi = CAST(lhs);
-    if (!rhs_is_smi) {
+    if (!rhs_known_smi) {
       // Check if the {rhs} is also a Smi.
       Label if_rhsissmi(this), if_rhsisnotsmi(this);
       Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
@@ -293,7 +293,7 @@ TNode<Object> BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
     TNode<HeapObject> lhs_heap_object = CAST(lhs);
     GotoIfNot(IsHeapNumber(lhs_heap_object), &if_lhsisnotnumber);
 
-    if (!rhs_is_smi) {
+    if (!rhs_known_smi) {
       // Check if the {rhs} is a Smi.
       Label if_rhsissmi(this), if_rhsisnotsmi(this);
       Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
@@ -435,7 +435,7 @@ TNode<Object> BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
 TNode<Object> BinaryOpAssembler::Generate_SubtractWithFeedback(
     TNode<Context> context, TNode<Object> lhs, TNode<Object> rhs,
     TNode<UintPtrT> slot_id, TNode<HeapObject> maybe_feedback_vector,
-    bool rhs_is_smi) {
+    bool rhs_known_smi) {
   auto smiFunction = [=](TNode<Smi> lhs, TNode<Smi> rhs,
                          TVariable<Smi>* var_type_feedback) {
     Label end(this);
@@ -444,7 +444,7 @@ TNode<Object> BinaryOpAssembler::Generate_SubtractWithFeedback(
     // operation. For the normal Sub operation, we want to fast path both
     // Smi and Number operations, so this path should not be marked as Deferred.
     Label if_overflow(this,
-                      rhs_is_smi ? Label::kDeferred : Label::kNonDeferred);
+                      rhs_known_smi ? Label::kDeferred : Label::kNonDeferred);
     var_result = TrySmiSub(lhs, rhs, &if_overflow);
     *var_type_feedback = SmiConstant(BinaryOperationFeedback::kSignedSmall);
     Goto(&end);
@@ -465,13 +465,13 @@ TNode<Object> BinaryOpAssembler::Generate_SubtractWithFeedback(
   };
   return Generate_BinaryOperationWithFeedback(
       context, lhs, rhs, slot_id, maybe_feedback_vector, smiFunction,
-      floatFunction, Operation::kSubtract, rhs_is_smi);
+      floatFunction, Operation::kSubtract, rhs_known_smi);
 }
 
 TNode<Object> BinaryOpAssembler::Generate_MultiplyWithFeedback(
     TNode<Context> context, TNode<Object> lhs, TNode<Object> rhs,
     TNode<UintPtrT> slot_id, TNode<HeapObject> maybe_feedback_vector,
-    bool rhs_is_smi) {
+    bool rhs_known_smi) {
   auto smiFunction = [=](TNode<Smi> lhs, TNode<Smi> rhs,
                          TVariable<Smi>* var_type_feedback) {
     TNode<Number> result = SmiMul(lhs, rhs);
@@ -485,20 +485,20 @@ TNode<Object> BinaryOpAssembler::Generate_MultiplyWithFeedback(
   };
   return Generate_BinaryOperationWithFeedback(
       context, lhs, rhs, slot_id, maybe_feedback_vector, smiFunction,
-      floatFunction, Operation::kMultiply, rhs_is_smi);
+      floatFunction, Operation::kMultiply, rhs_known_smi);
 }
 
 TNode<Object> BinaryOpAssembler::Generate_DivideWithFeedback(
     TNode<Context> context, TNode<Object> dividend, TNode<Object> divisor,
     TNode<UintPtrT> slot_id, TNode<HeapObject> maybe_feedback_vector,
-    bool rhs_is_smi) {
+    bool rhs_known_smi) {
   auto smiFunction = [=](TNode<Smi> lhs, TNode<Smi> rhs,
                          TVariable<Smi>* var_type_feedback) {
     TVARIABLE(Object, var_result);
     // If rhs is known to be an Smi (for DivSmi) we want to fast path Smi
     // operation. For the normal Div operation, we want to fast path both
     // Smi and Number operations, so this path should not be marked as Deferred.
-    Label bailout(this, rhs_is_smi ? Label::kDeferred : Label::kNonDeferred),
+    Label bailout(this, rhs_known_smi ? Label::kDeferred : Label::kNonDeferred),
         end(this);
     var_result = TrySmiDiv(lhs, rhs, &bailout);
     *var_type_feedback = SmiConstant(BinaryOperationFeedback::kSignedSmall);
@@ -521,13 +521,13 @@ TNode<Object> BinaryOpAssembler::Generate_DivideWithFeedback(
   };
   return Generate_BinaryOperationWithFeedback(
       context, dividend, divisor, slot_id, maybe_feedback_vector, smiFunction,
-      floatFunction, Operation::kDivide, rhs_is_smi);
+      floatFunction, Operation::kDivide, rhs_known_smi);
 }
 
 TNode<Object> BinaryOpAssembler::Generate_ModulusWithFeedback(
     TNode<Context> context, TNode<Object> dividend, TNode<Object> divisor,
     TNode<UintPtrT> slot_id, TNode<HeapObject> maybe_feedback_vector,
-    bool rhs_is_smi) {
+    bool rhs_known_smi) {
   auto smiFunction = [=](TNode<Smi> lhs, TNode<Smi> rhs,
                          TVariable<Smi>* var_type_feedback) {
     TNode<Number> result = SmiMod(lhs, rhs);
@@ -541,13 +541,13 @@ TNode<Object> BinaryOpAssembler::Generate_ModulusWithFeedback(
   };
   return Generate_BinaryOperationWithFeedback(
       context, dividend, divisor, slot_id, maybe_feedback_vector, smiFunction,
-      floatFunction, Operation::kModulus, rhs_is_smi);
+      floatFunction, Operation::kModulus, rhs_known_smi);
 }
 
 TNode<Object> BinaryOpAssembler::Generate_ExponentiateWithFeedback(
     TNode<Context> context, TNode<Object> base, TNode<Object> exponent,
     TNode<UintPtrT> slot_id, TNode<HeapObject> maybe_feedback_vector,
-    bool rhs_is_smi) {
+    bool rhs_known_smi) {
   // We currently don't optimize exponentiation based on feedback.
   TNode<Smi> dummy_feedback = SmiConstant(BinaryOperationFeedback::kAny);
   UpdateFeedback(dummy_feedback, maybe_feedback_vector, slot_id);

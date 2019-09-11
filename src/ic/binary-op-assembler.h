@@ -23,32 +23,32 @@ class BinaryOpAssembler : public CodeStubAssembler {
   TNode<Object> Generate_AddWithFeedback(
       TNode<Context> context, TNode<Object> left, TNode<Object> right,
       TNode<UintPtrT> slot, TNode<HeapObject> maybe_feedback_vector,
-      bool rhs_is_smi);
+      bool rhs_known_smi);
 
   TNode<Object> Generate_SubtractWithFeedback(
       TNode<Context> context, TNode<Object> left, TNode<Object> right,
       TNode<UintPtrT> slot, TNode<HeapObject> maybe_feedback_vector,
-      bool rhs_is_smi);
+      bool rhs_known_smi);
 
   TNode<Object> Generate_MultiplyWithFeedback(
       TNode<Context> context, TNode<Object> left, TNode<Object> right,
       TNode<UintPtrT> slot, TNode<HeapObject> maybe_feedback_vector,
-      bool rhs_is_smi);
+      bool rhs_known_smi);
 
   TNode<Object> Generate_DivideWithFeedback(
       TNode<Context> context, TNode<Object> dividend, TNode<Object> divisor,
       TNode<UintPtrT> slot, TNode<HeapObject> maybe_feedback_vector,
-      bool rhs_is_smi);
+      bool rhs_known_smi);
 
   TNode<Object> Generate_ModulusWithFeedback(
       TNode<Context> context, TNode<Object> dividend, TNode<Object> divisor,
       TNode<UintPtrT> slot, TNode<HeapObject> maybe_feedback_vector,
-      bool rhs_is_smi);
+      bool rhs_known_smi);
 
   TNode<Object> Generate_ExponentiateWithFeedback(
       TNode<Context> context, TNode<Object> base, TNode<Object> exponent,
       TNode<UintPtrT> slot, TNode<HeapObject> maybe_feedback_vector,
-      bool rhs_is_smi);
+      bool rhs_known_smi);
 
  private:
   using SmiOperation =
@@ -60,7 +60,7 @@ class BinaryOpAssembler : public CodeStubAssembler {
       TNode<Context> context, TNode<Object> left, TNode<Object> right,
       TNode<UintPtrT> slot, TNode<HeapObject> maybe_feedback_vector,
       const SmiOperation& smiOperation, const FloatOperation& floatOperation,
-      Operation op, bool rhs_is_smi);
+      Operation op, bool rhs_known_smi);
 };
 
 }  // namespace internal

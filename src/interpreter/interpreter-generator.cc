@@ -835,7 +835,7 @@ class InterpreterBinaryOpAssembler : public InterpreterAssembler {
   using BinaryOpGenerator = TNode<Object> (BinaryOpAssembler::*)(
       TNode<Context> context, TNode<Object> left, TNode<Object> right,
       TNode<UintPtrT> slot, TNode<HeapObject> maybe_feedback_vector,
-      bool rhs_is_smi);
+      bool rhs_known_smi);
 
   void BinaryOpWithFeedback(BinaryOpGenerator generator) {
     TNode<Object> lhs = LoadRegisterAtOperandIndex(0);
