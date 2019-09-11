@@ -47,6 +47,9 @@ class TestMemoryAllocatorScope;
 class IncrementalMarking;
 class BackingStore;
 class JSArrayBuffer;
+class JSPromise;
+class NativeContext;
+
 using v8::MemoryPressureLevel;
 
 class AllocationObserver;
@@ -63,6 +66,7 @@ class Isolate;
 class JSFinalizationGroup;
 class LocalEmbedderHeapTracer;
 class MemoryAllocator;
+class MemoryMeasurement;
 class MemoryReducer;
 class MinorMarkCompactCollector;
 class ObjectIterator;
@@ -562,6 +566,9 @@ class Heap {
   V8_EXPORT_PRIVATE double MonotonicallyIncreasingTimeInMs();
 
   void RecordStats(HeapStats* stats, bool take_snapshot = false);
+
+  Handle<JSPromise> MeasureMemory(Handle<NativeContext> context,
+                                  v8::MeasureMemoryMode mode);
 
   // Check new space expansion criteria and expand semispaces if it was hit.
   void CheckNewSpaceExpansionCriteria();
@@ -1991,6 +1998,7 @@ class Heap {
   std::unique_ptr<IncrementalMarking> incremental_marking_;
   std::unique_ptr<ConcurrentMarking> concurrent_marking_;
   std::unique_ptr<GCIdleTimeHandler> gc_idle_time_handler_;
+  std::unique_ptr<MemoryMeasurement> memory_measurement_;
   std::unique_ptr<MemoryReducer> memory_reducer_;
   std::unique_ptr<ObjectStats> live_object_stats_;
   std::unique_ptr<ObjectStats> dead_object_stats_;

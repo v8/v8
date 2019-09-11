@@ -210,6 +210,8 @@
   V(_, Int32Array_string, "Int32Array")                              \
   V(_, Int8Array_string, "Int8Array")                                \
   V(_, isExtensible_string, "isExtensible")                          \
+  V(_, jsMemoryEstimate_string, "jsMemoryEstimate")                  \
+  V(_, jsMemoryRange_string, "jsMemoryRange")                        \
   V(_, keys_string, "keys")                                          \
   V(_, lastIndex_string, "lastIndex")                                \
   V(_, length_string, "length")                                      \
@@ -300,6 +302,7 @@
   V(_, toJSON_string, "toJSON")                                      \
   V(_, toString_string, "toString")                                  \
   V(_, true_string, "true")                                          \
+  V(_, total_string, "total")                                        \
   V(_, TypeError_string, "TypeError")                                \
   V(_, Uint16Array_string, "Uint16Array")                            \
   V(_, Uint32Array_string, "Uint32Array")                            \

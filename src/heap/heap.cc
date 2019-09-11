@@ -39,6 +39,7 @@
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/memory-measurement.h"
 #include "src/heap/memory-reducer.h"
 #include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"
@@ -3760,6 +3761,11 @@ bool Heap::InvokeNearHeapLimitCallback() {
   return false;
 }
 
+Handle<JSPromise> Heap::MeasureMemory(Handle<NativeContext> context,
+                                      v8::MeasureMemoryMode mode) {
+  return memory_measurement_->EnqueueRequest(context, mode);
+}
+
 void Heap::CollectCodeStatistics() {
   TRACE_EVENT0("v8", "Heap::CollectCodeStatistics");
   CodeStatistics::ResetCodeAndMetadataStatistics(isolate());
@@ -5051,6 +5057,7 @@ void Heap::SetUpSpaces() {
 #endif  // ENABLE_MINOR_MC
   array_buffer_collector_.reset(new ArrayBufferCollector(this));
   gc_idle_time_handler_.reset(new GCIdleTimeHandler());
+  memory_measurement_.reset(new MemoryMeasurement(isolate()));
   memory_reducer_.reset(new MemoryReducer(this));
   if (V8_UNLIKELY(TracingFlags::is_gc_stats_enabled())) {
     live_object_stats_.reset(new ObjectStats(this));

@@ -2318,6 +2318,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/mark-compact.h",
     "src/heap/marking.cc",
     "src/heap/marking.h",
+    "src/heap/memory-measurement.cc",
+    "src/heap/memory-measurement.h",
     "src/heap/memory-reducer.cc",
     "src/heap/memory-reducer.h",
     "src/heap/object-stats.cc",

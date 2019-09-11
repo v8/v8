@@ -391,6 +391,8 @@ class Shell : public i::AllStatic {
   static void MapCounters(v8::Isolate* isolate, const char* name);
 
   static void PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void PerformanceMeasureMemory(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void RealmCurrent(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& args);

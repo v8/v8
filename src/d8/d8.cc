@@ -218,12 +218,20 @@ static Local<Value> Throw(Isolate* isolate, const char* message) {
           .ToLocalChecked());
 }
 
-static Local<Value> GetValue(v8::Isolate* isolate, Local<Context> context,
-                             Local<v8::Object> object, const char* property) {
+static MaybeLocal<Value> TryGetValue(v8::Isolate* isolate,
+                                     Local<Context> context,
+                                     Local<v8::Object> object,
+                                     const char* property) {
   Local<String> v8_str =
       String::NewFromUtf8(isolate, property, NewStringType::kNormal)
-          .ToLocalChecked();
-  return object->Get(context, v8_str).ToLocalChecked();
+          .FromMaybe(Local<String>());
+  if (v8_str.IsEmpty()) return Local<Value>();
+  return object->Get(context, v8_str);
+}
+
+static Local<Value> GetValue(v8::Isolate* isolate, Local<Context> context,
+                             Local<v8::Object> object, const char* property) {
+  return TryGetValue(isolate, context, object, property).ToLocalChecked();
 }
 
 Worker* GetWorkerFromInternalField(Isolate* isolate, Local<Object> object) {
@@ -987,6 +995,27 @@ void Shell::PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args) {
         base::TimeTicks::HighResolutionNow() - kInitialTicks;
     args.GetReturnValue().Set(delta.InMillisecondsF());
   }
+}
+
+// performance.measureMemory() implements JavaScript Memory API proposal.
+// See https://github.com/ulan/javascript-agent-memory/blob/master/explainer.md.
+void Shell::PerformanceMeasureMemory(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::MeasureMemoryMode mode = v8::MeasureMemoryMode::kSummary;
+  v8::Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  if (args.Length() >= 1 && args[0]->IsObject()) {
+    Local<Object> object = args[0].As<Object>();
+    Local<Value> value = TryGetValue(isolate, context, object, "detailed")
+                             .FromMaybe(Local<Value>());
+    if (!value.IsEmpty() && value->IsBoolean() &&
+        value->BooleanValue(isolate)) {
+      mode = v8::MeasureMemoryMode::kDetailed;
+    }
+  }
+  v8::MaybeLocal<v8::Promise> result =
+      args.GetIsolate()->MeasureMemory(context, mode);
+  args.GetReturnValue().Set(result.FromMaybe(v8::Local<v8::Promise>()));
 }
 
 // Realm.current() returns the index of the currently active realm.
@@ -1825,6 +1854,10 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
       String::NewFromUtf8(isolate, "now", NewStringType::kNormal)
           .ToLocalChecked(),
       FunctionTemplate::New(isolate, PerformanceNow));
+  performance_template->Set(
+      String::NewFromUtf8(isolate, "measureMemory", NewStringType::kNormal)
+          .ToLocalChecked(),
+      FunctionTemplate::New(isolate, PerformanceMeasureMemory));
   global_template->Set(
       String::NewFromUtf8(isolate, "performance", NewStringType::kNormal)
           .ToLocalChecked(),
