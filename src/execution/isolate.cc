@@ -1763,16 +1763,10 @@ Object Isolate::UnwindAndFindHandler() {
         // Some stubs are able to handle exceptions.
         if (!catchable_by_js) break;
         StubFrame* stub_frame = static_cast<StubFrame*>(frame);
+#ifdef DEBUG
         wasm::WasmCodeRefScope code_ref_scope;
-        wasm::WasmCode* wasm_code =
-            wasm_engine()->code_manager()->LookupCode(frame->pc());
-        if (wasm_code != nullptr) {
-          // It is safe to skip Wasm runtime stubs as none of them contain local
-          // exception handlers.
-          CHECK_EQ(wasm::WasmCode::kRuntimeStub, wasm_code->kind());
-          CHECK_EQ(0, wasm_code->handler_table_size());
-          break;
-        }
+        DCHECK_NULL(wasm_engine()->code_manager()->LookupCode(frame->pc()));
+#endif  // DEBUG
         Code code = stub_frame->LookupCode();
         if (!code.IsCode() || code.kind() != Code::BUILTIN ||
             !code.has_handler_table() || !code.is_turbofanned()) {
