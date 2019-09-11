@@ -1969,20 +1969,31 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
     case Builtins::kPromiseResolveTrampoline:
       // For JSCallReducer::ReducePromiseInternalResolve and
       // JSNativeContextSpecialization::ReduceJSResolvePromise.
-      if (arguments.size() >= 2) {
-        Hints const& resolution_hints = arguments[1];
+      if (arguments.size() >= 1) {
+        Hints const& resolution_hints =
+            arguments.size() >= 2
+                ? arguments[1]
+                : Hints::SingleConstant(
+                      broker()->isolate()->factory()->undefined_value(),
+                      zone());
         ProcessHintsForPromiseResolve(resolution_hints);
       }
       break;
     case Builtins::kPromiseInternalResolve:
       // For JSCallReducer::ReducePromiseInternalResolve and
       // JSNativeContextSpecialization::ReduceJSResolvePromise.
-      if (arguments.size() >= 3) {
-        Hints const& resolution_hints = arguments[2];
+      if (arguments.size() >= 2) {
+        Hints const& resolution_hints =
+            arguments.size() >= 3
+                ? arguments[2]
+                : Hints::SingleConstant(
+                      broker()->isolate()->factory()->undefined_value(),
+                      zone());
         ProcessHintsForPromiseResolve(resolution_hints);
       }
       break;
     case Builtins::kRegExpPrototypeTest:
+    case Builtins::kRegExpPrototypeTestFast:
       // For JSCallReducer::ReduceRegExpPrototypeTest.
       if (arguments.size() >= 1 &&
           speculation_mode != SpeculationMode::kDisallowSpeculation) {
@@ -2521,6 +2532,10 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
       FunctionTemplateInfoRef fti(broker(), access_info.constant());
       if (fti.has_call_code()) fti.SerializeCallCode();
     }
+  } else if (access_info.IsModuleExport()) {
+    // For JSNativeContextSpecialization::BuildPropertyLoad
+    DCHECK(!access_info.constant().is_null());
+    CellRef(broker(), access_info.constant());
   }
 
   // For PropertyAccessBuilder::TryBuildLoadConstantDataField

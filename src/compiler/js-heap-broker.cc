@@ -2473,6 +2473,7 @@ void JSHeapBroker::InitializeAndStartSerializing(
   GetOrCreateData(f->empty_fixed_array());
   GetOrCreateData(f->empty_string());
   GetOrCreateData(f->eval_context_map());
+  GetOrCreateData(f->exec_string());
   GetOrCreateData(f->false_string());
   GetOrCreateData(f->false_value());
   GetOrCreateData(f->fixed_array_map());
@@ -2485,6 +2486,7 @@ void JSHeapBroker::InitializeAndStartSerializing(
   GetOrCreateData(f->many_closures_cell_map());
   GetOrCreateData(f->minus_zero_value());
   GetOrCreateData(f->name_dictionary_map());
+  GetOrCreateData(f->name_string());
   GetOrCreateData(f->NaN_string());
   GetOrCreateData(f->null_map());
   GetOrCreateData(f->null_string());
@@ -2495,6 +2497,7 @@ void JSHeapBroker::InitializeAndStartSerializing(
   GetOrCreateData(f->optimized_out());
   GetOrCreateData(f->optimized_out_map());
   GetOrCreateData(f->property_array_map());
+  GetOrCreateData(f->prototype_string());
   GetOrCreateData(f->ReflectHas_string());
   GetOrCreateData(f->ReflectGet_string());
   GetOrCreateData(f->sloppy_arguments_elements_map());
@@ -2505,6 +2508,7 @@ void JSHeapBroker::InitializeAndStartSerializing(
   GetOrCreateData(f->termination_exception_map());
   GetOrCreateData(f->the_hole_map());
   GetOrCreateData(f->the_hole_value());
+  GetOrCreateData(f->then_string());
   GetOrCreateData(f->true_string());
   GetOrCreateData(f->true_value());
   GetOrCreateData(f->undefined_map());
