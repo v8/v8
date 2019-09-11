@@ -675,7 +675,8 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
   size_t code_size_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get());
   return NewNativeModule(isolate, enabled, code_size_estimate,
-                         wasm::NativeModule::kCanAllocateMoreMemory,
+                         !wasm::NativeModule::kNeedsFarJumpsBetweenCodeSpaces ||
+                             FLAG_wasm_far_jump_table,
                          std::move(module));
 }
 

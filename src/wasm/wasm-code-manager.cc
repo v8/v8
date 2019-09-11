@@ -860,9 +860,13 @@ void NativeModule::SetRuntimeStubs(Isolate* isolate) {
   DCHECK_EQ(kNullAddress, runtime_stub_entries_[0]);  // Only called once.
   WasmCodeRefScope code_ref_scope;
   DCHECK_EQ(1, code_space_data_.size());
+  int num_function_slots =
+      kNeedsFarJumpsBetweenCodeSpaces && FLAG_wasm_far_jump_table
+          ? static_cast<int>(module_->num_declared_functions)
+          : 0;
   WasmCode* jump_table = CreateEmptyJumpTableInRegion(
       JumpTableAssembler::SizeForNumberOfFarJumpSlots(
-          WasmCode::kRuntimeStubCount),
+          WasmCode::kRuntimeStubCount, num_function_slots),
       code_space_data_[0].region);
   Address base = jump_table->instruction_start();
   EmbeddedData embedded_data = EmbeddedData::FromBlob();
@@ -880,9 +884,11 @@ void NativeModule::SetRuntimeStubs(Isolate* isolate) {
     runtime_stub_entries_[i] =
         base + JumpTableAssembler::FarJumpSlotIndexToOffset(i);
   }
-  JumpTableAssembler::GenerateFarJumpTable(base, builtin_address,
-                                           WasmCode::kRuntimeStubCount);
+  JumpTableAssembler::GenerateFarJumpTable(
+      base, builtin_address, WasmCode::kRuntimeStubCount, num_function_slots);
   DCHECK_NULL(runtime_stub_table_);
+  // TODO(clemensh): Store this as "far jump table" (instead of "runtime stub
+  // table") per code space.
   runtime_stub_table_ = jump_table;
   DCHECK_NE(kNullAddress, runtime_stub_entries_[0]);
 }

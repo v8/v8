@@ -350,9 +350,9 @@ class WasmCodeAllocator {
 class V8_EXPORT_PRIVATE NativeModule final {
  public:
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_ARM64
-  static constexpr bool kCanAllocateMoreMemory = false;
+  static constexpr bool kNeedsFarJumpsBetweenCodeSpaces = true;
 #else
-  static constexpr bool kCanAllocateMoreMemory = true;
+  static constexpr bool kNeedsFarJumpsBetweenCodeSpaces = false;
 #endif
 
   // {AddCode} is thread safe w.r.t. other calls to {AddCode} or methods adding

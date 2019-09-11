@@ -21,7 +21,9 @@ namespace wasm {
 // other purposes:
 // - the far stub table contains one entry per wasm runtime stub (see
 //   {WasmCode::RuntimeStubId}, which jumps to the corresponding embedded
-//   builtin.
+//   builtin, plus (if {FLAG_wasm_far_jump_table} is enabled and not the full
+//   address space can be reached via the jump table) one entry per wasm
+//   function.
 // - the lazy compile table contains one entry per wasm function which jumps to
 //   the common {WasmCompileLazy} builtin and passes the function index that was
 //   invoked.
@@ -85,8 +87,10 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
 
   // Determine the size of a far jump table containing the given number of
   // slots.
-  static constexpr uint32_t SizeForNumberOfFarJumpSlots(int num_stubs) {
-    return num_stubs * kFarJumpTableSlotSize;
+  static constexpr uint32_t SizeForNumberOfFarJumpSlots(
+      int num_stubs, int num_function_slots) {
+    int num_entries = num_stubs + num_function_slots;
+    return num_entries * kFarJumpTableSlotSize;
   }
 
   // Translate a slot index to an offset into the lazy compile table.
@@ -115,14 +119,18 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
   }
 
   static void GenerateFarJumpTable(Address base, Address* stub_targets,
-                                   int num_stubs) {
-    uint32_t table_size = num_stubs * kFarJumpTableSlotSize;
+                                   int num_stubs, int num_function_slots) {
+    uint32_t table_size =
+        SizeForNumberOfFarJumpSlots(num_stubs, num_function_slots);
     // Assume enough space, so the Assembler does not try to grow the buffer.
     JumpTableAssembler jtasm(base, table_size + 256);
     int offset = 0;
-    for (int index = 0; index < num_stubs; ++index) {
+    for (int index = 0; index < num_stubs + num_function_slots; ++index) {
       DCHECK_EQ(offset, FarJumpSlotIndexToOffset(index));
-      jtasm.EmitFarJumpSlot(stub_targets[index]);
+      // Functions slots initially jump to themselves. They are patched before
+      // being used.
+      Address target = index < num_stubs ? stub_targets[index] : base + offset;
+      jtasm.EmitFarJumpSlot(target);
       offset += kFarJumpTableSlotSize;
       DCHECK_EQ(offset, jtasm.pc_offset());
     }
