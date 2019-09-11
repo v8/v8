@@ -1298,13 +1298,11 @@ class LinearScanAllocator final : public RegisterAllocator {
                                 LifetimePosition begin_pos,
                                 LiveRange* end_range);
   void MaybeUndoPreviousSplit(LiveRange* range);
-  void SpillNotLiveRanges(
-      RangeWithRegisterSet& to_be_live,  // NOLINT(runtime/references)
-      LifetimePosition position, SpillMode spill_mode);
+  void SpillNotLiveRanges(RangeWithRegisterSet* to_be_live,
+                          LifetimePosition position, SpillMode spill_mode);
   LiveRange* AssignRegisterOnReload(LiveRange* range, int reg);
-  void ReloadLiveRanges(
-      RangeWithRegisterSet& to_be_live,  // NOLINT(runtime/references)
-      LifetimePosition position);
+  void ReloadLiveRanges(RangeWithRegisterSet const& to_be_live,
+                        LifetimePosition position);
 
   void UpdateDeferredFixedRanges(SpillMode spill_mode, InstructionBlock* block);
   bool BlockIsDeferredOrImmediatePredecessorIsNotDeferred(

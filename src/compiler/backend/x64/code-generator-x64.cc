@@ -361,7 +361,6 @@ class WasmProtectedInstructionTrap final : public WasmOutOfLineTrap {
 
 void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
                          InstructionCode opcode, Instruction* instr,
-                         X64OperandConverter& i,  // NOLINT(runtime/references)
                          int pc) {
   const MemoryAccessMode access_mode =
       static_cast<MemoryAccessMode>(MiscField::decode(opcode));
@@ -370,9 +369,9 @@ void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
   }
 }
 
-void EmitWordLoadPoisoningIfNeeded(
-    CodeGenerator* codegen, InstructionCode opcode, Instruction* instr,
-    X64OperandConverter& i) {  // NOLINT(runtime/references)
+void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
+                                   InstructionCode opcode, Instruction* instr,
+                                   X64OperandConverter const& i) {
   const MemoryAccessMode access_mode =
       static_cast<MemoryAccessMode>(MiscField::decode(opcode));
   if (access_mode == kMemoryAccessPoisoned) {
@@ -1888,30 +1887,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Subsd(i.InputDoubleRegister(0), kScratchDoubleReg);
       break;
     case kX64Movsxbl:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_MOVX(movsxbl);
       __ AssertZeroExtended(i.OutputRegister());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kX64Movzxbl:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_MOVX(movzxbl);
       __ AssertZeroExtended(i.OutputRegister());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kX64Movsxbq:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_MOVX(movsxbq);
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kX64Movzxbq:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_MOVX(movzxbq);
       __ AssertZeroExtended(i.OutputRegister());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kX64Movb: {
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       if (HasImmediateInput(instr, index)) {
@@ -1923,29 +1922,29 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64Movsxwl:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_MOVX(movsxwl);
       __ AssertZeroExtended(i.OutputRegister());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kX64Movzxwl:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_MOVX(movzxwl);
       __ AssertZeroExtended(i.OutputRegister());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kX64Movsxwq:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_MOVX(movsxwq);
       break;
     case kX64Movzxwq:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_MOVX(movzxwq);
       __ AssertZeroExtended(i.OutputRegister());
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kX64Movw: {
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       if (HasImmediateInput(instr, index)) {
@@ -1957,7 +1956,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64Movl:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       if (instr->HasOutput()) {
         if (HasAddressingMode(instr)) {
           __ movl(i.OutputRegister(), i.MemoryOperand());
@@ -1981,7 +1980,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kX64Movsxlq:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       ASSEMBLE_MOVX(movsxlq);
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
@@ -2033,7 +2032,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64Movq:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       if (instr->HasOutput()) {
         __ movq(i.OutputRegister(), i.MemoryOperand());
       } else {
@@ -2048,7 +2047,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kX64Movss:
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       if (instr->HasOutput()) {
         __ Movss(i.OutputDoubleRegister(), i.MemoryOperand());
       } else {
@@ -2058,7 +2057,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kX64Movsd: {
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       if (instr->HasOutput()) {
         const MemoryAccessMode access_mode =
             static_cast<MemoryAccessMode>(MiscField::decode(opcode));
@@ -2081,7 +2080,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64Movdqu: {
       CpuFeatureScope sse_scope(tasm(), SSSE3);
-      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       if (instr->HasOutput()) {
         __ Movdqu(i.OutputSimd128Register(), i.MemoryOperand());
       } else {

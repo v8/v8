@@ -2306,8 +2306,8 @@ void InstructionSelector::VisitFloat64Tanh(Node* node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Tanh);
 }
 
-void InstructionSelector::EmitTableSwitch(const SwitchInfo& sw,
-                                          InstructionOperand& index_operand) {
+void InstructionSelector::EmitTableSwitch(
+    const SwitchInfo& sw, InstructionOperand const& index_operand) {
   OperandGenerator g(this);
   size_t input_count = 2 + sw.value_range();
   DCHECK_LE(sw.value_range(), std::numeric_limits<size_t>::max() - 2);
@@ -2324,8 +2324,8 @@ void InstructionSelector::EmitTableSwitch(const SwitchInfo& sw,
   Emit(kArchTableSwitch, 0, nullptr, input_count, inputs, 0, nullptr);
 }
 
-void InstructionSelector::EmitLookupSwitch(const SwitchInfo& sw,
-                                           InstructionOperand& value_operand) {
+void InstructionSelector::EmitLookupSwitch(
+    const SwitchInfo& sw, InstructionOperand const& value_operand) {
   OperandGenerator g(this);
   std::vector<CaseInfo> cases = sw.CasesSortedByOriginalOrder();
   size_t input_count = 2 + sw.case_count() * 2;
@@ -2342,7 +2342,7 @@ void InstructionSelector::EmitLookupSwitch(const SwitchInfo& sw,
 }
 
 void InstructionSelector::EmitBinarySearchSwitch(
-    const SwitchInfo& sw, InstructionOperand& value_operand) {
+    const SwitchInfo& sw, InstructionOperand const& value_operand) {
   OperandGenerator g(this);
   size_t input_count = 2 + sw.case_count() * 2;
   DCHECK_LE(sw.case_count(), (std::numeric_limits<size_t>::max() - 2) / 2);

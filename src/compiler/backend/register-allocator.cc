@@ -3142,15 +3142,15 @@ void LinearScanAllocator::MaybeUndoPreviousSplit(LiveRange* range) {
   }
 }
 
-void LinearScanAllocator::SpillNotLiveRanges(RangeWithRegisterSet& to_be_live,
+void LinearScanAllocator::SpillNotLiveRanges(RangeWithRegisterSet* to_be_live,
                                              LifetimePosition position,
                                              SpillMode spill_mode) {
   for (auto it = active_live_ranges().begin();
        it != active_live_ranges().end();) {
     LiveRange* active_range = *it;
     TopLevelLiveRange* toplevel = (*it)->TopLevel();
-    auto found = to_be_live.find({toplevel, kUnassignedRegister});
-    if (found == to_be_live.end()) {
+    auto found = to_be_live->find({toplevel, kUnassignedRegister});
+    if (found == to_be_live->end()) {
       // Is not contained in {to_be_live}, spill it.
       // Fixed registers are exempt from this. They might have been
       // added from inactive at the block boundary but we know that
@@ -3206,7 +3206,7 @@ void LinearScanAllocator::SpillNotLiveRanges(RangeWithRegisterSet& to_be_live,
     } else {
       // This range is contained in {to_be_live}, so we can keep it.
       int expected_register = (*found).expected_register;
-      to_be_live.erase(found);
+      to_be_live->erase(found);
       if (expected_register == active_range->assigned_register()) {
         // Was life and in correct register, simply pass through.
         TRACE("Keeping %d:%d in %s\n", toplevel->vreg(),
@@ -3274,8 +3274,8 @@ LiveRange* LinearScanAllocator::AssignRegisterOnReload(LiveRange* range,
   return range;
 }
 
-void LinearScanAllocator::ReloadLiveRanges(RangeWithRegisterSet& to_be_live,
-                                           LifetimePosition position) {
+void LinearScanAllocator::ReloadLiveRanges(
+    RangeWithRegisterSet const& to_be_live, LifetimePosition position) {
   // Assumption: All ranges in {to_be_live} are currently spilled and there are
   // no conflicting registers in the active ranges.
   // The former is ensured by SpillNotLiveRanges, the latter is by construction
@@ -3852,7 +3852,7 @@ void LinearScanAllocator::AllocateRegisters() {
           }
 
           if (!no_change_required) {
-            SpillNotLiveRanges(to_be_live, next_block_boundary, spill_mode);
+            SpillNotLiveRanges(&to_be_live, next_block_boundary, spill_mode);
             ReloadLiveRanges(to_be_live, next_block_boundary);
           }
 

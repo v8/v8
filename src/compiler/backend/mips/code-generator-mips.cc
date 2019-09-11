@@ -265,9 +265,8 @@ Condition FlagsConditionToConditionTst(FlagsCondition condition) {
   UNREACHABLE();
 }
 
-FPUCondition FlagsConditionToConditionCmpFPU(
-    bool& predicate,  // NOLINT(runtime/references)
-    FlagsCondition condition) {
+FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
+                                             FlagsCondition condition) {
   switch (condition) {
     case kEqual:
       predicate = true;
@@ -303,9 +302,9 @@ FPUCondition FlagsConditionToConditionCmpFPU(
                  << "\"";                                                      \
   UNIMPLEMENTED();
 
-void EmitWordLoadPoisoningIfNeeded(
-    CodeGenerator* codegen, InstructionCode opcode, Instruction* instr,
-    MipsOperandConverter& i) {  // NOLINT(runtime/references)
+void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
+                                   InstructionCode opcode, Instruction* instr,
+                                   MipsOperandConverter const& i) {
   const MemoryAccessMode access_mode =
       static_cast<MemoryAccessMode>(MiscField::decode(opcode));
   if (access_mode == kMemoryAccessPoisoned) {
@@ -1179,7 +1178,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       FPURegister right = i.InputOrZeroSingleRegister(1);
       bool predicate;
       FPUCondition cc =
-          FlagsConditionToConditionCmpFPU(predicate, instr->flags_condition());
+          FlagsConditionToConditionCmpFPU(&predicate, instr->flags_condition());
 
       if ((left == kDoubleRegZero || right == kDoubleRegZero) &&
           !__ IsDoubleZeroRegSet()) {
@@ -1239,7 +1238,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       FPURegister right = i.InputOrZeroDoubleRegister(1);
       bool predicate;
       FPUCondition cc =
-          FlagsConditionToConditionCmpFPU(predicate, instr->flags_condition());
+          FlagsConditionToConditionCmpFPU(&predicate, instr->flags_condition());
       if ((left == kDoubleRegZero || right == kDoubleRegZero) &&
           !__ IsDoubleZeroRegSet()) {
         __ Move(kDoubleRegZero, 0.0);
@@ -3026,7 +3025,7 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
   } else if (instr->arch_opcode() == kMipsCmpS ||
              instr->arch_opcode() == kMipsCmpD) {
     bool predicate;
-    FlagsConditionToConditionCmpFPU(predicate, condition);
+    FlagsConditionToConditionCmpFPU(&predicate, condition);
     if (predicate) {
       __ BranchTrueF(tlabel);
     } else {
@@ -3116,7 +3115,7 @@ void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
     case kMipsCmpS:
     case kMipsCmpD: {
       bool predicate;
-      FlagsConditionToConditionCmpFPU(predicate, condition);
+      FlagsConditionToConditionCmpFPU(&predicate, condition);
       if (predicate) {
         __ LoadZeroIfFPUCondition(kSpeculationPoisonRegister);
       } else {
@@ -3314,7 +3313,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
       __ Move(kDoubleRegZero, 0.0);
     }
     bool predicate;
-    FlagsConditionToConditionCmpFPU(predicate, condition);
+    FlagsConditionToConditionCmpFPU(&predicate, condition);
     if (!IsMipsArchVariant(kMips32r6)) {
       __ li(result, Operand(1));
       if (predicate) {

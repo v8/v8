@@ -44,7 +44,7 @@ class ArmOperandConverter final : public InstructionOperandConverter {
     UNREACHABLE();
   }
 
-  Operand InputImmediate(size_t index) {
+  Operand InputImmediate(size_t index) const {
     return ToImmediate(instr_->InputAt(index));
   }
 
@@ -111,7 +111,7 @@ class ArmOperandConverter final : public InstructionOperandConverter {
     return InputOffset(&first_index);
   }
 
-  Operand ToImmediate(InstructionOperand* operand) {
+  Operand ToImmediate(InstructionOperand* operand) const {
     Constant constant = ToConstant(operand);
     switch (constant.type()) {
       case Constant::kInt32:
@@ -309,9 +309,9 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
   UNREACHABLE();
 }
 
-void EmitWordLoadPoisoningIfNeeded(
-    CodeGenerator* codegen, InstructionCode opcode,
-    ArmOperandConverter& i) {  // NOLINT(runtime/references)
+void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
+                                   InstructionCode opcode,
+                                   ArmOperandConverter const& i) {
   const MemoryAccessMode access_mode =
       static_cast<MemoryAccessMode>(MiscField::decode(opcode));
   if (access_mode == kMemoryAccessPoisoned) {
@@ -320,10 +320,10 @@ void EmitWordLoadPoisoningIfNeeded(
   }
 }
 
-void ComputePoisonedAddressForLoad(
-    CodeGenerator* codegen, InstructionCode opcode,
-    ArmOperandConverter& i,  // NOLINT(runtime/references)
-    Register address) {
+void ComputePoisonedAddressForLoad(CodeGenerator* codegen,
+                                   InstructionCode opcode,
+                                   ArmOperandConverter const& i,
+                                   Register address) {
   DCHECK_EQ(kMemoryAccessPoisoned,
             static_cast<MemoryAccessMode>(MiscField::decode(opcode)));
   switch (AddressingModeField::decode(opcode)) {

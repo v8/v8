@@ -2104,7 +2104,7 @@ struct JumpThreadingPhase {
 
   void Run(PipelineData* data, Zone* temp_zone, bool frame_at_start) {
     ZoneVector<RpoNumber> result(temp_zone);
-    if (JumpThreading::ComputeForwarding(temp_zone, result, data->sequence(),
+    if (JumpThreading::ComputeForwarding(temp_zone, &result, data->sequence(),
                                          frame_at_start)) {
       JumpThreading::ApplyForwarding(temp_zone, result, data->sequence());
     }
