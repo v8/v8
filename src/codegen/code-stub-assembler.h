@@ -473,18 +473,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   intptr_t ConstexprWordNot(intptr_t a) { return ~a; }
   uintptr_t ConstexprWordNot(uintptr_t a) { return ~a; }
 
-  TNode<BoolT> TaggedEqual(TNode<UnionT<Object, MaybeObject>> a,
-                           TNode<UnionT<Object, MaybeObject>> b) {
+  TNode<BoolT> TaggedEqual(TNode<AnyTaggedT> a, TNode<AnyTaggedT> b) {
     // In pointer-compressed architectures, the instruction selector will narrow
     // this comparison to a 32-bit one.
     return WordEqual(ReinterpretCast<WordT>(a), ReinterpretCast<WordT>(b));
   }
 
-  TNode<BoolT> TaggedNotEqual(TNode<UnionT<Object, MaybeObject>> a,
-                              TNode<UnionT<Object, MaybeObject>> b) {
-    // In pointer-compressed architectures, the instruction selector will narrow
-    // this comparison to a 32-bit one.
-    return WordNotEqual(ReinterpretCast<WordT>(a), ReinterpretCast<WordT>(b));
+  TNode<BoolT> TaggedNotEqual(TNode<AnyTaggedT> a, TNode<AnyTaggedT> b) {
+    return Word32BinaryNot(TaggedEqual(a, b));
   }
 
   TNode<Object> NoContextConstant();
@@ -562,21 +558,22 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Int32T> SmiToInt32(SloppyTNode<Smi> value);
 
   // Smi operations.
-#define SMI_ARITHMETIC_BINOP(SmiOpName, IntPtrOpName, Int32OpName)            \
-  TNode<Smi> SmiOpName(TNode<Smi> a, TNode<Smi> b) {                          \
-    if (SmiValuesAre32Bits()) {                                               \
-      return BitcastWordToTaggedSigned(IntPtrOpName(                          \
-          BitcastTaggedSignedToWord(a), BitcastTaggedSignedToWord(b)));       \
-    } else {                                                                  \
-      DCHECK(SmiValuesAre31Bits());                                           \
-      if (kSystemPointerSize == kInt64Size) {                                 \
-        CSA_ASSERT(this, IsValidSmi(a));                                      \
-        CSA_ASSERT(this, IsValidSmi(b));                                      \
-      }                                                                       \
-      return BitcastWordToTaggedSigned(ChangeInt32ToIntPtr(                   \
-          Int32OpName(TruncateIntPtrToInt32(BitcastTaggedSignedToWord(a)),    \
-                      TruncateIntPtrToInt32(BitcastTaggedSignedToWord(b))))); \
-    }                                                                         \
+#define SMI_ARITHMETIC_BINOP(SmiOpName, IntPtrOpName, Int32OpName)          \
+  TNode<Smi> SmiOpName(TNode<Smi> a, TNode<Smi> b) {                        \
+    if (SmiValuesAre32Bits()) {                                             \
+      return BitcastWordToTaggedSigned(                                     \
+          IntPtrOpName(BitcastTaggedToWordForTagAndSmiBits(a),              \
+                       BitcastTaggedToWordForTagAndSmiBits(b)));            \
+    } else {                                                                \
+      DCHECK(SmiValuesAre31Bits());                                         \
+      if (kSystemPointerSize == kInt64Size) {                               \
+        CSA_ASSERT(this, IsValidSmi(a));                                    \
+        CSA_ASSERT(this, IsValidSmi(b));                                    \
+      }                                                                     \
+      return BitcastWordToTaggedSigned(ChangeInt32ToIntPtr(Int32OpName(     \
+          TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(a)),    \
+          TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(b))))); \
+    }                                                                       \
   }
   SMI_ARITHMETIC_BINOP(SmiAdd, IntPtrAdd, Int32Add)
   SMI_ARITHMETIC_BINOP(SmiSub, IntPtrSub, Int32Sub)
@@ -596,38 +593,40 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<Smi> SmiShl(TNode<Smi> a, int shift) {
     return BitcastWordToTaggedSigned(
-        WordShl(BitcastTaggedSignedToWord(a), shift));
+        WordShl(BitcastTaggedToWordForTagAndSmiBits(a), shift));
   }
 
   TNode<Smi> SmiShr(TNode<Smi> a, int shift) {
     if (kTaggedSize == kInt64Size) {
       return BitcastWordToTaggedSigned(
-          WordAnd(WordShr(BitcastTaggedSignedToWord(a), shift),
-                  BitcastTaggedSignedToWord(SmiConstant(-1))));
+          WordAnd(WordShr(BitcastTaggedToWordForTagAndSmiBits(a), shift),
+                  BitcastTaggedToWordForTagAndSmiBits(SmiConstant(-1))));
     } else {
       // For pointer compressed Smis, we want to make sure that we truncate to
       // int32 before shifting, to avoid the values of the top 32-bits from
       // leaking into the sign bit of the smi.
       return BitcastWordToTaggedSigned(WordAnd(
           ChangeInt32ToIntPtr(Word32Shr(
-              TruncateWordToInt32(BitcastTaggedSignedToWord(a)), shift)),
-          BitcastTaggedSignedToWord(SmiConstant(-1))));
+              TruncateWordToInt32(BitcastTaggedToWordForTagAndSmiBits(a)),
+              shift)),
+          BitcastTaggedToWordForTagAndSmiBits(SmiConstant(-1))));
     }
   }
 
   TNode<Smi> SmiSar(TNode<Smi> a, int shift) {
     if (kTaggedSize == kInt64Size) {
       return BitcastWordToTaggedSigned(
-          WordAnd(WordSar(BitcastTaggedSignedToWord(a), shift),
-                  BitcastTaggedSignedToWord(SmiConstant(-1))));
+          WordAnd(WordSar(BitcastTaggedToWordForTagAndSmiBits(a), shift),
+                  BitcastTaggedToWordForTagAndSmiBits(SmiConstant(-1))));
     } else {
       // For pointer compressed Smis, we want to make sure that we truncate to
       // int32 before shifting, to avoid the values of the top 32-bits from
       // changing the sign bit of the smi.
       return BitcastWordToTaggedSigned(WordAnd(
           ChangeInt32ToIntPtr(Word32Sar(
-              TruncateWordToInt32(BitcastTaggedSignedToWord(a)), shift)),
-          BitcastTaggedSignedToWord(SmiConstant(-1))));
+              TruncateWordToInt32(BitcastTaggedToWordForTagAndSmiBits(a)),
+              shift)),
+          BitcastTaggedToWordForTagAndSmiBits(SmiConstant(-1))));
     }
   }
 
@@ -649,21 +648,22 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     }
   }
 
-#define SMI_COMPARISON_OP(SmiOpName, IntPtrOpName, Int32OpName)                \
-  TNode<BoolT> SmiOpName(TNode<Smi> a, TNode<Smi> b) {                         \
-    if (kTaggedSize == kInt64Size) {                                           \
-      return IntPtrOpName(BitcastTaggedSignedToWord(a),                        \
-                          BitcastTaggedSignedToWord(b));                       \
-    } else {                                                                   \
-      DCHECK_EQ(kTaggedSize, kInt32Size);                                      \
-      DCHECK(SmiValuesAre31Bits());                                            \
-      if (kSystemPointerSize == kInt64Size) {                                  \
-        CSA_ASSERT(this, IsValidSmi(a));                                       \
-        CSA_ASSERT(this, IsValidSmi(b));                                       \
-      }                                                                        \
-      return Int32OpName(TruncateIntPtrToInt32(BitcastTaggedSignedToWord(a)),  \
-                         TruncateIntPtrToInt32(BitcastTaggedSignedToWord(b))); \
-    }                                                                          \
+#define SMI_COMPARISON_OP(SmiOpName, IntPtrOpName, Int32OpName)           \
+  TNode<BoolT> SmiOpName(TNode<Smi> a, TNode<Smi> b) {                    \
+    if (kTaggedSize == kInt64Size) {                                      \
+      return IntPtrOpName(BitcastTaggedToWordForTagAndSmiBits(a),         \
+                          BitcastTaggedToWordForTagAndSmiBits(b));        \
+    } else {                                                              \
+      DCHECK_EQ(kTaggedSize, kInt32Size);                                 \
+      DCHECK(SmiValuesAre31Bits());                                       \
+      if (kSystemPointerSize == kInt64Size) {                             \
+        CSA_ASSERT(this, IsValidSmi(a));                                  \
+        CSA_ASSERT(this, IsValidSmi(b));                                  \
+      }                                                                   \
+      return Int32OpName(                                                 \
+          TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(a)),  \
+          TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(b))); \
+    }                                                                     \
   }
   SMI_COMPARISON_OP(SmiEqual, WordEqual, Word32Equal)
   SMI_COMPARISON_OP(SmiNotEqual, WordNotEqual, Word32NotEqual)
@@ -857,9 +857,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Int32T> TruncateIntPtrToInt32(SloppyTNode<IntPtrT> value);
 
   // Check a value for smi-ness
-  TNode<BoolT> TaggedIsSmi(SloppyTNode<Object> a);
   TNode<BoolT> TaggedIsSmi(TNode<MaybeObject> a);
-  TNode<BoolT> TaggedIsNotSmi(SloppyTNode<Object> a);
+  TNode<BoolT> TaggedIsSmi(SloppyTNode<Object> a) {
+    return TaggedIsSmi(UncheckedCast<MaybeObject>(a));
+  }
+  TNode<BoolT> TaggedIsNotSmi(TNode<MaybeObject> a);
+  TNode<BoolT> TaggedIsNotSmi(SloppyTNode<Object> a) {
+    return TaggedIsNotSmi(UncheckedCast<MaybeObject>(a));
+  }
   // Check that the value is a non-negative smi.
   TNode<BoolT> TaggedIsPositiveSmi(SloppyTNode<Object> a);
   // Check that a word has a word-aligned address.
@@ -2762,9 +2767,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Smi-encoding of the mask is performed implicitly!
   TNode<BoolT> IsSetSmi(SloppyTNode<Smi> smi, int untagged_mask) {
     intptr_t mask_word = bit_cast<intptr_t>(Smi::FromInt(untagged_mask));
-    return WordNotEqual(
-        WordAnd(BitcastTaggedSignedToWord(smi), IntPtrConstant(mask_word)),
-        IntPtrConstant(0));
+    return WordNotEqual(WordAnd(BitcastTaggedToWordForTagAndSmiBits(smi),
+                                IntPtrConstant(mask_word)),
+                        IntPtrConstant(0));
   }
 
   // Returns true if all of the |T|'s bits in given |word32| are clear.

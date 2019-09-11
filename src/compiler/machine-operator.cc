@@ -146,7 +146,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(Word64Clz, Operator::kNoProperties, 1, 0, 1)                              \
   V(Word32ReverseBytes, Operator::kNoProperties, 1, 0, 1)                     \
   V(Word64ReverseBytes, Operator::kNoProperties, 1, 0, 1)                     \
-  V(BitcastTaggedSignedToWord, Operator::kNoProperties, 1, 0, 1)              \
+  V(BitcastTaggedToWordForTagAndSmiBits, Operator::kNoProperties, 1, 0, 1)    \
   V(BitcastWordToTaggedSigned, Operator::kNoProperties, 1, 0, 1)              \
   V(BitcastWord32ToCompressedSigned, Operator::kNoProperties, 1, 0, 1)        \
   V(BitcastCompressedSignedToWord32, Operator::kNoProperties, 1, 0, 1)        \

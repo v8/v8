@@ -263,6 +263,8 @@ struct UnionT {
                 "union types are only possible for tagged values");
 };
 
+using AnyTaggedT = UnionT<Object, MaybeObject>;
+
 using Number = UnionT<Smi, HeapNumber>;
 using Numeric = UnionT<Number, BigInt>;
 
@@ -631,7 +633,7 @@ TNode<Float64T> Float64Add(TNode<Float64T> a, TNode<Float64T> b);
   V(Float64ExtractLowWord32, Uint32T, Float64T)                \
   V(Float64ExtractHighWord32, Uint32T, Float64T)               \
   V(BitcastTaggedToWord, IntPtrT, Object)                      \
-  V(BitcastTaggedSignedToWord, IntPtrT, Smi)                   \
+  V(BitcastTaggedToWordForTagAndSmiBits, IntPtrT, AnyTaggedT)  \
   V(BitcastMaybeObjectToWord, IntPtrT, MaybeObject)            \
   V(BitcastWordToTagged, Object, WordT)                        \
   V(BitcastWordToTaggedSigned, Smi, WordT)                     \
@@ -1247,7 +1249,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   template <class Dummy = void>
   TNode<IntPtrT> BitcastTaggedToWord(TNode<Smi> node) {
     static_assert(sizeof(Dummy) < 0,
-                  "Should use BitcastTaggedSignedToWord instead.");
+                  "Should use BitcastTaggedToWordForTagAndSmiBits instead.");
   }
 
   // Changes a double to an inptr_t for pointer arithmetic outside of Smi range.

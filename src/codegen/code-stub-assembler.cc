@@ -710,7 +710,7 @@ TNode<Float64T> CodeStubAssembler::Float64Trunc(SloppyTNode<Float64T> x) {
 TNode<BoolT> CodeStubAssembler::IsValidSmi(TNode<Smi> smi) {
   if (SmiValuesAre32Bits() && kSystemPointerSize == kInt64Size) {
     // Check that the Smi value is zero in the lower bits.
-    TNode<IntPtrT> value = BitcastTaggedSignedToWord(smi);
+    TNode<IntPtrT> value = BitcastTaggedToWordForTagAndSmiBits(smi);
     return Word32Equal(Int32Constant(0), TruncateIntPtrToInt32(value));
   }
   return Int32TrueConstant();
@@ -760,8 +760,8 @@ TNode<IntPtrT> CodeStubAssembler::SmiUntag(SloppyTNode<Smi> value) {
   if (ToIntPtrConstant(value, &constant_value)) {
     return IntPtrConstant(constant_value >> (kSmiShiftSize + kSmiTagSize));
   }
-  return Signed(
-      WordSar(BitcastTaggedSignedToWord(value), SmiShiftBitsConstant()));
+  return Signed(WordSar(BitcastTaggedToWordForTagAndSmiBits(value),
+                        SmiShiftBitsConstant()));
 }
 
 TNode<Int32T> CodeStubAssembler::SmiToInt32(SloppyTNode<Smi> value) {
@@ -811,13 +811,13 @@ TNode<Smi> CodeStubAssembler::TrySmiAdd(TNode<Smi> lhs, TNode<Smi> rhs,
                                         Label* if_overflow) {
   if (SmiValuesAre32Bits()) {
     return BitcastWordToTaggedSigned(
-        TryIntPtrAdd(BitcastTaggedSignedToWord(lhs),
-                     BitcastTaggedSignedToWord(rhs), if_overflow));
+        TryIntPtrAdd(BitcastTaggedToWordForTagAndSmiBits(lhs),
+                     BitcastTaggedToWordForTagAndSmiBits(rhs), if_overflow));
   } else {
     DCHECK(SmiValuesAre31Bits());
     TNode<PairT<Int32T, BoolT>> pair = Int32AddWithOverflow(
-        TruncateIntPtrToInt32(BitcastTaggedSignedToWord(lhs)),
-        TruncateIntPtrToInt32(BitcastTaggedSignedToWord(rhs)));
+        TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(lhs)),
+        TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(rhs)));
     TNode<BoolT> overflow = Projection<1>(pair);
     GotoIf(overflow, if_overflow);
     TNode<Int32T> result = Projection<0>(pair);
@@ -828,8 +828,9 @@ TNode<Smi> CodeStubAssembler::TrySmiAdd(TNode<Smi> lhs, TNode<Smi> rhs,
 TNode<Smi> CodeStubAssembler::TrySmiSub(TNode<Smi> lhs, TNode<Smi> rhs,
                                         Label* if_overflow) {
   if (SmiValuesAre32Bits()) {
-    TNode<PairT<IntPtrT, BoolT>> pair = IntPtrSubWithOverflow(
-        BitcastTaggedSignedToWord(lhs), BitcastTaggedSignedToWord(rhs));
+    TNode<PairT<IntPtrT, BoolT>> pair =
+        IntPtrSubWithOverflow(BitcastTaggedToWordForTagAndSmiBits(lhs),
+                              BitcastTaggedToWordForTagAndSmiBits(rhs));
     TNode<BoolT> overflow = Projection<1>(pair);
     GotoIf(overflow, if_overflow);
     TNode<IntPtrT> result = Projection<0>(pair);
@@ -837,8 +838,8 @@ TNode<Smi> CodeStubAssembler::TrySmiSub(TNode<Smi> lhs, TNode<Smi> rhs,
   } else {
     DCHECK(SmiValuesAre31Bits());
     TNode<PairT<Int32T, BoolT>> pair = Int32SubWithOverflow(
-        TruncateIntPtrToInt32(BitcastTaggedSignedToWord(lhs)),
-        TruncateIntPtrToInt32(BitcastTaggedSignedToWord(rhs)));
+        TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(lhs)),
+        TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(rhs)));
     TNode<BoolT> overflow = Projection<1>(pair);
     GotoIf(overflow, if_overflow);
     TNode<Int32T> result = Projection<0>(pair);
@@ -1120,41 +1121,27 @@ TNode<Int32T> CodeStubAssembler::TruncateIntPtrToInt32(
   return ReinterpretCast<Int32T>(value);
 }
 
-TNode<BoolT> CodeStubAssembler::TaggedIsSmi(SloppyTNode<Object> a) {
-  STATIC_ASSERT(kSmiTagMask < kMaxUInt32);
-  return Word32Equal(Word32And(TruncateIntPtrToInt32(BitcastTaggedToWord(a)),
-                               Int32Constant(kSmiTagMask)),
-                     Int32Constant(0));
-}
-
 TNode<BoolT> CodeStubAssembler::TaggedIsSmi(TNode<MaybeObject> a) {
   STATIC_ASSERT(kSmiTagMask < kMaxUInt32);
   return Word32Equal(
-      Word32And(TruncateIntPtrToInt32(BitcastMaybeObjectToWord(a)),
+      Word32And(TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(a)),
                 Int32Constant(kSmiTagMask)),
       Int32Constant(0));
 }
 
-TNode<BoolT> CodeStubAssembler::TaggedIsNotSmi(SloppyTNode<Object> a) {
-  // Although BitcastTaggedSignedToWord is generally unsafe on HeapObjects, we
-  // can nonetheless use it to inspect the Smi tag. The assumption here is that
-  // the GC will not exchange Smis for HeapObjects or vice-versa.
-  TNode<IntPtrT> a_bitcast = BitcastTaggedSignedToWord(UncheckedCast<Smi>(a));
-  STATIC_ASSERT(kSmiTagMask < kMaxUInt32);
-  return Word32NotEqual(
-      Word32And(TruncateIntPtrToInt32(a_bitcast), Int32Constant(kSmiTagMask)),
-      Int32Constant(0));
+TNode<BoolT> CodeStubAssembler::TaggedIsNotSmi(TNode<MaybeObject> a) {
+  return Word32BinaryNot(TaggedIsSmi(a));
 }
 
 TNode<BoolT> CodeStubAssembler::TaggedIsPositiveSmi(SloppyTNode<Object> a) {
 #if defined(V8_HOST_ARCH_32_BIT) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
   return Word32Equal(
       Word32And(
-          TruncateIntPtrToInt32(BitcastTaggedToWord(a)),
+          TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(a)),
           Uint32Constant(kSmiTagMask | static_cast<int32_t>(kSmiSignMask))),
       Int32Constant(0));
 #else
-  return WordEqual(WordAnd(BitcastTaggedToWord(a),
+  return WordEqual(WordAnd(BitcastTaggedToWordForTagAndSmiBits(a),
                            IntPtrConstant(kSmiTagMask | kSmiSignMask)),
                    IntPtrConstant(0));
 #endif
@@ -2025,11 +2012,7 @@ void CodeStubAssembler::DispatchMaybeObject(TNode<MaybeObject> maybe_object,
 
   GotoIf(IsCleared(maybe_object), if_cleared);
 
-  GotoIf(Word32Equal(Word32And(TruncateIntPtrToInt32(
-                                   BitcastMaybeObjectToWord(maybe_object)),
-                               Int32Constant(kHeapObjectTagMask)),
-                     Int32Constant(kHeapObjectTag)),
-         &inner_if_strong);
+  GotoIf(IsStrong(maybe_object), &inner_if_strong);
 
   *extracted =
       BitcastWordToTagged(WordAnd(BitcastMaybeObjectToWord(maybe_object),
@@ -2046,10 +2029,10 @@ void CodeStubAssembler::DispatchMaybeObject(TNode<MaybeObject> maybe_object,
 }
 
 TNode<BoolT> CodeStubAssembler::IsStrong(TNode<MaybeObject> value) {
-  return Word32Equal(
-      Word32And(TruncateIntPtrToInt32(BitcastMaybeObjectToWord(value)),
-                Int32Constant(kHeapObjectTagMask)),
-      Int32Constant(kHeapObjectTag));
+  return Word32Equal(Word32And(TruncateIntPtrToInt32(
+                                   BitcastTaggedToWordForTagAndSmiBits(value)),
+                               Int32Constant(kHeapObjectTagMask)),
+                     Int32Constant(kHeapObjectTag));
 }
 
 TNode<HeapObject> CodeStubAssembler::GetHeapObjectIfStrong(
@@ -2059,10 +2042,10 @@ TNode<HeapObject> CodeStubAssembler::GetHeapObjectIfStrong(
 }
 
 TNode<BoolT> CodeStubAssembler::IsWeakOrCleared(TNode<MaybeObject> value) {
-  return Word32Equal(
-      Word32And(TruncateIntPtrToInt32(BitcastMaybeObjectToWord(value)),
-                Int32Constant(kHeapObjectTagMask)),
-      Int32Constant(kWeakHeapObjectTag));
+  return Word32Equal(Word32And(TruncateIntPtrToInt32(
+                                   BitcastTaggedToWordForTagAndSmiBits(value)),
+                               Int32Constant(kHeapObjectTagMask)),
+                     Int32Constant(kWeakHeapObjectTag));
 }
 
 TNode<BoolT> CodeStubAssembler::IsCleared(TNode<MaybeObject> value) {
@@ -10246,7 +10229,7 @@ TNode<IntPtrT> CodeStubAssembler::ElementOffsetFromIndex(Node* index_node,
     Smi smi_index;
     constant_index = ToSmiConstant(index_node, &smi_index);
     if (constant_index) index = smi_index.value();
-    index_node = BitcastTaggedSignedToWord(index_node);
+    index_node = BitcastTaggedToWordForTagAndSmiBits(index_node);
   } else {
     DCHECK(mode == INTPTR_PARAMETERS);
     constant_index = ToIntPtrConstant(index_node, &index);
@@ -13775,8 +13758,10 @@ TNode<Code> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
   int index_shift = kSystemPointerSizeLog2 - kSmiShiftBits;
   TNode<WordT> table_index =
       index_shift >= 0
-          ? WordShl(BitcastTaggedSignedToWord(builtin_id), index_shift)
-          : WordSar(BitcastTaggedSignedToWord(builtin_id), -index_shift);
+          ? WordShl(BitcastTaggedToWordForTagAndSmiBits(builtin_id),
+                    index_shift)
+          : WordSar(BitcastTaggedToWordForTagAndSmiBits(builtin_id),
+                    -index_shift);
 
   return CAST(
       Load(MachineType::TaggedPointer(),

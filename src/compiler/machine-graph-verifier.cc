@@ -241,7 +241,7 @@ class MachineRepresentationInferrer {
                 MachineType::PointerRepresentation();
             break;
           case IrOpcode::kBitcastTaggedToWord:
-          case IrOpcode::kBitcastTaggedSignedToWord:
+          case IrOpcode::kBitcastTaggedToWordForTagAndSmiBits:
             representation_vector_[node->id()] =
                 MachineType::PointerRepresentation();
             break;
@@ -437,7 +437,7 @@ class MachineRepresentationChecker {
                                             MachineRepresentation::kWord64);
             break;
           case IrOpcode::kBitcastTaggedToWord:
-          case IrOpcode::kBitcastTaggedSignedToWord:
+          case IrOpcode::kBitcastTaggedToWordForTagAndSmiBits:
           case IrOpcode::kTaggedPoisonOnSpeculation:
             CheckValueInputIsTagged(node, 0);
             break;

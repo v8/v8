@@ -1502,7 +1502,7 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kUint64Mod:
       return MarkAsWord64(node), VisitUint64Mod(node);
     case IrOpcode::kBitcastTaggedToWord:
-    case IrOpcode::kBitcastTaggedSignedToWord:
+    case IrOpcode::kBitcastTaggedToWordForTagAndSmiBits:
       return MarkAsRepresentation(MachineType::PointerRepresentation(), node),
              VisitBitcastTaggedToWord(node);
     case IrOpcode::kBitcastWordToTagged:

@@ -232,10 +232,10 @@ Node* GraphAssembler::BitcastTaggedToWord(Node* value) {
                               current_effect_, current_control_);
 }
 
-Node* GraphAssembler::BitcastTaggedSignedToWord(Node* value) {
+Node* GraphAssembler::BitcastTaggedToWordForTagAndSmiBits(Node* value) {
   return current_effect_ =
-             graph()->NewNode(machine()->BitcastTaggedSignedToWord(), value,
-                              current_effect_, current_control_);
+             graph()->NewNode(machine()->BitcastTaggedToWordForTagAndSmiBits(),
+                              value, current_effect_, current_control_);
 }
 
 Node* GraphAssembler::Word32PoisonOnSpeculation(Node* value) {
