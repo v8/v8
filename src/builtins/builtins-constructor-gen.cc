@@ -57,12 +57,11 @@ TF_BUILTIN(ConstructWithSpread, CallOrConstructBuiltinsAssembler) {
 using Node = compiler::Node;
 
 TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
-  Node* shared_function_info = Parameter(Descriptor::kSharedFunctionInfo);
-  Node* feedback_cell = Parameter(Descriptor::kFeedbackCell);
-  Node* context = Parameter(Descriptor::kContext);
-
-  CSA_ASSERT(this, IsFeedbackCell(feedback_cell));
-  CSA_ASSERT(this, IsSharedFunctionInfo(shared_function_info));
+  TNode<SharedFunctionInfo> shared_function_info =
+      CAST(Parameter(Descriptor::kSharedFunctionInfo));
+  TNode<FeedbackCell> feedback_cell =
+      CAST(Parameter(Descriptor::kFeedbackCell));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   IncrementCounter(isolate()->counters()->fast_new_closure_total(), 1);
 
@@ -90,9 +89,8 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
 
   // The calculation of |function_map_index| must be in sync with
   // SharedFunctionInfo::function_map_index().
-  Node* const flags =
-      LoadObjectField(shared_function_info, SharedFunctionInfo::kFlagsOffset,
-                      MachineType::Uint32());
+  TNode<Uint32T> flags = LoadObjectField<Uint32T>(
+      shared_function_info, SharedFunctionInfo::kFlagsOffset);
   TNode<IntPtrT> const function_map_index = Signed(IntPtrAdd(
       DecodeWordFromWord32<SharedFunctionInfo::FunctionMapIndexBits>(flags),
       IntPtrConstant(Context::FIRST_FUNCTION_MAP_INDEX)));
@@ -202,17 +200,17 @@ TNode<JSObject> ConstructorBuiltinsAssembler::EmitFastNewObject(
       LoadObjectField(initial_map, Map::kConstructorOrBackPointerOffset);
   GotoIf(TaggedNotEqual(target, new_target_constructor), call_runtime);
 
-  VARIABLE(properties, MachineRepresentation::kTagged);
+  TVARIABLE(HeapObject, properties);
 
   Label instantiate_map(this), allocate_properties(this);
   GotoIf(IsDictionaryMap(initial_map), &allocate_properties);
   {
-    properties.Bind(EmptyFixedArrayConstant());
+    properties = EmptyFixedArrayConstant();
     Goto(&instantiate_map);
   }
   BIND(&allocate_properties);
   {
-    properties.Bind(AllocateNameDictionary(NameDictionary::kInitialCapacity));
+    properties = AllocateNameDictionary(NameDictionary::kInitialCapacity);
     Goto(&instantiate_map);
   }
 
@@ -267,7 +265,7 @@ TNode<Context> ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
   CodeStubAssembler::VariableList vars(0, zone());
   BuildFastLoop(
       vars, start_offset, size,
-      [=](Node* offset) {
+      [=](SloppyTNode<IntPtrT> offset) {
         StoreObjectFieldNoWriteBarrier(
             function_context, UncheckedCast<IntPtrT>(offset), undefined);
       },
@@ -364,7 +362,8 @@ TF_BUILTIN(CreateShallowArrayLiteral, ConstructorBuiltinsAssembler) {
   TNode<FeedbackVector> feedback_vector =
       CAST(Parameter(Descriptor::kFeedbackVector));
   TNode<UintPtrT> slot = Unsigned(SmiUntag(Parameter(Descriptor::kSlot)));
-  Node* constant_elements = Parameter(Descriptor::kConstantElements);
+  TNode<ArrayBoilerplateDescription> constant_elements =
+      CAST(Parameter(Descriptor::kConstantElements));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   Label call_runtime(this, Label::kDeferred);
   Return(EmitCreateShallowArrayLiteral(feedback_vector, slot, context,
@@ -698,13 +697,13 @@ TF_BUILTIN(ObjectConstructor, ConstructorBuiltinsAssembler) {
 
 // ES #sec-number-constructor
 TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
   // 1. If no arguments were passed to this function invocation, let n be +0.
-  VARIABLE(var_n, MachineRepresentation::kTagged, SmiConstant(0));
+  TVARIABLE(Number, var_n, SmiConstant(0));
   Label if_nloaded(this, &var_n);
   GotoIf(IntPtrEqual(argc, IntPtrConstant(0)), &if_nloaded);
 
@@ -713,14 +712,14 @@ TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
   //    b. If Type(prim) is BigInt, let n be the Number value for prim.
   //    c. Otherwise, let n be prim.
   TNode<Object> value = args.AtIndex(0);
-  var_n.Bind(ToNumber(context, value, BigIntHandling::kConvertToNumber));
+  var_n = ToNumber(context, value, BigIntHandling::kConvertToNumber);
   Goto(&if_nloaded);
 
   BIND(&if_nloaded);
   {
     // 3. If NewTarget is undefined, return n.
-    Node* n_value = var_n.value();
-    Node* new_target = Parameter(Descriptor::kJSNewTarget);
+    TNode<Number> n_value = var_n.value();
+    TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
     Label return_n(this), constructnumber(this, Label::kDeferred);
     Branch(IsUndefined(new_target), &return_n, &constructnumber);
 
@@ -747,7 +746,7 @@ TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
 }
 
 TF_BUILTIN(GenericLazyDeoptContinuation, ConstructorBuiltinsAssembler) {
-  Node* result = Parameter(Descriptor::kResult);
+  TNode<Object> result = CAST(Parameter(Descriptor::kResult));
   Return(result);
 }
 
