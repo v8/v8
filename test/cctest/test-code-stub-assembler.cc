@@ -123,6 +123,62 @@ TEST(CallCFunctionWithCallerSavedRegisters) {
   CHECK_EQ(3, Handle<Smi>::cast(result)->value());
 }
 
+TEST(NumberToString) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  Factory* factory = isolate->factory();
+
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeStubAssembler m(asm_tester.state());
+
+  {
+    TNode<Number> input = m.CAST(m.Parameter(0));
+
+    Label bailout(&m);
+    m.Return(m.NumberToString(input, &bailout));
+
+    m.BIND(&bailout);
+    m.Return(m.UndefinedConstant());
+  }
+
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  // clang-format off
+  double inputs[] = {
+     1, 2, 42, 153, -1, -100, 0, 51095154, -1241950,
+     std::nan("-1"), std::nan("1"), std::nan("2"),
+    -std::numeric_limits<double>::infinity(),
+     std::numeric_limits<double>::infinity(),
+    -0.0, -0.001, -0.5, -0.999, -1.0,
+     0.0,  0.001,  0.5,  0.999,  1.0,
+    -2147483647.9, -2147483648.0, -2147483648.5, -2147483648.9,  // SmiMin.
+     2147483646.9,  2147483647.0,  2147483647.5,  2147483647.9,  // SmiMax.
+    -4294967295.9, -4294967296.0, -4294967296.5, -4294967297.0,  // - 2^32.
+     4294967295.9,  4294967296.0,  4294967296.5,  4294967297.0,  //   2^32.
+  };
+  // clang-format on
+
+  const int kFullCacheSize = isolate->heap()->MaxNumberToStringCacheSize();
+  const int test_count = arraysize(inputs);
+  for (int i = 0; i < test_count; i++) {
+    int cache_length_before_addition = factory->number_string_cache()->length();
+    Handle<Object> input = factory->NewNumber(inputs[i]);
+    Handle<String> expected = factory->NumberToString(input);
+
+    Handle<Object> result = ft.Call(input).ToHandleChecked();
+    if (result->IsUndefined(isolate)) {
+      // Query may fail if cache was resized, in which case the entry is not
+      // added to the cache.
+      CHECK_LT(cache_length_before_addition, kFullCacheSize);
+      CHECK_EQ(factory->number_string_cache()->length(), kFullCacheSize);
+      expected = factory->NumberToString(input);
+      result = ft.Call(input).ToHandleChecked();
+    }
+    CHECK(!result->IsUndefined(isolate));
+    CHECK_EQ(*expected, *result);
+  }
+}
+
 namespace {
 
 void CheckToUint32Result(uint32_t expected, Handle<Object> result) {

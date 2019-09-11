@@ -2598,6 +2598,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Number> StringToNumber(TNode<String> input);
   // Convert a Number to a String.
   TNode<String> NumberToString(TNode<Number> input);
+  TNode<String> NumberToString(TNode<Number> input, Label* bailout);
+
   // Convert a Non-Number object to a Number.
   TNode<Number> NonNumberToNumber(
       SloppyTNode<Context> context, SloppyTNode<HeapObject> input,

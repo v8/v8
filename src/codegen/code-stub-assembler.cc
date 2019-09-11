@@ -7700,22 +7700,22 @@ TNode<Number> CodeStubAssembler::StringToNumber(TNode<String> input) {
   return var_result.value();
 }
 
-TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input) {
+TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
+                                                Label* bailout) {
   TVARIABLE(String, result);
   TVARIABLE(Smi, smi_input);
-  Label runtime(this, Label::kDeferred), if_smi(this), if_heap_number(this),
-      done(this, &result);
+  Label if_smi(this), if_heap_number(this), done(this, &result);
 
   // Load the number string cache.
   TNode<FixedArray> number_string_cache = NumberStringCacheConstant();
 
   // Make the hash mask from the length of the number string cache. It
   // contains two elements (number and string) for each cache entry.
-  // TODO(ishell): cleanup mask handling.
-  TNode<IntPtrT> mask =
-      BitcastTaggedSignedToWord(LoadFixedArrayBaseLength(number_string_cache));
-  TNode<IntPtrT> one = IntPtrConstant(1);
-  mask = IntPtrSub(mask, one);
+  TNode<IntPtrT> number_string_cache_length =
+      LoadAndUntagFixedArrayBaseLength(number_string_cache);
+  TNode<Int32T> one = Int32Constant(1);
+  TNode<Word32T> mask = Int32Sub(
+      Word32Shr(TruncateWordToInt32(number_string_cache_length), one), one);
 
   GotoIfNot(TaggedIsSmi(input), &if_heap_number);
   smi_input = CAST(input);
@@ -7733,29 +7733,28 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input) {
         LoadObjectField<Int32T>(heap_number_input, HeapNumber::kValueOffset);
     TNode<Int32T> high = LoadObjectField<Int32T>(
         heap_number_input, HeapNumber::kValueOffset + kIntSize);
-    TNode<Word32T> hash = Word32Xor(low, high);
-    TNode<IntPtrT> word_hash = WordShl(ChangeInt32ToIntPtr(hash), one);
-    TNode<WordT> index =
-        WordAnd(word_hash, WordSar(mask, SmiShiftBitsConstant()));
+    TNode<Word32T> hash = Word32And(Word32Xor(low, high), mask);
+    TNode<IntPtrT> entry_index =
+        Signed(ChangeUint32ToWord(Int32Add(hash, hash)));
 
     // Cache entry's key must be a heap number
     TNode<Object> number_key =
-        UnsafeLoadFixedArrayElement(number_string_cache, index);
-    GotoIf(TaggedIsSmi(number_key), &runtime);
+        UnsafeLoadFixedArrayElement(number_string_cache, entry_index);
+    GotoIf(TaggedIsSmi(number_key), bailout);
     TNode<HeapObject> number_key_heap_object = CAST(number_key);
-    GotoIfNot(IsHeapNumber(number_key_heap_object), &runtime);
+    GotoIfNot(IsHeapNumber(number_key_heap_object), bailout);
 
     // Cache entry's key must match the heap number value we're looking for.
     TNode<Int32T> low_compare = LoadObjectField<Int32T>(
         number_key_heap_object, HeapNumber::kValueOffset);
     TNode<Int32T> high_compare = LoadObjectField<Int32T>(
         number_key_heap_object, HeapNumber::kValueOffset + kIntSize);
-    GotoIfNot(Word32Equal(low, low_compare), &runtime);
-    GotoIfNot(Word32Equal(high, high_compare), &runtime);
+    GotoIfNot(Word32Equal(low, low_compare), bailout);
+    GotoIfNot(Word32Equal(high, high_compare), bailout);
 
     // Heap number match, return value from cache entry.
-    result = CAST(
-        UnsafeLoadFixedArrayElement(number_string_cache, index, kTaggedSize));
+    result = CAST(UnsafeLoadFixedArrayElement(number_string_cache, entry_index,
+                                              kTaggedSize));
     Goto(&done);
   }
 
@@ -7763,17 +7762,28 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input) {
   {
     Comment("NumberToString - Smi");
     // Load the smi key, make sure it matches the smi we're looking for.
-    TNode<Object> smi_index = BitcastWordToTagged(WordAnd(
-        WordShl(BitcastTaggedSignedToWord(smi_input.value()), one), mask));
+    TNode<Word32T> hash = Word32And(SmiToInt32(smi_input.value()), mask);
+    TNode<IntPtrT> entry_index =
+        Signed(ChangeUint32ToWord(Int32Add(hash, hash)));
     TNode<Object> smi_key = UnsafeLoadFixedArrayElement(
-        number_string_cache, smi_index, 0, SMI_PARAMETERS);
-    GotoIf(TaggedNotEqual(smi_key, smi_input.value()), &runtime);
+        number_string_cache, entry_index, 0, INTPTR_PARAMETERS);
+    GotoIf(TaggedNotEqual(smi_key, smi_input.value()), bailout);
 
     // Smi match, return value from cache entry.
-    result = CAST(UnsafeLoadFixedArrayElement(number_string_cache, smi_index,
-                                              kTaggedSize, SMI_PARAMETERS));
+    result = CAST(UnsafeLoadFixedArrayElement(number_string_cache, entry_index,
+                                              kTaggedSize, INTPTR_PARAMETERS));
     Goto(&done);
   }
+  BIND(&done);
+  return result.value();
+}
+
+TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input) {
+  TVARIABLE(String, result);
+  Label runtime(this, Label::kDeferred), done(this, &result);
+
+  result = NumberToString(input, &runtime);
+  Goto(&done);
 
   BIND(&runtime);
   {
