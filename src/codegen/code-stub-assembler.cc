@@ -396,34 +396,22 @@ TNode<BInt> CodeStubAssembler::BIntConstant(int value) {
 #endif
 }
 
+template <>
+TNode<Smi> CodeStubAssembler::IntPtrOrSmiConstant<Smi>(int value) {
+  return SmiConstant(value);
+}
+
+template <>
+TNode<IntPtrT> CodeStubAssembler::IntPtrOrSmiConstant<IntPtrT>(int value) {
+  return IntPtrConstant(value);
+}
+
 Node* CodeStubAssembler::IntPtrOrSmiConstant(int value, ParameterMode mode) {
   if (mode == SMI_PARAMETERS) {
     return SmiConstant(value);
   } else {
     DCHECK_EQ(INTPTR_PARAMETERS, mode);
     return IntPtrConstant(value);
-  }
-}
-
-TNode<BoolT> CodeStubAssembler::IntPtrOrSmiEqual(Node* left, Node* right,
-                                                 ParameterMode mode) {
-  if (mode == SMI_PARAMETERS) {
-    return SmiEqual(CAST(left), CAST(right));
-  } else {
-    DCHECK_EQ(INTPTR_PARAMETERS, mode);
-    return IntPtrEqual(UncheckedCast<IntPtrT>(left),
-                       UncheckedCast<IntPtrT>(right));
-  }
-}
-
-TNode<BoolT> CodeStubAssembler::IntPtrOrSmiNotEqual(Node* left, Node* right,
-                                                    ParameterMode mode) {
-  if (mode == SMI_PARAMETERS) {
-    return SmiNotEqual(CAST(left), CAST(right));
-  } else {
-    DCHECK_EQ(INTPTR_PARAMETERS, mode);
-    return WordNotEqual(UncheckedCast<IntPtrT>(left),
-                        UncheckedCast<IntPtrT>(right));
   }
 }
 
@@ -8398,14 +8386,15 @@ void CodeStubAssembler::DecrementCounter(StatsCounter* counter, int delta) {
   }
 }
 
-void CodeStubAssembler::Increment(Variable* variable, int value,
-                                  ParameterMode mode) {
-  DCHECK_IMPLIES(mode == INTPTR_PARAMETERS,
-                 variable->rep() == MachineType::PointerRepresentation());
-  DCHECK_IMPLIES(mode == SMI_PARAMETERS, CanBeTaggedSigned(variable->rep()));
-  variable->Bind(IntPtrOrSmiAdd(variable->value(),
-                                IntPtrOrSmiConstant(value, mode), mode));
+template <typename TIndex>
+void CodeStubAssembler::Increment(TVariable<TIndex>* variable, int value) {
+  *variable =
+      IntPtrOrSmiAdd(variable->value(), IntPtrOrSmiConstant<TIndex>(value));
 }
+template void CodeStubAssembler::Increment<Smi>(TVariable<Smi>* variable,
+                                                int value);
+template void CodeStubAssembler::Increment<IntPtrT>(
+    TVariable<IntPtrT>* variable, int value);
 
 void CodeStubAssembler::Use(Label* label) {
   GotoIf(Word32Equal(Int32Constant(0), Int32Constant(1)), label);
@@ -11278,8 +11267,27 @@ Node* CodeStubAssembler::BuildFastLoop(
     ParameterMode parameter_mode, IndexAdvanceMode advance_mode) {
   CSA_SLOW_ASSERT(this, MatchesParameterMode(start_index, parameter_mode));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(end_index, parameter_mode));
-  MachineRepresentation index_rep = ParameterRepresentation(parameter_mode);
-  VARIABLE(var, index_rep, start_index);
+
+  if (parameter_mode == SMI_PARAMETERS) {
+    return BuildFastLoop(vars, ReinterpretCast<Smi>(start_index),
+                         ReinterpretCast<Smi>(end_index), body, increment,
+                         advance_mode);
+  } else {
+    DCHECK_EQ(INTPTR_PARAMETERS, parameter_mode);
+    return BuildFastLoop(vars, ReinterpretCast<IntPtrT>(start_index),
+                         ReinterpretCast<IntPtrT>(end_index), body, increment,
+                         advance_mode);
+  }
+}
+
+template <typename TIndex>
+TNode<TIndex> CodeStubAssembler::BuildFastLoop(const VariableList& vars,
+                                               TNode<TIndex> start_index,
+                                               TNode<TIndex> end_index,
+                                               const FastLoopBody& body,
+                                               int increment,
+                                               IndexAdvanceMode advance_mode) {
+  TVARIABLE(TIndex, var, start_index);
   VariableList vars_copy(vars.begin(), vars.end(), zone());
   vars_copy.push_back(&var);
   Label loop(this, vars_copy);
@@ -11291,8 +11299,7 @@ Node* CodeStubAssembler::BuildFastLoop(
   // to force the loop header check at the end of the loop and branch forward to
   // it from the pre-header). The extra branch is slower in the case that the
   // loop actually iterates.
-  TNode<BoolT> first_check =
-      IntPtrOrSmiEqual(var.value(), end_index, parameter_mode);
+  TNode<BoolT> first_check = IntPtrOrSmiEqual(var.value(), end_index);
   int32_t first_check_val;
   if (ToInt32Constant(first_check, &first_check_val)) {
     if (first_check_val) return var.value();
@@ -11304,14 +11311,13 @@ Node* CodeStubAssembler::BuildFastLoop(
   BIND(&loop);
   {
     if (advance_mode == IndexAdvanceMode::kPre) {
-      Increment(&var, increment, parameter_mode);
+      Increment(&var, increment);
     }
     body(var.value());
     if (advance_mode == IndexAdvanceMode::kPost) {
-      Increment(&var, increment, parameter_mode);
+      Increment(&var, increment);
     }
-    Branch(IntPtrOrSmiNotEqual(var.value(), end_index, parameter_mode), &loop,
-           &after_loop);
+    Branch(IntPtrOrSmiNotEqual(var.value(), end_index), &loop, &after_loop);
   }
   BIND(&after_loop);
   return var.value();

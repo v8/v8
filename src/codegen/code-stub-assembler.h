@@ -443,18 +443,45 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   Node* MatchesParameterMode(Node* value, ParameterMode mode);
 
-#define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName) \
-  Node* OpName(Node* a, Node* b, ParameterMode mode) {   \
-    if (mode == SMI_PARAMETERS) {                        \
-      return SmiOpName(CAST(a), CAST(b));                \
-    } else {                                             \
-      DCHECK_EQ(INTPTR_PARAMETERS, mode);                \
-      return IntPtrOpName(a, b);                         \
-    }                                                    \
+#define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName)                    \
+  /* TODO(v8:9708): remove once all uses are ported. */                     \
+  Node* OpName(Node* a, Node* b, ParameterMode mode) {                      \
+    if (mode == SMI_PARAMETERS) {                                           \
+      return SmiOpName(CAST(a), CAST(b));                                   \
+    } else {                                                                \
+      DCHECK_EQ(INTPTR_PARAMETERS, mode);                                   \
+      return IntPtrOpName(UncheckedCast<IntPtrT>(a),                        \
+                          UncheckedCast<IntPtrT>(b));                       \
+    }                                                                       \
+  }                                                                         \
+  TNode<Smi> OpName(TNode<Smi> a, TNode<Smi> b) { return SmiOpName(a, b); } \
+  TNode<IntPtrT> OpName(TNode<IntPtrT> a, TNode<IntPtrT> b) {               \
+    return IntPtrOpName(a, b);                                              \
   }
+  // TODO(v8:9708): Define BInt operations once all uses are ported.
   PARAMETER_BINOP(IntPtrOrSmiMin, IntPtrMin, SmiMin)
   PARAMETER_BINOP(IntPtrOrSmiAdd, IntPtrAdd, SmiAdd)
   PARAMETER_BINOP(IntPtrOrSmiSub, IntPtrSub, SmiSub)
+#undef PARAMETER_BINOP
+
+#define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName)                      \
+  /* TODO(v8:9708): remove once all uses are ported. */                       \
+  TNode<BoolT> OpName(Node* a, Node* b, ParameterMode mode) {                 \
+    if (mode == SMI_PARAMETERS) {                                             \
+      return SmiOpName(CAST(a), CAST(b));                                     \
+    } else {                                                                  \
+      DCHECK_EQ(INTPTR_PARAMETERS, mode);                                     \
+      return IntPtrOpName(UncheckedCast<IntPtrT>(a),                          \
+                          UncheckedCast<IntPtrT>(b));                         \
+    }                                                                         \
+  }                                                                           \
+  TNode<BoolT> OpName(TNode<Smi> a, TNode<Smi> b) { return SmiOpName(a, b); } \
+  TNode<BoolT> OpName(TNode<IntPtrT> a, TNode<IntPtrT> b) {                   \
+    return IntPtrOpName(a, b);                                                \
+  }
+  // TODO(v8:9708): Define BInt operations once all uses are ported.
+  PARAMETER_BINOP(IntPtrOrSmiEqual, IntPtrEqual, SmiEqual)
+  PARAMETER_BINOP(IntPtrOrSmiNotEqual, WordNotEqual, SmiNotEqual)
   PARAMETER_BINOP(IntPtrOrSmiLessThan, IntPtrLessThan, SmiLessThan)
   PARAMETER_BINOP(IntPtrOrSmiLessThanOrEqual, IntPtrLessThanOrEqual,
                   SmiLessThanOrEqual)
@@ -507,9 +534,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<BInt> BIntConstant(int value);
 
+  template <typename TIndex>
+  TNode<TIndex> IntPtrOrSmiConstant(int value);
+  // TODO(v8:9708): remove once all uses are ported.
   Node* IntPtrOrSmiConstant(int value, ParameterMode mode);
-  TNode<BoolT> IntPtrOrSmiEqual(Node* left, Node* right, ParameterMode mode);
-  TNode<BoolT> IntPtrOrSmiNotEqual(Node* left, Node* right, ParameterMode mode);
 
   bool IsIntPtrOrSmiConstantZero(Node* test, ParameterMode mode);
   bool TryGetIntPtrOrSmiConstantValue(Node* maybe_constant, int* value,
@@ -2799,8 +2827,26 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void IncrementCounter(StatsCounter* counter, int delta);
   void DecrementCounter(StatsCounter* counter, int delta);
 
+  template <typename TIndex>
+  void Increment(TVariable<TIndex>* variable, int value = 1);
+
+  template <typename TIndex>
+  void Decrement(TVariable<TIndex>* variable, int value = 1) {
+    Increment(variable, -value);
+  }
+
+  // TODO(v8:9708): remove once all uses are ported.
   void Increment(Variable* variable, int value = 1,
-                 ParameterMode mode = INTPTR_PARAMETERS);
+                 ParameterMode mode = INTPTR_PARAMETERS) {
+    if (mode == SMI_PARAMETERS) {
+      return Increment(static_cast<TVariable<Smi>*>(variable), value);
+    } else {
+      DCHECK(mode == INTPTR_PARAMETERS);
+      return Increment(static_cast<TVariable<IntPtrT>*>(variable), value);
+    }
+  }
+
+  // TODO(v8:9708): remove once all uses are ported.
   void Decrement(Variable* variable, int value = 1,
                  ParameterMode mode = INTPTR_PARAMETERS) {
     Increment(variable, -value, mode);
@@ -3282,13 +3328,31 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   enum class IndexAdvanceMode { kPre, kPost };
 
+  // TODO(v8:9708): typify index parameter.
   using FastLoopBody = std::function<void(Node* index)>;
 
+  template <typename TIndex>
+  TNode<TIndex> BuildFastLoop(
+      const VariableList& var_list, TNode<TIndex> start_index,
+      TNode<TIndex> end_index, const FastLoopBody& body, int increment,
+      IndexAdvanceMode advance_mode = IndexAdvanceMode::kPre);
+
+  template <typename TIndex>
+  TNode<TIndex> BuildFastLoop(
+      TNode<TIndex> start_index, TNode<TIndex> end_index,
+      const FastLoopBody& body, int increment,
+      IndexAdvanceMode advance_mode = IndexAdvanceMode::kPre) {
+    return BuildFastLoop(VariableList(0, zone()), start_index, end_index, body,
+                         increment, advance_mode);
+  }
+
+  // TODO(v8:9708): remove once all uses are ported.
   Node* BuildFastLoop(const VariableList& var_list, Node* start_index,
                       Node* end_index, const FastLoopBody& body, int increment,
                       ParameterMode parameter_mode,
                       IndexAdvanceMode advance_mode = IndexAdvanceMode::kPre);
 
+  // TODO(v8:9708): remove once all uses are ported.
   Node* BuildFastLoop(Node* start_index, Node* end_index,
                       const FastLoopBody& body, int increment,
                       ParameterMode parameter_mode,
