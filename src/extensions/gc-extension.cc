@@ -28,7 +28,9 @@ bool IsProperty(v8::Isolate* isolate, v8::Local<v8::Context> ctx,
   auto k = v8::String::NewFromUtf8(isolate, key).ToLocalChecked();
   // Get will return undefined for non-existing keys which will make
   // StrictEquals fail.
-  return object->Get(ctx, k).ToLocalChecked()->StrictEquals(
+  auto maybe_property = object->Get(ctx, k);
+  if (maybe_property.IsEmpty()) return false;
+  return maybe_property.ToLocalChecked()->StrictEquals(
       v8::String::NewFromUtf8(isolate, value).ToLocalChecked());
 }
 
