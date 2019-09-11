@@ -98,14 +98,6 @@
       {'name': 'v8testing', 'variant': 'extra'},
     ],
   },
-  'v8_linux_noembed_rel_ng_triggered': {
-    'swarming_dimensions' : {
-      'os': 'Ubuntu-16.04',
-    },
-    'tests': [
-      {'name': 'v8testing', 'shards': 2},
-    ],
-  },
   'v8_linux_noi18n_rel_ng_triggered': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-16.04',
@@ -755,22 +747,6 @@
         'test_args': ['--extra-flags', '--noenable-sse4-1 --noenable-avx'],
         'shards': 3
       },
-    ],
-  },
-  'V8 Linux - noembed': {
-    'swarming_dimensions': {
-      'os': 'Ubuntu-16.04',
-    },
-    'tests': [
-      {'name': 'v8testing'},
-    ],
-  },
-  'V8 Linux - noembed - debug': {
-    'swarming_dimensions': {
-      'os': 'Ubuntu-16.04',
-    },
-    'tests': [
-      {'name': 'v8testing', 'shards': 3},
     ],
   },
   'V8 Linux - full debug': {

@@ -99,8 +99,6 @@
           'release_x64_pointer_compression_without_dchecks',
       'V8 Linux64 - arm64 - sim - pointer compression - builder':
           'release_simulate_arm64_pointer_compression',
-      'V8 Linux - noembed': 'release_x86_noembed',
-      'V8 Linux - noembed - debug': 'debug_x86_noembed',
       'V8 Fuchsia': 'release_x64_fuchsia',
       'V8 Fuchsia - debug': 'debug_x64_fuchsia',
       'V8 Linux64 - cfi': 'release_x64_cfi',
@@ -197,7 +195,6 @@
       'v8_android_arm64_n5x_rel_ng': 'release_android_arm64',
       'v8_fuchsia_rel_ng': 'release_x64_fuchsia_trybot',
       'v8_ios_simulator': 'release_x64_ios_simulator',
-      'v8_linux_noembed_rel_ng': 'release_x86_noembed_trybot',
       'v8_linux_rel_ng': 'release_x86_gcmole_trybot',
       'v8_linux_optional_rel_ng': 'release_x86_trybot',
       'v8_linux_verify_csa_rel_ng': 'release_x86_verify_csa',
@@ -515,8 +512,6 @@
     # Debug configs for x86.
     'debug_x86': [
       'debug_bot', 'x86'],
-    'debug_x86_noembed': [
-      'debug_bot', 'x86', 'v8_no_enable_embedded_builtins'],
     'debug_x86_minimal_symbols': [
       'debug_bot', 'x86', 'minimal_symbols'],
     'debug_x86_no_i18n': [
@@ -535,10 +530,6 @@
     # Release configs for x86.
     'release_x86': [
       'release_bot', 'x86'],
-    'release_x86_noembed': [
-      'release_bot', 'x86', 'v8_no_enable_embedded_builtins'],
-    'release_x86_noembed_trybot': [
-      'release_trybot', 'x86', 'v8_no_enable_embedded_builtins'],
     'release_x86_gcc': [
       'release_bot', 'x86', 'gcc', 'v8_check_header_includes'],
     'release_x86_gcc_minimal_symbols': [
@@ -800,10 +791,6 @@
     'v8_correctness_fuzzer': {
       'mixins': ['v8_enable_test_features'],
       'gn_args': 'v8_correctness_fuzzer=true v8_multi_arch_build=true',
-    },
-
-    'v8_no_enable_embedded_builtins': {
-      'gn_args': 'v8_enable_embedded_builtins=false',
     },
 
     'v8_enable_lite_mode': {
