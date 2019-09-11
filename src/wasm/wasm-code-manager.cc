@@ -702,12 +702,18 @@ void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
   }
   code_table_.reset(new_table);
 
-  CHECK_EQ(1, code_space_data_.size());
+  base::AddressRegion single_code_space_region;
+  {
+    base::MutexGuard guard(&allocation_mutex_);
+    CHECK_EQ(1, code_space_data_.size());
+    single_code_space_region = code_space_data_[0].region;
+  }
   // Re-allocate jump table.
-  code_space_data_[0].jump_table = CreateEmptyJumpTableInRegion(
+  main_jump_table_ = CreateEmptyJumpTableInRegion(
       JumpTableAssembler::SizeForNumberOfSlots(max_functions),
-      code_space_data_[0].region);
-  main_jump_table_ = code_space_data_[0].jump_table;
+      single_code_space_region);
+  base::MutexGuard guard(&allocation_mutex_);
+  code_space_data_[0].jump_table = main_jump_table_;
 }
 
 void NativeModule::LogWasmCodes(Isolate* isolate) {
@@ -825,10 +831,15 @@ void NativeModule::UseLazyStub(uint32_t func_index) {
   if (!lazy_compile_table_) {
     uint32_t num_slots = module_->num_declared_functions;
     WasmCodeRefScope code_ref_scope;
-    DCHECK_EQ(1, code_space_data_.size());
+    base::AddressRegion single_code_space_region;
+    {
+      base::MutexGuard guard(&allocation_mutex_);
+      DCHECK_EQ(1, code_space_data_.size());
+      single_code_space_region = code_space_data_[0].region;
+    }
     lazy_compile_table_ = CreateEmptyJumpTableInRegion(
         JumpTableAssembler::SizeForNumberOfLazyFunctions(num_slots),
-        code_space_data_[0].region);
+        single_code_space_region);
     JumpTableAssembler::GenerateLazyCompileTable(
         lazy_compile_table_->instruction_start(), num_slots,
         module_->num_imported_functions,
@@ -837,13 +848,13 @@ void NativeModule::UseLazyStub(uint32_t func_index) {
 
   // Add jump table entry for jump to the lazy compile stub.
   uint32_t slot_index = func_index - module_->num_imported_functions;
+  DCHECK_NULL(code_table_[slot_index]);
   DCHECK_NE(runtime_stub_entry(WasmCode::kWasmCompileLazy), kNullAddress);
   Address lazy_compile_target =
       lazy_compile_table_->instruction_start() +
       JumpTableAssembler::LazyCompileSlotIndexToOffset(slot_index);
-  JumpTableAssembler::PatchJumpTableSlot(main_jump_table_->instruction_start(),
-                                         slot_index, lazy_compile_target,
-                                         WasmCode::kFlushICache);
+  base::MutexGuard guard(&allocation_mutex_);
+  PatchJumpTablesLocked(func_index, lazy_compile_target);
 }
 
 // TODO(mstarzinger): Remove {Isolate} parameter once {V8_EMBEDDED_BUILTINS}
@@ -859,7 +870,12 @@ void NativeModule::SetRuntimeStubs(Isolate* isolate) {
 #endif                                                // V8_EMBEDDED_BUILTINS
   DCHECK_EQ(kNullAddress, runtime_stub_entries_[0]);  // Only called once.
   WasmCodeRefScope code_ref_scope;
-  DCHECK_EQ(1, code_space_data_.size());
+  base::AddressRegion single_code_space_region;
+  {
+    base::MutexGuard guard(&allocation_mutex_);
+    DCHECK_EQ(1, code_space_data_.size());
+    single_code_space_region = code_space_data_[0].region;
+  }
   int num_function_slots =
       kNeedsFarJumpsBetweenCodeSpaces && FLAG_wasm_far_jump_table
           ? static_cast<int>(module_->num_declared_functions)
@@ -867,7 +883,7 @@ void NativeModule::SetRuntimeStubs(Isolate* isolate) {
   WasmCode* jump_table = CreateEmptyJumpTableInRegion(
       JumpTableAssembler::SizeForNumberOfFarJumpSlots(
           WasmCode::kRuntimeStubCount, num_function_slots),
-      code_space_data_[0].region);
+      single_code_space_region);
   Address base = jump_table->instruction_start();
   EmbeddedData embedded_data = EmbeddedData::FromBlob();
 #define RUNTIME_STUB(Name) Builtins::k##Name,
@@ -1040,9 +1056,7 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
     }
 
     if (update_jump_table) {
-      JumpTableAssembler::PatchJumpTableSlot(
-          main_jump_table_->instruction_start(), slot_idx,
-          code->instruction_start(), WasmCode::kFlushICache);
+      PatchJumpTablesLocked(code->index(), code->instruction_start());
     }
   }
   WasmCodeRefScope::AddRef(code.get());
@@ -1136,10 +1150,22 @@ WasmCode* NativeModule::CreateEmptyJumpTableInRegion(
   return PublishCode(std::move(code));
 }
 
+void NativeModule::PatchJumpTablesLocked(uint32_t func_index, Address target) {
+  // The caller must hold the {allocation_mutex_}, thus we fail to lock it here.
+  DCHECK(!allocation_mutex_.TryLock());
+
+  uint32_t slot_index = func_index - module_->num_imported_functions;
+  for (auto& code_space_data : code_space_data_) {
+    if (!code_space_data.jump_table) continue;
+    Address jump_table_base = code_space_data.jump_table->instruction_start();
+    JumpTableAssembler::PatchJumpTableSlot(jump_table_base, slot_index, target,
+                                           WasmCode::kFlushICache);
+  }
+}
+
 void NativeModule::AddCodeSpace(base::AddressRegion region) {
   // Each code space must be at least twice as large as the overhead per code
   // space. Otherwise, we are wasting too much memory.
-  const bool is_first_code_space = code_space_data_.empty();
   const bool implicit_alloc_disabled =
       engine_->code_manager()->IsImplicitAllocationsDisabledForTesting();
 
@@ -1164,6 +1190,11 @@ void NativeModule::AddCodeSpace(base::AddressRegion region) {
   WasmCode* jump_table = nullptr;
   const uint32_t num_wasm_functions = module_->num_declared_functions;
   const bool has_functions = num_wasm_functions > 0;
+  bool is_first_code_space;
+  {
+    base::MutexGuard guard(&allocation_mutex_);
+    is_first_code_space = code_space_data_.empty();
+  }
   const bool needs_jump_table =
       has_functions && is_first_code_space && !implicit_alloc_disabled;
 
@@ -1175,6 +1206,7 @@ void NativeModule::AddCodeSpace(base::AddressRegion region) {
 
   if (is_first_code_space) main_jump_table_ = jump_table;
 
+  base::MutexGuard guard(&allocation_mutex_);
   code_space_data_.push_back(CodeSpaceData{region, jump_table});
 }
 
