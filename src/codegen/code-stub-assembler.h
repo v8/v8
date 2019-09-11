@@ -3470,6 +3470,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<UintPtrT> LoadJSTypedArrayLength(TNode<JSTypedArray> typed_array);
   TNode<RawPtrT> LoadJSTypedArrayBackingStore(TNode<JSTypedArray> typed_array);
 
+  template <typename TIndex>
+  TNode<IntPtrT> ElementOffsetFromIndex(TNode<TIndex> index, ElementsKind kind,
+                                        int base_size = 0);
+  // TODO(v8:9708): remove once all uses are ported.
   TNode<IntPtrT> ElementOffsetFromIndex(Node* index, ElementsKind kind,
                                         ParameterMode mode, int base_size = 0);
 

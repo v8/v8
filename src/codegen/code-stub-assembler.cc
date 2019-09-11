@@ -5427,9 +5427,9 @@ void CodeStubAssembler::CopyStringCharacters(Node* from_string, Node* to_string,
   TNode<IntPtrT> from_offset = ElementOffsetFromIndex(
       from_index, from_kind, INTPTR_PARAMETERS, header_size);
   TNode<IntPtrT> to_offset =
-      ElementOffsetFromIndex(to_index, to_kind, INTPTR_PARAMETERS, header_size);
+      ElementOffsetFromIndex(to_index, to_kind, header_size);
   TNode<IntPtrT> byte_count =
-      ElementOffsetFromIndex(character_count, from_kind, INTPTR_PARAMETERS);
+      ElementOffsetFromIndex(character_count, from_kind);
   TNode<WordT> limit_offset = IntPtrAdd(from_offset, byte_count);
 
   // Prepare the fast loop
@@ -10219,33 +10219,62 @@ TNode<IntPtrT> CodeStubAssembler::ElementOffsetFromIndex(Node* index_node,
                                                          ParameterMode mode,
                                                          int base_size) {
   CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, mode));
+  if (mode == SMI_PARAMETERS) {
+    return ElementOffsetFromIndex(ReinterpretCast<Smi>(index_node), kind,
+                                  base_size);
+  } else {
+    DCHECK(mode == INTPTR_PARAMETERS);
+    return ElementOffsetFromIndex(ReinterpretCast<IntPtrT>(index_node), kind,
+                                  base_size);
+  }
+}
+
+template <typename TIndex>
+TNode<IntPtrT> CodeStubAssembler::ElementOffsetFromIndex(
+    TNode<TIndex> index_node, ElementsKind kind, int base_size) {
+  static_assert(
+      std::is_same<TIndex, Smi>::value || std::is_same<TIndex, IntPtrT>::value,
+      "Only Smi or IntPtrT index nodes are allowed");
   int element_size_shift = ElementsKindToShiftSize(kind);
   int element_size = 1 << element_size_shift;
   int const kSmiShiftBits = kSmiShiftSize + kSmiTagSize;
   intptr_t index = 0;
+  TNode<IntPtrT> intptr_index_node;
   bool constant_index = false;
-  if (mode == SMI_PARAMETERS) {
+  if (std::is_same<TIndex, Smi>::value) {
+    TNode<Smi> smi_index_node = ReinterpretCast<Smi>(index_node);
     element_size_shift -= kSmiShiftBits;
     Smi smi_index;
-    constant_index = ToSmiConstant(index_node, &smi_index);
+    constant_index = ToSmiConstant(smi_index_node, &smi_index);
     if (constant_index) index = smi_index.value();
-    index_node = BitcastTaggedToWordForTagAndSmiBits(index_node);
+    intptr_index_node = BitcastTaggedToWordForTagAndSmiBits(smi_index_node);
   } else {
-    DCHECK(mode == INTPTR_PARAMETERS);
-    constant_index = ToIntPtrConstant(index_node, &index);
+    intptr_index_node = ReinterpretCast<IntPtrT>(index_node);
+    constant_index = ToIntPtrConstant(intptr_index_node, &index);
   }
   if (constant_index) {
     return IntPtrConstant(base_size + element_size * index);
   }
 
-  TNode<WordT> shifted_index =
+  TNode<IntPtrT> shifted_index =
       (element_size_shift == 0)
-          ? UncheckedCast<WordT>(index_node)
+          ? intptr_index_node
           : ((element_size_shift > 0)
-                 ? WordShl(index_node, IntPtrConstant(element_size_shift))
-                 : WordSar(index_node, IntPtrConstant(-element_size_shift)));
+                 ? WordShl(intptr_index_node,
+                           IntPtrConstant(element_size_shift))
+                 : WordSar(intptr_index_node,
+                           IntPtrConstant(-element_size_shift)));
   return IntPtrAdd(IntPtrConstant(base_size), Signed(shifted_index));
 }
+
+template V8_EXPORT_PRIVATE TNode<IntPtrT>
+CodeStubAssembler::ElementOffsetFromIndex<Smi>(TNode<Smi> index_node,
+                                               ElementsKind kind,
+                                               int base_size);
+template V8_EXPORT_PRIVATE TNode<IntPtrT>
+CodeStubAssembler::ElementOffsetFromIndex<IntPtrT>(TNode<IntPtrT> index_node,
+                                                   ElementsKind kind,
+                                                   int base_size);
 
 TNode<BoolT> CodeStubAssembler::IsOffsetInBounds(SloppyTNode<IntPtrT> offset,
                                                  SloppyTNode<IntPtrT> length,

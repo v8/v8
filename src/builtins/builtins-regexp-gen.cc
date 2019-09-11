@@ -370,9 +370,10 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
 }
 
 void RegExpBuiltinsAssembler::GetStringPointers(
-    Node* const string_data, Node* const offset, Node* const last_index,
-    Node* const string_length, String::Encoding encoding,
-    Variable* var_string_start, Variable* var_string_end) {
+    TNode<RawPtrT> string_data, TNode<IntPtrT> offset,
+    TNode<IntPtrT> last_index, TNode<IntPtrT> string_length,
+    String::Encoding encoding, TVariable<RawPtrT>* var_string_start,
+    TVariable<RawPtrT>* var_string_end) {
   DCHECK_EQ(var_string_start->rep(), MachineType::PointerRepresentation());
   DCHECK_EQ(var_string_end->rep(), MachineType::PointerRepresentation());
 
@@ -380,13 +381,14 @@ void RegExpBuiltinsAssembler::GetStringPointers(
                                 ? UINT8_ELEMENTS
                                 : UINT16_ELEMENTS;
 
-  TNode<IntPtrT> const from_offset = ElementOffsetFromIndex(
-      IntPtrAdd(offset, last_index), kind, INTPTR_PARAMETERS);
-  var_string_start->Bind(IntPtrAdd(string_data, from_offset));
+  TNode<IntPtrT> from_offset =
+      ElementOffsetFromIndex(IntPtrAdd(offset, last_index), kind);
+  *var_string_start =
+      ReinterpretCast<RawPtrT>(IntPtrAdd(string_data, from_offset));
 
-  TNode<IntPtrT> const to_offset = ElementOffsetFromIndex(
-      IntPtrAdd(offset, string_length), kind, INTPTR_PARAMETERS);
-  var_string_end->Bind(IntPtrAdd(string_data, to_offset));
+  TNode<IntPtrT> to_offset =
+      ElementOffsetFromIndex(IntPtrAdd(offset, string_length), kind);
+  *var_string_end = ReinterpretCast<RawPtrT>(IntPtrAdd(string_data, to_offset));
 }
 
 TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
