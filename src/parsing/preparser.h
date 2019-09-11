@@ -1643,11 +1643,11 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserStatement::Jump();
   }
 
-  V8_INLINE void AddFormalParameter(
-      PreParserFormalParameters* parameters,
-      PreParserExpression& pattern,  // NOLINT(runtime/references)
-      const PreParserExpression& initializer, int initializer_end_position,
-      bool is_rest) {
+  V8_INLINE void AddFormalParameter(PreParserFormalParameters* parameters,
+                                    const PreParserExpression& pattern,
+                                    const PreParserExpression& initializer,
+                                    int initializer_end_position,
+                                    bool is_rest) {
     DeclarationScope* scope = parameters->scope;
     scope->RecordParameter(is_rest);
     parameters->UpdateArityAndFunctionLength(!initializer.IsNull(), is_rest);
