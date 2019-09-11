@@ -2317,8 +2317,10 @@ class ThreadImpl {
   }
       UNOP_CASE(F64x2Abs, f64x2, float2, 2, std::abs(a))
       UNOP_CASE(F64x2Neg, f64x2, float2, 2, -a)
+      UNOP_CASE(F64x2Sqrt, f64x2, float2, 2, std::sqrt(a))
       UNOP_CASE(F32x4Abs, f32x4, float4, 4, std::abs(a))
       UNOP_CASE(F32x4Neg, f32x4, float4, 4, -a)
+      UNOP_CASE(F32x4Sqrt, f32x4, float4, 4, std::sqrt(a))
       UNOP_CASE(F32x4RecipApprox, f32x4, float4, 4, base::Recip(a))
       UNOP_CASE(F32x4RecipSqrtApprox, f32x4, float4, 4, base::RecipSqrt(a))
       UNOP_CASE(I64x2Neg, i64x2, int2, 2, base::NegateWithWraparound(a))

@@ -255,6 +255,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(F64x2Splat, Operator::kNoProperties, 1, 0, 1)                             \
   V(F64x2Abs, Operator::kNoProperties, 1, 0, 1)                               \
   V(F64x2Neg, Operator::kNoProperties, 1, 0, 1)                               \
+  V(F64x2Sqrt, Operator::kNoProperties, 1, 0, 1)                              \
   V(F64x2Add, Operator::kCommutative, 2, 0, 1)                                \
   V(F64x2Sub, Operator::kNoProperties, 2, 0, 1)                               \
   V(F64x2Mul, Operator::kCommutative, 2, 0, 1)                                \
@@ -270,6 +271,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(F32x4UConvertI32x4, Operator::kNoProperties, 1, 0, 1)                     \
   V(F32x4Abs, Operator::kNoProperties, 1, 0, 1)                               \
   V(F32x4Neg, Operator::kNoProperties, 1, 0, 1)                               \
+  V(F32x4Sqrt, Operator::kNoProperties, 1, 0, 1)                              \
   V(F32x4RecipApprox, Operator::kNoProperties, 1, 0, 1)                       \
   V(F32x4RecipSqrtApprox, Operator::kNoProperties, 1, 0, 1)                   \
   V(F32x4Add, Operator::kCommutative, 2, 0, 1)                                \

@@ -482,6 +482,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* F64x2Splat();
   const Operator* F64x2Abs();
   const Operator* F64x2Neg();
+  const Operator* F64x2Sqrt();
   const Operator* F64x2Add();
   const Operator* F64x2Sub();
   const Operator* F64x2Mul();
@@ -502,6 +503,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* F32x4UConvertI32x4();
   const Operator* F32x4Abs();
   const Operator* F32x4Neg();
+  const Operator* F32x4Sqrt();
   const Operator* F32x4RecipApprox();
   const Operator* F32x4RecipSqrtApprox();
   const Operator* F32x4Add();

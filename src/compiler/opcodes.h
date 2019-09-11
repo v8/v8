@@ -749,6 +749,7 @@
   V(F64x2ReplaceLane)           \
   V(F64x2Abs)                   \
   V(F64x2Neg)                   \
+  V(F64x2Sqrt)                  \
   V(F64x2Add)                   \
   V(F64x2Sub)                   \
   V(F64x2Mul)                   \
@@ -766,6 +767,7 @@
   V(F32x4UConvertI32x4)         \
   V(F32x4Abs)                   \
   V(F32x4Neg)                   \
+  V(F32x4Sqrt)                  \
   V(F32x4RecipApprox)           \
   V(F32x4RecipSqrtApprox)       \
   V(F32x4Add)                   \

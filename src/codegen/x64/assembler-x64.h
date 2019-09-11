@@ -1334,7 +1334,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     impl(opcode, dst, src1, src2);                                  \
   }
 
-  AVX_SP_3(vsqrt, 0x51)
+  // vsqrtpd is defined by sqrtpd in SSE2_INSTRUCTION_LIST
+  AVX_S_3(vsqrt, 0x51)
+  AVX_3(vsqrtps, 0x51, vps)
   AVX_S_3(vadd, 0x58)
   AVX_S_3(vsub, 0x5c)
   AVX_S_3(vmul, 0x59)

@@ -4008,6 +4008,8 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
       return graph()->NewNode(mcgraph()->machine()->F64x2Abs(), inputs[0]);
     case wasm::kExprF64x2Neg:
       return graph()->NewNode(mcgraph()->machine()->F64x2Neg(), inputs[0]);
+    case wasm::kExprF64x2Sqrt:
+      return graph()->NewNode(mcgraph()->machine()->F64x2Sqrt(), inputs[0]);
     case wasm::kExprF64x2Add:
       return graph()->NewNode(mcgraph()->machine()->F64x2Add(), inputs[0],
                               inputs[1]);
@@ -4056,6 +4058,8 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
       return graph()->NewNode(mcgraph()->machine()->F32x4Abs(), inputs[0]);
     case wasm::kExprF32x4Neg:
       return graph()->NewNode(mcgraph()->machine()->F32x4Neg(), inputs[0]);
+    case wasm::kExprF32x4Sqrt:
+      return graph()->NewNode(mcgraph()->machine()->F32x4Sqrt(), inputs[0]);
     case wasm::kExprF32x4RecipApprox:
       return graph()->NewNode(mcgraph()->machine()->F32x4RecipApprox(),
                               inputs[0]);

@@ -1845,7 +1845,9 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         current += 1;
       } else {
         const char* mnemonic;
-        if (opcode == 0x54) {
+        if (opcode == 0x51) {
+          mnemonic = "sqrtpd";
+        } else if (opcode == 0x54) {
           mnemonic = "andpd";
         } else if (opcode == 0x55) {
           mnemonic = "andnpd";

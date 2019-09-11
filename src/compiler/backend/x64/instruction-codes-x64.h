@@ -160,6 +160,7 @@ namespace compiler {
   V(X64F64x2ReplaceLane)                  \
   V(X64F64x2Abs)                          \
   V(X64F64x2Neg)                          \
+  V(X64F64x2Sqrt)                         \
   V(X64F64x2Add)                          \
   V(X64F64x2Sub)                          \
   V(X64F64x2Mul)                          \
@@ -177,6 +178,7 @@ namespace compiler {
   V(X64F32x4UConvertI32x4)                \
   V(X64F32x4Abs)                          \
   V(X64F32x4Neg)                          \
+  V(X64F32x4Sqrt)                         \
   V(X64F32x4RecipApprox)                  \
   V(X64F32x4RecipSqrtApprox)              \
   V(X64F32x4Add)                          \

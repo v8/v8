@@ -2293,6 +2293,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ movq(i.OutputDoubleRegister(), kScratchRegister);
       break;
     }
+    case kX64F64x2Sqrt: {
+      __ sqrtpd(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
     case kX64F64x2Add: {
       ASSEMBLE_SSE_BINOP(addpd);
       break;
@@ -2443,6 +2447,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ pslld(dst, 31);
         __ xorps(dst, i.InputSimd128Register(0));
       }
+      break;
+    }
+    case kX64F32x4Sqrt: {
+      __ sqrtps(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kX64F32x4RecipApprox: {
