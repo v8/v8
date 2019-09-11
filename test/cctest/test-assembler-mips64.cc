@@ -10549,11 +10549,11 @@ void run_msa_3rf(const struct TestCaseMsa3RF* input,
   msa_reg_t res;
 
   load_elements_of_vector(
-      assm, reinterpret_cast<const uint64_t*>(&input->ws_lo), w0, t0, t1);
+      &assm, reinterpret_cast<const uint64_t*>(&input->ws_lo), w0, t0, t1);
   load_elements_of_vector(
-      assm, reinterpret_cast<const uint64_t*>(&input->wt_lo), w1, t0, t1);
+      &assm, reinterpret_cast<const uint64_t*>(&input->wt_lo), w1, t0, t1);
   load_elements_of_vector(
-      assm, reinterpret_cast<const uint64_t*>(&input->wd_lo), w2, t0, t1);
+      &assm, reinterpret_cast<const uint64_t*>(&input->wd_lo), w2, t0, t1);
   Generate2RInstructionFunc(assm);
   store_elements_of_vector(&assm, w2, a0);
 
