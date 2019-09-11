@@ -318,7 +318,10 @@ class WasmCodeAllocator {
   // The engine-wide wasm code manager.
   WasmCodeManager* const code_manager_;
 
-  mutable base::Mutex mutex_;
+  // TODO(clemensh): Try to make this non-recursive again. It's recursive
+  // currently because {AllocateForCodeInRegion} might create a new code space,
+  // which recursively calls {AllocateForCodeInRegion} for the jump table.
+  mutable base::RecursiveMutex mutex_;
 
   //////////////////////////////////////////////////////////////////////////////
   // Protected by {mutex_}:
@@ -392,11 +395,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // table with trampolines accordingly.
   void UseLazyStub(uint32_t func_index);
 
-  // Initializes all runtime stubs by setting up entry addresses in the runtime
-  // stub table. It must be called exactly once per native module before adding
-  // other WasmCode so that runtime stub ids can be resolved during relocation.
-  void SetRuntimeStubs(Isolate* isolate);
-
   // Creates a snapshot of the current state of the code table. This is useful
   // to get a consistent view of the table (e.g. used by the serializer).
   std::vector<WasmCode*> SnapshotCodeTable() const;
@@ -406,13 +404,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   void SetWasmSourceMap(std::unique_ptr<WasmModuleSourceMap> source_map);
   WasmModuleSourceMap* GetWasmSourceMap() const;
-
-  Address runtime_stub_entry(WasmCode::RuntimeStubId index) const {
-    DCHECK_LT(index, WasmCode::kRuntimeStubCount);
-    Address entry_address = runtime_stub_entries_[index];
-    DCHECK_NE(kNullAddress, entry_address);
-    return entry_address;
-  }
 
   Address jump_table_start() const {
     return main_jump_table_ ? main_jump_table_->instruction_start()
@@ -428,6 +419,12 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Returns the canonical target to call for the given function (the slot in
   // the first jump table).
   Address GetCallTargetForFunction(uint32_t func_index) const;
+
+  // Get a runtime stub entry (which is a far jump table slot) within near-call
+  // distance to {near_to}. Fails if {near_to} is not part of any code space of
+  // this module.
+  Address GetNearRuntimeStubEntry(WasmCode::RuntimeStubId index,
+                                  Address near_to) const;
 
   // Reverse lookup from a given call target (i.e. a jump table slot as the
   // above {GetCallTargetForFunction} returns) to a function index.
@@ -479,7 +476,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   const WasmFeatures& enabled_features() const { return enabled_features_; }
 
-  const char* GetRuntimeStubName(Address runtime_stub_entry) const;
+  // Returns the runtime stub id that corresponds to the given address (which
+  // must be a far jump table slot). Returns {kRuntimeStubCount} on failure.
+  WasmCode::RuntimeStubId GetRuntimeStubId(Address runtime_stub_target) const;
+
+  const char* GetRuntimeStubName(Address runtime_stub_target) const;
 
   // Sample the current code size of this modules to the given counters.
   enum CodeSamplingTime : int8_t { kAfterBaseline, kAfterTopTier, kSampling };
@@ -508,6 +509,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   struct CodeSpaceData {
     base::AddressRegion region;
     WasmCode* jump_table;
+    WasmCode* far_jump_table;
   };
 
   // Private constructor, called via {WasmCodeManager::NewNativeModule()}.
@@ -576,12 +578,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Wire bytes, held in a shared_ptr so they can be kept alive by the
   // {WireBytesStorage}, held by background compile tasks.
   std::shared_ptr<OwnedVector<const uint8_t>> wire_bytes_;
-
-  // Contains entry points for runtime stub calls via {WASM_STUB_CALL}.
-  Address runtime_stub_entries_[WasmCode::kRuntimeStubCount] = {kNullAddress};
-
-  // Jump table used for runtime stubs (i.e. trampolines to embedded builtins).
-  WasmCode* runtime_stub_table_ = nullptr;
 
   // Jump table used by external calls (from JS). Wasm calls use one of the jump
   // tables stored in {code_space_data_}.

@@ -289,9 +289,6 @@ class V8_EXPORT_PRIVATE NativeModuleSerializer {
   Vector<WasmCode* const> code_table_;
   bool write_called_;
 
-  // Reverse lookup tables for embedded addresses.
-  std::map<Address, uint32_t> wasm_stub_targets_lookup_;
-
   DISALLOW_COPY_AND_ASSIGN(NativeModuleSerializer);
 };
 
@@ -301,11 +298,6 @@ NativeModuleSerializer::NativeModuleSerializer(
   DCHECK_NOT_NULL(native_module_);
   // TODO(mtrofin): persist the export wrappers. Ideally, we'd only persist
   // the unique ones, i.e. the cache.
-  for (uint32_t i = 0; i < WasmCode::kRuntimeStubCount; ++i) {
-    Address addr = native_module_->runtime_stub_entry(
-        static_cast<WasmCode::RuntimeStubId>(i));
-    wasm_stub_targets_lookup_.insert(std::make_pair(addr, i));
-  }
 }
 
 size_t NativeModuleSerializer::MeasureCode(const WasmCode* code) const {
@@ -400,10 +392,9 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
         SetWasmCalleeTag(iter.rinfo(), tag);
       } break;
       case RelocInfo::WASM_STUB_CALL: {
-        Address orig_target = orig_iter.rinfo()->wasm_stub_call_address();
-        auto stub_iter = wasm_stub_targets_lookup_.find(orig_target);
-        DCHECK(stub_iter != wasm_stub_targets_lookup_.end());
-        uint32_t tag = stub_iter->second;
+        Address target = orig_iter.rinfo()->wasm_stub_call_address();
+        uint32_t tag = native_module_->GetRuntimeStubId(target);
+        DCHECK_GT(WasmCode::kRuntimeStubCount, tag);
         SetWasmCalleeTag(iter.rinfo(), tag);
       } break;
       case RelocInfo::EXTERNAL_REFERENCE: {
@@ -564,8 +555,9 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
       case RelocInfo::WASM_STUB_CALL: {
         uint32_t tag = GetWasmCalleeTag(iter.rinfo());
         DCHECK_LT(tag, WasmCode::kRuntimeStubCount);
-        Address target = native_module_->runtime_stub_entry(
-            static_cast<WasmCode::RuntimeStubId>(tag));
+        Address target = native_module_->GetNearRuntimeStubEntry(
+            static_cast<WasmCode::RuntimeStubId>(tag),
+            code->instruction_start());
         iter.rinfo()->set_wasm_stub_call_address(target, SKIP_ICACHE_FLUSH);
         break;
       }
@@ -628,7 +620,6 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   auto shared_native_module = isolate->wasm_engine()->NewNativeModule(
       isolate, enabled_features, std::move(decode_result.value()));
   shared_native_module->SetWireBytes(OwnedVector<uint8_t>::Of(wire_bytes_vec));
-  shared_native_module->SetRuntimeStubs(isolate);
 
   Handle<FixedArray> export_wrappers;
   CompileJsToWasmWrappers(isolate, shared_native_module->module(),

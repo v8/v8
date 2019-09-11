@@ -1370,7 +1370,6 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   auto native_module = isolate->wasm_engine()->NewNativeModule(
       isolate, enabled, std::move(module));
   native_module->SetWireBytes(std::move(wire_bytes_copy));
-  native_module->SetRuntimeStubs(isolate);
 
   CompileNativeModule(isolate, thrower, wasm_module, native_module.get());
   if (thrower->error()) return {};
@@ -1509,7 +1508,6 @@ void AsyncCompileJob::CreateNativeModule(
   native_module_ = isolate_->wasm_engine()->NewNativeModule(
       isolate_, enabled_features_, std::move(module));
   native_module_->SetWireBytes({std::move(bytes_copy_), wire_bytes_.length()});
-  native_module_->SetRuntimeStubs(isolate_);
 
   if (stream_) stream_->NotifyNativeModuleCreated(native_module_);
 }

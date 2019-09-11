@@ -85,6 +85,12 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
     return slot_index * kFarJumpTableSlotSize;
   }
 
+  // Translate a far jump table offset to the index into the table.
+  static uint32_t FarJumpSlotOffsetToIndex(uint32_t offset) {
+    DCHECK_EQ(0, offset % kFarJumpTableSlotSize);
+    return offset / kFarJumpTableSlotSize;
+  }
+
   // Determine the size of a far jump table containing the given number of
   // slots.
   static constexpr uint32_t SizeForNumberOfFarJumpSlots(

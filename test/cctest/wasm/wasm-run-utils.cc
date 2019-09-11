@@ -321,7 +321,6 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   auto native_module = isolate_->wasm_engine()->NewNativeModule(
       isolate_, enabled_features_, test_module_);
   native_module->SetWireBytes(OwnedVector<const uint8_t>());
-  native_module->SetRuntimeStubs(isolate_);
 
   Handle<WasmModuleObject> module_object =
       WasmModuleObject::New(isolate_, std::move(native_module), script);
