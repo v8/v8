@@ -561,9 +561,9 @@ IGNITION_HANDLER(LdaKeyedProperty, InterpreterAssembler) {
   TNode<HeapObject> feedback_vector = LoadFeedbackVector();
   TNode<Context> context = GetContext();
 
-  VARIABLE(var_result, MachineRepresentation::kTagged);
-  var_result.Bind(CallBuiltin(Builtins::kKeyedLoadIC, context, object, name,
-                              smi_slot, feedback_vector));
+  TVARIABLE(Object, var_result);
+  var_result = CallBuiltin(Builtins::kKeyedLoadIC, context, object, name,
+                           smi_slot, feedback_vector);
   SetAccumulator(var_result.value());
   Dispatch();
 }
@@ -585,9 +585,9 @@ class InterpreterStoreNamedPropertyAssembler : public InterpreterAssembler {
     TNode<HeapObject> maybe_vector = LoadFeedbackVector();
     TNode<Context> context = GetContext();
 
-    VARIABLE(var_result, MachineRepresentation::kTagged);
-    var_result.Bind(CallStub(ic.descriptor(), code_target, context, object,
-                             name, value, smi_slot, maybe_vector));
+    TVARIABLE(Object, var_result);
+    var_result = CallStub(ic.descriptor(), code_target, context, object, name,
+                          value, smi_slot, maybe_vector);
     // To avoid special logic in the deoptimizer to re-materialize the value in
     // the accumulator, we overwrite the accumulator after the IC call. It
     // doesn't really matter what we write to the accumulator here, since we
@@ -648,9 +648,9 @@ IGNITION_HANDLER(StaKeyedProperty, InterpreterAssembler) {
   TNode<HeapObject> maybe_vector = LoadFeedbackVector();
   TNode<Context> context = GetContext();
 
-  VARIABLE(var_result, MachineRepresentation::kTagged);
-  var_result.Bind(CallBuiltin(Builtins::kKeyedStoreIC, context, object, name,
-                              value, smi_slot, maybe_vector));
+  TVARIABLE(Object, var_result);
+  var_result = CallBuiltin(Builtins::kKeyedStoreIC, context, object, name,
+                           value, smi_slot, maybe_vector);
   // To avoid special logic in the deoptimizer to re-materialize the value in
   // the accumulator, we overwrite the accumulator after the IC call. It
   // doesn't really matter what we write to the accumulator here, since we
@@ -673,9 +673,9 @@ IGNITION_HANDLER(StaInArrayLiteral, InterpreterAssembler) {
   TNode<HeapObject> feedback_vector = LoadFeedbackVector();
   TNode<Context> context = GetContext();
 
-  VARIABLE(var_result, MachineRepresentation::kTagged);
-  var_result.Bind(CallBuiltin(Builtins::kStoreInArrayLiteralIC, context, array,
-                              index, value, smi_slot, feedback_vector));
+  TVARIABLE(Object, var_result);
+  var_result = CallBuiltin(Builtins::kStoreInArrayLiteralIC, context, array,
+                           index, value, smi_slot, feedback_vector);
   // To avoid special logic in the deoptimizer to re-materialize the value in
   // the accumulator, we overwrite the accumulator after the IC call. It
   // doesn't really matter what we write to the accumulator here, since we
@@ -967,10 +967,10 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
 
     TVARIABLE(Smi, var_left_feedback);
     TVARIABLE(Smi, var_right_feedback);
-    VARIABLE(var_left_word32, MachineRepresentation::kWord32);
-    VARIABLE(var_right_word32, MachineRepresentation::kWord32);
-    VARIABLE(var_left_bigint, MachineRepresentation::kTagged, left);
-    VARIABLE(var_right_bigint, MachineRepresentation::kTagged);
+    TVARIABLE(Word32T, var_left_word32);
+    TVARIABLE(Word32T, var_right_word32);
+    TVARIABLE(Object, var_left_bigint, left);
+    TVARIABLE(Object, var_right_bigint);
     Label if_left_number(this), do_number_op(this);
     Label if_left_bigint(this), do_bigint_op(this);
 
@@ -1016,8 +1016,10 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
     TNode<Context> context = GetContext();
 
     TVARIABLE(Smi, var_left_feedback);
-    VARIABLE(var_left_word32, MachineRepresentation::kWord32);
-    VARIABLE(var_left_bigint, MachineRepresentation::kTagged);
+    TVARIABLE(Word32T, var_left_word32);
+    // TODO(v8:6949): var_left_bigint should be BigInt, but before that we need
+    // to clean up TaggedToWord32OrBigIntWithFeedback and related methods.
+    TVARIABLE(Object, var_left_bigint);
     Label do_smi_op(this), if_bigint_mix(this);
 
     TaggedToWord32OrBigIntWithFeedback(context, left, &do_smi_op,
@@ -1122,9 +1124,11 @@ IGNITION_HANDLER(BitwiseNot, InterpreterAssembler) {
   TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
   TNode<Context> context = GetContext();
 
-  VARIABLE(var_word32, MachineRepresentation::kWord32);
+  TVARIABLE(Word32T, var_word32);
   TVARIABLE(Smi, var_feedback);
-  VARIABLE(var_bigint, MachineRepresentation::kTagged);
+  // TODO(v8:6949): var_bigint should be BigInt, but before that we need to
+  // clean up TaggedToWord32OrBigIntWithFeedback and related methods.
+  TVARIABLE(Object, var_bigint);
   Label if_number(this), if_bigint(this);
   TaggedToWord32OrBigIntWithFeedback(context, operand, &if_number, &var_word32,
                                      &if_bigint, &var_bigint, &var_feedback);
@@ -2452,10 +2456,10 @@ IGNITION_HANDLER(CreateRegExpLiteral, InterpreterAssembler) {
       SmiFromInt32(UncheckedCast<Int32T>(BytecodeOperandFlag(2)));
   TNode<Context> context = GetContext();
 
-  VARIABLE(result, MachineRepresentation::kTagged);
+  TVARIABLE(JSRegExp, result);
 
   ConstructorBuiltinsAssembler constructor_assembler(state());
-  result.Bind(constructor_assembler.EmitCreateRegExpLiteral(
+  result = CAST(constructor_assembler.EmitCreateRegExpLiteral(
       feedback_vector, slot_id, pattern, flags, context));
   SetAccumulator(result.value());
   Dispatch();
@@ -2513,11 +2517,11 @@ IGNITION_HANDLER(CreateEmptyArrayLiteral, InterpreterAssembler) {
   TNode<Context> context = GetContext();
 
   Label no_feedback(this, Label::kDeferred), end(this);
-  VARIABLE(result, MachineRepresentation::kTagged);
+  TVARIABLE(JSArray, result);
   GotoIf(IsUndefined(feedback_vector), &no_feedback);
 
   ConstructorBuiltinsAssembler constructor_assembler(state());
-  result.Bind(constructor_assembler.EmitCreateEmptyArrayLiteral(
+  result = CAST(constructor_assembler.EmitCreateEmptyArrayLiteral(
       feedback_vector, slot_id, context));
   Goto(&end);
 
@@ -2525,9 +2529,9 @@ IGNITION_HANDLER(CreateEmptyArrayLiteral, InterpreterAssembler) {
   {
     TNode<Map> array_map = LoadJSArrayElementsMap(GetInitialFastElementsKind(),
                                                   LoadNativeContext(context));
-    result.Bind(AllocateJSArray(GetInitialFastElementsKind(), array_map,
-                                SmiConstant(0), SmiConstant(0), nullptr,
-                                ParameterMode::SMI_PARAMETERS));
+    result =
+        AllocateJSArray(GetInitialFastElementsKind(), array_map, SmiConstant(0),
+                        SmiConstant(0), nullptr, ParameterMode::SMI_PARAMETERS);
     Goto(&end);
   }
 
