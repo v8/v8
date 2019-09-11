@@ -3204,10 +3204,8 @@ IGNITION_HANDLER(ForInStep, InterpreterAssembler) {
 // GetIterator <object>
 //
 // Retrieves the object[Symbol.iterator] method, calls it and stores
-// the result in the accumulator
-// TODO(swapnilgaikwad): Extend the functionality of the bytecode to
-// check if the result is a JSReceiver else throw SymbolIteratorInvalid
-// runtime exception
+// the result in the accumulator. If the result is not a JSReceiver, throws
+// SymbolIteratorInvalid runtime exception.
 IGNITION_HANDLER(GetIterator, InterpreterAssembler) {
   TNode<Object> receiver = LoadRegisterAtOperandIndex(0);
   TNode<Context> context = GetContext();

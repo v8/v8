@@ -66,6 +66,14 @@ namespace iterator {
     CollectCallFeedback(iteratorMethod, context, feedback, callSlotUnTagged);
     const iteratorCallable: Callable = Cast<Callable>(iteratorMethod)
         otherwise ThrowCalledNonCallable(iteratorMethod);
-    return Call(context, iteratorCallable, receiver);
+    const iterator: JSAny = Call(context, iteratorCallable, receiver);
+    typeswitch (iterator) {
+      case (JSReceiver): {
+        return iterator;
+      }
+      case (JSPrimitive): {
+        ThrowSymbolIteratorInvalid();
+      }
+    }
   }
 }

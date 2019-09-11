@@ -207,6 +207,12 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Node* BuildCheckEqualsName(NameRef const& name, Node* value, Node* effect,
                              Node* control);
 
+  // Attach a pair of success and exception paths on a given control path.
+  // The exception is joined to the Merge+Phi+EffectPhi nodes while the success
+  // path is returned.
+  Node* AppendExceptionHandling(Node* effect, Node* control, Node* merge,
+                                Node* phi, Node* effect_phi);
+
   // Checks if we can turn the hole into undefined when loading an element
   // from an object with one of the {receiver_maps}; sets up appropriate
   // code dependencies and might use the array protector cell.

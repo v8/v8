@@ -1710,6 +1710,8 @@ extern transitioning runtime ThrowTypeErrorIfStrict(implicit context: Context)(
     Smi, Object, Object): void;
 extern transitioning runtime ThrowCalledNonCallable(implicit context: Context)(
     JSAny): never;
+extern transitioning runtime ThrowSymbolIteratorInvalid(
+    implicit context: Context)(): never;
 
 extern transitioning macro ThrowIfNotJSReceiver(implicit context: Context)(
     JSAny, constexpr MessageTemplate, constexpr string): void;

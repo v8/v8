@@ -18,9 +18,10 @@ var getIteratorCount = 0;
 function foo(obj) {
     // The following for-of loop uses the iterator protocol to iterate
     // over the 'obj'.
-    // The GetIterator bytecode invovlves 2 steps:
+    // The GetIterator bytecode invovlves 3 steps:
     // 1. method = GetMethod(obj, @@iterator)
-    // 2. iterator = Call(method, obj).
+    // 2. iterator = Call(method, obj)
+    // 3. if(!IsJSReceiver(iterator)) throw SymbolIteratorInvalid.
     for(var x of obj){}
 }
 

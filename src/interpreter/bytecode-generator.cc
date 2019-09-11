@@ -5431,16 +5431,11 @@ void BytecodeGenerator::BuildGetIterator(IteratorType hint) {
           feedback_index(feedback_spec()->AddCallICSlot());
 
       // Let method be GetMethod(obj, @@iterator) and
-      // iterator be Call(method, obj).
+      // iterator be Call(method, obj). If Type(iterator) is not Object,
+      // throw a SymbolIteratorInvalid exception.
       builder()->StoreAccumulatorInRegister(obj).GetIterator(
           obj, load_feedback_index, call_feedback_index);
     }
-
-    // If Type(iterator) is not Object, throw a TypeError exception.
-    BytecodeLabel no_type_error;
-    builder()->JumpIfJSReceiver(&no_type_error);
-    builder()->CallRuntime(Runtime::kThrowSymbolIteratorInvalid);
-    builder()->Bind(&no_type_error);
   }
 }
 
