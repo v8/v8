@@ -40,7 +40,7 @@ Variable* VariableMap::Declare(Zone* zone, Scope* scope,
                                VariableKind kind,
                                InitializationFlag initialization_flag,
                                MaybeAssignedFlag maybe_assigned_flag,
-                               bool* was_added) {
+                               IsStaticFlag is_static_flag, bool* was_added) {
   // AstRawStrings are unambiguous, i.e., the same string is always represented
   // by the same AstRawString*.
   // FIXME(marja): fix the type of Lookup.
@@ -51,8 +51,9 @@ Variable* VariableMap::Declare(Zone* zone, Scope* scope,
   if (*was_added) {
     // The variable has not been declared yet -> insert it.
     DCHECK_EQ(name, p->key);
-    Variable* variable = new (zone) Variable(
-        scope, name, mode, kind, initialization_flag, maybe_assigned_flag);
+    Variable* variable =
+        new (zone) Variable(scope, name, mode, kind, initialization_flag,
+                            maybe_assigned_flag, is_static_flag);
     p->value = variable;
   }
   return reinterpret_cast<Variable*>(p->value);
@@ -797,11 +798,13 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   VariableMode mode;
   InitializationFlag init_flag;
   MaybeAssignedFlag maybe_assigned_flag;
+  IsStaticFlag is_static_flag;
 
   {
     location = VariableLocation::CONTEXT;
     index = ScopeInfo::ContextSlotIndex(*scope_info_, name_handle, &mode,
-                                        &init_flag, &maybe_assigned_flag);
+                                        &init_flag, &maybe_assigned_flag,
+                                        &is_static_flag);
     found = index >= 0;
   }
 
@@ -826,9 +829,9 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   }
 
   bool was_added;
-  Variable* var =
-      cache->variables_.Declare(zone(), this, name, mode, NORMAL_VARIABLE,
-                                init_flag, maybe_assigned_flag, &was_added);
+  Variable* var = cache->variables_.Declare(
+      zone(), this, name, mode, NORMAL_VARIABLE, init_flag, maybe_assigned_flag,
+      IsStaticFlag::kNotStatic, &was_added);
   DCHECK(was_added);
   var->AllocateTo(location, index);
   return var;
@@ -1057,7 +1060,7 @@ Variable* DeclarationScope::DeclareDynamicGlobal(const AstRawString* name,
   bool was_added;
   return cache->variables_.Declare(
       zone(), this, name, VariableMode::kDynamicGlobal, kind,
-      kCreatedInitialized, kNotAssigned, &was_added);
+      kCreatedInitialized, kNotAssigned, IsStaticFlag::kNotStatic, &was_added);
   // TODO(neis): Mark variable as maybe-assigned?
 }
 
@@ -1784,9 +1787,9 @@ Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
   // Declare a new non-local.
   DCHECK(IsDynamicVariableMode(mode));
   bool was_added;
-  Variable* var =
-      variables_.Declare(zone(), this, name, mode, NORMAL_VARIABLE,
-                         kCreatedInitialized, kNotAssigned, &was_added);
+  Variable* var = variables_.Declare(zone(), this, name, mode, NORMAL_VARIABLE,
+                                     kCreatedInitialized, kNotAssigned,
+                                     IsStaticFlag::kNotStatic, &was_added);
   // Allocate it by giving it a dynamic lookup.
   var->AllocateTo(VariableLocation::LOOKUP, -1);
   return var;
@@ -2407,14 +2410,17 @@ bool IsComplementaryAccessorPair(VariableMode a, VariableMode b) {
 }
 
 Variable* ClassScope::DeclarePrivateName(const AstRawString* name,
-                                         VariableMode mode, bool* was_added) {
+                                         VariableMode mode,
+                                         IsStaticFlag is_static_flag,
+                                         bool* was_added) {
   Variable* result = EnsureRareData()->private_name_map.Declare(
       zone(), this, name, mode, NORMAL_VARIABLE,
       InitializationFlag::kNeedsInitialization,
-      MaybeAssignedFlag::kMaybeAssigned, was_added);
+      MaybeAssignedFlag::kMaybeAssigned, is_static_flag, was_added);
   if (*was_added) {
     locals_.Add(result);
-  } else if (IsComplementaryAccessorPair(result->mode(), mode)) {
+  } else if (IsComplementaryAccessorPair(result->mode(), mode) &&
+             result->is_static_flag() == is_static_flag) {
     *was_added = true;
     result->set_mode(VariableMode::kPrivateGetterAndSetter);
   }
@@ -2493,8 +2499,10 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
   VariableMode mode;
   InitializationFlag init_flag;
   MaybeAssignedFlag maybe_assigned_flag;
-  int index = ScopeInfo::ContextSlotIndex(*scope_info_, name_handle, &mode,
-                                          &init_flag, &maybe_assigned_flag);
+  IsStaticFlag is_static_flag;
+  int index =
+      ScopeInfo::ContextSlotIndex(*scope_info_, name_handle, &mode, &init_flag,
+                                  &maybe_assigned_flag, &is_static_flag);
   if (index < 0) {
     return nullptr;
   }
@@ -2506,7 +2514,7 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
   // Add the found private name to the map to speed up subsequent
   // lookups for the same name.
   bool was_added;
-  Variable* var = DeclarePrivateName(name, mode, &was_added);
+  Variable* var = DeclarePrivateName(name, mode, is_static_flag, &was_added);
   DCHECK(was_added);
   var->AllocateTo(VariableLocation::CONTEXT, index);
   return var;
@@ -2615,6 +2623,7 @@ VariableProxy* ClassScope::ResolvePrivateNamesPartially() {
 }
 
 Variable* ClassScope::DeclareBrandVariable(AstValueFactory* ast_value_factory,
+                                           IsStaticFlag is_static_flag,
                                            int class_token_pos) {
   DCHECK_IMPLIES(GetRareData() != nullptr, GetRareData()->brand == nullptr);
   bool was_added;
@@ -2623,6 +2632,7 @@ Variable* ClassScope::DeclareBrandVariable(AstValueFactory* ast_value_factory,
                             InitializationFlag::kNeedsInitialization,
                             MaybeAssignedFlag::kMaybeAssigned, &was_added);
   DCHECK(was_added);
+  brand->set_is_static_flag(is_static_flag);
   brand->ForceContextAllocation();
   brand->set_is_used();
   EnsureRareData()->brand = brand;

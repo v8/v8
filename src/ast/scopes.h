@@ -44,7 +44,7 @@ class VariableMap : public ZoneHashMap {
                     VariableMode mode, VariableKind kind,
                     InitializationFlag initialization_flag,
                     MaybeAssignedFlag maybe_assigned_flag,
-                    bool* was_added);
+                    IsStaticFlag is_static_flag, bool* was_added);
 
   V8_EXPORT_PRIVATE Variable* Lookup(const AstRawString* name);
   void Remove(Variable* var);
@@ -556,9 +556,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   Variable* Declare(Zone* zone, const AstRawString* name, VariableMode mode,
                     VariableKind kind, InitializationFlag initialization_flag,
                     MaybeAssignedFlag maybe_assigned_flag, bool* was_added) {
-    Variable* result =
-        variables_.Declare(zone, this, name, mode, kind, initialization_flag,
-                           maybe_assigned_flag, was_added);
+    // Static variables can only be declared using ClassScope methods.
+    Variable* result = variables_.Declare(
+        zone, this, name, mode, kind, initialization_flag, maybe_assigned_flag,
+        IsStaticFlag::kNotStatic, was_added);
     if (*was_added) locals_.Add(result);
     return result;
   }
@@ -1256,7 +1257,7 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // Declare a private name in the private name map and add it to the
   // local variables of this scope.
   Variable* DeclarePrivateName(const AstRawString* name, VariableMode mode,
-                               bool* was_added);
+                               IsStaticFlag is_static_flag, bool* was_added);
 
   // Try resolving all unresolved private names found in the current scope.
   // Called from DeclarationScope::AllocateVariables() when reparsing a
@@ -1287,6 +1288,7 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   void MigrateUnresolvedPrivateNameTail(AstNodeFactory* ast_node_factory,
                                         UnresolvedList::Iterator tail);
   Variable* DeclareBrandVariable(AstValueFactory* ast_value_factory,
+                                 IsStaticFlag is_static_flag,
                                  int class_token_pos);
   Variable* brand() {
     return GetRareData() == nullptr ? nullptr : GetRareData()->brand;

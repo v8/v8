@@ -121,6 +121,9 @@ class ScopeInfo : public FixedArray {
   // Return the mode of the given context local.
   VariableMode ContextLocalMode(int var) const;
 
+  // Return whether the given context local variable is static.
+  IsStaticFlag ContextLocalIsStaticFlag(int var) const;
+
   // Return the initialization flag of the given context local.
   InitializationFlag ContextLocalInitFlag(int var) const;
 
@@ -141,7 +144,8 @@ class ScopeInfo : public FixedArray {
   // mode for that variable.
   static int ContextSlotIndex(ScopeInfo scope_info, String name,
                               VariableMode* mode, InitializationFlag* init_flag,
-                              MaybeAssignedFlag* maybe_assigned_flag);
+                              MaybeAssignedFlag* maybe_assigned_flag,
+                              IsStaticFlag* is_static_flag);
 
   // Lookup metadata of a MODULE-allocated variable.  Return 0 if there is no
   // module variable with the given name (the index value of a MODULE variable
@@ -316,6 +320,7 @@ class ScopeInfo : public FixedArray {
   using InitFlagField = VariableModeField::Next<InitializationFlag, 1>;
   using MaybeAssignedFlagField = InitFlagField::Next<MaybeAssignedFlag, 1>;
   using ParameterNumberField = MaybeAssignedFlagField::Next<uint32_t, 16>;
+  using IsStaticFlagField = ParameterNumberField::Next<IsStaticFlag, 1>;
 
   friend class ScopeIterator;
   friend std::ostream& operator<<(std::ostream& os,

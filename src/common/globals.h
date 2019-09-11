@@ -1216,6 +1216,10 @@ enum VariableLocation : uint8_t {
 // immediately initialized upon creation (kCreatedInitialized).
 enum InitializationFlag : uint8_t { kNeedsInitialization, kCreatedInitialized };
 
+// Static variables can only be used with the class in the closest
+// class scope as receivers.
+enum class IsStaticFlag : uint8_t { kNotStatic, kStatic };
+
 enum MaybeAssignedFlag : uint8_t { kNotAssigned, kMaybeAssigned };
 
 enum class InterpreterPushArgsMode : unsigned {

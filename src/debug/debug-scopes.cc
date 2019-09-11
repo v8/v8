@@ -1006,9 +1006,10 @@ bool ScopeIterator::SetContextVariableValue(Handle<String> variable_name,
   VariableMode mode;
   InitializationFlag flag;
   MaybeAssignedFlag maybe_assigned_flag;
+  IsStaticFlag is_static_flag;
   int slot_index =
       ScopeInfo::ContextSlotIndex(context_->scope_info(), *variable_name, &mode,
-                                  &flag, &maybe_assigned_flag);
+                                  &flag, &maybe_assigned_flag, &is_static_flag);
   if (slot_index < 0) return false;
 
   context_->set(slot_index, *new_value);

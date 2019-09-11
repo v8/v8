@@ -39,12 +39,14 @@ Handle<ScriptContextTable> ScriptContextTable::Extend(
 bool ScriptContextTable::Lookup(Isolate* isolate, ScriptContextTable table,
                                 String name, LookupResult* result) {
   DisallowHeapAllocation no_gc;
+  // Static variables cannot be in script contexts.
+  IsStaticFlag is_static_flag;
   for (int i = 0; i < table.used(); i++) {
     Context context = table.get_context(i);
     DCHECK(context.IsScriptContext());
     int slot_index = ScopeInfo::ContextSlotIndex(
         context.scope_info(), name, &result->mode, &result->init_flag,
-        &result->maybe_assigned_flag);
+        &result->maybe_assigned_flag, &is_static_flag);
 
     if (slot_index >= 0) {
       result->context_index = i;
@@ -286,8 +288,10 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       VariableMode mode;
       InitializationFlag flag;
       MaybeAssignedFlag maybe_assigned_flag;
-      int slot_index = ScopeInfo::ContextSlotIndex(scope_info, *name, &mode,
-                                                   &flag, &maybe_assigned_flag);
+      IsStaticFlag is_static_flag;
+      int slot_index =
+          ScopeInfo::ContextSlotIndex(scope_info, *name, &mode, &flag,
+                                      &maybe_assigned_flag, &is_static_flag);
       DCHECK(slot_index < 0 || slot_index >= MIN_CONTEXT_SLOTS);
       if (slot_index >= 0) {
         if (FLAG_trace_contexts) {

@@ -223,7 +223,8 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
               VariableModeField::encode(var->mode()) |
               InitFlagField::encode(var->initialization_flag()) |
               MaybeAssignedFlagField::encode(var->maybe_assigned()) |
-              ParameterNumberField::encode(ParameterNumberField::kMax);
+              ParameterNumberField::encode(ParameterNumberField::kMax) |
+              IsStaticFlagField::encode(var->is_static_flag());
           scope_info.set(context_local_base + local_index, *var->name(), mode);
           scope_info.set(context_local_info_base + local_index,
                          Smi::FromInt(info));
@@ -238,7 +239,8 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
               VariableModeField::encode(var->mode()) |
               InitFlagField::encode(var->initialization_flag()) |
               MaybeAssignedFlagField::encode(var->maybe_assigned()) |
-              ParameterNumberField::encode(ParameterNumberField::kMax);
+              ParameterNumberField::encode(ParameterNumberField::kMax) |
+              IsStaticFlagField::encode(var->is_static_flag());
           scope_info.set(module_var_entry + kModuleVariablePropertiesOffset,
                          Smi::FromInt(properties));
           module_var_entry += kModuleVariableEntryLength;
@@ -276,7 +278,8 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
               VariableModeField::encode(var->mode()) |
               InitFlagField::encode(var->initialization_flag()) |
               MaybeAssignedFlagField::encode(var->maybe_assigned()) |
-              ParameterNumberField::encode(ParameterNumberField::kMax);
+              ParameterNumberField::encode(ParameterNumberField::kMax) |
+              IsStaticFlagField::encode(var->is_static_flag());
           scope_info.set(context_local_base + local_index, *var->name(), mode);
           scope_info.set(context_local_info_base + local_index,
                          Smi::FromInt(info));
@@ -456,7 +459,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
         VariableModeField::encode(VariableMode::kConst) |
         InitFlagField::encode(kCreatedInitialized) |
         MaybeAssignedFlagField::encode(kNotAssigned) |
-        ParameterNumberField::encode(ParameterNumberField::kMax);
+        ParameterNumberField::encode(ParameterNumberField::kMax) |
+        IsStaticFlagField::encode(IsStaticFlag::kNotStatic);
     scope_info->set(index++, Smi::FromInt(value));
   }
 
@@ -686,6 +690,14 @@ VariableMode ScopeInfo::ContextLocalMode(int var) const {
   return VariableModeField::decode(value);
 }
 
+IsStaticFlag ScopeInfo::ContextLocalIsStaticFlag(int var) const {
+  DCHECK_LE(0, var);
+  DCHECK_LT(var, ContextLocalCount());
+  int info_index = ContextLocalInfosIndex() + var;
+  int value = Smi::ToInt(get(info_index));
+  return IsStaticFlagField::decode(value);
+}
+
 InitializationFlag ScopeInfo::ContextLocalInitFlag(int var) const {
   DCHECK_LE(0, var);
   DCHECK_LT(var, ContextLocalCount());
@@ -756,7 +768,8 @@ int ScopeInfo::ModuleIndex(String name, VariableMode* mode,
 int ScopeInfo::ContextSlotIndex(ScopeInfo scope_info, String name,
                                 VariableMode* mode,
                                 InitializationFlag* init_flag,
-                                MaybeAssignedFlag* maybe_assigned_flag) {
+                                MaybeAssignedFlag* maybe_assigned_flag,
+                                IsStaticFlag* is_static_flag) {
   DisallowHeapAllocation no_gc;
   DCHECK(name.IsInternalizedString());
   DCHECK_NOT_NULL(mode);
@@ -771,6 +784,7 @@ int ScopeInfo::ContextSlotIndex(ScopeInfo scope_info, String name,
     if (name != scope_info.get(i)) continue;
     int var = i - start;
     *mode = scope_info.ContextLocalMode(var);
+    *is_static_flag = scope_info.ContextLocalIsStaticFlag(var);
     *init_flag = scope_info.ContextLocalInitFlag(var);
     *maybe_assigned_flag = scope_info.ContextLocalMaybeAssignedFlag(var);
     int result = Context::MIN_CONTEXT_SLOTS + var;

@@ -2782,13 +2782,15 @@ Variable* Parser::CreateSyntheticContextVariable(const AstRawString* name) {
 
 Variable* Parser::CreatePrivateNameVariable(ClassScope* scope,
                                             VariableMode mode,
+                                            IsStaticFlag is_static_flag,
                                             const AstRawString* name) {
   DCHECK_NOT_NULL(name);
   int begin = position();
   int end = end_position();
   bool was_added = false;
   DCHECK(IsConstVariableMode(mode));
-  Variable* var = scope->DeclarePrivateName(name, mode, &was_added);
+  Variable* var =
+      scope->DeclarePrivateName(name, mode, is_static_flag, &was_added);
   if (!was_added) {
     Scanner::Location loc(begin, end);
     ReportMessageAt(loc, MessageTemplate::kVarRedeclaration, var->raw_name());
@@ -2834,8 +2836,10 @@ void Parser::DeclarePrivateClassMember(ClassScope* scope,
     }
   }
 
-  Variable* private_name_var =
-      CreatePrivateNameVariable(scope, GetVariableMode(kind), property_name);
+  Variable* private_name_var = CreatePrivateNameVariable(
+      scope, GetVariableMode(kind),
+      is_static ? IsStaticFlag::kStatic : IsStaticFlag::kNotStatic,
+      property_name);
   int pos = property->value()->position();
   if (pos == kNoSourcePosition) {
     pos = property->key()->position();
