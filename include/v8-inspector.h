@@ -229,9 +229,12 @@ class V8_EXPORT V8InspectorClient {
 struct V8_EXPORT V8StackTraceId {
   uintptr_t id;
   std::pair<int64_t, int64_t> debugger_id;
+  bool should_pause = false;
 
   V8StackTraceId();
   V8StackTraceId(uintptr_t id, const std::pair<int64_t, int64_t> debugger_id);
+  V8StackTraceId(uintptr_t id, const std::pair<int64_t, int64_t> debugger_id,
+                 bool should_pause);
   ~V8StackTraceId() = default;
 
   bool IsInvalid() const;

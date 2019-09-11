@@ -115,6 +115,11 @@ V8StackTraceId::V8StackTraceId(uintptr_t id,
                                const std::pair<int64_t, int64_t> debugger_id)
     : id(id), debugger_id(debugger_id) {}
 
+V8StackTraceId::V8StackTraceId(uintptr_t id,
+                               const std::pair<int64_t, int64_t> debugger_id,
+                               bool should_pause)
+    : id(id), debugger_id(debugger_id), should_pause(should_pause) {}
+
 bool V8StackTraceId::IsInvalid() const { return !id; }
 
 StackFrame::StackFrame(v8::Isolate* isolate, v8::Local<v8::StackFrame> v8Frame)
