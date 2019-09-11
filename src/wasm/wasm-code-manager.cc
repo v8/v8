@@ -485,6 +485,50 @@ base::SmallVector<base::AddressRegion, 1> SplitRangeByReservationsIfNeeded(
 #endif
   return split_ranges;
 }
+
+int NumWasmFunctionsInFarJumpTable(uint32_t num_declared_functions) {
+  return NativeModule::kNeedsFarJumpsBetweenCodeSpaces &&
+                 FLAG_wasm_far_jump_table
+             ? static_cast<int>(num_declared_functions)
+             : 0;
+}
+
+// Returns an overapproximation of the code size overhead per new code space
+// created by the jump tables.
+size_t OverheadPerCodeSpace(uint32_t num_declared_functions) {
+  // Overhead for the jump table.
+  size_t overhead = RoundUp<kCodeAlignment>(
+      JumpTableAssembler::SizeForNumberOfSlots(num_declared_functions));
+
+#if defined(V8_OS_WIN64)
+  // On Win64, we need to reserve some pages at the beginning of an executable
+  // space. See {AddCodeSpace}.
+  overhead += Heap::GetCodeRangeReservedAreaSize();
+#endif  // V8_OS_WIN64
+
+  // Overhead for the far jump table.
+  overhead +=
+      RoundUp<kCodeAlignment>(JumpTableAssembler::SizeForNumberOfFarJumpSlots(
+          WasmCode::kRuntimeStubCount,
+          NumWasmFunctionsInFarJumpTable(num_declared_functions)));
+
+  return overhead;
+}
+
+size_t ReservationSize(size_t code_size_estimate, int num_declared_functions,
+                       size_t total_reserved) {
+  size_t overhead = OverheadPerCodeSpace(num_declared_functions);
+
+  // Reserve a power of two at least as big as any of
+  //   a) needed size + overhead (this is the minimum needed)
+  //   b) 2 * overhead (to not waste too much space by overhead)
+  //   c) 1/4 of current total reservation size (to grow exponentially)
+  return base::bits::RoundUpToPowerOfTwo(
+      std::max(std::max(RoundUp<kCodeAlignment>(code_size_estimate) + overhead,
+                        2 * overhead),
+               total_reserved / 4));
+}
+
 }  // namespace
 
 Vector<byte> WasmCodeAllocator::AllocateForCode(NativeModule* native_module,
@@ -515,12 +559,10 @@ Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
     Address hint = owned_code_space_.empty() ? kNullAddress
                                              : owned_code_space_.back().end();
 
-    // Reserve at least 20% of the total generated code size so far, and of
-    // course at least {size}. Round up to the next power of two.
     size_t total_reserved = 0;
     for (auto& vmem : owned_code_space_) total_reserved += vmem.size();
-    size_t reserve_size =
-        base::bits::RoundUpToPowerOfTwo(std::max(size, total_reserved / 5));
+    size_t reserve_size = ReservationSize(
+        size, native_module->module()->num_declared_functions, total_reserved);
     VirtualMemory new_mem =
         code_manager_->TryAllocate(reserve_size, reinterpret_cast<void*>(hint));
     if (!new_mem.IsReserved()) {
@@ -877,9 +919,7 @@ void NativeModule::SetRuntimeStubs(Isolate* isolate) {
     single_code_space_region = code_space_data_[0].region;
   }
   int num_function_slots =
-      kNeedsFarJumpsBetweenCodeSpaces && FLAG_wasm_far_jump_table
-          ? static_cast<int>(module_->num_declared_functions)
-          : 0;
+      NumWasmFunctionsInFarJumpTable(module_->num_declared_functions);
   WasmCode* jump_table = CreateEmptyJumpTableInRegion(
       JumpTableAssembler::SizeForNumberOfFarJumpSlots(
           WasmCode::kRuntimeStubCount, num_function_slots),
@@ -1166,6 +1206,8 @@ void NativeModule::PatchJumpTablesLocked(uint32_t func_index, Address target) {
 void NativeModule::AddCodeSpace(base::AddressRegion region) {
   // Each code space must be at least twice as large as the overhead per code
   // space. Otherwise, we are wasting too much memory.
+  DCHECK_GE(region.size(),
+            2 * OverheadPerCodeSpace(module()->num_declared_functions));
   const bool implicit_alloc_disabled =
       engine_->code_manager()->IsImplicitAllocationsDisabledForTesting();
 
@@ -1407,8 +1449,6 @@ size_t WasmCodeManager::EstimateNativeModuleCodeSize(const WasmModule* module) {
   for (auto& function : module->functions) {
     estimate += kCodeOverhead + kCodeSizeMultiplier * function.code.length();
   }
-  estimate +=
-      JumpTableAssembler::SizeForNumberOfSlots(module->num_declared_functions);
   estimate += kImportSize * module->num_imported_functions;
 
   return estimate;
@@ -1447,7 +1487,9 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
 
   // If the code must be contiguous, reserve enough address space up front.
   size_t code_vmem_size =
-      kRequiresCodeRange ? kMaxWasmCodeMemory : code_size_estimate;
+      kRequiresCodeRange ? kMaxWasmCodeMemory
+                         : ReservationSize(code_size_estimate,
+                                           module->num_declared_functions, 0);
   // Try up to two times; getting rid of dead JSArrayBuffer allocations might
   // require two GCs because the first GC maybe incremental and may have
   // floating garbage.
