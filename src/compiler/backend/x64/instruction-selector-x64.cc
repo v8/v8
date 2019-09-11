@@ -4,7 +4,7 @@
 
 #include <algorithm>
 
-#include "src/base/adapters.h"
+#include "src/base/iterator.h"
 #include "src/base/overflowing-math.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"

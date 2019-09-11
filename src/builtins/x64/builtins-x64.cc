@@ -5,7 +5,7 @@
 #if V8_TARGET_ARCH_X64
 
 #include "src/api/api-arguments.h"
-#include "src/base/adapters.h"
+#include "src/base/iterator.h"
 #include "src/codegen/code-factory.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frame-constants.h"

@@ -9,7 +9,6 @@
 #include <memory>
 #include <sstream>
 
-#include "src/base/adapters.h"
 #include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/codegen/assembler-inl.h"

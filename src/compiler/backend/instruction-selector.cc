@@ -6,7 +6,7 @@
 
 #include <limits>
 
-#include "src/base/adapters.h"
+#include "src/base/iterator.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/backend/instruction-selector-impl.h"

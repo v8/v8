@@ -6,7 +6,7 @@
 
 #include <iomanip>
 
-#include "src/base/adapters.h"
+#include "src/base/iterator.h"
 #include "src/base/small-vector.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/tick-counter.h"

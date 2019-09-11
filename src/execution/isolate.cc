@@ -15,7 +15,6 @@
 #include "src/api/api-inl.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"
-#include "src/base/adapters.h"
 #include "src/base/hashmap.h"
 #include "src/base/platform/platform.h"
 #include "src/base/sys-info.h"

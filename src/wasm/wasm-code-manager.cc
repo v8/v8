@@ -6,7 +6,7 @@
 
 #include <iomanip>
 
-#include "src/base/adapters.h"
+#include "src/base/iterator.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 #include "src/base/small-vector.h"
