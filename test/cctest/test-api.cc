@@ -23765,7 +23765,13 @@ TEST(ModuleCodeCache) {
       // Evaluate for possible lazy compilation.
       Local<Value> completion_value =
           module->Evaluate(context).ToLocalChecked();
-      CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
+      if (i::FLAG_harmony_top_level_await) {
+        Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
+        CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+        CHECK(promise->Result()->IsUndefined());
+      } else {
+        CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
+      }
 
       // Now create the cache. Note that it is freed, obscurely, when
       // ScriptCompiler::Source goes out of scope below.
@@ -23796,7 +23802,13 @@ TEST(ModuleCodeCache) {
 
       Local<Value> completion_value =
           module->Evaluate(context).ToLocalChecked();
-      CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
+      if (i::FLAG_harmony_top_level_await) {
+        Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
+        CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+        CHECK(promise->Result()->IsUndefined());
+      } else {
+        CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
+      }
     }
     isolate->Dispose();
   }
@@ -23975,7 +23987,13 @@ TEST(ImportFromSyntheticModule) {
       .ToChecked();
 
   Local<Value> completion_value = module->Evaluate(context).ToLocalChecked();
-  CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
+  if (i::FLAG_harmony_top_level_await) {
+    Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
+    CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+    CHECK(promise->Result()->IsUndefined());
+  } else {
+    CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
+  }
 }
 
 TEST(ImportFromSyntheticModuleThrow) {
@@ -24005,7 +24023,15 @@ TEST(ImportFromSyntheticModuleThrow) {
   CHECK_EQ(module->GetStatus(), Module::kInstantiated);
   TryCatch try_catch(isolate);
   v8::MaybeLocal<Value> completion_value = module->Evaluate(context);
-  CHECK(completion_value.IsEmpty());
+  if (i::FLAG_harmony_top_level_await) {
+    Local<v8::Promise> promise(
+        Local<v8::Promise>::Cast(completion_value.ToLocalChecked()));
+    CHECK_EQ(promise->State(), v8::Promise::kRejected);
+    CHECK_EQ(promise->Result(), try_catch.Exception());
+  } else {
+    CHECK(completion_value.IsEmpty());
+  }
+
   CHECK_EQ(module->GetStatus(), Module::kErrored);
   CHECK(try_catch.HasCaught());
 }
@@ -24038,7 +24064,13 @@ TEST(CodeCacheModuleScriptMismatch) {
       // Evaluate for possible lazy compilation.
       Local<Value> completion_value =
           module->Evaluate(context).ToLocalChecked();
-      CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
+      if (i::FLAG_harmony_top_level_await) {
+        Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
+        CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+        CHECK(promise->Result()->IsUndefined());
+      } else {
+        CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
+      }
 
       // Now create the cache. Note that it is freed, obscurely, when
       // ScriptCompiler::Source goes out of scope below.
@@ -24134,7 +24166,13 @@ TEST(CodeCacheScriptModuleMismatch) {
 
       Local<Value> completion_value =
           module->Evaluate(context).ToLocalChecked();
-      CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
+      if (i::FLAG_harmony_top_level_await) {
+        Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
+        CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+        CHECK(promise->Result()->IsUndefined());
+      } else {
+        CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
+      }
     }
     isolate->Dispose();
   }
@@ -24170,10 +24208,14 @@ TEST(InvalidCodeCacheDataInCompileModule) {
       .ToChecked();
 
   CHECK(cached_data->rejected);
-  CHECK_EQ(42, module->Evaluate(context)
-                   .ToLocalChecked()
-                   ->Int32Value(context)
-                   .FromJust());
+  Local<Value> completion_value = module->Evaluate(context).ToLocalChecked();
+  if (i::FLAG_harmony_top_level_await) {
+    Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
+    CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+    CHECK(promise->Result()->IsUndefined());
+  } else {
+    CHECK_EQ(42, completion_value->Int32Value(context).FromJust());
+  }
 }
 
 void TestInvalidCacheData(v8::ScriptCompiler::CompileOptions option) {
@@ -25818,7 +25860,14 @@ TEST(ImportMeta) {
   module->InstantiateModule(context.local(), UnexpectedModuleResolveCallback)
       .ToChecked();
   Local<Value> result = module->Evaluate(context.local()).ToLocalChecked();
-  CHECK(result->StrictEquals(Local<v8::Value>::Cast(v8::Utils::ToLocal(meta))));
+  if (i::FLAG_harmony_top_level_await) {
+    Local<v8::Promise> promise(Local<v8::Promise>::Cast(result));
+    CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+    CHECK(promise->Result()->IsUndefined());
+  } else {
+    CHECK(
+        result->StrictEquals(Local<v8::Value>::Cast(v8::Utils::ToLocal(meta))));
+  }
 }
 
 TEST(GetModuleNamespace) {

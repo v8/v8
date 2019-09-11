@@ -1130,7 +1130,14 @@ namespace internal {
   CPP(FinalizationGroupRegister)                                               \
   CPP(FinalizationGroupUnregister)                                             \
   CPP(WeakRefConstructor)                                                      \
-  CPP(WeakRefDeref)
+  CPP(WeakRefDeref)                                                            \
+                                                                               \
+  /* Async modules */                                                          \
+  TFJ(AsyncModuleEvaluate, SharedFunctionInfo::kDontAdaptArgumentsSentinel)    \
+                                                                               \
+  /* CallAsyncModule* are spec anonymyous functions */                         \
+  CPP(CallAsyncModuleFulfilled)                                                \
+  CPP(CallAsyncModuleRejected)
 
 #ifdef V8_INTL_SUPPORT
 #define BUILTIN_LIST_INTL(CPP, TFJ, TFS)                               \

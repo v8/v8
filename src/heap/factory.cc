@@ -3051,6 +3051,7 @@ Handle<SourceTextModule> Factory::NewSourceTextModule(
   Handle<FixedArray> requested_modules =
       requested_modules_length > 0 ? NewFixedArray(requested_modules_length)
                                    : empty_fixed_array();
+  Handle<ArrayList> async_parent_modules = ArrayList::New(isolate(), 0);
 
   ReadOnlyRoots roots(isolate());
   Handle<SourceTextModule> module(
@@ -3070,6 +3071,12 @@ Handle<SourceTextModule> Factory::NewSourceTextModule(
   module->set_import_meta(roots.the_hole_value());
   module->set_dfs_index(-1);
   module->set_dfs_ancestor_index(-1);
+  module->set_top_level_capability(roots.undefined_value());
+  module->set_flags(0);
+  module->set_async(false);
+  module->set_async_evaluating(false);
+  module->set_async_parent_modules(*async_parent_modules);
+  module->set_pending_async_dependencies(0);
   return module;
 }
 

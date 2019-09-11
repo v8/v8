@@ -19,19 +19,25 @@ class GeneratorBuiltinsAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
  protected:
+  // Currently, AsyncModules in V8 are built on top of JSAsyncFunctionObjects
+  // with an initial yield. Thus, we need some way to 'resume' the
+  // underlying JSAsyncFunctionObject owned by an AsyncModule. To support this
+  // the body of resume is factored out below, and shared by JSGeneratorObject
+  // prototype methods as well as AsyncModuleEvaluate. The only difference
+  // between AsyncModuleEvaluate and JSGeneratorObject::PrototypeNext is
+  // the expected reciever.
+  void InnerResume(CodeStubArguments* args, Node* receiver, Node* value,
+                   Node* context, JSGeneratorObject::ResumeMode resume_mode,
+                   char const* const method_name);
   void GeneratorPrototypeResume(CodeStubArguments* args, Node* receiver,
                                 Node* value, Node* context,
                                 JSGeneratorObject::ResumeMode resume_mode,
                                 char const* const method_name);
 };
 
-void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
+void GeneratorBuiltinsAssembler::InnerResume(
     CodeStubArguments* args, Node* receiver, Node* value, Node* context,
     JSGeneratorObject::ResumeMode resume_mode, char const* const method_name) {
-  // Check if the {receiver} is actually a JSGeneratorObject.
-  ThrowIfNotInstanceType(context, receiver, JS_GENERATOR_OBJECT_TYPE,
-                         method_name);
-
   // Check if the {receiver} is running or already closed.
   TNode<Smi> receiver_continuation =
       CAST(LoadObjectField(receiver, JSGeneratorObject::kContinuationOffset));
@@ -109,6 +115,35 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
     CallRuntime(Runtime::kReThrow, context, var_exception.value());
     Unreachable();
   }
+}
+
+void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
+    CodeStubArguments* args, Node* receiver, Node* value, Node* context,
+    JSGeneratorObject::ResumeMode resume_mode, char const* const method_name) {
+  // Check if the {receiver} is actually a JSGeneratorObject.
+  ThrowIfNotInstanceType(context, receiver, JS_GENERATOR_OBJECT_TYPE,
+                         method_name);
+  InnerResume(args, receiver, value, context, resume_mode, method_name);
+}
+
+TF_BUILTIN(AsyncModuleEvaluate, GeneratorBuiltinsAssembler) {
+  const int kValueArg = 0;
+
+  Node* argc =
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  CodeStubArguments args(this, argc);
+
+  Node* receiver = args.GetReceiver();
+  Node* value = args.GetOptionalArgumentValue(kValueArg);
+  Node* context = Parameter(Descriptor::kContext);
+
+  // AsyncModules act like JSAsyncFunctions. Thus we check here
+  // that the {receiver} is a JSAsyncFunction.
+  char const* const method_name = "[AsyncModule].evaluate";
+  ThrowIfNotInstanceType(context, receiver, JS_ASYNC_FUNCTION_OBJECT_TYPE,
+                         method_name);
+  InnerResume(&args, receiver, value, context, JSGeneratorObject::kNext,
+              method_name);
 }
 
 // ES6 #sec-generator.prototype.next

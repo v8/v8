@@ -10,6 +10,7 @@
 #include "src/api/api-inl.h"
 #include "src/ast/modules.h"
 #include "src/builtins/accessors.h"
+#include "src/heap/heap-inl.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-generator-inl.h"
@@ -50,12 +51,14 @@ void Module::SetStatus(Status new_status) {
   set_status(new_status);
 }
 
-void Module::RecordError(Isolate* isolate) {
-  DisallowHeapAllocation no_alloc;
-  DCHECK(exception().IsTheHole(isolate));
-  Object the_exception = isolate->pending_exception();
-  DCHECK(!the_exception.IsTheHole(isolate));
+void Module::RecordErrorUsingPendingException(Isolate* isolate) {
+  Handle<Object> the_exception(isolate->pending_exception(), isolate);
+  RecordError(isolate, the_exception);
+}
 
+void Module::RecordError(Isolate* isolate, Handle<Object> error) {
+  DCHECK(exception().IsTheHole(isolate));
+  DCHECK(!error->IsTheHole(isolate));
   if (this->IsSourceTextModule()) {
     Handle<SourceTextModule> self(SourceTextModule::cast(*this), GetIsolate());
     self->set_code(self->info());
@@ -64,7 +67,7 @@ void Module::RecordError(Isolate* isolate) {
   PrintStatusTransition(Module::kErrored);
 #endif  // DEBUG
   set_status(Module::kErrored);
-  set_exception(the_exception);
+  set_exception(*error);
 }
 
 void Module::ResetGraph(Isolate* isolate, Handle<Module> module) {
@@ -244,47 +247,65 @@ MaybeHandle<Object> Module::Evaluate(Isolate* isolate, Handle<Module> module) {
 #endif  // OBJECT_PRINT
   }
 #endif  // DEBUG
-  if (module->status() == kErrored) {
-    isolate->Throw(module->GetException());
-    return MaybeHandle<Object>();
+  STACK_CHECK(isolate, MaybeHandle<Object>());
+  if (FLAG_harmony_top_level_await) {
+    return Module::InnerEvaluateMaybeAsync(isolate, module);
+  } else {
+    return Module::InnerEvaluate(isolate, module);
   }
-  DCHECK_NE(module->status(), kEvaluating);
-  DCHECK_GE(module->status(), kInstantiated);
-  Zone zone(isolate->allocator(), ZONE_NAME);
-
-  ZoneForwardList<Handle<SourceTextModule>> stack(&zone);
-  unsigned dfs_index = 0;
-  Handle<Object> result;
-  if (!Evaluate(isolate, module, &stack, &dfs_index).ToHandle(&result)) {
-    for (auto& descendant : stack) {
-      DCHECK_EQ(descendant->status(), kEvaluating);
-      descendant->RecordError(isolate);
-    }
-    DCHECK_EQ(module->GetException(), isolate->pending_exception());
-    return MaybeHandle<Object>();
-  }
-  DCHECK_EQ(module->status(), kEvaluated);
-  DCHECK(stack.empty());
-  return result;
 }
 
-MaybeHandle<Object> Module::Evaluate(
-    Isolate* isolate, Handle<Module> module,
-    ZoneForwardList<Handle<SourceTextModule>>* stack, unsigned* dfs_index) {
+MaybeHandle<Object> Module::InnerEvaluate(Isolate* isolate,
+                                          Handle<Module> module) {
   if (module->status() == kErrored) {
     isolate->Throw(module->GetException());
     return MaybeHandle<Object>();
-  }
-  if (module->status() >= kEvaluating) {
+  } else if (module->status() == kEvaluated) {
     return isolate->factory()->undefined_value();
   }
-  DCHECK_EQ(module->status(), kInstantiated);
-  STACK_CHECK(isolate, MaybeHandle<Object>());
+  CHECK_NE(module->status(), kEvaluating);
+  CHECK_GE(module->status(), kInstantiated);
 
   if (module->IsSourceTextModule()) {
-    return SourceTextModule::Evaluate(
-        isolate, Handle<SourceTextModule>::cast(module), stack, dfs_index);
+    return SourceTextModule::Evaluate(isolate,
+                                      Handle<SourceTextModule>::cast(module));
   } else {
+    return SyntheticModule::Evaluate(isolate,
+                                     Handle<SyntheticModule>::cast(module));
+  }
+}
+
+MaybeHandle<Object> Module::InnerEvaluateMaybeAsync(Isolate* isolate,
+                                                    Handle<Module> module) {
+  // In the event of errored evaluation, return a rejected promise.
+  if (module->status() == kErrored) {
+    // If we have an already evaluated SourceTextModule with a top level
+    // capability we assume it has already been rejected, and return it
+    // here. Otherwise create a new promise and reject it with the module's
+    // exception.
+    if (module->IsSourceTextModule()) {
+      Handle<SourceTextModule> source_text_module(
+          Handle<SourceTextModule>::cast(module));
+      if (source_text_module->top_level_capability().IsJSPromise()) {
+        Handle<JSPromise> top_level_capability(
+            JSPromise::cast(source_text_module->top_level_capability()),
+            isolate);
+        DCHECK(top_level_capability->status() == Promise::kRejected &&
+               top_level_capability->result() == module->exception());
+        return top_level_capability;
+      }
+    }
+    Handle<JSPromise> capability = isolate->factory()->NewJSPromise();
+    JSPromise::Reject(capability, handle(module->exception(), isolate));
+    return capability;
+  }
+
+  if (module->IsSourceTextModule()) {
+    return SourceTextModule::EvaluateMaybeAsync(
+        isolate, Handle<SourceTextModule>::cast(module));
+  } else {
+    DCHECK_NE(module->status(), kEvaluating);
+    DCHECK_GE(module->status(), kInstantiated);
     return SyntheticModule::Evaluate(isolate,
                                      Handle<SyntheticModule>::cast(module));
   }
