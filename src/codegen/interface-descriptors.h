@@ -707,7 +707,7 @@ class FastNewFunctionContextDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kScopeInfo, kSlots)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kScopeInfo
-                         MachineType::Int32())      // kSlots
+                         MachineType::Uint32())     // kSlots
   DECLARE_DESCRIPTOR(FastNewFunctionContextDescriptor, CallInterfaceDescriptor)
 
   static const Register ScopeInfoRegister();

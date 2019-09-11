@@ -15,21 +15,25 @@ class ConstructorBuiltinsAssembler : public CodeStubAssembler {
   explicit ConstructorBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  Node* EmitFastNewFunctionContext(Node* closure, Node* slots, Node* context,
-                                   ScopeType scope_type);
+  TNode<Context> EmitFastNewFunctionContext(TNode<ScopeInfo> scope_info,
+                                            TNode<Uint32T> slots,
+                                            TNode<Context> context,
+                                            ScopeType scope_type);
 
-  Node* EmitCreateRegExpLiteral(Node* feedback_vector, Node* slot,
-                                Node* pattern, Node* flags, Node* context);
+  TNode<JSRegExp> EmitCreateRegExpLiteral(
+      TNode<HeapObject> maybe_feedback_vector, TNode<UintPtrT> slot,
+      TNode<Object> pattern, TNode<Smi> flags, TNode<Context> context);
   Node* EmitCreateShallowArrayLiteral(Node* feedback_vector, Node* slot,
                                       Node* context, Label* call_runtime,
                                       AllocationSiteMode allocation_site_mode);
 
-  Node* EmitCreateEmptyArrayLiteral(Node* feedback_vector, Node* slot,
-                                    Node* context);
+  TNode<JSArray> EmitCreateEmptyArrayLiteral(
+      TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot,
+      TNode<Context> context);
 
   Node* EmitCreateShallowObjectLiteral(Node* feedback_vector, Node* slot,
                                        Label* call_runtime);
-  Node* EmitCreateEmptyObjectLiteral(Node* context);
+  TNode<JSObject> EmitCreateEmptyObjectLiteral(TNode<Context> context);
 
   TNode<JSObject> EmitFastNewObject(SloppyTNode<Context> context,
                                     SloppyTNode<JSFunction> target,

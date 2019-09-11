@@ -1011,6 +1011,8 @@
 
   #BUG(3837): Crashes due to C stack overflow.
   'js1_5/extensions/regress-355497': [SKIP],
+  # Slow test
+  'js1_5/Regress/regress-80981': [PASS, SLOW],
 }],  # 'arch == arm and simulator_run'
 
 ['arch == arm64 and simulator_run', {

@@ -2459,8 +2459,8 @@ IGNITION_HANDLER(CreateRegExpLiteral, InterpreterAssembler) {
   TVARIABLE(JSRegExp, result);
 
   ConstructorBuiltinsAssembler constructor_assembler(state());
-  result = CAST(constructor_assembler.EmitCreateRegExpLiteral(
-      feedback_vector, slot_id, pattern, flags, context));
+  result = constructor_assembler.EmitCreateRegExpLiteral(
+      feedback_vector, slot_id, pattern, flags, context);
   SetAccumulator(result.value());
   Dispatch();
 }
@@ -2512,17 +2512,17 @@ IGNITION_HANDLER(CreateArrayLiteral, InterpreterAssembler) {
 //
 // Creates an empty JSArray literal for literal index <literal_idx>.
 IGNITION_HANDLER(CreateEmptyArrayLiteral, InterpreterAssembler) {
-  TNode<HeapObject> feedback_vector = LoadFeedbackVector();
+  TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
   TNode<UintPtrT> slot_id = BytecodeOperandIdx(0);
   TNode<Context> context = GetContext();
 
   Label no_feedback(this, Label::kDeferred), end(this);
   TVARIABLE(JSArray, result);
-  GotoIf(IsUndefined(feedback_vector), &no_feedback);
+  GotoIf(IsUndefined(maybe_feedback_vector), &no_feedback);
 
   ConstructorBuiltinsAssembler constructor_assembler(state());
-  result = CAST(constructor_assembler.EmitCreateEmptyArrayLiteral(
-      feedback_vector, slot_id, context));
+  result = constructor_assembler.EmitCreateEmptyArrayLiteral(
+      CAST(maybe_feedback_vector), slot_id, context);
   Goto(&end);
 
   BIND(&no_feedback);
@@ -2608,7 +2608,8 @@ IGNITION_HANDLER(CreateObjectLiteral, InterpreterAssembler) {
 IGNITION_HANDLER(CreateEmptyObjectLiteral, InterpreterAssembler) {
   TNode<Context> context = GetContext();
   ConstructorBuiltinsAssembler constructor_assembler(state());
-  Node* result = constructor_assembler.EmitCreateEmptyObjectLiteral(context);
+  TNode<JSObject> result =
+      constructor_assembler.EmitCreateEmptyObjectLiteral(context);
   SetAccumulator(result);
   Dispatch();
 }
