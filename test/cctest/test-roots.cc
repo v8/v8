@@ -48,7 +48,6 @@ bool IsInitiallyMutable(Factory* factory, Address object_address) {
   V(feedback_vectors_for_profiling_tools) \
   V(shared_wasm_memories)                 \
   V(materialized_objects)                 \
-  V(noscript_shared_function_infos)       \
   V(public_symbol_table)                  \
   V(retained_maps)                        \
   V(retaining_path_targets)               \
