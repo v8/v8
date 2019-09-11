@@ -175,12 +175,7 @@ TEST_F(JSCallReducerTest, PromiseConstructorBasic) {
                        context, frame_state, effect, control);
 
   Reduction r = Reduce(construct);
-
-  if (FLAG_experimental_inline_promise_constructor) {
-    ASSERT_TRUE(r.Changed());
-  } else {
-    ASSERT_FALSE(r.Changed());
-  }
+  ASSERT_TRUE(r.Changed());
 }
 
 // Exactly the same as PromiseConstructorBasic which expects a reduction,

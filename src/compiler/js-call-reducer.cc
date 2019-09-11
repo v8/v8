@@ -5676,8 +5676,6 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  if (!FLAG_experimental_inline_promise_constructor) return NoChange();
-
   // Only handle builtins Promises, not subclasses.
   if (target != new_target) return NoChange();
 

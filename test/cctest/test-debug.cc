@@ -893,7 +893,6 @@ TEST(BreakPointInlineBoundBuiltin) {
 
 TEST(BreakPointInlinedConstructorBuiltin) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_experimental_inline_promise_constructor = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
