@@ -37,23 +37,21 @@ enum ContextLookupFlags {
 // must always be allocated via Heap::AllocateContext() or
 // Factory::NewContext.
 
-#define NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)                     \
-  V(GENERATOR_NEXT_INTERNAL, JSFunction, generator_next_internal) \
-  V(ASYNC_MODULE_EVALUATE_INTERNAL, JSFunction,                   \
-    async_module_evaluate_internal)                               \
-  V(MAKE_ERROR_INDEX, JSFunction, make_error)                     \
-  V(MAKE_RANGE_ERROR_INDEX, JSFunction, make_range_error)         \
-  V(MAKE_SYNTAX_ERROR_INDEX, JSFunction, make_syntax_error)       \
-  V(MAKE_TYPE_ERROR_INDEX, JSFunction, make_type_error)           \
-  V(MAKE_URI_ERROR_INDEX, JSFunction, make_uri_error)             \
-  V(OBJECT_CREATE, JSFunction, object_create)                     \
-  V(REFLECT_APPLY_INDEX, JSFunction, reflect_apply)               \
-  V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)       \
-  V(MATH_FLOOR_INDEX, JSFunction, math_floor)                     \
-  V(MATH_POW_INDEX, JSFunction, math_pow)                         \
-  V(PROMISE_INTERNAL_CONSTRUCTOR_INDEX, JSFunction,               \
-    promise_internal_constructor)                                 \
-  V(IS_PROMISE_INDEX, JSFunction, is_promise)                     \
+#define NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)                           \
+  V(GENERATOR_NEXT_INTERNAL, JSFunction, generator_next_internal)       \
+  V(MAKE_ERROR_INDEX, JSFunction, make_error)                           \
+  V(MAKE_RANGE_ERROR_INDEX, JSFunction, make_range_error)               \
+  V(MAKE_SYNTAX_ERROR_INDEX, JSFunction, make_syntax_error)             \
+  V(MAKE_TYPE_ERROR_INDEX, JSFunction, make_type_error)                 \
+  V(MAKE_URI_ERROR_INDEX, JSFunction, make_uri_error)                   \
+  V(OBJECT_CREATE, JSFunction, object_create)                           \
+  V(REFLECT_APPLY_INDEX, JSFunction, reflect_apply)                     \
+  V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)             \
+  V(MATH_FLOOR_INDEX, JSFunction, math_floor)                           \
+  V(MATH_POW_INDEX, JSFunction, math_pow)                               \
+  V(PROMISE_INTERNAL_CONSTRUCTOR_INDEX, JSFunction,                     \
+    promise_internal_constructor)                                       \
+  V(IS_PROMISE_INDEX, JSFunction, is_promise)                           \
   V(PROMISE_THEN_INDEX, JSFunction, promise_then)
 
 #define NATIVE_CONTEXT_FIELDS(V)                                               \
@@ -106,8 +104,6 @@ enum ContextLookupFlags {
   V(CALL_AS_CONSTRUCTOR_DELEGATE_INDEX, JSFunction,                            \
     call_as_constructor_delegate)                                              \
   V(CALL_AS_FUNCTION_DELEGATE_INDEX, JSFunction, call_as_function_delegate)    \
-  V(CALL_ASYNC_MODULE_FULFILLED, JSFunction, call_async_module_fulfilled)      \
-  V(CALL_ASYNC_MODULE_REJECTED, JSFunction, call_async_module_rejected)        \
   V(CALLSITE_FUNCTION_INDEX, JSFunction, callsite_function)                    \
   V(CONTEXT_EXTENSION_FUNCTION_INDEX, JSFunction, context_extension_function)  \
   V(DATA_PROPERTY_DESCRIPTOR_MAP_INDEX, Map, data_property_descriptor_map)     \

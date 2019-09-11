@@ -112,21 +112,18 @@ class Module : public HeapObject {
       ZoneForwardList<Handle<SourceTextModule>>* stack, unsigned* dfs_index,
       Zone* zone);
 
-  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> InnerEvaluate(
-      Isolate* isolate, Handle<Module> module);
-  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> InnerEvaluateMaybeAsync(
-      Isolate* isolate, Handle<Module> module);
+  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> Evaluate(
+      Isolate* isolate, Handle<Module> module,
+      ZoneForwardList<Handle<SourceTextModule>>* stack, unsigned* dfs_index);
 
   // Set module's status back to kUninstantiated and reset other internal state.
   // This is used when instantiation fails.
   static void Reset(Isolate* isolate, Handle<Module> module);
   static void ResetGraph(Isolate* isolate, Handle<Module> module);
 
-  // To set status to kErrored, RecordError or RecordErrorUsingPendingException
-  // should be used.
+  // To set status to kErrored, RecordError should be used.
   void SetStatus(Status status);
-  void RecordErrorUsingPendingException(Isolate* isolate);
-  void RecordError(Isolate* isolate, Handle<Object> error);
+  void RecordError(Isolate* isolate);
 
 #ifdef DEBUG
   // For --trace-module-status.

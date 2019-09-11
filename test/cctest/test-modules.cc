@@ -14,7 +14,6 @@ using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Module;
-using v8::Promise;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
 using v8::String;
@@ -197,271 +196,103 @@ static MaybeLocal<Module> CompileSpecifierAsModuleResolveCallback(
 }
 
 TEST(ModuleEvaluation) {
-  bool prev_top_level_await = i::FLAG_harmony_top_level_await;
-  for (auto top_level_await : {true, false}) {
-    i::FLAG_harmony_top_level_await = top_level_await;
+  Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  LocalContext env;
+  v8::TryCatch try_catch(isolate);
 
-    Isolate* isolate = CcTest::isolate();
-    HandleScope scope(isolate);
-    LocalContext env;
-    v8::TryCatch try_catch(isolate);
+  Local<String> source_text = v8_str(
+      "import 'Object.expando = 5';"
+      "import 'Object.expando *= 2';");
+  ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
+  ScriptCompiler::Source source(source_text, origin);
+  Local<Module> module =
+      ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+  CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+  CHECK(module
+            ->InstantiateModule(env.local(),
+                                CompileSpecifierAsModuleResolveCallback)
+            .FromJust());
+  CHECK_EQ(Module::kInstantiated, module->GetStatus());
+  CHECK(!module->Evaluate(env.local()).IsEmpty());
+  CHECK_EQ(Module::kEvaluated, module->GetStatus());
+  ExpectInt32("Object.expando", 10);
 
-    Local<String> source_text = v8_str(
-        "import 'Object.expando = 5';"
-        "import 'Object.expando *= 2';");
-    ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
-    ScriptCompiler::Source source(source_text, origin);
-    Local<Module> module =
-        ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
-    CHECK_EQ(Module::kUninstantiated, module->GetStatus());
-    CHECK(module
-              ->InstantiateModule(env.local(),
-                                  CompileSpecifierAsModuleResolveCallback)
-              .FromJust());
-    CHECK_EQ(Module::kInstantiated, module->GetStatus());
-
-    MaybeLocal<Value> result = module->Evaluate(env.local());
-    CHECK_EQ(Module::kEvaluated, module->GetStatus());
-    if (i::FLAG_harmony_top_level_await) {
-      Local<Promise> promise = Local<Promise>::Cast(result.ToLocalChecked());
-      CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
-      CHECK(promise->Result()->IsUndefined());
-    } else {
-      CHECK(!result.IsEmpty());
-      ExpectInt32("Object.expando", 10);
-    }
-    CHECK(!try_catch.HasCaught());
-  }
-  i::FLAG_harmony_top_level_await = prev_top_level_await;
+  CHECK(!try_catch.HasCaught());
 }
 
 TEST(ModuleEvaluationError) {
-  bool prev_top_level_await = i::FLAG_harmony_top_level_await;
-  for (auto top_level_await : {true, false}) {
-    i::FLAG_harmony_top_level_await = top_level_await;
+  Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  LocalContext env;
+  v8::TryCatch try_catch(isolate);
 
-    Isolate* isolate = CcTest::isolate();
-    HandleScope scope(isolate);
-    LocalContext env;
-    v8::TryCatch try_catch(isolate);
+  Local<String> source_text =
+      v8_str("Object.x = (Object.x || 0) + 1; throw 'boom';");
+  ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
+  ScriptCompiler::Source source(source_text, origin);
+  Local<Module> module =
+      ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+  CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+  CHECK(module
+            ->InstantiateModule(env.local(),
+                                CompileSpecifierAsModuleResolveCallback)
+            .FromJust());
+  CHECK_EQ(Module::kInstantiated, module->GetStatus());
 
-    Local<String> source_text =
-        v8_str("Object.x = (Object.x || 0) + 1; throw 'boom';");
-    ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
-    ScriptCompiler::Source source(source_text, origin);
-    Local<Module> module =
-        ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
-    CHECK_EQ(Module::kUninstantiated, module->GetStatus());
-    CHECK(module
-              ->InstantiateModule(env.local(),
-                                  CompileSpecifierAsModuleResolveCallback)
-              .FromJust());
-    CHECK_EQ(Module::kInstantiated, module->GetStatus());
-
-    MaybeLocal<Value> result_1;
-    {
-      v8::TryCatch inner_try_catch(isolate);
-      result_1 = module->Evaluate(env.local());
-      CHECK_EQ(Module::kErrored, module->GetStatus());
-      Local<Value> exception = module->GetException();
-      CHECK(exception->StrictEquals(v8_str("boom")));
-      ExpectInt32("Object.x", 1);
-      CHECK(inner_try_catch.HasCaught());
-      CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
-    }
-
-    MaybeLocal<Value> result_2;
-    {
-      v8::TryCatch inner_try_catch(isolate);
-      result_2 = module->Evaluate(env.local());
-      CHECK_EQ(Module::kErrored, module->GetStatus());
-      Local<Value> exception = module->GetException();
-      CHECK(exception->StrictEquals(v8_str("boom")));
-      ExpectInt32("Object.x", 1);
-
-      if (i::FLAG_harmony_top_level_await) {
-        // With top level await we do not rethrow the exception.
-        CHECK(!inner_try_catch.HasCaught());
-      } else {
-        CHECK(inner_try_catch.HasCaught());
-        CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
-      }
-    }
-    if (i::FLAG_harmony_top_level_await) {
-      // With top level await, errored evaluation returns a rejected promise
-      // with the exception.
-      Local<Promise> promise_1 =
-          Local<Promise>::Cast(result_1.ToLocalChecked());
-      Local<Promise> promise_2 =
-          Local<Promise>::Cast(result_2.ToLocalChecked());
-      CHECK_EQ(promise_1->State(), v8::Promise::kRejected);
-      CHECK_EQ(promise_2->State(), v8::Promise::kRejected);
-      CHECK_EQ(promise_1->Result(), module->GetException());
-      CHECK_EQ(promise_2->Result(), module->GetException());
-    } else {
-      CHECK(result_1.IsEmpty() && result_2.IsEmpty());
-    }
-
-    CHECK(!try_catch.HasCaught());
+  {
+    v8::TryCatch inner_try_catch(isolate);
+    CHECK(module->Evaluate(env.local()).IsEmpty());
+    CHECK(inner_try_catch.HasCaught());
+    CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
+    CHECK_EQ(Module::kErrored, module->GetStatus());
+    Local<Value> exception = module->GetException();
+    CHECK(exception->StrictEquals(v8_str("boom")));
+    ExpectInt32("Object.x", 1);
   }
-  i::FLAG_harmony_top_level_await = prev_top_level_await;
+
+  {
+    v8::TryCatch inner_try_catch(isolate);
+    CHECK(module->Evaluate(env.local()).IsEmpty());
+    CHECK(inner_try_catch.HasCaught());
+    CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
+    CHECK_EQ(Module::kErrored, module->GetStatus());
+    Local<Value> exception = module->GetException();
+    CHECK(exception->StrictEquals(v8_str("boom")));
+    ExpectInt32("Object.x", 1);
+  }
+
+  CHECK(!try_catch.HasCaught());
 }
 
 TEST(ModuleEvaluationCompletion1) {
-  bool prev_top_level_await = i::FLAG_harmony_top_level_await;
-  for (auto top_level_await : {true, false}) {
-    i::FLAG_harmony_top_level_await = top_level_await;
+  Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  LocalContext env;
+  v8::TryCatch try_catch(isolate);
 
-    Isolate* isolate = CcTest::isolate();
-    HandleScope scope(isolate);
-    LocalContext env;
-    v8::TryCatch try_catch(isolate);
+  const char* sources[] = {
+      "",
+      "var a = 1",
+      "import '42'",
+      "export * from '42'",
+      "export {} from '42'",
+      "export {}",
+      "var a = 1; export {a}",
+      "export function foo() {}",
+      "export class C extends null {}",
+      "export let a = 1",
+      "export default 1",
+      "export default function foo() {}",
+      "export default function () {}",
+      "export default (function () {})",
+      "export default class C extends null {}",
+      "export default (class C extends null {})",
+      "for (var i = 0; i < 5; ++i) {}",
+  };
 
-    const char* sources[] = {
-        "",
-        "var a = 1",
-        "import '42'",
-        "export * from '42'",
-        "export {} from '42'",
-        "export {}",
-        "var a = 1; export {a}",
-        "export function foo() {}",
-        "export class C extends null {}",
-        "export let a = 1",
-        "export default 1",
-        "export default function foo() {}",
-        "export default function () {}",
-        "export default (function () {})",
-        "export default class C extends null {}",
-        "export default (class C extends null {})",
-        "for (var i = 0; i < 5; ++i) {}",
-    };
-
-    for (auto src : sources) {
-      Local<String> source_text = v8_str(src);
-      ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
-      ScriptCompiler::Source source(source_text, origin);
-      Local<Module> module =
-          ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
-      CHECK_EQ(Module::kUninstantiated, module->GetStatus());
-      CHECK(module
-                ->InstantiateModule(env.local(),
-                                    CompileSpecifierAsModuleResolveCallback)
-                .FromJust());
-      CHECK_EQ(Module::kInstantiated, module->GetStatus());
-
-      // Evaluate twice.
-      Local<Value> result_1 = module->Evaluate(env.local()).ToLocalChecked();
-      CHECK_EQ(Module::kEvaluated, module->GetStatus());
-      Local<Value> result_2 = module->Evaluate(env.local()).ToLocalChecked();
-      CHECK_EQ(Module::kEvaluated, module->GetStatus());
-
-      if (i::FLAG_harmony_top_level_await) {
-        Local<Promise> promise = Local<Promise>::Cast(result_1);
-        CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
-        CHECK(promise->Result()->IsUndefined());
-
-        // Second evaluation should return the same promise.
-        Local<Promise> promise_too = Local<Promise>::Cast(result_2);
-        CHECK_EQ(promise, promise_too);
-        CHECK_EQ(promise_too->State(), v8::Promise::kFulfilled);
-        CHECK(promise_too->Result()->IsUndefined());
-      } else {
-        CHECK(result_1->IsUndefined());
-        CHECK(result_2->IsUndefined());
-      }
-    }
-    CHECK(!try_catch.HasCaught());
-  }
-  i::FLAG_harmony_top_level_await = prev_top_level_await;
-}
-
-TEST(ModuleEvaluationCompletion2) {
-  bool prev_top_level_await = i::FLAG_harmony_top_level_await;
-  for (auto top_level_await : {true, false}) {
-    i::FLAG_harmony_top_level_await = top_level_await;
-
-    Isolate* isolate = CcTest::isolate();
-    HandleScope scope(isolate);
-    LocalContext env;
-    v8::TryCatch try_catch(isolate);
-
-    const char* sources[] = {
-        "'gaga'; ",
-        "'gaga'; var a = 1",
-        "'gaga'; import '42'",
-        "'gaga'; export * from '42'",
-        "'gaga'; export {} from '42'",
-        "'gaga'; export {}",
-        "'gaga'; var a = 1; export {a}",
-        "'gaga'; export function foo() {}",
-        "'gaga'; export class C extends null {}",
-        "'gaga'; export let a = 1",
-        "'gaga'; export default 1",
-        "'gaga'; export default function foo() {}",
-        "'gaga'; export default function () {}",
-        "'gaga'; export default (function () {})",
-        "'gaga'; export default class C extends null {}",
-        "'gaga'; export default (class C extends null {})",
-    };
-
-    for (auto src : sources) {
-      Local<String> source_text = v8_str(src);
-      ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
-      ScriptCompiler::Source source(source_text, origin);
-      Local<Module> module =
-          ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
-      CHECK_EQ(Module::kUninstantiated, module->GetStatus());
-      CHECK(module
-                ->InstantiateModule(env.local(),
-                                    CompileSpecifierAsModuleResolveCallback)
-                .FromJust());
-      CHECK_EQ(Module::kInstantiated, module->GetStatus());
-
-      Local<Value> result_1 = module->Evaluate(env.local()).ToLocalChecked();
-      CHECK_EQ(Module::kEvaluated, module->GetStatus());
-
-      Local<Value> result_2 = module->Evaluate(env.local()).ToLocalChecked();
-      CHECK_EQ(Module::kEvaluated, module->GetStatus());
-      if (i::FLAG_harmony_top_level_await) {
-        Local<Promise> promise = Local<Promise>::Cast(result_1);
-        CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
-        CHECK(promise->Result()->IsUndefined());
-
-        // Second Evaluation should return the same promise.
-        Local<Promise> promise_too = Local<Promise>::Cast(result_2);
-        CHECK_EQ(promise, promise_too);
-        CHECK_EQ(promise_too->State(), v8::Promise::kFulfilled);
-        CHECK(promise_too->Result()->IsUndefined());
-      } else {
-        CHECK(result_1->StrictEquals(v8_str("gaga")));
-        CHECK(result_2->IsUndefined());
-      }
-    }
-    CHECK(!try_catch.HasCaught());
-  }
-  i::FLAG_harmony_top_level_await = prev_top_level_await;
-}
-
-TEST(ModuleNamespace) {
-  bool prev_top_level_await = i::FLAG_harmony_top_level_await;
-  for (auto top_level_await : {true, false}) {
-    i::FLAG_harmony_top_level_await = top_level_await;
-
-    Isolate* isolate = CcTest::isolate();
-    HandleScope scope(isolate);
-    LocalContext env;
-    v8::TryCatch try_catch(isolate);
-
-    Local<v8::Object> ReferenceError =
-        CompileRun("ReferenceError")->ToObject(env.local()).ToLocalChecked();
-
-    Local<String> source_text = v8_str(
-        "import {a, b} from 'export var a = 1; export let b = 2';"
-        "export function geta() {return a};"
-        "export function getb() {return b};"
-        "export let radio = 3;"
-        "export var gaga = 4;");
+  for (auto src : sources) {
+    Local<String> source_text = v8_str(src);
     ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
     ScriptCompiler::Source source(source_text, origin);
     Local<Module> module =
@@ -472,92 +303,172 @@ TEST(ModuleNamespace) {
                                   CompileSpecifierAsModuleResolveCallback)
               .FromJust());
     CHECK_EQ(Module::kInstantiated, module->GetStatus());
-    Local<Value> ns = module->GetModuleNamespace();
-    CHECK_EQ(Module::kInstantiated, module->GetStatus());
-    Local<v8::Object> nsobj = ns->ToObject(env.local()).ToLocalChecked();
-
-    // a, b
-    CHECK(nsobj->Get(env.local(), v8_str("a")).ToLocalChecked()->IsUndefined());
-    CHECK(nsobj->Get(env.local(), v8_str("b")).ToLocalChecked()->IsUndefined());
-
-    // geta
-    {
-      auto geta = nsobj->Get(env.local(), v8_str("geta")).ToLocalChecked();
-      auto a = geta.As<v8::Function>()
-                   ->Call(env.local(), geta, 0, nullptr)
-                   .ToLocalChecked();
-      CHECK(a->IsUndefined());
-    }
-
-    // getb
-    {
-      v8::TryCatch inner_try_catch(isolate);
-      auto getb = nsobj->Get(env.local(), v8_str("getb")).ToLocalChecked();
-      CHECK(getb.As<v8::Function>()
-                ->Call(env.local(), getb, 0, nullptr)
-                .IsEmpty());
-      CHECK(inner_try_catch.HasCaught());
-      CHECK(inner_try_catch.Exception()
-                ->InstanceOf(env.local(), ReferenceError)
-                .FromJust());
-    }
-
-    // radio
-    {
-      v8::TryCatch inner_try_catch(isolate);
-      // https://bugs.chromium.org/p/v8/issues/detail?id=7235
-      // CHECK(nsobj->Get(env.local(), v8_str("radio")).IsEmpty());
-      CHECK(nsobj->Get(env.local(), v8_str("radio"))
-                .ToLocalChecked()
-                ->IsUndefined());
-      CHECK(inner_try_catch.HasCaught());
-      CHECK(inner_try_catch.Exception()
-                ->InstanceOf(env.local(), ReferenceError)
-                .FromJust());
-    }
-
-    // gaga
-    {
-      auto gaga = nsobj->Get(env.local(), v8_str("gaga")).ToLocalChecked();
-      CHECK(gaga->IsUndefined());
-    }
-
-    CHECK(!try_catch.HasCaught());
-    CHECK_EQ(Module::kInstantiated, module->GetStatus());
-    module->Evaluate(env.local()).ToLocalChecked();
+    CHECK(module->Evaluate(env.local()).ToLocalChecked()->IsUndefined());
     CHECK_EQ(Module::kEvaluated, module->GetStatus());
-
-    // geta
-    {
-      auto geta = nsobj->Get(env.local(), v8_str("geta")).ToLocalChecked();
-      auto a = geta.As<v8::Function>()
-                   ->Call(env.local(), geta, 0, nullptr)
-                   .ToLocalChecked();
-      CHECK_EQ(1, a->Int32Value(env.local()).FromJust());
-    }
-
-    // getb
-    {
-      auto getb = nsobj->Get(env.local(), v8_str("getb")).ToLocalChecked();
-      auto b = getb.As<v8::Function>()
-                   ->Call(env.local(), getb, 0, nullptr)
-                   .ToLocalChecked();
-      CHECK_EQ(2, b->Int32Value(env.local()).FromJust());
-    }
-
-    // radio
-    {
-      auto radio = nsobj->Get(env.local(), v8_str("radio")).ToLocalChecked();
-      CHECK_EQ(3, radio->Int32Value(env.local()).FromJust());
-    }
-
-    // gaga
-    {
-      auto gaga = nsobj->Get(env.local(), v8_str("gaga")).ToLocalChecked();
-      CHECK_EQ(4, gaga->Int32Value(env.local()).FromJust());
-    }
-    CHECK(!try_catch.HasCaught());
+    CHECK(module->Evaluate(env.local()).ToLocalChecked()->IsUndefined());
+    CHECK_EQ(Module::kEvaluated, module->GetStatus());
   }
-  i::FLAG_harmony_top_level_await = prev_top_level_await;
+
+  CHECK(!try_catch.HasCaught());
+}
+
+TEST(ModuleEvaluationCompletion2) {
+  Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  LocalContext env;
+  v8::TryCatch try_catch(isolate);
+
+  const char* sources[] = {
+      "'gaga'; ",
+      "'gaga'; var a = 1",
+      "'gaga'; import '42'",
+      "'gaga'; export * from '42'",
+      "'gaga'; export {} from '42'",
+      "'gaga'; export {}",
+      "'gaga'; var a = 1; export {a}",
+      "'gaga'; export function foo() {}",
+      "'gaga'; export class C extends null {}",
+      "'gaga'; export let a = 1",
+      "'gaga'; export default 1",
+      "'gaga'; export default function foo() {}",
+      "'gaga'; export default function () {}",
+      "'gaga'; export default (function () {})",
+      "'gaga'; export default class C extends null {}",
+      "'gaga'; export default (class C extends null {})",
+  };
+
+  for (auto src : sources) {
+    Local<String> source_text = v8_str(src);
+    ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    Local<Module> module =
+        ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+    CHECK(module
+              ->InstantiateModule(env.local(),
+                                  CompileSpecifierAsModuleResolveCallback)
+              .FromJust());
+    CHECK_EQ(Module::kInstantiated, module->GetStatus());
+    CHECK(module->Evaluate(env.local())
+              .ToLocalChecked()
+              ->StrictEquals(v8_str("gaga")));
+    CHECK_EQ(Module::kEvaluated, module->GetStatus());
+    CHECK(module->Evaluate(env.local()).ToLocalChecked()->IsUndefined());
+    CHECK_EQ(Module::kEvaluated, module->GetStatus());
+  }
+
+  CHECK(!try_catch.HasCaught());
+}
+
+TEST(ModuleNamespace) {
+  Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  LocalContext env;
+  v8::TryCatch try_catch(isolate);
+
+  Local<v8::Object> ReferenceError =
+      CompileRun("ReferenceError")->ToObject(env.local()).ToLocalChecked();
+
+  Local<String> source_text = v8_str(
+      "import {a, b} from 'export var a = 1; export let b = 2';"
+      "export function geta() {return a};"
+      "export function getb() {return b};"
+      "export let radio = 3;"
+      "export var gaga = 4;");
+  ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
+  ScriptCompiler::Source source(source_text, origin);
+  Local<Module> module =
+      ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+  CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+  CHECK(module
+            ->InstantiateModule(env.local(),
+                                CompileSpecifierAsModuleResolveCallback)
+            .FromJust());
+  CHECK_EQ(Module::kInstantiated, module->GetStatus());
+  Local<Value> ns = module->GetModuleNamespace();
+  CHECK_EQ(Module::kInstantiated, module->GetStatus());
+  Local<v8::Object> nsobj = ns->ToObject(env.local()).ToLocalChecked();
+
+  // a, b
+  CHECK(nsobj->Get(env.local(), v8_str("a")).ToLocalChecked()->IsUndefined());
+  CHECK(nsobj->Get(env.local(), v8_str("b")).ToLocalChecked()->IsUndefined());
+
+  // geta
+  {
+    auto geta = nsobj->Get(env.local(), v8_str("geta")).ToLocalChecked();
+    auto a = geta.As<v8::Function>()
+                 ->Call(env.local(), geta, 0, nullptr)
+                 .ToLocalChecked();
+    CHECK(a->IsUndefined());
+  }
+
+  // getb
+  {
+    v8::TryCatch inner_try_catch(isolate);
+    auto getb = nsobj->Get(env.local(), v8_str("getb")).ToLocalChecked();
+    CHECK(
+        getb.As<v8::Function>()->Call(env.local(), getb, 0, nullptr).IsEmpty());
+    CHECK(inner_try_catch.HasCaught());
+    CHECK(inner_try_catch.Exception()
+              ->InstanceOf(env.local(), ReferenceError)
+              .FromJust());
+  }
+
+  // radio
+  {
+    v8::TryCatch inner_try_catch(isolate);
+    // https://bugs.chromium.org/p/v8/issues/detail?id=7235
+    // CHECK(nsobj->Get(env.local(), v8_str("radio")).IsEmpty());
+    CHECK(nsobj->Get(env.local(), v8_str("radio"))
+              .ToLocalChecked()
+              ->IsUndefined());
+    CHECK(inner_try_catch.HasCaught());
+    CHECK(inner_try_catch.Exception()
+              ->InstanceOf(env.local(), ReferenceError)
+              .FromJust());
+  }
+
+  // gaga
+  {
+    auto gaga = nsobj->Get(env.local(), v8_str("gaga")).ToLocalChecked();
+    CHECK(gaga->IsUndefined());
+  }
+
+  CHECK(!try_catch.HasCaught());
+  CHECK_EQ(Module::kInstantiated, module->GetStatus());
+  module->Evaluate(env.local()).ToLocalChecked();
+  CHECK_EQ(Module::kEvaluated, module->GetStatus());
+
+  // geta
+  {
+    auto geta = nsobj->Get(env.local(), v8_str("geta")).ToLocalChecked();
+    auto a = geta.As<v8::Function>()
+                 ->Call(env.local(), geta, 0, nullptr)
+                 .ToLocalChecked();
+    CHECK_EQ(1, a->Int32Value(env.local()).FromJust());
+  }
+
+  // getb
+  {
+    auto getb = nsobj->Get(env.local(), v8_str("getb")).ToLocalChecked();
+    auto b = getb.As<v8::Function>()
+                 ->Call(env.local(), getb, 0, nullptr)
+                 .ToLocalChecked();
+    CHECK_EQ(2, b->Int32Value(env.local()).FromJust());
+  }
+
+  // radio
+  {
+    auto radio = nsobj->Get(env.local(), v8_str("radio")).ToLocalChecked();
+    CHECK_EQ(3, radio->Int32Value(env.local()).FromJust());
+  }
+
+  // gaga
+  {
+    auto gaga = nsobj->Get(env.local(), v8_str("gaga")).ToLocalChecked();
+    CHECK_EQ(4, gaga->Int32Value(env.local()).FromJust());
+  }
+
+  CHECK(!try_catch.HasCaught());
 }
 }  // anonymous namespace
