@@ -991,8 +991,7 @@ Handle<DependentCode> DependentCode::EnsureSpace(
   int capacity = kCodesStartIndex + DependentCode::Grow(entries->count());
   int grow_by = capacity - entries->length();
   return Handle<DependentCode>::cast(
-      isolate->factory()->CopyWeakFixedArrayAndGrow(entries, grow_by,
-                                                    AllocationType::kOld));
+      isolate->factory()->CopyWeakFixedArrayAndGrow(entries, grow_by));
 }
 
 bool DependentCode::Compact() {

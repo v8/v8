@@ -120,7 +120,7 @@ class FixedArray : public FixedArrayBase {
   // Return a grown copy if the index is bigger than the array's length.
   V8_EXPORT_PRIVATE static Handle<FixedArray> SetAndGrow(
       Isolate* isolate, Handle<FixedArray> array, int index,
-      Handle<Object> value, AllocationType allocation = AllocationType::kYoung);
+      Handle<Object> value);
 
   // Setter that uses write barrier.
   inline void set(int index, Object value);

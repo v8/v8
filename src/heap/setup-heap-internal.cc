@@ -704,8 +704,7 @@ void Heap::CreateInitialObjects() {
                            Oddball::kStaleRegister));
 
   // Initialize the self-reference marker.
-  set_self_reference_marker(
-      *factory->NewSelfReferenceMarker(AllocationType::kReadOnly));
+  set_self_reference_marker(*factory->NewSelfReferenceMarker());
 
   set_interpreter_entry_trampoline_for_profiling(roots.undefined_value());
 

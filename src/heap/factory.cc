@@ -358,24 +358,23 @@ Handle<TemplateObjectDescription> Factory::NewTemplateObjectDescription(
 
 Handle<Oddball> Factory::NewOddball(Handle<Map> map, const char* to_string,
                                     Handle<Object> to_number,
-                                    const char* type_of, byte kind,
-                                    AllocationType allocation) {
-  Handle<Oddball> oddball(Oddball::cast(New(map, allocation)), isolate());
+                                    const char* type_of, byte kind) {
+  Handle<Oddball> oddball(Oddball::cast(New(map, AllocationType::kReadOnly)),
+                          isolate());
   Oddball::Initialize(isolate(), oddball, to_string, to_number, type_of, kind);
   return oddball;
 }
 
-Handle<Oddball> Factory::NewSelfReferenceMarker(AllocationType allocation) {
+Handle<Oddball> Factory::NewSelfReferenceMarker() {
   return NewOddball(self_reference_marker_map(), "self_reference_marker",
                     handle(Smi::FromInt(-1), isolate()), "undefined",
-                    Oddball::kSelfReferenceMarker, allocation);
+                    Oddball::kSelfReferenceMarker);
 }
 
-Handle<PropertyArray> Factory::NewPropertyArray(int length,
-                                                AllocationType allocation) {
+Handle<PropertyArray> Factory::NewPropertyArray(int length) {
   DCHECK_LE(0, length);
   if (length == 0) return empty_property_array();
-  HeapObject result = AllocateRawFixedArray(length, allocation);
+  HeapObject result = AllocateRawFixedArray(length, AllocationType::kYoung);
   result.set_map_after_allocation(*property_array_map(), SKIP_WRITE_BARRIER);
   Handle<PropertyArray> array(PropertyArray::cast(result), isolate());
   array->initialize_length(length);
@@ -419,7 +418,7 @@ Handle<T> Factory::NewWeakFixedArrayWithMap(RootIndex map_root_index,
   DCHECK_LT(0, length);
 
   HeapObject result =
-      AllocateRawArray(WeakFixedArray::SizeFor(length), allocation);
+      AllocateRawArray(WeakFixedArray::SizeFor(length), AllocationType::kOld);
   Map map = Map::cast(isolate()->root(map_root_index));
   result.set_map_after_allocation(map, SKIP_WRITE_BARRIER);
 
@@ -485,8 +484,7 @@ Handle<FixedArray> Factory::NewFixedArrayWithHoles(int length,
                                  *the_hole_value(), allocation);
 }
 
-Handle<FixedArray> Factory::NewUninitializedFixedArray(
-    int length, AllocationType allocation) {
+Handle<FixedArray> Factory::NewUninitializedFixedArray(int length) {
   DCHECK_LE(0, length);
   if (length == 0) return empty_fixed_array();
 
@@ -494,30 +492,30 @@ Handle<FixedArray> Factory::NewUninitializedFixedArray(
   // array. After getting canary/performance coverage, either remove the
   // function or revert to returning uninitilized array.
   return NewFixedArrayWithFiller(RootIndex::kFixedArrayMap, length,
-                                 *undefined_value(), allocation);
+                                 *undefined_value(), AllocationType::kYoung);
 }
 
 Handle<ClosureFeedbackCellArray> Factory::NewClosureFeedbackCellArray(
-    int length, AllocationType allocation) {
+    int length) {
   if (length == 0) return empty_closure_feedback_cell_array();
 
   Handle<ClosureFeedbackCellArray> feedback_cell_array =
       NewFixedArrayWithMap<ClosureFeedbackCellArray>(
-          RootIndex::kClosureFeedbackCellArrayMap, length, allocation);
+          RootIndex::kClosureFeedbackCellArrayMap, length,
+          AllocationType::kYoung);
 
   return feedback_cell_array;
 }
 
 Handle<FeedbackVector> Factory::NewFeedbackVector(
     Handle<SharedFunctionInfo> shared,
-    Handle<ClosureFeedbackCellArray> closure_feedback_cell_array,
-    AllocationType allocation) {
+    Handle<ClosureFeedbackCellArray> closure_feedback_cell_array) {
   int length = shared->feedback_metadata().slot_count();
   DCHECK_LE(0, length);
   int size = FeedbackVector::SizeFor(length);
 
-  HeapObject result =
-      AllocateRawWithImmortalMap(size, allocation, *feedback_vector_map());
+  HeapObject result = AllocateRawWithImmortalMap(size, AllocationType::kOld,
+                                                 *feedback_vector_map());
   Handle<FeedbackVector> vector(FeedbackVector::cast(result), isolate());
   vector->set_shared_function_info(*shared);
   vector->set_optimized_code_weak_or_smi(MaybeObject::FromSmi(Smi::FromEnum(
@@ -534,13 +532,12 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
   return vector;
 }
 
-Handle<EmbedderDataArray> Factory::NewEmbedderDataArray(
-    int length, AllocationType allocation) {
+Handle<EmbedderDataArray> Factory::NewEmbedderDataArray(int length) {
   DCHECK_LE(0, length);
   int size = EmbedderDataArray::SizeFor(length);
 
-  HeapObject result =
-      AllocateRawWithImmortalMap(size, allocation, *embedder_data_array_map());
+  HeapObject result = AllocateRawWithImmortalMap(size, AllocationType::kYoung,
+                                                 *embedder_data_array_map());
   Handle<EmbedderDataArray> array(EmbedderDataArray::cast(result), isolate());
   array->set_length(length);
 
@@ -604,10 +601,10 @@ Handle<FixedArrayBase> Factory::NewFixedDoubleArray(int length,
   return array;
 }
 
-Handle<FixedArrayBase> Factory::NewFixedDoubleArrayWithHoles(
-    int length, AllocationType allocation) {
+Handle<FixedArrayBase> Factory::NewFixedDoubleArrayWithHoles(int length) {
   DCHECK_LE(0, length);
-  Handle<FixedArrayBase> array = NewFixedDoubleArray(length, allocation);
+  Handle<FixedArrayBase> array =
+      NewFixedDoubleArray(length, AllocationType::kYoung);
   if (length > 0) {
     Handle<FixedDoubleArray>::cast(array)->FillWithHoles(0, length);
   }
@@ -633,11 +630,10 @@ Handle<FeedbackMetadata> Factory::NewFeedbackMetadata(
   return data;
 }
 
-Handle<FrameArray> Factory::NewFrameArray(int number_of_frames,
-                                          AllocationType allocation) {
+Handle<FrameArray> Factory::NewFrameArray(int number_of_frames) {
   DCHECK_LE(0, number_of_frames);
-  Handle<FixedArray> result = NewFixedArrayWithHoles(
-      FrameArray::LengthFor(number_of_frames), allocation);
+  Handle<FixedArray> result =
+      NewFixedArrayWithHoles(FrameArray::LengthFor(number_of_frames));
   result->set(FrameArray::kFrameCountIndex, Smi::kZero);
   return Handle<FrameArray>::cast(result);
 }
@@ -1648,20 +1644,16 @@ Handle<AccessorInfo> Factory::NewAccessorInfo() {
   return info;
 }
 
-Handle<Script> Factory::NewScript(Handle<String> source,
-                                  AllocationType allocation) {
-  return NewScriptWithId(source, isolate()->heap()->NextScriptId(), allocation);
+Handle<Script> Factory::NewScript(Handle<String> source) {
+  return NewScriptWithId(source, isolate()->heap()->NextScriptId());
 }
 
-Handle<Script> Factory::NewScriptWithId(Handle<String> source, int script_id,
-                                        AllocationType allocation) {
-  DCHECK(allocation == AllocationType::kOld ||
-         allocation == AllocationType::kReadOnly);
+Handle<Script> Factory::NewScriptWithId(Handle<String> source, int script_id) {
   // Create and initialize script object.
   Heap* heap = isolate()->heap();
   ReadOnlyRoots roots(heap);
   Handle<Script> script =
-      Handle<Script>::cast(NewStruct(SCRIPT_TYPE, allocation));
+      Handle<Script>::cast(NewStruct(SCRIPT_TYPE, AllocationType::kOld));
   script->set_source(*source);
   script->set_name(roots.undefined_value());
   script->set_id(script_id);
@@ -1748,12 +1740,12 @@ Handle<PromiseResolveThenableJobTask> Factory::NewPromiseResolveThenableJobTask(
   return microtask;
 }
 
-Handle<Foreign> Factory::NewForeign(Address addr, AllocationType allocation) {
+Handle<Foreign> Factory::NewForeign(Address addr) {
   // Statically ensure that it is safe to allocate foreigns in paged spaces.
   STATIC_ASSERT(Foreign::kSize <= kMaxRegularHeapObjectSize);
   Map map = *foreign_map();
-  HeapObject result =
-      AllocateRawWithImmortalMap(map.instance_size(), allocation, map);
+  HeapObject result = AllocateRawWithImmortalMap(map.instance_size(),
+                                                 AllocationType::kYoung, map);
   Handle<Foreign> foreign(Foreign::cast(result), isolate());
   foreign->set_foreign_address(addr);
   return foreign;
@@ -2120,9 +2112,9 @@ Handle<FixedArray> Factory::CopyFixedArrayAndGrow(Handle<FixedArray> array,
 }
 
 Handle<WeakFixedArray> Factory::CopyWeakFixedArrayAndGrow(
-    Handle<WeakFixedArray> src, int grow_by, AllocationType allocation) {
+    Handle<WeakFixedArray> src, int grow_by) {
   DCHECK(!src->IsTransitionArray());  // Compacted by GC, this code doesn't work
-  return CopyArrayAndGrow(src, grow_by, allocation);
+  return CopyArrayAndGrow(src, grow_by, AllocationType::kOld);
 }
 
 Handle<WeakArrayList> Factory::CopyWeakArrayListAndGrow(
@@ -2149,8 +2141,8 @@ Handle<WeakArrayList> Factory::CopyWeakArrayListAndGrow(
 }
 
 Handle<PropertyArray> Factory::CopyPropertyArrayAndGrow(
-    Handle<PropertyArray> array, int grow_by, AllocationType allocation) {
-  return CopyArrayAndGrow(array, grow_by, allocation);
+    Handle<PropertyArray> array, int grow_by) {
+  return CopyArrayAndGrow(array, grow_by, AllocationType::kYoung);
 }
 
 Handle<FixedArray> Factory::CopyFixedArrayUpTo(Handle<FixedArray> array,
@@ -2746,9 +2738,8 @@ Handle<JSObject> Factory::NewJSObject(Handle<JSFunction> constructor,
   return NewJSObjectFromMap(map, allocation);
 }
 
-Handle<JSObject> Factory::NewJSObjectWithNullProto(AllocationType allocation) {
-  Handle<JSObject> result =
-      NewJSObject(isolate()->object_function(), allocation);
+Handle<JSObject> Factory::NewJSObjectWithNullProto() {
+  Handle<JSObject> result = NewJSObject(isolate()->object_function());
   Handle<Map> new_map = Map::Copy(
       isolate(), Handle<Map>(result->map(), isolate()), "ObjectWithNullProto");
   Map::SetPrototype(isolate(), new_map, null_value());
@@ -2897,13 +2888,14 @@ Handle<JSObject> Factory::NewSlowJSObjectFromMap(
 
 Handle<JSObject> Factory::NewSlowJSObjectWithPropertiesAndElements(
     Handle<HeapObject> prototype, Handle<NameDictionary> properties,
-    Handle<FixedArrayBase> elements, AllocationType allocation) {
+    Handle<FixedArrayBase> elements) {
   Handle<Map> object_map = isolate()->slow_object_with_object_prototype_map();
   if (object_map->prototype() != *prototype) {
     object_map = Map::TransitionToPrototype(isolate(), object_map, prototype);
   }
   DCHECK(object_map->is_dictionary_map());
-  Handle<JSObject> object = NewJSObjectFromMap(object_map, allocation);
+  Handle<JSObject> object =
+      NewJSObjectFromMap(object_map, AllocationType::kYoung);
   object->set_raw_properties_or_hash(*properties);
   if (*elements != ReadOnlyRoots(isolate()).empty_fixed_array()) {
     DCHECK(elements->IsNumberDictionary());
@@ -3125,13 +3117,12 @@ MaybeHandle<JSArrayBuffer> Factory::NewJSArrayBufferAndBackingStore(
   return array_buffer;
 }
 
-Handle<JSArrayBuffer> Factory::NewJSSharedArrayBuffer(
-    AllocationType allocation) {
+Handle<JSArrayBuffer> Factory::NewJSSharedArrayBuffer() {
   Handle<Map> map(
       isolate()->native_context()->shared_array_buffer_fun().initial_map(),
       isolate());
-  auto result =
-      Handle<JSArrayBuffer>::cast(NewJSObjectFromMap(map, allocation));
+  auto result = Handle<JSArrayBuffer>::cast(
+      NewJSObjectFromMap(map, AllocationType::kYoung));
   ZeroEmbedderFields(result);
   result->SetupEmpty(SharedFlag::kShared);
   return result;
@@ -3212,13 +3203,12 @@ void ForFixedTypedArray(ExternalArrayType array_type, size_t* element_size,
 
 Handle<JSArrayBufferView> Factory::NewJSArrayBufferView(
     Handle<Map> map, Handle<FixedArrayBase> elements,
-    Handle<JSArrayBuffer> buffer, size_t byte_offset, size_t byte_length,
-    AllocationType allocation) {
+    Handle<JSArrayBuffer> buffer, size_t byte_offset, size_t byte_length) {
   CHECK_LE(byte_length, buffer->byte_length());
   CHECK_LE(byte_offset, buffer->byte_length());
   CHECK_LE(byte_offset + byte_length, buffer->byte_length());
-  Handle<JSArrayBufferView> array_buffer_view =
-      Handle<JSArrayBufferView>::cast(NewJSObjectFromMap(map, allocation));
+  Handle<JSArrayBufferView> array_buffer_view = Handle<JSArrayBufferView>::cast(
+      NewJSObjectFromMap(map, AllocationType::kYoung));
   array_buffer_view->set_elements(*elements);
   array_buffer_view->set_buffer(*buffer);
   array_buffer_view->set_byte_offset(byte_offset);
@@ -3231,8 +3221,8 @@ Handle<JSArrayBufferView> Factory::NewJSArrayBufferView(
 
 Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
                                               Handle<JSArrayBuffer> buffer,
-                                              size_t byte_offset, size_t length,
-                                              AllocationType allocation) {
+                                              size_t byte_offset,
+                                              size_t length) {
   size_t element_size;
   ElementsKind elements_kind;
   ForFixedTypedArray(type, &element_size, &elements_kind);
@@ -3257,9 +3247,9 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
     default:
       UNREACHABLE();
   }
-  Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(
-      NewJSArrayBufferView(map, empty_byte_array(), buffer, byte_offset,
-                           byte_length, allocation));
+  Handle<JSTypedArray> typed_array =
+      Handle<JSTypedArray>::cast(NewJSArrayBufferView(
+          map, empty_byte_array(), buffer, byte_offset, byte_length));
   typed_array->set_length(length);
   typed_array->set_external_pointer(
       reinterpret_cast<byte*>(buffer->backing_store()) + byte_offset);
@@ -3269,12 +3259,11 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
 
 Handle<JSDataView> Factory::NewJSDataView(Handle<JSArrayBuffer> buffer,
                                           size_t byte_offset,
-                                          size_t byte_length,
-                                          AllocationType allocation) {
+                                          size_t byte_length) {
   Handle<Map> map(isolate()->native_context()->data_view_fun().initial_map(),
                   isolate());
   Handle<JSDataView> obj = Handle<JSDataView>::cast(NewJSArrayBufferView(
-      map, empty_fixed_array(), buffer, byte_offset, byte_length, allocation));
+      map, empty_fixed_array(), buffer, byte_offset, byte_length));
   obj->set_data_pointer(static_cast<uint8_t*>(buffer->backing_store()) +
                         byte_offset);
   return obj;
@@ -4177,17 +4166,17 @@ Handle<Map> Factory::CreateClassFunctionMap(Handle<JSFunction> empty_function) {
   return map;
 }
 
-Handle<JSPromise> Factory::NewJSPromiseWithoutHook(AllocationType allocation) {
-  Handle<JSPromise> promise = Handle<JSPromise>::cast(
-      NewJSObject(isolate()->promise_function(), allocation));
+Handle<JSPromise> Factory::NewJSPromiseWithoutHook() {
+  Handle<JSPromise> promise =
+      Handle<JSPromise>::cast(NewJSObject(isolate()->promise_function()));
   promise->set_reactions_or_result(Smi::kZero);
   promise->set_flags(0);
   ZeroEmbedderFields(promise);
   return promise;
 }
 
-Handle<JSPromise> Factory::NewJSPromise(AllocationType allocation) {
-  Handle<JSPromise> promise = NewJSPromiseWithoutHook(allocation);
+Handle<JSPromise> Factory::NewJSPromise() {
+  Handle<JSPromise> promise = NewJSPromiseWithoutHook();
   isolate()->RunPromiseHook(PromiseHookType::kInit, promise, undefined_value());
   return promise;
 }

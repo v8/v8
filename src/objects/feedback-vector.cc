@@ -233,8 +233,8 @@ Handle<FeedbackVector> FeedbackVector::New(
 
   const int slot_count = shared->feedback_metadata().slot_count();
 
-  Handle<FeedbackVector> vector = factory->NewFeedbackVector(
-      shared, closure_feedback_cell_array, AllocationType::kOld);
+  Handle<FeedbackVector> vector =
+      factory->NewFeedbackVector(shared, closure_feedback_cell_array);
 
   DCHECK_EQ(vector->length(), slot_count);
 

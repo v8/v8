@@ -3816,8 +3816,7 @@ bool DescriptorArray::IsEqualUpTo(DescriptorArray desc, int nof_descriptors) {
 
 Handle<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
                                           Handle<FixedArray> array, int index,
-                                          Handle<Object> value,
-                                          AllocationType allocation) {
+                                          Handle<Object> value) {
   if (index < array->length()) {
     array->set(index, *value);
     return array;
@@ -3827,7 +3826,7 @@ Handle<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
     capacity = JSObject::NewElementsCapacity(capacity);
   } while (capacity <= index);
   Handle<FixedArray> new_array =
-      isolate->factory()->NewUninitializedFixedArray(capacity, allocation);
+      isolate->factory()->NewUninitializedFixedArray(capacity);
   array->CopyTo(0, *new_array, 0, array->length());
   new_array->FillWithHoles(array->length(), new_array->length());
   new_array->set(index, *value);
@@ -6913,7 +6912,7 @@ void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache, int cache_entry,
     if (entry < 0) {
       // Copy old optimized code map and append one new entry.
       new_literals_map = isolate->factory()->CopyWeakFixedArrayAndGrow(
-          old_literals_map, kLiteralEntryLength, AllocationType::kOld);
+          old_literals_map, kLiteralEntryLength);
       entry = old_literals_map->length();
     }
   }

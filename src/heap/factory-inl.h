@@ -43,25 +43,23 @@ Handle<String> Factory::NewSubString(Handle<String> str, int begin, int end) {
   return NewProperSubString(str, begin, end);
 }
 
-Handle<Object> Factory::NewNumberFromSize(size_t value,
-                                          AllocationType allocation) {
+Handle<Object> Factory::NewNumberFromSize(size_t value) {
   // We can't use Smi::IsValid() here because that operates on a signed
   // intptr_t, and casting from size_t could create a bogus sign bit.
   if (value <= static_cast<size_t>(Smi::kMaxValue)) {
     return Handle<Object>(Smi::FromIntptr(static_cast<intptr_t>(value)),
                           isolate());
   }
-  return NewNumber(static_cast<double>(value), allocation);
+  return NewNumber(static_cast<double>(value));
 }
 
-Handle<Object> Factory::NewNumberFromInt64(int64_t value,
-                                           AllocationType allocation) {
+Handle<Object> Factory::NewNumberFromInt64(int64_t value) {
   if (value <= std::numeric_limits<int32_t>::max() &&
       value >= std::numeric_limits<int32_t>::min() &&
       Smi::IsValid(static_cast<int32_t>(value))) {
     return Handle<Object>(Smi::FromInt(static_cast<int32_t>(value)), isolate());
   }
-  return NewNumber(static_cast<double>(value), allocation);
+  return NewNumber(static_cast<double>(value));
 }
 
 Handle<HeapNumber> Factory::NewHeapNumber(double value,
@@ -78,9 +76,8 @@ Handle<HeapNumber> Factory::NewHeapNumberFromBits(uint64_t bits,
   return heap_number;
 }
 
-Handle<HeapNumber> Factory::NewHeapNumberWithHoleNaN(
-    AllocationType allocation) {
-  return NewHeapNumberFromBits(kHoleNanInt64, allocation);
+Handle<HeapNumber> Factory::NewHeapNumberWithHoleNaN() {
+  return NewHeapNumberFromBits(kHoleNanInt64);
 }
 
 Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArrayBase> elements,
