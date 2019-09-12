@@ -3024,6 +3024,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
           JSPluralRules::kSize, 0, factory->the_hole_value(),
           Builtins::kPluralRulesConstructor);
       plural_rules_constructor->shared().DontAdaptArguments();
+      InstallWithIntrinsicDefaultProto(
+          isolate_, plural_rules_constructor,
+          Context::INTL_PLURAL_RULES_FUNCTION_INDEX);
 
       SimpleInstallFunction(isolate(), plural_rules_constructor,
                             "supportedLocalesOf",
@@ -3042,13 +3045,16 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                             Builtins::kPluralRulesPrototypeSelect, 1, false);
     }
 
-    {  // -- R e l a t i v e T i m e F o r m a t e
+    {  // -- R e l a t i v e T i m e F o r m a t
       Handle<JSFunction> relative_time_format_fun = InstallFunction(
           isolate(), intl, "RelativeTimeFormat",
           JS_INTL_RELATIVE_TIME_FORMAT_TYPE, JSRelativeTimeFormat::kSize, 0,
           factory->the_hole_value(), Builtins::kRelativeTimeFormatConstructor);
       relative_time_format_fun->shared().set_length(0);
       relative_time_format_fun->shared().DontAdaptArguments();
+      InstallWithIntrinsicDefaultProto(
+          isolate_, relative_time_format_fun,
+          Context::INTL_RELATIVE_TIME_FORMAT_FUNCTION_INDEX);
 
       SimpleInstallFunction(
           isolate(), relative_time_format_fun, "supportedLocalesOf",
@@ -3079,6 +3085,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
           Builtins::kListFormatConstructor);
       list_format_fun->shared().set_length(0);
       list_format_fun->shared().DontAdaptArguments();
+      InstallWithIntrinsicDefaultProto(
+          isolate_, list_format_fun, Context::INTL_LIST_FORMAT_FUNCTION_INDEX);
 
       SimpleInstallFunction(isolate(), list_format_fun, "supportedLocalesOf",
                             Builtins::kListFormatSupportedLocalesOf, 1, false);
@@ -4454,6 +4462,8 @@ void Genesis::InitializeGlobal_harmony_intl_segmenter() {
       0, factory()->the_hole_value(), Builtins::kSegmenterConstructor);
   segmenter_fun->shared().set_length(0);
   segmenter_fun->shared().DontAdaptArguments();
+  InstallWithIntrinsicDefaultProto(isolate_, segmenter_fun,
+                                   Context::INTL_SEGMENTER_FUNCTION_INDEX);
 
   SimpleInstallFunction(isolate(), segmenter_fun, "supportedLocalesOf",
                         Builtins::kSegmenterSupportedLocalesOf, 1, false);

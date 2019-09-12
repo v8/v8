@@ -792,9 +792,6 @@
   'language/statements/class/ident-name-method-def-while-escaped': [FAIL],
   'language/statements/class/ident-name-method-def-with-escaped': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9712
-  'intl402/PluralRules/proto-from-ctor-realm': [FAIL],
-
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
