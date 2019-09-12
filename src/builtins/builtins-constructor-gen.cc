@@ -263,13 +263,12 @@ TNode<Context> ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
   TNode<Oddball> undefined = UndefinedConstant();
   TNode<IntPtrT> start_offset = IntPtrConstant(Context::kTodoHeaderSize);
   CodeStubAssembler::VariableList vars(0, zone());
-  BuildFastLoop(
+  BuildFastLoop<IntPtrT>(
       vars, start_offset, size,
-      [=](SloppyTNode<IntPtrT> offset) {
-        StoreObjectFieldNoWriteBarrier(
-            function_context, UncheckedCast<IntPtrT>(offset), undefined);
+      [=](TNode<IntPtrT> offset) {
+        StoreObjectFieldNoWriteBarrier(function_context, offset, undefined);
       },
-      kTaggedSize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+      kTaggedSize, IndexAdvanceMode::kPost);
   return function_context;
 }
 
@@ -571,18 +570,18 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
     BIND(&continue_with_write_barrier);
     {
       Comment("Copy in-object properties slow");
-      BuildFastLoop(
+      BuildFastLoop<IntPtrT>(
           offset.value(), instance_size,
-          [=](SloppyTNode<IntPtrT> offset) {
+          [=](TNode<IntPtrT> offset) {
             // TODO(ishell): value decompression is not necessary here.
             TNode<Object> field = LoadObjectField(boilerplate, offset);
             StoreObjectFieldNoWriteBarrier(copy, offset, field);
           },
-          kTaggedSize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+          kTaggedSize, IndexAdvanceMode::kPost);
       Comment("Copy mutable HeapNumber values");
-      BuildFastLoop(
+      BuildFastLoop<IntPtrT>(
           offset.value(), instance_size,
-          [=](SloppyTNode<IntPtrT> offset) {
+          [=](TNode<IntPtrT> offset) {
             TNode<Object> field = LoadObjectField(copy, offset);
             Label copy_heap_number(this, Label::kDeferred), continue_loop(this);
             // We only have to clone complex field values.
@@ -601,7 +600,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
             }
             BIND(&continue_loop);
           },
-          kTaggedSize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+          kTaggedSize, IndexAdvanceMode::kPost);
       Goto(&done_init);
     }
     BIND(&done_init);

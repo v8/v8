@@ -3882,30 +3882,28 @@ void AccessorAssembler::GenerateCloneObjectIC() {
 
     // Just copy the fields as raw data (pretending that there are no mutable
     // HeapNumbers). This doesn't need write barriers.
-    BuildFastLoop(
+    BuildFastLoop<IntPtrT>(
         source_start, source_size,
-        [=](Node* field_index) {
-          TNode<IntPtrT> field_offset =
-              TimesTaggedSize(UncheckedCast<IntPtrT>(field_index));
+        [=](TNode<IntPtrT> field_index) {
+          TNode<IntPtrT> field_offset = TimesTaggedSize(field_index);
           TNode<TaggedT> field =
               LoadObjectField<TaggedT>(CAST(source), field_offset);
           TNode<IntPtrT> result_offset =
               IntPtrAdd(field_offset, field_offset_difference);
           StoreObjectFieldNoWriteBarrier(object, result_offset, field);
         },
-        1, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+        1, IndexAdvanceMode::kPost);
 
     // If mutable HeapNumbers can occur, we need to go through the {object}
     // again here and properly clone them. We use a second loop here to
     // ensure that the GC (and heap verifier) always sees properly initialized
     // objects, i.e. never hits undefined values in double fields.
     if (!FLAG_unbox_double_fields) {
-      BuildFastLoop(
+      BuildFastLoop<IntPtrT>(
           source_start, source_size,
-          [=](Node* field_index) {
-            TNode<IntPtrT> result_offset =
-                IntPtrAdd(TimesTaggedSize(UncheckedCast<IntPtrT>(field_index)),
-                          field_offset_difference);
+          [=](TNode<IntPtrT> field_index) {
+            TNode<IntPtrT> result_offset = IntPtrAdd(
+                TimesTaggedSize(field_index), field_offset_difference);
             TNode<Object> field = LoadObjectField(object, result_offset);
             Label if_done(this), if_mutableheapnumber(this, Label::kDeferred);
             GotoIf(TaggedIsSmi(field), &if_done);
@@ -3919,7 +3917,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
             }
             BIND(&if_done);
           },
-          1, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+          1, IndexAdvanceMode::kPost);
     }
 
     Return(object);

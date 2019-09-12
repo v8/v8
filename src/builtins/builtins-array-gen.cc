@@ -224,16 +224,8 @@ void ArrayBuiltinsAssembler::VisitAllTypedArrayElements(
     ForEachDirection direction, TNode<JSTypedArray> typed_array) {
   VariableList list({&a_, &k_, &to_}, zone());
 
-  FastLoopBody body = [&](Node* index) {
-    GotoIf(IsDetachedBuffer(CAST(array_buffer)), detached);
-    TNode<RawPtrT> data_ptr = LoadJSTypedArrayBackingStore(typed_array);
-    auto value = LoadFixedTypedArrayElementAsTagged(
-        data_ptr, index, source_elements_kind_, SMI_PARAMETERS);
-    k_.Bind(index);
-    a_.Bind(processor(this, value, index));
-  };
-  Node* start = SmiConstant(0);
-  Node* end = len_;
+  TNode<Smi> start = SmiConstant(0);
+  TNode<Smi> end = CAST(len_);
   IndexAdvanceMode advance_mode = IndexAdvanceMode::kPost;
   int incr = 1;
   if (direction == ForEachDirection::kReverse) {
@@ -241,8 +233,17 @@ void ArrayBuiltinsAssembler::VisitAllTypedArrayElements(
     advance_mode = IndexAdvanceMode::kPre;
     incr = -1;
   }
-  BuildFastLoop(list, start, end, body, incr, ParameterMode::SMI_PARAMETERS,
-                advance_mode);
+  BuildFastLoop<Smi>(
+      list, start, end,
+      [&](TNode<Smi> index) {
+        GotoIf(IsDetachedBuffer(CAST(array_buffer)), detached);
+        TNode<RawPtrT> data_ptr = LoadJSTypedArrayBackingStore(typed_array);
+        TNode<Object> value = LoadFixedTypedArrayElementAsTagged(
+            data_ptr, index, source_elements_kind_, SMI_PARAMETERS);
+        k_.Bind(index);
+        a_.Bind(processor(this, value, index));
+      },
+      incr, advance_mode);
 }
 
 // Perform ArraySpeciesCreate (ES6 #sec-arrayspeciescreate).

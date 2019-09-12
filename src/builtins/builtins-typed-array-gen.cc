@@ -735,9 +735,9 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
   DispatchTypedArrayByElementsKind(
       elements_kind,
       [&](ElementsKind kind, int size, int typed_array_fun_index) {
-        BuildFastLoop(
+        BuildFastLoop<IntPtrT>(
             IntPtrConstant(0), length,
-            [&](Node* index) {
+            [&](TNode<IntPtrT> index) {
               TNode<Object> item = args.AtIndex(index, INTPTR_PARAMETERS);
               Node* value =
                   PrepareValueForWriteToTypedArray(item, kind, context);
@@ -755,7 +755,7 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
               StoreElement(backing_store, kind, index, value,
                            INTPTR_PARAMETERS);
             },
-            1, ParameterMode::INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+            1, IndexAdvanceMode::kPost);
       });
 
   // 8. Return newObj.
@@ -948,9 +948,9 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
   TNode<Int32T> elements_kind = LoadElementsKind(target_obj.value());
 
   // 7e/13 : Copy the elements
-  BuildFastLoop(
+  BuildFastLoop<Smi>(
       SmiConstant(0), final_length.value(),
-      [&](Node* index) {
+      [&](TNode<Smi> index) {
         TNode<Object> const k_value =
             GetProperty(context, final_source.value(), index);
 
@@ -978,7 +978,7 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
                            SMI_PARAMETERS);
             });
       },
-      1, ParameterMode::SMI_PARAMETERS, IndexAdvanceMode::kPost);
+      1, IndexAdvanceMode::kPost);
 
   args.PopAndReturn(target_obj.value());
 

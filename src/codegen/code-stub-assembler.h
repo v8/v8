@@ -1663,8 +1663,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void BuildAppendJSArray(ElementsKind kind, Node* array, Node* value,
                           Label* bailout);
 
-  void StoreFieldsNoWriteBarrier(Node* start_address, Node* end_address,
-                                 Node* value);
+  void StoreFieldsNoWriteBarrier(TNode<IntPtrT> start_address,
+                                 TNode<IntPtrT> end_address,
+                                 TNode<Object> value);
 
   Node* AllocateCellWithValue(Node* value,
                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -1763,7 +1764,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<CollectionType> AllocateSmallOrderedHashTable(TNode<IntPtrT> capacity);
 
   Node* AllocateStruct(Node* map, AllocationFlags flags = kNone);
-  void InitializeStructBody(Node* object, Node* map, Node* size,
+  void InitializeStructBody(TNode<HeapObject> object, TNode<IntPtrT> size,
                             int start_offset = Struct::kHeaderSize);
 
   TNode<JSObject> AllocateJSObjectFromMap(
@@ -1772,14 +1773,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       SlackTrackingMode slack_tracking_mode = kNoSlackTracking);
 
   void InitializeJSObjectFromMap(
-      Node* object, Node* map, Node* instance_size, Node* properties = nullptr,
+      SloppyTNode<HeapObject> object, SloppyTNode<Map> map,
+      SloppyTNode<IntPtrT> instance_size, Node* properties = nullptr,
       Node* elements = nullptr,
       SlackTrackingMode slack_tracking_mode = kNoSlackTracking);
 
-  void InitializeJSObjectBodyWithSlackTracking(Node* object, Node* map,
-                                               Node* instance_size);
+  void InitializeJSObjectBodyWithSlackTracking(
+      SloppyTNode<HeapObject> object, SloppyTNode<Map> map,
+      SloppyTNode<IntPtrT> instance_size);
   void InitializeJSObjectBodyNoSlackTracking(
-      Node* object, Node* map, Node* instance_size,
+      SloppyTNode<HeapObject> object, SloppyTNode<Map> map,
+      SloppyTNode<IntPtrT> instance_size,
       int start_offset = JSObject::kHeaderSize);
 
   TNode<BoolT> IsValidFastJSArrayCapacity(Node* capacity,
@@ -3310,37 +3314,22 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   enum class IndexAdvanceMode { kPre, kPost };
 
-  // TODO(v8:9708): typify index parameter.
-  using FastLoopBody = std::function<void(Node* index)>;
+  template <typename TIndex>
+  using FastLoopBody = std::function<void(TNode<TIndex> index)>;
 
   template <typename TIndex>
   TNode<TIndex> BuildFastLoop(
       const VariableList& var_list, TNode<TIndex> start_index,
-      TNode<TIndex> end_index, const FastLoopBody& body, int increment,
+      TNode<TIndex> end_index, const FastLoopBody<TIndex>& body, int increment,
       IndexAdvanceMode advance_mode = IndexAdvanceMode::kPre);
 
   template <typename TIndex>
   TNode<TIndex> BuildFastLoop(
       TNode<TIndex> start_index, TNode<TIndex> end_index,
-      const FastLoopBody& body, int increment,
+      const FastLoopBody<TIndex>& body, int increment,
       IndexAdvanceMode advance_mode = IndexAdvanceMode::kPre) {
     return BuildFastLoop(VariableList(0, zone()), start_index, end_index, body,
                          increment, advance_mode);
-  }
-
-  // TODO(v8:9708): remove once all uses are ported.
-  Node* BuildFastLoop(const VariableList& var_list, Node* start_index,
-                      Node* end_index, const FastLoopBody& body, int increment,
-                      ParameterMode parameter_mode,
-                      IndexAdvanceMode advance_mode = IndexAdvanceMode::kPre);
-
-  // TODO(v8:9708): remove once all uses are ported.
-  Node* BuildFastLoop(Node* start_index, Node* end_index,
-                      const FastLoopBody& body, int increment,
-                      ParameterMode parameter_mode,
-                      IndexAdvanceMode advance_mode = IndexAdvanceMode::kPre) {
-    return BuildFastLoop(VariableList(0, zone()), start_index, end_index, body,
-                         increment, parameter_mode, advance_mode);
   }
 
   enum class ForEachDirection { kForward, kReverse };
@@ -3387,8 +3376,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                                Label* doesnt_fit, int base_size,
                                                ParameterMode mode);
 
-  void InitializeFieldsWithRoot(Node* object, Node* start_offset,
-                                Node* end_offset, RootIndex root);
+  void InitializeFieldsWithRoot(TNode<HeapObject> object,
+                                TNode<IntPtrT> start_offset,
+                                TNode<IntPtrT> end_offset, RootIndex root);
 
   Node* RelationalComparison(Operation op, SloppyTNode<Object> left,
                              SloppyTNode<Object> right,

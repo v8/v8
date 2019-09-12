@@ -262,16 +262,17 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
     TVARIABLE(IntPtrT, current_argument,
               Signed(arguments.AtIndexPtr(info.argument_count, mode)));
     VariableList var_list1({&current_argument}, zone());
-    mapped_offset = UncheckedCast<IntPtrT>(BuildFastLoop(
+    mapped_offset = BuildFastLoop<IntPtrT>(
         var_list1, argument_offset, mapped_offset,
-        [this, elements, &current_argument](Node* offset) {
+        [&](TNode<IntPtrT> offset) {
           Increment(&current_argument, kSystemPointerSize);
           TNode<Object> arg = LoadBufferObject(
               ReinterpretCast<RawPtrT>(current_argument.value()), 0);
           StoreNoWriteBarrier(MachineRepresentation::kTagged, elements, offset,
                               arg);
+          return;
         },
-        -kTaggedSize, INTPTR_PARAMETERS));
+        -kTaggedSize);
 
     // Copy the parameter slots and the holes in the arguments.
     // We need to fill in mapped_count slots. They index the context,
@@ -295,9 +296,9 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
         IntPtrConstant(kParameterMapHeaderSize - FixedArray::kHeaderSize));
     TNode<IntPtrT> zero_offset = ElementOffsetFromIndex(
         zero, PACKED_ELEMENTS, mode, FixedArray::kHeaderSize - kHeapObjectTag);
-    BuildFastLoop(
+    BuildFastLoop<IntPtrT>(
         var_list2, mapped_offset, zero_offset,
-        [=, &context_index](Node* offset) {
+        [&](TNode<IntPtrT> offset) {
           StoreNoWriteBarrier(MachineRepresentation::kTagged, elements, offset,
                               the_hole);
           StoreNoWriteBarrier(MachineRepresentation::kTagged,
@@ -305,7 +306,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
                               BIntToSmi(context_index.value()));
           Increment(&context_index);
         },
-        -kTaggedSize, INTPTR_PARAMETERS);
+        -kTaggedSize);
 
     result.Bind(argument_object);
     Goto(&done);

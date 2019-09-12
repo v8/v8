@@ -3947,21 +3947,20 @@ Node* CodeStubAssembler::AllocateStruct(Node* map, AllocationFlags flags) {
   TNode<IntPtrT> size = TimesTaggedSize(LoadMapInstanceSizeInWords(map));
   TNode<HeapObject> object = Allocate(size, flags);
   StoreMapNoWriteBarrier(object, map);
-  InitializeStructBody(object, map, size, Struct::kHeaderSize);
+  InitializeStructBody(object, size, Struct::kHeaderSize);
   return object;
 }
 
-void CodeStubAssembler::InitializeStructBody(Node* object, Node* map,
-                                             Node* size, int start_offset) {
-  CSA_SLOW_ASSERT(this, IsMap(map));
+void CodeStubAssembler::InitializeStructBody(TNode<HeapObject> object,
+                                             TNode<IntPtrT> size,
+                                             int start_offset) {
   Comment("InitializeStructBody");
   TNode<Oddball> filler = UndefinedConstant();
   // Calculate the untagged field addresses.
-  object = BitcastTaggedToWord(object);
-  TNode<WordT> start_address =
-      IntPtrAdd(object, IntPtrConstant(start_offset - kHeapObjectTag));
-  TNode<WordT> end_address =
-      IntPtrSub(IntPtrAdd(object, size), IntPtrConstant(kHeapObjectTag));
+  TNode<IntPtrT> start_address =
+      IntPtrAdd(BitcastTaggedToWord(object),
+                IntPtrConstant(start_offset - kHeapObjectTag));
+  TNode<IntPtrT> end_address = IntPtrAdd(start_address, size);
   StoreFieldsNoWriteBarrier(start_address, end_address, filler);
 }
 
@@ -3983,8 +3982,9 @@ TNode<JSObject> CodeStubAssembler::AllocateJSObjectFromMap(
 }
 
 void CodeStubAssembler::InitializeJSObjectFromMap(
-    Node* object, Node* map, Node* instance_size, Node* properties,
-    Node* elements, SlackTrackingMode slack_tracking_mode) {
+    SloppyTNode<HeapObject> object, SloppyTNode<Map> map,
+    SloppyTNode<IntPtrT> instance_size, Node* properties, Node* elements,
+    SlackTrackingMode slack_tracking_mode) {
   CSA_SLOW_ASSERT(this, IsMap(map));
   // This helper assumes that the object is in new-space, as guarded by the
   // check in AllocatedJSObjectFromMap.
@@ -4015,7 +4015,8 @@ void CodeStubAssembler::InitializeJSObjectFromMap(
 }
 
 void CodeStubAssembler::InitializeJSObjectBodyNoSlackTracking(
-    Node* object, Node* map, Node* instance_size, int start_offset) {
+    SloppyTNode<HeapObject> object, SloppyTNode<Map> map,
+    SloppyTNode<IntPtrT> instance_size, int start_offset) {
   STATIC_ASSERT(Map::kNoSlackTracking == 0);
   CSA_ASSERT(
       this, IsClearWord32<Map::ConstructionCounterBits>(LoadMapBitField3(map)));
@@ -4024,8 +4025,8 @@ void CodeStubAssembler::InitializeJSObjectBodyNoSlackTracking(
 }
 
 void CodeStubAssembler::InitializeJSObjectBodyWithSlackTracking(
-    Node* object, Node* map, Node* instance_size) {
-  CSA_SLOW_ASSERT(this, IsMap(map));
+    SloppyTNode<HeapObject> object, SloppyTNode<Map> map,
+    SloppyTNode<IntPtrT> instance_size) {
   Comment("InitializeJSObjectBodyNoSlackTracking");
 
   // Perform in-object slack tracking if requested.
@@ -4053,9 +4054,9 @@ void CodeStubAssembler::InitializeJSObjectBodyWithSlackTracking(
 
     // The object still has in-object slack therefore the |unsed_or_unused|
     // field contain the "used" value.
-    TNode<UintPtrT> used_size = TimesTaggedSize(ChangeUint32ToWord(
+    TNode<IntPtrT> used_size = Signed(TimesTaggedSize(ChangeUint32ToWord(
         LoadObjectField(map, Map::kUsedOrUnusedInstanceSizeInWordsOffset,
-                        MachineType::Uint8())));
+                        MachineType::Uint8()))));
 
     Comment("iInitialize filler fields");
     InitializeFieldsWithRoot(object, used_size, instance_size,
@@ -4084,19 +4085,19 @@ void CodeStubAssembler::InitializeJSObjectBodyWithSlackTracking(
   BIND(&end);
 }
 
-void CodeStubAssembler::StoreFieldsNoWriteBarrier(Node* start_address,
-                                                  Node* end_address,
-                                                  Node* value) {
+void CodeStubAssembler::StoreFieldsNoWriteBarrier(TNode<IntPtrT> start_address,
+                                                  TNode<IntPtrT> end_address,
+                                                  TNode<Object> value) {
   Comment("StoreFieldsNoWriteBarrier");
   CSA_ASSERT(this, WordIsAligned(start_address, kTaggedSize));
   CSA_ASSERT(this, WordIsAligned(end_address, kTaggedSize));
-  BuildFastLoop(
+  BuildFastLoop<IntPtrT>(
       start_address, end_address,
-      [this, value](Node* current) {
+      [=](TNode<IntPtrT> current) {
         UnsafeStoreNoWriteBarrier(MachineRepresentation::kTagged, current,
                                   value);
       },
-      kTaggedSize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+      kTaggedSize, IndexAdvanceMode::kPost);
 }
 
 TNode<BoolT> CodeStubAssembler::IsValidFastJSArrayCapacity(
@@ -5409,7 +5410,7 @@ void CodeStubAssembler::CopyStringCharacters(Node* from_string, Node* to_string,
       ElementOffsetFromIndex(to_index, to_kind, header_size);
   TNode<IntPtrT> byte_count =
       ElementOffsetFromIndex(character_count, from_kind);
-  TNode<WordT> limit_offset = IntPtrAdd(from_offset, byte_count);
+  TNode<IntPtrT> limit_offset = IntPtrAdd(from_offset, byte_count);
 
   // Prepare the fast loop
   MachineType type =
@@ -5427,9 +5428,9 @@ void CodeStubAssembler::CopyStringCharacters(Node* from_string, Node* to_string,
                      (ToInt32Constant(from_index, &from_index_constant) &&
                       ToInt32Constant(to_index, &to_index_constant) &&
                       from_index_constant == to_index_constant));
-  BuildFastLoop(
+  BuildFastLoop<IntPtrT>(
       vars, from_offset, limit_offset,
-      [=, &current_to_offset](Node* offset) {
+      [&](TNode<IntPtrT> offset) {
         Node* value = Load(type, from_string, offset);
         StoreNoWriteBarrier(rep, to_string,
                             index_same ? offset : current_to_offset.value(),
@@ -5438,7 +5439,7 @@ void CodeStubAssembler::CopyStringCharacters(Node* from_string, Node* to_string,
           Increment(&current_to_offset, to_increment);
         }
       },
-      from_increment, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+      from_increment, IndexAdvanceMode::kPost);
 }
 
 Node* CodeStubAssembler::LoadElementAndPrepareForStore(Node* array,
@@ -8381,6 +8382,8 @@ void CodeStubAssembler::Increment(TVariable<TIndex>* variable, int value) {
   *variable =
       IntPtrOrSmiAdd(variable->value(), IntPtrOrSmiConstant<TIndex>(value));
 }
+
+// Instantiate Increment for Smi and IntPtrT.
 template void CodeStubAssembler::Increment<Smi>(TVariable<Smi>* variable,
                                                 int value);
 template void CodeStubAssembler::Increment<IntPtrT>(
@@ -8945,16 +8948,16 @@ void CodeStubAssembler::LookupLinear(TNode<Name> unique_name,
       first_inclusive,
       IntPtrMul(ChangeInt32ToIntPtr(number_of_valid_entries), factor));
 
-  BuildFastLoop(
+  BuildFastLoop<IntPtrT>(
       last_exclusive, first_inclusive,
-      [=](SloppyTNode<IntPtrT> name_index) {
+      [=](TNode<IntPtrT> name_index) {
         TNode<MaybeObject> element =
             LoadArrayElement(array, Array::kHeaderSize, name_index);
         TNode<Name> candidate_name = CAST(element);
         *var_name_index = name_index;
         GotoIf(TaggedEqual(candidate_name, unique_name), if_found);
       },
-      -Array::kEntrySize, INTPTR_PARAMETERS, IndexAdvanceMode::kPre);
+      -Array::kEntrySize, IndexAdvanceMode::kPre);
   Goto(if_not_found);
 }
 
@@ -9142,12 +9145,9 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
   Goto(&descriptor_array_loop);
   BIND(&descriptor_array_loop);
 
-  BuildFastLoop(
+  BuildFastLoop<IntPtrT>(
       list, var_start_key_index.value(), var_end_key_index.value(),
-      [=, &var_stable, &var_has_symbol, &var_is_symbol_processing_loop,
-       &var_start_key_index, &var_end_key_index](Node* index) {
-        TNode<IntPtrT> descriptor_key_index =
-            TNode<IntPtrT>::UncheckedCast(index);
+      [&](TNode<IntPtrT> descriptor_key_index) {
         TNode<Name> next_key =
             LoadKeyByKeyIndex(descriptors, descriptor_key_index);
 
@@ -9282,7 +9282,7 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
         }
         BIND(&next_iteration);
       },
-      DescriptorArray::kEntrySize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+      DescriptorArray::kEntrySize, IndexAdvanceMode::kPost);
 
   if (mode == kEnumerationOrder) {
     Label done(this);
@@ -10245,6 +10245,7 @@ TNode<IntPtrT> CodeStubAssembler::ElementOffsetFromIndex(
   return IntPtrAdd(IntPtrConstant(base_size), Signed(shifted_index));
 }
 
+// Instantiate ElementOffsetFromIndex for Smi and IntPtrT.
 template V8_EXPORT_PRIVATE TNode<IntPtrT>
 CodeStubAssembler::ElementOffsetFromIndex<Smi>(TNode<Smi> index_node,
                                                ElementsKind kind,
@@ -11250,30 +11251,11 @@ TNode<Int32T> CodeStubAssembler::LoadElementsKind(
   return elements_kind;
 }
 
-Node* CodeStubAssembler::BuildFastLoop(
-    const CodeStubAssembler::VariableList& vars, Node* start_index,
-    Node* end_index, const FastLoopBody& body, int increment,
-    ParameterMode parameter_mode, IndexAdvanceMode advance_mode) {
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(start_index, parameter_mode));
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(end_index, parameter_mode));
-
-  if (parameter_mode == SMI_PARAMETERS) {
-    return BuildFastLoop(vars, ReinterpretCast<Smi>(start_index),
-                         ReinterpretCast<Smi>(end_index), body, increment,
-                         advance_mode);
-  } else {
-    DCHECK_EQ(INTPTR_PARAMETERS, parameter_mode);
-    return BuildFastLoop(vars, ReinterpretCast<IntPtrT>(start_index),
-                         ReinterpretCast<IntPtrT>(end_index), body, increment,
-                         advance_mode);
-  }
-}
-
 template <typename TIndex>
 TNode<TIndex> CodeStubAssembler::BuildFastLoop(const VariableList& vars,
                                                TNode<TIndex> start_index,
                                                TNode<TIndex> end_index,
-                                               const FastLoopBody& body,
+                                               const FastLoopBody<TIndex>& body,
                                                int increment,
                                                IndexAdvanceMode advance_mode) {
   TVARIABLE(TIndex, var, start_index);
@@ -11312,6 +11294,16 @@ TNode<TIndex> CodeStubAssembler::BuildFastLoop(const VariableList& vars,
   return var.value();
 }
 
+// Instantiate BuildFastLoop for Smi and IntPtrT.
+template TNode<Smi> CodeStubAssembler::BuildFastLoop<Smi>(
+    const VariableList& vars, TNode<Smi> start_index, TNode<Smi> end_index,
+    const FastLoopBody<Smi>& body, int increment,
+    IndexAdvanceMode advance_mode);
+template TNode<IntPtrT> CodeStubAssembler::BuildFastLoop<IntPtrT>(
+    const VariableList& vars, TNode<IntPtrT> start_index,
+    TNode<IntPtrT> end_index, const FastLoopBody<IntPtrT>& body, int increment,
+    IndexAdvanceMode advance_mode);
+
 void CodeStubAssembler::BuildFastFixedArrayForEach(
     const CodeStubAssembler::VariableList& vars, Node* fixed_array,
     ElementsKind kind, Node* first_element_inclusive,
@@ -11333,17 +11325,15 @@ void CodeStubAssembler::BuildFastFixedArrayForEach(
       if (direction == ForEachDirection::kForward) {
         for (int i = first_val; i < last_val; ++i) {
           TNode<IntPtrT> index = IntPtrConstant(i);
-          TNode<IntPtrT> offset =
-              ElementOffsetFromIndex(index, kind, INTPTR_PARAMETERS,
-                                     FixedArray::kHeaderSize - kHeapObjectTag);
+          TNode<IntPtrT> offset = ElementOffsetFromIndex(
+              index, kind, FixedArray::kHeaderSize - kHeapObjectTag);
           body(fixed_array, offset);
         }
       } else {
         for (int i = last_val - 1; i >= first_val; --i) {
           TNode<IntPtrT> index = IntPtrConstant(i);
-          TNode<IntPtrT> offset =
-              ElementOffsetFromIndex(index, kind, INTPTR_PARAMETERS,
-                                     FixedArray::kHeaderSize - kHeapObjectTag);
+          TNode<IntPtrT> offset = ElementOffsetFromIndex(
+              index, kind, FixedArray::kHeaderSize - kHeapObjectTag);
           body(fixed_array, offset);
         }
       }
@@ -11360,11 +11350,10 @@ void CodeStubAssembler::BuildFastFixedArrayForEach(
   if (direction == ForEachDirection::kReverse) std::swap(start, limit);
 
   int increment = IsDoubleElementsKind(kind) ? kDoubleSize : kTaggedSize;
-  BuildFastLoop(
+  BuildFastLoop<IntPtrT>(
       vars, start, limit,
-      [fixed_array, &body](Node* offset) { body(fixed_array, offset); },
+      [&](TNode<IntPtrT> offset) { body(fixed_array, offset); },
       direction == ForEachDirection::kReverse ? -increment : increment,
-      INTPTR_PARAMETERS,
       direction == ForEachDirection::kReverse ? IndexAdvanceMode::kPre
                                               : IndexAdvanceMode::kPost);
 }
@@ -11375,22 +11364,21 @@ void CodeStubAssembler::GotoIfFixedArraySizeDoesntFitInNewSpace(
          doesnt_fit);
 }
 
-void CodeStubAssembler::InitializeFieldsWithRoot(Node* object,
-                                                 Node* start_offset,
-                                                 Node* end_offset,
+void CodeStubAssembler::InitializeFieldsWithRoot(TNode<HeapObject> object,
+                                                 TNode<IntPtrT> start_offset,
+                                                 TNode<IntPtrT> end_offset,
                                                  RootIndex root_index) {
   CSA_SLOW_ASSERT(this, TaggedIsNotSmi(object));
   start_offset = IntPtrAdd(start_offset, IntPtrConstant(-kHeapObjectTag));
   end_offset = IntPtrAdd(end_offset, IntPtrConstant(-kHeapObjectTag));
   TNode<Object> root_value = LoadRoot(root_index);
-  BuildFastLoop(
+  BuildFastLoop<IntPtrT>(
       end_offset, start_offset,
-      [this, object, root_value](Node* current) {
+      [=](TNode<IntPtrT> current) {
         StoreNoWriteBarrier(MachineRepresentation::kTagged, object, current,
                             root_value);
       },
-      -kTaggedSize, INTPTR_PARAMETERS,
-      CodeStubAssembler::IndexAdvanceMode::kPre);
+      -kTaggedSize, CodeStubAssembler::IndexAdvanceMode::kPre);
 }
 
 void CodeStubAssembler::BranchIfNumberRelationalComparison(
@@ -13638,14 +13626,13 @@ void CodeStubArguments::ForEach(
   TNode<IntPtrT> end = assembler_->IntPtrSub(
       assembler_->UncheckedCast<IntPtrT>(base_),
       assembler_->ElementOffsetFromIndex(last, SYSTEM_POINTER_ELEMENTS, mode));
-  assembler_->BuildFastLoop(
+  assembler_->BuildFastLoop<IntPtrT>(
       vars, start, end,
-      [this, &body](Node* current) {
+      [&](TNode<IntPtrT> current) {
         Node* arg = assembler_->Load(MachineType::AnyTagged(), current);
         body(arg);
       },
-      -kSystemPointerSize, CodeStubAssembler::INTPTR_PARAMETERS,
-      CodeStubAssembler::IndexAdvanceMode::kPost);
+      -kSystemPointerSize, CodeStubAssembler::IndexAdvanceMode::kPost);
 }
 
 void CodeStubArguments::PopAndReturn(Node* value) {

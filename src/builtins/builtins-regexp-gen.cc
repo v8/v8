@@ -679,9 +679,9 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
       TVARIABLE(IntPtrT, var_to_offset, to_offset);
 
       VariableList vars({&var_to_offset}, zone());
-      BuildFastLoop(
+      BuildFastLoop<IntPtrT>(
           vars, IntPtrZero(), limit_offset,
-          [=, &var_to_offset](Node* offset) {
+          [&](TNode<IntPtrT> offset) {
             TNode<Int32T> value = UncheckedCast<Int32T>(Load(
                 MachineType::Int32(), static_offsets_vector_address, offset));
             TNode<Smi> smi_value = SmiFromInt32(value);
@@ -689,7 +689,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
                                 var_to_offset.value(), smi_value);
             Increment(&var_to_offset, kTaggedSize);
           },
-          kInt32Size, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+          kInt32Size, IndexAdvanceMode::kPost);
     }
 
     var_result = match_info;

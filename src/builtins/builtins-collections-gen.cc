@@ -259,7 +259,7 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromFastJSArray(
          &if_doubles);
   BIND(&if_smiorobjects);
   {
-    auto set_entry = [&](Node* index) {
+    auto set_entry = [&](TNode<IntPtrT> index) {
       TNode<Object> element = LoadAndNormalizeFixedArrayElement(
           CAST(elements), UncheckedCast<IntPtrT>(index));
       AddConstructorEntry(variant, context, collection, add_func, element,
@@ -270,8 +270,8 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromFastJSArray(
     // elements, a fast loop is used.  This assumes that adding an element
     // to the collection does not call user code that could mutate the elements
     // or collection.
-    BuildFastLoop(IntPtrConstant(0), length, set_entry, 1,
-                  ParameterMode::INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+    BuildFastLoop<IntPtrT>(IntPtrConstant(0), length, set_entry, 1,
+                           IndexAdvanceMode::kPost);
     Goto(&exit);
   }
   BIND(&if_doubles);
@@ -286,13 +286,13 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromFastJSArray(
                      element);
     } else {
       DCHECK(variant == kSet || variant == kWeakSet);
-      auto set_entry = [&](Node* index) {
+      auto set_entry = [&](TNode<IntPtrT> index) {
         TNode<Object> entry = LoadAndNormalizeFixedDoubleArrayElement(
             elements, UncheckedCast<IntPtrT>(index));
         AddConstructorEntry(variant, context, collection, add_func, entry);
       };
-      BuildFastLoop(IntPtrConstant(0), length, set_entry, 1,
-                    ParameterMode::INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+      BuildFastLoop<IntPtrT>(IntPtrConstant(0), length, set_entry, 1,
+                             IndexAdvanceMode::kPost);
       Goto(&exit);
     }
   }

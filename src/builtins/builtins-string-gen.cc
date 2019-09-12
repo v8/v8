@@ -1366,9 +1366,9 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
     TNode<IntPtrT> string_data_offset = to_direct.offset();
     TNode<FixedArray> cache = SingleCharacterStringCacheConstant();
 
-    BuildFastLoop(
+    BuildFastLoop<IntPtrT>(
         IntPtrConstant(0), length,
-        [&](Node* index) {
+        [&](TNode<IntPtrT> index) {
           // TODO(jkummerow): Implement a CSA version of DisallowHeapAllocation
           // and use that to guard ToDirectStringAssembler.PointerToData().
           CSA_ASSERT(this, WordEqual(to_direct.PointerToData(&call_runtime),
@@ -1385,7 +1385,7 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
 
           StoreFixedArrayElement(elements, index, entry);
         },
-        1, ParameterMode::INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+        1, IndexAdvanceMode::kPost);
 
     TNode<Map> array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, context);
     result_array = AllocateJSArray(array_map, elements, length_smi);
