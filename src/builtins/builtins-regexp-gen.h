@@ -187,9 +187,10 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                                          TNode<String> const string,
                                          const bool is_fastpath);
 
-  void RegExpPrototypeSplitBody(TNode<Context> context, TNode<JSRegExp> regexp,
-                                TNode<String> const string,
-                                TNode<Smi> const limit);
+  TNode<JSArray> RegExpPrototypeSplitBody(TNode<Context> context,
+                                          TNode<JSRegExp> regexp,
+                                          TNode<String> const string,
+                                          TNode<Smi> const limit);
 };
 
 class RegExpMatchAllAssembler : public RegExpBuiltinsAssembler {

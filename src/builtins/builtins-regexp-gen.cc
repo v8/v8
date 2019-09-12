@@ -2042,10 +2042,9 @@ TF_BUILTIN(RegExpPrototypeMatchAll, RegExpMatchAllAssembler) {
 
 // Generates the fast path for @@split. {regexp} is an unmodified, non-sticky
 // JSRegExp, {string} is a String, and {limit} is a Smi.
-void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(TNode<Context> context,
-                                                       TNode<JSRegExp> regexp,
-                                                       TNode<String> string,
-                                                       TNode<Smi> const limit) {
+TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
+    TNode<Context> context, TNode<JSRegExp> regexp, TNode<String> string,
+    TNode<Smi> const limit) {
   CSA_ASSERT(this, IsFastRegExpPermissive(context, regexp));
   CSA_ASSERT(this, Word32BinaryNot(FastFlagGetter(regexp, JSRegExp::kSticky)));
 
@@ -2059,6 +2058,8 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(TNode<Context> context,
   TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
 
   Label return_empty_array(this, Label::kDeferred);
+  TVARIABLE(JSArray, var_result);
+  Label done(this);
 
   // If limit is zero, return an empty array.
   {
@@ -2092,13 +2093,13 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(TNode<Context> context,
       {
         TNode<Smi> length = SmiConstant(1);
         TNode<IntPtrT> capacity = IntPtrConstant(1);
-        TNode<JSArray> result = AllocateJSArray(kind, array_map, capacity,
-                                                length, allocation_site, mode);
+        var_result = AllocateJSArray(kind, array_map, capacity, length,
+                                     allocation_site, mode);
 
-        TNode<FixedArray> fixed_array = CAST(LoadElements(result));
+        TNode<FixedArray> fixed_array = CAST(LoadElements(var_result.value()));
         UnsafeStoreFixedArrayElement(fixed_array, 0, string);
 
-        Return(result);
+        Goto(&done);
       }
     }
 
@@ -2262,110 +2263,21 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(TNode<Context> context,
 
   BIND(&out);
   {
-    TNode<JSArray> const result = array.ToJSArray(context);
-    Return(result);
+    var_result = array.ToJSArray(context);
+    Goto(&done);
   }
 
   BIND(&return_empty_array);
   {
     TNode<Smi> length = SmiZero();
     TNode<IntPtrT> capacity = IntPtrZero();
-    TNode<JSArray> result = AllocateJSArray(kind, array_map, capacity, length,
-                                            allocation_site, mode);
-    Return(result);
-  }
-}
-
-// Helper that skips a few initial checks.
-TF_BUILTIN(RegExpSplit, RegExpBuiltinsAssembler) {
-  TNode<JSRegExp> regexp = CAST(Parameter(Descriptor::kRegExp));
-  TNode<String> string = CAST(Parameter(Descriptor::kString));
-  TNode<Object> maybe_limit = CAST(Parameter(Descriptor::kLimit));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-
-  CSA_ASSERT_BRANCH(this, [&](Label* ok, Label* not_ok) {
-    BranchIfFastRegExp_Strict(context, regexp, ok, not_ok);
-  });
-
-  // Verify {maybe_limit}.
-
-  VARIABLE(var_limit, MachineRepresentation::kTagged, maybe_limit);
-  Label if_limitissmimax(this), runtime(this, Label::kDeferred);
-
-  {
-    Label next(this);
-
-    GotoIf(IsUndefined(maybe_limit), &if_limitissmimax);
-    Branch(TaggedIsPositiveSmi(maybe_limit), &next, &runtime);
-
-    // We need to be extra-strict and require the given limit to be either
-    // undefined or a positive smi. We can't call ToUint32(maybe_limit) since
-    // that might move us onto the slow path, resulting in ordering spec
-    // violations (see https://crbug.com/801171).
-
-    BIND(&if_limitissmimax);
-    {
-      // TODO(jgruber): In this case, we can probably avoid generation of limit
-      // checks in Generate_RegExpPrototypeSplitBody.
-      var_limit.Bind(SmiConstant(Smi::kMaxValue));
-      Goto(&next);
-    }
-
-    BIND(&next);
+    var_result = AllocateJSArray(kind, array_map, capacity, length,
+                                 allocation_site, mode);
+    Goto(&done);
   }
 
-  // Due to specific shortcuts we take on the fast path (specifically, we don't
-  // allocate a new regexp instance as specced), we need to ensure that the
-  // given regexp is non-sticky to avoid invalid results. See crbug.com/v8/6706.
-
-  GotoIf(FastFlagGetter(regexp, JSRegExp::kSticky), &runtime);
-
-  // We're good to go on the fast path, which is inlined here.
-
-  RegExpPrototypeSplitBody(context, regexp, string, CAST(var_limit.value()));
-
-  BIND(&runtime);
-  Return(CallRuntime(Runtime::kRegExpSplit, context, regexp, string,
-                     var_limit.value()));
-}
-
-// ES#sec-regexp.prototype-@@split
-// RegExp.prototype [ @@split ] ( string, limit )
-TF_BUILTIN(RegExpPrototypeSplit, RegExpBuiltinsAssembler) {
-  const int kStringArg = 0;
-  const int kLimitArg = 1;
-
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
-  CodeStubArguments args(this, argc);
-
-  TNode<Object> maybe_receiver = args.GetReceiver();
-  TNode<Object> maybe_string = args.GetOptionalArgumentValue(kStringArg);
-  TNode<Object> maybe_limit = args.GetOptionalArgumentValue(kLimitArg);
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-
-  // Ensure {maybe_receiver} is a JSReceiver.
-  ThrowIfNotJSReceiver(context, maybe_receiver,
-                       MessageTemplate::kIncompatibleMethodReceiver,
-                       "RegExp.prototype.@@split");
-  TNode<JSReceiver> receiver = CAST(maybe_receiver);
-
-  // Convert {maybe_string} to a String.
-  TNode<String> string = ToString_Inline(context, maybe_string);
-
-  // Strict: Reads the flags property.
-  // TODO(jgruber): Handle slow flag accesses on the fast path and make this
-  // permissive.
-  Label stub(this), runtime(this, Label::kDeferred);
-  BranchIfFastRegExp_Strict(context, receiver, &stub, &runtime);
-
-  BIND(&stub);
-  args.PopAndReturn(CallBuiltin(Builtins::kRegExpSplit, context, receiver,
-                                string, maybe_limit));
-
-  BIND(&runtime);
-  args.PopAndReturn(CallRuntime(Runtime::kRegExpSplit, context, receiver,
-                                string, maybe_limit));
+  BIND(&done);
+  return var_result.value();
 }
 
 class RegExpStringIteratorAssembler : public RegExpBuiltinsAssembler {

@@ -998,6 +998,7 @@ torque_files = [
   "src/builtins/regexp-replace.tq",
   "src/builtins/regexp-search.tq",
   "src/builtins/regexp-source.tq",
+  "src/builtins/regexp-split.tq",
   "src/builtins/regexp-test.tq",
   "src/builtins/regexp.tq",
   "src/builtins/string.tq",
