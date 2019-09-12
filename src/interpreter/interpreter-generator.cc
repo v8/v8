@@ -35,7 +35,6 @@ namespace {
 
 using compiler::Node;
 using Label = CodeStubAssembler::Label;
-using Variable = CodeStubAssembler::Variable;
 
 #define IGNITION_HANDLER(Name, BaseAssembler)                         \
   class Name##Assembler : public BaseAssembler {                      \
@@ -454,7 +453,7 @@ IGNITION_HANDLER(StaLookupSlot, InterpreterAssembler) {
   TNode<Name> name = CAST(LoadConstantPoolEntryAtOperandIndex(0));
   TNode<Uint32T> bytecode_flags = BytecodeOperandFlag(1);
   TNode<Context> context = GetContext();
-  Variable var_result(this, MachineRepresentation::kTagged);
+  TVARIABLE(Object, var_result);
 
   Label sloppy(this), strict(this), end(this);
   DCHECK_EQ(0, LanguageMode::kSloppy);
@@ -468,8 +467,8 @@ IGNITION_HANDLER(StaLookupSlot, InterpreterAssembler) {
   {
     CSA_ASSERT(this, IsClearWord32<StoreLookupSlotFlags::LookupHoistingModeBit>(
                          bytecode_flags));
-    var_result.Bind(
-        CallRuntime(Runtime::kStoreLookupSlot_Strict, context, name, value));
+    var_result =
+        CallRuntime(Runtime::kStoreLookupSlot_Strict, context, name, value);
     Goto(&end);
   }
 
@@ -482,15 +481,15 @@ IGNITION_HANDLER(StaLookupSlot, InterpreterAssembler) {
 
     BIND(&hoisting);
     {
-      var_result.Bind(CallRuntime(Runtime::kStoreLookupSlot_SloppyHoisting,
-                                  context, name, value));
+      var_result = CallRuntime(Runtime::kStoreLookupSlot_SloppyHoisting,
+                               context, name, value);
       Goto(&end);
     }
 
     BIND(&ordinary);
     {
-      var_result.Bind(
-          CallRuntime(Runtime::kStoreLookupSlot_Sloppy, context, name, value));
+      var_result =
+          CallRuntime(Runtime::kStoreLookupSlot_Sloppy, context, name, value);
       Goto(&end);
     }
   }
@@ -521,7 +520,7 @@ IGNITION_HANDLER(LdaNamedProperty, InterpreterAssembler) {
   LazyNode<Context> context = [=] { return GetContext(); };
 
   Label done(this);
-  Variable var_result(this, MachineRepresentation::kTagged);
+  TVARIABLE(Object, var_result);
   ExitPoint exit_point(this, &done, &var_result);
 
   AccessorAssembler::LazyLoadICParameters params(context, recv, name, smi_slot,
@@ -1191,8 +1190,9 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
   virtual ~UnaryNumericOpAssembler() = default;
 
   // Must return a tagged value.
-  virtual TNode<Number> SmiOp(TNode<Smi> smi_value, Variable* var_feedback,
-                              Label* do_float_op, Variable* var_float) = 0;
+  virtual TNode<Number> SmiOp(TNode<Smi> smi_value,
+                              TVariable<Smi>* var_feedback, Label* do_float_op,
+                              TVariable<Float64T>* var_float) = 0;
   // Must return a Float64 value.
   virtual TNode<Float64T> FloatOp(TNode<Float64T> float_value) = 0;
   // Must return a tagged value.
@@ -1203,8 +1203,8 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
     TVARIABLE(Object, var_result);
     TVARIABLE(Float64T, var_float_value);
     TVARIABLE(Smi, var_feedback, SmiConstant(BinaryOperationFeedback::kNone));
-    Variable* loop_vars[] = {&var_value, &var_feedback};
-    Label start(this, arraysize(loop_vars), loop_vars), end(this);
+    VariableList loop_vars({&var_value, &var_feedback}, zone());
+    Label start(this, loop_vars), end(this);
     Label do_float_op(this, &var_float_value);
     Goto(&start);
     // We might have to try again after ToNumeric conversion.
@@ -1295,8 +1295,9 @@ class NegateAssemblerImpl : public UnaryNumericOpAssembler {
                                OperandScale operand_scale)
       : UnaryNumericOpAssembler(state, bytecode, operand_scale) {}
 
-  TNode<Number> SmiOp(TNode<Smi> smi_value, Variable* var_feedback,
-                      Label* do_float_op, Variable* var_float) override {
+  TNode<Number> SmiOp(TNode<Smi> smi_value, TVariable<Smi>* var_feedback,
+                      Label* do_float_op,
+                      TVariable<Float64T>* var_float) override {
     TVARIABLE(Number, var_result);
     Label if_zero(this), if_min_smi(this), end(this);
     // Return -0 if operand is 0.
@@ -1316,7 +1317,7 @@ class NegateAssemblerImpl : public UnaryNumericOpAssembler {
     Goto(&end);
 
     BIND(&if_min_smi);
-    var_float->Bind(SmiToFloat64(smi_value));
+    *var_float = SmiToFloat64(smi_value);
     Goto(do_float_op);
 
     BIND(&end);
@@ -1393,8 +1394,9 @@ class IncDecAssembler : public UnaryNumericOpAssembler {
     return op_;
   }
 
-  TNode<Number> SmiOp(TNode<Smi> value, Variable* var_feedback,
-                      Label* do_float_op, Variable* var_float) override {
+  TNode<Number> SmiOp(TNode<Smi> value, TVariable<Smi>* var_feedback,
+                      Label* do_float_op,
+                      TVariable<Float64T>* var_float) override {
     TNode<Smi> one = SmiConstant(1);
     Label if_overflow(this), if_notoverflow(this);
     TNode<Smi> result = op() == Operation::kIncrement
@@ -1404,7 +1406,7 @@ class IncDecAssembler : public UnaryNumericOpAssembler {
 
     BIND(&if_overflow);
     {
-      var_float->Bind(SmiToFloat64(value));
+      *var_float = SmiToFloat64(value);
       Goto(do_float_op);
     }
 
@@ -1454,17 +1456,17 @@ IGNITION_HANDLER(Dec, IncDecAssembler) { DecWithFeedback(); }
 // accumulator to a boolean value if required.
 IGNITION_HANDLER(ToBooleanLogicalNot, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
-  Variable result(this, MachineRepresentation::kTagged);
+  TVARIABLE(Oddball, result);
   Label if_true(this), if_false(this), end(this);
   BranchIfToBooleanIsTrue(value, &if_true, &if_false);
   BIND(&if_true);
   {
-    result.Bind(FalseConstant());
+    result = FalseConstant();
     Goto(&end);
   }
   BIND(&if_false);
   {
-    result.Bind(TrueConstant());
+    result = TrueConstant();
     Goto(&end);
   }
   BIND(&end);
@@ -1478,20 +1480,20 @@ IGNITION_HANDLER(ToBooleanLogicalNot, InterpreterAssembler) {
 // value.
 IGNITION_HANDLER(LogicalNot, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
-  Variable result(this, MachineRepresentation::kTagged);
+  TVARIABLE(Oddball, result);
   Label if_true(this), if_false(this), end(this);
   TNode<Oddball> true_value = TrueConstant();
   TNode<Oddball> false_value = FalseConstant();
   Branch(TaggedEqual(value, true_value), &if_true, &if_false);
   BIND(&if_true);
   {
-    result.Bind(false_value);
+    result = false_value;
     Goto(&end);
   }
   BIND(&if_false);
   {
     CSA_ASSERT(this, TaggedEqual(value, false_value));
-    result.Bind(true_value);
+    result = true_value;
     Goto(&end);
   }
   BIND(&end);
@@ -1808,7 +1810,7 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
     TNode<Object> rhs = GetAccumulator();
     TNode<Context> context = GetContext();
 
-    Variable var_type_feedback(this, MachineRepresentation::kTagged);
+    TVARIABLE(Smi, var_type_feedback);
     Node* result;
     switch (compare_op) {
       case Operation::kEqual:
@@ -2630,9 +2632,9 @@ IGNITION_HANDLER(CloneObject, InterpreterAssembler) {
   TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
   TNode<Context> context = GetContext();
 
-  Variable var_result(this, MachineRepresentation::kTagged);
-  var_result.Bind(CallBuiltin(Builtins::kCloneObjectIC, context, source,
-                              smi_flags, smi_slot, maybe_feedback_vector));
+  TVARIABLE(Object, var_result);
+  var_result = CallBuiltin(Builtins::kCloneObjectIC, context, source, smi_flags,
+                           smi_slot, maybe_feedback_vector);
   SetAccumulator(var_result.value());
   Dispatch();
 }
