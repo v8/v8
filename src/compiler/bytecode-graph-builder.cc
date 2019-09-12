@@ -347,8 +347,9 @@ class BytecodeGraphBuilder {
   void set_currently_peeled_loop_offset(int offset) {
     currently_peeled_loop_offset_ = offset;
   }
-  bool skip_next_stack_check() const { return skip_next_stack_check_; }
-  void unset_skip_next_stack_check() { skip_next_stack_check_ = false; }
+  bool skip_first_stack_check() const { return skip_first_stack_check_; }
+  bool visited_first_stack_check() const { return visited_first_stack_check_; }
+  void set_visited_first_stack_check() { visited_first_stack_check_ = true; }
   int current_exception_handler() const { return current_exception_handler_; }
   void set_current_exception_handler(int index) {
     current_exception_handler_ = index;
@@ -381,7 +382,9 @@ class BytecodeGraphBuilder {
   Environment* environment_;
   bool const osr_;
   int currently_peeled_loop_offset_;
-  bool skip_next_stack_check_;
+
+  const bool skip_first_stack_check_;
+  bool visited_first_stack_check_ = false;
 
   // Merge environments are snapshots of the environment at points where the
   // control flow merges. This models a forward data flow propagation of all
@@ -957,8 +960,8 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       environment_(nullptr),
       osr_(!osr_offset.IsNone()),
       currently_peeled_loop_offset_(-1),
-      skip_next_stack_check_(flags &
-                             BytecodeGraphBuilderFlag::kSkipFirstStackCheck),
+      skip_first_stack_check_(flags &
+                              BytecodeGraphBuilderFlag::kSkipFirstStackCheck),
       merge_environments_(local_zone),
       generator_merge_environments_(local_zone),
       exception_handlers_(local_zone),
@@ -1269,12 +1272,6 @@ void BytecodeGraphBuilder::VisitSingleBytecode() {
 
   if (environment() != nullptr) {
     BuildLoopHeaderEnvironment(current_offset);
-    if (skip_next_stack_check() && bytecode_iterator().current_bytecode() ==
-                                       interpreter::Bytecode::kStackCheck) {
-      unset_skip_next_stack_check();
-      return;
-    }
-
     switch (bytecode_iterator().current_bytecode()) {
 #define BYTECODE_CASE(name, ...)       \
   case interpreter::Bytecode::k##name: \
@@ -3177,8 +3174,20 @@ void BytecodeGraphBuilder::VisitSwitchOnSmiNoFeedback() {
 }
 
 void BytecodeGraphBuilder::VisitStackCheck() {
+  // Note: The stack check kind is determined heuristically: we simply assume
+  // that the first seen stack check is at function-entry, and all other stack
+  // checks are at iteration-body. An alternative precise solution would be to
+  // parameterize the StackCheck bytecode; but this has the caveat of increased
+  // code size.
+  StackCheckKind kind = StackCheckKind::kJSIterationBody;
+  if (!visited_first_stack_check()) {
+    set_visited_first_stack_check();
+    kind = StackCheckKind::kJSFunctionEntry;
+    if (skip_first_stack_check()) return;
+  }
+
   PrepareEagerCheckpoint();
-  Node* node = NewNode(javascript()->StackCheck());
+  Node* node = NewNode(javascript()->StackCheck(kind));
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
