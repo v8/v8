@@ -2917,6 +2917,13 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
       SimpleInstallGetter(isolate_, prototype, factory->format_string(),
                           Builtins::kDateTimeFormatPrototypeFormat, false);
+
+      SimpleInstallFunction(isolate_, prototype, "formatRange",
+                            Builtins::kDateTimeFormatPrototypeFormatRange, 2,
+                            false);
+      SimpleInstallFunction(
+          isolate_, prototype, "formatRangeToParts",
+          Builtins::kDateTimeFormatPrototypeFormatRangeToParts, 2, false);
     }
 
     {  // -- N u m b e r F o r m a t
@@ -4271,13 +4278,10 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_nullish)
 
 #ifdef V8_INTL_SUPPORT
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_add_calendar_numbering_system)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_bigint)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_dateformat_day_period)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(
     harmony_intl_dateformat_fractional_second_digits)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_dateformat_quarter)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_datetime_style)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_numberformat_unified)
 #endif  // V8_INTL_SUPPORT
 
 #undef EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE
@@ -4435,32 +4439,6 @@ void Genesis::InitializeGlobal_harmony_regexp_match_indices() {
 }
 
 #ifdef V8_INTL_SUPPORT
-
-void Genesis::InitializeGlobal_harmony_intl_date_format_range() {
-  if (!FLAG_harmony_intl_date_format_range) return;
-
-  Handle<JSObject> intl = Handle<JSObject>::cast(
-      JSReceiver::GetProperty(
-          isolate(),
-          Handle<JSReceiver>(native_context()->global_object(), isolate()),
-          factory()->InternalizeUtf8String("Intl"))
-          .ToHandleChecked());
-
-  Handle<JSFunction> date_time_format_constructor = Handle<JSFunction>::cast(
-      JSReceiver::GetProperty(
-          isolate(), intl, factory()->InternalizeUtf8String("DateTimeFormat"))
-          .ToHandleChecked());
-
-  Handle<JSObject> prototype(
-      JSObject::cast(date_time_format_constructor->prototype()), isolate_);
-
-  SimpleInstallFunction(isolate_, prototype, "formatRange",
-                        Builtins::kDateTimeFormatPrototypeFormatRange, 2,
-                        false);
-  SimpleInstallFunction(isolate_, prototype, "formatRangeToParts",
-                        Builtins::kDateTimeFormatPrototypeFormatRangeToParts, 2,
-                        false);
-}
 
 void Genesis::InitializeGlobal_harmony_intl_segmenter() {
   if (!FLAG_harmony_intl_segmenter) return;

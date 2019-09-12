@@ -1243,9 +1243,8 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     const std::vector<const char*> empty_values = {};
     // 6. Let calendar be ? GetOption(options, "calendar",
     //    "string", undefined, undefined).
-    Maybe<bool> maybe_calendar =
-        Intl::GetStringOption(isolate, options, "calendar", empty_values,
-                              "Intl.NumberFormat", &calendar_str);
+    Maybe<bool> maybe_calendar = Intl::GetStringOption(
+        isolate, options, "calendar", empty_values, service, &calendar_str);
     MAYBE_RETURN(maybe_calendar, MaybeHandle<JSDateTimeFormat>());
     if (maybe_calendar.FromJust() && calendar_str != nullptr) {
       icu::Locale default_locale;
@@ -1262,7 +1261,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     // 8. Let numberingSystem be ? GetOption(options, "numberingSystem",
     //    "string", undefined, undefined).
     Maybe<bool> maybe_numberingSystem = Intl::GetNumberingSystem(
-        isolate, options, "Intl.NumberFormat", &numbering_system_str);
+        isolate, options, service, &numbering_system_str);
     MAYBE_RETURN(maybe_numberingSystem, MaybeHandle<JSDateTimeFormat>());
   }
 
@@ -1409,43 +1408,40 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   DateTimeStyle time_style = DateTimeStyle::kUndefined;
   std::unique_ptr<icu::SimpleDateFormat> icu_date_format;
 
-  if (FLAG_harmony_intl_datetime_style) {
-    // 28. Let dateStyle be ? GetOption(options, "dateStyle", "string", «
-    // "full", "long", "medium", "short" », undefined).
-    Maybe<DateTimeStyle> maybe_date_style =
-        Intl::GetStringOption<DateTimeStyle>(
-            isolate, options, "dateStyle", service,
-            {"full", "long", "medium", "short"},
-            {DateTimeStyle::kFull, DateTimeStyle::kLong, DateTimeStyle::kMedium,
-             DateTimeStyle::kShort},
-            DateTimeStyle::kUndefined);
-    MAYBE_RETURN(maybe_date_style, MaybeHandle<JSDateTimeFormat>());
-    // 29. If dateStyle is not undefined, set dateTimeFormat.[[DateStyle]] to
-    // dateStyle.
-    date_style = maybe_date_style.FromJust();
+  // 28. Let dateStyle be ? GetOption(options, "dateStyle", "string", «
+  // "full", "long", "medium", "short" », undefined).
+  Maybe<DateTimeStyle> maybe_date_style = Intl::GetStringOption<DateTimeStyle>(
+      isolate, options, "dateStyle", service,
+      {"full", "long", "medium", "short"},
+      {DateTimeStyle::kFull, DateTimeStyle::kLong, DateTimeStyle::kMedium,
+       DateTimeStyle::kShort},
+      DateTimeStyle::kUndefined);
+  MAYBE_RETURN(maybe_date_style, MaybeHandle<JSDateTimeFormat>());
+  // 29. If dateStyle is not undefined, set dateTimeFormat.[[DateStyle]] to
+  // dateStyle.
+  date_style = maybe_date_style.FromJust();
 
-    // 30. Let timeStyle be ? GetOption(options, "timeStyle", "string", «
-    // "full", "long", "medium", "short" »).
-    Maybe<DateTimeStyle> maybe_time_style =
-        Intl::GetStringOption<DateTimeStyle>(
-            isolate, options, "timeStyle", service,
-            {"full", "long", "medium", "short"},
-            {DateTimeStyle::kFull, DateTimeStyle::kLong, DateTimeStyle::kMedium,
-             DateTimeStyle::kShort},
-            DateTimeStyle::kUndefined);
-    MAYBE_RETURN(maybe_time_style, MaybeHandle<JSDateTimeFormat>());
+  // 30. Let timeStyle be ? GetOption(options, "timeStyle", "string", «
+  // "full", "long", "medium", "short" »).
+  Maybe<DateTimeStyle> maybe_time_style = Intl::GetStringOption<DateTimeStyle>(
+      isolate, options, "timeStyle", service,
+      {"full", "long", "medium", "short"},
+      {DateTimeStyle::kFull, DateTimeStyle::kLong, DateTimeStyle::kMedium,
+       DateTimeStyle::kShort},
+      DateTimeStyle::kUndefined);
+  MAYBE_RETURN(maybe_time_style, MaybeHandle<JSDateTimeFormat>());
 
-    // 31. If timeStyle is not undefined, set dateTimeFormat.[[TimeStyle]] to
-    // timeStyle.
-    time_style = maybe_time_style.FromJust();
+  // 31. If timeStyle is not undefined, set dateTimeFormat.[[TimeStyle]] to
+  // timeStyle.
+  time_style = maybe_time_style.FromJust();
 
-    // 32. If dateStyle or timeStyle are not undefined, then
-    if (date_style != DateTimeStyle::kUndefined ||
-        time_style != DateTimeStyle::kUndefined) {
-      icu_date_format = DateTimeStylePattern(date_style, time_style, icu_locale,
-                                             hc, generator.get());
-    }
+  // 32. If dateStyle or timeStyle are not undefined, then
+  if (date_style != DateTimeStyle::kUndefined ||
+      time_style != DateTimeStyle::kUndefined) {
+    icu_date_format = DateTimeStylePattern(date_style, time_style, icu_locale,
+                                           hc, generator.get());
   }
+
   // 33. Else,
   if (icu_date_format.get() == nullptr) {
     bool has_hour_option = false;

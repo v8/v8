@@ -83,13 +83,8 @@ BUILTIN(NumberFormatPrototypeFormatToParts) {
 
   Handle<Object> x;
   if (args.length() >= 2) {
-    if (FLAG_harmony_intl_bigint) {
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, x, Object::ToNumeric(isolate, args.at(1)));
-    } else {
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x,
-                                         Object::ToNumber(isolate, args.at(1)));
-    }
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x,
+                                       Object::ToNumeric(isolate, args.at(1)));
   } else {
     x = isolate->factory()->nan_value();
   }
@@ -468,13 +463,8 @@ BUILTIN(NumberFormatInternalFormatNumber) {
 
   // 4. Let x be ? ToNumeric(value).
   Handle<Object> numeric_obj;
-  if (FLAG_harmony_intl_bigint) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, numeric_obj,
-                                       Object::ToNumeric(isolate, value));
-  } else {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, numeric_obj,
-                                       Object::ToNumber(isolate, value));
-  }
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, numeric_obj,
+                                     Object::ToNumeric(isolate, value));
 
   icu::number::LocalizedNumberFormatter* icu_localized_number_formatter =
       number_format->icu_number_formatter().raw();
