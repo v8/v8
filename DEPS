@@ -23,7 +23,6 @@ vars = {
   'android_url': 'https://android.googlesource.com',
   'download_gcmole': False,
   'download_jsfunfuzz': False,
-  'download_mips_toolchain': False,
   'check_v8_header_includes': False,
 
   # GN CIPD package version.
@@ -392,13 +391,6 @@ hooks = [
                '--arch=x86'],
   },
   {
-    'name': 'sysroot_mips',
-    'pattern': '.',
-    'condition': '(checkout_linux and checkout_mips)',
-    'action': ['python', 'v8/build/linux/sysroot_scripts/install-sysroot.py',
-               '--arch=mips'],
-  },
-  {
     'name': 'sysroot_x64',
     'pattern': '.',
     'condition': 'checkout_linux and checkout_x64',
@@ -494,19 +486,6 @@ hooks = [
     'pattern': '.',
     'condition': 'host_os == "mac" and checkout_fuchsia',
     'action': ['python', 'v8/tools/clang/scripts/download_objdump.py'],
-  },
-  {
-    'name': 'mips_toolchain',
-    'pattern': '.',
-    'condition': 'download_mips_toolchain',
-    'action': [ 'download_from_google_storage',
-                '--no_resume',
-                '--platform=linux',
-                '--no_auth',
-                '-u',
-                '--bucket', 'chromium-v8',
-                '-s', 'v8/tools/mips_toolchain.tar.gz.sha1',
-    ],
   },
   # Download and initialize "vpython" VirtualEnv environment packages.
   {

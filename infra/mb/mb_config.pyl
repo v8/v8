@@ -160,7 +160,6 @@
           'debug_simulate_arm64_no_snap',
       'V8 Linux - arm64 - sim - gc stress': 'debug_simulate_arm64',
       # Mips.
-      'V8 Mips - builder': 'release_mips_no_snap_no_i18n',
       'V8 Linux - mipsel - sim - builder': 'release_simulate_mipsel',
       'V8 Linux - mips64el - sim - builder': 'release_simulate_mips64el',
       # IBM.
@@ -250,7 +249,6 @@
       'v8_mac64_dbg': 'debug_x64',
       'v8_mac64_dbg_ng': 'debug_x64',
       'v8_mac64_asan_rel': 'release_x64_asan_no_lsan',
-      'v8_mips_compile_rel': 'release_mips_no_snap_no_i18n',
       'v8_linux_arm_rel_ng': 'release_simulate_arm_trybot',
       'v8_linux_arm_lite_rel_ng': 'release_simulate_arm_lite_trybot',
       'v8_linux_arm_dbg': 'debug_simulate_arm',
@@ -559,11 +557,6 @@
     'release_x86_verify_csa': [
       'release_bot', 'x86', 'dcheck_always_on',
       'v8_enable_slow_dchecks', 'v8_verify_csa'],
-
-    # Release configs for mips.
-    'release_mips_no_snap_no_i18n': [
-      'release', 'mips', 'no_sysroot', 'static', 'v8_no_i18n',
-      'v8_snapshot_none'],
   },
 
   'mixins': {
@@ -673,18 +666,6 @@
 
     'minimal_symbols': {
       'gn_args': 'symbol_level=1',
-    },
-
-    'mips': {
-      'mixins': ['mips_bundled_toolchain'],
-      'gn_args': 'target_cpu="mips"',
-    },
-
-    'mips_bundled_toolchain': {
-      'gn_args': 'custom_toolchain="tools/toolchain:mips-bundled" '
-                 'ldso_path="tools/mips_toolchain/sysroot/usr/lib/ld.so.1" '
-                 'gcc_target_rpath="tools/mips_toolchain/sysroot/usr/lib:'
-                 'tools/mips_toolchain/mips-mti-linux-gnu/lib:\$ORIGIN/."',
     },
 
     'msan': {

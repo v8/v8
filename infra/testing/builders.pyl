@@ -1543,19 +1543,6 @@
       {'name': 'v8testing', 'shards': 7},
     ],
   },
-  'V8 Mips - big endian - nosnap': {
-    'swarming_dimensions': {
-      'cpu': 'mips-32',
-      'os': 'Debian-8.7',
-    },
-    'swarming_task_attrs': {
-      'expiration': 18000,
-      'hard_timeout': 18000,
-    },
-    'tests': [
-      {'name': 'v8testing', 'variant': 'default', 'shards': 2},
-    ],
-  },
   ##############################################################################
   # Clusterfuzz.
   'V8 NumFuzz': {
