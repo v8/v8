@@ -269,29 +269,29 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
                                              FlagsCondition condition) {
   switch (condition) {
     case kEqual:
-      predicate = true;
+      *predicate = true;
       return EQ;
     case kNotEqual:
-      predicate = false;
+      *predicate = false;
       return EQ;
     case kUnsignedLessThan:
-      predicate = true;
+      *predicate = true;
       return OLT;
     case kUnsignedGreaterThanOrEqual:
-      predicate = false;
+      *predicate = false;
       return OLT;
     case kUnsignedLessThanOrEqual:
-      predicate = true;
+      *predicate = true;
       return OLE;
     case kUnsignedGreaterThan:
-      predicate = false;
+      *predicate = false;
       return OLE;
     case kUnorderedEqual:
     case kUnorderedNotEqual:
-      predicate = true;
+      *predicate = true;
       break;
     default:
-      predicate = true;
+      *predicate = true;
       break;
   }
   UNREACHABLE();
