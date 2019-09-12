@@ -1969,6 +1969,7 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
     case Builtins::kPromiseResolveTrampoline:
       // For JSCallReducer::ReducePromiseInternalResolve and
       // JSNativeContextSpecialization::ReduceJSResolvePromise.
+      // TODO(mslekova): Check if this condition is redundant.
       if (arguments.size() >= 1) {
         Hints const& resolution_hints =
             arguments.size() >= 2

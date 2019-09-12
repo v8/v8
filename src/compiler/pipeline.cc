@@ -107,6 +107,23 @@ static constexpr char kRegisterAllocationZoneName[] =
     "register-allocation-zone";
 static constexpr char kRegisterAllocatorVerifierZoneName[] =
     "register-allocator-verifier-zone";
+namespace {
+
+Maybe<OuterContext> GetModuleContext(Handle<JSFunction> closure) {
+  Context current = closure->context();
+  size_t distance = 0;
+  while (!current.IsNativeContext()) {
+    if (current.IsModuleContext()) {
+      return Just(
+          OuterContext(handle(current, current.GetIsolate()), distance));
+    }
+    current = current.previous();
+    distance++;
+  }
+  return Nothing<OuterContext>();
+}
+
+}  // anonymous namespace
 
 class PipelineData {
  public:
@@ -338,6 +355,20 @@ class PipelineData {
     return assembler_options_;
   }
 
+  void ChooseSpecializationContext() {
+    if (info()->is_function_context_specializing()) {
+      DCHECK(info()->has_context());
+      specialization_context_ =
+          Just(OuterContext(handle(info()->context(), isolate()), 0));
+    } else {
+      specialization_context_ = GetModuleContext(info()->closure());
+    }
+  }
+
+  Maybe<OuterContext> specialization_context() const {
+    return specialization_context_;
+  }
+
   size_t* address_of_max_unoptimized_frame_height() {
     return &max_unoptimized_frame_height_;
   }
@@ -546,6 +577,7 @@ class PipelineData {
 
   JumpOptimizationInfo* jump_optimization_info_ = nullptr;
   AssemblerOptions assembler_options_;
+  Maybe<OuterContext> specialization_context_ = Nothing<OuterContext>();
 
   // The maximal combined height of all inlined frames in their unoptimized
   // state. Calculated during instruction selection, applied during code
@@ -999,6 +1031,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   if (compilation_info()->closure()->raw_feedback_cell().map() ==
       ReadOnlyRoots(isolate).one_closure_cell_map()) {
     compilation_info()->MarkAsFunctionContextSpecializing();
+    data_.ChooseSpecializationContext();
   }
 
   if (compilation_info()->is_source_positions_enabled()) {
@@ -1032,6 +1065,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl() {
       TRACE_DISABLED_BY_DEFAULT("v8.compile"), "v8.optimizingCompile.execute",
       this, TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT, "function",
       compilation_info()->shared_info()->TraceIDRef());
+
   bool success;
   if (FLAG_turboprop) {
     success = pipeline_.OptimizeGraphForMidTier(linkage_);
@@ -1239,38 +1273,10 @@ struct GraphBuilderPhase {
   }
 };
 
-namespace {
-
-Maybe<OuterContext> GetModuleContext(Handle<JSFunction> closure) {
-  Context current = closure->context();
-  size_t distance = 0;
-  while (!current.IsNativeContext()) {
-    if (current.IsModuleContext()) {
-      return Just(
-          OuterContext(handle(current, current.GetIsolate()), distance));
-    }
-    current = current.previous();
-    distance++;
-  }
-  return Nothing<OuterContext>();
-}
-
-Maybe<OuterContext> ChooseSpecializationContext(
-    Isolate* isolate, OptimizedCompilationInfo* info) {
-  if (info->is_function_context_specializing()) {
-    DCHECK(info->has_context());
-    return Just(OuterContext(handle(info->context(), isolate), 0));
-  }
-  return GetModuleContext(info->closure());
-}
-
-}  // anonymous namespace
-
 struct InliningPhase {
   static const char* phase_name() { return "V8.TFInlining"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    Isolate* isolate = data->isolate();
     OptimizedCompilationInfo* info = data->info();
     GraphReducer graph_reducer(temp_zone, data->graph(), &info->tick_counter(),
                                data->jsgraph()->Dead());
@@ -1287,7 +1293,7 @@ struct InliningPhase {
                                data->dependencies());
     JSContextSpecialization context_specialization(
         &graph_reducer, data->jsgraph(), data->broker(),
-        ChooseSpecializationContext(isolate, data->info()),
+        data->specialization_context(),
         data->info()->is_function_context_specializing()
             ? data->info()->closure()
             : MaybeHandle<JSFunction>());
@@ -1419,6 +1425,10 @@ struct SerializationPhase {
     RunSerializerForBackgroundCompilation(data->broker(), data->dependencies(),
                                           temp_zone, data->info()->closure(),
                                           flags, data->info()->osr_offset());
+    if (data->specialization_context().IsJust()) {
+      ContextRef(data->broker(),
+                 data->specialization_context().FromJust().context);
+    }
   }
 };
 
