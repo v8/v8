@@ -335,6 +335,8 @@ class TNode {
     return *this;
   }
 
+  bool is_null() { return node_ == nullptr; }
+
   operator compiler::Node*() const { return node_; }
 
   static TNode UncheckedCast(compiler::Node* node) { return TNode(node); }

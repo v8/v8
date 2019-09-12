@@ -29,12 +29,14 @@ void Builtins::Generate_StackCheck(MacroAssembler* masm) {
 // TurboFan support builtins.
 
 TF_BUILTIN(CopyFastSmiOrObjectElements, CodeStubAssembler) {
-  Node* object = Parameter(Descriptor::kObject);
+  TNode<JSObject> js_object = CAST(Parameter(Descriptor::kObject));
 
   // Load the {object}s elements.
-  TNode<Object> source = LoadObjectField(object, JSObject::kElementsOffset);
-  Node* target = CloneFixedArray(source, ExtractFixedArrayFlag::kFixedArrays);
-  StoreObjectField(object, JSObject::kElementsOffset, target);
+  TNode<FixedArrayBase> source =
+      CAST(LoadObjectField(js_object, JSObject::kElementsOffset));
+  TNode<FixedArrayBase> target =
+      CloneFixedArray(source, ExtractFixedArrayFlag::kFixedArrays);
+  StoreObjectField(js_object, JSObject::kElementsOffset, target);
   Return(target);
 }
 

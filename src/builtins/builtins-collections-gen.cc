@@ -996,7 +996,7 @@ TNode<JSArray> CollectionsBuiltinsAssembler::MapIteratorToList(
   TNode<Map> array_map =
       LoadJSArrayElementsMap(kind, LoadNativeContext(context));
   TNode<JSArray> array =
-      AllocateJSArray(kind, array_map, size, SmiTag(size), nullptr,
+      AllocateJSArray(kind, array_map, size, SmiTag(size), {},
                       INTPTR_PARAMETERS, kAllowLargeObjectAllocation);
   TNode<FixedArray> elements = CAST(LoadElements(array));
 
@@ -1109,7 +1109,7 @@ TNode<JSArray> CollectionsBuiltinsAssembler::SetOrSetIteratorToList(
   TNode<Map> array_map =
       LoadJSArrayElementsMap(kind, LoadNativeContext(context));
   TNode<JSArray> array =
-      AllocateJSArray(kind, array_map, size, SmiTag(size), nullptr,
+      AllocateJSArray(kind, array_map, size, SmiTag(size), {},
                       INTPTR_PARAMETERS, kAllowLargeObjectAllocation);
   TNode<FixedArray> elements = CAST(LoadElements(array));
 

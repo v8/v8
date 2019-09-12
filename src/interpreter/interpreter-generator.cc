@@ -2486,8 +2486,8 @@ IGNITION_HANDLER(CreateArrayLiteral, InterpreterAssembler) {
   BIND(&fast_shallow_clone);
   {
     ConstructorBuiltinsAssembler constructor_assembler(state());
-    Node* result = constructor_assembler.EmitCreateShallowArrayLiteral(
-        feedback_vector, slot_id, context, &call_runtime,
+    TNode<JSArray> result = constructor_assembler.EmitCreateShallowArrayLiteral(
+        CAST(feedback_vector), slot_id, context, &call_runtime,
         TRACK_ALLOCATION_SITE);
     SetAccumulator(result);
     Dispatch();
@@ -2531,7 +2531,7 @@ IGNITION_HANDLER(CreateEmptyArrayLiteral, InterpreterAssembler) {
                                                   LoadNativeContext(context));
     result =
         AllocateJSArray(GetInitialFastElementsKind(), array_map, SmiConstant(0),
-                        SmiConstant(0), nullptr, ParameterMode::SMI_PARAMETERS);
+                        SmiConstant(0), {}, ParameterMode::SMI_PARAMETERS);
     Goto(&end);
   }
 
@@ -2575,8 +2575,9 @@ IGNITION_HANDLER(CreateObjectLiteral, InterpreterAssembler) {
   {
     // If we can do a fast clone do the fast-path in CreateShallowObjectLiteral.
     ConstructorBuiltinsAssembler constructor_assembler(state());
-    Node* result = constructor_assembler.EmitCreateShallowObjectLiteral(
-        feedback_vector, slot_id, &if_not_fast_clone);
+    TNode<HeapObject> result =
+        constructor_assembler.EmitCreateShallowObjectLiteral(
+            CAST(feedback_vector), slot_id, &if_not_fast_clone);
     SetAccumulator(result);
     Dispatch();
   }

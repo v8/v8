@@ -89,9 +89,8 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
   const ElementsKind elements_kind = PACKED_ELEMENTS;
   TNode<Map> map = CAST(LoadContextElement(LoadNativeContext(context),
                                            Context::REGEXP_RESULT_MAP_INDEX));
-  Node* no_allocation_site = nullptr;
+  TNode<AllocationSite> no_allocation_site = {};
   TNode<IntPtrT> length_intptr = SmiUntag(length);
-  TNode<IntPtrT> capacity = length_intptr;
 
   // Note: The returned `elements` may be in young large object space, but
   // `array` is guaranteed to be in new space so we could skip write barriers
@@ -99,7 +98,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
   TNode<JSArray> array;
   TNode<FixedArrayBase> elements;
   std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
-      elements_kind, map, length, no_allocation_site, capacity,
+      elements_kind, map, length, no_allocation_site, length_intptr,
       INTPTR_PARAMETERS, kAllowLargeObjectAllocation, JSRegExpResult::kSize);
 
   // Finish result initialization.
@@ -2055,7 +2054,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(TNode<Context> context,
   const ElementsKind kind = PACKED_ELEMENTS;
   const ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
 
-  Node* const allocation_site = nullptr;
+  TNode<AllocationSite> allocation_site = {};
   TNode<NativeContext> const native_context = LoadNativeContext(context);
   TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
 

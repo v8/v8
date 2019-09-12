@@ -23,16 +23,19 @@ class ConstructorBuiltinsAssembler : public CodeStubAssembler {
   TNode<JSRegExp> EmitCreateRegExpLiteral(
       TNode<HeapObject> maybe_feedback_vector, TNode<UintPtrT> slot,
       TNode<Object> pattern, TNode<Smi> flags, TNode<Context> context);
-  Node* EmitCreateShallowArrayLiteral(Node* feedback_vector, Node* slot,
-                                      Node* context, Label* call_runtime,
-                                      AllocationSiteMode allocation_site_mode);
+
+  TNode<JSArray> EmitCreateShallowArrayLiteral(
+      TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot,
+      TNode<Context> context, Label* call_runtime,
+      AllocationSiteMode allocation_site_mode);
 
   TNode<JSArray> EmitCreateEmptyArrayLiteral(
       TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot,
       TNode<Context> context);
 
-  Node* EmitCreateShallowObjectLiteral(Node* feedback_vector, Node* slot,
-                                       Label* call_runtime);
+  TNode<HeapObject> EmitCreateShallowObjectLiteral(
+      TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot,
+      Label* call_runtime);
   TNode<JSObject> EmitCreateEmptyObjectLiteral(TNode<Context> context);
 
   TNode<JSObject> EmitFastNewObject(SloppyTNode<Context> context,

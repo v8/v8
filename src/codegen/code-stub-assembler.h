@@ -1792,7 +1792,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   std::pair<TNode<JSArray>, TNode<FixedArrayBase>>
   AllocateUninitializedJSArrayWithElements(
       ElementsKind kind, TNode<Map> array_map, TNode<Smi> length,
-      Node* allocation_site, Node* capacity,
+      TNode<AllocationSite> allocation_site, Node* capacity,
       ParameterMode capacity_mode = INTPTR_PARAMETERS,
       AllocationFlags allocation_flags = kNone,
       int array_header_size = JSArray::kSize);
@@ -1801,20 +1801,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // The ParameterMode argument is only used for the capacity parameter.
   TNode<JSArray> AllocateJSArray(
       ElementsKind kind, TNode<Map> array_map, Node* capacity,
-      TNode<Smi> length, Node* allocation_site = nullptr,
+      TNode<Smi> length, TNode<AllocationSite> allocation_site = {},
       ParameterMode capacity_mode = INTPTR_PARAMETERS,
       AllocationFlags allocation_flags = kNone);
 
   TNode<JSArray> AllocateJSArray(ElementsKind kind, TNode<Map> array_map,
                                  TNode<Smi> capacity, TNode<Smi> length) {
-    return AllocateJSArray(kind, array_map, capacity, length, nullptr,
+    return AllocateJSArray(kind, array_map, capacity, length, {},
                            SMI_PARAMETERS);
   }
 
   TNode<JSArray> AllocateJSArray(ElementsKind kind, TNode<Map> array_map,
                                  TNode<IntPtrT> capacity, TNode<Smi> length,
                                  AllocationFlags allocation_flags = kNone) {
-    return AllocateJSArray(kind, array_map, capacity, length, nullptr,
+    return AllocateJSArray(kind, array_map, capacity, length, {},
                            INTPTR_PARAMETERS, allocation_flags);
   }
 
@@ -1822,7 +1822,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<JSArray> AllocateJSArray(TNode<Map> array_map,
                                  TNode<FixedArrayBase> elements,
                                  TNode<Smi> length,
-                                 Node* allocation_site = nullptr,
+                                 TNode<AllocationSite> allocation_site = {},
                                  int array_header_size = JSArray::kSize);
 
   enum class HoleConversionMode { kDontConvert, kConvertToUndefined };
@@ -1836,15 +1836,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // If |convert_holes| is set kDontConvert, holes are also copied to the
   // resulting array, who will have the same elements kind as |array|. The
   // function generates significantly less code in this case.
-  Node* CloneFastJSArray(
-      Node* context, Node* array, ParameterMode mode = INTPTR_PARAMETERS,
-      Node* allocation_site = nullptr,
+  TNode<JSArray> CloneFastJSArray(
+      TNode<Context> context, TNode<JSArray> array,
+      ParameterMode mode = INTPTR_PARAMETERS,
+      TNode<AllocationSite> allocation_site = {},
       HoleConversionMode convert_holes = HoleConversionMode::kDontConvert);
 
-  Node* ExtractFastJSArray(Node* context, Node* array, Node* begin, Node* count,
+  Node* ExtractFastJSArray(TNode<Context> context, TNode<JSArray> array,
+                           Node* begin, Node* count,
                            ParameterMode mode = INTPTR_PARAMETERS,
                            Node* capacity = nullptr,
-                           Node* allocation_site = nullptr);
+                           TNode<AllocationSite> allocation_site = {});
 
   TNode<FixedArrayBase> AllocateFixedArray(
       ElementsKind kind, Node* capacity, ParameterMode mode = INTPTR_PARAMETERS,
@@ -2200,9 +2202,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // kAllFixedArrays, the generated code is more compact and efficient if the
   // caller can specify whether only FixedArrays or FixedDoubleArrays will be
   // passed as the |source| parameter.
-  Node* CloneFixedArray(Node* source,
-                        ExtractFixedArrayFlags flags =
-                            ExtractFixedArrayFlag::kAllFixedArraysDontCopyCOW) {
+  TNode<FixedArrayBase> CloneFixedArray(
+      TNode<FixedArrayBase> source,
+      ExtractFixedArrayFlags flags =
+          ExtractFixedArrayFlag::kAllFixedArraysDontCopyCOW) {
     ParameterMode mode = OptimalParameterMode();
     return ExtractFixedArray(source, IntPtrOrSmiConstant(0, mode), nullptr,
                              nullptr, flags, mode);
@@ -3740,10 +3743,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Allocate and return a JSArray of given total size in bytes with header
   // fields initialized.
-  TNode<JSArray> AllocateUninitializedJSArray(TNode<Map> array_map,
-                                              TNode<Smi> length,
-                                              Node* allocation_site,
-                                              TNode<IntPtrT> size_in_bytes);
+  TNode<JSArray> AllocateUninitializedJSArray(
+      TNode<Map> array_map, TNode<Smi> length,
+      TNode<AllocationSite> allocation_site, TNode<IntPtrT> size_in_bytes);
 
   TNode<BoolT> IsValidSmi(TNode<Smi> smi);
   Node* SmiShiftBitsConstant();

@@ -273,8 +273,8 @@ void ArrayBuiltinsAssembler::GenerateArraySpeciesCreate(TNode<Number> len) {
       GetHoleyElementsKind(GetInitialFastElementsKind());
   TNode<NativeContext> native_context = LoadNativeContext(context());
   TNode<Map> array_map = LoadJSArrayElementsMap(elements_kind, native_context);
-  a_.Bind(AllocateJSArray(PACKED_SMI_ELEMENTS, array_map, len, CAST(len),
-                          nullptr, CodeStubAssembler::SMI_PARAMETERS,
+  a_.Bind(AllocateJSArray(PACKED_SMI_ELEMENTS, array_map, len, CAST(len), {},
+                          CodeStubAssembler::SMI_PARAMETERS,
                           kAllowLargeObjectAllocation));
 
   Goto(&done);
@@ -515,11 +515,10 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
 TF_BUILTIN(ExtractFastJSArray, ArrayBuiltinsAssembler) {
   ParameterMode mode = OptimalParameterMode();
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  Node* array = Parameter(Descriptor::kSource);
+  TNode<JSArray> array = CAST(Parameter(Descriptor::kSource));
   Node* begin = TaggedToParameter(Parameter(Descriptor::kBegin), mode);
   Node* count = TaggedToParameter(Parameter(Descriptor::kCount), mode);
 
-  CSA_ASSERT(this, IsJSArray(array));
   CSA_ASSERT(this, Word32BinaryNot(IsNoElementsProtectorCellInvalid()));
 
   Return(ExtractFastJSArray(context, array, begin, count, mode));
@@ -555,7 +554,7 @@ TF_BUILTIN(CloneFastJSArrayFillingHoles, ArrayBuiltinsAssembler) {
                       Word32BinaryNot(IsNoElementsProtectorCellInvalid())));
 
   ParameterMode mode = OptimalParameterMode();
-  Return(CloneFastJSArray(context, array, mode, nullptr,
+  Return(CloneFastJSArray(context, array, mode, {},
                           HoleConversionMode::kConvertToUndefined));
 }
 
@@ -584,9 +583,9 @@ class ArrayPopulatorAssembler : public CodeStubAssembler {
       TNode<Map> array_map = CAST(LoadContextElement(
           context, Context::JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX));
 
-      array = AllocateJSArray(PACKED_SMI_ELEMENTS, array_map, SmiConstant(0),
-                              SmiConstant(0), nullptr,
-                              ParameterMode::SMI_PARAMETERS);
+      array =
+          AllocateJSArray(PACKED_SMI_ELEMENTS, array_map, SmiConstant(0),
+                          SmiConstant(0), {}, ParameterMode::SMI_PARAMETERS);
       Goto(&done);
     }
 
@@ -2162,7 +2161,8 @@ void ArrayBuiltinsAssembler::GenerateConstructor(
   {
     TNode<JSArray> array = AllocateJSArray(
         elements_kind, CAST(array_map), array_size, CAST(array_size),
-        mode == DONT_TRACK_ALLOCATION_SITE ? nullptr : allocation_site,
+        mode == DONT_TRACK_ALLOCATION_SITE ? TNode<AllocationSite>()
+                                           : CAST(allocation_site),
         CodeStubAssembler::SMI_PARAMETERS);
     Return(array);
   }
@@ -2181,8 +2181,9 @@ void ArrayBuiltinsAssembler::GenerateArrayNoArgumentConstructor(
       Parameter(Descriptor::kFunction), JSFunction::kContextOffset));
   bool track_allocation_site =
       AllocationSite::ShouldTrack(kind) && mode != DISABLE_ALLOCATION_SITES;
-  Node* allocation_site =
-      track_allocation_site ? Parameter(Descriptor::kAllocationSite) : nullptr;
+  TNode<AllocationSite> allocation_site =
+      track_allocation_site ? CAST(Parameter(Descriptor::kAllocationSite))
+                            : TNode<AllocationSite>();
   TNode<Map> array_map = LoadJSArrayElementsMap(kind, native_context);
   TNode<JSArray> array = AllocateJSArray(
       kind, array_map, IntPtrConstant(JSArray::kPreallocatedArrayElements),

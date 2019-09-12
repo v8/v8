@@ -107,20 +107,20 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
       TNode<JSFunction> target, TNode<HeapObject> allocation_site_or_undefined,
       TNode<Int32T> argc);
 
-  void GenerateDispatchToArrayStub(
-      TNode<Context> context, TNode<JSFunction> target, TNode<Int32T> argc,
-      AllocationSiteOverrideMode mode,
-      TNode<AllocationSite> allocation_site = TNode<AllocationSite>());
+  void GenerateDispatchToArrayStub(TNode<Context> context,
+                                   TNode<JSFunction> target, TNode<Int32T> argc,
+                                   AllocationSiteOverrideMode mode,
+                                   TNode<AllocationSite> allocation_site = {});
 
   void CreateArrayDispatchNoArgument(
       TNode<Context> context, TNode<JSFunction> target, TNode<Int32T> argc,
       AllocationSiteOverrideMode mode,
-      TNode<AllocationSite> allocation_site = TNode<AllocationSite>());
+      TNode<AllocationSite> allocation_site = {});
 
   void CreateArrayDispatchSingleArgument(
       TNode<Context> context, TNode<JSFunction> target, TNode<Int32T> argc,
       AllocationSiteOverrideMode mode,
-      TNode<AllocationSite> allocation_site = TNode<AllocationSite>());
+      TNode<AllocationSite> allocation_site = {});
 
   void GenerateConstructor(Node* context, Node* array_function, Node* array_map,
                            Node* array_size, Node* allocation_site,

@@ -3178,7 +3178,7 @@ TEST(CloneEmptyFixedArray) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   {
     CodeStubAssembler m(asm_tester.state());
-    m.Return(m.CloneFixedArray(m.Parameter(0)));
+    m.Return(m.CloneFixedArray(m.CAST(m.Parameter(0))));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
@@ -3195,7 +3195,7 @@ TEST(CloneFixedArray) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   {
     CodeStubAssembler m(asm_tester.state());
-    m.Return(m.CloneFixedArray(m.Parameter(0)));
+    m.Return(m.CloneFixedArray(m.CAST(m.Parameter(0))));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
@@ -3217,7 +3217,7 @@ TEST(CloneFixedArrayCOW) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   {
     CodeStubAssembler m(asm_tester.state());
-    m.Return(m.CloneFixedArray(m.Parameter(0)));
+    m.Return(m.CloneFixedArray(m.CAST(m.Parameter(0))));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
