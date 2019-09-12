@@ -442,39 +442,39 @@ void GenerateRightOperands(InstructionSelector* selector, Node* node,
                            CanCombineWithLoad canCombineWithLoad) {
   S390OperandGenerator g(selector);
 
-  if ((operand_mode & OperandMode::kAllowImmediate) &&
-      g.CanBeImmediate(right, operand_mode)) {
+  if ((*operand_mode & OperandMode::kAllowImmediate) &&
+      g.CanBeImmediate(right, *operand_mode)) {
     inputs[(*input_count)++] = g.UseImmediate(right);
     // Can only be RI or RRI
-    operand_mode &= OperandMode::kAllowImmediate;
-  } else if (operand_mode & OperandMode::kAllowMemoryOperand) {
+    *operand_mode &= OperandMode::kAllowImmediate;
+  } else if (*operand_mode & OperandMode::kAllowMemoryOperand) {
     NodeMatcher mright(right);
     if (mright.IsLoad() && selector->CanCover(node, right) &&
         canCombineWithLoad(SelectLoadOpcode(right))) {
       AddressingMode mode = g.GetEffectiveAddressMemoryOperand(
-          right, inputs, input_count, OpcodeImmMode(opcode));
-      opcode |= AddressingModeField::encode(mode);
-      operand_mode &= ~OperandMode::kAllowImmediate;
-      if (operand_mode & OperandMode::kAllowRM)
-        operand_mode &= ~OperandMode::kAllowDistinctOps;
-    } else if (operand_mode & OperandMode::kAllowRM) {
-      DCHECK(!(operand_mode & OperandMode::kAllowRRM));
+          right, inputs, input_count, OpcodeImmMode(*opcode));
+      *opcode |= AddressingModeField::encode(mode);
+      *operand_mode &= ~OperandMode::kAllowImmediate;
+      if (*operand_mode & OperandMode::kAllowRM)
+        *operand_mode &= ~OperandMode::kAllowDistinctOps;
+    } else if (*operand_mode & OperandMode::kAllowRM) {
+      DCHECK(!(*operand_mode & OperandMode::kAllowRRM));
       inputs[(*input_count)++] = g.UseAnyExceptImmediate(right);
       // Can not be Immediate
-      operand_mode &=
+      *operand_mode &=
           ~OperandMode::kAllowImmediate & ~OperandMode::kAllowDistinctOps;
-    } else if (operand_mode & OperandMode::kAllowRRM) {
-      DCHECK(!(operand_mode & OperandMode::kAllowRM));
+    } else if (*operand_mode & OperandMode::kAllowRRM) {
+      DCHECK(!(*operand_mode & OperandMode::kAllowRM));
       inputs[(*input_count)++] = g.UseAnyExceptImmediate(right);
       // Can not be Immediate
-      operand_mode &= ~OperandMode::kAllowImmediate;
+      *operand_mode &= ~OperandMode::kAllowImmediate;
     } else {
       UNREACHABLE();
     }
   } else {
     inputs[(*input_count)++] = g.UseRegister(right);
     // Can only be RR or RRR
-    operand_mode &= OperandMode::kAllowRRR;
+    *operand_mode &= OperandMode::kAllowRRR;
   }
 }
 
@@ -492,7 +492,7 @@ void GenerateBinOpOperands(InstructionSelector* selector, Node* node,
   if (left == right) {
     inputs[(*input_count)++] = left_input;
     // Can only be RR or RRR
-    operand_mode &= OperandMode::kAllowRRR;
+    *operand_mode &= OperandMode::kAllowRRR;
   } else {
     GenerateRightOperands(selector, node, right, opcode, operand_mode, inputs,
                           input_count, canCombineWithLoad);
@@ -570,8 +570,8 @@ void VisitUnaryOp(InstructionSelector* selector, Node* node,
   size_t output_count = 0;
   Node* input = node->InputAt(0);
 
-  GenerateRightOperands(selector, node, input, opcode, operand_mode, inputs,
-                        input_count, canCombineWithLoad);
+  GenerateRightOperands(selector, node, input, &opcode, &operand_mode, inputs,
+                        &input_count, canCombineWithLoad);
 
   bool input_is_word32 = ProduceWord32Result(input);
 
@@ -626,8 +626,8 @@ void VisitBinOp(InstructionSelector* selector, Node* node,
     std::swap(left, right);
   }
 
-  GenerateBinOpOperands(selector, node, left, right, opcode, operand_mode,
-                        inputs, input_count, canCombineWithLoad);
+  GenerateBinOpOperands(selector, node, left, right, &opcode, &operand_mode,
+                        inputs, &input_count, canCombineWithLoad);
 
   bool left_is_word32 = ProduceWord32Result(left);
 
