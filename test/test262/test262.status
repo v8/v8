@@ -485,12 +485,13 @@
   'language/comments/hashbang/use-strict': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=8179
+  # Temporarily removed pending https://github.com/tc39/test262/issues/2339
   #
   # These tests require exception handling support which is currently
   #  blocked on landing https://chromium-review.googlesource.com/c/v8/v8/+/1655655
-  'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-job-not-active-throws': [FAIL],
-  'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-callback-throws': [FAIL],
-  'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-cleanup-callback-throws': [FAIL],
+  # 'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-job-not-active-throws': [FAIL],
+  # 'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-callback-throws': [FAIL],
+  # 'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-cleanup-callback-throws': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=8179
   #
@@ -500,23 +501,28 @@
   'built-ins/FinalizationGroup/prototype/register/return-undefined-register-itself': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=8179
+  # Temporarily removed pending https://github.com/tc39/test262/issues/2339
   #
   # This test has target === holdings which throws, changing holdings to
   #  { y } makes the test pass.
-  'built-ins/FinalizationGroup/prototype/cleanupSome/cleanup-prevented-with-reference': [FAIL],
+  # 'built-ins/FinalizationGroup/prototype/cleanupSome/cleanup-prevented-with-reference': [FAIL],
 
   # https://github.com/tc39/test262/issues/2256
-  'built-ins/FinalizationGroup/prototype/cleanupSome/cleanup-prevented-with-unregister': [FAIL],
+  # Temporarily removed pending https://github.com/tc39/test262/issues/2339
+  # 'built-ins/FinalizationGroup/prototype/cleanupSome/cleanup-prevented-with-unregister': [FAIL],
 
   # https://github.com/tc39/test262/issues/2239
-  'built-ins/WeakRef/prototype/deref/gc-cleanup-not-prevented-with-wr-deref': [FAIL],
-  'built-ins/FinalizationGroup/prototype/cleanupSome/gc-cleanup-not-prevented-with-wr-deref': [FAIL],
+  # Temporarily removed pending https://github.com/tc39/test262/issues/2339
+  # 'built-ins/WeakRef/prototype/deref/gc-cleanup-not-prevented-with-wr-deref': [FAIL],
+  # 'built-ins/FinalizationGroup/prototype/cleanupSome/gc-cleanup-not-prevented-with-wr-deref': [FAIL],
 
   # https://github.com/tc39/test262/issues/2255
-  'built-ins/FinalizationGroup/prototype/cleanupSome/iterator-holdings-multiple-values': [FAIL],
+  # Temporarily removed pending https://github.com/tc39/test262/issues/2339
+  # 'built-ins/FinalizationGroup/prototype/cleanupSome/iterator-holdings-multiple-values': [FAIL],
 
   # https://github.com/tc39/test262/issues/2260
-  'built-ins/FinalizationGroup/prototype/cleanupSome/return-undefined-with-gc': [FAIL],
+  # Temporarily removed pending https://github.com/tc39/test262/issues/2339
+  # 'built-ins/FinalizationGroup/prototype/cleanupSome/return-undefined-with-gc': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9612
   'intl402/DateTimeFormat/prototype/formatRange/fractionalSecondDigits': [FAIL],
@@ -785,6 +791,9 @@
   'language/statements/class/ident-name-method-def-void-escaped': [FAIL],
   'language/statements/class/ident-name-method-def-while-escaped': [FAIL],
   'language/statements/class/ident-name-method-def-with-escaped': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9712
+  'intl402/PluralRules/proto-from-ctor-realm': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
