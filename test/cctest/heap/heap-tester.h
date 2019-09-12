@@ -42,6 +42,9 @@
   V(Promotion)                                            \
   V(Regression39128)                                      \
   V(ResetWeakHandle)                                      \
+  V(StoreBuffer_CreateFromOldToYoung)                     \
+  V(StoreBuffer_Overflow)                                 \
+  V(StoreBuffer_NotUsedOnAgingObjectWithRefsToYounger)    \
   V(StressHandles)                                        \
   V(TestMemoryReducerSampleJsCalls)                       \
   V(TestSizeOfObjects)                                    \
