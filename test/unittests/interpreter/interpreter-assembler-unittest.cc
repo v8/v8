@@ -16,7 +16,6 @@
 using ::testing::_;
 using ::testing::Eq;
 using v8::internal::compiler::Node;
-using v8::internal::compiler::TNode;
 
 namespace c = v8::internal::compiler;
 

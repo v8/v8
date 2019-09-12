@@ -21,8 +21,6 @@ namespace internal {
 namespace interpreter {
 
 using compiler::Node;
-template <typename T>
-using TNode = compiler::TNode<T>;
 
 class IntrinsicsGenerator {
  public:
@@ -50,7 +48,7 @@ class IntrinsicsGenerator {
   TNode<Object> IntrinsicAsBuiltinCall(
       const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
       Builtins::Name name);
-  void AbortIfArgCountMismatch(int expected, compiler::TNode<Word32T> actual);
+  void AbortIfArgCountMismatch(int expected, TNode<Word32T> actual);
 
 #define DECLARE_INTRINSIC_HELPER(name, lower_case, count)               \
   TNode<Object> name(const InterpreterAssembler::RegListNodePair& args, \

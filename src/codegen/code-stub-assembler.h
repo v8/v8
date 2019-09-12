@@ -157,11 +157,11 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(V)
 
 #ifdef DEBUG
-#define CSA_CHECK(csa, x)                                        \
-  (csa)->Check(                                                  \
-      [&]() -> compiler::Node* {                                 \
-        return implicit_cast<compiler::SloppyTNode<Word32T>>(x); \
-      },                                                         \
+#define CSA_CHECK(csa, x)                              \
+  (csa)->Check(                                        \
+      [&]() -> compiler::Node* {                       \
+        return implicit_cast<SloppyTNode<Word32T>>(x); \
+      },                                               \
       #x, __FILE__, __LINE__)
 #else
 #define CSA_CHECK(csa, x) (csa)->FastCheck(x)
@@ -255,10 +255,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       public TorqueGeneratedExportedMacrosAssembler {
  public:
   using Node = compiler::Node;
-  template <class T>
-  using TNode = compiler::TNode<T>;
-  template <class T>
-  using SloppyTNode = compiler::SloppyTNode<T>;
 
   template <typename T>
   using LazyNode = std::function<TNode<T>()>;
@@ -513,14 +509,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Object> NoContextConstant();
 
 #define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name)  \
-  compiler::TNode<std::remove_pointer<std::remove_reference<decltype(  \
+  TNode<std::remove_pointer<std::remove_reference<decltype(            \
       std::declval<ReadOnlyRoots>().rootAccessorName())>::type>::type> \
       name##Constant();
   HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_ACCESSOR)
 #undef HEAP_CONSTANT_ACCESSOR
 
 #define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name) \
-  compiler::TNode<std::remove_pointer<std::remove_reference<decltype( \
+  TNode<std::remove_pointer<std::remove_reference<decltype(           \
       std::declval<Heap>().rootAccessorName())>::type>::type>         \
       name##Constant();
   HEAP_MUTABLE_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_ACCESSOR)
@@ -3819,10 +3815,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 class V8_EXPORT_PRIVATE CodeStubArguments {
  public:
   using Node = compiler::Node;
-  template <class T>
-  using TNode = compiler::TNode<T>;
-  template <class T>
-  using SloppyTNode = compiler::SloppyTNode<T>;
   enum ReceiverMode { kHasReceiver, kNoReceiver };
 
   // |argc| is an intptr value which specifies the number of arguments passed

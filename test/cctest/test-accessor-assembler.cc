@@ -18,8 +18,6 @@ namespace internal {
 using compiler::CodeAssemblerTester;
 using compiler::FunctionTester;
 using compiler::Node;
-template <typename T>
-using TNode = compiler::TNode<T>;
 
 namespace {
 

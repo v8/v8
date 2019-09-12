@@ -2145,6 +2145,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/codegen/string-constants.h",
     "src/codegen/tick-counter.cc",
     "src/codegen/tick-counter.h",
+    "src/codegen/tnode.h",
     "src/codegen/turbo-assembler.cc",
     "src/codegen/turbo-assembler.h",
     "src/codegen/unoptimized-compilation-info.cc",

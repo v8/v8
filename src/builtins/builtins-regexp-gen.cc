@@ -23,8 +23,6 @@ namespace v8 {
 namespace internal {
 
 using compiler::Node;
-template <class T>
-using TNode = compiler::TNode<T>;
 
 // Tail calls the regular expression interpreter.
 // static

@@ -17,9 +17,6 @@
 namespace v8 {
 namespace internal {
 
-template <class T>
-using TNode = compiler::TNode<T>;
-
 class IntlBuiltinsAssembler : public CodeStubAssembler {
  public:
   explicit IntlBuiltinsAssembler(compiler::CodeAssemblerState* state)

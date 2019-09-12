@@ -23,8 +23,6 @@ namespace internal {
 // ES6 section 19.1 Object Objects
 
 using Node = compiler::Node;
-template <class T>
-using TNode = CodeStubAssembler::TNode<T>;
 
 class ObjectBuiltinsAssembler : public CodeStubAssembler {
  public:

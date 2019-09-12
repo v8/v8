@@ -17,9 +17,6 @@
 namespace v8 {
 namespace internal {
 
-template <typename T>
-using TNode = compiler::TNode<T>;
-
 void Builtins::Generate_CallFunction_ReceiverIsNullOrUndefined(
     MacroAssembler* masm) {
   Generate_CallFunction(masm, ConvertReceiverMode::kNullOrUndefined);

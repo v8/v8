@@ -9,9 +9,6 @@
 namespace v8 {
 namespace internal {
 
-template <typename T>
-using TNode = compiler::TNode<T>;
-
 TNode<Object> BinaryOpAssembler::Generate_AddWithFeedback(
     TNode<Context> context, TNode<Object> lhs, TNode<Object> rhs,
     TNode<UintPtrT> slot_id, TNode<HeapObject> maybe_feedback_vector,

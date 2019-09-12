@@ -11,8 +11,6 @@ namespace v8 {
 namespace internal {
 
 using compiler::Node;
-template <typename T>
-using TNode = compiler::TNode<T>;
 
 class SharedArrayBufferBuiltinsAssembler : public CodeStubAssembler {
  public:

@@ -21,8 +21,6 @@ namespace v8 {
 namespace internal {
 
 using Node = compiler::Node;
-template <class T>
-using TNode = CodeStubAssembler::TNode<T>;
 using IteratorRecord = TorqueStructIteratorRecord;
 
 Node* PromiseBuiltinsAssembler::AllocateJSPromise(Node* context) {

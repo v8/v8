@@ -15,8 +15,6 @@ namespace v8 {
 namespace internal {
 
 using compiler::Node;
-template <class T>
-using TNode = compiler::TNode<T>;
 
 // -----------------------------------------------------------------------------
 // ES6 section 22.2 TypedArray Objects

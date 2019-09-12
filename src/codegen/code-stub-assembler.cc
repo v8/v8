@@ -26,10 +26,6 @@ namespace v8 {
 namespace internal {
 
 using compiler::Node;
-template <class T>
-using TNode = compiler::TNode<T>;
-template <class T>
-using SloppyTNode = compiler::SloppyTNode<T>;
 
 CodeStubAssembler::CodeStubAssembler(compiler::CodeAssemblerState* state)
     : compiler::CodeAssembler(state),
@@ -353,7 +349,7 @@ TNode<Object> CodeStubAssembler::NoContextConstant() {
 }
 
 #define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name)        \
-  compiler::TNode<std::remove_pointer<std::remove_reference<decltype(        \
+  TNode<std::remove_pointer<std::remove_reference<decltype(                  \
       std::declval<Heap>().rootAccessorName())>::type>::type>                \
       CodeStubAssembler::name##Constant() {                                  \
     return UncheckedCast<std::remove_pointer<std::remove_reference<decltype( \
@@ -364,7 +360,7 @@ HEAP_MUTABLE_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_ACCESSOR)
 #undef HEAP_CONSTANT_ACCESSOR
 
 #define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name)        \
-  compiler::TNode<std::remove_pointer<std::remove_reference<decltype(        \
+  TNode<std::remove_pointer<std::remove_reference<decltype(                  \
       std::declval<ReadOnlyRoots>().rootAccessorName())>::type>::type>       \
       CodeStubAssembler::name##Constant() {                                  \
     return UncheckedCast<std::remove_pointer<std::remove_reference<decltype( \
@@ -374,14 +370,12 @@ HEAP_MUTABLE_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_ACCESSOR)
 HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_ACCESSOR)
 #undef HEAP_CONSTANT_ACCESSOR
 
-#define HEAP_CONSTANT_TEST(rootIndexName, rootAccessorName, name) \
-  compiler::TNode<BoolT> CodeStubAssembler::Is##name(             \
-      SloppyTNode<Object> value) {                                \
-    return TaggedEqual(value, name##Constant());                  \
-  }                                                               \
-  compiler::TNode<BoolT> CodeStubAssembler::IsNot##name(          \
-      SloppyTNode<Object> value) {                                \
-    return TaggedNotEqual(value, name##Constant());               \
+#define HEAP_CONSTANT_TEST(rootIndexName, rootAccessorName, name)          \
+  TNode<BoolT> CodeStubAssembler::Is##name(SloppyTNode<Object> value) {    \
+    return TaggedEqual(value, name##Constant());                           \
+  }                                                                        \
+  TNode<BoolT> CodeStubAssembler::IsNot##name(SloppyTNode<Object> value) { \
+    return TaggedNotEqual(value, name##Constant());                        \
   }
 HEAP_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_TEST)
 #undef HEAP_CONSTANT_TEST
@@ -2376,8 +2370,7 @@ TNode<BigInt> CodeStubAssembler::BigIntFromInt64(TNode<IntPtrT> value) {
   return var_result.value();
 }
 
-compiler::TNode<BigInt>
-CodeStubAssembler::LoadFixedBigUint64ArrayElementAsTagged(
+TNode<BigInt> CodeStubAssembler::LoadFixedBigUint64ArrayElementAsTagged(
     SloppyTNode<RawPtrT> data_pointer, SloppyTNode<IntPtrT> offset) {
   Label if_zero(this), done(this);
   if (Is64()) {

@@ -19,9 +19,6 @@
 namespace v8 {
 namespace internal {
 
-template <typename T>
-using TNode = compiler::TNode<T>;
-
 void Builtins::Generate_ConstructVarargs(MacroAssembler* masm) {
   Generate_CallOrConstructVarargs(masm,
                                   BUILTIN_CODE(masm->isolate(), Construct));
@@ -164,7 +161,7 @@ TF_BUILTIN(FastNewObject, ConstructorBuiltinsAssembler) {
   TailCallRuntime(Runtime::kNewObject, context, target, new_target);
 }
 
-compiler::TNode<JSObject> ConstructorBuiltinsAssembler::EmitFastNewObject(
+TNode<JSObject> ConstructorBuiltinsAssembler::EmitFastNewObject(
     SloppyTNode<Context> context, SloppyTNode<JSFunction> target,
     SloppyTNode<JSReceiver> new_target) {
   TVARIABLE(JSObject, var_obj);
@@ -181,7 +178,7 @@ compiler::TNode<JSObject> ConstructorBuiltinsAssembler::EmitFastNewObject(
   return var_obj.value();
 }
 
-compiler::TNode<JSObject> ConstructorBuiltinsAssembler::EmitFastNewObject(
+TNode<JSObject> ConstructorBuiltinsAssembler::EmitFastNewObject(
     SloppyTNode<Context> context, SloppyTNode<JSFunction> target,
     SloppyTNode<JSReceiver> new_target, Label* call_runtime) {
   // Verify that the new target is a JSFunction.

@@ -20,10 +20,6 @@ class ExitPoint;
 class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
  public:
   using Node = compiler::Node;
-  template <class T>
-  using TNode = compiler::TNode<T>;
-  template <class T>
-  using SloppyTNode = compiler::SloppyTNode<T>;
 
   explicit AccessorAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}

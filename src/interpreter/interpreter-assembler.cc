@@ -22,8 +22,6 @@ namespace interpreter {
 
 using compiler::CodeAssemblerState;
 using compiler::Node;
-template <class T>
-using TNode = compiler::TNode<T>;
 
 InterpreterAssembler::InterpreterAssembler(CodeAssemblerState* state,
                                            Bytecode bytecode,

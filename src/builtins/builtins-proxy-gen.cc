@@ -14,7 +14,7 @@
 namespace v8 {
 namespace internal {
 
-compiler::TNode<JSProxy> ProxiesCodeStubAssembler::AllocateProxy(
+TNode<JSProxy> ProxiesCodeStubAssembler::AllocateProxy(
     TNode<Context> context, TNode<JSReceiver> target,
     TNode<JSReceiver> handler) {
   VARIABLE(map, MachineRepresentation::kTagged);
@@ -124,9 +124,8 @@ Node* ProxiesCodeStubAssembler::CreateProxyRevokeFunctionContext(
   return context;
 }
 
-compiler::TNode<JSFunction>
-ProxiesCodeStubAssembler::AllocateProxyRevokeFunction(TNode<Context> context,
-                                                      TNode<JSProxy> proxy) {
+TNode<JSFunction> ProxiesCodeStubAssembler::AllocateProxyRevokeFunction(
+    TNode<Context> context, TNode<JSProxy> proxy) {
   TNode<NativeContext> const native_context = LoadNativeContext(context);
 
   Node* const proxy_context =

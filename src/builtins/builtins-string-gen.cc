@@ -17,8 +17,6 @@ namespace v8 {
 namespace internal {
 
 using Node = compiler::Node;
-template <class T>
-using TNode = compiler::TNode<T>;
 
 Node* StringBuiltinsAssembler::DirectStringData(Node* string,
                                                 Node* string_instance_type) {

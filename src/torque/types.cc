@@ -86,7 +86,7 @@ bool Type::IsAbstractName(const std::string& name) const {
 
 std::string Type::GetGeneratedTypeName() const {
   std::string result = GetGeneratedTypeNameImpl();
-  if (result.empty() || result == "compiler::TNode<>") {
+  if (result.empty() || result == "TNode<>") {
     ReportError("Generated type is required for type '", ToString(),
                 "'. Use 'generates' clause in definition.");
   }
@@ -382,7 +382,7 @@ std::string ClassType::GetGeneratedTNodeTypeNameImpl() const {
 
 std::string ClassType::GetGeneratedTypeNameImpl() const {
   return IsConstexpr() ? GetGeneratedTNodeTypeName()
-                       : "compiler::TNode<" + GetGeneratedTNodeTypeName() + ">";
+                       : "TNode<" + GetGeneratedTNodeTypeName() + ">";
 }
 
 std::string ClassType::ToExplicitString() const {

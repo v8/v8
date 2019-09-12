@@ -204,8 +204,7 @@ class AbstractType final : public Type {
     return "AT" + str;
   }
   std::string GetGeneratedTypeNameImpl() const override {
-    return IsConstexpr() ? generated_type_
-                         : "compiler::TNode<" + generated_type_ + ">";
+    return IsConstexpr() ? generated_type_ : "TNode<" + generated_type_ + ">";
   }
   std::string GetGeneratedTNodeTypeNameImpl() const override;
   bool IsConstexpr() const override {
@@ -316,7 +315,7 @@ class V8_EXPORT_PRIVATE UnionType final : public Type {
   std::string ToExplicitString() const override;
   std::string MangledName() const override;
   std::string GetGeneratedTypeNameImpl() const override {
-    return "compiler::TNode<" + GetGeneratedTNodeTypeName() + ">";
+    return "TNode<" + GetGeneratedTNodeTypeName() + ">";
   }
   std::string GetGeneratedTNodeTypeNameImpl() const override;
 
