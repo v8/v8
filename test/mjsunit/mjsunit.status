@@ -518,9 +518,6 @@
   'json': [PASS, SLOW],
   'sealed-array-reduce': [PASS, SLOW],
   'try': [PASS, SLOW],
-
-  # Slow without pointer compression
-  'wasm/asm-wasm-u32': [PASS, ['not pointer_compression', SLOW]],
 }],  # 'arch == arm64 and simulator_run'
 
 ##############################################################################
