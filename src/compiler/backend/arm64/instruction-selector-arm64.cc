@@ -1004,31 +1004,11 @@ void InstructionSelector::VisitWord64Shl(Node* node) {
 
 void InstructionSelector::VisitStackPointerGreaterThan(
     Node* node, FlagsContinuation* cont) {
-  StackCheckKind kind = StackCheckKindOf(node->op());
-  InstructionCode opcode =
-      kArchStackPointerGreaterThan | MiscField::encode(static_cast<int>(kind));
+  Node* const value = node->InputAt(0);
+  InstructionCode opcode = kArchStackPointerGreaterThan;
 
   Arm64OperandGenerator g(this);
-
-  // No outputs.
-  InstructionOperand* const outputs = nullptr;
-  const int output_count = 0;
-
-  // Applying an offset to this stack check requires a temp register. Offsets
-  // are only applied to the first stack check. If applying an offset, we must
-  // ensure the input and temp registers do not alias, thus kUniqueRegister.
-  InstructionOperand temps[] = {g.TempRegister()};
-  const int temp_count = (kind == StackCheckKind::kJSFunctionEntry) ? 1 : 0;
-  const auto register_mode = (kind == StackCheckKind::kJSFunctionEntry)
-                                 ? OperandGenerator::kUniqueRegister
-                                 : OperandGenerator::kRegister;
-
-  Node* const value = node->InputAt(0);
-  InstructionOperand inputs[] = {g.UseRegisterWithMode(value, register_mode)};
-  static constexpr int input_count = arraysize(inputs);
-
-  EmitWithContinuation(opcode, output_count, outputs, input_count, inputs,
-                       temp_count, temps, cont);
+  EmitWithContinuation(opcode, g.UseRegister(value), cont);
 }
 
 namespace {

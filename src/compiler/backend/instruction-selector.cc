@@ -42,7 +42,6 @@ InstructionSelector::InstructionSelector(
       instructions_(zone),
       continuation_inputs_(sequence->zone()),
       continuation_outputs_(sequence->zone()),
-      continuation_temps_(sequence->zone()),
       defined_(node_count, false, zone),
       used_(node_count, false, zone),
       effect_level_(node_count, 0, zone),
@@ -724,14 +723,6 @@ Instruction* InstructionSelector::EmitWithContinuation(
 Instruction* InstructionSelector::EmitWithContinuation(
     InstructionCode opcode, size_t output_count, InstructionOperand* outputs,
     size_t input_count, InstructionOperand* inputs, FlagsContinuation* cont) {
-  return EmitWithContinuation(opcode, output_count, outputs, input_count,
-                              inputs, 0, nullptr, cont);
-}
-
-Instruction* InstructionSelector::EmitWithContinuation(
-    InstructionCode opcode, size_t output_count, InstructionOperand* outputs,
-    size_t input_count, InstructionOperand* inputs, size_t temp_count,
-    InstructionOperand* temps, FlagsContinuation* cont) {
   OperandGenerator g(this);
 
   opcode = cont->Encode(opcode);
@@ -744,11 +735,6 @@ Instruction* InstructionSelector::EmitWithContinuation(
   continuation_outputs_.resize(0);
   for (size_t i = 0; i < output_count; i++) {
     continuation_outputs_.push_back(outputs[i]);
-  }
-
-  continuation_temps_.resize(0);
-  for (size_t i = 0; i < temp_count; i++) {
-    continuation_temps_.push_back(temps[i]);
   }
 
   if (cont->IsBranch()) {
@@ -774,10 +760,8 @@ Instruction* InstructionSelector::EmitWithContinuation(
   size_t const emit_outputs_size = continuation_outputs_.size();
   auto* emit_outputs =
       emit_outputs_size ? &continuation_outputs_.front() : nullptr;
-  size_t const emit_temps_size = continuation_temps_.size();
-  auto* emit_temps = emit_temps_size ? &continuation_temps_.front() : nullptr;
   return Emit(opcode, emit_outputs_size, emit_outputs, emit_inputs_size,
-              emit_inputs, emit_temps_size, emit_temps);
+              emit_inputs, 0, nullptr);
 }
 
 void InstructionSelector::AppendDeoptimizeArguments(

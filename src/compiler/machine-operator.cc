@@ -396,7 +396,8 @@ MachineType AtomicOpType(Operator const* op) {
   V(S1x8AnyTrue, Operator::kNoProperties, 1, 0, 1)                            \
   V(S1x8AllTrue, Operator::kNoProperties, 1, 0, 1)                            \
   V(S1x16AnyTrue, Operator::kNoProperties, 1, 0, 1)                           \
-  V(S1x16AllTrue, Operator::kNoProperties, 1, 0, 1)
+  V(S1x16AllTrue, Operator::kNoProperties, 1, 0, 1)                           \
+  V(StackPointerGreaterThan, Operator::kNoProperties, 1, 0, 1)
 
 // The format is:
 // V(Name, properties, value_input_count, control_input_count, output_count)
@@ -512,13 +513,6 @@ struct StackSlotOperator : public Operator1<StackSlotRepresentation> {
             IrOpcode::kStackSlot, Operator::kNoDeopt | Operator::kNoThrow,
             "StackSlot", 0, 0, 0, 1, 0, 0,
             StackSlotRepresentation(size, alignment)) {}
-};
-
-struct StackPointerGreaterThanOperator : public Operator1<StackCheckKind> {
-  explicit StackPointerGreaterThanOperator(StackCheckKind kind)
-      : Operator1<StackCheckKind>(IrOpcode::kStackPointerGreaterThan,
-                                  Operator::kPure, "StackPointerGreaterThan", 1,
-                                  0, 0, 1, 0, 0, kind) {}
 };
 
 struct MachineOperatorGlobalCache {
@@ -896,20 +890,6 @@ struct MachineOperatorGlobalCache {
                    "UnsafePointerAdd", 2, 1, 1, 1, 1, 0) {}
   };
   UnsafePointerAddOperator kUnsafePointerAdd;
-
-#define STACK_POINTER_GREATER_THAN(Kind)                              \
-  struct StackPointerGreaterThan##Kind##Operator final                \
-      : public StackPointerGreaterThanOperator {                      \
-    StackPointerGreaterThan##Kind##Operator()                         \
-        : StackPointerGreaterThanOperator(StackCheckKind::k##Kind) {} \
-  };                                                                  \
-  StackPointerGreaterThan##Kind##Operator kStackPointerGreaterThan##Kind;
-
-  STACK_POINTER_GREATER_THAN(JSFunctionEntry)
-  STACK_POINTER_GREATER_THAN(JSIterationBody)
-  STACK_POINTER_GREATER_THAN(CodeStubAssembler)
-  STACK_POINTER_GREATER_THAN(Wasm)
-#undef STACK_POINTER_GREATER_THAN
 };
 
 struct CommentOperator : public Operator1<const char*> {
@@ -1098,21 +1078,6 @@ const Operator* MachineOperatorBuilder::DebugBreak() {
 
 const Operator* MachineOperatorBuilder::Comment(const char* msg) {
   return new (zone_) CommentOperator(msg);
-}
-
-const Operator* MachineOperatorBuilder::StackPointerGreaterThan(
-    StackCheckKind kind) {
-  switch (kind) {
-    case StackCheckKind::kJSFunctionEntry:
-      return &cache_.kStackPointerGreaterThanJSFunctionEntry;
-    case StackCheckKind::kJSIterationBody:
-      return &cache_.kStackPointerGreaterThanJSIterationBody;
-    case StackCheckKind::kCodeStubAssembler:
-      return &cache_.kStackPointerGreaterThanCodeStubAssembler;
-    case StackCheckKind::kWasm:
-      return &cache_.kStackPointerGreaterThanWasm;
-  }
-  UNREACHABLE();
 }
 
 const Operator* MachineOperatorBuilder::MemBarrier() {
@@ -1383,11 +1348,6 @@ const Operator* MachineOperatorBuilder::S8x16Shuffle(
 const uint8_t* S8x16ShuffleOf(Operator const* op) {
   DCHECK_EQ(IrOpcode::kS8x16Shuffle, op->opcode());
   return OpParameter<uint8_t*>(op);
-}
-
-StackCheckKind StackCheckKindOf(Operator const* op) {
-  DCHECK_EQ(IrOpcode::kStackPointerGreaterThan, op->opcode());
-  return OpParameter<StackCheckKind>(op);
 }
 
 #undef PURE_BINARY_OP_LIST_32

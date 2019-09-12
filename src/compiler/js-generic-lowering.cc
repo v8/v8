@@ -840,15 +840,6 @@ void JSGenericLowering::LowerJSGeneratorRestoreRegister(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 
-namespace {
-
-StackCheckKind StackCheckKindOfJSStackCheck(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kJSStackCheck);
-  return OpParameter<StackCheckKind>(op);
-}
-
-}  // namespace
-
 void JSGenericLowering::LowerJSStackCheck(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -859,9 +850,7 @@ void JSGenericLowering::LowerJSStackCheck(Node* node) {
                            ExternalReference::address_of_jslimit(isolate())),
                        jsgraph()->IntPtrConstant(0), effect, control);
 
-  StackCheckKind stack_check_kind = StackCheckKindOfJSStackCheck(node->op());
-  Node* check = graph()->NewNode(
-      machine()->StackPointerGreaterThan(stack_check_kind), limit);
+  Node* check = graph()->NewNode(machine()->StackPointerGreaterThan(), limit);
   Node* branch =
       graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
 

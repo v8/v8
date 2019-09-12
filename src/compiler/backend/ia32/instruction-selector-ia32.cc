@@ -86,10 +86,11 @@ class IA32OperandGenerator final : public OperandGenerator {
     }
   }
 
-  AddressingMode GenerateMemoryOperandInputs(
-      Node* index, int scale, Node* base, Node* displacement_node,
-      DisplacementMode displacement_mode, InstructionOperand inputs[],
-      size_t* input_count, RegisterMode register_mode = kRegister) {
+  AddressingMode GenerateMemoryOperandInputs(Node* index, int scale, Node* base,
+                                             Node* displacement_node,
+                                             DisplacementMode displacement_mode,
+                                             InstructionOperand inputs[],
+                                             size_t* input_count) {
     AddressingMode mode = kMode_MRI;
     int32_t displacement = (displacement_node == nullptr)
                                ? 0
@@ -104,10 +105,10 @@ class IA32OperandGenerator final : public OperandGenerator {
       }
     }
     if (base != nullptr) {
-      inputs[(*input_count)++] = UseRegisterWithMode(base, register_mode);
+      inputs[(*input_count)++] = UseRegister(base);
       if (index != nullptr) {
         DCHECK(scale >= 0 && scale <= 3);
-        inputs[(*input_count)++] = UseRegisterWithMode(index, register_mode);
+        inputs[(*input_count)++] = UseRegister(index);
         if (displacement != 0) {
           inputs[(*input_count)++] = TempImmediate(displacement);
           static const AddressingMode kMRnI_modes[] = {kMode_MR1I, kMode_MR2I,
@@ -129,7 +130,7 @@ class IA32OperandGenerator final : public OperandGenerator {
     } else {
       DCHECK(scale >= 0 && scale <= 3);
       if (index != nullptr) {
-        inputs[(*input_count)++] = UseRegisterWithMode(index, register_mode);
+        inputs[(*input_count)++] = UseRegister(index);
         if (displacement != 0) {
           inputs[(*input_count)++] = TempImmediate(displacement);
           static const AddressingMode kMnI_modes[] = {kMode_MRI, kMode_M2I,
@@ -148,9 +149,9 @@ class IA32OperandGenerator final : public OperandGenerator {
     return mode;
   }
 
-  AddressingMode GetEffectiveAddressMemoryOperand(
-      Node* node, InstructionOperand inputs[], size_t* input_count,
-      RegisterMode register_mode = kRegister) {
+  AddressingMode GetEffectiveAddressMemoryOperand(Node* node,
+                                                  InstructionOperand inputs[],
+                                                  size_t* input_count) {
     {
       LoadMatcher<ExternalReferenceMatcher> m(node);
       if (m.index().HasValue() && m.object().HasValue() &&
@@ -171,12 +172,10 @@ class IA32OperandGenerator final : public OperandGenerator {
     if ((m.displacement() == nullptr || CanBeImmediate(m.displacement()))) {
       return GenerateMemoryOperandInputs(
           m.index(), m.scale(), m.base(), m.displacement(),
-          m.displacement_mode(), inputs, input_count, register_mode);
+          m.displacement_mode(), inputs, input_count);
     } else {
-      inputs[(*input_count)++] =
-          UseRegisterWithMode(node->InputAt(0), register_mode);
-      inputs[(*input_count)++] =
-          UseRegisterWithMode(node->InputAt(1), register_mode);
+      inputs[(*input_count)++] = UseRegister(node->InputAt(0));
+      inputs[(*input_count)++] = UseRegister(node->InputAt(1));
       return kMode_MR1;
     }
   }
@@ -560,30 +559,14 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
 
 void InstructionSelector::VisitStackPointerGreaterThan(
     Node* node, FlagsContinuation* cont) {
-  StackCheckKind kind = StackCheckKindOf(node->op());
-  InstructionCode opcode =
-      kArchStackPointerGreaterThan | MiscField::encode(static_cast<int>(kind));
+  Node* const value = node->InputAt(0);
+  InstructionCode opcode = kArchStackPointerGreaterThan;
 
   DCHECK(cont->IsBranch());
   const int effect_level =
       GetEffectLevel(cont->true_block()->PredecessorAt(0)->control_input());
 
   IA32OperandGenerator g(this);
-
-  // No outputs.
-  InstructionOperand* const outputs = nullptr;
-  const int output_count = 0;
-
-  // Applying an offset to this stack check requires a temp register. Offsets
-  // are only applied to the first stack check. If applying an offset, we must
-  // ensure the input and temp registers do not alias, thus kUniqueRegister.
-  InstructionOperand temps[] = {g.TempRegister()};
-  const int temp_count = (kind == StackCheckKind::kJSFunctionEntry) ? 1 : 0;
-  const auto register_mode = (kind == StackCheckKind::kJSFunctionEntry)
-                                 ? OperandGenerator::kUniqueRegister
-                                 : OperandGenerator::kRegister;
-
-  Node* const value = node->InputAt(0);
   if (g.CanBeMemoryOperand(kIA32Cmp, node, value, effect_level)) {
     DCHECK_EQ(IrOpcode::kLoad, value->opcode());
 
@@ -592,18 +575,14 @@ void InstructionSelector::VisitStackPointerGreaterThan(
 
     size_t input_count = 0;
     InstructionOperand inputs[kMaxInputCount];
-    AddressingMode addressing_mode = g.GetEffectiveAddressMemoryOperand(
-        value, inputs, &input_count, register_mode);
+    AddressingMode addressing_mode =
+        g.GetEffectiveAddressMemoryOperand(value, inputs, &input_count);
     opcode |= AddressingModeField::encode(addressing_mode);
     DCHECK_LE(input_count, kMaxInputCount);
 
-    EmitWithContinuation(opcode, output_count, outputs, input_count, inputs,
-                         temp_count, temps, cont);
+    EmitWithContinuation(opcode, 0, nullptr, input_count, inputs, cont);
   } else {
-    InstructionOperand inputs[] = {g.UseRegisterWithMode(value, register_mode)};
-    static constexpr int input_count = arraysize(inputs);
-    EmitWithContinuation(opcode, output_count, outputs, input_count, inputs,
-                         temp_count, temps, cont);
+    EmitWithContinuation(opcode, g.UseRegister(value), cont);
   }
 }
 

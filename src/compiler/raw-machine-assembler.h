@@ -579,9 +579,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     return AddNode(machine()->Word32PairSar(), low_word, high_word, shift);
   }
   Node* StackPointerGreaterThan(Node* value) {
-    return AddNode(
-        machine()->StackPointerGreaterThan(StackCheckKind::kCodeStubAssembler),
-        value);
+    return AddNode(machine()->StackPointerGreaterThan(), value);
   }
 
 #define INTPTR_BINOP(prefix, name)                           \

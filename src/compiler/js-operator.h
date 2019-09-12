@@ -6,8 +6,8 @@
 #define V8_COMPILER_JS_OPERATOR_H_
 
 #include "src/base/compiler-specific.h"
+#include "src/common/globals.h"
 #include "src/compiler/feedback-source.h"
-#include "src/compiler/globals.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/type-hints.h"
 #include "src/runtime/runtime.h"
@@ -862,7 +862,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* GeneratorRestoreRegister(int index);
   const Operator* GeneratorRestoreInputOrDebugPos();
 
-  const Operator* StackCheck(StackCheckKind kind);
+  const Operator* StackCheck();
   const Operator* Debugger();
 
   const Operator* FulfillPromise();
