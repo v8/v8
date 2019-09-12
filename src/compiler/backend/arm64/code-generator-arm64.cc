@@ -1794,6 +1794,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
       SIMD_UNOP_CASE(kArm64F64x2Abs, Fabs, 2D);
       SIMD_UNOP_CASE(kArm64F64x2Neg, Fneg, 2D);
+      SIMD_UNOP_CASE(kArm64F64x2Sqrt, Fsqrt, 2D);
       SIMD_BINOP_CASE(kArm64F64x2Add, Fadd, 2D);
       SIMD_BINOP_CASE(kArm64F64x2Sub, Fsub, 2D);
       SIMD_BINOP_CASE(kArm64F64x2Mul, Fmul, 2D);
@@ -1840,6 +1841,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_UNOP_CASE(kArm64F32x4UConvertI32x4, Ucvtf, 4S);
       SIMD_UNOP_CASE(kArm64F32x4Abs, Fabs, 4S);
       SIMD_UNOP_CASE(kArm64F32x4Neg, Fneg, 4S);
+      SIMD_UNOP_CASE(kArm64F32x4Sqrt, Fsqrt, 4S);
       SIMD_UNOP_CASE(kArm64F32x4RecipApprox, Frecpe, 4S);
       SIMD_UNOP_CASE(kArm64F32x4RecipSqrtApprox, Frsqrte, 4S);
       SIMD_BINOP_CASE(kArm64F32x4Add, Fadd, 4S);

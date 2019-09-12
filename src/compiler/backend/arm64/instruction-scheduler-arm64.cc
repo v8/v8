@@ -142,6 +142,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64F64x2ReplaceLane:
     case kArm64F64x2Abs:
     case kArm64F64x2Neg:
+    case kArm64F64x2Sqrt:
     case kArm64F64x2Add:
     case kArm64F64x2Sub:
     case kArm64F64x2Mul:
@@ -159,6 +160,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64F32x4UConvertI32x4:
     case kArm64F32x4Abs:
     case kArm64F32x4Neg:
+    case kArm64F32x4Sqrt:
     case kArm64F32x4RecipApprox:
     case kArm64F32x4RecipSqrtApprox:
     case kArm64F32x4Add:
