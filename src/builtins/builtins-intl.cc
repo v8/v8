@@ -282,8 +282,8 @@ Object LegacyFormatConstructor(BuiltinArguments args, Isolate* isolate,
 
   // 3. Perform ? Initialize<T>(Format, locales, options).
   Handle<T> format;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, format,
-                                     T::New(isolate, map, locales, options));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, format, T::New(isolate, map, locales, options, method));
   // 4. Let this be the this value.
   Handle<Object> receiver = args.receiver();
 
@@ -367,7 +367,8 @@ Object DisallowCallConstructor(BuiltinArguments args, Isolate* isolate,
  * Common code shared by Collator and V8BreakIterator
  */
 template <class T>
-Object CallOrConstructConstructor(BuiltinArguments args, Isolate* isolate) {
+Object CallOrConstructConstructor(BuiltinArguments args, Isolate* isolate,
+                                  const char* method) {
   Handle<JSReceiver> new_target;
 
   if (args.new_target()->IsUndefined(isolate)) {
@@ -386,7 +387,8 @@ Object CallOrConstructConstructor(BuiltinArguments args, Isolate* isolate) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, map, JSFunction::GetDerivedMap(isolate, target, new_target));
 
-  RETURN_RESULT_OR_FAILURE(isolate, T::New(isolate, map, locales, options));
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           T::New(isolate, map, locales, options, method));
 }
 }  // namespace
 
@@ -884,7 +886,7 @@ BUILTIN(CollatorConstructor) {
 
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kCollator);
 
-  return CallOrConstructConstructor<JSCollator>(args, isolate);
+  return CallOrConstructConstructor<JSCollator>(args, isolate, "Intl.Collator");
 }
 
 BUILTIN(CollatorPrototypeResolvedOptions) {
@@ -1069,7 +1071,8 @@ BUILTIN(SegmenterPrototypeSegment) {
 BUILTIN(V8BreakIteratorConstructor) {
   HandleScope scope(isolate);
 
-  return CallOrConstructConstructor<JSV8BreakIterator>(args, isolate);
+  return CallOrConstructConstructor<JSV8BreakIterator>(args, isolate,
+                                                       "Intl.v8BreakIterator");
 }
 
 BUILTIN(V8BreakIteratorPrototypeResolvedOptions) {

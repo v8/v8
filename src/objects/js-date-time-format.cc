@@ -641,7 +641,8 @@ Isolate::ICUObjectCacheType ConvertToCacheType(
 
 MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
     Isolate* isolate, Handle<Object> date, Handle<Object> locales,
-    Handle<Object> options, RequiredOption required, DefaultsOption defaults) {
+    Handle<Object> options, RequiredOption required, DefaultsOption defaults,
+    const char* method) {
   Isolate::ICUObjectCacheType cache_type = ConvertToCacheType(defaults);
 
   Factory* factory = isolate->factory();
@@ -691,7 +692,8 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
   Handle<JSDateTimeFormat> date_time_format;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, date_time_format,
-      JSDateTimeFormat::New(isolate, map, locales, internal_options), String);
+      JSDateTimeFormat::New(isolate, map, locales, internal_options, method),
+      String);
 
   if (can_cache) {
     isolate->set_icu_object_in_cache(
@@ -1215,7 +1217,7 @@ enum FormatMatcherOption { kBestFit, kBasic };
 // ecma402/#sec-initializedatetimeformat
 MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     Isolate* isolate, Handle<Map> map, Handle<Object> locales,
-    Handle<Object> input_options) {
+    Handle<Object> input_options, const char* service) {
   Factory* factory = isolate->factory();
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
@@ -1265,21 +1267,21 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   }
 
   Maybe<Intl::MatcherOption> maybe_locale_matcher =
-      Intl::GetLocaleMatcher(isolate, options, "Intl.DateTimeFormat");
+      Intl::GetLocaleMatcher(isolate, options, service);
   MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSDateTimeFormat>());
   Intl::MatcherOption locale_matcher = maybe_locale_matcher.FromJust();
 
   // 6. Let hour12 be ? GetOption(options, "hour12", "boolean", undefined,
   // undefined).
   bool hour12;
-  Maybe<bool> maybe_get_hour12 = Intl::GetBoolOption(
-      isolate, options, "hour12", "Intl.DateTimeFormat", &hour12);
+  Maybe<bool> maybe_get_hour12 =
+      Intl::GetBoolOption(isolate, options, "hour12", service, &hour12);
   MAYBE_RETURN(maybe_get_hour12, Handle<JSDateTimeFormat>());
 
   // 7. Let hourCycle be ? GetOption(options, "hourCycle", "string", « "h11",
   // "h12", "h23", "h24" », undefined).
   Maybe<Intl::HourCycle> maybe_hour_cycle =
-      Intl::GetHourCycle(isolate, options, "Intl.DateTimeFormat");
+      Intl::GetHourCycle(isolate, options, service);
   MAYBE_RETURN(maybe_hour_cycle, MaybeHandle<JSDateTimeFormat>());
   Intl::HourCycle hour_cycle = maybe_hour_cycle.FromJust();
 
@@ -1321,9 +1323,8 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   // 17. Let timeZone be ? Get(options, "timeZone").
   const std::vector<const char*> empty_values;
   std::unique_ptr<char[]> timezone = nullptr;
-  Maybe<bool> maybe_timezone =
-      Intl::GetStringOption(isolate, options, "timeZone", empty_values,
-                            "Intl.DateTimeFormat", &timezone);
+  Maybe<bool> maybe_timezone = Intl::GetStringOption(
+      isolate, options, "timeZone", empty_values, service, &timezone);
   MAYBE_RETURN(maybe_timezone, Handle<JSDateTimeFormat>());
 
   std::unique_ptr<icu::TimeZone> tz = CreateTimeZone(isolate, timezone.get());
@@ -1413,7 +1414,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     // "full", "long", "medium", "short" », undefined).
     Maybe<DateTimeStyle> maybe_date_style =
         Intl::GetStringOption<DateTimeStyle>(
-            isolate, options, "dateStyle", "Intl.DateTimeFormat",
+            isolate, options, "dateStyle", service,
             {"full", "long", "medium", "short"},
             {DateTimeStyle::kFull, DateTimeStyle::kLong, DateTimeStyle::kMedium,
              DateTimeStyle::kShort},
@@ -1427,7 +1428,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     // "full", "long", "medium", "short" »).
     Maybe<DateTimeStyle> maybe_time_style =
         Intl::GetStringOption<DateTimeStyle>(
-            isolate, options, "timeStyle", "Intl.DateTimeFormat",
+            isolate, options, "timeStyle", service,
             {"full", "long", "medium", "short"},
             {DateTimeStyle::kFull, DateTimeStyle::kLong, DateTimeStyle::kMedium,
              DateTimeStyle::kShort},
@@ -1455,9 +1456,9 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
       // i. Let prop be the name given in the Property column of the row.
       // ii. Let value be ? GetOption(options, prop, "string", « the strings
       // given in the Values column of the row », undefined).
-      Maybe<bool> maybe_get_option = Intl::GetStringOption(
-          isolate, options, item.property.c_str(), item.allowed_values,
-          "Intl.DateTimeFormat", &input);
+      Maybe<bool> maybe_get_option =
+          Intl::GetStringOption(isolate, options, item.property.c_str(),
+                                item.allowed_values, service, &input);
       MAYBE_RETURN(maybe_get_option, Handle<JSDateTimeFormat>());
       if (maybe_get_option.FromJust()) {
         if (item.property == "hour") {
@@ -1486,8 +1487,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     //     «  "basic", "best fit" », "best fit").
     Maybe<FormatMatcherOption> maybe_format_matcher =
         Intl::GetStringOption<FormatMatcherOption>(
-            isolate, options, "formatMatcher", "Intl.DateTimeFormat",
-            {"best fit", "basic"},
+            isolate, options, "formatMatcher", service, {"best fit", "basic"},
             {FormatMatcherOption::kBestFit, FormatMatcherOption::kBasic},
             FormatMatcherOption::kBestFit);
     MAYBE_RETURN(maybe_format_matcher, MaybeHandle<JSDateTimeFormat>());

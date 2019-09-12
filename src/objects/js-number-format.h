@@ -36,7 +36,7 @@ class JSNumberFormat : public JSObject {
   // ecma402/#sec-initializenumberformat
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSNumberFormat> New(
       Isolate* isolate, Handle<Map> map, Handle<Object> locales,
-      Handle<Object> options);
+      Handle<Object> options, const char* service);
 
   // ecma402/#sec-unwrapnumberformat
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSNumberFormat> UnwrapNumberFormat(

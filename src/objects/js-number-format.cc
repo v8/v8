@@ -837,7 +837,8 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::UnwrapNumberFormat(
 MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
                                                 Handle<Map> map,
                                                 Handle<Object> locales,
-                                                Handle<Object> options_obj) {
+                                                Handle<Object> options_obj,
+                                                const char* service) {
   Factory* factory = isolate->factory();
 
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
@@ -854,10 +855,9 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   } else {
     // 3. Else
     // 3. a. Let options be ? ToObject(options).
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, options_obj,
-        Object::ToObject(isolate, options_obj, "Intl.NumberFormat"),
-        JSNumberFormat);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, options_obj,
+                               Object::ToObject(isolate, options_obj, service),
+                               JSNumberFormat);
   }
 
   // At this point, options_obj can either be a JSObject or a JSProxy only.
@@ -868,7 +868,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   // "lookup", "best fit" », "best fit").
   // 6. Set opt.[[localeMatcher]] to matcher.
   Maybe<Intl::MatcherOption> maybe_locale_matcher =
-      Intl::GetLocaleMatcher(isolate, options, "Intl.NumberFormat");
+      Intl::GetLocaleMatcher(isolate, options, service);
   MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSNumberFormat>());
   Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
@@ -914,7 +914,6 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
 
   // 12. Let style be ? GetOption(options, "style", "string",  « "decimal",
   // "percent", "currency" », "decimal").
-  const char* service = "Intl.NumberFormat";
 
   std::vector<const char*> style_str_values({"decimal", "percent", "currency"});
   std::vector<JSNumberFormat::Style> style_enum_values(
@@ -1035,7 +1034,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
         THROW_NEW_ERROR(
             isolate,
             NewTypeError(MessageTemplate::kInvalidUnit,
-                         factory->NewStringFromStaticChars("Intl.NumberFormat"),
+                         factory->NewStringFromAsciiChecked(service),
                          factory->empty_string()),
             JSNumberFormat);
       }
@@ -1047,10 +1046,9 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
       if (maybe_wellformed.IsNothing()) {
         THROW_NEW_ERROR(
             isolate,
-            NewRangeError(
-                MessageTemplate::kInvalidUnit,
-                factory->NewStringFromStaticChars("Intl.NumberFormat"),
-                factory->NewStringFromAsciiChecked(unit.c_str())),
+            NewRangeError(MessageTemplate::kInvalidUnit,
+                          factory->NewStringFromAsciiChecked(service),
+                          factory->NewStringFromAsciiChecked(unit.c_str())),
             JSNumberFormat);
       }
       std::pair<icu::MeasureUnit, icu::MeasureUnit> unit_pair =

@@ -177,12 +177,13 @@ const UChar* GetUCharBufferFromFlat(const String::FlatContent& flat,
 
 template <typename T>
 MaybeHandle<T> New(Isolate* isolate, Handle<JSFunction> constructor,
-                   Handle<Object> locales, Handle<Object> options) {
+                   Handle<Object> locales, Handle<Object> options,
+                   const char* method) {
   Handle<Map> map;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, map,
       JSFunction::GetDerivedMap(isolate, constructor, constructor), T);
-  return T::New(isolate, map, locales, options);
+  return T::New(isolate, map, locales, options, method);
 }
 }  // namespace
 
@@ -995,11 +996,9 @@ MaybeHandle<String> Intl::StringLocaleConvertCase(Isolate* isolate,
   }
 }
 
-MaybeHandle<Object> Intl::StringLocaleCompare(Isolate* isolate,
-                                              Handle<String> string1,
-                                              Handle<String> string2,
-                                              Handle<Object> locales,
-                                              Handle<Object> options) {
+MaybeHandle<Object> Intl::StringLocaleCompare(
+    Isolate* isolate, Handle<String> string1, Handle<String> string2,
+    Handle<Object> locales, Handle<Object> options, const char* method) {
   // We only cache the instance when both locales and options are undefined,
   // as that is the only case when the specified side-effects of examining
   // those arguments are unobservable.
@@ -1025,7 +1024,7 @@ MaybeHandle<Object> Intl::StringLocaleCompare(Isolate* isolate,
   Handle<JSCollator> collator;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, collator,
-      New<JSCollator>(isolate, constructor, locales, options), Object);
+      New<JSCollator>(isolate, constructor, locales, options, method), Object);
   if (can_cache) {
     isolate->set_icu_object_in_cache(
         Isolate::ICUObjectCacheType::kDefaultCollator,
@@ -1084,7 +1083,8 @@ Handle<Object> Intl::CompareStrings(Isolate* isolate,
 MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
                                                Handle<Object> num,
                                                Handle<Object> locales,
-                                               Handle<Object> options) {
+                                               Handle<Object> options,
+                                               const char* method) {
   Handle<Object> numeric_obj;
   if (FLAG_harmony_intl_bigint) {
     ASSIGN_RETURN_ON_EXCEPTION(isolate, numeric_obj,
@@ -1119,7 +1119,8 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
   // 2. Let numberFormat be ? Construct(%NumberFormat%, « locales, options »).
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, number_format,
-      New<JSNumberFormat>(isolate, constructor, locales, options), String);
+      New<JSNumberFormat>(isolate, constructor, locales, options, method),
+      String);
 
   if (can_cache) {
     isolate->set_icu_object_in_cache(
