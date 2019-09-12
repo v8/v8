@@ -297,11 +297,58 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate, ByteArray code_array,
   DisallowHeapAllocation no_gc;
 
 #if V8_USE_COMPUTED_GOTO
-#define DECLARE_DISPATCH_TABLE_ENTRY(name, code, length) &&BC_##name,
-  static const void* const dispatch_table[] = {
-      BYTECODE_ITERATOR(DECLARE_DISPATCH_TABLE_ENTRY)};
+
+// We have to make sure that no OOB access to the dispatch table is possible and
+// all values are valid label addresses.
+// Otherwise jumps to arbitrary addresses could potentially happen.
+// This is ensured as follows:
+// Every index to the dispatch table gets masked using BYTECODE_MASK in
+// DECODE(). This way we can only get values between 0 (only the least
+// significant byte of an integer is used) and kRegExpPaddedBytecodeCount - 1
+// (BYTECODE_MASK is defined to be exactly this value).
+// All entries from kRegExpBytecodeCount to kRegExpPaddedBytecodeCount have to
+// be filled with BREAKs (invalid operation).
+
+// Fill dispatch table from last defined bytecode up to the next power of two
+// with BREAK (invalid operation).
+// TODO(pthier): Find a way to fill up automatically (at compile time)
+// 53 real bytecodes -> 11 fillers
+#define BYTECODE_FILLER_ITERATOR(V) \
+  V(BREAK) /* 1 */                  \
+  V(BREAK) /* 2 */                  \
+  V(BREAK) /* 3 */                  \
+  V(BREAK) /* 4 */                  \
+  V(BREAK) /* 5 */                  \
+  V(BREAK) /* 6 */                  \
+  V(BREAK) /* 7 */                  \
+  V(BREAK) /* 8 */                  \
+  V(BREAK) /* 9 */                  \
+  V(BREAK) /* 10 */                 \
+  V(BREAK) /* 11 */
+
+#define COUNT(...) +1
+  static constexpr int kRegExpBytecodeFillerCount =
+      BYTECODE_FILLER_ITERATOR(COUNT);
+#undef COUNT
+
+  // Make sure kRegExpPaddedBytecodeCount is actually the closest possible power
+  // of two.
+  DCHECK_EQ(kRegExpPaddedBytecodeCount,
+            base::bits::RoundUpToPowerOfTwo32(kRegExpBytecodeCount));
+
+  // Make sure every bytecode we get by using BYTECODE_MASK is well defined.
+  STATIC_ASSERT(kRegExpBytecodeCount <= kRegExpPaddedBytecodeCount);
+  STATIC_ASSERT(kRegExpBytecodeCount + kRegExpBytecodeFillerCount ==
+                kRegExpPaddedBytecodeCount);
+
+#define DECLARE_DISPATCH_TABLE_ENTRY(name, ...) &&BC_##name,
+  static const void* const dispatch_table[kRegExpPaddedBytecodeCount] = {
+      BYTECODE_ITERATOR(DECLARE_DISPATCH_TABLE_ENTRY)
+          BYTECODE_FILLER_ITERATOR(DECLARE_DISPATCH_TABLE_ENTRY)};
 #undef DECLARE_DISPATCH_TABLE_ENTRY
-#endif
+#undef BYTECODE_FILLER_ITERATOR
+
+#endif  // V8_USE_COMPUTED_GOTO
 
   const byte* pc = code_array.GetDataStartAddress();
   const byte* code_base = pc;
