@@ -595,7 +595,10 @@ class PipelineImpl final {
   template <typename Phase, typename... Args>
   void Run(Args&&... args);
 
-  // Step A. Run the graph creation and initial optimization passes.
+  // Step A.1. Serialize the data needed for the compilation front-end.
+  void Serialize();
+
+  // Step A.2. Run the graph creation and initial optimization passes.
   bool CreateGraph();
 
   // Step B. Run the concurrent optimization passes.
@@ -1052,9 +1055,13 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   // assembly.
   Deoptimizer::EnsureCodeForDeoptimizationEntries(isolate);
 
-  if (!pipeline_.CreateGraph()) {
-    CHECK(!isolate->has_pending_exception());
-    return AbortOptimization(BailoutReason::kGraphBuildingFailed);
+  pipeline_.Serialize();
+
+  if (!FLAG_concurrent_inlining) {
+    if (!pipeline_.CreateGraph()) {
+      CHECK(!isolate->has_pending_exception());
+      return AbortOptimization(BailoutReason::kGraphBuildingFailed);
+    }
   }
 
   return SUCCEEDED;
@@ -1065,6 +1072,12 @@ PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl() {
       TRACE_DISABLED_BY_DEFAULT("v8.compile"), "v8.optimizingCompile.execute",
       this, TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT, "function",
       compilation_info()->shared_info()->TraceIDRef());
+
+  if (FLAG_concurrent_inlining) {
+    if (!pipeline_.CreateGraph()) {
+      return AbortOptimization(BailoutReason::kGraphBuildingFailed);
+    }
+  }
 
   bool success;
   if (FLAG_turboprop) {
@@ -2213,10 +2226,10 @@ void PipelineImpl::RunPrintAndVerify(const char* phase, bool untyped) {
   }
 }
 
-bool PipelineImpl::CreateGraph() {
+void PipelineImpl::Serialize() {
   PipelineData* data = this->data_;
 
-  data->BeginPhaseKind("V8.TFGraphCreation");
+  data->BeginPhaseKind("V8.TFBrokerInitAndSerialization");
 
   if (info()->trace_turbo_json_enabled() ||
       info()->trace_turbo_graph_enabled()) {
@@ -2240,7 +2253,15 @@ bool PipelineImpl::CreateGraph() {
   if (FLAG_concurrent_inlining) {
     Run<HeapBrokerInitializationPhase>();
     Run<SerializationPhase>();
+    data->broker()->StopSerializing();
   }
+  data->EndPhaseKind();
+}
+
+bool PipelineImpl::CreateGraph() {
+  PipelineData* data = this->data_;
+
+  data->BeginPhaseKind("V8.TFGraphCreation");
 
   Run<GraphBuilderPhase>();
   RunPrintAndVerify(GraphBuilderPhase::phase_name(), true);
@@ -2269,12 +2290,7 @@ bool PipelineImpl::CreateGraph() {
 
   // Run the type-sensitive lowerings and optimizations on the graph.
   {
-    if (FLAG_concurrent_inlining) {
-      // TODO(neis): Remove CopyMetadataForConcurrentCompilePhase call once
-      // brokerization of JSNativeContextSpecialization is complete.
-      Run<CopyMetadataForConcurrentCompilePhase>();
-      data->broker()->StopSerializing();
-    } else {
+    if (!FLAG_concurrent_inlining) {
       Run<HeapBrokerInitializationPhase>();
       Run<CopyMetadataForConcurrentCompilePhase>();
       data->broker()->StopSerializing();
@@ -2676,6 +2692,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
   Linkage linkage(Linkage::ComputeIncoming(data.instruction_zone(), info));
   Deoptimizer::EnsureCodeForDeoptimizationEntries(isolate);
 
+  pipeline.Serialize();
   if (!pipeline.CreateGraph()) return MaybeHandle<Code>();
   if (!pipeline.OptimizeGraph(&linkage)) return MaybeHandle<Code>();
   pipeline.AssembleCode(&linkage);
