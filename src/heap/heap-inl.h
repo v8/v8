@@ -238,35 +238,6 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
   return allocation;
 }
 
-template <Heap::AllocationRetryMode mode>
-HeapObject Heap::AllocateRawWith(int size, AllocationType allocation,
-                                 AllocationOrigin origin,
-                                 AllocationAlignment alignment) {
-  Heap* heap = isolate()->heap();
-  Address* top = heap->NewSpaceAllocationTopAddress();
-  Address* limit = heap->NewSpaceAllocationLimitAddress();
-  if (allocation == AllocationType::kYoung &&
-      alignment == AllocationAlignment::kWordAligned &&
-      size < kMaxRegularHeapObjectSize &&
-      (*limit - *top >= static_cast<unsigned>(size)) &&
-      V8_LIKELY(!FLAG_single_generation && FLAG_inline_new)) {
-    HeapObject obj = HeapObject::FromAddress(*top);
-    *top += size;
-    heap->CreateFillerObjectAt(obj.address(), size, ClearRecordedSlots::kNo);
-    MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj.address(), size);
-    return obj;
-  }
-  switch (mode) {
-    case kLightRetry:
-      return AllocateRawWithLightRetrySlowPath(size, allocation, origin,
-                                               alignment);
-    case kRetryOrFail:
-      return AllocateRawWithRetryOrFailSlowPath(size, allocation, origin,
-                                                alignment);
-  }
-  UNREACHABLE();
-}
-
 void Heap::OnAllocationEvent(HeapObject object, int size_in_bytes) {
   for (auto& tracker : allocation_trackers_) {
     tracker->AllocationEvent(object.address(), size_in_bytes);
