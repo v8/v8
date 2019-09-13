@@ -54,14 +54,12 @@ inline bool CPURegister::IsSP() const {
 }
 
 inline void CPURegList::Combine(const CPURegList& other) {
-  DCHECK(IsValid());
   DCHECK(other.type() == type_);
   DCHECK(other.RegisterSizeInBits() == size_);
   list_ |= other.list();
 }
 
 inline void CPURegList::Remove(const CPURegList& other) {
-  DCHECK(IsValid());
   if (other.type() == type_) {
     list_ &= ~other.list();
   }
@@ -84,13 +82,12 @@ inline void CPURegList::Remove(const CPURegister& other1,
 }
 
 inline void CPURegList::Combine(int code) {
-  DCHECK(IsValid());
   DCHECK(CPURegister::Create(code, size_, type_).IsValid());
   list_ |= (1ULL << code);
+  DCHECK(IsValid());
 }
 
 inline void CPURegList::Remove(int code) {
-  DCHECK(IsValid());
   DCHECK(CPURegister::Create(code, size_, type_).IsValid());
   list_ &= ~(1ULL << code);
 }

@@ -63,7 +63,6 @@ void CpuFeatures::PrintFeatures() {}
 // CPURegList utilities.
 
 CPURegister CPURegList::PopLowestIndex() {
-  DCHECK(IsValid());
   if (IsEmpty()) {
     return NoCPUReg;
   }
@@ -74,7 +73,6 @@ CPURegister CPURegList::PopLowestIndex() {
 }
 
 CPURegister CPURegList::PopHighestIndex() {
-  DCHECK(IsValid());
   if (IsEmpty()) {
     return NoCPUReg;
   }
