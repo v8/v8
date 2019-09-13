@@ -3481,7 +3481,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                        HasPropertyLookupMode::kHasProperty);
   }
 
-  Node* Typeof(Node* value);
+  TNode<String> Typeof(SloppyTNode<Object> value);
 
   TNode<Object> GetSuperConstructor(SloppyTNode<Context> context,
                                     SloppyTNode<JSFunction> active_function);

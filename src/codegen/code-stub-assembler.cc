@@ -12980,8 +12980,8 @@ TNode<Oddball> CodeStubAssembler::HasProperty(SloppyTNode<Context> context,
   return result.value();
 }
 
-Node* CodeStubAssembler::Typeof(Node* value) {
-  VARIABLE(result_var, MachineRepresentation::kTagged);
+TNode<String> CodeStubAssembler::Typeof(SloppyTNode<Object> value) {
+  TVARIABLE(String, result_var);
 
   Label return_number(this, Label::kDeferred), if_oddball(this),
       return_function(this), return_undefined(this), return_object(this),
@@ -12989,7 +12989,8 @@ Node* CodeStubAssembler::Typeof(Node* value) {
 
   GotoIf(TaggedIsSmi(value), &return_number);
 
-  TNode<Map> map = LoadMap(value);
+  TNode<HeapObject> value_heap_object = CAST(value);
+  TNode<Map> map = LoadMap(value_heap_object);
 
   GotoIf(IsHeapNumberMap(map), &return_number);
 
@@ -13015,49 +13016,50 @@ Node* CodeStubAssembler::Typeof(Node* value) {
   GotoIf(IsBigIntInstanceType(instance_type), &return_bigint);
 
   CSA_ASSERT(this, InstanceTypeEqual(instance_type, SYMBOL_TYPE));
-  result_var.Bind(HeapConstant(isolate()->factory()->symbol_string()));
+  result_var = HeapConstant(isolate()->factory()->symbol_string());
   Goto(&return_result);
 
   BIND(&return_number);
   {
-    result_var.Bind(HeapConstant(isolate()->factory()->number_string()));
+    result_var = HeapConstant(isolate()->factory()->number_string());
     Goto(&return_result);
   }
 
   BIND(&if_oddball);
   {
-    TNode<Object> type = LoadObjectField(value, Oddball::kTypeOfOffset);
-    result_var.Bind(type);
+    TNode<String> type =
+        CAST(LoadObjectField(value_heap_object, Oddball::kTypeOfOffset));
+    result_var = type;
     Goto(&return_result);
   }
 
   BIND(&return_function);
   {
-    result_var.Bind(HeapConstant(isolate()->factory()->function_string()));
+    result_var = HeapConstant(isolate()->factory()->function_string());
     Goto(&return_result);
   }
 
   BIND(&return_undefined);
   {
-    result_var.Bind(HeapConstant(isolate()->factory()->undefined_string()));
+    result_var = HeapConstant(isolate()->factory()->undefined_string());
     Goto(&return_result);
   }
 
   BIND(&return_object);
   {
-    result_var.Bind(HeapConstant(isolate()->factory()->object_string()));
+    result_var = HeapConstant(isolate()->factory()->object_string());
     Goto(&return_result);
   }
 
   BIND(&return_string);
   {
-    result_var.Bind(HeapConstant(isolate()->factory()->string_string()));
+    result_var = HeapConstant(isolate()->factory()->string_string());
     Goto(&return_result);
   }
 
   BIND(&return_bigint);
   {
-    result_var.Bind(HeapConstant(isolate()->factory()->bigint_string()));
+    result_var = HeapConstant(isolate()->factory()->bigint_string());
     Goto(&return_result);
   }
 
