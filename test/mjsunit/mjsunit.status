@@ -1123,6 +1123,8 @@
 
   # Static asserts for optimizations don't hold due to removed optimization
   # phases.
+  'compiler/concurrent-inlining-1': [SKIP],
+  'compiler/concurrent-inlining-2': [SKIP],
   'compiler/diamond-followedby-branch': [SKIP],
   'compiler/load-elimination-const-field': [SKIP],
 }],  # variant == turboprop
