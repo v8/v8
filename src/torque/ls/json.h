@@ -6,6 +6,7 @@
 #define V8_TORQUE_LS_JSON_H_
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
