@@ -93,8 +93,8 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
   // Determine the size of a far jump table containing the given number of
   // slots.
   static constexpr uint32_t SizeForNumberOfFarJumpSlots(
-      int num_stubs, int num_function_slots) {
-    int num_entries = num_stubs + num_function_slots;
+      int num_runtime_slots, int num_function_slots) {
+    int num_entries = num_runtime_slots + num_function_slots;
     return num_entries * kFarJumpTableSlotSize;
   }
 
@@ -124,17 +124,20 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
   }
 
   static void GenerateFarJumpTable(Address base, Address* stub_targets,
-                                   int num_stubs, int num_function_slots) {
+                                   int num_runtime_slots,
+                                   int num_function_slots) {
     uint32_t table_size =
-        SizeForNumberOfFarJumpSlots(num_stubs, num_function_slots);
+        SizeForNumberOfFarJumpSlots(num_runtime_slots, num_function_slots);
     // Assume enough space, so the Assembler does not try to grow the buffer.
     JumpTableAssembler jtasm(base, table_size + 256);
     int offset = 0;
-    for (int index = 0; index < num_stubs + num_function_slots; ++index) {
+    for (int index = 0; index < num_runtime_slots + num_function_slots;
+         ++index) {
       DCHECK_EQ(offset, FarJumpSlotIndexToOffset(index));
       // Functions slots initially jump to themselves. They are patched before
       // being used.
-      Address target = index < num_stubs ? stub_targets[index] : base + offset;
+      Address target =
+          index < num_runtime_slots ? stub_targets[index] : base + offset;
       jtasm.EmitFarJumpSlot(target);
       offset += kFarJumpTableSlotSize;
       DCHECK_EQ(offset, jtasm.pc_offset());
@@ -142,13 +145,19 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
     FlushInstructionCache(base, table_size);
   }
 
-  static void PatchJumpTableSlot(Address base, uint32_t slot_index,
-                                 Address new_target) {
-    Address slot = base + JumpSlotIndexToOffset(slot_index);
-    JumpTableAssembler jtasm(slot);
-    jtasm.EmitJumpSlot(new_target);
+  static void PatchJumpTableSlot(Address jump_table_slot,
+                                 Address far_jump_table_slot, Address target) {
+    // First, try to patch the jump table slot.
+    JumpTableAssembler jtasm(jump_table_slot);
+    if (!jtasm.EmitJumpSlot(target)) {
+      // If that fails, we need to patch the far jump table slot, and then
+      // update the jump table slot to jump to this far jump table slot.
+      DCHECK_NE(kNullAddress, far_jump_table_slot);
+      JumpTableAssembler::PatchFarJumpSlot(far_jump_table_slot, target);
+      CHECK(jtasm.EmitJumpSlot(far_jump_table_slot));
+    }
     jtasm.NopBytes(kJumpTableSlotSize - jtasm.pc_offset());
-    FlushInstructionCache(slot, kJumpTableSlotSize);
+    FlushInstructionCache(jump_table_slot, kJumpTableSlotSize);
   }
 
  private:
@@ -223,9 +232,15 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
   void EmitLazyCompileJumpSlot(uint32_t func_index,
                                Address lazy_compile_target);
 
-  void EmitJumpSlot(Address target);
+  // Returns {true} if the jump fits in the jump table slot, {false} otherwise.
+  bool EmitJumpSlot(Address target);
 
+  // Initially emit a far jump slot.
   void EmitFarJumpSlot(Address target);
+
+  // Patch an existing far jump slot, and make sure that this updated eventually
+  // becomes available to all execution units that might execute this code.
+  static void PatchFarJumpSlot(Address slot, Address target);
 
   void NopBytes(int bytes);
 };

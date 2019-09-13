@@ -184,8 +184,9 @@ class JumpTablePatcher : public v8::base::Thread {
       TRACE("  patcher %p patch slot " V8PRIxPTR_FMT " to thunk #%d\n", this,
             slot_address, i % 2);
       base::MutexGuard jump_table_guard(jump_table_mutex_);
-      JumpTableAssembler::PatchJumpTableSlot(slot_start_, slot_index_,
-                                             thunks_[i % 2]);
+      JumpTableAssembler::PatchJumpTableSlot(
+          slot_start_ + JumpTableAssembler::JumpSlotIndexToOffset(slot_index_),
+          kNullAddress, thunks_[i % 2]);
     }
     TRACE("Patcher %p is stopping ...\n", this);
   }
@@ -242,8 +243,9 @@ TEST(JumpTablePatchingStress) {
     std::vector<std::unique_ptr<TestingAssemblerBuffer>> thunk_buffers;
     // Patch the jump table slot to jump to itself. This will later be patched
     // by the patchers.
-    JumpTableAssembler::PatchJumpTableSlot(slot_start, slot,
-                                           slot_start + slot_offset);
+    Address slot_addr =
+        slot_start + JumpTableAssembler::JumpSlotIndexToOffset(slot);
+    JumpTableAssembler::PatchJumpTableSlot(slot_addr, kNullAddress, slot_addr);
     // For each patcher, generate two thunks where this patcher can emit code
     // which finally jumps back to {slot} in the jump table.
     std::vector<Address> patcher_thunks;

@@ -218,6 +218,7 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
 void Assembler::set_target_address_at(Address pc, Address constant_pool,
                                       Address target,
                                       ICacheFlushMode icache_flush_mode) {
+  DCHECK(is_int32(target - pc - 4));
   WriteUnalignedValue(pc, static_cast<int32_t>(target - pc - 4));
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc, sizeof(int32_t));
