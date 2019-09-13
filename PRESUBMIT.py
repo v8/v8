@@ -301,39 +301,43 @@ def _CheckNoProductionCodeUsingTestOnlyFunctions(input_api, output_api):
     return []
 
 
+def _CheckGenderNeutralInLicenses(input_api, output_api):
+  # License files are taken as is, even if they include gendered pronouns.
+  def LicenseFilter(path):
+    input_api.FilterSourceFile(path, black_list=_LICENSE_FILE)
+
+  return input_api.canned_checks.CheckGenderNeutral(
+    input_api, output_api, source_file_filter=LicenseFilter)
+
+
+def _RunTestsWithVPythonSpec(input_api, output_api):
+  return input_api.RunTests(
+    input_api.canned_checks.CheckVPythonSpec(input_api, output_api))
+
+
 def _CommonChecks(input_api, output_api):
   """Checks common to both upload and commit."""
-  results = []
   # TODO(machenbach): Replace some of those checks, e.g. owners and copyright,
   # with the canned PanProjectChecks. Need to make sure that the checks all
   # pass on all existing files.
-  results.extend(input_api.canned_checks.CheckOwnersFormat(
-      input_api, output_api))
-  results.extend(input_api.canned_checks.CheckOwners(
-      input_api, output_api))
-  results.extend(_CheckCommitMessageBugEntry(input_api, output_api))
-  results.extend(input_api.canned_checks.CheckPatchFormatted(
-      input_api, output_api))
+  checks = [
+    input_api.canned_checks.CheckOwnersFormat,
+    input_api.canned_checks.CheckOwners,
+    _CheckCommitMessageBugEntry,
+    input_api.canned_checks.CheckPatchFormatted,
+    _CheckGenderNeutralInLicenses,
+    _V8PresubmitChecks,
+    _CheckUnwantedDependencies,
+    _CheckNoProductionCodeUsingTestOnlyFunctions,
+    _CheckHeadersHaveIncludeGuards,
+    _CheckNoInlineHeaderIncludesInNormalHeaders,
+    _CheckJSONFiles,
+    _CheckMacroUndefs,
+    _CheckNoexceptAnnotations,
+    _RunTestsWithVPythonSpec,
+  ]
 
-  # License files are taken as is, even if they include gendered pronouns.
-  license_filter = lambda path: input_api.FilterSourceFile(
-      path, black_list=_LICENSE_FILE)
-  results.extend(input_api.canned_checks.CheckGenderNeutral(
-      input_api, output_api, source_file_filter=license_filter))
-
-  results.extend(_V8PresubmitChecks(input_api, output_api))
-  results.extend(_CheckUnwantedDependencies(input_api, output_api))
-  results.extend(
-      _CheckNoProductionCodeUsingTestOnlyFunctions(input_api, output_api))
-  results.extend(_CheckHeadersHaveIncludeGuards(input_api, output_api))
-  results.extend(
-      _CheckNoInlineHeaderIncludesInNormalHeaders(input_api, output_api))
-  results.extend(_CheckJSONFiles(input_api, output_api))
-  results.extend(_CheckMacroUndefs(input_api, output_api))
-  results.extend(_CheckNoexceptAnnotations(input_api, output_api))
-  results.extend(input_api.RunTests(
-    input_api.canned_checks.CheckVPythonSpec(input_api, output_api)))
-  return results
+  return sum([check(input_api, output_api) for check in checks], [])
 
 
 def _SkipTreeCheck(input_api, output_api):
@@ -404,13 +408,29 @@ def _CheckMacroUndefs(input_api, output_api):
     white_list = (r'.+\.cc',r'.+\.cpp',r'.+\.c')
     return input_api.FilterSourceFile(affected_file, white_list=white_list)
 
+  def Touches(line):
+    return line.startswith('+') or line.startswith('-')
+
+  def InvolvesMacros(text):
+    return define_pattern.match(text) or undef_pattern.match(text)
+
   def TouchesMacros(f):
-    for line in f.GenerateScmDiff().splitlines():
-      if not line.startswith('+') and not line.startswith('-'):
-        continue
-      if define_pattern.match(line[1:]) or undef_pattern.match(line[1:]):
-        return True
-    return False
+    return any(Touches(line) and InvolvesMacros(line[1:])
+               for line in f.GenerateScmDiff().splitlines())
+
+  def CollectUndefsWithNoDef(defined_macros, errors, f, line, line_nr):
+    define_match = define_pattern.match(line)
+    if define_match:
+      name = define_match.group(1)
+      defined_macros[name] = line_nr
+    undef_match = undef_pattern.match(line)
+    if undef_match and not "// NOLINT" in line:
+      name = undef_match.group(1)
+      if name in defined_macros:
+        del defined_macros[name]
+      else:
+        errors.append('{}:{}: Macro named \'{}\' was not defined before.'
+                      .format(f.LocalPath(), line_nr, name))
 
   define_pattern = input_api.re.compile(r'#define (\w+)')
   undef_pattern = input_api.re.compile(r'#undef (\w+)')
@@ -422,25 +442,9 @@ def _CheckMacroUndefs(input_api, output_api):
 
     defined_macros = dict()
     with open(f.LocalPath()) as fh:
-      line_nr = 0
-      for line in fh:
-        line_nr += 1
+      for line_nr, line in enumerate(fh, start=1):
+        CollectUndefsWithNoDef(defined_macros, errors, f, line, line_nr)
 
-        define_match = define_pattern.match(line)
-        if define_match:
-          name = define_match.group(1)
-          defined_macros[name] = line_nr
-
-        undef_match = undef_pattern.match(line)
-        if undef_match:
-          if "// NOLINT" in line:
-            continue
-          name = undef_match.group(1)
-          if not name in defined_macros:
-            errors.append('{}:{}: Macro named \'{}\' was not defined before.'
-                          .format(f.LocalPath(), line_nr, name))
-          else:
-            del defined_macros[name]
     for name, line_nr in sorted(defined_macros.items(), key=lambda e: e[1]):
       errors.append('{}:{}: Macro missing #undef: {}'
                     .format(f.LocalPath(), line_nr, name))
