@@ -1694,9 +1694,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     // NoElementsProtector.
     for (ElementAccessInfo const& access_info : access_infos) {
       if (IsFastElementsKind(access_info.elements_kind())) {
-        if (!isolate()->IsNoElementsProtectorIntact()) return NoChange();
-        dependencies()->DependOnProtector(
-            PropertyCellRef(broker(), factory()->no_elements_protector()));
+        if (!dependencies()->DependOnNoElementsProtector()) return NoChange();
         break;
       }
     }
