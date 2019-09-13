@@ -1971,6 +1971,7 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
 #define SIMD_UNOP_PREFIX_LIST(V) \
   V(F32x4Abs)                    \
   V(F32x4Neg)                    \
+  V(F32x4Sqrt)                   \
   V(S128Not)
 
 #define SIMD_ANYTRUE_LIST(V) \

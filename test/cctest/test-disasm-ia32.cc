@@ -435,6 +435,8 @@ TEST(DisasmIa320) {
     __ maxps(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ rcpps(xmm1, xmm0);
     __ rcpps(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ sqrtps(xmm1, xmm0);
+    __ sqrtps(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ rsqrtps(xmm1, xmm0);
     __ rsqrtps(xmm1, Operand(ebx, ecx, times_4, 10000));
 
@@ -639,6 +641,8 @@ TEST(DisasmIa320) {
       __ vmaxps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vrcpps(xmm1, xmm0);
       __ vrcpps(xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vsqrtps(xmm1, xmm0);
+      __ vsqrtps(xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vrsqrtps(xmm1, xmm0);
       __ vrsqrtps(xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vmovaps(xmm0, xmm1);

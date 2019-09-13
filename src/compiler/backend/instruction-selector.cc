@@ -2645,7 +2645,9 @@ void InstructionSelector::VisitI64x2GtU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2GeU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitS1x2AnyTrue(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitS1x2AllTrue(Node* node) { UNIMPLEMENTED(); }
+#if !V8_TARGET_ARCH_IA32
 void InstructionSelector::VisitF32x4Sqrt(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_IA32
 #endif  // !V8_TARGET_ARCH_ARM64
 void InstructionSelector::VisitI64x2MinS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2MaxS(Node* node) { UNIMPLEMENTED(); }
