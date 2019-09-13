@@ -670,12 +670,12 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 
     // Fill match and capture offsets in match_info.
     {
-      TNode<IntPtrT> limit_offset = ElementOffsetFromIndex(
-          register_count, INT32_ELEMENTS, SMI_PARAMETERS, 0);
+      TNode<IntPtrT> limit_offset =
+          ElementOffsetFromIndex(register_count, INT32_ELEMENTS, 0);
 
       TNode<IntPtrT> to_offset = ElementOffsetFromIndex(
           IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex), PACKED_ELEMENTS,
-          INTPTR_PARAMETERS, RegExpMatchInfo::kHeaderSize - kHeapObjectTag);
+          RegExpMatchInfo::kHeaderSize - kHeapObjectTag);
       TVARIABLE(IntPtrT, var_to_offset, to_offset);
 
       VariableList vars({&var_to_offset}, zone());

@@ -1997,12 +1997,9 @@ TEST(Arguments) {
 
   CodeStubArguments arguments(&m, m.IntPtrConstant(3));
 
-  CSA_ASSERT(
-      &m, m.TaggedEqual(arguments.AtIndex(0), m.SmiConstant(Smi::FromInt(12))));
-  CSA_ASSERT(
-      &m, m.TaggedEqual(arguments.AtIndex(1), m.SmiConstant(Smi::FromInt(13))));
-  CSA_ASSERT(
-      &m, m.TaggedEqual(arguments.AtIndex(2), m.SmiConstant(Smi::FromInt(14))));
+  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(0), m.SmiConstant(12)));
+  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(1), m.SmiConstant(13)));
+  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(2), m.SmiConstant(14)));
 
   arguments.PopAndReturn(arguments.GetReceiver());
 
@@ -2022,21 +2019,14 @@ TEST(ArgumentsWithSmiConstantIndices) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   CodeStubAssembler m(asm_tester.state());
 
-  CodeStubArguments arguments(&m, m.SmiConstant(3), nullptr,
-                              CodeStubAssembler::SMI_PARAMETERS);
+  CodeStubArguments arguments(&m, m.SmiConstant(3));
 
-  CSA_ASSERT(&m,
-             m.TaggedEqual(arguments.AtIndex(m.SmiConstant(0),
-                                             CodeStubAssembler::SMI_PARAMETERS),
-                           m.SmiConstant(Smi::FromInt(12))));
-  CSA_ASSERT(&m,
-             m.TaggedEqual(arguments.AtIndex(m.SmiConstant(1),
-                                             CodeStubAssembler::SMI_PARAMETERS),
-                           m.SmiConstant(Smi::FromInt(13))));
-  CSA_ASSERT(&m,
-             m.TaggedEqual(arguments.AtIndex(m.SmiConstant(2),
-                                             CodeStubAssembler::SMI_PARAMETERS),
-                           m.SmiConstant(Smi::FromInt(14))));
+  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(m.SmiConstant(0)),
+                               m.SmiConstant(12)));
+  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(m.SmiConstant(1)),
+                               m.SmiConstant(13)));
+  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(m.SmiConstant(2)),
+                               m.SmiConstant(14)));
 
   arguments.PopAndReturn(arguments.GetReceiver());
 
@@ -2075,21 +2065,14 @@ TEST(ArgumentsWithSmiIndices) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   CodeStubAssembler m(asm_tester.state());
 
-  CodeStubArguments arguments(&m, m.SmiConstant(3), nullptr,
-                              CodeStubAssembler::SMI_PARAMETERS);
+  CodeStubArguments arguments(&m, m.SmiConstant(3));
 
-  CSA_ASSERT(&m,
-             m.TaggedEqual(arguments.AtIndex(NonConstantSmi(&m, 0),
-                                             CodeStubAssembler::SMI_PARAMETERS),
-                           m.SmiConstant(Smi::FromInt(12))));
-  CSA_ASSERT(&m,
-             m.TaggedEqual(arguments.AtIndex(NonConstantSmi(&m, 1),
-                                             CodeStubAssembler::SMI_PARAMETERS),
-                           m.SmiConstant(Smi::FromInt(13))));
-  CSA_ASSERT(&m,
-             m.TaggedEqual(arguments.AtIndex(NonConstantSmi(&m, 2),
-                                             CodeStubAssembler::SMI_PARAMETERS),
-                           m.SmiConstant(Smi::FromInt(14))));
+  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(NonConstantSmi(&m, 0)),
+                               m.SmiConstant(12)));
+  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(NonConstantSmi(&m, 1)),
+                               m.SmiConstant(13)));
+  CSA_ASSERT(&m, m.TaggedEqual(arguments.AtIndex(NonConstantSmi(&m, 2)),
+                               m.SmiConstant(14)));
 
   arguments.PopAndReturn(arguments.GetReceiver());
 
@@ -2116,7 +2099,7 @@ TEST(ArgumentsForEach) {
 
   sum = m.SmiConstant(0);
 
-  arguments.ForEach(list, [&m, &sum](Node* arg) {
+  arguments.ForEach(list, [&](TNode<Object> arg) {
     sum = m.SmiAdd(sum.value(), m.CAST(arg));
   });
 

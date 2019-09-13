@@ -299,10 +299,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return ParameterRepresentation(OptimalParameterMode());
   }
 
+  TNode<IntPtrT> ParameterToIntPtr(TNode<Smi> value) { return SmiUntag(value); }
+  TNode<IntPtrT> ParameterToIntPtr(TNode<IntPtrT> value) { return value; }
+  // TODO(v8:9708): remove once all uses are ported.
   TNode<IntPtrT> ParameterToIntPtr(Node* value, ParameterMode mode) {
     if (mode == SMI_PARAMETERS) value = SmiUntag(value);
     return UncheckedCast<IntPtrT>(value);
   }
+
+  template <typename TIndex>
+  TNode<TIndex> IntPtrToParameter(TNode<IntPtrT> value);
 
   Node* IntPtrToParameter(SloppyTNode<IntPtrT> value, ParameterMode mode) {
     if (mode == SMI_PARAMETERS) return SmiTag(value);
@@ -453,6 +459,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Smi> OpName(TNode<Smi> a, TNode<Smi> b) { return SmiOpName(a, b); } \
   TNode<IntPtrT> OpName(TNode<IntPtrT> a, TNode<IntPtrT> b) {               \
     return IntPtrOpName(a, b);                                              \
+  }                                                                         \
+  TNode<RawPtrT> OpName(TNode<RawPtrT> a, TNode<RawPtrT> b) {               \
+    return ReinterpretCast<RawPtrT>(IntPtrOpName(                           \
+        ReinterpretCast<IntPtrT>(a), ReinterpretCast<IntPtrT>(b)));         \
   }
   // TODO(v8:9708): Define BInt operations once all uses are ported.
   PARAMETER_BINOP(IntPtrOrSmiMin, IntPtrMin, SmiMin)
@@ -474,9 +484,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> OpName(TNode<Smi> a, TNode<Smi> b) { return SmiOpName(a, b); } \
   TNode<BoolT> OpName(TNode<IntPtrT> a, TNode<IntPtrT> b) {                   \
     return IntPtrOpName(a, b);                                                \
+  }                                                                           \
+  TNode<BoolT> OpName(TNode<RawPtrT> a, TNode<RawPtrT> b) {                   \
+    return IntPtrOpName(a, b);                                                \
   }
   // TODO(v8:9708): Define BInt operations once all uses are ported.
-  PARAMETER_BINOP(IntPtrOrSmiEqual, IntPtrEqual, SmiEqual)
+  PARAMETER_BINOP(IntPtrOrSmiEqual, WordEqual, SmiEqual)
   PARAMETER_BINOP(IntPtrOrSmiNotEqual, WordNotEqual, SmiNotEqual)
   PARAMETER_BINOP(IntPtrOrSmiLessThan, IntPtrLessThan, SmiLessThan)
   PARAMETER_BINOP(IntPtrOrSmiLessThanOrEqual, IntPtrLessThanOrEqual,
@@ -3804,32 +3817,48 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 };
 
+// template <typename TIndex>
 class V8_EXPORT_PRIVATE CodeStubArguments {
  public:
   using Node = compiler::Node;
   enum ReceiverMode { kHasReceiver, kNoReceiver };
 
-  // |argc| is an intptr value which specifies the number of arguments passed
-  // to the builtin excluding the receiver. The arguments will include a
-  // receiver iff |receiver_mode| is kHasReceiver.
-  CodeStubArguments(CodeStubAssembler* assembler, Node* argc,
+  // |argc| specifies the number of arguments passed to the builtin excluding
+  // the receiver. The arguments will include a receiver iff |receiver_mode|
+  // is kHasReceiver.
+  CodeStubArguments(CodeStubAssembler* assembler, TNode<IntPtrT> argc,
                     ReceiverMode receiver_mode = ReceiverMode::kHasReceiver)
-      : CodeStubArguments(assembler, argc, nullptr,
-                          CodeStubAssembler::INTPTR_PARAMETERS, receiver_mode) {
-  }
+      : CodeStubArguments(assembler, argc, TNode<RawPtrT>(), receiver_mode) {}
 
-  // |argc| is either a smi or intptr depending on |param_mode|. The arguments
-  // include a receiver iff |receiver_mode| is kHasReceiver.
-  CodeStubArguments(CodeStubAssembler* assembler, Node* argc, Node* fp,
-                    CodeStubAssembler::ParameterMode param_mode,
+  CodeStubArguments(CodeStubAssembler* assembler, TNode<Int32T> argc,
+                    ReceiverMode receiver_mode = ReceiverMode::kHasReceiver)
+      : CodeStubArguments(assembler, assembler->ChangeInt32ToIntPtr(argc),
+                          TNode<RawPtrT>(), receiver_mode) {}
+
+  // TODO(v8:9708): Consider removing this variant
+  CodeStubArguments(CodeStubAssembler* assembler, TNode<Smi> argc,
+                    ReceiverMode receiver_mode = ReceiverMode::kHasReceiver)
+      : CodeStubArguments(assembler, assembler->ParameterToIntPtr(argc),
+                          TNode<RawPtrT>(), receiver_mode) {}
+
+  // |argc| specifies the number of arguments passed to the builtin excluding
+  // the receiver. The arguments will include a receiver iff |receiver_mode|
+  // is kHasReceiver.
+  CodeStubArguments(CodeStubAssembler* assembler, TNode<IntPtrT> argc,
+                    TNode<RawPtrT> fp,
                     ReceiverMode receiver_mode = ReceiverMode::kHasReceiver);
+
+  CodeStubArguments(CodeStubAssembler* assembler, TNode<Smi> argc,
+                    TNode<RawPtrT> fp,
+                    ReceiverMode receiver_mode = ReceiverMode::kHasReceiver)
+      : CodeStubArguments(assembler, assembler->ParameterToIntPtr(argc), fp,
+                          receiver_mode) {}
 
   // Used by Torque to construct arguments based on a Torque-defined
   // struct of values.
   CodeStubArguments(CodeStubAssembler* assembler,
                     TorqueStructArguments torque_arguments)
       : assembler_(assembler),
-        argc_mode_(CodeStubAssembler::INTPTR_PARAMETERS),
         receiver_mode_(ReceiverMode::kHasReceiver),
         argc_(torque_arguments.length),
         base_(torque_arguments.base),
@@ -3842,14 +3871,17 @@ class V8_EXPORT_PRIVATE CodeStubArguments {
   void SetReceiver(TNode<Object> object) const;
 
   // Computes address of the index'th argument.
-  TNode<WordT> AtIndexPtr(Node* index,
-                          CodeStubAssembler::ParameterMode mode =
-                              CodeStubAssembler::INTPTR_PARAMETERS) const;
+  TNode<RawPtrT> AtIndexPtr(TNode<IntPtrT> index) const;
+  TNode<RawPtrT> AtIndexPtr(TNode<Smi> index) const {
+    return AtIndexPtr(assembler_->ParameterToIntPtr(index));
+  }
 
   // |index| is zero-based and does not include the receiver
-  TNode<Object> AtIndex(Node* index,
-                        CodeStubAssembler::ParameterMode mode =
-                            CodeStubAssembler::INTPTR_PARAMETERS) const;
+  TNode<Object> AtIndex(TNode<IntPtrT> index) const;
+  // TODO(v8:9708): Consider removing this variant
+  TNode<Object> AtIndex(TNode<Smi> index) const {
+    return AtIndex(assembler_->ParameterToIntPtr(index));
+  }
 
   TNode<Object> AtIndex(int index) const;
 
@@ -3859,15 +3891,10 @@ class V8_EXPORT_PRIVATE CodeStubArguments {
   TNode<Object> GetOptionalArgumentValue(int index,
                                          TNode<Object> default_value);
 
-  Node* GetLength(CodeStubAssembler::ParameterMode mode) const {
-    DCHECK_EQ(mode, argc_mode_);
-    return argc_;
-  }
+  TNode<IntPtrT> GetLength() const { return argc_; }
 
   TorqueStructArguments GetTorqueArguments() const {
-    DCHECK_EQ(argc_mode_, CodeStubAssembler::INTPTR_PARAMETERS);
-    return TorqueStructArguments{assembler_->UncheckedCast<RawPtrT>(fp_), base_,
-                                 assembler_->UncheckedCast<IntPtrT>(argc_)};
+    return TorqueStructArguments{fp_, base_, argc_};
   }
 
   TNode<Object> GetOptionalArgumentValue(TNode<IntPtrT> index) {
@@ -3875,28 +3902,34 @@ class V8_EXPORT_PRIVATE CodeStubArguments {
   }
   TNode<Object> GetOptionalArgumentValue(TNode<IntPtrT> index,
                                          TNode<Object> default_value);
-  TNode<IntPtrT> GetLength() const {
-    DCHECK_EQ(argc_mode_, CodeStubAssembler::INTPTR_PARAMETERS);
-    return assembler_->UncheckedCast<IntPtrT>(argc_);
-  }
 
-  using ForEachBodyFunction = std::function<void(Node* arg)>;
+  using ForEachBodyFunction = std::function<void(TNode<Object> arg)>;
 
   // Iteration doesn't include the receiver. |first| and |last| are zero-based.
-  void ForEach(const ForEachBodyFunction& body, Node* first = nullptr,
-               Node* last = nullptr,
-               CodeStubAssembler::ParameterMode mode =
-                   CodeStubAssembler::INTPTR_PARAMETERS) {
+  template <typename TIndex>
+  void ForEach(const ForEachBodyFunction& body,
+               TNode<TIndex> first = TNode<TIndex>(),
+               TNode<TIndex> last = TNode<TIndex>()) {
     CodeStubAssembler::VariableList list(0, assembler_->zone());
     ForEach(list, body, first, last);
   }
 
   // Iteration doesn't include the receiver. |first| and |last| are zero-based.
   void ForEach(const CodeStubAssembler::VariableList& vars,
-               const ForEachBodyFunction& body, Node* first = nullptr,
-               Node* last = nullptr,
-               CodeStubAssembler::ParameterMode mode =
-                   CodeStubAssembler::INTPTR_PARAMETERS);
+               const ForEachBodyFunction& body,
+               TNode<IntPtrT> first = TNode<IntPtrT>(),
+               TNode<IntPtrT> last = TNode<IntPtrT>());
+
+  void ForEach(const CodeStubAssembler::VariableList& vars,
+               const ForEachBodyFunction& body, TNode<Smi> first,
+               TNode<Smi> last = TNode<Smi>()) {
+    TNode<IntPtrT> first_intptr = assembler_->ParameterToIntPtr(first);
+    TNode<IntPtrT> last_intptr;
+    if (last != nullptr) {
+      last_intptr = assembler_->ParameterToIntPtr(last);
+    }
+    return ForEach(vars, body, first_intptr, last_intptr);
+  }
 
   void PopAndReturn(Node* value);
 
@@ -3904,11 +3937,10 @@ class V8_EXPORT_PRIVATE CodeStubArguments {
   Node* GetArguments();
 
   CodeStubAssembler* assembler_;
-  CodeStubAssembler::ParameterMode argc_mode_;
   ReceiverMode receiver_mode_;
-  Node* argc_;
+  TNode<IntPtrT> argc_;
   TNode<RawPtrT> base_;
-  Node* fp_;
+  TNode<RawPtrT> fp_;
 };
 
 class ToDirectStringAssembler : public CodeStubAssembler {

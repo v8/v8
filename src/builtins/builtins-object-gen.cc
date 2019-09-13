@@ -451,7 +451,7 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
   //    second argument.
   // 4. For each element nextSource of sources, in ascending index order,
   args.ForEach(
-      [=](Node* next_source) {
+      [=](TNode<Object> next_source) {
         CallBuiltin(Builtins::kSetDataProperties, context, to, next_source);
       },
       IntPtrConstant(1));
@@ -1334,11 +1334,12 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
 
 // ES6 section 19.1.2.7 Object.getOwnPropertyDescriptor ( O, P )
 TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
-  Node* argc = Parameter(Descriptor::kJSActualArgumentsCount);
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
   Node* context = Parameter(Descriptor::kContext);
   CSA_ASSERT(this, IsUndefined(Parameter(Descriptor::kJSNewTarget)));
 
-  CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
+  CodeStubArguments args(this, argc);
   TNode<Object> object_input = args.GetOptionalArgumentValue(0);
   TNode<Object> key = args.GetOptionalArgumentValue(1);
 

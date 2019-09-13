@@ -539,10 +539,10 @@ TNode<BoolT> TypedArrayBuiltinsAssembler::IsSharedArrayBuffer(
 // ES #sec-get-%typedarray%.prototype.set
 TF_BUILTIN(TypedArrayPrototypeSet, TypedArrayBuiltinsAssembler) {
   const char* method_name = "%TypedArray%.prototype.set";
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  CodeStubArguments args(
-      this,
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount)));
+  CodeStubArguments args(this, argc);
 
   Label if_source_is_typed_array(this), if_source_is_fast_jsarray(this),
       if_offset_is_out_of_bounds(this, Label::kDeferred),
@@ -708,8 +708,7 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
   TNode<IntPtrT> length = ChangeInt32ToIntPtr(
       UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   // 2. Let items be the List of arguments passed to this function.
-  CodeStubArguments args(this, length, nullptr, INTPTR_PARAMETERS,
-                         CodeStubArguments::ReceiverMode::kHasReceiver);
+  CodeStubArguments args(this, length);
 
   Label if_not_constructor(this, Label::kDeferred),
       if_detached(this, Label::kDeferred);
@@ -738,7 +737,7 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
         BuildFastLoop<IntPtrT>(
             IntPtrConstant(0), length,
             [&](TNode<IntPtrT> index) {
-              TNode<Object> item = args.AtIndex(index, INTPTR_PARAMETERS);
+              TNode<Object> item = args.AtIndex(index);
               Node* value =
                   PrepareValueForWriteToTypedArray(item, kind, context);
 
@@ -771,6 +770,8 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
 
 // ES6 #sec-%typedarray%.from
 TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   Label check_iterator(this), from_array_like(this), fast_path(this),
@@ -780,9 +781,7 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
       if_iterator_fn_not_callable(this, Label::kDeferred),
       if_detached(this, Label::kDeferred);
 
-  CodeStubArguments args(
-      this,
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount)));
+  CodeStubArguments args(this, argc);
   TNode<Object> source = args.GetOptionalArgumentValue(0);
 
   // 5. If thisArg is present, let T be thisArg; else let T be undefined.

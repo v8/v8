@@ -223,9 +223,8 @@ TNode<Context> ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
     TNode<ScopeInfo> scope_info, TNode<Uint32T> slots, TNode<Context> context,
     ScopeType scope_type) {
   TNode<IntPtrT> slots_intptr = Signed(ChangeUint32ToWord(slots));
-  TNode<IntPtrT> size =
-      ElementOffsetFromIndex(slots_intptr, PACKED_ELEMENTS, INTPTR_PARAMETERS,
-                             Context::kTodoHeaderSize);
+  TNode<IntPtrT> size = ElementOffsetFromIndex(slots_intptr, PACKED_ELEMENTS,
+                                               Context::kTodoHeaderSize);
 
   // Create a new closure from the given function info in new space
   TNode<Context> function_context =

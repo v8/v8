@@ -298,7 +298,7 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   CSA_ASSERT(this, IsUndefined(Parameter(Descriptor::kJSNewTarget)));
 
-  CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
+  CodeStubArguments args(this, argc);
   TNode<Object> receiver = args.GetReceiver();
 
   Label runtime(this, Label::kDeferred);
@@ -395,14 +395,12 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
   Label double_transition(this);
   Label runtime(this, Label::kDeferred);
 
-  // TODO(ishell): use constants from Descriptor once the JSFunction linkage
-  // arguments are reordered.
   TNode<Int32T> argc =
       UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   CSA_ASSERT(this, IsUndefined(Parameter(Descriptor::kJSNewTarget)));
 
-  CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
+  CodeStubArguments args(this, argc);
   TNode<Object> receiver = args.GetReceiver();
   TNode<JSArray> array_receiver;
   TNode<Int32T> kind;
@@ -494,9 +492,9 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
   BIND(&default_label);
   {
     args.ForEach(
-        [this, array_receiver, context](Node* arg) {
+        [=](TNode<Object> arg) {
           TNode<Number> length = LoadJSArrayLength(array_receiver);
-          SetPropertyStrict(context, array_receiver, length, CAST(arg));
+          SetPropertyStrict(context, array_receiver, length, arg);
         },
         arg_index.value());
     args.PopAndReturn(LoadJSArrayLength(array_receiver));
@@ -626,7 +624,7 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
   TNode<Int32T> argc =
       UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
 
-  CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
+  CodeStubArguments args(this, argc);
   TNode<Object> items = args.GetOptionalArgumentValue(0);
   TNode<Object> receiver = args.GetReceiver();
 
@@ -1031,8 +1029,7 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant,
 
   BIND(&call_runtime);
   {
-    TNode<Object> start_from =
-        args.GetOptionalArgumentValue(kFromIndexArg, UndefinedConstant());
+    TNode<Object> start_from = args.GetOptionalArgumentValue(kFromIndexArg);
     Runtime::FunctionId function = variant == kIncludes
                                        ? Runtime::kArrayIncludes_Slow
                                        : Runtime::kArrayIndexOf;
@@ -2221,7 +2218,7 @@ void ArrayBuiltinsAssembler::GenerateArrayNArgumentsConstructor(
   // Replace incoming JS receiver argument with the target.
   // TODO(ishell): Avoid replacing the target on the stack and just add it
   // as another additional parameter for Runtime::kNewArray.
-  CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
+  CodeStubArguments args(this, argc);
   args.SetReceiver(target);
 
   // Adjust arguments count for the runtime call: +1 for implicit receiver

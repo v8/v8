@@ -139,7 +139,7 @@ void IntlBuiltinsAssembler::ListFormatCommon(TNode<Context> context,
                                              TNode<Int32T> argc,
                                              Runtime::FunctionId format_func_id,
                                              const char* method_name) {
-  CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
+  CodeStubArguments args(this, argc);
 
   // Label has_list(this);
   // 1. Let lf be this value.

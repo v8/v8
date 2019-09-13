@@ -329,8 +329,8 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
 
   // FixedArray backing store -> Smi or object elements.
   {
-    TNode<IntPtrT> offset = ElementOffsetFromIndex(
-        index, PACKED_ELEMENTS, INTPTR_PARAMETERS, kHeaderSize);
+    TNode<IntPtrT> offset =
+        ElementOffsetFromIndex(index, PACKED_ELEMENTS, kHeaderSize);
     // Check if we're about to overwrite the hole. We can safely do that
     // only if there can be no setters on the prototype chain.
     // If we know that we're storing beyond the previous array length, we
@@ -399,8 +399,8 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
                            PACKED_SMI_ELEMENTS, target_kind, slow);
         // Reload migrated elements.
         TNode<FixedArrayBase> double_elements = LoadElements(receiver);
-        TNode<IntPtrT> double_offset = ElementOffsetFromIndex(
-            index, PACKED_DOUBLE_ELEMENTS, INTPTR_PARAMETERS, kHeaderSize);
+        TNode<IntPtrT> double_offset =
+            ElementOffsetFromIndex(index, PACKED_DOUBLE_ELEMENTS, kHeaderSize);
         // Make sure we do not store signalling NaNs into double arrays.
         TNode<Float64T> double_value =
             Float64SilenceNaN(LoadHeapNumberValue(CAST(value)));
@@ -432,8 +432,8 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
          &check_cow_elements);
   // FixedDoubleArray backing store -> double elements.
   {
-    TNode<IntPtrT> offset = ElementOffsetFromIndex(
-        index, PACKED_DOUBLE_ELEMENTS, INTPTR_PARAMETERS, kHeaderSize);
+    TNode<IntPtrT> offset =
+        ElementOffsetFromIndex(index, PACKED_DOUBLE_ELEMENTS, kHeaderSize);
     // Check if we're about to overwrite the hole. We can safely do that
     // only if there can be no setters on the prototype chain.
     {
@@ -481,8 +481,8 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
                          PACKED_DOUBLE_ELEMENTS, target_kind, slow);
       // Reload migrated elements.
       TNode<FixedArrayBase> fast_elements = LoadElements(receiver);
-      TNode<IntPtrT> fast_offset = ElementOffsetFromIndex(
-          index, PACKED_ELEMENTS, INTPTR_PARAMETERS, kHeaderSize);
+      TNode<IntPtrT> fast_offset =
+          ElementOffsetFromIndex(index, PACKED_ELEMENTS, kHeaderSize);
       Store(fast_elements, fast_offset, value);
       MaybeUpdateLengthAndReturn(receiver, index, value, update_length);
     }

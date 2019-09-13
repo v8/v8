@@ -51,8 +51,8 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                             Node* const search_ptr, Node* const search_length,
                             Node* const start_position);
 
-  TNode<IntPtrT> PointerToStringDataAtIndex(Node* const string_data,
-                                            Node* const index,
+  TNode<RawPtrT> PointerToStringDataAtIndex(TNode<RawPtrT> string_data,
+                                            TNode<IntPtrT> index,
                                             String::Encoding encoding);
 
   // substr and slice have a common way of handling the {start} argument.

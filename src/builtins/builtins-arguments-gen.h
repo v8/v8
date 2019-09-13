@@ -40,11 +40,10 @@ class ArgumentsBuiltinsAssembler : public CodeStubAssembler {
   // and then copies |rest_count| arguments from the stack frame pointed to by
   // |frame_ptr| starting from |first_arg|. |arg_count| == |first_arg| +
   // |rest_count|.
-  Node* ConstructParametersObjectFromArgs(Node* map, Node* frame_ptr,
-                                          Node* arg_count, Node* first_arg,
-                                          Node* rest_count,
-                                          ParameterMode param_mode,
-                                          int base_size);
+  Node* ConstructParametersObjectFromArgs(
+      TNode<Map> map, TNode<RawPtrT> frame_ptr, TNode<BInt> arg_count,
+      TNode<BInt> first_arg, TNode<BInt> rest_count, ParameterMode param_mode,
+      int base_size);
 };
 
 }  // namespace internal

@@ -143,20 +143,18 @@ void MathBuiltinsAssembler::MathRoundingOperation(
 }
 
 void MathBuiltinsAssembler::MathMaxMin(
-    Node* context, Node* argc,
+    TNode<Context> context, TNode<Int32T> argc,
     TNode<Float64T> (CodeStubAssembler::*float64op)(SloppyTNode<Float64T>,
                                                     SloppyTNode<Float64T>),
     double default_val) {
-  CodeStubArguments arguments(this, ChangeInt32ToIntPtr(argc));
-  argc = arguments.GetLength(INTPTR_PARAMETERS);
+  CodeStubArguments arguments(this, argc);
 
-  VARIABLE(result, MachineRepresentation::kFloat64);
-  result.Bind(Float64Constant(default_val));
+  TVARIABLE(Float64T, result, Float64Constant(default_val));
 
   CodeStubAssembler::VariableList vars({&result}, zone());
-  arguments.ForEach(vars, [=, &result](Node* arg) {
-    Node* float_value = TruncateTaggedToFloat64(context, arg);
-    result.Bind((this->*float64op)(result.value(), float_value));
+  arguments.ForEach(vars, [&](TNode<Object> arg) {
+    TNode<Float64T> float_value = TruncateTaggedToFloat64(context, arg);
+    result = (this->*float64op)(result.value(), float_value);
   });
 
   arguments.PopAndReturn(ChangeFloat64ToTagged(result.value()));
@@ -260,19 +258,17 @@ TF_BUILTIN(MathTrunc, MathBuiltinsAssembler) {
 
 // ES6 #sec-math.max
 TF_BUILTIN(MathMax, MathBuiltinsAssembler) {
-  // TODO(ishell): use constants from Descriptor once the JSFunction linkage
-  // arguments are reordered.
-  Node* context = Parameter(Descriptor::kContext);
-  Node* argc = Parameter(Descriptor::kJSActualArgumentsCount);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
   MathMaxMin(context, argc, &CodeStubAssembler::Float64Max, -1.0 * V8_INFINITY);
 }
 
 // ES6 #sec-math.min
 TF_BUILTIN(MathMin, MathBuiltinsAssembler) {
-  // TODO(ishell): use constants from Descriptor once the JSFunction linkage
-  // arguments are reordered.
-  Node* context = Parameter(Descriptor::kContext);
-  Node* argc = Parameter(Descriptor::kJSActualArgumentsCount);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
   MathMaxMin(context, argc, &CodeStubAssembler::Float64Min, V8_INFINITY);
 }
 

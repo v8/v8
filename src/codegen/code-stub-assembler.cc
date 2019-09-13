@@ -131,6 +131,16 @@ void CodeStubAssembler::Check(SloppyTNode<Word32T> condition_node,
   Check(branch, message, file, line, extra_nodes);
 }
 
+template <>
+TNode<Smi> CodeStubAssembler::IntPtrToParameter<Smi>(TNode<IntPtrT> value) {
+  return SmiTag(value);
+}
+template <>
+TNode<IntPtrT> CodeStubAssembler::IntPtrToParameter<IntPtrT>(
+    TNode<IntPtrT> value) {
+  return value;
+}
+
 void CodeStubAssembler::CollectCallableFeedback(
     TNode<Object> target, TNode<Context> context,
     TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot_id) {
@@ -398,6 +408,11 @@ TNode<Smi> CodeStubAssembler::IntPtrOrSmiConstant<Smi>(int value) {
 template <>
 TNode<IntPtrT> CodeStubAssembler::IntPtrOrSmiConstant<IntPtrT>(int value) {
   return IntPtrConstant(value);
+}
+
+template <>
+TNode<RawPtrT> CodeStubAssembler::IntPtrOrSmiConstant<RawPtrT>(int value) {
+  return ReinterpretCast<RawPtrT>(IntPtrConstant(value));
 }
 
 Node* CodeStubAssembler::IntPtrOrSmiConstant(int value, ParameterMode mode) {
@@ -3148,29 +3163,26 @@ TNode<Smi> CodeStubAssembler::BuildAppendJSArray(ElementsKind kind,
   TVARIABLE(Smi, var_tagged_length);
   ParameterMode mode = OptimalParameterMode();
   TVARIABLE(BInt, var_length, SmiToBInt(LoadFastJSArrayLength(array)));
-  VARIABLE(var_elements, MachineRepresentation::kTagged, LoadElements(array));
+  TVARIABLE(FixedArrayBase, var_elements, LoadElements(array));
 
   // Resize the capacity of the fixed array if it doesn't fit.
   TNode<IntPtrT> first = arg_index->value();
-  Node* growth = IntPtrToParameter(
-      IntPtrSub(UncheckedCast<IntPtrT>(args->GetLength(INTPTR_PARAMETERS)),
-                first),
-      mode);
+  TNode<BInt> growth = IntPtrToBInt(IntPtrSub(args->GetLength(), first));
   PossiblyGrowElementsCapacity(mode, kind, array, var_length.value(),
                                &var_elements, growth, &pre_bailout);
 
   // Push each argument onto the end of the array now that there is enough
   // capacity.
   CodeStubAssembler::VariableList push_vars({&var_length}, zone());
-  Node* elements = var_elements.value();
+  TNode<FixedArrayBase> elements = var_elements.value();
   args->ForEach(
       push_vars,
-      [=, &var_length, &pre_bailout](Node* arg) {
+      [&](TNode<Object> arg) {
         TryStoreArrayElement(kind, mode, &pre_bailout, elements,
                              var_length.value(), arg);
         Increment(&var_length);
       },
-      first, nullptr);
+      first);
   {
     TNode<Smi> length = BIntToSmi(var_length.value());
     var_tagged_length = length;
@@ -5098,10 +5110,10 @@ void CodeStubAssembler::CopyElements(ElementsKind kind,
       IntPtrMul(length, IntPtrConstant(ElementsKindToByteSize(kind)));
   static const int32_t fa_base_data_offset =
       FixedArrayBase::kHeaderSize - kHeapObjectTag;
-  TNode<IntPtrT> src_offset_start = ElementOffsetFromIndex(
-      src_index, kind, INTPTR_PARAMETERS, fa_base_data_offset);
-  TNode<IntPtrT> dst_offset_start = ElementOffsetFromIndex(
-      dst_index, kind, INTPTR_PARAMETERS, fa_base_data_offset);
+  TNode<IntPtrT> src_offset_start =
+      ElementOffsetFromIndex(src_index, kind, fa_base_data_offset);
+  TNode<IntPtrT> dst_offset_start =
+      ElementOffsetFromIndex(dst_index, kind, fa_base_data_offset);
   TNode<IntPtrT> src_elements_intptr = BitcastTaggedToWord(src_elements);
   TNode<IntPtrT> source_data_ptr =
       IntPtrAdd(src_elements_intptr, src_offset_start);
@@ -8384,10 +8396,13 @@ void CodeStubAssembler::Increment(TVariable<TIndex>* variable, int value) {
 }
 
 // Instantiate Increment for Smi and IntPtrT.
+// TODO(v8:9708): Consider renaming to [Smi|IntPtrT|RawPtrT]Increment.
 template void CodeStubAssembler::Increment<Smi>(TVariable<Smi>* variable,
                                                 int value);
 template void CodeStubAssembler::Increment<IntPtrT>(
     TVariable<IntPtrT>* variable, int value);
+template void CodeStubAssembler::Increment<RawPtrT>(
+    TVariable<RawPtrT>* variable, int value);
 
 void CodeStubAssembler::Use(Label* label) {
   GotoIf(Word32Equal(Int32Constant(0), Int32Constant(1)), label);
@@ -10262,8 +10277,7 @@ TNode<BoolT> CodeStubAssembler::IsOffsetInBounds(SloppyTNode<IntPtrT> offset,
   // Make sure we point to the last field.
   int element_size = 1 << ElementsKindToShiftSize(kind);
   int correction = header_size - kHeapObjectTag - element_size;
-  TNode<IntPtrT> last_offset =
-      ElementOffsetFromIndex(length, kind, INTPTR_PARAMETERS, correction);
+  TNode<IntPtrT> last_offset = ElementOffsetFromIndex(length, kind, correction);
   return IntPtrLessThanOrEqual(offset, last_offset);
 }
 
@@ -13513,21 +13527,19 @@ TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLength(
   return LoadObjectField<UintPtrT>(typed_array, JSTypedArray::kLengthOffset);
 }
 
-CodeStubArguments::CodeStubArguments(
-    CodeStubAssembler* assembler, Node* argc, Node* fp,
-    CodeStubAssembler::ParameterMode param_mode, ReceiverMode receiver_mode)
+CodeStubArguments::CodeStubArguments(CodeStubAssembler* assembler,
+                                     TNode<IntPtrT> argc, TNode<RawPtrT> fp,
+                                     ReceiverMode receiver_mode)
     : assembler_(assembler),
-      argc_mode_(param_mode),
       receiver_mode_(receiver_mode),
       argc_(argc),
       base_(),
       fp_(fp != nullptr ? fp : assembler_->LoadFramePointer()) {
   TNode<IntPtrT> offset = assembler_->ElementOffsetFromIndex(
-      argc_, SYSTEM_POINTER_ELEMENTS, param_mode,
+      argc_, SYSTEM_POINTER_ELEMENTS,
       (StandardFrameConstants::kFixedSlotCountAboveFp - 1) *
           kSystemPointerSize);
-  base_ =
-      assembler_->UncheckedCast<RawPtrT>(assembler_->IntPtrAdd(fp_, offset));
+  base_ = assembler_->RawPtrAdd(fp_, offset);
 }
 
 TNode<Object> CodeStubArguments::GetReceiver() const {
@@ -13542,24 +13554,18 @@ void CodeStubArguments::SetReceiver(TNode<Object> object) const {
       base_, assembler_->IntPtrConstant(kSystemPointerSize), object);
 }
 
-TNode<WordT> CodeStubArguments::AtIndexPtr(
-    Node* index, CodeStubAssembler::ParameterMode mode) const {
-  using Node = compiler::Node;
-  Node* negated_index = assembler_->IntPtrOrSmiSub(
-      assembler_->IntPtrOrSmiConstant(0, mode), index, mode);
+TNode<RawPtrT> CodeStubArguments::AtIndexPtr(TNode<IntPtrT> index) const {
+  TNode<IntPtrT> negated_index =
+      assembler_->IntPtrOrSmiSub(assembler_->IntPtrConstant(0), index);
   TNode<IntPtrT> offset = assembler_->ElementOffsetFromIndex(
-      negated_index, SYSTEM_POINTER_ELEMENTS, mode, 0);
-  return assembler_->IntPtrAdd(assembler_->UncheckedCast<IntPtrT>(base_),
-                               offset);
+      negated_index, SYSTEM_POINTER_ELEMENTS, 0);
+  return assembler_->RawPtrAdd(base_, offset);
 }
 
-TNode<Object> CodeStubArguments::AtIndex(
-    Node* index, CodeStubAssembler::ParameterMode mode) const {
-  DCHECK_EQ(argc_mode_, mode);
-  CSA_ASSERT(assembler_,
-             assembler_->UintPtrOrSmiLessThan(index, GetLength(mode), mode));
+TNode<Object> CodeStubArguments::AtIndex(TNode<IntPtrT> index) const {
+  CSA_ASSERT(assembler_, assembler_->UintPtrOrSmiLessThan(index, GetLength()));
   return assembler_->UncheckedCast<Object>(
-      assembler_->LoadFullTagged(AtIndexPtr(index, mode)));
+      assembler_->LoadFullTagged(AtIndexPtr(index)));
 }
 
 TNode<Object> CodeStubArguments::AtIndex(int index) const {
@@ -13572,9 +13578,8 @@ TNode<Object> CodeStubArguments::GetOptionalArgumentValue(
   CodeStubAssembler::Label argument_missing(assembler_),
       argument_done(assembler_, &result);
 
-  assembler_->GotoIf(assembler_->UintPtrOrSmiGreaterThanOrEqual(
-                         assembler_->IntPtrOrSmiConstant(index, argc_mode_),
-                         argc_, argc_mode_),
+  assembler_->GotoIf(assembler_->UintPtrGreaterThanOrEqual(
+                         assembler_->IntPtrConstant(index), argc_),
                      &argument_missing);
   result = AtIndex(index);
   assembler_->Goto(&argument_done);
@@ -13593,10 +13598,8 @@ TNode<Object> CodeStubArguments::GetOptionalArgumentValue(
   CodeStubAssembler::Label argument_missing(assembler_),
       argument_done(assembler_, &result);
 
-  assembler_->GotoIf(
-      assembler_->UintPtrOrSmiGreaterThanOrEqual(
-          assembler_->IntPtrToParameter(index, argc_mode_), argc_, argc_mode_),
-      &argument_missing);
+  assembler_->GotoIf(assembler_->UintPtrGreaterThanOrEqual(index, argc_),
+                     &argument_missing);
   result = AtIndex(index);
   assembler_->Goto(&argument_done);
 
@@ -13610,42 +13613,38 @@ TNode<Object> CodeStubArguments::GetOptionalArgumentValue(
 
 void CodeStubArguments::ForEach(
     const CodeStubAssembler::VariableList& vars,
-    const CodeStubArguments::ForEachBodyFunction& body, Node* first, Node* last,
-    CodeStubAssembler::ParameterMode mode) {
+    const CodeStubArguments::ForEachBodyFunction& body, TNode<IntPtrT> first,
+    TNode<IntPtrT> last) {
   assembler_->Comment("CodeStubArguments::ForEach");
   if (first == nullptr) {
-    first = assembler_->IntPtrOrSmiConstant(0, mode);
+    first = assembler_->IntPtrConstant(0);
   }
   if (last == nullptr) {
-    DCHECK_EQ(mode, argc_mode_);
     last = argc_;
   }
-  TNode<IntPtrT> start = assembler_->IntPtrSub(
-      assembler_->UncheckedCast<IntPtrT>(base_),
-      assembler_->ElementOffsetFromIndex(first, SYSTEM_POINTER_ELEMENTS, mode));
-  TNode<IntPtrT> end = assembler_->IntPtrSub(
-      assembler_->UncheckedCast<IntPtrT>(base_),
-      assembler_->ElementOffsetFromIndex(last, SYSTEM_POINTER_ELEMENTS, mode));
-  assembler_->BuildFastLoop<IntPtrT>(
+  TNode<RawPtrT> start = assembler_->RawPtrSub(
+      base_,
+      assembler_->ElementOffsetFromIndex(first, SYSTEM_POINTER_ELEMENTS));
+  TNode<RawPtrT> end = assembler_->RawPtrSub(
+      base_, assembler_->ElementOffsetFromIndex(last, SYSTEM_POINTER_ELEMENTS));
+  assembler_->BuildFastLoop<RawPtrT>(
       vars, start, end,
-      [&](TNode<IntPtrT> current) {
-        Node* arg = assembler_->Load(MachineType::AnyTagged(), current);
+      [&](TNode<RawPtrT> current) {
+        TNode<Object> arg = assembler_->Load<Object>(current);
         body(arg);
       },
       -kSystemPointerSize, CodeStubAssembler::IndexAdvanceMode::kPost);
 }
 
 void CodeStubArguments::PopAndReturn(Node* value) {
-  Node* pop_count;
+  TNode<IntPtrT> pop_count;
   if (receiver_mode_ == ReceiverMode::kHasReceiver) {
-    pop_count = assembler_->IntPtrOrSmiAdd(
-        argc_, assembler_->IntPtrOrSmiConstant(1, argc_mode_), argc_mode_);
+    pop_count = assembler_->IntPtrAdd(argc_, assembler_->IntPtrConstant(1));
   } else {
     pop_count = argc_;
   }
 
-  assembler_->PopAndReturn(assembler_->ParameterToIntPtr(pop_count, argc_mode_),
-                           value);
+  assembler_->PopAndReturn(pop_count, value);
 }
 
 TNode<BoolT> CodeStubAssembler::IsFastElementsKind(
@@ -14003,8 +14002,7 @@ TNode<Object> CodeStubAssembler::GetArgumentValue(TorqueStructArguments args,
 
 TorqueStructArguments CodeStubAssembler::GetFrameArguments(
     TNode<RawPtrT> frame, TNode<IntPtrT> argc) {
-  return CodeStubArguments(this, argc, frame, INTPTR_PARAMETERS)
-      .GetTorqueArguments();
+  return CodeStubArguments(this, argc, frame).GetTorqueArguments();
 }
 
 void CodeStubAssembler::Print(const char* s) {

@@ -1002,7 +1002,7 @@ TNode<JSArray> CollectionsBuiltinsAssembler::MapIteratorToList(
 
   const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
   TNode<IntPtrT> first_to_element_offset =
-      ElementOffsetFromIndex(IntPtrConstant(0), kind, INTPTR_PARAMETERS, 0);
+      ElementOffsetFromIndex(IntPtrConstant(0), kind, 0);
   VARIABLE(
       var_offset, MachineType::PointerRepresentation(),
       IntPtrAdd(first_to_element_offset, IntPtrConstant(first_element_offset)));
@@ -1115,7 +1115,7 @@ TNode<JSArray> CollectionsBuiltinsAssembler::SetOrSetIteratorToList(
 
   const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
   TNode<IntPtrT> first_to_element_offset =
-      ElementOffsetFromIndex(IntPtrConstant(0), kind, INTPTR_PARAMETERS, 0);
+      ElementOffsetFromIndex(IntPtrConstant(0), kind, 0);
   VARIABLE(
       var_offset, MachineType::PointerRepresentation(),
       IntPtrAdd(first_to_element_offset, IntPtrConstant(first_element_offset)));
@@ -1887,9 +1887,10 @@ TF_BUILTIN(MapPrototypeGetSize, CollectionsBuiltinsAssembler) {
 
 TF_BUILTIN(MapPrototypeForEach, CollectionsBuiltinsAssembler) {
   const char* const kMethodName = "Map.prototype.forEach";
-  Node* const argc = Parameter(Descriptor::kJSActualArgumentsCount);
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
   Node* const context = Parameter(Descriptor::kContext);
-  CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
+  CodeStubArguments args(this, argc);
   TNode<Object> const receiver = args.GetReceiver();
   TNode<Object> const callback = args.GetOptionalArgumentValue(0);
   TNode<Object> const this_arg = args.GetOptionalArgumentValue(1);
@@ -2119,9 +2120,10 @@ TF_BUILTIN(SetPrototypeGetSize, CollectionsBuiltinsAssembler) {
 
 TF_BUILTIN(SetPrototypeForEach, CollectionsBuiltinsAssembler) {
   const char* const kMethodName = "Set.prototype.forEach";
-  Node* const argc = Parameter(Descriptor::kJSActualArgumentsCount);
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
   Node* const context = Parameter(Descriptor::kContext);
-  CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
+  CodeStubArguments args(this, argc);
   TNode<Object> const receiver = args.GetReceiver();
   TNode<Object> const callback = args.GetOptionalArgumentValue(0);
   TNode<Object> const this_arg = args.GetOptionalArgumentValue(1);

@@ -80,7 +80,7 @@ Node* ProxiesCodeStubAssembler::AllocateJSArrayForCodeStubArguments(
 
     GotoIf(SmiGreaterThan(length, SmiConstant(FixedArray::kMaxRegularLength)),
            &if_large_object);
-    args.ForEach(list, [=, &offset](Node* arg) {
+    args.ForEach(list, [&](TNode<Object> arg) {
       StoreNoWriteBarrier(MachineRepresentation::kTagged, allocated_elements,
                           offset.value(), arg);
       Increment(&offset, kTaggedSize);
@@ -89,7 +89,7 @@ Node* ProxiesCodeStubAssembler::AllocateJSArrayForCodeStubArguments(
 
     BIND(&if_large_object);
     {
-      args.ForEach(list, [=, &offset](Node* arg) {
+      args.ForEach(list, [&](TNode<Object> arg) {
         Store(allocated_elements, offset.value(), arg);
         Increment(&offset, kTaggedSize);
       });

@@ -15,14 +15,12 @@ namespace internal {
 TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   Label slow(this);
 
-  // TODO(ishell): use constants from Descriptor once the JSFunction linkage
-  // arguments are reordered.
   TNode<Int32T> argc =
       UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
   Node* context = Parameter(Descriptor::kContext);
   Node* new_target = Parameter(Descriptor::kJSNewTarget);
 
-  CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
+  CodeStubArguments args(this, argc);
 
   // Check that receiver has instance type of JS_FUNCTION_TYPE
   TNode<Object> receiver = args.GetReceiver();
@@ -128,7 +126,7 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
     VariableList foreach_vars({&index}, zone());
     args.ForEach(
         foreach_vars,
-        [&](Node* arg) {
+        [&](TNode<Object> arg) {
           StoreFixedArrayElement(elements, index.value(), arg);
           Increment(&index);
         },
