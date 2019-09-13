@@ -323,17 +323,6 @@ Handle<Tuple2> Factory::NewTuple2(Handle<Object> value1, Handle<Object> value2,
   return result;
 }
 
-Handle<Tuple3> Factory::NewTuple3(Handle<Object> value1, Handle<Object> value2,
-                                  Handle<Object> value3,
-                                  AllocationType allocation) {
-  Handle<Tuple3> result =
-      Handle<Tuple3>::cast(NewStruct(TUPLE3_TYPE, allocation));
-  result->set_value1(*value1);
-  result->set_value2(*value2);
-  result->set_value3(*value3);
-  return result;
-}
-
 Handle<ArrayBoilerplateDescription> Factory::NewArrayBoilerplateDescription(
     ElementsKind elements_kind, Handle<FixedArrayBase> constant_values) {
   Handle<ArrayBoilerplateDescription> result =

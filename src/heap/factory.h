@@ -215,10 +215,6 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<Tuple2> NewTuple2(Handle<Object> value1, Handle<Object> value2,
                            AllocationType allocation);
 
-  // Create a new Tuple3 struct.
-  Handle<Tuple3> NewTuple3(Handle<Object> value1, Handle<Object> value2,
-                           Handle<Object> value3, AllocationType allocation);
-
   // Create a new ArrayBoilerplateDescription struct.
   Handle<ArrayBoilerplateDescription> NewArrayBoilerplateDescription(
       ElementsKind elements_kind, Handle<FixedArrayBase> constant_values);
