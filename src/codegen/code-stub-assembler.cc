@@ -10082,22 +10082,22 @@ void CodeStubAssembler::TryPrototypeChainLookup(
   }
 }
 
-Node* CodeStubAssembler::HasInPrototypeChain(Node* context, Node* object,
-                                             SloppyTNode<Object> prototype) {
-  CSA_ASSERT(this, TaggedIsNotSmi(object));
-  VARIABLE(var_result, MachineRepresentation::kTagged);
+TNode<Oddball> CodeStubAssembler::HasInPrototypeChain(TNode<Context> context,
+                                                      TNode<HeapObject> object,
+                                                      TNode<Object> prototype) {
+  TVARIABLE(Oddball, var_result);
   Label return_false(this), return_true(this),
       return_runtime(this, Label::kDeferred), return_result(this);
 
   // Loop through the prototype chain looking for the {prototype}.
-  VARIABLE(var_object_map, MachineRepresentation::kTagged, LoadMap(object));
+  TVARIABLE(Map, var_object_map, LoadMap(object));
   Label loop(this, &var_object_map);
   Goto(&loop);
   BIND(&loop);
   {
     // Check if we can determine the prototype directly from the {object_map}.
     Label if_objectisdirect(this), if_objectisspecial(this, Label::kDeferred);
-    Node* object_map = var_object_map.value();
+    TNode<Map> object_map = var_object_map.value();
     TNode<Uint16T> object_instance_type = LoadMapInstanceType(object_map);
     Branch(IsSpecialReceiverInstanceType(object_instance_type),
            &if_objectisspecial, &if_objectisdirect);
@@ -10122,22 +10122,22 @@ Node* CodeStubAssembler::HasInPrototypeChain(Node* context, Node* object,
 
     // Continue with the prototype.
     CSA_ASSERT(this, TaggedIsNotSmi(object_prototype));
-    var_object_map.Bind(LoadMap(object_prototype));
+    var_object_map = LoadMap(object_prototype);
     Goto(&loop);
   }
 
   BIND(&return_true);
-  var_result.Bind(TrueConstant());
+  var_result = TrueConstant();
   Goto(&return_result);
 
   BIND(&return_false);
-  var_result.Bind(FalseConstant());
+  var_result = FalseConstant();
   Goto(&return_result);
 
   BIND(&return_runtime);
   {
     // Fallback to the runtime implementation.
-    var_result.Bind(
+    var_result = CAST(
         CallRuntime(Runtime::kHasInPrototypeChain, context, object, prototype));
   }
   Goto(&return_result);
@@ -10146,63 +10146,67 @@ Node* CodeStubAssembler::HasInPrototypeChain(Node* context, Node* object,
   return var_result.value();
 }
 
-Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
-                                             Node* object) {
-  VARIABLE(var_result, MachineRepresentation::kTagged);
+TNode<Oddball> CodeStubAssembler::OrdinaryHasInstance(
+    TNode<Context> context, TNode<Object> callable_maybe_smi,
+    TNode<Object> object_maybe_smi) {
+  TVARIABLE(Oddball, var_result);
   Label return_runtime(this, Label::kDeferred), return_result(this);
 
   GotoIfForceSlowPath(&return_runtime);
 
   // Goto runtime if {object} is a Smi.
-  GotoIf(TaggedIsSmi(object), &return_runtime);
+  GotoIf(TaggedIsSmi(object_maybe_smi), &return_runtime);
 
   // Goto runtime if {callable} is a Smi.
-  GotoIf(TaggedIsSmi(callable), &return_runtime);
+  GotoIf(TaggedIsSmi(callable_maybe_smi), &return_runtime);
 
-  // Load map of {callable}.
-  TNode<Map> callable_map = LoadMap(callable);
-
-  // Goto runtime if {callable} is not a JSFunction.
-  TNode<Uint16T> callable_instance_type = LoadMapInstanceType(callable_map);
-  GotoIfNot(InstanceTypeEqual(callable_instance_type, JS_FUNCTION_TYPE),
-            &return_runtime);
-
-  GotoIfPrototypeRequiresRuntimeLookup(CAST(callable), callable_map,
-                                       &return_runtime);
-
-  // Get the "prototype" (or initial map) of the {callable}.
-  TNode<HeapObject> callable_prototype = LoadObjectField<HeapObject>(
-      CAST(callable), JSFunction::kPrototypeOrInitialMapOffset);
   {
-    Label no_initial_map(this), walk_prototype_chain(this);
-    TVARIABLE(HeapObject, var_callable_prototype, callable_prototype);
+    // Load map of {callable}.
+    TNode<HeapObject> object = CAST(object_maybe_smi);
+    TNode<HeapObject> callable = CAST(callable_maybe_smi);
+    TNode<Map> callable_map = LoadMap(callable);
 
-    // Resolve the "prototype" if the {callable} has an initial map.
-    GotoIfNot(IsMap(callable_prototype), &no_initial_map);
-    var_callable_prototype =
-        LoadObjectField<HeapObject>(callable_prototype, Map::kPrototypeOffset);
-    Goto(&walk_prototype_chain);
+    // Goto runtime if {callable} is not a JSFunction.
+    TNode<Uint16T> callable_instance_type = LoadMapInstanceType(callable_map);
+    GotoIfNot(InstanceTypeEqual(callable_instance_type, JS_FUNCTION_TYPE),
+              &return_runtime);
 
-    BIND(&no_initial_map);
-    // {callable_prototype} is the hole if the "prototype" property hasn't been
-    // requested so far.
-    Branch(TaggedEqual(callable_prototype, TheHoleConstant()), &return_runtime,
-           &walk_prototype_chain);
+    GotoIfPrototypeRequiresRuntimeLookup(CAST(callable), callable_map,
+                                         &return_runtime);
 
-    BIND(&walk_prototype_chain);
-    callable_prototype = var_callable_prototype.value();
+    // Get the "prototype" (or initial map) of the {callable}.
+    TNode<HeapObject> callable_prototype = LoadObjectField<HeapObject>(
+        callable, JSFunction::kPrototypeOrInitialMapOffset);
+    {
+      Label no_initial_map(this), walk_prototype_chain(this);
+      TVARIABLE(HeapObject, var_callable_prototype, callable_prototype);
+
+      // Resolve the "prototype" if the {callable} has an initial map.
+      GotoIfNot(IsMap(callable_prototype), &no_initial_map);
+      var_callable_prototype = LoadObjectField<HeapObject>(
+          callable_prototype, Map::kPrototypeOffset);
+      Goto(&walk_prototype_chain);
+
+      BIND(&no_initial_map);
+      // {callable_prototype} is the hole if the "prototype" property hasn't
+      // been requested so far.
+      Branch(TaggedEqual(callable_prototype, TheHoleConstant()),
+             &return_runtime, &walk_prototype_chain);
+
+      BIND(&walk_prototype_chain);
+      callable_prototype = var_callable_prototype.value();
+    }
+
+    // Loop through the prototype chain looking for the {callable} prototype.
+    var_result = HasInPrototypeChain(context, object, callable_prototype);
+    Goto(&return_result);
   }
-
-  // Loop through the prototype chain looking for the {callable} prototype.
-  CSA_ASSERT(this, IsJSReceiver(callable_prototype));
-  var_result.Bind(HasInPrototypeChain(context, object, callable_prototype));
-  Goto(&return_result);
 
   BIND(&return_runtime);
   {
     // Fallback to the runtime implementation.
-    var_result.Bind(
-        CallRuntime(Runtime::kOrdinaryHasInstance, context, callable, object));
+    var_result = CAST(CallRuntime(Runtime::kOrdinaryHasInstance, context,
+                                  callable_maybe_smi, object_maybe_smi));
   }
   Goto(&return_result);
 

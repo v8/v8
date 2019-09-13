@@ -17,8 +17,8 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
 
   TNode<Int32T> argc =
       UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
-  Node* context = Parameter(Descriptor::kContext);
-  Node* new_target = Parameter(Descriptor::kJSNewTarget);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
 
   CodeStubArguments args(this, argc);
 
@@ -83,7 +83,7 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   // Choose the right bound function map based on whether the target is
   // constructable.
   Comment("Choose the right bound function map");
-  VARIABLE(bound_function_map, MachineRepresentation::kTagged);
+  TVARIABLE(Map, bound_function_map);
   {
     Label with_constructor(this);
     VariableList vars({&bound_function_map}, zone());
@@ -92,12 +92,12 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
     Label map_done(this, vars);
     GotoIf(IsConstructorMap(receiver_map), &with_constructor);
 
-    bound_function_map.Bind(LoadContextElement(
+    bound_function_map = CAST(LoadContextElement(
         native_context, Context::BOUND_FUNCTION_WITHOUT_CONSTRUCTOR_MAP_INDEX));
     Goto(&map_done);
 
     BIND(&with_constructor);
-    bound_function_map.Bind(LoadContextElement(
+    bound_function_map = CAST(LoadContextElement(
         native_context, Context::BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX));
     Goto(&map_done);
 
@@ -113,29 +113,28 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
 
   // Allocate the arguments array.
   Comment("Allocate the arguments array");
-  VARIABLE(argument_array, MachineRepresentation::kTagged);
+  TVARIABLE(FixedArray, argument_array);
   {
     Label empty_arguments(this);
     Label arguments_done(this, &argument_array);
     GotoIf(Uint32LessThanOrEqual(argc, Int32Constant(1)), &empty_arguments);
     TNode<IntPtrT> elements_length =
         Signed(ChangeUint32ToWord(Unsigned(Int32Sub(argc, Int32Constant(1)))));
-    TNode<FixedArray> elements = CAST(AllocateFixedArray(
-        PACKED_ELEMENTS, elements_length, kAllowLargeObjectAllocation));
+    argument_array = CAST(AllocateFixedArray(PACKED_ELEMENTS, elements_length,
+                                             kAllowLargeObjectAllocation));
     TVARIABLE(IntPtrT, index, IntPtrConstant(0));
     VariableList foreach_vars({&index}, zone());
     args.ForEach(
         foreach_vars,
         [&](TNode<Object> arg) {
-          StoreFixedArrayElement(elements, index.value(), arg);
+          StoreFixedArrayElement(argument_array.value(), index.value(), arg);
           Increment(&index);
         },
         IntPtrConstant(1));
-    argument_array.Bind(elements);
     Goto(&arguments_done);
 
     BIND(&empty_arguments);
-    argument_array.Bind(EmptyFixedArrayConstant());
+    argument_array = EmptyFixedArrayConstant();
     Goto(&arguments_done);
 
     BIND(&arguments_done);
@@ -143,16 +142,16 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
 
   // Determine bound receiver.
   Comment("Determine bound receiver");
-  VARIABLE(bound_receiver, MachineRepresentation::kTagged);
+  TVARIABLE(Object, bound_receiver);
   {
     Label has_receiver(this);
     Label receiver_done(this, &bound_receiver);
     GotoIf(Word32NotEqual(argc, Int32Constant(0)), &has_receiver);
-    bound_receiver.Bind(UndefinedConstant());
+    bound_receiver = UndefinedConstant();
     Goto(&receiver_done);
 
     BIND(&has_receiver);
-    bound_receiver.Bind(args.AtIndex(0));
+    bound_receiver = args.AtIndex(0);
     Goto(&receiver_done);
 
     BIND(&receiver_done);
@@ -193,10 +192,10 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
 
 // ES6 #sec-function.prototype-@@hasinstance
 TF_BUILTIN(FunctionPrototypeHasInstance, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* f = Parameter(Descriptor::kReceiver);
-  Node* v = Parameter(Descriptor::kV);
-  Node* result = OrdinaryHasInstance(context, f, v);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> f = CAST(Parameter(Descriptor::kReceiver));
+  TNode<Object> v = CAST(Parameter(Descriptor::kV));
+  TNode<Oddball> result = OrdinaryHasInstance(context, f, v);
   Return(result);
 }
 

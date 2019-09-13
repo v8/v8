@@ -3196,10 +3196,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Returns true if {object} has {prototype} somewhere in it's prototype
   // chain, otherwise false is returned. Might cause arbitrary side effects
   // due to [[GetPrototypeOf]] invocations.
-  Node* HasInPrototypeChain(Node* context, Node* object,
-                            SloppyTNode<Object> prototype);
+  TNode<Oddball> HasInPrototypeChain(TNode<Context> context,
+                                     TNode<HeapObject> object,
+                                     TNode<Object> prototype);
   // ES6 section 7.3.19 OrdinaryHasInstance (C, O)
-  Node* OrdinaryHasInstance(Node* context, Node* callable, Node* object);
+  TNode<Oddball> OrdinaryHasInstance(TNode<Context> context,
+                                     TNode<Object> callable,
+                                     TNode<Object> object);
 
   // Load type feedback vector from the stub caller's frame.
   TNode<FeedbackVector> LoadFeedbackVectorForStub();

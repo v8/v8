@@ -669,9 +669,9 @@ TF_BUILTIN(ObjectEntries, ObjectEntriesValuesBuiltinsAssembler) {
 
 // ES #sec-object.prototype.isprototypeof
 TF_BUILTIN(ObjectPrototypeIsPrototypeOf, ObjectBuiltinsAssembler) {
-  Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* value = Parameter(Descriptor::kValue);
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   Label if_receiverisnullorundefined(this, Label::kDeferred),
       if_valueisnotreceiver(this, Label::kDeferred);
 
@@ -682,31 +682,35 @@ TF_BUILTIN(ObjectPrototypeIsPrototypeOf, ObjectBuiltinsAssembler) {
   // immediately aborts and returns false anyways.
   GotoIf(TaggedIsSmi(value), &if_valueisnotreceiver);
 
-  // Check if {receiver} is either null or undefined and in that case,
-  // invoke the ToObject builtin, which raises the appropriate error.
-  // Otherwise we don't need to invoke ToObject, since {receiver} is
-  // either already a JSReceiver, in which case ToObject is a no-op,
-  // or it's a Primitive and ToObject would allocate a fresh JSPrimitiveWrapper
-  // wrapper, which wouldn't be identical to any existing JSReceiver
-  // found in the prototype chain of {value}, hence it will return
-  // false no matter if we search for the Primitive {receiver} or
-  // a newly allocated JSPrimitiveWrapper wrapper for {receiver}.
-  GotoIf(IsNull(receiver), &if_receiverisnullorundefined);
-  GotoIf(IsUndefined(receiver), &if_receiverisnullorundefined);
-
-  // Loop through the prototype chain looking for the {receiver}.
-  Return(HasInPrototypeChain(context, value, receiver));
-
-  BIND(&if_receiverisnullorundefined);
   {
-    // If {value} is a primitive HeapObject, we need to return
-    // false instead of throwing an exception per order of the
-    // steps in the specification, so check that first here.
-    GotoIfNot(IsJSReceiver(value), &if_valueisnotreceiver);
+    TNode<HeapObject> value_heap_object = CAST(value);
 
-    // Simulate the ToObject invocation on {receiver}.
-    ToObject(context, receiver);
-    Unreachable();
+    // Check if {receiver} is either null or undefined and in that case,
+    // invoke the ToObject builtin, which raises the appropriate error.
+    // Otherwise we don't need to invoke ToObject, since {receiver} is
+    // either already a JSReceiver, in which case ToObject is a no-op,
+    // or it's a Primitive and ToObject would allocate a fresh
+    // JSPrimitiveWrapper wrapper, which wouldn't be identical to any existing
+    // JSReceiver found in the prototype chain of {value}, hence it will return
+    // false no matter if we search for the Primitive {receiver} or
+    // a newly allocated JSPrimitiveWrapper wrapper for {receiver}.
+    GotoIf(IsNull(receiver), &if_receiverisnullorundefined);
+    GotoIf(IsUndefined(receiver), &if_receiverisnullorundefined);
+
+    // Loop through the prototype chain looking for the {receiver}.
+    Return(HasInPrototypeChain(context, value_heap_object, receiver));
+
+    BIND(&if_receiverisnullorundefined);
+    {
+      // If {value} is a primitive HeapObject, we need to return
+      // false instead of throwing an exception per order of the
+      // steps in the specification, so check that first here.
+      GotoIfNot(IsJSReceiver(value_heap_object), &if_valueisnotreceiver);
+
+      // Simulate the ToObject invocation on {receiver}.
+      ToObject(context, receiver);
+      Unreachable();
+    }
   }
 
   BIND(&if_valueisnotreceiver);
@@ -1252,9 +1256,9 @@ TF_BUILTIN(InstanceOf, ObjectBuiltinsAssembler) {
 
 // ES6 section 7.3.19 OrdinaryHasInstance ( C, O )
 TF_BUILTIN(OrdinaryHasInstance, ObjectBuiltinsAssembler) {
-  Node* constructor = Parameter(Descriptor::kLeft);
-  Node* object = Parameter(Descriptor::kRight);
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Object> constructor = CAST(Parameter(Descriptor::kLeft));
+  TNode<Object> object = CAST(Parameter(Descriptor::kRight));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   Return(OrdinaryHasInstance(context, constructor, object));
 }
