@@ -2851,9 +2851,9 @@ IGNITION_HANDLER(CreateMappedArguments, InterpreterAssembler) {
 // Creates a new unmapped arguments object.
 IGNITION_HANDLER(CreateUnmappedArguments, InterpreterAssembler) {
   TNode<Context> context = GetContext();
-  TNode<Object> closure = LoadRegister(Register::function_closure());
+  TNode<JSFunction> closure = CAST(LoadRegister(Register::function_closure()));
   ArgumentsBuiltinsAssembler builtins_assembler(state());
-  Node* result =
+  TNode<JSObject> result =
       builtins_assembler.EmitFastNewStrictArguments(context, closure);
   SetAccumulator(result);
   Dispatch();
@@ -2863,10 +2863,11 @@ IGNITION_HANDLER(CreateUnmappedArguments, InterpreterAssembler) {
 //
 // Creates a new rest parameter array.
 IGNITION_HANDLER(CreateRestParameter, InterpreterAssembler) {
-  TNode<Object> closure = LoadRegister(Register::function_closure());
+  TNode<JSFunction> closure = CAST(LoadRegister(Register::function_closure()));
   TNode<Context> context = GetContext();
   ArgumentsBuiltinsAssembler builtins_assembler(state());
-  Node* result = builtins_assembler.EmitFastNewRestParameter(context, closure);
+  TNode<JSObject> result =
+      builtins_assembler.EmitFastNewRestParameter(context, closure);
   SetAccumulator(result);
   Dispatch();
 }

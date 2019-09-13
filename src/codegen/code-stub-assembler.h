@@ -548,7 +548,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // TODO(v8:9708): remove once all uses are ported.
   Node* IntPtrOrSmiConstant(int value, ParameterMode mode);
 
+  bool IsIntPtrOrSmiConstantZero(TNode<Smi> test);
+  bool IsIntPtrOrSmiConstantZero(TNode<IntPtrT> test);
+  // TODO(v8:9708): remove once all uses are ported.
   bool IsIntPtrOrSmiConstantZero(Node* test, ParameterMode mode);
+
   bool TryGetIntPtrOrSmiConstantValue(Node* maybe_constant, int* value,
                                       ParameterMode mode);
 

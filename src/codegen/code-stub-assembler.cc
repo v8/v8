@@ -424,19 +424,29 @@ Node* CodeStubAssembler::IntPtrOrSmiConstant(int value, ParameterMode mode) {
   }
 }
 
+bool CodeStubAssembler::IsIntPtrOrSmiConstantZero(TNode<Smi> test) {
+  Smi smi_test;
+  if (ToSmiConstant(test, &smi_test) && smi_test.value() == 0) {
+    return true;
+  }
+  return false;
+}
+
+bool CodeStubAssembler::IsIntPtrOrSmiConstantZero(TNode<IntPtrT> test) {
+  int32_t constant_test;
+  if (ToInt32Constant(test, &constant_test) && constant_test == 0) {
+    return true;
+  }
+  return false;
+}
+
 bool CodeStubAssembler::IsIntPtrOrSmiConstantZero(Node* test,
                                                   ParameterMode mode) {
-  int32_t constant_test;
-  Smi smi_test;
   if (mode == INTPTR_PARAMETERS) {
-    if (ToInt32Constant(test, &constant_test) && constant_test == 0) {
-      return true;
-    }
+    return IsIntPtrOrSmiConstantZero(UncheckedCast<IntPtrT>(test));
   } else {
     DCHECK_EQ(mode, SMI_PARAMETERS);
-    if (ToSmiConstant(test, &smi_test) && smi_test.value() == 0) {
-      return true;
-    }
+    return IsIntPtrOrSmiConstantZero(UncheckedCast<Smi>(test));
   }
   return false;
 }
