@@ -1929,10 +1929,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                              TNode<Object> object,
                                              IterationKind mode);
 
+  // TODO(v8:9722): Return type should be JSIteratorResult
   TNode<JSObject> AllocateJSIteratorResult(SloppyTNode<Context> context,
                                            SloppyTNode<Object> value,
                                            SloppyTNode<Oddball> done);
-  Node* AllocateJSIteratorResultForEntry(Node* context, Node* key, Node* value);
+
+  // TODO(v8:9722): Return type should be JSIteratorResult
+  TNode<JSObject> AllocateJSIteratorResultForEntry(TNode<Context> context,
+                                                   TNode<Object> key,
+                                                   SloppyTNode<Object> value);
 
   TNode<JSReceiver> ArraySpeciesCreate(TNode<Context> context,
                                        TNode<Object> originalArray,

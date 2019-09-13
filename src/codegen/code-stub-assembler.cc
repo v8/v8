@@ -13428,9 +13428,8 @@ TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResult(
   return CAST(result);
 }
 
-Node* CodeStubAssembler::AllocateJSIteratorResultForEntry(Node* context,
-                                                          Node* key,
-                                                          Node* value) {
+TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResultForEntry(
+    TNode<Context> context, TNode<Object> key, SloppyTNode<Object> value) {
   TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Smi> length = SmiConstant(2);
   int const elements_size = FixedArray::SizeFor(2);
@@ -13460,7 +13459,7 @@ Node* CodeStubAssembler::AllocateJSIteratorResultForEntry(Node* context,
   StoreObjectFieldNoWriteBarrier(result, JSIteratorResult::kValueOffset, array);
   StoreObjectFieldRoot(result, JSIteratorResult::kDoneOffset,
                        RootIndex::kFalseValue);
-  return result;
+  return CAST(result);
 }
 
 TNode<JSReceiver> CodeStubAssembler::ArraySpeciesCreate(TNode<Context> context,
