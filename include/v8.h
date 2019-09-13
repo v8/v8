@@ -4858,12 +4858,6 @@ class V8_EXPORT ArrayBuffer : public Object {
    */
   bool IsDetachable() const;
 
-  // TODO(913887): fix the use of 'neuter' in the API.
-  V8_DEPRECATED("Use IsDetachable() instead.",
-                inline bool IsNeuterable() const) {
-    return IsDetachable();
-  }
-
   /**
    * Detaches this ArrayBuffer and all its views (typed arrays).
    * Detaching sets the byte length of the buffer and all typed arrays to zero,
@@ -4871,9 +4865,6 @@ class V8_EXPORT ArrayBuffer : public Object {
    * ArrayBuffer should have been externalized and must be detachable.
    */
   void Detach();
-
-  // TODO(913887): fix the use of 'neuter' in the API.
-  V8_DEPRECATED("Use Detach() instead.", inline void Neuter()) { Detach(); }
 
   /**
    * Make this ArrayBuffer external. The pointer to underlying memory block
