@@ -1543,10 +1543,18 @@ void Module::ModuleVerify(Isolate* isolate) {
 void SourceTextModule::SourceTextModuleVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::SourceTextModuleVerify(*this, isolate);
 
-  CHECK((status() >= kEvaluating && code().IsSourceTextModuleInfo()) ||
-        (status() == kInstantiated && code().IsJSGeneratorObject()) ||
-        (status() == kInstantiating && code().IsJSFunction()) ||
-        (code().IsSharedFunctionInfo()));
+  if (status() == kErrored) {
+    CHECK(code().IsSourceTextModuleInfo());
+  } else if (status() == kEvaluating || status() == kEvaluated) {
+    CHECK(code().IsJSGeneratorObject());
+  } else {
+    CHECK((status() == kInstantiated && code().IsJSGeneratorObject()) ||
+          (status() == kInstantiating && code().IsJSFunction()) ||
+          (status() == kPreInstantiating && code().IsSharedFunctionInfo()) ||
+          (status() == kUninstantiated && code().IsSharedFunctionInfo()));
+    CHECK(top_level_capability().IsUndefined() && !AsyncParentModuleCount() &&
+          !pending_async_dependencies() && !async_evaluating());
+  }
 
   CHECK_EQ(requested_modules().length(), info().module_requests().length());
 }

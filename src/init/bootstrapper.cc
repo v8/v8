@@ -870,6 +870,29 @@ void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
   generator_next_internal->shared().set_native(false);
   native_context()->set_generator_next_internal(*generator_next_internal);
 
+  // Internal version of async module functions, flagged as non-native such
+  // that they don't show up in Error traces.
+  {
+    Handle<JSFunction> async_module_evaluate_internal =
+        SimpleCreateFunction(isolate(), factory()->next_string(),
+                             Builtins::kAsyncModuleEvaluate, 1, false);
+    async_module_evaluate_internal->shared().set_native(false);
+    native_context()->set_async_module_evaluate_internal(
+        *async_module_evaluate_internal);
+
+    Handle<JSFunction> call_async_module_fulfilled =
+        SimpleCreateFunction(isolate(), factory()->empty_string(),
+                             Builtins::kCallAsyncModuleFulfilled, 1, false);
+    native_context()->set_call_async_module_fulfilled(
+        *call_async_module_fulfilled);
+
+    Handle<JSFunction> call_async_module_rejected =
+        SimpleCreateFunction(isolate(), factory()->empty_string(),
+                             Builtins::kCallAsyncModuleRejected, 1, false);
+    native_context()->set_call_async_module_rejected(
+        *call_async_module_rejected);
+  }
+
   // Create maps for generator functions and their prototypes.  Store those
   // maps in the native context. The "prototype" property descriptor is
   // writable, non-enumerable, and non-configurable (as per ES6 draft
@@ -4283,6 +4306,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_import_meta)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_sequence)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_optional_chaining)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_nullish)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_top_level_await)
 
 #ifdef V8_INTL_SUPPORT
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_add_calendar_numbering_system)

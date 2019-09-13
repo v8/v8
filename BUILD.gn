@@ -2050,6 +2050,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/builtins/builtins-api.cc",
     "src/builtins/builtins-array.cc",
     "src/builtins/builtins-arraybuffer.cc",
+    "src/builtins/builtins-async-module.cc",
     "src/builtins/builtins-bigint.cc",
     "src/builtins/builtins-call.cc",
     "src/builtins/builtins-callsite.cc",
