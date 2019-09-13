@@ -116,6 +116,9 @@ class Logger : public CodeEventListener {
     kStreamingCompile
   };
 
+  explicit Logger(Isolate* isolate);
+  ~Logger();
+
   // The separator is used to write an unescaped "," into the log.
   static const LogSeparator kNext;
 
@@ -274,9 +277,6 @@ class Logger : public CodeEventListener {
   void LogCodeObject(Object code_object);
 
  private:
-  explicit Logger(Isolate* isolate);
-  ~Logger() override;
-
   // Emits the profiler's first message.
   void ProfilerBeginEvent();
 
@@ -315,21 +315,11 @@ class Logger : public CodeEventListener {
   // of samples.
   std::unique_ptr<Profiler> profiler_;
 
-  // An array of log events names.
-  const char* const* log_events_;
-
-  // Internal implementation classes with access to
-  // private members.
-  friend class EventLog;
-  friend class Isolate;
-  friend class TimeLog;
+  // Internal implementation classes with access to private members.
   friend class Profiler;
-  template <StateTag Tag>
-  friend class VMState;
-  friend class LoggerTestHelper;
 
   bool is_logging_;
-  Log* log_;
+  std::unique_ptr<Log> log_;
   std::unique_ptr<PerfBasicLogger> perf_basic_logger_;
   std::unique_ptr<PerfJitLogger> perf_jit_logger_;
   std::unique_ptr<LowLevelLogger> ll_logger_;
@@ -420,7 +410,7 @@ class V8_EXPORT_PRIVATE CodeEventLogger : public CodeEventListener {
   virtual void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                                  int length) = 0;
 
-  NameBuffer* name_buffer_;
+  std::unique_ptr<NameBuffer> name_buffer_;
 };
 
 struct CodeEvent {
