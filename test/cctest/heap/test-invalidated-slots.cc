@@ -81,7 +81,7 @@ HEAP_TEST(StoreBuffer_CreateFromOldToYoung) {
     }
     // Add refs from old to old.
     for (int i = n / 2; i < n; i++) {
-      Handle<Object> number = factory->NewHeapNumber(i, AllocationType::kOld);
+      Handle<Object> number = factory->NewHeapNumber<AllocationType::kOld>(i);
       old->set(i, *number);
     }
     // All old to new refs should have been captured and only them.

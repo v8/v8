@@ -2179,32 +2179,39 @@ Handle<FixedDoubleArray> Factory::CopyFixedDoubleArray(
   return result;
 }
 
-Handle<Object> Factory::NewNumber(double value, AllocationType allocation) {
+template <AllocationType allocation>
+Handle<Object> Factory::NewNumber(double value) {
   // Materialize as a SMI if possible.
   int32_t int_value;
   if (DoubleToSmiInteger(value, &int_value)) {
     return handle(Smi::FromInt(int_value), isolate());
   }
-  return NewHeapNumber(value, allocation);
+  return NewHeapNumber<allocation>(value);
 }
 
-Handle<Object> Factory::NewNumberFromInt(int32_t value,
-                                         AllocationType allocation) {
+template Handle<Object> V8_EXPORT_PRIVATE
+Factory::NewNumber<AllocationType::kYoung>(double);
+template Handle<Object> V8_EXPORT_PRIVATE
+Factory::NewNumber<AllocationType::kOld>(double);
+template Handle<Object> V8_EXPORT_PRIVATE
+Factory::NewNumber<AllocationType::kReadOnly>(double);
+
+Handle<Object> Factory::NewNumberFromInt(int32_t value) {
   if (Smi::IsValid(value)) return handle(Smi::FromInt(value), isolate());
   // Bypass NewNumber to avoid various redundant checks.
-  return NewHeapNumber(FastI2D(value), allocation);
+  return NewHeapNumber(FastI2D(value));
 }
 
-Handle<Object> Factory::NewNumberFromUint(uint32_t value,
-                                          AllocationType allocation) {
+Handle<Object> Factory::NewNumberFromUint(uint32_t value) {
   int32_t int32v = static_cast<int32_t>(value);
   if (int32v >= 0 && Smi::IsValid(int32v)) {
     return handle(Smi::FromInt(int32v), isolate());
   }
-  return NewHeapNumber(FastUI2D(value), allocation);
+  return NewHeapNumber(FastUI2D(value));
 }
 
-Handle<HeapNumber> Factory::NewHeapNumber(AllocationType allocation) {
+template <AllocationType allocation>
+Handle<HeapNumber> Factory::NewHeapNumber() {
   STATIC_ASSERT(HeapNumber::kSize <= kMaxRegularHeapObjectSize);
   Map map = *heap_number_map();
   HeapObject result = AllocateRawWithImmortalMap(HeapNumber::kSize, allocation,
@@ -2212,10 +2219,17 @@ Handle<HeapNumber> Factory::NewHeapNumber(AllocationType allocation) {
   return handle(HeapNumber::cast(result), isolate());
 }
 
+template Handle<HeapNumber> V8_EXPORT_PRIVATE
+Factory::NewHeapNumber<AllocationType::kYoung>();
+template Handle<HeapNumber> V8_EXPORT_PRIVATE
+Factory::NewHeapNumber<AllocationType::kOld>();
+template Handle<HeapNumber> V8_EXPORT_PRIVATE
+Factory::NewHeapNumber<AllocationType::kReadOnly>();
+
 Handle<HeapNumber> Factory::NewHeapNumberForCodeAssembler(double value) {
-  return NewHeapNumber(value, isolate()->heap()->CanAllocateInReadOnlySpace()
-                                  ? AllocationType::kReadOnly
-                                  : AllocationType::kOld);
+  return isolate()->heap()->CanAllocateInReadOnlySpace()
+             ? NewHeapNumber<AllocationType::kReadOnly>(value)
+             : NewHeapNumber<AllocationType::kOld>(value);
 }
 
 Handle<FreshlyAllocatedBigInt> Factory::NewBigInt(int length,

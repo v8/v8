@@ -62,16 +62,16 @@ Handle<Object> Factory::NewNumberFromInt64(int64_t value) {
   return NewNumber(static_cast<double>(value));
 }
 
-Handle<HeapNumber> Factory::NewHeapNumber(double value,
-                                          AllocationType allocation) {
-  Handle<HeapNumber> heap_number = NewHeapNumber(allocation);
+template <AllocationType allocation>
+Handle<HeapNumber> Factory::NewHeapNumber(double value) {
+  Handle<HeapNumber> heap_number = NewHeapNumber<allocation>();
   heap_number->set_value(value);
   return heap_number;
 }
 
-Handle<HeapNumber> Factory::NewHeapNumberFromBits(uint64_t bits,
-                                                  AllocationType allocation) {
-  Handle<HeapNumber> heap_number = NewHeapNumber(allocation);
+template <AllocationType allocation>
+Handle<HeapNumber> Factory::NewHeapNumberFromBits(uint64_t bits) {
+  Handle<HeapNumber> heap_number = NewHeapNumber<allocation>();
   heap_number->set_value_as_bits(bits);
   return heap_number;
 }

@@ -1791,7 +1791,7 @@ TEST(HeapNumberAlignment) {
 
     AlignOldSpace(required_alignment, offset);
     Handle<Object> number_old =
-        factory->NewNumber(1.000321, AllocationType::kOld);
+        factory->NewNumber<AllocationType::kOld>(1.000321);
     CHECK(number_old->IsHeapNumber());
     CHECK(heap->InOldSpace(*number_old));
     CHECK_EQ(0, Heap::GetFillToAlign(HeapObject::cast(*number_old).address(),

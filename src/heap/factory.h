@@ -546,23 +546,22 @@ class V8_EXPORT_PRIVATE Factory {
 
   // Numbers (e.g. literals) are pretenured by the parser.
   // The return value may be a smi or a heap number.
-  Handle<Object> NewNumber(double value,
-                           AllocationType allocation = AllocationType::kYoung);
-
-  Handle<Object> NewNumberFromInt(
-      int32_t value, AllocationType allocation = AllocationType::kYoung);
-  Handle<Object> NewNumberFromUint(
-      uint32_t value, AllocationType allocation = AllocationType::kYoung);
+  template <AllocationType allocation = AllocationType::kYoung>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  Handle<Object> NewNumber(double value);
+  Handle<Object> NewNumberFromInt(int32_t value);
+  Handle<Object> NewNumberFromUint(uint32_t value);
   inline Handle<Object> NewNumberFromSize(size_t value);
   inline Handle<Object> NewNumberFromInt64(int64_t value);
-  inline Handle<HeapNumber> NewHeapNumber(
-      double value, AllocationType allocation = AllocationType::kYoung);
-  inline Handle<HeapNumber> NewHeapNumberFromBits(
-      uint64_t bits, AllocationType allocation = AllocationType::kYoung);
+  template <AllocationType allocation = AllocationType::kYoung>
+  inline Handle<HeapNumber> NewHeapNumber(double value);
+  template <AllocationType allocation = AllocationType::kYoung>
+  inline Handle<HeapNumber> NewHeapNumberFromBits(uint64_t bits);
 
   // Creates heap number object with not yet set value field.
-  Handle<HeapNumber> NewHeapNumber(
-      AllocationType allocation = AllocationType::kYoung);
+  template <AllocationType allocation = AllocationType::kYoung>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  Handle<HeapNumber> NewHeapNumber();
 
   // Creates a new HeapNumber in read-only space if possible otherwise old
   // space.
