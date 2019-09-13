@@ -588,8 +588,6 @@ DEFINE_BOOL(analyze_environment_liveness, true,
 DEFINE_BOOL(trace_environment_liveness, false,
             "trace liveness of local variable slots")
 DEFINE_BOOL(turbo_load_elimination, true, "enable load elimination in TurboFan")
-DEFINE_BOOL(turbo_load_elimination_use_constness, false,
-            "use constness in TurboFan load elimination")
 DEFINE_BOOL(trace_turbo_load_elimination, false,
             "trace TurboFan load elimination")
 DEFINE_BOOL(turbo_profiling, false, "enable profiling in TurboFan")
