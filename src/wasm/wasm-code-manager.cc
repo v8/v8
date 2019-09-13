@@ -235,7 +235,10 @@ void WasmCode::Validate() const {
     switch (mode) {
       case RelocInfo::WASM_CALL: {
         Address target = it.rinfo()->wasm_call_address();
-        DCHECK(native_module_->is_jump_table_slot(target));
+        WasmCode* code = native_module_->Lookup(target);
+        CHECK_NOT_NULL(code);
+        CHECK_EQ(WasmCode::kJumpTable, code->kind());
+        CHECK(code->contains(target));
         break;
       }
       case RelocInfo::WASM_STUB_CALL: {
@@ -952,7 +955,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsWasmCall(mode)) {
       uint32_t call_tag = it.rinfo()->wasm_call_tag();
-      Address target = GetCallTargetForFunction(call_tag);
+      Address target = GetNearCallTargetForFunction(call_tag, code_start);
       it.rinfo()->set_wasm_call_address(target, SKIP_ICACHE_FLUSH);
     } else if (RelocInfo::IsWasmStubCall(mode)) {
       uint32_t stub_call_tag = it.rinfo()->wasm_call_tag();
@@ -1306,6 +1309,21 @@ Address NativeModule::GetCallTargetForFunction(uint32_t func_index) const {
   return main_jump_table_->instruction_start() + slot_offset;
 }
 
+Address NativeModule::GetNearCallTargetForFunction(uint32_t func_index,
+                                                   Address near_to) const {
+  uint32_t slot_offset = GetJumpTableOffset(func_index);
+  base::MutexGuard guard(&allocation_mutex_);
+  for (auto& code_space_data : code_space_data_) {
+    const bool jump_table_reachable = !kNeedsFarJumpsBetweenCodeSpaces ||
+                                      code_space_data.region.contains(near_to);
+    if (jump_table_reachable && code_space_data.jump_table) {
+      DCHECK_LT(slot_offset, code_space_data.jump_table->instructions().size());
+      return code_space_data.jump_table->instruction_start() + slot_offset;
+    }
+  }
+  FATAL("near_to is not part of a code space");
+}
+
 Address NativeModule::GetNearRuntimeStubEntry(WasmCode::RuntimeStubId index,
                                               Address near_to) const {
   base::MutexGuard guard(&allocation_mutex_);
@@ -1321,11 +1339,17 @@ Address NativeModule::GetNearRuntimeStubEntry(WasmCode::RuntimeStubId index,
 
 uint32_t NativeModule::GetFunctionIndexFromJumpTableSlot(
     Address slot_address) const {
-  DCHECK(is_jump_table_slot(slot_address));
-  uint32_t slot_offset = static_cast<uint32_t>(
-      slot_address - main_jump_table_->instruction_start());
+  WasmCodeRefScope code_refs;
+  WasmCode* code = Lookup(slot_address);
+  DCHECK_NOT_NULL(code);
+  DCHECK_EQ(WasmCode::kJumpTable, code->kind());
+  uint32_t slot_offset =
+      static_cast<uint32_t>(slot_address - code->instruction_start());
   uint32_t slot_idx = JumpTableAssembler::SlotOffsetToIndex(slot_offset);
   DCHECK_LT(slot_idx, module_->num_declared_functions);
+  DCHECK_EQ(slot_address,
+            code->instruction_start() +
+                JumpTableAssembler::JumpSlotIndexToOffset(slot_idx));
   return module_->num_imported_functions + slot_idx;
 }
 

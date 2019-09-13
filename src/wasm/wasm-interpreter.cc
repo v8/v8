@@ -3779,7 +3779,8 @@ class ThreadImpl {
   static WasmCode* GetTargetCode(Isolate* isolate, Address target) {
     WasmCodeManager* code_manager = isolate->wasm_engine()->code_manager();
     NativeModule* native_module = code_manager->LookupNativeModule(target);
-    if (native_module->is_jump_table_slot(target)) {
+    WasmCode* code = native_module->Lookup(target);
+    if (code->kind() == WasmCode::kJumpTable) {
       uint32_t func_index =
           native_module->GetFunctionIndexFromJumpTableSlot(target);
 
@@ -3793,7 +3794,6 @@ class ThreadImpl {
 
       return native_module->GetCode(func_index);
     }
-    WasmCode* code = native_module->Lookup(target);
     DCHECK_EQ(code->instruction_start(), target);
     return code;
   }

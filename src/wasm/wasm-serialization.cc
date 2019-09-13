@@ -548,7 +548,8 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
     switch (mode) {
       case RelocInfo::WASM_CALL: {
         uint32_t tag = GetWasmCalleeTag(iter.rinfo());
-        Address target = native_module_->GetCallTargetForFunction(tag);
+        Address target = native_module_->GetNearCallTargetForFunction(
+            tag, code->instruction_start());
         iter.rinfo()->set_wasm_call_address(target, SKIP_ICACHE_FLUSH);
         break;
       }

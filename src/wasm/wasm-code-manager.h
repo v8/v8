@@ -345,6 +345,8 @@ class WasmCodeAllocator {
 
   bool is_executable_ = false;
 
+  // TODO(clemensh): Remove this field once multiple code spaces are supported
+  // everywhere.
   const bool can_request_more_memory_;
 
   std::shared_ptr<Counters> async_counters_;
@@ -412,13 +414,14 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   uint32_t GetJumpTableOffset(uint32_t func_index) const;
 
-  bool is_jump_table_slot(Address address) const {
-    return main_jump_table_->contains(address);
-  }
-
   // Returns the canonical target to call for the given function (the slot in
   // the first jump table).
   Address GetCallTargetForFunction(uint32_t func_index) const;
+
+  // Similarly to {GetCallTargetForFunction}, but ensures that the returned
+  // address is near to the {near_to} address by finding the closest jump table.
+  Address GetNearCallTargetForFunction(uint32_t func_index,
+                                       Address near_to) const;
 
   // Get a runtime stub entry (which is a far jump table slot) within near-call
   // distance to {near_to}. Fails if {near_to} is not part of any code space of
@@ -426,8 +429,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   Address GetNearRuntimeStubEntry(WasmCode::RuntimeStubId index,
                                   Address near_to) const;
 
-  // Reverse lookup from a given call target (i.e. a jump table slot as the
-  // above {GetCallTargetForFunction} returns) to a function index.
+  // Reverse lookup from a given call target (which must be a jump table slot)
+  // to a function index.
   uint32_t GetFunctionIndexFromJumpTableSlot(Address slot_address) const;
 
   bool SetExecutable(bool executable) {
