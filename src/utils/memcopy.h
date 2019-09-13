@@ -109,6 +109,7 @@ inline void CopyImpl(T* dst_ptr, const T* src_ptr, size_t count) {
   DCHECK(((src <= dst) && ((src + count * kTWordSize) <= dst)) ||
          ((dst <= src) && ((dst + count * kTWordSize) <= src)));
 #endif
+  if (count == 0) return;
 
   // Use block copying MemCopy if the segment we're copying is
   // enough to justify the extra call/setup overhead.
