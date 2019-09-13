@@ -120,9 +120,9 @@ class DescriptorArray : public HeapObject {
 
   // Allocates a DescriptorArray, but returns the singleton
   // empty descriptor array object if number_of_descriptors is 0.
-  V8_EXPORT_PRIVATE static Handle<DescriptorArray> Allocate(
-      Isolate* isolate, int nof_descriptors, int slack,
-      AllocationType allocation = AllocationType::kYoung);
+  V8_EXPORT_PRIVATE static Handle<DescriptorArray> Allocate(Isolate* isolate,
+                                                            int nof_descriptors,
+                                                            int slack);
 
   void Initialize(EnumCache enum_cache, HeapObject undefined_value,
                   int nof_descriptors, int slack);

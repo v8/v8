@@ -575,16 +575,15 @@ Handle<ObjectBoilerplateDescription> Factory::NewObjectBoilerplateDescription(
   return description;
 }
 
-Handle<FixedArrayBase> Factory::NewFixedDoubleArray(int length,
-                                                    AllocationType allocation) {
+Handle<FixedArrayBase> Factory::NewFixedDoubleArray(int length) {
   if (length == 0) return empty_fixed_array();
   if (length < 0 || length > FixedDoubleArray::kMaxLength) {
     isolate()->heap()->FatalProcessOutOfMemory("invalid array length");
   }
   int size = FixedDoubleArray::SizeFor(length);
   Map map = *fixed_double_array_map();
-  HeapObject result =
-      AllocateRawWithImmortalMap(size, allocation, map, kDoubleAligned);
+  HeapObject result = AllocateRawWithImmortalMap(size, AllocationType::kYoung,
+                                                 map, kDoubleAligned);
   Handle<FixedDoubleArray> array(FixedDoubleArray::cast(result), isolate());
   array->set_length(length);
   return array;
@@ -592,8 +591,7 @@ Handle<FixedArrayBase> Factory::NewFixedDoubleArray(int length,
 
 Handle<FixedArrayBase> Factory::NewFixedDoubleArrayWithHoles(int length) {
   DCHECK_LE(0, length);
-  Handle<FixedArrayBase> array =
-      NewFixedDoubleArray(length, AllocationType::kYoung);
+  Handle<FixedArrayBase> array = NewFixedDoubleArray(length);
   if (length > 0) {
     Handle<FixedDoubleArray>::cast(array)->FillWithHoles(0, length);
   }
@@ -1845,15 +1843,13 @@ Handle<PropertyCell> Factory::NewPropertyCell(Handle<Name> name,
 }
 
 Handle<DescriptorArray> Factory::NewDescriptorArray(int number_of_descriptors,
-                                                    int slack,
-                                                    AllocationType allocation) {
-  DCHECK(Heap::IsRegularObjectAllocation(allocation));
+                                                    int slack) {
   int number_of_all_descriptors = number_of_descriptors + slack;
   // Zero-length case must be handled outside.
   DCHECK_LT(0, number_of_all_descriptors);
   int size = DescriptorArray::SizeFor(number_of_all_descriptors);
   HeapObject obj =
-      isolate()->heap()->AllocateRawWithRetryOrFail(size, allocation);
+      isolate()->heap()->AllocateRawWithRetryOrFail(size, AllocationType::kOld);
   obj.set_map_after_allocation(*descriptor_array_map(), SKIP_WRITE_BARRIER);
   DescriptorArray array = DescriptorArray::cast(obj);
   array.Initialize(*empty_enum_cache(), *undefined_value(),
@@ -2095,9 +2091,8 @@ Handle<FixedArray> Factory::CopyFixedArrayWithMap(Handle<FixedArray> array,
 }
 
 Handle<FixedArray> Factory::CopyFixedArrayAndGrow(Handle<FixedArray> array,
-                                                  int grow_by,
-                                                  AllocationType allocation) {
-  return CopyArrayAndGrow(array, grow_by, allocation);
+                                                  int grow_by) {
+  return CopyArrayAndGrow(array, grow_by, AllocationType::kYoung);
 }
 
 Handle<WeakFixedArray> Factory::CopyWeakFixedArrayAndGrow(
@@ -2175,8 +2170,8 @@ Handle<FixedDoubleArray> Factory::CopyFixedDoubleArray(
     Handle<FixedDoubleArray> array) {
   int len = array->length();
   if (len == 0) return array;
-  Handle<FixedDoubleArray> result = Handle<FixedDoubleArray>::cast(
-      NewFixedDoubleArray(len, AllocationType::kYoung));
+  Handle<FixedDoubleArray> result =
+      Handle<FixedDoubleArray>::cast(NewFixedDoubleArray(len));
   Heap::CopyBlock(
       result->address() + FixedDoubleArray::kLengthOffset,
       array->address() + FixedDoubleArray::kLengthOffset,

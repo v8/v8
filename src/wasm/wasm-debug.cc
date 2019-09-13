@@ -635,8 +635,8 @@ Handle<Code> WasmDebugInfo::GetCWasmEntry(Handle<WasmDebugInfo> debug_info,
   if (index == -1) {
     index = static_cast<int32_t>(map->FindOrInsert(*sig));
     if (index == entries->length()) {
-      entries = isolate->factory()->CopyFixedArrayAndGrow(
-          entries, entries->length(), AllocationType::kOld);
+      entries =
+          isolate->factory()->CopyFixedArrayAndGrow(entries, entries->length());
       debug_info->set_c_wasm_entries(*entries);
     }
     DCHECK(entries->get(index).IsUndefined(isolate));

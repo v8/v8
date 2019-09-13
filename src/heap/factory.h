@@ -177,8 +177,7 @@ class V8_EXPORT_PRIVATE Factory {
   // Allocate a new uninitialized fixed double array.
   // The function returns a pre-allocated empty fixed array for length = 0,
   // so the return type must be the general fixed array class.
-  Handle<FixedArrayBase> NewFixedDoubleArray(
-      int length, AllocationType allocation = AllocationType::kYoung);
+  Handle<FixedArrayBase> NewFixedDoubleArray(int length);
 
   // Allocate a new fixed double array with hole values.
   Handle<FixedArrayBase> NewFixedDoubleArrayWithHoles(int size);
@@ -482,9 +481,8 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<FeedbackCell> NewOneClosureCell(Handle<HeapObject> value);
   Handle<FeedbackCell> NewManyClosuresCell(Handle<HeapObject> value);
 
-  Handle<DescriptorArray> NewDescriptorArray(
-      int number_of_entries, int slack = 0,
-      AllocationType allocation = AllocationType::kYoung);
+  Handle<DescriptorArray> NewDescriptorArray(int number_of_entries,
+                                             int slack = 0);
   Handle<TransitionArray> NewTransitionArray(int number_of_transitions,
                                              int slack = 0);
 
@@ -521,9 +519,8 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<FixedArray> CopyFixedArrayWithMap(Handle<FixedArray> array,
                                            Handle<Map> map);
 
-  Handle<FixedArray> CopyFixedArrayAndGrow(
-      Handle<FixedArray> array, int grow_by,
-      AllocationType allocation = AllocationType::kYoung);
+  Handle<FixedArray> CopyFixedArrayAndGrow(Handle<FixedArray> array,
+                                           int grow_by);
 
   Handle<WeakFixedArray> CopyWeakFixedArrayAndGrow(Handle<WeakFixedArray> array,
                                                    int grow_by);

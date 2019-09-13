@@ -3354,8 +3354,8 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
   }
 
   // Allocate the instance descriptor.
-  Handle<DescriptorArray> descriptors = DescriptorArray::Allocate(
-      isolate, instance_descriptor_length, 0, AllocationType::kOld);
+  Handle<DescriptorArray> descriptors =
+      DescriptorArray::Allocate(isolate, instance_descriptor_length, 0);
 
   int number_of_allocated_fields =
       number_of_fields + unused_property_fields - inobject_props;
