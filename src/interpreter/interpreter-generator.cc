@@ -1701,7 +1701,8 @@ IGNITION_HANDLER(InvokeIntrinsic, InterpreterAssembler) {
   TNode<Uint32T> function_id = BytecodeOperandIntrinsicId(0);
   RegListNodePair args = GetRegisterListAtOperandIndex(1);
   TNode<Context> context = GetContext();
-  Node* result = GenerateInvokeIntrinsic(this, function_id, context, args);
+  TNode<Object> result =
+      GenerateInvokeIntrinsic(this, function_id, context, args);
   SetAccumulator(result);
   Dispatch();
 }
@@ -1811,7 +1812,7 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
     TNode<Context> context = GetContext();
 
     TVARIABLE(Smi, var_type_feedback);
-    Node* result;
+    TNode<Oddball> result;
     switch (compare_op) {
       case Operation::kEqual:
         result = Equal(lhs, rhs, context, &var_type_feedback);
@@ -2587,8 +2588,8 @@ IGNITION_HANDLER(CreateObjectLiteral, InterpreterAssembler) {
   BIND(&if_not_fast_clone);
   {
     // If we can't do a fast clone, call into the runtime.
-    Node* object_boilerplate_description =
-        LoadConstantPoolEntryAtOperandIndex(0);
+    TNode<ObjectBoilerplateDescription> object_boilerplate_description =
+        CAST(LoadConstantPoolEntryAtOperandIndex(0));
     TNode<Context> context = GetContext();
 
     TNode<WordT> flags_raw =

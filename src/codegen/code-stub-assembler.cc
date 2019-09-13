@@ -11518,11 +11518,9 @@ Operation Reverse(Operation op) {
 }
 }  // anonymous namespace
 
-Node* CodeStubAssembler::RelationalComparison(Operation op,
-                                              SloppyTNode<Object> left,
-                                              SloppyTNode<Object> right,
-                                              SloppyTNode<Context> context,
-                                              Variable* var_type_feedback) {
+TNode<Oddball> CodeStubAssembler::RelationalComparison(
+    Operation op, SloppyTNode<Object> left, SloppyTNode<Object> right,
+    SloppyTNode<Context> context, TVariable<Smi>* var_type_feedback) {
   Label return_true(this), return_false(this), do_float_comparison(this),
       end(this);
   TVARIABLE(Oddball, var_result);  // Actually only "true" or "false".
@@ -11537,7 +11535,7 @@ Node* CodeStubAssembler::RelationalComparison(Operation op,
   if (var_type_feedback != nullptr) {
     // Initialize the type feedback to None. The current feedback is combined
     // with the previous feedback.
-    var_type_feedback->Bind(SmiConstant(CompareOperationFeedback::kNone));
+    *var_type_feedback = SmiConstant(CompareOperationFeedback::kNone);
     loop_variable_list.push_back(var_type_feedback);
   }
   Label loop(this, loop_variable_list);
@@ -12048,17 +12046,17 @@ void CodeStubAssembler::GenerateEqual_Same(SloppyTNode<Object> value,
 }
 
 // ES6 section 7.2.12 Abstract Equality Comparison
-Node* CodeStubAssembler::Equal(SloppyTNode<Object> left,
-                               SloppyTNode<Object> right,
-                               SloppyTNode<Context> context,
-                               Variable* var_type_feedback) {
+TNode<Oddball> CodeStubAssembler::Equal(SloppyTNode<Object> left,
+                                        SloppyTNode<Object> right,
+                                        SloppyTNode<Context> context,
+                                        TVariable<Smi>* var_type_feedback) {
   // This is a slightly optimized version of Object::Equals. Whenever you
   // change something functionality wise in here, remember to update the
   // Object::Equals method as well.
 
   Label if_equal(this), if_notequal(this), do_float_comparison(this),
       do_right_stringtonumber(this, Label::kDeferred), end(this);
-  VARIABLE(result, MachineRepresentation::kTagged);
+  TVARIABLE(Oddball, result);
   TVARIABLE(Float64T, var_left_float);
   TVARIABLE(Float64T, var_right_float);
 
@@ -12118,7 +12116,7 @@ Node* CodeStubAssembler::Equal(SloppyTNode<Object> left,
       GotoIf(IsHeapNumberMap(right_map), &if_right_heapnumber);
       // {left} is Smi and {right} is not HeapNumber or Smi.
       if (var_type_feedback != nullptr) {
-        var_type_feedback->Bind(SmiConstant(CompareOperationFeedback::kAny));
+        *var_type_feedback = SmiConstant(CompareOperationFeedback::kAny);
       }
       GotoIf(IsBooleanMap(right_map), &if_right_boolean);
       TNode<Uint16T> right_type = LoadMapInstanceType(right_map);
@@ -12143,8 +12141,8 @@ Node* CodeStubAssembler::Equal(SloppyTNode<Object> left,
 
       BIND(&if_right_bigint);
       {
-        result.Bind(CallRuntime(Runtime::kBigIntEqualToNumber,
-                                NoContextConstant(), right, left));
+        result = CAST(CallRuntime(Runtime::kBigIntEqualToNumber,
+                                  NoContextConstant(), right, left));
         Goto(&end);
       }
 
@@ -12180,7 +12178,8 @@ Node* CodeStubAssembler::Equal(SloppyTNode<Object> left,
       BIND(&if_left_string);
       {
         GotoIfNot(IsStringInstanceType(right_type), &use_symmetry);
-        result.Bind(CallBuiltin(Builtins::kStringEqual, context, left, right));
+        result =
+            CAST(CallBuiltin(Builtins::kStringEqual, context, left, right));
         CombineFeedback(var_type_feedback,
                         SmiOr(CollectFeedbackForString(left_type),
                               CollectFeedbackForString(right_type)));
@@ -12201,8 +12200,7 @@ Node* CodeStubAssembler::Equal(SloppyTNode<Object> left,
         {
           Label if_right_boolean(this);
           if (var_type_feedback != nullptr) {
-            var_type_feedback->Bind(
-                SmiConstant(CompareOperationFeedback::kAny));
+            *var_type_feedback = SmiConstant(CompareOperationFeedback::kAny);
           }
           GotoIf(IsStringInstanceType(right_type), &do_right_stringtonumber);
           GotoIf(IsBooleanMap(right_map), &if_right_boolean);
@@ -12232,38 +12230,35 @@ Node* CodeStubAssembler::Equal(SloppyTNode<Object> left,
         BIND(&if_right_heapnumber);
         {
           if (var_type_feedback != nullptr) {
-            var_type_feedback->Bind(
-                SmiConstant(CompareOperationFeedback::kAny));
+            *var_type_feedback = SmiConstant(CompareOperationFeedback::kAny);
           }
-          result.Bind(CallRuntime(Runtime::kBigIntEqualToNumber,
-                                  NoContextConstant(), left, right));
+          result = CAST(CallRuntime(Runtime::kBigIntEqualToNumber,
+                                    NoContextConstant(), left, right));
           Goto(&end);
         }
 
         BIND(&if_right_bigint);
         {
           CombineFeedback(var_type_feedback, CompareOperationFeedback::kBigInt);
-          result.Bind(CallRuntime(Runtime::kBigIntEqualToBigInt,
-                                  NoContextConstant(), left, right));
+          result = CAST(CallRuntime(Runtime::kBigIntEqualToBigInt,
+                                    NoContextConstant(), left, right));
           Goto(&end);
         }
 
         BIND(&if_right_string);
         {
           if (var_type_feedback != nullptr) {
-            var_type_feedback->Bind(
-                SmiConstant(CompareOperationFeedback::kAny));
+            *var_type_feedback = SmiConstant(CompareOperationFeedback::kAny);
           }
-          result.Bind(CallRuntime(Runtime::kBigIntEqualToString,
-                                  NoContextConstant(), left, right));
+          result = CAST(CallRuntime(Runtime::kBigIntEqualToString,
+                                    NoContextConstant(), left, right));
           Goto(&end);
         }
 
         BIND(&if_right_boolean);
         {
           if (var_type_feedback != nullptr) {
-            var_type_feedback->Bind(
-                SmiConstant(CompareOperationFeedback::kAny));
+            *var_type_feedback = SmiConstant(CompareOperationFeedback::kAny);
           }
           var_right = LoadObjectField(CAST(right), Oddball::kToNumberOffset);
           Goto(&loop);
@@ -12288,8 +12283,8 @@ Node* CodeStubAssembler::Equal(SloppyTNode<Object> left,
             if (var_type_feedback != nullptr) {
               // If {right} is undetectable, it must be either also
               // Null or Undefined, or a Receiver (aka document.all).
-              var_type_feedback->Bind(SmiConstant(
-                  CompareOperationFeedback::kReceiverOrNullOrUndefined));
+              *var_type_feedback = SmiConstant(
+                  CompareOperationFeedback::kReceiverOrNullOrUndefined);
             }
             Goto(&if_equal);
           }
@@ -12298,12 +12293,11 @@ Node* CodeStubAssembler::Equal(SloppyTNode<Object> left,
           {
             if (var_type_feedback != nullptr) {
               // Track whether {right} is Null, Undefined or Receiver.
-              var_type_feedback->Bind(SmiConstant(
-                  CompareOperationFeedback::kReceiverOrNullOrUndefined));
+              *var_type_feedback = SmiConstant(
+                  CompareOperationFeedback::kReceiverOrNullOrUndefined);
               GotoIf(IsJSReceiverInstanceType(right_type), &if_notequal);
               GotoIfNot(IsBooleanMap(right_map), &if_notequal);
-              var_type_feedback->Bind(
-                  SmiConstant(CompareOperationFeedback::kAny));
+              *var_type_feedback = SmiConstant(CompareOperationFeedback::kAny);
             }
             Goto(&if_notequal);
           }
@@ -12312,8 +12306,7 @@ Node* CodeStubAssembler::Equal(SloppyTNode<Object> left,
         BIND(&if_left_boolean);
         {
           if (var_type_feedback != nullptr) {
-            var_type_feedback->Bind(
-                SmiConstant(CompareOperationFeedback::kAny));
+            *var_type_feedback = SmiConstant(CompareOperationFeedback::kAny);
           }
 
           // If {right} is a Boolean too, it must be a different Boolean.
@@ -12334,7 +12327,7 @@ Node* CodeStubAssembler::Equal(SloppyTNode<Object> left,
         if (var_type_feedback != nullptr) {
           Label if_right_symbol(this);
           GotoIf(IsSymbolInstanceType(right_type), &if_right_symbol);
-          var_type_feedback->Bind(SmiConstant(CompareOperationFeedback::kAny));
+          *var_type_feedback = SmiConstant(CompareOperationFeedback::kAny);
           Goto(&if_notequal);
 
           BIND(&if_right_symbol);
@@ -12352,8 +12345,7 @@ Node* CodeStubAssembler::Equal(SloppyTNode<Object> left,
           // {left} is a Primitive and {right} is a JSReceiver, so swapping
           // the order is not observable.
           if (var_type_feedback != nullptr) {
-            var_type_feedback->Bind(
-                SmiConstant(CompareOperationFeedback::kAny));
+            *var_type_feedback = SmiConstant(CompareOperationFeedback::kAny);
           }
           Goto(&use_symmetry);
         }
@@ -12388,8 +12380,8 @@ Node* CodeStubAssembler::Equal(SloppyTNode<Object> left,
             // When we get here, {right} must be either Null or Undefined.
             CSA_ASSERT(this, IsNullOrUndefined(right));
             if (var_type_feedback != nullptr) {
-              var_type_feedback->Bind(SmiConstant(
-                  CompareOperationFeedback::kReceiverOrNullOrUndefined));
+              *var_type_feedback = SmiConstant(
+                  CompareOperationFeedback::kReceiverOrNullOrUndefined);
             }
             Branch(IsUndetectableMap(left_map), &if_equal, &if_notequal);
           }
@@ -12399,8 +12391,7 @@ Node* CodeStubAssembler::Equal(SloppyTNode<Object> left,
             // {right} is a Primitive, and neither Null or Undefined;
             // convert {left} to Primitive too.
             if (var_type_feedback != nullptr) {
-              var_type_feedback->Bind(
-                  SmiConstant(CompareOperationFeedback::kAny));
+              *var_type_feedback = SmiConstant(CompareOperationFeedback::kAny);
             }
             Callable callable = CodeFactory::NonPrimitiveToPrimitive(isolate());
             var_left = CallStub(callable, context, left);
@@ -12432,13 +12423,13 @@ Node* CodeStubAssembler::Equal(SloppyTNode<Object> left,
 
   BIND(&if_equal);
   {
-    result.Bind(TrueConstant());
+    result = TrueConstant();
     Goto(&end);
   }
 
   BIND(&if_notequal);
   {
-    result.Bind(FalseConstant());
+    result = FalseConstant();
     Goto(&end);
   }
 
@@ -12446,9 +12437,9 @@ Node* CodeStubAssembler::Equal(SloppyTNode<Object> left,
   return result.value();
 }
 
-TNode<Oddball> CodeStubAssembler::StrictEqual(SloppyTNode<Object> lhs,
-                                              SloppyTNode<Object> rhs,
-                                              Variable* var_type_feedback) {
+TNode<Oddball> CodeStubAssembler::StrictEqual(
+    SloppyTNode<Object> lhs, SloppyTNode<Object> rhs,
+    TVariable<Smi>* var_type_feedback) {
   // Pseudo-code for the algorithm below:
   //
   // if (lhs == rhs) {
@@ -12616,7 +12607,7 @@ TNode<Oddball> CodeStubAssembler::StrictEqual(SloppyTNode<Object> lhs,
                     CollectFeedbackForString(lhs_instance_type);
                 TNode<Smi> rhs_feedback =
                     CollectFeedbackForString(rhs_instance_type);
-                var_type_feedback->Bind(SmiOr(lhs_feedback, rhs_feedback));
+                *var_type_feedback = SmiOr(lhs_feedback, rhs_feedback);
               }
               result = CAST(CallBuiltin(Builtins::kStringEqual,
                                         NoContextConstant(), lhs, rhs));

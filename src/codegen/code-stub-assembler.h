@@ -3393,10 +3393,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                 TNode<IntPtrT> start_offset,
                                 TNode<IntPtrT> end_offset, RootIndex root);
 
-  Node* RelationalComparison(Operation op, SloppyTNode<Object> left,
-                             SloppyTNode<Object> right,
-                             SloppyTNode<Context> context,
-                             Variable* var_type_feedback = nullptr);
+  TNode<Oddball> RelationalComparison(
+      Operation op, SloppyTNode<Object> left, SloppyTNode<Object> right,
+      SloppyTNode<Context> context,
+      TVariable<Smi>* var_type_feedback = nullptr);
 
   void BranchIfNumberRelationalComparison(Operation op,
                                           SloppyTNode<Number> left,
@@ -3446,12 +3446,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void GotoIfNumberGreaterThanOrEqual(Node* left, Node* right, Label* if_false);
 
-  Node* Equal(SloppyTNode<Object> lhs, SloppyTNode<Object> rhs,
-              SloppyTNode<Context> context,
-              Variable* var_type_feedback = nullptr);
+  TNode<Oddball> Equal(SloppyTNode<Object> lhs, SloppyTNode<Object> rhs,
+                       SloppyTNode<Context> context,
+                       TVariable<Smi>* var_type_feedback = nullptr);
 
   TNode<Oddball> StrictEqual(SloppyTNode<Object> lhs, SloppyTNode<Object> rhs,
-                             Variable* var_type_feedback = nullptr);
+                             TVariable<Smi>* var_type_feedback = nullptr);
 
   // ECMA#sec-samevalue
   // Similar to StrictEqual except that NaNs are treated as equal and minus zero
