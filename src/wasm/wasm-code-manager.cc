@@ -1147,8 +1147,7 @@ void NativeModule::PatchJumpTablesLocked(uint32_t func_index, Address target) {
   for (auto& code_space_data : code_space_data_) {
     if (!code_space_data.jump_table) continue;
     Address jump_table_base = code_space_data.jump_table->instruction_start();
-    JumpTableAssembler::PatchJumpTableSlot(jump_table_base, slot_index, target,
-                                           WasmCode::kFlushICache);
+    JumpTableAssembler::PatchJumpTableSlot(jump_table_base, slot_index, target);
   }
 }
 

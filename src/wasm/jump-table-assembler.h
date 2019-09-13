@@ -6,7 +6,6 @@
 #define V8_WASM_JUMP_TABLE_ASSEMBLER_H_
 
 #include "src/codegen/macro-assembler.h"
-#include "src/wasm/wasm-code-manager.h"
 
 namespace v8 {
 namespace internal {
@@ -144,15 +143,12 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
   }
 
   static void PatchJumpTableSlot(Address base, uint32_t slot_index,
-                                 Address new_target,
-                                 WasmCode::FlushICache flush_i_cache) {
+                                 Address new_target) {
     Address slot = base + JumpSlotIndexToOffset(slot_index);
     JumpTableAssembler jtasm(slot);
     jtasm.EmitJumpSlot(new_target);
     jtasm.NopBytes(kJumpTableSlotSize - jtasm.pc_offset());
-    if (flush_i_cache) {
-      FlushInstructionCache(slot, kJumpTableSlotSize);
-    }
+    FlushInstructionCache(slot, kJumpTableSlotSize);
   }
 
  private:
