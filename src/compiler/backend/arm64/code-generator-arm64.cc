@@ -1646,9 +1646,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64StrQ:
       __ Str(i.InputSimd128Register(0), i.MemoryOperand(1));
       break;
-    case kArm64StrCompressTagged:
-      __ StoreTaggedField(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
-      break;
     case kArm64DmbIsh:
       __ Dmb(InnerShareable, BarrierAll);
       break;
