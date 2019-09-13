@@ -58,38 +58,17 @@ struct has_output_operator<T, decltype(void(std::declval<std::ostream&>()
                                             << std::declval<T>()))>
     : std::true_type {};
 
-namespace detail {
-
-template <typename Func, typename T, typename... Ts>
-struct fold_helper {
-  static_assert(sizeof...(Ts) == 0, "this is the base case");
-  using result_t = typename std::remove_reference<T>::type;
-  static constexpr T&& fold(Func func, T&& first) {
-    return std::forward<T>(first);
-  }
-};
+// Fold all arguments from left to right with a given function.
+template <typename Func, typename T>
+constexpr auto fold(Func func, T&& t) {
+  return std::forward<T>(t);
+}
 
 template <typename Func, typename T1, typename T2, typename... Ts>
-struct fold_helper<Func, T1, T2, Ts...> {
-  using folded_t = typename std::result_of<Func(T1, T2)>::type;
-  using next_fold_helper = fold_helper<Func, folded_t&&, Ts...>;
-  using result_t = typename next_fold_helper::result_t;
-  static constexpr result_t fold(Func func, T1&& first, T2&& second,
-                                 Ts&&... more) {
-    return next_fold_helper::fold(
-        func, func(std::forward<T1>(first), std::forward<T2>(second)),
-        std::forward<Ts>(more)...);
-  }
-};
-
-}  // namespace detail
-
-// Fold all arguments from left to right with a given function.
-template <typename Func, typename... Ts>
-constexpr auto fold(Func func, Ts&&... more) ->
-    typename detail::fold_helper<Func, Ts...>::result_t {
-  return detail::fold_helper<Func, Ts...>::fold(func,
-                                                std::forward<Ts>(more)...);
+constexpr auto fold(Func func, T1&& first, T2&& second, Ts&&... more) {
+  auto&& folded = func(std::forward<T1>(first), std::forward<T2>(second));
+  return fold(std::move(func), std::forward<decltype(folded)>(folded),
+              std::forward<Ts>(more)...);
 }
 
 // {is_same<Ts...>::value} is true if all Ts are the same, false otherwise.
