@@ -198,13 +198,19 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
   b(r1);  // 2 bytes
 }
 
-void JumpTableAssembler::EmitJumpSlot(Address target) {
+bool JumpTableAssembler::EmitJumpSlot(Address target) {
   mov(r1, Operand(target));
   b(r1);
+  return true;
 }
 
 void JumpTableAssembler::EmitFarJumpSlot(Address target) {
   JumpToInstructionStream(target);
+}
+
+// static
+void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
+  UNREACHABLE();
 }
 
 void JumpTableAssembler::NopBytes(int bytes) {
@@ -259,14 +265,20 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
   for (int i = 0; i < nop_bytes; i += kInstrSize) nop();
 }
 
-void JumpTableAssembler::EmitJumpSlot(Address target) {
+bool JumpTableAssembler::EmitJumpSlot(Address target) {
   mov(r0, Operand(target));
   mtctr(r0);
   bctr();
+  return true;
 }
 
 void JumpTableAssembler::EmitFarJumpSlot(Address target) {
   JumpToInstructionStream(target);
+}
+
+// static
+void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
+  UNREACHABLE();
 }
 
 void JumpTableAssembler::NopBytes(int bytes) {
