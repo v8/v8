@@ -5,6 +5,7 @@
 #ifndef V8_LOGGING_LOG_H_
 #define V8_LOGGING_LOG_H_
 
+#include <memory>
 #include <set>
 #include <string>
 

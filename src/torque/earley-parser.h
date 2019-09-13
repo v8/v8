@@ -6,6 +6,7 @@
 #define V8_TORQUE_EARLEY_PARSER_H_
 
 #include <map>
+#include <memory>
 #include <vector>
 
 #include "src/base/optional.h"

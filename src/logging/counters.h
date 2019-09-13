@@ -5,6 +5,8 @@
 #ifndef V8_LOGGING_COUNTERS_H_
 #define V8_LOGGING_COUNTERS_H_
 
+#include <memory>
+
 #include "include/v8.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/optional.h"

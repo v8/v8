@@ -36,6 +36,7 @@
 #define V8_CODEGEN_MIPS_ASSEMBLER_MIPS_H_
 
 #include <stdio.h>
+#include <memory>
 
 #include <set>
 

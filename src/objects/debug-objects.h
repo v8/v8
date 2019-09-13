@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_DEBUG_OBJECTS_H_
 #define V8_OBJECTS_DEBUG_OBJECTS_H_
 
+#include <memory>
+
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"

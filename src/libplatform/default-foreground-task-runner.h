@@ -5,6 +5,7 @@
 #ifndef V8_LIBPLATFORM_DEFAULT_FOREGROUND_TASK_RUNNER_H_
 #define V8_LIBPLATFORM_DEFAULT_FOREGROUND_TASK_RUNNER_H_
 
+#include <memory>
 #include <queue>
 
 #include "include/libplatform/libplatform.h"

@@ -5,6 +5,7 @@
 #ifndef V8_TORQUE_IMPLEMENTATION_VISITOR_H_
 #define V8_TORQUE_IMPLEMENTATION_VISITOR_H_
 
+#include <memory>
 #include <string>
 
 #include "src/base/macros.h"

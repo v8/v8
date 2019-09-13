@@ -10,6 +10,7 @@
 #define V8_OBJECTS_INTL_OBJECTS_H_
 
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 

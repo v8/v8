@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_CONCURRENT_MARKING_H_
 #define V8_HEAP_CONCURRENT_MARKING_H_
 
+#include <memory>
+
 #include "include/v8-platform.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/platform/condition-variable.h"

@@ -39,6 +39,7 @@
 
 #include <deque>
 #include <map>
+#include <memory>
 #include <vector>
 
 #include "src/codegen/assembler.h"

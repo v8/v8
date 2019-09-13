@@ -6,6 +6,7 @@
 #define V8_INSPECTOR_V8_DEBUGGER_H_
 
 #include <list>
+#include <memory>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>

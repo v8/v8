@@ -5,6 +5,8 @@
 #ifndef V8_WASM_WASM_INTERPRETER_H_
 #define V8_WASM_WASM_INTERPRETER_H_
 
+#include <memory>
+
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-value.h"
 #include "src/zone/zone-containers.h"

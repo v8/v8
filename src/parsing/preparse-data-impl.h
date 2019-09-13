@@ -7,6 +7,8 @@
 
 #include "src/parsing/preparse-data.h"
 
+#include <memory>
+
 #include "src/common/assert-scope.h"
 
 namespace v8 {

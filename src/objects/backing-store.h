@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_BACKING_STORE_H_
 #define V8_OBJECTS_BACKING_STORE_H_
 
+#include <memory>
+
 #include "src/handles/handles.h"
 
 namespace v8 {

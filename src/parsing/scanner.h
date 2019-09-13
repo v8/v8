@@ -8,6 +8,7 @@
 #define V8_PARSING_SCANNER_H_
 
 #include <algorithm>
+#include <memory>
 
 #include "src/base/logging.h"
 #include "src/common/globals.h"

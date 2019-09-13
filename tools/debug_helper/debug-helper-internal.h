@@ -10,6 +10,7 @@
 #ifndef V8_TOOLS_DEBUG_HELPER_DEBUG_HELPER_INTERNAL_H_
 #define V8_TOOLS_DEBUG_HELPER_DEBUG_HELPER_INTERNAL_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 

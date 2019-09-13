@@ -5,6 +5,8 @@
 #ifndef V8_TEST_COMMON_ASSEMBLER_TESTER_H_
 #define V8_TEST_COMMON_ASSEMBLER_TESTER_H_
 
+#include <memory>
+
 #include "src/codegen/assembler.h"
 #include "src/codegen/code-desc.h"
 

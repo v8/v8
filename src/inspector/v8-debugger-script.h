@@ -30,6 +30,8 @@
 #ifndef V8_INSPECTOR_V8_DEBUGGER_SCRIPT_H_
 #define V8_INSPECTOR_V8_DEBUGGER_SCRIPT_H_
 
+#include <memory>
+
 #include "src/base/macros.h"
 #include "src/inspector/string-16.h"
 #include "src/inspector/string-util.h"

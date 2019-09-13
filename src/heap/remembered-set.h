@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_REMEMBERED_SET_H_
 #define V8_HEAP_REMEMBERED_SET_H_
 
+#include <memory>
+
 #include "src/base/memory.h"
 #include "src/codegen/reloc-info.h"
 #include "src/heap/heap.h"

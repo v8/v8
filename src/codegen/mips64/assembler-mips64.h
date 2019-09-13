@@ -36,7 +36,7 @@
 #define V8_CODEGEN_MIPS64_ASSEMBLER_MIPS64_H_
 
 #include <stdio.h>
-
+#include <memory>
 #include <set>
 
 #include "src/codegen/assembler.h"

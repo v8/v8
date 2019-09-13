@@ -6,8 +6,10 @@
 #define V8_V8_PROFILER_H_
 
 #include <limits.h>
+#include <memory>
 #include <unordered_set>
 #include <vector>
+
 #include "v8.h"  // NOLINT(build/include)
 
 /**

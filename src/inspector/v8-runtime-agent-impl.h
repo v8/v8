@@ -31,6 +31,7 @@
 #ifndef V8_INSPECTOR_V8_RUNTIME_AGENT_IMPL_H_
 #define V8_INSPECTOR_V8_RUNTIME_AGENT_IMPL_H_
 
+#include <memory>
 #include <unordered_map>
 
 #include "src/base/macros.h"

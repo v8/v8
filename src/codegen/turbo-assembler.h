@@ -5,6 +5,8 @@
 #ifndef V8_CODEGEN_TURBO_ASSEMBLER_H_
 #define V8_CODEGEN_TURBO_ASSEMBLER_H_
 
+#include <memory>
+
 #include "src/base/template-utils.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/assembler-arch.h"

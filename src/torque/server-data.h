@@ -6,6 +6,7 @@
 #define V8_TORQUE_SERVER_DATA_H_
 
 #include <map>
+#include <memory>
 #include <vector>
 
 #include "src/base/macros.h"

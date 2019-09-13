@@ -6,6 +6,7 @@
 #define V8_HEAP_SLOT_SET_H_
 
 #include <map>
+#include <memory>
 #include <stack>
 
 #include "src/base/atomic-utils.h"

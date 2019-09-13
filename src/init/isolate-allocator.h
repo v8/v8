@@ -5,6 +5,8 @@
 #ifndef V8_INIT_ISOLATE_ALLOCATOR_H_
 #define V8_INIT_ISOLATE_ALLOCATOR_H_
 
+#include <memory>
+
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/page-allocator.h"
 #include "src/common/globals.h"
