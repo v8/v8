@@ -976,7 +976,8 @@ struct HeapStatsUpdate {
   V(LazyCompile)            \
   V(RegExp)                 \
   V(Script)                 \
-  V(Stub)
+  V(Stub)                   \
+  V(Relocation)
 
 /**
  * Note that this enum may be extended in the future. Please include a default
@@ -1009,10 +1010,12 @@ class V8_EXPORT CodeEvent {
   const char* GetComment();
 
   static const char* GetCodeEventTypeName(CodeEventType code_event_type);
+
+  uintptr_t GetPreviousCodeStartAddress();
 };
 
 /**
- * Interface to listen to code creation events.
+ * Interface to listen to code creation and code relocation events.
  */
 class V8_EXPORT CodeEventHandler {
  public:
@@ -1024,9 +1027,26 @@ class V8_EXPORT CodeEventHandler {
   explicit CodeEventHandler(Isolate* isolate);
   virtual ~CodeEventHandler();
 
+  /**
+   * Handle is called every time a code object is created or moved. Information
+   * about each code event will be available through the `code_event`
+   * parameter.
+   *
+   * When the CodeEventType is kRelocationType, the code for this CodeEvent has
+   * moved from `GetPreviousCodeStartAddress()` to `GetCodeStartAddress()`.
+   */
   virtual void Handle(CodeEvent* code_event) = 0;
 
+  /**
+   * Call `Enable()` to starts listening to code creation and code relocation
+   * events. These events will be handled by `Handle()`.
+   */
   void Enable();
+
+  /**
+   * Call `Disable()` to stop listening to code creation and code relocation
+   * events.
+   */
   void Disable();
 
  private:

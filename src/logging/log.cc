@@ -477,6 +477,23 @@ void ExternalCodeEventListener::RegExpCodeCreateEvent(AbstractCode code,
   code_event_handler_->Handle(reinterpret_cast<v8::CodeEvent*>(&code_event));
 }
 
+void ExternalCodeEventListener::CodeMoveEvent(AbstractCode from,
+                                              AbstractCode to) {
+  CodeEvent code_event;
+  code_event.previous_code_start_address =
+      static_cast<uintptr_t>(from.InstructionStart());
+  code_event.code_start_address = static_cast<uintptr_t>(to.InstructionStart());
+  code_event.code_size = static_cast<size_t>(to.InstructionSize());
+  code_event.function_name = isolate_->factory()->empty_string();
+  code_event.script_name = isolate_->factory()->empty_string();
+  code_event.script_line = 0;
+  code_event.script_column = 0;
+  code_event.code_type = v8::CodeEventType::kRelocationType;
+  code_event.comment = "";
+
+  code_event_handler_->Handle(reinterpret_cast<v8::CodeEvent*>(&code_event));
+}
+
 // Low-level logging support.
 class LowLevelLogger : public CodeEventLogger {
  public:

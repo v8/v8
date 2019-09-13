@@ -10216,6 +10216,10 @@ const char* CodeEvent::GetComment() {
   return reinterpret_cast<i::CodeEvent*>(this)->comment;
 }
 
+uintptr_t CodeEvent::GetPreviousCodeStartAddress() {
+  return reinterpret_cast<i::CodeEvent*>(this)->previous_code_start_address;
+}
+
 const char* CodeEvent::GetCodeEventTypeName(CodeEventType code_event_type) {
   switch (code_event_type) {
     case kUnknownType:
