@@ -1015,7 +1015,7 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
   BIND(&if_unique_name);
   {
     Comment("key is unique name");
-    StoreICParameters p(context, receiver, var_unique.value(), value, nullptr,
+    StoreICParameters p(context, receiver, var_unique.value(), value, {},
                         nullptr);
     ExitPoint direct_exit(this);
     EmitGenericPropertyStore(CAST(receiver), receiver_map, &p, &direct_exit,
@@ -1105,7 +1105,7 @@ void KeyedStoreGenericAssembler::SetProperty(TNode<Context> context,
                                              TNode<Name> unique_name,
                                              TNode<Object> value,
                                              LanguageMode language_mode) {
-  StoreICParameters p(context, receiver, unique_name, value, nullptr, nullptr);
+  StoreICParameters p(context, receiver, unique_name, value, {}, nullptr);
 
   Label done(this), slow(this, Label::kDeferred);
   ExitPoint exit_point(this, [&](Node* result) { Goto(&done); });

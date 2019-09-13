@@ -2570,21 +2570,29 @@ void CodeStubAssembler::StoreJSTypedArrayElementFromTagged(
   }
 }
 
+template <typename TIndex>
 TNode<MaybeObject> CodeStubAssembler::LoadFeedbackVectorSlot(
-    Node* object, Node* slot_index_node, int additional_offset,
-    ParameterMode parameter_mode) {
-  CSA_SLOW_ASSERT(this, IsFeedbackVector(object));
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(slot_index_node, parameter_mode));
+    TNode<FeedbackVector> feedback_vector, TNode<TIndex> slot,
+    int additional_offset) {
   int32_t header_size =
       FeedbackVector::kFeedbackSlotsOffset + additional_offset - kHeapObjectTag;
-  TNode<IntPtrT> offset = ElementOffsetFromIndex(
-      slot_index_node, HOLEY_ELEMENTS, parameter_mode, header_size);
+  TNode<IntPtrT> offset =
+      ElementOffsetFromIndex(slot, HOLEY_ELEMENTS, header_size);
   CSA_SLOW_ASSERT(
-      this, IsOffsetInBounds(offset, LoadFeedbackVectorLength(CAST(object)),
+      this, IsOffsetInBounds(offset, LoadFeedbackVectorLength(feedback_vector),
                              FeedbackVector::kHeaderSize));
-  return UncheckedCast<MaybeObject>(
-      Load(MachineType::AnyTagged(), object, offset));
+  return Load<MaybeObject>(feedback_vector, offset);
 }
+
+template TNode<MaybeObject> CodeStubAssembler::LoadFeedbackVectorSlot(
+    TNode<FeedbackVector> feedback_vector, TNode<Smi> slot,
+    int additional_offset);
+template TNode<MaybeObject> CodeStubAssembler::LoadFeedbackVectorSlot(
+    TNode<FeedbackVector> feedback_vector, TNode<IntPtrT> slot,
+    int additional_offset);
+template TNode<MaybeObject> CodeStubAssembler::LoadFeedbackVectorSlot(
+    TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot,
+    int additional_offset);
 
 template <typename Array>
 TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32ArrayElement(
@@ -2743,15 +2751,15 @@ TNode<Object> CodeStubAssembler::LoadContextElement(
 
 TNode<Object> CodeStubAssembler::LoadContextElement(
     SloppyTNode<Context> context, SloppyTNode<IntPtrT> slot_index) {
-  TNode<IntPtrT> offset = ElementOffsetFromIndex(
-      slot_index, PACKED_ELEMENTS, INTPTR_PARAMETERS, Context::SlotOffset(0));
+  TNode<IntPtrT> offset = ElementOffsetFromIndex(slot_index, PACKED_ELEMENTS,
+                                                 Context::SlotOffset(0));
   return UncheckedCast<Object>(Load(MachineType::AnyTagged(), context, offset));
 }
 
 TNode<Object> CodeStubAssembler::LoadContextElement(TNode<Context> context,
                                                     TNode<Smi> slot_index) {
-  TNode<IntPtrT> offset = ElementOffsetFromIndex(
-      slot_index, PACKED_ELEMENTS, SMI_PARAMETERS, Context::SlotOffset(0));
+  TNode<IntPtrT> offset = ElementOffsetFromIndex(slot_index, PACKED_ELEMENTS,
+                                                 Context::SlotOffset(0));
   return UncheckedCast<Object>(Load(MachineType::AnyTagged(), context, offset));
 }
 
@@ -3066,33 +3074,30 @@ void CodeStubAssembler::StoreFixedDoubleArrayElement(
   StoreNoWriteBarrier(rep, object, offset, value_silenced);
 }
 
-void CodeStubAssembler::StoreFeedbackVectorSlot(Node* object,
-                                                Node* slot_index_node,
-                                                Node* value,
-                                                WriteBarrierMode barrier_mode,
-                                                int additional_offset,
-                                                ParameterMode parameter_mode) {
-  CSA_SLOW_ASSERT(this, IsFeedbackVector(object));
-  CSA_SLOW_ASSERT(this, MatchesParameterMode(slot_index_node, parameter_mode));
+void CodeStubAssembler::StoreFeedbackVectorSlot(
+    TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot,
+    TNode<AnyTaggedT> value, WriteBarrierMode barrier_mode,
+    int additional_offset) {
   DCHECK(IsAligned(additional_offset, kTaggedSize));
   DCHECK(barrier_mode == SKIP_WRITE_BARRIER ||
          barrier_mode == UNSAFE_SKIP_WRITE_BARRIER ||
          barrier_mode == UPDATE_WRITE_BARRIER);
   int header_size =
       FeedbackVector::kFeedbackSlotsOffset + additional_offset - kHeapObjectTag;
-  TNode<IntPtrT> offset = ElementOffsetFromIndex(
-      slot_index_node, HOLEY_ELEMENTS, parameter_mode, header_size);
-  // Check that slot_index_node <= object.length.
+  TNode<IntPtrT> offset =
+      ElementOffsetFromIndex(Signed(slot), HOLEY_ELEMENTS, header_size);
+  // Check that slot <= feedback_vector.length.
   CSA_ASSERT(this,
-             IsOffsetInBounds(offset, LoadFeedbackVectorLength(CAST(object)),
+             IsOffsetInBounds(offset, LoadFeedbackVectorLength(feedback_vector),
                               FeedbackVector::kHeaderSize));
   if (barrier_mode == SKIP_WRITE_BARRIER) {
-    StoreNoWriteBarrier(MachineRepresentation::kTagged, object, offset, value);
+    StoreNoWriteBarrier(MachineRepresentation::kTagged, feedback_vector, offset,
+                        value);
   } else if (barrier_mode == UNSAFE_SKIP_WRITE_BARRIER) {
-    UnsafeStoreNoWriteBarrier(MachineRepresentation::kTagged, object, offset,
-                              value);
+    UnsafeStoreNoWriteBarrier(MachineRepresentation::kTagged, feedback_vector,
+                              offset, value);
   } else {
-    Store(object, offset, value);
+    Store(feedback_vector, offset, value);
   }
 }
 
@@ -5021,12 +5026,10 @@ void CodeStubAssembler::MoveElements(ElementsKind kind,
   TNode<IntPtrT> elements_intptr = BitcastTaggedToWord(elements);
   TNode<IntPtrT> target_data_ptr =
       IntPtrAdd(elements_intptr,
-                ElementOffsetFromIndex(dst_index, kind, INTPTR_PARAMETERS,
-                                       fa_base_data_offset));
+                ElementOffsetFromIndex(dst_index, kind, fa_base_data_offset));
   TNode<IntPtrT> source_data_ptr =
       IntPtrAdd(elements_intptr,
-                ElementOffsetFromIndex(src_index, kind, INTPTR_PARAMETERS,
-                                       fa_base_data_offset));
+                ElementOffsetFromIndex(src_index, kind, fa_base_data_offset));
   TNode<ExternalReference> memmove =
       ExternalConstant(ExternalReference::libc_memmove_function());
   CallCFunction(memmove, MachineType::Pointer(),
@@ -5416,8 +5419,8 @@ void CodeStubAssembler::CopyStringCharacters(Node* from_string, Node* to_string,
   ElementsKind to_kind = to_one_byte ? UINT8_ELEMENTS : UINT16_ELEMENTS;
   STATIC_ASSERT(SeqOneByteString::kHeaderSize == SeqTwoByteString::kHeaderSize);
   int header_size = SeqOneByteString::kHeaderSize - kHeapObjectTag;
-  TNode<IntPtrT> from_offset = ElementOffsetFromIndex(
-      from_index, from_kind, INTPTR_PARAMETERS, header_size);
+  TNode<IntPtrT> from_offset =
+      ElementOffsetFromIndex(from_index, from_kind, header_size);
   TNode<IntPtrT> to_offset =
       ElementOffsetFromIndex(to_index, to_kind, header_size);
   TNode<IntPtrT> byte_count =
@@ -10225,9 +10228,11 @@ TNode<IntPtrT> CodeStubAssembler::ElementOffsetFromIndex(Node* index_node,
 template <typename TIndex>
 TNode<IntPtrT> CodeStubAssembler::ElementOffsetFromIndex(
     TNode<TIndex> index_node, ElementsKind kind, int base_size) {
-  static_assert(
-      std::is_same<TIndex, Smi>::value || std::is_same<TIndex, IntPtrT>::value,
-      "Only Smi or IntPtrT index nodes are allowed");
+  // TODO(v8:9708): Remove IntPtrT variant in favor of UintPtrT.
+  static_assert(std::is_same<TIndex, Smi>::value ||
+                    std::is_same<TIndex, IntPtrT>::value ||
+                    std::is_same<TIndex, UintPtrT>::value,
+                "Only Smi, UintPtrT or IntPtrT index nodes are allowed");
   int element_size_shift = ElementsKindToShiftSize(kind);
   int element_size = 1 << element_size_shift;
   int const kSmiShiftBits = kSmiShiftSize + kSmiTagSize;
@@ -10333,8 +10338,9 @@ TNode<FeedbackVector> CodeStubAssembler::LoadFeedbackVectorForStub() {
   return CAST(LoadFeedbackVector(function));
 }
 
-void CodeStubAssembler::UpdateFeedback(Node* feedback, Node* maybe_vector,
-                                       Node* slot_id) {
+void CodeStubAssembler::UpdateFeedback(TNode<Smi> feedback,
+                                       TNode<HeapObject> maybe_vector,
+                                       TNode<UintPtrT> slot_id) {
   Label end(this);
   // If feedback_vector is not valid, then nothing to do.
   GotoIf(IsUndefined(maybe_vector), &end);
@@ -10346,7 +10352,7 @@ void CodeStubAssembler::UpdateFeedback(Node* feedback, Node* maybe_vector,
   TNode<MaybeObject> feedback_element =
       LoadFeedbackVectorSlot(feedback_vector, slot_id);
   TNode<Smi> previous_feedback = CAST(feedback_element);
-  TNode<Smi> combined_feedback = SmiOr(previous_feedback, CAST(feedback));
+  TNode<Smi> combined_feedback = SmiOr(previous_feedback, feedback);
 
   GotoIf(SmiEqual(previous_feedback, combined_feedback), &end);
   {
@@ -11177,7 +11183,7 @@ TNode<IntPtrT> CodeStubAssembler::PageFromAddress(TNode<IntPtrT> address) {
 }
 
 TNode<AllocationSite> CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
-    SloppyTNode<FeedbackVector> feedback_vector, TNode<Smi> slot) {
+    TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot) {
   TNode<IntPtrT> size = IntPtrConstant(AllocationSite::kSizeWithWeakNext);
   TNode<HeapObject> site = Allocate(size, CodeStubAssembler::kPretenured);
   StoreMapNoWriteBarrier(site, RootIndex::kAllocationSiteWithWeakNextMap);
@@ -11220,19 +11226,16 @@ TNode<AllocationSite> CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
   StoreObjectField(site, AllocationSite::kWeakNextOffset, next_site);
   StoreFullTaggedNoWriteBarrier(site_list, site);
 
-  StoreFeedbackVectorSlot(feedback_vector, slot, site, UPDATE_WRITE_BARRIER, 0,
-                          SMI_PARAMETERS);
+  StoreFeedbackVectorSlot(feedback_vector, slot, site);
   return CAST(site);
 }
 
 TNode<MaybeObject> CodeStubAssembler::StoreWeakReferenceInFeedbackVector(
-    SloppyTNode<FeedbackVector> feedback_vector, Node* slot,
-    SloppyTNode<HeapObject> value, int additional_offset,
-    ParameterMode parameter_mode) {
+    TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot,
+    TNode<HeapObject> value, int additional_offset) {
   TNode<MaybeObject> weak_value = MakeWeak(value);
   StoreFeedbackVectorSlot(feedback_vector, slot, weak_value,
-                          UPDATE_WRITE_BARRIER, additional_offset,
-                          parameter_mode);
+                          UPDATE_WRITE_BARRIER, additional_offset);
   return weak_value;
 }
 

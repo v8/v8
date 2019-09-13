@@ -29,6 +29,7 @@ namespace internal {
 
 constexpr MachineType MachineTypeOf<Smi>::value;
 constexpr MachineType MachineTypeOf<Object>::value;
+constexpr MachineType MachineTypeOf<MaybeObject>::value;
 
 namespace compiler {
 

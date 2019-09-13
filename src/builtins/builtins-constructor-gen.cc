@@ -295,8 +295,9 @@ TNode<JSRegExp> ConstructorBuiltinsAssembler::EmitCreateRegExpLiteral(
   GotoIf(IsUndefined(maybe_feedback_vector), &call_runtime);
 
   TVARIABLE(JSRegExp, result);
-  TNode<Object> literal_site = CAST(LoadFeedbackVectorSlot(
-      maybe_feedback_vector, slot, 0, INTPTR_PARAMETERS));
+  TNode<FeedbackVector> feedback_vector = CAST(maybe_feedback_vector);
+  TNode<Object> literal_site =
+      CAST(LoadFeedbackVectorSlot(feedback_vector, slot));
   GotoIf(NotHasBoilerplate(literal_site), &call_runtime);
   {
     TNode<JSRegExp> boilerplate = CAST(literal_site);
@@ -342,7 +343,7 @@ TNode<JSArray> ConstructorBuiltinsAssembler::EmitCreateShallowArrayLiteral(
       return_result(this);
 
   TNode<Object> maybe_allocation_site =
-      CAST(LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
+      CAST(LoadFeedbackVectorSlot(feedback_vector, slot));
   GotoIf(NotHasBoilerplate(maybe_allocation_site), call_runtime);
 
   TNode<AllocationSite> allocation_site = CAST(maybe_allocation_site);
@@ -385,7 +386,7 @@ TNode<JSArray> ConstructorBuiltinsAssembler::EmitCreateEmptyArrayLiteral(
   // Array literals always have a valid AllocationSite to properly track
   // elements transitions.
   TNode<Object> maybe_allocation_site =
-      CAST(LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
+      CAST(LoadFeedbackVectorSlot(feedback_vector, slot));
   TVARIABLE(AllocationSite, allocation_site);
 
   Label create_empty_array(this),
@@ -398,8 +399,8 @@ TNode<JSArray> ConstructorBuiltinsAssembler::EmitCreateEmptyArrayLiteral(
   // TODO(cbruni): create the AllocationSite in CSA.
   BIND(&initialize_allocation_site);
   {
-    allocation_site = CreateAllocationSiteInFeedbackVector(
-        feedback_vector, SmiTag(Signed(slot)));
+    allocation_site =
+        CreateAllocationSiteInFeedbackVector(feedback_vector, slot);
     Goto(&create_empty_array);
   }
 
@@ -434,7 +435,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
     TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot,
     Label* call_runtime) {
   TNode<Object> maybe_allocation_site =
-      CAST(LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
+      CAST(LoadFeedbackVectorSlot(feedback_vector, slot));
   GotoIf(NotHasBoilerplate(maybe_allocation_site), call_runtime);
 
   TNode<AllocationSite> allocation_site = CAST(maybe_allocation_site);

@@ -583,8 +583,7 @@ TF_BUILTIN(StringFromCharCode, CodeStubAssembler) {
     // Assume that the resulting string contains only one-byte characters.
     TNode<String> one_byte_result = AllocateSeqOneByteString(Unsigned(argc));
 
-    TVARIABLE(IntPtrT, var_max_index);
-    var_max_index = IntPtrConstant(0);
+    TVARIABLE(IntPtrT, var_max_index, IntPtrConstant(0));
 
     // Iterate over the incoming arguments, converting them to 8-bit character
     // codes. Stop if any of the conversions generates a code that doesn't fit
@@ -601,7 +600,6 @@ TF_BUILTIN(StringFromCharCode, CodeStubAssembler) {
       // The {code16} fits into the SeqOneByteString {one_byte_result}.
       TNode<IntPtrT> offset = ElementOffsetFromIndex(
           var_max_index.value(), UINT8_ELEMENTS,
-          CodeStubAssembler::INTPTR_PARAMETERS,
           SeqOneByteString::kHeaderSize - kHeapObjectTag);
       StoreNoWriteBarrier(MachineRepresentation::kWord8, one_byte_result,
                           offset, code16);
@@ -626,7 +624,6 @@ TF_BUILTIN(StringFromCharCode, CodeStubAssembler) {
     // Write the character that caused the 8-bit to 16-bit fault.
     TNode<IntPtrT> max_index_offset =
         ElementOffsetFromIndex(var_max_index.value(), UINT16_ELEMENTS,
-                               CodeStubAssembler::INTPTR_PARAMETERS,
                                SeqTwoByteString::kHeaderSize - kHeapObjectTag);
     StoreNoWriteBarrier(MachineRepresentation::kWord16, two_byte_result,
                         max_index_offset, code16);

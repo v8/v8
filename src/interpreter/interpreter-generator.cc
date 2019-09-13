@@ -160,13 +160,20 @@ class InterpreterLoadGlobalAssembler : public InterpreterAssembler {
   void LdaGlobal(int slot_operand_index, int name_operand_index,
                  TypeofMode typeof_mode) {
     TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
-    TNode<UintPtrT> feedback_slot = BytecodeOperandIdx(slot_operand_index);
 
     AccessorAssembler accessor_asm(state());
     ExitPoint exit_point(this, [=](Node* result) {
       SetAccumulator(result);
       Dispatch();
     });
+
+    LazyNode<Smi> lazy_smi_slot = [=] {
+      return SmiTag(Signed(BytecodeOperandIdx(slot_operand_index)));
+    };
+
+    LazyNode<UintPtrT> lazy_slot = [=] {
+      return BytecodeOperandIdx(slot_operand_index);
+    };
 
     LazyNode<Context> lazy_context = [=] { return GetContext(); };
 
@@ -176,10 +183,9 @@ class InterpreterLoadGlobalAssembler : public InterpreterAssembler {
       return name;
     };
 
-    ParameterMode slot_mode = CodeStubAssembler::INTPTR_PARAMETERS;
-    accessor_asm.LoadGlobalIC(maybe_feedback_vector, feedback_slot,
-                              lazy_context, lazy_name, typeof_mode, &exit_point,
-                              slot_mode);
+    accessor_asm.LoadGlobalIC(maybe_feedback_vector, lazy_smi_slot, lazy_slot,
+                              lazy_context, lazy_name, typeof_mode,
+                              &exit_point);
   }
 };
 
@@ -507,24 +513,24 @@ IGNITION_HANDLER(StaLookupSlot, InterpreterAssembler) {
 // constant pool entry <name_index>.
 IGNITION_HANDLER(LdaNamedProperty, InterpreterAssembler) {
   TNode<HeapObject> feedback_vector = LoadFeedbackVector();
-  TNode<IntPtrT> feedback_slot = Signed(BytecodeOperandIdx(2));
-  TNode<Smi> smi_slot = SmiTag(feedback_slot);
+  TNode<UintPtrT> feedback_slot = BytecodeOperandIdx(2);
 
   // Load receiver.
   TNode<Object> recv = LoadRegisterAtOperandIndex(0);
 
   // Load the name and context lazily.
-  LazyNode<Name> name = [=] {
+  LazyNode<Smi> lazy_smi_slot = [=] { return SmiTag(Signed(feedback_slot)); };
+  LazyNode<Name> lazy_name = [=] {
     return CAST(LoadConstantPoolEntryAtOperandIndex(1));
   };
-  LazyNode<Context> context = [=] { return GetContext(); };
+  LazyNode<Context> lazy_context = [=] { return GetContext(); };
 
   Label done(this);
   TVARIABLE(Object, var_result);
   ExitPoint exit_point(this, &done, &var_result);
 
-  AccessorAssembler::LazyLoadICParameters params(context, recv, name, smi_slot,
-                                                 feedback_vector);
+  AccessorAssembler::LazyLoadICParameters params(
+      lazy_context, recv, lazy_name, lazy_smi_slot, feedback_vector);
   AccessorAssembler accessor_asm(state());
   accessor_asm.LoadIC_BytecodeHandler(&params, &exit_point);
 
@@ -961,7 +967,7 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
     TNode<Object> left = LoadRegisterAtOperandIndex(0);
     TNode<Object> right = GetAccumulator();
     TNode<Context> context = GetContext();
-    TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(1));
+    TNode<UintPtrT> slot_index = BytecodeOperandIdx(1);
     TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
 
     TVARIABLE(Smi, var_left_feedback);
@@ -1010,7 +1016,7 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
   void BitwiseBinaryOpWithSmi(Operation bitwise_op) {
     TNode<Object> left = GetAccumulator();
     TNode<Smi> right = BytecodeOperandImmSmi(0);
-    TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(1));
+    TNode<UintPtrT> slot_index = BytecodeOperandIdx(1);
     TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
     TNode<Context> context = GetContext();
 
@@ -1119,7 +1125,7 @@ IGNITION_HANDLER(BitwiseAndSmi, InterpreterBitwiseBinaryOpAssembler) {
 // Perform bitwise-not on the accumulator.
 IGNITION_HANDLER(BitwiseNot, InterpreterAssembler) {
   TNode<Object> operand = GetAccumulator();
-  TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(0));
+  TNode<UintPtrT> slot_index = BytecodeOperandIdx(0);
   TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
   TNode<Context> context = GetContext();
 
@@ -1281,7 +1287,7 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
     }
 
     BIND(&end);
-    TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(0));
+    TNode<UintPtrT> slot_index = BytecodeOperandIdx(0);
     TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
     UpdateFeedback(var_feedback.value(), maybe_feedback_vector, slot_index);
     SetAccumulator(var_result.value());
@@ -1831,7 +1837,7 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
         UNREACHABLE();
     }
 
-    TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(1));
+    TNode<UintPtrT> slot_index = BytecodeOperandIdx(1);
     TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
     UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector,
                    slot_index);
@@ -2646,14 +2652,14 @@ IGNITION_HANDLER(CloneObject, InterpreterAssembler) {
 // accumulator, creating and caching the site object on-demand as per the
 // specification.
 IGNITION_HANDLER(GetTemplateObject, InterpreterAssembler) {
-  TNode<HeapObject> feedback_vector = LoadFeedbackVector();
+  TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
   TNode<UintPtrT> slot = BytecodeOperandIdx(1);
 
   Label call_runtime(this, Label::kDeferred);
-  GotoIf(IsUndefined(feedback_vector), &call_runtime);
+  GotoIf(IsUndefined(maybe_feedback_vector), &call_runtime);
 
   TNode<Object> cached_value =
-      CAST(LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
+      CAST(LoadFeedbackVectorSlot(CAST(maybe_feedback_vector), slot));
 
   GotoIf(TaggedEqual(cached_value, SmiConstant(0)), &call_runtime);
 
@@ -2673,8 +2679,8 @@ IGNITION_HANDLER(GetTemplateObject, InterpreterAssembler) {
                                        description, shared_info, slot_smi);
 
     Label end(this);
-    GotoIf(IsUndefined(feedback_vector), &end);
-    StoreFeedbackVectorSlot(feedback_vector, slot, result);
+    GotoIf(IsUndefined(maybe_feedback_vector), &end);
+    StoreFeedbackVectorSlot(CAST(maybe_feedback_vector), slot, result);
     Goto(&end);
 
     Bind(&end);

@@ -1384,9 +1384,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<Int32T> elements_kind, Label* if_accessor, Label* if_hole);
 
   // Load a feedback slot from a FeedbackVector.
+  template <typename TIndex>
   TNode<MaybeObject> LoadFeedbackVectorSlot(
-      Node* object, Node* index, int additional_offset = 0,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS);
+      TNode<FeedbackVector> feedback_vector, TNode<TIndex> slot,
+      int additional_offset = 0);
 
   TNode<IntPtrT> LoadFeedbackVectorLength(TNode<FeedbackVector>);
   TNode<Float64T> LoadDoubleWithHoleCheck(TNode<FixedDoubleArray> array,
@@ -1651,10 +1652,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   void StoreFeedbackVectorSlot(
-      Node* object, Node* index, Node* value,
+      TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot,
+      TNode<AnyTaggedT> value,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
-      int additional_offset = 0,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS);
+      int additional_offset = 0);
 
   void EnsureArrayLengthWritable(TNode<Map> map, Label* bailout);
 
@@ -3219,7 +3220,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       SloppyTNode<JSFunction> closure);
 
   // Update the type feedback vector.
-  void UpdateFeedback(Node* feedback, Node* feedback_vector, Node* slot_id);
+  void UpdateFeedback(TNode<Smi> feedback,
+                      TNode<HeapObject> maybe_feedback_vector,
+                      TNode<UintPtrT> slot_id);
 
   // Report that there was a feedback update, performing any tasks that should
   // be done after a feedback update.
@@ -3311,13 +3314,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Store a weak in-place reference into the FeedbackVector.
   TNode<MaybeObject> StoreWeakReferenceInFeedbackVector(
-      SloppyTNode<FeedbackVector> feedback_vector, Node* slot,
-      SloppyTNode<HeapObject> value, int additional_offset = 0,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS);
+      TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot,
+      TNode<HeapObject> value, int additional_offset = 0);
 
   // Create a new AllocationSite and install it into a feedback vector.
   TNode<AllocationSite> CreateAllocationSiteInFeedbackVector(
-      SloppyTNode<FeedbackVector> feedback_vector, TNode<Smi> slot);
+      TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot);
 
   // TODO(ishell, cbruni): Change to HasBoilerplate.
   TNode<BoolT> NotHasBoilerplate(TNode<Object> maybe_literal_site);
@@ -3907,22 +3909,20 @@ class V8_EXPORT_PRIVATE CodeStubArguments {
 
   // Iteration doesn't include the receiver. |first| and |last| are zero-based.
   template <typename TIndex>
-  void ForEach(const ForEachBodyFunction& body,
-               TNode<TIndex> first = TNode<TIndex>(),
-               TNode<TIndex> last = TNode<TIndex>()) {
+  void ForEach(const ForEachBodyFunction& body, TNode<TIndex> first = {},
+               TNode<TIndex> last = {}) {
     CodeStubAssembler::VariableList list(0, assembler_->zone());
     ForEach(list, body, first, last);
   }
 
   // Iteration doesn't include the receiver. |first| and |last| are zero-based.
   void ForEach(const CodeStubAssembler::VariableList& vars,
-               const ForEachBodyFunction& body,
-               TNode<IntPtrT> first = TNode<IntPtrT>(),
-               TNode<IntPtrT> last = TNode<IntPtrT>());
+               const ForEachBodyFunction& body, TNode<IntPtrT> first = {},
+               TNode<IntPtrT> last = {});
 
   void ForEach(const CodeStubAssembler::VariableList& vars,
                const ForEachBodyFunction& body, TNode<Smi> first,
-               TNode<Smi> last = TNode<Smi>()) {
+               TNode<Smi> last = {}) {
     TNode<IntPtrT> first_intptr = assembler_->ParameterToIntPtr(first);
     TNode<IntPtrT> last_intptr;
     if (last != nullptr) {

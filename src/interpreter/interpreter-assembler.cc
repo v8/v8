@@ -930,12 +930,10 @@ TNode<Object> InterpreterAssembler::Construct(
       Branch(TaggedEqual(target, array_function), &create_allocation_site,
              &store_weak_reference);
 
-      TNode<IntPtrT> slot_id_int_ptr = Signed(slot_id);
-
       BIND(&create_allocation_site);
       {
-        var_site = CreateAllocationSiteInFeedbackVector(
-            feedback_vector, SmiTag(slot_id_int_ptr));
+        var_site =
+            CreateAllocationSiteInFeedbackVector(feedback_vector, slot_id);
         ReportFeedbackUpdate(feedback_vector, slot_id,
                              "Construct:CreateAllocationSite");
         Goto(&construct_array);
@@ -943,7 +941,7 @@ TNode<Object> InterpreterAssembler::Construct(
 
       BIND(&store_weak_reference);
       {
-        StoreWeakReferenceInFeedbackVector(feedback_vector, slot_id_int_ptr,
+        StoreWeakReferenceInFeedbackVector(feedback_vector, slot_id,
                                            CAST(new_target));
         ReportFeedbackUpdate(feedback_vector, slot_id,
                              "Construct:StoreWeakReference");

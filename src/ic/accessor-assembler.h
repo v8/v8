@@ -66,7 +66,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
   struct LoadICParameters {
     LoadICParameters(TNode<Context> context, Node* receiver, TNode<Object> name,
-                     Node* slot, Node* vector, Node* holder = nullptr)
+                     TNode<Smi> slot, Node* vector, Node* holder = nullptr)
         : context_(context),
           receiver_(receiver),
           name_(name),
@@ -85,7 +85,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     TNode<Context> context() const { return context_; }
     Node* receiver() const { return receiver_; }
     TNode<Object> name() const { return name_; }
-    Node* slot() const { return slot_; }
+    TNode<Smi> slot() const { return slot_; }
     Node* vector() const { return vector_; }
     Node* holder() const { return holder_; }
 
@@ -93,15 +93,15 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     TNode<Context> context_;
     Node* receiver_;
     TNode<Object> name_;
-    Node* slot_;
+    TNode<Smi> slot_;
     Node* vector_;
     Node* holder_;
   };
 
   struct LazyLoadICParameters {
     LazyLoadICParameters(LazyNode<Context> context, Node* receiver,
-                         LazyNode<Object> name, Node* slot, Node* vector,
-                         Node* holder = nullptr)
+                         LazyNode<Object> name, LazyNode<Smi> slot,
+                         Node* vector, Node* holder = nullptr)
         : context_(context),
           receiver_(receiver),
           name_(name),
@@ -111,19 +111,17 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
     explicit LazyLoadICParameters(const LoadICParameters* p)
         : receiver_(p->receiver()),
-          slot_(p->slot()),
           vector_(p->vector()),
           holder_(p->holder()) {
-      TNode<Context> p_context = p->context();
-      context_ = [=] { return p_context; };
-      TNode<Object> p_name = p->name();
-      name_ = [=] { return p_name; };
+      slot_ = [=] { return p->slot(); };
+      context_ = [=] { return p->context(); };
+      name_ = [=] { return p->name(); };
     }
 
     TNode<Context> context() const { return context_(); }
     Node* receiver() const { return receiver_; }
     TNode<Object> name() const { return name_(); }
-    Node* slot() const { return slot_; }
+    TNode<Smi> slot() const { return slot_(); }
     Node* vector() const { return vector_; }
     Node* holder() const { return holder_; }
 
@@ -131,16 +129,17 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     LazyNode<Context> context_;
     Node* receiver_;
     LazyNode<Object> name_;
-    Node* slot_;
+    LazyNode<Smi> slot_;
     Node* vector_;
     Node* holder_;
   };
 
-  void LoadGlobalIC(Node* vector, Node* slot,
+  void LoadGlobalIC(TNode<HeapObject> maybe_feedback_vector,
+                    const LazyNode<Smi>& lazy_smi_slot,
+                    const LazyNode<UintPtrT>& lazy_slot,
                     const LazyNode<Context>& lazy_context,
                     const LazyNode<Name>& lazy_name, TypeofMode typeof_mode,
-                    ExitPoint* exit_point,
-                    ParameterMode slot_mode = SMI_PARAMETERS);
+                    ExitPoint* exit_point);
 
   // Specialized LoadIC for inlined bytecode handler, hand-tuned to omit frame
   // construction on common paths.
@@ -154,8 +153,8 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
  protected:
   struct StoreICParameters : public LoadICParameters {
     StoreICParameters(TNode<Context> context, Node* receiver,
-                      TNode<Object> name, SloppyTNode<Object> value, Node* slot,
-                      Node* vector)
+                      TNode<Object> name, SloppyTNode<Object> value,
+                      TNode<Smi> slot, Node* vector)
         : LoadICParameters(context, receiver, name, slot, vector),
           value_(value) {}
 
@@ -229,8 +228,9 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   // IC dispatcher behavior.
 
   // Checks monomorphic case. Returns {feedback} entry of the vector.
-  TNode<MaybeObject> TryMonomorphicCase(Node* slot, Node* vector,
-                                        Node* receiver_map, Label* if_handler,
+  TNode<MaybeObject> TryMonomorphicCase(TNode<Smi> slot, Node* vector,
+                                        TNode<Map> receiver_map,
+                                        Label* if_handler,
                                         TVariable<MaybeObject>* var_handler,
                                         Label* if_miss);
   void HandlePolymorphicCase(Node* receiver_map, TNode<WeakFixedArray> feedback,
@@ -292,18 +292,19 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
   // LoadGlobalIC implementation.
 
-  void LoadGlobalIC_TryPropertyCellCase(
-      TNode<FeedbackVector> vector, Node* slot,
-      const LazyNode<Context>& lazy_context, ExitPoint* exit_point,
-      Label* try_handler, Label* miss,
-      ParameterMode slot_mode = SMI_PARAMETERS);
+  void LoadGlobalIC_TryPropertyCellCase(TNode<FeedbackVector> vector,
+                                        TNode<UintPtrT> slot,
+                                        const LazyNode<Context>& lazy_context,
+                                        ExitPoint* exit_point,
+                                        Label* try_handler, Label* miss);
 
-  void LoadGlobalIC_TryHandlerCase(TNode<FeedbackVector> vector, Node* slot,
+  void LoadGlobalIC_TryHandlerCase(TNode<FeedbackVector> vector,
+                                   TNode<UintPtrT> slot,
+                                   const LazyNode<Smi>& lazy_smi_slot,
                                    const LazyNode<Context>& lazy_context,
                                    const LazyNode<Name>& lazy_name,
                                    TypeofMode typeof_mode,
-                                   ExitPoint* exit_point, Label* miss,
-                                   ParameterMode slot_mode);
+                                   ExitPoint* exit_point, Label* miss);
 
   // StoreIC implementation.
 
