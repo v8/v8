@@ -6,32 +6,20 @@
 #define V8_BASE_TEMPLATE_UTILS_H_
 
 #include <array>
-#include <memory>
+#include <type_traits>
+#include <utility>
 
 namespace v8 {
 namespace base {
 
 namespace detail {
 
-// make_array_helper statically iteratively creates the index list 0 .. Size-1.
-// A specialization for the base case (first index is 0) finally constructs the
-// array.
-// TODO(clemensh): Use std::index_sequence once we have C++14 support.
-template <class Function, std::size_t... Indexes>
-struct make_array_helper;
-
-template <class Function, std::size_t... Indexes>
-struct make_array_helper<Function, 0, Indexes...> {
-  constexpr static std::array<typename std::result_of<Function(size_t)>::type,
-                              sizeof...(Indexes) + 1>
-  make_array(Function f) {
-    return {{f(0), f(Indexes)...}};
-  }
-};
-
-template <class Function, std::size_t FirstIndex, std::size_t... Indexes>
-struct make_array_helper<Function, FirstIndex, Indexes...>
-    : make_array_helper<Function, FirstIndex - 1, FirstIndex, Indexes...> {};
+template <typename Function, std::size_t... Indexes>
+constexpr inline auto make_array_helper(Function f,
+                                        std::index_sequence<Indexes...>)
+    -> std::array<decltype(f(0)), sizeof...(Indexes)> {
+  return {{f(Indexes)...}};
+}
 
 }  // namespace detail
 
@@ -42,10 +30,8 @@ struct make_array_helper<Function, FirstIndex, Indexes...>
 //       [](std::size_t i) { return static_cast<int>(2 * i); });
 // The resulting array will be constexpr if the passed function is constexpr.
 template <std::size_t Size, class Function>
-constexpr std::array<typename std::result_of<Function(size_t)>::type, Size>
-make_array(Function f) {
-  static_assert(Size > 0, "Can only create non-empty arrays");
-  return detail::make_array_helper<Function, Size - 1>::make_array(f);
+constexpr auto make_array(Function f) {
+  return detail::make_array_helper(f, std::make_index_sequence<Size>{});
 }
 
 // Helper to determine how to pass values: Pass scalars and arrays by value,
