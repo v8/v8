@@ -1153,7 +1153,7 @@ TEST_F(InstructionSelectorTest, AddBranchWithImmediateOnLeft) {
 
 struct TestAndBranch {
   MachInst<std::function<Node*(InstructionSelectorTest::StreamBuilder&, Node*,
-                               uint32_t mask)>>
+                               uint64_t mask)>>
       mi;
   FlagsCondition cond;
 };
@@ -1271,6 +1271,92 @@ TEST_P(InstructionSelectorTestAndBranchTest, TestAndBranch32) {
 INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
                          InstructionSelectorTestAndBranchTest,
                          ::testing::ValuesIn(kTestAndBranchMatchers32));
+
+// TODO(arm64): Add the missing Word32BinaryNot test cases from the 32-bit
+// version.
+const TestAndBranch kTestAndBranchMatchers64[] = {
+    // Branch on the result of Word64And directly.
+    {{[](InstructionSelectorTest::StreamBuilder& m, Node* x, uint64_t mask)
+          -> Node* { return m.Word64And(x, m.Int64Constant(mask)); },
+      "if (x and mask)", kArm64TestAndBranch, MachineType::Int64()},
+     kNotEqual},
+    {{[](InstructionSelectorTest::StreamBuilder& m, Node* x,
+         uint64_t mask) -> Node* {
+        return m.Word64Equal(m.Word64And(x, m.Int64Constant(mask)),
+                             m.Int64Constant(0));
+      },
+      "if not (x and mask)", kArm64TestAndBranch, MachineType::Int64()},
+     kEqual},
+    {{[](InstructionSelectorTest::StreamBuilder& m, Node* x, uint64_t mask)
+          -> Node* { return m.Word64And(m.Int64Constant(mask), x); },
+      "if (mask and x)", kArm64TestAndBranch, MachineType::Int64()},
+     kNotEqual},
+    {{[](InstructionSelectorTest::StreamBuilder& m, Node* x,
+         uint64_t mask) -> Node* {
+        return m.Word64Equal(m.Word64And(m.Int64Constant(mask), x),
+                             m.Int64Constant(0));
+      },
+      "if not (mask and x)", kArm64TestAndBranch, MachineType::Int64()},
+     kEqual},
+    // Branch on the result of '(x and mask) == mask'. This tests that a bit is
+    // set rather than cleared which is why conditions are inverted.
+    {{[](InstructionSelectorTest::StreamBuilder& m, Node* x,
+         uint64_t mask) -> Node* {
+        return m.Word64Equal(m.Word64And(x, m.Int64Constant(mask)),
+                             m.Int64Constant(mask));
+      },
+      "if ((x and mask) == mask)", kArm64TestAndBranch, MachineType::Int64()},
+     kNotEqual},
+    {{[](InstructionSelectorTest::StreamBuilder& m, Node* x,
+         uint64_t mask) -> Node* {
+        return m.Word64Equal(m.Int64Constant(mask),
+                             m.Word64And(x, m.Int64Constant(mask)));
+      },
+      "if (mask == (x and mask))", kArm64TestAndBranch, MachineType::Int64()},
+     kNotEqual},
+    // Same as above but swap 'mask' and 'x'.
+    {{[](InstructionSelectorTest::StreamBuilder& m, Node* x,
+         uint64_t mask) -> Node* {
+        return m.Word64Equal(m.Word64And(m.Int64Constant(mask), x),
+                             m.Int64Constant(mask));
+      },
+      "if ((mask and x) == mask)", kArm64TestAndBranch, MachineType::Int64()},
+     kNotEqual},
+    {{[](InstructionSelectorTest::StreamBuilder& m, Node* x,
+         uint64_t mask) -> Node* {
+        return m.Word64Equal(m.Int64Constant(mask),
+                             m.Word64And(m.Int64Constant(mask), x));
+      },
+      "if (mask == (mask and x))", kArm64TestAndBranch, MachineType::Int64()},
+     kNotEqual}};
+
+using InstructionSelectorTestAndBranchTest64 =
+    InstructionSelectorTestWithParam<TestAndBranch>;
+
+TEST_P(InstructionSelectorTestAndBranchTest64, TestAndBranch64) {
+  const TestAndBranch inst = GetParam();
+  TRACED_FORRANGE(int, bit, 0, 63) {
+    uint64_t mask = uint64_t{1} << bit;
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
+    RawMachineLabel a, b;
+    m.Branch(inst.mi.constructor(m, m.Parameter(0), mask), &a, &b);
+    m.Bind(&a);
+    m.Return(m.Int64Constant(1));
+    m.Bind(&b);
+    m.Return(m.Int64Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(inst.mi.arch_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(inst.cond, s[0]->flags_condition());
+    EXPECT_EQ(4U, s[0]->InputCount());
+    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(bit, s.ToInt64(s[0]->InputAt(1)));
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorTestAndBranchTest64,
+                         ::testing::ValuesIn(kTestAndBranchMatchers64));
 
 TEST_F(InstructionSelectorTest, Word64AndBranchWithOneBitMaskOnRight) {
   TRACED_FORRANGE(int, bit, 0, 63) {
@@ -3506,6 +3592,33 @@ const IntegerCmp kBinopCmpZeroRightInstructions[] = {
      kNotEqual,
      kNotEqual}};
 
+const IntegerCmp kBinop64CmpZeroRightInstructions[] = {
+    {{&RawMachineAssembler::Word64Equal, "Word64Equal", kArm64Cmp,
+      MachineType::Int64()},
+     kEqual,
+     kEqual},
+    {{&RawMachineAssembler::Word64NotEqual, "Word64NotEqual", kArm64Cmp,
+      MachineType::Int64()},
+     kNotEqual,
+     kNotEqual},
+    {{&RawMachineAssembler::Int64LessThan, "Int64LessThan", kArm64Cmp,
+      MachineType::Int64()},
+     kNegative,
+     kNegative},
+    {{&RawMachineAssembler::Int64GreaterThanOrEqual, "Int64GreaterThanOrEqual",
+      kArm64Cmp, MachineType::Int64()},
+     kPositiveOrZero,
+     kPositiveOrZero},
+    {{&RawMachineAssembler::Uint64LessThanOrEqual, "Uint64LessThanOrEqual",
+      kArm64Cmp, MachineType::Int64()},
+     kEqual,
+     kEqual},
+    {{&RawMachineAssembler::Uint64GreaterThan, "Uint64GreaterThan", kArm64Cmp,
+      MachineType::Int64()},
+     kNotEqual,
+     kNotEqual},
+};
+
 const IntegerCmp kBinopCmpZeroLeftInstructions[] = {
     {{&RawMachineAssembler::Word32Equal, "Word32Equal", kArm64Cmp32,
       MachineType::Int32()},
@@ -4524,6 +4637,34 @@ TEST_F(InstructionSelectorTest, CompareAgainstZero32) {
       EXPECT_EQ(31, s.ToInt32(s[0]->InputAt(1)));
     } else {
       EXPECT_EQ(kArm64CompareAndBranch32, s[0]->arch_opcode());
+      EXPECT_EQ(3U, s[0]->InputCount());  // The labels are also inputs.
+      EXPECT_EQ(cmp.cond, s[0]->flags_condition());
+    }
+  }
+}
+
+TEST_F(InstructionSelectorTest, CompareAgainstZero64) {
+  TRACED_FOREACH(IntegerCmp, cmp, kBinop64CmpZeroRightInstructions) {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
+    Node* const param = m.Parameter(0);
+    RawMachineLabel a, b;
+    m.Branch((m.*cmp.mi.constructor)(param, m.Int64Constant(0)), &a, &b);
+    m.Bind(&a);
+    m.Return(m.Int64Constant(1));
+    m.Bind(&b);
+    m.Return(m.Int64Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(s.ToVreg(param), s.ToVreg(s[0]->InputAt(0)));
+    if (cmp.cond == kNegative || cmp.cond == kPositiveOrZero) {
+      EXPECT_EQ(kArm64TestAndBranch, s[0]->arch_opcode());
+      EXPECT_EQ(4U, s[0]->InputCount());  // The labels are also inputs.
+      EXPECT_EQ((cmp.cond == kNegative) ? kNotEqual : kEqual,
+                s[0]->flags_condition());
+      EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+      EXPECT_EQ(63, s.ToInt32(s[0]->InputAt(1)));
+    } else {
+      EXPECT_EQ(kArm64CompareAndBranch, s[0]->arch_opcode());
       EXPECT_EQ(3U, s[0]->InputCount());  // The labels are also inputs.
       EXPECT_EQ(cmp.cond, s[0]->flags_condition());
     }

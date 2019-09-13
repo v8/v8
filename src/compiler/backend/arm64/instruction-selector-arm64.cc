@@ -1830,31 +1830,6 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
   selector->EmitWithContinuation(opcode, left, right, cont);
 }
 
-// Shared routine for multiple word compare operations.
-void VisitWordCompare(InstructionSelector* selector, Node* node,
-                      InstructionCode opcode, FlagsContinuation* cont,
-                      ImmediateMode immediate_mode) {
-  Arm64OperandGenerator g(selector);
-
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-
-  // If one of the two inputs is an immediate, make sure it's on the right.
-  if (!g.CanBeImmediate(right, immediate_mode) &&
-      g.CanBeImmediate(left, immediate_mode)) {
-    cont->Commute();
-    std::swap(left, right);
-  }
-
-  if (g.CanBeImmediate(right, immediate_mode)) {
-    VisitCompare(selector, opcode, g.UseRegister(left), g.UseImmediate(right),
-                 cont);
-  } else {
-    VisitCompare(selector, opcode, g.UseRegister(left), g.UseRegister(right),
-                 cont);
-  }
-}
-
 // This function checks whether we can convert:
 // ((a <op> b) cmp 0), b.<cond>
 // to:
@@ -1986,9 +1961,35 @@ void EmitBranchOrDeoptimize(InstructionSelector* selector,
   selector->EmitWithContinuation(opcode, value, cont);
 }
 
+template <int N>
+struct CbzOrTbzMatchTrait {};
+
+template <>
+struct CbzOrTbzMatchTrait<32> {
+  using IntegralType = uint32_t;
+  using BinopMatcher = Int32BinopMatcher;
+  static constexpr IrOpcode::Value kAndOpcode = IrOpcode::kWord32And;
+  static constexpr ArchOpcode kTestAndBranchOpcode = kArm64TestAndBranch32;
+  static constexpr ArchOpcode kCompareAndBranchOpcode =
+      kArm64CompareAndBranch32;
+  static constexpr unsigned kSignBit = kWSignBit;
+};
+
+template <>
+struct CbzOrTbzMatchTrait<64> {
+  using IntegralType = uint64_t;
+  using BinopMatcher = Int64BinopMatcher;
+  static constexpr IrOpcode::Value kAndOpcode = IrOpcode::kWord64And;
+  static constexpr ArchOpcode kTestAndBranchOpcode = kArm64TestAndBranch;
+  static constexpr ArchOpcode kCompareAndBranchOpcode = kArm64CompareAndBranch;
+  static constexpr unsigned kSignBit = kXSignBit;
+};
+
 // Try to emit TBZ, TBNZ, CBZ or CBNZ for certain comparisons of {node}
 // against {value}, depending on the condition.
-bool TryEmitCbzOrTbz(InstructionSelector* selector, Node* node, uint32_t value,
+template <int N>
+bool TryEmitCbzOrTbz(InstructionSelector* selector, Node* node,
+                     typename CbzOrTbzMatchTrait<N>::IntegralType value,
                      Node* user, FlagsCondition cond, FlagsContinuation* cont) {
   // Branch poisoning requires flags to be set, so when it's enabled for
   // a particular branch, we shouldn't be applying the cbz/tbz optimization.
@@ -2007,28 +2008,33 @@ bool TryEmitCbzOrTbz(InstructionSelector* selector, Node* node, uint32_t value,
       if (cont->IsDeoptimize()) return false;
       Arm64OperandGenerator g(selector);
       cont->Overwrite(MapForTbz(cond));
-      Int32Matcher m(node);
-      if (m.IsFloat64ExtractHighWord32() && selector->CanCover(user, node)) {
-        // SignedLessThan(Float64ExtractHighWord32(x), 0) and
-        // SignedGreaterThanOrEqual(Float64ExtractHighWord32(x), 0) essentially
-        // check the sign bit of a 64-bit floating point value.
-        InstructionOperand temp = g.TempRegister();
-        selector->Emit(kArm64U64MoveFloat64, temp,
-                       g.UseRegister(node->InputAt(0)));
-        selector->EmitWithContinuation(kArm64TestAndBranch, temp,
-                                       g.TempImmediate(63), cont);
-        return true;
+
+      if (N == 32) {
+        Int32Matcher m(node);
+        if (m.IsFloat64ExtractHighWord32() && selector->CanCover(user, node)) {
+          // SignedLessThan(Float64ExtractHighWord32(x), 0) and
+          // SignedGreaterThanOrEqual(Float64ExtractHighWord32(x), 0)
+          // essentially check the sign bit of a 64-bit floating point value.
+          InstructionOperand temp = g.TempRegister();
+          selector->Emit(kArm64U64MoveFloat64, temp,
+                         g.UseRegister(node->InputAt(0)));
+          selector->EmitWithContinuation(kArm64TestAndBranch, temp,
+                                         g.TempImmediate(kDSignBit), cont);
+          return true;
+        }
       }
-      selector->EmitWithContinuation(kArm64TestAndBranch32, g.UseRegister(node),
-                                     g.TempImmediate(31), cont);
+
+      selector->EmitWithContinuation(
+          CbzOrTbzMatchTrait<N>::kTestAndBranchOpcode, g.UseRegister(node),
+          g.TempImmediate(CbzOrTbzMatchTrait<N>::kSignBit), cont);
       return true;
     }
     case kEqual:
     case kNotEqual: {
-      if (node->opcode() == IrOpcode::kWord32And) {
+      if (node->opcode() == CbzOrTbzMatchTrait<N>::kAndOpcode) {
         // Emit a tbz/tbnz if we are comparing with a single-bit mask:
-        //   Branch(Word32Equal(Word32And(x, 1 << N), 1 << N), true, false)
-        Int32BinopMatcher m_and(node);
+        //   Branch(WordEqual(WordAnd(x, 1 << N), 1 << N), true, false)
+        typename CbzOrTbzMatchTrait<N>::BinopMatcher m_and(node);
         if (cont->IsBranch() && base::bits::IsPowerOfTwo(value) &&
             m_and.right().Is(value) && selector->CanCover(user, node)) {
           Arm64OperandGenerator g(selector);
@@ -2036,7 +2042,8 @@ bool TryEmitCbzOrTbz(InstructionSelector* selector, Node* node, uint32_t value,
           // the opposite here so negate the condition.
           cont->Negate();
           selector->EmitWithContinuation(
-              kArm64TestAndBranch32, g.UseRegister(m_and.left().node()),
+              CbzOrTbzMatchTrait<N>::kTestAndBranchOpcode,
+              g.UseRegister(m_and.left().node()),
               g.TempImmediate(base::bits::CountTrailingZeros(value)), cont);
           return true;
         }
@@ -2048,7 +2055,8 @@ bool TryEmitCbzOrTbz(InstructionSelector* selector, Node* node, uint32_t value,
       if (value != 0) return false;
       Arm64OperandGenerator g(selector);
       cont->Overwrite(MapForCbz(cond));
-      EmitBranchOrDeoptimize(selector, kArm64CompareAndBranch32,
+      EmitBranchOrDeoptimize(selector,
+                             CbzOrTbzMatchTrait<N>::kCompareAndBranchOpcode,
                              g.UseRegister(node), cont);
       return true;
     }
@@ -2057,20 +2065,50 @@ bool TryEmitCbzOrTbz(InstructionSelector* selector, Node* node, uint32_t value,
   }
 }
 
+// Shared routine for multiple word compare operations.
+void VisitWordCompare(InstructionSelector* selector, Node* node,
+                      InstructionCode opcode, FlagsContinuation* cont,
+                      ImmediateMode immediate_mode) {
+  Arm64OperandGenerator g(selector);
+
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
+
+  // If one of the two inputs is an immediate, make sure it's on the right.
+  if (!g.CanBeImmediate(right, immediate_mode) &&
+      g.CanBeImmediate(left, immediate_mode)) {
+    cont->Commute();
+    std::swap(left, right);
+  }
+
+  if (opcode == kArm64Cmp && !cont->IsPoisoned()) {
+    Int64Matcher m(right);
+    if (m.HasValue()) {
+      if (TryEmitCbzOrTbz<64>(selector, left, m.Value(), node,
+                              cont->condition(), cont)) {
+        return;
+      }
+    }
+  }
+
+  VisitCompare(selector, opcode, g.UseRegister(left),
+               g.UseOperand(right, immediate_mode), cont);
+}
+
 void VisitWord32Compare(InstructionSelector* selector, Node* node,
                         FlagsContinuation* cont) {
   Int32BinopMatcher m(node);
   FlagsCondition cond = cont->condition();
   if (!cont->IsPoisoned()) {
     if (m.right().HasValue()) {
-      if (TryEmitCbzOrTbz(selector, m.left().node(), m.right().Value(), node,
-                          cond, cont)) {
+      if (TryEmitCbzOrTbz<32>(selector, m.left().node(), m.right().Value(),
+                              node, cond, cont)) {
         return;
       }
     } else if (m.left().HasValue()) {
       FlagsCondition commuted_cond = CommuteFlagsCondition(cond);
-      if (TryEmitCbzOrTbz(selector, m.right().node(), m.left().Value(), node,
-                          commuted_cond, cont)) {
+      if (TryEmitCbzOrTbz<32>(selector, m.right().node(), m.left().Value(),
+                              node, commuted_cond, cont)) {
         return;
       }
     }
@@ -2377,13 +2415,6 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
           Node* const left = m.left().node();
           if (CanCover(value, left) && left->opcode() == IrOpcode::kWord64And) {
             return VisitWordCompare(this, left, kArm64Tst, cont, kLogical64Imm);
-          }
-          // Merge the Word64Equal(x, 0) comparison into a cbz instruction.
-          if ((cont->IsBranch() || cont->IsDeoptimize()) &&
-              !cont->IsPoisoned()) {
-            EmitBranchOrDeoptimize(this, kArm64CompareAndBranch,
-                                   g.UseRegister(left), cont);
-            return;
           }
         }
         return VisitWordCompare(this, value, kArm64Cmp, cont, kArithmeticImm);
