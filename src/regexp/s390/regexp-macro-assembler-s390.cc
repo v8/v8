@@ -38,7 +38,10 @@ namespace internal {
  * The remaining registers are free for computations.
  * Each call to a public method should retain this convention.
  *
- * The stack will have the following structure:
+ * The stack will have the following structure
+ *  - fp[112]  Address regexp     (address of the JSRegExp object; unused in
+ *                                native code, passed to match signature of
+ *                                the interpreter)
  *  - fp[108] Isolate* isolate   (address of the current isolate)
  *  - fp[104] direct_call        (if 1, direct call from JavaScript code,
  *                                if 0, call through the runtime system).
@@ -85,7 +88,8 @@ namespace internal {
  *              int num_capture_registers,
  *              byte* stack_area_base,
  *              bool direct_call = false,
- *              Isolate* isolate);
+ *              Isolate* isolate,
+ *              Address regexp);
  * The call is performed by NativeRegExpMacroAssembler::Execute()
  * (in regexp-macro-assembler.cc) via the GeneratedCode wrapper.
  */
