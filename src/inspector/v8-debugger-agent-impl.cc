@@ -1039,13 +1039,7 @@ Response V8DebuggerAgentImpl::stepOut() {
 
 Response V8DebuggerAgentImpl::pauseOnAsyncCall(
     std::unique_ptr<protocol::Runtime::StackTraceId> inParentStackTraceId) {
-  bool isOk = false;
-  int64_t stackTraceId = inParentStackTraceId->getId().toInteger64(&isOk);
-  if (!isOk) {
-    return Response::Error("Invalid stack trace id");
-  }
-  m_debugger->pauseOnAsyncCall(m_session->contextGroupId(), stackTraceId,
-                               inParentStackTraceId->getDebuggerId(String16()));
+  // Deprecated, just return OK.
   return Response::OK();
 }
 
@@ -1376,24 +1370,6 @@ V8DebuggerAgentImpl::currentExternalStackTrace() {
       .build();
 }
 
-std::unique_ptr<protocol::Runtime::StackTraceId>
-V8DebuggerAgentImpl::currentScheduledAsyncCall() {
-  v8_inspector::V8StackTraceId scheduledAsyncCall =
-      m_debugger->scheduledAsyncCall();
-  if (scheduledAsyncCall.IsInvalid()) return nullptr;
-  std::unique_ptr<protocol::Runtime::StackTraceId> asyncCallStackTrace =
-      protocol::Runtime::StackTraceId::create()
-          .setId(stackTraceIdToString(scheduledAsyncCall.id))
-          .build();
-  // TODO(kozyatinskiy): extract this check to IsLocal function.
-  if (scheduledAsyncCall.debugger_id.first ||
-      scheduledAsyncCall.debugger_id.second) {
-    asyncCallStackTrace->setDebuggerId(
-        debuggerIdToString(scheduledAsyncCall.debugger_id));
-  }
-  return asyncCallStackTrace;
-}
-
 bool V8DebuggerAgentImpl::isPaused() const {
   return m_debugger->isPausedInContextGroup(m_session->contextGroupId());
 }
@@ -1658,8 +1634,7 @@ void V8DebuggerAgentImpl::didPause(
 
   m_frontend.paused(std::move(protocolCallFrames), breakReason,
                     std::move(breakAuxData), std::move(hitBreakpointIds),
-                    currentAsyncStackTrace(), currentExternalStackTrace(),
-                    currentScheduledAsyncCall());
+                    currentAsyncStackTrace(), currentExternalStackTrace());
 }
 
 void V8DebuggerAgentImpl::didContinue() {

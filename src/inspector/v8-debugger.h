@@ -59,8 +59,6 @@ class V8Debugger : public v8::debug::DebugDelegate,
   void stepIntoStatement(int targetContextGroupId, bool breakOnAsyncCall);
   void stepOverStatement(int targetContextGroupId);
   void stepOutOfFunction(int targetContextGroupId);
-  void pauseOnAsyncCall(int targetContextGroupId, uintptr_t task,
-                        const String16& debuggerId);
 
   void terminateExecution(std::unique_ptr<TerminateExecutionCallback> callback);
 
@@ -121,10 +119,6 @@ class V8Debugger : public v8::debug::DebugDelegate,
   void setMaxAsyncTaskStacksForTest(int limit);
   void dumpAsyncTaskStacksStateForTest();
 
-  v8_inspector::V8StackTraceId scheduledAsyncCall() {
-    return m_scheduledAsyncCall;
-  }
-
   std::pair<int64_t, int64_t> debuggerIdFor(int contextGroupId);
   std::pair<int64_t, int64_t> debuggerIdFor(
       const String16& serializedDebuggerId);
@@ -173,7 +167,7 @@ class V8Debugger : public v8::debug::DebugDelegate,
   void asyncTaskStartedForStack(void* task);
   void asyncTaskFinishedForStack(void* task);
 
-  void asyncTaskCandidateForStepping(void* task, bool isLocal);
+  void asyncTaskCandidateForStepping(void* task);
   void asyncTaskStartedForStepping(void* task);
   void asyncTaskFinishedForStepping(void* task);
   void asyncTaskCanceledForStepping(void* task);
@@ -196,6 +190,8 @@ class V8Debugger : public v8::debug::DebugDelegate,
 
   int currentContextGroupId();
   bool asyncStepOutOfFunction(int targetContextGroupId, bool onlyAtReturn);
+
+  bool hasScheduledBreakOnNextFunctionCall() const;
 
   v8::Isolate* m_isolate;
   V8InspectorImpl* m_inspector;
@@ -233,13 +229,17 @@ class V8Debugger : public v8::debug::DebugDelegate,
 
   std::unordered_map<V8DebuggerAgentImpl*, int> m_maxAsyncCallStackDepthMap;
   void* m_taskWithScheduledBreak = nullptr;
-  String16 m_taskWithScheduledBreakDebuggerId;
 
-  bool m_breakRequested = false;
+  // If any of the following three is true, we schedule pause on next JS
+  // execution using SetBreakOnNextFunctionCall.
+  bool m_externalAsyncTaskPauseRequested = false;       // External async task.
+  bool m_taskWithScheduledBreakPauseRequested = false;  // Local async task.
+  bool m_pauseOnNextCallRequested = false;  // setPauseOnNextCall API call.
 
   v8::debug::ExceptionBreakState m_pauseOnExceptionsState;
+  // Whether we should pause on async call execution (if any) while stepping in.
+  // See Debugger.stepInto for details.
   bool m_pauseOnAsyncCall = false;
-  v8_inspector::V8StackTraceId m_scheduledAsyncCall;
 
   using StackTraceIdToStackTrace =
       std::unordered_map<uintptr_t, std::weak_ptr<AsyncStackTrace>>;

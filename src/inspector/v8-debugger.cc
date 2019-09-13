@@ -107,7 +107,9 @@ void V8Debugger::disable() {
   if (--m_enableCount) return;
   clearContinueToLocation();
   m_taskWithScheduledBreak = nullptr;
-  m_taskWithScheduledBreakDebuggerId = String16();
+  m_externalAsyncTaskPauseRequested = false;
+  m_taskWithScheduledBreakPauseRequested = false;
+  m_pauseOnNextCallRequested = false;
   m_pauseOnAsyncCall = false;
   m_wasmTranslation.Clear();
   v8::debug::SetDebugDelegate(m_isolate, nullptr);
@@ -171,12 +173,19 @@ void V8Debugger::setPauseOnNextCall(bool pause, int targetContextGroupId) {
       m_targetContextGroupId != targetContextGroupId) {
     return;
   }
-  m_targetContextGroupId = targetContextGroupId;
-  m_breakRequested = pause;
-  if (pause)
-    v8::debug::SetBreakOnNextFunctionCall(m_isolate);
-  else
-    v8::debug::ClearBreakOnNextFunctionCall(m_isolate);
+  if (pause) {
+    bool didHaveBreak = hasScheduledBreakOnNextFunctionCall();
+    m_pauseOnNextCallRequested = true;
+    if (!didHaveBreak) {
+      m_targetContextGroupId = targetContextGroupId;
+      v8::debug::SetBreakOnNextFunctionCall(m_isolate);
+    }
+  } else {
+    m_pauseOnNextCallRequested = false;
+    if (!hasScheduledBreakOnNextFunctionCall()) {
+      v8::debug::ClearBreakOnNextFunctionCall(m_isolate);
+    }
+  }
 }
 
 bool V8Debugger::canBreakProgram() {
@@ -275,19 +284,10 @@ bool V8Debugger::asyncStepOutOfFunction(int targetContextGroupId,
   void* parentTask =
       std::shared_ptr<AsyncStackTrace>(parent)->suspendedTaskId();
   if (!parentTask) return false;
-  pauseOnAsyncCall(targetContextGroupId,
-                   reinterpret_cast<uintptr_t>(parentTask), String16());
+  m_targetContextGroupId = targetContextGroupId;
+  m_taskWithScheduledBreak = parentTask;
   continueProgram(targetContextGroupId);
   return true;
-}
-
-void V8Debugger::pauseOnAsyncCall(int targetContextGroupId, uintptr_t task,
-                                  const String16& debuggerId) {
-  DCHECK(targetContextGroupId);
-  m_targetContextGroupId = targetContextGroupId;
-
-  m_taskWithScheduledBreak = reinterpret_cast<void*>(task);
-  m_taskWithScheduledBreakDebuggerId = debuggerId;
 }
 
 void V8Debugger::terminateExecution(
@@ -390,10 +390,11 @@ void V8Debugger::handleProgramBreak(
     return;
   }
   m_targetContextGroupId = 0;
-  m_breakRequested = false;
+  m_pauseOnNextCallRequested = false;
   m_pauseOnAsyncCall = false;
   m_taskWithScheduledBreak = nullptr;
-  m_taskWithScheduledBreakDebuggerId = String16();
+  m_externalAsyncTaskPauseRequested = false;
+  m_taskWithScheduledBreakPauseRequested = false;
 
   bool scheduledOOMBreak = m_scheduledOOMBreak;
   bool scheduledAssertBreak = m_scheduledAssertBreak;
@@ -540,15 +541,15 @@ void V8Debugger::AsyncEventOccurred(v8::debug::DebugAsyncActionType type,
   switch (type) {
     case v8::debug::kDebugPromiseThen:
       asyncTaskScheduledForStack("Promise.then", task, false);
-      if (!isBlackboxed) asyncTaskCandidateForStepping(task, true);
+      if (!isBlackboxed) asyncTaskCandidateForStepping(task);
       break;
     case v8::debug::kDebugPromiseCatch:
       asyncTaskScheduledForStack("Promise.catch", task, false);
-      if (!isBlackboxed) asyncTaskCandidateForStepping(task, true);
+      if (!isBlackboxed) asyncTaskCandidateForStepping(task);
       break;
     case v8::debug::kDebugPromiseFinally:
       asyncTaskScheduledForStack("Promise.finally", task, false);
-      if (!isBlackboxed) asyncTaskCandidateForStepping(task, true);
+      if (!isBlackboxed) asyncTaskCandidateForStepping(task);
       break;
     case v8::debug::kDebugWillHandle:
       asyncTaskStartedForStack(task);
@@ -811,9 +812,13 @@ V8StackTraceId V8Debugger::storeCurrentStackTrace(
   ++m_asyncStacksCount;
   collectOldAsyncStacksIfNeeded();
 
-  asyncTaskCandidateForStepping(reinterpret_cast<void*>(id), false);
-
-  return V8StackTraceId(id, debuggerIdFor(contextGroupId));
+  bool shouldPause =
+      m_pauseOnAsyncCall && contextGroupId == m_targetContextGroupId;
+  if (shouldPause) {
+    m_pauseOnAsyncCall = false;
+    v8::debug::ClearStepping(m_isolate);  // Cancel step into.
+  }
+  return V8StackTraceId(id, debuggerIdFor(contextGroupId), shouldPause);
 }
 
 uintptr_t V8Debugger::storeStackTrace(
@@ -829,13 +834,12 @@ void V8Debugger::externalAsyncTaskStarted(const V8StackTraceId& parent) {
   m_currentAsyncParent.emplace_back();
   m_currentTasks.push_back(reinterpret_cast<void*>(parent.id));
 
-  if (m_breakRequested) return;
-  if (!m_taskWithScheduledBreakDebuggerId.isEmpty() &&
-      reinterpret_cast<uintptr_t>(m_taskWithScheduledBreak) == parent.id &&
-      m_taskWithScheduledBreakDebuggerId ==
-          debuggerIdToString(parent.debugger_id)) {
-    v8::debug::SetBreakOnNextFunctionCall(m_isolate);
-  }
+  if (!parent.should_pause) return;
+  bool didHaveBreak = hasScheduledBreakOnNextFunctionCall();
+  m_externalAsyncTaskPauseRequested = true;
+  if (didHaveBreak) return;
+  m_targetContextGroupId = currentContextGroupId();
+  v8::debug::SetBreakOnNextFunctionCall(m_isolate);
 }
 
 void V8Debugger::externalAsyncTaskFinished(const V8StackTraceId& parent) {
@@ -845,22 +849,16 @@ void V8Debugger::externalAsyncTaskFinished(const V8StackTraceId& parent) {
   DCHECK(m_currentTasks.back() == reinterpret_cast<void*>(parent.id));
   m_currentTasks.pop_back();
 
-  if (m_taskWithScheduledBreakDebuggerId.isEmpty() ||
-      reinterpret_cast<uintptr_t>(m_taskWithScheduledBreak) != parent.id ||
-      m_taskWithScheduledBreakDebuggerId !=
-          debuggerIdToString(parent.debugger_id)) {
-    return;
-  }
-  m_taskWithScheduledBreak = nullptr;
-  m_taskWithScheduledBreakDebuggerId = String16();
-  if (m_breakRequested) return;
+  if (!parent.should_pause) return;
+  m_externalAsyncTaskPauseRequested = false;
+  if (hasScheduledBreakOnNextFunctionCall()) return;
   v8::debug::ClearBreakOnNextFunctionCall(m_isolate);
 }
 
 void V8Debugger::asyncTaskScheduled(const StringView& taskName, void* task,
                                     bool recurring) {
   asyncTaskScheduledForStack(toString16(taskName), task, recurring);
-  asyncTaskCandidateForStepping(task, true);
+  asyncTaskCandidateForStepping(task);
 }
 
 void V8Debugger::asyncTaskCanceled(void* task) {
@@ -936,46 +934,36 @@ void V8Debugger::asyncTaskFinishedForStack(void* task) {
   }
 }
 
-void V8Debugger::asyncTaskCandidateForStepping(void* task, bool isLocal) {
+void V8Debugger::asyncTaskCandidateForStepping(void* task) {
   if (!m_pauseOnAsyncCall) return;
   int contextGroupId = currentContextGroupId();
   if (contextGroupId != m_targetContextGroupId) return;
-  if (isLocal) {
-    m_scheduledAsyncCall = v8_inspector::V8StackTraceId(
-        reinterpret_cast<uintptr_t>(task), std::make_pair(0, 0));
-  } else {
-    m_scheduledAsyncCall = v8_inspector::V8StackTraceId(
-        reinterpret_cast<uintptr_t>(task), debuggerIdFor(contextGroupId));
-  }
-  breakProgram(m_targetContextGroupId);
-  m_scheduledAsyncCall = v8_inspector::V8StackTraceId();
+  m_taskWithScheduledBreak = task;
+  m_pauseOnAsyncCall = false;
+  v8::debug::ClearStepping(m_isolate);  // Cancel step into.
 }
 
 void V8Debugger::asyncTaskStartedForStepping(void* task) {
-  if (m_breakRequested) return;
   // TODO(kozyatinskiy): we should search task in async chain to support
   // blackboxing.
-  if (m_taskWithScheduledBreakDebuggerId.isEmpty() &&
-      task == m_taskWithScheduledBreak) {
-    v8::debug::SetBreakOnNextFunctionCall(m_isolate);
-  }
+  if (task != m_taskWithScheduledBreak) return;
+  bool didHaveBreak = hasScheduledBreakOnNextFunctionCall();
+  m_taskWithScheduledBreakPauseRequested = true;
+  if (didHaveBreak) return;
+  m_targetContextGroupId = currentContextGroupId();
+  v8::debug::SetBreakOnNextFunctionCall(m_isolate);
 }
 
 void V8Debugger::asyncTaskFinishedForStepping(void* task) {
-  if (!m_taskWithScheduledBreakDebuggerId.isEmpty() ||
-      task != m_taskWithScheduledBreak) {
-    return;
-  }
+  if (task != m_taskWithScheduledBreak) return;
   m_taskWithScheduledBreak = nullptr;
-  if (m_breakRequested) return;
+  m_taskWithScheduledBreakPauseRequested = false;
+  if (hasScheduledBreakOnNextFunctionCall()) return;
   v8::debug::ClearBreakOnNextFunctionCall(m_isolate);
 }
 
 void V8Debugger::asyncTaskCanceledForStepping(void* task) {
-  if (!m_taskWithScheduledBreakDebuggerId.isEmpty() ||
-      task != m_taskWithScheduledBreak)
-    return;
-  m_taskWithScheduledBreak = nullptr;
+  asyncTaskFinishedForStepping(task);
 }
 
 void V8Debugger::allAsyncTasksCanceled() {
@@ -1108,6 +1096,11 @@ void V8Debugger::dumpAsyncTaskStacksStateForTest() {
   fprintf(stdout, "Scheduled async tasks: %zu\n", m_asyncTaskStacks.size());
   fprintf(stdout, "Recurring async tasks: %zu\n", m_recurringTasks.size());
   fprintf(stdout, "\n");
+}
+
+bool V8Debugger::hasScheduledBreakOnNextFunctionCall() const {
+  return m_pauseOnNextCallRequested || m_taskWithScheduledBreakPauseRequested ||
+         m_externalAsyncTaskPauseRequested;
 }
 
 }  // namespace v8_inspector

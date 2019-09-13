@@ -237,7 +237,7 @@ domain Debugger
   # Stops on the next JavaScript statement.
   command pause
 
-  experimental command pauseOnAsyncCall
+  experimental deprecated command pauseOnAsyncCall
     parameters
       # Debugger will pause when async call with given stack trace is started.
       Runtime.StackTraceId parentStackTraceId
@@ -435,7 +435,7 @@ domain Debugger
   # Steps into the function call.
   command stepInto
     parameters
-      # Debugger will issue additional Debugger.paused notification if any async task is scheduled
+      # Debugger will pause on the execution of the first async task which was scheduled
       # before next pause.
       experimental optional boolean breakOnAsyncCall
 
@@ -479,9 +479,8 @@ domain Debugger
       optional Runtime.StackTrace asyncStackTrace
       # Async stack trace, if any.
       experimental optional Runtime.StackTraceId asyncStackTraceId
-      # Just scheduled async call will have this stack trace as parent stack during async execution.
-      # This field is available only after `Debugger.stepInto` call with `breakOnAsynCall` flag.
-      experimental optional Runtime.StackTraceId asyncCallStackTraceId
+      # Never present, will be removed.
+      experimental deprecated optional Runtime.StackTraceId asyncCallStackTraceId
 
   # Fired when the virtual machine resumed execution.
   event resumed
