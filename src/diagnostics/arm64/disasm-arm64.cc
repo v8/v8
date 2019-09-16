@@ -3960,7 +3960,7 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
             unsigned rd_index, rn_index;
             unsigned imm5 = instr->ImmNEON5();
             unsigned imm4 = instr->ImmNEON4();
-            int tz = CountTrailingZeros(imm5, 32);
+            int tz = base::bits::CountTrailingZeros(imm5);
             if (tz <= 3) {  // Defined for 0 <= tz <= 3 only.
               rd_index = imm5 >> (tz + 1);
               rn_index = imm4 >> tz;

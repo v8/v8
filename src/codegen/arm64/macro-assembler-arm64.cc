@@ -650,7 +650,14 @@ Operand TurboAssembler::MoveImmediateForShiftedOp(const Register& dst,
     // The move was successful; nothing to do here.
   } else {
     // Pre-shift the immediate to the least-significant bits of the register.
-    int shift_low = CountTrailingZeros(imm, reg_size);
+    int shift_low;
+    if (reg_size == 64) {
+      shift_low = base::bits::CountTrailingZeros(imm);
+    } else {
+      DCHECK_EQ(reg_size, 32);
+      shift_low = base::bits::CountTrailingZeros(static_cast<uint32_t>(imm));
+    }
+
     if (mode == kLimitShiftForSP) {
       // When applied to the stack pointer, the subsequent arithmetic operation
       // can use the extend form to shift left by a maximum of four bits. Right

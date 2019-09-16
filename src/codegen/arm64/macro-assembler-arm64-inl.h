@@ -1083,7 +1083,7 @@ void TurboAssembler::Claim(const Register& count, uint64_t unit_size) {
   if (unit_size == 0) return;
   DCHECK(base::bits::IsPowerOfTwo(unit_size));
 
-  const int shift = CountTrailingZeros(unit_size, kXRegSizeInBits);
+  const int shift = base::bits::CountTrailingZeros(unit_size);
   const Operand size(count, LSL, shift);
 
   if (size.IsZero()) {
@@ -1136,7 +1136,7 @@ void TurboAssembler::Drop(const Register& count, uint64_t unit_size) {
   if (unit_size == 0) return;
   DCHECK(base::bits::IsPowerOfTwo(unit_size));
 
-  const int shift = CountTrailingZeros(unit_size, kXRegSizeInBits);
+  const int shift = base::bits::CountTrailingZeros(unit_size);
   const Operand size(count, LSL, shift);
 
   if (size.IsZero()) {

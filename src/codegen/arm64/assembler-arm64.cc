@@ -67,7 +67,7 @@ CPURegister CPURegList::PopLowestIndex() {
   if (IsEmpty()) {
     return NoCPUReg;
   }
-  int index = CountTrailingZeros(list_, kRegListSizeInBits);
+  int index = base::bits::CountTrailingZeros(list_);
   DCHECK((1LL << index) & list_);
   Remove(index);
   return CPURegister::Create(index, size_, type_);
