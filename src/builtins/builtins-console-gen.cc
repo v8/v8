@@ -17,8 +17,8 @@ TF_BUILTIN(FastConsoleAssert, CodeStubAssembler) {
 
   TNode<Int32T> argc =
       UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
-  Node* context = Parameter(Descriptor::kContext);
-  Node* new_target = Parameter(Descriptor::kJSNewTarget);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
   GotoIf(Word32Equal(argc, Int32Constant(0)), &runtime);
 
   CodeStubArguments args(this, argc);
