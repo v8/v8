@@ -529,19 +529,19 @@ ExternalReference ExternalReference::address_of_regexp_stack_memory_top_address(
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_acos_function, base::ieee754::acos,
                              BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_acosh_function, base::ieee754::acosh,
-                             BUILTIN_FP_FP_CALL)
+                             BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_asin_function, base::ieee754::asin,
                              BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_asinh_function, base::ieee754::asinh,
-                             BUILTIN_FP_FP_CALL)
+                             BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_atan_function, base::ieee754::atan,
                              BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_atanh_function, base::ieee754::atanh,
-                             BUILTIN_FP_FP_CALL)
+                             BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_atan2_function, base::ieee754::atan2,
                              BUILTIN_FP_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_cbrt_function, base::ieee754::cbrt,
-                             BUILTIN_FP_FP_CALL)
+                             BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_cos_function, base::ieee754::cos,
                              BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_cosh_function, base::ieee754::cosh,
@@ -549,7 +549,7 @@ FUNCTION_REFERENCE_WITH_TYPE(ieee754_cosh_function, base::ieee754::cosh,
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_exp_function, base::ieee754::exp,
                              BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_expm1_function, base::ieee754::expm1,
-                             BUILTIN_FP_FP_CALL)
+                             BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_log_function, base::ieee754::log,
                              BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_log1p_function, base::ieee754::log1p,

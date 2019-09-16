@@ -3968,19 +3968,24 @@ void Assembler::LoadStore(const CPURegister& rt, const MemOperand& addr,
 bool Assembler::IsImmLSUnscaled(int64_t offset) { return is_int9(offset); }
 
 bool Assembler::IsImmLSScaled(int64_t offset, unsigned size) {
-  bool offset_is_size_multiple = (((offset >> size) << size) == offset);
+  bool offset_is_size_multiple =
+      (static_cast<int64_t>(static_cast<uint64_t>(offset >> size) << size) ==
+       offset);
   return offset_is_size_multiple && is_uint12(offset >> size);
 }
 
 bool Assembler::IsImmLSPair(int64_t offset, unsigned size) {
-  bool offset_is_size_multiple = (((offset >> size) << size) == offset);
+  bool offset_is_size_multiple =
+      (static_cast<int64_t>(static_cast<uint64_t>(offset >> size) << size) ==
+       offset);
   return offset_is_size_multiple && is_int7(offset >> size);
 }
 
 bool Assembler::IsImmLLiteral(int64_t offset) {
   int inst_size = static_cast<int>(kInstrSizeLog2);
   bool offset_is_inst_multiple =
-      (((offset >> inst_size) << inst_size) == offset);
+      (static_cast<int64_t>(static_cast<uint64_t>(offset >> inst_size)
+                            << inst_size) == offset);
   DCHECK_GT(offset, 0);
   offset >>= kLoadLiteralScaleLog2;
   return offset_is_inst_multiple && is_intn(offset, ImmLLiteral_width);
@@ -4179,9 +4184,9 @@ bool Assembler::IsImmLogical(uint64_t value, unsigned width, unsigned* n,
   //    1110ss     4    UInt(ss)
   //    11110s     2    UInt(s)
   //
-  // So we 'or' (-d << 1) with our computed s to form imms.
+  // So we 'or' (-d * 2) with our computed s to form imms.
   *n = out_n;
-  *imm_s = ((-d << 1) | (s - 1)) & 0x3F;
+  *imm_s = ((-d * 2) | (s - 1)) & 0x3F;
   *imm_r = r;
 
   return true;

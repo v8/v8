@@ -499,6 +499,7 @@ void VisitAddSub(InstructionSelector* selector, Node* node, ArchOpcode opcode,
   Arm64OperandGenerator g(selector);
   Matcher m(node);
   if (m.right().HasValue() && (m.right().Value() < 0) &&
+      (m.right().Value() > std::numeric_limits<int>::min()) &&
       g.CanBeImmediate(-m.right().Value(), kArithmeticImm)) {
     selector->Emit(negate_opcode, g.DefineAsRegister(node),
                    g.UseRegister(m.left().node()),
@@ -1048,7 +1049,8 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
     if (mleft.right().HasValue() && mleft.right().Value() != 0) {
       // Select Ubfx for Shr(And(x, mask), imm) where the result of the mask is
       // shifted into the least-significant bits.
-      uint32_t mask = (mleft.right().Value() >> lsb) << lsb;
+      uint32_t mask = static_cast<uint32_t>(mleft.right().Value() >> lsb)
+                      << lsb;
       unsigned mask_width = base::bits::CountPopulation(mask);
       unsigned mask_msb = base::bits::CountLeadingZeros32(mask);
       if ((mask_msb + mask_width + lsb) == 32) {
@@ -1091,7 +1093,8 @@ void InstructionSelector::VisitWord64Shr(Node* node) {
     if (mleft.right().HasValue() && mleft.right().Value() != 0) {
       // Select Ubfx for Shr(And(x, mask), imm) where the result of the mask is
       // shifted into the least-significant bits.
-      uint64_t mask = (mleft.right().Value() >> lsb) << lsb;
+      uint64_t mask = static_cast<uint64_t>(mleft.right().Value() >> lsb)
+                      << lsb;
       unsigned mask_width = base::bits::CountPopulation(mask);
       unsigned mask_msb = base::bits::CountLeadingZeros64(mask);
       if ((mask_msb + mask_width + lsb) == 64) {

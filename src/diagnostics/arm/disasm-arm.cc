@@ -590,7 +590,7 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
     }
     case 't': {  // 'target: target of branch instructions
       DCHECK(STRING_STARTS_WITH(format, "target"));
-      int off = (instr->SImmed24Value() << 2) + 8;
+      int off = (static_cast<uint32_t>(instr->SImmed24Value()) << 2) + 8u;
       out_buffer_pos_ += SNPrintF(
           out_buffer_ + out_buffer_pos_, "%+d -> %s", off,
           converter_.NameOfAddress(reinterpret_cast<byte*>(instr) + off));

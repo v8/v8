@@ -3840,8 +3840,8 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
     case 'L': {
       switch (format[2]) {
         case 'L': {  // ILLiteral - Immediate Load Literal.
-          AppendToOutput("pc%+" PRId32, instr->ImmLLiteral()
-                                            << kLoadLiteralScaleLog2);
+          AppendToOutput("pc%+" PRId32,
+                         instr->ImmLLiteral() * kLoadLiteralScale);
           return 9;
         }
         case 'S': {  // ILS - Immediate Load/Store.
@@ -4179,7 +4179,7 @@ int DisassemblingDecoder::SubstituteBranchTargetField(Instruction* instr,
     default:
       UNREACHABLE();
   }
-  offset <<= kInstrSizeLog2;
+  offset *= kInstrSize;
   char sign = '+';
   if (offset < 0) {
     sign = '-';

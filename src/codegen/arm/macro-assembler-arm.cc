@@ -573,7 +573,7 @@ void MacroAssembler::Ubfx(Register dst, Register src1, int lsb, int width,
                           Condition cond) {
   DCHECK_LT(lsb, 32);
   if (!CpuFeatures::IsSupported(ARMv7) || predictable_code_size()) {
-    int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
+    int mask = (1u << (width + lsb)) - 1u - ((1u << lsb) - 1u);
     and_(dst, src1, Operand(mask), LeaveCC, cond);
     if (lsb != 0) {
       mov(dst, Operand(dst, LSR, lsb), LeaveCC, cond);

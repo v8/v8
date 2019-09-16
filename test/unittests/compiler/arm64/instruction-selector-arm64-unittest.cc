@@ -4131,7 +4131,7 @@ TEST_F(InstructionSelectorTest, Word32AndWithImmediateWithWord32Shr) {
   TRACED_FORRANGE(int32_t, shift, -32, 63) {
     int32_t lsb = shift & 0x1F;
     TRACED_FORRANGE(int32_t, width, 1, 31) {
-      uint32_t msk = (1 << width) - 1;
+      uint32_t msk = (1u << width) - 1;
       StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
       m.Return(m.Word32And(m.Word32Shr(m.Parameter(0), m.Int32Constant(shift)),
                            m.Int32Constant(msk)));
@@ -4147,7 +4147,7 @@ TEST_F(InstructionSelectorTest, Word32AndWithImmediateWithWord32Shr) {
   TRACED_FORRANGE(int32_t, shift, -32, 63) {
     int32_t lsb = shift & 0x1F;
     TRACED_FORRANGE(int32_t, width, 1, 31) {
-      uint32_t msk = (1 << width) - 1;
+      uint32_t msk = (1u << width) - 1;
       StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
       m.Return(
           m.Word32And(m.Int32Constant(msk),
@@ -4394,7 +4394,7 @@ TEST_F(InstructionSelectorTest, Word32ShlWithWord32And) {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
     Node* const p0 = m.Parameter(0);
     Node* const r =
-        m.Word32Shl(m.Word32And(p0, m.Int32Constant((1 << (31 - shift)) - 1)),
+        m.Word32Shl(m.Word32And(p0, m.Int32Constant((1u << (31 - shift)) - 1)),
                     m.Int32Constant(shift + 1));
     m.Return(r);
     Stream s = m.Build();

@@ -145,7 +145,12 @@ class StackFrame {
     intptr_t type = marker >> kSmiTagSize;
     // TODO(petermarshall): There is a bug in the arm simulators that causes
     // invalid frame markers.
-#if !(defined(USE_SIMULATOR) && (V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM))
+#if defined(USE_SIMULATOR) && (V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM)
+    if (static_cast<uintptr_t>(type) >= Type::NUMBER_OF_TYPES) {
+      // Appease UBSan.
+      return Type::NUMBER_OF_TYPES;
+    }
+#else
     DCHECK_LT(static_cast<uintptr_t>(type), Type::NUMBER_OF_TYPES);
 #endif
     return static_cast<Type>(type);

@@ -118,7 +118,9 @@ int HighestSetBitPosition(uint64_t value) {
 }
 
 uint64_t LargestPowerOf2Divisor(uint64_t value) {
-  return value & (-(int64_t)value);
+  // Simulate two's complement (instead of casting to signed and negating) to
+  // avoid undefined behavior on signed overflow.
+  return value & ((~value) + 1);
 }
 
 int MaskToBit(uint64_t mask) {
