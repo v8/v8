@@ -855,7 +855,6 @@ class Heap {
   static Address store_buffer_overflow_function_address();
 
   void MoveStoreBufferEntriesToRememberedSet();
-
   void ClearRecordedSlot(HeapObject object, ObjectSlot slot);
   void ClearRecordedSlotRange(Address start, Address end);
 

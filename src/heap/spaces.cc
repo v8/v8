@@ -18,6 +18,7 @@
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-controller.h"
 #include "src/heap/incremental-marking-inl.h"
+#include "src/heap/invalidated-slots-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/remembered-set.h"
@@ -698,6 +699,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->InitializeReservedMemory();
   base::AsAtomicPointer::Release_Store(&chunk->slot_set_[OLD_TO_NEW], nullptr);
   base::AsAtomicPointer::Release_Store(&chunk->slot_set_[OLD_TO_OLD], nullptr);
+  base::AsAtomicPointer::Release_Store(&chunk->sweeping_slot_set_, nullptr);
   base::AsAtomicPointer::Release_Store(&chunk->typed_slot_set_[OLD_TO_NEW],
                                        nullptr);
   base::AsAtomicPointer::Release_Store(&chunk->typed_slot_set_[OLD_TO_OLD],
@@ -853,6 +855,33 @@ Page* Page::ConvertNewToOld(Page* old_page) {
   Page* new_page = old_space->InitializePage(old_page);
   old_space->AddPage(new_page);
   return new_page;
+}
+
+void Page::MoveOldToNewRememberedSetForSweeping() {
+  CHECK_NULL(sweeping_slot_set_);
+  sweeping_slot_set_ = slot_set_[OLD_TO_NEW];
+  slot_set_[OLD_TO_NEW] = nullptr;
+}
+
+void Page::MergeOldToNewRememberedSets() {
+  if (sweeping_slot_set_ == nullptr) return;
+
+  RememberedSet<OLD_TO_NEW>::Iterate(
+      this,
+      [this](MaybeObjectSlot slot) {
+        Address address = slot.address();
+        RememberedSetSweeping::Insert(this, address);
+        return KEEP_SLOT;
+      },
+      SlotSet::KEEP_EMPTY_BUCKETS);
+
+  if (slot_set_[OLD_TO_NEW]) {
+    ReleaseSlotSet<OLD_TO_NEW>();
+  }
+
+  CHECK_NULL(slot_set_[OLD_TO_NEW]);
+  slot_set_[OLD_TO_NEW] = sweeping_slot_set_;
+  sweeping_slot_set_ = nullptr;
 }
 
 size_t MemoryChunk::CommittedPhysicalMemory() {
@@ -1375,6 +1404,7 @@ void MemoryChunk::ReleaseAllocatedMemoryNeededForWritableChunk() {
   }
 
   ReleaseSlotSet<OLD_TO_NEW>();
+  ReleaseSlotSet(&sweeping_slot_set_);
   ReleaseSlotSet<OLD_TO_OLD>();
   ReleaseTypedSlotSet<OLD_TO_NEW>();
   ReleaseTypedSlotSet<OLD_TO_OLD>();
@@ -1410,15 +1440,23 @@ template V8_EXPORT_PRIVATE SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_OLD>();
 
 template <RememberedSetType type>
 SlotSet* MemoryChunk::AllocateSlotSet() {
-  SlotSet* slot_set = AllocateAndInitializeSlotSet(size(), address());
+  return AllocateSlotSet(&slot_set_[type]);
+}
+
+SlotSet* MemoryChunk::AllocateSweepingSlotSet() {
+  return AllocateSlotSet(&sweeping_slot_set_);
+}
+
+SlotSet* MemoryChunk::AllocateSlotSet(SlotSet** slot_set) {
+  SlotSet* new_slot_set = AllocateAndInitializeSlotSet(size(), address());
   SlotSet* old_slot_set = base::AsAtomicPointer::Release_CompareAndSwap(
-      &slot_set_[type], nullptr, slot_set);
+      slot_set, nullptr, new_slot_set);
   if (old_slot_set != nullptr) {
-    delete[] slot_set;
-    slot_set = old_slot_set;
+    delete[] new_slot_set;
+    new_slot_set = old_slot_set;
   }
-  DCHECK(slot_set);
-  return slot_set;
+  DCHECK(new_slot_set);
+  return new_slot_set;
 }
 
 template void MemoryChunk::ReleaseSlotSet<OLD_TO_NEW>();
@@ -1426,10 +1464,13 @@ template void MemoryChunk::ReleaseSlotSet<OLD_TO_OLD>();
 
 template <RememberedSetType type>
 void MemoryChunk::ReleaseSlotSet() {
-  SlotSet* slot_set = slot_set_[type];
-  if (slot_set) {
-    slot_set_[type] = nullptr;
-    delete[] slot_set;
+  ReleaseSlotSet(&slot_set_[type]);
+}
+
+void MemoryChunk::ReleaseSlotSet(SlotSet** slot_set) {
+  if (*slot_set) {
+    delete[] * slot_set;
+    *slot_set = nullptr;
   }
 }
 
@@ -1626,6 +1667,13 @@ void PagedSpace::RefillFreeList() {
   DCHECK(!IsDetached());
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   size_t added = 0;
+
+  // Avoid races with concurrent store buffer processing when merging
+  // old-to-new remembered sets later.
+  if (!is_local()) {
+    heap()->MoveStoreBufferEntriesToRememberedSet();
+  }
+
   {
     Page* p = nullptr;
     while ((p = collector->sweeper()->GetSweptPageSafe(this)) != nullptr) {
@@ -1636,6 +1684,15 @@ void PagedSpace::RefillFreeList() {
           category->Reset(free_list());
         });
       }
+
+      // Also merge old-to-new remembered sets outside of collections.
+      // Do not do this during GC, because of races during scavenges.
+      // One thread might iterate remembered set, while another thread merges
+      // them.
+      if (!is_local()) {
+        p->MergeOldToNewRememberedSets();
+      }
+
       // Only during compaction pages can actually change ownership. This is
       // safe because there exists no other competing action on the page links
       // during compaction.
@@ -1678,6 +1735,9 @@ void PagedSpace::MergeCompactionSpace(CompactionSpace* other) {
   // Move over pages.
   for (auto it = other->begin(); it != other->end();) {
     Page* p = *(it++);
+
+    p->MergeOldToNewRememberedSets();
+
     // Relinking requires the category to be unlinked.
     other->RemovePage(p);
     AddPage(p);

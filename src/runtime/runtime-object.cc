@@ -153,6 +153,9 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
       // Slot clearing is the reason why this entire function cannot currently
       // be implemented in the DeleteProperty stub.
       if (index.is_inobject() && !receiver_map->IsUnboxedDoubleField(index)) {
+        // We need to clear the recorded slot in this case because in-object
+        // slack tracking might not be finished. This ensures that we don't
+        // have recorded slots in free space.
         isolate->heap()->ClearRecordedSlot(*receiver,
                                            receiver->RawField(index.offset()));
         MemoryChunk* chunk = MemoryChunk::FromHeapObject(*receiver);

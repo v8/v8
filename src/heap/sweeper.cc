@@ -320,8 +320,8 @@ int Sweeper::RawSweep(
             ClearFreedMemoryMode::kClearFreedMemory);
       }
       if (should_reduce_memory_) p->DiscardUnusedMemory(free_start, size);
-      RememberedSet<OLD_TO_NEW>::RemoveRange(p, free_start, free_end,
-                                             SlotSet::KEEP_EMPTY_BUCKETS);
+      RememberedSetSweeping::RemoveRange(p, free_start, free_end,
+                                         SlotSet::KEEP_EMPTY_BUCKETS);
       RememberedSet<OLD_TO_OLD>::RemoveRange(p, free_start, free_end,
                                              SlotSet::KEEP_EMPTY_BUCKETS);
       if (non_empty_typed_slots) {
@@ -354,8 +354,8 @@ int Sweeper::RawSweep(
                                       ClearFreedMemoryMode::kClearFreedMemory);
     }
     if (should_reduce_memory_) p->DiscardUnusedMemory(free_start, size);
-    RememberedSet<OLD_TO_NEW>::RemoveRange(p, free_start, p->area_end(),
-                                           SlotSet::KEEP_EMPTY_BUCKETS);
+    RememberedSetSweeping::RemoveRange(p, free_start, p->area_end(),
+                                       SlotSet::KEEP_EMPTY_BUCKETS);
     RememberedSet<OLD_TO_OLD>::RemoveRange(p, free_start, p->area_end(),
                                            SlotSet::KEEP_EMPTY_BUCKETS);
     if (non_empty_typed_slots) {
@@ -516,6 +516,7 @@ void Sweeper::PrepareToBeSweptPage(AllocationSpace space, Page* page) {
     DCHECK(!category->is_linked(page->owner()->free_list()));
   });
 #endif  // DEBUG
+  page->MoveOldToNewRememberedSetForSweeping();
   page->set_concurrent_sweeping_state(Page::kSweepingPending);
   heap_->paged_space(space)->IncreaseAllocatedBytes(
       marking_state_->live_bytes(page), page);

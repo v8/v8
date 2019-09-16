@@ -3421,6 +3421,17 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           SlotSet::PREFREE_EMPTY_BUCKETS);
     }
 
+    if (chunk_->sweeping_slot_set<AccessMode::NON_ATOMIC>()) {
+      InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(chunk_);
+      RememberedSetSweeping::Iterate(
+          chunk_,
+          [this, &filter](MaybeObjectSlot slot) {
+            CHECK(filter.IsValid(slot.address()));
+            return CheckAndUpdateOldToNewSlot(slot);
+          },
+          SlotSet::PREFREE_EMPTY_BUCKETS);
+    }
+
     if (chunk_->invalidated_slots<OLD_TO_NEW>() != nullptr) {
       // The invalidated slots are not needed after old-to-new slots were
       // processed.
@@ -3437,6 +3448,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
             return UpdateSlot<AccessMode::NON_ATOMIC>(slot);
           },
           SlotSet::PREFREE_EMPTY_BUCKETS);
+      chunk_->ReleaseSlotSet<OLD_TO_OLD>();
     }
     if ((updating_mode_ == RememberedSetUpdatingMode::ALL) &&
         chunk_->invalidated_slots<OLD_TO_OLD>() != nullptr) {
@@ -3556,15 +3568,18 @@ int MarkCompactCollectorBase::CollectRememberedSetUpdatingItems(
     const bool contains_old_to_new_slots =
         chunk->slot_set<OLD_TO_NEW>() != nullptr ||
         chunk->typed_slot_set<OLD_TO_NEW>() != nullptr;
+    const bool contains_old_to_new_sweeping_slots =
+        chunk->sweeping_slot_set() != nullptr;
     const bool contains_old_to_old_invalidated_slots =
         chunk->invalidated_slots<OLD_TO_OLD>() != nullptr;
     const bool contains_old_to_new_invalidated_slots =
         chunk->invalidated_slots<OLD_TO_NEW>() != nullptr;
-    if (!contains_old_to_new_slots && !contains_old_to_old_slots &&
-        !contains_old_to_old_invalidated_slots &&
+    if (!contains_old_to_new_slots && !contains_old_to_new_sweeping_slots &&
+        !contains_old_to_old_slots && !contains_old_to_old_invalidated_slots &&
         !contains_old_to_new_invalidated_slots)
       continue;
     if (mode == RememberedSetUpdatingMode::ALL || contains_old_to_new_slots ||
+        contains_old_to_new_sweeping_slots ||
         contains_old_to_old_invalidated_slots ||
         contains_old_to_new_invalidated_slots) {
       job->AddItem(CreateRememberedSetUpdatingItem(chunk, mode));
@@ -4645,6 +4660,14 @@ class PageMarkingItem : public MarkingItem {
   void MarkUntypedPointers(YoungGenerationMarkingTask* task) {
     InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(chunk_);
     RememberedSet<OLD_TO_NEW>::Iterate(
+        chunk_,
+        [this, task, &filter](MaybeObjectSlot slot) {
+          if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
+          return CheckAndMarkObject(task, slot);
+        },
+        SlotSet::PREFREE_EMPTY_BUCKETS);
+    filter = InvalidatedSlotsFilter::OldToNew(chunk_);
+    RememberedSetSweeping::Iterate(
         chunk_,
         [this, task, &filter](MaybeObjectSlot slot) {
           if (!filter.IsValid(slot.address())) return REMOVE_SLOT;

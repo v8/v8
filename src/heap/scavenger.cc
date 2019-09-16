@@ -153,8 +153,15 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
 
       if (result == KEEP_SLOT) {
         SLOW_DCHECK(target.IsHeapObject());
-        RememberedSet<OLD_TO_NEW>::Insert(MemoryChunk::FromHeapObject(host),
-                                          slot.address());
+        MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
+
+        // Sweeper is stopped during scavenge, so we can directly
+        // insert into its remembered set here.
+        if (chunk->sweeping_slot_set()) {
+          RememberedSetSweeping::Insert(chunk, slot.address());
+        } else {
+          RememberedSet<OLD_TO_NEW>::Insert(chunk, slot.address());
+        }
       }
       SLOW_DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(
           HeapObject::cast(target)));
@@ -239,8 +246,10 @@ void ScavengerCollector::CollectGarbage() {
     // access to the slots of a page and can completely avoid any locks on
     // the page itself.
     Sweeper::FilterSweepingPagesScope filter_scope(sweeper, pause_scope);
-    filter_scope.FilterOldSpaceSweepingPages(
-        [](Page* page) { return !page->ContainsSlots<OLD_TO_NEW>(); });
+    filter_scope.FilterOldSpaceSweepingPages([](Page* page) {
+      return !page->ContainsSlots<OLD_TO_NEW>() && !page->sweeping_slot_set();
+    });
+
     RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
         heap_, [&job](MemoryChunk* chunk) {
           job.AddItem(new PageScavengingItem(chunk));
@@ -434,6 +443,14 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
   CodePageMemoryModificationScope memory_modification_scope(page);
   InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(page);
   RememberedSet<OLD_TO_NEW>::Iterate(
+      page,
+      [this, &filter](MaybeObjectSlot slot) {
+        CHECK(filter.IsValid(slot.address()));
+        return CheckAndScavengeObject(heap_, slot);
+      },
+      SlotSet::KEEP_EMPTY_BUCKETS);
+  filter = InvalidatedSlotsFilter::OldToNew(page);
+  RememberedSetSweeping::Iterate(
       page,
       [this, &filter](MaybeObjectSlot slot) {
         CHECK(filter.IsValid(slot.address()));

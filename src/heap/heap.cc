@@ -4115,6 +4115,17 @@ void CollectSlots(MemoryChunk* chunk, Address start, Address end,
         return KEEP_SLOT;
       },
       SlotSet::PREFREE_EMPTY_BUCKETS);
+  if (direction == OLD_TO_NEW) {
+    RememberedSetSweeping::Iterate(
+        chunk,
+        [start, end, untyped](MaybeObjectSlot slot) {
+          if (start <= slot.address() && slot.address() < end) {
+            untyped->insert(slot.address());
+          }
+          return KEEP_SLOT;
+        },
+        SlotSet::PREFREE_EMPTY_BUCKETS);
+  }
   RememberedSet<direction>::IterateTyped(
       chunk, [=](SlotType type, Address slot) {
         if (start <= slot && slot < end) {
@@ -5547,8 +5558,10 @@ void Heap::ClearRecordedSlot(HeapObject object, ObjectSlot slot) {
   Page* page = Page::FromAddress(slot.address());
   if (!page->InYoungGeneration()) {
     DCHECK_EQ(page->owner_identity(), OLD_SPACE);
+
     store_buffer()->MoveAllEntriesToRememberedSet();
     RememberedSet<OLD_TO_NEW>::Remove(page, slot.address());
+    RememberedSetSweeping::Remove(page, slot.address());
   }
 #endif
 }
@@ -5561,8 +5574,9 @@ void Heap::VerifyClearedSlot(HeapObject object, ObjectSlot slot) {
   Page* page = Page::FromAddress(slot.address());
   DCHECK_EQ(page->owner_identity(), OLD_SPACE);
   store_buffer()->MoveAllEntriesToRememberedSet();
-  CHECK(!RememberedSet<OLD_TO_NEW>::Contains(page, slot.address()));
-  // Old to old slots are filtered with invalidated slots.
+  // Slots are filtered with invalidated slots.
+  CHECK_IMPLIES(RememberedSet<OLD_TO_NEW>::Contains(page, slot.address()),
+                page->RegisteredObjectWithInvalidatedSlots<OLD_TO_NEW>(object));
   CHECK_IMPLIES(RememberedSet<OLD_TO_OLD>::Contains(page, slot.address()),
                 page->RegisteredObjectWithInvalidatedSlots<OLD_TO_OLD>(object));
 #endif
@@ -5575,9 +5589,12 @@ void Heap::ClearRecordedSlotRange(Address start, Address end) {
   DCHECK(!page->IsLargePage());
   if (!page->InYoungGeneration()) {
     DCHECK_EQ(page->owner_identity(), OLD_SPACE);
+
     store_buffer()->MoveAllEntriesToRememberedSet();
     RememberedSet<OLD_TO_NEW>::RemoveRange(page, start, end,
                                            SlotSet::KEEP_EMPTY_BUCKETS);
+    RememberedSetSweeping::RemoveRange(page, start, end,
+                                       SlotSet::KEEP_EMPTY_BUCKETS);
   }
 #endif
 }
