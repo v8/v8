@@ -1199,9 +1199,9 @@ void NativeModule::AddCodeSpace(base::AddressRegion region) {
       !implicit_alloc_disabled) {
     size_t size = Heap::GetCodeRangeReservedAreaSize();
     DCHECK_LT(0, size);
-    Vector<byte> padding = code_allocator_.AllocateForCode(this, size);
-    CHECK(region.contains(reinterpret_cast<Address>(padding.begin()),
-                          padding.size()));
+    Vector<byte> padding =
+        code_allocator_.AllocateForCodeInRegion(this, size, region);
+    CHECK_EQ(reinterpret_cast<Address>(padding.begin()), region.begin());
   }
 #endif  // V8_OS_WIN64
 
