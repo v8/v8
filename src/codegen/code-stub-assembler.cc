@@ -1218,7 +1218,8 @@ void CodeStubAssembler::BranchIfPrototypesHaveNoElements(
       GotoIfNot(
           InstanceTypeEqual(prototype_instance_type, JS_PRIMITIVE_WRAPPER_TYPE),
           possibly_elements);
-      Node* prototype_value = LoadJSPrimitiveWrapperValue(prototype);
+      TNode<Object> prototype_value =
+          LoadJSPrimitiveWrapperValue(CAST(prototype));
       Branch(IsEmptyString(prototype_value), &if_notcustom, possibly_elements);
     }
 
@@ -2004,8 +2005,8 @@ Node* CodeStubAssembler::PointerToSeqStringData(Node* seq_string) {
       IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag));
 }
 
-Node* CodeStubAssembler::LoadJSPrimitiveWrapperValue(Node* object) {
-  CSA_ASSERT(this, IsJSPrimitiveWrapper(object));
+TNode<Object> CodeStubAssembler::LoadJSPrimitiveWrapperValue(
+    TNode<JSPrimitiveWrapper> object) {
   return LoadObjectField(object, JSPrimitiveWrapper::kValueOffset);
 }
 
@@ -9731,10 +9732,11 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
       GotoIfNot(IsLengthString(
                     LoadObjectField(accessor_info, AccessorInfo::kNameOffset)),
                 if_bailout);
-      Node* receiver_value = LoadJSPrimitiveWrapperValue(receiver);
+      TNode<Object> receiver_value =
+          LoadJSPrimitiveWrapperValue(CAST(receiver));
       GotoIfNot(TaggedIsNotSmi(receiver_value), if_bailout);
-      GotoIfNot(IsString(receiver_value), if_bailout);
-      var_value.Bind(LoadStringLengthAsSmi(receiver_value));
+      GotoIfNot(IsString(CAST(receiver_value)), if_bailout);
+      var_value.Bind(LoadStringLengthAsSmi(CAST(receiver_value)));
       Goto(&done);
     }
   }
@@ -9922,18 +9924,14 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   }
   BIND(&if_isfaststringwrapper);
   {
-    CSA_ASSERT(this, HasInstanceType(object, JS_PRIMITIVE_WRAPPER_TYPE));
-    Node* string = LoadJSPrimitiveWrapperValue(object);
-    CSA_ASSERT(this, IsString(string));
+    TNode<String> string = CAST(LoadJSPrimitiveWrapperValue(CAST(object)));
     TNode<IntPtrT> length = LoadStringLengthAsWord(string);
     GotoIf(UintPtrLessThan(intptr_index, length), if_found);
     Goto(&if_isobjectorsmi);
   }
   BIND(&if_isslowstringwrapper);
   {
-    CSA_ASSERT(this, HasInstanceType(object, JS_PRIMITIVE_WRAPPER_TYPE));
-    Node* string = LoadJSPrimitiveWrapperValue(object);
-    CSA_ASSERT(this, IsString(string));
+    TNode<String> string = CAST(LoadJSPrimitiveWrapperValue(CAST(object)));
     TNode<IntPtrT> length = LoadStringLengthAsWord(string);
     GotoIf(UintPtrLessThan(intptr_index, length), if_found);
     Goto(&if_isdictionary);
@@ -13085,7 +13083,7 @@ TNode<String> CodeStubAssembler::Typeof(SloppyTNode<Object> value) {
 }
 
 TNode<Object> CodeStubAssembler::GetSuperConstructor(
-    SloppyTNode<Context> context, SloppyTNode<JSFunction> active_function) {
+    TNode<Context> context, TNode<JSFunction> active_function) {
   Label is_not_constructor(this, Label::kDeferred), out(this);
   TVARIABLE(Object, result);
 
@@ -13148,9 +13146,10 @@ TNode<JSReceiver> CodeStubAssembler::SpeciesConstructor(
   return var_result.value();
 }
 
-Node* CodeStubAssembler::InstanceOf(Node* object, Node* callable,
-                                    Node* context) {
-  VARIABLE(var_result, MachineRepresentation::kTagged);
+TNode<Oddball> CodeStubAssembler::InstanceOf(TNode<Object> object,
+                                             TNode<Object> callable,
+                                             TNode<Context> context) {
+  TVARIABLE(Oddball, var_result);
   Label if_notcallable(this, Label::kDeferred),
       if_notreceiver(this, Label::kDeferred), if_otherhandler(this),
       if_nohandler(this, Label::kDeferred), return_true(this),
@@ -13158,7 +13157,7 @@ Node* CodeStubAssembler::InstanceOf(Node* object, Node* callable,
 
   // Ensure that the {callable} is actually a JSReceiver.
   GotoIf(TaggedIsSmi(callable), &if_notreceiver);
-  GotoIfNot(IsJSReceiver(callable), &if_notreceiver);
+  GotoIfNot(IsJSReceiver(CAST(callable)), &if_notreceiver);
 
   // Load the @@hasInstance property from {callable}.
   TNode<Object> inst_of_handler =
@@ -13176,8 +13175,8 @@ Node* CodeStubAssembler::InstanceOf(Node* object, Node* callable,
     // Call to Function.prototype[@@hasInstance] directly.
     Callable builtin(BUILTIN_CODE(isolate(), FunctionPrototypeHasInstance),
                      CallTrampolineDescriptor{});
-    Node* result = CallJS(builtin, context, inst_of_handler, callable, object);
-    var_result.Bind(result);
+    var_result =
+        CAST(CallJS(builtin, context, inst_of_handler, callable, object));
     Goto(&return_result);
   }
 
@@ -13199,12 +13198,11 @@ Node* CodeStubAssembler::InstanceOf(Node* object, Node* callable,
   BIND(&if_nohandler);
   {
     // Ensure that the {callable} is actually Callable.
-    GotoIfNot(IsCallable(callable), &if_notcallable);
+    GotoIfNot(IsCallable(CAST(callable)), &if_notcallable);
 
     // Use the OrdinaryHasInstance algorithm.
-    TNode<Object> result =
-        CallBuiltin(Builtins::kOrdinaryHasInstance, context, callable, object);
-    var_result.Bind(result);
+    var_result = CAST(
+        CallBuiltin(Builtins::kOrdinaryHasInstance, context, callable, object));
     Goto(&return_result);
   }
 
@@ -13215,11 +13213,11 @@ Node* CodeStubAssembler::InstanceOf(Node* object, Node* callable,
   { ThrowTypeError(context, MessageTemplate::kNonObjectInInstanceOfCheck); }
 
   BIND(&return_true);
-  var_result.Bind(TrueConstant());
+  var_result = TrueConstant();
   Goto(&return_result);
 
   BIND(&return_false);
-  var_result.Bind(FalseConstant());
+  var_result = FalseConstant();
   Goto(&return_result);
 
   BIND(&return_result);

@@ -1198,7 +1198,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Loads a pointer to the sequential String char array.
   Node* PointerToSeqStringData(Node* seq_string);
   // Load value field of a JSPrimitiveWrapper object.
-  Node* LoadJSPrimitiveWrapperValue(Node* object);
+  TNode<Object> LoadJSPrimitiveWrapperValue(TNode<JSPrimitiveWrapper> object);
 
   // Figures out whether the value of maybe_object is:
   // - a SMI (jump to "if_smi", "extracted" will be the SMI value)
@@ -3497,14 +3497,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<String> Typeof(SloppyTNode<Object> value);
 
-  TNode<Object> GetSuperConstructor(SloppyTNode<Context> context,
-                                    SloppyTNode<JSFunction> active_function);
+  TNode<Object> GetSuperConstructor(TNode<Context> context,
+                                    TNode<JSFunction> active_function);
 
   TNode<JSReceiver> SpeciesConstructor(
       SloppyTNode<Context> context, SloppyTNode<Object> object,
       SloppyTNode<JSReceiver> default_constructor);
 
-  Node* InstanceOf(Node* object, Node* callable, Node* context);
+  TNode<Oddball> InstanceOf(TNode<Object> object, TNode<Object> callable,
+                            TNode<Context> context);
 
   // Debug helpers
   Node* IsDebugActive();

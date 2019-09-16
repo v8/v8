@@ -16,8 +16,6 @@
 namespace v8 {
 namespace internal {
 
-using Node = compiler::Node;
-
 enum class StoreMode { kOrdinary, kInLiteral };
 
 class KeyedStoreGenericAssembler : public AccessorAssembler {

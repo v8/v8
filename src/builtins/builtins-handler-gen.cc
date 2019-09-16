@@ -48,8 +48,8 @@ TF_BUILTIN(LoadIC_StringLength, CodeStubAssembler) {
 }
 
 TF_BUILTIN(LoadIC_StringWrapperLength, CodeStubAssembler) {
-  Node* value = Parameter(Descriptor::kReceiver);
-  Node* string = LoadJSPrimitiveWrapperValue(value);
+  TNode<JSPrimitiveWrapper> value = CAST(Parameter(Descriptor::kReceiver));
+  TNode<String> string = CAST(LoadJSPrimitiveWrapperValue(value));
   Return(LoadStringLengthAsSmi(string));
 }
 
