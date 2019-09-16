@@ -614,8 +614,7 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
   var_holder = LoadMapPrototype(receiver_map);
   var_holder_map = LoadMap(var_holder.value());
 
-  VariableList merged_variables({&var_holder, &var_holder_map}, zone());
-  Label loop(this, merged_variables);
+  Label loop(this, {&var_holder, &var_holder_map});
   Goto(&loop);
   BIND(&loop);
   {

@@ -1209,8 +1209,7 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
     TVARIABLE(Object, var_result);
     TVARIABLE(Float64T, var_float_value);
     TVARIABLE(Smi, var_feedback, SmiConstant(BinaryOperationFeedback::kNone));
-    VariableList loop_vars({&var_value, &var_feedback}, zone());
-    Label start(this, loop_vars), end(this);
+    Label start(this, {&var_value, &var_feedback}), end(this);
     Label do_float_op(this, &var_float_value);
     Goto(&start);
     // We might have to try again after ToNumeric conversion.

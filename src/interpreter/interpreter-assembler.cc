@@ -179,9 +179,7 @@ TNode<Context> InterpreterAssembler::GetContextAtDepth(TNode<Context> context,
 
   Label context_found(this);
 
-  VariableList context_search_loop_variables({&cur_depth, &cur_context},
-                                             zone());
-  Label context_search(this, context_search_loop_variables);
+  Label context_search(this, {&cur_depth, &cur_context});
 
   // Fast path if the depth is 0.
   Branch(Word32Equal(depth, Int32Constant(0)), &context_found, &context_search);
@@ -206,9 +204,7 @@ void InterpreterAssembler::GotoIfHasContextExtensionUpToDepth(
   TVARIABLE(Context, cur_context, context);
   TVARIABLE(Uint32T, cur_depth, depth);
 
-  VariableList context_search_loop_variables({&cur_depth, &cur_context},
-                                             zone());
-  Label context_search(this, context_search_loop_variables);
+  Label context_search(this, {&cur_depth, &cur_context});
 
   // Loop until the depth is 0.
   Goto(&context_search);

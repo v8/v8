@@ -2450,8 +2450,7 @@ TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::FindKeyIndex(
   TVARIABLE(IntPtrT, var_entry, WordAnd(key_hash, entry_mask));
   TVARIABLE(IntPtrT, var_count, IntPtrConstant(0));
 
-  VariableList loop_vars({&var_count, &var_entry}, zone());
-  Label loop(this, loop_vars), if_found(this);
+  Label loop(this, {&var_count, &var_entry}), if_found(this);
   Goto(&loop);
   BIND(&loop);
   TNode<IntPtrT> key_index;

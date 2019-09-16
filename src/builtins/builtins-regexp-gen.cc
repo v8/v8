@@ -2149,10 +2149,9 @@ TNode<JSArray> RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
 
       TVARIABLE(IntPtrT, var_reg, IntPtrConstant(2));
 
-      VariableList vars({array.var_array(), array.var_length(),
-                         array.var_capacity(), &var_reg},
-                        zone());
-      Label nested_loop(this, vars), nested_loop_out(this);
+      Label nested_loop(this, {array.var_array(), array.var_length(),
+                               array.var_capacity(), &var_reg}),
+          nested_loop_out(this);
       Branch(IntPtrLessThan(var_reg.value(), int_num_registers), &nested_loop,
              &nested_loop_out);
 

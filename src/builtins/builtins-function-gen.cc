@@ -86,10 +86,9 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   TVARIABLE(Map, bound_function_map);
   {
     Label with_constructor(this);
-    VariableList vars({&bound_function_map}, zone());
     TNode<NativeContext> native_context = LoadNativeContext(context);
 
-    Label map_done(this, vars);
+    Label map_done(this, &bound_function_map);
     GotoIf(IsConstructorMap(receiver_map), &with_constructor);
 
     bound_function_map = CAST(LoadContextElement(

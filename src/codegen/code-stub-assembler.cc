@@ -7337,8 +7337,7 @@ ToDirectStringAssembler::ToDirectStringAssembler(
       flags_(flags) {}
 
 TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
-  VariableList vars({&var_string_, &var_offset_, &var_instance_type_}, zone());
-  Label dispatch(this, vars);
+  Label dispatch(this, {&var_string_, &var_offset_, &var_instance_type_});
   Label if_iscons(this);
   Label if_isexternal(this);
   Label if_issliced(this);
@@ -10068,9 +10067,7 @@ void CodeStubAssembler::TryPrototypeChainLookup(
     TVARIABLE(Map, var_holder_map, map);
     TVARIABLE(Int32T, var_holder_instance_type, instance_type);
 
-    VariableList merged_variables(
-        {&var_holder, &var_holder_map, &var_holder_instance_type}, zone());
-    Label loop(this, merged_variables);
+    Label loop(this, {&var_holder, &var_holder_map, &var_holder_instance_type});
     Goto(&loop);
     BIND(&loop);
     {
@@ -10113,9 +10110,7 @@ void CodeStubAssembler::TryPrototypeChainLookup(
     TVARIABLE(Map, var_holder_map, map);
     TVARIABLE(Int32T, var_holder_instance_type, instance_type);
 
-    VariableList merged_variables(
-        {&var_holder, &var_holder_map, &var_holder_instance_type}, zone());
-    Label loop(this, merged_variables);
+    Label loop(this, {&var_holder, &var_holder_map, &var_holder_instance_type});
     Goto(&loop);
     BIND(&loop);
     {
