@@ -320,7 +320,9 @@ Isolate::FindOrAllocatePerThreadDataForThisThread() {
     base::MutexGuard lock_guard(&thread_data_table_mutex_);
     per_thread = thread_data_table_.Lookup(thread_id);
     if (per_thread == nullptr) {
-      base::OS::AdjustSchedulingParams();
+      if (FLAG_adjust_os_scheduling_parameters) {
+        base::OS::AdjustSchedulingParams();
+      }
       per_thread = new PerIsolateThreadData(this, thread_id);
       thread_data_table_.Insert(per_thread);
     }

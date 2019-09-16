@@ -1238,6 +1238,8 @@ DEFINE_BOOL(print_all_exceptions, false,
 DEFINE_BOOL(
     detailed_error_stack_trace, false,
     "includes arguments for each function call in the error stack frames array")
+DEFINE_BOOL(adjust_os_scheduling_parameters, true,
+            "adjust OS specific scheduling params for the isolate")
 
 // runtime.cc
 DEFINE_BOOL(runtime_call_stats, false, "report runtime call counts and times")
