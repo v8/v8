@@ -10,15 +10,9 @@
   # the bulk-memory proposal. Since we've enabled bulk-memory by default, we
   # need to update to use its testsuite.
   'linking': [FAIL],
+  'binary-leb128': [FAIL],
   'elem': [FAIL],
   'data': [FAIL],
-  # TODO(v8:9658): The encoding of element segments changed in the bulk memory
-  # proposal
-  'proposals/bulk-memory-operations/bulk': [FAIL],
-  'proposals/bulk-memory-operations/table_init': [FAIL],
-  'proposals/bulk-memory-operations/table_copy': [FAIL],
-  'proposals/bulk-memory-operations/elem': [FAIL],
-  'proposals/bulk-memory-operations/binary': [FAIL],
   # TODO(mstarzinger): Roll newest tests into "js-types" repository.
   'proposals/js-types/exports': [FAIL],
   'proposals/js-types/globals': [FAIL],

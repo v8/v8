@@ -797,9 +797,11 @@ class ModuleDecoderImpl : public Decoder {
       const byte* pos = pc();
 
       bool is_active;
+      bool functions_as_elements;
       uint32_t table_index;
       WasmInitExpr offset;
-      consume_segment_header("table index", &is_active, &table_index, &offset);
+      consume_element_segment_header(&is_active, &functions_as_elements,
+                                     &table_index, &offset);
       if (failed()) return;
 
       if (is_active) {
@@ -814,12 +816,6 @@ class ModuleDecoderImpl : public Decoder {
                  table_index);
           break;
         }
-      } else {
-        ValueType type = consume_reference_type();
-        if (!ValueTypes::IsSubType(kWasmFuncRef, type)) {
-          error(pc_ - 1, "invalid element segment type");
-          break;
-        }
       }
 
       uint32_t num_elem =
@@ -832,8 +828,8 @@ class ModuleDecoderImpl : public Decoder {
 
       WasmElemSegment* init = &module_->elem_segments.back();
       for (uint32_t j = 0; j < num_elem; j++) {
-        uint32_t index = is_active ? consume_element_func_index()
-                                   : consume_passive_element();
+        uint32_t index = functions_as_elements ? consume_element_expr()
+                                               : consume_element_func_index();
         if (failed()) break;
         init->entries.push_back(index);
       }
@@ -910,8 +906,7 @@ class ModuleDecoderImpl : public Decoder {
       bool is_active;
       uint32_t memory_index;
       WasmInitExpr dest_addr;
-      consume_segment_header("memory index", &is_active, &memory_index,
-                             &dest_addr);
+      consume_data_segment_header(&is_active, &memory_index, &dest_addr);
       if (failed()) break;
 
       if (is_active && memory_index != 0) {
@@ -1681,8 +1676,103 @@ class ModuleDecoderImpl : public Decoder {
     return attribute;
   }
 
-  void consume_segment_header(const char* name, bool* is_active,
-                              uint32_t* index, WasmInitExpr* offset) {
+  void consume_element_segment_header(bool* is_active,
+                                      bool* functions_as_elements,
+                                      uint32_t* table_index,
+                                      WasmInitExpr* offset) {
+    const byte* pos = pc();
+    uint8_t flag;
+    if (enabled_features_.bulk_memory || enabled_features_.anyref) {
+      flag = consume_u8("flag");
+    } else {
+      uint32_t table_index = consume_u32v("table index");
+      // The only valid flag value without bulk_memory or anyref is '0'.
+      if (table_index != 0) {
+        error(
+            "Element segments with table indices require "
+            "--experimental-wasm-bulk-memory or --experimental-wasm-anyref");
+        return;
+      }
+      flag = 0;
+    }
+
+    // The mask for the bit in the flag which indicates if the segment is
+    // active or not.
+    constexpr uint8_t kIsPassiveMask = 0x01;
+    // The mask for the bit in the flag which indicates if the segment has an
+    // explicit table index field.
+    constexpr uint8_t kHasTableIndexMask = 0x02;
+    // The mask for the bit in the flag which indicates if the functions of this
+    // segment are defined as function indices (=0) or elements(=1).
+    constexpr uint8_t kFunctionsAsElementsMask = 0x04;
+    constexpr uint8_t kFullMask =
+        kIsPassiveMask | kHasTableIndexMask | kFunctionsAsElementsMask;
+
+    bool is_passive = flag & kIsPassiveMask;
+    *is_active = !is_passive;
+    *functions_as_elements = flag & kFunctionsAsElementsMask;
+    bool has_table_index = flag & kHasTableIndexMask;
+
+    if (is_passive && !enabled_features_.bulk_memory) {
+      error("Passive element segments require --experimental-wasm-bulk-memory");
+      return;
+    }
+    if (*functions_as_elements && !enabled_features_.bulk_memory) {
+      error(
+          "Illegal segment flag. Did you forget "
+          "--experimental-wasm-bulk-memory?");
+      return;
+    }
+    if (flag != 0 && !enabled_features_.bulk_memory &&
+        !enabled_features_.anyref) {
+      error(
+          "Invalid segment flag. Did you forget "
+          "--experimental-wasm-bulk-memory or --experimental-wasm-anyref?");
+      return;
+    }
+    if ((flag & kFullMask) != flag || (!(*is_active) && has_table_index)) {
+      errorf(pos, "illegal flag value %u. Must be 0, 1, 2, 4, 5 or 6", flag);
+    }
+
+    if (has_table_index) {
+      *table_index = consume_u32v("table index");
+    } else {
+      *table_index = 0;
+    }
+
+    if (*is_active) {
+      *offset = consume_init_expr(module_.get(), kWasmI32);
+    }
+
+    if (*is_active && !has_table_index) {
+      // Active segments without table indices are a special case for backwards
+      // compatibility. These cases have an implicit element kind or element
+      // type, so we are done already with the segment header.
+      return;
+    }
+
+    if (*functions_as_elements) {
+      // We have to check that there is an element type of type FuncRef. All
+      // other element types are not valid yet.
+      ValueType type = consume_reference_type();
+      if (!ValueTypes::IsSubType(kWasmFuncRef, type)) {
+        error(pc_ - 1, "invalid element segment type");
+        return;
+      }
+    } else {
+      // We have to check that there is an element kind of type Function. All
+      // other element kinds are not valid yet.
+      uint8_t val = consume_u8("element kind");
+      ImportExportKindCode kind = static_cast<ImportExportKindCode>(val);
+      if (kind != kExternalFunction) {
+        errorf(pos, "illegal element kind %x. Must be 0x00", val);
+        return;
+      }
+    }
+  }
+
+  void consume_data_segment_header(bool* is_active, uint32_t* index,
+                                   WasmInitExpr* offset) {
     const byte* pos = pc();
     uint32_t flag = consume_u32v("flag");
 
@@ -1718,7 +1808,7 @@ class ModuleDecoderImpl : public Decoder {
     }
     if (flag == SegmentFlags::kActiveWithIndex) {
       *is_active = true;
-      *index = consume_u32v(name);
+      *index = consume_u32v("memory index");
       *offset = consume_init_expr(module_.get(), kWasmI32);
     }
   }
@@ -1734,7 +1824,7 @@ class ModuleDecoderImpl : public Decoder {
     return index;
   }
 
-  uint32_t consume_passive_element() {
+  uint32_t consume_element_expr() {
     uint32_t index = WasmElemSegment::kNullIndex;
     uint8_t opcode = consume_u8("element opcode");
     if (failed()) return index;

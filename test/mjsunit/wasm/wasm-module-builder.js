@@ -84,6 +84,7 @@ let kSharedHasMaximumFlag = 3;
 let kActiveNoIndex = 0;
 let kPassive = 1;
 let kActiveWithIndex = 2;
+let kPassiveWithElements = 5;
 
 // Function declaration flags
 let kDeclFunctionName   = 0x01;
@@ -1164,13 +1165,16 @@ class WasmModuleBuilder {
             }
             section.emit_u32v(init.base);
             section.emit_u8(kExprEnd);
+            if (init.table != 0) {
+              section.emit_u8(kExternalFunction);
+            }
             section.emit_u32v(init.array.length);
             for (let index of init.array) {
               section.emit_u32v(index);
             }
           } else {
             // Passive segment.
-            section.emit_u8(kPassive);  // flags
+            section.emit_u8(kPassiveWithElements);  // flags
             section.emit_u8(kWasmAnyFunc);
             section.emit_u32v(init.array.length);
             for (let index of init.array) {

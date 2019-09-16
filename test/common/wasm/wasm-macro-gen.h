@@ -27,12 +27,14 @@
 #define ACTIVE_NO_INDEX 0
 #define PASSIVE 1
 #define ACTIVE_WITH_INDEX 2
+#define PASSIVE_WITH_ELEMENTS 5
+#define ACTIVE_WITH_ELEMENTS 6
 
 // The table index field in an element segment was repurposed as a flags field.
 // To specify a table index, we have to set the flag value to 2, followed by
 // the table index.
-#define TABLE_INDEX0 U32V_1(ACTIVE_NO_INDEX)
-#define TABLE_INDEX(v) U32V_1(ACTIVE_WITH_INDEX), U32V_1(v)
+#define TABLE_INDEX0 static_cast<byte>(ACTIVE_NO_INDEX)
+#define TABLE_INDEX(v) static_cast<byte>(ACTIVE_WITH_INDEX), U32V_1(v)
 
 #define ZERO_ALIGNMENT 0
 #define ZERO_OFFSET 0
