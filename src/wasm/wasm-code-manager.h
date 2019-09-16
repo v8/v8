@@ -533,8 +533,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
   WasmCode* CreateEmptyJumpTableInRegion(uint32_t jump_table_size,
                                          base::AddressRegion);
 
-  // Hold the {allocation_mutex_} when calling this method.
+  // Hold the {allocation_mutex_} when calling one of these methods.
   void PatchJumpTablesLocked(uint32_t func_index, Address target);
+  void PatchJumpTableLocked(const CodeSpaceData&, uint32_t func_index,
+                            Address target);
 
   // Called by the {WasmCodeAllocator} to register a new code space.
   void AddCodeSpace(base::AddressRegion);
@@ -608,7 +610,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // instruction start address of the value.
   std::map<Address, std::unique_ptr<WasmCode>> owned_code_;
 
-  std::unique_ptr<WasmCode* []> code_table_;
+  // Table of the latest code object per function, updated on initial
+  // compilation and tier up.
+  std::unique_ptr<WasmCode*[]> code_table_;
 
   // Null if no redirections exist, otherwise a bitset over all functions in
   // this module marking those functions that have been redirected.

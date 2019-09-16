@@ -1149,24 +1149,36 @@ void NativeModule::PatchJumpTablesLocked(uint32_t func_index, Address target) {
   for (auto& code_space_data : code_space_data_) {
     DCHECK_IMPLIES(code_space_data.jump_table, code_space_data.far_jump_table);
     if (!code_space_data.jump_table) continue;
-    uint32_t slot_index = func_index - module_->num_imported_functions;
-    Address jump_table_slot =
-        code_space_data.jump_table->instruction_start() +
-        JumpTableAssembler::JumpSlotIndexToOffset(slot_index);
-    uint32_t far_jump_table_offset =
-        JumpTableAssembler::FarJumpSlotIndexToOffset(
-            WasmCode::kRuntimeStubCount + slot_index);
-    // Only pass the far jump table start if the far jump table actually has a
-    // slot for this function index (i.e. does not only contain runtime stubs).
-    Address far_jump_table_slot =
-        far_jump_table_offset <
-                code_space_data.far_jump_table->instructions().size()
-            ? code_space_data.far_jump_table->instruction_start() +
-                  far_jump_table_offset
-            : kNullAddress;
-    JumpTableAssembler::PatchJumpTableSlot(jump_table_slot, far_jump_table_slot,
-                                           target);
+    PatchJumpTableLocked(code_space_data, func_index, target);
   }
+}
+
+void NativeModule::PatchJumpTableLocked(const CodeSpaceData& code_space_data,
+                                        uint32_t func_index, Address target) {
+  // The caller must hold the {allocation_mutex_}, thus we fail to lock it here.
+  DCHECK(!allocation_mutex_.TryLock());
+
+  DCHECK_NOT_NULL(code_space_data.jump_table);
+  DCHECK_NOT_NULL(code_space_data.far_jump_table);
+
+  uint32_t slot_index = func_index - module_->num_imported_functions;
+  Address jump_table_slot =
+      code_space_data.jump_table->instruction_start() +
+      JumpTableAssembler::JumpSlotIndexToOffset(slot_index);
+  uint32_t far_jump_table_offset = JumpTableAssembler::FarJumpSlotIndexToOffset(
+      WasmCode::kRuntimeStubCount + slot_index);
+  // Only pass the far jump table start if the far jump table actually has a
+  // slot for this function index (i.e. does not only contain runtime stubs).
+  bool has_far_jump_slot =
+      far_jump_table_offset <
+      code_space_data.far_jump_table->instructions().size();
+  Address far_jump_table_start =
+      code_space_data.far_jump_table->instruction_start();
+  Address far_jump_table_slot =
+      has_far_jump_slot ? far_jump_table_start + far_jump_table_offset
+                        : kNullAddress;
+  JumpTableAssembler::PatchJumpTableSlot(jump_table_slot, far_jump_table_slot,
+                                         target);
 }
 
 void NativeModule::AddCodeSpace(base::AddressRegion region) {
@@ -1254,6 +1266,17 @@ void NativeModule::AddCodeSpace(base::AddressRegion region) {
 
   base::MutexGuard guard(&allocation_mutex_);
   code_space_data_.push_back(CodeSpaceData{region, jump_table, far_jump_table});
+
+  if (jump_table && !is_first_code_space) {
+    // Patch the new jump table(s) with existing functions. If this is the first
+    // code space, there cannot be any functions that have been compiled yet.
+    for (uint32_t func_index = 0; func_index < num_wasm_functions;
+         ++func_index) {
+      if (!code_table_[func_index]) continue;
+      PatchJumpTableLocked(code_space_data_.back(), func_index,
+                           code_table_[func_index]->instruction_start());
+    }
+  }
 }
 
 namespace {
