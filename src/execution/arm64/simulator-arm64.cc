@@ -155,6 +155,22 @@ void Simulator::CallImpl(Address entry, CallArgument* args) {
   set_sp(original_stack);
 }
 
+#ifdef DEBUG
+namespace {
+int PopLowestIndexAsCode(CPURegList* list) {
+  if (list->IsEmpty()) {
+    return -1;
+  }
+  RegList reg_list = list->list();
+  int index = base::bits::CountTrailingZeros(reg_list);
+  DCHECK((1LL << index) & reg_list);
+  list->Remove(index);
+
+  return index;
+}
+}  // namespace
+#endif
+
 void Simulator::CheckPCSComplianceAndRun() {
   // Adjust JS-based stack limit to C-based stack limit.
   isolate_->stack_guard()->AdjustStackLimitForSimulator();
@@ -172,10 +188,10 @@ void Simulator::CheckPCSComplianceAndRun() {
   for (int i = 0; i < kNumberOfCalleeSavedRegisters; i++) {
     // x31 is not a caller saved register, so no need to specify if we want
     // the stack or zero.
-    saved_registers[i] = xreg(register_list.PopLowestIndex().code());
+    saved_registers[i] = xreg(PopLowestIndexAsCode(&register_list));
   }
   for (int i = 0; i < kNumberOfCalleeSavedVRegisters; i++) {
-    saved_fpregisters[i] = dreg_bits(fpregister_list.PopLowestIndex().code());
+    saved_fpregisters[i] = dreg_bits(PopLowestIndexAsCode(&fpregister_list));
   }
   int64_t original_stack = sp();
 #endif
@@ -187,11 +203,11 @@ void Simulator::CheckPCSComplianceAndRun() {
   register_list = kCalleeSaved;
   fpregister_list = kCalleeSavedV;
   for (int i = 0; i < kNumberOfCalleeSavedRegisters; i++) {
-    DCHECK_EQ(saved_registers[i], xreg(register_list.PopLowestIndex().code()));
+    DCHECK_EQ(saved_registers[i], xreg(PopLowestIndexAsCode(&register_list)));
   }
   for (int i = 0; i < kNumberOfCalleeSavedVRegisters; i++) {
     DCHECK(saved_fpregisters[i] ==
-           dreg_bits(fpregister_list.PopLowestIndex().code()));
+           dreg_bits(PopLowestIndexAsCode(&fpregister_list)));
   }
 
   // Corrupt caller saved register minus the return regiters.
@@ -218,13 +234,13 @@ void Simulator::CheckPCSComplianceAndRun() {
 void Simulator::CorruptRegisters(CPURegList* list, uint64_t value) {
   if (list->type() == CPURegister::kRegister) {
     while (!list->IsEmpty()) {
-      unsigned code = list->PopLowestIndex().code();
+      unsigned code = PopLowestIndexAsCode(list);
       set_xreg(code, value | code);
     }
   } else {
     DCHECK_EQ(list->type(), CPURegister::kVRegister);
     while (!list->IsEmpty()) {
-      unsigned code = list->PopLowestIndex().code();
+      unsigned code = PopLowestIndexAsCode(list);
       set_dreg_bits(code, value | code);
     }
   }
