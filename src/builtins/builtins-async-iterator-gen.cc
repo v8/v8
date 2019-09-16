@@ -145,7 +145,7 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
   // Let onFulfilled be a new built-in function object as defined in
   // Async Iterator Value Unwrap Functions.
   // Set onFulfilled.[[Done]] to throwDone.
-  Node* const on_fulfilled = CreateUnwrapClosure(native_context, done);
+  Node* const on_fulfilled = CreateUnwrapClosure(native_context, CAST(done));
 
   // Perform ! PerformPromiseThen(valueWrapper,
   //     onFulfilled, undefined, promiseCapability).

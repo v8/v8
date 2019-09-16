@@ -567,13 +567,15 @@ TF_BUILTIN(AsyncGeneratorReject, AsyncGeneratorBuiltinsAssembler) {
 }
 
 TF_BUILTIN(AsyncGeneratorYield, AsyncGeneratorBuiltinsAssembler) {
-  Node* const generator = Parameter(Descriptor::kGenerator);
-  Node* const value = Parameter(Descriptor::kValue);
-  Node* const is_caught = Parameter(Descriptor::kIsCaught);
-  Node* const context = Parameter(Descriptor::kContext);
+  const TNode<JSGeneratorObject> generator =
+      CAST(Parameter(Descriptor::kGenerator));
+  const TNode<Object> value = CAST(Parameter(Descriptor::kValue));
+  const TNode<Oddball> is_caught = CAST(Parameter(Descriptor::kIsCaught));
+  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   Node* const request = LoadFirstAsyncGeneratorRequestFromQueue(generator);
-  Node* const outer_promise = LoadPromiseFromAsyncGeneratorRequest(request);
+  const TNode<JSPromise> outer_promise =
+      CAST(LoadPromiseFromAsyncGeneratorRequest(request));
 
   const int on_resolve = Context::ASYNC_GENERATOR_YIELD_RESOLVE_SHARED_FUN;
   const int on_reject = Context::ASYNC_GENERATOR_AWAIT_REJECT_SHARED_FUN;
@@ -617,33 +619,35 @@ TF_BUILTIN(AsyncGeneratorReturn, AsyncGeneratorBuiltinsAssembler) {
   // (per proposal-async-iteration/#sec-asyncgeneratorresumenext step 10.b.i)
   //
   // In all cases, the final step is to jump back to AsyncGeneratorResumeNext.
-  Node* const generator = Parameter(Descriptor::kGenerator);
-  Node* const value = Parameter(Descriptor::kValue);
-  Node* const is_caught = Parameter(Descriptor::kIsCaught);
+  const TNode<JSGeneratorObject> generator =
+      CAST(Parameter(Descriptor::kGenerator));
+  const TNode<Object> value = CAST(Parameter(Descriptor::kValue));
+  const TNode<Oddball> is_caught = CAST(Parameter(Descriptor::kIsCaught));
   Node* const req = LoadFirstAsyncGeneratorRequestFromQueue(generator);
   CSA_ASSERT(this, IsNotUndefined(req));
 
   Label perform_await(this);
-  VARIABLE(var_on_resolve, MachineType::PointerRepresentation(),
-           IntPtrConstant(
-               Context::ASYNC_GENERATOR_RETURN_CLOSED_RESOLVE_SHARED_FUN));
-  VARIABLE(
-      var_on_reject, MachineType::PointerRepresentation(),
+  TVARIABLE(IntPtrT, var_on_resolve,
+            IntPtrConstant(
+                Context::ASYNC_GENERATOR_RETURN_CLOSED_RESOLVE_SHARED_FUN));
+  TVARIABLE(
+      IntPtrT, var_on_reject,
       IntPtrConstant(Context::ASYNC_GENERATOR_RETURN_CLOSED_REJECT_SHARED_FUN));
 
   Node* const state = LoadGeneratorState(generator);
   GotoIf(IsGeneratorStateClosed(state), &perform_await);
-  var_on_resolve.Bind(
-      IntPtrConstant(Context::ASYNC_GENERATOR_RETURN_RESOLVE_SHARED_FUN));
-  var_on_reject.Bind(
-      IntPtrConstant(Context::ASYNC_GENERATOR_AWAIT_REJECT_SHARED_FUN));
+  var_on_resolve =
+      IntPtrConstant(Context::ASYNC_GENERATOR_RETURN_RESOLVE_SHARED_FUN);
+  var_on_reject =
+      IntPtrConstant(Context::ASYNC_GENERATOR_AWAIT_REJECT_SHARED_FUN);
   Goto(&perform_await);
 
   BIND(&perform_await);
 
   SetGeneratorAwaiting(generator);
-  Node* const context = Parameter(Descriptor::kContext);
-  Node* const outer_promise = LoadPromiseFromAsyncGeneratorRequest(req);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const TNode<JSPromise> outer_promise =
+      CAST(LoadPromiseFromAsyncGeneratorRequest(req));
   Await(context, generator, value, outer_promise, var_on_resolve.value(),
         var_on_reject.value(), is_caught);
 
