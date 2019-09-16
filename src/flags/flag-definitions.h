@@ -765,6 +765,8 @@ DEFINE_BOOL(stress_wasm_code_gc, false,
 DEFINE_BOOL(wasm_far_jump_table, false,
             "use multiple separate code spaces that might require far jumps "
             "between them")
+DEFINE_INT(wasm_max_initial_code_space_reservation, 0,
+           "maximum size of the initial wasm code space reservation (in MB)")
 
 // Profiler flags.
 DEFINE_INT(frame_count, 1, "number of stack frames inspected by the profiler")

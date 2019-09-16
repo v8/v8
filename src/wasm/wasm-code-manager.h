@@ -310,6 +310,9 @@ class WasmCodeAllocator {
   // Free memory pages of all given code objects. Used for wasm code GC.
   void FreeCode(Vector<WasmCode* const>);
 
+  // Retrieve the number of separately reserved code spaces.
+  size_t GetNumCodeSpaces() const;
+
   // Returns the region of the single code space managed by this code allocator.
   // Will fail if more than one code space has been created.
   base::AddressRegion GetSingleCodeRegion() const;
@@ -502,6 +505,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Should only be called via {WasmEngine::FreeDeadCode}, so the engine can do
   // its accounting.
   void FreeCode(Vector<WasmCode* const>);
+
+  // Retrieve the number of separately reserved code spaces for this module.
+  size_t GetNumberOfCodeSpacesForTesting() const;
 
  private:
   friend class WasmCode;

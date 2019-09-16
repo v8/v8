@@ -32,6 +32,7 @@
 #include "src/utils/ostreams.h"
 #include "src/wasm/memory-tracing.h"
 #include "src/wasm/module-compiler.h"
+#include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -1229,6 +1230,22 @@ RUNTIME_FUNCTION(Runtime_WasmNumInterpretedCalls) {
   if (!instance->has_debug_info()) return Object();
   uint64_t num = instance->debug_info().NumInterpretedCalls();
   return *isolate->factory()->NewNumberFromSize(static_cast<size_t>(num));
+}
+
+RUNTIME_FUNCTION(Runtime_WasmNumCodeSpaces) {
+  DCHECK_EQ(1, args.length());
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, argument, 0);
+  Handle<WasmModuleObject> module;
+  if (argument->IsWasmInstanceObject()) {
+    module = handle(Handle<WasmInstanceObject>::cast(argument)->module_object(),
+                    isolate);
+  } else if (argument->IsWasmModuleObject()) {
+    module = Handle<WasmModuleObject>::cast(argument);
+  }
+  size_t num_spaces =
+      module->native_module()->GetNumberOfCodeSpacesForTesting();
+  return *isolate->factory()->NewNumberFromSize(num_spaces);
 }
 
 RUNTIME_FUNCTION(Runtime_RedirectToWasmInterpreter) {

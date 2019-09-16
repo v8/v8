@@ -702,6 +702,11 @@ void WasmCodeAllocator::FreeCode(Vector<WasmCode* const> codes) {
   }
 }
 
+size_t WasmCodeAllocator::GetNumCodeSpaces() const {
+  base::RecursiveMutexGuard lock(&mutex_);
+  return owned_code_space_.size();
+}
+
 base::AddressRegion WasmCodeAllocator::GetSingleCodeRegion() const {
   base::RecursiveMutexGuard lock(&mutex_);
   DCHECK_EQ(1, owned_code_space_.size());
@@ -1575,6 +1580,15 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
       kRequiresCodeRange ? kMaxWasmCodeMemory
                          : ReservationSize(code_size_estimate,
                                            module->num_declared_functions, 0);
+
+  // The '--wasm-max-code-space-reservation' testing flag can be used to reduce
+  // the maximum size of the initial code space reservation (in MB).
+  if (FLAG_wasm_max_initial_code_space_reservation > 0) {
+    size_t flag_max_bytes =
+        static_cast<size_t>(FLAG_wasm_max_initial_code_space_reservation) * MB;
+    if (flag_max_bytes < code_vmem_size) code_vmem_size = flag_max_bytes;
+  }
+
   // Try up to two times; getting rid of dead JSArrayBuffer allocations might
   // require two GCs because the first GC maybe incremental and may have
   // floating garbage.
@@ -1712,6 +1726,10 @@ void NativeModule::FreeCode(Vector<WasmCode* const> codes) {
     DCHECK_EQ(1, owned_code_.count(code->instruction_start()));
     owned_code_.erase(code->instruction_start());
   }
+}
+
+size_t NativeModule::GetNumberOfCodeSpacesForTesting() const {
+  return code_allocator_.GetNumCodeSpaces();
 }
 
 void WasmCodeManager::FreeNativeModule(Vector<VirtualMemory> owned_code_space,
