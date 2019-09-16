@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --randomize-all-allocations
 // Flags: --wasm-far-jump-table --wasm-max-initial-code-space-reservation=1
 
 load('test/mjsunit/wasm/wasm-module-builder.js');

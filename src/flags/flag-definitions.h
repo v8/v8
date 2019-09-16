@@ -967,6 +967,10 @@ DEFINE_BOOL(gc_experiment_less_compaction, false,
 
 DEFINE_BOOL(disable_abortjs, false, "disables AbortJS runtime function")
 
+DEFINE_BOOL(randomize_all_allocations, false,
+            "randomize virtual memory reservations by ignoring any hints "
+            "passed when allocating pages")
+
 DEFINE_BOOL(manual_evacuation_candidates_selection, false,
             "Test mode only flag. It allows an unit test to select evacuation "
             "candidates pages (requires --stress_compaction).")
