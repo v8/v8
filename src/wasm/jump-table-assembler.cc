@@ -234,12 +234,18 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
   for (int i = 0; i < nop_bytes; i += kInstrSize) nop();
 }
 
-void JumpTableAssembler::EmitJumpSlot(Address target) {
+bool JumpTableAssembler::EmitJumpSlot(Address target) {
   Jump(target, RelocInfo::NONE);
+  return true;
 }
 
 void JumpTableAssembler::EmitFarJumpSlot(Address target) {
   JumpToInstructionStream(target);
+}
+
+// static
+void JumpTableAssembler::PatchFarJumpSlot(Address slot, Address target) {
+  UNREACHABLE();
 }
 
 void JumpTableAssembler::NopBytes(int bytes) {
