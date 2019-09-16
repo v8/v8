@@ -20,6 +20,7 @@
 #include "src/objects/js-collator-inl.h"
 #include "src/objects/js-date-time-format-inl.h"
 #include "src/objects/js-locale-inl.h"
+#include "src/objects/js-locale.h"
 #include "src/objects/js-number-format-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-descriptor.h"
@@ -784,6 +785,11 @@ Maybe<std::string> Intl::CanonicalizeLanguageTag(Isolate* isolate,
   }
   std::string locale(locale_str->ToCString().get());
 
+  if (!IsStructurallyValidLanguageTag(locale)) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NewRangeError(MessageTemplate::kLocaleBadParameters),
+        Nothing<std::string>());
+  }
   return Intl::CanonicalizeLanguageTag(isolate, locale);
 }
 
@@ -2094,6 +2100,10 @@ MaybeHandle<String> Intl::FormattedToString(
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), String);
   }
   return Intl::ToString(isolate, result);
+}
+
+bool Intl::IsStructurallyValidLanguageTag(const std::string& tag) {
+  return JSLocale::StartsWithUnicodeLanguageId(tag);
 }
 
 }  // namespace internal

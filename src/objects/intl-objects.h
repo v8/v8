@@ -337,6 +337,8 @@ class Intl {
   static const std::set<std::string>& GetAvailableLocalesForLocale();
 
   static const std::set<std::string>& GetAvailableLocalesForDateFormat();
+
+  static bool IsStructurallyValidLanguageTag(const std::string& tag);
 };
 
 }  // namespace internal

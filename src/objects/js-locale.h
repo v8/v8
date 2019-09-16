@@ -49,6 +49,9 @@ class JSLocale : public JSObject {
   static Handle<String> ToString(Isolate* isolate, Handle<JSLocale> locale);
   static std::string ToString(Handle<JSLocale> locale);
 
+  // Help function to validate locale by other Intl objects.
+  static bool StartsWithUnicodeLanguageId(const std::string& value);
+
   DECL_CAST(JSLocale)
 
   DECL_ACCESSORS(icu_locale, Managed<icu::Locale>)

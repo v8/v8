@@ -530,20 +530,15 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=9613
   'intl402/Intl/getCanonicalLocales/canonicalized-tags': [FAIL],
   'intl402/Intl/getCanonicalLocales/grandfathered': [FAIL],
-  'intl402/Intl/getCanonicalLocales/invalid-tags': [FAIL],
   'intl402/Intl/getCanonicalLocales/non-iana-canon': [FAIL],
   'intl402/Intl/getCanonicalLocales/preferred-grandfathered': [FAIL],
   'intl402/Intl/getCanonicalLocales/preferred-variant': [FAIL],
-  'intl402/language-tags-invalid': [FAIL],
-  'intl402/ListFormat/constructor/constructor/locales-valid': [FAIL],
   'intl402/Locale/constructor-non-iana-canon': [FAIL],
   'intl402/Locale/constructor-options-region-valid': [FAIL],
   'intl402/Locale/constructor-tag': [FAIL],
   'intl402/Locale/getters': [FAIL],
   'intl402/Locale/likely-subtags-grandfathered': [FAIL],
   'intl402/PluralRules/prototype/resolvedOptions/order': [FAIL],
-  'intl402/RelativeTimeFormat/constructor/constructor/locales-valid': [FAIL],
-  'intl402/Segmenter/constructor/constructor/locales-valid': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
