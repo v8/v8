@@ -1513,7 +1513,7 @@ IGNITION_HANDLER(LogicalNot, InterpreterAssembler) {
 // object in the accumulator.
 IGNITION_HANDLER(TypeOf, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
-  Node* result = Typeof(value);
+  TNode<String> result = Typeof(value);
   SetAccumulator(result);
   Dispatch();
 }
@@ -2831,7 +2831,7 @@ IGNITION_HANDLER(CreateMappedArguments, InterpreterAssembler) {
   BIND(&if_not_duplicate_parameters);
   {
     ArgumentsBuiltinsAssembler constructor_assembler(state());
-    Node* result =
+    TNode<JSObject> result =
         constructor_assembler.EmitFastNewSloppyArguments(context, closure);
     SetAccumulator(result);
     Dispatch();
