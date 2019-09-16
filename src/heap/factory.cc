@@ -1739,8 +1739,7 @@ Handle<Foreign> Factory::NewForeign(Address addr) {
 }
 
 Handle<ByteArray> Factory::NewByteArray(int length, AllocationType allocation) {
-  DCHECK_LE(0, length);
-  if (length > ByteArray::kMaxLength) {
+  if (length < 0 || length > ByteArray::kMaxLength) {
     isolate()->heap()->FatalProcessOutOfMemory("invalid array length");
   }
   int size = ByteArray::SizeFor(length);
@@ -1755,8 +1754,7 @@ Handle<ByteArray> Factory::NewByteArray(int length, AllocationType allocation) {
 Handle<BytecodeArray> Factory::NewBytecodeArray(
     int length, const byte* raw_bytecodes, int frame_size, int parameter_count,
     Handle<FixedArray> constant_pool) {
-  DCHECK_LE(0, length);
-  if (length > BytecodeArray::kMaxLength) {
+  if (length < 0 || length > BytecodeArray::kMaxLength) {
     isolate()->heap()->FatalProcessOutOfMemory("invalid array length");
   }
   // Bytecode array is AllocationType::kOld, so constant pool array should be
