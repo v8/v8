@@ -731,19 +731,6 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
           .FromJust());
 
   int32_t minimum = 0, maximum = 0;
-  if (FractionDigitsFromSkeleton(skeleton, &minimum, &maximum)) {
-    CHECK(JSReceiver::CreateDataProperty(
-              isolate, options, factory->minimumFractionDigits_string(),
-              factory->NewNumberFromInt(minimum), Just(kDontThrow))
-              .FromJust());
-    CHECK(JSReceiver::CreateDataProperty(
-              isolate, options, factory->maximumFractionDigits_string(),
-              factory->NewNumberFromInt(maximum), Just(kDontThrow))
-              .FromJust());
-  }
-
-  minimum = 0;
-  maximum = 0;
   if (SignificantDigitsFromSkeleton(skeleton, &minimum, &maximum)) {
     CHECK(JSReceiver::CreateDataProperty(
               isolate, options, factory->minimumSignificantDigits_string(),
@@ -751,6 +738,16 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
               .FromJust());
     CHECK(JSReceiver::CreateDataProperty(
               isolate, options, factory->maximumSignificantDigits_string(),
+              factory->NewNumberFromInt(maximum), Just(kDontThrow))
+              .FromJust());
+  } else {
+    FractionDigitsFromSkeleton(skeleton, &minimum, &maximum);
+    CHECK(JSReceiver::CreateDataProperty(
+              isolate, options, factory->minimumFractionDigits_string(),
+              factory->NewNumberFromInt(minimum), Just(kDontThrow))
+              .FromJust());
+    CHECK(JSReceiver::CreateDataProperty(
+              isolate, options, factory->maximumFractionDigits_string(),
               factory->NewNumberFromInt(maximum), Just(kDontThrow))
               .FromJust());
   }
