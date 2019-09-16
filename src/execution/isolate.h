@@ -1226,14 +1226,6 @@ class Isolate final : private HiddenFactory {
   // yeidls the initial Promise.resolve method.
   bool IsPromiseResolveLookupChainIntact();
 
-  // Make sure a lookup of "then" on any JSPromise whose [[Prototype]] is the
-  // initial %PromisePrototype% yields the initial method. In addition this
-  // protector also guards the negative lookup of "then" on the intrinsic
-  // %ObjectPrototype%, meaning that such lookups are guaranteed to yield
-  // undefined without triggering any side-effects.
-  bool IsPromiseThenLookupChainIntact();
-  bool IsPromiseThenLookupChainIntact(Handle<JSReceiver> receiver);
-
   // On intent to set an element in object, make sure that appropriate
   // notifications occur if the set is on the elements of the array or
   // object prototype. Also ensure that changes to prototype chain between
@@ -1252,8 +1244,6 @@ class Isolate final : private HiddenFactory {
   // The `protector_name` C string must be statically allocated.
   void TraceProtectorInvalidation(const char* protector_name);
 
-  void InvalidateArrayConstructorProtector();
-  void InvalidateRegExpSpeciesProtector(Handle<NativeContext> native_context);
   void InvalidateIsConcatSpreadableProtector();
   void InvalidateStringLengthOverflowProtector();
   void InvalidateArrayIteratorProtector();
@@ -1263,7 +1253,6 @@ class Isolate final : private HiddenFactory {
   void InvalidateArrayBufferDetachingProtector();
   V8_EXPORT_PRIVATE void InvalidatePromiseHookProtector();
   void InvalidatePromiseResolveProtector();
-  void InvalidatePromiseThenProtector();
 
   // Returns true if array is the initial array prototype in any native context.
   bool IsAnyInitialArrayPrototype(Handle<JSArray> array);

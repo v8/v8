@@ -3929,23 +3929,6 @@ bool Isolate::IsPromiseResolveLookupChainIntact() {
   return is_promise_resolve_protector_intact;
 }
 
-bool Isolate::IsPromiseThenLookupChainIntact() {
-  PropertyCell promise_then_cell = heap()->promise_then_protector();
-  bool is_promise_then_protector_intact =
-      Smi::ToInt(promise_then_cell.value()) == kProtectorValid;
-  return is_promise_then_protector_intact;
-}
-
-bool Isolate::IsPromiseThenLookupChainIntact(Handle<JSReceiver> receiver) {
-  DisallowHeapAllocation no_gc;
-  if (!receiver->IsJSPromise()) return false;
-  if (!IsInAnyContext(receiver->map().prototype(),
-                      Context::PROMISE_PROTOTYPE_INDEX)) {
-    return false;
-  }
-  return IsPromiseThenLookupChainIntact();
-}
-
 void Isolate::UpdateNoElementsProtectorOnSetElement(Handle<JSObject> object) {
   DisallowHeapAllocation no_gc;
   if (!object->map().is_prototype_map()) return;
@@ -4057,15 +4040,6 @@ void Isolate::InvalidatePromiseResolveProtector() {
   factory()->promise_resolve_protector()->set_value(
       Smi::FromInt(kProtectorInvalid));
   DCHECK(!IsPromiseResolveLookupChainIntact());
-}
-
-void Isolate::InvalidatePromiseThenProtector() {
-  DCHECK(factory()->promise_then_protector()->value().IsSmi());
-  DCHECK(IsPromiseThenLookupChainIntact());
-  PropertyCell::SetValueWithInvalidation(
-      this, "promise_then_protector", factory()->promise_then_protector(),
-      handle(Smi::FromInt(kProtectorInvalid), this));
-  DCHECK(!IsPromiseThenLookupChainIntact());
 }
 
 bool Isolate::IsAnyInitialArrayPrototype(Handle<JSArray> array) {

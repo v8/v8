@@ -419,7 +419,7 @@ void LookupIterator::InternalUpdateProtector() {
       isolate_->InvalidatePromiseResolveProtector();
     }
   } else if (*name_ == roots.then_string()) {
-    if (!isolate_->IsPromiseThenLookupChainIntact()) return;
+    if (!Protectors::IsPromiseThenLookupChainIntact(isolate_)) return;
     // Setting the "then" property on any JSPromise instance or on the
     // initial %PromisePrototype% invalidates the Promise#then protector.
     // Also setting the "then" property on the initial %ObjectPrototype%
@@ -431,7 +431,7 @@ void LookupIterator::InternalUpdateProtector() {
         isolate_->IsInAnyContext(*receiver,
                                  Context::INITIAL_OBJECT_PROTOTYPE_INDEX) ||
         isolate_->IsInAnyContext(*receiver, Context::PROMISE_PROTOTYPE_INDEX)) {
-      isolate_->InvalidatePromiseThenProtector();
+      Protectors::InvalidatePromiseThenLookupChain(isolate_);
     }
   }
 }
