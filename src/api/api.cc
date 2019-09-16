@@ -10057,10 +10057,6 @@ void CpuProfiler::SetUsePreciseSampling(bool use_precise_sampling) {
       use_precise_sampling);
 }
 
-void CpuProfiler::CollectSample() {
-  reinterpret_cast<i::CpuProfiler*>(this)->CollectSample();
-}
-
 void CpuProfiler::StartProfiling(Local<String> title,
                                  CpuProfilingOptions options) {
   reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
@@ -10086,12 +10082,6 @@ CpuProfile* CpuProfiler::StopProfiling(Local<String> title) {
   return reinterpret_cast<CpuProfile*>(
       reinterpret_cast<i::CpuProfiler*>(this)->StopProfiling(
           *Utils::OpenHandle(*title)));
-}
-
-void CpuProfiler::SetIdle(bool is_idle) {
-  i::CpuProfiler* profiler = reinterpret_cast<i::CpuProfiler*>(this);
-  i::Isolate* isolate = profiler->isolate();
-  isolate->SetIdle(is_idle);
 }
 
 void CpuProfiler::UseDetailedSourcePositionsForProfiling(Isolate* isolate) {
