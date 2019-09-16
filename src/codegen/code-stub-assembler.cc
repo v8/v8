@@ -9416,7 +9416,7 @@ void CodeStubAssembler::TryLookupPropertyInSimpleObject(
 }
 
 void CodeStubAssembler::TryLookupProperty(
-    SloppyTNode<JSObject> object, SloppyTNode<Map> map,
+    SloppyTNode<JSReceiver> object, SloppyTNode<Map> map,
     SloppyTNode<Int32T> instance_type, SloppyTNode<Name> unique_name,
     Label* if_found_fast, Label* if_found_dict, Label* if_found_global,
     TVariable<HeapObject>* var_meta_storage, TVariable<IntPtrT>* var_name_index,
@@ -9424,7 +9424,7 @@ void CodeStubAssembler::TryLookupProperty(
   Label if_objectisspecial(this);
   GotoIf(IsSpecialReceiverInstanceType(instance_type), &if_objectisspecial);
 
-  TryLookupPropertyInSimpleObject(object, map, unique_name, if_found_fast,
+  TryLookupPropertyInSimpleObject(CAST(object), map, unique_name, if_found_fast,
                                   if_found_dict, var_meta_storage,
                                   var_name_index, if_not_found);
 

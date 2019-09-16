@@ -3145,7 +3145,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   //
   // Note: this code does not check if the global dictionary points to deleted
   // entry! This has to be done by the caller.
-  void TryLookupProperty(SloppyTNode<JSObject> object, SloppyTNode<Map> map,
+  void TryLookupProperty(SloppyTNode<JSReceiver> object, SloppyTNode<Map> map,
                          SloppyTNode<Int32T> instance_type,
                          SloppyTNode<Name> unique_name, Label* if_found_fast,
                          Label* if_found_dict, Label* if_found_global,
