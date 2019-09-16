@@ -21,11 +21,10 @@ char* RelativePath(char** buffer, const char* exec_path, const char* name) {
   }
   if (path_separator >= 0) {
     int name_length = static_cast<int>(strlen(name));
-    *buffer =
-        reinterpret_cast<char*>(calloc(path_separator + name_length + 2, 1));
-    *buffer[0] = '\0';
-    strncat(*buffer, exec_path, path_separator + 1);
-    strncat(*buffer, name, name_length);
+    *buffer = reinterpret_cast<char*>(malloc(path_separator + name_length + 2));
+    memcpy(*buffer, exec_path, path_separator + 1);
+    memcpy(*buffer + path_separator + 1, name, name_length);
+    (*buffer)[path_separator + name_length + 1] = '\0';
   } else {
     *buffer = strdup(name);
   }
