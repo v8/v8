@@ -538,7 +538,6 @@
   'intl402/Locale/constructor-tag': [FAIL],
   'intl402/Locale/getters': [FAIL],
   'intl402/Locale/likely-subtags-grandfathered': [FAIL],
-  'intl402/PluralRules/prototype/resolvedOptions/order': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
