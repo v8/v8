@@ -159,7 +159,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
                                    AllocationAlignment alignment) {
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
-  DCHECK(gc_state_ == NOT_IN_GC);
+  DCHECK_EQ(gc_state_, NOT_IN_GC);
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   if (FLAG_random_gc_interval > 0 || FLAG_gc_interval >= 0) {
     if (!always_allocate() && Heap::allocation_timeout_-- <= 0) {
@@ -236,6 +236,40 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
   }
 
   return allocation;
+}
+
+template <Heap::AllocationRetryMode mode>
+HeapObject Heap::AllocateRawWith(int size, AllocationType allocation,
+                                 AllocationOrigin origin,
+                                 AllocationAlignment alignment) {
+  DCHECK(AllowHandleAllocation::IsAllowed());
+  DCHECK(AllowHeapAllocation::IsAllowed());
+  DCHECK_EQ(gc_state_, NOT_IN_GC);
+  Heap* heap = isolate()->heap();
+  Address* top = heap->NewSpaceAllocationTopAddress();
+  Address* limit = heap->NewSpaceAllocationLimitAddress();
+  if (allocation == AllocationType::kYoung &&
+      alignment == AllocationAlignment::kWordAligned &&
+      size < kMaxRegularHeapObjectSize &&
+      (*limit - *top >= static_cast<unsigned>(size)) &&
+      V8_LIKELY(!FLAG_single_generation && FLAG_inline_new &&
+                FLAG_gc_interval == 0)) {
+    DCHECK(IsAligned(size, kTaggedSize));
+    HeapObject obj = HeapObject::FromAddress(*top);
+    *top += size;
+    heap->CreateFillerObjectAt(obj.address(), size, ClearRecordedSlots::kNo);
+    MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj.address(), size);
+    return obj;
+  }
+  switch (mode) {
+    case kLightRetry:
+      return AllocateRawWithLightRetrySlowPath(size, allocation, origin,
+                                               alignment);
+    case kRetryOrFail:
+      return AllocateRawWithRetryOrFailSlowPath(size, allocation, origin,
+                                                alignment);
+  }
+  UNREACHABLE();
 }
 
 void Heap::OnAllocationEvent(HeapObject object, int size_in_bytes) {

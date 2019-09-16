@@ -1747,20 +1747,23 @@ class Heap {
       AllocationOrigin origin = AllocationOrigin::kRuntime,
       AllocationAlignment alignment = kWordAligned);
 
+  // This method will try to allocate objects quickly (AllocationType::kYoung)
+  // otherwise it falls back to a slower path indicated by the mode.
+  enum AllocationRetryMode { kLightRetry, kRetryOrFail };
+  template <AllocationRetryMode mode>
+  V8_WARN_UNUSED_RESULT inline HeapObject AllocateRawWith(
+      int size, AllocationType allocation,
+      AllocationOrigin origin = AllocationOrigin::kRuntime,
+      AllocationAlignment alignment = kWordAligned);
+
   // This method will try to perform an allocation of a given size of a given
   // AllocationType. If the allocation fails, a regular full garbage collection
   // is triggered and the allocation is retried. This is performed multiple
   // times. If after that retry procedure the allocation still fails nullptr is
   // returned.
-  HeapObject AllocateRawWithLightRetry(
+  V8_WARN_UNUSED_RESULT HeapObject AllocateRawWithLightRetrySlowPath(
       int size, AllocationType allocation, AllocationOrigin origin,
       AllocationAlignment alignment = kWordAligned);
-  HeapObject AllocateRawWithLightRetry(
-      int size, AllocationType allocation,
-      AllocationAlignment alignment = kWordAligned) {
-    return AllocateRawWithLightRetry(size, allocation,
-                                     AllocationOrigin::kRuntime, alignment);
-  }
 
   // This method will try to perform an allocation of a given size of a given
   // AllocationType. If the allocation fails, a regular full garbage collection
@@ -1768,17 +1771,11 @@ class Heap {
   // times. If after that retry procedure the allocation still fails a "hammer"
   // garbage collection is triggered which tries to significantly reduce memory.
   // If the allocation still fails after that a fatal error is thrown.
-  HeapObject AllocateRawWithRetryOrFail(
+  V8_WARN_UNUSED_RESULT HeapObject AllocateRawWithRetryOrFailSlowPath(
       int size, AllocationType allocation, AllocationOrigin origin,
       AllocationAlignment alignment = kWordAligned);
-  HeapObject AllocateRawWithRetryOrFail(
-      int size, AllocationType allocation,
-      AllocationAlignment alignment = kWordAligned) {
-    return AllocateRawWithRetryOrFail(size, allocation,
-                                      AllocationOrigin::kRuntime, alignment);
-  }
 
-  HeapObject AllocateRawCodeInLargeObjectSpace(int size);
+  V8_WARN_UNUSED_RESULT HeapObject AllocateRawCodeInLargeObjectSpace(int size);
 
   // Allocates a heap object based on the map.
   V8_WARN_UNUSED_RESULT AllocationResult Allocate(Map map,

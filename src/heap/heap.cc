@@ -4897,9 +4897,9 @@ HeapObject Heap::EnsureImmovableCode(HeapObject heap_object, int object_size) {
   return heap_object;
 }
 
-HeapObject Heap::AllocateRawWithLightRetry(int size, AllocationType allocation,
-                                           AllocationOrigin origin,
-                                           AllocationAlignment alignment) {
+HeapObject Heap::AllocateRawWithLightRetrySlowPath(
+    int size, AllocationType allocation, AllocationOrigin origin,
+    AllocationAlignment alignment) {
   HeapObject result;
   AllocationResult alloc = AllocateRaw(size, allocation, origin, alignment);
   if (alloc.To(&result)) {
@@ -4919,12 +4919,12 @@ HeapObject Heap::AllocateRawWithLightRetry(int size, AllocationType allocation,
   return HeapObject();
 }
 
-HeapObject Heap::AllocateRawWithRetryOrFail(int size, AllocationType allocation,
-                                            AllocationOrigin origin,
-                                            AllocationAlignment alignment) {
+HeapObject Heap::AllocateRawWithRetryOrFailSlowPath(
+    int size, AllocationType allocation, AllocationOrigin origin,
+    AllocationAlignment alignment) {
   AllocationResult alloc;
   HeapObject result =
-      AllocateRawWithLightRetry(size, allocation, origin, alignment);
+      AllocateRawWithLightRetrySlowPath(size, allocation, origin, alignment);
   if (!result.is_null()) return result;
 
   isolate()->counters()->gc_last_resort_from_handles()->Increment();
