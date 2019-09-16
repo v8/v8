@@ -822,6 +822,13 @@ class ArrayIncludesIndexofAssembler : public CodeStubAssembler {
                             TNode<FixedDoubleArray> elements,
                             TNode<Object> search_element,
                             TNode<Smi> array_length, TNode<Smi> from_index);
+
+  void ReturnIfEmpty(TNode<Smi> length, TNode<Object> value) {
+    Label done(this);
+    GotoIf(SmiGreaterThan(length, SmiConstant(0)), &done);
+    Return(value);
+    BIND(&done);
+  }
 };
 
 void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant,
@@ -1324,22 +1331,24 @@ TF_BUILTIN(ArrayIncludesSmiOrObject, ArrayIncludesIndexofAssembler) {
 }
 
 TF_BUILTIN(ArrayIncludesPackedDoubles, ArrayIncludesIndexofAssembler) {
-  TNode<FixedDoubleArray> elements = CAST(Parameter(Descriptor::kElements));
+  TNode<FixedArrayBase> elements = CAST(Parameter(Descriptor::kElements));
   TNode<Object> search_element = CAST(Parameter(Descriptor::kSearchElement));
   TNode<Smi> array_length = CAST(Parameter(Descriptor::kLength));
   TNode<Smi> from_index = CAST(Parameter(Descriptor::kFromIndex));
 
-  GeneratePackedDoubles(kIncludes, elements, search_element, array_length,
+  ReturnIfEmpty(array_length, FalseConstant());
+  GeneratePackedDoubles(kIncludes, CAST(elements), search_element, array_length,
                         from_index);
 }
 
 TF_BUILTIN(ArrayIncludesHoleyDoubles, ArrayIncludesIndexofAssembler) {
-  TNode<FixedDoubleArray> elements = CAST(Parameter(Descriptor::kElements));
+  TNode<FixedArrayBase> elements = CAST(Parameter(Descriptor::kElements));
   TNode<Object> search_element = CAST(Parameter(Descriptor::kSearchElement));
   TNode<Smi> array_length = CAST(Parameter(Descriptor::kLength));
   TNode<Smi> from_index = CAST(Parameter(Descriptor::kFromIndex));
 
-  GenerateHoleyDoubles(kIncludes, elements, search_element, array_length,
+  ReturnIfEmpty(array_length, FalseConstant());
+  GenerateHoleyDoubles(kIncludes, CAST(elements), search_element, array_length,
                        from_index);
 }
 
@@ -1363,22 +1372,24 @@ TF_BUILTIN(ArrayIndexOfSmiOrObject, ArrayIncludesIndexofAssembler) {
 }
 
 TF_BUILTIN(ArrayIndexOfPackedDoubles, ArrayIncludesIndexofAssembler) {
-  TNode<FixedDoubleArray> elements = CAST(Parameter(Descriptor::kElements));
+  TNode<FixedArrayBase> elements = CAST(Parameter(Descriptor::kElements));
   TNode<Object> search_element = CAST(Parameter(Descriptor::kSearchElement));
   TNode<Smi> array_length = CAST(Parameter(Descriptor::kLength));
   TNode<Smi> from_index = CAST(Parameter(Descriptor::kFromIndex));
 
-  GeneratePackedDoubles(kIndexOf, elements, search_element, array_length,
+  ReturnIfEmpty(array_length, NumberConstant(-1));
+  GeneratePackedDoubles(kIndexOf, CAST(elements), search_element, array_length,
                         from_index);
 }
 
 TF_BUILTIN(ArrayIndexOfHoleyDoubles, ArrayIncludesIndexofAssembler) {
-  TNode<FixedDoubleArray> elements = CAST(Parameter(Descriptor::kElements));
+  TNode<FixedArrayBase> elements = CAST(Parameter(Descriptor::kElements));
   TNode<Object> search_element = CAST(Parameter(Descriptor::kSearchElement));
   TNode<Smi> array_length = CAST(Parameter(Descriptor::kLength));
   TNode<Smi> from_index = CAST(Parameter(Descriptor::kFromIndex));
 
-  GenerateHoleyDoubles(kIndexOf, elements, search_element, array_length,
+  ReturnIfEmpty(array_length, NumberConstant(-1));
+  GenerateHoleyDoubles(kIndexOf, CAST(elements), search_element, array_length,
                        from_index);
 }
 
