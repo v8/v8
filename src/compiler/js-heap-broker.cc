@@ -2481,6 +2481,7 @@ void JSHeapBroker::InitializeAndStartSerializing(
   GetOrCreateData(f->fixed_double_array_map());
   GetOrCreateData(f->function_context_map());
   GetOrCreateData(f->function_string());
+  GetOrCreateData(f->has_instance_symbol());
   GetOrCreateData(f->heap_number_map());
   GetOrCreateData(f->length_string());
   GetOrCreateData(f->many_closures_cell_map());
