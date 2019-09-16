@@ -13621,7 +13621,7 @@ TNode<Object> CodeStubArguments::GetOptionalArgumentValue(
 void CodeStubArguments::ForEach(
     const CodeStubAssembler::VariableList& vars,
     const CodeStubArguments::ForEachBodyFunction& body, TNode<IntPtrT> first,
-    TNode<IntPtrT> last) {
+    TNode<IntPtrT> last) const {
   assembler_->Comment("CodeStubArguments::ForEach");
   if (first == nullptr) {
     first = assembler_->IntPtrConstant(0);

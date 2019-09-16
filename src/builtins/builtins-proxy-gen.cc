@@ -59,7 +59,8 @@ TNode<JSProxy> ProxiesCodeStubAssembler::AllocateProxy(
 }
 
 Node* ProxiesCodeStubAssembler::AllocateJSArrayForCodeStubArguments(
-    Node* context, CodeStubArguments& args, Node* argc, ParameterMode mode) {
+    Node* context, const CodeStubArguments& args, Node* argc,
+    ParameterMode mode) {
   Comment("AllocateJSArrayForCodeStubArguments");
 
   Label if_empty_array(this), allocate_js_array(this);

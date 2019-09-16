@@ -23,13 +23,13 @@ class BuiltinArguments : public Arguments {
     DCHECK_LE(1, this->length());
   }
 
-  Object operator[](int index) {
+  Object operator[](int index) const {
     DCHECK_LT(index, length());
     return Arguments::operator[](index);
   }
 
   template <class S = Object>
-  Handle<S> at(int index) {
+  Handle<S> at(int index) const {
     DCHECK_LT(index, length());
     return Arguments::at<S>(index);
   }
@@ -42,10 +42,10 @@ class BuiltinArguments : public Arguments {
   static constexpr int kNumExtraArgs = 4;
   static constexpr int kNumExtraArgsWithReceiver = 5;
 
-  inline Handle<Object> atOrUndefined(Isolate* isolate, int index);
-  inline Handle<Object> receiver();
-  inline Handle<JSFunction> target();
-  inline Handle<HeapObject> new_target();
+  inline Handle<Object> atOrUndefined(Isolate* isolate, int index) const;
+  inline Handle<Object> receiver() const;
+  inline Handle<JSFunction> target() const;
+  inline Handle<HeapObject> new_target() const;
 
   // Gets the total number of arguments including the receiver (but
   // excluding extra arguments).

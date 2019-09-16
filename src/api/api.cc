@@ -9562,7 +9562,7 @@ debug::ConsoleCallArguments::ConsoleCallArguments(
 }
 
 debug::ConsoleCallArguments::ConsoleCallArguments(
-    internal::BuiltinArguments& args)
+    const internal::BuiltinArguments& args)
     : v8::FunctionCallbackInfo<v8::Value>(
           nullptr,
           // Drop the first argument (receiver, i.e. the "console" object).

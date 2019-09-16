@@ -3923,7 +3923,7 @@ class V8_EXPORT_PRIVATE CodeStubArguments {
   // Iteration doesn't include the receiver. |first| and |last| are zero-based.
   template <typename TIndex>
   void ForEach(const ForEachBodyFunction& body, TNode<TIndex> first = {},
-               TNode<TIndex> last = {}) {
+               TNode<TIndex> last = {}) const {
     CodeStubAssembler::VariableList list(0, assembler_->zone());
     ForEach(list, body, first, last);
   }
@@ -3931,11 +3931,11 @@ class V8_EXPORT_PRIVATE CodeStubArguments {
   // Iteration doesn't include the receiver. |first| and |last| are zero-based.
   void ForEach(const CodeStubAssembler::VariableList& vars,
                const ForEachBodyFunction& body, TNode<IntPtrT> first = {},
-               TNode<IntPtrT> last = {});
+               TNode<IntPtrT> last = {}) const;
 
   void ForEach(const CodeStubAssembler::VariableList& vars,
                const ForEachBodyFunction& body, TNode<Smi> first,
-               TNode<Smi> last = {}) {
+               TNode<Smi> last = {}) const {
     TNode<IntPtrT> first_intptr = assembler_->ParameterToIntPtr(first);
     TNode<IntPtrT> last_intptr;
     if (last != nullptr) {
