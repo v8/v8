@@ -22,7 +22,7 @@ namespace regexp {
     BranchIfFastRegExp_Permissive(o) otherwise return true, return false;
   }
 
-  extern macro RegExpBuiltinsAssembler::RegExpExec(Context, JSAny, JSAny):
+  extern macro RegExpBuiltinsAssembler::RegExpExec(Context, JSReceiver, String):
       JSAny;
 
   extern macro

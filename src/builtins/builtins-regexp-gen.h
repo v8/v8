@@ -139,17 +139,17 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
 
   // Performs fast path checks on the given object itself, but omits prototype
   // checks.
-  Node* IsFastRegExpNoPrototype(SloppyTNode<Context> context,
-                                SloppyTNode<Object> object);
-  Node* IsFastRegExpNoPrototype(SloppyTNode<Context> context,
-                                SloppyTNode<Object> object,
-                                SloppyTNode<Map> map);
+  TNode<BoolT> IsFastRegExpNoPrototype(TNode<Context> context,
+                                       TNode<Object> object);
+  TNode<BoolT> IsFastRegExpNoPrototype(TNode<Context> context,
+                                       TNode<Object> object, TNode<Map> map);
 
   // For debugging only. Uses a slow GetProperty call to fetch object.exec.
   TNode<BoolT> IsFastRegExpWithOriginalExec(TNode<Context> context,
                                             TNode<JSRegExp> object);
 
-  void BranchIfFastRegExpResult(Node* const context, Node* const object,
+  void BranchIfFastRegExpResult(const TNode<Context> context,
+                                const TNode<Object> object,
                                 Label* if_isunmodified, Label* if_ismodified);
 
   TNode<String> FlagsGetter(TNode<Context> context, TNode<Object> regexp,
@@ -167,10 +167,14 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   TNode<BoolT> FlagGetter(TNode<Context> context, TNode<Object> regexp,
                           JSRegExp::Flag flag, bool is_fastpath);
 
-  Node* RegExpInitialize(Node* const context, Node* const regexp,
-                         Node* const maybe_pattern, Node* const maybe_flags);
+  TNode<Object> RegExpInitialize(const TNode<Context> context,
+                                 const TNode<JSRegExp> regexp,
+                                 const TNode<Object> maybe_pattern,
+                                 const TNode<Object> maybe_flags);
 
-  TNode<Object> RegExpExec(TNode<Context> context, Node* regexp, Node* string);
+  TNode<Object> RegExpExec(TNode<Context> context,
+                           TNode<JSReceiver> maybe_regexp,
+                           TNode<String> string);
 
   TNode<Number> AdvanceStringIndex(SloppyTNode<String> string,
                                    SloppyTNode<Number> index,
