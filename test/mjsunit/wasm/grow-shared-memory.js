@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(v8:8832): Enable --stress-opt on these tests
-// Flags: --wasm-grow-shared-memory
-// Flags: --experimental-wasm-threads --no-stress-opt
+// Flags: --wasm-grow-shared-memory --experimental-wasm-threads
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
