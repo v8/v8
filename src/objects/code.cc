@@ -101,7 +101,6 @@ void Code::CopyFromNoFlush(Heap* heap, const CodeDesc& desc) {
 
   // Unbox handles and relocate.
   Assembler* origin = desc.origin;
-  AllowDeferredHandleDereference embedding_raw_address;
   const int mode_mask = RelocInfo::PostCodegenRelocationMask();
   for (RelocIterator it(*this, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();

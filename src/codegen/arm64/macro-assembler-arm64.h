@@ -1597,8 +1597,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     tbx(vd, vn, vn2, vn3, vn4, vm);
   }
 
-  void LoadObject(Register result, Handle<Object> object);
-
   inline void PushSizeRegList(
       RegList registers, unsigned reg_size,
       CPURegister::RegisterType type = CPURegister::kRegister) {

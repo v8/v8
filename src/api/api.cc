@@ -10587,9 +10587,10 @@ char* HandleScopeImplementer::Iterate(RootVisitor* v, char* storage) {
   return storage + ArchiveSpacePerThread();
 }
 
-DeferredHandles* HandleScopeImplementer::Detach(Address* prev_limit) {
-  DeferredHandles* deferred =
-      new DeferredHandles(isolate()->handle_scope_data()->next, isolate());
+std::unique_ptr<DeferredHandles> HandleScopeImplementer::Detach(
+    Address* prev_limit) {
+  std::unique_ptr<DeferredHandles> deferred(
+      new DeferredHandles(isolate()->handle_scope_data()->next, isolate()));
 
   while (!blocks_.empty()) {
     Address* block_start = blocks_.back();

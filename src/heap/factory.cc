@@ -1785,7 +1785,6 @@ Handle<BytecodeArray> Factory::NewBytecodeArray(
 }
 
 Handle<Cell> Factory::NewCell(Handle<Object> value) {
-  AllowDeferredHandleDereference convert_to_cell;
   STATIC_ASSERT(Cell::kSize <= kMaxRegularHeapObjectSize);
   HeapObject result = AllocateRawWithImmortalMap(
       Cell::kSize, AllocationType::kOld, *cell_map());
@@ -1795,7 +1794,6 @@ Handle<Cell> Factory::NewCell(Handle<Object> value) {
 }
 
 Handle<FeedbackCell> Factory::NewNoClosuresCell(Handle<HeapObject> value) {
-  AllowDeferredHandleDereference convert_to_cell;
   HeapObject result = AllocateRawWithImmortalMap(FeedbackCell::kAlignedSize,
       AllocationType::kOld, *no_closures_cell_map());
   Handle<FeedbackCell> cell(FeedbackCell::cast(result), isolate());
@@ -1806,7 +1804,6 @@ Handle<FeedbackCell> Factory::NewNoClosuresCell(Handle<HeapObject> value) {
 }
 
 Handle<FeedbackCell> Factory::NewOneClosureCell(Handle<HeapObject> value) {
-  AllowDeferredHandleDereference convert_to_cell;
   HeapObject result = AllocateRawWithImmortalMap(FeedbackCell::kAlignedSize,
       AllocationType::kOld, *one_closure_cell_map());
   Handle<FeedbackCell> cell(FeedbackCell::cast(result), isolate());
@@ -1817,7 +1814,6 @@ Handle<FeedbackCell> Factory::NewOneClosureCell(Handle<HeapObject> value) {
 }
 
 Handle<FeedbackCell> Factory::NewManyClosuresCell(Handle<HeapObject> value) {
-  AllowDeferredHandleDereference convert_to_cell;
   HeapObject result = AllocateRawWithImmortalMap(FeedbackCell::kAlignedSize,
       AllocationType::kOld, *many_closures_cell_map());
   Handle<FeedbackCell> cell(FeedbackCell::cast(result), isolate());

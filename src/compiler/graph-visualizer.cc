@@ -163,7 +163,6 @@ void JsonPrintInlinedFunctionInfo(
 void JsonPrintAllSourceWithPositions(std::ostream& os,
                                      OptimizedCompilationInfo* info,
                                      Isolate* isolate) {
-  AllowDeferredHandleDereference allow_deference_for_print_code;
   os << "\"sources\" : {";
   Handle<Script> script =
       (info->shared_info().is_null() ||

@@ -433,7 +433,7 @@ class HandleScopeImplementer {
   }
 
   void BeginDeferredScope();
-  DeferredHandles* Detach(Address* prev_limit);
+  std::unique_ptr<DeferredHandles> Detach(Address* prev_limit);
 
   Isolate* isolate_;
   DetachableVector<Address*> blocks_;

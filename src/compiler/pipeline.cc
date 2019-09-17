@@ -696,8 +696,6 @@ void PrintInlinedFunctionInfo(
 // compilation. For inlined functions print source position of their inlining.
 void PrintParticipatingSource(OptimizedCompilationInfo* info,
                               Isolate* isolate) {
-  AllowDeferredHandleDereference allow_deference_for_print_code;
-
   SourceIdAssigner id_assigner(info->inlined_functions().size());
   PrintFunctionSource(info, isolate, -1, info->shared_info());
   const auto& inlined = info->inlined_functions();
@@ -716,7 +714,6 @@ void PrintCode(Isolate* isolate, Handle<Code> code,
   }
 
 #ifdef ENABLE_DISASSEMBLER
-  AllowDeferredHandleDereference allow_deference_for_print_code;
   bool print_code =
       FLAG_print_code ||
       (info->IsOptimizing() && FLAG_print_opt_code &&

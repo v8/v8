@@ -3663,7 +3663,7 @@ TEST(DeferredHandles) {
   DeferredHandleScope deferred(isolate);
   DummyVisitor visitor;
   isolate->handle_scope_implementer()->Iterate(&visitor);
-  delete deferred.Detach();
+  deferred.Detach();
 }
 
 

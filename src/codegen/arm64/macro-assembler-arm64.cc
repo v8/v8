@@ -1456,15 +1456,6 @@ void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
       MemOperand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
 }
 
-void MacroAssembler::LoadObject(Register result, Handle<Object> object) {
-  AllowDeferredHandleDereference heap_object_check;
-  if (object->IsHeapObject()) {
-    Mov(result, Handle<HeapObject>::cast(object));
-  } else {
-    Mov(result, Operand(Smi::cast(*object)));
-  }
-}
-
 void TurboAssembler::Move(Register dst, Smi src) { Mov(dst, src); }
 
 void TurboAssembler::MovePair(Register dst0, Register src0, Register dst1,

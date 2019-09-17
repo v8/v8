@@ -3990,7 +3990,6 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
     }
   }
   DCHECK(RelocInfo::IsCodeTarget(rmode));
-  AllowDeferredHandleDereference embedding_raw_address;
   Call(code.address(), rmode, cond, rs, rt, bd);
 }
 

@@ -1423,7 +1423,6 @@ void MacroAssembler::Negpd(XMMRegister dst) {
 }
 
 void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
-  AllowDeferredHandleDereference smi_check;
   if (source->IsSmi()) {
     Cmp(dst, Smi::cast(*source));
   } else {
@@ -1433,7 +1432,6 @@ void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
 }
 
 void MacroAssembler::Cmp(Operand dst, Handle<Object> source) {
-  AllowDeferredHandleDereference smi_check;
   if (source->IsSmi()) {
     Cmp(dst, Smi::cast(*source));
   } else {
