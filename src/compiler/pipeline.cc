@@ -940,7 +940,7 @@ class PipelineCompilationJob final : public OptimizedCompilationJob {
   PipelineCompilationJob(Isolate* isolate,
                          Handle<SharedFunctionInfo> shared_info,
                          Handle<JSFunction> function);
-  ~PipelineCompilationJob();
+  ~PipelineCompilationJob() final;
 
  protected:
   Status PrepareJobImpl(Isolate* isolate) final;
@@ -1164,8 +1164,6 @@ class WasmHeapStubCompilationJob final : public OptimizedCompilationJob {
               new (zone_.get()) NodeOriginTable(graph_), nullptr, options),
         pipeline_(&data_),
         wasm_engine_(wasm_engine) {}
-
-  ~WasmHeapStubCompilationJob() = default;
 
  protected:
   Status PrepareJobImpl(Isolate* isolate) final;
