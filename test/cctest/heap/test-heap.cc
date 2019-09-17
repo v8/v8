@@ -5337,6 +5337,11 @@ AllocationResult HeapTester::AllocateByteArrayForTest(
   return result;
 }
 
+bool HeapTester::CodeEnsureLinearAllocationArea(Heap* heap, int size_in_bytes) {
+  return heap->code_space()->EnsureLinearAllocationArea(
+      size_in_bytes, AllocationOrigin::kRuntime);
+}
+
 HEAP_TEST(Regress587004) {
   ManualGCScope manual_gc_scope;
 #ifdef VERIFY_HEAP
@@ -6788,11 +6793,13 @@ TEST(CodeObjectRegistry) {
   HandleScope outer_scope(heap->isolate());
   Address code2_address;
   {
+    // Ensure that both code objects end up on the same page.
+    CHECK(HeapTester::CodeEnsureLinearAllocationArea(
+        heap, kMaxRegularHeapObjectSize));
     code1 = DummyOptimizedCode(isolate);
     Handle<Code> code2 = DummyOptimizedCode(isolate);
     code2_address = code2->address();
-    // If this check breaks, change the allocation to ensure that both code
-    // objects are on the same page.
+
     CHECK_EQ(MemoryChunk::FromHeapObject(*code1),
              MemoryChunk::FromHeapObject(*code2));
     CHECK(MemoryChunk::FromHeapObject(*code1)->Contains(code1->address()));

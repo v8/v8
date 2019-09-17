@@ -526,7 +526,6 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
     source_out() << "  USE(" << parameter0 << ");\n";
 
     for (size_t i = 1; i < signature.parameter_names.size(); ++i) {
-      const std::string& parameter_name = signature.parameter_names[i]->value;
       const Type* type = signature.types()[i];
       const bool mark_as_used = signature.implicit_count > i;
       std::string var = AddParameter(i, builtin, &parameters, &parameter_types,
@@ -534,8 +533,8 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
       source_out() << "  " << type->GetGeneratedTypeName() << " " << var
                    << " = "
                    << "UncheckedCast<" << type->GetGeneratedTNodeTypeName()
-                   << ">(Parameter(Descriptor::k"
-                   << CamelifyString(parameter_name) << "));\n";
+                   << ">(Parameter(Descriptor::ParameterIndex<" << (i - 1)
+                   << ">()));\n";
       source_out() << "  USE(" << var << ");\n";
     }
   }
@@ -2670,13 +2669,34 @@ void ImplementationVisitor::Visit(Declarable* declarable) {
   }
 }
 
-void ImplementationVisitor::GenerateBuiltinDefinitions(
+std::string MachineTypeString(const Type* type) {
+  if (type->IsSubtypeOf(TypeOracle::GetSmiType())) {
+    return "MachineType::TaggedSigned()";
+  }
+  if (type->IsSubtypeOf(TypeOracle::GetHeapObjectType())) {
+    return "MachineType::TaggedPointer()";
+  }
+  if (type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+    return "MachineType::AnyTagged()";
+  }
+  return "MachineTypeOf<" + type->GetGeneratedTNodeTypeName() + ">::value";
+}
+
+void ImplementationVisitor::GenerateBuiltinDefinitionsAndInterfaceDescriptors(
     const std::string& output_directory) {
-  std::stringstream new_contents_stream;
-  std::string file_name = "builtin-definitions-tq.h";
+  std::stringstream builtin_definitions;
+  std::string builtin_definitions_file_name = "builtin-definitions-tq.h";
+
+  // This file contains plain interface descriptor definitions and has to be
+  // included in the middle of interface-descriptors.h. Thus it is not a normal
+  // header file and uses the .inc suffix instead of the .h suffix.
+  std::stringstream interface_descriptors;
+  std::string interface_descriptors_file_name = "interface-descriptors-tq.inc";
   {
-    IncludeGuardScope include_guard(new_contents_stream, file_name);
-    new_contents_stream
+    IncludeGuardScope builtin_definitions_include_guard(
+        builtin_definitions, builtin_definitions_file_name);
+
+    builtin_definitions
         << "\n"
            "#define BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC, TFS, TFH, "
            "ASM) "
@@ -2684,40 +2704,67 @@ void ImplementationVisitor::GenerateBuiltinDefinitions(
     for (auto& declarable : GlobalContext::AllDeclarables()) {
       Builtin* builtin = Builtin::DynamicCast(declarable.get());
       if (!builtin || builtin->IsExternal()) continue;
-      size_t firstParameterIndex = 1;
-      bool declareParameters = true;
       if (builtin->IsStub()) {
-        new_contents_stream << "TFS(" << builtin->ExternalName();
+        builtin_definitions << "TFC(" << builtin->ExternalName() << ", "
+                            << builtin->ExternalName();
+        std::string descriptor_name = builtin->ExternalName() + "Descriptor";
+        constexpr size_t kFirstNonContextParameter = 1;
+        size_t parameter_count =
+            builtin->parameter_names().size() - kFirstNonContextParameter;
+
+        interface_descriptors << "class " << descriptor_name
+                              << " : public TorqueInterfaceDescriptor<"
+                              << parameter_count << "> {\n";
+        interface_descriptors << "  DECLARE_DESCRIPTOR_WITH_BASE("
+                              << descriptor_name
+                              << ", TorqueInterfaceDescriptor)\n";
+
+        interface_descriptors << "  MachineType ReturnType() override {\n";
+        interface_descriptors
+            << "    return "
+            << MachineTypeString(builtin->signature().return_type) << ";\n";
+        interface_descriptors << "  }\n";
+
+        interface_descriptors << "  std::array<MachineType, " << parameter_count
+                              << "> ParameterTypes() override {\n";
+        interface_descriptors << "    return {";
+        for (size_t i = kFirstNonContextParameter;
+             i < builtin->parameter_names().size(); ++i) {
+          bool last = i + 1 == builtin->parameter_names().size();
+          const Type* type = builtin->signature().parameter_types.types[i];
+          interface_descriptors << MachineTypeString(type)
+                                << (last ? "" : ", ");
+        }
+        interface_descriptors << "};\n";
+
+        interface_descriptors << "  }\n";
+        interface_descriptors << "};\n\n";
       } else {
-        new_contents_stream << "TFJ(" << builtin->ExternalName();
+        builtin_definitions << "TFJ(" << builtin->ExternalName();
         if (builtin->IsVarArgsJavaScript()) {
-          new_contents_stream
+          builtin_definitions
               << ", SharedFunctionInfo::kDontAdaptArgumentsSentinel";
-          declareParameters = false;
         } else {
           DCHECK(builtin->IsFixedArgsJavaScript());
           // FixedArg javascript builtins need to offer the parameter
           // count.
           int parameter_count =
               static_cast<int>(builtin->signature().ExplicitCount());
-          new_contents_stream << ", " << parameter_count;
+          builtin_definitions << ", " << parameter_count;
           // And the receiver is explicitly declared.
-          new_contents_stream << ", kReceiver";
-          firstParameterIndex = builtin->signature().implicit_count;
+          builtin_definitions << ", kReceiver";
+          for (size_t i = builtin->signature().implicit_count;
+               i < builtin->parameter_names().size(); ++i) {
+            Identifier* parameter = builtin->parameter_names()[i];
+            builtin_definitions << ", k" << CamelifyString(parameter->value);
+          }
         }
       }
-      if (declareParameters) {
-        for (size_t i = firstParameterIndex;
-             i < builtin->parameter_names().size(); ++i) {
-          Identifier* parameter = builtin->parameter_names()[i];
-          new_contents_stream << ", k" << CamelifyString(parameter->value);
-        }
-      }
-      new_contents_stream << ") \\\n";
+      builtin_definitions << ") \\\n";
     }
-    new_contents_stream << "\n";
+    builtin_definitions << "\n";
 
-    new_contents_stream
+    builtin_definitions
         << "#define TORQUE_FUNCTION_POINTER_TYPE_TO_BUILTIN_MAP(V) \\\n";
     for (const BuiltinPointerType* type :
          TypeOracle::AllBuiltinPointerTypes()) {
@@ -2728,13 +2775,15 @@ void ImplementationVisitor::GenerateBuiltinDefinitions(
             SourcePosition{CurrentSourceFile::Get(), {-1, -1}, {-1, -1}});
         ReportError("unable to find any builtin with type \"", *type, "\"");
       }
-      new_contents_stream << "  V(" << type->function_pointer_type_id() << ","
+      builtin_definitions << "  V(" << type->function_pointer_type_id() << ","
                           << example_builtin->ExternalName() << ")\\\n";
     }
-    new_contents_stream << "\n";
+    builtin_definitions << "\n";
   }
-  std::string new_contents(new_contents_stream.str());
-  WriteFile(output_directory + "/" + file_name, new_contents);
+  WriteFile(output_directory + "/" + builtin_definitions_file_name,
+            builtin_definitions.str());
+  WriteFile(output_directory + "/" + interface_descriptors_file_name,
+            interface_descriptors.str());
 }
 
 namespace {

@@ -102,7 +102,6 @@ namespace internal {
   ASM(ResumeGeneratorTrampoline, ResumeGenerator)                              \
                                                                                \
   /* String helpers */                                                         \
-  TFC(StringCharAt, StringAt)                                                  \
   TFC(StringCodePointAt, StringAt)                                             \
   TFC(StringFromCodePointAt, StringAtAsString)                                 \
   TFC(StringEqual, Compare)                                                    \

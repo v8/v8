@@ -760,19 +760,6 @@ TF_BUILTIN(StringGreaterThanOrEqual, StringBuiltinsAssembler) {
                                      Operation::kGreaterThanOrEqual);
 }
 
-TF_BUILTIN(StringCharAt, StringBuiltinsAssembler) {
-  TNode<String> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<IntPtrT> position =
-      UncheckedCast<IntPtrT>(Parameter(Descriptor::kPosition));
-
-  // Load the character code at the {position} from the {receiver}.
-  TNode<Int32T> code = StringCharCodeAt(receiver, position);
-
-  // And return the single character string with only that {code}
-  TNode<String> result = StringFromSingleCharCode(code);
-  Return(result);
-}
-
 TF_BUILTIN(StringCodePointAt, StringBuiltinsAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* position = Parameter(Descriptor::kPosition);

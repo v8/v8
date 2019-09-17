@@ -1092,6 +1092,7 @@ action("run_torque") {
 
   outputs = [
     "$target_gen_dir/torque-generated/builtin-definitions-tq.h",
+    "$target_gen_dir/torque-generated/interface-descriptors-tq.inc",
     "$target_gen_dir/torque-generated/field-offsets-tq.h",
     "$target_gen_dir/torque-generated/class-verifiers-tq.cc",
     "$target_gen_dir/torque-generated/class-verifiers-tq.h",
