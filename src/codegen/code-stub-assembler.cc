@@ -5629,48 +5629,43 @@ TNode<Float64T> CodeStubAssembler::TruncateTaggedToFloat64(
 
 TNode<Word32T> CodeStubAssembler::TruncateTaggedToWord32(
     SloppyTNode<Context> context, SloppyTNode<Object> value) {
-  VARIABLE(var_result, MachineRepresentation::kWord32);
+  TVARIABLE(Word32T, var_result);
   Label done(this);
   TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumber>(context, value,
                                                             &done, &var_result);
   BIND(&done);
-  return UncheckedCast<Word32T>(var_result.value());
+  return var_result.value();
 }
 
 // Truncate {value} to word32 and jump to {if_number} if it is a Number,
 // or find that it is a BigInt and jump to {if_bigint}.
-void CodeStubAssembler::TaggedToWord32OrBigInt(Node* context, Node* value,
-                                               Label* if_number,
-                                               Variable* var_word32,
-                                               Label* if_bigint,
-                                               Variable* var_bigint) {
+void CodeStubAssembler::TaggedToWord32OrBigInt(
+    TNode<Context> context, TNode<Object> value, Label* if_number,
+    TVariable<Word32T>* var_word32, Label* if_bigint,
+    TVariable<Object>* var_maybe_bigint) {
   TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumeric>(
-      context, value, if_number, var_word32, if_bigint, var_bigint);
+      context, value, if_number, var_word32, if_bigint, var_maybe_bigint);
 }
 
 // Truncate {value} to word32 and jump to {if_number} if it is a Number,
 // or find that it is a BigInt and jump to {if_bigint}. In either case,
 // store the type feedback in {var_feedback}.
 void CodeStubAssembler::TaggedToWord32OrBigIntWithFeedback(
-    Node* context, Node* value, Label* if_number, Variable* var_word32,
-    Label* if_bigint, Variable* var_bigint, Variable* var_feedback) {
+    TNode<Context> context, TNode<Object> value, Label* if_number,
+    TVariable<Word32T>* var_word32, Label* if_bigint,
+    TVariable<Object>* var_maybe_bigint, TVariable<Smi>* var_feedback) {
   TaggedToWord32OrBigIntImpl<Object::Conversion::kToNumeric>(
-      context, value, if_number, var_word32, if_bigint, var_bigint,
+      context, value, if_number, var_word32, if_bigint, var_maybe_bigint,
       var_feedback);
 }
 
 template <Object::Conversion conversion>
 void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
-    Node* context, Node* value, Label* if_number, Variable* var_word32,
-    Label* if_bigint, Variable* var_bigint, Variable* var_feedback) {
-  DCHECK(var_word32->rep() == MachineRepresentation::kWord32);
-  DCHECK(var_bigint == nullptr ||
-         var_bigint->rep() == MachineRepresentation::kTagged);
-  DCHECK(var_feedback == nullptr ||
-         var_feedback->rep() == MachineRepresentation::kTaggedSigned);
-
+    TNode<Context> context, TNode<Object> value, Label* if_number,
+    TVariable<Word32T>* var_word32, Label* if_bigint,
+    TVariable<Object>* var_maybe_bigint, TVariable<Smi>* var_feedback) {
   // We might need to loop after conversion.
-  VARIABLE(var_value, MachineRepresentation::kTagged, value);
+  TVARIABLE(Object, var_value, value);
   OverwriteFeedback(var_feedback, BinaryOperationFeedback::kNone);
   Variable* loop_vars[] = {&var_value, var_feedback};
   int num_vars =
@@ -5685,12 +5680,13 @@ void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
     GotoIf(TaggedIsNotSmi(value), &not_smi);
 
     // {value} is a Smi.
-    var_word32->Bind(SmiToInt32(value));
+    *var_word32 = SmiToInt32(CAST(value));
     CombineFeedback(var_feedback, BinaryOperationFeedback::kSignedSmall);
     Goto(if_number);
 
     BIND(&not_smi);
-    TNode<Map> map = LoadMap(value);
+    TNode<HeapObject> value_heap_object = CAST(value);
+    TNode<Map> map = LoadMap(value_heap_object);
     GotoIf(IsHeapNumberMap(map), &is_heap_number);
     TNode<Uint16T> instance_type = LoadMapInstanceType(map);
     if (conversion == Object::Conversion::kToNumeric) {
@@ -5703,7 +5699,7 @@ void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
         // We do not require an Or with earlier feedback here because once we
         // convert the value to a Numeric, we cannot reach this path. We can
         // only reach this path on the first pass when the feedback is kNone.
-        CSA_ASSERT(this, SmiEqual(CAST(var_feedback->value()),
+        CSA_ASSERT(this, SmiEqual(var_feedback->value(),
                                   SmiConstant(BinaryOperationFeedback::kNone)));
       }
       GotoIf(InstanceTypeEqual(instance_type, ODDBALL_TYPE), &is_oddball);
@@ -5711,25 +5707,25 @@ void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
       auto builtin = conversion == Object::Conversion::kToNumeric
                          ? Builtins::kNonNumberToNumeric
                          : Builtins::kNonNumberToNumber;
-      var_value.Bind(CallBuiltin(builtin, context, value));
+      var_value = CallBuiltin(builtin, context, value);
       OverwriteFeedback(var_feedback, BinaryOperationFeedback::kAny);
       Goto(&loop);
 
       BIND(&is_oddball);
-      var_value.Bind(LoadObjectField(value, Oddball::kToNumberOffset));
+      var_value = LoadObjectField(value_heap_object, Oddball::kToNumberOffset);
       OverwriteFeedback(var_feedback,
                         BinaryOperationFeedback::kNumberOrOddball);
       Goto(&loop);
     }
 
     BIND(&is_heap_number);
-    var_word32->Bind(TruncateHeapNumberValueToWord32(CAST(value)));
+    *var_word32 = TruncateHeapNumberValueToWord32(CAST(value));
     CombineFeedback(var_feedback, BinaryOperationFeedback::kNumber);
     Goto(if_number);
 
     if (conversion == Object::Conversion::kToNumeric) {
       BIND(&is_bigint);
-      var_bigint->Bind(value);
+      *var_maybe_bigint = value;
       CombineFeedback(var_feedback, BinaryOperationFeedback::kBigInt);
       Goto(if_bigint);
     }
@@ -11547,8 +11543,8 @@ Operation Reverse(Operation op) {
 }  // anonymous namespace
 
 TNode<Oddball> CodeStubAssembler::RelationalComparison(
-    Operation op, SloppyTNode<Object> left, SloppyTNode<Object> right,
-    SloppyTNode<Context> context, TVariable<Smi>* var_type_feedback) {
+    Operation op, TNode<Object> left, TNode<Object> right,
+    TNode<Context> context, TVariable<Smi>* var_type_feedback) {
   Label return_true(this), return_false(this), do_float_comparison(this),
       end(this);
   TVARIABLE(Oddball, var_result);  // Actually only "true" or "false".

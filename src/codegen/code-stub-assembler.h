@@ -2305,12 +2305,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                           SloppyTNode<Object> value);
   TNode<Word32T> TruncateTaggedToWord32(SloppyTNode<Context> context,
                                         SloppyTNode<Object> value);
-  void TaggedToWord32OrBigInt(Node* context, Node* value, Label* if_number,
-                              Variable* var_word32, Label* if_bigint,
-                              Variable* var_bigint);
-  void TaggedToWord32OrBigIntWithFeedback(
-      Node* context, Node* value, Label* if_number, Variable* var_word32,
-      Label* if_bigint, Variable* var_bigint, Variable* var_feedback);
+  void TaggedToWord32OrBigInt(TNode<Context> context, TNode<Object> value,
+                              Label* if_number, TVariable<Word32T>* var_word32,
+                              Label* if_bigint,
+                              TVariable<Object>* var_maybe_bigint);
+  void TaggedToWord32OrBigIntWithFeedback(TNode<Context> context,
+                                          TNode<Object> value, Label* if_number,
+                                          TVariable<Word32T>* var_word32,
+                                          Label* if_bigint,
+                                          TVariable<Object>* var_maybe_bigint,
+                                          TVariable<Smi>* var_feedback);
 
   // Truncate the floating point value of a HeapNumber to an Int32.
   TNode<Int32T> TruncateHeapNumberValueToWord32(TNode<HeapNumber> object);
@@ -3409,9 +3413,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                 TNode<IntPtrT> end_offset, RootIndex root);
 
   TNode<Oddball> RelationalComparison(
-      Operation op, SloppyTNode<Object> left, SloppyTNode<Object> right,
-      SloppyTNode<Context> context,
-      TVariable<Smi>* var_type_feedback = nullptr);
+      Operation op, TNode<Object> left, TNode<Object> right,
+      TNode<Context> context, TVariable<Smi>* var_type_feedback = nullptr);
 
   void BranchIfNumberRelationalComparison(Operation op,
                                           SloppyTNode<Number> left,
@@ -3811,11 +3814,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                        Variable* var_numeric, Variable* var_feedback);
 
   template <Object::Conversion conversion>
-  void TaggedToWord32OrBigIntImpl(Node* context, Node* value, Label* if_number,
-                                  Variable* var_word32,
+  void TaggedToWord32OrBigIntImpl(TNode<Context> context, TNode<Object> value,
+                                  Label* if_number,
+                                  TVariable<Word32T>* var_word32,
                                   Label* if_bigint = nullptr,
-                                  Variable* var_bigint = nullptr,
-                                  Variable* var_feedback = nullptr);
+                                  TVariable<Object>* var_maybe_bigint = nullptr,
+                                  TVariable<Smi>* var_feedback = nullptr);
 
  private:
   // Low-level accessors for Descriptor arrays.
