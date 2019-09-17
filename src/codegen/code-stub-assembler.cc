@@ -1995,16 +1995,6 @@ TNode<Uint32T> CodeStubAssembler::LoadStringLengthAsWord32(
   return LoadObjectField<Uint32T>(string, String::kLengthOffset);
 }
 
-Node* CodeStubAssembler::PointerToSeqStringData(Node* seq_string) {
-  CSA_ASSERT(this, IsString(seq_string));
-  CSA_ASSERT(this,
-             IsSequentialStringInstanceType(LoadInstanceType(seq_string)));
-  STATIC_ASSERT(SeqOneByteString::kHeaderSize == SeqTwoByteString::kHeaderSize);
-  return IntPtrAdd(
-      BitcastTaggedToWord(seq_string),
-      IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag));
-}
-
 TNode<Object> CodeStubAssembler::LoadJSPrimitiveWrapperValue(
     TNode<JSPrimitiveWrapper> object) {
   return LoadObjectField(object, JSPrimitiveWrapper::kValueOffset);

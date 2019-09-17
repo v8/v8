@@ -1195,8 +1195,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<IntPtrT> LoadStringLengthAsWord(SloppyTNode<String> string);
   // Load length field of a String object as uint32_t value.
   TNode<Uint32T> LoadStringLengthAsWord32(SloppyTNode<String> string);
-  // Loads a pointer to the sequential String char array.
-  Node* PointerToSeqStringData(Node* seq_string);
   // Load value field of a JSPrimitiveWrapper object.
   TNode<Object> LoadJSPrimitiveWrapperValue(TNode<JSPrimitiveWrapper> object);
 
