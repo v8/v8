@@ -994,6 +994,7 @@ torque_files = [
   "src/builtins/proxy-set-prototype-of.tq",
   "src/builtins/proxy.tq",
   "src/builtins/reflect.tq",
+  "src/builtins/regexp-exec.tq",
   "src/builtins/regexp-match.tq",
   "src/builtins/regexp-replace.tq",
   "src/builtins/regexp-search.tq",
