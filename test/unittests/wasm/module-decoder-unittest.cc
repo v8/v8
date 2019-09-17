@@ -343,6 +343,22 @@ TEST_F(WasmModuleVerifyTest, FuncRefGlobal) {
   }
 }
 
+TEST_F(WasmModuleVerifyTest, InvalidFuncRefGlobal) {
+  WASM_FEATURE_SCOPE(anyref);
+  static const byte data[] = {
+      // sig#0 ---------------------------------------------------------------
+      SIGNATURES_SECTION_VOID_VOID,
+      // funcs ---------------------------------------------------------------
+      TWO_EMPTY_FUNCTIONS(SIG_INDEX(0)),
+      SECTION(Global,                       // --
+              ENTRY_COUNT(1),               // --
+              kLocalFuncRef,                // local type
+              0,                            // immutable
+              WASM_INIT_EXPR_REF_FUNC(7)),  // invalid function index
+      TWO_EMPTY_BODIES};
+  EXPECT_FAILURE(data);
+}
+
 TEST_F(WasmModuleVerifyTest, AnyRefGlobalWithGlobalInit) {
   WASM_FEATURE_SCOPE(anyref);
   static const byte data[] = {

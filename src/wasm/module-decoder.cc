@@ -1543,6 +1543,10 @@ class ModuleDecoderImpl : public Decoder {
       case kExprRefFunc: {
         if (enabled_features_.anyref) {
           FunctionIndexImmediate<Decoder::kValidate> imm(this, pc() - 1);
+          if (module->functions.size() <= imm.index) {
+            errorf(pc() - 1, "invalid function index: %u", imm.index);
+            break;
+          }
           expr.kind = WasmInitExpr::kRefFuncConst;
           expr.val.function_index = imm.index;
           len = imm.length;
