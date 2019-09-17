@@ -531,8 +531,8 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
   TNode<Smi> language_mode = CAST(Parameter(Descriptor::kLanguageMode));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
-  VARIABLE(var_index, MachineType::PointerRepresentation());
-  VARIABLE(var_unique, MachineRepresentation::kTagged, key);
+  TVARIABLE(IntPtrT, var_index);
+  TVARIABLE(Name, var_unique);
   Label if_index(this), if_unique_name(this), if_notunique(this),
       if_notfound(this), slow(this), if_proxy(this);
 
@@ -553,8 +553,7 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
   BIND(&if_unique_name);
   {
     Comment("key is unique name");
-    TNode<Name> unique = CAST(var_unique.value());
-    CheckForAssociatedProtector(unique, &slow);
+    CheckForAssociatedProtector(var_unique.value(), &slow);
 
     Label dictionary(this), dont_delete(this);
     GotoIf(IsDictionaryMap(receiver_map), &dictionary);
@@ -569,8 +568,8 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
 
       TNode<NameDictionary> properties =
           CAST(LoadSlowProperties(CAST(receiver)));
-      DeleteDictionaryProperty(receiver, properties, unique, context,
-                               &dont_delete, &if_notfound);
+      DeleteDictionaryProperty(receiver, properties, var_unique.value(),
+                               context, &dont_delete, &if_notfound);
     }
 
     BIND(&dont_delete);
@@ -586,7 +585,7 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
   {
     // If the string was not found in the string table, then no object can
     // have a property with that name.
-    TryInternalizeString(key, &if_index, &var_index, &if_unique_name,
+    TryInternalizeString(CAST(key), &if_index, &var_index, &if_unique_name,
                          &var_unique, &if_notfound, &slow);
   }
 

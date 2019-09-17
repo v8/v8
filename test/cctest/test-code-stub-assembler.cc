@@ -495,7 +495,7 @@ TEST(TryToName) {
     Label if_keyisindex(&m), if_keyisunique(&m), if_bailout(&m);
     {
       TYPED_VARIABLE_DEF(IntPtrT, var_index, &m);
-      TYPED_VARIABLE_DEF(Object, var_unique, &m);
+      TYPED_VARIABLE_DEF(Name, var_unique, &m);
 
       m.TryToName(key, &if_keyisindex, &var_index, &if_keyisunique, &var_unique,
                   &if_bailout);

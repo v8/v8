@@ -385,7 +385,7 @@ TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
 
   {
     TVARIABLE(IntPtrT, var_index);
-    TVARIABLE(Object, var_unique);  // TODO(6949): Should be Name.
+    TVARIABLE(Name, var_unique);
 
     Label if_index(this), if_unique_name(this), if_notunique_name(this);
     TryToName(key, &if_index, &var_index, &if_unique_name, &var_unique,
@@ -408,7 +408,7 @@ TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
     BIND(&if_notunique_name);
     {
       Label not_in_string_table(this);
-      TryInternalizeString(key, &if_index, &var_index, &if_unique_name,
+      TryInternalizeString(CAST(key), &if_index, &var_index, &if_unique_name,
                            &var_unique, &not_in_string_table, &call_runtime);
 
       BIND(&not_in_string_table);
@@ -1375,7 +1375,7 @@ TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
   GotoIf(IsSpecialReceiverInstanceType(instance_type), &call_runtime);
   {
     TVARIABLE(IntPtrT, var_index, IntPtrConstant(0));
-    TVARIABLE(Object, var_name);  // TODO(6949) Should be Name
+    TVARIABLE(Name, var_name);
 
     TryToName(key, &if_keyisindex, &var_index, &if_iskeyunique, &var_name,
               &call_runtime, &if_notunique_name);
@@ -1383,8 +1383,9 @@ TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
     BIND(&if_notunique_name);
     {
       Label not_in_string_table(this);
-      TryInternalizeString(key, &if_keyisindex, &var_index, &if_iskeyunique,
-                           &var_name, &not_in_string_table, &call_runtime);
+      TryInternalizeString(CAST(key), &if_keyisindex, &var_index,
+                           &if_iskeyunique, &var_name, &not_in_string_table,
+                           &call_runtime);
 
       BIND(&not_in_string_table);
       {

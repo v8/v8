@@ -2872,8 +2872,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Note: If |key| does not yet have a hash, |if_notinternalized| will be taken
   // even if |key| is an array index. |if_keyisunique| will never
   // be taken for array indices.
-  void TryToName(Node* key, Label* if_keyisindex, Variable* var_index,
-                 Label* if_keyisunique, Variable* var_unique, Label* if_bailout,
+  void TryToName(SloppyTNode<Object> key, Label* if_keyisindex,
+                 TVariable<IntPtrT>* var_index, Label* if_keyisunique,
+                 TVariable<Name>* var_unique, Label* if_bailout,
                  Label* if_notinternalized = nullptr);
 
   // Performs a hash computation and string table lookup for the given string,
@@ -2885,8 +2886,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // - |if_not_internalized| if the string is not in the string table (but
   //                         does not add it).
   // - |if_bailout| for unsupported cases (e.g. uncachable array index).
-  void TryInternalizeString(Node* string, Label* if_index, Variable* var_index,
-                            Label* if_internalized, Variable* var_internalized,
+  void TryInternalizeString(SloppyTNode<String> string, Label* if_index,
+                            TVariable<IntPtrT>* var_index,
+                            Label* if_internalized,
+                            TVariable<Name>* var_internalized,
                             Label* if_not_internalized, Label* if_bailout);
 
   // Calculates array index for given dictionary entry and entry field.
@@ -3726,7 +3729,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                      Node* receiver, Label* if_bailout,
                                      GetOwnPropertyMode mode = kCallJSGetter);
 
-  TNode<IntPtrT> TryToIntptr(Node* key, Label* miss);
+  TNode<IntPtrT> TryToIntptr(SloppyTNode<Object> key, Label* miss);
 
   void BranchIfPrototypesHaveNoElements(Node* receiver_map,
                                         Label* definitely_no_elements,

@@ -8422,89 +8422,110 @@ void CodeStubAssembler::Use(Label* label) {
   GotoIf(Word32Equal(Int32Constant(0), Int32Constant(1)), label);
 }
 
-void CodeStubAssembler::TryToName(Node* key, Label* if_keyisindex,
-                                  Variable* var_index, Label* if_keyisunique,
-                                  Variable* var_unique, Label* if_bailout,
+void CodeStubAssembler::TryToName(SloppyTNode<Object> key, Label* if_keyisindex,
+                                  TVariable<IntPtrT>* var_index,
+                                  Label* if_keyisunique,
+                                  TVariable<Name>* var_unique,
+                                  Label* if_bailout,
                                   Label* if_notinternalized) {
-  DCHECK_EQ(MachineType::PointerRepresentation(), var_index->rep());
-  DCHECK_EQ(MachineRepresentation::kTagged, var_unique->rep());
   Comment("TryToName");
 
-  Label if_hascachedindex(this), if_keyisnotindex(this), if_thinstring(this),
-      if_keyisother(this, Label::kDeferred);
+  Label if_keyisnotindex(this);
   // Handle Smi and HeapNumber keys.
-  var_index->Bind(TryToIntptr(key, &if_keyisnotindex));
+  *var_index = TryToIntptr(key, &if_keyisnotindex);
   Goto(if_keyisindex);
 
   BIND(&if_keyisnotindex);
-  TNode<Map> key_map = LoadMap(key);
-  var_unique->Bind(key);
-  // Symbols are unique.
-  GotoIf(IsSymbolMap(key_map), if_keyisunique);
-  TNode<Uint16T> key_instance_type = LoadMapInstanceType(key_map);
-  // Miss if |key| is not a String.
-  STATIC_ASSERT(FIRST_NAME_TYPE == FIRST_TYPE);
-  GotoIfNot(IsStringInstanceType(key_instance_type), &if_keyisother);
+  {
+    Label if_symbol(this), if_string(this),
+        if_keyisother(this, Label::kDeferred);
+    TNode<HeapObject> key_heap_object = CAST(key);
+    TNode<Map> key_map = LoadMap(key_heap_object);
 
-  // |key| is a String. Check if it has a cached array index.
-  TNode<Uint32T> hash = LoadNameHashField(key);
-  GotoIf(IsClearWord32(hash, Name::kDoesNotContainCachedArrayIndexMask),
-         &if_hascachedindex);
-  // No cached array index. If the string knows that it contains an index,
-  // then it must be an uncacheable index. Handle this case in the runtime.
-  GotoIf(IsClearWord32(hash, Name::kIsNotArrayIndexMask), if_bailout);
-  // Check if we have a ThinString.
-  GotoIf(InstanceTypeEqual(key_instance_type, THIN_STRING_TYPE),
-         &if_thinstring);
-  GotoIf(InstanceTypeEqual(key_instance_type, THIN_ONE_BYTE_STRING_TYPE),
-         &if_thinstring);
-  // Finally, check if |key| is internalized.
-  STATIC_ASSERT(kNotInternalizedTag != 0);
-  GotoIf(IsSetWord32(key_instance_type, kIsNotInternalizedMask),
-         if_notinternalized != nullptr ? if_notinternalized : if_bailout);
-  Goto(if_keyisunique);
+    GotoIf(IsSymbolMap(key_map), &if_symbol);
 
-  BIND(&if_thinstring);
-  var_unique->Bind(
-      LoadObjectField<String>(CAST(key), ThinString::kActualOffset));
-  Goto(if_keyisunique);
+    // Miss if |key| is not a String.
+    STATIC_ASSERT(FIRST_NAME_TYPE == FIRST_TYPE);
+    TNode<Uint16T> key_instance_type = LoadMapInstanceType(key_map);
+    Branch(IsStringInstanceType(key_instance_type), &if_string, &if_keyisother);
 
-  BIND(&if_hascachedindex);
-  var_index->Bind(DecodeWordFromWord32<Name::ArrayIndexValueBits>(hash));
-  Goto(if_keyisindex);
+    // Symbols are unique.
+    BIND(&if_symbol);
+    {
+      *var_unique = CAST(key);
+      Goto(if_keyisunique);
+    }
 
-  BIND(&if_keyisother);
-  GotoIfNot(InstanceTypeEqual(key_instance_type, ODDBALL_TYPE), if_bailout);
-  var_unique->Bind(LoadObjectField(key, Oddball::kToStringOffset));
-  Goto(if_keyisunique);
+    BIND(&if_string);
+    {
+      Label if_hascachedindex(this), if_thinstring(this);
+
+      // |key| is a String. Check if it has a cached array index.
+      TNode<String> key_string = CAST(key);
+      TNode<Uint32T> hash = LoadNameHashField(key_string);
+      GotoIf(IsClearWord32(hash, Name::kDoesNotContainCachedArrayIndexMask),
+             &if_hascachedindex);
+      // No cached array index. If the string knows that it contains an index,
+      // then it must be an uncacheable index. Handle this case in the runtime.
+      GotoIf(IsClearWord32(hash, Name::kIsNotArrayIndexMask), if_bailout);
+      // Check if we have a ThinString.
+      GotoIf(InstanceTypeEqual(key_instance_type, THIN_STRING_TYPE),
+             &if_thinstring);
+      GotoIf(InstanceTypeEqual(key_instance_type, THIN_ONE_BYTE_STRING_TYPE),
+             &if_thinstring);
+      // Finally, check if |key| is internalized.
+      STATIC_ASSERT(kNotInternalizedTag != 0);
+      GotoIf(IsSetWord32(key_instance_type, kIsNotInternalizedMask),
+             if_notinternalized != nullptr ? if_notinternalized : if_bailout);
+
+      *var_unique = key_string;
+      Goto(if_keyisunique);
+
+      BIND(&if_thinstring);
+      *var_unique =
+          LoadObjectField<String>(key_string, ThinString::kActualOffset);
+      Goto(if_keyisunique);
+
+      BIND(&if_hascachedindex);
+      *var_index =
+          Signed(DecodeWordFromWord32<Name::ArrayIndexValueBits>(hash));
+      Goto(if_keyisindex);
+    }
+
+    BIND(&if_keyisother);
+    {
+      GotoIfNot(InstanceTypeEqual(key_instance_type, ODDBALL_TYPE), if_bailout);
+      *var_unique =
+          LoadObjectField<String>(key_heap_object, Oddball::kToStringOffset);
+      Goto(if_keyisunique);
+    }
+  }
 }
 
 void CodeStubAssembler::TryInternalizeString(
-    Node* string, Label* if_index, Variable* var_index, Label* if_internalized,
-    Variable* var_internalized, Label* if_not_internalized, Label* if_bailout) {
-  DCHECK(var_index->rep() == MachineType::PointerRepresentation());
-  DCHECK_EQ(var_internalized->rep(), MachineRepresentation::kTagged);
-  CSA_SLOW_ASSERT(this, IsString(string));
+    SloppyTNode<String> string, Label* if_index, TVariable<IntPtrT>* var_index,
+    Label* if_internalized, TVariable<Name>* var_internalized,
+    Label* if_not_internalized, Label* if_bailout) {
   TNode<ExternalReference> function =
       ExternalConstant(ExternalReference::try_internalize_string_function());
   TNode<ExternalReference> const isolate_ptr =
       ExternalConstant(ExternalReference::isolate_address(isolate()));
-  Node* result =
-      CallCFunction(function, MachineType::AnyTagged(),
-                    std::make_pair(MachineType::Pointer(), isolate_ptr),
-                    std::make_pair(MachineType::AnyTagged(), string));
+  TNode<Object> result =
+      CAST(CallCFunction(function, MachineType::AnyTagged(),
+                         std::make_pair(MachineType::Pointer(), isolate_ptr),
+                         std::make_pair(MachineType::AnyTagged(), string)));
   Label internalized(this);
   GotoIf(TaggedIsNotSmi(result), &internalized);
-  TNode<IntPtrT> word_result = SmiUntag(result);
+  TNode<IntPtrT> word_result = SmiUntag(CAST(result));
   GotoIf(IntPtrEqual(word_result, IntPtrConstant(ResultSentinel::kNotFound)),
          if_not_internalized);
   GotoIf(IntPtrEqual(word_result, IntPtrConstant(ResultSentinel::kUnsupported)),
          if_bailout);
-  var_index->Bind(word_result);
+  *var_index = word_result;
   Goto(if_index);
 
   BIND(&internalized);
-  var_internalized->Bind(result);
+  *var_internalized = CAST(result);
   Goto(if_internalized);
 }
 
@@ -10004,8 +10025,8 @@ void CodeStubAssembler::TryPrototypeChainLookup(
     GotoIf(InstanceTypeEqual(instance_type, JS_PROXY_TYPE), if_proxy);
   }
 
-  VARIABLE(var_index, MachineType::PointerRepresentation());
-  VARIABLE(var_unique, MachineRepresentation::kTagged);
+  TVARIABLE(IntPtrT, var_index);
+  TVARIABLE(Name, var_unique);
 
   Label if_keyisindex(this), if_iskeyunique(this);
   TryToName(key, &if_keyisindex, &var_index, &if_iskeyunique, &var_unique,
@@ -10433,14 +10454,16 @@ TNode<Map> CodeStubAssembler::LoadReceiverMap(SloppyTNode<Object> receiver) {
       [=] { return LoadMap(UncheckedCast<HeapObject>(receiver)); });
 }
 
-TNode<IntPtrT> CodeStubAssembler::TryToIntptr(Node* key, Label* miss) {
+TNode<IntPtrT> CodeStubAssembler::TryToIntptr(SloppyTNode<Object> key,
+                                              Label* miss) {
   TVARIABLE(IntPtrT, var_intptr_key);
   Label done(this, &var_intptr_key), key_is_smi(this);
   GotoIf(TaggedIsSmi(key), &key_is_smi);
+
   // Try to convert a heap number to a Smi.
-  GotoIfNot(IsHeapNumber(key), miss);
+  GotoIfNot(IsHeapNumber(CAST(key)), miss);
   {
-    TNode<Float64T> value = LoadHeapNumberValue(key);
+    TNode<Float64T> value = LoadHeapNumberValue(CAST(key));
     TNode<Int32T> int_value = RoundFloat64ToInt32(value);
     GotoIfNot(Float64Equal(value, ChangeInt32ToFloat64(int_value)), miss);
     var_intptr_key = ChangeInt32ToIntPtr(int_value);
@@ -10449,7 +10472,7 @@ TNode<IntPtrT> CodeStubAssembler::TryToIntptr(Node* key, Label* miss) {
 
   BIND(&key_is_smi);
   {
-    var_intptr_key = SmiUntag(key);
+    var_intptr_key = SmiUntag(CAST(key));
     Goto(&done);
   }
 

@@ -539,8 +539,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
 
   BIND(&proxy);
   {
-    VARIABLE(var_index, MachineType::PointerRepresentation());
-    VARIABLE(var_unique, MachineRepresentation::kTagged);
+    TVARIABLE(IntPtrT, var_index);
+    TVARIABLE(Name, var_unique);
 
     Label if_index(this), if_unique_name(this),
         to_name_failed(this, Label::kDeferred);
@@ -1624,8 +1624,8 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 void AccessorAssembler::HandleStoreToProxy(const StoreICParameters* p,
                                            Node* proxy, Label* miss,
                                            ElementSupport support_elements) {
-  VARIABLE(var_index, MachineType::PointerRepresentation());
-  VARIABLE(var_unique, MachineRepresentation::kTagged);
+  TVARIABLE(IntPtrT, var_index);
+  TVARIABLE(Name, var_unique);
 
   Label if_index(this), if_unique_name(this),
       to_name_failed(this, Label::kDeferred);
@@ -2927,13 +2927,13 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p,
     // We might have a name in feedback, and a weak fixed array in the next
     // slot.
     Comment("KeyedLoadIC_try_polymorphic_name");
-    TVARIABLE(Object, var_name, p->name());
+    TVARIABLE(Name, var_name);
     TVARIABLE(IntPtrT, var_index);
-    Label if_polymorphic_name(this, &var_name), if_internalized(this),
-        if_notinternalized(this, Label::kDeferred);
+    Label if_polymorphic_name(this), feedback_matches(this),
+        if_internalized(this), if_notinternalized(this, Label::kDeferred);
 
     // Fast-case: The recorded {feedback} matches the {name}.
-    GotoIf(TaggedEqual(strong_feedback, p->name()), &if_polymorphic_name);
+    GotoIf(TaggedEqual(strong_feedback, p->name()), &feedback_matches);
 
     // Try to internalize the {name} if it isn't already.
     TryToName(p->name(), &miss, &var_index, &if_internalized, &var_name, &miss,
@@ -2948,16 +2948,15 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p,
 
     BIND(&if_notinternalized);
     {
-      // Try to internalize the {name}.
-      TNode<ExternalReference> function = ExternalConstant(
-          ExternalReference::try_internalize_string_function());
-      TNode<ExternalReference> const isolate_ptr =
-          ExternalConstant(ExternalReference::isolate_address(isolate()));
-      var_name = CAST(
-          CallCFunction(function, MachineType::AnyTagged(),
-                        std::make_pair(MachineType::Pointer(), isolate_ptr),
-                        std::make_pair(MachineType::AnyTagged(), p->name())));
-      Goto(&if_internalized);
+      TVARIABLE(IntPtrT, var_index);
+      TryInternalizeString(CAST(p->name()), &miss, &var_index, &if_internalized,
+                           &var_name, &miss, &miss);
+    }
+
+    BIND(&feedback_matches);
+    {
+      var_name = CAST(p->name());
+      Goto(&if_polymorphic_name);
     }
 
     BIND(&if_polymorphic_name);
@@ -2983,71 +2982,84 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p,
 }
 
 void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
-  TVARIABLE(IntPtrT, var_index);
-  TVARIABLE(Object, var_unique, p->name());
-  Label if_index(this), if_unique_name(this), if_notunique(this),
-      if_other(this, Label::kDeferred), if_runtime(this, Label::kDeferred);
+  Label if_runtime(this, Label::kDeferred);
 
   Node* receiver = p->receiver();
   GotoIf(TaggedIsSmi(receiver), &if_runtime);
   GotoIf(IsNullOrUndefined(receiver), &if_runtime);
 
-  TryToName(p->name(), &if_index, &var_index, &if_unique_name, &var_unique,
-            &if_other, &if_notunique);
-
-  BIND(&if_other);
   {
-    TNode<Name> name =
-        CAST(CallBuiltin(Builtins::kToName, p->context(), p->name()));
-    var_unique = name;
-    TryToName(name, &if_index, &var_index, &if_unique_name, &var_unique,
-              &if_runtime, &if_notunique);
-  }
+    TVARIABLE(IntPtrT, var_index);
+    TVARIABLE(Name, var_unique);
+    Label if_index(this), if_unique_name(this), if_notunique(this),
+        maybe_internalize_on_the_fly(this), if_other(this, Label::kDeferred);
 
-  BIND(&if_index);
-  {
-    TNode<Map> receiver_map = LoadMap(receiver);
-    TNode<Uint16T> instance_type = LoadMapInstanceType(receiver_map);
-    GenericElementLoad(receiver, receiver_map, instance_type, var_index.value(),
-                       &if_runtime);
-  }
+    TryToName(p->name(), &if_index, &var_index, &if_unique_name, &var_unique,
+              &if_other, &if_notunique);
 
-  BIND(&if_unique_name);
-  {
-    LoadICParameters pp(p, var_unique.value());
-    TNode<Map> receiver_map = LoadMap(receiver);
-    TNode<Uint16T> instance_type = LoadMapInstanceType(receiver_map);
-    GenericPropertyLoad(receiver, receiver_map, instance_type, &pp,
-                        &if_runtime);
-  }
+    BIND(&if_unique_name);
+    {
+      LoadICParameters pp(p, var_unique.value());
+      TNode<Map> receiver_map = LoadMap(receiver);
+      TNode<Uint16T> instance_type = LoadMapInstanceType(receiver_map);
+      GenericPropertyLoad(receiver, receiver_map, instance_type, &pp,
+                          &if_runtime);
+    }
 
-  BIND(&if_notunique);
-  {
-    if (FLAG_internalize_on_the_fly) {
-      // Ideally we could return undefined directly here if the name is not
-      // found in the string table, i.e. it was never internalized, but that
-      // invariant doesn't hold with named property interceptors (at this
-      // point), so we take the {if_runtime} path instead.
-      Label if_in_string_table(this);
-      TryInternalizeString(var_unique.value(), &if_index, &var_index,
-                           &if_in_string_table, &var_unique, &if_runtime,
-                           &if_runtime);
+    {
+      TVARIABLE(String, var_name);
 
-      BIND(&if_in_string_table);
+      BIND(&if_other);
       {
-        // TODO(bmeurer): We currently use a version of GenericPropertyLoad
-        // here, where we don't try to probe the megamorphic stub cache after
-        // successfully internalizing the incoming string. Past experiments
-        // with this have shown that it causes too much traffic on the stub
-        // cache. We may want to re-evaluate that in the future.
-        LoadICParameters pp(p, var_unique.value());
-        TNode<Map> receiver_map = LoadMap(receiver);
-        TNode<Uint16T> instance_type = LoadMapInstanceType(receiver_map);
-        GenericPropertyLoad(receiver, receiver_map, instance_type, &pp,
-                            &if_runtime, kDontUseStubCache);
+        var_name =
+            CAST(CallBuiltin(Builtins::kToName, p->context(), p->name()));
+        TryToName(var_name.value(), &if_index, &var_index, &if_unique_name,
+                  &var_unique, &if_runtime, &maybe_internalize_on_the_fly);
       }
-    } else {
-      Goto(&if_runtime);
+
+      BIND(&if_notunique);
+      {
+        var_name = CAST(p->name());
+        Goto(&maybe_internalize_on_the_fly);
+      }
+
+      BIND(&maybe_internalize_on_the_fly);
+      {
+        if (FLAG_internalize_on_the_fly) {
+          // Ideally we could return undefined directly here if the name is not
+          // found in the string table, i.e. it was never internalized, but that
+          // invariant doesn't hold with named property interceptors (at this
+          // point), so we take the {if_runtime} path instead.
+          Label if_in_string_table(this);
+          TryInternalizeString(var_name.value(), &if_index, &var_index,
+                               &if_in_string_table, &var_unique, &if_runtime,
+                               &if_runtime);
+
+          BIND(&if_in_string_table);
+          {
+            // TODO(bmeurer): We currently use a version of GenericPropertyLoad
+            // here, where we don't try to probe the megamorphic stub cache
+            // after successfully internalizing the incoming string. Past
+            // experiments with this have shown that it causes too much traffic
+            // on the stub cache. We may want to re-evaluate that in the future.
+            LoadICParameters pp(p, var_unique.value());
+            TNode<Map> receiver_map = LoadMap(receiver);
+            TNode<Uint16T> instance_type = LoadMapInstanceType(receiver_map);
+            GenericPropertyLoad(receiver, receiver_map, instance_type, &pp,
+                                &if_runtime, kDontUseStubCache);
+          }
+        } else {
+          Goto(&if_runtime);
+        }
+      }
+    }
+
+    BIND(&if_index);
+    {
+      TNode<Map> receiver_map = LoadMap(receiver);
+      TNode<Uint16T> instance_type = LoadMapInstanceType(receiver_map);
+      GenericElementLoad(receiver, receiver_map, instance_type,
+                         var_index.value(), &if_runtime);
     }
   }
 
@@ -3057,7 +3069,7 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
     IncrementCounter(isolate()->counters()->ic_keyed_load_generic_slow(), 1);
     // TODO(jkummerow): Should we use the GetProperty TF stub instead?
     TailCallRuntime(Runtime::kGetProperty, p->context(), p->receiver(),
-                    var_unique.value());
+                    p->name());
   }
 }
 

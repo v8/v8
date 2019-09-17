@@ -988,7 +988,7 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
     TNode<Context> context, TNode<Object> receiver_maybe_smi, TNode<Object> key,
     TNode<Object> value, Maybe<LanguageMode> language_mode) {
   TVARIABLE(IntPtrT, var_index);
-  TVARIABLE(Object, var_unique, key);
+  TVARIABLE(Name, var_unique);
   Label if_index(this), if_unique_name(this), not_internalized(this),
       slow(this);
 
@@ -1023,7 +1023,7 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
   BIND(&not_internalized);
   {
     if (FLAG_internalize_on_the_fly) {
-      TryInternalizeString(key, &if_index, &var_index, &if_unique_name,
+      TryInternalizeString(CAST(key), &if_index, &var_index, &if_unique_name,
                            &var_unique, &slow, &slow);
     } else {
       Goto(&slow);
