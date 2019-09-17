@@ -1110,7 +1110,6 @@ namespace internal {
   TFS(SetProperty, kReceiver, kKey, kValue)                                    \
   TFS(SetPropertyInLiteral, kReceiver, kKey, kValue)                           \
   ASM(MemCopyUint8Uint8, CCall)                                                \
-  ASM(MemCopyUint16Uint8, CCall)                                               \
   ASM(MemMove, CCall)                                                          \
                                                                                \
   /* Trace */                                                                  \
