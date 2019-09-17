@@ -4017,20 +4017,19 @@ uint32_t WasmInterpreter::Thread::ActivationFrameBase(uint32_t id) {
 //============================================================================
 // The implementation details of the interpreter.
 //============================================================================
-class WasmInterpreterInternals : public ZoneObject {
+class WasmInterpreterInternals {
  public:
   // Create a copy of the module bytes for the interpreter, since the passed
   // pointer might be invalidated after constructing the interpreter.
   const ZoneVector<uint8_t> module_bytes_;
   CodeMap codemap_;
-  ZoneVector<ThreadImpl> threads_;
+  std::vector<ThreadImpl> threads_;
 
   WasmInterpreterInternals(Zone* zone, const WasmModule* module,
                            const ModuleWireBytes& wire_bytes,
                            Handle<WasmInstanceObject> instance_object)
       : module_bytes_(wire_bytes.start(), wire_bytes.end(), zone),
-        codemap_(module, module_bytes_.data(), zone),
-        threads_(zone) {
+        codemap_(module, module_bytes_.data(), zone) {
     Isolate* isolate = instance_object->GetIsolate();
     Handle<Cell> reference_stack = isolate->global_handles()->Create(
         *isolate->factory()->NewCell(isolate->factory()->empty_fixed_array()));
@@ -4068,10 +4067,12 @@ WasmInterpreter::WasmInterpreter(Isolate* isolate, const WasmModule* module,
                                  const ModuleWireBytes& wire_bytes,
                                  Handle<WasmInstanceObject> instance_object)
     : zone_(isolate->allocator(), ZONE_NAME),
-      internals_(new (&zone_) WasmInterpreterInternals(
+      internals_(new WasmInterpreterInternals(
           &zone_, module, wire_bytes, MakeWeak(isolate, instance_object))) {}
 
-WasmInterpreter::~WasmInterpreter() { internals_->~WasmInterpreterInternals(); }
+// The destructor is here so we can forward declare {WasmInterpreterInternals}
+// used in the {unique_ptr} in the header.
+WasmInterpreter::~WasmInterpreter() {}
 
 void WasmInterpreter::Run() { internals_->threads_[0].Run(); }
 
