@@ -200,15 +200,15 @@ inline void MemsetPointer(T** dest, U* value, size_t counter) {
 // Copy from 8bit/16bit chars to 8bit/16bit chars. Values are zero-extended if
 // needed. Ranges are not allowed to overlap unless the type sizes match (hence
 // {memmove} is used internally).
+// The separate declaration is needed for the V8_NONNULL, which is not allowed
+// on a definition.
+template <typename SrcType, typename DstType>
+void CopyChars(DstType* dst, const SrcType* src, size_t count) V8_NONNULL(1, 2);
+
 template <typename SrcType, typename DstType>
 void CopyChars(DstType* dst, const SrcType* src, size_t count) {
   STATIC_ASSERT(std::is_integral<SrcType>::value);
   STATIC_ASSERT(std::is_integral<DstType>::value);
-
-  // This special case for {count == 0} allows to pass {nullptr} as {dst} or
-  // {src} in that case.
-  // TODO(clemensh): Remove this and make {dst} and {src} nonnull.
-  if (count == 0) return;
 
   // If the size of {SrcType} and {DstType} matches, we switch to the more
   // general and potentially faster {memmove}. Note that this decision is made
