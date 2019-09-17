@@ -534,10 +534,16 @@
   'intl402/Intl/getCanonicalLocales/preferred-grandfathered': [FAIL],
   'intl402/Intl/getCanonicalLocales/preferred-variant': [FAIL],
   'intl402/Locale/constructor-non-iana-canon': [FAIL],
-  'intl402/Locale/constructor-options-region-valid': [FAIL],
-  'intl402/Locale/constructor-tag': [FAIL],
-  'intl402/Locale/getters': [FAIL],
   'intl402/Locale/likely-subtags-grandfathered': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9742
+  'intl402/Locale/getters': [FAIL],
+
+  # https://github.com/tc39/test262/pull/2349
+  'intl402/Locale/constructor-options-region-valid': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9741
+  'intl402/Locale/constructor-tag': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
