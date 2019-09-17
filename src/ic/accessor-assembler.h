@@ -181,20 +181,22 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                                              Label* miss,
                                              StoreTransitionMapFlags flags);
 
-  void JumpIfDataProperty(Node* details, Label* writable, Label* readonly);
+  void JumpIfDataProperty(TNode<Uint32T> details, Label* writable,
+                          Label* readonly);
 
   void InvalidateValidityCellIfPrototype(Node* map, Node* bitfield3 = nullptr);
 
-  void OverwriteExistingFastDataProperty(Node* object, Node* object_map,
-                                         Node* descriptors,
-                                         Node* descriptor_name_index,
-                                         Node* details, TNode<Object> value,
-                                         Label* slow,
+  void OverwriteExistingFastDataProperty(SloppyTNode<HeapObject> object,
+                                         TNode<Map> object_map,
+                                         TNode<DescriptorArray> descriptors,
+                                         TNode<IntPtrT> descriptor_name_index,
+                                         TNode<Uint32T> details,
+                                         TNode<Object> value, Label* slow,
                                          bool do_transitioning_store);
 
-  void CheckFieldType(TNode<DescriptorArray> descriptors, Node* name_index,
-                      TNode<Word32T> representation, Node* value,
-                      Label* bailout);
+  void CheckFieldType(TNode<DescriptorArray> descriptors,
+                      TNode<IntPtrT> name_index, TNode<Word32T> representation,
+                      Node* value, Label* bailout);
 
  private:
   // Stub generation entry points.
@@ -228,13 +230,11 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   // IC dispatcher behavior.
 
   // Checks monomorphic case. Returns {feedback} entry of the vector.
-  TNode<MaybeObject> TryMonomorphicCase(TNode<Smi> slot, Node* vector,
-                                        TNode<Map> receiver_map,
-                                        Label* if_handler,
-                                        TVariable<MaybeObject>* var_handler,
-                                        Label* if_miss);
-  void HandlePolymorphicCase(Node* receiver_map, TNode<WeakFixedArray> feedback,
-                             Label* if_handler,
+  TNode<MaybeObject> TryMonomorphicCase(
+      TNode<Smi> slot, TNode<FeedbackVector> vector, TNode<Map> receiver_map,
+      Label* if_handler, TVariable<MaybeObject>* var_handler, Label* if_miss);
+  void HandlePolymorphicCase(TNode<Map> receiver_map,
+                             TNode<WeakFixedArray> feedback, Label* if_handler,
                              TVariable<MaybeObject>* var_handler,
                              Label* if_miss);
 
@@ -246,15 +246,14 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
       ElementSupport support_elements = kOnlyProperties,
       LoadAccessMode access_mode = LoadAccessMode::kLoad);
 
-  void HandleLoadICSmiHandlerCase(const LazyLoadICParameters* p, Node* holder,
-                                  SloppyTNode<Smi> smi_handler,
-                                  SloppyTNode<Object> handler, Label* miss,
-                                  ExitPoint* exit_point,
-                                  OnNonExistent on_nonexistent,
-                                  ElementSupport support_elements,
-                                  LoadAccessMode access_mode);
+  void HandleLoadICSmiHandlerCase(
+      const LazyLoadICParameters* p, SloppyTNode<HeapObject> holder,
+      SloppyTNode<Smi> smi_handler, SloppyTNode<Object> handler, Label* miss,
+      ExitPoint* exit_point, OnNonExistent on_nonexistent,
+      ElementSupport support_elements, LoadAccessMode access_mode);
 
-  void HandleLoadICProtoHandler(const LazyLoadICParameters* p, Node* handler,
+  void HandleLoadICProtoHandler(const LazyLoadICParameters* p,
+                                TNode<DataHandler> handler,
                                 Variable* var_holder, Variable* var_smi_handler,
                                 Label* if_smi_handler, Label* miss,
                                 ExitPoint* exit_point, ICMode ic_mode,
@@ -270,23 +269,23 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                           TNode<WordT> handler_word, TNode<DataHandler> handler,
                           TNode<IntPtrT> handler_kind, ExitPoint* exit_point);
 
-  void HandleLoadField(Node* holder, Node* handler_word,
+  void HandleLoadField(SloppyTNode<JSObject> holder, TNode<WordT> handler_word,
                        Variable* var_double_value, Label* rebox_double,
                        Label* miss, ExitPoint* exit_point);
 
   void EmitAccessCheck(TNode<Context> expected_native_context,
-                       TNode<Context> context, Node* receiver,
+                       TNode<Context> context, TNode<Object> receiver,
                        Label* can_access, Label* miss);
 
   void HandleLoadICSmiHandlerLoadNamedCase(
-      const LazyLoadICParameters* p, Node* holder, TNode<IntPtrT> handler_kind,
-      TNode<WordT> handler_word, Label* rebox_double,
-      Variable* var_double_value, SloppyTNode<Object> handler, Label* miss,
-      ExitPoint* exit_point, OnNonExistent on_nonexistent,
-      ElementSupport support_elements);
+      const LazyLoadICParameters* p, TNode<HeapObject> holder,
+      TNode<IntPtrT> handler_kind, TNode<WordT> handler_word,
+      Label* rebox_double, Variable* var_double_value,
+      SloppyTNode<Object> handler, Label* miss, ExitPoint* exit_point,
+      OnNonExistent on_nonexistent, ElementSupport support_elements);
 
   void HandleLoadICSmiHandlerHasNamedCase(const LazyLoadICParameters* p,
-                                          Node* holder,
+                                          TNode<HeapObject> holder,
                                           TNode<IntPtrT> handler_kind,
                                           Label* miss, ExitPoint* exit_point);
 
@@ -322,13 +321,15 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
   void CheckPrototypeValidityCell(TNode<Object> maybe_validity_cell,
                                   Label* miss);
-  void HandleStoreICNativeDataProperty(const StoreICParameters* p, Node* holder,
+  void HandleStoreICNativeDataProperty(const StoreICParameters* p,
+                                       SloppyTNode<HeapObject> holder,
                                        TNode<Word32T> handler_word);
 
   void HandleStoreToProxy(const StoreICParameters* p, Node* proxy, Label* miss,
                           ElementSupport support_elements);
 
-  void HandleStoreAccessor(const StoreICParameters* p, Node* holder,
+  void HandleStoreAccessor(const StoreICParameters* p,
+                           SloppyTNode<HeapObject> holder,
                            TNode<Word32T> handler_word);
 
   // KeyedLoadIC_Generic implementation.
@@ -345,15 +346,16 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
   // Low-level helpers.
 
-  using OnCodeHandler = std::function<void(Node* code_handler)>;
-  using OnFoundOnReceiver =
-      std::function<void(Node* properties, Node* name_index)>;
+  using OnCodeHandler = std::function<void(TNode<Code> code_handler)>;
+  using OnFoundOnReceiver = std::function<void(TNode<NameDictionary> properties,
+                                               TNode<IntPtrT> name_index)>;
 
   template <typename ICHandler, typename ICParameters>
-  Node* HandleProtoHandler(const ICParameters* p, Node* handler,
-                           const OnCodeHandler& on_code_handler,
-                           const OnFoundOnReceiver& on_found_on_receiver,
-                           Label* miss, ICMode ic_mode);
+  TNode<Object> HandleProtoHandler(
+      const ICParameters* p, TNode<DataHandler> handler,
+      const OnCodeHandler& on_code_handler,
+      const OnFoundOnReceiver& on_found_on_receiver, Label* miss,
+      ICMode ic_mode);
 
   void CheckHeapObjectTypeMatchesDescriptor(TNode<Word32T> handler_word,
                                             TNode<JSObject> holder,
@@ -381,7 +383,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                        LoadAccessMode access_mode = LoadAccessMode::kLoad);
   void NameDictionaryNegativeLookup(Node* object, SloppyTNode<Name> name,
                                     Label* miss);
-  TNode<BoolT> IsPropertyDetailsConst(Node* details);
+  TNode<BoolT> IsPropertyDetailsConst(TNode<Uint32T> details);
 
   // Stub cache access helpers.
 

@@ -3266,7 +3266,7 @@ Node* CodeStubAssembler::AllocateCellWithValue(Node* value,
   return result;
 }
 
-Node* CodeStubAssembler::LoadCellValue(Node* cell) {
+TNode<Object> CodeStubAssembler::LoadCellValue(Node* cell) {
   CSA_SLOW_ASSERT(this, HasInstanceType(cell, CELL_TYPE));
   return LoadObjectField(cell, Cell::kValueOffset);
 }

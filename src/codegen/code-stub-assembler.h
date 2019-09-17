@@ -1691,7 +1691,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return AllocateCellWithValue(SmiConstant(value), SKIP_WRITE_BARRIER);
   }
 
-  Node* LoadCellValue(Node* cell);
+  TNode<Object> LoadCellValue(Node* cell);
 
   void StoreCellValue(Node* cell, Node* value,
                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);

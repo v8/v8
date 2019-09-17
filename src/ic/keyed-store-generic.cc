@@ -676,8 +676,8 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
         TNode<Object> value =
             LoadObjectField(property_cell, PropertyCell::kValueOffset);
         GotoIf(TaggedEqual(value, TheHoleConstant()), &next_proto);
-        TNode<Int32T> details = LoadAndUntagToWord32ObjectField(
-            property_cell, PropertyCell::kPropertyDetailsRawOffset);
+        TNode<Uint32T> details = Unsigned(LoadAndUntagToWord32ObjectField(
+            property_cell, PropertyCell::kPropertyDetailsRawOffset));
         JumpIfDataProperty(details, &ok_to_write, readonly);
 
         if (accessor != nullptr) {
