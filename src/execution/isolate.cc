@@ -3978,42 +3978,6 @@ void Isolate::InvalidateStringLengthOverflowProtector() {
   DCHECK(!IsStringLengthOverflowIntact());
 }
 
-void Isolate::InvalidateArrayIteratorProtector() {
-  DCHECK(factory()->array_iterator_protector()->value().IsSmi());
-  DCHECK(IsArrayIteratorLookupChainIntact());
-  PropertyCell::SetValueWithInvalidation(
-      this, "array_iterator_protector", factory()->array_iterator_protector(),
-      handle(Smi::FromInt(kProtectorInvalid), this));
-  DCHECK(!IsArrayIteratorLookupChainIntact());
-}
-
-void Isolate::InvalidateMapIteratorProtector() {
-  DCHECK(factory()->map_iterator_protector()->value().IsSmi());
-  DCHECK(IsMapIteratorLookupChainIntact());
-  PropertyCell::SetValueWithInvalidation(
-      this, "map_iterator_protector", factory()->map_iterator_protector(),
-      handle(Smi::FromInt(kProtectorInvalid), this));
-  DCHECK(!IsMapIteratorLookupChainIntact());
-}
-
-void Isolate::InvalidateSetIteratorProtector() {
-  DCHECK(factory()->set_iterator_protector()->value().IsSmi());
-  DCHECK(IsSetIteratorLookupChainIntact());
-  PropertyCell::SetValueWithInvalidation(
-      this, "set_iterator_protector", factory()->set_iterator_protector(),
-      handle(Smi::FromInt(kProtectorInvalid), this));
-  DCHECK(!IsSetIteratorLookupChainIntact());
-}
-
-void Isolate::InvalidateStringIteratorProtector() {
-  DCHECK(factory()->string_iterator_protector()->value().IsSmi());
-  DCHECK(IsStringIteratorLookupChainIntact());
-  PropertyCell::SetValueWithInvalidation(
-      this, "string_iterator_protector", factory()->string_iterator_protector(),
-      handle(Smi::FromInt(kProtectorInvalid), this));
-  DCHECK(!IsStringIteratorLookupChainIntact());
-}
-
 void Isolate::InvalidateArrayBufferDetachingProtector() {
   DCHECK(factory()->array_buffer_detaching_protector()->value().IsSmi());
   DCHECK(IsArrayBufferDetachingIntact());

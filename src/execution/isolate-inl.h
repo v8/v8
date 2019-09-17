@@ -124,30 +124,6 @@ bool Isolate::IsArrayBufferDetachingIntact() {
   return buffer_detaching.value() == Smi::FromInt(kProtectorValid);
 }
 
-bool Isolate::IsArrayIteratorLookupChainIntact() {
-  PropertyCell array_iterator_cell =
-      PropertyCell::cast(root(RootIndex::kArrayIteratorProtector));
-  return array_iterator_cell.value() == Smi::FromInt(kProtectorValid);
-}
-
-bool Isolate::IsMapIteratorLookupChainIntact() {
-  PropertyCell map_iterator_cell =
-      PropertyCell::cast(root(RootIndex::kMapIteratorProtector));
-  return map_iterator_cell.value() == Smi::FromInt(kProtectorValid);
-}
-
-bool Isolate::IsSetIteratorLookupChainIntact() {
-  PropertyCell set_iterator_cell =
-      PropertyCell::cast(root(RootIndex::kSetIteratorProtector));
-  return set_iterator_cell.value() == Smi::FromInt(kProtectorValid);
-}
-
-bool Isolate::IsStringIteratorLookupChainIntact() {
-  PropertyCell string_iterator_cell =
-      PropertyCell::cast(root(RootIndex::kStringIteratorProtector));
-  return string_iterator_cell.value() == Smi::FromInt(kProtectorValid);
-}
-
 }  // namespace internal
 }  // namespace v8
 

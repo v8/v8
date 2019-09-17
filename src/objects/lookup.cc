@@ -317,26 +317,26 @@ void LookupIterator::InternalUpdateProtector() {
             *receiver, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_INDEX)) {
       // Setting the next property of %ArrayIteratorPrototype% also needs to
       // invalidate the array iterator protector.
-      if (!isolate_->IsArrayIteratorLookupChainIntact()) return;
-      isolate_->InvalidateArrayIteratorProtector();
+      if (!Protectors::IsArrayIteratorLookupChainIntact(isolate_)) return;
+      Protectors::InvalidateArrayIteratorLookupChain(isolate_);
     } else if (receiver->IsJSMapIterator() ||
                isolate_->IsInAnyContext(
                    *receiver, Context::INITIAL_MAP_ITERATOR_PROTOTYPE_INDEX)) {
-      if (!isolate_->IsMapIteratorLookupChainIntact()) return;
-      isolate_->InvalidateMapIteratorProtector();
+      if (!Protectors::IsMapIteratorLookupChainIntact(isolate_)) return;
+      Protectors::InvalidateMapIteratorLookupChain(isolate_);
     } else if (receiver->IsJSSetIterator() ||
                isolate_->IsInAnyContext(
                    *receiver, Context::INITIAL_SET_ITERATOR_PROTOTYPE_INDEX)) {
-      if (!isolate_->IsSetIteratorLookupChainIntact()) return;
-      isolate_->InvalidateSetIteratorProtector();
+      if (!Protectors::IsSetIteratorLookupChainIntact(isolate_)) return;
+      Protectors::InvalidateSetIteratorLookupChain(isolate_);
     } else if (receiver->IsJSStringIterator() ||
                isolate_->IsInAnyContext(
                    *receiver,
                    Context::INITIAL_STRING_ITERATOR_PROTOTYPE_INDEX)) {
       // Setting the next property of %StringIteratorPrototype% invalidates the
       // string iterator protector.
-      if (!isolate_->IsStringIteratorLookupChainIntact()) return;
-      isolate_->InvalidateStringIteratorProtector();
+      if (!Protectors::IsStringIteratorLookupChainIntact(isolate_)) return;
+      Protectors::InvalidateStringIteratorLookupChain(isolate_);
     }
   } else if (*name_ == roots.species_symbol()) {
     // Fetching the context in here since the operation is rather expensive.
@@ -379,29 +379,29 @@ void LookupIterator::InternalUpdateProtector() {
     isolate_->InvalidateIsConcatSpreadableProtector();
   } else if (*name_ == roots.iterator_symbol()) {
     if (receiver->IsJSArray(isolate_)) {
-      if (!isolate_->IsArrayIteratorLookupChainIntact()) return;
-      isolate_->InvalidateArrayIteratorProtector();
+      if (!Protectors::IsArrayIteratorLookupChainIntact(isolate_)) return;
+      Protectors::InvalidateArrayIteratorLookupChain(isolate_);
     } else if (receiver->IsJSSet(isolate_) || receiver->IsJSSetIterator() ||
                isolate_->IsInAnyContext(
                    *receiver, Context::INITIAL_SET_ITERATOR_PROTOTYPE_INDEX) ||
                isolate_->IsInAnyContext(*receiver,
                                         Context::INITIAL_SET_PROTOTYPE_INDEX)) {
-      if (isolate_->IsSetIteratorLookupChainIntact()) {
-        isolate_->InvalidateSetIteratorProtector();
+      if (Protectors::IsSetIteratorLookupChainIntact(isolate_)) {
+        Protectors::InvalidateSetIteratorLookupChain(isolate_);
       }
     } else if (receiver->IsJSMapIterator() ||
                isolate_->IsInAnyContext(
                    *receiver, Context::INITIAL_MAP_ITERATOR_PROTOTYPE_INDEX)) {
-      if (isolate_->IsMapIteratorLookupChainIntact()) {
-        isolate_->InvalidateMapIteratorProtector();
+      if (Protectors::IsMapIteratorLookupChainIntact(isolate_)) {
+        Protectors::InvalidateMapIteratorLookupChain(isolate_);
       }
     } else if (isolate_->IsInAnyContext(
                    *receiver, Context::INITIAL_ITERATOR_PROTOTYPE_INDEX)) {
-      if (isolate_->IsMapIteratorLookupChainIntact()) {
-        isolate_->InvalidateMapIteratorProtector();
+      if (Protectors::IsMapIteratorLookupChainIntact(isolate_)) {
+        Protectors::InvalidateMapIteratorLookupChain(isolate_);
       }
-      if (isolate_->IsSetIteratorLookupChainIntact()) {
-        isolate_->InvalidateSetIteratorProtector();
+      if (Protectors::IsSetIteratorLookupChainIntact(isolate_)) {
+        Protectors::InvalidateSetIteratorLookupChain(isolate_);
       }
     } else if (isolate_->IsInAnyContext(
                    *receiver, Context::INITIAL_STRING_PROTOTYPE_INDEX)) {
@@ -409,8 +409,8 @@ void LookupIterator::InternalUpdateProtector() {
       // the string iterator protector. Symbol.iterator can also be set on a
       // String wrapper, but not on a primitive string. We only support
       // protector for primitive strings.
-      if (!isolate_->IsStringIteratorLookupChainIntact()) return;
-      isolate_->InvalidateStringIteratorProtector();
+      if (!Protectors::IsStringIteratorLookupChainIntact(isolate_)) return;
+      Protectors::InvalidateStringIteratorLookupChain(isolate_);
     }
   } else if (*name_ == roots.resolve_string()) {
     if (!isolate_->IsPromiseResolveLookupChainIntact()) return;

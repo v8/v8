@@ -21,9 +21,54 @@ class Protectors : public AllStatic {
 #define DECLARED_PROTECTORS_ON_ISOLATE(V)                                     \
   V(ArraySpeciesLookupChain, ArraySpeciesProtector, array_species_protector)  \
   V(ArrayConstructor, ArrayConstructorProtector, array_constructor_protector) \
+  V(ArrayIteratorLookupChain, ArrayIteratorProtector,                         \
+    array_iterator_protector)                                                 \
+                                                                              \
+  /* The MapIterator protector protects the original iteration behaviors   */ \
+  /* of Map.prototype.keys(), Map.prototype.values(), and                  */ \
+  /* Set.prototype.entries(). It does not protect the original iteration   */ \
+  /* behavior of Map.prototype[Symbol.iterator]().                         */ \
+  /* The protector is invalidated when:                                    */ \
+  /* * The 'next' property is set on an object where the property holder   */ \
+  /*   is the %MapIteratorPrototype% (e.g. because the object is that very */ \
+  /*   prototype).                                                         */ \
+  /* * The 'Symbol.iterator' property is set on an object where the        */ \
+  /*   property holder is the %IteratorPrototype%. Note that this also     */ \
+  /*   invalidates the SetIterator protector (see below).                  */ \
+  V(MapIteratorLookupChain, MapIteratorProtector, map_iterator_protector)     \
   V(PromiseThenLookupChain, PromiseThenProtector, promise_then_protector)     \
   V(PromiseSpeciesLookupChain, PromiseSpeciesProtector,                       \
     promise_species_protector)                                                \
+                                                                              \
+  /* The SetIterator protector protects the original iteration behavior of */ \
+  /* Set.prototype.keys(), Set.prototype.values(),                         */ \
+  /* Set.prototype.entries(), and Set.prototype[Symbol.iterator](). The    */ \
+  /* protector is invalidated when:                                        */ \
+  /* * The 'next' property is set on an object where the property holder   */ \
+  /*   is the %SetIteratorPrototype% (e.g. because the object is that very */ \
+  /*   prototype).                                                         */ \
+  /* * The 'Symbol.iterator' property is set on an object where the        */ \
+  /*   property holder is the %SetPrototype% OR %IteratorPrototype%. This  */ \
+  /*   means that setting Symbol.iterator on a MapIterator object can also */ \
+  /*   invalidate the SetIterator protector, and vice versa, setting       */ \
+  /*   Symbol.iterator on a SetIterator object can also invalidate the     */ \
+  /*   MapIterator. This is an over-approximation for the sake of          */ \
+  /*   simplicity.                                                         */ \
+  V(SetIteratorLookupChain, SetIteratorProtector, set_iterator_protector)     \
+                                                                              \
+  /* The StringIteratorProtector protects the original string iteration    */ \
+  /* behavior for primitive strings. As long as the                        */ \
+  /* StringIteratorProtector is valid, iterating over a primitive string   */ \
+  /* is guaranteed to be unobservable from user code and can thus be cut   */ \
+  /* short. More specifically, the protector gets invalidated as soon as   */ \
+  /* either String.prototype[Symbol.iterator] or                           */ \
+  /* String.prototype[Symbol.iterator]().next is modified. This guarantee  */ \
+  /* does not apply to string objects (as opposed to primitives), since    */ \
+  /* they could define their own Symbol.iterator.                          */ \
+  /* String.prototype itself does not need to be protected, since it is    */ \
+  /* non-configurable and non-writable.                                    */ \
+  V(StringIteratorLookupChain, StringIteratorProtector,                       \
+    string_iterator_protector)                                                \
   V(TypedArraySpeciesLookupChain, TypedArraySpeciesProtector,                 \
     typed_array_species_protector)
 

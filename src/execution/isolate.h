@@ -1177,43 +1177,6 @@ class Isolate final : private HiddenFactory {
   bool IsIsConcatSpreadableLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact(JSReceiver receiver);
   inline bool IsStringLengthOverflowIntact();
-  inline bool IsArrayIteratorLookupChainIntact();
-
-  // The MapIterator protector protects the original iteration behaviors of
-  // Map.prototype.keys(), Map.prototype.values(), and Set.prototype.entries().
-  // It does not protect the original iteration behavior of
-  // Map.prototype[Symbol.iterator](). The protector is invalidated when:
-  // * The 'next' property is set on an object where the property holder is the
-  //   %MapIteratorPrototype% (e.g. because the object is that very prototype).
-  // * The 'Symbol.iterator' property is set on an object where the property
-  //   holder is the %IteratorPrototype%. Note that this also invalidates the
-  //   SetIterator protector (see below).
-  inline bool IsMapIteratorLookupChainIntact();
-
-  // The SetIterator protector protects the original iteration behavior of
-  // Set.prototype.keys(), Set.prototype.values(), Set.prototype.entries(),
-  // and Set.prototype[Symbol.iterator](). The protector is invalidated when:
-  // * The 'next' property is set on an object where the property holder is the
-  //   %SetIteratorPrototype% (e.g. because the object is that very prototype).
-  // * The 'Symbol.iterator' property is set on an object where the property
-  //   holder is the %SetPrototype% OR %IteratorPrototype%. This means that
-  //   setting Symbol.iterator on a MapIterator object can also invalidate the
-  //   SetIterator protector, and vice versa, setting Symbol.iterator on a
-  //   SetIterator object can also invalidate the MapIterator. This is an over-
-  //   approximation for the sake of simplicity.
-  inline bool IsSetIteratorLookupChainIntact();
-
-  // The StringIteratorProtector protects the original string iteration behavior
-  // for primitive strings. As long as the StringIteratorProtector is valid,
-  // iterating over a primitive string is guaranteed to be unobservable from
-  // user code and can thus be cut short. More specifically, the protector gets
-  // invalidated as soon as either String.prototype[Symbol.iterator] or
-  // String.prototype[Symbol.iterator]().next is modified. This guarantee does
-  // not apply to string objects (as opposed to primitives), since they could
-  // define their own Symbol.iterator.
-  // String.prototype itself does not need to be protected, since it is
-  // non-configurable and non-writable.
-  inline bool IsStringIteratorLookupChainIntact();
 
   // Make sure we do check for detached array buffers.
   inline bool IsArrayBufferDetachingIntact();
@@ -1246,10 +1209,6 @@ class Isolate final : private HiddenFactory {
 
   void InvalidateIsConcatSpreadableProtector();
   void InvalidateStringLengthOverflowProtector();
-  void InvalidateArrayIteratorProtector();
-  void InvalidateMapIteratorProtector();
-  void InvalidateSetIteratorProtector();
-  void InvalidateStringIteratorProtector();
   void InvalidateArrayBufferDetachingProtector();
   V8_EXPORT_PRIVATE void InvalidatePromiseHookProtector();
   void InvalidatePromiseResolveProtector();

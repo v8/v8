@@ -1770,7 +1770,7 @@ bool Object::IterationHasObservableEffects() {
 
   // Check that the ArrayPrototype hasn't been modified in a way that would
   // affect iteration.
-  if (!isolate->IsArrayIteratorLookupChainIntact()) return true;
+  if (!Protectors::IsArrayIteratorLookupChainIntact(isolate)) return true;
 
   // For FastPacked kinds, iteration will have the same effect as simply
   // accessing each property in order.

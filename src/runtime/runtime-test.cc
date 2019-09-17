@@ -1148,20 +1148,22 @@ RUNTIME_FUNCTION(Runtime_ArraySpeciesProtector) {
 RUNTIME_FUNCTION(Runtime_MapIteratorProtector) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
-  return isolate->heap()->ToBoolean(isolate->IsMapIteratorLookupChainIntact());
+  return isolate->heap()->ToBoolean(
+      Protectors::IsMapIteratorLookupChainIntact(isolate));
 }
 
 RUNTIME_FUNCTION(Runtime_SetIteratorProtector) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
-  return isolate->heap()->ToBoolean(isolate->IsSetIteratorLookupChainIntact());
+  return isolate->heap()->ToBoolean(
+      Protectors::IsSetIteratorLookupChainIntact(isolate));
 }
 
 RUNTIME_FUNCTION(Runtime_StringIteratorProtector) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
   return isolate->heap()->ToBoolean(
-      isolate->IsStringIteratorLookupChainIntact());
+      Protectors::IsStringIteratorLookupChainIntact(isolate));
 }
 
 // Take a compiled wasm module and serialize it into an array buffer, which is
