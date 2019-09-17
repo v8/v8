@@ -19,11 +19,9 @@ namespace v8 {
 namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExp)
-// TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExpResult, JSArray)
 OBJECT_CONSTRUCTORS_IMPL(JSRegExpResult, JSArray)
 OBJECT_CONSTRUCTORS_IMPL(JSRegExpResultIndices, JSArray)
 
-// CAST_ACCESSOR(JSRegExp)
 CAST_ACCESSOR(JSRegExpResult)
 CAST_ACCESSOR(JSRegExpResultIndices)
 
