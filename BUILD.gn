@@ -3675,6 +3675,12 @@ v8_component("v8_libbase") {
     ]
   }
 
+  if (is_ubsan && (v8_current_cpu == "x86" || v8_current_cpu == "arm" ||
+                   v8_current_cpu == "mips")) {
+    # Special UBSan 32-bit requirement.
+    sources += [ "src/base/ubsan.cc" ]
+  }
+
   if (is_tsan && !build_with_chromium) {
     data += [ "tools/sanitizers/tsan_suppressions.txt" ]
   }
