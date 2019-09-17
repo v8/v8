@@ -245,9 +245,7 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
   BIND(&fast);
   {
     TNode<JSArray> array_receiver = CAST(receiver);
-    CSA_ASSERT(this, TaggedIsPositiveSmi(LoadJSArrayLength(array_receiver)));
-    TNode<IntPtrT> length =
-        LoadAndUntagObjectField(array_receiver, JSArray::kLengthOffset);
+    TNode<IntPtrT> length = SmiUntag(LoadFastJSArrayLength(array_receiver));
     Label return_undefined(this), fast_elements(this);
     GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &return_undefined);
 
