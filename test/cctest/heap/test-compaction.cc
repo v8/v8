@@ -84,6 +84,18 @@ HEAP_TEST(CompactionFullAbortedPage) {
   }
 }
 
+namespace {
+
+int GetObjectSize(int objects_per_page) {
+  int allocatable =
+      static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage());
+  // Make sure that object_size is a multiple of kTaggedSize.
+  int object_size =
+      ((allocatable / kTaggedSize) / objects_per_page) * kTaggedSize;
+  return Min(kMaxRegularHeapObjectSize, object_size);
+}
+
+}  // namespace
 
 HEAP_TEST(CompactionPartiallyAbortedPage) {
   if (FLAG_never_compact) return;
@@ -96,10 +108,7 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
   FLAG_manual_evacuation_candidates_selection = true;
 
   const int objects_per_page = 10;
-  const int object_size =
-      Min(kMaxRegularHeapObjectSize,
-          static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()) /
-              objects_per_page);
+  const int object_size = GetObjectSize(objects_per_page);
 
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -176,10 +185,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
   FLAG_manual_evacuation_candidates_selection = true;
 
   const int objects_per_page = 10;
-  const int object_size =
-      Min(kMaxRegularHeapObjectSize,
-          static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()) /
-              objects_per_page);
+  const int object_size = GetObjectSize(objects_per_page);
 
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -270,10 +276,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithStoreBufferEntries) {
   FLAG_manual_evacuation_candidates_selection = true;
 
   const int objects_per_page = 10;
-  const int object_size =
-      Min(kMaxRegularHeapObjectSize,
-          static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()) /
-              objects_per_page);
+  const int object_size = GetObjectSize(objects_per_page);
 
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();

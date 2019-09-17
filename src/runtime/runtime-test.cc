@@ -677,6 +677,46 @@ RUNTIME_FUNCTION(Runtime_SetAllocationTimeout) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+namespace {
+
+int FixedArrayLenFromSize(int size) {
+  return Min((size - FixedArray::kHeaderSize) / kTaggedSize,
+             FixedArray::kMaxRegularLength);
+}
+
+void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap) {
+  NewSpace* space = heap->new_space();
+  int space_remaining = static_cast<int>(*space->allocation_limit_address() -
+                                         *space->allocation_top_address());
+  while (space_remaining > 0) {
+    int length = FixedArrayLenFromSize(space_remaining);
+    if (length > 0) {
+      Handle<FixedArray> padding =
+          isolate->factory()->NewFixedArray(length, AllocationType::kYoung);
+      DCHECK(heap->new_space()->Contains(*padding));
+      space_remaining -= padding->Size();
+    } else {
+      // Not enough room to create another fixed array. Create a filler.
+      heap->CreateFillerObjectAt(*heap->new_space()->allocation_top_address(),
+                                 space_remaining, ClearRecordedSlots::kNo);
+      break;
+    }
+  }
+}
+
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_SimulateNewspaceFull) {
+  HandleScope scope(isolate);
+  Heap* heap = isolate->heap();
+  NewSpace* space = heap->new_space();
+  PauseAllocationObserversScope pause_observers(heap);
+  do {
+    FillUpOneNewSpacePage(isolate, heap);
+  } while (space->AddFreshPage());
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
 
 RUNTIME_FUNCTION(Runtime_DebugPrint) {
   SealHandleScope shs(isolate);
