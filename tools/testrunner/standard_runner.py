@@ -173,7 +173,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
     if self.build_config.asan:
       options.extra_flags.append('--invoke-weak-callbacks')
-      options.extra_flags.append('--omit-quit')
 
     if self.build_config.no_snap:
       # Speed up slow nosnap runs. Allocation verification is covered by
