@@ -9,6 +9,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/persistent-map.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/zone/zone-containers.h"
 
@@ -59,6 +60,10 @@ struct UnobservableStore {
   }
 };
 
+size_t hash_value(const UnobservableStore& p) {
+  return base::hash_combine(p.id_, p.offset_);
+}
+
 // Instances of UnobservablesSet are immutable. They represent either a set of
 // UnobservableStores, or the "unvisited empty set".
 //
@@ -70,7 +75,18 @@ struct UnobservableStore {
 // space in the zone in the case of non-unvisited UnobservablesSets. Copying
 // an UnobservablesSet allocates no memory.
 class UnobservablesSet final {
+ private:
+  using KeyT = UnobservableStore;
+  using ValueT = bool;  // Emulates set semantics in the map.
+
+  // The PersistentMap uses a special value to signify 'not present'. We use
+  // a boolean value to emulate set semantics.
+  static constexpr ValueT kNotPresent = false;
+  static constexpr ValueT kPresent = true;
+
  public:
+  using SetT = PersistentMap<KeyT, ValueT>;
+
   // Creates a new UnobservablesSet, with the null set.
   static UnobservablesSet Unvisited() { return UnobservablesSet(); }
 
@@ -99,12 +115,14 @@ class UnobservablesSet final {
   // two nodes are definitely the same value.
   UnobservablesSet RemoveSameOffset(StoreOffset off, Zone* zone) const;
 
-  const ZoneSet<UnobservableStore>* set() const { return set_; }
+  const SetT* set() const { return set_; }
 
   bool IsUnvisited() const { return set_ == nullptr; }
-  bool IsEmpty() const { return set_ == nullptr || set_->empty(); }
+  bool IsEmpty() const {
+    return set_ == nullptr || set_->begin() == set_->end();
+  }
   bool Contains(UnobservableStore obs) const {
-    return set_ != nullptr && (set_->find(obs) != set_->end());
+    return set_ != nullptr && set_->Get(obs) != kNotPresent;
   }
 
   bool operator==(const UnobservablesSet& other) const {
@@ -121,10 +139,20 @@ class UnobservablesSet final {
   }
 
  private:
-  UnobservablesSet();
-  explicit UnobservablesSet(const ZoneSet<UnobservableStore>* set)
-      : set_(set) {}
-  const ZoneSet<UnobservableStore>* set_;
+  UnobservablesSet() = default;
+  explicit UnobservablesSet(const SetT* set) : set_(set) {}
+
+  static SetT* NewSet(Zone* zone) {
+    return new (zone->New(sizeof(UnobservablesSet::SetT)))
+        UnobservablesSet::SetT(zone, kNotPresent);
+  }
+
+  static void SetAdd(SetT* set, const KeyT& key) { set->Set(key, kPresent); }
+  static void SetErase(SetT* set, const KeyT& key) {
+    set->Set(key, kNotPresent);
+  }
+
+  const SetT* set_ = nullptr;
 };
 
 class RedundantStoreFinder final {
@@ -405,65 +433,45 @@ UnobservablesSet RedundantStoreFinder::RecomputeUseIntersection(Node* node) {
   return cur_set;
 }
 
-UnobservablesSet::UnobservablesSet() : set_(nullptr) {}
-
 UnobservablesSet UnobservablesSet::VisitedEmpty(Zone* zone) {
-  ZoneSet<UnobservableStore>* empty_set =
-      new (zone->New(sizeof(ZoneSet<UnobservableStore>)))
-          ZoneSet<UnobservableStore>(zone);
-  return UnobservablesSet(empty_set);
+  return UnobservablesSet(NewSet(zone));
 }
 
 UnobservablesSet UnobservablesSet::Intersect(const UnobservablesSet& other,
                                              const UnobservablesSet& empty,
                                              Zone* zone) const {
-  if (IsEmpty() || other.IsEmpty()) {
-    return empty;
-  } else {
-    ZoneSet<UnobservableStore>* intersection =
-        new (zone->New(sizeof(ZoneSet<UnobservableStore>)))
-            ZoneSet<UnobservableStore>(zone);
-    // Put the intersection of set() and other.set() in intersection.
-    set_intersection(set()->begin(), set()->end(), other.set()->begin(),
-                     other.set()->end(),
-                     std::inserter(*intersection, intersection->end()));
+  if (IsEmpty() || other.IsEmpty()) return empty;
 
-    return UnobservablesSet(intersection);
+  UnobservablesSet::SetT* intersection = NewSet(zone);
+  for (const auto& triple : set()->Zip(*other.set())) {
+    if (std::get<1>(triple) && std::get<2>(triple)) {
+      intersection->Set(std::get<0>(triple), kPresent);
+    }
   }
+
+  return UnobservablesSet(intersection);
 }
 
 UnobservablesSet UnobservablesSet::Add(UnobservableStore obs,
                                        Zone* zone) const {
-  bool found = set()->find(obs) != set()->end();
-  if (found) {
-    return *this;
-  } else {
-    // Make a new empty set.
-    ZoneSet<UnobservableStore>* new_set =
-        new (zone->New(sizeof(ZoneSet<UnobservableStore>)))
-            ZoneSet<UnobservableStore>(zone);
-    // Copy the old elements over.
-    *new_set = *set();
-    // Add the new element.
-    bool inserted = new_set->insert(obs).second;
-    DCHECK(inserted);
-    USE(inserted);  // silence warning about unused variable
+  if (set()->Get(obs) != kNotPresent) return *this;
 
-    return UnobservablesSet(new_set);
-  }
+  UnobservablesSet::SetT* new_set = NewSet(zone);
+  *new_set = *set();
+  SetAdd(new_set, obs);
+
+  return UnobservablesSet(new_set);
 }
 
 UnobservablesSet UnobservablesSet::RemoveSameOffset(StoreOffset offset,
                                                     Zone* zone) const {
-  // Make a new empty set.
-  ZoneSet<UnobservableStore>* new_set =
-      new (zone->New(sizeof(ZoneSet<UnobservableStore>)))
-          ZoneSet<UnobservableStore>(zone);
-  // Copy all elements over that have a different offset.
-  for (auto obs : *set()) {
-    if (obs.offset_ != offset) {
-      new_set->insert(obs);
-    }
+  UnobservablesSet::SetT* new_set = NewSet(zone);
+  *new_set = *set();
+
+  // Remove elements with the given offset.
+  for (const auto& entry : *new_set) {
+    const UnobservableStore& obs = entry.first;
+    if (obs.offset_ == offset) SetErase(new_set, obs);
   }
 
   return UnobservablesSet(new_set);
