@@ -170,6 +170,7 @@
 //  V8_HAS_ATTRIBUTE_ALWAYS_INLINE      - __attribute__((always_inline))
 //                                        supported
 //  V8_HAS_ATTRIBUTE_DEPRECATED         - __attribute__((deprecated)) supported
+//  V8_HAS_ATTRIBUTE_NONNULL            - __attribute__((nonnull)) supported
 //  V8_HAS_ATTRIBUTE_NOINLINE           - __attribute__((noinline)) supported
 //  V8_HAS_ATTRIBUTE_UNUSED             - __attribute__((unused)) supported
 //  V8_HAS_ATTRIBUTE_VISIBILITY         - __attribute__((visibility)) supported
@@ -210,6 +211,7 @@
 # define V8_HAS_ATTRIBUTE_DEPRECATED (__has_attribute(deprecated))
 # define V8_HAS_ATTRIBUTE_DEPRECATED_MESSAGE \
     (__has_extension(attribute_deprecated_with_message))
+# define V8_HAS_ATTRIBUTE_NONNULL (__has_attribute(nonnull))
 # define V8_HAS_ATTRIBUTE_NOINLINE (__has_attribute(noinline))
 # define V8_HAS_ATTRIBUTE_UNUSED (__has_attribute(unused))
 # define V8_HAS_ATTRIBUTE_VISIBILITY (__has_attribute(visibility))
@@ -308,6 +310,17 @@
 #else
 # define V8_ASSUME_ALIGNED(ptr) (ptr)
 #endif
+
+
+// A macro to mark specific arguments as non-null.
+// Use like:
+//   int add(int* x, int y, int* z) V8_NONNULL(1, 3) { return *x + y + *z; }
+#if V8_HAS_ATTRIBUTE_NONNULL
+# define V8_NONNULL(...) __attribute__((nonnull(__VA_ARGS__)))
+#else
+# define V8_NONNULL(...) /* NOT SUPPORTED */
+#endif
+
 
 // A macro used to tell the compiler to never inline a particular function.
 // Don't bother for debug builds.

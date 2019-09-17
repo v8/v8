@@ -5289,7 +5289,7 @@ static inline int WriteHelper(i::Isolate* isolate, const String* string,
   int end = start + length;
   if ((length == -1) || (length > str->length() - start)) end = str->length();
   if (end < 0) return 0;
-  i::String::WriteToFlat(*str, buffer, start, end);
+  if (start < end) i::String::WriteToFlat(*str, buffer, start, end);
   if (!(options & String::NO_NULL_TERMINATION) &&
       (length == -1 || end - start < length)) {
     buffer[end - start] = '\0';
