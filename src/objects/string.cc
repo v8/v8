@@ -601,8 +601,9 @@ void String::WriteToFlat(String src, sinkchar* sink, int f, int t) {
   String source = src;
   int from = f;
   int to = t;
-  while (from < to) {
+  while (true) {
     DCHECK_LE(0, from);
+    DCHECK_LE(from, to);
     DCHECK_LE(to, source.length());
     switch (StringShape(source).full_representation_tag()) {
       case kOneByteStringTag | kExternalStringTag: {
@@ -680,7 +681,6 @@ void String::WriteToFlat(String src, sinkchar* sink, int f, int t) {
         break;
     }
   }
-  DCHECK_EQ(from, to);
 }
 
 template <typename SourceChar>

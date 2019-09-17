@@ -195,14 +195,10 @@ MaybeHandle<String> Uri::Decode(Isolate* isolate, Handle<String> uri,
       String);
 
   DisallowHeapAllocation no_gc;
-  uc16* chars = result->GetChars(no_gc);
-  if (!one_byte_buffer.empty()) {
-    CopyChars(chars, one_byte_buffer.data(), one_byte_buffer.size());
-    chars += one_byte_buffer.size();
-  }
-  if (!two_byte_buffer.empty()) {
-    CopyChars(chars, two_byte_buffer.data(), two_byte_buffer.size());
-  }
+  CopyChars(result->GetChars(no_gc), one_byte_buffer.data(),
+            one_byte_buffer.size());
+  CopyChars(result->GetChars(no_gc) + one_byte_buffer.size(),
+            two_byte_buffer.data(), two_byte_buffer.size());
 
   return result;
 }
