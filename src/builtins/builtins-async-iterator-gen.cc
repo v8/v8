@@ -99,7 +99,7 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
     const char* operation_name, Label::Type reject_label_type,
     Node* const initial_exception_value) {
   TNode<NativeContext> const native_context = LoadNativeContext(context);
-  Node* const promise = AllocateAndInitJSPromise(context);
+  Node* const promise = AllocateAndInitJSPromise(CAST(context));
 
   VARIABLE(var_exception, MachineRepresentation::kTagged,
            initial_exception_value == nullptr ? UndefinedConstant()

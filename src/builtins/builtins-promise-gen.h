@@ -22,15 +22,17 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
   //
   // This uses undefined as the parent promise for the promise init
   // hook.
-  Node* AllocateAndInitJSPromise(Node* context);
+  TNode<JSPromise> AllocateAndInitJSPromise(TNode<Context> context);
   // This uses the given parent as the parent promise for the promise
   // init hook.
-  Node* AllocateAndInitJSPromise(Node* context, Node* parent);
+  TNode<JSPromise> AllocateAndInitJSPromise(TNode<Context> context,
+                                            TNode<Object> parent);
 
   // This allocates and initializes a promise with the given state and
   // fields.
-  Node* AllocateAndSetJSPromise(Node* context, v8::Promise::PromiseState status,
-                                Node* result);
+  TNode<JSPromise> AllocateAndSetJSPromise(TNode<Context> context,
+                                           v8::Promise::PromiseState status,
+                                           TNode<Object> result);
 
   Node* AllocatePromiseReaction(Node* next, Node* promise_or_capability,
                                 Node* fulfill_handler, Node* reject_handler);
@@ -74,9 +76,10 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
   void PromiseSetHasHandler(Node* promise);
   void PromiseSetHandledHint(Node* promise);
 
-  void PerformPromiseThen(Node* context, Node* promise, Node* on_fulfilled,
-                          Node* on_rejected,
-                          Node* result_promise_or_capability);
+  void PerformPromiseThen(TNode<Context> context, TNode<JSPromise> promise,
+                          TNode<HeapObject> on_fulfilled,
+                          TNode<HeapObject> on_rejected,
+                          TNode<HeapObject> result_promise_or_capability);
 
   Node* CreatePromiseContext(Node* native_context, int slots);
 
@@ -161,7 +164,7 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
                                v8::Promise::PromiseState expected);
   void PromiseSetStatus(Node* promise, v8::Promise::PromiseState status);
 
-  Node* AllocateJSPromise(Node* context);
+  TNode<JSPromise> AllocateJSPromise(TNode<Context> context);
 
   void ExtractHandlerContext(Node* handler, Variable* var_context);
   void Generate_PromiseAll(
