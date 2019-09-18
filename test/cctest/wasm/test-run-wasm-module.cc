@@ -969,12 +969,15 @@ TEST(AtomicOpDisassembly) {
 
     ErrorThrower thrower(isolate, "Test");
     auto enabled_features = WasmFeaturesFromIsolate(isolate);
-    MaybeHandle<WasmModuleObject> module_object =
-        isolate->wasm_engine()->SyncCompile(
-            isolate, enabled_features, &thrower,
-            ModuleWireBytes(buffer.begin(), buffer.end()));
+    Handle<WasmModuleObject> module_object =
+        isolate->wasm_engine()
+            ->SyncCompile(isolate, enabled_features, &thrower,
+                          ModuleWireBytes(buffer.begin(), buffer.end()))
+            .ToHandleChecked();
+    NativeModule* native_module = module_object->native_module();
+    ModuleWireBytes wire_bytes(native_module->wire_bytes());
 
-    module_object.ToHandleChecked()->DisassembleFunction(0);
+    DisassembleWasmFunction(native_module->module(), wire_bytes, 0);
   }
   Cleanup();
 }

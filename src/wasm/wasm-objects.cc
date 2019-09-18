@@ -27,7 +27,6 @@
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
-#include "src/wasm/wasm-text.h"
 
 #define TRACE(...)                                      \
   do {                                                  \
@@ -527,25 +526,6 @@ int WasmModuleObject::GetSourcePosition(Handle<WasmModuleObject> module_object,
   DCHECK_EQ(total_offset, offset_table->get_int(kOTESize * left));
   int idx = is_at_number_conversion ? kOTENumberConvPosition : kOTECallPosition;
   return offset_table->get_int(kOTESize * left + idx);
-}
-
-v8::debug::WasmDisassembly WasmModuleObject::DisassembleFunction(
-    int func_index) {
-  DisallowHeapAllocation no_gc;
-
-  if (func_index < 0 ||
-      static_cast<uint32_t>(func_index) >= module()->functions.size())
-    return {};
-
-  wasm::ModuleWireBytes wire_bytes(native_module()->wire_bytes());
-
-  std::ostringstream disassembly_os;
-  v8::debug::WasmDisassembly::OffsetTable offset_table;
-
-  PrintWasmText(module(), wire_bytes, static_cast<uint32_t>(func_index),
-                disassembly_os, &offset_table);
-
-  return {disassembly_os.str(), std::move(offset_table)};
 }
 
 bool WasmModuleObject::GetPossibleBreakpoints(

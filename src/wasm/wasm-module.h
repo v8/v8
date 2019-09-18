@@ -16,6 +16,11 @@
 #include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
+
+namespace debug {
+struct WasmDisassembly;
+}
+
 namespace internal {
 
 class WasmDebugInfo;
@@ -239,6 +244,15 @@ V8_EXPORT_PRIVATE int MaxNumExportWrappers(const WasmModule* module);
 // and origin defined by {is_import}.
 int GetExportWrapperIndex(const WasmModule* module, const FunctionSig* sig,
                           bool is_import);
+
+// Compute the disassembly of a wasm function.
+// Returns the disassembly string and a list of <byte_offset, line, column>
+// entries, mapping wasm byte offsets to line and column in the disassembly.
+// The list is guaranteed to be ordered by the byte_offset.
+// Returns an empty string and empty vector if the function index is invalid.
+V8_EXPORT_PRIVATE debug::WasmDisassembly DisassembleWasmFunction(
+    const WasmModule* module, const ModuleWireBytes& wire_bytes,
+    int func_index);
 
 // Interface to the storage (wire bytes) of a wasm module.
 // It is illegal for anyone receiving a ModuleWireBytes to store pointers based

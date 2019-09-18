@@ -9379,9 +9379,10 @@ debug::WasmDisassembly debug::WasmScript::DisassembleFunction(
   i::DisallowHeapAllocation no_gc;
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   DCHECK_EQ(i::Script::TYPE_WASM, script->type());
-  i::WasmModuleObject module_object =
-      i::WasmModuleObject::cast(script->wasm_module_object());
-  return module_object.DisassembleFunction(function_index);
+  i::wasm::NativeModule* native_module = script->wasm_native_module();
+  const i::wasm::WasmModule* module = native_module->module();
+  i::wasm::ModuleWireBytes wire_bytes(native_module->wire_bytes());
+  return DisassembleWasmFunction(module, wire_bytes, function_index);
 }
 
 debug::Location::Location(int line_number, int column_number)
