@@ -1315,7 +1315,8 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
         case LookupIterator::INTERCEPTOR: {
           Handle<JSObject> holder = it->GetHolder<JSObject>();
           InterceptorInfo info = holder->GetNamedInterceptor();
-          if (it->HolderIsReceiverOrHiddenPrototype() ||
+          if ((it->HolderIsReceiverOrHiddenPrototype() &&
+               !info.non_masking()) ||
               !info.getter().IsUndefined(isolate()) ||
               !info.query().IsUndefined(isolate())) {
             return true;
@@ -1541,22 +1542,26 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
 
     case LookupIterator::INTERCEPTOR: {
       Handle<JSObject> holder = lookup->GetHolder<JSObject>();
-      Handle<Smi> smi_handler = StoreHandler::StoreInterceptor(isolate());
       InterceptorInfo info = holder->GetNamedInterceptor();
 
-      if (!info.getter().IsUndefined(isolate()) ||
-          !info.query().IsUndefined(isolate()) || info.non_masking()) {
-        smi_handler = StoreHandler::StoreSlow(isolate());
+      // If the interceptor is on the receiver
+      if (lookup->HolderIsReceiverOrHiddenPrototype() && !info.non_masking()) {
+        // return a store interceptor smi handler if there is one,
+        if (!info.setter().IsUndefined(isolate())) {
+          return MaybeObjectHandle(StoreHandler::StoreInterceptor(isolate()));
+        }
+        // otherwise return a slow-case smi handler.
+        return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
       }
 
-      if (receiver_map().is_identical_to(holder) &&
-          !info.setter().IsUndefined(isolate()) && !info.non_masking()) {
-        DCHECK(!holder->GetNamedInterceptor().setter().IsUndefined(isolate()));
-        return MaybeObjectHandle(smi_handler);
-      }
-
+      // If the interceptor is a getter/query interceptor on the prototype
+      // chain, return an invalidatable slow handler so it can turn fast if the
+      // interceptor is masked by a regular property later.
+      DCHECK(!info.getter().IsUndefined(isolate()) ||
+             !info.query().IsUndefined(isolate()));
       Handle<Object> handler = StoreHandler::StoreThroughPrototype(
-          isolate(), receiver_map(), holder, smi_handler);
+          isolate(), receiver_map(), holder,
+          StoreHandler::StoreSlow(isolate()));
       return MaybeObjectHandle(handler);
     }
 
