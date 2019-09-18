@@ -1968,11 +1968,11 @@ void Debug::UpdateState() {
   if (is_active) {
     // Note that the debug context could have already been loaded to
     // bootstrap test cases.
-    isolate_->compilation_cache()->Disable();
+    isolate_->compilation_cache()->DisableScriptAndEval();
     is_active = true;
     feature_tracker()->Track(DebugFeatureTracker::kActive);
   } else {
-    isolate_->compilation_cache()->Enable();
+    isolate_->compilation_cache()->EnableScriptAndEval();
     Unload();
   }
   is_active_ = is_active;
