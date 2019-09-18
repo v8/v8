@@ -397,8 +397,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(F32x4Abs, 0xfd95, s_s)               \
   V(F32x4Neg, 0xfd96, s_s)               \
   V(F32x4Sqrt, 0xfd97, s_s)              \
-  V(F32x4RecipApprox, 0xfd98, s_s)       \
-  V(F32x4RecipSqrtApprox, 0xfd99, s_s)   \
+  V(F32x4Qfma, 0xfd98, s_sss)            \
+  V(F32x4Qfms, 0xfd99, s_sss)            \
   V(F32x4Add, 0xfd9a, s_ss)              \
   V(F32x4Sub, 0xfd9b, s_ss)              \
   V(F32x4Mul, 0xfd9c, s_ss)              \
@@ -408,6 +408,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(F64x2Abs, 0xfda0, s_s)               \
   V(F64x2Neg, 0xfda1, s_s)               \
   V(F64x2Sqrt, 0xfda2, s_s)              \
+  V(F64x2Qfma, 0xfda3, s_sss)            \
+  V(F64x2Qfms, 0xfda4, s_sss)            \
   V(F64x2Add, 0xfda5, s_ss)              \
   V(F64x2Sub, 0xfda6, s_ss)              \
   V(F64x2Mul, 0xfda7, s_ss)              \
@@ -432,7 +434,9 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(I32x4UConvertI16x8High, 0xfdd1, s_s) \
   V(I16x8AddHoriz, 0xfdbd, s_ss)         \
   V(I32x4AddHoriz, 0xfdbe, s_ss)         \
-  V(F32x4AddHoriz, 0xfdbf, s_ss)
+  V(F32x4AddHoriz, 0xfdbf, s_ss)         \
+  V(F32x4RecipApprox, 0xfde0, s_s)       \
+  V(F32x4RecipSqrtApprox, 0xfde1, s_s)
 
 #define FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V) \
   V(I8x16ExtractLane, 0xfd05, _)                 \

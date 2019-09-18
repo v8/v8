@@ -2613,6 +2613,23 @@ class ThreadImpl {
         REDUCTION_CASE(S1x8AllTrue, i16x8, int8, 8, &)
         REDUCTION_CASE(S1x16AllTrue, i8x16, int16, 16, &)
 #undef REDUCTION_CASE
+#define QFM_CASE(op, name, stype, count, operation)         \
+  case kExpr##op: {                                         \
+    stype c = Pop().to_s128().to_##name();                  \
+    stype b = Pop().to_s128().to_##name();                  \
+    stype a = Pop().to_s128().to_##name();                  \
+    stype res;                                              \
+    for (size_t i = 0; i < count; i++) {                    \
+      res.val[i] = a.val[i] operation(b.val[i] * c.val[i]); \
+    }                                                       \
+    Push(WasmValue(Simd128(res)));                          \
+    return true;                                            \
+  }
+        QFM_CASE(F32x4Qfma, f32x4, float4, 4, +)
+        QFM_CASE(F32x4Qfms, f32x4, float4, 4, -)
+        QFM_CASE(F64x2Qfma, f64x2, float2, 2, +)
+        QFM_CASE(F64x2Qfms, f64x2, float2, 2, -)
+#undef QFM_CASE
       default:
         return false;
     }

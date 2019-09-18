@@ -761,6 +761,8 @@
   V(F64x2Ne)                    \
   V(F64x2Lt)                    \
   V(F64x2Le)                    \
+  V(F64x2Qfma)                  \
+  V(F64x2Qfms)                  \
   V(F32x4Splat)                 \
   V(F32x4ExtractLane)           \
   V(F32x4ReplaceLane)           \
@@ -784,6 +786,8 @@
   V(F32x4Le)                    \
   V(F32x4Gt)                    \
   V(F32x4Ge)                    \
+  V(F32x4Qfma)                  \
+  V(F32x4Qfms)                  \
   V(I64x2Splat)                 \
   V(I64x2ExtractLane)           \
   V(I64x2ReplaceLane)           \

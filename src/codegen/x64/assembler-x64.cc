@@ -4107,6 +4107,42 @@ void Assembler::vfmass(byte op, XMMRegister dst, XMMRegister src1,
   emit_sse_operand(dst, src2);
 }
 
+void Assembler::vfmaps(byte op, XMMRegister dst, XMMRegister src1,
+                       XMMRegister src2) {
+  DCHECK(IsEnabled(FMA3));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(dst, src1, src2, kL128, k66, k0F38, kW0);
+  emit(op);
+  emit_sse_operand(dst, src2);
+}
+
+void Assembler::vfmaps(byte op, XMMRegister dst, XMMRegister src1,
+                       Operand src2) {
+  DCHECK(IsEnabled(FMA3));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(dst, src1, src2, kL128, k66, k0F38, kW0);
+  emit(op);
+  emit_sse_operand(dst, src2);
+}
+
+void Assembler::vfmapd(byte op, XMMRegister dst, XMMRegister src1,
+                       XMMRegister src2) {
+  DCHECK(IsEnabled(FMA3));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(dst, src1, src2, kL128, k66, k0F38, kW1);
+  emit(op);
+  emit_sse_operand(dst, src2);
+}
+
+void Assembler::vfmapd(byte op, XMMRegister dst, XMMRegister src1,
+                       Operand src2) {
+  DCHECK(IsEnabled(FMA3));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(dst, src1, src2, kL128, k66, k0F38, kW1);
+  emit(op);
+  emit_sse_operand(dst, src2);
+}
+
 void Assembler::vmovd(XMMRegister dst, Register src) {
   DCHECK(IsEnabled(AVX));
   EnsureSpace ensure_space(this);

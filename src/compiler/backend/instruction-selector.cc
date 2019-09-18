@@ -1881,6 +1881,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitF64x2Lt(node);
     case IrOpcode::kF64x2Le:
       return MarkAsSimd128(node), VisitF64x2Le(node);
+    case IrOpcode::kF64x2Qfma:
+      return MarkAsSimd128(node), VisitF64x2Qfma(node);
+    case IrOpcode::kF64x2Qfms:
+      return MarkAsSimd128(node), VisitF64x2Qfms(node);
     case IrOpcode::kF32x4Splat:
       return MarkAsSimd128(node), VisitF32x4Splat(node);
     case IrOpcode::kF32x4ExtractLane:
@@ -1923,6 +1927,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitF32x4Lt(node);
     case IrOpcode::kF32x4Le:
       return MarkAsSimd128(node), VisitF32x4Le(node);
+    case IrOpcode::kF32x4Qfma:
+      return MarkAsSimd128(node), VisitF32x4Qfma(node);
+    case IrOpcode::kF32x4Qfms:
+      return MarkAsSimd128(node), VisitF32x4Qfms(node);
     case IrOpcode::kI64x2Splat:
       return MarkAsSimd128(node), VisitI64x2Splat(node);
     case IrOpcode::kI64x2ExtractLane:
@@ -2655,6 +2663,10 @@ void InstructionSelector::VisitI64x2MinS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2MaxS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2MinU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2MaxU(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitF64x2Qfma(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitF64x2Qfms(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitF32x4Qfma(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitF32x4Qfms(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }

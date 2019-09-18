@@ -2878,6 +2878,27 @@ void InstructionSelector::VisitF32x4UConvertI32x4(Node* node) {
        g.UseRegister(node->InputAt(0)));
 }
 
+#define VISIT_SIMD_QFMOP(Opcode)                                             \
+  void InstructionSelector::Visit##Opcode(Node* node) {                      \
+    X64OperandGenerator g(this);                                             \
+    if (CpuFeatures::IsSupported(FMA3)) {                                    \
+      Emit(kX64##Opcode, g.DefineSameAsFirst(node),                          \
+           g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)), \
+           g.UseRegister(node->InputAt(2)));                                 \
+    } else {                                                                 \
+      InstructionOperand temps[] = {g.TempSimd128Register()};                \
+      Emit(kX64##Opcode, g.DefineSameAsFirst(node),                          \
+           g.UseUniqueRegister(node->InputAt(0)),                            \
+           g.UseUniqueRegister(node->InputAt(1)),                            \
+           g.UseRegister(node->InputAt(2)), arraysize(temps), temps);        \
+    }                                                                        \
+  }
+VISIT_SIMD_QFMOP(F64x2Qfma)
+VISIT_SIMD_QFMOP(F64x2Qfms)
+VISIT_SIMD_QFMOP(F32x4Qfma)
+VISIT_SIMD_QFMOP(F32x4Qfms)
+#undef VISIT_SIMD_QFMOP
+
 void InstructionSelector::VisitI64x2ShrS(Node* node) {
   X64OperandGenerator g(this);
   InstructionOperand temps[] = {g.TempRegister()};

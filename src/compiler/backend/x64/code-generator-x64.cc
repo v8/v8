@@ -2371,6 +2371,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ cmplepd(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
+    case kX64F64x2Qfma: {
+      if (CpuFeatures::IsSupported(FMA3)) {
+        CpuFeatureScope fma3_scope(tasm(), FMA3);
+        __ vfmadd231pd(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                       i.InputSimd128Register(2));
+      } else {
+        XMMRegister tmp = i.TempSimd128Register(0);
+        __ movapd(tmp, i.InputSimd128Register(2));
+        __ mulpd(tmp, i.InputSimd128Register(1));
+        __ addpd(i.OutputSimd128Register(), tmp);
+      }
+      break;
+    }
+    case kX64F64x2Qfms: {
+      if (CpuFeatures::IsSupported(FMA3)) {
+        CpuFeatureScope fma3_scope(tasm(), FMA3);
+        __ vfnmadd231pd(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                        i.InputSimd128Register(2));
+      } else {
+        XMMRegister tmp = i.TempSimd128Register(0);
+        __ movapd(tmp, i.InputSimd128Register(2));
+        __ mulpd(tmp, i.InputSimd128Register(1));
+        __ subpd(i.OutputSimd128Register(), tmp);
+      }
+      break;
+    }
     // TODO(gdeepti): Get rid of redundant moves for F32x4Splat/Extract below
     case kX64F32x4Splat: {
       XMMRegister dst = i.OutputSimd128Register();
@@ -2543,6 +2569,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64F32x4Le: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ cmpleps(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kX64F32x4Qfma: {
+      if (CpuFeatures::IsSupported(FMA3)) {
+        CpuFeatureScope fma3_scope(tasm(), FMA3);
+        __ vfmadd231ps(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                       i.InputSimd128Register(2));
+      } else {
+        XMMRegister tmp = i.TempSimd128Register(0);
+        __ movaps(tmp, i.InputSimd128Register(2));
+        __ mulps(tmp, i.InputSimd128Register(1));
+        __ addps(i.OutputSimd128Register(), tmp);
+      }
+      break;
+    }
+    case kX64F32x4Qfms: {
+      if (CpuFeatures::IsSupported(FMA3)) {
+        CpuFeatureScope fma3_scope(tasm(), FMA3);
+        __ vfnmadd231ps(i.OutputSimd128Register(), i.InputSimd128Register(1),
+                        i.InputSimd128Register(2));
+      } else {
+        XMMRegister tmp = i.TempSimd128Register(0);
+        __ movaps(tmp, i.InputSimd128Register(2));
+        __ mulps(tmp, i.InputSimd128Register(1));
+        __ subps(i.OutputSimd128Register(), tmp);
+      }
       break;
     }
     case kX64I64x2Splat: {
