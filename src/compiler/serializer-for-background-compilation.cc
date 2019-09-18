@@ -12,6 +12,7 @@
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/functional-list.h"
 #include "src/compiler/js-heap-broker.h"
+#include "src/compiler/zone-stats.h"
 #include "src/handles/handles-inl.h"
 #include "src/ic/call-optimization.h"
 #include "src/interpreter/bytecode-array-iterator.h"
@@ -304,6 +305,7 @@ class Hints {
   void AddVirtualContext(VirtualContext virtual_context, Zone* zone);
 
   void Add(const Hints& other, Zone* zone);
+  void AddFromChildSerializer(const Hints& other, Zone* zone);
 
   void Clear();
   bool IsEmpty() const;
@@ -371,18 +373,18 @@ class CompilationSubject {
 class SerializerForBackgroundCompilation {
  public:
   SerializerForBackgroundCompilation(
-      JSHeapBroker* broker, CompilationDependencies* dependencies, Zone* zone,
-      Handle<JSFunction> closure, SerializerForBackgroundCompilationFlags flags,
-      BailoutId osr_offset);
+      ZoneStats* zone_stats, JSHeapBroker* broker,
+      CompilationDependencies* dependencies, Handle<JSFunction> closure,
+      SerializerForBackgroundCompilationFlags flags, BailoutId osr_offset);
   Hints Run();  // NOTE: Returns empty for an already-serialized function.
 
   class Environment;
 
  private:
   SerializerForBackgroundCompilation(
-      JSHeapBroker* broker, CompilationDependencies* dependencies, Zone* zone,
-      CompilationSubject function, base::Optional<Hints> new_target,
-      const HintsVector& arguments,
+      ZoneStats* zone_stats, JSHeapBroker* broker,
+      CompilationDependencies* dependencies, CompilationSubject function,
+      base::Optional<Hints> new_target, const HintsVector& arguments,
       SerializerForBackgroundCompilationFlags flags);
 
   bool BailoutOnUninitialized(ProcessedFeedback const& feedback);
@@ -504,14 +506,14 @@ class SerializerForBackgroundCompilation {
 
   JSHeapBroker* broker() const { return broker_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
-  Zone* zone() const { return zone_; }
+  Zone* zone() { return zone_scope_.zone(); }
   Environment* environment() const { return environment_; }
   SerializerForBackgroundCompilationFlags flags() const { return flags_; }
   BailoutId osr_offset() const { return osr_offset_; }
 
   JSHeapBroker* const broker_;
   CompilationDependencies* const dependencies_;
-  Zone* const zone_;
+  ZoneStats::Scope zone_scope_;
   Environment* const environment_;
   ZoneUnorderedMap<int, Environment*> jump_target_environments_;
   SerializerForBackgroundCompilationFlags const flags_;
@@ -519,11 +521,11 @@ class SerializerForBackgroundCompilation {
 };
 
 void RunSerializerForBackgroundCompilation(
-    JSHeapBroker* broker, CompilationDependencies* dependencies, Zone* zone,
-    Handle<JSFunction> closure, SerializerForBackgroundCompilationFlags flags,
-    BailoutId osr_offset) {
-  SerializerForBackgroundCompilation serializer(broker, dependencies, zone,
-                                                closure, flags, osr_offset);
+    ZoneStats* zone_stats, JSHeapBroker* broker,
+    CompilationDependencies* dependencies, Handle<JSFunction> closure,
+    SerializerForBackgroundCompilationFlags flags, BailoutId osr_offset) {
+  SerializerForBackgroundCompilation serializer(
+      zone_stats, broker, dependencies, closure, flags, osr_offset);
   serializer.Run();
 }
 
@@ -534,13 +536,18 @@ FunctionBlueprint::FunctionBlueprint(Handle<SharedFunctionInfo> shared,
                                      const Hints& context_hints)
     : shared_(shared),
       feedback_vector_(feedback_vector),
-      context_hints_(context_hints) {}
+      context_hints_(context_hints) {
+  // The checked invariant rules out recursion and thus avoids complexity.
+  CHECK(context_hints_.function_blueprints().IsEmpty());
+}
 
 FunctionBlueprint::FunctionBlueprint(Handle<JSFunction> function,
                                      Isolate* isolate, Zone* zone)
     : shared_(handle(function->shared(), isolate)),
       feedback_vector_(handle(function->feedback_vector(), isolate)),
       context_hints_() {
+  // The checked invariant rules out recursion and thus avoids complexity.
+  CHECK(context_hints_.function_blueprints().IsEmpty());
   context_hints_.AddConstant(handle(function->context(), isolate), zone);
 }
 
@@ -599,6 +606,24 @@ void Hints::Add(const Hints& other, Zone* zone) {
   for (auto x : other.maps()) AddMap(x, zone);
   for (auto x : other.function_blueprints()) AddFunctionBlueprint(x, zone);
   for (auto x : other.virtual_contexts()) AddVirtualContext(x, zone);
+}
+
+void Hints::AddFromChildSerializer(const Hints& other, Zone* zone) {
+  for (auto x : other.constants()) AddConstant(x, zone);
+  for (auto x : other.maps()) AddMap(x, zone);
+  for (auto x : other.virtual_contexts()) AddVirtualContext(x, zone);
+
+  // Adding hints from a child serializer run means copying data out from
+  // a zone that's being destroyed. FunctionBlueprints have zone allocated
+  // data, so we've got to make a deep copy to eliminate traces of the
+  // dying zone.
+  for (auto x : other.function_blueprints()) {
+    Hints new_blueprint_hints;
+    new_blueprint_hints.AddFromChildSerializer(x.context_hints(), zone);
+    FunctionBlueprint new_blueprint(x.shared(), x.feedback_vector(),
+                                    new_blueprint_hints);
+    AddFunctionBlueprint(new_blueprint, zone);
+  }
 }
 
 bool Hints::IsEmpty() const {
@@ -860,30 +885,31 @@ int SerializerForBackgroundCompilation::Environment::RegisterToLocalIndex(
 }
 
 SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
-    JSHeapBroker* broker, CompilationDependencies* dependencies, Zone* zone,
-    Handle<JSFunction> closure, SerializerForBackgroundCompilationFlags flags,
-    BailoutId osr_offset)
+    ZoneStats* zone_stats, JSHeapBroker* broker,
+    CompilationDependencies* dependencies, Handle<JSFunction> closure,
+    SerializerForBackgroundCompilationFlags flags, BailoutId osr_offset)
     : broker_(broker),
       dependencies_(dependencies),
-      zone_(zone),
-      environment_(new (zone) Environment(
-          zone, CompilationSubject(closure, broker_->isolate(), zone))),
-      jump_target_environments_(zone),
+      zone_scope_(zone_stats, ZONE_NAME),
+      environment_(new (zone()) Environment(
+          zone(), CompilationSubject(closure, broker_->isolate(), zone()))),
+      jump_target_environments_(zone()),
       flags_(flags),
       osr_offset_(osr_offset) {
   JSFunctionRef(broker, closure).Serialize();
 }
 
 SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
-    JSHeapBroker* broker, CompilationDependencies* dependencies, Zone* zone,
-    CompilationSubject function, base::Optional<Hints> new_target,
-    const HintsVector& arguments, SerializerForBackgroundCompilationFlags flags)
+    ZoneStats* zone_stats, JSHeapBroker* broker,
+    CompilationDependencies* dependencies, CompilationSubject function,
+    base::Optional<Hints> new_target, const HintsVector& arguments,
+    SerializerForBackgroundCompilationFlags flags)
     : broker_(broker),
       dependencies_(dependencies),
-      zone_(zone),
-      environment_(new (zone) Environment(zone, broker_->isolate(), function,
-                                          new_target, arguments)),
-      jump_target_environments_(zone),
+      zone_scope_(zone_stats, ZONE_NAME),
+      environment_(new (zone()) Environment(zone(), broker_->isolate(),
+                                            function, new_target, arguments)),
+      jump_target_environments_(zone()),
       flags_(flags),
       osr_offset_(BailoutId::None()) {
   TraceScope tracer(
@@ -1722,10 +1748,17 @@ Hints SerializerForBackgroundCompilation::RunChildSerializer(
     return RunChildSerializer(function, new_target, padded, false);
   }
 
-  SerializerForBackgroundCompilation child_serializer(
-      broker(), dependencies(), zone(), function, new_target, arguments,
-      flags());
-  return child_serializer.Run();
+  Hints hints;
+  {
+    // The Hints returned by the call to Run are allocated in the zone
+    // created by the child serializer. Adding those hints to a hints
+    // object created in our zone will preserve the information.
+    SerializerForBackgroundCompilation child_serializer(
+        zone_scope_.zone_stats(), broker(), dependencies(), function,
+        new_target, arguments, flags());
+    hints.AddFromChildSerializer(child_serializer.Run(), zone());
+  }
+  return hints;
 }
 
 bool SerializerForBackgroundCompilation::ProcessSFIForCallOrConstruct(

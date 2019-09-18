@@ -1430,9 +1430,9 @@ struct SerializationPhase {
       flags |=
           SerializerForBackgroundCompilationFlag::kAnalyzeEnvironmentLiveness;
     }
-    RunSerializerForBackgroundCompilation(data->broker(), data->dependencies(),
-                                          temp_zone, data->info()->closure(),
-                                          flags, data->info()->osr_offset());
+    RunSerializerForBackgroundCompilation(
+        data->zone_stats(), data->broker(), data->dependencies(),
+        data->info()->closure(), flags, data->info()->osr_offset());
     if (data->specialization_context().IsJust()) {
       ContextRef(data->broker(),
                  data->specialization_context().FromJust().context);
