@@ -3308,8 +3308,8 @@ class Deserializer : public ValueDeserializer::Delegate {
 
     uint32_t index = 0;
     for (const auto& backing_store : data_->backing_stores()) {
-      Local<ArrayBuffer> array_buffer = ArrayBuffer::New(
-          isolate_, backing_store->Data(), backing_store->ByteLength());
+      Local<ArrayBuffer> array_buffer =
+          ArrayBuffer::New(isolate_, std::move(backing_store));
       deserializer_.TransferArrayBuffer(index++, array_buffer);
     }
 
@@ -3320,9 +3320,8 @@ class Deserializer : public ValueDeserializer::Delegate {
       Isolate* isolate, uint32_t clone_id) override {
     DCHECK_NOT_NULL(data_);
     if (clone_id < data_->sab_backing_stores().size()) {
-      auto backing_store = data_->sab_backing_stores().at(clone_id);
-      return SharedArrayBuffer::New(isolate_, backing_store->Data(),
-                                    backing_store->ByteLength());
+      return SharedArrayBuffer::New(
+          isolate_, std::move(data_->sab_backing_stores().at(clone_id)));
     }
     return MaybeLocal<SharedArrayBuffer>();
   }

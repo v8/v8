@@ -7303,6 +7303,11 @@ std::shared_ptr<i::BackingStore> LookupOrCreateBackingStore(
   }
   return backing_store;
 }
+
+std::shared_ptr<i::BackingStore> ToInternal(
+    std::shared_ptr<i::BackingStoreBase> backing_store) {
+  return std::static_pointer_cast<i::BackingStore>(backing_store);
+}
 }  // namespace
 
 v8::ArrayBuffer::Contents::Contents(void* data, size_t byte_length,
@@ -7427,7 +7432,7 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(Isolate* isolate, void* data,
                                         size_t byte_length,
                                         ArrayBufferCreationMode mode) {
   // Embedders must guarantee that the external backing store is valid.
-  CHECK(byte_length == 0 || data != nullptr);
+  CHECK_IMPLIES(byte_length != 0, data != nullptr);
   CHECK_LE(byte_length, i::JSArrayBuffer::kMaxByteLength);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, ArrayBuffer, New);
@@ -7441,6 +7446,24 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(Isolate* isolate, void* data,
   if (mode == ArrayBufferCreationMode::kExternalized) {
     obj->set_is_external(true);
   }
+  return Utils::ToLocal(obj);
+}
+
+Local<ArrayBuffer> v8::ArrayBuffer::New(
+    Isolate* isolate, std::shared_ptr<BackingStore> backing_store) {
+  CHECK_IMPLIES(backing_store->ByteLength() != 0,
+                backing_store->Data() != nullptr);
+  CHECK_LE(backing_store->ByteLength(), i::JSArrayBuffer::kMaxByteLength);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  LOG_API(i_isolate, ArrayBuffer, New);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  std::shared_ptr<i::BackingStore> i_backing_store(
+      ToInternal(std::move(backing_store)));
+  Utils::ApiCheck(
+      !i_backing_store->is_shared(), "v8_ArrayBuffer_New",
+      "Cannot construct ArrayBuffer with a BackingStore of SharedArrayBuffer");
+  i::Handle<i::JSArrayBuffer> obj = i_isolate->factory()->NewJSArrayBuffer();
+  obj->Attach(std::move(i_backing_store));
   return Utils::ToLocal(obj);
 }
 
@@ -7719,6 +7742,25 @@ Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(
   i::Handle<i::JSArrayBuffer> buffer =
       SetupSharedArrayBuffer(isolate, data, byte_length, mode);
   return Utils::ToLocalShared(buffer);
+}
+
+Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(
+    Isolate* isolate, std::shared_ptr<BackingStore> backing_store) {
+  CHECK(i::FLAG_harmony_sharedarraybuffer);
+  CHECK_IMPLIES(backing_store->ByteLength() != 0,
+                backing_store->Data() != nullptr);
+  CHECK_LE(backing_store->ByteLength(), i::JSArrayBuffer::kMaxByteLength);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  LOG_API(i_isolate, SharedArrayBuffer, New);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  std::shared_ptr<i::BackingStore> i_backing_store(ToInternal(backing_store));
+  Utils::ApiCheck(
+      i_backing_store->is_shared(), "v8_SharedArrayBuffer_New",
+      "Cannot construct SharedArrayBuffer with BackingStore of ArrayBuffer");
+  i::Handle<i::JSArrayBuffer> obj =
+      i_isolate->factory()->NewJSSharedArrayBuffer();
+  obj->Attach(std::move(i_backing_store));
+  return Utils::ToLocalShared(obj);
 }
 
 Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(
