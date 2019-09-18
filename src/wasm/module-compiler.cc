@@ -964,6 +964,10 @@ bool ExecuteJSToWasmWrapperCompilationUnits(
   return true;
 }
 
+bool NeedsDeterministicCompile() {
+  return FLAG_trace_wasm_decoder || FLAG_wasm_num_compilation_tasks <= 1;
+}
+
 // Run by the main thread and background tasks to take part in compilation.
 // Returns whether any units were executed.
 bool ExecuteCompilationUnits(
@@ -991,6 +995,7 @@ bool ExecuteCompilationUnits(
   // These fields are initialized in a {BackgroundCompileScope} before
   // starting compilation.
   double deadline = 0;
+  const bool deterministic = NeedsDeterministicCompile();
   base::Optional<CompilationEnv> env;
   std::shared_ptr<WireBytesStorage> wire_bytes;
   std::shared_ptr<const WasmModule> module;
@@ -1084,7 +1089,7 @@ bool ExecuteCompilationUnits(
       }
 
       // Get next unit.
-      if (deadline < platform->MonotonicallyIncreasingTime()) {
+      if (deterministic || deadline < platform->MonotonicallyIncreasingTime()) {
         unit = {};
       } else {
         unit = compile_scope.compilation_state()->GetNextCompilationUnit(
@@ -1194,10 +1199,6 @@ void InitializeCompilationUnits(Isolate* isolate, NativeModule* native_module) {
   compilation_state->InitializeCompilationProgress(
       lazy_module, num_import_wrappers + num_export_wrappers);
   builder.Commit();
-}
-
-bool NeedsDeterministicCompile() {
-  return FLAG_trace_wasm_decoder || FLAG_wasm_num_compilation_tasks <= 1;
 }
 
 bool MayCompriseLazyFunctions(const WasmModule* module,
