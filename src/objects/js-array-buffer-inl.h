@@ -114,31 +114,63 @@ void JSTypedArray::set_length(size_t value) {
   WriteField<size_t>(kLengthOffset, value);
 }
 
-void* JSTypedArray::external_pointer() const {
-  return reinterpret_cast<void*>(ReadField<Address>(kExternalPointerOffset));
+Address JSTypedArray::external_pointer_raw() const {
+  return ReadField<Address>(kExternalPointerOffset);
 }
 
-void JSTypedArray::set_external_pointer(void* value) {
-  WriteField<Address>(kExternalPointerOffset, reinterpret_cast<Address>(value));
+void JSTypedArray::set_external_pointer_raw(Address value) {
+  WriteField<Address>(kExternalPointerOffset, value);
 }
 
-ACCESSORS(JSTypedArray, base_pointer, Object, kBasePointerOffset)
+Address JSTypedArray::ExternalPointerCompensationForOnHeapArray(
+    Isolate* isolate) {
+#ifdef V8_COMPRESS_POINTERS
+  return GetIsolateRoot(isolate);
+#else
+  return 0;
+#endif
+}
+
+void JSTypedArray::RemoveExternalPointerCompensationForSerialization() {
+  DCHECK(is_on_heap());
+  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  set_external_pointer_raw(external_pointer_raw() -
+                           ExternalPointerCompensationForOnHeapArray(isolate));
+}
+
+ACCESSORS(JSTypedArray, base_pointer_raw, Object, kBasePointerOffset)
 
 void* JSTypedArray::DataPtr() {
+  // Sign extend Tagged_t to intptr_t according to current compression scheme
+  // so that the addition with |external_pointer| (which already contains
+  // compensated offset value) will decompress the tagged value.
+  // See JSTypedArray::ExternalPointerCompensationForOnHeapArray() for details.
   return reinterpret_cast<void*>(
-      base_pointer().ptr() + reinterpret_cast<intptr_t>(external_pointer()));
+      external_pointer_raw() +
+      static_cast<Address>(static_cast<intptr_t>(
+          static_cast<Tagged_t>(base_pointer_raw().ptr()))));
+}
+
+void JSTypedArray::SetOffHeapDataPtr(void* base, Address offset) {
+  set_base_pointer_raw(Smi::kZero, SKIP_WRITE_BARRIER);
+  Address address = reinterpret_cast<Address>(base) + offset;
+  set_external_pointer_raw(address);
+  DCHECK_EQ(address, reinterpret_cast<Address>(DataPtr()));
+}
+
+void JSTypedArray::SetOnHeapDataPtr(HeapObject base, Address offset) {
+  set_base_pointer_raw(base);
+  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  set_external_pointer_raw(offset +
+                           ExternalPointerCompensationForOnHeapArray(isolate));
+  DCHECK_EQ(base.ptr() + offset, reinterpret_cast<Address>(DataPtr()));
 }
 
 bool JSTypedArray::is_on_heap() const {
   DisallowHeapAllocation no_gc;
   // Checking that buffer()->backing_store() is not nullptr is not sufficient;
   // it will be nullptr when byte_length is 0 as well.
-  return base_pointer().ptr() == elements().ptr();
-}
-
-// static
-void* JSTypedArray::ExternalPointerForOnHeapArray() {
-  return reinterpret_cast<void*>(ByteArray::kHeaderSize - kHeapObjectTag);
+  return base_pointer_raw() == elements();
 }
 
 // static

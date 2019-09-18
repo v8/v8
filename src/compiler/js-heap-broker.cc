@@ -420,7 +420,7 @@ class JSTypedArrayData : public JSObjectData {
 
   bool is_on_heap() const { return is_on_heap_; }
   size_t length() const { return length_; }
-  void* external_pointer() const { return external_pointer_; }
+  void* data_ptr() const { return data_ptr_; }
 
   void Serialize(JSHeapBroker* broker);
   bool serialized() const { return serialized_; }
@@ -430,7 +430,7 @@ class JSTypedArrayData : public JSObjectData {
  private:
   bool const is_on_heap_;
   size_t const length_;
-  void* const external_pointer_;
+  void* const data_ptr_;
 
   bool serialized_ = false;
   HeapObjectData* buffer_ = nullptr;
@@ -441,7 +441,7 @@ JSTypedArrayData::JSTypedArrayData(JSHeapBroker* broker, ObjectData** storage,
     : JSObjectData(broker, storage, object),
       is_on_heap_(object->is_on_heap()),
       length_(object->length()),
-      external_pointer_(object->external_pointer()) {}
+      data_ptr_(object->DataPtr()) {}
 
 void JSTypedArrayData::Serialize(JSHeapBroker* broker) {
   if (serialized_) return;
@@ -3383,12 +3383,12 @@ base::Optional<MapRef> MapRef::FindRootMap() const {
   return base::nullopt;
 }
 
-void* JSTypedArrayRef::external_pointer() const {
+void* JSTypedArrayRef::data_ptr() const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference allow_handle_dereference;
-    return object()->external_pointer();
+    return object()->DataPtr();
   }
-  return data()->AsJSTypedArray()->external_pointer();
+  return data()->AsJSTypedArray()->data_ptr();
 }
 
 bool MapRef::IsInobjectSlackTrackingInProgress() const {

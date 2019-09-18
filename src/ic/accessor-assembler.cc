@@ -2096,8 +2096,7 @@ void AccessorAssembler::EmitElementLoad(
       if (access_mode == LoadAccessMode::kHas) {
         exit_point->Return(TrueConstant());
       } else {
-        TNode<RawPtrT> backing_store =
-            LoadJSTypedArrayBackingStore(CAST(object));
+        TNode<RawPtrT> data_ptr = LoadJSTypedArrayDataPtr(CAST(object));
 
         Label uint8_elements(this), int8_elements(this), uint16_elements(this),
             int16_elements(this), uint32_elements(this), int32_elements(this),
@@ -2123,50 +2122,48 @@ void AccessorAssembler::EmitElementLoad(
         BIND(&uint8_elements);
         {
           Comment("UINT8_ELEMENTS");  // Handles UINT8_CLAMPED_ELEMENTS too.
-          Node* element =
-              Load(MachineType::Uint8(), backing_store, intptr_index);
+          Node* element = Load(MachineType::Uint8(), data_ptr, intptr_index);
           exit_point->Return(SmiFromInt32(element));
         }
         BIND(&int8_elements);
         {
           Comment("INT8_ELEMENTS");
-          Node* element =
-              Load(MachineType::Int8(), backing_store, intptr_index);
+          Node* element = Load(MachineType::Int8(), data_ptr, intptr_index);
           exit_point->Return(SmiFromInt32(element));
         }
         BIND(&uint16_elements);
         {
           Comment("UINT16_ELEMENTS");
           TNode<IntPtrT> index = WordShl(intptr_index, IntPtrConstant(1));
-          Node* element = Load(MachineType::Uint16(), backing_store, index);
+          Node* element = Load(MachineType::Uint16(), data_ptr, index);
           exit_point->Return(SmiFromInt32(element));
         }
         BIND(&int16_elements);
         {
           Comment("INT16_ELEMENTS");
           TNode<IntPtrT> index = WordShl(intptr_index, IntPtrConstant(1));
-          Node* element = Load(MachineType::Int16(), backing_store, index);
+          Node* element = Load(MachineType::Int16(), data_ptr, index);
           exit_point->Return(SmiFromInt32(element));
         }
         BIND(&uint32_elements);
         {
           Comment("UINT32_ELEMENTS");
           TNode<IntPtrT> index = WordShl(intptr_index, IntPtrConstant(2));
-          Node* element = Load(MachineType::Uint32(), backing_store, index);
+          Node* element = Load(MachineType::Uint32(), data_ptr, index);
           exit_point->Return(ChangeUint32ToTagged(element));
         }
         BIND(&int32_elements);
         {
           Comment("INT32_ELEMENTS");
           TNode<IntPtrT> index = WordShl(intptr_index, IntPtrConstant(2));
-          Node* element = Load(MachineType::Int32(), backing_store, index);
+          Node* element = Load(MachineType::Int32(), data_ptr, index);
           exit_point->Return(ChangeInt32ToTagged(element));
         }
         BIND(&float32_elements);
         {
           Comment("FLOAT32_ELEMENTS");
           TNode<IntPtrT> index = WordShl(intptr_index, IntPtrConstant(2));
-          Node* element = Load(MachineType::Float32(), backing_store, index);
+          Node* element = Load(MachineType::Float32(), data_ptr, index);
           var_double_value->Bind(ChangeFloat32ToFloat64(element));
           Goto(rebox_double);
         }
@@ -2174,7 +2171,7 @@ void AccessorAssembler::EmitElementLoad(
         {
           Comment("FLOAT64_ELEMENTS");
           TNode<IntPtrT> index = WordShl(intptr_index, IntPtrConstant(3));
-          Node* element = Load(MachineType::Float64(), backing_store, index);
+          Node* element = Load(MachineType::Float64(), data_ptr, index);
           var_double_value->Bind(element);
           Goto(rebox_double);
         }
@@ -2182,15 +2179,13 @@ void AccessorAssembler::EmitElementLoad(
         {
           Comment("BIGINT64_ELEMENTS");
           exit_point->Return(LoadFixedTypedArrayElementAsTagged(
-              backing_store, intptr_index, BIGINT64_ELEMENTS,
-              INTPTR_PARAMETERS));
+              data_ptr, intptr_index, BIGINT64_ELEMENTS, INTPTR_PARAMETERS));
         }
         BIND(&biguint64_elements);
         {
           Comment("BIGUINT64_ELEMENTS");
           exit_point->Return(LoadFixedTypedArrayElementAsTagged(
-              backing_store, intptr_index, BIGUINT64_ELEMENTS,
-              INTPTR_PARAMETERS));
+              data_ptr, intptr_index, BIGUINT64_ELEMENTS, INTPTR_PARAMETERS));
         }
       }
     }
