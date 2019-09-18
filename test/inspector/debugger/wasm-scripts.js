@@ -4,7 +4,16 @@
 
 // Flags: --expose-wasm
 
-let {session, contextGroup, Protocol} = InspectorTest.start('Tests how wasm scripts are reported');
+InspectorTest.log("Tests how wasm scripts are reported");
+
+let contextGroup = new InspectorTest.ContextGroup();
+let sessions = [
+  // Main session.
+  trackScripts(),
+  // Extra session to verify that all inspectors get same messages.
+  // See https://bugs.chromium.org/p/v8/issues/detail?id=9725.
+  trackScripts(),
+];
 
 utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -18,54 +27,55 @@ builder.addFunction('main', kSig_v_v)
 var module_bytes = builder.toArray();
 
 function testFunction(bytes) {
-  var buffer = new ArrayBuffer(bytes.length);
-  var view = new Uint8Array(buffer);
-  for (var i = 0; i < bytes.length; i++) {
-    view[i] = bytes[i] | 0;
-  }
-
   // Compilation triggers registration of wasm scripts.
-  new WebAssembly.Module(buffer);
+  new WebAssembly.Module(new Uint8Array(bytes));
 }
 
 contextGroup.addScript(testFunction.toString(), 0, 0, 'v8://test/testFunction');
 contextGroup.addScript('var module_bytes = ' + JSON.stringify(module_bytes));
 
-Protocol.Debugger.enable();
-Protocol.Debugger.onScriptParsed(handleScriptParsed);
 InspectorTest.log(
-    'Check that inspector gets two wasm scripts at module creation time.');
-Protocol.Runtime
+    'Check that each inspector gets two wasm scripts at module creation time.');
+
+sessions[0].Protocol.Runtime
     .evaluate({
       'expression': '//# sourceURL=v8://test/runTestRunction\n' +
           'testFunction(module_bytes)'
     })
-    .then(checkFinished);
+    .then(() => (
+      // At this point all scripts were parsed.
+      // Stop tracking and wait for script sources in each session.
+      Promise.all(sessions.map(session => session.getScripts()))
+    ))
+    .catch(err => {
+      InspectorTest.log("FAIL: " + err.message);
+    })
+    .then(() => InspectorTest.completeTest());
 
-var num_scripts = 0;
-var missing_sources = 0;
+function trackScripts() {
+  let {id: sessionId, Protocol} = contextGroup.connect();
+  let scripts = [];
 
-function checkFinished() {
-  if (missing_sources == 0)
-    InspectorTest.completeTest();
-}
+  Protocol.Debugger.enable();
+  Protocol.Debugger.onScriptParsed(handleScriptParsed);
 
-function handleScriptParsed(messageObject)
-{
-  var url = messageObject.params.url;
-  InspectorTest.log("Script #" + num_scripts + " parsed. URL: " + url);
-  ++num_scripts;
-
-  if (url.startsWith("wasm://")) {
-    ++missing_sources;
-    function dumpScriptSource(message) {
-      InspectorTest.log("Source for " + url + ":");
-      InspectorTest.log(message.result.scriptSource);
-      --missing_sources;
-    }
-
-    Protocol.Debugger.getScriptSource({scriptId: messageObject.params.scriptId})
-        .then(dumpScriptSource.bind(null))
-        .then(checkFinished);
+  async function getScript({url, scriptId}) {
+    let {result: {scriptSource}} = await Protocol.Debugger.getScriptSource({scriptId});
+    InspectorTest.log(`Session #${sessionId}: Source for ${url}:`);
+    InspectorTest.log(scriptSource);
+    return {url, scriptSource};
   }
+
+  function handleScriptParsed({params}) {
+    let {url} = params;
+    if (!url.startsWith("wasm://")) return;
+
+    InspectorTest.log(`Session #${sessionId}: Script #${scripts.length} parsed. URL: ${url}`);
+    scripts.push(getScript(params));
+  }
+
+  return {
+    Protocol,
+    getScripts: () => Promise.all(scripts),
+  };
 }
