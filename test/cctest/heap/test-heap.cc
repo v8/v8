@@ -3666,6 +3666,55 @@ TEST(DeferredHandles) {
   deferred.Detach();
 }
 
+static void TestFillersFromDeferredHandles(bool promote) {
+  // We assume that the fillers can only arise when left-trimming arrays.
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(isolate));
+
+  const size_t n = 10;
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(n);
+
+  if (promote) {
+    // Age the array so it's ready for promotion on next GC.
+    CcTest::CollectGarbage(NEW_SPACE);
+  }
+  CHECK(Heap::InYoungGeneration(*array));
+
+  DeferredHandleScope deferred_scope(isolate);
+
+  // Trim the array three times to different sizes so all kinds of fillers are
+  // created and tracked by the deferred handles.
+  Handle<FixedArrayBase> filler_1 = Handle<FixedArrayBase>(*array, isolate);
+  Handle<FixedArrayBase> filler_2 =
+      Handle<FixedArrayBase>(heap->LeftTrimFixedArray(*filler_1, 1), isolate);
+  Handle<FixedArrayBase> filler_3 =
+      Handle<FixedArrayBase>(heap->LeftTrimFixedArray(*filler_2, 2), isolate);
+  Handle<FixedArrayBase> tail =
+      Handle<FixedArrayBase>(heap->LeftTrimFixedArray(*filler_3, 3), isolate);
+
+  std::unique_ptr<DeferredHandles> deferred_handles(deferred_scope.Detach());
+
+  // GC should retain the trimmed array but drop all of the three fillers.
+  CcTest::CollectGarbage(NEW_SPACE);
+  if (promote) {
+    CHECK(heap->InOldSpace(*tail));
+  } else {
+    CHECK(Heap::InYoungGeneration(*tail));
+  }
+  CHECK_EQ(n - 6, (*tail).length());
+  CHECK(!filler_1->IsHeapObject());
+  CHECK(!filler_2->IsHeapObject());
+  CHECK(!filler_3->IsHeapObject());
+}
+
+TEST(DoNotEvacuateFillersFromDeferredHandles) {
+  TestFillersFromDeferredHandles(false /*promote*/);
+}
+
+TEST(DoNotPromoteFillersFromDeferredHandles) {
+  TestFillersFromDeferredHandles(true /*promote*/);
+}
 
 TEST(IncrementalMarkingStepMakesBigProgressWithLargeObjects) {
   if (!FLAG_incremental_marking) return;
