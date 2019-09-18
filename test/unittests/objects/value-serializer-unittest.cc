@@ -1730,7 +1730,7 @@ class ValueSerializerTestWithArrayBufferTransfer : public ValueSerializerTest {
       Context::Scope scope(deserialization_context());
       output_buffer_ = ArrayBuffer::New(isolate(), kTestByteLength);
       const uint8_t data[kTestByteLength] = {0x00, 0x01, 0x80, 0xFF};
-      memcpy(output_buffer_->GetContents().Data(), data, kTestByteLength);
+      memcpy(output_buffer_->GetBackingStore()->Data(), data, kTestByteLength);
     }
   }
 

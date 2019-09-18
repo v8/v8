@@ -381,6 +381,10 @@ V8_EXPORT internal::Isolate* IsolateFromNeverReadOnlySpaceObject(Address obj);
 // language mode is strict.
 V8_EXPORT bool ShouldThrowOnError(v8::internal::Isolate* isolate);
 
+// A base class for backing stores, which is needed due to vagaries of
+// how static casts work with std::shared_ptr.
+class BackingStoreBase {};
+
 }  // namespace internal
 }  // namespace v8
 

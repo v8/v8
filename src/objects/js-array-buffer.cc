@@ -42,21 +42,21 @@ void JSArrayBuffer::SetupEmpty(SharedFlag shared) {
   set_byte_length(0);
 }
 
-std::shared_ptr<BackingStore> JSArrayBuffer::Detach(
-    bool force_for_wasm_memory) {
-  if (was_detached()) return nullptr;
+void JSArrayBuffer::Detach(bool force_for_wasm_memory) {
+  if (was_detached()) return;
 
   if (force_for_wasm_memory) {
     // Skip the is_detachable() check.
   } else if (!is_detachable()) {
     // Not detachable, do nothing.
-    return nullptr;
+    return;
   }
 
   Isolate* const isolate = GetIsolate();
-  auto backing_store = isolate->heap()->UnregisterBackingStore(*this);
-  CHECK_IMPLIES(force_for_wasm_memory && backing_store,
-                backing_store->is_wasm_memory());
+  if (backing_store()) {
+    auto backing_store = isolate->heap()->UnregisterBackingStore(*this);
+    CHECK_IMPLIES(force_for_wasm_memory, backing_store->is_wasm_memory());
+  }
 
   if (isolate->IsArrayBufferDetachingIntact()) {
     isolate->InvalidateArrayBufferDetachingProtector();
@@ -67,8 +67,6 @@ std::shared_ptr<BackingStore> JSArrayBuffer::Detach(
   set_backing_store(nullptr);
   set_byte_length(0);
   set_was_detached(true);
-
-  return backing_store;
 }
 
 void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {

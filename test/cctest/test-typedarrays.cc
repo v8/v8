@@ -82,7 +82,7 @@ TEST(AllocateNotExternal) {
       v8::ArrayBuffer::New(env->GetIsolate(), memory, 1024,
                            v8::ArrayBufferCreationMode::kInternalized);
   CHECK(!buffer->IsExternal());
-  CHECK_EQ(memory, buffer->GetContents().Data());
+  CHECK_EQ(memory, buffer->GetBackingStore()->Data());
 }
 
 void TestSpeciesProtector(char* code,

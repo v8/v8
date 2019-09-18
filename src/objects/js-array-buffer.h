@@ -84,19 +84,17 @@ class JSArrayBuffer : public JSObject {
   // (note: this registers it with src/heap/array-buffer-tracker.h)
   V8_EXPORT_PRIVATE void Attach(std::shared_ptr<BackingStore> backing_store);
 
-  // Detach the backing store from this array buffer if it is detachable
-  // and return a reference to the backing store object. This sets the
-  // internal pointer and length to 0 and unregisters the backing store
-  // from the array buffer tracker.
-  // If the array buffer is not detachable, this is a nop.
+  // Detach the backing store from this array buffer if it is detachable.
+  // This sets the internal pointer and length to 0 and unregisters the backing
+  // store from the array buffer tracker. If the array buffer is not detachable,
+  // this is a nop.
   //
   // Array buffers that wrap wasm memory objects are special in that they
   // are normally not detachable, but can become detached as a side effect
   // of growing the underlying memory object. The {force_for_wasm_memory} flag
   // is used by the implementation of Wasm memory growth in order to bypass the
   // non-detachable check.
-  V8_EXPORT_PRIVATE std::shared_ptr<BackingStore> Detach(
-      bool force_for_wasm_memory = false);
+  V8_EXPORT_PRIVATE void Detach(bool force_for_wasm_memory = false);
 
   // Get a reference to backing store of this array buffer, if there is a
   // backing store. Returns nullptr if there is no backing store (e.g. detached

@@ -346,7 +346,6 @@ Global<Function> Shell::stringify_function_;
 base::LazyMutex Shell::workers_mutex_;
 bool Shell::allow_new_workers_ = true;
 std::unordered_set<std::shared_ptr<Worker>> Shell::running_workers_;
-std::vector<ExternalizedContents> Shell::externalized_contents_;
 std::atomic<bool> Shell::script_executed_{false};
 base::LazyMutex Shell::isolate_status_lock_;
 std::map<v8::Isolate*, bool> Shell::isolate_status_;
@@ -2586,12 +2585,6 @@ void SourceGroup::JoinThread() {
   thread_->Join();
 }
 
-ExternalizedContents::~ExternalizedContents() {
-  if (data_ != nullptr) {
-    deleter_(data_, length_, deleter_data_);
-  }
-}
-
 void SerializationDataQueue::Enqueue(std::unique_ptr<SerializationData> data) {
   base::MutexGuard lock_guard(&mutex_);
   data_.push_back(std::move(data));
@@ -3171,22 +3164,10 @@ class Serializer : public ValueSerializer::Delegate {
 
   std::unique_ptr<SerializationData> Release() { return std::move(data_); }
 
-  void AppendExternalizedContentsTo(std::vector<ExternalizedContents>* to) {
-    for (auto& contents : externalized_contents_) {
-      auto bs_indirection = reinterpret_cast<std::shared_ptr<i::BackingStore>*>(
-          contents.DeleterData());
-      if (bs_indirection) {
-        auto backing_store = bs_indirection->get();
-        TRACE_BS("d8:append bs=%p mem=%p (length=%zu)\n", backing_store,
-                 backing_store->buffer_start(), backing_store->byte_length());
-        USE(backing_store);
-      }
-    }
-
-    to->insert(to->end(),
-               std::make_move_iterator(externalized_contents_.begin()),
-               std::make_move_iterator(externalized_contents_.end()));
-    externalized_contents_.clear();
+  void AppendBackingStoresTo(std::vector<std::shared_ptr<BackingStore>>* to) {
+    to->insert(to->end(), std::make_move_iterator(backing_stores_.begin()),
+               std::make_move_iterator(backing_stores_.end()));
+    backing_stores_.clear();
   }
 
  protected:
@@ -3206,8 +3187,8 @@ class Serializer : public ValueSerializer::Delegate {
 
     size_t index = shared_array_buffers_.size();
     shared_array_buffers_.emplace_back(isolate_, shared_array_buffer);
-    data_->shared_array_buffer_contents_.push_back(
-        MaybeExternalize(shared_array_buffer));
+    data_->sab_backing_stores_.push_back(
+        shared_array_buffer->GetBackingStore());
     return Just<uint32_t>(static_cast<uint32_t>(index));
   }
 
@@ -3278,17 +3259,6 @@ class Serializer : public ValueSerializer::Delegate {
     }
   }
 
-  template <typename T>
-  typename T::Contents MaybeExternalize(Local<T> array_buffer) {
-    if (array_buffer->IsExternal()) {
-      return array_buffer->GetContents();
-    } else {
-      typename T::Contents contents = array_buffer->Externalize();
-      externalized_contents_.emplace_back(contents);
-      return contents;
-    }
-  }
-
   Maybe<bool> FinalizeTransfer() {
     for (const auto& global_array_buffer : array_buffers_) {
       Local<ArrayBuffer> array_buffer =
@@ -3298,9 +3268,12 @@ class Serializer : public ValueSerializer::Delegate {
         return Nothing<bool>();
       }
 
-      ArrayBuffer::Contents contents = MaybeExternalize(array_buffer);
+      auto backing_store = array_buffer->GetBackingStore();
+      if (!array_buffer->IsExternal()) {
+        array_buffer->Externalize(backing_store);
+      }
+      data_->backing_stores_.push_back(std::move(backing_store));
       array_buffer->Detach();
-      data_->array_buffer_contents_.push_back(contents);
     }
 
     return Just(true);
@@ -3312,7 +3285,7 @@ class Serializer : public ValueSerializer::Delegate {
   std::vector<Global<ArrayBuffer>> array_buffers_;
   std::vector<Global<SharedArrayBuffer>> shared_array_buffers_;
   std::vector<Global<WasmModuleObject>> wasm_modules_;
-  std::vector<ExternalizedContents> externalized_contents_;
+  std::vector<std::shared_ptr<v8::BackingStore>> backing_stores_;
   size_t current_memory_usage_;
 
   DISALLOW_COPY_AND_ASSIGN(Serializer);
@@ -3334,9 +3307,9 @@ class Deserializer : public ValueDeserializer::Delegate {
     }
 
     uint32_t index = 0;
-    for (const auto& contents : data_->array_buffer_contents()) {
-      Local<ArrayBuffer> array_buffer =
-          ArrayBuffer::New(isolate_, contents.Data(), contents.ByteLength());
+    for (const auto& backing_store : data_->backing_stores()) {
+      Local<ArrayBuffer> array_buffer = ArrayBuffer::New(
+          isolate_, backing_store->Data(), backing_store->ByteLength());
       deserializer_.TransferArrayBuffer(index++, array_buffer);
     }
 
@@ -3346,11 +3319,10 @@ class Deserializer : public ValueDeserializer::Delegate {
   MaybeLocal<SharedArrayBuffer> GetSharedArrayBufferFromId(
       Isolate* isolate, uint32_t clone_id) override {
     DCHECK_NOT_NULL(data_);
-    if (clone_id < data_->shared_array_buffer_contents().size()) {
-      const SharedArrayBuffer::Contents contents =
-          data_->shared_array_buffer_contents().at(clone_id);
-      return SharedArrayBuffer::New(isolate_, contents.Data(),
-                                    contents.ByteLength());
+    if (clone_id < data_->sab_backing_stores().size()) {
+      auto backing_store = data_->sab_backing_stores().at(clone_id);
+      return SharedArrayBuffer::New(isolate_, backing_store->Data(),
+                                    backing_store->ByteLength());
     }
     return MaybeLocal<SharedArrayBuffer>();
   }
@@ -3382,9 +3354,6 @@ std::unique_ptr<SerializationData> Shell::SerializeValue(
   if (serializer.WriteValue(context, value, transfer).To(&ok)) {
     data = serializer.Release();
   }
-  // Append externalized contents even when WriteValue fails.
-  base::MutexGuard lock_guard(workers_mutex_.Pointer());
-  serializer.AppendExternalizedContentsTo(&externalized_contents_);
   return data;
 }
 
@@ -3426,7 +3395,6 @@ void Shell::WaitForRunningWorkers() {
   base::MutexGuard lock_guard(workers_mutex_.Pointer());
   DCHECK(running_workers_.empty());
   allow_new_workers_ = true;
-  externalized_contents_.clear();
 }
 
 int Shell::Main(int argc, char* argv[]) {

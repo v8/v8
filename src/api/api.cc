@@ -3725,6 +3725,41 @@ void v8::WasmModuleObject::CheckCast(Value* that) {
                   "Could not convert to wasm module object");
 }
 
+v8::BackingStore::~BackingStore() {
+  auto i_this = reinterpret_cast<const i::BackingStore*>(this);
+  i_this->~BackingStore();  // manually call internal destructor
+}
+
+void* v8::BackingStore::Data() const {
+  return reinterpret_cast<const i::BackingStore*>(this)->buffer_start();
+}
+
+size_t v8::BackingStore::ByteLength() const {
+  return reinterpret_cast<const i::BackingStore*>(this)->byte_length();
+}
+
+std::shared_ptr<v8::BackingStore> v8::ArrayBuffer::GetBackingStore() {
+  i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
+  std::shared_ptr<i::BackingStore> backing_store = self->GetBackingStore();
+  if (!backing_store) {
+    backing_store = i::BackingStore::NewEmptyBackingStore();
+  }
+  i::GlobalBackingStoreRegistry::Register(backing_store);
+  std::shared_ptr<i::BackingStoreBase> bs_base = backing_store;
+  return std::static_pointer_cast<v8::BackingStore>(bs_base);
+}
+
+std::shared_ptr<v8::BackingStore> v8::SharedArrayBuffer::GetBackingStore() {
+  i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
+  std::shared_ptr<i::BackingStore> backing_store = self->GetBackingStore();
+  if (!backing_store) {
+    backing_store = i::BackingStore::NewEmptyBackingStore();
+  }
+  i::GlobalBackingStoreRegistry::Register(backing_store);
+  std::shared_ptr<i::BackingStoreBase> bs_base = backing_store;
+  return std::static_pointer_cast<v8::BackingStore>(bs_base);
+}
+
 void v8::ArrayBuffer::CheckCast(Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(
@@ -7205,10 +7240,10 @@ namespace {
 // The backing store deleter just deletes the indirection, which downrefs
 // the shared pointer. It will get collected normally.
 void BackingStoreDeleter(void* buffer, size_t length, void* info) {
-  auto bs_indirection =
+  std::shared_ptr<i::BackingStore>* bs_indirection =
       reinterpret_cast<std::shared_ptr<i::BackingStore>*>(info);
   if (bs_indirection) {
-    auto backing_store = bs_indirection->get();
+    i::BackingStore* backing_store = bs_indirection->get();
     TRACE_BS("API:delete bs=%p mem=%p (length=%zu)\n", backing_store,
              backing_store->buffer_start(), backing_store->byte_length());
     USE(backing_store);
@@ -7288,6 +7323,15 @@ v8::ArrayBuffer::Contents::Contents(void* data, size_t byte_length,
 
 v8::ArrayBuffer::Contents v8::ArrayBuffer::Externalize() {
   return GetContents(true);
+}
+
+void v8::ArrayBuffer::Externalize(
+    const std::shared_ptr<BackingStore>& backing_store) {
+  i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
+  Utils::ApiCheck(!self->is_external(), "v8_ArrayBuffer_Externalize",
+                  "ArrayBuffer already externalized");
+  self->set_is_external(true);
+  DCHECK_EQ(self->backing_store(), backing_store->Data());
 }
 
 v8::ArrayBuffer::Contents v8::ArrayBuffer::GetContents() {
@@ -7574,6 +7618,16 @@ v8::SharedArrayBuffer::Contents::Contents(
 
 v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::Externalize() {
   return GetContents(true);
+}
+
+void v8::SharedArrayBuffer::Externalize(
+    const std::shared_ptr<BackingStore>& backing_store) {
+  i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
+  Utils::ApiCheck(!self->is_external(), "v8_SharedArrayBuffer_Externalize",
+                  "SharedArrayBuffer already externalized");
+  self->set_is_external(true);
+
+  DCHECK_EQ(self->backing_store(), backing_store->Data());
 }
 
 v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::GetContents() {

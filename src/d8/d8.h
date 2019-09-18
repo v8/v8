@@ -111,68 +111,17 @@ class SourceGroup {
   int end_offset_;
 };
 
-// The backing store of an ArrayBuffer or SharedArrayBuffer, after
-// Externalize() has been called on it.
-class ExternalizedContents {
- public:
-  explicit ExternalizedContents(const ArrayBuffer::Contents& contents)
-      : data_(contents.Data()),
-        length_(contents.ByteLength()),
-        deleter_(contents.Deleter()),
-        deleter_data_(contents.DeleterData()) {}
-  explicit ExternalizedContents(const SharedArrayBuffer::Contents& contents)
-      : data_(contents.Data()),
-        length_(contents.ByteLength()),
-        deleter_(contents.Deleter()),
-        deleter_data_(contents.DeleterData()) {}
-  ExternalizedContents(ExternalizedContents&& other) V8_NOEXCEPT
-      : data_(other.data_),
-        length_(other.length_),
-        deleter_(other.deleter_),
-        deleter_data_(other.deleter_data_) {
-    other.data_ = nullptr;
-    other.length_ = 0;
-    other.deleter_ = nullptr;
-    other.deleter_data_ = nullptr;
-  }
-  ExternalizedContents& operator=(ExternalizedContents&& other) V8_NOEXCEPT {
-    if (this != &other) {
-      data_ = other.data_;
-      length_ = other.length_;
-      deleter_ = other.deleter_;
-      deleter_data_ = other.deleter_data_;
-      other.data_ = nullptr;
-      other.length_ = 0;
-      other.deleter_ = nullptr;
-      other.deleter_data_ = nullptr;
-    }
-    return *this;
-  }
-  ~ExternalizedContents();
-
-  void* DeleterData() { return deleter_data_; }
-
- private:
-  void* data_;
-  size_t length_;
-  ArrayBuffer::Contents::DeleterCallback deleter_;
-  void* deleter_data_;
-
-  DISALLOW_COPY_AND_ASSIGN(ExternalizedContents);
-};
-
 class SerializationData {
  public:
   SerializationData() : size_(0) {}
 
   uint8_t* data() { return data_.get(); }
   size_t size() { return size_; }
-  const std::vector<ArrayBuffer::Contents>& array_buffer_contents() {
-    return array_buffer_contents_;
+  const std::vector<std::shared_ptr<v8::BackingStore>>& backing_stores() {
+    return backing_stores_;
   }
-  const std::vector<SharedArrayBuffer::Contents>&
-  shared_array_buffer_contents() {
-    return shared_array_buffer_contents_;
+  const std::vector<std::shared_ptr<v8::BackingStore>>& sab_backing_stores() {
+    return sab_backing_stores_;
   }
   const std::vector<WasmModuleObject::TransferrableModule>&
   transferrable_modules() {
@@ -186,8 +135,8 @@ class SerializationData {
 
   std::unique_ptr<uint8_t, DataDeleter> data_;
   size_t size_;
-  std::vector<ArrayBuffer::Contents> array_buffer_contents_;
-  std::vector<SharedArrayBuffer::Contents> shared_array_buffer_contents_;
+  std::vector<std::shared_ptr<v8::BackingStore>> backing_stores_;
+  std::vector<std::shared_ptr<v8::BackingStore>> sab_backing_stores_;
   std::vector<WasmModuleObject::TransferrableModule> transferrable_modules_;
 
  private:
@@ -523,7 +472,6 @@ class Shell : public i::AllStatic {
   static base::LazyMutex workers_mutex_;  // Guards the following members.
   static bool allow_new_workers_;
   static std::unordered_set<std::shared_ptr<Worker>> running_workers_;
-  static std::vector<ExternalizedContents> externalized_contents_;
 
   // Multiple isolates may update this flag concurrently.
   static std::atomic<bool> script_executed_;
