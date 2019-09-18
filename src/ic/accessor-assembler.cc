@@ -3007,7 +3007,7 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
     }
 
     {
-      TVARIABLE(String, var_name);
+      TVARIABLE(Name, var_name);
 
       BIND(&if_other);
       {
@@ -3019,6 +3019,7 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
 
       BIND(&if_notunique);
       {
+        // Try to make it unique by internalizing.
         var_name = CAST(p->name());
         Goto(&maybe_internalize_on_the_fly);
       }
@@ -3031,7 +3032,7 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
           // invariant doesn't hold with named property interceptors (at this
           // point), so we take the {if_runtime} path instead.
           Label if_in_string_table(this);
-          TryInternalizeString(var_name.value(), &if_index, &var_index,
+          TryInternalizeString(CAST(var_name.value()), &if_index, &var_index,
                                &if_in_string_table, &var_unique, &if_runtime,
                                &if_runtime);
 
