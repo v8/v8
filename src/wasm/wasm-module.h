@@ -250,6 +250,11 @@ int GetExportWrapperIndex(const WasmModule* module, const FunctionSig* sig,
 // Returns -1 if the function index is invalid.
 int GetWasmFunctionOffset(const WasmModule* module, uint32_t func_index);
 
+// Returns the function containing the given byte offset.
+// Returns -1 if the byte offset is not contained in any function of this
+// module.
+int GetContainingWasmFunction(const WasmModule* module, uint32_t byte_offset);
+
 // Compute the disassembly of a wasm function.
 // Returns the disassembly string and a list of <byte_offset, line, column>
 // entries, mapping wasm byte offsets to line and column in the disassembly.

@@ -12,7 +12,6 @@
 #include "src/debug/debug.h"
 #include "src/heap/heap.h"
 #include "src/objects/objects.h"
-#include "src/objects/script.h"
 #include "src/wasm/value-type.h"
 
 // Has to be the last include (doesn't have include guards)
@@ -197,16 +196,6 @@ class WasmModuleObject : public JSObject {
   // Meant to be used for debugging or frame printing.
   // Does not allocate, hence gc-safe.
   Vector<const uint8_t> GetRawFunctionName(uint32_t func_index);
-
-  // Returns the function containing the given byte offset.
-  // Returns -1 if the byte offset is not contained in any function of this
-  // module.
-  int GetContainingFunction(uint32_t byte_offset);
-
-  // Translate from byte offset in the module to function number and byte offset
-  // within that function, encoded as line and column in the position info.
-  // Returns true if the position is valid inside this module, false otherwise.
-  bool GetPositionInfo(uint32_t position, Script::PositionInfo* info);
 
   // Get the source position from a given function index and byte offset,
   // for either asm.js or pure Wasm modules.

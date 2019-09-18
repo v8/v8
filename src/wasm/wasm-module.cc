@@ -68,6 +68,32 @@ int GetWasmFunctionOffset(const WasmModule* module, uint32_t func_index) {
 }
 
 // static
+int GetContainingWasmFunction(const WasmModule* module, uint32_t byte_offset) {
+  const std::vector<WasmFunction>& functions = module->functions;
+
+  // Binary search for a function containing the given position.
+  int left = 0;                                    // inclusive
+  int right = static_cast<int>(functions.size());  // exclusive
+  if (right == 0) return false;
+  while (right - left > 1) {
+    int mid = left + (right - left) / 2;
+    if (functions[mid].code.offset() <= byte_offset) {
+      left = mid;
+    } else {
+      right = mid;
+    }
+  }
+  // If the found function does not contains the given position, return -1.
+  const WasmFunction& func = functions[left];
+  if (byte_offset < func.code.offset() ||
+      byte_offset >= func.code.end_offset()) {
+    return -1;
+  }
+
+  return left;
+}
+
+// static
 v8::debug::WasmDisassembly DisassembleWasmFunction(
     const WasmModule* module, const ModuleWireBytes& wire_bytes,
     int func_index) {

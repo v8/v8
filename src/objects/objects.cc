@@ -4656,8 +4656,26 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
   // directly.
   if (type() == Script::TYPE_WASM) {
     DCHECK_LE(0, position);
-    return WasmModuleObject::cast(wasm_module_object())
-        .GetPositionInfo(static_cast<uint32_t>(position), info);
+    wasm::NativeModule* native_module = wasm_native_module();
+    const wasm::WasmModule* module = native_module->module();
+    if (source_mapping_url().IsString()) {
+      if (module->functions.size() == 0) return false;
+      info->line = 0;
+      info->column = position;
+      info->line_start = module->functions[0].code.offset();
+      info->line_end = module->functions.back().code.end_offset();
+      return true;
+    }
+    int func_index = GetContainingWasmFunction(module, position);
+    if (func_index < 0) return false;
+
+    const wasm::WasmFunction& function = module->functions[func_index];
+
+    info->line = func_index;
+    info->column = position - function.code.offset();
+    info->line_start = function.code.offset();
+    info->line_end = function.code.end_offset();
+    return true;
   }
 
   if (line_ends().IsUndefined()) {

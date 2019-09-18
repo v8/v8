@@ -258,9 +258,10 @@ bool WasmModuleObject::SetBreakPoint(Handle<WasmModuleObject> module_object,
   Isolate* isolate = module_object->GetIsolate();
 
   // Find the function for this breakpoint.
-  int func_index = module_object->GetContainingFunction(*position);
+  const WasmModule* module = module_object->module();
+  int func_index = GetContainingWasmFunction(module, *position);
   if (func_index < 0) return false;
-  const WasmFunction& func = module_object->module()->functions[func_index];
+  const WasmFunction& func = module->functions[func_index];
   int offset_in_func = *position - func.code.offset();
 
   // According to the current design, we should only be called with valid
@@ -403,9 +404,10 @@ void WasmModuleObject::SetBreakpointsOnNewInstance(
     int position = breakpoint_info->source_position();
 
     // Find the function for this breakpoint, and set the breakpoint.
-    int func_index = module_object->GetContainingFunction(position);
+    const WasmModule* module = module_object->module();
+    int func_index = GetContainingWasmFunction(module, position);
     DCHECK_LE(0, func_index);
-    const WasmFunction& func = module_object->module()->functions[func_index];
+    const WasmFunction& func = module->functions[func_index];
     int offset_in_func = position - func.code.offset();
     WasmDebugInfo::SetBreakpoint(debug_info, func_index, offset_in_func);
   }
@@ -687,53 +689,6 @@ Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
       module()->LookupFunctionName(wire_bytes, func_index);
   wasm::WasmName name = wire_bytes.GetNameOrNull(name_ref);
   return Vector<const uint8_t>::cast(name);
-}
-
-int WasmModuleObject::GetContainingFunction(uint32_t byte_offset) {
-  const std::vector<WasmFunction>& functions = module()->functions;
-
-  // Binary search for a function containing the given position.
-  int left = 0;                                    // inclusive
-  int right = static_cast<int>(functions.size());  // exclusive
-  if (right == 0) return false;
-  while (right - left > 1) {
-    int mid = left + (right - left) / 2;
-    if (functions[mid].code.offset() <= byte_offset) {
-      left = mid;
-    } else {
-      right = mid;
-    }
-  }
-  // If the found function does not contains the given position, return -1.
-  const WasmFunction& func = functions[left];
-  if (byte_offset < func.code.offset() ||
-      byte_offset >= func.code.end_offset()) {
-    return -1;
-  }
-
-  return left;
-}
-
-bool WasmModuleObject::GetPositionInfo(uint32_t position,
-                                       Script::PositionInfo* info) {
-  if (script().source_mapping_url().IsString()) {
-    if (module()->functions.size() == 0) return false;
-    info->line = 0;
-    info->column = position;
-    info->line_start = module()->functions[0].code.offset();
-    info->line_end = module()->functions.back().code.end_offset();
-    return true;
-  }
-  int func_index = GetContainingFunction(position);
-  if (func_index < 0) return false;
-
-  const WasmFunction& function = module()->functions[func_index];
-
-  info->line = func_index;
-  info->column = position - function.code.offset();
-  info->line_start = function.code.offset();
-  info->line_end = function.code.end_offset();
-  return true;
 }
 
 Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate,
