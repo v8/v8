@@ -198,11 +198,6 @@ class WasmModuleObject : public JSObject {
   // Does not allocate, hence gc-safe.
   Vector<const uint8_t> GetRawFunctionName(uint32_t func_index);
 
-  // Return the byte offset of the function identified by the given index.
-  // The offset will be relative to the start of the module bytes.
-  // Returns -1 if the function index is invalid.
-  int GetFunctionOffset(uint32_t func_index);
-
   // Returns the function containing the given byte offset.
   // Returns -1 if the byte offset is not contained in any function of this
   // module.

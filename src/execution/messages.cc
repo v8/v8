@@ -603,7 +603,7 @@ int WasmStackFrame::GetColumnNumber() { return GetModuleOffset(); }
 
 int WasmStackFrame::GetModuleOffset() const {
   const int function_offset =
-      wasm_instance_->module_object().GetFunctionOffset(wasm_func_index_);
+      GetWasmFunctionOffset(wasm_instance_->module(), wasm_func_index_);
   return function_offset + GetPosition();
 }
 

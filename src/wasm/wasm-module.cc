@@ -60,6 +60,14 @@ int GetExportWrapperIndex(const WasmModule* module, const FunctionSig* sig,
 }
 
 // static
+int GetWasmFunctionOffset(const WasmModule* module, uint32_t func_index) {
+  const std::vector<WasmFunction>& functions = module->functions;
+  if (static_cast<uint32_t>(func_index) >= functions.size()) return -1;
+  DCHECK_GE(kMaxInt, functions[func_index].code.offset());
+  return static_cast<int>(functions[func_index].code.offset());
+}
+
+// static
 v8::debug::WasmDisassembly DisassembleWasmFunction(
     const WasmModule* module, const ModuleWireBytes& wire_bytes,
     int func_index) {

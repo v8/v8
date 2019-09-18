@@ -9237,8 +9237,9 @@ int debug::Script::GetSourceOffset(const debug::Location& location) const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   if (script->type() == i::Script::TYPE_WASM) {
     if (this->SourceMappingURL().IsEmpty()) {
-      return i::WasmModuleObject::cast(script->wasm_module_object())
-                 .GetFunctionOffset(location.GetLineNumber()) +
+      i::wasm::NativeModule* native_module = script->wasm_native_module();
+      const i::wasm::WasmModule* module = native_module->module();
+      return i::wasm::GetWasmFunctionOffset(module, location.GetLineNumber()) +
              location.GetColumnNumber();
     }
     DCHECK_EQ(0, location.GetLineNumber());

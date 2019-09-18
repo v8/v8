@@ -496,7 +496,7 @@ int WasmModuleObject::GetSourcePosition(Handle<WasmModuleObject> module_object,
   if (module->origin == wasm::kWasmOrigin) {
     // for non-asm.js modules, we just add the function's start offset
     // to make a module-relative position.
-    return byte_offset + module_object->GetFunctionOffset(func_index);
+    return byte_offset + GetWasmFunctionOffset(module, func_index);
   }
 
   // asm.js modules have an additional offset table that must be searched.
@@ -687,13 +687,6 @@ Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
       module()->LookupFunctionName(wire_bytes, func_index);
   wasm::WasmName name = wire_bytes.GetNameOrNull(name_ref);
   return Vector<const uint8_t>::cast(name);
-}
-
-int WasmModuleObject::GetFunctionOffset(uint32_t func_index) {
-  const std::vector<WasmFunction>& functions = module()->functions;
-  if (static_cast<uint32_t>(func_index) >= functions.size()) return -1;
-  DCHECK_GE(kMaxInt, functions[func_index].code.offset());
-  return static_cast<int>(functions[func_index].code.offset());
 }
 
 int WasmModuleObject::GetContainingFunction(uint32_t byte_offset) {

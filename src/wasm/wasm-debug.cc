@@ -318,7 +318,8 @@ class InterpreterHandle {
     DCHECK_LT(0, thread->GetFrameCount());
 
     auto frame = thread->GetFrame(thread->GetFrameCount() - 1);
-    return module_object->GetFunctionOffset(frame->function()->func_index) +
+    return GetWasmFunctionOffset(module_object->module(),
+                                 frame->function()->func_index) +
            frame->pc();
   }
 
