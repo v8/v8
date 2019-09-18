@@ -2544,7 +2544,9 @@ void JSHeapBroker::InitializeAndStartSerializing(
   GetOrCreateData(f->promise_then_protector())
       ->AsPropertyCell()
       ->Serialize(this);
-  GetOrCreateData(f->string_length_protector())->AsCell()->Serialize(this);
+  GetOrCreateData(f->string_length_protector())
+      ->AsPropertyCell()
+      ->Serialize(this);
   // - CEntry stub
   GetOrCreateData(
       CodeFactory::CEntry(isolate(), 1, kDontSaveFPRegs, kArgvOnStack, true));

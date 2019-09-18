@@ -375,8 +375,8 @@ void LookupIterator::InternalUpdateProtector() {
       Protectors::InvalidateTypedArraySpeciesLookupChain(isolate_);
     }
   } else if (*name_ == roots.is_concat_spreadable_symbol()) {
-    if (!isolate_->IsIsConcatSpreadableLookupChainIntact()) return;
-    isolate_->InvalidateIsConcatSpreadableProtector();
+    if (!Protectors::IsIsConcatSpreadableLookupChainIntact(isolate_)) return;
+    Protectors::InvalidateIsConcatSpreadableLookupChain(isolate_);
   } else if (*name_ == roots.iterator_symbol()) {
     if (receiver->IsJSArray(isolate_)) {
       if (!Protectors::IsArrayIteratorLookupChainIntact(isolate_)) return;
@@ -413,11 +413,11 @@ void LookupIterator::InternalUpdateProtector() {
       Protectors::InvalidateStringIteratorLookupChain(isolate_);
     }
   } else if (*name_ == roots.resolve_string()) {
-    if (!isolate_->IsPromiseResolveLookupChainIntact()) return;
+    if (!Protectors::IsPromiseResolveLookupChainIntact(isolate_)) return;
     // Setting the "resolve" property on any %Promise% intrinsic object
     // invalidates the Promise.resolve protector.
     if (isolate_->IsInAnyContext(*receiver, Context::PROMISE_FUNCTION_INDEX)) {
-      isolate_->InvalidatePromiseResolveProtector();
+      Protectors::InvalidatePromiseResolveLookupChain(isolate_);
     }
   } else if (*name_ == roots.then_string()) {
     if (!Protectors::IsPromiseThenLookupChainIntact(isolate_)) return;

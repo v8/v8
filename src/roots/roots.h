@@ -206,37 +206,37 @@ class Symbol;
 
 // Mutable roots that are known to be immortal immovable, for which we can
 // safely skip write barriers.
-#define STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(V)                                \
-  ACCESSOR_INFO_ROOT_LIST(V)                                                 \
-  /* Maps */                                                                 \
-  V(Map, external_map, ExternalMap)                                          \
-  V(Map, message_object_map, JSMessageObjectMap)                             \
-  /* Canonical empty values */                                               \
-  V(Script, empty_script, EmptyScript)                                       \
-  V(FeedbackCell, many_closures_cell, ManyClosuresCell)                      \
-  V(Cell, invalid_prototype_validity_cell, InvalidPrototypeValidityCell)     \
-  /* Protectors */                                                           \
-  V(PropertyCell, array_constructor_protector, ArrayConstructorProtector)    \
-  V(PropertyCell, no_elements_protector, NoElementsProtector)                \
-  V(Cell, is_concat_spreadable_protector, IsConcatSpreadableProtector)       \
-  V(PropertyCell, array_species_protector, ArraySpeciesProtector)            \
-  V(PropertyCell, typed_array_species_protector, TypedArraySpeciesProtector) \
-  V(PropertyCell, promise_species_protector, PromiseSpeciesProtector)        \
-  V(Cell, string_length_protector, StringLengthProtector)                    \
-  V(PropertyCell, array_iterator_protector, ArrayIteratorProtector)          \
-  V(PropertyCell, array_buffer_detaching_protector,                          \
-    ArrayBufferDetachingProtector)                                           \
-  V(PropertyCell, promise_hook_protector, PromiseHookProtector)              \
-  V(Cell, promise_resolve_protector, PromiseResolveProtector)                \
-  V(PropertyCell, map_iterator_protector, MapIteratorProtector)              \
-  V(PropertyCell, promise_then_protector, PromiseThenProtector)              \
-  V(PropertyCell, set_iterator_protector, SetIteratorProtector)              \
-  V(PropertyCell, string_iterator_protector, StringIteratorProtector)        \
-  /* Caches */                                                               \
-  V(FixedArray, single_character_string_cache, SingleCharacterStringCache)   \
-  V(FixedArray, string_split_cache, StringSplitCache)                        \
-  V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                  \
-  /* Indirection lists for isolate-independent builtins */                   \
+#define STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(V)                                  \
+  ACCESSOR_INFO_ROOT_LIST(V)                                                   \
+  /* Maps */                                                                   \
+  V(Map, external_map, ExternalMap)                                            \
+  V(Map, message_object_map, JSMessageObjectMap)                               \
+  /* Canonical empty values */                                                 \
+  V(Script, empty_script, EmptyScript)                                         \
+  V(FeedbackCell, many_closures_cell, ManyClosuresCell)                        \
+  V(Cell, invalid_prototype_validity_cell, InvalidPrototypeValidityCell)       \
+  /* Protectors */                                                             \
+  V(PropertyCell, array_constructor_protector, ArrayConstructorProtector)      \
+  V(PropertyCell, no_elements_protector, NoElementsProtector)                  \
+  V(PropertyCell, is_concat_spreadable_protector, IsConcatSpreadableProtector) \
+  V(PropertyCell, array_species_protector, ArraySpeciesProtector)              \
+  V(PropertyCell, typed_array_species_protector, TypedArraySpeciesProtector)   \
+  V(PropertyCell, promise_species_protector, PromiseSpeciesProtector)          \
+  V(PropertyCell, string_length_protector, StringLengthProtector)              \
+  V(PropertyCell, array_iterator_protector, ArrayIteratorProtector)            \
+  V(PropertyCell, array_buffer_detaching_protector,                            \
+    ArrayBufferDetachingProtector)                                             \
+  V(PropertyCell, promise_hook_protector, PromiseHookProtector)                \
+  V(PropertyCell, promise_resolve_protector, PromiseResolveProtector)          \
+  V(PropertyCell, map_iterator_protector, MapIteratorProtector)                \
+  V(PropertyCell, promise_then_protector, PromiseThenProtector)                \
+  V(PropertyCell, set_iterator_protector, SetIteratorProtector)                \
+  V(PropertyCell, string_iterator_protector, StringIteratorProtector)          \
+  /* Caches */                                                                 \
+  V(FixedArray, single_character_string_cache, SingleCharacterStringCache)     \
+  V(FixedArray, string_split_cache, StringSplitCache)                          \
+  V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                    \
+  /* Indirection lists for isolate-independent builtins */                     \
   V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)
 
 // These root references can be updated by the mutator.

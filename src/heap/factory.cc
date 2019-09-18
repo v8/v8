@@ -11,6 +11,7 @@
 #include "src/builtins/constants-table-builder.h"
 #include "src/codegen/compiler.h"
 #include "src/execution/isolate-inl.h"
+#include "src/execution/protectors-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact-inl.h"
@@ -2290,8 +2291,8 @@ Handle<Object> Factory::NewInvalidStringLengthError() {
     FATAL("Aborting on invalid string length");
   }
   // Invalidate the "string length" protector.
-  if (isolate()->IsStringLengthOverflowIntact()) {
-    isolate()->InvalidateStringLengthOverflowProtector();
+  if (Protectors::IsStringLengthOverflowLookupChainIntact(isolate())) {
+    Protectors::InvalidateStringLengthOverflowLookupChain(isolate());
   }
   return NewRangeError(MessageTemplate::kInvalidStringLength);
 }

@@ -840,72 +840,117 @@ void Heap::CreateInitialObjects() {
   set_empty_script(*script);
 
   {
+    Handle<PropertyCell> cell = factory->NewPropertyCell(
+        factory->empty_string(), AllocationType::kReadOnly);
+    cell->set_value(roots.the_hole_value());
+    set_empty_property_cell(*cell);
+  }
+
+  // Protectors
+  {
     Handle<PropertyCell> cell =
         factory->NewPropertyCell(factory->empty_string());
     cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
     set_array_constructor_protector(*cell);
   }
 
-  Handle<PropertyCell> cell = factory->NewPropertyCell(factory->empty_string());
-  cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
-  set_no_elements_protector(*cell);
+  {
+    Handle<PropertyCell> cell =
+        factory->NewPropertyCell(factory->empty_string());
+    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    set_no_elements_protector(*cell);
+  }
 
-  cell = factory->NewPropertyCell(factory->empty_string(),
-                                  AllocationType::kReadOnly);
-  cell->set_value(roots.the_hole_value());
-  set_empty_property_cell(*cell);
+  {
+    Handle<PropertyCell> cell =
+        factory->NewPropertyCell(factory->empty_string());
+    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    set_array_iterator_protector(*cell);
+  }
 
-  cell = factory->NewPropertyCell(factory->empty_string());
-  cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
-  set_array_iterator_protector(*cell);
+  {
+    Handle<PropertyCell> cell =
+        factory->NewPropertyCell(factory->empty_string());
+    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    set_map_iterator_protector(*cell);
+  }
 
-  cell = factory->NewPropertyCell(factory->empty_string());
-  cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
-  set_map_iterator_protector(*cell);
+  {
+    Handle<PropertyCell> cell =
+        factory->NewPropertyCell(factory->empty_string());
+    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    set_set_iterator_protector(*cell);
+  }
 
-  cell = factory->NewPropertyCell(factory->empty_string());
-  cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
-  set_set_iterator_protector(*cell);
+  {
+    Handle<PropertyCell> cell =
+        factory->NewPropertyCell(factory->empty_string());
+    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    set_is_concat_spreadable_protector(*cell);
+  }
 
-  Handle<Cell> is_concat_spreadable_cell = factory->NewCell(
-      handle(Smi::FromInt(Isolate::kProtectorValid), isolate()));
-  set_is_concat_spreadable_protector(*is_concat_spreadable_cell);
+  {
+    Handle<PropertyCell> cell =
+        factory->NewPropertyCell(factory->empty_string());
+    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    set_array_species_protector(*cell);
+  }
 
-  cell = factory->NewPropertyCell(factory->empty_string());
-  cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
-  set_array_species_protector(*cell);
+  {
+    Handle<PropertyCell> cell =
+        factory->NewPropertyCell(factory->empty_string());
+    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    set_typed_array_species_protector(*cell);
+  }
 
-  cell = factory->NewPropertyCell(factory->empty_string());
-  cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
-  set_typed_array_species_protector(*cell);
+  {
+    Handle<PropertyCell> cell =
+        factory->NewPropertyCell(factory->empty_string());
+    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    set_promise_species_protector(*cell);
+  }
 
-  cell = factory->NewPropertyCell(factory->empty_string());
-  cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
-  set_promise_species_protector(*cell);
+  {
+    Handle<PropertyCell> cell =
+        factory->NewPropertyCell(factory->empty_string());
+    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    set_string_iterator_protector(*cell);
+  }
 
-  cell = factory->NewPropertyCell(factory->empty_string());
-  cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
-  set_string_iterator_protector(*cell);
+  {
+    Handle<PropertyCell> cell =
+        factory->NewPropertyCell(factory->empty_string());
+    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    set_string_length_protector(*cell);
+  }
 
-  Handle<Cell> string_length_overflow_cell = factory->NewCell(
-      handle(Smi::FromInt(Isolate::kProtectorValid), isolate()));
-  set_string_length_protector(*string_length_overflow_cell);
+  {
+    Handle<PropertyCell> cell =
+        factory->NewPropertyCell(factory->empty_string());
+    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    set_array_buffer_detaching_protector(*cell);
+  }
 
-  cell = factory->NewPropertyCell(factory->empty_string());
-  cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
-  set_array_buffer_detaching_protector(*cell);
+  {
+    Handle<PropertyCell> cell =
+        factory->NewPropertyCell(factory->empty_string());
+    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    set_promise_hook_protector(*cell);
+  }
 
-  cell = factory->NewPropertyCell(factory->empty_string());
-  cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
-  set_promise_hook_protector(*cell);
+  {
+    Handle<PropertyCell> cell =
+        factory->NewPropertyCell(factory->empty_string());
+    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    set_promise_resolve_protector(*cell);
+  }
 
-  Handle<Cell> promise_resolve_cell = factory->NewCell(
-      handle(Smi::FromInt(Isolate::kProtectorValid), isolate()));
-  set_promise_resolve_protector(*promise_resolve_cell);
-
-  cell = factory->NewPropertyCell(factory->empty_string());
-  cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
-  set_promise_then_protector(*cell);
+  {
+    Handle<PropertyCell> cell =
+        factory->NewPropertyCell(factory->empty_string());
+    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    set_promise_then_protector(*cell);
+  }
 
   set_serialized_objects(roots.empty_fixed_array());
   set_serialized_global_proxy_sizes(roots.empty_fixed_array());

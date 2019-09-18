@@ -1174,20 +1174,9 @@ class Isolate final : private HiddenFactory {
 
   bool IsArrayOrObjectOrStringPrototype(Object object);
 
-  bool IsIsConcatSpreadableLookupChainIntact();
-  bool IsIsConcatSpreadableLookupChainIntact(JSReceiver receiver);
-  inline bool IsStringLengthOverflowIntact();
-
-  // Make sure we do check for detached array buffers.
-  inline bool IsArrayBufferDetachingIntact();
-
   // Disable promise optimizations if promise (debug) hooks have ever been
   // active, because those can observe promises.
   bool IsPromiseHookProtectorIntact();
-
-  // Make sure a lookup of "resolve" on the %Promise% intrinsic object
-  // yeidls the initial Promise.resolve method.
-  bool IsPromiseResolveLookupChainIntact();
 
   // On intent to set an element in object, make sure that appropriate
   // notifications occur if the set is on the elements of the array or
@@ -1207,11 +1196,7 @@ class Isolate final : private HiddenFactory {
   // The `protector_name` C string must be statically allocated.
   void TraceProtectorInvalidation(const char* protector_name);
 
-  void InvalidateIsConcatSpreadableProtector();
-  void InvalidateStringLengthOverflowProtector();
-  void InvalidateArrayBufferDetachingProtector();
   V8_EXPORT_PRIVATE void InvalidatePromiseHookProtector();
-  void InvalidatePromiseResolveProtector();
 
   // Returns true if array is the initial array prototype in any native context.
   bool IsAnyInitialArrayPrototype(Handle<JSArray> array);

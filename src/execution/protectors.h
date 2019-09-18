@@ -19,10 +19,14 @@ class Protectors : public AllStatic {
   V(RegExpSpeciesLookupChainProtector, regexp_species_protector)
 
 #define DECLARED_PROTECTORS_ON_ISOLATE(V)                                     \
-  V(ArraySpeciesLookupChain, ArraySpeciesProtector, array_species_protector)  \
+  V(ArrayBufferDetaching, ArrayBufferDetachingProtector,                      \
+    array_buffer_detaching_protector)                                         \
   V(ArrayConstructor, ArrayConstructorProtector, array_constructor_protector) \
   V(ArrayIteratorLookupChain, ArrayIteratorProtector,                         \
     array_iterator_protector)                                                 \
+  V(ArraySpeciesLookupChain, ArraySpeciesProtector, array_species_protector)  \
+  V(IsConcatSpreadableLookupChain, IsConcatSpreadableProtector,               \
+    is_concat_spreadable_protector)                                           \
                                                                               \
   /* The MapIterator protector protects the original iteration behaviors   */ \
   /* of Map.prototype.keys(), Map.prototype.values(), and                  */ \
@@ -37,6 +41,8 @@ class Protectors : public AllStatic {
   /*   invalidates the SetIterator protector (see below).                  */ \
   V(MapIteratorLookupChain, MapIteratorProtector, map_iterator_protector)     \
   V(PromiseThenLookupChain, PromiseThenProtector, promise_then_protector)     \
+  V(PromiseResolveLookupChain, PromiseResolveProtector,                       \
+    promise_resolve_protector)                                                \
   V(PromiseSpeciesLookupChain, PromiseSpeciesProtector,                       \
     promise_species_protector)                                                \
                                                                               \
@@ -69,6 +75,8 @@ class Protectors : public AllStatic {
   /* non-configurable and non-writable.                                    */ \
   V(StringIteratorLookupChain, StringIteratorProtector,                       \
     string_iterator_protector)                                                \
+  V(StringLengthOverflowLookupChain, StringLengthProtector,                   \
+    string_length_protector)                                                  \
   V(TypedArraySpeciesLookupChain, TypedArraySpeciesProtector,                 \
     typed_array_species_protector)
 

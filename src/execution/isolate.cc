@@ -3881,38 +3881,6 @@ bool Isolate::IsNoElementsProtectorIntact() {
   return Isolate::IsNoElementsProtectorIntact(context());
 }
 
-bool Isolate::IsIsConcatSpreadableLookupChainIntact() {
-  Cell is_concat_spreadable_cell = heap()->is_concat_spreadable_protector();
-  bool is_is_concat_spreadable_set =
-      Smi::ToInt(is_concat_spreadable_cell.value()) == kProtectorInvalid;
-#ifdef DEBUG
-  Map root_array_map =
-      raw_native_context().GetInitialJSArrayMap(GetInitialFastElementsKind());
-  if (root_array_map.is_null()) {
-    // Ignore the value of is_concat_spreadable during bootstrap.
-    return !is_is_concat_spreadable_set;
-  }
-  Handle<Object> array_prototype(array_function()->prototype(), this);
-  Handle<Symbol> key = factory()->is_concat_spreadable_symbol();
-  Handle<Object> value;
-  LookupIterator it(this, array_prototype, key);
-  if (it.IsFound() && !JSReceiver::GetDataProperty(&it)->IsUndefined(this)) {
-    // TODO(cbruni): Currently we do not revert if we unset the
-    // @@isConcatSpreadable property on Array.prototype or Object.prototype
-    // hence the reverse implication doesn't hold.
-    DCHECK(is_is_concat_spreadable_set);
-    return false;
-  }
-#endif  // DEBUG
-
-  return !is_is_concat_spreadable_set;
-}
-
-bool Isolate::IsIsConcatSpreadableLookupChainIntact(JSReceiver receiver) {
-  if (!IsIsConcatSpreadableLookupChainIntact()) return false;
-  return !receiver.HasProxyInPrototype(this);
-}
-
 bool Isolate::IsPromiseHookProtectorIntact() {
   PropertyCell promise_hook_cell = heap()->promise_hook_protector();
   bool is_promise_hook_protector_intact =
@@ -3922,13 +3890,6 @@ bool Isolate::IsPromiseHookProtectorIntact() {
   DCHECK_IMPLIES(is_promise_hook_protector_intact,
                  !promise_hook_or_debug_is_active_or_async_event_delegate_);
   return is_promise_hook_protector_intact;
-}
-
-bool Isolate::IsPromiseResolveLookupChainIntact() {
-  Cell promise_resolve_cell = heap()->promise_resolve_protector();
-  bool is_promise_resolve_protector_intact =
-      Smi::ToInt(promise_resolve_cell.value()) == kProtectorValid;
-  return is_promise_resolve_protector_intact;
 }
 
 void Isolate::UpdateNoElementsProtectorOnSetElement(Handle<JSObject> object) {
@@ -3956,38 +3917,6 @@ void Isolate::TraceProtectorInvalidation(const char* protector_name) {
                        protector_name);
 }
 
-void Isolate::InvalidateIsConcatSpreadableProtector() {
-  DCHECK(factory()->is_concat_spreadable_protector()->value().IsSmi());
-  DCHECK(IsIsConcatSpreadableLookupChainIntact());
-  if (FLAG_trace_protector_invalidation) {
-    TraceProtectorInvalidation("is_concat_spreadable_protector");
-  }
-  factory()->is_concat_spreadable_protector()->set_value(
-      Smi::FromInt(kProtectorInvalid));
-  DCHECK(!IsIsConcatSpreadableLookupChainIntact());
-}
-
-void Isolate::InvalidateStringLengthOverflowProtector() {
-  DCHECK(factory()->string_length_protector()->value().IsSmi());
-  DCHECK(IsStringLengthOverflowIntact());
-  if (FLAG_trace_protector_invalidation) {
-    TraceProtectorInvalidation("string_length_protector");
-  }
-  factory()->string_length_protector()->set_value(
-      Smi::FromInt(kProtectorInvalid));
-  DCHECK(!IsStringLengthOverflowIntact());
-}
-
-void Isolate::InvalidateArrayBufferDetachingProtector() {
-  DCHECK(factory()->array_buffer_detaching_protector()->value().IsSmi());
-  DCHECK(IsArrayBufferDetachingIntact());
-  PropertyCell::SetValueWithInvalidation(
-      this, "array_buffer_detaching_protector",
-      factory()->array_buffer_detaching_protector(),
-      handle(Smi::FromInt(kProtectorInvalid), this));
-  DCHECK(!IsArrayBufferDetachingIntact());
-}
-
 void Isolate::InvalidatePromiseHookProtector() {
   DCHECK(factory()->promise_hook_protector()->value().IsSmi());
   DCHECK(IsPromiseHookProtectorIntact());
@@ -3995,17 +3924,6 @@ void Isolate::InvalidatePromiseHookProtector() {
       this, "promise_hook_protector", factory()->promise_hook_protector(),
       handle(Smi::FromInt(kProtectorInvalid), this));
   DCHECK(!IsPromiseHookProtectorIntact());
-}
-
-void Isolate::InvalidatePromiseResolveProtector() {
-  DCHECK(factory()->promise_resolve_protector()->value().IsSmi());
-  DCHECK(IsPromiseResolveLookupChainIntact());
-  if (FLAG_trace_protector_invalidation) {
-    TraceProtectorInvalidation("promise_resolve_protector");
-  }
-  factory()->promise_resolve_protector()->set_value(
-      Smi::FromInt(kProtectorInvalid));
-  DCHECK(!IsPromiseResolveLookupChainIntact());
 }
 
 bool Isolate::IsAnyInitialArrayPrototype(Handle<JSArray> array) {

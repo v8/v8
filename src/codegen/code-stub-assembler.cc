@@ -6193,8 +6193,8 @@ TNode<BoolT> CodeStubAssembler::IsArrayIteratorProtectorCellInvalid() {
 
 TNode<BoolT> CodeStubAssembler::IsPromiseResolveProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Isolate::kProtectorInvalid);
-  TNode<Cell> cell = PromiseResolveProtectorConstant();
-  TNode<Object> cell_value = LoadObjectField(cell, Cell::kValueOffset);
+  TNode<PropertyCell> cell = PromiseResolveProtectorConstant();
+  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
   return TaggedEqual(cell_value, invalid);
 }
 

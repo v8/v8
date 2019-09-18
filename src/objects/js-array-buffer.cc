@@ -5,6 +5,7 @@
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/js-array-buffer-inl.h"
 
+#include "src/execution/protectors-inl.h"
 #include "src/logging/counters.h"
 #include "src/objects/property-descriptor.h"
 
@@ -58,8 +59,8 @@ void JSArrayBuffer::Detach(bool force_for_wasm_memory) {
     CHECK_IMPLIES(force_for_wasm_memory, backing_store->is_wasm_memory());
   }
 
-  if (isolate->IsArrayBufferDetachingIntact()) {
-    isolate->InvalidateArrayBufferDetachingProtector();
+  if (Protectors::IsArrayBufferDetachingIntact(isolate)) {
+    Protectors::InvalidateArrayBufferDetaching(isolate);
   }
 
   DCHECK(!is_shared());

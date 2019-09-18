@@ -567,8 +567,8 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     Node* length =
         graph()->NewNode(simplified()->NumberAdd(), left_length, right_length);
 
-    CellRef string_length_protector(broker(),
-                                    factory()->string_length_protector());
+    PropertyCellRef string_length_protector(
+        broker(), factory()->string_length_protector());
     if (string_length_protector.value().AsSmi() == Isolate::kProtectorValid) {
       // We can just deoptimize if the {length} is out-of-bounds. Besides
       // generating a shorter code sequence than the version below, this

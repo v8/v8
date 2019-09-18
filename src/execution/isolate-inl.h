@@ -113,17 +113,6 @@ Isolate::ExceptionScope::~ExceptionScope() {
 NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
 #undef NATIVE_CONTEXT_FIELD_ACCESSOR
 
-bool Isolate::IsStringLengthOverflowIntact() {
-  Cell string_length_cell = Cell::cast(root(RootIndex::kStringLengthProtector));
-  return string_length_cell.value() == Smi::FromInt(kProtectorValid);
-}
-
-bool Isolate::IsArrayBufferDetachingIntact() {
-  PropertyCell buffer_detaching =
-      PropertyCell::cast(root(RootIndex::kArrayBufferDetachingProtector));
-  return buffer_detaching.value() == Smi::FromInt(kProtectorValid);
-}
-
 }  // namespace internal
 }  // namespace v8
 
