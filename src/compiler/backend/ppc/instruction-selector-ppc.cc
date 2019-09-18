@@ -926,6 +926,12 @@ void InstructionSelector::VisitWord32ReverseBytes(Node* node) {
        g.UseRegister(node->InputAt(0)));
 }
 
+void InstructionSelector::VisitSimd128ReverseBytes(Node* node) {
+  // TODO(miladfar): Implement the ppc selector for reversing SIMD bytes.
+  // Check if the input node is a Load and do a Load Reverse at once.
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitInt32Add(Node* node) {
   VisitBinop<Int32BinopMatcher>(this, node, kPPC_Add32, kInt16Imm);
 }

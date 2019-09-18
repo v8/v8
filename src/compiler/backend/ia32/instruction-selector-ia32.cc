@@ -890,6 +890,10 @@ void InstructionSelector::VisitWord32ReverseBytes(Node* node) {
   Emit(kIA32Bswap, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)));
 }
 
+void InstructionSelector::VisitSimd128ReverseBytes(Node* node) {
+  UNREACHABLE();
+}
+
 void InstructionSelector::VisitInt32Add(Node* node) {
   IA32OperandGenerator g(this);
 

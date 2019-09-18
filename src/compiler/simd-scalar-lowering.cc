@@ -941,6 +941,28 @@ void SimdScalarLowering::LowerNode(Node* node) {
       }
       break;
     }
+    case IrOpcode::kSimd128ReverseBytes: {
+      DCHECK_EQ(1, node->InputCount());
+      bool is_float = ReplacementType(node->InputAt(0)) == SimdType::kFloat32x4;
+      replacements_[node->id()].type =
+          is_float ? SimdType::kFloat32x4 : SimdType::kInt32x4;
+      Node** rep = GetReplacementsWithType(
+          node->InputAt(0),
+          is_float ? SimdType::kFloat32x4 : SimdType::kInt32x4);
+      Node* rep_node[kNumLanes32];
+      for (int i = 0; i < kNumLanes32; ++i) {
+        Node* temp = is_float ? graph()->NewNode(
+                                    machine()->BitcastFloat32ToInt32(), rep[i])
+                              : rep[i];
+        temp = graph()->NewNode(machine()->Word32ReverseBytes(), temp);
+        rep_node[kNumLanes32 - 1 - i] =
+            is_float
+                ? graph()->NewNode(machine()->BitcastInt32ToFloat32(), temp)
+                : temp;
+      }
+      ReplaceNode(node, rep_node, kNumLanes32);
+      break;
+    }
     case IrOpcode::kLoad:
     case IrOpcode::kUnalignedLoad:
     case IrOpcode::kProtectedLoad: {

@@ -669,6 +669,7 @@
   V(Word64Ctz)                              \
   V(Word64ReverseBits)                      \
   V(Word64ReverseBytes)                     \
+  V(Simd128ReverseBytes)                    \
   V(Int64AbsWithOverflow)                   \
   V(BitcastTaggedToWord)                    \
   V(BitcastTaggedToWordForTagAndSmiBits)    \

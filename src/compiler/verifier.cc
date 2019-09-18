@@ -1700,6 +1700,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kWord64Ctz:
     case IrOpcode::kWord64ReverseBits:
     case IrOpcode::kWord64ReverseBytes:
+    case IrOpcode::kSimd128ReverseBytes:
     case IrOpcode::kInt64AbsWithOverflow:
     case IrOpcode::kWord64Equal:
     case IrOpcode::kInt32Add:

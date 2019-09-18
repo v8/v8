@@ -239,6 +239,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const OptionalOperator Word64ReverseBits();
   const Operator* Word32ReverseBytes();
   const Operator* Word64ReverseBytes();
+  const Operator* Simd128ReverseBytes();
   const OptionalOperator Int32AbsWithOverflow();
   const OptionalOperator Int64AbsWithOverflow();
 

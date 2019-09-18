@@ -875,6 +875,10 @@ void InstructionSelector::VisitWord32ReverseBytes(Node* node) {
   Emit(kX64Bswap32, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)));
 }
 
+void InstructionSelector::VisitSimd128ReverseBytes(Node* node) {
+  UNREACHABLE();
+}
+
 void InstructionSelector::VisitInt32Add(Node* node) {
   X64OperandGenerator g(this);
 

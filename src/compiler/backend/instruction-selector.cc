@@ -1439,6 +1439,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord64(node), VisitWord64ReverseBits(node);
     case IrOpcode::kWord64ReverseBytes:
       return MarkAsWord64(node), VisitWord64ReverseBytes(node);
+    case IrOpcode::kSimd128ReverseBytes:
+      return MarkAsSimd128(node), VisitSimd128ReverseBytes(node);
     case IrOpcode::kInt64AbsWithOverflow:
       return MarkAsWord64(node), VisitInt64AbsWithOverflow(node);
     case IrOpcode::kWord64Equal:

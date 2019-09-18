@@ -1266,27 +1266,9 @@ Node* WasmGraphBuilder::BuildChangeEndiannessStore(
       case 8:
         result = graph()->NewNode(m->Word64ReverseBytes(), value);
         break;
-      case 16: {
-        Node* byte_reversed_lanes[4];
-        for (int lane = 0; lane < 4; lane++) {
-          byte_reversed_lanes[lane] = graph()->NewNode(
-              m->Word32ReverseBytes(),
-              graph()->NewNode(mcgraph()->machine()->I32x4ExtractLane(lane),
-                               value));
-        }
-
-        // This is making a copy of the value.
-        result =
-            graph()->NewNode(mcgraph()->machine()->S128And(), value, value);
-
-        for (int lane = 0; lane < 4; lane++) {
-          result =
-              graph()->NewNode(mcgraph()->machine()->I32x4ReplaceLane(3 - lane),
-                               result, byte_reversed_lanes[lane]);
-        }
-
+      case 16:
+        result = graph()->NewNode(m->Simd128ReverseBytes(), value);
         break;
-      }
       default:
         UNREACHABLE();
         break;
@@ -1405,27 +1387,9 @@ Node* WasmGraphBuilder::BuildChangeEndiannessLoad(Node* node,
       case 8:
         result = graph()->NewNode(m->Word64ReverseBytes(), value);
         break;
-      case 16: {
-        Node* byte_reversed_lanes[4];
-        for (int lane = 0; lane < 4; lane++) {
-          byte_reversed_lanes[lane] = graph()->NewNode(
-              m->Word32ReverseBytes(),
-              graph()->NewNode(mcgraph()->machine()->I32x4ExtractLane(lane),
-                               value));
-        }
-
-        // This is making a copy of the value.
-        result =
-            graph()->NewNode(mcgraph()->machine()->S128And(), value, value);
-
-        for (int lane = 0; lane < 4; lane++) {
-          result =
-              graph()->NewNode(mcgraph()->machine()->I32x4ReplaceLane(3 - lane),
-                               result, byte_reversed_lanes[lane]);
-        }
-
+      case 16:
+        result = graph()->NewNode(m->Simd128ReverseBytes(), value);
         break;
-      }
       default:
         UNREACHABLE();
     }

@@ -771,6 +771,10 @@ void InstructionSelector::VisitProtectedStore(Node* node) {
   UNIMPLEMENTED();
 }
 
+void InstructionSelector::VisitSimd128ReverseBytes(Node* node) {
+  UNREACHABLE();
+}
+
 // Architecture supports unaligned access, therefore VisitLoad is used instead
 void InstructionSelector::VisitUnalignedLoad(Node* node) { UNREACHABLE(); }
 
