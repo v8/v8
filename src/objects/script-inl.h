@@ -45,6 +45,8 @@ ACCESSORS(Script, host_defined_options, FixedArray, kHostDefinedOptionsOffset)
 ACCESSORS_CHECKED(Script, wasm_module_object, Object,
                   kEvalFromSharedOrWrappedArgumentsOffset,
                   this->type() == TYPE_WASM)
+ACCESSORS_CHECKED(Script, wasm_managed_native_module, Object,
+                  kEvalFromPositionOffset, this->type() == TYPE_WASM)
 
 bool Script::is_wrapped() const {
   return eval_from_shared_or_wrapped_arguments().IsFixedArray();
@@ -73,6 +75,10 @@ void Script::set_wrapped_arguments(FixedArray value, WriteBarrierMode mode) {
 FixedArray Script::wrapped_arguments() const {
   DCHECK(is_wrapped());
   return FixedArray::cast(eval_from_shared_or_wrapped_arguments());
+}
+
+wasm::NativeModule* Script::wasm_native_module() const {
+  return Managed<wasm::NativeModule>::cast(wasm_managed_native_module()).raw();
 }
 
 Script::CompilationType Script::compilation_type() {

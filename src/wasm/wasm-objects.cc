@@ -244,6 +244,7 @@ Handle<WasmModuleObject> WasmModuleObject::New(
   module_object->set_export_wrappers(*export_wrappers);
   if (script->type() == Script::TYPE_WASM) {
     script->set_wasm_module_object(*module_object);
+    script->set_wasm_managed_native_module(*managed_native_module);
   }
   module_object->set_script(*script);
   module_object->set_weak_instance_list(

@@ -663,7 +663,7 @@ extern class Script extends Struct {
   line_ends: Object;
   id: Smi;
   eval_from_shared_or_wrapped_arguments: Object;
-  eval_from_position: Smi;
+  eval_from_position: Smi | Foreign;  // Smi or Managed<wasm::NativeModule>
   shared_function_infos: Object;
   flags: Smi;
   source_url: Object;
