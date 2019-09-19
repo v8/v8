@@ -162,28 +162,15 @@ void IntlBuiltinsAssembler::ListFormatCommon(TNode<Context> context,
                          method_name);
   TNode<JSListFormat> list_format = CAST(receiver);
 
-  // 4. If list is not provided or is undefined, then
   TNode<Object> list = args.GetOptionalArgumentValue(0);
-  Label has_list(this);
   {
-    GotoIfNot(IsUndefined(list), &has_list);
-    if (format_func_id == Runtime::kFormatList) {
-      // a. Return an empty String.
-      args.PopAndReturn(EmptyStringConstant());
-    } else {
-      DCHECK_EQ(format_func_id, Runtime::kFormatListToParts);
-      // a. Return an empty Array.
-      args.PopAndReturn(AllocateEmptyJSArray(context));
-    }
-  }
-  BIND(&has_list);
-  {
-    // 5. Let x be ? IterableToList(list).
-    TNode<Object> x =
-        CallBuiltin(Builtins::kIterableToListWithSymbolLookup, context, list);
+    // 4. Let stringList be ? StringListFromIterable(list).
+    TNode<Object> string_list =
+        CallBuiltin(Builtins::kStringListFromIterable, context, list);
 
-    // 6. Return ? FormatList(lf, x).
-    args.PopAndReturn(CallRuntime(format_func_id, context, list_format, x));
+    // 6. Return ? FormatList(lf, stringList).
+    args.PopAndReturn(
+        CallRuntime(format_func_id, context, list_format, string_list));
   }
 }
 

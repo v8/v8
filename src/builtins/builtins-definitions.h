@@ -619,6 +619,9 @@ namespace internal {
   TFS(IterableToListWithSymbolLookup, kIterable)                               \
   TFS(IterableToListMayPreserveHoles, kIterable, kIteratorFn)                  \
                                                                                \
+  /* #sec-createstringlistfromiterable */                                      \
+  TFS(StringListFromIterable, kIterable)                                       \
+                                                                               \
   /* Map */                                                                    \
   TFS(FindOrderedHashMapEntry, kTable, kKey)                                   \
   TFJ(MapConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)         \
