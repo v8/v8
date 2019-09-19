@@ -458,7 +458,11 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
       },
       SlotSet::KEEP_EMPTY_BUCKETS);
 
-  DCHECK_NULL(page->invalidated_slots<OLD_TO_NEW>());
+  if (page->invalidated_slots<OLD_TO_NEW>() != nullptr) {
+    // The invalidated slots are not needed after old-to-new slots were
+    // processed.
+    page->ReleaseInvalidatedSlots<OLD_TO_NEW>();
+  }
 
   RememberedSet<OLD_TO_NEW>::IterateTyped(
       page, [=](SlotType type, Address addr) {
