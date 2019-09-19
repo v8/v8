@@ -1388,6 +1388,12 @@ void JSTypedArray::JSTypedArrayPrint(std::ostream& os) {  // NOLINT
   os << "\n - byte_offset: " << byte_offset();
   os << "\n - byte_length: " << byte_length();
   os << "\n - length: " << length();
+  os << "\n - data_ptr: " << DataPtr();
+  Tagged_t base_ptr = static_cast<Tagged_t>(base_pointer().ptr());
+  os << "\n   - base_pointer: "
+     << reinterpret_cast<void*>(static_cast<Address>(base_ptr));
+  os << "\n   - external_pointer: "
+     << reinterpret_cast<void*>(external_pointer());
   if (!buffer().IsJSArrayBuffer()) {
     os << "\n <invalid buffer>\n";
     return;

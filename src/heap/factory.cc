@@ -3250,9 +3250,7 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
       Handle<JSTypedArray>::cast(NewJSArrayBufferView(
           map, empty_byte_array(), buffer, byte_offset, byte_length));
   typed_array->set_length(length);
-  typed_array->set_external_pointer(
-      reinterpret_cast<byte*>(buffer->backing_store()) + byte_offset);
-  typed_array->set_base_pointer(Smi::kZero);
+  typed_array->SetOffHeapDataPtr(buffer->backing_store(), byte_offset);
   return typed_array;
 }
 
