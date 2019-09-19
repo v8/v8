@@ -353,8 +353,8 @@ Response V8DebuggerAgentImpl::enable(Maybe<double> maxScriptsCacheSize,
                                      String16* outDebuggerId) {
   m_maxScriptCacheSize = v8::base::saturated_cast<size_t>(
       maxScriptsCacheSize.fromMaybe(std::numeric_limits<double>::max()));
-  *outDebuggerId = debuggerIdToString(
-      m_debugger->debuggerIdFor(m_session->contextGroupId()));
+  *outDebuggerId =
+      m_debugger->debuggerIdFor(m_session->contextGroupId()).toString();
   if (enabled()) return Response::OK();
 
   if (!m_inspector->client()->canExecuteScripts(m_session->contextGroupId()))
@@ -752,17 +752,19 @@ Response V8DebuggerAgentImpl::getStackTrace(
     std::unique_ptr<protocol::Runtime::StackTrace>* outStackTrace) {
   bool isOk = false;
   int64_t id = inStackTraceId->getId().toInteger64(&isOk);
-  std::pair<int64_t, int64_t> debuggerId;
+  if (!isOk) return Response::Error("Invalid stack trace id");
+
+  V8DebuggerId debuggerId;
   if (inStackTraceId->hasDebuggerId()) {
-    debuggerId =
-        m_debugger->debuggerIdFor(inStackTraceId->getDebuggerId(String16()));
+    debuggerId = V8DebuggerId(inStackTraceId->getDebuggerId(String16()));
   } else {
     debuggerId = m_debugger->debuggerIdFor(m_session->contextGroupId());
   }
-  V8StackTraceId v8StackTraceId(id, debuggerId);
-  if (!isOk || v8StackTraceId.IsInvalid()) {
+  if (!debuggerId.isValid()) return Response::Error("Invalid stack trace id");
+
+  V8StackTraceId v8StackTraceId(id, debuggerId.pair());
+  if (v8StackTraceId.IsInvalid())
     return Response::Error("Invalid stack trace id");
-  }
   auto stack =
       m_debugger->stackTraceFor(m_session->contextGroupId(), v8StackTraceId);
   if (!stack) {
@@ -1366,7 +1368,7 @@ V8DebuggerAgentImpl::currentExternalStackTrace() {
   if (externalParent.IsInvalid()) return nullptr;
   return protocol::Runtime::StackTraceId::create()
       .setId(stackTraceIdToString(externalParent.id))
-      .setDebuggerId(debuggerIdToString(externalParent.debugger_id))
+      .setDebuggerId(V8DebuggerId(externalParent.debugger_id).toString())
       .build();
 }
 

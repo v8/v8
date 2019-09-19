@@ -16,6 +16,10 @@ int V8StackTraceImpl::maxCallStackSizeToCapture = 200;
 
 namespace {
 
+static const char kId[] = "id";
+static const char kDebuggerId[] = "debuggerId";
+static const char kShouldPause[] = "shouldPause";
+
 static const v8::StackTrace::StackTraceOptions stackTraceOptions =
     static_cast<v8::StackTrace::StackTraceOptions>(
         v8::StackTrace::kDetailed |
@@ -101,7 +105,7 @@ std::unique_ptr<protocol::Runtime::StackTrace> buildInspectorObjectCommon(
     stackTrace->setParentId(
         protocol::Runtime::StackTraceId::create()
             .setId(stackTraceIdToString(externalParent.id))
-            .setDebuggerId(debuggerIdToString(externalParent.debugger_id))
+            .setDebuggerId(V8DebuggerId(externalParent.debugger_id).toString())
             .build());
   }
   return stackTrace;
@@ -109,7 +113,7 @@ std::unique_ptr<protocol::Runtime::StackTrace> buildInspectorObjectCommon(
 
 }  //  namespace
 
-V8StackTraceId::V8StackTraceId() : id(0), debugger_id(std::make_pair(0, 0)) {}
+V8StackTraceId::V8StackTraceId() : id(0), debugger_id(V8DebuggerId().pair()) {}
 
 V8StackTraceId::V8StackTraceId(uintptr_t id,
                                const std::pair<int64_t, int64_t> debugger_id)
@@ -120,7 +124,35 @@ V8StackTraceId::V8StackTraceId(uintptr_t id,
                                bool should_pause)
     : id(id), debugger_id(debugger_id), should_pause(should_pause) {}
 
+V8StackTraceId::V8StackTraceId(const StringView& json)
+    : id(0), debugger_id(V8DebuggerId().pair()) {
+  auto dict =
+      protocol::DictionaryValue::cast(protocol::StringUtil::parseJSON(json));
+  if (!dict) return;
+  String16 s;
+  if (!dict->getString(kId, &s)) return;
+  bool isOk = false;
+  int64_t parsedId = s.toInteger64(&isOk);
+  if (!isOk || !parsedId) return;
+  if (!dict->getString(kDebuggerId, &s)) return;
+  V8DebuggerId debuggerId(s);
+  if (!debuggerId.isValid()) return;
+  if (!dict->getBoolean(kShouldPause, &should_pause)) return;
+  id = parsedId;
+  debugger_id = debuggerId.pair();
+}
+
 bool V8StackTraceId::IsInvalid() const { return !id; }
+
+std::unique_ptr<StringBuffer> V8StackTraceId::ToString() {
+  if (IsInvalid()) return nullptr;
+  auto dict = protocol::DictionaryValue::create();
+  dict->setString(kId, String16::fromInteger64(id));
+  dict->setString(kDebuggerId, V8DebuggerId(debugger_id).toString());
+  dict->setBoolean(kShouldPause, should_pause);
+  String16 json = dict->toJSONString();
+  return StringBufferImpl::adopt(json);
+}
 
 StackFrame::StackFrame(v8::Isolate* isolate, v8::Local<v8::StackFrame> v8Frame)
     : m_functionName(toProtocolString(isolate, v8Frame->GetFunctionName())),

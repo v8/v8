@@ -149,7 +149,6 @@ class BinaryStringBuffer : public StringBuffer {
   DISALLOW_COPY_AND_ASSIGN(BinaryStringBuffer);
 };
 
-String16 debuggerIdToString(const std::pair<int64_t, int64_t>& debuggerId);
 String16 stackTraceIdToString(uintptr_t id);
 
 }  //  namespace v8_inspector

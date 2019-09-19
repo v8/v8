@@ -64,6 +64,42 @@ class MatchPrototypePredicate : public v8::debug::QueryObjectPredicate {
 
 }  // namespace
 
+V8DebuggerId::V8DebuggerId(std::pair<int64_t, int64_t> pair)
+    : m_first(pair.first), m_second(pair.second) {}
+
+// static
+V8DebuggerId V8DebuggerId::generate(v8::Isolate* isolate) {
+  V8DebuggerId debuggerId;
+  debuggerId.m_first = v8::debug::GetNextRandomInt64(isolate);
+  debuggerId.m_second = v8::debug::GetNextRandomInt64(isolate);
+  if (!debuggerId.m_first && !debuggerId.m_second) ++debuggerId.m_first;
+  return debuggerId;
+}
+
+V8DebuggerId::V8DebuggerId(const String16& debuggerId) {
+  const UChar dot = '.';
+  size_t pos = debuggerId.find(dot);
+  if (pos == String16::kNotFound) return;
+  bool ok = false;
+  int64_t first = debuggerId.substring(0, pos).toInteger64(&ok);
+  if (!ok) return;
+  int64_t second = debuggerId.substring(pos + 1).toInteger64(&ok);
+  if (!ok) return;
+  m_first = first;
+  m_second = second;
+}
+
+String16 V8DebuggerId::toString() const {
+  return String16::fromInteger64(m_first) + "." +
+         String16::fromInteger64(m_second);
+}
+
+bool V8DebuggerId::isValid() const { return m_first || m_second; }
+
+std::pair<int64_t, int64_t> V8DebuggerId::pair() const {
+  return std::make_pair(m_first, m_second);
+}
+
 V8Debugger::V8Debugger(v8::Isolate* isolate, V8InspectorImpl* inspector)
     : m_isolate(isolate),
       m_inspector(inspector),
@@ -787,7 +823,7 @@ void V8Debugger::setAsyncCallStackDepth(V8DebuggerAgentImpl* agent, int depth) {
 
 std::shared_ptr<AsyncStackTrace> V8Debugger::stackTraceFor(
     int contextGroupId, const V8StackTraceId& id) {
-  if (debuggerIdFor(contextGroupId) != id.debugger_id) return nullptr;
+  if (debuggerIdFor(contextGroupId).pair() != id.debugger_id) return nullptr;
   auto it = m_storedStackTraces.find(id.id);
   if (it == m_storedStackTraces.end()) return nullptr;
   return it->second.lock();
@@ -818,7 +854,7 @@ V8StackTraceId V8Debugger::storeCurrentStackTrace(
     m_pauseOnAsyncCall = false;
     v8::debug::ClearStepping(m_isolate);  // Cancel step into.
   }
-  return V8StackTraceId(id, debuggerIdFor(contextGroupId), shouldPause);
+  return V8StackTraceId(id, debuggerIdFor(contextGroupId).pair(), shouldPause);
 }
 
 uintptr_t V8Debugger::storeStackTrace(
@@ -1061,25 +1097,13 @@ void V8Debugger::setMaxAsyncTaskStacksForTest(int limit) {
   m_maxAsyncCallStacks = limit;
 }
 
-std::pair<int64_t, int64_t> V8Debugger::debuggerIdFor(int contextGroupId) {
+V8DebuggerId V8Debugger::debuggerIdFor(int contextGroupId) {
   auto it = m_contextGroupIdToDebuggerId.find(contextGroupId);
   if (it != m_contextGroupIdToDebuggerId.end()) return it->second;
-  std::pair<int64_t, int64_t> debuggerId(
-      v8::debug::GetNextRandomInt64(m_isolate),
-      v8::debug::GetNextRandomInt64(m_isolate));
-  if (!debuggerId.first && !debuggerId.second) ++debuggerId.first;
+  V8DebuggerId debuggerId = V8DebuggerId::generate(m_isolate);
   m_contextGroupIdToDebuggerId.insert(
       it, std::make_pair(contextGroupId, debuggerId));
-  m_serializedDebuggerIdToDebuggerId.insert(
-      std::make_pair(debuggerIdToString(debuggerId), debuggerId));
   return debuggerId;
-}
-
-std::pair<int64_t, int64_t> V8Debugger::debuggerIdFor(
-    const String16& serializedDebuggerId) {
-  auto it = m_serializedDebuggerIdToDebuggerId.find(serializedDebuggerId);
-  if (it != m_serializedDebuggerIdToDebuggerId.end()) return it->second;
-  return std::make_pair(0, 0);
 }
 
 bool V8Debugger::addInternalObject(v8::Local<v8::Context> context,
