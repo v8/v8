@@ -3428,11 +3428,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           SlotSet::PREFREE_EMPTY_BUCKETS);
     }
 
-    if (chunk_->invalidated_slots<OLD_TO_NEW>() != nullptr) {
-      // The invalidated slots are not needed after old-to-new slots were
-      // processed.
-      chunk_->ReleaseInvalidatedSlots<OLD_TO_NEW>();
-    }
+    DCHECK_NULL(chunk_->invalidated_slots<OLD_TO_NEW>());
 
     if ((updating_mode_ == RememberedSetUpdatingMode::ALL) &&
         (chunk_->slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>() != nullptr)) {

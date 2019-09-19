@@ -3406,11 +3406,6 @@ void Heap::NotifyObjectLayoutChange(
           ->RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object);
     }
   }
-  if (invalidate_recorded_slots == InvalidateRecordedSlots::kYes &&
-      MayContainRecordedSlots(object)) {
-    MemoryChunk::FromHeapObject(object)
-        ->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(object);
-  }
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     DCHECK(pending_layout_change_object_.is_null());
