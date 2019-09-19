@@ -736,20 +736,21 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
       CompilationState::New(*shared_this, std::move(async_counters));
   DCHECK_NOT_NULL(module_);
   if (module_->num_declared_functions > 0) {
-    code_table_.reset(new WasmCode* [module_->num_declared_functions] {});
+    code_table_ =
+        std::make_unique<WasmCode*[]>(module_->num_declared_functions);
   }
   AddCodeSpace(code_allocator_.GetSingleCodeRegion());
 }
 
 void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
   WasmCodeRefScope code_ref_scope;
-  DCHECK_LE(num_functions(), max_functions);
-  WasmCode** new_table = new WasmCode* [max_functions] {};
+  DCHECK_LE(module_->num_declared_functions, max_functions);
+  auto new_table = std::make_unique<WasmCode*[]>(max_functions);
   if (module_->num_declared_functions > 0) {
-    memcpy(new_table, code_table_.get(),
-           module_->num_declared_functions * sizeof(*new_table));
+    memcpy(new_table.get(), code_table_.get(),
+           module_->num_declared_functions * sizeof(WasmCode*));
   }
-  code_table_.reset(new_table);
+  code_table_ = std::move(new_table);
 
   base::AddressRegion single_code_space_region;
   {
@@ -903,7 +904,7 @@ void NativeModule::UseLazyStub(uint32_t func_index) {
       lazy_compile_table_->instruction_start() +
       JumpTableAssembler::LazyCompileSlotIndexToOffset(slot_index);
   base::MutexGuard guard(&allocation_mutex_);
-  PatchJumpTablesLocked(func_index, lazy_compile_target);
+  PatchJumpTablesLocked(slot_index, lazy_compile_target);
 }
 
 std::unique_ptr<WasmCode> NativeModule::AddCode(
@@ -1053,7 +1054,7 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
     }
 
     if (update_jump_table) {
-      PatchJumpTablesLocked(code->index(), code->instruction_start());
+      PatchJumpTablesLocked(slot_idx, code->instruction_start());
     }
   }
   WasmCodeRefScope::AddRef(code.get());
@@ -1147,26 +1148,26 @@ WasmCode* NativeModule::CreateEmptyJumpTableInRegion(
   return PublishCode(std::move(code));
 }
 
-void NativeModule::PatchJumpTablesLocked(uint32_t func_index, Address target) {
+void NativeModule::PatchJumpTablesLocked(uint32_t slot_index, Address target) {
   // The caller must hold the {allocation_mutex_}, thus we fail to lock it here.
   DCHECK(!allocation_mutex_.TryLock());
 
   for (auto& code_space_data : code_space_data_) {
     DCHECK_IMPLIES(code_space_data.jump_table, code_space_data.far_jump_table);
     if (!code_space_data.jump_table) continue;
-    PatchJumpTableLocked(code_space_data, func_index, target);
+    PatchJumpTableLocked(code_space_data, slot_index, target);
   }
 }
 
 void NativeModule::PatchJumpTableLocked(const CodeSpaceData& code_space_data,
-                                        uint32_t func_index, Address target) {
+                                        uint32_t slot_index, Address target) {
   // The caller must hold the {allocation_mutex_}, thus we fail to lock it here.
   DCHECK(!allocation_mutex_.TryLock());
 
   DCHECK_NOT_NULL(code_space_data.jump_table);
   DCHECK_NOT_NULL(code_space_data.far_jump_table);
 
-  uint32_t slot_index = func_index - module_->num_imported_functions;
+  DCHECK_LT(slot_index, module_->num_declared_functions);
   Address jump_table_slot =
       code_space_data.jump_table->instruction_start() +
       JumpTableAssembler::JumpSlotIndexToOffset(slot_index);
@@ -1275,11 +1276,11 @@ void NativeModule::AddCodeSpace(base::AddressRegion region) {
   if (jump_table && !is_first_code_space) {
     // Patch the new jump table(s) with existing functions. If this is the first
     // code space, there cannot be any functions that have been compiled yet.
-    for (uint32_t func_index = 0; func_index < num_wasm_functions;
-         ++func_index) {
-      if (!code_table_[func_index]) continue;
-      PatchJumpTableLocked(code_space_data_.back(), func_index,
-                           code_table_[func_index]->instruction_start());
+    for (uint32_t slot_index = 0; slot_index < num_wasm_functions;
+         ++slot_index) {
+      if (!code_table_[slot_index]) continue;
+      PatchJumpTableLocked(code_space_data_.back(), slot_index,
+                           code_table_[slot_index]->instruction_start());
     }
   }
 }

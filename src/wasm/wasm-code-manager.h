@@ -540,8 +540,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
                                          base::AddressRegion);
 
   // Hold the {allocation_mutex_} when calling one of these methods.
-  void PatchJumpTablesLocked(uint32_t func_index, Address target);
-  void PatchJumpTableLocked(const CodeSpaceData&, uint32_t func_index,
+  // {slot_index} is the index in the declared functions, i.e. function index
+  // minus the number of imported functions.
+  void PatchJumpTablesLocked(uint32_t slot_index, Address target);
+  void PatchJumpTableLocked(const CodeSpaceData&, uint32_t slot_index,
                             Address target);
 
   // Called by the {WasmCodeAllocator} to register a new code space.
@@ -617,7 +619,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::map<Address, std::unique_ptr<WasmCode>> owned_code_;
 
   // Table of the latest code object per function, updated on initial
-  // compilation and tier up.
+  // compilation and tier up. The number of entries is
+  // {WasmModule::num_declared_functions}, i.e. there are no entries for
+  // imported functions.
   std::unique_ptr<WasmCode*[]> code_table_;
 
   // Null if no redirections exist, otherwise a bitset over all functions in
