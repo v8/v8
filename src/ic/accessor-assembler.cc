@@ -1033,8 +1033,13 @@ void AccessorAssembler::HandleStoreICHandlerCase(
       // The slow case calls into the runtime to complete the store without
       // causing an IC miss that would otherwise cause a transition to the
       // generic stub.
-      TailCallRuntime(Runtime::kKeyedStoreIC_Slow, p->context(), p->value(),
-                      p->receiver(), p->name());
+      if (ic_mode == ICMode::kGlobalIC) {
+        TailCallRuntime(Runtime::kStoreGlobalIC_Slow, p->context(), p->value(),
+                        p->slot(), p->vector(), p->receiver(), p->name());
+      } else {
+        TailCallRuntime(Runtime::kKeyedStoreIC_Slow, p->context(), p->value(),
+                        p->receiver(), p->name());
+      }
     }
   }
 
@@ -1530,8 +1535,13 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       // The slow case calls into the runtime to complete the store without
       // causing an IC miss that would otherwise cause a transition to the
       // generic stub.
-      TailCallRuntime(Runtime::kKeyedStoreIC_Slow, p->context(), p->value(),
-                      p->receiver(), p->name());
+      if (ic_mode == ICMode::kGlobalIC) {
+        TailCallRuntime(Runtime::kStoreGlobalIC_Slow, p->context(), p->value(),
+                        p->slot(), p->vector(), p->receiver(), p->name());
+      } else {
+        TailCallRuntime(Runtime::kKeyedStoreIC_Slow, p->context(), p->value(),
+                        p->receiver(), p->name());
+      }
     }
 
     BIND(&if_interceptor);

@@ -1499,9 +1499,7 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
   } else {
     set_slow_stub_reason("LookupForWrite said 'false'");
     // TODO(marja): change slow_stub to return MaybeObjectHandle.
-    handler = IsStoreGlobalIC()
-                  ? MaybeObjectHandle(slow_stub())
-                  : MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
+    handler = MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
   }
 
   PatchCache(lookup->name(), handler);
@@ -1575,9 +1573,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
         set_slow_stub_reason("accessor on slow map");
         TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
         MaybeObjectHandle handler =
-            IsStoreGlobalIC()
-                ? MaybeObjectHandle(slow_stub())
-                : MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
+            MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
         return handler;
       }
       Handle<Object> accessors = lookup->GetAccessors();
