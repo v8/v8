@@ -445,8 +445,12 @@ bool ExpectFused(ExecutionTier tier) {
 
 #define WASM_SIMD_LOAD_MEM(index) \
   index, WASM_SIMD_OP(kExprS128LoadMem), ZERO_ALIGNMENT, ZERO_OFFSET
+#define WASM_SIMD_LOAD_MEM_OFFSET(offset, index) \
+  index, WASM_SIMD_OP(kExprS128LoadMem), ZERO_ALIGNMENT, offset
 #define WASM_SIMD_STORE_MEM(index, val) \
   index, val, WASM_SIMD_OP(kExprS128StoreMem), ZERO_ALIGNMENT, ZERO_OFFSET
+#define WASM_SIMD_STORE_MEM_OFFSET(offset, index, val) \
+  index, val, WASM_SIMD_OP(kExprS128StoreMem), ZERO_ALIGNMENT, offset
 
 #define WASM_SIMD_F64x2_QFMA(a, b, c) a, b, c, WASM_SIMD_OP(kExprF64x2Qfma)
 #define WASM_SIMD_F64x2_QFMS(a, b, c) a, b, c, WASM_SIMD_OP(kExprF64x2Qfms)
@@ -3112,6 +3116,29 @@ WASM_SIMD_TEST(SimdLoadStoreLoad) {
   }
 }
 
+WASM_SIMD_TEST(SimdLoadStoreLoadMemargOffset) {
+  WasmRunner<int32_t> r(execution_tier, lower_simd);
+  int32_t* memory =
+      r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
+  constexpr byte offset_1 = 4;
+  constexpr byte offset_2 = 8;
+  // Load from memory at offset_1, store to offset_2, load from offset_2, and
+  // extract first lane. We use non-zero memarg offsets to test offset decoding.
+  BUILD(
+      r,
+      WASM_SIMD_STORE_MEM_OFFSET(
+          offset_2, WASM_ZERO, WASM_SIMD_LOAD_MEM_OFFSET(offset_1, WASM_ZERO)),
+      WASM_SIMD_I32x4_EXTRACT_LANE(
+          0, WASM_SIMD_LOAD_MEM_OFFSET(offset_2, WASM_ZERO)));
+
+  FOR_INT32_INPUTS(i) {
+    int32_t expected = i;
+    // Index 1 of memory (int32_t) will be bytes 4 to 8.
+    r.builder().WriteMemory(&memory[1], expected);
+    CHECK_EQ(expected, r.Call());
+  }
+}
+
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 || \
     V8_TARGET_ARCH_ARM
 #define WASM_SIMD_ANYTRUE_TEST(format, lanes, max, param_type)                \
@@ -3277,7 +3304,9 @@ WASM_SIMD_TEST_NO_LOWERING(I16x8GtUMixed) {
 #undef WASM_SIMD_I8x16_REPLACE_LANE
 #undef WASM_SIMD_S8x16_SHUFFLE_OP
 #undef WASM_SIMD_LOAD_MEM
+#undef WASM_SIMD_LOAD_MEM_OFFSET
 #undef WASM_SIMD_STORE_MEM
+#undef WASM_SIMD_STORE_MEM_OFFSET
 #undef WASM_SIMD_SELECT_TEST
 #undef WASM_SIMD_NON_CANONICAL_SELECT_TEST
 #undef WASM_SIMD_COMPILED_TEST

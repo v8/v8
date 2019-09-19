@@ -1663,9 +1663,15 @@ class ThreadImpl {
 
   template <typename ctype, typename mtype>
   bool ExecuteLoad(Decoder* decoder, InterpreterCode* code, pc_t pc,
-                   int* const len, MachineRepresentation rep) {
-    MemoryAccessImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc),
-                                                    sizeof(ctype));
+                   int* const len, MachineRepresentation rep,
+                   int prefix_len = 0) {
+    // Some opcodes have a prefix byte, and MemoryAccessImmediate assumes that
+    // the memarg is 1 byte from pc. We don't increment pc at the caller,
+    // because we want to keep pc to the start of the operation to keep trap
+    // reporting and tracing accurate, otherwise those will report at the middle
+    // of an opcode.
+    MemoryAccessImmediate<Decoder::kNoValidate> imm(
+        decoder, code->at(pc + prefix_len), sizeof(ctype));
     uint32_t index = Pop().to<uint32_t>();
     Address addr = BoundsCheckMem<mtype>(imm.offset, index);
     if (!addr) {
@@ -1690,9 +1696,15 @@ class ThreadImpl {
 
   template <typename ctype, typename mtype>
   bool ExecuteStore(Decoder* decoder, InterpreterCode* code, pc_t pc,
-                    int* const len, MachineRepresentation rep) {
-    MemoryAccessImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc),
-                                                    sizeof(ctype));
+                    int* const len, MachineRepresentation rep,
+                    int prefix_len = 0) {
+    // Some opcodes have a prefix byte, and MemoryAccessImmediate assumes that
+    // the memarg is 1 byte from pc. We don't increment pc at the caller,
+    // because we want to keep pc to the start of the operation to keep trap
+    // reporting and tracing accurate, otherwise those will report at the middle
+    // of an opcode.
+    MemoryAccessImmediate<Decoder::kNoValidate> imm(
+        decoder, code->at(pc + prefix_len), sizeof(ctype));
     ctype val = Pop().to<ctype>();
 
     uint32_t index = Pop().to<uint32_t>();
@@ -2433,10 +2445,12 @@ class ThreadImpl {
 #undef REPLACE_LANE_CASE
       case kExprS128LoadMem:
         return ExecuteLoad<Simd128, Simd128>(decoder, code, pc, len,
-                                             MachineRepresentation::kSimd128);
+                                             MachineRepresentation::kSimd128,
+                                             /*prefix_len=*/1);
       case kExprS128StoreMem:
         return ExecuteStore<Simd128, Simd128>(decoder, code, pc, len,
-                                              MachineRepresentation::kSimd128);
+                                              MachineRepresentation::kSimd128,
+                                              /*prefix_len=*/1);
 #define SHIFT_CASE(op, name, stype, count, expr) \
   case kExpr##op: {                              \
     uint32_t shift = Pop().to<uint32_t>();       \
