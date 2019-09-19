@@ -2441,7 +2441,7 @@ void TurboAssembler::LeaveFrame(StackFrame::Type type) {
   popq(rbp);
 }
 
-#ifdef V8_OS_WIN
+#ifdef V8_TARGET_OS_WIN
 void TurboAssembler::AllocateStackSpace(Register bytes_scratch) {
   // In windows, we cannot increment the stack size by more than one page
   // (minimum page size is 4KB) without accessing at least one byte on the
@@ -2509,7 +2509,7 @@ void MacroAssembler::EnterExitFramePrologue(bool save_rax,
 
 void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
                                             bool save_doubles) {
-#ifdef _WIN64
+#ifdef V8_TARGET_OS_WIN
   const int kShadowSpace = 4;
   arg_stack_space += kShadowSpace;
 #endif
@@ -2613,7 +2613,7 @@ void MacroAssembler::LeaveExitFrameEpilogue() {
   movq(c_entry_fp_operand, Immediate(0));
 }
 
-#ifdef _WIN64
+#ifdef V8_TARGET_OS_WIN
 static const int kRegisterPassedArguments = 4;
 #else
 static const int kRegisterPassedArguments = 6;
@@ -2632,7 +2632,7 @@ int TurboAssembler::ArgumentStackSlotsForCFunctionCall(int num_arguments) {
   // On AMD64 ABI (Linux/Mac) the first six arguments are passed in registers
   // and the caller does not reserve stack slots for them.
   DCHECK_GE(num_arguments, 0);
-#ifdef _WIN64
+#ifdef V8_TARGET_OS_WIN
   const int kMinimumStackSlots = kRegisterPassedArguments;
   if (num_arguments < kMinimumStackSlots) return kMinimumStackSlots;
   return num_arguments;

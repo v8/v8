@@ -644,6 +644,30 @@ config("toolchain") {
     defines += [ "V8_ANDROID_LOG_STDOUT" ]
   }
 
+  # V8_TARGET_OS_ defines. The target OS may differ from host OS e.g. in
+  # mksnapshot. We additionally set V8_HAVE_TARGET_OS to determine that a
+  # target OS has in fact been set; otherwise we internally assume that target
+  # OS == host OS (see v8config.h).
+  if (target_os == "android") {
+    defines += [ "V8_HAVE_TARGET_OS" ]
+    defines += [ "V8_TARGET_OS_ANDROID" ]
+  } else if (target_os == "fuchsia") {
+    defines += [ "V8_HAVE_TARGET_OS" ]
+    defines += [ "V8_TARGET_OS_FUCHSIA" ]
+  } else if (target_os == "ios") {
+    defines += [ "V8_HAVE_TARGET_OS" ]
+    defines += [ "V8_TARGET_OS_IOS" ]
+  } else if (target_os == "linux") {
+    defines += [ "V8_HAVE_TARGET_OS" ]
+    defines += [ "V8_TARGET_OS_LINUX" ]
+  } else if (target_os == "mac") {
+    defines += [ "V8_HAVE_TARGET_OS" ]
+    defines += [ "V8_TARGET_OS_MACOSX" ]
+  } else if (target_os == "win") {
+    defines += [ "V8_HAVE_TARGET_OS" ]
+    defines += [ "V8_TARGET_OS_WIN" ]
+  }
+
   # TODO(jochen): Support v8_enable_prof on Windows.
   # TODO(jochen): Add support for compiling with simulators.
 

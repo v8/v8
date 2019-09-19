@@ -54,7 +54,7 @@
 
 
 // -----------------------------------------------------------------------------
-// Operating system detection
+// Operating system detection (host)
 //
 //  V8_OS_ANDROID       - Android
 //  V8_OS_BSD           - BSDish (Mac OS X, Net/Free/Open/DragonFlyBSD)
@@ -122,6 +122,67 @@
 # define V8_OS_WIN 1
 #endif
 
+// -----------------------------------------------------------------------------
+// Operating system detection (target)
+//
+//  V8_TARGET_OS_ANDROID
+//  V8_TARGET_OS_FUCHSIA
+//  V8_TARGET_OS_IOS
+//  V8_TARGET_OS_LINUX
+//  V8_TARGET_OS_MACOSX
+//  V8_TARGET_OS_WIN
+//
+// If not set explicitly, these fall back to corresponding V8_OS_ values.
+
+#ifdef V8_HAVE_TARGET_OS
+
+// The target OS is provided, just check that at least one known value is set.
+# if !defined(V8_TARGET_OS_ANDROID) \
+  && !defined(V8_TARGET_OS_FUCHSIA) \
+  && !defined(V8_TARGET_OS_IOS) \
+  && !defined(V8_TARGET_OS_LINUX) \
+  && !defined(V8_TARGET_OS_MACOSX) \
+  && !defined(V8_TARGET_OS_WIN)
+#  error No known target OS defined.
+# endif
+
+#else  // V8_HAVE_TARGET_OS
+
+# if defined(V8_TARGET_OS_ANDROID) \
+  || defined(V8_TARGET_OS_FUCHSIA) \
+  || defined(V8_TARGET_OS_IOS) \
+  || defined(V8_TARGET_OS_LINUX) \
+  || defined(V8_TARGET_OS_MACOSX) \
+  || defined(V8_TARGET_OS_WIN)
+#  error A target OS is defined but V8_HAVE_TARGET_OS is unset.
+# endif
+
+// Fall back to the detected host OS.
+#ifdef V8_OS_ANDROID
+# define V8_TARGET_OS_ANDROID
+#endif
+
+#ifdef V8_OS_FUCHSIA
+# define V8_TARGET_OS_FUCHSIA
+#endif
+
+#ifdef V8_OS_IOS
+# define V8_TARGET_OS_IOS
+#endif
+
+#ifdef V8_OS_LINUX
+# define V8_TARGET_OS_LINUX
+#endif
+
+#ifdef V8_OS_MACOSX
+# define V8_TARGET_OS_MACOSX
+#endif
+
+#ifdef V8_OS_WIN
+# define V8_TARGET_OS_WIN
+#endif
+
+#endif  // V8_HAVE_TARGET_OS
 
 // -----------------------------------------------------------------------------
 // C library detection

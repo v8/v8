@@ -414,7 +414,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 // stack check, do it before calling this function because this function may
 // write into the newly allocated space. It may also overwrite the given
 // register's value, in the version that takes a register.
-#ifdef V8_OS_WIN
+#ifdef V8_TARGET_OS_WIN
   void AllocateStackSpace(Register bytes_scratch);
   void AllocateStackSpace(int bytes);
 #else
@@ -917,7 +917,7 @@ inline Operand NativeContextOperand() {
 
 // Provides access to exit frame stack space (not GCed).
 inline Operand StackSpaceOperand(int index) {
-#ifdef _WIN64
+#ifdef V8_TARGET_OS_WIN
   const int kShaddowSpace = 4;
   return Operand(rsp, (index + kShaddowSpace) * kSystemPointerSize);
 #else
