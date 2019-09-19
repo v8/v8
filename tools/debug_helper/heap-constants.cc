@@ -49,4 +49,37 @@ std::string FindKnownObject(uintptr_t address,
   return result;
 }
 
+KnownInstanceType FindKnownMapInstanceType(
+    uintptr_t address, const d::HeapAddresses& heap_addresses) {
+  uintptr_t containing_page = address & ~i::kPageAlignmentMask;
+  uintptr_t offset_in_page = address & i::kPageAlignmentMask;
+
+  // If there's a match with a known page, then search only that page.
+  if (containing_page == heap_addresses.map_space_first_page) {
+    return KnownInstanceType(
+        FindKnownMapInstanceTypeInMapSpace(offset_in_page));
+  }
+  if (containing_page == heap_addresses.read_only_space_first_page) {
+    return KnownInstanceType(
+        FindKnownMapInstanceTypeInReadOnlySpace(offset_in_page));
+  }
+
+  // For any unknown pages, compile a list of things this object might be.
+  KnownInstanceType result;
+  if (heap_addresses.map_space_first_page == 0) {
+    int sub_result = FindKnownMapInstanceTypeInMapSpace(offset_in_page);
+    if (sub_result >= 0) {
+      result.types.push_back(static_cast<i::InstanceType>(sub_result));
+    }
+  }
+  if (heap_addresses.read_only_space_first_page == 0) {
+    int sub_result = FindKnownMapInstanceTypeInReadOnlySpace(offset_in_page);
+    if (sub_result >= 0) {
+      result.types.push_back(static_cast<i::InstanceType>(sub_result));
+    }
+  }
+
+  return result;
+}
+
 }  // namespace v8_debug_helper_internal

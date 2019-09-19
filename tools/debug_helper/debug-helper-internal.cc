@@ -20,7 +20,8 @@ bool IsPointerCompressed(uintptr_t address) {
 #endif
 }
 
-uintptr_t Decompress(uintptr_t address, uintptr_t any_uncompressed_ptr) {
+uintptr_t EnsureDecompressed(uintptr_t address,
+                             uintptr_t any_uncompressed_ptr) {
   if (!COMPRESS_POINTERS_BOOL || !IsPointerCompressed(address)) return address;
   return i::DecompressTaggedAny(any_uncompressed_ptr,
                                 static_cast<i::Tagged_t>(address));
@@ -53,6 +54,10 @@ const char* TqObject::GetName() const { return "v8::internal::Object"; }
 
 void TqObject::Visit(TqObjectVisitor* visitor) const {
   visitor->VisitObject(this);
+}
+
+bool TqObject::IsSuperclassOf(const TqObject* other) const {
+  return GetName() != other->GetName();
 }
 
 }  // namespace v8_debug_helper_internal

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/api/api-inl.h"
+#include "src/flags/flags.h"
 #include "src/heap/spaces.h"
 #include "test/cctest/cctest.h"
 #include "tools/debug_helper/debug-helper.h"
@@ -123,8 +124,9 @@ TEST(GetObjectProperties) {
     // object is on the right page. This response can only happen in builds
     // without pointer compression, because otherwise heap addresses would be at
     // deterministic locations within the heap reservation.
-    CHECK(StartsWith(props->brief, "maybe EmptyFixedArray") ||
-          StartsWith(props->brief, "EmptyFixedArray"));
+    CHECK(COMPRESS_POINTERS_BOOL
+              ? StartsWith(props->brief, "EmptyFixedArray")
+              : StartsWith(props->brief, "maybe EmptyFixedArray"));
 
     // Provide a heap first page so the API can be more sure.
     heap_addresses.read_only_space_first_page =
@@ -153,8 +155,8 @@ TEST(GetObjectProperties) {
             d::PropertyKind::kArrayOfKnownSize, 2);
 
   // Get the second string value from the FixedArray.
-  i::Tagged_t second_string_address = *reinterpret_cast<i::Tagged_t*>(
-      props->properties[2]->address + sizeof(i::Tagged_t));
+  i::Tagged_t second_string_address =
+      reinterpret_cast<i::Tagged_t*>(props->properties[2]->address)[1];
   props = d::GetObjectProperties(second_string_address, &ReadMemory,
                                  heap_addresses);
   CHECK(props->type_check_result == d::TypeCheckResult::kUsedMap);
@@ -174,6 +176,7 @@ TEST(GetObjectProperties) {
   // its properties should match what we read last time.
   d::ObjectPropertiesResultPtr props2;
   {
+    heap_addresses.read_only_space_first_page = 0;
     uintptr_t map_address =
         d::GetObjectProperties(
             *reinterpret_cast<i::Tagged_t*>(props->properties[0]->address),
@@ -183,9 +186,28 @@ TEST(GetObjectProperties) {
     MemoryFailureRegion failure(map_address, map_address + i::Map::kSize);
     props2 = d::GetObjectProperties(second_string_address, &ReadMemory,
                                     heap_addresses, "v8::internal::String");
-    CHECK(props2->type_check_result == d::TypeCheckResult::kUsedTypeHint);
-    CHECK(props2->type == std::string("v8::internal::String"));
-    CHECK_EQ(props2->num_properties, 3);
+    if (COMPRESS_POINTERS_BOOL) {
+      // The first page of each heap space can be automatically detected when
+      // pointer compression is active, so we expect to use known maps instead
+      // of the type hint.
+      CHECK_EQ(props2->type_check_result, d::TypeCheckResult::kKnownMapPointer);
+      CHECK(props2->type == std::string("v8::internal::SeqOneByteString"));
+      CHECK_EQ(props2->num_properties, 4);
+      CheckProp(*props2->properties[3], "char", "chars",
+                d::PropertyKind::kArrayOfKnownSize, 2);
+      CHECK_EQ(props2->num_guessed_types, 0);
+    } else {
+      CHECK_EQ(props2->type_check_result, d::TypeCheckResult::kUsedTypeHint);
+      CHECK(props2->type == std::string("v8::internal::String"));
+      CHECK_EQ(props2->num_properties, 3);
+
+      // The type hint we provided was the abstract class String, but
+      // GetObjectProperties should have recognized that the Map pointer looked
+      // like the right value for a SeqOneByteString.
+      CHECK_EQ(props2->num_guessed_types, 1);
+      CHECK(std::string(props2->guessed_types[0]) ==
+            std::string("v8::internal::SeqOneByteString"));
+    }
     CheckProp(*props2->properties[0], "v8::internal::Map", "map",
               *reinterpret_cast<i::Tagged_t*>(props->properties[0]->address));
     CheckProp(*props2->properties[1], "uint32_t", "hash_field",

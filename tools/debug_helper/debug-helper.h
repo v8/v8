@@ -46,6 +46,7 @@ enum class TypeCheckResult {
   kSmi,
   kWeakRef,
   kUsedMap,
+  kKnownMapPointer,
   kUsedTypeHint,
 
   // Failure cases:
@@ -98,6 +99,16 @@ struct ObjectPropertiesResult {
   const char* type;  // Runtime type of the object.
   size_t num_properties;
   ObjectProperty** properties;
+
+  // If not all relevant memory is available, GetObjectProperties may respond
+  // with a technically correct but uninteresting type such as HeapObject, and
+  // use other heuristics to make reasonable guesses about what specific type
+  // the object actually is. You may request data about the same object again
+  // using any of these guesses as the type hint, but the results should be
+  // formatted to the user in a way that clearly indicates that they're only
+  // guesses.
+  size_t num_guessed_types;
+  const char** guessed_types;
 };
 
 // Copies byte_count bytes of memory from the given address in the debuggee to

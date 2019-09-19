@@ -213,9 +213,17 @@ template("v8_executable") {
 
 template("v8_component") {
   component(target_name) {
-    forward_variables_from(invoker, "*", [ "configs" ])
+    forward_variables_from(invoker,
+                           "*",
+                           [
+                             "configs",
+                             "remove_configs",
+                           ])
     configs -= v8_remove_configs
     configs += v8_add_configs
+    if (defined(invoker.remove_configs)) {
+      configs -= invoker.remove_configs
+    }
     configs += invoker.configs
   }
 }
