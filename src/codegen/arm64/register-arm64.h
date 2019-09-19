@@ -105,7 +105,7 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
   enum RegisterType { kRegister, kVRegister, kNoRegister };
 
   static constexpr CPURegister no_reg() {
-    return CPURegister{0, 0, kNoRegister};
+    return CPURegister{kCode_no_reg, 0, kNoRegister};
   }
 
   template <int code, int size, RegisterType type>
