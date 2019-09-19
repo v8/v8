@@ -2303,6 +2303,9 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
   if (HasInferredFunctionName()) {
     os << "\n - inferred function name: " << Brief(InferredFunctionName());
   }
+  if (CanElideThisHoleChecks()) {
+    os << "\n - can elide this hole checks";
+  }
 
   if (HasPositionInfo()) {
     os << "\n - start position: " << StartPosition();

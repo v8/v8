@@ -26,6 +26,8 @@ using InnerScopeCallsEvalField =
     ScopeSloppyEvalCanExtendVarsField::Next<bool, 1>;
 using NeedsPrivateNameContextChainRecalcField =
     InnerScopeCallsEvalField::Next<bool, 1>;
+using CanElideThisHoleChecks =
+    NeedsPrivateNameContextChainRecalcField::Next<bool, 1>;
 
 using VariableMaybeAssignedField = BitField8<bool, 0, 1>;
 using VariableContextAllocatedField = VariableMaybeAssignedField::Next<bool, 1>;
@@ -354,7 +356,7 @@ void PreparseDataBuilder::SaveDataForScope(Scope* scope) {
   byte_data_.WriteUint8(scope->scope_type());
 #endif
 
-  uint8_t eval_and_private_recalc =
+  uint8_t scope_data_flags =
       ScopeSloppyEvalCanExtendVarsField::encode(
           scope->is_declaration_scope() &&
           scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) |
@@ -362,9 +364,12 @@ void PreparseDataBuilder::SaveDataForScope(Scope* scope) {
       NeedsPrivateNameContextChainRecalcField::encode(
           scope->is_function_scope() &&
           scope->AsDeclarationScope()
-              ->needs_private_name_context_chain_recalc());
+              ->needs_private_name_context_chain_recalc()) |
+      CanElideThisHoleChecks::encode(
+          scope->is_declaration_scope() &&
+          scope->AsDeclarationScope()->can_elide_this_hole_checks());
   byte_data_.Reserve(kUint8Size);
-  byte_data_.WriteUint8(eval_and_private_recalc);
+  byte_data_.WriteUint8(scope_data_flags);
 
   if (scope->is_function_scope()) {
     Variable* function = scope->AsDeclarationScope()->function_var();
@@ -605,16 +610,18 @@ void BaseConsumedPreparseData<Data>::RestoreDataForScope(Scope* scope) {
   DCHECK_EQ(scope_data_->ReadUint8(), scope->scope_type());
 
   CHECK(scope_data_->HasRemainingBytes(ByteData::kUint8Size));
-  uint32_t eval_and_private_recalc = scope_data_->ReadUint8();
-  if (ScopeSloppyEvalCanExtendVarsField::decode(eval_and_private_recalc)) {
+  uint32_t scope_data_flags = scope_data_->ReadUint8();
+  if (ScopeSloppyEvalCanExtendVarsField::decode(scope_data_flags)) {
     scope->RecordEvalCall();
   }
-  if (InnerScopeCallsEvalField::decode(eval_and_private_recalc)) {
+  if (InnerScopeCallsEvalField::decode(scope_data_flags)) {
     scope->RecordInnerScopeEvalCall();
   }
-  if (NeedsPrivateNameContextChainRecalcField::decode(
-          eval_and_private_recalc)) {
+  if (NeedsPrivateNameContextChainRecalcField::decode(scope_data_flags)) {
     scope->AsDeclarationScope()->RecordNeedsPrivateNameContextChainRecalc();
+  }
+  if (CanElideThisHoleChecks::decode(scope_data_flags)) {
+    scope->AsDeclarationScope()->set_can_elide_this_hole_checks();
   }
 
   if (scope->is_function_scope()) {

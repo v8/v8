@@ -195,6 +195,9 @@ DeclarationScope::DeclarationScope(Zone* zone, ScopeType scope_type,
     DCHECK(!is_eval_scope());
     sloppy_eval_can_extend_vars_ = true;
   }
+  if (scope_info->CanElideThisHoleChecks()) {
+    can_elide_this_hole_checks_ = true;
+  }
 }
 
 Scope::Scope(Zone* zone, const AstRawString* catch_variable_name,
@@ -228,6 +231,7 @@ void DeclarationScope::SetDefaults() {
   scope_uses_super_property_ = false;
   has_checked_syntax_ = false;
   has_this_reference_ = false;
+  can_elide_this_hole_checks_ = false;
   has_this_declaration_ =
       (is_function_scope() && !is_arrow_scope()) || is_module_scope();
   needs_private_name_context_chain_recalc_ = false;
