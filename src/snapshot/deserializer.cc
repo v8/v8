@@ -291,27 +291,22 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj,
         data_view.byte_offset());
   } else if (obj.IsJSTypedArray()) {
     JSTypedArray typed_array = JSTypedArray::cast(obj);
-    // Fixup typed array pointers.
-    if (typed_array.is_on_heap()) {
-      typed_array.SetOnHeapDataPtr(
-          HeapObject::cast(typed_array.base_pointer_raw()),
-          typed_array.external_pointer_raw());
-    } else {
-      // Serializer writes backing store ref as a DataPtr() value.
-      size_t store_index = reinterpret_cast<size_t>(typed_array.DataPtr());
-      auto backing_store = backing_stores_[store_index];
+    // Only fixup for the off-heap case.
+    if (!typed_array.is_on_heap()) {
+      Smi store_index(
+          reinterpret_cast<Address>(typed_array.external_pointer()));
+      auto backing_store = backing_stores_[store_index.value()];
       auto start = backing_store
                        ? reinterpret_cast<byte*>(backing_store->buffer_start())
                        : nullptr;
-      typed_array.SetOffHeapDataPtr(start, typed_array.byte_offset());
+      typed_array.set_external_pointer(start + typed_array.byte_offset());
     }
   } else if (obj.IsJSArrayBuffer()) {
     JSArrayBuffer buffer = JSArrayBuffer::cast(obj);
     // Only fixup for the off-heap case.
     if (buffer.backing_store() != nullptr) {
-      // Serializer writes backing store ref in |backing_store| field.
-      size_t store_index = reinterpret_cast<size_t>(buffer.backing_store());
-      auto backing_store = backing_stores_[store_index];
+      Smi store_index(reinterpret_cast<Address>(buffer.backing_store()));
+      auto backing_store = backing_stores_[store_index.value()];
       if (backing_store) {
         buffer.Attach(backing_store);
       } else {

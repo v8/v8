@@ -3536,13 +3536,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // JSTypedArray helpers
   TNode<UintPtrT> LoadJSTypedArrayLength(TNode<JSTypedArray> typed_array);
-  TNode<RawPtrT> LoadJSTypedArrayDataPtr(TNode<JSTypedArray> typed_array);
-  void SetJSTypedArrayOnHeapDataPtr(TNode<JSTypedArray> holder,
-                                    TNode<ByteArray> base,
-                                    TNode<UintPtrT> offset);
-  void SetJSTypedArrayOffHeapDataPtr(TNode<JSTypedArray> holder,
-                                     TNode<RawPtrT> base,
-                                     TNode<UintPtrT> offset);
+  TNode<RawPtrT> LoadJSTypedArrayBackingStore(TNode<JSTypedArray> typed_array);
 
   template <typename TIndex>
   TNode<IntPtrT> ElementOffsetFromIndex(TNode<TIndex> index, ElementsKind kind,

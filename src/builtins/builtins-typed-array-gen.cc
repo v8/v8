@@ -316,8 +316,8 @@ void TypedArrayBuiltinsAssembler::SetTypedArraySource(
 
   // Grab pointers and byte lengths we need later on.
 
-  TNode<RawPtrT> target_data_ptr = LoadJSTypedArrayDataPtr(target);
-  TNode<RawPtrT> source_data_ptr = LoadJSTypedArrayDataPtr(source);
+  TNode<RawPtrT> target_data_ptr = LoadJSTypedArrayBackingStore(target);
+  TNode<RawPtrT> source_data_ptr = LoadJSTypedArrayBackingStore(source);
 
   TNode<Int32T> source_el_kind = LoadElementsKind(source);
   TNode<Int32T> target_el_kind = LoadElementsKind(target);
@@ -749,9 +749,10 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
 
               // GC may move backing store in ToNumber, thus load backing
               // store everytime in this loop.
-              TNode<RawPtrT> data_ptr =
-                  LoadJSTypedArrayDataPtr(new_typed_array);
-              StoreElement(data_ptr, kind, index, value, INTPTR_PARAMETERS);
+              TNode<RawPtrT> backing_store =
+                  LoadJSTypedArrayBackingStore(new_typed_array);
+              StoreElement(backing_store, kind, index, value,
+                           INTPTR_PARAMETERS);
             },
             1, IndexAdvanceMode::kPost);
       });
@@ -970,9 +971,10 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
 
               // GC may move backing store in map_fn, thus load backing
               // store in each iteration of this loop.
-              TNode<RawPtrT> data_ptr =
-                  LoadJSTypedArrayDataPtr(target_obj.value());
-              StoreElement(data_ptr, kind, index, final_value, SMI_PARAMETERS);
+              TNode<RawPtrT> backing_store =
+                  LoadJSTypedArrayBackingStore(target_obj.value());
+              StoreElement(backing_store, kind, index, final_value,
+                           SMI_PARAMETERS);
             });
       },
       1, IndexAdvanceMode::kPost);

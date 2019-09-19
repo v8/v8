@@ -212,7 +212,7 @@ void ArrayBuiltinsAssembler::VisitAllTypedArrayElements(
       list, start, end,
       [&](TNode<Smi> index) {
         GotoIf(IsDetachedBuffer(array_buffer), detached);
-        TNode<RawPtrT> data_ptr = LoadJSTypedArrayDataPtr(typed_array);
+        TNode<RawPtrT> data_ptr = LoadJSTypedArrayBackingStore(typed_array);
         TNode<Object> value = LoadFixedTypedArrayElementAsTagged(
             data_ptr, index, source_elements_kind_, SMI_PARAMETERS);
         k_ = index;
@@ -1579,7 +1579,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
            &allocate_iterator_result);
 
     TNode<Int32T> elements_kind = LoadMapElementsKind(array_map);
-    TNode<RawPtrT> data_ptr = LoadJSTypedArrayDataPtr(CAST(array));
+    TNode<RawPtrT> data_ptr = LoadJSTypedArrayBackingStore(CAST(array));
     var_value = LoadFixedTypedArrayElementAsTagged(data_ptr, CAST(index),
                                                    elements_kind);
     Goto(&allocate_entry_if_needed);

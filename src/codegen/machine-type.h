@@ -114,10 +114,6 @@ class MachineType {
   constexpr bool IsCompressedPointer() const {
     return representation() == MachineRepresentation::kCompressedPointer;
   }
-  constexpr static MachineRepresentation TaggedRepresentation() {
-    return (kTaggedSize == 4) ? MachineRepresentation::kWord32
-                              : MachineRepresentation::kWord64;
-  }
   constexpr static MachineRepresentation PointerRepresentation() {
     return (kSystemPointerSize == 4) ? MachineRepresentation::kWord32
                                      : MachineRepresentation::kWord64;
@@ -261,14 +257,6 @@ class MachineType {
     return MachineRepresentation::kCompressedPointer;
 #else
     return MachineRepresentation::kTaggedPointer;
-#endif
-  }
-
-  constexpr static MachineType TypeRawTagged() {
-#ifdef V8_COMPRESS_POINTERS
-    return MachineType::Int32();
-#else
-    return MachineType::Pointer();
 #endif
   }
 

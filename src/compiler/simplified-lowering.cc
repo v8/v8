@@ -3020,10 +3020,10 @@ class RepresentationSelector {
       case IrOpcode::kLoadTypedElement: {
         MachineRepresentation const rep =
             MachineRepresentationFromArrayType(ExternalArrayTypeOf(node->op()));
-        ProcessInput(node, 0, UseInfo::AnyTagged());   // buffer
-        ProcessInput(node, 1, UseInfo::TaggedWord());  // base pointer
-        ProcessInput(node, 2, UseInfo::Word());        // external pointer
-        ProcessInput(node, 3, UseInfo::Word());        // index
+        ProcessInput(node, 0, UseInfo::AnyTagged());  // buffer
+        ProcessInput(node, 1, UseInfo::AnyTagged());  // base pointer
+        ProcessInput(node, 2, UseInfo::Word());       // external pointer
+        ProcessInput(node, 3, UseInfo::Word());       // index
         ProcessRemainingInputs(node, 4);
         SetOutput(node, rep);
         return;
@@ -3042,10 +3042,10 @@ class RepresentationSelector {
       case IrOpcode::kStoreTypedElement: {
         MachineRepresentation const rep =
             MachineRepresentationFromArrayType(ExternalArrayTypeOf(node->op()));
-        ProcessInput(node, 0, UseInfo::AnyTagged());   // buffer
-        ProcessInput(node, 1, UseInfo::TaggedWord());  // base pointer
-        ProcessInput(node, 2, UseInfo::Word());        // external pointer
-        ProcessInput(node, 3, UseInfo::Word());        // index
+        ProcessInput(node, 0, UseInfo::AnyTagged());  // buffer
+        ProcessInput(node, 1, UseInfo::AnyTagged());  // base pointer
+        ProcessInput(node, 2, UseInfo::Word());       // external pointer
+        ProcessInput(node, 3, UseInfo::Word());       // index
         ProcessInput(node, 4,
                      TruncatingUseInfoFromRepresentation(rep));  // value
         ProcessRemainingInputs(node, 5);

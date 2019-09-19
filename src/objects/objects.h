@@ -607,13 +607,15 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // For use with std::unordered_set.
   struct Hasher {
     size_t operator()(const Object o) const {
-      return std::hash<v8::internal::Address>{}(static_cast<Tagged_t>(o.ptr()));
+      return std::hash<v8::internal::Address>{}(o.ptr());
     }
   };
 
   // For use with std::map.
   struct Comparer {
-    bool operator()(const Object a, const Object b) const { return a < b; }
+    bool operator()(const Object a, const Object b) const {
+      return a.ptr() < b.ptr();
+    }
   };
 
   template <class T, typename std::enable_if<std::is_arithmetic<T>::value,

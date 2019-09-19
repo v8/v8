@@ -426,10 +426,11 @@ FieldAccess AccessBuilder::ForJSTypedArrayLength() {
 
 // static
 FieldAccess AccessBuilder::ForJSTypedArrayBasePointer() {
-  FieldAccess access = {kTaggedBase,           JSTypedArray::kBasePointerOffset,
-                        MaybeHandle<Name>(),   MaybeHandle<Map>(),
-                        Type::OtherInternal(), MachineType::TypeRawTagged(),
-                        kFullWriteBarrier,     LoadSensitivity::kCritical};
+  FieldAccess access = {
+      kTaggedBase,           JSTypedArray::kBasePointerOffset,
+      MaybeHandle<Name>(),   MaybeHandle<Map>(),
+      Type::OtherInternal(), MachineType::TypeCompressedTagged(),
+      kFullWriteBarrier,     LoadSensitivity::kCritical};
   return access;
 }
 

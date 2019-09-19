@@ -2591,14 +2591,12 @@ JSNativeContextSpecialization::BuildElementAccess(
     if (typed_array.has_value()) {
       length = jsgraph()->Constant(static_cast<double>(typed_array->length()));
 
-      DCHECK(!typed_array->is_on_heap());
-      // Load the (known) data pointer for the {receiver} and set {base_pointer}
-      // and {external_pointer} to the values that will allow to generate typed
-      // element accesses using the known data pointer.
-      // The data pointer might be invalid if the {buffer} was detached,
-      // so we need to make sure that any access is properly guarded.
+      // Load the (known) base and external pointer for the {receiver}. The
+      // {external_pointer} might be invalid if the {buffer} was detached, so
+      // we need to make sure that any access is properly guarded.
       base_pointer = jsgraph()->ZeroConstant();
-      external_pointer = jsgraph()->PointerConstant(typed_array->data_ptr());
+      external_pointer =
+          jsgraph()->PointerConstant(typed_array->external_pointer());
     } else {
       // Load the {receiver}s length.
       length = effect = graph()->NewNode(

@@ -227,8 +227,6 @@ class EffectControlLinearizer {
   Node* LowerStringComparison(Callable const& callable, Node* node);
   Node* IsElementsKindGreaterThan(Node* kind, ElementsKind reference_kind);
 
-  Node* BuildTypedArrayDataPointer(Node* base, Node* external);
-
   Node* ChangeInt32ToCompressedSmi(Node* value);
   Node* ChangeInt32ToSmi(Node* value);
   Node* ChangeInt32ToIntPtr(Node* value);
@@ -5005,25 +5003,6 @@ void EffectControlLinearizer::LowerStoreDataViewElement(Node* node) {
                     done.PhiAt(0));
 }
 
-// Compute the data pointer, handling the case where the {external} pointer
-// is the effective data pointer (i.e. the {base} is Smi zero).
-Node* EffectControlLinearizer::BuildTypedArrayDataPointer(Node* base,
-                                                          Node* external) {
-  if (IntPtrMatcher(base).Is(0)) {
-    return external;
-  } else {
-    if (COMPRESS_POINTERS_BOOL) {
-      // Sign-extend Tagged_t to IntPtr according to current compression
-      // scheme so that the addition with |external_pointer| (which already
-      // contains compensated offset value) will decompress the tagged value.
-      // See JSTypedArray::ExternalPointerCompensationForOnHeapArray() for
-      // details.
-      base = ChangeInt32ToIntPtr(base);
-    }
-    return __ UnsafePointerAdd(base, external);
-  }
-}
-
 Node* EffectControlLinearizer::LowerLoadTypedElement(Node* node) {
   ExternalArrayType array_type = ExternalArrayTypeOf(node->op());
   Node* buffer = node->InputAt(0);
@@ -5035,12 +5014,17 @@ Node* EffectControlLinearizer::LowerLoadTypedElement(Node* node) {
   // ArrayBuffer (if there's any) as long as we are still operating on it.
   __ Retain(buffer);
 
-  Node* data_ptr = BuildTypedArrayDataPointer(base, external);
+  // Compute the effective storage pointer, handling the case where the
+  // {external} pointer is the effective storage pointer (i.e. the {base}
+  // is Smi zero).
+  Node* storage = IntPtrMatcher(base).Is(0)
+                      ? external
+                      : __ UnsafePointerAdd(base, external);
 
   // Perform the actual typed element access.
   return __ LoadElement(AccessBuilder::ForTypedArrayElement(
                             array_type, true, LoadSensitivity::kCritical),
-                        data_ptr, index);
+                        storage, index);
 }
 
 void EffectControlLinearizer::LowerStoreTypedElement(Node* node) {
@@ -5055,11 +5039,16 @@ void EffectControlLinearizer::LowerStoreTypedElement(Node* node) {
   // ArrayBuffer (if there's any) as long as we are still operating on it.
   __ Retain(buffer);
 
-  Node* data_ptr = BuildTypedArrayDataPointer(base, external);
+  // Compute the effective storage pointer, handling the case where the
+  // {external} pointer is the effective storage pointer (i.e. the {base}
+  // is Smi zero).
+  Node* storage = IntPtrMatcher(base).Is(0)
+                      ? external
+                      : __ UnsafePointerAdd(base, external);
 
   // Perform the actual typed element access.
   __ StoreElement(AccessBuilder::ForTypedArrayElement(array_type, true),
-                  data_ptr, index, value);
+                  storage, index, value);
 }
 
 void EffectControlLinearizer::TransitionElementsTo(Node* node, Node* array,

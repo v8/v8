@@ -1329,6 +1329,9 @@ const kStrictReadOnlyProperty: constexpr MessageTemplate
 const kString: constexpr PrimitiveType
     generates 'PrimitiveType::kString';
 
+const kExternalPointerForOnHeapArray: constexpr RawPtr
+    generates 'JSTypedArray::ExternalPointerForOnHeapArray()';
+
 const kNameDictionaryInitialCapacity:
     constexpr int32 generates 'NameDictionary::kInitialCapacity';
 
@@ -2867,10 +2870,8 @@ extern macro IsMockArrayBufferAllocatorFlag(): bool;
 extern macro IsPrototypeTypedArrayPrototype(implicit context: Context)(Map):
     bool;
 
-extern operator '.data_ptr' macro LoadJSTypedArrayDataPtr(JSTypedArray): RawPtr;
-extern macro SetJSTypedArrayOnHeapDataPtr(
-    JSTypedArray, ByteArray, uintptr): void;
-extern macro SetJSTypedArrayOffHeapDataPtr(JSTypedArray, RawPtr, uintptr): void;
+extern operator '.data_ptr' macro LoadJSTypedArrayBackingStore(JSTypedArray):
+    RawPtr;
 
 extern operator '.elements_kind' macro LoadMapElementsKind(Map): ElementsKind;
 extern operator '.elements_kind' macro LoadElementsKind(JSTypedArray):

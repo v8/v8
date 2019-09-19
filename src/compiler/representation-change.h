@@ -187,9 +187,6 @@ class UseInfo {
   static UseInfo Word() {
     return UseInfo(MachineType::PointerRepresentation(), Truncation::Any());
   }
-  static UseInfo TaggedWord() {
-    return UseInfo(MachineType::TaggedRepresentation(), Truncation::Any());
-  }
   static UseInfo Bool() {
     return UseInfo(MachineRepresentation::kBit, Truncation::Bool());
   }
