@@ -1912,19 +1912,8 @@ Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
     // Generated code may allocate inline from the linear allocation area for.
     // To make sure we can observe these allocations, we use a lower limit.
     size_t step = GetNextInlineAllocationStepSize();
-
-    // TODO(ofrobots): there is subtle difference between old space and new
-    // space here. Any way to avoid it? `step - 1` makes more sense as we would
-    // like to sample the object that straddles the `start + step` boundary.
-    // Rounding down further would introduce a small statistical error in
-    // sampling. However, presently PagedSpace requires limit to be aligned.
-    size_t rounded_step;
-    if (identity() == NEW_SPACE) {
-      DCHECK_GE(step, 1);
-      rounded_step = step - 1;
-    } else {
-      rounded_step = RoundSizeDownToObjectAlignment(static_cast<int>(step));
-    }
+    size_t rounded_step =
+        RoundSizeDownToObjectAlignment(static_cast<int>(step - 1));
     return Min(static_cast<Address>(start + min_size + rounded_step), end);
   } else {
     // The entire node can be used as the linear allocation area.
