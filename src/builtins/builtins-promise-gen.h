@@ -34,19 +34,22 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
                                            v8::Promise::PromiseState status,
                                            TNode<Object> result);
 
-  Node* AllocatePromiseReaction(Node* next, Node* promise_or_capability,
-                                Node* fulfill_handler, Node* reject_handler);
+  TNode<PromiseReaction> AllocatePromiseReaction(
+      TNode<Object> next, TNode<HeapObject> promise_or_capability,
+      TNode<HeapObject> fulfill_handler, TNode<HeapObject> reject_handler);
 
-  Node* AllocatePromiseReactionJobTask(Node* map, Node* context, Node* argument,
-                                       Node* handler,
-                                       Node* promise_or_capability);
-  Node* AllocatePromiseResolveThenableJobTask(Node* promise_to_resolve,
-                                              Node* then, Node* thenable,
-                                              Node* context);
+  TNode<PromiseReactionJobTask> AllocatePromiseReactionJobTask(
+      TNode<Map> map, TNode<Context> context, TNode<Object> argument,
+      TNode<HeapObject> handler, TNode<HeapObject> promise_or_capability);
 
-  std::pair<Node*, Node*> CreatePromiseResolvingFunctions(Node* promise,
-                                                          Node* debug_event,
-                                                          Node* native_context);
+  TNode<PromiseResolveThenableJobTask> AllocatePromiseResolveThenableJobTask(
+      TNode<JSPromise> promise_to_resolve, TNode<JSReceiver> then,
+      TNode<JSReceiver> thenable, TNode<Context> context);
+
+  std::pair<TNode<JSFunction>, TNode<JSFunction>>
+  CreatePromiseResolvingFunctions(TNode<JSPromise> promise,
+                                  TNode<Object> debug_event,
+                                  TNode<NativeContext> native_context);
 
   Node* PromiseHasHandler(Node* promise);
 
@@ -64,8 +67,9 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
                                                            Node* native_context,
                                                            int slot_index);
 
-  Node* CreatePromiseResolvingFunctionsContext(Node* promise, Node* debug_event,
-                                               Node* native_context);
+  TNode<Context> CreatePromiseResolvingFunctionsContext(
+      TNode<JSPromise> promise, TNode<Object> debug_event,
+      TNode<NativeContext> native_context);
 
   Node* CreatePromiseGetCapabilitiesExecutorContext(Node* promise_capability,
                                                     Node* native_context);
@@ -81,7 +85,8 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
                           TNode<HeapObject> on_rejected,
                           TNode<HeapObject> result_promise_or_capability);
 
-  Node* CreatePromiseContext(Node* native_context, int slots);
+  TNode<Context> CreatePromiseContext(TNode<NativeContext> native_context,
+                                      int slots);
 
   Node* TriggerPromiseReactions(Node* context, Node* promise, Node* result,
                                 PromiseReaction::Type type);

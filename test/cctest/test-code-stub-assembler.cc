@@ -2419,7 +2419,7 @@ TEST(CreatePromiseResolvingFunctionsContext) {
 
   Node* const context = m.Parameter(kNumParams + 2);
   TNode<NativeContext> const native_context = m.LoadNativeContext(context);
-  Node* const promise =
+  const TNode<JSPromise> promise =
       m.AllocateAndInitJSPromise(m.CAST(context), m.UndefinedConstant());
   Node* const promise_context = m.CreatePromiseResolvingFunctionsContext(
       promise, m.BooleanConstant(false), native_context);
@@ -2447,7 +2447,7 @@ TEST(CreatePromiseResolvingFunctions) {
 
   Node* const context = m.Parameter(kNumParams + 2);
   TNode<NativeContext> const native_context = m.LoadNativeContext(context);
-  Node* const promise =
+  const TNode<JSPromise> promise =
       m.AllocateAndInitJSPromise(m.CAST(context), m.UndefinedConstant());
   Node *resolve, *reject;
   std::tie(resolve, reject) = m.CreatePromiseResolvingFunctions(
@@ -2537,7 +2537,7 @@ TEST(AllocateFunctionWithMapAndContext) {
 
   Node* const context = m.Parameter(kNumParams + 2);
   TNode<NativeContext> const native_context = m.LoadNativeContext(context);
-  Node* const promise =
+  const TNode<JSPromise> promise =
       m.AllocateAndInitJSPromise(m.CAST(context), m.UndefinedConstant());
   Node* promise_context = m.CreatePromiseResolvingFunctionsContext(
       promise, m.BooleanConstant(false), native_context);
@@ -2546,8 +2546,8 @@ TEST(AllocateFunctionWithMapAndContext) {
       Context::PROMISE_CAPABILITY_DEFAULT_RESOLVE_SHARED_FUN_INDEX);
   TNode<Object> const map = m.LoadContextElement(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
-  Node* const resolve =
-      m.AllocateFunctionWithMapAndContext(map, resolve_info, promise_context);
+  Node* const resolve = m.AllocateFunctionWithMapAndContext(
+      m.CAST(map), m.CAST(resolve_info), m.CAST(promise_context));
   m.Return(resolve);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);

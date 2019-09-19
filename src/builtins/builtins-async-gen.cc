@@ -93,8 +93,7 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOld(
   InitializeNativeClosure(closure_context, native_context, on_reject,
                           on_reject_context_index);
 
-  VARIABLE(var_throwaway, MachineRepresentation::kTaggedPointer,
-           UndefinedConstant());
+  TVARIABLE(HeapObject, var_throwaway, UndefinedConstant());
 
   // Deal with PromiseHooks and debug support in the runtime. This
   // also allocates the throwaway promise, which is only needed in
@@ -103,9 +102,9 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOld(
   Branch(IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(),
          &if_debugging, &do_resolve_promise);
   BIND(&if_debugging);
-  var_throwaway.Bind(CallRuntime(Runtime::kAwaitPromisesInitOld, context, value,
-                                 wrapped_value, outer_promise, on_reject,
-                                 is_predicted_as_caught));
+  var_throwaway = CAST(CallRuntime(Runtime::kAwaitPromisesInitOld, context,
+                                   value, wrapped_value, outer_promise,
+                                   on_reject, is_predicted_as_caught));
   Goto(&do_resolve_promise);
   BIND(&do_resolve_promise);
 
@@ -164,8 +163,7 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOptimized(
   InitializeNativeClosure(closure_context, native_context, on_reject,
                           on_reject_context_index);
 
-  VARIABLE(var_throwaway, MachineRepresentation::kTaggedPointer,
-           UndefinedConstant());
+  TVARIABLE(HeapObject, var_throwaway, UndefinedConstant());
 
   // Deal with PromiseHooks and debug support in the runtime. This
   // also allocates the throwaway promise, which is only needed in
@@ -174,9 +172,9 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOptimized(
   Branch(IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(),
          &if_debugging, &do_perform_promise_then);
   BIND(&if_debugging);
-  var_throwaway.Bind(CallRuntime(Runtime::kAwaitPromisesInit, context, promise,
-                                 promise, outer_promise, on_reject,
-                                 is_predicted_as_caught));
+  var_throwaway =
+      CAST(CallRuntime(Runtime::kAwaitPromisesInit, context, promise, promise,
+                       outer_promise, on_reject, is_predicted_as_caught));
   Goto(&do_perform_promise_then);
   BIND(&do_perform_promise_then);
 
@@ -281,22 +279,22 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(
 
 TNode<JSFunction> AsyncBuiltinsAssembler::CreateUnwrapClosure(
     TNode<NativeContext> native_context, TNode<HeapObject> done) {
-  TNode<Object> const map = LoadContextElement(
-      native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
-  TNode<SharedFunctionInfo> const on_fulfilled_shared = CAST(LoadContextElement(
+  const TNode<Map> map = CAST(LoadContextElement(
+      native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
+  const TNode<SharedFunctionInfo> on_fulfilled_shared = CAST(LoadContextElement(
       native_context, Context::ASYNC_ITERATOR_VALUE_UNWRAP_SHARED_FUN));
-  TNode<Context> const closure_context =
+  const TNode<Context> closure_context =
       AllocateAsyncIteratorValueUnwrapContext(native_context, done);
-  return SloppyTNode<JSFunction>(AllocateFunctionWithMapAndContext(
-      map, on_fulfilled_shared, closure_context));
+  return AllocateFunctionWithMapAndContext(map, on_fulfilled_shared,
+                                           closure_context);
 }
 
 TNode<Context> AsyncBuiltinsAssembler::AllocateAsyncIteratorValueUnwrapContext(
     TNode<NativeContext> native_context, TNode<HeapObject> done) {
   CSA_ASSERT(this, IsBoolean(done));
 
-  TNode<Context> context = SloppyTNode<Context>(
-      CreatePromiseContext(native_context, ValueUnwrapContext::kLength));
+  TNode<Context> context =
+      CreatePromiseContext(native_context, ValueUnwrapContext::kLength);
   StoreContextElementNoWriteBarrier(context, ValueUnwrapContext::kDoneSlot,
                                     done);
   return context;

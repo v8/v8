@@ -13945,11 +13945,9 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   return sfi_code.value();
 }
 
-Node* CodeStubAssembler::AllocateFunctionWithMapAndContext(Node* map,
-                                                           Node* shared_info,
-                                                           Node* context) {
-  CSA_SLOW_ASSERT(this, IsMap(map));
-
+TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithMapAndContext(
+    TNode<Map> map, TNode<SharedFunctionInfo> shared_info,
+    TNode<Context> context) {
   TNode<Code> const code = GetSharedFunctionInfoCode(shared_info);
 
   // TODO(ishell): All the callers of this function pass map loaded from
@@ -13970,7 +13968,7 @@ Node* CodeStubAssembler::AllocateFunctionWithMapAndContext(Node* map,
                                  shared_info);
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kContextOffset, context);
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kCodeOffset, code);
-  return fun;
+  return CAST(fun);
 }
 
 void CodeStubAssembler::CheckPrototypeEnumCache(Node* receiver,

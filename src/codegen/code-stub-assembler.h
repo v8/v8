@@ -3566,8 +3566,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       SloppyTNode<SharedFunctionInfo> shared_info,
       Label* if_compile_lazy = nullptr);
 
-  Node* AllocateFunctionWithMapAndContext(Node* map, Node* shared_info,
-                                          Node* context);
+  TNode<JSFunction> AllocateFunctionWithMapAndContext(
+      TNode<Map> map, TNode<SharedFunctionInfo> shared_info,
+      TNode<Context> context);
 
   // Promise helpers
   Node* IsPromiseHookEnabled();
