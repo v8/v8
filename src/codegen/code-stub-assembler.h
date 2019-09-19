@@ -3287,8 +3287,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Context> LoadScriptContext(TNode<Context> context,
                                    TNode<IntPtrT> context_index);
 
-  Node* Int32ToUint8Clamped(Node* int32_value);
-  Node* Float64ToUint8Clamped(Node* float64_value);
+  TNode<Uint8T> Int32ToUint8Clamped(TNode<Int32T> int32_value);
+  TNode<Uint8T> Float64ToUint8Clamped(TNode<Float64T> float64_value);
 
   Node* PrepareValueForWriteToTypedArray(TNode<Object> input,
                                          ElementsKind elements_kind,

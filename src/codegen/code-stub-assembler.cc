@@ -7,6 +7,7 @@
 #include "include/v8-internal.h"
 #include "src/base/macros.h"
 #include "src/codegen/code-factory.h"
+#include "src/codegen/tnode.h"
 #include "src/common/globals.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
@@ -10706,33 +10707,35 @@ void CodeStubAssembler::StoreElement(Node* elements, ElementsKind kind,
   }
 }
 
-Node* CodeStubAssembler::Int32ToUint8Clamped(Node* int32_value) {
+TNode<Uint8T> CodeStubAssembler::Int32ToUint8Clamped(
+    TNode<Int32T> int32_value) {
   Label done(this);
   TNode<Int32T> int32_zero = Int32Constant(0);
   TNode<Int32T> int32_255 = Int32Constant(255);
-  VARIABLE(var_value, MachineRepresentation::kWord32, int32_value);
+  TVARIABLE(Word32T, var_value, int32_value);
   GotoIf(Uint32LessThanOrEqual(int32_value, int32_255), &done);
-  var_value.Bind(int32_zero);
+  var_value = int32_zero;
   GotoIf(Int32LessThan(int32_value, int32_zero), &done);
-  var_value.Bind(int32_255);
+  var_value = int32_255;
   Goto(&done);
   BIND(&done);
-  return var_value.value();
+  return UncheckedCast<Uint8T>(var_value.value());
 }
 
-Node* CodeStubAssembler::Float64ToUint8Clamped(Node* float64_value) {
+TNode<Uint8T> CodeStubAssembler::Float64ToUint8Clamped(
+    TNode<Float64T> float64_value) {
   Label done(this);
-  VARIABLE(var_value, MachineRepresentation::kWord32, Int32Constant(0));
+  TVARIABLE(Word32T, var_value, Int32Constant(0));
   GotoIf(Float64LessThanOrEqual(float64_value, Float64Constant(0.0)), &done);
-  var_value.Bind(Int32Constant(255));
+  var_value = Int32Constant(255);
   GotoIf(Float64LessThanOrEqual(Float64Constant(255.0), float64_value), &done);
   {
     TNode<Float64T> rounded_value = Float64RoundToEven(float64_value);
-    var_value.Bind(TruncateFloat64ToWord32(rounded_value));
+    var_value = TruncateFloat64ToWord32(rounded_value);
     Goto(&done);
   }
   BIND(&done);
-  return var_value.value();
+  return UncheckedCast<Uint8T>(var_value.value());
 }
 
 Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
