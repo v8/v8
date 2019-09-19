@@ -59,6 +59,7 @@
   V(Regress791582)                                        \
   V(Regress845060)                                        \
   V(RegressMissingWriteBarrierInAllocate)                 \
+  V(RememberedSet_LargePage)                              \
   V(WriteBarriersInCopyJSObject)
 
 #define HEAP_TEST(Name)                                                   \

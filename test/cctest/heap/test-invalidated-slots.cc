@@ -49,12 +49,17 @@ Page* HeapTester::AllocateByteArraysOnPage(
   return page;
 }
 
-// Fill new space with objects that become garbage immediately. This ensures
-// that the next Scavenge has work to do but after it there is still available
-// new space.
-static void SimulateReclaimableFullNewSpace(Isolate* isolate) {
-  HandleScope scope_temp(isolate);
-  heap::SimulateFullSpace(isolate->heap()->new_space());
+template <RememberedSetType direction>
+static size_t GetRememberedSetSize(HeapObject obj) {
+  std::set<Address> slots;
+  RememberedSet<direction>::Iterate(
+      MemoryChunk::FromHeapObject(obj),
+      [&slots](MaybeObjectSlot slot) {
+        slots.insert(slot.address());
+        return KEEP_SLOT;
+      },
+      SlotSet::KEEP_EMPTY_BUCKETS);
+  return slots.size();
 }
 
 HEAP_TEST(StoreBuffer_CreateFromOldToYoung) {
@@ -62,6 +67,8 @@ HEAP_TEST(StoreBuffer_CreateFromOldToYoung) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
+  heap::SealCurrentObjects(heap);
+  CHECK(heap->store_buffer()->Empty());
 
   HandleScope scope(isolate);
   const int n = 10;
@@ -91,13 +98,14 @@ HEAP_TEST(StoreBuffer_CreateFromOldToYoung) {
     CHECK_EQ(expected_slots_count, added_slots_count);
   }
 
-  // The old to new refs serve as roots during scavenge.
-  SimulateReclaimableFullNewSpace(isolate);
+  // GC should flush the store buffer into remembered sets and retain the target
+  // young objects.
+  CHECK_EQ(0, GetRememberedSetSize<OLD_TO_NEW>(*old));
   CcTest::CollectGarbage(i::NEW_SPACE);
-  CHECK(old->get(0).IsHeapNumber());
 
-  // GC flushes the store buffer into remembered sets.
   CHECK(heap->store_buffer()->Empty());
+  CHECK_EQ(n / 2, GetRememberedSetSize<OLD_TO_NEW>(*old));
+  CHECK(Heap::InYoungGeneration(old->get(0)));
 }
 
 HEAP_TEST(StoreBuffer_Overflow) {
@@ -123,19 +131,19 @@ HEAP_TEST(StoreBuffer_NotUsedOnAgingObjectWithRefsToYounger) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
+  heap::SealCurrentObjects(heap);
+  CHECK(heap->store_buffer()->Empty());
 
   const int n = 10;
   HandleScope scope(isolate);
   Handle<FixedArray> arr = factory->NewFixedArray(n);
 
   // Transition the array into the older new tier.
-  SimulateReclaimableFullNewSpace(isolate);
   CcTest::CollectGarbage(i::NEW_SPACE);
   CHECK(Heap::InYoungGeneration(*arr));
 
   // Fill the array with younger objects.
   {
-    const auto prev_top = *(heap->store_buffer_top_address());
     HandleScope scope_inner(isolate);
     for (int i = 0; i < n; i++) {
       Handle<Object> number = factory->NewHeapNumber(i);
@@ -143,17 +151,50 @@ HEAP_TEST(StoreBuffer_NotUsedOnAgingObjectWithRefsToYounger) {
     }
 
     // The references aren't crossing generations yet so none should be tracked.
-    CHECK_EQ(prev_top, *(heap->store_buffer_top_address()));
+    CHECK(heap->store_buffer()->Empty());
   }
 
   // Promote the array into old, its elements are still in new, the old to new
   // refs are inserted directly into the remembered sets during GC.
-  SimulateReclaimableFullNewSpace(isolate);
   CcTest::CollectGarbage(i::NEW_SPACE);
 
-  CHECK(!Heap::InYoungGeneration(*arr));
+  CHECK(heap->InOldSpace(*arr));
   CHECK(Heap::InYoungGeneration(arr->get(n / 2)));
   CHECK(heap->store_buffer()->Empty());
+  CHECK_EQ(n, GetRememberedSetSize<OLD_TO_NEW>(*arr));
+}
+
+HEAP_TEST(RememberedSet_LargePage) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = isolate->heap();
+  heap::SealCurrentObjects(heap);
+  CHECK(heap->store_buffer()->Empty());
+  v8::HandleScope scope(CcTest::isolate());
+
+  // Allocate an object in Large space.
+  const int count = Max(FixedArray::kMaxRegularLength + 1, 128 * KB);
+  Handle<FixedArray> arr = factory->NewFixedArray(count, AllocationType::kOld);
+  CHECK(heap->lo_space()->Contains(*arr));
+
+  // Create OLD_TO_NEW references from the large object.
+  {
+    v8::HandleScope short_lived(CcTest::isolate());
+    Handle<Object> number = factory->NewHeapNumber(42);
+    arr->set(0, *number);
+    arr->set(count - 1, *number);
+    CHECK(!heap->store_buffer()->Empty());
+  }
+
+  // GC should flush the store buffer into the remembered set of the large page,
+  // it should also keep the young targets alive.
+  CcTest::CollectAllGarbage();
+
+  CHECK(heap->store_buffer()->Empty());
+  CHECK(Heap::InYoungGeneration(arr->get(0)));
+  CHECK(Heap::InYoungGeneration(arr->get(count - 1)));
+  CHECK_EQ(2, GetRememberedSetSize<OLD_TO_NEW>(*arr));
 }
 
 HEAP_TEST(InvalidatedSlotsNoInvalidatedRanges) {

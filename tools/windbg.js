@@ -53,6 +53,11 @@ function help() {
   print("  !where(address)");
   print("      prints name of the space and address of the MemoryChunk the");
   print("      'address' is from, e.g. !where(0x235cb869f9)");
+  print("  !rs(chunk_address, set_id = 0)");
+  print("      prints slots from the remembered set in the MemoryChunk. If");
+  print("      'chunk_address' isn't specified, prints for all chunks in the");
+  print("      old space; 'set_id' should match RememberedSetType enum,");
+  print("      e.g. !rs, !rs 0x2fb14780000, !rs(0x2fb14780000, 1)");
   print("");
 
   print("--------------------------------------------------------------------");
@@ -140,10 +145,23 @@ function hex(number) {
 /*=============================================================================
   Utils (postmortem and live)
 =============================================================================*/
-// WinDbg wraps large integers into objects that fail isInteger test (and,
-// consequently fail isSafeInteger test even if the original value was a safe
-// integer). I cannot figure out how to extract the original value from the
-// wrapper object so doing it via conversion to a string. Brrr. Ugly.
+// WinDbg wraps large integers (0x80000000+) into an object of library type that
+// fails isInteger test (and, consequently fail isSafeInteger test even if the
+// original value was a safe integer).
+// However, that library type does have a set of methods on it which you can use
+// to force conversion:
+// .asNumber() / .valueOf(): Performs conversion to JavaScript number.
+// Throws if the ordinal part of the 64-bit number does not pack into JavaScript
+// number without loss of precision.
+// .convertToNumber(): Performs conversion to JavaScript number.
+// Does NOT throw if the ordinal part of the 64-bit number does not pack into
+// JavaScript number. This will simply result in loss of precision.
+// The library will also add these methods to the prototype for the standard
+// number prototype. Meaning you can always .asNumber() / .convertToNumber() to
+// get either JavaScript number or the private Int64 type into a JavaScript
+// number.
+// We could use the conversion functions but it seems that doing the conversion
+// via toString is just as good and slightly more generic...
 function int(val) {
   if (typeof val === 'number') {
     return Number.isInteger(val) ? val : undefined;
@@ -209,8 +227,17 @@ function module_name(use_this_module) {
                  return m.Name.indexOf("\\v8.dll") !== -1;
                 });
 
-    if (v8)  {
+    let v8_test = host.namespace.Debugger.State.DebuggerVariables.curprocess
+                  .Modules.Where(
+                      function(m) {
+                      return m.Name.indexOf("\\v8_for_testing.dll") !== -1;
+                      });
+
+    if (v8.Count() > 0) {
       module_name_cache = "v8";
+    }
+    else if (v8_test.Count() > 0) {
+      module_name_cache = "v8_for_testing";
     }
     else {
       for (let exe_name in known_exes) {
@@ -219,7 +246,7 @@ function module_name(use_this_module) {
                     function(m) {
                       return m.Name.indexOf(`\\${exe_name}.exe`) !== -1;
                     });
-        if (exe) {
+        if (exe.Count() > 0) {
             module_name_cache = exe_name;
             break;
         }
@@ -741,6 +768,79 @@ function dp(addr, count = 10) {
   }
 }
 
+// set ids: 0 = OLD_TO_NEW, 1 = 0 = OLD_TO_OLD
+function print_remembered_set(chunk_addr, set_id = 0) {
+  if (!chunk_addr) {
+    if (isolate_address == 0) {
+      print("Please call !set_iso(isolate_address) or provide chunk address.");
+      return;
+    }
+
+    let iso = cast(isolate_address, "v8::internal::Isolate");
+    let h = iso.heap_;
+    let chunks = [];
+    get_chunks_space('old', h.old_space_.memory_chunk_list_.front_, chunks);
+    get_chunks_space('lo', h.lo_space_.memory_chunk_list_.front_, chunks);
+    for (let c of chunks) {
+      try {
+        print_remembered_set(c.address);
+      }
+      catch (e) {
+        print(`failed to process chunk ${hex(c.address)} due to ${e.message}`);
+      }
+    }
+    return;
+  }
+
+  print(`Remembered set in chunk ${hex(chunk_addr)}`);
+  let chunk = cast(chunk_addr, "v8::internal::MemoryChunk");
+
+  // chunk.slot_set_ is an array of SlotSet's. For standard pages there is 0 or
+  // 1 item in the array, but for large pages there will be more.
+  const page_size = 256 * 1024;
+  const sets_count = Math.floor((chunk.size_ + page_size - 1) / page_size);
+  let rs = chunk.slot_set_[set_id];
+  if (rs.isNull) {
+    print(`  <empty>`);
+    return;
+  }
+  if (rs[0].page_start_ != chunk_addr) {
+    print(`page_start_ [${hex(rs.page_start_)}] doesn't match chunk_addr!`);
+    return;
+  }
+
+  let count = 0;
+  for (let s = 0; s < sets_count; s++){
+    const buckets_count = rs[s].buckets_.Count();
+    for (let b = 0; b < buckets_count; b++) {
+      let bucket = rs[s].buckets_[b];
+      if (bucket.isNull) continue;
+      // there are 32 cells in each bucket, cell's size is 32 bits
+      print(`  bucket ${hex(bucket.address.asNumber())}:`);
+      const first_cell = bucket.address.asNumber();
+      for (let c = 0; c < 32; c++) {
+        let cell = host.memory.readMemoryValues(
+          first_cell + c * 4, 1, 4 /*size to read*/)[0];
+        if (cell == 0) continue;
+        let mask = 1;
+        for (let bit = 0; bit < 32; bit++){
+          if (cell & mask) {
+            count++;
+            const slot_offset = (b * 32 * 32 + c * 32 + bit) * 8;
+            const slot = rs[s].page_start_ + slot_offset;
+            print(`    ${hex(slot)} -> ${hex(poi(slot))}`);
+          }
+          mask = mask << 1;
+        }
+      }
+    }
+  }
+
+  if (count == 0) print(`  <empty>`);
+  else print(`  ${count} remembered pointers in chunk ${hex(chunk_addr)}`);
+}
+
+
 /*=============================================================================
   Initialize short aliased names for the most common commands
 =============================================================================*/
@@ -757,6 +857,7 @@ function initializeScript() {
       new host.functionAlias(print_memory, "mem"),
       new host.functionAlias(print_owning_space, "where"),
       new host.functionAlias(print_handles_data, "handles"),
+      new host.functionAlias(print_remembered_set, "rs"),
 
       new host.functionAlias(print_object_prev, "jo_prev"),
       new host.functionAlias(print_object_next, "jo_next"),
