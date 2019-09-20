@@ -172,8 +172,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       parsing::ReportErrorsAndStatisticsMode stats_mode);
 
   bool AllowsLazyParsingWithoutUnresolvedVariables() const {
-    return scope()->AllowsLazyParsingWithoutUnresolvedVariables(
-        original_scope_);
+    return !MaybeParsingArrowhead() &&
+           scope()->AllowsLazyParsingWithoutUnresolvedVariables(
+               original_scope_);
   }
 
   bool parse_lazily() const { return mode_ == PARSE_LAZILY; }
