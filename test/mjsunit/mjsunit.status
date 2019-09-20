@@ -925,6 +925,10 @@
   'wasm/atomics-stress': [SKIP],
   'wasm/atomics64-stress': [SKIP],
   'wasm/futex': [SKIP],
+
+  # Deadlocks on predictable platform (https://crbug.com/v8/9760).
+  'wasm/async-compile': [SKIP],
+  'wasm/streaming-compile': [SKIP],
 }],  # 'predictable == True'
 
 ##############################################################################
