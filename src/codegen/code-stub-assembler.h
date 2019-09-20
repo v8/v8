@@ -1436,6 +1436,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                           ElementsKind elements_kind);
 
   // Context manipulation
+  TNode<BoolT> LoadContextHasExtensionField(SloppyTNode<Context> context);
   TNode<Object> LoadContextElement(SloppyTNode<Context> context,
                                    int slot_index);
   TNode<Object> LoadContextElement(SloppyTNode<Context> context,

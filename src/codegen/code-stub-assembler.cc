@@ -2787,6 +2787,13 @@ TNode<Float64T> CodeStubAssembler::LoadDoubleWithHoleCheck(
   return UncheckedCast<Float64T>(Load(machine_type, base, offset));
 }
 
+TNode<BoolT> CodeStubAssembler::LoadContextHasExtensionField(
+    SloppyTNode<Context> context) {
+  TNode<IntPtrT> value =
+      LoadAndUntagObjectField(context, Context::kLengthOffset);
+  return IsSetWord<Context::HasExtensionField>(value);
+}
+
 TNode<Object> CodeStubAssembler::LoadContextElement(
     SloppyTNode<Context> context, int slot_index) {
   int offset = Context::SlotOffset(slot_index);
