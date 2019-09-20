@@ -32,6 +32,7 @@ for more details about the presubmit API built into gcl.
 """
 
 import json
+import os
 import re
 import sys
 
@@ -134,8 +135,68 @@ def _CheckUnwantedDependencies(input_api, output_api):
     # Restore sys.path to what it was before.
     sys.path = original_sys_path
 
+  def _FilesImpactedByDepsChange(files):
+    all_files = [f.AbsoluteLocalPath() for f in files]
+    deps_files = [p for p in all_files if IsDepsFile(p)]
+    impacted_files = union([_CollectImpactedFiles(path) for path in deps_files])
+    impacted_file_objs = [ImpactedFile(path) for path in impacted_files]
+    return impacted_file_objs
+
+  def IsDepsFile(p):
+    return os.path.isfile(p) and os.path.basename(p) == 'DEPS'
+
+  def union(list_of_lists):
+    """Ensure no duplicates"""
+    return set(sum(list_of_lists, []))
+
+  def _CollectImpactedFiles(deps_file):
+    # TODO(liviurau): Do not walk paths twice. Then we have no duplicates.
+    # Higher level DEPS changes may dominate lower level DEPS changes.
+    # TODO(liviurau): Check if DEPS changed in the right way.
+    # 'include_rules' impact c++ files but 'vars' or 'deps' do not.
+    # Maybe we just eval both old and new DEPS content and check
+    # if the list are the same.
+    result = []
+    parent_dir = os.path.dirname(deps_file)
+    for relative_f in input_api.change.AllFiles(parent_dir):
+      abs_f = os.path.join(parent_dir, relative_f)
+      if CppChecker.IsCppFile(abs_f):
+        result.append(abs_f)
+    return result
+
+  class ImpactedFile(object):
+    """Duck type version of AffectedFile needed to check files under directories
+    where a DEPS file changed. Extend the interface along the line of
+    AffectedFile if you need it for other checks."""
+
+    def __init__(self, path):
+      self._path = path
+
+    def LocalPath(self):
+      path = self._path.replace(os.sep, '/')
+      return os.path.normpath(path)
+
+    def ChangedContents(self):
+      with open(self._path) as f:
+        # TODO(liviurau): read only '#include' lines
+        lines = f.readlines()
+      return enumerate(lines, start=1)
+
+  def _FilterDuplicates(impacted_files, affected_files):
+    """"We include all impacted files but exclude affected files that are also
+    impacted. Files impacted by DEPS changes take precedence before files
+    affected by direct changes."""
+    result = impacted_files[:]
+    only_paths = set([imf.LocalPath() for imf in impacted_files])
+    for af in affected_files:
+      if not af.LocalPath() in only_paths:
+        result.append(af)
+    return result
+
   added_includes = []
-  for f in input_api.AffectedFiles():
+  affected_files = input_api.AffectedFiles()
+  impacted_by_deps = _FilesImpactedByDepsChange(affected_files)
+  for f in _FilterDuplicates(impacted_by_deps, affected_files):
     if not CppChecker.IsCppFile(f.LocalPath()):
       continue
 
