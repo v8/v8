@@ -426,6 +426,10 @@ class Shell : public i::AllStatic {
   static MaybeLocal<Promise> HostImportModuleDynamically(
       Local<Context> context, Local<ScriptOrModule> referrer,
       Local<String> specifier);
+  static void ModuleResolutionSuccessCallback(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void ModuleResolutionFailureCallback(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
   static void HostInitializeImportMetaObject(Local<Context> context,
                                              Local<Module> module,
                                              Local<Object> meta);

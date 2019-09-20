@@ -1123,4 +1123,10 @@
   'compiler/load-elimination-const-field': [SKIP],
 }],  # variant == turboprop
 
+##############################################################################
+['variant == top_level_await', {
+  # specifically expects to fail on top level await.
+  'harmony/modules-import-15': [SKIP],
+}], # variant == top_level_await
+
 ]

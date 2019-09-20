@@ -752,7 +752,59 @@ struct DynamicImportData {
   Global<Promise::Resolver> resolver;
 };
 
+struct ModuleResolutionData {
+  ModuleResolutionData(Isolate* isolate_, Local<Value> module_namespace_,
+                       Local<Promise::Resolver> resolver_)
+      : isolate(isolate_) {
+    module_namespace.Reset(isolate, module_namespace_);
+    resolver.Reset(isolate, resolver_);
+  }
+
+  Isolate* isolate;
+  Global<Value> module_namespace;
+  Global<Promise::Resolver> resolver;
+};
+
 }  // namespace
+
+void Shell::ModuleResolutionSuccessCallback(
+    const FunctionCallbackInfo<Value>& info) {
+  std::unique_ptr<ModuleResolutionData> module_resolution_data(
+      static_cast<ModuleResolutionData*>(
+          info.Data().As<v8::External>()->Value()));
+  Isolate* isolate(module_resolution_data->isolate);
+  HandleScope handle_scope(isolate);
+
+  Local<Promise::Resolver> resolver(
+      module_resolution_data->resolver.Get(isolate));
+  Local<Value> module_namespace(
+      module_resolution_data->module_namespace.Get(isolate));
+
+  PerIsolateData* data = PerIsolateData::Get(isolate);
+  Local<Context> realm = data->realms_[data->realm_current_].Get(isolate);
+  Context::Scope context_scope(realm);
+
+  resolver->Resolve(realm, module_namespace).ToChecked();
+}
+
+void Shell::ModuleResolutionFailureCallback(
+    const FunctionCallbackInfo<Value>& info) {
+  std::unique_ptr<ModuleResolutionData> module_resolution_data(
+      static_cast<ModuleResolutionData*>(
+          info.Data().As<v8::External>()->Value()));
+  Isolate* isolate(module_resolution_data->isolate);
+  HandleScope handle_scope(isolate);
+
+  Local<Promise::Resolver> resolver(
+      module_resolution_data->resolver.Get(isolate));
+
+  PerIsolateData* data = PerIsolateData::Get(isolate);
+  Local<Context> realm = data->realms_[data->realm_current_].Get(isolate);
+  Context::Scope context_scope(realm);
+
+  DCHECK_EQ(info.Length(), 1);
+  resolver->Reject(realm, info[0]).ToChecked();
+}
 
 MaybeLocal<Promise> Shell::HostImportModuleDynamically(
     Local<Context> context, Local<ScriptOrModule> referrer,
@@ -841,19 +893,44 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
   if (root_module->InstantiateModule(realm, ResolveModuleCallback)
           .FromMaybe(false)) {
     maybe_result = root_module->Evaluate(realm);
+    CHECK_IMPLIES(i::FLAG_harmony_top_level_await, !maybe_result.IsEmpty());
     EmptyMessageQueues(isolate);
   }
 
-  Local<Value> module;
-  if (!maybe_result.ToLocal(&module)) {
+  Local<Value> result;
+  if (!maybe_result.ToLocal(&result)) {
     DCHECK(try_catch.HasCaught());
     resolver->Reject(realm, try_catch.Exception()).ToChecked();
     return;
   }
 
-  DCHECK(!try_catch.HasCaught());
   Local<Value> module_namespace = root_module->GetModuleNamespace();
-  resolver->Resolve(realm, module_namespace).ToChecked();
+  if (i::FLAG_harmony_top_level_await) {
+    Local<Promise> result_promise(Local<Promise>::Cast(result));
+    if (result_promise->State() == Promise::kRejected) {
+      resolver->Reject(realm, result_promise->Result()).ToChecked();
+      return;
+    }
+
+    // Setup callbacks, and then chain them to the result promise.
+    // ModuleResolutionData will be deleted by the callbacks.
+    auto module_resolution_data =
+        new ModuleResolutionData(isolate, module_namespace, resolver);
+    Local<v8::External> edata = External::New(isolate, module_resolution_data);
+    Local<Function> callback_success;
+    CHECK(Function::New(realm, ModuleResolutionSuccessCallback, edata)
+              .ToLocal(&callback_success));
+    Local<Function> callback_failure;
+    CHECK(Function::New(realm, ModuleResolutionFailureCallback, edata)
+              .ToLocal(&callback_failure));
+    result_promise->Then(realm, callback_success, callback_failure)
+        .ToLocalChecked();
+  } else {
+    // TODO(joshualitt): Clean up exception handling after introucing new
+    // API for evaluating async modules.
+    DCHECK(!try_catch.HasCaught());
+    resolver->Resolve(realm, module_namespace).ToChecked();
+  }
 }
 
 bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
@@ -869,7 +946,6 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   try_catch.SetVerbose(true);
 
   Local<Module> root_module;
-  MaybeLocal<Value> maybe_exception;
 
   if (!FetchModuleTree(realm, absolute_path).ToLocal(&root_module)) {
     CHECK(try_catch.HasCaught());
@@ -881,6 +957,7 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   if (root_module->InstantiateModule(realm, ResolveModuleCallback)
           .FromMaybe(false)) {
     maybe_result = root_module->Evaluate(realm);
+    CHECK_IMPLIES(i::FLAG_harmony_top_level_await, !maybe_result.IsEmpty());
     EmptyMessageQueues(isolate);
   }
   Local<Value> result;
@@ -890,6 +967,30 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
     ReportException(isolate, &try_catch);
     return false;
   }
+  if (i::FLAG_harmony_top_level_await) {
+    // Loop until module execution finishes
+    // TODO(joshualitt): This is a bit wonky. "Real" engines would not be
+    // able to just busy loop waiting for execution to finish.
+    Local<Promise> result_promise(Local<Promise>::Cast(result));
+    while (result_promise->State() == Promise::kPending) {
+      isolate->RunMicrotasks();
+    }
+
+    if (result_promise->State() == Promise::kRejected) {
+      // If the exception has been caught by the promise pipeline, we rethrow
+      // here in order to ReportException.
+      // TODO(joshualitt): Clean this up after we create a new API for the case
+      // where TLA is enabled.
+      if (!try_catch.HasCaught()) {
+        isolate->ThrowException(result_promise->Result());
+      } else {
+        DCHECK_EQ(try_catch.Exception(), result_promise->Result());
+      }
+      ReportException(isolate, &try_catch);
+      return false;
+    }
+  }
+
   DCHECK(!try_catch.HasCaught());
   return true;
 }
