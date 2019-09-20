@@ -2000,6 +2000,14 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I8x16ShrS)                            \
   V(I8x16ShrU)
 
+void InstructionSelector::VisitF64x2Splat(Node* node) {
+  VisitRRSimd(this, node, kAVXF64x2Splat, kSSEF64x2Splat);
+}
+
+void InstructionSelector::VisitF64x2ExtractLane(Node* node) {
+  VisitRRISimd(this, node, kAVXF64x2ExtractLane, kSSEF64x2ExtractLane);
+}
+
 void InstructionSelector::VisitF32x4Splat(Node* node) {
   VisitRRSimd(this, node, kAVXF32x4Splat, kSSEF32x4Splat);
 }
@@ -2090,6 +2098,28 @@ SIMD_INT_TYPES(VISIT_SIMD_REPLACE_LANE)
 VISIT_SIMD_REPLACE_LANE(F32x4)
 #undef VISIT_SIMD_REPLACE_LANE
 #undef SIMD_INT_TYPES
+
+// The difference between this and VISIT_SIMD_REPLACE_LANE is that this forces
+// operand2 to be UseRegister, because the codegen relies on insertps using
+// registers.
+// TODO(v8:9764) Remove this UseRegister requirement
+#define VISIT_SIMD_REPLACE_LANE_USE_REG(Type)                            \
+  void InstructionSelector::Visit##Type##ReplaceLane(Node* node) {       \
+    IA32OperandGenerator g(this);                                        \
+    InstructionOperand operand0 = g.UseRegister(node->InputAt(0));       \
+    InstructionOperand operand1 =                                        \
+        g.UseImmediate(OpParameter<int32_t>(node->op()));                \
+    InstructionOperand operand2 = g.UseRegister(node->InputAt(1));       \
+    if (IsSupported(AVX)) {                                              \
+      Emit(kAVX##Type##ReplaceLane, g.DefineAsRegister(node), operand0,  \
+           operand1, operand2);                                          \
+    } else {                                                             \
+      Emit(kSSE##Type##ReplaceLane, g.DefineSameAsFirst(node), operand0, \
+           operand1, operand2);                                          \
+    }                                                                    \
+  }
+VISIT_SIMD_REPLACE_LANE_USE_REG(F64x2)
+#undef VISIT_SIMD_REPLACE_LANE_USE_REG
 
 #define VISIT_SIMD_SHIFT(Opcode)                               \
   void InstructionSelector::Visit##Opcode(Node* node) {        \

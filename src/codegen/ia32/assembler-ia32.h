@@ -850,6 +850,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void movups(XMMRegister dst, Operand src);
   void movups(Operand dst, XMMRegister src);
   void shufps(XMMRegister dst, XMMRegister src, byte imm8);
+  void shufpd(XMMRegister dst, XMMRegister src, byte imm8);
 
   void maxss(XMMRegister dst, XMMRegister src) { maxss(dst, Operand(src)); }
   void maxss(XMMRegister dst, Operand src);
@@ -1319,12 +1320,18 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   void vmovaps(XMMRegister dst, XMMRegister src) { vmovaps(dst, Operand(src)); }
   void vmovaps(XMMRegister dst, Operand src) { vps(0x28, dst, xmm0, src); }
+  void vmovapd(XMMRegister dst, XMMRegister src) { vmovapd(dst, Operand(src)); }
+  void vmovapd(XMMRegister dst, Operand src) { vpd(0x28, dst, xmm0, src); }
   void vmovups(XMMRegister dst, XMMRegister src) { vmovups(dst, Operand(src)); }
   void vmovups(XMMRegister dst, Operand src) { vps(0x10, dst, xmm0, src); }
   void vshufps(XMMRegister dst, XMMRegister src1, XMMRegister src2, byte imm8) {
     vshufps(dst, src1, Operand(src2), imm8);
   }
   void vshufps(XMMRegister dst, XMMRegister src1, Operand src2, byte imm8);
+  void vshufpd(XMMRegister dst, XMMRegister src1, XMMRegister src2, byte imm8) {
+    vshufpd(dst, src1, Operand(src2), imm8);
+  }
+  void vshufpd(XMMRegister dst, XMMRegister src1, Operand src2, byte imm8);
 
   void vpsllw(XMMRegister dst, XMMRegister src, uint8_t imm8);
   void vpslld(XMMRegister dst, XMMRegister src, uint8_t imm8);

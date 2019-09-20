@@ -877,6 +877,7 @@ WASM_SIMD_TEST_NO_LOWERING(F32x4Qfms) {
 }
 #endif  // V8_TARGET_ARCH_X64
 
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 WASM_SIMD_TEST_NO_LOWERING(I64x2Splat) {
   WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);
@@ -1072,6 +1073,7 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2GeU) {
   RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2GeU,
                     UnsignedGreaterEqual);
 }
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 WASM_SIMD_TEST_NO_LOWERING(F64x2Splat) {
   WasmRunner<int32_t, double> r(execution_tier, lower_simd);
@@ -1095,6 +1097,7 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Splat) {
   }
 }
 
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 WASM_SIMD_TEST_NO_LOWERING(F64x2ExtractLaneWithI64x2) {
   WasmRunner<int64_t> r(execution_tier, lower_simd);
   BUILD(r, WASM_IF_ELSE_L(
@@ -1104,6 +1107,7 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2ExtractLaneWithI64x2) {
                WASM_I64V(1), WASM_I64V(0)));
   CHECK_EQ(1, r.Call());
 }
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 WASM_SIMD_TEST_NO_LOWERING(F64x2ExtractLane) {
   WasmRunner<double, double> r(execution_tier, lower_simd);
@@ -1127,6 +1131,7 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2ExtractLane) {
   }
 }
 
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 WASM_SIMD_TEST_NO_LOWERING(I64x2ExtractWithF64x2) {
   WasmRunner<int64_t> r(execution_tier, lower_simd);
   BUILD(r, WASM_IF_ELSE_L(
@@ -1136,6 +1141,7 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2ExtractWithF64x2) {
                WASM_I64V(1), WASM_I64V(0)));
   CHECK_EQ(1, r.Call());
 }
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 WASM_SIMD_TEST_NO_LOWERING(F64x2ReplaceLane) {
   WasmRunner<int32_t> r(execution_tier, lower_simd);
@@ -1156,6 +1162,7 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2ReplaceLane) {
   }
 }
 
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 bool IsExtreme(double x) {
   double abs_x = std::fabs(x);
   const double kSmallFloatThreshold = 1.0e-298;
@@ -1278,11 +1285,9 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Neg) {
   RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2Neg, Negate);
 }
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 WASM_SIMD_TEST_NO_LOWERING(F64x2Sqrt) {
   RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2Sqrt, Sqrt);
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 void RunF64x2BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                        WasmOpcode opcode, DoubleBinOp expected_op) {
@@ -1413,6 +1418,7 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2Mul) {
   RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2Mul,
                     base::MulWithWraparound);
 }
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 #if V8_TARGET_ARCH_X64
 WASM_SIMD_TEST_NO_LOWERING(I64x2MinS) {
@@ -1481,7 +1487,7 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Qfms) {
   }
 }
 #endif  // V8_TARGET_ARCH_X64
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32
 
 WASM_SIMD_TEST(I32x4Splat) {
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);

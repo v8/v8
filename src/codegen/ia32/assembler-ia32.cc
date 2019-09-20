@@ -2405,6 +2405,16 @@ void Assembler::shufps(XMMRegister dst, XMMRegister src, byte imm8) {
   EMIT(imm8);
 }
 
+void Assembler::shufpd(XMMRegister dst, XMMRegister src, byte imm8) {
+  DCHECK(is_uint8(imm8));
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0xC6);
+  emit_sse_operand(dst, src);
+  EMIT(imm8);
+}
+
 void Assembler::movdqa(Operand dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
@@ -2816,6 +2826,13 @@ void Assembler::vps(byte op, XMMRegister dst, XMMRegister src1, Operand src2) {
 
 void Assembler::vpd(byte op, XMMRegister dst, XMMRegister src1, Operand src2) {
   vinstr(op, dst, src1, src2, k66, k0F, kWIG);
+}
+
+void Assembler::vshufpd(XMMRegister dst, XMMRegister src1, Operand src2,
+                        byte imm8) {
+  DCHECK(is_uint8(imm8));
+  vpd(0xC6, dst, src1, src2);
+  EMIT(imm8);
 }
 
 void Assembler::vcmpps(XMMRegister dst, XMMRegister src1, Operand src2,

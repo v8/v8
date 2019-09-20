@@ -1216,6 +1216,13 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
         AppendToBuffer(",%d", Imm8(current));
         current++;
         break;
+      case 0xC6:
+        AppendToBuffer("vshufpd %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",%d", Imm8(current));
+        current++;
+        break;
 #define DECLARE_SSE_AVX_DIS_CASE(instruction, notUsed1, notUsed2, opcode) \
   case 0x##opcode: {                                                      \
     AppendToBuffer("v" #instruction " %s,%s,", NameOfXMMRegister(regop),  \
@@ -2267,6 +2274,15 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             get_modrm(*data, &mod, &regop, &rm);
             AppendToBuffer("pinsrw %s,", NameOfXMMRegister(regop));
             data += PrintRightOperand(data);
+            AppendToBuffer(",%d", Imm8(data));
+            data++;
+          } else if (*data == 0xC6) {
+            // shufpd xmm, xmm/m128, imm8
+            data++;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("shufpd %s,", NameOfXMMRegister(regop));
+            data += PrintRightXMMOperand(data);
             AppendToBuffer(",%d", Imm8(data));
             data++;
           } else if (*data == 0xE7) {

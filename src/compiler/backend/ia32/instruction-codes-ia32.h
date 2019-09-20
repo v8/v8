@@ -116,6 +116,12 @@ namespace compiler {
   V(IA32PushSimd128)               \
   V(IA32Poke)                      \
   V(IA32Peek)                      \
+  V(SSEF64x2Splat)                 \
+  V(AVXF64x2Splat)                 \
+  V(SSEF64x2ExtractLane)           \
+  V(AVXF64x2ExtractLane)           \
+  V(SSEF64x2ReplaceLane)           \
+  V(AVXF64x2ReplaceLane)           \
   V(SSEF32x4Splat)                 \
   V(AVXF32x4Splat)                 \
   V(SSEF32x4ExtractLane)           \
