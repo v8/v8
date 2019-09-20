@@ -757,11 +757,11 @@ class V8_EXPORT_PRIVATE Instruction final {
  public:
   size_t OutputCount() const { return OutputCountField::decode(bit_field_); }
   const InstructionOperand* OutputAt(size_t i) const {
-    DCHECK(i < OutputCount());
+    DCHECK_LT(i, OutputCount());
     return &operands_[i];
   }
   InstructionOperand* OutputAt(size_t i) {
-    DCHECK(i < OutputCount());
+    DCHECK_LT(i, OutputCount());
     return &operands_[i];
   }
 
@@ -771,21 +771,21 @@ class V8_EXPORT_PRIVATE Instruction final {
 
   size_t InputCount() const { return InputCountField::decode(bit_field_); }
   const InstructionOperand* InputAt(size_t i) const {
-    DCHECK(i < InputCount());
+    DCHECK_LT(i, InputCount());
     return &operands_[OutputCount() + i];
   }
   InstructionOperand* InputAt(size_t i) {
-    DCHECK(i < InputCount());
+    DCHECK_LT(i, InputCount());
     return &operands_[OutputCount() + i];
   }
 
   size_t TempCount() const { return TempCountField::decode(bit_field_); }
   const InstructionOperand* TempAt(size_t i) const {
-    DCHECK(i < TempCount());
+    DCHECK_LT(i, TempCount());
     return &operands_[OutputCount() + InputCount() + i];
   }
   InstructionOperand* TempAt(size_t i) {
-    DCHECK(i < TempCount());
+    DCHECK_LT(i, TempCount());
     return &operands_[OutputCount() + InputCount() + i];
   }
 
