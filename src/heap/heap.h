@@ -1346,9 +1346,7 @@ class Heap {
     // per call to mmap(). The page is only reclaimed when the process is
     // killed. Confine the hint to a 32-bit section of the virtual address
     // space. See crbug.com/700928.
-    uintptr_t offset =
-        reinterpret_cast<uintptr_t>(v8::internal::GetRandomMmapAddr()) &
-        kMmapRegionMask;
+    uintptr_t offset = reinterpret_cast<uintptr_t>(result) & kMmapRegionMask;
     result = reinterpret_cast<void*>(mmap_region_base_ + offset);
 #endif  // V8_OS_MACOSX
 #endif  // V8_TARGET_ARCH_X64
@@ -1478,9 +1476,7 @@ class Heap {
 
   StoreBuffer* store_buffer() { return store_buffer_.get(); }
 
-  void set_current_gc_flags(int flags) {
-    current_gc_flags_ = flags;
-  }
+  void set_current_gc_flags(int flags) { current_gc_flags_ = flags; }
 
   inline bool ShouldReduceMemory() const {
     return (current_gc_flags_ & kReduceMemoryFootprintMask) != 0;
@@ -2164,7 +2160,6 @@ class HeapStats {
   intptr_t* end_marker;                    // 27
 };
 
-
 class AlwaysAllocateScope {
  public:
   explicit inline AlwaysAllocateScope(Heap* heap);
@@ -2244,7 +2239,6 @@ class VerifyPointersVisitor : public ObjectVisitor, public RootVisitor {
   Heap* heap_;
 };
 
-
 // Verify that all objects are Smis.
 class VerifySmisVisitor : public RootVisitor {
  public:
@@ -2275,7 +2269,7 @@ class V8_EXPORT_PRIVATE SpaceIterator : public Malloced {
 
  private:
   Heap* heap_;
-  int current_space_;         // from enum AllocationSpace.
+  int current_space_;  // from enum AllocationSpace.
 };
 
 // A HeapObjectIterator provides iteration over the entire non-read-only heap.
