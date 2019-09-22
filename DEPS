@@ -71,9 +71,9 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '2a85930b01d95ad6eda58f3cef8d2c90b092f834',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '57429237eb1ce0fedb1416f49be2506e3c2c9596',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'd4d1ba4971aa0bb0cf2cf059251a12d31b275587',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '82ae4b4b7d53362d7c8ff27731e9c89747865b93',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '2ecd66c696c46e255cd634d3175b1072f4499949',
   'v8/third_party/instrumented_libraries':
