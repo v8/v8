@@ -2573,9 +2573,9 @@ SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
   receiver_map.SerializeRootMap();
 
   // For JSNativeContextSpecialization::ReduceNamedAccess.
-  if (receiver_map.IsMapOfTargetGlobalProxy()) {
-    JSGlobalProxyRef global_proxy =
-        broker()->target_native_context().global_proxy_object();
+  JSGlobalProxyRef global_proxy =
+      broker()->target_native_context().global_proxy_object();
+  if (receiver_map.equals(global_proxy.map())) {
     base::Optional<PropertyCellRef> cell = global_proxy.GetPropertyCell(
         name, SerializationPolicy::kSerializeIfNeeded);
     if (access_mode == AccessMode::kLoad && cell.has_value()) {

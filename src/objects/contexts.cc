@@ -131,10 +131,6 @@ JSGlobalProxy Context::global_proxy() {
   return native_context().global_proxy_object();
 }
 
-void Context::set_global_proxy(JSGlobalProxy object) {
-  native_context().set_global_proxy_object(object);
-}
-
 /**
  * Lookups a property in an object environment, taking the unscopables into
  * account. This is used For HasBinding spec algorithms for ObjectEnvironment.

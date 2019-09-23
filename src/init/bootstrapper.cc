@@ -1300,8 +1300,8 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
   DCHECK(native_context()
              ->get(Context::GLOBAL_PROXY_INDEX)
              .IsUndefined(isolate()) ||
-         native_context()->global_proxy() == *global_proxy);
-  native_context()->set_global_proxy(*global_proxy);
+         native_context()->global_proxy_object() == *global_proxy);
+  native_context()->set_global_proxy_object(*global_proxy);
 
   return global_object;
 }

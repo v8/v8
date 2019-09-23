@@ -881,9 +881,6 @@ class Map : public HeapObject {
       InstanceType instance_type);
   inline bool CanHaveFastTransitionableElementsKind() const;
 
-  // Whether this is the map of the given native context's global proxy.
-  bool IsMapOfGlobalProxy(Handle<NativeContext> native_context) const;
-
  private:
   // This byte encodes either the instance size without the in-object slack or
   // the slack size in properties backing store.

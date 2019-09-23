@@ -963,9 +963,6 @@ class MapData : public HeapObjectData {
   bool supports_fast_array_resize() const {
     return supports_fast_array_resize_;
   }
-  bool IsMapOfTargetGlobalProxy() const {
-    return is_map_of_target_global_proxy_;
-  }
   bool is_abandoned_prototype_map() const {
     return is_abandoned_prototype_map_;
   }
@@ -1028,7 +1025,6 @@ class MapData : public HeapObjectData {
   int const unused_property_fields_;
   bool const supports_fast_array_iteration_;
   bool const supports_fast_array_resize_;
-  bool const is_map_of_target_global_proxy_;
   bool const is_abandoned_prototype_map_;
 
   bool serialized_elements_kind_generalizations_ = false;
@@ -1155,8 +1151,6 @@ MapData::MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object)
           SupportsFastArrayIteration(broker->isolate(), object)),
       supports_fast_array_resize_(
           SupportsFastArrayResize(broker->isolate(), object)),
-      is_map_of_target_global_proxy_(
-          object->IsMapOfGlobalProxy(broker->target_native_context().object())),
       is_abandoned_prototype_map_(object->is_abandoned_prototype_map()),
       elements_kind_generalizations_(broker->zone()) {}
 
@@ -1817,12 +1811,17 @@ class JSGlobalObjectData : public JSObjectData {
  public:
   JSGlobalObjectData(JSHeapBroker* broker, ObjectData** storage,
                      Handle<JSGlobalObject> object);
+  bool IsDetached() const { return is_detached_; }
+
+ private:
+  bool const is_detached_;
 };
 
 JSGlobalObjectData::JSGlobalObjectData(JSHeapBroker* broker,
                                        ObjectData** storage,
                                        Handle<JSGlobalObject> object)
-    : JSObjectData(broker, storage, object) {}
+    : JSObjectData(broker, storage, object),
+      is_detached_(object->IsDetached()) {}
 
 class JSGlobalProxyData : public JSObjectData {
  public:
@@ -2709,16 +2708,6 @@ bool MapRef::supports_fast_array_resize() const {
   return data()->AsMap()->supports_fast_array_resize();
 }
 
-bool MapRef::IsMapOfTargetGlobalProxy() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
-    AllowHandleDereference allow_handle_dereference;
-    AllowHandleAllocation handle_allocation;
-    return object()->IsMapOfGlobalProxy(
-        broker()->target_native_context().object());
-  }
-  return data()->AsMap()->IsMapOfTargetGlobalProxy();
-}
-
 int JSFunctionRef::InitialMapInstanceSizeWithMinSlack() const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference allow_handle_dereference;
@@ -3168,6 +3157,8 @@ BIMODAL_ACCESSOR(JSFunction, Map, initial_map)
 BIMODAL_ACCESSOR(JSFunction, Object, prototype)
 BIMODAL_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
 BIMODAL_ACCESSOR(JSFunction, FeedbackVector, feedback_vector)
+
+BIMODAL_ACCESSOR_C(JSGlobalObject, bool, IsDetached)
 
 BIMODAL_ACCESSOR_C(JSTypedArray, bool, is_on_heap)
 BIMODAL_ACCESSOR_C(JSTypedArray, size_t, length)

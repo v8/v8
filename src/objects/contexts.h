@@ -580,7 +580,6 @@ class Context : public HeapObject {
 
   // Returns a JSGlobalProxy object or null.
   V8_EXPORT_PRIVATE JSGlobalProxy global_proxy();
-  void set_global_proxy(JSGlobalProxy global);
 
   // Get the JSGlobalObject object.
   V8_EXPORT_PRIVATE JSGlobalObject global_object();

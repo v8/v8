@@ -56,18 +56,6 @@ MaybeHandle<JSFunction> Map::GetConstructorFunction(
   return MaybeHandle<JSFunction>();
 }
 
-bool Map::IsMapOfGlobalProxy(Handle<NativeContext> native_context) const {
-  DisallowHeapAllocation no_gc;
-  if (IsJSGlobalProxyMap()) {
-    Object maybe_constructor = GetConstructor();
-    // Detached global proxies have |null| as their constructor.
-    return maybe_constructor.IsJSFunction() &&
-           JSFunction::cast(maybe_constructor).native_context() ==
-               *native_context;
-  }
-  return false;
-}
-
 void Map::PrintReconfiguration(Isolate* isolate, FILE* file, int modify_index,
                                PropertyKind kind,
                                PropertyAttributes attributes) {

@@ -588,7 +588,6 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   bool is_migration_target() const;
   bool supports_fast_array_iteration() const;
   bool supports_fast_array_resize() const;
-  bool IsMapOfTargetGlobalProxy() const;
   bool is_abandoned_prototype_map() const;
 
   OddballType oddball_type() const;
@@ -869,6 +868,8 @@ class JSGlobalObjectRef : public JSObjectRef {
   DEFINE_REF_CONSTRUCTOR(JSGlobalObject, JSObjectRef)
 
   Handle<JSGlobalObject> object() const;
+
+  bool IsDetached() const;
 };
 
 class JSGlobalProxyRef : public JSObjectRef {
