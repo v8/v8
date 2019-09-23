@@ -1138,11 +1138,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     // If ok, push undefined as the initial value for all register file entries.
     Label loop_header;
     Label loop_check;
-    __ LoadRoot(r9, RootIndex::kUndefinedValue);
+    __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
     __ b(&loop_check, al);
     __ bind(&loop_header);
     // TODO(rmcilroy): Consider doing more than one push per loop iteration.
-    __ push(r9);
+    __ push(kInterpreterAccumulatorRegister);
     // Continue loop if not done.
     __ bind(&loop_check);
     __ sub(r4, r4, Operand(kPointerSize), SetCC);
@@ -1157,8 +1157,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ cmp(r9, Operand::Zero());
   __ str(r3, MemOperand(fp, r9, LSL, kPointerSizeLog2), ne);
 
-  // Load accumulator with undefined.
-  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
+  // The accumulator is already loaded with undefined.
 
   // Load the dispatch table into a register and dispatch to the bytecode
   // handler at the current bytecode offset.

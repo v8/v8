@@ -1270,13 +1270,13 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     // Note: there should always be at least one stack slot for the return
     // register in the register file.
     Label loop_header;
-    __ LoadRoot(x10, RootIndex::kUndefinedValue);
+    __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
     __ Lsr(x11, x11, kSystemPointerSizeLog2);
     // Round up the number of registers to a multiple of 2, to align the stack
     // to 16 bytes.
     __ Add(x11, x11, 1);
     __ Bic(x11, x11, 1);
-    __ PushMultipleTimes(x10, x11);
+    __ PushMultipleTimes(kInterpreterAccumulatorRegister, x11);
     __ Bind(&loop_header);
   }
 
@@ -1291,8 +1291,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Str(x3, MemOperand(fp, x10, LSL, kSystemPointerSizeLog2));
   __ Bind(&no_incoming_new_target_or_generator_register);
 
-  // Load accumulator with undefined.
-  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
+  // The accumulator is already loaded with undefined.
 
   // Load the dispatch table into a register and dispatch to the bytecode
   // handler at the current bytecode offset.
