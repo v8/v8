@@ -3742,7 +3742,8 @@ std::shared_ptr<v8::BackingStore> v8::ArrayBuffer::GetBackingStore() {
   i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
   std::shared_ptr<i::BackingStore> backing_store = self->GetBackingStore();
   if (!backing_store) {
-    backing_store = i::BackingStore::NewEmptyBackingStore();
+    backing_store =
+        i::BackingStore::NewEmptyBackingStore(i::SharedFlag::kNotShared);
   }
   i::GlobalBackingStoreRegistry::Register(backing_store);
   std::shared_ptr<i::BackingStoreBase> bs_base = backing_store;
@@ -3753,7 +3754,8 @@ std::shared_ptr<v8::BackingStore> v8::SharedArrayBuffer::GetBackingStore() {
   i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
   std::shared_ptr<i::BackingStore> backing_store = self->GetBackingStore();
   if (!backing_store) {
-    backing_store = i::BackingStore::NewEmptyBackingStore();
+    backing_store =
+        i::BackingStore::NewEmptyBackingStore(i::SharedFlag::kShared);
   }
   i::GlobalBackingStoreRegistry::Register(backing_store);
   std::shared_ptr<i::BackingStoreBase> bs_base = backing_store;

@@ -454,14 +454,15 @@ std::unique_ptr<BackingStore> BackingStore::WrapAllocation(
   return std::unique_ptr<BackingStore>(result);
 }
 
-std::unique_ptr<BackingStore> BackingStore::NewEmptyBackingStore() {
-  auto result = new BackingStore(nullptr,                 // start
-                                 0,                       // length
-                                 0,                       // capacity
-                                 SharedFlag::kNotShared,  // shared
-                                 false,                   // is_wasm_memory
-                                 false,                   // free_on_destruct
-                                 false);                  // has_guard_regions
+std::unique_ptr<BackingStore> BackingStore::NewEmptyBackingStore(
+    SharedFlag shared) {
+  auto result = new BackingStore(nullptr,  // start
+                                 0,        // length
+                                 0,        // capacity
+                                 shared,   // shared
+                                 false,    // is_wasm_memory
+                                 false,    // free_on_destruct
+                                 false);   // has_guard_regions
 
   return std::unique_ptr<BackingStore>(result);
 }

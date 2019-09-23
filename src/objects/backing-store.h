@@ -64,7 +64,7 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
                                                       bool free_on_destruct);
 
   // Create an empty backing store.
-  static std::unique_ptr<BackingStore> NewEmptyBackingStore();
+  static std::unique_ptr<BackingStore> NewEmptyBackingStore(SharedFlag shared);
 
   // Accessors.
   void* buffer_start() const { return buffer_start_; }
