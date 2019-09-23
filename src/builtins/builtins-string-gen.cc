@@ -10,6 +10,7 @@
 #include "src/codegen/code-factory.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/logging/counters.h"
 #include "src/objects/objects.h"
 #include "src/objects/property-cell.h"
 
@@ -285,6 +286,262 @@ void StringBuiltinsAssembler::StringEqual_Loop(
     var_offset = IntPtrAdd(var_offset.value(), IntPtrConstant(1));
     Goto(&loop);
   }
+}
+
+TNode<String> StringBuiltinsAssembler::StringFromSingleUTF16EncodedCodePoint(
+    TNode<Int32T> codepoint) {
+  VARIABLE(var_result, MachineRepresentation::kTagged, EmptyStringConstant());
+
+  Label if_isword16(this), if_isword32(this), return_result(this);
+
+  Branch(Uint32LessThan(codepoint, Int32Constant(0x10000)), &if_isword16,
+         &if_isword32);
+
+  BIND(&if_isword16);
+  {
+    var_result.Bind(StringFromSingleCharCode(codepoint));
+    Goto(&return_result);
+  }
+
+  BIND(&if_isword32);
+  {
+    TNode<String> value = AllocateSeqTwoByteString(2);
+    StoreNoWriteBarrier(
+        MachineRepresentation::kWord32, value,
+        IntPtrConstant(SeqTwoByteString::kHeaderSize - kHeapObjectTag),
+        codepoint);
+    var_result.Bind(value);
+    Goto(&return_result);
+  }
+
+  BIND(&return_result);
+  return CAST(var_result.value());
+}
+
+TNode<String> StringBuiltinsAssembler::AllocateConsString(TNode<Uint32T> length,
+                                                          TNode<String> left,
+                                                          TNode<String> right) {
+  // Added string can be a cons string.
+  Comment("Allocating ConsString");
+  TNode<Int32T> left_instance_type = LoadInstanceType(left);
+  TNode<Int32T> right_instance_type = LoadInstanceType(right);
+
+  // Determine the resulting ConsString map to use depending on whether
+  // any of {left} or {right} has two byte encoding.
+  STATIC_ASSERT(kOneByteStringTag != 0);
+  STATIC_ASSERT(kTwoByteStringTag == 0);
+  TNode<Int32T> combined_instance_type =
+      Word32And(left_instance_type, right_instance_type);
+  TNode<Map> result_map = CAST(Select<Object>(
+      IsSetWord32(combined_instance_type, kStringEncodingMask),
+      [=] { return ConsOneByteStringMapConstant(); },
+      [=] { return ConsStringMapConstant(); }));
+  TNode<HeapObject> result = AllocateInNewSpace(ConsString::kSize);
+  StoreMapNoWriteBarrier(result, result_map);
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kLengthOffset, length,
+                                 MachineRepresentation::kWord32);
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kHashFieldOffset,
+                                 Int32Constant(String::kEmptyHashField),
+                                 MachineRepresentation::kWord32);
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kFirstOffset, left);
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kSecondOffset, right);
+  return CAST(result);
+}
+
+TNode<String> StringBuiltinsAssembler::StringAdd(Node* context,
+                                                 TNode<String> left,
+                                                 TNode<String> right) {
+  TVARIABLE(String, result);
+  Label check_right(this), runtime(this, Label::kDeferred), cons(this),
+      done(this, &result), done_native(this, &result);
+  Counters* counters = isolate()->counters();
+
+  TNode<Uint32T> left_length = LoadStringLengthAsWord32(left);
+  GotoIfNot(Word32Equal(left_length, Uint32Constant(0)), &check_right);
+  result = right;
+  Goto(&done_native);
+
+  BIND(&check_right);
+  TNode<Uint32T> right_length = LoadStringLengthAsWord32(right);
+  GotoIfNot(Word32Equal(right_length, Uint32Constant(0)), &cons);
+  result = left;
+  Goto(&done_native);
+
+  BIND(&cons);
+  {
+    TNode<Uint32T> new_length = Uint32Add(left_length, right_length);
+
+    // If new length is greater than String::kMaxLength, goto runtime to
+    // throw. Note: we also need to invalidate the string length protector, so
+    // can't just throw here directly.
+    GotoIf(Uint32GreaterThan(new_length, Uint32Constant(String::kMaxLength)),
+           &runtime);
+
+    TVARIABLE(String, var_left, left);
+    TVARIABLE(String, var_right, right);
+    Variable* input_vars[2] = {&var_left, &var_right};
+    Label non_cons(this, 2, input_vars);
+    Label slow(this, Label::kDeferred);
+    GotoIf(Uint32LessThan(new_length, Uint32Constant(ConsString::kMinLength)),
+           &non_cons);
+
+    result =
+        AllocateConsString(new_length, var_left.value(), var_right.value());
+    Goto(&done_native);
+
+    BIND(&non_cons);
+
+    Comment("Full string concatenate");
+    TNode<Int32T> left_instance_type = LoadInstanceType(var_left.value());
+    TNode<Int32T> right_instance_type = LoadInstanceType(var_right.value());
+    // Compute intersection and difference of instance types.
+
+    TNode<Int32T> ored_instance_types =
+        Word32Or(left_instance_type, right_instance_type);
+    TNode<Word32T> xored_instance_types =
+        Word32Xor(left_instance_type, right_instance_type);
+
+    // Check if both strings have the same encoding and both are sequential.
+    GotoIf(IsSetWord32(xored_instance_types, kStringEncodingMask), &runtime);
+    GotoIf(IsSetWord32(ored_instance_types, kStringRepresentationMask), &slow);
+
+    TNode<IntPtrT> word_left_length = Signed(ChangeUint32ToWord(left_length));
+    TNode<IntPtrT> word_right_length = Signed(ChangeUint32ToWord(right_length));
+
+    Label two_byte(this);
+    GotoIf(Word32Equal(Word32And(ored_instance_types,
+                                 Int32Constant(kStringEncodingMask)),
+                       Int32Constant(kTwoByteStringTag)),
+           &two_byte);
+    // One-byte sequential string case
+    result = AllocateSeqOneByteString(new_length);
+    CopyStringCharacters(var_left.value(), result.value(), IntPtrConstant(0),
+                         IntPtrConstant(0), word_left_length,
+                         String::ONE_BYTE_ENCODING, String::ONE_BYTE_ENCODING);
+    CopyStringCharacters(var_right.value(), result.value(), IntPtrConstant(0),
+                         word_left_length, word_right_length,
+                         String::ONE_BYTE_ENCODING, String::ONE_BYTE_ENCODING);
+    Goto(&done_native);
+
+    BIND(&two_byte);
+    {
+      // Two-byte sequential string case
+      result = AllocateSeqTwoByteString(new_length);
+      CopyStringCharacters(var_left.value(), result.value(), IntPtrConstant(0),
+                           IntPtrConstant(0), word_left_length,
+                           String::TWO_BYTE_ENCODING,
+                           String::TWO_BYTE_ENCODING);
+      CopyStringCharacters(var_right.value(), result.value(), IntPtrConstant(0),
+                           word_left_length, word_right_length,
+                           String::TWO_BYTE_ENCODING,
+                           String::TWO_BYTE_ENCODING);
+      Goto(&done_native);
+    }
+
+    BIND(&slow);
+    {
+      // Try to unwrap indirect strings, restart the above attempt on success.
+      MaybeDerefIndirectStrings(&var_left, left_instance_type, &var_right,
+                                right_instance_type, &non_cons);
+      Goto(&runtime);
+    }
+  }
+  BIND(&runtime);
+  {
+    result = CAST(CallRuntime(Runtime::kStringAdd, context, left, right));
+    Goto(&done);
+  }
+
+  BIND(&done_native);
+  {
+    IncrementCounter(counters->string_add_native(), 1);
+    Goto(&done);
+  }
+
+  BIND(&done);
+  return result.value();
+}
+
+void StringBuiltinsAssembler::BranchIfCanDerefIndirectString(
+    TNode<String> string, TNode<Int32T> instance_type, Label* can_deref,
+    Label* cannot_deref) {
+  TNode<Int32T> representation =
+      Word32And(instance_type, Int32Constant(kStringRepresentationMask));
+  GotoIf(Word32Equal(representation, Int32Constant(kThinStringTag)), can_deref);
+  GotoIf(Word32NotEqual(representation, Int32Constant(kConsStringTag)),
+         cannot_deref);
+  // Cons string.
+  TNode<String> rhs =
+      LoadObjectField<String>(string, ConsString::kSecondOffset);
+  GotoIf(IsEmptyString(rhs), can_deref);
+  Goto(cannot_deref);
+}
+
+void StringBuiltinsAssembler::DerefIndirectString(TVariable<String>* var_string,
+                                                  TNode<Int32T> instance_type) {
+#ifdef DEBUG
+  Label can_deref(this), cannot_deref(this);
+  BranchIfCanDerefIndirectString(var_string->value(), instance_type, &can_deref,
+                                 &cannot_deref);
+  BIND(&cannot_deref);
+  DebugBreak();  // Should be able to dereference string.
+  Goto(&can_deref);
+  BIND(&can_deref);
+#endif  // DEBUG
+
+  STATIC_ASSERT(static_cast<int>(ThinString::kActualOffset) ==
+                static_cast<int>(ConsString::kFirstOffset));
+  *var_string =
+      LoadObjectField<String>(var_string->value(), ThinString::kActualOffset);
+}
+
+void StringBuiltinsAssembler::MaybeDerefIndirectString(
+    TVariable<String>* var_string, TNode<Int32T> instance_type,
+    Label* did_deref, Label* cannot_deref) {
+  Label deref(this);
+  BranchIfCanDerefIndirectString(var_string->value(), instance_type, &deref,
+                                 cannot_deref);
+
+  BIND(&deref);
+  {
+    DerefIndirectString(var_string, instance_type);
+    Goto(did_deref);
+  }
+}
+
+void StringBuiltinsAssembler::MaybeDerefIndirectStrings(
+    TVariable<String>* var_left, TNode<Int32T> left_instance_type,
+    TVariable<String>* var_right, TNode<Int32T> right_instance_type,
+    Label* did_something) {
+  Label did_nothing_left(this), did_something_left(this),
+      didnt_do_anything(this);
+  MaybeDerefIndirectString(var_left, left_instance_type, &did_something_left,
+                           &did_nothing_left);
+
+  BIND(&did_something_left);
+  {
+    MaybeDerefIndirectString(var_right, right_instance_type, did_something,
+                             did_something);
+  }
+
+  BIND(&did_nothing_left);
+  {
+    MaybeDerefIndirectString(var_right, right_instance_type, did_something,
+                             &didnt_do_anything);
+  }
+
+  BIND(&didnt_do_anything);
+  // Fall through if neither string was an indirect string.
+}
+
+TNode<String> StringBuiltinsAssembler::DerefIndirectString(
+    TNode<String> string, TNode<Int32T> instance_type, Label* cannot_deref) {
+  Label deref(this);
+  BranchIfCanDerefIndirectString(string, instance_type, &deref, cannot_deref);
+  BIND(&deref);
+  STATIC_ASSERT(static_cast<int>(ThinString::kActualOffset) ==
+                static_cast<int>(ConsString::kFirstOffset));
+  return LoadObjectField<String>(string, ThinString::kActualOffset);
 }
 
 TF_BUILTIN(StringAdd_CheckNone, StringBuiltinsAssembler) {

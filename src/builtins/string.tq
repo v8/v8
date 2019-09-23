@@ -21,7 +21,8 @@ namespace string {
 
   extern macro StringBuiltinsAssembler::LoadSurrogatePairAt(
       String, intptr, intptr, constexpr UnicodeEncoding): int32;
-  extern macro StringFromSingleUTF16EncodedCodePoint(int32): String;
+  extern macro StringBuiltinsAssembler::StringFromSingleUTF16EncodedCodePoint(
+      int32): String;
 
   // This function assumes StringPrimitiveWithNoCustomIteration is true.
   transitioning builtin StringToList(implicit context: Context)(string: String):

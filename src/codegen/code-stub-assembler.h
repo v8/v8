@@ -1739,11 +1739,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                             TNode<String> parent,
                                             TNode<Smi> offset);
 
-  // Allocate an appropriate one- or two-byte ConsString with the first and
-  // second parts specified by |left| and |right|.
-  TNode<String> AllocateConsString(TNode<Uint32T> length, TNode<String> left,
-                                   TNode<String> right);
-
   TNode<NameDictionary> AllocateNameDictionary(int at_least_space_for);
   TNode<NameDictionary> AllocateNameDictionary(
       TNode<IntPtrT> at_least_space_for, AllocationFlags = kNone);
@@ -2616,36 +2611,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // [from,to[ of string.
   TNode<String> SubString(TNode<String> string, TNode<IntPtrT> from,
                           TNode<IntPtrT> to);
-
-  // Return a new string object produced by concatenating |first| with |second|.
-  TNode<String> StringAdd(Node* context, TNode<String> first,
-                          TNode<String> second);
-
-  // Check if |string| is an indirect (thin or flat cons) string type that can
-  // be dereferenced by DerefIndirectString.
-  void BranchIfCanDerefIndirectString(TNode<String> string,
-                                      TNode<Int32T> instance_type,
-                                      Label* can_deref, Label* cannot_deref);
-  // Unpack an indirect (thin or flat cons) string type.
-  void DerefIndirectString(TVariable<String>* var_string,
-                           TNode<Int32T> instance_type);
-  // Check if |var_string| has an indirect (thin or flat cons) string type,
-  // and unpack it if so.
-  void MaybeDerefIndirectString(TVariable<String>* var_string,
-                                TNode<Int32T> instance_type, Label* did_deref,
-                                Label* cannot_deref);
-  // Check if |var_left| or |var_right| has an indirect (thin or flat cons)
-  // string type, and unpack it/them if so. Fall through if nothing was done.
-  void MaybeDerefIndirectStrings(TVariable<String>* var_left,
-                                 TNode<Int32T> left_instance_type,
-                                 TVariable<String>* var_right,
-                                 TNode<Int32T> right_instance_type,
-                                 Label* did_something);
-  TNode<String> DerefIndirectString(TNode<String> string,
-                                    TNode<Int32T> instance_type,
-                                    Label* cannot_deref);
-
-  TNode<String> StringFromSingleUTF16EncodedCodePoint(TNode<Int32T> codepoint);
 
   // Type conversion helpers.
   enum class BigIntHandling { kConvertToNumber, kThrow };
