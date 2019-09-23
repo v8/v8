@@ -170,7 +170,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
   TimedHistogramScope wasm_compile_function_time_scope(timed_histogram);
 
   if (FLAG_trace_wasm_compiler) {
-    PrintF("Compiling wasm function %d with %s\n\n", func_index_,
+    PrintF("Compiling wasm function %d with %s\n", func_index_,
            ExecutionTierToString(tier_));
   }
 
