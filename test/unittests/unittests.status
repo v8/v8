@@ -14,12 +14,12 @@
   'RandomNumberGenerator.NextSampleInvalidParam': [SKIP],
   'RandomNumberGenerator.NextSampleSlowInvalidParam1': [SKIP],
   'RandomNumberGenerator.NextSampleSlowInvalidParam2': [SKIP],
-}],  # system == macos and asan
+}],  # 'system == macos and asan'
 
 ['(arch == arm or arch == mips) and not simulator_run', {
   # Uses too much memory.
   'Parameterized/WasmCodeManagerTest.GrowingVsFixedModule/Fixed': [SKIP]
-}],  # (arch == arm or arch == mips) and not simulator_run
+}],  # '(arch == arm or arch == mips) and not simulator_run'
 
 ##############################################################################
 ['lite_mode or variant == jitless', {
@@ -37,23 +37,18 @@
 ['system == windows and asan', {
   # BUG(893437).
   'Torque*': [SKIP],
-}],  # system == windows and asan
+}],  # 'system == windows and asan'
 
 ['system == windows and arch == x64 and mode == release', {
   # BUG(992783).
   'Torque.ConditionalFields': [SKIP],
   'Torque.UsingUnderscorePrefixedIdentifierError': [SKIP],
-}],  # system == windows and arch == x64 and mode == release
-
-['system == windows and arch == ia32', {
-  # Runs OOM on win32.
-  'Parameterized/WasmCodeManagerTest.GrowingVsFixedModule/Fixed': [SKIP],
-}],  # system == windows and arch == ia32
+}],  # 'system == windows and arch == x64 and mode == release'
 
 ['tsan == True', {
   # https://crbug.com/v8/9380
   # The test is broken and needs to be fixed to use separate isolates.
   'BackingStoreTest.RacyGrowWasmMemoryInPlace': [SKIP],
-}],  # tsan == True
+}],  # 'tsan == True'
 
 ]

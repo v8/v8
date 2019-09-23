@@ -1577,10 +1577,13 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   }
 
   // If we cannot add code space later, reserve enough address space up front.
+  // TODO(clemensh): Fix WasmCodeManagerTest and use {can_request_more} here.
+  bool can_add_code_space = !NativeModule::kNeedsFarJumpsBetweenCodeSpaces ||
+                            FLAG_wasm_far_jump_table;
   size_t code_vmem_size =
-      can_request_more ? ReservationSize(code_size_estimate,
-                                         module->num_declared_functions, 0)
-                       : kMaxWasmCodeMemory;
+      can_add_code_space ? ReservationSize(code_size_estimate,
+                                           module->num_declared_functions, 0)
+                         : kMaxWasmCodeMemory;
 
   // The '--wasm-max-code-space-reservation' testing flag can be used to reduce
   // the maximum size of the initial code space reservation (in MB).
