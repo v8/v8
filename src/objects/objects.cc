@@ -2188,7 +2188,8 @@ int HeapObject::SizeFromMap(Map map) const {
   }
   if (IsInRange(instance_type, FIRST_CONTEXT_TYPE, LAST_CONTEXT_TYPE)) {
     if (instance_type == NATIVE_CONTEXT_TYPE) return NativeContext::kSize;
-    return Context::SizeFor(Context::unchecked_cast(*this).length());
+    return Context::SizeFor(
+        Context::unchecked_cast(*this).synchronized_length());
   }
   if (instance_type == ONE_BYTE_STRING_TYPE ||
       instance_type == ONE_BYTE_INTERNALIZED_STRING_TYPE) {

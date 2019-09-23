@@ -1433,6 +1433,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BigInt> BigIntFromUint32Pair(TNode<UintPtrT> low, TNode<UintPtrT> high);
 
   // Context manipulation
+  TNode<BoolT> LoadContextHasExtensionField(SloppyTNode<Context> context);
   TNode<Object> LoadContextElement(SloppyTNode<Context> context,
                                    int slot_index);
   TNode<Object> LoadContextElement(SloppyTNode<Context> context,

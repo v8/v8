@@ -205,27 +205,32 @@ void InterpreterAssembler::GotoIfHasContextExtensionUpToDepth(
   TVARIABLE(Uint32T, cur_depth, depth);
 
   Label context_search(this, {&cur_depth, &cur_context});
+  Label no_extension(this);
 
   // Loop until the depth is 0.
   Goto(&context_search);
   BIND(&context_search);
   {
-    // TODO(leszeks): We only need to do this check if the context had a sloppy
-    // eval, we could pass in a context chain bitmask to figure out which
-    // contexts actually need to be checked.
-
-    TNode<Object> extension_slot =
-        LoadContextElement(cur_context.value(), Context::EXTENSION_INDEX);
+    // Check if context has an extension slot
+    TNode<BoolT> has_extension =
+        LoadContextHasExtensionField(cur_context.value());
+    GotoIfNot(has_extension, &no_extension);
 
     // Jump to the target if the extension slot is not a hole.
-    GotoIf(TaggedNotEqual(extension_slot, TheHoleConstant()), target);
+    TNode<Object> extension_slot =
+        LoadContextElement(cur_context.value(), Context::EXTENSION_INDEX);
+    Branch(TaggedNotEqual(extension_slot, TheHoleConstant()), target,
+           &no_extension);
 
-    cur_depth = Unsigned(Int32Sub(cur_depth.value(), Int32Constant(1)));
-    cur_context =
-        CAST(LoadContextElement(cur_context.value(), Context::PREVIOUS_INDEX));
+    BIND(&no_extension);
+    {
+      cur_depth = Unsigned(Int32Sub(cur_depth.value(), Int32Constant(1)));
+      cur_context = CAST(
+          LoadContextElement(cur_context.value(), Context::PREVIOUS_INDEX));
 
-    GotoIf(Word32NotEqual(cur_depth.value(), Int32Constant(0)),
-           &context_search);
+      GotoIf(Word32NotEqual(cur_depth.value(), Int32Constant(0)),
+             &context_search);
+    }
   }
 }
 
