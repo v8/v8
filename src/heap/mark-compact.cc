@@ -468,6 +468,7 @@ void MarkCompactCollector::AddEvacuationCandidate(Page* p) {
   evacuation_candidates_.push_back(p);
 }
 
+
 static void TraceFragmentation(PagedSpace* space) {
   int number_of_pages = space->CountTotalPages();
   intptr_t reserved = (number_of_pages * space->AreaSize());
@@ -536,6 +537,7 @@ void MarkCompactCollector::VerifyMarkbitsAreClean(PagedSpace* space) {
     CHECK_EQ(0, non_atomic_marking_state()->live_bytes(p));
   }
 }
+
 
 void MarkCompactCollector::VerifyMarkbitsAreClean(NewSpace* space) {
   for (Page* p : PageRange(space->first_allocatable_address(), space->top())) {
@@ -784,6 +786,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   }
 }
 
+
 void MarkCompactCollector::AbortCompaction() {
   if (compacting_) {
     RememberedSet<OLD_TO_OLD>::ClearAll(heap());
@@ -795,6 +798,7 @@ void MarkCompactCollector::AbortCompaction() {
   }
   DCHECK(evacuation_candidates_.empty());
 }
+
 
 void MarkCompactCollector::Prepare() {
   was_marked_incrementally_ = heap()->incremental_marking()->IsMarking();
@@ -1020,7 +1024,9 @@ class InternalizedStringTableCleaner : public ObjectVisitor {
     UNREACHABLE();
   }
 
-  int PointersRemoved() { return pointers_removed_; }
+  int PointersRemoved() {
+    return pointers_removed_;
+  }
 
  private:
   Heap* heap_;
@@ -3420,9 +3426,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       RememberedSetSweeping::Iterate(
           chunk_,
           [this, &filter](MaybeObjectSlot slot) {
-            if (!filter.IsValid(slot.address())) {
-              EmitDebugDataBeforeCrashing(slot);
-            }
+            CHECK(filter.IsValid(slot.address()));
             return CheckAndUpdateOldToNewSlot(slot);
           },
           SlotSet::PREFREE_EMPTY_BUCKETS);
@@ -3452,93 +3456,6 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       // processsed.
       chunk_->ReleaseInvalidatedSlots<OLD_TO_OLD>();
     }
-  }
-
-  void EmitDebugDataBeforeCrashing(MaybeObjectSlot slot) {
-    // Temporary code that is only executed right before crashing:
-    // Acquire more data for investigation.
-    MemoryChunk* chunk = chunk_;
-
-    bool is_large_page = chunk->IsLargePage();
-    bool is_from_page = chunk->IsFromPage();
-    bool is_to_page = chunk->IsToPage();
-    bool in_new_space = chunk->InNewSpace();
-    bool in_old_space = chunk->InOldSpace();
-    InstanceType instance_type = static_cast<InstanceType>(-1);
-    Address slot_address = slot.address();
-    MemoryChunk::ConcurrentSweepingState sweeping_state =
-        chunk->concurrent_sweeping_state();
-    bool is_dictionary_mode = false;
-    int construction_counter = -1;
-
-    const int kBufferSize = 256;
-    uintptr_t object_buffer[kBufferSize];
-
-    uintptr_t* range_start =
-        Max(reinterpret_cast<uintptr_t*>(slot_address) - (kBufferSize / 2),
-            reinterpret_cast<uintptr_t*>(chunk->area_start()));
-    uintptr_t* range_end = Min(range_start + kBufferSize,
-                               reinterpret_cast<uintptr_t*>(chunk->area_end()));
-    uintptr_t* dest = object_buffer;
-
-    for (uintptr_t* ptr = range_start; ptr < range_end; ++ptr, ++dest) {
-      *dest = *ptr;
-    }
-
-    HeapObject host_object;
-    int size = 0;
-
-    for (MaybeObjectSlot possible_object_start = slot;
-         possible_object_start.address() >= chunk->area_start();
-         possible_object_start--) {
-      HeapObject target_object;
-      if ((*possible_object_start).GetHeapObjectIfStrong(&target_object)) {
-        if (heap_->map_space()->ContainsSlow(target_object.address()) ||
-            heap_->read_only_space()->ContainsSlow(target_object.address())) {
-          MapWord map_word = target_object.map_word();
-          if (!map_word.IsForwardingAddress() && target_object.IsMap()) {
-            host_object =
-                HeapObject::FromAddress(possible_object_start.address());
-            break;
-          }
-        }
-      }
-    }
-
-    if (!host_object.is_null()) {
-      instance_type = host_object.map().instance_type();
-      size = host_object.Size();
-
-      int bit_field = host_object.map().bit_field();
-      int bit_field2 = host_object.map().bit_field2();
-      int bit_field3 = host_object.map().bit_field3();
-
-      if (host_object.IsJSObject()) {
-        is_dictionary_mode = host_object.map().is_dictionary_map();
-        construction_counter = host_object.map().construction_counter();
-        CHECK_WITH_MSG(false, "slot in JSObject");
-      } else if (host_object.IsString()) {
-        bool is_thin_string = host_object.IsThinString();
-        bool is_external_string = host_object.IsExternalString();
-        bool is_cons_string = host_object.IsConsString();
-        CHECK_WITH_MSG(is_thin_string || is_external_string || is_cons_string,
-                       "slot in String");
-        CHECK_WITH_MSG(false, "slot in String");
-      } else if (host_object.IsFixedArray()) {
-        CHECK_WITH_MSG(false, "slot in FixedArray");
-      } else if (host_object.IsSharedFunctionInfo()) {
-        CHECK_WITH_MSG(false, "slot in SharedFunctionInfo");
-      } else {
-        CHECK_WITH_MSG(false, "slot in unexpected object: check instance_type");
-      }
-
-      CHECK(bit_field || bit_field2 || bit_field3);
-    }
-
-    CHECK(is_large_page || is_from_page || is_to_page || in_new_space ||
-          in_old_space || instance_type || size || slot_address ||
-          is_dictionary_mode || sweeping_state || construction_counter);
-    CHECK(false);
   }
 
   void UpdateTypedPointers() {
