@@ -1727,8 +1727,8 @@ struct MemoryOptimizationPhase {
     MemoryOptimizer optimizer(
         data->jsgraph(), temp_zone, data->info()->GetPoisoningMitigationLevel(),
         data->info()->is_allocation_folding_enabled()
-            ? MemoryOptimizer::AllocationFolding::kDoAllocationFolding
-            : MemoryOptimizer::AllocationFolding::kDontAllocationFolding,
+            ? MemoryLowering::AllocationFolding::kDoAllocationFolding
+            : MemoryLowering::AllocationFolding::kDontAllocationFolding,
         data->debug_name(), &data->info()->tick_counter());
     optimizer.Optimize();
   }
