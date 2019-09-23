@@ -663,16 +663,6 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
     return total_committed_code_space_.load();
   }
 
-  void SetMaxCommittedMemoryForTesting(size_t limit);
-
-  void DisableImplicitAllocationsForTesting() {
-    implicit_allocations_disabled_for_testing_ = true;
-  }
-
-  bool IsImplicitAllocationsDisabledForTesting() const {
-    return implicit_allocations_disabled_for_testing_;
-  }
-
   static size_t EstimateNativeModuleCodeSize(const WasmModule* module);
   static size_t EstimateNativeModuleNonCodeSize(const WasmModule* module);
 
@@ -695,9 +685,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
 
   void AssignRange(base::AddressRegion, NativeModule*);
 
-  size_t max_committed_code_space_;
-
-  bool implicit_allocations_disabled_for_testing_ = false;
+  const size_t max_committed_code_space_;
 
   std::atomic<size_t> total_committed_code_space_{0};
   // If the committed code space exceeds {critical_committed_code_space_}, then

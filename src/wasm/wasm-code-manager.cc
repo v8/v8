@@ -1040,12 +1040,9 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
 
     // Populate optimized code to the jump table unless there is an active
     // redirection to the interpreter that should be preserved.
-    DCHECK_IMPLIES(
-        main_jump_table_ == nullptr,
-        engine_->code_manager()->IsImplicitAllocationsDisabledForTesting());
-    bool update_jump_table = update_code_table &&
-                             !has_interpreter_redirection(code->index()) &&
-                             main_jump_table_;
+    DCHECK_NOT_NULL(main_jump_table_);
+    bool update_jump_table =
+        update_code_table && !has_interpreter_redirection(code->index());
 
     // Ensure that interpreter entries always populate to the jump table.
     if (code->kind_ == WasmCode::Kind::kInterpreterEntry) {
@@ -1203,8 +1200,6 @@ void NativeModule::AddCodeSpace(base::AddressRegion region) {
   // space. Otherwise, we are wasting too much memory.
   DCHECK_GE(region.size(),
             2 * OverheadPerCodeSpace(module()->num_declared_functions));
-  const bool implicit_alloc_disabled =
-      engine_->code_manager()->IsImplicitAllocationsDisabledForTesting();
 
 #if defined(V8_OS_WIN64)
   // On some platforms, specifically Win64, we need to reserve some pages at
@@ -1213,8 +1208,7 @@ void NativeModule::AddCodeSpace(base::AddressRegion region) {
   // https://cs.chromium.org/chromium/src/components/crash/content/app/crashpad_win.cc?rcl=fd680447881449fba2edcf0589320e7253719212&l=204
   // for details.
   if (engine_->code_manager()
-          ->CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
-      !implicit_alloc_disabled) {
+          ->CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
     size_t size = Heap::GetCodeRangeReservedAreaSize();
     DCHECK_LT(0, size);
     Vector<byte> padding =
@@ -1232,10 +1226,7 @@ void NativeModule::AddCodeSpace(base::AddressRegion region) {
   // TODO(clemensh): Avoid additional jump table if the code space is close
   // enough to another existing code space.
   const bool needs_jump_table =
-      has_functions &&
-      (kNeedsFarJumpsBetweenCodeSpaces || is_first_code_space) &&
-      !implicit_alloc_disabled;
-  const bool needs_far_jump_table = !implicit_alloc_disabled;
+      has_functions && (kNeedsFarJumpsBetweenCodeSpaces || is_first_code_space);
 
   if (needs_jump_table) {
     jump_table = CreateEmptyJumpTableInRegion(
@@ -1243,30 +1234,29 @@ void NativeModule::AddCodeSpace(base::AddressRegion region) {
     CHECK(region.contains(jump_table->instruction_start()));
   }
 
-  if (needs_far_jump_table) {
-    int num_function_slots = NumWasmFunctionsInFarJumpTable(num_wasm_functions);
-    far_jump_table = CreateEmptyJumpTableInRegion(
-        JumpTableAssembler::SizeForNumberOfFarJumpSlots(
-            WasmCode::kRuntimeStubCount, num_function_slots),
-        region);
-    CHECK(region.contains(far_jump_table->instruction_start()));
-    EmbeddedData embedded_data = EmbeddedData::FromBlob();
+  // Always allocate a far jump table, because it contains the runtime stubs.
+  int num_function_slots = NumWasmFunctionsInFarJumpTable(num_wasm_functions);
+  far_jump_table = CreateEmptyJumpTableInRegion(
+      JumpTableAssembler::SizeForNumberOfFarJumpSlots(
+          WasmCode::kRuntimeStubCount, num_function_slots),
+      region);
+  CHECK(region.contains(far_jump_table->instruction_start()));
+  EmbeddedData embedded_data = EmbeddedData::FromBlob();
 #define RUNTIME_STUB(Name) Builtins::k##Name,
 #define RUNTIME_STUB_TRAP(Name) RUNTIME_STUB(ThrowWasm##Name)
-    Builtins::Name stub_names[WasmCode::kRuntimeStubCount] = {
-        WASM_RUNTIME_STUB_LIST(RUNTIME_STUB, RUNTIME_STUB_TRAP)};
+  Builtins::Name stub_names[WasmCode::kRuntimeStubCount] = {
+      WASM_RUNTIME_STUB_LIST(RUNTIME_STUB, RUNTIME_STUB_TRAP)};
 #undef RUNTIME_STUB
 #undef RUNTIME_STUB_TRAP
-    Address builtin_addresses[WasmCode::kRuntimeStubCount];
-    for (int i = 0; i < WasmCode::kRuntimeStubCount; ++i) {
-      Builtins::Name builtin = stub_names[i];
-      CHECK(embedded_data.ContainsBuiltin(builtin));
-      builtin_addresses[i] = embedded_data.InstructionStartOfBuiltin(builtin);
-    }
-    JumpTableAssembler::GenerateFarJumpTable(
-        far_jump_table->instruction_start(), builtin_addresses,
-        WasmCode::kRuntimeStubCount, num_function_slots);
+  Address builtin_addresses[WasmCode::kRuntimeStubCount];
+  for (int i = 0; i < WasmCode::kRuntimeStubCount; ++i) {
+    Builtins::Name builtin = stub_names[i];
+    CHECK(embedded_data.ContainsBuiltin(builtin));
+    builtin_addresses[i] = embedded_data.InstructionStartOfBuiltin(builtin);
   }
+  JumpTableAssembler::GenerateFarJumpTable(
+      far_jump_table->instruction_start(), builtin_addresses,
+      WasmCode::kRuntimeStubCount, num_function_slots);
 
   if (is_first_code_space) main_jump_table_ = jump_table;
 
@@ -1522,13 +1512,6 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
   return mem;
 }
 
-void WasmCodeManager::SetMaxCommittedMemoryForTesting(size_t limit) {
-  // This has to be set before committing any memory.
-  DCHECK_EQ(0, total_committed_code_space_.load());
-  max_committed_code_space_ = limit;
-  critical_committed_code_space_.store(limit / 2);
-}
-
 // static
 size_t WasmCodeManager::EstimateNativeModuleCodeSize(const WasmModule* module) {
   constexpr size_t kCodeSizeMultiplier = 4;
@@ -1577,13 +1560,10 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   }
 
   // If we cannot add code space later, reserve enough address space up front.
-  // TODO(clemensh): Fix WasmCodeManagerTest and use {can_request_more} here.
-  bool can_add_code_space = !NativeModule::kNeedsFarJumpsBetweenCodeSpaces ||
-                            FLAG_wasm_far_jump_table;
   size_t code_vmem_size =
-      can_add_code_space ? ReservationSize(code_size_estimate,
-                                           module->num_declared_functions, 0)
-                         : kMaxWasmCodeMemory;
+      can_request_more ? ReservationSize(code_size_estimate,
+                                         module->num_declared_functions, 0)
+                       : kMaxWasmCodeMemory;
 
   // The '--wasm-max-code-space-reservation' testing flag can be used to reduce
   // the maximum size of the initial code space reservation (in MB).
@@ -1622,8 +1602,7 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
              size);
 
 #if defined(V8_OS_WIN64)
-  if (CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
-      !implicit_allocations_disabled_for_testing_) {
+  if (CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
     win64_unwindinfo::RegisterNonABICompliantCodeRange(
         reinterpret_cast<void*>(start), size);
   }
@@ -1745,8 +1724,7 @@ void WasmCodeManager::FreeNativeModule(Vector<VirtualMemory> owned_code_space,
                code_space.address(), code_space.end(), code_space.size());
 
 #if defined(V8_OS_WIN64)
-    if (CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
-        !implicit_allocations_disabled_for_testing_) {
+    if (CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
       win64_unwindinfo::UnregisterNonABICompliantCodeRange(
           reinterpret_cast<void*>(code_space.address()));
     }
