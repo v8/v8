@@ -6112,8 +6112,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // Call the underlying closure.
     Vector<Node*> args = Buffer(wasm_count + 7);
     int pos = 0;
-    args[pos++] = graph()->NewNode(mcgraph()->common()->HeapConstant(
-        BUILTIN_CODE(isolate, Call_ReceiverIsAny)));
+    args[pos++] =
+        BuildLoadBuiltinFromIsolateRoot(Builtins::kCall_ReceiverIsAny);
     args[pos++] = callable;
     args[pos++] = mcgraph()->Int32Constant(wasm_count);   // argument count
     args[pos++] = BuildLoadUndefinedValueFromInstance();  // receiver
