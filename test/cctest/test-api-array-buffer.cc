@@ -503,3 +503,14 @@ THREADED_TEST(SkipArrayBufferDuringScavenge) {
   // Use `ab` to silence compiler warning
   CHECK_EQ(ab->GetBackingStore()->Data(), store_ptr);
 }
+
+THREADED_TEST(Regress1006600) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  Local<v8::Value> ab = CompileRunChecked(isolate, "new ArrayBuffer()");
+  for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
+    CHECK_NULL(ab.As<v8::Object>()->GetAlignedPointerFromInternalField(i));
+  }
+}

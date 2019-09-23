@@ -3092,7 +3092,6 @@ Handle<JSArrayBuffer> Factory::NewJSArrayBuffer(AllocationType allocation) {
                   isolate());
   auto result =
       Handle<JSArrayBuffer>::cast(NewJSObjectFromMap(map, allocation));
-  ZeroEmbedderFields(result);
   result->SetupEmpty(SharedFlag::kNotShared);
   return result;
 }
@@ -3113,7 +3112,6 @@ MaybeHandle<JSArrayBuffer> Factory::NewJSArrayBufferAndBackingStore(
   auto array_buffer =
       Handle<JSArrayBuffer>::cast(NewJSObjectFromMap(map, allocation));
   array_buffer->Attach(std::move(backing_store));
-  ZeroEmbedderFields(array_buffer);
   return array_buffer;
 }
 
@@ -3123,7 +3121,6 @@ Handle<JSArrayBuffer> Factory::NewJSSharedArrayBuffer() {
       isolate());
   auto result = Handle<JSArrayBuffer>::cast(
       NewJSObjectFromMap(map, AllocationType::kYoung));
-  ZeroEmbedderFields(result);
   result->SetupEmpty(SharedFlag::kShared);
   return result;
 }
@@ -4170,6 +4167,7 @@ Handle<JSPromise> Factory::NewJSPromiseWithoutHook() {
   promise->set_reactions_or_result(Smi::kZero);
   promise->set_flags(0);
   ZeroEmbedderFields(promise);
+  DCHECK_EQ(promise->GetEmbedderFieldCount(), v8::Promise::kEmbedderFieldCount);
   return promise;
 }
 

@@ -41,6 +41,9 @@ void JSArrayBuffer::SetupEmpty(SharedFlag shared) {
   set_is_detachable(shared != SharedFlag::kShared);
   set_backing_store(nullptr);
   set_byte_length(0);
+  for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
+    SetEmbedderField(i, Smi::kZero);
+  }
 }
 
 void JSArrayBuffer::Detach(bool force_for_wasm_memory) {
