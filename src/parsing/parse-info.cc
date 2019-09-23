@@ -65,6 +65,7 @@ ParseInfo::ParseInfo(Isolate* isolate, AccountingAllocator* zone_allocator)
   set_allow_harmony_optional_chaining(FLAG_harmony_optional_chaining);
   set_allow_harmony_nullish(FLAG_harmony_nullish);
   set_allow_harmony_private_methods(FLAG_harmony_private_methods);
+  set_allow_harmony_top_level_await(FLAG_harmony_top_level_await);
 }
 
 ParseInfo::ParseInfo(Isolate* isolate)

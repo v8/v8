@@ -3142,6 +3142,35 @@ TEST(Modules) {
                      LoadGolden("Modules.golden")));
 }
 
+TEST(AsyncModules) {
+  bool previous_top_level_await_flag = i::FLAG_harmony_top_level_await;
+  i::FLAG_harmony_top_level_await = true;
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+  printer.set_wrap(false);
+  printer.set_module(true);
+  printer.set_top_level(true);
+
+  const char* snippets[] = {
+      "await 42;\n",
+
+      "await import(\"foo\");\n",
+
+      "await 42;\n"
+      "async function foo() {\n"
+      "  await 42;\n"
+      "}\n"
+      "foo();\n",
+
+      "import * as foo from \"bar\";\n"
+      "await import(\"goo\");\n",
+  };
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("AsyncModules.golden")));
+  i::FLAG_harmony_top_level_await = previous_top_level_await_flag;
+}
+
 TEST(SuperCallAndSpread) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());

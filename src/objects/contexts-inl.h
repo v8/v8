@@ -197,7 +197,7 @@ int Context::FunctionMapIndex(LanguageMode language_mode, FunctionKind kind,
     base = IsAsyncFunction(kind) ? ASYNC_GENERATOR_FUNCTION_MAP_INDEX
                                  : GENERATOR_FUNCTION_MAP_INDEX;
 
-  } else if (IsAsyncFunction(kind)) {
+  } else if (IsAsyncFunction(kind) || IsAsyncModule(kind)) {
     CHECK_FOLLOWS4(ASYNC_FUNCTION_MAP_INDEX, ASYNC_FUNCTION_WITH_NAME_MAP_INDEX,
                    ASYNC_FUNCTION_WITH_HOME_OBJECT_MAP_INDEX,
                    ASYNC_FUNCTION_WITH_NAME_AND_HOME_OBJECT_MAP_INDEX);

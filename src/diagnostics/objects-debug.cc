@@ -26,6 +26,7 @@
 #include "src/objects/field-type.h"
 #include "src/objects/foreign-inl.h"
 #include "src/objects/free-space-inl.h"
+#include "src/objects/function-kind.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/layout-descriptor.h"
@@ -1050,7 +1051,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
   if (scope_info().length() > 0) {
     ScopeInfo info = scope_info();
     CHECK(kind() == info.function_kind());
-    CHECK_EQ(kind() == kModule, info.scope_type() == MODULE_SCOPE);
+    CHECK_EQ(internal::IsModule(kind()), info.scope_type() == MODULE_SCOPE);
   }
 
   if (IsApiFunction()) {

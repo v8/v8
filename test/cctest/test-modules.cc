@@ -659,4 +659,231 @@ TEST(ModuleNamespace) {
   }
   i::FLAG_harmony_top_level_await = prev_top_level_await;
 }
+
+TEST(ModuleEvaluationTopLevelAwait) {
+  bool previous_top_level_await_flag_value = i::FLAG_harmony_top_level_await;
+  i::FLAG_harmony_top_level_await = true;
+  Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  LocalContext env;
+  v8::TryCatch try_catch(isolate);
+  const char* sources[] = {
+      "await 42",
+      "import 'await 42';",
+      "import '42'; import 'await 42';",
+  };
+
+  for (auto src : sources) {
+    Local<String> source_text = v8_str(src);
+    ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    Local<Module> module =
+        ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+    CHECK(module
+              ->InstantiateModule(env.local(),
+                                  CompileSpecifierAsModuleResolveCallback)
+              .FromJust());
+    CHECK_EQ(Module::kInstantiated, module->GetStatus());
+    Local<Promise> promise =
+        Local<Promise>::Cast(module->Evaluate(env.local()).ToLocalChecked());
+    CHECK_EQ(Module::kEvaluated, module->GetStatus());
+    CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+    CHECK(promise->Result()->IsUndefined());
+    CHECK(!try_catch.HasCaught());
+  }
+  i::FLAG_harmony_top_level_await = previous_top_level_await_flag_value;
+}
+
+TEST(ModuleEvaluationTopLevelAwaitError) {
+  bool previous_top_level_await_flag_value = i::FLAG_harmony_top_level_await;
+  i::FLAG_harmony_top_level_await = true;
+  Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  LocalContext env;
+  const char* sources[] = {
+      "await 42; throw 'boom';",
+      "import 'await 42; throw \"boom\";';",
+      "import '42'; import 'await 42; throw \"boom\";';",
+  };
+
+  for (auto src : sources) {
+    v8::TryCatch try_catch(isolate);
+    Local<String> source_text = v8_str(src);
+    ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    Local<Module> module =
+        ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+    CHECK(module
+              ->InstantiateModule(env.local(),
+                                  CompileSpecifierAsModuleResolveCallback)
+              .FromJust());
+    CHECK_EQ(Module::kInstantiated, module->GetStatus());
+    Local<Promise> promise =
+        Local<Promise>::Cast(module->Evaluate(env.local()).ToLocalChecked());
+    CHECK_EQ(Module::kErrored, module->GetStatus());
+    CHECK_EQ(promise->State(), v8::Promise::kRejected);
+    CHECK(promise->Result()->StrictEquals(v8_str("boom")));
+    CHECK(module->GetException()->StrictEquals(v8_str("boom")));
+
+    // TODO(joshualitt) I am not sure, but this might not be supposed to throw
+    // because it is async.
+    CHECK(!try_catch.HasCaught());
+  }
+  i::FLAG_harmony_top_level_await = previous_top_level_await_flag_value;
+}
+
+namespace {
+struct DynamicImportData {
+  DynamicImportData(Isolate* isolate_, Local<Promise::Resolver> resolver_,
+                    Local<Context> context_, bool should_resolve_)
+      : isolate(isolate_), should_resolve(should_resolve_) {
+    resolver.Reset(isolate, resolver_);
+    context.Reset(isolate, context_);
+  }
+
+  Isolate* isolate;
+  v8::Global<Promise::Resolver> resolver;
+  v8::Global<Context> context;
+  bool should_resolve;
+};
+
+void DoHostImportModuleDynamically(void* import_data) {
+  std::unique_ptr<DynamicImportData> import_data_(
+      static_cast<DynamicImportData*>(import_data));
+  Isolate* isolate(import_data_->isolate);
+  HandleScope handle_scope(isolate);
+
+  Local<Promise::Resolver> resolver(import_data_->resolver.Get(isolate));
+  Local<Context> realm(import_data_->context.Get(isolate));
+  Context::Scope context_scope(realm);
+
+  if (import_data_->should_resolve) {
+    resolver->Resolve(realm, True(isolate)).ToChecked();
+  } else {
+    resolver->Reject(realm, v8_str("boom")).ToChecked();
+  }
+}
+
+v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
+    Local<Context> context, Local<v8::ScriptOrModule> referrer,
+    Local<String> specifier) {
+  Isolate* isolate = context->GetIsolate();
+  Local<v8::Promise::Resolver> resolver =
+      v8::Promise::Resolver::New(context).ToLocalChecked();
+
+  DynamicImportData* data =
+      new DynamicImportData(isolate, resolver, context, true);
+  isolate->EnqueueMicrotask(DoHostImportModuleDynamically, data);
+  return resolver->GetPromise();
+}
+
+v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackReject(
+    Local<Context> context, Local<v8::ScriptOrModule> referrer,
+    Local<String> specifier) {
+  Isolate* isolate = context->GetIsolate();
+  Local<v8::Promise::Resolver> resolver =
+      v8::Promise::Resolver::New(context).ToLocalChecked();
+
+  DynamicImportData* data =
+      new DynamicImportData(isolate, resolver, context, false);
+  isolate->EnqueueMicrotask(DoHostImportModuleDynamically, data);
+  return resolver->GetPromise();
+}
+
+}  // namespace
+
+TEST(ModuleEvaluationTopLevelAwaitDynamicImport) {
+  bool previous_top_level_await_flag_value = i::FLAG_harmony_top_level_await;
+  bool previous_dynamic_import_flag_value = i::FLAG_harmony_dynamic_import;
+  i::FLAG_harmony_top_level_await = true;
+  i::FLAG_harmony_dynamic_import = true;
+  Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
+  isolate->SetHostImportModuleDynamicallyCallback(
+      HostImportModuleDynamicallyCallbackResolve);
+  LocalContext env;
+  v8::TryCatch try_catch(isolate);
+  const char* sources[] = {
+      "await import('foo');",
+      "import 'await import(\"foo\");';",
+      "import '42'; import 'await import(\"foo\");';",
+  };
+
+  for (auto src : sources) {
+    Local<String> source_text = v8_str(src);
+    ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    Local<Module> module =
+        ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+    CHECK(module
+              ->InstantiateModule(env.local(),
+                                  CompileSpecifierAsModuleResolveCallback)
+              .FromJust());
+    CHECK_EQ(Module::kInstantiated, module->GetStatus());
+
+    Local<Promise> promise =
+        Local<Promise>::Cast(module->Evaluate(env.local()).ToLocalChecked());
+    CHECK_EQ(Module::kEvaluated, module->GetStatus());
+    CHECK_EQ(promise->State(), v8::Promise::kPending);
+    CHECK(!try_catch.HasCaught());
+
+    isolate->RunMicrotasks();
+    CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+  }
+  i::FLAG_harmony_top_level_await = previous_top_level_await_flag_value;
+  i::FLAG_harmony_dynamic_import = previous_dynamic_import_flag_value;
+}
+
+TEST(ModuleEvaluationTopLevelAwaitDynamicImportError) {
+  bool previous_top_level_await_flag_value = i::FLAG_harmony_top_level_await;
+  bool previous_dynamic_import_flag_value = i::FLAG_harmony_dynamic_import;
+  i::FLAG_harmony_top_level_await = true;
+  i::FLAG_harmony_dynamic_import = true;
+  Isolate* isolate = CcTest::isolate();
+  HandleScope scope(isolate);
+  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
+  isolate->SetHostImportModuleDynamicallyCallback(
+      HostImportModuleDynamicallyCallbackReject);
+  LocalContext env;
+  v8::TryCatch try_catch(isolate);
+  const char* sources[] = {
+      "await import('foo');",
+      "import 'await import(\"foo\");';",
+      "import '42'; import 'await import(\"foo\");';",
+  };
+
+  for (auto src : sources) {
+    Local<String> source_text = v8_str(src);
+    ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    Local<Module> module =
+        ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+    CHECK(module
+              ->InstantiateModule(env.local(),
+                                  CompileSpecifierAsModuleResolveCallback)
+              .FromJust());
+    CHECK_EQ(Module::kInstantiated, module->GetStatus());
+
+    Local<Promise> promise =
+        Local<Promise>::Cast(module->Evaluate(env.local()).ToLocalChecked());
+    CHECK_EQ(Module::kEvaluated, module->GetStatus());
+    CHECK_EQ(promise->State(), v8::Promise::kPending);
+    CHECK(!try_catch.HasCaught());
+
+    isolate->RunMicrotasks();
+    CHECK_EQ(Module::kErrored, module->GetStatus());
+    CHECK_EQ(promise->State(), v8::Promise::kRejected);
+    CHECK(promise->Result()->StrictEquals(v8_str("boom")));
+    CHECK(module->GetException()->StrictEquals(v8_str("boom")));
+    CHECK(!try_catch.HasCaught());
+  }
+  i::FLAG_harmony_top_level_await = previous_top_level_await_flag_value;
+  i::FLAG_harmony_dynamic_import = previous_dynamic_import_flag_value;
+}
+
 }  // anonymous namespace

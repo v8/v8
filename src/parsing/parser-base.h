@@ -267,6 +267,7 @@ class ParserBase {
         allow_harmony_dynamic_import_(false),
         allow_harmony_import_meta_(false),
         allow_harmony_private_methods_(false),
+        allow_harmony_top_level_await_(false),
         allow_eval_cache_(true) {
     pointer_buffer_.reserve(32);
     variable_buffer_.reserve(32);
@@ -280,6 +281,7 @@ class ParserBase {
   ALLOW_ACCESSORS(harmony_dynamic_import)
   ALLOW_ACCESSORS(harmony_import_meta)
   ALLOW_ACCESSORS(harmony_private_methods)
+  ALLOW_ACCESSORS(harmony_top_level_await)
   ALLOW_ACCESSORS(eval_cache)
 
 #undef ALLOW_ACCESSORS
@@ -1473,6 +1475,7 @@ class ParserBase {
   bool allow_harmony_dynamic_import_;
   bool allow_harmony_import_meta_;
   bool allow_harmony_private_methods_;
+  bool allow_harmony_top_level_await_;
   bool allow_eval_cache_;
 };
 
@@ -3080,7 +3083,9 @@ ParserBase<Impl>::ParseUnaryExpression() {
 
   Token::Value op = peek();
   if (Token::IsUnaryOrCountOp(op)) return ParseUnaryOrPrefixExpression();
-  if (is_async_function() && op == Token::AWAIT) {
+  if ((is_async_function() || (allow_harmony_top_level_await() &&
+                               IsModule(function_state_->kind()))) &&
+      op == Token::AWAIT) {
     return ParseAwaitExpression();
   }
   return ParsePostfixExpression();

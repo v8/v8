@@ -865,6 +865,11 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     return IsClassMembersInitializerFunction(function_kind());
   }
 
+  void set_is_async_module() {
+    DCHECK(IsModule(function_kind_));
+    function_kind_ = kAsyncModule;
+  }
+
   void DeclareThis(AstValueFactory* ast_value_factory);
   void DeclareArguments(AstValueFactory* ast_value_factory);
   void DeclareDefaultFunctionVariables(AstValueFactory* ast_value_factory);
@@ -1143,7 +1148,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   bool needs_private_name_context_chain_recalc_ : 1;
 
   // If the scope is a function scope, this is the function kind.
-  const FunctionKind function_kind_;
+  FunctionKind function_kind_;
 
   int num_parameters_ = 0;
 

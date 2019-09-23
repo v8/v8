@@ -427,6 +427,7 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_nullish(info->allow_harmony_nullish());
   set_allow_harmony_optional_chaining(info->allow_harmony_optional_chaining());
   set_allow_harmony_private_methods(info->allow_harmony_private_methods());
+  set_allow_harmony_top_level_await(info->allow_harmony_top_level_await());
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;
@@ -576,8 +577,32 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
           BuildInitialYield(kNoSourcePosition, kGeneratorFunction);
       body.Add(
           factory()->NewExpressionStatement(initial_yield, kNoSourcePosition));
-
-      ParseModuleItemList(&body);
+      if (allow_harmony_top_level_await()) {
+        // First parse statements into a buffer. Then, if there was a
+        // top level await, create an inner block and rewrite the body of the
+        // module as an async function. Otherwise merge the statements back
+        // into the main body.
+        BlockT block = impl()->NullBlock();
+        {
+          StatementListT statements(pointer_buffer());
+          ParseModuleItemList(&statements);
+          // Modules will always have an initial yield. If there are any
+          // additional suspends, i.e. awaits, then we treat the module as an
+          // AsyncModule.
+          if (function_state.suspend_count() > 1) {
+            scope->set_is_async_module();
+            block = factory()->NewBlock(true, statements);
+          } else {
+            statements.MergeInto(&body);
+          }
+        }
+        if (IsAsyncModule(scope->function_kind())) {
+          impl()->RewriteAsyncFunctionBody(
+              &body, block, factory()->NewUndefinedLiteral(kNoSourcePosition));
+        }
+      } else {
+        ParseModuleItemList(&body);
+      }
       if (!has_error() &&
           !module()->Validate(this->scope()->AsModuleScope(),
                               pending_error_handler(), zone())) {

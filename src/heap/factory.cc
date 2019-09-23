@@ -3058,7 +3058,7 @@ Handle<SourceTextModule> Factory::NewSourceTextModule(
   module->set_dfs_ancestor_index(-1);
   module->set_top_level_capability(roots.undefined_value());
   module->set_flags(0);
-  module->set_async(false);
+  module->set_async(IsAsyncModule(code->kind()));
   module->set_async_evaluating(false);
   module->set_async_parent_modules(*async_parent_modules);
   module->set_pending_async_dependencies(0);
