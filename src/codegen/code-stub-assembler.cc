@@ -1146,7 +1146,7 @@ TNode<BoolT> CodeStubAssembler::TaggedIsPositiveSmi(SloppyTNode<Object> a) {
   return Word32Equal(
       Word32And(
           TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(a)),
-          Uint32Constant(kSmiTagMask | static_cast<int32_t>(kSmiSignMask))),
+          Uint32Constant(static_cast<uint32_t>(kSmiTagMask | kSmiSignMask))),
       Int32Constant(0));
 #else
   return WordEqual(WordAnd(BitcastTaggedToWordForTagAndSmiBits(a),
