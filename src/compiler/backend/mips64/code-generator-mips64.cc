@@ -757,12 +757,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchCallCFunction: {
       int const num_parameters = MiscField::decode(instr->opcode());
-      Label return_location;
-      if (linkage()->GetIncomingDescriptor()->IsWasmCapiFunction()) {
+      Label start_call;
+      bool isWasmCapiFunction =
+          linkage()->GetIncomingDescriptor()->IsWasmCapiFunction();
+      int offset = 48;
+#if V8_HOST_ARCH_MIPS64
+      if (__ emit_debug_code()) {
+        offset += 16;
+      }
+#endif
+      if (isWasmCapiFunction) {
         // Put the return address in a stack slot.
-        __ LoadAddress(kScratchReg, &return_location);
-        __ sd(kScratchReg,
-              MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
+        __ mov(kScratchReg, ra);
+        __ bind(&start_call);
+        __ nal();
+        __ nop();
+        __ Daddu(ra, ra, offset);
+        __ sd(ra, MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
+        __ mov(ra, kScratchReg);
       }
       if (instr->InputAt(0)->IsImmediate()) {
         ExternalReference ref = i.InputExternalReference(0);
@@ -771,7 +783,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Register func = i.InputRegister(0);
         __ CallCFunction(func, num_parameters);
       }
-      __ bind(&return_location);
+      if (isWasmCapiFunction) {
+        CHECK_EQ(offset, __ SizeOfCodeGeneratedSince(&start_call));
+      }
+
       RecordSafepoint(instr->reference_map(), Safepoint::kNoLazyDeopt);
       frame_access_state()->SetFrameAccessToDefault();
       // Ideally, we should decrement SP delta to match the change of stack
