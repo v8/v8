@@ -58,9 +58,10 @@ namespace typed_array_createtypedarray {
     typedArray.byte_length = byteLength;
     typedArray.length = length;
     if constexpr (isOnHeap) {
-      SetJSTypedArrayOnHeapDataPtr(typedArray, elements, byteOffset);
+      typed_array::SetJSTypedArrayOnHeapDataPtr(
+          typedArray, elements, byteOffset);
     } else {
-      SetJSTypedArrayOffHeapDataPtr(
+      typed_array::SetJSTypedArrayOffHeapDataPtr(
           typedArray, buffer.backing_store, byteOffset);
       assert(
           typedArray.data_ptr ==

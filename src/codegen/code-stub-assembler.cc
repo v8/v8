@@ -2265,40 +2265,6 @@ TNode<RawPtrT> CodeStubAssembler::LoadJSTypedArrayDataPtr(
   return RawPtrAdd(external_pointer, base_pointer);
 }
 
-void CodeStubAssembler::SetJSTypedArrayOffHeapDataPtr(
-    TNode<JSTypedArray> holder, TNode<RawPtrT> base, TNode<UintPtrT> offset) {
-  StoreObjectFieldNoWriteBarrier(holder, JSTypedArray::kBasePointerOffset,
-                                 SmiConstant(0));
-
-  base = RawPtrAdd(base, Signed(offset));
-  StoreObjectFieldNoWriteBarrier<RawPtrT>(
-      holder, JSTypedArray::kExternalPointerOffset, base);
-}
-
-void CodeStubAssembler::SetJSTypedArrayOnHeapDataPtr(TNode<JSTypedArray> holder,
-                                                     TNode<ByteArray> base,
-                                                     TNode<UintPtrT> offset) {
-  offset = UintPtrAdd(UintPtrConstant(ByteArray::kHeaderSize - kHeapObjectTag),
-                      offset);
-  if (COMPRESS_POINTERS_BOOL) {
-    TNode<IntPtrT> full_base = Signed(BitcastTaggedToWord(base));
-    TNode<Int32T> compressed_base = TruncateIntPtrToInt32(full_base);
-    // TODO(v8:9706): Add a way to directly use kRootRegister value.
-    TNode<IntPtrT> isolate_root =
-        IntPtrSub(full_base, ChangeInt32ToIntPtr(compressed_base));
-    // Add JSTypedArray::ExternalPointerCompensationForOnHeapArray() to offset.
-    DCHECK_EQ(
-        isolate()->isolate_root(),
-        JSTypedArray::ExternalPointerCompensationForOnHeapArray(isolate()));
-    // See JSTypedArray::SetOnHeapDataPtr() for details.
-    offset = Unsigned(IntPtrAdd(offset, isolate_root));
-  }
-
-  StoreObjectField(holder, JSTypedArray::kBasePointerOffset, base);
-  StoreObjectFieldNoWriteBarrier<UintPtrT>(
-      holder, JSTypedArray::kExternalPointerOffset, offset);
-}
-
 TNode<BigInt> CodeStubAssembler::LoadFixedBigInt64ArrayElementAsTagged(
     SloppyTNode<RawPtrT> data_pointer, SloppyTNode<IntPtrT> offset) {
   if (Is64()) {
@@ -2577,43 +2543,6 @@ TNode<Numeric> CodeStubAssembler::LoadFixedTypedArrayElementAsTagged(
 
   BIND(&done);
   return var_result.value();
-}
-
-void CodeStubAssembler::StoreJSTypedArrayElementFromTagged(
-    TNode<Context> context, TNode<JSTypedArray> typed_array,
-    TNode<Smi> index_node, TNode<Object> value, ElementsKind elements_kind) {
-  TNode<RawPtrT> data_ptr = LoadJSTypedArrayDataPtr(typed_array);
-  switch (elements_kind) {
-    case UINT8_ELEMENTS:
-    case UINT8_CLAMPED_ELEMENTS:
-    case INT8_ELEMENTS:
-    case UINT16_ELEMENTS:
-    case INT16_ELEMENTS:
-      StoreElement(data_ptr, elements_kind, index_node, SmiToInt32(CAST(value)),
-                   SMI_PARAMETERS);
-      break;
-    case UINT32_ELEMENTS:
-    case INT32_ELEMENTS:
-      StoreElement(data_ptr, elements_kind, index_node,
-                   TruncateTaggedToWord32(context, value), SMI_PARAMETERS);
-      break;
-    case FLOAT32_ELEMENTS:
-      StoreElement(data_ptr, elements_kind, index_node,
-                   TruncateFloat64ToFloat32(LoadHeapNumberValue(CAST(value))),
-                   SMI_PARAMETERS);
-      break;
-    case FLOAT64_ELEMENTS:
-      StoreElement(data_ptr, elements_kind, index_node,
-                   LoadHeapNumberValue(CAST(value)), SMI_PARAMETERS);
-      break;
-    case BIGUINT64_ELEMENTS:
-    case BIGINT64_ELEMENTS:
-      StoreElement(data_ptr, elements_kind, index_node,
-                   UncheckedCast<BigInt>(value), SMI_PARAMETERS);
-      break;
-    default:
-      UNREACHABLE();
-  }
 }
 
 template <typename TIndex>

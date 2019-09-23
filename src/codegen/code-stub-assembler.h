@@ -1429,12 +1429,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BigInt> BigIntFromInt32Pair(TNode<IntPtrT> low, TNode<IntPtrT> high);
   TNode<BigInt> BigIntFromUint32Pair(TNode<UintPtrT> low, TNode<UintPtrT> high);
 
-  void StoreJSTypedArrayElementFromTagged(TNode<Context> context,
-                                          TNode<JSTypedArray> typed_array,
-                                          TNode<Smi> index_node,
-                                          TNode<Object> value,
-                                          ElementsKind elements_kind);
-
   // Context manipulation
   TNode<Object> LoadContextElement(SloppyTNode<Context> context,
                                    int slot_index);
@@ -3537,12 +3531,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // JSTypedArray helpers
   TNode<UintPtrT> LoadJSTypedArrayLength(TNode<JSTypedArray> typed_array);
   TNode<RawPtrT> LoadJSTypedArrayDataPtr(TNode<JSTypedArray> typed_array);
-  void SetJSTypedArrayOnHeapDataPtr(TNode<JSTypedArray> holder,
-                                    TNode<ByteArray> base,
-                                    TNode<UintPtrT> offset);
-  void SetJSTypedArrayOffHeapDataPtr(TNode<JSTypedArray> holder,
-                                     TNode<RawPtrT> base,
-                                     TNode<UintPtrT> offset);
 
   template <typename TIndex>
   TNode<IntPtrT> ElementOffsetFromIndex(TNode<TIndex> index, ElementsKind kind,

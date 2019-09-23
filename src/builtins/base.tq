@@ -2868,9 +2868,6 @@ extern macro IsPrototypeTypedArrayPrototype(implicit context: Context)(Map):
     bool;
 
 extern operator '.data_ptr' macro LoadJSTypedArrayDataPtr(JSTypedArray): RawPtr;
-extern macro SetJSTypedArrayOnHeapDataPtr(
-    JSTypedArray, ByteArray, uintptr): void;
-extern macro SetJSTypedArrayOffHeapDataPtr(JSTypedArray, RawPtr, uintptr): void;
 
 extern operator '.elements_kind' macro LoadMapElementsKind(Map): ElementsKind;
 extern operator '.elements_kind' macro LoadElementsKind(JSTypedArray):
