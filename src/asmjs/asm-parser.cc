@@ -2489,7 +2489,7 @@ void AsmJsParser::ValidateFloatCoercion() {
   // because imported functions are not allowed to have float return type.
   call_coercion_position_ = scanner_.Position();
   AsmType* ret;
-  RECURSE(ret = ValidateExpression());
+  RECURSE(ret = AssignmentExpression());
   if (ret->IsA(AsmType::Floatish())) {
     // Do nothing, as already a float.
   } else if (ret->IsA(AsmType::DoubleQ())) {
