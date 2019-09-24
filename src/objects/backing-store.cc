@@ -123,6 +123,7 @@ BackingStore::~BackingStore() {
   if (buffer_start_ == nullptr) return;  // nothing to deallocate
 
   if (is_wasm_memory_) {
+    DCHECK(free_on_destruct_);
     TRACE_BS("BSw:free  bs=%p mem=%p (length=%zu, capacity=%zu)\n", this,
              buffer_start_, byte_length(), byte_capacity_);
     if (is_shared_) {
@@ -499,6 +500,14 @@ inline GlobalBackingStoreRegistryImpl* impl() {
 void GlobalBackingStoreRegistry::Register(
     std::shared_ptr<BackingStore> backing_store) {
   if (!backing_store || !backing_store->buffer_start()) return;
+
+  if (!backing_store->free_on_destruct()) {
+    // If the backing store buffer is managed by the embedder,
+    // then we don't have to guarantee that there is single unique
+    // BackingStore per buffer_start() because the destructor of
+    // of the BackingStore will be a no-op in that case.
+    return;
+  }
 
   base::MutexGuard scope_lock(&impl()->mutex_);
   if (backing_store->globally_registered_) return;

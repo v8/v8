@@ -7296,12 +7296,10 @@ std::shared_ptr<i::BackingStore> LookupOrCreateBackingStore(
     backing_store = i::BackingStore::WrapAllocation(
         i_isolate, data, byte_length, shared, free_on_destruct);
 
-    if (free_on_destruct) {
-      // The embedder requested free-on-destruct. They already have a
-      // direct pointer to the buffer start, so globally register the backing
-      // store in case they come back with the same buffer start.
-      i::GlobalBackingStoreRegistry::Register(backing_store);
-    }
+    // The embedder already has a direct pointer to the buffer start, so
+    // globally register the backing store in case they come back with the
+    // same buffer start and the backing store is marked as free_on_destruct.
+    i::GlobalBackingStoreRegistry::Register(backing_store);
   }
   return backing_store;
 }

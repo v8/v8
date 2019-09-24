@@ -359,6 +359,35 @@ THREADED_TEST(SharedArrayBuffer_ApiInternalToExternal) {
   CHECK_EQ(0xDD, result->Int32Value(env.local()).FromJust());
 }
 
+THREADED_TEST(ArrayBuffer_ExternalReused) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  i::ScopedVector<uint8_t> data(100);
+  Local<v8::ArrayBuffer> ab1 = v8::ArrayBuffer::New(isolate, data.begin(), 100);
+  std::shared_ptr<v8::BackingStore> bs1 = ab1->GetBackingStore();
+  ab1->Detach();
+  Local<v8::ArrayBuffer> ab2 = v8::ArrayBuffer::New(isolate, data.begin(), 100);
+  std::shared_ptr<v8::BackingStore> bs2 = ab2->GetBackingStore();
+  CHECK_EQ(bs1->Data(), bs2->Data());
+}
+
+THREADED_TEST(SharedArrayBuffer_ExternalReused) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  i::ScopedVector<uint8_t> data(100);
+  Local<v8::SharedArrayBuffer> ab1 =
+      v8::SharedArrayBuffer::New(isolate, data.begin(), 100);
+  std::shared_ptr<v8::BackingStore> bs1 = ab1->GetBackingStore();
+  Local<v8::SharedArrayBuffer> ab2 =
+      v8::SharedArrayBuffer::New(isolate, data.begin(), 100);
+  std::shared_ptr<v8::BackingStore> bs2 = ab2->GetBackingStore();
+  CHECK_EQ(bs1->Data(), bs2->Data());
+}
+
 THREADED_TEST(SharedArrayBuffer_JSInternalToExternal) {
   i::FLAG_harmony_sharedarraybuffer = true;
   LocalContext env;
