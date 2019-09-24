@@ -2708,7 +2708,7 @@ void SerializerForBackgroundCompilation::ProcessNamedPropertyAccess(
 void SerializerForBackgroundCompilation::ProcessNamedAccess(
     Hints receiver, NamedAccessFeedback const& feedback, AccessMode access_mode,
     Hints* new_accumulator_hints) {
-  for (Handle<Map> map : feedback.AsNamedAccess().maps()) {
+  for (Handle<Map> map : feedback.maps()) {
     MapRef map_ref(broker(), map);
     ProcessMapForNamedPropertyAccess(map_ref, feedback.name(), access_mode,
                                      base::nullopt, new_accumulator_hints);
