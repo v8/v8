@@ -2210,19 +2210,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                              nullptr, flags, mode);
   }
 
-  // Copies |character_count| elements from |from_string| to |to_string|
-  // starting at the |from_index|'th character. |from_string| and |to_string|
-  // can either be one-byte strings or two-byte strings, although if
-  // |from_string| is two-byte, then |to_string| must be two-byte.
-  // |from_index|, |to_index| and |character_count| must be intptr_ts s.t. 0 <=
-  // |from_index| <= |from_index| + |character_count| <= from_string.length and
-  // 0 <= |to_index| <= |to_index| + |character_count| <= to_string.length.
-  void CopyStringCharacters(Node* from_string, Node* to_string,
-                            TNode<IntPtrT> from_index, TNode<IntPtrT> to_index,
-                            TNode<IntPtrT> character_count,
-                            String::Encoding from_encoding,
-                            String::Encoding to_encoding);
-
   // Loads an element from |array| of |from_kind| elements by given |offset|
   // (NOTE: not index!), does a hole check if |if_hole| is provided and
   // converts the value so that it becomes ready for storing to array of
@@ -2591,11 +2578,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                  SloppyTNode<IntPtrT> index);
   // Return the single character string with only {code}.
   TNode<String> StringFromSingleCharCode(TNode<Int32T> code);
-
-  // Return a new string object which holds a substring containing the range
-  // [from,to[ of string.
-  TNode<String> SubString(TNode<String> string, TNode<IntPtrT> from,
-                          TNode<IntPtrT> to);
 
   // Type conversion helpers.
   enum class BigIntHandling { kConvertToNumber, kThrow };
@@ -3739,10 +3721,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void GenerateEqual_Same(SloppyTNode<Object> value, Label* if_equal,
                           Label* if_notequal,
                           Variable* var_type_feedback = nullptr);
-  TNode<String> AllocAndCopyStringCharacters(Node* from,
-                                             Node* from_instance_type,
-                                             TNode<IntPtrT> from_index,
-                                             TNode<IntPtrT> character_count);
 
   static const int kElementLoopUnrollThreshold = 8;
 

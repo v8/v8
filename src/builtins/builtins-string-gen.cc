@@ -806,7 +806,7 @@ TF_BUILTIN(StringFromCodePointAt, StringBuiltinsAssembler) {
 // ES6 section 21.1 String Objects
 
 // ES6 #sec-string.fromcharcode
-TF_BUILTIN(StringFromCharCode, CodeStubAssembler) {
+TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
   // TODO(ishell): use constants from Descriptor once the JSFunction linkage
   // arguments are reordered.
   TNode<Int32T> argc =
@@ -1864,7 +1864,7 @@ TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
   }
 }
 
-TF_BUILTIN(StringSubstring, CodeStubAssembler) {
+TF_BUILTIN(StringSubstring, StringBuiltinsAssembler) {
   TNode<String> string = CAST(Parameter(Descriptor::kString));
   TNode<IntPtrT> from = UncheckedCast<IntPtrT>(Parameter(Descriptor::kFrom));
   TNode<IntPtrT> to = UncheckedCast<IntPtrT>(Parameter(Descriptor::kTo));
@@ -2122,6 +2122,245 @@ void StringBuiltinsAssembler::BranchIfStringPrimitiveWithNoCustomIteration(
       TaggedEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
                   SmiConstant(Isolate::kProtectorValid)),
       if_true, if_false);
+}
+
+void StringBuiltinsAssembler::CopyStringCharacters(
+    Node* from_string, Node* to_string, TNode<IntPtrT> from_index,
+    TNode<IntPtrT> to_index, TNode<IntPtrT> character_count,
+    String::Encoding from_encoding, String::Encoding to_encoding) {
+  // Cannot assert IsString(from_string) and IsString(to_string) here because
+  // SubString can pass in faked sequential strings when handling external
+  // subject strings.
+  bool from_one_byte = from_encoding == String::ONE_BYTE_ENCODING;
+  bool to_one_byte = to_encoding == String::ONE_BYTE_ENCODING;
+  DCHECK_IMPLIES(to_one_byte, from_one_byte);
+  Comment("CopyStringCharacters ",
+          from_one_byte ? "ONE_BYTE_ENCODING" : "TWO_BYTE_ENCODING", " -> ",
+          to_one_byte ? "ONE_BYTE_ENCODING" : "TWO_BYTE_ENCODING");
+
+  ElementsKind from_kind = from_one_byte ? UINT8_ELEMENTS : UINT16_ELEMENTS;
+  ElementsKind to_kind = to_one_byte ? UINT8_ELEMENTS : UINT16_ELEMENTS;
+  STATIC_ASSERT(SeqOneByteString::kHeaderSize == SeqTwoByteString::kHeaderSize);
+  int header_size = SeqOneByteString::kHeaderSize - kHeapObjectTag;
+  TNode<IntPtrT> from_offset =
+      ElementOffsetFromIndex(from_index, from_kind, header_size);
+  TNode<IntPtrT> to_offset =
+      ElementOffsetFromIndex(to_index, to_kind, header_size);
+  TNode<IntPtrT> byte_count =
+      ElementOffsetFromIndex(character_count, from_kind);
+  TNode<IntPtrT> limit_offset = IntPtrAdd(from_offset, byte_count);
+
+  // Prepare the fast loop
+  MachineType type =
+      from_one_byte ? MachineType::Uint8() : MachineType::Uint16();
+  MachineRepresentation rep = to_one_byte ? MachineRepresentation::kWord8
+                                          : MachineRepresentation::kWord16;
+  int from_increment = 1 << ElementsKindToShiftSize(from_kind);
+  int to_increment = 1 << ElementsKindToShiftSize(to_kind);
+
+  TVARIABLE(IntPtrT, current_to_offset, to_offset);
+  VariableList vars({&current_to_offset}, zone());
+  int to_index_constant = 0, from_index_constant = 0;
+  bool index_same = (from_encoding == to_encoding) &&
+                    (from_index == to_index ||
+                     (ToInt32Constant(from_index, &from_index_constant) &&
+                      ToInt32Constant(to_index, &to_index_constant) &&
+                      from_index_constant == to_index_constant));
+  BuildFastLoop<IntPtrT>(
+      vars, from_offset, limit_offset,
+      [&](TNode<IntPtrT> offset) {
+        Node* value = Load(type, from_string, offset);
+        StoreNoWriteBarrier(rep, to_string,
+                            index_same ? offset : current_to_offset.value(),
+                            value);
+        if (!index_same) {
+          Increment(&current_to_offset, to_increment);
+        }
+      },
+      from_increment, IndexAdvanceMode::kPost);
+}
+
+// A wrapper around CopyStringCharacters which determines the correct string
+// encoding, allocates a corresponding sequential string, and then copies the
+// given character range using CopyStringCharacters.
+// |from_string| must be a sequential string.
+// 0 <= |from_index| <= |from_index| + |character_count| < from_string.length.
+TNode<String> StringBuiltinsAssembler::AllocAndCopyStringCharacters(
+    Node* from, Node* from_instance_type, TNode<IntPtrT> from_index,
+    TNode<IntPtrT> character_count) {
+  Label end(this), one_byte_sequential(this), two_byte_sequential(this);
+  TVARIABLE(String, var_result);
+
+  Branch(IsOneByteStringInstanceType(from_instance_type), &one_byte_sequential,
+         &two_byte_sequential);
+
+  // The subject string is a sequential one-byte string.
+  BIND(&one_byte_sequential);
+  {
+    TNode<String> result = AllocateSeqOneByteString(
+        Unsigned(TruncateIntPtrToInt32(character_count)));
+    CopyStringCharacters(from, result, from_index, IntPtrConstant(0),
+                         character_count, String::ONE_BYTE_ENCODING,
+                         String::ONE_BYTE_ENCODING);
+    var_result = result;
+    Goto(&end);
+  }
+
+  // The subject string is a sequential two-byte string.
+  BIND(&two_byte_sequential);
+  {
+    TNode<String> result = AllocateSeqTwoByteString(
+        Unsigned(TruncateIntPtrToInt32(character_count)));
+    CopyStringCharacters(from, result, from_index, IntPtrConstant(0),
+                         character_count, String::TWO_BYTE_ENCODING,
+                         String::TWO_BYTE_ENCODING);
+    var_result = result;
+    Goto(&end);
+  }
+
+  BIND(&end);
+  return var_result.value();
+}
+
+TNode<String> StringBuiltinsAssembler::SubString(TNode<String> string,
+                                                 TNode<IntPtrT> from,
+                                                 TNode<IntPtrT> to) {
+  TVARIABLE(String, var_result);
+  ToDirectStringAssembler to_direct(state(), string);
+  Label end(this), runtime(this);
+
+  TNode<IntPtrT> const substr_length = IntPtrSub(to, from);
+  TNode<IntPtrT> const string_length = LoadStringLengthAsWord(string);
+
+  // Begin dispatching based on substring length.
+
+  Label original_string_or_invalid_length(this);
+  GotoIf(UintPtrGreaterThanOrEqual(substr_length, string_length),
+         &original_string_or_invalid_length);
+
+  // A real substring (substr_length < string_length).
+  Label empty(this);
+  GotoIf(IntPtrEqual(substr_length, IntPtrConstant(0)), &empty);
+
+  Label single_char(this);
+  GotoIf(IntPtrEqual(substr_length, IntPtrConstant(1)), &single_char);
+
+  // Deal with different string types: update the index if necessary
+  // and extract the underlying string.
+
+  TNode<String> direct_string = to_direct.TryToDirect(&runtime);
+  TNode<IntPtrT> offset = IntPtrAdd(from, to_direct.offset());
+  TNode<Int32T> const instance_type = to_direct.instance_type();
+
+  // The subject string can only be external or sequential string of either
+  // encoding at this point.
+  Label external_string(this);
+  {
+    if (FLAG_string_slices) {
+      Label next(this);
+
+      // Short slice.  Copy instead of slicing.
+      GotoIf(IntPtrLessThan(substr_length,
+                            IntPtrConstant(SlicedString::kMinLength)),
+             &next);
+
+      // Allocate new sliced string.
+
+      Counters* counters = isolate()->counters();
+      IncrementCounter(counters->sub_string_native(), 1);
+
+      Label one_byte_slice(this), two_byte_slice(this);
+      Branch(IsOneByteStringInstanceType(to_direct.instance_type()),
+             &one_byte_slice, &two_byte_slice);
+
+      BIND(&one_byte_slice);
+      {
+        var_result = AllocateSlicedOneByteString(
+            Unsigned(TruncateIntPtrToInt32(substr_length)), direct_string,
+            SmiTag(offset));
+        Goto(&end);
+      }
+
+      BIND(&two_byte_slice);
+      {
+        var_result = AllocateSlicedTwoByteString(
+            Unsigned(TruncateIntPtrToInt32(substr_length)), direct_string,
+            SmiTag(offset));
+        Goto(&end);
+      }
+
+      BIND(&next);
+    }
+
+    // The subject string can only be external or sequential string of either
+    // encoding at this point.
+    GotoIf(to_direct.is_external(), &external_string);
+
+    var_result = AllocAndCopyStringCharacters(direct_string, instance_type,
+                                              offset, substr_length);
+
+    Counters* counters = isolate()->counters();
+    IncrementCounter(counters->sub_string_native(), 1);
+
+    Goto(&end);
+  }
+
+  // Handle external string.
+  BIND(&external_string);
+  {
+    TNode<RawPtrT> const fake_sequential_string =
+        to_direct.PointerToString(&runtime);
+
+    var_result = AllocAndCopyStringCharacters(
+        fake_sequential_string, instance_type, offset, substr_length);
+
+    Counters* counters = isolate()->counters();
+    IncrementCounter(counters->sub_string_native(), 1);
+
+    Goto(&end);
+  }
+
+  BIND(&empty);
+  {
+    var_result = EmptyStringConstant();
+    Goto(&end);
+  }
+
+  // Substrings of length 1 are generated through CharCodeAt and FromCharCode.
+  BIND(&single_char);
+  {
+    TNode<Int32T> char_code = StringCharCodeAt(string, from);
+    var_result = StringFromSingleCharCode(char_code);
+    Goto(&end);
+  }
+
+  BIND(&original_string_or_invalid_length);
+  {
+    CSA_ASSERT(this, IntPtrEqual(substr_length, string_length));
+
+    // Equal length - check if {from, to} == {0, str.length}.
+    GotoIf(UintPtrGreaterThan(from, IntPtrConstant(0)), &runtime);
+
+    // Return the original string (substr_length == string_length).
+
+    Counters* counters = isolate()->counters();
+    IncrementCounter(counters->sub_string_native(), 1);
+
+    var_result = string;
+    Goto(&end);
+  }
+
+  // Fall back to a runtime call.
+  BIND(&runtime);
+  {
+    var_result =
+        CAST(CallRuntime(Runtime::kStringSubstring, NoContextConstant(), string,
+                         SmiTag(from), SmiTag(to)));
+    Goto(&end);
+  }
+
+  BIND(&end);
+  return var_result.value();
 }
 
 }  // namespace internal

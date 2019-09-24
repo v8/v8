@@ -35,6 +35,23 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
 
   TNode<String> StringFromSingleUTF16EncodedCodePoint(TNode<Int32T> codepoint);
 
+  // Return a new string object which holds a substring containing the range
+  // [from,to[ of string.
+  TNode<String> SubString(TNode<String> string, TNode<IntPtrT> from,
+                          TNode<IntPtrT> to);
+
+  // Copies |character_count| elements from |from_string| to |to_string|
+  // starting at the |from_index|'th character. |from_string| and |to_string|
+  // can either be one-byte strings or two-byte strings, although if
+  // |from_string| is two-byte, then |to_string| must be two-byte.
+  // |from_index|, |to_index| and |character_count| must be intptr_ts s.t. 0 <=
+  // |from_index| <= |from_index| + |character_count| <= from_string.length and
+  // 0 <= |to_index| <= |to_index| + |character_count| <= to_string.length.
+  V8_EXPORT_PRIVATE void CopyStringCharacters(
+      Node* from_string, Node* to_string, TNode<IntPtrT> from_index,
+      TNode<IntPtrT> to_index, TNode<IntPtrT> character_count,
+      String::Encoding from_encoding, String::Encoding to_encoding);
+
  protected:
   void StringEqual_Loop(Node* lhs, Node* lhs_instance_type,
                         MachineType lhs_type, Node* rhs,
@@ -137,6 +154,12 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
       Handle<Symbol> symbol,
       DescriptorIndexNameValue additional_property_to_check,
       const NodeFunction0& regexp_call, const NodeFunction1& generic_call);
+
+ private:
+  TNode<String> AllocAndCopyStringCharacters(Node* from,
+                                             Node* from_instance_type,
+                                             TNode<IntPtrT> from_index,
+                                             TNode<IntPtrT> character_count);
 };
 
 class StringIncludesIndexOfAssembler : public StringBuiltinsAssembler {

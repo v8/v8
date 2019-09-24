@@ -1865,7 +1865,7 @@ TEST(OneToTwoByteStringCopy) {
 
   const int kNumParams = 2;
   CodeAssemblerTester asm_tester(isolate, kNumParams);
-  CodeStubAssembler m(asm_tester.state());
+  StringBuiltinsAssembler m(asm_tester.state());
 
   m.CopyStringCharacters(m.Parameter(0), m.Parameter(1), m.IntPtrConstant(0),
                          m.IntPtrConstant(0), m.IntPtrConstant(5),
@@ -1897,7 +1897,7 @@ TEST(OneToOneByteStringCopy) {
 
   const int kNumParams = 2;
   CodeAssemblerTester asm_tester(isolate, kNumParams);
-  CodeStubAssembler m(asm_tester.state());
+  StringBuiltinsAssembler m(asm_tester.state());
 
   m.CopyStringCharacters(m.Parameter(0), m.Parameter(1), m.IntPtrConstant(0),
                          m.IntPtrConstant(0), m.IntPtrConstant(5),
@@ -1929,7 +1929,7 @@ TEST(OneToOneByteStringCopyNonZeroStart) {
 
   const int kNumParams = 2;
   CodeAssemblerTester asm_tester(isolate, kNumParams);
-  CodeStubAssembler m(asm_tester.state());
+  StringBuiltinsAssembler m(asm_tester.state());
 
   m.CopyStringCharacters(m.Parameter(0), m.Parameter(1), m.IntPtrConstant(0),
                          m.IntPtrConstant(3), m.IntPtrConstant(2),
@@ -1958,7 +1958,7 @@ TEST(TwoToTwoByteStringCopy) {
 
   const int kNumParams = 2;
   CodeAssemblerTester asm_tester(isolate, kNumParams);
-  CodeStubAssembler m(asm_tester.state());
+  StringBuiltinsAssembler m(asm_tester.state());
 
   m.CopyStringCharacters(m.Parameter(0), m.Parameter(1), m.IntPtrConstant(0),
                          m.IntPtrConstant(0), m.IntPtrConstant(5),
