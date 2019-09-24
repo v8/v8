@@ -425,11 +425,13 @@
   V(LoadFieldByIndex)                   \
   V(LoadField)                          \
   V(LoadElement)                        \
+  V(LoadMessage)                        \
   V(LoadTypedElement)                   \
   V(LoadFromObject)                     \
   V(LoadDataViewElement)                \
   V(StoreField)                         \
   V(StoreElement)                       \
+  V(StoreMessage)                       \
   V(StoreTypedElement)                  \
   V(StoreToObject)                      \
   V(StoreDataViewElement)               \
