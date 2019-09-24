@@ -189,6 +189,10 @@ class ExpressionScope {
     return variable_index;
   }
 
+  bool has_possible_arrow_parameter_in_scope_chain() const {
+    return has_possible_arrow_parameter_in_scope_chain_;
+  }
+
  protected:
   enum ScopeType : uint8_t {
     // Expression or assignment target.
@@ -217,7 +221,11 @@ class ExpressionScope {
         type_(type),
         has_possible_parameter_in_scope_chain_(
             CanBeParameterDeclaration() ||
-            (parent_ && parent_->has_possible_parameter_in_scope_chain_)) {
+            (parent_ && parent_->has_possible_parameter_in_scope_chain_)),
+        has_possible_arrow_parameter_in_scope_chain_(
+            CanBeArrowParameterDeclaration() ||
+            (parent_ &&
+             parent_->has_possible_arrow_parameter_in_scope_chain_)) {
     parser->expression_scope_ = this;
   }
 
@@ -281,6 +289,10 @@ class ExpressionScope {
     return IsInRange(type_, kMaybeArrowParameterDeclaration,
                      kParameterDeclaration);
   }
+  bool CanBeArrowParameterDeclaration() const {
+    return IsInRange(type_, kMaybeArrowParameterDeclaration,
+                     kMaybeAsyncArrowParameterDeclaration);
+  }
   bool IsCertainlyParameterDeclaration() const {
     return type_ == kParameterDeclaration;
   }
@@ -289,6 +301,7 @@ class ExpressionScope {
   ExpressionScope<Types>* parent_;
   ScopeType type_;
   bool has_possible_parameter_in_scope_chain_;
+  bool has_possible_arrow_parameter_in_scope_chain_;
 
   DISALLOW_COPY_AND_ASSIGN(ExpressionScope);
 };
