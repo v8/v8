@@ -63,6 +63,7 @@ class V8DebuggerScript {
 
   virtual const String16& sourceMappingURL() const = 0;
   virtual String16 source(size_t pos, size_t len = UINT_MAX) const = 0;
+  virtual v8::Maybe<v8::MemorySpan<const uint8_t>> wasmBytecode() const = 0;
   virtual const String16& hash() const = 0;
   virtual int startLine() const = 0;
   virtual int startColumn() const = 0;

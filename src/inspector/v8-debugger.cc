@@ -507,31 +507,36 @@ size_t V8Debugger::nearHeapLimitCallback(void* data, size_t current_heap_limit,
 
 void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
                                 bool is_live_edited, bool has_compile_error) {
+  if (m_ignoreScriptParsedEventsCounter != 0) return;
+
   int contextId;
   if (!script->ContextId().To(&contextId)) return;
-  if (script->IsWasm() && script->SourceMappingURL().IsEmpty()) {
-    WasmTranslation* wasmTranslation = &m_wasmTranslation;
-    m_inspector->forEachSession(
-        m_inspector->contextGroupId(contextId),
-        [&script, &wasmTranslation](V8InspectorSessionImpl* session) {
-          if (!session->debuggerAgent()->enabled()) return;
-          wasmTranslation->AddScript(script.As<v8::debug::WasmScript>(),
-                                     session->debuggerAgent());
-        });
-  } else if (m_ignoreScriptParsedEventsCounter == 0) {
-    v8::Isolate* isolate = m_isolate;
-    V8InspectorClient* client = m_inspector->client();
-    m_inspector->forEachSession(
-        m_inspector->contextGroupId(contextId),
-        [&isolate, &script, &has_compile_error, &is_live_edited,
-         &client](V8InspectorSessionImpl* session) {
-          if (!session->debuggerAgent()->enabled()) return;
-          session->debuggerAgent()->didParseSource(
-              V8DebuggerScript::Create(isolate, script, is_live_edited,
-                                       session->debuggerAgent(), client),
-              !has_compile_error);
-        });
-  }
+
+  v8::Isolate* isolate = m_isolate;
+  V8InspectorClient* client = m_inspector->client();
+  WasmTranslation& wasmTranslation = m_wasmTranslation;
+
+  m_inspector->forEachSession(
+      m_inspector->contextGroupId(contextId),
+      [isolate, &script, has_compile_error, is_live_edited, client,
+       &wasmTranslation](V8InspectorSessionImpl* session) {
+        auto agent = session->debuggerAgent();
+        if (!agent->enabled()) return;
+        if (script->IsWasm() && script->SourceMappingURL().IsEmpty() &&
+            !(agent->supportsWasmDwarf() &&
+              script.As<v8::debug::WasmScript>()->HasDwarf())) {
+          wasmTranslation.AddScript(script.As<v8::debug::WasmScript>(), agent);
+        } else {
+          auto debuggerScript = V8DebuggerScript::Create(
+              isolate, script, is_live_edited, agent, client);
+          if (script->IsWasm() && script->SourceMappingURL().IsEmpty()) {
+            DCHECK(agent->supportsWasmDwarf());
+            DCHECK(script.As<v8::debug::WasmScript>()->HasDwarf());
+            debuggerScript->setSourceMappingURL("wasm://dwarf");
+          }
+          agent->didParseSource(std::move(debuggerScript), !has_compile_error);
+        }
+      });
 }
 
 void V8Debugger::BreakProgramRequested(

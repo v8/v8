@@ -101,13 +101,23 @@ class StringUtil {
 // therefore it's unnecessary to provide an implementation here.
 class Binary {
  public:
-  const uint8_t* data() const { UNIMPLEMENTED(); }
-  size_t size() const { UNIMPLEMENTED(); }
+  Binary() = default;
+
+  const uint8_t* data() const { return bytes_->data(); }
+  size_t size() const { return bytes_->size(); }
   String toBase64() const { UNIMPLEMENTED(); }
   static Binary fromBase64(const String& base64, bool* success) {
     UNIMPLEMENTED();
   }
-  static Binary fromSpan(const uint8_t* data, size_t size) { UNIMPLEMENTED(); }
+  static Binary fromSpan(const uint8_t* data, size_t size) {
+    return Binary(std::make_shared<std::vector<uint8_t>>(data, data + size));
+  }
+
+ private:
+  std::shared_ptr<std::vector<uint8_t>> bytes_;
+
+  explicit Binary(std::shared_ptr<std::vector<uint8_t>> bytes)
+      : bytes_(bytes) {}
 };
 }  // namespace protocol
 

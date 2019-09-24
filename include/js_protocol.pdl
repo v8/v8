@@ -169,6 +169,8 @@ domain Debugger
       # The maximum size in bytes of collected scripts (not referenced by other heap objects)
       # the debugger can hold. Puts no limit if paramter is omitted.
       experimental optional number maxScriptsCacheSize
+      # Whether to report Wasm modules as raw binaries instead of disassembled functions.
+      experimental optional boolean supportsWasmDwarf
     returns
       # Unique identifier of the debugger.
       experimental Runtime.UniqueDebuggerId debuggerId
@@ -226,6 +228,15 @@ domain Debugger
     returns
       # Script source.
       string scriptSource
+
+  # Returns bytecode for the WebAssembly script with given id.
+  command getWasmBytecode
+    parameters
+      # Id of the Wasm script to get source for.
+      Runtime.ScriptId scriptId
+    returns
+      # Script source.
+      binary bytecode
 
   # Returns stack trace with given `stackTraceId`.
   experimental command getStackTrace

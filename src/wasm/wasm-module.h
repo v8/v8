@@ -193,6 +193,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   bool has_maximum_pages = false;  // true if there is a maximum memory size
   bool has_memory = false;         // true if the memory was defined or imported
   bool mem_export = false;         // true if the memory is exported
+  bool has_dwarf = false;          // true if .debug_info section is present
   int start_function_index = -1;   // start function, >= 0 if any
 
   std::vector<WasmGlobal> globals;

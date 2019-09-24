@@ -30,6 +30,7 @@ namespace {
 constexpr char kNameString[] = "name";
 constexpr char kSourceMappingURLString[] = "sourceMappingURL";
 constexpr char kCompilationHintsString[] = "compilationHints";
+constexpr char kDebugInfoString[] = ".debug_info";
 
 template <size_t N>
 constexpr size_t num_chars(const char (&)[N]) {
@@ -88,6 +89,8 @@ const char* SectionName(SectionCode code) {
       return kNameString;
     case kSourceMappingURLSectionCode:
       return kSourceMappingURLString;
+    case kDebugInfoSectionCode:
+      return kDebugInfoString;
     case kCompilationHintsSectionCode:
       return kCompilationHintsString;
     default:
@@ -398,6 +401,10 @@ class ModuleDecoderImpl : public Decoder {
         // sourceMappingURL is a custom section and currently can occur anywhere
         // in the module. In case of multiple sourceMappingURL sections, all
         // except the first occurrence are ignored.
+      case kDebugInfoSectionCode:
+        // .debug_info is a custom section containing core DWARF information
+        // if produced by compiler. Its presence likely means that Wasm was
+        // built in a debug mode.
       case kCompilationHintsSectionCode:
         // TODO(frgossen): report out of place compilation hints section as a
         // warning.
@@ -451,6 +458,10 @@ class ModuleDecoderImpl : public Decoder {
         break;
       case kSourceMappingURLSectionCode:
         DecodeSourceMappingURLSection();
+        break;
+      case kDebugInfoSectionCode:
+        module_->has_dwarf = true;
+        consume_bytes(static_cast<uint32_t>(end_ - start_), ".debug_info");
         break;
       case kCompilationHintsSectionCode:
         if (enabled_features_.compilation_hints) {
@@ -1950,6 +1961,10 @@ SectionCode ModuleDecoder::IdentifyUnknownSection(Decoder* decoder,
                      kCompilationHintsString,
                      num_chars(kCompilationHintsString)) == 0) {
     return kCompilationHintsSectionCode;
+  } else if (string.length() == num_chars(kDebugInfoString) &&
+             strncmp(reinterpret_cast<const char*>(section_name_start),
+                     kDebugInfoString, num_chars(kDebugInfoString)) == 0) {
+    return kDebugInfoSectionCode;
   }
   return kUnknownSectionCode;
 }
