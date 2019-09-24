@@ -886,6 +886,9 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   // load-element [base + index]
   const Operator* LoadElement(ElementAccess const&);
 
+  // load-stack-argument [base + index]
+  const Operator* LoadStackArgument();
+
   // store-element [base + index], value
   const Operator* StoreElement(ElementAccess const&);
 

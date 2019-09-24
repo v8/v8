@@ -2198,6 +2198,10 @@ Type Typer::Visitor::TypeLoadElement(Node* node) {
   return ElementAccessOf(node->op()).type;
 }
 
+Type Typer::Visitor::TypeLoadStackArgument(Node* node) {
+  return Type::NonInternal();
+}
+
 Type Typer::Visitor::TypeLoadFromObject(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeLoadTypedElement(Node* node) {

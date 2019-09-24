@@ -1601,6 +1601,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // CheckTypeIs(node, FieldAccessOf(node->op()).type));
       break;
     case IrOpcode::kLoadElement:
+    case IrOpcode::kLoadStackArgument:
       // Object -> elementtype
       // TODO(rossberg): activate once machine ops are typed.
       // CheckValueInputIs(node, 0, Type::Object());

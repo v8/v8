@@ -429,6 +429,7 @@
   V(LoadTypedElement)                   \
   V(LoadFromObject)                     \
   V(LoadDataViewElement)                \
+  V(LoadStackArgument)                  \
   V(StoreField)                         \
   V(StoreElement)                       \
   V(StoreMessage)                       \
