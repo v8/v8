@@ -799,7 +799,8 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
         var_accessor_holder.Bind(receiver);
         Goto(&accessor);
       } else {
-        Goto(&data_property);
+        // Handle accessor to data property reconfiguration in runtime.
+        Goto(slow);
       }
 
       BIND(&data_property);
