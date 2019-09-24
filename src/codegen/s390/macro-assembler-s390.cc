@@ -3456,16 +3456,16 @@ void TurboAssembler::LoadFloat32Literal(DoubleRegister result, float value,
 }
 
 void TurboAssembler::CmpSmiLiteral(Register src1, Smi smi, Register scratch) {
-#if V8_TARGET_ARCH_S390X
+#if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
+  // CFI takes 32-bit immediate.
+  cfi(src1, Operand(smi));
+#else
   if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
     cih(src1, Operand(static_cast<intptr_t>(smi.ptr()) >> 32));
   } else {
     LoadSmiLiteral(scratch, smi);
     cgr(src1, scratch);
   }
-#else
-  // CFI takes 32-bit immediate.
-  cfi(src1, Operand(smi));
 #endif
 }
 

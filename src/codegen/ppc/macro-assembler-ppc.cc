@@ -2409,51 +2409,51 @@ void MacroAssembler::Xor(Register ra, Register rs, const Operand& rb,
 
 void MacroAssembler::CmpSmiLiteral(Register src1, Smi smi, Register scratch,
                                    CRegister cr) {
-#if V8_TARGET_ARCH_PPC64
+#if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
+  Cmpi(src1, Operand(smi), scratch, cr);
+#else
   LoadSmiLiteral(scratch, smi);
   cmp(src1, scratch, cr);
-#else
-  Cmpi(src1, Operand(smi), scratch, cr);
 #endif
 }
 
 void MacroAssembler::CmplSmiLiteral(Register src1, Smi smi, Register scratch,
                                     CRegister cr) {
-#if V8_TARGET_ARCH_PPC64
+#if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
+  Cmpli(src1, Operand(smi), scratch, cr);
+#else
   LoadSmiLiteral(scratch, smi);
   cmpl(src1, scratch, cr);
-#else
-  Cmpli(src1, Operand(smi), scratch, cr);
 #endif
 }
 
 void MacroAssembler::AddSmiLiteral(Register dst, Register src, Smi smi,
                                    Register scratch) {
-#if V8_TARGET_ARCH_PPC64
+#if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
+  Add(dst, src, static_cast<intptr_t>(smi.ptr()), scratch);
+#else
   LoadSmiLiteral(scratch, smi);
   add(dst, src, scratch);
-#else
-  Add(dst, src, reinterpret_cast<intptr_t>(smi), scratch);
 #endif
 }
 
 void MacroAssembler::SubSmiLiteral(Register dst, Register src, Smi smi,
                                    Register scratch) {
-#if V8_TARGET_ARCH_PPC64
+#if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
+  Add(dst, src, -(static_cast<intptr_t>(smi.ptr())), scratch);
+#else
   LoadSmiLiteral(scratch, smi);
   sub(dst, src, scratch);
-#else
-  Add(dst, src, -(reinterpret_cast<intptr_t>(smi)), scratch);
 #endif
 }
 
 void MacroAssembler::AndSmiLiteral(Register dst, Register src, Smi smi,
                                    Register scratch, RCBit rc) {
-#if V8_TARGET_ARCH_PPC64
+#if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
+  And(dst, src, Operand(smi), rc);
+#else
   LoadSmiLiteral(scratch, smi);
   and_(dst, src, scratch, rc);
-#else
-  And(dst, src, Operand(smi), rc);
 #endif
 }
 
