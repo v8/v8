@@ -1114,6 +1114,10 @@ Node* WasmGraphBuilder::ZeroCheck64(wasm::TrapReason reason, Node* node,
 }
 
 Node* WasmGraphBuilder::Switch(unsigned count, Node* key) {
+  // The instruction selector will use {kArchTableSwitch} for large switches,
+  // which has limited input count, see {InstructionSelector::EmitTableSwitch}.
+  DCHECK_LE(count, Instruction::kMaxInputCount - 2);          // value_range + 2
+  DCHECK_LE(count, wasm::kV8MaxWasmFunctionBrTableSize + 1);  // plus IfDefault
   return graph()->NewNode(mcgraph()->common()->Switch(count), key, Control());
 }
 
@@ -6896,6 +6900,7 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
   counters->wasm_compile_function_peak_memory_bytes()->AddSample(
       static_cast<int>(mcgraph->graph()->zone()->allocation_size()));
   auto result = info.ReleaseWasmCompilationResult();
+  CHECK_NOT_NULL(result);  // Compilation expected to succeed.
   DCHECK_EQ(wasm::ExecutionTier::kTurbofan, result->result_tier);
   return std::move(*result);
 }

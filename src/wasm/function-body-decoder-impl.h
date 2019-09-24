@@ -1045,8 +1045,8 @@ class WasmDecoder : public Decoder {
 
   bool Validate(const byte* pc, BranchTableImmediate<validate>& imm,
                 size_t block_depth) {
-    if (!VALIDATE(imm.table_count < kV8MaxWasmFunctionSize)) {
-      errorf(pc + 1, "invalid table count (> max function size): %u",
+    if (!VALIDATE(imm.table_count <= kV8MaxWasmFunctionBrTableSize)) {
+      errorf(pc + 1, "invalid table count (> max br_table size): %u",
              imm.table_count);
       return false;
     }
