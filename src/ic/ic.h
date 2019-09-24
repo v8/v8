@@ -268,11 +268,6 @@ class StoreIC : public IC {
 
  protected:
   // Stub accessors.
-  virtual Handle<Code> slow_stub() const {
-    // All StoreICs share the same slow stub.
-    return BUILTIN_CODE(isolate(), KeyedStoreIC_Slow);
-  }
-
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupIterator* lookup, Handle<Object> value,
@@ -292,11 +287,6 @@ class StoreGlobalIC : public StoreIC {
 
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> Store(Handle<Name> name,
                                                   Handle<Object> value);
-
- protected:
-  Handle<Code> slow_stub() const override {
-    return BUILTIN_CODE(isolate(), StoreGlobalIC_Slow);
-  }
 };
 
 enum KeyedStoreCheckMap { kDontCheckMap, kCheckMap };
@@ -328,10 +318,6 @@ class KeyedStoreIC : public StoreIC {
                           KeyedAccessStoreMode store_mode,
                           Handle<Map> new_receiver_map);
 
-  Handle<Code> slow_stub() const override {
-    return BUILTIN_CODE(isolate(), KeyedStoreIC_Slow);
-  }
-
  private:
   Handle<Map> ComputeTransitionedMap(Handle<Map> map,
                                      TransitionMode transition_mode);
@@ -356,11 +342,6 @@ class StoreInArrayLiteralIC : public KeyedStoreIC {
   }
 
   void Store(Handle<JSArray> array, Handle<Object> index, Handle<Object> value);
-
- private:
-  Handle<Code> slow_stub() const override {
-    return BUILTIN_CODE(isolate(), StoreInArrayLiteralIC_Slow);
-  }
 };
 
 }  // namespace internal

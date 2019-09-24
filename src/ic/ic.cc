@@ -1402,7 +1402,7 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
       } else {
         // Given combination of indices can't be encoded, so use slow stub.
         TRACE_HANDLER_STATS(isolate(), StoreGlobalIC_SlowStub);
-        PatchCache(name, slow_stub());
+        PatchCache(name, StoreHandler::StoreSlow(isolate()));
       }
       TraceIC("StoreGlobalIC", name);
     }
@@ -1435,7 +1435,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
       // Ensure the IC state progresses.
       TRACE_HANDLER_STATS(isolate(), StoreIC_NonReceiver);
       update_receiver_map(object);
-      PatchCache(name, slow_stub());
+      PatchCache(name, StoreHandler::StoreSlow(isolate()));
       TraceIC("StoreIC", name);
     }
     return TypeError(MessageTemplate::kNonObjectPropertyStore, object, name);
@@ -1498,7 +1498,6 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
     handler = ComputeHandler(lookup);
   } else {
     set_slow_stub_reason("LookupForWrite said 'false'");
-    // TODO(marja): change slow_stub to return MaybeObjectHandle.
     handler = MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
   }
 
@@ -1920,7 +1919,7 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
       // TODO(mvstanton): Consider embedding store_mode in the state of the slow
       // keyed store ic for uniformity.
       TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_SlowStub);
-      handler = slow_stub();
+      handler = StoreHandler::StoreSlow(isolate());
 
     } else {
       {

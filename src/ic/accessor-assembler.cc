@@ -3395,9 +3395,13 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
     {
       Comment("StoreInArrayLiteralIC_if_handler");
       // This is a stripped-down version of HandleStoreICHandlerCase.
+      Label if_transitioning_element_store(this), if_smi_handler(this);
+
+      // Check used to identify the Slow case.
+      // Currently only the Slow case uses a Smi handler.
+      GotoIf(TaggedIsSmi(var_handler.value()), &if_smi_handler);
 
       TNode<HeapObject> handler = CAST(var_handler.value());
-      Label if_transitioning_element_store(this);
       GotoIfNot(IsCode(handler), &if_transitioning_element_store);
       TailCallStub(StoreWithVectorDescriptor{}, CAST(handler), p->context(),
                    p->receiver(), p->name(), p->value(), p->slot(),
@@ -3415,6 +3419,22 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
         TailCallStub(StoreTransitionDescriptor{}, code, p->context(),
                      p->receiver(), p->name(), transition_map, p->value(),
                      p->slot(), p->vector());
+      }
+
+      BIND(&if_smi_handler);
+      {
+#ifdef DEBUG
+        // A check to ensure that no other Smi handler uses this path.
+        TNode<Int32T> handler_word = SmiToInt32(CAST(var_handler.value()));
+        TNode<Uint32T> handler_kind =
+            DecodeWord32<StoreHandler::KindBits>(handler_word);
+        CSA_ASSERT(this, Word32Equal(handler_kind,
+                                     Int32Constant(StoreHandler::kSlow)));
+#endif
+
+        Comment("StoreInArrayLiteralIC_Slow");
+        TailCallRuntime(Runtime::kStoreInArrayLiteralIC_Slow, p->context(),
+                        p->value(), p->receiver(), p->name());
       }
     }
 
