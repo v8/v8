@@ -359,7 +359,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   writer->WriteVector(code->source_positions());
   writer->WriteVector(Vector<byte>::cast(code->protected_instructions()));
 #if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM || \
-    V8_TARGET_ARCH_PPC
+    V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390X
   // On platforms that don't support misaligned word stores, copy to an aligned
   // buffer if necessary so we can relocate the serialized code.
   std::unique_ptr<byte[]> aligned_buffer;
