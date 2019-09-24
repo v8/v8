@@ -2941,14 +2941,18 @@ void TurboAssembler::JumpIfLessThan(Register x, int32_t y, Label* dest) {
 
 void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
   STATIC_ASSERT(kSystemPointerSize == 8);
-  STATIC_ASSERT(kSmiShiftSize == 31);
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kSmiTag == 0);
 
   // The builtin_index register contains the builtin index as a Smi.
   // Untagging is folded into the indexing operand below.
+#if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
+  ShiftLeftImm(builtin_index, builtin_index,
+               Operand(kSystemPointerSizeLog2 - kSmiShift));
+#else
   ShiftRightArithImm(builtin_index, builtin_index,
                      kSmiShift - kSystemPointerSizeLog2);
+#endif
   addi(builtin_index, builtin_index,
        Operand(IsolateData::builtin_entry_table_offset()));
   LoadPX(builtin_index, MemOperand(kRootRegister, builtin_index));

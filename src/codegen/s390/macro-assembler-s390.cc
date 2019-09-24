@@ -3415,12 +3415,12 @@ void TurboAssembler::LoadIntLiteral(Register dst, int value) {
 
 void TurboAssembler::LoadSmiLiteral(Register dst, Smi smi) {
   intptr_t value = static_cast<intptr_t>(smi.ptr());
-#if V8_TARGET_ARCH_S390X
+#if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
+  llilf(dst, Operand(value));
+#else
   DCHECK_EQ(value & 0xFFFFFFFF, 0);
   // The smi value is loaded in upper 32-bits.  Lower 32-bit are zeros.
   llihf(dst, Operand(value >> 32));
-#else
-  llilf(dst, Operand(value));
 #endif
 }
 
@@ -4342,14 +4342,19 @@ void TurboAssembler::JumpIfLessThan(Register x, int32_t y, Label* dest) {
 
 void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
   STATIC_ASSERT(kSystemPointerSize == 8);
-  STATIC_ASSERT(kSmiShiftSize == 31);
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kSmiTag == 0);
 
   // The builtin_index register contains the builtin index as a Smi.
   // Untagging is folded into the indexing operand below.
+#if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
+  STATIC_ASSERT(kSmiShiftSize == 0);
+  ShiftLeftP(builtin_index, builtin_index,
+             Operand(kSystemPointerSizeLog2 - kSmiShift));
+#else
   ShiftRightArithP(builtin_index, builtin_index,
                    Operand(kSmiShift - kSystemPointerSizeLog2));
+#endif
   AddP(builtin_index, builtin_index,
        Operand(IsolateData::builtin_entry_table_offset()));
   LoadP(builtin_index, MemOperand(kRootRegister, builtin_index));
