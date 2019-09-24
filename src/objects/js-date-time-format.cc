@@ -1186,7 +1186,8 @@ class DateTimePatternGeneratorCache {
  public:
   // Return a clone copy that the caller have to free.
   icu::DateTimePatternGenerator* CreateGenerator(const icu::Locale& locale) {
-    std::string key(locale.getBaseName());
+    std::string key(FLAG_harmony_intl_other_calendars ? locale.getName()
+                                                      : locale.getBaseName());
     base::MutexGuard guard(&mutex_);
     auto it = map_.find(key);
     if (it != map_.end()) {
@@ -1194,7 +1195,8 @@ class DateTimePatternGeneratorCache {
     }
     UErrorCode status = U_ZERO_ERROR;
     map_[key].reset(icu::DateTimePatternGenerator::createInstance(
-        icu::Locale(key.c_str()), status));
+        FLAG_harmony_intl_other_calendars ? locale : icu::Locale(key.c_str()),
+        status));
     // Fallback to use "root".
     if (U_FAILURE(status)) {
       status = U_ZERO_ERROR;
@@ -1580,11 +1582,12 @@ Handle<String> IcuDateFieldIdToDateType(int32_t field_id, Isolate* isolate) {
       return isolate->factory()->literal_string();
     case UDAT_YEAR_FIELD:
     case UDAT_EXTENDED_YEAR_FIELD:
-    case UDAT_YEAR_NAME_FIELD:
       return isolate->factory()->year_string();
     case UDAT_QUARTER_FIELD:
     case UDAT_STANDALONE_QUARTER_FIELD:
       return isolate->factory()->quarter_string();
+    case UDAT_YEAR_NAME_FIELD:
+      return isolate->factory()->yearName_string();
     case UDAT_MONTH_FIELD:
     case UDAT_STANDALONE_MONTH_FIELD:
       return isolate->factory()->month_string();
@@ -1619,6 +1622,8 @@ Handle<String> IcuDateFieldIdToDateType(int32_t field_id, Isolate* isolate) {
       return isolate->factory()->era_string();
     case UDAT_FRACTIONAL_SECOND_FIELD:
       return isolate->factory()->fractionalSecond_string();
+    case UDAT_RELATED_YEAR_FIELD:
+      return isolate->factory()->relatedYear_string();
     default:
       // Other UDAT_*_FIELD's cannot show up because there is no way to specify
       // them via options of Intl.DateTimeFormat.
