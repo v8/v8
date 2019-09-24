@@ -2935,8 +2935,6 @@ extern macro LoadConstructorOrBackPointer(Map): Object;
 
 extern macro BasicLoadNumberDictionaryElement(NumberDictionary, intptr): JSAny
     labels NotData, IfHole;
-extern macro BasicStoreNumberDictionaryElement(NumberDictionary, intptr, JSAny)
-    labels NotData, IfHole, ReadOnly;
 
 extern macro IsFastElementsKind(ElementsKind): bool;
 extern macro IsDoubleElementsKind(ElementsKind): bool;
