@@ -3608,6 +3608,14 @@ TEST(MaybeAssignedParameters) {
        "g(arg)}"},
       {true, "function f(arg) {g(arg); eval('arguments[0] = 42'); g(arg)}"},
       {true, "function f(arg) {g(arg); g(() => arguments[0] = 42); g(arg)}"},
+
+      // default values
+      {false, "function f({x:arg = 1}) {}"},
+      {true, "function f({x:arg = 1}, {y:b=(arg=2)}) {}"},
+      {true, "function f({x:arg = (arg = 2)}) {}"},
+      {false, "var f = ({x:arg = 1}) => {}"},
+      {true, "var f = ({x:arg = 1}, {y:b=(arg=2)}) => {}"},
+      {true, "var f = ({x:arg = (arg = 2)}) => {}"},
   };
 
   const char* suffix = "; f";

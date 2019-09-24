@@ -3599,7 +3599,19 @@ void ParserBase<Impl>::ParseFormalParameter(FormalParametersT* parameters) {
   auto declaration_end = scope()->declarations()->end();
   int initializer_end = end_position();
   for (; declaration_it != declaration_end; ++declaration_it) {
-    declaration_it->var()->set_initializer_position(initializer_end);
+    Variable* var = declaration_it->var();
+
+    // The first time a variable is initialized (i.e. when the initializer
+    // position is unset), clear its maybe_assigned flag as it is not a true
+    // assignment. Since this is done directly on the Variable objects, it has
+    // no effect on VariableProxy objects appearing on the left-hand side of
+    // true assignments, so x will be still be marked as maybe_assigned for:
+    // (x = 1, y = (x = 2)) => {}
+    // and even:
+    // (x = (x = 2)) => {}.
+    if (var->initializer_position() == kNoSourcePosition)
+      var->clear_maybe_assigned();
+    var->set_initializer_position(initializer_end);
   }
 
   impl()->AddFormalParameter(parameters, pattern, initializer, end_position(),
