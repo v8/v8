@@ -135,9 +135,13 @@ TEST(DisasmPoisonPolymorphicLoad) {
       "b.ne",                                            // deopt if different
       "csel " + kPReg + ", xzr, " + kPReg + ", ne",      // update the poison
       "csdb",                                            // spec. barrier
-      "ldur <<Field:x[0-9]+>>, \\[<<Obj>>, #[0-9]+\\]",  // load the field
-      "and <<Field>>, <<Field>>, " + kPReg,              // apply the poison
-      "asr x[0-9]+, <<Field>>, #32",                     // untag
+      "ldur x<<Field:[0-9]+>>, \\[<<Obj>>, #[0-9]+\\]",  // load the field
+      "and x<<Field>>, x<<Field>>, " + kPReg,            // apply the poison
+#ifdef V8_31BIT_SMIS_ON_64BIT_ARCH
+      "asr w<<Field>>, w<<Field>>, #1",                  // untag
+#else
+      "asr x[0-9]+, x<<Field>>, #32",                    // untag
+#endif
       "b",                                               // goto merge point
       // Lcase1:
       "csel " + kPReg + ", xzr, " + kPReg + ", ne",     // update the poison
