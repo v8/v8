@@ -819,6 +819,7 @@ class WasmDebugInfo : public Struct {
   NEVER_READ_ONLY_SPACE
   DECL_ACCESSORS(wasm_instance, WasmInstanceObject)
   DECL_ACCESSORS(interpreter_handle, Object)  // Foreign or undefined
+  DECL_ACCESSORS(interpreter_reference_stack, Cell)
   DECL_OPTIONAL_ACCESSORS(locals_names, FixedArray)
   DECL_OPTIONAL_ACCESSORS(c_wasm_entries, FixedArray)
   DECL_OPTIONAL_ACCESSORS(c_wasm_entry_map, Managed<wasm::SignatureMap>)

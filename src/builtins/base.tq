@@ -1153,6 +1153,7 @@ extern class WasmIndirectFunctionTable extends Struct {
 extern class WasmDebugInfo extends Struct {
   instance: WasmInstanceObject;
   interpreter_handle: Foreign | Undefined;
+  interpreter_reference_stack: Cell;
   locals_names: FixedArray | Undefined;
   c_wasm_entries: FixedArray | Undefined;
   c_wasm_entry_map: Foreign | Undefined;  // Managed<wasm::SignatureMap>

@@ -503,9 +503,11 @@ wasm::InterpreterHandle* GetInterpreterHandleOrNull(WasmDebugInfo debug_info) {
 Handle<WasmDebugInfo> WasmDebugInfo::New(Handle<WasmInstanceObject> instance) {
   DCHECK(!instance->has_debug_info());
   Factory* factory = instance->GetIsolate()->factory();
+  Handle<Cell> stack_cell = factory->NewCell(factory->empty_fixed_array());
   Handle<WasmDebugInfo> debug_info = Handle<WasmDebugInfo>::cast(
       factory->NewStruct(WASM_DEBUG_INFO_TYPE, AllocationType::kOld));
   debug_info->set_wasm_instance(*instance);
+  debug_info->set_interpreter_reference_stack(*stack_cell);
   instance->set_debug_info(*debug_info);
   return debug_info;
 }
