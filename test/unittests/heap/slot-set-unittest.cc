@@ -21,7 +21,7 @@ TEST(SlotSet, InsertAndLookup1) {
     EXPECT_FALSE(set.Lookup(i));
   }
   for (int i = 0; i < Page::kPageSize; i += kTaggedSize) {
-    set.Insert(i);
+    set.Insert<AccessMode::ATOMIC>(i);
   }
   for (int i = 0; i < Page::kPageSize; i += kTaggedSize) {
     EXPECT_TRUE(set.Lookup(i));
@@ -33,7 +33,7 @@ TEST(SlotSet, InsertAndLookup2) {
   set.SetPageStart(0);
   for (int i = 0; i < Page::kPageSize; i += kTaggedSize) {
     if (i % 7 == 0) {
-      set.Insert(i);
+      set.Insert<AccessMode::ATOMIC>(i);
     }
   }
   for (int i = 0; i < Page::kPageSize; i += kTaggedSize) {
@@ -50,7 +50,7 @@ TEST(SlotSet, Iterate) {
   set.SetPageStart(0);
   for (int i = 0; i < Page::kPageSize; i += kTaggedSize) {
     if (i % 7 == 0) {
-      set.Insert(i);
+      set.Insert<AccessMode::ATOMIC>(i);
     }
   }
 
@@ -78,7 +78,7 @@ TEST(SlotSet, Remove) {
   set.SetPageStart(0);
   for (int i = 0; i < Page::kPageSize; i += kTaggedSize) {
     if (i % 7 == 0) {
-      set.Insert(i);
+      set.Insert<AccessMode::ATOMIC>(i);
     }
   }
 
@@ -105,7 +105,7 @@ void CheckRemoveRangeOn(uint32_t start, uint32_t end) {
   for (const auto mode :
        {SlotSet::FREE_EMPTY_BUCKETS, SlotSet::KEEP_EMPTY_BUCKETS}) {
     for (uint32_t i = first; i <= last; i += kTaggedSize) {
-      set.Insert(i);
+      set.Insert<AccessMode::ATOMIC>(i);
     }
     set.RemoveRange(start, end, mode);
     if (first != start) {
@@ -140,7 +140,7 @@ TEST(SlotSet, RemoveRange) {
   set.SetPageStart(0);
   for (const auto mode :
        {SlotSet::FREE_EMPTY_BUCKETS, SlotSet::KEEP_EMPTY_BUCKETS}) {
-    set.Insert(Page::kPageSize / 2);
+    set.Insert<AccessMode::ATOMIC>(Page::kPageSize / 2);
     set.RemoveRange(0, Page::kPageSize, mode);
     for (uint32_t i = 0; i < Page::kPageSize; i += kTaggedSize) {
       EXPECT_FALSE(set.Lookup(i));

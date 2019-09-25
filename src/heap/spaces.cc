@@ -23,6 +23,7 @@
 #include "src/heap/read-only-heap.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/slot-set.h"
+#include "src/heap/store-buffer.h"
 #include "src/heap/sweeper.h"
 #include "src/init/v8.h"
 #include "src/logging/counters.h"
@@ -865,12 +866,13 @@ void Page::MoveOldToNewRememberedSetForSweeping() {
 
 void Page::MergeOldToNewRememberedSets() {
   if (sweeping_slot_set_ == nullptr) return;
+  DCHECK(heap()->store_buffer()->Empty());
 
   RememberedSet<OLD_TO_NEW>::Iterate(
       this,
       [this](MaybeObjectSlot slot) {
         Address address = slot.address();
-        RememberedSetSweeping::Insert(this, address);
+        RememberedSetSweeping::Insert<AccessMode::NON_ATOMIC>(this, address);
         return KEEP_SLOT;
       },
       SlotSet::KEEP_EMPTY_BUCKETS);

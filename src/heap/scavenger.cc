@@ -158,9 +158,11 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
         // Sweeper is stopped during scavenge, so we can directly
         // insert into its remembered set here.
         if (chunk->sweeping_slot_set()) {
-          RememberedSetSweeping::Insert(chunk, slot.address());
+          RememberedSetSweeping::Insert<AccessMode::ATOMIC>(chunk,
+                                                            slot.address());
         } else {
-          RememberedSet<OLD_TO_NEW>::Insert(chunk, slot.address());
+          RememberedSet<OLD_TO_NEW>::Insert<AccessMode::ATOMIC>(chunk,
+                                                                slot.address());
         }
       }
       SLOW_DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(
@@ -172,8 +174,8 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
       // We cannot call MarkCompactCollector::RecordSlot because that checks
       // that the host page is not in young generation, which does not hold
       // for pending large pages.
-      RememberedSet<OLD_TO_OLD>::Insert(MemoryChunk::FromHeapObject(host),
-                                        slot.address());
+      RememberedSet<OLD_TO_OLD>::Insert<AccessMode::ATOMIC>(
+          MemoryChunk::FromHeapObject(host), slot.address());
     }
   }
 

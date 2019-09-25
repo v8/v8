@@ -97,7 +97,8 @@ void StoreBuffer::InsertDuringRuntime(StoreBuffer* store_buffer, Address slot) {
 void StoreBuffer::InsertDuringGarbageCollection(StoreBuffer* store_buffer,
                                                 Address slot) {
   DCHECK(store_buffer->mode() != StoreBuffer::NOT_IN_GC);
-  RememberedSet<OLD_TO_NEW>::Insert(Page::FromAddress(slot), slot);
+  RememberedSet<OLD_TO_NEW>::Insert<AccessMode::ATOMIC>(Page::FromAddress(slot),
+                                                        slot);
 }
 
 void StoreBuffer::SetMode(StoreBufferMode mode) {
@@ -146,7 +147,7 @@ void StoreBuffer::MoveEntriesToRememberedSet(int index) {
       chunk = MemoryChunk::FromAnyPointerAddress(addr);
     }
     if (addr != last_inserted_addr) {
-      RememberedSet<OLD_TO_NEW>::Insert(chunk, addr);
+      RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(chunk, addr);
       last_inserted_addr = addr;
     }
   }

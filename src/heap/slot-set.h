@@ -55,7 +55,7 @@ class SlotSet : public Malloced {
   // The slot offset specifies a slot at address page_start_ + slot_offset.
   // AccessMode defines whether there can be concurrent access on the buckets
   // or not.
-  template <AccessMode access_mode = AccessMode::ATOMIC>
+  template <AccessMode access_mode>
   void Insert(int slot_offset) {
     int bucket_index, cell_index, bit_index;
     SlotToIndices(slot_offset, &bucket_index, &cell_index, &bit_index);

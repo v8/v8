@@ -6037,7 +6037,7 @@ TEST(RememberedSetRemoveRange) {
   slots[chunk->area_end() - kTaggedSize] = true;
 
   for (auto x : slots) {
-    RememberedSet<OLD_TO_NEW>::Insert(chunk, x.first);
+    RememberedSet<OLD_TO_NEW>::Insert<AccessMode::ATOMIC>(chunk, x.first);
   }
 
   RememberedSet<OLD_TO_NEW>::Iterate(chunk,

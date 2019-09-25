@@ -93,7 +93,7 @@ class RememberedSet : public AllStatic {
  public:
   // Given a page and a slot in that page, this function adds the slot to the
   // remembered set.
-  template <AccessMode access_mode = AccessMode::ATOMIC>
+  template <AccessMode access_mode>
   static void Insert(MemoryChunk* chunk, Address slot_addr) {
     DCHECK(chunk->Contains(slot_addr));
     SlotSet* slot_set = chunk->slot_set<type, access_mode>();
@@ -374,7 +374,7 @@ class UpdateTypedSlotHelper {
 
 class RememberedSetSweeping {
  public:
-  template <AccessMode access_mode = AccessMode::ATOMIC>
+  template <AccessMode access_mode>
   static void Insert(MemoryChunk* chunk, Address slot_addr) {
     DCHECK(chunk->Contains(slot_addr));
     SlotSet* slot_set = chunk->sweeping_slot_set<access_mode>();
