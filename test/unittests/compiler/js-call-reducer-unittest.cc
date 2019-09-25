@@ -11,6 +11,7 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/execution/isolate.h"
+#include "src/execution/protectors.h"
 #include "src/heap/factory.h"
 #include "src/objects/feedback-vector.h"
 #include "test/unittests/compiler/graph-unittest.h"
@@ -193,7 +194,7 @@ TEST_F(JSCallReducerTest, PromiseConstructorWithHook) {
       graph()->NewNode(javascript()->Construct(3), promise, executor, promise,
                        context, frame_state, effect, control);
 
-  isolate()->InvalidatePromiseHookProtector();
+  Protectors::InvalidatePromiseHook(isolate());
 
   Reduction r = Reduce(construct);
 

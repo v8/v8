@@ -46,6 +46,7 @@
 #include "src/execution/arguments.h"
 #include "src/execution/execution.h"
 #include "src/execution/futex-emulation.h"
+#include "src/execution/protectors-inl.h"
 #include "src/execution/vm-state.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/heap-inl.h"
@@ -18188,10 +18189,10 @@ static void BreakArrayGuarantees(const char* script) {
     v8::Context::Scope context_scope(context);
     v8::internal::Isolate* i_isolate =
         reinterpret_cast<v8::internal::Isolate*>(isolate1);
-    CHECK(i_isolate->IsNoElementsProtectorIntact());
+    CHECK(v8::internal::Protectors::IsNoElementsIntact(i_isolate));
     // Run something in new isolate.
     CompileRun(script);
-    CHECK(!i_isolate->IsNoElementsProtectorIntact());
+    CHECK(!v8::internal::Protectors::IsNoElementsIntact(i_isolate));
   }
   isolate1->Exit();
   isolate1->Dispose();

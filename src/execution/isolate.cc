@@ -35,6 +35,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/messages.h"
 #include "src/execution/microtask-queue.h"
+#include "src/execution/protectors-inl.h"
 #include "src/execution/runtime-profiler.h"
 #include "src/execution/simulator.h"
 #include "src/execution/v8threads.h"
@@ -3796,134 +3797,12 @@ bool Isolate::IsInAnyContext(Object object, uint32_t index) {
   return false;
 }
 
-bool Isolate::IsNoElementsProtectorIntact(Context context) {
-  PropertyCell no_elements_cell = heap()->no_elements_protector();
-  bool cell_reports_intact =
-      no_elements_cell.value().IsSmi() &&
-      Smi::ToInt(no_elements_cell.value()) == kProtectorValid;
-
-#ifdef DEBUG
-  Context native_context = context.native_context();
-
-  Map root_array_map =
-      native_context.GetInitialJSArrayMap(GetInitialFastElementsKind());
-  JSObject initial_array_proto = JSObject::cast(
-      native_context.get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
-  JSObject initial_object_proto = JSObject::cast(
-      native_context.get(Context::INITIAL_OBJECT_PROTOTYPE_INDEX));
-  JSObject initial_string_proto = JSObject::cast(
-      native_context.get(Context::INITIAL_STRING_PROTOTYPE_INDEX));
-
-  if (root_array_map.is_null() || initial_array_proto == initial_object_proto) {
-    // We are in the bootstrapping process, and the entire check sequence
-    // shouldn't be performed.
-    return cell_reports_intact;
-  }
-
-  // Check that the array prototype hasn't been altered WRT empty elements.
-  if (root_array_map.prototype() != initial_array_proto) {
-    DCHECK_EQ(false, cell_reports_intact);
-    return cell_reports_intact;
-  }
-
-  FixedArrayBase elements = initial_array_proto.elements();
-  ReadOnlyRoots roots(heap());
-  if (elements != roots.empty_fixed_array() &&
-      elements != roots.empty_slow_element_dictionary()) {
-    DCHECK_EQ(false, cell_reports_intact);
-    return cell_reports_intact;
-  }
-
-  // Check that the Object.prototype hasn't been altered WRT empty elements.
-  elements = initial_object_proto.elements();
-  if (elements != roots.empty_fixed_array() &&
-      elements != roots.empty_slow_element_dictionary()) {
-    DCHECK_EQ(false, cell_reports_intact);
-    return cell_reports_intact;
-  }
-
-  // Check that the Array.prototype has the Object.prototype as its
-  // [[Prototype]] and that the Object.prototype has a null [[Prototype]].
-  PrototypeIterator iter(this, initial_array_proto);
-  if (iter.IsAtEnd() || iter.GetCurrent() != initial_object_proto) {
-    DCHECK_EQ(false, cell_reports_intact);
-    DCHECK(!has_pending_exception());
-    return cell_reports_intact;
-  }
-  iter.Advance();
-  if (!iter.IsAtEnd()) {
-    DCHECK_EQ(false, cell_reports_intact);
-    DCHECK(!has_pending_exception());
-    return cell_reports_intact;
-  }
-  DCHECK(!has_pending_exception());
-
-  // Check that the String.prototype hasn't been altered WRT empty elements.
-  elements = initial_string_proto.elements();
-  if (elements != roots.empty_fixed_array() &&
-      elements != roots.empty_slow_element_dictionary()) {
-    DCHECK_EQ(false, cell_reports_intact);
-    return cell_reports_intact;
-  }
-
-  // Check that the String.prototype has the Object.prototype
-  // as its [[Prototype]] still.
-  if (initial_string_proto.map().prototype() != initial_object_proto) {
-    DCHECK_EQ(false, cell_reports_intact);
-    return cell_reports_intact;
-  }
-#endif
-
-  return cell_reports_intact;
-}
-
-bool Isolate::IsNoElementsProtectorIntact() {
-  return Isolate::IsNoElementsProtectorIntact(context());
-}
-
-bool Isolate::IsPromiseHookProtectorIntact() {
-  PropertyCell promise_hook_cell = heap()->promise_hook_protector();
-  bool is_promise_hook_protector_intact =
-      Smi::ToInt(promise_hook_cell.value()) == kProtectorValid;
-  DCHECK_IMPLIES(is_promise_hook_protector_intact,
-                 !promise_hook_or_async_event_delegate_);
-  DCHECK_IMPLIES(is_promise_hook_protector_intact,
-                 !promise_hook_or_debug_is_active_or_async_event_delegate_);
-  return is_promise_hook_protector_intact;
-}
-
 void Isolate::UpdateNoElementsProtectorOnSetElement(Handle<JSObject> object) {
   DisallowHeapAllocation no_gc;
   if (!object->map().is_prototype_map()) return;
-  if (!IsNoElementsProtectorIntact()) return;
+  if (!Protectors::IsNoElementsIntact(this)) return;
   if (!IsArrayOrObjectOrStringPrototype(*object)) return;
-  PropertyCell::SetValueWithInvalidation(
-      this, "no_elements_protector", factory()->no_elements_protector(),
-      handle(Smi::FromInt(kProtectorInvalid), this));
-}
-
-void Isolate::TraceProtectorInvalidation(const char* protector_name) {
-  static constexpr char kInvalidateProtectorTracingCategory[] =
-      "V8.InvalidateProtector";
-  static constexpr char kInvalidateProtectorTracingArg[] = "protector-name";
-
-  DCHECK(FLAG_trace_protector_invalidation);
-
-  // TODO(jgruber): Remove the PrintF once tracing can output to stdout.
-  i::PrintF("Invalidating protector cell %s in isolate %p\n", protector_name,
-            this);
-  TRACE_EVENT_INSTANT1("v8", kInvalidateProtectorTracingCategory,
-                       TRACE_EVENT_SCOPE_THREAD, kInvalidateProtectorTracingArg,
-                       protector_name);
-}
-
-void Isolate::InvalidatePromiseHookProtector() {
-  DCHECK(factory()->promise_hook_protector()->value().IsSmi());
-  DCHECK(IsPromiseHookProtectorIntact());
-  PropertyCell::SetValueWithInvalidation(
-      this, "promise_hook_protector", factory()->promise_hook_protector(),
-      handle(Smi::FromInt(kProtectorInvalid), this));
-  DCHECK(!IsPromiseHookProtectorIntact());
+  Protectors::InvalidateNoElements(this);
 }
 
 bool Isolate::IsAnyInitialArrayPrototype(Handle<JSArray> array) {
@@ -4073,9 +3952,9 @@ void Isolate::PromiseHookStateUpdated() {
   bool promise_hook_or_debug_is_active_or_async_event_delegate =
       promise_hook_or_async_event_delegate || debug()->is_active();
   if (promise_hook_or_debug_is_active_or_async_event_delegate &&
-      IsPromiseHookProtectorIntact()) {
+      Protectors::IsPromiseHookIntact(this)) {
     HandleScope scope(this);
-    InvalidatePromiseHookProtector();
+    Protectors::InvalidatePromiseHook(this);
   }
   promise_hook_or_async_event_delegate_ = promise_hook_or_async_event_delegate;
   promise_hook_or_debug_is_active_or_async_event_delegate_ =

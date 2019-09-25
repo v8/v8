@@ -16,6 +16,7 @@
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/per-isolate-compiler-cache.h"
+#include "src/execution/protectors-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/api-callbacks.h"
@@ -1120,7 +1121,7 @@ bool SupportsFastArrayIteration(Isolate* isolate, Handle<Map> map) {
          map->prototype().IsJSArray() &&
          isolate->IsAnyInitialArrayPrototype(
              handle(JSArray::cast(map->prototype()), isolate)) &&
-         isolate->IsNoElementsProtectorIntact();
+         Protectors::IsNoElementsIntact(isolate);
 }
 
 bool SupportsFastArrayResize(Isolate* isolate, Handle<Map> map) {

@@ -1781,7 +1781,7 @@ bool Object::IterationHasObservableEffects() {
   // the prototype. This could have different results if the prototype has been
   // changed.
   if (IsHoleyElementsKind(array_kind) &&
-      isolate->IsNoElementsProtectorIntact()) {
+      Protectors::IsNoElementsIntact(isolate)) {
     return false;
   }
   return true;
@@ -7897,9 +7897,6 @@ void PropertyCell::SetValueWithInvalidation(Isolate* isolate,
                                             Handle<PropertyCell> cell,
                                             Handle<Object> new_value) {
   if (cell->value() != *new_value) {
-    if (FLAG_trace_protector_invalidation) {
-      isolate->TraceProtectorInvalidation(cell_name);
-    }
     cell->set_value(*new_value);
     cell->dependent_code().DeoptimizeDependentCodeGroup(
         isolate, DependentCode::kPropertyCellChangedGroup);

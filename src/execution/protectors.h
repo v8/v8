@@ -27,6 +27,7 @@ class Protectors : public AllStatic {
   V(ArraySpeciesLookupChain, ArraySpeciesProtector, array_species_protector)  \
   V(IsConcatSpreadableLookupChain, IsConcatSpreadableProtector,               \
     is_concat_spreadable_protector)                                           \
+  V(NoElements, NoElementsProtector, no_elements_protector)                   \
                                                                               \
   /* The MapIterator protector protects the original iteration behaviors   */ \
   /* of Map.prototype.keys(), Map.prototype.values(), and                  */ \
@@ -40,6 +41,7 @@ class Protectors : public AllStatic {
   /*   property holder is the %IteratorPrototype%. Note that this also     */ \
   /*   invalidates the SetIterator protector (see below).                  */ \
   V(MapIteratorLookupChain, MapIteratorProtector, map_iterator_protector)     \
+  V(PromiseHook, PromiseHookProtector, promise_hook_protector)                \
   V(PromiseThenLookupChain, PromiseThenProtector, promise_then_protector)     \
   V(PromiseResolveLookupChain, PromiseResolveProtector,                       \
     promise_resolve_protector)                                                \
@@ -80,16 +82,18 @@ class Protectors : public AllStatic {
   V(TypedArraySpeciesLookupChain, TypedArraySpeciesProtector,                 \
     typed_array_species_protector)
 
-#define DECLARE_PROTECTOR_ON_NATIVE_CONTEXT(name, unused_cell)               \
-  static inline bool Is##name##Intact(Handle<NativeContext> native_context); \
-  static void Invalidate##name(Isolate* isolate,                             \
-                               Handle<NativeContext> native_context);
+#define DECLARE_PROTECTOR_ON_NATIVE_CONTEXT(name, unused_cell) \
+  V8_EXPORT_PRIVATE static inline bool Is##name##Intact(       \
+      Handle<NativeContext> native_context);                   \
+  V8_EXPORT_PRIVATE static void Invalidate##name(              \
+      Isolate* isolate, Handle<NativeContext> native_context);
+
   DECLARED_PROTECTORS_ON_NATIVE_CONTEXT(DECLARE_PROTECTOR_ON_NATIVE_CONTEXT)
 #undef DECLARE_PROTECTOR_ON_NATIVE_CONTEXT
 
 #define DECLARE_PROTECTOR_ON_ISOLATE(name, unused_root_index, unused_cell) \
-  static inline bool Is##name##Intact(Isolate* isolate);                   \
-  static void Invalidate##name(Isolate* isolate);
+  V8_EXPORT_PRIVATE static inline bool Is##name##Intact(Isolate* isolate); \
+  V8_EXPORT_PRIVATE static void Invalidate##name(Isolate* isolate);
 
   DECLARED_PROTECTORS_ON_ISOLATE(DECLARE_PROTECTOR_ON_ISOLATE)
 #undef DECLARE_PROTECTOR_ON_ISOLATE

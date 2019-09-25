@@ -8,6 +8,7 @@
 #include "src/execution/arguments.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate-inl.h"
+#include "src/execution/protectors-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"  // For MaxNumberToStringCacheSize.
 #include "src/heap/heap-write-barrier-inl.h"
@@ -3499,7 +3500,7 @@ class TypedElementsAccessor
       return true;
     }
 
-    return !isolate->IsNoElementsProtectorIntact(context);
+    return !Protectors::IsNoElementsIntact(isolate);
   }
 
   static bool TryCopyElementsFastNumber(Context context, JSArray source,

@@ -1166,17 +1166,7 @@ class Isolate final : private HiddenFactory {
   static const int kProtectorValid = 1;
   static const int kProtectorInvalid = 0;
 
-  // The version with an explicit context parameter can be used when
-  // Isolate::context is not set up, e.g. when calling directly into C++ from
-  // CSA.
-  bool IsNoElementsProtectorIntact(Context context);
-  V8_EXPORT_PRIVATE bool IsNoElementsProtectorIntact();
-
   bool IsArrayOrObjectOrStringPrototype(Object object);
-
-  // Disable promise optimizations if promise (debug) hooks have ever been
-  // active, because those can observe promises.
-  bool IsPromiseHookProtectorIntact();
 
   // On intent to set an element in object, make sure that appropriate
   // notifications occur if the set is on the elements of the array or
@@ -1192,11 +1182,6 @@ class Isolate final : private HiddenFactory {
   void UpdateNoElementsProtectorOnNormalizeElements(Handle<JSObject> object) {
     UpdateNoElementsProtectorOnSetElement(object);
   }
-
-  // The `protector_name` C string must be statically allocated.
-  void TraceProtectorInvalidation(const char* protector_name);
-
-  V8_EXPORT_PRIVATE void InvalidatePromiseHookProtector();
 
   // Returns true if array is the initial array prototype in any native context.
   bool IsAnyInitialArrayPrototype(Handle<JSArray> array);
