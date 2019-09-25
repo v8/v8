@@ -299,9 +299,7 @@ int64_t GreaterEqual(double a, double b) { return a >= b ? -1 : 0; }
 int64_t Less(double a, double b) { return a < b ? -1 : 0; }
 
 int64_t LessEqual(double a, double b) { return a <= b ? -1 : 0; }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
-#if V8_TARGET_ARCH_X64
 // Only used for qfma and qfms tests below.
 
 // FMOperation holds the params (a, b, c) for a Multiply-Add or
@@ -378,9 +376,13 @@ static constexpr Vector<const FMOperation<T>> qfms_vector() {
 
 // Fused results only when fma3 feature is enabled, and running on TurboFan.
 bool ExpectFused(ExecutionTier tier) {
+#ifdef V8_TARGET_ARCH_X64
   return CpuFeatures::IsSupported(FMA3) && (tier == ExecutionTier::kTurbofan);
+#else
+  return (tier == ExecutionTier::kTurbofan);
+#endif
 }
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 }  // namespace
 
@@ -827,7 +829,7 @@ WASM_SIMD_TEST(F32x4Le) {
   RunF32x4CompareOpTest(execution_tier, lower_simd, kExprF32x4Le, LessEqual);
 }
 
-#ifdef V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 WASM_SIMD_TEST_NO_LOWERING(F32x4Qfma) {
   WasmRunner<int32_t, float, float, float> r(execution_tier, lower_simd);
   // Set up global to hold mask output.
@@ -875,7 +877,7 @@ WASM_SIMD_TEST_NO_LOWERING(F32x4Qfms) {
     }
   }
 }
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
@@ -1438,7 +1440,9 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2MaxU) {
   RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2MaxU,
                     UnsignedMaximum);
 }
+#endif  // V8_TARGET_ARCH_X64
 
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 WASM_SIMD_TEST_NO_LOWERING(F64x2Qfma) {
   WasmRunner<int32_t, double, double, double> r(execution_tier, lower_simd);
   // Set up global to hold mask output.
@@ -1486,7 +1490,7 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Qfms) {
     }
   }
 }
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32
 
 WASM_SIMD_TEST(I32x4Splat) {

@@ -1846,6 +1846,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputSimd128Register(0).V2D());
       break;
     }
+    case kArm64F64x2Qfma: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ Fmla(i.OutputSimd128Register().V2D(), i.InputSimd128Register(1).V2D(),
+              i.InputSimd128Register(2).V2D());
+      break;
+    }
+    case kArm64F64x2Qfms: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ Fmls(i.OutputSimd128Register().V2D(), i.InputSimd128Register(1).V2D(),
+              i.InputSimd128Register(2).V2D());
+      break;
+    }
     case kArm64F32x4Splat: {
       __ Dup(i.OutputSimd128Register().V4S(), i.InputSimd128Register(0).S(), 0);
       break;
@@ -1894,6 +1906,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64F32x4Le: {
       __ Fcmge(i.OutputSimd128Register().V4S(), i.InputSimd128Register(1).V4S(),
                i.InputSimd128Register(0).V4S());
+      break;
+    }
+    case kArm64F32x4Qfma: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ Fmla(i.OutputSimd128Register().V4S(), i.InputSimd128Register(1).V4S(),
+              i.InputSimd128Register(2).V4S());
+      break;
+    }
+    case kArm64F32x4Qfms: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ Fmls(i.OutputSimd128Register().V4S(), i.InputSimd128Register(1).V4S(),
+              i.InputSimd128Register(2).V4S());
       break;
     }
     case kArm64I64x2Splat: {

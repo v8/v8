@@ -3291,6 +3291,19 @@ void InstructionSelector::VisitS128Select(Node* node) {
        g.UseRegister(node->InputAt(2)));
 }
 
+#define VISIT_SIMD_QFMOP(op)                                               \
+  void InstructionSelector::Visit##op(Node* node) {                        \
+    Arm64OperandGenerator g(this);                                         \
+    Emit(kArm64##op, g.DefineSameAsFirst(node),                            \
+         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)), \
+         g.UseRegister(node->InputAt(2)));                                 \
+  }
+VISIT_SIMD_QFMOP(F64x2Qfma)
+VISIT_SIMD_QFMOP(F64x2Qfms)
+VISIT_SIMD_QFMOP(F32x4Qfma)
+VISIT_SIMD_QFMOP(F32x4Qfms)
+#undef VISIT_SIMD_QFMOP
+
 namespace {
 
 struct ShuffleEntry {
