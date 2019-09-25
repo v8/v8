@@ -79,16 +79,6 @@ static std::vector<PatternItem> BuildPatternItems() {
                   kNarrowLongShort),
       PatternItem("year", {{"yy", "2-digit"}, {"y", "numeric"}},
                   k2DigitNumeric)};
-  if (FLAG_harmony_intl_dateformat_quarter) {
-    items.push_back(PatternItem("quarter",
-                                {{"QQQQQ", "narrow"},
-                                 {"QQQQ", "long"},
-                                 {"QQQ", "short"},
-                                 {"qqqqq", "narrow"},
-                                 {"qqqq", "long"},
-                                 {"qqq", "short"}},
-                                kNarrowLongShort));
-  }
   // Sometimes we get L instead of M for month - standalone name.
   items.push_back(PatternItem("month",
                               {{"MMMMM", "narrow"},
@@ -777,13 +767,10 @@ MaybeHandle<JSObject> JSDateTimeFormat::ToDateTimeOptions(
 
   // 4. If required is "date" or "any", then
   if (required == RequiredOption::kAny || required == RequiredOption::kDate) {
-    // a. For each of the property names "weekday", "year", "quarter", "month",
+    // a. For each of the property names "weekday", "year", "month",
     // "day", do
     std::vector<Handle<String>> list(
         {factory->weekday_string(), factory->year_string()});
-    if (FLAG_harmony_intl_dateformat_quarter) {
-      list.push_back(factory->quarter_string());
-    }
     list.push_back(factory->month_string());
     list.push_back(factory->day_string());
     Maybe<bool> maybe_needs_default = NeedsDefault(isolate, options, list);
@@ -1583,9 +1570,6 @@ Handle<String> IcuDateFieldIdToDateType(int32_t field_id, Isolate* isolate) {
     case UDAT_YEAR_FIELD:
     case UDAT_EXTENDED_YEAR_FIELD:
       return isolate->factory()->year_string();
-    case UDAT_QUARTER_FIELD:
-    case UDAT_STANDALONE_QUARTER_FIELD:
-      return isolate->factory()->quarter_string();
     case UDAT_YEAR_NAME_FIELD:
       return isolate->factory()->yearName_string();
     case UDAT_MONTH_FIELD:
@@ -1624,6 +1608,9 @@ Handle<String> IcuDateFieldIdToDateType(int32_t field_id, Isolate* isolate) {
       return isolate->factory()->fractionalSecond_string();
     case UDAT_RELATED_YEAR_FIELD:
       return isolate->factory()->relatedYear_string();
+
+    case UDAT_QUARTER_FIELD:
+    case UDAT_STANDALONE_QUARTER_FIELD:
     default:
       // Other UDAT_*_FIELD's cannot show up because there is no way to specify
       // them via options of Intl.DateTimeFormat.

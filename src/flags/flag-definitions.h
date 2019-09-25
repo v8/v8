@@ -214,7 +214,6 @@ DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V)                                                \
   HARMONY_INPROGRESS_BASE(V)                                                 \
-  V(harmony_intl_dateformat_quarter, "Add quarter option to DateTimeFormat") \
   V(harmony_intl_other_calendars, "DateTimeFormat other calendars")
 #else
 #define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)

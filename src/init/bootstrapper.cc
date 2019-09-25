@@ -4314,7 +4314,6 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_add_calendar_numbering_system)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_dateformat_day_period)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(
     harmony_intl_dateformat_fractional_second_digits)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_dateformat_quarter)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_other_calendars)
 #endif  // V8_INTL_SUPPORT
 

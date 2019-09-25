@@ -527,6 +527,9 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=9612
   'intl402/DateTimeFormat/prototype/formatRange/fractionalSecondDigits': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9282
+  'intl402/DateTimeFormat/constructor-options-throwing-getters-quarter': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=9613
   'intl402/Intl/getCanonicalLocales/canonicalized-tags': [FAIL],
   'intl402/Intl/getCanonicalLocales/grandfathered': [FAIL],
