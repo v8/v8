@@ -5887,15 +5887,29 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     SetEffect(call);
     SetSourcePosition(call, 0);
 
-    // Convert the return value back.
-    Node* val = sig_->return_count() == 0
-                    ? mcgraph()->Int32Constant(0)
-                    : FromJS(call, native_context, sig_->GetReturn());
-
-    // Set the ThreadInWasm flag again.
-    BuildModifyThreadInWasmFlag(true);
-
-    Return(val);
+    // Convert the return value(s) back.
+    if (sig_->return_count() <= 1) {
+      Node* val = sig_->return_count() == 0
+                      ? mcgraph()->Int32Constant(0)
+                      : FromJS(call, native_context, sig_->GetReturn());
+      BuildModifyThreadInWasmFlag(true);
+      Return(val);
+    } else {
+      Node* size = graph()->NewNode(
+          mcgraph()->common()->NumberConstant(sig_->return_count()));
+      Node* args[] = {call, size};
+      // TODO(thibaudm): Replace runtime call with TurboFan code.
+      Node* fixed_array = BuildCallToRuntimeWithContext(
+          Runtime::kWasmIterableToFixedArray, native_context, args, 2, effect_,
+          Control());
+      Vector<Node*> wasm_values = Buffer(sig_->return_count());
+      for (unsigned i = 0; i < sig_->return_count(); ++i) {
+        wasm_values[i] = FromJS(LOAD_FIXED_ARRAY_SLOT_ANY(fixed_array, i),
+                                native_context, sig_->GetReturn(i));
+      }
+      BuildModifyThreadInWasmFlag(true);
+      Return(wasm_values);
+    }
 
     if (ContainsInt64(sig_)) LowerInt64(kCalledFromWasm);
     return true;

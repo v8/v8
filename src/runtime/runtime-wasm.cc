@@ -587,5 +587,26 @@ RUNTIME_FUNCTION(Runtime_WasmNewMultiReturnJSArray) {
       fixed_array_handle, PACKED_ELEMENTS);
   return *array;
 }
+
+RUNTIME_FUNCTION(Runtime_WasmIterableToFixedArray) {
+  // TODO(thibaudm): The current implementation does not handle generators as
+  // required by the spec.
+  DCHECK_EQ(2, args.length());
+  HandleScope scope(isolate);
+  CONVERT_ARG_CHECKED(Object, arg, 0);
+  if (!arg.IsJSReceiver()) {
+    return ThrowWasmError(isolate, MessageTemplate::kWasmTrapFuncSigMismatch);
+  }
+  Handle<JSReceiver> receiver(JSReceiver::cast(arg), isolate);
+  CONVERT_INT32_ARG_CHECKED(size, 1);
+  Handle<FixedArray> fixed_array = isolate->factory()->NewFixedArray(size);
+  for (int i = 0; i < size; ++i) {
+    Handle<Object> handle;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, handle, JSReceiver::GetElement(isolate, receiver, i));
+    fixed_array->set(i, *handle);
+  }
+  return *fixed_array;
+}
 }  // namespace internal
 }  // namespace v8

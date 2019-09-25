@@ -320,7 +320,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(instance.exports.main(10), 200);
 })();
 
-(function MultiJSReturnTest() {
+(function MultiWasmToJSReturnTest() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let sig_fi_if = makeSig([kWasmI32, kWasmF32], [kWasmF32, kWasmI32]);
@@ -349,4 +349,57 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(instance.exports.swap(2, 3.75), [3.75, 2]);
   assertEquals(instance.exports.addsubmul(4), [8, 0, 16]);
   assertEquals(instance.exports.addsubmul(5), [10, 0, 25]);
+})();
+
+(function MultiJSToWasmReturnTest() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  function swap(x, y) { return [y, x]; }
+  function swap_proxy(x, y) {
+    return new Proxy([y, x], {
+      get: function(obj, prop) { return Reflect.get(obj, prop); },
+    });
+  }
+  function proxy_throw(x, y) {
+    return new Proxy([y, x], {
+      get: function(obj, prop) {
+        if (prop == 1) {
+          throw new Error("abc");
+        }
+        return Reflect.get(obj, prop); },
+    });
+  }
+  function drop_first(x, y) {
+    return [y];
+  }
+  function repeat(x, y) {
+    return [x, y, x, y];
+  }
+  function not_receiver(x, y) {
+    return 0;
+  }
+
+  builder.addImport('imports', 'f', kSig_ii_ii);
+  builder.addFunction("main", kSig_ii_ii)
+    .addBody([
+      kExprGetLocal, 0,
+      kExprGetLocal, 1,
+      kExprCallFunction, 0])
+    .exportAs("main")
+
+  let module = new WebAssembly.Module(builder.toBuffer());
+
+  var instance = new WebAssembly.Instance(module, { 'imports' : { 'f' : swap } });
+  assertEquals(instance.exports.main(1, 2), [2, 1]);
+  instance = new WebAssembly.Instance(module, { 'imports' : { 'f' : swap_proxy } });
+  assertEquals(instance.exports.main(1, 2), [2, 1]);
+  instance = new WebAssembly.Instance(module, { 'imports' : { 'f' : drop_first } });
+  assertEquals(instance.exports.main(1, 2), [2, 0]);
+  instance = new WebAssembly.Instance(module, { 'imports' : { 'f' : repeat } });
+  assertEquals(instance.exports.main(1, 2), [1, 2]);
+
+  instance = new WebAssembly.Instance(module, { 'imports' : { 'f' : proxy_throw } });
+  assertThrows(() => instance.exports.main(1, 2), Error, "abc");
+  instance = new WebAssembly.Instance(module, { 'imports' : { 'f' : not_receiver } });
+  assertThrows(() => instance.exports.main(1, 2), WebAssembly.RuntimeError);
 })();
