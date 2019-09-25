@@ -3182,11 +3182,10 @@ void Assembler::emit_operand(int code, Operand adr) {
   DCHECK_GT(length, 0);
 
   // Emit updated ModRM byte containing the given register.
-  pc_[0] = (adr.buf_[0] & ~0x38) | (code << 3);
+  EMIT((adr.buf_[0] & ~0x38) | (code << 3));
 
   // Emit the rest of the encoded operand.
-  for (unsigned i = 1; i < length; i++) pc_[i] = adr.buf_[i];
-  pc_ += length;
+  for (unsigned i = 1; i < length; i++) EMIT(adr.buf_[i]);
 
   // Emit relocation information if necessary.
   if (length >= sizeof(int32_t) && !RelocInfo::IsNone(adr.rmode_)) {
