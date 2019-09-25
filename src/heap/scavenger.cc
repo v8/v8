@@ -445,7 +445,7 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
   RememberedSet<OLD_TO_NEW>::Iterate(
       page,
       [this, &filter](MaybeObjectSlot slot) {
-        CHECK(filter.IsValid(slot.address()));
+        if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
         return CheckAndScavengeObject(heap_, slot);
       },
       SlotSet::KEEP_EMPTY_BUCKETS);
@@ -453,7 +453,7 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
   RememberedSetSweeping::Iterate(
       page,
       [this, &filter](MaybeObjectSlot slot) {
-        CHECK(filter.IsValid(slot.address()));
+        if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
         return CheckAndScavengeObject(heap_, slot);
       },
       SlotSet::KEEP_EMPTY_BUCKETS);

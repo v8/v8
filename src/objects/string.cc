@@ -161,7 +161,8 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   bool has_pointers = StringShape(*this).IsIndirect();
 
   if (has_pointers) {
-    isolate->heap()->NotifyObjectLayoutChange(*this, no_allocation);
+    isolate->heap()->NotifyObjectLayoutChange(*this, no_allocation,
+                                              InvalidateRecordedSlots::kYes);
   }
   // Morph the string to an external string by replacing the map and
   // reinitializing the fields.  This won't work if the space the existing
@@ -187,10 +188,6 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   isolate->heap()->CreateFillerObjectAt(
       this->address() + new_size, size - new_size,
       has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
-  if (has_pointers) {
-    isolate->heap()->ClearRecordedSlotRange(this->address(),
-                                            this->address() + new_size);
-  }
 
   // We are storing the new map using release store after creating a filler for
   // the left-over space to avoid races with the sweeper thread.
@@ -235,7 +232,8 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   bool has_pointers = StringShape(*this).IsIndirect();
 
   if (has_pointers) {
-    isolate->heap()->NotifyObjectLayoutChange(*this, no_allocation);
+    isolate->heap()->NotifyObjectLayoutChange(*this, no_allocation,
+                                              InvalidateRecordedSlots::kYes);
   }
   // Morph the string to an external string by replacing the map and
   // reinitializing the fields.  This won't work if the space the existing
@@ -260,10 +258,6 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   isolate->heap()->CreateFillerObjectAt(
       this->address() + new_size, size - new_size,
       has_pointers ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
-  if (has_pointers) {
-    isolate->heap()->ClearRecordedSlotRange(this->address(),
-                                            this->address() + new_size);
-  }
 
   // We are storing the new map using release store after creating a filler for
   // the left-over space to avoid races with the sweeper thread.

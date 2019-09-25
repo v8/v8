@@ -2922,10 +2922,6 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
   // garbage.
   int inobject_properties = new_map->GetInObjectProperties();
   if (inobject_properties) {
-    Heap* heap = isolate->heap();
-    heap->ClearRecordedSlotRange(
-        object->address() + map->GetInObjectPropertyOffset(0),
-        object->address() + new_instance_size);
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(*object);
     chunk->InvalidateRecordedSlots(*object);
 

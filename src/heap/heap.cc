@@ -5560,9 +5560,10 @@ void Heap::ClearRecordedSlot(HeapObject object, ObjectSlot slot) {
   if (!page->InYoungGeneration()) {
     DCHECK_EQ(page->owner_identity(), OLD_SPACE);
 
-    store_buffer()->MoveAllEntriesToRememberedSet();
-    RememberedSet<OLD_TO_NEW>::Remove(page, slot.address());
-    RememberedSetSweeping::Remove(page, slot.address());
+    if (!page->SweepingDone()) {
+      store_buffer()->MoveAllEntriesToRememberedSet();
+      RememberedSet<OLD_TO_NEW>::Remove(page, slot.address());
+    }
   }
 #endif
 }
@@ -5591,11 +5592,11 @@ void Heap::ClearRecordedSlotRange(Address start, Address end) {
   if (!page->InYoungGeneration()) {
     DCHECK_EQ(page->owner_identity(), OLD_SPACE);
 
-    store_buffer()->MoveAllEntriesToRememberedSet();
-    RememberedSet<OLD_TO_NEW>::RemoveRange(page, start, end,
-                                           SlotSet::KEEP_EMPTY_BUCKETS);
-    RememberedSetSweeping::RemoveRange(page, start, end,
-                                       SlotSet::KEEP_EMPTY_BUCKETS);
+    if (!page->SweepingDone()) {
+      store_buffer()->MoveAllEntriesToRememberedSet();
+      RememberedSet<OLD_TO_NEW>::RemoveRange(page, start, end,
+                                             SlotSet::KEEP_EMPTY_BUCKETS);
+    }
   }
 #endif
 }

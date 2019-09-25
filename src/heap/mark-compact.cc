@@ -3415,7 +3415,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       RememberedSet<OLD_TO_NEW>::Iterate(
           chunk_,
           [this, &filter](MaybeObjectSlot slot) {
-            CHECK(filter.IsValid(slot.address()));
+            if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
             return CheckAndUpdateOldToNewSlot(slot);
           },
           SlotSet::PREFREE_EMPTY_BUCKETS);
@@ -3426,7 +3426,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       RememberedSetSweeping::Iterate(
           chunk_,
           [this, &filter](MaybeObjectSlot slot) {
-            CHECK(filter.IsValid(slot.address()));
+            if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
             return CheckAndUpdateOldToNewSlot(slot);
           },
           SlotSet::PREFREE_EMPTY_BUCKETS);
