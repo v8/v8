@@ -156,7 +156,9 @@ enum ScaleFactor : int8_t {
   times_4 = 2,
   times_8 = 3,
   times_int_size = times_4,
-  times_system_pointer_size = (kSystemPointerSize == 8) ? times_8 : times_4,
+
+  times_half_system_pointer_size = times_4,
+  times_system_pointer_size = times_8,
   times_tagged_size = (kTaggedSize == 8) ? times_8 : times_4,
 };
 

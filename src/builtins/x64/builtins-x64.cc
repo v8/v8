@@ -2810,7 +2810,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
         IsolateAddressId::kPendingExceptionAddress, masm->isolate());
     Operand pending_exception_operand =
         masm->ExternalReferenceAsOperand(pending_exception_address);
-    __ cmpq(r14, pending_exception_operand);
+    __ cmp_tagged(r14, pending_exception_operand);
     __ j(equal, &okay, Label::kNear);
     __ int3();
     __ bind(&okay);
