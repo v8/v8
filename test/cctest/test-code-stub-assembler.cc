@@ -3582,37 +3582,6 @@ TEST(TestCallBuiltinIndirectLoad) {
                        Handle<String>::cast(result.ToHandleChecked())));
 }
 
-TEST(TestGotoIfDebugExecutionModeChecksSideEffects) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester asm_tester(isolate, 0);
-  {
-    CodeStubAssembler m(asm_tester.state());
-    Label is_true(&m), is_false(&m);
-    m.GotoIfDebugExecutionModeChecksSideEffects(&is_true);
-    m.Goto(&is_false);
-    m.BIND(&is_false);
-    m.Return(m.BooleanConstant(false));
-
-    m.BIND(&is_true);
-    m.Return(m.BooleanConstant(true));
-  }
-
-  FunctionTester ft(asm_tester.GenerateCode(), 0);
-
-  CHECK(isolate->debug_execution_mode() != DebugInfo::kSideEffects);
-
-  Handle<Object> result = ft.Call().ToHandleChecked();
-  CHECK(result->IsBoolean());
-  CHECK_EQ(false, result->BooleanValue(isolate));
-
-  isolate->debug()->StartSideEffectCheckMode();
-  CHECK(isolate->debug_execution_mode() == DebugInfo::kSideEffects);
-
-  result = ft.Call().ToHandleChecked();
-  CHECK(result->IsBoolean());
-  CHECK_EQ(true, result->BooleanValue(isolate));
-}
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

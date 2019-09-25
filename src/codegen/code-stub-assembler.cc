@@ -1236,19 +1236,6 @@ void CodeStubAssembler::GotoIfForceSlowPath(Label* if_true) {
 #endif
 }
 
-void CodeStubAssembler::GotoIfDebugExecutionModeChecksSideEffects(
-    Label* if_true) {
-  STATIC_ASSERT(sizeof(DebugInfo::ExecutionMode) >= sizeof(int32_t));
-
-  TNode<ExternalReference> execution_mode_address = ExternalConstant(
-      ExternalReference::debug_execution_mode_address(isolate()));
-  TNode<Int32T> execution_mode =
-      UncheckedCast<Int32T>(Load(MachineType::Int32(), execution_mode_address));
-
-  GotoIf(Word32Equal(execution_mode, Int32Constant(DebugInfo::kSideEffects)),
-         if_true);
-}
-
 TNode<HeapObject> CodeStubAssembler::AllocateRaw(TNode<IntPtrT> size_in_bytes,
                                                  AllocationFlags flags,
                                                  TNode<RawPtrT> top_address,
