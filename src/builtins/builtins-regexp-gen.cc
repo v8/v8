@@ -1824,128 +1824,11 @@ TNode<Object> RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(
   return var_result.value();
 }
 
-void RegExpMatchAllAssembler::Generate(TNode<Context> context,
-                                       TNode<Context> native_context,
-                                       TNode<Object> receiver,
-                                       TNode<Object> maybe_string) {
-  // 1. Let R be the this value.
-  // 2. If Type(R) is not Object, throw a TypeError exception.
-  ThrowIfNotJSReceiver(context, receiver,
-                       MessageTemplate::kIncompatibleMethodReceiver,
-                       "RegExp.prototype.@@matchAll");
-
-  // 3. Let S be ? ToString(O).
-  TNode<String> string = ToString_Inline(context, maybe_string);
-
-  TVARIABLE(Object, var_matcher);
-  TVARIABLE(BoolT, var_global);
-  TVARIABLE(BoolT, var_unicode);
-  Label create_iterator(this), if_fast_regexp(this),
-      if_slow_regexp(this, Label::kDeferred);
-
-  // Strict, because following code uses the flags property.
-  // TODO(jgruber): Handle slow flag accesses on the fast path and make this
-  // permissive.
-  BranchIfFastRegExp_Strict(context, CAST(receiver), &if_fast_regexp,
-                            &if_slow_regexp);
-
-  BIND(&if_fast_regexp);
-  {
-    TNode<JSRegExp> fast_regexp = CAST(receiver);
-    TNode<Object> source =
-        LoadObjectField(fast_regexp, JSRegExp::kSourceOffset);
-
-    // 4. Let C be ? SpeciesConstructor(R, %RegExp%).
-    // 5. Let flags be ? ToString(? Get(R, "flags")).
-    // 6. Let matcher be ? Construct(C, « R, flags »).
-    TNode<String> flags = FlagsGetter(context, fast_regexp, true);
-    var_matcher = RegExpCreate(context, native_context, source, flags);
-    CSA_ASSERT(this,
-               IsFastRegExpPermissive(context, CAST(var_matcher.value())));
-
-    // 7. Let lastIndex be ? ToLength(? Get(R, "lastIndex")).
-    // 8. Perform ? Set(matcher, "lastIndex", lastIndex, true).
-    FastStoreLastIndex(CAST(var_matcher.value()),
-                       FastLoadLastIndex(fast_regexp));
-
-    // 9. If flags contains "g", let global be true.
-    // 10. Else, let global be false.
-    var_global = FastFlagGetter(CAST(var_matcher.value()), JSRegExp::kGlobal);
-
-    // 11. If flags contains "u", let fullUnicode be true.
-    // 12. Else, let fullUnicode be false.
-    var_unicode = FastFlagGetter(CAST(var_matcher.value()), JSRegExp::kUnicode);
-    Goto(&create_iterator);
-  }
-
-  BIND(&if_slow_regexp);
-  {
-    // 4. Let C be ? SpeciesConstructor(R, %RegExp%).
-    TNode<JSFunction> regexp_fun = CAST(
-        LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX));
-    TNode<JSReceiver> species_constructor =
-        SpeciesConstructor(native_context, receiver, regexp_fun);
-
-    // 5. Let flags be ? ToString(? Get(R, "flags")).
-    TNode<Object> flags =
-        GetProperty(context, receiver, isolate()->factory()->flags_string());
-    TNode<String> flags_string = ToString_Inline(context, flags);
-
-    // 6. Let matcher be ? Construct(C, « R, flags »).
-    var_matcher =
-        Construct(context, species_constructor, receiver, flags_string);
-
-    // 7. Let lastIndex be ? ToLength(? Get(R, "lastIndex")).
-    TNode<Number> last_index =
-        ToLength_Inline(context, SlowLoadLastIndex(context, receiver));
-
-    // 8. Perform ? Set(matcher, "lastIndex", lastIndex, true).
-    SlowStoreLastIndex(context, var_matcher.value(), last_index);
-
-    // 9. If flags contains "g", let global be true.
-    // 10. Else, let global be false.
-    TNode<String> global_char_string = StringConstant("g");
-    TNode<Smi> global_ix =
-        CAST(CallBuiltin(Builtins::kStringIndexOf, context, flags_string,
-                         global_char_string, SmiZero()));
-    var_global = SmiNotEqual(global_ix, SmiConstant(-1));
-
-    // 11. If flags contains "u", let fullUnicode be true.
-    // 12. Else, let fullUnicode be false.
-    TNode<String> unicode_char_string = StringConstant("u");
-    TNode<Smi> unicode_ix =
-        CAST(CallBuiltin(Builtins::kStringIndexOf, context, flags_string,
-                         unicode_char_string, SmiZero()));
-    var_unicode = SmiNotEqual(unicode_ix, SmiConstant(-1));
-    Goto(&create_iterator);
-  }
-
-  BIND(&create_iterator);
-  {
-    {
-      // UseCounter for matchAll with non-g RegExp.
-      // https://crbug.com/v8/9551
-      Label next(this);
-      GotoIf(var_global.value(), &next);
-      CallRuntime(Runtime::kIncrementUseCounter, context,
-                  SmiConstant(v8::Isolate::kRegExpMatchAllWithNonGlobalRegExp));
-      Goto(&next);
-      BIND(&next);
-    }
-
-    // 13. Return ! CreateRegExpStringIterator(matcher, S, global, fullUnicode).
-    TNode<Object> iterator =
-        CreateRegExpStringIterator(native_context, var_matcher.value(), string,
-                                   var_global.value(), var_unicode.value());
-    Return(iterator);
-  }
-}
-
 // ES#sec-createregexpstringiterator
 // CreateRegExpStringIterator ( R, S, global, fullUnicode )
 TNode<Object> RegExpMatchAllAssembler::CreateRegExpStringIterator(
-    TNode<Context> native_context, TNode<Object> regexp, TNode<String> string,
-    TNode<BoolT> global, TNode<BoolT> full_unicode) {
+    TNode<NativeContext> native_context, TNode<Object> regexp,
+    TNode<String> string, TNode<BoolT> global, TNode<BoolT> full_unicode) {
   TNode<Map> map = CAST(LoadContextElement(
       native_context,
       Context::INITIAL_REGEXP_STRING_ITERATOR_PROTOTYPE_MAP_INDEX));
@@ -1983,16 +1866,6 @@ TNode<Object> RegExpMatchAllAssembler::CreateRegExpStringIterator(
                                  SmiFromInt32(iterator_flags));
 
   return iterator;
-}
-
-// https://tc39.github.io/proposal-string-matchall/
-// RegExp.prototype [ @@matchAll ] ( string )
-TF_BUILTIN(RegExpPrototypeMatchAll, RegExpMatchAllAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<NativeContext> native_context = LoadNativeContext(context);
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> maybe_string = CAST(Parameter(Descriptor::kString));
-  Generate(context, native_context, receiver, maybe_string);
 }
 
 // Generates the fast path for @@split. {regexp} is an unmodified, non-sticky

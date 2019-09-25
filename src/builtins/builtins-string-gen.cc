@@ -1550,8 +1550,8 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
     // maybe_regexp is a fast regexp and receiver is a string.
     TNode<String> s = CAST(receiver);
 
-    RegExpMatchAllAssembler regexp_asm(state());
-    regexp_asm.Generate(context, native_context, maybe_regexp, s);
+    Return(
+        RegExpPrototypeMatchAllImpl(context, native_context, maybe_regexp, s));
   };
   auto if_generic_call = [=](Node* fn) {
     Callable call_callable = CodeFactory::Call(isolate());

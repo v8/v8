@@ -202,13 +202,11 @@ class RegExpMatchAllAssembler : public RegExpBuiltinsAssembler {
   explicit RegExpMatchAllAssembler(compiler::CodeAssemblerState* state)
       : RegExpBuiltinsAssembler(state) {}
 
-  TNode<Object> CreateRegExpStringIterator(TNode<Context> native_context,
+  TNode<Object> CreateRegExpStringIterator(TNode<NativeContext> native_context,
                                            TNode<Object> regexp,
                                            TNode<String> string,
                                            TNode<BoolT> global,
                                            TNode<BoolT> full_unicode);
-  void Generate(TNode<Context> context, TNode<Context> native_context,
-                TNode<Object> receiver, TNode<Object> maybe_string);
 };
 
 }  // namespace internal

@@ -787,6 +787,8 @@ const PROXY_REVOCABLE_RESULT_MAP_INDEX: constexpr NativeContextSlot
     generates 'Context::PROXY_REVOCABLE_RESULT_MAP_INDEX';
 const REFLECT_APPLY_INDEX: constexpr NativeContextSlot
     generates 'Context::REFLECT_APPLY_INDEX';
+const REGEXP_FUNCTION_INDEX: constexpr NativeContextSlot
+    generates 'Context::REGEXP_FUNCTION_INDEX';
 const REGEXP_LAST_MATCH_INFO_INDEX: constexpr NativeContextSlot
     generates 'Context::REGEXP_LAST_MATCH_INFO_INDEX';
 const INITIAL_STRING_ITERATOR_MAP_INDEX: constexpr NativeContextSlot

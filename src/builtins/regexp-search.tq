@@ -6,9 +6,6 @@
 
 namespace regexp {
 
-  extern macro RegExpBuiltinsAssembler::FastLoadLastIndex(JSRegExp): Smi;
-  extern macro RegExpBuiltinsAssembler::FastStoreLastIndex(JSRegExp, Smi): void;
-
   transitioning macro
   RegExpPrototypeSearchBodyFast(implicit context: Context)(
       regexp: JSRegExp, string: String): JSAny {
@@ -41,10 +38,6 @@ namespace regexp {
     }
   }
 
-  extern transitioning macro RegExpBuiltinsAssembler::SlowLoadLastIndex(
-      implicit context: Context)(JSAny): JSAny;
-  extern transitioning macro RegExpBuiltinsAssembler::SlowStoreLastIndex(
-      implicit context: Context)(JSAny, JSAny): void;
   extern macro RegExpBuiltinsAssembler::BranchIfFastRegExpResult(
       implicit context: Context)(Object): never labels IsUnmodified,
       IsModified;

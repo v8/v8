@@ -7,8 +7,6 @@
 namespace regexp {
 
   extern builtin
-  StringIndexOf(implicit context: Context)(String, String, Smi): Smi;
-  extern builtin
   SubString(implicit context: Context)(String, Smi, Smi): String;
 
   extern runtime RegExpExecMultiple(implicit context: Context)(

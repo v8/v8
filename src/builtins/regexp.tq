@@ -161,4 +161,15 @@ namespace regexp {
         otherwise return SlowFlagsGetter(receiver);
     return FastFlagsGetter(fastRegexp);
   }
+
+  extern transitioning macro RegExpBuiltinsAssembler::SlowLoadLastIndex(
+      implicit context: Context)(JSAny): JSAny;
+  extern transitioning macro RegExpBuiltinsAssembler::SlowStoreLastIndex(
+      implicit context: Context)(JSAny, JSAny): void;
+
+  extern macro RegExpBuiltinsAssembler::FastLoadLastIndex(JSRegExp): Smi;
+  extern macro RegExpBuiltinsAssembler::FastStoreLastIndex(JSRegExp, Smi): void;
+
+  extern builtin
+  StringIndexOf(implicit context: Context)(String, String, Smi): Smi;
 }

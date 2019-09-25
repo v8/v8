@@ -850,8 +850,6 @@ namespace internal {
   CPP(RegExpLeftContextGetter)                                                 \
   /* ES #sec-regexp.prototype.compile */                                       \
   TFJ(RegExpPrototypeCompile, 2, kReceiver, kPattern, kFlags)                  \
-  /* https://tc39.github.io/proposal-string-matchall/ */                       \
-  TFJ(RegExpPrototypeMatchAll, 1, kReceiver, kString)                          \
   CPP(RegExpPrototypeToString)                                                 \
   CPP(RegExpRightContextGetter)                                                \
                                                                                \
