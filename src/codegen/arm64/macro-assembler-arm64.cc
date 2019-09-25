@@ -295,7 +295,9 @@ void TurboAssembler::Mov(const Register& rd, const Operand& operand,
         } else if (RelocInfo::IsEmbeddedObjectMode(operand.ImmediateRMode())) {
           Handle<HeapObject> x(
               reinterpret_cast<Address*>(operand.ImmediateValue()));
-          IndirectLoadConstant(rd, x);
+          // TODO(v8:9706): Fix-it! This load will always uncompress the value
+          // even when we are loading a compressed embedded object.
+          IndirectLoadConstant(rd.X(), x);
           return;
         }
       }

@@ -167,6 +167,42 @@ Reduction DecompressionElimination::ReduceTypedStateValues(Node* node) {
   return any_change ? Changed(node) : NoChange();
 }
 
+Reduction DecompressionElimination::ReduceWord32Equal(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kWord32Equal);
+
+  DCHECK_EQ(node->InputCount(), 2);
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  if (!IrOpcode::IsCompressOpcode(lhs->opcode()) ||
+      !IrOpcode::IsCompressOpcode(rhs->opcode())) {
+    return NoChange();
+  }
+  // Input nodes for compress operation.
+  lhs = lhs->InputAt(0);
+  rhs = rhs->InputAt(0);
+
+  bool changed = false;
+
+  if (lhs->opcode() == IrOpcode::kBitcastWordToTaggedSigned) {
+    Node* input = lhs->InputAt(0);
+    if (IsReducibleConstantOpcode(input->opcode())) {
+      node->ReplaceInput(0, GetCompressedConstant(input));
+      changed = true;
+    }
+  }
+
+  if (rhs->opcode() == IrOpcode::kBitcastWordToTaggedSigned) {
+    Node* input = rhs->InputAt(0);
+    if (IsReducibleConstantOpcode(input->opcode())) {
+      node->ReplaceInput(1, GetCompressedConstant(input));
+      changed = true;
+    }
+  }
+
+  return changed ? Changed(node) : NoChange();
+}
+
 Reduction DecompressionElimination::ReduceWord64Equal(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kWord64Equal);
 
@@ -220,6 +256,8 @@ Reduction DecompressionElimination::Reduce(Node* node) {
       return ReducePhi(node);
     case IrOpcode::kTypedStateValues:
       return ReduceTypedStateValues(node);
+    case IrOpcode::kWord32Equal:
+      return ReduceWord32Equal(node);
     case IrOpcode::kWord64Equal:
       return ReduceWord64Equal(node);
     default:

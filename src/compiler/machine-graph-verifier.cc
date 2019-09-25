@@ -461,7 +461,7 @@ class MachineRepresentationChecker {
             CheckValueInputForFloat64Op(node, 0);
             break;
           case IrOpcode::kWord64Equal:
-            if (Is64()) {
+            if (Is64() && !COMPRESS_POINTERS_BOOL) {
               CheckValueInputIsTaggedOrPointer(node, 0);
               CheckValueInputIsTaggedOrPointer(node, 1);
               if (!is_stub_) {

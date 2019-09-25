@@ -510,9 +510,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   uintptr_t ConstexprWordNot(uintptr_t a) { return ~a; }
 
   TNode<BoolT> TaggedEqual(TNode<AnyTaggedT> a, TNode<AnyTaggedT> b) {
-    // In pointer-compressed architectures, the instruction selector will narrow
-    // this comparison to a 32-bit one.
+#ifdef V8_COMPRESS_POINTERS
+    return Word32Equal(ChangeTaggedToCompressed(a),
+                       ChangeTaggedToCompressed(b));
+#else
     return WordEqual(ReinterpretCast<WordT>(a), ReinterpretCast<WordT>(b));
+#endif
   }
 
   TNode<BoolT> TaggedNotEqual(TNode<AnyTaggedT> a, TNode<AnyTaggedT> b) {

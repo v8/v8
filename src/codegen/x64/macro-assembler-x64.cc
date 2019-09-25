@@ -1461,6 +1461,8 @@ void TurboAssembler::Move(Register result, Handle<HeapObject> object,
                           RelocInfo::Mode rmode) {
   if (FLAG_embedded_builtins) {
     if (root_array_available_ && options().isolate_independent_code) {
+      // TODO(v8:9706): Fix-it! This load will always uncompress the value
+      // even when we are loading a compressed embedded object.
       IndirectLoadConstant(result, object);
       return;
     }
