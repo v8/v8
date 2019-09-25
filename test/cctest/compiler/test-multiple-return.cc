@@ -170,7 +170,7 @@ void TestReturnMultipleValues(MachineType type) {
 #ifdef ENABLE_DISASSEMBLER
       if (FLAG_print_code) {
         StdoutStream os;
-        code->Disassemble("multi_value", os);
+        code->Disassemble("multi_value", os, handles.main_isolate());
       }
 #endif
 
@@ -218,7 +218,7 @@ void TestReturnMultipleValues(MachineType type) {
       Handle<Code> code2 = mt.GetCode();
       if (FLAG_print_code) {
         StdoutStream os;
-        code2->Disassemble("multi_value_call", os);
+        code2->Disassemble("multi_value_call", os, handles.main_isolate());
       }
 #endif
       CHECK_EQ(expect, mt.Call());

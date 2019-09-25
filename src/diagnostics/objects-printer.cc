@@ -1632,7 +1632,7 @@ void Code::CodePrint(std::ostream& os) {  // NOLINT
   os << "\n";
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_use_verbose_printer) {
-    Disassemble(nullptr, os);
+    Disassemble(nullptr, os, GetIsolate());
   }
 #endif
 }
@@ -2824,7 +2824,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
   }
 #ifdef ENABLE_DISASSEMBLER
   i::StdoutStream os;
-  code.Disassemble(nullptr, os, address);
+  code.Disassemble(nullptr, os, isolate, address);
 #else   // ENABLE_DISASSEMBLER
   code.Print();
 #endif  // ENABLE_DISASSEMBLER

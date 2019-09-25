@@ -206,7 +206,7 @@ void Builtins::PrintBuiltinCode() {
                      CStrVector(FLAG_print_builtin_code_filter))) {
       CodeTracer::Scope trace_scope(isolate_->GetCodeTracer());
       OFStream os(trace_scope.file());
-      code->Disassemble(builtin_name, os);
+      code->Disassemble(builtin_name, os, isolate_);
       os << "\n";
     }
   }

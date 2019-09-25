@@ -254,7 +254,7 @@ Handle<Code> CompileGraph(const char* name, CallDescriptor* call_descriptor,
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_opt_code) {
     StdoutStream os;
-    code->Disassemble(name, os);
+    code->Disassemble(name, os, isolate);
   }
 #endif
   return code;

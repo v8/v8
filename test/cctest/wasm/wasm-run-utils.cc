@@ -479,7 +479,7 @@ Handle<Code> WasmFunctionWrapper::GetWrapperCode() {
       CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
       OFStream os(tracing_scope.file());
 
-      code->Disassemble("wasm wrapper", os);
+      code->Disassemble("wasm wrapper", os, isolate);
     }
 #endif
   }

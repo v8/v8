@@ -669,8 +669,8 @@ inline void DisassembleCodeRange(Isolate* isolate, std::ostream& os, Code code,
 
 }  // namespace
 
-void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
-  Isolate* isolate = GetIsolate();
+void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
+                       Address current_pc) {
   os << "kind = " << Kind2String(kind()) << "\n";
   if (name == nullptr) {
     name = GetName(isolate);

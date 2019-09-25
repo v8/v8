@@ -860,7 +860,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
       OFStream os(trace_scope.file());
       Handle<Code> c(Code::cast(result.code), isolate);
       auto pattern_cstring = pattern->ToCString();
-      c->Disassemble(pattern_cstring.get(), os);
+      c->Disassemble(pattern_cstring.get(), os, isolate);
     }
 #endif
     if (FLAG_print_regexp_bytecode &&

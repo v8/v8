@@ -754,7 +754,7 @@ void PrintCode(Isolate* isolate, Handle<Code> code,
       Handle<SharedFunctionInfo> shared = info->shared_info();
       os << "source_position = " << shared->StartPosition() << "\n";
     }
-    code->Disassemble(debug_name.get(), os);
+    code->Disassemble(debug_name.get(), os, isolate);
     os << "--- End code ---\n";
   }
 #endif  // ENABLE_DISASSEMBLER
@@ -1244,7 +1244,7 @@ CompilationJob::Status WasmHeapStubCompilationJob::FinalizeJobImpl(
     if (FLAG_print_opt_code) {
       CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
       OFStream os(tracing_scope.file());
-      code->Disassemble(compilation_info()->GetDebugName().get(), os);
+      code->Disassemble(compilation_info()->GetDebugName().get(), os, isolate);
     }
 #endif
     return SUCCEEDED;
@@ -3124,7 +3124,7 @@ MaybeHandle<Code> PipelineImpl::FinalizeCode(bool retire_broker) {
   if (data->profiler_data()) {
 #ifdef ENABLE_DISASSEMBLER
     std::ostringstream os;
-    code->Disassemble(nullptr, os);
+    code->Disassemble(nullptr, os, isolate());
     data->profiler_data()->SetCode(&os);
 #endif  // ENABLE_DISASSEMBLER
   }
@@ -3140,7 +3140,7 @@ MaybeHandle<Code> PipelineImpl::FinalizeCode(bool retire_broker) {
             << "\"data\":\"";
 #ifdef ENABLE_DISASSEMBLER
     std::stringstream disassembly_stream;
-    code->Disassemble(nullptr, disassembly_stream);
+    code->Disassemble(nullptr, disassembly_stream, isolate());
     std::string disassembly_string(disassembly_stream.str());
     for (const auto& c : disassembly_string) {
       json_of << AsEscapedUC16ForJSON(c);
