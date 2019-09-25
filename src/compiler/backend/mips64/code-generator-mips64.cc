@@ -760,6 +760,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Label start_call;
       bool isWasmCapiFunction =
           linkage()->GetIncomingDescriptor()->IsWasmCapiFunction();
+      // from start_call to return address.
       int offset = 48;
 #if V8_HOST_ARCH_MIPS64
       if (__ emit_debug_code()) {
@@ -772,7 +773,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ bind(&start_call);
         __ nal();
         __ nop();
-        __ Daddu(ra, ra, offset);
+        __ Daddu(ra, ra, offset - 8);  // 8 = nop + nal
         __ sd(ra, MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
         __ mov(ra, kScratchReg);
       }

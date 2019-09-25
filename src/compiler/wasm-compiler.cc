@@ -6206,14 +6206,12 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     pos = 0;
     offset = 0;
     for (wasm::ValueType type : sig_->returns()) {
-      StoreRepresentation store_rep(
-          wasm::ValueTypes::MachineRepresentationFor(type), kNoWriteBarrier);
       Node* value = sig_->return_count() == 1
                         ? call
                         : graph()->NewNode(mcgraph()->common()->Projection(pos),
                                            call, Control());
-      SetEffect(graph()->NewNode(mcgraph()->machine()->Store(store_rep),
-                                 arg_buffer, Int32Constant(offset), value,
+      SetEffect(graph()->NewNode(GetSafeStoreOperator(offset, type), arg_buffer,
+                                 Int32Constant(offset), value,
                                  Effect(), Control()));
       offset += wasm::ValueTypes::ElementSizeInBytes(type);
       pos++;
