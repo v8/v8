@@ -854,7 +854,9 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
   V(Float32Abs, kAVXFloat32Abs, kSSEFloat32Abs) \
   V(Float64Abs, kAVXFloat64Abs, kSSEFloat64Abs) \
   V(Float32Neg, kAVXFloat32Neg, kSSEFloat32Neg) \
-  V(Float64Neg, kAVXFloat64Neg, kSSEFloat64Neg)
+  V(Float64Neg, kAVXFloat64Neg, kSSEFloat64Neg) \
+  V(F64x2Abs, kAVXFloat64Abs, kSSEFloat64Abs)   \
+  V(F64x2Neg, kAVXFloat64Neg, kSSEFloat64Neg)
 
 #define RO_VISITOR(Name, opcode)                      \
   void InstructionSelector::Visit##Name(Node* node) { \

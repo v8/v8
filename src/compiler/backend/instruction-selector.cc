@@ -2625,9 +2625,9 @@ void InstructionSelector::VisitWord64AtomicCompareExchange(Node* node) {
 void InstructionSelector::VisitF64x2Splat(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2ExtractLane(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2ReplaceLane(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_IA32
 void InstructionSelector::VisitF64x2Abs(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Neg(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_IA32
 void InstructionSelector::VisitF64x2Sqrt(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Add(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Sub(Node* node) { UNIMPLEMENTED(); }
