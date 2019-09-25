@@ -4284,7 +4284,6 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
 
 void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
   STATIC_ASSERT(kSystemPointerSize == 8);
-  STATIC_ASSERT(kSmiShiftSize == 31);
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kSmiTag == 0);
 
