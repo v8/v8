@@ -1558,11 +1558,7 @@ void MemoryChunk::InvalidateRecordedSlots(HeapObject object) {
     RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object);
   }
 
-  heap()->MoveStoreBufferEntriesToRememberedSet();
-
-  if (slot_set_[OLD_TO_NEW] != nullptr) {
-    RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(object);
-  }
+  RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(object);
 }
 
 template bool MemoryChunk::RegisteredObjectWithInvalidatedSlots<OLD_TO_NEW>(
