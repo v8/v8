@@ -7,6 +7,7 @@
 #include "src/builtins/accessors.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/execution/isolate.h"
+#include "src/execution/protectors.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
 #include "src/ic/handler-configuration.h"
@@ -850,105 +851,105 @@ void Heap::CreateInitialObjects() {
   {
     Handle<PropertyCell> cell =
         factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
     set_array_constructor_protector(*cell);
   }
 
   {
     Handle<PropertyCell> cell =
         factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
     set_no_elements_protector(*cell);
   }
 
   {
     Handle<PropertyCell> cell =
         factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
     set_array_iterator_protector(*cell);
   }
 
   {
     Handle<PropertyCell> cell =
         factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
     set_map_iterator_protector(*cell);
   }
 
   {
     Handle<PropertyCell> cell =
         factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
     set_set_iterator_protector(*cell);
   }
 
   {
     Handle<PropertyCell> cell =
         factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
     set_is_concat_spreadable_protector(*cell);
   }
 
   {
     Handle<PropertyCell> cell =
         factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
     set_array_species_protector(*cell);
   }
 
   {
     Handle<PropertyCell> cell =
         factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
     set_typed_array_species_protector(*cell);
   }
 
   {
     Handle<PropertyCell> cell =
         factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
     set_promise_species_protector(*cell);
   }
 
   {
     Handle<PropertyCell> cell =
         factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
     set_string_iterator_protector(*cell);
   }
 
   {
     Handle<PropertyCell> cell =
         factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
     set_string_length_protector(*cell);
   }
 
   {
     Handle<PropertyCell> cell =
         factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
     set_array_buffer_detaching_protector(*cell);
   }
 
   {
     Handle<PropertyCell> cell =
         factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
     set_promise_hook_protector(*cell);
   }
 
   {
     Handle<PropertyCell> cell =
         factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
     set_promise_resolve_protector(*cell);
   }
 
   {
     Handle<PropertyCell> cell =
         factory->NewPropertyCell(factory->empty_string());
-    cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+    cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
     set_promise_then_protector(*cell);
   }
 

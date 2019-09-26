@@ -5,6 +5,7 @@
 #include "src/compiler/compilation-dependencies.h"
 
 #include "src/compiler/compilation-dependency.h"
+#include "src/execution/protectors.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/objects-inl.h"
@@ -282,12 +283,12 @@ class GlobalPropertyDependency final : public CompilationDependency {
 class ProtectorDependency final : public CompilationDependency {
  public:
   explicit ProtectorDependency(const PropertyCellRef& cell) : cell_(cell) {
-    DCHECK_EQ(cell_.value().AsSmi(), Isolate::kProtectorValid);
+    DCHECK_EQ(cell_.value().AsSmi(), Protectors::kProtectorValid);
   }
 
   bool IsValid() const override {
     Handle<PropertyCell> cell = cell_.object();
-    return cell->value() == Smi::FromInt(Isolate::kProtectorValid);
+    return cell->value() == Smi::FromInt(Protectors::kProtectorValid);
   }
 
   void Install(const MaybeObjectHandle& code) const override {
@@ -444,7 +445,7 @@ void CompilationDependencies::DependOnGlobalProperty(
 }
 
 bool CompilationDependencies::DependOnProtector(const PropertyCellRef& cell) {
-  if (cell.value().AsSmi() != Isolate::kProtectorValid) return false;
+  if (cell.value().AsSmi() != Protectors::kProtectorValid) return false;
   RecordDependency(new (zone_) ProtectorDependency(cell));
   return true;
 }

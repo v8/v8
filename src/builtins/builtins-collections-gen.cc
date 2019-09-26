@@ -8,6 +8,7 @@
 #include "src/builtins/builtins-iterator-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/codegen/code-stub-assembler.h"
+#include "src/execution/protectors.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/hash-table-inl.h"
@@ -952,7 +953,7 @@ void CollectionsBuiltinsAssembler::BranchIfMapIteratorProtectorValid(
   DCHECK(isolate()->heap()->map_iterator_protector().IsPropertyCell());
   Branch(
       TaggedEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                  SmiConstant(Isolate::kProtectorValid)),
+                  SmiConstant(Protectors::kProtectorValid)),
       if_true, if_false);
 }
 
@@ -1011,7 +1012,7 @@ void CollectionsBuiltinsAssembler::BranchIfSetIteratorProtectorValid(
   DCHECK(isolate()->heap()->set_iterator_protector().IsPropertyCell());
   Branch(
       TaggedEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                  SmiConstant(Isolate::kProtectorValid)),
+                  SmiConstant(Protectors::kProtectorValid)),
       if_true, if_false);
 }
 

@@ -9,6 +9,7 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
+#include "src/execution/protectors.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/arguments.h"
 #include "src/objects/property-cell.h"
@@ -294,7 +295,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
   TNode<PropertyCell> protector_cell = ArrayIteratorProtectorConstant();
   GotoIf(
       TaggedEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                  SmiConstant(Isolate::kProtectorInvalid)),
+                  SmiConstant(Protectors::kProtectorInvalid)),
       &if_generic);
   {
     // The fast-path accesses the {spread} elements directly.

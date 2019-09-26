@@ -1163,9 +1163,6 @@ class Isolate final : private HiddenFactory {
 
 #endif  // V8_INTL_SUPPORT
 
-  static const int kProtectorValid = 1;
-  static const int kProtectorInvalid = 0;
-
   bool IsArrayOrObjectOrStringPrototype(Object object);
 
   // On intent to set an element in object, make sure that appropriate

@@ -8,6 +8,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/builtins/growable-fixed-array-gen.h"
+#include "src/execution/protectors.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory-inl.h"
 
@@ -932,7 +933,7 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
     TNode<PropertyCell> protector_cell = ArrayIteratorProtectorConstant();
     GotoIfNot(
         TaggedEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                    SmiConstant(Isolate::kProtectorValid)),
+                    SmiConstant(Protectors::kProtectorValid)),
         &check_iterator);
 
     // Source is a TypedArray with unmodified iterator behavior. Use the

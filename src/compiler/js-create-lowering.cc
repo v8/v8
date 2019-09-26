@@ -18,6 +18,7 @@
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/state-values-utils.h"
+#include "src/execution/protectors.h"
 #include "src/objects/arguments.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number.h"
@@ -645,8 +646,8 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
   } else {
     PropertyCellRef array_constructor_protector(
         broker(), factory()->array_constructor_protector());
-    can_inline_call =
-        array_constructor_protector.value().AsSmi() == Isolate::kProtectorValid;
+    can_inline_call = array_constructor_protector.value().AsSmi() ==
+                      Protectors::kProtectorValid;
   }
 
   if (arity == 0) {

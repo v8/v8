@@ -12,6 +12,7 @@
 #include "src/debug/debug.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/microtask-queue.h"
+#include "src/execution/protectors.h"
 #include "src/extensions/cputracemark-extension.h"
 #include "src/extensions/externalize-string-extension.h"
 #include "src/extensions/free-buffer-extension.h"
@@ -2642,7 +2643,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     {
       Handle<PropertyCell> cell =
           factory->NewPropertyCell(factory->empty_string());
-      cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+      cell->set_value(Smi::FromInt(Protectors::kProtectorValid));
       native_context()->set_regexp_species_protector(*cell);
     }
 

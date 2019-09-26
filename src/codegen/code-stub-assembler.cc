@@ -11,6 +11,7 @@
 #include "src/common/globals.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
+#include "src/execution/protectors.h"
 #include "src/heap/heap-inl.h"  // For Page/MemoryChunk. TODO(jkummerow): Drop.
 #include "src/logging/counters.h"
 #include "src/objects/api-callbacks.h"
@@ -6023,42 +6024,42 @@ TNode<BoolT> CodeStubAssembler::IsUndetectableMap(SloppyTNode<Map> map) {
 }
 
 TNode<BoolT> CodeStubAssembler::IsNoElementsProtectorCellInvalid() {
-  TNode<Smi> invalid = SmiConstant(Isolate::kProtectorInvalid);
+  TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = NoElementsProtectorConstant();
   TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsArrayIteratorProtectorCellInvalid() {
-  TNode<Smi> invalid = SmiConstant(Isolate::kProtectorInvalid);
+  TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = ArrayIteratorProtectorConstant();
   TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsPromiseResolveProtectorCellInvalid() {
-  TNode<Smi> invalid = SmiConstant(Isolate::kProtectorInvalid);
+  TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = PromiseResolveProtectorConstant();
   TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsPromiseThenProtectorCellInvalid() {
-  TNode<Smi> invalid = SmiConstant(Isolate::kProtectorInvalid);
+  TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = PromiseThenProtectorConstant();
   TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsArraySpeciesProtectorCellInvalid() {
-  TNode<Smi> invalid = SmiConstant(Isolate::kProtectorInvalid);
+  TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = ArraySpeciesProtectorConstant();
   TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsTypedArraySpeciesProtectorCellInvalid() {
-  TNode<Smi> invalid = SmiConstant(Isolate::kProtectorInvalid);
+  TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = TypedArraySpeciesProtectorConstant();
   TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
   return TaggedEqual(cell_value, invalid);
@@ -6069,12 +6070,12 @@ TNode<BoolT> CodeStubAssembler::IsRegExpSpeciesProtectorCellInvalid(
   TNode<PropertyCell> cell = CAST(LoadContextElement(
       native_context, Context::REGEXP_SPECIES_PROTECTOR_INDEX));
   TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
-  TNode<Smi> invalid = SmiConstant(Isolate::kProtectorInvalid);
+  TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   return TaggedEqual(cell_value, invalid);
 }
 
 TNode<BoolT> CodeStubAssembler::IsPromiseSpeciesProtectorCellInvalid() {
-  TNode<Smi> invalid = SmiConstant(Isolate::kProtectorInvalid);
+  TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
   TNode<PropertyCell> cell = PromiseSpeciesProtectorConstant();
   TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
   return TaggedEqual(cell_value, invalid);
