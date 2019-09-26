@@ -48,7 +48,6 @@
 #include "src/heap/remembered-set.h"
 #include "src/heap/scavenge-job.h"
 #include "src/heap/scavenger-inl.h"
-#include "src/heap/store-buffer.h"
 #include "src/heap/stress-marking-observer.h"
 #include "src/heap/stress-scavenge-observer.h"
 #include "src/heap/sweeper.h"
@@ -913,23 +912,6 @@ void Heap::RemoveAllocationObserversFromAllSpaces(
     }
   }
 }
-
-class Heap::SkipStoreBufferScope {
- public:
-  explicit SkipStoreBufferScope(StoreBuffer* store_buffer)
-      : store_buffer_(store_buffer) {
-    store_buffer_->MoveAllEntriesToRememberedSet();
-    store_buffer_->SetMode(StoreBuffer::IN_GC);
-  }
-
-  ~SkipStoreBufferScope() {
-    DCHECK(store_buffer_->Empty());
-    store_buffer_->SetMode(StoreBuffer::NOT_IN_GC);
-  }
-
- private:
-  StoreBuffer* store_buffer_;
-};
 
 namespace {
 inline bool MakePretenureDecision(
@@ -1966,43 +1948,39 @@ bool Heap::PerformGarbageCollection(
   size_t start_young_generation_size =
       Heap::new_space()->Size() + new_lo_space()->SizeOfObjects();
 
-  {
-    Heap::SkipStoreBufferScope skip_store_buffer_scope(store_buffer_.get());
+  switch (collector) {
+    case MARK_COMPACTOR:
+      UpdateOldGenerationAllocationCounter();
+      // Perform mark-sweep with optional compaction.
+      MarkCompact();
+      old_generation_size_configured_ = true;
+      // This should be updated before PostGarbageCollectionProcessing, which
+      // can cause another GC. Take into account the objects promoted during
+      // GC.
+      old_generation_allocation_counter_at_last_gc_ +=
+          static_cast<size_t>(promoted_objects_size_);
+      old_generation_size_at_last_gc_ = OldGenerationSizeOfObjects();
+      break;
+    case MINOR_MARK_COMPACTOR:
+      MinorMarkCompact();
+      break;
+    case SCAVENGER:
+      if ((fast_promotion_mode_ &&
+           CanExpandOldGeneration(new_space()->Size() +
+                                  new_lo_space()->Size()))) {
+        tracer()->NotifyYoungGenerationHandling(
+            YoungGenerationHandling::kFastPromotionDuringScavenge);
+        EvacuateYoungGeneration();
+      } else {
+        tracer()->NotifyYoungGenerationHandling(
+            YoungGenerationHandling::kRegularScavenge);
 
-    switch (collector) {
-      case MARK_COMPACTOR:
-        UpdateOldGenerationAllocationCounter();
-        // Perform mark-sweep with optional compaction.
-        MarkCompact();
-        old_generation_size_configured_ = true;
-        // This should be updated before PostGarbageCollectionProcessing, which
-        // can cause another GC. Take into account the objects promoted during
-        // GC.
-        old_generation_allocation_counter_at_last_gc_ +=
-            static_cast<size_t>(promoted_objects_size_);
-        old_generation_size_at_last_gc_ = OldGenerationSizeOfObjects();
-        break;
-      case MINOR_MARK_COMPACTOR:
-        MinorMarkCompact();
-        break;
-      case SCAVENGER:
-        if ((fast_promotion_mode_ &&
-             CanExpandOldGeneration(new_space()->Size() +
-                                    new_lo_space()->Size()))) {
-          tracer()->NotifyYoungGenerationHandling(
-              YoungGenerationHandling::kFastPromotionDuringScavenge);
-          EvacuateYoungGeneration();
-        } else {
-          tracer()->NotifyYoungGenerationHandling(
-              YoungGenerationHandling::kRegularScavenge);
-
-          Scavenge();
-        }
-        break;
-    }
-
-    ProcessPretenuringFeedback();
+        Scavenge();
+      }
+      break;
   }
+
+  ProcessPretenuringFeedback();
 
   UpdateSurvivalStatistics(static_cast<int>(start_young_generation_size));
   ConfigureInitialOldGenerationSize();
@@ -4146,7 +4124,6 @@ void Heap::VerifyRememberedSetFor(HeapObject object) {
   std::set<Address> old_to_new;
   std::set<std::pair<SlotType, Address> > typed_old_to_new;
   if (!InYoungGeneration(object)) {
-    store_buffer()->MoveAllEntriesToRememberedSet();
     CollectSlots<OLD_TO_NEW>(chunk, start, end, &old_to_new, &typed_old_to_new);
     OldToNewSlotVerifyingVisitor visitor(&old_to_new, &typed_old_to_new,
                                          &this->ephemeron_remembered_set_);
@@ -5009,8 +4986,6 @@ void Heap::SetUp() {
   memory_allocator_.reset(
       new MemoryAllocator(isolate_, MaxReserved(), code_range_size_));
 
-  store_buffer_.reset(new StoreBuffer(this));
-
   mark_compact_collector_.reset(new MarkCompactCollector(this));
 
   scavenger_collector_.reset(new ScavengerCollector(this));
@@ -5079,8 +5054,6 @@ void Heap::SetUpSpaces() {
 
   LOG(isolate_, IntPtrTEvent("heap-capacity", Capacity()));
   LOG(isolate_, IntPtrTEvent("heap-available", Available()));
-
-  store_buffer()->SetUp();
 
   mark_compact_collector()->SetUp();
 #ifdef ENABLE_MINOR_MC
@@ -5313,8 +5286,6 @@ void Heap::TearDown() {
     space_[i] = nullptr;
   }
 
-  store_buffer()->TearDown();
-
   memory_allocator()->TearDown();
 
   StrongRootsList* next = nullptr;
@@ -5324,7 +5295,6 @@ void Heap::TearDown() {
   }
   strong_roots_list_ = nullptr;
 
-  store_buffer_.reset();
   memory_allocator_.reset();
 }
 
@@ -5535,24 +5505,6 @@ void Heap::CheckHandleCount() {
   isolate_->handle_scope_implementer()->Iterate(&v);
 }
 
-Address* Heap::store_buffer_top_address() {
-  return store_buffer()->top_address();
-}
-
-// static
-intptr_t Heap::store_buffer_mask_constant() {
-  return StoreBuffer::kStoreBufferMask;
-}
-
-// static
-Address Heap::store_buffer_overflow_function_address() {
-  return FUNCTION_ADDR(StoreBuffer::StoreBufferOverflow);
-}
-
-void Heap::MoveStoreBufferEntriesToRememberedSet() {
-  store_buffer()->MoveAllEntriesToRememberedSet();
-}
-
 void Heap::ClearRecordedSlot(HeapObject object, ObjectSlot slot) {
 #ifndef V8_DISABLE_WRITE_BARRIERS
   DCHECK(!IsLargeObject(object));
@@ -5561,11 +5513,16 @@ void Heap::ClearRecordedSlot(HeapObject object, ObjectSlot slot) {
     DCHECK_EQ(page->owner_identity(), OLD_SPACE);
 
     if (!page->SweepingDone()) {
-      store_buffer()->MoveAllEntriesToRememberedSet();
       RememberedSet<OLD_TO_NEW>::Remove(page, slot.address());
     }
   }
 #endif
+}
+
+// static
+int Heap::InsertIntoRememberedSetFromCode(MemoryChunk* chunk, Address slot) {
+  RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(chunk, slot);
+  return 0;
 }
 
 #ifdef DEBUG
@@ -5575,7 +5532,6 @@ void Heap::VerifyClearedSlot(HeapObject object, ObjectSlot slot) {
   if (InYoungGeneration(object)) return;
   Page* page = Page::FromAddress(slot.address());
   DCHECK_EQ(page->owner_identity(), OLD_SPACE);
-  store_buffer()->MoveAllEntriesToRememberedSet();
   // Slots are filtered with invalidated slots.
   CHECK_IMPLIES(RememberedSet<OLD_TO_NEW>::Contains(page, slot.address()),
                 page->RegisteredObjectWithInvalidatedSlots<OLD_TO_NEW>(object));
@@ -5593,7 +5549,6 @@ void Heap::ClearRecordedSlotRange(Address start, Address end) {
     DCHECK_EQ(page->owner_identity(), OLD_SPACE);
 
     if (!page->SweepingDone()) {
-      store_buffer()->MoveAllEntriesToRememberedSet();
       RememberedSet<OLD_TO_NEW>::RemoveRange(page, start, end,
                                              SlotSet::KEEP_EMPTY_BUCKETS);
     }
@@ -6205,8 +6160,8 @@ void Heap::WriteBarrierForCodeSlow(Code code) {
 
 void Heap::GenerationalBarrierSlow(HeapObject object, Address slot,
                                    HeapObject value) {
-  Heap* heap = Heap::FromWritableHeapObject(object);
-  heap->store_buffer()->InsertEntry(slot);
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+  RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(chunk, slot);
 }
 
 void Heap::RecordEphemeronKeyWrite(EphemeronHashTable table, Address slot) {
@@ -6248,7 +6203,6 @@ void Heap::WriteBarrierForRangeImpl(MemoryChunk* source_page, HeapObject object,
   STATIC_ASSERT(!(kModeMask & kDoEvacuationSlotRecording) ||
                 (kModeMask & kDoMarking));
 
-  StoreBuffer* store_buffer = this->store_buffer();
   IncrementalMarking* incremental_marking = this->incremental_marking();
   MarkCompactCollector* collector = this->mark_compact_collector();
 
@@ -6259,7 +6213,8 @@ void Heap::WriteBarrierForRangeImpl(MemoryChunk* source_page, HeapObject object,
 
     if ((kModeMask & kDoGenerational) &&
         Heap::InYoungGeneration(value_heap_object)) {
-      store_buffer->InsertEntry(slot.address());
+      RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(source_page,
+                                                                slot.address());
     }
 
     if ((kModeMask & kDoMarking) &&

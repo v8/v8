@@ -273,25 +273,24 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     return TaggedEqual(remembered_set, SmiConstant(EMIT_REMEMBERED_SET));
   }
 
-  void CallCFunction1WithCallerSavedRegistersMode(MachineType return_type,
-                                                  MachineType arg0_type,
-                                                  Node* function, Node* arg0,
-                                                  Node* mode, Label* next) {
+  void CallCFunction2WithCallerSavedRegistersMode(
+      MachineType return_type, MachineType arg0_type, MachineType arg1_type,
+      Node* function, Node* arg0, Node* arg1, Node* mode, Label* next) {
     Label dont_save_fp(this), save_fp(this);
     Branch(ShouldSkipFPRegs(mode), &dont_save_fp, &save_fp);
     BIND(&dont_save_fp);
     {
-      CallCFunctionWithCallerSavedRegisters(function, return_type,
-                                            kDontSaveFPRegs,
-                                            std::make_pair(arg0_type, arg0));
+      CallCFunctionWithCallerSavedRegisters(
+          function, return_type, kDontSaveFPRegs,
+          std::make_pair(arg0_type, arg0), std::make_pair(arg1_type, arg1));
       Goto(next);
     }
 
     BIND(&save_fp);
     {
-      CallCFunctionWithCallerSavedRegisters(function, return_type,
-                                            kSaveFPRegs,
-                                            std::make_pair(arg0_type, arg0));
+      CallCFunctionWithCallerSavedRegisters(function, return_type, kSaveFPRegs,
+                                            std::make_pair(arg0_type, arg0),
+                                            std::make_pair(arg1_type, arg1));
       Goto(next);
     }
   }
@@ -320,34 +319,93 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     }
   }
 
-  void InsertToStoreBufferAndGoto(Node* isolate, Node* slot, Node* mode,
-                                  Label* next) {
-    TNode<ExternalReference> store_buffer_top_addr =
-        ExternalConstant(ExternalReference::store_buffer_top(this->isolate()));
-    Node* store_buffer_top =
-        Load(MachineType::Pointer(), store_buffer_top_addr);
-    StoreNoWriteBarrier(MachineType::PointerRepresentation(), store_buffer_top,
-                        slot);
-    TNode<WordT> new_store_buffer_top =
-        IntPtrAdd(store_buffer_top, IntPtrConstant(kSystemPointerSize));
-    StoreNoWriteBarrier(MachineType::PointerRepresentation(),
-                        store_buffer_top_addr, new_store_buffer_top);
+  void InsertIntoRememberedSetAndGotoSlow(Node* isolate, TNode<IntPtrT> object,
+                                          TNode<IntPtrT> slot, Node* mode,
+                                          Label* next) {
+    TNode<IntPtrT> page = PageFromAddress(object);
+    TNode<ExternalReference> function =
+        ExternalConstant(ExternalReference::insert_remembered_set_function());
+    CallCFunction2WithCallerSavedRegistersMode(
+        MachineType::Int32(), MachineType::Pointer(), MachineType::Pointer(),
+        function, page, slot, mode, next);
+  }
 
-    TNode<WordT> test =
-        WordAnd(new_store_buffer_top,
-                IntPtrConstant(Heap::store_buffer_mask_constant()));
+  void InsertIntoRememberedSetAndGoto(Node* isolate, TNode<IntPtrT> object,
+                                      TNode<IntPtrT> slot, Node* mode,
+                                      Label* next) {
+    Label slow_path(this);
+    TNode<IntPtrT> page = PageFromAddress(object);
 
-    Label overflow(this);
-    Branch(IntPtrEqual(test, IntPtrConstant(0)), &overflow, next);
+    // Load address of SlotSet
+    TNode<IntPtrT> slot_set_array = LoadSlotSetArray(page, &slow_path);
+    TNode<IntPtrT> page_start_offset = IntPtrSub(slot, page);
+    TNode<IntPtrT> slot_set = SlotSetAddress(slot_set_array, page_start_offset);
 
-    BIND(&overflow);
-    {
-      TNode<ExternalReference> function =
-          ExternalConstant(ExternalReference::store_buffer_overflow_function());
-      CallCFunction1WithCallerSavedRegistersMode(MachineType::Int32(),
-                                                 MachineType::Pointer(),
-                                                 function, isolate, mode, next);
-    }
+    // Calculate bucket_index, cell_index and bit_index
+    TNode<WordT> bucket_index, cell_offset, bit_index;
+    SlotIndices(page_start_offset, &bucket_index, &cell_offset, &bit_index);
+
+    // Update cell
+    TNode<IntPtrT> bucket = LoadBucket(slot_set, bucket_index, &slow_path);
+    SetBitInCell(bucket, cell_offset, bit_index);
+
+    Goto(next);
+
+    BIND(&slow_path);
+    InsertIntoRememberedSetAndGotoSlow(isolate, object, slot, mode, next);
+  }
+
+  TNode<IntPtrT> LoadSlotSetArray(TNode<IntPtrT> page, Label* slow_path) {
+    TNode<IntPtrT> slot_set_array = UncheckedCast<IntPtrT>(
+        Load(MachineType::Pointer(), page,
+             IntPtrConstant(MemoryChunk::kOldToNewSlotSetOffset)));
+    GotoIf(WordEqual(slot_set_array, IntPtrConstant(0)), slow_path);
+
+    return slot_set_array;
+  }
+
+  TNode<IntPtrT> SlotSetAddress(TNode<IntPtrT> slot_set_array,
+                                TNode<IntPtrT> page_start_offset) {
+    TNode<WordT> slot_set_index =
+        UncheckedCast<IntPtrT>(WordShr(page_start_offset, kPageSizeBits));
+    TNode<IntPtrT> slot_set = UncheckedCast<IntPtrT>(
+        IntPtrAdd(slot_set_array,
+                  IntPtrMul(slot_set_index, IntPtrConstant(sizeof(SlotSet)))));
+    return slot_set;
+  }
+
+  void SlotIndices(TNode<IntPtrT> page_start_offset, TNode<WordT>* bucket_index,
+                   TNode<WordT>* cell_offset, TNode<WordT>* bit_index) {
+    TNode<WordT> offset =
+        WordAnd(page_start_offset, IntPtrConstant(MemoryChunk::kPageSize - 1));
+    TNode<WordT> slot_index = WordShr(offset, kTaggedSizeLog2);
+    *bucket_index = WordShr(slot_index, SlotSet::kBitsPerBucketLog2);
+    *cell_offset = WordAnd(WordShr(slot_index, SlotSet::kBitsPerCellLog2 -
+                                                   SlotSet::kCellSizeBytesLog2),
+                           IntPtrConstant((SlotSet::kCellsPerBucket - 1)
+                                          << SlotSet::kCellSizeBytesLog2));
+    *bit_index = WordAnd(slot_index, IntPtrConstant(SlotSet::kBitsPerCell - 1));
+  }
+
+  TNode<IntPtrT> LoadBucket(TNode<IntPtrT> slot_set, TNode<WordT> bucket_index,
+                            Label* slow_path) {
+    TNode<IntPtrT> bucket = UncheckedCast<IntPtrT>(
+        Load(MachineType::Pointer(), slot_set,
+             WordShl(bucket_index, kSystemPointerSizeLog2)));
+    GotoIf(WordEqual(bucket, IntPtrConstant(0)), slow_path);
+    return bucket;
+  }
+
+  void SetBitInCell(TNode<IntPtrT> bucket, TNode<WordT> cell_offset,
+                    TNode<WordT> bit_index) {
+    TNode<IntPtrT> cell_address =
+        UncheckedCast<IntPtrT>(IntPtrAdd(bucket, cell_offset));
+    TNode<IntPtrT> old_cell_value =
+        ChangeInt32ToIntPtr(Load<Int32T>(cell_address));
+    TNode<IntPtrT> new_cell_value = UncheckedCast<IntPtrT>(
+        WordOr(old_cell_value, WordShl(IntPtrConstant(1), bit_index)));
+    StoreNoWriteBarrier(MachineRepresentation::kWord32, cell_address,
+                        TruncateIntPtrToInt32(new_cell_value));
   }
 };
 
@@ -398,7 +456,10 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
       TNode<ExternalReference> isolate_constant =
           ExternalConstant(ExternalReference::isolate_address(isolate()));
       Node* fp_mode = Parameter(Descriptor::kFPMode);
-      InsertToStoreBufferAndGoto(isolate_constant, slot, fp_mode, &exit);
+      TNode<IntPtrT> object =
+          BitcastTaggedToWord(Parameter(Descriptor::kObject));
+      InsertIntoRememberedSetAndGoto(isolate_constant, object, slot, fp_mode,
+                                     &exit);
     }
 
     BIND(&store_buffer_incremental_wb);
@@ -406,8 +467,10 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
       TNode<ExternalReference> isolate_constant =
           ExternalConstant(ExternalReference::isolate_address(isolate()));
       Node* fp_mode = Parameter(Descriptor::kFPMode);
-      InsertToStoreBufferAndGoto(isolate_constant, slot, fp_mode,
-                                 &incremental_wb);
+      TNode<IntPtrT> object =
+          BitcastTaggedToWord(Parameter(Descriptor::kObject));
+      InsertIntoRememberedSetAndGoto(isolate_constant, object, slot, fp_mode,
+                                     &incremental_wb);
     }
   }
 

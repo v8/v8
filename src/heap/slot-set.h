@@ -265,16 +265,19 @@ class SlotSet : public Malloced {
     DCHECK_EQ(0u, to_be_freed_buckets_.size());
   }
 
- private:
-  using Bucket = uint32_t*;
   static const int kMaxSlots = (1 << kPageSizeBits) / kTaggedSize;
   static const int kCellsPerBucket = 32;
   static const int kCellsPerBucketLog2 = 5;
+  static const int kCellSizeBytesLog2 = 2;
+  static const int kCellSizeBytes = 1 << kCellSizeBytesLog2;
   static const int kBitsPerCell = 32;
   static const int kBitsPerCellLog2 = 5;
   static const int kBitsPerBucket = kCellsPerBucket * kBitsPerCell;
   static const int kBitsPerBucketLog2 = kCellsPerBucketLog2 + kBitsPerCellLog2;
   static const int kBuckets = kMaxSlots / kCellsPerBucket / kBitsPerCell;
+
+ private:
+  using Bucket = uint32_t*;
 
   Bucket AllocateBucket() {
     Bucket result = NewArray<uint32_t>(kCellsPerBucket);
