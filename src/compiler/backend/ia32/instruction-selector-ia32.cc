@@ -215,6 +215,15 @@ void VisitROWithTemp(InstructionSelector* selector, Node* node,
                  arraysize(temps), temps);
 }
 
+void VisitROWithTempSimd(InstructionSelector* selector, Node* node,
+                         ArchOpcode opcode) {
+  IA32OperandGenerator g(selector);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseUniqueRegister(node->InputAt(0)), arraysize(temps),
+                 temps);
+}
+
 void VisitRR(InstructionSelector* selector, Node* node,
              InstructionCode opcode) {
   IA32OperandGenerator g(selector);
@@ -811,10 +820,7 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
   V(RoundInt32ToFloat32, kSSEInt32ToFloat32)                \
   V(ChangeInt32ToFloat64, kSSEInt32ToFloat64)               \
   V(TruncateFloat32ToInt32, kSSEFloat32ToInt32)             \
-  V(TruncateFloat32ToUint32, kSSEFloat32ToUint32)           \
   V(ChangeFloat64ToInt32, kSSEFloat64ToInt32)               \
-  V(ChangeFloat64ToUint32, kSSEFloat64ToUint32)             \
-  V(TruncateFloat64ToUint32, kSSEFloat64ToUint32)           \
   V(TruncateFloat64ToFloat32, kSSEFloat64ToFloat32)         \
   V(RoundFloat64ToInt32, kSSEFloat64ToInt32)                \
   V(BitcastFloat32ToInt32, kIA32BitcastFI)                  \
@@ -827,6 +833,11 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
   V(SignExtendWord16ToInt32, kIA32Movsxwl)
 
 #define RO_WITH_TEMP_OP_LIST(V) V(ChangeUint32ToFloat64, kSSEUint32ToFloat64)
+
+#define RO_WITH_TEMP_SIMD_OP_LIST(V)              \
+  V(TruncateFloat32ToUint32, kSSEFloat32ToUint32) \
+  V(ChangeFloat64ToUint32, kSSEFloat64ToUint32)   \
+  V(TruncateFloat64ToUint32, kSSEFloat64ToUint32)
 
 #define RR_OP_LIST(V)                                                         \
   V(TruncateFloat64ToWord32, kArchTruncateDoubleToI)                          \
@@ -873,6 +884,14 @@ RO_OP_LIST(RO_VISITOR)
 RO_WITH_TEMP_OP_LIST(RO_WITH_TEMP_VISITOR)
 #undef RO_WITH_TEMP_VISITOR
 #undef RO_WITH_TEMP_OP_LIST
+
+#define RO_WITH_TEMP_SIMD_VISITOR(Name, opcode)       \
+  void InstructionSelector::Visit##Name(Node* node) { \
+    VisitROWithTempSimd(this, node, opcode);          \
+  }
+RO_WITH_TEMP_SIMD_OP_LIST(RO_WITH_TEMP_SIMD_VISITOR)
+#undef RO_WITH_TEMP_SIMD_VISITOR
+#undef RO_WITH_TEMP_SIMD_OP_LIST
 
 #define RR_VISITOR(Name, opcode)                      \
   void InstructionSelector::Visit##Name(Node* node) { \

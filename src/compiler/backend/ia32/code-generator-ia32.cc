@@ -1476,13 +1476,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ cvttss2si(i.OutputRegister(), i.InputOperand(0));
       break;
     case kSSEFloat32ToUint32:
-      __ Cvttss2ui(i.OutputRegister(), i.InputOperand(0), kScratchDoubleReg);
+      __ Cvttss2ui(i.OutputRegister(), i.InputOperand(0),
+                   i.TempSimd128Register(0));
       break;
     case kSSEFloat64ToInt32:
       __ cvttsd2si(i.OutputRegister(), i.InputOperand(0));
       break;
     case kSSEFloat64ToUint32:
-      __ Cvttsd2ui(i.OutputRegister(), i.InputOperand(0), kScratchDoubleReg);
+      __ Cvttsd2ui(i.OutputRegister(), i.InputOperand(0),
+                   i.TempSimd128Register(0));
       break;
     case kSSEInt32ToFloat32:
       __ cvtsi2ss(i.OutputDoubleRegister(), i.InputOperand(0));
