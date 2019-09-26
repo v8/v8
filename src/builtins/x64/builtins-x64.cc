@@ -1201,8 +1201,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
           Operand(rbp, InterpreterFrameConstants::kBytecodeArrayFromFp));
   __ movq(kInterpreterBytecodeOffsetRegister,
           Operand(rbp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
-  __ SmiUntag(kInterpreterBytecodeOffsetRegister,
-              kInterpreterBytecodeOffsetRegister);
+  __ SmiUntag(kInterpreterBytecodeOffsetRegister);
 
   // Either return, or advance to the next bytecode and dispatch.
   Label do_return;
@@ -1429,8 +1428,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   // Get the target bytecode offset from the frame.
   __ movq(kInterpreterBytecodeOffsetRegister,
           Operand(rbp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
-  __ SmiUntag(kInterpreterBytecodeOffsetRegister,
-              kInterpreterBytecodeOffsetRegister);
+  __ SmiUntag(kInterpreterBytecodeOffsetRegister);
 
   // Dispatch to the target bytecode.
   __ movzxbq(r11, Operand(kInterpreterBytecodeArrayRegister,
@@ -1447,8 +1445,7 @@ void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
           Operand(rbp, InterpreterFrameConstants::kBytecodeArrayFromFp));
   __ movq(kInterpreterBytecodeOffsetRegister,
           Operand(rbp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
-  __ SmiUntag(kInterpreterBytecodeOffsetRegister,
-              kInterpreterBytecodeOffsetRegister);
+  __ SmiUntag(kInterpreterBytecodeOffsetRegister);
 
   // Load the current bytecode.
   __ movzxbq(rbx, Operand(kInterpreterBytecodeArrayRegister,
@@ -1487,7 +1484,7 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
     // Preserve argument count for later compare.
     __ movq(rcx, rax);
     // Push the number of arguments to the callee.
-    __ SmiTag(rax, rax);
+    __ SmiTag(rax);
     __ Push(rax);
     // Push a copy of the target function and the new target.
     __ Push(rdi);
@@ -1524,7 +1521,7 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
 
     __ Drop(2);
     __ Pop(rcx);
-    __ SmiUntag(rcx, rcx);
+    __ SmiUntag(rcx);
     scope.GenerateLeaveFrame();
 
     __ PopReturnAddressTo(rbx);
@@ -1538,7 +1535,7 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
     __ Pop(rdx);
     __ Pop(rdi);
     __ Pop(rax);
-    __ SmiUntag(rax, rax);
+    __ SmiUntag(rax);
   }
   // On failure, tail call back to regular js by re-calling the function
   // which has be reset to the compile lazy builtin.
@@ -1565,7 +1562,7 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
     int code = config->GetAllocatableGeneralCode(i);
     __ popq(Register::from_code(code));
     if (java_script_builtin && code == kJavaScriptCallArgCountRegister.code()) {
-      __ SmiUntag(Register::from_code(code), Register::from_code(code));
+      __ SmiUntag(Register::from_code(code));
     }
   }
   __ movq(
@@ -2276,7 +2273,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
         // TODO(bmeurer): Inline the allocation here to avoid building the frame
         // in the fast case? (fall back to AllocateInNewSpace?)
         FrameScope scope(masm, StackFrame::INTERNAL);
-        __ SmiTag(rax, rax);
+        __ SmiTag(rax);
         __ Push(rax);
         __ Push(rdi);
         __ movq(rax, rcx);
@@ -2287,7 +2284,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
         __ movq(rcx, rax);
         __ Pop(rdi);
         __ Pop(rax);
-        __ SmiUntag(rax, rax);
+        __ SmiUntag(rax);
       }
       __ LoadTaggedPointerField(
           rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
@@ -2649,7 +2646,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   // The function index was pushed to the stack by the caller as int32.
   __ Pop(r11);
   // Convert to Smi for the runtime call.
-  __ SmiTag(r11, r11);
+  __ SmiTag(r11);
   {
     HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
     FrameScope scope(masm, StackFrame::WASM_COMPILE_LAZY);

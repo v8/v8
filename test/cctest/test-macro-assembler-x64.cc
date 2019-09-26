@@ -242,35 +242,35 @@ TEST(SmiTag) {
 
   __ movq(rax, Immediate(1));  // Test number.
   __ movq(rcx, Immediate(0));
-  __ SmiTag(rcx, rcx);
+  __ SmiTag(rcx);
   __ Set(rdx, Smi::kZero.ptr());
   __ cmp_tagged(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(2));  // Test number.
   __ movq(rcx, Immediate(1024));
-  __ SmiTag(rcx, rcx);
+  __ SmiTag(rcx);
   __ Set(rdx, Smi::FromInt(1024).ptr());
   __ cmp_tagged(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(3));  // Test number.
   __ movq(rcx, Immediate(-1));
-  __ SmiTag(rcx, rcx);
+  __ SmiTag(rcx);
   __ Set(rdx, Smi::FromInt(-1).ptr());
   __ cmp_tagged(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(4));  // Test number.
   __ movq(rcx, Immediate(Smi::kMaxValue));
-  __ SmiTag(rcx, rcx);
+  __ SmiTag(rcx);
   __ Set(rdx, Smi::FromInt(Smi::kMaxValue).ptr());
   __ cmp_tagged(rcx, rdx);
   __ j(not_equal, &exit);
 
   __ movq(rax, Immediate(5));  // Test number.
   __ movq(rcx, Immediate(Smi::kMinValue));
-  __ SmiTag(rcx, rcx);
+  __ SmiTag(rcx);
   __ Set(rdx, Smi::FromInt(Smi::kMinValue).ptr());
   __ cmp_tagged(rcx, rdx);
   __ j(not_equal, &exit);
@@ -344,7 +344,7 @@ TEST(SmiCheck) {
   // CheckSmi
 
   __ movl(rcx, Immediate(0));
-  __ SmiTag(rcx, rcx);
+  __ SmiTag(rcx);
   cond = masm->CheckSmi(rcx);
   __ j(NegateCondition(cond), &exit);
 
@@ -355,7 +355,7 @@ TEST(SmiCheck) {
 
   __ incq(rax);
   __ movl(rcx, Immediate(-1));
-  __ SmiTag(rcx, rcx);
+  __ SmiTag(rcx);
   cond = masm->CheckSmi(rcx);
   __ j(NegateCondition(cond), &exit);
 
@@ -366,7 +366,7 @@ TEST(SmiCheck) {
 
   __ incq(rax);
   __ movl(rcx, Immediate(Smi::kMaxValue));
-  __ SmiTag(rcx, rcx);
+  __ SmiTag(rcx);
   cond = masm->CheckSmi(rcx);
   __ j(NegateCondition(cond), &exit);
 
@@ -377,7 +377,7 @@ TEST(SmiCheck) {
 
   __ incq(rax);
   __ movl(rcx, Immediate(Smi::kMinValue));
-  __ SmiTag(rcx, rcx);
+  __ SmiTag(rcx);
   cond = masm->CheckSmi(rcx);
   __ j(NegateCondition(cond), &exit);
 

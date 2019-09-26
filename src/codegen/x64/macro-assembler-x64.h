@@ -314,6 +314,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
       RelocInfo::Mode rmode = RelocInfo::FULL_EMBEDDED_OBJECT);
 
   // Convert smi to word-size sign-extended value.
+  void SmiUntag(Register reg);
+  // Requires dst != src
   void SmiUntag(Register dst, Register src);
   void SmiUntag(Register dst, Operand src);
 
@@ -665,6 +667,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Conversions between tagged smi values and non-tagged integer values.
 
   // Tag an word-size value. The result must be known to be a valid smi value.
+  void SmiTag(Register reg);
+  // Requires dst != src
   void SmiTag(Register dst, Register src);
 
   // Simple comparison of smis.  Both sides must be known smis to use these,

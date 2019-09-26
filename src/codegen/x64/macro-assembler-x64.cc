@@ -1133,34 +1133,49 @@ void TurboAssembler::Move(Register dst, ExternalReference ext) {
   movq(dst, Immediate64(ext.address(), RelocInfo::EXTERNAL_REFERENCE));
 }
 
-void MacroAssembler::SmiTag(Register dst, Register src) {
+void MacroAssembler::SmiTag(Register reg) {
   STATIC_ASSERT(kSmiTag == 0);
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
   if (COMPRESS_POINTERS_BOOL) {
-    if (dst != src) {
-      movl(dst, src);
-    }
-    shll(dst, Immediate(kSmiShift));
+    shll(reg, Immediate(kSmiShift));
   } else {
-    if (dst != src) {
-      movq(dst, src);
-    }
-    shlq(dst, Immediate(kSmiShift));
+    shlq(reg, Immediate(kSmiShift));
   }
 }
 
-void TurboAssembler::SmiUntag(Register dst, Register src) {
+void MacroAssembler::SmiTag(Register dst, Register src) {
+  DCHECK(dst != src);
+  if (COMPRESS_POINTERS_BOOL) {
+    movl(dst, src);
+  } else {
+    movq(dst, src);
+  }
+  SmiTag(dst);
+}
+
+void TurboAssembler::SmiUntag(Register reg) {
   STATIC_ASSERT(kSmiTag == 0);
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
+  // TODO(v8:7703): Is there a way to avoid this sign extension when pointer
+  // compression is enabled?
+  if (COMPRESS_POINTERS_BOOL) {
+    movsxlq(reg, reg);
+  }
+  sarq(reg, Immediate(kSmiShift));
+}
+
+void TurboAssembler::SmiUntag(Register dst, Register src) {
+  DCHECK(dst != src);
   if (COMPRESS_POINTERS_BOOL) {
     movsxlq(dst, src);
-    sarq(dst, Immediate(kSmiShift));
   } else {
-    if (dst != src) {
-      movq(dst, src);
-    }
-    sarq(dst, Immediate(kSmiShift));
+    movq(dst, src);
   }
+  // TODO(v8:7703): Call SmiUntag(reg) if we can find a way to avoid the extra
+  // mov when pointer compression is enabled.
+  STATIC_ASSERT(kSmiTag == 0);
+  DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
+  sarq(dst, Immediate(kSmiShift));
 }
 
 void TurboAssembler::SmiUntag(Register dst, Operand src) {
@@ -1617,7 +1632,7 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
 Operand TurboAssembler::EntryFromBuiltinIndexAsOperand(Register builtin_index) {
   if (SmiValuesAre32Bits()) {
     // The builtin_index register contains the builtin index as a Smi.
-    SmiUntag(builtin_index, builtin_index);
+    SmiUntag(builtin_index);
     return Operand(kRootRegister, builtin_index, times_system_pointer_size,
                    IsolateData::builtin_entry_table_offset());
   } else {
@@ -2387,13 +2402,13 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
     if (expected.is_reg()) {
-      SmiTag(expected.reg(), expected.reg());
+      SmiTag(expected.reg());
       Push(expected.reg());
     }
     if (actual.is_reg()) {
-      SmiTag(actual.reg(), actual.reg());
+      SmiTag(actual.reg());
       Push(actual.reg());
-      SmiUntag(actual.reg(), actual.reg());
+      SmiUntag(actual.reg());
     }
     if (new_target.is_valid()) {
       Push(new_target);
@@ -2408,11 +2423,11 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
     }
     if (actual.is_reg()) {
       Pop(actual.reg());
-      SmiUntag(actual.reg(), actual.reg());
+      SmiUntag(actual.reg());
     }
     if (expected.is_reg()) {
       Pop(expected.reg());
-      SmiUntag(expected.reg(), expected.reg());
+      SmiUntag(expected.reg());
     }
   }
   bind(&skip_hook);
