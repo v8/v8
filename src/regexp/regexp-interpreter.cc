@@ -64,23 +64,6 @@ bool BackRefMatchesNoCase(Isolate* isolate, int from, int current, int len,
   return true;
 }
 
-void DisassembleSingleBytecode(const byte* code_base, const byte* pc) {
-  PrintF("%s", RegExpBytecodeName(*pc));
-
-  // Args and the bytecode as hex.
-  for (int i = 0; i < RegExpBytecodeLength(*pc); i++) {
-    PrintF(", %02x", pc[i]);
-  }
-  PrintF(" ");
-
-  // Args as ascii.
-  for (int i = 1; i < RegExpBytecodeLength(*pc); i++) {
-    unsigned char b = pc[i];
-    PrintF("%c", std::isprint(b) ? b : '.');
-  }
-  PrintF("\n");
-}
-
 #ifdef DEBUG
 void MaybeTraceInterpreter(const byte* code_base, const byte* pc,
                            int stack_depth, int current_position,
@@ -95,7 +78,7 @@ void MaybeTraceInterpreter(const byte* code_base, const byte* pc,
     PrintF(format, pc - code_base, stack_depth, current_position, current_char,
            printable ? current_char : '.');
 
-    DisassembleSingleBytecode(code_base, pc);
+    RegExpBytecodeDisassembleSingle(code_base, pc);
   }
 }
 #endif  // DEBUG
@@ -257,6 +240,13 @@ IrregexpInterpreter::Result HandleInterrupts(
   return IrregexpInterpreter::SUCCESS;
 }
 
+bool CheckBitInTable(const uint32_t current_char, const byte* const table) {
+  int mask = RegExpMacroAssembler::kTableMask;
+  int b = table[(current_char & mask) >> kBitsPerByteLog2];
+  int bit = (current_char & (kBitsPerByte - 1));
+  return (b & (1 << bit)) != 0;
+}
+
 // If computed gotos are supported by the compiler, we can get addresses to
 // labels directly in C/C++. Every bytecode handler has its own label and we
 // store the addresses in a dispatch table indexed by bytecode. To execute the
@@ -281,7 +271,7 @@ IrregexpInterpreter::Result HandleInterrupts(
 #define DISPATCH()  \
   pc = next_pc;     \
   insn = next_insn; \
-  break
+  goto switch_dispatch_continuation
 #endif  // V8_USE_COMPUTED_GOTO
 
 // ADVANCE/SET_PC_FROM_OFFSET are separated from DISPATCH, because ideally some
@@ -331,19 +321,13 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate, ByteArray code_array,
 // Fill dispatch table from last defined bytecode up to the next power of two
 // with BREAK (invalid operation).
 // TODO(pthier): Find a way to fill up automatically (at compile time)
-// 53 real bytecodes -> 11 fillers
+// 59 real bytecodes -> 5 fillers
 #define BYTECODE_FILLER_ITERATOR(V) \
   V(BREAK) /* 1 */                  \
   V(BREAK) /* 2 */                  \
   V(BREAK) /* 3 */                  \
   V(BREAK) /* 4 */                  \
-  V(BREAK) /* 5 */                  \
-  V(BREAK) /* 6 */                  \
-  V(BREAK) /* 7 */                  \
-  V(BREAK) /* 8 */                  \
-  V(BREAK) /* 9 */                  \
-  V(BREAK) /* 10 */                 \
-  V(BREAK) /* 11 */
+  V(BREAK) /* 5 */
 
 #define COUNT(...) +1
   static constexpr int kRegExpBytecodeFillerCount =
@@ -652,10 +636,7 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate, ByteArray code_array,
       DISPATCH();
     }
     BYTECODE(CHECK_BIT_IN_TABLE) {
-      int mask = RegExpMacroAssembler::kTableMask;
-      byte b = pc[8 + ((current_char & mask) >> kBitsPerByteLog2)];
-      int bit = (current_char & (kBitsPerByte - 1));
-      if ((b & (1 << bit)) != 0) {
+      if (CheckBitInTable(current_char, pc + 8)) {
         SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
       } else {
         ADVANCE(CHECK_BIT_IN_TABLE);
@@ -834,6 +815,118 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate, ByteArray code_array,
       }
       DISPATCH();
     }
+    BYTECODE(SKIP_UNTIL_CHAR) {
+      int load_offset = (insn >> BYTECODE_SHIFT);
+      uint32_t advance = Load16Aligned(pc + 4);
+      uint32_t c = Load16Aligned(pc + 6);
+      while (static_cast<uintptr_t>(current + load_offset) <
+             static_cast<uintptr_t>(subject.length())) {
+        current_char = subject[current + load_offset];
+        if (c == current_char) {
+          SET_PC_FROM_OFFSET(Load32Aligned(pc + 8));
+          DISPATCH();
+        }
+        current += advance;
+      }
+      SET_PC_FROM_OFFSET(Load32Aligned(pc + 12));
+      DISPATCH();
+    }
+    BYTECODE(SKIP_UNTIL_CHAR_AND) {
+      int load_offset = (insn >> BYTECODE_SHIFT);
+      uint16_t advance = Load16Aligned(pc + 4);
+      uint16_t c = Load16Aligned(pc + 6);
+      uint32_t mask = Load32Aligned(pc + 8);
+      int32_t maximum_offset = Load32Aligned(pc + 12);
+      while (static_cast<uintptr_t>(current + maximum_offset) <=
+             static_cast<uintptr_t>(subject.length())) {
+        current_char = subject[current + load_offset];
+        if (c == (current_char & mask)) {
+          SET_PC_FROM_OFFSET(Load32Aligned(pc + 16));
+          DISPATCH();
+        }
+        current += advance;
+      }
+      SET_PC_FROM_OFFSET(Load32Aligned(pc + 20));
+      DISPATCH();
+    }
+    BYTECODE(SKIP_UNTIL_CHAR_POS_CHECKED) {
+      int load_offset = (insn >> BYTECODE_SHIFT);
+      uint16_t advance = Load16Aligned(pc + 4);
+      uint16_t c = Load16Aligned(pc + 6);
+      int32_t maximum_offset = Load32Aligned(pc + 8);
+      while (static_cast<uintptr_t>(current + maximum_offset) <=
+             static_cast<uintptr_t>(subject.length())) {
+        current_char = subject[current + load_offset];
+        if (c == current_char) {
+          SET_PC_FROM_OFFSET(Load32Aligned(pc + 12));
+          DISPATCH();
+        }
+        current += advance;
+      }
+      SET_PC_FROM_OFFSET(Load32Aligned(pc + 16));
+      DISPATCH();
+    }
+    BYTECODE(SKIP_UNTIL_BIT_IN_TABLE) {
+      int load_offset = (insn >> BYTECODE_SHIFT);
+      uint32_t advance = Load16Aligned(pc + 4);
+      const byte* table = pc + 8;
+      while (static_cast<uintptr_t>(current + load_offset) <
+             static_cast<uintptr_t>(subject.length())) {
+        current_char = subject[current + load_offset];
+        if (CheckBitInTable(current_char, table)) {
+          SET_PC_FROM_OFFSET(Load32Aligned(pc + 24));
+          DISPATCH();
+        }
+        current += advance;
+      }
+      SET_PC_FROM_OFFSET(Load32Aligned(pc + 28));
+      DISPATCH();
+    }
+    BYTECODE(SKIP_UNTIL_GT_OR_NOT_BIT_IN_TABLE) {
+      int load_offset = (insn >> BYTECODE_SHIFT);
+      uint16_t advance = Load16Aligned(pc + 4);
+      uint16_t limit = Load16Aligned(pc + 6);
+      const byte* table = pc + 8;
+      while (static_cast<uintptr_t>(current + load_offset) <
+             static_cast<uintptr_t>(subject.length())) {
+        current_char = subject[current + load_offset];
+        if (current_char > limit) {
+          SET_PC_FROM_OFFSET(Load32Aligned(pc + 24));
+          DISPATCH();
+        }
+        if (!CheckBitInTable(current_char, table)) {
+          SET_PC_FROM_OFFSET(Load32Aligned(pc + 24));
+          DISPATCH();
+        }
+        current += advance;
+      }
+      SET_PC_FROM_OFFSET(Load32Aligned(pc + 28));
+      DISPATCH();
+    }
+    BYTECODE(SKIP_UNTIL_CHAR_OR_CHAR) {
+      int load_offset = (insn >> BYTECODE_SHIFT);
+      uint32_t advance = Load16Aligned(pc + 4);
+      uint16_t c = Load16Aligned(pc + 8);
+      uint16_t c2 = Load16Aligned(pc + 10);
+      while (static_cast<uintptr_t>(current + load_offset) <
+             static_cast<uintptr_t>(subject.length())) {
+        current_char = subject[current + load_offset];
+        // The two if-statements below are split up intentionally, as combining
+        // them seems to result in register allocation behaving quite
+        // differently and slowing down the resulting code.
+        if (c == current_char) {
+          SET_PC_FROM_OFFSET(Load32Aligned(pc + 12));
+          DISPATCH();
+        }
+        if (c2 == current_char) {
+          SET_PC_FROM_OFFSET(Load32Aligned(pc + 12));
+          DISPATCH();
+        }
+        current += advance;
+      }
+      SET_PC_FROM_OFFSET(Load32Aligned(pc + 16));
+      DISPATCH();
+    }
 #if V8_USE_COMPUTED_GOTO
 // Lint gets confused a lot if we just use !V8_USE_COMPUTED_GOTO or ifndef
 // V8_USE_COMPUTED_GOTO here.
@@ -841,6 +934,9 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate, ByteArray code_array,
       default:
         UNREACHABLE();
     }
+  // Label we jump to in DISPATCH(). There must be no instructions between the
+  // end of the switch, this label and the end of the loop.
+  switch_dispatch_continuation : {}
 #endif  // V8_USE_COMPUTED_GOTO
   }
 }
@@ -854,25 +950,6 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate, ByteArray code_array,
 #undef V8_USE_COMPUTED_GOTO
 
 }  // namespace
-
-// static
-void IrregexpInterpreter::Disassemble(ByteArray byte_array,
-                                      const std::string& pattern) {
-  DisallowHeapAllocation no_gc;
-
-  PrintF("[generated bytecode for regexp pattern: '%s']\n", pattern.c_str());
-
-  const byte* const code_base = byte_array.GetDataStartAddress();
-  const int byte_array_length = byte_array.length();
-  ptrdiff_t offset = 0;
-
-  while (offset < byte_array_length) {
-    const byte* const pc = code_base + offset;
-    PrintF("%p  %4" V8PRIxPTRDIFF "  ", pc, offset);
-    DisassembleSingleBytecode(code_base, pc);
-    offset += RegExpBytecodeLength(*pc);
-  }
-}
 
 // static
 IrregexpInterpreter::Result IrregexpInterpreter::Match(
