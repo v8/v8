@@ -143,7 +143,7 @@ TNode<IntPtrT> CodeStubAssembler::IntPtrToParameter<IntPtrT>(
 }
 
 void CodeStubAssembler::CollectCallableFeedback(
-    TNode<Object> target, TNode<Context> context,
+    TNode<Object> maybe_target, TNode<Context> context,
     TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot_id) {
   Label extra_checks(this, Label::kDeferred), done(this);
 
@@ -151,7 +151,7 @@ void CodeStubAssembler::CollectCallableFeedback(
   TNode<MaybeObject> feedback =
       LoadFeedbackVectorSlot(feedback_vector, slot_id);
   Comment("check if monomorphic");
-  TNode<BoolT> is_monomorphic = IsWeakReferenceTo(feedback, target);
+  TNode<BoolT> is_monomorphic = IsWeakReferenceToObject(feedback, maybe_target);
   GotoIf(is_monomorphic, &done);
 
   // Check if it is a megamorphic {target}.
@@ -179,10 +179,11 @@ void CodeStubAssembler::CollectCallableFeedback(
     BIND(&initialize);
     {
       Comment("check if function in same native context");
-      GotoIf(TaggedIsSmi(target), &mark_megamorphic);
+      GotoIf(TaggedIsSmi(maybe_target), &mark_megamorphic);
+      TNode<HeapObject> target = CAST(maybe_target);
       // Check if the {target} is a JSFunction or JSBoundFunction
       // in the current native context.
-      TVARIABLE(HeapObject, var_current, CAST(target));
+      TVARIABLE(HeapObject, var_current, target);
       Label loop(this, &var_current), done_loop(this);
       Goto(&loop);
       BIND(&loop);
@@ -216,8 +217,7 @@ void CodeStubAssembler::CollectCallableFeedback(
         }
       }
       BIND(&done_loop);
-      StoreWeakReferenceInFeedbackVector(feedback_vector, slot_id,
-                                         CAST(target));
+      StoreWeakReferenceInFeedbackVector(feedback_vector, slot_id, target);
       ReportFeedbackUpdate(feedback_vector, slot_id, "Call:Initialize");
       Goto(&done);
     }
@@ -242,7 +242,7 @@ void CodeStubAssembler::CollectCallableFeedback(
 }
 
 void CodeStubAssembler::CollectCallFeedback(
-    TNode<Object> target, TNode<Context> context,
+    TNode<Object> maybe_target, TNode<Context> context,
     TNode<HeapObject> maybe_feedback_vector, TNode<UintPtrT> slot_id) {
   Label feedback_done(this);
   // If feedback_vector is not valid, then nothing to do.
@@ -253,7 +253,7 @@ void CodeStubAssembler::CollectCallFeedback(
   IncrementCallCount(feedback_vector, slot_id);
 
   // Collect the callable {target} feedback.
-  CollectCallableFeedback(target, context, feedback_vector, slot_id);
+  CollectCallableFeedback(maybe_target, context, feedback_vector, slot_id);
   Goto(&feedback_done);
 
   BIND(&feedback_done);
@@ -492,6 +492,10 @@ Node* CodeStubAssembler::MatchesParameterMode(Node* value, ParameterMode mode) {
 }
 
 TNode<BoolT> CodeStubAssembler::WordIsPowerOfTwo(SloppyTNode<IntPtrT> value) {
+  intptr_t constant;
+  if (ToIntPtrConstant(value, &constant)) {
+    return BoolConstant(base::bits::IsPowerOfTwo(constant));
+  }
   // value && !(value & (value - 1))
   return IntPtrEqual(
       Select<IntPtrT>(
@@ -724,8 +728,22 @@ TNode<BoolT> CodeStubAssembler::IsValidSmi(TNode<Smi> smi) {
   return Int32TrueConstant();
 }
 
-Node* CodeStubAssembler::SmiShiftBitsConstant() {
-  return IntPtrConstant(kSmiShiftSize + kSmiTagSize);
+TNode<BoolT> CodeStubAssembler::IsValidSmiIndex(TNode<Smi> smi) {
+  if (COMPRESS_POINTERS_BOOL) {
+    return WordEqual(
+        BitcastTaggedToWordForTagAndSmiBits(smi),
+        BitcastTaggedToWordForTagAndSmiBits(NormalizeSmiIndex(smi)));
+  }
+  return Int32TrueConstant();
+}
+
+TNode<Smi> CodeStubAssembler::NormalizeSmiIndex(TNode<Smi> smi_index) {
+  if (COMPRESS_POINTERS_BOOL) {
+    TNode<Int32T> raw =
+        TruncateWordToInt32(BitcastTaggedToWordForTagAndSmiBits(smi_index));
+    smi_index = BitcastWordToTaggedSigned(ChangeInt32ToIntPtr(raw));
+  }
+  return smi_index;
 }
 
 TNode<Smi> CodeStubAssembler::SmiFromInt32(SloppyTNode<Int32T> value) {
@@ -2013,9 +2031,7 @@ void CodeStubAssembler::DispatchMaybeObject(TNode<MaybeObject> maybe_object,
 
   GotoIf(IsStrong(maybe_object), &inner_if_strong);
 
-  *extracted =
-      BitcastWordToTagged(WordAnd(BitcastMaybeObjectToWord(maybe_object),
-                                  IntPtrConstant(~kWeakHeapObjectMask)));
+  *extracted = GetHeapObjectAssumeWeak(maybe_object);
   Goto(if_weak);
 
   BIND(&inner_if_smi);
@@ -2052,11 +2068,6 @@ TNode<BoolT> CodeStubAssembler::IsCleared(TNode<MaybeObject> value) {
                      Int32Constant(kClearedWeakHeapObjectLower32));
 }
 
-TNode<BoolT> CodeStubAssembler::IsNotCleared(TNode<MaybeObject> value) {
-  return Word32NotEqual(TruncateIntPtrToInt32(BitcastMaybeObjectToWord(value)),
-                        Int32Constant(kClearedWeakHeapObjectLower32));
-}
-
 TNode<HeapObject> CodeStubAssembler::GetHeapObjectAssumeWeak(
     TNode<MaybeObject> value) {
   CSA_ASSERT(this, IsWeakOrCleared(value));
@@ -2071,43 +2082,41 @@ TNode<HeapObject> CodeStubAssembler::GetHeapObjectAssumeWeak(
   return GetHeapObjectAssumeWeak(value);
 }
 
-TNode<BoolT> CodeStubAssembler::IsWeakReferenceTo(TNode<MaybeObject> object,
-                                                  TNode<Object> value) {
-#if defined(V8_HOST_ARCH_32_BIT) || defined(V8_COMPRESS_POINTERS)
-  STATIC_ASSERT(kTaggedSize == kInt32Size);
-  return Word32Equal(
-      Word32And(TruncateWordToInt32(BitcastMaybeObjectToWord(object)),
-                Uint32Constant(
-                    static_cast<uint32_t>(~kWeakHeapObjectMask & kMaxUInt32))),
-      TruncateWordToInt32(BitcastTaggedToWord(value)));
-#else
-  return WordEqual(WordAnd(BitcastMaybeObjectToWord(object),
-                           IntPtrConstant(~kWeakHeapObjectMask)),
-                   BitcastTaggedToWord(value));
-
-#endif
+// This version generates
+//   (maybe_object & ~mask) == value
+// It works for non-Smi |maybe_object| and for both Smi and HeapObject values
+// but requires a big constant for ~mask.
+TNode<BoolT> CodeStubAssembler::IsWeakReferenceToObject(
+    TNode<MaybeObject> maybe_object, TNode<Object> value) {
+  CSA_ASSERT(this, TaggedIsNotSmi(maybe_object));
+  if (COMPRESS_POINTERS_BOOL) {
+    return Word32Equal(
+        Word32And(TruncateWordToInt32(BitcastMaybeObjectToWord(maybe_object)),
+                  Uint32Constant(~static_cast<uint32_t>(kWeakHeapObjectMask))),
+        TruncateWordToInt32(BitcastTaggedToWord(value)));
+  } else {
+    return WordEqual(WordAnd(BitcastMaybeObjectToWord(maybe_object),
+                             IntPtrConstant(~kWeakHeapObjectMask)),
+                     BitcastTaggedToWord(value));
+  }
 }
 
-TNode<BoolT> CodeStubAssembler::IsStrongReferenceTo(TNode<MaybeObject> object,
-                                                    TNode<Object> value) {
-  return TaggedEqual(BitcastWordToTagged(BitcastMaybeObjectToWord(object)),
-                     value);
-}
-
-TNode<BoolT> CodeStubAssembler::IsNotWeakReferenceTo(TNode<MaybeObject> object,
-                                                     TNode<Object> value) {
-#if defined(V8_HOST_ARCH_32_BIT) || defined(V8_COMPRESS_POINTERS)
-  return Word32NotEqual(
-      Word32And(TruncateWordToInt32(BitcastMaybeObjectToWord(object)),
-                Uint32Constant(
-                    static_cast<uint32_t>(~kWeakHeapObjectMask & kMaxUInt32))),
-      TruncateWordToInt32(BitcastTaggedToWord(value)));
-#else
-  return WordNotEqual(WordAnd(BitcastMaybeObjectToWord(object),
-                              IntPtrConstant(~kWeakHeapObjectMask)),
-                      BitcastTaggedToWord(value));
-
-#endif
+// This version generates
+//   maybe_object == (heap_object | mask)
+// It works for any |maybe_object| values and generates a better code because it
+// uses a small constant for mask.
+TNode<BoolT> CodeStubAssembler::IsWeakReferenceTo(
+    TNode<MaybeObject> maybe_object, TNode<HeapObject> heap_object) {
+  if (COMPRESS_POINTERS_BOOL) {
+    return Word32Equal(
+        TruncateWordToInt32(BitcastMaybeObjectToWord(maybe_object)),
+        Word32Or(TruncateWordToInt32(BitcastTaggedToWord(heap_object)),
+                 Int32Constant(kWeakHeapObjectMask)));
+  } else {
+    return WordEqual(BitcastMaybeObjectToWord(maybe_object),
+                     WordOr(BitcastTaggedToWord(heap_object),
+                            IntPtrConstant(kWeakHeapObjectMask)));
+  }
 }
 
 TNode<MaybeObject> CodeStubAssembler::MakeWeak(TNode<HeapObject> value) {
@@ -2250,18 +2259,19 @@ TNode<RawPtrT> CodeStubAssembler::LoadJSTypedArrayDataPtr(
       typed_array, JSTypedArray::kExternalPointerOffset);
 
   TNode<IntPtrT> base_pointer;
-#ifdef V8_COMPRESS_POINTERS
-  TNode<TaggedT> compressed_base =
-      LoadObjectField<TaggedT>(typed_array, JSTypedArray::kBasePointerOffset);
-  // Sign extend TaggedT to IntPtrT according to current compression scheme
-  // so that the addition with |external_pointer| (which already contains
-  // compensated offset value) below will decompress the tagged value.
-  // See JSTypedArray::ExternalPointerCompensationForOnHeapArray() for details.
-  base_pointer = ChangeInt32ToIntPtr(compressed_base);
-#else
-  base_pointer =
-      LoadObjectField<IntPtrT>(typed_array, JSTypedArray::kBasePointerOffset);
-#endif
+  if (COMPRESS_POINTERS_BOOL) {
+    TNode<Int32T> compressed_base =
+        LoadObjectField<Int32T>(typed_array, JSTypedArray::kBasePointerOffset);
+    // Sign extend Int32T to IntPtrT according to current compression scheme
+    // so that the addition with |external_pointer| (which already contains
+    // compensated offset value) below will decompress the tagged value.
+    // See JSTypedArray::ExternalPointerCompensationForOnHeapArray() for
+    // details.
+    base_pointer = ChangeInt32ToIntPtr(compressed_base);
+  } else {
+    base_pointer =
+        LoadObjectField<IntPtrT>(typed_array, JSTypedArray::kBasePointerOffset);
+  }
   return RawPtrAdd(external_pointer, base_pointer);
 }
 
@@ -9639,7 +9649,13 @@ TNode<IntPtrT> CodeStubAssembler::ElementOffsetFromIndex(
     element_size_shift -= kSmiShiftBits;
     Smi smi_index;
     constant_index = ToSmiConstant(smi_index_node, &smi_index);
-    if (constant_index) index = smi_index.value();
+    if (constant_index) {
+      index = smi_index.value();
+    } else {
+      if (COMPRESS_POINTERS_BOOL) {
+        CSA_ASSERT(this, IsValidSmiIndex(smi_index_node));
+      }
+    }
     intptr_index_node = BitcastTaggedToWordForTagAndSmiBits(smi_index_node);
   } else {
     intptr_index_node = ReinterpretCast<IntPtrT>(index_node);
@@ -13154,23 +13170,15 @@ Node* CodeStubAssembler::
 }
 
 TNode<Code> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
-  CSA_ASSERT(this, SmiGreaterThanOrEqual(builtin_id, SmiConstant(0)));
-  CSA_ASSERT(this,
-             SmiLessThan(builtin_id, SmiConstant(Builtins::builtin_count)));
+  CSA_ASSERT(this, SmiBelow(builtin_id, SmiConstant(Builtins::builtin_count)));
 
-  int const kSmiShiftBits = kSmiShiftSize + kSmiTagSize;
-  int index_shift = kSystemPointerSizeLog2 - kSmiShiftBits;
-  TNode<WordT> table_index =
-      index_shift >= 0
-          ? WordShl(BitcastTaggedToWordForTagAndSmiBits(builtin_id),
-                    index_shift)
-          : WordSar(BitcastTaggedToWordForTagAndSmiBits(builtin_id),
-                    -index_shift);
+  TNode<WordT> offset =
+      ElementOffsetFromIndex(SmiToBInt(builtin_id), SYSTEM_POINTER_ELEMENTS);
 
-  return CAST(
-      Load(MachineType::TaggedPointer(),
+  return CAST(BitcastWordToTagged(
+      Load(MachineType::Pointer(),
            ExternalConstant(ExternalReference::builtins_address(isolate())),
-           table_index));
+           offset)));
 }
 
 TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(

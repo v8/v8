@@ -2615,6 +2615,7 @@ extern macro BitcastWordToTaggedSigned(uintptr): Smi;
 extern macro BitcastWordToTagged(intptr): Object;
 extern macro BitcastWordToTagged(uintptr): Object;
 extern macro BitcastTaggedToWord(Tagged): intptr;
+extern macro BitcastTaggedToWordForTagAndSmiBits(Tagged): intptr;
 
 intrinsic %FromConstexpr<To: type, From: type>(b: From): To;
 macro FromConstexpr<To: type, From: type>(o: From): To;

@@ -366,6 +366,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 #error Unknown architecture.
 #endif
 
+  // Pointer compression specific. Returns true if the upper 32 bits of a Smi
+  // contain the sign of a lower 32 bits (i.e. not corrupted) so that the Smi
+  // can be directly used as an index in element offset computation.
+  TNode<BoolT> IsValidSmiIndex(TNode<Smi> smi);
+
+  // Pointer compression specific. Ensures that the upper 32 bits of a Smi
+  // contain the sign of a lower 32 bits so that the Smi can be directly used
+  // as an index in element offset computation.
+  TNode<Smi> NormalizeSmiIndex(TNode<Smi> smi_index);
+
   TNode<Smi> TaggedToSmi(TNode<Object> value, Label* fail) {
     GotoIf(TaggedIsNotSmi(value), fail);
     return UncheckedCast<Smi>(value);
@@ -1223,7 +1233,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<BoolT> IsWeakOrCleared(TNode<MaybeObject> value);
   TNode<BoolT> IsCleared(TNode<MaybeObject> value);
-  TNode<BoolT> IsNotCleared(TNode<MaybeObject> value);
+  TNode<BoolT> IsNotCleared(TNode<MaybeObject> value) {
+    return Word32BinaryNot(IsCleared(value));
+  }
 
   // Removes the weak bit + asserts it was set.
   TNode<HeapObject> GetHeapObjectAssumeWeak(TNode<MaybeObject> value);
@@ -1231,12 +1243,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<HeapObject> GetHeapObjectAssumeWeak(TNode<MaybeObject> value,
                                             Label* if_cleared);
 
-  TNode<BoolT> IsWeakReferenceTo(TNode<MaybeObject> object,
-                                 TNode<Object> value);
-  TNode<BoolT> IsNotWeakReferenceTo(TNode<MaybeObject> object,
-                                    TNode<Object> value);
-  TNode<BoolT> IsStrongReferenceTo(TNode<MaybeObject> object,
-                                   TNode<Object> value);
+  // Checks if |maybe_object| is a weak reference to given |heap_object|.
+  // Works for both any tagged |maybe_object| values.
+  TNode<BoolT> IsWeakReferenceTo(TNode<MaybeObject> maybe_object,
+                                 TNode<HeapObject> heap_object);
+  // Returns true if the |object| is a HeapObject and |maybe_object| is a weak
+  // reference to |object|.
+  // The |maybe_object| must not be a Smi.
+  TNode<BoolT> IsWeakReferenceToObject(TNode<MaybeObject> maybe_object,
+                                       TNode<Object> object);
 
   TNode<MaybeObject> MakeWeak(TNode<HeapObject> value);
 
@@ -1939,16 +1954,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   enum class DestroySource { kNo, kYes };
 
-  // Collect the callable |target| feedback for either a CALL_IC or
+  // Collect the callable |maybe_target| feedback for either a CALL_IC or
   // an INSTANCEOF_IC in the |feedback_vector| at |slot_id|.
-  void CollectCallableFeedback(TNode<Object> target, TNode<Context> context,
+  void CollectCallableFeedback(TNode<Object> maybe_target,
+                               TNode<Context> context,
                                TNode<FeedbackVector> feedback_vector,
                                TNode<UintPtrT> slot_id);
 
-  // Collect CALL_IC feedback for |target| function in the
+  // Collect CALL_IC feedback for |maybe_target| function in the
   // |feedback_vector| at |slot_id|, and the call counts in
   // the |feedback_vector| at |slot_id+1|.
-  void CollectCallFeedback(TNode<Object> target, TNode<Context> context,
+  void CollectCallFeedback(TNode<Object> maybe_target, TNode<Context> context,
                            TNode<HeapObject> maybe_feedback_vector,
                            TNode<UintPtrT> slot_id);
 
@@ -3697,7 +3713,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<AllocationSite> allocation_site, TNode<IntPtrT> size_in_bytes);
 
   TNode<BoolT> IsValidSmi(TNode<Smi> smi);
-  Node* SmiShiftBitsConstant();
+
+  TNode<IntPtrT> SmiShiftBitsConstant() {
+    return IntPtrConstant(kSmiShiftSize + kSmiTagSize);
+  }
+  TNode<Int32T> SmiShiftBitsConstant32() {
+    return Int32Constant(kSmiShiftSize + kSmiTagSize);
+  }
 
   // Emits keyed sloppy arguments load if the |value| is nullptr or store
   // otherwise. Returns either the loaded value or |value|.

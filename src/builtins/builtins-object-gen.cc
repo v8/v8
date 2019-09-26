@@ -1101,7 +1101,7 @@ TF_BUILTIN(CreateObjectWithoutProperties, ObjectBuiltinsAssembler) {
         LoadMapPrototypeInfo(LoadMap(CAST(prototype)), &call_runtime);
     TNode<MaybeObject> maybe_map = LoadMaybeWeakObjectField(
         prototype_info, PrototypeInfo::kObjectCreateMapOffset);
-    GotoIf(IsStrongReferenceTo(maybe_map, UndefinedConstant()), &call_runtime);
+    GotoIf(TaggedEqual(maybe_map, UndefinedConstant()), &call_runtime);
     map = CAST(GetHeapObjectAssumeWeak(maybe_map, &call_runtime));
     Goto(&instantiate_map);
   }
@@ -1197,8 +1197,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
       Comment("Load ObjectCreateMap from PrototypeInfo");
       TNode<MaybeObject> maybe_map = LoadMaybeWeakObjectField(
           prototype_info, PrototypeInfo::kObjectCreateMapOffset);
-      GotoIf(IsStrongReferenceTo(maybe_map, UndefinedConstant()),
-             &call_runtime);
+      GotoIf(TaggedEqual(maybe_map, UndefinedConstant()), &call_runtime);
       map = CAST(GetHeapObjectAssumeWeak(maybe_map, &call_runtime));
       Goto(&instantiate_map);
     }

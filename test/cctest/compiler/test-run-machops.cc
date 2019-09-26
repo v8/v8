@@ -10,9 +10,10 @@
 #include "src/base/ieee754.h"
 #include "src/base/overflowing-math.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/common/ptr-compr-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/utils/boxed-float.h"
 #include "src/utils/utils.h"
-#include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/value-helper.h"
@@ -410,11 +411,12 @@ TEST(CompressDecompressTaggedAnyPointer) {
 }
 
 TEST(CompressDecompressTaggedAnySigned) {
-  RawMachineAssemblerTester<int64_t> m;
+  RawMachineAssemblerTester<Address> m;
   Smi smi = Smi::FromInt(123);
-  int64_t smiPointer = static_cast<int64_t>(smi.ptr());
-  Node* node = m.Int64Constant(smiPointer);
+  Node* node = m.Int64Constant(static_cast<int64_t>(smi.ptr()));
   m.Return(m.ChangeCompressedToTagged(m.ChangeTaggedToCompressed(node)));
+  Address smiPointer =
+      DecompressTaggedAny(m.isolate(), CompressTagged(smi.ptr()));
   CHECK_EQ(smiPointer, m.Call());
 }
 

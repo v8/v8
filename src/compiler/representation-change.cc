@@ -1546,14 +1546,17 @@ const Operator* RepresentationChanger::TaggedSignedOperatorFor(
     IrOpcode::Value opcode) {
   switch (opcode) {
     case IrOpcode::kSpeculativeNumberLessThan:
-      return machine()->Is32() ? machine()->Int32LessThan()
-                               : machine()->Int64LessThan();
+      return (COMPRESS_POINTERS_BOOL || machine()->Is32())
+                 ? machine()->Int32LessThan()
+                 : machine()->Int64LessThan();
     case IrOpcode::kSpeculativeNumberLessThanOrEqual:
-      return machine()->Is32() ? machine()->Int32LessThanOrEqual()
-                               : machine()->Int64LessThanOrEqual();
+      return (COMPRESS_POINTERS_BOOL || machine()->Is32())
+                 ? machine()->Int32LessThanOrEqual()
+                 : machine()->Int64LessThanOrEqual();
     case IrOpcode::kSpeculativeNumberEqual:
-      return machine()->Is32() ? machine()->Word32Equal()
-                               : machine()->Word64Equal();
+      return (COMPRESS_POINTERS_BOOL || machine()->Is32())
+                 ? machine()->Word32Equal()
+                 : machine()->Word64Equal();
     default:
       UNREACHABLE();
   }

@@ -112,6 +112,8 @@ using PlatformSmiTagging = SmiTagging<kApiInt32Size>;
 using PlatformSmiTagging = SmiTagging<kApiTaggedSize>;
 #endif
 
+// TODO(ishell): Consinder adding kSmiShiftBits = kSmiShiftSize + kSmiTagSize
+// since it's used much more often than the inividual constants.
 const int kSmiShiftSize = PlatformSmiTagging::kSmiShiftSize;
 const int kSmiValueSize = PlatformSmiTagging::kSmiValueSize;
 const int kSmiMinValue = static_cast<int>(PlatformSmiTagging::kSmiMinValue);

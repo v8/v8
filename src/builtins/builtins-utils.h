@@ -77,7 +77,7 @@ class BuiltinArguments : public Arguments {
                                 RuntimeCallCounterId::kBuiltin_##name);     \
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),                   \
                  "V8.Builtin_" #name);                                      \
-    return Builtin_Impl_##name(args, isolate).ptr();                        \
+    return CONVERT_OBJECT(Builtin_Impl_##name(args, isolate));              \
   }                                                                         \
                                                                             \
   V8_WARN_UNUSED_RESULT Address Builtin_##name(                             \
@@ -87,7 +87,7 @@ class BuiltinArguments : public Arguments {
       return Builtin_Impl_Stats_##name(args_length, args_object, isolate);  \
     }                                                                       \
     BuiltinArguments args(args_length, args_object);                        \
-    return Builtin_Impl_##name(args, isolate).ptr();                        \
+    return CONVERT_OBJECT(Builtin_Impl_##name(args, isolate));              \
   }                                                                         \
                                                                             \
   V8_WARN_UNUSED_RESULT static Object Builtin_Impl_##name(                  \

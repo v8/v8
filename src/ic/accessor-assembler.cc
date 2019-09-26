@@ -82,7 +82,7 @@ TNode<MaybeObject> AccessorAssembler::TryMonomorphicCase(
 
   // Try to quickly handle the monomorphic case without knowing for sure
   // if we have a weak reference in feedback.
-  GotoIf(IsNotWeakReferenceTo(feedback, receiver_map), if_miss);
+  GotoIfNot(IsWeakReferenceTo(feedback, receiver_map), if_miss);
 
   TNode<MaybeObject> handler = UncheckedCast<MaybeObject>(
       Load(MachineType::AnyTagged(), vector,
@@ -117,7 +117,7 @@ void AccessorAssembler::HandlePolymorphicCase(
     TNode<MaybeObject> maybe_cached_map =
         LoadWeakFixedArrayElement(feedback, var_index.value());
     CSA_ASSERT(this, IsWeakOrCleared(maybe_cached_map));
-    GotoIf(IsNotWeakReferenceTo(maybe_cached_map, receiver_map), &loop_next);
+    GotoIfNot(IsWeakReferenceTo(maybe_cached_map, receiver_map), &loop_next);
 
     // Found, now call handler.
     TNode<MaybeObject> handler =
@@ -850,7 +850,7 @@ void AccessorAssembler::HandleLoadICProtoHandler(
   Label load_from_cached_holder(this), is_smi(this), done(this);
 
   GotoIf(TaggedIsSmi(maybe_holder_or_constant), &is_smi);
-  Branch(IsStrongReferenceTo(maybe_holder_or_constant, NullConstant()), &done,
+  Branch(TaggedEqual(maybe_holder_or_constant, NullConstant()), &done,
          &load_from_cached_holder);
 
   BIND(&is_smi);
@@ -1192,13 +1192,13 @@ void AccessorAssembler::CheckFieldType(TNode<DescriptorArray> descriptors,
     DCHECK_NE(static_cast<uint32_t>(kNoneType), kClearedWeakHeapObjectLower32);
     DCHECK_NE(static_cast<uint32_t>(kAnyType), kClearedWeakHeapObjectLower32);
     // FieldType::None can't hold any value.
-    GotoIf(WordEqual(BitcastMaybeObjectToWord(field_type),
-                     IntPtrConstant(kNoneType)),
-           bailout);
+    GotoIf(
+        TaggedEqual(field_type, BitcastWordToTagged(IntPtrConstant(kNoneType))),
+        bailout);
     // FieldType::Any can hold any value.
-    GotoIf(WordEqual(BitcastMaybeObjectToWord(field_type),
-                     IntPtrConstant(kAnyType)),
-           &all_fine);
+    GotoIf(
+        TaggedEqual(field_type, BitcastWordToTagged(IntPtrConstant(kAnyType))),
+        &all_fine);
     // Cleared weak references count as FieldType::None, which can't hold any
     // value.
     TNode<Map> field_type_map =

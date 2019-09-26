@@ -1669,8 +1669,8 @@ DeoptimizationData OptimizedFrame::GetDeoptimizationData(
 Object OptimizedFrame::receiver() const {
   Code code = LookupCode();
   if (code.kind() == Code::BUILTIN) {
-    Address argc_ptr = fp() + OptimizedBuiltinFrameConstants::kArgCOffset;
-    intptr_t argc = *reinterpret_cast<intptr_t*>(argc_ptr);
+    intptr_t argc = static_cast<int>(
+        Memory<intptr_t>(fp() + OptimizedBuiltinFrameConstants::kArgCOffset));
     intptr_t args_size =
         (StandardFrameConstants::kFixedSlotCountAboveFp + argc) *
         kSystemPointerSize;

@@ -834,7 +834,8 @@ TNode<Object> InterpreterAssembler::Construct(
   // Check if we have monomorphic {new_target} feedback already.
   TNode<MaybeObject> feedback =
       LoadFeedbackVectorSlot(feedback_vector, slot_id);
-  Branch(IsWeakReferenceTo(feedback, new_target), &construct, &extra_checks);
+  Branch(IsWeakReferenceToObject(feedback, new_target), &construct,
+         &extra_checks);
 
   BIND(&extra_checks);
   {
@@ -1016,7 +1017,8 @@ TNode<Object> InterpreterAssembler::ConstructWithSpread(
   // Check if we have monomorphic {new_target} feedback already.
   TNode<MaybeObject> feedback =
       LoadFeedbackVectorSlot(feedback_vector, slot_id);
-  Branch(IsWeakReferenceTo(feedback, new_target), &construct, &extra_checks);
+  Branch(IsWeakReferenceToObject(feedback, new_target), &construct,
+         &extra_checks);
 
   BIND(&extra_checks);
   {
