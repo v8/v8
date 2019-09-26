@@ -157,8 +157,8 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
     if (candidate.can_inline_function[i]) {
       can_inline_candidate = true;
       candidate.total_size += bytecode.length();
+      candidate_is_small = candidate_is_small && IsSmall(bytecode);
     }
-    candidate_is_small = candidate_is_small && IsSmall(bytecode);
   }
   if (!can_inline_candidate) return NoChange();
 
