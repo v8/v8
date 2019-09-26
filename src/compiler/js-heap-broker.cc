@@ -1497,10 +1497,6 @@ class BytecodeArrayData : public FixedArrayBaseData {
     return *(Handle<Smi>::cast(constant_pool_[index]->object()));
   }
 
-  bool IsSerializedForCompilation() const {
-    return is_serialized_for_compilation_;
-  }
-
   void SerializeForCompilation(JSHeapBroker* broker) {
     if (is_serialized_for_compilation_) return;
 
@@ -3084,11 +3080,6 @@ Smi BytecodeArrayRef::GetConstantAtIndexAsSmi(int index) const {
   return data()->AsBytecodeArray()->GetConstantAtIndexAsSmi(index);
 }
 
-bool BytecodeArrayRef::IsSerializedForCompilation() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) return true;
-  return data()->AsBytecodeArray()->IsSerializedForCompilation();
-}
-
 void BytecodeArrayRef::SerializeForCompilation() {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   data()->AsBytecodeArray()->SerializeForCompilation(broker());
@@ -3867,18 +3858,6 @@ bool JSFunctionRef::serialized() const {
   return data()->AsJSFunction()->serialized();
 }
 
-bool JSFunctionRef::IsSerializedForCompilation() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
-    return handle(object()->shared(), broker()->isolate())->HasBytecodeArray();
-  }
-
-  // We get a crash if we try to access the shared() getter without
-  // checking for `serialized` first. Also it's possible to have a
-  // JSFunctionRef without a feedback vector.
-  return serialized() && has_feedback_vector() &&
-         shared().IsSerializedForCompilation(feedback_vector());
-}
-
 JSArrayRef SharedFunctionInfoRef::GetTemplateObject(
     ObjectRef description, FeedbackVectorRef vector, FeedbackSlot slot,
     SerializationPolicy policy) {
@@ -3921,6 +3900,7 @@ JSArrayRef SharedFunctionInfoRef::GetTemplateObject(
 void SharedFunctionInfoRef::SetSerializedForCompilation(
     FeedbackVectorRef feedback) {
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  CHECK(HasBytecodeArray());
   data()->AsSharedFunctionInfo()->SetSerializedForCompilation(broker(),
                                                               feedback);
 }
@@ -3947,7 +3927,7 @@ SharedFunctionInfoRef::function_template_info() const {
 
 bool SharedFunctionInfoRef::IsSerializedForCompilation(
     FeedbackVectorRef feedback) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) return true;
+  if (broker()->mode() == JSHeapBroker::kDisabled) return HasBytecodeArray();
   return data()->AsSharedFunctionInfo()->IsSerializedForCompilation(feedback);
 }
 

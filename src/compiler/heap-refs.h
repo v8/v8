@@ -329,8 +329,6 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   SharedFunctionInfoRef shared() const;
   FeedbackVectorRef feedback_vector() const;
   int InitialMapInstanceSizeWithMinSlack() const;
-
-  bool IsSerializedForCompilation() const;
 };
 
 class JSRegExpRef : public JSObjectRef {
@@ -727,7 +725,6 @@ class BytecodeArrayRef : public FixedArrayBaseRef {
   Address handler_table_address() const;
   int handler_table_size() const;
 
-  bool IsSerializedForCompilation() const;
   void SerializeForCompilation();
 };
 
