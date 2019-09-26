@@ -882,6 +882,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void rsqrtps(XMMRegister dst, XMMRegister src) { rsqrtps(dst, Operand(src)); }
   void haddps(XMMRegister dst, Operand src);
   void haddps(XMMRegister dst, XMMRegister src) { haddps(dst, Operand(src)); }
+  void sqrtpd(XMMRegister dst, Operand src) {
+    sse2_instr(dst, src, 0x66, 0x0F, 0x51);
+  }
+  void sqrtpd(XMMRegister dst, XMMRegister src) { sqrtpd(dst, Operand(src)); }
 
   void minps(XMMRegister dst, Operand src);
   void minps(XMMRegister dst, XMMRegister src) { minps(dst, Operand(src)); }
@@ -1317,6 +1321,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   void vhaddps(XMMRegister dst, XMMRegister src1, Operand src2) {
     vinstr(0x7C, dst, src1, src2, kF2, k0F, kWIG);
+  }
+  void vsqrtpd(XMMRegister dst, XMMRegister src) { vsqrtpd(dst, Operand(src)); }
+  void vsqrtpd(XMMRegister dst, Operand src) {
+    vinstr(0x51, dst, xmm0, src, k66, k0F, kWIG);
   }
   void vmovaps(XMMRegister dst, XMMRegister src) { vmovaps(dst, Operand(src)); }
   void vmovaps(XMMRegister dst, Operand src) { vps(0x28, dst, xmm0, src); }

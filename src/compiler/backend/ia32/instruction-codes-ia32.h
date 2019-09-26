@@ -122,6 +122,7 @@ namespace compiler {
   V(AVXF64x2ExtractLane)           \
   V(SSEF64x2ReplaceLane)           \
   V(AVXF64x2ReplaceLane)           \
+  V(IA32F64x2Sqrt)                 \
   V(SSEF32x4Splat)                 \
   V(AVXF32x4Splat)                 \
   V(SSEF32x4ExtractLane)           \
