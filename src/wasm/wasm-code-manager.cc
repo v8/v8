@@ -1226,7 +1226,7 @@ void NativeModule::AddCodeSpace(base::AddressRegion region) {
   const uint32_t num_wasm_functions = module_->num_declared_functions;
   const bool has_functions = num_wasm_functions > 0;
   const bool is_first_code_space = code_space_data_.empty();
-  // TODO(clemensh): Avoid additional jump table if the code space is close
+  // TODO(clemensb): Avoid additional jump table if the code space is close
   // enough to another existing code space.
   const bool needs_jump_table =
       has_functions && (kNeedsFarJumpsBetweenCodeSpaces || is_first_code_space);

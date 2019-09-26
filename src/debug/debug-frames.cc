@@ -70,7 +70,7 @@ int FrameInspector::GetParametersCount() {
 
 Handle<Object> FrameInspector::GetParameter(int index) {
   if (is_optimized_) return deoptimized_frame_->GetParameter(index);
-  // TODO(clemensh): Handle wasm_interpreted_frame_.
+  // TODO(clemensb): Handle wasm_interpreted_frame_.
   return handle(frame_->GetParameter(index), isolate_);
 }
 

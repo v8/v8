@@ -184,7 +184,7 @@ class InterpreterHandle {
                       argument_values.begin());
     bool finished = false;
     while (!finished) {
-      // TODO(clemensh): Add occasional StackChecks.
+      // TODO(clemensb): Add occasional StackChecks.
       WasmInterpreter::State state = ContinueExecution(thread);
       switch (state) {
         case WasmInterpreter::State::PAUSED:

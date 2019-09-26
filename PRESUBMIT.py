@@ -399,7 +399,7 @@ def _CheckMacroUndefs(input_api, output_api):
   """
   Checks that each #define in a .cc file is eventually followed by an #undef.
 
-  TODO(clemensh): This check should eventually be enabled for all cc files via
+  TODO(clemensb): This check should eventually be enabled for all cc files via
   tools/presubmit.py (https://crbug.com/v8/6811).
   """
   def FilterFile(affected_file):
@@ -467,7 +467,7 @@ def _CheckNoexceptAnnotations(input_api, output_api):
   Omitting it at some places can result in weird compiler errors if this is
   mixed with other classes that have the annotation.
 
-  TODO(clemensh): This check should eventually be enabled for all files via
+  TODO(clemensb): This check should eventually be enabled for all files via
   tools/presubmit.py (https://crbug.com/v8/8616).
   """
 

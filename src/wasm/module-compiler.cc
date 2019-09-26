@@ -1501,7 +1501,7 @@ void AsyncCompileJob::CreateNativeModule(
 
   // Create the module object and populate with compiled functions and
   // information needed at instantiation time.
-  // TODO(clemensh): For the same module (same bytes / same hash), we should
+  // TODO(clemensb): For the same module (same bytes / same hash), we should
   // only have one {WasmModuleObject}. Otherwise, we might only set
   // breakpoints on a (potentially empty) subset of the instances.
   // Create the module object.

@@ -102,7 +102,7 @@ WasmModuleObject::shared_native_module() const {
   return managed_native_module().get();
 }
 const wasm::WasmModule* WasmModuleObject::module() const {
-  // TODO(clemensh): Remove this helper (inline in callers).
+  // TODO(clemensb): Remove this helper (inline in callers).
   return native_module()->module();
 }
 void WasmModuleObject::reset_breakpoint_infos() {

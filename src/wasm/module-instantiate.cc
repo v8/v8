@@ -547,7 +547,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     Handle<Code> wrapper_code =
         JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
             isolate_, function.sig, function.imported);
-    // TODO(clemensh): Don't generate an exported function for the start
+    // TODO(clemensb): Don't generate an exported function for the start
     // function. Use CWasmEntry instead.
     start_function_ = WasmExportedFunction::New(
         isolate_, instance, start_index,

@@ -306,7 +306,7 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
       CreateWasmScript(isolate, bytes, native_module->module()->source_map_url);
 
   // Create the module object.
-  // TODO(clemensh): For the same module (same bytes / same hash), we should
+  // TODO(clemensb): For the same module (same bytes / same hash), we should
   // only have one WasmModuleObject. Otherwise, we might only set
   // breakpoints on a (potentially empty) subset of the instances.
 
@@ -336,7 +336,7 @@ void WasmEngine::AsyncInstantiate(
   ErrorThrower thrower(isolate, "WebAssembly.instantiate()");
   // Instantiate a TryCatch so that caught exceptions won't progagate out.
   // They will still be set as pending exceptions on the isolate.
-  // TODO(clemensh): Avoid TryCatch, use Execution::TryCall internally to invoke
+  // TODO(clemensb): Avoid TryCatch, use Execution::TryCall internally to invoke
   // start function and report thrown exception explicitly via out argument.
   v8::TryCatch catcher(reinterpret_cast<v8::Isolate*>(isolate));
   catcher.SetVerbose(false);

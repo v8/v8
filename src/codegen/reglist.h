@@ -28,7 +28,7 @@ constexpr int NumRegs(RegList list) {
 // Combine two RegLists by building the union of the contained registers.
 // Implemented as a Functor to pass it to base::fold even on gcc < 5 (see
 // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=52892).
-// TODO(clemensh): Remove this once we require gcc >= 5.0.
+// TODO(clemensb): Remove this once we require gcc >= 5.0.
 struct CombineRegListsFunctor {
   constexpr RegList operator()(RegList list1, RegList list2) const {
     return list1 | list2;

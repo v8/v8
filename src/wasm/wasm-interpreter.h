@@ -133,7 +133,7 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
 
     // Stack inspection and modification.
     pc_t GetBreakpointPc();
-    // TODO(clemensh): Make this uint32_t.
+    // TODO(clemensb): Make this uint32_t.
     int GetFrameCount();
     // The InterpretedFrame is only valid as long as the Thread is paused.
     FramePtr GetFrame(int index);

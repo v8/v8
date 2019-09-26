@@ -321,7 +321,7 @@ class WasmCodeAllocator {
   // The engine-wide wasm code manager.
   WasmCodeManager* const code_manager_;
 
-  // TODO(clemensh): Try to make this non-recursive again. It's recursive
+  // TODO(clemensb): Try to make this non-recursive again. It's recursive
   // currently because {AllocateForCodeInRegion} might create a new code space,
   // which recursively calls {AllocateForCodeInRegion} for the jump table.
   mutable base::RecursiveMutex mutex_;
@@ -348,7 +348,7 @@ class WasmCodeAllocator {
 
   bool is_executable_ = false;
 
-  // TODO(clemensh): Remove this field once multiple code spaces are supported
+  // TODO(clemensb): Remove this field once multiple code spaces are supported
   // everywhere.
   const bool can_request_more_memory_;
 

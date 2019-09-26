@@ -465,7 +465,7 @@ class WasmGenerator {
 
   template <ValueType T1, ValueType T2, ValueType... Ts>
   void Generate(DataRange* data) {
-    // TODO(clemensh): Implement a more even split.
+    // TODO(clemensb): Implement a more even split.
     auto first_data = data->split();
     Generate<T1>(&first_data);
     Generate<T2, Ts...>(data);

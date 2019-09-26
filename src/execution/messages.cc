@@ -631,7 +631,7 @@ Handle<Object> AsmJsWasmStackFrame::GetReceiver() const {
 }
 
 Handle<Object> AsmJsWasmStackFrame::GetFunction() const {
-  // TODO(clemensh): Return lazily created JSFunction.
+  // TODO(clemensb): Return lazily created JSFunction.
   return Null();
 }
 

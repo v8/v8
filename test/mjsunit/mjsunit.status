@@ -1071,7 +1071,7 @@
 ##############################################################################
 # Liftoff is currently only sufficiently implemented on x64, ia32, arm64 and
 # arm.
-# TODO(clemensh): Implement on all other platforms (crbug.com/v8/6600).
+# TODO(clemensb): Implement on all other platforms (crbug.com/v8/6600).
 ['arch != x64 and arch != ia32 and arch != arm64 and arch != arm', {
   'wasm/liftoff': [SKIP],
   'wasm/tier-up-testing-flag': [SKIP],

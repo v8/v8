@@ -47,7 +47,7 @@ inline Operand GetStackSlot(uint32_t index) {
   return Operand(rbp, -kFirstStackSlotOffset - offset);
 }
 
-// TODO(clemensh): Make this a constexpr variable once Operand is constexpr.
+// TODO(clemensb): Make this a constexpr variable once Operand is constexpr.
 inline Operand GetInstanceOperand() { return Operand(rbp, -16); }
 
 inline Operand GetMemOp(LiftoffAssembler* assm, Register addr, Register offset,

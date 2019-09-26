@@ -6,7 +6,7 @@
 
 #include "src/base/optional.h"
 #include "src/codegen/assembler-inl.h"
-// TODO(clemensh): Remove dependences on compiler stuff.
+// TODO(clemensb): Remove dependences on compiler stuff.
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/compiler/linkage.h"
@@ -121,7 +121,7 @@ constexpr Vector<const ValueType> kSupportedTypes =
 
 class LiftoffCompiler {
  public:
-  // TODO(clemensh): Make this a template parameter.
+  // TODO(clemensb): Make this a template parameter.
   static constexpr Decoder::ValidateFlag validate = Decoder::kValidate;
 
   using Value = ValueBase;
@@ -488,7 +488,7 @@ class LiftoffCompiler {
     // Before entering a loop, spill all locals to the stack, in order to free
     // the cache registers, and to avoid unnecessarily reloading stack values
     // into registers at branches.
-    // TODO(clemensh): Come up with a better strategy here, involving
+    // TODO(clemensb): Come up with a better strategy here, involving
     // pre-analysis of the function.
     __ SpillLocals();
 

@@ -228,7 +228,7 @@ class LiftoffAssembler : public TurboAssembler {
       return reg;
     }
 
-    // TODO(clemensh): Don't copy the full parent state (this makes us N^2).
+    // TODO(clemensb): Don't copy the full parent state (this makes us N^2).
     void InitMerge(const CacheState& source, uint32_t num_locals,
                    uint32_t arity, uint32_t stack_depth);
 

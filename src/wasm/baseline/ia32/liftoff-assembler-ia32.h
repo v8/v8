@@ -41,7 +41,7 @@ inline MemOperand GetHalfStackSlot(uint32_t index, RegPairHalf half) {
   return Operand(ebp, -kFirstStackSlotOffset - offset);
 }
 
-// TODO(clemensh): Make this a constexpr variable once Operand is constexpr.
+// TODO(clemensb): Make this a constexpr variable once Operand is constexpr.
 inline Operand GetInstanceOperand() { return Operand(ebp, -8); }
 
 static constexpr LiftoffRegList kByteRegs =

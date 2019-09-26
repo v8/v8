@@ -293,7 +293,7 @@ class V8_EXPORT_PRIVATE Operand {
   // Only valid if len_ > 4.
   RelocInfo::Mode rmode_ = RelocInfo::NONE;
 
-  // TODO(clemensh): Get rid of this friendship, or make Operand immutable.
+  // TODO(clemensb): Get rid of this friendship, or make Operand immutable.
   friend class Assembler;
 };
 ASSERT_TRIVIALLY_COPYABLE(Operand);
