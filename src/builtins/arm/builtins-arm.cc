@@ -999,7 +999,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
           ExternalReference::bytecode_size_table_address());
 
   // Check if the bytecode is a Wide or ExtraWide prefix bytecode.
-  Label process_bytecode, extra_wide;
+  Label process_bytecode;
   STATIC_ASSERT(0 == static_cast<int>(interpreter::Bytecode::kWide));
   STATIC_ASSERT(1 == static_cast<int>(interpreter::Bytecode::kExtraWide));
   STATIC_ASSERT(2 == static_cast<int>(interpreter::Bytecode::kDebugBreakWide));
@@ -1008,21 +1008,18 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   __ cmp(bytecode, Operand(0x3));
   __ b(hi, &process_bytecode);
   __ tst(bytecode, Operand(0x1));
-  __ b(ne, &extra_wide);
-
-  // Load the next bytecode and update table to the wide scaled table.
+  // Load the next bytecode.
   __ add(bytecode_offset, bytecode_offset, Operand(1));
   __ ldrb(bytecode, MemOperand(bytecode_array, bytecode_offset));
+
+  // Update table to the wide scaled table.
   __ add(bytecode_size_table, bytecode_size_table,
          Operand(kIntSize * interpreter::Bytecodes::kBytecodeCount));
-  __ jmp(&process_bytecode);
-
-  __ bind(&extra_wide);
-  // Load the next bytecode and update table to the extra wide scaled table.
-  __ add(bytecode_offset, bytecode_offset, Operand(1));
-  __ ldrb(bytecode, MemOperand(bytecode_array, bytecode_offset));
+  // Conditionally update table to the extra wide scaled table. We are taking
+  // advantage of the fact that the extra wide follows the wide one.
   __ add(bytecode_size_table, bytecode_size_table,
-         Operand(2 * kIntSize * interpreter::Bytecodes::kBytecodeCount));
+         Operand(kIntSize * interpreter::Bytecodes::kBytecodeCount), LeaveCC,
+         ne);
 
   __ bind(&process_bytecode);
 

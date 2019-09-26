@@ -1130,19 +1130,19 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   __ Cmp(bytecode, Operand(0x3));
   __ B(hi, &process_bytecode);
   __ Tst(bytecode, Operand(0x1));
-  __ B(ne, &extra_wide);
-
-  // Load the next bytecode and update table to the wide scaled table.
+  // The code to load the next bytecode is common to both wide and extra wide.
+  // We can hoist them up here since they do not modify the flags after Tst.
   __ Add(bytecode_offset, bytecode_offset, Operand(1));
   __ Ldrb(bytecode, MemOperand(bytecode_array, bytecode_offset));
+  __ B(ne, &extra_wide);
+
+  // Update table to the wide scaled table.
   __ Add(bytecode_size_table, bytecode_size_table,
          Operand(kIntSize * interpreter::Bytecodes::kBytecodeCount));
   __ B(&process_bytecode);
 
   __ Bind(&extra_wide);
-  // Load the next bytecode and update table to the extra wide scaled table.
-  __ Add(bytecode_offset, bytecode_offset, Operand(1));
-  __ Ldrb(bytecode, MemOperand(bytecode_array, bytecode_offset));
+  // Update table to the extra wide scaled table.
   __ Add(bytecode_size_table, bytecode_size_table,
          Operand(2 * kIntSize * interpreter::Bytecodes::kBytecodeCount));
 

@@ -1019,20 +1019,21 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
                 static_cast<int>(interpreter::Bytecode::kDebugBreakExtraWide));
   __ cmpb(bytecode, Immediate(0x3));
   __ j(above, &process_bytecode, Label::kNear);
+  // The code to load the next bytecode is common to both wide and extra wide.
+  // We can hoist them up here. incl has to happen before testb since it
+  // modifies the ZF flag.
+  __ incl(bytecode_offset);
   __ testb(bytecode, Immediate(0x1));
+  __ movzxbq(bytecode, Operand(bytecode_array, bytecode_offset, times_1, 0));
   __ j(not_equal, &extra_wide, Label::kNear);
 
-  // Load the next bytecode and update table to the wide scaled table.
-  __ incl(bytecode_offset);
-  __ movzxbq(bytecode, Operand(bytecode_array, bytecode_offset, times_1, 0));
+  // Update table to the wide scaled table.
   __ addq(bytecode_size_table,
           Immediate(kIntSize * interpreter::Bytecodes::kBytecodeCount));
   __ jmp(&process_bytecode, Label::kNear);
 
   __ bind(&extra_wide);
-  // Load the next bytecode and update table to the extra wide scaled table.
-  __ incl(bytecode_offset);
-  __ movzxbq(bytecode, Operand(bytecode_array, bytecode_offset, times_1, 0));
+  // Update table to the extra wide scaled table.
   __ addq(bytecode_size_table,
           Immediate(2 * kIntSize * interpreter::Bytecodes::kBytecodeCount));
 
