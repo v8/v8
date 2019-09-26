@@ -2260,7 +2260,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   //  -- r4 : the target to call (can be any Object).
   // -----------------------------------
 
-  Label non_callable, non_function, non_smi;
+  Label non_callable, non_smi;
   __ JumpIfSmi(r4, &non_callable);
   __ bind(&non_smi);
   __ CompareObjectType(r4, r7, r8, JS_FUNCTION_TYPE);
@@ -2277,12 +2277,10 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
 
   // Check if target is a proxy and call CallProxy external builtin
   __ cmpi(r8, Operand(JS_PROXY_TYPE));
-  __ bne(&non_function);
-  __ Jump(BUILTIN_CODE(masm->isolate(), CallProxy), RelocInfo::CODE_TARGET);
+  __ Jump(BUILTIN_CODE(masm->isolate(), CallProxy), RelocInfo::CODE_TARGET, eq);
 
   // 2. Call to something else, which might have a [[Call]] internal method (if
   // not we raise an exception).
-  __ bind(&non_function);
   // Overwrite the original receiver the (original) target.
   __ ShiftLeftImm(r8, r3, Operand(kPointerSizeLog2));
   __ StorePX(r4, MemOperand(sp, r8));
