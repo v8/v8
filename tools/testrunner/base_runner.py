@@ -319,13 +319,11 @@ class BaseTestRunner(object):
                       default=False, action="store_true")
     parser.add_option("--outdir", help="Base directory with compile output",
                       default="out")
-    parser.add_option("--buildbot", help="DEPRECATED!",
-                      default=False, action="store_true")
     parser.add_option("--arch",
                       help="The architecture to run tests for")
     parser.add_option("-m", "--mode",
-                      help="The test mode in which to run (uppercase for ninja"
-                      " and buildbot builds): %s" % MODES.keys())
+                      help="The test mode in which to run (uppercase for builds"
+                      " in CI): %s" % MODES.keys())
     parser.add_option("--shell-dir", help="DEPRECATED! Executables from build "
                       "directory will be used")
     parser.add_option("--test-root", help="Root directory of the test suites",
@@ -437,7 +435,7 @@ class BaseTestRunner(object):
   # gn
   # outdir
   # outdir/arch.mode
-  # Each path is provided in two versions: <path> and <path>/mode for buildbot.
+  # Each path is provided in two versions: <path> and <path>/mode for bots.
   def _possible_outdirs(self, options):
     def outdirs():
       if options.gn:
@@ -452,7 +450,7 @@ class BaseTestRunner(object):
     for outdir in outdirs():
       yield os.path.join(self.basedir, outdir)
 
-      # buildbot option
+      # bot option
       if options.mode:
         yield os.path.join(self.basedir, outdir, options.mode)
 
@@ -494,9 +492,9 @@ class BaseTestRunner(object):
 
   def _process_default_options(self, options):
     # We don't use the mode for more path-magic.
-    # Therefore transform the buildbot mode here to fix build_config value.
+    # Therefore transform the bot mode here to fix build_config value.
     if options.mode:
-      options.mode = self._buildbot_to_v8_mode(options.mode)
+      options.mode = self._bot_to_v8_mode(options.mode)
 
     build_config_mode = 'debug' if self.build_config.is_debug else 'release'
     if options.mode:
@@ -536,8 +534,8 @@ class BaseTestRunner(object):
     options.command_prefix = shlex.split(options.command_prefix)
     options.extra_flags = sum(map(shlex.split, options.extra_flags), [])
 
-  def _buildbot_to_v8_mode(self, config):
-    """Convert buildbot build configs to configs understood by the v8 runner.
+  def _bot_to_v8_mode(self, config):
+    """Convert build configs from bots to configs understood by the v8 runner.
 
     V8 configs are always lower case and without the additional _x64 suffix
     for 64 bit builds on windows with ninja.

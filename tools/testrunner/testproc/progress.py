@@ -360,7 +360,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
     complete_results = []
     if os.path.exists(self.json_test_results):
       with open(self.json_test_results, "r") as f:
-        # Buildbot might start out with an empty file.
+        # On bots we might start out with an empty file.
         complete_results = json.loads(f.read() or "[]")
 
     duration_mean = None
