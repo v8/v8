@@ -1783,24 +1783,6 @@ struct MachineOperatorOptimizationPhase {
   }
 };
 
-struct MidTierMachineLoweringPhase {
-  static const char* phase_name() { return "V8.TFMidTierMachineLoweringPhase"; }
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    GraphReducer graph_reducer(temp_zone, data->graph(),
-                               &data->info()->tick_counter(),
-                               data->jsgraph()->Dead());
-    SelectLowering select_lowering(data->jsgraph()->graph(),
-                                   data->jsgraph()->common());
-    MemoryLowering memory_lowering(data->jsgraph(), temp_zone,
-                                   data->info()->GetPoisoningMitigationLevel());
-
-    AddReducer(data, &graph_reducer, &memory_lowering);
-    AddReducer(data, &graph_reducer, &select_lowering);
-    graph_reducer.ReduceGraph();
-  }
-};
-
 struct CsaEarlyOptimizationPhase {
   static const char* phase_name() { return "V8.CSAEarlyOptimization"; }
 
@@ -2473,8 +2455,15 @@ bool PipelineImpl::OptimizeGraphForMidTier(Linkage* linkage) {
   Run<EffectControlLinearizationPhase>();
   RunPrintAndVerify(EffectControlLinearizationPhase::phase_name(), true);
 
-  Run<MidTierMachineLoweringPhase>();
-  RunPrintAndVerify(MidTierMachineLoweringPhase::phase_name(), true);
+  // TODO(9684): Remove LateOptimizationPhase and move SelectLowering into the
+  // preceeding or subsequent phase.
+  Run<LateOptimizationPhase>();
+  RunPrintAndVerify(LateOptimizationPhase::phase_name(), true);
+
+  // TODO(9684): Consider directly lowering memory operations without memory
+  // optimizations.
+  Run<MemoryOptimizationPhase>();
+  RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
 
   data->source_positions()->RemoveDecorator();
   if (data->info()->trace_turbo_json_enabled()) {

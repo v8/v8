@@ -1121,7 +1121,6 @@
   'compiler/concurrent-inlining-2': [SKIP],
   'compiler/diamond-followedby-branch': [SKIP],
   'compiler/load-elimination-const-field': [SKIP],
-  'compiler/constant-fold-add-static': [SKIP],
 }],  # variant == turboprop
 
 ##############################################################################
