@@ -226,6 +226,7 @@ class ZoneForwardList;
   V(Undetectable)                              \
   V(UniqueName)                                \
   V(WasmExceptionObject)                       \
+  V(WasmExceptionPackage)                      \
   V(WasmGlobalObject)                          \
   V(WasmInstanceObject)                        \
   V(WasmMemoryObject)                          \

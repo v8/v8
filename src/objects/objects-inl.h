@@ -411,6 +411,12 @@ DEF_GETTER(HeapObject, IsSmallOrderedHashTable, bool) {
          IsSmallOrderedNameDictionary(isolate);
 }
 
+DEF_GETTER(HeapObject, IsWasmExceptionPackage, bool) {
+  // It is not possible to check for the existence of certain properties on the
+  // underlying {JSReceiver} here because that requires calling handlified code.
+  return IsJSReceiver(isolate);
+}
+
 bool Object::IsPrimitive() const {
   if (IsSmi()) return true;
   HeapObject this_heap_object = HeapObject::cast(*this);

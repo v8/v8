@@ -131,6 +131,7 @@ class Undetectable;
 class UniqueName;
 class WasmCapiFunctionData;
 class WasmExceptionObject;
+class WasmExceptionPackage;
 class WasmExceptionTag;
 class WasmExportedFunctionData;
 class WasmGlobalObject;

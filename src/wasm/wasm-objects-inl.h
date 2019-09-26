@@ -309,6 +309,10 @@ ACCESSORS(WasmExceptionObject, serialized_signature, PodArray<wasm::ValueType>,
           kSerializedSignatureOffset)
 ACCESSORS(WasmExceptionObject, exception_tag, HeapObject, kExceptionTagOffset)
 
+// WasmExceptionPackage
+OBJECT_CONSTRUCTORS_IMPL(WasmExceptionPackage, JSReceiver)
+CAST_ACCESSOR(WasmExceptionPackage)
+
 // WasmExportedFunction
 WasmExportedFunction::WasmExportedFunction(Address ptr) : JSFunction(ptr) {
   SLOW_DCHECK(IsWasmExportedFunction(*this));

@@ -1930,7 +1930,7 @@ bool WasmCapiFunction::IsSignatureEqual(const wasm::FunctionSig* sig) const {
 }
 
 // static
-Handle<JSReceiver> WasmExceptionPackage::New(
+Handle<WasmExceptionPackage> WasmExceptionPackage::New(
     Isolate* isolate, Handle<WasmExceptionTag> exception_tag, int size) {
   Handle<Object> exception = isolate->factory()->NewWasmRuntimeError(
       MessageTemplate::kWasmExceptionError);
@@ -1945,37 +1945,31 @@ Handle<JSReceiver> WasmExceptionPackage::New(
                              values, StoreOrigin::kMaybeKeyed,
                              Just(ShouldThrow::kThrowOnError))
              .is_null());
-  return Handle<JSReceiver>::cast(exception);
+  return Handle<WasmExceptionPackage>::cast(exception);
 }
 
 // static
 Handle<Object> WasmExceptionPackage::GetExceptionTag(
-    Isolate* isolate, Handle<Object> exception_object) {
-  if (exception_object->IsJSReceiver()) {
-    Handle<JSReceiver> exception = Handle<JSReceiver>::cast(exception_object);
-    Handle<Object> tag;
-    if (JSReceiver::GetProperty(isolate, exception,
-                                isolate->factory()->wasm_exception_tag_symbol())
-            .ToHandle(&tag)) {
-      return tag;
-    }
+    Isolate* isolate, Handle<WasmExceptionPackage> exception_package) {
+  Handle<Object> tag;
+  if (JSReceiver::GetProperty(isolate, exception_package,
+                              isolate->factory()->wasm_exception_tag_symbol())
+          .ToHandle(&tag)) {
+    return tag;
   }
   return ReadOnlyRoots(isolate).undefined_value_handle();
 }
 
 // static
 Handle<Object> WasmExceptionPackage::GetExceptionValues(
-    Isolate* isolate, Handle<Object> exception_object) {
-  if (exception_object->IsJSReceiver()) {
-    Handle<JSReceiver> exception = Handle<JSReceiver>::cast(exception_object);
-    Handle<Object> values;
-    if (JSReceiver::GetProperty(
-            isolate, exception,
-            isolate->factory()->wasm_exception_values_symbol())
-            .ToHandle(&values)) {
-      DCHECK(values->IsFixedArray());
-      return values;
-    }
+    Isolate* isolate, Handle<WasmExceptionPackage> exception_package) {
+  Handle<Object> values;
+  if (JSReceiver::GetProperty(
+          isolate, exception_package,
+          isolate->factory()->wasm_exception_values_symbol())
+          .ToHandle(&values)) {
+    DCHECK(values->IsFixedArray());
+    return values;
   }
   return ReadOnlyRoots(isolate).undefined_value_handle();
 }
