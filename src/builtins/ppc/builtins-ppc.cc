@@ -1149,19 +1149,17 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Push(kInterpreterBytecodeArrayRegister, r3);
 
   // Allocate the local and temporary register file on the stack.
+  Label stack_overflow;
   {
     // Load frame size (word) from the BytecodeArray object.
     __ lwz(r5, FieldMemOperand(kInterpreterBytecodeArrayRegister,
                                BytecodeArray::kFrameSizeOffset));
 
     // Do a stack check to ensure we don't go over the limit.
-    Label ok;
     __ sub(r8, sp, r5);
     LoadRealStackLimit(masm, r0);
     __ cmpl(r8, r0);
-    __ bge(&ok);
-    __ CallRuntime(Runtime::kThrowStackOverflow);
-    __ bind(&ok);
+    __ ble(&stack_overflow);
 
     // If ok, push undefined as the initial value for all register file entries.
     // TODO(rmcilroy): Consider doing more than one push per loop iteration.
@@ -1233,6 +1231,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   __ bind(&compile_lazy);
   GenerateTailCallToReturnedCode(masm, Runtime::kCompileLazy);
+  __ bkpt(0);  // Should not return.
+
+  __ bind(&stack_overflow);
+  __ CallRuntime(Runtime::kThrowStackOverflow);
   __ bkpt(0);  // Should not return.
 }
 
