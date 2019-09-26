@@ -241,6 +241,41 @@ TF_BUILTIN(IterableToList, IteratorBuiltinsAssembler) {
   Return(IterableToList(context, iterable, iterator_fn));
 }
 
+TF_BUILTIN(IterableToFixedArrayForWasm, IteratorBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> iterable = CAST(Parameter(Descriptor::kIterable));
+  TNode<Smi> expected_length = CAST(Parameter(Descriptor::kExpectedLength));
+
+  TNode<Object> iterator_fn = GetIteratorMethod(context, iterable);
+
+  IteratorRecord iterator_record = GetIterator(context, iterable, iterator_fn);
+
+  GrowableFixedArray values(state());
+
+  Variable* vars[] = {values.var_array(), values.var_length(),
+                      values.var_capacity()};
+  Label loop_start(this, 3, vars), compare_length(this), done(this);
+  Goto(&loop_start);
+  BIND(&loop_start);
+  {
+    TNode<JSReceiver> next =
+        IteratorStep(context, iterator_record, &compare_length);
+    TNode<Object> next_value = IteratorValue(context, next);
+    values.Push(next_value);
+    Goto(&loop_start);
+  }
+
+  BIND(&compare_length);
+  GotoIf(WordEqual(SmiUntag(expected_length), values.var_length()->value()),
+         &done);
+  Return(CallRuntime(
+      Runtime::kThrowTypeError, context,
+      SmiConstant(MessageTemplate::kWasmTrapMultiReturnLengthMismatch)));
+
+  BIND(&done);
+  Return(values.var_array()->value());
+}
+
 TNode<JSArray> IteratorBuiltinsAssembler::StringListFromIterable(
     TNode<Context> context, TNode<Object> iterable) {
   Label done(this);

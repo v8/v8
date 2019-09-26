@@ -378,6 +378,19 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   function not_receiver(x, y) {
     return 0;
   }
+  function not_iterable(x, y) {
+    a = [x, y];
+    a[Symbol.iterator] = undefined;
+    return a;
+  }
+  function* generator(x, y) {
+    yield x;
+    yield y;
+  }
+  function* generator_throw(x, y) {
+    yield x;
+    throw new Error("def");
+  }
 
   builder.addImport('imports', 'f', kSig_ii_ii);
   builder.addFunction("main", kSig_ii_ii)
@@ -393,13 +406,19 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(instance.exports.main(1, 2), [2, 1]);
   instance = new WebAssembly.Instance(module, { 'imports' : { 'f' : swap_proxy } });
   assertEquals(instance.exports.main(1, 2), [2, 1]);
-  instance = new WebAssembly.Instance(module, { 'imports' : { 'f' : drop_first } });
-  assertEquals(instance.exports.main(1, 2), [2, 0]);
-  instance = new WebAssembly.Instance(module, { 'imports' : { 'f' : repeat } });
+  instance = new WebAssembly.Instance(module, { 'imports' : { 'f' : generator } });
   assertEquals(instance.exports.main(1, 2), [1, 2]);
 
+  instance = new WebAssembly.Instance(module, { 'imports' : { 'f' : drop_first } });
+  assertThrows(() => instance.exports.main(1, 2), TypeError, "multi-return length mismatch");
+  instance = new WebAssembly.Instance(module, { 'imports' : { 'f' : repeat } });
+  assertThrows(() => instance.exports.main(1, 2), TypeError, "multi-return length mismatch");
   instance = new WebAssembly.Instance(module, { 'imports' : { 'f' : proxy_throw } });
   assertThrows(() => instance.exports.main(1, 2), Error, "abc");
   instance = new WebAssembly.Instance(module, { 'imports' : { 'f' : not_receiver } });
-  assertThrows(() => instance.exports.main(1, 2), WebAssembly.RuntimeError);
+  assertThrows(() => instance.exports.main(1, 2), TypeError, /not iterable/);
+  instance = new WebAssembly.Instance(module, { 'imports' : { 'f' : not_iterable } });
+  assertThrows(() => instance.exports.main(1, 2), TypeError, /not iterable/);
+  instance = new WebAssembly.Instance(module, { 'imports' : { 'f' : generator_throw } });
+  assertThrows(() => instance.exports.main(1, 2), Error, "def");
 })();

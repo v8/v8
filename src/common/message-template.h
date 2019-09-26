@@ -539,6 +539,7 @@ namespace internal {
   T(WasmTrapFloatUnrepresentable, "float unrepresentable in integer range")    \
   T(WasmTrapFuncInvalid, "invalid index into function table")                  \
   T(WasmTrapFuncSigMismatch, "function signature mismatch")                    \
+  T(WasmTrapMultiReturnLengthMismatch, "multi-return length mismatch")         \
   T(WasmTrapTypeError, "wasm function signature contains illegal type")        \
   T(WasmTrapDataSegmentDropped, "data segment has been dropped")               \
   T(WasmTrapElemSegmentDropped, "element segment has been dropped")            \

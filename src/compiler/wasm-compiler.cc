@@ -5895,14 +5895,20 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       BuildModifyThreadInWasmFlag(true);
       Return(val);
     } else {
-      Node* size = graph()->NewNode(
-          mcgraph()->common()->NumberConstant(sig_->return_count()));
-      Node* args[] = {call, size};
-      // TODO(thibaudm): Replace runtime call with TurboFan code.
-      Node* fixed_array = BuildCallToRuntimeWithContext(
-          Runtime::kWasmIterableToFixedArray, native_context, args, 2, effect_,
-          Control());
+      Node* iterable_to_fixed_array = BuildLoadBuiltinFromIsolateRoot(
+          Builtins::kIterableToFixedArrayForWasm);
+      IterableToFixedArrayForWasmDescriptor interface_descriptor;
+      Node* length = BuildChangeUint31ToSmi(
+          Uint32Constant(static_cast<uint32_t>(sig_->return_count())));
+      auto call_descriptor = Linkage::GetStubCallDescriptor(
+          mcgraph()->zone(), interface_descriptor,
+          interface_descriptor.GetStackParameterCount(),
+          CallDescriptor::kNoFlags, Operator::kNoProperties,
+          StubCallMode::kCallCodeObject);
       Vector<Node*> wasm_values = Buffer(sig_->return_count());
+      Node* fixed_array = graph()->NewNode(
+          mcgraph()->common()->Call(call_descriptor), iterable_to_fixed_array,
+          call, length, native_context, Effect(), Control());
       for (unsigned i = 0; i < sig_->return_count(); ++i) {
         wasm_values[i] = FromJS(LOAD_FIXED_ARRAY_SLOT_ANY(fixed_array, i),
                                 native_context, sig_->GetReturn(i));

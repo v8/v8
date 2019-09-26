@@ -618,6 +618,7 @@ namespace internal {
   TFS(IterableToList, kIterable, kIteratorFn)                                  \
   TFS(IterableToListWithSymbolLookup, kIterable)                               \
   TFS(IterableToListMayPreserveHoles, kIterable, kIteratorFn)                  \
+  TFS(IterableToFixedArrayForWasm, kIterable, kExpectedLength)                 \
                                                                                \
   /* #sec-createstringlistfromiterable */                                      \
   TFS(StringListFromIterable, kIterable)                                       \
