@@ -106,6 +106,9 @@ class Operand {
   // which helps in the encoding of instructions that use the stack pointer.
   inline Operand ToExtendedRegister() const;
 
+  // Returns new Operand adapted for using with W registers.
+  inline Operand ToW() const;
+
   inline Immediate immediate() const;
   inline int64_t ImmediateValue() const;
   inline RelocInfo::Mode ImmediateRMode() const;

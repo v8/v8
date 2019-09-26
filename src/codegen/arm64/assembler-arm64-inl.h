@@ -308,6 +308,18 @@ Operand Operand::ToExtendedRegister() const {
   return Operand(reg_, reg_.Is64Bits() ? UXTX : UXTW, shift_amount_);
 }
 
+Operand Operand::ToW() const {
+  if (IsShiftedRegister()) {
+    DCHECK(reg_.Is64Bits());
+    return Operand(reg_.W(), shift(), shift_amount());
+  } else if (IsExtendedRegister()) {
+    DCHECK(reg_.Is64Bits());
+    return Operand(reg_.W(), extend(), shift_amount());
+  }
+  DCHECK(IsImmediate());
+  return *this;
+}
+
 Immediate Operand::immediate_for_heap_object_request() const {
   DCHECK((heap_object_request().kind() == HeapObjectRequest::kHeapNumber &&
           immediate_.rmode() == RelocInfo::FULL_EMBEDDED_OBJECT) ||

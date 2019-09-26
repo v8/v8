@@ -1001,7 +1001,8 @@ static void TailCallRuntimeIfMarkerEquals(MacroAssembler* masm,
                                           OptimizationMarker marker,
                                           Runtime::FunctionId function_id) {
   Label no_match;
-  __ CompareAndBranch(smi_entry, Operand(Smi::FromEnum(marker)), ne, &no_match);
+  __ CompareTaggedAndBranch(smi_entry, Operand(Smi::FromEnum(marker)), ne,
+                            &no_match);
   GenerateTailCallToReturnedCode(masm, function_id);
   __ bind(&no_match);
 }
@@ -1036,9 +1037,9 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
     // Optimized code slot is a Smi optimization marker.
 
     // Fall through if no optimization trigger.
-    __ CompareAndBranch(optimized_code_entry,
-                        Operand(Smi::FromEnum(OptimizationMarker::kNone)), eq,
-                        &fallthrough);
+    __ CompareTaggedAndBranch(optimized_code_entry,
+                              Operand(Smi::FromEnum(OptimizationMarker::kNone)),
+                              eq, &fallthrough);
 
     // TODO(v8:8394): The logging of first execution will break if
     // feedback vectors are not allocated. We need to find a different way of
@@ -1058,7 +1059,7 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
       // Otherwise, the marker is InOptimizationQueue, so fall through hoping
       // that an interrupt will eventually update the slot with optimized code.
       if (FLAG_debug_code) {
-        __ Cmp(
+        __ CmpTagged(
             optimized_code_entry,
             Operand(Smi::FromEnum(OptimizationMarker::kInOptimizationQueue)));
         __ Assert(eq, AbortReason::kExpectedOptimizationSentinel);
@@ -1634,7 +1635,7 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
 
     // Set flags for determining the value of smi-tagged argc.
     //  lt => 1, eq => 2, gt => 3.
-    __ Cmp(argc, Smi::FromInt(2));
+    __ CmpTagged(argc, Smi::FromInt(2));
     __ B(gt, &three_args);
 
     // One or two arguments.
@@ -1783,7 +1784,7 @@ void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
 
   // If the code object is null, just return to the caller.
   Label skip;
-  __ CompareAndBranch(x0, Smi::zero(), ne, &skip);
+  __ CompareTaggedAndBranch(x0, Smi::zero(), ne, &skip);
   __ Ret();
 
   __ Bind(&skip);
@@ -1879,8 +1880,8 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
 
   // 3. Tail call with no arguments if argArray is null or undefined.
   Label no_arguments;
-  __ Cmp(arg_array, null_value);
-  __ Ccmp(arg_array, undefined_value, ZFlag, ne);
+  __ CmpTagged(arg_array, null_value);
+  __ CcmpTagged(arg_array, undefined_value, ZFlag, ne);
   __ B(eq, &no_arguments);
 
   // 4a. Apply the receiver to the given argArray.
@@ -2262,7 +2263,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ Bind(&loop);
     __ Sub(len, len, 1);
     __ LoadAnyTaggedField(scratch, MemOperand(src, kTaggedSize, PostIndex));
-    __ Cmp(scratch, the_hole_value);
+    __ CmpTagged(scratch, the_hole_value);
     __ Csel(scratch, scratch, undefined_value, ne);
     __ Poke(scratch, Operand(len, LSL, kSystemPointerSizeLog2));
     __ Cbnz(len, &loop);
@@ -2320,7 +2321,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     __ Ldr(args_fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
     __ Ldr(x4, MemOperand(args_fp,
                           CommonFrameConstants::kContextOrFrameTypeOffset));
-    __ Cmp(x4, StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR));
+    __ CmpTagged(x4, StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR));
     __ B(eq, &arguments_adaptor);
     {
       __ Ldr(scratch,
@@ -2711,7 +2712,7 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
   // Patch new.target to [[BoundTargetFunction]] if new.target equals target.
   {
     Label done;
-    __ Cmp(x1, x3);
+    __ CmpTagged(x1, x3);
     __ B(ne, &done);
     __ LoadTaggedPointerField(
         x3, FieldMemOperand(x1, JSBoundFunction::kBoundTargetFunctionOffset));

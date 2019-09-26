@@ -652,6 +652,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                   const Operand& operand);
   inline void Blr(const Register& xn);
   inline void Cmp(const Register& rn, const Operand& operand);
+  inline void CmpTagged(const Register& rn, const Operand& operand);
   inline void Subs(const Register& rd, const Register& rn,
                    const Operand& operand);
   void Csel(const Register& rd, const Register& rn, const Operand& operand,
@@ -1006,6 +1007,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Conditional macros.
   inline void Ccmp(const Register& rn, const Operand& operand, StatusFlags nzcv,
                    Condition cond);
+  inline void CcmpTagged(const Register& rn, const Operand& operand,
+                         StatusFlags nzcv, Condition cond);
 
   inline void Clz(const Register& rd, const Register& rn);
 
@@ -1645,6 +1648,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // condition. May corrupt the status flags.
   inline void CompareAndBranch(const Register& lhs, const Operand& rhs,
                                Condition cond, Label* label);
+  inline void CompareTaggedAndBranch(const Register& lhs, const Operand& rhs,
+                                     Condition cond, Label* label);
 
   // Insert one or more instructions into the instruction stream that encode
   // some caller-defined data. The instructions used will be executable with no

@@ -1923,21 +1923,25 @@ void TurboAssembler::Call(ExternalReference target) {
 }
 
 void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
-  STATIC_ASSERT(kSystemPointerSize == 8);
-  STATIC_ASSERT(kSmiTagSize == 1);
-  STATIC_ASSERT(kSmiTag == 0);
-
   // The builtin_index register contains the builtin index as a Smi.
   // Untagging is folded into the indexing operand below.
-#if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
-  STATIC_ASSERT(kSmiShiftSize == 0);
-  Lsl(builtin_index, builtin_index, kSystemPointerSizeLog2 - kSmiShift);
-#else
-  STATIC_ASSERT(kSmiShiftSize == 31);
-  Asr(builtin_index, builtin_index, kSmiShift - kSystemPointerSizeLog2);
-#endif
-  Add(builtin_index, builtin_index, IsolateData::builtin_entry_table_offset());
-  Ldr(builtin_index, MemOperand(kRootRegister, builtin_index));
+  if (SmiValuesAre32Bits()) {
+    Asr(builtin_index, builtin_index, kSmiShift - kSystemPointerSizeLog2);
+    Add(builtin_index, builtin_index,
+        IsolateData::builtin_entry_table_offset());
+    Ldr(builtin_index, MemOperand(kRootRegister, builtin_index));
+  } else {
+    DCHECK(SmiValuesAre31Bits());
+    if (COMPRESS_POINTERS_BOOL) {
+      Add(builtin_index, kRootRegister,
+          Operand(builtin_index.W(), SXTW, kSystemPointerSizeLog2 - kSmiShift));
+    } else {
+      Add(builtin_index, kRootRegister,
+          Operand(builtin_index, LSL, kSystemPointerSizeLog2 - kSmiShift));
+    }
+    Ldr(builtin_index,
+        MemOperand(builtin_index, IsolateData::builtin_entry_table_offset()));
+  }
 }
 
 void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
@@ -2636,7 +2640,7 @@ void MacroAssembler::CompareRoot(const Register& obj, RootIndex index) {
   Register temp = temps.AcquireX();
   DCHECK(!AreAliased(obj, temp));
   LoadRoot(temp, index);
-  Cmp(obj, temp);
+  CmpTagged(obj, temp);
 }
 
 void MacroAssembler::JumpIfRoot(const Register& obj, RootIndex index,
@@ -2669,20 +2673,20 @@ void MacroAssembler::JumpIfIsInRange(const Register& value,
 
 void TurboAssembler::LoadTaggedPointerField(const Register& destination,
                                             const MemOperand& field_operand) {
-#ifdef V8_COMPRESS_POINTERS
-  DecompressTaggedPointer(destination, field_operand);
-#else
-  Ldr(destination, field_operand);
-#endif
+  if (COMPRESS_POINTERS_BOOL) {
+    DecompressTaggedPointer(destination, field_operand);
+  } else {
+    Ldr(destination, field_operand);
+  }
 }
 
 void TurboAssembler::LoadAnyTaggedField(const Register& destination,
                                         const MemOperand& field_operand) {
-#ifdef V8_COMPRESS_POINTERS
-  DecompressAnyTagged(destination, field_operand);
-#else
-  Ldr(destination, field_operand);
-#endif
+  if (COMPRESS_POINTERS_BOOL) {
+    DecompressAnyTagged(destination, field_operand);
+  } else {
+    Ldr(destination, field_operand);
+  }
 }
 
 void TurboAssembler::SmiUntagField(Register dst, const MemOperand& src) {
@@ -2691,13 +2695,11 @@ void TurboAssembler::SmiUntagField(Register dst, const MemOperand& src) {
 
 void TurboAssembler::StoreTaggedField(const Register& value,
                                       const MemOperand& dst_field_operand) {
-#ifdef V8_COMPRESS_POINTERS
-  RecordComment("[ StoreTagged");
-  Str(value.W(), dst_field_operand);
-  RecordComment("]");
-#else
-  Str(value, dst_field_operand);
-#endif
+  if (COMPRESS_POINTERS_BOOL) {
+    Str(value.W(), dst_field_operand);
+  } else {
+    Str(value, dst_field_operand);
+  }
 }
 
 void TurboAssembler::DecompressTaggedSigned(const Register& destination,
