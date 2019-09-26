@@ -64,10 +64,9 @@ class ObjectProperty {
 };
 
 class ObjectPropertiesResult;
-using ObjectPropertiesResultInternal = ObjectPropertiesResult;
-
 struct ObjectPropertiesResultExtended : public d::ObjectPropertiesResult {
-  ObjectPropertiesResultInternal* base;  // Back reference for cleanup
+  // Back reference for cleanup.
+  v8_debug_helper_internal::ObjectPropertiesResult* base;
 };
 
 // Internal version of API class v8::debug_helper::ObjectPropertiesResult.
@@ -150,6 +149,10 @@ uintptr_t EnsureDecompressed(uintptr_t address,
 // Converts the MemoryAccessResult from attempting to read an array's length
 // into the corresponding PropertyKind for the array.
 d::PropertyKind GetArrayKind(d::MemoryAccessResult mem_result);
+
+// List of fully-qualified names for every Object subtype, generated based on
+// Torque class definitions.
+extern const d::ClassList kObjectClassList;
 
 }  // namespace v8_debug_helper_internal
 

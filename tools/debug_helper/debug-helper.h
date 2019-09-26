@@ -141,6 +141,12 @@ struct HeapAddresses {
   uintptr_t any_heap_pointer;
 };
 
+// Result type for ListObjectClasses.
+struct ClassList {
+  size_t num_class_names;
+  const char* const* class_names;  // Fully qualified class names.
+};
+
 }  // namespace debug_helper
 }  // namespace v8
 
@@ -154,6 +160,8 @@ _v8_debug_helper_GetObjectProperties(
     const char* type_hint);
 V8_DEBUG_HELPER_EXPORT void _v8_debug_helper_Free_ObjectPropertiesResult(
     v8::debug_helper::ObjectPropertiesResult* result);
+V8_DEBUG_HELPER_EXPORT const v8::debug_helper::ClassList*
+_v8_debug_helper_ListObjectClasses();
 }
 
 namespace v8 {
@@ -181,6 +189,11 @@ inline ObjectPropertiesResultPtr GetObjectProperties(
     const HeapAddresses& heap_addresses, const char* type_hint = nullptr) {
   return ObjectPropertiesResultPtr(_v8_debug_helper_GetObjectProperties(
       object, memory_accessor, heap_addresses, type_hint));
+}
+
+// Get a list of all class names deriving from v8::internal::Object.
+inline const ClassList* ListObjectClasses() {
+  return _v8_debug_helper_ListObjectClasses();
 }
 
 }  // namespace debug_helper
