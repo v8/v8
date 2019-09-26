@@ -2222,10 +2222,11 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
 
   {
     // Load receiver to pass it later to DebugOnFunctionCall hook.
-    Operand actual_op = actual.is_immediate() ? Operand(actual.immediate())
-                                              : Operand(actual.reg());
-    Mov(x4, actual_op);
-    Ldr(x4, MemOperand(sp, x4, LSL, kSystemPointerSizeLog2));
+    if (actual.is_reg()) {
+      Ldr(x4, MemOperand(sp, actual.reg(), LSL, kSystemPointerSizeLog2));
+    } else {
+      Ldr(x4, MemOperand(sp, actual.immediate() << kSystemPointerSizeLog2));
+    }
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
 
