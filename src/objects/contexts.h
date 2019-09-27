@@ -7,6 +7,7 @@
 
 #include "src/objects/fixed-array.h"
 #include "src/objects/function-kind.h"
+#include "src/objects/osr-optimized-code-cache.h"
 #include "torque-generated/field-offsets-tq.h"
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -355,6 +356,7 @@ enum ContextLookupFlags {
   V(WEAKMAP_SET_INDEX, JSFunction, weakmap_set)                                \
   V(WEAKMAP_GET_INDEX, JSFunction, weakmap_get)                                \
   V(WEAKSET_ADD_INDEX, JSFunction, weakset_add)                                \
+  V(OSR_CODE_CACHE_INDEX, WeakFixedArray, osr_code_cache)                      \
   NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)
 
 // A table of all script contexts. Every loaded top-level script with top-level
@@ -717,6 +719,8 @@ class NativeContext : public Context {
   Object OptimizedCodeListHead();
   void SetDeoptimizedCodeListHead(Object head);
   Object DeoptimizedCodeListHead();
+
+  inline OSROptimizedCodeCache GetOSROptimizedCodeCache();
 
   void ResetErrorsThrown();
   void IncrementErrorsThrown();

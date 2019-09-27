@@ -41,6 +41,7 @@ class HeapNumber;
 class ObjectHashTable;
 class ObjectTemplateInfo;
 class ObjectVisitor;
+class OSROptimizedCodeCache;
 class PreparseData;
 class PropertyArray;
 class PropertyCell;
@@ -186,6 +187,7 @@ class ZoneForwardList;
   V(OrderedHashMap)                            \
   V(OrderedHashSet)                            \
   V(OrderedNameDictionary)                     \
+  V(OSROptimizedCodeCache)                     \
   V(PreparseData)                              \
   V(PromiseReactionJobTask)                    \
   V(PropertyArray)                             \
