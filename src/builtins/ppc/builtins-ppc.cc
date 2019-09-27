@@ -1159,7 +1159,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     __ sub(r8, sp, r5);
     LoadRealStackLimit(masm, r0);
     __ cmpl(r8, r0);
-    __ ble(&stack_overflow);
+    __ blt(&stack_overflow);
 
     // If ok, push undefined as the initial value for all register file entries.
     // TODO(rmcilroy): Consider doing more than one push per loop iteration.

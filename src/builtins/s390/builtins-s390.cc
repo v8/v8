@@ -1211,7 +1211,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     // Do a stack check to ensure we don't go over the limit.
     __ SubP(r8, sp, r4);
     __ CmpLogicalP(r8, RealStackLimitAsMemOperand(masm));
-    __ ble(&stack_overflow);
+    __ blt(&stack_overflow);
 
     // If ok, push undefined as the initial value for all register file entries.
     // TODO(rmcilroy): Consider doing more than one push per loop iteration.
