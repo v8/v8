@@ -736,7 +736,14 @@ static int GetCaseIndependentLetters(Isolate* isolate, uc16 character,
     CHECK(end - start + items <= letter_length);
     while (start <= end) {
       if (one_byte_subject && start > String::kMaxOneByteCharCode) break;
-      letters[items++] = (unibrow::uchar)(start);
+      // Only add to the output if character is not in ASCII range
+      // or the case equivalent character is in ASCII range.
+      // #sec-runtime-semantics-canonicalize-ch
+      // 3.g If the numeric value of ch ≥ 128 and the numeric value of cu < 128,
+      //     return ch.
+      if (!((start >= 128) && (character < 128))) {
+        letters[items++] = (unibrow::uchar)(start);
+      }
       start++;
     }
   }
