@@ -142,7 +142,7 @@ class StatsCounter;
   V(ieee754_tanh_function, "base::ieee754::tanh")                             \
   V(incremental_marking_record_write_function,                                \
     "IncrementalMarking::RecordWrite")                                        \
-  V(insert_remembered_set_function, "Heap::RecordSlotFromCode")               \
+  V(insert_remembered_set_function, "Heap::InsertIntoRememberedSetFromCode")  \
   V(invalidate_prototype_chains_function,                                     \
     "JSObject::InvalidatePrototypeChains()")                                  \
   V(invoke_accessor_getter_callback, "InvokeAccessorGetterCallback")          \
