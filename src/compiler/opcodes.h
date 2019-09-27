@@ -156,7 +156,8 @@
   V(JSCreateObject)              \
   V(JSCreatePromise)             \
   V(JSCreateStringIterator)      \
-  V(JSCreateTypedArray)
+  V(JSCreateTypedArray)          \
+  V(JSGetTemplateObject)
 
 #define JS_OBJECT_OP_LIST(V)      \
   JS_CREATE_OP_LIST(V)            \

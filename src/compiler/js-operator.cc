@@ -11,6 +11,7 @@
 #include "src/compiler/operator.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/template-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -470,6 +471,34 @@ const CreateBoundFunctionParameters& CreateBoundFunctionParametersOf(
     const Operator* op) {
   DCHECK_EQ(IrOpcode::kJSCreateBoundFunction, op->opcode());
   return OpParameter<CreateBoundFunctionParameters>(op);
+}
+
+bool operator==(GetTemplateObjectParameters const& lhs,
+                GetTemplateObjectParameters const& rhs) {
+  return lhs.description().location() == rhs.description().location() &&
+         lhs.shared().location() == rhs.shared().location() &&
+         lhs.feedback() == rhs.feedback();
+}
+
+bool operator!=(GetTemplateObjectParameters const& lhs,
+                GetTemplateObjectParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(GetTemplateObjectParameters const& p) {
+  return base::hash_combine(p.description().location(), p.shared().location(),
+                            FeedbackSource::Hash()(p.feedback()));
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         GetTemplateObjectParameters const& p) {
+  return os << Brief(*p.description()) << ", " << Brief(*p.shared());
+}
+
+const GetTemplateObjectParameters& GetTemplateObjectParametersOf(
+    const Operator* op) {
+  DCHECK(op->opcode() == IrOpcode::kJSGetTemplateObject);
+  return OpParameter<GetTemplateObjectParameters>(op);
 }
 
 bool operator==(CreateClosureParameters const& lhs,
@@ -1280,6 +1309,18 @@ const Operator* JSOperatorBuilder::CreateLiteralObject(
       "JSCreateLiteralObject",                             // name
       0, 1, 1, 1, 1, 2,                                    // counts
       parameters);                                         // parameter
+}
+
+const Operator* JSOperatorBuilder::GetTemplateObject(
+    Handle<TemplateObjectDescription> description,
+    Handle<SharedFunctionInfo> shared, FeedbackSource const& feedback) {
+  GetTemplateObjectParameters parameters(description, shared, feedback);
+  return new (zone()) Operator1<GetTemplateObjectParameters>(  // --
+      IrOpcode::kJSGetTemplateObject,                          // opcode
+      Operator::kEliminatable,                                 // properties
+      "JSGetTemplateObject",                                   // name
+      0, 1, 1, 1, 1, 0,                                        // counts
+      parameters);                                             // parameter
 }
 
 const Operator* JSOperatorBuilder::CloneObject(FeedbackSource const& feedback,

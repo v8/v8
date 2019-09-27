@@ -1269,7 +1269,6 @@ class FeedbackVectorData : public HeapObjectData {
   double invocation_count() const { return invocation_count_; }
 
   void Serialize(JSHeapBroker* broker);
-  const ZoneVector<ObjectData*>& feedback() { return feedback_; }
   FeedbackCellData* GetClosureFeedbackCell(JSHeapBroker* broker,
                                            int index) const;
 
@@ -1277,7 +1276,6 @@ class FeedbackVectorData : public HeapObjectData {
   double const invocation_count_;
 
   bool serialized_ = false;
-  ZoneVector<ObjectData*> feedback_;
   ZoneVector<ObjectData*> closure_feedback_cell_array_;
 };
 
@@ -1286,7 +1284,6 @@ FeedbackVectorData::FeedbackVectorData(JSHeapBroker* broker,
                                        Handle<FeedbackVector> object)
     : HeapObjectData(broker, storage, object),
       invocation_count_(object->invocation_count()),
-      feedback_(broker->zone()),
       closure_feedback_cell_array_(broker->zone()) {}
 
 FeedbackCellData* FeedbackVectorData::GetClosureFeedbackCell(
@@ -1310,26 +1307,6 @@ void FeedbackVectorData::Serialize(JSHeapBroker* broker) {
 
   TraceScope tracer(broker, this, "FeedbackVectorData::Serialize");
   Handle<FeedbackVector> vector = Handle<FeedbackVector>::cast(object());
-  DCHECK(feedback_.empty());
-  feedback_.reserve(vector->length());
-  for (int i = 0; i < vector->length(); ++i) {
-    MaybeObject value = vector->get(i);
-    ObjectData* slot_value =
-        value->IsObject() ? broker->GetOrCreateData(value->cast<Object>())
-                          : nullptr;
-    feedback_.push_back(slot_value);
-    if (slot_value == nullptr) continue;
-
-    if (slot_value->IsAllocationSite() &&
-        slot_value->AsAllocationSite()->IsFastLiteral()) {
-      slot_value->AsAllocationSite()->SerializeBoilerplate(broker);
-    } else if (slot_value->IsJSRegExp()) {
-      slot_value->AsJSRegExp()->SerializeAsRegExpBoilerplate(broker);
-    }
-  }
-  DCHECK_EQ(vector->length(), feedback_.size());
-  TRACE(broker, "Copied " << feedback_.size() << " slots");
-
   DCHECK(closure_feedback_cell_array_.empty());
   int length = vector->closure_feedback_cell_array().length();
   closure_feedback_cell_array_.reserve(length);
@@ -1907,6 +1884,13 @@ PropertyCellData* JSGlobalProxyData::GetPropertyCell(
   properties_.push_back({name, result});
   return result;
 }
+
+class TemplateObjectDescriptionData : public HeapObjectData {
+ public:
+  TemplateObjectDescriptionData(JSHeapBroker* broker, ObjectData** storage,
+                                Handle<TemplateObjectDescription> object)
+      : HeapObjectData(broker, storage, object) {}
+};
 
 class CodeData : public HeapObjectData {
  public:
@@ -2791,18 +2775,6 @@ OddballType MapRef::oddball_type() const {
   return OddballType::kOther;
 }
 
-ObjectRef FeedbackVectorRef::get(FeedbackSlot slot) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
-    AllowHandleAllocation handle_allocation;
-    AllowHandleDereference handle_dereference;
-    Handle<Object> value(object()->Get(slot)->cast<Object>(),
-                         broker()->isolate());
-    return ObjectRef(broker(), value);
-  }
-  int i = FeedbackVector::GetIndex(slot);
-  return ObjectRef(broker(), data()->AsFeedbackVector()->feedback().at(i));
-}
-
 FeedbackCellRef FeedbackVectorRef::GetClosureFeedbackCell(int index) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleAllocation handle_allocation;
@@ -2858,6 +2830,11 @@ bool AllocationSiteRef::IsFastLiteral() const {
         handle(object()->boilerplate(), broker()->isolate()));
   }
   return data()->AsAllocationSite()->IsFastLiteral();
+}
+
+void AllocationSiteRef::SerializeBoilerplate() {
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  data()->AsAllocationSite()->SerializeBoilerplate(broker());
 }
 
 void JSObjectRef::SerializeElements() {
@@ -3775,6 +3752,11 @@ ObjectRef JSRegExpRef::source() const {
   return ObjectRef(broker(), ObjectRef::data()->AsJSRegExp()->source());
 }
 
+void JSRegExpRef::SerializeAsRegExpBoilerplate() {
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  JSObjectRef::data()->AsJSRegExp()->SerializeAsRegExpBoilerplate(broker());
+}
+
 Handle<Object> ObjectRef::object() const { return data_->object(); }
 
 #define DEF_OBJECT_GETTER(T)                                                 \
@@ -3859,41 +3841,42 @@ bool JSFunctionRef::serialized() const {
 }
 
 JSArrayRef SharedFunctionInfoRef::GetTemplateObject(
-    ObjectRef description, FeedbackVectorRef vector, FeedbackSlot slot,
+    TemplateObjectDescriptionRef description, FeedbackSource const& source,
     SerializationPolicy policy) {
-  // Look in the feedback vector for the array. A Smi indicates that it's
-  // not yet cached here.
-  ObjectRef candidate = vector.get(slot);
-  if (!candidate.IsSmi()) {
-    return candidate.AsJSArray();
+  // First, see if we have processed feedback from the vector, respecting
+  // the serialization policy.
+  ProcessedFeedback const& feedback =
+      policy == SerializationPolicy::kSerializeIfNeeded
+          ? broker()->ProcessFeedbackForTemplateObject(source)
+          : broker()->GetFeedbackForTemplateObject(source);
+
+  if (!feedback.IsInsufficient()) {
+    return feedback.AsTemplateObject().value();
   }
 
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference allow_handle_dereference;
-    Handle<TemplateObjectDescription> tod =
-        Handle<TemplateObjectDescription>::cast(description.object());
     Handle<JSArray> template_object =
         TemplateObjectDescription::GetTemplateObject(
-            broker()->isolate(), broker()->target_native_context().object(),
-            tod, object(), slot.ToInt());
+            isolate(), broker()->target_native_context().object(),
+            description.object(), object(), source.slot.ToInt());
     return JSArrayRef(broker(), template_object);
   }
 
-  JSArrayData* array = data()->AsSharedFunctionInfo()->GetTemplateObject(slot);
+  JSArrayData* array =
+      data()->AsSharedFunctionInfo()->GetTemplateObject(source.slot);
   if (array != nullptr) return JSArrayRef(broker(), array);
 
   CHECK_EQ(policy, SerializationPolicy::kSerializeIfNeeded);
   CHECK(broker()->SerializingAllowed());
 
-  Handle<TemplateObjectDescription> tod =
-      Handle<TemplateObjectDescription>::cast(description.object());
   Handle<JSArray> template_object =
       TemplateObjectDescription::GetTemplateObject(
-          broker()->isolate(), broker()->target_native_context().object(), tod,
-          object(), slot.ToInt());
+          broker()->isolate(), broker()->target_native_context().object(),
+          description.object(), object(), source.slot.ToInt());
   array = broker()->GetOrCreateData(template_object)->AsJSArray();
-  data()->AsSharedFunctionInfo()->SetTemplateObject(slot, array);
+  data()->AsSharedFunctionInfo()->SetTemplateObject(source.slot, array);
   return JSArrayRef(broker(), array);
 }
 
@@ -4254,6 +4237,7 @@ void JSHeapBroker::SetFeedback(FeedbackSource const& source,
 }
 
 bool JSHeapBroker::HasFeedback(FeedbackSource const& source) const {
+  DCHECK(source.IsValid());
   return feedback_.find(source) != feedback_.end();
 }
 
@@ -4413,6 +4397,47 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForInstanceOf(
   return *new (zone()) InstanceOfFeedback(optional_constructor, nexus.kind());
 }
 
+ProcessedFeedback const& JSHeapBroker::ReadFeedbackForArrayOrObjectLiteral(
+    FeedbackSource const& source) {
+  FeedbackNexus nexus(source.vector, source.slot);
+  HeapObject object;
+  if (nexus.IsUninitialized() || !nexus.GetFeedback()->GetHeapObject(&object)) {
+    return *new (zone()) InsufficientFeedback(nexus.kind());
+  }
+
+  AllocationSiteRef site(this, handle(object, isolate()));
+  if (site.IsFastLiteral()) {
+    site.SerializeBoilerplate();
+  }
+
+  return *new (zone()) LiteralFeedback(site, nexus.kind());
+}
+
+ProcessedFeedback const& JSHeapBroker::ReadFeedbackForRegExpLiteral(
+    FeedbackSource const& source) {
+  FeedbackNexus nexus(source.vector, source.slot);
+  HeapObject object;
+  if (nexus.IsUninitialized() || !nexus.GetFeedback()->GetHeapObject(&object)) {
+    return *new (zone()) InsufficientFeedback(nexus.kind());
+  }
+
+  JSRegExpRef regexp(this, handle(object, isolate()));
+  regexp.SerializeAsRegExpBoilerplate();
+  return *new (zone()) RegExpLiteralFeedback(regexp, nexus.kind());
+}
+
+ProcessedFeedback const& JSHeapBroker::ReadFeedbackForTemplateObject(
+    FeedbackSource const& source) {
+  FeedbackNexus nexus(source.vector, source.slot);
+  HeapObject object;
+  if (nexus.IsUninitialized() || !nexus.GetFeedback()->GetHeapObject(&object)) {
+    return *new (zone()) InsufficientFeedback(nexus.kind());
+  }
+
+  JSArrayRef array(this, handle(object, isolate()));
+  return *new (zone()) TemplateObjectFeedback(array, nexus.kind());
+}
+
 ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCall(
     FeedbackSource const& source) {
   FeedbackNexus nexus(source.vector, source.slot);
@@ -4482,6 +4507,50 @@ ProcessedFeedback const& JSHeapBroker::GetFeedbackForGlobalAccess(
     FeedbackSource const& source) {
   return FLAG_concurrent_inlining ? GetFeedback(source)
                                   : ProcessFeedbackForGlobalAccess(source);
+}
+
+ProcessedFeedback const& JSHeapBroker::GetFeedbackForArrayOrObjectLiteral(
+    FeedbackSource const& source) {
+  return FLAG_concurrent_inlining
+             ? GetFeedback(source)
+             : ProcessFeedbackForArrayOrObjectLiteral(source);
+}
+
+ProcessedFeedback const& JSHeapBroker::GetFeedbackForRegExpLiteral(
+    FeedbackSource const& source) {
+  return FLAG_concurrent_inlining ? GetFeedback(source)
+                                  : ProcessFeedbackForRegExpLiteral(source);
+}
+
+ProcessedFeedback const& JSHeapBroker::GetFeedbackForTemplateObject(
+    FeedbackSource const& source) {
+  return FLAG_concurrent_inlining ? GetFeedback(source)
+                                  : ProcessFeedbackForTemplateObject(source);
+}
+
+ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForArrayOrObjectLiteral(
+    FeedbackSource const& source) {
+  if (HasFeedback(source)) return GetFeedback(source);
+  ProcessedFeedback const& feedback =
+      ReadFeedbackForArrayOrObjectLiteral(source);
+  SetFeedback(source, &feedback);
+  return feedback;
+}
+
+ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForRegExpLiteral(
+    FeedbackSource const& source) {
+  if (HasFeedback(source)) return GetFeedback(source);
+  ProcessedFeedback const& feedback = ReadFeedbackForRegExpLiteral(source);
+  SetFeedback(source, &feedback);
+  return feedback;
+}
+
+ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForTemplateObject(
+    FeedbackSource const& source) {
+  if (HasFeedback(source)) return GetFeedback(source);
+  ProcessedFeedback const& feedback = ReadFeedbackForTemplateObject(source);
+  SetFeedback(source, &feedback);
+  return feedback;
 }
 
 ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForBinaryOperation(
@@ -4721,6 +4790,21 @@ InstanceOfFeedback const& ProcessedFeedback::AsInstanceOf() const {
 NamedAccessFeedback const& ProcessedFeedback::AsNamedAccess() const {
   CHECK_EQ(kNamedAccess, kind());
   return *static_cast<NamedAccessFeedback const*>(this);
+}
+
+LiteralFeedback const& ProcessedFeedback::AsLiteral() const {
+  CHECK_EQ(kLiteral, kind());
+  return *static_cast<LiteralFeedback const*>(this);
+}
+
+RegExpLiteralFeedback const& ProcessedFeedback::AsRegExpLiteral() const {
+  CHECK_EQ(kRegExpLiteral, kind());
+  return *static_cast<RegExpLiteralFeedback const*>(this);
+}
+
+TemplateObjectFeedback const& ProcessedFeedback::AsTemplateObject() const {
+  CHECK_EQ(kTemplateObject, kind());
+  return *static_cast<TemplateObjectFeedback const*>(this);
 }
 
 BytecodeAnalysis const& JSHeapBroker::GetBytecodeAnalysis(

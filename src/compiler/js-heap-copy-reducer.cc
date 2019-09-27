@@ -12,6 +12,7 @@
 #include "src/heap/factory-inl.h"
 #include "src/objects/map.h"
 #include "src/objects/scope-info.h"
+#include "src/objects/template-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -73,7 +74,9 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
     }
     case IrOpcode::kJSCreateEmptyLiteralArray: {
       FeedbackParameter const& p = FeedbackParameterOf(node->op());
-      FeedbackVectorRef(broker(), p.feedback().vector).Serialize();
+      if (p.feedback().IsValid()) {
+        broker()->ProcessFeedbackForArrayOrObjectLiteral(p.feedback());
+      }
       break;
     }
     case IrOpcode::kJSCreateFunctionContext: {
@@ -85,12 +88,25 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
     case IrOpcode::kJSCreateLiteralArray:
     case IrOpcode::kJSCreateLiteralObject: {
       CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
-      FeedbackVectorRef(broker(), p.feedback().vector).Serialize();
+      if (p.feedback().IsValid()) {
+        broker()->ProcessFeedbackForArrayOrObjectLiteral(p.feedback());
+      }
       break;
     }
     case IrOpcode::kJSCreateLiteralRegExp: {
       CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
-      FeedbackVectorRef(broker(), p.feedback().vector).Serialize();
+      if (p.feedback().IsValid()) {
+        broker()->ProcessFeedbackForRegExpLiteral(p.feedback());
+      }
+      break;
+    }
+    case IrOpcode::kJSGetTemplateObject: {
+      GetTemplateObjectParameters const& p =
+          GetTemplateObjectParametersOf(node->op());
+      SharedFunctionInfoRef shared(broker(), p.shared());
+      TemplateObjectDescriptionRef description(broker(), p.description());
+      shared.GetTemplateObject(description, p.feedback(),
+                               SerializationPolicy::kSerializeIfNeeded);
       break;
     }
     case IrOpcode::kJSCreateWithContext: {

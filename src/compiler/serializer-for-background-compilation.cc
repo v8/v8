@@ -43,7 +43,6 @@ namespace compiler {
   V(CallRuntime)                  \
   V(CloneObject)                  \
   V(CreateArrayFromIterable)      \
-  V(CreateEmptyArrayLiteral)      \
   V(CreateEmptyObjectLiteral)     \
   V(CreateMappedArguments)        \
   V(CreateRestParameter)          \
@@ -162,6 +161,7 @@ namespace compiler {
   V(CreateBlockContext)               \
   V(CreateCatchContext)               \
   V(CreateClosure)                    \
+  V(CreateEmptyArrayLiteral)          \
   V(CreateEvalContext)                \
   V(CreateFunctionContext)            \
   V(CreateObjectLiteral)              \
@@ -1111,14 +1111,13 @@ void SerializerForBackgroundCompilation::VisitGetSuperConstructor(
 
 void SerializerForBackgroundCompilation::VisitGetTemplateObject(
     BytecodeArrayIterator* iterator) {
-  ObjectRef description(
+  TemplateObjectDescriptionRef description(
       broker(), iterator->GetConstantForIndexOperand(0, broker()->isolate()));
   FeedbackSlot slot = iterator->GetSlotOperand(1);
-  FeedbackVectorRef feedback_vector_ref(broker(), feedback_vector());
+  FeedbackSource source(feedback_vector(), slot);
   SharedFunctionInfoRef shared(broker(), environment()->function().shared());
-  JSArrayRef template_object =
-      shared.GetTemplateObject(description, feedback_vector_ref, slot,
-                               SerializationPolicy::kSerializeIfNeeded);
+  JSArrayRef template_object = shared.GetTemplateObject(
+      description, source, SerializationPolicy::kSerializeIfNeeded);
   environment()->accumulator_hints().Clear();
   environment()->accumulator_hints().AddConstant(template_object.object(),
                                                  zone());
@@ -1467,6 +1466,9 @@ void SerializerForBackgroundCompilation::VisitCreateRegExpLiteral(
   Handle<String> constant_pattern = Handle<String>::cast(
       iterator->GetConstantForIndexOperand(0, broker()->isolate()));
   StringRef description(broker(), constant_pattern);
+  FeedbackSlot slot = iterator->GetSlotOperand(1);
+  FeedbackSource source(feedback_vector(), slot);
+  broker()->ProcessFeedbackForRegExpLiteral(source);
   environment()->accumulator_hints().Clear();
 }
 
@@ -1477,6 +1479,17 @@ void SerializerForBackgroundCompilation::VisitCreateArrayLiteral(
           iterator->GetConstantForIndexOperand(0, broker()->isolate()));
   ArrayBoilerplateDescriptionRef description(broker(),
                                              array_boilerplate_description);
+  FeedbackSlot slot = iterator->GetSlotOperand(1);
+  FeedbackSource source(feedback_vector(), slot);
+  broker()->ProcessFeedbackForArrayOrObjectLiteral(source);
+  environment()->accumulator_hints().Clear();
+}
+
+void SerializerForBackgroundCompilation::VisitCreateEmptyArrayLiteral(
+    BytecodeArrayIterator* iterator) {
+  FeedbackSlot slot = iterator->GetSlotOperand(0);
+  FeedbackSource source(feedback_vector(), slot);
+  broker()->ProcessFeedbackForArrayOrObjectLiteral(source);
   environment()->accumulator_hints().Clear();
 }
 
@@ -1486,6 +1499,9 @@ void SerializerForBackgroundCompilation::VisitCreateObjectLiteral(
       Handle<ObjectBoilerplateDescription>::cast(
           iterator->GetConstantForIndexOperand(0, broker()->isolate()));
   ObjectBoilerplateDescriptionRef description(broker(), constant_properties);
+  FeedbackSlot slot = iterator->GetSlotOperand(1);
+  FeedbackSource source(feedback_vector(), slot);
+  broker()->ProcessFeedbackForArrayOrObjectLiteral(source);
   environment()->accumulator_hints().Clear();
 }
 

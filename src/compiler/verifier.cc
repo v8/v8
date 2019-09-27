@@ -732,6 +732,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // Type is OtherObject.
       CheckTypeIs(node, Type::OtherObject());
       break;
+    case IrOpcode::kJSGetTemplateObject:
+      // Type is Array
+      CheckTypeIs(node, Type::Array());
+      break;
     case IrOpcode::kJSLoadProperty:
       // Type can be anything.
       CheckTypeIs(node, Type::Any());

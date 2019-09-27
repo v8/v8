@@ -125,6 +125,12 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       FeedbackSource const& source);
   ProcessedFeedback const& GetFeedbackForInstanceOf(
       FeedbackSource const& source);
+  ProcessedFeedback const& GetFeedbackForArrayOrObjectLiteral(
+      FeedbackSource const& source);
+  ProcessedFeedback const& GetFeedbackForRegExpLiteral(
+      FeedbackSource const& source);
+  ProcessedFeedback const& GetFeedbackForTemplateObject(
+      FeedbackSource const& source);
   ProcessedFeedback const& GetFeedbackForPropertyAccess(
       FeedbackSource const& source, AccessMode mode,
       base::Optional<NameRef> static_name);
@@ -143,6 +149,12 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   ProcessedFeedback const& ProcessFeedbackForPropertyAccess(
       FeedbackSource const& source, AccessMode mode,
       base::Optional<NameRef> static_name);
+  ProcessedFeedback const& ProcessFeedbackForArrayOrObjectLiteral(
+      FeedbackSource const& source);
+  ProcessedFeedback const& ProcessFeedbackForRegExpLiteral(
+      FeedbackSource const& source);
+  ProcessedFeedback const& ProcessFeedbackForTemplateObject(
+      FeedbackSource const& source);
 
   bool FeedbackIsInsufficient(FeedbackSource const& source) const;
 
@@ -182,6 +194,12 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   ProcessedFeedback const& ReadFeedbackForPropertyAccess(
       FeedbackSource const& source, AccessMode mode,
       base::Optional<NameRef> static_name);
+  ProcessedFeedback const& ReadFeedbackForArrayOrObjectLiteral(
+      FeedbackSource const& source);
+  ProcessedFeedback const& ReadFeedbackForRegExpLiteral(
+      FeedbackSource const& source);
+  ProcessedFeedback const& ReadFeedbackForTemplateObject(
+      FeedbackSource const& source);
 
   void InitializeRefsMap();
   void CollectArrayAndObjectPrototypes();

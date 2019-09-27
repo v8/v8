@@ -24,7 +24,7 @@
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
-#include "src/objects/template-objects-inl.h"
+#include "src/objects/template-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -2090,12 +2090,13 @@ void BytecodeGraphBuilder::VisitCloneObject() {
 
 void BytecodeGraphBuilder::VisitGetTemplateObject() {
   DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
-  FeedbackSlot slot = bytecode_iterator().GetSlotOperand(1);
-  ObjectRef description(
+  FeedbackSource source =
+      CreateFeedbackSource(bytecode_iterator().GetIndexOperand(1));
+  TemplateObjectDescriptionRef description(
       broker(), bytecode_iterator().GetConstantForIndexOperand(0, isolate()));
-  JSArrayRef template_object =
-      shared_info().GetTemplateObject(description, feedback_vector(), slot);
-  environment()->BindAccumulator(jsgraph()->Constant(template_object));
+  Node* template_object = NewNode(javascript()->GetTemplateObject(
+      description.object(), shared_info().object(), source));
+  environment()->BindAccumulator(template_object);
 }
 
 Node* const* BytecodeGraphBuilder::GetCallArgumentsFromRegisters(

@@ -562,6 +562,10 @@ void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
   }
 }
 
+void JSGenericLowering::LowerJSGetTemplateObject(Node* node) {
+  UNREACHABLE();  // Eliminated in native context specialization.
+}
+
 void JSGenericLowering::LowerJSCreateEmptyLiteralArray(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   FeedbackParameter const& p = FeedbackParameterOf(node->op());

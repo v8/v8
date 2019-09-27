@@ -29,7 +29,6 @@ class NativeContext;
 class ScriptContextTable;
 
 namespace compiler {
-
 // Whether we are loading a property or storing to a property.
 // For a store during literal creation, do not walk up the prototype chain.
 enum class AccessMode { kLoad, kStore, kStoreInLiteral, kHas };
@@ -95,10 +94,12 @@ enum class OddballType : uint8_t {
   V(PropertyCell)                  \
   V(SharedFunctionInfo)            \
   V(SourceTextModule)              \
+  V(TemplateObjectDescription)     \
   /* Subtypes of Object */         \
   V(HeapObject)
 
 class CompilationDependencies;
+struct FeedbackSource;
 class JSHeapBroker;
 class ObjectData;
 class PerIsolateCompilerCache;
@@ -342,6 +343,8 @@ class JSRegExpRef : public JSObjectRef {
   ObjectRef source() const;
   ObjectRef flags() const;
   ObjectRef last_index() const;
+
+  void SerializeAsRegExpBoilerplate();
 };
 
 class HeapNumberRef : public HeapObjectRef {
@@ -494,7 +497,6 @@ class FeedbackVectorRef : public HeapObjectRef {
   double invocation_count() const;
 
   void Serialize();
-  ObjectRef get(FeedbackSlot slot) const;
   FeedbackCellRef GetClosureFeedbackCell(int index) const;
 };
 
@@ -533,6 +535,9 @@ class AllocationSiteRef : public HeapObjectRef {
   //
   // If PointsToLiteral() is false, then IsFastLiteral() is also false.
   bool IsFastLiteral() const;
+
+  void SerializeBoilerplate();
+
   // We only serialize boilerplate if IsFastLiteral is true.
   base::Optional<JSObjectRef> boilerplate() const;
 
@@ -789,7 +794,7 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
   // wraps the retrieval of the template object and creates it if
   // necessary.
   JSArrayRef GetTemplateObject(
-      ObjectRef description, FeedbackVectorRef vector, FeedbackSlot slot,
+      TemplateObjectDescriptionRef description, FeedbackSource const& source,
       SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
 
   void SerializeFunctionTemplateInfo();
@@ -841,6 +846,13 @@ class SourceTextModuleRef : public HeapObjectRef {
   void Serialize();
 
   base::Optional<CellRef> GetCell(int cell_index) const;
+};
+
+class TemplateObjectDescriptionRef : public HeapObjectRef {
+ public:
+  DEFINE_REF_CONSTRUCTOR(TemplateObjectDescription, HeapObjectRef)
+
+  Handle<TemplateObjectDescription> object() const;
 };
 
 class CellRef : public HeapObjectRef {

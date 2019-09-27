@@ -26,6 +26,7 @@
 #include "src/objects/js-promise.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/template-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -84,6 +85,8 @@ Reduction JSCreateLowering::Reduce(Node* node) {
       return ReduceJSCreateLiteralArrayOrObject(node);
     case IrOpcode::kJSCreateLiteralRegExp:
       return ReduceJSCreateLiteralRegExp(node);
+    case IrOpcode::kJSGetTemplateObject:
+      return ReduceJSGetTemplateObject(node);
     case IrOpcode::kJSCreateEmptyLiteralArray:
       return ReduceJSCreateEmptyLiteralArray(node);
     case IrOpcode::kJSCreateEmptyLiteralObject:
@@ -1073,15 +1076,10 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralArrayOrObject(Node* node) {
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-
-  FeedbackVectorRef feedback_vector(broker(), p.feedback().vector);
-  ObjectRef feedback = feedback_vector.get(p.feedback().slot);
-  // TODO(turbofan):  we should consider creating a ProcessedFeedback for
-  // allocation sites/boiler plates so that we use GetFeedback here. Then
-  // we can eventually get rid of the additional copy of feedback slots that
-  // we currently have in FeedbackVectorData.
-  if (feedback.IsAllocationSite()) {
-    AllocationSiteRef site = feedback.AsAllocationSite();
+  ProcessedFeedback const& feedback =
+      broker()->GetFeedbackForArrayOrObjectLiteral(p.feedback());
+  if (!feedback.IsInsufficient()) {
+    AllocationSiteRef site = feedback.AsLiteral().value();
     if (site.IsFastLiteral()) {
       AllocationType allocation = AllocationType::kYoung;
       if (FLAG_allocation_site_pretenuring) {
@@ -1095,20 +1093,17 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralArrayOrObject(Node* node) {
       return Replace(value);
     }
   }
+
   return NoChange();
 }
 
 Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralArray(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateEmptyLiteralArray, node->opcode());
   FeedbackParameter const& p = FeedbackParameterOf(node->op());
-  FeedbackVectorRef fv(broker(), p.feedback().vector);
-  ObjectRef feedback = fv.get(p.feedback().slot);
-  // TODO(turbofan):  we should consider creating a ProcessedFeedback for
-  // allocation sites/boiler plates so that we use GetFeedback here. Then
-  // we can eventually get rid of the additional copy of feedback slots that
-  // we currently have in FeedbackVectorData.
-  if (feedback.IsAllocationSite()) {
-    AllocationSiteRef site = feedback.AsAllocationSite();
+  ProcessedFeedback const& feedback =
+      broker()->GetFeedbackForArrayOrObjectLiteral(p.feedback());
+  if (!feedback.IsInsufficient()) {
+    AllocationSiteRef site = feedback.AsLiteral().value();
     DCHECK(!site.PointsToLiteral());
     MapRef initial_map =
         native_context().GetInitialJSArrayMap(site.GetElementsKind());
@@ -1162,20 +1157,28 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralRegExp(Node* node) {
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-
-  FeedbackVectorRef feedback_vector(broker(), p.feedback().vector);
-  ObjectRef feedback = feedback_vector.get(p.feedback().slot);
-  // TODO(turbofan):  we should consider creating a ProcessedFeedback for
-  // allocation sites/boiler plates so that we use GetFeedback here. Then
-  // we can eventually get rid of the additional copy of feedback slots that
-  // we currently have in FeedbackVectorData.
-  if (feedback.IsJSRegExp()) {
-    JSRegExpRef boilerplate = feedback.AsJSRegExp();
-    Node* value = effect = AllocateLiteralRegExp(effect, control, boilerplate);
+  ProcessedFeedback const& feedback =
+      broker()->GetFeedbackForRegExpLiteral(p.feedback());
+  if (!feedback.IsInsufficient()) {
+    JSRegExpRef literal = feedback.AsRegExpLiteral().value();
+    Node* value = effect = AllocateLiteralRegExp(effect, control, literal);
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
   }
   return NoChange();
+}
+
+Reduction JSCreateLowering::ReduceJSGetTemplateObject(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSGetTemplateObject, node->opcode());
+  GetTemplateObjectParameters const& parameters =
+      GetTemplateObjectParametersOf(node->op());
+  SharedFunctionInfoRef shared(broker(), parameters.shared());
+  JSArrayRef template_object = shared.GetTemplateObject(
+      TemplateObjectDescriptionRef(broker(), parameters.description()),
+      parameters.feedback());
+  Node* value = jsgraph()->Constant(template_object);
+  ReplaceWithValue(node, value);
+  return Replace(value);
 }
 
 Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {

@@ -598,6 +598,35 @@ std::ostream& operator<<(std::ostream&, CreateClosureParameters const&);
 
 const CreateClosureParameters& CreateClosureParametersOf(const Operator* op);
 
+class GetTemplateObjectParameters final {
+ public:
+  GetTemplateObjectParameters(Handle<TemplateObjectDescription> description,
+                              Handle<SharedFunctionInfo> shared,
+                              FeedbackSource const& feedback)
+      : description_(description), shared_(shared), feedback_(feedback) {}
+
+  Handle<TemplateObjectDescription> description() const { return description_; }
+  Handle<SharedFunctionInfo> shared() const { return shared_; }
+  FeedbackSource const& feedback() const { return feedback_; }
+
+ private:
+  Handle<TemplateObjectDescription> const description_;
+  Handle<SharedFunctionInfo> const shared_;
+  FeedbackSource const feedback_;
+};
+
+bool operator==(GetTemplateObjectParameters const&,
+                GetTemplateObjectParameters const&);
+bool operator!=(GetTemplateObjectParameters const&,
+                GetTemplateObjectParameters const&);
+
+size_t hash_value(GetTemplateObjectParameters const&);
+
+std::ostream& operator<<(std::ostream&, GetTemplateObjectParameters const&);
+
+const GetTemplateObjectParameters& GetTemplateObjectParametersOf(
+    const Operator* op);
+
 // Defines shared information for the literal that should be created. This is
 // used as parameter by JSCreateLiteralArray, JSCreateLiteralObject and
 // JSCreateLiteralRegExp operators.
@@ -767,7 +796,6 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateEmptyLiteralArray(FeedbackSource const& feedback);
   const Operator* CreateArrayFromIterable();
   const Operator* CreateEmptyLiteralObject();
-
   const Operator* CreateLiteralObject(
       Handle<ObjectBoilerplateDescription> constant,
       FeedbackSource const& feedback, int literal_flags,
@@ -777,6 +805,10 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateLiteralRegExp(Handle<String> constant_pattern,
                                       FeedbackSource const& feedback,
                                       int literal_flags);
+
+  const Operator* GetTemplateObject(
+      Handle<TemplateObjectDescription> description,
+      Handle<SharedFunctionInfo> shared, FeedbackSource const& feedback);
 
   const Operator* CallForwardVarargs(size_t arity, uint32_t start_index);
   const Operator* Call(
