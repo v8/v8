@@ -1203,9 +1203,11 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
       handler = handle(Code::cast(data_handler->smi_handler()),
                        vector().GetIsolate());
     } else if (maybe_code_handler.object()->IsSmi()) {
-      // Skip proxy handlers.
-      DCHECK_EQ(*(maybe_code_handler.object()),
-                *StoreHandler::StoreProxy(GetIsolate()));
+      // Skip proxy handlers and the slow handler.
+      DCHECK(*(maybe_code_handler.object()) ==
+                 *StoreHandler::StoreProxy(GetIsolate()) ||
+             *(maybe_code_handler.object()) ==
+                 *StoreHandler::StoreSlow(GetIsolate()));
       continue;
     } else {
       // Element store without prototype chain check.
