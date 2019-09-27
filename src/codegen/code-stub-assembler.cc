@@ -1217,56 +1217,6 @@ TNode<Float64T> CodeStubAssembler::LoadDoubleWithHoleCheck(
                                      INTPTR_PARAMETERS, if_hole);
 }
 
-void CodeStubAssembler::BranchIfPrototypesHaveNoElements(
-    Node* receiver_map, Label* definitely_no_elements,
-    Label* possibly_elements) {
-  CSA_SLOW_ASSERT(this, IsMap(receiver_map));
-  VARIABLE(var_map, MachineRepresentation::kTagged, receiver_map);
-  Label loop_body(this, &var_map);
-  TNode<FixedArray> empty_fixed_array = EmptyFixedArrayConstant();
-  TNode<NumberDictionary> empty_slow_element_dictionary =
-      EmptySlowElementDictionaryConstant();
-  Goto(&loop_body);
-
-  BIND(&loop_body);
-  {
-    Node* map = var_map.value();
-    TNode<HeapObject> prototype = LoadMapPrototype(map);
-    GotoIf(IsNull(prototype), definitely_no_elements);
-    TNode<Map> prototype_map = LoadMap(prototype);
-    TNode<Uint16T> prototype_instance_type = LoadMapInstanceType(prototype_map);
-
-    // Pessimistically assume elements if a Proxy, Special API Object,
-    // or JSPrimitiveWrapper wrapper is found on the prototype chain. After this
-    // instance type check, it's not necessary to check for interceptors or
-    // access checks.
-    Label if_custom(this, Label::kDeferred), if_notcustom(this);
-    Branch(IsCustomElementsReceiverInstanceType(prototype_instance_type),
-           &if_custom, &if_notcustom);
-
-    BIND(&if_custom);
-    {
-      // For string JSPrimitiveWrapper wrappers we still support the checks as
-      // long as they wrap the empty string.
-      GotoIfNot(
-          InstanceTypeEqual(prototype_instance_type, JS_PRIMITIVE_WRAPPER_TYPE),
-          possibly_elements);
-      TNode<Object> prototype_value =
-          LoadJSPrimitiveWrapperValue(CAST(prototype));
-      Branch(IsEmptyString(prototype_value), &if_notcustom, possibly_elements);
-    }
-
-    BIND(&if_notcustom);
-    {
-      TNode<FixedArrayBase> prototype_elements = LoadElements(CAST(prototype));
-      var_map.Bind(prototype_map);
-      GotoIf(TaggedEqual(prototype_elements, empty_fixed_array), &loop_body);
-      Branch(TaggedEqual(prototype_elements, empty_slow_element_dictionary),
-             &loop_body, possibly_elements);
-    }
-  }
-}
-
 void CodeStubAssembler::BranchIfJSReceiver(SloppyTNode<Object> object,
                                            Label* if_true, Label* if_false) {
   GotoIf(TaggedIsSmi(object), if_false);

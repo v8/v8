@@ -334,12 +334,12 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
   // KeyedLoadIC_Generic implementation.
 
-  void GenericElementLoad(Node* receiver, Node* receiver_map,
+  void GenericElementLoad(Node* receiver, TNode<Map> receiver_map,
                           SloppyTNode<Int32T> instance_type, Node* index,
                           Label* slow);
 
   enum UseStubCache { kUseStubCache, kDontUseStubCache };
-  void GenericPropertyLoad(Node* receiver, Node* receiver_map,
+  void GenericPropertyLoad(Node* receiver, TNode<Map> receiver_map,
                            SloppyTNode<Int32T> instance_type,
                            const LoadICParameters* p, Label* slow,
                            UseStubCache use_stub_cache = kUseStubCache);
@@ -399,6 +399,10 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                               TNode<Map> map, Label* if_handler,
                               TVariable<MaybeObject>* var_handler,
                               Label* if_miss);
+
+  void BranchIfPrototypesHaveNoElements(TNode<Map> receiver_map,
+                                        Label* definitely_no_elements,
+                                        Label* possibly_elements);
 };
 
 // Abstraction over direct and indirect exit points. Direct exits correspond to

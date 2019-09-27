@@ -2241,7 +2241,8 @@ void AccessorAssembler::InvalidateValidityCellIfPrototype(Node* map,
   BIND(&cont);
 }
 
-void AccessorAssembler::GenericElementLoad(Node* receiver, Node* receiver_map,
+void AccessorAssembler::GenericElementLoad(Node* receiver,
+                                           TNode<Map> receiver_map,
                                            SloppyTNode<Int32T> instance_type,
                                            Node* index, Label* slow) {
   Comment("integer index");
@@ -2302,11 +2303,9 @@ void AccessorAssembler::GenericElementLoad(Node* receiver, Node* receiver_map,
   }
 }
 
-void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
-                                            SloppyTNode<Int32T> instance_type,
-                                            const LoadICParameters* p,
-                                            Label* slow,
-                                            UseStubCache use_stub_cache) {
+void AccessorAssembler::GenericPropertyLoad(
+    Node* receiver, TNode<Map> receiver_map, SloppyTNode<Int32T> instance_type,
+    const LoadICParameters* p, Label* slow, UseStubCache use_stub_cache) {
   ExitPoint direct_exit(this);
 
   Comment("key is unique name");
@@ -2406,13 +2405,13 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
 
   BIND(&lookup_prototype_chain);
   {
-    VARIABLE(var_holder_map, MachineRepresentation::kTagged);
+    TVARIABLE(Map, var_holder_map);
     VARIABLE(var_holder_instance_type, MachineRepresentation::kWord32);
     Label return_undefined(this), is_private_symbol(this);
     Variable* merged_variables[] = {&var_holder_map, &var_holder_instance_type};
     Label loop(this, arraysize(merged_variables), merged_variables);
 
-    var_holder_map.Bind(receiver_map);
+    var_holder_map = receiver_map;
     var_holder_instance_type.Bind(instance_type);
     GotoIf(IsPrivateSymbol(name), &is_private_symbol);
 
@@ -2427,7 +2426,7 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
       GotoIf(TaggedEqual(proto, NullConstant()), &return_undefined);
       TNode<Map> proto_map = LoadMap(proto);
       TNode<Uint16T> proto_instance_type = LoadMapInstanceType(proto_map);
-      var_holder_map.Bind(proto_map);
+      var_holder_map = proto_map;
       var_holder_instance_type.Bind(proto_instance_type);
       Label next_proto(this), return_value(this, &var_value), goto_slow(this);
       TryGetOwnProperty(p->context(), receiver, proto, proto_map,
@@ -4032,6 +4031,55 @@ void AccessorAssembler::GenerateKeyedHasIC_PolymorphicName() {
 
   LoadICParameters p(context, receiver, name, slot, vector);
   KeyedLoadICPolymorphicName(&p, LoadAccessMode::kHas);
+}
+
+void AccessorAssembler::BranchIfPrototypesHaveNoElements(
+    TNode<Map> receiver_map, Label* definitely_no_elements,
+    Label* possibly_elements) {
+  TVARIABLE(Map, var_map, receiver_map);
+  Label loop_body(this, &var_map);
+  TNode<FixedArray> empty_fixed_array = EmptyFixedArrayConstant();
+  TNode<NumberDictionary> empty_slow_element_dictionary =
+      EmptySlowElementDictionaryConstant();
+  Goto(&loop_body);
+
+  BIND(&loop_body);
+  {
+    TNode<Map> map = var_map.value();
+    TNode<HeapObject> prototype = LoadMapPrototype(map);
+    GotoIf(IsNull(prototype), definitely_no_elements);
+    TNode<Map> prototype_map = LoadMap(prototype);
+    TNode<Uint16T> prototype_instance_type = LoadMapInstanceType(prototype_map);
+
+    // Pessimistically assume elements if a Proxy, Special API Object,
+    // or JSPrimitiveWrapper wrapper is found on the prototype chain. After this
+    // instance type check, it's not necessary to check for interceptors or
+    // access checks.
+    Label if_custom(this, Label::kDeferred), if_notcustom(this);
+    Branch(IsCustomElementsReceiverInstanceType(prototype_instance_type),
+           &if_custom, &if_notcustom);
+
+    BIND(&if_custom);
+    {
+      // For string JSPrimitiveWrapper wrappers we still support the checks as
+      // long as they wrap the empty string.
+      GotoIfNot(
+          InstanceTypeEqual(prototype_instance_type, JS_PRIMITIVE_WRAPPER_TYPE),
+          possibly_elements);
+      TNode<Object> prototype_value =
+          LoadJSPrimitiveWrapperValue(CAST(prototype));
+      Branch(IsEmptyString(prototype_value), &if_notcustom, possibly_elements);
+    }
+
+    BIND(&if_notcustom);
+    {
+      TNode<FixedArrayBase> prototype_elements = LoadElements(CAST(prototype));
+      var_map = prototype_map;
+      GotoIf(TaggedEqual(prototype_elements, empty_fixed_array), &loop_body);
+      Branch(TaggedEqual(prototype_elements, empty_slow_element_dictionary),
+             &loop_body, possibly_elements);
+    }
+  }
 }
 
 }  // namespace internal

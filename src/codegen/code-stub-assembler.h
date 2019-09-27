@@ -3675,10 +3675,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<IntPtrT> TryToIntptr(SloppyTNode<Object> key, Label* miss);
 
-  void BranchIfPrototypesHaveNoElements(Node* receiver_map,
-                                        Label* definitely_no_elements,
-                                        Label* possibly_elements);
-
   void InitializeFunctionContext(Node* native_context, Node* context,
                                  int slots);
 
