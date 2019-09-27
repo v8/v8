@@ -1455,8 +1455,9 @@ void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
                                 &if_return);
 
   // Convert new bytecode offset to a Smi and save in the stackframe.
-  __ SmiTag(rbx, kInterpreterBytecodeOffsetRegister);
-  __ movq(Operand(rbp, InterpreterFrameConstants::kBytecodeOffsetFromFp), rbx);
+  __ SmiTag(kInterpreterBytecodeOffsetRegister);
+  __ movq(Operand(rbp, InterpreterFrameConstants::kBytecodeOffsetFromFp),
+          kInterpreterBytecodeOffsetRegister);
 
   Generate_InterpreterEnterBytecode(masm);
 
