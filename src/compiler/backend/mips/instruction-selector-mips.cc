@@ -2018,6 +2018,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F32x4UConvertI32x4, kMipsF32x4UConvertI32x4)         \
   V(F32x4Abs, kMipsF32x4Abs)                             \
   V(F32x4Neg, kMipsF32x4Neg)                             \
+  V(F32x4Sqrt, kMipsF32x4Sqrt)                           \
   V(F32x4RecipApprox, kMipsF32x4RecipApprox)             \
   V(F32x4RecipSqrtApprox, kMipsF32x4RecipSqrtApprox)     \
   V(I32x4SConvertF32x4, kMipsI32x4SConvertF32x4)         \
