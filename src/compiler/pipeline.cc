@@ -1028,8 +1028,14 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
     compilation_info()->MarkAsAllocationFoldingEnabled();
   }
 
+  // Determine whether to specialize the code for the function's context.
+  // We can't do this in the case of OSR, because we want to cache the
+  // generated code on the native context keyed on SharedFunctionInfo.
+  // TODO(mythria): Check if it is better to key the OSR cache on JSFunction and
+  // allow context specialization for OSR code.
   if (compilation_info()->closure()->raw_feedback_cell().map() ==
-      ReadOnlyRoots(isolate).one_closure_cell_map()) {
+          ReadOnlyRoots(isolate).one_closure_cell_map() &&
+      !compilation_info()->is_osr()) {
     compilation_info()->MarkAsFunctionContextSpecializing();
     data_.ChooseSpecializationContext();
   }
