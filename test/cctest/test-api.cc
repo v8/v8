@@ -12307,8 +12307,14 @@ TEST(CallHandlerHasNoSideEffect) {
             ->Set(context.local(), v8_str("f"),
                   templ->GetFunction(context.local()).ToLocalChecked())
             .FromJust());
-  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("f()"), true).IsEmpty());
-  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("new f()"), true).IsEmpty());
+  CHECK(v8::debug::EvaluateGlobal(
+            isolate, v8_str("f()"),
+            v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
+            .IsEmpty());
+  CHECK(v8::debug::EvaluateGlobal(
+            isolate, v8_str("new f()"),
+            v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
+            .IsEmpty());
 
   // Side-effect-free version.
   Local<v8::FunctionTemplate> templ2 = v8::FunctionTemplate::New(isolate);
@@ -12318,8 +12324,14 @@ TEST(CallHandlerHasNoSideEffect) {
             ->Set(context.local(), v8_str("f2"),
                   templ2->GetFunction(context.local()).ToLocalChecked())
             .FromJust());
-  v8::debug::EvaluateGlobal(isolate, v8_str("f2()"), true).ToLocalChecked();
-  v8::debug::EvaluateGlobal(isolate, v8_str("new f2()"), true).ToLocalChecked();
+  v8::debug::EvaluateGlobal(
+      isolate, v8_str("f2()"),
+      v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
+      .ToLocalChecked();
+  v8::debug::EvaluateGlobal(
+      isolate, v8_str("new f2()"),
+      v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
+      .ToLocalChecked();
 }
 
 TEST(FunctionTemplateNewHasNoSideEffect) {
@@ -12334,8 +12346,14 @@ TEST(FunctionTemplateNewHasNoSideEffect) {
             ->Set(context.local(), v8_str("f"),
                   templ->GetFunction(context.local()).ToLocalChecked())
             .FromJust());
-  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("f()"), true).IsEmpty());
-  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("new f()"), true).IsEmpty());
+  CHECK(v8::debug::EvaluateGlobal(
+            isolate, v8_str("f()"),
+            v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
+            .IsEmpty());
+  CHECK(v8::debug::EvaluateGlobal(
+            isolate, v8_str("new f()"),
+            v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
+            .IsEmpty());
 
   // Side-effect-free version.
   Local<v8::FunctionTemplate> templ2 = v8::FunctionTemplate::New(
@@ -12345,8 +12363,14 @@ TEST(FunctionTemplateNewHasNoSideEffect) {
             ->Set(context.local(), v8_str("f2"),
                   templ2->GetFunction(context.local()).ToLocalChecked())
             .FromJust());
-  v8::debug::EvaluateGlobal(isolate, v8_str("f2()"), true).ToLocalChecked();
-  v8::debug::EvaluateGlobal(isolate, v8_str("new f2()"), true).ToLocalChecked();
+  v8::debug::EvaluateGlobal(
+      isolate, v8_str("f2()"),
+      v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
+      .ToLocalChecked();
+  v8::debug::EvaluateGlobal(
+      isolate, v8_str("new f2()"),
+      v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
+      .ToLocalChecked();
 }
 
 TEST(FunctionTemplateNewWithCacheHasNoSideEffect) {
@@ -12363,8 +12387,14 @@ TEST(FunctionTemplateNewWithCacheHasNoSideEffect) {
             ->Set(context.local(), v8_str("f"),
                   templ->GetFunction(context.local()).ToLocalChecked())
             .FromJust());
-  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("f()"), true).IsEmpty());
-  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("new f()"), true).IsEmpty());
+  CHECK(v8::debug::EvaluateGlobal(
+            isolate, v8_str("f()"),
+            v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
+            .IsEmpty());
+  CHECK(v8::debug::EvaluateGlobal(
+            isolate, v8_str("new f()"),
+            v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
+            .IsEmpty());
 
   // Side-effect-free version.
   Local<v8::FunctionTemplate> templ2 = v8::FunctionTemplate::NewWithCache(
@@ -12374,8 +12404,14 @@ TEST(FunctionTemplateNewWithCacheHasNoSideEffect) {
             ->Set(context.local(), v8_str("f2"),
                   templ2->GetFunction(context.local()).ToLocalChecked())
             .FromJust());
-  v8::debug::EvaluateGlobal(isolate, v8_str("f2()"), true).ToLocalChecked();
-  v8::debug::EvaluateGlobal(isolate, v8_str("new f2()"), true).ToLocalChecked();
+  v8::debug::EvaluateGlobal(
+      isolate, v8_str("f2()"),
+      v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
+      .ToLocalChecked();
+  v8::debug::EvaluateGlobal(
+      isolate, v8_str("new f2()"),
+      v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
+      .ToLocalChecked();
 }
 
 TEST(FunctionNewHasNoSideEffect) {
@@ -12387,8 +12423,14 @@ TEST(FunctionNewHasNoSideEffect) {
   Local<Function> func =
       Function::New(context.local(), EmptyHandler).ToLocalChecked();
   CHECK(context->Global()->Set(context.local(), v8_str("f"), func).FromJust());
-  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("f()"), true).IsEmpty());
-  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("new f()"), true).IsEmpty());
+  CHECK(v8::debug::EvaluateGlobal(
+            isolate, v8_str("f()"),
+            v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
+            .IsEmpty());
+  CHECK(v8::debug::EvaluateGlobal(
+            isolate, v8_str("new f()"),
+            v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
+            .IsEmpty());
 
   // Side-effect-free version.
   Local<Function> func2 =
@@ -12398,8 +12440,14 @@ TEST(FunctionNewHasNoSideEffect) {
           .ToLocalChecked();
   CHECK(
       context->Global()->Set(context.local(), v8_str("f2"), func2).FromJust());
-  v8::debug::EvaluateGlobal(isolate, v8_str("f2()"), true).ToLocalChecked();
-  v8::debug::EvaluateGlobal(isolate, v8_str("new f2()"), true).ToLocalChecked();
+  v8::debug::EvaluateGlobal(
+      isolate, v8_str("f2()"),
+      v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
+      .ToLocalChecked();
+  v8::debug::EvaluateGlobal(
+      isolate, v8_str("new f2()"),
+      v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
+      .ToLocalChecked();
 }
 
 // These handlers instantiate a function the embedder considers safe in some
@@ -12458,7 +12506,10 @@ TEST(FunctionNewInstanceHasNoSideEffect) {
                     v8::SideEffectType::kHasNoSideEffect)
           .ToLocalChecked();
   CHECK(context->Global()->Set(context.local(), v8_str("f"), func0).FromJust());
-  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("f()"), true).IsEmpty());
+  CHECK(v8::debug::EvaluateGlobal(
+            isolate, v8_str("f()"),
+            v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
+            .IsEmpty());
 
   // A whitelisted function that creates a new object. Should throw.
   Local<Function> func =
@@ -12467,7 +12518,10 @@ TEST(FunctionNewInstanceHasNoSideEffect) {
                     v8::SideEffectType::kHasNoSideEffect)
           .ToLocalChecked();
   CHECK(context->Global()->Set(context.local(), v8_str("f"), func).FromJust());
-  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("f()"), true).IsEmpty());
+  CHECK(v8::debug::EvaluateGlobal(
+            isolate, v8_str("f()"),
+            v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
+            .IsEmpty());
 
   // A whitelisted function that creates a new object with explicit intent to
   // have no side-effects (e.g. building an "object wrapper"). Should not throw.
@@ -12478,18 +12532,26 @@ TEST(FunctionNewInstanceHasNoSideEffect) {
           .ToLocalChecked();
   CHECK(
       context->Global()->Set(context.local(), v8_str("f2"), func2).FromJust());
-  v8::debug::EvaluateGlobal(isolate, v8_str("f2()"), true).ToLocalChecked();
+  v8::debug::EvaluateGlobal(
+      isolate, v8_str("f2()"),
+      v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
+      .ToLocalChecked();
 
   // Check that side effect skipping did not leak outside to future evaluations.
   Local<Function> func3 =
       Function::New(context.local(), EmptyHandler).ToLocalChecked();
   CHECK(
       context->Global()->Set(context.local(), v8_str("f3"), func3).FromJust());
-  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("f3()"), true).IsEmpty());
+  CHECK(v8::debug::EvaluateGlobal(
+            isolate, v8_str("f3()"),
+            v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
+            .IsEmpty());
 
   // Check that using side effect free NewInstance works in normal evaluation
   // (without throwOnSideEffect).
-  v8::debug::EvaluateGlobal(isolate, v8_str("f2()"), false).ToLocalChecked();
+  v8::debug::EvaluateGlobal(isolate, v8_str("f2()"),
+                            v8::debug::EvaluateGlobalMode::kDefault)
+      .ToLocalChecked();
 }
 
 TEST(CallHandlerAsFunctionHasNoSideEffectNotSupported) {
@@ -12502,7 +12564,10 @@ TEST(CallHandlerAsFunctionHasNoSideEffectNotSupported) {
   templ->SetCallAsFunctionHandler(EmptyHandler);
   Local<v8::Object> obj = templ->NewInstance(context.local()).ToLocalChecked();
   CHECK(context->Global()->Set(context.local(), v8_str("obj"), obj).FromJust());
-  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("obj()"), true).IsEmpty());
+  CHECK(v8::debug::EvaluateGlobal(
+            isolate, v8_str("obj()"),
+            v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
+            .IsEmpty());
 
   // Side-effect-free version is not supported.
   i::FunctionTemplateInfo cons = i::FunctionTemplateInfo::cast(
@@ -12513,7 +12578,10 @@ TEST(CallHandlerAsFunctionHasNoSideEffectNotSupported) {
   CHECK(!handler_info.IsSideEffectFreeCallHandlerInfo());
   handler_info.set_map(
       i::ReadOnlyRoots(heap).side_effect_free_call_handler_info_map());
-  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("obj()"), true).IsEmpty());
+  CHECK(v8::debug::EvaluateGlobal(
+            isolate, v8_str("obj()"),
+            v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect)
+            .IsEmpty());
 }
 
 static void IsConstructHandler(

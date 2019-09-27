@@ -235,7 +235,8 @@ void V8RuntimeAgentImpl::evaluate(
     Maybe<int> executionContextId, Maybe<bool> returnByValue,
     Maybe<bool> generatePreview, Maybe<bool> userGesture,
     Maybe<bool> awaitPromise, Maybe<bool> throwOnSideEffect,
-    Maybe<double> timeout, std::unique_ptr<EvaluateCallback> callback) {
+    Maybe<double> timeout, Maybe<bool> disableBreaks,
+    std::unique_ptr<EvaluateCallback> callback) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("devtools.timeline"),
                "EvaluateScript");
   int contextId = 0;
@@ -272,9 +273,16 @@ void V8RuntimeAgentImpl::evaluate(
     }
     v8::MicrotasksScope microtasksScope(m_inspector->isolate(),
                                         v8::MicrotasksScope::kRunMicrotasks);
+    v8::debug::EvaluateGlobalMode mode =
+        v8::debug::EvaluateGlobalMode::kDefault;
+    if (throwOnSideEffect.fromMaybe(false)) {
+      mode = v8::debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect;
+    } else if (disableBreaks.fromMaybe(false)) {
+      mode = v8::debug::EvaluateGlobalMode::kDisableBreaks;
+    }
     maybeResultValue = v8::debug::EvaluateGlobal(
         m_inspector->isolate(), toV8String(m_inspector->isolate(), expression),
-        throwOnSideEffect.fromMaybe(false));
+        mode);
   }  // Run microtasks before returning result.
 
   // Re-initialize after running client's code, as it could have destroyed

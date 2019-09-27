@@ -23,9 +23,13 @@ namespace internal {
 
 MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
                                           Handle<String> source,
-                                          bool throw_on_side_effect) {
+                                          debug::EvaluateGlobalMode mode) {
   // Disable breaks in side-effect free mode.
-  DisableBreak disable_break_scope(isolate->debug(), throw_on_side_effect);
+  DisableBreak disable_break_scope(
+      isolate->debug(),
+      mode == debug::EvaluateGlobalMode::kDisableBreaks ||
+          mode ==
+              debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect);
 
   Handle<Context> context = isolate->native_context();
   ScriptOriginOptions origin_options(false, true);
@@ -42,11 +46,15 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
   Handle<JSFunction> fun =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(shared_info,
                                                             context);
-  if (throw_on_side_effect) isolate->debug()->StartSideEffectCheckMode();
+  if (mode == debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect) {
+    isolate->debug()->StartSideEffectCheckMode();
+  }
   MaybeHandle<Object> result = Execution::Call(
       isolate, fun, Handle<JSObject>(context->global_proxy(), isolate), 0,
       nullptr);
-  if (throw_on_side_effect) isolate->debug()->StopSideEffectCheckMode();
+  if (mode == debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect) {
+    isolate->debug()->StopSideEffectCheckMode();
+  }
   return result;
 }
 

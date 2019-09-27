@@ -1253,9 +1253,12 @@ domain Runtime
       # resolved.
       optional boolean awaitPromise
       # Whether to throw an exception if side effect cannot be ruled out during evaluation.
+      # This implies `disableBreaks` below.
       experimental optional boolean throwOnSideEffect
       # Terminate execution after timing out (number of milliseconds).
       experimental optional TimeDelta timeout
+      # Disable breakpoints during execution.
+      experimental optional boolean disableBreaks
     returns
       # Evaluation result.
       RemoteObject result
