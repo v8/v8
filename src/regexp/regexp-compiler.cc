@@ -725,6 +725,11 @@ static int GetCaseIndependentLetters(Isolate* isolate, uc16 character,
                                      unibrow::uchar* letters,
                                      int letter_length) {
 #ifdef V8_INTL_SUPPORT
+  // Special case for U+017F which has upper case in ASCII range.
+  if (character == 0x017f) {
+    letters[0] = character;
+    return 1;
+  }
   icu::UnicodeSet set;
   set.add(character);
   set = set.closeOver(USET_CASE_INSENSITIVE);
