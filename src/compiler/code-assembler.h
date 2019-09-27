@@ -1474,7 +1474,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerScopedExceptionHandler {
 
 }  // namespace compiler
 
-#if defined(V8_HOST_ARCH_32_BIT) || defined(V8_COMPRESS_POINTERS)
+#if defined(V8_HOST_ARCH_32_BIT)
 #define BINT_IS_SMI
 using BInt = Smi;
 #elif defined(V8_HOST_ARCH_64_BIT)

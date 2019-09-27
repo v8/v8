@@ -3030,6 +3030,14 @@ bool CanCover(Node* value, IrOpcode::Value opcode) {
   return true;
 }
 
+Node* WasmGraphBuilder::BuildTruncateIntPtrToInt32(Node* value) {
+  if (mcgraph()->machine()->Is64()) {
+    value =
+        graph()->NewNode(mcgraph()->machine()->TruncateInt64ToInt32(), value);
+  }
+  return value;
+}
+
 Node* WasmGraphBuilder::BuildChangeInt32ToIntPtr(Node* value) {
   if (mcgraph()->machine()->Is64()) {
     value = graph()->NewNode(mcgraph()->machine()->ChangeInt32ToInt64(), value);
@@ -3038,12 +3046,20 @@ Node* WasmGraphBuilder::BuildChangeInt32ToIntPtr(Node* value) {
 }
 
 Node* WasmGraphBuilder::BuildChangeInt32ToSmi(Node* value) {
+  if (COMPRESS_POINTERS_BOOL && kUseSmiCorruptingPtrDecompression) {
+    return graph()->NewNode(mcgraph()->machine()->Word32Shl(), value,
+                            BuildSmiShiftBitsConstant32());
+  }
   value = BuildChangeInt32ToIntPtr(value);
   return graph()->NewNode(mcgraph()->machine()->WordShl(), value,
                           BuildSmiShiftBitsConstant());
 }
 
 Node* WasmGraphBuilder::BuildChangeUint31ToSmi(Node* value) {
+  if (COMPRESS_POINTERS_BOOL && kUseSmiCorruptingPtrDecompression) {
+    return graph()->NewNode(mcgraph()->machine()->Word32Shl(), value,
+                            BuildSmiShiftBitsConstant32());
+  }
   return graph()->NewNode(mcgraph()->machine()->WordShl(),
                           Uint32ToUintptr(value), BuildSmiShiftBitsConstant());
 }
@@ -3052,14 +3068,30 @@ Node* WasmGraphBuilder::BuildSmiShiftBitsConstant() {
   return mcgraph()->IntPtrConstant(kSmiShiftSize + kSmiTagSize);
 }
 
+Node* WasmGraphBuilder::BuildSmiShiftBitsConstant32() {
+  return mcgraph()->Int32Constant(kSmiShiftSize + kSmiTagSize);
+}
+
 Node* WasmGraphBuilder::BuildChangeSmiToInt32(Node* value) {
-  value = graph()->NewNode(mcgraph()->machine()->WordSar(), value,
-                           BuildSmiShiftBitsConstant());
-  if (mcgraph()->machine()->Is64()) {
+  if (COMPRESS_POINTERS_BOOL && kUseSmiCorruptingPtrDecompression) {
     value =
         graph()->NewNode(mcgraph()->machine()->TruncateInt64ToInt32(), value);
+    value = graph()->NewNode(mcgraph()->machine()->Word32Sar(), value,
+                             BuildSmiShiftBitsConstant32());
+  } else {
+    value = BuildChangeSmiToIntPtr(value);
+    value = BuildTruncateIntPtrToInt32(value);
   }
   return value;
+}
+
+Node* WasmGraphBuilder::BuildChangeSmiToIntPtr(Node* value) {
+  if (COMPRESS_POINTERS_BOOL && kUseSmiCorruptingPtrDecompression) {
+    value = BuildChangeSmiToInt32(value);
+    return BuildChangeInt32ToIntPtr(value);
+  }
+  return graph()->NewNode(mcgraph()->machine()->WordSar(), value,
+                          BuildSmiShiftBitsConstant());
 }
 
 Node* WasmGraphBuilder::BuildConvertUint32ToSmiWithSaturation(Node* value,
@@ -3278,10 +3310,7 @@ Node* WasmGraphBuilder::CurrentMemoryPages() {
   Node* result =
       graph()->NewNode(mcgraph()->machine()->WordShr(), mem_size,
                        mcgraph()->Int32Constant(wasm::kWasmPageSizeLog2));
-  if (mcgraph()->machine()->Is64()) {
-    result =
-        graph()->NewNode(mcgraph()->machine()->TruncateInt64ToInt32(), result);
-  }
+  result = BuildTruncateIntPtrToInt32(result);
   return result;
 }
 
@@ -5597,7 +5626,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* function_index_smi = LOAD_RAW(
         function_data,
         WasmExportedFunctionData::kFunctionIndexOffset - kHeapObjectTag,
-        MachineType::TypeCompressedTagged());
+        MachineType::TypeCompressedTaggedSigned());
     Node* function_index = BuildChangeSmiToInt32(function_index_smi);
     return function_index;
   }
@@ -5606,8 +5635,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* jump_table_offset_smi = LOAD_RAW(
         function_data,
         WasmExportedFunctionData::kJumpTableOffsetOffset - kHeapObjectTag,
-        MachineType::TypeCompressedTagged());
-    Node* jump_table_offset = BuildChangeSmiToInt32(jump_table_offset_smi);
+        MachineType::TypeCompressedTaggedSigned());
+    Node* jump_table_offset = BuildChangeSmiToIntPtr(jump_table_offset_smi);
     return jump_table_offset;
   }
 

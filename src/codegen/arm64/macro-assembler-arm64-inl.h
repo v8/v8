@@ -1025,7 +1025,11 @@ void TurboAssembler::SmiUntag(Register dst, const MemOperand& src) {
   } else {
     DCHECK(SmiValuesAre31Bits());
     if (COMPRESS_POINTERS_BOOL) {
-      Ldrsw(dst, src);
+      if (kUseSmiCorruptingPtrDecompression) {
+        Ldr(dst.W(), src);
+      } else {
+        Ldrsw(dst, src);
+      }
     } else {
       Ldr(dst, src);
     }

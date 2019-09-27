@@ -747,10 +747,13 @@ TNode<Smi> CodeStubAssembler::NormalizeSmiIndex(TNode<Smi> smi_index) {
 }
 
 TNode<Smi> CodeStubAssembler::SmiFromInt32(SloppyTNode<Int32T> value) {
-  TNode<IntPtrT> value_intptr = ChangeInt32ToIntPtr(value);
-  TNode<Smi> smi =
-      BitcastWordToTaggedSigned(WordShl(value_intptr, SmiShiftBitsConstant()));
-  return smi;
+  if (COMPRESS_POINTERS_BOOL && kUseSmiCorruptingPtrDecompression) {
+    static_assert(!COMPRESS_POINTERS_BOOL || (kSmiShiftSize + kSmiTagSize == 1),
+                  "Use shifting instead of add");
+    return BitcastWordToTaggedSigned(
+        ChangeUint32ToWord(Int32Add(value, value)));
+  }
+  return SmiTag(ChangeInt32ToIntPtr(value));
 }
 
 TNode<Smi> CodeStubAssembler::SmiFromUint32(TNode<Uint32T> value) {
@@ -776,6 +779,9 @@ TNode<Smi> CodeStubAssembler::SmiTag(SloppyTNode<IntPtrT> value) {
   if (ToInt32Constant(value, &constant_value) && Smi::IsValid(constant_value)) {
     return SmiConstant(constant_value);
   }
+  if (COMPRESS_POINTERS_BOOL && kUseSmiCorruptingPtrDecompression) {
+    return SmiFromInt32(TruncateIntPtrToInt32(value));
+  }
   TNode<Smi> smi =
       BitcastWordToTaggedSigned(WordShl(value, SmiShiftBitsConstant()));
   return smi;
@@ -786,11 +792,19 @@ TNode<IntPtrT> CodeStubAssembler::SmiUntag(SloppyTNode<Smi> value) {
   if (ToIntPtrConstant(value, &constant_value)) {
     return IntPtrConstant(constant_value >> (kSmiShiftSize + kSmiTagSize));
   }
+  if (COMPRESS_POINTERS_BOOL && kUseSmiCorruptingPtrDecompression) {
+    return ChangeInt32ToIntPtr(SmiToInt32(value));
+  }
   return Signed(WordSar(BitcastTaggedToWordForTagAndSmiBits(value),
                         SmiShiftBitsConstant()));
 }
 
 TNode<Int32T> CodeStubAssembler::SmiToInt32(SloppyTNode<Smi> value) {
+  if (COMPRESS_POINTERS_BOOL && kUseSmiCorruptingPtrDecompression) {
+    return Signed(Word32Sar(
+        TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(value)),
+        SmiShiftBitsConstant32()));
+  }
   TNode<IntPtrT> result = SmiUntag(value);
   return TruncateIntPtrToInt32(result);
 }
@@ -9653,7 +9667,11 @@ TNode<IntPtrT> CodeStubAssembler::ElementOffsetFromIndex(
       index = smi_index.value();
     } else {
       if (COMPRESS_POINTERS_BOOL) {
-        CSA_ASSERT(this, IsValidSmiIndex(smi_index_node));
+        if (kUseSmiCorruptingPtrDecompression) {
+          smi_index_node = NormalizeSmiIndex(smi_index_node);
+        } else {
+          CSA_ASSERT(this, IsValidSmiIndex(smi_index_node));
+        }
       }
     }
     intptr_index_node = BitcastTaggedToWordForTagAndSmiBits(smi_index_node);

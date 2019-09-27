@@ -2736,18 +2736,8 @@ void TurboAssembler::DecompressAnyTagged(const Register& destination,
                                          const MemOperand& field_operand) {
   RecordComment("[ DecompressAnyTagged");
   Ldrsw(destination, field_operand);
-  if (kUseBranchlessPtrDecompressionInGeneratedCode) {
-    UseScratchRegisterScope temps(this);
-    // Branchlessly compute |masked_root|:
-    // masked_root = HAS_SMI_TAG(destination) ? 0 : kRootRegister;
-    STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag == 0));
-    Register masked_root = temps.AcquireX();
-    // Sign extend tag bit to entire register.
-    Sbfx(masked_root, destination, 0, kSmiTagSize);
-    And(masked_root, masked_root, kRootRegister);
-    // Now this add operation will either leave the value unchanged if it is a
-    // smi or add the isolate root if it is a heap object.
-    Add(destination, masked_root, destination);
+  if (kUseSmiCorruptingPtrDecompression) {
+    Add(destination, kRootRegister, destination);
   } else {
     Label done;
     JumpIfSmi(destination, &done);
@@ -2760,18 +2750,8 @@ void TurboAssembler::DecompressAnyTagged(const Register& destination,
 void TurboAssembler::DecompressAnyTagged(const Register& destination,
                                          const Register& source) {
   RecordComment("[ DecompressAnyTagged");
-  if (kUseBranchlessPtrDecompressionInGeneratedCode) {
-    UseScratchRegisterScope temps(this);
-    // Branchlessly compute |masked_root|:
-    // masked_root = HAS_SMI_TAG(destination) ? 0 : kRootRegister;
-    STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag == 0));
-    Register masked_root = temps.AcquireX();
-    // Sign extend tag bit to entire register.
-    Sbfx(masked_root, source, 0, kSmiTagSize);
-    And(masked_root, masked_root, kRootRegister);
-    // Now this add operation will either leave the value unchanged if it is a
-    // smi or add the isolate root if it is a heap object.
-    Add(destination, masked_root, Operand(source, SXTW));
+  if (kUseSmiCorruptingPtrDecompression) {
+    Add(destination, kRootRegister, Operand(source, SXTW));
   } else {
     Label done;
     Sxtw(destination, source);

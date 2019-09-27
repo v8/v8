@@ -313,17 +313,8 @@ void TurboAssembler::DecompressTaggedPointer(Register destination,
 
 void TurboAssembler::DecompressRegisterAnyTagged(Register destination,
                                                  Register scratch) {
-  if (kUseBranchlessPtrDecompressionInGeneratedCode) {
-    // Branchlessly compute |masked_root|:
-    // masked_root = HAS_SMI_TAG(destination) ? 0 : kRootRegister;
-    STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag < 32));
-    Register masked_root = scratch;
-    xorq(masked_root, masked_root);
-    Condition smi = CheckSmi(destination);
-    cmovq(NegateCondition(smi), masked_root, kRootRegister);
-    // Now this add operation will either leave the value unchanged if it is
-    // a smi or add the isolate root if it is a heap object.
-    addq(destination, masked_root);
+  if (kUseSmiCorruptingPtrDecompression) {
+    addq(destination, kRootRegister);
   } else {
     Label done;
     JumpIfSmi(destination, &done);
