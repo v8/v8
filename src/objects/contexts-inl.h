@@ -13,7 +13,6 @@
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/osr-optimized-code-cache-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/shared-function-info.h"
@@ -279,10 +278,6 @@ MicrotaskQueue* NativeContext::microtask_queue() const {
 void NativeContext::set_microtask_queue(MicrotaskQueue* microtask_queue) {
   WriteField<Address>(kMicrotaskQueueOffset,
                       reinterpret_cast<Address>(microtask_queue));
-}
-
-OSROptimizedCodeCache NativeContext::GetOSROptimizedCodeCache() {
-  return OSROptimizedCodeCache::cast(osr_code_cache());
 }
 
 OBJECT_CONSTRUCTORS_IMPL(NativeContext, Context)

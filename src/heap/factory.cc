@@ -1445,7 +1445,6 @@ Handle<NativeContext> Factory::NewNativeContext() {
   context->set_math_random_index(Smi::zero());
   context->set_serialized_objects(*empty_fixed_array());
   context->set_microtask_queue(nullptr);
-  context->set_osr_code_cache(*empty_weak_fixed_array());
   return context;
 }
 

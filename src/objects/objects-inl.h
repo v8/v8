@@ -350,13 +350,6 @@ DEF_GETTER(HeapObject, IsDependentCode, bool) {
   return true;
 }
 
-DEF_GETTER(HeapObject, IsOSROptimizedCodeCache, bool) {
-  if (!IsWeakFixedArray(isolate)) return false;
-  // There's actually no way to see the difference between a weak fixed array
-  // and a osr optimized code cache.
-  return true;
-}
-
 DEF_GETTER(HeapObject, IsAbstractCode, bool) {
   return IsBytecodeArray(isolate) || IsCode(isolate);
 }

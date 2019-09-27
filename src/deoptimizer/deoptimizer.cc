@@ -357,9 +357,6 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
   for (Code code : codes) {
     isolate->heap()->InvalidateCodeDeoptimizationData(code);
   }
-
-  native_context.GetOSROptimizedCodeCache().EvictMarkedCode(
-      native_context.GetIsolate());
 }
 
 void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
@@ -378,7 +375,6 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
   while (!context.IsUndefined(isolate)) {
     NativeContext native_context = NativeContext::cast(context);
     MarkAllCodeForContext(native_context);
-    OSROptimizedCodeCache::Clear(native_context);
     DeoptimizeMarkedCodeForContext(native_context);
     context = native_context.next_context_link();
   }
@@ -436,13 +432,6 @@ void Deoptimizer::DeoptimizeFunction(JSFunction function, Code code) {
       code.set_deopt_already_counted(true);
     }
     DeoptimizeMarkedCodeForContext(function.context().native_context());
-    // TODO(mythria): Ideally EvictMarkCode should compact the cache without
-    // having to explicitly call this. We don't do this currently because
-    // compacting causes GC and DeoptimizeMarkedCodeForContext uses raw
-    // pointers. Update DeoptimizeMarkedCodeForContext to use handles and remove
-    // this call from here.
-    OSROptimizedCodeCache::Compact(
-        Handle<NativeContext>(function.context().native_context(), isolate));
   }
 }
 

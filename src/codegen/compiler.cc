@@ -666,25 +666,21 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeCache(
       function->GetIsolate(),
       RuntimeCallCounterId::kCompileGetFromOptimizedCodeMap);
   Handle<SharedFunctionInfo> shared(function->shared(), function->GetIsolate());
-  Isolate* isolate = function->GetIsolate();
   DisallowHeapAllocation no_gc;
-  Code code;
-  if (osr_offset.IsNone() && function->has_feedback_vector()) {
-    FeedbackVector feedback_vector = function->feedback_vector();
-    feedback_vector.EvictOptimizedCodeMarkedForDeoptimization(
-        function->shared(), "GetCodeFromOptimizedCodeCache");
-    code = feedback_vector.optimized_code();
-  } else if (!osr_offset.IsNone()) {
-    code = function->context()
-               .native_context()
-               .GetOSROptimizedCodeCache()
-               .GetOptimizedCode(shared, osr_offset, isolate);
-  }
-  if (!code.is_null()) {
-    // Caching of optimized code enabled and optimized code found.
-    DCHECK(!code.marked_for_deoptimization());
-    DCHECK(function->shared().is_compiled());
-    return Handle<Code>(code, isolate);
+  if (osr_offset.IsNone()) {
+    if (function->has_feedback_vector()) {
+      FeedbackVector feedback_vector = function->feedback_vector();
+      feedback_vector.EvictOptimizedCodeMarkedForDeoptimization(
+          function->shared(), "GetCodeFromOptimizedCodeCache");
+      Code code = feedback_vector.optimized_code();
+
+      if (!code.is_null()) {
+        // Caching of optimized code enabled and optimized code found.
+        DCHECK(!code.marked_for_deoptimization());
+        DCHECK(function->shared().is_compiled());
+        return Handle<Code>(code, feedback_vector.GetIsolate());
+      }
+    }
   }
   return MaybeHandle<Code>();
 }
@@ -715,15 +711,12 @@ void InsertCodeIntoOptimizedCodeCache(
   // Cache optimized context-specific code.
   Handle<JSFunction> function = compilation_info->closure();
   Handle<SharedFunctionInfo> shared(function->shared(), function->GetIsolate());
-  Handle<NativeContext> native_context(function->context().native_context(),
-                                       function->GetIsolate());
+  Handle<Context> native_context(function->context().native_context(),
+                                 function->GetIsolate());
   if (compilation_info->osr_offset().IsNone()) {
     Handle<FeedbackVector> vector =
         handle(function->feedback_vector(), function->GetIsolate());
     FeedbackVector::SetOptimizedCode(vector, code);
-  } else {
-    OSROptimizedCodeCache::AddOptimizedCode(native_context, shared, code,
-                                            compilation_info->osr_offset());
   }
 }
 

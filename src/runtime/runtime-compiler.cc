@@ -157,9 +157,6 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
   Handle<JSFunction> function = deoptimizer->function();
-  // For OSR the optimized code isn't installed on the function, so get the
-  // code object from deoptimizer.
-  Handle<Code> optimized_code = deoptimizer->compiled_code();
   DeoptimizeKind type = deoptimizer->deopt_kind();
 
   // TODO(turbofan): We currently need the native context to materialize
@@ -177,7 +174,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
 
   // Invalidate the underlying optimized code on non-lazy deopts.
   if (type != DeoptimizeKind::kLazy) {
-    Deoptimizer::DeoptimizeFunction(*function, *optimized_code);
+    Deoptimizer::DeoptimizeFunction(*function);
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
