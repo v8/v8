@@ -2289,6 +2289,8 @@ void InstructionSelector::VisitF32x4Sub(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4Mul(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitF32x4Sqrt(Node* node) { UNIMPLEMENTED(); }
+
 void InstructionSelector::VisitF32x4Div(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4Min(Node* node) { UNIMPLEMENTED(); }
