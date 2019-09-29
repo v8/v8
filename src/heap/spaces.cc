@@ -23,6 +23,7 @@
 #include "src/heap/read-only-heap.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/slot-set.h"
+#include "src/heap/store-buffer.h"
 #include "src/heap/sweeper.h"
 #include "src/init/v8.h"
 #include "src/logging/counters.h"
@@ -865,6 +866,7 @@ void Page::MoveOldToNewRememberedSetForSweeping() {
 
 void Page::MergeOldToNewRememberedSets() {
   if (sweeping_slot_set_ == nullptr) return;
+  DCHECK(heap()->store_buffer()->Empty());
 
   RememberedSet<OLD_TO_NEW>::Iterate(
       this,
@@ -1663,6 +1665,12 @@ void PagedSpace::RefillFreeList() {
   DCHECK(!IsDetached());
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   size_t added = 0;
+
+  // Avoid races with concurrent store buffer processing when merging
+  // old-to-new remembered sets later.
+  if (!is_local()) {
+    heap()->MoveStoreBufferEntriesToRememberedSet();
+  }
 
   {
     Page* p = nullptr;

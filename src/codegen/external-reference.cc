@@ -217,8 +217,10 @@ struct IsValidExternalReferenceType<Result (Class::*)(Args...)> {
 FUNCTION_REFERENCE(incremental_marking_record_write_function,
                    IncrementalMarking::RecordWriteFromCode)
 
-FUNCTION_REFERENCE(insert_remembered_set_function,
-                   Heap::InsertIntoRememberedSetFromCode)
+ExternalReference ExternalReference::store_buffer_overflow_function() {
+  return ExternalReference(
+      Redirect(Heap::store_buffer_overflow_function_address()));
+}
 
 FUNCTION_REFERENCE(delete_handle_scope_extensions,
                    HandleScope::DeleteExtensions)
@@ -338,6 +340,10 @@ ExternalReference ExternalReference::address_of_real_jslimit(Isolate* isolate) {
   // For efficient generated code, this should be root-register-addressable.
   DCHECK(isolate->root_register_addressable_region().contains(address));
   return ExternalReference(address);
+}
+
+ExternalReference ExternalReference::store_buffer_top(Isolate* isolate) {
+  return ExternalReference(isolate->heap()->store_buffer_top_address());
 }
 
 ExternalReference ExternalReference::heap_is_marking_flag_address(

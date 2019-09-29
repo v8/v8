@@ -10,18 +10,11 @@
 #include "src/base/atomic-utils.h"
 #include "src/common/globals.h"
 #include "src/heap/marking.h"
-#include "src/heap/slot-set.h"
 
 namespace v8 {
 namespace internal {
 
 class MemoryChunk;
-
-enum RememberedSetType {
-  OLD_TO_NEW,
-  OLD_TO_OLD,
-  NUMBER_OF_REMEMBERED_SET_TYPES
-};
 
 class BasicMemoryChunk {
  public:
@@ -177,11 +170,6 @@ class BasicMemoryChunk {
   static const intptr_t kHeapOffset = kMarkBitmapOffset + kSystemPointerSize;
   static const intptr_t kHeaderSentinelOffset =
       kHeapOffset + kSystemPointerSize;
-  static const intptr_t kAreaStartOffset =
-      kHeaderSentinelOffset + kSystemPointerSize;
-  static const intptr_t kAreaEndOffset = kAreaStartOffset + kSystemPointerSize;
-  static const intptr_t kOldToNewSlotSetOffset =
-      kAreaEndOffset + kSystemPointerSize;
 
   static const size_t kHeaderSize =
       kSizeOffset + kSizetSize  // size_t size
@@ -190,8 +178,7 @@ class BasicMemoryChunk {
       + kSystemPointerSize      // Heap* heap_
       + kSystemPointerSize      // Address header_sentinel_
       + kSystemPointerSize      // Address area_start_
-      + kSystemPointerSize      // Address area_end_
-      + kSystemPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES;  // SlotSet* array
+      + kSystemPointerSize;     // Address area_end_
 
  protected:
   // Overall size of the chunk, including the header and guards.
@@ -217,11 +204,6 @@ class BasicMemoryChunk {
   Address area_start_;
   Address area_end_;
 
-  // A single slot set for small pages (of size kPageSize) or an array of slot
-  // set for large pages. In the latter case the number of entries in the array
-  // is ceil(size() / kPageSize).
-  SlotSet* slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES];
-
   friend class BasicMemoryChunkValidator;
 };
 
@@ -239,8 +221,6 @@ class BasicMemoryChunkValidator {
                 offsetof(BasicMemoryChunk, heap_));
   STATIC_ASSERT(BasicMemoryChunk::kHeaderSentinelOffset ==
                 offsetof(BasicMemoryChunk, header_sentinel_));
-  STATIC_ASSERT(BasicMemoryChunk::kOldToNewSlotSetOffset ==
-                offsetof(BasicMemoryChunk, slot_set_));
 };
 
 }  // namespace internal

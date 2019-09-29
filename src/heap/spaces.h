@@ -130,6 +130,12 @@ enum FreeMode { kLinkCategory, kDoNotLinkCategory };
 
 enum class SpaceAccountingMode { kSpaceAccounted, kSpaceUnaccounted };
 
+enum RememberedSetType {
+  OLD_TO_NEW,
+  OLD_TO_OLD,
+  NUMBER_OF_REMEMBERED_SET_TYPES
+};
+
 // A free list category maintains a linked list of free memory blocks.
 class FreeListCategory {
  public:
@@ -600,6 +606,7 @@ class MemoryChunk : public BasicMemoryChunk {
       + kSystemPointerSize           // Address owner_
       + kSizetSize                   // size_t progress_bar_
       + kIntptrSize                  // intptr_t live_byte_count_
+      + kSystemPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES  // SlotSet* array
       + kSystemPointerSize  // SlotSet* sweeping_slot_set_
       + kSystemPointerSize *
             NUMBER_OF_REMEMBERED_SET_TYPES  // TypedSlotSet* array
@@ -915,6 +922,7 @@ class MemoryChunk : public BasicMemoryChunk {
   // A single slot set for small pages (of size kPageSize) or an array of slot
   // set for large pages. In the latter case the number of entries in the array
   // is ceil(size() / kPageSize).
+  SlotSet* slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES];
   SlotSet* sweeping_slot_set_;
   TypedSlotSet* typed_slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES];
   InvalidatedSlots* invalidated_slots_[NUMBER_OF_REMEMBERED_SET_TYPES];
