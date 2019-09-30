@@ -87,8 +87,6 @@ void StackGuard::PushInterruptsScope(InterruptsScope* scope) {
       current->intercepted_flags_ &= ~scope->intercept_mask_;
     }
     thread_local_.interrupt_flags_ |= restored_flags;
-
-    if (has_pending_interrupts(access)) set_interrupt_limits(access);
   }
   if (!has_pending_interrupts(access)) reset_limits(access);
   // Add scope to the chain.
@@ -307,6 +305,8 @@ Object StackGuard::HandleInterrupts() {
   }
 
   isolate_->counters()->stack_interrupts()->Increment();
+  isolate_->counters()->runtime_profiler_ticks()->Increment();
+  isolate_->runtime_profiler()->MarkCandidatesForOptimization();
 
   return ReadOnlyRoots(isolate_).undefined_value();
 }
