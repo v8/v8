@@ -615,7 +615,7 @@ CPU::CPU()
 #else
   using elf_auxv_t = Elf32_auxv_t;
 #endif
-  for (elf_auxv_t* entry = reinterpret_cast<elf_quxv_t*>(head);
+  for (elf_auxv_t* entry = reinterpret_cast<elf_auxv_t*>(head);
        entry->a_type != AT_NULL; ++entry) {
     switch (entry->a_type) {
       case AT_PLATFORM:
