@@ -37,6 +37,7 @@ ADDITIONAL_FLAGS = [
   (0.01, '--thread-pool-size=4'),
   (0.01, '--thread-pool-size=8'),
   (0.1, '--interrupt-budget=1000'),
+  (0.25, '--future'),
 ]
 
 class Config(object):
