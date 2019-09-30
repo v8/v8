@@ -38,7 +38,7 @@ class ConfigTest(unittest.TestCase):
         return 0.5
     self.assertEqual(
         [
-          '--first-config=ignition',
+          '--first-config=ignition_no_ic',
           '--second-config=ignition_turbo',
           '--second-d8=d8',
           '--second-config-extra-flags=--stress-scavenge=100',
