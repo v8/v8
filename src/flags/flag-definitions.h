@@ -763,9 +763,10 @@ DEFINE_BOOL(wasm_code_gc, true, "enable garbage collection of wasm code")
 DEFINE_BOOL(trace_wasm_code_gc, false, "trace garbage collection of wasm code")
 DEFINE_BOOL(stress_wasm_code_gc, false,
             "stress test garbage collection of wasm code")
-DEFINE_BOOL(wasm_far_jump_table, true,
+DEFINE_BOOL(wasm_far_jump_table, false,
             "use multiple separate code spaces that might require far jumps "
             "between them")
+DEFINE_IMPLICATION(future, wasm_far_jump_table)
 DEFINE_INT(wasm_max_initial_code_space_reservation, 0,
            "maximum size of the initial wasm code space reservation (in MB)")
 
