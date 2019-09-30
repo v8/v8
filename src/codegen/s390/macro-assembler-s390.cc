@@ -1342,12 +1342,11 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
   {
     // Load receiver to pass it later to DebugOnFunctionCall hook.
     if (actual.is_reg()) {
-      LoadRR(r6, actual.reg());
+      ShiftLeftP(r6, actual.reg(), Operand(kPointerSizeLog2));
+      LoadP(r6, MemOperand(sp, r6));
     } else {
-      mov(r6, Operand(actual.immediate()));
+      LoadP(r6, MemOperand(sp, actual.immediate() << kPointerSizeLog2), ip);
     }
-    ShiftLeftP(r6, r6, Operand(kPointerSizeLog2));
-    LoadP(r6, MemOperand(sp, r6));
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
     if (expected.is_reg()) {
