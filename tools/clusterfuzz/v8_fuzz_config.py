@@ -38,6 +38,10 @@ ADDITIONAL_FLAGS = [
   (0.01, '--thread-pool-size=8'),
   (0.1, '--interrupt-budget=1000'),
   (0.25, '--future'),
+  (0.2, '--no-regexp-tier-up'),
+  (0.1, '--regexp-interpret-all'),
+  (0.1, '--regexp-tier-up-ticks=10'),
+  (0.1, '--regexp-tier-up-ticks=100'),
 ]
 
 class Config(object):

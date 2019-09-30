@@ -42,6 +42,7 @@ class ConfigTest(unittest.TestCase):
           '--second-config=ignition_turbo',
           '--second-d8=d8',
           '--second-config-extra-flags=--stress-scavenge=100',
+          '--second-config-extra-flags=--no-regexp-tier-up',
         ],
         v8_fuzz_config.Config('foo', Rng(), 42).choose_foozzie_flags(),
     )
