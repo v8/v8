@@ -461,7 +461,7 @@ TEST_P(TrapHandlerTest, TestCrashInOtherThread) {
   *trap_handler::GetThreadInWasmThreadLocalAddress() = 0;
 }
 
-INSTANTIATE_TEST_SUITE_P(/* no prefix */, TrapHandlerTest,
+INSTANTIATE_TEST_SUITE_P(Traps, TrapHandlerTest,
                          ::testing::Values(kDefault, kCallback),
                          PrintTrapHandlerTestParam);
 
