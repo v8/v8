@@ -283,6 +283,7 @@ extras_accessors = [
     'Code, instruction_start, uintptr_t, kHeaderSize',
     'Code, instruction_size, int, kInstructionSizeOffset',
     'String, length, int32_t, kLengthOffset',
+    'DescriptorArray, header_size, uintptr_t, kHeaderSize',
 ];
 
 #
@@ -293,7 +294,8 @@ extras_accessors = [
 expected_classes = [
     'ConsString', 'FixedArray', 'HeapNumber', 'JSArray', 'JSFunction',
     'JSObject', 'JSRegExp', 'JSPrimitiveWrapper', 'Map', 'Oddball', 'Script',
-    'SeqOneByteString', 'SharedFunctionInfo', 'ScopeInfo', 'JSPromise'
+    'SeqOneByteString', 'SharedFunctionInfo', 'ScopeInfo', 'JSPromise',
+    'DescriptorArray'
 ];
 
 
