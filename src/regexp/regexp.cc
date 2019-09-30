@@ -600,20 +600,6 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(
   }
 #endif
 
-  // For very long subject strings, the regexp interpreter is currently much
-  // slower than the jitted code execution. If the tier-up strategy is turned
-  // on, we want to avoid this performance penalty so we eagerly tier-up if the
-  // subject string length is equal or greater than the given heuristic value.
-  if (FLAG_regexp_tier_up &&
-      subject->length() >= JSRegExp::kTierUpForSubjectLengthValue) {
-    regexp->MarkTierUpForNextExec();
-    if (FLAG_trace_regexp_tier_up) {
-      PrintF(
-          "Forcing tier-up for very long strings in "
-          "RegExpImpl::IrregexpExec\n");
-    }
-  }
-
   // Prepare space for the return values.
   int required_registers = RegExp::IrregexpPrepare(isolate, regexp, subject);
   if (required_registers < 0) {

@@ -200,10 +200,6 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   // The uninitialized value for a regexp code object.
   static const int kUninitializedValue = -1;
 
-  // The heuristic value for the length of the subject string for which we
-  // tier-up to the compiler immediately, instead of using the interpreter.
-  static constexpr int kTierUpForSubjectLengthValue = 1000;
-
   TQ_OBJECT_CONSTRUCTORS(JSRegExp)
 };
 

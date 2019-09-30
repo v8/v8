@@ -91,15 +91,3 @@ assertTrue(!%RegexpHasBytecode(re_g, kLatin1) &&
             %RegexpHasNativeCode(re_g, kLatin1));
 assertTrue(!%RegexpHasBytecode(re_g, kUnicode) &&
             !%RegexpHasNativeCode(re_g, kUnicode));
-
-// Testing eager tier-up for very long strings.
-let dna = "ATCG".repeat(251);
-
-re_g = />.*\n|\n/;
-CheckRegexpNotYetCompiled(re_g);
-
-dna = dna.replace(re_g,"");
-assertTrue(!%RegexpHasBytecode(re_g, kLatin1) &&
-            %RegexpHasNativeCode(re_g, kLatin1));
-assertTrue(!%RegexpHasBytecode(re_g, kUnicode) &&
-            !%RegexpHasNativeCode(re_g, kUnicode));
