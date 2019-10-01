@@ -9,6 +9,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/regexp/regexp-bytecode-generator.h"
+#include "src/regexp/regexp-bytecodes.h"
 #include "src/regexp/regexp-compiler.h"
 #include "src/regexp/regexp-dotprinter.h"
 #include "src/regexp/regexp-interpreter.h"
@@ -881,7 +882,8 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
         data->compilation_target == RegExpCompilationTarget::kBytecode) {
       Handle<ByteArray> bytecode(ByteArray::cast(result.code), isolate);
       auto pattern_cstring = pattern->ToCString();
-      IrregexpInterpreter::Disassemble(*bytecode, pattern_cstring.get());
+      RegExpBytecodeDisassemble(bytecode->GetDataStartAddress(),
+                                bytecode->length(), pattern_cstring.get());
     }
   }
 

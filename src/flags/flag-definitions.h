@@ -1274,6 +1274,15 @@ DEFINE_BOOL(regexp_tier_up, true,
 DEFINE_INT(regexp_tier_up_ticks, 1,
            "set the number of executions for the regexp interpreter before "
            "tiering-up to the compiler")
+DEFINE_BOOL(regexp_peephole_optimization, true,
+            "enable peephole optimization for regexp bytecode")
+DEFINE_BOOL(trace_regexp_peephole_optimization, false,
+            "trace regexp bytecode peephole optimization")
+DEFINE_BOOL(trace_regexp_bytecodes, false, "trace regexp bytecode execution")
+DEFINE_BOOL(trace_regexp_assembler, false,
+            "trace regexp macro assembler calls.")
+DEFINE_BOOL(trace_regexp_parser, false, "trace regexp parsing")
+DEFINE_BOOL(trace_regexp_tier_up, false, "trace regexp tiering up execution")
 
 // Testing flags test/cctest/test-{flags,api,serialization}.cc
 DEFINE_BOOL(testing_bool_flag, true, "testing_bool_flag")
@@ -1408,11 +1417,6 @@ DEFINE_BOOL(trace_isolates, false, "trace isolate state changes")
 // Regexp
 DEFINE_BOOL(regexp_possessive_quantifier, false,
             "enable possessive quantifier syntax for testing")
-DEFINE_BOOL(trace_regexp_bytecodes, false, "trace regexp bytecode execution")
-DEFINE_BOOL(trace_regexp_assembler, false,
-            "trace regexp macro assembler calls.")
-DEFINE_BOOL(trace_regexp_parser, false, "trace regexp parsing")
-DEFINE_BOOL(trace_regexp_tier_up, false, "trace regexp tiering up execution")
 
 // Debugger
 DEFINE_BOOL(print_break_location, false, "print source location on debug break")
