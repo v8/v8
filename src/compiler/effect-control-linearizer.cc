@@ -1615,7 +1615,7 @@ Node* EffectControlLinearizer::LowerTruncateTaggedToBit(Node* node) {
   __ Bind(&if_smi);
   {
     // If {value} is a Smi, then we only need to check that it's not zero.
-    __ Goto(&done, __ Word32Equal(__ IntPtrEqual(value, __ IntPtrConstant(0)),
+    __ Goto(&done, __ Word32Equal(__ TaggedEqual(value, __ SmiConstant(0)),
                                   __ Int32Constant(0)));
   }
 
@@ -3534,8 +3534,12 @@ Node* EffectControlLinearizer::LowerArgumentsFrame(Node* node) {
   Node* parent_frame =
       __ Load(MachineType::Pointer(), frame,
               __ IntPtrConstant(StandardFrameConstants::kCallerFPOffset));
+  // Load parent frame type as an uncompressed value to avoid corruption
+  // in case it contains a frame type marker. Frame type marker is a pseudo-Smi
+  // containing a StackFrame::Type value shifted left by kSmiTagSize (see
+  // StackFrame::TypeToMarker() for details).
   Node* parent_frame_type = __ Load(
-      MachineType::TypeCompressedTagged(), parent_frame,
+      MachineType::AnyTagged(), parent_frame,
       __ IntPtrConstant(CommonFrameConstants::kContextOrFrameTypeOffset));
 
   __ GotoIf(__ IntPtrEqual(parent_frame_type,

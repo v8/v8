@@ -1272,8 +1272,13 @@ Node* RepresentationChanger::GetBitRepresentationFor(
       }
     }
   } else if (output_rep == MachineRepresentation::kTaggedSigned) {
-    node = jsgraph()->graph()->NewNode(machine()->WordEqual(), node,
-                                       jsgraph()->IntPtrConstant(0));
+    if (COMPRESS_POINTERS_BOOL && kUseSmiCorruptingPtrDecompression) {
+      node = jsgraph()->graph()->NewNode(machine()->Word32Equal(), node,
+                                         jsgraph()->Int32Constant(0));
+    } else {
+      node = jsgraph()->graph()->NewNode(machine()->WordEqual(), node,
+                                         jsgraph()->IntPtrConstant(0));
+    }
     return jsgraph()->graph()->NewNode(machine()->Word32Equal(), node,
                                        jsgraph()->Int32Constant(0));
   } else if (output_rep == MachineRepresentation::kCompressed) {
