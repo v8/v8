@@ -545,7 +545,8 @@ bool Map::CanBeDeprecated() const {
     PropertyDetails details = instance_descriptors().GetDetails(i);
     if (details.representation().IsNone()) return true;
     if (details.representation().IsSmi()) return true;
-    if (details.representation().IsDouble()) return true;
+    if (details.representation().IsDouble() && FLAG_unbox_double_fields)
+      return true;
     if (details.representation().IsHeapObject()) return true;
     if (details.kind() == kData && details.location() == kDescriptor) {
       return true;
