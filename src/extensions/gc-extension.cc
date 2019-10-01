@@ -42,7 +42,7 @@ GCOptions Parse(v8::Isolate* isolate, v8::Local<v8::Context> ctx,
                 ExecutionType::kSync};
   bool found_options_object = false;
 
-  if (args[0]->IsObject()) {
+  if (args[0]->IsObject() && !args[0]->IsProxy()) {
     auto param = v8::Local<v8::Object>::Cast(args[0]);
     if (IsProperty(isolate, ctx, param, "type", "minor")) {
       found_options_object = true;
