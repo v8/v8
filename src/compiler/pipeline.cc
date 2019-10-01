@@ -852,7 +852,9 @@ class PipelineRunScope {
   PipelineRunScope(PipelineData* data, const char* phase_name)
       : phase_scope_(data->pipeline_statistics(), phase_name),
         zone_scope_(data->zone_stats(), phase_name),
-        origin_scope_(data->node_origins(), phase_name) {}
+        origin_scope_(data->node_origins(), phase_name) {
+    DCHECK_NOT_NULL(phase_name);
+  }
 
   Zone* zone() { return zone_scope_.zone(); }
 
@@ -2171,7 +2173,7 @@ struct FinalizeCodePhase {
 
 
 struct PrintGraphPhase {
-  static const char* phase_name() { return nullptr; }
+  static const char* phase_name() { return "V8.TFPrintGraph"; }
 
   void Run(PipelineData* data, Zone* temp_zone, const char* phase) {
     OptimizedCompilationInfo* info = data->info();
@@ -2212,7 +2214,7 @@ struct PrintGraphPhase {
 
 
 struct VerifyGraphPhase {
-  static const char* phase_name() { return nullptr; }
+  static const char* phase_name() { return "V8.TFVerifyGraph"; }
 
   void Run(PipelineData* data, Zone* temp_zone, const bool untyped,
            bool values_only = false) {
@@ -3127,6 +3129,7 @@ void PipelineImpl::AssembleCode(Linkage* linkage,
 
 MaybeHandle<Code> PipelineImpl::FinalizeCode(bool retire_broker) {
   PipelineData* data = this->data_;
+  data->BeginPhaseKind("V8.TFFinalizeCode");
   if (data->broker() && retire_broker) {
     data->broker()->Retire();
   }
@@ -3177,6 +3180,7 @@ MaybeHandle<Code> PipelineImpl::FinalizeCode(bool retire_broker) {
        << "Finished compiling method " << info()->GetDebugName().get()
        << " using TurboFan" << std::endl;
   }
+  data->EndPhaseKind();
   return code;
 }
 
