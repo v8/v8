@@ -867,7 +867,8 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
                           requested_locales, matcher, relevant_extension_keys);
 
   UErrorCode status = U_ZERO_ERROR;
-  if (numbering_system_str != nullptr) {
+  if (numbering_system_str != nullptr &&
+      Intl::IsValidNumberingSystem(numbering_system_str.get())) {
     r.icu_locale.setUnicodeKeywordValue("nu", numbering_system_str.get(),
                                         status);
     CHECK(U_SUCCESS(status));

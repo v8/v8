@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-intl-add-calendar-numbering-system
-
 let invalidNumberingSystem = [
   "invalid",
   "abce",
@@ -52,35 +50,36 @@ let locales = [
   "ar",
 ];
 
+
 invalidNumberingSystem.forEach(function(numberingSystem) {
   locales.forEach(function(base) {
-     var df;
-     assertDoesNotThrow(
-         () => df = new Intl.DateTimeFormat([base], {numberingSystem}));
-     assertEquals(
-         (new Intl.DateTimeFormat([base])).resolvedOptions().numberingSystem,
-         df.resolvedOptions().numberingSystem);
+    var df;
+    assertDoesNotThrow(
+        () => df = new Intl.RelativeTimeFormat([base], {numberingSystem}));
+    assertEquals(
+        (new Intl.RelativeTimeFormat([base])).resolvedOptions().numberingSystem,
+        df.resolvedOptions().numberingSystem);
   });
 });
 
 illFormedNumberingSystem.forEach(function(numberingSystem) {
   assertThrows(
-      () => new Intl.DateTimeFormat(["en"], {numberingSystem}),
+      () => new Intl.RelativeTimeFormat(["en"], {numberingSystem}),
       RangeError);
 });
 
-let value = new Date();
+let value = 1234567.89;
 validNumberingSystem.forEach(function(numberingSystem) {
   locales.forEach(function(base) {
     let l = base + "-u-nu-" + numberingSystem;
-    let dtf = new Intl.DateTimeFormat([base], {numberingSystem});
-    assertEquals(l, dtf.resolvedOptions().locale);
-    assertEquals(numberingSystem, dtf.resolvedOptions().numberingSystem);
+    let nf = new Intl.RelativeTimeFormat([base], {numberingSystem});
+    assertEquals(l, nf.resolvedOptions().locale);
+    assertEquals(numberingSystem, nf.resolvedOptions().numberingSystem);
 
     // Test the formatting result is the same as passing in via u-nu-
     // in the locale.
-    let dtf2 = new Intl.DateTimeFormat([l]);
-    assertEquals(dtf2.format(value), dtf.format(value));
+    let nf2 = new Intl.RelativeTimeFormat([l]);
+    assertEquals(nf2.format(value, "day"), nf.format(value, "day"));
   });
 }
 );

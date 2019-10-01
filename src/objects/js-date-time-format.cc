@@ -1225,6 +1225,10 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   // 4. Let matcher be ? GetOption(options, "localeMatcher", "string",
   // « "lookup", "best fit" », "best fit").
   // 5. Set opt.[[localeMatcher]] to matcher.
+  Maybe<Intl::MatcherOption> maybe_locale_matcher =
+      Intl::GetLocaleMatcher(isolate, options, service);
+  MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSDateTimeFormat>());
+  Intl::MatcherOption locale_matcher = maybe_locale_matcher.FromJust();
 
   std::unique_ptr<char[]> calendar_str = nullptr;
   std::unique_ptr<char[]> numbering_system_str = nullptr;
@@ -1237,7 +1241,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     MAYBE_RETURN(maybe_calendar, MaybeHandle<JSDateTimeFormat>());
     if (maybe_calendar.FromJust() && calendar_str != nullptr) {
       icu::Locale default_locale;
-      if (!Intl::IsValidCalendar(default_locale, calendar_str.get())) {
+      if (!Intl::IsWellFormedCalendar(calendar_str.get())) {
         THROW_NEW_ERROR(
             isolate,
             NewRangeError(
@@ -1253,11 +1257,6 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
         isolate, options, service, &numbering_system_str);
     MAYBE_RETURN(maybe_numberingSystem, MaybeHandle<JSDateTimeFormat>());
   }
-
-  Maybe<Intl::MatcherOption> maybe_locale_matcher =
-      Intl::GetLocaleMatcher(isolate, options, service);
-  MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSDateTimeFormat>());
-  Intl::MatcherOption locale_matcher = maybe_locale_matcher.FromJust();
 
   // 6. Let hour12 be ? GetOption(options, "hour12", "boolean", undefined,
   // undefined).
@@ -1298,12 +1297,14 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   DCHECK(!icu_locale.isBogus());
 
   UErrorCode status = U_ZERO_ERROR;
-  if (calendar_str != nullptr) {
+  if (calendar_str != nullptr &&
+      Intl::IsValidCalendar(icu_locale, calendar_str.get())) {
     icu_locale.setUnicodeKeywordValue("ca", calendar_str.get(), status);
     CHECK(U_SUCCESS(status));
   }
 
-  if (numbering_system_str != nullptr) {
+  if (numbering_system_str != nullptr &&
+      Intl::IsValidNumberingSystem(numbering_system_str.get())) {
     icu_locale.setUnicodeKeywordValue("nu", numbering_system_str.get(), status);
     CHECK(U_SUCCESS(status));
   }

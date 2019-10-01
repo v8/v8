@@ -271,6 +271,12 @@ class Intl {
   static bool IsValidCalendar(const icu::Locale& locale,
                               const std::string& value);
 
+  // Check the numberingSystem is valid.
+  static bool IsValidNumberingSystem(const std::string& value);
+
+  // Check the calendar is well formed.
+  static bool IsWellFormedCalendar(const std::string& value);
+
   struct ResolvedLocale {
     std::string locale;
     icu::Locale icu_locale;

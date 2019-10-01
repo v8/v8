@@ -170,6 +170,15 @@ bool IsExtensionSingleton(const std::string& value) {
 }
 }  // namespace
 
+bool JSLocale::Is38AlphaNumList(const std::string& value) {
+  std::size_t found = value.find("-");
+  if (found == std::string::npos) {
+    return IsAlphanum(value, 3, 8);
+  }
+  return IsAlphanum(value.substr(0, found), 3, 8) &&
+         JSLocale::Is38AlphaNumList(value.substr(found + 1));
+}
+
 // TODO(ftang) Replace the following check w/ icu::LocaleBuilder
 // once ICU64 land in March 2019.
 bool JSLocale::StartsWithUnicodeLanguageId(const std::string& value) {

@@ -1582,20 +1582,28 @@ bool IsValidCollation(const icu::Locale& locale, const std::string& value) {
 
 }  // namespace
 
+bool Intl::IsWellFormedCalendar(const std::string& value) {
+  return JSLocale::Is38AlphaNumList(value);
+}
+
 bool Intl::IsValidCalendar(const icu::Locale& locale,
                            const std::string& value) {
   return IsValidExtension<icu::Calendar>(locale, "calendar", value);
 }
 
-namespace {
-
-bool IsValidNumberingSystem(const std::string& value) {
+bool Intl::IsValidNumberingSystem(const std::string& value) {
   std::set<std::string> invalid_values = {"native", "traditio", "finance"};
   if (invalid_values.find(value) != invalid_values.end()) return false;
   UErrorCode status = U_ZERO_ERROR;
   std::unique_ptr<icu::NumberingSystem> numbering_system(
       icu::NumberingSystem::createInstanceByName(value.c_str(), status));
   return U_SUCCESS(status) && numbering_system.get() != nullptr;
+}
+
+namespace {
+
+bool IsWellFormedNumberingSystem(const std::string& value) {
+  return JSLocale::Is38AlphaNumList(value);
 }
 
 std::map<std::string, std::string> LookupAndValidateUnicodeExtensions(
@@ -1659,7 +1667,7 @@ std::map<std::string, std::string> LookupAndValidateUnicodeExtensions(
         std::set<std::string> valid_values = {"upper", "lower", "false"};
         is_valid_value = valid_values.find(bcp47_value) != valid_values.end();
       } else if (strcmp("nu", bcp47_key) == 0) {
-        is_valid_value = IsValidNumberingSystem(bcp47_value);
+        is_valid_value = Intl::IsValidNumberingSystem(bcp47_value);
       }
       if (is_valid_value) {
         extensions.insert(
@@ -1985,7 +1993,7 @@ Maybe<bool> Intl::GetNumberingSystem(Isolate* isolate,
                                             empty_values, method, result);
   MAYBE_RETURN(maybe, Nothing<bool>());
   if (maybe.FromJust() && *result != nullptr) {
-    if (!IsValidNumberingSystem(result->get())) {
+    if (!IsWellFormedNumberingSystem(result->get())) {
       THROW_NEW_ERROR_RETURN_VALUE(
           isolate,
           NewRangeError(
