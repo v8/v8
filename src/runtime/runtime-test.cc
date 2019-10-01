@@ -711,6 +711,7 @@ RUNTIME_FUNCTION(Runtime_SimulateNewspaceFull) {
   Heap* heap = isolate->heap();
   NewSpace* space = heap->new_space();
   PauseAllocationObserversScope pause_observers(heap);
+  AlwaysAllocateScope always_allocate(heap);
   do {
     FillUpOneNewSpacePage(isolate, heap);
   } while (space->AddFreshPage());

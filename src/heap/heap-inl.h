@@ -176,8 +176,9 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
   HeapObject object;
   AllocationResult allocation;
 
-  if (FLAG_single_generation && type == AllocationType::kYoung)
+  if (FLAG_single_generation && type == AllocationType::kYoung) {
     type = AllocationType::kOld;
+  }
 
   if (AllocationType::kYoung == type) {
     if (large_object) {
@@ -250,7 +251,7 @@ HeapObject Heap::AllocateRawWith(int size, AllocationType allocation,
   Address* limit = heap->NewSpaceAllocationLimitAddress();
   if (allocation == AllocationType::kYoung &&
       alignment == AllocationAlignment::kWordAligned &&
-      size < kMaxRegularHeapObjectSize &&
+      size <= kMaxRegularHeapObjectSize &&
       (*limit - *top >= static_cast<unsigned>(size)) &&
       V8_LIKELY(!FLAG_single_generation && FLAG_inline_new &&
                 FLAG_gc_interval == 0)) {
