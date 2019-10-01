@@ -857,23 +857,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void minss(XMMRegister dst, XMMRegister src) { minss(dst, Operand(src)); }
   void minss(XMMRegister dst, Operand src);
 
-  void andps(XMMRegister dst, Operand src);
-  void andps(XMMRegister dst, XMMRegister src) { andps(dst, Operand(src)); }
-  void andnps(XMMRegister dst, Operand src);
-  void andnps(XMMRegister dst, XMMRegister src) { andnps(dst, Operand(src)); }
-  void xorps(XMMRegister dst, Operand src);
-  void xorps(XMMRegister dst, XMMRegister src) { xorps(dst, Operand(src)); }
-  void orps(XMMRegister dst, Operand src);
-  void orps(XMMRegister dst, XMMRegister src) { orps(dst, Operand(src)); }
-
-  void addps(XMMRegister dst, Operand src);
-  void addps(XMMRegister dst, XMMRegister src) { addps(dst, Operand(src)); }
-  void subps(XMMRegister dst, Operand src);
-  void subps(XMMRegister dst, XMMRegister src) { subps(dst, Operand(src)); }
-  void mulps(XMMRegister dst, Operand src);
-  void mulps(XMMRegister dst, XMMRegister src) { mulps(dst, Operand(src)); }
-  void divps(XMMRegister dst, Operand src);
-  void divps(XMMRegister dst, XMMRegister src) { divps(dst, Operand(src)); }
   void rcpps(XMMRegister dst, Operand src);
   void rcpps(XMMRegister dst, XMMRegister src) { rcpps(dst, Operand(src)); }
   void sqrtps(XMMRegister dst, Operand src);
@@ -886,11 +869,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     sse2_instr(dst, src, 0x66, 0x0F, 0x51);
   }
   void sqrtpd(XMMRegister dst, XMMRegister src) { sqrtpd(dst, Operand(src)); }
-
-  void minps(XMMRegister dst, Operand src);
-  void minps(XMMRegister dst, XMMRegister src) { minps(dst, Operand(src)); }
-  void maxps(XMMRegister dst, Operand src);
-  void maxps(XMMRegister dst, XMMRegister src) { maxps(dst, Operand(src)); }
 
   void cmpps(XMMRegister dst, Operand src, uint8_t cmp);
   void cmpps(XMMRegister dst, XMMRegister src, uint8_t cmp) {
@@ -1511,6 +1489,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   void rorx(Register dst, Operand src, byte imm8);
 
+  // Implementation of packed single-precision floating-point SSE instructions.
+  void ps(byte op, XMMRegister dst, Operand src);
+
 #define PACKED_OP_LIST(V) \
   V(and, 0x54)            \
   V(andn, 0x55)           \
@@ -1522,6 +1503,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   V(min, 0x5d)            \
   V(div, 0x5e)            \
   V(max, 0x5f)
+
+#define SSE_PACKED_OP_DECLARE(name, opcode)         \
+  void name##ps(XMMRegister dst, XMMRegister src) { \
+    ps(opcode, dst, Operand(src));                  \
+  }                                                 \
+  void name##ps(XMMRegister dst, Operand src) { ps(opcode, dst, src); }
+
+  PACKED_OP_LIST(SSE_PACKED_OP_DECLARE)
+#undef SSE_PACKED_OP_DECLARE
 
 #define AVX_PACKED_OP_DECLARE(name, opcode)                               \
   void v##name##ps(XMMRegister dst, XMMRegister src1, XMMRegister src2) { \
@@ -1538,6 +1528,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   PACKED_OP_LIST(AVX_PACKED_OP_DECLARE)
+#undef AVX_PACKED_OP_DECLARE
+#undef PACKED_OP_LIST
   void vps(byte op, XMMRegister dst, XMMRegister src1, Operand src2);
   void vpd(byte op, XMMRegister dst, XMMRegister src1, Operand src2);
 
