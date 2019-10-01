@@ -3179,11 +3179,6 @@ void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
   BIND(&if_heapobject);
   {
     Label try_handler(this), miss(this, Label::kDeferred);
-    // We use pre-monomorphic state for global stores that run into
-    // interceptors because the property doesn't exist yet. Using
-    // pre-monomorphic state gives it a chance to find more information the
-    // second time.
-    GotoIf(TaggedEqual(maybe_weak_ref, PremonomorphicSymbolConstant()), &miss);
 
     CSA_ASSERT(this, IsWeakOrCleared(maybe_weak_ref));
     TNode<PropertyCell> property_cell =

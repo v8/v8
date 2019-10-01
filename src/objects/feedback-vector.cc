@@ -52,7 +52,6 @@ static bool IsPropertyNameFeedback(MaybeObject feedback) {
   Symbol symbol = Symbol::cast(heap_object);
   ReadOnlyRoots roots = symbol.GetReadOnlyRoots();
   return symbol != roots.uninitialized_symbol() &&
-         symbol != roots.premonomorphic_symbol() &&
          symbol != roots.megamorphic_symbol();
 }
 
@@ -524,12 +523,6 @@ bool FeedbackNexus::Clear() {
   return feedback_updated;
 }
 
-void FeedbackNexus::ConfigurePremonomorphic(Handle<Map> receiver_map) {
-  SetFeedback(*FeedbackVector::PremonomorphicSentinel(GetIsolate()),
-              SKIP_WRITE_BARRIER);
-  SetFeedbackExtra(HeapObjectReference::Weak(*receiver_map));
-}
-
 bool FeedbackNexus::ConfigureMegamorphic() {
   DisallowHeapAllocation no_gc;
   Isolate* isolate = GetIsolate();
@@ -585,13 +578,6 @@ InlineCacheState FeedbackNexus::ic_state() const {
     case FeedbackSlotKind::kLoadGlobalInsideTypeof: {
       if (feedback->IsSmi()) return MONOMORPHIC;
 
-      if (feedback == MaybeObject::FromObject(
-                          *FeedbackVector::PremonomorphicSentinel(isolate))) {
-        DCHECK(kind() == FeedbackSlotKind::kStoreGlobalSloppy ||
-               kind() == FeedbackSlotKind::kStoreGlobalStrict);
-        return PREMONOMORPHIC;
-      }
-
       DCHECK(feedback->IsWeakOrCleared());
       MaybeObject extra = GetFeedbackExtra();
       if (!feedback->IsCleared() ||
@@ -618,10 +604,6 @@ InlineCacheState FeedbackNexus::ic_state() const {
       if (feedback == MaybeObject::FromObject(
                           *FeedbackVector::MegamorphicSentinel(isolate))) {
         return MEGAMORPHIC;
-      }
-      if (feedback == MaybeObject::FromObject(
-                          *FeedbackVector::PremonomorphicSentinel(isolate))) {
-        return PREMONOMORPHIC;
       }
       if (feedback->IsWeakOrCleared()) {
         // Don't check if the map is cleared.
@@ -974,14 +956,6 @@ int FeedbackNexus::ExtractMaps(MapHandles* maps) const {
     Map map = Map::cast(heap_object);
     maps->push_back(handle(map, isolate));
     return 1;
-  } else if (feedback->GetHeapObjectIfStrong(&heap_object) &&
-             heap_object ==
-                 heap_object.GetReadOnlyRoots().premonomorphic_symbol()) {
-    if (GetFeedbackExtra()->GetHeapObjectIfWeak(&heap_object)) {
-      Map map = Map::cast(heap_object);
-      maps->push_back(handle(map, isolate));
-      return 1;
-    }
   }
 
   return 0;

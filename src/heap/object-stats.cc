@@ -658,8 +658,7 @@ static ObjectStats::VirtualInstanceType GetFeedbackSlotType(
   Object obj = maybe_obj->GetHeapObjectOrSmi();
   switch (kind) {
     case FeedbackSlotKind::kCall:
-      if (obj == *isolate->factory()->uninitialized_symbol() ||
-          obj == *isolate->factory()->premonomorphic_symbol()) {
+      if (obj == *isolate->factory()->uninitialized_symbol()) {
         return ObjectStats::FEEDBACK_VECTOR_SLOT_CALL_UNUSED_TYPE;
       }
       return ObjectStats::FEEDBACK_VECTOR_SLOT_CALL_TYPE;
@@ -669,8 +668,7 @@ static ObjectStats::VirtualInstanceType GetFeedbackSlotType(
     case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
     case FeedbackSlotKind::kLoadKeyed:
     case FeedbackSlotKind::kHasKeyed:
-      if (obj == *isolate->factory()->uninitialized_symbol() ||
-          obj == *isolate->factory()->premonomorphic_symbol()) {
+      if (obj == *isolate->factory()->uninitialized_symbol()) {
         return ObjectStats::FEEDBACK_VECTOR_SLOT_LOAD_UNUSED_TYPE;
       }
       return ObjectStats::FEEDBACK_VECTOR_SLOT_LOAD_TYPE;
@@ -682,8 +680,7 @@ static ObjectStats::VirtualInstanceType GetFeedbackSlotType(
     case FeedbackSlotKind::kStoreGlobalStrict:
     case FeedbackSlotKind::kStoreKeyedSloppy:
     case FeedbackSlotKind::kStoreKeyedStrict:
-      if (obj == *isolate->factory()->uninitialized_symbol() ||
-          obj == *isolate->factory()->premonomorphic_symbol()) {
+      if (obj == *isolate->factory()->uninitialized_symbol()) {
         return ObjectStats::FEEDBACK_VECTOR_SLOT_STORE_UNUSED_TYPE;
       }
       return ObjectStats::FEEDBACK_VECTOR_SLOT_STORE_TYPE;

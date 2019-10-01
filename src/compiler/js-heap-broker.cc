@@ -4279,7 +4279,6 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
 
   MapHandles maps;
   nexus.ExtractMaps(&maps);
-  DCHECK_NE(nexus.ic_state(), PREMONOMORPHIC);
   if (!maps.empty()) {
     maps = GetRelevantReceiverMaps(isolate(), maps);
     if (maps.empty()) return *new (zone()) InsufficientFeedback(kind);

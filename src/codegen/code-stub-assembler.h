@@ -114,7 +114,6 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(object_to_string, object_to_string, ObjectToString)                        \
   V(OneClosureCellMap, one_closure_cell_map, OneClosureCellMap)                \
   V(OnePointerFillerMap, one_pointer_filler_map, OnePointerFillerMap)          \
-  V(premonomorphic_symbol, premonomorphic_symbol, PremonomorphicSymbol)        \
   V(PreparseDataMap, preparse_data_map, PreparseDataMap)                       \
   V(PromiseCapabilityMap, promise_capability_map, PromiseCapabilityMap)        \
   V(PromiseFulfillReactionJobTaskMap, promise_fulfill_reaction_job_task_map,   \

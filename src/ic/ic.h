@@ -74,8 +74,6 @@ class IC {
 
   // Configure for most states.
   bool ConfigureVectorState(IC::State new_state, Handle<Object> key);
-  // Configure the vector for PREMONOMORPHIC.
-  void ConfigureVectorState(Handle<Map> map);
   // Configure the vector for MONOMORPHIC.
   void ConfigureVectorState(Handle<Name> name, Handle<Map> map,
                             Handle<Object> handler);

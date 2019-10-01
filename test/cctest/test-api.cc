@@ -10622,7 +10622,6 @@ THREADED_TEST(ShadowObjectAndDataProperty) {
   i::FeedbackSlot slot = i::FeedbackVector::ToSlot(0);
   i::FeedbackNexus nexus(foo->feedback_vector(), slot);
   CHECK_EQ(i::FeedbackSlotKind::kStoreGlobalSloppy, nexus.kind());
-  CHECK_EQ(i::PREMONOMORPHIC, nexus.ic_state());
   CompileRun("foo(1)");
   CHECK_EQ(i::MONOMORPHIC, nexus.ic_state());
   // We go a bit further, checking that the form of monomorphism is
@@ -10673,7 +10672,6 @@ THREADED_TEST(ShadowObjectAndDataPropertyTurbo) {
   i::FeedbackSlot slot = i::FeedbackVector::ToSlot(0);
   i::FeedbackNexus nexus(foo->feedback_vector(), slot);
   CHECK_EQ(i::FeedbackSlotKind::kStoreGlobalSloppy, nexus.kind());
-  CHECK_EQ(i::PREMONOMORPHIC, nexus.ic_state());
   CompileRun("%OptimizeFunctionOnNextCall(foo); foo(1)");
   CHECK_EQ(i::MONOMORPHIC, nexus.ic_state());
   i::HeapObject heap_object;
