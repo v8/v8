@@ -179,8 +179,8 @@ TF_BUILTIN(MathImul, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* x = Parameter(Descriptor::kX);
   Node* y = Parameter(Descriptor::kY);
-  Node* x_value = TruncateTaggedToWord32(context, x);
-  Node* y_value = TruncateTaggedToWord32(context, y);
+  TNode<Word32T> x_value = TruncateTaggedToWord32(context, x);
+  TNode<Word32T> y_value = TruncateTaggedToWord32(context, y);
   TNode<Int32T> value = Signed(Int32Mul(x_value, y_value));
   TNode<Number> result = ChangeInt32ToTagged(value);
   Return(result);
@@ -189,8 +189,8 @@ TF_BUILTIN(MathImul, CodeStubAssembler) {
 CodeStubAssembler::Node* MathBuiltinsAssembler::MathPow(Node* context,
                                                         Node* base,
                                                         Node* exponent) {
-  Node* base_value = TruncateTaggedToFloat64(context, base);
-  Node* exponent_value = TruncateTaggedToFloat64(context, exponent);
+  TNode<Float64T> base_value = TruncateTaggedToFloat64(context, base);
+  TNode<Float64T> exponent_value = TruncateTaggedToFloat64(context, exponent);
   TNode<Float64T> value = Float64Pow(base_value, exponent_value);
   return ChangeFloat64ToTagged(value);
 }

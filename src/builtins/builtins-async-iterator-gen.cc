@@ -99,7 +99,7 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
     const char* operation_name, Label::Type reject_label_type,
     Node* const initial_exception_value) {
   TNode<NativeContext> const native_context = LoadNativeContext(context);
-  Node* const promise = AllocateAndInitJSPromise(CAST(context));
+  TNode<JSPromise> const promise = AllocateAndInitJSPromise(CAST(context));
 
   VARIABLE(var_exception, MachineRepresentation::kTagged,
            initial_exception_value == nullptr ? UndefinedConstant()
@@ -145,7 +145,8 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
   // Let onFulfilled be a new built-in function object as defined in
   // Async Iterator Value Unwrap Functions.
   // Set onFulfilled.[[Done]] to throwDone.
-  Node* const on_fulfilled = CreateUnwrapClosure(native_context, CAST(done));
+  TNode<JSFunction> const on_fulfilled =
+      CreateUnwrapClosure(native_context, CAST(done));
 
   // Perform ! PerformPromiseThen(valueWrapper,
   //     onFulfilled, undefined, promiseCapability).

@@ -272,7 +272,7 @@ TNode<Object> IntrinsicsGenerator::CreateAsyncFromSyncIterator(
   TNode<Object> const next =
       __ GetProperty(context, sync_iterator, factory()->next_string());
 
-  TNode<Context> const native_context = __ LoadNativeContext(context);
+  TNode<NativeContext> const native_context = __ LoadNativeContext(context);
   TNode<Map> const map = __ CAST(__ LoadContextElement(
       native_context, Context::ASYNC_FROM_SYNC_ITERATOR_MAP_INDEX));
   TNode<JSObject> const iterator = __ AllocateJSObjectFromMap(map);

@@ -434,7 +434,7 @@ TNode<Word32T> InterpreterAssembler::BytecodeOperandReadUnaligned(
     MachineType machine_type = (i == 0) ? msb_type : MachineType::Uint8();
     TNode<IntPtrT> offset =
         IntPtrConstant(relative_offset + msb_offset + i * kStep);
-    TNode<WordT> array_offset = IntPtrAdd(BytecodeOffset(), offset);
+    TNode<IntPtrT> array_offset = IntPtrAdd(BytecodeOffset(), offset);
     bytes[i] =
         UncheckedCast<Word32T>(Load(machine_type, BytecodeArrayTaggedPointer(),
                                     array_offset, needs_poisoning));
@@ -906,7 +906,7 @@ TNode<Object> InterpreterAssembler::Construct(
           // context.
           TNode<Context> current_context =
               CAST(LoadObjectField(current, JSFunction::kContextOffset));
-          TNode<Context> current_native_context =
+          TNode<NativeContext> current_native_context =
               LoadNativeContext(current_context);
           Branch(
               TaggedEqual(LoadNativeContext(context), current_native_context),
@@ -1072,7 +1072,7 @@ TNode<Object> InterpreterAssembler::ConstructWithSpread(
           // context.
           TNode<Context> current_context =
               CAST(LoadObjectField(current, JSFunction::kContextOffset));
-          TNode<Context> current_native_context =
+          TNode<NativeContext> current_native_context =
               LoadNativeContext(current_context);
           Branch(
               TaggedEqual(LoadNativeContext(context), current_native_context),

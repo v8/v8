@@ -281,7 +281,7 @@ Node* PromiseBuiltinsAssembler::CreatePromiseAllResolveElementContext(
   TNode<JSArray> values_array = AllocateJSArray(
       PACKED_ELEMENTS, array_map, IntPtrConstant(0), SmiConstant(0));
 
-  Node* const context = CreatePromiseContext(
+  TNode<Context> const context = CreatePromiseContext(
       CAST(native_context), PromiseBuiltins::kPromiseAllResolveElementLength);
   StoreContextElementNoWriteBarrier(
       context, PromiseBuiltins::kPromiseAllResolveElementRemainingSlot,
@@ -335,7 +335,8 @@ TNode<Context> PromiseBuiltinsAssembler::CreatePromiseResolvingFunctionsContext(
 Node* PromiseBuiltinsAssembler::CreatePromiseGetCapabilitiesExecutorContext(
     Node* promise_capability, Node* native_context) {
   int kContextLength = PromiseBuiltins::kCapabilitiesContextLength;
-  Node* context = CreatePromiseContext(CAST(native_context), kContextLength);
+  TNode<Context> context =
+      CreatePromiseContext(CAST(native_context), kContextLength);
   StoreContextElementNoWriteBarrier(context, PromiseBuiltins::kCapabilitySlot,
                                     promise_capability);
   return context;
@@ -475,7 +476,7 @@ void PromiseBuiltinsAssembler::PerformPromiseThen(
     {
       TNode<Object> argument =
           LoadObjectField(promise, JSPromise::kReactionsOrResultOffset);
-      Node* microtask = AllocatePromiseReactionJobTask(
+      TNode<PromiseReactionJobTask> microtask = AllocatePromiseReactionJobTask(
           var_map.value(), CAST(var_handler_context.value()), argument,
           var_handler.value(), result_promise_or_capability);
       CallBuiltin(Builtins::kEnqueueMicrotask, var_handler_context.value(),
@@ -1009,7 +1010,7 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
 
   BIND(&if_targetisnotmodified);
   {
-    Node* const instance = AllocateAndInitJSPromise(context);
+    TNode<JSPromise> const instance = AllocateAndInitJSPromise(context);
     var_result.Bind(instance);
     Goto(&debug_push);
   }
@@ -1530,7 +1531,7 @@ TF_BUILTIN(PromiseResolve, PromiseBuiltinsAssembler) {
     // create NewPromiseCapability.
     BIND(&if_nativepromise);
     {
-      Node* const result = AllocateAndInitJSPromise(context);
+      TNode<JSPromise> const result = AllocateAndInitJSPromise(context);
       CallBuiltin(Builtins::kResolvePromise, context, result, value);
       Return(result);
     }
@@ -1600,7 +1601,7 @@ TF_BUILTIN(PromiseReject, PromiseBuiltinsAssembler) {
 
   BIND(&if_nativepromise);
   {
-    Node* const promise =
+    TNode<JSPromise> const promise =
         AllocateAndSetJSPromise(context, v8::Promise::kRejected, reason);
     CallRuntime(Runtime::kPromiseRejectEventFromStack, context, promise,
                 reason);
@@ -1639,11 +1640,11 @@ std::pair<Node*, Node*> PromiseBuiltinsAssembler::CreatePromiseFinallyFunctions(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
   const TNode<SharedFunctionInfo> then_finally_info = CAST(LoadContextElement(
       native_context, Context::PROMISE_THEN_FINALLY_SHARED_FUN));
-  Node* const then_finally = AllocateFunctionWithMapAndContext(
+  TNode<JSFunction> const then_finally = AllocateFunctionWithMapAndContext(
       map, then_finally_info, promise_context);
   const TNode<SharedFunctionInfo> catch_finally_info = CAST(LoadContextElement(
       native_context, Context::PROMISE_CATCH_FINALLY_SHARED_FUN));
-  Node* const catch_finally = AllocateFunctionWithMapAndContext(
+  TNode<JSFunction> const catch_finally = AllocateFunctionWithMapAndContext(
       map, catch_finally_info, promise_context);
   return std::make_pair(then_finally, catch_finally);
 }
@@ -1667,7 +1668,7 @@ Node* PromiseBuiltinsAssembler::CreateValueThunkFunction(Node* value,
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
   const TNode<SharedFunctionInfo> value_thunk_info = CAST(LoadContextElement(
       native_context, Context::PROMISE_VALUE_THUNK_FINALLY_SHARED_FUN));
-  Node* const value_thunk = AllocateFunctionWithMapAndContext(
+  TNode<JSFunction> const value_thunk = AllocateFunctionWithMapAndContext(
       map, value_thunk_info, value_thunk_context);
   return value_thunk;
 }
@@ -1729,7 +1730,7 @@ Node* PromiseBuiltinsAssembler::CreateThrowerFunction(Node* reason,
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
   const TNode<SharedFunctionInfo> thrower_info = CAST(LoadContextElement(
       native_context, Context::PROMISE_THROWER_FINALLY_SHARED_FUN));
-  Node* const thrower =
+  TNode<JSFunction> const thrower =
       AllocateFunctionWithMapAndContext(map, thrower_info, thrower_context);
   return thrower;
 }

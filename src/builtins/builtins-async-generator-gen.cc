@@ -152,7 +152,7 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorEnqueue(
   // presently executing, then this method will loop through, processing each
   // request from front to back.
   // This loop resides in AsyncGeneratorResumeNext.
-  Node* promise = AllocateAndInitJSPromise(CAST(context));
+  TNode<JSPromise> promise = AllocateAndInitJSPromise(CAST(context));
 
   Label enqueue(this), if_receiverisincompatible(this, Label::kDeferred);
 

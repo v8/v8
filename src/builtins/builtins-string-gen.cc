@@ -826,7 +826,7 @@ TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
     // for one-byte code units, or fall back to creating a single character
     // string on the fly otherwise.
     TNode<Object> code = arguments.AtIndex(0);
-    Node* code32 = TruncateTaggedToWord32(context, code);
+    TNode<Word32T> code32 = TruncateTaggedToWord32(context, code);
     TNode<Int32T> code16 =
         Signed(Word32And(code32, Int32Constant(String::kMaxUtf16CodeUnit)));
     TNode<String> result = StringFromSingleCharCode(code16);
@@ -847,7 +847,7 @@ TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
     // in 8 bits.
     CodeStubAssembler::VariableList vars({&var_max_index}, zone());
     arguments.ForEach(vars, [&](TNode<Object> arg) {
-      Node* code32 = TruncateTaggedToWord32(context, arg);
+      TNode<Word32T> code32 = TruncateTaggedToWord32(context, arg);
       code16 = Word32And(code32, Int32Constant(String::kMaxUtf16CodeUnit));
 
       GotoIf(

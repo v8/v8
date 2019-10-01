@@ -202,7 +202,7 @@ void CodeStubAssembler::CollectCallableFeedback(
           // context.
           TNode<Context> current_context =
               CAST(LoadObjectField(current, JSFunction::kContextOffset));
-          TNode<Context> current_native_context =
+          TNode<NativeContext> current_native_context =
               LoadNativeContext(current_context);
           Branch(
               TaggedEqual(LoadNativeContext(context), current_native_context),
@@ -1057,7 +1057,7 @@ TNode<Number> CodeStubAssembler::SmiMul(TNode<Smi> a, TNode<Smi> b) {
     }
     BIND(&answer_zero);
     {
-      TNode<Word32T> or_result = Word32Or(lhs32, rhs32);
+      TNode<Int32T> or_result = Word32Or(lhs32, rhs32);
       Label if_should_be_negative_zero(this), if_should_be_zero(this);
       Branch(Int32LessThan(or_result, zero), &if_should_be_negative_zero,
              &if_should_be_zero);
@@ -3351,7 +3351,8 @@ TNode<ByteArray> CodeStubAssembler::AllocateByteArray(TNode<UintPtrT> length,
   TNode<IntPtrT> raw_size =
       GetArrayAllocationSize(Signed(length), UINT8_ELEMENTS, INTPTR_PARAMETERS,
                              ByteArray::kHeaderSize + kObjectAlignmentMask);
-  TNode<WordT> size = WordAnd(raw_size, IntPtrConstant(~kObjectAlignmentMask));
+  TNode<IntPtrT> size =
+      WordAnd(raw_size, IntPtrConstant(~kObjectAlignmentMask));
   Branch(IntPtrLessThanOrEqual(size, IntPtrConstant(kMaxRegularHeapObjectSize)),
          &if_sizeissmall, &if_notsizeissmall);
 
@@ -3425,7 +3426,8 @@ TNode<String> CodeStubAssembler::AllocateSeqOneByteString(
   TNode<IntPtrT> raw_size = GetArrayAllocationSize(
       Signed(ChangeUint32ToWord(length)), UINT8_ELEMENTS, INTPTR_PARAMETERS,
       SeqOneByteString::kHeaderSize + kObjectAlignmentMask);
-  TNode<WordT> size = WordAnd(raw_size, IntPtrConstant(~kObjectAlignmentMask));
+  TNode<IntPtrT> size =
+      WordAnd(raw_size, IntPtrConstant(~kObjectAlignmentMask));
   Branch(IntPtrLessThanOrEqual(size, IntPtrConstant(kMaxRegularHeapObjectSize)),
          &if_sizeissmall, &if_notsizeissmall);
 
@@ -3496,7 +3498,8 @@ TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
   TNode<IntPtrT> raw_size = GetArrayAllocationSize(
       Signed(ChangeUint32ToWord(length)), UINT16_ELEMENTS, INTPTR_PARAMETERS,
       SeqOneByteString::kHeaderSize + kObjectAlignmentMask);
-  TNode<WordT> size = WordAnd(raw_size, IntPtrConstant(~kObjectAlignmentMask));
+  TNode<IntPtrT> size =
+      WordAnd(raw_size, IntPtrConstant(~kObjectAlignmentMask));
   Branch(IntPtrLessThanOrEqual(size, IntPtrConstant(kMaxRegularHeapObjectSize)),
          &if_sizeissmall, &if_notsizeissmall);
 
@@ -4521,14 +4524,14 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedDoubleArrayFillingHoles(
   const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
   TNode<IntPtrT> first_from_element_offset =
       ElementOffsetFromIndex(first, kind, mode, 0);
-  TNode<WordT> limit_offset = IntPtrAdd(first_from_element_offset,
-                                        IntPtrConstant(first_element_offset));
+  TNode<IntPtrT> limit_offset = IntPtrAdd(first_from_element_offset,
+                                          IntPtrConstant(first_element_offset));
   TVARIABLE(IntPtrT, var_from_offset,
             ElementOffsetFromIndex(IntPtrOrSmiAdd(first, count, mode), kind,
                                    mode, first_element_offset));
 
   Label decrement(this, {&var_from_offset}), done(this);
-  TNode<WordT> to_array_adjusted =
+  TNode<IntPtrT> to_array_adjusted =
       IntPtrSub(BitcastTaggedToWord(to_elements), first_from_element_offset);
 
   Branch(WordEqual(var_from_offset.value(), limit_offset), &done, &decrement);
@@ -5286,9 +5289,9 @@ Node* CodeStubAssembler::CalculateNewElementsCapacity(Node* old_capacity,
   return IntPtrOrSmiAdd(new_capacity, padding, mode);
 }
 
-Node* CodeStubAssembler::TryGrowElementsCapacity(Node* object, Node* elements,
-                                                 ElementsKind kind, Node* key,
-                                                 Label* bailout) {
+TNode<FixedArrayBase> CodeStubAssembler::TryGrowElementsCapacity(
+    Node* object, Node* elements, ElementsKind kind, Node* key,
+    Label* bailout) {
   CSA_SLOW_ASSERT(this, TaggedIsNotSmi(object));
   CSA_SLOW_ASSERT(this, IsFixedArrayWithKindOrEmpty(elements, kind));
   CSA_SLOW_ASSERT(this, TaggedIsSmi(key));
@@ -5300,11 +5303,9 @@ Node* CodeStubAssembler::TryGrowElementsCapacity(Node* object, Node* elements,
       TaggedToParameter(capacity, mode), mode, bailout);
 }
 
-Node* CodeStubAssembler::TryGrowElementsCapacity(Node* object, Node* elements,
-                                                 ElementsKind kind, Node* key,
-                                                 Node* capacity,
-                                                 ParameterMode mode,
-                                                 Label* bailout) {
+TNode<FixedArrayBase> CodeStubAssembler::TryGrowElementsCapacity(
+    Node* object, Node* elements, ElementsKind kind, Node* key, Node* capacity,
+    ParameterMode mode, Label* bailout) {
   Comment("TryGrowElementsCapacity");
   CSA_SLOW_ASSERT(this, TaggedIsNotSmi(object));
   CSA_SLOW_ASSERT(this, IsFixedArrayWithKindOrEmpty(elements, kind));
@@ -5323,7 +5324,7 @@ Node* CodeStubAssembler::TryGrowElementsCapacity(Node* object, Node* elements,
                               new_capacity, mode, bailout);
 }
 
-Node* CodeStubAssembler::GrowElementsCapacity(
+TNode<FixedArrayBase> CodeStubAssembler::GrowElementsCapacity(
     Node* object, Node* elements, ElementsKind from_kind, ElementsKind to_kind,
     Node* capacity, Node* new_capacity, ParameterMode mode, Label* bailout) {
   Comment("[ GrowElementsCapacity");
@@ -9871,7 +9872,7 @@ Node* CodeStubAssembler::EmitKeyedSloppyArguments(
   }
   Label if_mapped(this), if_unmapped(this), end(this, &var_result);
   TNode<IntPtrT> intptr_two = IntPtrConstant(2);
-  TNode<WordT> adjusted_length = IntPtrSub(elements_length, intptr_two);
+  TNode<IntPtrT> adjusted_length = IntPtrSub(elements_length, intptr_two);
 
   GotoIf(UintPtrGreaterThanOrEqual(key, adjusted_length), &if_unmapped);
 
@@ -13140,7 +13141,7 @@ Node* CodeStubAssembler::
 TNode<Code> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
   CSA_ASSERT(this, SmiBelow(builtin_id, SmiConstant(Builtins::builtin_count)));
 
-  TNode<WordT> offset =
+  TNode<IntPtrT> offset =
       ElementOffsetFromIndex(SmiToBInt(builtin_id), SYSTEM_POINTER_ELEMENTS);
 
   return CAST(BitcastWordToTagged(

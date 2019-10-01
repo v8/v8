@@ -2169,8 +2169,8 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
     TVariable<IntPtrT> arg_index(this);
     Label bailout(this);
     arg_index = IntPtrConstant(0);
-    Node* length = BuildAppendJSArray(kind_, HeapConstant(array), &args,
-                                      &arg_index, &bailout);
+    TNode<Smi> length = BuildAppendJSArray(kind_, HeapConstant(array), &args,
+                                           &arg_index, &bailout);
     Return(length);
 
     BIND(&bailout);
@@ -2320,7 +2320,7 @@ TEST(AllocateAndInitJSPromise) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  Node* const promise = m.AllocateAndInitJSPromise(m.CAST(context));
+  TNode<JSPromise> const promise = m.AllocateAndInitJSPromise(m.CAST(context));
   m.Return(promise);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -2337,7 +2337,7 @@ TEST(AllocateAndSetJSPromise) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  Node* const promise = m.AllocateAndSetJSPromise(
+  TNode<JSPromise> const promise = m.AllocateAndSetJSPromise(
       m.CAST(context), v8::Promise::kRejected, m.SmiConstant(1));
   m.Return(promise);
 
@@ -2400,7 +2400,7 @@ TEST(PromiseHasHandler) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  Node* const promise =
+  TNode<JSPromise> const promise =
       m.AllocateAndInitJSPromise(m.CAST(context), m.UndefinedConstant());
   m.Return(m.SelectBooleanConstant(m.PromiseHasHandler(promise)));
 
@@ -2421,8 +2421,9 @@ TEST(CreatePromiseResolvingFunctionsContext) {
   TNode<NativeContext> const native_context = m.LoadNativeContext(context);
   const TNode<JSPromise> promise =
       m.AllocateAndInitJSPromise(m.CAST(context), m.UndefinedConstant());
-  Node* const promise_context = m.CreatePromiseResolvingFunctionsContext(
-      promise, m.BooleanConstant(false), native_context);
+  TNode<Context> const promise_context =
+      m.CreatePromiseResolvingFunctionsContext(
+          promise, m.BooleanConstant(false), native_context);
   m.Return(promise_context);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -2539,15 +2540,15 @@ TEST(AllocateFunctionWithMapAndContext) {
   TNode<NativeContext> const native_context = m.LoadNativeContext(context);
   const TNode<JSPromise> promise =
       m.AllocateAndInitJSPromise(m.CAST(context), m.UndefinedConstant());
-  Node* promise_context = m.CreatePromiseResolvingFunctionsContext(
+  TNode<Context> promise_context = m.CreatePromiseResolvingFunctionsContext(
       promise, m.BooleanConstant(false), native_context);
   TNode<Object> resolve_info = m.LoadContextElement(
       native_context,
       Context::PROMISE_CAPABILITY_DEFAULT_RESOLVE_SHARED_FUN_INDEX);
   TNode<Object> const map = m.LoadContextElement(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
-  Node* const resolve = m.AllocateFunctionWithMapAndContext(
-      m.CAST(map), m.CAST(resolve_info), m.CAST(promise_context));
+  TNode<JSFunction> const resolve = m.AllocateFunctionWithMapAndContext(
+      m.CAST(map), m.CAST(resolve_info), promise_context);
   m.Return(resolve);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);

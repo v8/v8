@@ -2251,21 +2251,26 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Tries to grow the |elements| array of given |object| to store the |key|
   // or bails out if the growing gap is too big. Returns new elements.
-  Node* TryGrowElementsCapacity(Node* object, Node* elements, ElementsKind kind,
-                                Node* key, Label* bailout);
+  TNode<FixedArrayBase> TryGrowElementsCapacity(Node* object, Node* elements,
+                                                ElementsKind kind, Node* key,
+                                                Label* bailout);
 
   // Tries to grow the |capacity|-length |elements| array of given |object|
   // to store the |key| or bails out if the growing gap is too big. Returns
   // new elements.
-  Node* TryGrowElementsCapacity(Node* object, Node* elements, ElementsKind kind,
-                                Node* key, Node* capacity, ParameterMode mode,
-                                Label* bailout);
+  TNode<FixedArrayBase> TryGrowElementsCapacity(Node* object, Node* elements,
+                                                ElementsKind kind, Node* key,
+                                                Node* capacity,
+                                                ParameterMode mode,
+                                                Label* bailout);
 
   // Grows elements capacity of given object. Returns new elements.
-  Node* GrowElementsCapacity(Node* object, Node* elements,
-                             ElementsKind from_kind, ElementsKind to_kind,
-                             Node* capacity, Node* new_capacity,
-                             ParameterMode mode, Label* bailout);
+  TNode<FixedArrayBase> GrowElementsCapacity(Node* object, Node* elements,
+                                             ElementsKind from_kind,
+                                             ElementsKind to_kind,
+                                             Node* capacity, Node* new_capacity,
+                                             ParameterMode mode,
+                                             Label* bailout);
 
   // Given a need to grow by |growth|, allocate an appropriate new capacity
   // if necessary, and return a new elements FixedArray object. Label |bailout|

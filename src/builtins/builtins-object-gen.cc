@@ -1306,7 +1306,7 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
                       MachineType::Uint16()));
   TNode<IntPtrT> frame_size = ChangeInt32ToIntPtr(LoadObjectField(
       bytecode_array, BytecodeArray::kFrameSizeOffset, MachineType::Int32()));
-  TNode<WordT> size =
+  TNode<IntPtrT> size =
       IntPtrAdd(WordSar(frame_size, IntPtrConstant(kTaggedSizeLog2)),
                 formal_parameter_count);
   TNode<FixedArrayBase> parameters_and_registers =
@@ -1461,7 +1461,7 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
   TNode<Int32T> flags = LoadAndUntagToWord32ObjectField(
       desc, PropertyDescriptorObject::kFlagsOffset);
 
-  TNode<Word32T> has_flags =
+  TNode<Int32T> has_flags =
       Word32And(flags, Int32Constant(PropertyDescriptorObject::kHasMask));
 
   Label if_accessor_desc(this), if_data_desc(this), if_generic_desc(this),

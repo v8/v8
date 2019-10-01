@@ -748,7 +748,7 @@ IGNITION_HANDLER(LdaModuleVariable, InterpreterAssembler) {
     TNode<FixedArray> regular_exports = LoadObjectField<FixedArray>(
         module, SourceTextModule::kRegularExportsOffset);
     // The actual array index is (cell_index - 1).
-    TNode<WordT> export_index = IntPtrSub(cell_index, IntPtrConstant(1));
+    TNode<IntPtrT> export_index = IntPtrSub(cell_index, IntPtrConstant(1));
     TNode<Cell> cell =
         CAST(LoadFixedArrayElement(regular_exports, export_index));
     SetAccumulator(LoadObjectField(cell, Cell::kValueOffset));
@@ -760,7 +760,7 @@ IGNITION_HANDLER(LdaModuleVariable, InterpreterAssembler) {
     TNode<FixedArray> regular_imports = LoadObjectField<FixedArray>(
         module, SourceTextModule::kRegularImportsOffset);
     // The actual array index is (-cell_index - 1).
-    TNode<WordT> import_index = IntPtrSub(IntPtrConstant(-1), cell_index);
+    TNode<IntPtrT> import_index = IntPtrSub(IntPtrConstant(-1), cell_index);
     TNode<Cell> cell =
         CAST(LoadFixedArrayElement(regular_imports, import_index));
     SetAccumulator(LoadObjectField(cell, Cell::kValueOffset));
@@ -793,7 +793,7 @@ IGNITION_HANDLER(StaModuleVariable, InterpreterAssembler) {
     TNode<FixedArray> regular_exports = LoadObjectField<FixedArray>(
         module, SourceTextModule::kRegularExportsOffset);
     // The actual array index is (cell_index - 1).
-    TNode<WordT> export_index = IntPtrSub(cell_index, IntPtrConstant(1));
+    TNode<IntPtrT> export_index = IntPtrSub(cell_index, IntPtrConstant(1));
     TNode<Object> cell = LoadFixedArrayElement(regular_exports, export_index);
     StoreObjectField(cell, Cell::kValueOffset, value);
     Goto(&end);
@@ -1741,7 +1741,7 @@ IGNITION_HANDLER(CallJSRuntime, InterpreterAssembler) {
 
   // Get the function to call from the native context.
   TNode<Context> context = GetContext();
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Object> function = LoadContextElement(native_context, context_index);
 
   // Call the function.
@@ -2503,7 +2503,7 @@ IGNITION_HANDLER(CreateArrayLiteral, InterpreterAssembler) {
 
   BIND(&call_runtime);
   {
-    TNode<WordT> flags_raw =
+    TNode<UintPtrT> flags_raw =
         DecodeWordFromWord32<CreateArrayLiteralFlags::FlagsBits>(
             bytecode_flags);
     TNode<Smi> flags = SmiTag(Signed(flags_raw));
@@ -2597,7 +2597,7 @@ IGNITION_HANDLER(CreateObjectLiteral, InterpreterAssembler) {
         CAST(LoadConstantPoolEntryAtOperandIndex(0));
     TNode<Context> context = GetContext();
 
-    TNode<WordT> flags_raw =
+    TNode<UintPtrT> flags_raw =
         DecodeWordFromWord32<CreateObjectLiteralFlags::FlagsBits>(
             bytecode_flags);
     TNode<Smi> flags = SmiTag(Signed(flags_raw));
@@ -2630,7 +2630,7 @@ IGNITION_HANDLER(CreateEmptyObjectLiteral, InterpreterAssembler) {
 IGNITION_HANDLER(CloneObject, InterpreterAssembler) {
   TNode<Object> source = LoadRegisterAtOperandIndex(0);
   TNode<Uint32T> bytecode_flags = BytecodeOperandFlag(1);
-  TNode<WordT> raw_flags =
+  TNode<UintPtrT> raw_flags =
       DecodeWordFromWord32<CreateObjectLiteralFlags::FlagsBits>(bytecode_flags);
   TNode<Smi> smi_flags = SmiTag(Signed(raw_flags));
   TNode<IntPtrT> raw_slot = Signed(BytecodeOperandIdx(2));

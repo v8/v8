@@ -330,8 +330,8 @@ TF_BUILTIN(CreateRegExpLiteral, ConstructorBuiltinsAssembler) {
   TNode<Object> pattern = CAST(Parameter(Descriptor::kPattern));
   TNode<Smi> flags = CAST(Parameter(Descriptor::kFlags));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> result = EmitCreateRegExpLiteral(maybe_feedback_vector, slot,
-                                                 pattern, flags, context);
+  TNode<JSRegExp> result = EmitCreateRegExpLiteral(maybe_feedback_vector, slot,
+                                                   pattern, flags, context);
   Return(result);
 }
 

@@ -1696,13 +1696,13 @@ void CollectionsBuiltinsAssembler::StoreOrderedHashMapNewEntry(
     TNode<OrderedHashMap> const table, const TNode<Object> key,
     const TNode<Object> value, const TNode<IntPtrT> hash,
     const TNode<IntPtrT> number_of_buckets, const TNode<IntPtrT> occupancy) {
-  TNode<WordT> const bucket =
+  TNode<IntPtrT> const bucket =
       WordAnd(hash, IntPtrSub(number_of_buckets, IntPtrConstant(1)));
   TNode<Smi> bucket_entry = CAST(UnsafeLoadFixedArrayElement(
       table, bucket, OrderedHashMap::HashTableStartIndex() * kTaggedSize));
 
   // Store the entry elements.
-  TNode<WordT> const entry_start = IntPtrAdd(
+  TNode<IntPtrT> const entry_start = IntPtrAdd(
       IntPtrMul(occupancy, IntPtrConstant(OrderedHashMap::kEntrySize)),
       number_of_buckets);
   UnsafeStoreFixedArrayElement(
@@ -1868,13 +1868,13 @@ void CollectionsBuiltinsAssembler::StoreOrderedHashSetNewEntry(
     TNode<OrderedHashSet> const table, const TNode<Object> key,
     const TNode<IntPtrT> hash, const TNode<IntPtrT> number_of_buckets,
     const TNode<IntPtrT> occupancy) {
-  TNode<WordT> const bucket =
+  TNode<IntPtrT> const bucket =
       WordAnd(hash, IntPtrSub(number_of_buckets, IntPtrConstant(1)));
   TNode<Smi> bucket_entry = CAST(UnsafeLoadFixedArrayElement(
       table, bucket, OrderedHashSet::HashTableStartIndex() * kTaggedSize));
 
   // Store the entry elements.
-  TNode<WordT> const entry_start = IntPtrAdd(
+  TNode<IntPtrT> const entry_start = IntPtrAdd(
       IntPtrMul(occupancy, IntPtrConstant(OrderedHashSet::kEntrySize)),
       number_of_buckets);
   UnsafeStoreFixedArrayElement(

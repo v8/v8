@@ -893,7 +893,7 @@ void AccessorAssembler::EmitAccessCheck(TNode<Context> expected_native_context,
                                         Label* can_access, Label* miss) {
   CSA_ASSERT(this, IsNativeContext(expected_native_context));
 
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   GotoIf(TaggedEqual(expected_native_context, native_context), can_access);
   // If the receiver is not a JSGlobalProxy then we miss.
   GotoIfNot(IsJSGlobalProxy(CAST(receiver)), miss);
@@ -1884,7 +1884,7 @@ Node* AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
   BIND(&if_smi_hash);
   {
     TNode<Int32T> hash = SmiToInt32(CAST(properties));
-    TNode<Word32T> encoded_hash =
+    TNode<Int32T> encoded_hash =
         Word32Shl(hash, Int32Constant(PropertyArray::HashField::kShift));
     var_encoded_hash.Bind(encoded_hash);
     var_length.Bind(IntPtrOrSmiConstant(0, mode));
@@ -2510,7 +2510,7 @@ Node* AccessorAssembler::StubCacheSecondaryOffset(Node* name, Node* seed) {
 
   // Use the seed from the primary cache in the secondary cache.
   TNode<Int32T> name32 = TruncateIntPtrToInt32(BitcastTaggedToWord(name));
-  TNode<Word32T> hash = Int32Sub(TruncateIntPtrToInt32(seed), name32);
+  TNode<Int32T> hash = Int32Sub(TruncateIntPtrToInt32(seed), name32);
   hash = Int32Add(hash, Int32Constant(StubCache::kSecondaryMagic));
   int32_t mask = (StubCache::kSecondaryTableSize - 1)
                  << StubCache::kCacheIndexShift;
@@ -2848,7 +2848,7 @@ void AccessorAssembler::LoadGlobalIC_TryHandlerCase(
                                      : OnNonExistent::kReturnUndefined;
 
   TNode<Context> context = lazy_context();
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<JSGlobalProxy> receiver =
       CAST(LoadContextElement(native_context, Context::GLOBAL_PROXY_INDEX));
   TNode<Object> holder =
@@ -3202,7 +3202,7 @@ void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
       GotoIf(TaggedEqual(handler, UninitializedSymbolConstant()), &miss);
 
       DCHECK_NULL(pp->receiver());
-      TNode<Context> native_context = LoadNativeContext(pp->context());
+      TNode<NativeContext> native_context = LoadNativeContext(pp->context());
       StoreICParameters p(
           pp->context(),
           LoadContextElement(native_context, Context::GLOBAL_PROXY_INDEX),
@@ -3785,7 +3785,7 @@ void AccessorAssembler::GenerateCloneObjectIC_Slow() {
   // can be tail called from it. However, the feedback slot and vector are not
   // used.
 
-  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<JSFunction> object_fn =
       CAST(LoadContextElement(native_context, Context::OBJECT_FUNCTION_INDEX));
   TNode<Map> initial_map = CAST(
