@@ -1758,8 +1758,7 @@ struct LateOptimizationPhase {
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->broker(), data->common(),
                                          data->machine(), temp_zone);
-    SelectLowering select_lowering(data->jsgraph()->graph(),
-                                   data->jsgraph()->common());
+    SelectLowering select_lowering(data->jsgraph(), temp_zone);
 #ifdef V8_COMPRESS_POINTERS
     DecompressionElimination decompression_elimination(
         &graph_reducer, data->graph(), data->machine(), data->common());
@@ -1798,8 +1797,7 @@ struct MidTierMachineLoweringPhase {
     GraphReducer graph_reducer(temp_zone, data->graph(),
                                &data->info()->tick_counter(),
                                data->jsgraph()->Dead());
-    SelectLowering select_lowering(data->jsgraph()->graph(),
-                                   data->jsgraph()->common());
+    SelectLowering select_lowering(data->jsgraph(), temp_zone);
     MemoryLowering memory_lowering(data->jsgraph(), temp_zone,
                                    data->info()->GetPoisoningMitigationLevel());
 
