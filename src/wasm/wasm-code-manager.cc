@@ -1217,6 +1217,8 @@ void NativeModule::AddCodeSpace(base::AddressRegion region) {
     Vector<byte> padding =
         code_allocator_.AllocateForCodeInRegion(this, size, region);
     CHECK_EQ(reinterpret_cast<Address>(padding.begin()), region.begin());
+    win64_unwindinfo::RegisterNonABICompliantCodeRange(
+        reinterpret_cast<void*>(region.begin()), region.size());
   }
 #endif  // V8_OS_WIN64
 
@@ -1603,13 +1605,6 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   DCHECK_NOT_NULL(ret);
   TRACE_HEAP("New NativeModule %p: Mem: %" PRIuPTR ",+%zu\n", ret.get(), start,
              size);
-
-#if defined(V8_OS_WIN64)
-  if (CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
-    win64_unwindinfo::RegisterNonABICompliantCodeRange(
-        reinterpret_cast<void*>(start), size);
-  }
-#endif  // V8_OS_WIN64
 
   base::MutexGuard lock(&native_modules_mutex_);
   lookup_map_.insert(std::make_pair(start, std::make_pair(end, ret.get())));
