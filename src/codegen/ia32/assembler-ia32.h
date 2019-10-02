@@ -927,15 +927,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void mulsd(XMMRegister dst, Operand src);
   void divsd(XMMRegister dst, XMMRegister src) { divsd(dst, Operand(src)); }
   void divsd(XMMRegister dst, Operand src);
-  void xorpd(XMMRegister dst, XMMRegister src) { xorpd(dst, Operand(src)); }
-  void xorpd(XMMRegister dst, Operand src);
   void sqrtsd(XMMRegister dst, XMMRegister src) { sqrtsd(dst, Operand(src)); }
   void sqrtsd(XMMRegister dst, Operand src);
-
-  void andpd(XMMRegister dst, XMMRegister src) { andpd(dst, Operand(src)); }
-  void andpd(XMMRegister dst, Operand src);
-  void orpd(XMMRegister dst, XMMRegister src) { orpd(dst, Operand(src)); }
-  void orpd(XMMRegister dst, Operand src);
 
   void ucomisd(XMMRegister dst, XMMRegister src) { ucomisd(dst, Operand(src)); }
   void ucomisd(XMMRegister dst, Operand src);
@@ -1491,6 +1484,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Implementation of packed single-precision floating-point SSE instructions.
   void ps(byte op, XMMRegister dst, Operand src);
+  // Implementation of packed double-precision floating-point SSE instructions.
+  void pd(byte op, XMMRegister dst, Operand src);
 
 #define PACKED_OP_LIST(V) \
   V(and, 0x54)            \
@@ -1504,11 +1499,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   V(div, 0x5e)            \
   V(max, 0x5f)
 
-#define SSE_PACKED_OP_DECLARE(name, opcode)         \
-  void name##ps(XMMRegister dst, XMMRegister src) { \
-    ps(opcode, dst, Operand(src));                  \
-  }                                                 \
-  void name##ps(XMMRegister dst, Operand src) { ps(opcode, dst, src); }
+#define SSE_PACKED_OP_DECLARE(name, opcode)                             \
+  void name##ps(XMMRegister dst, XMMRegister src) {                     \
+    ps(opcode, dst, Operand(src));                                      \
+  }                                                                     \
+  void name##ps(XMMRegister dst, Operand src) { ps(opcode, dst, src); } \
+  void name##pd(XMMRegister dst, XMMRegister src) {                     \
+    pd(opcode, dst, Operand(src));                                      \
+  }                                                                     \
+  void name##pd(XMMRegister dst, Operand src) { pd(opcode, dst, src); }
 
   PACKED_OP_LIST(SSE_PACKED_OP_DECLARE)
 #undef SSE_PACKED_OP_DECLARE

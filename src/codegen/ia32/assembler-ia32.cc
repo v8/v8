@@ -2163,14 +2163,6 @@ void Assembler::divsd(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
-void Assembler::xorpd(XMMRegister dst, Operand src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0x66);
-  EMIT(0x0F);
-  EMIT(0x57);
-  emit_sse_operand(dst, src);
-}
-
 void Assembler::rcpps(XMMRegister dst, Operand src) {
   EnsureSpace ensure_space(this);
   EMIT(0x0F);
@@ -2214,22 +2206,6 @@ void Assembler::haddps(XMMRegister dst, Operand src) {
   EMIT(0xF2);
   EMIT(0x0F);
   EMIT(0x7C);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::andpd(XMMRegister dst, Operand src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0x66);
-  EMIT(0x0F);
-  EMIT(0x54);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::orpd(XMMRegister dst, Operand src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0x66);
-  EMIT(0x0F);
-  EMIT(0x56);
   emit_sse_operand(dst, src);
 }
 
@@ -2726,6 +2702,15 @@ void Assembler::minss(XMMRegister dst, Operand src) {
 // Packed single-precision floating-point SSE instructions.
 void Assembler::ps(byte opcode, XMMRegister dst, Operand src) {
   EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(opcode);
+  emit_sse_operand(dst, src);
+}
+
+// Packed double-precision floating-point SSE instructions.
+void Assembler::pd(byte opcode, XMMRegister dst, Operand src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
   EMIT(0x0F);
   EMIT(opcode);
   emit_sse_operand(dst, src);

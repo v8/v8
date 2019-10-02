@@ -1079,6 +1079,11 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
         break;
+      case 0x56:
+        AppendToBuffer("vorps %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0x57:
         AppendToBuffer("vxorps %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
@@ -1144,6 +1149,16 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
     switch (opcode) {
       case 0x54:
         AppendToBuffer("vandpd %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x55:
+        AppendToBuffer("vandnpd %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x56:
+        AppendToBuffer("vorpd %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
         break;
@@ -2171,27 +2186,31 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             AppendToBuffer("movmskpd %s,%s", NameOfCPURegister(regop),
                            NameOfXMMRegister(rm));
             data++;
-          } else if (*data == 0x54) {
+          } else if (*data >= 0x54 && *data <= 0x59) {
+            const char* const pseudo_op[] = {
+                "andpd", "andnpd", "orpd", "xorpd", "addpd", "mulpd",
+            };
+            byte op = *data;
             data++;
             int mod, regop, rm;
             get_modrm(*data, &mod, &regop, &rm);
-            AppendToBuffer("andpd %s,%s", NameOfXMMRegister(regop),
-                           NameOfXMMRegister(rm));
-            data++;
-          } else if (*data == 0x56) {
+            AppendToBuffer("%s %s,", pseudo_op[op - 0x54],
+                           NameOfXMMRegister(regop));
+            data += PrintRightXMMOperand(data);
+          } else if (*data >= 0x5c && *data <= 0x5f) {
+            const char* const pseudo_op[] = {
+                "subpd",
+                "minpd",
+                "divpd",
+                "maxpd",
+            };
+            byte op = *data;
             data++;
             int mod, regop, rm;
             get_modrm(*data, &mod, &regop, &rm);
-            AppendToBuffer("orpd %s,%s", NameOfXMMRegister(regop),
-                           NameOfXMMRegister(rm));
-            data++;
-          } else if (*data == 0x57) {
-            data++;
-            int mod, regop, rm;
-            get_modrm(*data, &mod, &regop, &rm);
-            AppendToBuffer("xorpd %s,%s", NameOfXMMRegister(regop),
-                           NameOfXMMRegister(rm));
-            data++;
+            AppendToBuffer("%s %s,", pseudo_op[op - 0x5c],
+                           NameOfXMMRegister(regop));
+            data += PrintRightXMMOperand(data);
           } else if (*data == 0x6E) {
             data++;
             int mod, regop, rm;
