@@ -4699,9 +4699,10 @@ void ElementAccessFeedback::AddGroup(TransitionGroup&& group) {
 }
 
 std::ostream& operator<<(std::ostream& os, const ObjectRef& ref) {
-  if (ref.broker()->mode() == JSHeapBroker::kDisabled) {
-    // If the broker is disabled we cannot be in a background thread so it's
-    // safe to read the heap.
+  if (ref.broker()->mode() == JSHeapBroker::kDisabled ||
+      !FLAG_concurrent_recompilation) {
+    // We cannot be in a background thread so it's safe to read the heap.
+    AllowHandleDereference allow_handle_dereference;
     return os << ref.data() << " {" << ref.object() << "}";
   } else {
     return os << ref.data();
