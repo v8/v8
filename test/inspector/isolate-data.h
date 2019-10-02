@@ -130,6 +130,7 @@ class IsolateData : public v8_inspector::V8InspectorClient {
 
   TaskRunner* task_runner_;
   SetupGlobalTasks setup_global_tasks_;
+  std::unique_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator_;
   std::unique_ptr<v8::Isolate, IsolateDeleter> isolate_;
   std::unique_ptr<v8_inspector::V8Inspector> inspector_;
   int last_context_group_id_ = 0;
