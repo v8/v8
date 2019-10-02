@@ -4509,7 +4509,7 @@ UNINITIALIZED_TEST(LoadedAtStartupScripts) {
       }
     }
     CHECK_EQ(count_by_type[i::Script::TYPE_NATIVE], 0);
-    CHECK_EQ(count_by_type[i::Script::TYPE_EXTENSION], 2);
+    CHECK_EQ(count_by_type[i::Script::TYPE_EXTENSION], 1);
     CHECK_EQ(count_by_type[i::Script::TYPE_NORMAL], 1);
     CHECK_EQ(count_by_type[i::Script::TYPE_WASM], 0);
     CHECK_EQ(count_by_type[i::Script::TYPE_INSPECTOR], 0);

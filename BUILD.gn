@@ -156,9 +156,7 @@ declare_args() {
 
   # List of extra files to snapshot. They will be snapshotted in order so
   # if files export symbols used by later files, they should go first.
-  #
-  # This default is used by cctests. Projects using V8 will want to override.
-  v8_extra_library_files = [ "//test/cctest/test-extra.js" ]
+  v8_extra_library_files = []
 
   v8_enable_gdbjit =
       ((v8_current_cpu == "x86" || v8_current_cpu == "x64") &&
@@ -257,6 +255,10 @@ assert(
     "Pointer compression is not supported with shared read-only heap enabled")
 assert(v8_use_snapshot || !v8_enable_shared_ro_heap,
        "Shared read-only heap requires snapshot")
+
+assert(v8_extra_library_files == [],
+       "v8_extra_library_files is no longer supported. Consider implementing " +
+           "custom API in C++ instead.")
 
 v8_random_seed = "314159265"
 v8_toolset_for_shell = "host"

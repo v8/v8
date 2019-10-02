@@ -5723,6 +5723,11 @@ void v8::V8::InitializeExternalStartupData(const char* natives_blob,
   i::InitializeExternalStartupData(natives_blob, snapshot_blob);
 }
 
+// static
+void v8::V8::InitializeExternalStartupDataFromFile(const char* snapshot_blob) {
+  i::InitializeExternalStartupDataFromFile(snapshot_blob);
+}
+
 const char* v8::V8::GetVersion() { return i::Version::GetVersion(); }
 
 template <typename ObjectType>

@@ -285,7 +285,6 @@ class ShellOptions {
   SourceGroup* isolate_sources = nullptr;
   const char* icu_data_file = nullptr;
   const char* icu_locale = nullptr;
-  const char* natives_blob = nullptr;
   const char* snapshot_blob = nullptr;
   bool trace_enabled = false;
   const char* trace_path = nullptr;

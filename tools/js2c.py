@@ -265,7 +265,9 @@ def BuildMetadata(sources, source_bytes, native_type):
 
   metadata = {
     "builtin_count": len(sources.modules),
-    "sources_declaration": SOURCES_DECLARATION % ToCArray(source_bytes),
+    "sources_declaration":
+        SOURCES_DECLARATION % ToCArray(
+          source_bytes if len(source_bytes) != 0 else "\0"),
     "total_length": total_length,
     "get_index_cases": "".join(get_index_cases),
     "get_script_source_cases": "".join(get_script_source_cases),

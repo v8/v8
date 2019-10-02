@@ -3001,9 +3001,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.icu_locale = argv[i] + 13;
       argv[i] = nullptr;
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
-    } else if (strncmp(argv[i], "--natives_blob=", 15) == 0) {
-      options.natives_blob = argv[i] + 15;
-      argv[i] = nullptr;
     } else if (strncmp(argv[i], "--snapshot_blob=", 16) == 0) {
       options.snapshot_blob = argv[i] + 16;
       argv[i] = nullptr;
@@ -3592,9 +3589,8 @@ int Shell::Main(int argc, char* argv[]) {
   }
   v8::V8::InitializePlatform(g_platform.get());
   v8::V8::Initialize();
-  if (options.natives_blob || options.snapshot_blob) {
-    v8::V8::InitializeExternalStartupData(options.natives_blob,
-                                          options.snapshot_blob);
+  if (options.snapshot_blob) {
+    v8::V8::InitializeExternalStartupDataFromFile(options.snapshot_blob);
   } else {
     v8::V8::InitializeExternalStartupData(argv[0]);
   }
