@@ -560,10 +560,12 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
             : reinterpret_cast<Address>(
                   mutable_double_buffer->GetDataStartAddress());
     Address filler_address = mutable_double_address;
-    if (IsAligned(mutable_double_address, kDoubleAlignment)) {
-      mutable_double_address += kTaggedSize;
-    } else {
-      filler_address += HeapNumber::kSize;
+    if (kTaggedSize != kDoubleSize) {
+      if (IsAligned(mutable_double_address, kDoubleAlignment)) {
+        mutable_double_address += kTaggedSize;
+      } else {
+        filler_address += HeapNumber::kSize;
+      }
     }
     for (int j = 0; j < i; j++) {
       const JsonProperty& property = property_stack[start + j];
@@ -619,9 +621,13 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
 #ifdef DEBUG
       Address end =
           reinterpret_cast<Address>(mutable_double_buffer->GetDataEndAddress());
-      DCHECK_EQ(Min(filler_address, mutable_double_address), end);
-      DCHECK_GE(filler_address, end);
-      DCHECK_GE(mutable_double_address, end);
+      if (kTaggedSize != kDoubleSize) {
+        DCHECK_EQ(Min(filler_address, mutable_double_address), end);
+        DCHECK_GE(filler_address, end);
+        DCHECK_GE(mutable_double_address, end);
+      } else {
+        DCHECK_EQ(mutable_double_address, end);
+      }
 #endif
       mutable_double_buffer->set_length(0);
     }
