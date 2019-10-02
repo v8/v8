@@ -22,34 +22,40 @@ struct GCOptions {
   ExecutionType execution;
 };
 
-bool IsProperty(v8::Isolate* isolate, v8::Local<v8::Context> ctx,
-                v8::Local<v8::Object> object, const char* key,
-                const char* value) {
+Maybe<bool> IsProperty(v8::Isolate* isolate, v8::Local<v8::Context> ctx,
+                       v8::Local<v8::Object> object, const char* key,
+                       const char* value) {
   auto k = v8::String::NewFromUtf8(isolate, key).ToLocalChecked();
   // Get will return undefined for non-existing keys which will make
   // StrictEquals fail.
   auto maybe_property = object->Get(ctx, k);
-  if (maybe_property.IsEmpty()) return false;
-  return maybe_property.ToLocalChecked()->StrictEquals(
-      v8::String::NewFromUtf8(isolate, value).ToLocalChecked());
+  if (maybe_property.IsEmpty()) return Nothing<bool>();
+  return Just<bool>(maybe_property.ToLocalChecked()->StrictEquals(
+      v8::String::NewFromUtf8(isolate, value).ToLocalChecked()));
 }
 
-GCOptions Parse(v8::Isolate* isolate, v8::Local<v8::Context> ctx,
-                const v8::FunctionCallbackInfo<v8::Value>& args) {
+Maybe<GCOptions> Parse(v8::Isolate* isolate, v8::Local<v8::Context> ctx,
+                       const v8::FunctionCallbackInfo<v8::Value>& args) {
   // Default values.
   auto options =
       GCOptions{v8::Isolate::GarbageCollectionType::kFullGarbageCollection,
                 ExecutionType::kSync};
   bool found_options_object = false;
 
-  if (args[0]->IsObject() && !args[0]->IsProxy()) {
+  if (args[0]->IsObject()) {
     auto param = v8::Local<v8::Object>::Cast(args[0]);
-    if (IsProperty(isolate, ctx, param, "type", "minor")) {
+
+    auto maybe_type = IsProperty(isolate, ctx, param, "type", "minor");
+    if (maybe_type.IsNothing()) return Nothing<GCOptions>();
+    if (maybe_type.ToChecked()) {
       found_options_object = true;
       options.type =
           v8::Isolate::GarbageCollectionType::kMinorGarbageCollection;
     }
-    if (IsProperty(isolate, ctx, param, "execution", "async")) {
+    auto maybe_execution =
+        IsProperty(isolate, ctx, param, "execution", "async");
+    if (maybe_execution.IsNothing()) return Nothing<GCOptions>();
+    if (maybe_execution.ToChecked()) {
       found_options_object = true;
       options.execution = ExecutionType::kAsync;
     }
@@ -63,7 +69,7 @@ GCOptions Parse(v8::Isolate* isolate, v8::Local<v8::Context> ctx,
             : v8::Isolate::GarbageCollectionType::kFullGarbageCollection;
   }
 
-  return options;
+  return Just<GCOptions>(options);
 }
 
 void InvokeGC(v8::Isolate* isolate, v8::Isolate::GarbageCollectionType type,
@@ -126,7 +132,9 @@ void GCExtension::GC(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::HandleScope scope(isolate);
   auto ctx = isolate->GetCurrentContext();
 
-  auto options = Parse(isolate, ctx, args);
+  auto maybe_options = Parse(isolate, ctx, args);
+  if (maybe_options.IsNothing()) return;
+  GCOptions options = maybe_options.ToChecked();
   switch (options.execution) {
     case ExecutionType::kSync:
       InvokeGC(isolate, options.type,
