@@ -65,12 +65,7 @@ V8_INLINE Address DecompressTaggedPointer(TOnHeapAddress on_heap_addr,
 template <typename TOnHeapAddress>
 V8_INLINE Address DecompressTaggedAny(TOnHeapAddress on_heap_addr,
                                       Tagged_t raw_value) {
-  if (kUseSmiCorruptingPtrDecompression) {
-    return DecompressTaggedPointer(on_heap_addr, raw_value);
-  }
-  return HAS_SMI_TAG(raw_value)
-             ? DecompressTaggedSigned(raw_value)
-             : DecompressTaggedPointer(on_heap_addr, raw_value);
+  return DecompressTaggedPointer(on_heap_addr, raw_value);
 }
 
 #ifdef V8_COMPRESS_POINTERS

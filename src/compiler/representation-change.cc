@@ -1272,7 +1272,7 @@ Node* RepresentationChanger::GetBitRepresentationFor(
       }
     }
   } else if (output_rep == MachineRepresentation::kTaggedSigned) {
-    if (COMPRESS_POINTERS_BOOL && kUseSmiCorruptingPtrDecompression) {
+    if (COMPRESS_POINTERS_BOOL) {
       node = jsgraph()->graph()->NewNode(machine()->Word32Equal(), node,
                                          jsgraph()->Int32Constant(0));
     } else {

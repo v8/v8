@@ -313,14 +313,7 @@ void TurboAssembler::DecompressTaggedPointer(Register destination,
 
 void TurboAssembler::DecompressRegisterAnyTagged(Register destination,
                                                  Register scratch) {
-  if (kUseSmiCorruptingPtrDecompression) {
-    addq(destination, kRootRegister);
-  } else {
-    Label done;
-    JumpIfSmi(destination, &done);
-    addq(destination, kRootRegister);
-    bind(&done);
-  }
+  addq(destination, kRootRegister);
 }
 
 void TurboAssembler::DecompressAnyTagged(Register destination,

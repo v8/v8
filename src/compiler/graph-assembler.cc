@@ -99,12 +99,11 @@ Node* GraphAssembler::IntPtrEqual(Node* left, Node* right) {
 }
 
 Node* GraphAssembler::TaggedEqual(Node* left, Node* right) {
-#ifdef V8_COMPRESS_POINTERS
-  return Word32Equal(ChangeTaggedToCompressed(left),
-                     ChangeTaggedToCompressed(right));
-#else
+  if (COMPRESS_POINTERS_BOOL) {
+    return Word32Equal(ChangeTaggedToCompressed(left),
+                       ChangeTaggedToCompressed(right));
+  }
   return WordEqual(left, right);
-#endif
 }
 
 Node* GraphAssembler::Float64RoundDown(Node* value) {

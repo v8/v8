@@ -3046,7 +3046,7 @@ Node* WasmGraphBuilder::BuildChangeInt32ToIntPtr(Node* value) {
 }
 
 Node* WasmGraphBuilder::BuildChangeInt32ToSmi(Node* value) {
-  if (COMPRESS_POINTERS_BOOL && kUseSmiCorruptingPtrDecompression) {
+  if (COMPRESS_POINTERS_BOOL) {
     return graph()->NewNode(mcgraph()->machine()->Word32Shl(), value,
                             BuildSmiShiftBitsConstant32());
   }
@@ -3056,7 +3056,7 @@ Node* WasmGraphBuilder::BuildChangeInt32ToSmi(Node* value) {
 }
 
 Node* WasmGraphBuilder::BuildChangeUint31ToSmi(Node* value) {
-  if (COMPRESS_POINTERS_BOOL && kUseSmiCorruptingPtrDecompression) {
+  if (COMPRESS_POINTERS_BOOL) {
     return graph()->NewNode(mcgraph()->machine()->Word32Shl(), value,
                             BuildSmiShiftBitsConstant32());
   }
@@ -3073,7 +3073,7 @@ Node* WasmGraphBuilder::BuildSmiShiftBitsConstant32() {
 }
 
 Node* WasmGraphBuilder::BuildChangeSmiToInt32(Node* value) {
-  if (COMPRESS_POINTERS_BOOL && kUseSmiCorruptingPtrDecompression) {
+  if (COMPRESS_POINTERS_BOOL) {
     value =
         graph()->NewNode(mcgraph()->machine()->TruncateInt64ToInt32(), value);
     value = graph()->NewNode(mcgraph()->machine()->Word32Sar(), value,
@@ -3086,7 +3086,7 @@ Node* WasmGraphBuilder::BuildChangeSmiToInt32(Node* value) {
 }
 
 Node* WasmGraphBuilder::BuildChangeSmiToIntPtr(Node* value) {
-  if (COMPRESS_POINTERS_BOOL && kUseSmiCorruptingPtrDecompression) {
+  if (COMPRESS_POINTERS_BOOL) {
     value = BuildChangeSmiToInt32(value);
     return BuildChangeInt32ToIntPtr(value);
   }

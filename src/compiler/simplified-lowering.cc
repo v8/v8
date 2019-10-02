@@ -2667,7 +2667,7 @@ class RepresentationSelector {
       case IrOpcode::kReferenceEqual: {
         VisitBinop(node, UseInfo::AnyTagged(), MachineRepresentation::kBit);
         if (lower()) {
-          if (COMPRESS_POINTERS_BOOL && kUseSmiCorruptingPtrDecompression) {
+          if (COMPRESS_POINTERS_BOOL) {
             NodeProperties::ChangeOp(node, lowering->machine()->Word32Equal());
           } else {
             NodeProperties::ChangeOp(node, lowering->machine()->WordEqual());

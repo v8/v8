@@ -246,10 +246,6 @@ using AtomicTagged_t = base::AtomicWord;
 
 #endif  // V8_COMPRESS_POINTERS
 
-// Defines whether to use smi-corrupting or branchful implementation of pointer
-// decompression should be used.
-constexpr bool kUseSmiCorruptingPtrDecompression = true;
-
 STATIC_ASSERT(kTaggedSize == (1 << kTaggedSizeLog2));
 STATIC_ASSERT((kTaggedSize == 8) == TAGGED_SIZE_8_BYTES);
 

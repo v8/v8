@@ -749,7 +749,7 @@ TNode<Smi> CodeStubAssembler::NormalizeSmiIndex(TNode<Smi> smi_index) {
 }
 
 TNode<Smi> CodeStubAssembler::SmiFromInt32(SloppyTNode<Int32T> value) {
-  if (COMPRESS_POINTERS_BOOL && kUseSmiCorruptingPtrDecompression) {
+  if (COMPRESS_POINTERS_BOOL) {
     static_assert(!COMPRESS_POINTERS_BOOL || (kSmiShiftSize + kSmiTagSize == 1),
                   "Use shifting instead of add");
     return BitcastWordToTaggedSigned(
@@ -781,7 +781,7 @@ TNode<Smi> CodeStubAssembler::SmiTag(SloppyTNode<IntPtrT> value) {
   if (ToInt32Constant(value, &constant_value) && Smi::IsValid(constant_value)) {
     return SmiConstant(constant_value);
   }
-  if (COMPRESS_POINTERS_BOOL && kUseSmiCorruptingPtrDecompression) {
+  if (COMPRESS_POINTERS_BOOL) {
     return SmiFromInt32(TruncateIntPtrToInt32(value));
   }
   TNode<Smi> smi =
@@ -794,7 +794,7 @@ TNode<IntPtrT> CodeStubAssembler::SmiUntag(SloppyTNode<Smi> value) {
   if (ToIntPtrConstant(value, &constant_value)) {
     return IntPtrConstant(constant_value >> (kSmiShiftSize + kSmiTagSize));
   }
-  if (COMPRESS_POINTERS_BOOL && kUseSmiCorruptingPtrDecompression) {
+  if (COMPRESS_POINTERS_BOOL) {
     return ChangeInt32ToIntPtr(SmiToInt32(value));
   }
   return Signed(WordSar(BitcastTaggedToWordForTagAndSmiBits(value),
@@ -802,7 +802,7 @@ TNode<IntPtrT> CodeStubAssembler::SmiUntag(SloppyTNode<Smi> value) {
 }
 
 TNode<Int32T> CodeStubAssembler::SmiToInt32(SloppyTNode<Smi> value) {
-  if (COMPRESS_POINTERS_BOOL && kUseSmiCorruptingPtrDecompression) {
+  if (COMPRESS_POINTERS_BOOL) {
     return Signed(Word32Sar(
         TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(value)),
         SmiShiftBitsConstant32()));
@@ -9702,11 +9702,7 @@ TNode<IntPtrT> CodeStubAssembler::ElementOffsetFromIndex(
       index = smi_index.value();
     } else {
       if (COMPRESS_POINTERS_BOOL) {
-        if (kUseSmiCorruptingPtrDecompression) {
-          smi_index_node = NormalizeSmiIndex(smi_index_node);
-        } else {
-          CSA_ASSERT(this, IsValidSmiIndex(smi_index_node));
-        }
+        smi_index_node = NormalizeSmiIndex(smi_index_node);
       }
     }
     intptr_index_node = BitcastTaggedToWordForTagAndSmiBits(smi_index_node);

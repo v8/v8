@@ -2736,29 +2736,14 @@ void TurboAssembler::DecompressAnyTagged(const Register& destination,
                                          const MemOperand& field_operand) {
   RecordComment("[ DecompressAnyTagged");
   Ldrsw(destination, field_operand);
-  if (kUseSmiCorruptingPtrDecompression) {
-    Add(destination, kRootRegister, destination);
-  } else {
-    Label done;
-    JumpIfSmi(destination, &done);
-    Add(destination, kRootRegister, destination);
-    bind(&done);
-  }
+  Add(destination, kRootRegister, destination);
   RecordComment("]");
 }
 
 void TurboAssembler::DecompressAnyTagged(const Register& destination,
                                          const Register& source) {
   RecordComment("[ DecompressAnyTagged");
-  if (kUseSmiCorruptingPtrDecompression) {
-    Add(destination, kRootRegister, Operand(source, SXTW));
-  } else {
-    Label done;
-    Sxtw(destination, source);
-    JumpIfSmi(destination, &done);
-    Add(destination, kRootRegister, destination);
-    bind(&done);
-  }
+  Add(destination, kRootRegister, Operand(source, SXTW));
   RecordComment("]");
 }
 
