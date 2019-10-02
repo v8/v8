@@ -252,6 +252,7 @@ Handle<WasmModuleObject> WasmModuleObject::New(
   return module_object;
 }
 
+// static
 bool WasmModuleObject::SetBreakPoint(Handle<WasmModuleObject> module_object,
                                      int* position,
                                      Handle<BreakPoint> break_point) {
@@ -270,7 +271,7 @@ bool WasmModuleObject::SetBreakPoint(Handle<WasmModuleObject> module_object,
                              offset_in_func));
 
   // Insert new break point into break_positions of module object.
-  WasmModuleObject::AddBreakpoint(module_object, *position, break_point);
+  WasmModuleObject::AddBreakpointToInfo(module_object, *position, break_point);
 
   // Iterate over all instances of this module and tell them to set this new
   // breakpoint. We do this using the weak list of all instances.
@@ -285,6 +286,43 @@ bool WasmModuleObject::SetBreakPoint(Handle<WasmModuleObject> module_object,
       Handle<WasmDebugInfo> debug_info =
           WasmInstanceObject::GetOrCreateDebugInfo(instance);
       WasmDebugInfo::SetBreakpoint(debug_info, func_index, offset_in_func);
+    }
+  }
+
+  return true;
+}
+
+// static
+bool WasmModuleObject::ClearBreakPoint(Handle<WasmModuleObject> module_object,
+                                       int position,
+                                       Handle<BreakPoint> break_point) {
+  Isolate* isolate = module_object->GetIsolate();
+
+  // Find the function for this breakpoint.
+  const WasmModule* module = module_object->module();
+  int func_index = GetContainingWasmFunction(module, position);
+  if (func_index < 0) return false;
+  const WasmFunction& func = module->functions[func_index];
+  int offset_in_func = position - func.code.offset();
+
+  if (!WasmModuleObject::RemoveBreakpointFromInfo(module_object, position,
+                                                  break_point)) {
+    return false;
+  }
+
+  // Iterate over all instances of this module and tell them to remove this
+  // breakpoint. We do this using the weak list of all instances.
+  Handle<WeakArrayList> weak_instance_list(module_object->weak_instance_list(),
+                                           isolate);
+  for (int i = 0; i < weak_instance_list->length(); ++i) {
+    MaybeObject maybe_instance = weak_instance_list->Get(i);
+    if (maybe_instance->IsWeak()) {
+      Handle<WasmInstanceObject> instance(
+          WasmInstanceObject::cast(maybe_instance->GetHeapObjectAssumeWeak()),
+          isolate);
+      Handle<WasmDebugInfo> debug_info =
+          WasmInstanceObject::GetOrCreateDebugInfo(instance);
+      WasmDebugInfo::ClearBreakpoint(debug_info, func_index, offset_in_func);
     }
   }
 
@@ -323,9 +361,10 @@ int FindBreakpointInfoInsertPos(Isolate* isolate,
 
 }  // namespace
 
-void WasmModuleObject::AddBreakpoint(Handle<WasmModuleObject> module_object,
-                                     int position,
-                                     Handle<BreakPoint> break_point) {
+// static
+void WasmModuleObject::AddBreakpointToInfo(
+    Handle<WasmModuleObject> module_object, int position,
+    Handle<BreakPoint> break_point) {
   Isolate* isolate = module_object->GetIsolate();
   Handle<FixedArray> breakpoint_infos;
   if (module_object->has_breakpoint_infos()) {
@@ -377,6 +416,39 @@ void WasmModuleObject::AddBreakpoint(Handle<WasmModuleObject> module_object,
 
   // Now insert new position at insert_pos.
   new_breakpoint_infos->set(insert_pos, *breakpoint_info);
+}
+
+// static
+bool WasmModuleObject::RemoveBreakpointFromInfo(
+    Handle<WasmModuleObject> module_object, int position,
+    Handle<BreakPoint> break_point) {
+  if (!module_object->has_breakpoint_infos()) return false;
+
+  Isolate* isolate = module_object->GetIsolate();
+  Handle<FixedArray> breakpoint_infos(module_object->breakpoint_infos(),
+                                      isolate);
+
+  int pos = FindBreakpointInfoInsertPos(isolate, breakpoint_infos, position);
+
+  // Does a BreakPointInfo object already exist for this position?
+  if (pos == breakpoint_infos->length()) return false;
+
+  Handle<BreakPointInfo> info(BreakPointInfo::cast(breakpoint_infos->get(pos)),
+                              isolate);
+  BreakPointInfo::ClearBreakPoint(isolate, info, break_point);
+
+  // Check if there are no more breakpoints at this location.
+  if (info->GetBreakPointCount(isolate) == 0) {
+    // Update array by moving breakpoints up one position.
+    for (int i = pos; i < breakpoint_infos->length() - 1; i++) {
+      Object entry = breakpoint_infos->get(i + 1);
+      breakpoint_infos->set(i, entry);
+      if (entry.IsUndefined(isolate)) break;
+    }
+    // Make sure last array element is empty as a result.
+    breakpoint_infos->set_undefined(breakpoint_infos->length() - 1);
+  }
+  return true;
 }
 
 void WasmModuleObject::SetBreakpointsOnNewInstance(
