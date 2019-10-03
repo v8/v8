@@ -224,13 +224,10 @@ DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V)                                           \
   HARMONY_STAGED_BASE(V)                                            \
-  V(harmony_intl_add_calendar_numbering_system,                     \
-    "Add calendar and numberingSystem to DateTimeFormat")           \
   V(harmony_intl_dateformat_day_period,                             \
     "Add dayPeriod option to DateTimeFormat")                       \
   V(harmony_intl_dateformat_fractional_second_digits,               \
     "Add fractionalSecondDigits option to DateTimeFormat")          \
-  V(harmony_intl_other_calendars, "DateTimeFormat other calendars") \
   V(harmony_intl_segmenter, "Intl.Segmenter")
 #else
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
@@ -246,7 +243,11 @@ DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
   V(harmony_promise_all_settled, "harmony Promise.allSettled")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
+#define HARMONY_SHIPPING(V)                               \
+  HARMONY_SHIPPING_BASE(V)                                \
+  V(harmony_intl_add_calendar_numbering_system,           \
+    "Add calendar and numberingSystem to DateTimeFormat") \
+  V(harmony_intl_other_calendars, "DateTimeFormat other calendars")
 #else
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
 #endif
