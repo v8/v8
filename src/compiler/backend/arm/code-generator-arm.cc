@@ -153,9 +153,6 @@ class ArmOperandConverter final : public InstructionOperandConverter {
   NeonMemOperand NeonInputOperand(size_t first_index) {
     const size_t index = first_index;
     switch (AddressingModeField::decode(instr_->opcode())) {
-      case kMode_Offset_RR:
-        return NeonMemOperand(InputRegister(index + 0),
-                              InputRegister(index + 1));
       case kMode_Operand2_R:
         return NeonMemOperand(InputRegister(index + 0));
       default:

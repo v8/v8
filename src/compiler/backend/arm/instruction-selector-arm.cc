@@ -352,6 +352,26 @@ void VisitMod(InstructionSelector* selector, Node* node, ArchOpcode div_opcode,
   }
 }
 
+// Adds the base and offset into a register, then change the addressing
+// mode of opcode_return to use this register. Certain instructions, e.g.
+// vld1 and vst1, when given two registers, will post-increment the offset, i.e.
+// perform the operation at base, then add offset to base. What we intend is to
+// access at (base+offset).
+void EmitAddBeforeS128LoadStore(InstructionSelector* selector,
+                                InstructionCode* opcode_return,
+                                size_t* input_count_return,
+                                InstructionOperand* inputs) {
+  DCHECK(*opcode_return == kArmVld1S128 || *opcode_return == kArmVst1S128);
+  ArmOperandGenerator g(selector);
+  InstructionOperand addr = g.TempRegister();
+  InstructionCode op = kArmAdd;
+  op |= AddressingModeField::encode(kMode_Operand2_R);
+  selector->Emit(op, 1, &addr, 2, inputs);
+  *opcode_return |= AddressingModeField::encode(kMode_Operand2_R);
+  *input_count_return -= 1;
+  inputs[0] = addr;
+}
+
 void EmitLoad(InstructionSelector* selector, InstructionCode opcode,
               InstructionOperand* output, Node* base, Node* index) {
   ArmOperandGenerator g(selector);
@@ -368,7 +388,11 @@ void EmitLoad(InstructionSelector* selector, InstructionCode opcode,
     input_count = 3;
   } else {
     inputs[1] = g.UseRegister(index);
-    opcode |= AddressingModeField::encode(kMode_Offset_RR);
+    if (opcode == kArmVld1S128) {
+      EmitAddBeforeS128LoadStore(selector, &opcode, &input_count, &inputs[0]);
+    } else {
+      opcode |= AddressingModeField::encode(kMode_Offset_RR);
+    }
   }
   selector->Emit(opcode, 1, output, input_count, inputs);
 }
@@ -386,7 +410,12 @@ void EmitStore(InstructionSelector* selector, InstructionCode opcode,
     input_count = 4;
   } else {
     inputs[input_count++] = g.UseRegister(index);
-    opcode |= AddressingModeField::encode(kMode_Offset_RR);
+    if (opcode == kArmVst1S128) {
+      // Inputs are value, base, index, only care about base and index.
+      EmitAddBeforeS128LoadStore(selector, &opcode, &input_count, &inputs[1]);
+    } else {
+      opcode |= AddressingModeField::encode(kMode_Offset_RR);
+    }
   }
   selector->Emit(opcode, 0, nullptr, input_count, inputs);
 }
@@ -596,8 +625,7 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) {
       Emit(kArmVmovF32U32, g.DefineAsRegister(node), temp);
       return;
     }
-    case MachineRepresentation::kFloat64:
-    case MachineRepresentation::kSimd128: {
+    case MachineRepresentation::kFloat64: {
       // Compute the address of the least-significant byte of the FP value.
       // We assume that the base node is unlikely to be an encodable immediate
       // or the result of a shift operation, so only consider the addressing
@@ -623,13 +651,10 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) {
 
       if (CpuFeatures::IsSupported(NEON)) {
         // With NEON we can load directly from the calculated address.
-        InstructionCode op = load_rep == MachineRepresentation::kFloat64
-                                 ? kArmVld1F64
-                                 : kArmVld1S128;
+        InstructionCode op = kArmVld1F64;
         op |= AddressingModeField::encode(kMode_Operand2_R);
         Emit(op, g.DefineAsRegister(node), addr);
       } else {
-        DCHECK_NE(MachineRepresentation::kSimd128, load_rep);
         // Load both halves and move to an FP register.
         InstructionOperand fp_lo = g.TempRegister();
         InstructionOperand fp_hi = g.TempRegister();
@@ -670,8 +695,7 @@ void InstructionSelector::VisitUnalignedStore(Node* node) {
       EmitStore(this, kArmStr, input_count, inputs, index);
       return;
     }
-    case MachineRepresentation::kFloat64:
-    case MachineRepresentation::kSimd128: {
+    case MachineRepresentation::kFloat64: {
       if (CpuFeatures::IsSupported(NEON)) {
         InstructionOperand address = g.TempRegister();
         {
@@ -697,13 +721,10 @@ void InstructionSelector::VisitUnalignedStore(Node* node) {
 
         inputs[input_count++] = g.UseRegister(value);
         inputs[input_count++] = address;
-        InstructionCode op = store_rep == MachineRepresentation::kFloat64
-                                 ? kArmVst1F64
-                                 : kArmVst1S128;
+        InstructionCode op = kArmVst1F64;
         op |= AddressingModeField::encode(kMode_Operand2_R);
         Emit(op, 0, nullptr, input_count, inputs);
       } else {
-        DCHECK_NE(MachineRepresentation::kSimd128, store_rep);
         // Store a 64-bit floating point value using two 32-bit integer stores.
         // Computing the store address here would require three live temporary
         // registers (fp<63:32>, fp<31:0>, address), so compute base + 4 after
