@@ -162,6 +162,8 @@ let kSig_r_v = makeSig([], [kWasmAnyRef]);
 let kSig_a_v = makeSig([], [kWasmAnyFunc]);
 let kSig_a_i = makeSig([kWasmI32], [kWasmAnyFunc]);
 let kSig_e_v = makeSig([], [kWasmExnRef]);
+let kSig_s_i = makeSig([kWasmI32], [kWasmS128]);
+let kSig_i_s = makeSig([kWasmS128], [kWasmI32]);
 
 function makeSig(params, results) {
   return {params: params, results: results};
@@ -466,6 +468,8 @@ let kExprI64AtomicCompareExchange32U = 0x4e;
 
 // Simd opcodes.
 let kExprF32x4Min = 0x9e;
+let kExprI32x4Splat = 0x0c
+let kExprI32x4ExtractLane = 0x0d;
 
 // Compilation hint constants.
 let kCompilationHintStrategyDefault = 0x00;
