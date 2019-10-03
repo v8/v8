@@ -372,8 +372,6 @@ const MachInst2 kCanElideChangeUint32ToUint64[] = {
      MachineType::Uint32()},
 };
 
-}  // namespace
-
 
 // -----------------------------------------------------------------------------
 // Logical instructions.
@@ -4955,6 +4953,7 @@ TEST_F(InstructionSelectorTest, PokePairPrepareArgumentsSimd128) {
                expected_poke_pair, expected_poke);
 }
 
+}  // namespace
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
