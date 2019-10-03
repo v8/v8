@@ -2080,6 +2080,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   MemoryChunk* chunk = MemoryChunk::FromAddress(compiled_data_start);
 
   // Clear any recorded slots for the compiled data as being invalid.
+  DCHECK_NULL(chunk->sweeping_slot_set());
   RememberedSet<OLD_TO_NEW>::RemoveRange(
       chunk, compiled_data_start, compiled_data_start + compiled_data_size,
       SlotSet::PREFREE_EMPTY_BUCKETS);
@@ -2233,11 +2234,11 @@ void MarkCompactCollector::RightTrimDescriptorArray(DescriptorArray array,
   DCHECK_LE(0, new_nof_all_descriptors);
   Address start = array.GetDescriptorSlot(new_nof_all_descriptors).address();
   Address end = array.GetDescriptorSlot(old_nof_all_descriptors).address();
-  RememberedSet<OLD_TO_NEW>::RemoveRange(MemoryChunk::FromHeapObject(array),
-                                         start, end,
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(array);
+  DCHECK_NULL(chunk->sweeping_slot_set());
+  RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start, end,
                                          SlotSet::PREFREE_EMPTY_BUCKETS);
-  RememberedSet<OLD_TO_OLD>::RemoveRange(MemoryChunk::FromHeapObject(array),
-                                         start, end,
+  RememberedSet<OLD_TO_OLD>::RemoveRange(chunk, start, end,
                                          SlotSet::PREFREE_EMPTY_BUCKETS);
   heap()->CreateFillerObjectAt(start, static_cast<int>(end - start),
                                ClearRecordedSlots::kNo);
@@ -3787,6 +3788,9 @@ void MarkCompactCollector::PostProcessEvacuationCandidates() {
     // might not have recorded them in first place.
 
     // Remove outdated slots.
+    RememberedSetSweeping::RemoveRange(page, page->address(),
+                                       failed_object.address(),
+                                       SlotSet::PREFREE_EMPTY_BUCKETS);
     RememberedSet<OLD_TO_NEW>::RemoveRange(page, page->address(),
                                            failed_object.address(),
                                            SlotSet::PREFREE_EMPTY_BUCKETS);
