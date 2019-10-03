@@ -1055,13 +1055,11 @@ void TurboAssembler::JumpIfSmi(Register value, Label* smi_label,
 }
 
 void TurboAssembler::JumpIfEqual(Register x, int32_t y, Label* dest) {
-  Cmp(x, y);
-  B(eq, dest);
+  CompareAndBranch(x, y, eq, dest);
 }
 
 void TurboAssembler::JumpIfLessThan(Register x, int32_t y, Label* dest) {
-  Cmp(x, y);
-  B(lt, dest);
+  CompareAndBranch(x, y, lt, dest);
 }
 
 void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
@@ -1201,7 +1199,7 @@ void TurboAssembler::DropSlots(int64_t count) {
 
 void TurboAssembler::PushArgument(const Register& arg) { Push(padreg, arg); }
 
-void MacroAssembler::CompareAndBranch(const Register& lhs, const Operand& rhs,
+void TurboAssembler::CompareAndBranch(const Register& lhs, const Operand& rhs,
                                       Condition cond, Label* label) {
   if (rhs.IsImmediate() && (rhs.ImmediateValue() == 0) &&
       ((cond == eq) || (cond == ne))) {
@@ -1216,7 +1214,7 @@ void MacroAssembler::CompareAndBranch(const Register& lhs, const Operand& rhs,
   }
 }
 
-void MacroAssembler::CompareTaggedAndBranch(const Register& lhs,
+void TurboAssembler::CompareTaggedAndBranch(const Register& lhs,
                                             const Operand& rhs, Condition cond,
                                             Label* label) {
   if (COMPRESS_POINTERS_BOOL) {
