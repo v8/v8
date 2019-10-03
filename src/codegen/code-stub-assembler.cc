@@ -19,6 +19,7 @@
 #include "src/objects/descriptor-array.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/js-generator.h"
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/property-cell.h"
@@ -6274,6 +6275,10 @@ TNode<BoolT> CodeStubAssembler::IsJSGlobalProxy(
   return IsJSGlobalProxyMap(LoadMap(object));
 }
 
+TNode<BoolT> CodeStubAssembler::IsJSGeneratorMap(TNode<Map> map) {
+  return InstanceTypeEqual(LoadMapInstanceType(map), JS_GENERATOR_OBJECT_TYPE);
+}
+
 TNode<BoolT> CodeStubAssembler::IsJSObjectInstanceType(
     SloppyTNode<Int32T> instance_type) {
   STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
@@ -6596,8 +6601,7 @@ TNode<BoolT> CodeStubAssembler::IsNumberDictionary(
   return HasInstanceType(object, NUMBER_DICTIONARY_TYPE);
 }
 
-TNode<BoolT> CodeStubAssembler::IsJSGeneratorObject(
-    SloppyTNode<HeapObject> object) {
+TNode<BoolT> CodeStubAssembler::IsJSGeneratorObject(TNode<HeapObject> object) {
   return HasInstanceType(object, JS_GENERATOR_OBJECT_TYPE);
 }
 
@@ -8691,6 +8695,66 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
   }
 }
 
+TNode<Object> CodeStubAssembler::GetConstructor(TNode<Map> map) {
+  TVARIABLE(HeapObject, var_maybe_constructor);
+  var_maybe_constructor = map;
+  Label loop(this, &var_maybe_constructor), done(this);
+  GotoIfNot(IsMap(var_maybe_constructor.value()), &done);
+  Goto(&loop);
+
+  BIND(&loop);
+  {
+    var_maybe_constructor = CAST(LoadObjectField(
+        var_maybe_constructor.value(), Map::kConstructorOrBackPointerOffset));
+    GotoIf(IsMap(var_maybe_constructor.value()), &loop);
+    Goto(&done);
+  }
+
+  BIND(&done);
+  return var_maybe_constructor.value();
+}
+
+TNode<NativeContext> CodeStubAssembler::GetCreationContext(
+    TNode<JSReceiver> receiver, Label* if_bailout) {
+  TNode<Map> receiver_map = LoadMap(receiver);
+  TNode<Object> constructor = GetConstructor(receiver_map);
+
+  TVARIABLE(JSFunction, var_function);
+
+  Label done(this), if_jsfunction(this), if_jsgenerator(this);
+  GotoIf(TaggedIsSmi(constructor), if_bailout);
+
+  TNode<Map> function_map = LoadMap(CAST(constructor));
+  GotoIf(IsJSFunctionMap(function_map), &if_jsfunction);
+  GotoIf(IsJSGeneratorMap(function_map), &if_jsgenerator);
+  // Remote objects don't have a creation context.
+  GotoIf(IsFunctionTemplateInfoMap(function_map), if_bailout);
+
+  CSA_ASSERT(this, IsJSFunctionMap(receiver_map));
+  var_function = CAST(receiver);
+  Goto(&done);
+
+  BIND(&if_jsfunction);
+  {
+    var_function = CAST(constructor);
+    Goto(&done);
+  }
+
+  BIND(&if_jsgenerator);
+  {
+    var_function = LoadJSGeneratorObjectFunction(CAST(receiver));
+    Goto(&done);
+  }
+
+  BIND(&done);
+  TNode<Context> context = LoadJSFunctionContext(var_function.value());
+
+  GotoIfNot(IsContext(context), if_bailout);
+
+  TNode<NativeContext> native_context = LoadNativeContext(context);
+  return native_context;
+}
+
 void CodeStubAssembler::DescriptorLookup(
     SloppyTNode<Name> unique_name, SloppyTNode<DescriptorArray> descriptors,
     SloppyTNode<Uint32T> bitfield3, Label* if_found,
@@ -9025,25 +9089,44 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
   // AccessorPair case.
   {
     if (mode == kCallJSGetter) {
+      Label if_callable(this), if_function_template_info(this);
       Node* accessor_pair = value;
       TNode<HeapObject> getter =
           CAST(LoadObjectField(accessor_pair, AccessorPair::kGetterOffset));
       TNode<Map> getter_map = LoadMap(getter);
-      TNode<Uint16T> instance_type = LoadMapInstanceType(getter_map);
-      // FunctionTemplateInfo getters are not supported yet.
-      GotoIf(InstanceTypeEqual(instance_type, FUNCTION_TEMPLATE_INFO_TYPE),
-             if_bailout);
+
+      GotoIf(IsCallableMap(getter_map), &if_callable);
+      GotoIf(IsFunctionTemplateInfoMap(getter_map), &if_function_template_info);
 
       // Return undefined if the {getter} is not callable.
       var_value.Bind(UndefinedConstant());
-      GotoIfNot(IsCallableMap(getter_map), &done);
+      Goto(&done);
 
-      // Call the accessor.
-      Callable callable = CodeFactory::Call(isolate());
-      Node* result = CallJS(callable, context, getter, receiver);
-      var_value.Bind(result);
+      BIND(&if_callable);
+      {
+        // Call the accessor.
+        Callable callable = CodeFactory::Call(isolate());
+        Node* result = CallJS(callable, context, getter, receiver);
+        var_value.Bind(result);
+        Goto(&done);
+      }
+
+      BIND(&if_function_template_info);
+      {
+        TNode<HeapObject> cached_property_name = LoadObjectField<HeapObject>(
+            getter, FunctionTemplateInfo::kCachedPropertyNameOffset);
+        GotoIfNot(IsTheHole(cached_property_name), if_bailout);
+
+        TNode<NativeContext> creation_context =
+            GetCreationContext(CAST(receiver), if_bailout);
+        var_value.Bind(CallBuiltin(
+            Builtins::kCallFunctionTemplate_CheckAccessAndCompatibleReceiver,
+            creation_context, getter, IntPtrConstant(0), receiver));
+        Goto(&done);
+      }
+    } else {
+      Goto(&done);
     }
-    Goto(&done);
   }
 
   // AccessorInfo case.
