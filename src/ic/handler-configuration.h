@@ -43,6 +43,7 @@ class LoadHandler final : public DataHandler {
     kApiGetter,
     kApiGetterHolderIsPrototype,
     kInterceptor,
+    kSlow,
     kProxy,
     kNonExistent,
     kModuleExport
@@ -112,6 +113,9 @@ class LoadHandler final : public DataHandler {
   // Creates a Smi-handler for loading a property from an object with an
   // interceptor.
   static inline Handle<Smi> LoadInterceptor(Isolate* isolate);
+
+  // Creates a Smi-handler for loading a property from a object.
+  static inline Handle<Smi> LoadSlow(Isolate* isolate);
 
   // Creates a Smi-handler for loading a field from fast object.
   static inline Handle<Smi> LoadField(Isolate* isolate, FieldIndex field_index);

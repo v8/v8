@@ -249,7 +249,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void HandleLoadICSmiHandlerCase(
       const LazyLoadICParameters* p, SloppyTNode<HeapObject> holder,
       SloppyTNode<Smi> smi_handler, SloppyTNode<Object> handler, Label* miss,
-      ExitPoint* exit_point, OnNonExistent on_nonexistent,
+      ExitPoint* exit_point, ICMode ic_mode, OnNonExistent on_nonexistent,
       ElementSupport support_elements, LoadAccessMode access_mode);
 
   void HandleLoadICProtoHandler(const LazyLoadICParameters* p,
@@ -282,12 +282,14 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
       TNode<IntPtrT> handler_kind, TNode<WordT> handler_word,
       Label* rebox_double, Variable* var_double_value,
       SloppyTNode<Object> handler, Label* miss, ExitPoint* exit_point,
-      OnNonExistent on_nonexistent, ElementSupport support_elements);
+      ICMode ic_mode, OnNonExistent on_nonexistent,
+      ElementSupport support_elements);
 
   void HandleLoadICSmiHandlerHasNamedCase(const LazyLoadICParameters* p,
                                           TNode<HeapObject> holder,
                                           TNode<IntPtrT> handler_kind,
-                                          Label* miss, ExitPoint* exit_point);
+                                          Label* miss, ExitPoint* exit_point,
+                                          ICMode ic_mode);
 
   // LoadGlobalIC implementation.
 

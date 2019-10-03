@@ -43,6 +43,11 @@ Handle<Smi> LoadHandler::LoadInterceptor(Isolate* isolate) {
   return handle(Smi::FromInt(config), isolate);
 }
 
+Handle<Smi> LoadHandler::LoadSlow(Isolate* isolate) {
+  int config = KindBits::encode(kSlow);
+  return handle(Smi::FromInt(config), isolate);
+}
+
 Handle<Smi> LoadHandler::LoadField(Isolate* isolate, FieldIndex field_index) {
   int config = KindBits::encode(kField) |
                IsInobjectBits::encode(field_index.is_inobject()) |

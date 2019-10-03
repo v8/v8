@@ -162,8 +162,8 @@ void AccessorAssembler::HandleLoadICHandlerCase(
   BIND(&if_smi_handler);
   {
     HandleLoadICSmiHandlerCase(p, var_holder.value(), var_smi_handler.value(),
-                               handler, miss, exit_point, on_nonexistent,
-                               support_elements, access_mode);
+                               handler, miss, exit_point, ic_mode,
+                               on_nonexistent, support_elements, access_mode);
   }
 
   BIND(&call_handler);
@@ -303,7 +303,7 @@ TNode<MaybeObject> AccessorAssembler::LoadDescriptorValueOrFieldType(
 void AccessorAssembler::HandleLoadICSmiHandlerCase(
     const LazyLoadICParameters* p, SloppyTNode<HeapObject> holder,
     SloppyTNode<Smi> smi_handler, SloppyTNode<Object> handler, Label* miss,
-    ExitPoint* exit_point, OnNonExistent on_nonexistent,
+    ExitPoint* exit_point, ICMode ic_mode, OnNonExistent on_nonexistent,
     ElementSupport support_elements, LoadAccessMode access_mode) {
   VARIABLE(var_double_value, MachineRepresentation::kFloat64);
   Label rebox_double(this, &var_double_value);
@@ -419,11 +419,11 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
 
   if (access_mode == LoadAccessMode::kHas) {
     HandleLoadICSmiHandlerHasNamedCase(p, holder, handler_kind, miss,
-                                       exit_point);
+                                       exit_point, ic_mode);
   } else {
     HandleLoadICSmiHandlerLoadNamedCase(
         p, holder, handler_kind, handler_word, &rebox_double, &var_double_value,
-        handler, miss, exit_point, on_nonexistent, support_elements);
+        handler, miss, exit_point, ic_mode, on_nonexistent, support_elements);
   }
 }
 
@@ -431,12 +431,13 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
     const LazyLoadICParameters* p, TNode<HeapObject> holder,
     TNode<IntPtrT> handler_kind, TNode<WordT> handler_word, Label* rebox_double,
     Variable* var_double_value, SloppyTNode<Object> handler, Label* miss,
-    ExitPoint* exit_point, OnNonExistent on_nonexistent,
+    ExitPoint* exit_point, ICMode ic_mode, OnNonExistent on_nonexistent,
     ElementSupport support_elements) {
   Label constant(this), field(this), normal(this, Label::kDeferred),
-      interceptor(this, Label::kDeferred), nonexistent(this),
-      accessor(this, Label::kDeferred), global(this, Label::kDeferred),
-      module_export(this, Label::kDeferred), proxy(this, Label::kDeferred),
+      slow(this, Label::kDeferred), interceptor(this, Label::kDeferred),
+      nonexistent(this), accessor(this, Label::kDeferred),
+      global(this, Label::kDeferred), module_export(this, Label::kDeferred),
+      proxy(this, Label::kDeferred),
       native_data_property(this, Label::kDeferred),
       api_getter(this, Label::kDeferred);
 
@@ -468,6 +469,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
 
   GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kGlobal)),
          &global);
+
+  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kSlow)), &slow);
 
   GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kProxy)), &proxy);
 
@@ -596,6 +599,18 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
                                   p->context(), p->name(), p->receiver(),
                                   holder, p->slot(), p->vector());
   }
+  BIND(&slow);
+  {
+    Comment("load_slow");
+    if (ic_mode == ICMode::kGlobalIC) {
+      exit_point->ReturnCallRuntime(Runtime::kLoadGlobalIC_Slow, p->context(),
+                                    p->name(), p->slot(), p->vector());
+
+    } else {
+      exit_point->ReturnCallRuntime(Runtime::kGetProperty, p->context(),
+                                    p->receiver(), p->name());
+    }
+  }
 
   BIND(&module_export);
   {
@@ -627,9 +642,10 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
 
 void AccessorAssembler::HandleLoadICSmiHandlerHasNamedCase(
     const LazyLoadICParameters* p, TNode<HeapObject> holder,
-    TNode<IntPtrT> handler_kind, Label* miss, ExitPoint* exit_point) {
+    TNode<IntPtrT> handler_kind, Label* miss, ExitPoint* exit_point,
+    ICMode ic_mode) {
   Label return_true(this), return_false(this), return_lookup(this),
-      normal(this), global(this);
+      normal(this), global(this), slow(this);
 
   GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kField)),
          &return_true);
@@ -657,6 +673,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerHasNamedCase(
   GotoIf(WordEqual(handler_kind,
                    IntPtrConstant(LoadHandler::kApiGetterHolderIsPrototype)),
          &return_true);
+
+  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kSlow)), &slow);
 
   Branch(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kGlobal)), &global,
          &return_lookup);
@@ -703,6 +721,18 @@ void AccessorAssembler::HandleLoadICSmiHandlerHasNamedCase(
     GotoIf(IsTheHole(value), miss);
 
     exit_point->Return(TrueConstant());
+  }
+
+  BIND(&slow);
+  {
+    Comment("load_slow");
+    if (ic_mode == ICMode::kGlobalIC) {
+      exit_point->ReturnCallRuntime(Runtime::kLoadGlobalIC_Slow, p->context(),
+                                    p->name(), p->slot(), p->vector());
+    } else {
+      exit_point->ReturnCallRuntime(Runtime::kHasProperty, p->context(),
+                                    p->receiver(), p->name());
+    }
   }
 }
 
