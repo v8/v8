@@ -5,6 +5,7 @@
 #ifndef V8_PARSING_PREPARSER_H_
 #define V8_PARSING_PREPARSER_H_
 
+#include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/parsing/parser-base.h"
@@ -1071,9 +1072,8 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE void DeclareLabel(ZonePtrList<const AstRawString>** labels,
                               ZonePtrList<const AstRawString>** own_labels,
-                              const PreParserExpression& expr) {
-    DCHECK(!parsing_module_ || !expr.AsIdentifier().IsAwait());
-    DCHECK(IsIdentifier(expr));
+                              const AstRawString* label) {
+    DCHECK(!parsing_module_);
   }
 
   // TODO(nikolaos): The preparser currently does not keep track of labels.
