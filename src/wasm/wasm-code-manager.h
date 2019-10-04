@@ -421,16 +421,26 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // the first jump table).
   Address GetCallTargetForFunction(uint32_t func_index) const;
 
-  // Similarly to {GetCallTargetForFunction}, but ensures that the returned
-  // address is near to the {near_to} address by finding the closest jump table.
-  Address GetNearCallTargetForFunction(uint32_t func_index,
-                                       Address near_to) const;
+  struct JumpTablesRef {
+    const Address jump_table_start;
+    const Address far_jump_table_start;
+  };
 
-  // Get a runtime stub entry (which is a far jump table slot) within near-call
-  // distance to {near_to}. Fails if {near_to} is not part of any code space of
-  // this module.
+  // Finds the jump tables that should be used for the code at {code_addr}. This
+  // information is then passed to {GetNearCallTargetForFunction} and
+  // {GetNearRuntimeStubEntry} to avoid the overhead of looking this information
+  // up there.
+  JumpTablesRef FindJumpTablesForCode(Address code_addr) const;
+
+  // Similarly to {GetCallTargetForFunction}, but uses the jump table previously
+  // looked up via {FindJumpTablesForCode}.
+  Address GetNearCallTargetForFunction(uint32_t func_index,
+                                       const JumpTablesRef&) const;
+
+  // Get a runtime stub entry (which is a far jump table slot) in the jump table
+  // previously looked up via {FindJumpTablesForCode}.
   Address GetNearRuntimeStubEntry(WasmCode::RuntimeStubId index,
-                                  Address near_to) const;
+                                  const JumpTablesRef&) const;
 
   // Reverse lookup from a given call target (which must be a jump table slot)
   // to a function index.
@@ -534,7 +544,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
       OwnedVector<trap_handler::ProtectedInstructionData>
           protected_instructions,
       OwnedVector<const byte> source_position_table, WasmCode::Kind kind,
-      ExecutionTier tier, Vector<uint8_t> code_space);
+      ExecutionTier tier, Vector<uint8_t> code_space,
+      const JumpTablesRef& jump_tables_ref);
 
   WasmCode* CreateEmptyJumpTableInRegion(uint32_t jump_table_size,
                                          base::AddressRegion);

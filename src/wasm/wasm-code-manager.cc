@@ -833,6 +833,8 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
                    code->InstructionStart();
   int mode_mask = RelocInfo::kApplyMask |
                   RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL);
+  auto jump_tables_ref =
+      FindJumpTablesForCode(reinterpret_cast<Address>(dst_code_bytes.begin()));
   Address dst_code_addr = reinterpret_cast<Address>(dst_code_bytes.begin());
   Address constant_pool_start = dst_code_addr + constant_pool_offset;
   RelocIterator orig_it(*code, mode_mask);
@@ -844,7 +846,7 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
       uint32_t stub_call_tag = orig_it.rinfo()->wasm_call_tag();
       DCHECK_LT(stub_call_tag, WasmCode::kRuntimeStubCount);
       Address entry = GetNearRuntimeStubEntry(
-          static_cast<WasmCode::RuntimeStubId>(stub_call_tag), dst_code_addr);
+          static_cast<WasmCode::RuntimeStubId>(stub_call_tag), jump_tables_ref);
       it.rinfo()->set_wasm_stub_call_address(entry, SKIP_ICACHE_FLUSH);
     } else {
       it.rinfo()->apply(delta);
@@ -896,8 +898,9 @@ void NativeModule::UseLazyStub(uint32_t func_index) {
     JumpTableAssembler::GenerateLazyCompileTable(
         lazy_compile_table_->instruction_start(), num_slots,
         module_->num_imported_functions,
-        GetNearRuntimeStubEntry(WasmCode::kWasmCompileLazy,
-                                lazy_compile_table_->instruction_start()));
+        GetNearRuntimeStubEntry(
+            WasmCode::kWasmCompileLazy,
+            FindJumpTablesForCode(lazy_compile_table_->instruction_start())));
   }
 
   // Add jump table entry for jump to the lazy compile stub.
@@ -916,10 +919,14 @@ std::unique_ptr<WasmCode> NativeModule::AddCode(
     OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions,
     OwnedVector<const byte> source_position_table, WasmCode::Kind kind,
     ExecutionTier tier) {
-  return AddCodeWithCodeSpace(
-      index, desc, stack_slots, tagged_parameter_slots,
-      std::move(protected_instructions), std::move(source_position_table), kind,
-      tier, code_allocator_.AllocateForCode(this, desc.instr_size));
+  Vector<byte> code_space =
+      code_allocator_.AllocateForCode(this, desc.instr_size);
+  auto jump_table_ref =
+      FindJumpTablesForCode(reinterpret_cast<Address>(code_space.begin()));
+  return AddCodeWithCodeSpace(index, desc, stack_slots, tagged_parameter_slots,
+                              std::move(protected_instructions),
+                              std::move(source_position_table), kind, tier,
+                              code_space, jump_table_ref);
 }
 
 std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
@@ -927,7 +934,8 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
     uint32_t tagged_parameter_slots,
     OwnedVector<ProtectedInstructionData> protected_instructions,
     OwnedVector<const byte> source_position_table, WasmCode::Kind kind,
-    ExecutionTier tier, Vector<uint8_t> dst_code_bytes) {
+    ExecutionTier tier, Vector<uint8_t> dst_code_bytes,
+    const JumpTablesRef& jump_tables_ref) {
   OwnedVector<byte> reloc_info;
   if (desc.reloc_size > 0) {
     reloc_info = OwnedVector<byte>::New(desc.reloc_size);
@@ -964,13 +972,13 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsWasmCall(mode)) {
       uint32_t call_tag = it.rinfo()->wasm_call_tag();
-      Address target = GetNearCallTargetForFunction(call_tag, code_start);
+      Address target = GetNearCallTargetForFunction(call_tag, jump_tables_ref);
       it.rinfo()->set_wasm_call_address(target, SKIP_ICACHE_FLUSH);
     } else if (RelocInfo::IsWasmStubCall(mode)) {
       uint32_t stub_call_tag = it.rinfo()->wasm_call_tag();
       DCHECK_LT(stub_call_tag, WasmCode::kRuntimeStubCount);
       Address entry = GetNearRuntimeStubEntry(
-          static_cast<WasmCode::RuntimeStubId>(stub_call_tag), code_start);
+          static_cast<WasmCode::RuntimeStubId>(stub_call_tag), jump_tables_ref);
       it.rinfo()->set_wasm_stub_call_address(entry, SKIP_ICACHE_FLUSH);
     } else {
       it.rinfo()->apply(delta);
@@ -1333,32 +1341,34 @@ Address NativeModule::GetCallTargetForFunction(uint32_t func_index) const {
   return main_jump_table_->instruction_start() + slot_offset;
 }
 
-Address NativeModule::GetNearCallTargetForFunction(uint32_t func_index,
-                                                   Address near_to) const {
-  uint32_t slot_offset = GetJumpTableOffset(func_index);
+NativeModule::JumpTablesRef NativeModule::FindJumpTablesForCode(
+    Address code_addr) const {
   base::MutexGuard guard(&allocation_mutex_);
   for (auto& code_space_data : code_space_data_) {
-    const bool jump_table_reachable = !kNeedsFarJumpsBetweenCodeSpaces ||
-                                      code_space_data.region.contains(near_to);
-    if (jump_table_reachable && code_space_data.jump_table) {
-      DCHECK_LT(slot_offset, code_space_data.jump_table->instructions().size());
-      return code_space_data.jump_table->instruction_start() + slot_offset;
+    const bool jump_table_reachable =
+        !kNeedsFarJumpsBetweenCodeSpaces ||
+        code_space_data.region.contains(code_addr);
+    if (jump_table_reachable && code_space_data.far_jump_table) {
+      // We might not have a jump table if we have no functions.
+      return {code_space_data.jump_table
+                  ? code_space_data.jump_table->instruction_start()
+                  : kNullAddress,
+              code_space_data.far_jump_table->instruction_start()};
     }
   }
-  FATAL("near_to is not part of a code space");
+  FATAL("code_addr is not part of a code space");
 }
 
-Address NativeModule::GetNearRuntimeStubEntry(WasmCode::RuntimeStubId index,
-                                              Address near_to) const {
-  base::MutexGuard guard(&allocation_mutex_);
-  for (auto& code_space_data : code_space_data_) {
-    if (code_space_data.region.contains(near_to)) {
-      auto offset = JumpTableAssembler::FarJumpSlotIndexToOffset(index);
-      DCHECK_GT(code_space_data.far_jump_table->instructions().size(), offset);
-      return code_space_data.far_jump_table->instruction_start() + offset;
-    }
-  }
-  FATAL("near_to is not part of a code space");
+Address NativeModule::GetNearCallTargetForFunction(
+    uint32_t func_index, const JumpTablesRef& jump_tables) const {
+  uint32_t slot_offset = GetJumpTableOffset(func_index);
+  return jump_tables.jump_table_start + slot_offset;
+}
+
+Address NativeModule::GetNearRuntimeStubEntry(
+    WasmCode::RuntimeStubId index, const JumpTablesRef& jump_tables) const {
+  auto offset = JumpTableAssembler::FarJumpSlotIndexToOffset(index);
+  return jump_tables.far_jump_table_start + offset;
 }
 
 uint32_t NativeModule::GetFunctionIndexFromJumpTableSlot(
@@ -1661,6 +1671,9 @@ std::vector<WasmCode*> NativeModule::AddCompiledCode(
   }
   Vector<byte> code_space =
       code_allocator_.AllocateForCode(this, total_code_space);
+  // Lookup the jump tables to use once, then use for all code objects.
+  auto jump_tables_ref =
+      FindJumpTablesForCode(reinterpret_cast<Address>(code_space.begin()));
 
   std::vector<std::unique_ptr<WasmCode>> generated_code;
   generated_code.reserve(results.size());
@@ -1675,7 +1688,7 @@ std::vector<WasmCode*> NativeModule::AddCompiledCode(
         result.func_index, result.code_desc, result.frame_slot_count,
         result.tagged_parameter_slots, std::move(result.protected_instructions),
         std::move(result.source_positions), GetCodeKind(result),
-        result.result_tier, this_code_space));
+        result.result_tier, this_code_space, jump_tables_ref));
   }
   DCHECK_EQ(0, code_space.size());
 

@@ -541,6 +541,8 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
              RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
              RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
              RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
+  auto jump_tables_ref =
+      native_module_->FindJumpTablesForCode(code->instruction_start());
   for (RelocIterator iter(code->instructions(), code->reloc_info(),
                           code->constant_pool(), mask);
        !iter.done(); iter.next()) {
@@ -548,8 +550,8 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
     switch (mode) {
       case RelocInfo::WASM_CALL: {
         uint32_t tag = GetWasmCalleeTag(iter.rinfo());
-        Address target = native_module_->GetNearCallTargetForFunction(
-            tag, code->instruction_start());
+        Address target =
+            native_module_->GetNearCallTargetForFunction(tag, jump_tables_ref);
         iter.rinfo()->set_wasm_call_address(target, SKIP_ICACHE_FLUSH);
         break;
       }
@@ -557,8 +559,7 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
         uint32_t tag = GetWasmCalleeTag(iter.rinfo());
         DCHECK_LT(tag, WasmCode::kRuntimeStubCount);
         Address target = native_module_->GetNearRuntimeStubEntry(
-            static_cast<WasmCode::RuntimeStubId>(tag),
-            code->instruction_start());
+            static_cast<WasmCode::RuntimeStubId>(tag), jump_tables_ref);
         iter.rinfo()->set_wasm_stub_call_address(target, SKIP_ICACHE_FLUSH);
         break;
       }
