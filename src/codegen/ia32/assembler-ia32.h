@@ -874,17 +874,29 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void cmpps(XMMRegister dst, XMMRegister src, uint8_t cmp) {
     cmpps(dst, Operand(src), cmp);
   }
-#define SSE_CMP_P(instr, imm8)                       \
-  void instr##ps(XMMRegister dst, XMMRegister src) { \
-    cmpps(dst, Operand(src), imm8);                  \
-  }                                                  \
-  void instr##ps(XMMRegister dst, Operand src) { cmpps(dst, src, imm8); }
+  void cmppd(XMMRegister dst, Operand src, uint8_t cmp);
+  void cmppd(XMMRegister dst, XMMRegister src, uint8_t cmp) {
+    cmppd(dst, Operand(src), cmp);
+  }
 
-  SSE_CMP_P(cmpeq, 0x0)
-  SSE_CMP_P(cmplt, 0x1)
-  SSE_CMP_P(cmple, 0x2)
-  SSE_CMP_P(cmpneq, 0x4)
+// Packed floating-point comparison operations.
+#define PACKED_CMP_LIST(V) \
+  V(cmpeq, 0x0)            \
+  V(cmplt, 0x1)            \
+  V(cmple, 0x2)            \
+  V(cmpneq, 0x4)
 
+#define SSE_CMP_P(instr, imm8)                                            \
+  void instr##ps(XMMRegister dst, XMMRegister src) {                      \
+    cmpps(dst, Operand(src), imm8);                                       \
+  }                                                                       \
+  void instr##ps(XMMRegister dst, Operand src) { cmpps(dst, src, imm8); } \
+  void instr##pd(XMMRegister dst, XMMRegister src) {                      \
+    cmppd(dst, Operand(src), imm8);                                       \
+  }                                                                       \
+  void instr##pd(XMMRegister dst, Operand src) { cmppd(dst, src, imm8); }
+
+  PACKED_CMP_LIST(SSE_CMP_P)
 #undef SSE_CMP_P
 
   // SSE2 instructions
@@ -1529,24 +1541,30 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   PACKED_OP_LIST(AVX_PACKED_OP_DECLARE)
 #undef AVX_PACKED_OP_DECLARE
 #undef PACKED_OP_LIST
+
   void vps(byte op, XMMRegister dst, XMMRegister src1, Operand src2);
   void vpd(byte op, XMMRegister dst, XMMRegister src1, Operand src2);
 
   void vcmpps(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t cmp);
-#define AVX_CMP_P(instr, imm8)                                          \
-  void instr##ps(XMMRegister dst, XMMRegister src1, XMMRegister src2) { \
-    vcmpps(dst, src1, Operand(src2), imm8);                             \
-  }                                                                     \
-  void instr##ps(XMMRegister dst, XMMRegister src1, Operand src2) {     \
-    vcmpps(dst, src1, src2, imm8);                                      \
+  void vcmppd(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t cmp);
+
+#define AVX_CMP_P(instr, imm8)                                             \
+  void v##instr##ps(XMMRegister dst, XMMRegister src1, XMMRegister src2) { \
+    vcmpps(dst, src1, Operand(src2), imm8);                                \
+  }                                                                        \
+  void v##instr##ps(XMMRegister dst, XMMRegister src1, Operand src2) {     \
+    vcmpps(dst, src1, src2, imm8);                                         \
+  }                                                                        \
+  void v##instr##pd(XMMRegister dst, XMMRegister src1, XMMRegister src2) { \
+    vcmppd(dst, src1, Operand(src2), imm8);                                \
+  }                                                                        \
+  void v##instr##pd(XMMRegister dst, XMMRegister src1, Operand src2) {     \
+    vcmppd(dst, src1, src2, imm8);                                         \
   }
 
-  AVX_CMP_P(vcmpeq, 0x0)
-  AVX_CMP_P(vcmplt, 0x1)
-  AVX_CMP_P(vcmple, 0x2)
-  AVX_CMP_P(vcmpneq, 0x4)
-
+  PACKED_CMP_LIST(AVX_CMP_P)
 #undef AVX_CMP_P
+#undef PACKED_CMP_LIST
 
 // Other SSE and AVX instructions
 #define DECLARE_SSE2_INSTRUCTION(instruction, prefix, escape, opcode) \

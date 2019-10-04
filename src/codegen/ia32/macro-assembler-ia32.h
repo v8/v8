@@ -318,6 +318,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_PACKED_OP3(Subpd, subpd)
   AVX_PACKED_OP3(Mulpd, mulpd)
   AVX_PACKED_OP3(Divpd, divpd)
+  AVX_PACKED_OP3(Cmpeqpd, cmpeqpd)
+  AVX_PACKED_OP3(Cmpneqpd, cmpneqpd)
+  AVX_PACKED_OP3(Cmpltpd, cmpltpd)
+  AVX_PACKED_OP3(Cmplepd, cmplepd)
 #undef AVX_PACKED_OP3
 #undef AVX_PACKED_OP3_WITH_TYPE
 

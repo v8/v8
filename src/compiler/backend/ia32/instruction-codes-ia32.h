@@ -127,6 +127,10 @@ namespace compiler {
   V(IA32F64x2Sub)                  \
   V(IA32F64x2Mul)                  \
   V(IA32F64x2Div)                  \
+  V(IA32F64x2Eq)                   \
+  V(IA32F64x2Ne)                   \
+  V(IA32F64x2Lt)                   \
+  V(IA32F64x2Le)                   \
   V(SSEF32x4Splat)                 \
   V(AVXF32x4Splat)                 \
   V(SSEF32x4ExtractLane)           \
