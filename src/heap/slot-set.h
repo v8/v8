@@ -227,16 +227,21 @@ class SlotSet : public Malloced {
     }
   }
 
- private:
-  using Bucket = uint32_t*;
   static const int kMaxSlots = (1 << kPageSizeBits) / kTaggedSize;
   static const int kCellsPerBucket = 32;
   static const int kCellsPerBucketLog2 = 5;
+  static const int kCellSizeBytesLog2 = 2;
+  static const int kCellSizeBytes = 1 << kCellSizeBytesLog2;
   static const int kBitsPerCell = 32;
   static const int kBitsPerCellLog2 = 5;
   static const int kBitsPerBucket = kCellsPerBucket * kBitsPerCell;
   static const int kBitsPerBucketLog2 = kCellsPerBucketLog2 + kBitsPerCellLog2;
   static const int kBuckets = kMaxSlots / kCellsPerBucket / kBitsPerCell;
+
+  static const int kSize = kBuckets * kSystemPointerSize;
+
+ private:
+  using Bucket = uint32_t*;
 
   Bucket AllocateBucket() {
     Bucket result = NewArray<uint32_t>(kCellsPerBucket);
@@ -336,6 +341,9 @@ class SlotSet : public Malloced {
 
   Bucket buckets_[kBuckets];
 };
+
+STATIC_ASSERT(std::is_standard_layout<SlotSet>::value);
+STATIC_ASSERT(sizeof(SlotSet) == SlotSet::kSize);
 
 enum SlotType {
   FULL_EMBEDDED_OBJECT_SLOT,
