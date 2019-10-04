@@ -954,9 +954,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ CmpInstanceType(eax, FEEDBACK_VECTOR_TYPE);
   __ j(not_equal, &push_stack_frame);
 
-  Label has_optimization_marker;
-  Label maybe_has_optimized_code;
-
   // Read off the optimized code slot in the feedback vector.
   // Load the optimized code from the feedback vector and re-use the register.
   Register optimized_code_entry = ecx;
@@ -964,14 +961,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
          FieldOperand(feedback_vector,
                       FeedbackVector::kOptimizedCodeWeakOrSmiOffset));
 
-  // If not a Smi, then it must be a weak reference to the optimized code.
-  __ JumpIfNotSmi(optimized_code_entry, &maybe_has_optimized_code);
-
-  // Check if there is an optimization marker and if so carry onto the the
-  // MaybeOptimizeCode path.
+  // Check if the optimized code slot is not empty.
+  Label optimized_code_slot_not_empty;
   __ cmp(optimized_code_entry,
          Immediate(Smi::FromEnum(OptimizationMarker::kNone)));
-  __ j(not_equal, &has_optimization_marker);
+  __ j(not_equal, &optimized_code_slot_not_empty);
 
   Label not_optimized;
   __ bind(&not_optimized);
@@ -1107,7 +1101,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   LeaveInterpreterFrame(masm, edx, ecx);
   __ ret(0);
 
-  __ bind(&has_optimization_marker);
+  __ bind(&optimized_code_slot_not_empty);
+  Label maybe_has_optimized_code;
+  // Check if optimized code marker is actually a weak reference to the
+  // optimized code as opposed to an optimization marker.
+  __ JumpIfNotSmi(optimized_code_entry, &maybe_has_optimized_code);
   MaybeOptimizeCode(masm, optimized_code_entry);
   // Fall through if there's no runnable optimized code.
   __ jmp(&not_optimized);
