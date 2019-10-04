@@ -189,7 +189,7 @@ TEST(DisasmPoisonMonomorphicLoadFloat64) {
       "b.ne",                                              // deopt if differ
       "csel " + kPReg + ", xzr, " + kPReg + ", ne",        // update the poison
       "csdb",                                              // spec. barrier
-      "ldursw <<F1:x[0-9]+>>, \\[<<Obj>>, #11\\]",         // load field
+      "ldursw <<F1:x[0-9]+>>, \\[<<Obj>>, #11\\]",         // load heap number
       "add <<F1>>, x26, <<F1>>",                           // Decompress ref
       "and <<F1>>, <<F1>>, " + kPReg,                      // apply the poison
       "add <<Addr:x[0-9]+>>, <<F1>>, #0x[0-9a-f]+",        // addr. calculation
@@ -204,7 +204,13 @@ TEST(DisasmPoisonMonomorphicLoadFloat64) {
       "b.ne",                                              // deopt if differ
       "csel " + kPReg + ", xzr, " + kPReg + ", ne",        // update the poison
       "csdb",                                              // spec. barrier
+#if V8_DOUBLE_FIELDS_UNBOXING
       "add <<Addr:x[0-9]+>>, <<Obj>>, #0x[0-9a-f]+",       // addr. calculation
+#else
+      "ldur <<F1:x[0-9]+>>, \\[<<Obj>>, #23\\]",           // load heap number
+      "and <<F1>>, <<F1>>, " + kPReg,                      // apply the poison
+      "add <<Addr:x[0-9]+>>, <<F1>>, #0x7",                // addr. calculation
+#endif
       "and <<Addr>>, <<Addr>>, " + kPReg,                  // apply the poison
       "ldr d[0-9]+, \\[<<Addr>>\\]",                       // load Float64
   };
