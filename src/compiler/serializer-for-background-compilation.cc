@@ -324,6 +324,8 @@ class Hints {
 
 using HintsVector = ZoneVector<Hints>;
 
+// A FunctionBlueprint is a SharedFunctionInfo and a FeedbackVector, plus
+// Hints about the context in which a closure will be created from them.
 class FunctionBlueprint {
  public:
   FunctionBlueprint(Handle<JSFunction> function, Isolate* isolate, Zone* zone);
@@ -350,6 +352,8 @@ class FunctionBlueprint {
   Hints context_hints_;
 };
 
+// A CompilationSubject is a FunctionBlueprint, optionally with a matching
+// closure.
 class CompilationSubject {
  public:
   explicit CompilationSubject(FunctionBlueprint blueprint)
@@ -365,6 +369,39 @@ class CompilationSubject {
  private:
   FunctionBlueprint blueprint_;
   MaybeHandle<JSFunction> closure_;
+};
+
+// A Callee is either a JSFunction (which may not have a feedback vector), or a
+// FunctionBlueprint. Note that this is different from CompilationSubject, which
+// always has a FunctionBlueprint.
+class Callee {
+ public:
+  explicit Callee(Handle<JSFunction> jsfunction) : jsfunction_(jsfunction) {}
+  explicit Callee(FunctionBlueprint const& blueprint) : blueprint_(blueprint) {}
+
+  Handle<SharedFunctionInfo> shared(Isolate* isolate) const {
+    return blueprint_.has_value()
+               ? blueprint_->shared()
+               : handle(jsfunction_.ToHandleChecked()->shared(), isolate);
+  }
+
+  bool HasFeedbackVector() const {
+    Handle<JSFunction> function;
+    return blueprint_.has_value() ||
+           jsfunction_.ToHandleChecked()->has_feedback_vector();
+  }
+
+  CompilationSubject ToCompilationSubject(Isolate* isolate, Zone* zone) const {
+    CHECK(HasFeedbackVector());
+    return blueprint_.has_value()
+               ? CompilationSubject(*blueprint_)
+               : CompilationSubject(jsfunction_.ToHandleChecked(), isolate,
+                                    zone);
+  }
+
+ private:
+  MaybeHandle<JSFunction> const jsfunction_;
+  base::Optional<FunctionBlueprint> const blueprint_;
 };
 
 // The SerializerForBackgroundCompilation makes sure that the relevant function
@@ -396,15 +433,16 @@ class SerializerForBackgroundCompilation {
   SUPPORTED_BYTECODE_LIST(DECLARE_VISIT_BYTECODE)
 #undef DECLARE_VISIT_BYTECODE
 
-  // Returns whether the callee with the given SFI should be processed further,
-  // i.e. whether it's inlineable.
-  bool ProcessSFIForCallOrConstruct(Handle<SharedFunctionInfo> shared,
+  void ProcessSFIForCallOrConstruct(Callee const& callee,
+                                    base::Optional<Hints> new_target,
                                     const HintsVector& arguments,
-                                    SpeculationMode speculation_mode);
-  // Returns whether {function} should be serialized for compilation.
-  bool ProcessCalleeForCallOrConstruct(Handle<JSFunction> function,
+                                    SpeculationMode speculation_mode,
+                                    bool with_spread);
+  void ProcessCalleeForCallOrConstruct(Handle<Object> callee,
+                                       base::Optional<Hints> new_target,
                                        const HintsVector& arguments,
-                                       SpeculationMode speculation_mode);
+                                       SpeculationMode speculation_mode,
+                                       bool with_spread = false);
   void ProcessCallOrConstruct(Hints callee, base::Optional<Hints> new_target,
                               const HintsVector& arguments, FeedbackSlot slot,
                               bool with_spread = false);
@@ -417,15 +455,16 @@ class SerializerForBackgroundCompilation {
   void ProcessReceiverMapForApiCall(FunctionTemplateInfoRef target,
                                     Handle<Map> receiver);
   void ProcessBuiltinCall(Handle<SharedFunctionInfo> target,
+                          base::Optional<Hints> new_target,
                           const HintsVector& arguments,
-                          SpeculationMode speculation_mode);
+                          SpeculationMode speculation_mode, bool with_spread);
 
   void ProcessJump(interpreter::BytecodeArrayIterator* iterator);
 
   void ProcessKeyedPropertyAccess(Hints const& receiver, Hints const& key,
                                   FeedbackSlot slot, AccessMode access_mode,
                                   bool honor_bailout_on_uninitialized);
-  void ProcessNamedPropertyAccess(Hints receiver, NameRef const& name,
+  void ProcessNamedPropertyAccess(Hints const& receiver, NameRef const& name,
                                   FeedbackSlot slot, AccessMode access_mode);
   void ProcessNamedAccess(Hints receiver, NamedAccessFeedback const& feedback,
                           AccessMode access_mode, Hints* new_accumulator_hints);
@@ -442,7 +481,6 @@ class SerializerForBackgroundCompilation {
   void ProcessHintsForHasInPrototypeChain(Hints const& instance_hints);
   void ProcessHintsForRegExpTest(Hints const& regexp_hints);
   PropertyAccessInfo ProcessMapForRegExpTest(MapRef map);
-  void ProcessHintsForFunctionCall(Hints const& target_hints);
   void ProcessHintsForFunctionBind(Hints const& receiver_hints);
   void ProcessHintsForObjectGetPrototype(Hints const& object_hints);
   void ProcessConstantForOrdinaryHasInstance(HeapObjectRef const& constructor,
@@ -544,11 +582,11 @@ FunctionBlueprint::FunctionBlueprint(Handle<SharedFunctionInfo> shared,
 FunctionBlueprint::FunctionBlueprint(Handle<JSFunction> function,
                                      Isolate* isolate, Zone* zone)
     : shared_(handle(function->shared(), isolate)),
-      feedback_vector_(handle(function->feedback_vector(), isolate)),
+      feedback_vector_(function->feedback_vector(), isolate),
       context_hints_() {
+  context_hints_.AddConstant(handle(function->context(), isolate), zone);
   // The checked invariant rules out recursion and thus avoids complexity.
   CHECK(context_hints_.function_blueprints().IsEmpty());
-  context_hints_.AddConstant(handle(function->context(), isolate), zone);
 }
 
 CompilationSubject::CompilationSubject(Handle<JSFunction> closure,
@@ -1777,37 +1815,34 @@ Hints SerializerForBackgroundCompilation::RunChildSerializer(
   return hints;
 }
 
-bool SerializerForBackgroundCompilation::ProcessSFIForCallOrConstruct(
-    Handle<SharedFunctionInfo> shared, const HintsVector& arguments,
-    SpeculationMode speculation_mode) {
+void SerializerForBackgroundCompilation::ProcessSFIForCallOrConstruct(
+    Callee const& callee, base::Optional<Hints> new_target,
+    const HintsVector& arguments, SpeculationMode speculation_mode,
+    bool with_spread) {
+  Handle<SharedFunctionInfo> shared = callee.shared(broker()->isolate());
   if (shared->IsApiFunction()) {
     ProcessApiCall(shared, arguments);
     DCHECK(!shared->IsInlineable());
   } else if (shared->HasBuiltinId()) {
-    ProcessBuiltinCall(shared, arguments, speculation_mode);
+    ProcessBuiltinCall(shared, new_target, arguments, speculation_mode,
+                       with_spread);
     DCHECK(!shared->IsInlineable());
+  } else if (shared->IsInlineable() && callee.HasFeedbackVector()) {
+    CompilationSubject subject =
+        callee.ToCompilationSubject(broker()->isolate(), zone());
+    environment()->accumulator_hints().Add(
+        RunChildSerializer(subject, new_target, arguments, with_spread),
+        zone());
   }
-  return shared->IsInlineable();
-}
-
-bool SerializerForBackgroundCompilation::ProcessCalleeForCallOrConstruct(
-    Handle<JSFunction> function, const HintsVector& arguments,
-    SpeculationMode speculation_mode) {
-  JSFunctionRef(broker(), function).Serialize();
-
-  Handle<SharedFunctionInfo> shared(function->shared(), broker()->isolate());
-
-  return ProcessSFIForCallOrConstruct(shared, arguments, speculation_mode) &&
-         function->has_feedback_vector();
 }
 
 namespace {
-// Returns the innermost bound target, if it's a JSFunction and inserts
-// all bound arguments and {original_arguments} into {expanded_arguments}
-// in the appropriate order.
-MaybeHandle<JSFunction> UnrollBoundFunction(
-    JSBoundFunctionRef const& bound_function, JSHeapBroker* broker,
-    const HintsVector& original_arguments, HintsVector* expanded_arguments) {
+// Returns the innermost bound target and inserts all bound arguments and
+// {original_arguments} into {expanded_arguments} in the appropriate order.
+JSReceiverRef UnrollBoundFunction(JSBoundFunctionRef const& bound_function,
+                                  JSHeapBroker* broker,
+                                  const HintsVector& original_arguments,
+                                  HintsVector* expanded_arguments) {
   DCHECK(expanded_arguments->empty());
 
   JSReceiverRef target = bound_function.AsJSReceiver();
@@ -1826,8 +1861,6 @@ MaybeHandle<JSFunction> UnrollBoundFunction(
     reversed_bound_arguments.push_back(arg);
   }
 
-  if (!target.IsJSFunction()) return MaybeHandle<JSFunction>();
-
   expanded_arguments->insert(expanded_arguments->end(),
                              reversed_bound_arguments.rbegin(),
                              reversed_bound_arguments.rend());
@@ -1835,9 +1868,33 @@ MaybeHandle<JSFunction> UnrollBoundFunction(
                              original_arguments.begin(),
                              original_arguments.end());
 
-  return target.AsJSFunction().object();
+  return target;
 }
 }  // namespace
+
+void SerializerForBackgroundCompilation::ProcessCalleeForCallOrConstruct(
+    Handle<Object> callee, base::Optional<Hints> new_target,
+    const HintsVector& arguments, SpeculationMode speculation_mode,
+    bool with_spread) {
+  const HintsVector* actual_arguments = &arguments;
+  HintsVector expanded_arguments(zone());
+  if (callee->IsJSBoundFunction()) {
+    JSBoundFunctionRef bound_function(broker(),
+                                      Handle<JSBoundFunction>::cast(callee));
+    bound_function.Serialize();
+    callee = UnrollBoundFunction(bound_function, broker(), arguments,
+                                 &expanded_arguments)
+                 .object();
+    actual_arguments = &expanded_arguments;
+  }
+  if (!callee->IsJSFunction()) return;
+
+  JSFunctionRef function(broker(), Handle<JSFunction>::cast(callee));
+  function.Serialize();
+  Callee new_callee(function.object());
+  ProcessSFIForCallOrConstruct(new_callee, new_target, *actual_arguments,
+                               speculation_mode, with_spread);
+}
 
 void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
     Hints callee, base::Optional<Hints> new_target,
@@ -1871,47 +1928,15 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
   environment()->accumulator_hints().Clear();
 
   // For JSCallReducer::ReduceJSCall and JSCallReducer::ReduceJSConstruct.
-  for (auto hint : callee.constants()) {
-    const HintsVector* actual_arguments = &arguments;
-    Handle<JSFunction> function;
-    HintsVector expanded_arguments(zone());
-    if (hint->IsJSBoundFunction()) {
-      JSBoundFunctionRef bound_function(broker(),
-                                        Handle<JSBoundFunction>::cast(hint));
-      bound_function.Serialize();
-
-      MaybeHandle<JSFunction> maybe_function = UnrollBoundFunction(
-          bound_function, broker(), arguments, &expanded_arguments);
-      if (maybe_function.is_null()) continue;
-      function = maybe_function.ToHandleChecked();
-      actual_arguments = &expanded_arguments;
-    } else if (hint->IsJSFunction()) {
-      function = Handle<JSFunction>::cast(hint);
-    } else {
-      continue;
-    }
-
-    if (ProcessCalleeForCallOrConstruct(function, *actual_arguments,
-                                        speculation_mode)) {
-      environment()->accumulator_hints().Add(
-          RunChildSerializer(
-              CompilationSubject(function, broker()->isolate(), zone()),
-              new_target, *actual_arguments, with_spread),
-          zone());
-    }
+  for (auto constant : callee.constants()) {
+    ProcessCalleeForCallOrConstruct(constant, new_target, arguments,
+                                    speculation_mode, with_spread);
   }
 
   // For JSCallReducer::ReduceJSCall and JSCallReducer::ReduceJSConstruct.
   for (auto hint : callee.function_blueprints()) {
-    Handle<SharedFunctionInfo> shared = hint.shared();
-    if (!ProcessSFIForCallOrConstruct(shared, arguments, speculation_mode)) {
-      continue;
-    }
-
-    environment()->accumulator_hints().Add(
-        RunChildSerializer(CompilationSubject(hint), new_target, arguments,
-                           with_spread),
-        zone());
+    ProcessSFIForCallOrConstruct(Callee(hint), new_target, arguments,
+                                 speculation_mode, with_spread);
   }
 }
 
@@ -2000,8 +2025,9 @@ void SerializerForBackgroundCompilation::ProcessHintsForObjectCreate(
 }
 
 void SerializerForBackgroundCompilation::ProcessBuiltinCall(
-    Handle<SharedFunctionInfo> target, const HintsVector& arguments,
-    SpeculationMode speculation_mode) {
+    Handle<SharedFunctionInfo> target, base::Optional<Hints> new_target,
+    const HintsVector& arguments, SpeculationMode speculation_mode,
+    bool with_spread) {
   DCHECK(target->HasBuiltinId());
   const int builtin_id = target->builtin_id();
   const char* name = Builtins::name(builtin_id);
@@ -2043,7 +2069,6 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
     case Builtins::kPromiseResolveTrampoline:
       // For JSCallReducer::ReducePromiseInternalResolve and
       // JSNativeContextSpecialization::ReduceJSResolvePromise.
-      // TODO(mslekova): Check if this condition is redundant.
       if (arguments.size() >= 1) {
         Hints const& resolution_hints =
             arguments.size() >= 2
@@ -2087,30 +2112,45 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
     case Builtins::kArraySome:
       if (arguments.size() >= 2 &&
           speculation_mode != SpeculationMode::kDisallowSpeculation) {
-        Hints const& callback_hints = arguments[1];
-        ProcessHintsForFunctionCall(callback_hints);
+        Hints const& callback = arguments[1];
+        for (auto constant : callback.constants()) {
+          ProcessCalleeForCallOrConstruct(
+              constant, base::nullopt, HintsVector(zone()),
+              SpeculationMode::kDisallowSpeculation, false);
+        }
       }
       break;
+    // TODO(neis): At least for Array* we should look at blueprints too.
+    // TODO(neis): Might need something like a FunctionBlueprint but for
+    // creating bound functions rather than creating closures.
     case Builtins::kFunctionPrototypeApply:
-    case Builtins::kFunctionPrototypeCall:
     case Builtins::kPromiseConstructor:
-      // TODO(mslekova): Since the reducer for all these introduce a
-      // JSCall/JSConstruct that will again get optimized by the JSCallReducer,
-      // we basically might have to do all the serialization that we do for that
-      // here as well.  The only difference is that the new JSCall/JSConstruct
-      // has speculation disabled, causing the JSCallReducer to do much less
-      // work. To account for that, ProcessCallOrConstruct should have a way of
-      // taking the speculation mode as an argument rather than getting that
-      // from the feedback. (Also applies to Reflect.apply and
-      // Reflect.construct.)
       if (arguments.size() >= 1) {
-        ProcessHintsForFunctionCall(arguments[0]);
+        for (auto constant : arguments[0].constants()) {
+          ProcessCalleeForCallOrConstruct(
+              constant, base::nullopt, HintsVector(zone()),
+              SpeculationMode::kDisallowSpeculation, false);
+        }
+      }
+      break;
+    case Builtins::kFunctionPrototypeCall:
+      if (arguments.size() >= 1) {
+        HintsVector new_arguments(arguments.begin() + 1, arguments.end(),
+                                  zone());
+        for (auto constant : arguments[0].constants()) {
+          ProcessCalleeForCallOrConstruct(
+              constant, base::nullopt, new_arguments,
+              SpeculationMode::kDisallowSpeculation, with_spread);
+        }
       }
       break;
     case Builtins::kReflectApply:
     case Builtins::kReflectConstruct:
       if (arguments.size() >= 2) {
-        ProcessHintsForFunctionCall(arguments[1]);
+        for (auto constant : arguments[1].constants()) {
+          if (constant->IsJSFunction())
+            JSFunctionRef(broker(), constant).Serialize();
+        }
       }
       break;
     case Builtins::kObjectPrototypeIsPrototypeOf:
@@ -2270,13 +2310,6 @@ void SerializerForBackgroundCompilation::ProcessHintsForRegExpTest(
   for (auto map : regexp_hints.maps()) {
     if (!map->IsJSRegExpMap()) continue;
     ProcessMapForRegExpTest(MapRef(broker(), map));
-  }
-}
-
-void SerializerForBackgroundCompilation::ProcessHintsForFunctionCall(
-    Hints const& target_hints) {
-  for (auto constant : target_hints.constants()) {
-    if (constant->IsJSFunction()) JSFunctionRef(broker(), constant).Serialize();
   }
 }
 
@@ -2692,7 +2725,7 @@ void SerializerForBackgroundCompilation::ProcessKeyedPropertyAccess(
 }
 
 void SerializerForBackgroundCompilation::ProcessNamedPropertyAccess(
-    Hints receiver, NameRef const& name, FeedbackSlot slot,
+    Hints const& receiver, NameRef const& name, FeedbackSlot slot,
     AccessMode access_mode) {
   if (slot.IsInvalid() || feedback_vector().is_null()) return;
   FeedbackSource source(feedback_vector(), slot);
@@ -2706,6 +2739,7 @@ void SerializerForBackgroundCompilation::ProcessNamedPropertyAccess(
       DCHECK(name.equals(feedback.AsNamedAccess().name()));
       ProcessNamedAccess(receiver, feedback.AsNamedAccess(), access_mode,
                          &new_accumulator_hints);
+      // TODO(neis): Propagate feedback maps to receiver hints.
       break;
     case ProcessedFeedback::kInsufficient:
       break;
