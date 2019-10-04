@@ -3446,6 +3446,8 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
 }
 
 void JSObject::RequireSlowElements(NumberDictionary dictionary) {
+  DCHECK_NE(dictionary,
+            ReadOnlyRoots(GetIsolate()).empty_slow_element_dictionary());
   if (dictionary.requires_slow_elements()) return;
   dictionary.set_requires_slow_elements();
   if (map().is_prototype_map()) {
@@ -3714,7 +3716,9 @@ Maybe<bool> JSObject::PreventExtensions(Handle<JSObject> object,
            object->HasSlowArgumentsElements());
 
     // Make sure that we never go back to fast case.
-    object->RequireSlowElements(*dictionary);
+    if (*dictionary != ReadOnlyRoots(isolate).empty_slow_element_dictionary()) {
+      object->RequireSlowElements(*dictionary);
+    }
   }
 
   // Do a map transition, other objects with this map may still

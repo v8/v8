@@ -788,7 +788,6 @@ void Heap::CreateInitialObjects() {
   Handle<NumberDictionary> slow_element_dictionary = NumberDictionary::New(
       isolate(), 1, AllocationType::kReadOnly, USE_CUSTOM_MINIMUM_CAPACITY);
   DCHECK(!slow_element_dictionary->HasSufficientCapacityToAdd(1));
-  slow_element_dictionary->set_requires_slow_elements();
   set_empty_slow_element_dictionary(*slow_element_dictionary);
 
   set_materialized_objects(*factory->NewFixedArray(0, AllocationType::kOld));

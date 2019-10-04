@@ -7311,8 +7311,13 @@ Handle<NumberDictionary> NumberDictionary::Set(
     Isolate* isolate, Handle<NumberDictionary> dictionary, uint32_t key,
     Handle<Object> value, Handle<JSObject> dictionary_holder,
     PropertyDetails details) {
-  dictionary->UpdateMaxNumberKey(key, dictionary_holder);
-  return AtPut(isolate, dictionary, key, value, details);
+  // We could call Set with empty dictionaries. UpdateMaxNumberKey doesn't
+  // expect empty dictionaries so make sure to call AtPut that correctly handles
+  // them by creating new dictionary when required.
+  Handle<NumberDictionary> new_dictionary =
+      AtPut(isolate, dictionary, key, value, details);
+  new_dictionary->UpdateMaxNumberKey(key, dictionary_holder);
+  return new_dictionary;
 }
 
 void NumberDictionary::CopyValuesTo(FixedArray elements) {
