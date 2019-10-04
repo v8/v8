@@ -10534,17 +10534,6 @@ void Testing::DeoptimizeAll(Isolate* isolate) {
   i::Deoptimizer::DeoptimizeAll(i_isolate);
 }
 
-void EmbedderHeapTracer::TracePrologue(TraceFlags flags) {
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated"
-#endif
-  TracePrologue();
-#if __clang__
-#pragma clang diagnostic pop
-#endif
-}
-
 void EmbedderHeapTracer::TraceEpilogue(TraceSummary* trace_summary) {
 #if __clang__
 #pragma clang diagnostic push
