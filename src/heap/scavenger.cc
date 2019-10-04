@@ -346,11 +346,7 @@ void ScavengerCollector::CollectGarbage() {
   heap_->new_lo_space()->FreeDeadObjects([](HeapObject) { return true; });
 
   RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(heap_, [](MemoryChunk* chunk) {
-    if (chunk->SweepingDone()) {
-      RememberedSet<OLD_TO_NEW>::FreeEmptyBuckets(chunk);
-    } else {
-      RememberedSet<OLD_TO_NEW>::PreFreeEmptyBuckets(chunk);
-    }
+    RememberedSet<OLD_TO_NEW>::FreeEmptyBuckets(chunk);
   });
 
   // Update how much has survived scavenge.

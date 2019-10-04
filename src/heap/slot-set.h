@@ -30,9 +30,6 @@ class SlotSet : public Malloced {
  public:
   enum EmptyBucketMode {
     FREE_EMPTY_BUCKETS,     // An empty bucket will be deallocated immediately.
-    PREFREE_EMPTY_BUCKETS,  // An empty bucket will be unlinked from the slot
-                            // set, but deallocated on demand by a sweeper
-                            // thread.
     KEEP_EMPTY_BUCKETS      // An empty bucket will be kept.
   };
 
@@ -46,7 +43,6 @@ class SlotSet : public Malloced {
     for (int i = 0; i < kBuckets; i++) {
       ReleaseBucket(i);
     }
-    FreeToBeFreedBuckets();
   }
 
   // The slot offset specifies a slot at address page_start_ + slot_offset.
@@ -136,9 +132,7 @@ class SlotSet : public Malloced {
     DCHECK(current_bucket == end_bucket ||
            (current_bucket < end_bucket && current_cell == 0));
     while (current_bucket < end_bucket) {
-      if (mode == PREFREE_EMPTY_BUCKETS) {
-        PreFreeEmptyBucket(current_bucket);
-      } else if (mode == FREE_EMPTY_BUCKETS) {
+      if (mode == FREE_EMPTY_BUCKETS) {
         ReleaseBucket(current_bucket);
       } else {
         DCHECK(mode == KEEP_EMPTY_BUCKETS);
@@ -150,11 +144,11 @@ class SlotSet : public Malloced {
       current_bucket++;
     }
     // All buckets between start_bucket and end_bucket are cleared.
+    DCHECK(current_bucket == end_bucket);
+    if (current_bucket == kBuckets) return;
     bucket = LoadBucket(&buckets_[current_bucket]);
-    DCHECK(current_bucket == end_bucket && current_cell <= end_cell);
-    if (current_bucket == kBuckets || bucket == nullptr) {
-      return;
-    }
+    DCHECK(current_cell <= end_cell);
+    if (bucket == nullptr) return;
     while (current_cell < end_cell) {
       StoreCell(&bucket[current_cell], 0);
       current_cell++;
@@ -216,29 +210,10 @@ class SlotSet : public Malloced {
             }
           }
         }
-        if (mode == PREFREE_EMPTY_BUCKETS && in_bucket_count == 0) {
-          PreFreeEmptyBucket(bucket_index);
-        }
         new_count += in_bucket_count;
       }
     }
     return new_count;
-  }
-
-  int NumberOfPreFreedEmptyBuckets() {
-    base::MutexGuard guard(&to_be_freed_buckets_mutex_);
-    return static_cast<int>(to_be_freed_buckets_.size());
-  }
-
-  void PreFreeEmptyBuckets() {
-    for (int bucket_index = 0; bucket_index < kBuckets; bucket_index++) {
-      Bucket bucket = LoadBucket(&buckets_[bucket_index]);
-      if (bucket != nullptr) {
-        if (IsEmptyBucket(bucket)) {
-          PreFreeEmptyBucket(bucket_index);
-        }
-      }
-    }
   }
 
   void FreeEmptyBuckets() {
@@ -250,16 +225,6 @@ class SlotSet : public Malloced {
         }
       }
     }
-  }
-
-  void FreeToBeFreedBuckets() {
-    base::MutexGuard guard(&to_be_freed_buckets_mutex_);
-    while (!to_be_freed_buckets_.empty()) {
-      Bucket top = to_be_freed_buckets_.top();
-      to_be_freed_buckets_.pop();
-      DeleteArray<uint32_t>(top);
-    }
-    DCHECK_EQ(0u, to_be_freed_buckets_.size());
   }
 
  private:
@@ -288,15 +253,6 @@ class SlotSet : public Malloced {
     while (current_cell < kCellsPerBucket) {
       StoreCell(&bucket[current_cell], 0);
       current_cell++;
-    }
-  }
-
-  void PreFreeEmptyBucket(int bucket_index) {
-    Bucket bucket = LoadBucket(&buckets_[bucket_index]);
-    if (bucket != nullptr) {
-      base::MutexGuard guard(&to_be_freed_buckets_mutex_);
-      to_be_freed_buckets_.push(bucket);
-      StoreBucket(&buckets_[bucket_index], nullptr);
     }
   }
 
@@ -379,8 +335,6 @@ class SlotSet : public Malloced {
   }
 
   Bucket buckets_[kBuckets];
-  base::Mutex to_be_freed_buckets_mutex_;
-  std::stack<uint32_t*> to_be_freed_buckets_;
 };
 
 enum SlotType {

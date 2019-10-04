@@ -467,10 +467,6 @@ int Sweeper::ParallelSweepPage(
     if (typed_slot_set) {
       typed_slot_set->FreeToBeFreedChunks();
     }
-    SlotSet* slot_set = page->slot_set<OLD_TO_NEW>();
-    if (slot_set) {
-      slot_set->FreeToBeFreedBuckets();
-    }
   }
 
   {

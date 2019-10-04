@@ -6040,56 +6040,61 @@ TEST(RememberedSetRemoveRange) {
     RememberedSet<OLD_TO_NEW>::Insert<AccessMode::ATOMIC>(chunk, x.first);
   }
 
-  RememberedSet<OLD_TO_NEW>::Iterate(chunk,
-                                     [&slots](MaybeObjectSlot slot) {
-                                       CHECK(slots[slot.address()]);
-                                       return KEEP_SLOT;
-                                     },
-                                     SlotSet::PREFREE_EMPTY_BUCKETS);
+  RememberedSet<OLD_TO_NEW>::Iterate(
+      chunk,
+      [&slots](MaybeObjectSlot slot) {
+        CHECK(slots[slot.address()]);
+        return KEEP_SLOT;
+      },
+      SlotSet::FREE_EMPTY_BUCKETS);
 
   RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start, start + kTaggedSize,
                                          SlotSet::FREE_EMPTY_BUCKETS);
   slots[start] = false;
-  RememberedSet<OLD_TO_NEW>::Iterate(chunk,
-                                     [&slots](MaybeObjectSlot slot) {
-                                       CHECK(slots[slot.address()]);
-                                       return KEEP_SLOT;
-                                     },
-                                     SlotSet::PREFREE_EMPTY_BUCKETS);
+  RememberedSet<OLD_TO_NEW>::Iterate(
+      chunk,
+      [&slots](MaybeObjectSlot slot) {
+        CHECK(slots[slot.address()]);
+        return KEEP_SLOT;
+      },
+      SlotSet::FREE_EMPTY_BUCKETS);
 
   RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start + kTaggedSize,
                                          start + Page::kPageSize,
                                          SlotSet::FREE_EMPTY_BUCKETS);
   slots[start + kTaggedSize] = false;
   slots[start + Page::kPageSize - kTaggedSize] = false;
-  RememberedSet<OLD_TO_NEW>::Iterate(chunk,
-                                     [&slots](MaybeObjectSlot slot) {
-                                       CHECK(slots[slot.address()]);
-                                       return KEEP_SLOT;
-                                     },
-                                     SlotSet::PREFREE_EMPTY_BUCKETS);
+  RememberedSet<OLD_TO_NEW>::Iterate(
+      chunk,
+      [&slots](MaybeObjectSlot slot) {
+        CHECK(slots[slot.address()]);
+        return KEEP_SLOT;
+      },
+      SlotSet::FREE_EMPTY_BUCKETS);
 
   RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start,
                                          start + Page::kPageSize + kTaggedSize,
                                          SlotSet::FREE_EMPTY_BUCKETS);
   slots[start + Page::kPageSize] = false;
-  RememberedSet<OLD_TO_NEW>::Iterate(chunk,
-                                     [&slots](MaybeObjectSlot slot) {
-                                       CHECK(slots[slot.address()]);
-                                       return KEEP_SLOT;
-                                     },
-                                     SlotSet::PREFREE_EMPTY_BUCKETS);
+  RememberedSet<OLD_TO_NEW>::Iterate(
+      chunk,
+      [&slots](MaybeObjectSlot slot) {
+        CHECK(slots[slot.address()]);
+        return KEEP_SLOT;
+      },
+      SlotSet::FREE_EMPTY_BUCKETS);
 
   RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, chunk->area_end() - kTaggedSize,
                                          chunk->area_end(),
                                          SlotSet::FREE_EMPTY_BUCKETS);
   slots[chunk->area_end() - kTaggedSize] = false;
-  RememberedSet<OLD_TO_NEW>::Iterate(chunk,
-                                     [&slots](MaybeObjectSlot slot) {
-                                       CHECK(slots[slot.address()]);
-                                       return KEEP_SLOT;
-                                     },
-                                     SlotSet::PREFREE_EMPTY_BUCKETS);
+  RememberedSet<OLD_TO_NEW>::Iterate(
+      chunk,
+      [&slots](MaybeObjectSlot slot) {
+        CHECK(slots[slot.address()]);
+        return KEEP_SLOT;
+      },
+      SlotSet::FREE_EMPTY_BUCKETS);
 }
 
 HEAP_TEST(Regress670675) {
@@ -6183,53 +6188,6 @@ HEAP_TEST(Regress5831) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*code);
   CHECK(chunk->owner_identity() != LO_SPACE);
   CHECK(chunk->NeverEvacuate());
-}
-
-TEST(Regress6800) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope handle_scope(isolate);
-
-  const int kRootLength = 1000;
-  Handle<FixedArray> root =
-      isolate->factory()->NewFixedArray(kRootLength, AllocationType::kOld);
-  {
-    HandleScope inner_scope(isolate);
-    Handle<FixedArray> new_space_array = isolate->factory()->NewFixedArray(1);
-    for (int i = 0; i < kRootLength; i++) {
-      root->set(i, *new_space_array);
-    }
-    for (int i = 0; i < kRootLength; i++) {
-      root->set(i, ReadOnlyRoots(CcTest::heap()).undefined_value());
-    }
-  }
-  CcTest::CollectGarbage(NEW_SPACE);
-  CHECK_EQ(0, RememberedSet<OLD_TO_NEW>::NumberOfPreFreedEmptyBuckets(
-                  MemoryChunk::FromHeapObject(*root)));
-}
-
-TEST(Regress6800LargeObject) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope handle_scope(isolate);
-
-  const int kRootLength = i::kMaxRegularHeapObjectSize / kTaggedSize;
-  Handle<FixedArray> root =
-      isolate->factory()->NewFixedArray(kRootLength, AllocationType::kOld);
-  CcTest::heap()->lo_space()->Contains(*root);
-  {
-    HandleScope inner_scope(isolate);
-    Handle<FixedArray> new_space_array = isolate->factory()->NewFixedArray(1);
-    for (int i = 0; i < kRootLength; i++) {
-      root->set(i, *new_space_array);
-    }
-    for (int i = 0; i < kRootLength; i++) {
-      root->set(i, ReadOnlyRoots(CcTest::heap()).undefined_value());
-    }
-  }
-  CcTest::CollectGarbage(OLD_SPACE);
-  CHECK_EQ(0, RememberedSet<OLD_TO_NEW>::NumberOfPreFreedEmptyBuckets(
-                  MemoryChunk::FromHeapObject(*root)));
 }
 
 HEAP_TEST(RegressMissingWriteBarrierInAllocate) {

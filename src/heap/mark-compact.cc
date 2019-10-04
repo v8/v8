@@ -2083,10 +2083,10 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   DCHECK_NULL(chunk->sweeping_slot_set());
   RememberedSet<OLD_TO_NEW>::RemoveRange(
       chunk, compiled_data_start, compiled_data_start + compiled_data_size,
-      SlotSet::PREFREE_EMPTY_BUCKETS);
+      SlotSet::FREE_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_OLD>::RemoveRange(
       chunk, compiled_data_start, compiled_data_start + compiled_data_size,
-      SlotSet::PREFREE_EMPTY_BUCKETS);
+      SlotSet::FREE_EMPTY_BUCKETS);
 
   // Swap the map, using set_map_after_allocation to avoid verify heap checks
   // which are not necessary since we are doing this during the GC atomic pause.
@@ -2237,9 +2237,9 @@ void MarkCompactCollector::RightTrimDescriptorArray(DescriptorArray array,
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(array);
   DCHECK_NULL(chunk->sweeping_slot_set());
   RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start, end,
-                                         SlotSet::PREFREE_EMPTY_BUCKETS);
+                                         SlotSet::FREE_EMPTY_BUCKETS);
   RememberedSet<OLD_TO_OLD>::RemoveRange(chunk, start, end,
-                                         SlotSet::PREFREE_EMPTY_BUCKETS);
+                                         SlotSet::FREE_EMPTY_BUCKETS);
   heap()->CreateFillerObjectAt(start, static_cast<int>(end - start),
                                ClearRecordedSlots::kNo);
   array.set_number_of_all_descriptors(new_nof_all_descriptors);
@@ -3419,7 +3419,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
             if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
             return CheckAndUpdateOldToNewSlot(slot);
           },
-          SlotSet::PREFREE_EMPTY_BUCKETS);
+          SlotSet::FREE_EMPTY_BUCKETS);
     }
 
     if (chunk_->sweeping_slot_set<AccessMode::NON_ATOMIC>()) {
@@ -3430,7 +3430,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
             if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
             return CheckAndUpdateOldToNewSlot(slot);
           },
-          SlotSet::PREFREE_EMPTY_BUCKETS);
+          SlotSet::FREE_EMPTY_BUCKETS);
     }
 
     if (chunk_->invalidated_slots<OLD_TO_NEW>() != nullptr) {
@@ -3448,7 +3448,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
             if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
             return UpdateSlot<AccessMode::NON_ATOMIC>(slot);
           },
-          SlotSet::PREFREE_EMPTY_BUCKETS);
+          SlotSet::FREE_EMPTY_BUCKETS);
       chunk_->ReleaseSlotSet<OLD_TO_OLD>();
     }
     if ((updating_mode_ == RememberedSetUpdatingMode::ALL) &&
@@ -3790,10 +3790,10 @@ void MarkCompactCollector::PostProcessEvacuationCandidates() {
     // Remove outdated slots.
     RememberedSetSweeping::RemoveRange(page, page->address(),
                                        failed_object.address(),
-                                       SlotSet::PREFREE_EMPTY_BUCKETS);
+                                       SlotSet::FREE_EMPTY_BUCKETS);
     RememberedSet<OLD_TO_NEW>::RemoveRange(page, page->address(),
                                            failed_object.address(),
-                                           SlotSet::PREFREE_EMPTY_BUCKETS);
+                                           SlotSet::FREE_EMPTY_BUCKETS);
     RememberedSet<OLD_TO_NEW>::RemoveRangeTyped(page, page->address(),
                                                 failed_object.address());
     // Recompute live bytes.
@@ -4368,11 +4368,7 @@ void MinorMarkCompactCollector::CollectGarbage() {
 
   RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
       heap(), [](MemoryChunk* chunk) {
-        if (chunk->SweepingDone()) {
-          RememberedSet<OLD_TO_NEW>::FreeEmptyBuckets(chunk);
-        } else {
-          RememberedSet<OLD_TO_NEW>::PreFreeEmptyBuckets(chunk);
-        }
+        RememberedSet<OLD_TO_NEW>::FreeEmptyBuckets(chunk);
       });
 
   heap()->account_external_memory_concurrently_freed();
@@ -4669,7 +4665,7 @@ class PageMarkingItem : public MarkingItem {
           if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
           return CheckAndMarkObject(task, slot);
         },
-        SlotSet::PREFREE_EMPTY_BUCKETS);
+        SlotSet::FREE_EMPTY_BUCKETS);
     filter = InvalidatedSlotsFilter::OldToNew(chunk_);
     RememberedSetSweeping::Iterate(
         chunk_,
@@ -4677,7 +4673,7 @@ class PageMarkingItem : public MarkingItem {
           if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
           return CheckAndMarkObject(task, slot);
         },
-        SlotSet::PREFREE_EMPTY_BUCKETS);
+        SlotSet::FREE_EMPTY_BUCKETS);
   }
 
   void MarkTypedPointers(YoungGenerationMarkingTask* task) {
