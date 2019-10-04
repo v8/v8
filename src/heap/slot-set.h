@@ -22,8 +22,7 @@ namespace internal {
 enum SlotCallbackResult { KEEP_SLOT, REMOVE_SLOT };
 
 // Data structure for maintaining a set of slots in a standard (non-large)
-// page. The base address of the page must be set with SetPageStart before any
-// operation.
+// page.
 // The data structure assumes that the slots are pointer size aligned and
 // splits the valid slot offset range into kBuckets buckets.
 // Each bucket is a bitmap with a bit corresponding to a single slot offset.
@@ -49,8 +48,6 @@ class SlotSet : public Malloced {
     }
     FreeToBeFreedBuckets();
   }
-
-  void SetPageStart(Address page_start) { page_start_ = page_start; }
 
   // The slot offset specifies a slot at address page_start_ + slot_offset.
   // AccessMode defines whether there can be concurrent access on the buckets
@@ -190,7 +187,7 @@ class SlotSet : public Malloced {
   //    else return REMOVE_SLOT;
   // });
   template <typename Callback>
-  int Iterate(Callback callback, EmptyBucketMode mode) {
+  int Iterate(Address page_start, Callback callback, EmptyBucketMode mode) {
     int new_count = 0;
     for (int bucket_index = 0; bucket_index < kBuckets; bucket_index++) {
       Bucket bucket = LoadBucket(&buckets_[bucket_index]);
@@ -206,7 +203,7 @@ class SlotSet : public Malloced {
               int bit_offset = base::bits::CountTrailingZeros(cell);
               uint32_t bit_mask = 1u << bit_offset;
               uint32_t slot = (cell_offset + bit_offset) << kTaggedSizeLog2;
-              if (callback(MaybeObjectSlot(page_start_ + slot)) == KEEP_SLOT) {
+              if (callback(MaybeObjectSlot(page_start + slot)) == KEEP_SLOT) {
                 ++in_bucket_count;
               } else {
                 mask |= bit_mask;
@@ -382,7 +379,6 @@ class SlotSet : public Malloced {
   }
 
   Bucket buckets_[kBuckets];
-  Address page_start_;
   base::Mutex to_be_freed_buckets_mutex_;
   std::stack<uint32_t*> to_be_freed_buckets_;
 };

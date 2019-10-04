@@ -1430,11 +1430,7 @@ void MemoryChunk::ReleaseAllAllocatedMemory() {
 static SlotSet* AllocateAndInitializeSlotSet(size_t size, Address page_start) {
   size_t pages = (size + Page::kPageSize - 1) / Page::kPageSize;
   DCHECK_LT(0, pages);
-  SlotSet* slot_set = new SlotSet[pages];
-  for (size_t i = 0; i < pages; i++) {
-    slot_set[i].SetPageStart(page_start + i * Page::kPageSize);
-  }
-  return slot_set;
+  return new SlotSet[pages];
 }
 
 template V8_EXPORT_PRIVATE SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_NEW>();

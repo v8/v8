@@ -36,7 +36,8 @@ class RememberedSetOperations {
     if (slots != nullptr) {
       size_t pages = (chunk->size() + Page::kPageSize - 1) / Page::kPageSize;
       for (size_t page = 0; page < pages; page++) {
-        slots[page].Iterate(callback, mode);
+        slots[page].Iterate(chunk->address() + page * Page::kPageSize, callback,
+                            mode);
       }
     }
   }
