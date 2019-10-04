@@ -82,9 +82,13 @@
     "https://build.chromium.org/p/client.v8.fyi": [
       {
         "excluded_builders" : [
-          "Android V8 FYI Release (Nexus 5X)",
+          "Android Builder",
+          "Linux Debug Builder",
+          "Linux ASAN Builder",
           "Linux Snapshot Builder",
-          "Linux V8 FYI Release - pointer compression (NVIDIA)"
+          "Linux V8 FYI Release - pointer compression (NVIDIA)",
+          "V8 Android GN (dbg)",
+          "V8 Linux GN"
         ],
         "builders": {
           "V8 Linux64 - node.js integration ng": {
