@@ -1813,26 +1813,13 @@ class JSGlobalObjectData : public JSObjectData {
                      Handle<JSGlobalObject> object);
   bool IsDetached() const { return is_detached_; }
 
- private:
-  bool const is_detached_;
-};
-
-JSGlobalObjectData::JSGlobalObjectData(JSHeapBroker* broker,
-                                       ObjectData** storage,
-                                       Handle<JSGlobalObject> object)
-    : JSObjectData(broker, storage, object),
-      is_detached_(object->IsDetached()) {}
-
-class JSGlobalProxyData : public JSObjectData {
- public:
-  JSGlobalProxyData(JSHeapBroker* broker, ObjectData** storage,
-                    Handle<JSGlobalProxy> object);
-
   PropertyCellData* GetPropertyCell(
       JSHeapBroker* broker, NameData* name,
       SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
 
  private:
+  bool const is_detached_;
+
   // Properties that either
   // (1) are known to exist as property cells on the global object, or
   // (2) are known not to (possibly they don't exist at all).
@@ -1840,9 +1827,22 @@ class JSGlobalProxyData : public JSObjectData {
   ZoneVector<std::pair<NameData*, PropertyCellData*>> properties_;
 };
 
+JSGlobalObjectData::JSGlobalObjectData(JSHeapBroker* broker,
+                                       ObjectData** storage,
+                                       Handle<JSGlobalObject> object)
+    : JSObjectData(broker, storage, object),
+      is_detached_(object->IsDetached()),
+      properties_(broker->zone()) {}
+
+class JSGlobalProxyData : public JSObjectData {
+ public:
+  JSGlobalProxyData(JSHeapBroker* broker, ObjectData** storage,
+                    Handle<JSGlobalProxy> object);
+};
+
 JSGlobalProxyData::JSGlobalProxyData(JSHeapBroker* broker, ObjectData** storage,
                                      Handle<JSGlobalProxy> object)
-    : JSObjectData(broker, storage, object), properties_(broker->zone()) {}
+    : JSObjectData(broker, storage, object) {}
 
 namespace {
 base::Optional<PropertyCellRef> GetPropertyCellFromHeap(JSHeapBroker* broker,
@@ -1861,7 +1861,7 @@ base::Optional<PropertyCellRef> GetPropertyCellFromHeap(JSHeapBroker* broker,
 }
 }  // namespace
 
-PropertyCellData* JSGlobalProxyData::GetPropertyCell(
+PropertyCellData* JSGlobalObjectData::GetPropertyCell(
     JSHeapBroker* broker, NameData* name, SerializationPolicy policy) {
   CHECK_NOT_NULL(name);
   for (auto const& p : properties_) {
@@ -3991,14 +3991,14 @@ void FunctionTemplateInfoRef::SerializeCallCode() {
   data()->AsFunctionTemplateInfo()->SerializeCallCode(broker());
 }
 
-base::Optional<PropertyCellRef> JSGlobalProxyRef::GetPropertyCell(
+base::Optional<PropertyCellRef> JSGlobalObjectRef::GetPropertyCell(
     NameRef const& name, SerializationPolicy policy) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     return GetPropertyCellFromHeap(broker(), name.object());
   }
   PropertyCellData* property_cell_data =
-      data()->AsJSGlobalProxy()->GetPropertyCell(broker(),
-                                                 name.data()->AsName(), policy);
+      data()->AsJSGlobalObject()->GetPropertyCell(
+          broker(), name.data()->AsName(), policy);
   if (property_cell_data == nullptr) return base::nullopt;
   return PropertyCellRef(broker(), property_cell_data);
 }

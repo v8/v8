@@ -784,7 +784,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
     Node* node, Node* receiver, Node* value, NameRef const& name,
     AccessMode access_mode, Node* key) {
   base::Optional<PropertyCellRef> cell =
-      native_context().global_proxy_object().GetPropertyCell(name);
+      native_context().global_object().GetPropertyCell(name);
   return cell.has_value() ? ReduceGlobalAccess(node, receiver, value, name,
                                                access_mode, key, *cell)
                           : NoChange();

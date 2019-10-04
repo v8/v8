@@ -164,8 +164,8 @@ class V8_EXPORT_PRIVATE ObjectRef {
  private:
   friend class FunctionTemplateInfoRef;
   friend class JSArrayData;
-  friend class JSGlobalProxyRef;
-  friend class JSGlobalProxyData;
+  friend class JSGlobalObjectData;
+  friend class JSGlobalObjectRef;
   friend class JSHeapBroker;
   friend class JSObjectData;
   friend class StringData;
@@ -870,13 +870,6 @@ class JSGlobalObjectRef : public JSObjectRef {
   Handle<JSGlobalObject> object() const;
 
   bool IsDetached() const;
-};
-
-class JSGlobalProxyRef : public JSObjectRef {
- public:
-  DEFINE_REF_CONSTRUCTOR(JSGlobalProxy, JSObjectRef)
-
-  Handle<JSGlobalProxy> object() const;
 
   // If {serialize} is false:
   //   If the property is known to exist as a property cell (on the global
@@ -888,6 +881,13 @@ class JSGlobalProxyRef : public JSObjectRef {
   base::Optional<PropertyCellRef> GetPropertyCell(
       NameRef const& name, SerializationPolicy policy =
                                SerializationPolicy::kAssumeSerialized) const;
+};
+
+class JSGlobalProxyRef : public JSObjectRef {
+ public:
+  DEFINE_REF_CONSTRUCTOR(JSGlobalProxy, JSObjectRef)
+
+  Handle<JSGlobalProxy> object() const;
 };
 
 class CodeRef : public HeapObjectRef {
