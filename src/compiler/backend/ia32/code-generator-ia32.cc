@@ -1904,6 +1904,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Sqrtpd(i.OutputSimd128Register(), i.InputOperand(0));
       break;
     }
+    case kIA32F64x2Add: {
+      __ Addpd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+               i.InputOperand(1));
+      break;
+    }
+    case kIA32F64x2Sub: {
+      __ Subpd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+               i.InputOperand(1));
+      break;
+    }
+    case kIA32F64x2Mul: {
+      __ Mulpd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+               i.InputOperand(1));
+      break;
+    }
+    case kIA32F64x2Div: {
+      __ Divpd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+               i.InputOperand(1));
+      break;
+    }
     case kSSEF32x4Splat: {
       DCHECK_EQ(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       XMMRegister dst = i.OutputSimd128Register();

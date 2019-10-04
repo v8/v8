@@ -299,6 +299,28 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 #undef AVX_OP3_XO
 #undef AVX_OP3_WITH_TYPE
 
+// Only use this macro when dst and src1 is the same in SSE case.
+#define AVX_PACKED_OP3_WITH_TYPE(macro_name, name, dst_type, src_type) \
+  void macro_name(dst_type dst, dst_type src1, src_type src2) {        \
+    if (CpuFeatures::IsSupported(AVX)) {                               \
+      CpuFeatureScope scope(this, AVX);                                \
+      v##name(dst, src1, src2);                                        \
+    } else {                                                           \
+      DCHECK_EQ(dst, src1);                                            \
+      name(dst, src2);                                                 \
+    }                                                                  \
+  }
+#define AVX_PACKED_OP3(macro_name, name)                               \
+  AVX_PACKED_OP3_WITH_TYPE(macro_name, name, XMMRegister, XMMRegister) \
+  AVX_PACKED_OP3_WITH_TYPE(macro_name, name, XMMRegister, Operand)
+
+  AVX_PACKED_OP3(Addpd, addpd)
+  AVX_PACKED_OP3(Subpd, subpd)
+  AVX_PACKED_OP3(Mulpd, mulpd)
+  AVX_PACKED_OP3(Divpd, divpd)
+#undef AVX_PACKED_OP3
+#undef AVX_PACKED_OP3_WITH_TYPE
+
 // Non-SSE2 instructions.
 #define AVX_OP2_WITH_TYPE_SCOPE(macro_name, name, dst_type, src_type, \
                                 sse_scope)                            \

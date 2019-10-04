@@ -860,7 +860,11 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
   V(Float32Mul, kAVXFloat32Mul, kSSEFloat32Mul) \
   V(Float64Mul, kAVXFloat64Mul, kSSEFloat64Mul) \
   V(Float32Div, kAVXFloat32Div, kSSEFloat32Div) \
-  V(Float64Div, kAVXFloat64Div, kSSEFloat64Div)
+  V(Float64Div, kAVXFloat64Div, kSSEFloat64Div) \
+  V(F64x2Add, kIA32F64x2Add, kIA32F64x2Add)     \
+  V(F64x2Sub, kIA32F64x2Sub, kIA32F64x2Sub)     \
+  V(F64x2Mul, kIA32F64x2Mul, kIA32F64x2Mul)     \
+  V(F64x2Div, kIA32F64x2Div, kIA32F64x2Div)
 
 #define FLOAT_UNOP_LIST(V)                      \
   V(Float32Abs, kAVXFloat32Abs, kSSEFloat32Abs) \
