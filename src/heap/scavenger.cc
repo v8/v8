@@ -437,7 +437,22 @@ void Scavenger::AddPageToSweeperIfNecessary(MemoryChunk* page) {
   }
 }
 
+// Remove this crashkey after chromium:1010312 is fixed.
+class ScopedFullHeapCrashKey {
+ public:
+  explicit ScopedFullHeapCrashKey(Isolate* isolate) : isolate_(isolate) {
+    isolate_->AddCrashKey(v8::CrashKeyId::kDumpType, "heap");
+  }
+  ~ScopedFullHeapCrashKey() {
+    isolate_->AddCrashKey(v8::CrashKeyId::kDumpType, "");
+  }
+
+ private:
+  Isolate* isolate_ = nullptr;
+};
+
 void Scavenger::ScavengePage(MemoryChunk* page) {
+  ScopedFullHeapCrashKey collect_full_heap_dump_if_crash(heap_->isolate());
   CodePageMemoryModificationScope memory_modification_scope(page);
   InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(page);
   RememberedSet<OLD_TO_NEW>::Iterate(

@@ -1418,6 +1418,11 @@ class Isolate final : private HiddenFactory {
   bool HasPrepareStackTraceCallback() const;
 
   void SetAddCrashKeyCallback(AddCrashKeyCallback callback);
+  void AddCrashKey(CrashKeyId id, const std::string& value) {
+    if (add_crash_key_callback_) {
+      add_crash_key_callback_(id, value);
+    }
+  }
 
   void SetRAILMode(RAILMode rail_mode);
 

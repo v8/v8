@@ -6958,6 +6958,7 @@ enum class CrashKeyId {
   kReadonlySpaceFirstPageAddress,
   kMapSpaceFirstPageAddress,
   kCodeSpaceFirstPageAddress,
+  kDumpType,
 };
 
 typedef void (*AddCrashKeyCallback)(CrashKeyId id, const std::string& value);
