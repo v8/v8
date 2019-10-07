@@ -1911,6 +1911,12 @@ struct ScriptCompileTimerScope {
       case CacheBehaviour::kConsumeCodeCache:
         return isolate_->counters()->compile_script_with_consume_cache();
 
+      // Note that this only counts the finalization part of streaming, the
+      // actual streaming compile is counted by BackgroundCompileTask into
+      // "compile_script_on_background".
+      case CacheBehaviour::kNoCacheBecauseStreamingSource:
+        return isolate_->counters()->compile_script_streaming_finalization();
+
       case CacheBehaviour::kNoCacheBecauseInlineScript:
         return isolate_->counters()
             ->compile_script_no_cache_because_inline_script();
@@ -1930,9 +1936,6 @@ struct ScriptCompileTimerScope {
       // TODO(leszeks): Consider counting separately once modules are more
       // common.
       case CacheBehaviour::kNoCacheBecauseModule:
-      // TODO(leszeks): Count separately or remove entirely once we have
-      // background compilation.
-      case CacheBehaviour::kNoCacheBecauseStreamingSource:
       case CacheBehaviour::kNoCacheBecauseV8Extension:
       case CacheBehaviour::kNoCacheBecauseExtensionModule:
       case CacheBehaviour::kNoCacheBecausePacScript:
