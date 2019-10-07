@@ -1759,11 +1759,11 @@ struct LateOptimizationPhase {
                                          data->broker(), data->common(),
                                          data->machine(), temp_zone);
     SelectLowering select_lowering(data->jsgraph(), temp_zone);
-#ifdef V8_COMPRESS_POINTERS
-    DecompressionElimination decompression_elimination(
-        &graph_reducer, data->graph(), data->machine(), data->common());
-    AddReducer(data, &graph_reducer, &decompression_elimination);
-#endif
+    if (COMPRESS_POINTERS_BOOL && FLAG_turbo_decompression_elimination) {
+      DecompressionElimination decompression_elimination(
+          &graph_reducer, data->graph(), data->machine(), data->common());
+      AddReducer(data, &graph_reducer, &decompression_elimination);
+    }
     AddReducer(data, &graph_reducer, &branch_condition_elimination);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &machine_reducer);
@@ -1848,11 +1848,11 @@ struct CsaOptimizationPhase {
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->broker(), data->common(),
                                          data->machine(), temp_zone);
-#ifdef V8_COMPRESS_POINTERS
-    DecompressionElimination decompression_elimination(
-        &graph_reducer, data->graph(), data->machine(), data->common());
-    AddReducer(data, &graph_reducer, &decompression_elimination);
-#endif
+    if (COMPRESS_POINTERS_BOOL && FLAG_turbo_decompression_elimination) {
+      DecompressionElimination decompression_elimination(
+          &graph_reducer, data->graph(), data->machine(), data->common());
+      AddReducer(data, &graph_reducer, &decompression_elimination);
+    }
     AddReducer(data, &graph_reducer, &branch_condition_elimination);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &machine_reducer);
