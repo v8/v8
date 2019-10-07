@@ -13,9 +13,6 @@ namespace regexp {
   RegExpMatchAllAssembler::CreateRegExpStringIterator(
       NativeContext, Object, String, bool, bool): JSAny;
 
-  const kRegExpMatchAllWithNonGlobalRegExp: constexpr int31
-  generates 'v8::Isolate::kRegExpMatchAllWithNonGlobalRegExp';
-
   @export
   transitioning macro RegExpPrototypeMatchAllImpl(implicit context: Context)(
       nativeContext: NativeContext, receiver: JSAny, string: JSAny): JSAny {
@@ -96,13 +93,6 @@ namespace regexp {
             StringIndexOf(flagsString, unicodeCharString, 0);
         unicode = unicodeIndex != -1;
       }
-    }
-
-    // UseCounter for matchAll with non-g RegExp.
-    // https://crbug.com/v8/9551
-    if (!global) {
-      IncrementUseCounter(
-          context, SmiConstant(kRegExpMatchAllWithNonGlobalRegExp));
     }
 
     // 13. Return ! CreateRegExpStringIterator(matcher, S, global, fullUnicode).

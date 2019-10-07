@@ -1745,19 +1745,6 @@ TEST(UseCountRegExp) {
   CHECK_EQ(2, use_counts[v8::Isolate::kRegExpPrototypeStickyGetter]);
   CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeToString]);
   CHECK(resultToStringError->IsObject());
-
-  // Increment a UseCounter when .matchAll() is used with a non-global
-  // regular expression.
-  CHECK_EQ(0, use_counts[v8::Isolate::kRegExpMatchAllWithNonGlobalRegExp]);
-  v8::Local<v8::Value> resultReMatchAllNonGlobal =
-      CompileRun("'a'.matchAll(/./)");
-  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpMatchAllWithNonGlobalRegExp]);
-  CHECK(resultReMatchAllNonGlobal->IsObject());
-  // Don't increment the counter for global regular expressions.
-  v8::Local<v8::Value> resultReMatchAllGlobal =
-      CompileRun("'a'.matchAll(/./g)");
-  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpMatchAllWithNonGlobalRegExp]);
-  CHECK(resultReMatchAllGlobal->IsObject());
 }
 
 class UncachedExternalString
