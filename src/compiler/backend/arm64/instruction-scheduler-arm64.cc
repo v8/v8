@@ -355,6 +355,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Strh:
     case kArm64StrW:
     case kArm64Str:
+    case kArm64StrCompressTagged:
     case kArm64DmbIsh:
     case kArm64DsbIsb:
       return kHasSideEffect;
