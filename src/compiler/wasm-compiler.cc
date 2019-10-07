@@ -5640,6 +5640,22 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     return jump_table_offset;
   }
 
+  Node* BuildMultiReturnFixedArrayFromIterable(const wasm::FunctionSig* sig,
+                                               Node* iterable, Node* context) {
+    Node* iterable_to_fixed_array =
+        BuildLoadBuiltinFromIsolateRoot(Builtins::kIterableToFixedArrayForWasm);
+    IterableToFixedArrayForWasmDescriptor interface_descriptor;
+    Node* length = BuildChangeUint31ToSmi(
+        Uint32Constant(static_cast<uint32_t>(sig->return_count())));
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
+        mcgraph()->zone(), interface_descriptor,
+        interface_descriptor.GetStackParameterCount(), CallDescriptor::kNoFlags,
+        Operator::kNoProperties, StubCallMode::kCallCodeObject);
+    return SetEffect(graph()->NewNode(
+        mcgraph()->common()->Call(call_descriptor), iterable_to_fixed_array,
+        iterable, length, context, Effect(), Control()));
+  }
+
   void BuildJSToWasmWrapper(bool is_import) {
     const int wasm_count = static_cast<int>(sig_->parameter_count());
 
@@ -5924,20 +5940,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       BuildModifyThreadInWasmFlag(true);
       Return(val);
     } else {
-      Node* iterable_to_fixed_array = BuildLoadBuiltinFromIsolateRoot(
-          Builtins::kIterableToFixedArrayForWasm);
-      IterableToFixedArrayForWasmDescriptor interface_descriptor;
-      Node* length = BuildChangeUint31ToSmi(
-          Uint32Constant(static_cast<uint32_t>(sig_->return_count())));
-      auto call_descriptor = Linkage::GetStubCallDescriptor(
-          mcgraph()->zone(), interface_descriptor,
-          interface_descriptor.GetStackParameterCount(),
-          CallDescriptor::kNoFlags, Operator::kNoProperties,
-          StubCallMode::kCallCodeObject);
+      Node* fixed_array =
+          BuildMultiReturnFixedArrayFromIterable(sig_, call, native_context);
       Vector<Node*> wasm_values = Buffer(sig_->return_count());
-      Node* fixed_array = graph()->NewNode(
-          mcgraph()->common()->Call(call_descriptor), iterable_to_fixed_array,
-          call, length, native_context, Effect(), Control());
       for (unsigned i = 0; i < sig_->return_count(); ++i) {
         wasm_values[i] = FromJS(LOAD_FIXED_ARRAY_SLOT_ANY(fixed_array, i),
                                 native_context, sig_->GetReturn(i));
@@ -6191,14 +6196,30 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* call = SetEffect(graph()->NewNode(
         mcgraph()->common()->Call(call_descriptor), pos, args.begin()));
 
-    // TODO(wasm): Extend this to support multi-return.
-    DCHECK_LE(sig_->return_count(), 1);
-
     // Convert return JS values to wasm numbers and back to JS values.
-    Node* jsval =
-        sig_->return_count() == 0
-            ? BuildLoadUndefinedValueFromInstance()
-            : ToJS(FromJS(call, context, sig_->GetReturn()), sig_->GetReturn());
+    Node* jsval;
+    if (sig_->return_count() == 0) {
+      jsval = BuildLoadUndefinedValueFromInstance();
+    } else if (sig_->return_count() == 1) {
+      jsval = ToJS(FromJS(call, context, sig_->GetReturn()), sig_->GetReturn());
+    } else {
+      Node* fixed_array =
+          BuildMultiReturnFixedArrayFromIterable(sig_, call, context);
+      int32_t return_count = static_cast<int32_t>(sig_->return_count());
+      Node* size =
+          graph()->NewNode(mcgraph()->common()->NumberConstant(return_count));
+      Node* result_fixed_array =
+          BuildCallToRuntime(Runtime::kWasmNewMultiReturnFixedArray, &size, 1);
+      for (unsigned i = 0; i < sig_->return_count(); ++i) {
+        const auto& type = sig_->GetReturn(i);
+        Node* elem = LOAD_FIXED_ARRAY_SLOT_ANY(fixed_array, i);
+        Node* cast = ToJS(FromJS(elem, context, type), type);
+        STORE_FIXED_ARRAY_SLOT_ANY(result_fixed_array, i, cast);
+      }
+      jsval = BuildCallToRuntimeWithContext(Runtime::kWasmNewMultiReturnJSArray,
+                                            context, &result_fixed_array, 1,
+                                            effect_, Control());
+    }
     Return(jsval);
   }
 

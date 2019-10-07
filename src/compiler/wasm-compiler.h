@@ -602,6 +602,9 @@ class WasmGraphBuilder {
   Node* BuildDecodeException32BitValue(Node* values_array, uint32_t* index);
   Node* BuildDecodeException64BitValue(Node* values_array, uint32_t* index);
 
+  Node* BuildMultiReturnFixedArrayFromIterable(const wasm::FunctionSig* sig,
+                                               Node* iterable, Node* context);
+
   Vector<Node*> Realloc(Node* const* buffer, size_t old_count,
                         size_t new_count) {
     DCHECK_GE(new_count, old_count);  // Only support growing.
