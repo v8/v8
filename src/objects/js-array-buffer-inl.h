@@ -141,13 +141,12 @@ void JSTypedArray::RemoveExternalPointerCompensationForSerialization() {
 ACCESSORS(JSTypedArray, base_pointer, Object, kBasePointerOffset)
 
 void* JSTypedArray::DataPtr() {
-  // Sign extend Tagged_t to intptr_t according to current compression scheme
+  // Zero-extend Tagged_t to Address according to current compression scheme
   // so that the addition with |external_pointer| (which already contains
   // compensated offset value) will decompress the tagged value.
   // See JSTypedArray::ExternalPointerCompensationForOnHeapArray() for details.
-  return reinterpret_cast<void*>(
-      external_pointer() + static_cast<Address>(static_cast<intptr_t>(
-                               static_cast<Tagged_t>(base_pointer().ptr()))));
+  return reinterpret_cast<void*>(external_pointer() +
+                                 static_cast<Tagged_t>(base_pointer().ptr()));
 }
 
 void JSTypedArray::SetOffHeapDataPtr(void* base, Address offset) {

@@ -231,7 +231,7 @@ constexpr int kTaggedSizeLog2 = 2;
 
 // These types define raw and atomic storage types for tagged values stored
 // on V8 heap.
-using Tagged_t = int32_t;
+using Tagged_t = uint32_t;
 using AtomicTagged_t = base::Atomic32;
 
 #else

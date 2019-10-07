@@ -284,21 +284,21 @@ void TurboAssembler::StoreTaggedField(Operand dst_field_operand,
 void TurboAssembler::DecompressTaggedSigned(Register destination,
                                             Operand field_operand) {
   RecordComment("[ DecompressTaggedSigned");
-  movsxlq(destination, field_operand);
+  movl(destination, field_operand);
   RecordComment("]");
 }
 
 void TurboAssembler::DecompressTaggedSigned(Register destination,
                                             Register source) {
   RecordComment("[ DecompressTaggedSigned");
-  movsxlq(destination, source);
+  movl(destination, source);
   RecordComment("]");
 }
 
 void TurboAssembler::DecompressTaggedPointer(Register destination,
                                              Operand field_operand) {
   RecordComment("[ DecompressTaggedPointer");
-  movsxlq(destination, field_operand);
+  movl(destination, field_operand);
   addq(destination, kRootRegister);
   RecordComment("]");
 }
@@ -306,7 +306,7 @@ void TurboAssembler::DecompressTaggedPointer(Register destination,
 void TurboAssembler::DecompressTaggedPointer(Register destination,
                                              Register source) {
   RecordComment("[ DecompressTaggedPointer");
-  movsxlq(destination, source);
+  movl(destination, source);
   addq(destination, kRootRegister);
   RecordComment("]");
 }
@@ -321,7 +321,7 @@ void TurboAssembler::DecompressAnyTagged(Register destination,
                                          Register scratch) {
   DCHECK(!AreAliased(destination, scratch));
   RecordComment("[ DecompressAnyTagged");
-  movsxlq(destination, field_operand);
+  movl(destination, field_operand);
   DecompressRegisterAnyTagged(destination, scratch);
   RecordComment("]");
 }
@@ -330,7 +330,7 @@ void TurboAssembler::DecompressAnyTagged(Register destination, Register source,
                                          Register scratch) {
   DCHECK(!AreAliased(destination, scratch));
   RecordComment("[ DecompressAnyTagged");
-  movsxlq(destination, source);
+  movl(destination, source);
   DecompressRegisterAnyTagged(destination, scratch);
   RecordComment("]");
 }

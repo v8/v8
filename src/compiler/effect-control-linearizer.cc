@@ -5044,12 +5044,12 @@ Node* EffectControlLinearizer::BuildTypedArrayDataPointer(Node* base,
       // will be removed by the decompression elimination pass.
       base = __ ChangeTaggedToCompressed(base);
       base = __ BitcastTaggedToWord(base);
-      // Sign-extend Tagged_t to IntPtr according to current compression
+      // Zero-extend Tagged_t to UintPtr according to current compression
       // scheme so that the addition with |external_pointer| (which already
       // contains compensated offset value) will decompress the tagged value.
       // See JSTypedArray::ExternalPointerCompensationForOnHeapArray() for
       // details.
-      base = ChangeInt32ToIntPtr(base);
+      base = ChangeUint32ToUintPtr(base);
     }
     return __ UnsafePointerAdd(base, external);
   }

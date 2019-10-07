@@ -2706,21 +2706,21 @@ void TurboAssembler::StoreTaggedField(const Register& value,
 void TurboAssembler::DecompressTaggedSigned(const Register& destination,
                                             const MemOperand& field_operand) {
   RecordComment("[ DecompressTaggedSigned");
-  Ldrsw(destination, field_operand);
+  Ldr(destination.W(), field_operand);
   RecordComment("]");
 }
 
 void TurboAssembler::DecompressTaggedSigned(const Register& destination,
                                             const Register& source) {
   RecordComment("[ DecompressTaggedSigned");
-  Sxtw(destination, source);
+  Mov(destination.W(), source.W());
   RecordComment("]");
 }
 
 void TurboAssembler::DecompressTaggedPointer(const Register& destination,
                                              const MemOperand& field_operand) {
   RecordComment("[ DecompressTaggedPointer");
-  Ldrsw(destination, field_operand);
+  Ldr(destination.W(), field_operand);
   Add(destination, kRootRegister, destination);
   RecordComment("]");
 }
@@ -2728,14 +2728,14 @@ void TurboAssembler::DecompressTaggedPointer(const Register& destination,
 void TurboAssembler::DecompressTaggedPointer(const Register& destination,
                                              const Register& source) {
   RecordComment("[ DecompressTaggedPointer");
-  Add(destination, kRootRegister, Operand(source, SXTW));
+  Add(destination, kRootRegister, Operand(source, UXTW));
   RecordComment("]");
 }
 
 void TurboAssembler::DecompressAnyTagged(const Register& destination,
                                          const MemOperand& field_operand) {
   RecordComment("[ DecompressAnyTagged");
-  Ldrsw(destination, field_operand);
+  Ldr(destination.W(), field_operand);
   Add(destination, kRootRegister, destination);
   RecordComment("]");
 }
@@ -2743,7 +2743,7 @@ void TurboAssembler::DecompressAnyTagged(const Register& destination,
 void TurboAssembler::DecompressAnyTagged(const Register& destination,
                                          const Register& source) {
   RecordComment("[ DecompressAnyTagged");
-  Add(destination, kRootRegister, Operand(source, SXTW));
+  Add(destination, kRootRegister, Operand(source, UXTW));
   RecordComment("]");
 }
 

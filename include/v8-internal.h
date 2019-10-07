@@ -329,14 +329,11 @@ class Internals {
 #ifdef V8_COMPRESS_POINTERS
   // See v8:7703 or src/ptr-compr.* for details about pointer compression.
   static constexpr size_t kPtrComprHeapReservationSize = size_t{1} << 32;
-  static constexpr size_t kPtrComprIsolateRootBias =
-      kPtrComprHeapReservationSize / 2;
   static constexpr size_t kPtrComprIsolateRootAlignment = size_t{1} << 32;
 
   V8_INLINE static internal::Address GetRootFromOnHeapAddress(
       internal::Address addr) {
-    return (addr + kPtrComprIsolateRootBias) &
-           -static_cast<intptr_t>(kPtrComprIsolateRootAlignment);
+    return addr & -static_cast<intptr_t>(kPtrComprIsolateRootAlignment);
   }
 
   V8_INLINE static internal::Address DecompressTaggedAnyField(

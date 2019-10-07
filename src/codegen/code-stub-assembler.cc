@@ -2215,12 +2215,12 @@ TNode<RawPtrT> CodeStubAssembler::LoadJSTypedArrayDataPtr(
   if (COMPRESS_POINTERS_BOOL) {
     TNode<Int32T> compressed_base =
         LoadObjectField<Int32T>(typed_array, JSTypedArray::kBasePointerOffset);
-    // Sign extend Int32T to IntPtrT according to current compression scheme
+    // Zero-extend TaggedT to WordT according to current compression scheme
     // so that the addition with |external_pointer| (which already contains
     // compensated offset value) below will decompress the tagged value.
     // See JSTypedArray::ExternalPointerCompensationForOnHeapArray() for
     // details.
-    base_pointer = ChangeInt32ToIntPtr(compressed_base);
+    base_pointer = Signed(ChangeUint32ToWord(compressed_base));
   } else {
     base_pointer =
         LoadObjectField<IntPtrT>(typed_array, JSTypedArray::kBasePointerOffset);

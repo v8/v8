@@ -48,7 +48,7 @@ class V8_EXPORT_PRIVATE IsolateAllocator final {
 
  private:
   Address InitReservation();
-  void CommitPagesForIsolate(Address heap_address);
+  void CommitPagesForIsolate(Address heap_reservation_address);
 
   // The allocated memory for Isolate instance.
   void* isolate_memory_ = nullptr;
