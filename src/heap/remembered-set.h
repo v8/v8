@@ -218,7 +218,7 @@ class RememberedSet : public AllStatic {
             return start <= slot_addr && slot_addr < end ? REMOVE_SLOT
                                                          : KEEP_SLOT;
           },
-          TypedSlotSet::PREFREE_EMPTY_CHUNKS);
+          TypedSlotSet::FREE_EMPTY_CHUNKS);
     }
   }
 

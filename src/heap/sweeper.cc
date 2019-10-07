@@ -403,6 +403,10 @@ void Sweeper::SweepSpaceFromTask(AllocationSpace identity) {
   Page* page = nullptr;
   while (!stop_sweeper_tasks_ &&
          ((page = GetSweepingPageSafe(identity)) != nullptr)) {
+    // Typed slot sets are only recorded on code pages. Code pages
+    // are not swept concurrently to the application to ensure W^X.
+    DCHECK(!page->typed_slot_set<OLD_TO_NEW>() &&
+           !page->typed_slot_set<OLD_TO_OLD>());
     ParallelSweepPage(page, identity);
   }
 }
@@ -461,12 +465,6 @@ int Sweeper::ParallelSweepPage(
     max_freed = RawSweep(page, REBUILD_FREE_LIST, free_space_mode,
                          invalidated_slots_in_free_space);
     DCHECK(page->SweepingDone());
-
-    // After finishing sweeping of a page we clean up its remembered set.
-    TypedSlotSet* typed_slot_set = page->typed_slot_set<OLD_TO_NEW>();
-    if (typed_slot_set) {
-      typed_slot_set->FreeToBeFreedChunks();
-    }
   }
 
   {

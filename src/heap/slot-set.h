@@ -29,8 +29,8 @@ enum SlotCallbackResult { KEEP_SLOT, REMOVE_SLOT };
 class SlotSet : public Malloced {
  public:
   enum EmptyBucketMode {
-    FREE_EMPTY_BUCKETS,     // An empty bucket will be deallocated immediately.
-    KEEP_EMPTY_BUCKETS      // An empty bucket will be kept.
+    FREE_EMPTY_BUCKETS,  // An empty bucket will be deallocated immediately.
+    KEEP_EMPTY_BUCKETS   // An empty bucket will be kept.
   };
 
   SlotSet() {
@@ -355,9 +355,9 @@ enum SlotType {
 };
 
 // Data structure for maintaining a list of typed slots in a page.
-// Typed slots can only appear in Code and JSFunction objects, so
+// Typed slots can only appear in Code objects, so
 // the maximum possible offset is limited by the LargePage::kMaxCodePageSize.
-// The implementation is a chain of chunks, where each chunks is an array of
+// The implementation is a chain of chunks, where each chunk is an array of
 // encoded (slot type, slot offset) pairs.
 // There is no duplicate detection and we do not expect many duplicates because
 // typed slots contain V8 internal pointers that are not directly exposed to JS.
@@ -377,17 +377,15 @@ class V8_EXPORT_PRIVATE TypedSlots {
   };
   struct Chunk {
     Chunk* next;
-    TypedSlot* buffer;
-    int32_t capacity;
-    int32_t count;
+    std::vector<TypedSlot> buffer;
   };
-  static const int kInitialBufferSize = 100;
-  static const int kMaxBufferSize = 16 * KB;
-  static int NextCapacity(int capacity) {
+  static const size_t kInitialBufferSize = 100;
+  static const size_t kMaxBufferSize = 16 * KB;
+  static size_t NextCapacity(size_t capacity) {
     return Min(kMaxBufferSize, capacity * 2);
   }
   Chunk* EnsureChunk();
-  Chunk* NewChunk(Chunk* next, int capacity);
+  Chunk* NewChunk(Chunk* next, size_t capacity);
   Chunk* head_ = nullptr;
   Chunk* tail_ = nullptr;
 };
@@ -396,14 +394,9 @@ class V8_EXPORT_PRIVATE TypedSlots {
 // clearing of invalid slots.
 class V8_EXPORT_PRIVATE TypedSlotSet : public TypedSlots {
  public:
-  // The PREFREE_EMPTY_CHUNKS indicates that chunks detected as empty
-  // during the iteration are queued in to_be_freed_chunks_, which are
-  // then freed in FreeToBeFreedChunks.
-  enum IterationMode { PREFREE_EMPTY_CHUNKS, KEEP_EMPTY_CHUNKS };
+  enum IterationMode { FREE_EMPTY_CHUNKS, KEEP_EMPTY_CHUNKS };
 
   explicit TypedSlotSet(Address page_start) : page_start_(page_start) {}
-
-  ~TypedSlotSet() override;
 
   // Iterate over all slots in the set and for each slot invoke the callback.
   // If the callback returns REMOVE_SLOT then the slot is removed from the set.
@@ -422,11 +415,8 @@ class V8_EXPORT_PRIVATE TypedSlotSet : public TypedSlots {
     Chunk* previous = nullptr;
     int new_count = 0;
     while (chunk != nullptr) {
-      TypedSlot* buffer = chunk->buffer;
-      int count = chunk->count;
       bool empty = true;
-      for (int i = 0; i < count; i++) {
-        TypedSlot slot = LoadTypedSlot(buffer + i);
+      for (TypedSlot& slot : chunk->buffer) {
         SlotType type = TypeField::decode(slot.type_and_offset);
         if (type != CLEARED_SLOT) {
           uint32_t offset = OffsetField::decode(slot.type_and_offset);
@@ -435,12 +425,12 @@ class V8_EXPORT_PRIVATE TypedSlotSet : public TypedSlots {
             new_count++;
             empty = false;
           } else {
-            ClearTypedSlot(buffer + i);
+            slot = ClearedTypedSlot();
           }
         }
       }
       Chunk* next = chunk->next;
-      if (mode == PREFREE_EMPTY_CHUNKS && empty) {
+      if (mode == FREE_EMPTY_CHUNKS && empty) {
         // We remove the chunk from the list but let it still point its next
         // chunk to allow concurrent iteration.
         if (previous) {
@@ -448,8 +438,8 @@ class V8_EXPORT_PRIVATE TypedSlotSet : public TypedSlots {
         } else {
           StoreHead(next);
         }
-        base::MutexGuard guard(&to_be_freed_chunks_mutex_);
-        to_be_freed_chunks_.push(std::unique_ptr<Chunk>(chunk));
+
+        delete chunk;
       } else {
         previous = chunk;
       }
@@ -477,19 +467,11 @@ class V8_EXPORT_PRIVATE TypedSlotSet : public TypedSlots {
   void StoreHead(Chunk* chunk) {
     base::AsAtomicPointer::Relaxed_Store(&head_, chunk);
   }
-  TypedSlot LoadTypedSlot(TypedSlot* slot) {
-    return TypedSlot{base::AsAtomic32::Relaxed_Load(&slot->type_and_offset)};
-  }
-  void ClearTypedSlot(TypedSlot* slot) {
-    // Order is important here and should match that of LoadTypedSlot.
-    base::AsAtomic32::Relaxed_Store(
-        &slot->type_and_offset,
-        TypeField::encode(CLEARED_SLOT) | OffsetField::encode(0));
+  static TypedSlot ClearedTypedSlot() {
+    return TypedSlot{TypeField::encode(CLEARED_SLOT) | OffsetField::encode(0)};
   }
 
   Address page_start_;
-  base::Mutex to_be_freed_chunks_mutex_;
-  std::stack<std::unique_ptr<Chunk>> to_be_freed_chunks_;
 };
 
 }  // namespace internal
