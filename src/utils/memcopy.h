@@ -198,8 +198,7 @@ inline void MemsetPointer(T** dest, U* value, size_t counter) {
 }
 
 // Copy from 8bit/16bit chars to 8bit/16bit chars. Values are zero-extended if
-// needed. Ranges are not allowed to overlap unless the type sizes match (hence
-// {memmove} is used internally).
+// needed. Ranges are not allowed to overlap.
 // The separate declaration is needed for the V8_NONNULL, which is not allowed
 // on a definition.
 template <typename SrcType, typename DstType>
@@ -210,27 +209,17 @@ void CopyChars(DstType* dst, const SrcType* src, size_t count) {
   STATIC_ASSERT(std::is_integral<SrcType>::value);
   STATIC_ASSERT(std::is_integral<DstType>::value);
 
-  // If the size of {SrcType} and {DstType} matches, we switch to the more
-  // general and potentially faster {memmove}. Note that this decision is made
-  // statically at compile time.
-  // This {memmove} also allows to pass overlapping ranges if the sizes match.
-  // We probably should not call {CopyChars} with overlapping ranges, but
-  // unfortunately we sometimes do.
-  if (sizeof(SrcType) == sizeof(DstType)) {
-    memmove(dst, src, count * sizeof(SrcType));
-    return;
-  }
-
-  using SrcTypeUnsigned = typename std::make_unsigned<SrcType>::type;
-  using DstTypeUnsigned = typename std::make_unsigned<DstType>::type;
 #ifdef DEBUG
   // Check for no overlap, otherwise {std::copy_n} cannot be used.
   Address src_start = reinterpret_cast<Address>(src);
   Address src_end = src_start + count * sizeof(SrcType);
   Address dst_start = reinterpret_cast<Address>(dst);
   Address dst_end = dst_start + count * sizeof(DstType);
-  DCHECK(src_end < dst_start || dst_end < src_start);
+  DCHECK(src_end <= dst_start || dst_end <= src_start);
 #endif
+
+  using SrcTypeUnsigned = typename std::make_unsigned<SrcType>::type;
+  using DstTypeUnsigned = typename std::make_unsigned<DstType>::type;
   std::copy_n(reinterpret_cast<const SrcTypeUnsigned*>(src), count,
               reinterpret_cast<DstTypeUnsigned*>(dst));
 }
