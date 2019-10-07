@@ -153,6 +153,11 @@
   'test-api/Threading*': [SKIP],
   'test-cpu-profiler/MultipleIsolates': [PASS, SLOW],
   'test-debug/DebugBreakStackTrace': [PASS, SLOW],
+
+  # BUG(v8:9820): Load poisoning tests failing on the ARM64 simulator
+  'test-poison-disasm-arm64/DisasmPoisonMonomorphicLoad': [SKIP],
+  'test-poison-disasm-arm64/DisasmPoisonMonomorphicLoadFloat64': [SKIP],
+  'test-poison-disasm-arm64/DisasmPoisonPolymorphicLoad': [SKIP],
 }],  # 'arch == arm64 and simulator_run'
 
 ##############################################################################
