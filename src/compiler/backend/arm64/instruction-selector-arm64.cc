@@ -724,7 +724,7 @@ void InstructionSelector::VisitStore(Node* node) {
       case MachineRepresentation::kCompressedPointer:  // Fall through.
       case MachineRepresentation::kCompressed:
 #ifdef V8_COMPRESS_POINTERS
-        opcode = kArm64StrCompressTagged;
+        opcode = kArm64StrW;
         immediate_mode = kLoadStoreImm32;
         break;
 #else
@@ -732,11 +732,7 @@ void InstructionSelector::VisitStore(Node* node) {
 #endif
       case MachineRepresentation::kTaggedSigned:   // Fall through.
       case MachineRepresentation::kTaggedPointer:  // Fall through.
-      case MachineRepresentation::kTagged:
-        opcode = kArm64StrCompressTagged;
-        immediate_mode =
-            COMPRESS_POINTERS_BOOL ? kLoadStoreImm32 : kLoadStoreImm64;
-        break;
+      case MachineRepresentation::kTagged:         // Fall through.
       case MachineRepresentation::kWord64:
         opcode = kArm64Str;
         immediate_mode = kLoadStoreImm64;

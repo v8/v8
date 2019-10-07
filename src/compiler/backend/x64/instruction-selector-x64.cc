@@ -288,8 +288,7 @@ ArchOpcode GetStoreOpcode(StoreRepresentation store_rep) {
 #endif
     case MachineRepresentation::kTaggedSigned:   // Fall through.
     case MachineRepresentation::kTaggedPointer:  // Fall through.
-    case MachineRepresentation::kTagged:
-      return kX64MovqCompressTagged;
+    case MachineRepresentation::kTagged:         // Fall through.
     case MachineRepresentation::kWord64:
       return kX64Movq;
     case MachineRepresentation::kSimd128:  // Fall through.
