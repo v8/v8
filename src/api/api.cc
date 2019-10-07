@@ -10589,11 +10589,12 @@ void EmbedderHeapTracer::DecreaseAllocatedSize(size_t bytes) {
 }
 
 void EmbedderHeapTracer::RegisterEmbedderReference(
-    const TracedGlobal<v8::Value>& ref) {
+    const TracedReferenceBase<v8::Value>& ref) {
   if (ref.IsEmpty()) return;
 
   i::Heap* const heap = reinterpret_cast<i::Isolate*>(isolate_)->heap();
-  heap->RegisterExternallyReferencedObject(reinterpret_cast<i::Address*>(*ref));
+  heap->RegisterExternallyReferencedObject(
+      reinterpret_cast<i::Address*>(ref.val_));
 }
 
 void EmbedderHeapTracer::IterateTracedGlobalHandles(
@@ -10601,6 +10602,26 @@ void EmbedderHeapTracer::IterateTracedGlobalHandles(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(isolate_);
   i::DisallowHeapAllocation no_allocation;
   isolate->global_handles()->IterateTracedNodes(visitor);
+}
+
+bool EmbedderHeapTracer::IsRootForNonTracingGC(
+    const v8::TracedReference<v8::Value>& handle) {
+  return true;
+}
+
+bool EmbedderHeapTracer::IsRootForNonTracingGC(
+    const v8::TracedGlobal<v8::Value>& handle) {
+  return true;
+}
+
+void EmbedderHeapTracer::ResetHandleInNonTracingGC(
+    const v8::TracedReference<v8::Value>& handle) {
+  UNREACHABLE();
+}
+
+void EmbedderHeapTracer::ResetHandleInNonTracingGC(
+    const v8::TracedGlobal<v8::Value>& handle) {
+  UNREACHABLE();
 }
 
 namespace internal {
