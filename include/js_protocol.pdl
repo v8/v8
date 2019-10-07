@@ -169,8 +169,6 @@ domain Debugger
       # The maximum size in bytes of collected scripts (not referenced by other heap objects)
       # the debugger can hold. Puts no limit if paramter is omitted.
       experimental optional number maxScriptsCacheSize
-      # Whether to report Wasm modules as raw binaries instead of disassembled functions.
-      experimental optional boolean supportsWasmDwarf
     returns
       # Unique identifier of the debugger.
       experimental Runtime.UniqueDebuggerId debuggerId

@@ -43,7 +43,6 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
 
   // Part of the protocol.
   Response enable(Maybe<double> maxScriptsCacheSize,
-                  Maybe<bool> supportsWasmDwarf,
                   String16* outDebuggerId) override;
   Response disable() override;
   Response setBreakpointsActive(bool active) override;
@@ -129,7 +128,6 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
           positions) override;
 
   bool enabled() const { return m_enabled; }
-  bool supportsWasmDwarf() const { return m_supportsWasmDwarf; }
 
   void setBreakpointFor(v8::Local<v8::Function> function,
                         v8::Local<v8::String> condition,
@@ -232,8 +230,6 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   std::unique_ptr<V8Regex> m_blackboxPattern;
   std::unordered_map<String16, std::vector<std::pair<int, int>>>
       m_blackboxedPositions;
-
-  bool m_supportsWasmDwarf = false;
 
   DISALLOW_COPY_AND_ASSIGN(V8DebuggerAgentImpl);
 };

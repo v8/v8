@@ -460,7 +460,7 @@ class ModuleDecoderImpl : public Decoder {
         DecodeSourceMappingURLSection();
         break;
       case kDebugInfoSectionCode:
-        module_->has_dwarf = true;
+        module_->source_map_url.assign("wasm://dwarf");
         consume_bytes(static_cast<uint32_t>(end_ - start_), ".debug_info");
         break;
       case kCompilationHintsSectionCode:

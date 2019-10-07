@@ -9444,14 +9444,6 @@ int debug::WasmScript::NumImportedFunctions() const {
   return static_cast<int>(module->num_imported_functions);
 }
 
-bool debug::WasmScript::HasDwarf() const {
-  i::Handle<i::Script> script = Utils::OpenHandle(this);
-  DCHECK_EQ(i::Script::TYPE_WASM, script->type());
-  i::wasm::NativeModule* native_module = script->wasm_native_module();
-  const i::wasm::WasmModule* module = native_module->module();
-  return module->has_dwarf;
-}
-
 MemorySpan<const uint8_t> debug::WasmScript::Bytecode() const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   i::Vector<const uint8_t> wire_bytes =

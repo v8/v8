@@ -13,8 +13,6 @@ let sessions = [
   // Extra session to verify that all inspectors get same messages.
   // See https://bugs.chromium.org/p/v8/issues/detail?id=9725.
   trackScripts(),
-  // Another session to check how raw Wasm is reported.
-  trackScripts({ supportsWasmDwarf: true }),
 ];
 
 utils.load('test/mjsunit/wasm/wasm-module-builder.js');
@@ -26,8 +24,9 @@ builder.addFunction('nopFunction', kSig_v_v).addBody([kExprNop]);
 builder.addFunction('main', kSig_v_v)
     .addBody([kExprBlock, kWasmStmt, kExprI32Const, 2, kExprDrop, kExprEnd])
     .exportAs('main');
-builder.addCustomSection('.debug_info', []);
 var module_bytes = builder.toArray();
+builder.addCustomSection('.debug_info', []);
+var module_bytes_with_dwarf = builder.toArray();
 
 function testFunction(bytes) {
   // Compilation triggers registration of wasm scripts.
@@ -36,6 +35,7 @@ function testFunction(bytes) {
 
 contextGroup.addScript(testFunction.toString(), 0, 0, 'v8://test/testFunction');
 contextGroup.addScript('var module_bytes = ' + JSON.stringify(module_bytes));
+contextGroup.addScript('var module_bytes_with_dwarf = ' + JSON.stringify(module_bytes_with_dwarf));
 
 InspectorTest.log(
     'Check that each inspector gets two wasm scripts at module creation time.');
@@ -43,7 +43,7 @@ InspectorTest.log(
 sessions[0].Protocol.Runtime
     .evaluate({
       'expression': '//# sourceURL=v8://test/runTestRunction\n' +
-          'testFunction(module_bytes)'
+          'testFunction(module_bytes); testFunction(module_bytes_with_dwarf);'
     })
     .then(() => (
       // At this point all scripts were parsed.
@@ -86,10 +86,10 @@ function trackScripts(debuggerParams) {
   Protocol.Debugger.enable(debuggerParams);
   Protocol.Debugger.onScriptParsed(handleScriptParsed);
 
-  async function loadScript({url, scriptId}, raw) {
-    InspectorTest.log(`Session #${sessionId}: Script #${scripts.length} parsed. URL: ${url}`);
+  async function loadScript({url, scriptId, sourceMapURL}) {
+    InspectorTest.log(`Session #${sessionId}: Script #${scripts.length} parsed. URL: ${url}. Source map URL: ${sourceMapURL}`);
     let scriptSource;
-    if (raw) {
+    if (sourceMapURL === "wasm://dwarf") {
       let {result: {bytecode}} = await Protocol.Debugger.getWasmBytecode({scriptId});
       // Binary value is represented as base64 in JSON, decode it.
       bytecode = decodeBase64(bytecode);
@@ -108,9 +108,7 @@ Exports: [${WebAssembly.Module.exports(module).map(e => `${e.name}: ${e.kind}`).
   }
 
   function handleScriptParsed({params}) {
-    if (params.sourceMapURL === "wasm://dwarf") {
-      scripts.push(loadScript(params, true));
-    } else if (params.url.startsWith("wasm://")) {
+    if (params.url.startsWith("wasm://")) {
       scripts.push(loadScript(params));
     }
   }

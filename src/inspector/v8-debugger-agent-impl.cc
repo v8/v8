@@ -350,13 +350,11 @@ void V8DebuggerAgentImpl::enableImpl() {
 }
 
 Response V8DebuggerAgentImpl::enable(Maybe<double> maxScriptsCacheSize,
-                                     Maybe<bool> supportsWasmDwarf,
                                      String16* outDebuggerId) {
   m_maxScriptCacheSize = v8::base::saturated_cast<size_t>(
       maxScriptsCacheSize.fromMaybe(std::numeric_limits<double>::max()));
   *outDebuggerId =
       m_debugger->debuggerIdFor(m_session->contextGroupId()).toString();
-  m_supportsWasmDwarf = supportsWasmDwarf.fromMaybe(false);
   if (enabled()) return Response::OK();
 
   if (!m_inspector->client()->canExecuteScripts(m_session->contextGroupId()))

@@ -159,7 +159,6 @@ class WasmScript : public Script {
 
   int NumFunctions() const;
   int NumImportedFunctions() const;
-  bool HasDwarf() const;
   MemorySpan<const uint8_t> Bytecode() const;
 
   std::pair<int, int> GetFunctionRange(int function_index) const;
