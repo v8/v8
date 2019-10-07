@@ -280,10 +280,32 @@ const char* GetWasmCodeKindAsString(WasmCode::Kind);
 // Manages the code reservations and allocations of a single {NativeModule}.
 class WasmCodeAllocator {
  public:
+  // {OptionalLock} is passed between {WasmCodeAllocator} and {NativeModule} to
+  // indicate that the lock on the {WasmCodeAllocator} is already taken. It's
+  // optional to allow to also call methods without holding the lock.
+  class OptionalLock {
+   public:
+    // External users can only instantiate a non-locked {OptionalLock}.
+    OptionalLock() = default;
+    ~OptionalLock();
+    bool is_locked() const { return allocator_ != nullptr; }
+
+   private:
+    friend class WasmCodeAllocator;
+    // {Lock} is called from the {WasmCodeAllocator} if no locked {OptionalLock}
+    // is passed.
+    void Lock(WasmCodeAllocator*);
+
+    WasmCodeAllocator* allocator_ = nullptr;
+  };
+
   WasmCodeAllocator(WasmCodeManager*, VirtualMemory code_space,
                     bool can_request_more,
                     std::shared_ptr<Counters> async_counters);
   ~WasmCodeAllocator();
+
+  // Call before use, after the {NativeModule} is set up completely.
+  void Init(NativeModule*);
 
   size_t committed_code_space() const {
     return committed_code_space_.load(std::memory_order_acquire);
@@ -301,7 +323,8 @@ class WasmCodeAllocator {
   // Allocate code space within a specific region. Returns a valid buffer or
   // fails with OOM (crash).
   Vector<byte> AllocateForCodeInRegion(NativeModule*, size_t size,
-                                       base::AddressRegion);
+                                       base::AddressRegion,
+                                       const WasmCodeAllocator::OptionalLock&);
 
   // Sets permissions of all owned code space to executable, or read-write (if
   // {executable} is false). Returns true on success.
@@ -313,18 +336,11 @@ class WasmCodeAllocator {
   // Retrieve the number of separately reserved code spaces.
   size_t GetNumCodeSpaces() const;
 
-  // Returns the region of the single code space managed by this code allocator.
-  // Will fail if more than one code space has been created.
-  base::AddressRegion GetSingleCodeRegion() const;
-
  private:
   // The engine-wide wasm code manager.
   WasmCodeManager* const code_manager_;
 
-  // TODO(clemensb): Try to make this non-recursive again. It's recursive
-  // currently because {AllocateForCodeInRegion} might create a new code space,
-  // which recursively calls {AllocateForCodeInRegion} for the jump table.
-  mutable base::RecursiveMutex mutex_;
+  mutable base::Mutex mutex_;
 
   //////////////////////////////////////////////////////////////////////////////
   // Protected by {mutex_}:
@@ -547,8 +563,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
       ExecutionTier tier, Vector<uint8_t> code_space,
       const JumpTablesRef& jump_tables_ref);
 
-  WasmCode* CreateEmptyJumpTableInRegion(uint32_t jump_table_size,
-                                         base::AddressRegion);
+  WasmCode* CreateEmptyJumpTableInRegion(
+      uint32_t jump_table_size, base::AddressRegion,
+      const WasmCodeAllocator::OptionalLock&);
 
   // Hold the {allocation_mutex_} when calling one of these methods.
   // {slot_index} is the index in the declared functions, i.e. function index
@@ -558,7 +575,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
                             Address target);
 
   // Called by the {WasmCodeAllocator} to register a new code space.
-  void AddCodeSpace(base::AddressRegion);
+  void AddCodeSpace(base::AddressRegion,
+                    const WasmCodeAllocator::OptionalLock&);
 
   // Hold the {allocation_mutex_} when calling this method.
   bool has_interpreter_redirection(uint32_t func_index) {

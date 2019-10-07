@@ -430,6 +430,16 @@ void WasmCode::DecrementRefCount(Vector<WasmCode* const> code_vec) {
   if (engine) engine->FreeDeadCode(dead_code);
 }
 
+WasmCodeAllocator::OptionalLock::~OptionalLock() {
+  if (allocator_) allocator_->mutex_.Unlock();
+}
+
+void WasmCodeAllocator::OptionalLock::Lock(WasmCodeAllocator* allocator) {
+  DCHECK(!is_locked());
+  allocator_ = allocator;
+  allocator->mutex_.Lock();
+}
+
 WasmCodeAllocator::WasmCodeAllocator(WasmCodeManager* code_manager,
                                      VirtualMemory code_space,
                                      bool can_request_more,
@@ -446,6 +456,11 @@ WasmCodeAllocator::WasmCodeAllocator(WasmCodeManager* code_manager,
 WasmCodeAllocator::~WasmCodeAllocator() {
   code_manager_->FreeNativeModule(VectorOf(owned_code_space_),
                                   committed_code_space());
+}
+
+void WasmCodeAllocator::Init(NativeModule* native_module) {
+  DCHECK_EQ(1, owned_code_space_.size());
+  native_module->AddCodeSpace(owned_code_space_[0].region(), {});
 }
 
 namespace {
@@ -539,12 +554,18 @@ size_t ReservationSize(size_t code_size_estimate, int num_declared_functions,
 Vector<byte> WasmCodeAllocator::AllocateForCode(NativeModule* native_module,
                                                 size_t size) {
   return AllocateForCodeInRegion(
-      native_module, size, {kNullAddress, std::numeric_limits<size_t>::max()});
+      native_module, size, {kNullAddress, std::numeric_limits<size_t>::max()},
+      WasmCodeAllocator::OptionalLock{});
 }
 
 Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
-    NativeModule* native_module, size_t size, base::AddressRegion region) {
-  base::RecursiveMutexGuard lock(&mutex_);
+    NativeModule* native_module, size_t size, base::AddressRegion region,
+    const WasmCodeAllocator::OptionalLock& optional_lock) {
+  OptionalLock new_lock;
+  if (!optional_lock.is_locked()) new_lock.Lock(this);
+  const auto& locked_lock =
+      optional_lock.is_locked() ? optional_lock : new_lock;
+  DCHECK(locked_lock.is_locked());
   DCHECK_EQ(code_manager_, native_module->engine()->code_manager());
   DCHECK_LT(0, size);
   v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
@@ -579,7 +600,7 @@ Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
     code_manager_->AssignRange(new_region, native_module);
     free_code_space_.Merge(new_region);
     owned_code_space_.emplace_back(std::move(new_mem));
-    native_module->AddCodeSpace(new_region);
+    native_module->AddCodeSpace(new_region, locked_lock);
 
     code_space = free_code_space_.Allocate(size);
     DCHECK(!code_space.is_empty());
@@ -619,7 +640,7 @@ Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
 }
 
 bool WasmCodeAllocator::SetExecutable(bool executable) {
-  base::RecursiveMutexGuard lock(&mutex_);
+  base::MutexGuard lock(&mutex_);
   if (is_executable_ == executable) return true;
   TRACE_HEAP("Setting module %p as executable: %d.\n", this, executable);
 
@@ -682,7 +703,7 @@ void WasmCodeAllocator::FreeCode(Vector<WasmCode* const> codes) {
   freed_code_size_.fetch_add(code_size);
 
   // Merge {freed_regions} into {freed_code_space_} and discard full pages.
-  base::RecursiveMutexGuard guard(&mutex_);
+  base::MutexGuard guard(&mutex_);
   PageAllocator* allocator = GetPlatformPageAllocator();
   size_t commit_page_size = allocator->CommitPageSize();
   for (auto region : freed_regions.regions()) {
@@ -706,14 +727,8 @@ void WasmCodeAllocator::FreeCode(Vector<WasmCode* const> codes) {
 }
 
 size_t WasmCodeAllocator::GetNumCodeSpaces() const {
-  base::RecursiveMutexGuard lock(&mutex_);
+  base::MutexGuard lock(&mutex_);
   return owned_code_space_.size();
-}
-
-base::AddressRegion WasmCodeAllocator::GetSingleCodeRegion() const {
-  base::RecursiveMutexGuard lock(&mutex_);
-  DCHECK_EQ(1, owned_code_space_.size());
-  return owned_code_space_[0].region();
 }
 
 NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
@@ -742,7 +757,7 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
     code_table_ =
         std::make_unique<WasmCode*[]>(module_->num_declared_functions);
   }
-  AddCodeSpace(code_allocator_.GetSingleCodeRegion());
+  code_allocator_.Init(this);
 }
 
 void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
@@ -764,7 +779,7 @@ void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
   // Re-allocate jump table.
   main_jump_table_ = CreateEmptyJumpTableInRegion(
       JumpTableAssembler::SizeForNumberOfSlots(max_functions),
-      single_code_space_region);
+      single_code_space_region, WasmCodeAllocator::OptionalLock{});
   base::MutexGuard guard(&allocation_mutex_);
   code_space_data_[0].jump_table = main_jump_table_;
 }
@@ -894,7 +909,7 @@ void NativeModule::UseLazyStub(uint32_t func_index) {
     }
     lazy_compile_table_ = CreateEmptyJumpTableInRegion(
         JumpTableAssembler::SizeForNumberOfLazyFunctions(num_slots),
-        single_code_space_region);
+        single_code_space_region, WasmCodeAllocator::OptionalLock{});
     JumpTableAssembler::GenerateLazyCompileTable(
         lazy_compile_table_->instruction_start(), num_slots,
         module_->num_imported_functions,
@@ -1130,11 +1145,12 @@ WasmModuleSourceMap* NativeModule::GetWasmSourceMap() const {
 }
 
 WasmCode* NativeModule::CreateEmptyJumpTableInRegion(
-    uint32_t jump_table_size, base::AddressRegion region) {
+    uint32_t jump_table_size, base::AddressRegion region,
+    const WasmCodeAllocator::OptionalLock& allocator_lock) {
   // Only call this if we really need a jump table.
   DCHECK_LT(0, jump_table_size);
-  Vector<uint8_t> code_space =
-      code_allocator_.AllocateForCodeInRegion(this, jump_table_size, region);
+  Vector<uint8_t> code_space = code_allocator_.AllocateForCodeInRegion(
+      this, jump_table_size, region, allocator_lock);
   DCHECK(!code_space.empty());
   ZapCode(reinterpret_cast<Address>(code_space.begin()), code_space.size());
   std::unique_ptr<WasmCode> code{new WasmCode{
@@ -1195,7 +1211,9 @@ void NativeModule::PatchJumpTableLocked(const CodeSpaceData& code_space_data,
                                          target);
 }
 
-void NativeModule::AddCodeSpace(base::AddressRegion region) {
+void NativeModule::AddCodeSpace(
+    base::AddressRegion region,
+    const WasmCodeAllocator::OptionalLock& allocator_lock) {
 #ifndef V8_EMBEDDED_BUILTINS
   // The far jump table contains far jumps to the embedded builtins. This
   // requires a build with embedded builtins enabled.
@@ -1222,8 +1240,8 @@ void NativeModule::AddCodeSpace(base::AddressRegion region) {
           ->CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
     size_t size = Heap::GetCodeRangeReservedAreaSize();
     DCHECK_LT(0, size);
-    Vector<byte> padding =
-        code_allocator_.AllocateForCodeInRegion(this, size, region);
+    Vector<byte> padding = code_allocator_.AllocateForCodeInRegion(
+        this, size, region, allocator_lock);
     CHECK_EQ(reinterpret_cast<Address>(padding.begin()), region.begin());
     win64_unwindinfo::RegisterNonABICompliantCodeRange(
         reinterpret_cast<void*>(region.begin()), region.size());
@@ -1243,7 +1261,8 @@ void NativeModule::AddCodeSpace(base::AddressRegion region) {
 
   if (needs_jump_table) {
     jump_table = CreateEmptyJumpTableInRegion(
-        JumpTableAssembler::SizeForNumberOfSlots(num_wasm_functions), region);
+        JumpTableAssembler::SizeForNumberOfSlots(num_wasm_functions), region,
+        allocator_lock);
     CHECK(region.contains(jump_table->instruction_start()));
   }
 
@@ -1252,7 +1271,7 @@ void NativeModule::AddCodeSpace(base::AddressRegion region) {
   far_jump_table = CreateEmptyJumpTableInRegion(
       JumpTableAssembler::SizeForNumberOfFarJumpSlots(
           WasmCode::kRuntimeStubCount, num_function_slots),
-      region);
+      region, allocator_lock);
   CHECK(region.contains(far_jump_table->instruction_start()));
   EmbeddedData embedded_data = EmbeddedData::FromBlob();
 #define RUNTIME_STUB(Name) Builtins::k##Name,
