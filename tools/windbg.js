@@ -465,11 +465,11 @@ function print_objects_in_range(start, end){
   if (!Number.isSafeInteger(int(start)) || !Number.isSafeInteger(int(end))) {
     return;
   }
-  const ptr_size = tagged_size();
+  const ptr_size = pointer_size();
   if (start < ptr_size || end <= start) return;
 
   let iters = (end - start) / ptr_size;
-  let cur = start;
+  let cur = start - ptr_size;
   print(`===============================================`);
   print(`objects in range ${hex(start)} - ${hex(end)}`);
   print(`===============================================`);

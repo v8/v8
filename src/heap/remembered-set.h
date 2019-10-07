@@ -235,9 +235,9 @@ class RememberedSet : public AllStatic {
     });
   }
 
-  // Iterates and filters typed old to old pointers in the given memory chunk
-  // with the given callback. The callback should take (SlotType slot_type,
-  // Address addr) and return SlotCallbackResult.
+  // Iterates and filters typed pointers in the given memory chunk with the
+  // given callback. The callback should take (SlotType slot_type, Address addr)
+  // and return SlotCallbackResult.
   template <typename Callback>
   static void IterateTyped(MemoryChunk* chunk, Callback callback) {
     TypedSlotSet* slots = chunk->typed_slot_set<type>();
@@ -260,9 +260,6 @@ class RememberedSet : public AllStatic {
       chunk->ReleaseInvalidatedSlots<OLD_TO_OLD>();
     }
   }
-
- private:
-  static bool IsValidSlot(Heap* heap, MemoryChunk* chunk, ObjectSlot slot);
 };
 
 class UpdateTypedSlotHelper {
