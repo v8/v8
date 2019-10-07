@@ -1073,7 +1073,7 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE void DeclareLabel(ZonePtrList<const AstRawString>** labels,
                               ZonePtrList<const AstRawString>** own_labels,
                               const AstRawString* label) {
-    DCHECK(!parsing_module_);
+    DCHECK(!parsing_module_ || !label->IsOneByteEqualTo("await"));
   }
 
   // TODO(nikolaos): The preparser currently does not keep track of labels.
@@ -1324,10 +1324,6 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE bool IsEvalOrArguments(
       const PreParserIdentifier& identifier) const {
     return identifier.IsEvalOrArguments();
-  }
-
-  V8_INLINE bool IsAwait(const PreParserIdentifier& identifier) const {
-    return identifier.IsAwait();
   }
 
   // Returns true if the expression is of type "this.foo".
