@@ -2724,7 +2724,7 @@ void BuildShuffle(const std::vector<Shuffle>& shuffles,
     }
     row_index /= 2;
   } while (row_index != 0);
-  byte epilog[] = {kExprSetGlobal, static_cast<byte>(0), WASM_ONE};
+  byte epilog[] = {kExprGlobalSet, static_cast<byte>(0), WASM_ONE};
   for (size_t j = 0; j < arraysize(epilog); ++j) buffer->push_back(epilog[j]);
 }
 

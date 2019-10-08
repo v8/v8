@@ -249,7 +249,7 @@ function js_div(a, b) { return (a / b) | 0; }
   let sig_index = builder.addType(kSig_i_v);
   let f = builder.addFunction("f", sig_index)
     .addBody([
-      kExprGetGlobal, g
+      kExprGlobalGet, g
     ]);
   builder.addFunction("main", kSig_i_ii)
     .addBody([
@@ -404,7 +404,7 @@ function js_div(a, b) { return (a / b) | 0; }
   let sig_index = builder.addType(kSig_i_v);
   builder.addFunction("g", sig_index)
     .addBody([
-      kExprGetGlobal, g
+      kExprGlobalGet, g
     ]);
   builder.addFunction("main", kSig_i_ii)
     .addBody([

@@ -175,13 +175,13 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addGlobal(kWasmI32, true);
   builder.addFunction("read", kSig_i_v)
     .addBody([
-      kExprGetGlobal, 0])
+      kExprGlobalGet, 0])
     .exportFunc();
 
   builder.addFunction("write", kSig_v_i)
     .addBody([
       kExprLocalGet, 0,
-      kExprSetGlobal, 0])
+      kExprGlobalSet, 0])
     .exportFunc();
 
   var wire_bytes = builder.toBuffer();

@@ -718,8 +718,8 @@ struct ControlBase {
   F(LocalSet, const Value& value, const LocalIndexImmediate<validate>& imm)   \
   F(LocalTee, const Value& value, Value* result,                              \
     const LocalIndexImmediate<validate>& imm)                                 \
-  F(GetGlobal, Value* result, const GlobalIndexImmediate<validate>& imm)      \
-  F(SetGlobal, const Value& value, const GlobalIndexImmediate<validate>& imm) \
+  F(GlobalGet, Value* result, const GlobalIndexImmediate<validate>& imm)      \
+  F(GlobalSet, const Value& value, const GlobalIndexImmediate<validate>& imm) \
   F(TableGet, const Value& index, Value* result,                              \
     const TableIndexImmediate<validate>& imm)                                 \
   F(TableSet, const Value& index, const Value& value,                         \
@@ -1252,8 +1252,8 @@ class WasmDecoder : public Decoder {
         BranchDepthImmediate<validate> imm(decoder, pc);
         return 1 + imm.length;
       }
-      case kExprGetGlobal:
-      case kExprSetGlobal: {
+      case kExprGlobalGet:
+      case kExprGlobalSet: {
         GlobalIndexImmediate<validate> imm(decoder, pc);
         return 1 + imm.length;
       }
@@ -1462,7 +1462,7 @@ class WasmDecoder : public Decoder {
       case kExprMemoryGrow:
         return {1, 1};
       case kExprLocalSet:
-      case kExprSetGlobal:
+      case kExprGlobalSet:
       case kExprDrop:
       case kExprBrIf:
       case kExprBrTable:
@@ -1470,7 +1470,7 @@ class WasmDecoder : public Decoder {
       case kExprRethrow:
         return {1, 0};
       case kExprLocalGet:
-      case kExprGetGlobal:
+      case kExprGlobalGet:
       case kExprI32Const:
       case kExprI64Const:
       case kExprF32Const:
@@ -2155,15 +2155,15 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           CALL_INTERFACE_IF_REACHABLE(Drop, value);
           break;
         }
-        case kExprGetGlobal: {
+        case kExprGlobalGet: {
           GlobalIndexImmediate<validate> imm(this, this->pc_);
           len = 1 + imm.length;
           if (!this->Validate(this->pc_, imm)) break;
           auto* result = Push(imm.type);
-          CALL_INTERFACE_IF_REACHABLE(GetGlobal, result, imm);
+          CALL_INTERFACE_IF_REACHABLE(GlobalGet, result, imm);
           break;
         }
-        case kExprSetGlobal: {
+        case kExprGlobalSet: {
           GlobalIndexImmediate<validate> imm(this, this->pc_);
           len = 1 + imm.length;
           if (!this->Validate(this->pc_, imm)) break;
@@ -2173,7 +2173,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             break;
           }
           auto value = Pop(0, imm.type);
-          CALL_INTERFACE_IF_REACHABLE(SetGlobal, value, imm);
+          CALL_INTERFACE_IF_REACHABLE(GlobalSet, value, imm);
           break;
         }
         case kExprTableGet: {
@@ -2454,8 +2454,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               TRACE_PART("[%u]", imm.index);
               break;
             }
-            case kExprGetGlobal:
-            case kExprSetGlobal: {
+            case kExprGlobalGet:
+            case kExprGlobalSet: {
               GlobalIndexImmediate<Decoder::kNoValidate> imm(this, val.pc);
               TRACE_PART("[%u]", imm.index);
               break;

@@ -1488,7 +1488,7 @@ class ModuleDecoderImpl : public Decoder {
     WasmInitExpr expr;
     uint32_t len = 0;
     switch (opcode) {
-      case kExprGetGlobal: {
+      case kExprGlobalGet: {
         GlobalIndexImmediate<Decoder::kValidate> imm(this, pc() - 1);
         if (module->globals.size() <= imm.index) {
           error("global index is out of bounds");

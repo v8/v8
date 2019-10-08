@@ -287,8 +287,8 @@ class WasmGraphBuilder {
 
   Node* Invert(Node* node);
 
-  Node* GetGlobal(uint32_t index);
-  Node* SetGlobal(uint32_t index, Node* val);
+  Node* GlobalGet(uint32_t index);
+  Node* GlobalSet(uint32_t index, Node* val);
   Node* TableGet(uint32_t table_index, Node* index,
                  wasm::WasmCodePosition position);
   Node* TableSet(uint32_t table_index, Node* index, Node* val,

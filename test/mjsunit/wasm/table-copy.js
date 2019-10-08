@@ -38,7 +38,7 @@ function assertCall(call, ...elems) {
     for (let i = 0; i < kTableSize; i++) {
       let f = builder.addFunction("", kSig_i_v)
           .addBody([
-            kExprGetGlobal, g,
+            kExprGlobalGet, g,
             ...wasmI32Const(i),
             kExprI32Add
           ]);

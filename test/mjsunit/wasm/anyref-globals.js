@@ -12,10 +12,10 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   const g_nullref = builder.addGlobal(kWasmAnyRef, true).index;
   const g_nullfunc = builder.addGlobal(kWasmAnyFunc, true).index;
   builder.addFunction("get_anyref_global", kSig_r_v)
-    .addBody([kExprGetGlobal, g_nullref])
+    .addBody([kExprGlobalGet, g_nullref])
     .exportAs("get_anyref_global");
   builder.addFunction("get_anyfunc_global", kSig_a_v)
-    .addBody([kExprGetGlobal, g_nullfunc])
+    .addBody([kExprGlobalGet, g_nullfunc])
     .exportAs("get_anyfunc_global");
 
   const instance = builder.instantiate();
@@ -33,15 +33,15 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("get_anyref_global", kSig_r_r)
     .addBody([
       kExprLocalGet, 0,
-      kExprSetGlobal, g_setref.index,
-      kExprGetGlobal, g_nullref.index
+      kExprGlobalSet, g_setref.index,
+      kExprGlobalGet, g_nullref.index
     ])
     .exportAs("get_anyref_global");
   builder.addFunction("get_anyfunc_global", kSig_a_a)
     .addBody([
       kExprLocalGet, 0,
-      kExprSetGlobal, g_setfunc.index,
-      kExprGetGlobal, g_nullfunc.index
+      kExprGlobalSet, g_setfunc.index,
+      kExprGlobalGet, g_nullfunc.index
     ])
     .exportAs("get_anyfunc_global");
 
@@ -60,8 +60,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("main", kSig_r_r)
     .addBody([
       kExprLocalGet, 0,
-      kExprSetGlobal, g.index,
-      kExprGetGlobal, g.index
+      kExprGlobalSet, g.index,
+      kExprGlobalGet, g.index
     ])
     .exportAs("main");
 
@@ -80,8 +80,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("main", kSig_a_a)
     .addBody([
       kExprLocalGet, 0,
-      kExprSetGlobal, g.index,
-      kExprGetGlobal, g.index
+      kExprGlobalSet, g.index,
+      kExprGlobalGet, g.index
     ])
     .exportAs("main");
 
@@ -101,9 +101,9 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("main", kSig_r_r)
     .addBody([
       kExprLocalGet, 0,
-      kExprSetGlobal, g.index,
+      kExprGlobalSet, g.index,
       kExprCallFunction, gc_index,  // call gc
-      kExprGetGlobal, g.index
+      kExprGlobalGet, g.index
     ])
     .exportAs("main");
 
@@ -121,14 +121,14 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   const g = builder.addGlobal(kWasmAnyRef, true);
   builder.addFunction("get_global", kSig_r_v)
     .addBody([
-      kExprGetGlobal, g.index
+      kExprGlobalGet, g.index
     ])
     .exportAs("get_global");
 
   builder.addFunction("set_global", kSig_v_r)
     .addBody([
       kExprLocalGet, 0,
-      kExprSetGlobal, g.index
+      kExprGlobalSet, g.index
     ])
     .exportAs("set_global");
 
@@ -150,7 +150,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     let builder = new WasmModuleBuilder();
     const g = builder.addImportedGlobal('m', 'val', kWasmAnyRef);
     builder.addFunction('main', kSig_r_v)
-      .addBody([kExprGetGlobal, g])
+      .addBody([kExprGlobalGet, g])
       .exportAs('main');
 
     const instance = builder.instantiate({ m: { val: obj } });
@@ -178,7 +178,7 @@ function dummy_func() {
   let builder = new WasmModuleBuilder();
   const g = builder.addImportedGlobal('m', 'val', kWasmAnyFunc);
   builder.addFunction('main', kSig_a_v)
-    .addBody([kExprGetGlobal, g])
+    .addBody([kExprGlobalGet, g])
     .exportAs('main');
 
   const module = builder.toModule();
@@ -286,13 +286,13 @@ function dummy_func() {
     makeSig([kWasmAnyRef, kWasmAnyFunc, kWasmAnyRef, kWasmAnyFunc], []))
     .addBody([
       kExprLocalGet, 0,
-      kExprSetGlobal, g1.index,
+      kExprGlobalSet, g1.index,
       kExprLocalGet, 1,
-      kExprSetGlobal, g2.index,
+      kExprGlobalSet, g2.index,
       kExprLocalGet, 2,
-      kExprSetGlobal, g3.index,
+      kExprGlobalSet, g3.index,
       kExprLocalGet, 3,
-      kExprSetGlobal, g4.index
+      kExprGlobalSet, g4.index
     ])
     .exportAs("main");
 
@@ -314,7 +314,7 @@ function dummy_func() {
     let builder = new WasmModuleBuilder();
     const g = builder.addImportedGlobal('m', 'val', kWasmAnyRef, true);
     builder.addFunction('main', kSig_r_v)
-      .addBody([kExprGetGlobal, g])
+      .addBody([kExprGlobalGet, g])
       .exportAs('main');
 
     const global = new WebAssembly.Global({ value: 'anyref', mutable: 'true' }, obj);
@@ -335,7 +335,7 @@ function dummy_func() {
     let builder = new WasmModuleBuilder();
     const g = builder.addImportedGlobal('m', 'val', kWasmAnyFunc, true);
     builder.addFunction('main', kSig_a_v)
-      .addBody([kExprGetGlobal, g])
+      .addBody([kExprGlobalGet, g])
       .exportAs('main');
 
     const global = new WebAssembly.Global({ value: 'anyfunc', mutable: 'true' }, obj);
@@ -359,18 +359,18 @@ function dummy_func() {
   builder1.addFunction("set_globals", kSig_v_rr)
     .addBody([
       kExprLocalGet, 0,
-      kExprSetGlobal, g2.index,
+      kExprGlobalSet, g2.index,
       kExprLocalGet, 1,
-      kExprSetGlobal, g3.index,
+      kExprGlobalSet, g3.index,
     ])
     .exportAs("set_globals");
 
   builder1.addFunction('get_global2', kSig_r_v)
-    .addBody([kExprGetGlobal, g2.index])
+    .addBody([kExprGlobalGet, g2.index])
     .exportAs('get_global2');
 
   builder1.addFunction('get_global3', kSig_r_v)
-    .addBody([kExprGetGlobal, g3.index])
+    .addBody([kExprGlobalGet, g3.index])
     .exportAs('get_global3');
 
   const instance1 = builder1.instantiate();
@@ -393,18 +393,18 @@ function dummy_func() {
   builder2.addFunction("set_globals", kSig_v_rr)
     .addBody([
       kExprLocalGet, 0,
-      kExprSetGlobal, i2,
+      kExprGlobalSet, i2,
       kExprLocalGet, 1,
-      kExprSetGlobal, i3,
+      kExprGlobalSet, i3,
     ])
     .exportAs("set_globals");
 
   builder2.addFunction('get_global2', kSig_r_v)
-    .addBody([kExprGetGlobal, i2])
+    .addBody([kExprGlobalGet, i2])
     .exportAs('get_global2');
 
   builder2.addFunction('get_global3', kSig_r_v)
-    .addBody([kExprGetGlobal, i3])
+    .addBody([kExprGlobalGet, i3])
     .exportAs('get_global3');
 
   const instance2 = builder2.instantiate(instance1);
@@ -455,18 +455,18 @@ function dummy_func() {
   builder1.addFunction("set_globals", kSig_v_aa)
     .addBody([
       kExprLocalGet, 0,
-      kExprSetGlobal, g2.index,
+      kExprGlobalSet, g2.index,
       kExprLocalGet, 1,
-      kExprSetGlobal, g3.index,
+      kExprGlobalSet, g3.index,
     ])
     .exportAs("set_globals");
 
   builder1.addFunction('get_global2', kSig_a_v)
-    .addBody([kExprGetGlobal, g2.index])
+    .addBody([kExprGlobalGet, g2.index])
     .exportAs('get_global2');
 
   builder1.addFunction('get_global3', kSig_a_v)
-    .addBody([kExprGetGlobal, g3.index])
+    .addBody([kExprGlobalGet, g3.index])
     .exportAs('get_global3');
 
   const instance1 = builder1.instantiate();
@@ -490,18 +490,18 @@ function dummy_func() {
   builder2.addFunction("set_globals", kSig_v_aa)
     .addBody([
       kExprLocalGet, 0,
-      kExprSetGlobal, i2,
+      kExprGlobalSet, i2,
       kExprLocalGet, 1,
-      kExprSetGlobal, i3,
+      kExprGlobalSet, i3,
     ])
     .exportAs("set_globals");
 
   builder2.addFunction('get_global2', kSig_a_v)
-    .addBody([kExprGetGlobal, i2])
+    .addBody([kExprGlobalGet, i2])
     .exportAs('get_global2');
 
   builder2.addFunction('get_global3', kSig_a_v)
-    .addBody([kExprGetGlobal, i3])
+    .addBody([kExprGlobalGet, i3])
     .exportAs('get_global3');
 
   const instance2 = builder2.instantiate(instance1);
@@ -563,10 +563,10 @@ function dummy_func() {
   const g_ref = builder.addGlobal(kWasmAnyRef, true);
   const g_func = builder.addGlobal(kWasmAnyFunc, true);
   const f_ref = builder.addFunction('get_anyref_global', kSig_r_v)
-                    .addBody([kExprGetGlobal, g_ref.index])
+                    .addBody([kExprGlobalGet, g_ref.index])
                     .exportAs('get_anyref_global');
   const f_func = builder.addFunction('get_anyfunc_global', kSig_a_v)
-                     .addBody([kExprGetGlobal, g_func.index])
+                     .addBody([kExprGlobalGet, g_func.index])
                      .exportAs('get_anyfunc_global');
 
   g_ref.function_index = f_ref.index;
@@ -591,10 +591,10 @@ function dummy_func() {
   g_wasm.function_index = import_wasm;
   g_js.function_index = import_js;
   builder.addFunction('get_global_wasm', kSig_a_v)
-      .addBody([kExprGetGlobal, g_wasm.index])
+      .addBody([kExprGlobalGet, g_wasm.index])
       .exportFunc();
   builder.addFunction('get_global_js', kSig_a_v)
-      .addBody([kExprGetGlobal, g_js.index])
+      .addBody([kExprGlobalGet, g_js.index])
       .exportFunc();
 
   const expected_wasm = dummy_func();

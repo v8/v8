@@ -151,28 +151,28 @@ function checkStack(stack, expected_lines) {
   builder.addGlobal(kWasmF32, true);  // 2
   builder.addGlobal(kWasmF64, true);  // 3
   builder.addFunction('get_i32', kSig_i_v)
-      .addBody([kExprGetGlobal, 0])
+      .addBody([kExprGlobalGet, 0])
       .exportFunc();
   builder.addFunction('get_i64', kSig_d_v)
-      .addBody([kExprGetGlobal, 1, kExprF64SConvertI64])
+      .addBody([kExprGlobalGet, 1, kExprF64SConvertI64])
       .exportFunc();
   builder.addFunction('get_f32', kSig_d_v)
-      .addBody([kExprGetGlobal, 2, kExprF64ConvertF32])
+      .addBody([kExprGlobalGet, 2, kExprF64ConvertF32])
       .exportFunc();
   builder.addFunction('get_f64', kSig_d_v)
-      .addBody([kExprGetGlobal, 3])
+      .addBody([kExprGlobalGet, 3])
       .exportFunc();
   builder.addFunction('set_i32', kSig_v_i)
-      .addBody([kExprLocalGet, 0, kExprSetGlobal, 0])
+      .addBody([kExprLocalGet, 0, kExprGlobalSet, 0])
       .exportFunc();
   builder.addFunction('set_i64', kSig_v_d)
-      .addBody([kExprLocalGet, 0, kExprI64SConvertF64, kExprSetGlobal, 1])
+      .addBody([kExprLocalGet, 0, kExprI64SConvertF64, kExprGlobalSet, 1])
       .exportFunc();
   builder.addFunction('set_f32', kSig_v_d)
-      .addBody([kExprLocalGet, 0, kExprF32ConvertF64, kExprSetGlobal, 2])
+      .addBody([kExprLocalGet, 0, kExprF32ConvertF64, kExprGlobalSet, 2])
       .exportFunc();
   builder.addFunction('set_f64', kSig_v_d)
-      .addBody([kExprLocalGet, 0, kExprSetGlobal, 3])
+      .addBody([kExprLocalGet, 0, kExprGlobalSet, 3])
       .exportFunc();
   var instance = builder.instantiate();
   // Initially, all should be zero.

@@ -367,9 +367,9 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_SET_LOCAL(index, val) val, kExprLocalSet, static_cast<byte>(index)
 #define WASM_TEE_LOCAL(index, val) val, kExprLocalTee, static_cast<byte>(index)
 #define WASM_DROP kExprDrop
-#define WASM_GET_GLOBAL(index) kExprGetGlobal, static_cast<byte>(index)
+#define WASM_GET_GLOBAL(index) kExprGlobalGet, static_cast<byte>(index)
 #define WASM_SET_GLOBAL(index, val) \
-  val, kExprSetGlobal, static_cast<byte>(index)
+  val, kExprGlobalSet, static_cast<byte>(index)
 #define WASM_TABLE_GET(table_index, index) \
   index, kExprTableGet, static_cast<byte>(table_index)
 #define WASM_TABLE_SET(table_index, index, val) \

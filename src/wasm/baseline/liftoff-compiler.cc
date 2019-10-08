@@ -1312,7 +1312,7 @@ class LiftoffCompiler {
     return addr;
   }
 
-  void GetGlobal(FullDecoder* decoder, Value* result,
+  void GlobalGet(FullDecoder* decoder, Value* result,
                  const GlobalIndexImmediate<validate>& imm) {
     const auto* global = &env_->module->globals[imm.index];
     if (!CheckSupportedType(decoder, kSupportedTypes, global->type, "global"))
@@ -1327,7 +1327,7 @@ class LiftoffCompiler {
     __ PushRegister(global->type, value);
   }
 
-  void SetGlobal(FullDecoder* decoder, const Value& value,
+  void GlobalSet(FullDecoder* decoder, const Value& value,
                  const GlobalIndexImmediate<validate>& imm) {
     auto* global = &env_->module->globals[imm.index];
     if (!CheckSupportedType(decoder, kSupportedTypes, global->type, "global"))

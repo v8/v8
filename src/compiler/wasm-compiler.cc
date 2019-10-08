@@ -3362,7 +3362,7 @@ Node* WasmGraphBuilder::BuildCallToRuntime(Runtime::FunctionId f,
                                        parameter_count, effect_, Control());
 }
 
-Node* WasmGraphBuilder::GetGlobal(uint32_t index) {
+Node* WasmGraphBuilder::GlobalGet(uint32_t index) {
   const wasm::WasmGlobal& global = env_->module->globals[index];
   if (wasm::ValueTypes::IsReferenceType(global.type)) {
     if (global.mutability && global.imported) {
@@ -3392,7 +3392,7 @@ Node* WasmGraphBuilder::GetGlobal(uint32_t index) {
   return result;
 }
 
-Node* WasmGraphBuilder::SetGlobal(uint32_t index, Node* val) {
+Node* WasmGraphBuilder::GlobalSet(uint32_t index, Node* val) {
   const wasm::WasmGlobal& global = env_->module->globals[index];
   if (wasm::ValueTypes::IsReferenceType(global.type)) {
     if (global.mutability && global.imported) {

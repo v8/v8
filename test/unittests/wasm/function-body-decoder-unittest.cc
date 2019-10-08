@@ -3487,8 +3487,8 @@ TEST_F(WasmOpcodeLengthTest, MiscExpressions) {
   ExpectLength(1, kExprRefNull);
   ExpectLength(2, kExprLocalGet);
   ExpectLength(2, kExprLocalSet);
-  ExpectLength(2, kExprGetGlobal);
-  ExpectLength(2, kExprSetGlobal);
+  ExpectLength(2, kExprGlobalGet);
+  ExpectLength(2, kExprGlobalSet);
   ExpectLength(2, kExprCallFunction);
   ExpectLength(3, kExprCallIndirect);
 }
@@ -3514,11 +3514,11 @@ TEST_F(WasmOpcodeLengthTest, I64Const) {
 }
 
 TEST_F(WasmOpcodeLengthTest, VariableLength) {
-  ExpectLength(2, kExprGetGlobal, U32V_1(1));
-  ExpectLength(3, kExprGetGlobal, U32V_2(33));
-  ExpectLength(4, kExprGetGlobal, U32V_3(44));
-  ExpectLength(5, kExprGetGlobal, U32V_4(66));
-  ExpectLength(6, kExprGetGlobal, U32V_5(77));
+  ExpectLength(2, kExprGlobalGet, U32V_1(1));
+  ExpectLength(3, kExprGlobalGet, U32V_2(33));
+  ExpectLength(4, kExprGlobalGet, U32V_3(44));
+  ExpectLength(5, kExprGlobalGet, U32V_4(66));
+  ExpectLength(6, kExprGlobalGet, U32V_5(77));
 
   ExpectLength(2, kExprRefFunc, U32V_1(1));
   ExpectLength(3, kExprRefFunc, U32V_2(33));

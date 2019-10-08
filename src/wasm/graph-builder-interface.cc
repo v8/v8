@@ -281,14 +281,14 @@ class WasmGraphBuildingInterface {
     ssa_env_->locals[imm.index] = value.node;
   }
 
-  void GetGlobal(FullDecoder* decoder, Value* result,
+  void GlobalGet(FullDecoder* decoder, Value* result,
                  const GlobalIndexImmediate<validate>& imm) {
-    result->node = BUILD(GetGlobal, imm.index);
+    result->node = BUILD(GlobalGet, imm.index);
   }
 
-  void SetGlobal(FullDecoder* decoder, const Value& value,
+  void GlobalSet(FullDecoder* decoder, const Value& value,
                  const GlobalIndexImmediate<validate>& imm) {
-    BUILD(SetGlobal, imm.index, value.node);
+    BUILD(GlobalSet, imm.index, value.node);
   }
 
   void TableGet(FullDecoder* decoder, const Value& index, Value* result,

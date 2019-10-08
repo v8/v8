@@ -176,11 +176,11 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
   var builder = new WasmModuleBuilder();
   builder.addGlobal(kWasmI32, true);
   builder.addFunction('read', kSig_i_v)
-      .addBody([kExprGetGlobal, 0])
+      .addBody([kExprGlobalGet, 0])
       .exportFunc();
 
   builder.addFunction('write', kSig_v_i)
-      .addBody([kExprLocalGet, 0, kExprSetGlobal, 0])
+      .addBody([kExprLocalGet, 0, kExprGlobalSet, 0])
       .exportFunc();
 
   var module = new WebAssembly.Module(builder.toBuffer());

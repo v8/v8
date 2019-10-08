@@ -377,7 +377,7 @@ class WasmGenerator {
     }
 
     if (is_set) Generate(global.type, data);
-    builder_->EmitWithU32V(is_set ? kExprSetGlobal : kExprGetGlobal,
+    builder_->EmitWithU32V(is_set ? kExprGlobalSet : kExprGlobalGet,
                            global.index);
     if (!is_set && global.type != wanted_type) {
       Convert(global.type, wanted_type);

@@ -3302,7 +3302,7 @@ class ThreadImpl {
           }
         } break;
 
-        case kExprGetGlobal: {
+        case kExprGlobalGet: {
           GlobalIndexImmediate<Decoder::kNoValidate> imm(&decoder,
                                                          code->at(pc));
           HandleScope handle_scope(isolate_);
@@ -3310,7 +3310,7 @@ class ThreadImpl {
           len = 1 + imm.length;
           break;
         }
-        case kExprSetGlobal: {
+        case kExprGlobalSet: {
           GlobalIndexImmediate<Decoder::kNoValidate> imm(&decoder,
                                                          code->at(pc));
           const WasmGlobal* global = &module()->globals[imm.index];

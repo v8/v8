@@ -505,7 +505,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
           buffer->write_f64(global.init.val.f64_const);
           break;
         case WasmInitExpr::kGlobalIndex:
-          buffer->write_u8(kExprGetGlobal);
+          buffer->write_u8(kExprGlobalGet);
           buffer->write_u32v(global.init.val.global_index);
           break;
         case WasmInitExpr::kRefNullConst:

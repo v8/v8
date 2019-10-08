@@ -119,7 +119,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   const sig_index = builder.addType(kSig_i_v);
   const f1 = builder.addFunction("foo", sig_index)
-    .addBody([kExprGetGlobal, g, kExprI32Const, 12, kExprI32Add]);
+    .addBody([kExprGlobalGet, g, kExprI32Const, 12, kExprI32Add]);
 
   builder.addFunction('call', kSig_i_i)
     .addBody([kExprLocalGet, 0,   // function index

@@ -55,7 +55,7 @@ async function instantiateWasm() {
         kExprF64UConvertI32, kExprF64Div, kExprLocalSet, 3,
 
         // Set global 0 to 15
-        kExprI32Const, 15, kExprSetGlobal, 0,
+        kExprI32Const, 15, kExprGlobalSet, 0,
       ])
       .exportAs('main');
 

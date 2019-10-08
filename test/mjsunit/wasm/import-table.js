@@ -92,7 +92,7 @@ function addConstFuncUsingGlobal(builder, val) {
   let g = builder.addGlobal(kWasmI32, false);
   g.init = val;
   return builder.addFunction("global" + val, kSig_i_v)
-    .addBody([kExprGetGlobal, g.index]).index;
+    .addBody([kExprGlobalGet, g.index]).index;
 }
 
 (function TestAliasedImportedTableInstanceGlobals() {
