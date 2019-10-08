@@ -3118,7 +3118,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       Register dst = i.OutputRegister();
       __ pextrw(dst, i.InputSimd128Register(0), i.InputInt8(1));
-      __ movsxwl(dst, dst);
       break;
     }
     case kX64I16x8ReplaceLane: {
@@ -3324,7 +3323,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       Register dst = i.OutputRegister();
       __ pextrb(dst, i.InputSimd128Register(0), i.InputInt8(1));
-      __ movsxbl(dst, dst);
       break;
     }
     case kX64I8x16ReplaceLane: {

@@ -439,8 +439,10 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(F32x4RecipSqrtApprox, 0xfde1, s_s)
 
 #define FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V) \
-  V(I8x16ExtractLane, 0xfd05, _)                 \
-  V(I16x8ExtractLane, 0xfd09, _)                 \
+  V(I8x16ExtractLaneS, 0xfd05, _)                \
+  V(I8x16ExtractLaneU, 0xfd06, _)                \
+  V(I16x8ExtractLaneS, 0xfd09, _)                \
+  V(I16x8ExtractLaneU, 0xfd0a, _)                \
   V(I32x4ExtractLane, 0xfd0d, _)                 \
   V(I64x2ExtractLane, 0xfd10, _)                 \
   V(F32x4ExtractLane, 0xfd13, _)                 \

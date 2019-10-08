@@ -304,8 +304,10 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
             break;
           }
 
-          case kExprI8x16ExtractLane:
-          case kExprI16x8ExtractLane:
+          case kExprI8x16ExtractLaneS:
+          case kExprI8x16ExtractLaneU:
+          case kExprI16x8ExtractLaneS:
+          case kExprI16x8ExtractLaneU:
           case kExprI32x4ExtractLane:
           case kExprI64x2ExtractLane:
           case kExprF32x4ExtractLane:

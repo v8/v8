@@ -2129,7 +2129,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArm64I16x8ExtractLane: {
-      __ Smov(i.OutputRegister32(), i.InputSimd128Register(0).V8H(),
+      __ Umov(i.OutputRegister32(), i.InputSimd128Register(0).V8H(),
               i.InputInt8(1));
       break;
     }
@@ -2243,7 +2243,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArm64I8x16ExtractLane: {
-      __ Smov(i.OutputRegister32(), i.InputSimd128Register(0).V16B(),
+      __ Umov(i.OutputRegister32(), i.InputSimd128Register(0).V16B(),
               i.InputInt8(1));
       break;
     }

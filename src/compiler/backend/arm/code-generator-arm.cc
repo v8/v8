@@ -2051,7 +2051,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmI16x8ExtractLane: {
-      __ ExtractLane(i.OutputRegister(), i.InputSimd128Register(0), NeonS16,
+      __ ExtractLane(i.OutputRegister(), i.InputSimd128Register(0), NeonU16,
                      i.InputInt8(1));
       break;
     }
@@ -2217,7 +2217,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmI8x16ExtractLane: {
-      __ ExtractLane(i.OutputRegister(), i.InputSimd128Register(0), NeonS8,
+      __ ExtractLane(i.OutputRegister(), i.InputSimd128Register(0), NeonU8,
                      i.InputInt8(1));
       break;
     }
