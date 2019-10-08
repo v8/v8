@@ -1355,25 +1355,39 @@ uint32_t String::ComputeAndSetHash() {
   return result;
 }
 
-bool String::ComputeArrayIndex(uint32_t* index) {
+bool String::SlowAsArrayIndex(uint32_t* index) {
+  DisallowHeapAllocation no_gc;
   int length = this->length();
+  if (length <= kMaxCachedArrayIndexLength) {
+    Hash();  // Force computation of hash code.
+    uint32_t field = hash_field();
+    if ((field & kIsNotArrayIndexMask) != 0) return false;
+    *index = ArrayIndexValueBits::decode(field);
+    return true;
+  }
   if (length == 0 || length > kMaxArrayIndexSize) return false;
   StringCharacterStream stream(*this);
   return StringToArrayIndex(&stream, index);
 }
 
-bool String::SlowAsArrayIndex(uint32_t* index) {
+bool String::SlowAsIntegerIndex(size_t* index) {
   DisallowHeapAllocation no_gc;
-  if (length() <= kMaxCachedArrayIndexLength) {
-    Hash();  // force computation of hash code
+  int length = this->length();
+  if (length <= kMaxCachedArrayIndexLength) {
+    Hash();  // Force computation of hash code.
     uint32_t field = hash_field();
-    if ((field & kIsNotArrayIndexMask) != 0) return false;
-    // Isolate the array index form the full hash field.
+    if ((field & kIsNotArrayIndexMask) != 0) {
+      // If it was short but it's not an array index, then it can't be an
+      // integer index either.
+      DCHECK_NE(0, field & kIsNotIntegerIndexMask);
+      return false;
+    }
     *index = ArrayIndexValueBits::decode(field);
     return true;
-  } else {
-    return ComputeArrayIndex(index);
   }
+  if (length == 0 || length > kMaxIntegerIndexSize) return false;
+  StringCharacterStream stream(*this);
+  return StringToArrayIndex(&stream, index);
 }
 
 void String::PrintOn(FILE* file) {

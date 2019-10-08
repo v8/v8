@@ -1,17 +1,17 @@
 Tests how wasm scripts are reported
 Check that each inspector gets two wasm scripts at module creation time.
-Session #1: Script #0 parsed. URL: wasm://wasm/wasm-7b04570e/wasm-7b04570e-0. Source map URL:
-Session #1: Script #1 parsed. URL: wasm://wasm/wasm-7b04570e/wasm-7b04570e-1. Source map URL:
-Session #2: Script #0 parsed. URL: wasm://wasm/wasm-7b04570e/wasm-7b04570e-0. Source map URL:
-Session #2: Script #1 parsed. URL: wasm://wasm/wasm-7b04570e/wasm-7b04570e-1. Source map URL:
-Session #1: Script #2 parsed. URL: wasm://wasm/wasm-77a937ae. Source map URL: wasm://dwarf
-Session #2: Script #2 parsed. URL: wasm://wasm/wasm-77a937ae. Source map URL: wasm://dwarf
-Session #1: Source for wasm://wasm/wasm-7b04570e/wasm-7b04570e-0:
+Session #1: Script #0 parsed. URL: wasm://wasm/wasm-f608ae1e/wasm-f608ae1e-0. Source map URL:
+Session #1: Script #1 parsed. URL: wasm://wasm/wasm-f608ae1e/wasm-f608ae1e-1. Source map URL:
+Session #2: Script #0 parsed. URL: wasm://wasm/wasm-f608ae1e/wasm-f608ae1e-0. Source map URL:
+Session #2: Script #1 parsed. URL: wasm://wasm/wasm-f608ae1e/wasm-f608ae1e-1. Source map URL:
+Session #1: Script #2 parsed. URL: wasm://wasm/wasm-ef526f5e. Source map URL: wasm://dwarf
+Session #2: Script #2 parsed. URL: wasm://wasm/wasm-ef526f5e. Source map URL: wasm://dwarf
+Session #1: Source for wasm://wasm/wasm-f608ae1e/wasm-f608ae1e-0:
 func $nopFunction
   nop
 end
 
-Session #1: Source for wasm://wasm/wasm-7b04570e/wasm-7b04570e-1:
+Session #1: Source for wasm://wasm/wasm-f608ae1e/wasm-f608ae1e-1:
 func $main
   block
     i32.const 2
@@ -19,12 +19,12 @@ func $main
   end
 end
 
-Session #2: Source for wasm://wasm/wasm-7b04570e/wasm-7b04570e-0:
+Session #2: Source for wasm://wasm/wasm-f608ae1e/wasm-f608ae1e-0:
 func $nopFunction
   nop
 end
 
-Session #2: Source for wasm://wasm/wasm-7b04570e/wasm-7b04570e-1:
+Session #2: Source for wasm://wasm/wasm-f608ae1e/wasm-f608ae1e-1:
 func $main
   block
     i32.const 2
@@ -32,11 +32,11 @@ func $main
   end
 end
 
-Session #1: Source for wasm://wasm/wasm-77a937ae:
+Session #1: Source for wasm://wasm/wasm-ef526f5e:
 Raw: 00 61 73 6d 01 00 00 00 01 07 02 60 00 00 60 00 00 03 03 02 00 01 07 08 01 04 6d 61 69 6e 00 01 0a 0e 02 03 00 01 0b 08 00 02 40 41 02 1a 0b 0b 00 0c 0b 2e 64 65 62 75 67 5f 69 6e 66 6f 00 1b 04 6e 61 6d 65 01 14 02 00 0b 6e 6f 70 46 75 6e 63 74 69 6f 6e 01 04 6d 61 69 6e
 Imports: []
 Exports: [main: function]
-Session #2: Source for wasm://wasm/wasm-77a937ae:
+Session #2: Source for wasm://wasm/wasm-ef526f5e:
 Raw: 00 61 73 6d 01 00 00 00 01 07 02 60 00 00 60 00 00 03 03 02 00 01 07 08 01 04 6d 61 69 6e 00 01 0a 0e 02 03 00 01 0b 08 00 02 40 41 02 1a 0b 0b 00 0c 0b 2e 64 65 62 75 67 5f 69 6e 66 6f 00 1b 04 6e 61 6d 65 01 14 02 00 0b 6e 6f 70 46 75 6e 63 74 69 6f 6e 01 04 6d 61 69 6e
 Imports: []
 Exports: [main: function]

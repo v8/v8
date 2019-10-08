@@ -100,6 +100,10 @@ bool Name::AsArrayIndex(uint32_t* index) {
   return IsString() && String::cast(*this).AsArrayIndex(index);
 }
 
+bool Name::AsIntegerIndex(size_t* index) {
+  return IsString() && String::cast(*this).AsIntegerIndex(index);
+}
+
 // static
 bool Name::ContainsCachedArrayIndex(uint32_t hash) {
   return (hash & Name::kDoesNotContainCachedArrayIndexMask) == 0;

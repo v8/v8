@@ -2482,8 +2482,6 @@ enum AccessorAssembler::StubCacheTable : int {
 };
 
 Node* AccessorAssembler::StubCachePrimaryOffset(Node* name, Node* map) {
-  // See v8::internal::StubCache::PrimaryOffset().
-  STATIC_ASSERT(StubCache::kCacheIndexShift == Name::kHashShift);
   // Compute the hash of the name (use entire hash field).
   TNode<Uint32T> hash_field = LoadNameHashField(name);
   CSA_ASSERT(this,
@@ -2524,7 +2522,8 @@ void AccessorAssembler::TryProbeStubCacheTable(
   StubCache::Table table = static_cast<StubCache::Table>(table_id);
   // The {table_offset} holds the entry offset times four (due to masking
   // and shifting optimizations).
-  const int kMultiplier = sizeof(StubCache::Entry) >> Name::kHashShift;
+  const int kMultiplier =
+      sizeof(StubCache::Entry) >> StubCache::kCacheIndexShift;
   entry_offset = IntPtrMul(entry_offset, IntPtrConstant(kMultiplier));
 
   TNode<ExternalReference> key_base = ExternalConstant(

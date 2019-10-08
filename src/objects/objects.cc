@@ -4505,6 +4505,7 @@ uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
   value |= length << String::ArrayIndexLengthBits::kShift;
 
   DCHECK_EQ(value & String::kIsNotArrayIndexMask, 0);
+  DCHECK_EQ(value & String::kIsNotIntegerIndexMask, 0);
   DCHECK_EQ(length <= String::kMaxCachedArrayIndexLength,
             Name::ContainsCachedArrayIndex(value));
   return value;
