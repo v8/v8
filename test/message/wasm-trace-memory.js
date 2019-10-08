@@ -10,19 +10,19 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 var builder = new WasmModuleBuilder();
 builder.addMemory(1);
 builder.addFunction('load', kSig_v_i)
-    .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0, kExprDrop])
+    .addBody([kExprLocalGet, 0, kExprI32LoadMem, 0, 0, kExprDrop])
     .exportFunc();
 builder.addFunction('load8', kSig_v_i)
-    .addBody([kExprGetLocal, 0, kExprI32LoadMem8U, 0, 0, kExprDrop])
+    .addBody([kExprLocalGet, 0, kExprI32LoadMem8U, 0, 0, kExprDrop])
     .exportFunc();
 builder.addFunction('loadf', kSig_v_i)
-    .addBody([kExprGetLocal, 0, kExprF32LoadMem, 0, 0, kExprDrop])
+    .addBody([kExprLocalGet, 0, kExprF32LoadMem, 0, 0, kExprDrop])
     .exportFunc();
 builder.addFunction('store', kSig_v_ii)
-    .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32StoreMem, 0, 0])
+    .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32StoreMem, 0, 0])
     .exportFunc();
 builder.addFunction('store8', kSig_v_ii)
-    .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32StoreMem8, 0, 0])
+    .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32StoreMem8, 0, 0])
     .exportFunc();
 var module = builder.instantiate();
 

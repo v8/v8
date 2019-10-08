@@ -109,7 +109,7 @@ builder.addFunction("regression_648079", kSig_s_v)
           kExprF32Min,
           kExprI64GtU,
           kExprBlock, 01,   // @107 i32
-            kExprTeeLocal,
+            kExprLocalTee,
             kExprBlock, 01,   // @111 i32
               kExprBlock, 01,   // @113 i32
                 kExprBlock, 01,   // @115 i32
@@ -169,7 +169,7 @@ builder.addFunction("regression_648079", kSig_s_v)
                                         kExprF64Sub,
                                         kExprI32Const,
                                         kExprUnreachable,
-                                        kExprGetLocal,
+                                        kExprLocalGet,
                                         kExprI64LoadMem32U,
                                         kExprUnreachable,
                                         kExprI64RemU,
@@ -273,7 +273,7 @@ builder.addFunction("regression_648079", kSig_s_v)
                                                                     kExprF64Sub,
                                                                     kExprI32Const,
                                                                     kExprUnreachable,
-                                                                    kExprGetLocal,
+                                                                    kExprLocalGet,
                                                                     kExprI64LoadMem32U,
                                                                     kExprUnreachable,
                                                                     kExprUnreachable,
@@ -300,7 +300,7 @@ builder.addFunction("regression_648079", kSig_s_v)
                                                                     kExprF64Sub,
                                                                     kExprI32Const,
                                                                     kExprUnreachable,
-                                                                    kExprGetLocal,
+                                                                    kExprLocalGet,
                                                                     kExprI64LoadMem32U,
                                                                     kExprF64Min,
                                                                     kExprF64Min,

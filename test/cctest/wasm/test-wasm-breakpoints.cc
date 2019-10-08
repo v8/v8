@@ -339,12 +339,12 @@ WASM_COMPILED_EXEC_TEST(WasmStepInAndOut) {
   Handle<JSFunction> main_fun_wrapper =
       runner.builder().WrapCode(f2.function_index());
 
-  // Set first breakpoint on the GetLocal (offset 19) before the Call.
+  // Set first breakpoint on the LocalGet (offset 19) before the Call.
   SetBreakpoint(&runner, f2.function_index(), 19, 19);
 
   BreakHandler count_breaks(isolate,
                             {
-                                {19, BreakHandler::StepIn},   // GetLocal
+                                {19, BreakHandler::StepIn},   // LocalGet
                                 {21, BreakHandler::StepIn},   // Call
                                 {1, BreakHandler::StepOut},   // in f2
                                 {23, BreakHandler::Continue}  // After Call

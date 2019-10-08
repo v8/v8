@@ -62,7 +62,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       .addBody([kExprGetGlobal, index])
       .exportFunc();
     builder.addFunction("set " + name, makeSig([type], []))
-      .addBody([kExprGetLocal, 0, kExprSetGlobal, index])
+      .addBody([kExprLocalGet, 0, kExprSetGlobal, index])
       .exportFunc();
   }
   var instance = builder.instantiate();

@@ -12,8 +12,8 @@ builder.addFunction(undefined, 0 /* sig */)
   .addLocals({i32_count: 504})
   .addBody([
 kExprGetGlobal, 0x00,
-kExprSetLocal, 0x04,
-kExprGetLocal, 0x04,
+kExprLocalSet, 0x04,
+kExprLocalGet, 0x04,
 kExprI32Const, 0x01,
 kExprI32Sub,
 kExprGetGlobal, 0x00,

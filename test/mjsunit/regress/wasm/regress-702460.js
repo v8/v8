@@ -20,7 +20,7 @@ let kExprS128LoadMem = 0xc0;
         kExprMemoryGrow, 0x00,
         kExprMemoryGrow, 0x00,
         kExprMemoryGrow, 0x00,
-        kExprSetLocal, 0x00,
+        kExprLocalSet, 0x00,
         kExprMemoryGrow, 0x00,
         kExprMemoryGrow, 0x00,
         kExprMemoryGrow, 0x00,

@@ -20,7 +20,7 @@ while (true) {
   }
   const builder = new WasmModuleBuilder();
   builder.addMemory(1, 1, false);
-  builder.addFunction('f0', kSig_i_i).addBody([kExprGetLocal, 0]);
+  builder.addFunction('f0', kSig_i_i).addBody([kExprLocalGet, 0]);
   // Generate some code per function to fill the code space.
   // Each function contains a number of loads that will not be executed
   // (inside an "if (i == 0)" block). They increase the code size a bit so we
@@ -28,13 +28,13 @@ while (true) {
   // Each function f<n> with argument {i} then calls f<n/10> with argument
   // {i + 1} and returns whatever that function returns.
   const body_template = [
-    kExprGetLocal, 0, kExprI32Eqz, kExprIf, kWasmStmt,  // if (i == 0)
-    kExprGetLocal, 0                                    // get i
+    kExprLocalGet, 0, kExprI32Eqz, kExprIf, kWasmStmt,  // if (i == 0)
+    kExprLocalGet, 0                                    // get i
   ];
   for (let i = 0; i < 1000; ++i) body_template.push(kExprI32LoadMem, 0, 0);
   body_template.push(
       kExprDrop, kExprEnd,                              // end if
-      kExprGetLocal, 0, kExprI32Const, 1, kExprI32Add,  // i + 1
+      kExprLocalGet, 0, kExprI32Const, 1, kExprI32Add,  // i + 1
       kExprCallFunction                                 // call f<?>
   );
   for (let i = 1; i < num_functions; ++i) {

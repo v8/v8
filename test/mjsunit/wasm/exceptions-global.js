@@ -46,7 +46,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction('catch_and_set_exnref', kSig_v_i)
       .addBody([
         kExprTry, kWasmStmt,
-          kExprGetLocal, 0,
+          kExprLocalGet, 0,
           kExprThrow, except,
         kExprCatch,
           kExprSetGlobal, g.index,
@@ -68,7 +68,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction('set_param_exnref', kSig_v_e)
       .addBody([
         kExprTry, kWasmStmt,
-          kExprGetLocal, 0,
+          kExprLocalGet, 0,
           kExprRethrow,
         kExprCatch,
           kExprSetGlobal, g.index,

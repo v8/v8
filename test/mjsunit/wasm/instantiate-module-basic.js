@@ -130,8 +130,8 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
 
   builder.addFunction('main', kSig_i_i)
       .addBody([
-        kExprGetLocal, 0, kExprI32LoadMem, 0, 0, kExprI32Const, 1,
-        kExprCallIndirect, signature, kTableZero, kExprGetLocal, 0,
+        kExprLocalGet, 0, kExprI32LoadMem, 0, 0, kExprI32Const, 1,
+        kExprCallIndirect, signature, kTableZero, kExprLocalGet, 0,
         kExprI32LoadMem, 0, 0, kExprCallFunction, 0, kExprI32Add
       ])
       .exportFunc();
@@ -139,7 +139,7 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
   // writer(mem[i]);
   // return mem[i] + some_value();
   builder.addFunction('_wrap_writer', signature).addBody([
-    kExprGetLocal, 0, kExprCallFunction, 1
+    kExprLocalGet, 0, kExprCallFunction, 1
   ]);
   builder.appendToTable([2, 3]);
 
@@ -180,7 +180,7 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
       .exportFunc();
 
   builder.addFunction('write', kSig_v_i)
-      .addBody([kExprGetLocal, 0, kExprSetGlobal, 0])
+      .addBody([kExprLocalGet, 0, kExprSetGlobal, 0])
       .exportFunc();
 
   var module = new WebAssembly.Module(builder.toBuffer());

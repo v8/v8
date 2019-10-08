@@ -57,7 +57,7 @@ function addGlobalGetterAndSetter(builder, index, name, type) {
       .addBody([kExprGetGlobal, index])
       .exportFunc();
   builder.addFunction('set' + name, makeSig([type], []))
-      .addBody([kExprGetLocal, 0, kExprSetGlobal, index])
+      .addBody([kExprLocalGet, 0, kExprSetGlobal, index])
       .exportFunc();
 }
 
@@ -146,8 +146,8 @@ function addGlobalGetterAndSetter(builder, index, name, type) {
       .exportFunc();
     builder.addFunction("seti64", makeSig([kWasmI32, kWasmI32], []))
       .addBody([
-        kExprGetLocal, 1, kExprI64UConvertI32,
-        kExprGetLocal, 0, kExprI64UConvertI32,
+        kExprLocalGet, 1, kExprI64UConvertI32,
+        kExprLocalGet, 0, kExprI64UConvertI32,
         kExprI64Const, 32, kExprI64Shl,
         kExprI64Ior,
         kExprSetGlobal, index])

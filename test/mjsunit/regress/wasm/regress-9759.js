@@ -16,7 +16,7 @@ const NUM_CASES = 0xfffd;
   builder.addFunction('main', kSig_v_i)
       .addBody([].concat([
         kExprBlock, kWasmStmt,
-          kExprGetLocal, 0,
+          kExprLocalGet, 0,
           kExprBrTable], wasmSignedLeb(NUM_CASES),
           cases, [0,
         kExprEnd

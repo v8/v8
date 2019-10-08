@@ -154,9 +154,9 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
         os << WasmOpcodes::OpcodeName(opcode) << ' ' << imm.index;
         break;
       }
-      case kExprGetLocal:
-      case kExprSetLocal:
-      case kExprTeeLocal: {
+      case kExprLocalGet:
+      case kExprLocalSet:
+      case kExprLocalTee: {
         LocalIndexImmediate<Decoder::kNoValidate> imm(&i, i.pc());
         os << WasmOpcodes::OpcodeName(opcode) << ' ' << imm.index;
         break;

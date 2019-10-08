@@ -714,9 +714,9 @@ struct ControlBase {
   F(RefFunc, uint32_t function_index, Value* result)                          \
   F(Drop, const Value& value)                                                 \
   F(DoReturn, Vector<Value> values)                                           \
-  F(GetLocal, Value* result, const LocalIndexImmediate<validate>& imm)        \
-  F(SetLocal, const Value& value, const LocalIndexImmediate<validate>& imm)   \
-  F(TeeLocal, const Value& value, Value* result,                              \
+  F(LocalGet, Value* result, const LocalIndexImmediate<validate>& imm)        \
+  F(LocalSet, const Value& value, const LocalIndexImmediate<validate>& imm)   \
+  F(LocalTee, const Value& value, Value* result,                              \
     const LocalIndexImmediate<validate>& imm)                                 \
   F(GetGlobal, Value* result, const GlobalIndexImmediate<validate>& imm)      \
   F(SetGlobal, const Value& value, const GlobalIndexImmediate<validate>& imm) \
@@ -910,8 +910,8 @@ class WasmDecoder : public Decoder {
           length = OpcodeLength(decoder, pc);
           depth++;
           break;
-        case kExprSetLocal:  // fallthru
-        case kExprTeeLocal: {
+        case kExprLocalSet:  // fallthru
+        case kExprLocalTee: {
           LocalIndexImmediate<validate> imm(decoder, pc);
           if (assigned->length() > 0 &&
               imm.index < static_cast<uint32_t>(assigned->length())) {
@@ -1291,9 +1291,9 @@ class WasmDecoder : public Decoder {
         return 1 + imm.length;
       }
 
-      case kExprSetLocal:
-      case kExprTeeLocal:
-      case kExprGetLocal: {
+      case kExprLocalGet:
+      case kExprLocalSet:
+      case kExprLocalTee: {
         LocalIndexImmediate<validate> imm(decoder, pc);
         return 1 + imm.length;
       }
@@ -1458,10 +1458,10 @@ class WasmDecoder : public Decoder {
         return {2, 0};
       FOREACH_LOAD_MEM_OPCODE(DECLARE_OPCODE_CASE)
       case kExprTableGet:
-      case kExprTeeLocal:
+      case kExprLocalTee:
       case kExprMemoryGrow:
         return {1, 1};
-      case kExprSetLocal:
+      case kExprLocalSet:
       case kExprSetGlobal:
       case kExprDrop:
       case kExprBrIf:
@@ -1469,7 +1469,7 @@ class WasmDecoder : public Decoder {
       case kExprIf:
       case kExprRethrow:
         return {1, 0};
-      case kExprGetLocal:
+      case kExprLocalGet:
       case kExprGetGlobal:
       case kExprI32Const:
       case kExprI64Const:
@@ -2125,28 +2125,28 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           len = 1 + imm.length;
           break;
         }
-        case kExprGetLocal: {
+        case kExprLocalGet: {
           LocalIndexImmediate<validate> imm(this, this->pc_);
           if (!this->Validate(this->pc_, imm)) break;
           auto* value = Push(imm.type);
-          CALL_INTERFACE_IF_REACHABLE(GetLocal, value, imm);
+          CALL_INTERFACE_IF_REACHABLE(LocalGet, value, imm);
           len = 1 + imm.length;
           break;
         }
-        case kExprSetLocal: {
+        case kExprLocalSet: {
           LocalIndexImmediate<validate> imm(this, this->pc_);
           if (!this->Validate(this->pc_, imm)) break;
           auto value = Pop(0, local_type_vec_[imm.index]);
-          CALL_INTERFACE_IF_REACHABLE(SetLocal, value, imm);
+          CALL_INTERFACE_IF_REACHABLE(LocalSet, value, imm);
           len = 1 + imm.length;
           break;
         }
-        case kExprTeeLocal: {
+        case kExprLocalTee: {
           LocalIndexImmediate<validate> imm(this, this->pc_);
           if (!this->Validate(this->pc_, imm)) break;
           auto value = Pop(0, local_type_vec_[imm.index]);
           auto* result = Push(value.type);
-          CALL_INTERFACE_IF_REACHABLE(TeeLocal, value, result, imm);
+          CALL_INTERFACE_IF_REACHABLE(LocalTee, value, result, imm);
           len = 1 + imm.length;
           break;
         }
@@ -2447,9 +2447,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               TRACE_PART("[%d]", imm.value);
               break;
             }
-            case kExprGetLocal:
-            case kExprSetLocal:
-            case kExprTeeLocal: {
+            case kExprLocalGet:
+            case kExprLocalSet:
+            case kExprLocalTee: {
               LocalIndexImmediate<Decoder::kNoValidate> imm(this, val.pc);
               TRACE_PART("[%u]", imm.index);
               break;

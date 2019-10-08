@@ -71,15 +71,15 @@ uint32_t WasmFunctionBuilder::AddLocal(ValueType type) {
 }
 
 void WasmFunctionBuilder::EmitGetLocal(uint32_t local_index) {
-  EmitWithU32V(kExprGetLocal, local_index);
+  EmitWithU32V(kExprLocalGet, local_index);
 }
 
 void WasmFunctionBuilder::EmitSetLocal(uint32_t local_index) {
-  EmitWithU32V(kExprSetLocal, local_index);
+  EmitWithU32V(kExprLocalSet, local_index);
 }
 
 void WasmFunctionBuilder::EmitTeeLocal(uint32_t local_index) {
-  EmitWithU32V(kExprTeeLocal, local_index);
+  EmitWithU32V(kExprLocalTee, local_index);
 }
 
 void WasmFunctionBuilder::EmitCode(const byte* code, uint32_t code_size) {

@@ -86,7 +86,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder
     .addFunction("f", kSig_l_l) // i64 -> i64
     .addBody([
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
     ])
     .exportFunc();
 
@@ -108,7 +108,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder
     .addFunction("f", kSig_l_ll) // i64 -> i64
     .addBody([
-      kExprGetLocal, 1,
+      kExprLocalGet, 1,
     ])
     .exportFunc();
 

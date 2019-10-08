@@ -363,9 +363,9 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_REF_FUNC(val) kExprRefFunc, val
 #define WASM_REF_IS_NULL(val) val, kExprRefIsNull
 
-#define WASM_GET_LOCAL(index) kExprGetLocal, static_cast<byte>(index)
-#define WASM_SET_LOCAL(index, val) val, kExprSetLocal, static_cast<byte>(index)
-#define WASM_TEE_LOCAL(index, val) val, kExprTeeLocal, static_cast<byte>(index)
+#define WASM_GET_LOCAL(index) kExprLocalGet, static_cast<byte>(index)
+#define WASM_SET_LOCAL(index, val) val, kExprLocalSet, static_cast<byte>(index)
+#define WASM_TEE_LOCAL(index, val) val, kExprLocalTee, static_cast<byte>(index)
 #define WASM_DROP kExprDrop
 #define WASM_GET_GLOBAL(index) kExprGetGlobal, static_cast<byte>(index)
 #define WASM_SET_GLOBAL(index, val) \
@@ -444,15 +444,15 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
   kExprLoop, kLocalVoid, x, kExprIf, kLocalVoid, y, kExprBr, DEPTH_1, \
       kExprEnd, kExprEnd
 #define WASM_INC_LOCAL(index)                                             \
-  kExprGetLocal, static_cast<byte>(index), kExprI32Const, 1, kExprI32Add, \
-      kExprTeeLocal, static_cast<byte>(index)
+  kExprLocalGet, static_cast<byte>(index), kExprI32Const, 1, kExprI32Add, \
+      kExprLocalTee, static_cast<byte>(index)
 #define WASM_INC_LOCAL_BYV(index, count)                    \
-  kExprGetLocal, static_cast<byte>(index), kExprI32Const,   \
-      static_cast<byte>(count), kExprI32Add, kExprTeeLocal, \
+  kExprLocalGet, static_cast<byte>(index), kExprI32Const,   \
+      static_cast<byte>(count), kExprI32Add, kExprLocalTee, \
       static_cast<byte>(index)
 #define WASM_INC_LOCAL_BY(index, count)                     \
-  kExprGetLocal, static_cast<byte>(index), kExprI32Const,   \
-      static_cast<byte>(count), kExprI32Add, kExprSetLocal, \
+  kExprLocalGet, static_cast<byte>(index), kExprI32Const,   \
+      static_cast<byte>(count), kExprI32Add, kExprLocalSet, \
       static_cast<byte>(index)
 #define WASM_UNOP(opcode, x) x, static_cast<byte>(opcode)
 #define WASM_BINOP(opcode, x, y) x, y, static_cast<byte>(opcode)

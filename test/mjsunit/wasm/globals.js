@@ -19,7 +19,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     .exportAs("get");
   builder.addFunction("set", kSig_v_i)
     .addBody([
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
       kExprSetGlobal, g.index])
     .exportAs("set");
 
@@ -173,7 +173,7 @@ TestGlobalIndexSpace(kWasmF64, 12345.678);
   let sig_index = builder.addType(kSig_i_i);
   builder.addFunction("get", sig_index)
     .addBody([
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
       kExprIf, kWasmI32,
       kExprGetGlobal, g.index,
       kExprElse,
@@ -182,12 +182,12 @@ TestGlobalIndexSpace(kWasmF64, 12345.678);
     .exportAs("get");
   builder.addFunction("set", kSig_v_ii)
     .addBody([
-      kExprGetLocal, 0,
+      kExprLocalGet, 0,
       kExprIf, kWasmStmt,
-      kExprGetLocal, 1,
+      kExprLocalGet, 1,
       kExprSetGlobal, g.index,
       kExprElse,
-      kExprGetLocal, 1,
+      kExprLocalGet, 1,
       kExprSetGlobal, h.index,
       kExprEnd])
     .exportAs("set");

@@ -48,9 +48,9 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmFeatures&);
   V(Drop, 0x1a, _)               \
   V(Select, 0x1b, _)             \
   V(SelectWithType, 0x1c, _)     \
-  V(GetLocal, 0x20, _)           \
-  V(SetLocal, 0x21, _)           \
-  V(TeeLocal, 0x22, _)           \
+  V(LocalGet, 0x20, _)           \
+  V(LocalSet, 0x21, _)           \
+  V(LocalTee, 0x22, _)           \
   V(GetGlobal, 0x23, _)          \
   V(SetGlobal, 0x24, _)          \
   V(TableGet, 0x25, _)           \

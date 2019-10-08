@@ -1224,7 +1224,7 @@ class LiftoffCompiler {
     ReturnImpl(decoder);
   }
 
-  void GetLocal(FullDecoder* decoder, Value* result,
+  void LocalGet(FullDecoder* decoder, Value* result,
                 const LocalIndexImmediate<validate>& imm) {
     auto& slot = __ cache_state()->stack_state[imm.index];
     DCHECK_EQ(slot.type(), imm.type);
@@ -1245,7 +1245,7 @@ class LiftoffCompiler {
     }
   }
 
-  void SetLocalFromStackSlot(LiftoffAssembler::VarState* dst_slot,
+  void LocalSetFromStackSlot(LiftoffAssembler::VarState* dst_slot,
                              uint32_t local_index) {
     auto& state = *__ cache_state();
     ValueType type = dst_slot->type();
@@ -1266,7 +1266,7 @@ class LiftoffCompiler {
     __ cache_state()->inc_used(dst_reg);
   }
 
-  void SetLocal(uint32_t local_index, bool is_tee) {
+  void LocalSet(uint32_t local_index, bool is_tee) {
     auto& state = *__ cache_state();
     auto& source_slot = state.stack_state.back();
     auto& target_slot = state.stack_state[local_index];
@@ -1281,20 +1281,20 @@ class LiftoffCompiler {
         target_slot = source_slot;
         break;
       case kStack:
-        SetLocalFromStackSlot(&target_slot, local_index);
+        LocalSetFromStackSlot(&target_slot, local_index);
         break;
     }
     if (!is_tee) __ cache_state()->stack_state.pop_back();
   }
 
-  void SetLocal(FullDecoder* decoder, const Value& value,
+  void LocalSet(FullDecoder* decoder, const Value& value,
                 const LocalIndexImmediate<validate>& imm) {
-    SetLocal(imm.index, false);
+    LocalSet(imm.index, false);
   }
 
-  void TeeLocal(FullDecoder* decoder, const Value& value, Value* result,
+  void LocalTee(FullDecoder* decoder, const Value& value, Value* result,
                 const LocalIndexImmediate<validate>& imm) {
-    SetLocal(imm.index, true);
+    LocalSet(imm.index, true);
   }
 
   Register GetGlobalBaseAndOffset(const WasmGlobal* global,

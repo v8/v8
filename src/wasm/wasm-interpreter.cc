@@ -3125,14 +3125,14 @@ class ThreadImpl {
           len = 1 + imm.length;
           break;
         }
-        case kExprGetLocal: {
+        case kExprLocalGet: {
           LocalIndexImmediate<Decoder::kNoValidate> imm(&decoder, code->at(pc));
           HandleScope handle_scope(isolate_);  // Avoid leaking handles.
           Push(GetStackValue(frames_.back().sp + imm.index));
           len = 1 + imm.length;
           break;
         }
-        case kExprSetLocal: {
+        case kExprLocalSet: {
           LocalIndexImmediate<Decoder::kNoValidate> imm(&decoder, code->at(pc));
           HandleScope handle_scope(isolate_);  // Avoid leaking handles.
           WasmValue val = Pop();
@@ -3140,7 +3140,7 @@ class ThreadImpl {
           len = 1 + imm.length;
           break;
         }
-        case kExprTeeLocal: {
+        case kExprLocalTee: {
           LocalIndexImmediate<Decoder::kNoValidate> imm(&decoder, code->at(pc));
           HandleScope handle_scope(isolate_);  // Avoid leaking handles.
           WasmValue val = Pop();
