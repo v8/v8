@@ -2455,6 +2455,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSPromise(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSProxy(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSStringIterator(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsJSRegExpStringIterator(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSReceiverInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsJSReceiverMap(SloppyTNode<Map> map);
   TNode<BoolT> IsJSReceiver(SloppyTNode<HeapObject> object);

@@ -172,4 +172,9 @@ namespace regexp {
 
   extern builtin
   StringIndexOf(implicit context: Context)(String, String, Smi): Smi;
+
+  extern macro
+  RegExpBuiltinsAssembler::AdvanceStringIndexFast(String, Smi, bool): Smi;
+  extern macro
+  RegExpBuiltinsAssembler::AdvanceStringIndexSlow(String, Number, bool): Smi;
 }

@@ -6300,6 +6300,11 @@ TNode<BoolT> CodeStubAssembler::IsJSStringIterator(
   return HasInstanceType(object, JS_STRING_ITERATOR_TYPE);
 }
 
+TNode<BoolT> CodeStubAssembler::IsJSRegExpStringIterator(
+    SloppyTNode<HeapObject> object) {
+  return HasInstanceType(object, JS_REGEXP_STRING_ITERATOR_TYPE);
+}
+
 TNode<BoolT> CodeStubAssembler::IsMap(SloppyTNode<HeapObject> map) {
   return IsMetaMap(LoadMap(map));
 }

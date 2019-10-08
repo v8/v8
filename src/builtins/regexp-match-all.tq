@@ -107,4 +107,152 @@ namespace regexp {
     const nativeContext: NativeContext = LoadNativeContext(context);
     return RegExpPrototypeMatchAllImpl(nativeContext, receiver, string);
   }
+
+  const kJSRegExpStringIteratorDone:
+      constexpr int31 generates '1 << JSRegExpStringIterator::kDoneBit';
+  const kJSRegExpStringIteratorGlobal: constexpr int31
+  generates '1 << JSRegExpStringIterator::kGlobalBit';
+  const kJSRegExpStringIteratorUnicode: constexpr int31
+  generates '1 << JSRegExpStringIterator::kUnicodeBit';
+
+  extern macro IsSetSmi(Smi, constexpr int31): bool;
+
+  macro HasDoneFlag(flags: Smi): bool {
+    return IsSetSmi(flags, kJSRegExpStringIteratorDone);
+  }
+
+  macro HasGlobalFlag(flags: Smi): bool {
+    return IsSetSmi(flags, kJSRegExpStringIteratorGlobal);
+  }
+
+  macro HasUnicodeFlag(flags: Smi): bool {
+    return IsSetSmi(flags, kJSRegExpStringIteratorUnicode);
+  }
+
+  macro SetDoneFlag(iterator: JSRegExpStringIterator, flags: Smi) {
+    const newFlags: Smi = flags | kJSRegExpStringIteratorDone;
+    iterator.flags = newFlags;
+  }
+
+  extern macro RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
+      implicit context: Context)(JSReceiver, RegExpMatchInfo, String):
+      JSRegExpResult;
+
+  // https://tc39.github.io/proposal-string-matchall/
+  // %RegExpStringIteratorPrototype%.next ( )
+  transitioning javascript builtin RegExpStringIteratorPrototypeNext(
+      js-implicit context: Context, receiver: JSAny)(): JSAny {
+    // 1. Let O be the this value.
+    // 2. If Type(O) is not Object, throw a TypeError exception.
+    // 3. If O does not have all of the internal slots of a RegExp String
+    // Iterator Object Instance (see 5.3), throw a TypeError exception.
+    const methodName: constexpr string =
+        '%RegExpStringIterator%.prototype.next';
+    const receiver = Cast<JSRegExpStringIterator>(receiver) otherwise
+    ThrowTypeError(kIncompatibleMethodReceiver, methodName, receiver);
+
+    try {
+      // 4. If O.[[Done]] is true, then
+      //   a. Return ! CreateIterResultObject(undefined, true).
+      const flags: Smi = receiver.flags;
+      if (HasDoneFlag(flags)) goto ReturnEmptyDoneResult;
+
+      // 5. Let R be O.[[iteratingRegExp]].
+      const iteratingRegExp: JSReceiver = receiver.iterating_reg_exp;
+
+      // 6. Let S be O.[[IteratedString]].
+      const iteratingString: String = receiver.iterated_string;
+
+      // 7. Let global be O.[[Global]].
+      // 8. Let fullUnicode be O.[[Unicode]].
+      // 9. Let match be ? RegExpExec(R, S).
+      let match: Object;
+      let isFastRegExp: bool = false;
+      try {
+        if (IsFastRegExpPermissive(iteratingRegExp)) {
+          const matchIndices: RegExpMatchInfo =
+              RegExpPrototypeExecBodyWithoutResultFast(
+                  UnsafeCast<JSRegExp>(iteratingRegExp), iteratingString)
+              otherwise IfNoMatch;
+          match = ConstructNewResultFromMatchInfo(
+              iteratingRegExp, matchIndices, iteratingString);
+          isFastRegExp = true;
+        } else {
+          match = RegExpExec(context, iteratingRegExp, iteratingString);
+          if (match == Null) {
+            goto IfNoMatch;
+          }
+        }
+        // 11. Else,
+        // b. Else, handle non-global case first.
+        if (!HasGlobalFlag(flags)) {
+          // i. Set O.[[Done]] to true.
+          SetDoneFlag(receiver, flags);
+
+          // ii. Return ! CreateIterResultObject(match, false).
+          return AllocateJSIteratorResult(UnsafeCast<JSAny>(match), False);
+        }
+        // a. If global is true,
+        assert(HasGlobalFlag(flags));
+        if (isFastRegExp) {
+          // i. Let matchStr be ? ToString(? Get(match, "0")).
+          const match = UnsafeCast<FastJSRegExpResult>(match);
+          const resultFixedArray = UnsafeCast<FixedArray>(match.elements);
+          const matchStr = UnsafeCast<String>(resultFixedArray.objects[0]);
+
+          // When iterating_regexp is fast, we assume it stays fast even after
+          // accessing the first match from the RegExp result.
+          assert(IsFastRegExpPermissive(iteratingRegExp));
+          const iteratingRegExp = UnsafeCast<JSRegExp>(iteratingRegExp);
+          if (matchStr == kEmptyString) {
+            // 1. Let thisIndex be ? ToLength(? Get(R, "lastIndex")).
+            const thisIndex: Smi = FastLoadLastIndex(iteratingRegExp);
+
+            // 2. Let nextIndex be ! AdvanceStringIndex(S, thisIndex,
+            // fullUnicode).
+            const nextIndex: Smi = AdvanceStringIndexFast(
+                iteratingString, thisIndex, HasUnicodeFlag(flags));
+
+            // 3. Perform ? Set(R, "lastIndex", nextIndex, true).
+            FastStoreLastIndex(iteratingRegExp, nextIndex);
+          }
+
+          // iii. Return ! CreateIterResultObject(match, false).
+          return AllocateJSIteratorResult(match, False);
+        }
+        assert(!isFastRegExp);
+        // i. Let matchStr be ? ToString(? Get(match, "0")).
+        const match = UnsafeCast<JSAny>(match);
+        const matchStr =
+            ToString_Inline(context, GetProperty(match, SmiConstant(0)));
+
+        if (matchStr == kEmptyString) {
+          // 1. Let thisIndex be ? ToLength(? Get(R, "lastIndex")).
+          const lastIndex: JSAny = SlowLoadLastIndex(iteratingRegExp);
+          const thisIndex: Number = ToLength_Inline(context, lastIndex);
+
+          // 2. Let nextIndex be ! AdvanceStringIndex(S, thisIndex,
+          // fullUnicode).
+          const nextIndex: Number = AdvanceStringIndexSlow(
+              iteratingString, thisIndex, HasUnicodeFlag(flags));
+
+          // 3. Perform ? Set(R, "lastIndex", nextIndex, true).
+          SlowStoreLastIndex(iteratingRegExp, nextIndex);
+        }
+        // iii. Return ! CreateIterResultObject(match, false).
+        return AllocateJSIteratorResult(match, False);
+      }
+      // 10. If match is null, then
+      label IfNoMatch {
+        // a. Set O.[[Done]] to true.
+        SetDoneFlag(receiver, flags);
+
+        // b. Return ! CreateIterResultObject(undefined, true).
+        goto ReturnEmptyDoneResult;
+      }
+    }
+    label ReturnEmptyDoneResult {
+      return AllocateJSIteratorResult(Undefined, True);
+    }
+  }
 }

@@ -1494,7 +1494,7 @@ transient type FastJSRegExpResult extends JSRegExpResult;
 @generateCppClass
 extern class JSRegExpStringIterator extends JSObject {
   // The [[IteratingRegExp]] internal property.
-  iterating_reg_exp: JSAny;
+  iterating_reg_exp: JSReceiver;
   // The [[IteratedString]] internal property.
   iterated_string: String;
   flags: Smi;
@@ -2301,6 +2301,14 @@ Cast<JSProxy>(o: HeapObject): JSProxy
 Cast<JSStringIterator>(o: HeapObject): JSStringIterator
     labels CastError {
   return HeapObjectToJSStringIterator(o) otherwise CastError;
+}
+
+Cast<JSRegExpStringIterator>(o: HeapObject): JSRegExpStringIterator
+    labels CastError {
+  if (IsJSRegExpStringIterator(o)) {
+    return %RawDownCast<JSRegExpStringIterator>(o);
+  }
+  goto CastError;
 }
 
 Cast<JSTypedArray>(o: HeapObject): JSTypedArray
@@ -3342,6 +3350,7 @@ extern macro IsFeedbackVector(HeapObject): bool;
 extern macro IsJSArray(HeapObject): bool;
 extern macro IsJSProxy(HeapObject): bool;
 extern macro IsJSRegExp(HeapObject): bool;
+extern macro IsJSRegExpStringIterator(HeapObject): bool;
 extern macro IsMap(HeapObject): bool;
 extern macro IsJSFunction(HeapObject): bool;
 extern macro IsJSObject(HeapObject): bool;

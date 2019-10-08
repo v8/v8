@@ -858,10 +858,6 @@ namespace internal {
   TFS(RegExpExecInternal, kRegExp, kString, kLastIndex, kMatchInfo)            \
   ASM(RegExpInterpreterTrampoline, CCall)                                      \
                                                                                \
-  /* RegExp String Iterator */                                                 \
-  /* https://tc39.github.io/proposal-string-matchall/ */                       \
-  TFJ(RegExpStringIteratorPrototypeNext, 0, kReceiver)                         \
-                                                                               \
   /* Set */                                                                    \
   TFJ(SetConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)         \
   TFJ(SetPrototypeHas, 1, kReceiver, kKey)                                     \

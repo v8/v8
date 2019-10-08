@@ -19,9 +19,6 @@ namespace regexp {
   StringReplaceNonGlobalRegExpWithFunction(implicit context: Context)(
       String, JSRegExp, Callable): String;
 
-  extern macro
-  RegExpBuiltinsAssembler::AdvanceStringIndexFast(String, Smi, bool): Smi;
-
   transitioning macro RegExpReplaceCallableNoExplicitCaptures(implicit context:
                                                                   Context)(
       matchesElements: FixedArray, matchesLength: intptr, string: String,
