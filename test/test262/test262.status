@@ -549,32 +549,6 @@
   'built-ins/String/prototype/matchAll/flags-undefined-throws': [FAIL],
   'built-ins/String/prototype/matchAll/flags-nonglobal-throws': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9817
-  'language/module-code/top-level-await/syntax/for-await-await-expr-array-literal': [SKIP],
-  'language/module-code/top-level-await/syntax/for-await-await-expr-func-expression': [SKIP],
-  'language/module-code/top-level-await/syntax/for-await-await-expr-literal-string': [SKIP],
-  'language/module-code/top-level-await/syntax/for-await-await-expr-identifier': [SKIP],
-  'language/module-code/top-level-await/syntax/for-await-await-expr-literal-number': [SKIP],
-  'language/module-code/top-level-await/syntax/for-await-await-expr-null': [SKIP],
-  'language/module-code/top-level-await/syntax/for-await-await-expr-nested': [SKIP],
-  'language/module-code/top-level-await/syntax/for-await-await-expr-obj-literal': [SKIP],
-  'language/module-code/top-level-await/syntax/for-await-await-expr-regexp': [SKIP],
-  'language/module-code/top-level-await/syntax/for-await-await-expr-new-expr': [SKIP],
-  'language/module-code/top-level-await/syntax/for-await-await-expr-this': [SKIP],
-  'language/module-code/top-level-await/syntax/for-await-await-expr-template-literal': [SKIP],
-  'language/module-code/top-level-await/syntax/for-await-expr-array-literal': [SKIP],
-  'language/module-code/top-level-await/syntax/for-await-expr-func-expression': [SKIP],
-  'language/module-code/top-level-await/syntax/for-await-expr-literal-string': [SKIP],
-  'language/module-code/top-level-await/syntax/for-await-expr-identifier': [SKIP],
-  'language/module-code/top-level-await/syntax/for-await-expr-literal-number': [SKIP],
-  'language/module-code/top-level-await/syntax/for-await-expr-null': [SKIP],
-  'language/module-code/top-level-await/syntax/for-await-expr-nested': [SKIP],
-  'language/module-code/top-level-await/syntax/for-await-expr-obj-literal': [SKIP],
-  'language/module-code/top-level-await/syntax/for-await-expr-regexp': [SKIP],
-  'language/module-code/top-level-await/syntax/for-await-expr-new-expr': [SKIP],
-  'language/module-code/top-level-await/syntax/for-await-expr-this': [SKIP],
-  'language/module-code/top-level-await/syntax/for-await-expr-template-literal': [SKIP],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9818
   'built-ins/AsyncFunction/proto-from-ctor-realm': [FAIL],
 
@@ -741,5 +715,34 @@
 ['variant == jitless and not embedded_builtins', {
   '*': [SKIP],
 }], # variant == jitless and not embedded_builtins
+
+##############################################################################
+['variant == stress', {
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9817
+  'language/module-code/top-level-await/syntax/for-await-await-expr-array-literal': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-await-expr-func-expression': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-await-expr-literal-string': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-await-expr-identifier': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-await-expr-literal-number': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-await-expr-null': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-await-expr-nested': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-await-expr-obj-literal': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-await-expr-regexp': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-await-expr-new-expr': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-await-expr-this': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-await-expr-template-literal': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-expr-array-literal': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-expr-func-expression': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-expr-literal-string': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-expr-identifier': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-expr-literal-number': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-expr-null': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-expr-nested': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-expr-obj-literal': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-expr-regexp': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-expr-new-expr': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-expr-this': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-expr-template-literal': [SKIP],
+}], # variant == stress
 
 ]

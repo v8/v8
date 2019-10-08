@@ -944,7 +944,10 @@ class ParserBase {
   bool is_resumable() const {
     return IsResumableFunction(function_state_->kind());
   }
-
+  bool is_await_allowed() const {
+    return is_async_function() || (allow_harmony_top_level_await() &&
+                                   IsModule(function_state_->kind()));
+  }
   const PendingCompilationErrorHandler* pending_error_handler() const {
     return pending_error_handler_;
   }
@@ -3083,9 +3086,7 @@ ParserBase<Impl>::ParseUnaryExpression() {
 
   Token::Value op = peek();
   if (Token::IsUnaryOrCountOp(op)) return ParseUnaryOrPrefixExpression();
-  if ((is_async_function() || (allow_harmony_top_level_await() &&
-                               IsModule(function_state_->kind()))) &&
-      op == Token::AWAIT) {
+  if (is_await_allowed() && op == Token::AWAIT) {
     return ParseAwaitExpression();
   }
   return ParsePostfixExpression();
@@ -4934,7 +4935,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
     case Token::WHILE:
       return ParseWhileStatement(labels, own_labels);
     case Token::FOR:
-      if (V8_UNLIKELY(is_async_function() && PeekAhead() == Token::AWAIT)) {
+      if (V8_UNLIKELY(is_await_allowed() && PeekAhead() == Token::AWAIT)) {
         return ParseForAwaitStatement(labels, own_labels);
       }
       return ParseForStatement(labels, own_labels);
@@ -5994,7 +5995,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
     ZonePtrList<const AstRawString>* labels,
     ZonePtrList<const AstRawString>* own_labels) {
   // for await '(' ForDeclaration of AssignmentExpression ')'
-  DCHECK(is_async_function());
+  DCHECK(is_await_allowed());
   typename FunctionState::LoopScope loop_scope(function_state_);
 
   int stmt_pos = peek_position();
