@@ -251,7 +251,6 @@
 //                                        supported
 //  V8_HAS_DECLSPEC_NOINLINE            - __declspec(noinline) supported
 //  V8_HAS_DECLSPEC_SELECTANY           - __declspec(selectany) supported
-//  V8_HAS_DECLSPEC_NORETURN            - __declspec(noreturn) supported
 //  V8_HAS___FORCEINLINE                - __forceinline supported
 //
 // Note that testing for compilers and/or features must be done using #if
@@ -336,7 +335,6 @@
 
 # define V8_HAS_DECLSPEC_NOINLINE 1
 # define V8_HAS_DECLSPEC_SELECTANY 1
-# define V8_HAS_DECLSPEC_NORETURN 1
 
 # define V8_HAS___FORCEINLINE 1
 
