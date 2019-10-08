@@ -489,8 +489,8 @@
   #
   # These tests require exception handling support which is currently
   #  blocked on landing https://chromium-review.googlesource.com/c/v8/v8/+/1655655
-  # 'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-job-not-active-throws': [FAIL],
-  # 'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-callback-throws': [FAIL],
+  'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-job-not-active-throws': [FAIL],
+  'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-callback-throws': [FAIL],
   # 'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-cleanup-callback-throws': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=8179
@@ -527,9 +527,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=9612
   'intl402/DateTimeFormat/prototype/formatRange/fractionalSecondDigits': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9282
-  'intl402/DateTimeFormat/constructor-options-throwing-getters-quarter': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9613
   'intl402/Intl/getCanonicalLocales/canonicalized-tags': [FAIL],
   'intl402/Intl/getCanonicalLocales/grandfathered': [FAIL],
@@ -547,6 +544,42 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9741
   'intl402/Locale/constructor-tag': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9800
+  'built-ins/String/prototype/matchAll/flags-undefined-throws': [FAIL],
+  'built-ins/String/prototype/matchAll/flags-nonglobal-throws': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9817
+  'language/module-code/top-level-await/syntax/for-await-await-expr-array-literal': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-await-expr-func-expression': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-await-expr-literal-string': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-await-expr-identifier': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-await-expr-literal-number': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-await-expr-null': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-await-expr-nested': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-await-expr-obj-literal': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-await-expr-regexp': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-await-expr-new-expr': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-await-expr-this': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-await-expr-template-literal': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-expr-array-literal': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-expr-func-expression': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-expr-literal-string': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-expr-identifier': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-expr-literal-number': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-expr-null': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-expr-nested': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-expr-obj-literal': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-expr-regexp': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-expr-new-expr': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-expr-this': [SKIP],
+  'language/module-code/top-level-await/syntax/for-await-expr-template-literal': [SKIP],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9818
+  'built-ins/AsyncFunction/proto-from-ctor-realm': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9819
+  'built-ins/Array/prototype/flatMap/array-like-objects-nested': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
@@ -644,9 +677,10 @@
   'intl402/String/prototype/toLocaleUpperCase/special_casing_Lithuanian': [FAIL],
   'intl402/String/prototype/toLocaleUpperCase/special_casing_Turkish': [FAIL],
 
-  # Unicode property escapes unavailable without i18n
+  # Unicode features unavaible without i18n, ie property escapes.
   'built-ins/RegExp/property-escapes/*': [SKIP],
   'built-ins/RegExp/named-groups/unicode-property-names': [SKIP],
+  'built-ins/RegExp/match-indices/indices-array-unicode-property-names': [SKIP],
 }],  # no_i18n == True
 
 ['arch == arm or arch == mipsel or arch == mips or arch == arm64 or arch == mips64 or arch == mips64el', {
