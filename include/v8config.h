@@ -230,7 +230,6 @@
 //
 //  V8_HAS_ATTRIBUTE_ALWAYS_INLINE      - __attribute__((always_inline))
 //                                        supported
-//  V8_HAS_ATTRIBUTE_DEPRECATED         - __attribute__((deprecated)) supported
 //  V8_HAS_ATTRIBUTE_NONNULL            - __attribute__((nonnull)) supported
 //  V8_HAS_ATTRIBUTE_NOINLINE           - __attribute__((noinline)) supported
 //  V8_HAS_ATTRIBUTE_UNUSED             - __attribute__((unused)) supported
@@ -250,7 +249,6 @@
 //  V8_HAS_BUILTIN_UADD_OVERFLOW        - __builtin_uadd_overflow() supported
 //  V8_HAS_COMPUTED_GOTO                - computed goto/labels as values
 //                                        supported
-//  V8_HAS_DECLSPEC_DEPRECATED          - __declspec(deprecated) supported
 //  V8_HAS_DECLSPEC_NOINLINE            - __declspec(noinline) supported
 //  V8_HAS_DECLSPEC_SELECTANY           - __declspec(selectany) supported
 //  V8_HAS_DECLSPEC_NORETURN            - __declspec(noreturn) supported
@@ -269,9 +267,6 @@
 #endif
 
 # define V8_HAS_ATTRIBUTE_ALWAYS_INLINE (__has_attribute(always_inline))
-# define V8_HAS_ATTRIBUTE_DEPRECATED (__has_attribute(deprecated))
-# define V8_HAS_ATTRIBUTE_DEPRECATED_MESSAGE \
-    (__has_extension(attribute_deprecated_with_message))
 # define V8_HAS_ATTRIBUTE_NONNULL (__has_attribute(nonnull))
 # define V8_HAS_ATTRIBUTE_NOINLINE (__has_attribute(noinline))
 # define V8_HAS_ATTRIBUTE_UNUSED (__has_attribute(unused))
@@ -318,8 +313,6 @@
 // Works around "sorry, unimplemented: inlining failed" build errors with
 // older compilers.
 # define V8_HAS_ATTRIBUTE_ALWAYS_INLINE (V8_GNUC_PREREQ(4, 4, 0))
-# define V8_HAS_ATTRIBUTE_DEPRECATED (V8_GNUC_PREREQ(3, 4, 0))
-# define V8_HAS_ATTRIBUTE_DEPRECATED_MESSAGE (V8_GNUC_PREREQ(4, 5, 0))
 # define V8_HAS_ATTRIBUTE_NOINLINE (V8_GNUC_PREREQ(3, 4, 0))
 # define V8_HAS_ATTRIBUTE_UNUSED (V8_GNUC_PREREQ(2, 95, 0))
 # define V8_HAS_ATTRIBUTE_VISIBILITY (V8_GNUC_PREREQ(4, 3, 0))
@@ -341,7 +334,6 @@
 #if defined(_MSC_VER)
 # define V8_CC_MSVC 1
 
-# define V8_HAS_DECLSPEC_DEPRECATED 1
 # define V8_HAS_DECLSPEC_NOINLINE 1
 # define V8_HAS_DECLSPEC_SELECTANY 1
 # define V8_HAS_DECLSPEC_NORETURN 1
@@ -397,31 +389,18 @@
 
 
 // A macro (V8_DEPRECATED) to mark classes or functions as deprecated.
-#if defined(V8_DEPRECATION_WARNINGS) && V8_HAS_ATTRIBUTE_DEPRECATED_MESSAGE
-#define V8_DEPRECATED(message, declarator) \
-  declarator __attribute__((deprecated(message)))
-#elif defined(V8_DEPRECATION_WARNINGS) && V8_HAS_ATTRIBUTE_DEPRECATED
-#define V8_DEPRECATED(message, declarator) \
-  declarator __attribute__((deprecated))
-#elif defined(V8_DEPRECATION_WARNINGS) && V8_HAS_DECLSPEC_DEPRECATED
-#define V8_DEPRECATED(message, declarator) __declspec(deprecated) declarator
+#if defined(V8_DEPRECATION_WARNINGS)
+# define V8_DEPRECATED(message) [[deprecated(message)]]
 #else
-#define V8_DEPRECATED(message, declarator) declarator
+# define V8_DEPRECATED(message)
 #endif
 
 
 // A macro (V8_DEPRECATE_SOON) to make it easier to see what will be deprecated.
-#if defined(V8_IMMINENT_DEPRECATION_WARNINGS) && \
-    V8_HAS_ATTRIBUTE_DEPRECATED_MESSAGE
-#define V8_DEPRECATE_SOON(message, declarator) \
-  declarator __attribute__((deprecated(message)))
-#elif defined(V8_IMMINENT_DEPRECATION_WARNINGS) && V8_HAS_ATTRIBUTE_DEPRECATED
-#define V8_DEPRECATE_SOON(message, declarator) \
-  declarator __attribute__((deprecated))
-#elif defined(V8_IMMINENT_DEPRECATION_WARNINGS) && V8_HAS_DECLSPEC_DEPRECATED
-#define V8_DEPRECATE_SOON(message, declarator) __declspec(deprecated) declarator
+#if defined(V8_IMMINENT_DEPRECATION_WARNINGS)
+# define V8_DEPRECATE_SOON(message) [[deprecated(message)]]
 #else
-#define V8_DEPRECATE_SOON(message, declarator) declarator
+# define V8_DEPRECATE_SOON(message)
 #endif
 
 

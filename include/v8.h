@@ -1741,8 +1741,8 @@ class V8_EXPORT ScriptCompiler {
 
     V8_DEPRECATE_SOON(
         "This class takes ownership of source_stream, so use the constructor "
-        "taking a unique_ptr to make these semantics clearer",
-        StreamedSource(ExternalSourceStream* source_stream, Encoding encoding));
+        "taking a unique_ptr to make these semantics clearer")
+    StreamedSource(ExternalSourceStream* source_stream, Encoding encoding);
     StreamedSource(std::unique_ptr<ExternalSourceStream> source_stream,
                    Encoding encoding);
     ~StreamedSource();
@@ -5466,11 +5466,10 @@ class V8_EXPORT SharedArrayBuffer : public Object {
    * Create a new SharedArrayBuffer over an existing memory block. Propagate
    * flags to indicate whether the underlying buffer can be grown.
    */
-  V8_DEPRECATED("Use New method with data, and byte_length instead.",
-                static Local<SharedArrayBuffer> New(
-                    Isolate* isolate, const SharedArrayBuffer::Contents&,
-                    ArrayBufferCreationMode mode =
-                        ArrayBufferCreationMode::kExternalized));
+  V8_DEPRECATED("Use New method with data, and byte_length instead.")
+  static Local<SharedArrayBuffer> New(
+      Isolate* isolate, const SharedArrayBuffer::Contents&,
+      ArrayBufferCreationMode mode = ArrayBufferCreationMode::kExternalized);
 
   /**
    * Returns true if SharedArrayBuffer is externalized, that is, does not
@@ -6857,34 +6856,26 @@ class V8_EXPORT ResourceConstraints {
   /**
    * Deprecated functions. Do not use in new code.
    */
-  V8_DEPRECATE_SOON("Use code_range_size_in_bytes.",
-                    size_t code_range_size() const) {
-    return code_range_size_ / kMB;
-  }
-  V8_DEPRECATE_SOON("Use set_code_range_size_in_bytes.",
-                    void set_code_range_size(size_t limit_in_mb)) {
+  V8_DEPRECATE_SOON("Use code_range_size_in_bytes.")
+  size_t code_range_size() const { return code_range_size_ / kMB; }
+  V8_DEPRECATE_SOON("Use set_code_range_size_in_bytes.")
+  void set_code_range_size(size_t limit_in_mb) {
     code_range_size_ = limit_in_mb * kMB;
   }
-  V8_DEPRECATE_SOON("Use max_young_generation_size_in_bytes.",
-                    size_t max_semi_space_size_in_kb() const);
-  V8_DEPRECATE_SOON("Use set_max_young_generation_size_in_bytes.",
-                    void set_max_semi_space_size_in_kb(size_t limit_in_kb));
-  V8_DEPRECATE_SOON("Use max_old_generation_size_in_bytes.",
-                    size_t max_old_space_size() const) {
-    return max_old_generation_size_ / kMB;
-  }
-  V8_DEPRECATE_SOON("Use set_max_old_generation_size_in_bytes.",
-                    void set_max_old_space_size(size_t limit_in_mb)) {
+  V8_DEPRECATE_SOON("Use max_young_generation_size_in_bytes.")
+  size_t max_semi_space_size_in_kb() const;
+  V8_DEPRECATE_SOON("Use set_max_young_generation_size_in_bytes.")
+  void set_max_semi_space_size_in_kb(size_t limit_in_kb);
+  V8_DEPRECATE_SOON("Use max_old_generation_size_in_bytes.")
+  size_t max_old_space_size() const { return max_old_generation_size_ / kMB; }
+  V8_DEPRECATE_SOON("Use set_max_old_generation_size_in_bytes.")
+  void set_max_old_space_size(size_t limit_in_mb) {
     max_old_generation_size_ = limit_in_mb * kMB;
   }
-  V8_DEPRECATE_SOON("Zone does not pool memory any more.",
-                    size_t max_zone_pool_size() const) {
-    return max_zone_pool_size_;
-  }
-  V8_DEPRECATE_SOON("Zone does not pool memory any more.",
-                    void set_max_zone_pool_size(size_t bytes)) {
-    max_zone_pool_size_ = bytes;
-  }
+  V8_DEPRECATE_SOON("Zone does not pool memory any more.")
+  size_t max_zone_pool_size() const { return max_zone_pool_size_; }
+  V8_DEPRECATE_SOON("Zone does not pool memory any more.")
+  void set_max_zone_pool_size(size_t bytes) { max_zone_pool_size_ = bytes; }
 
  private:
   static constexpr size_t kMB = 1048576u;
@@ -7078,8 +7069,8 @@ class PromiseRejectMessage {
 typedef void (*PromiseRejectCallback)(PromiseRejectMessage message);
 
 // --- Microtasks Callbacks ---
-V8_DEPRECATE_SOON("Use *WithData version.",
-                  typedef void (*MicrotasksCompletedCallback)(Isolate*));
+V8_DEPRECATE_SOON("Use *WithData version.")
+typedef void (*MicrotasksCompletedCallback)(Isolate*);
 typedef void (*MicrotasksCompletedCallbackWithData)(Isolate*, void*);
 typedef void (*MicrotaskCallback)(void* data);
 
@@ -7659,7 +7650,7 @@ class V8_EXPORT EmbedderHeapTracer {
    * overriden to fill a |TraceSummary| that is used by V8 to schedule future
    * garbage collections.
    */
-  V8_DEPRECATED("Use version with parameter.", virtual void TraceEpilogue()) {}
+  V8_DEPRECATED("Use version with parameter.") virtual void TraceEpilogue() {}
   virtual void TraceEpilogue(TraceSummary* trace_summary);
 
   /**
@@ -7712,9 +7703,9 @@ class V8_EXPORT EmbedderHeapTracer {
   virtual void ResetHandleInNonTracingGC(
       const v8::TracedReference<v8::Value>& handle);
   V8_DEPRECATE_SOON(
-      "Use TracedReference version when not requiring destructors.",
-      virtual void ResetHandleInNonTracingGC(
-          const v8::TracedGlobal<v8::Value>& handle));
+      "Use TracedReference version when not requiring destructors.")
+  virtual void ResetHandleInNonTracingGC(
+      const v8::TracedGlobal<v8::Value>& handle);
 
   /*
    * Called by the embedder to immediately perform a full garbage collection.
@@ -8375,8 +8366,8 @@ class V8_EXPORT Isolate {
   Local<Context> GetCurrentContext();
 
   /** Returns the last context entered through V8's C++ API. */
-  V8_DEPRECATED("Use GetEnteredOrMicrotaskContext().",
-                Local<Context> GetEnteredContext());
+  V8_DEPRECATED("Use GetEnteredOrMicrotaskContext().")
+  Local<Context> GetEnteredContext();
 
   /**
    * Returns either the last context entered through V8's C++ API, or the
@@ -8688,18 +8679,16 @@ class V8_EXPORT Isolate {
    * Executing scripts inside the callback will not re-trigger microtasks and
    * the callback.
    */
-  V8_DEPRECATE_SOON("Use *WithData version.",
-                    void AddMicrotasksCompletedCallback(
-                        MicrotasksCompletedCallback callback));
+  V8_DEPRECATE_SOON("Use *WithData version.")
+  void AddMicrotasksCompletedCallback(MicrotasksCompletedCallback callback);
   void AddMicrotasksCompletedCallback(
       MicrotasksCompletedCallbackWithData callback, void* data = nullptr);
 
   /**
    * Removes callback that was installed by AddMicrotasksCompletedCallback.
    */
-  V8_DEPRECATE_SOON("Use *WithData version.",
-                    void RemoveMicrotasksCompletedCallback(
-                        MicrotasksCompletedCallback callback));
+  V8_DEPRECATE_SOON("Use *WithData version.")
+  void RemoveMicrotasksCompletedCallback(MicrotasksCompletedCallback callback);
   void RemoveMicrotasksCompletedCallback(
       MicrotasksCompletedCallbackWithData callback, void* data = nullptr);
 
@@ -9129,8 +9118,8 @@ class V8_EXPORT V8 {
    *   handled entirely on the embedders' side.
    * - The call will abort if the data is invalid.
    */
-  V8_DEPRECATED("The natives blob is deprecated (https://crbug.com/v8/7624).",
-                static void SetNativesDataBlob(StartupData* startup_blob));
+  V8_DEPRECATED("The natives blob is deprecated (https://crbug.com/v8/7624).")
+  static void SetNativesDataBlob(StartupData* startup_blob);
   static void SetSnapshotDataBlob(StartupData* startup_blob);
 
   /** Set the callback to invoke in case of Dcheck failures. */
@@ -9142,8 +9131,8 @@ class V8_EXPORT V8 {
    */
   static void SetFlagsFromString(const char* str);
   static void SetFlagsFromString(const char* str, size_t length);
-  V8_DEPRECATED("use size_t version",
-                static void SetFlagsFromString(const char* str, int length));
+  V8_DEPRECATED("use size_t version")
+  static void SetFlagsFromString(const char* str, int length);
 
   /**
    * Sets V8 flags from the command line.
@@ -9226,9 +9215,9 @@ class V8_EXPORT V8 {
    *   not perform any file IO.
    */
   static void InitializeExternalStartupData(const char* directory_path);
-  V8_DEPRECATED("The natives blob is deprecated (https://crbug.com/v8/7624).",
-                static void InitializeExternalStartupData(
-                    const char* natives_blob, const char* snapshot_blob));
+  V8_DEPRECATED("The natives blob is deprecated (https://crbug.com/v8/7624).")
+  static void InitializeExternalStartupData(const char* natives_blob,
+                                            const char* snapshot_blob);
   static void InitializeExternalStartupDataFromFile(const char* snapshot_blob);
 
   /**
@@ -9263,9 +9252,8 @@ class V8_EXPORT V8 {
    * \param context The third argument passed to the Linux signal handler, which
    * points to a ucontext_t structure.
    */
-  V8_DEPRECATE_SOON("Use TryHandleWebAssemblyTrapPosix",
-                    static bool TryHandleSignal(int signal_number, void* info,
-                                                void* context));
+  V8_DEPRECATE_SOON("Use TryHandleWebAssemblyTrapPosix")
+  static bool TryHandleSignal(int signal_number, void* info, void* context);
 #endif  // V8_OS_POSIX
 
   /**

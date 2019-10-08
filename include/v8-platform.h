@@ -368,8 +368,8 @@ class Platform {
    * scheduling. The definition of "foreground" is opaque to V8.
    */
   V8_DEPRECATE_SOON(
-      "Use a taskrunner acquired by GetForegroundTaskRunner instead.",
-      virtual void CallOnForegroundThread(Isolate* isolate, Task* task)) = 0;
+      "Use a taskrunner acquired by GetForegroundTaskRunner instead.")
+  virtual void CallOnForegroundThread(Isolate* isolate, Task* task) = 0;
 
   /**
    * Schedules a task to be invoked on a foreground thread wrt a specific
@@ -378,9 +378,9 @@ class Platform {
    * scheduling. The definition of "foreground" is opaque to V8.
    */
   V8_DEPRECATE_SOON(
-      "Use a taskrunner acquired by GetForegroundTaskRunner instead.",
-      virtual void CallDelayedOnForegroundThread(Isolate* isolate, Task* task,
-                                                 double delay_in_seconds)) = 0;
+      "Use a taskrunner acquired by GetForegroundTaskRunner instead.")
+  virtual void CallDelayedOnForegroundThread(Isolate* isolate, Task* task,
+                                             double delay_in_seconds) = 0;
 
   /**
    * Schedules a task to be invoked on a foreground thread wrt a specific
@@ -391,9 +391,8 @@ class Platform {
    * The definition of "foreground" is opaque to V8.
    */
   V8_DEPRECATE_SOON(
-      "Use a taskrunner acquired by GetForegroundTaskRunner instead.",
-      virtual void CallIdleOnForegroundThread(Isolate* isolate,
-                                              IdleTask* task)) {
+      "Use a taskrunner acquired by GetForegroundTaskRunner instead.")
+  virtual void CallIdleOnForegroundThread(Isolate* isolate, IdleTask* task) {
     // This must be overriden if |IdleTasksEnabled()|.
     abort();
   }
