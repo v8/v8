@@ -975,8 +975,9 @@ void RegExpBytecodePeephole::EmitArgument(int start_pc, const byte* bytecode,
       USE(prev_val);
 #else
           DCHECK_EQ(prev_val & 0xFFFFFF00, 0);
-          OverwriteValue<uint32_t>(pc() - sizeof(uint32_t),
-                                   (val << 8) | (prev_val & 0xFF));
+          OverwriteValue<uint32_t>(
+              pc() - sizeof(uint32_t),
+              (static_cast<uint32_t>(val) << 8) | (prev_val & 0xFF));
 #endif  // V8_TARGET_BIG_ENDIAN
           break;
         }
