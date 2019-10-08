@@ -1982,17 +1982,17 @@ void SerializerForBackgroundCompilation::ProcessApiCall(
   FunctionTemplateInfoRef target_template_info(
       broker(), handle(target->function_data(), broker()->isolate()));
   if (!target_template_info.has_call_code()) return;
-
   target_template_info.SerializeCallCode();
 
   SharedFunctionInfoRef target_ref(broker(), target);
   target_ref.SerializeFunctionTemplateInfo();
 
   if (target_template_info.accept_any_receiver() &&
-      target_template_info.is_signature_undefined())
+      target_template_info.is_signature_undefined()) {
     return;
+  }
 
-  CHECK_GE(arguments.size(), 1);
+  if (arguments.empty()) return;
   Hints const& receiver_hints = arguments[0];
   for (auto hint : receiver_hints.constants()) {
     if (hint->IsUndefined()) {
