@@ -240,14 +240,14 @@ class Intl {
       Handle<JSFunction> constructor, bool has_initialized_slot);
 
   // enum for "caseFirst" option: shared by Intl.Locale and Intl.Collator.
-  enum class CaseFirst { kUpper, kLower, kFalse, kUndefined };
+  enum class CaseFirst { kUndefined, kUpper, kLower, kFalse };
 
   // Shared function to read the "caseFirst" option.
   V8_WARN_UNUSED_RESULT static Maybe<CaseFirst> GetCaseFirst(
       Isolate* isolate, Handle<JSReceiver> options, const char* method);
 
   // enum for "hourCycle" option: shared by Intl.Locale and Intl.DateTimeFormat.
-  enum class HourCycle { kH11, kH12, kH23, kH24, kUndefined };
+  enum class HourCycle { kUndefined, kH11, kH12, kH23, kH24 };
 
   static HourCycle ToHourCycle(const std::string& str);
 

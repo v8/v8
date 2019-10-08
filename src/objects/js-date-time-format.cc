@@ -1546,12 +1546,16 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
       isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
   DisallowHeapAllocation no_gc;
   date_time_format->set_flags(0);
-  date_time_format->set_hour_cycle(hc);
   if (date_style != DateTimeStyle::kUndefined) {
     date_time_format->set_date_style(date_style);
   }
   if (time_style != DateTimeStyle::kUndefined) {
     date_time_format->set_time_style(time_style);
+    date_time_format->set_hour_cycle(hc);
+  }
+  if ((date_style == DateTimeStyle::kUndefined) &&
+      (time_style == DateTimeStyle::kUndefined)) {
+    date_time_format->set_hour_cycle(hc);
   }
   date_time_format->set_icu_locale(*managed_locale);
   date_time_format->set_icu_simple_date_format(*managed_format);

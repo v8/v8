@@ -32,8 +32,6 @@ var expectedProperties = [
   'calendar',
   'numberingSystem',
   'timeZone',
-  'hourCycle',
-  'hour12',
   'dateStyle',
 ];
 
