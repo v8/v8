@@ -3529,12 +3529,8 @@ Node* EffectControlLinearizer::LowerArgumentsFrame(Node* node) {
   Node* parent_frame =
       __ Load(MachineType::Pointer(), frame,
               __ IntPtrConstant(StandardFrameConstants::kCallerFPOffset));
-  // Load parent frame type as an uncompressed value to avoid corruption
-  // in case it contains a frame type marker. Frame type marker is a pseudo-Smi
-  // containing a StackFrame::Type value shifted left by kSmiTagSize (see
-  // StackFrame::TypeToMarker() for details).
   Node* parent_frame_type = __ Load(
-      MachineType::AnyTagged(), parent_frame,
+      MachineType::IntPtr(), parent_frame,
       __ IntPtrConstant(CommonFrameConstants::kContextOrFrameTypeOffset));
 
   __ GotoIf(__ IntPtrEqual(parent_frame_type,
