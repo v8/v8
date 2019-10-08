@@ -739,17 +739,18 @@ static int GetCaseIndependentLetters(Isolate* isolate, uc16 character,
     UChar32 start = set.getRangeStart(i);
     UChar32 end = set.getRangeEnd(i);
     CHECK(end - start + items <= letter_length);
-    while (start <= end) {
-      if (one_byte_subject && start > String::kMaxOneByteCharCode) break;
-      // Only add to the output if character is not in ASCII range
-      // or the case equivalent character is in ASCII range.
-      // #sec-runtime-semantics-canonicalize-ch
-      // 3.g If the numeric value of ch ≥ 128 and the numeric value of cu < 128,
-      //     return ch.
-      if (!((start >= 128) && (character < 128))) {
-        letters[items++] = (unibrow::uchar)(start);
+    // Only add to the output if character is not in ASCII range
+    // or the case equivalent character is in ASCII range.
+    // #sec-runtime-semantics-canonicalize-ch
+    // 3.g If the numeric value of ch ≥ 128 and the numeric value of cu < 128,
+    //     return ch.
+    if (!((start >= 128) && (character < 128))) {
+      // No range have start and end span across code point 128.
+      DCHECK((start >= 128) == (end >= 128));
+      for (UChar32 cu = start; cu <= end; cu++) {
+        if (one_byte_subject && cu > String::kMaxOneByteCharCode) break;
+        letters[items++] = (unibrow::uchar)(cu);
       }
-      start++;
     }
   }
   return items;
