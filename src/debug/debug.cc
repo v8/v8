@@ -1901,6 +1901,7 @@ bool Debug::CanBreakAtEntry(Handle<SharedFunctionInfo> shared) {
 bool Debug::SetScriptSource(Handle<Script> script, Handle<String> source,
                             bool preview, debug::LiveEditResult* result) {
   DebugScope debug_scope(this);
+  feature_tracker()->Track(DebugFeatureTracker::kLiveEdit);
   running_live_edit_ = true;
   LiveEdit::PatchScript(isolate_, script, source, preview, result);
   running_live_edit_ = false;
