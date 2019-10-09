@@ -2211,44 +2211,34 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   Bind(&regular_invoke);
 }
 
-void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
-                                    const ParameterCount& expected,
-                                    const ParameterCount& actual) {
-  Label skip_hook;
-
-  Mov(x4, ExternalReference::debug_hook_on_function_call_address(isolate()));
-  Ldrsb(x4, MemOperand(x4));
-  Cbz(x4, &skip_hook);
-
-  {
-    // Load receiver to pass it later to DebugOnFunctionCall hook.
-    if (actual.is_reg()) {
-      Ldr(x4, MemOperand(sp, actual.reg(), LSL, kSystemPointerSizeLog2));
-    } else {
-      Ldr(x4, MemOperand(sp, actual.immediate() << kSystemPointerSizeLog2));
-    }
-    FrameScope frame(this,
-                     has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
-
-    Register expected_reg = padreg;
-    Register actual_reg = padreg;
-    if (expected.is_reg()) expected_reg = expected.reg();
-    if (actual.is_reg()) actual_reg = actual.reg();
-    if (!new_target.is_valid()) new_target = padreg;
-
-    // Save values on stack.
-    SmiTag(expected_reg);
-    SmiTag(actual_reg);
-    Push(expected_reg, actual_reg, new_target, fun);
-    Push(fun, x4);
-    CallRuntime(Runtime::kDebugOnFunctionCall);
-
-    // Restore values from stack.
-    Pop(fun, new_target, actual_reg, expected_reg);
-    SmiUntag(actual_reg);
-    SmiUntag(expected_reg);
+void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
+                                             const ParameterCount& expected,
+                                             const ParameterCount& actual) {
+  // Load receiver to pass it later to DebugOnFunctionCall hook.
+  if (actual.is_reg()) {
+    Ldr(x4, MemOperand(sp, actual.reg(), LSL, kSystemPointerSizeLog2));
+  } else {
+    Ldr(x4, MemOperand(sp, actual.immediate() << kSystemPointerSizeLog2));
   }
-  Bind(&skip_hook);
+  FrameScope frame(this, has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
+
+  Register expected_reg = padreg;
+  Register actual_reg = padreg;
+  if (expected.is_reg()) expected_reg = expected.reg();
+  if (actual.is_reg()) actual_reg = actual.reg();
+  if (!new_target.is_valid()) new_target = padreg;
+
+  // Save values on stack.
+  SmiTag(expected_reg);
+  SmiTag(actual_reg);
+  Push(expected_reg, actual_reg, new_target, fun);
+  Push(fun, x4);
+  CallRuntime(Runtime::kDebugOnFunctionCall);
+
+  // Restore values from stack.
+  Pop(fun, new_target, actual_reg, expected_reg);
+  SmiUntag(actual_reg);
+  SmiUntag(expected_reg);
 }
 
 void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
@@ -2261,7 +2251,13 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   DCHECK_IMPLIES(new_target.is_valid(), new_target.is(x3));
 
   // On function call, call into the debugger if necessary.
-  CheckDebugHook(function, new_target, expected, actual);
+  Label debug_hook, continue_after_hook;
+  {
+    Mov(x4, ExternalReference::debug_hook_on_function_call_address(isolate()));
+    Ldrsb(x4, MemOperand(x4));
+    Cbnz(x4, &debug_hook);
+  }
+  bind(&continue_after_hook);
 
   // Clear the new.target register if not given.
   if (!new_target.is_valid()) {
@@ -2289,6 +2285,12 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
       JumpCodeObject(code);
     }
   }
+  B(&done);
+
+  // Deferred debug hook.
+  bind(&debug_hook);
+  CallDebugOnFunctionCall(function, new_target, expected, actual);
+  B(&continue_after_hook);
 
   // Continue here if InvokePrologue does handle the invocation due to
   // mismatched parameter counts.

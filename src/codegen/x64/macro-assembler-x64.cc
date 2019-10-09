@@ -2281,7 +2281,16 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   DCHECK_IMPLIES(new_target.is_valid(), new_target == rdx);
 
   // On function call, call into the debugger if necessary.
-  CheckDebugHook(function, new_target, expected, actual);
+  Label debug_hook, continue_after_hook;
+  {
+    ExternalReference debug_hook_active =
+        ExternalReference::debug_hook_on_function_call_address(isolate());
+    Operand debug_hook_active_operand =
+        ExternalReferenceAsOperand(debug_hook_active);
+    cmpb(debug_hook_active_operand, Immediate(0));
+    j(not_equal, &debug_hook, Label::kNear);
+  }
+  bind(&continue_after_hook);
 
   // Clear the new.target register if not given.
   if (!new_target.is_valid()) {
@@ -2305,8 +2314,15 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
       DCHECK(flag == JUMP_FUNCTION);
       JumpCodeObject(rcx);
     }
-    bind(&done);
   }
+  jmp(&done, Label::kNear);
+
+  // Deferred debug hook.
+  bind(&debug_hook);
+  CallDebugOnFunctionCall(function, new_target, expected, actual);
+  jmp(&continue_after_hook, Label::kNear);
+
+  bind(&done);
 }
 
 void MacroAssembler::InvokePrologue(const ParameterCount& expected,
@@ -2371,50 +2387,38 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   }
 }
 
-void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
-                                    const ParameterCount& expected,
-                                    const ParameterCount& actual) {
-  Label skip_hook;
-  ExternalReference debug_hook_active =
-      ExternalReference::debug_hook_on_function_call_address(isolate());
-  Operand debug_hook_active_operand =
-      ExternalReferenceAsOperand(debug_hook_active);
-  cmpb(debug_hook_active_operand, Immediate(0));
-  j(equal, &skip_hook);
-
-  {
-    FrameScope frame(this,
-                     has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
-    if (expected.is_reg()) {
-      SmiTag(expected.reg());
-      Push(expected.reg());
-    }
-    if (actual.is_reg()) {
-      SmiTag(actual.reg());
-      Push(actual.reg());
-      SmiUntag(actual.reg());
-    }
-    if (new_target.is_valid()) {
-      Push(new_target);
-    }
-    Push(fun);
-    Push(fun);
-    Push(StackArgumentsAccessor(rbp, actual).GetReceiverOperand());
-    CallRuntime(Runtime::kDebugOnFunctionCall);
-    Pop(fun);
-    if (new_target.is_valid()) {
-      Pop(new_target);
-    }
-    if (actual.is_reg()) {
-      Pop(actual.reg());
-      SmiUntag(actual.reg());
-    }
-    if (expected.is_reg()) {
-      Pop(expected.reg());
-      SmiUntag(expected.reg());
-    }
+void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
+                                             const ParameterCount& expected,
+                                             const ParameterCount& actual) {
+  FrameScope frame(this, has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
+  if (expected.is_reg()) {
+    SmiTag(expected.reg());
+    Push(expected.reg());
   }
-  bind(&skip_hook);
+  if (actual.is_reg()) {
+    SmiTag(actual.reg());
+    Push(actual.reg());
+    SmiUntag(actual.reg());
+  }
+  if (new_target.is_valid()) {
+    Push(new_target);
+  }
+  Push(fun);
+  Push(fun);
+  Push(StackArgumentsAccessor(rbp, actual).GetReceiverOperand());
+  CallRuntime(Runtime::kDebugOnFunctionCall);
+  Pop(fun);
+  if (new_target.is_valid()) {
+    Pop(new_target);
+  }
+  if (actual.is_reg()) {
+    Pop(actual.reg());
+    SmiUntag(actual.reg());
+  }
+  if (expected.is_reg()) {
+    Pop(expected.reg());
+    SmiUntag(expected.reg());
+  }
 }
 
 void TurboAssembler::StubPrologue(StackFrame::Type type) {

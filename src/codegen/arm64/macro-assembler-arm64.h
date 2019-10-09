@@ -1770,10 +1770,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                       const ParameterCount& actual, Label* done,
                       InvokeFlag flag, bool* definitely_mismatches);
 
-  // On function call, call into the debugger if necessary.
-  void CheckDebugHook(Register fun, Register new_target,
-                      const ParameterCount& expected,
-                      const ParameterCount& actual);
+  // On function call, call into the debugger.
+  void CallDebugOnFunctionCall(Register fun, Register new_target,
+                               const ParameterCount& expected,
+                               const ParameterCount& actual);
   void InvokeFunctionCode(Register function, Register new_target,
                           const ParameterCount& expected,
                           const ParameterCount& actual, InvokeFlag flag);

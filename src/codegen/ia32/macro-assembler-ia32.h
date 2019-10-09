@@ -552,11 +552,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                           const ParameterCount& expected,
                           const ParameterCount& actual, InvokeFlag flag);
 
-  // On function call, call into the debugger if necessary.
+  // On function call, call into the debugger.
   // This may clobber ecx.
-  void CheckDebugHook(Register fun, Register new_target,
-                      const ParameterCount& expected,
-                      const ParameterCount& actual);
+  void CallDebugOnFunctionCall(Register fun, Register new_target,
+                               const ParameterCount& expected,
+                               const ParameterCount& actual);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
