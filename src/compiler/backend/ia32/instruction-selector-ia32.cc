@@ -2212,12 +2212,12 @@ SIMD_ANYTRUE_LIST(VISIT_SIMD_ANYTRUE)
 #undef VISIT_SIMD_ANYTRUE
 #undef SIMD_ANYTRUE_LIST
 
-#define VISIT_SIMD_ALLTRUE(Opcode)                                         \
-  void InstructionSelector::Visit##Opcode(Node* node) {                    \
-    IA32OperandGenerator g(this);                                          \
-    InstructionOperand temps[] = {g.TempRegister()};                       \
-    Emit(kIA32##Opcode, g.DefineAsRegister(node), g.Use(node->InputAt(0)), \
-         arraysize(temps), temps);                                         \
+#define VISIT_SIMD_ALLTRUE(Opcode)                                            \
+  void InstructionSelector::Visit##Opcode(Node* node) {                       \
+    IA32OperandGenerator g(this);                                             \
+    InstructionOperand temps[] = {g.TempRegister(), g.TempSimd128Register()}; \
+    Emit(kIA32##Opcode, g.DefineAsRegister(node),                             \
+         g.UseUnique(node->InputAt(0)), arraysize(temps), temps);             \
   }
 SIMD_ALLTRUE_LIST(VISIT_SIMD_ALLTRUE)
 #undef VISIT_SIMD_ALLTRUE

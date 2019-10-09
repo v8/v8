@@ -479,17 +479,18 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ opcode(i.OutputSimd128Register(), i.InputOperand(1), imm);      \
   }
 
-#define ASSEMBLE_SIMD_ALL_TRUE(opcode)              \
-  do {                                              \
-    Register dst = i.OutputRegister();              \
-    Operand src = i.InputOperand(0);                \
-    Register tmp = i.TempRegister(0);               \
-    __ mov(tmp, Immediate(1));                      \
-    __ xor_(dst, dst);                              \
-    __ Pxor(kScratchDoubleReg, kScratchDoubleReg);  \
-    __ opcode(kScratchDoubleReg, src);              \
-    __ Ptest(kScratchDoubleReg, kScratchDoubleReg); \
-    __ cmov(zero, dst, tmp);                        \
+#define ASSEMBLE_SIMD_ALL_TRUE(opcode)               \
+  do {                                               \
+    Register dst = i.OutputRegister();               \
+    Operand src = i.InputOperand(0);                 \
+    Register tmp = i.TempRegister(0);                \
+    XMMRegister tmp_simd = i.TempSimd128Register(1); \
+    __ mov(tmp, Immediate(1));                       \
+    __ xor_(dst, dst);                               \
+    __ Pxor(tmp_simd, tmp_simd);                     \
+    __ opcode(tmp_simd, src);                        \
+    __ Ptest(tmp_simd, tmp_simd);                    \
+    __ cmov(zero, dst, tmp);                         \
   } while (false)
 
 void CodeGenerator::AssembleDeconstructFrame() {
