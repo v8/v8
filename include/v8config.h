@@ -359,7 +359,7 @@
 # define V8_ASSUME_ALIGNED(ptr, alignment) \
   __builtin_assume_aligned((ptr), (alignment))
 #else
-# define V8_ASSUME_ALIGNED(ptr) (ptr)
+# define V8_ASSUME_ALIGNED(ptr, alignment) (ptr)
 #endif
 
 
