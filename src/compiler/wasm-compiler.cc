@@ -4472,6 +4472,9 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode, Node* const* inputs) {
       return graph()->NewNode(mcgraph()->machine()->S1x16AnyTrue(), inputs[0]);
     case wasm::kExprS1x16AllTrue:
       return graph()->NewNode(mcgraph()->machine()->S1x16AllTrue(), inputs[0]);
+    case wasm::kExprS8x16Swizzle:
+      return graph()->NewNode(mcgraph()->machine()->S8x16Swizzle(), inputs[0],
+                              inputs[1]);
     default:
       FATAL_UNSUPPORTED_OPCODE(opcode);
   }

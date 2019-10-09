@@ -2629,6 +2629,18 @@ class ThreadImpl {
         ADD_HORIZ_CASE(F32x4AddHoriz, f32x4, float4, 4)
         ADD_HORIZ_CASE(I16x8AddHoriz, i16x8, int8, 8)
 #undef ADD_HORIZ_CASE
+      case kExprS8x16Swizzle: {
+        int16 v2 = Pop().to_s128().to_i8x16();
+        int16 v1 = Pop().to_s128().to_i8x16();
+        int16 res;
+        for (size_t i = 0; i < kSimd128Size; ++i) {
+          int lane = v2.val[LANE(i, v1)];
+          res.val[LANE(i, v1)] =
+              lane < kSimd128Size && lane >= 0 ? v1.val[LANE(lane, v1)] : 0;
+        }
+        Push(WasmValue(Simd128(res)));
+        return true;
+      }
       case kExprS8x16Shuffle: {
         Simd8x16ShuffleImmediate<Decoder::kNoValidate> imm(decoder,
                                                            code->at(pc));

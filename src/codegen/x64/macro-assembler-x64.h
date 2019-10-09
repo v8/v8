@@ -154,6 +154,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Sqrtsd, sqrtsd)
   AVX_OP(Ucomiss, ucomiss)
   AVX_OP(Ucomisd, ucomisd)
+  AVX_OP(Pshufb, pshufb)
+  AVX_OP(Paddusb, paddusb)
 
 #undef AVX_OP
 
@@ -374,6 +376,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Psrlq(XMMRegister dst, byte imm8);
   void Pslld(XMMRegister dst, byte imm8);
   void Psrld(XMMRegister dst, byte imm8);
+
+  void Pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle);
 
   void CompareRoot(Register with, RootIndex index);
   void CompareRoot(Operand with, RootIndex index);

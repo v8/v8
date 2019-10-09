@@ -402,6 +402,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(S1x8AllTrue, Operator::kNoProperties, 1, 0, 1)                            \
   V(S1x16AnyTrue, Operator::kNoProperties, 1, 0, 1)                           \
   V(S1x16AllTrue, Operator::kNoProperties, 1, 0, 1)                           \
+  V(S8x16Swizzle, Operator::kNoProperties, 2, 0, 1)                           \
   V(StackPointerGreaterThan, Operator::kNoProperties, 1, 0, 1)
 
 // The format is:

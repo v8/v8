@@ -916,6 +916,7 @@
   V(S128Or)                     \
   V(S128Xor)                    \
   V(S128Select)                 \
+  V(S8x16Swizzle)               \
   V(S8x16Shuffle)               \
   V(S1x2AnyTrue)                \
   V(S1x2AllTrue)                \

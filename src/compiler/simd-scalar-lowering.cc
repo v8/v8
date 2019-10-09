@@ -211,6 +211,7 @@ void SimdScalarLowering::LowerGraph() {
   V(I8x16LeS)                     \
   V(I8x16LtU)                     \
   V(I8x16LeU)                     \
+  V(S8x16Swizzle)                 \
   V(S8x16Shuffle)
 
 MachineType SimdScalarLowering::MachineTypeFrom(SimdType simdType) {
@@ -1390,6 +1391,45 @@ void SimdScalarLowering::LowerNode(Node* node) {
             graph()->NewNode(machine()->Word32Xor(), rep_right[i], tmp2);
       }
       ReplaceNode(node, rep_node, num_lanes);
+      break;
+    }
+    case IrOpcode::kS8x16Swizzle: {
+      DCHECK_EQ(2, node->InputCount());
+      Node** rep_left = GetReplacementsWithType(node->InputAt(0), rep_type);
+      Node** indices = GetReplacementsWithType(node->InputAt(1), rep_type);
+      Node** rep_nodes = zone()->NewArray<Node*>(num_lanes);
+      Node* stack_slot = graph()->NewNode(
+          machine()->StackSlot(MachineRepresentation::kSimd128));
+
+      // Push all num_lanes values into stack slot.
+      const Operator* store_op = machine()->Store(
+          StoreRepresentation(MachineRepresentation::kWord8, kNoWriteBarrier));
+      Node* effect_input = graph()->start();
+      for (int i = num_lanes - 1; i >= 0; i--) {
+        // We want all the stores to happen first before any of the loads
+        // below, so connect them via effect edge from i-1 to i.
+        Node* store =
+            graph()->NewNode(store_op, stack_slot, mcgraph_->Int32Constant(i),
+                             rep_left[i], effect_input, graph()->start());
+        effect_input = store;
+      }
+
+      for (int i = num_lanes - 1; i >= 0; i--) {
+        // Only select lane when index is < num_lanes, otherwise write 0 to
+        // lane. Use Uint32 to take care of negative indices.
+        Diamond d(graph(), common(),
+                  graph()->NewNode(machine()->Uint32LessThan(), indices[i],
+                                   mcgraph_->Int32Constant(num_lanes)));
+
+        Node* load =
+            graph()->NewNode(machine()->Load(LoadRepresentation::Uint8()),
+                             stack_slot, indices[i], effect_input, d.if_true);
+
+        rep_nodes[i] = d.Phi(MachineRepresentation::kWord8, load,
+                             mcgraph_->Int32Constant(0));
+      }
+
+      ReplaceNode(node, rep_nodes, num_lanes);
       break;
     }
     case IrOpcode::kS8x16Shuffle: {
