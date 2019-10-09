@@ -34,7 +34,7 @@ namespace v8_debug_helper_internal {
   V(Foreign, FOREIGN_TYPE)                                     \
   V(FreeSpace, FREE_SPACE_TYPE)                                \
   V(HeapNumber, HEAP_NUMBER_TYPE)                              \
-  V(JSArgumentsObject, JS_ARGUMENTS_TYPE)                      \
+  V(JSArgumentsObject, JS_ARGUMENTS_OBJECT_TYPE)               \
   V(JSArray, JS_ARRAY_TYPE)                                    \
   V(JSArrayBuffer, JS_ARRAY_BUFFER_TYPE)                       \
   V(JSArrayIterator, JS_ARRAY_ITERATOR_TYPE)                   \
@@ -52,8 +52,8 @@ namespace v8_debug_helper_internal {
   V(JSModuleNamespace, JS_MODULE_NAMESPACE_TYPE)               \
   V(JSPromise, JS_PROMISE_TYPE)                                \
   V(JSProxy, JS_PROXY_TYPE)                                    \
-  V(JSRegExp, JS_REGEXP_TYPE)                                  \
-  V(JSRegExpStringIterator, JS_REGEXP_STRING_ITERATOR_TYPE)    \
+  V(JSRegExp, JS_REG_EXP_TYPE)                                 \
+  V(JSRegExpStringIterator, JS_REG_EXP_STRING_ITERATOR_TYPE)   \
   V(JSSet, JS_SET_TYPE)                                        \
   V(JSStringIterator, JS_STRING_ITERATOR_TYPE)                 \
   V(JSTypedArray, JS_TYPED_ARRAY_TYPE)                         \
@@ -71,27 +71,27 @@ namespace v8_debug_helper_internal {
   V(PropertyCell, PROPERTY_CELL_TYPE)                          \
   V(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)             \
   V(Symbol, SYMBOL_TYPE)                                       \
-  V(WasmExceptionObject, WASM_EXCEPTION_TYPE)                  \
-  V(WasmGlobalObject, WASM_GLOBAL_TYPE)                        \
-  V(WasmMemoryObject, WASM_MEMORY_TYPE)                        \
-  V(WasmModuleObject, WASM_MODULE_TYPE)                        \
-  V(WasmTableObject, WASM_TABLE_TYPE)                          \
+  V(WasmExceptionObject, WASM_EXCEPTION_OBJECT_TYPE)           \
+  V(WasmGlobalObject, WASM_GLOBAL_OBJECT_TYPE)                 \
+  V(WasmMemoryObject, WASM_MEMORY_OBJECT_TYPE)                 \
+  V(WasmModuleObject, WASM_MODULE_OBJECT_TYPE)                 \
+  V(WasmTableObject, WASM_TABLE_OBJECT_TYPE)                   \
   V(WeakArrayList, WEAK_ARRAY_LIST_TYPE)                       \
   V(WeakCell, WEAK_CELL_TYPE)
 #ifdef V8_INTL_SUPPORT
 
-#define TQ_INSTANCE_TYPES_SINGLE_NOSTRUCTS(V)                \
-  TQ_INSTANCE_TYPES_SINGLE_BASE(V)                           \
-  V(JSV8BreakIterator, JS_INTL_V8_BREAK_ITERATOR_TYPE)       \
-  V(JSCollator, JS_INTL_COLLATOR_TYPE)                       \
-  V(JSDateTimeFormat, JS_INTL_DATE_TIME_FORMAT_TYPE)         \
-  V(JSListFormat, JS_INTL_LIST_FORMAT_TYPE)                  \
-  V(JSLocale, JS_INTL_LOCALE_TYPE)                           \
-  V(JSNumberFormat, JS_INTL_NUMBER_FORMAT_TYPE)              \
-  V(JSPluralRules, JS_INTL_PLURAL_RULES_TYPE)                \
-  V(JSRelativeTimeFormat, JS_INTL_RELATIVE_TIME_FORMAT_TYPE) \
-  V(JSSegmentIterator, JS_INTL_SEGMENT_ITERATOR_TYPE)        \
-  V(JSSegmenter, JS_INTL_SEGMENTER_TYPE)
+#define TQ_INSTANCE_TYPES_SINGLE_NOSTRUCTS(V)           \
+  TQ_INSTANCE_TYPES_SINGLE_BASE(V)                      \
+  V(JSV8BreakIterator, JS_V8_BREAK_ITERATOR_TYPE)       \
+  V(JSCollator, JS_COLLATOR_TYPE)                       \
+  V(JSDateTimeFormat, JS_DATE_TIME_FORMAT_TYPE)         \
+  V(JSListFormat, JS_LIST_FORMAT_TYPE)                  \
+  V(JSLocale, JS_LOCALE_TYPE)                           \
+  V(JSNumberFormat, JS_NUMBER_FORMAT_TYPE)              \
+  V(JSPluralRules, JS_PLURAL_RULES_TYPE)                \
+  V(JSRelativeTimeFormat, JS_RELATIVE_TIME_FORMAT_TYPE) \
+  V(JSSegmentIterator, JS_SEGMENT_ITERATOR_TYPE)        \
+  V(JSSegmenter, JS_SEGMENTER_TYPE)
 
 #else
 

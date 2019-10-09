@@ -744,7 +744,7 @@ RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
     TNode<Context> context, TNode<JSReceiver> maybe_regexp,
     TNode<String> string, Label* if_didnotmatch, const bool is_fastpath) {
   if (!is_fastpath) {
-    ThrowIfNotInstanceType(context, maybe_regexp, JS_REGEXP_TYPE,
+    ThrowIfNotInstanceType(context, maybe_regexp, JS_REG_EXP_TYPE,
                            "RegExp.prototype.exec");
   }
 
@@ -949,7 +949,7 @@ TNode<BoolT> RegExpBuiltinsAssembler::IsFastRegExpWithOriginalExec(
   GotoIfForceSlowPath(&out);
 #endif
 
-  TNode<BoolT> is_regexp = HasInstanceType(object, JS_REGEXP_TYPE);
+  TNode<BoolT> is_regexp = HasInstanceType(object, JS_REG_EXP_TYPE);
 
   var_result = is_regexp;
   GotoIfNot(is_regexp, &out);
@@ -1446,7 +1446,7 @@ TF_BUILTIN(RegExpPrototypeCompile, RegExpBuiltinsAssembler) {
   TNode<Object> maybe_flags = CAST(Parameter(Descriptor::kFlags));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
-  ThrowIfNotInstanceType(context, maybe_receiver, JS_REGEXP_TYPE,
+  ThrowIfNotInstanceType(context, maybe_receiver, JS_REG_EXP_TYPE,
                          "RegExp.prototype.compile");
   const TNode<JSRegExp> receiver = CAST(maybe_receiver);
 
@@ -1591,7 +1591,7 @@ TNode<Object> RegExpBuiltinsAssembler::RegExpExec(
 
   BIND(&if_isnotcallable);
   {
-    ThrowIfNotInstanceType(context, maybe_regexp, JS_REGEXP_TYPE,
+    ThrowIfNotInstanceType(context, maybe_regexp, JS_REG_EXP_TYPE,
                            "RegExp.prototype.exec");
 
     var_result = CallBuiltin(Builtins::kRegExpPrototypeExecSlow, context,

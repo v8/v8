@@ -112,7 +112,7 @@ bool Map::IsMostGeneralFieldType(Representation representation,
 bool Map::CanHaveFastTransitionableElementsKind(InstanceType instance_type) {
   return instance_type == JS_ARRAY_TYPE ||
          instance_type == JS_PRIMITIVE_WRAPPER_TYPE ||
-         instance_type == JS_ARGUMENTS_TYPE;
+         instance_type == JS_ARGUMENTS_OBJECT_TYPE;
 }
 
 bool Map::CanHaveFastTransitionableElementsKind() const {

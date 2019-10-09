@@ -445,10 +445,7 @@ def load_objects_from_file(objfilename, checktypes):
         # way around.
         #
         for type in types:
-                #
-                # REGEXP behaves like REG_EXP, as in JS_REGEXP_TYPE => JSRegExp.
-                #
-                usetype = re.sub('_REGEXP_', '_REG_EXP_', type);
+                usetype = type
 
                 #
                 # Remove the "_TYPE" suffix and then convert to camel case,

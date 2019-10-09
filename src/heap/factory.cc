@@ -1958,16 +1958,16 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
 
   // We can only clone regexps, normal objects, api objects, errors or arrays.
   // Copying anything else will break invariants.
-  CHECK(map->instance_type() == JS_REGEXP_TYPE ||
+  CHECK(map->instance_type() == JS_REG_EXP_TYPE ||
         map->instance_type() == JS_OBJECT_TYPE ||
         map->instance_type() == JS_ERROR_TYPE ||
         map->instance_type() == JS_ARRAY_TYPE ||
         map->instance_type() == JS_API_OBJECT_TYPE ||
-        map->instance_type() == WASM_GLOBAL_TYPE ||
-        map->instance_type() == WASM_INSTANCE_TYPE ||
-        map->instance_type() == WASM_MEMORY_TYPE ||
-        map->instance_type() == WASM_MODULE_TYPE ||
-        map->instance_type() == WASM_TABLE_TYPE ||
+        map->instance_type() == WASM_GLOBAL_OBJECT_TYPE ||
+        map->instance_type() == WASM_INSTANCE_OBJECT_TYPE ||
+        map->instance_type() == WASM_MEMORY_OBJECT_TYPE ||
+        map->instance_type() == WASM_MODULE_OBJECT_TYPE ||
+        map->instance_type() == WASM_TABLE_OBJECT_TYPE ||
         map->instance_type() == JS_SPECIAL_API_OBJECT_TYPE);
   DCHECK(site.is_null() || AllocationSite::CanTrack(map->instance_type()));
 
@@ -2405,7 +2405,7 @@ Handle<JSFunction> Factory::NewFunction(const NewFunctionArgs& args) {
       case JS_ARRAY_TYPE:
         elements_kind = PACKED_SMI_ELEMENTS;
         break;
-      case JS_ARGUMENTS_TYPE:
+      case JS_ARGUMENTS_OBJECT_TYPE:
         elements_kind = PACKED_ELEMENTS;
         break;
       default:

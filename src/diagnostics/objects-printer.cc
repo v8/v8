@@ -215,25 +215,25 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
-    case JS_ARGUMENTS_TYPE:
+    case JS_ARGUMENTS_OBJECT_TYPE:
     case JS_ERROR_TYPE:
     // TODO(titzer): debug printing for more wasm objects
-    case WASM_EXCEPTION_TYPE:
+    case WASM_EXCEPTION_OBJECT_TYPE:
       JSObject::cast(*this).JSObjectPrint(os);
       break;
-    case WASM_MODULE_TYPE:
+    case WASM_MODULE_OBJECT_TYPE:
       WasmModuleObject::cast(*this).WasmModuleObjectPrint(os);
       break;
-    case WASM_MEMORY_TYPE:
+    case WASM_MEMORY_OBJECT_TYPE:
       WasmMemoryObject::cast(*this).WasmMemoryObjectPrint(os);
       break;
-    case WASM_TABLE_TYPE:
+    case WASM_TABLE_OBJECT_TYPE:
       WasmTableObject::cast(*this).WasmTableObjectPrint(os);
       break;
-    case WASM_GLOBAL_TYPE:
+    case WASM_GLOBAL_OBJECT_TYPE:
       WasmGlobalObject::cast(*this).WasmGlobalObjectPrint(os);
       break;
-    case WASM_INSTANCE_TYPE:
+    case WASM_INSTANCE_OBJECT_TYPE:
       WasmInstanceObject::cast(*this).WasmInstanceObjectPrint(os);
       break;
     case JS_ASYNC_FUNCTION_OBJECT_TYPE:
@@ -247,10 +247,10 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_ARRAY_TYPE:
       JSArray::cast(*this).JSArrayPrint(os);
       break;
-    case JS_REGEXP_TYPE:
+    case JS_REG_EXP_TYPE:
       JSRegExp::cast(*this).JSRegExpPrint(os);
       break;
-    case JS_REGEXP_STRING_ITERATOR_TYPE:
+    case JS_REG_EXP_STRING_ITERATOR_TYPE:
       JSRegExpStringIterator::cast(*this).JSRegExpStringIteratorPrint(os);
       break;
     case ODDBALL_TYPE:
@@ -362,34 +362,34 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       JSDataView::cast(*this).JSDataViewPrint(os);
       break;
 #ifdef V8_INTL_SUPPORT
-    case JS_INTL_V8_BREAK_ITERATOR_TYPE:
+    case JS_V8_BREAK_ITERATOR_TYPE:
       JSV8BreakIterator::cast(*this).JSV8BreakIteratorPrint(os);
       break;
-    case JS_INTL_COLLATOR_TYPE:
+    case JS_COLLATOR_TYPE:
       JSCollator::cast(*this).JSCollatorPrint(os);
       break;
-    case JS_INTL_DATE_TIME_FORMAT_TYPE:
+    case JS_DATE_TIME_FORMAT_TYPE:
       JSDateTimeFormat::cast(*this).JSDateTimeFormatPrint(os);
       break;
-    case JS_INTL_LIST_FORMAT_TYPE:
+    case JS_LIST_FORMAT_TYPE:
       JSListFormat::cast(*this).JSListFormatPrint(os);
       break;
-    case JS_INTL_LOCALE_TYPE:
+    case JS_LOCALE_TYPE:
       JSLocale::cast(*this).JSLocalePrint(os);
       break;
-    case JS_INTL_NUMBER_FORMAT_TYPE:
+    case JS_NUMBER_FORMAT_TYPE:
       JSNumberFormat::cast(*this).JSNumberFormatPrint(os);
       break;
-    case JS_INTL_PLURAL_RULES_TYPE:
+    case JS_PLURAL_RULES_TYPE:
       JSPluralRules::cast(*this).JSPluralRulesPrint(os);
       break;
-    case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
+    case JS_RELATIVE_TIME_FORMAT_TYPE:
       JSRelativeTimeFormat::cast(*this).JSRelativeTimeFormatPrint(os);
       break;
-    case JS_INTL_SEGMENT_ITERATOR_TYPE:
+    case JS_SEGMENT_ITERATOR_TYPE:
       JSSegmentIterator::cast(*this).JSSegmentIteratorPrint(os);
       break;
-    case JS_INTL_SEGMENTER_TYPE:
+    case JS_SEGMENTER_TYPE:
       JSSegmenter::cast(*this).JSSegmenterPrint(os);
       break;
 #endif  // V8_INTL_SUPPORT

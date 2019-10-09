@@ -183,7 +183,7 @@ namespace internal {
   V(JS_API_OBJECT_TYPE)                                  \
   V(JS_OBJECT_TYPE)                                      \
                                                          \
-  V(JS_ARGUMENTS_TYPE)                                   \
+  V(JS_ARGUMENTS_OBJECT_TYPE)                            \
   V(JS_ARRAY_BUFFER_TYPE)                                \
   V(JS_ARRAY_ITERATOR_TYPE)                              \
   V(JS_ARRAY_TYPE)                                       \
@@ -200,8 +200,8 @@ namespace internal {
   V(JS_MAP_VALUE_ITERATOR_TYPE)                          \
   V(JS_MESSAGE_OBJECT_TYPE)                              \
   V(JS_PROMISE_TYPE)                                     \
-  V(JS_REGEXP_TYPE)                                      \
-  V(JS_REGEXP_STRING_ITERATOR_TYPE)                      \
+  V(JS_REG_EXP_TYPE)                                     \
+  V(JS_REG_EXP_STRING_ITERATOR_TYPE)                     \
   V(JS_SET_TYPE)                                         \
   V(JS_SET_KEY_VALUE_ITERATOR_TYPE)                      \
   V(JS_SET_VALUE_ITERATOR_TYPE)                          \
@@ -215,28 +215,28 @@ namespace internal {
   V(JS_DATA_VIEW_TYPE)
 
 #define INSTANCE_TYPE_LIST_AFTER_INTL(V) \
-  V(WASM_EXCEPTION_TYPE)                 \
-  V(WASM_GLOBAL_TYPE)                    \
-  V(WASM_INSTANCE_TYPE)                  \
-  V(WASM_MEMORY_TYPE)                    \
-  V(WASM_MODULE_TYPE)                    \
-  V(WASM_TABLE_TYPE)                     \
+  V(WASM_EXCEPTION_OBJECT_TYPE)          \
+  V(WASM_GLOBAL_OBJECT_TYPE)             \
+  V(WASM_INSTANCE_OBJECT_TYPE)           \
+  V(WASM_MEMORY_OBJECT_TYPE)             \
+  V(WASM_MODULE_OBJECT_TYPE)             \
+  V(WASM_TABLE_OBJECT_TYPE)              \
   V(JS_BOUND_FUNCTION_TYPE)              \
   V(JS_FUNCTION_TYPE)
 
 #ifdef V8_INTL_SUPPORT
-#define INSTANCE_TYPE_LIST(V)          \
-  INSTANCE_TYPE_LIST_BEFORE_INTL(V)    \
-  V(JS_INTL_V8_BREAK_ITERATOR_TYPE)    \
-  V(JS_INTL_COLLATOR_TYPE)             \
-  V(JS_INTL_DATE_TIME_FORMAT_TYPE)     \
-  V(JS_INTL_LIST_FORMAT_TYPE)          \
-  V(JS_INTL_LOCALE_TYPE)               \
-  V(JS_INTL_NUMBER_FORMAT_TYPE)        \
-  V(JS_INTL_PLURAL_RULES_TYPE)         \
-  V(JS_INTL_RELATIVE_TIME_FORMAT_TYPE) \
-  V(JS_INTL_SEGMENT_ITERATOR_TYPE)     \
-  V(JS_INTL_SEGMENTER_TYPE)            \
+#define INSTANCE_TYPE_LIST(V)       \
+  INSTANCE_TYPE_LIST_BEFORE_INTL(V) \
+  V(JS_V8_BREAK_ITERATOR_TYPE)      \
+  V(JS_COLLATOR_TYPE)               \
+  V(JS_DATE_TIME_FORMAT_TYPE)       \
+  V(JS_LIST_FORMAT_TYPE)            \
+  V(JS_LOCALE_TYPE)                 \
+  V(JS_NUMBER_FORMAT_TYPE)          \
+  V(JS_PLURAL_RULES_TYPE)           \
+  V(JS_RELATIVE_TIME_FORMAT_TYPE)   \
+  V(JS_SEGMENT_ITERATOR_TYPE)       \
+  V(JS_SEGMENTER_TYPE)              \
   INSTANCE_TYPE_LIST_AFTER_INTL(V)
 #else
 #define INSTANCE_TYPE_LIST(V)       \

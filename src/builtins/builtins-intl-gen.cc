@@ -158,8 +158,7 @@ void IntlBuiltinsAssembler::ListFormatCommon(TNode<Context> context,
 
   // 3. If lf does not have an [[InitializedListFormat]] internal slot, throw a
   // TypeError exception.
-  ThrowIfNotInstanceType(context, receiver, JS_INTL_LIST_FORMAT_TYPE,
-                         method_name);
+  ThrowIfNotInstanceType(context, receiver, JS_LIST_FORMAT_TYPE, method_name);
   TNode<JSListFormat> list_format = CAST(receiver);
 
   TNode<Object> list = args.GetOptionalArgumentValue(0);

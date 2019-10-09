@@ -82,7 +82,7 @@ class JSNumberFormat : public JSObject {
 
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSNUMBER_FORMAT_FIELDS)
+                                TORQUE_GENERATED_JS_NUMBER_FORMAT_FIELDS)
 
 // Bit positions in |flags|.
 #define FLAGS_BIT_FIELDS(V, _)            \

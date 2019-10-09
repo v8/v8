@@ -552,7 +552,7 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
     case JS_PRIMITIVE_WRAPPER_TYPE:
       return WriteJSPrimitiveWrapper(
           Handle<JSPrimitiveWrapper>::cast(receiver));
-    case JS_REGEXP_TYPE:
+    case JS_REG_EXP_TYPE:
       WriteJSRegExp(JSRegExp::cast(*receiver));
       return ThrowIfOutOfMemory();
     case JS_MAP_TYPE:
@@ -566,7 +566,7 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
       return WriteJSArrayBufferView(JSArrayBufferView::cast(*receiver));
     case JS_ERROR_TYPE:
       return WriteJSError(Handle<JSObject>::cast(receiver));
-    case WASM_MODULE_TYPE: {
+    case WASM_MODULE_OBJECT_TYPE: {
       auto enabled_features = wasm::WasmFeaturesFromIsolate(isolate_);
       if (!FLAG_wasm_disable_structured_cloning || enabled_features.threads) {
         // Only write WebAssembly modules if not disabled by a flag.
@@ -574,7 +574,7 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
       }
       break;
     }
-    case WASM_MEMORY_TYPE: {
+    case WASM_MEMORY_OBJECT_TYPE: {
       auto enabled_features = wasm::WasmFeaturesFromIsolate(isolate_);
       if (enabled_features.threads) {
         return WriteWasmMemory(Handle<WasmMemoryObject>::cast(receiver));

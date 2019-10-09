@@ -95,7 +95,7 @@ class JSDateTimeFormat : public JSObject {
 
 // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSDATE_TIME_FORMAT_FIELDS)
+                                TORQUE_GENERATED_JS_DATE_TIME_FORMAT_FIELDS)
 
   inline void set_hour_cycle(Intl::HourCycle hour_cycle);
   inline Intl::HourCycle hour_cycle() const;

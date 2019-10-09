@@ -65,7 +65,7 @@ class JSLocale : public JSObject {
 
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSLOCALE_FIELDS)
+                                TORQUE_GENERATED_JS_LOCALE_FIELDS)
 
   OBJECT_CONSTRUCTORS(JSLocale, JSObject);
 };

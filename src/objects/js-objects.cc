@@ -2120,15 +2120,15 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSWeakSet::kSize;
     case JS_PROMISE_TYPE:
       return JSPromise::kSize;
-    case JS_REGEXP_TYPE:
+    case JS_REG_EXP_TYPE:
       return JSRegExp::kSize;
-    case JS_REGEXP_STRING_ITERATOR_TYPE:
+    case JS_REG_EXP_STRING_ITERATOR_TYPE:
       return JSRegExpStringIterator::kSize;
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
       return JSObject::kHeaderSize;
     case JS_MESSAGE_OBJECT_TYPE:
       return JSMessageObject::kSize;
-    case JS_ARGUMENTS_TYPE:
+    case JS_ARGUMENTS_OBJECT_TYPE:
       return JSObject::kHeaderSize;
     case JS_ERROR_TYPE:
       return JSObject::kHeaderSize;
@@ -2137,38 +2137,38 @@ int JSObject::GetHeaderSize(InstanceType type,
     case JS_MODULE_NAMESPACE_TYPE:
       return JSModuleNamespace::kHeaderSize;
 #ifdef V8_INTL_SUPPORT
-    case JS_INTL_V8_BREAK_ITERATOR_TYPE:
+    case JS_V8_BREAK_ITERATOR_TYPE:
       return JSV8BreakIterator::kSize;
-    case JS_INTL_COLLATOR_TYPE:
+    case JS_COLLATOR_TYPE:
       return JSCollator::kSize;
-    case JS_INTL_DATE_TIME_FORMAT_TYPE:
+    case JS_DATE_TIME_FORMAT_TYPE:
       return JSDateTimeFormat::kSize;
-    case JS_INTL_LIST_FORMAT_TYPE:
+    case JS_LIST_FORMAT_TYPE:
       return JSListFormat::kSize;
-    case JS_INTL_LOCALE_TYPE:
+    case JS_LOCALE_TYPE:
       return JSLocale::kSize;
-    case JS_INTL_NUMBER_FORMAT_TYPE:
+    case JS_NUMBER_FORMAT_TYPE:
       return JSNumberFormat::kSize;
-    case JS_INTL_PLURAL_RULES_TYPE:
+    case JS_PLURAL_RULES_TYPE:
       return JSPluralRules::kSize;
-    case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
+    case JS_RELATIVE_TIME_FORMAT_TYPE:
       return JSRelativeTimeFormat::kSize;
-    case JS_INTL_SEGMENT_ITERATOR_TYPE:
+    case JS_SEGMENT_ITERATOR_TYPE:
       return JSSegmentIterator::kSize;
-    case JS_INTL_SEGMENTER_TYPE:
+    case JS_SEGMENTER_TYPE:
       return JSSegmenter::kSize;
 #endif  // V8_INTL_SUPPORT
-    case WASM_GLOBAL_TYPE:
+    case WASM_GLOBAL_OBJECT_TYPE:
       return WasmGlobalObject::kSize;
-    case WASM_INSTANCE_TYPE:
+    case WASM_INSTANCE_OBJECT_TYPE:
       return WasmInstanceObject::kSize;
-    case WASM_MEMORY_TYPE:
+    case WASM_MEMORY_OBJECT_TYPE:
       return WasmMemoryObject::kSize;
-    case WASM_MODULE_TYPE:
+    case WASM_MODULE_OBJECT_TYPE:
       return WasmModuleObject::kSize;
-    case WASM_TABLE_TYPE:
+    case WASM_TABLE_OBJECT_TYPE:
       return WasmTableObject::kSize;
-    case WASM_EXCEPTION_TYPE:
+    case WASM_EXCEPTION_OBJECT_TYPE:
       return WasmExceptionObject::kSize;
     default:
       UNREACHABLE();
@@ -2376,7 +2376,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       accumulator->Add("<JSWeakSet>");
       break;
     }
-    case JS_REGEXP_TYPE: {
+    case JS_REG_EXP_TYPE: {
       accumulator->Add("<JSRegExp");
       JSRegExp regexp = JSRegExp::cast(*this);
       if (regexp.source().IsString()) {
@@ -5196,16 +5196,16 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_FUNCTION_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
 #ifdef V8_INTL_SUPPORT
-    case JS_INTL_COLLATOR_TYPE:
-    case JS_INTL_DATE_TIME_FORMAT_TYPE:
-    case JS_INTL_LIST_FORMAT_TYPE:
-    case JS_INTL_LOCALE_TYPE:
-    case JS_INTL_NUMBER_FORMAT_TYPE:
-    case JS_INTL_PLURAL_RULES_TYPE:
-    case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
-    case JS_INTL_SEGMENT_ITERATOR_TYPE:
-    case JS_INTL_SEGMENTER_TYPE:
-    case JS_INTL_V8_BREAK_ITERATOR_TYPE:
+    case JS_COLLATOR_TYPE:
+    case JS_DATE_TIME_FORMAT_TYPE:
+    case JS_LIST_FORMAT_TYPE:
+    case JS_LOCALE_TYPE:
+    case JS_NUMBER_FORMAT_TYPE:
+    case JS_PLURAL_RULES_TYPE:
+    case JS_RELATIVE_TIME_FORMAT_TYPE:
+    case JS_SEGMENT_ITERATOR_TYPE:
+    case JS_SEGMENTER_TYPE:
+    case JS_V8_BREAK_ITERATOR_TYPE:
 #endif
     case JS_ASYNC_FUNCTION_OBJECT_TYPE:
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
@@ -5214,9 +5214,9 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_OBJECT_TYPE:
     case JS_ERROR_TYPE:
     case JS_FINALIZATION_GROUP_TYPE:
-    case JS_ARGUMENTS_TYPE:
+    case JS_ARGUMENTS_OBJECT_TYPE:
     case JS_PROMISE_TYPE:
-    case JS_REGEXP_TYPE:
+    case JS_REG_EXP_TYPE:
     case JS_SET_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_TYPED_ARRAY_TYPE:
@@ -5224,11 +5224,11 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_REF_TYPE:
     case JS_WEAK_SET_TYPE:
-    case WASM_GLOBAL_TYPE:
-    case WASM_INSTANCE_TYPE:
-    case WASM_MEMORY_TYPE:
-    case WASM_MODULE_TYPE:
-    case WASM_TABLE_TYPE:
+    case WASM_GLOBAL_OBJECT_TYPE:
+    case WASM_INSTANCE_OBJECT_TYPE:
+    case WASM_MEMORY_OBJECT_TYPE:
+    case WASM_MODULE_OBJECT_TYPE:
+    case WASM_TABLE_OBJECT_TYPE:
       return true;
 
     case BIGINT_TYPE:

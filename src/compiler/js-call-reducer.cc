@@ -3705,7 +3705,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     case Builtins::kMapIteratorPrototypeNext:
       return ReduceCollectionIteratorPrototypeNext(
           node, OrderedHashMap::kEntrySize, factory()->empty_ordered_hash_map(),
-          FIRST_MAP_ITERATOR_TYPE, LAST_MAP_ITERATOR_TYPE);
+          FIRST_JS_MAP_ITERATOR_TYPE, LAST_JS_MAP_ITERATOR_TYPE);
     case Builtins::kSetPrototypeEntries:
       return ReduceCollectionIteration(node, CollectionKind::kSet,
                                        IterationKind::kEntries);
@@ -3717,7 +3717,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     case Builtins::kSetIteratorPrototypeNext:
       return ReduceCollectionIteratorPrototypeNext(
           node, OrderedHashSet::kEntrySize, factory()->empty_ordered_hash_set(),
-          FIRST_SET_ITERATOR_TYPE, LAST_SET_ITERATOR_TYPE);
+          FIRST_JS_SET_ITERATOR_TYPE, LAST_JS_SET_ITERATOR_TYPE);
     case Builtins::kDatePrototypeGetTime:
       return ReduceDatePrototypeGetTime(node);
     case Builtins::kDateNow:

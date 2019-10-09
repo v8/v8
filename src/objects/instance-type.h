@@ -263,7 +263,7 @@ enum InstanceType : uint16_t {
   // Like JS_OBJECT_TYPE, but created from API function.
   JS_API_OBJECT_TYPE = 0x0420,
   JS_OBJECT_TYPE,
-  JS_ARGUMENTS_TYPE,
+  JS_ARGUMENTS_OBJECT_TYPE,
   JS_ARRAY_BUFFER_TYPE,
   JS_ARRAY_ITERATOR_TYPE,
   JS_ARRAY_TYPE,
@@ -280,8 +280,8 @@ enum InstanceType : uint16_t {
   JS_MAP_VALUE_ITERATOR_TYPE,
   JS_MESSAGE_OBJECT_TYPE,
   JS_PROMISE_TYPE,
-  JS_REGEXP_TYPE,
-  JS_REGEXP_STRING_ITERATOR_TYPE,
+  JS_REG_EXP_TYPE,
+  JS_REG_EXP_STRING_ITERATOR_TYPE,
   JS_SET_TYPE,
   JS_SET_KEY_VALUE_ITERATOR_TYPE,
   JS_SET_VALUE_ITERATOR_TYPE,
@@ -296,24 +296,24 @@ enum InstanceType : uint16_t {
   JS_DATA_VIEW_TYPE,
 
 #ifdef V8_INTL_SUPPORT
-  JS_INTL_V8_BREAK_ITERATOR_TYPE,
-  JS_INTL_COLLATOR_TYPE,
-  JS_INTL_DATE_TIME_FORMAT_TYPE,
-  JS_INTL_LIST_FORMAT_TYPE,
-  JS_INTL_LOCALE_TYPE,
-  JS_INTL_NUMBER_FORMAT_TYPE,
-  JS_INTL_PLURAL_RULES_TYPE,
-  JS_INTL_RELATIVE_TIME_FORMAT_TYPE,
-  JS_INTL_SEGMENT_ITERATOR_TYPE,
-  JS_INTL_SEGMENTER_TYPE,
+  JS_V8_BREAK_ITERATOR_TYPE,
+  JS_COLLATOR_TYPE,
+  JS_DATE_TIME_FORMAT_TYPE,
+  JS_LIST_FORMAT_TYPE,
+  JS_LOCALE_TYPE,
+  JS_NUMBER_FORMAT_TYPE,
+  JS_PLURAL_RULES_TYPE,
+  JS_RELATIVE_TIME_FORMAT_TYPE,
+  JS_SEGMENT_ITERATOR_TYPE,
+  JS_SEGMENTER_TYPE,
 #endif  // V8_INTL_SUPPORT
 
-  WASM_EXCEPTION_TYPE,
-  WASM_GLOBAL_TYPE,
-  WASM_INSTANCE_TYPE,
-  WASM_MEMORY_TYPE,
-  WASM_MODULE_TYPE,
-  WASM_TABLE_TYPE,
+  WASM_EXCEPTION_OBJECT_TYPE,
+  WASM_GLOBAL_OBJECT_TYPE,
+  WASM_INSTANCE_OBJECT_TYPE,
+  WASM_MEMORY_OBJECT_TYPE,
+  WASM_MODULE_OBJECT_TYPE,
+  WASM_TABLE_OBJECT_TYPE,
   JS_BOUND_FUNCTION_TYPE,
   JS_FUNCTION_TYPE,  // LAST_JS_OBJECT_TYPE, LAST_JS_RECEIVER_TYPE
 
@@ -367,11 +367,11 @@ enum InstanceType : uint16_t {
   // wrappers.
   LAST_CUSTOM_ELEMENTS_RECEIVER = JS_PRIMITIVE_WRAPPER_TYPE,
 
-  FIRST_SET_ITERATOR_TYPE = JS_SET_KEY_VALUE_ITERATOR_TYPE,
-  LAST_SET_ITERATOR_TYPE = JS_SET_VALUE_ITERATOR_TYPE,
+  FIRST_JS_SET_ITERATOR_TYPE = JS_SET_KEY_VALUE_ITERATOR_TYPE,
+  LAST_JS_SET_ITERATOR_TYPE = JS_SET_VALUE_ITERATOR_TYPE,
 
-  FIRST_MAP_ITERATOR_TYPE = JS_MAP_KEY_ITERATOR_TYPE,
-  LAST_MAP_ITERATOR_TYPE = JS_MAP_VALUE_ITERATOR_TYPE,
+  FIRST_JS_MAP_ITERATOR_TYPE = JS_MAP_KEY_ITERATOR_TYPE,
+  LAST_JS_MAP_ITERATOR_TYPE = JS_MAP_VALUE_ITERATOR_TYPE,
 };
 
 // This constant is defined outside of the InstanceType enum because the
@@ -424,8 +424,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(FreeSpace, FREE_SPACE_TYPE)                                              \
   V(GlobalDictionary, GLOBAL_DICTIONARY_TYPE)                                \
   V(HeapNumber, HEAP_NUMBER_TYPE)                                            \
-  V(JSArgumentsObject, JS_ARGUMENTS_TYPE)                                    \
-  V(JSArgumentsObjectWithLength, JS_ARGUMENTS_TYPE)                          \
+  V(JSArgumentsObject, JS_ARGUMENTS_OBJECT_TYPE)                             \
+  V(JSArgumentsObjectWithLength, JS_ARGUMENTS_OBJECT_TYPE)                   \
   V(JSArray, JS_ARRAY_TYPE)                                                  \
   V(JSArrayBuffer, JS_ARRAY_BUFFER_TYPE)                                     \
   V(JSArrayIterator, JS_ARRAY_ITERATOR_TYPE)                                 \
@@ -449,10 +449,10 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(JSPrimitiveWrapper, JS_PRIMITIVE_WRAPPER_TYPE)                           \
   V(JSPromise, JS_PROMISE_TYPE)                                              \
   V(JSProxy, JS_PROXY_TYPE)                                                  \
-  V(JSRegExp, JS_REGEXP_TYPE)                                                \
+  V(JSRegExp, JS_REG_EXP_TYPE)                                               \
   V(JSRegExpResult, JS_ARRAY_TYPE)                                           \
   V(JSRegExpResultIndices, JS_ARRAY_TYPE)                                    \
-  V(JSRegExpStringIterator, JS_REGEXP_STRING_ITERATOR_TYPE)                  \
+  V(JSRegExpStringIterator, JS_REG_EXP_STRING_ITERATOR_TYPE)                 \
   V(JSSet, JS_SET_TYPE)                                                      \
   V(JSStringIterator, JS_STRING_ITERATOR_TYPE)                               \
   V(JSTypedArray, JS_TYPED_ARRAY_TYPE)                                       \
@@ -488,28 +488,28 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(UncompiledDataWithoutPreparseData,                                       \
     UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE)                              \
   V(UncompiledDataWithPreparseData, UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE) \
-  V(WasmExceptionObject, WASM_EXCEPTION_TYPE)                                \
-  V(WasmGlobalObject, WASM_GLOBAL_TYPE)                                      \
-  V(WasmInstanceObject, WASM_INSTANCE_TYPE)                                  \
-  V(WasmMemoryObject, WASM_MEMORY_TYPE)                                      \
-  V(WasmModuleObject, WASM_MODULE_TYPE)                                      \
-  V(WasmTableObject, WASM_TABLE_TYPE)                                        \
+  V(WasmExceptionObject, WASM_EXCEPTION_OBJECT_TYPE)                         \
+  V(WasmGlobalObject, WASM_GLOBAL_OBJECT_TYPE)                               \
+  V(WasmInstanceObject, WASM_INSTANCE_OBJECT_TYPE)                           \
+  V(WasmMemoryObject, WASM_MEMORY_OBJECT_TYPE)                               \
+  V(WasmModuleObject, WASM_MODULE_OBJECT_TYPE)                               \
+  V(WasmTableObject, WASM_TABLE_OBJECT_TYPE)                                 \
   V(WeakArrayList, WEAK_ARRAY_LIST_TYPE)                                     \
   V(WeakCell, WEAK_CELL_TYPE)
 #ifdef V8_INTL_SUPPORT
 
-#define INSTANCE_TYPE_CHECKERS_SINGLE(V)                     \
-  INSTANCE_TYPE_CHECKERS_SINGLE_BASE(V)                      \
-  V(JSV8BreakIterator, JS_INTL_V8_BREAK_ITERATOR_TYPE)       \
-  V(JSCollator, JS_INTL_COLLATOR_TYPE)                       \
-  V(JSDateTimeFormat, JS_INTL_DATE_TIME_FORMAT_TYPE)         \
-  V(JSListFormat, JS_INTL_LIST_FORMAT_TYPE)                  \
-  V(JSLocale, JS_INTL_LOCALE_TYPE)                           \
-  V(JSNumberFormat, JS_INTL_NUMBER_FORMAT_TYPE)              \
-  V(JSPluralRules, JS_INTL_PLURAL_RULES_TYPE)                \
-  V(JSRelativeTimeFormat, JS_INTL_RELATIVE_TIME_FORMAT_TYPE) \
-  V(JSSegmentIterator, JS_INTL_SEGMENT_ITERATOR_TYPE)        \
-  V(JSSegmenter, JS_INTL_SEGMENTER_TYPE)
+#define INSTANCE_TYPE_CHECKERS_SINGLE(V)                \
+  INSTANCE_TYPE_CHECKERS_SINGLE_BASE(V)                 \
+  V(JSV8BreakIterator, JS_V8_BREAK_ITERATOR_TYPE)       \
+  V(JSCollator, JS_COLLATOR_TYPE)                       \
+  V(JSDateTimeFormat, JS_DATE_TIME_FORMAT_TYPE)         \
+  V(JSListFormat, JS_LIST_FORMAT_TYPE)                  \
+  V(JSLocale, JS_LOCALE_TYPE)                           \
+  V(JSNumberFormat, JS_NUMBER_FORMAT_TYPE)              \
+  V(JSPluralRules, JS_PLURAL_RULES_TYPE)                \
+  V(JSRelativeTimeFormat, JS_RELATIVE_TIME_FORMAT_TYPE) \
+  V(JSSegmentIterator, JS_SEGMENT_ITERATOR_TYPE)        \
+  V(JSSegmenter, JS_SEGMENTER_TYPE)
 
 #else
 
@@ -517,16 +517,16 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 
 #endif  // V8_INTL_SUPPORT
 
-#define INSTANCE_TYPE_CHECKERS_RANGE(V)                             \
-  V(Context, FIRST_CONTEXT_TYPE, LAST_CONTEXT_TYPE)                 \
-  V(FixedArray, FIRST_FIXED_ARRAY_TYPE, LAST_FIXED_ARRAY_TYPE)      \
-  V(HashTable, FIRST_HASH_TABLE_TYPE, LAST_HASH_TABLE_TYPE)         \
-  V(JSMapIterator, FIRST_MAP_ITERATOR_TYPE, LAST_MAP_ITERATOR_TYPE) \
-  V(JSSetIterator, FIRST_SET_ITERATOR_TYPE, LAST_SET_ITERATOR_TYPE) \
-  V(Microtask, FIRST_MICROTASK_TYPE, LAST_MICROTASK_TYPE)           \
-  V(Module, FIRST_MODULE_TYPE, LAST_MODULE_TYPE)                    \
-  V(Name, FIRST_NAME_TYPE, LAST_NAME_TYPE)                          \
-  V(String, FIRST_STRING_TYPE, LAST_STRING_TYPE)                    \
+#define INSTANCE_TYPE_CHECKERS_RANGE(V)                                   \
+  V(Context, FIRST_CONTEXT_TYPE, LAST_CONTEXT_TYPE)                       \
+  V(FixedArray, FIRST_FIXED_ARRAY_TYPE, LAST_FIXED_ARRAY_TYPE)            \
+  V(HashTable, FIRST_HASH_TABLE_TYPE, LAST_HASH_TABLE_TYPE)               \
+  V(JSMapIterator, FIRST_JS_MAP_ITERATOR_TYPE, LAST_JS_MAP_ITERATOR_TYPE) \
+  V(JSSetIterator, FIRST_JS_SET_ITERATOR_TYPE, LAST_JS_SET_ITERATOR_TYPE) \
+  V(Microtask, FIRST_MICROTASK_TYPE, LAST_MICROTASK_TYPE)                 \
+  V(Module, FIRST_MODULE_TYPE, LAST_MODULE_TYPE)                          \
+  V(Name, FIRST_NAME_TYPE, LAST_NAME_TYPE)                                \
+  V(String, FIRST_STRING_TYPE, LAST_STRING_TYPE)                          \
   V(WeakFixedArray, FIRST_WEAK_FIXED_ARRAY_TYPE, LAST_WEAK_FIXED_ARRAY_TYPE)
 
 #define INSTANCE_TYPE_CHECKERS_CUSTOM(V) \

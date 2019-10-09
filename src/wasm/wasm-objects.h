@@ -821,7 +821,7 @@ class WasmJSFunctionData : public Struct {
 
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_WASM_JSFUNCTION_DATA_FIELDS)
+                                TORQUE_GENERATED_WASM_JS_FUNCTION_DATA_FIELDS)
 
   OBJECT_CONSTRUCTORS(WasmJSFunctionData, Struct);
 };

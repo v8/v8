@@ -259,25 +259,25 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
       JSObject::cast(*this).JSObjectVerify(isolate);
       break;
-    case WASM_MODULE_TYPE:
+    case WASM_MODULE_OBJECT_TYPE:
       WasmModuleObject::cast(*this).WasmModuleObjectVerify(isolate);
       break;
-    case WASM_TABLE_TYPE:
+    case WASM_TABLE_OBJECT_TYPE:
       WasmTableObject::cast(*this).WasmTableObjectVerify(isolate);
       break;
-    case WASM_MEMORY_TYPE:
+    case WASM_MEMORY_OBJECT_TYPE:
       WasmMemoryObject::cast(*this).WasmMemoryObjectVerify(isolate);
       break;
-    case WASM_GLOBAL_TYPE:
+    case WASM_GLOBAL_OBJECT_TYPE:
       WasmGlobalObject::cast(*this).WasmGlobalObjectVerify(isolate);
       break;
-    case WASM_EXCEPTION_TYPE:
+    case WASM_EXCEPTION_OBJECT_TYPE:
       WasmExceptionObject::cast(*this).WasmExceptionObjectVerify(isolate);
       break;
-    case WASM_INSTANCE_TYPE:
+    case WASM_INSTANCE_OBJECT_TYPE:
       WasmInstanceObject::cast(*this).WasmInstanceObjectVerify(isolate);
       break;
-    case JS_ARGUMENTS_TYPE:
+    case JS_ARGUMENTS_OBJECT_TYPE:
       JSArgumentsObject::cast(*this).JSArgumentsObjectVerify(isolate);
       break;
     case JS_GENERATOR_OBJECT_TYPE:
@@ -366,10 +366,10 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case JS_PROMISE_TYPE:
       JSPromise::cast(*this).JSPromiseVerify(isolate);
       break;
-    case JS_REGEXP_TYPE:
+    case JS_REG_EXP_TYPE:
       JSRegExp::cast(*this).JSRegExpVerify(isolate);
       break;
-    case JS_REGEXP_STRING_ITERATOR_TYPE:
+    case JS_REG_EXP_STRING_ITERATOR_TYPE:
       JSRegExpStringIterator::cast(*this).JSRegExpStringIteratorVerify(isolate);
       break;
     case FILLER_TYPE:
@@ -426,34 +426,34 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       CodeDataContainer::cast(*this).CodeDataContainerVerify(isolate);
       break;
 #ifdef V8_INTL_SUPPORT
-    case JS_INTL_V8_BREAK_ITERATOR_TYPE:
+    case JS_V8_BREAK_ITERATOR_TYPE:
       JSV8BreakIterator::cast(*this).JSV8BreakIteratorVerify(isolate);
       break;
-    case JS_INTL_COLLATOR_TYPE:
+    case JS_COLLATOR_TYPE:
       JSCollator::cast(*this).JSCollatorVerify(isolate);
       break;
-    case JS_INTL_DATE_TIME_FORMAT_TYPE:
+    case JS_DATE_TIME_FORMAT_TYPE:
       JSDateTimeFormat::cast(*this).JSDateTimeFormatVerify(isolate);
       break;
-    case JS_INTL_LIST_FORMAT_TYPE:
+    case JS_LIST_FORMAT_TYPE:
       JSListFormat::cast(*this).JSListFormatVerify(isolate);
       break;
-    case JS_INTL_LOCALE_TYPE:
+    case JS_LOCALE_TYPE:
       JSLocale::cast(*this).JSLocaleVerify(isolate);
       break;
-    case JS_INTL_NUMBER_FORMAT_TYPE:
+    case JS_NUMBER_FORMAT_TYPE:
       JSNumberFormat::cast(*this).JSNumberFormatVerify(isolate);
       break;
-    case JS_INTL_PLURAL_RULES_TYPE:
+    case JS_PLURAL_RULES_TYPE:
       JSPluralRules::cast(*this).JSPluralRulesVerify(isolate);
       break;
-    case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
+    case JS_RELATIVE_TIME_FORMAT_TYPE:
       JSRelativeTimeFormat::cast(*this).JSRelativeTimeFormatVerify(isolate);
       break;
-    case JS_INTL_SEGMENT_ITERATOR_TYPE:
+    case JS_SEGMENT_ITERATOR_TYPE:
       JSSegmentIterator::cast(*this).JSSegmentIteratorVerify(isolate);
       break;
-    case JS_INTL_SEGMENTER_TYPE:
+    case JS_SEGMENTER_TYPE:
       JSSegmenter::cast(*this).JSSegmenterVerify(isolate);
       break;
 #endif  // V8_INTL_SUPPORT

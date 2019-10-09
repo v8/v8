@@ -66,7 +66,7 @@ class JSFinalizationGroup : public JSObject {
 
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JSFINALIZATION_GROUP_FIELDS)
+                                TORQUE_GENERATED_JS_FINALIZATION_GROUP_FIELDS)
 
   // Bitfields in flags.
   using ScheduledForCleanupField = BitField<bool, 0, 1>;

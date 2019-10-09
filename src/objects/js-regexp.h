@@ -230,7 +230,7 @@ class JSRegExpResult : public JSArray {
 
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(JSArray::kSize,
-                                TORQUE_GENERATED_JSREG_EXP_RESULT_FIELDS)
+                                TORQUE_GENERATED_JS_REG_EXP_RESULT_FIELDS)
 
   static Handle<JSArray> GetAndCacheIndices(
       Isolate* isolate, Handle<JSRegExpResult> regexp_result);
@@ -260,7 +260,7 @@ class JSRegExpResultIndices : public JSArray {
 
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(
-      JSArray::kSize, TORQUE_GENERATED_JSREG_EXP_RESULT_INDICES_FIELDS)
+      JSArray::kSize, TORQUE_GENERATED_JS_REG_EXP_RESULT_INDICES_FIELDS)
 
   static Handle<JSRegExpResultIndices> BuildIndices(
       Isolate* isolate, Handle<RegExpMatchInfo> match_info,

@@ -6302,7 +6302,7 @@ TNode<BoolT> CodeStubAssembler::IsJSStringIterator(
 
 TNode<BoolT> CodeStubAssembler::IsJSRegExpStringIterator(
     SloppyTNode<HeapObject> object) {
-  return HasInstanceType(object, JS_REGEXP_STRING_ITERATOR_TYPE);
+  return HasInstanceType(object, JS_REG_EXP_STRING_ITERATOR_TYPE);
 }
 
 TNode<BoolT> CodeStubAssembler::IsMap(SloppyTNode<HeapObject> map) {
@@ -6638,7 +6638,7 @@ TNode<BoolT> CodeStubAssembler::IsJSDataView(TNode<HeapObject> object) {
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSRegExp(SloppyTNode<HeapObject> object) {
-  return HasInstanceType(object, JS_REGEXP_TYPE);
+  return HasInstanceType(object, JS_REG_EXP_TYPE);
 }
 
 TNode<BoolT> CodeStubAssembler::IsNumber(SloppyTNode<Object> object) {
