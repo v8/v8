@@ -279,6 +279,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   AVX_OP3_XO(Packsswb, packsswb)
   AVX_OP3_XO(Packuswb, packuswb)
+  AVX_OP3_XO(Paddusb, paddusb)
   AVX_OP3_XO(Pcmpeqb, pcmpeqb)
   AVX_OP3_XO(Pcmpeqw, pcmpeqw)
   AVX_OP3_XO(Pcmpeqd, pcmpeqd)

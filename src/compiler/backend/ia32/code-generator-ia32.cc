@@ -3535,6 +3535,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vxorps(dst, kScratchDoubleReg, i.InputSimd128Register(2));
       break;
     }
+    case kIA32S8x16Swizzle: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister mask = i.TempSimd128Register(0);
+
+      // Out-of-range indices should return 0, add 112 so that any value > 15
+      // saturates to 128 (top bit set), so pshufb will zero that lane.
+      __ Move(mask, (uint32_t)0x70707070);
+      __ Pshufd(mask, mask, 0x0);
+      __ Paddusb(mask, i.InputSimd128Register(1));
+      __ Pshufb(dst, mask);
+      break;
+    }
     case kIA32S8x16Shuffle: {
       XMMRegister dst = i.OutputSimd128Register();
       Operand src0 = i.InputOperand(0);
