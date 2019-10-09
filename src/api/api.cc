@@ -7089,21 +7089,7 @@ MemorySpan<const uint8_t> CompiledWasmModule::GetWireBytesRef() {
 
 WasmModuleObject::TransferrableModule
 WasmModuleObject::GetTransferrableModule() {
-  if (i::FLAG_wasm_shared_code) {
-    i::Handle<i::WasmModuleObject> obj =
-        i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
-    return TransferrableModule(obj->shared_native_module());
-  } else {
-    CompiledWasmModule compiled_module = GetCompiledModule();
-    OwnedBuffer serialized_module = compiled_module.Serialize();
-    MemorySpan<const uint8_t> wire_bytes_ref =
-        compiled_module.GetWireBytesRef();
-    size_t wire_size = wire_bytes_ref.size();
-    std::unique_ptr<uint8_t[]> wire_bytes_copy(new uint8_t[wire_size]);
-    memcpy(wire_bytes_copy.get(), wire_bytes_ref.data(), wire_size);
-    return TransferrableModule(std::move(serialized_module),
-                               {std::move(wire_bytes_copy), wire_size});
-  }
+  return GetCompiledModule();
 }
 
 CompiledWasmModule WasmModuleObject::GetCompiledModule() {
@@ -7115,17 +7101,17 @@ CompiledWasmModule WasmModuleObject::GetCompiledModule() {
 MaybeLocal<WasmModuleObject> WasmModuleObject::FromTransferrableModule(
     Isolate* isolate,
     const WasmModuleObject::TransferrableModule& transferrable_module) {
-  if (i::FLAG_wasm_shared_code) {
-    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-    i::Handle<i::WasmModuleObject> module_object =
-        i_isolate->wasm_engine()->ImportNativeModule(
-            i_isolate, transferrable_module.shared_module_);
-    return Local<WasmModuleObject>::Cast(
-        Utils::ToLocal(i::Handle<i::JSObject>::cast(module_object)));
-  } else {
-    return Deserialize(isolate, AsReference(transferrable_module.serialized_),
-                       AsReference(transferrable_module.wire_bytes_));
-  }
+  return FromCompiledModule(isolate, transferrable_module);
+}
+
+MaybeLocal<WasmModuleObject> WasmModuleObject::FromCompiledModule(
+    Isolate* isolate, const CompiledWasmModule& compiled_module) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::WasmModuleObject> module_object =
+      i_isolate->wasm_engine()->ImportNativeModule(
+          i_isolate, Utils::Open(compiled_module));
+  return Local<WasmModuleObject>::Cast(
+      Utils::ToLocal(i::Handle<i::JSObject>::cast(module_object)));
 }
 
 MaybeLocal<WasmModuleObject> WasmModuleObject::Deserialize(

@@ -4635,46 +4635,37 @@ class V8_EXPORT CompiledWasmModule {
 // An instance of WebAssembly.Module.
 class V8_EXPORT WasmModuleObject : public Object {
  public:
+  WasmModuleObject() = delete;
+
   /**
    * An opaque, native heap object for transferring wasm modules. It
    * supports move semantics, and does not support copy semantics.
-   * TODO(wasm): Merge this with CompiledWasmModule once code sharing is always
-   * enabled.
    */
-  class TransferrableModule final {
-   public:
-    TransferrableModule(TransferrableModule&& src) = default;
-    TransferrableModule(const TransferrableModule& src) = delete;
-
-    TransferrableModule& operator=(TransferrableModule&& src) = default;
-    TransferrableModule& operator=(const TransferrableModule& src) = delete;
-
-   private:
-    typedef std::shared_ptr<internal::wasm::NativeModule> SharedModule;
-    friend class WasmModuleObject;
-    explicit TransferrableModule(SharedModule shared_module)
-        : shared_module_(std::move(shared_module)) {}
-    TransferrableModule(OwnedBuffer serialized, OwnedBuffer bytes)
-        : serialized_(std::move(serialized)), wire_bytes_(std::move(bytes)) {}
-
-    SharedModule shared_module_;
-    OwnedBuffer serialized_ = {nullptr, 0};
-    OwnedBuffer wire_bytes_ = {nullptr, 0};
-  };
+  using TransferrableModule V8_DEPRECATE_SOON(
+      "Use CompiledWasmModule directly") = CompiledWasmModule;
 
   /**
    * Get an in-memory, non-persistable, and context-independent (meaning,
    * suitable for transfer to another Isolate and Context) representation
    * of this wasm compiled module.
    */
+  V8_DEPRECATE_SOON("Use GetCompiledModule")
   TransferrableModule GetTransferrableModule();
 
   /**
    * Efficiently re-create a WasmModuleObject, without recompiling, from
    * a TransferrableModule.
    */
+  V8_DEPRECATE_SOON("Use FromCompiledModule")
   static MaybeLocal<WasmModuleObject> FromTransferrableModule(
       Isolate* isolate, const TransferrableModule&);
+
+  /**
+   * Efficiently re-create a WasmModuleObject, without recompiling, from
+   * a CompiledWasmModule.
+   */
+  static MaybeLocal<WasmModuleObject> FromCompiledModule(
+      Isolate* isolate, const CompiledWasmModule&);
 
   /**
    * Get the compiled module for this module object. The compiled module can be
@@ -4698,11 +4689,7 @@ class V8_EXPORT WasmModuleObject : public Object {
   static MaybeLocal<WasmModuleObject> Compile(Isolate* isolate,
                                               const uint8_t* start,
                                               size_t length);
-  static MemorySpan<const uint8_t> AsReference(const OwnedBuffer& buff) {
-    return {buff.buffer.get(), buff.size};
-  }
 
-  WasmModuleObject();
   static void CheckCast(Value* obj);
 };
 
