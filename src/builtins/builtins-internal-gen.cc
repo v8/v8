@@ -338,16 +338,13 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
 
     // Load address of SlotSet
     TNode<IntPtrT> slot_set_array = LoadSlotSetArray(page, &slow_path);
-    TNode<IntPtrT> page_start_offset = IntPtrSub(slot, page);
-    TNode<IntPtrT> slot_set = SlotSetAddress(slot_set_array, page_start_offset);
+    TNode<IntPtrT> slot_offset = IntPtrSub(slot, page);
 
-    // Calculate bucket_index, cell_index and bit_index
-    TNode<WordT> bucket_index, cell_offset, bit_index;
-    SlotIndices(page_start_offset, &bucket_index, &cell_offset, &bit_index);
+    // Load bucket
+    TNode<IntPtrT> bucket = LoadBucket(slot_set_array, slot_offset, &slow_path);
 
     // Update cell
-    TNode<IntPtrT> bucket = LoadBucket(slot_set, bucket_index, &slow_path);
-    SetBitInCell(bucket, cell_offset, bit_index);
+    SetBitInCell(bucket, slot_offset);
 
     Goto(next);
 
@@ -364,46 +361,38 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     return slot_set_array;
   }
 
-  TNode<IntPtrT> SlotSetAddress(TNode<IntPtrT> slot_set_array,
-                                TNode<IntPtrT> page_start_offset) {
-    TNode<WordT> slot_set_index =
-        UncheckedCast<IntPtrT>(WordShr(page_start_offset, kPageSizeBits));
-    TNode<IntPtrT> slot_set = UncheckedCast<IntPtrT>(
-        IntPtrAdd(slot_set_array,
-                  IntPtrMul(slot_set_index, IntPtrConstant(SlotSet::kSize))));
-    return slot_set;
-  }
-
-  void SlotIndices(TNode<IntPtrT> page_start_offset, TNode<WordT>* bucket_index,
-                   TNode<WordT>* cell_offset, TNode<WordT>* bit_index) {
-    TNode<WordT> offset =
-        WordAnd(page_start_offset, IntPtrConstant(MemoryChunk::kPageSize - 1));
-    TNode<WordT> slot_index = WordShr(offset, kTaggedSizeLog2);
-    *bucket_index = WordShr(slot_index, SlotSet::kBitsPerBucketLog2);
-    *cell_offset = WordAnd(WordShr(slot_index, SlotSet::kBitsPerCellLog2 -
-                                                   SlotSet::kCellSizeBytesLog2),
-                           IntPtrConstant((SlotSet::kCellsPerBucket - 1)
-                                          << SlotSet::kCellSizeBytesLog2));
-    *bit_index = WordAnd(slot_index, IntPtrConstant(SlotSet::kBitsPerCell - 1));
-  }
-
-  TNode<IntPtrT> LoadBucket(TNode<IntPtrT> slot_set, TNode<WordT> bucket_index,
-                            Label* slow_path) {
+  TNode<IntPtrT> LoadBucket(TNode<IntPtrT> slot_set_array,
+                            TNode<WordT> slot_offset, Label* slow_path) {
+    // Assume here that SlotSet only contains of buckets
+    DCHECK_EQ(SlotSet::kSize, SlotSet::kBuckets * sizeof(SlotSet::Bucket));
+    TNode<WordT> bucket_index =
+        WordShr(slot_offset, SlotSet::kBitsPerBucketLog2 + kTaggedSizeLog2);
     TNode<IntPtrT> bucket = UncheckedCast<IntPtrT>(
-        Load(MachineType::Pointer(), slot_set,
+        Load(MachineType::Pointer(), slot_set_array,
              WordShl(bucket_index, kSystemPointerSizeLog2)));
     GotoIf(WordEqual(bucket, IntPtrConstant(0)), slow_path);
     return bucket;
   }
 
-  void SetBitInCell(TNode<IntPtrT> bucket, TNode<WordT> cell_offset,
-                    TNode<WordT> bit_index) {
+  void SetBitInCell(TNode<IntPtrT> bucket, TNode<WordT> slot_offset) {
+    // Load cell value
+    TNode<WordT> cell_offset = WordAnd(
+        WordShr(slot_offset, SlotSet::kBitsPerCellLog2 + kTaggedSizeLog2 -
+                                 SlotSet::kCellSizeBytesLog2),
+        IntPtrConstant((SlotSet::kCellsPerBucket - 1)
+                       << SlotSet::kCellSizeBytesLog2));
     TNode<IntPtrT> cell_address =
         UncheckedCast<IntPtrT>(IntPtrAdd(bucket, cell_offset));
     TNode<IntPtrT> old_cell_value =
         ChangeInt32ToIntPtr(Load<Int32T>(cell_address));
+
+    // Calculate new cell value
+    TNode<WordT> bit_index = WordAnd(WordShr(slot_offset, kTaggedSizeLog2),
+                                     IntPtrConstant(SlotSet::kBitsPerCell - 1));
     TNode<IntPtrT> new_cell_value = UncheckedCast<IntPtrT>(
         WordOr(old_cell_value, WordShl(IntPtrConstant(1), bit_index)));
+
+    // Update cell value
     StoreNoWriteBarrier(MachineRepresentation::kWord32, cell_address,
                         TruncateIntPtrToInt32(new_cell_value));
   }

@@ -240,9 +240,9 @@ class SlotSet : public Malloced {
 
   static const int kSize = kBuckets * kSystemPointerSize;
 
- private:
   using Bucket = uint32_t*;
 
+ private:
   Bucket AllocateBucket() {
     Bucket result = NewArray<uint32_t>(kCellsPerBucket);
     for (int i = 0; i < kCellsPerBucket; i++) {
