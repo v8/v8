@@ -3013,12 +3013,13 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
          node->opcode() == IrOpcode::kJSConstructWithArrayLike ||
          node->opcode() == IrOpcode::kJSConstructWithSpread);
 
-  // Check if {arguments_list} is an arguments object, and {node} is the only
-  // value user of {arguments_list} (except for value uses in frame states).
   Node* arguments_list = NodeProperties::GetValueInput(node, arity);
   if (arguments_list->opcode() != IrOpcode::kJSCreateArguments) {
     return NoChange();
   }
+
+  // Check if {node} is the only value user of {arguments_list} (except for
+  // value uses in frame states). If not, we give up for now.
   for (Edge edge : arguments_list->use_edges()) {
     if (!NodeProperties::IsValueEdge(edge)) continue;
     Node* const user = edge.from();
