@@ -1598,9 +1598,22 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
         return;
     }
     EmitLoad(this, value, opcode, immediate_mode, rep, node);
-  } else {
-    VisitRR(this, kArm64Sxtw, node);
+    return;
   }
+
+  if (value->opcode() == IrOpcode::kWord32Sar && CanCover(node, value)) {
+    Int32BinopMatcher m(value);
+    if (m.right().HasValue()) {
+      Arm64OperandGenerator g(this);
+      // Mask the shift amount, to keep the same semantics as Word32Sar.
+      int right = m.right().Value() & 0x1F;
+      Emit(kArm64Sbfx, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+           g.TempImmediate(right), g.TempImmediate(32 - right));
+      return;
+    }
+  }
+
+  VisitRR(this, kArm64Sxtw, node);
 }
 
 void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
