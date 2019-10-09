@@ -429,7 +429,7 @@
     'release_x64_cfi_clusterfuzz': [
       'release_bot', 'x64', 'cfi_clusterfuzz'],
     'release_x64_msvc': [
-      'release_bot', 'x64', 'msvc'],
+      'release_bot_no_goma', 'x64', 'minimal_symbols', 'msvc'],
     'release_x64_correctness_fuzzer' : [
       'release_bot', 'x64', 'v8_correctness_fuzzer'],
     'release_x64_fuchsia': [
@@ -686,6 +686,10 @@
       'gn_args': 'use_custom_libcxx=false',
     },
 
+    'no_goma': {
+      'gn_args': 'use_goma=false',
+    },
+
     'no_sysroot': {
       'gn_args': 'use_sysroot=false',
     },
@@ -700,6 +704,10 @@
 
     'release_bot': {
       'mixins': ['release', 'static', 'goma'],
+    },
+
+    'release_bot_no_goma': {
+      'mixins': ['release', 'static', 'no_goma'],
     },
 
     'release_trybot': {
