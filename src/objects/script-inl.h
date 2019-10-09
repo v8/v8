@@ -36,8 +36,6 @@ ACCESSORS_CHECKED(Script, eval_from_shared_or_wrapped_arguments, Object,
                   this->type() != TYPE_WASM)
 SMI_ACCESSORS_CHECKED(Script, eval_from_position, kEvalFromPositionOffset,
                       this->type() != TYPE_WASM)
-ACCESSORS(Script, shared_function_infos, WeakFixedArray,
-          kSharedFunctionInfosOffset)
 SMI_ACCESSORS(Script, flags, kFlagsOffset)
 ACCESSORS(Script, source_url, Object, kSourceUrlOffset)
 ACCESSORS(Script, source_mapping_url, Object, kSourceMappingUrlOffset)
@@ -47,6 +45,8 @@ ACCESSORS_CHECKED(Script, wasm_module_object, Object,
                   this->type() == TYPE_WASM)
 ACCESSORS_CHECKED(Script, wasm_managed_native_module, Object,
                   kEvalFromPositionOffset, this->type() == TYPE_WASM)
+ACCESSORS_CHECKED(Script, wasm_weak_instance_list, WeakArrayList,
+                  kSharedFunctionInfosOffset, this->type() == TYPE_WASM)
 
 bool Script::is_wrapped() const {
   return eval_from_shared_or_wrapped_arguments().IsFixedArray();
@@ -75,6 +75,20 @@ void Script::set_wrapped_arguments(FixedArray value, WriteBarrierMode mode) {
 FixedArray Script::wrapped_arguments() const {
   DCHECK(is_wrapped());
   return FixedArray::cast(eval_from_shared_or_wrapped_arguments());
+}
+
+DEF_GETTER(Script, shared_function_infos, WeakFixedArray) {
+  return type() == TYPE_WASM
+             ? ReadOnlyRoots(GetHeap()).empty_weak_fixed_array()
+             : TaggedField<WeakFixedArray, kSharedFunctionInfosOffset>::load(
+                   *this);
+}
+
+void Script::set_shared_function_infos(WeakFixedArray value,
+                                       WriteBarrierMode mode) {
+  DCHECK_NE(TYPE_WASM, type());
+  TaggedField<WeakFixedArray, kSharedFunctionInfosOffset>::store(*this, value);
+  CONDITIONAL_WRITE_BARRIER(*this, kSharedFunctionInfosOffset, value, mode);
 }
 
 wasm::NativeModule* Script::wasm_native_module() const {

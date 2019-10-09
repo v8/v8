@@ -88,8 +88,6 @@ ACCESSORS(WasmModuleObject, managed_native_module, Managed<wasm::NativeModule>,
           kNativeModuleOffset)
 ACCESSORS(WasmModuleObject, export_wrappers, FixedArray, kExportWrappersOffset)
 ACCESSORS(WasmModuleObject, script, Script, kScriptOffset)
-ACCESSORS(WasmModuleObject, weak_instance_list, WeakArrayList,
-          kWeakInstanceListOffset)
 OPTIONAL_ACCESSORS(WasmModuleObject, asm_js_offset_table, ByteArray,
                    kAsmJsOffsetTableOffset)
 OPTIONAL_ACCESSORS(WasmModuleObject, breakpoint_infos, FixedArray,

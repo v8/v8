@@ -1259,7 +1259,8 @@ RUNTIME_FUNCTION(Runtime_WasmGetNumberOfInstances) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmModuleObject, module_obj, 0);
   int instance_count = 0;
-  WeakArrayList weak_instance_list = module_obj->weak_instance_list();
+  WeakArrayList weak_instance_list =
+      module_obj->script().wasm_weak_instance_list();
   for (int i = 0; i < weak_instance_list.length(); ++i) {
     if (weak_instance_list.Get(i)->IsWeak()) instance_count++;
   }

@@ -244,10 +244,10 @@ Handle<WasmModuleObject> WasmModuleObject::New(
   if (script->type() == Script::TYPE_WASM) {
     script->set_wasm_module_object(*module_object);
     script->set_wasm_managed_native_module(*managed_native_module);
+    script->set_wasm_weak_instance_list(
+        ReadOnlyRoots(isolate).empty_weak_array_list());
   }
   module_object->set_script(*script);
-  module_object->set_weak_instance_list(
-      ReadOnlyRoots(isolate).empty_weak_array_list());
   module_object->set_managed_native_module(*managed_native_module);
   return module_object;
 }
@@ -273,10 +273,10 @@ bool WasmModuleObject::SetBreakPoint(Handle<WasmModuleObject> module_object,
   // Insert new break point into break_positions of module object.
   WasmModuleObject::AddBreakpointToInfo(module_object, *position, break_point);
 
-  // Iterate over all instances of this module and tell them to set this new
-  // breakpoint. We do this using the weak list of all instances.
-  Handle<WeakArrayList> weak_instance_list(module_object->weak_instance_list(),
-                                           isolate);
+  // Iterate over all instances and tell them to set this new breakpoint.
+  // We do this using the weak list of all instances from the script.
+  Handle<WeakArrayList> weak_instance_list(
+      module_object->script().wasm_weak_instance_list(), isolate);
   for (int i = 0; i < weak_instance_list->length(); ++i) {
     MaybeObject maybe_instance = weak_instance_list->Get(i);
     if (maybe_instance->IsWeak()) {
@@ -310,10 +310,10 @@ bool WasmModuleObject::ClearBreakPoint(Handle<WasmModuleObject> module_object,
     return false;
   }
 
-  // Iterate over all instances of this module and tell them to remove this
-  // breakpoint. We do this using the weak list of all instances.
-  Handle<WeakArrayList> weak_instance_list(module_object->weak_instance_list(),
-                                           isolate);
+  // Iterate over all instances and tell them to remove this breakpoint.
+  // We do this using the weak list of all instances from the script.
+  Handle<WeakArrayList> weak_instance_list(
+      module_object->script().wasm_weak_instance_list(), isolate);
   for (int i = 0; i < weak_instance_list->length(); ++i) {
     MaybeObject maybe_instance = weak_instance_list->Get(i);
     if (maybe_instance->IsWeak()) {
@@ -1687,13 +1687,16 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   instance->set_jump_table_start(
       module_object->native_module()->jump_table_start());
 
-  // Insert the new instance into the modules weak list of instances.
+  // Insert the new instance into the scripts weak list of instances. This list
+  // is used for breakpoints affecting all instances belonging to the script.
   // TODO(mstarzinger): Allow to reuse holes in the {WeakArrayList} below.
-  Handle<WeakArrayList> weak_instance_list(module_object->weak_instance_list(),
-                                           isolate);
-  weak_instance_list = WeakArrayList::AddToEnd(
-      isolate, weak_instance_list, MaybeObjectHandle::Weak(instance));
-  module_object->set_weak_instance_list(*weak_instance_list);
+  if (module_object->script().type() == Script::TYPE_WASM) {
+    Handle<WeakArrayList> weak_instance_list(
+        module_object->script().wasm_weak_instance_list(), isolate);
+    weak_instance_list = WeakArrayList::AddToEnd(
+        isolate, weak_instance_list, MaybeObjectHandle::Weak(instance));
+    module_object->script().set_wasm_weak_instance_list(*weak_instance_list);
+  }
 
   InitDataSegmentArrays(instance, module_object);
   InitElemSegmentArrays(instance, module_object);

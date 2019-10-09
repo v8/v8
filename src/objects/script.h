@@ -112,6 +112,11 @@ class Script : public Struct {
   DECL_ACCESSORS(wasm_managed_native_module, Object)
   inline wasm::NativeModule* wasm_native_module() const;
 
+  // [wasm_weak_instance_list]: the list of all {WasmInstanceObject} being
+  // affected by breakpoints that are managed via this script.
+  // This must only be called if the type of this script is TYPE_WASM.
+  DECL_ACCESSORS(wasm_weak_instance_list, WeakArrayList)
+
   // [host_defined_options]: Options defined by the embedder.
   DECL_ACCESSORS(host_defined_options, FixedArray)
 

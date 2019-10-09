@@ -1593,7 +1593,6 @@ extern class WasmModuleObject extends JSObject {
   native_module: Foreign;
   export_wrappers: FixedArray;
   script: Script;
-  weak_instance_list: WeakArrayList;
   asm_js_offset_table: ByteArray | Undefined;
   break_point_infos: FixedArray | Undefined;
 }

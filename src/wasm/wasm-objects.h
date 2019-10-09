@@ -126,7 +126,6 @@ class WasmModuleObject : public JSObject {
   DECL_ACCESSORS(managed_native_module, Managed<wasm::NativeModule>)
   DECL_ACCESSORS(export_wrappers, FixedArray)
   DECL_ACCESSORS(script, Script)
-  DECL_ACCESSORS(weak_instance_list, WeakArrayList)
   DECL_OPTIONAL_ACCESSORS(asm_js_offset_table, ByteArray)
   DECL_OPTIONAL_ACCESSORS(breakpoint_infos, FixedArray)
   inline wasm::NativeModule* native_module() const;
