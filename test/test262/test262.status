@@ -65,7 +65,13 @@
   # Intl tests which require flags.
   # https://bugs.chromium.org/p/v8/issues/detail?id=9154
   'intl402/NumberFormat/numbering-system-options': ['--harmony-intl-add-calendar-numbering-system'],
+  'intl402/DateTimeFormat/constructor-calendar-numberingSystem-order': ['--harmony-intl-add-calendar-numbering-system'],
   'intl402/DateTimeFormat/numbering-system-calendar-options': ['--harmony-intl-add-calendar-numbering-system'],
+  'intl402/DateTimeFormat/constructor-options-throwing-getters': ['--harmony-intl-add-calendar-numbering-system'],
+  'intl402/NumberFormat/constructor-options-throwing-getters': ['--harmony-intl-add-calendar-numbering-system'],
+  'intl402/NumberFormat/constructor-numberingSystem-order': ['--harmony-intl-add-calendar-numbering-system'],
+  'intl402/DateTimeFormat/prototype/formatToParts/pattern-on-calendar': ['--harmony-intl-other-calendars'],
+  'intl402/DateTimeFormat/prototype/formatToParts/related-year': ['--harmony-intl-other-calendars'],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9084
   'intl402/supportedLocalesOf-consistent-with-resolvedOptions': [FAIL],
