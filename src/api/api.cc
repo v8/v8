@@ -907,11 +907,6 @@ void V8::SetFlagsFromString(const char* str, size_t length) {
   i::FlagList::EnforceFlagImplications();
 }
 
-void V8::SetFlagsFromString(const char* str, int length) {
-  CHECK_LE(0, length);
-  SetFlagsFromString(str, static_cast<size_t>(length));
-}
-
 void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
   i::FlagList::SetFlagsFromCommandLine(argc, argv, remove_flags);
 }
