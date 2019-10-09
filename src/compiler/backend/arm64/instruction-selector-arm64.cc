@@ -1266,7 +1266,8 @@ void InstructionSelector::VisitWord64Ror(Node* node) {
   V(Float32Max, kArm64Float32Max) \
   V(Float64Max, kArm64Float64Max) \
   V(Float32Min, kArm64Float32Min) \
-  V(Float64Min, kArm64Float64Min)
+  V(Float64Min, kArm64Float64Min) \
+  V(S8x16Swizzle, kArm64S8x16Swizzle)
 
 #define RR_VISITOR(Name, opcode)                      \
   void InstructionSelector::Visit##Name(Node* node) { \

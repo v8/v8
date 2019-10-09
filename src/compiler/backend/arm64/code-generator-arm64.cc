@@ -2432,6 +2432,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
              i.InputSimd128Register(1).V16B(), i.InputInt4(2));
       break;
     }
+    case kArm64S8x16Swizzle: {
+      __ Tbl(i.OutputSimd128Register().V16B(), i.InputSimd128Register(0).V16B(),
+             i.InputSimd128Register(1).V16B());
+      break;
+    }
     case kArm64S8x16Shuffle: {
       Simd128Register dst = i.OutputSimd128Register().V16B(),
                       src0 = i.InputSimd128Register(0).V16B(),
