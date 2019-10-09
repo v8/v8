@@ -127,6 +127,8 @@ namespace compiler {
   V(IA32F64x2Sub)                  \
   V(IA32F64x2Mul)                  \
   V(IA32F64x2Div)                  \
+  V(IA32F64x2Min)                  \
+  V(IA32F64x2Max)                  \
   V(IA32F64x2Eq)                   \
   V(IA32F64x2Ne)                   \
   V(IA32F64x2Lt)                   \

@@ -237,6 +237,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Pshufd(XMMRegister dst, Operand src, uint8_t shuffle);
   void Psraw(XMMRegister dst, uint8_t shift);
   void Psrlw(XMMRegister dst, uint8_t shift);
+  void Psrlq(XMMRegister dst, uint8_t shift);
 
 // SSE/SSE2 instructions with AVX version.
 #define AVX_OP2_WITH_TYPE(macro_name, name, dst_type, src_type) \
@@ -259,6 +260,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP2_WITH_TYPE(Movd, movd, Operand, XMMRegister)
   AVX_OP2_WITH_TYPE(Cvtdq2ps, cvtdq2ps, XMMRegister, Operand)
   AVX_OP2_WITH_TYPE(Sqrtpd, sqrtpd, XMMRegister, const Operand&)
+  AVX_OP2_WITH_TYPE(Movapd, movapd, XMMRegister, XMMRegister)
+  AVX_OP2_WITH_TYPE(Movapd, movapd, XMMRegister, const Operand&)
 
 #undef AVX_OP2_WITH_TYPE
 
@@ -296,6 +299,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP3_XO(Xorpd, xorpd)
   AVX_OP3_XO(Sqrtss, sqrtss)
   AVX_OP3_XO(Sqrtsd, sqrtsd)
+  AVX_OP3_XO(Orpd, orpd)
+  AVX_OP3_XO(Andnpd, andnpd)
 
 #undef AVX_OP3_XO
 #undef AVX_OP3_WITH_TYPE
@@ -323,6 +328,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_PACKED_OP3(Cmpneqpd, cmpneqpd)
   AVX_PACKED_OP3(Cmpltpd, cmpltpd)
   AVX_PACKED_OP3(Cmplepd, cmplepd)
+  AVX_PACKED_OP3(Minpd, minpd)
+  AVX_PACKED_OP3(Maxpd, maxpd)
+  AVX_PACKED_OP3(Cmpunordpd, cmpunordpd)
 #undef AVX_PACKED_OP3
 #undef AVX_PACKED_OP3_WITH_TYPE
 

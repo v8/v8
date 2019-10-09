@@ -2045,6 +2045,35 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I8x16ShrS)                            \
   V(I8x16ShrU)
 
+void InstructionSelector::VisitF64x2Min(Node* node) {
+  IA32OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  InstructionOperand operand0 = g.UseUniqueRegister(node->InputAt(0));
+  InstructionOperand operand1 = g.UseUnique(node->InputAt(1));
+
+  if (IsSupported(AVX)) {
+    Emit(kIA32F64x2Min, g.DefineAsRegister(node), operand0, operand1,
+         arraysize(temps), temps);
+  } else {
+    Emit(kIA32F64x2Min, g.DefineSameAsFirst(node), operand0, operand1,
+         arraysize(temps), temps);
+  }
+}
+
+void InstructionSelector::VisitF64x2Max(Node* node) {
+  IA32OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  InstructionOperand operand0 = g.UseUniqueRegister(node->InputAt(0));
+  InstructionOperand operand1 = g.UseUnique(node->InputAt(1));
+  if (IsSupported(AVX)) {
+    Emit(kIA32F64x2Max, g.DefineAsRegister(node), operand0, operand1,
+         arraysize(temps), temps);
+  } else {
+    Emit(kIA32F64x2Max, g.DefineSameAsFirst(node), operand0, operand1,
+         arraysize(temps), temps);
+  }
+}
+
 void InstructionSelector::VisitF64x2Splat(Node* node) {
   VisitRRSimd(this, node, kAVXF64x2Splat, kSSEF64x2Splat);
 }

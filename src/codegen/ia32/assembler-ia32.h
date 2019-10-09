@@ -884,6 +884,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   V(cmpeq, 0x0)            \
   V(cmplt, 0x1)            \
   V(cmple, 0x2)            \
+  V(cmpunord, 0x3)         \
   V(cmpneq, 0x4)
 
 #define SSE_CMP_P(instr, imm8)                                            \
@@ -947,6 +948,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void roundss(XMMRegister dst, XMMRegister src, RoundingMode mode);
   void roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
+
+  void movapd(XMMRegister dst, XMMRegister src) { movapd(dst, Operand(src)); }
+  void movapd(XMMRegister dst, Operand src) {
+    sse2_instr(dst, src, 0x66, 0x0F, 0x28);
+  }
 
   void movmskpd(Register dst, XMMRegister src);
   void movmskps(Register dst, XMMRegister src);
@@ -1330,6 +1336,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vpsrld(XMMRegister dst, XMMRegister src, uint8_t imm8);
   void vpsraw(XMMRegister dst, XMMRegister src, uint8_t imm8);
   void vpsrad(XMMRegister dst, XMMRegister src, uint8_t imm8);
+  void vpsrlq(XMMRegister dst, XMMRegister src, uint8_t imm8);
 
   void vpshufhw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
     vpshufhw(dst, Operand(src), shuffle);

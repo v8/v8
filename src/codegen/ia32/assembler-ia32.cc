@@ -2810,6 +2810,12 @@ void Assembler::vpsrld(XMMRegister dst, XMMRegister src, uint8_t imm8) {
   EMIT(imm8);
 }
 
+void Assembler::vpsrlq(XMMRegister dst, XMMRegister src, uint8_t imm8) {
+  XMMRegister iop = XMMRegister::from_code(2);
+  vinstr(0x73, iop, dst, Operand(src), k66, k0F, kWIG);
+  EMIT(imm8);
+}
+
 void Assembler::vpsraw(XMMRegister dst, XMMRegister src, uint8_t imm8) {
   XMMRegister iop = XMMRegister::from_code(4);
   vinstr(0x71, iop, dst, Operand(src), k66, k0F, kWIG);
