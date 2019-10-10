@@ -412,8 +412,8 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
   ObjectDescriptor static_desc(kMinimumClassPropertiesCount);
   ObjectDescriptor instance_desc(kMinimumPrototypePropertiesCount);
 
-  for (int i = 0; i < expr->properties()->length(); i++) {
-    ClassLiteral::Property* property = expr->properties()->at(i);
+  for (int i = 0; i < expr->public_members()->length(); i++) {
+    ClassLiteral::Property* property = expr->public_members()->at(i);
     ObjectDescriptor& desc =
         property->is_static() ? static_desc : instance_desc;
     if (property->is_computed_name()) {
@@ -477,14 +477,8 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
   //
   int dynamic_argument_index = ClassBoilerplate::kFirstDynamicArgumentIndex;
 
-  for (int i = 0; i < expr->properties()->length(); i++) {
-    ClassLiteral::Property* property = expr->properties()->at(i);
-
-    // Private members are not processed using the class boilerplate.
-    if (property->is_private()) {
-      continue;
-    }
-
+  for (int i = 0; i < expr->public_members()->length(); i++) {
+    ClassLiteral::Property* property = expr->public_members()->at(i);
     ClassBoilerplate::ValueKind value_kind;
     switch (property->kind()) {
       case ClassLiteral::Property::METHOD:

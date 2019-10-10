@@ -2492,7 +2492,8 @@ class ClassLiteral final : public Expression {
   ClassScope* scope() const { return scope_; }
   Expression* extends() const { return extends_; }
   FunctionLiteral* constructor() const { return constructor_; }
-  ZonePtrList<Property>* properties() const { return properties_; }
+  ZonePtrList<Property>* public_members() const { return public_members_; }
+  ZonePtrList<Property>* private_members() const { return private_members_; }
   int start_position() const { return position(); }
   int end_position() const { return end_position_; }
   bool has_name_static_property() const {
@@ -2504,6 +2505,9 @@ class ClassLiteral final : public Expression {
 
   bool is_anonymous_expression() const {
     return IsAnonymousExpression::decode(bit_field_);
+  }
+  bool has_private_methods() const {
+    return HasPrivateMethods::decode(bit_field_);
   }
   bool IsAnonymousFunctionDefinition() const {
     return is_anonymous_expression();
@@ -2521,36 +2525,42 @@ class ClassLiteral final : public Expression {
   friend class AstNodeFactory;
 
   ClassLiteral(ClassScope* scope, Expression* extends,
-               FunctionLiteral* constructor, ZonePtrList<Property>* properties,
+               FunctionLiteral* constructor,
+               ZonePtrList<Property>* public_members,
+               ZonePtrList<Property>* private_members,
                FunctionLiteral* static_fields_initializer,
                FunctionLiteral* instance_members_initializer_function,
                int start_position, int end_position,
                bool has_name_static_property, bool has_static_computed_names,
-               bool is_anonymous)
+               bool is_anonymous, bool has_private_methods)
       : Expression(start_position, kClassLiteral),
         end_position_(end_position),
         scope_(scope),
         extends_(extends),
         constructor_(constructor),
-        properties_(properties),
+        public_members_(public_members),
+        private_members_(private_members),
         static_fields_initializer_(static_fields_initializer),
         instance_members_initializer_function_(
             instance_members_initializer_function) {
     bit_field_ |= HasNameStaticProperty::encode(has_name_static_property) |
                   HasStaticComputedNames::encode(has_static_computed_names) |
-                  IsAnonymousExpression::encode(is_anonymous);
+                  IsAnonymousExpression::encode(is_anonymous) |
+                  HasPrivateMethods::encode(has_private_methods);
   }
 
   int end_position_;
   ClassScope* scope_;
   Expression* extends_;
   FunctionLiteral* constructor_;
-  ZonePtrList<Property>* properties_;
+  ZonePtrList<Property>* public_members_;
+  ZonePtrList<Property>* private_members_;
   FunctionLiteral* static_fields_initializer_;
   FunctionLiteral* instance_members_initializer_function_;
   using HasNameStaticProperty = Expression::NextBitField<bool, 1>;
   using HasStaticComputedNames = HasNameStaticProperty::Next<bool, 1>;
   using IsAnonymousExpression = HasStaticComputedNames::Next<bool, 1>;
+  using HasPrivateMethods = IsAnonymousExpression::Next<bool, 1>;
 };
 
 
@@ -3257,15 +3267,18 @@ class AstNodeFactory final {
 
   ClassLiteral* NewClassLiteral(
       ClassScope* scope, Expression* extends, FunctionLiteral* constructor,
-      ZonePtrList<ClassLiteral::Property>* properties,
+      ZonePtrList<ClassLiteral::Property>* public_members,
+      ZonePtrList<ClassLiteral::Property>* private_members,
       FunctionLiteral* static_fields_initializer,
       FunctionLiteral* instance_members_initializer_function,
       int start_position, int end_position, bool has_name_static_property,
-      bool has_static_computed_names, bool is_anonymous) {
+      bool has_static_computed_names, bool is_anonymous,
+      bool has_private_methods) {
     return new (zone_) ClassLiteral(
-        scope, extends, constructor, properties, static_fields_initializer,
-        instance_members_initializer_function, start_position, end_position,
-        has_name_static_property, has_static_computed_names, is_anonymous);
+        scope, extends, constructor, public_members, private_members,
+        static_fields_initializer, instance_members_initializer_function,
+        start_position, end_position, has_name_static_property,
+        has_static_computed_names, is_anonymous, has_private_methods);
   }
 
   NativeFunctionLiteral* NewNativeFunctionLiteral(const AstRawString* name,

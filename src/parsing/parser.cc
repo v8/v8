@@ -2835,7 +2835,7 @@ void Parser::DeclarePublicClassField(ClassScope* scope,
         CreateSyntheticContextVariable(ClassFieldVariableName(
             ast_value_factory(), class_info->computed_field_count));
     property->set_computed_name_var(computed_name_var);
-    class_info->properties->Add(property, zone());
+    class_info->public_members->Add(property, zone());
   }
 }
 
@@ -2865,7 +2865,7 @@ void Parser::DeclarePrivateClassMember(ClassScope* scope,
   }
   private_name_var->set_initializer_position(pos);
   property->set_private_name_var(private_name_var);
-  class_info->properties->Add(property, zone());
+  class_info->private_members->Add(property, zone());
 }
 
 // This method declares a property of the given class.  It updates the
@@ -2886,7 +2886,7 @@ void Parser::DeclarePublicClassMethod(const AstRawString* class_name,
     return;
   }
 
-  class_info->properties->Add(property, zone());
+  class_info->public_members->Add(property, zone());
 }
 
 FunctionLiteral* Parser::CreateInitializerFunction(
@@ -2958,10 +2958,11 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
 
   ClassLiteral* class_literal = factory()->NewClassLiteral(
       block_scope, class_info->extends, class_info->constructor,
-      class_info->properties, static_fields_initializer,
-      instance_members_initializer_function, pos, end_pos,
-      class_info->has_name_static_property,
-      class_info->has_static_computed_names, class_info->is_anonymous);
+      class_info->public_members, class_info->private_members,
+      static_fields_initializer, instance_members_initializer_function, pos,
+      end_pos, class_info->has_name_static_property,
+      class_info->has_static_computed_names, class_info->is_anonymous,
+      class_info->has_private_methods);
 
   AddFunctionForNameInference(class_info->constructor);
   return class_literal;

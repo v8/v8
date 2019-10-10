@@ -530,7 +530,8 @@ class ParserBase {
    public:
     explicit ClassInfo(ParserBase* parser)
         : extends(parser->impl()->NullExpression()),
-          properties(parser->impl()->NewClassPropertyList(4)),
+          public_members(parser->impl()->NewClassPropertyList(4)),
+          private_members(parser->impl()->NewClassPropertyList(4)),
           static_fields(parser->impl()->NewClassPropertyList(4)),
           instance_fields(parser->impl()->NewClassPropertyList(4)),
           constructor(parser->impl()->NullExpression()),
@@ -541,11 +542,13 @@ class ParserBase {
           has_instance_members(false),
           requires_brand(false),
           is_anonymous(false),
+          has_private_methods(false),
           static_fields_scope(nullptr),
           instance_members_scope(nullptr),
           computed_field_count(0) {}
     ExpressionT extends;
-    ClassPropertyListT properties;
+    ClassPropertyListT public_members;
+    ClassPropertyListT private_members;
     ClassPropertyListT static_fields;
     ClassPropertyListT instance_fields;
     FunctionLiteralT constructor;
@@ -557,6 +560,7 @@ class ParserBase {
     bool has_instance_members;
     bool requires_brand;
     bool is_anonymous;
+    bool has_private_methods;
     DeclarationScope* static_fields_scope;
     DeclarationScope* instance_members_scope;
     int computed_field_count;
@@ -4435,6 +4439,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     if (V8_UNLIKELY(prop_info.is_private)) {
       DCHECK(!is_constructor);
       class_info.requires_brand |= (!is_field && !prop_info.is_static);
+      class_info.has_private_methods |=
+          property_kind == ClassLiteralProperty::METHOD;
       impl()->DeclarePrivateClassMember(class_scope, prop_info.name, property,
                                         property_kind, prop_info.is_static,
                                         &class_info);

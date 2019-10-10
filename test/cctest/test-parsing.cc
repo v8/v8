@@ -1506,8 +1506,11 @@ TEST(DiscardFunctionBody) {
         fun = exp->AsObjectLiteral()->properties()->at(0)->value()->
               AsFunctionLiteral();
       } else {
-        fun = exp->AsClassLiteral()->properties()->at(0)->value()->
-              AsFunctionLiteral();
+        fun = exp->AsClassLiteral()
+                  ->public_members()
+                  ->at(0)
+                  ->value()
+                  ->AsFunctionLiteral();
       }
     }
     CHECK(!fun->ShouldEagerCompile());
