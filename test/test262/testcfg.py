@@ -59,10 +59,11 @@ FEATURE_FLAGS = {
   'regexp-match-indices': '--harmony-regexp-match-indices',
   # https://github.com/tc39/test262/pull/2395
   'regexp-named-groups': '--harmony-regexp-match-indices',
+  'class-methods-private': '--harmony-private-methods',
+  'class-static-methods-private': '--harmony-private-methods',
 }
 
-SKIPPED_FEATURES = set(['class-methods-private',
-                        'class-static-methods-private'])
+SKIPPED_FEATURES = set([])
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
