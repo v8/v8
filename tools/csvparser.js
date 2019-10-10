@@ -46,13 +46,7 @@ class CsvParser {
     while (nextPos !== -1) {
       let escapeIdentifier = string.charAt(nextPos + 1);
       pos = nextPos + 2;
-      if (escapeIdentifier == 'n') {
-        result += '\n';
-        nextPos = pos;
-      } else if (escapeIdentifier == '\\') {
-        result += '\\';
-        nextPos = pos;
-      } else {
+      if (escapeIdentifier == 'x' || escapeIdentifier == 'u') {
         if (escapeIdentifier == 'x') {
           // \x00 ascii range escapes consume 2 chars.
           nextPos = pos + 2;
@@ -63,6 +57,14 @@ class CsvParser {
         // Convert the selected escape sequence to a single character.
         let escapeChars = string.substring(pos, nextPos);
         result += String.fromCharCode(parseInt(escapeChars, 16));
+      }
+      else if (escapeIdentifier == 'n') {
+        result += '\n';
+        nextPos = pos;
+      } else {
+        // escaping other characters
+        result += string.substring(pos - 1, nextPos);
+        nextPos = pos;
       }
 
       // Continue looking for the next escape sequence.
