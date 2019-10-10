@@ -3796,6 +3796,14 @@ void MarkCompactCollector::PostProcessEvacuationCandidates() {
                                            SlotSet::FREE_EMPTY_BUCKETS);
     RememberedSet<OLD_TO_NEW>::RemoveRangeTyped(page, page->address(),
                                                 failed_object.address());
+
+    // Remove invalidated slots.
+    if (failed_object.address() > page->area_start()) {
+      InvalidatedSlotsCleanup old_to_new_cleanup =
+          InvalidatedSlotsCleanup::OldToNew(page);
+      old_to_new_cleanup.Free(page->area_start(), failed_object.address());
+    }
+
     // Recompute live bytes.
     LiveObjectVisitor::RecomputeLiveBytes(page, non_atomic_marking_state());
     // Re-record slots.
