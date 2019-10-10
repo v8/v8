@@ -2285,6 +2285,7 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
     os << "\n - receiver: " << ReceiverVariableField::decode(flags);
   }
   if (HasClassBrand()) os << "\n - has class brand";
+  if (HasSavedClassVariableIndex()) os << "\n - has saved class variable index";
   if (HasNewTarget()) os << "\n - needs new target";
   if (HasFunctionName()) {
     os << "\n - function name(" << FunctionVariableField::decode(flags)

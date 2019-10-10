@@ -75,6 +75,10 @@ class ScopeInfo : public FixedArray {
   // Does this scope has class brand (for private methods)?
   bool HasClassBrand() const;
 
+  // Does this scope contains a saved class variable context local slot index
+  // for checking receivers of static private methods?
+  bool HasSavedClassVariableIndex() const;
+
   // Does this scope declare a "new.target" binding?
   bool HasNewTarget() const;
 
@@ -168,6 +172,12 @@ class ScopeInfo : public FixedArray {
   // context-allocated.  Otherwise returns a value < 0.
   int ReceiverContextSlotIndex() const;
 
+  // Lookup support for serialized scope info.  Returns the index of the
+  // saved class variable in context local slots if scope is a class scope
+  // and it contains static private methods that may be accessed.
+  // Otherwise returns a value < 0.
+  int SavedClassVariableContextLocalIndex() const;
+
   FunctionKind function_kind() const;
 
   // Returns true if this ScopeInfo is linked to a outer ScopeInfo.
@@ -239,7 +249,8 @@ class ScopeInfo : public FixedArray {
   using ReceiverVariableField =
       DeclarationScopeField::Next<VariableAllocationInfo, 2>;
   using HasClassBrandField = ReceiverVariableField::Next<bool, 1>;
-  using HasNewTargetField = HasClassBrandField::Next<bool, 1>;
+  using HasSavedClassVariableIndexField = HasClassBrandField::Next<bool, 1>;
+  using HasNewTargetField = HasSavedClassVariableIndexField::Next<bool, 1>;
   using FunctionVariableField =
       HasNewTargetField::Next<VariableAllocationInfo, 2>;
   // TODO(cbruni): Combine with function variable field when only storing the
@@ -271,27 +282,32 @@ class ScopeInfo : public FixedArray {
   //    the context locals in ContextLocalNames. One slot is used per
   //    context local, so in total this part occupies ContextLocalCount()
   //    slots in the array.
-  // 3. ReceiverInfo:
+  // 3. SavedClassVariableInfo:
+  //    If the scope is a class scope and it has static private methods that
+  //    may be accessed directly or through eval, one slot is reserved to hold
+  //    the context slot index for the class variable.
+  // 4. ReceiverInfo:
   //    If the scope binds a "this" value, one slot is reserved to hold the
   //    context or stack slot index for the variable.
-  // 4. FunctionNameInfo:
+  // 5. FunctionNameInfo:
   //    If the scope belongs to a named function expression this part contains
   //    information about the function variable. It always occupies two array
   //    slots:  a. The name of the function variable.
   //            b. The context or stack slot index for the variable.
-  // 5. InferredFunctionName:
+  // 6. InferredFunctionName:
   //    Contains the function's inferred name.
-  // 6. SourcePosition:
+  // 7. SourcePosition:
   //    Contains two slots with a) the startPosition and b) the endPosition if
   //    the scope belongs to a function or script.
-  // 7. OuterScopeInfoIndex:
+  // 8. OuterScopeInfoIndex:
   //    The outer scope's ScopeInfo or the hole if there's none.
-  // 8. SourceTextModuleInfo, ModuleVariableCount, and ModuleVariables:
+  // 9. SourceTextModuleInfo, ModuleVariableCount, and ModuleVariables:
   //    For a module scope, this part contains the SourceTextModuleInfo, the
   //    number of MODULE-allocated variables, and the metadata of those
   //    variables.  For non-module scopes it is empty.
   int ContextLocalNamesIndex() const;
   int ContextLocalInfosIndex() const;
+  int SavedClassVariableInfoIndex() const;
   int ReceiverInfoIndex() const;
   int FunctionNameInfoIndex() const;
   int InferredFunctionNameIndex() const;

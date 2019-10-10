@@ -529,8 +529,7 @@ class ParserBase {
   struct ClassInfo {
    public:
     explicit ClassInfo(ParserBase* parser)
-        : variable(nullptr),
-          extends(parser->impl()->NullExpression()),
+        : extends(parser->impl()->NullExpression()),
           properties(parser->impl()->NewClassPropertyList(4)),
           static_fields(parser->impl()->NewClassPropertyList(4)),
           instance_fields(parser->impl()->NewClassPropertyList(4)),
@@ -545,7 +544,6 @@ class ParserBase {
           static_fields_scope(nullptr),
           instance_members_scope(nullptr),
           computed_field_count(0) {}
-    Variable* variable;
     ExpressionT extends;
     ClassPropertyListT properties;
     ClassPropertyListT static_fields;
@@ -672,8 +670,8 @@ class ParserBase {
     return new (zone()) DeclarationScope(zone(), parent, EVAL_SCOPE);
   }
 
-  ClassScope* NewClassScope(Scope* parent) const {
-    return new (zone()) ClassScope(zone(), parent);
+  ClassScope* NewClassScope(Scope* parent, bool is_anonymous) const {
+    return new (zone()) ClassScope(zone(), parent, is_anonymous);
   }
 
   Scope* NewScope(ScopeType scope_type) const {
@@ -4392,13 +4390,12 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     }
   }
 
-  ClassScope* class_scope = NewClassScope(scope());
+  ClassScope* class_scope = NewClassScope(scope(), is_anonymous);
   BlockState block_state(&scope_, class_scope);
   RaiseLanguageMode(LanguageMode::kStrict);
 
   ClassInfo class_info(this);
   class_info.is_anonymous = is_anonymous;
-  impl()->DeclareClassVariable(name, &class_info, class_token_pos);
 
   scope()->set_start_position(end_position());
   if (Check(Token::EXTENDS)) {
@@ -4437,7 +4434,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
 
     if (V8_UNLIKELY(prop_info.is_private)) {
       DCHECK(!is_constructor);
-      class_info.requires_brand |= !is_field;
+      class_info.requires_brand |= (!is_field && !prop_info.is_static);
       impl()->DeclarePrivateClassMember(class_scope, prop_info.name, property,
                                         property_kind, prop_info.is_static,
                                         &class_info);
@@ -4479,6 +4476,17 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     // TODO(joyee): implement static brand checking
     class_scope->DeclareBrandVariable(
         ast_value_factory(), IsStaticFlag::kNotStatic, kNoSourcePosition);
+  }
+
+  bool should_save_class_variable_index =
+      class_scope->should_save_class_variable_index();
+  if (!is_anonymous || should_save_class_variable_index) {
+    impl()->DeclareClassVariable(class_scope, name, &class_info,
+                                 class_token_pos);
+    if (should_save_class_variable_index) {
+      class_scope->class_variable()->set_is_used();
+      class_scope->class_variable()->ForceContextAllocation();
+    }
   }
 
   return impl()->RewriteClassLiteral(class_scope, name, &class_info,

@@ -301,10 +301,13 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitRestArgumentsArray(Variable* rest);
   void VisitCallSuper(Call* call);
   void BuildInvalidPropertyAccess(MessageTemplate tmpl, Property* property);
-  void BuildPrivateBrandCheck(Property* property, Register object);
+  void BuildPrivateBrandCheck(Property* property, Register object,
+                              MessageTemplate tmpl);
   void BuildPrivateGetterAccess(Register obj, Register access_pair);
   void BuildPrivateSetterAccess(Register obj, Register access_pair,
                                 Register value);
+  void BuildPrivateMethods(ClassLiteral* expr, bool is_static,
+                           Register home_object);
   void BuildClassLiteral(ClassLiteral* expr, Register name);
   void VisitClassLiteral(ClassLiteral* expr, Register name);
   void VisitNewTargetVariable(Variable* variable);

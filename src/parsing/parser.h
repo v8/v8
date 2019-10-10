@@ -316,8 +316,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Statement* DeclareClass(const AstRawString* variable_name, Expression* value,
                           ZonePtrList<const AstRawString>* names,
                           int class_token_pos, int end_pos);
-  void DeclareClassVariable(const AstRawString* name, ClassInfo* class_info,
-                            int class_token_pos);
+  void DeclareClassVariable(ClassScope* scope, const AstRawString* name,
+                            ClassInfo* class_info, int class_token_pos);
   void DeclareClassBrandVariable(ClassScope* scope, ClassInfo* class_info,
                                  int class_token_pos);
   void DeclarePrivateClassMember(ClassScope* scope,

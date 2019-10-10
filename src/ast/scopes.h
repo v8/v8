@@ -1246,9 +1246,9 @@ class ModuleScope final : public DeclarationScope {
 
 class V8_EXPORT_PRIVATE ClassScope : public Scope {
  public:
-  ClassScope(Zone* zone, Scope* outer_scope);
+  ClassScope(Zone* zone, Scope* outer_scope, bool is_anonymous);
   // Deserialization.
-  ClassScope(Zone* zone, AstValueFactory* ast_value_factory,
+  ClassScope(Isolate* isolate, Zone* zone, AstValueFactory* ast_value_factory,
              Handle<ScopeInfo> scope_info);
 
   struct HeritageParsingScope {
@@ -1298,12 +1298,45 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   Variable* DeclareBrandVariable(AstValueFactory* ast_value_factory,
                                  IsStaticFlag is_static_flag,
                                  int class_token_pos);
+
+  Variable* DeclareClassVariable(AstValueFactory* ast_value_factory,
+                                 const AstRawString* name, int class_token_pos);
+
   Variable* brand() {
     return GetRareData() == nullptr ? nullptr : GetRareData()->brand;
   }
 
+  Variable* class_variable() { return class_variable_; }
+
   V8_INLINE bool IsParsingHeritage() {
     return rare_data_and_is_parsing_heritage_.GetPayload();
+  }
+
+  // Only maintained when the scope is parsed, not when the scope is
+  // deserialized.
+  bool has_static_private_methods() const {
+    return has_static_private_methods_;
+  }
+
+  // Returns whether the index of class variable of this class scope should be
+  // recorded in the ScopeInfo.
+  // If any inner scope accesses static private names directly, the class
+  // variable will be forced to be context-allocated.
+  // The inner scope may also calls eval which may results in access to
+  // static private names.
+  // Only maintained when the scope is parsed.
+  bool should_save_class_variable_index() const {
+    return should_save_class_variable_index_ ||
+           has_explicit_static_private_methods_access_ ||
+           (has_static_private_methods_ && inner_scope_calls_eval_);
+  }
+
+  // Only maintained when the scope is parsed.
+  bool is_anonymous_class() const { return is_anonymous_class_; }
+
+  // Overriden during reparsing
+  void set_should_save_class_variable_index() {
+    should_save_class_variable_index_ = true;
   }
 
  private:
@@ -1342,6 +1375,15 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   }
 
   PointerWithPayload<RareData, bool, 1> rare_data_and_is_parsing_heritage_;
+  Variable* class_variable_ = nullptr;
+  // These are only maintained when the scope is parsed, not when the
+  // scope is deserialized.
+  bool has_static_private_methods_ = false;
+  bool has_explicit_static_private_methods_access_ = false;
+  bool is_anonymous_class_ = false;
+  // This is only maintained during reparsing, restored from the
+  // preparsed data.
+  bool should_save_class_variable_index_ = false;
 };
 
 // Iterate over the private name scope chain. The iteration proceeds from the

@@ -2490,7 +2490,6 @@ class ClassLiteral final : public Expression {
   using Property = ClassLiteralProperty;
 
   ClassScope* scope() const { return scope_; }
-  Variable* class_variable() const { return class_variable_; }
   Expression* extends() const { return extends_; }
   FunctionLiteral* constructor() const { return constructor_; }
   ZonePtrList<Property>* properties() const { return properties_; }
@@ -2521,7 +2520,7 @@ class ClassLiteral final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  ClassLiteral(ClassScope* scope, Variable* class_variable, Expression* extends,
+  ClassLiteral(ClassScope* scope, Expression* extends,
                FunctionLiteral* constructor, ZonePtrList<Property>* properties,
                FunctionLiteral* static_fields_initializer,
                FunctionLiteral* instance_members_initializer_function,
@@ -2531,7 +2530,6 @@ class ClassLiteral final : public Expression {
       : Expression(start_position, kClassLiteral),
         end_position_(end_position),
         scope_(scope),
-        class_variable_(class_variable),
         extends_(extends),
         constructor_(constructor),
         properties_(properties),
@@ -2545,7 +2543,6 @@ class ClassLiteral final : public Expression {
 
   int end_position_;
   ClassScope* scope_;
-  Variable* class_variable_;
   Expression* extends_;
   FunctionLiteral* constructor_;
   ZonePtrList<Property>* properties_;
@@ -3259,18 +3256,16 @@ class AstNodeFactory final {
   }
 
   ClassLiteral* NewClassLiteral(
-      ClassScope* scope, Variable* variable, Expression* extends,
-      FunctionLiteral* constructor,
+      ClassScope* scope, Expression* extends, FunctionLiteral* constructor,
       ZonePtrList<ClassLiteral::Property>* properties,
       FunctionLiteral* static_fields_initializer,
       FunctionLiteral* instance_members_initializer_function,
       int start_position, int end_position, bool has_name_static_property,
       bool has_static_computed_names, bool is_anonymous) {
     return new (zone_) ClassLiteral(
-        scope, variable, extends, constructor, properties,
-        static_fields_initializer, instance_members_initializer_function,
-        start_position, end_position, has_name_static_property,
-        has_static_computed_names, is_anonymous);
+        scope, extends, constructor, properties, static_fields_initializer,
+        instance_members_initializer_function, start_position, end_position,
+        has_name_static_property, has_static_computed_names, is_anonymous);
   }
 
   NativeFunctionLiteral* NewNativeFunctionLiteral(const AstRawString* name,

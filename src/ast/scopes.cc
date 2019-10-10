@@ -144,13 +144,15 @@ ModuleScope::ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
   set_language_mode(LanguageMode::kStrict);
 }
 
-ClassScope::ClassScope(Zone* zone, Scope* outer_scope)
+ClassScope::ClassScope(Zone* zone, Scope* outer_scope, bool is_anonymous)
     : Scope(zone, outer_scope, CLASS_SCOPE),
-      rare_data_and_is_parsing_heritage_(nullptr) {
+      rare_data_and_is_parsing_heritage_(nullptr),
+      is_anonymous_class_(is_anonymous) {
   set_language_mode(LanguageMode::kStrict);
 }
 
-ClassScope::ClassScope(Zone* zone, AstValueFactory* ast_value_factory,
+ClassScope::ClassScope(Isolate* isolate, Zone* zone,
+                       AstValueFactory* ast_value_factory,
                        Handle<ScopeInfo> scope_info)
     : Scope(zone, CLASS_SCOPE, scope_info),
       rare_data_and_is_parsing_heritage_(nullptr) {
@@ -160,6 +162,25 @@ ClassScope::ClassScope(Zone* zone, AstValueFactory* ast_value_factory,
         LookupInScopeInfo(ast_value_factory->dot_brand_string(), this);
     DCHECK_NOT_NULL(brand);
     EnsureRareData()->brand = brand;
+  }
+
+  // If the class variable is context-allocated and its index is
+  // saved for deserialization, deserialize it.
+  if (scope_info->HasSavedClassVariableIndex()) {
+    int index = scope_info->SavedClassVariableContextLocalIndex();
+    DCHECK_GE(index, 0);
+    DCHECK_LT(index, scope_info->ContextLocalCount());
+    String name = scope_info->ContextLocalName(index);
+    DCHECK_EQ(scope_info->ContextLocalMode(index), VariableMode::kConst);
+    DCHECK_EQ(scope_info->ContextLocalInitFlag(index),
+              InitializationFlag::kNeedsInitialization);
+    DCHECK_EQ(scope_info->ContextLocalMaybeAssignedFlag(index),
+              MaybeAssignedFlag::kMaybeAssigned);
+    Variable* var = DeclareClassVariable(
+        ast_value_factory, ast_value_factory->GetString(handle(name, isolate)),
+        kNoSourcePosition);
+    var->AllocateTo(VariableLocation::CONTEXT,
+                    Context::MIN_CONTEXT_SLOTS + index);
   }
 }
 
@@ -358,8 +379,8 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
       outer_scope = new (zone)
           DeclarationScope(zone, EVAL_SCOPE, handle(scope_info, isolate));
     } else if (scope_info.scope_type() == CLASS_SCOPE) {
-      outer_scope = new (zone)
-          ClassScope(zone, ast_value_factory, handle(scope_info, isolate));
+      outer_scope = new (zone) ClassScope(isolate, zone, ast_value_factory,
+                                          handle(scope_info, isolate));
     } else if (scope_info.scope_type() == BLOCK_SCOPE) {
       if (scope_info.is_declaration_scope()) {
         outer_scope = new (zone)
@@ -561,7 +582,8 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
   if (scope->must_use_preparsed_scope_data_) {
     DCHECK_EQ(scope->scope_type_, ScopeType::FUNCTION_SCOPE);
     allow_deref.emplace();
-    info->consumed_preparse_data()->RestoreScopeAllocationData(scope);
+    info->consumed_preparse_data()->RestoreScopeAllocationData(
+        scope, info->ast_value_factory());
   }
 
   if (!scope->AllocateVariables(info)) return false;
@@ -1750,6 +1772,15 @@ void Scope::Print(int n) {
         PrintVar(n1, brand);
       }
     }
+    if (class_scope->class_variable() != nullptr) {
+      Indent(n1, "// class var");
+      PrintF("%s%s:\n",
+             class_scope->class_variable()->is_used() ? ", used" : ", unused",
+             class_scope->should_save_class_variable_index()
+                 ? ", index saved"
+                 : ", index not saved");
+      PrintVar(n1, class_scope->class_variable());
+    }
   }
 
   // Print inner scopes (disable by providing negative n).
@@ -2115,8 +2146,7 @@ bool Scope::MustAllocateInContext(Variable* var) {
   if (mode == VariableMode::kTemporary) return false;
   if (is_catch_scope()) return true;
   if (is_script_scope() || is_eval_scope()) {
-    if (IsLexicalVariableMode(mode) ||
-        IsPrivateMethodOrAccessorVariableMode(mode)) {
+    if (IsLexicalVariableMode(mode)) {
       return true;
     }
   }
@@ -2424,6 +2454,9 @@ Variable* ClassScope::DeclarePrivateName(const AstRawString* name,
       MaybeAssignedFlag::kMaybeAssigned, is_static_flag, was_added);
   if (*was_added) {
     locals_.Add(result);
+    has_static_private_methods_ |=
+        (result->is_static() &&
+         IsPrivateMethodOrAccessorVariableMode(result->mode()));
   } else if (IsComplementaryAccessorPair(result->mode(), mode) &&
              result->is_static_flag() == is_static_flag) {
     *was_added = true;
@@ -2554,13 +2587,15 @@ bool ClassScope::ResolvePrivateNames(ParseInfo* info) {
   for (VariableProxy* proxy : list) {
     Variable* var = LookupPrivateName(proxy);
     if (var == nullptr) {
+      // It's only possible to fail to resolve private names here if
+      // this is at the top level or the private name is accessed through eval.
+      DCHECK(info->is_eval() || outer_scope_->is_script_scope());
       Scanner::Location loc = proxy->location();
       info->pending_error_handler()->ReportMessageAt(
           loc.beg_pos, loc.end_pos,
           MessageTemplate::kInvalidPrivateFieldResolution, proxy->raw_name());
       return false;
     } else {
-      var->set_is_used();
       proxy->BindTo(var);
     }
   }
@@ -2603,6 +2638,12 @@ VariableProxy* ClassScope::ResolvePrivateNamesPartially() {
       if (var != nullptr) {
         var->set_is_used();
         proxy->BindTo(var);
+        // If the variable being accessed is a static private method, we need to
+        // save the class variable in the context to check that the receiver is
+        // the class during runtime.
+        has_explicit_static_private_methods_access_ |=
+            (var->is_static() &&
+             IsPrivateMethodOrAccessorVariableMode(var->mode()));
       }
     }
 
@@ -2643,6 +2684,21 @@ Variable* ClassScope::DeclareBrandVariable(AstValueFactory* ast_value_factory,
   EnsureRareData()->brand = brand;
   brand->set_initializer_position(class_token_pos);
   return brand;
+}
+
+Variable* ClassScope::DeclareClassVariable(AstValueFactory* ast_value_factory,
+                                           const AstRawString* name,
+                                           int class_token_pos) {
+  DCHECK_NULL(class_variable_);
+  bool was_added;
+  class_variable_ =
+      Declare(zone(), name == nullptr ? ast_value_factory->dot_string() : name,
+              VariableMode::kConst, NORMAL_VARIABLE,
+              InitializationFlag::kNeedsInitialization,
+              MaybeAssignedFlag::kMaybeAssigned, &was_added);
+  DCHECK(was_added);
+  class_variable_->set_initializer_position(class_token_pos);
+  return class_variable_;
 }
 
 PrivateNameScopeIterator::PrivateNameScopeIterator(Scope* start)
