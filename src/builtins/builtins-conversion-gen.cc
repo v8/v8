@@ -44,7 +44,7 @@ void ConversionBuiltinsAssembler::Generate_NonPrimitiveToPrimitive(
     TNode<String> hint_string =
         HeapConstant(factory()->ToPrimitiveHintString(hint));
     TNode<Object> result =
-        CAST(CallJS(callable, context, exotic_to_prim, input, hint_string));
+        CallJS(callable, context, exotic_to_prim, input, hint_string);
 
     // Verify that the {result} is actually a primitive.
     Label if_resultisprimitive(this),
@@ -250,7 +250,7 @@ void ConversionBuiltinsAssembler::Generate_OrdinaryToPrimitive(
       // Call the {method} on the {input}.
       Callable callable = CodeFactory::Call(
           isolate(), ConvertReceiverMode::kNotNullOrUndefined);
-      TNode<Object> result = CAST(CallJS(callable, context, method, input));
+      TNode<Object> result = CallJS(callable, context, method, input);
       var_result = result;
 
       // Return the {result} if it is a primitive.

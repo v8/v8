@@ -1063,8 +1063,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                       TNode<Int32T> arg_count);
 
   template <class... TArgs>
-  Node* CallJS(Callable const& callable, Node* context, Node* function,
-               Node* receiver, TArgs... args) {
+  TNode<Object> CallJS(Callable const& callable, Node* context, Node* function,
+                       Node* receiver, TArgs... args) {
     int argc = static_cast<int>(sizeof...(args));
     TNode<Int32T> arity = Int32Constant(argc);
     return CallStub(callable, context, function, arity, receiver, args...);

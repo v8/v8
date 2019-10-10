@@ -1569,8 +1569,7 @@ TNode<Object> RegExpBuiltinsAssembler::RegExpExec(
   BIND(&if_iscallable);
   {
     Callable call_callable = CodeFactory::Call(isolate());
-    var_result =
-        CAST(CallJS(call_callable, context, exec, maybe_regexp, string));
+    var_result = CallJS(call_callable, context, exec, maybe_regexp, string);
 
     GotoIf(IsNull(var_result.value()), &out);
 
