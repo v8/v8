@@ -2598,14 +2598,8 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
-  // Lookup the function in the JavaScript frame.
-  __ movq(rax, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-  __ movq(rax, Operand(rax, JavaScriptFrameConstants::kFunctionOffset));
-
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    // Pass function as argument.
-    __ Push(rax);
     __ CallRuntime(Runtime::kCompileForOnStackReplacement);
   }
 

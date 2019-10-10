@@ -227,8 +227,7 @@ BailoutId DetermineEntryAndDisarmOSRForInterpreter(JavaScriptFrame* frame) {
 
 RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  DCHECK_EQ(0, args.length());
 
   // Only reachable when OST is enabled.
   CHECK(FLAG_use_osr);
@@ -236,7 +235,6 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   // Determine frame triggering OSR request.
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
-  DCHECK_EQ(frame->function(), *function);
   DCHECK(frame->is_interpreted());
 
   // Determine the entry point for which this OSR request has been fired and
@@ -245,6 +243,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   DCHECK(!ast_id.IsNone());
 
   MaybeHandle<Code> maybe_result;
+  Handle<JSFunction> function(frame->function(), isolate);
   if (IsSuitableForOnStackReplacement(isolate, function)) {
     if (FLAG_trace_osr) {
       PrintF("[OSR - Compiling: ");

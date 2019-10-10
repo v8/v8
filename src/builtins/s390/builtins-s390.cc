@@ -1651,14 +1651,8 @@ void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
-  // Lookup the function in the JavaScript frame.
-  __ LoadP(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ LoadP(r2, MemOperand(r2, JavaScriptFrameConstants::kFunctionOffset));
-
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    // Pass function as argument.
-    __ push(r2);
     __ CallRuntime(Runtime::kCompileForOnStackReplacement);
   }
 

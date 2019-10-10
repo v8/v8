@@ -2602,14 +2602,8 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
-  // Lookup the function in the JavaScript frame.
-  __ mov(eax, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-  __ mov(eax, Operand(eax, JavaScriptFrameConstants::kFunctionOffset));
-
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    // Pass function as argument.
-    __ push(eax);
     __ CallRuntime(Runtime::kCompileForOnStackReplacement);
   }
 
