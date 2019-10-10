@@ -31,6 +31,8 @@ class V8_EXPORT_PRIVATE IrregexpInterpreter : public AllStatic {
 
   // In case a StackOverflow occurs, EXCEPTION is returned. The caller is
   // responsible for creating the exception.
+  // RETRY is returned if a retry through the runtime is needed (e.g. when
+  // interrupts have been scheduled or the regexp is marked for tier-up).
   // Arguments input_start, input_end and backtrack_stack are
   // unused. They are only passed to match the signature of the native irregex
   // code.

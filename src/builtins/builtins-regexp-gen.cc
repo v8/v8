@@ -518,27 +518,18 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
   GotoIf(TaggedIsSmi(var_code.value()), &runtime);
   TNode<Code> code = CAST(var_code.value());
 
-  // Tier-up in runtime if ticks are zero and tier-up hasn't happened yet
-  // and ensure that a RegExp stack is allocated when using compiled Irregexp.
+  // Ensure that a RegExp stack is allocated when using compiled Irregexp.
+  // TODO(jgruber): Guarantee an allocated stack and remove this check.
   {
-    Label next(this), check_tier_up(this);
-    GotoIfNot(TaggedIsSmi(var_bytecode.value()), &check_tier_up);
+    Label next(this);
+    GotoIfNot(TaggedIsSmi(var_bytecode.value()), &next);
     CSA_ASSERT(this, SmiEqual(CAST(var_bytecode.value()),
                               SmiConstant(JSRegExp::kUninitializedValue)));
 
-    // Ensure RegExp stack is allocated.
     TNode<IntPtrT> stack_size = UncheckedCast<IntPtrT>(
         Load(MachineType::IntPtr(), regexp_stack_memory_size_address));
-    GotoIf(IntPtrEqual(stack_size, IntPtrZero()), &runtime);
-    Goto(&next);
+    Branch(IntPtrEqual(stack_size, IntPtrZero()), &runtime, &next);
 
-    // Check if tier-up is requested.
-    BIND(&check_tier_up);
-    TNode<Smi> ticks = CAST(UnsafeLoadFixedArrayElement(
-        data, JSRegExp::kIrregexpTicksUntilTierUpIndex));
-    GotoIfNot(SmiToInt32(ticks), &runtime);
-
-    Goto(&next);
     BIND(&next);
   }
 
