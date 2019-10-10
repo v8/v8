@@ -246,10 +246,13 @@ void VisitRROFloat(InstructionSelector* selector, Node* node,
 void VisitFloatUnop(InstructionSelector* selector, Node* node, Node* input,
                     ArchOpcode avx_opcode, ArchOpcode sse_opcode) {
   IA32OperandGenerator g(selector);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
   if (selector->IsSupported(AVX)) {
-    selector->Emit(avx_opcode, g.DefineAsRegister(node), g.Use(input));
+    selector->Emit(avx_opcode, g.DefineAsRegister(node), g.UseUnique(input),
+                   arraysize(temps), temps);
   } else {
-    selector->Emit(sse_opcode, g.DefineSameAsFirst(node), g.UseRegister(input));
+    selector->Emit(sse_opcode, g.DefineSameAsFirst(node),
+                   g.UseUniqueRegister(input), arraysize(temps), temps);
   }
 }
 
