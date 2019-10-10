@@ -90,8 +90,6 @@ ACCESSORS(WasmModuleObject, export_wrappers, FixedArray, kExportWrappersOffset)
 ACCESSORS(WasmModuleObject, script, Script, kScriptOffset)
 OPTIONAL_ACCESSORS(WasmModuleObject, asm_js_offset_table, ByteArray,
                    kAsmJsOffsetTableOffset)
-OPTIONAL_ACCESSORS(WasmModuleObject, breakpoint_infos, FixedArray,
-                   kBreakPointInfosOffset)
 wasm::NativeModule* WasmModuleObject::native_module() const {
   return managed_native_module().raw();
 }
@@ -102,10 +100,6 @@ WasmModuleObject::shared_native_module() const {
 const wasm::WasmModule* WasmModuleObject::module() const {
   // TODO(clemensb): Remove this helper (inline in callers).
   return native_module()->module();
-}
-void WasmModuleObject::reset_breakpoint_infos() {
-  WRITE_FIELD(*this, kBreakPointInfosOffset,
-              GetReadOnlyRoots().undefined_value());
 }
 bool WasmModuleObject::is_asm_js() {
   bool asm_js = is_asmjs_module(module());

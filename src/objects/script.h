@@ -103,9 +103,11 @@ class Script : public Struct {
   // [source_mapping_url]: sourceMappingURL magic comment
   DECL_ACCESSORS(source_mapping_url, Object)
 
-  // [wasm_module_object]: the wasm module object this script belongs to.
+  // [wasm_breakpoint_infos]: the list of {BreakPointInfo} objects describing
+  // all WebAssembly breakpoints for modules/instances managed via this script.
   // This must only be called if the type of this script is TYPE_WASM.
-  DECL_ACCESSORS(wasm_module_object, Object)
+  DECL_ACCESSORS(wasm_breakpoint_infos, FixedArray)
+  inline bool has_wasm_breakpoint_infos() const;
 
   // [wasm_native_module]: the wasm {NativeModule} this script belongs to.
   // This must only be called if the type of this script is TYPE_WASM.

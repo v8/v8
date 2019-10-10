@@ -40,7 +40,7 @@ SMI_ACCESSORS(Script, flags, kFlagsOffset)
 ACCESSORS(Script, source_url, Object, kSourceUrlOffset)
 ACCESSORS(Script, source_mapping_url, Object, kSourceMappingUrlOffset)
 ACCESSORS(Script, host_defined_options, FixedArray, kHostDefinedOptionsOffset)
-ACCESSORS_CHECKED(Script, wasm_module_object, Object,
+ACCESSORS_CHECKED(Script, wasm_breakpoint_infos, FixedArray,
                   kEvalFromSharedOrWrappedArgumentsOffset,
                   this->type() == TYPE_WASM)
 ACCESSORS_CHECKED(Script, wasm_managed_native_module, Object,
@@ -89,6 +89,10 @@ void Script::set_shared_function_infos(WeakFixedArray value,
   DCHECK_NE(TYPE_WASM, type());
   TaggedField<WeakFixedArray, kSharedFunctionInfosOffset>::store(*this, value);
   CONDITIONAL_WRITE_BARRIER(*this, kSharedFunctionInfosOffset, value, mode);
+}
+
+bool Script::has_wasm_breakpoint_infos() const {
+  return type() == TYPE_WASM && wasm_breakpoint_infos().length() > 0;
 }
 
 wasm::NativeModule* Script::wasm_native_module() const {

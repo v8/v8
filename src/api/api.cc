@@ -9268,9 +9268,9 @@ bool debug::Script::GetPossibleBreakpoints(
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   if (script->type() == i::Script::TYPE_WASM &&
       this->SourceMappingURL().IsEmpty()) {
-    i::WasmModuleObject module_object =
-        i::WasmModuleObject::cast(script->wasm_module_object());
-    return module_object.GetPossibleBreakpoints(start, end, locations);
+    i::wasm::NativeModule* native_module = script->wasm_native_module();
+    return i::WasmModuleObject::GetPossibleBreakpoints(native_module, start,
+                                                       end, locations);
   }
 
   i::Script::InitLineEnds(script);

@@ -1916,9 +1916,6 @@ void WasmModuleObject::WasmModuleObjectPrint(std::ostream& os) {  // NOLINT
   if (has_asm_js_offset_table()) {
     os << "\n - asm_js_offset_table: " << Brief(asm_js_offset_table());
   }
-  if (has_breakpoint_infos()) {
-    os << "\n - breakpoint_infos: " << Brief(breakpoint_infos());
-  }
   os << "\n";
 }
 
@@ -2151,6 +2148,9 @@ void Script::ScriptPrint(std::ostream& os) {  // NOLINT
     os << "\n - wrapped arguments: " << Brief(wrapped_arguments());
   }
   os << "\n - eval from position: " << eval_from_position();
+  if (has_wasm_breakpoint_infos()) {
+    os << "\n - wasm_breakpoint_infos: " << Brief(wasm_breakpoint_infos());
+  }
   os << "\n - shared function infos: " << Brief(shared_function_infos());
   os << "\n";
 }

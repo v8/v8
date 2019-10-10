@@ -622,9 +622,7 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
   Handle<BreakPoint> break_point =
       isolate_->factory()->NewBreakPoint(*id, condition);
   if (script->type() == Script::TYPE_WASM) {
-    Handle<WasmModuleObject> module_object(
-        WasmModuleObject::cast(script->wasm_module_object()), isolate_);
-    return WasmModuleObject::SetBreakPoint(module_object, source_position,
+    return WasmModuleObject::SetBreakPoint(script, source_position,
                                            break_point);
   }
 

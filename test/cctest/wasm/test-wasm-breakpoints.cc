@@ -22,10 +22,11 @@ namespace wasm {
 namespace {
 
 void CheckLocations(
-    WasmModuleObject module_object, debug::Location start, debug::Location end,
+    NativeModule* native_module, debug::Location start, debug::Location end,
     std::initializer_list<debug::Location> expected_locations_init) {
   std::vector<debug::BreakLocation> locations;
-  bool success = module_object.GetPossibleBreakpoints(start, end, &locations);
+  bool success = WasmModuleObject::GetPossibleBreakpoints(native_module, start,
+                                                          end, &locations);
   CHECK(success);
 
   printf("got %d locations: ", static_cast<int>(locations.size()));
@@ -45,10 +46,11 @@ void CheckLocations(
   }
 }
 
-void CheckLocationsFail(WasmModuleObject module_object, debug::Location start,
+void CheckLocationsFail(NativeModule* native_module, debug::Location start,
                         debug::Location end) {
   std::vector<debug::BreakLocation> locations;
-  bool success = module_object.GetPossibleBreakpoints(start, end, &locations);
+  bool success = WasmModuleObject::GetPossibleBreakpoints(native_module, start,
+                                                          end, &locations);
   CHECK(!success);
 }
 
@@ -125,14 +127,13 @@ Handle<BreakPoint> SetBreakpoint(WasmRunnerBase* runner, int function_index,
   int code_offset = func_offset + byte_offset;
   if (expected_set_byte_offset == -1) expected_set_byte_offset = byte_offset;
   Handle<WasmInstanceObject> instance = runner->builder().instance_object();
-  Handle<WasmModuleObject> module_object(instance->module_object(),
-                                         runner->main_isolate());
+  Handle<Script> script(instance->module_object().script(),
+                        runner->main_isolate());
   static int break_index = 0;
   Handle<BreakPoint> break_point =
       runner->main_isolate()->factory()->NewBreakPoint(
           break_index++, runner->main_isolate()->factory()->empty_string());
-  CHECK(WasmModuleObject::SetBreakPoint(module_object, &code_offset,
-                                        break_point));
+  CHECK(WasmModuleObject::SetBreakPoint(script, &code_offset, break_point));
   int set_byte_offset = code_offset - func_offset;
   CHECK_EQ(expected_set_byte_offset, set_byte_offset);
   // Also set breakpoint on the debug info of the instance directly, since the
@@ -150,10 +151,9 @@ void ClearBreakpoint(WasmRunnerBase* runner, int function_index,
       runner->builder().GetFunctionAt(function_index)->code.offset();
   int code_offset = func_offset + byte_offset;
   Handle<WasmInstanceObject> instance = runner->builder().instance_object();
-  Handle<WasmModuleObject> module_object(instance->module_object(),
-                                         runner->main_isolate());
-  CHECK(WasmModuleObject::ClearBreakPoint(module_object, code_offset,
-                                          break_point));
+  Handle<Script> script(instance->module_object().script(),
+                        runner->main_isolate());
+  CHECK(WasmModuleObject::ClearBreakPoint(script, code_offset, break_point));
   // Also clear breakpoint on the debug info of the instance directly, since the
   // instance chain is not setup properly in tests.
   Handle<WasmDebugInfo> debug_info =
@@ -271,25 +271,25 @@ WASM_COMPILED_EXEC_TEST(WasmCollectPossibleBreakpoints) {
   BUILD(runner, WASM_NOP, WASM_I32_ADD(WASM_ZERO, WASM_ONE));
 
   WasmInstanceObject instance = *runner.builder().instance_object();
-  WasmModuleObject module_object = instance.module_object();
+  NativeModule* native_module = instance.module_object().native_module();
 
   std::vector<debug::Location> locations;
   // Check all locations for function 0.
-  CheckLocations(module_object, {0, 0}, {1, 0},
+  CheckLocations(native_module, {0, 0}, {1, 0},
                  {{0, 1}, {0, 2}, {0, 4}, {0, 6}, {0, 7}});
   // Check a range ending at an instruction.
-  CheckLocations(module_object, {0, 2}, {0, 4}, {{0, 2}});
+  CheckLocations(native_module, {0, 2}, {0, 4}, {{0, 2}});
   // Check a range ending one behind an instruction.
-  CheckLocations(module_object, {0, 2}, {0, 5}, {{0, 2}, {0, 4}});
+  CheckLocations(native_module, {0, 2}, {0, 5}, {{0, 2}, {0, 4}});
   // Check a range starting at an instruction.
-  CheckLocations(module_object, {0, 7}, {0, 8}, {{0, 7}});
+  CheckLocations(native_module, {0, 7}, {0, 8}, {{0, 7}});
   // Check from an instruction to beginning of next function.
-  CheckLocations(module_object, {0, 7}, {1, 0}, {{0, 7}});
+  CheckLocations(native_module, {0, 7}, {1, 0}, {{0, 7}});
   // Check from end of one function (no valid instruction position) to beginning
   // of next function. Must be empty, but not fail.
-  CheckLocations(module_object, {0, 8}, {1, 0}, {});
+  CheckLocations(native_module, {0, 8}, {1, 0}, {});
   // Check from one after the end of the function. Must fail.
-  CheckLocationsFail(module_object, {0, 9}, {1, 0});
+  CheckLocationsFail(native_module, {0, 9}, {1, 0});
 }
 
 WASM_COMPILED_EXEC_TEST(WasmSimpleBreak) {

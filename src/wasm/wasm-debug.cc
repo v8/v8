@@ -277,9 +277,10 @@ class InterpreterHandle {
     if (isolate_->debug()->break_points_active()) {
       Handle<WasmModuleObject> module_object(
           GetInstanceObject()->module_object(), isolate_);
+      Handle<Script> script(module_object->script(), isolate_);
       int position = GetTopPosition(module_object);
       Handle<FixedArray> breakpoints;
-      if (WasmModuleObject::CheckBreakPoints(isolate_, module_object, position)
+      if (WasmModuleObject::CheckBreakPoints(isolate_, script, position)
               .ToHandle(&breakpoints)) {
         // We hit one or several breakpoints. Clear stepping, notify the
         // listeners and return.

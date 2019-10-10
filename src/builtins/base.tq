@@ -1594,7 +1594,6 @@ extern class WasmModuleObject extends JSObject {
   export_wrappers: FixedArray;
   script: Script;
   asm_js_offset_table: ByteArray | Undefined;
-  break_point_infos: FixedArray | Undefined;
 }
 
 extern class WasmTableObject extends JSObject {

@@ -242,7 +242,8 @@ Handle<WasmModuleObject> WasmModuleObject::New(
       isolate->factory()->NewJSObject(isolate->wasm_module_constructor()));
   module_object->set_export_wrappers(*export_wrappers);
   if (script->type() == Script::TYPE_WASM) {
-    script->set_wasm_module_object(*module_object);
+    script->set_wasm_breakpoint_infos(
+        ReadOnlyRoots(isolate).empty_fixed_array());
     script->set_wasm_managed_native_module(*managed_native_module);
     script->set_wasm_weak_instance_list(
         ReadOnlyRoots(isolate).empty_weak_array_list());
@@ -253,13 +254,12 @@ Handle<WasmModuleObject> WasmModuleObject::New(
 }
 
 // static
-bool WasmModuleObject::SetBreakPoint(Handle<WasmModuleObject> module_object,
-                                     int* position,
+bool WasmModuleObject::SetBreakPoint(Handle<Script> script, int* position,
                                      Handle<BreakPoint> break_point) {
-  Isolate* isolate = module_object->GetIsolate();
+  Isolate* isolate = script->GetIsolate();
 
   // Find the function for this breakpoint.
-  const WasmModule* module = module_object->module();
+  const WasmModule* module = script->wasm_native_module()->module();
   int func_index = GetContainingWasmFunction(module, *position);
   if (func_index < 0) return false;
   const WasmFunction& func = module->functions[func_index];
@@ -267,16 +267,16 @@ bool WasmModuleObject::SetBreakPoint(Handle<WasmModuleObject> module_object,
 
   // According to the current design, we should only be called with valid
   // breakable positions.
-  DCHECK(IsBreakablePosition(module_object->native_module(), func_index,
+  DCHECK(IsBreakablePosition(script->wasm_native_module(), func_index,
                              offset_in_func));
 
   // Insert new break point into break_positions of module object.
-  WasmModuleObject::AddBreakpointToInfo(module_object, *position, break_point);
+  WasmModuleObject::AddBreakpointToInfo(script, *position, break_point);
 
   // Iterate over all instances and tell them to set this new breakpoint.
   // We do this using the weak list of all instances from the script.
-  Handle<WeakArrayList> weak_instance_list(
-      module_object->script().wasm_weak_instance_list(), isolate);
+  Handle<WeakArrayList> weak_instance_list(script->wasm_weak_instance_list(),
+                                           isolate);
   for (int i = 0; i < weak_instance_list->length(); ++i) {
     MaybeObject maybe_instance = weak_instance_list->Get(i);
     if (maybe_instance->IsWeak()) {
@@ -293,27 +293,26 @@ bool WasmModuleObject::SetBreakPoint(Handle<WasmModuleObject> module_object,
 }
 
 // static
-bool WasmModuleObject::ClearBreakPoint(Handle<WasmModuleObject> module_object,
-                                       int position,
+bool WasmModuleObject::ClearBreakPoint(Handle<Script> script, int position,
                                        Handle<BreakPoint> break_point) {
-  Isolate* isolate = module_object->GetIsolate();
+  Isolate* isolate = script->GetIsolate();
 
   // Find the function for this breakpoint.
-  const WasmModule* module = module_object->module();
+  const WasmModule* module = script->wasm_native_module()->module();
   int func_index = GetContainingWasmFunction(module, position);
   if (func_index < 0) return false;
   const WasmFunction& func = module->functions[func_index];
   int offset_in_func = position - func.code.offset();
 
-  if (!WasmModuleObject::RemoveBreakpointFromInfo(module_object, position,
+  if (!WasmModuleObject::RemoveBreakpointFromInfo(script, position,
                                                   break_point)) {
     return false;
   }
 
   // Iterate over all instances and tell them to remove this breakpoint.
   // We do this using the weak list of all instances from the script.
-  Handle<WeakArrayList> weak_instance_list(
-      module_object->script().wasm_weak_instance_list(), isolate);
+  Handle<WeakArrayList> weak_instance_list(script->wasm_weak_instance_list(),
+                                           isolate);
   for (int i = 0; i < weak_instance_list->length(); ++i) {
     MaybeObject maybe_instance = weak_instance_list->Get(i);
     if (maybe_instance->IsWeak()) {
@@ -362,17 +361,16 @@ int FindBreakpointInfoInsertPos(Isolate* isolate,
 }  // namespace
 
 // static
-void WasmModuleObject::AddBreakpointToInfo(
-    Handle<WasmModuleObject> module_object, int position,
-    Handle<BreakPoint> break_point) {
-  Isolate* isolate = module_object->GetIsolate();
+void WasmModuleObject::AddBreakpointToInfo(Handle<Script> script, int position,
+                                           Handle<BreakPoint> break_point) {
+  Isolate* isolate = script->GetIsolate();
   Handle<FixedArray> breakpoint_infos;
-  if (module_object->has_breakpoint_infos()) {
-    breakpoint_infos = handle(module_object->breakpoint_infos(), isolate);
+  if (script->has_wasm_breakpoint_infos()) {
+    breakpoint_infos = handle(script->wasm_breakpoint_infos(), isolate);
   } else {
     breakpoint_infos =
         isolate->factory()->NewFixedArray(4, AllocationType::kOld);
-    module_object->set_breakpoint_infos(*breakpoint_infos);
+    script->set_wasm_breakpoint_infos(*breakpoint_infos);
   }
 
   int insert_pos =
@@ -396,7 +394,7 @@ void WasmModuleObject::AddBreakpointToInfo(
   if (need_realloc) {
     new_breakpoint_infos = isolate->factory()->NewFixedArray(
         2 * breakpoint_infos->length(), AllocationType::kOld);
-    module_object->set_breakpoint_infos(*new_breakpoint_infos);
+    script->set_wasm_breakpoint_infos(*new_breakpoint_infos);
     // Copy over the entries [0, insert_pos).
     for (int i = 0; i < insert_pos; ++i)
       new_breakpoint_infos->set(i, breakpoint_infos->get(i));
@@ -420,13 +418,11 @@ void WasmModuleObject::AddBreakpointToInfo(
 
 // static
 bool WasmModuleObject::RemoveBreakpointFromInfo(
-    Handle<WasmModuleObject> module_object, int position,
-    Handle<BreakPoint> break_point) {
-  if (!module_object->has_breakpoint_infos()) return false;
+    Handle<Script> script, int position, Handle<BreakPoint> break_point) {
+  if (!script->has_wasm_breakpoint_infos()) return false;
 
-  Isolate* isolate = module_object->GetIsolate();
-  Handle<FixedArray> breakpoint_infos(module_object->breakpoint_infos(),
-                                      isolate);
+  Isolate* isolate = script->GetIsolate();
+  Handle<FixedArray> breakpoint_infos(script->wasm_breakpoint_infos(), isolate);
 
   int pos = FindBreakpointInfoInsertPos(isolate, breakpoint_infos, position);
 
@@ -452,15 +448,13 @@ bool WasmModuleObject::RemoveBreakpointFromInfo(
 }
 
 void WasmModuleObject::SetBreakpointsOnNewInstance(
-    Handle<WasmModuleObject> module_object,
-    Handle<WasmInstanceObject> instance) {
-  if (!module_object->has_breakpoint_infos()) return;
-  Isolate* isolate = module_object->GetIsolate();
+    Handle<Script> script, Handle<WasmInstanceObject> instance) {
+  if (!script->has_wasm_breakpoint_infos()) return;
+  Isolate* isolate = script->GetIsolate();
   Handle<WasmDebugInfo> debug_info =
       WasmInstanceObject::GetOrCreateDebugInfo(instance);
 
-  Handle<FixedArray> breakpoint_infos(module_object->breakpoint_infos(),
-                                      isolate);
+  Handle<FixedArray> breakpoint_infos(script->wasm_breakpoint_infos(), isolate);
   // If the array exists, it should not be empty.
   DCHECK_LT(0, breakpoint_infos->length());
 
@@ -476,7 +470,7 @@ void WasmModuleObject::SetBreakpointsOnNewInstance(
     int position = breakpoint_info->source_position();
 
     // Find the function for this breakpoint, and set the breakpoint.
-    const WasmModule* module = module_object->module();
+    const WasmModule* module = script->wasm_native_module()->module();
     int func_index = GetContainingWasmFunction(module, position);
     DCHECK_LE(0, func_index);
     const WasmFunction& func = module->functions[func_index];
@@ -602,12 +596,15 @@ int WasmModuleObject::GetSourcePosition(Handle<WasmModuleObject> module_object,
   return offset_table->get_int(kOTESize * left + idx);
 }
 
+// static
 bool WasmModuleObject::GetPossibleBreakpoints(
-    const v8::debug::Location& start, const v8::debug::Location& end,
+    wasm::NativeModule* native_module, const v8::debug::Location& start,
+    const v8::debug::Location& end,
     std::vector<v8::debug::BreakLocation>* locations) {
   DisallowHeapAllocation no_gc;
 
-  const std::vector<WasmFunction>& functions = module()->functions;
+  const std::vector<WasmFunction>& functions =
+      native_module->module()->functions;
   if (start.GetLineNumber() < 0 || start.GetColumnNumber() < 0 ||
       (!end.IsEmpty() &&
        (end.GetLineNumber() < 0 || end.GetColumnNumber() < 0)))
@@ -649,7 +646,7 @@ bool WasmModuleObject::GetPossibleBreakpoints(
 
   AccountingAllocator alloc;
   Zone tmp(&alloc, ZONE_NAME);
-  const byte* module_start = native_module()->wire_bytes().begin();
+  const byte* module_start = native_module->wire_bytes().begin();
 
   for (uint32_t func_idx = start_func_index; func_idx <= end_func_index;
        ++func_idx) {
@@ -674,12 +671,12 @@ bool WasmModuleObject::GetPossibleBreakpoints(
   return true;
 }
 
+// static
 MaybeHandle<FixedArray> WasmModuleObject::CheckBreakPoints(
-    Isolate* isolate, Handle<WasmModuleObject> module_object, int position) {
-  if (!module_object->has_breakpoint_infos()) return {};
+    Isolate* isolate, Handle<Script> script, int position) {
+  if (!script->has_wasm_breakpoint_infos()) return {};
 
-  Handle<FixedArray> breakpoint_infos(module_object->breakpoint_infos(),
-                                      isolate);
+  Handle<FixedArray> breakpoint_infos(script->wasm_breakpoint_infos(), isolate);
   int insert_pos =
       FindBreakpointInfoInsertPos(isolate, breakpoint_infos, position);
   if (insert_pos >= breakpoint_infos->length()) return {};
