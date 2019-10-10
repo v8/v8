@@ -381,7 +381,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
       // Ensure the IC state progresses.
       TRACE_HANDLER_STATS(isolate(), LoadIC_NonReceiver);
       update_receiver_map(object);
-      PatchCache(name, LoadHandler::LoadSlow(isolate()));
+      SetCache(name, LoadHandler::LoadSlow(isolate()));
       TraceIC("LoadIC", name);
     }
 
@@ -484,7 +484,7 @@ MaybeHandle<Object> LoadGlobalIC::Load(Handle<Name> name) {
         } else {
           // Given combination of indices can't be encoded, so use slow stub.
           TRACE_HANDLER_STATS(isolate(), LoadGlobalIC_SlowStub);
-          PatchCache(name, LoadHandler::LoadSlow(isolate()));
+          SetCache(name, LoadHandler::LoadSlow(isolate()));
         }
         TraceIC("LoadGlobalIC", name);
       }
@@ -607,11 +607,11 @@ bool IC::IsTransitionOfMonomorphicTarget(Map source_map, Map target_map) {
   return transitioned_map == target_map;
 }
 
-void IC::PatchCache(Handle<Name> name, Handle<Object> handler) {
-  PatchCache(name, MaybeObjectHandle(handler));
+void IC::SetCache(Handle<Name> name, Handle<Object> handler) {
+  SetCache(name, MaybeObjectHandle(handler));
 }
 
-void IC::PatchCache(Handle<Name> name, const MaybeObjectHandle& handler) {
+void IC::SetCache(Handle<Name> name, const MaybeObjectHandle& handler) {
   DCHECK(IsHandler(*handler));
   // Currently only load and store ICs support non-code handlers.
   DCHECK(IsAnyLoad() || IsAnyStore() || IsAnyHas());
@@ -676,7 +676,7 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
     code = ComputeHandler(lookup);
   }
 
-  PatchCache(lookup->name(), code);
+  SetCache(lookup->name(), code);
   TraceIC("LoadIC", lookup->name());
 }
 
@@ -1395,7 +1395,7 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
       } else {
         // Given combination of indices can't be encoded, so use slow stub.
         TRACE_HANDLER_STATS(isolate(), StoreGlobalIC_SlowStub);
-        PatchCache(name, StoreHandler::StoreSlow(isolate()));
+        SetCache(name, StoreHandler::StoreSlow(isolate()));
       }
       TraceIC("StoreGlobalIC", name);
     }
@@ -1428,7 +1428,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
       // Ensure the IC state progresses.
       TRACE_HANDLER_STATS(isolate(), StoreIC_NonReceiver);
       update_receiver_map(object);
-      PatchCache(name, StoreHandler::StoreSlow(isolate()));
+      SetCache(name, StoreHandler::StoreSlow(isolate()));
       TraceIC("StoreIC", name);
     }
     return TypeError(MessageTemplate::kNonObjectPropertyStore, object, name);
@@ -1477,7 +1477,7 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
     handler = MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
   }
 
-  PatchCache(lookup->name(), handler);
+  SetCache(lookup->name(), handler);
   TraceIC("StoreIC", lookup->name());
 }
 

@@ -101,8 +101,8 @@ class IC {
 
   void CopyICToMegamorphicCache(Handle<Name> name);
   bool IsTransitionOfMonomorphicTarget(Map source_map, Map target_map);
-  void PatchCache(Handle<Name> name, Handle<Object> handler);
-  void PatchCache(Handle<Name> name, const MaybeObjectHandle& handler);
+  void SetCache(Handle<Name> name, Handle<Object> handler);
+  void SetCache(Handle<Name> name, const MaybeObjectHandle& handler);
   FeedbackSlotKind kind() const { return kind_; }
   bool IsGlobalIC() const { return IsLoadGlobalIC() || IsStoreGlobalIC(); }
   bool IsLoadIC() const { return IsLoadICKind(kind_); }

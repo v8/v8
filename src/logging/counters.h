@@ -1019,16 +1019,13 @@ class RuntimeCallTimer final {
   V(LoadIC_LoadNormalDH)                          \
   V(LoadIC_LoadNormalFromPrototypeDH)             \
   V(LoadIC_NonReceiver)                           \
-  V(LoadIC_Premonomorphic)                        \
   V(LoadIC_SlowStub)                              \
   V(LoadIC_StringLength)                          \
   V(LoadIC_StringWrapperLength)                   \
   V(StoreGlobalIC_SlowStub)                       \
   V(StoreGlobalIC_StoreScriptContextField)        \
-  V(StoreGlobalIC_Premonomorphic)                 \
   V(StoreIC_HandlerCacheHit_Accessor)             \
   V(StoreIC_NonReceiver)                          \
-  V(StoreIC_Premonomorphic)                       \
   V(StoreIC_SlowStub)                             \
   V(StoreIC_StoreAccessorDH)                      \
   V(StoreIC_StoreAccessorOnPrototypeDH)           \
