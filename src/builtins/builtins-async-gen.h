@@ -50,7 +50,7 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
   // Return a new built-in function object as defined in
   // Async Iterator Value Unwrap Functions
   TNode<JSFunction> CreateUnwrapClosure(TNode<NativeContext> native_context,
-                                        TNode<HeapObject> done);
+                                        TNode<Oddball> done);
 
  private:
   void InitializeNativeClosure(TNode<Context> context,
@@ -58,7 +58,7 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
                                TNode<HeapObject> function,
                                TNode<IntPtrT> context_index);
   TNode<Context> AllocateAsyncIteratorValueUnwrapContext(
-      TNode<NativeContext> native_context, TNode<HeapObject> done);
+      TNode<NativeContext> native_context, TNode<Oddball> done);
 
   TNode<Object> AwaitOld(TNode<Context> context,
                          TNode<JSGeneratorObject> generator,
