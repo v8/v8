@@ -4010,6 +4010,12 @@ void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
 // in the accumulator. When the generator is resumed, the sent value is loaded
 // in the accumulator.
 void BytecodeGenerator::BuildSuspendPoint(int position) {
+  // Because we eliminate jump targets in dead code, we also eliminate resumes
+  // when the suspend is not emitted because otherwise the below call to Bind
+  // would start a new basic block and the code would be considered alive.
+  if (builder()->RemainderOfBlockIsDead()) {
+    return;
+  }
   const int suspend_id = suspend_count_++;
 
   RegisterList registers = register_allocator()->AllLiveRegisters();
