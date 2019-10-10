@@ -3518,7 +3518,7 @@ enum class IndexFilter { kIncludeIndices, kSkipIndices };
  * kConvertToString will convert integer indices to strings.
  * kKeepNumbers will return numbers for integer indices.
  */
-enum class KeyConversionMode { kConvertToString, kKeepNumbers };
+enum class KeyConversionMode { kConvertToString, kKeepNumbers, kNoNumbers };
 
 /**
  * Integrity level for objects.

@@ -279,9 +279,13 @@ void FastKeyAccumulator::Prepare() {
   is_receiver_simple_enum_ = false;
   has_empty_prototype_ = true;
   JSReceiver last_prototype;
+  may_have_elements_ = MayHaveElements(*receiver_);
   for (PrototypeIterator iter(isolate_, *receiver_); !iter.IsAtEnd();
        iter.Advance()) {
     JSReceiver current = iter.GetCurrent<JSReceiver>();
+    if (!may_have_elements_) {
+      may_have_elements_ = MayHaveElements(current);
+    }
     bool has_no_properties = CheckAndInitalizeEmptyEnumCache(current);
     if (has_no_properties) continue;
     last_prototype = current;
@@ -498,10 +502,19 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysSlow(
   accumulator.set_is_for_in(is_for_in_);
   accumulator.set_skip_indices(skip_indices_);
   accumulator.set_last_non_empty_prototype(last_non_empty_prototype_);
+  accumulator.set_may_have_elements(may_have_elements_);
 
   MAYBE_RETURN(accumulator.CollectKeys(receiver_, receiver_),
                MaybeHandle<FixedArray>());
   return accumulator.GetKeys(keys_conversion);
+}
+
+bool FastKeyAccumulator::MayHaveElements(JSReceiver receiver) {
+  if (!receiver.IsJSObject()) return true;
+  JSObject object = JSObject::cast(receiver);
+  if (object.HasEnumerableElements()) return true;
+  if (object.HasIndexedInterceptor()) return true;
+  return false;
 }
 
 namespace {
@@ -825,7 +838,9 @@ Maybe<bool> KeyAccumulator::CollectOwnKeys(Handle<JSReceiver> receiver,
     return Just(true);
   }
 
-  MAYBE_RETURN(CollectOwnElementIndices(receiver, object), Nothing<bool>());
+  if (may_have_elements_) {
+    MAYBE_RETURN(CollectOwnElementIndices(receiver, object), Nothing<bool>());
+  }
   MAYBE_RETURN(CollectOwnPropertyNames(receiver, object), Nothing<bool>());
   return Just(true);
 }

@@ -168,8 +168,8 @@ Handle<FixedArray> OrderedHashSet::ConvertToKeysArray(
   for (int i = 0; i < length; i++) {
     int index = HashTableStartIndex() + nof_buckets + (i * kEntrySize);
     Object key = table->get(index);
+    uint32_t index_value;
     if (convert == GetKeysConversion::kConvertToString) {
-      uint32_t index_value;
       if (key.ToArrayIndex(&index_value)) {
         // Avoid trashing the Number2String cache if indices get very large.
         bool use_cache = i < kMaxStringTableEntries;
@@ -177,6 +177,8 @@ Handle<FixedArray> OrderedHashSet::ConvertToKeysArray(
       } else {
         CHECK(key.IsName());
       }
+    } else if (convert == GetKeysConversion::kNoNumbers) {
+      DCHECK(!key.ToArrayIndex(&index_value));
     }
     result->set(i, key);
   }

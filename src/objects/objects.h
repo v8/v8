@@ -786,7 +786,8 @@ enum AccessorComponent { ACCESSOR_GETTER, ACCESSOR_SETTER };
 
 enum class GetKeysConversion {
   kKeepNumbers = static_cast<int>(v8::KeyConversionMode::kKeepNumbers),
-  kConvertToString = static_cast<int>(v8::KeyConversionMode::kConvertToString)
+  kConvertToString = static_cast<int>(v8::KeyConversionMode::kConvertToString),
+  kNoNumbers = static_cast<int>(v8::KeyConversionMode::kNoNumbers)
 };
 
 enum class KeyCollectionMode {
