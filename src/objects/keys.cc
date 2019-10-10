@@ -518,13 +518,14 @@ V8_WARN_UNUSED_RESULT ExceptionStatus FilterForEnumerableProperties(
 
   uint32_t length = accessor->GetCapacity(*result, result->elements());
   for (uint32_t i = 0; i < length; i++) {
-    if (!accessor->HasEntry(*result, i)) continue;
+    InternalIndex entry(i);
+    if (!accessor->HasEntry(*result, entry)) continue;
 
     // args are invalid after args.Call(), create a new one in every iteration.
     PropertyCallbackArguments args(accumulator->isolate(), interceptor->data(),
                                    *receiver, *object, Just(kDontThrow));
 
-    Handle<Object> element = accessor->Get(result, i);
+    Handle<Object> element = accessor->Get(result, entry);
     Handle<Object> attributes;
     if (type == kIndexed) {
       uint32_t number;

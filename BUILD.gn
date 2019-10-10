@@ -2567,6 +2567,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/heap-object.h",
     "src/objects/instance-type-inl.h",
     "src/objects/instance-type.h",
+    "src/objects/internal-index.h",
     "src/objects/intl-objects.cc",
     "src/objects/intl-objects.h",
     "src/objects/js-array-buffer-inl.h",

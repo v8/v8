@@ -14,6 +14,7 @@
 #include "src/objects/field-type.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/internal-index.h"
 #include "src/objects/struct-inl.h"
 
 namespace v8 {
@@ -534,7 +535,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
     DCHECK(attributes != NONE || !holder_obj->HasFastElements(isolate_));
     Handle<FixedArrayBase> elements(holder_obj->elements(isolate_), isolate());
     holder_obj->GetElementsAccessor(isolate_)->Reconfigure(
-        holder_obj, elements, number_, value, attributes);
+        holder_obj, elements, InternalIndex(number_), value, attributes);
     ReloadPropertyInformation<true>();
   } else if (holder_obj->HasFastProperties(isolate_)) {
     Handle<Map> old_map(holder_obj->map(isolate_), isolate_);
@@ -731,7 +732,7 @@ void LookupIterator::Delete() {
   if (IsElement()) {
     Handle<JSObject> object = Handle<JSObject>::cast(holder);
     ElementsAccessor* accessor = object->GetElementsAccessor(isolate_);
-    accessor->Delete(object, number_);
+    accessor->Delete(object, InternalIndex(number_));
   } else {
     DCHECK(!name()->IsPrivateName(isolate_));
     bool is_prototype_map = holder->map(isolate_).is_prototype_map();
@@ -894,7 +895,7 @@ Handle<Object> LookupIterator::FetchValue() const {
   if (IsElement()) {
     Handle<JSObject> holder = GetHolder<JSObject>();
     ElementsAccessor* accessor = holder->GetElementsAccessor(isolate_);
-    return accessor->Get(holder, number_);
+    return accessor->Get(holder, InternalIndex(number_));
   } else if (holder_->IsJSGlobalObject(isolate_)) {
     Handle<JSGlobalObject> holder = GetHolder<JSGlobalObject>();
     result = holder->global_dictionary(isolate_).ValueAt(isolate_, number_);
@@ -1028,7 +1029,7 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
   if (IsElement()) {
     Handle<JSObject> object = Handle<JSObject>::cast(holder);
     ElementsAccessor* accessor = object->GetElementsAccessor(isolate_);
-    accessor->Set(object, number_, *value);
+    accessor->Set(object, InternalIndex(number_), *value);
   } else if (holder->HasFastProperties(isolate_)) {
     if (property_details_.location() == kField) {
       // Check that in case of VariableMode::kConst field the existing value is
@@ -1164,13 +1165,15 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
     JSObject js_object = JSObject::cast(holder);
     ElementsAccessor* accessor = js_object.GetElementsAccessor(isolate_);
     FixedArrayBase backing_store = js_object.elements(isolate_);
-    number_ =
+    // TODO(jkummerow): {number_} should have type InternalIndex.
+    InternalIndex entry =
         accessor->GetEntryForIndex(isolate_, js_object, backing_store, index_);
+    number_ = entry.is_found() ? entry.as_uint32() : kMaxUInt32;
     if (number_ == kMaxUInt32) {
       return holder.IsJSTypedArray(isolate_) ? INTEGER_INDEXED_EXOTIC
                                              : NOT_FOUND;
     }
-    property_details_ = accessor->GetDetails(js_object, number_);
+    property_details_ = accessor->GetDetails(js_object, InternalIndex(number_));
     if (map.has_frozen_elements()) {
       property_details_ = property_details_.CopyAddAttributes(FROZEN);
     } else if (map.has_sealed_elements()) {
