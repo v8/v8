@@ -65,6 +65,7 @@
 #include "src/objects/lookup-inl.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/objects-body-descriptors-inl.h"
+#include "src/objects/property-details.h"
 #include "src/utils/identity-map.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-break-iterator.h"
@@ -3764,18 +3765,14 @@ Handle<DescriptorArray> DescriptorArray::CopyForFastObjectClone(
   for (InternalIndex i : InternalIndex::Range(size)) {
     Name key = src->GetKey(i);
     PropertyDetails details = src->GetDetails(i);
+    Representation new_representation = details.representation();
 
     DCHECK(!key.IsPrivateName());
     DCHECK(details.IsEnumerable());
     DCHECK_EQ(details.kind(), kData);
-
-    // Ensure the ObjectClone property details are NONE, and that all source
-    // details did not contain DONT_ENUM.
-    PropertyDetails new_details(kData, NONE, details.location(),
-                                details.constness(), details.representation(),
-                                details.field_index());
-    // Do not propagate the field type of normal object fields from the
-    // original descriptors since FieldType changes don't create new maps.
+    // If the new representation is an in-place changeable field, make it
+    // generic as possible (under in-place changes) to avoid type confusion if
+    // the source representation changes after this feedback has been collected.
     MaybeObject type = src->GetValue(i);
     if (details.location() == PropertyLocation::kField) {
       type = MaybeObject::FromObject(FieldType::Any());
@@ -3784,13 +3781,15 @@ Handle<DescriptorArray> DescriptorArray::CopyForFastObjectClone(
       // need to generalize the descriptors here. That will also enable
       // us to skip the defensive copying of the target map whenever a
       // CloneObjectIC misses.
-      if (FLAG_modify_field_representation_inplace &&
-          (new_details.representation().IsSmi() ||
-           new_details.representation().IsHeapObject())) {
-        new_details =
-            new_details.CopyWithRepresentation(Representation::Tagged());
-      }
+      new_representation = new_representation.MostGenericInPlaceChange();
     }
+
+    // Ensure the ObjectClone property details are NONE, and that all source
+    // details did not contain DONT_ENUM.
+    PropertyDetails new_details(kData, NONE, details.location(),
+                                details.constness(), new_representation,
+                                details.field_index());
+
     descriptors->Set(i, key, type, new_details);
   }
 
