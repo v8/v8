@@ -86,14 +86,14 @@ class FixedArrayBase : public HeapObject {
 
   V8_EXPORT_PRIVATE bool IsCowArray() const;
 
-// Maximal allowed size, in bytes, of a single FixedArrayBase.
-// Prevents overflowing size computations, as well as extreme memory
-// consumption.
-#ifdef V8_HOST_ARCH_32_BIT
-  static const int kMaxSize = 512 * MB;
-#else
-  static const int kMaxSize = 1024 * MB;
-#endif  // V8_HOST_ARCH_32_BIT
+  // Maximal allowed size, in bytes, of a single FixedArrayBase.
+  // Prevents overflowing size computations, as well as extreme memory
+  // consumption. It's either (512Mb - kTaggedSize) or (1024Mb - kTaggedSize).
+  // -kTaggedSize is here to ensure that this max size always fits into Smi
+  // which is necessary for being able to create a free space filler for the
+  // whole array of kMaxSize.
+  static const int kMaxSize = 128 * kTaggedSize * MB - kTaggedSize;
+  STATIC_ASSERT(Smi::IsValid(kMaxSize));
 
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
