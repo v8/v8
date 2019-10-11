@@ -4641,22 +4641,22 @@ class V8_EXPORT WasmModuleObject : public Object {
    * An opaque, native heap object for transferring wasm modules. It
    * supports move semantics, and does not support copy semantics.
    */
-  using TransferrableModule V8_DEPRECATE_SOON(
-      "Use CompiledWasmModule directly") = CompiledWasmModule;
+  using TransferrableModule V8_DEPRECATED("Use CompiledWasmModule directly") =
+      CompiledWasmModule;
 
   /**
    * Get an in-memory, non-persistable, and context-independent (meaning,
    * suitable for transfer to another Isolate and Context) representation
    * of this wasm compiled module.
    */
-  V8_DEPRECATE_SOON("Use GetCompiledModule")
+  V8_DEPRECATED("Use GetCompiledModule")
   TransferrableModule GetTransferrableModule();
 
   /**
    * Efficiently re-create a WasmModuleObject, without recompiling, from
    * a TransferrableModule.
    */
-  V8_DEPRECATE_SOON("Use FromCompiledModule")
+  V8_DEPRECATED("Use FromCompiledModule")
   static MaybeLocal<WasmModuleObject> FromTransferrableModule(
       Isolate* isolate, const TransferrableModule&);
 
