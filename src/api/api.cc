@@ -10558,6 +10558,15 @@ void EmbedderHeapTracer::DecreaseAllocatedSize(size_t bytes) {
 }
 
 void EmbedderHeapTracer::RegisterEmbedderReference(
+    const TracedReferenceBase<v8::Data>& ref) {
+  if (ref.IsEmpty()) return;
+
+  i::Heap* const heap = reinterpret_cast<i::Isolate*>(isolate_)->heap();
+  heap->RegisterExternallyReferencedObject(
+      reinterpret_cast<i::Address*>(ref.val_));
+}
+
+void EmbedderHeapTracer::RegisterEmbedderReference(
     const TracedReferenceBase<v8::Value>& ref) {
   if (ref.IsEmpty()) return;
 
