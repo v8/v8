@@ -67,7 +67,6 @@ Reduction DecompressionElimination::ReduceCompress(Node* node) {
   Node* input_node = node->InputAt(0);
   IrOpcode::Value input_opcode = input_node->opcode();
   if (IrOpcode::IsDecompressOpcode(input_opcode)) {
-    DCHECK(IsValidDecompress(node->opcode(), input_opcode));
     DCHECK_EQ(input_node->InputCount(), 1);
     return Replace(input_node->InputAt(0));
   } else if (IsReducibleConstantOpcode(input_opcode)) {
