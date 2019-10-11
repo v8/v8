@@ -33,6 +33,7 @@
 #include "unicode/datefmt.h"
 #include "unicode/decimfmt.h"
 #include "unicode/formattedvalue.h"
+#include "unicode/localebuilder.h"
 #include "unicode/locid.h"
 #include "unicode/normalizer2.h"
 #include "unicode/numberformatter.h"
@@ -1611,6 +1612,8 @@ std::map<std::string, std::string> LookupAndValidateUnicodeExtensions(
   std::map<std::string, std::string> extensions;
 
   UErrorCode status = U_ZERO_ERROR;
+  icu::LocaleBuilder builder;
+  builder.setLocale(*icu_locale).clearExtensions();
   std::unique_ptr<icu::StringEnumeration> keywords(
       icu_locale->createKeywords(status));
   if (U_FAILURE(status)) return extensions;
@@ -1672,19 +1675,13 @@ std::map<std::string, std::string> LookupAndValidateUnicodeExtensions(
       if (is_valid_value) {
         extensions.insert(
             std::pair<std::string, std::string>(bcp47_key, bcp47_value));
-        continue;
+        builder.setUnicodeLocaleKeyword(bcp47_key, bcp47_value);
       }
     }
-    status = U_ZERO_ERROR;
-    icu_locale->setUnicodeKeywordValue(
-        bcp47_key == nullptr ? keyword : bcp47_key, nullptr, status);
-    // Ignore failures in ICU and skip to the next keyword.
-    //
-    // This is fine.™
-    if (U_FAILURE(status)) {
-      status = U_ZERO_ERROR;
-    }
   }
+
+  status = U_ZERO_ERROR;
+  *icu_locale = builder.build(status);
 
   return extensions;
 }
