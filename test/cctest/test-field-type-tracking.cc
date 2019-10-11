@@ -249,21 +249,22 @@ class Expectations {
     }
   }
 
-  bool Check(DescriptorArray descriptors, int descriptor) const {
+  bool Check(DescriptorArray descriptors, InternalIndex descriptor) const {
     PropertyDetails details = descriptors.GetDetails(descriptor);
 
-    if (details.kind() != kinds_[descriptor]) return false;
-    if (details.location() != locations_[descriptor]) return false;
-    if (details.constness() != constnesses_[descriptor]) return false;
+    if (details.kind() != kinds_[descriptor.as_int()]) return false;
+    if (details.location() != locations_[descriptor.as_int()]) return false;
+    if (details.constness() != constnesses_[descriptor.as_int()]) return false;
 
-    PropertyAttributes expected_attributes = attributes_[descriptor];
+    PropertyAttributes expected_attributes = attributes_[descriptor.as_int()];
     if (details.attributes() != expected_attributes) return false;
 
-    Representation expected_representation = representations_[descriptor];
+    Representation expected_representation =
+        representations_[descriptor.as_int()];
 
     if (!details.representation().Equals(expected_representation)) return false;
 
-    Object expected_value = *values_[descriptor];
+    Object expected_value = *values_[descriptor.as_int()];
     if (details.location() == kField) {
       if (details.kind() == kData) {
         FieldType type = descriptors.GetFieldType(descriptor);
@@ -278,7 +279,7 @@ class Expectations {
       if (value == expected_value) return true;
       if (!value.IsAccessorPair()) return false;
       AccessorPair pair = AccessorPair::cast(value);
-      return pair.Equals(expected_value, *setter_values_[descriptor]);
+      return pair.Equals(expected_value, *setter_values_[descriptor.as_int()]);
     }
     UNREACHABLE();
   }
@@ -291,13 +292,12 @@ class Expectations {
 
     DescriptorArray descriptors = map.instance_descriptors();
     CHECK(expected_nof <= number_of_properties_);
-    for (int i = 0; i < expected_nof; i++) {
+    for (InternalIndex i : InternalIndex::Range(expected_nof)) {
       if (!Check(descriptors, i)) {
         Print();
 #ifdef OBJECT_PRINT
         descriptors.Print();
 #endif
-        Check(descriptors, i);
         return false;
       }
     }
@@ -459,7 +459,7 @@ class Expectations {
     Handle<Object> getter(pair->getter(), isolate);
     Handle<Object> setter(pair->setter(), isolate);
 
-    int descriptor =
+    InternalIndex descriptor =
         map->instance_descriptors().SearchWithCache(isolate, *name, *map);
     map = Map::TransitionToAccessorProperty(isolate, map, name, descriptor,
                                             getter, setter, attributes);
@@ -495,8 +495,9 @@ TEST(ReconfigureAccessorToNonExistingDataField) {
   CHECK(map->is_stable());
   CHECK(expectations.Check(*map));
 
+  InternalIndex first(0);
   Handle<Map> new_map = Map::ReconfigureProperty(
-      isolate, map, 0, kData, NONE, Representation::None(), none_type);
+      isolate, map, first, kData, NONE, Representation::None(), none_type);
   // |map| did not change except marked unstable.
   CHECK(!map->is_deprecated());
   CHECK(!map->is_stable());
@@ -511,12 +512,12 @@ TEST(ReconfigureAccessorToNonExistingDataField) {
   CHECK(expectations.Check(*new_map));
 
   Handle<Map> new_map2 = Map::ReconfigureProperty(
-      isolate, map, 0, kData, NONE, Representation::None(), none_type);
+      isolate, map, first, kData, NONE, Representation::None(), none_type);
   CHECK_EQ(*new_map, *new_map2);
 
   Handle<Object> value(Smi::kZero, isolate);
   Handle<Map> prepared_map = Map::PrepareForDataProperty(
-      isolate, new_map, 0, PropertyConstness::kConst, value);
+      isolate, new_map, first, PropertyConstness::kConst, value);
   // None to Smi generalization is trivial, map does not change.
   CHECK_EQ(*new_map, *prepared_map);
 
@@ -530,7 +531,7 @@ TEST(ReconfigureAccessorToNonExistingDataField) {
   Factory* factory = isolate->factory();
   Handle<JSObject> obj = factory->NewJSObjectFromMap(map);
   JSObject::MigrateToMap(isolate, obj, prepared_map);
-  FieldIndex index = FieldIndex::ForDescriptor(*prepared_map, 0);
+  FieldIndex index = FieldIndex::ForDescriptor(*prepared_map, first);
   CHECK(obj->RawFastPropertyAt(index).IsUninitialized(isolate));
 #ifdef VERIFY_HEAP
   obj->ObjectVerify(isolate);
@@ -565,14 +566,16 @@ TEST(ReconfigureAccessorToNonExistingDataFieldHeavy) {
   Handle<JSObject> obj = Handle<JSObject>::cast(obj_value);
 
   CHECK_EQ(1, obj->map().NumberOfOwnDescriptors());
-  CHECK(obj->map().instance_descriptors().GetStrongValue(0).IsAccessorPair());
+  InternalIndex first(0);
+  CHECK(
+      obj->map().instance_descriptors().GetStrongValue(first).IsAccessorPair());
 
   Handle<Object> value(Smi::FromInt(42), isolate);
   JSObject::SetOwnPropertyIgnoreAttributes(obj, foo_str, value, NONE).Check();
 
   // Check that the property contains |value|.
   CHECK_EQ(1, obj->map().NumberOfOwnDescriptors());
-  FieldIndex index = FieldIndex::ForDescriptor(obj->map(), 0);
+  FieldIndex index = FieldIndex::ForDescriptor(obj->map(), first);
   Object the_value = obj->RawFastPropertyAt(index);
   CHECK(the_value.IsSmi());
   CHECK_EQ(42, Smi::ToInt(the_value));
@@ -653,8 +656,8 @@ void TestGeneralizeField(int detach_property_at_index, int property_index,
 
   if (is_detached_map) {
     detach_point_map = Map::ReconfigureProperty(
-        isolate, detach_point_map, detach_property_at_index, kData, NONE,
-        Representation::Double(), any_type);
+        isolate, detach_point_map, InternalIndex(detach_property_at_index),
+        kData, NONE, Representation::Double(), any_type);
     expectations.SetDataField(detach_property_at_index,
                               PropertyConstness::kConst,
                               Representation::Double(), any_type);
@@ -666,16 +669,17 @@ void TestGeneralizeField(int detach_property_at_index, int property_index,
   // Create dummy optimized code object to test correct dependencies
   // on the field owner.
   Handle<Code> code = CreateDummyOptimizedCode(isolate);
-  Handle<Map> field_owner(map->FindFieldOwner(isolate, property_index),
-                          isolate);
+  Handle<Map> field_owner(
+      map->FindFieldOwner(isolate, InternalIndex(property_index)), isolate);
   DependentCode::InstallDependency(isolate, MaybeObjectHandle::Weak(code),
                                    field_owner,
                                    DependentCode::kFieldOwnerGroup);
   CHECK(!code->marked_for_deoptimization());
 
   // Create new maps by generalizing representation of propX field.
-  Handle<Map> new_map = Map::ReconfigureProperty(
-      isolate, map, property_index, kData, NONE, to.representation, to.type);
+  Handle<Map> new_map =
+      Map::ReconfigureProperty(isolate, map, InternalIndex(property_index),
+                               kData, NONE, to.representation, to.type);
 
   expectations.SetDataField(property_index, expected.constness,
                             expected.representation, expected.type);
@@ -967,8 +971,9 @@ TEST(GeneralizeFieldWithAccessorProperties) {
       maps[i] = maps[i - 1];
       continue;
     }
-    Handle<Map> new_map = Map::ReconfigureProperty(
-        isolate, map, i, kData, NONE, Representation::Double(), any_type);
+    Handle<Map> new_map =
+        Map::ReconfigureProperty(isolate, map, InternalIndex(i), kData, NONE,
+                                 Representation::Double(), any_type);
     maps[i] = new_map;
 
     expectations.SetDataField(i, PropertyConstness::kMutable,
@@ -1055,7 +1060,8 @@ void TestReconfigureDataFieldAttribute_GeneralizeField(
   // Create dummy optimized code object to test correct dependencies
   // on the field owner.
   Handle<Code> code = CreateDummyOptimizedCode(isolate);
-  Handle<Map> field_owner(map->FindFieldOwner(isolate, kSplitProp), isolate);
+  Handle<Map> field_owner(
+      map->FindFieldOwner(isolate, InternalIndex(kSplitProp)), isolate);
   DependentCode::InstallDependency(isolate, MaybeObjectHandle::Weak(code),
                                    field_owner,
                                    DependentCode::kFieldOwnerGroup);
@@ -1063,8 +1069,9 @@ void TestReconfigureDataFieldAttribute_GeneralizeField(
 
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
-  Handle<Map> new_map = Map::ReconfigureExistingProperty(
-      isolate, map2, kSplitProp, kData, NONE, PropertyConstness::kConst);
+  Handle<Map> new_map =
+      Map::ReconfigureExistingProperty(isolate, map2, InternalIndex(kSplitProp),
+                                       kData, NONE, PropertyConstness::kConst);
 
   // |map2| should be left unchanged but marked unstable.
   CHECK(!map2->is_stable());
@@ -1143,7 +1150,8 @@ void TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
   // Create dummy optimized code object to test correct dependencies
   // on the field owner.
   Handle<Code> code = CreateDummyOptimizedCode(isolate);
-  Handle<Map> field_owner(map->FindFieldOwner(isolate, kSplitProp), isolate);
+  Handle<Map> field_owner(
+      map->FindFieldOwner(isolate, InternalIndex(kSplitProp)), isolate);
   DependentCode::InstallDependency(isolate, MaybeObjectHandle::Weak(code),
                                    field_owner,
                                    DependentCode::kFieldOwnerGroup);
@@ -1151,8 +1159,9 @@ void TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
 
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
-  Handle<Map> new_map = Map::ReconfigureExistingProperty(
-      isolate, map2, kSplitProp, kData, NONE, PropertyConstness::kConst);
+  Handle<Map> new_map =
+      Map::ReconfigureExistingProperty(isolate, map2, InternalIndex(kSplitProp),
+                                       kData, NONE, PropertyConstness::kConst);
 
   // |map2| should be left unchanged but marked unstable.
   CHECK(!map2->is_stable());
@@ -1502,8 +1511,9 @@ static void TestReconfigureProperty_CustomPropertyAfterTargetMap(
 
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
-  Handle<Map> new_map = Map::ReconfigureExistingProperty(
-      isolate, map2, kSplitProp, kData, NONE, PropertyConstness::kConst);
+  Handle<Map> new_map =
+      Map::ReconfigureExistingProperty(isolate, map2, InternalIndex(kSplitProp),
+                                       kData, NONE, PropertyConstness::kConst);
 
   // |map2| should be left unchanged but marked unstable.
   CHECK(!map2->is_stable());
@@ -1786,7 +1796,8 @@ static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
   // Create dummy optimized code object to test correct dependencies
   // on the field owner.
   Handle<Code> code = CreateDummyOptimizedCode(isolate);
-  Handle<Map> field_owner(map->FindFieldOwner(isolate, kDiffProp), isolate);
+  Handle<Map> field_owner(
+      map->FindFieldOwner(isolate, InternalIndex(kDiffProp)), isolate);
   DependentCode::InstallDependency(isolate, MaybeObjectHandle::Weak(code),
                                    field_owner,
                                    DependentCode::kFieldOwnerGroup);
@@ -2059,8 +2070,9 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
       map2 = handle(target, isolate);
     }
 
-    map2 = Map::ReconfigureProperty(isolate, map2, kSplitProp, kData, NONE,
-                                    Representation::Double(), any_type);
+    map2 = Map::ReconfigureProperty(isolate, map2, InternalIndex(kSplitProp),
+                                    kData, NONE, Representation::Double(),
+                                    any_type);
     expectations.SetDataField(kSplitProp, PropertyConstness::kMutable,
                               Representation::Double(), any_type);
 
@@ -2156,8 +2168,9 @@ static void TestGeneralizeFieldWithSpecialTransition(
   // Create new maps by generalizing representation of propX field.
   Handle<Map> maps[kPropCount];
   for (int i = 0; i < kPropCount; i++) {
-    Handle<Map> new_map = Map::ReconfigureProperty(isolate, map, i, kData, NONE,
-                                                   to.representation, to.type);
+    Handle<Map> new_map =
+        Map::ReconfigureProperty(isolate, map, InternalIndex(i), kData, NONE,
+                                 to.representation, to.type);
     maps[i] = new_map;
 
     expectations.SetDataField(i, expected.constness, expected.representation,
@@ -2496,7 +2509,7 @@ struct TransitionToAccessorConstantOperator {
 
 
 struct ReconfigureAsDataPropertyOperator {
-  int descriptor_;
+  InternalIndex descriptor_;
   Representation representation_;
   PropertyAttributes attributes_;
   Handle<FieldType> heap_type_;
@@ -2512,8 +2525,9 @@ struct ReconfigureAsDataPropertyOperator {
 
   Handle<Map> DoTransition(Isolate* isolate, Expectations* expectations,
                            Handle<Map> map) {
-    expectations->SetDataField(descriptor_, PropertyConstness::kMutable,
-                               representation_, heap_type_);
+    expectations->SetDataField(descriptor_.as_int(),
+                               PropertyConstness::kMutable, representation_,
+                               heap_type_);
     return Map::ReconfigureExistingProperty(isolate, map, descriptor_, kData,
                                             attributes_,
                                             PropertyConstness::kConst);
@@ -2522,7 +2536,7 @@ struct ReconfigureAsDataPropertyOperator {
 
 
 struct ReconfigureAsAccessorPropertyOperator {
-  int descriptor_;
+  InternalIndex descriptor_;
   PropertyAttributes attributes_;
 
   ReconfigureAsAccessorPropertyOperator(int descriptor,
@@ -2531,7 +2545,7 @@ struct ReconfigureAsAccessorPropertyOperator {
 
   Handle<Map> DoTransition(Isolate* isolate, Expectations* expectations,
                            Handle<Map> map) {
-    expectations->SetAccessorField(descriptor_);
+    expectations->SetAccessorField(descriptor_.as_int());
     return Map::ReconfigureExistingProperty(isolate, map, descriptor_,
                                             kAccessor, attributes_,
                                             PropertyConstness::kConst);
@@ -2805,11 +2819,11 @@ void TestStoreToConstantField(const char* store_func_source,
   CHECK(!map->is_dictionary_map());
   CHECK(!map->is_deprecated());
   CHECK_EQ(1, map->NumberOfOwnDescriptors());
-
-  CHECK(map->instance_descriptors().GetDetails(0).representation().Equals(
+  InternalIndex first(0);
+  CHECK(map->instance_descriptors().GetDetails(first).representation().Equals(
       expected_rep));
   CHECK_EQ(PropertyConstness::kConst,
-           map->instance_descriptors().GetDetails(0).constness());
+           map->instance_descriptors().GetDetails(first).constness());
 
   // Store value2 to obj2 and check that it got same map and property details
   // did not change.
@@ -2821,10 +2835,10 @@ void TestStoreToConstantField(const char* store_func_source,
   CHECK(!map->is_deprecated());
   CHECK_EQ(1, map->NumberOfOwnDescriptors());
 
-  CHECK(map->instance_descriptors().GetDetails(0).representation().Equals(
+  CHECK(map->instance_descriptors().GetDetails(first).representation().Equals(
       expected_rep));
   CHECK_EQ(PropertyConstness::kConst,
-           map->instance_descriptors().GetDetails(0).constness());
+           map->instance_descriptors().GetDetails(first).constness());
 
   // Store value2 to obj1 and check that property became mutable.
   Call(isolate, store_func, obj1, value2).Check();
@@ -2834,10 +2848,10 @@ void TestStoreToConstantField(const char* store_func_source,
   CHECK(!map->is_deprecated());
   CHECK_EQ(1, map->NumberOfOwnDescriptors());
 
-  CHECK(map->instance_descriptors().GetDetails(0).representation().Equals(
+  CHECK(map->instance_descriptors().GetDetails(first).representation().Equals(
       expected_rep));
   CHECK_EQ(expected_constness,
-           map->instance_descriptors().GetDetails(0).constness());
+           map->instance_descriptors().GetDetails(first).constness());
 }
 
 void TestStoreToConstantField_PlusMinusZero(const char* store_func_source,

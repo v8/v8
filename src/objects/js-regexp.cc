@@ -74,8 +74,8 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   }
 
   // If there are no capture groups, set the groups property to undefined.
-  FieldIndex groups_index =
-      FieldIndex::ForDescriptor(indices->map(), kGroupsDescriptorIndex);
+  FieldIndex groups_index = FieldIndex::ForDescriptor(
+      indices->map(), InternalIndex(kGroupsDescriptorIndex));
   if (maybe_names->IsUndefined(isolate)) {
     indices->RawFastPropertyAtPut(groups_index,
                                   ReadOnlyRoots(isolate).undefined_value());

@@ -323,8 +323,8 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
 
 PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
     Handle<Map> receiver_map, Handle<Map> map, MaybeHandle<JSObject> holder,
-    int descriptor, AccessMode access_mode) const {
-  DCHECK_NE(descriptor, DescriptorArray::kNotFound);
+    InternalIndex descriptor, AccessMode access_mode) const {
+  DCHECK(descriptor.is_found());
   Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate());
   PropertyDetails const details = descriptors->GetDetails(descriptor);
   int index = descriptors->GetFieldIndex(descriptor);
@@ -413,9 +413,9 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
 
 PropertyAccessInfo AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
     Handle<Map> receiver_map, Handle<Name> name, Handle<Map> map,
-    MaybeHandle<JSObject> holder, int descriptor,
+    MaybeHandle<JSObject> holder, InternalIndex descriptor,
     AccessMode access_mode) const {
-  DCHECK_NE(descriptor, DescriptorArray::kNotFound);
+  DCHECK(descriptor.is_found());
   Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate());
   SLOW_DCHECK(descriptor == descriptors->Search(*name, *map));
   if (map->instance_type() == JS_MODULE_NAMESPACE_TYPE) {
@@ -502,8 +502,8 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
   while (true) {
     // Lookup the named property on the {map}.
     Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate());
-    int const number = descriptors->Search(*name, *map);
-    if (number != DescriptorArray::kNotFound) {
+    InternalIndex const number = descriptors->Search(*name, *map);
+    if (number.is_found()) {
       PropertyDetails const details = descriptors->GetDetails(number);
       if (access_mode == AccessMode::kStore ||
           access_mode == AccessMode::kStoreInLiteral) {
@@ -767,7 +767,7 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   }
 
   Handle<Map> transition_map(transition, isolate());
-  int const number = transition_map->LastAdded();
+  InternalIndex const number = transition_map->LastAdded();
   PropertyDetails const details =
       transition_map->instance_descriptors().GetDetails(number);
   // Don't bother optimizing stores to read-only properties.

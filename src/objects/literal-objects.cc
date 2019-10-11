@@ -31,11 +31,11 @@ void AddToDescriptorArrayTemplate(
     Isolate* isolate, Handle<DescriptorArray> descriptor_array_template,
     Handle<Name> name, ClassBoilerplate::ValueKind value_kind,
     Handle<Object> value) {
-  int entry = descriptor_array_template->Search(
+  InternalIndex entry = descriptor_array_template->Search(
       *name, descriptor_array_template->number_of_descriptors());
   // TODO(ishell): deduplicate properties at AST level, this will allow us to
   // avoid creation of closures that will be overwritten anyway.
-  if (entry == DescriptorArray::kNotFound) {
+  if (entry.is_not_found()) {
     // Entry not found, add new one.
     Descriptor d;
     if (value_kind == ClassBoilerplate::kData) {

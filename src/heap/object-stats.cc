@@ -150,9 +150,8 @@ FieldStatsCollector::GetInobjectFieldStats(Map map) {
   JSObjectFieldStats stats;
   stats.embedded_fields_count_ = JSObject::GetEmbedderFieldCount(map);
   if (!map.is_dictionary_map()) {
-    int nof = map.NumberOfOwnDescriptors();
     DescriptorArray descriptors = map.instance_descriptors();
-    for (int descriptor = 0; descriptor < nof; descriptor++) {
+    for (InternalIndex descriptor : map.IterateOwnDescriptors()) {
       PropertyDetails details = descriptors.GetDetails(descriptor);
       if (details.location() == kField) {
         FieldIndex index = FieldIndex::ForDescriptor(map, descriptor);

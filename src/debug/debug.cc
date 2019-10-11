@@ -1248,7 +1248,7 @@ void Debug::InstallDebugBreakTrampoline() {
         JSObject object = JSObject::cast(obj);
         DescriptorArray descriptors = object.map().instance_descriptors();
 
-        for (int i = 0; i < object.map().NumberOfOwnDescriptors(); ++i) {
+        for (InternalIndex i : object.map().IterateOwnDescriptors()) {
           if (descriptors.GetDetails(i).kind() == PropertyKind::kAccessor) {
             Object value = descriptors.GetStrongValue(i);
             if (!value.IsAccessorPair()) continue;

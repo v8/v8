@@ -473,10 +473,10 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
     if (receiver_map.NumberOfOwnDescriptors() < minimum_nof_descriptors) {
       return inference.NoChange();
     }
-    if (!receiver_map.serialized_own_descriptor(
-            JSFunction::kLengthDescriptorIndex) ||
-        !receiver_map.serialized_own_descriptor(
-            JSFunction::kNameDescriptorIndex)) {
+    const InternalIndex kLengthIndex(JSFunction::kLengthDescriptorIndex);
+    const InternalIndex kNameIndex(JSFunction::kNameDescriptorIndex);
+    if (!receiver_map.serialized_own_descriptor(kLengthIndex) ||
+        !receiver_map.serialized_own_descriptor(kNameIndex)) {
       TRACE_BROKER_MISSING(broker(),
                            "serialized descriptors on map " << receiver_map);
       return inference.NoChange();
@@ -485,14 +485,10 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
     StringRef length_string(broker(), roots.length_string_handle());
     StringRef name_string(broker(), roots.name_string_handle());
 
-    if (!receiver_map.GetPropertyKey(JSFunction::kLengthDescriptorIndex)
-             .equals(length_string) ||
-        !receiver_map.GetStrongValue(JSFunction::kLengthDescriptorIndex)
-             .IsAccessorInfo() ||
-        !receiver_map.GetPropertyKey(JSFunction::kNameDescriptorIndex)
-             .equals(name_string) ||
-        !receiver_map.GetStrongValue(JSFunction::kNameDescriptorIndex)
-             .IsAccessorInfo()) {
+    if (!receiver_map.GetPropertyKey(kLengthIndex).equals(length_string) ||
+        !receiver_map.GetStrongValue(kLengthIndex).IsAccessorInfo() ||
+        !receiver_map.GetPropertyKey(kNameIndex).equals(name_string) ||
+        !receiver_map.GetStrongValue(kNameIndex).IsAccessorInfo()) {
       return inference.NoChange();
     }
   }

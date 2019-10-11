@@ -6,6 +6,8 @@
 #define V8_OBJECTS_JS_OBJECTS_H_
 
 #include "src/objects/embedder-data-slot.h"
+// TODO(jkummerow): Consider forward-declaring instead.
+#include "src/objects/internal-index.h"
 #include "src/objects/objects.h"
 #include "src/objects/property-array.h"
 #include "torque-generated/class-definitions-tq.h"
@@ -631,7 +633,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
       FieldIndex index, Object value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void RawFastDoublePropertyAsBitsAtPut(FieldIndex index, uint64_t bits);
-  inline void WriteToField(int descriptor, PropertyDetails details,
+  inline void WriteToField(InternalIndex descriptor, PropertyDetails details,
                            Object value);
 
   // Access to in object properties.

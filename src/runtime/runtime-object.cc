@@ -91,7 +91,7 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   // (2) The property to be deleted must be the last property.
   int nof = receiver_map->NumberOfOwnDescriptors();
   if (nof == 0) return false;
-  int descriptor = nof - 1;
+  InternalIndex descriptor(nof - 1);
   Handle<DescriptorArray> descriptors(receiver_map->instance_descriptors(),
                                       isolate);
   if (descriptors->GetKey(descriptor) != *key) return false;

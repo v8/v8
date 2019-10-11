@@ -216,11 +216,10 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
   }
 
   Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate);
-  int length = map->NumberOfOwnDescriptors();
 
   bool stable = true;
 
-  for (int i = 0; i < length; i++) {
+  for (InternalIndex i : map->IterateOwnDescriptors()) {
     Handle<Name> next_key(descriptors->GetKey(i), isolate);
     Handle<Object> prop_value;
     // Directly decode from the descriptor array if |from| did not change shape.
@@ -1858,7 +1857,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
 
   bool stable = object->map() == *map;
 
-  for (int index = 0; index < number_of_own_descriptors; index++) {
+  for (InternalIndex index : InternalIndex::Range(number_of_own_descriptors)) {
     Handle<Name> next_key(descriptors->GetKey(index), isolate);
     if (!next_key->IsString()) continue;
     Handle<Object> prop_value;
@@ -2505,7 +2504,7 @@ void JSObject::PrintInstanceMigration(FILE* file, Map original_map,
   PrintF(file, "[migrating]");
   DescriptorArray o = original_map.instance_descriptors();
   DescriptorArray n = new_map.instance_descriptors();
-  for (int i = 0; i < original_map.NumberOfOwnDescriptors(); i++) {
+  for (InternalIndex i : original_map.IterateOwnDescriptors()) {
     Representation o_r = o.GetDetails(i).representation();
     Representation n_r = n.GetDetails(i).representation();
     if (!o_r.Equals(n_r)) {
@@ -2702,7 +2701,7 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
   // number of properties.
   DCHECK(old_nof <= new_nof);
 
-  for (int i = 0; i < old_nof; i++) {
+  for (InternalIndex i : InternalIndex::Range(old_nof)) {
     PropertyDetails details = new_descriptors->GetDetails(i);
     if (details.location() != kField) continue;
     DCHECK_EQ(kData, details.kind());
@@ -2752,7 +2751,7 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
     }
   }
 
-  for (int i = old_nof; i < new_nof; i++) {
+  for (InternalIndex i : InternalIndex::Range(old_nof, new_nof)) {
     PropertyDetails details = new_descriptors->GetDetails(i);
     if (details.location() != kField) continue;
     DCHECK_EQ(kData, details.kind());
@@ -2853,7 +2852,7 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
       NameDictionary::New(isolate, property_count);
 
   Handle<DescriptorArray> descs(map->instance_descriptors(isolate), isolate);
-  for (int i = 0; i < real_size; i++) {
+  for (InternalIndex i : InternalIndex::Range(real_size)) {
     PropertyDetails details = descs->GetDetails(i);
     Handle<Name> key(descs->GetKey(isolate, i), isolate);
     Handle<Object> value;
@@ -3052,7 +3051,7 @@ void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
     Handle<PropertyArray> array =
         isolate->factory()->NewPropertyArray(external);
 
-    for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
+    for (InternalIndex i : map->IterateOwnDescriptors()) {
       PropertyDetails details = descriptors->GetDetails(i);
       Representation representation = details.representation();
       if (!representation.IsDouble()) continue;
@@ -3415,7 +3414,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
       }
       current_offset += details.field_width_in_words();
     }
-    descriptors->Set(i, &d);
+    descriptors->Set(InternalIndex(i), &d);
   }
   DCHECK(current_offset == number_of_fields);
 
@@ -3610,8 +3609,7 @@ bool TestFastPropertiesIntegrityLevel(Map map, PropertyAttributes level) {
   DCHECK(!map.is_dictionary_map());
 
   DescriptorArray descriptors = map.instance_descriptors();
-  int number_of_own_descriptors = map.NumberOfOwnDescriptors();
-  for (int i = 0; i < number_of_own_descriptors; i++) {
+  for (InternalIndex i : map.IterateOwnDescriptors()) {
     if (descriptors.GetKey(i).IsPrivate()) continue;
     PropertyDetails details = descriptors.GetDetails(i);
     if (details.IsConfigurable()) return false;
@@ -4145,10 +4143,9 @@ MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
 
 Object JSObject::SlowReverseLookup(Object value) {
   if (HasFastProperties()) {
-    int number_of_own_descriptors = map().NumberOfOwnDescriptors();
     DescriptorArray descs = map().instance_descriptors();
     bool value_is_number = value.IsNumber();
-    for (int i = 0; i < number_of_own_descriptors; i++) {
+    for (InternalIndex i : map().IterateOwnDescriptors()) {
       PropertyDetails details = descs.GetDetails(i);
       if (details.location() == kField) {
         DCHECK_EQ(kData, details.kind());

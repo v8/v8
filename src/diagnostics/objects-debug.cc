@@ -589,7 +589,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
     bool is_transitionable_fast_elements_kind =
         IsTransitionableFastElementsKind(map().elements_kind());
 
-    for (int i = 0; i < map().NumberOfOwnDescriptors(); i++) {
+    for (InternalIndex i : map().IterateOwnDescriptors()) {
       PropertyDetails details = descriptors.GetDetails(i);
       if (details.location() == kField) {
         DCHECK_EQ(kData, details.kind());
@@ -667,7 +667,7 @@ void Map::MapVerify(Isolate* isolate) {
     CHECK(!is_dictionary_map());
     CHECK(!is_access_check_needed());
     DescriptorArray const descriptors = instance_descriptors();
-    for (int i = 0; i < NumberOfOwnDescriptors(); ++i) {
+    for (InternalIndex i : IterateOwnDescriptors()) {
       CHECK(!descriptors.GetKey(i).IsInterestingSymbol());
     }
   }
@@ -802,9 +802,9 @@ void DescriptorArray::DescriptorArrayVerify(Isolate* isolate) {
     // Check that properties with private symbols names are non-enumerable, and
     // that fields are in order.
     int expected_field_index = 0;
-    for (int descriptor = 0; descriptor < number_of_descriptors();
-         descriptor++) {
-      Object key = *(GetDescriptorSlot(descriptor) + kEntryKeyIndex);
+    for (InternalIndex descriptor :
+         InternalIndex::Range(number_of_descriptors())) {
+      Object key = *(GetDescriptorSlot(descriptor.as_int()) + kEntryKeyIndex);
       // number_of_descriptors() may be out of sync with the actual descriptors
       // written during descriptor array construction.
       if (key.IsUndefined(isolate)) continue;

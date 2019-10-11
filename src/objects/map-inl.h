@@ -177,10 +177,10 @@ PropertyDetails Map::GetLastDescriptorDetails(Isolate* isolate) const {
   return instance_descriptors(isolate).GetDetails(LastAdded());
 }
 
-int Map::LastAdded() const {
+InternalIndex Map::LastAdded() const {
   int number_of_own_descriptors = NumberOfOwnDescriptors();
   DCHECK_GT(number_of_own_descriptors, 0);
-  return number_of_own_descriptors - 1;
+  return InternalIndex(number_of_own_descriptors - 1);
 }
 
 int Map::NumberOfOwnDescriptors() const {
@@ -192,6 +192,10 @@ void Map::SetNumberOfOwnDescriptors(int number) {
   CHECK_LE(static_cast<unsigned>(number),
            static_cast<unsigned>(kMaxNumberOfDescriptors));
   set_bit_field3(NumberOfOwnDescriptorsBits::update(bit_field3(), number));
+}
+
+InternalIndex::Range Map::IterateOwnDescriptors() const {
+  return InternalIndex::Range(NumberOfOwnDescriptors());
 }
 
 int Map::EnumLength() const { return EnumLengthBits::decode(bit_field3()); }
@@ -540,8 +544,7 @@ void Map::mark_unstable() {
 bool Map::is_stable() const { return !IsUnstableBit::decode(bit_field3()); }
 
 bool Map::CanBeDeprecated() const {
-  int descriptor = LastAdded();
-  for (int i = 0; i <= descriptor; i++) {
+  for (InternalIndex i : IterateOwnDescriptors()) {
     PropertyDetails details = instance_descriptors().GetDetails(i);
     if (details.representation().IsNone()) return true;
     if (details.representation().IsSmi()) return true;

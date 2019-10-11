@@ -2391,8 +2391,9 @@ void ProcessMapForFunctionBind(MapRef map) {
                                    JSFunction::kNameDescriptorIndex) +
                             1;
   if (map.NumberOfOwnDescriptors() >= min_nof_descriptors) {
-    map.SerializeOwnDescriptor(JSFunction::kLengthDescriptorIndex);
-    map.SerializeOwnDescriptor(JSFunction::kNameDescriptorIndex);
+    map.SerializeOwnDescriptor(
+        InternalIndex(JSFunction::kLengthDescriptorIndex));
+    map.SerializeOwnDescriptor(InternalIndex(JSFunction::kNameDescriptorIndex));
   }
 }
 }  // namespace

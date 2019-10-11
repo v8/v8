@@ -111,8 +111,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     if (copy->HasFastProperties(isolate)) {
       Handle<DescriptorArray> descriptors(
           copy->map(isolate).instance_descriptors(isolate), isolate);
-      int limit = copy->map(isolate).NumberOfOwnDescriptors();
-      for (int i = 0; i < limit; i++) {
+      for (InternalIndex i : copy->map(isolate).IterateOwnDescriptors()) {
         PropertyDetails details = descriptors->GetDetails(i);
         DCHECK_EQ(kField, details.location());
         DCHECK_EQ(kData, details.kind());

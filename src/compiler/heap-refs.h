@@ -611,15 +611,15 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
 
   // Concerning the underlying instance_descriptors:
   void SerializeOwnDescriptors();
-  void SerializeOwnDescriptor(int descriptor_index);
-  bool serialized_own_descriptor(int descriptor_index) const;
-  MapRef FindFieldOwner(int descriptor_index) const;
-  PropertyDetails GetPropertyDetails(int descriptor_index) const;
-  NameRef GetPropertyKey(int descriptor_index) const;
-  FieldIndex GetFieldIndexFor(int descriptor_index) const;
-  ObjectRef GetFieldType(int descriptor_index) const;
-  bool IsUnboxedDoubleField(int descriptor_index) const;
-  ObjectRef GetStrongValue(int descriptor_number) const;
+  void SerializeOwnDescriptor(InternalIndex descriptor_index);
+  bool serialized_own_descriptor(InternalIndex descriptor_index) const;
+  MapRef FindFieldOwner(InternalIndex descriptor_index) const;
+  PropertyDetails GetPropertyDetails(InternalIndex descriptor_index) const;
+  NameRef GetPropertyKey(InternalIndex descriptor_index) const;
+  FieldIndex GetFieldIndexFor(InternalIndex descriptor_index) const;
+  ObjectRef GetFieldType(InternalIndex descriptor_index) const;
+  bool IsUnboxedDoubleField(InternalIndex descriptor_index) const;
+  ObjectRef GetStrongValue(InternalIndex descriptor_number) const;
 
   void SerializeRootMap();
   base::Optional<MapRef> FindRootMap() const;

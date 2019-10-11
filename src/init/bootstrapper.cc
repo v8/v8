@@ -1125,9 +1125,9 @@ void ReplaceAccessors(Isolate* isolate, Handle<Map> map, Handle<String> name,
                       PropertyAttributes attributes,
                       Handle<AccessorPair> accessor_pair) {
   DescriptorArray descriptors = map->instance_descriptors();
-  int idx = descriptors.SearchWithCache(isolate, *name, *map);
+  InternalIndex entry = descriptors.SearchWithCache(isolate, *name, *map);
   Descriptor d = Descriptor::AccessorConstant(name, accessor_pair, attributes);
-  descriptors.Replace(idx, &d);
+  descriptors.Replace(entry, &d);
 }
 }  // namespace
 
@@ -2482,7 +2482,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                   Builtins::kRegExpPrototypeExec, 1, true);
         native_context()->set_regexp_exec_function(*fun);
         DCHECK_EQ(JSRegExp::kExecFunctionDescriptorIndex,
-                  prototype->map().LastAdded());
+                  prototype->map().LastAdded().as_int());
       }
 
       SimpleInstallGetter(isolate_, prototype, factory->dotAll_string(),
@@ -2515,7 +2515,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
             Builtins::kRegExpPrototypeMatch, 1, true);
         native_context()->set_regexp_match_function(*fun);
         DCHECK_EQ(JSRegExp::kSymbolMatchFunctionDescriptorIndex,
-                  prototype->map().LastAdded());
+                  prototype->map().LastAdded().as_int());
       }
 
       {
@@ -2524,7 +2524,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
             "[Symbol.matchAll]", Builtins::kRegExpPrototypeMatchAll, 1, true);
         native_context()->set_regexp_match_all_function(*fun);
         DCHECK_EQ(JSRegExp::kSymbolMatchAllFunctionDescriptorIndex,
-                  prototype->map().LastAdded());
+                  prototype->map().LastAdded().as_int());
       }
 
       {
@@ -2533,7 +2533,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
             Builtins::kRegExpPrototypeReplace, 2, false);
         native_context()->set_regexp_replace_function(*fun);
         DCHECK_EQ(JSRegExp::kSymbolReplaceFunctionDescriptorIndex,
-                  prototype->map().LastAdded());
+                  prototype->map().LastAdded().as_int());
       }
 
       {
@@ -2542,7 +2542,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
             Builtins::kRegExpPrototypeSearch, 1, true);
         native_context()->set_regexp_search_function(*fun);
         DCHECK_EQ(JSRegExp::kSymbolSearchFunctionDescriptorIndex,
-                  prototype->map().LastAdded());
+                  prototype->map().LastAdded().as_int());
       }
 
       {
@@ -2551,7 +2551,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
             Builtins::kRegExpPrototypeSplit, 2, false);
         native_context()->set_regexp_split_function(*fun);
         DCHECK_EQ(JSRegExp::kSymbolSplitFunctionDescriptorIndex,
-                  prototype->map().LastAdded());
+                  prototype->map().LastAdded().as_int());
       }
 
       Handle<Map> prototype_map(prototype->map(), isolate());
@@ -3436,7 +3436,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         isolate_, prototype, "set", Builtins::kMapPrototypeSet, 2, true);
     // Check that index of "set" function in JSCollection is correct.
     DCHECK_EQ(JSCollection::kAddFunctionDescriptorIndex,
-              prototype->map().LastAdded());
+              prototype->map().LastAdded().as_int());
     native_context()->set_map_set(*map_set);
 
     Handle<JSFunction> map_has = SimpleInstallFunction(
@@ -3532,7 +3532,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         isolate_, prototype, "add", Builtins::kSetPrototypeAdd, 1, true);
     // Check that index of "add" function in JSCollection is correct.
     DCHECK_EQ(JSCollection::kAddFunctionDescriptorIndex,
-              prototype->map().LastAdded());
+              prototype->map().LastAdded().as_int());
     native_context()->set_set_add(*set_add);
 
     Handle<JSFunction> set_delete = SimpleInstallFunction(
@@ -3636,7 +3636,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         isolate_, prototype, "set", Builtins::kWeakMapPrototypeSet, 2, true);
     // Check that index of "set" function in JSWeakCollection is correct.
     DCHECK_EQ(JSWeakCollection::kAddFunctionDescriptorIndex,
-              prototype->map().LastAdded());
+              prototype->map().LastAdded().as_int());
 
     native_context()->set_weakmap_set(*weakmap_set);
     SimpleInstallFunction(isolate_, prototype, "has",
@@ -3671,7 +3671,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         isolate_, prototype, "add", Builtins::kWeakSetPrototypeAdd, 1, true);
     // Check that index of "add" function in JSWeakCollection is correct.
     DCHECK_EQ(JSWeakCollection::kAddFunctionDescriptorIndex,
-              prototype->map().LastAdded());
+              prototype->map().LastAdded().as_int());
 
     native_context()->set_weakset_add(*weakset_add);
 
@@ -4999,7 +4999,7 @@ bool Genesis::InstallNatives() {
           isolate(), factory()->groups_string(),
           JSRegExpResultIndices::kGroupsIndex, NONE, Representation::Tagged());
       initial_map->AppendDescriptor(isolate(), &d);
-      DCHECK_EQ(initial_map->LastAdded(),
+      DCHECK_EQ(initial_map->LastAdded().as_int(),
                 JSRegExpResultIndices::kGroupsDescriptorIndex);
     }
 
@@ -5305,7 +5305,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
   if (from->HasFastProperties()) {
     Handle<DescriptorArray> descs =
         Handle<DescriptorArray>(from->map().instance_descriptors(), isolate());
-    for (int i = 0; i < from->map().NumberOfOwnDescriptors(); i++) {
+    for (InternalIndex i : from->map().IterateOwnDescriptors()) {
       PropertyDetails details = descs->GetDetails(i);
       if (details.location() == kField) {
         if (details.kind() == kData) {
@@ -5435,9 +5435,9 @@ Handle<Map> Genesis::CreateInitialMapForArraySubclass(int size,
     Handle<DescriptorArray> array_descriptors(
         array_function.initial_map().instance_descriptors(), isolate());
     Handle<String> length = factory()->length_string();
-    int old = array_descriptors->SearchWithCache(isolate(), *length,
-                                                 array_function.initial_map());
-    DCHECK_NE(old, DescriptorArray::kNotFound);
+    InternalIndex old = array_descriptors->SearchWithCache(
+        isolate(), *length, array_function.initial_map());
+    DCHECK(old.is_found());
     Descriptor d = Descriptor::AccessorConstant(
         length, handle(array_descriptors->GetStrongValue(old), isolate()),
         array_descriptors->GetDetails(old).attributes());

@@ -3651,8 +3651,7 @@ void TranslatedState::EnsurePropertiesAllocatedAndMarked(
 
   // Set markers for the double properties.
   Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate());
-  int field_count = map->NumberOfOwnDescriptors();
-  for (int i = 0; i < field_count; i++) {
+  for (InternalIndex i : map->IterateOwnDescriptors()) {
     FieldIndex index = FieldIndex::ForDescriptor(*map, i);
     if (descriptors->GetDetails(i).representation().IsDouble() &&
         !index.is_inobject()) {
@@ -3684,10 +3683,9 @@ void TranslatedState::EnsureJSObjectAllocated(TranslatedValue* slot,
   Handle<ByteArray> object_storage = AllocateStorageFor(slot);
   // Now we handle the interesting (JSObject) case.
   Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate());
-  int field_count = map->NumberOfOwnDescriptors();
 
   // Set markers for the double properties.
-  for (int i = 0; i < field_count; i++) {
+  for (InternalIndex i : map->IterateOwnDescriptors()) {
     FieldIndex index = FieldIndex::ForDescriptor(*map, i);
     if (descriptors->GetDetails(i).representation().IsDouble() &&
         index.is_inobject()) {

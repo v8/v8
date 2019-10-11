@@ -374,7 +374,7 @@ void JSObject::FastPropertyAtPut(FieldIndex index, Object value) {
   }
 }
 
-void JSObject::WriteToField(int descriptor, PropertyDetails details,
+void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
                             Object value) {
   DCHECK_EQ(kField, details.location());
   DCHECK_EQ(kData, details.kind());

@@ -156,7 +156,7 @@ class FieldRepresentationDependency final : public CompilationDependency {
  public:
   // TODO(neis): Once the concurrent compiler frontend is always-on, we no
   // longer need to explicitly store the representation.
-  FieldRepresentationDependency(const MapRef& owner, int descriptor,
+  FieldRepresentationDependency(const MapRef& owner, InternalIndex descriptor,
                                 Representation representation)
       : owner_(owner),
         descriptor_(descriptor),
@@ -181,7 +181,7 @@ class FieldRepresentationDependency final : public CompilationDependency {
 
  private:
   MapRef owner_;
-  int descriptor_;
+  InternalIndex descriptor_;
   Representation representation_;
 };
 
@@ -189,7 +189,7 @@ class FieldTypeDependency final : public CompilationDependency {
  public:
   // TODO(neis): Once the concurrent compiler frontend is always-on, we no
   // longer need to explicitly store the type.
-  FieldTypeDependency(const MapRef& owner, int descriptor,
+  FieldTypeDependency(const MapRef& owner, InternalIndex descriptor,
                       const ObjectRef& type)
       : owner_(owner), descriptor_(descriptor), type_(type) {
     DCHECK(owner_.equals(owner_.FindFieldOwner(descriptor_)));
@@ -211,13 +211,13 @@ class FieldTypeDependency final : public CompilationDependency {
 
  private:
   MapRef owner_;
-  int descriptor_;
+  InternalIndex descriptor_;
   ObjectRef type_;
 };
 
 class FieldConstnessDependency final : public CompilationDependency {
  public:
-  FieldConstnessDependency(const MapRef& owner, int descriptor)
+  FieldConstnessDependency(const MapRef& owner, InternalIndex descriptor)
       : owner_(owner), descriptor_(descriptor) {
     DCHECK(owner_.equals(owner_.FindFieldOwner(descriptor_)));
     DCHECK_EQ(PropertyConstness::kConst,
@@ -239,7 +239,7 @@ class FieldConstnessDependency final : public CompilationDependency {
 
  private:
   MapRef owner_;
-  int descriptor_;
+  InternalIndex descriptor_;
 };
 
 class GlobalPropertyDependency final : public CompilationDependency {
@@ -405,7 +405,7 @@ AllocationType CompilationDependencies::DependOnPretenureMode(
 }
 
 PropertyConstness CompilationDependencies::DependOnFieldConstness(
-    const MapRef& map, int descriptor) {
+    const MapRef& map, InternalIndex descriptor) {
   MapRef owner = map.FindFieldOwner(descriptor);
   PropertyConstness constness =
       owner.GetPropertyDetails(descriptor).constness();
@@ -427,13 +427,13 @@ PropertyConstness CompilationDependencies::DependOnFieldConstness(
   return PropertyConstness::kConst;
 }
 
-void CompilationDependencies::DependOnFieldRepresentation(const MapRef& map,
-                                                          int descriptor) {
+void CompilationDependencies::DependOnFieldRepresentation(
+    const MapRef& map, InternalIndex descriptor) {
   RecordDependency(FieldRepresentationDependencyOffTheRecord(map, descriptor));
 }
 
 void CompilationDependencies::DependOnFieldType(const MapRef& map,
-                                                int descriptor) {
+                                                InternalIndex descriptor) {
   RecordDependency(FieldTypeDependencyOffTheRecord(map, descriptor));
 }
 
@@ -633,7 +633,7 @@ CompilationDependencies::TransitionDependencyOffTheRecord(
 
 CompilationDependency const*
 CompilationDependencies::FieldRepresentationDependencyOffTheRecord(
-    const MapRef& map, int descriptor) const {
+    const MapRef& map, InternalIndex descriptor) const {
   MapRef owner = map.FindFieldOwner(descriptor);
   PropertyDetails details = owner.GetPropertyDetails(descriptor);
   DCHECK(details.representation().Equals(
@@ -643,8 +643,8 @@ CompilationDependencies::FieldRepresentationDependencyOffTheRecord(
 }
 
 CompilationDependency const*
-CompilationDependencies::FieldTypeDependencyOffTheRecord(const MapRef& map,
-                                                         int descriptor) const {
+CompilationDependencies::FieldTypeDependencyOffTheRecord(
+    const MapRef& map, InternalIndex descriptor) const {
   MapRef owner = map.FindFieldOwner(descriptor);
   ObjectRef type = owner.GetFieldType(descriptor);
   DCHECK(type.equals(map.GetFieldType(descriptor)));

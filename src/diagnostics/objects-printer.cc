@@ -477,8 +477,8 @@ bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
   if (HasFastProperties()) {
     DescriptorArray descs = map().instance_descriptors();
     int nof_inobject_properties = map().GetInObjectProperties();
-    int i = 0;
-    for (; i < map().NumberOfOwnDescriptors(); i++) {
+    for (InternalIndex i :
+         InternalIndex::Range(map().NumberOfOwnDescriptors())) {
       os << "\n    ";
       descs.GetKey(i).NamePrint(os);
       os << ": ";
@@ -506,7 +506,7 @@ bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
         os << " properties[" << field_index << "]";
       }
     }
-    return i > 0;
+    return map().NumberOfOwnDescriptors() > 0;
   } else if (IsJSGlobalObject()) {
     JSGlobalObject::cast(*this).global_dictionary().Print(os);
   } else {
@@ -2587,9 +2587,9 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
 }
 
 void DescriptorArray::PrintDescriptors(std::ostream& os) {
-  for (int i = 0; i < number_of_descriptors(); i++) {
+  for (InternalIndex i : InternalIndex::Range(number_of_descriptors())) {
     Name key = GetKey(i);
-    os << "\n  [" << i << "]: ";
+    os << "\n  [" << i.as_int() << "]: ";
 #ifdef OBJECT_PRINT
     key.NamePrint(os);
 #else
@@ -2601,7 +2601,8 @@ void DescriptorArray::PrintDescriptors(std::ostream& os) {
   os << "\n";
 }
 
-void DescriptorArray::PrintDescriptorDetails(std::ostream& os, int descriptor,
+void DescriptorArray::PrintDescriptorDetails(std::ostream& os,
+                                             InternalIndex descriptor,
                                              PropertyDetails::PrintMode mode) {
   PropertyDetails details = GetDetails(descriptor);
   details.PrintAsFastTo(os, mode);
@@ -2664,7 +2665,7 @@ void TransitionsAccessor::PrintOneTransition(std::ostream& os, Name key,
   } else {
     DCHECK(!IsSpecialTransition(roots, key));
     os << "(transition to ";
-    int descriptor = target.LastAdded();
+    InternalIndex descriptor = target.LastAdded();
     DescriptorArray descriptors = target.instance_descriptors();
     descriptors.PrintDescriptorDetails(os, descriptor,
                                        PropertyDetails::kForTransitions);
@@ -2742,7 +2743,7 @@ void TransitionsAccessor::PrintTransitionTree(std::ostream& os, int level,
       os << " ";
       DCHECK(!IsSpecialTransition(ReadOnlyRoots(isolate_), key));
       os << "to ";
-      int descriptor = target.LastAdded();
+      InternalIndex descriptor = target.LastAdded();
       DescriptorArray descriptors = target.instance_descriptors();
       descriptors.PrintDescriptorDetails(os, descriptor,
                                          PropertyDetails::kForTransitions);

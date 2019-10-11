@@ -1632,7 +1632,7 @@ Node* JSCreateLowering::AllocateFastLiteral(Node* effect, Node* control,
   ZoneVector<std::pair<FieldAccess, Node*>> inobject_fields(zone());
   inobject_fields.reserve(boilerplate_map.GetInObjectProperties());
   int const boilerplate_nof = boilerplate_map.NumberOfOwnDescriptors();
-  for (int i = 0; i < boilerplate_nof; ++i) {
+  for (InternalIndex i : InternalIndex::Range(boilerplate_nof)) {
     PropertyDetails const property_details =
         boilerplate_map.GetPropertyDetails(i);
     if (property_details.location() != kField) continue;

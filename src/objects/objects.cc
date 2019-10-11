@@ -2379,7 +2379,7 @@ bool HeapObject::IsExternal(Isolate* isolate) const {
 
 void DescriptorArray::GeneralizeAllFields() {
   int length = number_of_descriptors();
-  for (int i = 0; i < length; i++) {
+  for (InternalIndex i : InternalIndex::Range(length)) {
     PropertyDetails details = GetDetails(i);
     details = details.CopyWithRepresentation(Representation::Tagged());
     if (details.location() == kField) {
@@ -3718,7 +3718,7 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
       DescriptorArray::Allocate(isolate, size, slack);
 
   if (attributes != NONE) {
-    for (int i = 0; i < size; ++i) {
+    for (InternalIndex i : InternalIndex::Range(size)) {
       MaybeObject value_or_field_type = desc->GetValue(i);
       Name key = desc->GetKey(i);
       PropertyDetails details = desc->GetDetails(i);
@@ -3738,7 +3738,7 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
       descriptors->Set(i, key, value_or_field_type, details);
     }
   } else {
-    for (int i = 0; i < size; ++i) {
+    for (InternalIndex i : InternalIndex::Range(size)) {
       descriptors->CopyFrom(i, *desc);
     }
   }
@@ -3761,7 +3761,7 @@ Handle<DescriptorArray> DescriptorArray::CopyForFastObjectClone(
   Handle<DescriptorArray> descriptors =
       DescriptorArray::Allocate(isolate, size, slack);
 
-  for (int i = 0; i < size; ++i) {
+  for (InternalIndex i : InternalIndex::Range(size)) {
     Name key = src->GetKey(i);
     PropertyDetails details = src->GetDetails(i);
 
@@ -3800,7 +3800,7 @@ Handle<DescriptorArray> DescriptorArray::CopyForFastObjectClone(
 }
 
 bool DescriptorArray::IsEqualUpTo(DescriptorArray desc, int nof_descriptors) {
-  for (int i = 0; i < nof_descriptors; i++) {
+  for (InternalIndex i : InternalIndex::Range(nof_descriptors)) {
     if (GetKey(i) != desc.GetKey(i) || GetValue(i) != desc.GetValue(i)) {
       return false;
     }
@@ -4172,8 +4172,8 @@ void DescriptorArray::ClearEnumCache() {
   set_enum_cache(GetReadOnlyRoots().empty_enum_cache());
 }
 
-void DescriptorArray::Replace(int index, Descriptor* descriptor) {
-  descriptor->SetSortedKeyIndex(GetSortedKeyIndex(index));
+void DescriptorArray::Replace(InternalIndex index, Descriptor* descriptor) {
+  descriptor->SetSortedKeyIndex(GetSortedKeyIndex(index.as_int()));
   Set(index, descriptor);
 }
 
@@ -4191,7 +4191,7 @@ void DescriptorArray::InitializeOrChangeEnumCache(
   }
 }
 
-void DescriptorArray::CopyFrom(int index, DescriptorArray src) {
+void DescriptorArray::CopyFrom(InternalIndex index, DescriptorArray src) {
   PropertyDetails details = src.GetDetails(index);
   Set(index, src.GetKey(index), src.GetValue(index), details);
 }
@@ -4302,7 +4302,7 @@ bool DescriptorArray::IsEqualTo(DescriptorArray other) {
   if (number_of_all_descriptors() != other.number_of_all_descriptors()) {
     return false;
   }
-  for (int i = 0; i < number_of_descriptors(); ++i) {
+  for (InternalIndex i : InternalIndex::Range(number_of_descriptors())) {
     if (GetKey(i) != other.GetKey(i)) return false;
     if (GetDetails(i).AsSmi() != other.GetDetails(i).AsSmi()) return false;
     if (GetValue(i) != other.GetValue(i)) return false;
@@ -5648,9 +5648,10 @@ bool JSArray::HasReadOnlyLength(Handle<JSArray> array) {
   // Fast path: "length" is the first fast property of arrays. Since it's not
   // configurable, it's guaranteed to be the first in the descriptor array.
   if (!map.is_dictionary_map()) {
-    DCHECK(map.instance_descriptors().GetKey(0) ==
+    InternalIndex first(0);
+    DCHECK(map.instance_descriptors().GetKey(first) ==
            array->GetReadOnlyRoots().length_string());
-    return map.instance_descriptors().GetDetails(0).IsReadOnly();
+    return map.instance_descriptors().GetDetails(first).IsReadOnly();
   }
 
   Isolate* isolate = array->GetIsolate();

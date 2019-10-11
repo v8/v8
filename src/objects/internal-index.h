@@ -44,6 +44,29 @@ class InternalIndex {
     return static_cast<int>(entry_);
   }
 
+  bool operator==(const InternalIndex& other) { return entry_ == other.entry_; }
+
+  // Iteration support.
+  InternalIndex operator*() { return *this; }
+  bool operator!=(const InternalIndex& other) { return entry_ != other.entry_; }
+  InternalIndex& operator++() {
+    entry_++;
+    return *this;
+  }
+
+  class Range {
+   public:
+    explicit Range(size_t max) : min_(0), max_(max) {}
+    Range(size_t min, size_t max) : min_(min), max_(max) {}
+
+    InternalIndex begin() { return InternalIndex(min_); }
+    InternalIndex end() { return InternalIndex(max_); }
+
+   private:
+    size_t min_;
+    size_t max_;
+  };
+
  private:
   static const size_t kNotFound = std::numeric_limits<size_t>::max();
 

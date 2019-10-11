@@ -338,13 +338,12 @@ Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
   Handle<DescriptorArray> descriptors =
       Handle<DescriptorArray>(map->instance_descriptors(), isolate);
   isolate->counters()->enum_cache_misses()->Increment();
-  int nod = map->NumberOfOwnDescriptors();
 
   // Create the keys array.
   int index = 0;
   bool fields_only = true;
   keys = isolate->factory()->NewFixedArray(enum_length);
-  for (int i = 0; i < nod; i++) {
+  for (InternalIndex i : map->IterateOwnDescriptors()) {
     DisallowHeapAllocation no_gc;
     PropertyDetails details = descriptors->GetDetails(i);
     if (details.IsDontEnum()) continue;
@@ -361,7 +360,7 @@ Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
   if (fields_only) {
     indices = isolate->factory()->NewFixedArray(enum_length);
     index = 0;
-    for (int i = 0; i < nod; i++) {
+    for (InternalIndex i : map->IterateOwnDescriptors()) {
       DisallowHeapAllocation no_gc;
       PropertyDetails details = descriptors->GetDetails(i);
       if (details.IsDontEnum()) continue;
@@ -625,7 +624,7 @@ base::Optional<int> CollectOwnPropertyNamesInternal(
   int first_skipped = -1;
   PropertyFilter filter = keys->filter();
   KeyCollectionMode mode = keys->mode();
-  for (int i = start_index; i < limit; i++) {
+  for (InternalIndex i : InternalIndex::Range(start_index, limit)) {
     bool is_shadowing_key = false;
     PropertyDetails details = descs->GetDetails(i);
 
@@ -646,7 +645,7 @@ base::Optional<int> CollectOwnPropertyNamesInternal(
 
     Name key = descs->GetKey(i);
     if (skip_symbols == key.IsSymbol()) {
-      if (first_skipped == -1) first_skipped = i;
+      if (first_skipped == -1) first_skipped = i.as_int();
       continue;
     }
     if (key.FilterKey(keys->filter())) continue;
@@ -693,7 +692,7 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
         if (map.prototype(isolate_) != ReadOnlyRoots(isolate_).null_value()) {
           Handle<DescriptorArray> descs =
               Handle<DescriptorArray>(map.instance_descriptors(), isolate_);
-          for (int i = 0; i < nof_descriptors; i++) {
+          for (InternalIndex i : InternalIndex::Range(nof_descriptors)) {
             PropertyDetails details = descs->GetDetails(i);
             if (!details.IsDontEnum()) continue;
             Object key = descs->GetKey(i);
