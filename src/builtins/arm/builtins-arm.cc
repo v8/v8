@@ -992,11 +992,17 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   __ bind(&process_bytecode);
 
 // Bailout to the return label if this is a return bytecode.
-#define JUMP_IF_EQUAL(NAME)                                                    \
-  __ cmp(bytecode, Operand(static_cast<int>(interpreter::Bytecode::k##NAME))); \
-  __ b(if_return, eq);
+
+  // Create cmp, cmpne, ..., cmpne to check for a return bytecode.
+  Condition flag = al;
+#define JUMP_IF_EQUAL(NAME)                                                   \
+  __ cmp(bytecode, Operand(static_cast<int>(interpreter::Bytecode::k##NAME)), \
+         flag);                                                               \
+  flag = ne;
   RETURN_BYTECODE_LIST(JUMP_IF_EQUAL)
 #undef JUMP_IF_EQUAL
+
+  __ b(if_return, eq);
 
   // Otherwise, load the size of the current bytecode and advance the offset.
   __ ldr(scratch1, MemOperand(bytecode_size_table, bytecode, LSL, 2));
