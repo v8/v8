@@ -692,6 +692,12 @@
   'built-ins/SharedArrayBuffer/length-is-too-large-throws': [SKIP],
 }],  # asan == True or msan == True or tsan == True
 
+['arch == android_arm64', {
+  # Android Arm64 failures
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9845
+  'intl402/DateTimeFormat/prototype/formatToParts/related-year': [SKIP],
+}], # arch == android_arm64
+
 ##############################################################################
 ['variant == jitless', {
   # https://crbug.com/v8/7777
