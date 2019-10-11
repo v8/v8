@@ -3088,41 +3088,42 @@ Handle<SyntheticModule> Factory::NewSyntheticModule(
   return module;
 }
 
-Handle<JSArrayBuffer> Factory::NewJSArrayBuffer(AllocationType allocation) {
+Handle<JSArrayBuffer> Factory::NewJSArrayBuffer(
+    std::shared_ptr<BackingStore> backing_store, AllocationType allocation) {
   Handle<Map> map(isolate()->native_context()->array_buffer_fun().initial_map(),
                   isolate());
   auto result =
       Handle<JSArrayBuffer>::cast(NewJSObjectFromMap(map, allocation));
-  result->SetupEmpty(SharedFlag::kNotShared);
+  result->Setup(SharedFlag::kNotShared, std::move(backing_store));
   return result;
 }
 
 MaybeHandle<JSArrayBuffer> Factory::NewJSArrayBufferAndBackingStore(
     size_t byte_length, InitializedFlag initialized,
     AllocationType allocation) {
-  // TODO(titzer): Don't bother allocating a 0-length backing store.
-  // This is currently required because the embedder API for
-  // TypedArray::HasBuffer() checks if the backing store is nullptr.
-  // That check should be changed.
+  std::unique_ptr<BackingStore> backing_store = nullptr;
 
-  std::unique_ptr<BackingStore> backing_store = BackingStore::Allocate(
-      isolate(), byte_length, SharedFlag::kNotShared, initialized);
-  if (!backing_store) return MaybeHandle<JSArrayBuffer>();
+  if (byte_length > 0) {
+    backing_store = BackingStore::Allocate(isolate(), byte_length,
+                                           SharedFlag::kNotShared, initialized);
+    if (!backing_store) return MaybeHandle<JSArrayBuffer>();
+  }
   Handle<Map> map(isolate()->native_context()->array_buffer_fun().initial_map(),
                   isolate());
   auto array_buffer =
       Handle<JSArrayBuffer>::cast(NewJSObjectFromMap(map, allocation));
-  array_buffer->Attach(std::move(backing_store));
+  array_buffer->Setup(SharedFlag::kNotShared, std::move(backing_store));
   return array_buffer;
 }
 
-Handle<JSArrayBuffer> Factory::NewJSSharedArrayBuffer() {
+Handle<JSArrayBuffer> Factory::NewJSSharedArrayBuffer(
+    std::shared_ptr<BackingStore> backing_store) {
   Handle<Map> map(
       isolate()->native_context()->shared_array_buffer_fun().initial_map(),
       isolate());
   auto result = Handle<JSArrayBuffer>::cast(
       NewJSObjectFromMap(map, AllocationType::kYoung));
-  result->SetupEmpty(SharedFlag::kShared);
+  result->Setup(SharedFlag::kShared, std::move(backing_store));
   return result;
 }
 

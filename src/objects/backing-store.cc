@@ -455,7 +455,7 @@ std::unique_ptr<BackingStore> BackingStore::WrapAllocation(
   return std::unique_ptr<BackingStore>(result);
 }
 
-std::unique_ptr<BackingStore> BackingStore::NewEmptyBackingStore(
+std::unique_ptr<BackingStore> BackingStore::EmptyBackingStore(
     SharedFlag shared) {
   auto result = new BackingStore(nullptr,  // start
                                  0,        // length
@@ -630,8 +630,7 @@ void GlobalBackingStoreRegistry::UpdateSharedWasmMemoryObjects(
 
     if (old_buffer->byte_length() != backing_store->byte_length()) {
       Handle<JSArrayBuffer> new_buffer =
-          isolate->factory()->NewJSSharedArrayBuffer();
-      new_buffer->Attach(backing_store);
+          isolate->factory()->NewJSSharedArrayBuffer(std::move(backing_store));
       memory_object->update_instances(isolate, new_buffer);
     }
   }

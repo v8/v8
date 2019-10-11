@@ -73,17 +73,15 @@ class JSArrayBuffer : public JSObject {
 
   DECL_CAST(JSArrayBuffer)
 
-  // Immediately after creating an array buffer, the internal untagged fields
-  // are garbage. They need to be initialized with either {SetupEmpty()} or
-  // have a backing store attached via {Attach()}.
+  // Initializes the fields of the ArrayBuffer. The provided backing_store can
+  // be nullptr. If it is not nullptr, then the function registers it with
+  // src/heap/array-buffer-tracker.h.
+  V8_EXPORT_PRIVATE void Setup(SharedFlag shared,
+                               std::shared_ptr<BackingStore> backing_store);
 
-  // Setup an array buffer with no backing store.
-  V8_EXPORT_PRIVATE void SetupEmpty(SharedFlag shared);
-
-  // Attach a backing store to this array buffer.
-  // (note: this registers it with src/heap/array-buffer-tracker.h)
+  // Attaches the backing store to an already constructed empty ArrayBuffer.
+  // This is intended to be used only in ArrayBufferConstructor builtin.
   V8_EXPORT_PRIVATE void Attach(std::shared_ptr<BackingStore> backing_store);
-
   // Detach the backing store from this array buffer if it is detachable.
   // This sets the internal pointer and length to 0 and unregisters the backing
   // store from the array buffer tracker. If the array buffer is not detachable,

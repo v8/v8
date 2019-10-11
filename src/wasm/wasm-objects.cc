@@ -1252,8 +1252,7 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(
     // If no buffer was provided, create a zero-length one.
     auto backing_store =
         BackingStore::AllocateWasmMemory(isolate, 0, 0, SharedFlag::kNotShared);
-    buffer = isolate->factory()->NewJSArrayBuffer();
-    buffer->Attach(std::move(backing_store));
+    buffer = isolate->factory()->NewJSArrayBuffer(std::move(backing_store));
   }
 
   Handle<JSFunction> memory_ctor(
@@ -1295,10 +1294,8 @@ MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
 
   Handle<JSArrayBuffer> buffer =
       (shared == SharedFlag::kShared)
-          ? isolate->factory()->NewJSSharedArrayBuffer()
-          : isolate->factory()->NewJSArrayBuffer();
-
-  buffer->Attach(std::move(backing_store));
+          ? isolate->factory()->NewJSSharedArrayBuffer(std::move(backing_store))
+          : isolate->factory()->NewJSArrayBuffer(std::move(backing_store));
 
   return New(isolate, buffer, maximum);
 }
@@ -1389,8 +1386,8 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   if (backing_store->GrowWasmMemoryInPlace(isolate, pages, maximum_pages)) {
     // Detach old and create a new one with the grown backing store.
     old_buffer->Detach(true);
-    Handle<JSArrayBuffer> new_buffer = isolate->factory()->NewJSArrayBuffer();
-    new_buffer->Attach(backing_store);
+    Handle<JSArrayBuffer> new_buffer =
+        isolate->factory()->NewJSArrayBuffer(std::move(backing_store));
     memory_object->update_instances(isolate, new_buffer);
     return static_cast<int32_t>(old_pages);  // success
   }
@@ -1401,8 +1398,8 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
 
   // Detach old and create a new one with the new backing store.
   old_buffer->Detach(true);
-  Handle<JSArrayBuffer> new_buffer = isolate->factory()->NewJSArrayBuffer();
-  new_buffer->Attach(std::move(new_backing_store));
+  Handle<JSArrayBuffer> new_buffer =
+      isolate->factory()->NewJSArrayBuffer(std::move(new_backing_store));
   memory_object->update_instances(isolate, new_buffer);
   return static_cast<int32_t>(old_pages);  // success
 }

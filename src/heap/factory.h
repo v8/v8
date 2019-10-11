@@ -665,13 +665,15 @@ class V8_EXPORT_PRIVATE Factory {
       v8::Module::SyntheticModuleEvaluationSteps evaluation_steps);
 
   Handle<JSArrayBuffer> NewJSArrayBuffer(
+      std::shared_ptr<BackingStore> backing_store,
       AllocationType allocation = AllocationType::kYoung);
 
   MaybeHandle<JSArrayBuffer> NewJSArrayBufferAndBackingStore(
       size_t byte_length, InitializedFlag initialized,
       AllocationType allocation = AllocationType::kYoung);
 
-  Handle<JSArrayBuffer> NewJSSharedArrayBuffer();
+  Handle<JSArrayBuffer> NewJSSharedArrayBuffer(
+      std::shared_ptr<BackingStore> backing_store);
 
   static void TypeAndSizeForElementsKind(ElementsKind kind,
                                          ExternalArrayType* array_type,

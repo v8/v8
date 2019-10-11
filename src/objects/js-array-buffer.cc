@@ -34,16 +34,31 @@ bool CanonicalNumericIndexString(Isolate* isolate, Handle<Object> s,
 }
 }  // anonymous namespace
 
-void JSArrayBuffer::SetupEmpty(SharedFlag shared) {
+void JSArrayBuffer::Setup(SharedFlag shared,
+                          std::shared_ptr<BackingStore> backing_store) {
   clear_padding();
   set_bit_field(0);
   set_is_shared(shared == SharedFlag::kShared);
   set_is_detachable(shared != SharedFlag::kShared);
-  set_backing_store(nullptr);
-  set_byte_length(0);
   for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
     SetEmbedderField(i, Smi::kZero);
   }
+  if (!backing_store) {
+    set_backing_store(nullptr);
+    set_byte_length(0);
+  } else {
+    Attach(std::move(backing_store));
+  }
+}
+
+void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
+  DCHECK_NOT_NULL(backing_store);
+  DCHECK_EQ(is_shared(), backing_store->is_shared());
+  set_backing_store(backing_store->buffer_start());
+  set_byte_length(backing_store->byte_length());
+  if (backing_store->is_wasm_memory()) set_is_detachable(false);
+  if (!backing_store->free_on_destruct()) set_is_external(true);
+  GetIsolate()->heap()->RegisterBackingStore(*this, std::move(backing_store));
 }
 
 void JSArrayBuffer::Detach(bool force_for_wasm_memory) {
@@ -71,19 +86,6 @@ void JSArrayBuffer::Detach(bool force_for_wasm_memory) {
   set_backing_store(nullptr);
   set_byte_length(0);
   set_was_detached(true);
-}
-
-void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
-  SetupEmpty(backing_store->is_shared() ? SharedFlag::kShared
-                                        : SharedFlag::kNotShared);
-
-  if (backing_store->is_wasm_memory()) set_is_detachable(false);
-
-  set_backing_store(backing_store->buffer_start());
-  set_byte_length(backing_store->byte_length());
-  if (!backing_store->free_on_destruct()) set_is_external(true);
-
-  GetIsolate()->heap()->RegisterBackingStore(*this, std::move(backing_store));
 }
 
 std::shared_ptr<BackingStore> JSArrayBuffer::GetBackingStore() {
@@ -121,7 +123,7 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
   }
 
   // Attach the backing store to the array buffer.
-  array_buffer->Attach(std::move(backing_store));
+  array_buffer->Setup(SharedFlag::kNotShared, std::move(backing_store));
 
   // Clear the elements of the typed array.
   self->set_elements(ReadOnlyRoots(isolate).empty_byte_array());

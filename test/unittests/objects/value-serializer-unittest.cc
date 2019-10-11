@@ -2018,8 +2018,8 @@ class ValueSerializerTestWithSharedArrayBufferClone
           i_isolate, pages, pages, i::SharedFlag::kShared);
       memcpy(backing_store->buffer_start(), data, byte_length);
       i::Handle<i::JSArrayBuffer> buffer =
-          i_isolate->factory()->NewJSSharedArrayBuffer();
-      buffer->Attach(std::move(backing_store));
+          i_isolate->factory()->NewJSSharedArrayBuffer(
+              std::move(backing_store));
       return Utils::ToLocalShared(buffer);
     } else {
       return SharedArrayBuffer::New(isolate(), data, byte_length);
