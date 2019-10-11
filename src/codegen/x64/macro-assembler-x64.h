@@ -156,6 +156,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Ucomisd, ucomisd)
   AVX_OP(Pshufb, pshufb)
   AVX_OP(Paddusb, paddusb)
+  AVX_OP(Sqrtpd, sqrtpd)
 
 #undef AVX_OP
 

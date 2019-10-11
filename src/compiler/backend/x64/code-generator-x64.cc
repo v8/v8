@@ -2293,7 +2293,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F64x2Sqrt: {
-      __ sqrtpd(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ Sqrtpd(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kX64F64x2Add: {
@@ -2353,22 +2353,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64F64x2Eq: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ cmpeqpd(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Cmpeqpd(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64F64x2Ne: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ cmpneqpd(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Cmpneqpd(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64F64x2Lt: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ cmpltpd(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Cmpltpd(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64F64x2Le: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ cmplepd(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Cmplepd(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64F64x2Qfma: {
