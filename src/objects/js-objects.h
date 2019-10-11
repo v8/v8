@@ -808,6 +808,29 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   TQ_OBJECT_CONSTRUCTORS(JSObject)
 };
 
+// An abstract superclass for JSObjects that may have elements while having an
+// empty fixed array as elements backing store. It doesn't carry any
+// functionality but allows function classes to be identified in the type
+// system.
+class JSCustomElementsObject
+    : public TorqueGeneratedJSCustomElementsObject<JSCustomElementsObject,
+                                                   JSObject> {
+ public:
+  STATIC_ASSERT(kHeaderSize == JSObject::kHeaderSize);
+  TQ_OBJECT_CONSTRUCTORS(JSCustomElementsObject)
+};
+
+// An abstract superclass for JSObjects that require non-standard element
+// access. It doesn't carry any functionality but allows function classes to be
+// identified in the type system.
+class JSSpecialObject
+    : public TorqueGeneratedJSSpecialObject<JSSpecialObject,
+                                            JSCustomElementsObject> {
+ public:
+  STATIC_ASSERT(kHeaderSize == JSObject::kHeaderSize);
+  TQ_OBJECT_CONSTRUCTORS(JSSpecialObject)
+};
+
 // JSAccessorPropertyDescriptor is just a JSObject with a specific initial
 // map. This initial map adds in-object properties for "get", "set",
 // "enumerable" and "configurable" properties, as assigned by the
@@ -895,9 +918,21 @@ class JSIteratorResult : public JSObject {
   OBJECT_CONSTRUCTORS(JSIteratorResult, JSObject);
 };
 
+// An abstract superclass for classes representing JavaScript function values.
+// It doesn't carry any functionality but allows function classes to be
+// identified in the type system.
+class JSFunctionOrBoundFunction
+    : public TorqueGeneratedJSFunctionOrBoundFunction<JSFunctionOrBoundFunction,
+                                                      JSObject> {
+ public:
+  STATIC_ASSERT(kHeaderSize == JSObject::kHeaderSize);
+  TQ_OBJECT_CONSTRUCTORS(JSFunctionOrBoundFunction)
+};
+
 // JSBoundFunction describes a bound function exotic object.
 class JSBoundFunction
-    : public TorqueGeneratedJSBoundFunction<JSBoundFunction, JSObject> {
+    : public TorqueGeneratedJSBoundFunction<JSBoundFunction,
+                                            JSFunctionOrBoundFunction> {
  public:
   static MaybeHandle<String> GetName(Isolate* isolate,
                                      Handle<JSBoundFunction> function);
@@ -918,7 +953,7 @@ class JSBoundFunction
 };
 
 // JSFunction describes JavaScript functions.
-class JSFunction : public JSObject {
+class JSFunction : public JSFunctionOrBoundFunction {
  public:
   // [prototype_or_initial_map]:
   DECL_ACCESSORS(prototype_or_initial_map, HeapObject)
@@ -1121,13 +1156,13 @@ class JSFunction : public JSObject {
   // ES6 section 19.2.3.5 Function.prototype.toString ( ).
   static Handle<String> ToString(Handle<JSFunction> function);
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSFunctionOrBoundFunction::kHeaderSize,
                                 TORQUE_GENERATED_JS_FUNCTION_FIELDS)
 
   static constexpr int kSizeWithoutPrototype = kPrototypeOrInitialMapOffset;
   static constexpr int kSizeWithPrototype = kSize;
 
-  OBJECT_CONSTRUCTORS(JSFunction, JSObject);
+  OBJECT_CONSTRUCTORS(JSFunction, JSFunctionOrBoundFunction);
 };
 
 // JSGlobalProxy's prototype must be a JSGlobalObject or null,
@@ -1139,7 +1174,7 @@ class JSFunction : public JSObject {
 // Accessing a JSGlobalProxy requires security check.
 
 class JSGlobalProxy
-    : public TorqueGeneratedJSGlobalProxy<JSGlobalProxy, JSObject> {
+    : public TorqueGeneratedJSGlobalProxy<JSGlobalProxy, JSSpecialObject> {
  public:
   inline bool IsDetachedFrom(JSGlobalObject global) const;
 
@@ -1153,7 +1188,7 @@ class JSGlobalProxy
 };
 
 // JavaScript global object.
-class JSGlobalObject : public JSObject {
+class JSGlobalObject : public JSSpecialObject {
  public:
   // [native context]: the natives corresponding to this global object.
   DECL_ACCESSORS(native_context, NativeContext)
@@ -1181,15 +1216,16 @@ class JSGlobalObject : public JSObject {
   DECL_VERIFIER(JSGlobalObject)
 
   // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSSpecialObject::kHeaderSize,
                                 TORQUE_GENERATED_JS_GLOBAL_OBJECT_FIELDS)
 
-  OBJECT_CONSTRUCTORS(JSGlobalObject, JSObject);
+  OBJECT_CONSTRUCTORS(JSGlobalObject, JSSpecialObject);
 };
 
 // Representation for JS Wrapper objects, String, Number, Boolean, etc.
 class JSPrimitiveWrapper
-    : public TorqueGeneratedJSPrimitiveWrapper<JSPrimitiveWrapper, JSObject> {
+    : public TorqueGeneratedJSPrimitiveWrapper<JSPrimitiveWrapper,
+                                               JSCustomElementsObject> {
  public:
   // Dispatched behavior.
   DECL_PRINTER(JSPrimitiveWrapper)

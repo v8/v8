@@ -386,8 +386,10 @@ def load_objects():
 def load_objects_from_file(objfilename, checktypes):
         objfile = open(objfilename, 'r');
         in_insttype = False;
+        in_torque_insttype = False
 
         typestr = '';
+        torque_typestr = ''
         uncommented_file = ''
 
         #
@@ -401,15 +403,27 @@ def load_objects_from_file(objfilename, checktypes):
                         in_insttype = True;
                         continue;
 
+                if (line.startswith('#define TORQUE_ASSIGNED_INSTANCE_TYPE_LIST')):
+                        in_torque_insttype = True
+                        continue
+
                 if (in_insttype and line.startswith('};')):
                         in_insttype = False;
                         continue;
+
+                if (in_torque_insttype and (not line or line.isspace())):
+                          in_torque_insttype = False
+                          continue
 
                 line = re.sub('//.*', '', line.strip());
 
                 if (in_insttype):
                         typestr += line;
                         continue;
+
+                if (in_torque_insttype):
+                        torque_typestr += line
+                        continue
 
                 uncommented_file += '\n' + line
 
@@ -438,6 +452,9 @@ def load_objects_from_file(objfilename, checktypes):
         entries = typestr.split(',');
         for entry in entries:
                 types[re.sub('\s*=.*', '', entry).lstrip()] = True;
+        entries = torque_typestr.split('\\')
+        for entry in entries:
+                types[re.sub(r' *V\(|\) *', '', entry)] = True
 
         #
         # Infer class names for each type based on a systematic transformation.

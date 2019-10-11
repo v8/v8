@@ -31,9 +31,9 @@ bool CanInlinePropertyAccess(Handle<Map> map) {
   // We can inline property access to prototypes of all primitives, except
   // the special Oddball ones that have no wrapper counterparts (i.e. Null,
   // Undefined and TheHole).
-  STATIC_ASSERT(ODDBALL_TYPE == LAST_PRIMITIVE_TYPE);
+  STATIC_ASSERT(ODDBALL_TYPE == LAST_PRIMITIVE_HEAP_OBJECT_TYPE);
   if (map->IsBooleanMap()) return true;
-  if (map->instance_type() < LAST_PRIMITIVE_TYPE) return true;
+  if (map->instance_type() < LAST_PRIMITIVE_HEAP_OBJECT_TYPE) return true;
   return map->IsJSObjectMap() && !map->is_dictionary_map() &&
          !map->has_named_interceptor() &&
          // TODO(verwaest): Whitelist contexts to which we have access.

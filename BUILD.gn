@@ -967,6 +967,8 @@ action("postmortem-metadata") {
     "src/objects/name-inl.h",
     "src/objects/oddball-inl.h",
     "src/objects/oddball.h",
+    "src/objects/primitive-heap-object.h",
+    "src/objects/primitive-heap-object-inl.h",
     "src/objects/scope-info.h",
     "src/objects/script.h",
     "src/objects/script-inl.h",
@@ -979,6 +981,7 @@ action("postmortem-metadata") {
     "src/objects/string-inl.h",
     "src/objects/struct.h",
     "src/objects/struct-inl.h",
+    "$target_gen_dir/torque-generated/instance-types-tq.h",
   ]
 
   outputs = [
@@ -987,6 +990,10 @@ action("postmortem-metadata") {
 
   args = rebase_path(outputs, root_build_dir) +
          rebase_path(sources, root_build_dir)
+
+  deps = [
+    ":run_torque",
+  ]
 }
 
 torque_files = [
@@ -2671,6 +2678,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/osr-optimized-code-cache-inl.h",
     "src/objects/osr-optimized-code-cache.cc",
     "src/objects/osr-optimized-code-cache.h",
+    "src/objects/primitive-heap-object-inl.h",
+    "src/objects/primitive-heap-object.h",
     "src/objects/promise-inl.h",
     "src/objects/promise.h",
     "src/objects/property-array-inl.h",
@@ -3445,6 +3454,7 @@ v8_source_set("torque_base") {
     "src/torque/global-context.h",
     "src/torque/implementation-visitor.cc",
     "src/torque/implementation-visitor.h",
+    "src/torque/instance-type-generator.cc",
     "src/torque/instructions.cc",
     "src/torque/instructions.h",
     "src/torque/server-data.cc",

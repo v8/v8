@@ -2900,7 +2900,7 @@ bool MapRef::IsFixedCowArrayMap() const {
 }
 
 bool MapRef::IsPrimitiveMap() const {
-  return instance_type() <= LAST_PRIMITIVE_TYPE;
+  return instance_type() <= LAST_PRIMITIVE_HEAP_OBJECT_TYPE;
 }
 
 MapRef MapRef::FindFieldOwner(InternalIndex descriptor_index) const {

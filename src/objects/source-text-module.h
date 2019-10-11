@@ -251,9 +251,10 @@ class SourceTextModuleInfoEntry
   DECL_INT_ACCESSORS(end_pos)
 
   static Handle<SourceTextModuleInfoEntry> New(
-      Isolate* isolate, Handle<HeapObject> export_name,
-      Handle<HeapObject> local_name, Handle<HeapObject> import_name,
-      int module_request, int cell_index, int beg_pos, int end_pos);
+      Isolate* isolate, Handle<PrimitiveHeapObject> export_name,
+      Handle<PrimitiveHeapObject> local_name,
+      Handle<PrimitiveHeapObject> import_name, int module_request,
+      int cell_index, int beg_pos, int end_pos);
 
   TQ_OBJECT_CONSTRUCTORS(SourceTextModuleInfoEntry)
 };

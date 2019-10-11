@@ -5,9 +5,8 @@
 #ifndef V8_OBJECTS_NAME_H_
 #define V8_OBJECTS_NAME_H_
 
-#include "src/objects/heap-object.h"
 #include "src/objects/objects.h"
-#include "torque-generated/class-definitions-tq.h"
+#include "src/objects/primitive-heap-object.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -17,7 +16,7 @@ namespace internal {
 
 // The Name abstract class captures anything that can be used as a property
 // name, i.e., strings and symbols.  All names store a hash value.
-class Name : public TorqueGeneratedName<Name, HeapObject> {
+class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
  public:
   // Tells whether the hash code has been computed.
   inline bool HasHashCode();

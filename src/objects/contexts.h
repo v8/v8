@@ -480,18 +480,18 @@ class Context : public HeapObject {
                                 TORQUE_GENERATED_CONTEXT_FIELDS)
   // TODO(v8:8989): [torque] Support marker constants.
   /* TODO(ishell): remove this fixedArray-like header size. */
-  static const int kHeaderSize = kScopeInfoOffset;
+  static const int kFixedArrayLikeHeaderSize = kScopeInfoOffset;
   static const int kStartOfTaggedFieldsOffset = kScopeInfoOffset;
   /* Header size. */                                                  \
   /* TODO(ishell): use this as header size once MIN_CONTEXT_SLOTS */  \
   /* is removed in favour of offset-based access to common fields. */ \
-  static const int kTodoHeaderSize = kSize;
+  static const int kTodoHeaderSize = kHeaderSize;
 
   // Garbage collection support.
   V8_INLINE static constexpr int SizeFor(int length) {
     // TODO(ishell): switch to kTodoHeaderSize based approach once we no longer
     // reference common Context fields via index
-    return kHeaderSize + length * kTaggedSize;
+    return kFixedArrayLikeHeaderSize + length * kTaggedSize;
   }
 
   // Code Generation support.

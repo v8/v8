@@ -303,7 +303,6 @@ class WeakFixedArray : public HeapObject {
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 TORQUE_GENERATED_WEAK_FIXED_ARRAY_FIELDS)
-  static constexpr int kHeaderSize = kSize;
 
   static const int kMaxLength =
       (FixedArray::kMaxSize - kHeaderSize) / kTaggedSize;

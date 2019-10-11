@@ -50,7 +50,9 @@ bool Type::IsSubtypeOf(const Type* supertype) const {
 
 base::Optional<const ClassType*> Type::ClassSupertype() const {
   for (const Type* t = this; t != nullptr; t = t->parent()) {
-    if (auto* class_type = ClassType::DynamicCast(t)) return class_type;
+    if (auto* class_type = ClassType::DynamicCast(t)) {
+      return class_type;
+    }
   }
   return base::nullopt;
 }
@@ -404,11 +406,11 @@ void ClassType::Finalize() const {
     if (const ClassType* super_class = ClassType::DynamicCast(parent())) {
       if (super_class->HasIndexedField()) flags_ |= ClassFlag::kHasIndexedField;
       if (!super_class->IsAbstract() && !HasSameInstanceTypeAsParent()) {
-        Error(
-            "Super class must either be abstract (annotate super class with "
-            "@abstract) "
-            "or this class must have the same instance type as the super class "
-            "(annotate this class with @hasSameInstanceTypeAsParent).")
+        Error("Super class must either be abstract (annotate super class with ",
+              ANNOTATION_ABSTRACT,
+              ") or this class must have the same instance type as the super "
+              "class (annotate this class with ",
+              ANNOTATION_HAS_SAME_INSTANCE_TYPE_AS_PARENT, ").")
             .Position(this->decl_->name->pos);
       }
     }

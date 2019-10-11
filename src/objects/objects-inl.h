@@ -519,7 +519,7 @@ bool Object::IsMinusZero() const {
 
 OBJECT_CONSTRUCTORS_IMPL(RegExpMatchInfo, FixedArray)
 OBJECT_CONSTRUCTORS_IMPL(ScopeInfo, FixedArray)
-OBJECT_CONSTRUCTORS_IMPL(BigIntBase, HeapObject)
+OBJECT_CONSTRUCTORS_IMPL(BigIntBase, PrimitiveHeapObject)
 OBJECT_CONSTRUCTORS_IMPL(BigInt, BigIntBase)
 OBJECT_CONSTRUCTORS_IMPL(FreshlyAllocatedBigInt, BigIntBase)
 

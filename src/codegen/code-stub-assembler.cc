@@ -6533,7 +6533,7 @@ TNode<BoolT> CodeStubAssembler::IsBigInt(SloppyTNode<HeapObject> object) {
 TNode<BoolT> CodeStubAssembler::IsPrimitiveInstanceType(
     SloppyTNode<Int32T> instance_type) {
   return Int32LessThanOrEqual(instance_type,
-                              Int32Constant(LAST_PRIMITIVE_TYPE));
+                              Int32Constant(LAST_PRIMITIVE_HEAP_OBJECT_TYPE));
 }
 
 TNode<BoolT> CodeStubAssembler::IsPrivateSymbol(
@@ -12140,7 +12140,7 @@ TNode<Oddball> CodeStubAssembler::StrictEqual(
 
               BIND(&if_lhsisoddball);
               {
-                STATIC_ASSERT(LAST_PRIMITIVE_TYPE == ODDBALL_TYPE);
+                STATIC_ASSERT(LAST_PRIMITIVE_HEAP_OBJECT_TYPE == ODDBALL_TYPE);
                 GotoIf(IsBooleanMap(rhs_map), &if_not_equivalent_types);
                 GotoIf(Int32LessThan(rhs_instance_type,
                                      Int32Constant(ODDBALL_TYPE)),

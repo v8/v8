@@ -16,12 +16,13 @@ namespace v8 {
 namespace internal {
 
 // An abstract superclass, a marker class really, for simple structure classes.
-// It doesn't carry much functionality but allows struct classes to be
+// It doesn't carry any functionality but allows struct classes to be
 // identified in the type system.
 class Struct : public TorqueGeneratedStruct<Struct, HeapObject> {
  public:
   inline void InitializeBody(int object_size);
   void BriefPrintDetails(std::ostream& os);
+  STATIC_ASSERT(kHeaderSize == HeapObject::kHeaderSize);
 
   TQ_OBJECT_CONSTRUCTORS(Struct)
 };

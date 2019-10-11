@@ -2943,40 +2943,8 @@ class MacroFieldOffsetsGenerator : public FieldOffsetsGenerator {
  private:
   std::ostream& out_;
 };
+
 }  // namespace
-
-void ImplementationVisitor::GenerateInstanceTypes(
-    const std::string& output_directory) {
-  std::stringstream header;
-  std::string file_name = "instance-types-tq.h";
-  {
-    IncludeGuardScope(header, file_name);
-
-    header << "#define TORQUE_DEFINED_INSTANCE_TYPES(V) \\\n";
-    for (const TypeAlias* alias : GlobalContext::GetClasses()) {
-      const ClassType* type = ClassType::DynamicCast(alias->type());
-      if (type->IsExtern()) continue;
-      std::string type_name =
-          CapifyStringWithUnderscores(type->name()) + "_TYPE";
-      header << "  V(" << type_name << ") \\\n";
-    }
-    header << "\n\n";
-
-    header << "#define TORQUE_STRUCT_LIST_GENERATOR(V, _) \\\n";
-    for (const TypeAlias* alias : GlobalContext::GetClasses()) {
-      const ClassType* type = ClassType::DynamicCast(alias->type());
-      if (type->IsExtern()) continue;
-      std::string type_name =
-          CapifyStringWithUnderscores(type->name()) + "_TYPE";
-      std::string variable_name = SnakeifyString(type->name());
-      header << "  V(_, " << type_name << ", " << type->name() << ", "
-             << variable_name << ") \\\n";
-    }
-    header << "\n";
-  }
-  std::string output_header_path = output_directory + "/" + file_name;
-  WriteFile(output_header_path, header.str());
-}
 
 void ImplementationVisitor::GenerateCppForInternalClasses(
     const std::string& output_directory) {
@@ -3197,7 +3165,7 @@ void CppClassGenerator::GenerateClassConstructors() {
   if (type_->IsInstantiatedAbstractClass()) {
     // This is a hack to prevent wrong instance type checks.
     inl_ << "  // Instance check omitted because class is annotated with "
-            "@dirtyInstantiatedAbstractClass.\n";
+         << ANNOTATION_INSTANTIATED_ABSTRACT_CLASS << ".\n";
   } else {
     inl_ << "  SLOW_DCHECK(this->Is" << name_ << "());\n";
   }
@@ -3290,7 +3258,8 @@ void CppClassGenerator::GenerateFieldAccessorForObject(const Field& f) {
   const std::string offset = "k" + CamelifyString(name) + "Offset";
   base::Optional<const ClassType*> class_type = field_type->ClassSupertype();
 
-  std::string type = class_type ? (*class_type)->name() : "Object";
+  std::string type =
+      class_type ? (*class_type)->GetGeneratedTNodeTypeName() : "Object";
 
   // Generate declarations in header.
   if (!class_type && field_type != TypeOracle::GetObjectType()) {
@@ -3351,7 +3320,6 @@ void ImplementationVisitor::GenerateClassDefinitions(
 
   {
     IncludeGuardScope header_guard(header, basename + ".h");
-    header << "#include \"src/objects/heap-number.h\"\n";
     header << "#include \"src/objects/objects.h\"\n";
     header << "#include \"src/objects/smi.h\"\n";
     header << "#include \"torque-generated/field-offsets-tq.h\"\n";
@@ -3398,7 +3366,7 @@ void ImplementationVisitor::GenerateClassDefinitions(
     // Generate forward declarations for every class.
     for (const TypeAlias* alias : GlobalContext::GetClasses()) {
       const ClassType* type = ClassType::DynamicCast(alias->type());
-      header << "class " << type->name() << ";\n";
+      header << "class " << type->GetGeneratedTNodeTypeName() << ";\n";
     }
 
     for (const TypeAlias* alias : GlobalContext::GetClasses()) {

@@ -513,10 +513,12 @@ class ClassType final : public AggregateType {
   std::string GetGeneratedTNodeTypeNameImpl() const override;
   bool IsExtern() const { return flags_ & ClassFlag::kExtern; }
   bool ShouldGeneratePrint() const {
-    return flags_ & ClassFlag::kGeneratePrint || !IsExtern();
+    return (flags_ & ClassFlag::kGeneratePrint || !IsExtern()) &&
+           !HasUndefinedLayout();
   }
   bool ShouldGenerateVerify() const {
-    return flags_ & ClassFlag::kGenerateVerify || !IsExtern();
+    return (flags_ & ClassFlag::kGenerateVerify || !IsExtern()) &&
+           !HasUndefinedLayout();
   }
   bool IsTransient() const override { return flags_ & ClassFlag::kTransient; }
   bool IsAbstract() const { return flags_ & ClassFlag::kAbstract; }
@@ -547,6 +549,20 @@ class ClassType final : public AggregateType {
   void Finalize() const override;
 
   std::vector<Field> ComputeAllFields() const;
+
+  const InstanceTypeConstraints& GetInstanceTypeConstraints() const {
+    return decl_->instance_type_constraints;
+  }
+  bool IsHighestInstanceTypeWithinParent() const {
+    return flags_ & ClassFlag::kHighestInstanceTypeWithinParent;
+  }
+  bool IsLowestInstanceTypeWithinParent() const {
+    return flags_ & ClassFlag::kLowestInstanceTypeWithinParent;
+  }
+  bool HasUndefinedLayout() const {
+    return flags_ & ClassFlag::kUndefinedLayout;
+  }
+  SourcePosition GetPosition() const { return decl_->pos; }
 
  private:
   friend class TypeOracle;

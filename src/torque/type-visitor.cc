@@ -165,6 +165,12 @@ const ClassType* TypeVisitor::ComputeType(ClassDeclaration* decl) {
             "class \"", decl->name->value,
             "\" must extend either Tagged or an already declared class");
       }
+      if (super_class->HasUndefinedLayout() &&
+          !(decl->flags & ClassFlag::kUndefinedLayout)) {
+        Error("Class \"", decl->name->value,
+              "\" defines its layout but extends a class which does not")
+            .Position(decl->pos);
+      }
     }
 
     std::string generates = decl->name->value;

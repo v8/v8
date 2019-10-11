@@ -588,7 +588,7 @@ bool Map::IsNullOrUndefinedMap() const {
 }
 
 bool Map::IsPrimitiveMap() const {
-  return instance_type() <= LAST_PRIMITIVE_TYPE;
+  return instance_type() <= LAST_PRIMITIVE_HEAP_OBJECT_TYPE;
 }
 
 LayoutDescriptor Map::layout_descriptor_gc_safe() const {

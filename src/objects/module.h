@@ -138,7 +138,8 @@ class Module : public HeapObject {
 // JSModuleNamespace object (representing module "bar") is created and bound to
 // the declared variable (foo).  A module can have at most one namespace object.
 class JSModuleNamespace
-    : public TorqueGeneratedJSModuleNamespace<JSModuleNamespace, JSObject> {
+    : public TorqueGeneratedJSModuleNamespace<JSModuleNamespace,
+                                              JSSpecialObject> {
  public:
   DECL_PRINTER(JSModuleNamespace)
 
