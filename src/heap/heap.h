@@ -1230,6 +1230,17 @@ class Heap {
   AlignWithFiller(HeapObject object, int object_size, int allocation_size,
                   AllocationAlignment alignment);
 
+  // Allocate an external backing store with the given allocation callback.
+  // If the callback fails (indicated by a nullptr result) then this function
+  // will re-try the allocation after performing GCs. This is useful for
+  // external backing stores that may be retained by (unreachable) V8 objects
+  // such as ArrayBuffers, ExternalStrings, etc.
+  //
+  // The function may also proactively trigger GCs even if the allocation
+  // callback does not fail to keep the memory usage low.
+  V8_EXPORT_PRIVATE void* AllocateExternalBackingStore(
+      const std::function<void*(size_t)>& allocate, size_t byte_length);
+
   // ===========================================================================
   // ArrayBuffer tracking. =====================================================
   // ===========================================================================

@@ -2759,6 +2759,22 @@ HeapObject Heap::AlignWithFiller(HeapObject object, int object_size,
   return object;
 }
 
+void* Heap::AllocateExternalBackingStore(
+    const std::function<void*(size_t)>& allocate, size_t byte_length) {
+  // TODO(ulan): Perform GCs proactively based on the byte_length and
+  // the current external backing store counters.
+  void* result = allocate(byte_length);
+  if (result) return result;
+  for (int i = 0; i < 2; i++) {
+    CollectGarbage(OLD_SPACE, GarbageCollectionReason::kExternalMemoryPressure);
+    result = allocate(byte_length);
+    if (result) return result;
+  }
+  isolate()->counters()->gc_last_resort_from_handles()->Increment();
+  CollectAllAvailableGarbage(GarbageCollectionReason::kExternalMemoryPressure);
+  return allocate(byte_length);
+}
+
 void Heap::RegisterBackingStore(JSArrayBuffer buffer,
                                 std::shared_ptr<BackingStore> backing_store) {
   ArrayBufferTracker::RegisterNew(this, buffer, std::move(backing_store));

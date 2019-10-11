@@ -176,8 +176,11 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
     if (shared == SharedFlag::kShared) {
       counters->shared_array_allocations()->AddSample(mb_length);
     }
-    if (initialized == InitializedFlag::kZeroInitialized) {
-      buffer_start = allocator->Allocate(byte_length);
+    auto allocate_buffer = [allocator, initialized](size_t byte_length) {
+      if (initialized == InitializedFlag::kUninitialized) {
+        return allocator->AllocateUninitialized(byte_length);
+      }
+      void* buffer_start = allocator->Allocate(byte_length);
       if (buffer_start) {
         // TODO(wasm): node does not implement the zero-initialization API.
         // Reenable this debug check when node does implement it properly.
@@ -188,9 +191,12 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
           DebugCheckZero(buffer_start, byte_length);
         }
       }
-    } else {
-      buffer_start = allocator->AllocateUninitialized(byte_length);
-    }
+      return buffer_start;
+    };
+
+    buffer_start = isolate->heap()->AllocateExternalBackingStore(
+        allocate_buffer, byte_length);
+
     if (buffer_start == nullptr) {
       // Allocation failed.
       counters->array_buffer_new_size_failures()->AddSample(mb_length);

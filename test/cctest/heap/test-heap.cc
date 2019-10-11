@@ -6782,6 +6782,19 @@ HEAP_TEST(MemoryReducerActivationForSmallHeaps) {
   CHECK_EQ(heap->memory_reducer()->state_.action, MemoryReducer::Action::kWait);
 }
 
+TEST(AllocateExternalBackingStore) {
+  ManualGCScope manual_gc_scope;
+  LocalContext env;
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  int initial_ms_count = heap->ms_count();
+  void* result =
+      heap->AllocateExternalBackingStore([](size_t) { return nullptr; }, 10);
+  CHECK_NULL(result);
+  // At least two GCs should happen.
+  CHECK_LE(2, heap->ms_count() - initial_ms_count);
+}
+
 TEST(CodeObjectRegistry) {
   // We turn off compaction to ensure that code is not moving.
   FLAG_never_compact = true;
