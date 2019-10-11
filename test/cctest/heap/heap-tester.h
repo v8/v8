@@ -14,6 +14,7 @@
   V(CompactionFullAbortedPage)                            \
   V(CompactionPartiallyAbortedPage)                       \
   V(CompactionPartiallyAbortedPageIntraAbortedPointers)   \
+  V(CompactionPartiallyAbortedPageWithInvalidatedSlots)   \
   V(CompactionPartiallyAbortedPageWithStoreBufferEntries) \
   V(CompactionSpaceDivideMultiplePages)                   \
   V(CompactionSpaceDivideSinglePage)                      \
