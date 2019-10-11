@@ -427,7 +427,6 @@ KNOWN_OBJECTS = {
 # Lower 32 bits of first page addresses for various heap spaces.
 HEAP_FIRST_PAGES = {
   0x08180000: "old_space",
-  0x00040000: "code_space",
   0x081c0000: "map_space",
   0x08040000: "read_only_space",
 }

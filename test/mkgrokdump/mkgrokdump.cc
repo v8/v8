@@ -185,6 +185,10 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
       i::PrintF(out, "HEAP_FIRST_PAGES = {\n");
       i::PagedSpaceIterator it(heap);
       for (i::PagedSpace* s = it.Next(); s != nullptr; s = it.Next()) {
+        // Code page is different on Windows vs Linux (bug v8:9844), so skip it.
+        if (s->identity() == i::CODE_SPACE) {
+          continue;
+        }
         DumpSpaceFirstPageAddress(out, s);
       }
       DumpSpaceFirstPageAddress(out, read_only_heap->read_only_space());
