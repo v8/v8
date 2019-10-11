@@ -203,8 +203,9 @@ declare_args() {
 }
 
 if (v8_enable_pointer_compression == "") {
-  # TODO(v8:v7703): temporarily enable pointer compression on arm64
-  v8_enable_pointer_compression = v8_current_cpu == "arm64"
+  # TODO(v8:v7703): temporarily enable pointer compression on arm64 and on x64
+  v8_enable_pointer_compression =
+      v8_current_cpu == "arm64" || v8_current_cpu == "x64"
 }
 
 # Toggle pointer compression for correctness fuzzing when building the
