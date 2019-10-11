@@ -224,6 +224,9 @@ class ConcurrentMarkingVisitor final
     }
     if (weak_ref.target().IsHeapObject()) {
       HeapObject target = HeapObject::cast(weak_ref.target());
+#ifdef THREAD_SANITIZER
+      MemoryChunk::FromHeapObject(target)->SynchronizedHeapLoad();
+#endif
       if (marking_state_.IsBlackOrGrey(target)) {
         // Record the slot inside the JSWeakRef, since the
         // VisitJSObjectSubclass above didn't visit it.
@@ -246,6 +249,9 @@ class ConcurrentMarkingVisitor final
     WeakCell::BodyDescriptor::IterateBody(map, weak_cell, size, this);
     if (weak_cell.target().IsHeapObject()) {
       HeapObject target = HeapObject::cast(weak_cell.target());
+#ifdef THREAD_SANITIZER
+      MemoryChunk::FromHeapObject(target)->SynchronizedHeapLoad();
+#endif
       if (marking_state_.IsBlackOrGrey(target)) {
         // Record the slot inside the WeakCell, since the IterateBody above
         // didn't visit it.
@@ -477,6 +483,9 @@ class ConcurrentMarkingVisitor final
       ObjectSlot key_slot =
           table.RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
       HeapObject key = HeapObject::cast(table.KeyAt(i));
+#ifdef THREAD_SANITIZER
+      MemoryChunk::FromHeapObject(key)->SynchronizedHeapLoad();
+#endif
       MarkCompactCollector::RecordSlot(table, key_slot, key);
 
       ObjectSlot value_slot =
@@ -490,6 +499,9 @@ class ConcurrentMarkingVisitor final
 
         if (value_obj.IsHeapObject()) {
           HeapObject value = HeapObject::cast(value_obj);
+#ifdef THREAD_SANITIZER
+          MemoryChunk::FromHeapObject(value)->SynchronizedHeapLoad();
+#endif
           MarkCompactCollector::RecordSlot(table, value_slot, value);
 
           // Revisit ephemerons with both key and value unreachable at end
