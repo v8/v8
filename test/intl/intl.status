@@ -36,9 +36,6 @@
 
   # https://code.google.com/p/v8/issues/detail?id=9312
   'regress-9312': [FAIL],
-
-  # https://code.google.com/p/v8/issues/detail?id=9812
-  'regress-9812': [FAIL],
 }],  # ALWAYS
 
 ['variant == no_wasm_traps', {
