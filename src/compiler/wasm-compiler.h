@@ -19,6 +19,12 @@
 #include "src/zone/zone.h"
 
 namespace v8 {
+
+namespace base {
+template <typename T, size_t kSize>
+class SmallVector;
+}  // namespace base
+
 namespace internal {
 struct AssemblerOptions;
 class OptimizedCompilationJob;
@@ -179,6 +185,7 @@ class WasmGraphBuilder {
       wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
       wasm::FunctionSig* sig, compiler::SourcePositionTable* spt = nullptr);
 
+  // TODO(mstarzinger): Remove this deprecated buffer.
   Vector<Node*> Buffer(size_t count) {
     if (count > cur_bufsize_) {
       size_t new_size = count + cur_bufsize_ + 5;
@@ -276,15 +283,16 @@ class WasmGraphBuilder {
   }
   Node* Unreachable(wasm::WasmCodePosition position);
 
-  Node* CallDirect(uint32_t index, Node** args, Node*** rets,
+  Node* CallDirect(uint32_t index, Vector<Node*> args, Vector<Node*> rets,
                    wasm::WasmCodePosition position);
-  Node* CallIndirect(uint32_t table_index, uint32_t sig_index, Node** args,
-                     Node*** rets, wasm::WasmCodePosition position);
+  Node* CallIndirect(uint32_t table_index, uint32_t sig_index,
+                     Vector<Node*> args, Vector<Node*> rets,
+                     wasm::WasmCodePosition position);
 
-  Node* ReturnCall(uint32_t index, Node** args,
+  Node* ReturnCall(uint32_t index, Vector<Node*> args,
                    wasm::WasmCodePosition position);
   Node* ReturnCallIndirect(uint32_t table_index, uint32_t sig_index,
-                           Node** args, wasm::WasmCodePosition position);
+                           Vector<Node*> args, wasm::WasmCodePosition position);
 
   Node* Invert(Node* node);
 
@@ -497,28 +505,29 @@ class WasmGraphBuilder {
 
   template <typename... Args>
   Node* BuildCCall(MachineSignature* sig, Node* function, Args... args);
-  Node* BuildCallNode(wasm::FunctionSig* sig, Node** args,
+  Node* BuildCallNode(wasm::FunctionSig* sig, Vector<Node*> args,
                       wasm::WasmCodePosition position, Node* instance_node,
                       const Operator* op);
   // Helper function for {BuildIndirectCall}.
   void LoadIndirectFunctionTable(uint32_t table_index, Node** ift_size,
                                  Node** ift_sig_ids, Node** ift_targets,
                                  Node** ift_instances);
-  Node* BuildIndirectCall(uint32_t table_index, uint32_t sig_index, Node** args,
-                          Node*** rets, wasm::WasmCodePosition position,
+  Node* BuildIndirectCall(uint32_t table_index, uint32_t sig_index,
+                          Vector<Node*> args, Vector<Node*> rets,
+                          wasm::WasmCodePosition position,
                           IsReturnCall continuation);
-  Node* BuildWasmCall(wasm::FunctionSig* sig, Node** args, Node*** rets,
-                      wasm::WasmCodePosition position, Node* instance_node,
-                      UseRetpoline use_retpoline);
-  Node* BuildWasmReturnCall(wasm::FunctionSig* sig, Node** args,
+  Node* BuildWasmCall(wasm::FunctionSig* sig, Vector<Node*> args,
+                      Vector<Node*> rets, wasm::WasmCodePosition position,
+                      Node* instance_node, UseRetpoline use_retpoline);
+  Node* BuildWasmReturnCall(wasm::FunctionSig* sig, Vector<Node*> args,
                             wasm::WasmCodePosition position,
                             Node* instance_node, UseRetpoline use_retpoline);
-  Node* BuildImportCall(wasm::FunctionSig* sig, Node** args, Node*** rets,
-                        wasm::WasmCodePosition position, int func_index,
-                        IsReturnCall continuation);
-  Node* BuildImportCall(wasm::FunctionSig* sig, Node** args, Node*** rets,
-                        wasm::WasmCodePosition position, Node* func_index,
-                        IsReturnCall continuation);
+  Node* BuildImportCall(wasm::FunctionSig* sig, Vector<Node*> args,
+                        Vector<Node*> rets, wasm::WasmCodePosition position,
+                        int func_index, IsReturnCall continuation);
+  Node* BuildImportCall(wasm::FunctionSig* sig, Vector<Node*> args,
+                        Vector<Node*> rets, wasm::WasmCodePosition position,
+                        Node* func_index, IsReturnCall continuation);
 
   Node* BuildF32CopySign(Node* left, Node* right);
   Node* BuildF64CopySign(Node* left, Node* right);
@@ -605,16 +614,6 @@ class WasmGraphBuilder {
 
   Node* BuildMultiReturnFixedArrayFromIterable(const wasm::FunctionSig* sig,
                                                Node* iterable, Node* context);
-
-  Vector<Node*> Realloc(Node* const* buffer, size_t old_count,
-                        size_t new_count) {
-    DCHECK_GE(new_count, old_count);  // Only support growing.
-    Vector<Node*> buf = Buffer(new_count);
-    if (buf.begin() != buffer) {
-      memcpy(buf.begin(), buffer, old_count * sizeof(Node*));
-    }
-    return buf;
-  }
 
   //-----------------------------------------------------------------------
   // Operations involving the CEntry, a dependency we want to remove
