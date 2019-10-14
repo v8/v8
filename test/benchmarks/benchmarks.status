@@ -64,6 +64,12 @@
   'octane/zlib': [SKIP],
 }],
 
+['variant == stress_incremental_marking', {
+  # Too slow for stress_incremental_marking.
+  'octane/box2d': [SKIP],
+  'octane/typescript': [SKIP],
+}],
+
 ['gc_fuzzer', {
   # Too slow for gc fuzzing.
   'octane/earley-boyer' : [PASS, SLOW, ['mode == debug', SKIP]],
