@@ -189,9 +189,11 @@ int SolveInstanceTypeConstraints(
       }
       lowest_child = std::move(child);
     } else if (child->start > child->end) {
-      unconstrained_children_by_size.insert({child.get(), std::move(child)});
+      unconstrained_children_by_size.insert(
+          std::make_pair(child.get(), std::move(child)));
     } else {
-      constrained_children_by_start.insert({child->start, std::move(child)});
+      constrained_children_by_start.insert(
+          std::make_pair(child->start, std::move(child)));
     }
   }
   root->children.clear();
