@@ -220,10 +220,15 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
   bool stable = true;
 
   for (InternalIndex i : map->IterateOwnDescriptors()) {
+    HandleScope inner_scope(isolate);
+
     Handle<Name> next_key(descriptors->GetKey(i), isolate);
     Handle<Object> prop_value;
     // Directly decode from the descriptor array if |from| did not change shape.
     if (stable) {
+      DCHECK_EQ(from->map(), *map);
+      DCHECK_EQ(*descriptors, map->instance_descriptors());
+
       PropertyDetails details = descriptors->GetDetails(i);
       if (!details.IsEnumerable()) continue;
       if (details.kind() == kData) {
@@ -231,7 +236,8 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
           prop_value = handle(descriptors->GetStrongValue(i), isolate);
         } else {
           Representation representation = details.representation();
-          FieldIndex index = FieldIndex::ForDescriptor(*map, i);
+          FieldIndex index = FieldIndex::ForPropertyIndex(
+              *map, details.field_index(), representation);
           prop_value = JSObject::FastPropertyAt(from, representation, index);
         }
       } else {
@@ -239,6 +245,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
             isolate, prop_value,
             JSReceiver::GetProperty(isolate, from, next_key), Nothing<bool>());
         stable = from->map() == *map;
+        *descriptors.location() = map->instance_descriptors().ptr();
       }
     } else {
       // If the map did change, do a slower lookup. We are still guaranteed that
@@ -259,7 +266,10 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
           Object::SetProperty(&it, prop_value, StoreOrigin::kNamed,
                               Just(ShouldThrow::kThrowOnError));
       if (result.IsNothing()) return result;
-      if (stable) stable = from->map() == *map;
+      if (stable) {
+        stable = from->map() == *map;
+        *descriptors.location() = map->instance_descriptors().ptr();
+      }
     } else {
       if (excluded_properties != nullptr &&
           HasExcludedProperty(excluded_properties, next_key)) {
@@ -1832,8 +1842,8 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
   if (!map->OnlyHasSimpleProperties()) return Just(false);
 
   Handle<JSObject> object(JSObject::cast(*receiver), isolate);
-
   Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate);
+
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   int number_of_own_elements =
       object->GetElementsAccessor()->GetCapacity(*object, object->elements());
@@ -1855,15 +1865,25 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
                  Nothing<bool>());
   }
 
-  bool stable = object->map() == *map;
+  // We may have already lost stability, if CollectValuesOrEntries had
+  // side-effects.
+  bool stable = *map == object->map();
+  if (stable) {
+    *descriptors.location() = map->instance_descriptors().ptr();
+  }
 
   for (InternalIndex index : InternalIndex::Range(number_of_own_descriptors)) {
+    HandleScope inner_scope(isolate);
+
     Handle<Name> next_key(descriptors->GetKey(index), isolate);
     if (!next_key->IsString()) continue;
     Handle<Object> prop_value;
 
     // Directly decode from the descriptor array if |from| did not change shape.
     if (stable) {
+      DCHECK_EQ(object->map(), *map);
+      DCHECK_EQ(*descriptors, map->instance_descriptors());
+
       PropertyDetails details = descriptors->GetDetails(index);
       if (!details.IsEnumerable()) continue;
       if (details.kind() == kData) {
@@ -1871,7 +1891,8 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
           prop_value = handle(descriptors->GetStrongValue(index), isolate);
         } else {
           Representation representation = details.representation();
-          FieldIndex field_index = FieldIndex::ForDescriptor(*map, index);
+          FieldIndex field_index = FieldIndex::ForPropertyIndex(
+              *map, details.field_index(), representation);
           prop_value =
               JSObject::FastPropertyAt(object, representation, field_index);
         }
@@ -1881,6 +1902,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
             JSReceiver::GetProperty(isolate, object, next_key),
             Nothing<bool>());
         stable = object->map() == *map;
+        *descriptors.location() = map->instance_descriptors().ptr();
       }
     } else {
       // If the map did change, do a slower lookup. We are still guaranteed that

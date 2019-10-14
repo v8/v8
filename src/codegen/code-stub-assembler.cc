@@ -8507,7 +8507,7 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
   TNode<Uint16T> type = LoadMapInstanceType(map);
   TNode<Uint32T> bit_field3 = EnsureOnlyHasSimpleProperties(map, type, bailout);
 
-  TNode<DescriptorArray> descriptors = LoadMapDescriptors(map);
+  TVARIABLE(DescriptorArray, var_descriptors, LoadMapDescriptors(map));
   TNode<Uint32T> nof_descriptors =
       DecodeWord32<Map::NumberOfOwnDescriptorsBits>(bit_field3);
 
@@ -8522,13 +8522,14 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
   // Note: var_end_key_index is exclusive for the loop
   TVARIABLE(IntPtrT, var_end_key_index,
             ToKeyIndex<DescriptorArray>(nof_descriptors));
-  VariableList list(
-      {&var_stable, &var_has_symbol, &var_is_symbol_processing_loop,
-       &var_start_key_index, &var_end_key_index},
-      zone());
+  VariableList list({&var_descriptors, &var_stable, &var_has_symbol,
+                     &var_is_symbol_processing_loop, &var_start_key_index,
+                     &var_end_key_index},
+                    zone());
   Label descriptor_array_loop(
-      this, {&var_stable, &var_has_symbol, &var_is_symbol_processing_loop,
-             &var_start_key_index, &var_end_key_index});
+      this, {&var_descriptors, &var_stable, &var_has_symbol,
+             &var_is_symbol_processing_loop, &var_start_key_index,
+             &var_end_key_index});
 
   Goto(&descriptor_array_loop);
   BIND(&descriptor_array_loop);
@@ -8537,7 +8538,7 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
       list, var_start_key_index.value(), var_end_key_index.value(),
       [&](TNode<IntPtrT> descriptor_key_index) {
         TNode<Name> next_key =
-            LoadKeyByKeyIndex(descriptors, descriptor_key_index);
+            LoadKeyByKeyIndex(var_descriptors.value(), descriptor_key_index);
 
         TVARIABLE(Object, var_value, SmiConstant(0));
         Label callback(this), next_iteration(this);
@@ -8592,7 +8593,7 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
             // Directly decode from the descriptor array if |object| did not
             // change shape.
             var_map = map;
-            var_meta_storage = descriptors;
+            var_meta_storage = var_descriptors.value();
             var_entry = Signed(descriptor_key_index);
             Goto(&if_found_fast);
           }
@@ -8658,12 +8659,14 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
             BIND(&callback);
             body(next_key, var_value.value());
 
-            // Check if |object| is still stable, i.e. we can proceed using
-            // property details from preloaded |descriptors|.
-            var_stable = Select<BoolT>(
-                var_stable.value(),
-                [=] { return TaggedEqual(LoadMap(object), map); },
-                [=] { return Int32FalseConstant(); });
+            // Check if |object| is still stable, i.e. the descriptors in the
+            // preloaded |descriptors| are still the same modulo in-place
+            // representation changes.
+            GotoIfNot(var_stable.value(), &next_iteration);
+            var_stable = TaggedEqual(LoadMap(object), map);
+            // Reload the descriptors just in case the actual array changed, and
+            // any of the field representations changed in-place.
+            var_descriptors = LoadMapDescriptors(map);
 
             Goto(&next_iteration);
           }
