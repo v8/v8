@@ -2884,11 +2884,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64I32x4Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       if (HasRegisterInput(instr, 0)) {
-        __ movd(dst, i.InputRegister(0));
+        __ Movd(dst, i.InputRegister(0));
       } else {
-        __ movd(dst, i.InputOperand(0));
+        __ Movd(dst, i.InputOperand(0));
       }
-      __ pshufd(dst, dst, 0x0);
+      __ Pshufd(dst, dst, 0x0);
       break;
     }
     case kX64I32x4ExtractLane: {
@@ -3117,16 +3117,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64I16x8ExtractLane: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       Register dst = i.OutputRegister();
-      __ pextrw(dst, i.InputSimd128Register(0), i.InputInt8(1));
+      __ Pextrw(dst, i.InputSimd128Register(0), i.InputInt8(1));
       break;
     }
     case kX64I16x8ReplaceLane: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       if (HasRegisterInput(instr, 2)) {
-        __ pinsrw(i.OutputSimd128Register(), i.InputRegister(2),
+        __ Pinsrw(i.OutputSimd128Register(), i.InputRegister(2),
                   i.InputInt8(1));
       } else {
-        __ pinsrw(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
+        __ Pinsrw(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
       }
       break;
     }
@@ -3311,27 +3311,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope(tasm(), SSSE3);
       XMMRegister dst = i.OutputSimd128Register();
       if (HasRegisterInput(instr, 0)) {
-        __ movd(dst, i.InputRegister(0));
+        __ Movd(dst, i.InputRegister(0));
       } else {
-        __ movd(dst, i.InputOperand(0));
+        __ Movd(dst, i.InputOperand(0));
       }
-      __ xorps(kScratchDoubleReg, kScratchDoubleReg);
-      __ pshufb(dst, kScratchDoubleReg);
+      __ Xorps(kScratchDoubleReg, kScratchDoubleReg);
+      __ Pshufb(dst, kScratchDoubleReg);
       break;
     }
     case kX64I8x16ExtractLane: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       Register dst = i.OutputRegister();
-      __ pextrb(dst, i.InputSimd128Register(0), i.InputInt8(1));
+      __ Pextrb(dst, i.InputSimd128Register(0), i.InputInt8(1));
       break;
     }
     case kX64I8x16ReplaceLane: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       if (HasRegisterInput(instr, 2)) {
-        __ pinsrb(i.OutputSimd128Register(), i.InputRegister(2),
+        __ Pinsrb(i.OutputSimd128Register(), i.InputRegister(2),
                   i.InputInt8(1));
       } else {
-        __ pinsrb(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
+        __ Pinsrb(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
       }
       break;
     }
@@ -3509,7 +3509,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I8x16AddSaturateU: {
-      __ paddusb(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Paddusb(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64I8x16SubSaturateU: {
@@ -3574,10 +3574,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64S128Select: {
       // Mask used here is stored in dst.
       XMMRegister dst = i.OutputSimd128Register();
-      __ movaps(kScratchDoubleReg, i.InputSimd128Register(1));
-      __ xorps(kScratchDoubleReg, i.InputSimd128Register(2));
-      __ andps(dst, kScratchDoubleReg);
-      __ xorps(dst, i.InputSimd128Register(2));
+      __ Movaps(kScratchDoubleReg, i.InputSimd128Register(1));
+      __ Xorps(kScratchDoubleReg, i.InputSimd128Register(2));
+      __ Andps(dst, kScratchDoubleReg);
+      __ Xorps(dst, i.InputSimd128Register(2));
       break;
     }
     case kX64S8x16Swizzle: {
@@ -3608,10 +3608,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         }
 
         SetupShuffleMaskOnStack(tasm(), mask);
-        __ pshufb(dst, Operand(rsp, 0));
+        __ Pshufb(dst, Operand(rsp, 0));
       } else {  // two input operands
         DCHECK_EQ(6, instr->InputCount());
-        ASSEMBLE_SIMD_INSTR(movups, kScratchDoubleReg, 0);
+        ASSEMBLE_SIMD_INSTR(Movups, kScratchDoubleReg, 0);
         uint32_t mask[4] = {};
         for (int j = 5; j > 1; j--) {
           uint32_t lanes = i.InputUint32(j);
@@ -3621,13 +3621,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           }
         }
         SetupShuffleMaskOnStack(tasm(), mask);
-        __ pshufb(kScratchDoubleReg, Operand(rsp, 0));
+        __ Pshufb(kScratchDoubleReg, Operand(rsp, 0));
         uint32_t mask1[4] = {};
         if (instr->InputAt(1)->IsSimd128Register()) {
           XMMRegister src1 = i.InputSimd128Register(1);
           if (src1 != dst) __ movups(dst, src1);
         } else {
-          __ movups(dst, i.InputOperand(1));
+          __ Movups(dst, i.InputOperand(1));
         }
         for (int j = 5; j > 1; j--) {
           uint32_t lanes = i.InputUint32(j);
@@ -3637,8 +3637,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           }
         }
         SetupShuffleMaskOnStack(tasm(), mask1);
-        __ pshufb(dst, Operand(rsp, 0));
-        __ por(dst, kScratchDoubleReg);
+        __ Pshufb(dst, Operand(rsp, 0));
+        __ Por(dst, kScratchDoubleReg);
       }
       __ movq(rsp, tmp);
       break;

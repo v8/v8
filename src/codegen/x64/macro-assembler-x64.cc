@@ -1742,7 +1742,11 @@ void TurboAssembler::Pextrd(Register dst, XMMRegister src, int8_t imm8) {
     Movd(dst, src);
     return;
   }
-  if (CpuFeatures::IsSupported(SSE4_1)) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpextrd(dst, src, imm8);
+    return;
+  } else if (CpuFeatures::IsSupported(SSE4_1)) {
     CpuFeatureScope sse_scope(this, SSE4_1);
     pextrd(dst, src, imm8);
     return;
@@ -1752,8 +1756,38 @@ void TurboAssembler::Pextrd(Register dst, XMMRegister src, int8_t imm8) {
   shrq(dst, Immediate(32));
 }
 
+void TurboAssembler::Pextrw(Register dst, XMMRegister src, int8_t imm8) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpextrw(dst, src, imm8);
+    return;
+  } else {
+    DCHECK(CpuFeatures::IsSupported(SSE4_1));
+    CpuFeatureScope sse_scope(this, SSE4_1);
+    pextrw(dst, src, imm8);
+    return;
+  }
+}
+
+void TurboAssembler::Pextrb(Register dst, XMMRegister src, int8_t imm8) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpextrb(dst, src, imm8);
+    return;
+  } else {
+    DCHECK(CpuFeatures::IsSupported(SSE4_1));
+    CpuFeatureScope sse_scope(this, SSE4_1);
+    pextrb(dst, src, imm8);
+    return;
+  }
+}
+
 void TurboAssembler::Pinsrd(XMMRegister dst, Register src, int8_t imm8) {
-  if (CpuFeatures::IsSupported(SSE4_1)) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpinsrd(dst, dst, src, imm8);
+    return;
+  } else if (CpuFeatures::IsSupported(SSE4_1)) {
     CpuFeatureScope sse_scope(this, SSE4_1);
     pinsrd(dst, src, imm8);
     return;
@@ -1768,7 +1802,11 @@ void TurboAssembler::Pinsrd(XMMRegister dst, Register src, int8_t imm8) {
 }
 
 void TurboAssembler::Pinsrd(XMMRegister dst, Operand src, int8_t imm8) {
-  if (CpuFeatures::IsSupported(SSE4_1)) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpinsrd(dst, dst, src, imm8);
+    return;
+  } else if (CpuFeatures::IsSupported(SSE4_1)) {
     CpuFeatureScope sse_scope(this, SSE4_1);
     pinsrd(dst, src, imm8);
     return;
@@ -1779,6 +1817,56 @@ void TurboAssembler::Pinsrd(XMMRegister dst, Operand src, int8_t imm8) {
   } else {
     DCHECK_EQ(0, imm8);
     Movss(dst, kScratchDoubleReg);
+  }
+}
+
+void TurboAssembler::Pinsrw(XMMRegister dst, Register src, int8_t imm8) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpinsrw(dst, dst, src, imm8);
+    return;
+  } else {
+    DCHECK(CpuFeatures::IsSupported(SSE4_1));
+    CpuFeatureScope sse_scope(this, SSE4_1);
+    pinsrw(dst, src, imm8);
+    return;
+  }
+}
+
+void TurboAssembler::Pinsrw(XMMRegister dst, Operand src, int8_t imm8) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpinsrw(dst, dst, src, imm8);
+    return;
+  } else {
+    CpuFeatureScope sse_scope(this, SSE4_1);
+    pinsrw(dst, src, imm8);
+    return;
+  }
+}
+
+void TurboAssembler::Pinsrb(XMMRegister dst, Register src, int8_t imm8) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpinsrb(dst, dst, src, imm8);
+    return;
+  } else {
+    DCHECK(CpuFeatures::IsSupported(SSE4_1));
+    CpuFeatureScope sse_scope(this, SSE4_1);
+    pinsrb(dst, src, imm8);
+    return;
+  }
+}
+
+void TurboAssembler::Pinsrb(XMMRegister dst, Operand src, int8_t imm8) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpinsrb(dst, dst, src, imm8);
+    return;
+  } else {
+    CpuFeatureScope sse_scope(this, SSE4_1);
+    pinsrb(dst, src, imm8);
+    return;
   }
 }
 
