@@ -171,7 +171,7 @@ using ObjectPropertiesResultPtr =
 // Get information about the given object pointer, which could be:
 // - A tagged pointer, strong or weak
 // - A cleared weak pointer
-// - A compressed tagged pointer, sign-extended to 64 bits
+// - A compressed tagged pointer, zero-extended to 64 bits
 // - A tagged small integer
 // The type hint is only used if the object's Map is missing or corrupt. It
 // should be the fully-qualified name of a class that inherits from

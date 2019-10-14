@@ -62,9 +62,6 @@ if (hasattr(v8heapconst, 'HEAP_FIRST_PAGES')):  # Only exists in ptr-compr build
   out = out + '  }\n'
   expected_spaces = set(['map_space', 'read_only_space', 'old_space'])
   for offset, space_name in v8heapconst.HEAP_FIRST_PAGES.items():
-    # Turn 32-bit unsigned value into signed.
-    if offset >= 0x80000000:
-      offset -= 0x100000000
     if (space_name in expected_spaces):
       out = out + '  if (heap_addresses->' + space_name + '_first_page == 0) {\n'
       out = out + '    heap_addresses->' + space_name + \

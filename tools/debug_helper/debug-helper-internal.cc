@@ -12,9 +12,7 @@ namespace v8_debug_helper_internal {
 
 bool IsPointerCompressed(uintptr_t address) {
 #if COMPRESS_POINTERS_BOOL
-  STATIC_ASSERT(i::kPtrComprHeapReservationSize == uintptr_t{1} << 32);
-  intptr_t signed_address = static_cast<intptr_t>(address);
-  return signed_address >= INT32_MIN && signed_address <= INT32_MAX;
+  return address < i::kPtrComprHeapReservationSize;
 #else
   return false;
 #endif
