@@ -166,7 +166,8 @@ class WasmGraphBuildingInterface {
     // Wrap input merge into phis.
     for (uint32_t i = 0; i < block->start_merge.arity; ++i) {
       Value& val = block->start_merge[i];
-      val.node = builder_->Phi(val.type, 1, &val.node, block->end_env->control);
+      TFNode* inputs[] = {val.node, block->end_env->control};
+      val.node = builder_->Phi(val.type, 1, inputs);
     }
   }
 
@@ -310,8 +311,8 @@ class WasmGraphBuildingInterface {
     TFNode* controls[2];
     BUILD(BranchNoHint, cond.node, &controls[0], &controls[1]);
     TFNode* merge = BUILD(Merge, 2, controls);
-    TFNode* vals[2] = {tval.node, fval.node};
-    TFNode* phi = BUILD(Phi, tval.type, 2, vals, merge);
+    TFNode* inputs[] = {tval.node, fval.node, merge};
+    TFNode* phi = BUILD(Phi, tval.type, 2, inputs);
     result->node = phi;
     ssa_env_->control = merge;
   }
@@ -658,8 +659,7 @@ class WasmGraphBuildingInterface {
     exception_env->control = if_exception;
     TryInfo* try_info = current_try_info(decoder);
     Goto(decoder, exception_env, try_info->catch_env);
-    TFNode* exception = try_info->exception;
-    if (exception == nullptr) {
+    if (try_info->exception == nullptr) {
       DCHECK_EQ(SsaEnv::kReached, try_info->catch_env->state);
       try_info->exception = if_exception;
     } else {
@@ -741,17 +741,16 @@ class WasmGraphBuildingInterface {
         to->control = merge;
         // Merge effects.
         if (from->effect != to->effect) {
-          TFNode* effects[] = {to->effect, from->effect, merge};
-          to->effect = builder_->EffectPhi(2, effects, merge);
+          TFNode* inputs[] = {to->effect, from->effect, merge};
+          to->effect = builder_->EffectPhi(2, inputs);
         }
         // Merge SSA values.
         for (int i = decoder->num_locals() - 1; i >= 0; i--) {
           TFNode* a = to->locals[i];
           TFNode* b = from->locals[i];
           if (a != b) {
-            TFNode* vals[] = {a, b};
-            to->locals[i] =
-                builder_->Phi(decoder->GetLocalType(i), 2, vals, merge);
+            TFNode* inputs[] = {a, b, merge};
+            to->locals[i] = builder_->Phi(decoder->GetLocalType(i), 2, inputs);
           }
         }
         // Start a new merge from the instance cache.
@@ -787,7 +786,8 @@ class WasmGraphBuildingInterface {
     env->state = SsaEnv::kMerged;
 
     env->control = builder_->Loop(env->control);
-    env->effect = builder_->EffectPhi(1, &env->effect, env->control);
+    TFNode* effect_inputs[] = {env->effect, env->control};
+    env->effect = builder_->EffectPhi(1, effect_inputs);
     builder_->TerminateLoop(env->effect, env->control);
     // The '+ 1' here is to be able to set the instance cache as assigned.
     BitVector* assigned = WasmDecoder<validate>::AnalyzeLoopAssignment(
@@ -798,8 +798,8 @@ class WasmGraphBuildingInterface {
       int instance_cache_index = decoder->total_locals();
       for (int i = decoder->num_locals() - 1; i >= 0; i--) {
         if (!assigned->Contains(i)) continue;
-        env->locals[i] = builder_->Phi(decoder->GetLocalType(i), 1,
-                                       &env->locals[i], env->control);
+        TFNode* inputs[] = {env->locals[i], env->control};
+        env->locals[i] = builder_->Phi(decoder->GetLocalType(i), 1, inputs);
       }
       // Introduce phis for instance cache pointers if necessary.
       if (assigned->Contains(instance_cache_index)) {
@@ -815,8 +815,8 @@ class WasmGraphBuildingInterface {
 
     // Conservatively introduce phis for all local variables.
     for (int i = decoder->num_locals() - 1; i >= 0; i--) {
-      env->locals[i] = builder_->Phi(decoder->GetLocalType(i), 1,
-                                     &env->locals[i], env->control);
+      TFNode* inputs[] = {env->locals[i], env->control};
+      env->locals[i] = builder_->Phi(decoder->GetLocalType(i), 1, inputs);
     }
 
     // Conservatively introduce phis for instance cache.
