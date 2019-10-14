@@ -223,8 +223,9 @@ class WasmGraphBuilder {
   Node* ExceptionTagEqual(Node* caught_tag, Node* expected_tag);
   Node* LoadExceptionTagFromTable(uint32_t exception_index);
   Node* GetExceptionTag(Node* except_obj);
-  Vector<Node*> GetExceptionValues(Node* except_obj,
-                                   const wasm::WasmException* exception);
+  Node* GetExceptionValues(Node* except_obj,
+                           const wasm::WasmException* exception,
+                           Vector<Node*> values_out);
   bool IsPhiWithMerge(Node* phi, Node* merge);
   bool ThrowsException(Node* node, Node** if_success, Node** if_exception);
   void AppendToMerge(Node* merge, Node* from);

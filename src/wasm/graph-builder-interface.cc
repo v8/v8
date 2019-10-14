@@ -490,12 +490,11 @@ class WasmGraphBuildingInterface {
     // If the tags match we extract the values from the exception object and
     // push them onto the operand stack using the passed {values} vector.
     SetEnv(if_match_env);
-    // TODO(mstarzinger): Can't use BUILD() here, GetExceptionValues() returns
-    // TFNode** rather than TFNode*. Fix to add landing pads.
-    Vector<TFNode*> caught_values =
-        builder_->GetExceptionValues(exception.node, imm.exception);
+    base::SmallVector<TFNode*, 8> caught_values(values.size());
+    Vector<TFNode*> caught_vector = VectorOf(caught_values);
+    BUILD(GetExceptionValues, exception.node, imm.exception, caught_vector);
     for (size_t i = 0, e = values.size(); i < e; ++i) {
-      values[i].node = caught_values[i];
+      values[i].node = caught_vector[i];
     }
     BrOrRet(decoder, depth);
 
@@ -660,6 +659,7 @@ class WasmGraphBuildingInterface {
 
     SsaEnv* exception_env = Split(decoder, success_env);
     exception_env->control = if_exception;
+    exception_env->effect = if_exception;
     TryInfo* try_info = current_try_info(decoder);
     Goto(decoder, exception_env, try_info->catch_env);
     if (try_info->exception == nullptr) {

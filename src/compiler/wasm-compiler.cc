@@ -2258,13 +2258,14 @@ Node* WasmGraphBuilder::GetExceptionTag(Node* except_obj) {
   return BuildCallToRuntime(Runtime::kWasmExceptionGetTag, &except_obj, 1);
 }
 
-Vector<Node*> WasmGraphBuilder::GetExceptionValues(
-    Node* except_obj, const wasm::WasmException* exception) {
+Node* WasmGraphBuilder::GetExceptionValues(Node* except_obj,
+                                           const wasm::WasmException* exception,
+                                           Vector<Node*> values) {
   Node* values_array =
       BuildCallToRuntime(Runtime::kWasmExceptionGetValues, &except_obj, 1);
   uint32_t index = 0;
   const wasm::WasmExceptionSig* sig = exception->sig;
-  Vector<Node*> values = Buffer(sig->parameter_count());
+  DCHECK_EQ(sig->parameter_count(), values.size());
   for (size_t i = 0; i < sig->parameter_count(); ++i) {
     Node* value;
     switch (sig->GetParam(i)) {
@@ -2310,7 +2311,7 @@ Vector<Node*> WasmGraphBuilder::GetExceptionValues(
     values[i] = value;
   }
   DCHECK_EQ(index, WasmExceptionPackage::GetEncodedSize(exception));
-  return values;
+  return values_array;
 }
 
 Node* WasmGraphBuilder::BuildI32DivS(Node* left, Node* right,
