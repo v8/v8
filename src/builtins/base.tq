@@ -1450,6 +1450,7 @@ extern macro EmptyStringConstant(): EmptyString;
 extern macro LengthStringConstant(): String;
 extern macro NanConstant(): NaN;
 extern macro IteratorSymbolConstant(): Symbol;
+extern macro MatchSymbolConstant(): Symbol;
 
 const TheHole: TheHole = TheHoleConstant();
 const Null: Null = NullConstant();

@@ -1237,56 +1237,6 @@ TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
   }
 }
 
-// ES#sec-isregexp IsRegExp ( argument )
-TNode<BoolT> RegExpBuiltinsAssembler::IsRegExp(TNode<Context> context,
-                                               TNode<Object> maybe_receiver) {
-  Label out(this), if_isregexp(this);
-
-  TVARIABLE(BoolT, var_result, Int32FalseConstant());
-
-  GotoIf(TaggedIsSmi(maybe_receiver), &out);
-  GotoIfNot(IsJSReceiver(CAST(maybe_receiver)), &out);
-
-  TNode<JSReceiver> receiver = CAST(maybe_receiver);
-
-  // Check @@match.
-  {
-    TNode<Object> value =
-        GetProperty(context, receiver, isolate()->factory()->match_symbol());
-
-    Label match_isundefined(this), match_isnotundefined(this);
-    Branch(IsUndefined(value), &match_isundefined, &match_isnotundefined);
-
-    BIND(&match_isundefined);
-    Branch(IsJSRegExp(receiver), &if_isregexp, &out);
-
-    BIND(&match_isnotundefined);
-    Label match_istrueish(this), match_isfalseish(this);
-    BranchIfToBooleanIsTrue(value, &match_istrueish, &match_isfalseish);
-
-    // The common path. Symbol.match exists, equals the RegExpPrototypeMatch
-    // function (and is thus trueish), and the receiver is a JSRegExp.
-    BIND(&match_istrueish);
-    GotoIf(IsJSRegExp(receiver), &if_isregexp);
-    CallRuntime(Runtime::kIncrementUseCounter, context,
-                SmiConstant(v8::Isolate::kRegExpMatchIsTrueishOnNonJSRegExp));
-    Goto(&if_isregexp);
-
-    BIND(&match_isfalseish);
-    GotoIfNot(IsJSRegExp(receiver), &out);
-    CallRuntime(Runtime::kIncrementUseCounter, context,
-                SmiConstant(v8::Isolate::kRegExpMatchIsFalseishOnJSRegExp));
-    Goto(&out);
-  }
-
-  BIND(&if_isregexp);
-  var_result = Int32TrueConstant();
-  Goto(&out);
-
-  BIND(&out);
-  return var_result.value();
-}
-
 // ES#sec-regexpinitialize
 // Runtime Semantics: RegExpInitialize ( obj, pattern, flags )
 TNode<Object> RegExpBuiltinsAssembler::RegExpInitialize(

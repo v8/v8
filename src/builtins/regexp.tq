@@ -177,4 +177,43 @@ namespace regexp {
   RegExpBuiltinsAssembler::AdvanceStringIndexFast(String, Smi, bool): Smi;
   extern macro
   RegExpBuiltinsAssembler::AdvanceStringIndexSlow(String, Number, bool): Smi;
+
+  type UseCounterFeature extends int31
+  constexpr 'v8::Isolate::UseCounterFeature';
+  const kRegExpMatchIsTrueishOnNonJSRegExp: constexpr UseCounterFeature
+  generates 'v8::Isolate::kRegExpMatchIsTrueishOnNonJSRegExp';
+  const kRegExpMatchIsFalseishOnJSRegExp: constexpr UseCounterFeature
+  generates 'v8::Isolate::kRegExpMatchIsFalseishOnJSRegExp';
+  const kRegExpPrototypeSourceGetter: constexpr UseCounterFeature
+  generates 'v8::Isolate::kRegExpPrototypeSourceGetter';
+
+  // ES#sec-isregexp IsRegExp ( argument )
+  @export
+  transitioning macro IsRegExp(implicit context: Context)(obj: JSAny): bool {
+    const receiver = Cast<JSReceiver>(obj) otherwise return false;
+
+    // Check @match.
+    const value = GetProperty(receiver, MatchSymbolConstant());
+    if (value == Undefined) {
+      return Is<JSRegExp>(receiver);
+    }
+
+    assert(value != Undefined);
+    // The common path. Symbol.match exists, equals the RegExpPrototypeMatch
+    // function (and is thus trueish), and the receiver is a JSRegExp.
+    if (ToBoolean(value)) {
+      if (!Is<JSRegExp>(receiver)) {
+        IncrementUseCounter(
+            context, SmiConstant(kRegExpMatchIsTrueishOnNonJSRegExp));
+      }
+      return true;
+    }
+
+    assert(!ToBoolean(value));
+    if (Is<JSRegExp>(receiver)) {
+      IncrementUseCounter(
+          context, SmiConstant(kRegExpMatchIsFalseishOnJSRegExp));
+    }
+    return false;
+  }
 }

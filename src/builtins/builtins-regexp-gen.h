@@ -25,8 +25,6 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   TNode<Object> RegExpCreate(TNode<Context> context, TNode<Map> initial_map,
                              TNode<Object> regexp_string, TNode<String> flags);
 
-  TNode<BoolT> IsRegExp(TNode<Context> context, TNode<Object> maybe_receiver);
-
   TNode<Smi> SmiZero();
   TNode<IntPtrT> IntPtrZero();
 
