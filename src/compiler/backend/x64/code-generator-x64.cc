@@ -2942,11 +2942,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(0);
       if (dst == src) {
-        __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-        __ psignd(dst, kScratchDoubleReg);
+        __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+        __ Psignd(dst, kScratchDoubleReg);
       } else {
-        __ pxor(dst, dst);
-        __ psubd(dst, src);
+        __ Pxor(dst, dst);
+        __ Psubd(dst, src);
       }
       break;
     }
@@ -2955,8 +2955,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register shift = i.InputRegister(1);
       // Take shift value modulo 32.
       __ andq(shift, Immediate(31));
-      __ movq(tmp, shift);
-      __ pslld(i.OutputSimd128Register(), tmp);
+      __ Movq(tmp, shift);
+      __ Pslld(i.OutputSimd128Register(), tmp);
       break;
     }
     case kX64I32x4ShrS: {
@@ -2964,12 +2964,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register shift = i.InputRegister(1);
       // Take shift value modulo 32.
       __ andq(shift, Immediate(31));
-      __ movq(tmp, shift);
-      __ psrad(i.OutputSimd128Register(), tmp);
+      __ Movq(tmp, shift);
+      __ Psrad(i.OutputSimd128Register(), tmp);
       break;
     }
     case kX64I32x4Add: {
-      __ paddd(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Paddd(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64I32x4AddHoriz: {
@@ -2978,45 +2978,45 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64I32x4Sub: {
-      __ psubd(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Psubd(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64I32x4Mul: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      __ pmulld(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Pmulld(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64I32x4MinS: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      __ pminsd(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Pminsd(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64I32x4MaxS: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      __ pmaxsd(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Pmaxsd(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64I32x4Eq: {
-      __ pcmpeqd(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Pcmpeqd(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64I32x4Ne: {
       XMMRegister tmp = i.TempSimd128Register(0);
-      __ pcmpeqd(i.OutputSimd128Register(), i.InputSimd128Register(1));
-      __ pcmpeqd(tmp, tmp);
-      __ pxor(i.OutputSimd128Register(), tmp);
+      __ Pcmpeqd(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Pcmpeqd(tmp, tmp);
+      __ Pxor(i.OutputSimd128Register(), tmp);
       break;
     }
     case kX64I32x4GtS: {
-      __ pcmpgtd(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Pcmpgtd(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64I32x4GeS: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(1);
-      __ pminsd(dst, src);
-      __ pcmpeqd(dst, src);
+      __ Pminsd(dst, src);
+      __ Pcmpeqd(dst, src);
       break;
     }
     case kX64I32x4UConvertF32x4: {
@@ -3065,18 +3065,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register shift = i.InputRegister(1);
       // Take shift value modulo 32.
       __ andq(shift, Immediate(31));
-      __ movq(tmp, shift);
-      __ psrld(i.OutputSimd128Register(), tmp);
+      __ Movq(tmp, shift);
+      __ Psrld(i.OutputSimd128Register(), tmp);
       break;
     }
     case kX64I32x4MinU: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      __ pminud(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Pminud(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64I32x4MaxU: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      __ pmaxud(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Pmaxud(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64I32x4GtU: {
@@ -3084,18 +3084,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(1);
       XMMRegister tmp = i.TempSimd128Register(0);
-      __ pmaxud(dst, src);
-      __ pcmpeqd(dst, src);
-      __ pcmpeqd(tmp, tmp);
-      __ pxor(dst, tmp);
+      __ Pmaxud(dst, src);
+      __ Pcmpeqd(dst, src);
+      __ Pcmpeqd(tmp, tmp);
+      __ Pxor(dst, tmp);
       break;
     }
     case kX64I32x4GeU: {
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(1);
-      __ pminud(dst, src);
-      __ pcmpeqd(dst, src);
+      __ Pminud(dst, src);
+      __ Pcmpeqd(dst, src);
       break;
     }
     case kX64S128Zero: {
