@@ -487,9 +487,12 @@ DEFINE_BOOL(concurrent_inlining, false,
 DEFINE_IMPLICATION(future, concurrent_inlining)
 DEFINE_BOOL(trace_heap_broker_verbose, false,
             "trace the heap broker verbosely (all reports)")
+DEFINE_BOOL(trace_heap_broker_memory, false,
+            "trace the heap broker memory (refs analysis and zone numbers)")
 DEFINE_BOOL(trace_heap_broker, false,
             "trace the heap broker (reports on missing data only)")
 DEFINE_IMPLICATION(trace_heap_broker_verbose, trace_heap_broker)
+DEFINE_IMPLICATION(trace_heap_broker_memory, trace_heap_broker)
 
 // Flags for stress-testing the compiler.
 DEFINE_INT(stress_runs, 0, "number of stress runs")

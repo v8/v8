@@ -87,6 +87,11 @@ class ObjectData : public ZoneObject {
   ObjectDataKind kind() const { return kind_; }
   bool is_smi() const { return kind_ == kSmi; }
 
+#ifdef DEBUG
+  enum class Usage{kUnused, kOnlyIdentityUsed, kDataUsed};
+  mutable Usage used_status = Usage::kUnused;
+#endif  // DEBUG
+
  private:
   Handle<Object> const object_;
   ObjectDataKind const kind_;
@@ -2190,6 +2195,12 @@ void JSRegExpData::SerializeAsRegExpBoilerplate(JSHeapBroker* broker) {
 }
 
 bool ObjectRef::equals(const ObjectRef& other) const {
+#ifdef DEBUG
+  if (broker()->mode() == JSHeapBroker::kSerialized &&
+      data_->used_status == ObjectData::Usage::kUnused) {
+    data_->used_status = ObjectData::Usage::kOnlyIdentityUsed;
+  }
+#endif  // DEBUG
   return data_ == other.data_;
 }
 
@@ -2249,7 +2260,7 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
   TRACE(this, "Constructing heap broker");
 }
 
-std::ostream& JSHeapBroker::Trace() {
+std::ostream& JSHeapBroker::Trace() const {
   return trace_out_ << "[" << this << "] "
                     << std::string(trace_indentation_ * 2, ' ');
 }
@@ -2260,10 +2271,92 @@ void JSHeapBroker::StopSerializing() {
   mode_ = kSerialized;
 }
 
+#ifdef DEBUG
+void JSHeapBroker::PrintRefsAnalysis() const {
+  // Usage counts
+  size_t used_total = 0, unused_total = 0, identity_used_total = 0;
+  for (RefsMap::Entry* ref = refs_->Start(); ref != nullptr;
+       ref = refs_->Next(ref)) {
+    switch (ref->value->used_status) {
+      case ObjectData::Usage::kUnused:
+        ++unused_total;
+        break;
+      case ObjectData::Usage::kOnlyIdentityUsed:
+        ++identity_used_total;
+        break;
+      case ObjectData::Usage::kDataUsed:
+        ++used_total;
+        break;
+    }
+  }
+
+  // Ref types analysis
+  TRACE_BROKER_MEMORY(
+      this, "Refs: " << refs_->occupancy() << "; data used: " << used_total
+                     << "; only identity used: " << identity_used_total
+                     << "; unused: " << unused_total);
+  size_t used_smis = 0, unused_smis = 0, identity_used_smis = 0;
+  size_t used[LAST_TYPE + 1] = {0};
+  size_t unused[LAST_TYPE + 1] = {0};
+  size_t identity_used[LAST_TYPE + 1] = {0};
+  for (RefsMap::Entry* ref = refs_->Start(); ref != nullptr;
+       ref = refs_->Next(ref)) {
+    if (ref->value->is_smi()) {
+      switch (ref->value->used_status) {
+        case ObjectData::Usage::kUnused:
+          ++unused_smis;
+          break;
+        case ObjectData::Usage::kOnlyIdentityUsed:
+          ++identity_used_smis;
+          break;
+        case ObjectData::Usage::kDataUsed:
+          ++used_smis;
+          break;
+      }
+    } else {
+      InstanceType instance_type =
+          static_cast<const HeapObjectData*>(ref->value)
+              ->map()
+              ->instance_type();
+      CHECK_LE(FIRST_TYPE, instance_type);
+      CHECK_LE(instance_type, LAST_TYPE);
+      switch (ref->value->used_status) {
+        case ObjectData::Usage::kUnused:
+          ++unused[instance_type];
+          break;
+        case ObjectData::Usage::kOnlyIdentityUsed:
+          ++identity_used[instance_type];
+          break;
+        case ObjectData::Usage::kDataUsed:
+          ++used[instance_type];
+          break;
+      }
+    }
+  }
+
+  TRACE_BROKER_MEMORY(
+      this, "Smis: " << used_smis + identity_used_smis + unused_smis
+                     << "; data used: " << used_smis << "; only identity used: "
+                     << identity_used_smis << "; unused: " << unused_smis);
+  for (uint16_t i = FIRST_TYPE; i <= LAST_TYPE; ++i) {
+    size_t total = used[i] + identity_used[i] + unused[i];
+    if (total == 0) continue;
+    TRACE_BROKER_MEMORY(
+        this, InstanceType(i) << ": " << total << "; data used: " << used[i]
+                              << "; only identity used: " << identity_used[i]
+                              << "; unused: " << unused[i]);
+  }
+}
+#endif  // DEBUG
+
 void JSHeapBroker::Retire() {
   CHECK_EQ(mode_, kSerialized);
   TRACE(this, "Retiring");
   mode_ = kRetired;
+
+#ifdef DEBUG
+  PrintRefsAnalysis();
+#endif  // DEBUG
 }
 
 bool JSHeapBroker::SerializingAllowed() const { return mode() == kSerializing; }
@@ -3754,12 +3847,32 @@ void JSRegExpRef::SerializeAsRegExpBoilerplate() {
   JSObjectRef::data()->AsJSRegExp()->SerializeAsRegExpBoilerplate(broker());
 }
 
-Handle<Object> ObjectRef::object() const { return data_->object(); }
+Handle<Object> ObjectRef::object() const {
+#ifdef DEBUG
+  if (broker()->mode() == JSHeapBroker::kSerialized &&
+      data_->used_status == ObjectData::Usage::kUnused) {
+    data_->used_status = ObjectData::Usage::kOnlyIdentityUsed;
+  }
+#endif  // DEBUG
+  return data_->object();
+}
 
+#ifdef DEBUG
+#define DEF_OBJECT_GETTER(T)                                                 \
+  Handle<T> T##Ref::object() const {                                         \
+    if (broker()->mode() == JSHeapBroker::kSerialized &&                     \
+        data_->used_status == ObjectData::Usage::kUnused) {                  \
+      data_->used_status = ObjectData::Usage::kOnlyIdentityUsed;             \
+    }                                                                        \
+    return Handle<T>(reinterpret_cast<Address*>(data_->object().address())); \
+  }
+#else
 #define DEF_OBJECT_GETTER(T)                                                 \
   Handle<T> T##Ref::object() const {                                         \
     return Handle<T>(reinterpret_cast<Address*>(data_->object().address())); \
   }
+#endif  // DEBUG
+
 HEAP_BROKER_OBJECT_LIST(DEF_OBJECT_GETTER)
 #undef DEF_OBJECT_GETTER
 
@@ -3771,7 +3884,12 @@ ObjectData* ObjectRef::data() const {
       CHECK_NE(data_->kind(), kSerializedHeapObject);
       return data_;
     case JSHeapBroker::kSerializing:
+      CHECK_NE(data_->kind(), kUnserializedHeapObject);
+      return data_;
     case JSHeapBroker::kSerialized:
+#ifdef DEBUG
+      data_->used_status = ObjectData::Usage::kDataUsed;
+#endif  // DEBUG
       CHECK_NE(data_->kind(), kUnserializedHeapObject);
       return data_;
     case JSHeapBroker::kRetired:

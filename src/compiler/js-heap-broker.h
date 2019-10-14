@@ -34,6 +34,12 @@ std::ostream& operator<<(std::ostream& os, const ObjectRef& ref);
       broker->Trace() << x << '\n';                                  \
   } while (false)
 
+#define TRACE_BROKER_MEMORY(broker, x)                              \
+  do {                                                              \
+    if (broker->tracing_enabled() && FLAG_trace_heap_broker_memory) \
+      broker->Trace() << x << std::endl;                            \
+  } while (false)
+
 #define TRACE_BROKER_MISSING(broker, x)                             \
   do {                                                              \
     if (broker->tracing_enabled())                                  \
@@ -85,6 +91,10 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   void StopSerializing();
   void Retire();
   bool SerializingAllowed() const;
+
+#ifdef DEBUG
+  void PrintRefsAnalysis() const;
+#endif  // DEBUG
 
   // Returns nullptr iff handle unknown.
   ObjectData* GetData(Handle<Object>) const;
@@ -169,7 +179,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   StringRef GetTypedArrayStringTag(ElementsKind kind);
 
-  std::ostream& Trace();
+  std::ostream& Trace() const;
   void IncrementTracingIndentation();
   void DecrementTracingIndentation();
 
@@ -217,7 +227,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       array_and_object_prototypes_;
   BrokerMode mode_ = kDisabled;
   bool const tracing_enabled_;
-  StdoutStream trace_out_;
+  mutable StdoutStream trace_out_;
   unsigned trace_indentation_ = 0;
   PerIsolateCompilerCache* compiler_cache_ = nullptr;
   ZoneUnorderedMap<FeedbackSource, ProcessedFeedback const*,

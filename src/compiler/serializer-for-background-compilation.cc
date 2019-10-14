@@ -1009,6 +1009,8 @@ bool SerializerForBackgroundCompilation::BailoutOnUninitialized(
 
 Hints SerializerForBackgroundCompilation::Run() {
   TraceScope tracer(broker(), this, "SerializerForBackgroundCompilation::Run");
+  TRACE_BROKER_MEMORY(broker(), "[serializer start] Broker zone usage: "
+                                    << broker()->zone()->allocation_size());
   SharedFunctionInfoRef shared(broker(), environment()->function().shared());
   FeedbackVectorRef feedback_vector_ref(broker(), feedback_vector());
   if (shared.IsSerializedForCompilation(feedback_vector_ref)) {
@@ -1030,6 +1032,9 @@ Hints SerializerForBackgroundCompilation::Run() {
 
   feedback_vector_ref.Serialize();
   TraverseBytecode();
+
+  TRACE_BROKER_MEMORY(broker(), "[serializer end] Broker zone usage: "
+                                    << broker()->zone()->allocation_size());
   return environment()->return_value_hints();
 }
 
