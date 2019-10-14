@@ -2687,7 +2687,6 @@ WASM_SIMD_TEST(S8x16Concat) {
   }
 }
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64
 struct SwizzleTestArgs {
   const Shuffle input;
   const Shuffle indices;
@@ -2741,7 +2740,6 @@ WASM_SIMD_TEST(S8x16Swizzle) {
     }
   }
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64
 
 // Combine 3 shuffles a, b, and c by applying both a and b and then applying c
 // to those two results.

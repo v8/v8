@@ -2712,6 +2712,14 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
        g.UseImmediate(Pack4Lanes(shuffle + 12)));
 }
 
+void InstructionSelector::VisitS8x16Swizzle(Node* node) {
+  ArmOperandGenerator g(this);
+  // We don't want input 0 (the table) to be the same as output, since we will
+  // modify output twice (low and high), and need to keep the table the same.
+  Emit(kArmS8x16Swizzle, g.DefineAsRegister(node),
+       g.UseUniqueRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
 void InstructionSelector::VisitSignExtendWord8ToInt32(Node* node) {
   ArmOperandGenerator g(this);
   Emit(kArmSxtb, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),

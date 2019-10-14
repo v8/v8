@@ -2641,7 +2641,6 @@ void InstructionSelector::VisitI64x2ReplaceLaneI32Pair(Node* node) {
 void InstructionSelector::VisitF64x2Abs(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Neg(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Sqrt(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitS8x16Swizzle(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Add(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Sub(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Mul(Node* node) { UNIMPLEMENTED(); }
