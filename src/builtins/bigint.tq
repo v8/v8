@@ -45,9 +45,6 @@ namespace bigint {
       MutableBigInt, intptr, uintptr): void;
   extern macro CodeStubAssembler::LoadBigIntDigit(BigIntBase, intptr): uintptr;
 
-  @export  // Silence unused warning.
-           // TODO(szuend): Remove @export once macros that are only used in
-           //               asserts are no longer detected as unused.
   macro IsCanonicalized(bigint: BigIntBase): bool {
     const length = ReadBigIntLength(bigint);
 

@@ -1007,48 +1007,40 @@ const Type* ImplementationVisitor::Visit(AssertStatement* stmt) {
 #if defined(DEBUG)
   do_check = true;
 #endif
-  if (do_check) {
-    // CSA_ASSERT & co. are not used here on purpose for two reasons. First,
-    // Torque allows and handles two types of expressions in the if protocol
-    // automagically, ones that return TNode<BoolT> and those that use the
-    // BranchIf(..., Label* true, Label* false) idiom. Because the machinery to
-    // handle this is embedded in the expression handling and to it's not
-    // possible to make the decision to use CSA_ASSERT or CSA_ASSERT_BRANCH
-    // isn't trivial up-front. Secondly, on failure, the assert text should be
-    // the corresponding Torque code, not the -gen.cc code, which would be the
-    // case when using CSA_ASSERT_XXX.
-    Block* true_block = assembler().NewBlock(assembler().CurrentStack());
-    Block* false_block = assembler().NewBlock(assembler().CurrentStack(), true);
-    GenerateExpressionBranch(stmt->expression, true_block, false_block);
+  Block* resume_block;
 
-    assembler().Bind(false_block);
-
-    assembler().Emit(AbortInstruction{
-        AbortInstruction::Kind::kAssertionFailure,
-        "Torque assert '" + FormatAssertSource(stmt->source) + "' failed"});
-
-    assembler().Bind(true_block);
-  } else {
-    // Visit the expression so bindings only used in asserts are marked
-    // as such. Otherwise they might be wrongly reported as unused bindings
-    // in release builds.
-    stmt->expression->VisitAllSubExpressions([](Expression* expression) {
-      if (auto id = IdentifierExpression::DynamicCast(expression)) {
-        ValueBindingsManager::Get().TryLookup(id->name->value);
-      } else if (auto call = CallExpression::DynamicCast(expression)) {
-        for (Identifier* label : call->labels) {
-          LabelBindingsManager::Get().TryLookup(label->value);
-        }
-        // TODO(szuend): In case the call expression resolves to a macro
-        //               callable, mark the macro as used as well.
-      } else if (auto call = CallMethodExpression::DynamicCast(expression)) {
-        for (Identifier* label : call->labels) {
-          LabelBindingsManager::Get().TryLookup(label->value);
-        }
-        // TODO(szuend): Mark the underlying macro as used.
-      }
-    });
+  if (!do_check) {
+    Block* unreachable_block = assembler().NewBlock(assembler().CurrentStack());
+    resume_block = assembler().NewBlock(assembler().CurrentStack());
+    assembler().Goto(resume_block);
+    assembler().Bind(unreachable_block);
   }
+
+  // CSA_ASSERT & co. are not used here on purpose for two reasons. First,
+  // Torque allows and handles two types of expressions in the if protocol
+  // automagically, ones that return TNode<BoolT> and those that use the
+  // BranchIf(..., Label* true, Label* false) idiom. Because the machinery to
+  // handle this is embedded in the expression handling and to it's not
+  // possible to make the decision to use CSA_ASSERT or CSA_ASSERT_BRANCH
+  // isn't trivial up-front. Secondly, on failure, the assert text should be
+  // the corresponding Torque code, not the -gen.cc code, which would be the
+  // case when using CSA_ASSERT_XXX.
+  Block* true_block = assembler().NewBlock(assembler().CurrentStack());
+  Block* false_block = assembler().NewBlock(assembler().CurrentStack(), true);
+  GenerateExpressionBranch(stmt->expression, true_block, false_block);
+
+  assembler().Bind(false_block);
+
+  assembler().Emit(AbortInstruction{
+      AbortInstruction::Kind::kAssertionFailure,
+      "Torque assert '" + FormatAssertSource(stmt->source) + "' failed"});
+
+  assembler().Bind(true_block);
+
+  if (!do_check) {
+    assembler().Bind(resume_block);
+  }
+
   return TypeOracle::GetVoidType();
 }
 
