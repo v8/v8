@@ -231,6 +231,27 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(instance.exports.main(0, 3), 3);
 })();
 
+(function MultiIfParamOneArmedTest() {
+  print("MultiIfParamOneArmedTest");
+  let builder = new WasmModuleBuilder();
+  let sig_i_i = builder.addType(kSig_i_i);
+
+  builder.addFunction("main", kSig_i_i)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 0,
+      kExprIf, sig_i_i,
+      kExprI32Const, 5,
+      kExprI32Add,
+      kExprEnd])
+    .exportAs("main");
+
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = new WebAssembly.Instance(module);
+  assertEquals(instance.exports.main(0), 0);
+  assertEquals(instance.exports.main(1), 6);
+})();
+
 (function MultiResultTest() {
   print("MultiResultTest");
   let builder = new WasmModuleBuilder();

@@ -213,7 +213,10 @@ class WasmGraphBuildingInterface {
     if (block->is_onearmed_if()) {
       // Merge the else branch into the end merge.
       SetEnv(block->false_env);
-      MergeValuesInto(decoder, block, &block->end_merge);
+      DCHECK_EQ(block->start_merge.arity, block->end_merge.arity);
+      Value* values =
+          block->start_merge.arity > 0 ? &block->start_merge[0] : nullptr;
+      MergeValuesInto(decoder, block, &block->end_merge, values);
     }
     // Now continue with the merged environment.
     SetEnv(block->end_env);
@@ -694,7 +697,8 @@ class WasmGraphBuildingInterface {
     }
   }
 
-  void MergeValuesInto(FullDecoder* decoder, Control* c, Merge<Value>* merge) {
+  void MergeValuesInto(FullDecoder* decoder, Control* c, Merge<Value>* merge,
+                       Value* values) {
     DCHECK(merge == &c->start_merge || merge == &c->end_merge);
 
     SsaEnv* target = c->end_env;
@@ -703,13 +707,8 @@ class WasmGraphBuildingInterface {
 
     if (merge->arity == 0) return;
 
-    uint32_t avail =
-        decoder->stack_size() - decoder->control_at(0)->stack_depth;
-    DCHECK_GE(avail, merge->arity);
-    uint32_t start = avail >= merge->arity ? 0 : merge->arity - avail;
-    Value* stack_values = decoder->stack_value(merge->arity);
-    for (uint32_t i = start; i < merge->arity; ++i) {
-      Value& val = stack_values[i];
+    for (uint32_t i = 0; i < merge->arity; ++i) {
+      Value& val = values[i];
       Value& old = (*merge)[i];
       DCHECK_NOT_NULL(val.node);
       DCHECK(val.type == kWasmBottom ||
@@ -720,6 +719,17 @@ class WasmGraphBuildingInterface {
                              ValueTypes::MachineRepresentationFor(old.type),
                              target->control, old.node, val.node);
     }
+  }
+
+  void MergeValuesInto(FullDecoder* decoder, Control* c, Merge<Value>* merge) {
+#ifdef DEBUG
+    uint32_t avail =
+        decoder->stack_size() - decoder->control_at(0)->stack_depth;
+    DCHECK_GE(avail, merge->arity);
+#endif
+    Value* stack_values =
+        merge->arity > 0 ? decoder->stack_value(merge->arity) : nullptr;
+    MergeValuesInto(decoder, c, merge, stack_values);
   }
 
   void Goto(FullDecoder* decoder, SsaEnv* from, SsaEnv* to) {
