@@ -156,7 +156,7 @@ struct Field {
 
   SourcePosition pos;
   const AggregateType* aggregate;
-  base::Optional<const Field*> index;
+  base::Optional<NameAndType> index;
   NameAndType name_and_type;
   size_t offset;
   bool is_weak;

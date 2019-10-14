@@ -288,8 +288,9 @@ void TypeVisitor::VisitClassFieldsAndMethods(
             "only one indexable field is currently supported per class");
       }
       seen_indexed_field = true;
-      const Field* index_field =
-          &(class_type->LookupFieldInternal(*field_expression.index));
+      const NameAndType& index_field =
+          class_type->LookupFieldInternal(*field_expression.index)
+              .name_and_type;
       class_type->RegisterField(
           {field_expression.name_and_type.name->pos,
            class_type,

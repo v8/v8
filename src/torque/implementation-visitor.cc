@@ -1205,16 +1205,16 @@ InitializerResults ImplementationVisitor::VisitInitializerResults(
     result.names.push_back(initializer.name);
     Expression* e = initializer.expression;
     const Field& field = class_type->LookupField(initializer.name->value);
-    auto field_index = field.index;
+    bool has_index = field.index.has_value();
     if (SpreadExpression* s = SpreadExpression::DynamicCast(e)) {
-      if (!field_index) {
+      if (!has_index) {
         ReportError(
             "spread expressions can only be used to initialize indexed class "
             "fields ('",
             initializer.name->value, "' is not)");
       }
       e = s->spreadee;
-    } else if (field_index) {
+    } else if (has_index) {
       ReportError("the indexed class field '", initializer.name->value,
                   "' must be initialized with a spread operator");
     }
@@ -1252,7 +1252,7 @@ void ImplementationVisitor::InitializeClass(
 void ImplementationVisitor::InitializeFieldFromSpread(
     VisitResult object, const Field& field,
     const InitializerResults& initializer_results) {
-  NameAndType index = (*field.index)->name_and_type;
+  const NameAndType& index = *field.index;
   VisitResult iterator =
       initializer_results.field_value_map.at(field.name_and_type.name);
   VisitResult length = initializer_results.field_value_map.at(index.name);
@@ -1280,15 +1280,14 @@ VisitResult ImplementationVisitor::AddVariableObjectSize(
         }
         VisitResult index_field_size =
             VisitResult(TypeOracle::GetConstInt31Type(), "kTaggedSize");
-        VisitResult initializer_value = initializer_results.field_value_map.at(
-            (*current_field->index)->name_and_type.name);
+        VisitResult initializer_value =
+            initializer_results.field_value_map.at(current_field->index->name);
         Arguments args;
         args.parameters.push_back(object_size);
         args.parameters.push_back(initializer_value);
         args.parameters.push_back(index_field_size);
-        object_size =
-            GenerateCall("%AddIndexedFieldSizeToObjectSize", args,
-                         {(*current_field->index)->name_and_type.type}, false);
+        object_size = GenerateCall("%AddIndexedFieldSizeToObjectSize", args,
+                                   {current_field->index->type}, false);
       }
       ++current_field;
     }
@@ -1851,12 +1850,12 @@ LocationReference ImplementationVisitor::GetLocationReference(
         {
           StackScope length_scope(this);
           // Get a reference to the length
-          const Field* index_field = field.index.value();
+          const NameAndType& index_field = field.index.value();
           GenerateCopy(object_result);
-          assembler().Emit(CreateFieldReferenceInstruction{
-              object_result.type(), index_field->name_and_type.name});
+          assembler().Emit(CreateFieldReferenceInstruction{object_result.type(),
+                                                           index_field.name});
           VisitResult length_reference(
-              TypeOracle::GetReferenceType(index_field->name_and_type.type),
+              TypeOracle::GetReferenceType(index_field.type),
               assembler().TopRange(2));
 
           // Load the length from the reference and convert it to intptr
@@ -3451,13 +3450,13 @@ void GenerateClassFieldVerifier(const std::string& class_name,
   if (!field_type->IsSubtypeOf(TypeOracle::GetObjectType())) return;
 
   if (f.index) {
-    if ((*f.index)->name_and_type.type != TypeOracle::GetSmiType()) {
+    if (f.index->type != TypeOracle::GetSmiType()) {
       ReportError("Non-SMI values are not (yet) supported as indexes.");
     }
     // We already verified the index field because it was listed earlier, so we
     // can assume it's safe to read here.
     cc_contents << "  for (int i = 0; i < TaggedField<Smi, " << class_name
-                << "::k" << CamelifyString((*f.index)->name_and_type.name)
+                << "::k" << CamelifyString(f.index->name)
                 << "Offset>::load(o).value(); ++i) {\n";
   } else {
     cc_contents << "  {\n";

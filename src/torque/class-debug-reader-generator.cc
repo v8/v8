@@ -124,7 +124,7 @@ void GenerateClassDebugReader(const ClassType& type, std::ostream& h_contents,
     std::string index_param;
     std::string index_offset;
     if (field.index) {
-      const Type* index_type = (*field.index)->name_and_type.type;
+      const Type* index_type = field.index->type;
       std::string index_type_name;
       std::string index_value;
       if (index_type == TypeOracle::GetSmiType()) {
@@ -146,7 +146,7 @@ void GenerateClassDebugReader(const ClassType& type, std::ostream& h_contents,
       }
       get_props_impl << "  Value<" << index_type_name
                      << "> indexed_field_count = Get"
-                     << CamelifyString((*field.index)->name_and_type.name)
+                     << CamelifyString(field.index->name)
                      << "Value(accessor);\n";
       indexed_field_info =
           ", " + index_value + ", GetArrayKind(indexed_field_count.validity)";
