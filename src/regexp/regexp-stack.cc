@@ -22,7 +22,7 @@ RegExpStackScope::~RegExpStackScope() {
   regexp_stack_->Reset();
 }
 
-RegExpStack::RegExpStack() : isolate_(nullptr) {}
+RegExpStack::RegExpStack() : thread_local_(this), isolate_(nullptr) {}
 
 RegExpStack::~RegExpStack() {
   thread_local_.Free();
@@ -30,9 +30,17 @@ RegExpStack::~RegExpStack() {
 
 
 char* RegExpStack::ArchiveStack(char* to) {
+  if (!thread_local_.owns_memory_) {
+    // Force dynamic stacks prior to archiving. Any growth will do. A dynamic
+    // stack is needed because stack archival & restoration rely on `memory_`
+    // pointing at a fixed-location backing store, whereas the static stack is
+    // tied to a RegExpStack instance.
+    EnsureCapacity(thread_local_.memory_size_ + 1);
+  }
+
   size_t size = sizeof(thread_local_);
   MemCopy(reinterpret_cast<void*>(to), &thread_local_, size);
-  thread_local_ = ThreadLocal();
+  thread_local_ = ThreadLocal(this);
   return to + size;
 }
 
@@ -45,37 +53,44 @@ char* RegExpStack::RestoreStack(char* from) {
 
 
 void RegExpStack::Reset() {
-  if (thread_local_.memory_size_ > kMinimumStackSize) {
+  STATIC_ASSERT(kMinimumDynamicStackSize > kStaticStackSize);
+  if (thread_local_.memory_size_ > kMinimumDynamicStackSize) {
+    DCHECK(thread_local_.owns_memory_);
     DeleteArray(thread_local_.memory_);
-    thread_local_ = ThreadLocal();
+    thread_local_ = ThreadLocal(this);
   }
 }
 
 
 void RegExpStack::ThreadLocal::Free() {
-  if (memory_size_ > 0) {
-    DeleteArray(memory_);
-    Clear();
-  }
+  if (owns_memory_) DeleteArray(memory_);
+
+  // This stack may not be used after being freed. Just reset to invalid values
+  // to ensure we don't accidentally use old memory areas.
+  memory_ = nullptr;
+  memory_top_ = nullptr;
+  memory_size_ = 0;
+  limit_ = kMemoryTop;
 }
 
 
 Address RegExpStack::EnsureCapacity(size_t size) {
   if (size > kMaximumStackSize) return kNullAddress;
-  if (size < kMinimumStackSize) size = kMinimumStackSize;
+  if (size < kMinimumDynamicStackSize) size = kMinimumDynamicStackSize;
   if (thread_local_.memory_size_ < size) {
     byte* new_memory = NewArray<byte>(size);
     if (thread_local_.memory_size_ > 0) {
       // Copy original memory into top of new memory.
       MemCopy(new_memory + size - thread_local_.memory_size_,
               thread_local_.memory_, thread_local_.memory_size_);
-      DeleteArray(thread_local_.memory_);
+      if (thread_local_.owns_memory_) DeleteArray(thread_local_.memory_);
     }
     thread_local_.memory_ = new_memory;
     thread_local_.memory_top_ = new_memory + size;
     thread_local_.memory_size_ = size;
     thread_local_.limit_ = reinterpret_cast<Address>(new_memory) +
                            kStackLimitSlack * kSystemPointerSize;
+    thread_local_.owns_memory_ = true;
   }
   return reinterpret_cast<Address>(thread_local_.memory_top_);
 }
