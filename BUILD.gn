@@ -243,7 +243,7 @@ if (v8_enable_snapshot_native_code_counters == "") {
   v8_enable_snapshot_native_code_counters = v8_enable_debugging_features
 }
 if (v8_enable_shared_ro_heap == "") {
-  v8_enable_shared_ro_heap = !v8_enable_pointer_compression && v8_use_snapshot
+  v8_enable_shared_ro_heap = !v8_enable_pointer_compression
 }
 if (v8_enable_fast_torque == "") {
   v8_enable_fast_torque = v8_enable_fast_mksnapshot
@@ -261,14 +261,10 @@ assert(v8_current_cpu != "x86" || !v8_untrusted_code_mitigations,
 
 assert(!v8_enable_lite_mode || v8_enable_embedded_builtins,
        "Lite mode requires embedded builtins")
-assert(!v8_enable_lite_mode || v8_use_snapshot,
-       "Lite mode requires a snapshot build")
 
 assert(
     !v8_enable_pointer_compression || !v8_enable_shared_ro_heap,
     "Pointer compression is not supported with shared read-only heap enabled")
-assert(v8_use_snapshot || !v8_enable_shared_ro_heap,
-       "Shared read-only heap requires snapshot")
 
 assert(v8_extra_library_files == [],
        "v8_extra_library_files is no longer supported. Consider implementing " +
@@ -447,11 +443,8 @@ config("features") {
   if (v8_enable_handle_zapping) {
     defines += [ "ENABLE_HANDLE_ZAPPING" ]
   }
-  if (v8_use_snapshot) {
-    defines += [ "V8_USE_SNAPSHOT" ]
-    if (v8_enable_snapshot_native_code_counters) {
-      defines += [ "V8_SNAPSHOT_NATIVE_CODE_COUNTERS" ]
-    }
+  if (v8_enable_snapshot_native_code_counters) {
+    defines += [ "V8_SNAPSHOT_NATIVE_CODE_COUNTERS" ]
   }
   if (v8_enable_single_generation) {
     defines += [ "V8_ENABLE_SINGLE_GENERATION" ]
@@ -1335,29 +1328,27 @@ template("run_mksnapshot") {
   }
 }
 
-if (v8_use_snapshot) {
-  run_mksnapshot("default") {
+run_mksnapshot("default") {
+  args = []
+  if (v8_enable_embedded_builtins) {
+    embedded_variant = "Default"
+  }
+}
+if (emit_builtins_as_inline_asm) {
+  asm_to_inline_asm("default") {
     args = []
+  }
+}
+if (v8_use_multi_snapshots) {
+  run_mksnapshot("trusted") {
+    args = [ "--no-untrusted-code-mitigations" ]
     if (v8_enable_embedded_builtins) {
-      embedded_variant = "Default"
+      embedded_variant = "Trusted"
     }
   }
   if (emit_builtins_as_inline_asm) {
-    asm_to_inline_asm("default") {
+    asm_to_inline_asm("trusted") {
       args = []
-    }
-  }
-  if (v8_use_multi_snapshots) {
-    run_mksnapshot("trusted") {
-      args = [ "--no-untrusted-code-mitigations" ]
-      if (v8_enable_embedded_builtins) {
-        embedded_variant = "Trusted"
-      }
-    }
-    if (emit_builtins_as_inline_asm) {
-      asm_to_inline_asm("trusted") {
-        args = []
-      }
     }
   }
 }
@@ -1389,7 +1380,6 @@ action("v8_dump_build_config") {
     "v8_enable_i18n_support=$v8_enable_i18n_support",
     "v8_enable_verify_predictable=$v8_enable_verify_predictable",
     "v8_target_cpu=\"$v8_target_cpu\"",
-    "v8_use_snapshot=$v8_use_snapshot",
     "v8_enable_embedded_builtins=$v8_enable_embedded_builtins",
     "v8_enable_verify_csa=$v8_enable_verify_csa",
     "v8_enable_lite_mode=$v8_enable_lite_mode",
@@ -1410,19 +1400,13 @@ action("v8_dump_build_config") {
 #
 
 source_set("v8_maybe_snapshot") {
-  if (v8_use_snapshot && v8_use_external_startup_data) {
+  if (v8_use_external_startup_data) {
     public_deps = [
       ":v8_external_snapshot",
     ]
-  } else if (v8_use_snapshot) {
+  } else {
     public_deps = [
       ":v8_snapshot",
-    ]
-  } else {
-    # Ignore v8_use_external_startup_data setting if no snapshot is used.
-    public_deps = [
-      ":v8_init",
-      ":v8_nosnapshot",
     ]
   }
 }
@@ -1448,7 +1432,7 @@ v8_source_set("v8_nosnapshot") {
   configs = [ ":internal_config" ]
 }
 
-if (v8_use_snapshot && !v8_use_external_startup_data) {
+if (!v8_use_external_startup_data) {
   v8_source_set("v8_snapshot") {
     # Only targets in this file and the top-level visibility target can
     # depend on this.
@@ -1490,7 +1474,7 @@ if (v8_use_snapshot && !v8_use_external_startup_data) {
   }
 }
 
-if (v8_use_snapshot && v8_use_external_startup_data) {
+if (v8_use_external_startup_data) {
   v8_source_set("v8_external_snapshot") {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
@@ -3914,7 +3898,7 @@ if (current_toolchain == v8_generator_toolchain) {
   }
 }
 
-if (v8_use_snapshot && current_toolchain == v8_snapshot_toolchain) {
+if (current_toolchain == v8_snapshot_toolchain) {
   v8_executable("mksnapshot") {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
@@ -4190,12 +4174,9 @@ if (is_component_build) {
       ":torque_ls_base",
       ":v8_base",
       ":v8_headers",
+      ":v8_initializers",
       ":v8_maybe_snapshot",
     ]
-
-    if (v8_use_snapshot) {
-      public_deps += [ ":v8_initializers" ]
-    }
 
     configs = [ ":internal_config" ]
 
@@ -4218,12 +4199,9 @@ if (is_component_build) {
       ":torque_base",
       ":torque_ls_base",
       ":v8_base",
+      ":v8_initializers",
       ":v8_maybe_snapshot",
     ]
-
-    if (v8_use_snapshot) {
-      public_deps += [ ":v8_initializers" ]
-    }
 
     public_configs = [ ":external_config" ]
   }
