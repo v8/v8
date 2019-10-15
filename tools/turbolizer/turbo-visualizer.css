@@ -697,6 +697,10 @@ text {
   outline: 1px dotted grey;
 }
 
+.last-tab {
+  display: none !important;
+}
+
 ul.disassembly-list .block-id {
   width: 4ex;
   display: block;
