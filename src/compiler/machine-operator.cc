@@ -291,6 +291,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(F32x4Qfma, Operator::kNoProperties, 3, 0, 1)                              \
   V(F32x4Qfms, Operator::kNoProperties, 3, 0, 1)                              \
   V(I64x2Splat, Operator::kNoProperties, 1, 0, 1)                             \
+  V(I64x2SplatI32Pair, Operator::kNoProperties, 2, 0, 1)                      \
   V(I64x2Neg, Operator::kNoProperties, 1, 0, 1)                               \
   V(I64x2Shl, Operator::kNoProperties, 2, 0, 1)                               \
   V(I64x2ShrS, Operator::kNoProperties, 2, 0, 1)                              \
@@ -1341,6 +1342,14 @@ const Operator* MachineOperatorBuilder::Word64PoisonOnSpeculation() {
   }
 SIMD_LANE_OP_LIST(SIMD_LANE_OPS)
 #undef SIMD_LANE_OPS
+
+const Operator* MachineOperatorBuilder::I64x2ReplaceLaneI32Pair(
+    int32_t lane_index) {
+  DCHECK(0 <= lane_index && lane_index < 2);
+  return new (zone_)
+      Operator1<int32_t>(IrOpcode::kI64x2ReplaceLaneI32Pair, Operator::kPure,
+                         "Replace lane", 3, 0, 0, 1, 0, 0, lane_index);
+}
 
 const Operator* MachineOperatorBuilder::S8x16Shuffle(
     const uint8_t shuffle[16]) {

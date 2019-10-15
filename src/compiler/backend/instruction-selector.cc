@@ -1933,10 +1933,14 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitF32x4Qfms(node);
     case IrOpcode::kI64x2Splat:
       return MarkAsSimd128(node), VisitI64x2Splat(node);
+    case IrOpcode::kI64x2SplatI32Pair:
+      return MarkAsSimd128(node), VisitI64x2SplatI32Pair(node);
     case IrOpcode::kI64x2ExtractLane:
       return MarkAsWord64(node), VisitI64x2ExtractLane(node);
     case IrOpcode::kI64x2ReplaceLane:
       return MarkAsSimd128(node), VisitI64x2ReplaceLane(node);
+    case IrOpcode::kI64x2ReplaceLaneI32Pair:
+      return MarkAsSimd128(node), VisitI64x2ReplaceLaneI32Pair(node);
     case IrOpcode::kI64x2Neg:
       return MarkAsSimd128(node), VisitI64x2Neg(node);
     case IrOpcode::kI64x2Shl:
@@ -2620,6 +2624,16 @@ void InstructionSelector::VisitWord64AtomicCompareExchange(Node* node) {
 }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_PPC
         // !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_S390
+
+#if !V8_TARGET_ARCH_IA32
+// This is only needed on 32-bit to split the 64-bit value into two operands.
+void InstructionSelector::VisitI64x2SplatI32Pair(Node* node) {
+  UNIMPLEMENTED();
+}
+void InstructionSelector::VisitI64x2ReplaceLaneI32Pair(Node* node) {
+  UNIMPLEMENTED();
+}
+#endif  // !V8_TARGET_ARCH_IA32
 
 #if !V8_TARGET_ARCH_X64
 #if !V8_TARGET_ARCH_ARM64

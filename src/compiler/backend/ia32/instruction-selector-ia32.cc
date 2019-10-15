@@ -2085,6 +2085,32 @@ void InstructionSelector::VisitF64x2ExtractLane(Node* node) {
   VisitRRISimd(this, node, kAVXF64x2ExtractLane, kSSEF64x2ExtractLane);
 }
 
+void InstructionSelector::VisitI64x2SplatI32Pair(Node* node) {
+  IA32OperandGenerator g(this);
+  InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
+  InstructionOperand operand1 = g.Use(node->InputAt(1));
+  if (IsSupported(AVX)) {
+    Emit(kIA32I64x2SplatI32Pair, g.DefineAsRegister(node), operand0, operand1);
+  } else {
+    Emit(kIA32I64x2SplatI32Pair, g.DefineSameAsFirst(node), operand0, operand1);
+  }
+}
+
+void InstructionSelector::VisitI64x2ReplaceLaneI32Pair(Node* node) {
+  IA32OperandGenerator g(this);
+  InstructionOperand operand = g.UseRegister(node->InputAt(0));
+  InstructionOperand lane = g.UseImmediate(OpParameter<int32_t>(node->op()));
+  InstructionOperand low = g.Use(node->InputAt(1));
+  InstructionOperand high = g.Use(node->InputAt(2));
+  if (IsSupported(AVX)) {
+    Emit(kIA32I64x2ReplaceLaneI32Pair, g.DefineSameAsFirst(node), operand, lane,
+         low, high);
+  } else {
+    Emit(kIA32I64x2ReplaceLaneI32Pair, g.DefineSameAsFirst(node), operand, lane,
+         low, high);
+  }
+}
+
 void InstructionSelector::VisitF32x4Splat(Node* node) {
   VisitRRSimd(this, node, kAVXF32x4Splat, kSSEF32x4Splat);
 }

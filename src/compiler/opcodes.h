@@ -794,8 +794,10 @@
   V(F32x4Qfma)                  \
   V(F32x4Qfms)                  \
   V(I64x2Splat)                 \
+  V(I64x2SplatI32Pair)          \
   V(I64x2ExtractLane)           \
   V(I64x2ReplaceLane)           \
+  V(I64x2ReplaceLaneI32Pair)    \
   V(I64x2Neg)                   \
   V(I64x2Shl)                   \
   V(I64x2ShrS)                  \

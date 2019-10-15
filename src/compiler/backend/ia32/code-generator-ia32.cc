@@ -1994,6 +1994,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputOperand(1));
       break;
     }
+    case kIA32I64x2SplatI32Pair: {
+      XMMRegister dst = i.OutputSimd128Register();
+      __ Pinsrd(dst, i.InputRegister(0), 0);
+      __ Pinsrd(dst, i.InputOperand(1), 1);
+      __ Pshufd(dst, dst, 0x44);
+      break;
+    }
+    case kIA32I64x2ReplaceLaneI32Pair: {
+      int8_t lane = i.InputInt8(1);
+      __ Pinsrd(i.OutputSimd128Register(), i.InputOperand(2), lane * 2);
+      __ Pinsrd(i.OutputSimd128Register(), i.InputOperand(3), lane * 2 + 1);
+      break;
+    }
     case kSSEF32x4Splat: {
       DCHECK_EQ(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       XMMRegister dst = i.OutputSimd128Register();

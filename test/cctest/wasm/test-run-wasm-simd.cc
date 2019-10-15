@@ -892,7 +892,6 @@ WASM_SIMD_TEST_NO_LOWERING(F32x4Qfms) {
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 WASM_SIMD_TEST_NO_LOWERING(I64x2Splat) {
   WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);
   // Set up a global to hold output vector.
@@ -943,6 +942,7 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2ReplaceLane) {
   }
 }
 
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 void RunI64x2UnOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                       WasmOpcode opcode, Int64UnOp expected_op) {
   WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);
