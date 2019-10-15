@@ -341,6 +341,24 @@ class LiftoffCompiler {
     __ bind(ool.continuation.get());
   }
 
+  bool SpillLocalsInitially(FullDecoder* decoder, uint32_t num_params) {
+    int actual_locals = __ num_locals() - num_params;
+    DCHECK_LE(0, actual_locals);
+    constexpr int kNumCacheRegisters = NumRegs(kLiftoffAssemblerGpCacheRegs);
+    // If we have many locals, we put them on the stack initially. This avoids
+    // having to spill them on merge points. Use of these initial values should
+    // be rare anyway.
+    if (actual_locals > kNumCacheRegisters / 2) return true;
+    // If there are locals which are not i32 or i64, we also spill all locals,
+    // because other types cannot be initialized to constants.
+    for (uint32_t param_idx = num_params; param_idx < __ num_locals();
+         ++param_idx) {
+      ValueType type = decoder->GetLocalType(param_idx);
+      if (type != kWasmI32 && type != kWasmI64) return true;
+    }
+    return false;
+  }
+
   void StartFunctionBody(FullDecoder* decoder, Control* block) {
     for (uint32_t i = 0; i < __ num_locals(); ++i) {
       if (!CheckSupportedType(decoder, kSupportedTypes, __ local_type(i),
@@ -373,6 +391,7 @@ class LiftoffCompiler {
     // LiftoffAssembler methods.
     if (DidAssemblerBailout(decoder)) return;
 
+    // Process parameters.
     __ SpillInstance(instance_reg);
     // Input 0 is the code target, 1 is the instance. First parameter at 2.
     uint32_t input_idx = kInstanceParameterIndex + 1;
@@ -380,32 +399,20 @@ class LiftoffCompiler {
       input_idx += ProcessParameter(__ local_type(param_idx), input_idx);
     }
     DCHECK_EQ(input_idx, descriptor_->InputCount());
-    // Set to a gp register, to mark this uninitialized.
-    LiftoffRegister zero_double_reg = kGpCacheRegList.GetFirstRegSet();
-    DCHECK(zero_double_reg.is_gp());
-    for (uint32_t param_idx = num_params; param_idx < __ num_locals();
-         ++param_idx) {
-      ValueType type = decoder->GetLocalType(param_idx);
-      switch (type) {
-        case kWasmI32:
-          __ cache_state()->stack_state.emplace_back(kWasmI32, uint32_t{0});
-          break;
-        case kWasmI64:
-          __ cache_state()->stack_state.emplace_back(kWasmI64, uint32_t{0});
-          break;
-        case kWasmF32:
-        case kWasmF64:
-          if (zero_double_reg.is_gp()) {
-            // Note: This might spill one of the registers used to hold
-            // parameters.
-            zero_double_reg = __ GetUnusedRegister(kFpReg);
-            // Zero is represented by the bit pattern 0 for both f32 and f64.
-            __ LoadConstant(zero_double_reg, WasmValue(0.));
-          }
-          __ PushRegister(type, zero_double_reg);
-          break;
-        default:
-          UNIMPLEMENTED();
+
+    // Initialize locals beyond parameters.
+    if (SpillLocalsInitially(decoder, num_params)) {
+      __ FillStackSlotsWithZero(num_params, __ num_locals() - num_params);
+      for (uint32_t param_idx = num_params; param_idx < __ num_locals();
+           ++param_idx) {
+        ValueType type = decoder->GetLocalType(param_idx);
+        __ cache_state()->stack_state.emplace_back(type);
+      }
+    } else {
+      for (uint32_t param_idx = num_params; param_idx < __ num_locals();
+           ++param_idx) {
+        ValueType type = decoder->GetLocalType(param_idx);
+        __ cache_state()->stack_state.emplace_back(type, int32_t{0});
       }
     }
 

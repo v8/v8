@@ -452,6 +452,35 @@ void LiftoffAssembler::FillI64Half(Register, uint32_t index, RegPairHalf) {
   UNREACHABLE();
 }
 
+void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
+  DCHECK_LT(0, count);
+  uint32_t last_stack_slot = index + count - 1;
+  RecordUsedSpillSlot(last_stack_slot);
+
+  if (count <= 3) {
+    // Special straight-line code for up to three slots
+    // (7-10 bytes per slot: REX C7 <1-4 bytes op> <4 bytes imm>).
+    for (uint32_t offset = 0; offset < count; ++offset) {
+      movq(liftoff::GetStackSlot(index + offset), Immediate(0));
+    }
+  } else {
+    // General case for bigger counts.
+    // This sequence takes 20-23 bytes (3 for pushes, 4-7 for lea, 2 for xor, 5
+    // for mov, 3 for repstosq, 3 for pops).
+    // From intel manual: repstosq fills RCX quadwords at [RDI] with RAX.
+    pushq(rax);
+    pushq(rcx);
+    pushq(rdi);
+    leaq(rdi, liftoff::GetStackSlot(last_stack_slot));
+    xorl(rax, rax);
+    movl(rcx, Immediate(count));
+    repstosq();
+    popq(rdi);
+    popq(rcx);
+    popq(rax);
+  }
+}
+
 void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, Register rhs) {
   if (lhs != dst) {
     leal(dst, Operand(lhs, rhs, times_1, 0));

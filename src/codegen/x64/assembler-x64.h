@@ -538,11 +538,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void movsxlq(Register dst, Operand src);
 
   // Repeated moves.
-
   void repmovsb();
   void repmovsw();
   void repmovsl() { emit_repmovs(kInt32Size); }
   void repmovsq() { emit_repmovs(kInt64Size); }
+
+  // Repeated store of quadwords (fill RCX quadwords at [RDI] with RAX).
+  void repstosq();
 
   // Instruction to load from an immediate 64-bit pointer into RAX.
   void load_rax(Address value, RelocInfo::Mode rmode);

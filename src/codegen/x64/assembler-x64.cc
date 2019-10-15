@@ -1971,6 +1971,13 @@ void Assembler::emit_repmovs(int size) {
   emit(0xA5);
 }
 
+void Assembler::repstosq() {
+  EnsureSpace ensure_space(this);
+  emit(0xF3);
+  emit_rex_64();
+  emit(0xAB);
+}
+
 void Assembler::mull(Register src) {
   EnsureSpace ensure_space(this);
   emit_optional_rex_32(src);
