@@ -40,8 +40,14 @@
     'snapshot': {
       'filepath': 'src/snapshot/',
     },
-    'debugger': {
-      'filepath': 'src/debug/',
+    'devtools': {
+      'filepath': 'src/debug/' \
+                  '|src/inspector/' \
+                  '|src/profiler/' \
+                  '|src/libsampler/' \
+                  '|src/tracing/' \
+                  '|include/js_protocol.pdl' \
+                  '|include/v8-inspector*\.h',
     },
     'interpreter': {
       'filepath': 'src/interpreter/' \
@@ -68,9 +74,6 @@
     'merges': {
       'filepath': '.',
     },
-    'inspector': {
-      'filepath': 'inspector',
-    },
     'wasm': {
       'filepath': 'src/wasm/' \
                   '|src/compiler/wasm',
@@ -81,10 +84,6 @@
     'parser': {
       'filepath': 'src/ast/' \
                   '|src/parsing/',
-    },
-    'profiler': {
-      'filepath': 'src/profiler/' \
-                  '|src/libsampler/',
     },
     'torque': {
       'filepath': '.*\.tq$',
@@ -107,11 +106,9 @@
     ],
     'snapshot': [
       'jgruber+watch@chromium.org',
-      'yangguo+watch@chromium.org',
     ],
-    'debugger': [
-      'jgruber+watch@chromium.org',
-      'yangguo+watch@chromium.org',
+    'devtools': [
+      'devtools-reviews+v8@chromium.org',
     ],
     'interpreter': [
       'rmcilroy@chromium.org',
@@ -129,9 +126,6 @@
     'merges': [
       # Only enabled on branches created with tools/release/create_release.py
       # 'v8-merges@googlegroups.com',
-    ],
-    'inspector': [
-      'devtools-reviews@chromium.org',
     ],
     'wasm': [
       'wasm-v8@google.com',
