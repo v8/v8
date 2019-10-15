@@ -172,13 +172,20 @@ class Builtins {
   // Creates a trampoline code object that jumps to the given off-heap entry.
   // The result should not be used directly, but only from the related Factory
   // function.
-  static Handle<Code> GenerateOffHeapTrampolineFor(Isolate* isolate,
-                                                   Address off_heap_entry,
-                                                   int32_t kind_specific_flags);
+  // TODO(delphick): Come up with a better name since it may not generate an
+  // executable trampoline.
+  static Handle<Code> GenerateOffHeapTrampolineFor(
+      Isolate* isolate, Address off_heap_entry, int32_t kind_specific_flags,
+      bool generate_jump_to_instruction_stream);
 
   // Generate the RelocInfo ByteArray that would be generated for an offheap
   // trampoline.
   static Handle<ByteArray> GenerateOffHeapTrampolineRelocInfo(Isolate* isolate);
+
+  // Only builtins with JS linkage should ever need to be called via their
+  // trampoline Code object. The remaining builtins have non-executable Code
+  // objects.
+  static bool CodeObjectIsExecutable(int builtin_index);
 
   static bool IsJSEntryVariant(int builtin_index) {
     switch (builtin_index) {

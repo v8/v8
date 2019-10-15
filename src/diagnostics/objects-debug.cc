@@ -10,6 +10,7 @@
 #include "src/diagnostics/disassembler.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/heap/read-only-heap.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
@@ -1152,7 +1153,13 @@ void Code::CodeVerify(Isolate* isolate) {
   CHECK_LE(handler_table_offset(), constant_pool_offset());
   CHECK_LE(constant_pool_offset(), code_comments_offset());
   CHECK_LE(code_comments_offset(), InstructionSize());
-  CHECK(IsAligned(raw_instruction_start(), kCodeAlignment));
+  CHECK_IMPLIES(!ReadOnlyHeap::Contains(*this),
+                IsAligned(raw_instruction_start(), kCodeAlignment));
+  // TODO(delphick): Refactor Factory::CodeBuilder::BuildInternal, so that the
+  // following CHECK works builtin trampolines. It currently fails because
+  // CodeVerify is called halfway through constructing the trampoline and so not
+  // everything is set up.
+  // CHECK_EQ(ReadOnlyHeap::Contains(*this), !IsExecutable());
   relocation_info().ObjectVerify(isolate);
   CHECK(Code::SizeFor(body_size()) <= kMaxRegularHeapObjectSize ||
         isolate->heap()->InSpace(*this, CODE_LO_SPACE));

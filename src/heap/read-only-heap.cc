@@ -131,6 +131,11 @@ void ReadOnlyHeap::ClearSharedHeapForTest() {
 }
 
 // static
+bool ReadOnlyHeap::Contains(Address address) {
+  return MemoryChunk::FromAddress(address)->InReadOnlySpace();
+}
+
+// static
 bool ReadOnlyHeap::Contains(HeapObject object) {
   return MemoryChunk::FromHeapObject(object)->InReadOnlySpace();
 }

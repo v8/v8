@@ -253,6 +253,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void MovFromFloatParameter(DwVfpRegister dst);
   void MovFromFloatResult(DwVfpRegister dst);
 
+  void Trap() override;
+
   // Calls Abort(msg) if the condition cond is not satisfied.
   // Use --debug-code to enable.
   void Assert(Condition cond, AbortReason reason);

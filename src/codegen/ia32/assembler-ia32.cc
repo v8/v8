@@ -1577,6 +1577,7 @@ void Assembler::call(Operand adr) {
 void Assembler::call(Handle<Code> code, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   DCHECK(RelocInfo::IsCodeTarget(rmode));
+  DCHECK(code->IsExecutable());
   EMIT(0xE8);
   emit(code, rmode);
 }
