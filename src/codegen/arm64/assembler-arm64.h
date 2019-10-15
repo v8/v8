@@ -193,9 +193,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   explicit Assembler(const AssemblerOptions&,
                      std::unique_ptr<AssemblerBuffer> = {});
 
-  virtual ~Assembler();
+  ~Assembler() override;
 
-  virtual void AbortedCodeGeneration();
+  void AbortedCodeGeneration() override;
 
   // System functions ---------------------------------------------------------
   // Start generating code from the beginning of the buffer, discarding any code
