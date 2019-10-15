@@ -1295,15 +1295,16 @@ void MacroAssembler::PushCalleeSavedRegisters() {
   stp(d10, d11, tos);
   stp(d8, d9, tos);
 
-  stp(x29, x30, tos);
-#if defined(V8_OS_WIN)
-  // kFramePointerOffsetInPushCalleeSavedRegisters is the offset from tos at
-  // the end of this function to the saved caller's fp/x29 pointer. It includes
-  // registers from x19 to x28, which is 10 pointers defined by below stp
-  // instructions.
-  STATIC_ASSERT(kFramePointerOffsetInPushCalleeSavedRegisters ==
-                10 * kSystemPointerSize);
-#endif  // defined(V8_OS_WIN)
+  STATIC_ASSERT(
+      EntryFrameConstants::kCalleeSavedRegisterBytesPushedBeforeFpLrPair ==
+      8 * kSystemPointerSize);
+
+  stp(x29, x30, tos);  // fp, lr
+
+  STATIC_ASSERT(
+      EntryFrameConstants::kCalleeSavedRegisterBytesPushedAfterFpLrPair ==
+      10 * kSystemPointerSize);
+
   stp(x27, x28, tos);
   stp(x25, x26, tos);
   stp(x23, x24, tos);

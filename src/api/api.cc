@@ -8730,10 +8730,17 @@ UnwindState Isolate::GetUnwindState() {
   unwind_state.embedded_code_range.length_in_bytes =
       isolate->embedded_blob_size();
 
-  i::Code js_entry = isolate->heap()->builtin(i::Builtins::kJSEntry);
-  unwind_state.js_entry_stub.code.start =
-      reinterpret_cast<const void*>(js_entry.InstructionStart());
-  unwind_state.js_entry_stub.code.length_in_bytes = js_entry.InstructionSize();
+  std::array<std::pair<i::Builtins::Name, JSEntryStub*>, 3> entry_stubs = {
+      {{i::Builtins::kJSEntry, &unwind_state.js_entry_stub},
+       {i::Builtins::kJSConstructEntry, &unwind_state.js_construct_entry_stub},
+       {i::Builtins::kJSRunMicrotasksEntry,
+        &unwind_state.js_run_microtasks_entry_stub}}};
+  for (auto& pair : entry_stubs) {
+    i::Code js_entry = isolate->heap()->builtin(pair.first);
+    pair.second->code.start =
+        reinterpret_cast<const void*>(js_entry.InstructionStart());
+    pair.second->code.length_in_bytes = js_entry.InstructionSize();
+  }
 
   return unwind_state;
 }

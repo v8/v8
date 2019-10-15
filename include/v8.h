@@ -2206,6 +2206,8 @@ struct UnwindState {
   MemoryRange code_range;
   MemoryRange embedded_code_range;
   JSEntryStub js_entry_stub;
+  JSEntryStub js_construct_entry_stub;
+  JSEntryStub js_run_microtasks_entry_stub;
 };
 
 /**

@@ -83,12 +83,6 @@ inline MemOperand FieldMemOperand(Register object, int offset);
 // ----------------------------------------------------------------------------
 // MacroAssembler
 
-#if defined(V8_OS_WIN)
-// This offset is originated from PushCalleeSavedRegisters.
-static constexpr int kFramePointerOffsetInPushCalleeSavedRegisters =
-    10 * kSystemPointerSize;
-#endif  // V8_OS_WIN
-
 enum BranchType {
   // Copies of architectural conditions.
   // The associated conditions can be used in place of those, the code will

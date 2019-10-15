@@ -645,14 +645,11 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     // to point to bad_frame_pointer below. To fix unwind information for this
     // case, JSEntry registers the offset (from current fp to the caller's fp
     // saved by PushCalleeSavedRegisters on stack) to xdata_encoder which then
-    // emits the offset value as part of result unwind data accordingly. The
-    // current offset is kFramePointerOffset which includes bad_frame_pointer
-    // saved below plus kFramePointerOffsetInPushCalleeSavedRegisters.
-    const int kFramePointerOffset =
-        kFramePointerOffsetInPushCalleeSavedRegisters + kSystemPointerSize;
+    // emits the offset value as part of result unwind data accordingly.
     win64_unwindinfo::XdataEncoder* xdata_encoder = masm->GetXdataEncoder();
     if (xdata_encoder) {
-      xdata_encoder->onFramePointerAdjustment(kFramePointerOffset);
+      xdata_encoder->onFramePointerAdjustment(
+          EntryFrameConstants::kDirectCallerFPOffset);
     }
 #endif
 
@@ -673,6 +670,10 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ Mov(x11, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
                                         masm->isolate()));
   __ Ldr(x10, MemOperand(x11));
+
+  // x13 (the bad frame pointer) is the first item pushed.
+  STATIC_ASSERT(EntryFrameConstants::kOffsetToCalleeSavedRegisters ==
+                1 * kSystemPointerSize);
 
   __ Push(x13, x12, xzr, x10);
   // Set up fp.
