@@ -290,9 +290,9 @@
 // GCC doc: https://gcc.gnu.org/onlinedocs/gcc/Labels-as-Values.html
 # define V8_HAS_COMPUTED_GOTO 1
 
-# if __cplusplus >= 201402L
-#  define V8_CAN_HAVE_DCHECK_IN_CONSTEXPR 1
-# endif
+// Whether constexpr has full C++14 semantics, in particular that non-constexpr
+// code is allowed as long as it's not executed for any constexpr instantiation.
+# define V8_HAS_CXX14_CONSTEXPR 1
 
 #elif defined(__GNUC__)
 
@@ -327,6 +327,11 @@
 
 // GCC doc: https://gcc.gnu.org/onlinedocs/gcc/Labels-as-Values.html
 #define V8_HAS_COMPUTED_GOTO (V8_GNUC_PREREQ(2, 0, 0))
+
+// Whether constexpr has full C++14 semantics, in particular that non-constexpr
+// code is allowed as long as it's not executed for any constexpr instantiation.
+// GCC only supports this since version 6.
+# define V8_HAS_CXX14_CONSTEXPR (V8_GNUC_PREREQ(6, 0, 0))
 
 #endif
 

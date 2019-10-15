@@ -88,7 +88,7 @@ inline constexpr uint16_t ToLatin1Lower(uint16_t ch) {
 
 // Does not work for U+00DF (sharp-s), U+00B5 (micron), U+00FF.
 inline constexpr uint16_t ToLatin1Upper(uint16_t ch) {
-#if V8_CAN_HAVE_DCHECK_IN_CONSTEXPR
+#if V8_HAS_CXX14_CONSTEXPR
   DCHECK(ch != 0xDF && ch != 0xB5 && ch != 0xFF);
 #endif
   return ch &

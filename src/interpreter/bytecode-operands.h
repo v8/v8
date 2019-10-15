@@ -149,7 +149,7 @@ class BytecodeOperands : public AllStatic {
 #undef OPERAND_SCALE_COUNT
 
   static constexpr int OperandScaleAsIndex(OperandScale operand_scale) {
-#ifdef V8_CAN_HAVE_DCHECK_IN_CONSTEXPR
+#if V8_HAS_CXX14_CONSTEXPR
 #ifdef DEBUG
     int result = static_cast<int>(operand_scale) >> 1;
     switch (operand_scale) {

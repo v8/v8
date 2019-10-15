@@ -59,7 +59,7 @@ inline int BoolToInt(bool b) { return b ? 1 : 0; }
 // branch.
 template <typename T, typename U>
 inline constexpr bool IsInRange(T value, U lower_limit, U higher_limit) {
-#if V8_CAN_HAVE_DCHECK_IN_CONSTEXPR
+#if V8_HAS_CXX14_CONSTEXPR
   DCHECK(lower_limit <= higher_limit);
 #endif
   STATIC_ASSERT(sizeof(U) <= sizeof(T));
@@ -342,7 +342,7 @@ class BitField final {
 
   // Returns a type U with the bit field value encoded.
   static constexpr U encode(T value) {
-#if V8_CAN_HAVE_DCHECK_IN_CONSTEXPR
+#if V8_HAS_CXX14_CONSTEXPR
     DCHECK(is_valid(value));
 #endif
     return static_cast<U>(value) << kShift;

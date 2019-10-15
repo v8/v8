@@ -23,7 +23,7 @@ class Vector {
   constexpr Vector() : start_(nullptr), length_(0) {}
 
   constexpr Vector(T* data, size_t length) : start_(data), length_(length) {
-#ifdef V8_CAN_HAVE_DCHECK_IN_CONSTEXPR
+#if V8_HAS_CXX14_CONSTEXPR
     DCHECK(length == 0 || data != nullptr);
 #endif
   }
