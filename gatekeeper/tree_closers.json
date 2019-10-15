@@ -18,6 +18,8 @@
           "V8 Linux - arm - sim - lite - debug",
           "V8 Linux - full debug",
           "V8 Linux - nosnap",
+          "V8 Linux - nosnap builder",
+          "V8 Linux - nosnap debug builder",
           "V8 Linux - nosnap - debug",
           "V8 Win32 - nosnap - shared",
           "V8 Win64 ASAN"
