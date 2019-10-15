@@ -1534,7 +1534,8 @@ void MacroAssembler::AssertConstructor(Register object) {
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
 
-    LoadMap(temp, object);
+    LoadTaggedPointerField(temp,
+                           FieldMemOperand(object, HeapObject::kMapOffset));
     Ldrb(temp, FieldMemOperand(temp, Map::kBitFieldOffset));
     Tst(temp, Operand(Map::IsConstructorBit::kMask));
 
@@ -1573,7 +1574,7 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   // Load map
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireX();
-  LoadMap(temp, object);
+  LoadTaggedPointerField(temp, FieldMemOperand(object, HeapObject::kMapOffset));
 
   Label do_check;
   // Load instance type and check if JSGeneratorObject
@@ -1599,7 +1600,8 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
     Label done_checking;
     AssertNotSmi(object);
     JumpIfRoot(object, RootIndex::kUndefinedValue, &done_checking);
-    LoadMap(scratch, object);
+    LoadTaggedPointerField(scratch,
+                           FieldMemOperand(object, HeapObject::kMapOffset));
     CompareInstanceType(scratch, scratch, ALLOCATION_SITE_TYPE);
     Assert(eq, AbortReason::kExpectedUndefinedOrCell);
     Bind(&done_checking);
@@ -2618,12 +2620,8 @@ void MacroAssembler::JumpIfObjectType(Register object, Register map,
 // Sets condition flags based on comparison, and returns type in type_reg.
 void MacroAssembler::CompareObjectType(Register object, Register map,
                                        Register type_reg, InstanceType type) {
-  LoadMap(map, object);
+  LoadTaggedPointerField(map, FieldMemOperand(object, HeapObject::kMapOffset));
   CompareInstanceType(map, type_reg, type);
-}
-
-void MacroAssembler::LoadMap(Register dst, Register object) {
-  LoadTaggedPointerField(dst, FieldMemOperand(object, HeapObject::kMapOffset));
 }
 
 // Sets condition flags based on comparison, and returns type in type_reg.
@@ -3079,11 +3077,8 @@ void TurboAssembler::Abort(AbortReason reason) {
 }
 
 void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
-  LoadMap(dst, cp);
-  LoadTaggedPointerField(
-      dst, FieldMemOperand(
-               dst, Map::kConstructorOrBackPointerOrNativeContextOffset));
-  LoadTaggedPointerField(dst, MemOperand(dst, Context::SlotOffset(index)));
+  LoadTaggedPointerField(dst, NativeContextMemOperand());
+  LoadTaggedPointerField(dst, ContextMemOperand(dst, index));
 }
 
 // This is the main Printf implementation. All other Printf variants call
@@ -3337,6 +3332,14 @@ CPURegister UseScratchRegisterScope::AcquireNextAvailable(
   CPURegister result = available->PopLowestIndex();
   DCHECK(!AreAliased(result, xzr, sp));
   return result;
+}
+
+MemOperand ContextMemOperand(Register context, int index) {
+  return MemOperand(context, Context::SlotOffset(index));
+}
+
+MemOperand NativeContextMemOperand() {
+  return ContextMemOperand(cp, Context::NATIVE_CONTEXT_INDEX);
 }
 
 void TurboAssembler::ComputeCodeStartAddress(const Register& rd) {

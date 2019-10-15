@@ -1878,8 +1878,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void LeaveExitFrame(bool save_doubles, const Register& scratch,
                       const Register& scratch2);
 
-  void LoadMap(Register dst, Register object);
-
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst);
 
@@ -2082,6 +2080,9 @@ class UseScratchRegisterScope {
   RegList old_available_;    // kRegister
   RegList old_availablefp_;  // kVRegister
 };
+
+MemOperand ContextMemOperand(Register context, int index = 0);
+MemOperand NativeContextMemOperand();
 
 }  // namespace internal
 }  // namespace v8

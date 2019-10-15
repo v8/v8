@@ -146,7 +146,7 @@ class Internals {
   static const int kFixedArrayHeaderSize = 2 * kApiTaggedSize;
   static const int kEmbedderDataArrayHeaderSize = 2 * kApiTaggedSize;
   static const int kEmbedderDataSlotSize = kApiSystemPointerSize;
-  static const int kNativeContextEmbedderDataOffset = 6 * kApiTaggedSize;
+  static const int kNativeContextEmbedderDataOffset = 7 * kApiTaggedSize;
   static const int kFullStringRepresentationMask = 0x0f;
   static const int kStringEncodingMask = 0x8;
   static const int kExternalTwoByteRepresentationTag = 0x02;

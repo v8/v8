@@ -1775,7 +1775,7 @@ void MacroAssembler::CompareObjectType(Register object, Register map,
   UseScratchRegisterScope temps(this);
   const Register temp = type_reg == no_reg ? temps.Acquire() : type_reg;
 
-  LoadMap(map, object);
+  ldr(map, FieldMemOperand(object, HeapObject::kMapOffset));
   CompareInstanceType(map, temp, type);
 }
 
@@ -2010,19 +2010,13 @@ void TurboAssembler::Abort(AbortReason reason) {
   // will not return here
 }
 
-void MacroAssembler::LoadMap(Register destination, Register object) {
-  ldr(destination, FieldMemOperand(object, HeapObject::kMapOffset));
-}
-
 void MacroAssembler::LoadGlobalProxy(Register dst) {
   LoadNativeContextSlot(Context::GLOBAL_PROXY_INDEX, dst);
 }
 
 void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
-  LoadMap(dst, cp);
-  ldr(dst, FieldMemOperand(
-               dst, Map::kConstructorOrBackPointerOrNativeContextOffset));
-  ldr(dst, MemOperand(dst, Context::SlotOffset(index)));
+  ldr(dst, NativeContextMemOperand());
+  ldr(dst, ContextMemOperand(dst, index));
 }
 
 void TurboAssembler::InitializeRootRegister() {
@@ -2084,7 +2078,7 @@ void MacroAssembler::AssertConstructor(Register object) {
     tst(object, Operand(kSmiTagMask));
     Check(ne, AbortReason::kOperandIsASmiAndNotAConstructor);
     push(object);
-    LoadMap(object, object);
+    ldr(object, FieldMemOperand(object, HeapObject::kMapOffset));
     ldrb(object, FieldMemOperand(object, Map::kBitFieldOffset));
     tst(object, Operand(Map::IsConstructorBit::kMask));
     pop(object);
@@ -2124,7 +2118,7 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   // Load map
   Register map = object;
   push(object);
-  LoadMap(map, object);
+  ldr(map, FieldMemOperand(object, HeapObject::kMapOffset));
 
   // Check if JSGeneratorObject
   Label do_check;
@@ -2152,7 +2146,7 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
     AssertNotSmi(object);
     CompareRoot(object, RootIndex::kUndefinedValue);
     b(eq, &done_checking);
-    LoadMap(scratch, object);
+    ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
     CompareInstanceType(scratch, scratch, ALLOCATION_SITE_TYPE);
     Assert(eq, AbortReason::kExpectedUndefinedOrCell);
     bind(&done_checking);

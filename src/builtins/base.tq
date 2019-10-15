@@ -117,6 +117,7 @@ extern class Context extends HeapObject {
   scope_info: ScopeInfo;
   previous: Object;
   extension: Object;
+  native_context: Object;
 }
 extern class AwaitContext extends Context generates 'TNode<Context>';
 extern class BlockContext extends Context generates 'TNode<Context>';
@@ -302,7 +303,7 @@ extern class Map extends HeapObject {
   @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 
   prototype: HeapObject;
-  constructor_or_back_pointer_or_native_context: Object;
+  constructor_or_back_pointer: Object;
   instance_descriptors: DescriptorArray;
   @if(V8_DOUBLE_FIELDS_UNBOXING) layout_descriptor: LayoutDescriptor;
   @ifnot(V8_DOUBLE_FIELDS_UNBOXING) layout_descriptor: void;

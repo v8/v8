@@ -1835,8 +1835,7 @@ TNode<IntPtrT> CodeStubAssembler::LoadMapConstructorFunctionIndex(
 TNode<Object> CodeStubAssembler::LoadMapConstructor(SloppyTNode<Map> map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
   TVARIABLE(Object, result,
-            LoadObjectField(
-                map, Map::kConstructorOrBackPointerOrNativeContextOffset));
+            LoadObjectField(map, Map::kConstructorOrBackPointerOffset));
 
   Label done(this), loop(this, &result);
   Goto(&loop);
@@ -1846,9 +1845,8 @@ TNode<Object> CodeStubAssembler::LoadMapConstructor(SloppyTNode<Map> map) {
     TNode<BoolT> is_map_type =
         InstanceTypeEqual(LoadInstanceType(CAST(result.value())), MAP_TYPE);
     GotoIfNot(is_map_type, &done);
-    result =
-        LoadObjectField(CAST(result.value()),
-                        Map::kConstructorOrBackPointerOrNativeContextOffset);
+    result = LoadObjectField(CAST(result.value()),
+                             Map::kConstructorOrBackPointerOffset);
     Goto(&loop);
   }
   BIND(&done);
@@ -1862,8 +1860,8 @@ TNode<WordT> CodeStubAssembler::LoadMapEnumLength(SloppyTNode<Map> map) {
 }
 
 TNode<Object> CodeStubAssembler::LoadMapBackPointer(SloppyTNode<Map> map) {
-  TNode<HeapObject> object = CAST(LoadObjectField(
-      map, Map::kConstructorOrBackPointerOrNativeContextOffset));
+  TNode<HeapObject> object =
+      CAST(LoadObjectField(map, Map::kConstructorOrBackPointerOffset));
   return Select<Object>(
       IsMap(object), [=] { return object; },
       [=] { return UndefinedConstant(); });
@@ -2734,17 +2732,15 @@ void CodeStubAssembler::StoreContextElementNoWriteBarrier(
 
 TNode<NativeContext> CodeStubAssembler::LoadNativeContext(
     SloppyTNode<Context> context) {
-  TNode<Map> map = LoadMap(context);
-  return CAST(LoadObjectField(
-      map, Map::kConstructorOrBackPointerOrNativeContextOffset));
+  return UncheckedCast<NativeContext>(
+      LoadContextElement(context, Context::NATIVE_CONTEXT_INDEX));
 }
 
 TNode<Context> CodeStubAssembler::LoadModuleContext(
     SloppyTNode<Context> context) {
-  TNode<NativeContext> native_context = LoadNativeContext(context);
-  TNode<Map> module_map = CAST(
-      LoadContextElement(native_context, Context::MODULE_CONTEXT_MAP_INDEX));
-  TVariable<Object> cur_context(context, this);
+  TNode<Map> module_map = ModuleContextMapConstant();
+  Variable cur_context(this, MachineRepresentation::kTaggedPointer);
+  cur_context.Bind(context);
 
   Label context_found(this);
 
@@ -2755,13 +2751,12 @@ TNode<Context> CodeStubAssembler::LoadModuleContext(
   Goto(&context_search);
   BIND(&context_search);
   {
-    CSA_ASSERT(this, Word32BinaryNot(
-                         TaggedEqual(cur_context.value(), native_context)));
-    GotoIf(TaggedEqual(LoadMap(CAST(cur_context.value())), module_map),
+    CSA_ASSERT(this, Word32BinaryNot(IsNativeContext(cur_context.value())));
+    GotoIf(TaggedEqual(LoadMap(cur_context.value()), module_map),
            &context_found);
 
-    cur_context =
-        LoadContextElement(CAST(cur_context.value()), Context::PREVIOUS_INDEX);
+    cur_context.Bind(
+        LoadContextElement(cur_context.value(), Context::PREVIOUS_INDEX));
     Goto(&context_search);
   }
 
@@ -6561,7 +6556,7 @@ TNode<BoolT> CodeStubAssembler::IsPrivateName(SloppyTNode<Symbol> symbol) {
 
 TNode<BoolT> CodeStubAssembler::IsNativeContext(
     SloppyTNode<HeapObject> object) {
-  return HasInstanceType(object, NATIVE_CONTEXT_TYPE);
+  return TaggedEqual(LoadMap(object), NativeContextMapConstant());
 }
 
 TNode<BoolT> CodeStubAssembler::IsFixedDoubleArray(
@@ -8704,9 +8699,8 @@ TNode<Object> CodeStubAssembler::GetConstructor(TNode<Map> map) {
 
   BIND(&loop);
   {
-    var_maybe_constructor = CAST(
-        LoadObjectField(var_maybe_constructor.value(),
-                        Map::kConstructorOrBackPointerOrNativeContextOffset));
+    var_maybe_constructor = CAST(LoadObjectField(
+        var_maybe_constructor.value(), Map::kConstructorOrBackPointerOffset));
     GotoIf(IsMap(var_maybe_constructor.value()), &loop);
     Goto(&done);
   }
@@ -13494,9 +13488,7 @@ void CodeStubAssembler::PerformStackCheck(TNode<Context> context) {
 void CodeStubAssembler::InitializeFunctionContext(Node* native_context,
                                                   Node* context, int slots) {
   DCHECK_GE(slots, Context::MIN_CONTEXT_SLOTS);
-  TNode<Map> map = CAST(
-      LoadContextElement(native_context, Context::FUNCTION_CONTEXT_MAP_INDEX));
-  StoreMapNoWriteBarrier(context, map);
+  StoreMapNoWriteBarrier(context, RootIndex::kFunctionContextMap);
   StoreObjectFieldNoWriteBarrier(context, FixedArray::kLengthOffset,
                                  SmiConstant(slots));
 
@@ -13508,6 +13500,8 @@ void CodeStubAssembler::InitializeFunctionContext(Node* native_context,
                                     UndefinedConstant());
   StoreContextElementNoWriteBarrier(context, Context::EXTENSION_INDEX,
                                     TheHoleConstant());
+  StoreContextElementNoWriteBarrier(context, Context::NATIVE_CONTEXT_INDEX,
+                                    native_context);
 }
 
 TNode<JSArray> CodeStubAssembler::ArrayCreate(TNode<Context> context,

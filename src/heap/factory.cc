@@ -1410,20 +1410,20 @@ Handle<Symbol> Factory::NewPrivateNameSymbol(Handle<String> name) {
   return symbol;
 }
 
-Handle<Context> Factory::NewContext(Handle<Map> map, int size,
+Handle<Context> Factory::NewContext(RootIndex map_root_index, int size,
                                     int variadic_part_length,
                                     AllocationType allocation) {
+  DCHECK(RootsTable::IsImmortalImmovable(map_root_index));
   DCHECK_LE(Context::kTodoHeaderSize, size);
   DCHECK(IsAligned(size, kTaggedSize));
   DCHECK_LE(Context::MIN_CONTEXT_SLOTS, variadic_part_length);
   DCHECK_LE(Context::SizeFor(variadic_part_length), size);
 
-  HeapObject result =
-      isolate()->heap()->AllocateRawWith<Heap::kRetryOrFail>(size, allocation);
-  result.set_map_after_allocation(*map);
+  Map map = Map::cast(isolate()->root(map_root_index));
+  HeapObject result = AllocateRawWithImmortalMap(size, allocation, map);
   Handle<Context> context(Context::cast(result), isolate());
   context->initialize_length_and_extension_bit(variadic_part_length);
-  DCHECK_EQ(context->SizeFromMap(*map), size);
+  DCHECK_EQ(context->SizeFromMap(map), size);
   if (size > Context::kTodoHeaderSize) {
     ObjectSlot start = context->RawField(Context::kTodoHeaderSize);
     ObjectSlot end = context->RawField(size);
@@ -1434,15 +1434,13 @@ Handle<Context> Factory::NewContext(Handle<Map> map, int size,
 }
 
 Handle<NativeContext> Factory::NewNativeContext() {
-  Handle<Map> map = NewMap(NATIVE_CONTEXT_TYPE, kVariableSizeSentinel);
   Handle<NativeContext> context = Handle<NativeContext>::cast(
-      NewContext(map, NativeContext::kSize, NativeContext::NATIVE_CONTEXT_SLOTS,
-                 AllocationType::kOld));
-  context->set_native_context_map(*map);
-  map->set_native_context(*context);
+      NewContext(RootIndex::kNativeContextMap, NativeContext::kSize,
+                 NativeContext::NATIVE_CONTEXT_SLOTS, AllocationType::kOld));
   context->set_scope_info(ReadOnlyRoots(isolate()).empty_scope_info());
   context->set_previous(Context::unchecked_cast(Smi::zero()));
   context->set_extension(*the_hole_value());
+  context->set_native_context(*context);
   context->set_errors_thrown(Smi::zero());
   context->set_math_random_index(Smi::zero());
   context->set_serialized_objects(*empty_fixed_array());
@@ -1456,11 +1454,12 @@ Handle<Context> Factory::NewScriptContext(Handle<NativeContext> outer,
   DCHECK_EQ(scope_info->scope_type(), SCRIPT_SCOPE);
   int variadic_part_length = scope_info->ContextLength();
   Handle<Context> context = NewContext(
-      isolate()->script_context_map(), Context::SizeFor(variadic_part_length),
+      RootIndex::kScriptContextMap, Context::SizeFor(variadic_part_length),
       variadic_part_length, AllocationType::kOld);
   context->set_scope_info(*scope_info);
   context->set_previous(*outer);
   context->set_extension(*the_hole_value());
+  context->set_native_context(*outer);
   DCHECK(context->IsScriptContext());
   return context;
 }
@@ -1479,35 +1478,37 @@ Handle<Context> Factory::NewModuleContext(Handle<SourceTextModule> module,
   DCHECK_EQ(scope_info->scope_type(), MODULE_SCOPE);
   int variadic_part_length = scope_info->ContextLength();
   Handle<Context> context = NewContext(
-      isolate()->module_context_map(), Context::SizeFor(variadic_part_length),
+      RootIndex::kModuleContextMap, Context::SizeFor(variadic_part_length),
       variadic_part_length, AllocationType::kOld);
   context->set_scope_info(*scope_info);
   context->set_previous(*outer);
   context->set_extension(*module);
+  context->set_native_context(*outer);
   DCHECK(context->IsModuleContext());
   return context;
 }
 
 Handle<Context> Factory::NewFunctionContext(Handle<Context> outer,
                                             Handle<ScopeInfo> scope_info) {
-  Handle<Map> map;
+  RootIndex mapRootIndex;
   switch (scope_info->scope_type()) {
     case EVAL_SCOPE:
-      map = isolate()->eval_context_map();
+      mapRootIndex = RootIndex::kEvalContextMap;
       break;
     case FUNCTION_SCOPE:
-      map = isolate()->function_context_map();
+      mapRootIndex = RootIndex::kFunctionContextMap;
       break;
     default:
       UNREACHABLE();
   }
   int variadic_part_length = scope_info->ContextLength();
   Handle<Context> context =
-      NewContext(map, Context::SizeFor(variadic_part_length),
+      NewContext(mapRootIndex, Context::SizeFor(variadic_part_length),
                  variadic_part_length, AllocationType::kYoung);
   context->set_scope_info(*scope_info);
   context->set_previous(*outer);
   context->set_extension(*the_hole_value());
+  context->set_native_context(outer->native_context());
   return context;
 }
 
@@ -1519,11 +1520,12 @@ Handle<Context> Factory::NewCatchContext(Handle<Context> previous,
   // TODO(ishell): Take the details from CatchContext class.
   int variadic_part_length = Context::MIN_CONTEXT_SLOTS + 1;
   Handle<Context> context = NewContext(
-      isolate()->catch_context_map(), Context::SizeFor(variadic_part_length),
+      RootIndex::kCatchContextMap, Context::SizeFor(variadic_part_length),
       variadic_part_length, AllocationType::kYoung);
   context->set_scope_info(*scope_info);
   context->set_previous(*previous);
   context->set_extension(*the_hole_value());
+  context->set_native_context(previous->native_context());
   context->set(Context::THROWN_OBJECT_INDEX, *thrown_object);
   return context;
 }
@@ -1540,11 +1542,12 @@ Handle<Context> Factory::NewDebugEvaluateContext(Handle<Context> previous,
                                : Handle<HeapObject>::cast(extension);
   // TODO(ishell): Take the details from DebugEvaluateContextContext class.
   int variadic_part_length = Context::MIN_CONTEXT_SLOTS + 2;
-  Handle<Context> c = NewContext(isolate()->debug_evaluate_context_map(),
+  Handle<Context> c = NewContext(RootIndex::kDebugEvaluateContextMap,
                                  Context::SizeFor(variadic_part_length),
                                  variadic_part_length, AllocationType::kYoung);
   c->set_scope_info(*scope_info);
   c->set_previous(*previous);
+  c->set_native_context(previous->native_context());
   c->set_extension(*ext);
   if (!wrapped.is_null()) c->set(Context::WRAPPED_CONTEXT_INDEX, *wrapped);
   if (!blacklist.is_null()) c->set(Context::BLACK_LIST_INDEX, *blacklist);
@@ -1558,11 +1561,12 @@ Handle<Context> Factory::NewWithContext(Handle<Context> previous,
   // TODO(ishell): Take the details from WithContext class.
   int variadic_part_length = Context::MIN_CONTEXT_SLOTS;
   Handle<Context> context = NewContext(
-      isolate()->with_context_map(), Context::SizeFor(variadic_part_length),
+      RootIndex::kWithContextMap, Context::SizeFor(variadic_part_length),
       variadic_part_length, AllocationType::kYoung);
   context->set_scope_info(*scope_info);
   context->set_previous(*previous);
   context->set_extension(*extension);
+  context->set_native_context(previous->native_context());
   return context;
 }
 
@@ -1572,11 +1576,12 @@ Handle<Context> Factory::NewBlockContext(Handle<Context> previous,
                  scope_info->scope_type() == CLASS_SCOPE);
   int variadic_part_length = scope_info->ContextLength();
   Handle<Context> context = NewContext(
-      isolate()->block_context_map(), Context::SizeFor(variadic_part_length),
+      RootIndex::kBlockContextMap, Context::SizeFor(variadic_part_length),
       variadic_part_length, AllocationType::kYoung);
   context->set_scope_info(*scope_info);
   context->set_previous(*previous);
   context->set_extension(*the_hole_value());
+  context->set_native_context(previous->native_context());
   return context;
 }
 
@@ -1584,11 +1589,12 @@ Handle<Context> Factory::NewBuiltinContext(Handle<NativeContext> native_context,
                                            int variadic_part_length) {
   DCHECK_LE(Context::MIN_CONTEXT_SLOTS, variadic_part_length);
   Handle<Context> context = NewContext(
-      isolate()->function_context_map(), Context::SizeFor(variadic_part_length),
+      RootIndex::kFunctionContextMap, Context::SizeFor(variadic_part_length),
       variadic_part_length, AllocationType::kYoung);
   context->set_scope_info(ReadOnlyRoots(isolate()).empty_scope_info());
   context->set_previous(*native_context);
   context->set_extension(*the_hole_value());
+  context->set_native_context(*native_context);
   return context;
 }
 

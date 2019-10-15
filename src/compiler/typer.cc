@@ -1480,6 +1480,7 @@ Type Typer::Visitor::TypeJSLoadContext(Node* node) {
   ContextAccess const& access = ContextAccessOf(node->op());
   switch (access.index()) {
     case Context::PREVIOUS_INDEX:
+    case Context::NATIVE_CONTEXT_INDEX:
     case Context::SCOPE_INFO_INDEX:
       return Type::OtherInternal();
     default:
