@@ -194,9 +194,7 @@ class BuildConfig(object):
     self.is_full_debug = build_config['is_full_debug']
     self.msan = build_config['is_msan']
     self.no_i18n = not build_config['v8_enable_i18n_support']
-    # TODO(https://crbug.com/v8/8531)
-    # 'v8_use_snapshot' was removed, 'no_snap' can be removed as well.
-    self.no_snap = False
+    self.no_snap = not build_config['v8_use_snapshot']
     self.predictable = build_config['v8_enable_verify_predictable']
     self.tsan = build_config['is_tsan']
     # TODO(machenbach): We only have ubsan not ubsan_vptr.

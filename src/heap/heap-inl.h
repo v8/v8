@@ -209,7 +209,9 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
   } else if (AllocationType::kMap == type) {
     allocation = map_space_->AllocateRawUnaligned(size_in_bytes);
   } else if (AllocationType::kReadOnly == type) {
+#ifdef V8_USE_SNAPSHOT
     DCHECK(isolate_->serializer_enabled());
+#endif
     DCHECK(!large_object);
     DCHECK(CanAllocateInReadOnlySpace());
     DCHECK_EQ(AllocationOrigin::kRuntime, origin);

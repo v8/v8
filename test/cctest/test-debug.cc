@@ -1031,6 +1031,8 @@ TEST(BreakPointBuiltinNewContext) {
   i::Handle<i::BreakPoint> bp;
 
 // === Test builtin from a new context ===
+// This does not work with no-snapshot build.
+#ifdef V8_USE_SNAPSHOT
   break_point_hit_count = 0;
   builtin = CompileRun("String.prototype.repeat").As<v8::Function>();
   CompileRun("'a'.repeat(10)");
@@ -1056,6 +1058,7 @@ TEST(BreakPointBuiltinNewContext) {
     CompileRun("'b'.repeat(10)");
     CHECK_EQ(2, break_point_hit_count);
   }
+#endif
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();

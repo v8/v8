@@ -29,7 +29,7 @@
   'regress/*': [CRASH],
 }],
 
-['asan', {
+['no_snap', {
   'bananas': [PASS, NO_VARIANTS],
   'raspberries': [FAIL, NO_VARIANTS],
 }],
