@@ -536,7 +536,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Debugging support.
   //--------------------------------------------------------------------------
   // Set all breakpoints that were set on the shared module.
-  WasmModuleObject::SetBreakpointsOnNewInstance(
+  WasmScript::SetBreakpointsOnNewInstance(
       handle(module_object_->script(), isolate_), instance);
 
   //--------------------------------------------------------------------------

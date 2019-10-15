@@ -25,8 +25,8 @@ void CheckLocations(
     NativeModule* native_module, debug::Location start, debug::Location end,
     std::initializer_list<debug::Location> expected_locations_init) {
   std::vector<debug::BreakLocation> locations;
-  bool success = WasmModuleObject::GetPossibleBreakpoints(native_module, start,
-                                                          end, &locations);
+  bool success =
+      WasmScript::GetPossibleBreakpoints(native_module, start, end, &locations);
   CHECK(success);
 
   printf("got %d locations: ", static_cast<int>(locations.size()));
@@ -49,8 +49,8 @@ void CheckLocations(
 void CheckLocationsFail(NativeModule* native_module, debug::Location start,
                         debug::Location end) {
   std::vector<debug::BreakLocation> locations;
-  bool success = WasmModuleObject::GetPossibleBreakpoints(native_module, start,
-                                                          end, &locations);
+  bool success =
+      WasmScript::GetPossibleBreakpoints(native_module, start, end, &locations);
   CHECK(!success);
 }
 
@@ -133,7 +133,7 @@ Handle<BreakPoint> SetBreakpoint(WasmRunnerBase* runner, int function_index,
   Handle<BreakPoint> break_point =
       runner->main_isolate()->factory()->NewBreakPoint(
           break_index++, runner->main_isolate()->factory()->empty_string());
-  CHECK(WasmModuleObject::SetBreakPoint(script, &code_offset, break_point));
+  CHECK(WasmScript::SetBreakPoint(script, &code_offset, break_point));
   int set_byte_offset = code_offset - func_offset;
   CHECK_EQ(expected_set_byte_offset, set_byte_offset);
   // Also set breakpoint on the debug info of the instance directly, since the
@@ -153,7 +153,7 @@ void ClearBreakpoint(WasmRunnerBase* runner, int function_index,
   Handle<WasmInstanceObject> instance = runner->builder().instance_object();
   Handle<Script> script(instance->module_object().script(),
                         runner->main_isolate());
-  CHECK(WasmModuleObject::ClearBreakPoint(script, code_offset, break_point));
+  CHECK(WasmScript::ClearBreakPoint(script, code_offset, break_point));
   // Also clear breakpoint on the debug info of the instance directly, since the
   // instance chain is not setup properly in tests.
   Handle<WasmDebugInfo> debug_info =
