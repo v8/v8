@@ -829,6 +829,11 @@ int DisassemblerX64::AVXInstruction(byte* data) {
                        NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
         break;
+      case 0xB8:
+        AppendToBuffer("vfmadd231p%c %s,%s,", float_size_code(),
+                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0xB9:
         AppendToBuffer("vfmadd231s%c %s,%s,", float_size_code(),
                        NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
@@ -846,6 +851,11 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         break;
       case 0xBB:
         AppendToBuffer("vfmsub231s%c %s,%s,", float_size_code(),
+                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0xBC:
+        AppendToBuffer("vfnmadd231p%c %s,%s,", float_size_code(),
                        NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
         break;

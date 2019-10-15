@@ -852,6 +852,15 @@ TEST(DisasmX64) {
       __ vfnmsub213ss(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
       __ vfnmsub231ss(xmm0, xmm1, xmm2);
       __ vfnmsub231ss(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
+
+      __ vfmadd231ps(xmm0, xmm1, xmm2);
+      __ vfmadd231ps(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
+      __ vfnmadd231ps(xmm0, xmm1, xmm2);
+      __ vfnmadd231ps(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
+      __ vfmadd231pd(xmm0, xmm1, xmm2);
+      __ vfmadd231pd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
+      __ vfnmadd231pd(xmm0, xmm1, xmm2);
+      __ vfnmadd231pd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
     }
   }
 
