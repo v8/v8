@@ -17,11 +17,6 @@
           "V8 Linux - arm - sim - lite",
           "V8 Linux - arm - sim - lite - debug",
           "V8 Linux - full debug",
-          "V8 Linux - nosnap",
-          "V8 Linux - nosnap builder",
-          "V8 Linux - nosnap debug builder",
-          "V8 Linux - nosnap - debug",
-          "V8 Win32 - nosnap - shared",
           "V8 Win64 ASAN"
         ],
         "builders": {
@@ -43,8 +38,6 @@
         "excluded_builders" : [
           "V8 NumFuzz",
           "V8 NumFuzz - debug",
-          "V8 NumFuzz - nosnap",
-          "V8 NumFuzz - nosnap debug",
           "V8 NumFuzz - TSAN",
           "V8 TSAN GC Fuzzer",
           "V8 GC Fuzzer - debug",
