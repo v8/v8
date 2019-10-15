@@ -19,12 +19,6 @@
 #include "src/zone/zone.h"
 
 namespace v8 {
-
-namespace base {
-template <typename T, size_t kSize>
-class SmallVector;
-}  // namespace base
-
 namespace internal {
 struct AssemblerOptions;
 class OptimizedCompilationJob;
@@ -184,17 +178,6 @@ class WasmGraphBuilder {
   V8_EXPORT_PRIVATE WasmGraphBuilder(
       wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
       wasm::FunctionSig* sig, compiler::SourcePositionTable* spt = nullptr);
-
-  // TODO(mstarzinger): Remove this deprecated buffer.
-  Vector<Node*> Buffer(size_t count) {
-    if (count > cur_bufsize_) {
-      size_t new_size = count + cur_bufsize_ + 5;
-      cur_buffer_ =
-          reinterpret_cast<Node**>(zone_->New(new_size * sizeof(Node*)));
-      cur_bufsize_ = new_size;
-    }
-    return {cur_buffer_, count};
-  }
 
   //-----------------------------------------------------------------------
   // Operations independent of {control} or {effect}.
@@ -436,8 +419,6 @@ class WasmGraphBuilder {
   void RemoveBytecodePositionDecorator();
 
  protected:
-  static const int kDefaultBufferSize = 16;
-
   Zone* const zone_;
   MachineGraph* const mcgraph_;
   wasm::CompilationEnv* const env_;
@@ -453,9 +434,6 @@ class WasmGraphBuilder {
   SetOncePointer<Node> isolate_root_node_;
   SetOncePointer<const Operator> stack_check_call_operator_;
 
-  Node** cur_buffer_;
-  size_t cur_bufsize_;
-  Node* def_buffer_[kDefaultBufferSize];
   bool has_simd_ = false;
   bool needs_stack_check_ = false;
   const bool untrusted_code_mitigations_ = true;

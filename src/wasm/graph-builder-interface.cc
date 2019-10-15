@@ -262,8 +262,9 @@ class WasmGraphBuildingInterface {
   void Drop(FullDecoder* decoder, const Value& value) {}
 
   void DoReturn(FullDecoder* decoder, Vector<Value> values) {
-    Vector<TFNode*> nodes = GetNodes(values);
-    BUILD(Return, nodes);
+    base::SmallVector<TFNode*, 8> nodes(values.size());
+    GetNodes(nodes.begin(), values);
+    BUILD(Return, VectorOf(nodes));
   }
 
   void LocalGet(FullDecoder* decoder, Value* result,
@@ -323,10 +324,11 @@ class WasmGraphBuildingInterface {
   void BrOrRet(FullDecoder* decoder, uint32_t depth) {
     if (depth == decoder->control_depth() - 1) {
       uint32_t ret_count = static_cast<uint32_t>(decoder->sig_->return_count());
-      Vector<TFNode*> values =
-          ret_count == 0 ? Vector<TFNode*>{}
-                         : GetNodes(decoder->stack_value(ret_count), ret_count);
-      BUILD(Return, values);
+      base::SmallVector<TFNode*, 8> values(ret_count);
+      if (ret_count > 0) {
+        GetNodes(values.begin(), decoder->stack_value(ret_count), ret_count);
+      }
+      BUILD(Return, VectorOf(values));
     } else {
       Br(decoder, decoder->control_at(depth));
     }
@@ -435,7 +437,8 @@ class WasmGraphBuildingInterface {
 
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
               Value* result) {
-    Vector<TFNode*> inputs = GetNodes(args);
+    base::SmallVector<TFNode*, 8> inputs(args.size());
+    GetNodes(inputs.begin(), args);
     TFNode* node = BUILD(SimdOp, opcode, inputs.begin());
     if (result) result->node = node;
   }
@@ -443,7 +446,8 @@ class WasmGraphBuildingInterface {
   void SimdLaneOp(FullDecoder* decoder, WasmOpcode opcode,
                   const SimdLaneImmediate<validate> imm, Vector<Value> inputs,
                   Value* result) {
-    Vector<TFNode*> nodes = GetNodes(inputs);
+    base::SmallVector<TFNode*, 8> nodes(inputs.size());
+    GetNodes(nodes.begin(), inputs);
     result->node = BUILD(SimdLaneOp, opcode, imm.lane, nodes.begin());
   }
 
@@ -522,7 +526,8 @@ class WasmGraphBuildingInterface {
 
   void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
                 const MemoryAccessImmediate<validate>& imm, Value* result) {
-    Vector<TFNode*> inputs = GetNodes(args);
+    base::SmallVector<TFNode*, 8> inputs(args.size());
+    GetNodes(inputs.begin(), args);
     TFNode* node = BUILD(AtomicOp, opcode, inputs.begin(), imm.alignment,
                          imm.offset, decoder->position());
     if (result) result->node = node;
@@ -594,16 +599,14 @@ class WasmGraphBuildingInterface {
         ->try_info;
   }
 
-  Vector<TFNode*> GetNodes(Value* values, size_t count) {
-    Vector<TFNode*> nodes = builder_->Buffer(count);
+  void GetNodes(TFNode** nodes, Value* values, size_t count) {
     for (size_t i = 0; i < count; ++i) {
       nodes[i] = values[i].node;
     }
-    return nodes;
   }
 
-  Vector<TFNode*> GetNodes(Vector<Value> values) {
-    return GetNodes(values.begin(), values.size());
+  void GetNodes(TFNode** nodes, Vector<Value> values) {
+    GetNodes(nodes, values.begin(), values.size());
   }
 
   void SetEnv(SsaEnv* env) {

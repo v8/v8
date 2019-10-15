@@ -176,8 +176,6 @@ WasmGraphBuilder::WasmGraphBuilder(
     : zone_(zone),
       mcgraph_(mcgraph),
       env_(env),
-      cur_buffer_(def_buffer_),
-      cur_bufsize_(kDefaultBufferSize),
       has_simd_(ContainsSimd(sig)),
       untrusted_code_mitigations_(FLAG_untrusted_code_mitigations),
       sig_(sig),
@@ -5967,13 +5965,13 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     } else {
       Node* fixed_array =
           BuildMultiReturnFixedArrayFromIterable(sig_, call, native_context);
-      Vector<Node*> wasm_values = Buffer(sig_->return_count());
+      base::SmallVector<Node*, 8> wasm_values(sig_->return_count());
       for (unsigned i = 0; i < sig_->return_count(); ++i) {
         wasm_values[i] = FromJS(LOAD_FIXED_ARRAY_SLOT_ANY(fixed_array, i),
                                 native_context, sig_->GetReturn(i));
       }
       BuildModifyThreadInWasmFlag(true);
-      Return(wasm_values);
+      Return(VectorOf(wasm_values));
     }
 
     if (ContainsInt64(sig_)) LowerInt64(kCalledFromWasm);
@@ -6069,7 +6067,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     if (return_count == 0) {
       Return(Int32Constant(0));
     } else {
-      Vector<Node*> returns = Buffer(return_count);
+      base::SmallVector<Node*, 8> returns(return_count);
       offset = 0;
       for (size_t i = 0; i < return_count; ++i) {
         wasm::ValueType type = sig_->GetReturn(i);
@@ -6079,7 +6077,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         returns[i] = val;
         offset += wasm::ValueTypes::ElementSizeInBytes(type);
       }
-      Return(returns);
+      Return(VectorOf(returns));
     }
 
     if (ContainsInt64(sig_)) LowerInt64(kCalledFromWasm);
@@ -6141,7 +6139,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     if (return_count == 0) {
       Return(Int32Constant(0));
     } else {
-      Vector<Node*> returns = Buffer(return_count);
+      base::SmallVector<Node*, 8> returns(return_count);
       offset = 0;
       for (size_t i = 0; i < return_count; ++i) {
         wasm::ValueType type = sig_->GetReturn(i);
@@ -6151,7 +6149,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         returns[i] = val;
         offset += wasm::ValueTypes::ElementSizeInBytes(type);
       }
-      Return(returns);
+      Return(VectorOf(returns));
     }
 
     if (ContainsInt64(sig_)) LowerInt64(kCalledFromWasm);
