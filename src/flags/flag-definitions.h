@@ -1507,6 +1507,10 @@ DEFINE_STRING(redirect_code_traces_to, nullptr,
 DEFINE_BOOL(print_opt_source, false,
             "print source code of optimized and inlined functions")
 
+DEFINE_BOOL(vtune_prof_annotate_wasm, false,
+            "Used when v8_enable_vtunejit is enabled, load wasm source map and "
+            "provide annotate support (experimental).")
+
 DEFINE_BOOL(win64_unwinding_info, true, "Enable unwinding info for Windows/x64")
 
 #ifdef V8_TARGET_ARCH_ARM

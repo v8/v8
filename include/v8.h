@@ -7447,6 +7447,20 @@ struct JitCodeEvent {
     PositionType position_type;
   };
 
+  struct wasm_source_info_t {
+    // Source file name.
+    const char* filename;
+    // Length of filename.
+    size_t filename_size;
+    // Line number table, which maps offsets of JITted code to line numbers of
+    // source file.
+    const line_info_t* line_number_table;
+    // Number of entries in the line number table.
+    size_t line_number_table_size;
+  };
+
+  wasm_source_info_t* wasm_source_info;
+
   union {
     // Only valid for CODE_ADDED.
     struct name_t name;
