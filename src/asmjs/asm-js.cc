@@ -387,6 +387,12 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
       ReportInstantiationFailure(script, position, "Requires heap buffer");
       return MaybeHandle<Object>();
     }
+    // AsmJs memory must be an ArrayBuffer.
+    if (memory->is_shared()) {
+      ReportInstantiationFailure(script, position,
+                                 "Invalid heap type: SharedArrayBuffer");
+      return MaybeHandle<Object>();
+    }
     // Mark the buffer as being used as an asm.js memory. This implies two
     // things: 1) if the buffer is from a Wasm memory, that memory can no longer
     // be grown, since that would detach this buffer, and 2) the buffer cannot
