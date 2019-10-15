@@ -119,6 +119,38 @@ constexpr ValueType kSupportedTypesArr[] = {kWasmI32, kWasmI64, kWasmF32,
 constexpr Vector<const ValueType> kSupportedTypes =
     ArrayVector(kSupportedTypesArr);
 
+constexpr Condition GetCompareCondition(WasmOpcode opcode) {
+  switch (opcode) {
+    case kExprI32Eq:
+      return kEqual;
+    case kExprI32Ne:
+      return kUnequal;
+    case kExprI32LtS:
+      return kSignedLessThan;
+    case kExprI32LtU:
+      return kUnsignedLessThan;
+    case kExprI32GtS:
+      return kSignedGreaterThan;
+    case kExprI32GtU:
+      return kUnsignedGreaterThan;
+    case kExprI32LeS:
+      return kSignedLessEqual;
+    case kExprI32LeU:
+      return kUnsignedLessEqual;
+    case kExprI32GeS:
+      return kSignedGreaterEqual;
+    case kExprI32GeU:
+      return kUnsignedGreaterEqual;
+    default:
+#if V8_HAS_CXX14_CONSTEXPR
+      UNREACHABLE();
+#else
+      // We need to return something for old compilers here.
+      return kEqual;
+#endif
+  }
+}
+
 class LiftoffCompiler {
  public:
   // TODO(clemensb): Make this a template parameter.
@@ -911,13 +943,13 @@ class LiftoffCompiler {
   void BinOp(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs,
              const Value& rhs, Value* result) {
 #define CASE_I32_BINOP(opcode, fn)                                           \
-  case WasmOpcode::kExpr##opcode:                                            \
+  case kExpr##opcode:                                                        \
     return EmitBinOp<kWasmI32, kWasmI32>(                                    \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_##fn(dst.gp(), lhs.gp(), rhs.gp());                        \
         });
 #define CASE_I32_BINOPI(opcode, fn)                                          \
-  case WasmOpcode::kExpr##opcode:                                            \
+  case kExpr##opcode:                                                        \
     return EmitBinOpImm<kWasmI32, kWasmI32>(                                 \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_##fn(dst.gp(), lhs.gp(), rhs.gp());                        \
@@ -926,13 +958,13 @@ class LiftoffCompiler {
           __ emit_##fn(dst.gp(), lhs.gp(), imm);                             \
         });
 #define CASE_I64_BINOP(opcode, fn)                                           \
-  case WasmOpcode::kExpr##opcode:                                            \
+  case kExpr##opcode:                                                        \
     return EmitBinOp<kWasmI64, kWasmI64>(                                    \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_##fn(dst, lhs, rhs);                                       \
         });
 #define CASE_I64_BINOPI(opcode, fn)                                          \
-  case WasmOpcode::kExpr##opcode:                                            \
+  case kExpr##opcode:                                                        \
     return EmitBinOpImm<kWasmI64, kWasmI64>(                                 \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_##fn(dst, lhs, rhs);                                       \
@@ -941,43 +973,50 @@ class LiftoffCompiler {
           __ emit_##fn(dst, lhs, imm);                                       \
         });
 #define CASE_FLOAT_BINOP(opcode, type, fn)                                   \
-  case WasmOpcode::kExpr##opcode:                                            \
+  case kExpr##opcode:                                                        \
     return EmitBinOp<kWasm##type, kWasm##type>(                              \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_##fn(dst.fp(), lhs.fp(), rhs.fp());                        \
         });
-#define CASE_I32_CMPOP(opcode, cond)                                         \
-  case WasmOpcode::kExpr##opcode:                                            \
+#define CASE_I32_CMPOP(opcode)                                               \
+  case kExpr##opcode:                                                        \
+    DCHECK_EQ(kExpr##opcode, decoder->pc()[0]);                              \
+    if (decoder->pc()[1] == kExprBrIf) {                                     \
+      DCHECK(!has_outstanding_op());                                         \
+      outstanding_op_ = kExpr##opcode;                                       \
+      break;                                                                 \
+    }                                                                        \
     return EmitBinOp<kWasmI32, kWasmI32>(                                    \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
+          constexpr Condition cond = GetCompareCondition(kExpr##opcode);     \
           __ emit_i32_set_cond(cond, dst.gp(), lhs.gp(), rhs.gp());          \
         });
 #define CASE_I64_CMPOP(opcode, cond)                                         \
-  case WasmOpcode::kExpr##opcode:                                            \
+  case kExpr##opcode:                                                        \
     return EmitBinOp<kWasmI64, kWasmI32>(                                    \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_i64_set_cond(cond, dst.gp(), lhs, rhs);                    \
         });
 #define CASE_F32_CMPOP(opcode, cond)                                         \
-  case WasmOpcode::kExpr##opcode:                                            \
+  case kExpr##opcode:                                                        \
     return EmitBinOp<kWasmF32, kWasmI32>(                                    \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_f32_set_cond(cond, dst.gp(), lhs.fp(), rhs.fp());          \
         });
 #define CASE_F64_CMPOP(opcode, cond)                                         \
-  case WasmOpcode::kExpr##opcode:                                            \
+  case kExpr##opcode:                                                        \
     return EmitBinOp<kWasmF64, kWasmI32>(                                    \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_f64_set_cond(cond, dst.gp(), lhs.fp(), rhs.fp());          \
         });
 #define CASE_I32_SHIFTOP(opcode, fn)                                         \
-  case WasmOpcode::kExpr##opcode:                                            \
+  case kExpr##opcode:                                                        \
     return EmitBinOp<kWasmI32, kWasmI32>(                                    \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_##fn(dst.gp(), lhs.gp(), rhs.gp(), {});                    \
         });
 #define CASE_I64_SHIFTOP(opcode, fn)                                           \
-  case WasmOpcode::kExpr##opcode:                                              \
+  case kExpr##opcode:                                                          \
     return EmitBinOp<kWasmI64, kWasmI64>([=](LiftoffRegister dst,              \
                                              LiftoffRegister src,              \
                                              LiftoffRegister amount) {         \
@@ -985,7 +1024,7 @@ class LiftoffCompiler {
                    {});                                                        \
     });
 #define CASE_CCALL_BINOP(opcode, type, ext_ref_fn)                           \
-  case WasmOpcode::kExpr##opcode:                                            \
+  case kExpr##opcode:                                                        \
     return EmitBinOp<kWasmI32, kWasmI32>(                                    \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           LiftoffRegister args[] = {lhs, rhs};                               \
@@ -1004,16 +1043,16 @@ class LiftoffCompiler {
       CASE_I64_BINOPI(I64And, i64_and)
       CASE_I64_BINOPI(I64Ior, i64_or)
       CASE_I64_BINOPI(I64Xor, i64_xor)
-      CASE_I32_CMPOP(I32Eq, kEqual)
-      CASE_I32_CMPOP(I32Ne, kUnequal)
-      CASE_I32_CMPOP(I32LtS, kSignedLessThan)
-      CASE_I32_CMPOP(I32LtU, kUnsignedLessThan)
-      CASE_I32_CMPOP(I32GtS, kSignedGreaterThan)
-      CASE_I32_CMPOP(I32GtU, kUnsignedGreaterThan)
-      CASE_I32_CMPOP(I32LeS, kSignedLessEqual)
-      CASE_I32_CMPOP(I32LeU, kUnsignedLessEqual)
-      CASE_I32_CMPOP(I32GeS, kSignedGreaterEqual)
-      CASE_I32_CMPOP(I32GeU, kUnsignedGreaterEqual)
+      CASE_I32_CMPOP(I32Eq)
+      CASE_I32_CMPOP(I32Ne)
+      CASE_I32_CMPOP(I32LtS)
+      CASE_I32_CMPOP(I32LtU)
+      CASE_I32_CMPOP(I32GtS)
+      CASE_I32_CMPOP(I32GtU)
+      CASE_I32_CMPOP(I32LeS)
+      CASE_I32_CMPOP(I32LeU)
+      CASE_I32_CMPOP(I32GeS)
+      CASE_I32_CMPOP(I32GeU)
       CASE_I64_BINOPI(I64Add, i64_add)
       CASE_I64_BINOP(I64Sub, i64_sub)
       CASE_I64_BINOP(I64Mul, i64_mul)
@@ -1061,7 +1100,7 @@ class LiftoffCompiler {
       CASE_FLOAT_BINOP(F64Min, F64, f64_min)
       CASE_FLOAT_BINOP(F64Max, F64, f64_max)
       CASE_FLOAT_BINOP(F64CopySign, F64, f64_copysign)
-      case WasmOpcode::kExprI32DivS:
+      case kExprI32DivS:
         EmitBinOp<kWasmI32, kWasmI32>([this, decoder](LiftoffRegister dst,
                                                       LiftoffRegister lhs,
                                                       LiftoffRegister rhs) {
@@ -1077,7 +1116,7 @@ class LiftoffCompiler {
                            div_unrepresentable);
         });
         break;
-      case WasmOpcode::kExprI32DivU:
+      case kExprI32DivU:
         EmitBinOp<kWasmI32, kWasmI32>([this, decoder](LiftoffRegister dst,
                                                       LiftoffRegister lhs,
                                                       LiftoffRegister rhs) {
@@ -1086,7 +1125,7 @@ class LiftoffCompiler {
           __ emit_i32_divu(dst.gp(), lhs.gp(), rhs.gp(), div_by_zero);
         });
         break;
-      case WasmOpcode::kExprI32RemS:
+      case kExprI32RemS:
         EmitBinOp<kWasmI32, kWasmI32>([this, decoder](LiftoffRegister dst,
                                                       LiftoffRegister lhs,
                                                       LiftoffRegister rhs) {
@@ -1095,7 +1134,7 @@ class LiftoffCompiler {
           __ emit_i32_rems(dst.gp(), lhs.gp(), rhs.gp(), rem_by_zero);
         });
         break;
-      case WasmOpcode::kExprI32RemU:
+      case kExprI32RemU:
         EmitBinOp<kWasmI32, kWasmI32>([this, decoder](LiftoffRegister dst,
                                                       LiftoffRegister lhs,
                                                       LiftoffRegister rhs) {
@@ -1104,7 +1143,7 @@ class LiftoffCompiler {
           __ emit_i32_remu(dst.gp(), lhs.gp(), rhs.gp(), rem_by_zero);
         });
         break;
-      case WasmOpcode::kExprI64DivS:
+      case kExprI64DivS:
         EmitBinOp<kWasmI64, kWasmI64>([this, decoder](LiftoffRegister dst,
                                                       LiftoffRegister lhs,
                                                       LiftoffRegister rhs) {
@@ -1124,7 +1163,7 @@ class LiftoffCompiler {
           }
         });
         break;
-      case WasmOpcode::kExprI64DivU:
+      case kExprI64DivU:
         EmitBinOp<kWasmI64, kWasmI64>([this, decoder](LiftoffRegister dst,
                                                       LiftoffRegister lhs,
                                                       LiftoffRegister rhs) {
@@ -1136,7 +1175,7 @@ class LiftoffCompiler {
           }
         });
         break;
-      case WasmOpcode::kExprI64RemS:
+      case kExprI64RemS:
         EmitBinOp<kWasmI64, kWasmI64>([this, decoder](LiftoffRegister dst,
                                                       LiftoffRegister lhs,
                                                       LiftoffRegister rhs) {
@@ -1148,7 +1187,7 @@ class LiftoffCompiler {
           }
         });
         break;
-      case WasmOpcode::kExprI64RemU:
+      case kExprI64RemU:
         EmitBinOp<kWasmI64, kWasmI64>([this, decoder](LiftoffRegister dst,
                                                       LiftoffRegister lhs,
                                                       LiftoffRegister rhs) {
@@ -1160,8 +1199,8 @@ class LiftoffCompiler {
           }
         });
         break;
-      case WasmOpcode::kExprI64Rol:
-      case WasmOpcode::kExprI64Ror:
+      case kExprI64Rol:
+      case kExprI64Ror:
         return unsupported(decoder, kComplexOperation,
                            WasmOpcodes::OpcodeName(opcode));
       default:
@@ -1421,17 +1460,24 @@ class LiftoffCompiler {
   }
 
   void BrIf(FullDecoder* decoder, const Value& /* cond */, uint32_t depth) {
-    Condition cond = kEqual;  // Unary "equal" means "equals zero".
-
-    if (has_outstanding_op()) {
-      DCHECK_EQ(kExprI32Eqz, outstanding_op_);
-      cond = kUnequal;  // Unary "unequal" means "not equals zero".
-      outstanding_op_ = kNoOutstandingOp;
-    }
-
     Label cont_false;
     Register value = __ PopToRegister().gp();
-    __ emit_cond_jump(cond, &cont_false, kWasmI32, value);
+
+    if (!has_outstanding_op()) {
+      // Unary "equal" means "equals zero".
+      __ emit_cond_jump(kEqual, &cont_false, kWasmI32, value);
+    } else if (outstanding_op_ == kExprI32Eqz) {
+      // Unary "unequal" means "not equals zero".
+      __ emit_cond_jump(kUnequal, &cont_false, kWasmI32, value);
+      outstanding_op_ = kNoOutstandingOp;
+    } else {
+      // Otherwise, it's an i32 compare opcode.
+      Condition cond = NegateCondition(GetCompareCondition(outstanding_op_));
+      Register rhs = value;
+      Register lhs = __ PopToRegister(LiftoffRegList::ForRegs(rhs)).gp();
+      __ emit_cond_jump(cond, &cont_false, kWasmI32, lhs, rhs);
+      outstanding_op_ = kNoOutstandingOp;
+    }
 
     BrOrRet(decoder, depth);
     __ bind(&cont_false);
