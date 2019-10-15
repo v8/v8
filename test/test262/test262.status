@@ -550,7 +550,12 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9800
   'built-ins/String/prototype/matchAll/flags-undefined-throws': [FAIL],
-  'built-ins/String/prototype/matchAll/flags-nonglobal-throws': [FAIL],
+  'built-ins/String/prototype/matchAll/regexp-get-matchAll-throws': [FAIL],
+  'built-ins/String/prototype/matchAll/regexp-matchAll-is-undefined-or-null': [FAIL],
+  'built-ins/String/prototype/matchAll/regexp-prototype-matchAll-throws': [FAIL],
+  'built-ins/String/prototype/matchAll/regexp-matchAll-throws': [FAIL],
+  'built-ins/String/prototype/matchAll/regexp-prototype-matchAll-invocation': [FAIL],
+  'built-ins/String/prototype/matchAll/regexp-prototype-get-matchAll-throws': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9818
   'built-ins/AsyncFunction/proto-from-ctor-realm': [FAIL],

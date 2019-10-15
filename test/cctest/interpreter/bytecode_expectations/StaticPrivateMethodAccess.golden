@@ -26,7 +26,7 @@ bytecodes: [
                 B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(1),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(259),
+                B(Wide), B(LdaSmi), I16(260),
                 B(Star), R(2),
                 B(LdaConstant), U8(0),
                 B(Star), R(3),
@@ -58,7 +58,7 @@ parameter count: 1
 bytecode array length: 17
 bytecodes: [
   /*   51 E> */ B(StackCheck),
-  /*   56 S> */ B(Wide), B(LdaSmi), I16(261),
+  /*   56 S> */ B(Wide), B(LdaSmi), I16(262),
                 B(Star), R(0),
                 B(LdaConstant), U8(0),
                 B(Star), R(1),
@@ -86,7 +86,7 @@ parameter count: 1
 bytecode array length: 17
 bytecodes: [
   /*   51 E> */ B(StackCheck),
-  /*   56 S> */ B(Wide), B(LdaSmi), I16(261),
+  /*   56 S> */ B(Wide), B(LdaSmi), I16(262),
                 B(Star), R(0),
                 B(LdaConstant), U8(0),
                 B(Star), R(1),
@@ -126,7 +126,7 @@ bytecodes: [
   /*   94 E> */ B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(0),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(259),
+                B(Wide), B(LdaSmi), I16(260),
                 B(Star), R(2),
                 B(LdaConstant), U8(0),
                 B(Star), R(3),
@@ -148,7 +148,7 @@ bytecodes: [
   /*  109 E> */ B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(1),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(260),
+                B(Wide), B(LdaSmi), I16(261),
                 B(Star), R(3),
                 B(LdaConstant), U8(0),
                 B(Star), R(4),
@@ -163,7 +163,7 @@ bytecodes: [
   /*  133 E> */ B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(0),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(259),
+                B(Wide), B(LdaSmi), I16(260),
                 B(Star), R(2),
                 B(LdaConstant), U8(0),
                 B(Star), R(3),
@@ -194,7 +194,7 @@ parameter count: 1
 bytecode array length: 17
 bytecodes: [
   /*   55 E> */ B(StackCheck),
-  /*   60 S> */ B(Wide), B(LdaSmi), I16(263),
+  /*   60 S> */ B(Wide), B(LdaSmi), I16(264),
                 B(Star), R(0),
                 B(LdaConstant), U8(0),
                 B(Star), R(1),
@@ -221,7 +221,7 @@ parameter count: 1
 bytecode array length: 17
 bytecodes: [
   /*   48 E> */ B(StackCheck),
-  /*   53 S> */ B(Wide), B(LdaSmi), I16(262),
+  /*   53 S> */ B(Wide), B(LdaSmi), I16(263),
                 B(Star), R(0),
                 B(LdaConstant), U8(0),
                 B(Star), R(1),
@@ -248,7 +248,7 @@ parameter count: 1
 bytecode array length: 17
 bytecodes: [
   /*   55 E> */ B(StackCheck),
-  /*   60 S> */ B(Wide), B(LdaSmi), I16(263),
+  /*   60 S> */ B(Wide), B(LdaSmi), I16(264),
                 B(Star), R(0),
                 B(LdaConstant), U8(0),
                 B(Star), R(1),
@@ -275,7 +275,7 @@ parameter count: 1
 bytecode array length: 17
 bytecodes: [
   /*   41 E> */ B(StackCheck),
-  /*   46 S> */ B(Wide), B(LdaSmi), I16(262),
+  /*   46 S> */ B(Wide), B(LdaSmi), I16(263),
                 B(Star), R(1),
                 B(LdaConstant), U8(0),
                 B(Star), R(2),

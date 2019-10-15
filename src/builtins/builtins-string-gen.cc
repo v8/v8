@@ -1529,7 +1529,51 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
   // 1. Let O be ? RequireObjectCoercible(this value).
   RequireObjectCoercible(context, receiver, method_name);
 
-  // 2. If regexp is neither undefined nor null, then
+  RegExpMatchAllAssembler regexp_asm(state());
+  {
+    Label fast(this), slow(this, Label::kDeferred),
+        throw_exception(this, Label::kDeferred), next(this);
+
+    // 2. If regexp is neither undefined nor null, then
+    //   a. Let isRegExp be ? IsRegExp(regexp).
+    //   b. If isRegExp is true, then
+    //     i. Let flags be ? Get(regexp, "flags").
+    //    ii. Perform ? RequireObjectCoercible(flags).
+    //   iii. If ? ToString(flags) does not contain "g", throw a
+    //        TypeError exception.
+    GotoIf(TaggedIsSmi(maybe_regexp), &next);
+    TNode<HeapObject> heap_maybe_regexp = CAST(maybe_regexp);
+    regexp_asm.BranchIfFastRegExp_Strict(context, heap_maybe_regexp, &fast,
+                                         &slow);
+
+    BIND(&fast);
+    {
+      TNode<BoolT> is_global = regexp_asm.FlagGetter(context, heap_maybe_regexp,
+                                                     JSRegExp::kGlobal, true);
+      Branch(is_global, &next, &throw_exception);
+    }
+
+    BIND(&slow);
+    {
+      GotoIfNot(regexp_asm.IsRegExp(native_context, heap_maybe_regexp), &next);
+
+      TNode<Object> flags = GetProperty(context, heap_maybe_regexp,
+                                        isolate()->factory()->flags_string());
+      RequireObjectCoercible(context, flags, method_name);
+
+      TNode<String> flags_string = ToString_Inline(context, flags);
+      TNode<String> global_char_string = StringConstant("g");
+      TNode<Smi> global_ix =
+          CAST(CallBuiltin(Builtins::kStringIndexOf, context, flags_string,
+                           global_char_string, SmiConstant(0)));
+      Branch(SmiEqual(global_ix, SmiConstant(-1)), &throw_exception, &next);
+    }
+
+    BIND(&throw_exception);
+    ThrowTypeError(context, MessageTemplate::kRegExpGlobalInvokedOnNonGlobal);
+
+    BIND(&next);
+  }
   //   a. Let matcher be ? GetMethod(regexp, @@matchAll).
   //   b. If matcher is not undefined, then
   //     i. Return ? Call(matcher, regexp, « O »).
@@ -1551,8 +1595,6 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
                                RootIndex::kmatch_all_symbol,
                                Context::REGEXP_MATCH_ALL_FUNCTION_INDEX},
       if_regexp_call, if_generic_call);
-
-  RegExpMatchAllAssembler regexp_asm(state());
 
   // 3. Let S be ? ToString(O).
   TNode<String> s = ToString_Inline(context, receiver);

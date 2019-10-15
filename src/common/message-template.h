@@ -270,6 +270,8 @@ namespace internal {
     "Cannot supply flags when constructing one RegExp from another")           \
   T(RegExpNonObject, "% getter called on non-object %")                        \
   T(RegExpNonRegExp, "% getter called on non-RegExp object")                   \
+  T(RegExpGlobalInvokedOnNonGlobal,                                            \
+    "%s called with a non-global RegExp argument")                             \
   T(RelativeDateTimeFormatterBadParameters,                                    \
     "Incorrect RelativeDateTimeFormatter provided")                            \
   T(ResolverNotAFunction, "Promise resolver % is not a function")              \
