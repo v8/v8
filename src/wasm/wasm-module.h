@@ -23,7 +23,6 @@ struct WasmDisassembly;
 
 namespace internal {
 
-class WasmDebugInfo;
 class WasmModuleObject;
 
 namespace wasm {
@@ -313,15 +312,6 @@ struct WasmFunctionName {
 };
 
 std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name);
-
-// Get the debug info associated with the given wasm object.
-// If no debug info exists yet, it is created automatically.
-Handle<WasmDebugInfo> GetDebugInfo(Handle<JSObject> wasm);
-
-V8_EXPORT_PRIVATE MaybeHandle<WasmModuleObject> CreateModuleObjectFromBytes(
-    Isolate* isolate, const byte* start, const byte* end, ErrorThrower* thrower,
-    ModuleOrigin origin, Handle<Script> asm_js_script,
-    Vector<const byte> asm_offset_table);
 
 V8_EXPORT_PRIVATE bool IsWasmCodegenAllowed(Isolate* isolate,
                                             Handle<Context> context);
