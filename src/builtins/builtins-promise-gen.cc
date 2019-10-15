@@ -564,7 +564,7 @@ PromiseBuiltinsAssembler::AllocatePromiseResolveThenableJobTask(
 }
 
 // ES #sec-triggerpromisereactions
-Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
+void PromiseBuiltinsAssembler::TriggerPromiseReactions(
     Node* context, Node* reactions, Node* argument,
     PromiseReaction::Type type) {
   // We need to reverse the {reactions} here, since we record them on the
@@ -683,8 +683,6 @@ Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
     }
     BIND(&done_loop);
   }
-
-  return UndefinedConstant();
 }
 
 template <typename... TArgs>
@@ -1849,32 +1847,6 @@ TF_BUILTIN(PromisePrototypeFinally, PromiseBuiltinsAssembler) {
                     var_catch_finally.value()));
 }
 
-// ES #sec-fulfillpromise
-TF_BUILTIN(FulfillPromise, PromiseBuiltinsAssembler) {
-  Node* const promise = Parameter(Descriptor::kPromise);
-  Node* const value = Parameter(Descriptor::kValue);
-  Node* const context = Parameter(Descriptor::kContext);
-
-  CSA_ASSERT(this, TaggedIsNotSmi(promise));
-  CSA_ASSERT(this, IsJSPromise(promise));
-
-  // 2. Let reactions be promise.[[PromiseFulfillReactions]].
-  TNode<Object> const reactions =
-      LoadObjectField(promise, JSPromise::kReactionsOrResultOffset);
-
-  // 3. Set promise.[[PromiseResult]] to value.
-  // 4. Set promise.[[PromiseFulfillReactions]] to undefined.
-  // 5. Set promise.[[PromiseRejectReactions]] to undefined.
-  StoreObjectField(promise, JSPromise::kReactionsOrResultOffset, value);
-
-  // 6. Set promise.[[PromiseState]] to "fulfilled".
-  PromiseSetStatus(promise, Promise::kFulfilled);
-
-  // 7. Return TriggerPromiseReactions(reactions, value).
-  Return(TriggerPromiseReactions(context, reactions, value,
-                                 PromiseReaction::kFulfill));
-}
-
 // ES #sec-rejectpromise
 TF_BUILTIN(RejectPromise, PromiseBuiltinsAssembler) {
   Node* const promise = Parameter(Descriptor::kPromise);
@@ -1913,8 +1885,8 @@ TF_BUILTIN(RejectPromise, PromiseBuiltinsAssembler) {
   PromiseSetStatus(promise, Promise::kRejected);
 
   // 7. Return TriggerPromiseReactions(reactions, reason).
-  Return(TriggerPromiseReactions(context, reactions, reason,
-                                 PromiseReaction::kReject));
+  TriggerPromiseReactions(context, reactions, reason, PromiseReaction::kReject);
+  Return(UndefinedConstant());
 
   BIND(&if_runtime);
   TailCallRuntime(Runtime::kRejectPromise, context, promise, reason,

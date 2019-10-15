@@ -6386,6 +6386,11 @@ TNode<BoolT> CodeStubAssembler::IsPropertyArray(
   return HasInstanceType(object, PROPERTY_ARRAY_TYPE);
 }
 
+TNode<BoolT> CodeStubAssembler::IsPromiseReaction(
+    SloppyTNode<HeapObject> object) {
+  return HasInstanceType(object, PROMISE_REACTION_TYPE);
+}
+
 // This complicated check is due to elements oddities. If a smi array is empty
 // after Array.p.shift, it is replaced by the empty array constant. If it is
 // later filled with a double element, we try to grow it but pass in a double

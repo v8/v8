@@ -1150,11 +1150,38 @@ extern class JSAsyncGeneratorObject extends JSGeneratorObject {
   is_awaiting: Smi;
 }
 
+// Promise constants
+type PromiseState extends int31 constexpr 'Promise::PromiseState';
+const kPromisePending: constexpr PromiseState
+    generates 'Promise::kPending';
+const kPromiseFulfilled: constexpr PromiseState
+    generates 'Promise::kFulfilled';
+
+// JSPromise constants
+const kJSPromiseStatusMask: constexpr int31
+    generates 'JSPromise::kStatusMask';
+const kJSPromiseStatusShift: constexpr int31
+    generates 'JSPromise::kStatusShift';
+
 @generateCppClass
 extern class JSPromise extends JSObject {
+  Status(): PromiseState {
+    StaticAssert(kJSPromiseStatusShift == 0);
+    const status: int32 = Convert<int32>(this.flags) & kJSPromiseStatusMask;
+    return Convert<PromiseState>(status);
+  }
+
+  SetStatus(status: constexpr PromiseState): void {
+    assert(this.Status() == kPromisePending);
+    assert(status != kPromisePending);
+
+    const mask: Smi = SmiConstant(status);
+    this.flags = this.flags | mask;
+  }
+
   // Smi 0 terminated list of PromiseReaction objects in case the JSPromise was
   // not settled yet, otherwise the result.
-  reactions_or_result: Object;
+  reactions_or_result: Smi | PromiseReaction | JSAny;
   flags: Smi;
 }
 
@@ -1497,6 +1524,11 @@ extern class PromiseCapability extends Struct {
   resolve: Object;
   reject: Object;
 }
+
+// PromiseReaction constants
+type PromiseReactionType extends int31 constexpr 'PromiseReaction::Type';
+const kPromiseReactionFulfill: constexpr PromiseReactionType
+    generates 'PromiseReaction::kFulfill';
 
 @generateCppClass
 extern class PromiseReaction extends Struct {
@@ -2165,6 +2197,11 @@ operator '+' macro StringAdd(implicit context: Context)(
   return StringAdd_CheckNone(a, b);
 }
 
+operator '==' macro PromiseStateEquals(
+    s1: PromiseState, s2: PromiseState): bool {
+  return Word32Equal(s1, s2);
+}
+
 extern macro TaggedIsSmi(Object): bool;
 extern macro TaggedIsNotSmi(Object): bool;
 extern macro TaggedIsPositiveSmi(Object): bool;
@@ -2705,6 +2742,26 @@ Cast<JSReceiver | Null>(o: HeapObject): JSReceiver | Null
   }
 }
 
+Cast<PromiseReaction>(o: HeapObject): PromiseReaction labels CastError {
+  if (IsPromiseReaction(o)) return %RawDownCast<PromiseReaction>(o);
+  goto CastError;
+}
+
+Cast<Smi | PromiseReaction>(o: Object): Smi |
+    PromiseReaction labels CastError {
+  typeswitch (o) {
+    case (o: Smi): {
+      return o;
+    }
+    case (o: PromiseReaction): {
+      return o;
+    }
+    case (Object): {
+      goto CastError;
+    }
+  }
+}
+
 extern macro AllocateHeapNumberWithValue(float64): HeapNumber;
 extern macro ChangeInt32ToTagged(int32): Number;
 extern macro ChangeUint32ToTagged(uint32): Number;
@@ -2857,6 +2914,10 @@ FromConstexpr<ContextSlot, constexpr ContextSlot>(c: constexpr ContextSlot):
     ContextSlot {
   return IntPtrConstant(c);
 }
+FromConstexpr<PromiseState, constexpr PromiseState>(s: constexpr PromiseState):
+    PromiseState {
+  return %FromConstexpr<PromiseState>(s);
+}
 
 macro Convert<To: type, From: type>(i: From): To {
   return i;
@@ -2990,6 +3051,9 @@ Convert<bint, intptr>(v: intptr): bint {
 extern macro SmiToBInt(Smi): bint;
 Convert<bint, Smi>(v: Smi): bint {
   return SmiToBInt(v);
+}
+Convert<PromiseState, int32>(s: int32): PromiseState {
+  return %RawDownCast<PromiseState>(s);
 }
 
 macro Is<A: type, B: type>(implicit context: Context)(o: B): bool {
@@ -3491,6 +3555,7 @@ extern macro IsSymbol(HeapObject): bool;
 extern macro IsJSArrayMap(Map): bool;
 extern macro IsExtensibleMap(Map): bool;
 extern macro IsJSPrimitiveWrapper(HeapObject): bool;
+extern macro IsPromiseReaction(HeapObject): bool;
 extern macro IsCustomElementsReceiverInstanceType(int32): bool;
 extern macro Typeof(JSAny): String;
 

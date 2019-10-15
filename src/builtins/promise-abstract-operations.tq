@@ -1,0 +1,36 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-promise-gen.h'
+
+// https://tc39.es/ecma262/#sec-promise-abstract-operations
+namespace promise {
+  extern macro PromiseBuiltinsAssembler::TriggerPromiseReactions(
+      implicit context: Context)(
+      Smi | PromiseReaction, JSAny, constexpr PromiseReactionType): void;
+
+  // https://tc39.es/ecma262/#sec-fulfillpromise
+  transitioning builtin
+  FulfillPromise(implicit context: Context)(promise: JSPromise, value: JSAny):
+      Undefined {
+    // Assert: The value of promise.[[PromiseState]] is "pending".
+    assert(promise.Status() == kPromisePending);
+
+    // 2. Let reactions be promise.[[PromiseFulfillReactions]].
+    const reactions =
+        UnsafeCast<(Smi | PromiseReaction)>(promise.reactions_or_result);
+
+    // 3. Set promise.[[PromiseResult]] to value.
+    // 4. Set promise.[[PromiseFulfillReactions]] to undefined.
+    // 5. Set promise.[[PromiseRejectReactions]] to undefined.
+    promise.reactions_or_result = value;
+
+    // 6. Set promise.[[PromiseState]] to "fulfilled".
+    promise.SetStatus(kPromiseFulfilled);
+
+    // 7. Return TriggerPromiseReactions(reactions, value).
+    TriggerPromiseReactions(reactions, value, kPromiseReactionFulfill);
+    return Undefined;
+  }
+}
