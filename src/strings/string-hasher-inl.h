@@ -34,8 +34,8 @@ uint32_t StringHasher::GetHashCore(uint32_t running_hash) {
 uint32_t StringHasher::GetTrivialHash(int length) {
   DCHECK_GT(length, String::kMaxHashCalcLength);
   // String hash of a large string is simply the length.
-  return (length << String::kHashShift) | String::kIsNotArrayIndexMask |
-         String::kIsNotIntegerIndexMask;
+  return (static_cast<uint32_t>(length) << String::kHashShift) |
+         String::kIsNotArrayIndexMask | String::kIsNotIntegerIndexMask;
 }
 
 template <typename schar>
