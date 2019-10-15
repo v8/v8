@@ -624,8 +624,8 @@ class LiftoffCompiler {
 
   template <ValueType src_type, ValueType result_type, class EmitFn>
   void EmitUnOp(EmitFn fn) {
-    static RegClass src_rc = reg_class_for(src_type);
-    static RegClass result_rc = reg_class_for(result_type);
+    constexpr RegClass src_rc = reg_class_for(src_type);
+    constexpr RegClass result_rc = reg_class_for(result_type);
     LiftoffRegister src = __ PopToRegister();
     LiftoffRegister dst = src_rc == result_rc
                               ? __ GetUnusedRegister(result_rc, {src})
@@ -700,45 +700,44 @@ class LiftoffCompiler {
   void UnOp(FullDecoder* decoder, WasmOpcode opcode, const Value& value,
             Value* result) {
 #define CASE_I32_UNOP(opcode, fn)                       \
-  case WasmOpcode::kExpr##opcode:                       \
+  case kExpr##opcode:                                   \
     EmitUnOp<kWasmI32, kWasmI32>(                       \
         [=](LiftoffRegister dst, LiftoffRegister src) { \
           __ emit_##fn(dst.gp(), src.gp());             \
         });                                             \
     break;
 #define CASE_I32_SIGN_EXTENSION(opcode, fn)             \
-  case WasmOpcode::kExpr##opcode:                       \
+  case kExpr##opcode:                                   \
     EmitUnOp<kWasmI32, kWasmI32>(                       \
         [=](LiftoffRegister dst, LiftoffRegister src) { \
           __ emit_##fn(dst.gp(), src.gp());             \
         });                                             \
     break;
 #define CASE_I64_SIGN_EXTENSION(opcode, fn)             \
-  case WasmOpcode::kExpr##opcode:                       \
+  case kExpr##opcode:                                   \
     EmitUnOp<kWasmI64, kWasmI64>(                       \
         [=](LiftoffRegister dst, LiftoffRegister src) { \
           __ emit_##fn(dst, src);                       \
         });                                             \
     break;
 #define CASE_FLOAT_UNOP(opcode, type, fn)               \
-  case WasmOpcode::kExpr##opcode:                       \
+  case kExpr##opcode:                                   \
     EmitUnOp<kWasm##type, kWasm##type>(                 \
         [=](LiftoffRegister dst, LiftoffRegister src) { \
           __ emit_##fn(dst.fp(), src.fp());             \
         });                                             \
     break;
 #define CASE_FLOAT_UNOP_WITH_CFALLBACK(opcode, type, fn)                    \
-  case WasmOpcode::kExpr##opcode:                                           \
+  case kExpr##opcode:                                                       \
     EmitFloatUnOpWithCFallback<kWasm##type>(&LiftoffAssembler::emit_##fn,   \
                                             &ExternalReference::wasm_##fn); \
     break;
 #define CASE_TYPE_CONVERSION(opcode, dst_type, src_type, ext_ref, can_trap) \
-  case WasmOpcode::kExpr##opcode:                                           \
+  case kExpr##opcode:                                                       \
     EmitTypeConversion<kWasm##dst_type, kWasm##src_type, can_trap>(         \
         kExpr##opcode, ext_ref, can_trap ? decoder->position() : 0);        \
     break;
     switch (opcode) {
-      CASE_I32_UNOP(I32Eqz, i32_eqz)
       CASE_I32_UNOP(I32Clz, i32_clz)
       CASE_I32_UNOP(I32Ctz, i32_ctz)
       CASE_FLOAT_UNOP(F32Abs, F32, f32_abs)
@@ -793,29 +792,41 @@ class LiftoffCompiler {
       CASE_I64_SIGN_EXTENSION(I64SExtendI8, i64_signextend_i8)
       CASE_I64_SIGN_EXTENSION(I64SExtendI16, i64_signextend_i16)
       CASE_I64_SIGN_EXTENSION(I64SExtendI32, i64_signextend_i32)
+      case kExprI32Eqz:
+        DCHECK_EQ(kExprI32Eqz, decoder->pc()[0]);
+        if (decoder->pc()[1] == kExprBrIf) {
+          DCHECK(!has_outstanding_op());
+          outstanding_op_ = kExprI32Eqz;
+          break;
+        }
+        EmitUnOp<kWasmI32, kWasmI32>(
+            [=](LiftoffRegister dst, LiftoffRegister src) {
+              __ emit_i32_eqz(dst.gp(), src.gp());
+            });
+        break;
       case kExprI32Popcnt:
         EmitI32UnOpWithCFallback(&LiftoffAssembler::emit_i32_popcnt,
                                  &ExternalReference::wasm_word32_popcnt);
         break;
-      case WasmOpcode::kExprI64Eqz:
+      case kExprI64Eqz:
         EmitUnOp<kWasmI64, kWasmI32>(
             [=](LiftoffRegister dst, LiftoffRegister src) {
               __ emit_i64_eqz(dst.gp(), src);
             });
         break;
-      case WasmOpcode::kExprI64Clz:
-      case WasmOpcode::kExprI64Ctz:
-      case WasmOpcode::kExprI64Popcnt:
+      case kExprI64Clz:
+      case kExprI64Ctz:
+      case kExprI64Popcnt:
         return unsupported(decoder, kComplexOperation,
                            WasmOpcodes::OpcodeName(opcode));
-      case WasmOpcode::kExprI32SConvertSatF32:
-      case WasmOpcode::kExprI32UConvertSatF32:
-      case WasmOpcode::kExprI32SConvertSatF64:
-      case WasmOpcode::kExprI32UConvertSatF64:
-      case WasmOpcode::kExprI64SConvertSatF32:
-      case WasmOpcode::kExprI64UConvertSatF32:
-      case WasmOpcode::kExprI64SConvertSatF64:
-      case WasmOpcode::kExprI64UConvertSatF64:
+      case kExprI32SConvertSatF32:
+      case kExprI32UConvertSatF32:
+      case kExprI32SConvertSatF64:
+      case kExprI32UConvertSatF64:
+      case kExprI64SConvertSatF32:
+      case kExprI64UConvertSatF32:
+      case kExprI64SConvertSatF64:
+      case kExprI64UConvertSatF64:
         return unsupported(decoder, kNonTrappingFloatToInt,
                            WasmOpcodes::OpcodeName(opcode));
       default:
@@ -1409,10 +1420,18 @@ class LiftoffCompiler {
     }
   }
 
-  void BrIf(FullDecoder* decoder, const Value& cond, uint32_t depth) {
+  void BrIf(FullDecoder* decoder, const Value& /* cond */, uint32_t depth) {
+    Condition cond = kEqual;  // Unary "equal" means "equals zero".
+
+    if (has_outstanding_op()) {
+      DCHECK_EQ(kExprI32Eqz, outstanding_op_);
+      cond = kUnequal;  // Unary "unequal" means "not equals zero".
+      outstanding_op_ = kNoOutstandingOp;
+    }
+
     Label cont_false;
     Register value = __ PopToRegister().gp();
-    __ emit_cond_jump(kEqual, &cont_false, kWasmI32, value);
+    __ emit_cond_jump(cond, &cont_false, kWasmI32, value);
 
     BrOrRet(decoder, depth);
     __ bind(&cont_false);
@@ -2063,7 +2082,14 @@ class LiftoffCompiler {
   }
 
  private:
+  static constexpr WasmOpcode kNoOutstandingOp = kExprUnreachable;
+
   LiftoffAssembler asm_;
+
+  // Used for merging code generation of subsequent operations (via look-ahead).
+  // Set by the first opcode, reset by the second.
+  WasmOpcode outstanding_op_ = kNoOutstandingOp;
+
   compiler::CallDescriptor* const descriptor_;
   CompilationEnv* const env_;
   LiftoffBailoutReason bailout_reason_ = kSuccess;
@@ -2078,6 +2104,10 @@ class LiftoffCompiler {
   // The pc offset of the instructions to reserve the stack frame. Needed to
   // patch the actually needed stack size in the end.
   uint32_t pc_offset_stack_frame_construction_ = 0;
+
+  bool has_outstanding_op() const {
+    return outstanding_op_ != kNoOutstandingOp;
+  }
 
   void TraceCacheState(FullDecoder* decoder) const {
 #ifdef DEBUG
