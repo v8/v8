@@ -829,9 +829,9 @@
       'gn_args': 'v8_use_external_startup_data=false',
     },
 
-    'v8_snapshot_none': {
-      'gn_args': 'v8_use_snapshot=false',
-    },
+    # TODO(https://crbug.com/v8/8531): Remove this config and all bots, since
+    #                                  no-snapshot was deprecated and removed.
+    'v8_snapshot_none': {},
 
     'v8_verify_heap': {
       'gn_args': 'v8_enable_verify_heap=true',
