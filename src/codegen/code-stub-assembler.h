@@ -101,10 +101,8 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(megamorphic_symbol, megamorphic_symbol, MegamorphicSymbol)                 \
   V(MetaMap, meta_map, MetaMap)                                                \
   V(MinusZeroValue, minus_zero_value, MinusZero)                               \
-  V(ModuleContextMap, module_context_map, ModuleContextMap)                    \
   V(name_string, name_string, NameString)                                      \
   V(NanValue, nan_value, Nan)                                                  \
-  V(NativeContextMap, native_context_map, NativeContextMap)                    \
   V(next_string, next_string, NextString)                                      \
   V(NoClosuresCellMap, no_closures_cell_map, NoClosuresCellMap)                \
   V(null_to_string, null_to_string, NullToString)                              \
@@ -1042,7 +1040,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   TNode<Object> LoadConstructorOrBackPointer(TNode<Map> map) {
-    return LoadObjectField(map, Map::kConstructorOrBackPointerOffset);
+    return LoadObjectField(map,
+                           Map::kConstructorOrBackPointerOrNativeContextOffset);
   }
 
   // Reference is the CSA-equivalent of a Torque reference value,

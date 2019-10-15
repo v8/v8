@@ -394,9 +394,13 @@ class ContextRef : public HeapObjectRef {
   V(JSGlobalObject, global_object)                                    \
   V(JSGlobalProxy, global_proxy_object)                               \
   V(JSObject, promise_prototype)                                      \
+  V(Map, block_context_map)                                           \
   V(Map, bound_function_with_constructor_map)                         \
   V(Map, bound_function_without_constructor_map)                      \
+  V(Map, catch_context_map)                                           \
+  V(Map, eval_context_map)                                            \
   V(Map, fast_aliased_arguments_map)                                  \
+  V(Map, function_context_map)                                        \
   V(Map, initial_array_iterator_map)                                  \
   V(Map, initial_string_iterator_map)                                 \
   V(Map, iterator_result_map)                                         \
@@ -409,6 +413,7 @@ class ContextRef : public HeapObjectRef {
   V(Map, sloppy_arguments_map)                                        \
   V(Map, slow_object_with_null_prototype_map)                         \
   V(Map, strict_arguments_map)                                        \
+  V(Map, with_context_map)                                            \
   V(ScriptContextTable, script_context_table)                         \
   V(SharedFunctionInfo, promise_capability_default_reject_shared_fun) \
   V(SharedFunctionInfo, promise_catch_finally_shared_fun)             \

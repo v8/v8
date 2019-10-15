@@ -280,6 +280,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     j(less, dest);
   }
 
+  void LoadMap(Register destination, Register object);
+
   void Move(Register dst, Smi source);
 
   void Move(Operand dst, Smi source) {
@@ -916,19 +918,6 @@ inline Operand FieldOperand(Register object, int offset) {
 inline Operand FieldOperand(Register object, Register index, ScaleFactor scale,
                             int offset) {
   return Operand(object, index, scale, offset - kHeapObjectTag);
-}
-
-inline Operand ContextOperand(Register context, int index) {
-  return Operand(context, Context::SlotOffset(index));
-}
-
-inline Operand ContextOperand(Register context, Register index) {
-  return Operand(context, index, times_system_pointer_size,
-                 Context::SlotOffset(0));
-}
-
-inline Operand NativeContextOperand() {
-  return ContextOperand(rsi, Context::NATIVE_CONTEXT_INDEX);
 }
 
 // Provides access to exit frame stack space (not GCed).

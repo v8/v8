@@ -652,8 +652,12 @@ void Map::MapVerify(Isolate* isolate) {
   CHECK(instance_size() == kVariableSizeSentinel ||
         (kTaggedSize <= instance_size() &&
          static_cast<size_t>(instance_size()) < heap->Capacity()));
-  CHECK(GetBackPointer().IsUndefined(isolate) ||
-        !Map::cast(GetBackPointer()).is_stable());
+  if (IsContextMap()) {
+    CHECK(native_context().IsNativeContext());
+  } else {
+    CHECK_IMPLIES(!GetBackPointer().IsUndefined(isolate),
+                  !Map::cast(GetBackPointer()).is_stable());
+  }
   SLOW_DCHECK(instance_descriptors().IsSortedNoDuplicates());
   DisallowHeapAllocation no_gc;
   SLOW_DCHECK(

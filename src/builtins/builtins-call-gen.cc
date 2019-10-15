@@ -412,8 +412,9 @@ TNode<JSReceiver> CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
       // {var_template} variable), and see if that is a HeapObject.
       // If it's a Smi then it is non-instance prototype on some
       // initial map, which cannot be the case for API instances.
-      TNode<Object> constructor = LoadObjectField(
-          var_template.value(), Map::kConstructorOrBackPointerOffset);
+      TNode<Object> constructor =
+          LoadObjectField(var_template.value(),
+                          Map::kConstructorOrBackPointerOrNativeContextOffset);
       GotoIf(TaggedIsSmi(constructor), &holder_next);
 
       // Now there are three cases for {constructor} that we care

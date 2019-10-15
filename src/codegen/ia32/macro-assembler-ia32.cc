@@ -638,9 +638,13 @@ void TurboAssembler::SarPair_cl(Register high, Register low) {
   bind(&done);
 }
 
+void TurboAssembler::LoadMap(Register destination, Register object) {
+  mov(destination, FieldOperand(object, HeapObject::kMapOffset));
+}
+
 void MacroAssembler::CmpObjectType(Register heap_object, InstanceType type,
                                    Register map) {
-  mov(map, FieldOperand(heap_object, HeapObject::kMapOffset));
+  LoadMap(map, heap_object);
   CmpInstanceType(map, type);
 }
 
@@ -660,7 +664,7 @@ void MacroAssembler::AssertConstructor(Register object) {
     test(object, Immediate(kSmiTagMask));
     Check(not_equal, AbortReason::kOperandIsASmiAndNotAConstructor);
     Push(object);
-    mov(object, FieldOperand(object, HeapObject::kMapOffset));
+    LoadMap(object, object);
     test_b(FieldOperand(object, Map::kBitFieldOffset),
            Immediate(Map::IsConstructorBit::kMask));
     Pop(object);
@@ -700,8 +704,7 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
     Push(object);
     Register map = object;
 
-    // Load map
-    mov(map, FieldOperand(object, HeapObject::kMapOffset));
+    LoadMap(map, object);
 
     Label do_check;
     // Check if JSGeneratorObject
@@ -1280,15 +1283,17 @@ void MacroAssembler::InvokeFunction(Register fun, Register new_target,
 }
 
 void MacroAssembler::LoadGlobalProxy(Register dst) {
-  mov(dst, NativeContextOperand());
-  mov(dst, ContextOperand(dst, Context::GLOBAL_PROXY_INDEX));
+  LoadNativeContextSlot(dst, Context::GLOBAL_PROXY_INDEX);
 }
 
-void MacroAssembler::LoadGlobalFunction(int index, Register function) {
+void MacroAssembler::LoadNativeContextSlot(Register destination, int index) {
   // Load the native context from the current context.
-  mov(function, NativeContextOperand());
+  LoadMap(destination, esi);
+  mov(destination,
+      FieldOperand(destination,
+                   Map::kConstructorOrBackPointerOrNativeContextOffset));
   // Load the function from the native context.
-  mov(function, ContextOperand(function, index));
+  mov(destination, Operand(destination, Context::SlotOffset(index)));
 }
 
 int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {

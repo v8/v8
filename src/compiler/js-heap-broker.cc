@@ -1955,6 +1955,7 @@ void MapData::SerializeConstructor(JSHeapBroker* broker) {
 
   TraceScope tracer(broker, this, "MapData::SerializeConstructor");
   Handle<Map> map = Handle<Map>::cast(object());
+  DCHECK(!map->IsContextMap());
   DCHECK_NULL(constructor_);
   constructor_ = broker->GetOrCreateData(map->GetConstructor());
 }
@@ -1966,6 +1967,7 @@ void MapData::SerializeBackPointer(JSHeapBroker* broker) {
   TraceScope tracer(broker, this, "MapData::SerializeBackPointer");
   Handle<Map> map = Handle<Map>::cast(object());
   DCHECK_NULL(backpointer_);
+  DCHECK(!map->IsContextMap());
   backpointer_ = broker->GetOrCreateData(map->GetBackPointer())->AsHeapObject();
 }
 
@@ -2539,20 +2541,16 @@ void JSHeapBroker::InitializeAndStartSerializing(
   Factory* const f = isolate()->factory();
   GetOrCreateData(f->arguments_marker_map());
   GetOrCreateData(f->bigint_string());
-  GetOrCreateData(f->block_context_map());
   GetOrCreateData(f->boolean_map());
   GetOrCreateData(f->boolean_string());
-  GetOrCreateData(f->catch_context_map());
   GetOrCreateData(f->empty_fixed_array());
   GetOrCreateData(f->empty_string());
-  GetOrCreateData(f->eval_context_map());
   GetOrCreateData(f->exec_string());
   GetOrCreateData(f->false_string());
   GetOrCreateData(f->false_value());
   GetOrCreateData(f->fixed_array_map());
   GetOrCreateData(f->fixed_cow_array_map());
   GetOrCreateData(f->fixed_double_array_map());
-  GetOrCreateData(f->function_context_map());
   GetOrCreateData(f->function_string());
   GetOrCreateData(f->has_instance_symbol());
   GetOrCreateData(f->heap_number_map());
@@ -2589,7 +2587,6 @@ void JSHeapBroker::InitializeAndStartSerializing(
   GetOrCreateData(f->undefined_string());
   GetOrCreateData(f->undefined_value());
   GetOrCreateData(f->uninitialized_map());
-  GetOrCreateData(f->with_context_map());
   GetOrCreateData(f->zero_string());
   // - Cells
   GetOrCreateData(f->array_buffer_detaching_protector())
@@ -3914,11 +3911,14 @@ void NativeContextData::Serialize(JSHeapBroker* broker) {
   TraceScope tracer(broker, this, "NativeContextData::Serialize");
   Handle<NativeContext> context = Handle<NativeContext>::cast(object());
 
-#define SERIALIZE_MEMBER(type, name)                                       \
-  DCHECK_NULL(name##_);                                                    \
-  name##_ = broker->GetOrCreateData(context->name())->As##type();          \
-  if (name##_->IsJSFunction()) name##_->AsJSFunction()->Serialize(broker); \
-  if (name##_->IsMap()) name##_->AsMap()->SerializeConstructor(broker);
+#define SERIALIZE_MEMBER(type, name)                                        \
+  DCHECK_NULL(name##_);                                                     \
+  name##_ = broker->GetOrCreateData(context->name())->As##type();           \
+  if (name##_->IsJSFunction()) name##_->AsJSFunction()->Serialize(broker);  \
+  if (name##_->IsMap() &&                                                   \
+      !InstanceTypeChecker::IsContext(name##_->AsMap()->instance_type())) { \
+    name##_->AsMap()->SerializeConstructor(broker);                         \
+  }
   BROKER_COMPULSORY_NATIVE_CONTEXT_FIELDS(SERIALIZE_MEMBER)
   if (!broker->isolate()->bootstrapper()->IsActive()) {
     BROKER_OPTIONAL_NATIVE_CONTEXT_FIELDS(SERIALIZE_MEMBER)

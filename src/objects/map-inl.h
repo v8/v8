@@ -729,8 +729,12 @@ Map Map::ElementsTransitionMap(Isolate* isolate) {
 
 ACCESSORS(Map, dependent_code, DependentCode, kDependentCodeOffset)
 ACCESSORS(Map, prototype_validity_cell, Object, kPrototypeValidityCellOffset)
-ACCESSORS(Map, constructor_or_backpointer, Object,
-          kConstructorOrBackPointerOffset)
+ACCESSORS_CHECKED2(Map, constructor_or_backpointer, Object,
+                   kConstructorOrBackPointerOrNativeContextOffset,
+                   !IsContextMap(), value.IsNull() || !IsContextMap())
+ACCESSORS_CHECKED(Map, native_context, NativeContext,
+                  kConstructorOrBackPointerOrNativeContextOffset,
+                  IsContextMap())
 
 bool Map::IsPrototypeValidityCellValid() const {
   Object validity_cell = prototype_validity_cell();

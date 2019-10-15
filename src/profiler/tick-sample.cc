@@ -154,29 +154,19 @@ Address ScrapeNativeContextAddress(Heap* heap, Address context_address) {
   if (heap->memory_allocator()->IsOutsideAllocatedSpace(context_address))
     return kNullAddress;
 
-  // Note that once a native context has been assigned to a context, the slot
-  // is no longer mutated except during pointer updates / evictions. Since
-  // pointer updates exclusively occur on the main thread, and we don't record
-  // TickSamples when the main thread's VM state is GC, the only other
-  // situation where the address here would be invalid is if it's being
-  // reassigned -- which isn't possible.
-  int native_context_offset =
-      i::Context::SlotOffset(i::Context::NATIVE_CONTEXT_INDEX);
-  i::Address native_context_slot_address =
-      context_address + native_context_offset;
-
-  // By the prior hypothesis, the indirect native context address should always
-  // be valid.
-  if (heap->memory_allocator()->IsOutsideAllocatedSpace(
-          native_context_slot_address)) {
+  i::Object object(context_address);
+  i::MapWord map_word = i::HeapObject::cast(object).map_word(heap->isolate());
+  // We should never be in VM state == GC, so the map word shouldn't be a
+  // forwarding pointer.
+  DCHECK(!map_word.IsForwardingAddress());
+  // Defensively deal with forwarding pointers anyway.
+  if (map_word.IsForwardingAddress()) return kNullAddress;
+  i::Map map = map_word.ToMap();
+  if (heap->memory_allocator()->IsOutsideAllocatedSpace(map.ptr())) {
     DCHECK(false);
     return kNullAddress;
   }
-
-  i::ObjectSlot native_context_slot(native_context_slot_address);
-  i::Object native_context = native_context_slot.Relaxed_Load();
-
-  return native_context.ptr();
+  return map.native_context(heap->isolate()).ptr();
 }
 
 }  // namespace
