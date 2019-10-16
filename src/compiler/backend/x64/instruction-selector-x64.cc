@@ -2895,6 +2895,21 @@ void InstructionSelector::VisitF64x2Neg(Node* node) {
        arraysize(temps), temps);
 }
 
+void InstructionSelector::VisitF64x2SConvertI64x2(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
+  Emit(kX64F64x2SConvertI64x2, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)), arraysize(temps), temps);
+}
+
+void InstructionSelector::VisitF64x2UConvertI64x2(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempRegister(), g.TempSimd128Register()};
+  // Need dst to be unique to temp because Cvtqui2sd will zero temp.
+  Emit(kX64F64x2UConvertI64x2, g.DefineSameAsFirst(node),
+       g.UseUniqueRegister(node->InputAt(0)), arraysize(temps), temps);
+}
+
 void InstructionSelector::VisitF32x4UConvertI32x4(Node* node) {
   X64OperandGenerator g(this);
   Emit(kX64F32x4UConvertI32x4, g.DefineSameAsFirst(node),

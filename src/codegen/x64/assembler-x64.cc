@@ -4669,6 +4669,14 @@ void Assembler::movups(Operand dst, XMMRegister src) {
   emit_sse_operand(src, dst);
 }
 
+void Assembler::movlhps(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x16);
+  emit_sse_operand(dst, src);
+}
+
 void Assembler::sse2_instr(XMMRegister dst, XMMRegister src, byte prefix,
                            byte escape, byte opcode) {
   EnsureSpace ensure_space(this);

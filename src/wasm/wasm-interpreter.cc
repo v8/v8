@@ -2540,6 +2540,10 @@ class ThreadImpl {
     Push(WasmValue(Simd128(res)));                                            \
     return true;                                                              \
   }
+        CONVERT_CASE(F64x2SConvertI64x2, int2, i64x2, float2, 2, 0, int64_t,
+                     static_cast<double>(a))
+        CONVERT_CASE(F64x2UConvertI64x2, int2, i64x2, float2, 2, 0, uint64_t,
+                     static_cast<double>(a))
         CONVERT_CASE(F32x4SConvertI32x4, int4, i32x4, float4, 4, 0, int32_t,
                      static_cast<float>(a))
         CONVERT_CASE(F32x4UConvertI32x4, int4, i32x4, float4, 4, 0, uint32_t,

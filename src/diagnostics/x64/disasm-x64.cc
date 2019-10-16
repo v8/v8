@@ -2186,6 +2186,12 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       AppendToBuffer("%s,", NameOfXMMRegister(regop));
       current += PrintRightXMMOperand(current);
     }
+  } else if (opcode == 0x16) {
+    // movlhps xmm1, xmm2
+    int mod, regop, rm;
+    get_modrm(*current, &mod, &regop, &rm);
+    AppendToBuffer("movlhps %s,", NameOfXMMRegister(regop));
+    current += PrintRightXMMOperand(current);
   } else if (opcode == 0x1F) {
     // NOP
     int mod, regop, rm;
