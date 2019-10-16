@@ -335,7 +335,11 @@ class RegisterAllocationData final : public ZoneObject {
     return result;
   }
 
-  void ResetSpillState() { spill_state_.clear(); }
+  void ResetSpillState() {
+    for (auto& state : spill_state_) {
+      state.clear();
+    }
+  }
 
   TickCounter* tick_counter() { return tick_counter_; }
 
