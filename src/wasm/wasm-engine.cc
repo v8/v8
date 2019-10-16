@@ -959,20 +959,17 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(std::shared_ptr<WasmEngine>,
 
 // static
 void WasmEngine::InitializeOncePerProcess() {
-  if (!FLAG_wasm_shared_engine) return;
   *GetSharedWasmEngine() = std::make_shared<WasmEngine>();
 }
 
 // static
 void WasmEngine::GlobalTearDown() {
-  if (!FLAG_wasm_shared_engine) return;
   GetSharedWasmEngine()->reset();
 }
 
 // static
 std::shared_ptr<WasmEngine> WasmEngine::GetWasmEngine() {
-  if (FLAG_wasm_shared_engine) return *GetSharedWasmEngine();
-  return std::make_shared<WasmEngine>();
+  return *GetSharedWasmEngine();
 }
 
 // {max_mem_pages} is declared in wasm-limits.h.

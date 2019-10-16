@@ -272,7 +272,6 @@ TEST(BlockWasmCodeGenAtDeserialization) {
 }
 
 UNINITIALIZED_TEST(CompiledWasmModulesTransfer) {
-  FlagScope<bool> flag_scope_engine(&FLAG_wasm_shared_engine, true);
   i::wasm::WasmEngine::InitializeOncePerProcess();
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);

@@ -1231,7 +1231,7 @@ RUNTIME_FUNCTION(Runtime_CloneWasmModule) {
   CONVERT_ARG_HANDLE_CHECKED(WasmModuleObject, module_object, 0);
 
   Handle<WasmModuleObject> new_module_object =
-      wasm::WasmEngine::GetWasmEngine()->ImportNativeModule(
+      isolate->wasm_engine()->ImportNativeModule(
           isolate, module_object->shared_native_module());
 
   return *new_module_object;
