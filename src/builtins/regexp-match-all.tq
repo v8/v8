@@ -178,7 +178,7 @@ namespace regexp {
               iteratingRegExp, matchIndices, iteratingString);
           isFastRegExp = true;
         } else {
-          match = RegExpExec(context, iteratingRegExp, iteratingString);
+          match = RegExpExec(iteratingRegExp, iteratingString);
           if (match == Null) {
             goto IfNoMatch;
           }

@@ -59,7 +59,7 @@ namespace regexp {
     }
 
     // Call exec.
-    const execResult = RegExpExec(context, regexp, string);
+    const execResult = RegExpExec(regexp, string);
 
     // Reset last index if necessary.
     const currentLastIndex = SlowLoadLastIndex(regexp);

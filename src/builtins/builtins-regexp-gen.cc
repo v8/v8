@@ -1494,55 +1494,6 @@ TNode<BoolT> RegExpBuiltinsAssembler::FlagGetter(TNode<Context> context,
                      : SlowFlagGetter(context, regexp, flag);
 }
 
-// ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
-TNode<Object> RegExpBuiltinsAssembler::RegExpExec(
-    TNode<Context> context, TNode<JSReceiver> maybe_regexp,
-    TNode<String> string) {
-  TVARIABLE(Object, var_result);
-  Label out(this);
-
-  // Take the slow path of fetching the exec property, calling it, and
-  // verifying its return value.
-
-  // Get the exec property.
-  TNode<Object> const exec =
-      GetProperty(context, maybe_regexp, isolate()->factory()->exec_string());
-
-  // Is {exec} callable?
-  Label if_iscallable(this), if_isnotcallable(this);
-
-  GotoIf(TaggedIsSmi(exec), &if_isnotcallable);
-
-  TNode<Map> const exec_map = LoadMap(CAST(exec));
-  Branch(IsCallableMap(exec_map), &if_iscallable, &if_isnotcallable);
-
-  BIND(&if_iscallable);
-  {
-    Callable call_callable = CodeFactory::Call(isolate());
-    var_result = CallJS(call_callable, context, exec, maybe_regexp, string);
-
-    GotoIf(IsNull(var_result.value()), &out);
-
-    ThrowIfNotJSReceiver(context, var_result.value(),
-                         MessageTemplate::kInvalidRegExpExecResult, "");
-
-    Goto(&out);
-  }
-
-  BIND(&if_isnotcallable);
-  {
-    ThrowIfNotInstanceType(context, maybe_regexp, JS_REG_EXP_TYPE,
-                           "RegExp.prototype.exec");
-
-    var_result = CallBuiltin(Builtins::kRegExpPrototypeExecSlow, context,
-                             maybe_regexp, string);
-    Goto(&out);
-  }
-
-  BIND(&out);
-  return var_result.value();
-}
-
 TNode<Number> RegExpBuiltinsAssembler::AdvanceStringIndex(
     SloppyTNode<String> string, SloppyTNode<Number> index,
     SloppyTNode<BoolT> is_unicode, bool is_fastpath) {

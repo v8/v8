@@ -170,10 +170,6 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                                  const TNode<Object> maybe_pattern,
                                  const TNode<Object> maybe_flags);
 
-  TNode<Object> RegExpExec(TNode<Context> context,
-                           TNode<JSReceiver> maybe_regexp,
-                           TNode<String> string);
-
   TNode<Number> AdvanceStringIndex(SloppyTNode<String> string,
                                    SloppyTNode<Number> index,
                                    SloppyTNode<BoolT> is_unicode,

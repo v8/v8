@@ -22,8 +22,34 @@ namespace regexp {
     BranchIfFastRegExp_Permissive(o) otherwise return true, return false;
   }
 
-  extern macro RegExpBuiltinsAssembler::RegExpExec(Context, JSReceiver, String):
-      JSAny;
+  const kInvalidRegExpExecResult: constexpr MessageTemplate
+  generates 'MessageTemplate::kInvalidRegExpExecResult';
+
+  // ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
+  @export
+  transitioning macro RegExpExec(implicit context: Context)(
+      receiver: JSReceiver, string: String): JSAny {
+    // Take the slow path of fetching the exec property, calling it, and
+    // verifying its return value.
+
+    const exec = GetProperty(receiver, 'exec');
+
+    // Is {exec} callable?
+    typeswitch (exec) {
+      case (execCallable: Callable): {
+        const result = Call(context, execCallable, receiver, string);
+        if (result != Null) {
+          ThrowIfNotJSReceiver(result, kInvalidRegExpExecResult, '');
+        }
+        return result;
+      }
+      case (Object): {
+        const regexp = Cast<JSRegExp>(receiver) otherwise ThrowTypeError(
+            kIncompatibleMethodReceiver, 'RegExp.prototype.exec', receiver);
+        return RegExpPrototypeExecSlow(regexp, string);
+      }
+    }
+  }
 
   extern macro
   RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResultFast(
