@@ -167,7 +167,7 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
     VisitEphemeronHashTable(Map map, EphemeronHashTable table) {
   collector_->AddEphemeronHashTable(table);
 
-  for (int i = 0; i < table.Capacity(); i++) {
+  for (InternalIndex i : table.IterateEntries()) {
     ObjectSlot key_slot =
         table.RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
     HeapObject key = HeapObject::cast(table.KeyAt(i));

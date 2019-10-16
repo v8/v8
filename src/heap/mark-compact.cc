@@ -2297,7 +2297,7 @@ void MarkCompactCollector::ClearWeakCollections() {
   EphemeronHashTable table;
 
   while (weak_objects_.ephemeron_hash_tables.Pop(kMainThread, &table)) {
-    for (int i = 0; i < table.Capacity(); i++) {
+    for (InternalIndex i : table.IterateEntries()) {
       HeapObject key = HeapObject::cast(table.KeyAt(i));
 #ifdef VERIFY_HEAP
       Object value = table.ValueAt(i);
@@ -3654,8 +3654,8 @@ class EphemeronTableUpdatingItem : public UpdatingItem {
       DCHECK(table.Object::IsEphemeronHashTable());
       for (auto iti = indices.begin(); iti != indices.end();) {
         // EphemeronHashTable keys must be heap objects.
-        HeapObjectSlot key_slot(
-            table.RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(*iti)));
+        HeapObjectSlot key_slot(table.RawFieldOfElementAt(
+            EphemeronHashTable::EntryToIndex(InternalIndex(*iti))));
         HeapObject key = key_slot.ToHeapObject();
         MapWord map_word = key.map_word();
         if (map_word.IsForwardingAddress()) {

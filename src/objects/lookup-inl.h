@@ -40,8 +40,7 @@ LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
       receiver_(receiver),
       initial_holder_(holder),
       // kMaxUInt32 isn't a valid index.
-      index_(kMaxUInt32),
-      number_(static_cast<uint32_t>(DescriptorArray::kNotFound)) {
+      index_(kMaxUInt32) {
 #ifdef DEBUG
   uint32_t index;  // Assert that the name is not an array index.
   DCHECK(!name->AsArrayIndex(&index));
@@ -141,10 +140,10 @@ InternalIndex LookupIterator::descriptor_number() const {
   DCHECK(!IsElement());
   DCHECK(has_property_);
   DCHECK(holder_->HasFastProperties(isolate_));
-  return InternalIndex(number_);
+  return number_;
 }
 
-int LookupIterator::dictionary_entry() const {
+InternalIndex LookupIterator::dictionary_entry() const {
   DCHECK(!IsElement());
   DCHECK(has_property_);
   DCHECK(!holder_->HasFastProperties(isolate_));

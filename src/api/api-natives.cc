@@ -300,8 +300,8 @@ MaybeHandle<JSObject> ProbeInstantiationsCache(
       (serial_number <= TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {
     SimpleNumberDictionary slow_cache =
         native_context->slow_template_instantiations_cache();
-    int entry = slow_cache.FindEntry(isolate, serial_number);
-    if (entry != SimpleNumberDictionary::kNotFound) {
+    InternalIndex entry = slow_cache.FindEntry(isolate, serial_number);
+    if (entry.is_found()) {
       return handle(JSObject::cast(slow_cache.ValueAt(entry)), isolate);
     }
   }
@@ -348,8 +348,8 @@ void UncacheTemplateInstantiation(Isolate* isolate,
               TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {
     Handle<SimpleNumberDictionary> cache =
         handle(native_context->slow_template_instantiations_cache(), isolate);
-    int entry = cache->FindEntry(isolate, serial_number);
-    DCHECK_NE(SimpleNumberDictionary::kNotFound, entry);
+    InternalIndex entry = cache->FindEntry(isolate, serial_number);
+    DCHECK(entry.is_found());
     cache = SimpleNumberDictionary::DeleteEntry(isolate, cache, entry);
     native_context->set_slow_template_instantiations_cache(*cache);
   }

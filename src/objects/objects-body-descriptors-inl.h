@@ -1106,11 +1106,10 @@ class EphemeronHashTable::BodyDescriptor final : public BodyDescriptorBase {
                         EphemeronHashTable::kElementsStartIndex * kTaggedSize;
     IteratePointers(obj, EphemeronHashTable::kHeaderSize, entries_start, v);
     EphemeronHashTable table = EphemeronHashTable::unchecked_cast(obj);
-    int entries = table.Capacity();
-    for (int i = 0; i < entries; ++i) {
+    for (InternalIndex i : table.IterateEntries()) {
       const int key_index = EphemeronHashTable::EntryToIndex(i);
       const int value_index = EphemeronHashTable::EntryToValueIndex(i);
-      IterateEphemeron(obj, i, OffsetOfElementAt(key_index),
+      IterateEphemeron(obj, i.as_int(), OffsetOfElementAt(key_index),
                        OffsetOfElementAt(value_index), v);
     }
   }

@@ -479,7 +479,7 @@ class ConcurrentMarkingVisitor final
     if (!ShouldVisit(table)) return 0;
     weak_objects_->ephemeron_hash_tables.Push(task_id_, table);
 
-    for (int i = 0; i < table.Capacity(); i++) {
+    for (InternalIndex i : table.IterateEntries()) {
       ObjectSlot key_slot =
           table.RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
       HeapObject key = HeapObject::cast(table.KeyAt(i));

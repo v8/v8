@@ -705,15 +705,15 @@ Smi JSReceiver::GetOrCreateIdentityHash(Isolate* isolate) {
 }
 
 void JSReceiver::DeleteNormalizedProperty(Handle<JSReceiver> object,
-                                          int entry) {
+                                          InternalIndex entry) {
   DCHECK(!object->HasFastProperties());
   Isolate* isolate = object->GetIsolate();
+  DCHECK(entry.is_found());
 
   if (object->IsJSGlobalObject()) {
     // If we have a global object, invalidate the cell and swap in a new one.
     Handle<GlobalDictionary> dictionary(
         JSGlobalObject::cast(*object).global_dictionary(), isolate);
-    DCHECK_NE(GlobalDictionary::kNotFound, entry);
 
     auto cell = PropertyCell::InvalidateEntry(isolate, dictionary, entry);
     cell->set_value(ReadOnlyRoots(isolate).the_hole_value());
@@ -721,7 +721,6 @@ void JSReceiver::DeleteNormalizedProperty(Handle<JSReceiver> object,
         PropertyDetails::Empty(PropertyCellType::kUninitialized));
   } else {
     Handle<NameDictionary> dictionary(object->property_dictionary(), isolate);
-    DCHECK_NE(NameDictionary::kNotFound, entry);
 
     dictionary = NameDictionary::DeleteEntry(isolate, dictionary, entry);
     object->SetProperties(*dictionary);
@@ -2332,9 +2331,10 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object, Handle<Name> name,
     Handle<JSGlobalObject> global_obj = Handle<JSGlobalObject>::cast(object);
     Handle<GlobalDictionary> dictionary(global_obj->global_dictionary(),
                                         isolate);
-    int entry = dictionary->FindEntry(ReadOnlyRoots(isolate), name, hash);
+    InternalIndex entry =
+        dictionary->FindEntry(ReadOnlyRoots(isolate), name, hash);
 
-    if (entry == GlobalDictionary::kNotFound) {
+    if (entry.is_not_found()) {
       DCHECK_IMPLIES(global_obj->map().is_prototype_map(),
                      Map::IsPrototypeChainInvalidated(global_obj->map()));
       auto cell = isolate->factory()->NewPropertyCell(name);
@@ -2355,8 +2355,8 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object, Handle<Name> name,
   } else {
     Handle<NameDictionary> dictionary(object->property_dictionary(), isolate);
 
-    int entry = dictionary->FindEntry(isolate, name);
-    if (entry == NameDictionary::kNotFound) {
+    InternalIndex entry = dictionary->FindEntry(isolate, name);
+    if (entry.is_not_found()) {
       DCHECK_IMPLIES(object->map().is_prototype_map(),
                      Map::IsPrototypeChainInvalidated(object->map()));
       dictionary =
@@ -3331,7 +3331,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
   // Compute the length of the instance descriptor.
   ReadOnlyRoots roots(isolate);
   for (int i = 0; i < instance_descriptor_length; i++) {
-    int index = Smi::ToInt(iteration_order->get(i));
+    InternalIndex index(Smi::ToInt(iteration_order->get(i)));
     DCHECK(dictionary->IsKey(roots, dictionary->KeyAt(index)));
 
     PropertyKind kind = dictionary->DetailsAt(index).kind();
@@ -3391,7 +3391,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
   // Fill in the instance descriptor and the fields.
   int current_offset = 0;
   for (int i = 0; i < instance_descriptor_length; i++) {
-    int index = Smi::ToInt(iteration_order->get(i));
+    InternalIndex index(Smi::ToInt(iteration_order->get(i)));
     Name k = dictionary->NameAt(index);
     // Dictionary keys are internalized upon insertion.
     // TODO(jkummerow): Turn this into a DCHECK if it's not hit in the wild.
@@ -3611,8 +3611,7 @@ bool TestDictionaryPropertiesIntegrityLevel(Dictionary dict,
                                             PropertyAttributes level) {
   DCHECK(level == SEALED || level == FROZEN);
 
-  uint32_t capacity = dict.Capacity();
-  for (uint32_t i = 0; i < capacity; i++) {
+  for (InternalIndex i : dict.IterateEntries()) {
     Object key;
     if (!dict.ToKey(roots, i, &key)) continue;
     if (key.FilterKey(ALL_PROPERTIES)) continue;
@@ -3773,8 +3772,7 @@ template <typename Dictionary>
 void JSObject::ApplyAttributesToDictionary(
     Isolate* isolate, ReadOnlyRoots roots, Handle<Dictionary> dictionary,
     const PropertyAttributes attributes) {
-  int capacity = dictionary->Capacity();
-  for (int i = 0; i < capacity; i++) {
+  for (InternalIndex i : dictionary->IterateEntries()) {
     Object k;
     if (!dictionary->ToKey(roots, i, &k)) continue;
     if (k.FilterKey(ALL_PROPERTIES)) continue;
@@ -4615,7 +4613,7 @@ static ElementsKind BestFittingFastElementsKind(JSObject object) {
   DCHECK(object.HasDictionaryElements());
   NumberDictionary dictionary = object.element_dictionary();
   ElementsKind kind = HOLEY_SMI_ELEMENTS;
-  for (int i = 0; i < dictionary.Capacity(); i++) {
+  for (InternalIndex i : dictionary.IterateEntries()) {
     Object key = dictionary.KeyAt(i);
     if (key.IsNumber()) {
       Object value = dictionary.ValueAt(i);
@@ -5632,20 +5630,20 @@ void JSGlobalObject::InvalidatePropertyCell(Handle<JSGlobalObject> global,
 
   DCHECK(!global->HasFastProperties());
   auto dictionary = handle(global->global_dictionary(), global->GetIsolate());
-  int entry = dictionary->FindEntry(global->GetIsolate(), name);
-  if (entry == GlobalDictionary::kNotFound) return;
+  InternalIndex entry = dictionary->FindEntry(global->GetIsolate(), name);
+  if (entry.is_not_found()) return;
   PropertyCell::InvalidateEntry(global->GetIsolate(), dictionary, entry);
 }
 
 Handle<PropertyCell> JSGlobalObject::EnsureEmptyPropertyCell(
     Handle<JSGlobalObject> global, Handle<Name> name,
-    PropertyCellType cell_type, int* entry_out) {
+    PropertyCellType cell_type, InternalIndex* entry_out) {
   Isolate* isolate = global->GetIsolate();
   DCHECK(!global->HasFastProperties());
   Handle<GlobalDictionary> dictionary(global->global_dictionary(), isolate);
-  int entry = dictionary->FindEntry(isolate, name);
+  InternalIndex entry = dictionary->FindEntry(isolate, name);
   Handle<PropertyCell> cell;
-  if (entry != GlobalDictionary::kNotFound) {
+  if (entry.is_found()) {
     if (entry_out) *entry_out = entry;
     cell = handle(dictionary->CellAt(entry), isolate);
     PropertyCellType original_cell_type = cell->property_details().cell_type();

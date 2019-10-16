@@ -1986,8 +1986,7 @@ void MapData::SerializeOwnDescriptors(JSHeapBroker* broker) {
   TraceScope tracer(broker, this, "MapData::SerializeOwnDescriptors");
   Handle<Map> map = Handle<Map>::cast(object());
 
-  int const number_of_own = map->NumberOfOwnDescriptors();
-  for (InternalIndex i : InternalIndex::Range(number_of_own)) {
+  for (InternalIndex i : map->IterateOwnDescriptors()) {
     SerializeOwnDescriptor(broker, i);
   }
 }

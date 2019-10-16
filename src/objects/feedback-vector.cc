@@ -1278,8 +1278,8 @@ void FeedbackNexus::Collect(Handle<String> type, int position) {
 
   Handle<ArrayList> position_specific_types;
 
-  int entry = types->FindEntry(isolate, position);
-  if (entry == SimpleNumberDictionary::kNotFound) {
+  InternalIndex entry = types->FindEntry(isolate, position);
+  if (entry.is_not_found()) {
     position_specific_types = ArrayList::New(isolate, 1);
     types = SimpleNumberDictionary::Set(
         isolate, types, position,
@@ -1341,10 +1341,9 @@ std::vector<Handle<String>> FeedbackNexus::GetTypesForSourcePositions(
       SimpleNumberDictionary::cast(feedback->GetHeapObjectAssumeStrong()),
       isolate);
 
-  int entry = types->FindEntry(isolate, position);
-  if (entry == SimpleNumberDictionary::kNotFound) {
-    return types_for_position;
-  }
+  InternalIndex entry = types->FindEntry(isolate, position);
+  if (entry.is_not_found()) return types_for_position;
+
   DCHECK(types->ValueAt(entry).IsArrayList());
   Handle<ArrayList> position_specific_types =
       Handle<ArrayList>(ArrayList::cast(types->ValueAt(entry)), isolate);

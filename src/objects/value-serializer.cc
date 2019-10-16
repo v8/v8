@@ -1814,8 +1814,8 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadTransferredJSArrayBuffer() {
       !array_buffer_transfer_map_.ToHandle(&transfer_map)) {
     return MaybeHandle<JSArrayBuffer>();
   }
-  int index = transfer_map->FindEntry(isolate_, transfer_id);
-  if (index == SimpleNumberDictionary::kNotFound) {
+  InternalIndex index = transfer_map->FindEntry(isolate_, transfer_id);
+  if (index.is_not_found()) {
     return MaybeHandle<JSArrayBuffer>();
   }
   Handle<JSArrayBuffer> array_buffer(

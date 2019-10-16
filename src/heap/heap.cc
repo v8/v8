@@ -4086,8 +4086,8 @@ class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
         CHECK(it != ephemeron_remembered_set_->end());
         int slot_index =
             EphemeronHashTable::SlotToIndex(table.address(), key.address());
-        int entry = EphemeronHashTable::IndexToEntry(slot_index);
-        CHECK(it->second.find(entry) != it->second.end());
+        InternalIndex entry = EphemeronHashTable::IndexToEntry(slot_index);
+        CHECK(it->second.find(entry.as_int()) != it->second.end());
       }
     }
   }
@@ -6184,10 +6184,10 @@ void Heap::GenerationalBarrierSlow(HeapObject object, Address slot,
 void Heap::RecordEphemeronKeyWrite(EphemeronHashTable table, Address slot) {
   DCHECK(ObjectInYoungGeneration(HeapObjectSlot(slot).ToHeapObject()));
   int slot_index = EphemeronHashTable::SlotToIndex(table.address(), slot);
-  int entry = EphemeronHashTable::IndexToEntry(slot_index);
+  InternalIndex entry = EphemeronHashTable::IndexToEntry(slot_index);
   auto it =
       ephemeron_remembered_set_.insert({table, std::unordered_set<int>()});
-  it.first->second.insert(entry);
+  it.first->second.insert(entry.as_int());
 }
 
 void Heap::EphemeronKeyWriteBarrierFromCode(Address raw_object,

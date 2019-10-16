@@ -191,8 +191,8 @@ namespace {
 
 String ForwardStringIfExists(Isolate* isolate, StringTableInsertionKey* key) {
   StringTable table = isolate->heap()->string_table();
-  int entry = table.FindEntry(isolate, key);
-  if (entry == kNotFound) return String();
+  InternalIndex entry = table.FindEntry(isolate, key);
+  if (entry.is_not_found()) return String();
 
   String canonical = String::cast(table.KeyAt(entry));
   DCHECK_NE(canonical, key->string());

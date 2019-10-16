@@ -95,8 +95,7 @@ LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
       transition_(transition_map),
       receiver_(receiver),
       initial_holder_(GetRoot(isolate, receiver)),
-      index_(kMaxUInt32),
-      number_(static_cast<uint32_t>(DescriptorArray::kNotFound)) {
+      index_(kMaxUInt32) {
   holder_ = initial_holder_;
 }
 
@@ -164,7 +163,7 @@ template <bool is_element>
 void LookupIterator::RestartInternal(InterceptorState interceptor_state) {
   interceptor_state_ = interceptor_state;
   property_details_ = PropertyDetails::Empty();
-  number_ = static_cast<uint32_t>(DescriptorArray::kNotFound);
+  number_ = InternalIndex::NotFound();
   Start<is_element>();
 }
 
@@ -534,7 +533,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
     DCHECK(attributes != NONE || !holder_obj->HasFastElements(isolate_));
     Handle<FixedArrayBase> elements(holder_obj->elements(isolate_), isolate());
     holder_obj->GetElementsAccessor(isolate_)->Reconfigure(
-        holder_obj, elements, InternalIndex(number_), value, attributes);
+        holder_obj, elements, number_, value, attributes);
     ReloadPropertyInformation<true>();
   } else if (holder_obj->HasFastProperties(isolate_)) {
     Handle<Map> old_map(holder_obj->map(isolate_), isolate_);
@@ -624,9 +623,8 @@ void LookupIterator::PrepareTransitionToDataProperty(
     if (map->IsJSGlobalObjectMap()) {
       // Install a property cell.
       Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(receiver);
-      int entry;
       Handle<PropertyCell> cell = JSGlobalObject::EnsureEmptyPropertyCell(
-          global, name(), PropertyCellType::kUninitialized, &entry);
+          global, name(), PropertyCellType::kUninitialized, &number_);
       Handle<GlobalDictionary> dictionary(global->global_dictionary(isolate_),
                                           isolate_);
       DCHECK(cell->value(isolate_).IsTheHole(isolate_));
@@ -642,7 +640,6 @@ void LookupIterator::PrepareTransitionToDataProperty(
           PropertyCell::UpdatedType(isolate(), cell, value, property_details_);
       property_details_ = property_details_.set_cell_type(new_type);
       cell->set_property_details(property_details_);
-      number_ = entry;
       has_property_ = true;
     } else {
       // Don't set enumeration index (it will be set during value store).
@@ -699,24 +696,22 @@ void LookupIterator::ApplyTransitionToDataProperty(
   }
 
   if (simple_transition) {
-    number_ = transition->LastAdded().as_uint32();
+    number_ = transition->LastAdded();
     property_details_ = transition->GetLastDescriptorDetails(isolate_);
     state_ = DATA;
   } else if (receiver->map(isolate_).is_dictionary_map()) {
     Handle<NameDictionary> dictionary(receiver->property_dictionary(isolate_),
                                       isolate_);
-    int entry;
     if (receiver->map(isolate_).is_prototype_map() &&
         receiver->IsJSObject(isolate_)) {
       JSObject::InvalidatePrototypeChains(receiver->map(isolate_));
     }
     dictionary = NameDictionary::Add(isolate(), dictionary, name(),
                                      isolate_->factory()->uninitialized_value(),
-                                     property_details_, &entry);
+                                     property_details_, &number_);
     receiver->SetProperties(*dictionary);
     // Reload details containing proper enumeration index value.
-    property_details_ = dictionary->DetailsAt(entry);
-    number_ = entry;
+    property_details_ = dictionary->DetailsAt(number_);
     has_property_ = true;
     state_ = DATA;
 
@@ -730,7 +725,7 @@ void LookupIterator::Delete() {
   if (IsElement()) {
     Handle<JSObject> object = Handle<JSObject>::cast(holder);
     ElementsAccessor* accessor = object->GetElementsAccessor(isolate_);
-    accessor->Delete(object, InternalIndex(number_));
+    accessor->Delete(object, number_);
   } else {
     DCHECK(!name()->IsPrivateName(isolate_));
     bool is_prototype_map = holder->map(isolate_).is_prototype_map();
@@ -747,7 +742,7 @@ void LookupIterator::Delete() {
                                     mode, 0, "DeletingProperty");
       ReloadPropertyInformation<false>();
     }
-    JSReceiver::DeleteNormalizedProperty(holder, number_);
+    JSReceiver::DeleteNormalizedProperty(holder, dictionary_entry());
     if (holder->IsJSObject(isolate_)) {
       JSObject::ReoptimizeIfPrototype(Handle<JSObject>::cast(holder));
     }
@@ -776,20 +771,18 @@ void LookupIterator::TransitionToAccessorProperty(
     } else if (state_ == INTERCEPTOR) {
       LookupInRegularHolder<false>(*old_map, *holder_);
     }
-    // TODO(jkummerow): {IsFound()} should be enough once {number_} has type
-    // {InternalIndex}.
-    InternalIndex descriptor = (IsFound() && number_ != kMaxUInt32)
-                                   ? InternalIndex(number_)
-                                   : InternalIndex::NotFound();
+    // The case of IsFound() && number_.is_not_found() can occur for
+    // interceptors.
+    DCHECK_IMPLIES(!IsFound(), number_.is_not_found());
 
     Handle<Map> new_map = Map::TransitionToAccessorProperty(
-        isolate_, old_map, name_, descriptor, getter, setter, attributes);
+        isolate_, old_map, name_, number_, getter, setter, attributes);
     bool simple_transition =
         new_map->GetBackPointer(isolate_) == receiver->map(isolate_);
     JSObject::MigrateToMap(isolate_, receiver, new_map);
 
     if (simple_transition) {
-      number_ = new_map->LastAdded().as_uint32();
+      number_ = new_map->LastAdded();
       property_details_ = new_map->GetLastDescriptorDetails(isolate_);
       state_ = ACCESSOR;
       return;
@@ -845,8 +838,8 @@ void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
     if (receiver->HasSlowArgumentsElements(isolate_)) {
       FixedArray parameter_map = FixedArray::cast(receiver->elements(isolate_));
       uint32_t length = parameter_map.length() - 2;
-      if (number_ < length) {
-        parameter_map.set(number_ + 2,
+      if (number_.is_found() && number_.as_uint32() < length) {
+        parameter_map.set(number_.as_int() + 2,
                           ReadOnlyRoots(isolate_).the_hole_value());
       }
       FixedArray::cast(receiver->elements(isolate_)).set(1, *dictionary);
@@ -895,10 +888,11 @@ Handle<Object> LookupIterator::FetchValue() const {
   if (IsElement()) {
     Handle<JSObject> holder = GetHolder<JSObject>();
     ElementsAccessor* accessor = holder->GetElementsAccessor(isolate_);
-    return accessor->Get(holder, InternalIndex(number_));
+    return accessor->Get(holder, number_);
   } else if (holder_->IsJSGlobalObject(isolate_)) {
     Handle<JSGlobalObject> holder = GetHolder<JSGlobalObject>();
-    result = holder->global_dictionary(isolate_).ValueAt(isolate_, number_);
+    result = holder->global_dictionary(isolate_).ValueAt(isolate_,
+                                                         dictionary_entry());
   } else if (!holder_->HasFastProperties(isolate_)) {
     result = holder_->property_dictionary(isolate_).ValueAt(isolate_,
                                                             dictionary_entry());
@@ -1031,7 +1025,7 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
   if (IsElement()) {
     Handle<JSObject> object = Handle<JSObject>::cast(holder);
     ElementsAccessor* accessor = object->GetElementsAccessor(isolate_);
-    accessor->Set(object, InternalIndex(number_), *value);
+    accessor->Set(object, number_, *value);
   } else if (holder->HasFastProperties(isolate_)) {
     if (property_details_.location() == kField) {
       // Check that in case of VariableMode::kConst field the existing value is
@@ -1129,9 +1123,8 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
       if (!is_element && map.IsJSGlobalObjectMap()) {
         GlobalDictionary dict =
             JSGlobalObject::cast(holder).global_dictionary(isolate_);
-        int number = dict.FindEntry(isolate(), name_);
-        if (number == GlobalDictionary::kNotFound) return NOT_FOUND;
-        number_ = static_cast<uint32_t>(number);
+        number_ = dict.FindEntry(isolate(), name_);
+        if (number_.is_not_found()) return NOT_FOUND;
         PropertyCell cell = dict.CellAt(isolate_, number_);
         if (cell.value(isolate_).IsTheHole(isolate_)) return NOT_FOUND;
         property_details_ = cell.property_details();
@@ -1167,15 +1160,13 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
     JSObject js_object = JSObject::cast(holder);
     ElementsAccessor* accessor = js_object.GetElementsAccessor(isolate_);
     FixedArrayBase backing_store = js_object.elements(isolate_);
-    // TODO(jkummerow): {number_} should have type InternalIndex.
-    InternalIndex entry =
+    number_ =
         accessor->GetEntryForIndex(isolate_, js_object, backing_store, index_);
-    number_ = entry.is_found() ? entry.as_uint32() : kMaxUInt32;
-    if (number_ == kMaxUInt32) {
+    if (number_.is_not_found()) {
       return holder.IsJSTypedArray(isolate_) ? INTEGER_INDEXED_EXOTIC
                                              : NOT_FOUND;
     }
-    property_details_ = accessor->GetDetails(js_object, InternalIndex(number_));
+    property_details_ = accessor->GetDetails(js_object, number_);
     if (map.has_frozen_elements()) {
       property_details_ = property_details_.CopyAddAttributes(FROZEN);
     } else if (map.has_sealed_elements()) {
@@ -1183,16 +1174,14 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
     }
   } else if (!map.is_dictionary_map()) {
     DescriptorArray descriptors = map.instance_descriptors(isolate_);
-    InternalIndex number = descriptors.SearchWithCache(isolate_, *name_, map);
-    if (number.is_not_found()) return NotFound(holder);
-    number_ = number.as_uint32();
-    property_details_ = descriptors.GetDetails(InternalIndex(number_));
+    number_ = descriptors.SearchWithCache(isolate_, *name_, map);
+    if (number_.is_not_found()) return NotFound(holder);
+    property_details_ = descriptors.GetDetails(number_);
   } else {
     DCHECK_IMPLIES(holder.IsJSProxy(isolate_), name()->IsPrivate(isolate_));
     NameDictionary dict = holder.property_dictionary(isolate_);
-    int number = dict.FindEntry(isolate(), name_);
-    if (number == NameDictionary::kNotFound) return NotFound(holder);
-    number_ = static_cast<uint32_t>(number);
+    number_ = dict.FindEntry(isolate(), name_);
+    if (number_.is_not_found()) return NotFound(holder);
     property_details_ = dict.DetailsAt(number_);
   }
   has_property_ = true;

@@ -31,32 +31,35 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
  public:
   using Key = typename Shape::Key;
   // Returns the value at entry.
-  Object ValueAt(int entry) {
+  Object ValueAt(InternalIndex entry) {
     Isolate* isolate = GetIsolateForPtrCompr(*this);
     return ValueAt(isolate, entry);
   }
-  Object ValueAt(Isolate* isolate, int entry) {
-    return this->get(isolate, DerivedHashTable::EntryToIndex(entry) + 1);
+  Object ValueAt(Isolate* isolate, InternalIndex entry) {
+    return this->get(isolate, DerivedHashTable::EntryToIndex(entry) +
+                                  Derived::kEntryValueIndex);
   }
 
   // Set the value for entry.
-  void ValueAtPut(int entry, Object value) {
-    this->set(DerivedHashTable::EntryToIndex(entry) + 1, value);
+  void ValueAtPut(InternalIndex entry, Object value) {
+    this->set(DerivedHashTable::EntryToIndex(entry) + Derived::kEntryValueIndex,
+              value);
   }
 
   // Returns the property details for the property at entry.
-  PropertyDetails DetailsAt(int entry) {
+  PropertyDetails DetailsAt(InternalIndex entry) {
     return Shape::DetailsAt(Derived::cast(*this), entry);
   }
 
   // Set the details for entry.
-  void DetailsAtPut(Isolate* isolate, int entry, PropertyDetails value) {
+  void DetailsAtPut(Isolate* isolate, InternalIndex entry,
+                    PropertyDetails value) {
     Shape::DetailsAtPut(isolate, Derived::cast(*this), entry, value);
   }
 
   // Delete a property from the dictionary.
   V8_WARN_UNUSED_RESULT static Handle<Derived> DeleteEntry(
-      Isolate* isolate, Handle<Derived> dictionary, int entry);
+      Isolate* isolate, Handle<Derived> dictionary, InternalIndex entry);
 
   // Attempt to shrink the dictionary after deletion of key.
   V8_WARN_UNUSED_RESULT static inline Handle<Derived> Shrink(
@@ -76,13 +79,14 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   Object SlowReverseLookup(Object value);
 
   // Sets the entry to (key, value) pair.
-  inline void ClearEntry(Isolate* isolate, int entry);
-  inline void SetEntry(Isolate* isolate, int entry, Object key, Object value,
-                       PropertyDetails details);
+  inline void ClearEntry(Isolate* isolate, InternalIndex entry);
+  inline void SetEntry(Isolate* isolate, InternalIndex entry, Object key,
+                       Object value, PropertyDetails details);
 
   V8_WARN_UNUSED_RESULT static Handle<Derived> Add(
       Isolate* isolate, Handle<Derived> dictionary, Key key,
-      Handle<Object> value, PropertyDetails details, int* entry_out = nullptr);
+      Handle<Object> value, PropertyDetails details,
+      InternalIndex* entry_out = nullptr);
 
  protected:
   // Generic at put operation.
@@ -100,16 +104,17 @@ class BaseDictionaryShape : public BaseShape<Key> {
  public:
   static const bool kHasDetails = true;
   template <typename Dictionary>
-  static inline PropertyDetails DetailsAt(Dictionary dict, int entry) {
+  static inline PropertyDetails DetailsAt(Dictionary dict,
+                                          InternalIndex entry) {
     STATIC_ASSERT(Dictionary::kEntrySize == 3);
-    DCHECK_GE(entry, 0);  // Not found is -1, which is not caught by get().
+    DCHECK(entry.is_found());
     return PropertyDetails(Smi::cast(dict.get(Dictionary::EntryToIndex(entry) +
                                               Dictionary::kEntryDetailsIndex)));
   }
 
   template <typename Dictionary>
-  static inline void DetailsAtPut(Isolate* isolate, Dictionary dict, int entry,
-                                  PropertyDetails value) {
+  static inline void DetailsAtPut(Isolate* isolate, Dictionary dict,
+                                  InternalIndex entry, PropertyDetails value) {
     STATIC_ASSERT(Dictionary::kEntrySize == 3);
     dict.set(Dictionary::EntryToIndex(entry) + Dictionary::kEntryDetailsIndex,
              value.AsSmi());
@@ -190,11 +195,13 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) BaseNameDictionary
 
   V8_WARN_UNUSED_RESULT static Handle<Derived> AddNoUpdateNextEnumerationIndex(
       Isolate* isolate, Handle<Derived> dictionary, Key key,
-      Handle<Object> value, PropertyDetails details, int* entry_out = nullptr);
+      Handle<Object> value, PropertyDetails details,
+      InternalIndex* entry_out = nullptr);
 
   V8_WARN_UNUSED_RESULT static Handle<Derived> Add(
       Isolate* isolate, Handle<Derived> dictionary, Key key,
-      Handle<Object> value, PropertyDetails details, int* entry_out = nullptr);
+      Handle<Object> value, PropertyDetails details,
+      InternalIndex* entry_out = nullptr);
 
   OBJECT_CONSTRUCTORS(BaseNameDictionary, Dictionary<Derived, Shape>);
 };
@@ -209,11 +216,12 @@ class V8_EXPORT_PRIVATE NameDictionary
  public:
   DECL_CAST(NameDictionary)
 
+  static const int kEntryValueIndex = 1;
   static const int kEntryDetailsIndex = 2;
   static const int kInitialCapacity = 2;
 
-  inline Name NameAt(int entry);
-  inline Name NameAt(Isolate* isolate, int entry);
+  inline Name NameAt(InternalIndex entry);
+  inline Name NameAt(Isolate* isolate, InternalIndex entry);
 
   inline void set_hash(int hash);
   inline int hash() const;
@@ -230,11 +238,11 @@ class GlobalDictionaryShape : public NameDictionaryShape {
   static const int kEntrySize = 1;  // Overrides NameDictionaryShape::kEntrySize
 
   template <typename Dictionary>
-  static inline PropertyDetails DetailsAt(Dictionary dict, int entry);
+  static inline PropertyDetails DetailsAt(Dictionary dict, InternalIndex entry);
 
   template <typename Dictionary>
-  static inline void DetailsAtPut(Isolate* isolate, Dictionary dict, int entry,
-                                  PropertyDetails value);
+  static inline void DetailsAtPut(Isolate* isolate, Dictionary dict,
+                                  InternalIndex entry, PropertyDetails value);
 
   static inline Object Unwrap(Object key);
   static inline bool IsKey(ReadOnlyRoots roots, Object k);
@@ -252,15 +260,15 @@ class V8_EXPORT_PRIVATE GlobalDictionary
  public:
   DECL_CAST(GlobalDictionary)
 
-  inline Object ValueAt(int entry);
-  inline Object ValueAt(Isolate* isolate, int entry);
-  inline PropertyCell CellAt(int entry);
-  inline PropertyCell CellAt(Isolate* isolate, int entry);
-  inline void SetEntry(Isolate* isolate, int entry, Object key, Object value,
-                       PropertyDetails details);
-  inline Name NameAt(int entry);
-  inline Name NameAt(Isolate* isolate, int entry);
-  inline void ValueAtPut(int entry, Object value);
+  inline Object ValueAt(InternalIndex entry);
+  inline Object ValueAt(Isolate* isolate, InternalIndex entry);
+  inline PropertyCell CellAt(InternalIndex entry);
+  inline PropertyCell CellAt(Isolate* isolate, InternalIndex entry);
+  inline void SetEntry(Isolate* isolate, InternalIndex entry, Object key,
+                       Object value, PropertyDetails details);
+  inline Name NameAt(InternalIndex entry);
+  inline Name NameAt(Isolate* isolate, InternalIndex entry);
+  inline void ValueAtPut(InternalIndex entry, Object value);
 
   OBJECT_CONSTRUCTORS(
       GlobalDictionary,
@@ -291,13 +299,14 @@ class SimpleNumberDictionaryShape : public NumberDictionaryBaseShape {
   static const int kEntrySize = 2;
 
   template <typename Dictionary>
-  static inline PropertyDetails DetailsAt(Dictionary dict, int entry) {
+  static inline PropertyDetails DetailsAt(Dictionary dict,
+                                          InternalIndex entry) {
     UNREACHABLE();
   }
 
   template <typename Dictionary>
-  static inline void DetailsAtPut(Isolate* isolate, Dictionary dict, int entry,
-                                  PropertyDetails value) {
+  static inline void DetailsAtPut(Isolate* isolate, Dictionary dict,
+                                  InternalIndex entry, PropertyDetails value) {
     UNREACHABLE();
   }
 

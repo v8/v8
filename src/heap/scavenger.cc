@@ -535,7 +535,7 @@ void ScavengerCollector::ProcessWeakReferences(
 void ScavengerCollector::ClearYoungEphemerons(
     EphemeronTableList* ephemeron_table_list) {
   ephemeron_table_list->Iterate([this](EphemeronHashTable table) {
-    for (int i = 0; i < table.Capacity(); i++) {
+    for (InternalIndex i : table.IterateEntries()) {
       // Keys in EphemeronHashTables must be heap objects.
       HeapObjectSlot key_slot(
           table.RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i)));
@@ -560,11 +560,11 @@ void ScavengerCollector::ClearOldEphemerons() {
     auto& indices = it->second;
     for (auto iti = indices.begin(); iti != indices.end();) {
       // Keys in EphemeronHashTables must be heap objects.
-      HeapObjectSlot key_slot(
-          table.RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(*iti)));
+      HeapObjectSlot key_slot(table.RawFieldOfElementAt(
+          EphemeronHashTable::EntryToIndex(InternalIndex(*iti))));
       HeapObject key = key_slot.ToHeapObject();
       if (IsUnscavengedHeapObject(heap_, key)) {
-        table.RemoveEntry(*iti);
+        table.RemoveEntry(InternalIndex(*iti));
         iti = indices.erase(iti);
       } else {
         HeapObject forwarded = ForwardingAddress(key);

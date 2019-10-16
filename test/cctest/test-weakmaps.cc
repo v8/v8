@@ -150,7 +150,7 @@ TEST(Shrinking) {
 
 namespace {
 bool EphemeronHashTableContainsKey(EphemeronHashTable table, HeapObject key) {
-  for (int i = 0; i < table.Capacity(); ++i) {
+  for (InternalIndex i : table.IterateEntries()) {
     if (table.KeyAt(i) == key) return true;
   }
   return false;

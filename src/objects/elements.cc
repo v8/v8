@@ -228,8 +228,8 @@ void CopyDictionaryToObjectElements(Isolate* isolate, FixedArrayBase from_base,
   }
   WriteBarrierMode write_barrier_mode = GetWriteBarrierMode(to_kind);
   for (int i = 0; i < copy_size; i++) {
-    int entry = from.FindEntry(isolate, i + from_start);
-    if (entry != NumberDictionary::kNotFound) {
+    InternalIndex entry = from.FindEntry(isolate, i + from_start);
+    if (entry.is_found()) {
       Object value = from.ValueAt(entry);
       DCHECK(!value.IsTheHole(isolate));
       to.set(i + to_start, value, write_barrier_mode);
@@ -432,8 +432,8 @@ void CopyDictionaryToDoubleElements(Isolate* isolate, FixedArrayBase from_base,
     copy_size = to_length - to_start;
   }
   for (int i = 0; i < copy_size; i++) {
-    int entry = from.FindEntry(isolate, i + from_start);
-    if (entry != NumberDictionary::kNotFound) {
+    InternalIndex entry = from.FindEntry(isolate, i + from_start);
+    if (entry.is_found()) {
       to.set(i + to_start, from.ValueAt(entry).Number());
     } else {
       to.set_the_hole(i + to_start);
@@ -1364,7 +1364,6 @@ class DictionaryElementsAccessor
                             Handle<FixedArrayBase> backing_store) {
     Handle<NumberDictionary> dict =
         Handle<NumberDictionary>::cast(backing_store);
-    int capacity = dict->Capacity();
     uint32_t old_length = 0;
     CHECK(array->length().ToArrayLength(&old_length));
     {
@@ -1374,7 +1373,7 @@ class DictionaryElementsAccessor
         if (dict->requires_slow_elements()) {
           // Find last non-deletable element in range of elements to be
           // deleted and adjust range accordingly.
-          for (int entry = 0; entry < capacity; entry++) {
+          for (InternalIndex entry : dict->IterateEntries()) {
             Object index = dict->KeyAt(entry);
             if (dict->IsKey(roots, index)) {
               uint32_t number = static_cast<uint32_t>(index.Number());
@@ -1392,7 +1391,7 @@ class DictionaryElementsAccessor
         } else {
           // Remove elements that should be deleted.
           int removed_entries = 0;
-          for (int entry = 0; entry < capacity; entry++) {
+          for (InternalIndex entry : dict->IterateEntries()) {
             Object index = dict->KeyAt(entry);
             if (dict->IsKey(roots, index)) {
               uint32_t number = static_cast<uint32_t>(index.Number());
@@ -1425,8 +1424,7 @@ class DictionaryElementsAccessor
   static void DeleteImpl(Handle<JSObject> obj, InternalIndex entry) {
     Handle<NumberDictionary> dict(NumberDictionary::cast(obj->elements()),
                                   obj->GetIsolate());
-    dict =
-        NumberDictionary::DeleteEntry(obj->GetIsolate(), dict, entry.as_int());
+    dict = NumberDictionary::DeleteEntry(obj->GetIsolate(), dict, entry);
     obj->set_elements(*dict);
   }
 
@@ -1434,9 +1432,8 @@ class DictionaryElementsAccessor
     DisallowHeapAllocation no_gc;
     NumberDictionary dict = NumberDictionary::cast(backing_store);
     if (!dict.requires_slow_elements()) return false;
-    int capacity = dict.Capacity();
     ReadOnlyRoots roots = holder.GetReadOnlyRoots();
-    for (int i = 0; i < capacity; i++) {
+    for (InternalIndex i : dict.IterateEntries()) {
       Object key = dict.KeyAt(i);
       if (!dict.IsKey(roots, key)) continue;
       PropertyDetails details = dict.DetailsAt(i);
@@ -1447,7 +1444,7 @@ class DictionaryElementsAccessor
 
   static Object GetRaw(FixedArrayBase store, InternalIndex entry) {
     NumberDictionary backing_store = NumberDictionary::cast(store);
-    return backing_store.ValueAt(entry.as_int());
+    return backing_store.ValueAt(entry);
   }
 
   static Handle<Object> GetImpl(Isolate* isolate, FixedArrayBase backing_store,
@@ -1462,7 +1459,7 @@ class DictionaryElementsAccessor
 
   static inline void SetImpl(FixedArrayBase backing_store, InternalIndex entry,
                              Object value) {
-    NumberDictionary::cast(backing_store).ValueAtPut(entry.as_int(), value);
+    NumberDictionary::cast(backing_store).ValueAtPut(entry, value);
   }
 
   static void ReconfigureImpl(Handle<JSObject> object,
@@ -1471,12 +1468,12 @@ class DictionaryElementsAccessor
                               PropertyAttributes attributes) {
     NumberDictionary dictionary = NumberDictionary::cast(*store);
     if (attributes != NONE) object->RequireSlowElements(dictionary);
-    dictionary.ValueAtPut(entry.as_int(), *value);
-    PropertyDetails details = dictionary.DetailsAt(entry.as_int());
+    dictionary.ValueAtPut(entry, *value);
+    PropertyDetails details = dictionary.DetailsAt(entry);
     details = PropertyDetails(kData, attributes, PropertyCellType::kNoCell,
                               details.dictionary_index());
 
-    dictionary.DetailsAtPut(object->GetIsolate(), entry.as_int(), details);
+    dictionary.DetailsAtPut(object->GetIsolate(), entry, details);
   }
 
   static void AddImpl(Handle<JSObject> object, uint32_t index,
@@ -1500,7 +1497,7 @@ class DictionaryElementsAccessor
                            InternalIndex entry) {
     DisallowHeapAllocation no_gc;
     NumberDictionary dict = NumberDictionary::cast(store);
-    Object index = dict.KeyAt(entry.as_int());
+    Object index = dict.KeyAt(entry);
     return !index.IsTheHole(isolate);
   }
 
@@ -1509,7 +1506,7 @@ class DictionaryElementsAccessor
     DisallowHeapAllocation no_gc;
     NumberDictionary dict = NumberDictionary::cast(store);
     uint32_t result = 0;
-    CHECK(dict.KeyAt(entry.as_int()).ToArrayIndex(&result));
+    CHECK(dict.KeyAt(entry).ToArrayIndex(&result));
     return result;
   }
 
@@ -1519,16 +1516,15 @@ class DictionaryElementsAccessor
                                             PropertyFilter filter) {
     DisallowHeapAllocation no_gc;
     NumberDictionary dictionary = NumberDictionary::cast(store);
-    int entry = dictionary.FindEntry(isolate, index);
-    if (entry == NumberDictionary::kNotFound) {
-      return InternalIndex::NotFound();
-    }
+    InternalIndex entry = dictionary.FindEntry(isolate, index);
+    if (entry.is_not_found()) return entry;
+
     if (filter != ALL_PROPERTIES) {
       PropertyDetails details = dictionary.DetailsAt(entry);
       PropertyAttributes attr = details.attributes();
       if ((attr & filter) != 0) return InternalIndex::NotFound();
     }
-    return InternalIndex(entry);
+    return entry;
   }
 
   static PropertyDetails GetDetailsImpl(JSObject holder, InternalIndex entry) {
@@ -1537,11 +1533,12 @@ class DictionaryElementsAccessor
 
   static PropertyDetails GetDetailsImpl(FixedArrayBase backing_store,
                                         InternalIndex entry) {
-    return NumberDictionary::cast(backing_store).DetailsAt(entry.as_int());
+    return NumberDictionary::cast(backing_store).DetailsAt(entry);
   }
 
-  static uint32_t FilterKey(Handle<NumberDictionary> dictionary, int entry,
-                            Object raw_key, PropertyFilter filter) {
+  static uint32_t FilterKey(Handle<NumberDictionary> dictionary,
+                            InternalIndex entry, Object raw_key,
+                            PropertyFilter filter) {
     DCHECK(raw_key.IsNumber());
     DCHECK_LE(raw_key.Number(), kMaxUInt32);
     PropertyDetails details = dictionary->DetailsAt(entry);
@@ -1552,7 +1549,8 @@ class DictionaryElementsAccessor
 
   static uint32_t GetKeyForEntryImpl(Isolate* isolate,
                                      Handle<NumberDictionary> dictionary,
-                                     int entry, PropertyFilter filter) {
+                                     InternalIndex entry,
+                                     PropertyFilter filter) {
     DisallowHeapAllocation no_gc;
     Object raw_key = dictionary->KeyAt(entry);
     if (!dictionary->IsKey(ReadOnlyRoots(isolate), raw_key)) return kMaxUInt32;
@@ -1566,13 +1564,12 @@ class DictionaryElementsAccessor
     Isolate* isolate = keys->isolate();
     Handle<NumberDictionary> dictionary =
         Handle<NumberDictionary>::cast(backing_store);
-    int capacity = dictionary->Capacity();
     Handle<FixedArray> elements = isolate->factory()->NewFixedArray(
         GetMaxNumberOfEntries(*object, *backing_store));
     int insertion_index = 0;
     PropertyFilter filter = keys->filter();
     ReadOnlyRoots roots(isolate);
-    for (int i = 0; i < capacity; i++) {
+    for (InternalIndex i : dictionary->IterateEntries()) {
       Object raw_key = dictionary->KeyAt(i);
       if (!dictionary->IsKey(roots, raw_key)) continue;
       uint32_t key = FilterKey(dictionary, i, raw_key, filter);
@@ -1600,8 +1597,7 @@ class DictionaryElementsAccessor
 
     Handle<NumberDictionary> dictionary =
         Handle<NumberDictionary>::cast(backing_store);
-    uint32_t capacity = dictionary->Capacity();
-    for (uint32_t i = 0; i < capacity; i++) {
+    for (InternalIndex i : dictionary->IterateEntries()) {
       uint32_t key = GetKeyForEntryImpl(isolate, dictionary, i, filter);
       if (key == kMaxUInt32) continue;
       Handle<Object> index = isolate->factory()->NewNumberFromUint(key);
@@ -1618,9 +1614,8 @@ class DictionaryElementsAccessor
     Isolate* isolate = accumulator->isolate();
     Handle<NumberDictionary> dictionary(
         NumberDictionary::cast(receiver->elements()), isolate);
-    int capacity = dictionary->Capacity();
     ReadOnlyRoots roots(isolate);
-    for (int i = 0; i < capacity; i++) {
+    for (InternalIndex i : dictionary->IterateEntries()) {
       Object k = dictionary->KeyAt(i);
       if (!dictionary->IsKey(roots, k)) continue;
       Object value = dictionary->ValueAt(i);
@@ -1637,14 +1632,13 @@ class DictionaryElementsAccessor
                                     uint32_t length, Maybe<bool>* result) {
     DisallowHeapAllocation no_gc;
     NumberDictionary dictionary = NumberDictionary::cast(receiver->elements());
-    int capacity = dictionary.Capacity();
     Object the_hole = ReadOnlyRoots(isolate).the_hole_value();
     Object undefined = ReadOnlyRoots(isolate).undefined_value();
 
     // Scan for accessor properties. If accessors are present, then elements
     // must be accessed in order via the slow path.
     bool found = false;
-    for (int i = 0; i < capacity; ++i) {
+    for (InternalIndex i : dictionary.IterateEntries()) {
       Object k = dictionary.KeyAt(i);
       if (k == the_hole) continue;
       if (k == undefined) continue;
@@ -1690,14 +1684,13 @@ class DictionaryElementsAccessor
     // observable
     for (uint32_t k = start_from; k < length; ++k) {
       DCHECK_EQ(receiver->GetElementsKind(), original_elements_kind);
-      int entry = dictionary->FindEntry(isolate, k);
-      if (entry == NumberDictionary::kNotFound) {
+      InternalIndex entry = dictionary->FindEntry(isolate, k);
+      if (entry.is_not_found()) {
         if (search_for_hole) return Just(true);
         continue;
       }
 
-      PropertyDetails details =
-          GetDetailsImpl(*dictionary, InternalIndex(entry));
+      PropertyDetails details = GetDetailsImpl(*dictionary, entry);
       switch (details.kind()) {
         case kData: {
           Object element_k = dictionary->ValueAt(entry);
@@ -1763,8 +1756,8 @@ class DictionaryElementsAccessor
     // observable.
     for (uint32_t k = start_from; k < length; ++k) {
       DCHECK_EQ(receiver->GetElementsKind(), original_elements_kind);
-      int entry = dictionary->FindEntry(isolate, k);
-      if (entry == NumberDictionary::kNotFound) continue;
+      InternalIndex entry = dictionary->FindEntry(isolate, k);
+      if (entry.is_not_found()) continue;
 
       PropertyDetails details =
           GetDetailsImpl(*dictionary, InternalIndex(entry));
@@ -1821,10 +1814,9 @@ class DictionaryElementsAccessor
     ReadOnlyRoots roots = holder.GetReadOnlyRoots();
     NumberDictionary dictionary = NumberDictionary::cast(holder.elements());
     // Validate the requires_slow_elements and max_number_key values.
-    int capacity = dictionary.Capacity();
     bool requires_slow_elements = false;
     int max_key = 0;
-    for (int i = 0; i < capacity; ++i) {
+    for (InternalIndex i : dictionary.IterateEntries()) {
       Object k;
       if (!dictionary.ToKey(roots, i, &k)) continue;
       DCHECK_LE(0.0, k.Number());
@@ -4288,8 +4280,8 @@ class SlowSloppyArgumentsElementsAccessor
     Handle<NumberDictionary> dict(NumberDictionary::cast(elements->arguments()),
                                   isolate);
     uint32_t length = elements->parameter_map_length();
-    dict = NumberDictionary::DeleteEntry(isolate, dict,
-                                         entry.as_uint32() - length);
+    dict =
+        NumberDictionary::DeleteEntry(isolate, dict, entry.adjust_down(length));
     elements->set_arguments(*dict);
   }
   static void AddImpl(Handle<JSObject> object, uint32_t index,
@@ -4391,9 +4383,9 @@ class FastSloppyArgumentsElementsAccessor
     uint32_t length = elements->parameter_map_length();
     if (entry->as_uint32() >= length) {
       *entry =
-          InternalIndex(dictionary->FindEntry(object->GetIsolate(),
-                                              entry->as_uint32() - length) +
-                        length);
+          dictionary
+              ->FindEntry(object->GetIsolate(), entry->as_uint32() - length)
+              .adjust_up(length);
     }
     return dictionary;
   }

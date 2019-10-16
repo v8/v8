@@ -930,7 +930,7 @@ void V8HeapExplorer::ExtractJSWeakCollectionReferences(HeapEntry* entry,
 
 void V8HeapExplorer::ExtractEphemeronHashTableReferences(
     HeapEntry* entry, EphemeronHashTable table) {
-  for (int i = 0, capacity = table.Capacity(); i < capacity; ++i) {
+  for (InternalIndex i : table.IterateEntries()) {
     int key_index = EphemeronHashTable::EntryToIndex(i) +
                     EphemeronHashTable::kEntryKeyIndex;
     int value_index = EphemeronHashTable::EntryToValueIndex(i);
@@ -1333,9 +1333,8 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject js_obj,
     // We assume that global objects can only have slow properties.
     GlobalDictionary dictionary =
         JSGlobalObject::cast(js_obj).global_dictionary();
-    int length = dictionary.Capacity();
     ReadOnlyRoots roots(isolate);
-    for (int i = 0; i < length; ++i) {
+    for (InternalIndex i : dictionary.IterateEntries()) {
       if (!dictionary.IsKey(roots, dictionary.KeyAt(i))) continue;
       PropertyCell cell = dictionary.CellAt(i);
       Name name = cell.name();
@@ -1345,9 +1344,8 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject js_obj,
     }
   } else {
     NameDictionary dictionary = js_obj.property_dictionary();
-    int length = dictionary.Capacity();
     ReadOnlyRoots roots(isolate);
-    for (int i = 0; i < length; ++i) {
+    for (InternalIndex i : dictionary.IterateEntries()) {
       Object k = dictionary.KeyAt(i);
       if (!dictionary.IsKey(roots, k)) continue;
       Object value = dictionary.ValueAt(i);
@@ -1388,8 +1386,7 @@ void V8HeapExplorer::ExtractElementReferences(JSObject js_obj,
     }
   } else if (js_obj.HasDictionaryElements()) {
     NumberDictionary dictionary = js_obj.element_dictionary();
-    int length = dictionary.Capacity();
-    for (int i = 0; i < length; ++i) {
+    for (InternalIndex i : dictionary.IterateEntries()) {
       Object k = dictionary.KeyAt(i);
       if (!dictionary.IsKey(roots, k)) continue;
       DCHECK(k.IsNumber());

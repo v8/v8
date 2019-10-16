@@ -1350,7 +1350,7 @@ Reduction JSCreateLowering::ReduceJSCreateObject(Node* node) {
     int capacity =
         NameDictionary::ComputeCapacity(NameDictionary::kInitialCapacity);
     DCHECK(base::bits::IsPowerOfTwo(capacity));
-    int length = NameDictionary::EntryToIndex(capacity);
+    int length = NameDictionary::EntryToIndex(InternalIndex(capacity));
     int size = NameDictionary::SizeFor(length);
 
     AllocationBuilder a(jsgraph(), effect, control);

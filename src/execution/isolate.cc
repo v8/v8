@@ -543,8 +543,8 @@ class StackFrameCacheHelper : public AllStatic {
       return MaybeHandle<StackTraceFrame>();
 
     const auto cache = Handle<SimpleNumberDictionary>::cast(maybe_cache);
-    const int entry = cache->FindEntry(isolate, code_offset);
-    if (entry != NumberDictionary::kNotFound) {
+    const InternalIndex entry = cache->FindEntry(isolate, code_offset);
+    if (entry.is_found()) {
       return handle(StackTraceFrame::cast(cache->ValueAt(entry)), isolate);
     }
     return MaybeHandle<StackTraceFrame>();
@@ -3865,9 +3865,9 @@ Handle<Symbol> Isolate::SymbolFor(RootIndex dictionary_index,
   Handle<String> key = factory()->InternalizeString(name);
   Handle<NameDictionary> dictionary =
       Handle<NameDictionary>::cast(root_handle(dictionary_index));
-  int entry = dictionary->FindEntry(this, key);
+  InternalIndex entry = dictionary->FindEntry(this, key);
   Handle<Symbol> symbol;
-  if (entry == NameDictionary::kNotFound) {
+  if (entry.is_not_found()) {
     symbol =
         private_symbol ? factory()->NewPrivateSymbol() : factory()->NewSymbol();
     symbol->set_name(*key);

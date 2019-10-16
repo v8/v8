@@ -477,8 +477,7 @@ bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
   if (HasFastProperties()) {
     DescriptorArray descs = map().instance_descriptors();
     int nof_inobject_properties = map().GetInObjectProperties();
-    for (InternalIndex i :
-         InternalIndex::Range(map().NumberOfOwnDescriptors())) {
+    for (InternalIndex i : map().IterateOwnDescriptors()) {
       os << "\n    ";
       descs.GetKey(i).NamePrint(os);
       os << ": ";
@@ -926,9 +925,9 @@ void PrintHashTableWithHeader(std::ostream& os, T table, const char* type) {
   os << "\n - capacity: " << table.Capacity();
 
   os << "\n - elements: {";
-  for (int i = 0; i < table.Capacity(); i++) {
+  for (InternalIndex i : table.IterateEntries()) {
     os << '\n'
-       << std::setw(12) << i << ": " << Brief(table.KeyAt(i)) << " -> "
+       << std::setw(12) << i.as_int() << ": " << Brief(table.KeyAt(i)) << " -> "
        << Brief(table.ValueAt(i));
   }
   os << "\n }\n";

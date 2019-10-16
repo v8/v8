@@ -70,14 +70,15 @@ void NumberDictionary::set_requires_slow_elements() {
 }
 
 template <typename Derived, typename Shape>
-void Dictionary<Derived, Shape>::ClearEntry(Isolate* isolate, int entry) {
+void Dictionary<Derived, Shape>::ClearEntry(Isolate* isolate,
+                                            InternalIndex entry) {
   Object the_hole = this->GetReadOnlyRoots().the_hole_value();
   PropertyDetails details = PropertyDetails::Empty();
   Derived::cast(*this).SetEntry(isolate, entry, the_hole, the_hole, details);
 }
 
 template <typename Derived, typename Shape>
-void Dictionary<Derived, Shape>::SetEntry(Isolate* isolate, int entry,
+void Dictionary<Derived, Shape>::SetEntry(Isolate* isolate, InternalIndex entry,
                                           Object key, Object value,
                                           PropertyDetails details) {
   DCHECK(Dictionary::kEntrySize == 2 || Dictionary::kEntrySize == 3);
@@ -98,12 +99,12 @@ RootIndex GlobalDictionaryShape::GetMapRootIndex() {
   return RootIndex::kGlobalDictionaryMap;
 }
 
-Name NameDictionary::NameAt(int entry) {
+Name NameDictionary::NameAt(InternalIndex entry) {
   Isolate* isolate = GetIsolateForPtrCompr(*this);
   return NameAt(isolate, entry);
 }
 
-Name NameDictionary::NameAt(Isolate* isolate, int entry) {
+Name NameDictionary::NameAt(Isolate* isolate, InternalIndex entry) {
   return Name::cast(KeyAt(isolate, entry));
 }
 
@@ -111,12 +112,12 @@ RootIndex NameDictionaryShape::GetMapRootIndex() {
   return RootIndex::kNameDictionaryMap;
 }
 
-PropertyCell GlobalDictionary::CellAt(int entry) {
+PropertyCell GlobalDictionary::CellAt(InternalIndex entry) {
   Isolate* isolate = GetIsolateForPtrCompr(*this);
   return CellAt(isolate, entry);
 }
 
-PropertyCell GlobalDictionary::CellAt(Isolate* isolate, int entry) {
+PropertyCell GlobalDictionary::CellAt(Isolate* isolate, InternalIndex entry) {
   DCHECK(KeyAt(isolate, entry).IsPropertyCell(isolate));
   return PropertyCell::cast(KeyAt(isolate, entry));
 }
@@ -130,32 +131,33 @@ bool GlobalDictionaryShape::IsKey(ReadOnlyRoots roots, Object k) {
   return IsLive(roots, k) && !PropertyCell::cast(k).value().IsTheHole(roots);
 }
 
-Name GlobalDictionary::NameAt(int entry) {
+Name GlobalDictionary::NameAt(InternalIndex entry) {
   Isolate* isolate = GetIsolateForPtrCompr(*this);
   return NameAt(isolate, entry);
 }
 
-Name GlobalDictionary::NameAt(Isolate* isolate, int entry) {
+Name GlobalDictionary::NameAt(Isolate* isolate, InternalIndex entry) {
   return CellAt(isolate, entry).name(isolate);
 }
 
-Object GlobalDictionary::ValueAt(int entry) {
+Object GlobalDictionary::ValueAt(InternalIndex entry) {
   Isolate* isolate = GetIsolateForPtrCompr(*this);
   return ValueAt(isolate, entry);
 }
 
-Object GlobalDictionary::ValueAt(Isolate* isolate, int entry) {
+Object GlobalDictionary::ValueAt(Isolate* isolate, InternalIndex entry) {
   return CellAt(isolate, entry).value(isolate);
 }
 
-void GlobalDictionary::SetEntry(Isolate* isolate, int entry, Object key,
-                                Object value, PropertyDetails details) {
+void GlobalDictionary::SetEntry(Isolate* isolate, InternalIndex entry,
+                                Object key, Object value,
+                                PropertyDetails details) {
   DCHECK_EQ(key, PropertyCell::cast(value).name());
   set(EntryToIndex(entry) + kEntryKeyIndex, value);
   DetailsAtPut(isolate, entry, details);
 }
 
-void GlobalDictionary::ValueAtPut(int entry, Object value) {
+void GlobalDictionary::ValueAtPut(InternalIndex entry, Object value) {
   set(EntryToIndex(entry), value);
 }
 
@@ -219,15 +221,17 @@ Handle<Object> NameDictionaryShape::AsHandle(Isolate* isolate,
 }
 
 template <typename Dictionary>
-PropertyDetails GlobalDictionaryShape::DetailsAt(Dictionary dict, int entry) {
-  DCHECK_LE(0, entry);  // Not found is -1, which is not caught by get().
+PropertyDetails GlobalDictionaryShape::DetailsAt(Dictionary dict,
+                                                 InternalIndex entry) {
+  DCHECK(entry.is_found());
   return dict.CellAt(entry).property_details();
 }
 
 template <typename Dictionary>
 void GlobalDictionaryShape::DetailsAtPut(Isolate* isolate, Dictionary dict,
-                                         int entry, PropertyDetails value) {
-  DCHECK_LE(0, entry);  // Not found is -1, which is not caught by get().
+                                         InternalIndex entry,
+                                         PropertyDetails value) {
+  DCHECK(entry.is_found());
   PropertyCell cell = dict.CellAt(entry);
   if (cell.property_details().IsReadOnly() != value.IsReadOnly()) {
     cell.dependent_code().DeoptimizeDependentCodeGroup(

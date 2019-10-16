@@ -68,7 +68,8 @@ class JSReceiver : public HeapObject {
   inline void initialize_properties(Isolate* isolate);
 
   // Deletes an existing named property in a normalized object.
-  static void DeleteNormalizedProperty(Handle<JSReceiver> object, int entry);
+  static void DeleteNormalizedProperty(Handle<JSReceiver> object,
+                                       InternalIndex entry);
 
   DECL_CAST(JSReceiver)
   DECL_VERIFIER(JSReceiver)
@@ -1205,7 +1206,7 @@ class JSGlobalObject : public JSSpecialObject {
   // Ensure that the global object has a cell for the given property name.
   static Handle<PropertyCell> EnsureEmptyPropertyCell(
       Handle<JSGlobalObject> global, Handle<Name> name,
-      PropertyCellType cell_type, int* entry_out = nullptr);
+      PropertyCellType cell_type, InternalIndex* entry_out = nullptr);
 
   DECL_CAST(JSGlobalObject)
 

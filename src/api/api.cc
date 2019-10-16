@@ -6442,8 +6442,8 @@ Local<v8::Object> v8::Object::New(Isolate* isolate,
     } else {
       // Internalize the {name} first.
       name = i_isolate->factory()->InternalizeName(name);
-      int const entry = properties->FindEntry(i_isolate, name);
-      if (entry == i::NameDictionary::kNotFound) {
+      i::InternalIndex const entry = properties->FindEntry(i_isolate, name);
+      if (entry.is_not_found()) {
         // Add the {name}/{value} pair as a new entry.
         properties = i::NameDictionary::Add(i_isolate, properties, name, value,
                                             i::PropertyDetails::Empty());

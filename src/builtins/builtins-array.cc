@@ -853,9 +853,8 @@ uint32_t EstimateElementCount(Isolate* isolate, Handle<JSArray> array) {
     }
     case DICTIONARY_ELEMENTS: {
       NumberDictionary dictionary = NumberDictionary::cast(array->elements());
-      int capacity = dictionary.Capacity();
       ReadOnlyRoots roots(isolate);
-      for (int i = 0; i < capacity; i++) {
+      for (InternalIndex i : dictionary.IterateEntries()) {
         Object key = dictionary.KeyAt(i);
         if (dictionary.IsKey(roots, key)) {
           element_count++;
@@ -930,7 +929,7 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
       uint32_t capacity = dict.Capacity();
       ReadOnlyRoots roots(isolate);
       FOR_WITH_HANDLE_SCOPE(isolate, uint32_t, j = 0, j, j < capacity, j++, {
-        Object k = dict.KeyAt(j);
+        Object k = dict.KeyAt(InternalIndex(j));
         if (!dict.IsKey(roots, k)) continue;
         DCHECK(k.IsNumber());
         uint32_t index = static_cast<uint32_t>(k.Number());

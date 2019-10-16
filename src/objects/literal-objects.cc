@@ -81,14 +81,16 @@ void AddToDescriptorArrayTemplate(
 
 Handle<NameDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
     Isolate* isolate, Handle<NameDictionary> dictionary, Handle<Name> name,
-    Handle<Object> value, PropertyDetails details, int* entry_out = nullptr) {
+    Handle<Object> value, PropertyDetails details,
+    InternalIndex* entry_out = nullptr) {
   return NameDictionary::AddNoUpdateNextEnumerationIndex(
       isolate, dictionary, name, value, details, entry_out);
 }
 
 Handle<NumberDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
     Isolate* isolate, Handle<NumberDictionary> dictionary, uint32_t element,
-    Handle<Object> value, PropertyDetails details, int* entry_out = nullptr) {
+    Handle<Object> value, PropertyDetails details,
+    InternalIndex* entry_out = nullptr) {
   // NumberDictionary does not maintain the enumeration order, so it's
   // a normal Add().
   return NumberDictionary::Add(isolate, dictionary, element, value, details,
@@ -123,9 +125,9 @@ void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
                              Key key, int key_index,
                              ClassBoilerplate::ValueKind value_kind,
                              Object value) {
-  int entry = dictionary->FindEntry(isolate, key);
+  InternalIndex entry = dictionary->FindEntry(isolate, key);
 
-  if (entry == kNotFound) {
+  if (entry.is_not_found()) {
     // Entry not found, add new one.
     const bool is_elements_dictionary =
         std::is_same<Dictionary, NumberDictionary>::value;

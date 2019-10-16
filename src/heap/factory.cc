@@ -2770,7 +2770,7 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
   // The global object might be created from an object template with accessors.
   // Fill these accessors into the dictionary.
   Handle<DescriptorArray> descs(map->instance_descriptors(), isolate());
-  for (InternalIndex i : InternalIndex::Range(map->NumberOfOwnDescriptors())) {
+  for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details = descs->GetDetails(i);
     // Only accessors are expected.
     DCHECK_EQ(kAccessor, details.kind());

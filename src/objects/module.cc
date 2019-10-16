@@ -303,7 +303,7 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
   Handle<ObjectHashTable> exports(module->exports(), isolate);
   ZoneVector<Handle<String>> names(&zone);
   names.reserve(exports->NumberOfElements());
-  for (int i = 0, n = exports->Capacity(); i < n; ++i) {
+  for (InternalIndex i : exports->IterateEntries()) {
     Object key;
     if (!exports->ToKey(roots, i, &key)) continue;
     names.push_back(handle(String::cast(key), isolate));

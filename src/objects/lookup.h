@@ -69,8 +69,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
         isolate_(isolate),
         receiver_(receiver),
         initial_holder_(holder),
-        index_(index),
-        number_(static_cast<uint32_t>(DescriptorArray::kNotFound)) {
+        index_(index) {
     // kMaxUInt32 isn't a valid index.
     DCHECK_NE(kMaxUInt32, index_);
     Start<true>();
@@ -242,7 +241,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
     return (configuration_ & kInterceptor) != 0;
   }
   inline InternalIndex descriptor_number() const;
-  inline int dictionary_entry() const;
+  inline InternalIndex dictionary_entry() const;
 
   static inline Configuration ComputeConfiguration(Isolate* isolate,
                                                    Configuration configuration,
@@ -270,7 +269,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   Handle<JSReceiver> holder_;
   const Handle<JSReceiver> initial_holder_;
   const uint32_t index_;
-  uint32_t number_;
+  InternalIndex number_ = InternalIndex::NotFound();
 };
 
 }  // namespace internal

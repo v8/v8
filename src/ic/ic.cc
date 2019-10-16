@@ -772,10 +772,10 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
         Handle<ObjectHashTable> exports(
             Handle<JSModuleNamespace>::cast(holder)->module().exports(),
             isolate());
-        int entry = exports->FindEntry(roots, lookup->name(),
-                                       Smi::ToInt(lookup->name()->GetHash()));
+        InternalIndex entry = exports->FindEntry(
+            roots, lookup->name(), Smi::ToInt(lookup->name()->GetHash()));
         // We found the accessor, so the entry must exist.
-        DCHECK_NE(entry, ObjectHashTable::kNotFound);
+        DCHECK(entry.is_found());
         int index = ObjectHashTable::EntryToValueIndex(entry);
         return LoadHandler::LoadModuleExport(isolate(), index);
       }

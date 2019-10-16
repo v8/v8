@@ -5678,8 +5678,7 @@ void Dictionary<Derived, Shape>::Print(std::ostream& os) {
   DisallowHeapAllocation no_gc;
   ReadOnlyRoots roots = this->GetReadOnlyRoots();
   Derived dictionary = Derived::cast(*this);
-  int capacity = dictionary.Capacity();
-  for (int i = 0; i < capacity; i++) {
+  for (InternalIndex i : dictionary.IterateEntries()) {
     Object k = dictionary.KeyAt(i);
     if (!dictionary.ToKey(roots, i, &k)) continue;
     os << "\n   ";
@@ -6442,7 +6441,7 @@ template <typename Derived, typename Shape>
 Handle<Derived> HashTable<Derived, Shape>::NewInternal(
     Isolate* isolate, int capacity, AllocationType allocation) {
   Factory* factory = isolate->factory();
-  int length = EntryToIndex(capacity);
+  int length = EntryToIndex(InternalIndex(capacity));
   RootIndex map_root_index = Shape::GetMapRootIndex();
   Handle<FixedArray> array =
       factory->NewFixedArrayWithMap(map_root_index, length, allocation);
@@ -6467,8 +6466,7 @@ void HashTable<Derived, Shape>::Rehash(ReadOnlyRoots roots, Derived new_table) {
   }
 
   // Rehash the elements.
-  int capacity = this->Capacity();
-  for (int i = 0; i < capacity; i++) {
+  for (InternalIndex i : this->IterateEntries()) {
     uint32_t from_index = EntryToIndex(i);
     Object k = this->get(from_index);
     if (!Shape::IsLive(roots, k)) continue;
@@ -6484,12 +6482,12 @@ void HashTable<Derived, Shape>::Rehash(ReadOnlyRoots roots, Derived new_table) {
 }
 
 template <typename Derived, typename Shape>
-uint32_t HashTable<Derived, Shape>::EntryForProbe(ReadOnlyRoots roots, Object k,
-                                                  int probe,
-                                                  uint32_t expected) {
+InternalIndex HashTable<Derived, Shape>::EntryForProbe(ReadOnlyRoots roots,
+                                                       Object k, int probe,
+                                                       InternalIndex expected) {
   uint32_t hash = Shape::HashForObject(roots, k);
   uint32_t capacity = this->Capacity();
-  uint32_t entry = FirstProbe(hash, capacity);
+  InternalIndex entry = FirstProbe(hash, capacity);
   for (int i = 1; i < probe; i++) {
     if (entry == expected) return expected;
     entry = NextProbe(entry, i, capacity);
@@ -6498,7 +6496,7 @@ uint32_t HashTable<Derived, Shape>::EntryForProbe(ReadOnlyRoots roots, Object k,
 }
 
 template <typename Derived, typename Shape>
-void HashTable<Derived, Shape>::Swap(uint32_t entry1, uint32_t entry2,
+void HashTable<Derived, Shape>::Swap(InternalIndex entry1, InternalIndex entry2,
                                      WriteBarrierMode mode) {
   int index1 = EntryToIndex(entry1);
   int index2 = EntryToIndex(entry2);
@@ -6527,22 +6525,30 @@ void HashTable<Derived, Shape>::Rehash(ReadOnlyRoots roots) {
     // All elements at entries given by one of the first _probe_ probes
     // are placed correctly. Other elements might need to be moved.
     done = true;
-    for (uint32_t current = 0; current < capacity; current++) {
+    for (InternalIndex current(0); current.raw_value() < capacity;
+         /* {current} is advanced manually below, when appropriate.*/) {
       Object current_key = KeyAt(current);
-      if (!Shape::IsLive(roots, current_key)) continue;
-      uint32_t target = EntryForProbe(roots, current_key, probe, current);
-      if (current == target) continue;
+      if (!Shape::IsLive(roots, current_key)) {
+        ++current;  // Advance to next entry.
+        continue;
+      }
+      InternalIndex target = EntryForProbe(roots, current_key, probe, current);
+      if (current == target) {
+        ++current;  // Advance to next entry.
+        continue;
+      }
       Object target_key = KeyAt(target);
       if (!Shape::IsLive(roots, target_key) ||
           EntryForProbe(roots, target_key, probe, target) != target) {
         // Put the current element into the correct position.
         Swap(current, target, mode);
-        // The other element will be processed on the next iteration.
-        current--;
+        // The other element will be processed on the next iteration,
+        // so don't advance {current} here!
       } else {
         // The place for the current element is occupied. Leave the element
         // for the next probe.
         done = false;
+        ++current;  // Advance to next entry.
       }
     }
   }
@@ -6550,7 +6556,7 @@ void HashTable<Derived, Shape>::Rehash(ReadOnlyRoots roots) {
   Object the_hole = roots.the_hole_value();
   HeapObject undefined = roots.undefined_value();
   Derived* self = static_cast<Derived*>(this);
-  for (uint32_t current = 0; current < capacity; current++) {
+  for (InternalIndex current : InternalIndex::Range(capacity)) {
     if (KeyAt(current) == the_hole) {
       self->set_key(EntryToIndex(current) + kEntryKeyIndex, undefined,
                     SKIP_WRITE_BARRIER);
@@ -6630,9 +6636,9 @@ Handle<Derived> HashTable<Derived, Shape>::Shrink(Isolate* isolate,
 }
 
 template <typename Derived, typename Shape>
-uint32_t HashTable<Derived, Shape>::FindInsertionEntry(uint32_t hash) {
+InternalIndex HashTable<Derived, Shape>::FindInsertionEntry(uint32_t hash) {
   uint32_t capacity = Capacity();
-  uint32_t entry = FirstProbe(hash, capacity);
+  InternalIndex entry = FirstProbe(hash, capacity);
   uint32_t count = 1;
   // EnsureCapacity will guarantee the hash table is never full.
   ReadOnlyRoots roots = GetReadOnlyRoots();
@@ -6690,10 +6696,10 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
 template <typename StringTableKey>
 Handle<String> StringTable::LookupKey(Isolate* isolate, StringTableKey* key) {
   Handle<StringTable> table = isolate->factory()->string_table();
-  int entry = table->FindEntry(isolate, key);
+  InternalIndex entry = table->FindEntry(isolate, key);
 
   // String already in table.
-  if (entry != kNotFound) {
+  if (entry.is_found()) {
     return handle(String::cast(table->KeyAt(entry)), isolate);
   }
 
@@ -6724,10 +6730,10 @@ Handle<String> StringTable::AddKeyNoResize(Isolate* isolate,
   // InvalidStringLength error.
   CHECK(!string.is_null());
   DCHECK(string->HasHashCode());
-  DCHECK_EQ(table->FindEntry(isolate, key), kNotFound);
+  DCHECK(table->FindEntry(isolate, key).is_not_found());
 
   // Add the new string and return it along with the string table.
-  int entry = table->FindInsertionEntry(key->hash());
+  InternalIndex entry = table->FindInsertionEntry(key->hash());
   table->set(EntryToIndex(entry), *string);
   table->ElementAdded();
 
@@ -6783,8 +6789,9 @@ Address LookupString(Isolate* isolate, String string, String source,
     return Smi::FromInt(ResultSentinel::kUnsupported).ptr();
   }
 
-  int entry = table.FindEntry(ReadOnlyRoots(isolate), &key, key.hash());
-  if (entry == kNotFound) {
+  InternalIndex entry =
+      table.FindEntry(ReadOnlyRoots(isolate), &key, key.hash());
+  if (entry.is_not_found()) {
     // A string that's not an array index, and not in the string table,
     // cannot have been used as a property name before.
     return Smi::FromInt(ResultSentinel::kNotFound).ptr();
@@ -6842,7 +6849,7 @@ Handle<StringSet> StringSet::Add(Isolate* isolate, Handle<StringSet> stringset,
   if (!stringset->Has(isolate, name)) {
     stringset = EnsureCapacity(isolate, stringset, 1);
     uint32_t hash = ShapeT::Hash(isolate, *name);
-    int entry = stringset->FindInsertionEntry(hash);
+    InternalIndex entry = stringset->FindInsertionEntry(hash);
     stringset->set(EntryToIndex(entry), *name);
     stringset->ElementAdded();
   }
@@ -6850,7 +6857,7 @@ Handle<StringSet> StringSet::Add(Isolate* isolate, Handle<StringSet> stringset,
 }
 
 bool StringSet::Has(Isolate* isolate, Handle<String> name) {
-  return FindEntry(isolate, *name) != kNotFound;
+  return FindEntry(isolate, *name).is_found();
 }
 
 Handle<ObjectHashSet> ObjectHashSet::Add(Isolate* isolate,
@@ -6859,7 +6866,7 @@ Handle<ObjectHashSet> ObjectHashSet::Add(Isolate* isolate,
   int32_t hash = key->GetOrCreateHash(isolate).value();
   if (!set->Has(isolate, key, hash)) {
     set = EnsureCapacity(isolate, set, 1);
-    int entry = set->FindInsertionEntry(hash);
+    InternalIndex entry = set->FindInsertionEntry(hash);
     set->set(EntryToIndex(entry), *key);
     set->ElementAdded();
   }
@@ -6996,8 +7003,8 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheTable::LookupScript(
   Isolate* isolate = native_context->GetIsolate();
   src = String::Flatten(isolate, src);
   StringSharedKey key(src, shared, language_mode, kNoSourcePosition);
-  int entry = table->FindEntry(isolate, &key);
-  if (entry == kNotFound) return MaybeHandle<SharedFunctionInfo>();
+  InternalIndex entry = table->FindEntry(isolate, &key);
+  if (entry.is_not_found()) return MaybeHandle<SharedFunctionInfo>();
   int index = EntryToIndex(entry);
   if (!table->get(index).IsFixedArray()) {
     return MaybeHandle<SharedFunctionInfo>();
@@ -7017,14 +7024,14 @@ InfoCellPair CompilationCacheTable::LookupEval(
   Isolate* isolate = native_context->GetIsolate();
   src = String::Flatten(isolate, src);
   StringSharedKey key(src, outer_info, language_mode, position);
-  int entry = table->FindEntry(isolate, &key);
-  if (entry == kNotFound) return empty_result;
+  InternalIndex entry = table->FindEntry(isolate, &key);
+  if (entry.is_not_found()) return empty_result;
   int index = EntryToIndex(entry);
   if (!table->get(index).IsFixedArray()) return empty_result;
-  Object obj = table->get(EntryToIndex(entry) + 1);
+  Object obj = table->get(index + 1);
   if (obj.IsSharedFunctionInfo()) {
     FeedbackCell feedback_cell =
-        SearchLiteralsMap(*table, EntryToIndex(entry) + 2, *native_context);
+        SearchLiteralsMap(*table, index + 2, *native_context);
     return InfoCellPair(SharedFunctionInfo::cast(obj), feedback_cell);
   }
   return empty_result;
@@ -7035,8 +7042,8 @@ Handle<Object> CompilationCacheTable::LookupRegExp(Handle<String> src,
   Isolate* isolate = GetIsolate();
   DisallowHeapAllocation no_allocation;
   RegExpKey key(src, flags);
-  int entry = FindEntry(isolate, &key);
-  if (entry == kNotFound) return isolate->factory()->undefined_value();
+  InternalIndex entry = FindEntry(isolate, &key);
+  if (entry.is_not_found()) return isolate->factory()->undefined_value();
   return Handle<Object>(get(EntryToIndex(entry) + 1), isolate);
 }
 
@@ -7055,7 +7062,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
   StringSharedKey key(src, shared, language_mode, kNoSourcePosition);
   Handle<Object> k = key.AsHandle(isolate);
   cache = EnsureCapacity(isolate, cache, 1);
-  int entry = cache->FindInsertionEntry(key.Hash());
+  InternalIndex entry = cache->FindInsertionEntry(key.Hash());
   cache->set(EntryToIndex(entry), *k);
   cache->set(EntryToIndex(entry) + 1, *value);
   cache->ElementAdded();
@@ -7072,8 +7079,8 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
   StringSharedKey key(src, outer_info, value->language_mode(), position);
   {
     Handle<Object> k = key.AsHandle(isolate);
-    int entry = cache->FindEntry(isolate, &key);
-    if (entry != kNotFound) {
+    InternalIndex entry = cache->FindEntry(isolate, &key);
+    if (entry.is_found()) {
       cache->set(EntryToIndex(entry), *k);
       cache->set(EntryToIndex(entry) + 1, *value);
       // AddToFeedbackCellsMap may allocate a new sub-array to live in the
@@ -7087,7 +7094,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
   }
 
   cache = EnsureCapacity(isolate, cache, 1);
-  int entry = cache->FindInsertionEntry(key.Hash());
+  InternalIndex entry = cache->FindInsertionEntry(key.Hash());
   Handle<Object> k =
       isolate->factory()->NewNumber(static_cast<double>(key.Hash()));
   cache->set(EntryToIndex(entry), *k);
@@ -7101,7 +7108,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutRegExp(
     JSRegExp::Flags flags, Handle<FixedArray> value) {
   RegExpKey key(src, flags);
   cache = EnsureCapacity(isolate, cache, 1);
-  int entry = cache->FindInsertionEntry(key.Hash());
+  InternalIndex entry = cache->FindInsertionEntry(key.Hash());
   // We store the value in the key slot, and compare the search key
   // to the stored value with a custon IsMatch function during lookups.
   cache->set(EntryToIndex(entry), *value);
@@ -7113,7 +7120,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutRegExp(
 void CompilationCacheTable::Age() {
   DisallowHeapAllocation no_allocation;
   Object the_hole_value = GetReadOnlyRoots().the_hole_value();
-  for (int entry = 0, size = Capacity(); entry < size; entry++) {
+  for (InternalIndex entry : IterateEntries()) {
     int entry_index = EntryToIndex(entry);
     int value_index = entry_index + 1;
 
@@ -7142,7 +7149,7 @@ void CompilationCacheTable::Age() {
 void CompilationCacheTable::Remove(Object value) {
   DisallowHeapAllocation no_allocation;
   Object the_hole_value = GetReadOnlyRoots().the_hole_value();
-  for (int entry = 0, size = Capacity(); entry < size; entry++) {
+  for (InternalIndex entry : IterateEntries()) {
     int entry_index = EntryToIndex(entry);
     int value_index = entry_index + 1;
     if (get(value_index) == value) {
@@ -7180,7 +7187,7 @@ Handle<Derived> BaseNameDictionary<Derived, Shape>::EnsureCapacity(
     // Iterate over the dictionary using the enumeration order and update
     // the dictionary with new enumeration indices.
     for (int i = 0; i < length; i++) {
-      int index = Smi::ToInt(iteration_order->get(i));
+      InternalIndex index(Smi::ToInt(iteration_order->get(i)));
       DCHECK(dictionary->IsKey(dictionary->GetReadOnlyRoots(),
                                dictionary->KeyAt(index)));
 
@@ -7200,7 +7207,7 @@ Handle<Derived> BaseNameDictionary<Derived, Shape>::EnsureCapacity(
 
 template <typename Derived, typename Shape>
 Handle<Derived> Dictionary<Derived, Shape>::DeleteEntry(
-    Isolate* isolate, Handle<Derived> dictionary, int entry) {
+    Isolate* isolate, Handle<Derived> dictionary, InternalIndex entry) {
   DCHECK(Shape::kEntrySize != 3 ||
          dictionary->DetailsAt(entry).IsConfigurable());
   dictionary->ClearEntry(isolate, entry);
@@ -7213,10 +7220,10 @@ Handle<Derived> Dictionary<Derived, Shape>::AtPut(Isolate* isolate,
                                                   Handle<Derived> dictionary,
                                                   Key key, Handle<Object> value,
                                                   PropertyDetails details) {
-  int entry = dictionary->FindEntry(isolate, key);
+  InternalIndex entry = dictionary->FindEntry(isolate, key);
 
   // If the entry is present set the value;
-  if (entry == Dictionary::kNotFound) {
+  if (entry.is_not_found()) {
     return Derived::Add(isolate, dictionary, key, value, details);
   }
 
@@ -7230,8 +7237,8 @@ template <typename Derived, typename Shape>
 Handle<Derived>
 BaseNameDictionary<Derived, Shape>::AddNoUpdateNextEnumerationIndex(
     Isolate* isolate, Handle<Derived> dictionary, Key key, Handle<Object> value,
-    PropertyDetails details, int* entry_out) {
-  // Insert element at empty or deleted entry
+    PropertyDetails details, InternalIndex* entry_out) {
+  // Insert element at empty or deleted entry.
   return Dictionary<Derived, Shape>::Add(isolate, dictionary, key, value,
                                          details, entry_out);
 }
@@ -7239,7 +7246,7 @@ BaseNameDictionary<Derived, Shape>::AddNoUpdateNextEnumerationIndex(
 template <typename Derived, typename Shape>
 Handle<Derived> BaseNameDictionary<Derived, Shape>::Add(
     Isolate* isolate, Handle<Derived> dictionary, Key key, Handle<Object> value,
-    PropertyDetails details, int* entry_out) {
+    PropertyDetails details, InternalIndex* entry_out) {
   // Insert element at empty or deleted entry
   DCHECK_EQ(0, details.dictionary_index());
   // Assign an enumeration index to the property and update
@@ -7259,17 +7266,17 @@ Handle<Derived> Dictionary<Derived, Shape>::Add(Isolate* isolate,
                                                 Handle<Derived> dictionary,
                                                 Key key, Handle<Object> value,
                                                 PropertyDetails details,
-                                                int* entry_out) {
+                                                InternalIndex* entry_out) {
   uint32_t hash = Shape::Hash(isolate, key);
-  // Valdate key is absent.
-  SLOW_DCHECK((dictionary->FindEntry(isolate, key) == Dictionary::kNotFound));
+  // Validate that the key is absent.
+  SLOW_DCHECK(dictionary->FindEntry(isolate, key).is_not_found());
   // Check whether the dictionary should be extended.
   dictionary = Derived::EnsureCapacity(isolate, dictionary, 1);
 
   // Compute the key object.
   Handle<Object> k = Shape::AsHandle(isolate, key);
 
-  uint32_t entry = dictionary->FindInsertionEntry(hash);
+  InternalIndex entry = dictionary->FindInsertionEntry(hash);
   dictionary->SetEntry(isolate, entry, *k, *value, details);
   DCHECK(dictionary->KeyAt(entry).IsNumber() ||
          Shape::Unwrap(dictionary->KeyAt(entry)).IsUniqueName());
@@ -7324,10 +7331,9 @@ Handle<NumberDictionary> NumberDictionary::Set(
 void NumberDictionary::CopyValuesTo(FixedArray elements) {
   ReadOnlyRoots roots = GetReadOnlyRoots();
   int pos = 0;
-  int capacity = this->Capacity();
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = elements.GetWriteBarrierMode(no_gc);
-  for (int i = 0; i < capacity; i++) {
+  for (InternalIndex i : this->IterateEntries()) {
     Object k;
     if (this->ToKey(roots, i, &k)) {
       elements.set(pos++, this->ValueAt(i), mode);
@@ -7339,9 +7345,8 @@ void NumberDictionary::CopyValuesTo(FixedArray elements) {
 template <typename Derived, typename Shape>
 int Dictionary<Derived, Shape>::NumberOfEnumerableProperties() {
   ReadOnlyRoots roots = this->GetReadOnlyRoots();
-  int capacity = this->Capacity();
   int result = 0;
-  for (int i = 0; i < capacity; i++) {
+  for (InternalIndex i : this->IterateEntries()) {
     Object k;
     if (!this->ToKey(roots, i, &k)) continue;
     if (k.FilterKey(ENUMERABLE_STRINGS)) continue;
@@ -7356,8 +7361,10 @@ template <typename Dictionary>
 struct EnumIndexComparator {
   explicit EnumIndexComparator(Dictionary dict) : dict(dict) {}
   bool operator()(Tagged_t a, Tagged_t b) {
-    PropertyDetails da(dict.DetailsAt(Smi(static_cast<Address>(a)).value()));
-    PropertyDetails db(dict.DetailsAt(Smi(static_cast<Address>(b)).value()));
+    PropertyDetails da(
+        dict.DetailsAt(InternalIndex(Smi(static_cast<Address>(a)).value())));
+    PropertyDetails db(
+        dict.DetailsAt(InternalIndex(Smi(static_cast<Address>(b)).value())));
     return da.dictionary_index() < db.dictionary_index();
   }
   Dictionary dict;
@@ -7369,10 +7376,9 @@ void BaseNameDictionary<Derived, Shape>::CopyEnumKeysTo(
     KeyCollectionMode mode, KeyAccumulator* accumulator) {
   DCHECK_IMPLIES(mode != KeyCollectionMode::kOwnOnly, accumulator != nullptr);
   int length = storage->length();
-  int capacity = dictionary->Capacity();
   int properties = 0;
   ReadOnlyRoots roots(isolate);
-  for (int i = 0; i < capacity; i++) {
+  for (InternalIndex i : dictionary->IterateEntries()) {
     Object key;
     if (!dictionary->ToKey(roots, i, &key)) continue;
     bool is_shadowing_key = false;
@@ -7389,7 +7395,7 @@ void BaseNameDictionary<Derived, Shape>::CopyEnumKeysTo(
       accumulator->AddShadowingKey(key);
       continue;
     } else {
-      storage->set(properties, Smi::FromInt(i));
+      storage->set(properties, Smi::FromInt(i.as_int()));
     }
     properties++;
     if (mode == KeyCollectionMode::kOwnOnly && properties == length) break;
@@ -7405,7 +7411,7 @@ void BaseNameDictionary<Derived, Shape>::CopyEnumKeysTo(
   AtomicSlot start(storage->GetFirstElementAddress());
   std::sort(start, start + length, cmp);
   for (int i = 0; i < length; i++) {
-    int index = Smi::ToInt(raw_storage.get(i));
+    InternalIndex index(Smi::ToInt(raw_storage.get(i)));
     raw_storage.set(i, raw_dictionary.NameAt(index));
   }
 }
@@ -7413,7 +7419,6 @@ void BaseNameDictionary<Derived, Shape>::CopyEnumKeysTo(
 template <typename Derived, typename Shape>
 Handle<FixedArray> BaseNameDictionary<Derived, Shape>::IterationIndices(
     Isolate* isolate, Handle<Derived> dictionary) {
-  int capacity = dictionary->Capacity();
   int length = dictionary->NumberOfElements();
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(length);
   ReadOnlyRoots roots(isolate);
@@ -7421,10 +7426,10 @@ Handle<FixedArray> BaseNameDictionary<Derived, Shape>::IterationIndices(
   {
     DisallowHeapAllocation no_gc;
     Derived raw_dictionary = *dictionary;
-    for (int i = 0; i < capacity; i++) {
+    for (InternalIndex i : dictionary->IterateEntries()) {
       Object k;
       if (!raw_dictionary.ToKey(roots, i, &k)) continue;
-      array->set(array_size++, Smi::FromInt(i));
+      array->set(array_size++, Smi::FromInt(i.as_int()));
     }
 
     DCHECK_EQ(array_size, length);
@@ -7443,7 +7448,7 @@ ExceptionStatus BaseNameDictionary<Derived, Shape>::CollectKeysTo(
     Handle<Derived> dictionary, KeyAccumulator* keys) {
   Isolate* isolate = keys->isolate();
   ReadOnlyRoots roots(isolate);
-  int capacity = dictionary->Capacity();
+  // TODO(jkummerow): Consider using a std::unique_ptr<InternalIndex[]> instead.
   Handle<FixedArray> array =
       isolate->factory()->NewFixedArray(dictionary->NumberOfElements());
   int array_size = 0;
@@ -7451,7 +7456,7 @@ ExceptionStatus BaseNameDictionary<Derived, Shape>::CollectKeysTo(
   {
     DisallowHeapAllocation no_gc;
     Derived raw_dictionary = *dictionary;
-    for (int i = 0; i < capacity; i++) {
+    for (InternalIndex i : dictionary->IterateEntries()) {
       Object k;
       if (!raw_dictionary.ToKey(roots, i, &k)) continue;
       if (k.FilterKey(filter)) continue;
@@ -7466,7 +7471,7 @@ ExceptionStatus BaseNameDictionary<Derived, Shape>::CollectKeysTo(
         if (!accessors.IsAccessorInfo()) continue;
         if (!AccessorInfo::cast(accessors).all_can_read()) continue;
       }
-      array->set(array_size++, Smi::FromInt(i));
+      array->set(array_size++, Smi::FromInt(i.as_int()));
     }
 
     EnumIndexComparator<Derived> cmp(raw_dictionary);
@@ -7478,7 +7483,7 @@ ExceptionStatus BaseNameDictionary<Derived, Shape>::CollectKeysTo(
 
   bool has_seen_symbol = false;
   for (int i = 0; i < array_size; i++) {
-    int index = Smi::ToInt(array->get(i));
+    InternalIndex index(Smi::ToInt(array->get(i)));
     Object key = dictionary->NameAt(index);
     if (key.IsSymbol()) {
       has_seen_symbol = true;
@@ -7489,7 +7494,7 @@ ExceptionStatus BaseNameDictionary<Derived, Shape>::CollectKeysTo(
   }
   if (has_seen_symbol) {
     for (int i = 0; i < array_size; i++) {
-      int index = Smi::ToInt(array->get(i));
+      InternalIndex index(Smi::ToInt(array->get(i)));
       Object key = dictionary->NameAt(index);
       if (!key.IsSymbol()) continue;
       ExceptionStatus status = keys->AddKey(key, DO_NOT_CONVERT);
@@ -7504,8 +7509,7 @@ template <typename Derived, typename Shape>
 Object Dictionary<Derived, Shape>::SlowReverseLookup(Object value) {
   Derived dictionary = Derived::cast(*this);
   ReadOnlyRoots roots = dictionary.GetReadOnlyRoots();
-  int capacity = dictionary.Capacity();
-  for (int i = 0; i < capacity; i++) {
+  for (InternalIndex i : dictionary.IterateEntries()) {
     Object k;
     if (!dictionary.ToKey(roots, i, &k)) continue;
     Object e = dictionary.ValueAt(i);
@@ -7518,7 +7522,7 @@ template <typename Derived, typename Shape>
 void ObjectHashTableBase<Derived, Shape>::FillEntriesWithHoles(
     Handle<Derived> table) {
   int length = table->length();
-  for (int i = Derived::EntryToIndex(0); i < length; i++) {
+  for (int i = Derived::EntryToIndex(InternalIndex(0)); i < length; i++) {
     table->set_the_hole(i);
   }
 }
@@ -7530,8 +7534,8 @@ Object ObjectHashTableBase<Derived, Shape>::Lookup(ReadOnlyRoots roots,
   DisallowHeapAllocation no_gc;
   DCHECK(this->IsKey(roots, *key));
 
-  int entry = this->FindEntry(roots, key, hash);
-  if (entry == kNotFound) return roots.the_hole_value();
+  InternalIndex entry = this->FindEntry(roots, key, hash);
+  if (entry.is_not_found()) return roots.the_hole_value();
   return this->get(Derived::EntryToIndex(entry) + 1);
 }
 
@@ -7557,7 +7561,7 @@ Object ObjectHashTableBase<Derived, Shape>::Lookup(Handle<Object> key,
 }
 
 template <typename Derived, typename Shape>
-Object ObjectHashTableBase<Derived, Shape>::ValueAt(int entry) {
+Object ObjectHashTableBase<Derived, Shape>::ValueAt(InternalIndex entry) {
   return this->get(EntryToValueIndex(entry));
 }
 
@@ -7586,10 +7590,10 @@ Handle<Derived> ObjectHashTableBase<Derived, Shape>::Put(Isolate* isolate,
   DCHECK(table->IsKey(roots, *key));
   DCHECK(!value->IsTheHole(roots));
 
-  int entry = table->FindEntry(roots, key, hash);
+  InternalIndex entry = table->FindEntry(roots, key, hash);
 
   // Key is already in table, just overwrite value.
-  if (entry != kNotFound) {
+  if (entry.is_found()) {
     table->set(Derived::EntryToValueIndex(entry), *value);
     return table;
   }
@@ -7641,8 +7645,8 @@ Handle<Derived> ObjectHashTableBase<Derived, Shape>::Remove(
   ReadOnlyRoots roots = table->GetReadOnlyRoots();
   DCHECK(table->IsKey(roots, *key));
 
-  int entry = table->FindEntry(roots, key, hash);
-  if (entry == kNotFound) {
+  InternalIndex entry = table->FindEntry(roots, key, hash);
+  if (entry.is_not_found()) {
     *was_present = false;
     return table;
   }
@@ -7653,8 +7657,8 @@ Handle<Derived> ObjectHashTableBase<Derived, Shape>::Remove(
 }
 
 template <typename Derived, typename Shape>
-void ObjectHashTableBase<Derived, Shape>::AddEntry(int entry, Object key,
-                                                   Object value) {
+void ObjectHashTableBase<Derived, Shape>::AddEntry(InternalIndex entry,
+                                                   Object key, Object value) {
   Derived* self = static_cast<Derived*>(this);
   self->set_key(Derived::EntryToIndex(entry), key);
   self->set(Derived::EntryToValueIndex(entry), value);
@@ -7662,7 +7666,7 @@ void ObjectHashTableBase<Derived, Shape>::AddEntry(int entry, Object key,
 }
 
 template <typename Derived, typename Shape>
-void ObjectHashTableBase<Derived, Shape>::RemoveEntry(int entry) {
+void ObjectHashTableBase<Derived, Shape>::RemoveEntry(InternalIndex entry) {
   this->set_the_hole(Derived::EntryToIndex(entry));
   this->set_the_hole(Derived::EntryToValueIndex(entry));
   this->ElementRemoved();
@@ -7754,7 +7758,7 @@ Handle<JSArray> JSWeakCollection::GetEntries(Handle<JSWeakCollection> holder,
     for (int i = 0;
          count / values_per_entry < max_entries && i < table->Capacity(); i++) {
       Object key;
-      if (table->ToKey(roots, i, &key)) {
+      if (table->ToKey(roots, InternalIndex(i), &key)) {
         entries->set(count++, key);
         if (values_per_entry > 1) {
           Object value = table->Lookup(handle(key, isolate));
@@ -7768,7 +7772,8 @@ Handle<JSArray> JSWeakCollection::GetEntries(Handle<JSWeakCollection> holder,
 }
 
 Handle<PropertyCell> PropertyCell::InvalidateEntry(
-    Isolate* isolate, Handle<GlobalDictionary> dictionary, int entry) {
+    Isolate* isolate, Handle<GlobalDictionary> dictionary,
+    InternalIndex entry) {
   // Swap with a copy.
   Handle<PropertyCell> cell(dictionary->CellAt(entry), isolate);
   Handle<Name> name(cell->name(), isolate);
@@ -7848,7 +7853,7 @@ PropertyCellType PropertyCell::UpdatedType(Isolate* isolate,
 }
 
 Handle<PropertyCell> PropertyCell::PrepareForValue(
-    Isolate* isolate, Handle<GlobalDictionary> dictionary, int entry,
+    Isolate* isolate, Handle<GlobalDictionary> dictionary, InternalIndex entry,
     Handle<Object> value, PropertyDetails details) {
   DCHECK(!value->IsTheHole(isolate));
   Handle<PropertyCell> cell(dictionary->CellAt(entry), isolate);

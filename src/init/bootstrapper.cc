@@ -5345,7 +5345,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
     Handle<FixedArray> indices =
         GlobalDictionary::IterationIndices(isolate(), properties);
     for (int i = 0; i < indices->length(); i++) {
-      int index = Smi::ToInt(indices->get(i));
+      InternalIndex index(Smi::ToInt(indices->get(i)));
       Handle<PropertyCell> cell(properties->CellAt(index), isolate());
       Handle<Name> key(cell->name(), isolate());
       // If the property is already there we skip it.
@@ -5365,7 +5365,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         NameDictionary::IterationIndices(isolate(), properties);
     ReadOnlyRoots roots(isolate());
     for (int i = 0; i < key_indices->length(); i++) {
-      int key_index = Smi::ToInt(key_indices->get(i));
+      InternalIndex key_index(Smi::ToInt(key_indices->get(i)));
       Object raw_key = properties->KeyAt(key_index);
       DCHECK(properties->IsKey(roots, raw_key));
       DCHECK(raw_key.IsName());

@@ -536,7 +536,7 @@ void SourceTextModule::FetchStarExports(Isolate* isolate,
     // the name to undefined instead of a Cell.
     Handle<ObjectHashTable> requested_exports(requested_module->exports(),
                                               isolate);
-    for (int i = 0, n = requested_exports->Capacity(); i < n; ++i) {
+    for (InternalIndex i : requested_exports->IterateEntries()) {
       Object key;
       if (!requested_exports->ToKey(roots, i, &key)) continue;
       Handle<String> name(String::cast(key), isolate);

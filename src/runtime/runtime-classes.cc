@@ -215,8 +215,7 @@ Handle<Dictionary> ShallowCopyDictionaryTemplate(
       Handle<Dictionary>::cast(isolate->factory()->CopyFixedArrayWithMap(
           dictionary_template, dictionary_map));
   // Clone all AccessorPairs in the dictionary.
-  int capacity = dictionary->Capacity();
-  for (int i = 0; i < capacity; i++) {
+  for (InternalIndex i : dictionary->IterateEntries()) {
     Object value = dictionary->ValueAt(i);
     if (value.IsAccessorPair()) {
       Handle<AccessorPair> pair(AccessorPair::cast(value), isolate);
@@ -235,9 +234,8 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
   Handle<Name> name_string = isolate->factory()->name_string();
 
   // Replace all indices with proper methods.
-  int capacity = dictionary->Capacity();
   ReadOnlyRoots roots(isolate);
-  for (int i = 0; i < capacity; i++) {
+  for (InternalIndex i : dictionary->IterateEntries()) {
     Object maybe_key = dictionary->KeyAt(i);
     if (!Dictionary::IsKey(roots, maybe_key)) continue;
     if (install_name_accessor && *install_name_accessor &&
