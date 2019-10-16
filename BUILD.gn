@@ -1584,7 +1584,6 @@ v8_source_set("v8_initializers") {
     "src/builtins/builtins-promise-gen.h",
     "src/builtins/builtins-proxy-gen.cc",
     "src/builtins/builtins-proxy-gen.h",
-    "src/builtins/builtins-reflect-gen.cc",
     "src/builtins/builtins-regexp-gen.cc",
     "src/builtins/builtins-regexp-gen.h",
     "src/builtins/builtins-sharedarraybuffer-gen.cc",

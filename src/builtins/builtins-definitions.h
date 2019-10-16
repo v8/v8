@@ -823,7 +823,6 @@ namespace internal {
   ASM(ReflectConstruct, Dummy)                                                 \
   CPP(ReflectDefineProperty)                                                   \
   CPP(ReflectGetOwnPropertyDescriptor)                                         \
-  TFJ(ReflectHas, 2, kReceiver, kTarget, kKey)                                 \
   CPP(ReflectOwnKeys)                                                          \
   CPP(ReflectSet)                                                              \
                                                                                \

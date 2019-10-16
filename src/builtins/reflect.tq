@@ -76,4 +76,12 @@ namespace reflect {
         otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.deleteProperty');
     return DeleteProperty(objectJSReceiver, key, kSloppy);
   }
+
+  // ES section #sec-reflect.has
+  transitioning javascript builtin
+  ReflectHas(js-implicit context: Context)(object: JSAny, key: JSAny): JSAny {
+    const objectJSReceiver = Cast<JSReceiver>(object)
+        otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.has');
+    return HasProperty(objectJSReceiver, key);
+  }
 }  // namespace reflect
