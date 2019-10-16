@@ -148,6 +148,8 @@ namespace compiler {
   V(S390_LoadReverse16RR)                   \
   V(S390_LoadReverse32RR)                   \
   V(S390_LoadReverse64RR)                   \
+  V(S390_LoadReverseSimd128RR)              \
+  V(S390_LoadReverseSimd128)                \
   V(S390_LoadReverse16)                     \
   V(S390_LoadReverse32)                     \
   V(S390_LoadReverse64)                     \
@@ -161,6 +163,7 @@ namespace compiler {
   V(S390_StoreReverse16)                    \
   V(S390_StoreReverse32)                    \
   V(S390_StoreReverse64)                    \
+  V(S390_StoreReverseSimd128)               \
   V(S390_StoreFloat32)                      \
   V(S390_StoreDouble)                       \
   V(S390_DecompressSigned)                  \
