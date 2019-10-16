@@ -2992,9 +2992,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     // For conditional branches, stack value '0' is the condition of the branch,
     // and the result values start at index '1'.
     int index_offset = conditional_branch ? 1 : 0;
-    for (int i = 0; i < arity; ++i) Pop(index_offset + i, merge[i].type);
+    for (int i = arity - 1; i >= 0; --i) Pop(index_offset + i, merge[i].type);
     // Push values of the correct type back on the stack.
-    for (int i = arity - 1; i >= 0; --i) Push(merge[i].type);
+    for (int i = 0; i < arity; ++i) Push(merge[i].type);
     return this->ok();
   }
 

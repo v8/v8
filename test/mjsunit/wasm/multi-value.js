@@ -66,6 +66,49 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(instance.exports.main(1, 4), 5);
 })();
 
+(function MultiBlockUnreachableTest() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig_il_v = builder.addType(makeSig([], [kWasmI32, kWasmI64]));
+
+  builder.addFunction("main", kSig_i_v)
+    .addBody([
+      kExprBlock, sig_il_v,
+      kExprI32Const, 1,
+      kExprI64Const, 1,
+      kExprBr, 0,
+      kExprI32Const, 1,
+      kExprI64Const, 1,
+      kExprEnd,
+      kExprDrop])
+    .exportAs("main");
+
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = new WebAssembly.Instance(module);
+  assertEquals(instance.exports.main(1, 2), 1);
+})();
+
+(function MultiBlockUnreachableTypeErrorTest() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig_il_v = builder.addType(makeSig([], [kWasmI32, kWasmI64]));
+
+  builder.addFunction("main", kSig_i_v)
+    .addBody([
+      kExprBlock, sig_il_v,
+      kExprI32Const, 1,
+      kExprI64Const, 1,
+      kExprBr, 0,
+      kExprI64Const, 1,
+      kExprI32Const, 1,
+      // Wrong order: expect i32, i64.
+      kExprEnd,
+      kExprDrop])
+    .exportAs("main");
+
+  assertThrows(() => new WebAssembly.Module(builder.toBuffer()),
+      WebAssembly.CompileError, /expected type i64, found i32.const/);
+})();
 
 (function MultiLoopResultTest() {
   print("MultiLoopResultTest");
