@@ -524,6 +524,10 @@ class LiftoffCompiler {
   void Block(FullDecoder* decoder, Control* block) {}
 
   void Loop(FullDecoder* decoder, Control* loop) {
+    if (loop->start_merge.arity > 0 || loop->end_merge.arity > 1) {
+      return unsupported(decoder, kMultiValue, "multi-value loop");
+    }
+
     // Before entering a loop, spill all locals to the stack, in order to free
     // the cache registers, and to avoid unnecessarily reloading stack values
     // into registers at branches.
