@@ -128,6 +128,9 @@ namespace compiler {
   V(ArmPeek)                       \
   V(ArmDmbIsh)                     \
   V(ArmDsbIsb)                     \
+  V(ArmF64x2Splat)                 \
+  V(ArmF64x2ExtractLane)           \
+  V(ArmF64x2ReplaceLane)           \
   V(ArmF32x4Splat)                 \
   V(ArmF32x4ExtractLane)           \
   V(ArmF32x4ReplaceLane)           \

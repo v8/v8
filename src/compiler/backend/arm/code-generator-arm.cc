@@ -1763,6 +1763,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ and_(i.OutputRegister(0), i.InputRegister(0),
               Operand(kSpeculationPoisonRegister));
       break;
+    case kArmF64x2Splat: {
+      Simd128Register dst = i.OutputSimd128Register();
+      DoubleRegister src = i.InputDoubleRegister(0);
+      __ Move(dst.low(), src);
+      __ Move(dst.high(), src);
+      break;
+    }
+    case kArmF64x2ExtractLane: {
+      __ ExtractLane(i.OutputDoubleRegister(), i.InputSimd128Register(0),
+                     i.InputInt8(1));
+      break;
+    }
+    case kArmF64x2ReplaceLane: {
+      __ ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                     i.InputDoubleRegister(2), i.InputInt8(1));
+      break;
+    }
     case kArmF32x4Splat: {
       int src_code = i.InputFloatRegister(0).code();
       __ vdup(Neon32, i.OutputSimd128Register(),

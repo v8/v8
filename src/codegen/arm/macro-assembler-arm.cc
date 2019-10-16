@@ -1125,6 +1125,12 @@ void TurboAssembler::ExtractLane(SwVfpRegister dst, QwNeonRegister src,
   VmovExtended(dst.code(), s_code);
 }
 
+void TurboAssembler::ExtractLane(DwVfpRegister dst, QwNeonRegister src,
+                                 int lane) {
+  DwVfpRegister double_dst = DwVfpRegister::from_code(src.code() * 2 + lane);
+  vmov(dst, double_dst);
+}
+
 void TurboAssembler::ReplaceLane(QwNeonRegister dst, QwNeonRegister src,
                                  Register src_lane, NeonDataType dt, int lane) {
   Move(dst, src);
@@ -1143,6 +1149,13 @@ void TurboAssembler::ReplaceLane(QwNeonRegister dst, QwNeonRegister src,
   Move(dst, src);
   int s_code = dst.code() * 4 + lane;
   VmovExtended(s_code, src_lane.code());
+}
+
+void TurboAssembler::ReplaceLane(QwNeonRegister dst, QwNeonRegister src,
+                                 DwVfpRegister src_lane, int lane) {
+  Move(dst, src);
+  DwVfpRegister double_dst = DwVfpRegister::from_code(dst.code() * 2 + lane);
+  vmov(double_dst, src_lane);
 }
 
 void TurboAssembler::LslPair(Register dst_low, Register dst_high,

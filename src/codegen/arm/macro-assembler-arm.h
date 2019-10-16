@@ -440,10 +440,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void ExtractLane(Register dst, QwNeonRegister src, NeonDataType dt, int lane);
   void ExtractLane(Register dst, DwVfpRegister src, NeonDataType dt, int lane);
   void ExtractLane(SwVfpRegister dst, QwNeonRegister src, int lane);
+  void ExtractLane(DwVfpRegister dst, QwNeonRegister src, int lane);
   void ReplaceLane(QwNeonRegister dst, QwNeonRegister src, Register src_lane,
                    NeonDataType dt, int lane);
   void ReplaceLane(QwNeonRegister dst, QwNeonRegister src,
                    SwVfpRegister src_lane, int lane);
+  void ReplaceLane(QwNeonRegister dst, QwNeonRegister src,
+                   DwVfpRegister src_lane, int lane);
 
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Smi smi);
