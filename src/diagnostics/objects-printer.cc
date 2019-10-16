@@ -2543,7 +2543,9 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   }
   if (is_access_check_needed()) os << "\n - access_check_needed";
   if (!is_extensible()) os << "\n - non-extensible";
-  if (is_prototype_map()) {
+  if (IsContextMap()) {
+    os << "\n - native context: " << Brief(native_context());
+  } else if (is_prototype_map()) {
     os << "\n - prototype_map";
     os << "\n - prototype info: " << Brief(prototype_info());
   } else {
@@ -2580,7 +2582,9 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
     }
   }
   os << "\n - prototype: " << Brief(prototype());
-  os << "\n - constructor: " << Brief(GetConstructor());
+  if (!IsContextMap()) {
+    os << "\n - constructor: " << Brief(GetConstructor());
+  }
   os << "\n - dependent code: " << Brief(dependent_code());
   os << "\n - construction counter: " << construction_counter();
   os << "\n";

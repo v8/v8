@@ -148,35 +148,17 @@ bool SimulatorHelper::FillRegisters(Isolate* isolate,
 // context is in an inconsistent state.
 Address ScrapeNativeContextAddress(Heap* heap, Address context_address) {
   DCHECK_EQ(heap->gc_state(), Heap::NOT_IN_GC);
-
-  if (!HAS_STRONG_HEAP_OBJECT_TAG(context_address)) return kNullAddress;
-
-  if (heap->memory_allocator()->IsOutsideAllocatedSpace(context_address))
-    return kNullAddress;
-
-  // Note that once a native context has been assigned to a context, the slot
-  // is no longer mutated except during pointer updates / evictions. Since
-  // pointer updates exclusively occur on the main thread, and we don't record
-  // TickSamples when the main thread's VM state is GC, the only other
-  // situation where the address here would be invalid is if it's being
-  // reassigned -- which isn't possible.
-  int native_context_offset =
-      i::Context::SlotOffset(i::Context::NATIVE_CONTEXT_INDEX);
-  i::Address native_context_slot_address =
-      context_address + native_context_offset;
-
-  // By the prior hypothesis, the indirect native context address should always
-  // be valid.
-  if (heap->memory_allocator()->IsOutsideAllocatedSpace(
-          native_context_slot_address)) {
-    DCHECK(false);
-    return kNullAddress;
-  }
-
-  i::ObjectSlot native_context_slot(native_context_slot_address);
-  i::Object native_context = native_context_slot.Relaxed_Load();
-
-  return native_context.ptr();
+#if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_IA32)
+  // Only on x64 and ia32 are we sure that we're not setting up a frame when
+  // this function is called.
+  return kNullAddress;
+#else
+  i::Object object(context_address);
+  // The context slot may contain a smi-ish value as a frame marker.
+  if (!object.IsHeapObject()) return kNullAddress;
+  i::Context context = i::Context::cast(object);
+  return context.map().native_context().ptr();
+#endif
 }
 
 }  // namespace

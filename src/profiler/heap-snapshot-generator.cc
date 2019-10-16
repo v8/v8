@@ -992,9 +992,6 @@ void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
   SetInternalReference(entry, "extension",
                        context.get(Context::EXTENSION_INDEX),
                        FixedArray::OffsetOfElementAt(Context::EXTENSION_INDEX));
-  SetInternalReference(
-      entry, "native_context", context.get(Context::NATIVE_CONTEXT_INDEX),
-      FixedArray::OffsetOfElementAt(Context::NATIVE_CONTEXT_INDEX));
 
   if (context.IsNativeContext()) {
     TagObject(context.normalized_map_cache(), "(context norm. map cache)");
@@ -1064,19 +1061,26 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
     SetInternalReference(entry, "layout_descriptor", map.layout_descriptor(),
                          Map::kLayoutDescriptorOffset);
   }
-  Object constructor_or_backpointer = map.constructor_or_backpointer();
-  if (constructor_or_backpointer.IsMap()) {
-    TagObject(constructor_or_backpointer, "(back pointer)");
-    SetInternalReference(entry, "back_pointer", constructor_or_backpointer,
-                         Map::kConstructorOrBackPointerOffset);
-  } else if (constructor_or_backpointer.IsFunctionTemplateInfo()) {
-    TagObject(constructor_or_backpointer, "(constructor function data)");
-    SetInternalReference(entry, "constructor_function_data",
-                         constructor_or_backpointer,
-                         Map::kConstructorOrBackPointerOffset);
+  if (map.IsContextMap()) {
+    Object native_context = map.native_context();
+    TagObject(native_context, "(native context)");
+    SetInternalReference(entry, "native_context", native_context,
+                         Map::kConstructorOrBackPointerOrNativeContextOffset);
   } else {
-    SetInternalReference(entry, "constructor", constructor_or_backpointer,
-                         Map::kConstructorOrBackPointerOffset);
+    Object constructor_or_backpointer = map.constructor_or_backpointer();
+    if (constructor_or_backpointer.IsMap()) {
+      TagObject(constructor_or_backpointer, "(back pointer)");
+      SetInternalReference(entry, "back_pointer", constructor_or_backpointer,
+                           Map::kConstructorOrBackPointerOrNativeContextOffset);
+    } else if (constructor_or_backpointer.IsFunctionTemplateInfo()) {
+      TagObject(constructor_or_backpointer, "(constructor function data)");
+      SetInternalReference(entry, "constructor_function_data",
+                           constructor_or_backpointer,
+                           Map::kConstructorOrBackPointerOrNativeContextOffset);
+    } else {
+      SetInternalReference(entry, "constructor", constructor_or_backpointer,
+                           Map::kConstructorOrBackPointerOrNativeContextOffset);
+    }
   }
   TagObject(map.dependent_code(), "(dependent code)");
   SetInternalReference(entry, "dependent_code", map.dependent_code(),

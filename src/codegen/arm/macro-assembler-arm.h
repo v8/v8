@@ -620,6 +620,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void LeaveExitFrame(bool save_doubles, Register argument_count,
                       bool argument_count_is_length = false);
 
+  void LoadMap(Register destination, Register object);
+
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst);
 
@@ -804,17 +806,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };
-
-// -----------------------------------------------------------------------------
-// Static helper functions.
-
-inline MemOperand ContextMemOperand(Register context, int index = 0) {
-  return MemOperand(context, Context::SlotOffset(index));
-}
-
-inline MemOperand NativeContextMemOperand() {
-  return ContextMemOperand(cp, Context::NATIVE_CONTEXT_INDEX);
-}
 
 #define ACCESS_MASM(masm) masm->
 
