@@ -406,9 +406,9 @@ void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
   RecordUsedSpillSlot(last_stack_slot);
 
   int max_stp_offset = -liftoff::GetStackSlotOffset(index + count - 1);
-  if (count <= 20 && IsImmLSPair(max_stp_offset, kXRegSizeLog2)) {
-    // Special straight-line code for up to 20 slots. Generates one
-    // instruction per two slots (<= 10 instructions total).
+  if (count <= 12 && IsImmLSPair(max_stp_offset, kXRegSizeLog2)) {
+    // Special straight-line code for up to 12 slots. Generates one
+    // instruction per two slots (<= 6 instructions total).
     for (; count > 1; count -= 2) {
       STATIC_ASSERT(kStackSlotSize == kSystemPointerSize);
       stp(xzr, xzr, liftoff::GetStackSlot(index + count - 1));
@@ -416,19 +416,19 @@ void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
     DCHECK(count == 0 || count == 1);
     if (count) str(xzr, liftoff::GetStackSlot(index));
   } else {
-    // General case for bigger counts (7 instructions).
-    // Use x0 for start address (inclusive), x1 for end address (exclusive).
-    Push(x1, x0);
-    Sub(x0, fp, Operand(liftoff::GetStackSlotOffset(last_stack_slot)));
-    Sub(x1, fp, Operand(liftoff::GetStackSlotOffset(index) - kStackSlotSize));
+    // General case for bigger counts (5-8 instructions).
+    UseScratchRegisterScope temps(this);
+    Register address_reg = temps.AcquireX();
+    // This {Sub} might use another temp register if the offset is too large.
+    Sub(address_reg, fp, liftoff::GetStackSlotOffset(last_stack_slot));
+    Register count_reg = temps.AcquireX();
+    Mov(count_reg, count);
 
     Label loop;
     bind(&loop);
-    str(xzr, MemOperand(x0, /* offset */ kSystemPointerSize, PostIndex));
-    cmp(x0, x1);
-    b(&loop, ne);
-
-    Pop(x0, x1);
+    sub(count_reg, count_reg, 1);
+    str(xzr, MemOperand(address_reg, kSystemPointerSize, PostIndex));
+    cbnz(count_reg, &loop);
   }
 }
 
