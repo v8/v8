@@ -196,8 +196,8 @@ TNode<JSObject> ConstructorBuiltinsAssembler::EmitFastNewObject(
 
   // Fall back to runtime if the target differs from the new target's
   // initial map constructor.
-  TNode<Object> new_target_constructor = LoadObjectField(
-      initial_map, Map::kConstructorOrBackPointerOrNativeContextOffset);
+  TNode<Object> new_target_constructor =
+      LoadObjectField(initial_map, Map::kConstructorOrBackPointerOffset);
   GotoIf(TaggedNotEqual(target, new_target_constructor), call_runtime);
 
   TVARIABLE(HeapObject, properties);
@@ -230,21 +230,19 @@ TNode<Context> ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
   TNode<Context> function_context =
       UncheckedCast<Context>(AllocateInNewSpace(size));
 
-  TNode<NativeContext> native_context = LoadNativeContext(context);
-  Context::Field index;
+  RootIndex context_type;
   switch (scope_type) {
     case EVAL_SCOPE:
-      index = Context::EVAL_CONTEXT_MAP_INDEX;
+      context_type = RootIndex::kEvalContextMap;
       break;
     case FUNCTION_SCOPE:
-      index = Context::FUNCTION_CONTEXT_MAP_INDEX;
+      context_type = RootIndex::kFunctionContextMap;
       break;
     default:
       UNREACHABLE();
   }
-  TNode<Map> map = CAST(LoadContextElement(native_context, index));
   // Set up the header.
-  StoreMapNoWriteBarrier(function_context, map);
+  StoreMapNoWriteBarrier(function_context, context_type);
   TNode<IntPtrT> min_context_slots = IntPtrConstant(Context::MIN_CONTEXT_SLOTS);
   // TODO(ishell): for now, length also includes MIN_CONTEXT_SLOTS.
   TNode<IntPtrT> length = IntPtrAdd(slots_intptr, min_context_slots);
@@ -256,6 +254,9 @@ TNode<Context> ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
                                  context);
   StoreObjectFieldNoWriteBarrier(function_context, Context::kExtensionOffset,
                                  TheHoleConstant());
+  TNode<NativeContext> native_context = LoadNativeContext(context);
+  StoreObjectFieldNoWriteBarrier(function_context,
+                                 Context::kNativeContextOffset, native_context);
 
   // Initialize the varrest of the slots to undefined.
   TNode<Oddball> undefined = UndefinedConstant();

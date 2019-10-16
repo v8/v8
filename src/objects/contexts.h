@@ -194,17 +194,6 @@ enum ContextLookupFlags {
   V(JS_WEAK_REF_FUNCTION_INDEX, JSFunction, js_weak_ref_fun)                   \
   V(JS_FINALIZATION_GROUP_FUNCTION_INDEX, JSFunction,                          \
     js_finalization_group_fun)                                                 \
-  /* Context maps */                                                           \
-  V(NATIVE_CONTEXT_MAP_INDEX, Map, native_context_map)                         \
-  V(FUNCTION_CONTEXT_MAP_INDEX, Map, function_context_map)                     \
-  V(MODULE_CONTEXT_MAP_INDEX, Map, module_context_map)                         \
-  V(EVAL_CONTEXT_MAP_INDEX, Map, eval_context_map)                             \
-  V(SCRIPT_CONTEXT_MAP_INDEX, Map, script_context_map)                         \
-  V(AWAIT_CONTEXT_MAP_INDEX, Map, await_context_map)                           \
-  V(BLOCK_CONTEXT_MAP_INDEX, Map, block_context_map)                           \
-  V(CATCH_CONTEXT_MAP_INDEX, Map, catch_context_map)                           \
-  V(WITH_CONTEXT_MAP_INDEX, Map, with_context_map)                             \
-  V(DEBUG_EVALUATE_CONTEXT_MAP_INDEX, Map, debug_evaluate_context_map)         \
   V(MAP_CACHE_INDEX, Object, map_cache)                                        \
   V(MAP_KEY_ITERATOR_MAP_INDEX, Map, map_key_iterator_map)                     \
   V(MAP_KEY_VALUE_ITERATOR_MAP_INDEX, Map, map_key_value_iterator_map)         \
@@ -524,6 +513,7 @@ class Context : public HeapObject {
     SCOPE_INFO_INDEX,
     PREVIOUS_INDEX,
     EXTENSION_INDEX,
+    NATIVE_CONTEXT_INDEX,
 
 // These slots are only in native contexts.
 #define NATIVE_CONTEXT_SLOT(index, type, name) index,
@@ -599,6 +589,7 @@ class Context : public HeapObject {
 
   // Compute the native context.
   inline NativeContext native_context() const;
+  inline void set_native_context(NativeContext context);
 
   // Predicates for context types.  IsNativeContext is already defined on
   // Object.
@@ -676,6 +667,8 @@ class Context : public HeapObject {
  private:
 #ifdef DEBUG
   // Bootstrapping-aware type checks.
+  V8_EXPORT_PRIVATE static bool IsBootstrappingOrNativeContext(Isolate* isolate,
+                                                               Object object);
   static bool IsBootstrappingOrValidParentContext(Object object, Context kid);
 #endif
 

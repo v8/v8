@@ -1025,7 +1025,7 @@ class V8_EXPORT_PRIVATE Factory {
   // Allocates new context with given map, sets length and initializes the
   // after-header part with uninitialized values and leaves the context header
   // uninitialized.
-  Handle<Context> NewContext(Handle<Map> map, int size,
+  Handle<Context> NewContext(RootIndex map_root_index, int size,
                              int variadic_part_length,
                              AllocationType allocation);
 

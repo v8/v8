@@ -123,14 +123,6 @@
 }],  # ALWAYS
 
 ##############################################################################
-['arch != ia32 and arch != x64', {
-  # BUG(v8:9860). We can only safely read the native context for a frame on
-  # ia32 and x64.
-  'test-cpu-profiler/ContextFilterMovedNativeContext': [FAIL],
-  'test-cpu-profiler/ContextIsolation': [FAIL],
-}],
-
-##############################################################################
 ['arch == arm64', {
   'test-api/Bug618': [PASS],
 

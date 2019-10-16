@@ -216,11 +216,6 @@ void TurboAssembler::CompareRoot(Operand with, RootIndex index) {
   }
 }
 
-void TurboAssembler::LoadMap(Register destination, Register object) {
-  LoadTaggedPointerField(destination,
-                         FieldOperand(object, HeapObject::kMapOffset));
-}
-
 void TurboAssembler::LoadTaggedPointerField(Register destination,
                                             Operand field_operand) {
   if (COMPRESS_POINTERS_BOOL) {
@@ -2116,7 +2111,8 @@ void TurboAssembler::Ret(int bytes_dropped, Register scratch) {
 
 void MacroAssembler::CmpObjectType(Register heap_object, InstanceType type,
                                    Register map) {
-  LoadMap(map, heap_object);
+  LoadTaggedPointerField(map,
+                         FieldOperand(heap_object, HeapObject::kMapOffset));
   CmpInstanceType(map, type);
 }
 
@@ -2159,7 +2155,8 @@ void MacroAssembler::AssertConstructor(Register object) {
     testb(object, Immediate(kSmiTagMask));
     Check(not_equal, AbortReason::kOperandIsASmiAndNotAConstructor);
     Push(object);
-    LoadMap(object, object);
+    LoadTaggedPointerField(object,
+                           FieldOperand(object, HeapObject::kMapOffset));
     testb(FieldOperand(object, Map::kBitFieldOffset),
           Immediate(Map::IsConstructorBit::kMask));
     Pop(object);
@@ -2197,7 +2194,7 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   // Load map
   Register map = object;
   Push(object);
-  LoadMap(map, object);
+  LoadTaggedPointerField(map, FieldOperand(object, HeapObject::kMapOffset));
 
   Label do_check;
   // Check if JSGeneratorObject
@@ -2730,13 +2727,8 @@ static const int kRegisterPassedArguments = 6;
 #endif
 
 void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
-  // Load native context.
-  LoadMap(dst, rsi);
-  LoadTaggedPointerField(
-      dst,
-      FieldOperand(dst, Map::kConstructorOrBackPointerOrNativeContextOffset));
-  // Load value from native context.
-  LoadTaggedPointerField(dst, Operand(dst, Context::SlotOffset(index)));
+  LoadTaggedPointerField(dst, NativeContextOperand());
+  LoadTaggedPointerField(dst, ContextOperand(dst, index));
 }
 
 int TurboAssembler::ArgumentStackSlotsForCFunctionCall(int num_arguments) {

@@ -1198,23 +1198,26 @@ Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {
     Node* context = NodeProperties::GetContextInput(node);
     Node* extension = jsgraph()->TheHoleConstant();
     AllocationBuilder a(jsgraph(), effect, control);
-    STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 3);  // Ensure fully covered.
+    STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
     int context_length = slot_count + Context::MIN_CONTEXT_SLOTS;
+    Handle<Map> map;
     switch (scope_type) {
       case EVAL_SCOPE:
-        a.AllocateContext(context_length, native_context().eval_context_map());
+        map = factory()->eval_context_map();
         break;
       case FUNCTION_SCOPE:
-        a.AllocateContext(context_length,
-                          native_context().function_context_map());
+        map = factory()->function_context_map();
         break;
       default:
         UNREACHABLE();
     }
+    a.AllocateContext(context_length, MapRef(broker(), map));
     a.Store(AccessBuilder::ForContextSlot(Context::SCOPE_INFO_INDEX),
             scope_info);
     a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
     a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
+    a.Store(AccessBuilder::ForContextSlot(Context::NATIVE_CONTEXT_INDEX),
+            jsgraph()->Constant(native_context()));
     for (int i = Context::MIN_CONTEXT_SLOTS; i < context_length; ++i) {
       a.Store(AccessBuilder::ForContextSlot(i), jsgraph()->UndefinedConstant());
     }
@@ -1235,12 +1238,14 @@ Reduction JSCreateLowering::ReduceJSCreateWithContext(Node* node) {
   Node* context = NodeProperties::GetContextInput(node);
 
   AllocationBuilder a(jsgraph(), effect, control);
-  STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 3);  // Ensure fully covered.
+  STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
   a.AllocateContext(Context::MIN_CONTEXT_SLOTS,
-                    native_context().with_context_map());
+                    MapRef(broker(), factory()->with_context_map()));
   a.Store(AccessBuilder::ForContextSlot(Context::SCOPE_INFO_INDEX), scope_info);
   a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
   a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
+  a.Store(AccessBuilder::ForContextSlot(Context::NATIVE_CONTEXT_INDEX),
+          jsgraph()->Constant(native_context()));
   RelaxControls(node);
   a.FinishAndChange(node);
   return Changed(node);
@@ -1256,12 +1261,14 @@ Reduction JSCreateLowering::ReduceJSCreateCatchContext(Node* node) {
   Node* extension = jsgraph()->TheHoleConstant();
 
   AllocationBuilder a(jsgraph(), effect, control);
-  STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 3);  // Ensure fully covered.
+  STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
   a.AllocateContext(Context::MIN_CONTEXT_SLOTS + 1,
-                    native_context().catch_context_map());
+                    MapRef(broker(), factory()->catch_context_map()));
   a.Store(AccessBuilder::ForContextSlot(Context::SCOPE_INFO_INDEX), scope_info);
   a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
   a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
+  a.Store(AccessBuilder::ForContextSlot(Context::NATIVE_CONTEXT_INDEX),
+          jsgraph()->Constant(native_context()));
   a.Store(AccessBuilder::ForContextSlot(Context::THROWN_OBJECT_INDEX),
           exception);
   RelaxControls(node);
@@ -1283,12 +1290,15 @@ Reduction JSCreateLowering::ReduceJSCreateBlockContext(Node* node) {
     Node* extension = jsgraph()->TheHoleConstant();
 
     AllocationBuilder a(jsgraph(), effect, control);
-    STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 3);  // Ensure fully covered.
-    a.AllocateContext(context_length, native_context().block_context_map());
+    STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
+    a.AllocateContext(context_length,
+                      MapRef(broker(), factory()->block_context_map()));
     a.Store(AccessBuilder::ForContextSlot(Context::SCOPE_INFO_INDEX),
             scope_info);
     a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
     a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
+    a.Store(AccessBuilder::ForContextSlot(Context::NATIVE_CONTEXT_INDEX),
+            jsgraph()->Constant(native_context()));
     for (int i = Context::MIN_CONTEXT_SLOTS; i < context_length; ++i) {
       a.Store(AccessBuilder::ForContextSlot(i), jsgraph()->UndefinedConstant());
     }

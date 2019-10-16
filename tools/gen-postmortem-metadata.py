@@ -193,6 +193,8 @@ consts_misc = [
 
     { 'name': 'context_idx_scope_info',
         'value': 'Context::SCOPE_INFO_INDEX' },
+    { 'name': 'context_idx_native',
+        'value': 'Context::NATIVE_CONTEXT_INDEX' },
     { 'name': 'context_idx_prev',
         'value': 'Context::PREVIOUS_INDEX' },
     { 'name': 'context_idx_ext',

@@ -103,8 +103,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
 
-  void LoadMap(Register destination, Register object);
-
   void RetpolineJump(Register reg);
 
   void CallForDeoptimization(Address target, int deopt_id);
@@ -555,8 +553,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst);
 
-  // Load a value from the native context with a given index.
-  void LoadNativeContextSlot(Register dst, int index);
+  // Load the global function with the given index.
+  void LoadGlobalFunction(int index, Register function);
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes
@@ -738,6 +736,18 @@ inline Operand FieldOperand(Register object, int offset) {
 inline Operand FieldOperand(Register object, Register index, ScaleFactor scale,
                             int offset) {
   return Operand(object, index, scale, offset - kHeapObjectTag);
+}
+
+inline Operand ContextOperand(Register context, int index) {
+  return Operand(context, Context::SlotOffset(index));
+}
+
+inline Operand ContextOperand(Register context, Register index) {
+  return Operand(context, index, times_tagged_size, Context::SlotOffset(0));
+}
+
+inline Operand NativeContextOperand() {
+  return ContextOperand(esi, Context::NATIVE_CONTEXT_INDEX);
 }
 
 #define ACCESS_MASM(masm) masm->
