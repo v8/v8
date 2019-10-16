@@ -51,8 +51,6 @@
       # Linux.
       'V8 Linux - builder': 'release_x86_gcmole',
       'V8 Linux - debug builder': 'debug_x86',
-      'V8 Linux - nosnap builder': 'release_x86_no_snap',
-      'V8 Linux - nosnap debug builder': 'debug_x86_no_snap',
       'V8 Linux - shared': 'release_x86_shared_verify_heap',
       'V8 Linux - noi18n - debug': 'debug_x86_no_i18n',
       'V8 Linux - verify csa': 'release_x86_verify_csa',
@@ -72,8 +70,6 @@
       # Windows.
       'V8 Win32 - builder': 'release_x86_minimal_symbols',
       'V8 Win32 - debug builder': 'debug_x86_minimal_symbols',
-      'V8 Win32 - nosnap - shared':
-        'release_x86_no_snap_shared_minimal_symbols',
       # TODO(machenbach): Remove after switching to x64 on infra side.
       'V8 Win64 ASAN': 'release_x64_asan_no_lsan',
       'V8 Win64': 'release_x64_minimal_symbols',
@@ -156,8 +152,6 @@
       'V8 Arm64 - builder': 'release_arm64',
       'V8 Linux - arm64 - sim': 'release_simulate_arm64',
       'V8 Linux - arm64 - sim - debug': 'debug_simulate_arm64',
-      'V8 Linux - arm64 - sim - nosnap - debug':
-          'debug_simulate_arm64_no_snap',
       'V8 Linux - arm64 - sim - gc stress': 'debug_simulate_arm64',
       # Mips.
       'V8 Linux - mipsel - sim - builder': 'release_simulate_mipsel',
@@ -202,8 +196,6 @@
       'v8_linux_noi18n_compile_dbg': 'debug_x86_no_i18n',
       'v8_linux_noi18n_rel_ng': 'release_x86_no_i18n_trybot',
       'v8_linux_gc_stress_dbg': 'debug_x86_trybot',
-      'v8_linux_nosnap_rel': 'release_x86_no_snap_trybot',
-      'v8_linux_nosnap_dbg': 'debug_x86_no_snap_trybot',
       'v8_linux_gcc_compile_rel': 'release_x86_gcc_minimal_symbols',
       'v8_linux_gcc_rel': 'release_x86_gcc_minimal_symbols',
       'v8_linux_shared_compile_rel': 'release_x86_shared_verify_heap',
@@ -237,8 +229,6 @@
       'v8_win_dbg': 'debug_x86_trybot',
       'v8_win_compile_dbg': 'debug_x86_trybot',
       'v8_win_rel_ng': 'release_x86_trybot',
-      'v8_win_nosnap_shared_rel_ng':
-        'release_x86_no_snap_shared_minimal_symbols',
       'v8_win64_asan_rel_ng': 'release_x64_asan_no_lsan',
       'v8_win64_msvc_compile_rel': 'release_x64_msvc',
       'v8_win64_dbg': 'debug_x64_minimal_symbols',
@@ -348,9 +338,6 @@
       'debug_bot', 'simulate_arm64'],
     'debug_simulate_arm64_asan_edge': [
       'debug_bot', 'simulate_arm64', 'asan', 'lsan', 'edge'],
-    'debug_simulate_arm64_no_snap': [
-      'debug', 'simulate_arm64', 'shared', 'goma', 'v8_optimized_debug',
-      'v8_snapshot_none'],
 
     # Release configs for simulators.
     'release_simulate_arm': [
@@ -514,10 +501,6 @@
       'debug_bot', 'x86', 'minimal_symbols'],
     'debug_x86_no_i18n': [
       'debug_bot', 'x86', 'v8_no_i18n'],
-    'debug_x86_no_snap': [
-      'debug_bot', 'x86', 'v8_snapshot_none'],
-    'debug_x86_no_snap_trybot': [
-      'debug_trybot', 'x86', 'v8_snapshot_none'],
     'debug_x86_trybot': [
       'debug_trybot', 'x86'],
     'debug_x86_vtunejit': [
@@ -541,13 +524,6 @@
       'release_bot', 'x86', 'minimal_symbols'],
     'release_x86_no_i18n_trybot': [
       'release_trybot', 'x86', 'v8_no_i18n'],
-    'release_x86_no_snap': [
-      'release_bot', 'x86', 'v8_snapshot_none'],
-    'release_x86_no_snap_shared_minimal_symbols': [
-      'release', 'x86', 'goma', 'minimal_symbols', 'shared',
-      'v8_snapshot_none'],
-    'release_x86_no_snap_trybot': [
-      'release_trybot', 'x86', 'v8_snapshot_none'],
     'release_x86_predictable': [
       'release_bot', 'x86', 'v8_enable_verify_predictable'],
     'release_x86_shared_verify_heap': [
@@ -824,10 +800,6 @@
     'v8_snapshot_internal': {
       'gn_args': 'v8_use_external_startup_data=false',
     },
-
-    # TODO(https://crbug.com/v8/8531): Remove this config and all bots, since
-    #                                  no-snapshot was deprecated and removed.
-    'v8_snapshot_none': {},
 
     'v8_verify_heap': {
       'gn_args': 'v8_enable_verify_heap=true',

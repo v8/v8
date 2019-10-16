@@ -108,22 +108,6 @@
       {'name': 'v8testing', 'variant': 'default', 'shards': 2},
     ],
   },
-  'v8_linux_nosnap_rel': {
-    'swarming_dimensions' : {
-      'os': 'Ubuntu-16.04',
-    },
-    'tests': [
-      {'name': 'v8testing', 'variant': 'default', 'shards': 6},
-    ],
-  },
-  'v8_linux_nosnap_dbg': {
-    'swarming_task_attrs': {
-      'hard_timeout': 3600,
-    },
-    'tests': [
-      {'name': 'v8testing', 'variant': 'default', 'shards': 9},
-    ],
-  },
   'v8_linux_rel_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64-avx2',
@@ -511,15 +495,6 @@
       {'name': 'v8testing', 'shards': 3},
     ],
   },
-  'v8_win_nosnap_shared_rel_ng_triggered': {
-    'swarming_dimensions' : {
-      'cpu': 'x86-64',
-      'os': 'Windows-7-SP1',
-    },
-    'tests': [
-      {'name': 'v8testing', 'variant': 'default', 'shards': 4},
-    ],
-  },
   'v8_win_rel_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
@@ -792,34 +767,6 @@
       {'name': 'mozilla', 'variant': 'default'},
       {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing', 'variant': 'default'},
-    ],
-  },
-  'V8 Linux - nosnap': {
-    'swarming_dimensions': {
-      'os': 'Ubuntu-16.04',
-    },
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 3600,
-      'priority': 35,
-    },
-    'tests': [
-      {'name': 'mozilla', 'variant': 'default'},
-      {'name': 'test262', 'variant': 'default', 'shards': 6},
-      {'name': 'v8testing', 'variant': 'default', 'shards': 3},
-    ],
-  },
-  'V8 Linux - nosnap - debug': {
-    'swarming_dimensions': {
-      'os': 'Ubuntu-16.04',
-    },
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 3600,
-      'priority': 35,
-    },
-    'tests': [
-      {'name': 'v8testing', 'variant': 'default', 'shards': 12},
     ],
   },
   'V8 Linux - predictable': {
@@ -1186,15 +1133,6 @@
       {'name': 'mozilla'},
       {'name': 'test262', 'variant': 'default'},
       {'name': 'v8testing', 'shards': 5},
-    ],
-  },
-  'V8 Win32 - nosnap - shared': {
-    'swarming_dimensions': {
-      'cpu': 'x86-64',
-      'os': 'Windows-7-SP1',
-    },
-    'tests': [
-      {'name': 'v8testing', 'variant': 'default', 'shards': 2},
     ],
   },
   'V8 Win64': {

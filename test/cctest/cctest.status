@@ -199,37 +199,6 @@
 }],  # 'tsan == True'
 
 ##############################################################################
-['no_snap == True', {
-  # Slow tests.
-  'test-api/ExternalWrap': [PASS, SLOW],
-  'test-api/FastReturnValues*': [PASS, SLOW],
-  'test-decls/CrossScriptReferences_Simple2': [PASS, SLOW],
-  # "WithWarmup" means starting from a snapshot, for which nosnap builds lack
-  # support.
-  'test-serialize/CustomSnapshotDataBlobWithWarmup': [SKIP],
-  'test-serialize/SnapshotDataBlobWithWarmup': [SKIP],
-  # Fails the embedded blob <-> Isolate verification step.
-  'test-serialize/CustomSnapshotDataBlobWithLocker': [SKIP],
-
-  # https://crbug.com/v8/7763
-  'test-lockers/ExtensionsRegistration': [SKIP],
-}],  # 'no_snap == True'
-
-##############################################################################
-['no_snap == True and system != windows and mode == debug', {
-  # BUG(v8:9400).
-  'test-heap/Regress615489': [SKIP],
-}], # 'no_snap == True and system != windows and mode == debug'
-
-##############################################################################
-# TODO(machenbach): Fix application of '*'. Nosnap windows needs a separate
-# section to not overwrite the expectations for TestThatAlwaysFails.
-['no_snap == True and system == windows', {
-  # Windows doesn't support nosnap mode.
-  'test-serialize/*': [SKIP],
-}],  # 'no_snap == True and system == windows'
-
-##############################################################################
 ['is_full_debug', {
   # Tests too slow in non-optimized debug mode.
   'test-api/InternalFieldsSubclassing': [SKIP],

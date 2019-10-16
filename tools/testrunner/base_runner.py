@@ -194,9 +194,6 @@ class BuildConfig(object):
     self.is_full_debug = build_config['is_full_debug']
     self.msan = build_config['is_msan']
     self.no_i18n = not build_config['v8_enable_i18n_support']
-    # TODO(https://crbug.com/v8/8531)
-    # 'v8_use_snapshot' was removed, 'no_snap' can be removed as well.
-    self.no_snap = False
     self.predictable = build_config['v8_enable_verify_predictable']
     self.tsan = build_config['is_tsan']
     # TODO(machenbach): We only have ubsan not ubsan_vptr.
@@ -230,8 +227,6 @@ class BuildConfig(object):
       detected_options.append('msan')
     if self.no_i18n:
       detected_options.append('no_i18n')
-    if self.no_snap:
-      detected_options.append('no_snap')
     if self.predictable:
       detected_options.append('predictable')
     if self.tsan:
@@ -698,7 +693,6 @@ class BaseTestRunner(object):
       "msan": self.build_config.msan,
       "no_harness": options.no_harness,
       "no_i18n": self.build_config.no_i18n,
-      "no_snap": self.build_config.no_snap,
       "novfp3": False,
       "optimize_for_size": "--optimize-for-size" in options.extra_flags,
       "predictable": self.build_config.predictable,
