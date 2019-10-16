@@ -384,6 +384,23 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(instance.exports.main(10), 200);
 })();
 
+(function MultiBrTableTest() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig_ii_v = builder.addType(kSig_v_v);
+
+  builder.addFunction("main", kSig_ii_v)
+    .addBody([
+      kExprI32Const, 1, kExprI32Const, 2,
+      kExprI32Const, 0,
+      kExprBrTable, 1, 0, 0,
+    ])
+    .exportAs("main");
+
+  let instance = builder.instantiate();
+  assertEquals(instance.exports.main(), [1, 2]);
+})();
+
 (function MultiWasmToJSReturnTest() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();

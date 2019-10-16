@@ -1473,6 +1473,8 @@ class LiftoffCompiler {
     GenerateBrTable(decoder, tmp, value, min, split, table_iterator,
                     br_targets);
     __ bind(&upper_half);
+    // table_iterator will trigger a DCHECK if we don't stop decoding now.
+    if (did_bailout()) return;
     // Emit br table for upper half:
     GenerateBrTable(decoder, tmp, value, split, max, table_iterator,
                     br_targets);
@@ -1496,6 +1498,8 @@ class LiftoffCompiler {
                       &br_targets);
 
       __ bind(&case_default);
+      // table_iterator will trigger a DCHECK if we don't stop decoding now.
+      if (did_bailout()) return;
     }
 
     // Generate the default case.
