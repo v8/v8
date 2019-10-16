@@ -911,6 +911,7 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
       case TypeCheckKind::kSigned32:
       case TypeCheckKind::kSigned64:
       case TypeCheckKind::kSignedSmall:
+      case TypeCheckKind::kArrayIndex:
         break;
     }
   }
@@ -1041,7 +1042,8 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
           ((use_info.type_check() == TypeCheckKind::kSignedSmall ||
             use_info.type_check() == TypeCheckKind::kSigned32 ||
             use_info.type_check() == TypeCheckKind::kNumber ||
-            use_info.type_check() == TypeCheckKind::kNumberOrOddball) &&
+            use_info.type_check() == TypeCheckKind::kNumberOrOddball ||
+            use_info.type_check() == TypeCheckKind::kArrayIndex) &&
            IsInt32Double(fv))) {
         return MakeTruncatedInt32Constant(fv);
       }
@@ -1076,7 +1078,8 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     if (output_type.Is(Type::Signed32())) {
       op = machine()->ChangeFloat64ToInt32();
     } else if (use_info.type_check() == TypeCheckKind::kSignedSmall ||
-               use_info.type_check() == TypeCheckKind::kSigned32) {
+               use_info.type_check() == TypeCheckKind::kSigned32 ||
+               use_info.type_check() == TypeCheckKind::kArrayIndex) {
       op = simplified()->CheckedFloat64ToInt32(
           output_type.Maybe(Type::MinusZero())
               ? use_info.minus_zero_check()
@@ -1095,7 +1098,8 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     if (output_type.Is(Type::Signed32())) {
       op = machine()->ChangeFloat64ToInt32();
     } else if (use_info.type_check() == TypeCheckKind::kSignedSmall ||
-               use_info.type_check() == TypeCheckKind::kSigned32) {
+               use_info.type_check() == TypeCheckKind::kSigned32 ||
+               use_info.type_check() == TypeCheckKind::kArrayIndex) {
       op = simplified()->CheckedFloat64ToInt32(
           output_type.Maybe(Type::MinusZero())
               ? use_info.minus_zero_check()
@@ -1123,6 +1127,8 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
               ? use_info.minus_zero_check()
               : CheckForMinusZeroMode::kDontCheckForMinusZero,
           use_info.feedback());
+    } else if (use_info.type_check() == TypeCheckKind::kArrayIndex) {
+      op = simplified()->CheckedTaggedToArrayIndex(use_info.feedback());
     } else if (output_type.Is(Type::Unsigned32())) {
       op = simplified()->ChangeTaggedToUint32();
     } else if (use_info.truncation().IsUsedAsWord32()) {
@@ -1167,7 +1173,8 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     // Only the checked case should get here, the non-checked case is
     // handled in GetRepresentationFor.
     if (use_info.type_check() == TypeCheckKind::kSignedSmall ||
-        use_info.type_check() == TypeCheckKind::kSigned32) {
+        use_info.type_check() == TypeCheckKind::kSigned32 ||
+        use_info.type_check() == TypeCheckKind::kArrayIndex) {
       bool indentify_zeros = use_info.truncation().IdentifiesZeroAndMinusZero();
       if (output_type.Is(Type::Signed32()) ||
           (indentify_zeros && output_type.Is(Type::Signed32OrMinusZero()))) {
@@ -1198,7 +1205,8 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
                use_info.truncation().IsUsedAsWord32()) {
       op = machine()->TruncateInt64ToInt32();
     } else if (use_info.type_check() == TypeCheckKind::kSignedSmall ||
-               use_info.type_check() == TypeCheckKind::kSigned32) {
+               use_info.type_check() == TypeCheckKind::kSigned32 ||
+               use_info.type_check() == TypeCheckKind::kArrayIndex) {
       if (output_type.Is(cache_->kPositiveSafeInteger)) {
         op = simplified()->CheckedUint64ToInt32(use_info.feedback());
       } else if (output_type.Is(cache_->kSafeInteger)) {

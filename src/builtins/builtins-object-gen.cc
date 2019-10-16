@@ -387,7 +387,8 @@ TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
     TVARIABLE(IntPtrT, var_index);
     TVARIABLE(Name, var_unique);
 
-    Label if_index(this), if_unique_name(this), if_notunique_name(this);
+    Label if_index(this, &var_index), if_unique_name(this),
+        if_notunique_name(this);
     TryToName(key, &if_index, &var_index, &if_unique_name, &var_unique,
               &call_runtime, &if_notunique_name);
 

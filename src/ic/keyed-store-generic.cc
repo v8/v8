@@ -989,8 +989,8 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
     TNode<Object> value, Maybe<LanguageMode> language_mode) {
   TVARIABLE(IntPtrT, var_index);
   TVARIABLE(Name, var_unique);
-  Label if_index(this), if_unique_name(this), not_internalized(this),
-      slow(this);
+  Label if_index(this, &var_index), if_unique_name(this),
+      not_internalized(this), slow(this);
 
   GotoIf(TaggedIsSmi(receiver_maybe_smi), &slow);
   TNode<HeapObject> receiver = CAST(receiver_maybe_smi);

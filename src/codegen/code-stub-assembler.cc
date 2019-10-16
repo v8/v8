@@ -7793,24 +7793,24 @@ void CodeStubAssembler::TryToName(SloppyTNode<Object> key, Label* if_keyisindex,
                                   Label* if_notinternalized) {
   Comment("TryToName");
 
+  TVARIABLE(Int32T, var_instance_type);
   Label if_keyisnotindex(this);
-  // Handle Smi and HeapNumber keys.
-  *var_index = TryToIntptr(key, &if_keyisnotindex);
+  *var_index =
+      TryToIntptr(key, &if_keyisnotindex, if_bailout, &var_instance_type);
   Goto(if_keyisindex);
 
   BIND(&if_keyisnotindex);
   {
     Label if_symbol(this), if_string(this),
         if_keyisother(this, Label::kDeferred);
-    TNode<HeapObject> key_heap_object = CAST(key);
-    TNode<Map> key_map = LoadMap(key_heap_object);
 
-    GotoIf(IsSymbolMap(key_map), &if_symbol);
+    // Symbols are unique.
+    GotoIf(IsSymbolInstanceType(var_instance_type.value()), &if_symbol);
 
     // Miss if |key| is not a String.
     STATIC_ASSERT(FIRST_NAME_TYPE == FIRST_TYPE);
-    TNode<Uint16T> key_instance_type = LoadMapInstanceType(key_map);
-    Branch(IsStringInstanceType(key_instance_type), &if_string, &if_keyisother);
+    Branch(IsStringInstanceType(var_instance_type.value()), &if_string,
+           &if_keyisother);
 
     // Symbols are unique.
     BIND(&if_symbol);
@@ -7821,45 +7821,33 @@ void CodeStubAssembler::TryToName(SloppyTNode<Object> key, Label* if_keyisindex,
 
     BIND(&if_string);
     {
-      Label if_hascachedindex(this), if_thinstring(this);
+      Label if_thinstring(this);
 
-      // |key| is a String. Check if it has a cached array index.
-      TNode<String> key_string = CAST(key);
-      TNode<Uint32T> hash = LoadNameHashField(key_string);
-      GotoIf(IsClearWord32(hash, Name::kDoesNotContainCachedArrayIndexMask),
-             &if_hascachedindex);
-      // No cached array index. If the string knows that it contains an index,
-      // then it must be an uncacheable index. Handle this case in the runtime.
-      GotoIf(IsClearWord32(hash, Name::kIsNotArrayIndexMask), if_bailout);
-      // Check if we have a ThinString.
-      GotoIf(InstanceTypeEqual(key_instance_type, THIN_STRING_TYPE),
+      GotoIf(InstanceTypeEqual(var_instance_type.value(), THIN_STRING_TYPE),
              &if_thinstring);
-      GotoIf(InstanceTypeEqual(key_instance_type, THIN_ONE_BYTE_STRING_TYPE),
+      GotoIf(InstanceTypeEqual(var_instance_type.value(),
+                               THIN_ONE_BYTE_STRING_TYPE),
              &if_thinstring);
       // Finally, check if |key| is internalized.
       STATIC_ASSERT(kNotInternalizedTag != 0);
-      GotoIf(IsSetWord32(key_instance_type, kIsNotInternalizedMask),
+      GotoIf(IsSetWord32(var_instance_type.value(), kIsNotInternalizedMask),
              if_notinternalized != nullptr ? if_notinternalized : if_bailout);
 
-      *var_unique = key_string;
+      *var_unique = CAST(key);
       Goto(if_keyisunique);
 
       BIND(&if_thinstring);
       *var_unique =
-          LoadObjectField<String>(key_string, ThinString::kActualOffset);
+          LoadObjectField<String>(CAST(key), ThinString::kActualOffset);
       Goto(if_keyisunique);
-
-      BIND(&if_hascachedindex);
-      *var_index =
-          Signed(DecodeWordFromWord32<Name::ArrayIndexValueBits>(hash));
-      Goto(if_keyisindex);
     }
 
     BIND(&if_keyisother);
     {
-      GotoIfNot(InstanceTypeEqual(key_instance_type, ODDBALL_TYPE), if_bailout);
+      GotoIfNot(InstanceTypeEqual(var_instance_type.value(), ODDBALL_TYPE),
+                if_bailout);
       *var_unique =
-          LoadObjectField<String>(key_heap_object, Oddball::kToStringOffset);
+          LoadObjectField<String>(CAST(key), Oddball::kToStringOffset);
       Goto(if_keyisunique);
     }
   }
@@ -9876,21 +9864,27 @@ TNode<Map> CodeStubAssembler::LoadReceiverMap(SloppyTNode<Object> receiver) {
       [=] { return LoadMap(UncheckedCast<HeapObject>(receiver)); });
 }
 
-TNode<IntPtrT> CodeStubAssembler::TryToIntptr(SloppyTNode<Object> key,
-                                              Label* miss) {
+TNode<IntPtrT> CodeStubAssembler::TryToIntptr(
+    SloppyTNode<Object> key, Label* if_not_intptr, Label* if_bailout,
+    TVariable<Int32T>* var_instance_type) {
   TVARIABLE(IntPtrT, var_intptr_key);
-  Label done(this, &var_intptr_key), key_is_smi(this);
+  Label done(this, &var_intptr_key), key_is_smi(this), key_is_heapnumber(this);
   GotoIf(TaggedIsSmi(key), &key_is_smi);
 
-  // Try to convert a heap number to a Smi.
-  GotoIfNot(IsHeapNumber(CAST(key)), miss);
-  {
-    TNode<Float64T> value = LoadHeapNumberValue(CAST(key));
-    TNode<Int32T> int_value = RoundFloat64ToInt32(value);
-    GotoIfNot(Float64Equal(value, ChangeInt32ToFloat64(int_value)), miss);
-    var_intptr_key = ChangeInt32ToIntPtr(int_value);
-    Goto(&done);
+  if (var_instance_type != nullptr) {
+    *var_instance_type = LoadInstanceType(CAST(key));
   }
+
+  Node* function = ExternalConstant(
+      ExternalReference::object_to_array_index_slow_function());
+  TNode<Int32T> result = UncheckedCast<Int32T>(
+      CallCFunction(function, MachineType::Int32(),
+                    std::make_pair(MachineType::AnyTagged(), key)));
+  GotoIf(Word32Equal(Int32Constant(-1), result), if_not_intptr);
+  if (if_bailout == nullptr) if_bailout = if_not_intptr;
+  GotoIf(Word32Equal(Int32Constant(-2), result), if_bailout);
+  var_intptr_key = ChangeInt32ToIntPtr(result);
+  Goto(&done);
 
   BIND(&key_is_smi);
   {

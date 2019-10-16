@@ -1250,6 +1250,9 @@ Type OperationTyper::CheckBounds(Type index, Type length) {
   if (index.Maybe(Type::MinusZero())) {
     index = Type::Union(index, cache_->kSingletonZero, zone());
   }
+  if (index.Maybe(Type::String())) {
+    index = Type::Union(index, cache_->kUnsigned31, zone());
+  }
   return Type::Intersect(index, mask, zone());
 }
 

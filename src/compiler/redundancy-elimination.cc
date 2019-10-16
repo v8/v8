@@ -137,6 +137,13 @@ bool CheckSubsumes(Node const* a, Node const* b) {
     } else if (a->opcode() == IrOpcode::kCheckedTaggedSignedToInt32 &&
                b->opcode() == IrOpcode::kCheckedTaggedToInt32) {
       // CheckedTaggedSignedToInt32(node) implies CheckedTaggedToInt32(node)
+    } else if (a->opcode() == IrOpcode::kCheckedTaggedSignedToInt32 &&
+               b->opcode() == IrOpcode::kCheckedTaggedToArrayIndex) {
+      // CheckedTaggedSignedToInt32(node) implies
+      // CheckedTaggedToArrayIndex(node)
+    } else if (a->opcode() == IrOpcode::kCheckedTaggedToInt32 &&
+               b->opcode() == IrOpcode::kCheckedTaggedToArrayIndex) {
+      // CheckedTaggedToInt32(node) implies CheckedTaggedToArrayIndex(node)
     } else if (a->opcode() == IrOpcode::kCheckReceiver &&
                b->opcode() == IrOpcode::kCheckReceiverOrNullOrUndefined) {
       // CheckReceiver(node) implies CheckReceiverOrNullOrUndefined(node)
@@ -157,6 +164,7 @@ bool CheckSubsumes(Node const* a, Node const* b) {
         case IrOpcode::kCheckedTaggedSignedToInt32:
         case IrOpcode::kCheckedTaggedToTaggedPointer:
         case IrOpcode::kCheckedTaggedToTaggedSigned:
+        case IrOpcode::kCheckedTaggedToArrayIndex:
         case IrOpcode::kCheckedCompressedToTaggedPointer:
         case IrOpcode::kCheckedCompressedToTaggedSigned:
         case IrOpcode::kCheckedTaggedToCompressedPointer:

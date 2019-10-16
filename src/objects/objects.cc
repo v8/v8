@@ -599,6 +599,37 @@ Object Object::ToBoolean(Isolate* isolate) {
   return isolate->heap()->ToBoolean(BooleanValue(isolate));
 }
 
+int32_t Object::ToArrayIndexSlow(Address addr) {
+  DisallowHeapAllocation no_gc;
+  Object key(addr);
+
+  // Smi case should be handled by the fast path.
+  DCHECK(!key.IsSmi());
+
+  uint32_t index;
+  bool success = false;
+  if (key.IsHeapNumber()) {
+    double num = HeapNumber::cast(key).value();
+    success = DoubleToUint32IfEqualToSelf(num, &index);
+  } else if (key.IsString()) {
+    success = String::cast(key).AsArrayIndex(&index);
+  }
+
+  if (!success) return -1;
+  if (index <= INT_MAX) return index;
+
+  // TODO(gsathya): This check exists because we only support upto
+  // INT_MAX for element access in the builtins. We return -2 to
+  // distinguish the case where index <= JSArray::kMaxArrayIndex and
+  // index > INT_MAX so the builtin can handle this appropriately.
+  //
+  // Once we change the builtins to correctly support element access
+  // for indices up to JSArray::kMaxArrayIndex, this check can go
+  // away.
+  if (index <= JSArray::kMaxArrayIndex) return -2;
+  return -1;
+}
+
 namespace {
 
 // TODO(bmeurer): Maybe we should introduce a marker interface Number,

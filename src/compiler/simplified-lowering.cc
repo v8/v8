@@ -1657,10 +1657,8 @@ class RepresentationSelector {
               node, simplified()->CheckedUint32Bounds(p.feedback(), mode));
         }
       } else {
-        VisitBinop(
-            node,
-            UseInfo::CheckedSigned32AsWord32(kIdentifyZeros, p.feedback()),
-            UseInfo::TruncatingWord32(), MachineRepresentation::kWord32);
+        VisitBinop(node, UseInfo::CheckedTaggedAsArrayIndex(p.feedback()),
+                   UseInfo::TruncatingWord32(), MachineRepresentation::kWord32);
         if (lower()) {
           NodeProperties::ChangeOp(
               node,

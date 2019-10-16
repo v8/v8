@@ -1178,29 +1178,26 @@ void KeyedLoadIC::LoadElementPolymorphicHandlers(
 namespace {
 
 bool ConvertKeyToIndex(Handle<Object> receiver, Handle<Object> key,
-                       uint32_t* index, InlineCacheState state) {
-  if (!FLAG_use_ic || state == NO_FEEDBACK) return false;
-  if (receiver->IsAccessCheckNeeded() || receiver->IsJSPrimitiveWrapper()) {
-    return false;
-  }
+                       uint32_t* index) {
+  if (!receiver->IsJSReceiver()) return false;
+  if (key->ToArrayIndex(index)) return true;
 
-  // For regular JSReceiver or String receivers, the {key} must be a positive
-  // array index.
-  if (receiver->IsJSReceiver() || receiver->IsString()) {
-    if (key->ToArrayIndex(index)) return true;
-  }
+  if (!receiver->IsJSTypedArray()) return false;
+
   // For JSTypedArray receivers, we can also support negative keys, which we
   // just map into the [2**31, 2**32 - 1] range via a bit_cast. This is valid
   // because JSTypedArray::length is always a Smi, so such keys will always
   // be detected as OOB.
-  if (receiver->IsJSTypedArray()) {
-    int32_t signed_index;
-    if (key->ToInt32(&signed_index)) {
-      *index = bit_cast<uint32_t>(signed_index);
-      return true;
-    }
-  }
-  return false;
+  int32_t signed_index;
+  if (!key->ToInt32(&signed_index)) return false;
+  *index = bit_cast<uint32_t>(signed_index);
+  return true;
+}
+
+bool CanCache(Handle<Object> receiver, InlineCacheState state) {
+  if (!FLAG_use_ic || state == NO_FEEDBACK) return false;
+  if (!receiver->IsJSReceiver()) return false;
+  return !receiver->IsAccessCheckNeeded() && !receiver->IsJSPrimitiveWrapper();
 }
 
 bool IsOutOfBoundsAccess(Handle<Object> receiver, uint32_t index) {
@@ -1264,13 +1261,18 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
   key = TryConvertKey(key, isolate());
 
   uint32_t index;
-  if ((key->IsInternalizedString() &&
-       !String::cast(*key).AsArrayIndex(&index)) ||
+  bool already_found_index = false;
+  if (key->IsInternalizedString()) {
+    already_found_index = String::cast(*key).AsArrayIndex(&index);
+  }
+
+  if ((key->IsInternalizedString() && !already_found_index) ||
       key->IsSymbol()) {
     ASSIGN_RETURN_ON_EXCEPTION(isolate(), load_handle,
                                LoadIC::Load(object, Handle<Name>::cast(key)),
                                Object);
-  } else if (ConvertKeyToIndex(object, key, &index, state())) {
+  } else if (CanCache(object, state()) &&
+             (already_found_index || ConvertKeyToIndex(object, key, &index))) {
     KeyedAccessLoadMode load_mode = GetLoadMode(isolate(), object, index);
     UpdateLoadElement(Handle<HeapObject>::cast(object), load_mode);
     if (is_vector_set()) {

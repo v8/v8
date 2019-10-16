@@ -496,6 +496,7 @@ TEST(TryToName) {
     {
       TYPED_VARIABLE_DEF(IntPtrT, var_index, &m);
       TYPED_VARIABLE_DEF(Name, var_unique, &m);
+      TYPED_VARIABLE_DEF(IntPtrT, var_expected, &m);
 
       m.TryToName(key, &if_keyisindex, &var_index, &if_keyisunique, &var_unique,
                   &if_bailout);
@@ -504,9 +505,26 @@ TEST(TryToName) {
       m.GotoIfNot(m.TaggedEqual(expected_result,
                                 m.SmiConstant(Smi::FromInt(kKeyIsIndex))),
                   &failed);
-      m.Branch(
-          m.IntPtrEqual(m.SmiUntag(m.CAST(expected_arg)), var_index.value()),
-          &passed, &failed);
+
+      Label if_expectedissmi(&m), if_expectedisheapnumber(&m), check_result(&m);
+      m.Branch(m.TaggedIsSmi(expected_arg), &if_expectedissmi,
+               &if_expectedisheapnumber);
+
+      m.BIND(&if_expectedissmi);
+      var_expected = m.SmiUntag(m.CAST(expected_arg));
+      m.Goto(&check_result);
+
+      m.BIND(&if_expectedisheapnumber);
+      CSA_ASSERT(&m, m.IsHeapNumber(m.CAST(expected_arg)));
+      TNode<Float64T> value = m.LoadHeapNumberValue(m.CAST(expected_arg));
+      // We know this to be safe as all expected values are in intptr
+      // range.
+      var_expected = m.UncheckedCast<IntPtrT>(m.ChangeFloat64ToUintPtr(value));
+      m.Goto(&check_result);
+
+      m.BIND(&check_result);
+      m.Branch(m.IntPtrEqual(var_expected.value(), var_index.value()), &passed,
+               &failed);
 
       m.BIND(&if_keyisunique);
       m.GotoIfNot(m.TaggedEqual(expected_result,
@@ -609,10 +627,28 @@ TEST(TryToName) {
   }
 
   {
-    // TryToName(<internalized uncacheable number string>) => bailout
+    // TryToName(<internalized uncacheable number string greater than
+    // array index>) => is_keyisunique: <internalized string>.
+    Handle<Object> key =
+        isolate->factory()->InternalizeUtf8String("4294967296");
+    ft.CheckTrue(key, expect_unique, key);
+  }
+
+  {
+    // TryToName(<internalized uncacheable number string greater than
+    // INT_MAX but less than array index>) => bailout.
     Handle<Object> key =
         isolate->factory()->InternalizeUtf8String("4294967294");
     ft.CheckTrue(key, expect_bailout);
+  }
+
+  {
+    // TryToName(<internalized uncacheable number string less than
+    // INT_MAX>) => is_keyisindex: number.
+    Handle<Object> key =
+        isolate->factory()->InternalizeUtf8String("2147483647");
+    Handle<Object> index = isolate->factory()->NewNumber(2147483647);
+    ft.CheckTrue(key, expect_index, index);
   }
 
   {
@@ -627,10 +663,11 @@ TEST(TryToName) {
   }
 
   {
-    // TryToName(<number string without cached index>) => bailout.
+    // TryToName(<number string without cached index>) => is_keyisindex: number.
     Handle<String> key = isolate->factory()->NewStringFromAsciiChecked("153");
     CHECK(!key->HasHashCode());
-    ft.CheckTrue(key, expect_bailout);
+    Handle<Object> index(Smi::FromInt(153), isolate);
+    ft.CheckTrue(key, expect_index, index);
   }
 
   {

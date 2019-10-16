@@ -122,6 +122,7 @@ enum class TypeCheckKind : uint8_t {
   kNumberOrOddball,
   kHeapObject,
   kBigInt,
+  kArrayIndex
 };
 
 inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
@@ -142,6 +143,8 @@ inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
       return os << "HeapObject";
     case TypeCheckKind::kBigInt:
       return os << "BigInt";
+    case TypeCheckKind::kArrayIndex:
+      return os << "ArrayIndex";
   }
   UNREACHABLE();
 }
@@ -219,6 +222,11 @@ class UseInfo {
   }
 
   // Possibly deoptimizing conversions.
+  static UseInfo CheckedTaggedAsArrayIndex(const FeedbackSource& feedback) {
+    return UseInfo(MachineRepresentation::kWord32,
+                   Truncation::Any(kIdentifyZeros), TypeCheckKind::kArrayIndex,
+                   feedback);
+  }
   static UseInfo CheckedHeapObjectAsTaggedPointer(
       const FeedbackSource& feedback) {
     return UseInfo(MachineRepresentation::kTaggedPointer, Truncation::Any(),

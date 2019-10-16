@@ -3681,7 +3681,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                      Node* receiver, Label* if_bailout,
                                      GetOwnPropertyMode mode = kCallJSGetter);
 
-  TNode<IntPtrT> TryToIntptr(SloppyTNode<Object> key, Label* miss);
+  TNode<IntPtrT> TryToIntptr(SloppyTNode<Object> key, Label* if_not_intptr,
+                             Label* if_bailout = nullptr,
+                             TVariable<Int32T>* var_instance_type = nullptr);
 
   void InitializeFunctionContext(Node* native_context, Node* context,
                                  int slots);

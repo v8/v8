@@ -585,7 +585,7 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
 
   TVARIABLE(IntPtrT, var_index);
   TVARIABLE(Name, var_unique);
-  Label if_index(this), if_unique_name(this), if_notunique(this),
+  Label if_index(this, &var_index), if_unique_name(this), if_notunique(this),
       if_notfound(this), slow(this), if_proxy(this);
 
   GotoIf(TaggedIsSmi(receiver), &slow);

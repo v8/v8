@@ -313,7 +313,9 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
       Signed(DecodeWord<LoadHandler::KindBits>(handler_word));
 
   if (support_elements == kSupportElements) {
-    Label if_element(this), if_indexed_string(this), if_property(this);
+    Label if_element(this), if_indexed_string(this), if_property(this),
+        if_hole(this), unimplemented_elements_kind(this),
+        if_oob(this, Label::kDeferred);
     GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kElement)),
            &if_element);
 
@@ -335,8 +337,6 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
         IsSetWord<LoadHandler::IsJsArrayBits>(handler_word);
     TNode<Uint32T> elements_kind =
         DecodeWord32FromWord<LoadHandler::ElementsKindBits>(handler_word);
-    Label if_hole(this), unimplemented_elements_kind(this),
-        if_oob(this, Label::kDeferred);
     EmitElementLoad(holder, elements_kind, intptr_index, is_jsarray_condition,
                     &if_hole, &rebox_double, &var_double_value,
                     &unimplemented_elements_kind, &if_oob, miss, exit_point,

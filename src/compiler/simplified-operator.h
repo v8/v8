@@ -793,6 +793,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
                                          const FeedbackSource& feedback);
   const Operator* CheckedTaggedToInt32(CheckForMinusZeroMode,
                                        const FeedbackSource& feedback);
+  const Operator* CheckedTaggedToArrayIndex(const FeedbackSource& feedback);
   const Operator* CheckedTaggedToInt64(CheckForMinusZeroMode,
                                        const FeedbackSource& feedback);
   const Operator* CheckedTaggedToTaggedPointer(const FeedbackSource& feedback);
