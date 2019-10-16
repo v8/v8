@@ -174,7 +174,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
     push(r4);
     push(r5);
     subi(r4, fp, Operand(liftoff::GetStackSlotOffset(last_stack_slot)));
-    subi(r5, fp, Operand(liftoff::GetStackSlotOffset(index) + kStackSlotSize));
+    subi(r5, fp, Operand(liftoff::GetStackSlotOffset(index) - kStackSlotSize));
 
     Label loop;
     bind(&loop);

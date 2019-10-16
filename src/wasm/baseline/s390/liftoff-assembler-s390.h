@@ -173,7 +173,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
     push(r3);
     push(r4);
     SubP(r3, fp, Operand(liftoff::GetStackSlotOffset(last_stack_slot)));
-    SubP(r4, fp, Operand(liftoff::GetStackSlotOffset(index) + kStackSlotSize));
+    SubP(r4, fp, Operand(liftoff::GetStackSlotOffset(index) - kStackSlotSize));
 
     Label loop;
     bind(&loop);
