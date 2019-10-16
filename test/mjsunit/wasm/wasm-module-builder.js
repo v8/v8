@@ -799,8 +799,9 @@ class WasmModuleBuilder {
   }
 
   addTable(type, initial_size, max_size = undefined) {
-    if (type != kWasmAnyRef && type != kWasmAnyFunc) {
-      throw new Error('Tables must be of type kWasmAnyRef or kWasmAnyFunc');
+    if (type != kWasmAnyRef && type != kWasmAnyFunc && type != kWasmExnRef) {
+      throw new Error(
+          'Tables must be of type kWasmAnyRef, kWasmAnyFunc, or kWasmExnRef');
     }
     let table = new WasmTableBuilder(this, type, initial_size, max_size);
     table.index = this.tables.length + this.num_imported_tables;

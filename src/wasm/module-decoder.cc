@@ -1635,6 +1635,12 @@ class ModuleDecoderImpl : public Decoder {
                 "Invalid type. Set --experimental-wasm-anyref to use 'AnyRef'");
         }
         return kWasmAnyRef;
+      case kLocalExnRef:
+        if (!enabled_features_.eh) {
+          error(pc_ - 1,
+                "Invalid type. Set --experimental-wasm-eh to use 'ExnRef'");
+        }
+        return kWasmExnRef;
       default:
         break;
     }

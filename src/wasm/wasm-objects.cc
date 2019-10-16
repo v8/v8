@@ -529,8 +529,11 @@ bool WasmTableObject::IsInBounds(Isolate* isolate,
 bool WasmTableObject::IsValidElement(Isolate* isolate,
                                      Handle<WasmTableObject> table,
                                      Handle<Object> entry) {
-  // Anyref tables take everything.
-  if (table->type() == wasm::kWasmAnyRef) return true;
+  // Anyref and exnref tables take everything.
+  if (table->type() == wasm::kWasmAnyRef ||
+      table->type() == wasm::kWasmExnRef) {
+    return true;
+  }
   // FuncRef tables can store {null}, {WasmExportedFunction}, {WasmJSFunction},
   // or {WasmCapiFunction} objects.
   if (entry->IsNull(isolate)) return true;
@@ -548,7 +551,8 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
   Handle<FixedArray> entries(table->entries(), isolate);
   // The FixedArray is addressed with int's.
   int entry_index = static_cast<int>(index);
-  if (table->type() == wasm::kWasmAnyRef) {
+  if (table->type() == wasm::kWasmAnyRef ||
+      table->type() == wasm::kWasmExnRef) {
     entries->set(entry_index, *entry);
     return;
   }
@@ -592,8 +596,11 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
 
   Handle<Object> entry(entries->get(entry_index), isolate);
 
-  // First we handle the easy anyref table case.
-  if (table->type() == wasm::kWasmAnyRef) return entry;
+  // First we handle the easy anyref and exnref table case.
+  if (table->type() == wasm::kWasmAnyRef ||
+      table->type() == wasm::kWasmExnRef) {
+    return entry;
+  }
 
   // Now we handle the funcref case.
   if (WasmExportedFunction::IsWasmExportedFunction(*entry) ||
