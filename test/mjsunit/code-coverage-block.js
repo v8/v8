@@ -1068,4 +1068,19 @@ f(43);                                    // 0450
  {"start":204,"end":226,"count":1}]
 );
 
+TestCoverage(
+"https://crbug.com/v8/9857",
+`function foo() {}`,
+[{"start":0,"end":17,"count":1},
+ {"start":0,"end":17,"count":0}]
+);
+
+TestCoverage(
+"https://crbug.com/v8/9857",
+`function foo() {function bar() {}}; foo()`,
+[{"start":0,"end":41,"count":1},
+ {"start":0,"end":34,"count":1},
+ {"start":16,"end":33,"count":0}]
+);
+
 %DebugToggleBlockCoverage(false);
