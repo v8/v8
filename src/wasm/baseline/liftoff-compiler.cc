@@ -829,8 +829,8 @@ class LiftoffCompiler {
       CASE_I64_SIGN_EXTENSION(I64SExtendI16, i64_signextend_i16)
       CASE_I64_SIGN_EXTENSION(I64SExtendI32, i64_signextend_i32)
       case kExprI32Eqz:
-        DCHECK_EQ(kExprI32Eqz, decoder->pc()[0]);
-        if (decoder->pc()[1] == kExprBrIf) {
+        DCHECK(decoder->lookahead(0, kExprI32Eqz));
+        if (decoder->lookahead(1, kExprBrIf)) {
           DCHECK(!has_outstanding_op());
           outstanding_op_ = kExprI32Eqz;
           break;
@@ -984,8 +984,8 @@ class LiftoffCompiler {
         });
 #define CASE_I32_CMPOP(opcode)                                               \
   case kExpr##opcode:                                                        \
-    DCHECK_EQ(kExpr##opcode, decoder->pc()[0]);                              \
-    if (decoder->pc()[1] == kExprBrIf) {                                     \
+    DCHECK(decoder->lookahead(0, kExpr##opcode));                            \
+    if (decoder->lookahead(1, kExprBrIf)) {                                  \
       DCHECK(!has_outstanding_op());                                         \
       outstanding_op_ = kExpr##opcode;                                       \
       break;                                                                 \
