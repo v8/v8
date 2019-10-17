@@ -413,15 +413,15 @@ class WasmGenerator {
 
   void grow_memory(DataRange* data);
 
-  using generate_fn = void (WasmGenerator::*const)(DataRange*);
+  using GenerateFn = void (WasmGenerator::*const)(DataRange*);
 
   template <size_t N>
-  void GenerateOneOf(generate_fn (&alternates)[N], DataRange* data) {
+  void GenerateOneOf(GenerateFn (&alternatives)[N], DataRange* data) {
     static_assert(N < std::numeric_limits<uint8_t>::max(),
-                  "Too many alternates. Replace with a bigger type if needed.");
+                  "Too many alternatives. Use a bigger type if needed.");
     const auto which = data->get<uint8_t>();
 
-    generate_fn alternate = alternates[which % N];
+    GenerateFn alternate = alternatives[which % N];
     (this->*alternate)(data);
   }
 
@@ -492,7 +492,7 @@ void WasmGenerator::Generate<kWasmStmt>(DataRange* data) {
   GeneratorRecursionScope rec_scope(this);
   if (recursion_limit_reached() || data->size() == 0) return;
 
-  constexpr generate_fn alternates[] = {
+  constexpr GenerateFn alternatives[] = {
       &WasmGenerator::sequence<kWasmStmt, kWasmStmt>,
       &WasmGenerator::sequence<kWasmStmt, kWasmStmt, kWasmStmt, kWasmStmt>,
       &WasmGenerator::sequence<kWasmStmt, kWasmStmt, kWasmStmt, kWasmStmt,
@@ -521,7 +521,7 @@ void WasmGenerator::Generate<kWasmStmt>(DataRange* data) {
       &WasmGenerator::set_local,
       &WasmGenerator::set_global};
 
-  GenerateOneOf(alternates, data);
+  GenerateOneOf(alternatives, data);
 }
 
 template <>
@@ -532,7 +532,7 @@ void WasmGenerator::Generate<kWasmI32>(DataRange* data) {
     return;
   }
 
-  constexpr generate_fn alternates[] = {
+  constexpr GenerateFn alternatives[] = {
       &WasmGenerator::i32_const<1>,
       &WasmGenerator::i32_const<2>,
       &WasmGenerator::i32_const<3>,
@@ -619,7 +619,7 @@ void WasmGenerator::Generate<kWasmI32>(DataRange* data) {
 
       &WasmGenerator::call<kWasmI32>};
 
-  GenerateOneOf(alternates, data);
+  GenerateOneOf(alternatives, data);
 }
 
 template <>
@@ -630,7 +630,7 @@ void WasmGenerator::Generate<kWasmI64>(DataRange* data) {
     return;
   }
 
-  constexpr generate_fn alternates[] = {
+  constexpr GenerateFn alternatives[] = {
       &WasmGenerator::i64_const<1>,
       &WasmGenerator::i64_const<2>,
       &WasmGenerator::i64_const<3>,
@@ -687,7 +687,7 @@ void WasmGenerator::Generate<kWasmI64>(DataRange* data) {
 
       &WasmGenerator::call<kWasmI64>};
 
-  GenerateOneOf(alternates, data);
+  GenerateOneOf(alternatives, data);
 }
 
 template <>
@@ -698,7 +698,7 @@ void WasmGenerator::Generate<kWasmF32>(DataRange* data) {
     return;
   }
 
-  constexpr generate_fn alternates[] = {
+  constexpr GenerateFn alternatives[] = {
       &WasmGenerator::sequence<kWasmF32, kWasmStmt>,
       &WasmGenerator::sequence<kWasmStmt, kWasmF32>,
       &WasmGenerator::sequence<kWasmStmt, kWasmF32, kWasmStmt>,
@@ -722,7 +722,7 @@ void WasmGenerator::Generate<kWasmF32>(DataRange* data) {
 
       &WasmGenerator::call<kWasmF32>};
 
-  GenerateOneOf(alternates, data);
+  GenerateOneOf(alternatives, data);
 }
 
 template <>
@@ -733,7 +733,7 @@ void WasmGenerator::Generate<kWasmF64>(DataRange* data) {
     return;
   }
 
-  constexpr generate_fn alternates[] = {
+  constexpr GenerateFn alternatives[] = {
       &WasmGenerator::sequence<kWasmF64, kWasmStmt>,
       &WasmGenerator::sequence<kWasmStmt, kWasmF64>,
       &WasmGenerator::sequence<kWasmStmt, kWasmF64, kWasmStmt>,
@@ -757,7 +757,7 @@ void WasmGenerator::Generate<kWasmF64>(DataRange* data) {
 
       &WasmGenerator::call<kWasmF64>};
 
-  GenerateOneOf(alternates, data);
+  GenerateOneOf(alternatives, data);
 }
 
 void WasmGenerator::grow_memory(DataRange* data) {
