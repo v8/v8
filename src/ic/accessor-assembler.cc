@@ -3397,7 +3397,7 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p) {
 }
 
 void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
-  Label miss(this, Label::kDeferred);
+  Label miss(this, Label::kDeferred), no_feedback(this, Label::kDeferred);
   {
     TVARIABLE(MaybeObject, var_handler);
 
@@ -3408,7 +3408,7 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
     TNode<Map> array_map = LoadReceiverMap(p->receiver());
     GotoIf(IsDeprecatedMap(array_map), &miss);
 
-    GotoIf(IsUndefined(p->vector()), &miss);
+    GotoIf(IsUndefined(p->vector()), &no_feedback);
 
     TNode<MaybeObject> feedback =
         TryMonomorphicCase(p->slot(), CAST(p->vector()), array_map, &if_handler,
@@ -3483,6 +3483,13 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
       TailCallRuntime(Runtime::kStoreInArrayLiteralIC_Slow, p->context(),
                       p->value(), p->receiver(), p->name());
     }
+  }
+
+  BIND(&no_feedback);
+  {
+    Comment("StoreInArrayLiteralIC_NoFeedback");
+    TailCallBuiltin(Builtins::kSetPropertyInLiteral, p->context(),
+                    p->receiver(), p->name(), p->value());
   }
 
   BIND(&miss);

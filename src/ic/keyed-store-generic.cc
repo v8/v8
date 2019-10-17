@@ -340,20 +340,23 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
   {
     TNode<IntPtrT> offset =
         ElementOffsetFromIndex(index, PACKED_ELEMENTS, kHeaderSize);
-    // Check if we're about to overwrite the hole. We can safely do that
-    // only if there can be no setters on the prototype chain.
-    // If we know that we're storing beyond the previous array length, we
-    // can skip the hole check (and always assume the hole).
-    {
-      Label hole_check_passed(this);
-      if (update_length == kDontChangeLength) {
-        TNode<Object> element =
-            CAST(Load(MachineType::AnyTagged(), elements, offset));
-        GotoIf(TaggedNotEqual(element, TheHoleConstant()), &hole_check_passed);
+    if (!IsStoreInLiteral()) {
+      // Check if we're about to overwrite the hole. We can safely do that
+      // only if there can be no setters on the prototype chain.
+      // If we know that we're storing beyond the previous array length, we
+      // can skip the hole check (and always assume the hole).
+      {
+        Label hole_check_passed(this);
+        if (update_length == kDontChangeLength) {
+          TNode<Object> element =
+              CAST(Load(MachineType::AnyTagged(), elements, offset));
+          GotoIf(TaggedNotEqual(element, TheHoleConstant()),
+                 &hole_check_passed);
+        }
+        BranchIfPrototypesHaveNonFastElements(receiver_map, slow,
+                                              &hole_check_passed);
+        BIND(&hole_check_passed);
       }
-      BranchIfPrototypesHaveNonFastElements(receiver_map, slow,
-                                            &hole_check_passed);
-      BIND(&hole_check_passed);
     }
 
     // Check if the value we're storing matches the elements_kind. Smis
@@ -443,22 +446,25 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
   {
     TNode<IntPtrT> offset =
         ElementOffsetFromIndex(index, PACKED_DOUBLE_ELEMENTS, kHeaderSize);
-    // Check if we're about to overwrite the hole. We can safely do that
-    // only if there can be no setters on the prototype chain.
-    {
-      Label hole_check_passed(this);
-      // If we know that we're storing beyond the previous array length, we
-      // can skip the hole check (and always assume the hole).
-      if (update_length == kDontChangeLength) {
-        Label found_hole(this);
-        LoadDoubleWithHoleCheck(elements, offset, &found_hole,
-                                MachineType::None());
-        Goto(&hole_check_passed);
-        BIND(&found_hole);
+    if (!IsStoreInLiteral()) {
+      // Check if we're about to overwrite the hole. We can safely do that
+      // Check if we're about to overwrite the hole. We can safely do that
+      // only if there can be no setters on the prototype chain.
+      {
+        Label hole_check_passed(this);
+        // If we know that we're storing beyond the previous array length, we
+        // can skip the hole check (and always assume the hole).
+        if (update_length == kDontChangeLength) {
+          Label found_hole(this);
+          LoadDoubleWithHoleCheck(elements, offset, &found_hole,
+                                  MachineType::None());
+          Goto(&hole_check_passed);
+          BIND(&found_hole);
+        }
+        BranchIfPrototypesHaveNonFastElements(receiver_map, slow,
+                                              &hole_check_passed);
+        BIND(&hole_check_passed);
       }
-      BranchIfPrototypesHaveNonFastElements(receiver_map, slow,
-                                            &hole_check_passed);
-      BIND(&hole_check_passed);
     }
 
     // Try to store the value as a double.
@@ -541,13 +547,15 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
   }
 
   BIND(&if_out_of_bounds);
-  {
+  if (!IsStoreInLiteral()) {
     // Integer indexed out-of-bounds accesses to typed arrays are simply
     // ignored, since we never look up integer indexed properties on the
     // prototypes of typed arrays. For all other types, we may need to
     // grow the backing store.
     GotoIfNot(InstanceTypeEqual(instance_type, JS_TYPED_ARRAY_TYPE), &if_grow);
     Return(value);
+  } else {
+    Goto(&if_grow);
   }
 
   BIND(&if_increment_length_by_one);
