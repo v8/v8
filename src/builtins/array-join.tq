@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 namespace array_join {
-  type LoadJoinElementFn = builtin(Context, JSReceiver, Number) => JSAny;
+  type LoadJoinElementFn = builtin(Context, JSReceiver, uintptr) => JSAny;
 
   // Fast C call to write a fixed array (see Buffer.fixedArray) to a single
   // string.
@@ -12,20 +12,20 @@ namespace array_join {
       FixedArray, intptr, String, String): String;
 
   transitioning builtin LoadJoinElement<T: type>(
-      context: Context, receiver: JSReceiver, k: Number): JSAny {
-    return GetProperty(receiver, k);
+      context: Context, receiver: JSReceiver, k: uintptr): JSAny {
+    return GetProperty(receiver, Convert<Number>(k));
   }
 
   transitioning LoadJoinElement<array::DictionaryElements>(
-      context: Context, receiver: JSReceiver, k: Number): JSAny {
+      context: Context, receiver: JSReceiver, k: uintptr): JSAny {
     const array: JSArray = UnsafeCast<JSArray>(receiver);
     const dict: NumberDictionary = UnsafeCast<NumberDictionary>(array.elements);
     try {
-      return BasicLoadNumberDictionaryElement(dict, Signed(Convert<uintptr>(k)))
+      return BasicLoadNumberDictionaryElement(dict, Signed(k))
           otherwise IfNoData, IfHole;
     }
     label IfNoData deferred {
-      return GetProperty(receiver, k);
+      return GetProperty(receiver, Convert<Number>(k));
     }
     label IfHole {
       return kEmptyString;
@@ -33,30 +33,29 @@ namespace array_join {
   }
 
   LoadJoinElement<array::FastSmiOrObjectElements>(
-      context: Context, receiver: JSReceiver, k: Number): JSAny {
+      context: Context, receiver: JSReceiver, k: uintptr): JSAny {
     const array: JSArray = UnsafeCast<JSArray>(receiver);
     const fixedArray: FixedArray = UnsafeCast<FixedArray>(array.elements);
-    const element: Object = fixedArray.objects[UnsafeCast<Smi>(k)];
+    const element: Object = fixedArray.objects[k];
     return element == TheHole ? kEmptyString : UnsafeCast<JSAny>(element);
   }
 
   LoadJoinElement<array::FastDoubleElements>(
-      context: Context, receiver: JSReceiver, k: Number): JSAny {
+      context: Context, receiver: JSReceiver, k: uintptr): JSAny {
     const array: JSArray = UnsafeCast<JSArray>(receiver);
     const fixedDoubleArray: FixedDoubleArray =
         UnsafeCast<FixedDoubleArray>(array.elements);
-    const element: float64 = LoadDoubleWithHoleCheck(
-        fixedDoubleArray, UnsafeCast<Smi>(k)) otherwise return kEmptyString;
+    const element: float64 = LoadDoubleWithHoleCheck(fixedDoubleArray, k)
+        otherwise return kEmptyString;
     return AllocateHeapNumberWithValue(element);
   }
 
   builtin LoadJoinTypedElement<T: type>(
-      context: Context, receiver: JSReceiver, k: Number): JSAny {
+      context: Context, receiver: JSReceiver, k: uintptr): JSAny {
     const typedArray: JSTypedArray = UnsafeCast<JSTypedArray>(receiver);
     assert(!IsDetachedBuffer(typedArray.buffer));
     return typed_array::LoadFixedTypedArrayElementAsTagged(
-        typedArray.data_ptr, UnsafeCast<Smi>(k),
-        typed_array::KindForArrayType<T>());
+        typedArray.data_ptr, k, typed_array::KindForArrayType<T>());
   }
 
   transitioning builtin ConvertToLocaleString(
@@ -283,7 +282,7 @@ namespace array_join {
       }
 
       // b. Let element be ? Get(O, ! ToString(k)).
-      const element: JSAny = loadFn(context, receiver, Convert<Number>(k++));
+      const element: JSAny = loadFn(context, receiver, k++);
 
       // c. If element is undefined or null, let next be the empty String;
       //    otherwise, let next be ? ToString(element).

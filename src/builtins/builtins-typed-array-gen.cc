@@ -572,7 +572,7 @@ void TypedArrayBuiltinsAssembler::SetJSTypedArrayOffHeapDataPtr(
 
 void TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromTagged(
     TNode<Context> context, TNode<JSTypedArray> typed_array,
-    TNode<Smi> index_node, TNode<Object> value, ElementsKind elements_kind) {
+    TNode<UintPtrT> index, TNode<Object> value, ElementsKind elements_kind) {
   TNode<RawPtrT> data_ptr = LoadJSTypedArrayDataPtr(typed_array);
   switch (elements_kind) {
     case UINT8_ELEMENTS:
@@ -580,27 +580,25 @@ void TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromTagged(
     case INT8_ELEMENTS:
     case UINT16_ELEMENTS:
     case INT16_ELEMENTS:
-      StoreElement(data_ptr, elements_kind, index_node, SmiToInt32(CAST(value)),
-                   SMI_PARAMETERS);
+      StoreElement(data_ptr, elements_kind, index, SmiToInt32(CAST(value)));
       break;
     case UINT32_ELEMENTS:
     case INT32_ELEMENTS:
-      StoreElement(data_ptr, elements_kind, index_node,
-                   TruncateTaggedToWord32(context, value), SMI_PARAMETERS);
+      StoreElement(data_ptr, elements_kind, index,
+                   TruncateTaggedToWord32(context, value));
       break;
     case FLOAT32_ELEMENTS:
-      StoreElement(data_ptr, elements_kind, index_node,
-                   TruncateFloat64ToFloat32(LoadHeapNumberValue(CAST(value))),
-                   SMI_PARAMETERS);
+      StoreElement(data_ptr, elements_kind, index,
+                   TruncateFloat64ToFloat32(LoadHeapNumberValue(CAST(value))));
       break;
     case FLOAT64_ELEMENTS:
-      StoreElement(data_ptr, elements_kind, index_node,
-                   LoadHeapNumberValue(CAST(value)), SMI_PARAMETERS);
+      StoreElement(data_ptr, elements_kind, index,
+                   LoadHeapNumberValue(CAST(value)));
       break;
     case BIGUINT64_ELEMENTS:
     case BIGINT64_ELEMENTS:
-      StoreElement(data_ptr, elements_kind, index_node,
-                   UncheckedCast<BigInt>(value), SMI_PARAMETERS);
+      StoreElement(data_ptr, elements_kind, index,
+                   UncheckedCast<BigInt>(value));
       break;
     default:
       UNREACHABLE();

@@ -70,12 +70,12 @@ namespace typed_array {
   extern macro TypedArrayBuiltinsAssembler::IsBigInt64ElementsKind(
       ElementsKind): bool;
   extern macro LoadFixedTypedArrayElementAsTagged(
-      RawPtr, Smi, constexpr ElementsKind): Numeric;
+      RawPtr, uintptr, constexpr ElementsKind): Numeric;
   extern macro TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromTagged(
-      Context, JSTypedArray, Smi, JSAny, constexpr ElementsKind);
+      Context, JSTypedArray, uintptr, JSAny, constexpr ElementsKind);
 
-  type LoadFn = builtin(Context, JSTypedArray, Smi) => JSAny;
-  type StoreFn = builtin(Context, JSTypedArray, Smi, JSAny) => JSAny;
+  type LoadFn = builtin(Context, JSTypedArray, uintptr) => JSAny;
+  type StoreFn = builtin(Context, JSTypedArray, uintptr, JSAny) => JSAny;
 
   extern macro TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(
       JSTypedArray, ByteArray, uintptr): void;
@@ -105,9 +105,15 @@ namespace typed_array {
       this.unstable = %RawDownCast<AttachedJSTypedArray>(this.stable);
     }
 
-    Load(implicit context: Context)(k: Smi): JSAny {
+    Load(implicit context: Context)(k: uintptr): JSAny {
       const lf: LoadFn = this.loadfn;
       return lf(context, this.unstable, k);
+    }
+
+    // TODO(v8:4153): Remove this version once all builtins use uintptr indices
+    // for iteration.
+    Load(implicit context: Context)(k: Smi): JSAny {
+      return this.Load(Unsigned(SmiUntag(k)));
     }
 
     stable: JSTypedArray;
@@ -195,13 +201,13 @@ namespace typed_array {
   }
 
   builtin LoadFixedElement<T: type>(
-      _context: Context, array: JSTypedArray, index: Smi): JSAny {
+      _context: Context, array: JSTypedArray, index: uintptr): JSAny {
     return LoadFixedTypedArrayElementAsTagged(
         array.data_ptr, index, KindForArrayType<T>());
   }
 
   builtin StoreFixedElement<T: type>(
-      context: Context, typedArray: JSTypedArray, index: Smi,
+      context: Context, typedArray: JSTypedArray, index: uintptr,
       value: JSAny): JSAny {
     typed_array::StoreJSTypedArrayElementFromTagged(
         context, typedArray, index, value, KindForArrayType<T>());
@@ -232,11 +238,12 @@ namespace typed_array {
   transitioning macro
   TypedArrayMerge(
       implicit context: Context, array: JSTypedArray, comparefn: Callable)(
-      source: FixedArray, from: Smi, middle: Smi, to: Smi, target: FixedArray) {
-    let left: Smi = from;
-    let right: Smi = middle;
+      source: FixedArray, from: uintptr, middle: uintptr, to: uintptr,
+      target: FixedArray) {
+    let left: uintptr = from;
+    let right: uintptr = middle;
 
-    for (let targetIndex: Smi = from; targetIndex < to; ++targetIndex) {
+    for (let targetIndex: uintptr = from; targetIndex < to; ++targetIndex) {
       if (left < middle && right >= to) {
         // If the left run has elements, but the right does not, we take
         // from the left.
@@ -262,17 +269,21 @@ namespace typed_array {
   }
 
   transitioning builtin
-  TypedArrayMergeSort(
-      implicit context: Context, array: JSTypedArray, comparefn: Callable)(
-      source: FixedArray, from: Smi, to: Smi, target: FixedArray): JSAny {
+  TypedArrayMergeSort(implicit context: Context)(
+      source: FixedArray, from: uintptr, to: uintptr, target: FixedArray,
+      array: JSTypedArray, comparefn: Callable): JSAny {
     assert(to - from > 1);
-    const middle: Smi = from + ((to - from) >> 1);
+    const middle: uintptr = from + ((to - from) >>> 1);
 
     // On the next recursion step source becomes target and vice versa.
     // This saves the copy of the relevant range from the original
     // array into a work array on each recursion step.
-    if (middle - from > 1) TypedArrayMergeSort(target, from, middle, source);
-    if (to - middle > 1) TypedArrayMergeSort(target, middle, to, source);
+    if (middle - from > 1) {
+      TypedArrayMergeSort(target, from, middle, source, array, comparefn);
+    }
+    if (to - middle > 1) {
+      TypedArrayMergeSort(target, middle, to, source, array, comparefn);
+    }
 
     TypedArrayMerge(source, from, middle, to, target);
 
@@ -304,8 +315,7 @@ namespace typed_array {
     }
 
     // 4. Let len be obj.[[ArrayLength]].
-    // TODO(v8:4153): Support huge TypedArrays here.
-    const len = Cast<Smi>(Convert<Number>(array.length)) otherwise unreachable;
+    const len: uintptr = array.length;
 
     // Arrays of length 1 or less are considered sorted.
     if (len < 2) return array;
@@ -366,16 +376,16 @@ namespace typed_array {
     const work1: FixedArray = AllocateZeroedFixedArray(Convert<intptr>(len));
     const work2: FixedArray = AllocateZeroedFixedArray(Convert<intptr>(len));
 
-    for (let i: Smi = 0; i < len; ++i) {
+    for (let i: uintptr = 0; i < len; ++i) {
       const element: JSAny = loadfn(context, array, i);
       work1.objects[i] = element;
       work2.objects[i] = element;
     }
 
-    TypedArrayMergeSort(work2, 0, len, work1);
+    TypedArrayMergeSort(work2, 0, len, work1, array, comparefn);
 
     // work1 contains the sorted numbers. Write them back.
-    for (let i: Smi = 0; i < len; ++i)
+    for (let i: uintptr = 0; i < len; ++i)
       storefn(context, array, i, UnsafeCast<JSAny>(work1.objects[i]));
 
     return array;

@@ -16,12 +16,6 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   explicit TypedArrayBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  template <class... TArgs>
-  TNode<JSTypedArray> TypedArraySpeciesCreate(const char* method_name,
-                                              TNode<Context> context,
-                                              TNode<JSTypedArray> exemplar,
-                                              TArgs... args);
-
   void GenerateTypedArrayPrototypeIterationMethod(TNode<Context> context,
                                                   TNode<Object> receiver,
                                                   const char* method_name,
@@ -120,7 +114,7 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                                      TNode<UintPtrT> offset);
   void StoreJSTypedArrayElementFromTagged(TNode<Context> context,
                                           TNode<JSTypedArray> typed_array,
-                                          TNode<Smi> index_node,
+                                          TNode<UintPtrT> index_node,
                                           TNode<Object> value,
                                           ElementsKind elements_kind);
 };

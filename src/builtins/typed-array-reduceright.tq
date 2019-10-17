@@ -11,11 +11,9 @@ namespace typed_array_reduceright {
       array: typed_array::AttachedJSTypedArray, callbackfn: Callable,
       initialValue: JSAny | TheHole): JSAny {
     let witness = typed_array::NewAttachedJSTypedArrayWitness(array);
-    // TODO(v8:4153): Support huge TypedArrays here.
-    const length =
-        Cast<Smi>(Convert<Number>(witness.Get().length)) otherwise unreachable;
+    const length: uintptr = witness.Get().length;
     let accumulator = initialValue;
-    for (let k: Smi = length - 1; k >= 0; k--) {
+    for (let k: uintptr = length; k-- > 0;) {
       // BUG(4895): We should throw on detached buffers rather than simply exit.
       witness.Recheck() otherwise break;
       const value: JSAny = witness.Load(k);
@@ -24,9 +22,11 @@ namespace typed_array_reduceright {
           accumulator = value;
         }
         case (accumulatorNotHole: JSAny): {
+          // TODO(v8:4153): Consider versioning this loop for Smi and non-Smi
+          // indices to optimize Convert<Number>(k) for the most common case.
           accumulator = Call(
-              context, callbackfn, Undefined, accumulatorNotHole, value, k,
-              witness.GetStable());
+              context, callbackfn, Undefined, accumulatorNotHole, value,
+              Convert<Number>(k), witness.GetStable());
         }
       }
     }

@@ -1413,6 +1413,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Float64T> LoadDoubleWithHoleCheck(TNode<FixedDoubleArray> array,
                                           TNode<IntPtrT> index,
                                           Label* if_hole = nullptr);
+  TNode<Float64T> LoadDoubleWithHoleCheck(TNode<FixedDoubleArray> array,
+                                          TNode<UintPtrT> index,
+                                          Label* if_hole = nullptr) {
+    return LoadDoubleWithHoleCheck(array, Signed(index), if_hole);
+  }
 
   // Load Float64 value by |base| + |offset| address. If the value is a double
   // hole then jump to |if_hole|. If |machine_type| is None then only the hole
@@ -3251,6 +3256,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // teach TurboFan to handle int64_t on 32-bit platforms eventually.
   void StoreElement(Node* elements, ElementsKind kind, Node* index, Node* value,
                     ParameterMode mode);
+  void StoreElement(TNode<RawPtrT> elements, ElementsKind kind,
+                    TNode<UintPtrT> index, Node* value) {
+    return StoreElement(elements, kind, index, value, INTPTR_PARAMETERS);
+  }
 
   // Implements the BigInt part of
   // https://tc39.github.io/proposal-bigint/#sec-numbertorawbytes,

@@ -46,6 +46,10 @@ namespace torque_internal {
       return this.TryAtIndex(index) otherwise unreachable;
     }
 
+    AtIndex(index: uintptr):&T {
+      return this.TryAtIndex(Convert<intptr>(index)) otherwise unreachable;
+    }
+
     AtIndex(index: constexpr int31):&T {
       const i: intptr = Convert<intptr>(index);
       return this.TryAtIndex(i) otherwise unreachable;

@@ -3224,6 +3224,8 @@ extern macro LoadDoubleWithHoleCheck(FixedDoubleArray, Smi): float64
     labels IfHole;
 extern macro LoadDoubleWithHoleCheck(FixedDoubleArray, intptr): float64
     labels IfHole;
+extern macro LoadDoubleWithHoleCheck(FixedDoubleArray, uintptr): float64
+    labels IfHole;
 extern macro StoreFixedDoubleArrayHoleSmi(FixedDoubleArray, Smi): void;
 
 macro GetObjectFunction(implicit context: Context)(): JSFunction {
