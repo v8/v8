@@ -319,7 +319,7 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     }
   }
 
-  void InsertIntoRememberedSetAndGotoSlow(Node* isolate, TNode<IntPtrT> object,
+  void InsertIntoRememberedSetAndGotoSlow(TNode<IntPtrT> object,
                                           TNode<IntPtrT> slot, Node* mode,
                                           Label* next) {
     TNode<IntPtrT> page = PageFromAddress(object);
@@ -330,7 +330,7 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
         function, page, slot, mode, next);
   }
 
-  void InsertIntoRememberedSetAndGoto(Node* isolate, TNode<IntPtrT> object,
+  void InsertIntoRememberedSetAndGoto(TNode<IntPtrT> object,
                                       TNode<IntPtrT> slot, Node* mode,
                                       Label* next) {
     Label slow_path(this);
@@ -349,7 +349,7 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     Goto(next);
 
     BIND(&slow_path);
-    InsertIntoRememberedSetAndGotoSlow(isolate, object, slot, mode, next);
+    InsertIntoRememberedSetAndGotoSlow(object, slot, mode, next);
   }
 
   TNode<IntPtrT> LoadSlotSetArray(TNode<IntPtrT> page, Label* slow_path) {
@@ -442,24 +442,18 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
 
     BIND(&store_buffer_exit);
     {
-      TNode<ExternalReference> isolate_constant =
-          ExternalConstant(ExternalReference::isolate_address(isolate()));
       Node* fp_mode = Parameter(Descriptor::kFPMode);
       TNode<IntPtrT> object =
           BitcastTaggedToWord(Parameter(Descriptor::kObject));
-      InsertIntoRememberedSetAndGoto(isolate_constant, object, slot, fp_mode,
-                                     &exit);
+      InsertIntoRememberedSetAndGoto(object, slot, fp_mode, &exit);
     }
 
     BIND(&store_buffer_incremental_wb);
     {
-      TNode<ExternalReference> isolate_constant =
-          ExternalConstant(ExternalReference::isolate_address(isolate()));
       Node* fp_mode = Parameter(Descriptor::kFPMode);
       TNode<IntPtrT> object =
           BitcastTaggedToWord(Parameter(Descriptor::kObject));
-      InsertIntoRememberedSetAndGoto(isolate_constant, object, slot, fp_mode,
-                                     &incremental_wb);
+      InsertIntoRememberedSetAndGoto(object, slot, fp_mode, &incremental_wb);
     }
   }
 
