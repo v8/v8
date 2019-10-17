@@ -826,6 +826,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     BIND(&lookup_transition);
     {
       Comment("lookup transition");
+      CheckForAssociatedProtector(name, slow);
       TNode<Map> transition_map =
           FindCandidateStoreICTransitionMapHandler(receiver_map, name, slow);
 
