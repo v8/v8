@@ -256,6 +256,9 @@
   # Test doesn't work on 32-bit architectures (it would require a
   # regexp pattern with too many captures).
   'regress/regress-976627': [FAIL, ['arch == x64 or arch == arm64 or arch == mips64el or arch == ppc64 or arch == s390x', PASS]],
+
+  # BUG(v8:9837)
+  'es6/array-concat-unspreadable-array-subclass': [FAIL],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -505,7 +508,6 @@
 ['arch == arm64 and simulator_run', {
   # Slow in simulator builds
   'compiler/osr-follow': [PASS, SLOW],
-  'es6/array-concat': [PASS, SLOW],
   'non-extensible-array-reduce': [PASS, SLOW],
   'regress/regress-454725': [PASS, SLOW],
   'regress/regress-708247': [PASS, SLOW],
