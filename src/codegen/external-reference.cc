@@ -504,6 +504,16 @@ ExternalReference ExternalReference::address_of_regexp_stack_limit_address(
   return ExternalReference(isolate->regexp_stack()->limit_address_address());
 }
 
+ExternalReference ExternalReference::address_of_regexp_stack_memory_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->regexp_stack()->memory_address_address());
+}
+
+ExternalReference ExternalReference::address_of_regexp_stack_memory_size(
+    Isolate* isolate) {
+  return ExternalReference(isolate->regexp_stack()->memory_size_address());
+}
+
 ExternalReference ExternalReference::address_of_regexp_stack_memory_top_address(
     Isolate* isolate) {
   return ExternalReference(
