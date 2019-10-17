@@ -123,17 +123,23 @@ bool LookupIterator::IsCacheableTransition() {
          transition_map()->GetBackPointer(isolate_).IsMap(isolate_);
 }
 
-void LookupIterator::UpdateProtector() {
-  if (IsElement()) return;
+// static
+void LookupIterator::UpdateProtector(Isolate* isolate, Handle<Object> receiver,
+                                     Handle<Name> name) {
   // This list must be kept in sync with
   // CodeStubAssembler::CheckForAssociatedProtector!
-  ReadOnlyRoots roots(isolate_);
-  if (*name_ == roots.is_concat_spreadable_symbol() ||
-      *name_ == roots.constructor_string() || *name_ == roots.next_string() ||
-      *name_ == roots.species_symbol() || *name_ == roots.iterator_symbol() ||
-      *name_ == roots.resolve_string() || *name_ == roots.then_string()) {
-    InternalUpdateProtector();
+  ReadOnlyRoots roots(isolate);
+  if (*name == roots.is_concat_spreadable_symbol() ||
+      *name == roots.constructor_string() || *name == roots.next_string() ||
+      *name == roots.species_symbol() || *name == roots.iterator_symbol() ||
+      *name == roots.resolve_string() || *name == roots.then_string()) {
+    InternalUpdateProtector(isolate, receiver, name);
   }
+}
+
+void LookupIterator::UpdateProtector() {
+  if (IsElement()) return;
+  UpdateProtector(isolate_, receiver_, name_);
 }
 
 InternalIndex LookupIterator::descriptor_number() const {

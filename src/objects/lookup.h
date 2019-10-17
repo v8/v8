@@ -182,6 +182,8 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   Handle<Object> GetDataValue() const;
   void WriteDataValue(Handle<Object> value, bool initializing_store);
   inline void UpdateProtector();
+  static inline void UpdateProtector(Isolate* isolate, Handle<Object> receiver,
+                                     Handle<Name> name);
 
   // Lookup a 'cached' private property for an accessor.
   // If not found returns false and leaves the LookupIterator unmodified.
@@ -194,7 +196,8 @@ class V8_EXPORT_PRIVATE LookupIterator final {
                  Handle<Map> transition_map, PropertyDetails details,
                  bool has_property);
 
-  void InternalUpdateProtector();
+  static void InternalUpdateProtector(Isolate* isolate, Handle<Object> receiver,
+                                      Handle<Name> name);
 
   enum class InterceptorState {
     kUninitialized,

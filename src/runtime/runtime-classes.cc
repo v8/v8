@@ -17,6 +17,7 @@
 #include "src/objects/elements.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/lookup-inl.h"
 #include "src/objects/smi.h"
 #include "src/objects/struct-inl.h"
 #include "src/runtime/runtime.h"
@@ -282,6 +283,26 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
   return true;
 }
 
+void UpdateProtectors(Isolate* isolate, Handle<JSObject> receiver,
+                      Handle<NameDictionary> properties_dictionary) {
+  ReadOnlyRoots roots(isolate);
+  for (InternalIndex i : properties_dictionary->IterateEntries()) {
+    Object maybe_key = properties_dictionary->KeyAt(i);
+    if (!NameDictionary::IsKey(roots, maybe_key)) continue;
+    Handle<Name> name(Name::cast(maybe_key), isolate);
+    LookupIterator::UpdateProtector(isolate, receiver, name);
+  }
+}
+
+void UpdateProtectors(Isolate* isolate, Handle<JSObject> receiver,
+                      Handle<DescriptorArray> properties_template) {
+  int nof_descriptors = properties_template->number_of_descriptors();
+  for (InternalIndex i : InternalIndex::Range(nof_descriptors)) {
+    Handle<Name> name(properties_template->GetKey(i), isolate);
+    LookupIterator::UpdateProtector(isolate, receiver, name);
+  }
+}
+
 bool AddDescriptorsByTemplate(
     Isolate* isolate, Handle<Map> map,
     Handle<DescriptorArray> descriptors_template,
@@ -368,6 +389,8 @@ bool AddDescriptorsByTemplate(
     }
   }
 
+  UpdateProtectors(isolate, receiver, descriptors_template);
+
   map->InitializeDescriptors(isolate, *descriptors,
                              LayoutDescriptor::FastPointerLayout());
   if (elements_dictionary->NumberOfElements() > 0) {
@@ -447,6 +470,8 @@ bool AddDescriptorsByTemplate(
         isolate->factory()->function_name_accessor(), details);
     CHECK_EQ(*dict, *properties_dictionary);
   }
+
+  UpdateProtectors(isolate, receiver, properties_dictionary);
 
   if (elements_dictionary->NumberOfElements() > 0) {
     if (!SubstituteValues<NumberDictionary>(isolate, elements_dictionary,
