@@ -2104,6 +2104,12 @@ void InstructionSelector::VisitI64x2ReplaceLaneI32Pair(Node* node) {
        low, high);
 }
 
+void InstructionSelector::VisitI64x2Neg(Node* node) {
+  IA32OperandGenerator g(this);
+  InstructionOperand operand0 = g.UseUnique(node->InputAt(0));
+  Emit(kIA32I64x2Neg, g.DefineAsRegister(node), operand0);
+}
+
 void InstructionSelector::VisitF32x4Splat(Node* node) {
   VisitRRSimd(this, node, kAVXF32x4Splat, kSSEF32x4Splat);
 }

@@ -116,6 +116,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32F64x2Le:
     case kIA32I64x2SplatI32Pair:
     case kIA32I64x2ReplaceLaneI32Pair:
+    case kIA32I64x2Neg:
     case kSSEF32x4Splat:
     case kAVXF32x4Splat:
     case kSSEF32x4ExtractLane:

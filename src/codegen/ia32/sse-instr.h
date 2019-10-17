@@ -38,6 +38,7 @@
   V(psubb, 66, 0F, F8)           \
   V(psubw, 66, 0F, F9)           \
   V(psubd, 66, 0F, FA)           \
+  V(psubq, 66, 0F, FB)           \
   V(psubsb, 66, 0F, E8)          \
   V(psubsw, 66, 0F, E9)          \
   V(psubusb, 66, 0F, D8)         \

@@ -2659,11 +2659,11 @@ void InstructionSelector::VisitF64x2Lt(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Le(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Min(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Max(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI64x2Neg(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_IA32
 void InstructionSelector::VisitI64x2Splat(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ExtractLane(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ReplaceLane(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitI64x2Neg(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2Shl(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ShrS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2Add(Node* node) { UNIMPLEMENTED(); }
