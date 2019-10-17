@@ -1817,6 +1817,8 @@ v8_compiler_sources = [
   "src/compiler/dead-code-elimination.h",
   "src/compiler/decompression-elimination.cc",
   "src/compiler/decompression-elimination.h",
+  "src/compiler/decompression-optimizer.cc",
+  "src/compiler/decompression-optimizer.h",
   "src/compiler/diamond.h",
   "src/compiler/effect-control-linearizer.cc",
   "src/compiler/effect-control-linearizer.h",
