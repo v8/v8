@@ -84,6 +84,14 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
                        length, SmiConstant(JSArray::kMaxFastArrayLength)));
   CSA_ASSERT(this, SmiGreaterThan(length, SmiConstant(0)));
 
+  // Clone the match info so we can stash a pointer to it. This is necessary
+  // because it may point to the 'regexp_last_match_info' on native context and
+  // thus could change.
+  // TODO(v8:9870): Now that we clone the last match info, we can make its size
+  // static.
+  TNode<FixedArrayBase> cloned_match_info =
+      CloneFixedArray(match_info, ExtractFixedArrayFlag::kFixedArrays);
+
   // Allocate.
 
   const ElementsKind elements_kind = PACKED_ELEMENTS;
@@ -117,10 +125,10 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
   StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kNamesOffset,
                                  undefined_value);
 
-  // Stash match_info in order to build JSRegExpResultIndices lazily when the
-  // 'indices' property is accessed.
+  // Stash cloned_match_info in order to build JSRegExpResultIndices lazily when
+  // the 'indices' property is accessed.
   StoreObjectField(result, JSRegExpResult::kCachedIndicesOrMatchInfoOffset,
-                   match_info);
+                   cloned_match_info);
 
   // Finish elements initialization.
 
