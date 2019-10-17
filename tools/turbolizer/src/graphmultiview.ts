@@ -106,7 +106,6 @@ export class GraphMultiView extends View {
   displayPhaseView(view: PhaseView, data, selection?: Set<any>) {
     const rememberedSelection = selection ? selection : this.hideCurrentPhase();
     view.initializeContent(data, rememberedSelection);
-    this.divNode.classList.toggle("scrollable", view.isScrollable());
     this.currentPhaseView = view;
   }
 

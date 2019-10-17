@@ -12,6 +12,7 @@ export class ScheduleView extends TextView {
   createViewElement() {
     const pane = document.createElement('div');
     pane.setAttribute('id', "schedule");
+    pane.classList.add("scrollable");
     return pane;
   }
 

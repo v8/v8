@@ -351,6 +351,8 @@ input:hover,
 .viewpane {
   height: 100vh;
   background-color: #FFFFFF;
+  display: flex;
+  flex-direction: column;
 }
 
 .multiview {
@@ -371,19 +373,16 @@ input:hover,
   height: 100%;
 }
 
-.toolbox-anchor {
-  height: 0px;
-}
-
 .graph-toolbox {
   position: relative;
   border-bottom: 2px solid #eee8d5;
   z-index: 5;
-  background: rgba(100%, 100%, 100%, 0.7);
+  background: rgba(100%, 100%, 100%);
   box-sizing: border-box;
   padding: 3px;
   margin-left: 4px;
   margin-right: 4px;
+  overflow-x: hidden;
 }
 
 .disassembly-toolbox {
@@ -511,12 +510,10 @@ text {
 
 #sequence {
   font-family: monospace;
-  margin-top: 50px;
 }
 
 #schedule {
   font-family: monospace;
-  margin-top: 50px;
 }
 
 .schedule-block {

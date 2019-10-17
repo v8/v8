@@ -13,6 +13,7 @@ export class SequenceView extends TextView {
   createViewElement() {
     const pane = document.createElement('div');
     pane.setAttribute('id', "sequence");
+    pane.classList.add("scrollable");
     return pane;
   }
 
