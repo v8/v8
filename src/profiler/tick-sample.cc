@@ -155,7 +155,7 @@ Address ScrapeNativeContextAddress(Heap* heap, Address context_address) {
   if (!HAS_STRONG_HEAP_OBJECT_TAG(context_address)) return kNullAddress;
 
   i::Object object(context_address);
-  return i::Context::cast(object).native_context().ptr();
+  return i::Context::cast(object).map().native_context().ptr();
 #endif
 }
 

@@ -45,7 +45,9 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOld(
   TNode<Context> closure_context = UncheckedCast<Context>(base);
   {
     // Initialize the await context, storing the {generator} as extension.
-    StoreMapNoWriteBarrier(closure_context, RootIndex::kAwaitContextMap);
+    TNode<Map> map = CAST(
+        LoadContextElement(native_context, Context::AWAIT_CONTEXT_MAP_INDEX));
+    StoreMapNoWriteBarrier(closure_context, map);
     StoreObjectFieldNoWriteBarrier(closure_context, Context::kLengthOffset,
                                    SmiConstant(Context::MIN_CONTEXT_SLOTS));
     TNode<Object> const empty_scope_info =
@@ -56,8 +58,6 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOld(
                                       native_context);
     StoreContextElementNoWriteBarrier(closure_context, Context::EXTENSION_INDEX,
                                       generator);
-    StoreContextElementNoWriteBarrier(
-        closure_context, Context::NATIVE_CONTEXT_INDEX, native_context);
   }
 
   // Let promiseCapability be ! NewPromiseCapability(%Promise%).
@@ -138,7 +138,9 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOptimized(
   TNode<Context> closure_context = UncheckedCast<Context>(base);
   {
     // Initialize the await context, storing the {generator} as extension.
-    StoreMapNoWriteBarrier(closure_context, RootIndex::kAwaitContextMap);
+    TNode<Map> map = CAST(
+        LoadContextElement(native_context, Context::AWAIT_CONTEXT_MAP_INDEX));
+    StoreMapNoWriteBarrier(closure_context, map);
     StoreObjectFieldNoWriteBarrier(closure_context, Context::kLengthOffset,
                                    SmiConstant(Context::MIN_CONTEXT_SLOTS));
     TNode<Object> const empty_scope_info =
@@ -149,8 +151,6 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOptimized(
                                       native_context);
     StoreContextElementNoWriteBarrier(closure_context, Context::EXTENSION_INDEX,
                                       generator);
-    StoreContextElementNoWriteBarrier(
-        closure_context, Context::NATIVE_CONTEXT_INDEX, native_context);
   }
 
   // Initialize resolve handler

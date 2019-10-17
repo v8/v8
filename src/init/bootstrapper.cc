@@ -1170,6 +1170,7 @@ void Genesis::CreateRoots() {
   // and the global object, but in order to create those, we need the
   // native context).
   native_context_ = factory()->NewNativeContext();
+
   AddToWeakNativeContextList(isolate(), *native_context());
   isolate()->set_context(*native_context());
 
@@ -1438,10 +1439,49 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   Factory* factory = isolate_->factory();
 
-  Handle<ScriptContextTable> script_context_table =
-      factory->NewScriptContextTable();
-  native_context()->set_script_context_table(*script_context_table);
-  InstallGlobalThisBinding();
+  {  // -- C o n t e x t
+    Handle<Map> map =
+        factory->NewMap(FUNCTION_CONTEXT_TYPE, kVariableSizeSentinel);
+    map->set_native_context(*native_context());
+    native_context()->set_function_context_map(*map);
+
+    map = factory->NewMap(CATCH_CONTEXT_TYPE, kVariableSizeSentinel);
+    map->set_native_context(*native_context());
+    native_context()->set_catch_context_map(*map);
+
+    map = factory->NewMap(WITH_CONTEXT_TYPE, kVariableSizeSentinel);
+    map->set_native_context(*native_context());
+    native_context()->set_with_context_map(*map);
+
+    map = factory->NewMap(DEBUG_EVALUATE_CONTEXT_TYPE, kVariableSizeSentinel);
+    map->set_native_context(*native_context());
+    native_context()->set_debug_evaluate_context_map(*map);
+
+    map = factory->NewMap(BLOCK_CONTEXT_TYPE, kVariableSizeSentinel);
+    map->set_native_context(*native_context());
+    native_context()->set_block_context_map(*map);
+
+    map = factory->NewMap(MODULE_CONTEXT_TYPE, kVariableSizeSentinel);
+    map->set_native_context(*native_context());
+    native_context()->set_module_context_map(*map);
+
+    map = factory->NewMap(AWAIT_CONTEXT_TYPE, kVariableSizeSentinel);
+    map->set_native_context(*native_context());
+    native_context()->set_await_context_map(*map);
+
+    map = factory->NewMap(SCRIPT_CONTEXT_TYPE, kVariableSizeSentinel);
+    map->set_native_context(*native_context());
+    native_context()->set_script_context_map(*map);
+
+    map = factory->NewMap(EVAL_CONTEXT_TYPE, kVariableSizeSentinel);
+    map->set_native_context(*native_context());
+    native_context()->set_eval_context_map(*map);
+
+    Handle<ScriptContextTable> script_context_table =
+        factory->NewScriptContextTable();
+    native_context()->set_script_context_table(*script_context_table);
+    InstallGlobalThisBinding();
+  }
 
   {  // --- O b j e c t ---
     Handle<String> object_name = factory->Object_string();

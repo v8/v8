@@ -445,13 +445,6 @@ int Context::IntrinsicIndexForName(const unsigned char* unsigned_string,
 
 #ifdef DEBUG
 
-bool Context::IsBootstrappingOrNativeContext(Isolate* isolate, Object object) {
-  // During bootstrapping we allow all objects to pass as global
-  // objects. This is necessary to fix circular dependencies.
-  return isolate->heap()->gc_state() != Heap::NOT_IN_GC ||
-         isolate->bootstrapper()->IsActive() || object.IsNativeContext();
-}
-
 bool Context::IsBootstrappingOrValidParentContext(Object object,
                                                   Context child) {
   // During bootstrapping we allow all objects to pass as
@@ -474,15 +467,13 @@ void NativeContext::IncrementErrorsThrown() {
 
 int NativeContext::GetErrorsThrown() { return errors_thrown().value(); }
 
-STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);
+STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 3);
 STATIC_ASSERT(NativeContext::kScopeInfoOffset ==
               Context::OffsetOfElementAt(NativeContext::SCOPE_INFO_INDEX));
 STATIC_ASSERT(NativeContext::kPreviousOffset ==
               Context::OffsetOfElementAt(NativeContext::PREVIOUS_INDEX));
 STATIC_ASSERT(NativeContext::kExtensionOffset ==
               Context::OffsetOfElementAt(NativeContext::EXTENSION_INDEX));
-STATIC_ASSERT(NativeContext::kNativeContextOffset ==
-              Context::OffsetOfElementAt(NativeContext::NATIVE_CONTEXT_INDEX));
 
 STATIC_ASSERT(NativeContext::kStartOfStrongFieldsOffset ==
               Context::OffsetOfElementAt(-1));

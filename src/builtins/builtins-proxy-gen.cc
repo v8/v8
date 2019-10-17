@@ -119,7 +119,9 @@ Node* ProxiesCodeStubAssembler::CreateProxyRevokeFunctionContext(
     Node* proxy, Node* native_context) {
   TNode<HeapObject> const context =
       Allocate(FixedArray::SizeFor(kProxyContextLength));
-  StoreMapNoWriteBarrier(context, RootIndex::kFunctionContextMap);
+  TNode<Map> map = CAST(
+      LoadContextElement(native_context, Context::FUNCTION_CONTEXT_MAP_INDEX));
+  StoreMapNoWriteBarrier(context, map);
   InitializeFunctionContext(native_context, context, kProxyContextLength);
   StoreContextElementNoWriteBarrier(CAST(context), kProxySlot, proxy);
   return context;

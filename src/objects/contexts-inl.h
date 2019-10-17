@@ -130,13 +130,7 @@ void Context::set_extension(HeapObject object) {
 }
 
 NativeContext Context::native_context() const {
-  Object result = get(NATIVE_CONTEXT_INDEX);
-  DCHECK(IsBootstrappingOrNativeContext(this->GetIsolate(), result));
-  return NativeContext::unchecked_cast(result);
-}
-
-void Context::set_native_context(NativeContext context) {
-  set(NATIVE_CONTEXT_INDEX, context);
+  return this->map().native_context();
 }
 
 bool Context::IsFunctionContext() const {
