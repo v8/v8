@@ -31,15 +31,17 @@ class RememberedSetOperations {
   }
 
   template <typename Callback>
-  static void Iterate(SlotSet* slots, MemoryChunk* chunk, Callback callback,
-                      SlotSet::EmptyBucketMode mode) {
+  static int Iterate(SlotSet* slots, MemoryChunk* chunk, Callback callback,
+                     SlotSet::EmptyBucketMode mode) {
+    int number_slots = 0;
     if (slots != nullptr) {
       size_t pages = (chunk->size() + Page::kPageSize - 1) / Page::kPageSize;
       for (size_t page = 0; page < pages; page++) {
-        slots[page].Iterate(chunk->address() + page * Page::kPageSize, callback,
-                            mode);
+        number_slots += slots[page].Iterate(
+            chunk->address() + page * Page::kPageSize, callback, mode);
       }
     }
+    return number_slots;
   }
 
   static void Remove(SlotSet* slot_set, MemoryChunk* chunk, Address slot_addr) {
@@ -172,10 +174,10 @@ class RememberedSet : public AllStatic {
   // Notice that |mode| can only be of FREE* or PREFREE* if there are no other
   // threads concurrently inserting slots.
   template <typename Callback>
-  static void Iterate(MemoryChunk* chunk, Callback callback,
-                      SlotSet::EmptyBucketMode mode) {
+  static int Iterate(MemoryChunk* chunk, Callback callback,
+                     SlotSet::EmptyBucketMode mode) {
     SlotSet* slots = chunk->slot_set<type>();
-    RememberedSetOperations::Iterate(slots, chunk, callback, mode);
+    return RememberedSetOperations::Iterate(slots, chunk, callback, mode);
   }
 
   static void FreeEmptyBuckets(MemoryChunk* chunk) {
@@ -378,10 +380,10 @@ class RememberedSetSweeping {
   // Notice that |mode| can only be of FREE* or PREFREE* if there are no other
   // threads concurrently inserting slots.
   template <typename Callback>
-  static void Iterate(MemoryChunk* chunk, Callback callback,
-                      SlotSet::EmptyBucketMode mode) {
+  static int Iterate(MemoryChunk* chunk, Callback callback,
+                     SlotSet::EmptyBucketMode mode) {
     SlotSet* slots = chunk->sweeping_slot_set();
-    RememberedSetOperations::Iterate(slots, chunk, callback, mode);
+    return RememberedSetOperations::Iterate(slots, chunk, callback, mode);
   }
 };
 

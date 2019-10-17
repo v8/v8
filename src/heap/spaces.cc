@@ -866,16 +866,16 @@ void Page::MoveOldToNewRememberedSetForSweeping() {
 void Page::MergeOldToNewRememberedSets() {
   if (sweeping_slot_set_ == nullptr) return;
 
-  RememberedSet<OLD_TO_NEW>::Iterate(
-      this,
-      [this](MaybeObjectSlot slot) {
-        Address address = slot.address();
-        RememberedSetSweeping::Insert<AccessMode::NON_ATOMIC>(this, address);
-        return KEEP_SLOT;
-      },
-      SlotSet::KEEP_EMPTY_BUCKETS);
-
   if (slot_set_[OLD_TO_NEW]) {
+    RememberedSet<OLD_TO_NEW>::Iterate(
+        this,
+        [this](MaybeObjectSlot slot) {
+          Address address = slot.address();
+          RememberedSetSweeping::Insert<AccessMode::NON_ATOMIC>(this, address);
+          return KEEP_SLOT;
+        },
+        SlotSet::KEEP_EMPTY_BUCKETS);
+
     ReleaseSlotSet<OLD_TO_NEW>();
   }
 
@@ -1404,7 +1404,7 @@ void MemoryChunk::ReleaseAllocatedMemoryNeededForWritableChunk() {
   }
 
   ReleaseSlotSet<OLD_TO_NEW>();
-  ReleaseSlotSet(&sweeping_slot_set_);
+  ReleaseSweepingSlotSet();
   ReleaseSlotSet<OLD_TO_OLD>();
   ReleaseTypedSlotSet<OLD_TO_NEW>();
   ReleaseTypedSlotSet<OLD_TO_OLD>();
@@ -1461,6 +1461,10 @@ template void MemoryChunk::ReleaseSlotSet<OLD_TO_OLD>();
 template <RememberedSetType type>
 void MemoryChunk::ReleaseSlotSet() {
   ReleaseSlotSet(&slot_set_[type]);
+}
+
+void MemoryChunk::ReleaseSweepingSlotSet() {
+  ReleaseSlotSet(&sweeping_slot_set_);
 }
 
 void MemoryChunk::ReleaseSlotSet(SlotSet** slot_set) {
@@ -1552,7 +1556,8 @@ void MemoryChunk::InvalidateRecordedSlots(HeapObject object) {
     RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object);
   }
 
-  RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(object);
+  if (!FLAG_always_promote_young_mc || slot_set_[OLD_TO_NEW] != nullptr)
+    RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(object);
 }
 
 template bool MemoryChunk::RegisteredObjectWithInvalidatedSlots<OLD_TO_NEW>(

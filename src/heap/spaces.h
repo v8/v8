@@ -723,6 +723,7 @@ class MemoryChunk : public BasicMemoryChunk {
   template <RememberedSetType type>
   void ReleaseSlotSet();
   void ReleaseSlotSet(SlotSet** slot_set);
+  void ReleaseSweepingSlotSet();
   template <RememberedSetType type>
   TypedSlotSet* AllocateTypedSlotSet();
   // Not safe to be called concurrently.

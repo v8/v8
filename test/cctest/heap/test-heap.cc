@@ -2561,8 +2561,7 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
            ReadOnlyRoots(CcTest::heap()).empty_property_array());
 }
 
-
-TEST(OptimizedPretenuringdoubleArrayLiterals) {
+TEST(OptimizedPretenuringDoubleArrayLiterals) {
   FLAG_allow_natives_syntax = true;
   FLAG_expose_gc = true;
   CcTest::InitializeVM();
@@ -2572,7 +2571,7 @@ TEST(OptimizedPretenuringdoubleArrayLiterals) {
     return;
   v8::HandleScope scope(CcTest::isolate());
 
-  // Grow new space unitl maximum capacity reached.
+  // Grow new space until maximum capacity reached.
   while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
     CcTest::heap()->new_space()->Grow();
   }
@@ -2602,7 +2601,6 @@ TEST(OptimizedPretenuringdoubleArrayLiterals) {
   CHECK(CcTest::heap()->InOldSpace(o->elements()));
   CHECK(CcTest::heap()->InOldSpace(*o));
 }
-
 
 TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
   FLAG_allow_natives_syntax = true;
@@ -5398,19 +5396,32 @@ HEAP_TEST(Regress589413) {
   // Fill the new space with byte arrays with elements looking like pointers.
   const int M = 256;
   ByteArray byte_array;
+  Page* young_page = nullptr;
   while (AllocateByteArrayForTest(heap, M, AllocationType::kYoung)
              .To(&byte_array)) {
+    // Only allocate objects on one young page as a rough estimate on
+    // how much memory can be promoted into the old generation.
+    // Otherwise we would crash when forcing promotion of all young
+    // live objects.
+    if (!young_page) young_page = Page::FromHeapObject(byte_array);
+    if (Page::FromHeapObject(byte_array) != young_page) break;
+
     for (int j = 0; j < M; j++) {
       byte_array.set(j, 0x31);
     }
     // Add the array in root set.
     handle(byte_array, isolate);
   }
-  // Make sure the byte arrays will be promoted on the next GC.
-  CcTest::CollectGarbage(NEW_SPACE);
-  // This number is close to large free list category threshold.
-  const int N = 0x3EEE;
+
   {
+    // Ensure that incremental marking is not started unexpectedly.
+    AlwaysAllocateScope always_allocate(isolate);
+
+    // Make sure the byte arrays will be promoted on the next GC.
+    CcTest::CollectGarbage(NEW_SPACE);
+    // This number is close to large free list category threshold.
+    const int N = 0x3EEE;
+
     std::vector<FixedArray> arrays;
     std::set<Page*> pages;
     FixedArray array;
@@ -5423,7 +5434,7 @@ HEAP_TEST(Regress589413) {
       // Add the array in root set.
       handle(array, isolate);
     }
-    // Expand and full one complete page with fixed arrays.
+    // Expand and fill one complete page with fixed arrays.
     heap->set_force_oom(false);
     while (
         AllocateFixedArrayForTest(heap, N, AllocationType::kOld).To(&array)) {
@@ -5437,7 +5448,6 @@ HEAP_TEST(Regress589413) {
     // Expand and mark the new page as evacuation candidate.
     heap->set_force_oom(false);
     {
-      AlwaysAllocateScope always_allocate(isolate);
       Handle<HeapObject> ec_obj =
           factory->NewFixedArray(5000, AllocationType::kOld);
       Page* ec_page = Page::FromHeapObject(*ec_obj);
@@ -5451,11 +5461,13 @@ HEAP_TEST(Regress589413) {
         }
       }
     }
+    CHECK(heap->incremental_marking()->IsStopped());
     heap::SimulateIncrementalMarking(heap);
     for (size_t j = 0; j < arrays.size(); j++) {
       heap->RightTrimFixedArray(arrays[j], N - 1);
     }
   }
+
   // Force allocation from the free list.
   heap->set_force_oom(true);
   CcTest::CollectGarbage(OLD_SPACE);
@@ -6542,7 +6554,8 @@ HEAP_TEST(Regress779503) {
     // currently scavenging.
     heap->delay_sweeper_tasks_for_testing_ = true;
     CcTest::CollectGarbage(OLD_SPACE);
-    CHECK(Heap::InYoungGeneration(*byte_array));
+    CHECK(FLAG_always_promote_young_mc ? !Heap::InYoungGeneration(*byte_array)
+                                       : Heap::InYoungGeneration(*byte_array));
   }
   // Scavenging and sweeping the same page will crash as slots will be
   // overridden.

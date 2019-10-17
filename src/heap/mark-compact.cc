@@ -1348,24 +1348,42 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
   explicit EvacuateNewSpaceVisitor(
       Heap* heap, LocalAllocator* local_allocator,
       RecordMigratedSlotVisitor* record_visitor,
-      Heap::PretenuringFeedbackMap* local_pretenuring_feedback)
+      Heap::PretenuringFeedbackMap* local_pretenuring_feedback,
+      bool always_promote_young)
       : EvacuateVisitorBase(heap, local_allocator, record_visitor),
         buffer_(LocalAllocationBuffer::InvalidBuffer()),
         promoted_size_(0),
         semispace_copied_size_(0),
         local_pretenuring_feedback_(local_pretenuring_feedback),
-        is_incremental_marking_(heap->incremental_marking()->IsMarking()) {}
+        is_incremental_marking_(heap->incremental_marking()->IsMarking()),
+        always_promote_young_(always_promote_young) {}
 
   inline bool Visit(HeapObject object, int size) override {
     if (TryEvacuateWithoutCopy(object)) return true;
     HeapObject target_object;
+
+    if (always_promote_young_) {
+      heap_->UpdateAllocationSite(object.map(), object,
+                                  local_pretenuring_feedback_);
+
+      if (!TryEvacuateObject(OLD_SPACE, object, size, &target_object)) {
+        heap_->FatalProcessOutOfMemory(
+            "MarkCompactCollector: young object promotion failed");
+      }
+
+      promoted_size_ += size;
+      return true;
+    }
+
     if (heap_->ShouldBePromoted(object.address()) &&
         TryEvacuateObject(OLD_SPACE, object, size, &target_object)) {
       promoted_size_ += size;
       return true;
     }
+
     heap_->UpdateAllocationSite(object.map(), object,
                                 local_pretenuring_feedback_);
+
     HeapObject target;
     AllocationSpace space = AllocateTargetObject(object, size, &target);
     MigrateObject(HeapObject::cast(target), object, size, space);
@@ -1427,6 +1445,7 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
   intptr_t semispace_copied_size_;
   Heap::PretenuringFeedbackMap* local_pretenuring_feedback_;
   bool is_incremental_marking_;
+  bool always_promote_young_;
 };
 
 template <PageEvacuationMode mode>
@@ -2663,6 +2682,8 @@ void MarkCompactCollector::EvacuatePrologue() {
   new_space->Flip();
   new_space->ResetLinearAllocationArea();
 
+  DCHECK_EQ(new_space->Size(), 0);
+
   heap()->new_lo_space()->Flip();
   heap()->new_lo_space()->ResetPendingObject();
 
@@ -2677,6 +2698,8 @@ void MarkCompactCollector::EvacuateEpilogue() {
   aborted_evacuation_candidates_.clear();
   // New space.
   heap()->new_space()->set_age_mark(heap()->new_space()->top());
+  DCHECK_IMPLIES(FLAG_always_promote_young_mc,
+                 heap()->new_space()->Size() == 0);
   // Deallocate unmarked large objects.
   heap()->lo_space()->FreeUnmarkedObjects();
   heap()->code_lo_space()->FreeUnmarkedObjects();
@@ -2724,12 +2747,13 @@ class Evacuator : public Malloced {
     return MemoryChunkLayout::AllocatableMemoryInDataPage() + kTaggedSize;
   }
 
-  Evacuator(Heap* heap, RecordMigratedSlotVisitor* record_visitor)
+  Evacuator(Heap* heap, RecordMigratedSlotVisitor* record_visitor,
+            bool always_promote_young)
       : heap_(heap),
         local_allocator_(heap_),
         local_pretenuring_feedback_(kInitialLocalPretenuringFeedbackCapacity),
         new_space_visitor_(heap_, &local_allocator_, record_visitor,
-                           &local_pretenuring_feedback_),
+                           &local_pretenuring_feedback_, always_promote_young),
         new_to_new_page_visitor_(heap_, record_visitor,
                                  &local_pretenuring_feedback_),
         new_to_old_page_visitor_(heap_, record_visitor,
@@ -2834,7 +2858,8 @@ void Evacuator::Finalize() {
 class FullEvacuator : public Evacuator {
  public:
   explicit FullEvacuator(MarkCompactCollector* collector)
-      : Evacuator(collector->heap(), &record_visitor_),
+      : Evacuator(collector->heap(), &record_visitor_,
+                  FLAG_always_promote_young_mc),
         record_visitor_(collector, &ephemeron_remembered_set_),
         collector_(collector) {}
 
@@ -3024,7 +3049,8 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     if (live_bytes_on_page == 0 && !page->contains_array_buffers()) continue;
     live_bytes += live_bytes_on_page;
     if (ShouldMovePage(page, live_bytes_on_page)) {
-      if (page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK)) {
+      if (page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK) ||
+          FLAG_always_promote_young_mc) {
         EvacuateNewSpacePageVisitor<NEW_TO_OLD>::Move(page);
         DCHECK_EQ(heap()->old_space(), page->owner());
         // The move added page->allocated_bytes to the old space, but we are
@@ -3342,11 +3368,13 @@ class RememberedSetUpdatingItem : public UpdatingItem {
  public:
   explicit RememberedSetUpdatingItem(Heap* heap, MarkingState* marking_state,
                                      MemoryChunk* chunk,
-                                     RememberedSetUpdatingMode updating_mode)
+                                     RememberedSetUpdatingMode updating_mode,
+                                     bool always_promote_young)
       : heap_(heap),
         marking_state_(marking_state),
         chunk_(chunk),
-        updating_mode_(updating_mode) {}
+        updating_mode_(updating_mode),
+        always_promote_young_(always_promote_young) {}
   ~RememberedSetUpdatingItem() override = default;
 
   void Process() override {
@@ -3413,24 +3441,36 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   void UpdateUntypedPointers() {
     if (chunk_->slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() != nullptr) {
       InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(chunk_);
-      RememberedSet<OLD_TO_NEW>::Iterate(
+      int slots = RememberedSet<OLD_TO_NEW>::Iterate(
           chunk_,
           [this, &filter](MaybeObjectSlot slot) {
             if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
             return CheckAndUpdateOldToNewSlot(slot);
           },
           SlotSet::FREE_EMPTY_BUCKETS);
+
+      DCHECK_IMPLIES(always_promote_young_, slots == 0);
+
+      if (slots == 0) {
+        chunk_->ReleaseSlotSet<OLD_TO_NEW>();
+      }
     }
 
     if (chunk_->sweeping_slot_set<AccessMode::NON_ATOMIC>()) {
       InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(chunk_);
-      RememberedSetSweeping::Iterate(
+      int slots = RememberedSetSweeping::Iterate(
           chunk_,
           [this, &filter](MaybeObjectSlot slot) {
             if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
             return CheckAndUpdateOldToNewSlot(slot);
           },
           SlotSet::FREE_EMPTY_BUCKETS);
+
+      DCHECK_IMPLIES(always_promote_young_, slots == 0);
+
+      if (slots == 0) {
+        chunk_->ReleaseSweepingSlotSet();
+      }
     }
 
     if (chunk_->invalidated_slots<OLD_TO_NEW>() != nullptr) {
@@ -3492,6 +3532,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   MarkingState* marking_state_;
   MemoryChunk* chunk_;
   RememberedSetUpdatingMode updating_mode_;
+  bool always_promote_young_;
 };
 
 UpdatingItem* MarkCompactCollector::CreateToSpaceUpdatingItem(
@@ -3503,7 +3544,8 @@ UpdatingItem* MarkCompactCollector::CreateToSpaceUpdatingItem(
 UpdatingItem* MarkCompactCollector::CreateRememberedSetUpdatingItem(
     MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode) {
   return new RememberedSetUpdatingItem<NonAtomicMarkingState>(
-      heap(), non_atomic_marking_state(), chunk, updating_mode);
+      heap(), non_atomic_marking_state(), chunk, updating_mode,
+      FLAG_always_promote_young_mc);
 }
 
 // Update array buffers on a page that has been evacuated by copying objects.
@@ -4545,7 +4587,7 @@ UpdatingItem* MinorMarkCompactCollector::CreateToSpaceUpdatingItem(
 UpdatingItem* MinorMarkCompactCollector::CreateRememberedSetUpdatingItem(
     MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode) {
   return new RememberedSetUpdatingItem<NonAtomicMarkingState>(
-      heap(), non_atomic_marking_state(), chunk, updating_mode);
+      heap(), non_atomic_marking_state(), chunk, updating_mode, false);
 }
 
 class MarkingItem;
@@ -4849,7 +4891,7 @@ namespace {
 class YoungGenerationEvacuator : public Evacuator {
  public:
   explicit YoungGenerationEvacuator(MinorMarkCompactCollector* collector)
-      : Evacuator(collector->heap(), &record_visitor_),
+      : Evacuator(collector->heap(), &record_visitor_, false),
         record_visitor_(collector->heap()->mark_compact_collector()),
         collector_(collector) {}
 
