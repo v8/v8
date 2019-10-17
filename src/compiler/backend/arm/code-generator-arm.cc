@@ -1780,6 +1780,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                      i.InputDoubleRegister(2), i.InputInt8(1));
       break;
     }
+    case kArmF64x2Abs: {
+      __ vabs(i.OutputSimd128Register().low(), i.InputSimd128Register(0).low());
+      __ vabs(i.OutputSimd128Register().high(),
+              i.InputSimd128Register(0).high());
+      break;
+    }
+    case kArmF64x2Neg: {
+      __ vneg(i.OutputSimd128Register().low(), i.InputSimd128Register(0).low());
+      __ vneg(i.OutputSimd128Register().high(),
+              i.InputSimd128Register(0).high());
+      break;
+    }
     case kArmF32x4Splat: {
       int src_code = i.InputFloatRegister(0).code();
       __ vdup(Neon32, i.OutputSimd128Register(),
