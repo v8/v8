@@ -747,12 +747,6 @@ class SerializerForBackgroundCompilation::Environment : public ZoneObject {
     DCHECK(IsDead());
   }
 
-  void Revive() {
-    DCHECK(IsDead());
-    ephemeral_hints_.resize(ephemeral_hints_size(), Hints());
-    DCHECK(!IsDead());
-  }
-
   // Merge {other} into {this} environment (leaving {other} unmodified).
   void Merge(Environment* other);
 
@@ -1038,33 +1032,38 @@ Hints SerializerForBackgroundCompilation::Run() {
   return environment()->return_value_hints();
 }
 
-class ExceptionHandlerMatcher {
+class HandlerRangeMatcher {
  public:
-  explicit ExceptionHandlerMatcher(
-      BytecodeArrayIterator const& bytecode_iterator,
-      Handle<BytecodeArray> bytecode_array)
+  HandlerRangeMatcher(BytecodeArrayIterator const& bytecode_iterator,
+                      Handle<BytecodeArray> bytecode_array)
       : bytecode_iterator_(bytecode_iterator) {
     HandlerTable table(*bytecode_array);
     for (int i = 0, n = table.NumberOfRangeEntries(); i < n; ++i) {
-      handlers_.insert(table.GetRangeHandler(i));
+      ranges_.insert(
+          std::make_pair(table.GetRangeStart(i), table.GetRangeHandler(i)));
     }
-    handlers_iterator_ = handlers_.cbegin();
+    ranges_iterator_ = ranges_.cbegin();
   }
 
-  bool CurrentBytecodeIsExceptionHandlerStart() {
+  int NextHandlerOffsetForRangeStart() {
     CHECK(!bytecode_iterator_.done());
-    while (handlers_iterator_ != handlers_.cend() &&
-           *handlers_iterator_ < bytecode_iterator_.current_offset()) {
-      handlers_iterator_++;
+    int handler_offset = -1;
+    while (ranges_iterator_ != ranges_.cend() &&
+           ranges_iterator_->first < bytecode_iterator_.current_offset()) {
+      ranges_iterator_++;
     }
-    return handlers_iterator_ != handlers_.cend() &&
-           *handlers_iterator_ == bytecode_iterator_.current_offset();
+    if (ranges_iterator_ != ranges_.cend() &&
+        ranges_iterator_->first == bytecode_iterator_.current_offset()) {
+      handler_offset = ranges_iterator_->second;
+      ranges_iterator_++;
+    }
+    return handler_offset;
   }
 
  private:
   BytecodeArrayIterator const& bytecode_iterator_;
-  std::set<int> handlers_;
-  std::set<int>::const_iterator handlers_iterator_;
+  std::multimap<int, int> ranges_;
+  std::multimap<int, int>::const_iterator ranges_iterator_;
 };
 
 Handle<FeedbackVector> SerializerForBackgroundCompilation::feedback_vector()
@@ -1093,7 +1092,7 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
   BytecodeArrayRef(broker(), bytecode_array()).SerializeForCompilation();
 
   BytecodeArrayIterator iterator(bytecode_array());
-  ExceptionHandlerMatcher handler_matcher(iterator, bytecode_array());
+  HandlerRangeMatcher try_start_matcher(iterator, bytecode_array());
 
   bool has_one_shot_bytecode = false;
   for (; !iterator.done(); iterator.Advance()) {
@@ -1102,6 +1101,9 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
         interpreter::Bytecodes::IsOneShotBytecode(iterator.current_bytecode());
 
     int const current_offset = iterator.current_offset();
+
+    // TODO(mvstanton): we might want to ignore the current environment if we
+    // are at the start of a catch handler.
     IncorporateJumpTargetEnvironment(current_offset);
 
     TRACE_BROKER(broker(),
@@ -1110,11 +1112,18 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
     TRACE_BROKER(broker(), "Current environment: " << *environment());
 
     if (environment()->IsDead()) {
-      if (handler_matcher.CurrentBytecodeIsExceptionHandlerStart()) {
-        environment()->Revive();
-      } else {
-        continue;  // Skip this bytecode since TF won't generate code for it.
-      }
+      continue;  // Skip this bytecode since TF won't generate code for it.
+    }
+
+    int handler_offset = try_start_matcher.NextHandlerOffsetForRangeStart();
+    while (handler_offset >= 0) {
+      // We may have nested try ranges that nonetheless start at the same
+      // offset. We loop here in order to save the environment for each catch
+      // handler.
+      TRACE_BROKER(broker(),
+                   "Entered try block. Handler at offset " << handler_offset);
+      ContributeToJumpTargetEnvironment(handler_offset);
+      handler_offset = try_start_matcher.NextHandlerOffsetForRangeStart();
     }
 
     if (bytecode_analysis.IsLoopHeader(current_offset)) {
