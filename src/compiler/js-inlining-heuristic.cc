@@ -143,20 +143,6 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
   Handle<SharedFunctionInfo> frame_shared_info;
   for (int i = 0; i < candidate.num_functions; ++i) {
     if (!candidate.bytecode[i].has_value()) {
-      // Can't inline without bytecode.
-      // TODO(neis): Should this even be a broker message?
-      if (candidate.functions[i].has_value()) {
-        TRACE_BROKER(broker(),
-                     "Missing bytecode array trying to inline JSFunction "
-                         << *candidate.functions[i]);
-      } else {
-        TRACE_BROKER(
-            broker(),
-            "Missing bytecode array trying to inline SharedFunctionInfo "
-                << *candidate.shared_info);
-      }
-      // Those functions that don't have their bytecode serialized probably
-      // don't have the SFI either, so we exit the loop early.
       candidate.can_inline_function[i] = false;
       continue;
     }
