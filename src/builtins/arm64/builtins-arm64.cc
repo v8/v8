@@ -649,7 +649,8 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     win64_unwindinfo::XdataEncoder* xdata_encoder = masm->GetXdataEncoder();
     if (xdata_encoder) {
       xdata_encoder->onFramePointerAdjustment(
-          EntryFrameConstants::kDirectCallerFPOffset);
+          EntryFrameConstants::kDirectCallerFPOffset,
+          EntryFrameConstants::kDirectCallerSPOffset);
     }
 #endif
 
