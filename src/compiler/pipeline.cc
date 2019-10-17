@@ -2571,6 +2571,10 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   pipeline.Run<CsaOptimizationPhase>();
   pipeline.RunPrintAndVerify(CsaOptimizationPhase::phase_name(), true);
 
+  pipeline.Run<DecompressionOptimizationPhase>();
+  pipeline.RunPrintAndVerify(DecompressionOptimizationPhase::phase_name(),
+                             true);
+
   pipeline.Run<VerifyGraphPhase>(true);
   pipeline.ComputeScheduledGraph();
   DCHECK_NOT_NULL(data.schedule());
