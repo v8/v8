@@ -394,12 +394,6 @@ namespace internal {
   CPP(BigIntPrototypeToString)                                                 \
   CPP(BigIntPrototypeValueOf)                                                  \
                                                                                \
-  /* Boolean */                                                                \
-  /* ES6 #sec-boolean.prototype.tostring */                                    \
-  TFJ(BooleanPrototypeToString, 0, kReceiver)                                  \
-  /* ES6 #sec-boolean.prototype.valueof */                                     \
-  TFJ(BooleanPrototypeValueOf, 0, kReceiver)                                   \
-                                                                               \
   /* CallSite */                                                               \
   CPP(CallSitePrototypeGetColumnNumber)                                        \
   CPP(CallSitePrototypeGetEvalOrigin)                                          \

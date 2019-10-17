@@ -1449,6 +1449,8 @@ const kStrictReadOnlyProperty: constexpr MessageTemplate
 
 const kString: constexpr PrimitiveType
     generates 'PrimitiveType::kString';
+const kBoolean: constexpr PrimitiveType
+    generates 'PrimitiveType::kBoolean';
 
 const kNameDictionaryInitialCapacity:
     constexpr int32 generates 'NameDictionary::kInitialCapacity';

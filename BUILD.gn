@@ -1546,7 +1546,6 @@ v8_source_set("v8_initializers") {
     "src/builtins/builtins-async-iterator-gen.cc",
     "src/builtins/builtins-bigint-gen.cc",
     "src/builtins/builtins-bigint-gen.h",
-    "src/builtins/builtins-boolean-gen.cc",
     "src/builtins/builtins-call-gen.cc",
     "src/builtins/builtins-call-gen.h",
     "src/builtins/builtins-collections-gen.cc",
