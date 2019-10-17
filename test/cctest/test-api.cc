@@ -18811,14 +18811,28 @@ TEST(RegExp) {
   v8::Local<v8::Value> value(CompileRun("re.property"));
   CHECK_EQ(32, value->Int32Value(context.local()).FromJust());
 
-  v8::TryCatch try_catch(context->GetIsolate());
-  CHECK(v8::RegExp::New(context.local(), v8_str("foo["), v8::RegExp::kNone)
-            .IsEmpty());
-  CHECK(try_catch.HasCaught());
-  CHECK(context->Global()
-            ->Set(context.local(), v8_str("ex"), try_catch.Exception())
-            .FromJust());
-  ExpectTrue("ex instanceof SyntaxError");
+  {
+    v8::TryCatch try_catch(context->GetIsolate());
+    CHECK(v8::RegExp::New(context.local(), v8_str("foo["), v8::RegExp::kNone)
+              .IsEmpty());
+    CHECK(try_catch.HasCaught());
+    CHECK(context->Global()
+              ->Set(context.local(), v8_str("ex"), try_catch.Exception())
+              .FromJust());
+    ExpectTrue("ex instanceof SyntaxError");
+  }
+
+  // RegExp::Exec.
+  {
+    v8::Local<v8::RegExp> regexp =
+        v8::RegExp::New(context.local(), v8_str("a.c"), {}).ToLocalChecked();
+    v8::Local<v8::Object> result0 =
+        regexp->Exec(context.local(), v8_str("abc")).ToLocalChecked();
+    CHECK(result0->IsArray());
+    v8::Local<v8::Object> result1 =
+        regexp->Exec(context.local(), v8_str("abd")).ToLocalChecked();
+    CHECK(result1->IsNull());
+  }
 }
 
 

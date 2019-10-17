@@ -840,6 +840,7 @@ class RuntimeCallTimer final {
   V(Proxy_New)                                             \
   V(RangeError_New)                                        \
   V(ReferenceError_New)                                    \
+  V(RegExp_Exec)                                           \
   V(RegExp_New)                                            \
   V(ScriptCompiler_Compile)                                \
   V(ScriptCompiler_CompileFunctionInContext)               \

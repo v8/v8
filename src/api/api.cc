@@ -91,6 +91,7 @@
 #include "src/profiler/heap-snapshot-generator-inl.h"
 #include "src/profiler/profile-generator-inl.h"
 #include "src/profiler/tick-sample.h"
+#include "src/regexp/regexp-utils.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/snapshot/partial-serializer.h"
@@ -6653,6 +6654,27 @@ REGEXP_FLAG_ASSERT_EQ(kUnicode);
 v8::RegExp::Flags v8::RegExp::GetFlags() const {
   i::Handle<i::JSRegExp> obj = Utils::OpenHandle(this);
   return RegExp::Flags(static_cast<int>(obj->GetFlags()));
+}
+
+MaybeLocal<v8::Object> v8::RegExp::Exec(Local<Context> context,
+                                        Local<v8::String> subject) {
+  PREPARE_FOR_EXECUTION(context, RegExp, Exec, Object);
+
+  i::Handle<i::JSRegExp> regexp = Utils::OpenHandle(this);
+  i::Handle<i::String> subject_string = Utils::OpenHandle(*subject);
+
+  // TODO(jgruber): RegExpUtils::RegExpExec was not written with efficiency in
+  // mind. It fetches the 'exec' property and then calls it through JSEntry.
+  // Unfortunately, this is currently the only full implementation of
+  // RegExp.prototype.exec available in C++.
+  Local<v8::Object> result;
+  has_pending_exception = !ToLocal<Object>(
+      i::RegExpUtils::RegExpExec(isolate, regexp, subject_string,
+                                 isolate->factory()->undefined_value()),
+      &result);
+
+  RETURN_ON_FAILED_EXECUTION(Object);
+  RETURN_ESCAPED(result);
 }
 
 Local<v8::Array> v8::Array::New(Isolate* isolate, int length) {
