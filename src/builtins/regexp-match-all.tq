@@ -6,9 +6,6 @@
 
 namespace regexp {
 
-  extern transitioning macro RegExpBuiltinsAssembler::RegExpCreate(
-      implicit context: Context)(Context, Object, String): Object;
-
   extern transitioning macro
   RegExpMatchAllAssembler::CreateRegExpStringIterator(
       NativeContext, Object, String, bool, bool): JSAny;

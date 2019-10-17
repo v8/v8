@@ -139,28 +139,6 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
   return result;
 }
 
-TNode<Object> RegExpBuiltinsAssembler::RegExpCreate(
-    TNode<Context> context, TNode<Context> native_context,
-    TNode<Object> maybe_string, TNode<String> flags) {
-  TNode<JSFunction> regexp_function =
-      CAST(LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX));
-  TNode<Map> initial_map = CAST(LoadObjectField(
-      regexp_function, JSFunction::kPrototypeOrInitialMapOffset));
-  return RegExpCreate(context, initial_map, maybe_string, flags);
-}
-
-TNode<Object> RegExpBuiltinsAssembler::RegExpCreate(TNode<Context> context,
-                                                    TNode<Map> initial_map,
-                                                    TNode<Object> maybe_string,
-                                                    TNode<String> flags) {
-  TNode<String> pattern = Select<String>(
-      IsUndefined(maybe_string), [=] { return EmptyStringConstant(); },
-      [=] { return ToString_Inline(context, maybe_string); });
-  TNode<JSObject> regexp = AllocateJSObjectFromMap(initial_map);
-  return CallRuntime(Runtime::kRegExpInitializeAndCompile, context, regexp,
-                     pattern, flags);
-}
-
 TNode<Object> RegExpBuiltinsAssembler::FastLoadLastIndexBeforeSmiCheck(
     TNode<JSRegExp> regexp) {
   // Load the in-object field.
@@ -895,18 +873,6 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpPrototypeExecBody(
 
   BIND(&out);
   return var_result.value();
-}
-
-TNode<BoolT> RegExpBuiltinsAssembler::IsReceiverInitialRegExpPrototype(
-    SloppyTNode<Context> context, SloppyTNode<Object> receiver) {
-  TNode<NativeContext> native_context = LoadNativeContext(context);
-  TNode<JSFunction> const regexp_fun =
-      CAST(LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX));
-  TNode<Object> const initial_map =
-      LoadObjectField(regexp_fun, JSFunction::kPrototypeOrInitialMapOffset);
-  TNode<HeapObject> const initial_prototype =
-      LoadMapPrototype(CAST(initial_map));
-  return TaggedEqual(receiver, initial_prototype);
 }
 
 TNode<BoolT> RegExpBuiltinsAssembler::IsFastRegExpNoPrototype(

@@ -17,14 +17,6 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   explicit RegExpBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  // Create and initialize a RegExp object.
-  TNode<Object> RegExpCreate(TNode<Context> context,
-                             TNode<Context> native_context,
-                             TNode<Object> regexp_string, TNode<String> flags);
-
-  TNode<Object> RegExpCreate(TNode<Context> context, TNode<Map> initial_map,
-                             TNode<Object> regexp_string, TNode<String> flags);
-
   TNode<Smi> SmiZero();
   TNode<IntPtrT> IntPtrZero();
 
@@ -84,9 +76,6 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                                             TNode<JSReceiver> maybe_regexp,
                                             TNode<String> string,
                                             const bool is_fastpath);
-
-  TNode<BoolT> IsReceiverInitialRegExpPrototype(SloppyTNode<Context> context,
-                                                SloppyTNode<Object> receiver);
 
   // Fast path check logic.
   //

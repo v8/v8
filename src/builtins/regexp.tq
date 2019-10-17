@@ -56,8 +56,15 @@ namespace regexp {
       implicit context: Context)(JSRegExp, String):
       RegExpMatchInfo labels IfDidNotMatch;
 
-  extern macro RegExpBuiltinsAssembler::IsReceiverInitialRegExpPrototype(
-      implicit context: Context)(Object): bool;
+  macro IsReceiverInitialRegExpPrototype(implicit context:
+                                             Context)(receiver: Object): bool {
+    const nativeContext: NativeContext = LoadNativeContext(context);
+    const regexpFun =
+        UnsafeCast<JSFunction>(nativeContext[REGEXP_FUNCTION_INDEX]);
+    const initialMap = UnsafeCast<Map>(regexpFun.prototype_or_initial_map);
+    const initialPrototype: HeapObject = initialMap.prototype;
+    return TaggedEqual(receiver, initialPrototype);
+  }
 
   type Flag constexpr 'JSRegExp::Flag';
   const kGlobal: constexpr Flag
@@ -241,5 +248,28 @@ namespace regexp {
           context, SmiConstant(kRegExpMatchIsFalseishOnJSRegExp));
     }
     return false;
+  }
+
+  extern runtime RegExpInitializeAndCompile(Context, JSRegExp, String, String):
+      JSAny;
+
+  @export
+  transitioning macro RegExpCreate(implicit context: Context)(
+      nativeContext: NativeContext, maybeString: JSAny, flags: String): JSAny {
+    const regexpFun =
+        UnsafeCast<JSFunction>(nativeContext[REGEXP_FUNCTION_INDEX]);
+    const initialMap = UnsafeCast<Map>(regexpFun.prototype_or_initial_map);
+    return RegExpCreate(initialMap, maybeString, flags);
+  }
+
+  @export
+  transitioning macro RegExpCreate(implicit context: Context)(
+      initialMap: Map, maybeString: JSAny, flags: String): JSAny {
+    const pattern: String = maybeString == Undefined ?
+        kEmptyString :
+        ToString_Inline(context, maybeString);
+    const regexp =
+        UnsafeCast<JSRegExp>(AllocateFastOrSlowJSObjectFromMap(initialMap));
+    return RegExpInitializeAndCompile(context, regexp, pattern, flags);
   }
 }
