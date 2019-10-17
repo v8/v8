@@ -205,7 +205,7 @@ class GcIntervalAnalyzer(Analyzer):
 class GcIntervalFuzzer(Fuzzer):
   def create_flags_generator(self, rng, test, analysis_value):
     if analysis_value:
-      value = analysis_value / 10
+      value = analysis_value // 10
     else:
       value = 10000
     while True:
@@ -260,7 +260,7 @@ class DeoptFuzzer(Fuzzer):
   def create_flags_generator(self, rng, test, analysis_value):
     while True:
       if analysis_value:
-        value = analysis_value / 2
+        value = analysis_value // 2
       else:
         value = 10000
       interval = rng.randint(self._min, max(value, self._min))

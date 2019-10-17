@@ -268,7 +268,7 @@ class CompactProgressIndicator(ProgressIndicator):
       'progress': progress,
       'failed': self._failed,
       'test': name,
-      'mins': int(elapsed) / 60,
+      'mins': int(elapsed) // 60,
       'secs': int(elapsed) % 60
     }
     status = self._truncate(status, 78)
