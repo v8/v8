@@ -208,6 +208,8 @@ template <typename SrcType, typename DstType>
 void CopyChars(DstType* dst, const SrcType* src, size_t count) {
   STATIC_ASSERT(std::is_integral<SrcType>::value);
   STATIC_ASSERT(std::is_integral<DstType>::value);
+  using SrcTypeUnsigned = typename std::make_unsigned<SrcType>::type;
+  using DstTypeUnsigned = typename std::make_unsigned<DstType>::type;
 
 #ifdef DEBUG
   // Check for no overlap, otherwise {std::copy_n} cannot be used.
@@ -218,10 +220,38 @@ void CopyChars(DstType* dst, const SrcType* src, size_t count) {
   DCHECK(src_end <= dst_start || dst_end <= src_start);
 #endif
 
-  using SrcTypeUnsigned = typename std::make_unsigned<SrcType>::type;
-  using DstTypeUnsigned = typename std::make_unsigned<DstType>::type;
-  std::copy_n(reinterpret_cast<const SrcTypeUnsigned*>(src), count,
-              reinterpret_cast<DstTypeUnsigned*>(dst));
+  auto* dst_u = reinterpret_cast<DstTypeUnsigned*>(dst);
+  auto* src_u = reinterpret_cast<const SrcTypeUnsigned*>(src);
+
+  // Especially Atom CPUs profit from this explicit instantiation for small
+  // counts. This gives up to 20 percent improvement for microbenchmarks such as
+  // joining an array of small integers (2019-10-16).
+  switch (count) {
+#define CASE(N)                   \
+  case N:                         \
+    std::copy_n(src_u, N, dst_u); \
+    return;
+    CASE(1)
+    CASE(2)
+    CASE(3)
+    CASE(4)
+    CASE(5)
+    CASE(6)
+    CASE(7)
+    CASE(8)
+    CASE(9)
+    CASE(10)
+    CASE(11)
+    CASE(12)
+    CASE(13)
+    CASE(14)
+    CASE(15)
+    CASE(16)
+#undef CASE
+    default:
+      std::copy_n(src_u, count, dst_u);
+      return;
+  }
 }
 
 }  // namespace internal
