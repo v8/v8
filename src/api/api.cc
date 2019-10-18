@@ -7191,21 +7191,10 @@ MemorySpan<const uint8_t> CompiledWasmModule::GetWireBytesRef() {
   return {bytes_vec.begin(), bytes_vec.size()};
 }
 
-WasmModuleObject::TransferrableModule
-WasmModuleObject::GetTransferrableModule() {
-  return GetCompiledModule();
-}
-
 CompiledWasmModule WasmModuleObject::GetCompiledModule() {
   i::Handle<i::WasmModuleObject> obj =
       i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
   return Utils::Convert(obj->shared_native_module());
-}
-
-MaybeLocal<WasmModuleObject> WasmModuleObject::FromTransferrableModule(
-    Isolate* isolate,
-    const WasmModuleObject::TransferrableModule& transferrable_module) {
-  return FromCompiledModule(isolate, transferrable_module);
 }
 
 MaybeLocal<WasmModuleObject> WasmModuleObject::FromCompiledModule(
