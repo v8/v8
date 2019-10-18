@@ -2098,6 +2098,29 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_F64X2_ARITHMETIC_BINOP(fdiv_d);
       break;
     }
+    case kMips64F64x2Splat: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ Move(kScratchReg, i.InputDoubleRegister(0));
+      __ fill_d(i.OutputSimd128Register(), kScratchReg);
+      break;
+    }
+    case kMips64F64x2ExtractLane: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ copy_s_d(kScratchReg, i.InputSimd128Register(0), i.InputInt8(1));
+      __ Move(i.OutputDoubleRegister(), kScratchReg);
+      break;
+    }
+    case kMips64F64x2ReplaceLane: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register dst = i.OutputSimd128Register();
+      if (src != dst) {
+        __ move_v(dst, src);
+      }
+      __ Move(kScratchReg, i.InputDoubleRegister(2));
+      __ insert_d(dst, i.InputInt8(1), kScratchReg);
+      break;
+    }
     case kMips64F32x4Splat: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ FmoveLow(kScratchReg, i.InputSingleRegister(0));

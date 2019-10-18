@@ -1983,6 +1983,39 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_F64X2_ARITHMETIC_BINOP(fdiv_d);
       break;
     }
+    case kMipsF64x2Splat: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ FmoveLow(kScratchReg, i.InputDoubleRegister(0));
+      __ insert_w(dst, 0, kScratchReg);
+      __ insert_w(dst, 2, kScratchReg);
+      __ FmoveHigh(kScratchReg, i.InputDoubleRegister(0));
+      __ insert_w(dst, 1, kScratchReg);
+      __ insert_w(dst, 3, kScratchReg);
+      break;
+    }
+    case kMipsF64x2ExtractLane: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ copy_u_w(kScratchReg, i.InputSimd128Register(0), i.InputInt8(1) * 2);
+      __ FmoveLow(i.OutputDoubleRegister(), kScratchReg);
+      __ copy_u_w(kScratchReg, i.InputSimd128Register(0),
+                  i.InputInt8(1) * 2 + 1);
+      __ FmoveHigh(i.OutputDoubleRegister(), kScratchReg);
+      break;
+    }
+    case kMipsF64x2ReplaceLane: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register dst = i.OutputSimd128Register();
+      if (src != dst) {
+        __ move_v(dst, src);
+      }
+      __ FmoveLow(kScratchReg, i.InputDoubleRegister(2));
+      __ insert_w(dst, i.InputInt8(1) * 2, kScratchReg);
+      __ FmoveHigh(kScratchReg, i.InputDoubleRegister(2));
+      __ insert_w(dst, i.InputInt8(1) * 2 + 1, kScratchReg);
+      break;
+    }
     case kMipsF32x4Splat: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ FmoveLow(kScratchReg, i.InputSingleRegister(0));
