@@ -1724,13 +1724,13 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       } else if (third_byte == 0x0E) {
         get_modrm(*current, &mod, &regop, &rm);
         AppendToBuffer("pblendw %s,", NameOfXMMRegister(regop));
-        current += PrintRightXMMOperand(data);
+        current += PrintRightXMMOperand(current);
         AppendToBuffer(",0x%x", (*current) & 3);
         current += 1;
       } else if (third_byte == 0x0F) {
-        get_modrm(*data, &mod, &regop, &rm);
+        get_modrm(*current, &mod, &regop, &rm);
         AppendToBuffer("palignr %s,", NameOfXMMRegister(regop));
-        current += PrintRightXMMOperand(data);
+        current += PrintRightXMMOperand(current);
         AppendToBuffer(",0x%x", (*current) & 3);
         current += 1;
       } else if (third_byte == 0x14) {
