@@ -457,11 +457,48 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7472
   'intl402/NumberFormat/currency-digits': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8703
+  'intl402/DisplayNames/ctor-custom-get-prototype-poison-throws': [FAIL],
+  'intl402/DisplayNames/ctor-custom-prototype': [FAIL],
+  'intl402/DisplayNames/ctor-default-prototype': [FAIL],
+  'intl402/DisplayNames/instance-extensible': [FAIL],
+  'intl402/DisplayNames/length': [FAIL],
+  'intl402/DisplayNames/locales-length-poison-throws': [FAIL],
+  'intl402/DisplayNames/locales-length-tolength-throws': [FAIL],
+  'intl402/DisplayNames/locales-symbol-length': [FAIL],
+  'intl402/DisplayNames/name': [FAIL],
+  'intl402/DisplayNames/options-fallback-abrupt-throws': [FAIL],
+  'intl402/DisplayNames/options-fallback-invalid-throws': [FAIL],
+  'intl402/DisplayNames/options-fallback-toString-abrupt-throws': [FAIL],
+  'intl402/DisplayNames/options-fallback-valid': [FAIL],
+  'intl402/DisplayNames/options-localeMatcher-abrupt-throws': [FAIL],
+  'intl402/DisplayNames/options-localeMatcher-invalid-throws': [FAIL],
+  'intl402/DisplayNames/options-localeMatcher-toString-abrupt-throws': [FAIL],
+  'intl402/DisplayNames/options-localeMatcher-valid': [FAIL],
+  'intl402/DisplayNames/options-random-properties-unchecked': [FAIL],
+  'intl402/DisplayNames/options-style-abrupt-throws': [FAIL],
+  'intl402/DisplayNames/options-style-invalid-throws': [FAIL],
+  'intl402/DisplayNames/options-style-toString-abrupt-throws': [FAIL],
+  'intl402/DisplayNames/options-style-valid': [FAIL],
+  'intl402/DisplayNames/options-type-abrupt-throws': [FAIL],
+  'intl402/DisplayNames/options-type-invalid-throws': [FAIL],
+  'intl402/DisplayNames/options-type-toString-abrupt-throws': [FAIL],
+  'intl402/DisplayNames/options-type-valid': [FAIL],
+  'intl402/DisplayNames/prop-desc': [FAIL],
+  'intl402/DisplayNames/proto': [FAIL],
+  'intl402/DisplayNames/proto-from-ctor-realm': [FAIL],
+  'intl402/DisplayNames/prototype/prop-desc': [FAIL],
+  'intl402/DisplayNames/prototype/Symbol.toStringTag': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=7831
   'language/statements/generators/generator-created-after-decl-inst': [FAIL],
   'language/expressions/generators/generator-created-after-decl-inst': [FAIL],
   'language/expressions/async-generator/generator-created-after-decl-inst': [FAIL],
   'language/statements/async-generator/generator-created-after-decl-inst': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9875
+  'language/expressions/coalesce/tco-pos-undefined': [FAIL],
+  'language/expressions/coalesce/tco-pos-null': [FAIL],
 
   # https://github.com/tc39/test262/issues/2034
   'language/expressions/postfix-decrement/arguments': [SKIP],
@@ -548,20 +585,8 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=9741
   'intl402/Locale/constructor-tag': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9800
-  'built-ins/String/prototype/matchAll/flags-undefined-throws': [FAIL],
-  'built-ins/String/prototype/matchAll/regexp-get-matchAll-throws': [FAIL],
-  'built-ins/String/prototype/matchAll/regexp-matchAll-is-undefined-or-null': [FAIL],
-  'built-ins/String/prototype/matchAll/regexp-prototype-matchAll-throws': [FAIL],
-  'built-ins/String/prototype/matchAll/regexp-matchAll-throws': [FAIL],
-  'built-ins/String/prototype/matchAll/regexp-prototype-matchAll-invocation': [FAIL],
-  'built-ins/String/prototype/matchAll/regexp-prototype-get-matchAll-throws': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9818
   'built-ins/AsyncFunction/proto-from-ctor-realm': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9819
-  'built-ins/Array/prototype/flatMap/array-like-objects-nested': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
