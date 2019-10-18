@@ -1025,6 +1025,15 @@ int DisassemblerX64::AVXInstruction(byte* data) {
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
         break;
+      case 0x6F:
+        AppendToBuffer("vmovdqu %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x7F:
+        AppendToBuffer("vmovdqu ");
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",%s", NameOfXMMRegister(regop));
+        break;
       default:
         UnimplementedInstruction();
     }

@@ -659,6 +659,9 @@ TEST(DisasmX64) {
       __ vmovsd(xmm9, Operand(rbx, rcx, times_4, 10000));
       __ vmovsd(Operand(rbx, rcx, times_4, 10000), xmm0);
 
+      __ vmovdqu(xmm9, Operand(rbx, rcx, times_4, 10000));
+      __ vmovdqu(Operand(rbx, rcx, times_4, 10000), xmm0);
+
       __ vaddsd(xmm0, xmm1, xmm2);
       __ vaddsd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
       __ vmulsd(xmm0, xmm1, xmm2);
