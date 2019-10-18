@@ -2814,6 +2814,8 @@ void InstructionSelector::VisitI8x16Mul(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS8x16Shuffle(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitS8x16Swizzle(Node* node) { UNIMPLEMENTED(); }
+
 void InstructionSelector::VisitF64x2Splat(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF64x2ExtractLane(Node* node) { UNIMPLEMENTED(); }
