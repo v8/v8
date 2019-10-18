@@ -36,6 +36,11 @@
 
   # https://code.google.com/p/v8/issues/detail?id=9312
   'regress-9312': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9876
+  'number-format/unified/notation-engineering-formatToParts': [FAIL],
+  'number-format/unified/notation-scientific-formatToParts': [FAIL],
+
 }],  # ALWAYS
 
 ['variant == no_wasm_traps', {
