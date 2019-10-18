@@ -215,7 +215,24 @@ void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
 
     Handle<BytecodeArray> new_bytecode =
         generator()->FinalizeBytecode(isolate, parse_info()->script());
-    std::cerr << "Bytecode mismatch\nOriginal bytecode:\n";
+
+    std::cerr << "Bytecode mismatch";
+#ifdef OBJECT_PRINT
+    std::cerr << " found for function: ";
+    Handle<String> name = parse_info()->function_name()->string();
+    if (name->length() == 0) {
+      std::cerr << "anonymous";
+    } else {
+      name->StringPrint(std::cerr);
+    }
+    Object script_name = parse_info()->script()->GetNameOrSourceURL();
+    if (script_name.IsString()) {
+      std::cerr << " ";
+      String::cast(script_name).StringPrint(std::cerr);
+      std::cerr << ":" << parse_info()->start_position();
+    }
+#endif
+    std::cerr << "\nOriginal bytecode:\n";
     bytecode->Disassemble(std::cerr);
     std::cerr << "\nNew bytecode:\n";
     new_bytecode->Disassemble(std::cerr);
