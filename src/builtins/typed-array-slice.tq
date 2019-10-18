@@ -84,8 +84,8 @@ namespace typed_array {
     const count = Convert<PositiveSmi>(IntPtrMax(final - k, 0));
 
     // 9. Let A be ? TypedArraySpeciesCreate(O, « count »).
-    const dest: JSTypedArray =
-        TypedArraySpeciesCreateByLength(kBuiltinNameSlice, src, count);
+    const dest: JSTypedArray = TypedArraySpeciesCreateByLength(
+        kBuiltinNameSlice, src, Convert<uintptr>(count));
 
     if (count > 0) {
       try {

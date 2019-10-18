@@ -32,15 +32,15 @@ ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
 void ArrayBuiltinsAssembler::TypedArrayMapResultGenerator() {
   // 6. Let A be ? TypedArraySpeciesCreate(O, len).
   TNode<JSTypedArray> original_array = CAST(o());
-  TNode<Smi> length = CAST(len_);
+  // TODO(v8:4153): Consider making |len_| an UintPtrT.
+  TNode<UintPtrT> length = ChangeNonnegativeNumberToUintPtr(len_);
   const char* method_name = "%TypedArray%.prototype.map";
 
   TNode<JSTypedArray> a = TypedArraySpeciesCreateByLength(
       context(), method_name, original_array, length);
   // In the Spec and our current implementation, the length check is already
   // performed in TypedArraySpeciesCreate.
-  CSA_ASSERT(this, UintPtrLessThanOrEqual(SmiUntag(CAST(len_)),
-                                          LoadJSTypedArrayLength(a)));
+  CSA_ASSERT(this, UintPtrLessThanOrEqual(length, LoadJSTypedArrayLength(a)));
   fast_typed_array_target_ =
       Word32Equal(LoadElementsKind(original_array), LoadElementsKind(a));
   a_ = a;

@@ -18,8 +18,7 @@ namespace typed_array {
       const src = typed_array::EnsureAttached(array) otherwise IsDetached;
 
       // 3. Let len be O.[[ArrayLength]].
-      // TODO(v8:4153): Support huge TypedArrays here.
-      const len = Cast<Smi>(Convert<Number>(src.length)) otherwise unreachable;
+      const len: uintptr = src.length;
 
       // 4. If IsCallable(callbackfn) is false, throw a TypeError exception.
       const callbackfn = Cast<Callable>(arguments[0])
@@ -29,13 +28,15 @@ namespace typed_array {
       const thisArg: JSAny = arguments[1];
 
       // 6. Let kept be a new empty List.
+      // TODO(v8:4153): Support huge TypedArrays here. (growable fixed arrays
+      // can't be longer than kMaxSmiValue).
       let kept = growable_fixed_array::NewGrowableFixedArray();
       let witness = typed_array::NewAttachedJSTypedArrayWitness(src);
 
       // 7. Let k be 0.
       // 8. Let captured be 0.
       // 9. Repeat, while k < len
-      for (let k: Smi = 0; k < len; k++) {
+      for (let k: uintptr = 0; k < len; k++) {
         witness.Recheck() otherwise IsDetached;
 
         // a. Let Pk be ! ToString(k).
@@ -44,8 +45,11 @@ namespace typed_array {
 
         // c. Let selected be ToBoolean(? Call(callbackfn, T, « kValue, k, O
         // »)).
-        const selected: JSAny =
-            Call(context, callbackfn, thisArg, value, k, witness.GetStable());
+        // TODO(v8:4153): Consider versioning this loop for Smi and non-Smi
+        // indices to optimize Convert<Number>(k) for the most common case.
+        const selected: JSAny = Call(
+            context, callbackfn, thisArg, value, Convert<Number>(k),
+            witness.GetStable());
 
         // d. If selected is true, then
         //    i. Append kValue to the end of kept.
@@ -56,15 +60,19 @@ namespace typed_array {
       }
 
       // 10. Let A be ? TypedArraySpeciesCreate(O, captured).
-      const lengthSmi = Convert<PositiveSmi>(kept.length);
-      const typedArray: JSTypedArray =
-          TypedArraySpeciesCreateByLength(kBuiltinNameFilter, array, lengthSmi);
+      const typedArray: JSTypedArray = TypedArraySpeciesCreateByLength(
+          kBuiltinNameFilter, array, Unsigned(kept.length));
 
       // 11. Let n be 0.
       // 12. For each element e of kept, do
       //   a. Perform ! Set(A, ! ToString(n), e, true).
       //   b. Increment n by 1.
-      TypedArrayCopyElements(context, typedArray, kept.ToJSArray(), lengthSmi);
+      // TODO(v8:4153): Consider passing growable typed array directly to
+      // TypedArrayCopyElements() to avoid JSArray materialization. Or collect
+      // indices instead of values the loop above.
+      const lengthNumber = Convert<Number>(Unsigned(kept.length));
+      TypedArrayCopyElements(
+          context, typedArray, kept.ToJSArray(), lengthNumber);
 
       // 13. Return A.
       return typedArray;

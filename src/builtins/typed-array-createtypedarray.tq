@@ -400,15 +400,16 @@ namespace typed_array {
   @export
   transitioning macro TypedArraySpeciesCreateByLength(implicit context:
                                                           Context)(
-      methodName: constexpr string, exemplar: JSTypedArray,
-      length: PositiveSmi): JSTypedArray {
+      methodName: constexpr string, exemplar: JSTypedArray, length: uintptr):
+      JSTypedArray {
     const numArgs: constexpr int31 = 1;
+    // TODO(v8:4153): pass length further as uintptr.
     const typedArray: JSTypedArray = TypedArraySpeciesCreate(
-        methodName, numArgs, exemplar, length, Undefined, Undefined);
-    if (typedArray.length < Convert<uintptr>(length)) deferred {
+        methodName, numArgs, exemplar, Convert<Number>(length), Undefined,
+        Undefined);
+    if (typedArray.length < length) deferred {
         ThrowTypeError(kTypedArrayTooShort);
       }
-
     return typedArray;
   }
 }

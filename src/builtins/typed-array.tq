@@ -112,12 +112,6 @@ namespace typed_array {
       return lf(context, this.unstable, k);
     }
 
-    // TODO(v8:4153): Remove this version once all builtins use uintptr indices
-    // for iteration.
-    Load(implicit context: Context)(k: Smi): JSAny {
-      return this.Load(Unsigned(SmiUntag(k)));
-    }
-
     stable: JSTypedArray;
     unstable: AttachedJSTypedArray;
     loadfn: LoadFn;
