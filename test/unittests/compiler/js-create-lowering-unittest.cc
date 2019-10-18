@@ -182,11 +182,12 @@ TEST_F(JSCreateLoweringTest, JSCreateWithContext) {
       Reduce(graph()->NewNode(javascript()->CreateWithContext(scope_info),
                               object, context, effect, control));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsFinishRegion(IsAllocate(IsNumberConstant(Context::SizeFor(
-                                            Context::MIN_CONTEXT_SLOTS)),
-                                        IsBeginRegion(_), control),
-                             _));
+  EXPECT_THAT(
+      r.replacement(),
+      IsFinishRegion(IsAllocate(IsNumberConstant(Context::SizeFor(
+                                    Context::MIN_CONTEXT_EXTENDED_SLOTS)),
+                                IsBeginRegion(_), control),
+                     _));
 }
 
 // -----------------------------------------------------------------------------

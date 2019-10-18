@@ -254,8 +254,6 @@ TNode<Context> ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
                                  scope_info);
   StoreObjectFieldNoWriteBarrier(function_context, Context::kPreviousOffset,
                                  context);
-  StoreObjectFieldNoWriteBarrier(function_context, Context::kExtensionOffset,
-                                 TheHoleConstant());
 
   // Initialize the varrest of the slots to undefined.
   TNode<Oddball> undefined = UndefinedConstant();

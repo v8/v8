@@ -33,7 +33,7 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOld(
   TNode<NativeContext> const native_context = LoadNativeContext(context);
 
   static const int kWrappedPromiseOffset =
-      FixedArray::SizeFor(Context::MIN_CONTEXT_SLOTS);
+      FixedArray::SizeFor(Context::MIN_CONTEXT_EXTENDED_SLOTS);
   static const int kResolveClosureOffset =
       kWrappedPromiseOffset + JSPromise::kSizeWithEmbedderFields;
   static const int kRejectClosureOffset =
@@ -48,8 +48,9 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOld(
     TNode<Map> map = CAST(
         LoadContextElement(native_context, Context::AWAIT_CONTEXT_MAP_INDEX));
     StoreMapNoWriteBarrier(closure_context, map);
-    StoreObjectFieldNoWriteBarrier(closure_context, Context::kLengthOffset,
-                                   SmiConstant(Context::MIN_CONTEXT_SLOTS));
+    StoreObjectFieldNoWriteBarrier(
+        closure_context, Context::kLengthOffset,
+        SmiConstant(Context::MIN_CONTEXT_EXTENDED_SLOTS));
     TNode<Object> const empty_scope_info =
         LoadContextElement(native_context, Context::SCOPE_INFO_INDEX);
     StoreContextElementNoWriteBarrier(
@@ -124,7 +125,7 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOptimized(
   TNode<NativeContext> const native_context = LoadNativeContext(context);
 
   static const int kResolveClosureOffset =
-      FixedArray::SizeFor(Context::MIN_CONTEXT_SLOTS);
+      FixedArray::SizeFor(Context::MIN_CONTEXT_EXTENDED_SLOTS);
   static const int kRejectClosureOffset =
       kResolveClosureOffset + JSFunction::kSizeWithoutPrototype;
   static const int kTotalSize =
@@ -141,8 +142,9 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOptimized(
     TNode<Map> map = CAST(
         LoadContextElement(native_context, Context::AWAIT_CONTEXT_MAP_INDEX));
     StoreMapNoWriteBarrier(closure_context, map);
-    StoreObjectFieldNoWriteBarrier(closure_context, Context::kLengthOffset,
-                                   SmiConstant(Context::MIN_CONTEXT_SLOTS));
+    StoreObjectFieldNoWriteBarrier(
+        closure_context, Context::kLengthOffset,
+        SmiConstant(Context::MIN_CONTEXT_EXTENDED_SLOTS));
     TNode<Object> const empty_scope_info =
         LoadContextElement(native_context, Context::SCOPE_INFO_INDEX);
     StoreContextElementNoWriteBarrier(

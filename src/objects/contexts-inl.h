@@ -115,9 +115,10 @@ void Context::set_previous(Context context) { set(PREVIOUS_INDEX, context); }
 Object Context::next_context_link() { return get(Context::NEXT_CONTEXT_LINK); }
 
 bool Context::has_extension() {
-  return static_cast<bool>(
-             HasExtensionField::decode(length_and_extension_flag())) &&
-         !extension().IsTheHole();
+  return (scope_info().HasContextExtension() ||
+          static_cast<bool>(
+              HasExtensionField::decode(length_and_extension_flag()))) &&
+         !extension().IsUndefined();
 }
 
 HeapObject Context::extension() {

@@ -252,7 +252,7 @@ Object DeclareEvalHelper(Isolate* isolate, Handle<String> name,
                          value, NONE, is_var, is_function,
                          RedeclarationType::kTypeError);
   }
-  if (context->extension().IsJSGlobalObject()) {
+  if (context->has_extension() && context->extension().IsJSGlobalObject()) {
     Handle<JSGlobalObject> global(JSGlobalObject::cast(context->extension()),
                                   isolate);
     return DeclareGlobal(isolate, global, name, value, NONE, is_var,
@@ -439,7 +439,7 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
         int parameter = scope_info->ContextLocalParameterNumber(i);
         if (parameter >= mapped_count) continue;
         arguments->set_the_hole(parameter);
-        Smi slot = Smi::FromInt(Context::MIN_CONTEXT_SLOTS + i);
+        Smi slot = Smi::FromInt(scope_info->ContextHeaderLength() + i);
         parameter_map->set(parameter + 2, slot);
       }
     } else {

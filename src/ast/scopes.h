@@ -454,6 +454,26 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   int num_stack_slots() const { return num_stack_slots_; }
   int num_heap_slots() const { return num_heap_slots_; }
 
+  bool HasContextExtension() const {
+    switch (scope_type_) {
+      case FUNCTION_SCOPE:
+      case EVAL_SCOPE:
+      case BLOCK_SCOPE:
+        if (sloppy_eval_can_extend_vars_) return true;
+        return false;
+      case MODULE_SCOPE:
+      case WITH_SCOPE:  // DebugEvaluateContext as well
+        return true;
+      default:
+        return false;
+    }
+    UNREACHABLE();
+  }
+  int ContextHeaderLength() const {
+    return HasContextExtension() ? Context::MIN_CONTEXT_EXTENDED_SLOTS
+                                 : Context::MIN_CONTEXT_SLOTS;
+  }
+
   int ContextLocalCount() const;
 
   // Determine if we can parse a function literal in this scope lazily without
@@ -550,6 +570,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   void set_language_mode(LanguageMode language_mode) {
     is_strict_ = is_strict(language_mode);
+    num_heap_slots_ = ContextHeaderLength();
   }
 
  private:
@@ -803,6 +824,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     }
 
     sloppy_eval_can_extend_vars_ = true;
+    num_heap_slots_ = ContextHeaderLength();
   }
 
   bool sloppy_eval_can_extend_vars() const {

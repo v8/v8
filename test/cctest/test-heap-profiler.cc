@@ -2580,7 +2580,7 @@ TEST(ManyLocalsInSharedContext) {
       env->GetIsolate(), ok_object, v8::HeapGraphEdge::kInternal, "context");
   CHECK(context_object);
   // Check the objects are not duplicated in the context.
-  CHECK_EQ(v8::internal::Context::MIN_CONTEXT_SLOTS + num_objects - 1,
+  CHECK_EQ(v8::internal::Context::MIN_CONTEXT_EXTENDED_SLOTS + num_objects - 1,
            context_object->GetChildrenCount());
   // Check all the objects have got their names.
   // ... well check just every 15th because otherwise it's too slow in debug.
