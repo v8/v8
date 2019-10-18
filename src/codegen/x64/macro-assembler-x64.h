@@ -152,6 +152,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Roundsd, roundsd)
   AVX_OP(Sqrtss, sqrtss)
   AVX_OP(Sqrtsd, sqrtsd)
+  AVX_OP(Sqrtps, sqrtps)
   AVX_OP(Sqrtpd, sqrtpd)
   AVX_OP(Ucomiss, ucomiss)
   AVX_OP(Ucomisd, ucomisd)
@@ -172,6 +173,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Pmaxsd, pmaxsd)
   AVX_OP(Pmaxud, pmaxud)
   AVX_OP(Pcmpgtd, pcmpgtd)
+  AVX_OP(Addpd, addpd)
+  AVX_OP(Subpd, subpd)
+  AVX_OP(Mulpd, mulpd)
+  AVX_OP(Divpd, divpd)
+  AVX_OP(Shufps, shufps)
 
 #undef AVX_OP
 

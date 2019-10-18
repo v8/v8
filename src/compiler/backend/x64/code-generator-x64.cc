@@ -2331,19 +2331,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F64x2Add: {
-      ASSEMBLE_SSE_BINOP(addpd);
+      ASSEMBLE_SSE_BINOP(Addpd);
       break;
     }
     case kX64F64x2Sub: {
-      ASSEMBLE_SSE_BINOP(subpd);
+      ASSEMBLE_SSE_BINOP(Subpd);
       break;
     }
     case kX64F64x2Mul: {
-      ASSEMBLE_SSE_BINOP(mulpd);
+      ASSEMBLE_SSE_BINOP(Mulpd);
       break;
     }
     case kX64F64x2Div: {
-      ASSEMBLE_SSE_BINOP(divpd);
+      ASSEMBLE_SSE_BINOP(Divpd);
       break;
     }
     case kX64F64x2Min: {
@@ -2435,11 +2435,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64F32x4Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ movss(dst, i.InputDoubleRegister(0));
+        __ Movss(dst, i.InputDoubleRegister(0));
       } else {
-        __ movss(dst, i.InputOperand(0));
+        __ Movss(dst, i.InputOperand(0));
       }
-      __ shufps(dst, dst, 0x0);
+      __ Shufps(dst, dst, static_cast<byte>(0x0));
       break;
     }
     case kX64F32x4ExtractLane: {
@@ -2484,13 +2484,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(0);
       if (dst == src) {
-        __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-        __ psrld(kScratchDoubleReg, 1);
-        __ andps(i.OutputSimd128Register(), kScratchDoubleReg);
+        __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+        __ Psrld(kScratchDoubleReg, static_cast<byte>(1));
+        __ Andps(i.OutputSimd128Register(), kScratchDoubleReg);
       } else {
-        __ pcmpeqd(dst, dst);
-        __ psrld(dst, 1);
-        __ andps(dst, i.InputSimd128Register(0));
+        __ Pcmpeqd(dst, dst);
+        __ Psrld(dst, static_cast<byte>(1));
+        __ Andps(dst, i.InputSimd128Register(0));
       }
       break;
     }
@@ -2498,13 +2498,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(0);
       if (dst == src) {
-        __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-        __ pslld(kScratchDoubleReg, 31);
-        __ xorps(i.OutputSimd128Register(), kScratchDoubleReg);
+        __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+        __ Pslld(kScratchDoubleReg, static_cast<byte>(31));
+        __ Xorps(i.OutputSimd128Register(), kScratchDoubleReg);
       } else {
-        __ pcmpeqd(dst, dst);
-        __ pslld(dst, 31);
-        __ xorps(dst, i.InputSimd128Register(0));
+        __ Pcmpeqd(dst, dst);
+        __ Pslld(dst, static_cast<byte>(31));
+        __ Xorps(dst, i.InputSimd128Register(0));
       }
       break;
     }
