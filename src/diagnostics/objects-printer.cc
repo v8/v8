@@ -2816,11 +2816,10 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
 
   if (!isolate->heap()->InSpaceSlow(address, i::CODE_SPACE) &&
       !isolate->heap()->InSpaceSlow(address, i::LO_SPACE) &&
-      !i::InstructionStream::PcIsOffHeap(isolate, address) &&
-      !i::ReadOnlyHeap::Contains(address)) {
+      !i::InstructionStream::PcIsOffHeap(isolate, address)) {
     i::PrintF(
-        "%p is not within the current isolate's large object, code, read_only "
-        "or embedded spaces\n",
+        "%p is not within the current isolate's large object, code or embedded "
+        "spaces\n",
         object);
     return;
   }

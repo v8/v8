@@ -3591,9 +3591,7 @@ TEST(TestCallBuiltinInlineTrampoline) {
                        Handle<String>::cast(result.ToHandleChecked())));
 }
 
-// TODO(v8:9821): Remove the option to disable inlining off-heap trampolines
-// along with this test.
-DISABLED_TEST(TestCallBuiltinIndirectLoad) {
+TEST(TestCallBuiltinIndirectLoad) {
   if (!i::FLAG_embedded_builtins) return;
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 1;

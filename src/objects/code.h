@@ -370,11 +370,7 @@ class Code : public HeapObject {
 
   static inline bool IsWeakObjectInOptimizedCode(HeapObject object);
 
-  // Returns false if this is an embedded builtin Code object that's in
-  // read_only_space and hence doesn't have execute permissions.
-  inline bool IsExecutable();
-
-  // Returns true if the function is inlined in the code.
+  // Return true if the function is inlined in the code.
   bool Inlines(SharedFunctionInfo sfi);
 
   class OptimizedCodeIterator;

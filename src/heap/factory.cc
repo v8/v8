@@ -10,7 +10,6 @@
 #include "src/builtins/accessors.h"
 #include "src/builtins/constants-table-builder.h"
 #include "src/codegen/compiler.h"
-#include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
 #include "src/heap/heap-inl.h"
@@ -118,14 +117,12 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
 
     CodePageCollectionMemoryModificationScope code_allocation(heap);
     HeapObject result;
-    AllocationType allocation_type =
-        is_executable_ ? AllocationType::kCode : AllocationType::kReadOnly;
     if (retry_allocation_or_fail) {
       result = heap->AllocateRawWith<Heap::kRetryOrFail>(object_size,
-                                                         allocation_type);
+                                                         AllocationType::kCode);
     } else {
       result = heap->AllocateRawWith<Heap::kLightRetry>(object_size,
-                                                        allocation_type);
+                                                        AllocationType::kCode);
       // Return an empty handle if we cannot allocate the code object.
       if (result.is_null()) return MaybeHandle<Code>();
     }
@@ -140,12 +137,10 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
 
     result.set_map_after_allocation(*factory->code_map(), SKIP_WRITE_BARRIER);
     code = handle(Code::cast(result), isolate_);
-    if (is_executable_) {
-      DCHECK(IsAligned(code->address(), kCodeAlignment));
-      DCHECK_IMPLIES(
-          !heap->memory_allocator()->code_range().is_empty(),
-          heap->memory_allocator()->code_range().contains(code->address()));
-    }
+    DCHECK(IsAligned(code->address(), kCodeAlignment));
+    DCHECK_IMPLIES(
+        !heap->memory_allocator()->code_range().is_empty(),
+        heap->memory_allocator()->code_range().contains(code->address()));
 
     constexpr bool kIsNotOffHeapTrampoline = false;
     const bool has_unwinding_info = code_desc_.unwinding_info != nullptr;
@@ -2615,12 +2610,9 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
   CHECK_NE(0, isolate()->embedded_blob_size());
   CHECK(Builtins::IsIsolateIndependentBuiltin(*code));
 
-  bool generate_jump_to_instruction_stream =
-      Builtins::CodeObjectIsExecutable(code->builtin_index());
   Handle<Code> result = Builtins::GenerateOffHeapTrampolineFor(
       isolate(), off_heap_entry,
-      code->code_data_container().kind_specific_flags(),
-      generate_jump_to_instruction_stream);
+      code->code_data_container().kind_specific_flags());
   // The CodeDataContainer should not be modified beyond this point since it's
   // now possibly canonicalized.
 
@@ -2646,9 +2638,7 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
     // canonical one stored in the roots to avoid duplicating it for every
     // single builtin.
     ByteArray canonical_reloc_info =
-        generate_jump_to_instruction_stream
-            ? ReadOnlyRoots(isolate()).off_heap_trampoline_relocation_info()
-            : ReadOnlyRoots(isolate()).empty_byte_array();
+        ReadOnlyRoots(isolate()).off_heap_trampoline_relocation_info();
 #ifdef DEBUG
     // Verify that the contents are the same.
     ByteArray reloc_info = result->relocation_info();

@@ -301,7 +301,6 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   }
 
   // 'code' is always generated ARM code, never THUMB code
-  DCHECK(code->IsExecutable());
   Call(code.address(), rmode, cond, mode);
 }
 
@@ -2549,8 +2548,6 @@ void TurboAssembler::CallForDeoptimization(Address target, int deopt_id) {
   Call(target, RelocInfo::RUNTIME_ENTRY);
   CheckConstPool(false, false);
 }
-
-void TurboAssembler::Trap() { stop(); }
 
 }  // namespace internal
 }  // namespace v8
