@@ -260,7 +260,7 @@ enum MemoryAccessMode {
 // what code to emit for an instruction in the code generator. It is not
 // interesting to the register allocator, as the inputs and flags on the
 // instructions specify everything of interest.
-using InstructionCode = int32_t;
+using InstructionCode = uint32_t;
 
 // Helpers for encoding / decoding InstructionCode into the fields needed
 // for code generation. We encode the instruction, addressing mode, and flags
