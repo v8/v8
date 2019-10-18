@@ -4,7 +4,7 @@
 
 #include 'src/builtins/builtins-constructor-gen.h'
 
-namespace typed_array_createtypedarray {
+namespace typed_array {
   extern builtin IterableToListMayPreserveHoles(Context, Object, Callable):
       JSArray;
 
@@ -20,8 +20,6 @@ namespace typed_array_createtypedarray {
 
   extern runtime ThrowInvalidTypedArrayAlignment(implicit context: Context)(
       Map, String): never;
-  extern runtime TypedArrayCopyElements(Context, JSTypedArray, Object, Number):
-      void;
 
   transitioning macro AllocateTypedArray(implicit context: Context)(
       isOnHeap: constexpr bool, map: Map, buffer: JSArrayBuffer,

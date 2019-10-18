@@ -4,8 +4,8 @@
 
 #include 'src/builtins/builtins-typed-array-gen.h'
 
-namespace typed_array_reduce {
-  const kBuiltinName: constexpr string = '%TypedArray%.prototype.reduce';
+namespace typed_array {
+  const kBuiltinNameReduce: constexpr string = '%TypedArray%.prototype.reduce';
 
   transitioning macro ReduceAllElements(implicit context: Context)(
       array: typed_array::AttachedJSTypedArray, callbackfn: Callable,
@@ -32,7 +32,7 @@ namespace typed_array_reduce {
     }
     typeswitch (accumulator) {
       case (TheHole): {
-        ThrowTypeError(kReduceNoInitial, kBuiltinName);
+        ThrowTypeError(kReduceNoInitial, kBuiltinNameReduce);
       }
       case (accumulator: JSAny): {
         return accumulator;
@@ -59,10 +59,10 @@ namespace typed_array_reduce {
       ThrowTypeError(kCalledNonCallable, arguments[0]);
     }
     label NotTypedArray deferred {
-      ThrowTypeError(kNotTypedArray, kBuiltinName);
+      ThrowTypeError(kNotTypedArray, kBuiltinNameReduce);
     }
     label IsDetached deferred {
-      ThrowTypeError(kDetachedOperation, kBuiltinName);
+      ThrowTypeError(kDetachedOperation, kBuiltinNameReduce);
     }
   }
 }

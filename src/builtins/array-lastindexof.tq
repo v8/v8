@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array_lastindexof {
+namespace array {
   macro LoadWithHoleCheck<Elements: type>(
       elements: FixedArrayBase, index: Smi): JSAny
       labels IfHole;

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array_unshift {
+namespace array {
   extern builtin ArrayUnshift(Context, JSFunction, JSAny, int32): JSAny;
 
   transitioning macro GenericArrayUnshift(

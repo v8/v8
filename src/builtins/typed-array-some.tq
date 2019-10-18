@@ -4,8 +4,8 @@
 
 #include 'src/builtins/builtins-typed-array-gen.h'
 
-namespace typed_array_some {
-  const kBuiltinName: constexpr string = '%TypedArray%.prototype.some';
+namespace typed_array {
+  const kBuiltinNameSome: constexpr string = '%TypedArray%.prototype.some';
 
   transitioning macro SomeAllElements(implicit context: Context)(
       array: typed_array::AttachedJSTypedArray, callbackfn: Callable,
@@ -47,10 +47,10 @@ namespace typed_array_some {
       ThrowTypeError(kCalledNonCallable, arguments[0]);
     }
     label NotTypedArray deferred {
-      ThrowTypeError(kNotTypedArray, kBuiltinName);
+      ThrowTypeError(kNotTypedArray, kBuiltinNameSome);
     }
     label IsDetached deferred {
-      ThrowTypeError(kDetachedOperation, kBuiltinName);
+      ThrowTypeError(kDetachedOperation, kBuiltinNameSome);
     }
   }
 }

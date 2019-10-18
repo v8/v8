@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array_join {
+namespace array {
   type LoadJoinElementFn = builtin(Context, JSReceiver, uintptr) => JSAny;
 
   // Fast C call to write a fixed array (see Buffer.fixedArray) to a single

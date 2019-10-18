@@ -4,8 +4,8 @@
 
 #include 'src/builtins/builtins-typed-array-gen.h'
 
-namespace typed_array_find {
-  const kBuiltinName: constexpr string = '%TypedArray%.prototype.find';
+namespace typed_array {
+  const kBuiltinNameFind: constexpr string = '%TypedArray%.prototype.find';
 
   transitioning macro FindAllElements(implicit context: Context)(
       array: typed_array::AttachedJSTypedArray, callbackfn: Callable,
@@ -47,10 +47,10 @@ namespace typed_array_find {
       ThrowTypeError(kCalledNonCallable, arguments[0]);
     }
     label NotTypedArray deferred {
-      ThrowTypeError(kNotTypedArray, kBuiltinName);
+      ThrowTypeError(kNotTypedArray, kBuiltinNameFind);
     }
     label IsDetached deferred {
-      ThrowTypeError(kDetachedOperation, kBuiltinName);
+      ThrowTypeError(kDetachedOperation, kBuiltinNameFind);
     }
   }
 }

@@ -4,8 +4,8 @@
 
 #include 'src/builtins/builtins-typed-array-gen.h'
 
-namespace typed_array_every {
-  const kBuiltinName: constexpr string = '%TypedArray%.prototype.every';
+namespace typed_array {
+  const kBuiltinNameEvery: constexpr string = '%TypedArray%.prototype.every';
 
   transitioning macro EveryAllElements(implicit context: Context)(
       array: typed_array::AttachedJSTypedArray, callbackfn: Callable,
@@ -47,10 +47,10 @@ namespace typed_array_every {
       ThrowTypeError(kCalledNonCallable, arguments[0]);
     }
     label NotTypedArray deferred {
-      ThrowTypeError(kNotTypedArray, kBuiltinName);
+      ThrowTypeError(kNotTypedArray, kBuiltinNameEvery);
     }
     label IsDetached deferred {
-      ThrowTypeError(kDetachedOperation, kBuiltinName);
+      ThrowTypeError(kDetachedOperation, kBuiltinNameEvery);
     }
   }
 }

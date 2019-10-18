@@ -2,11 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace typed_array_filter {
-  const kBuiltinName: constexpr string = '%TypedArray%.prototype.filter';
-
-  extern runtime TypedArrayCopyElements(Context, JSTypedArray, Object, Number):
-      void;
+namespace typed_array {
+  const kBuiltinNameFilter: constexpr string = '%TypedArray%.prototype.filter';
 
   // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.filter
   transitioning javascript builtin TypedArrayPrototypeFilter(
@@ -17,7 +14,7 @@ namespace typed_array_filter {
       // 1. Let O be the this value.
       // 2. Perform ? ValidateTypedArray(O).
       const array: JSTypedArray = Cast<JSTypedArray>(receiver)
-          otherwise ThrowTypeError(kNotTypedArray, kBuiltinName);
+          otherwise ThrowTypeError(kNotTypedArray, kBuiltinNameFilter);
       const src = typed_array::EnsureAttached(array) otherwise IsDetached;
 
       // 3. Let len be O.[[ArrayLength]].
@@ -61,8 +58,7 @@ namespace typed_array_filter {
       // 10. Let A be ? TypedArraySpeciesCreate(O, captured).
       const lengthSmi = Convert<PositiveSmi>(kept.length);
       const typedArray: JSTypedArray =
-          typed_array_createtypedarray::TypedArraySpeciesCreateByLength(
-              kBuiltinName, array, lengthSmi);
+          TypedArraySpeciesCreateByLength(kBuiltinNameFilter, array, lengthSmi);
 
       // 11. Let n be 0.
       // 12. For each element e of kept, do
@@ -74,7 +70,7 @@ namespace typed_array_filter {
       return typedArray;
     }
     label IsDetached deferred {
-      ThrowTypeError(kDetachedOperation, kBuiltinName);
+      ThrowTypeError(kDetachedOperation, kBuiltinNameFilter);
     }
   }
 }

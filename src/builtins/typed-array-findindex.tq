@@ -4,8 +4,9 @@
 
 #include 'src/builtins/builtins-typed-array-gen.h'
 
-namespace typed_array_findindex {
-  const kBuiltinName: constexpr string = '%TypedArray%.prototype.findIndex';
+namespace typed_array {
+  const kBuiltinNameFindIndex: constexpr string =
+      '%TypedArray%.prototype.findIndex';
 
   transitioning macro FindIndexAllElements(implicit context: Context)(
       array: typed_array::AttachedJSTypedArray, callbackfn: Callable,
@@ -48,10 +49,10 @@ namespace typed_array_findindex {
       ThrowTypeError(kCalledNonCallable, arguments[0]);
     }
     label NotTypedArray deferred {
-      ThrowTypeError(kNotTypedArray, kBuiltinName);
+      ThrowTypeError(kNotTypedArray, kBuiltinNameFindIndex);
     }
     label IsDetached deferred {
-      ThrowTypeError(kDetachedOperation, kBuiltinName);
+      ThrowTypeError(kDetachedOperation, kBuiltinNameFindIndex);
     }
   }
 }

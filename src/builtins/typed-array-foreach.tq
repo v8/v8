@@ -4,8 +4,9 @@
 
 #include 'src/builtins/builtins-typed-array-gen.h'
 
-namespace typed_array_foreach {
-  const kBuiltinName: constexpr string = '%TypedArray%.prototype.forEach';
+namespace typed_array {
+  const kBuiltinNameForEach: constexpr string =
+      '%TypedArray%.prototype.forEach';
 
   transitioning macro ForEachAllElements(implicit context: Context)(
       array: typed_array::AttachedJSTypedArray, callbackfn: Callable,
@@ -45,10 +46,10 @@ namespace typed_array_foreach {
       ThrowTypeError(kCalledNonCallable, arguments[0]);
     }
     label NotTypedArray deferred {
-      ThrowTypeError(kNotTypedArray, kBuiltinName);
+      ThrowTypeError(kNotTypedArray, kBuiltinNameForEach);
     }
     label IsDetached deferred {
-      ThrowTypeError(kDetachedOperation, kBuiltinName);
+      ThrowTypeError(kDetachedOperation, kBuiltinNameForEach);
     }
   }
 }

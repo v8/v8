@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace typed_array_subarray {
+namespace typed_array {
   // ES %TypedArray%.prototype.subarray
   transitioning javascript builtin TypedArrayPrototypeSubArray(
       js-implicit context: Context,
@@ -58,7 +58,7 @@ namespace typed_array_subarray {
 
     // 17. Return ? TypedArraySpeciesCreate(O, argumentsList).
     const numArgs: constexpr int31 = 3;
-    return typed_array_createtypedarray::TypedArraySpeciesCreate(
+    return TypedArraySpeciesCreate(
         methodName, numArgs, source, buffer, beginByteOffsetNum, newLength);
   }
 }

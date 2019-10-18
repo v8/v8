@@ -4,8 +4,8 @@
 
 #include 'src/builtins/builtins-typed-array-gen.h'
 
-namespace typed_array_slice {
-  const kBuiltinName: constexpr string = '%TypedArray%.prototype.slice';
+namespace typed_array {
+  const kBuiltinNameSlice: constexpr string = '%TypedArray%.prototype.slice';
 
   extern macro TypedArrayBuiltinsAssembler::CallCCopyTypedArrayElementsSlice(
       JSTypedArray, JSTypedArray, intptr, intptr): void;
@@ -60,7 +60,7 @@ namespace typed_array_slice {
     // 1. Let O be the this value.
     // 2. Perform ? ValidateTypedArray(O).
     const src: JSTypedArray =
-        typed_array::ValidateTypedArray(context, receiver, kBuiltinName);
+        typed_array::ValidateTypedArray(context, receiver, kBuiltinNameSlice);
 
     // 3. Let len be O.[[ArrayLength]].
     const len = Convert<intptr>(src.length);
@@ -85,8 +85,7 @@ namespace typed_array_slice {
 
     // 9. Let A be ? TypedArraySpeciesCreate(O, « count »).
     const dest: JSTypedArray =
-        typed_array_createtypedarray::TypedArraySpeciesCreateByLength(
-            kBuiltinName, src, count);
+        TypedArraySpeciesCreateByLength(kBuiltinNameSlice, src, count);
 
     if (count > 0) {
       try {
@@ -95,7 +94,7 @@ namespace typed_array_slice {
         FastCopy(srcAttached, dest, k, count) otherwise IfSlow;
       }
       label IfDetached deferred {
-        ThrowTypeError(kDetachedOperation, kBuiltinName);
+        ThrowTypeError(kDetachedOperation, kBuiltinNameSlice);
       }
       label IfSlow deferred {
         SlowCopy(src, dest, k, final);

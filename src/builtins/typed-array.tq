@@ -52,6 +52,8 @@ namespace typed_array {
     kind: ElementsKind;
   }
   extern runtime TypedArraySortFast(Context, JSAny): JSTypedArray;
+  extern runtime TypedArrayCopyElements(Context, JSTypedArray, Object, Number):
+      void;
   extern macro TypedArrayBuiltinsAssembler::ValidateTypedArray(
       Context, JSAny, constexpr string): JSTypedArray;
 

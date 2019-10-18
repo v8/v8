@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array_of {
+namespace array {
   // https://tc39.github.io/ecma262/#sec-array.of
   transitioning javascript builtin
   ArrayOf(js-implicit context: Context, receiver: JSAny)(...arguments): JSAny {

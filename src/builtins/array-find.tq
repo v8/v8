@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array_find {
+namespace array {
   transitioning javascript builtin
   ArrayFindLoopEagerDeoptContinuation(
       js-implicit context: Context, receiver: JSAny)(

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array_slice {
+namespace array {
   macro HandleSimpleArgumentsSlice(
       context: NativeContext, args: JSArgumentsObjectWithLength, start: Smi,
       count: Smi): JSArray

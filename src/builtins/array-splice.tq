@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array_splice {
+namespace array {
   // Given {elements}, we want to create a non-zero length array of type
   // FixedArrayType. Most of this behavior is outsourced to ExtractFixedArray(),
   // but the special case of wanting to have a FixedDoubleArray when given a

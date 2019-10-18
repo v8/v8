@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array_shift {
+namespace array {
   extern builtin ArrayShift(Context, JSFunction, JSAny, int32): JSAny;
 
   macro TryFastArrayShift(implicit context: Context)(receiver: JSAny): JSAny
