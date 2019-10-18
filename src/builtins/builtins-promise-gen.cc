@@ -267,7 +267,7 @@ TNode<Context> PromiseBuiltinsAssembler::CreatePromiseContext(
 
   TNode<HeapObject> const context =
       AllocateInNewSpace(FixedArray::SizeFor(slots));
-  InitializeFunctionContext(native_context, context, slots);
+  InitializeSyntheticFunctionContext(native_context, context, slots);
   return CAST(context);
 }
 

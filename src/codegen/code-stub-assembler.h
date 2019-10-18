@@ -1448,7 +1448,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BigInt> BigIntFromInt32Pair(TNode<IntPtrT> low, TNode<IntPtrT> high);
   TNode<BigInt> BigIntFromUint32Pair(TNode<UintPtrT> low, TNode<UintPtrT> high);
 
-  // Context manipulation
+  // ScopeInfo:
+  TNode<ScopeInfo> LoadScopeInfo(TNode<Context> context);
+  TNode<BoolT> LoadScopeInfoHasExtensionField(TNode<ScopeInfo> scope_info);
+
+  // Context manipulation:
   TNode<BoolT> LoadContextHasExtensionField(SloppyTNode<Context> context);
   TNode<Object> LoadContextElement(SloppyTNode<Context> context,
                                    int slot_index);
@@ -3694,8 +3698,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                              Label* if_bailout = nullptr,
                              TVariable<Int32T>* var_instance_type = nullptr);
 
-  void InitializeFunctionContext(Node* native_context, Node* context,
-                                 int slots);
+  void InitializeSyntheticFunctionContext(Node* native_context, Node* context,
+                                          int slots);
 
   TNode<JSArray> ArrayCreate(TNode<Context> context, TNode<Number> length);
 
