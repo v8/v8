@@ -3619,6 +3619,43 @@ TEST(TestCallBuiltinIndirectLoad) {
                        Handle<String>::cast(result.ToHandleChecked())));
 }
 
+TEST(InstructionSchedulingCallerSavedRegisters) {
+  // This is a regression test for v8:9775, where TF's instruction scheduler
+  // incorrectly moved pure operations in between a ArchSaveCallerRegisters and
+  // a ArchRestoreCallerRegisters instruction.
+  bool old_turbo_instruction_scheduling = FLAG_turbo_instruction_scheduling;
+  FLAG_turbo_instruction_scheduling = true;
+
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeStubAssembler m(asm_tester.state());
+
+  {
+    Node* x = m.SmiUntag(m.Parameter(0));
+    Node* y = m.WordOr(m.WordShr(x, 1), m.IntPtrConstant(1));
+    TNode<ExternalReference> isolate_ptr =
+        m.ExternalConstant(ExternalReference::isolate_address(isolate));
+    m.CallCFunctionWithCallerSavedRegisters(
+        m.ExternalConstant(
+            ExternalReference::smi_lexicographic_compare_function()),
+        MachineType::Int32(), kSaveFPRegs,
+        std::make_pair(MachineType::Pointer(), isolate_ptr),
+        std::make_pair(MachineType::TaggedSigned(), m.SmiConstant(0)),
+        std::make_pair(MachineType::TaggedSigned(), m.SmiConstant(0)));
+    m.Return(m.SmiTag(m.Signed(m.WordOr(x, y))));
+  }
+
+  AssemblerOptions options = AssemblerOptions::Default(isolate);
+  FunctionTester ft(asm_tester.GenerateCode(options), kNumParams);
+  Handle<Object> input = isolate->factory()->NewNumber(8);
+  MaybeHandle<Object> result = ft.Call(input);
+  CHECK(result.ToHandleChecked()->IsSmi());
+  CHECK_EQ(result.ToHandleChecked()->Number(), 13);
+
+  FLAG_turbo_instruction_scheduling = old_turbo_instruction_scheduling;
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

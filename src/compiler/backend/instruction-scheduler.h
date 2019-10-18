@@ -24,6 +24,9 @@ enum ArchOpcodeFlags {
                                  // instruction e.g. div on Intel platform which
                                  // will raise an exception when the divisor is
                                  // zero.
+  kIsBarrier = 8,  // The instruction can cause GC or it reads/writes registers
+                   // that are not explicitly given. Nothing can be reordered
+                   // across such an instruction.
 };
 
 class InstructionScheduler final : public ZoneObject {
@@ -46,7 +49,7 @@ class InstructionScheduler final : public ZoneObject {
    public:
     ScheduleGraphNode(Zone* zone, Instruction* instr);
 
-    // Mark the instruction represented by 'node' as a dependecy of this one.
+    // Mark the instruction represented by 'node' as a dependency of this one.
     // The current instruction will be registered as an unscheduled predecessor
     // of 'node' (i.e. it must be scheduled before 'node').
     void AddSuccessor(ScheduleGraphNode* node);
@@ -141,11 +144,15 @@ class InstructionScheduler final : public ZoneObject {
   // Perform scheduling for the current block specifying the queue type to
   // use to determine the next best candidate.
   template <typename QueueType>
-  void ScheduleBlock();
+  void Schedule();
 
   // Return the scheduling properties of the given instruction.
   V8_EXPORT_PRIVATE int GetInstructionFlags(const Instruction* instr) const;
   int GetTargetInstructionFlags(const Instruction* instr) const;
+
+  bool IsBarrier(const Instruction* instr) const {
+    return (GetInstructionFlags(instr) & kIsBarrier) != 0;
+  }
 
   // Check whether the given instruction has side effects (e.g. function call,
   // memory store).

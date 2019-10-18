@@ -95,17 +95,11 @@ void InstructionScheduler::StartBlock(RpoNumber rpo) {
 
 void InstructionScheduler::EndBlock(RpoNumber rpo) {
   if (FLAG_turbo_stress_instruction_scheduling) {
-    ScheduleBlock<StressSchedulerQueue>();
+    Schedule<StressSchedulerQueue>();
   } else {
-    ScheduleBlock<CriticalPathFirstQueue>();
+    Schedule<CriticalPathFirstQueue>();
   }
   sequence()->EndBlock(rpo);
-  graph_.clear();
-  last_side_effect_instr_ = nullptr;
-  pending_loads_.clear();
-  last_live_in_reg_marker_ = nullptr;
-  last_deopt_or_trap_ = nullptr;
-  operands_map_.clear();
 }
 
 void InstructionScheduler::AddTerminator(Instruction* instr) {
@@ -119,6 +113,16 @@ void InstructionScheduler::AddTerminator(Instruction* instr) {
 }
 
 void InstructionScheduler::AddInstruction(Instruction* instr) {
+  if (IsBarrier(instr)) {
+    if (FLAG_turbo_stress_instruction_scheduling) {
+      Schedule<StressSchedulerQueue>();
+    } else {
+      Schedule<CriticalPathFirstQueue>();
+    }
+    sequence()->AddInstruction(instr);
+    return;
+  }
+
   ScheduleGraphNode* new_node = new (zone()) ScheduleGraphNode(zone(), instr);
 
   // We should not have branches in the middle of a block.
@@ -197,7 +201,7 @@ void InstructionScheduler::AddInstruction(Instruction* instr) {
 }
 
 template <typename QueueType>
-void InstructionScheduler::ScheduleBlock() {
+void InstructionScheduler::Schedule() {
   QueueType ready_list(this);
 
   // Compute total latencies so that we can schedule the critical path first.
@@ -231,6 +235,14 @@ void InstructionScheduler::ScheduleBlock() {
 
     cycle++;
   }
+
+  // Reset own state.
+  graph_.clear();
+  operands_map_.clear();
+  pending_loads_.clear();
+  last_deopt_or_trap_ = nullptr;
+  last_live_in_reg_marker_ = nullptr;
+  last_side_effect_instr_ = nullptr;
 }
 
 int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
@@ -287,14 +299,7 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
       return kHasSideEffect;
 
     case kArchPrepareCallCFunction:
-    case kArchSaveCallerRegisters:
-    case kArchRestoreCallerRegisters:
     case kArchPrepareTailCall:
-    case kArchCallCFunction:
-    case kArchCallCodeObject:
-    case kArchCallJSFunction:
-    case kArchCallWasmFunction:
-    case kArchCallBuiltinPointer:
     case kArchTailCallCodeObjectFromJSFunction:
     case kArchTailCallCodeObject:
     case kArchTailCallAddress:
@@ -302,6 +307,21 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchAbortCSAAssert:
     case kArchDebugBreak:
       return kHasSideEffect;
+
+    case kArchSaveCallerRegisters:
+    case kArchRestoreCallerRegisters:
+      return kIsBarrier;
+
+    case kArchCallCFunction:
+    case kArchCallCodeObject:
+    case kArchCallJSFunction:
+    case kArchCallWasmFunction:
+    case kArchCallBuiltinPointer:
+      // Calls can cause GC and GC may relocate objects. If a pure instruction
+      // operates on a tagged pointer that was cast to a word then it may be
+      // incorrect to move the instruction across the call. Hence we mark all
+      // (non-tail-)calls as barriers.
+      return kIsBarrier;
 
     case kArchStoreWithWriteBarrier:
       return kHasSideEffect;
