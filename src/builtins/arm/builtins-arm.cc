@@ -72,17 +72,14 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
     // Push a copy of the target function and the new target.
-    __ push(r1);
-    __ push(r3);
     // Push function as parameter to the runtime call.
-    __ Push(r1);
+    __ Push(r1, r3, r1);
 
     __ CallRuntime(function_id, 1);
     __ mov(r2, r0);
 
     // Restore target function and new target.
-    __ pop(r3);
-    __ pop(r1);
+    __ Pop(r1, r3);
   }
   static_assert(kJavaScriptCallCodeStartRegister == r2, "ABI mismatch");
   __ JumpCodeObject(r2);
