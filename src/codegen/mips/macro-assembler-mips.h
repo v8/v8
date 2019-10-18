@@ -57,15 +57,6 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2 = no_reg,
 
 // -----------------------------------------------------------------------------
 // Static helper functions.
-
-inline MemOperand ContextMemOperand(Register context, int index) {
-  return MemOperand(context, Context::SlotOffset(index));
-}
-
-inline MemOperand NativeContextMemOperand() {
-  return ContextMemOperand(cp, Context::NATIVE_CONTEXT_INDEX);
-}
-
 // Generate a MemOperand for loading a field from an object.
 inline MemOperand FieldMemOperand(Register object, int offset) {
   return MemOperand(object, offset - kHeapObjectTag);
@@ -979,6 +970,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void LeaveExitFrame(bool save_doubles, Register arg_count,
                       bool do_return = NO_EMIT_RETURN,
                       bool argument_count_is_length = false);
+
+  void LoadMap(Register destination, Register object);
 
   // Make sure the stack is aligned. Only emits code in debug mode.
   void AssertStackIsAligned();

@@ -4521,7 +4521,7 @@ void MacroAssembler::InvokeFunction(Register function,
 
 void MacroAssembler::GetObjectType(Register object, Register map,
                                    Register type_reg) {
-  lw(map, FieldMemOperand(object, HeapObject::kMapOffset));
+  LoadMap(map, object);
   lhu(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
 }
 
@@ -4770,9 +4770,15 @@ void TurboAssembler::Abort(AbortReason reason) {
   }
 }
 
+void MacroAssembler::LoadMap(Register destination, Register object) {
+  Lw(destination, FieldMemOperand(object, HeapObject::kMapOffset));
+}
+
 void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
-  lw(dst, NativeContextMemOperand());
-  lw(dst, ContextMemOperand(dst, index));
+  LoadMap(dst, cp);
+  Lw(dst,
+     FieldMemOperand(dst, Map::kConstructorOrBackPointerOrNativeContextOffset));
+  Lw(dst, MemOperand(dst, Context::SlotOffset(index)));
 }
 
 void TurboAssembler::StubPrologue(StackFrame::Type type) {
@@ -5014,7 +5020,7 @@ void MacroAssembler::AssertConstructor(Register object) {
     Check(ne, AbortReason::kOperandIsASmiAndNotAConstructor, t8,
           Operand(zero_reg));
 
-    lw(t8, FieldMemOperand(object, HeapObject::kMapOffset));
+    LoadMap(t8, object);
     lbu(t8, FieldMemOperand(t8, Map::kBitFieldOffset));
     And(t8, t8, Operand(Map::IsConstructorBit::kMask));
     Check(ne, AbortReason::kOperandIsNotAConstructor, t8, Operand(zero_reg));
