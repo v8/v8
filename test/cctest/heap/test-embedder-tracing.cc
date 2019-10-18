@@ -78,7 +78,7 @@ class TestEmbedderHeapTracer final : public v8::EmbedderHeapTracer {
     }
   }
 
-  void TraceEpilogue() final {}
+  void TraceEpilogue(TraceSummary*) final {}
   void EnterFinalPause(EmbedderStackState) final {}
 
   bool IsRegisteredFromV8(void* first_field) const {
@@ -704,7 +704,7 @@ class EmptyEmbedderHeapTracer : public v8::EmbedderHeapTracer {
   bool AdvanceTracing(double deadline_in_ms) final { return true; }
   bool IsTracingDone() final { return true; }
   void TracePrologue(EmbedderHeapTracer::TraceFlags) final {}
-  void TraceEpilogue() final {}
+  void TraceEpilogue(TraceSummary*) final {}
   void EnterFinalPause(EmbedderStackState) final {}
 };
 

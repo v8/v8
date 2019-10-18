@@ -883,19 +883,6 @@ class TracedReferenceBase {
    */
   V8_INLINE uint16_t WrapperClassId() const;
 
-  /**
-   * Adds a finalization callback to the handle. The type of this callback is
-   * similar to WeakCallbackType::kInternalFields, i.e., it will pass the
-   * parameter and the first two internal fields of the object.
-   *
-   * The callback is then supposed to reset the handle in the callback. No
-   * further V8 API may be called in this callback. In case additional work
-   * involving V8 needs to be done, a second callback can be scheduled using
-   * WeakCallbackInfo<void>::SetSecondPassCallback.
-   */
-  V8_INLINE void SetFinalizationCallback(
-      void* parameter, WeakCallbackInfo<void>::Callback callback);
-
   template <class S>
   V8_INLINE TracedReferenceBase<S>& As() const {
     return reinterpret_cast<TracedReferenceBase<S>&>(
@@ -1033,6 +1020,19 @@ class TracedGlobal : public TracedReferenceBase<T> {
     return reinterpret_cast<TracedGlobal<S>&>(
         const_cast<TracedGlobal<T>&>(*this));
   }
+
+  /**
+   * Adds a finalization callback to the handle. The type of this callback is
+   * similar to WeakCallbackType::kInternalFields, i.e., it will pass the
+   * parameter and the first two internal fields of the object.
+   *
+   * The callback is then supposed to reset the handle in the callback. No
+   * further V8 API may be called in this callback. In case additional work
+   * involving V8 needs to be done, a second callback can be scheduled using
+   * WeakCallbackInfo<void>::SetSecondPassCallback.
+   */
+  V8_INLINE void SetFinalizationCallback(
+      void* parameter, WeakCallbackInfo<void>::Callback callback);
 };
 
 /**
@@ -1142,6 +1142,20 @@ class TracedReference : public TracedReferenceBase<T> {
     return reinterpret_cast<TracedReference<S>&>(
         const_cast<TracedReference<T>&>(*this));
   }
+
+  /**
+   * Adds a finalization callback to the handle. The type of this callback is
+   * similar to WeakCallbackType::kInternalFields, i.e., it will pass the
+   * parameter and the first two internal fields of the object.
+   *
+   * The callback is then supposed to reset the handle in the callback. No
+   * further V8 API may be called in this callback. In case additional work
+   * involving V8 needs to be done, a second callback can be scheduled using
+   * WeakCallbackInfo<void>::SetSecondPassCallback.
+   */
+  V8_DEPRECATE_SOON("Use TracedGlobal<> if callbacks are required.")
+  V8_INLINE void SetFinalizationCallback(
+      void* parameter, WeakCallbackInfo<void>::Callback callback);
 };
 
  /**
@@ -7618,7 +7632,7 @@ class V8_EXPORT EmbedderHeapTracer {
   virtual void RegisterV8References(
       const std::vector<std::pair<void*, void*> >& embedder_fields) = 0;
 
-  V8_DEPRECATE_SOON("Use version taking TracedReferenceBase<v8::Data> argument")
+  V8_DEPRECATED("Use version taking TracedReferenceBase<v8::Data> argument")
   void RegisterEmbedderReference(const TracedReferenceBase<v8::Value>& ref);
   void RegisterEmbedderReference(const TracedReferenceBase<v8::Data>& ref);
 
@@ -7652,8 +7666,7 @@ class V8_EXPORT EmbedderHeapTracer {
    * overriden to fill a |TraceSummary| that is used by V8 to schedule future
    * garbage collections.
    */
-  V8_DEPRECATED("Use version with parameter.") virtual void TraceEpilogue() {}
-  virtual void TraceEpilogue(TraceSummary* trace_summary);
+  virtual void TraceEpilogue(TraceSummary* trace_summary) {}
 
   /**
    * Called upon entering the final marking pause. No more incremental marking
@@ -7704,8 +7717,7 @@ class V8_EXPORT EmbedderHeapTracer {
    */
   virtual void ResetHandleInNonTracingGC(
       const v8::TracedReference<v8::Value>& handle);
-  V8_DEPRECATE_SOON(
-      "Use TracedReference version when not requiring destructors.")
+  V8_DEPRECATED("Use TracedReference version when not requiring destructors.")
   virtual void ResetHandleInNonTracingGC(
       const v8::TracedGlobal<v8::Value>& handle);
 
@@ -10524,10 +10536,17 @@ uint16_t TracedReferenceBase<T>::WrapperClassId() const {
 }
 
 template <class T>
-void TracedReferenceBase<T>::SetFinalizationCallback(
+void TracedGlobal<T>::SetFinalizationCallback(
     void* parameter, typename WeakCallbackInfo<void>::Callback callback) {
-  V8::SetFinalizationCallbackTraced(reinterpret_cast<internal::Address*>(val_),
-                                    parameter, callback);
+  V8::SetFinalizationCallbackTraced(
+      reinterpret_cast<internal::Address*>(this->val_), parameter, callback);
+}
+
+template <class T>
+void TracedReference<T>::SetFinalizationCallback(
+    void* parameter, typename WeakCallbackInfo<void>::Callback callback) {
+  V8::SetFinalizationCallbackTraced(
+      reinterpret_cast<internal::Address*>(this->val_), parameter, callback);
 }
 
 template <typename T>
