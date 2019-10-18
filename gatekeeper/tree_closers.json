@@ -129,7 +129,7 @@
         "gsutil upload",
         "taskkill"
       ],
-      "status_template": "closed (%(build_url)s from %(revision)s)"
+      "status_template": "closed (\"%(unsatisfied)s\" on %(build_url)s \"%(builder_name)s\" from %(revision)s)"
     },
     "v8_compile": {
       "tree_notify": [
@@ -151,7 +151,7 @@
         "gsutil upload",
         "taskkill"
       ],
-      "status_template": "closed (%(build_url)s from %(revision)s)"
+      "status_template": "closed (\"%(unsatisfied)s\" on %(build_url)s \"%(builder_name)s\" from %(revision)s)"
     }
   }
 }
