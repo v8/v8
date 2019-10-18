@@ -1152,10 +1152,40 @@ std::unique_ptr<icu::SimpleDateFormat> DateTimeStylePattern(
       UNREACHABLE();
     }
   }
+
+  UErrorCode status = U_ZERO_ERROR;
+  // Somehow we fail to create the instance.
+  if (result.get() == nullptr) {
+    icu::Locale modified_locale(icu_locale);
+    // Fallback to the locale without "nu".
+    if (!icu_locale.getUnicodeKeywordValue<std::string>("nu", status).empty()) {
+      status = U_ZERO_ERROR;
+      modified_locale.setUnicodeKeywordValue("nu", nullptr, status);
+      return DateTimeStylePattern(date_style, time_style, modified_locale, hc,
+                                  generator);
+    }
+    status = U_ZERO_ERROR;
+    // Fallback to the locale without "hc".
+    if (!icu_locale.getUnicodeKeywordValue<std::string>("hc", status).empty()) {
+      status = U_ZERO_ERROR;
+      modified_locale.setUnicodeKeywordValue("hc", nullptr, status);
+      return DateTimeStylePattern(date_style, time_style, modified_locale, hc,
+                                  generator);
+    }
+    status = U_ZERO_ERROR;
+    // Fallback to the locale without "ca".
+    if (!icu_locale.getUnicodeKeywordValue<std::string>("ca", status).empty()) {
+      status = U_ZERO_ERROR;
+      modified_locale.setUnicodeKeywordValue("ca", nullptr, status);
+      return DateTimeStylePattern(date_style, time_style, modified_locale, hc,
+                                  generator);
+    }
+    return nullptr;
+  }
   icu::UnicodeString pattern;
   pattern = result->toPattern(pattern);
 
-  UErrorCode status = U_ZERO_ERROR;
+  status = U_ZERO_ERROR;
   icu::UnicodeString skeleton =
       icu::DateTimePatternGenerator::staticGetSkeleton(pattern, status);
   CHECK(U_SUCCESS(status));
