@@ -983,6 +983,7 @@ void PrintContextWithHeader(std::ostream& os, Context context,
   os << "\n - length: " << context.length();
   os << "\n - scope_info: " << Brief(context.scope_info());
   os << "\n - previous: " << Brief(context.unchecked_previous());
+  os << "\n - extension: " << Brief(context.extension());
   os << "\n - native_context: " << Brief(context.native_context());
   PrintFixedArrayElements(os, context);
   os << "\n";
@@ -2301,9 +2302,6 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
   }
   if (HasInferredFunctionName()) {
     os << "\n - inferred function name: " << Brief(InferredFunctionName());
-  }
-  if (HasContextExtension()) {
-    os << "\n - has context extension field";
   }
   if (CanElideThisHoleChecks()) {
     os << "\n - can elide this hole checks";

@@ -210,8 +210,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
             scope->ForceContextForLanguageMode()) |
         PrivateNameLookupSkipsOuterClassField::encode(
             scope->private_name_lookup_skips_outer_class()) |
-        CanElideThisHoleChecksField::encode(can_elide_this_hole_checks) |
-        HasContextExtensionField::encode(scope->HasContextExtension());
+        CanElideThisHoleChecksField::encode(can_elide_this_hole_checks);
     scope_info.SetFlags(flags);
 
     scope_info.SetParameterCount(parameter_count);
@@ -228,7 +227,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
         case VariableLocation::CONTEXT: {
           // Due to duplicate parameters, context locals aren't guaranteed to
           // come in order.
-          int local_index = var->index() - scope->ContextHeaderLength();
+          int local_index = var->index() - Context::MIN_CONTEXT_SLOTS;
           DCHECK_LE(0, local_index);
           DCHECK_LT(local_index, context_local_count);
           uint32_t info =
@@ -274,7 +273,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
       for (int i = 0; i < parameter_count; i++) {
         Variable* parameter = scope->AsDeclarationScope()->parameter(i);
         if (parameter->location() != VariableLocation::CONTEXT) continue;
-        int index = parameter->index() - scope->ContextHeaderLength();
+        int index = parameter->index() - Context::MIN_CONTEXT_SLOTS;
         int info_index = context_local_info_base + index;
         int info = Smi::ToInt(scope_info.get(info_index));
         info = ParameterNumberField::update(info, i);
@@ -285,7 +284,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
       if (scope->AsDeclarationScope()->has_this_declaration()) {
         Variable* var = scope->AsDeclarationScope()->receiver();
         if (var->location() == VariableLocation::CONTEXT) {
-          int local_index = var->index() - scope->ContextHeaderLength();
+          int local_index = var->index() - Context::MIN_CONTEXT_SLOTS;
           uint32_t info =
               VariableModeField::encode(var->mode()) |
               InitFlagField::encode(var->initialization_flag()) |
@@ -398,8 +397,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
       IsDebugEvaluateScopeField::encode(false) |
       ForceContextAllocationField::encode(false) |
       PrivateNameLookupSkipsOuterClassField::encode(false) |
-      CanElideThisHoleChecksField::encode(false) |
-      HasContextExtensionField::encode(false);
+      CanElideThisHoleChecksField::encode(false);
   scope_info->SetFlags(flags);
 
   scope_info->SetParameterCount(0);
@@ -416,7 +414,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
   }
   DCHECK_EQ(index, scope_info->length());
   DCHECK_EQ(0, scope_info->ParameterCount());
-  DCHECK_EQ(scope_info->ContextHeaderLength(), scope_info->ContextLength());
+  DCHECK_EQ(Context::MIN_CONTEXT_SLOTS, scope_info->ContextLength());
   return scope_info;
 }
 
@@ -469,8 +467,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
       IsDebugEvaluateScopeField::encode(false) |
       ForceContextAllocationField::encode(false) |
       PrivateNameLookupSkipsOuterClassField::encode(false) |
-      CanElideThisHoleChecksField::encode(false) |
-      HasContextExtensionField::encode(false);
+      CanElideThisHoleChecksField::encode(false);
   scope_info->SetFlags(flags);
   scope_info->SetParameterCount(parameter_count);
   scope_info->SetContextLocalCount(context_local_count);
@@ -495,7 +492,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
 
   // And here we record that this scopeinfo binds a receiver.
   DCHECK_EQ(index, scope_info->ReceiverInfoIndex());
-  const int receiver_index = scope_info->ContextHeaderLength();
+  const int receiver_index = Context::MIN_CONTEXT_SLOTS + 0;
   if (!is_empty_function) {
     scope_info->set(index++, Smi::FromInt(receiver_index));
   }
@@ -519,8 +516,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
   if (type == FUNCTION_SCOPE) {
     DCHECK_EQ(scope_info->ContextLength(), 0);
   } else {
-    DCHECK_EQ(scope_info->ContextLength(),
-              scope_info->ContextHeaderLength() + 1);
+    DCHECK_EQ(scope_info->ContextLength(), Context::MIN_CONTEXT_SLOTS + 1);
   }
 
   return scope_info;
@@ -568,20 +564,11 @@ int ScopeInfo::ContextLength() const {
         scope_type() == MODULE_SCOPE;
 
     if (has_context) {
-      return ContextHeaderLength() + context_locals +
+      return Context::MIN_CONTEXT_SLOTS + context_locals +
              (function_name_context_slot ? 1 : 0);
     }
   }
   return 0;
-}
-
-bool ScopeInfo::HasContextExtension() const {
-  return HasContextExtensionField::decode(Flags());
-}
-
-int ScopeInfo::ContextHeaderLength() const {
-  return HasContextExtension() ? Context::MIN_CONTEXT_EXTENDED_SLOTS
-                               : Context::MIN_CONTEXT_SLOTS;
 }
 
 bool ScopeInfo::HasReceiver() const {
@@ -835,7 +822,7 @@ int ScopeInfo::ContextSlotIndex(ScopeInfo scope_info, String name,
     *is_static_flag = scope_info.ContextLocalIsStaticFlag(var);
     *init_flag = scope_info.ContextLocalInitFlag(var);
     *maybe_assigned_flag = scope_info.ContextLocalMaybeAssignedFlag(var);
-    int result = scope_info.ContextHeaderLength() + var;
+    int result = Context::MIN_CONTEXT_SLOTS + var;
 
     DCHECK_LT(result, scope_info.ContextLength());
     return result;

@@ -1196,8 +1196,9 @@ Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {
     Node* effect = NodeProperties::GetEffectInput(node);
     Node* control = NodeProperties::GetControlInput(node);
     Node* context = NodeProperties::GetContextInput(node);
+    Node* extension = jsgraph()->TheHoleConstant();
     AllocationBuilder a(jsgraph(), effect, control);
-    STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 2);  // Ensure fully covered.
+    STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 3);  // Ensure fully covered.
     int context_length = slot_count + Context::MIN_CONTEXT_SLOTS;
     switch (scope_type) {
       case EVAL_SCOPE:
@@ -1213,6 +1214,7 @@ Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {
     a.Store(AccessBuilder::ForContextSlot(Context::SCOPE_INFO_INDEX),
             scope_info);
     a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
+    a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
     for (int i = Context::MIN_CONTEXT_SLOTS; i < context_length; ++i) {
       a.Store(AccessBuilder::ForContextSlot(i), jsgraph()->UndefinedConstant());
     }
@@ -1233,9 +1235,8 @@ Reduction JSCreateLowering::ReduceJSCreateWithContext(Node* node) {
   Node* context = NodeProperties::GetContextInput(node);
 
   AllocationBuilder a(jsgraph(), effect, control);
-  STATIC_ASSERT(Context::MIN_CONTEXT_EXTENDED_SLOTS ==
-                3);  // Ensure fully covered.
-  a.AllocateContext(Context::MIN_CONTEXT_EXTENDED_SLOTS,
+  STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 3);  // Ensure fully covered.
+  a.AllocateContext(Context::MIN_CONTEXT_SLOTS,
                     native_context().with_context_map());
   a.Store(AccessBuilder::ForContextSlot(Context::SCOPE_INFO_INDEX), scope_info);
   a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
@@ -1252,13 +1253,15 @@ Reduction JSCreateLowering::ReduceJSCreateCatchContext(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* context = NodeProperties::GetContextInput(node);
+  Node* extension = jsgraph()->TheHoleConstant();
 
   AllocationBuilder a(jsgraph(), effect, control);
-  STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 2);  // Ensure fully covered.
+  STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 3);  // Ensure fully covered.
   a.AllocateContext(Context::MIN_CONTEXT_SLOTS + 1,
                     native_context().catch_context_map());
   a.Store(AccessBuilder::ForContextSlot(Context::SCOPE_INFO_INDEX), scope_info);
   a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
+  a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
   a.Store(AccessBuilder::ForContextSlot(Context::THROWN_OBJECT_INDEX),
           exception);
   RelaxControls(node);
@@ -1277,13 +1280,15 @@ Reduction JSCreateLowering::ReduceJSCreateBlockContext(Node* node) {
     Node* effect = NodeProperties::GetEffectInput(node);
     Node* control = NodeProperties::GetControlInput(node);
     Node* context = NodeProperties::GetContextInput(node);
+    Node* extension = jsgraph()->TheHoleConstant();
 
     AllocationBuilder a(jsgraph(), effect, control);
-    STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 2);  // Ensure fully covered.
+    STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 3);  // Ensure fully covered.
     a.AllocateContext(context_length, native_context().block_context_map());
     a.Store(AccessBuilder::ForContextSlot(Context::SCOPE_INFO_INDEX),
             scope_info);
     a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
+    a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
     for (int i = Context::MIN_CONTEXT_SLOTS; i < context_length; ++i) {
       a.Store(AccessBuilder::ForContextSlot(i), jsgraph()->UndefinedConstant());
     }
@@ -1531,37 +1536,15 @@ Node* JSCreateLowering::AllocateAliasedArguments(
   int mapped_count = parameter_count;
   *has_aliased_arguments = true;
 
-  // A context has a header with MIN_CONTEXT_SLOTS, plus optionally one slot
-  // for the context extension.
-  Node* const scope_info = effect = graph()->NewNode(
-      simplified()->LoadField(
-          AccessBuilder::ForContextSlot(Context::SCOPE_INFO_INDEX)),
-      context, effect, control);
-  Node* const scope_info_flags = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForScopeInfoFlags()), scope_info,
-      effect, control);
-  Node* const has_context_extension = graph()->NewNode(
-      simplified()->NumberBitwiseAnd(), scope_info_flags,
-      jsgraph()->SmiConstant(ScopeInfo::HasContextExtensionField::kMask));
-  Node* const has_context_extension_bit = graph()->NewNode(
-      simplified()->NumberShiftRight(), has_context_extension,
-      jsgraph()->SmiConstant(ScopeInfo::HasContextExtensionField::kShift));
-  STATIC_ASSERT(Context::MIN_CONTEXT_EXTENDED_SLOTS ==
-                Context::MIN_CONTEXT_SLOTS + 1);
-  Node* const context_header_size =
-      graph()->NewNode(simplified()->NumberAdd(),
-                       jsgraph()->Constant(Context::MIN_CONTEXT_SLOTS),
-                       has_context_extension_bit);
-
   // The unmapped argument values are stored yet another indirection away and
   // then linked into the parameter map below, whereas mapped argument values
   // (i.e. the first {mapped_count} elements) are replaced with a hole instead.
-  Node* arguments = effect =
+  Node* arguments =
       graph()->NewNode(simplified()->NewArgumentsElements(mapped_count),
                        arguments_frame, arguments_length, effect);
 
   // Actually allocate the backing store.
-  AllocationBuilder a(jsgraph(), effect, control);
+  AllocationBuilder a(jsgraph(), arguments, control);
   a.AllocateArray(mapped_count + 2,
                   MapRef(broker(), factory()->sloppy_arguments_elements_map()));
   a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(0),
@@ -1569,14 +1552,12 @@ Node* JSCreateLowering::AllocateAliasedArguments(
   a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(1),
           arguments);
   for (int i = 0; i < mapped_count; ++i) {
-    Node* const idx =
-        graph()->NewNode(simplified()->NumberAdd(), context_header_size,
-                         jsgraph()->Constant(parameter_count - 1 - i));
+    int idx = Context::MIN_CONTEXT_SLOTS + parameter_count - 1 - i;
     Node* value = graph()->NewNode(
         common()->Select(MachineRepresentation::kTagged),
         graph()->NewNode(simplified()->NumberLessThan(), jsgraph()->Constant(i),
                          arguments_length),
-        idx, jsgraph()->TheHoleConstant());
+        jsgraph()->Constant(idx), jsgraph()->TheHoleConstant());
     a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(i + 2),
             value);
   }

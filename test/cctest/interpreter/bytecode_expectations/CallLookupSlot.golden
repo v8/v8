@@ -13,7 +13,7 @@ frame size: 10
 parameter count: 1
 bytecode array length: 75
 bytecodes: [
-                B(CreateFunctionContext), U8(0), U8(4),
+                B(CreateFunctionContext), U8(0), U8(3),
                 B(PushContext), R(1),
                 B(Ldar), R(this),
                 B(StaCurrentContextSlot), U8(3),

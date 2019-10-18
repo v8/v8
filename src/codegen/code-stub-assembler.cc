@@ -2682,17 +2682,6 @@ TNode<Float64T> CodeStubAssembler::LoadDoubleWithHoleCheck(
   return UncheckedCast<Float64T>(Load(machine_type, base, offset));
 }
 
-TNode<ScopeInfo> CodeStubAssembler::LoadScopeInfo(TNode<Context> context) {
-  return CAST(LoadContextElement(context, Context::SCOPE_INFO_INDEX));
-}
-
-TNode<BoolT> CodeStubAssembler::LoadScopeInfoHasExtensionField(
-    TNode<ScopeInfo> scope_info) {
-  TNode<IntPtrT> value =
-      LoadAndUntagObjectField(scope_info, ScopeInfo::kFlagsOffset);
-  return IsSetWord<ScopeInfo::HasContextExtensionField>(value);
-}
-
 TNode<BoolT> CodeStubAssembler::LoadContextHasExtensionField(
     SloppyTNode<Context> context) {
   TNode<IntPtrT> value =
@@ -13501,9 +13490,8 @@ void CodeStubAssembler::PerformStackCheck(TNode<Context> context) {
   BIND(&ok);
 }
 
-void CodeStubAssembler::InitializeSyntheticFunctionContext(Node* native_context,
-                                                           Node* context,
-                                                           int slots) {
+void CodeStubAssembler::InitializeFunctionContext(Node* native_context,
+                                                  Node* context, int slots) {
   DCHECK_GE(slots, Context::MIN_CONTEXT_SLOTS);
   TNode<Map> map = CAST(
       LoadContextElement(native_context, Context::FUNCTION_CONTEXT_MAP_INDEX));
@@ -13517,6 +13505,8 @@ void CodeStubAssembler::InitializeSyntheticFunctionContext(Node* native_context,
                                     empty_scope_info);
   StoreContextElementNoWriteBarrier(context, Context::PREVIOUS_INDEX,
                                     UndefinedConstant());
+  StoreContextElementNoWriteBarrier(context, Context::EXTENSION_INDEX,
+                                    TheHoleConstant());
 }
 
 TNode<JSArray> CodeStubAssembler::ArrayCreate(TNode<Context> context,
