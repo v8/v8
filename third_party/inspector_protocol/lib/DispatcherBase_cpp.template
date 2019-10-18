@@ -142,11 +142,6 @@ public:
         return std::unique_ptr<ProtocolError>(new ProtocolError(code, errorMessage));
     }
 
-    String serializeToJSON() override
-    {
-        return serialize()->serializeToJSON();
-    }
-
     std::vector<uint8_t> serializeToBinary() override
     {
         return serialize()->serializeToBinary();
@@ -317,20 +312,6 @@ std::unique_ptr<Serializable> InternalResponse::createNotification(const String&
 std::unique_ptr<Serializable> InternalResponse::createErrorResponse(int callId, DispatchResponse::ErrorCode code, const String& message)
 {
     return ProtocolError::createErrorResponse(callId, code, message, nullptr);
-}
-
-String InternalResponse::serializeToJSON()
-{
-    std::unique_ptr<DictionaryValue> result = DictionaryValue::create();
-    std::unique_ptr<Serializable> params(m_params ? std::move(m_params) : DictionaryValue::create());
-    if (m_notification.length()) {
-        result->setString("method", m_notification);
-        result->setValue("params", SerializedValue::fromJSON(params->serializeToJSON()));
-    } else {
-        result->setInteger("id", m_callId);
-        result->setValue("result", SerializedValue::fromJSON(params->serializeToJSON()));
-    }
-    return result->serializeToJSON();
 }
 
 std::vector<uint8_t> InternalResponse::serializeToBinary()

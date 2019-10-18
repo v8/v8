@@ -299,10 +299,6 @@ String Value::toJSONString() const
     return StringUtil::builderToString(result);
 }
 
-String Value::serializeToJSON() {
-    return toJSONString();
-}
-
 std::vector<uint8_t> Value::serializeToBinary() {
     std::vector<uint8_t> bytes;
     writeBinary(&bytes);
