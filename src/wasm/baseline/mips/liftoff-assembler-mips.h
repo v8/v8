@@ -624,8 +624,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
     // Use a0 for start address (inclusive), a1 for end address (exclusive).
     Push(a1, a0);
     Addu(a0, fp, Operand(-liftoff::GetStackSlotOffset(last_stack_slot)));
-    Addu(a1, fp,
-         Operand(-(liftoff::GetStackSlotOffset(index) + kStackSlotSize)));
+    Addu(a1, fp, Operand(-liftoff::GetStackSlotOffset(index) + kStackSlotSize));
 
     Label loop;
     bind(&loop);
