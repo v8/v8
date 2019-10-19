@@ -2281,6 +2281,17 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
        g.UseImmediate(Pack4Lanes(shuffle + 12)));
 }
 
+void InstructionSelector::VisitS8x16Swizzle(Node* node) {
+  MipsOperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  // We don't want input 0 or input 1 to be the same as output, since we will
+  // modify output before do the calculation.
+  Emit(kMipsS8x16Swizzle, g.DefineAsRegister(node),
+       g.UseUniqueRegister(node->InputAt(0)),
+       g.UseUniqueRegister(node->InputAt(1)),
+       arraysize(temps), temps);
+}
+
 void InstructionSelector::VisitSignExtendWord8ToInt32(Node* node) {
   MipsOperandGenerator g(this);
   Emit(kMipsSeb, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));

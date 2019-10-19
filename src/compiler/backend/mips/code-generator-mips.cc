@@ -2838,6 +2838,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vshf_b(dst, src1, src0);
       break;
     }
+    case kMipsS8x16Swizzle: {
+      Simd128Register dst = i.OutputSimd128Register(),
+                      tbl = i.InputSimd128Register(0),
+                      ctl = i.InputSimd128Register(1);
+      DCHECK(dst != ctl && dst != tbl);
+      Simd128Register zeroReg = i.TempSimd128Register(0);
+      __ fill_w(zeroReg, zero_reg);
+      __ move_v(dst, ctl);
+      __ vshf_b(dst, tbl, zeroReg);
+      break;
+    }
     case kMipsS8x8Reverse: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       // src = [15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]

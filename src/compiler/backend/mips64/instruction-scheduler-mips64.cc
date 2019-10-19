@@ -257,6 +257,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64S8x4Reverse:
     case kMips64S8x8Reverse:
     case kMips64S8x16Shuffle:
+    case kMips64S8x16Swizzle:
     case kMips64Sar:
     case kMips64Seb:
     case kMips64Seh:

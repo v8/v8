@@ -230,6 +230,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsS8x16PackEven:
     case kMipsS8x16PackOdd:
     case kMipsS8x16Shuffle:
+    case kMipsS8x16Swizzle:
     case kMipsS8x2Reverse:
     case kMipsS8x4Reverse:
     case kMipsS8x8Reverse:
