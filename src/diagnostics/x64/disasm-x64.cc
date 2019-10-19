@@ -1286,6 +1286,13 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         current += 1;
         break;
       }
+      case 0xC6: {
+        AppendToBuffer("vshufps %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",0x%x", *current++);
+        break;
+      }
       default:
         UnimplementedInstruction();
     }
