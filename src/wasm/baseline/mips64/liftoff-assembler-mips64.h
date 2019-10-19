@@ -544,7 +544,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
     Push(a1, a0);
     Daddu(a0, fp, Operand(-liftoff::GetStackSlotOffset(last_stack_slot)));
     Daddu(a1, fp,
-          Operand(-(liftoff::GetStackSlotOffset(index) + kStackSlotSize)));
+          Operand(-liftoff::GetStackSlotOffset(index) + kStackSlotSize));
 
     Label loop;
     bind(&loop);
