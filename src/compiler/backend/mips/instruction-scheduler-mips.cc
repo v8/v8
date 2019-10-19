@@ -41,6 +41,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsDivS:
     case kMipsDivU:
     case kMipsExt:
+    case kMipsF64x2Abs:
+    case kMipsF64x2Neg:
     case kMipsF32x4Abs:
     case kMipsF32x4Add:
     case kMipsF32x4AddHoriz:
