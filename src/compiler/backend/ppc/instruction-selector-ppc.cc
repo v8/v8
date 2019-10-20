@@ -2406,6 +2406,10 @@ void InstructionSelector::VisitF64x2ExtractLane(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF64x2ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitF64x2Abs(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF64x2Neg(Node* node) { UNIMPLEMENTED(); }
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
