@@ -5,6 +5,7 @@
 # for py2/py3 compatibility
 from __future__ import print_function
 
+import datetime
 import json
 import os
 import platform
@@ -151,8 +152,11 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
       except:
         pass
 
+  def _ensure_delay(self, delay):
+    return time.time() - self._last_printed_time > delay
+
   def _on_heartbeat(self):
-    if time.time() - self._last_printed_time > 30:
+    if self._ensure_delay(30):
       # Print something every 30 seconds to not get killed by an output
       # timeout.
       self._print('Still working...')
@@ -169,6 +173,16 @@ class CIProgressIndicator(VerboseProgressIndicator):
     if self.options.ci_test_completion:
       with open(self.options.ci_test_completion, "a") as f:
         f.write(self._message(test, result) + "\n")
+    self._output_feedback()
+
+  def _output_feedback(self):
+    """Reduced the verbosity leads to getting killed by an ouput timeout.
+    We ensure output every minute.
+    """
+    if self._ensure_delay(60):
+      dt = time.time()
+      st = datetime.datetime.fromtimestamp(dt).strftime('%Y-%m-%d %H:%M:%S')
+      self._print(st)
 
 
 class DotsProgressIndicator(SimpleProgressIndicator):
