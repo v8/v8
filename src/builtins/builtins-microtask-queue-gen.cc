@@ -147,7 +147,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
 
     TNode<JSReceiver> callable =
         LoadObjectField<JSReceiver>(microtask, CallableTask::kCallableOffset);
-    Node* const result = CallJS(
+    const TNode<Object> result = CallJS(
         CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
         microtask_context, callable, UndefinedConstant());
     GotoIfException(result, &if_exception, &var_exception);
