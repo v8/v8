@@ -137,9 +137,6 @@
       'adamk+watch@chromium.org',
       'marja+watch@chromium.org',
     ],
-    'profiler': [
-      'alph+watch@chromium.org',
-    ],
     'tracing': [
       'alph+watch@chromium.org',
       'lpy+v8tracing@chromium.org',
