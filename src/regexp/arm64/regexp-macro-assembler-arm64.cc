@@ -187,6 +187,21 @@ void RegExpMacroAssemblerARM64::AdvanceRegister(int reg, int by) {
 
 void RegExpMacroAssemblerARM64::Backtrack() {
   CheckPreemption();
+  if (has_backtrack_limit()) {
+    Label next;
+    UseScratchRegisterScope temps(masm_);
+    Register scratch = temps.AcquireW();
+    __ Ldr(scratch, MemOperand(frame_pointer(), kBacktrackCount));
+    __ Add(scratch, scratch, 1);
+    __ Str(scratch, MemOperand(frame_pointer(), kBacktrackCount));
+    __ Cmp(scratch, Operand(backtrack_limit()));
+    __ B(ne, &next);
+
+    // Exceeded limits are treated as a failed match.
+    Fail();
+
+    __ bind(&next);
+  }
   Pop(w10);
   __ Add(x10, code_pointer(), Operand(w10, UXTW));
   __ Br(x10);
@@ -738,13 +753,15 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   __ Mov(output_array(), x4);
 
   // Set the number of registers we will need to allocate, that is:
-  //   - success_counter (X register)
+  //   - kSuccessCounter / success_counter (X register)
+  //   - kBacktrackCount (X register)
   //   - (num_registers_ - kNumCachedRegisters) (W registers)
   int num_wreg_to_allocate = num_registers_ - kNumCachedRegisters;
   // Do not allocate registers on the stack if they can all be cached.
   if (num_wreg_to_allocate < 0) { num_wreg_to_allocate = 0; }
-  // Make room for the success_counter.
-  num_wreg_to_allocate += 2;
+  // Make room for the success_counter and kBacktrackCount. Each X (64-bit)
+  // register is equivalent to two W (32-bit) registers.
+  num_wreg_to_allocate += 2 + 2;
 
   // Make sure the stack alignment will be respected.
   int alignment = masm_->ActivationFrameAlignment();
@@ -785,8 +802,9 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   // Allocate space on stack.
   __ Claim(num_wreg_to_allocate, kWRegSize);
 
-  // Initialize success_counter with 0.
+  // Initialize success_counter and kBacktrackCount with 0.
   __ Str(wzr, MemOperand(frame_pointer(), kSuccessCounter));
+  __ Str(wzr, MemOperand(frame_pointer(), kBacktrackCount));
 
   // Find negative length (offset of start relative to end).
   __ Sub(x10, input_start(), input_end());

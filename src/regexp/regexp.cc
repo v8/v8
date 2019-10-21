@@ -76,7 +76,8 @@ class RegExpImpl final : public AllStatic {
   // Returns true on success, false on failure.
   static bool Compile(Isolate* isolate, Zone* zone, RegExpCompileData* input,
                       JSRegExp::Flags flags, Handle<String> pattern,
-                      Handle<String> sample_subject, bool is_one_byte);
+                      Handle<String> sample_subject, bool is_one_byte,
+                      uint32_t backtrack_limit);
 
   // For acting on the JSRegExp data FixedArray.
   static int IrregexpMaxRegisterCount(FixedArray re);
@@ -404,7 +405,7 @@ bool RegExpImpl::CompileIrregexp(Isolate* isolate, Handle<JSRegExp> re,
                                         : RegExpCompilationTarget::kNative;
   const bool compilation_succeeded =
       Compile(isolate, &zone, &compile_data, flags, pattern, sample_subject,
-              is_one_byte);
+              is_one_byte, re->BacktrackLimit());
   if (!compilation_succeeded) {
     DCHECK(!compile_data.error.is_null());
     ThrowRegExpException(isolate, re, compile_data.error);
@@ -733,12 +734,14 @@ bool RegExp::CompileForTesting(Isolate* isolate, Zone* zone,
                                Handle<String> sample_subject,
                                bool is_one_byte) {
   return RegExpImpl::Compile(isolate, zone, data, flags, pattern,
-                             sample_subject, is_one_byte);
+                             sample_subject, is_one_byte,
+                             JSRegExp::kNoBacktrackLimit);
 }
 
 bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
                          JSRegExp::Flags flags, Handle<String> pattern,
-                         Handle<String> sample_subject, bool is_one_byte) {
+                         Handle<String> sample_subject, bool is_one_byte,
+                         uint32_t backtrack_limit) {
   if ((data->capture_count + 1) * 2 - 1 > RegExpMacroAssembler::kMaxRegister) {
     data->error =
         isolate->factory()->NewStringFromAsciiChecked("RegExp too big");
@@ -858,6 +861,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
   }
 
   macro_assembler->set_slow_safe(TooMuchRegExpCode(isolate, pattern));
+  macro_assembler->set_backtrack_limit(backtrack_limit);
 
   // Inserted here, instead of in Assembler, because it depends on information
   // in the AST that isn't replicated in the Node structure.

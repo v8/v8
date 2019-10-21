@@ -15,6 +15,7 @@ class RegExpTree;
 
 enum class RegExpCompilationTarget : int { kBytecode, kNative };
 
+// TODO(jgruber): Do not expose in regexp.h.
 // TODO(jgruber): Consider splitting between ParseData and CompileData.
 struct RegExpCompileData {
   // The parsed AST as produced by the RegExpParser.
