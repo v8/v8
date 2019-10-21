@@ -1197,7 +1197,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ bind(&not_optimized);
 
   // Increment invocation count for the function.
-  // MaybeTailCallOptimizedCodeSlot preserves feedback_vector, so safe to reuse
   __ Ldr(w10, FieldMemOperand(feedback_vector,
                               FeedbackVector::kInvocationCountOffset));
   __ Add(w10, w10, Operand(1));
