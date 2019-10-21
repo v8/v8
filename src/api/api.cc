@@ -6617,6 +6617,21 @@ MaybeLocal<v8::RegExp> v8::RegExp::New(Local<Context> context,
   RETURN_ESCAPED(result);
 }
 
+MaybeLocal<v8::RegExp> v8::RegExp::NewWithBacktrackLimit(
+    Local<Context> context, Local<String> pattern, Flags flags,
+    uint32_t backtrack_limit) {
+  CHECK(i::Smi::IsValid(backtrack_limit));
+  CHECK_NE(backtrack_limit, i::JSRegExp::kNoBacktrackLimit);
+  PREPARE_FOR_EXECUTION(context, RegExp, New, RegExp);
+  Local<v8::RegExp> result;
+  has_pending_exception = !ToLocal<RegExp>(
+      i::JSRegExp::New(isolate, Utils::OpenHandle(*pattern),
+                       static_cast<i::JSRegExp::Flags>(flags), backtrack_limit),
+      &result);
+  RETURN_ON_FAILED_EXECUTION(RegExp);
+  RETURN_ESCAPED(result);
+}
+
 Local<v8::String> v8::RegExp::GetSource() const {
   i::Handle<i::JSRegExp> obj = Utils::OpenHandle(this);
   return Utils::ToLocal(

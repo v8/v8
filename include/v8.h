@@ -5740,6 +5740,15 @@ class V8_EXPORT RegExp : public Object {
                                                       Flags flags);
 
   /**
+   * Like New, but additionally specifies a backtrack limit. If the number of
+   * backtracks done in one Exec call hits the limit, a match failure is
+   * immediately returned.
+   */
+  static V8_WARN_UNUSED_RESULT MaybeLocal<RegExp> NewWithBacktrackLimit(
+      Local<Context> context, Local<String> pattern, Flags flags,
+      uint32_t backtrack_limit);
+
+  /**
    * Returns the value of the source property: a string representing
    * the regular expression.
    */
