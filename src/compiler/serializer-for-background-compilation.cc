@@ -452,11 +452,11 @@ class SerializerForBackgroundCompilation {
   SUPPORTED_BYTECODE_LIST(DECLARE_VISIT_BYTECODE)
 #undef DECLARE_VISIT_BYTECODE
 
-  void ProcessSFIForCallOrConstruct(Callee const& callee,
-                                    base::Optional<Hints> new_target,
-                                    const HintsVector& arguments,
-                                    SpeculationMode speculation_mode,
-                                    MissingArgumentsPolicy padding);
+  void ProcessCalleeForCallOrConstruct(Callee const& callee,
+                                       base::Optional<Hints> new_target,
+                                       const HintsVector& arguments,
+                                       SpeculationMode speculation_mode,
+                                       MissingArgumentsPolicy padding);
   void ProcessCalleeForCallOrConstruct(Handle<Object> callee,
                                        base::Optional<Hints> new_target,
                                        const HintsVector& arguments,
@@ -1845,7 +1845,7 @@ Hints SerializerForBackgroundCompilation::RunChildSerializer(
   return hints;
 }
 
-void SerializerForBackgroundCompilation::ProcessSFIForCallOrConstruct(
+void SerializerForBackgroundCompilation::ProcessCalleeForCallOrConstruct(
     Callee const& callee, base::Optional<Hints> new_target,
     const HintsVector& arguments, SpeculationMode speculation_mode,
     MissingArgumentsPolicy padding) {
@@ -1921,8 +1921,8 @@ void SerializerForBackgroundCompilation::ProcessCalleeForCallOrConstruct(
   JSFunctionRef function(broker(), Handle<JSFunction>::cast(callee));
   function.Serialize();
   Callee new_callee(function.object());
-  ProcessSFIForCallOrConstruct(new_callee, new_target, *actual_arguments,
-                               speculation_mode, padding);
+  ProcessCalleeForCallOrConstruct(new_callee, new_target, *actual_arguments,
+                                  speculation_mode, padding);
 }
 
 void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
@@ -1965,8 +1965,8 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
 
   // For JSCallReducer::ReduceJSCall and JSCallReducer::ReduceJSConstruct.
   for (auto hint : callee.function_blueprints()) {
-    ProcessSFIForCallOrConstruct(Callee(hint), new_target, arguments,
-                                 speculation_mode, padding);
+    ProcessCalleeForCallOrConstruct(Callee(hint), new_target, arguments,
+                                    speculation_mode, padding);
   }
 }
 
@@ -2157,6 +2157,12 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
                                           SpeculationMode::kDisallowSpeculation,
                                           kMissingArgumentsAreUndefined);
         }
+        for (auto blueprint : callback.function_blueprints()) {
+          ProcessCalleeForCallOrConstruct(Callee(blueprint), base::nullopt,
+                                          new_arguments,
+                                          SpeculationMode::kDisallowSpeculation,
+                                          kMissingArgumentsAreUndefined);
+        }
       }
       break;
     case Builtins::kArrayReduce:
@@ -2178,9 +2184,14 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
                                           SpeculationMode::kDisallowSpeculation,
                                           kMissingArgumentsAreUndefined);
         }
+        for (auto blueprint : callback.function_blueprints()) {
+          ProcessCalleeForCallOrConstruct(Callee(blueprint), base::nullopt,
+                                          new_arguments,
+                                          SpeculationMode::kDisallowSpeculation,
+                                          kMissingArgumentsAreUndefined);
+        }
       }
       break;
-    // TODO(neis): At least for Array* we should look at blueprints too.
     // TODO(neis): Might need something like a FunctionBlueprint but for
     // creating bound functions rather than creating closures.
     case Builtins::kFunctionPrototypeApply:
@@ -2211,6 +2222,12 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
             zone());
         for (auto constant : arguments[0].constants()) {
           ProcessCalleeForCallOrConstruct(constant, base::nullopt,
+                                          new_arguments,
+                                          SpeculationMode::kDisallowSpeculation,
+                                          kMissingArgumentsAreUnknown);
+        }
+        for (auto blueprint : arguments[0].function_blueprints()) {
+          ProcessCalleeForCallOrConstruct(Callee(blueprint), base::nullopt,
                                           new_arguments,
                                           SpeculationMode::kDisallowSpeculation,
                                           kMissingArgumentsAreUnknown);

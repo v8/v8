@@ -322,6 +322,20 @@ TEST(BoundFunctionArguments) {
       "test(); return test;");
 }
 
+TEST(ArrowFunctionInlined) {
+  // The loop is to ensure there is a feedback vector for the arrow function
+  // {b}.
+  CheckForSerializedInlinee(
+      "function foo() {"
+      "  let b = x => x * x;"
+      "  let a = [1, 2, 3].map(b);"
+      "  return b;"
+      "}"
+      "%EnsureFeedbackVectorForFunction(foo);"
+      "for (let i = 0; i < 100; ++i) foo();"
+      "return foo;");
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
