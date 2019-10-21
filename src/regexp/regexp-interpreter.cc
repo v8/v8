@@ -302,7 +302,8 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate, ByteArray code_array,
                                      String subject_string,
                                      Vector<const Char> subject, int* registers,
                                      int current, uint32_t current_char,
-                                     RegExp::CallOrigin call_origin) {
+                                     RegExp::CallOrigin call_origin,
+                                     const uint32_t backtrack_limit) {
   DisallowHeapAllocation no_gc;
 
 #if V8_USE_COMPUTED_GOTO
@@ -357,6 +358,8 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate, ByteArray code_array,
   const byte* code_base = pc;
 
   BacktrackStack backtrack_stack;
+
+  uint32_t backtrack_count = 0;
 
 #ifdef DEBUG
   if (FLAG_trace_regexp_bytecodes) {
@@ -434,6 +437,12 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate, ByteArray code_array,
       DISPATCH();
     }
     BYTECODE(POP_BT) {
+      STATIC_ASSERT(JSRegExp::kNoBacktrackLimit == 0);
+      if (++backtrack_count == backtrack_limit) {
+        // Exceeded limits are treated as a failed match.
+        return IrregexpInterpreter::FAILURE;
+      }
+
       IrregexpInterpreter::Result return_code =
           HandleInterrupts(isolate, call_origin, &code_array, &subject_string,
                            &code_base, &subject, &pc);
@@ -963,13 +972,14 @@ IrregexpInterpreter::Result IrregexpInterpreter::Match(
   ByteArray code_array = ByteArray::cast(regexp.Bytecode(is_one_byte));
 
   return MatchInternal(isolate, code_array, subject_string, registers,
-                       registers_length, start_position, call_origin);
+                       registers_length, start_position, call_origin,
+                       regexp.BacktrackLimit());
 }
 
 IrregexpInterpreter::Result IrregexpInterpreter::MatchInternal(
     Isolate* isolate, ByteArray code_array, String subject_string,
     int* registers, int registers_length, int start_position,
-    RegExp::CallOrigin call_origin) {
+    RegExp::CallOrigin call_origin, uint32_t backtrack_limit) {
   DCHECK(subject_string.IsFlat());
 
   // Note: Heap allocation *is* allowed in two situations if calling from
@@ -992,13 +1002,15 @@ IrregexpInterpreter::Result IrregexpInterpreter::MatchInternal(
     Vector<const uint8_t> subject_vector = subject_content.ToOneByteVector();
     if (start_position != 0) previous_char = subject_vector[start_position - 1];
     return RawMatch(isolate, code_array, subject_string, subject_vector,
-                    registers, start_position, previous_char, call_origin);
+                    registers, start_position, previous_char, call_origin,
+                    backtrack_limit);
   } else {
     DCHECK(subject_content.IsTwoByte());
     Vector<const uc16> subject_vector = subject_content.ToUC16Vector();
     if (start_position != 0) previous_char = subject_vector[start_position - 1];
     return RawMatch(isolate, code_array, subject_string, subject_vector,
-                    registers, start_position, previous_char, call_origin);
+                    registers, start_position, previous_char, call_origin,
+                    backtrack_limit);
   }
 }
 

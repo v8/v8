@@ -6090,10 +6090,9 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
   return isolate->factory()->undefined_value();
 }
 
-namespace {
-
-JSRegExp::Flags RegExpFlagsFromString(Isolate* isolate, Handle<String> flags,
-                                      bool* success) {
+// static
+JSRegExp::Flags JSRegExp::FlagsFromString(Isolate* isolate,
+                                          Handle<String> flags, bool* success) {
   STATIC_ASSERT(JSRegExp::FlagFromChar('g') == JSRegExp::kGlobal);
   STATIC_ASSERT(JSRegExp::FlagFromChar('i') == JSRegExp::kIgnoreCase);
   STATIC_ASSERT(JSRegExp::FlagFromChar('m') == JSRegExp::kMultiline);
@@ -6136,16 +6135,14 @@ JSRegExp::Flags RegExpFlagsFromString(Isolate* isolate, Handle<String> flags,
   return value;
 }
 
-}  // namespace
-
 // static
 MaybeHandle<JSRegExp> JSRegExp::New(Isolate* isolate, Handle<String> pattern,
-                                    Flags flags) {
+                                    Flags flags, uint32_t backtrack_limit) {
   Handle<JSFunction> constructor = isolate->regexp_function();
   Handle<JSRegExp> regexp =
       Handle<JSRegExp>::cast(isolate->factory()->NewJSObject(constructor));
 
-  return JSRegExp::Initialize(regexp, pattern, flags);
+  return JSRegExp::Initialize(regexp, pattern, flags, backtrack_limit);
 }
 
 // static
@@ -6323,7 +6320,7 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
                                            Handle<String> flags_string) {
   Isolate* isolate = regexp->GetIsolate();
   bool success = false;
-  Flags flags = RegExpFlagsFromString(isolate, flags_string, &success);
+  Flags flags = JSRegExp::FlagsFromString(isolate, flags_string, &success);
   if (!success) {
     THROW_NEW_ERROR(
         isolate,
@@ -6335,7 +6332,8 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
 
 // static
 MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
-                                           Handle<String> source, Flags flags) {
+                                           Handle<String> source, Flags flags,
+                                           uint32_t backtrack_limit) {
   Isolate* isolate = regexp->GetIsolate();
   Factory* factory = isolate->factory();
   // If source is the empty string we set it to "(?:)" instead as
@@ -6344,8 +6342,9 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
 
   source = String::Flatten(isolate, source);
 
-  RETURN_ON_EXCEPTION(isolate, RegExp::Compile(isolate, regexp, source, flags),
-                      JSRegExp);
+  RETURN_ON_EXCEPTION(
+      isolate, RegExp::Compile(isolate, regexp, source, flags, backtrack_limit),
+      JSRegExp);
 
   Handle<String> escaped_source;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, escaped_source,

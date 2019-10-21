@@ -84,16 +84,23 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
 
   DECL_ACCESSORS(last_index, Object)
 
-  V8_EXPORT_PRIVATE static MaybeHandle<JSRegExp> New(Isolate* isolate,
-                                                     Handle<String> source,
-                                                     Flags flags);
+  // If the backtrack limit is set to this marker value, no limit is applied.
+  static constexpr uint32_t kNoBacktrackLimit = 0;
+
+  V8_EXPORT_PRIVATE static MaybeHandle<JSRegExp> New(
+      Isolate* isolate, Handle<String> source, Flags flags,
+      uint32_t backtrack_limit = kNoBacktrackLimit);
   static Handle<JSRegExp> Copy(Handle<JSRegExp> regexp);
 
-  static MaybeHandle<JSRegExp> Initialize(Handle<JSRegExp> regexp,
-                                          Handle<String> source, Flags flags);
+  static MaybeHandle<JSRegExp> Initialize(
+      Handle<JSRegExp> regexp, Handle<String> source, Flags flags,
+      uint32_t backtrack_limit = kNoBacktrackLimit);
   static MaybeHandle<JSRegExp> Initialize(Handle<JSRegExp> regexp,
                                           Handle<String> source,
                                           Handle<String> flags_string);
+
+  static Flags FlagsFromString(Isolate* isolate, Handle<String> flags,
+                               bool* success);
 
   bool MarkedForTierUp();
   void ResetLastTierUpTick();
@@ -130,6 +137,8 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   bool ShouldProduceBytecode();
   inline bool HasCompiledCode() const;
   inline void DiscardCompiledCodeForSerialization();
+
+  uint32_t BacktrackLimit() const;
 
   // Dispatched behavior.
   DECL_PRINTER(JSRegExp)
@@ -182,8 +191,11 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   // happens once the ticks reach zero.
   // This value is ignored if the regexp-tier-up flag isn't turned on.
   static const int kIrregexpTicksUntilTierUpIndex = kDataIndex + 7;
-
-  static const int kIrregexpDataSize = kIrregexpTicksUntilTierUpIndex + 1;
+  // A smi containing either the backtracking limit or kNoBacktrackLimit.
+  // TODO(jgruber): If needed, this limit could be packed into other fields
+  // above to save space.
+  static const int kIrregexpBacktrackLimit = kDataIndex + 8;
+  static const int kIrregexpDataSize = kDataIndex + 9;
 
   // In-object fields.
   static const int kLastIndexFieldIndex = 0;

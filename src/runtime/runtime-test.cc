@@ -1424,5 +1424,22 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_NewRegExpWithBacktrackLimit) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+
+  CONVERT_ARG_HANDLE_CHECKED(String, pattern, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, flags_string, 1);
+  CONVERT_UINT32_ARG_CHECKED(backtrack_limit, 2);
+
+  bool success = false;
+  JSRegExp::Flags flags =
+      JSRegExp::FlagsFromString(isolate, flags_string, &success);
+  CHECK(success);
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSRegExp::New(isolate, pattern, flags, backtrack_limit));
+}
+
 }  // namespace internal
 }  // namespace v8

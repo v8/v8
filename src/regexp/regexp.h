@@ -66,7 +66,7 @@ class RegExp final : public AllStatic {
   // Returns false if compilation fails.
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Compile(
       Isolate* isolate, Handle<JSRegExp> re, Handle<String> pattern,
-      JSRegExp::Flags flags);
+      JSRegExp::Flags flags, uint32_t backtrack_limit);
 
   enum CallOrigin : int {
     kFromRuntime = 0,

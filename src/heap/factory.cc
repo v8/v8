@@ -3900,7 +3900,9 @@ void Factory::SetRegExpAtomData(Handle<JSRegExp> regexp, JSRegExp::Type type,
 
 void Factory::SetRegExpIrregexpData(Handle<JSRegExp> regexp,
                                     JSRegExp::Type type, Handle<String> source,
-                                    JSRegExp::Flags flags, int capture_count) {
+                                    JSRegExp::Flags flags, int capture_count,
+                                    uint32_t backtrack_limit) {
+  DCHECK(Smi::IsValid(backtrack_limit));
   Handle<FixedArray> store = NewFixedArray(JSRegExp::kIrregexpDataSize);
   Smi uninitialized = Smi::FromInt(JSRegExp::kUninitializedValue);
   Smi ticks_until_tier_up = FLAG_regexp_tier_up
@@ -3917,6 +3919,7 @@ void Factory::SetRegExpIrregexpData(Handle<JSRegExp> regexp,
   store->set(JSRegExp::kIrregexpCaptureCountIndex, Smi::FromInt(capture_count));
   store->set(JSRegExp::kIrregexpCaptureNameMapIndex, uninitialized);
   store->set(JSRegExp::kIrregexpTicksUntilTierUpIndex, ticks_until_tier_up);
+  store->set(JSRegExp::kIrregexpBacktrackLimit, Smi::FromInt(backtrack_limit));
   regexp->set_data(*store);
 }
 

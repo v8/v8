@@ -114,5 +114,10 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   return indices;
 }
 
+uint32_t JSRegExp::BacktrackLimit() const {
+  CHECK_EQ(TypeTag(), IRREGEXP);
+  return static_cast<uint32_t>(Smi::ToInt(DataAt(kIrregexpBacktrackLimit)));
+}
+
 }  // namespace internal
 }  // namespace v8
