@@ -575,6 +575,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Select the minimum of the two provided IntPtr values.
   TNode<IntPtrT> IntPtrMin(SloppyTNode<IntPtrT> left,
                            SloppyTNode<IntPtrT> right);
+  TNode<UintPtrT> UintPtrMin(TNode<UintPtrT> left, TNode<UintPtrT> right);
 
   // Float64 operations.
   TNode<Float64T> Float64Ceil(SloppyTNode<Float64T> x);
@@ -586,12 +587,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Number> NumberMax(SloppyTNode<Number> left, SloppyTNode<Number> right);
   // Select the minimum of the two provided Number values.
   TNode<Number> NumberMin(SloppyTNode<Number> left, SloppyTNode<Number> right);
-
-  // After converting an index to an integer, calculate a relative index: if
-  // index < 0, max(length + index, 0); else min(index, length)
-  TNode<IntPtrT> ConvertToRelativeIndex(TNode<Context> context,
-                                        TNode<Object> index,
-                                        TNode<IntPtrT> length);
 
   // Returns true iff the given value fits into smi range and is >= 0.
   TNode<BoolT> IsValidPositiveSmi(TNode<IntPtrT> value);

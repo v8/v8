@@ -2035,6 +2035,7 @@ extern operator '==' macro Float64Equal(float64, float64): bool;
 extern operator '!=' macro Float64NotEqual(float64, float64): bool;
 extern operator '>' macro Float64GreaterThan(float64, float64): bool;
 extern operator '<' macro Float64LessThan(float64, float64): bool;
+extern operator '<=' macro Float64LessThanOrEqual(float64, float64): bool;
 
 extern macro BranchIfNumberEqual(Number, Number): never
     labels Taken, NotTaken;
@@ -2179,6 +2180,7 @@ extern macro SmiMod(Smi, Smi): Number;
 
 extern macro IntPtrMax(intptr, intptr): intptr;
 extern macro IntPtrMin(intptr, intptr): intptr;
+extern macro UintPtrMin(uintptr, uintptr): uintptr;
 
 extern operator '!' macro ConstexprBoolNot(constexpr bool): constexpr bool;
 extern operator '!' macro Word32BinaryNot(bool): bool;
@@ -3650,8 +3652,58 @@ extern macro NumberToString(Number): String;
 extern macro IsOneByteStringInstanceType(InstanceType): bool;
 extern macro AllocateSeqOneByteString(uint32): String;
 extern macro AllocateSeqTwoByteString(uint32): String;
-extern macro ConvertToRelativeIndex(implicit context: Context)(
-    JSAny, intptr): intptr;
+
+// After converting an index to an integer, calculate a relative index:
+// return index < 0 ? max(length + index, 0) : min(index, length)
+// TODO(v8:4153): make length and result uintptr.
+@export
+transitioning macro ConvertToRelativeIndex(implicit context: Context)(
+    index: JSAny, length: intptr): intptr {
+  const indexNumber: Number =
+      ToInteger_Inline(context, index, kTruncateMinusZero);
+  return ConvertToRelativeIndex(indexNumber, length);
+}
+
+// Calculate a relative index:
+// return index < 0 ? max(length + index, 0) : min(index, length)
+// TODO(v8:4153): make length and result uintptr.
+@export
+macro ConvertToRelativeIndex(indexNumber: Number, lengthIntPtr: intptr):
+    intptr {
+  const length: uintptr = Convert<uintptr>(lengthIntPtr);
+  typeswitch (indexNumber) {
+    case (indexSmi: Smi): {
+      const indexIntPtr: intptr = Convert<intptr>(indexSmi);
+      // The logic is implemented using unsigned types.
+      if (indexIntPtr < 0) {
+        const relativeIndex: uintptr = Unsigned(indexIntPtr) + length;
+        return Signed(relativeIndex < length ? relativeIndex : 0);
+
+      } else {
+        const relativeIndex: uintptr = Unsigned(indexIntPtr);
+        return Signed(relativeIndex < length ? relativeIndex : length);
+      }
+    }
+    case (indexHeapNumber: HeapNumber): {
+      const indexDouble: float64 = Convert<float64>(indexHeapNumber);
+      // NaNs must already be handled by ConvertToRelativeIndex() version
+      // above accepting JSAny indices.
+      assert(indexDouble == indexDouble);
+      const lengthDouble: float64 = Convert<float64>(length);
+      assert(lengthDouble <= kMaxSafeInteger);
+      if (indexDouble < 0) {
+        const relativeIndex: float64 = lengthDouble + indexDouble;
+        return relativeIndex > 0 ?
+            Signed(ChangeFloat64ToUintPtr(relativeIndex)) :
+            0;
+
+      } else {
+        return Signed(ChangeFloat64ToUintPtr(
+            indexDouble < lengthDouble ? indexDouble : lengthDouble));
+      }
+    }
+  }
+}
 
 extern builtin ObjectToString(Context, JSAny): JSAny;
 extern builtin StringRepeat(Context, String, Number): String;

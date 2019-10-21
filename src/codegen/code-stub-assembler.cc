@@ -927,44 +927,6 @@ TNode<Number> CodeStubAssembler::NumberMin(SloppyTNode<Number> a,
   return result.value();
 }
 
-TNode<IntPtrT> CodeStubAssembler::ConvertToRelativeIndex(
-    TNode<Context> context, TNode<Object> index, TNode<IntPtrT> length) {
-  TVARIABLE(IntPtrT, result);
-
-  TNode<Number> const index_int =
-      ToInteger_Inline(context, index, CodeStubAssembler::kTruncateMinusZero);
-  TNode<IntPtrT> zero = IntPtrConstant(0);
-
-  Label done(this);
-  Label if_issmi(this), if_isheapnumber(this, Label::kDeferred);
-  Branch(TaggedIsSmi(index_int), &if_issmi, &if_isheapnumber);
-
-  BIND(&if_issmi);
-  {
-    TNode<Smi> const index_smi = CAST(index_int);
-    result = Select<IntPtrT>(
-        IntPtrLessThan(SmiUntag(index_smi), zero),
-        [=] { return IntPtrMax(IntPtrAdd(length, SmiUntag(index_smi)), zero); },
-        [=] { return IntPtrMin(SmiUntag(index_smi), length); });
-    Goto(&done);
-  }
-
-  BIND(&if_isheapnumber);
-  {
-    // If {index} is a heap number, it is definitely out of bounds. If it is
-    // negative, {index} = max({length} + {index}),0) = 0'. If it is positive,
-    // set {index} to {length}.
-    TNode<HeapNumber> const index_hn = CAST(index_int);
-    TNode<Float64T> const float_zero = Float64Constant(0.);
-    TNode<Float64T> const index_float = LoadHeapNumberValue(index_hn);
-    result = SelectConstant<IntPtrT>(Float64LessThan(index_float, float_zero),
-                                     zero, length);
-    Goto(&done);
-  }
-  BIND(&done);
-  return result.value();
-}
-
 TNode<Number> CodeStubAssembler::SmiMod(TNode<Smi> a, TNode<Smi> b) {
   TVARIABLE(Number, var_result);
   Label return_result(this, &var_result),
@@ -5754,7 +5716,8 @@ TNode<UintPtrT> CodeStubAssembler::TryNumberToUintPtr(TNode<Number> value,
       [&] {
         TNode<Smi> value_smi = CAST(value);
         if (if_negative == nullptr) {
-          CSA_SLOW_ASSERT(this, SmiLessThan(SmiConstant(-1), value_smi));
+          CSA_SLOW_ASSERT(this,
+                          SmiGreaterThanOrEqual(value_smi, SmiConstant(0)));
         } else {
           GotoIfNot(TaggedIsPositiveSmi(value), if_negative);
         }
@@ -8022,6 +7985,19 @@ TNode<IntPtrT> CodeStubAssembler::IntPtrMin(SloppyTNode<IntPtrT> left,
   }
   return SelectConstant<IntPtrT>(IntPtrLessThanOrEqual(left, right), left,
                                  right);
+}
+
+TNode<UintPtrT> CodeStubAssembler::UintPtrMin(TNode<UintPtrT> left,
+                                              TNode<UintPtrT> right) {
+  intptr_t left_constant;
+  intptr_t right_constant;
+  if (ToIntPtrConstant(left, &left_constant) &&
+      ToIntPtrConstant(right, &right_constant)) {
+    return UintPtrConstant(std::min(static_cast<uintptr_t>(left_constant),
+                                    static_cast<uintptr_t>(right_constant)));
+  }
+  return SelectConstant<UintPtrT>(UintPtrLessThanOrEqual(left, right), left,
+                                  right);
 }
 
 template <>

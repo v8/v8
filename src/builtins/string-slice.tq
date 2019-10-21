@@ -19,13 +19,15 @@ namespace string_slice {
     const length: intptr = string.length_intptr;
 
     // Convert {start} to a relative index.
-    const start: intptr = ConvertToRelativeIndex(arguments[0], length);
+    const arg0 = arguments[0];
+    const start: intptr =
+        arg0 != Undefined ? ConvertToRelativeIndex(arg0, length) : 0;
 
     // 5. If end is undefined, let intEnd be len;
     // else Convert {end} to a relative index.
-    const temp = arguments[1];
+    const arg1 = arguments[1];
     const end: intptr =
-        temp == Undefined ? length : ConvertToRelativeIndex(temp, length);
+        arg1 != Undefined ? ConvertToRelativeIndex(arg1, length) : length;
 
     if (end <= start) {
       return kEmptyString;

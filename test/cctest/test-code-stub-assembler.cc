@@ -325,6 +325,105 @@ TEST(IsValidPositiveSmi) {
 #endif
 }
 
+TEST(ConvertToRelativeIndex) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 3;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeStubAssembler m(asm_tester.state());
+
+  enum Result { kFound, kNotFound };
+  {
+    TNode<Number> index = m.CAST(m.Parameter(0));
+    TNode<Number> length_number = m.CAST(m.Parameter(1));
+    TNode<Number> expected_relative_index = m.CAST(m.Parameter(2));
+
+    TNode<UintPtrT> length = m.ChangeNonnegativeNumberToUintPtr(length_number);
+    TNode<UintPtrT> expected =
+        m.ChangeNonnegativeNumberToUintPtr(expected_relative_index);
+
+    TNode<UintPtrT> result =
+        m.Unsigned(m.ConvertToRelativeIndex(index, m.Signed(length)));
+
+    m.Return(m.SelectBooleanConstant(m.WordEqual(result, expected)));
+  }
+
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  const double kMaxSmi = static_cast<double>(kSmiMaxValue);
+  const double kMaxInt32 =
+      static_cast<double>(std::numeric_limits<int32_t>::max());
+  const double kMaxUInt32 =
+      static_cast<double>(std::numeric_limits<uint32_t>::max());
+  const double kMaxUIntPtr =
+      static_cast<double>(std::numeric_limits<uintptr_t>::max());
+
+  struct {
+    double index;
+    double length;
+    double expected_result;
+  } test_cases[] = {
+      // Simple Smi-range cases.
+      {0, 0, 0},
+      {0, 42, 0},
+      {5, 42, 5},
+      {100, 42, 42},
+      {-10, 153, 153 - 10},
+      {-200, 153, 0},
+      // Beyond Smi-range index cases.
+      {0, kMaxSmi, 0},
+      {-153, kMaxSmi, kMaxSmi - 153},
+      {kMaxSmi + 153, kMaxSmi, kMaxSmi},
+      {kMaxSmi * 33, kMaxSmi, kMaxSmi},
+      {-kMaxSmi, kMaxSmi, 0},
+      {-kMaxSmi - 1, kMaxSmi, 0},
+      {-kMaxSmi - 153, kMaxSmi, 0},
+      {-kMaxSmi * 33, kMaxSmi, 0},
+      {-std::numeric_limits<double>::infinity(), 153, 0},
+      {std::numeric_limits<double>::infinity(), 424242, 424242},
+      // Beyond Smi-range length cases.
+      {kMaxSmi + 2, kMaxSmi + 1, kMaxSmi + 1},
+      {-kMaxSmi + 2, kMaxSmi + 1, 3},
+      {kMaxInt32 + 1, kMaxInt32, kMaxInt32},
+      {-kMaxInt32 + 1, kMaxInt32, 1},
+      {kMaxUInt32 + 1, kMaxUInt32, kMaxUInt32},
+      {-42, kMaxUInt32, kMaxUInt32 - 42},
+      {-kMaxUInt32 - 1, kMaxUInt32, 0},
+      {-kMaxUInt32, kMaxUInt32, 0},
+      {-kMaxUInt32 + 1, kMaxUInt32, 1},
+      {-kMaxUInt32 + 5, kMaxUInt32, 5},
+      {-kMaxUInt32 + 5, kMaxUInt32 + 1, 6},
+      {-kMaxSmi * 33, kMaxSmi * 153, kMaxSmi * (153 - 33)},
+      {0, kMaxSafeInteger, 0},
+      {kMaxSmi, kMaxSafeInteger, kMaxSmi},
+      {kMaxSmi * 153, kMaxSafeInteger, kMaxSmi * 153},
+      {-10, kMaxSafeInteger, kMaxSafeInteger - 10},
+      {-kMaxSafeInteger, kMaxSafeInteger, 0},
+      {-kMaxSafeInteger + 1, kMaxSafeInteger, 1},
+      {-kMaxSafeInteger + 42, kMaxSafeInteger, 42},
+      {kMaxSafeInteger - 153, kMaxSafeInteger, kMaxSafeInteger - 153},
+      {kMaxSafeInteger - 1, kMaxSafeInteger, kMaxSafeInteger - 1},
+      {kMaxSafeInteger, kMaxSafeInteger, kMaxSafeInteger},
+      {kMaxSafeInteger + 1, kMaxSafeInteger, kMaxSafeInteger},
+      {kMaxSafeInteger + 42, kMaxSafeInteger, kMaxSafeInteger},
+      {kMaxSafeInteger * 11, kMaxSafeInteger, kMaxSafeInteger},
+  };
+
+  Factory* factory = isolate->factory();
+  for (size_t i = 0; i < arraysize(test_cases); i++) {
+    if (test_cases[i].length > kMaxUIntPtr) {
+      // Test cases where length does not fit into uintptr are not valid, so
+      // skip them instead of ifdef'ing the test cases above.
+      continue;
+    }
+    Handle<Object> index = factory->NewNumber(test_cases[i].index);
+    Handle<Object> length = factory->NewNumber(test_cases[i].length);
+    Handle<Object> expected = factory->NewNumber(test_cases[i].expected_result);
+
+    ft.CheckTrue(index, length, expected);
+  }
+}
+
 TEST(FixedArrayAccessSmiIndex) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester asm_tester(isolate);
