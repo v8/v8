@@ -580,9 +580,11 @@ void InstructionSelector::VisitStackPointerGreaterThan(
   Node* const value = node->InputAt(0);
   InstructionCode opcode = kArchStackPointerGreaterThan;
 
-  DCHECK(cont->IsBranch());
-  const int effect_level =
-      GetEffectLevel(cont->true_block()->PredecessorAt(0)->control_input());
+  int effect_level = GetEffectLevel(node);
+  if (cont->IsBranch()) {
+    effect_level =
+        GetEffectLevel(cont->true_block()->PredecessorAt(0)->control_input());
+  }
 
   IA32OperandGenerator g(this);
   if (g.CanBeMemoryOperand(kIA32Cmp, node, value, effect_level)) {
