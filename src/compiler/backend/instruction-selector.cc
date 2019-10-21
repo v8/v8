@@ -2648,7 +2648,6 @@ void InstructionSelector::VisitF64x2UConvertI64x2(Node* node) {
 }
 #if !V8_TARGET_ARCH_ARM64
 #if !V8_TARGET_ARCH_IA32
-void InstructionSelector::VisitF64x2Sqrt(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Add(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Sub(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Mul(Node* node) { UNIMPLEMENTED(); }

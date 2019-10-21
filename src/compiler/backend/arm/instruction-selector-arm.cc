@@ -2384,6 +2384,7 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
 #define SIMD_UNOP_LIST(V)                               \
   V(F64x2Abs, kArmF64x2Abs)                             \
   V(F64x2Neg, kArmF64x2Neg)                             \
+  V(F64x2Sqrt, kArmF64x2Sqrt)                           \
   V(F32x4SConvertI32x4, kArmF32x4SConvertI32x4)         \
   V(F32x4UConvertI32x4, kArmF32x4UConvertI32x4)         \
   V(F32x4Abs, kArmF32x4Abs)                             \

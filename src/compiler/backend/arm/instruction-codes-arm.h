@@ -133,6 +133,7 @@ namespace compiler {
   V(ArmF64x2ReplaceLane)           \
   V(ArmF64x2Abs)                   \
   V(ArmF64x2Neg)                   \
+  V(ArmF64x2Sqrt)                  \
   V(ArmF32x4Splat)                 \
   V(ArmF32x4ExtractLane)           \
   V(ArmF32x4ReplaceLane)           \

@@ -1297,11 +1297,11 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Neg) {
   RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2Neg, Negate);
 }
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32
 WASM_SIMD_TEST_NO_LOWERING(F64x2Sqrt) {
   RunF64x2UnOpTest(execution_tier, lower_simd, kExprF64x2Sqrt, Sqrt);
 }
 
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32
 void RunF64x2BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                        WasmOpcode opcode, DoubleBinOp expected_op) {
   WasmRunner<int32_t, double, double> r(execution_tier, lower_simd);
