@@ -707,29 +707,12 @@ class TestPlatform : public v8::Platform {
     old_platform_->CallDelayedOnWorkerThread(std::move(task), delay_in_seconds);
   }
 
-  void CallOnForegroundThread(v8::Isolate* isolate, v8::Task* task) override {
-    // This is a deprecated function and should not be called anymore.
-    UNREACHABLE();
-  }
-
-  void CallDelayedOnForegroundThread(v8::Isolate* isolate, v8::Task* task,
-                                     double delay_in_seconds) override {
-    // This is a deprecated function and should not be called anymore.
-    UNREACHABLE();
-  }
-
   double MonotonicallyIncreasingTime() override {
     return old_platform_->MonotonicallyIncreasingTime();
   }
 
   double CurrentClockTimeMillis() override {
     return old_platform_->CurrentClockTimeMillis();
-  }
-
-  void CallIdleOnForegroundThread(v8::Isolate* isolate,
-                                  v8::IdleTask* task) override {
-    // This is a deprecated function and should not be called anymore.
-    UNREACHABLE();
   }
 
   bool IdleTasksEnabled(v8::Isolate* isolate) override {

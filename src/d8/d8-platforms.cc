@@ -53,21 +53,6 @@ class PredictablePlatform : public Platform {
     // Never run delayed tasks.
   }
 
-  void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
-    // This is a deprecated function and should not be called anymore.
-    UNREACHABLE();
-  }
-
-  void CallDelayedOnForegroundThread(v8::Isolate* isolate, Task* task,
-                                     double delay_in_seconds) override {
-    // This is a deprecated function and should not be called anymore.
-    UNREACHABLE();
-  }
-
-  void CallIdleOnForegroundThread(Isolate* isolate, IdleTask* task) override {
-    UNREACHABLE();
-  }
-
   bool IdleTasksEnabled(Isolate* isolate) override { return false; }
 
   double MonotonicallyIncreasingTime() override {
@@ -160,22 +145,6 @@ class DelayedTasksPlatform : public Platform {
                                  double delay_in_seconds) override {
     platform_->CallDelayedOnWorkerThread(MakeDelayedTask(std::move(task)),
                                          delay_in_seconds);
-  }
-
-  void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
-    // This is a deprecated function and should not be called anymore.
-    UNREACHABLE();
-  }
-
-  void CallDelayedOnForegroundThread(v8::Isolate* isolate, Task* task,
-                                     double delay_in_seconds) override {
-    // This is a deprecated function and should not be called anymore.
-    UNREACHABLE();
-  }
-
-  void CallIdleOnForegroundThread(Isolate* isolate, IdleTask* task) override {
-    // This is a deprecated function and should not be called anymore.
-    UNREACHABLE();
   }
 
   bool IdleTasksEnabled(Isolate* isolate) override {

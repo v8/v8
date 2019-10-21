@@ -193,23 +193,6 @@ void DefaultPlatform::CallDelayedOnWorkerThread(std::unique_ptr<Task> task,
                                                delay_in_seconds);
 }
 
-void DefaultPlatform::CallOnForegroundThread(v8::Isolate* isolate, Task* task) {
-  GetForegroundTaskRunner(isolate)->PostTask(std::unique_ptr<Task>(task));
-}
-
-void DefaultPlatform::CallDelayedOnForegroundThread(Isolate* isolate,
-                                                    Task* task,
-                                                    double delay_in_seconds) {
-  GetForegroundTaskRunner(isolate)->PostDelayedTask(std::unique_ptr<Task>(task),
-                                                    delay_in_seconds);
-}
-
-void DefaultPlatform::CallIdleOnForegroundThread(Isolate* isolate,
-                                                 IdleTask* task) {
-  GetForegroundTaskRunner(isolate)->PostIdleTask(
-      std::unique_ptr<IdleTask>(task));
-}
-
 bool DefaultPlatform::IdleTasksEnabled(Isolate* isolate) {
   return idle_task_support_ == IdleTaskSupport::kEnabled;
 }

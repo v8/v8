@@ -363,39 +363,6 @@ class Platform {
                                          double delay_in_seconds) = 0;
 
   /**
-   * Schedules a task to be invoked on a foreground thread wrt a specific
-   * |isolate|. Tasks posted for the same isolate should be execute in order of
-   * scheduling. The definition of "foreground" is opaque to V8.
-   */
-  V8_DEPRECATED("Use a taskrunner acquired by GetForegroundTaskRunner instead.")
-  virtual void CallOnForegroundThread(Isolate* isolate, Task* task) { abort(); }
-
-  /**
-   * Schedules a task to be invoked on a foreground thread wrt a specific
-   * |isolate| after the given number of seconds |delay_in_seconds|.
-   * Tasks posted for the same isolate should be execute in order of
-   * scheduling. The definition of "foreground" is opaque to V8.
-   */
-  V8_DEPRECATED("Use a taskrunner acquired by GetForegroundTaskRunner instead.")
-  virtual void CallDelayedOnForegroundThread(Isolate* isolate, Task* task,
-                                             double delay_in_seconds) {
-    abort();
-  }
-
-  /**
-   * Schedules a task to be invoked on a foreground thread wrt a specific
-   * |isolate| when the embedder is idle.
-   * Requires that SupportsIdleTasks(isolate) is true.
-   * Idle tasks may be reordered relative to other task types and may be
-   * starved for an arbitrarily long time if no idle time is available.
-   * The definition of "foreground" is opaque to V8.
-   */
-  V8_DEPRECATED("Use a taskrunner acquired by GetForegroundTaskRunner instead.")
-  virtual void CallIdleOnForegroundThread(Isolate* isolate, IdleTask* task) {
-    abort();
-  }
-
-  /**
    * Returns true if idle tasks are enabled for the given |isolate|.
    */
   virtual bool IdleTasksEnabled(Isolate* isolate) { return false; }
