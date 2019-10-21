@@ -384,8 +384,6 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
       ExternalConstant(ExternalReference::isolate_address(isolate()));
   TNode<ExternalReference> regexp_stack_memory_top_address = ExternalConstant(
       ExternalReference::address_of_regexp_stack_memory_top_address(isolate()));
-  TNode<ExternalReference> regexp_stack_memory_size_address = ExternalConstant(
-      ExternalReference::address_of_regexp_stack_memory_size(isolate()));
   TNode<ExternalReference> static_offsets_vector_address = ExternalConstant(
       ExternalReference::address_of_static_offsets_vector(isolate()));
 
@@ -503,21 +501,6 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 
   GotoIf(TaggedIsSmi(var_code.value()), &runtime);
   TNode<Code> code = CAST(var_code.value());
-
-  // Ensure that a RegExp stack is allocated when using compiled Irregexp.
-  // TODO(jgruber): Guarantee an allocated stack and remove this check.
-  {
-    Label next(this);
-    GotoIfNot(TaggedIsSmi(var_bytecode.value()), &next);
-    CSA_ASSERT(this, SmiEqual(CAST(var_bytecode.value()),
-                              SmiConstant(JSRegExp::kUninitializedValue)));
-
-    TNode<IntPtrT> stack_size = UncheckedCast<IntPtrT>(
-        Load(MachineType::IntPtr(), regexp_stack_memory_size_address));
-    Branch(IntPtrEqual(stack_size, IntPtrZero()), &runtime, &next);
-
-    BIND(&next);
-  }
 
   Label if_success(this), if_exception(this, Label::kDeferred);
   {
