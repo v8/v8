@@ -871,30 +871,26 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void cvtlsi2ss(XMMRegister dst, Operand src);
   void cvtlsi2ss(XMMRegister dst, Register src);
 
-  void andps(XMMRegister dst, XMMRegister src);
-  void andps(XMMRegister dst, Operand src);
-  void andnps(XMMRegister dst, XMMRegister src);
-  void andnps(XMMRegister dst, Operand src);
-  void orps(XMMRegister dst, XMMRegister src);
-  void orps(XMMRegister dst, Operand src);
-  void xorps(XMMRegister dst, XMMRegister src);
-  void xorps(XMMRegister dst, Operand src);
-
-  void addps(XMMRegister dst, XMMRegister src);
-  void addps(XMMRegister dst, Operand src);
-  void subps(XMMRegister dst, XMMRegister src);
-  void subps(XMMRegister dst, Operand src);
-  void mulps(XMMRegister dst, XMMRegister src);
-  void mulps(XMMRegister dst, Operand src);
-  void divps(XMMRegister dst, XMMRegister src);
-  void divps(XMMRegister dst, Operand src);
-
   void movmskps(Register dst, XMMRegister src);
 
   void vinstr(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2,
               SIMDPrefix pp, LeadingOpcode m, VexW w);
   void vinstr(byte op, XMMRegister dst, XMMRegister src1, Operand src2,
               SIMDPrefix pp, LeadingOpcode m, VexW w);
+
+  // SSE instructions
+  void sse_instr(XMMRegister dst, XMMRegister src, byte escape, byte opcode);
+  void sse_instr(XMMRegister dst, Operand src, byte escape, byte opcode);
+#define DECLARE_SSE_INSTRUCTION(instruction, escape, opcode) \
+  void instruction(XMMRegister dst, XMMRegister src) {       \
+    sse_instr(dst, src, 0x##escape, 0x##opcode);             \
+  }                                                          \
+  void instruction(XMMRegister dst, Operand src) {           \
+    sse_instr(dst, src, 0x##escape, 0x##opcode);             \
+  }
+
+  SSE_INSTRUCTION_LIST(DECLARE_SSE_INSTRUCTION)
+#undef DECLARE_SSE_INSTRUCTION
 
   // SSE2 instructions
   void sse2_instr(XMMRegister dst, XMMRegister src, byte prefix, byte escape,
@@ -1130,10 +1126,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
 #undef SSE_CMP_P
 
-  void minps(XMMRegister dst, XMMRegister src);
-  void minps(XMMRegister dst, Operand src);
-  void maxps(XMMRegister dst, XMMRegister src);
-  void maxps(XMMRegister dst, Operand src);
   void rcpps(XMMRegister dst, XMMRegister src);
   void rcpps(XMMRegister dst, Operand src);
   void rsqrtps(XMMRegister dst, XMMRegister src);

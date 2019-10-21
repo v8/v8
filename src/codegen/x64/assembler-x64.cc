@@ -2699,138 +2699,6 @@ void Assembler::emit_farith(int b1, int b2, int i) {
   emit(b2 + i);
 }
 
-// SSE operations.
-
-void Assembler::andps(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x54);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::andps(XMMRegister dst, Operand src) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x54);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::andnps(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x55);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::andnps(XMMRegister dst, Operand src) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x55);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::orps(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x56);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::orps(XMMRegister dst, Operand src) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x56);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::xorps(XMMRegister dst, XMMRegister src) {
-  DCHECK(!IsEnabled(AVX));
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x57);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::xorps(XMMRegister dst, Operand src) {
-  DCHECK(!IsEnabled(AVX));
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x57);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::addps(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x58);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::addps(XMMRegister dst, Operand src) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x58);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::subps(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x5C);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::subps(XMMRegister dst, Operand src) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x5C);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::mulps(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x59);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::mulps(XMMRegister dst, Operand src) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x59);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::divps(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x5E);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::divps(XMMRegister dst, Operand src) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x5E);
-  emit_sse_operand(dst, src);
-}
-
 // SSE 2 operations.
 
 void Assembler::movd(XMMRegister dst, Register src) {
@@ -4551,38 +4419,6 @@ void Assembler::pause() {
   emit(0x90);
 }
 
-void Assembler::minps(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x5D);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::minps(XMMRegister dst, Operand src) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x5D);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::maxps(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x5F);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::maxps(XMMRegister dst, Operand src) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x5F);
-  emit_sse_operand(dst, src);
-}
-
 void Assembler::rcpps(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   emit_optional_rex_32(dst, src);
@@ -4684,6 +4520,24 @@ void Assembler::movlhps(XMMRegister dst, XMMRegister src) {
   emit_optional_rex_32(dst, src);
   emit(0x0F);
   emit(0x16);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::sse_instr(XMMRegister dst, XMMRegister src, byte escape,
+                          byte opcode) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst, src);
+  emit(escape);
+  emit(opcode);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::sse_instr(XMMRegister dst, Operand src, byte escape,
+                          byte opcode) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst, src);
+  emit(escape);
+  emit(opcode);
   emit_sse_operand(dst, src);
 }
 

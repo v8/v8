@@ -5,6 +5,18 @@
 #ifndef V8_CODEGEN_X64_SSE_INSTR_H_
 #define V8_CODEGEN_X64_SSE_INSTR_H_
 
+#define SSE_INSTRUCTION_LIST(V) \
+  V(andps, 0F, 54)              \
+  V(andnps, 0F, 55)             \
+  V(orps, 0F, 56)               \
+  V(xorps, 0F, 57)              \
+  V(addps, 0F, 58)              \
+  V(mulps, 0F, 59)              \
+  V(subps, 0F, 5C)              \
+  V(minps, 0F, 5D)              \
+  V(divps, 0F, 5E)              \
+  V(maxps, 0F, 5F)
+
 #define SSE2_INSTRUCTION_LIST(V) \
   V(sqrtpd, 66, 0F, 51)          \
   V(andnpd, 66, 0F, 55)          \
