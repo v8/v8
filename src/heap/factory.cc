@@ -1460,6 +1460,7 @@ Handle<Context> Factory::NewScriptContext(Handle<NativeContext> outer,
       variadic_part_length, AllocationType::kOld);
   context->set_scope_info(*scope_info);
   context->set_previous(*outer);
+  context->set_extension(*the_hole_value());
   DCHECK(context->IsScriptContext());
   return context;
 }
@@ -1506,6 +1507,7 @@ Handle<Context> Factory::NewFunctionContext(Handle<Context> outer,
                  variadic_part_length, AllocationType::kYoung);
   context->set_scope_info(*scope_info);
   context->set_previous(*outer);
+  context->set_extension(*the_hole_value());
   return context;
 }
 
@@ -1521,6 +1523,7 @@ Handle<Context> Factory::NewCatchContext(Handle<Context> previous,
       variadic_part_length, AllocationType::kYoung);
   context->set_scope_info(*scope_info);
   context->set_previous(*previous);
+  context->set_extension(*the_hole_value());
   context->set(Context::THROWN_OBJECT_INDEX, *thrown_object);
   return context;
 }
@@ -1530,14 +1533,13 @@ Handle<Context> Factory::NewDebugEvaluateContext(Handle<Context> previous,
                                                  Handle<JSReceiver> extension,
                                                  Handle<Context> wrapped,
                                                  Handle<StringSet> blacklist) {
-  STATIC_ASSERT(Context::BLACK_LIST_INDEX ==
-                Context::MIN_CONTEXT_EXTENDED_SLOTS + 1);
+  STATIC_ASSERT(Context::BLACK_LIST_INDEX == Context::MIN_CONTEXT_SLOTS + 1);
   DCHECK(scope_info->IsDebugEvaluateScope());
   Handle<HeapObject> ext = extension.is_null()
-                               ? Handle<HeapObject>::cast(undefined_value())
+                               ? Handle<HeapObject>::cast(the_hole_value())
                                : Handle<HeapObject>::cast(extension);
   // TODO(ishell): Take the details from DebugEvaluateContextContext class.
-  int variadic_part_length = Context::MIN_CONTEXT_EXTENDED_SLOTS + 2;
+  int variadic_part_length = Context::MIN_CONTEXT_SLOTS + 2;
   Handle<Context> c = NewContext(isolate()->debug_evaluate_context_map(),
                                  Context::SizeFor(variadic_part_length),
                                  variadic_part_length, AllocationType::kYoung);
@@ -1554,7 +1556,7 @@ Handle<Context> Factory::NewWithContext(Handle<Context> previous,
                                         Handle<JSReceiver> extension) {
   DCHECK_EQ(scope_info->scope_type(), WITH_SCOPE);
   // TODO(ishell): Take the details from WithContext class.
-  int variadic_part_length = Context::MIN_CONTEXT_EXTENDED_SLOTS;
+  int variadic_part_length = Context::MIN_CONTEXT_SLOTS;
   Handle<Context> context = NewContext(
       isolate()->with_context_map(), Context::SizeFor(variadic_part_length),
       variadic_part_length, AllocationType::kYoung);
@@ -1574,6 +1576,7 @@ Handle<Context> Factory::NewBlockContext(Handle<Context> previous,
       variadic_part_length, AllocationType::kYoung);
   context->set_scope_info(*scope_info);
   context->set_previous(*previous);
+  context->set_extension(*the_hole_value());
   return context;
 }
 
@@ -1585,6 +1588,7 @@ Handle<Context> Factory::NewBuiltinContext(Handle<NativeContext> native_context,
       variadic_part_length, AllocationType::kYoung);
   context->set_scope_info(ReadOnlyRoots(isolate()).empty_scope_info());
   context->set_previous(*native_context);
+  context->set_extension(*the_hole_value());
   return context;
 }
 

@@ -260,24 +260,17 @@ TNode<JSObject> ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(
     // Copy the parameter slots and the holes in the arguments.
     // We need to fill in mapped_count slots. They index the context,
     // where parameters are stored in reverse order, at
-    //   context_header_size .. context_header_size+argument_count-1
+    //   MIN_CONTEXT_SLOTS .. MIN_CONTEXT_SLOTS+argument_count-1
     // The mapped parameter thus need to get indices
-    //   context_header_size+parameter_count-1 ..
-    //       context_header_size+argument_count-mapped_count
+    //   MIN_CONTEXT_SLOTS+parameter_count-1 ..
+    //       MIN_CONTEXT_SLOTS+argument_count-mapped_count
     // We loop from right to left.
     Comment("Fill in mapped parameters");
-    STATIC_ASSERT(Context::MIN_CONTEXT_EXTENDED_SLOTS ==
-                  Context::MIN_CONTEXT_SLOTS + 1);
-    TNode<IntPtrT> flags = LoadAndUntagObjectField(LoadScopeInfo(context),
-                                                   ScopeInfo::kFlagsOffset);
-    TNode<BInt> context_header_size = IntPtrOrSmiAdd(
-        IntPtrToBInt(
-            Signed(DecodeWord<ScopeInfo::HasContextExtensionField>(flags))),
-        BIntConstant(Context::MIN_CONTEXT_SLOTS));
-    TVARIABLE(BInt, context_index,
-              IntPtrOrSmiSub(IntPtrOrSmiAdd(context_header_size,
-                                            info.formal_parameter_count),
-                             mapped_count));
+    TVARIABLE(
+        BInt, context_index,
+        IntPtrOrSmiSub(IntPtrOrSmiAdd(BIntConstant(Context::MIN_CONTEXT_SLOTS),
+                                      info.formal_parameter_count),
+                       mapped_count));
     TNode<Oddball> the_hole = TheHoleConstant();
     VariableList var_list2({&context_index}, zone());
     const int kParameterMapHeaderSize = FixedArray::OffsetOfElementAt(2);

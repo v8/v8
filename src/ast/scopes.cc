@@ -196,7 +196,8 @@ Scope::Scope(Zone* zone, ScopeType scope_type, Handle<ScopeInfo> scope_info)
   already_resolved_ = true;
 #endif
   set_language_mode(scope_info->language_mode());
-  DCHECK_EQ(ContextHeaderLength(), num_heap_slots_);
+  num_heap_slots_ = scope_info->ContextLength();
+  DCHECK_LE(Context::MIN_CONTEXT_SLOTS, num_heap_slots_);
   private_name_lookup_skips_outer_class_ =
       scope_info->PrivateNameLookupSkipsOuterClass();
   // We don't really need to use the preparsed scope data; this is just to
@@ -287,6 +288,11 @@ void Scope::SetDefaults() {
   start_position_ = kNoSourcePosition;
   end_position_ = kNoSourcePosition;
 
+  num_stack_slots_ = 0;
+  num_heap_slots_ = Context::MIN_CONTEXT_SLOTS;
+
+  set_language_mode(LanguageMode::kSloppy);
+
   calls_eval_ = false;
   sloppy_eval_can_extend_vars_ = false;
   scope_nonlinear_ = false;
@@ -301,9 +307,6 @@ void Scope::SetDefaults() {
   private_name_lookup_skips_outer_class_ = false;
 
   must_use_preparsed_scope_data_ = false;
-
-  num_stack_slots_ = 0;
-  set_language_mode(LanguageMode::kSloppy);
 }
 
 bool Scope::HasSimpleParameters() {
@@ -2286,7 +2289,7 @@ void Scope::AllocateVariablesRecursively() {
   this->ForEach([](Scope* scope) -> Iteration {
     DCHECK(!scope->already_resolved_);
     if (WasLazilyParsed(scope)) return Iteration::kContinue;
-    DCHECK_EQ(scope->ContextHeaderLength(), scope->num_heap_slots_);
+    DCHECK_EQ(Context::MIN_CONTEXT_SLOTS, scope->num_heap_slots_);
 
     // Allocate variables for this scope.
     // Parameters must be allocated first, if any.
@@ -2314,14 +2317,14 @@ void Scope::AllocateVariablesRecursively() {
 
     // If we didn't allocate any locals in the local context, then we only
     // need the minimal number of slots if we must have a context.
-    if (scope->num_heap_slots_ == scope->ContextHeaderLength() &&
+    if (scope->num_heap_slots_ == Context::MIN_CONTEXT_SLOTS &&
         !must_have_context) {
       scope->num_heap_slots_ = 0;
     }
 
     // Allocation done.
     DCHECK(scope->num_heap_slots_ == 0 ||
-           scope->num_heap_slots_ >= scope->ContextHeaderLength());
+           scope->num_heap_slots_ >= Context::MIN_CONTEXT_SLOTS);
     return Iteration::kDescend;
   });
 }
@@ -2426,7 +2429,7 @@ int Scope::ContextLocalCount() const {
       is_function_scope() ? AsDeclarationScope()->function_var() : nullptr;
   bool is_function_var_in_context =
       function != nullptr && function->IsContextSlot();
-  return num_heap_slots() - ContextHeaderLength() -
+  return num_heap_slots() - Context::MIN_CONTEXT_SLOTS -
          (is_function_var_in_context ? 1 : 0);
 }
 
