@@ -2495,6 +2495,14 @@ void Assembler::psllq(XMMRegister reg, uint8_t shift) {
   EMIT(shift);
 }
 
+void Assembler::psllq(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0xF3);
+  emit_sse_operand(dst, src);
+}
+
 void Assembler::psrlq(XMMRegister reg, uint8_t shift) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
@@ -2502,6 +2510,14 @@ void Assembler::psrlq(XMMRegister reg, uint8_t shift) {
   EMIT(0x73);
   emit_sse_operand(edx, reg);  // edx == 2
   EMIT(shift);
+}
+
+void Assembler::psrlq(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0xD3);
+  emit_sse_operand(dst, src);
 }
 
 void Assembler::pshufhw(XMMRegister dst, Operand src, uint8_t shuffle) {
@@ -2779,12 +2795,6 @@ void Assembler::vpsllw(XMMRegister dst, XMMRegister src, uint8_t imm8) {
 void Assembler::vpslld(XMMRegister dst, XMMRegister src, uint8_t imm8) {
   XMMRegister iop = XMMRegister::from_code(6);
   vinstr(0x72, iop, dst, Operand(src), k66, k0F, kWIG);
-  EMIT(imm8);
-}
-
-void Assembler::vpsllq(XMMRegister dst, XMMRegister src, uint8_t imm8) {
-  XMMRegister iop = XMMRegister::from_code(6);
-  vinstr(0x73, iop, dst, Operand(src), k66, k0F, kWIG);
   EMIT(imm8);
 }
 
