@@ -155,9 +155,10 @@ html,
 body {
   margin: 0;
   padding: 0;
-  /*height: 99vh;
-    width: 99vw;*/
   overflow: hidden;
+  display: flex;
+  flex-direction: row;
+  width: 100vw;
 }
 
 p {
@@ -334,18 +335,13 @@ input:hover,
 
 
 #left {
-  float: left;
   user-select: none;
 }
 
 #middle {
-  float: left;
   background-color: #F8F8F8;
   user-select: none;
-}
-
-#right {
-  float: right;
+  flex: 1;
 }
 
 .viewpane {
@@ -380,8 +376,6 @@ input:hover,
   background: rgba(100%, 100%, 100%);
   box-sizing: border-box;
   padding: 3px;
-  margin-left: 4px;
-  margin-right: 4px;
   overflow-x: hidden;
 }
 
@@ -430,27 +424,15 @@ text {
 }
 
 .resizer {
-  position: absolute;
   z-index: 10;
-  width: 4px;
-  height: 100%;
+  width: 10px;
+  height: 100vh;
   background: #a0a0a0;
   cursor: pointer;
 }
 
-.resizer.snapped {
-  width: 12px;
-}
-
-.resizer.snapped:hover {
-  width: 12px;
-  margin-left: 0px;
-}
-
 .resizer:hover,
 .resizer.dragged {
-  width: 10px;
-  margin-left: -4px;
   background: orange;
 }
 

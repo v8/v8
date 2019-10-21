@@ -91,12 +91,10 @@ export class Resizer {
   clientWidth: number;
   left: HTMLElement;
   right: HTMLElement;
-  middle: HTMLElement;
   sepLeft: number;
   sepRight: number;
   sepLeftSnap: number;
   sepRightSnap: number;
-  sepWidthOffset: number;
   panesUpdatedCallback: () => void;
   resizerRight: d3.Selection<HTMLDivElement, any, any, any>;
   resizerLeft: d3.Selection<HTMLDivElement, any, any, any>;
@@ -106,20 +104,17 @@ export class Resizer {
     resizer.panesUpdatedCallback = panesUpdatedCallback;
     resizer.deadWidth = deadWidth;
     resizer.left = document.getElementById(C.SOURCE_PANE_ID);
-    resizer.middle = document.getElementById(C.INTERMEDIATE_PANE_ID);
     resizer.right = document.getElementById(C.GENERATED_PANE_ID);
     resizer.resizerLeft = d3.select('#resizer-left');
     resizer.resizerRight = d3.select('#resizer-right');
     resizer.sepLeftSnap = 0;
     resizer.sepRightSnap = 0;
-    // Offset to prevent resizers from sliding slightly over one another.
-    resizer.sepWidthOffset = 7;
     this.updateWidths();
 
     const dragResizeLeft = d3.drag()
       .on('drag', function () {
         const x = d3.mouse(this.parentElement)[0];
-        resizer.sepLeft = Math.min(Math.max(0, x), resizer.sepRight - resizer.sepWidthOffset);
+        resizer.sepLeft = Math.min(Math.max(0, x), resizer.sepRight);
         resizer.updatePanes();
       })
       .on('start', function () {
@@ -140,7 +135,7 @@ export class Resizer {
     const dragResizeRight = d3.drag()
       .on('drag', function () {
         const x = d3.mouse(this.parentElement)[0];
-        resizer.sepRight = Math.max(resizer.sepLeft + resizer.sepWidthOffset, Math.min(x, resizer.clientWidth));
+        resizer.sepRight = Math.max(resizer.sepLeft, Math.min(x, resizer.clientWidth));
         resizer.updatePanes();
       })
       .on('start', function () {
@@ -180,7 +175,6 @@ export class Resizer {
     this.resizerLeft.classed("snapped", leftSnapped);
     this.resizerRight.classed("snapped", rightSnapped);
     this.left.style.width = this.sepLeft + 'px';
-    this.middle.style.width = (this.sepRight - this.sepLeft) + 'px';
     this.right.style.width = (this.clientWidth - this.sepRight) + 'px';
     this.resizerLeft.style('left', this.sepLeft + 'px');
     this.resizerRight.style('right', (this.clientWidth - this.sepRight - 1) + 'px');
