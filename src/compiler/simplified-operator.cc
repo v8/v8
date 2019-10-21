@@ -218,9 +218,7 @@ CheckFloat64HoleParameters const& CheckFloat64HoleParametersOf(
 
 std::ostream& operator<<(std::ostream& os,
                          CheckFloat64HoleParameters const& params) {
-  os << params.mode();
-  if (params.feedback().IsValid()) os << "; " << params.feedback();
-  return os;
+  return os << params.mode() << ", " << params.feedback();
 }
 
 size_t hash_value(const CheckFloat64HoleParameters& params) {
@@ -259,13 +257,11 @@ std::ostream& operator<<(std::ostream& os, CheckForMinusZeroMode mode) {
 }
 
 std::ostream& operator<<(std::ostream& os, CheckMapsFlags flags) {
-  bool empty = true;
   if (flags & CheckMapsFlag::kTryMigrateInstance) {
-    os << "TryMigrateInstance";
-    empty = false;
+    return os << "TryMigrateInstance";
+  } else {
+    return os << "None";
   }
-  if (empty) os << "None";
-  return os;
 }
 
 bool operator==(CheckMapsParameters const& lhs,
@@ -280,11 +276,7 @@ size_t hash_value(CheckMapsParameters const& p) {
 }
 
 std::ostream& operator<<(std::ostream& os, CheckMapsParameters const& p) {
-  os << p.flags() << p.maps();
-  if (p.feedback().IsValid()) {
-    os << "; " << p.feedback();
-  }
-  return os;
+  return os << p.flags() << ", " << p.maps() << ", " << p.feedback();
 }
 
 CheckMapsParameters const& CheckMapsParametersOf(Operator const* op) {
@@ -338,11 +330,7 @@ inline size_t hash_value(const GrowFastElementsParameters& params) {
 
 std::ostream& operator<<(std::ostream& os,
                          const GrowFastElementsParameters& params) {
-  os << params.mode();
-  if (params.feedback().IsValid()) {
-    os << params.feedback();
-  }
-  return os;
+  return os << params.mode() << ", " << params.feedback();
 }
 
 const GrowFastElementsParameters& GrowFastElementsParametersOf(
@@ -583,7 +571,7 @@ size_t hash_value(NumberOperationParameters const& p) {
 }
 
 std::ostream& operator<<(std::ostream& os, NumberOperationParameters const& p) {
-  return os << p.hint() << " " << p.feedback();
+  return os << p.hint() << ", " << p.feedback();
 }
 
 NumberOperationParameters const& NumberOperationParametersOf(
@@ -640,11 +628,7 @@ const CheckTaggedInputParameters& CheckTaggedInputParametersOf(
 
 std::ostream& operator<<(std::ostream& os,
                          const CheckTaggedInputParameters& params) {
-  os << params.mode();
-  if (params.feedback().IsValid()) {
-    os << "; " << params.feedback();
-  }
-  return os;
+  return os << params.mode() << ", " << params.feedback();
 }
 
 size_t hash_value(const CheckTaggedInputParameters& params) {
@@ -667,11 +651,7 @@ const CheckMinusZeroParameters& CheckMinusZeroParametersOf(const Operator* op) {
 
 std::ostream& operator<<(std::ostream& os,
                          const CheckMinusZeroParameters& params) {
-  os << params.mode();
-  if (params.feedback().IsValid()) {
-    os << "; " << params.feedback();
-  }
-  return os;
+  return os << params.mode() << ", " << params.feedback();
 }
 
 size_t hash_value(const CheckMinusZeroParameters& params) {
@@ -1629,7 +1609,7 @@ size_t hash_value(CheckBoundsParameters const& p) {
 }
 
 std::ostream& operator<<(std::ostream& os, CheckBoundsParameters const& p) {
-  os << p.check_parameters() << ",";
+  os << p.check_parameters() << ", ";
   switch (p.mode()) {
     case CheckBoundsParameters::kDeoptOnOutOfBounds:
       os << "deopt";
@@ -1656,7 +1636,7 @@ size_t hash_value(CheckIfParameters const& p) {
 }
 
 std::ostream& operator<<(std::ostream& os, CheckIfParameters const& p) {
-  return os << p.reason() << p.feedback();
+  return os << p.reason() << ", " << p.feedback();
 }
 
 CheckIfParameters const& CheckIfParametersOf(Operator const* op) {

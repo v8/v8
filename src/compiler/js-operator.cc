@@ -225,7 +225,7 @@ size_t hash_value(FeedbackParameter const& p) {
 }
 
 std::ostream& operator<<(std::ostream& os, FeedbackParameter const& p) {
-  return os;
+  return os << p.feedback();
 }
 
 FeedbackParameter const& FeedbackParameterOf(const Operator* op) {
@@ -436,7 +436,7 @@ size_t hash_value(CreateCollectionIteratorParameters const& p) {
 
 std::ostream& operator<<(std::ostream& os,
                          CreateCollectionIteratorParameters const& p) {
-  return os << p.collection_kind() << " " << p.iteration_kind();
+  return os << p.collection_kind() << ", " << p.iteration_kind();
 }
 
 const CreateCollectionIteratorParameters& CreateCollectionIteratorParametersOf(

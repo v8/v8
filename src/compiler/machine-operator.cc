@@ -29,8 +29,7 @@ size_t hash_value(StoreRepresentation rep) {
 
 
 std::ostream& operator<<(std::ostream& os, StoreRepresentation rep) {
-  return os << "(" << rep.representation() << " : " << rep.write_barrier_kind()
-            << ")";
+  return os << rep.representation() << ", " << rep.write_barrier_kind();
 }
 
 
@@ -71,7 +70,7 @@ size_t hash_value(StackSlotRepresentation rep) {
 }
 
 std::ostream& operator<<(std::ostream& os, StackSlotRepresentation rep) {
-  return os << "(" << rep.size() << " : " << rep.alignment() << ")";
+  return os << rep.size() << ", " << rep.alignment();
 }
 
 StackSlotRepresentation const& StackSlotRepresentationOf(Operator const* op) {
