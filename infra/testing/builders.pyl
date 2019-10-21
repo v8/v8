@@ -1780,9 +1780,9 @@
       'os': 'Ubuntu-16.04',
     },
     'tests': [
-      {'name': 'mozilla'},
-      {'name': 'test262', 'variant': 'default'},
-      {'name': 'v8testing', 'shards': 8},
+      {'name': 'mozilla', 'shards': 2},
+      {'name': 'test262', 'variant': 'default', 'shards': 2},
+      {'name': 'v8testing', 'shards': 10},
     ],
   },
   'V8 arm - sim - stable branch': {
@@ -1800,9 +1800,9 @@
       'os': 'Ubuntu-16.04',
     },
     'tests': [
-      {'name': 'mozilla'},
-      {'name': 'test262', 'variant': 'default'},
-      {'name': 'v8testing', 'shards': 8},
+      {'name': 'mozilla', 'shards': 2},
+      {'name': 'test262', 'variant': 'default', 'shards': 2},
+      {'name': 'v8testing', 'shards': 10},
     ],
   },
   'V8 mips64el - sim - beta branch': {
