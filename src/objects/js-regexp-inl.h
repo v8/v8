@@ -27,10 +27,6 @@ CAST_ACCESSOR(JSRegExpResultIndices)
 
 ACCESSORS(JSRegExp, last_index, Object, kLastIndexOffset)
 
-ACCESSORS(JSRegExpResult, cached_indices_or_match_info, Object,
-          kCachedIndicesOrMatchInfoOffset)
-ACCESSORS(JSRegExpResult, names, Object, kNamesOffset)
-
 JSRegExp::Type JSRegExp::TypeTag() const {
   Object data = this->data();
   if (data.IsUndefined()) return JSRegExp::NOT_COMPILED;

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --harmony-regexp-match-indices
+// Flags: --harmony-regexp-match-indices --expose-gc
 
 // Sanity test.
 {
@@ -102,4 +102,12 @@
   const m = re.exec("xaaaz");
 
   assertEquals(m.indices.groups, {'Z': [4, 5]})
+}
+
+// Test deleting unrelated fields does not break.
+{
+  const m = /undefined/.exec();
+  delete m['index'];
+  gc();
+  assertEquals(m.indices, [[0, 9]]);
 }

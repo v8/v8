@@ -11,9 +11,14 @@ namespace v8 {
 namespace internal {
 Handle<JSArray> JSRegExpResult::GetAndCacheIndices(
     Isolate* isolate, Handle<JSRegExpResult> regexp_result) {
-  // Check for cached indices.
+  // Check for cached indices. We do a slow lookup and set of
+  // the cached_indices_or_match_info and names fields just in
+  // case they have been migrated to dictionaries.
   Handle<Object> indices_or_match_info(
-      regexp_result->cached_indices_or_match_info(), isolate);
+      GetProperty(isolate, regexp_result,
+                  isolate->factory()
+                      ->regexp_result_cached_indices_or_match_info_symbol())
+          .ToHandleChecked());
   if (indices_or_match_info->IsRegExpMatchInfo()) {
     // Build and cache indices for next lookup.
     // TODO(joshualitt): Instead of caching the indices, we could call
@@ -21,15 +26,24 @@ Handle<JSArray> JSRegExpResult::GetAndCacheIndices(
     // newly created array. However, care would have to be taken to ensure
     // a new map is not created each time.
     Handle<RegExpMatchInfo> match_info(
-        RegExpMatchInfo::cast(regexp_result->cached_indices_or_match_info()),
-        isolate);
-    Handle<Object> maybe_names(regexp_result->names(), isolate);
+        RegExpMatchInfo::cast(*indices_or_match_info), isolate);
+    Handle<Object> maybe_names(
+        GetProperty(isolate, regexp_result,
+                    isolate->factory()->regexp_result_names_symbol())
+            .ToHandleChecked());
     indices_or_match_info =
         JSRegExpResultIndices::BuildIndices(isolate, match_info, maybe_names);
 
     // Cache the result and clear the names array.
-    regexp_result->set_cached_indices_or_match_info(*indices_or_match_info);
-    regexp_result->set_names(ReadOnlyRoots(isolate).undefined_value());
+    SetProperty(
+        isolate, regexp_result,
+        isolate->factory()->regexp_result_cached_indices_or_match_info_symbol(),
+        indices_or_match_info)
+        .ToHandleChecked();
+    SetProperty(isolate, regexp_result,
+                isolate->factory()->regexp_result_names_symbol(),
+                isolate->factory()->undefined_value())
+        .ToHandleChecked();
   }
   return Handle<JSArray>::cast(indices_or_match_info);
 }

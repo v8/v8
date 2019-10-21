@@ -235,11 +235,6 @@ class JSRegExpResult : public JSArray {
   // JSRegExpResult, and maybe JSRegExpResultIndices, but both have the same
   // instance type as JSArray.
 
-  // cached_indices_or_match_info and names, are used to construct the
-  // JSRegExpResultIndices returned from the indices property lazily.
-  DECL_ACCESSORS(cached_indices_or_match_info, Object)
-  DECL_ACCESSORS(names, Object)
-
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(JSArray::kSize,
                                 TORQUE_GENERATED_JS_REG_EXP_RESULT_FIELDS)
