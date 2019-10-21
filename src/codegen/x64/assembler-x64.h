@@ -696,8 +696,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void ud2();
   void setcc(Condition cc, Register reg);
 
-  void pshufw(XMMRegister dst, XMMRegister src, uint8_t shuffle);
-  void pshufw(XMMRegister dst, Operand src, uint8_t shuffle);
   void pblendw(XMMRegister dst, Operand src, uint8_t mask);
   void pblendw(XMMRegister dst, XMMRegister src, uint8_t mask);
   void palignr(XMMRegister dst, Operand src, uint8_t mask);

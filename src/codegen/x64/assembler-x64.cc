@@ -1023,24 +1023,6 @@ void Assembler::bsfq(Register dst, Operand src) {
   emit_operand(dst, src);
 }
 
-void Assembler::pshufw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x70);
-  emit_sse_operand(dst, src);
-  emit(shuffle);
-}
-
-void Assembler::pshufw(XMMRegister dst, Operand src, uint8_t shuffle) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x70);
-  emit_operand(dst.code(), src);
-  emit(shuffle);
-}
-
 void Assembler::pblendw(XMMRegister dst, Operand src, uint8_t mask) {
   sse4_instr(dst, src, 0x66, 0x0F, 0x3A, 0x0E);
   emit(mask);
