@@ -400,7 +400,6 @@ enum TypeofMode : int { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 // Enums used by CEntry.
 enum SaveFPRegsMode { kDontSaveFPRegs, kSaveFPRegs };
 enum ArgvMode { kArgvOnStack, kArgvInRegister };
-enum FunctionDescriptorMode { kNoFunctionDescriptor, kHasFunctionDescriptor };
 
 // This constant is used as an undefined value when passing source positions.
 constexpr int kNoSourcePosition = -1;

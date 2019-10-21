@@ -1019,20 +1019,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif
       break;
     case kArchCallCFunction: {
-      int misc_field = MiscField::decode(instr->opcode());
-      int num_parameters = misc_field;
-      bool has_function_descriptor = false;
+      int const num_parameters = MiscField::decode(instr->opcode());
       Label start_call;
       bool isWasmCapiFunction =
           linkage()->GetIncomingDescriptor()->IsWasmCapiFunction();
 #if defined(_AIX)
       // AIX/PPC64BE Linux uses a function descriptor
-      int kNumParametersMask = kHasFunctionDescriptorBitMask - 1;
-      num_parameters = kNumParametersMask & misc_field;
-      has_function_descriptor =
-          (misc_field & kHasFunctionDescriptorBitMask) != 0;
-      // AIX emits 2 extra Load instructions under CallCFunctionHelper
-      // due to having function descriptor.
+      // and emits 2 extra Load instrcutions under CallCFunctionHelper.
       constexpr int offset = 11 * kInstrSize;
 #else
       constexpr int offset = 9 * kInstrSize;
@@ -1048,10 +1041,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       if (instr->InputAt(0)->IsImmediate()) {
         ExternalReference ref = i.InputExternalReference(0);
-        __ CallCFunction(ref, num_parameters, has_function_descriptor);
+        __ CallCFunction(ref, num_parameters);
       } else {
         Register func = i.InputRegister(0);
-        __ CallCFunction(func, num_parameters, has_function_descriptor);
+        __ CallCFunction(func, num_parameters);
       }
       // TODO(miladfar): In the above block, kScratchReg must be populated with
       // the strictly-correct PC, which is the return address at this spot. The

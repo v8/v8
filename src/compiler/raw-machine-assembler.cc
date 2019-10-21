@@ -705,8 +705,7 @@ namespace {
 Node* CallCFunctionImpl(
     RawMachineAssembler* rasm, Node* function, MachineType return_type,
     std::initializer_list<RawMachineAssembler::CFunctionArg> args,
-    bool caller_saved_regs, SaveFPRegsMode mode,
-    bool has_function_descriptor = kHasFunctionDescriptor) {
+    bool caller_saved_regs, SaveFPRegsMode mode) {
   static constexpr std::size_t kNumCArgs = 10;
 
   MachineSignature::Builder builder(rasm->zone(), 1, args.size());
@@ -719,8 +718,6 @@ Node* CallCFunctionImpl(
                         : CallDescriptor::kNoFlags);
 
   if (caller_saved_regs) call_descriptor->set_save_fp_mode(mode);
-
-  call_descriptor->set_has_function_descriptor(has_function_descriptor);
 
   base::SmallVector<Node*, kNumCArgs> nodes(args.size() + 1);
   nodes[0] = function;
@@ -740,13 +737,6 @@ Node* RawMachineAssembler::CallCFunction(
     std::initializer_list<RawMachineAssembler::CFunctionArg> args) {
   return CallCFunctionImpl(this, function, return_type, args, false,
                            kDontSaveFPRegs);
-}
-
-Node* RawMachineAssembler::CallCFunctionWithoutFunctionDescriptor(
-    Node* function, MachineType return_type,
-    std::initializer_list<RawMachineAssembler::CFunctionArg> args) {
-  return CallCFunctionImpl(this, function, return_type, args, false,
-                           kDontSaveFPRegs, kNoFunctionDescriptor);
 }
 
 Node* RawMachineAssembler::CallCFunctionWithCallerSavedRegisters(
