@@ -3750,6 +3750,10 @@ size_t v8::BackingStore::ByteLength() const {
   return reinterpret_cast<const i::BackingStore*>(this)->byte_length();
 }
 
+bool v8::BackingStore::IsShared() const {
+  return reinterpret_cast<const i::BackingStore*>(this)->is_shared();
+}
+
 std::shared_ptr<v8::BackingStore> v8::ArrayBuffer::GetBackingStore() {
   i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
   std::shared_ptr<i::BackingStore> backing_store = self->GetBackingStore();

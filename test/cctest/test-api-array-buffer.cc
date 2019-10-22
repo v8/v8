@@ -608,3 +608,37 @@ TEST(SharedArrayBuffer_NewBackingStore_CustomDeleter) {
   }
   CHECK(backing_store_custom_called);
 }
+
+THREADED_TEST(BackingStore_NotShared) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+  Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 8);
+  CHECK(!ab->GetBackingStore()->IsShared());
+  CHECK(!v8::ArrayBuffer::NewBackingStore(isolate, 8)->IsShared());
+  backing_store_custom_called = false;
+  backing_store_custom_data = malloc(100);
+  backing_store_custom_length = 100;
+  CHECK(!v8::ArrayBuffer::NewBackingStore(
+             backing_store_custom_data, backing_store_custom_length,
+             BackingStoreCustomDeleter,
+             reinterpret_cast<void*>(backing_store_custom_deleter_data))
+             ->IsShared());
+}
+
+THREADED_TEST(BackingStore_Shared) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+  Local<v8::SharedArrayBuffer> ab = v8::SharedArrayBuffer::New(isolate, 8);
+  CHECK(ab->GetBackingStore()->IsShared());
+  CHECK(v8::SharedArrayBuffer::NewBackingStore(isolate, 8)->IsShared());
+  backing_store_custom_called = false;
+  backing_store_custom_data = malloc(100);
+  backing_store_custom_length = 100;
+  CHECK(v8::SharedArrayBuffer::NewBackingStore(
+            backing_store_custom_data, backing_store_custom_length,
+            BackingStoreCustomDeleter,
+            reinterpret_cast<void*>(backing_store_custom_deleter_data))
+            ->IsShared());
+}

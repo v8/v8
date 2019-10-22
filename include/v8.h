@@ -4868,6 +4868,12 @@ class V8_EXPORT BackingStore : public v8::internal::BackingStoreBase {
    */
   size_t ByteLength() const;
 
+  /**
+   * Indicates whether the backing store was created for an ArrayBuffer or
+   * a SharedArrayBuffer.
+   */
+  bool IsShared() const;
+
  private:
   BackingStore();
 };
