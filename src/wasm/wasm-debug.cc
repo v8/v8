@@ -221,11 +221,14 @@ class InterpreterHandle {
     }
 
     // Copy back the return value.
-    DCHECK_GE(kV8MaxWasmFunctionReturns, sig->return_count());
-    // TODO(wasm): Handle multi-value returns.
-    DCHECK_EQ(1, kV8MaxWasmFunctionReturns);
-    if (sig->return_count()) {
-      return_values[0] = thread->GetReturnValue(0);
+#ifdef DEBUG
+    const int max_count = WasmFeaturesFromIsolate(isolate_).mv
+                              ? kV8MaxWasmFunctionMultiReturns
+                              : kV8MaxWasmFunctionReturns;
+#endif
+    DCHECK_GE(max_count, sig->return_count());
+    for (unsigned i = 0; i < sig->return_count(); ++i) {
+      return_values[i] = thread->GetReturnValue(i);
     }
 
     FinishActivation(frame_pointer, activation_id);

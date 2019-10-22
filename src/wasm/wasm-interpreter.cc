@@ -826,7 +826,7 @@ class SideTable : public ZoneObject {
           TRACE("control @%u: %s, arity %d->%d\n", i.pc_offset(),
                 is_loop ? "Loop" : "Block", imm.in_arity(), imm.out_arity());
           CLabel* label =
-              CLabel::New(&control_transfer_zone, stack_height,
+              CLabel::New(&control_transfer_zone, stack_height - imm.in_arity(),
                           is_loop ? imm.in_arity() : imm.out_arity());
           control_stack.emplace_back(i.pc(), label, imm.out_arity());
           copy_unreachable();
@@ -841,8 +841,9 @@ class SideTable : public ZoneObject {
           }
           TRACE("control @%u: If, arity %d->%d\n", i.pc_offset(),
                 imm.in_arity(), imm.out_arity());
-          CLabel* end_label = CLabel::New(&control_transfer_zone, stack_height,
-                                          imm.out_arity());
+          CLabel* end_label =
+              CLabel::New(&control_transfer_zone, stack_height - imm.in_arity(),
+                          imm.out_arity());
           CLabel* else_label =
               CLabel::New(&control_transfer_zone, stack_height, 0);
           control_stack.emplace_back(i.pc(), end_label, else_label,
@@ -861,9 +862,9 @@ class SideTable : public ZoneObject {
           DCHECK_NOT_NULL(c->else_label);
           c->else_label->Bind(i.pc() + 1);
           c->else_label->Finish(&map_, code->orig_start);
+          stack_height = c->else_label->target_stack_height;
           c->else_label = nullptr;
           DCHECK_GE(stack_height, c->end_label->target_stack_height);
-          stack_height = c->end_label->target_stack_height;
           break;
         }
         case kExprTry: {
