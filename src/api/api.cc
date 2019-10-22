@@ -3790,6 +3790,8 @@ void v8::ArrayBufferView::CheckCast(Value* that) {
                   "Could not convert to ArrayBufferView");
 }
 
+constexpr size_t v8::TypedArray::kMaxLength;
+
 void v8::TypedArray::CheckCast(Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsJSTypedArray(), "v8::TypedArray::Cast()",
