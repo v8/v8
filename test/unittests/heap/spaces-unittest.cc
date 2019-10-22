@@ -18,8 +18,8 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
   OldSpace* old_space = heap->old_space();
   EXPECT_TRUE(old_space != nullptr);
 
-  CompactionSpace* compaction_space =
-      new CompactionSpace(heap, OLD_SPACE, NOT_EXECUTABLE);
+  CompactionSpace* compaction_space = new CompactionSpace(
+      heap, OLD_SPACE, NOT_EXECUTABLE, CompactionSpaceKind::kMarkCompact);
   EXPECT_TRUE(compaction_space != nullptr);
 
   for (Page* p : *old_space) {

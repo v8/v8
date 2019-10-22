@@ -2285,8 +2285,10 @@ class V8_EXPORT_PRIVATE PagedSpace
   static const size_t kCompactionMemoryWanted = 500 * KB;
 
   // Creates a space with an id.
-  PagedSpace(Heap* heap, AllocationSpace id, Executability executable,
-             FreeList* free_list);
+  PagedSpace(
+      Heap* heap, AllocationSpace id, Executability executable,
+      FreeList* free_list,
+      CompactionSpaceKind compaction_space_kind = CompactionSpaceKind::kNone);
 
   ~PagedSpace() override { TearDown(); }
 
@@ -2462,7 +2464,11 @@ class V8_EXPORT_PRIVATE PagedSpace
   // Return size of allocatable area on a page in this space.
   inline int AreaSize() { return static_cast<int>(area_size_); }
 
-  virtual bool is_local() { return false; }
+  bool is_compaction_space() {
+    return compaction_space_kind_ != CompactionSpaceKind::kNone;
+  }
+
+  CompactionSpaceKind compaction_space_kind() { return compaction_space_kind_; }
 
   // Merges {other} into the current space. Note that this modifies {other},
   // e.g., removes its bump pointer area and resets statistics.
@@ -2503,7 +2509,7 @@ class V8_EXPORT_PRIVATE PagedSpace
   void DecreaseLimit(Address new_limit);
   void UpdateInlineAllocationLimit(size_t min_size) override;
   bool SupportsInlineAllocation() override {
-    return identity() == OLD_SPACE && !is_local();
+    return identity() == OLD_SPACE && !is_compaction_space();
   }
 
  protected:
@@ -2559,6 +2565,8 @@ class V8_EXPORT_PRIVATE PagedSpace
       int size_in_bytes, AllocationOrigin origin);
 
   Executability executable_;
+
+  CompactionSpaceKind compaction_space_kind_;
 
   size_t area_size_;
 
@@ -3035,10 +3043,12 @@ class V8_EXPORT_PRIVATE PauseAllocationObserversScope {
 
 class V8_EXPORT_PRIVATE CompactionSpace : public PagedSpace {
  public:
-  CompactionSpace(Heap* heap, AllocationSpace id, Executability executable)
-      : PagedSpace(heap, id, executable, FreeList::CreateFreeList()) {}
-
-  bool is_local() override { return true; }
+  CompactionSpace(Heap* heap, AllocationSpace id, Executability executable,
+                  CompactionSpaceKind compaction_space_kind)
+      : PagedSpace(heap, id, executable, FreeList::CreateFreeList(),
+                   compaction_space_kind) {
+    DCHECK_NE(compaction_space_kind, CompactionSpaceKind::kNone);
+  }
 
  protected:
   // The space is temporary and not included in any snapshots.
@@ -3054,9 +3064,12 @@ class V8_EXPORT_PRIVATE CompactionSpace : public PagedSpace {
 // A collection of |CompactionSpace|s used by a single compaction task.
 class CompactionSpaceCollection : public Malloced {
  public:
-  explicit CompactionSpaceCollection(Heap* heap)
-      : old_space_(heap, OLD_SPACE, Executability::NOT_EXECUTABLE),
-        code_space_(heap, CODE_SPACE, Executability::EXECUTABLE) {}
+  explicit CompactionSpaceCollection(Heap* heap,
+                                     CompactionSpaceKind compaction_space_kind)
+      : old_space_(heap, OLD_SPACE, Executability::NOT_EXECUTABLE,
+                   compaction_space_kind),
+        code_space_(heap, CODE_SPACE, Executability::EXECUTABLE,
+                    compaction_space_kind) {}
 
   CompactionSpace* Get(AllocationSpace space) {
     switch (space) {

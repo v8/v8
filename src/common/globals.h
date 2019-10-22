@@ -758,6 +758,13 @@ enum MinimumCapacity {
 
 enum GarbageCollector { SCAVENGER, MARK_COMPACTOR, MINOR_MARK_COMPACTOR };
 
+enum class CompactionSpaceKind {
+  kNone,
+  kScavenge,
+  kMarkCompact,
+  kMinorMarkCompact,
+};
+
 enum Executability { NOT_EXECUTABLE, EXECUTABLE };
 
 enum VisitMode {

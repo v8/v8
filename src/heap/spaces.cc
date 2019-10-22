@@ -1639,8 +1639,11 @@ intptr_t Space::GetNextInlineAllocationStepSize() {
 }
 
 PagedSpace::PagedSpace(Heap* heap, AllocationSpace space,
-                       Executability executable, FreeList* free_list)
-    : SpaceWithLinearArea(heap, space, free_list), executable_(executable) {
+                       Executability executable, FreeList* free_list,
+                       CompactionSpaceKind compaction_space_kind)
+    : SpaceWithLinearArea(heap, space, free_list),
+      executable_(executable),
+      compaction_space_kind_(compaction_space_kind) {
   area_size_ = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(space);
   accounting_stats_.Clear();
 }
@@ -1676,18 +1679,17 @@ void PagedSpace::RefillFreeList() {
         });
       }
 
-      // Also merge old-to-new remembered sets outside of collections.
-      // Do not do this during GC, because of races during scavenges.
-      // One thread might iterate remembered set, while another thread merges
-      // them.
-      if (!is_local()) {
+      // Also merge old-to-new remembered sets if not scavenging because of
+      // data races: One thread might iterate remembered set, while another
+      // thread merges them.
+      if (compaction_space_kind() != CompactionSpaceKind::kScavenge) {
         p->MergeOldToNewRememberedSets();
       }
 
       // Only during compaction pages can actually change ownership. This is
       // safe because there exists no other competing action on the page links
       // during compaction.
-      if (is_local()) {
+      if (is_compaction_space()) {
         DCHECK_NE(this, p->owner());
         PagedSpace* owner = reinterpret_cast<PagedSpace*>(p->owner());
         base::MutexGuard guard(owner->mutex());
@@ -1701,7 +1703,7 @@ void PagedSpace::RefillFreeList() {
         added += RelinkFreeListCategories(p);
       }
       added += p->wasted_memory();
-      if (is_local() && (added > kCompactionMemoryWanted)) break;
+      if (is_compaction_space() && (added > kCompactionMemoryWanted)) break;
     }
   }
 }
@@ -2047,7 +2049,7 @@ bool PagedSpace::RefillLinearAllocationAreaFromFreeList(
   // if it is big enough.
   FreeLinearAllocationArea();
 
-  if (!is_local()) {
+  if (!is_compaction_space()) {
     heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
         heap()->GCFlagsForIncrementalMarking(),
         kGCCallbackScheduleIdleGarbageCollection);
@@ -3741,7 +3743,7 @@ bool PagedSpace::RawSlowRefillLinearAllocationArea(int size_in_bytes,
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   // Sweeping is still in progress.
   if (collector->sweeping_in_progress()) {
-    if (FLAG_concurrent_sweeping && !is_local() &&
+    if (FLAG_concurrent_sweeping && !is_compaction_space() &&
         !collector->sweeper()->AreSweeperTasksRunning()) {
       collector->EnsureSweepingCompleted();
     }
@@ -3759,8 +3761,9 @@ bool PagedSpace::RawSlowRefillLinearAllocationArea(int size_in_bytes,
     // final atomic pause.
     Sweeper::FreeSpaceMayContainInvalidatedSlots
         invalidated_slots_in_free_space =
-            is_local() ? Sweeper::FreeSpaceMayContainInvalidatedSlots::kYes
-                       : Sweeper::FreeSpaceMayContainInvalidatedSlots::kNo;
+            is_compaction_space()
+                ? Sweeper::FreeSpaceMayContainInvalidatedSlots::kYes
+                : Sweeper::FreeSpaceMayContainInvalidatedSlots::kNo;
 
     // If sweeping is still in progress try to sweep pages.
     int max_freed = collector->sweeper()->ParallelSweepSpace(
@@ -3774,7 +3777,7 @@ bool PagedSpace::RawSlowRefillLinearAllocationArea(int size_in_bytes,
     }
   }
 
-  if (is_local()) {
+  if (is_compaction_space()) {
     // The main thread may have acquired all swept pages. Try to steal from
     // it. This can only happen during young generation evacuation.
     PagedSpace* main_space = heap()->paged_space(identity());

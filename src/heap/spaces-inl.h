@@ -480,7 +480,7 @@ AllocationResult PagedSpace::AllocateRaw(int size_in_bytes,
   AllocationResult result = AllocateRawUnaligned(size_in_bytes, origin);
 #endif
   HeapObject heap_obj;
-  if (!result.IsRetry() && result.To(&heap_obj) && !is_local()) {
+  if (!result.IsRetry() && result.To(&heap_obj) && !is_compaction_space()) {
     AllocationStep(static_cast<int>(size_in_bytes + bytes_since_last),
                    heap_obj.address(), size_in_bytes);
     StartNextInlineAllocationStep();

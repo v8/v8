@@ -214,6 +214,15 @@ Page* Sweeper::GetSweptPageSafe(PagedSpace* space) {
   return nullptr;
 }
 
+void Sweeper::MergeOldToNewRememberedSetsForSweptPages() {
+  base::MutexGuard guard(&mutex_);
+
+  ForAllSweepingSpaces([this](AllocationSpace space) {
+    SweptList& swept_list = swept_list_[GetSweepSpaceIndex(space)];
+    for (Page* p : swept_list) p->MergeOldToNewRememberedSets();
+  });
+}
+
 void Sweeper::AbortAndWaitForTasks() {
   if (!FLAG_concurrent_sweeping) return;
 

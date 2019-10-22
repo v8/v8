@@ -110,6 +110,7 @@ class Sweeper {
   void AddPageForIterability(Page* page);
   void StartIterabilityTasks();
   void EnsureIterabilityCompleted();
+  void MergeOldToNewRememberedSetsForSweptPages();
 
  private:
   class IncrementalSweeperTask;
