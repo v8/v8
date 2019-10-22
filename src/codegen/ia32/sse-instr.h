@@ -31,10 +31,12 @@
   V(por, 66, 0F, EB)             \
   V(psllw, 66, 0F, F1)           \
   V(pslld, 66, 0F, F2)           \
+  V(psllq, 66, 0F, F3)           \
   V(psraw, 66, 0F, E1)           \
   V(psrad, 66, 0F, E2)           \
   V(psrlw, 66, 0F, D1)           \
   V(psrld, 66, 0F, D2)           \
+  V(psrlq, 66, 0F, D3)           \
   V(psubb, 66, 0F, F8)           \
   V(psubw, 66, 0F, F9)           \
   V(psubd, 66, 0F, FA)           \

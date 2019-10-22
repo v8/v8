@@ -535,9 +535,7 @@ TEST(DisasmIa320) {
     __ psraw(xmm0, 17);
     __ psrad(xmm0, 17);
     __ psllq(xmm0, 17);
-    __ psllq(xmm0, xmm1);
     __ psrlq(xmm0, 17);
-    __ psrlq(xmm0, xmm1);
 
     __ pshufhw(xmm5, xmm1, 5);
     __ pshufhw(xmm5, Operand(edx, 4), 5);
@@ -735,6 +733,7 @@ TEST(DisasmIa320) {
 
       __ vpsllw(xmm0, xmm7, 21);
       __ vpslld(xmm0, xmm7, 21);
+      __ vpsllq(xmm0, xmm7, 21);
       __ vpsrlw(xmm0, xmm7, 21);
       __ vpsrld(xmm0, xmm7, 21);
       __ vpsrlq(xmm0, xmm7, 21);

@@ -996,9 +996,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void psraw(XMMRegister reg, uint8_t shift);
   void psrad(XMMRegister reg, uint8_t shift);
   void psllq(XMMRegister reg, uint8_t shift);
-  void psllq(XMMRegister dst, XMMRegister src);
   void psrlq(XMMRegister reg, uint8_t shift);
-  void psrlq(XMMRegister dst, XMMRegister src);
 
   void pshufhw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
     pshufhw(dst, Operand(src), shuffle);
@@ -1332,6 +1330,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void vpsllw(XMMRegister dst, XMMRegister src, uint8_t imm8);
   void vpslld(XMMRegister dst, XMMRegister src, uint8_t imm8);
+  void vpsllq(XMMRegister dst, XMMRegister src, uint8_t imm8);
   void vpsrlw(XMMRegister dst, XMMRegister src, uint8_t imm8);
   void vpsrld(XMMRegister dst, XMMRegister src, uint8_t imm8);
   void vpsraw(XMMRegister dst, XMMRegister src, uint8_t imm8);
