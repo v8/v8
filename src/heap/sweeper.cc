@@ -436,6 +436,7 @@ int Sweeper::ParallelSweepSpace(
   while ((page = GetSweepingPageSafe(identity)) != nullptr) {
     int freed =
         ParallelSweepPage(page, identity, invalidated_slots_in_free_space);
+    ++pages_freed;
     if (page->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE)) {
       // Free list of a never-allocate page will be dropped later on.
       continue;
