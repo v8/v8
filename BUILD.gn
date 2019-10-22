@@ -1338,25 +1338,6 @@ source_set("v8_maybe_snapshot") {
   }
 }
 
-v8_source_set("v8_nosnapshot") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
-
-  deps = [
-    ":torque_generated_initializers",
-  ]
-
-  public_deps = [
-    ":v8_maybe_icu",
-  ]
-
-  sources = [
-    "src/snapshot/embedded/embedded-empty.cc",
-    "src/snapshot/snapshot-empty.cc",
-  ]
-
-  configs = [ ":internal_config" ]
-}
-
 if (!v8_use_external_startup_data) {
   v8_source_set("v8_snapshot") {
     # Only targets in this file and the top-level visibility target can
@@ -3811,6 +3792,7 @@ if (current_toolchain == v8_snapshot_toolchain) {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
     sources = [
+      "src/snapshot/embedded/embedded-empty.cc",
       "src/snapshot/embedded/embedded-file-writer.cc",
       "src/snapshot/embedded/embedded-file-writer.h",
       "src/snapshot/embedded/platform-embedded-file-writer-aix.cc",
@@ -3824,6 +3806,7 @@ if (current_toolchain == v8_snapshot_toolchain) {
       "src/snapshot/embedded/platform-embedded-file-writer-win.cc",
       "src/snapshot/embedded/platform-embedded-file-writer-win.h",
       "src/snapshot/mksnapshot.cc",
+      "src/snapshot/snapshot-empty.cc",
     ]
 
     configs = [ ":internal_config" ]
@@ -3834,7 +3817,7 @@ if (current_toolchain == v8_snapshot_toolchain) {
       ":v8_init",
       ":v8_libbase",
       ":v8_libplatform",
-      ":v8_nosnapshot",
+      ":v8_maybe_icu",
       "//build/win:default_exe_manifest",
     ]
   }
