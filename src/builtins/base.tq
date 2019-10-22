@@ -110,11 +110,13 @@ extern class NumberDictionary extends HashTable;
 type RawPtr generates 'TNode<RawPtrT>' constexpr 'void*';
 extern class Code extends HeapObject;
 type BuiltinPtr extends Smi generates 'TNode<BuiltinPtr>';
+
 @abstract
 extern class Context extends HeapObject {
   length: Smi;
   scope_info: ScopeInfo;
   previous: Object;
+  extension: Object;
 }
 extern class AwaitContext extends Context generates 'TNode<Context>';
 extern class BlockContext extends Context generates 'TNode<Context>';

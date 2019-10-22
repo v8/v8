@@ -862,7 +862,6 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
                               const Handle<Name>& name,
                               const FeedbackSource& feedback);
 
-  const Operator* HasContextExtension(size_t depth);
   const Operator* LoadContext(size_t depth, size_t index, bool immutable);
   const Operator* StoreContext(size_t depth, size_t index);
 

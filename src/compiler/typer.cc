@@ -1475,9 +1475,6 @@ Type Typer::Visitor::TypeJSGetSuperConstructor(Node* node) {
 }
 
 // JS context operators.
-Type Typer::Visitor::TypeJSHasContextExtension(Node* node) {
-  return Type::Boolean();
-}
 
 Type Typer::Visitor::TypeJSLoadContext(Node* node) {
   ContextAccess const& access = ContextAccessOf(node->op());

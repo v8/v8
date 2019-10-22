@@ -989,11 +989,9 @@ void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
       FixedArray::OffsetOfElementAt(Context::SCOPE_INFO_INDEX));
   SetInternalReference(entry, "previous", context.get(Context::PREVIOUS_INDEX),
                        FixedArray::OffsetOfElementAt(Context::PREVIOUS_INDEX));
-  if (context.has_extension()) {
-    SetInternalReference(
-        entry, "extension", context.get(Context::EXTENSION_INDEX),
-        FixedArray::OffsetOfElementAt(Context::EXTENSION_INDEX));
-  }
+  SetInternalReference(entry, "extension",
+                       context.get(Context::EXTENSION_INDEX),
+                       FixedArray::OffsetOfElementAt(Context::EXTENSION_INDEX));
 
   if (context.IsNativeContext()) {
     TagObject(context.normalized_map_cache(), "(context norm. map cache)");

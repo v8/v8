@@ -175,7 +175,6 @@
   V(JSGetSuperConstructor)
 
 #define JS_CONTEXT_OP_LIST(V) \
-  V(JSHasContextExtension)    \
   V(JSLoadContext)            \
   V(JSStoreContext)           \
   V(JSCreateFunctionContext)  \

@@ -58,14 +58,12 @@ class ScopeInfo : public FixedArray {
 
   // Return the number of context slots for code if a context is allocated. This
   // number consists of three parts:
-  //  1. Size of header for every context.
+  //  1. Size of fixed header for every context: Context::MIN_CONTEXT_SLOTS
   //  2. One context slot per context allocated local.
   //  3. One context slot for the function name if it is context allocated.
   // Parameters allocated in the context count as context allocated locals. If
   // no contexts are allocated for this scope ContextLength returns 0.
   int ContextLength() const;
-  bool HasContextExtension() const;
-  int ContextHeaderLength() const;
 
   // Does this scope declare a "this" binding?
   bool HasReceiver() const;
@@ -238,8 +236,6 @@ class ScopeInfo : public FixedArray {
         kVariablePartIndex
   };
 
-  static const int kFlagsOffset = OffsetOfElementAt(Fields::kFlags);
-
   // Used for the function name variable for named function expressions, and for
   // the receiver.
   enum VariableAllocationInfo { NONE, STACK, CONTEXT, UNUSED };
@@ -270,7 +266,6 @@ class ScopeInfo : public FixedArray {
       ForceContextAllocationField::Next<bool, 1>;
   using CanElideThisHoleChecksField =
       PrivateNameLookupSkipsOuterClassField::Next<bool, 1>;
-  using HasContextExtensionField = CanElideThisHoleChecksField::Next<bool, 1>;
 
   STATIC_ASSERT(kLastFunctionKind <= FunctionKindField::kMax);
 

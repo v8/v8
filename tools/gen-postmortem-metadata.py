@@ -195,6 +195,8 @@ consts_misc = [
         'value': 'Context::SCOPE_INFO_INDEX' },
     { 'name': 'context_idx_prev',
         'value': 'Context::PREVIOUS_INDEX' },
+    { 'name': 'context_idx_ext',
+        'value': 'Context::EXTENSION_INDEX' },
     { 'name': 'context_min_slots',
         'value': 'Context::MIN_CONTEXT_SLOTS' },
     { 'name': 'native_context_embedder_data_offset',

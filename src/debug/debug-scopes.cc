@@ -722,7 +722,7 @@ bool ScopeIterator::VisitContextLocals(const Visitor& visitor,
   for (int i = 0; i < scope_info->ContextLocalCount(); ++i) {
     Handle<String> name(scope_info->ContextLocalName(i), isolate_);
     if (ScopeInfo::VariableIsSynthetic(*name)) continue;
-    int context_index = scope_info->ContextHeaderLength() + i;
+    int context_index = Context::MIN_CONTEXT_SLOTS + i;
     Handle<Object> value(context->get(context_index), isolate_);
     // Reflect variables under TDZ as undefined in scope object.
     if (value->IsTheHole(isolate_)) continue;
