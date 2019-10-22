@@ -198,7 +198,10 @@ class BuildConfig(object):
     self.tsan = build_config['is_tsan']
     # TODO(machenbach): We only have ubsan not ubsan_vptr.
     self.ubsan_vptr = build_config['is_ubsan_vptr']
-    self.embedded_builtins = build_config['v8_enable_embedded_builtins']
+    # TODO(https://crbug.com/v8/8519)
+    # 'v8_enable_embedded_builtins' was removed, 'embedded_builtins' can be
+    # removed as well.
+    self.embedded_builtins = True
     self.verify_csa = build_config['v8_enable_verify_csa']
     self.lite_mode = build_config['v8_enable_lite_mode']
     self.pointer_compression = build_config['v8_enable_pointer_compression']

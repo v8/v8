@@ -88,9 +88,6 @@ declare_args() {
   # Optimize code for Torque executable, even during a debug build.
   v8_enable_fast_torque = ""
 
-  # Enable embedded builtins.
-  v8_enable_embedded_builtins = true
-
   # Enable the registration of unwinding info for Windows x64 and ARM64.
   v8_win64_unwinding_info = true
 
@@ -249,9 +246,6 @@ assert(!v8_disable_write_barriers || v8_enable_single_generation,
 
 assert(v8_current_cpu != "x86" || !v8_untrusted_code_mitigations,
        "Untrusted code mitigations are unsupported on ia32")
-
-assert(!v8_enable_lite_mode || v8_enable_embedded_builtins,
-       "Lite mode requires embedded builtins")
 
 assert(
     !v8_enable_pointer_compression || !v8_enable_shared_ro_heap,
@@ -451,9 +445,10 @@ config("features") {
   if (v8_check_microtasks_scopes_consistency) {
     defines += [ "V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY" ]
   }
-  if (v8_enable_embedded_builtins) {
-    defines += [ "V8_EMBEDDED_BUILTINS" ]
-  }
+
+  # TODO(v8:8519): Remove the define once all use-sites in
+  #                the code are removed/fixed
+  defines += [ "V8_EMBEDDED_BUILTINS" ]
   if (v8_use_multi_snapshots) {
     defines += [ "V8_MULTI_SNAPSHOTS" ]
   }
@@ -1182,22 +1177,19 @@ template("run_mksnapshot") {
       # but the target OS is really |current_os|.
       "--target_os=$current_os",
       "--target_arch=$current_cpu",
+
+      "--embedded_src",
+      rebase_path("$target_gen_dir/embedded${suffix}.S", root_build_dir),
     ]
 
     args += invoker.args
 
-    if (v8_enable_embedded_builtins) {
-      outputs += [ "$target_gen_dir/embedded${suffix}.S" ]
+    outputs += [ "$target_gen_dir/embedded${suffix}.S" ]
+    if (invoker.embedded_variant != "") {
       args += [
-        "--embedded_src",
-        rebase_path("$target_gen_dir/embedded${suffix}.S", root_build_dir),
+        "--embedded_variant",
+        invoker.embedded_variant,
       ]
-      if (invoker.embedded_variant != "") {
-        args += [
-          "--embedded_variant",
-          invoker.embedded_variant,
-        ]
-      }
     }
 
     if (v8_random_seed != "0") {
@@ -1262,9 +1254,7 @@ template("run_mksnapshot") {
 
 run_mksnapshot("default") {
   args = []
-  if (v8_enable_embedded_builtins) {
-    embedded_variant = "Default"
-  }
+  embedded_variant = "Default"
 }
 if (emit_builtins_as_inline_asm) {
   asm_to_inline_asm("default") {
@@ -1274,9 +1264,7 @@ if (emit_builtins_as_inline_asm) {
 if (v8_use_multi_snapshots) {
   run_mksnapshot("trusted") {
     args = [ "--no-untrusted-code-mitigations" ]
-    if (v8_enable_embedded_builtins) {
-      embedded_variant = "Trusted"
-    }
+    embedded_variant = "Trusted"
   }
   if (emit_builtins_as_inline_asm) {
     asm_to_inline_asm("trusted") {
@@ -1312,7 +1300,6 @@ action("v8_dump_build_config") {
     "v8_enable_i18n_support=$v8_enable_i18n_support",
     "v8_enable_verify_predictable=$v8_enable_verify_predictable",
     "v8_target_cpu=\"$v8_target_cpu\"",
-    "v8_enable_embedded_builtins=$v8_enable_embedded_builtins",
     "v8_enable_verify_csa=$v8_enable_verify_csa",
     "v8_enable_lite_mode=$v8_enable_lite_mode",
     "v8_enable_pointer_compression=$v8_enable_pointer_compression",
@@ -1386,13 +1373,11 @@ if (!v8_use_external_startup_data) {
       "src/init/setup-isolate-deserialize.cc",
     ]
 
-    if (v8_enable_embedded_builtins && emit_builtins_as_inline_asm) {
+    if (emit_builtins_as_inline_asm) {
       deps += [ ":asm_to_inline_asm_default" ]
       sources += [ "$target_gen_dir/embedded.cc" ]
-    } else if (v8_enable_embedded_builtins) {
-      sources += [ "$target_gen_dir/embedded.S" ]
     } else {
-      sources += [ "src/snapshot/embedded/embedded-empty.cc" ]
+      sources += [ "$target_gen_dir/embedded.S" ]
     }
 
     configs = [ ":internal_config" ]
@@ -1422,7 +1407,7 @@ if (v8_use_external_startup_data) {
     # Do not publicize any header to remove build dependency.
     public = []
 
-    if (v8_enable_embedded_builtins && emit_builtins_as_inline_asm) {
+    if (emit_builtins_as_inline_asm) {
       deps += [ ":asm_to_inline_asm_default" ]
       sources += [ "$target_gen_dir/embedded.cc" ]
 
@@ -1431,7 +1416,7 @@ if (v8_use_external_startup_data) {
         sources += [ "$target_gen_dir/embedded_trusted.cc" ]
         jumbo_excluded_sources = [ "$target_gen_dir/embedded_trusted.cc" ]
       }
-    } else if (v8_enable_embedded_builtins) {
+    } else {
       sources += [ "$target_gen_dir/embedded.S" ]
 
       if (v8_use_multi_snapshots) {
@@ -1441,8 +1426,6 @@ if (v8_use_external_startup_data) {
           "$target_gen_dir/embedded_trusted.S",
         ]
       }
-    } else {
-      sources += [ "src/snapshot/embedded/embedded-empty.cc" ]
     }
 
     configs = [ ":internal_config" ]
