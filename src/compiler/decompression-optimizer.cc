@@ -20,15 +20,28 @@ bool IsMachineLoad(Node* const node) {
          opcode == IrOpcode::kUnalignedLoad;
 }
 
+bool IsHeapConstant(Node* const node) {
+  return node->opcode() == IrOpcode::kHeapConstant;
+}
+
+bool CanBeCompressed(Node* const node) {
+  return IsHeapConstant(node) ||
+         (IsMachineLoad(node) &&
+          CanBeTaggedPointer(
+              LoadRepresentationOf(node->op()).representation()));
+}
+
 }  // anonymous namespace
 
 DecompressionOptimizer::DecompressionOptimizer(Zone* zone, Graph* graph,
+                                               CommonOperatorBuilder* common,
                                                MachineOperatorBuilder* machine)
     : graph_(graph),
+      common_(common),
       machine_(machine),
       states_(graph, static_cast<uint32_t>(State::kNumberOfStates)),
       to_visit_(zone),
-      compressed_loads_(zone) {}
+      compressed_candidate_nodes_(zone) {}
 
 void DecompressionOptimizer::MarkNodes() {
   MaybeMarkAndQueueForRevisit(graph()->end(), State::kOnly32BitsObserved);
@@ -89,60 +102,72 @@ void DecompressionOptimizer::MaybeMarkAndQueueForRevisit(Node* const node,
     states_.Set(node, state);
     to_visit_.push_back(node);
 
-    // In the case of a TaggedPointer or TaggedAny Load that can be done in 32
-    // bits, we save it in compressed_loads_ to be changed later if necessary.
-    if (state == State::kOnly32BitsObserved && IsMachineLoad(node) &&
-        CanBeTaggedPointer(LoadRepresentationOf(node->op()).representation())) {
-      compressed_loads_.push_back(node);
+    if (state == State::kOnly32BitsObserved && CanBeCompressed(node)) {
+      compressed_candidate_nodes_.push_back(node);
     }
   }
 }
 
-void DecompressionOptimizer::ChangeLoads() {
-  for (Node* const node : compressed_loads_) {
-    // compressed_loads_ contains all the nodes that once had the
+void DecompressionOptimizer::ChangeHeapConstant(Node* const node) {
+  DCHECK(IsHeapConstant(node));
+  NodeProperties::ChangeOp(
+      node, common()->CompressedHeapConstant(HeapConstantOf(node->op())));
+}
+
+void DecompressionOptimizer::ChangeLoad(Node* const node) {
+  DCHECK(IsMachineLoad(node));
+  // Change to a Compressed MachRep to avoid the full decompression.
+  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
+  LoadRepresentation compressed_load_rep;
+  if (load_rep == MachineType::AnyTagged()) {
+    compressed_load_rep = MachineType::AnyCompressed();
+  } else {
+    DCHECK_EQ(load_rep, MachineType::TaggedPointer());
+    compressed_load_rep = MachineType::CompressedPointer();
+  }
+
+  // Change to the Operator with the Compressed MachineRepresentation.
+  switch (node->opcode()) {
+    case IrOpcode::kLoad:
+      NodeProperties::ChangeOp(node, machine()->Load(compressed_load_rep));
+      break;
+    case IrOpcode::kPoisonedLoad:
+      NodeProperties::ChangeOp(node,
+                               machine()->PoisonedLoad(compressed_load_rep));
+      break;
+    case IrOpcode::kProtectedLoad:
+      NodeProperties::ChangeOp(node,
+                               machine()->ProtectedLoad(compressed_load_rep));
+      break;
+    case IrOpcode::kUnalignedLoad:
+      NodeProperties::ChangeOp(node,
+                               machine()->UnalignedLoad(compressed_load_rep));
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+void DecompressionOptimizer::ChangeNodes() {
+  for (Node* const node : compressed_candidate_nodes_) {
+    // compressed_candidate_nodes_ contains all the nodes that once had the
     // State::kOnly32BitsObserved. If we later updated the state to be
     // State::IsEverythingObserved, then we have to ignore them. This is less
-    // costly than removing them from the compressed_loads_ NodeVector when we
-    // update them to State::IsEverythingObserved.
+    // costly than removing them from the compressed_candidate_nodes_ NodeVector
+    // when we update them to State::IsEverythingObserved.
     if (IsEverythingObserved(node)) continue;
 
-    // Change to a Compressed MachRep to avoid the full decompression.
-    LoadRepresentation load_rep = LoadRepresentationOf(node->op());
-    LoadRepresentation compressed_load_rep;
-    if (load_rep == MachineType::AnyTagged()) {
-      compressed_load_rep = MachineType::AnyCompressed();
+    if (IsHeapConstant(node)) {
+      ChangeHeapConstant(node);
     } else {
-      DCHECK_EQ(load_rep, MachineType::TaggedPointer());
-      compressed_load_rep = MachineType::CompressedPointer();
-    }
-
-    // Change to the Operator with the Compressed MachineRepresentation.
-    switch (node->opcode()) {
-      case IrOpcode::kLoad:
-        NodeProperties::ChangeOp(node, machine()->Load(compressed_load_rep));
-        break;
-      case IrOpcode::kPoisonedLoad:
-        NodeProperties::ChangeOp(node,
-                                 machine()->PoisonedLoad(compressed_load_rep));
-        break;
-      case IrOpcode::kProtectedLoad:
-        NodeProperties::ChangeOp(node,
-                                 machine()->ProtectedLoad(compressed_load_rep));
-        break;
-      case IrOpcode::kUnalignedLoad:
-        NodeProperties::ChangeOp(node,
-                                 machine()->UnalignedLoad(compressed_load_rep));
-        break;
-      default:
-        UNREACHABLE();
+      ChangeLoad(node);
     }
   }
 }
 
 void DecompressionOptimizer::Reduce() {
   MarkNodes();
-  ChangeLoads();
+  ChangeNodes();
 }
 
 }  // namespace compiler

@@ -1799,8 +1799,8 @@ struct DecompressionOptimizationPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     if (COMPRESS_POINTERS_BOOL && !FLAG_turbo_decompression_elimination) {
-      DecompressionOptimizer decompression_optimizer(temp_zone, data->graph(),
-                                                     data->machine());
+      DecompressionOptimizer decompression_optimizer(
+          temp_zone, data->graph(), data->common(), data->machine());
       decompression_optimizer.Reduce();
     }
   }

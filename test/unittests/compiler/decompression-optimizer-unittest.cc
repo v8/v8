@@ -20,7 +20,8 @@ class DecompressionOptimizerTest : public GraphTest {
 
  protected:
   void Reduce() {
-    DecompressionOptimizer decompression_optimizer(zone(), graph(), machine());
+    DecompressionOptimizer decompression_optimizer(zone(), graph(), common(),
+                                                   machine());
     decompression_optimizer.Reduce();
   }
 
