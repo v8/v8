@@ -1257,6 +1257,8 @@ domain Runtime
       experimental optional TimeDelta timeout
       # Disable breakpoints during execution.
       experimental optional boolean disableBreaks
+      # Reserved flag for future REPL mode support. Setting this flag has currently no effect.
+      experimental optional boolean replMode
     returns
       # Evaluation result.
       RemoteObject result
