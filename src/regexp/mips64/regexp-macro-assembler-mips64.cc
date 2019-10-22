@@ -192,6 +192,18 @@ void RegExpMacroAssemblerMIPS::AdvanceRegister(int reg, int by) {
 
 void RegExpMacroAssemblerMIPS::Backtrack() {
   CheckPreemption();
+  if (has_backtrack_limit()) {
+    Label next;
+    __ Ld(a0, MemOperand(frame_pointer(), kBacktrackCount));
+    __ Daddu(a0, a0, Operand(1));
+    __ Sd(a0, MemOperand(frame_pointer(), kBacktrackCount));
+    __ Branch(&next, ne, a0, Operand(backtrack_limit()));
+
+    // Exceeded limits are treated as a failed match.
+    Fail();
+
+    __ bind(&next);
+  }
   // Pop Code offset from backtrack stack, add Code and jump to location.
   Pop(a0);
   __ Daddu(a0, a0, code_pointer());
