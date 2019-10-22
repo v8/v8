@@ -1412,7 +1412,7 @@ void RegExpMacroAssemblerARM64::CallCheckStackGuardState(Register scratch) {
       ExternalReference::re_check_stack_guard_state(isolate());
   __ Mov(scratch, check_stack_guard_state);
 
-  if (FLAG_embedded_builtins) {
+  {
     UseScratchRegisterScope temps(masm_);
     Register scratch = temps.AcquireX();
 
@@ -1422,10 +1422,6 @@ void RegExpMacroAssemblerARM64::CallCheckStackGuardState(Register scratch) {
 
     __ Ldr(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
     __ Call(scratch);
-  } else {
-    // TODO(v8:8519): Remove this once embedded builtins are on unconditionally.
-    Handle<Code> code = BUILTIN_CODE(isolate(), DirectCEntry);
-    __ Call(code, RelocInfo::CODE_TARGET);
   }
 
   // The input string may have been moved in memory, we need to reload it.

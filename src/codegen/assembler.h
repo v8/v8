@@ -162,7 +162,7 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   bool isolate_independent_code = false;
   // Enables the use of isolate-independent builtins through an off-heap
   // trampoline. (macro assembler feature).
-  bool inline_offheap_trampolines = FLAG_embedded_builtins;
+  bool inline_offheap_trampolines = true;
   // On some platforms, all code is within a given range in the process,
   // and the start of this range is configured here.
   Address code_range_start = 0;

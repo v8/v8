@@ -285,21 +285,22 @@ void TurboAssembler::Mov(const Register& rd, const Operand& operand,
   Register dst = (rd.IsSP()) ? temps.AcquireSameSizeAs(rd) : rd;
 
   if (operand.NeedsRelocation(this)) {
-    if (FLAG_embedded_builtins) {
-      if (root_array_available_ && options().isolate_independent_code) {
-        if (operand.ImmediateRMode() == RelocInfo::EXTERNAL_REFERENCE) {
-          Address addr = static_cast<Address>(operand.ImmediateValue());
-          ExternalReference reference = bit_cast<ExternalReference>(addr);
-          IndirectLoadExternalReference(rd, reference);
-          return;
-        } else if (RelocInfo::IsEmbeddedObjectMode(operand.ImmediateRMode())) {
-          Handle<HeapObject> x(
-              reinterpret_cast<Address*>(operand.ImmediateValue()));
-          // TODO(v8:9706): Fix-it! This load will always uncompress the value
-          // even when we are loading a compressed embedded object.
-          IndirectLoadConstant(rd.X(), x);
-          return;
-        }
+    // TODO(jgruber,v8:8887): Also consider a root-relative load when generating
+    // non-isolate-independent code. In many cases it might be cheaper than
+    // embedding the relocatable value.
+    if (root_array_available_ && options().isolate_independent_code) {
+      if (operand.ImmediateRMode() == RelocInfo::EXTERNAL_REFERENCE) {
+        Address addr = static_cast<Address>(operand.ImmediateValue());
+        ExternalReference reference = bit_cast<ExternalReference>(addr);
+        IndirectLoadExternalReference(rd, reference);
+        return;
+      } else if (RelocInfo::IsEmbeddedObjectMode(operand.ImmediateRMode())) {
+        Handle<HeapObject> x(
+            reinterpret_cast<Address*>(operand.ImmediateValue()));
+        // TODO(v8:9706): Fix-it! This load will always uncompress the value
+        // even when we are loading a compressed embedded object.
+        IndirectLoadConstant(rd.X(), x);
+        return;
       }
     }
     Ldr(dst, operand);
@@ -1950,7 +1951,6 @@ void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
 
 void TurboAssembler::CallBuiltin(int builtin_index) {
   DCHECK(Builtins::IsBuiltinId(builtin_index));
-  DCHECK(FLAG_embedded_builtins);
   RecordCommentForOffHeapTrampoline(builtin_index);
   CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
   UseScratchRegisterScope temps(this);

@@ -165,10 +165,9 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
       DCHECK(self_reference->IsOddball());
       DCHECK(Oddball::cast(*self_reference).kind() ==
              Oddball::kSelfReferenceMarker);
-      if (FLAG_embedded_builtins) {
-        auto builder = isolate_->builtins_constants_table_builder();
-        if (builder != nullptr)
-          builder->PatchSelfReference(self_reference, code);
+      if (isolate_->IsGeneratingEmbeddedBuiltins()) {
+        isolate_->builtins_constants_table_builder()->PatchSelfReference(
+            self_reference, code);
       }
       *(self_reference.location()) = code->ptr();
     }

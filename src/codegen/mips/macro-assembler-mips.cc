@@ -1346,21 +1346,23 @@ void TurboAssembler::Sc(Register rd, const MemOperand& rs) {
 }
 
 void TurboAssembler::li(Register dst, Handle<HeapObject> value, LiFlags mode) {
-  if (FLAG_embedded_builtins) {
-    if (root_array_available_ && options().isolate_independent_code) {
-      IndirectLoadConstant(dst, value);
-      return;
-    }
+  // TODO(jgruber,v8:8887): Also consider a root-relative load when generating
+  // non-isolate-independent code. In many cases it might be cheaper than
+  // embedding the relocatable value.
+  if (root_array_available_ && options().isolate_independent_code) {
+    IndirectLoadConstant(dst, value);
+    return;
   }
   li(dst, Operand(value), mode);
 }
 
 void TurboAssembler::li(Register dst, ExternalReference value, LiFlags mode) {
-  if (FLAG_embedded_builtins) {
-    if (root_array_available_ && options().isolate_independent_code) {
-      IndirectLoadExternalReference(dst, value);
-      return;
-    }
+  // TODO(jgruber,v8:8887): Also consider a root-relative load when generating
+  // non-isolate-independent code. In many cases it might be cheaper than
+  // embedding the relocatable value.
+  if (root_array_available_ && options().isolate_independent_code) {
+    IndirectLoadExternalReference(dst, value);
+    return;
   }
   li(dst, Operand(value), mode);
 }
@@ -3814,41 +3816,41 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                           BranchDelaySlot bd) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  if (FLAG_embedded_builtins) {
-    int builtin_index = Builtins::kNoBuiltinId;
-    bool target_is_isolate_independent_builtin =
-        isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
-        Builtins::IsIsolateIndependent(builtin_index);
-    if (target_is_isolate_independent_builtin &&
-        options().use_pc_relative_calls_and_jumps) {
-      int32_t code_target_index = AddCodeTarget(code);
-      Label skip;
-      BlockTrampolinePoolScope block_trampoline_pool(this);
-      if (cond != cc_always) {
-        // By using delay slot, we always execute first instruction of
-        // GenPcRelativeJump (which is or_(t8, ra, zero_reg)).
-        Branch(USE_DELAY_SLOT, &skip, NegateCondition(cond), rs, rt);
-      }
-      GenPCRelativeJump(t8, t9, code_target_index,
-                        RelocInfo::RELATIVE_CODE_TARGET, bd);
-      bind(&skip);
-      return;
-    } else if (root_array_available_ && options().isolate_independent_code) {
-      IndirectLoadConstant(t9, code);
-      Jump(t9, Code::kHeaderSize - kHeapObjectTag, cond, rs, rt, bd);
-      return;
-    } else if (target_is_isolate_independent_builtin &&
-               options().inline_offheap_trampolines) {
-      // Inline the trampoline.
-      RecordCommentForOffHeapTrampoline(builtin_index);
-      CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
-      EmbeddedData d = EmbeddedData::FromBlob();
-      Address entry = d.InstructionStartOfBuiltin(builtin_index);
-      li(t9, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
-      Jump(t9, 0, cond, rs, rt, bd);
-      return;
+
+  int builtin_index = Builtins::kNoBuiltinId;
+  bool target_is_isolate_independent_builtin =
+      isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
+      Builtins::IsIsolateIndependent(builtin_index);
+  if (target_is_isolate_independent_builtin &&
+      options().use_pc_relative_calls_and_jumps) {
+    int32_t code_target_index = AddCodeTarget(code);
+    Label skip;
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    if (cond != cc_always) {
+      // By using delay slot, we always execute first instruction of
+      // GenPcRelativeJump (which is or_(t8, ra, zero_reg)).
+      Branch(USE_DELAY_SLOT, &skip, NegateCondition(cond), rs, rt);
     }
+    GenPCRelativeJump(t8, t9, code_target_index,
+                      RelocInfo::RELATIVE_CODE_TARGET, bd);
+    bind(&skip);
+    return;
+  } else if (root_array_available_ && options().isolate_independent_code) {
+    IndirectLoadConstant(t9, code);
+    Jump(t9, Code::kHeaderSize - kHeapObjectTag, cond, rs, rt, bd);
+    return;
+  } else if (target_is_isolate_independent_builtin &&
+             options().inline_offheap_trampolines) {
+    // Inline the trampoline.
+    RecordCommentForOffHeapTrampoline(builtin_index);
+    CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+    EmbeddedData d = EmbeddedData::FromBlob();
+    Address entry = d.InstructionStartOfBuiltin(builtin_index);
+    li(t9, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+    Jump(t9, 0, cond, rs, rt, bd);
+    return;
   }
+
   Jump(static_cast<intptr_t>(code.address()), rmode, cond, rs, rt, bd);
 }
 
@@ -3954,39 +3956,39 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond, Register rs, const Operand& rt,
                           BranchDelaySlot bd) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  if (FLAG_embedded_builtins) {
-    int builtin_index = Builtins::kNoBuiltinId;
-    bool target_is_isolate_independent_builtin =
-        isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
-        Builtins::IsIsolateIndependent(builtin_index);
-    if (target_is_isolate_independent_builtin &&
-        options().use_pc_relative_calls_and_jumps) {
-      int32_t code_target_index = AddCodeTarget(code);
-      Label skip;
-      BlockTrampolinePoolScope block_trampoline_pool(this);
-      if (cond != cc_always) {
-        Branch(PROTECT, &skip, NegateCondition(cond), rs, rt);
-      }
-      GenPCRelativeJumpAndLink(t8, code_target_index,
-                               RelocInfo::RELATIVE_CODE_TARGET, bd);
-      bind(&skip);
-      return;
-    } else if (root_array_available_ && options().isolate_independent_code) {
-      IndirectLoadConstant(t9, code);
-      Call(t9, Code::kHeaderSize - kHeapObjectTag, cond, rs, rt, bd);
-      return;
-    } else if (target_is_isolate_independent_builtin &&
-               options().inline_offheap_trampolines) {
-      // Inline the trampoline.
-      RecordCommentForOffHeapTrampoline(builtin_index);
-      CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
-      EmbeddedData d = EmbeddedData::FromBlob();
-      Address entry = d.InstructionStartOfBuiltin(builtin_index);
-      li(t9, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
-      Call(t9, 0, cond, rs, rt, bd);
-      return;
+
+  int builtin_index = Builtins::kNoBuiltinId;
+  bool target_is_isolate_independent_builtin =
+      isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
+      Builtins::IsIsolateIndependent(builtin_index);
+  if (target_is_isolate_independent_builtin &&
+      options().use_pc_relative_calls_and_jumps) {
+    int32_t code_target_index = AddCodeTarget(code);
+    Label skip;
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    if (cond != cc_always) {
+      Branch(PROTECT, &skip, NegateCondition(cond), rs, rt);
     }
+    GenPCRelativeJumpAndLink(t8, code_target_index,
+                             RelocInfo::RELATIVE_CODE_TARGET, bd);
+    bind(&skip);
+    return;
+  } else if (root_array_available_ && options().isolate_independent_code) {
+    IndirectLoadConstant(t9, code);
+    Call(t9, Code::kHeaderSize - kHeapObjectTag, cond, rs, rt, bd);
+    return;
+  } else if (target_is_isolate_independent_builtin &&
+             options().inline_offheap_trampolines) {
+    // Inline the trampoline.
+    RecordCommentForOffHeapTrampoline(builtin_index);
+    CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+    EmbeddedData d = EmbeddedData::FromBlob();
+    Address entry = d.InstructionStartOfBuiltin(builtin_index);
+    li(t9, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+    Call(t9, 0, cond, rs, rt, bd);
+    return;
   }
+
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   Call(code.address(), rmode, cond, rs, rt, bd);
 }

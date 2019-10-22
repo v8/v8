@@ -3669,7 +3669,6 @@ TEST(IsDoubleElementsKind) {
 }
 
 TEST(TestCallBuiltinInlineTrampoline) {
-  if (!i::FLAG_embedded_builtins) return;
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 1;
   CodeAssemblerTester asm_tester(isolate, kNumParams);
@@ -3694,7 +3693,6 @@ TEST(TestCallBuiltinInlineTrampoline) {
 }
 
 TEST(TestCallBuiltinIndirectLoad) {
-  if (!i::FLAG_embedded_builtins) return;
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 1;
   CodeAssemblerTester asm_tester(isolate, kNumParams);

@@ -1247,13 +1247,6 @@ DEFINE_GENERIC_IMPLICATION(
         v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE))
 
 // snapshot-common.cc
-#ifdef V8_EMBEDDED_BUILTINS
-#define V8_EMBEDDED_BUILTINS_BOOL true
-#else
-#define V8_EMBEDDED_BUILTINS_BOOL false
-#endif
-DEFINE_BOOL_READONLY(embedded_builtins, V8_EMBEDDED_BUILTINS_BOOL,
-                     "Embed builtin code into the binary.")
 DEFINE_BOOL(profile_deserialization, false,
             "Print the time it takes to deserialize the snapshot.")
 DEFINE_BOOL(serialization_statistics, false,

@@ -245,13 +245,8 @@ void WasmCode::Validate() const {
         Address target = it.rinfo()->wasm_stub_call_address();
         WasmCode* code = native_module_->Lookup(target);
         CHECK_NOT_NULL(code);
-#ifdef V8_EMBEDDED_BUILTINS
         CHECK_EQ(WasmCode::kJumpTable, code->kind());
         CHECK(code->contains(target));
-#else
-        CHECK_EQ(WasmCode::kRuntimeStub, code->kind());
-        CHECK_EQ(target, code->instruction_start());
-#endif
         break;
       }
       case RelocInfo::INTERNAL_REFERENCE:
@@ -1214,17 +1209,6 @@ void NativeModule::PatchJumpTableLocked(const CodeSpaceData& code_space_data,
 void NativeModule::AddCodeSpace(
     base::AddressRegion region,
     const WasmCodeAllocator::OptionalLock& allocator_lock) {
-#ifndef V8_EMBEDDED_BUILTINS
-  // The far jump table contains far jumps to the embedded builtins. This
-  // requires a build with embedded builtins enabled.
-  FATAL(
-      "WebAssembly is not supported in no-embed builds. no-embed builds are "
-      "deprecated. See\n"
-      " - https://groups.google.com/d/msg/v8-users/9F53xqBjpkI/9WmKSbcWBAAJ\n"
-      " - https://crbug.com/v8/8519\n"
-      " - https://crbug.com/v8/8531\n");
-#endif  // V8_EMBEDDED_BUILTINS
-
   // Each code space must be at least twice as large as the overhead per code
   // space. Otherwise, we are wasting too much memory.
   DCHECK_GE(region.size(),

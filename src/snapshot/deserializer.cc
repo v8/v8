@@ -469,7 +469,6 @@ void Deserializer::VisitInternalReference(Code host, RelocInfo* rinfo) {
 }
 
 void Deserializer::VisitOffHeapTarget(Code host, RelocInfo* rinfo) {
-  DCHECK(FLAG_embedded_builtins);
   byte data = source_.Get();
   CHECK_EQ(data, kOffHeapTarget);
 

@@ -1128,21 +1128,11 @@ void RegExpMacroAssemblerMIPS::CallCheckStackGuardState(Register scratch) {
       ExternalReference::re_check_stack_guard_state(masm_->isolate());
   __ li(t9, Operand(stack_guard_check));
 
-  if (FLAG_embedded_builtins) {
-    EmbeddedData d = EmbeddedData::FromBlob();
-    CHECK(Builtins::IsIsolateIndependent(Builtins::kDirectCEntry));
-    Address entry = d.InstructionStartOfBuiltin(Builtins::kDirectCEntry);
-    __ li(kScratchReg, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
-    __ Call(kScratchReg);
-  } else {
-    // TODO(v8:8519): Remove this once embedded builtins are on unconditionally.
-    Handle<Code> code = BUILTIN_CODE(isolate(), DirectCEntry);
-    __ li(kScratchReg,
-          Operand(reinterpret_cast<intptr_t>(code.location()),
-                  RelocInfo::CODE_TARGET),
-          CONSTANT_SIZE);
-    __ Call(kScratchReg);
-  }
+  EmbeddedData d = EmbeddedData::FromBlob();
+  CHECK(Builtins::IsIsolateIndependent(Builtins::kDirectCEntry));
+  Address entry = d.InstructionStartOfBuiltin(Builtins::kDirectCEntry);
+  __ li(kScratchReg, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+  __ Call(kScratchReg);
 
   // DirectCEntry allocated space for the C argument slots so we have to
   // drop them with the return address from the stack with loading saved sp.

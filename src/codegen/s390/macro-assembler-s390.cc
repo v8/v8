@@ -287,21 +287,23 @@ void TurboAssembler::Push(Smi smi) {
 }
 
 void TurboAssembler::Move(Register dst, Handle<HeapObject> value) {
-  if (FLAG_embedded_builtins) {
-    if (root_array_available_ && options().isolate_independent_code) {
-      IndirectLoadConstant(dst, value);
-      return;
-    }
+  // TODO(jgruber,v8:8887): Also consider a root-relative load when generating
+  // non-isolate-independent code. In many cases it might be cheaper than
+  // embedding the relocatable value.
+  if (root_array_available_ && options().isolate_independent_code) {
+    IndirectLoadConstant(dst, value);
+    return;
   }
   mov(dst, Operand(value));
 }
 
 void TurboAssembler::Move(Register dst, ExternalReference reference) {
-  if (FLAG_embedded_builtins) {
-    if (root_array_available_ && options().isolate_independent_code) {
-      IndirectLoadExternalReference(dst, reference);
-      return;
-    }
+  // TODO(jgruber,v8:8887): Also consider a root-relative load when generating
+  // non-isolate-independent code. In many cases it might be cheaper than
+  // embedding the relocatable value.
+  if (root_array_available_ && options().isolate_independent_code) {
+    IndirectLoadExternalReference(dst, reference);
+    return;
   }
   mov(dst, Operand(reference));
 }

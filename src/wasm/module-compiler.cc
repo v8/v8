@@ -1125,7 +1125,6 @@ int AddExportWrapperUnits(Isolate* isolate, WasmEngine* wasm_engine,
                           const WasmFeatures& enabled_features) {
 // Disable asynchronous wrapper compilation when builtins are not embedded,
 // otherwise the isolate might be used after tear down to access builtins.
-#ifdef V8_EMBEDDED_BUILTINS
   std::unordered_set<JSToWasmWrapperKey, base::hash<JSToWasmWrapperKey>> keys;
   for (auto exp : native_module->module()->export_table) {
     if (exp.kind != kExternalFunction) continue;
@@ -1140,9 +1139,6 @@ int AddExportWrapperUnits(Isolate* isolate, WasmEngine* wasm_engine,
   }
 
   return static_cast<int>(keys.size());
-#else
-  return 0;
-#endif
 }
 
 // Returns the number of units added.
@@ -1375,14 +1371,9 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   CompileNativeModule(isolate, thrower, wasm_module, native_module.get());
   if (thrower->error()) return {};
 
-#ifdef V8_EMBEDDED_BUILTINS
   Impl(native_module->compilation_state())
       ->FinalizeJSToWasmWrappers(isolate, native_module->module(),
                                  export_wrappers_out);
-#else
-  CompileJsToWasmWrappers(isolate, native_module->module(),
-                          export_wrappers_out);
-#endif
 
   // Log the code within the generated module for profiling.
   native_module->LogWasmCodes(isolate);
@@ -1552,17 +1543,10 @@ void AsyncCompileJob::FinishCompile() {
   // TODO(bbudge) Allow deserialization without wrapper compilation, so we can
   // just compile wrappers here.
   if (!is_after_deserialization) {
-#ifdef V8_EMBEDDED_BUILTINS
     Handle<FixedArray> export_wrappers;
     compilation_state->FinalizeJSToWasmWrappers(
         isolate_, module_object_->module(), &export_wrappers);
     module_object_->set_export_wrappers(*export_wrappers);
-#else
-    Handle<FixedArray> export_wrappers;
-    CompileJsToWasmWrappers(isolate_, module_object_->module(),
-                            &export_wrappers);
-    module_object_->set_export_wrappers(*export_wrappers);
-#endif
   }
   // We can only update the feature counts once the entire compile is done.
   compilation_state->PublishDetectedFeatures(isolate_);

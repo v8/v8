@@ -159,7 +159,6 @@ Operand TurboAssembler::ExternalReferenceAsOperand(ExternalReference reference,
 // TurboAssembler.
 Operand TurboAssembler::ExternalReferenceAddressAsOperand(
     ExternalReference reference) {
-  DCHECK(FLAG_embedded_builtins);
   DCHECK(root_array_available());
   DCHECK(options().isolate_independent_code);
   return Operand(
@@ -170,7 +169,6 @@ Operand TurboAssembler::ExternalReferenceAddressAsOperand(
 // TODO(v8:6666): If possible, refactor into a platform-independent function in
 // TurboAssembler.
 Operand TurboAssembler::HeapObjectAsOperand(Handle<HeapObject> object) {
-  DCHECK(FLAG_embedded_builtins);
   DCHECK(root_array_available());
 
   int builtin_index;
@@ -1913,7 +1911,6 @@ void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
 
 void TurboAssembler::CallBuiltin(int builtin_index) {
   DCHECK(Builtins::IsBuiltinId(builtin_index));
-  DCHECK(FLAG_embedded_builtins);
   RecordCommentForOffHeapTrampoline(builtin_index);
   CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
   EmbeddedData d = EmbeddedData::FromBlob();

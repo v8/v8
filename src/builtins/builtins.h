@@ -140,9 +140,9 @@ class Builtins {
   // area.
   static bool IsWasmRuntimeStub(int index);
 
-  // Updates the table of builtin entry points based on the current contents of
-  // the builtins table.
-  static void UpdateBuiltinEntryTable(Isolate* isolate);
+  // Initializes the table of builtin entry points based on the current contents
+  // of the builtins table.
+  static void InitializeBuiltinEntryTable(Isolate* isolate);
 
   // Emits a CodeCreateEvent for every builtin.
   static void EmitCodeCreateEvents(Isolate* isolate);

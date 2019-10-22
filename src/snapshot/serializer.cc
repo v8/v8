@@ -747,7 +747,6 @@ void Serializer::ObjectSerializer::VisitRuntimeEntry(Code host,
 
 void Serializer::ObjectSerializer::VisitOffHeapTarget(Code host,
                                                       RelocInfo* rinfo) {
-  DCHECK(FLAG_embedded_builtins);
   STATIC_ASSERT(EmbeddedData::kTableSize == Builtins::builtin_count);
 
   Address addr = rinfo->target_off_heap_target();

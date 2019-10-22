@@ -1137,17 +1137,10 @@ void RegExpMacroAssemblerPPC::CallCheckStackGuardState(Register scratch) {
       ExternalReference::re_check_stack_guard_state(isolate());
   __ mov(ip, Operand(stack_guard_check));
 
-  if (FLAG_embedded_builtins) {
-    EmbeddedData d = EmbeddedData::FromBlob();
-    CHECK(Builtins::IsIsolateIndependent(Builtins::kDirectCEntry));
-    Address entry = d.InstructionStartOfBuiltin(Builtins::kDirectCEntry);
-    __ mov(r0, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
-  } else {
-    // TODO(v8:8519): Remove this once embedded builtins are on unconditionally.
-    Handle<Code> code = BUILTIN_CODE(isolate(), DirectCEntry);
-    __ mov(r0, Operand(reinterpret_cast<intptr_t>(code.location()),
-                       RelocInfo::CODE_TARGET));
-  }
+  EmbeddedData d = EmbeddedData::FromBlob();
+  CHECK(Builtins::IsIsolateIndependent(Builtins::kDirectCEntry));
+  Address entry = d.InstructionStartOfBuiltin(Builtins::kDirectCEntry);
+  __ mov(r0, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
   __ Call(r0);
 
   // Restore the stack pointer

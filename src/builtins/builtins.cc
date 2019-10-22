@@ -105,10 +105,8 @@ void Builtins::TearDown() { initialized_ = false; }
 
 const char* Builtins::Lookup(Address pc) {
   // Off-heap pc's can be looked up through binary search.
-  if (FLAG_embedded_builtins) {
-    Code maybe_builtin = InstructionStream::TryLookupCode(isolate_, pc);
-    if (!maybe_builtin.is_null()) return name(maybe_builtin.builtin_index());
-  }
+  Code maybe_builtin = InstructionStream::TryLookupCode(isolate_, pc);
+  if (!maybe_builtin.is_null()) return name(maybe_builtin.builtin_index());
 
   // May be called during initialization (disassembler).
   if (initialized_) {
@@ -250,13 +248,9 @@ bool Builtins::IsBuiltinHandle(Handle<HeapObject> maybe_code,
 
 // static
 bool Builtins::IsIsolateIndependentBuiltin(const Code code) {
-  if (FLAG_embedded_builtins) {
-    const int builtin_index = code.builtin_index();
-    return Builtins::IsBuiltinId(builtin_index) &&
-           Builtins::IsIsolateIndependent(builtin_index);
-  } else {
-    return false;
-  }
+  const int builtin_index = code.builtin_index();
+  return Builtins::IsBuiltinId(builtin_index) &&
+         Builtins::IsIsolateIndependent(builtin_index);
 }
 
 // static
@@ -276,7 +270,7 @@ bool Builtins::IsWasmRuntimeStub(int index) {
 }
 
 // static
-void Builtins::UpdateBuiltinEntryTable(Isolate* isolate) {
+void Builtins::InitializeBuiltinEntryTable(Isolate* isolate) {
   Heap* heap = isolate->heap();
   Address* builtin_entry_table = isolate->builtin_entry_table();
   for (int i = 0; i < builtin_count; i++) {

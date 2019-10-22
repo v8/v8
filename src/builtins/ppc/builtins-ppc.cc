@@ -3251,7 +3251,7 @@ void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
   __ mflr(r0);
   __ StoreP(r0, MemOperand(sp, kStackFrameExtraParamSlot * kPointerSize));
 
-  if (ABI_USES_FUNCTION_DESCRIPTORS && FLAG_embedded_builtins) {
+  if (ABI_USES_FUNCTION_DESCRIPTORS) {
     // AIX/PPC64BE Linux use a function descriptor;
     __ LoadP(ToRegister(ABI_TOC_REGISTER), MemOperand(temp2, kPointerSize));
     __ LoadP(temp2, MemOperand(temp2, 0));  // Instruction address

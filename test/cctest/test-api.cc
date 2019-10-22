@@ -26436,21 +26436,16 @@ TEST(TestGetUnwindState) {
   v8::MemoryRange builtins_range = unwind_state.embedded_code_range;
 
   // Check that each off-heap builtin is within the builtins code range.
-  if (i::FLAG_embedded_builtins) {
-    for (int id = 0; id < i::Builtins::builtin_count; id++) {
-      if (!i::Builtins::IsIsolateIndependent(id)) continue;
-      i::Code builtin = i_isolate->builtins()->builtin(id);
-      i::Address start = builtin.InstructionStart();
-      i::Address end = start + builtin.InstructionSize();
+  for (int id = 0; id < i::Builtins::builtin_count; id++) {
+    if (!i::Builtins::IsIsolateIndependent(id)) continue;
+    i::Code builtin = i_isolate->builtins()->builtin(id);
+    i::Address start = builtin.InstructionStart();
+    i::Address end = start + builtin.InstructionSize();
 
-      i::Address builtins_start =
-          reinterpret_cast<i::Address>(builtins_range.start);
-      CHECK(start >= builtins_start &&
-            end < builtins_start + builtins_range.length_in_bytes);
-    }
-  } else {
-    CHECK_EQ(nullptr, builtins_range.start);
-    CHECK_EQ(0, builtins_range.length_in_bytes);
+    i::Address builtins_start =
+        reinterpret_cast<i::Address>(builtins_range.start);
+    CHECK(start >= builtins_start &&
+          end < builtins_start + builtins_range.length_in_bytes);
   }
 
   v8::JSEntryStub js_entry_stub = unwind_state.js_entry_stub;

@@ -137,11 +137,12 @@ void TurboAssembler::LoadAddress(Register destination,
     }
   }
   // Safe code.
-  if (FLAG_embedded_builtins) {
-    if (root_array_available_ && options().isolate_independent_code) {
-      IndirectLoadExternalReference(destination, source);
-      return;
-    }
+  // TODO(jgruber,v8:8887): Also consider a root-relative load when generating
+  // non-isolate-independent code. In many cases it might be cheaper than
+  // embedding the relocatable value.
+  if (root_array_available_ && options().isolate_independent_code) {
+    IndirectLoadExternalReference(destination, source);
+    return;
   }
   Move(destination, source);
 }
@@ -1113,11 +1114,12 @@ void TurboAssembler::Move(Register dst, Smi source) {
 }
 
 void TurboAssembler::Move(Register dst, ExternalReference ext) {
-  if (FLAG_embedded_builtins) {
-    if (root_array_available_ && options().isolate_independent_code) {
-      IndirectLoadExternalReference(dst, ext);
-      return;
-    }
+  // TODO(jgruber,v8:8887): Also consider a root-relative load when generating
+  // non-isolate-independent code. In many cases it might be cheaper than
+  // embedding the relocatable value.
+  if (root_array_available_ && options().isolate_independent_code) {
+    IndirectLoadExternalReference(dst, ext);
+    return;
   }
   movq(dst, Immediate64(ext.address(), RelocInfo::EXTERNAL_REFERENCE));
 }
@@ -1473,15 +1475,14 @@ void TurboAssembler::Push(Handle<HeapObject> source) {
 
 void TurboAssembler::Move(Register result, Handle<HeapObject> object,
                           RelocInfo::Mode rmode) {
-  if (FLAG_embedded_builtins) {
-    if (root_array_available_ && options().isolate_independent_code) {
-      // TODO(v8:9706): Fix-it! This load will always uncompress the value
-      // even when we are loading a compressed embedded object.
-      IndirectLoadConstant(result, object);
-      return;
-    }
-  }
-  if (RelocInfo::IsCompressedEmbeddedObject(rmode)) {
+  // TODO(jgruber,v8:8887): Also consider a root-relative load when generating
+  // non-isolate-independent code. In many cases it might be cheaper than
+  // embedding the relocatable value.
+  if (root_array_available_ && options().isolate_independent_code) {
+    // TODO(v8:9706): Fix-it! This load will always uncompress the value
+    // even when we are loading a compressed embedded object.
+    IndirectLoadConstant(result, object);
+  } else if (RelocInfo::IsCompressedEmbeddedObject(rmode)) {
     EmbeddedObjectIndex index = AddEmbeddedObject(object);
     DCHECK(is_uint32(index));
     movl(result, Immediate(static_cast<int>(index), rmode));
@@ -1641,7 +1642,6 @@ void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
 
 void TurboAssembler::CallBuiltin(int builtin_index) {
   DCHECK(Builtins::IsBuiltinId(builtin_index));
-  DCHECK(FLAG_embedded_builtins);
   RecordCommentForOffHeapTrampoline(builtin_index);
   CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
   EmbeddedData d = EmbeddedData::FromBlob();

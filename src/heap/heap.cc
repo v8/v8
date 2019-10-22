@@ -4404,15 +4404,9 @@ void Heap::IterateBuiltins(RootVisitor* v) {
     v->VisitRootPointer(Root::kBuiltins, Builtins::name(i),
                         FullObjectSlot(builtin_address(i)));
   }
-#ifdef V8_EMBEDDED_BUILTINS
+
   // The entry table does not need to be updated if all builtins are embedded.
   STATIC_ASSERT(Builtins::AllBuiltinsAreIsolateIndependent());
-#else
-  // If builtins are not embedded, they may move and thus the entry table must
-  // be updated.
-  // TODO(v8:6666): Remove once builtins are embedded unconditionally.
-  Builtins::UpdateBuiltinEntryTable(isolate());
-#endif  // V8_EMBEDDED_BUILTINS
 }
 
 namespace {
