@@ -494,6 +494,14 @@ void ComputePoisonedAddressForLoad(CodeGenerator* codegen,
     }                                                     \
   } while (0)
 
+#define ASSEMBLE_F64X2_ARITHMETIC_BINOP(op)                                   \
+  do {                                                                        \
+    __ op(i.OutputSimd128Register().low(), i.InputSimd128Register(0).low(),   \
+          i.InputSimd128Register(1).low());                                   \
+    __ op(i.OutputSimd128Register().high(), i.InputSimd128Register(0).high(), \
+          i.InputSimd128Register(1).high());                                  \
+  } while (0)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   __ LeaveFrame(StackFrame::MANUAL);
   unwinding_info_writer_.MarkFrameDeconstructed(__ pc_offset());
@@ -1799,6 +1807,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputSimd128Register(0).high());
       break;
     }
+    case kArmF64x2Add: {
+      ASSEMBLE_F64X2_ARITHMETIC_BINOP(vadd);
+      break;
+    }
+    case kArmF64x2Sub: {
+      ASSEMBLE_F64X2_ARITHMETIC_BINOP(vsub);
+      break;
+    }
+    case kArmF64x2Mul: {
+      ASSEMBLE_F64X2_ARITHMETIC_BINOP(vmul);
+      break;
+    }
+    case kArmF64x2Div: {
+      ASSEMBLE_F64X2_ARITHMETIC_BINOP(vdiv);
+      break;
+    }
+#undef ASSEMBLE_F64X2_ARITHMETIC_BINOP
     case kArmF32x4Splat: {
       int src_code = i.InputFloatRegister(0).code();
       __ vdup(Neon32, i.OutputSimd128Register(),

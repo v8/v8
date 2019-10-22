@@ -2424,6 +2424,10 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I8x16ShrU)
 
 #define SIMD_BINOP_LIST(V)                      \
+  V(F64x2Add, kArmF64x2Add)                     \
+  V(F64x2Sub, kArmF64x2Sub)                     \
+  V(F64x2Mul, kArmF64x2Mul)                     \
+  V(F64x2Div, kArmF64x2Div)                     \
   V(F32x4Add, kArmF32x4Add)                     \
   V(F32x4AddHoriz, kArmF32x4AddHoriz)           \
   V(F32x4Sub, kArmF32x4Sub)                     \
