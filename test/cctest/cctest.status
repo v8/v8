@@ -344,15 +344,6 @@
 }],  # 'mips_arch_variant == r6'
 
 ##############################################################################
-['arch == android_arm or arch == android_ia32', {
-
-  # Tests crash as there is no /tmp directory in Android.
-  'test-log/LogAccessorCallbacks': [SKIP],
-  'test-log/LogCallbacks': [SKIP],
-  'test-log/ProfLazyMode': [SKIP],
-}],  # 'arch == android_arm or arch == android_ia32'
-
-##############################################################################
 ['system == android', {
   # Uses too much memory.
   'test-api/NewStringRangeError': [SKIP],

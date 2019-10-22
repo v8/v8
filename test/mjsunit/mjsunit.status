@@ -99,13 +99,13 @@
   'array-constructor': [PASS, SLOW, ['arch == arm and simulator_run == True', SKIP]],
 
   # Very slow test
-  'regress/regress-crbug-808192' : [PASS, SLOW, NO_VARIANTS, ['mode == debug or arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips or arch == s390 or arch == s390x or arch == ppc or arch == ppc64', SKIP]],
+  'regress/regress-crbug-808192' : [PASS, SLOW, NO_VARIANTS, ['mode == debug or arch == arm or arch == arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips or arch == s390 or arch == s390x or arch == ppc or arch == ppc64', SKIP]],
 
   # Very slow on ARM and MIPS, contains no architecture dependent code.
-  'unicode-case-overoptimization': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips', SKIP]],
-  'regress/regress-3976': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips', SKIP]],
-  'regress/regress-crbug-482998': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips', SKIP]],
-  'regress/regress-740784': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips', SKIP]],
+  'unicode-case-overoptimization': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips', SKIP]],
+  'regress/regress-3976': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips', SKIP]],
+  'regress/regress-crbug-482998': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == mipsel or arch == mips64el or arch == mips', SKIP]],
+  'regress/regress-740784': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == mipsel or arch == mips64el or arch == mips', SKIP]],
 
   # This test allocates a 2G block of memory and if there are multiple
   # variants this can lead to OOM.
@@ -124,14 +124,13 @@
   ##############################################################################
   # This test sets the umask on a per-process basis and hence cannot be
   # used in multi-threaded runs.
-  # On android there is no /tmp directory.
   # Currently d8-os generates a temporary directory name using Math.random(), so
   # we cannot run several variants of d8-os simultaneously, since all of them
   # get the same random seed and would generate the same directory name. Besides
   # that, it doesn't make sense to run several variants of d8-os anyways.
-  'd8/d8-os': [PASS, NO_VARIANTS, ['isolates or arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
-  'tools/tickprocessor': [PASS, NO_VARIANTS, ['arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
-  'tools/dumpcpp': [PASS, NO_VARIANTS, ['arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
+  'd8/d8-os': [PASS, NO_VARIANTS, ['isolates', SKIP]],
+  'tools/tickprocessor': [PASS, NO_VARIANTS],
+  'tools/dumpcpp': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # These tests generate files in the test directory, so we cannot run several
@@ -159,7 +158,7 @@
   'regress/regress-2989': [FAIL, NO_VARIANTS, ['lite_mode == True', SKIP]],
 
   # This test variant makes only sense on arm.
-  'math-floor-of-div-nosudiv': [PASS, SLOW, ['arch not in [arm, arm64, android_arm, android_arm64]', SKIP]],
+  'math-floor-of-div-nosudiv': [PASS, SLOW, ['arch not in [arm, arm64]', SKIP]],
 
   # Too slow for slow variants.
   'asm/embenchen/*': [PASS, SLOW, NO_VARIANTS],
@@ -430,7 +429,7 @@
 }],  # 'byteorder == big'
 
 ##############################################################################
-['arch == arm64 or arch == android_arm64', {
+['arch == arm64', {
 
   # Requires bigger stack size in the Genesis and if stack size is increased,
   # the test requires too much time to run.  However, the problem test covers
@@ -618,12 +617,12 @@
 }],  # 'tsan == True'
 
 ##############################################################################
-['arch == arm or arch == android_arm', {
+['arch == arm', {
 
   # Slow tests which times out in debug mode.
   'try': [PASS, ['mode == debug', SKIP]],
   'array-constructor': [PASS, ['mode == debug', SKIP]],
-  'regress/regress-1122': [PASS, SLOW, ['mode == debug and arch == android_arm', SKIP]],
+  'regress/regress-1122': [PASS, SLOW, ['mode == debug', SKIP]],
 
   # Flaky test that can hit compilation-time stack overflow in debug mode.
   'unicode-test': [PASS, ['mode == debug', PASS, FAIL]],
@@ -659,7 +658,7 @@
   'regress/regress-json-stringify-gc': [PASS, SLOW],
   'string-indexof-2': [PASS, SLOW],
   'wasm/atomics': [PASS, SLOW],
-}],  # 'arch == arm or arch == android_arm'
+}],  # 'arch == arm
 
 ##############################################################################
 ['(arch == mipsel or arch == mips or arch == mips64el or arch == mips64) and simulator_run != True', {
