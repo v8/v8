@@ -91,7 +91,7 @@ JSObject Context::extension_object() {
   DCHECK(IsNativeContext() || IsFunctionContext() || IsBlockContext() ||
          IsEvalContext() || IsCatchContext());
   HeapObject object = extension();
-  if (object.IsTheHole()) return JSObject();
+  if (object.IsUndefined()) return JSObject();
   DCHECK(object.IsJSContextExtensionObject() ||
          (IsNativeContext() && object.IsJSGlobalObject()));
   return JSObject::cast(object);
@@ -197,11 +197,11 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
     }
 
     // 1. Check global objects, subjects of with, and extension objects.
-    DCHECK_IMPLIES(context->IsEvalContext(),
+    DCHECK_IMPLIES(context->IsEvalContext() && context->has_extension(),
                    context->extension().IsTheHole(isolate));
     if ((context->IsNativeContext() || context->IsWithContext() ||
          context->IsFunctionContext() || context->IsBlockContext()) &&
-        !context->extension_receiver().is_null()) {
+        context->has_extension() && !context->extension_receiver().is_null()) {
       Handle<JSReceiver> object(context->extension_receiver(), isolate);
 
       if (context->IsNativeContext()) {
@@ -467,7 +467,8 @@ void NativeContext::IncrementErrorsThrown() {
 
 int NativeContext::GetErrorsThrown() { return errors_thrown().value(); }
 
-STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 3);
+STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 2);
+STATIC_ASSERT(Context::MIN_CONTEXT_EXTENDED_SLOTS == 3);
 STATIC_ASSERT(NativeContext::kScopeInfoOffset ==
               Context::OffsetOfElementAt(NativeContext::SCOPE_INFO_INDEX));
 STATIC_ASSERT(NativeContext::kPreviousOffset ==

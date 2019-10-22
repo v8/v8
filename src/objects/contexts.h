@@ -429,12 +429,14 @@ class ScriptContextTable : public FixedArray {
 //
 // [ previous       ]  A pointer to the previous context.
 //
-// [ extension      ]  Additional data.
+// [ extension      ]  Additional data. This slot is only available when
+//                     extension_bit is set. Check using has_extension.
 //
 //                     For native contexts, it contains the global object.
 //                     For module contexts, it contains the module object.
 //                     For await contexts, it contains the generator object.
-//                     For block contexts, it may contain an "extension object".
+//                     For var block contexts, it may contain an "extension
+//                     object".
 //                     For with contexts, it contains an "extension object".
 //
 //                     An "extension object" is used to dynamically extend a
@@ -445,9 +447,10 @@ class ScriptContextTable : public FixedArray {
 //                     extension object is the original purpose of this context
 //                     slot, hence the name.)
 //
-// In addition, function contexts may have statically allocated context slots
-// to store local variables/functions that are accessed from inner functions
-// (via static context addresses) or through 'eval' (dynamic context lookups).
+// In addition, function contexts with sloppy eval may have statically
+// allocated context slots to store local variables/functions that are accessed
+// from inner functions (via static context addresses) or through 'eval'
+// (dynamic context lookups).
 // The native context contains additional slots for fast access to native
 // properties.
 //
@@ -485,7 +488,8 @@ class Context : public HeapObject {
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 TORQUE_GENERATED_CONTEXT_FIELDS)
-  // TODO(v8:8989): [torque] Support marker constants.
+
+  // TODO(v8:8989): [torque] Support marker constants
   /* TODO(ishell): remove this fixedArray-like header size. */
   static const int kFixedArrayLikeHeaderSize = kScopeInfoOffset;
   static const int kStartOfTaggedFieldsOffset = kScopeInfoOffset;
@@ -494,10 +498,11 @@ class Context : public HeapObject {
   /* is removed in favour of offset-based access to common fields. */ \
   static const int kTodoHeaderSize = kHeaderSize;
 
+  // If the extension slot exists, it is the first slot after the header.
+  static const int kExtensionOffset = kHeaderSize;
+
   // Garbage collection support.
   V8_INLINE static constexpr int SizeFor(int length) {
-    // TODO(ishell): switch to kTodoHeaderSize based approach once we no longer
-    // reference common Context fields via index
     return kFixedArrayLikeHeaderSize + length * kTaggedSize;
   }
 
@@ -519,6 +524,8 @@ class Context : public HeapObject {
     // These slots are in all contexts.
     SCOPE_INFO_INDEX,
     PREVIOUS_INDEX,
+
+    // This slot only exists if the extension_flag bit is set.
     EXTENSION_INDEX,
 
 // These slots are only in native contexts.
@@ -538,15 +545,20 @@ class Context : public HeapObject {
     FIRST_JS_ARRAY_MAP_SLOT = JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX,
 
     // TODO(shell): Remove, once it becomes zero
-    MIN_CONTEXT_SLOTS = GLOBAL_PROXY_INDEX,
+    MIN_CONTEXT_SLOTS = EXTENSION_INDEX,
+    MIN_CONTEXT_EXTENDED_SLOTS = EXTENSION_INDEX + 1,
 
     // This slot holds the thrown value in catch contexts.
     THROWN_OBJECT_INDEX = MIN_CONTEXT_SLOTS,
 
     // These slots hold values in debug evaluate contexts.
-    WRAPPED_CONTEXT_INDEX = MIN_CONTEXT_SLOTS,
-    BLACK_LIST_INDEX = MIN_CONTEXT_SLOTS + 1
+    WRAPPED_CONTEXT_INDEX = MIN_CONTEXT_EXTENDED_SLOTS,
+    BLACK_LIST_INDEX = MIN_CONTEXT_EXTENDED_SLOTS + 1
   };
+
+  static const int kExtensionSize =
+      (MIN_CONTEXT_EXTENDED_SLOTS - MIN_CONTEXT_SLOTS) * kTaggedSize;
+  static const int kExtendedHeaderSize = kHeaderSize + kExtensionSize;
 
   // A region of native context entries containing maps for functions created
   // by Builtins::kFastNewClosure.
@@ -696,7 +708,7 @@ class NativeContext : public Context {
 #define NATIVE_CONTEXT_FIELDS_DEF(V)                                        \
   /* TODO(ishell): move definition of common context offsets to Context. */ \
   V(kStartOfNativeContextFieldsOffset,                                      \
-    (FIRST_WEAK_SLOT - MIN_CONTEXT_SLOTS) * kTaggedSize)                    \
+    (FIRST_WEAK_SLOT - MIN_CONTEXT_EXTENDED_SLOTS) * kTaggedSize)           \
   V(kEndOfStrongFieldsOffset, 0)                                            \
   V(kStartOfWeakFieldsOffset,                                               \
     (NATIVE_CONTEXT_SLOTS - FIRST_WEAK_SLOT) * kTaggedSize)                 \
@@ -708,7 +720,7 @@ class NativeContext : public Context {
   /* Total size. */                                                         \
   V(kSize, 0)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(Context::kTodoHeaderSize,
+  DEFINE_FIELD_OFFSET_CONSTANTS(Context::kExtendedHeaderSize,
                                 NATIVE_CONTEXT_FIELDS_DEF)
 #undef NATIVE_CONTEXT_FIELDS_DEF
 

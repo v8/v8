@@ -759,6 +759,7 @@ class ScopeInfoRef : public HeapObjectRef {
   Handle<ScopeInfo> object() const;
 
   int ContextLength() const;
+  int ContextHeaderLength() const;
 };
 
 #define BROKER_SFI_FIELDS(V)                 \
@@ -767,6 +768,7 @@ class ScopeInfoRef : public HeapObjectRef {
   V(int, function_map_index)                 \
   V(FunctionKind, kind)                      \
   V(LanguageMode, language_mode)             \
+  V(ScopeInfo, scope_info)                   \
   V(bool, native)                            \
   V(bool, HasBreakInfo)                      \
   V(bool, HasBuiltinId)                      \

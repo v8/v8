@@ -850,6 +850,16 @@ FieldAccess AccessBuilder::ForCellValue() {
 }
 
 // static
+FieldAccess AccessBuilder::ForScopeInfoFlags() {
+  FieldAccess access = {
+      kTaggedBase,         ScopeInfo::kFlagsOffset,
+      MaybeHandle<Name>(), MaybeHandle<Map>(),
+      Type::SignedSmall(), MachineType::TypeCompressedTaggedSigned(),
+      kNoWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForContextSlot(size_t index) {
   int offset = Context::OffsetOfElementAt(static_cast<int>(index));
   DCHECK_EQ(offset,

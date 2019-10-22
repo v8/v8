@@ -1153,6 +1153,15 @@ const Operator* JSOperatorBuilder::StoreGlobal(LanguageMode language_mode,
       parameters);                                        // parameter
 }
 
+const Operator* JSOperatorBuilder::HasContextExtension(size_t depth) {
+  return new (zone()) Operator1<size_t>(        // --
+      IrOpcode::kJSHasContextExtension,         // opcode
+      Operator::kNoWrite | Operator::kNoThrow,  // flags
+      "JSHasContextExtension",                  // name
+      0, 1, 0, 1, 1, 0,                         // counts
+      depth);                                   // parameter
+}
+
 const Operator* JSOperatorBuilder::LoadContext(size_t depth, size_t index,
                                                bool immutable) {
   ContextAccess access(depth, index, immutable);

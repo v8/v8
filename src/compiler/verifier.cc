@@ -800,6 +800,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Callable());
       break;
 
+    case IrOpcode::kJSHasContextExtension:
+      CheckTypeIs(node, Type::Boolean());
+      break;
     case IrOpcode::kJSLoadContext:
       // Type can be anything.
       CheckTypeIs(node, Type::Any());

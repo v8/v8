@@ -1613,15 +1613,18 @@ class ScopeInfoData : public HeapObjectData {
                 Handle<ScopeInfo> object);
 
   int context_length() const { return context_length_; }
+  int context_header_length() const { return context_header_length_; }
 
  private:
   int const context_length_;
+  int const context_header_length_;
 };
 
 ScopeInfoData::ScopeInfoData(JSHeapBroker* broker, ObjectData** storage,
                              Handle<ScopeInfo> object)
     : HeapObjectData(broker, storage, object),
-      context_length_(object->ContextLength()) {}
+      context_length_(object->ContextLength()),
+      context_header_length_(object->ContextHeaderLength()) {}
 
 class SharedFunctionInfoData : public HeapObjectData {
  public:
@@ -3489,6 +3492,11 @@ int MapRef::GetInObjectProperties() const {
 int ScopeInfoRef::ContextLength() const {
   IF_BROKER_DISABLED_ACCESS_HANDLE_C(ScopeInfo, ContextLength);
   return data()->AsScopeInfo()->context_length();
+}
+
+int ScopeInfoRef::ContextHeaderLength() const {
+  IF_BROKER_DISABLED_ACCESS_HANDLE_C(ScopeInfo, ContextHeaderLength);
+  return data()->AsScopeInfo()->context_header_length();
 }
 
 bool StringRef::IsExternalString() const {
