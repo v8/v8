@@ -985,6 +985,7 @@ torque_files = [
   "src/builtins/string-slice.tq",
   "src/builtins/string-startswith.tq",
   "src/builtins/string-substring.tq",
+  "src/builtins/string-substr.tq",
   "src/builtins/torque-internal.tq",
   "src/builtins/typed-array-createtypedarray.tq",
   "src/builtins/typed-array-every.tq",

@@ -2034,6 +2034,7 @@ extern operator '~' macro ConstexprWordNot(constexpr uintptr):
 extern operator '==' macro Float64Equal(float64, float64): bool;
 extern operator '!=' macro Float64NotEqual(float64, float64): bool;
 extern operator '>' macro Float64GreaterThan(float64, float64): bool;
+extern operator '>=' macro Float64GreaterThanOrEqual(float64, float64): bool;
 extern operator '<' macro Float64LessThan(float64, float64): bool;
 extern operator '<=' macro Float64LessThanOrEqual(float64, float64): bool;
 
@@ -2190,6 +2191,9 @@ extern operator '.instanceType' macro LoadInstanceType(HeapObject):
     InstanceType;
 
 extern operator '.length_intptr' macro LoadStringLengthAsWord(String): intptr;
+operator '.length_uintptr' macro LoadStringLengthAsUintPtr(s: String): uintptr {
+  return Unsigned(s.length_intptr);
+}
 extern operator '.length_uint32' macro LoadStringLengthAsWord32(String): uint32;
 extern operator '.length_smi' macro LoadStringLengthAsSmi(String): Smi;
 
@@ -3701,6 +3705,44 @@ macro ConvertToRelativeIndex(indexNumber: Number, lengthIntPtr: intptr):
         return Signed(ChangeFloat64ToUintPtr(
             indexDouble < lengthDouble ? indexDouble : lengthDouble));
       }
+    }
+  }
+}
+
+// After converting an index to a signed integer, clamps it to the provided
+// range [0, limit]:
+// return min(max(index, 0), limit)
+@export
+transitioning macro ClampToIndexRange(implicit context: Context)(
+    index: JSAny, limit: uintptr): uintptr {
+  const indexNumber: Number =
+      ToInteger_Inline(context, index, kTruncateMinusZero);
+  return ClampToIndexRange(indexNumber, limit);
+}
+
+// Clamps given signed indexNumber to the provided range [0, limit]:
+// return min(max(index, 0), limit)
+@export
+macro ClampToIndexRange(indexNumber: Number, limit: uintptr): uintptr {
+  typeswitch (indexNumber) {
+    case (indexSmi: Smi): {
+      if (indexSmi < 0) return 0;
+      const index: uintptr = Unsigned(Convert<intptr>(indexSmi));
+      if (index >= limit) return limit;
+      return index;
+    }
+    case (indexHeapNumber: HeapNumber): {
+      const indexDouble: float64 = Convert<float64>(indexHeapNumber);
+      // NaNs must already be handled by ClampToIndexRange() version
+      // above accepting JSAny indices.
+      assert(!Float64IsNaN(indexDouble));
+      if (indexDouble <= 0) return 0;
+
+      const maxIndexDouble: float64 = Convert<float64>(limit);
+      assert(maxIndexDouble <= kMaxSafeInteger);
+      if (indexDouble >= maxIndexDouble) return limit;
+
+      return ChangeFloat64ToUintPtr(indexDouble);
     }
   }
 }
