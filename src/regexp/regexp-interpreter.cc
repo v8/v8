@@ -8,6 +8,7 @@
 
 #include "src/ast/ast.h"
 #include "src/base/small-vector.h"
+#include "src/logging/counters.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/regexp/regexp-bytecodes.h"
@@ -456,8 +457,16 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate, ByteArray code_array,
       registers[insn >> BYTECODE_SHIFT] = backtrack_stack.pop();
       DISPATCH();
     }
-    BYTECODE(FAIL) { return IrregexpInterpreter::FAILURE; }
-    BYTECODE(SUCCEED) { return IrregexpInterpreter::SUCCESS; }
+    BYTECODE(FAIL) {
+      isolate->counters()->regexp_backtracks()->AddSample(
+          static_cast<int>(backtrack_count));
+      return IrregexpInterpreter::FAILURE;
+    }
+    BYTECODE(SUCCEED) {
+      isolate->counters()->regexp_backtracks()->AddSample(
+          static_cast<int>(backtrack_count));
+      return IrregexpInterpreter::SUCCESS;
+    }
     BYTECODE(ADVANCE_CP) {
       ADVANCE(ADVANCE_CP);
       current += insn >> BYTECODE_SHIFT;
