@@ -313,8 +313,6 @@ namespace internal {
       ArraySingleArgumentConstructor)                                          \
   TFC(ArrayNArgumentsConstructor, ArrayNArgumentsConstructor)                  \
   CPP(ArrayConcat)                                                             \
-  /* ES6 #sec-array.isarray */                                                 \
-  TFJ(ArrayIsArray, 1, kReceiver, kArg)                                        \
   /* ES6 #sec-array.prototype.fill */                                          \
   CPP(ArrayPrototypeFill)                                                      \
   /* ES6 #sec-array.from */                                                    \

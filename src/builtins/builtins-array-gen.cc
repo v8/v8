@@ -774,31 +774,6 @@ TF_BUILTIN(TypedArrayPrototypeMap, ArrayBuiltinsAssembler) {
       &ArrayBuiltinsAssembler::TypedArrayMapProcessor);
 }
 
-TF_BUILTIN(ArrayIsArray, CodeStubAssembler) {
-  TNode<Object> object = CAST(Parameter(Descriptor::kArg));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-
-  Label call_runtime(this), return_true(this), return_false(this);
-
-  GotoIf(TaggedIsSmi(object), &return_false);
-  TNode<Uint16T> instance_type = LoadInstanceType(CAST(object));
-
-  GotoIf(InstanceTypeEqual(instance_type, JS_ARRAY_TYPE), &return_true);
-
-  // TODO(verwaest): Handle proxies in-place.
-  Branch(InstanceTypeEqual(instance_type, JS_PROXY_TYPE), &call_runtime,
-         &return_false);
-
-  BIND(&return_true);
-  Return(TrueConstant());
-
-  BIND(&return_false);
-  Return(FalseConstant());
-
-  BIND(&call_runtime);
-  Return(CallRuntime(Runtime::kArrayIsArray, context, object));
-}
-
 class ArrayIncludesIndexofAssembler : public CodeStubAssembler {
  public:
   explicit ArrayIncludesIndexofAssembler(compiler::CodeAssemblerState* state)
