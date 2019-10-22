@@ -19,14 +19,14 @@ namespace typed_array {
     const buffer = typed_array::GetBuffer(source);
 
     // 6. Let srcLength be O.[[ArrayLength]].
-    const srcLength = Convert<intptr>(source.length);
+    const srcLength: uintptr = source.length;
 
     // 7. Let relativeBegin be ? ToInteger(begin).
     // 8. If relativeBegin < 0, let beginIndex be max((srcLength +
     // relativeBegin), 0); else let beginIndex be min(relativeBegin,
     // srcLength).
     const arg0 = arguments[0];
-    const begin: intptr =
+    const begin: uintptr =
         arg0 != Undefined ? ConvertToRelativeIndex(arg0, srcLength) : 0;
 
     // 9. If end is undefined, let relativeEnd be srcLength;
@@ -34,11 +34,11 @@ namespace typed_array {
     // 10. If relativeEnd < 0, let endIndex be max((srcLength + relativeEnd),
     // 0); else let endIndex be min(relativeEnd, srcLength).
     const arg1 = arguments[1];
-    const end: intptr =
+    const end: uintptr =
         arg1 != Undefined ? ConvertToRelativeIndex(arg1, srcLength) : srcLength;
 
     // 11. Let newLength be max(endIndex - beginIndex, 0).
-    const newLength = Convert<PositiveSmi>(IntPtrMax(end - begin, 0));
+    const newLength = Convert<PositiveSmi>(IntPtrMax(Signed(end - begin), 0));
 
     // 12. Let constructorName be the String value of O.[[TypedArrayName]].
     // 13. Let elementSize be the Number value of the Element Size value
@@ -50,7 +50,7 @@ namespace typed_array {
 
     // 15. Let beginByteOffset be srcByteOffset + beginIndex × elementSize.
     const beginByteOffset = srcByteOffset +
-        elementsInfo.CalculateByteLength(Convert<PositiveSmi>(begin))
+        elementsInfo.CalculateByteLength(Convert<PositiveSmi>(Signed(begin)))
         otherwise ThrowRangeError(kInvalidArrayBufferLength);
 
     // 16. Let argumentsList be « buffer, beginByteOffset, newLength ».

@@ -342,8 +342,7 @@ TEST(ConvertToRelativeIndex) {
     TNode<UintPtrT> expected =
         m.ChangeNonnegativeNumberToUintPtr(expected_relative_index);
 
-    TNode<UintPtrT> result =
-        m.Unsigned(m.ConvertToRelativeIndex(index, m.Signed(length)));
+    TNode<UintPtrT> result = m.ConvertToRelativeIndex(index, length);
 
     m.Return(m.SelectBooleanConstant(m.WordEqual(result, expected)));
   }

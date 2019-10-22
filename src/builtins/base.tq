@@ -3659,10 +3659,9 @@ extern macro AllocateSeqTwoByteString(uint32): String;
 
 // After converting an index to an integer, calculate a relative index:
 // return index < 0 ? max(length + index, 0) : min(index, length)
-// TODO(v8:4153): make length and result uintptr.
 @export
 transitioning macro ConvertToRelativeIndex(implicit context: Context)(
-    index: JSAny, length: intptr): intptr {
+    index: JSAny, length: uintptr): uintptr {
   const indexNumber: Number =
       ToInteger_Inline(context, index, kTruncateMinusZero);
   return ConvertToRelativeIndex(indexNumber, length);
@@ -3670,22 +3669,19 @@ transitioning macro ConvertToRelativeIndex(implicit context: Context)(
 
 // Calculate a relative index:
 // return index < 0 ? max(length + index, 0) : min(index, length)
-// TODO(v8:4153): make length and result uintptr.
 @export
-macro ConvertToRelativeIndex(indexNumber: Number, lengthIntPtr: intptr):
-    intptr {
-  const length: uintptr = Convert<uintptr>(lengthIntPtr);
+macro ConvertToRelativeIndex(indexNumber: Number, length: uintptr): uintptr {
   typeswitch (indexNumber) {
     case (indexSmi: Smi): {
       const indexIntPtr: intptr = Convert<intptr>(indexSmi);
       // The logic is implemented using unsigned types.
       if (indexIntPtr < 0) {
         const relativeIndex: uintptr = Unsigned(indexIntPtr) + length;
-        return Signed(relativeIndex < length ? relativeIndex : 0);
+        return relativeIndex < length ? relativeIndex : 0;
 
       } else {
         const relativeIndex: uintptr = Unsigned(indexIntPtr);
-        return Signed(relativeIndex < length ? relativeIndex : length);
+        return relativeIndex < length ? relativeIndex : length;
       }
     }
     case (indexHeapNumber: HeapNumber): {
@@ -3697,13 +3693,11 @@ macro ConvertToRelativeIndex(indexNumber: Number, lengthIntPtr: intptr):
       assert(lengthDouble <= kMaxSafeInteger);
       if (indexDouble < 0) {
         const relativeIndex: float64 = lengthDouble + indexDouble;
-        return relativeIndex > 0 ?
-            Signed(ChangeFloat64ToUintPtr(relativeIndex)) :
-            0;
+        return relativeIndex > 0 ? ChangeFloat64ToUintPtr(relativeIndex) : 0;
 
       } else {
-        return Signed(ChangeFloat64ToUintPtr(
-            indexDouble < lengthDouble ? indexDouble : lengthDouble));
+        return ChangeFloat64ToUintPtr(
+            indexDouble < lengthDouble ? indexDouble : lengthDouble);
       }
     }
   }

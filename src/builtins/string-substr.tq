@@ -4,7 +4,7 @@
 
 namespace string_substr {
 
-  extern macro StringBuiltinsAssembler::SubString(String, intptr, intptr):
+  extern macro StringBuiltinsAssembler::SubString(String, uintptr, uintptr):
       String;
 
   // String.prototype.substr ( start, length )
@@ -17,12 +17,12 @@ namespace string_substr {
     const string: String = ToThisString(receiver, methodName);
 
     // 5. Let size be the number of code units in S.
-    const size: intptr = string.length_intptr;
+    const size: uintptr = string.length_uintptr;
 
     // 3. Let intStart be ? ToInteger(start).
     // 6. If intStart < 0, set intStart to max(size + intStart, 0).
     const start = arguments[0];
-    const initStart: intptr =
+    const initStart: uintptr =
         start != Undefined ? ConvertToRelativeIndex(start, size) : 0;
 
     // 4. If length is undefined,
@@ -30,9 +30,9 @@ namespace string_substr {
     // 7. Let resultLength be min(max(end, 0), size - intStart).
     const length = arguments[1];
     const lengthLimit = size - initStart;
-    assert(lengthLimit >= 0);
-    const resultLength: intptr = length != Undefined ?
-        Signed(ClampToIndexRange(length, Unsigned(lengthLimit))) :
+    assert(lengthLimit <= size);
+    const resultLength: uintptr = length != Undefined ?
+        ClampToIndexRange(length, lengthLimit) :
         lengthLimit;
 
     // 8. If resultLength ≤ 0, return the empty String "".

@@ -4,7 +4,7 @@
 
 namespace string_slice {
 
-  extern macro StringBuiltinsAssembler::SubString(String, intptr, intptr):
+  extern macro StringBuiltinsAssembler::SubString(String, uintptr, uintptr):
       String;
 
   // ES6 #sec-string.prototype.slice ( start, end )
@@ -16,17 +16,17 @@ namespace string_slice {
     const string: String = ToThisString(receiver, 'String.prototype.slice');
 
     // 3. Let len be the number of elements in S.
-    const length: intptr = string.length_intptr;
+    const length: uintptr = string.length_uintptr;
 
     // Convert {start} to a relative index.
     const arg0 = arguments[0];
-    const start: intptr =
+    const start: uintptr =
         arg0 != Undefined ? ConvertToRelativeIndex(arg0, length) : 0;
 
     // 5. If end is undefined, let intEnd be len;
     // else Convert {end} to a relative index.
     const arg1 = arguments[1];
-    const end: intptr =
+    const end: uintptr =
         arg1 != Undefined ? ConvertToRelativeIndex(arg1, length) : length;
 
     if (end <= start) {

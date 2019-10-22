@@ -479,8 +479,8 @@ void TypedArrayBuiltinsAssembler::CallCCopyTypedArrayElementsToTypedArray(
 }
 
 void TypedArrayBuiltinsAssembler::CallCCopyTypedArrayElementsSlice(
-    TNode<JSTypedArray> source, TNode<JSTypedArray> dest, TNode<IntPtrT> start,
-    TNode<IntPtrT> end) {
+    TNode<JSTypedArray> source, TNode<JSTypedArray> dest, TNode<UintPtrT> start,
+    TNode<UintPtrT> end) {
   TNode<ExternalReference> f =
       ExternalConstant(ExternalReference::copy_typed_array_elements_slice());
   CallCFunction(f, MachineType::AnyTagged(),
