@@ -78,12 +78,68 @@ V8_EXPORT_PRIVATE V8_INLINE void MemMove(void* dest, const void* src,
 }
 #else
 // Copy memory area to disjoint memory area.
-V8_INLINE void MemCopy(void* dest, const void* src, size_t size) {
-  memcpy(dest, src, size);
+inline void MemCopy(void* dest, const void* src, size_t size) {
+  // Fast path for small sizes. The compiler will expand the {memcpy} for small
+  // fixed sizes to a sequence of move instructions. This avoids the overhead of
+  // the general {memcpy} function.
+  switch (size) {
+#define CASE(N)           \
+  case N:                 \
+    memcpy(dest, src, N); \
+    return;
+    CASE(1)
+    CASE(2)
+    CASE(3)
+    CASE(4)
+    CASE(5)
+    CASE(6)
+    CASE(7)
+    CASE(8)
+    CASE(9)
+    CASE(10)
+    CASE(11)
+    CASE(12)
+    CASE(13)
+    CASE(14)
+    CASE(15)
+    CASE(16)
+#undef CASE
+    default:
+      memcpy(dest, src, size);
+      return;
+  }
 }
-V8_EXPORT_PRIVATE V8_INLINE void MemMove(void* dest, const void* src,
-                                         size_t size) {
-  memmove(dest, src, size);
+V8_EXPORT_PRIVATE inline void MemMove(void* dest, const void* src,
+                                      size_t size) {
+  // Fast path for small sizes. The compiler will expand the {memmove} for small
+  // fixed sizes to a sequence of move instructions. This avoids the overhead of
+  // the general {memmove} function.
+  switch (size) {
+#define CASE(N)            \
+  case N:                  \
+    memmove(dest, src, N); \
+    return;
+    CASE(1)
+    CASE(2)
+    CASE(3)
+    CASE(4)
+    CASE(5)
+    CASE(6)
+    CASE(7)
+    CASE(8)
+    CASE(9)
+    CASE(10)
+    CASE(11)
+    CASE(12)
+    CASE(13)
+    CASE(14)
+    CASE(15)
+    CASE(16)
+#undef CASE
+    default:
+      memmove(dest, src, size);
+      return;
+  }
 }
 const size_t kMinComplexMemCopy = 8;
 #endif  // V8_TARGET_ARCH_IA32
