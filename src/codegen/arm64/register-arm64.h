@@ -525,13 +525,11 @@ ALIAS_REGISTER(VRegister, fp_scratch2, d31);
 
 // AreAliased returns true if any of the named registers overlap. Arguments set
 // to NoReg are ignored. The system stack pointer may be specified.
-bool AreAliased(const CPURegister& reg1, const CPURegister& reg2,
-                const CPURegister& reg3 = NoReg,
-                const CPURegister& reg4 = NoReg,
-                const CPURegister& reg5 = NoReg,
-                const CPURegister& reg6 = NoReg,
-                const CPURegister& reg7 = NoReg,
-                const CPURegister& reg8 = NoReg);
+V8_EXPORT_PRIVATE bool AreAliased(
+    const CPURegister& reg1, const CPURegister& reg2,
+    const CPURegister& reg3 = NoReg, const CPURegister& reg4 = NoReg,
+    const CPURegister& reg5 = NoReg, const CPURegister& reg6 = NoReg,
+    const CPURegister& reg7 = NoReg, const CPURegister& reg8 = NoReg);
 
 // AreSameSizeAndType returns true if all of the specified registers have the
 // same size, and are of the same type. The system stack pointer may be

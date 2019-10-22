@@ -228,12 +228,12 @@ V8_INLINE bool IsStringLiteralLineTerminator(uchar c) {
 }
 
 #ifndef V8_INTL_SUPPORT
-struct ToLowercase {
+struct V8_EXPORT_PRIVATE ToLowercase {
   static const int kMaxWidth = 3;
   static const bool kIsToLower = true;
   static int Convert(uchar c, uchar n, uchar* result, bool* allow_caching_ptr);
 };
-struct ToUppercase {
+struct V8_EXPORT_PRIVATE ToUppercase {
   static const int kMaxWidth = 3;
   static const bool kIsToLower = false;
   static int Convert(uchar c, uchar n, uchar* result, bool* allow_caching_ptr);
