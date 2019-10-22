@@ -908,14 +908,6 @@ namespace internal {
   CPP(SymbolFor)                                                               \
   /* ES6 #sec-symbol.keyfor */                                                 \
   CPP(SymbolKeyFor)                                                            \
-  /* ES #sec-symbol.prototype.description */                                   \
-  TFJ(SymbolPrototypeDescriptionGetter, 0, kReceiver)                          \
-  /* ES6 #sec-symbol.prototype-@@toprimitive */                                \
-  TFJ(SymbolPrototypeToPrimitive, 1, kReceiver, kHint)                         \
-  /* ES6 #sec-symbol.prototype.tostring */                                     \
-  TFJ(SymbolPrototypeToString, 0, kReceiver)                                   \
-  /* ES6 #sec-symbol.prototype.valueof */                                      \
-  TFJ(SymbolPrototypeValueOf, 0, kReceiver)                                    \
                                                                                \
   /* TypedArray */                                                             \
   /* ES #sec-typedarray-constructors */                                        \

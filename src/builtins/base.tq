@@ -1451,6 +1451,8 @@ const kString: constexpr PrimitiveType
     generates 'PrimitiveType::kString';
 const kBoolean: constexpr PrimitiveType
     generates 'PrimitiveType::kBoolean';
+const kSymbol: constexpr PrimitiveType
+    generates 'PrimitiveType::kSymbol';
 
 const kNameDictionaryInitialCapacity:
     constexpr int32 generates 'NameDictionary::kInitialCapacity';
