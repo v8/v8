@@ -1097,16 +1097,6 @@
 }],
 
 ##############################################################################
-['variant == jitless and not embedded_builtins', {
-  '*': [SKIP],
-}], # variant == jitless and not embedded_builtins
-
-['not embedded_builtins', {
-  # Explicitly sets jitless flag.
-  'regress/regress-992389': [SKIP],
-}], # not embedded_builtins
-
-##############################################################################
 ['variant == turboprop', {
   # Deopts differently than TurboFan.
   'parallel-optimize-disabled': [SKIP],

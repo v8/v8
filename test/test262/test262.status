@@ -750,9 +750,4 @@
   'intl402/DateTimeFormat/prototype/resolvedOptions/basic': [SKIP],
 }],  # system == windows
 
-##############################################################################
-['variant == jitless and not embedded_builtins', {
-  '*': [SKIP],
-}], # variant == jitless and not embedded_builtins
-
 ]

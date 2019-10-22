@@ -198,10 +198,6 @@ class BuildConfig(object):
     self.tsan = build_config['is_tsan']
     # TODO(machenbach): We only have ubsan not ubsan_vptr.
     self.ubsan_vptr = build_config['is_ubsan_vptr']
-    # TODO(https://crbug.com/v8/8519)
-    # 'v8_enable_embedded_builtins' was removed, 'embedded_builtins' can be
-    # removed as well.
-    self.embedded_builtins = True
     self.verify_csa = build_config['v8_enable_verify_csa']
     self.lite_mode = build_config['v8_enable_lite_mode']
     self.pointer_compression = build_config['v8_enable_pointer_compression']
@@ -236,8 +232,6 @@ class BuildConfig(object):
       detected_options.append('tsan')
     if self.ubsan_vptr:
       detected_options.append('ubsan_vptr')
-    if self.embedded_builtins:
-      detected_options.append('embedded_builtins')
     if self.verify_csa:
       detected_options.append('verify_csa')
     if self.lite_mode:
@@ -704,7 +698,6 @@ class BaseTestRunner(object):
       "system": self.target_os,
       "tsan": self.build_config.tsan,
       "ubsan_vptr": self.build_config.ubsan_vptr,
-      "embedded_builtins": self.build_config.embedded_builtins,
       "verify_csa": self.build_config.verify_csa,
       "lite_mode": self.build_config.lite_mode,
       "pointer_compression": self.build_config.pointer_compression,

@@ -591,11 +591,6 @@
 }], # variant == jitless
 
 ##############################################################################
-['variant == jitless and not embedded_builtins', {
-  '*': [SKIP],
-}], # variant == jitless and not embedded_builtins
-
-##############################################################################
 ['variant == turboprop', {
   # Require inlining.
   'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [SKIP],

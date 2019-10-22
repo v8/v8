@@ -79,10 +79,5 @@
   '*': [SKIP],
 }], # lite_mode or variant == jitless
 
-##############################################################################
-['variant == jitless and not embedded_builtins', {
-  '*': [SKIP],
-}], # variant == jitless and not embedded_builtins
-
 
 ]
