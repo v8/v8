@@ -220,7 +220,22 @@ class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
 ScavengerCollector::ScavengerCollector(Heap* heap)
     : isolate_(heap->isolate()), heap_(heap), parallel_scavenge_semaphore_(0) {}
 
+// Remove this crashkey after chromium:1010312 is fixed.
+class ScopedFullHeapCrashKey {
+ public:
+  explicit ScopedFullHeapCrashKey(Isolate* isolate) : isolate_(isolate) {
+    isolate_->AddCrashKey(v8::CrashKeyId::kDumpType, "heap");
+  }
+  ~ScopedFullHeapCrashKey() {
+    isolate_->AddCrashKey(v8::CrashKeyId::kDumpType, "");
+  }
+
+ private:
+  Isolate* isolate_ = nullptr;
+};
+
 void ScavengerCollector::CollectGarbage() {
+  ScopedFullHeapCrashKey collect_full_heap_dump_if_crash(isolate_);
   DCHECK(surviving_new_large_objects_.empty());
   ItemParallelJob job(isolate_->cancelable_task_manager(),
                       &parallel_scavenge_semaphore_);
@@ -437,22 +452,7 @@ void Scavenger::AddPageToSweeperIfNecessary(MemoryChunk* page) {
   }
 }
 
-// Remove this crashkey after chromium:1010312 is fixed.
-class ScopedFullHeapCrashKey {
- public:
-  explicit ScopedFullHeapCrashKey(Isolate* isolate) : isolate_(isolate) {
-    isolate_->AddCrashKey(v8::CrashKeyId::kDumpType, "heap");
-  }
-  ~ScopedFullHeapCrashKey() {
-    isolate_->AddCrashKey(v8::CrashKeyId::kDumpType, "");
-  }
-
- private:
-  Isolate* isolate_ = nullptr;
-};
-
 void Scavenger::ScavengePage(MemoryChunk* page) {
-  ScopedFullHeapCrashKey collect_full_heap_dump_if_crash(heap_->isolate());
   CodePageMemoryModificationScope memory_modification_scope(page);
   InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(page);
   RememberedSet<OLD_TO_NEW>::Iterate(
