@@ -1282,11 +1282,19 @@ void NativeModule::AddCodeSpace(
   if (jump_table && !is_first_code_space) {
     // Patch the new jump table(s) with existing functions. If this is the first
     // code space, there cannot be any functions that have been compiled yet.
+    const CodeSpaceData& new_code_space_data = code_space_data_.back();
     for (uint32_t slot_index = 0; slot_index < num_wasm_functions;
          ++slot_index) {
-      if (!code_table_[slot_index]) continue;
-      PatchJumpTableLocked(code_space_data_.back(), slot_index,
-                           code_table_[slot_index]->instruction_start());
+      if (code_table_[slot_index]) {
+        PatchJumpTableLocked(new_code_space_data, slot_index,
+                             code_table_[slot_index]->instruction_start());
+      } else if (lazy_compile_table_) {
+        Address lazy_compile_target =
+            lazy_compile_table_->instruction_start() +
+            JumpTableAssembler::LazyCompileSlotIndexToOffset(slot_index);
+        PatchJumpTableLocked(new_code_space_data, slot_index,
+                             lazy_compile_target);
+      }
     }
   }
 }
