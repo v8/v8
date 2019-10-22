@@ -701,6 +701,8 @@ RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
     TNode<Context> context, TNode<JSReceiver> maybe_regexp,
     TNode<String> string, const bool is_fastpath, Label* if_didnotmatch) {
   if (!is_fastpath) {
+    CallRuntime(Runtime::kIncrementUseCounter, context,
+                SmiConstant(v8::Isolate::kRegExpExecCalledOnSlowRegExp));
     ThrowIfNotInstanceType(context, maybe_regexp, JS_REG_EXP_TYPE,
                            "RegExp.prototype.exec");
   }
