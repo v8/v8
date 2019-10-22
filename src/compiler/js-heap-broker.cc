@@ -1629,6 +1629,7 @@ class SharedFunctionInfoData : public HeapObjectData {
                          Handle<SharedFunctionInfo> object);
 
   int builtin_id() const { return builtin_id_; }
+  int context_header_size() const { return context_header_size_; }
   BytecodeArrayData* GetBytecodeArray() const { return GetBytecodeArray_; }
   void SetSerializedForCompilation(JSHeapBroker* broker,
                                    FeedbackVectorRef feedback);
@@ -1656,6 +1657,7 @@ class SharedFunctionInfoData : public HeapObjectData {
 
  private:
   int const builtin_id_;
+  int context_header_size_;
   BytecodeArrayData* const GetBytecodeArray_;
   ZoneUnorderedSet<Handle<FeedbackVector>, Handle<FeedbackVector>::hash,
                    Handle<FeedbackVector>::equal_to>
@@ -1673,6 +1675,7 @@ SharedFunctionInfoData::SharedFunctionInfoData(
     : HeapObjectData(broker, storage, object),
       builtin_id_(object->HasBuiltinId() ? object->builtin_id()
                                          : Builtins::kNoBuiltinId),
+      context_header_size_(object->scope_info().ContextHeaderLength()),
       GetBytecodeArray_(
           object->HasBytecodeArray()
               ? broker->GetOrCreateData(object->GetBytecodeArray())
@@ -4026,6 +4029,12 @@ bool SharedFunctionInfoRef::IsSerializedForCompilation(
     FeedbackVectorRef feedback) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) return HasBytecodeArray();
   return data()->AsSharedFunctionInfo()->IsSerializedForCompilation(feedback);
+}
+
+int SharedFunctionInfoRef::context_header_size() const {
+  IF_BROKER_DISABLED_ACCESS_HANDLE_C(SharedFunctionInfo,
+                                     scope_info().ContextHeaderLength);
+  return data()->AsSharedFunctionInfo()->context_header_size();
 }
 
 void JSObjectRef::SerializeObjectCreateMap() {

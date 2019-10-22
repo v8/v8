@@ -1573,31 +1573,44 @@ BytecodeGraphBuilder::Environment* BytecodeGraphBuilder::CheckContextExtensions(
   // We only need to check up to the last-but-one depth, because the an eval
   // in the same scope as the variable itself has no way of shadowing it.
   for (uint32_t d = 0; d < depth; d++) {
-    Node* extension_slot =
-        NewNode(javascript()->LoadContext(d, Context::EXTENSION_INDEX, false));
+    Node* has_extension = NewNode(javascript()->HasContextExtension(d));
 
-    Node* check_no_extension =
-        NewNode(simplified()->ReferenceEqual(), extension_slot,
-                jsgraph()->TheHoleConstant());
-
-    NewBranch(check_no_extension);
-
+    Environment* undefined_extension_env;
+    NewBranch(has_extension);
     {
       SubEnvironment sub_environment(this);
+      NewIfTrue();
 
-      NewIfFalse();
-      // If there is an extension, merge into the slow path.
-      if (slow_environment == nullptr) {
-        slow_environment = environment();
-        NewMerge();
-      } else {
-        slow_environment->Merge(environment(),
-                                bytecode_analysis().GetInLivenessFor(
-                                    bytecode_iterator().current_offset()));
+      Node* extension_slot = NewNode(
+          javascript()->LoadContext(d, Context::EXTENSION_INDEX, false));
+
+      Node* check_no_extension =
+          NewNode(simplified()->ReferenceEqual(), extension_slot,
+                  jsgraph()->UndefinedConstant());
+
+      NewBranch(check_no_extension);
+      {
+        SubEnvironment sub_environment(this);
+
+        NewIfFalse();
+        // If there is an extension, merge into the slow path.
+        if (slow_environment == nullptr) {
+          slow_environment = environment();
+          NewMerge();
+        } else {
+          slow_environment->Merge(environment(),
+                                  bytecode_analysis().GetInLivenessFor(
+                                      bytecode_iterator().current_offset()));
+        }
       }
+      NewIfTrue();
+      undefined_extension_env = environment();
     }
-
-    NewIfTrue();
+    NewIfFalse();
+    environment()->Merge(undefined_extension_env,
+                         bytecode_analysis().GetInLivenessFor(
+                             bytecode_iterator().current_offset()));
+    mark_as_needing_eager_checkpoint(true);
     // Do nothing on if there is no extension, eventually falling through to
     // the fast path.
   }

@@ -785,6 +785,7 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
   Handle<SharedFunctionInfo> object() const;
 
   int builtin_id() const;
+  int context_header_size() const;
   BytecodeArrayRef GetBytecodeArray() const;
 
 #define DECL_ACCESSOR(type, name) type name() const;
