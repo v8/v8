@@ -1348,22 +1348,6 @@ MaybeHandle<String> Factory::NewExternalStringFromTwoByte(
   return external_string;
 }
 
-Handle<ExternalOneByteString> Factory::NewNativeSourceString(
-    const ExternalOneByteString::Resource* resource) {
-  size_t length = resource->length();
-  DCHECK_LE(length, static_cast<size_t>(String::kMaxLength));
-
-  Handle<Map> map = native_source_string_map();
-  Handle<ExternalOneByteString> external_string(
-      ExternalOneByteString::cast(New(map, AllocationType::kOld)), isolate());
-  external_string->set_length(static_cast<int>(length));
-  external_string->set_hash_field(String::kEmptyHashField);
-  external_string->SetResource(isolate(), resource);
-  isolate()->heap()->RegisterExternalString(*external_string);
-
-  return external_string;
-}
-
 Handle<JSStringIterator> Factory::NewJSStringIterator(Handle<String> string) {
   Handle<Map> map(isolate()->native_context()->initial_string_iterator_map(),
                   isolate());

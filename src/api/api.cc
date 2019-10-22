@@ -93,7 +93,6 @@
 #include "src/profiler/tick-sample.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/code-serializer.h"
-#include "src/snapshot/natives.h"
 #include "src/snapshot/partial-serializer.h"
 #include "src/snapshot/read-only-serializer.h"
 #include "src/snapshot/snapshot.h"
@@ -508,10 +507,6 @@ static inline bool IsExecutionTerminatingCheck(i::Isolate* isolate) {
            i::ReadOnlyRoots(isolate).termination_exception();
   }
   return false;
-}
-
-void V8::SetNativesDataBlob(StartupData* natives_blob) {
-  i::V8::SetNativesBlob(natives_blob);
 }
 
 void V8::SetSnapshotDataBlob(StartupData* snapshot_blob) {
@@ -5625,9 +5620,6 @@ void v8::V8::ShutdownPlatform() { i::V8::ShutdownPlatform(); }
 
 bool v8::V8::Initialize() {
   i::V8::Initialize();
-#ifdef V8_USE_EXTERNAL_STARTUP_DATA
-  i::ReadNatives();
-#endif
   return true;
 }
 
@@ -5683,9 +5675,6 @@ void v8::V8::SetReturnAddressLocationResolver(
 
 bool v8::V8::Dispose() {
   i::V8::TearDown();
-#ifdef V8_USE_EXTERNAL_STARTUP_DATA
-  i::DisposeNatives();
-#endif
   return true;
 }
 
@@ -5732,11 +5721,6 @@ bool v8::V8::InitializeICUDefaultLocation(const char* exec_path,
 
 void v8::V8::InitializeExternalStartupData(const char* directory_path) {
   i::InitializeExternalStartupData(directory_path);
-}
-
-void v8::V8::InitializeExternalStartupData(const char* natives_blob,
-                                           const char* snapshot_blob) {
-  i::InitializeExternalStartupData(natives_blob, snapshot_blob);
 }
 
 // static

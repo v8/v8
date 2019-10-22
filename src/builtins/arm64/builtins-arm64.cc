@@ -39,30 +39,6 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address) {
           RelocInfo::CODE_TARGET);
 }
 
-void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- x0     : number of arguments
-  //  -- lr     : return address
-  //  -- sp[...]: constructor arguments
-  // -----------------------------------
-  ASM_LOCATION("Builtins::Generate_InternalArrayConstructor");
-
-  if (FLAG_debug_code) {
-    // Initial map for the builtin InternalArray functions should be maps.
-    __ LoadTaggedPointerField(
-        x10, FieldMemOperand(x1, JSFunction::kPrototypeOrInitialMapOffset));
-    __ Tst(x10, kSmiTagMask);
-    __ Assert(ne, AbortReason::kUnexpectedInitialMapForInternalArrayFunction);
-    __ CompareObjectType(x10, x11, x12, MAP_TYPE);
-    __ Assert(eq, AbortReason::kUnexpectedInitialMapForInternalArrayFunction);
-  }
-
-  // Run the native code for the InternalArray function called as a normal
-  // function.
-  __ Jump(BUILTIN_CODE(masm->isolate(), InternalArrayConstructorImpl),
-          RelocInfo::CODE_TARGET);
-}
-
 static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
                                            Runtime::FunctionId function_id) {
   // ----------- S t a t e -------------
@@ -3348,55 +3324,6 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   __ Poke(result, kArgumentOffset);
   __ Pop(scratch1, result);
   __ Ret();
-}
-
-void Builtins::Generate_InternalArrayConstructorImpl(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- x0 : argc
-  //  -- x1 : constructor
-  //  -- sp[0] : return address
-  //  -- sp[4] : last argument
-  // -----------------------------------
-
-  Register constructor = x1;
-
-  if (FLAG_debug_code) {
-    // The array construct code is only set for the global and natives
-    // builtin Array functions which always have maps.
-
-    Label unexpected_map, map_ok;
-    // Initial map for the builtin Array function should be a map.
-    __ LoadTaggedPointerField(
-        x10,
-        FieldMemOperand(constructor, JSFunction::kPrototypeOrInitialMapOffset));
-    // Will both indicate a nullptr and a Smi.
-    __ JumpIfSmi(x10, &unexpected_map);
-    __ JumpIfObjectType(x10, x10, x11, MAP_TYPE, &map_ok);
-    __ Bind(&unexpected_map);
-    __ Abort(AbortReason::kUnexpectedInitialMapForArrayFunction);
-    __ Bind(&map_ok);
-
-    Register kind = w3;
-    // Figure out the right elements kind
-    __ LoadTaggedPointerField(
-        x10,
-        FieldMemOperand(constructor, JSFunction::kPrototypeOrInitialMapOffset));
-
-    // Retrieve elements_kind from map.
-    __ LoadElementsKindFromMap(kind, x10);
-
-    // Initial elements kind should be packed elements.
-    __ Cmp(kind, PACKED_ELEMENTS);
-    __ Assert(eq, AbortReason::kInvalidElementsKindForInternalPackedArray);
-
-    // No arguments should be passed.
-    __ Cmp(x0, 0);
-    __ Assert(eq, AbortReason::kWrongNumberOfArgumentsForInternalPackedArray);
-  }
-
-  __ Jump(
-      BUILTIN_CODE(masm->isolate(), InternalArrayNoArgumentConstructor_Packed),
-      RelocInfo::CODE_TARGET);
 }
 
 namespace {

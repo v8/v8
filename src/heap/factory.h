@@ -372,10 +372,6 @@ class V8_EXPORT_PRIVATE Factory {
       const ExternalOneByteString::Resource* resource);
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewExternalStringFromTwoByte(
       const ExternalTwoByteString::Resource* resource);
-  // Create a new external string object for one-byte encoded native script.
-  // It does not cache the resource data pointer.
-  Handle<ExternalOneByteString> NewNativeSourceString(
-      const ExternalOneByteString::Resource* resource);
 
   // Create a symbol in old or read-only space.
   Handle<Symbol> NewSymbol(AllocationType allocation = AllocationType::kOld);

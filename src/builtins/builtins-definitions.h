@@ -312,9 +312,6 @@ namespace internal {
   TFC(ArraySingleArgumentConstructor_HoleyDouble_DisableAllocationSites,       \
       ArraySingleArgumentConstructor)                                          \
   TFC(ArrayNArgumentsConstructor, ArrayNArgumentsConstructor)                  \
-  ASM(InternalArrayConstructor, JSTrampoline)                                  \
-  ASM(InternalArrayConstructorImpl, JSTrampoline)                              \
-  TFC(InternalArrayNoArgumentConstructor_Packed, ArrayNoArgumentConstructor)   \
   CPP(ArrayConcat)                                                             \
   /* ES6 #sec-array.isarray */                                                 \
   TFJ(ArrayIsArray, 1, kReceiver, kArg)                                        \
@@ -524,10 +521,6 @@ namespace internal {
   CPP(MakeSyntaxError)                                                         \
   CPP(MakeTypeError)                                                           \
   CPP(MakeURIError)                                                            \
-                                                                               \
-  /* ExtrasUtils */                                                            \
-  CPP(ExtrasUtilsUncurryThis)                                                  \
-  CPP(ExtrasUtilsCallReflectApply)                                             \
                                                                                \
   /* Function */                                                               \
   CPP(FunctionConstructor)                                                     \
@@ -805,12 +798,6 @@ namespace internal {
   TFJ(PromiseAllSettled, 1, kReceiver, kIterable)                              \
   TFJ(PromiseAllSettledResolveElementClosure, 1, kReceiver, kValue)            \
   TFJ(PromiseAllSettledRejectElementClosure, 1, kReceiver, kValue)             \
-  /* V8 Extras: v8.createPromise(parent) */                                    \
-  TFJ(PromiseInternalConstructor, 1, kReceiver, kParent)                       \
-  /* V8 Extras: v8.rejectPromise(promise, reason) */                           \
-  TFJ(PromiseInternalReject, 2, kReceiver, kPromise, kReason)                  \
-  /* V8 Extras: v8.resolvePromise(promise, resolution) */                      \
-  TFJ(PromiseInternalResolve, 2, kReceiver, kPromise, kResolution)             \
                                                                                \
   /* Reflect */                                                                \
   ASM(ReflectApply, Dummy)                                                     \

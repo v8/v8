@@ -385,16 +385,6 @@ bool Heap::CreateInitialMaps() {
       roots_table()[entry.index] = map.ptr();
     }
 
-    {  // Create a separate external one byte string map for native sources.
-      Map map;
-      AllocationResult allocation =
-          AllocateMap(UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE,
-                      ExternalOneByteString::kUncachedSize);
-      if (!allocation.To(&map)) return false;
-      map.SetConstructorFunctionIndex(Context::STRING_FUNCTION_INDEX);
-      set_native_source_string_map(map);
-    }
-
     ALLOCATE_VARSIZE_MAP(FIXED_DOUBLE_ARRAY_TYPE, fixed_double_array)
     roots.fixed_double_array_map().set_elements_kind(HOLEY_DOUBLE_ELEMENTS);
     ALLOCATE_VARSIZE_MAP(FEEDBACK_METADATA_TYPE, feedback_metadata)

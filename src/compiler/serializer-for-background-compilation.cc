@@ -2109,19 +2109,6 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
         ProcessHintsForPromiseResolve(resolution_hints);
       }
       break;
-    case Builtins::kPromiseInternalResolve:
-      // For JSCallReducer::ReducePromiseInternalResolve and
-      // JSNativeContextSpecialization::ReduceJSResolvePromise.
-      if (arguments.size() >= 2) {
-        Hints const& resolution_hints =
-            arguments.size() >= 3
-                ? arguments[2]
-                : Hints::SingleConstant(
-                      broker()->isolate()->factory()->undefined_value(),
-                      zone());
-        ProcessHintsForPromiseResolve(resolution_hints);
-      }
-      break;
     case Builtins::kRegExpPrototypeTest:
     case Builtins::kRegExpPrototypeTestFast:
       // For JSCallReducer::ReduceRegExpPrototypeTest.

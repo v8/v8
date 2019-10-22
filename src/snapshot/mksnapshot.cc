@@ -14,7 +14,6 @@
 #include "src/flags/flags.h"
 #include "src/sanitizer/msan.h"
 #include "src/snapshot/embedded/embedded-file-writer.h"
-#include "src/snapshot/natives.h"
 #include "src/snapshot/partial-serializer.h"
 #include "src/snapshot/snapshot.h"
 #include "src/snapshot/startup-serializer.h"

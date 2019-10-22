@@ -2233,16 +2233,5 @@ GENERATE_ARRAY_CTOR(SingleArgument, HoleyDouble, HOLEY_DOUBLE_ELEMENTS,
 
 #undef GENERATE_ARRAY_CTOR
 
-TF_BUILTIN(InternalArrayNoArgumentConstructor_Packed, ArrayBuiltinsAssembler) {
-  using Descriptor = ArrayNoArgumentConstructorDescriptor;
-  TNode<Map> array_map =
-      CAST(LoadObjectField(Parameter(Descriptor::kFunction),
-                           JSFunction::kPrototypeOrInitialMapOffset));
-  TNode<JSArray> array = AllocateJSArray(
-      PACKED_ELEMENTS, array_map,
-      IntPtrConstant(JSArray::kPreallocatedArrayElements), SmiConstant(0));
-  Return(array);
-}
-
 }  // namespace internal
 }  // namespace v8

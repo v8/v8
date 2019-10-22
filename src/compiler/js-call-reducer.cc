@@ -3673,12 +3673,6 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceArrayIterator(node, IterationKind::kKeys);
     case Builtins::kTypedArrayPrototypeValues:
       return ReduceArrayIterator(node, IterationKind::kValues);
-    case Builtins::kPromiseInternalConstructor:
-      return ReducePromiseInternalConstructor(node);
-    case Builtins::kPromiseInternalReject:
-      return ReducePromiseInternalReject(node);
-    case Builtins::kPromiseInternalResolve:
-      return ReducePromiseInternalResolve(node);
     case Builtins::kPromisePrototypeCatch:
       return ReducePromisePrototypeCatch(node);
     case Builtins::kPromisePrototypeFinally:
@@ -5811,70 +5805,6 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
 
   ReplaceWithValue(node, promise, effect, control);
   return Replace(promise);
-}
-
-// V8 Extras: v8.createPromise(parent)
-Reduction JSCallReducer::ReducePromiseInternalConstructor(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-
-  // Check that promises aren't being observed through (debug) hooks.
-  if (!dependencies()->DependOnPromiseHookProtector()) return NoChange();
-
-  // Create a new pending promise.
-  Node* value = effect =
-      graph()->NewNode(javascript()->CreatePromise(), context, effect);
-
-  ReplaceWithValue(node, value, effect);
-  return Replace(value);
-}
-
-// V8 Extras: v8.rejectPromise(promise, reason)
-Reduction JSCallReducer::ReducePromiseInternalReject(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-  Node* promise = node->op()->ValueInputCount() >= 2
-                      ? NodeProperties::GetValueInput(node, 2)
-                      : jsgraph()->UndefinedConstant();
-  Node* reason = node->op()->ValueInputCount() >= 3
-                     ? NodeProperties::GetValueInput(node, 3)
-                     : jsgraph()->UndefinedConstant();
-  Node* debug_event = jsgraph()->TrueConstant();
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-
-  // Reject the {promise} using the given {reason}, and trigger debug logic.
-  Node* value = effect =
-      graph()->NewNode(javascript()->RejectPromise(), promise, reason,
-                       debug_event, context, frame_state, effect, control);
-
-  ReplaceWithValue(node, value, effect, control);
-  return Replace(value);
-}
-
-// V8 Extras: v8.resolvePromise(promise, resolution)
-Reduction JSCallReducer::ReducePromiseInternalResolve(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-  Node* promise = node->op()->ValueInputCount() >= 2
-                      ? NodeProperties::GetValueInput(node, 2)
-                      : jsgraph()->UndefinedConstant();
-  Node* resolution = node->op()->ValueInputCount() >= 3
-                         ? NodeProperties::GetValueInput(node, 3)
-                         : jsgraph()->UndefinedConstant();
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-
-  // Resolve the {promise} using the given {resolution}.
-  Node* value = effect =
-      graph()->NewNode(javascript()->ResolvePromise(), promise, resolution,
-                       context, frame_state, effect, control);
-
-  ReplaceWithValue(node, value, effect, control);
-  return Replace(value);
 }
 
 bool JSCallReducer::DoPromiseChecks(MapInference* inference) {

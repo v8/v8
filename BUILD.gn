@@ -154,10 +154,6 @@ declare_args() {
   # Controls the threshold for on-heap/off-heap Typed Arrays.
   v8_typed_array_max_size_in_heap = 64
 
-  # List of extra files to snapshot. They will be snapshotted in order so
-  # if files export symbols used by later files, they should go first.
-  v8_extra_library_files = []
-
   v8_enable_gdbjit =
       ((v8_current_cpu == "x86" || v8_current_cpu == "x64") &&
        (is_linux || is_mac)) || (v8_current_cpu == "ppc64" && is_linux)
@@ -260,10 +256,6 @@ assert(!v8_enable_lite_mode || v8_enable_embedded_builtins,
 assert(
     !v8_enable_pointer_compression || !v8_enable_shared_ro_heap,
     "Pointer compression is not supported with shared read-only heap enabled")
-
-assert(v8_extra_library_files == [],
-       "v8_extra_library_files is no longer supported. Consider implementing " +
-           "custom API in C++ instead.")
 
 v8_random_seed = "314159265"
 v8_toolset_for_shell = "host"
@@ -826,31 +818,6 @@ template("asm_to_inline_asm") {
   }
 }
 
-action("js2c_extras") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
-
-  script = "tools/js2c.py"
-
-  sources = v8_extra_library_files
-
-  outputs = [
-    "$target_gen_dir/extras-libraries.cc",
-  ]
-
-  args = [
-           rebase_path("$target_gen_dir/extras-libraries.cc", root_build_dir),
-           "EXTRAS",
-         ] + rebase_path(sources, root_build_dir)
-
-  if (v8_use_external_startup_data) {
-    outputs += [ "$target_gen_dir/libraries_extras.bin" ]
-    args += [
-      "--startup_blob",
-      rebase_path("$target_gen_dir/libraries_extras.bin", root_build_dir),
-    ]
-  }
-}
-
 if (is_android && enable_java_templates) {
   android_assets("v8_external_startup_data_assets") {
     if (v8_use_external_startup_data) {
@@ -858,9 +825,6 @@ if (is_android && enable_java_templates) {
       assert(!v8_use_multi_snapshots)
       deps = [
         "//v8",
-      ]
-      sources = [
-        "$root_out_dir/natives_blob.bin",
       ]
       renaming_sources = [ "$root_out_dir/snapshot_blob.bin" ]
       if (current_cpu == "arm" || current_cpu == "x86" ||
@@ -871,33 +835,6 @@ if (is_android && enable_java_templates) {
       }
       disable_compression = true
     }
-  }
-}
-
-if (v8_use_external_startup_data) {
-  action("natives_blob") {
-    visibility = [ ":*" ]  # Only targets in this file can depend on this.
-
-    deps = [
-      ":js2c_extras",
-    ]
-
-    # NOSORT
-    sources = [
-      "$target_gen_dir/libraries_extras.bin",
-    ]
-
-    outputs = [
-      "$root_out_dir/natives_blob.bin",
-    ]
-
-    data = [
-      "$root_out_dir/natives_blob.bin",
-    ]
-
-    script = "tools/concatenate-files.py"
-
-    args = rebase_path(sources + outputs, root_build_dir)
   }
 }
 
@@ -1010,7 +947,6 @@ torque_files = [
   "src/builtins/boolean.tq",
   "src/builtins/collections.tq",
   "src/builtins/data-view.tq",
-  "src/builtins/extras-utils.tq",
   "src/builtins/frames.tq",
   "src/builtins/growable-fixed-array.tq",
   "src/builtins/internal-coverage.tq",
@@ -1411,7 +1347,6 @@ v8_source_set("v8_nosnapshot") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   deps = [
-    ":js2c_extras",
     ":torque_generated_initializers",
   ]
 
@@ -1420,7 +1355,6 @@ v8_source_set("v8_nosnapshot") {
   ]
 
   sources = [
-    "$target_gen_dir/extras-libraries.cc",
     "src/snapshot/embedded/embedded-empty.cc",
     "src/snapshot/snapshot-empty.cc",
   ]
@@ -1437,10 +1371,6 @@ if (!v8_use_external_startup_data) {
       "//:gn_visibility",
     ]
 
-    deps = [
-      ":js2c_extras",
-    ]
-
     public_deps = [
       # This should be public so downstream targets can declare the snapshot
       # output file as their inputs.
@@ -1452,7 +1382,6 @@ if (!v8_use_external_startup_data) {
     public = []
 
     sources = [
-      "$target_gen_dir/extras-libraries.cc",
       "$target_gen_dir/snapshot.cc",
       "src/init/setup-isolate-deserialize.cc",
     ]
@@ -1475,11 +1404,9 @@ if (v8_use_external_startup_data) {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
     deps = [
-      ":js2c_extras",
       ":v8_base",
     ]
     public_deps = [
-      ":natives_blob",
       ":run_mksnapshot_default",
     ]
 
@@ -1489,7 +1416,6 @@ if (v8_use_external_startup_data) {
 
     sources = [
       "src/init/setup-isolate-deserialize.cc",
-      "src/snapshot/natives-external.cc",
       "src/snapshot/snapshot-external.cc",
     ]
 
@@ -2096,7 +2022,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/builtins/builtins-definitions.h",
     "src/builtins/builtins-descriptors.h",
     "src/builtins/builtins-error.cc",
-    "src/builtins/builtins-extras-utils.cc",
     "src/builtins/builtins-function.cc",
     "src/builtins/builtins-global.cc",
     "src/builtins/builtins-internal.cc",
@@ -2859,8 +2784,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/snapshot/deserializer.h",
     "src/snapshot/embedded/embedded-data.cc",
     "src/snapshot/embedded/embedded-data.h",
-    "src/snapshot/natives-common.cc",
-    "src/snapshot/natives.h",
     "src/snapshot/object-deserializer.cc",
     "src/snapshot/object-deserializer.h",
     "src/snapshot/partial-deserializer.cc",
@@ -4017,8 +3940,6 @@ if (v8_enable_i18n_support) {
 
     script = "tools/run.py"
 
-    sources = v8_extra_library_files
-
     deps = [
       ":gen-regexp-special-case($v8_generator_toolchain)",
     ]
@@ -4551,7 +4472,6 @@ group("v8_generated_cc_files") {
 
   deps = [
     ":generate_bytecode_builtins_list",
-    ":js2c_extras",
     ":run_torque",
     "src/inspector:v8_generated_cc_files",
   ]

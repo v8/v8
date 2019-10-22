@@ -22,7 +22,6 @@
 #include "src/objects/smi.h"
 #include "src/objects/string.h"
 #include "src/roots/roots.h"
-#include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tracing/trace-event.h"
 #include "src/tracing/traced-value.h"
@@ -267,21 +266,13 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj,
     call_handler_infos_.push_back(CallHandlerInfo::cast(obj));
 #endif
   } else if (obj.IsExternalString()) {
-    if (obj.map() == ReadOnlyRoots(isolate_).native_source_string_map()) {
-      ExternalOneByteString string = ExternalOneByteString::cast(obj);
-      DCHECK(string.is_uncached());
-      string.SetResource(
-          isolate_, NativesExternalStringResource::DecodeForDeserialization(
-                        string.resource()));
-    } else {
-      ExternalString string = ExternalString::cast(obj);
-      uint32_t index = string.resource_as_uint32();
-      Address address =
-          static_cast<Address>(isolate_->api_external_references()[index]);
-      string.set_address_as_resource(address);
-      isolate_->heap()->UpdateExternalString(string, 0,
-                                             string.ExternalPayloadSize());
-    }
+    ExternalString string = ExternalString::cast(obj);
+    uint32_t index = string.resource_as_uint32();
+    Address address =
+        static_cast<Address>(isolate_->api_external_references()[index]);
+    string.set_address_as_resource(address);
+    isolate_->heap()->UpdateExternalString(string, 0,
+                                           string.ExternalPayloadSize());
     isolate_->heap()->RegisterExternalString(String::cast(obj));
   } else if (obj.IsJSDataView()) {
     JSDataView data_view = JSDataView::cast(obj);
