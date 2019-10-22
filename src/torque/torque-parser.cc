@@ -873,6 +873,10 @@ base::Optional<ParseResult> MakeSpecializationDeclaration(
 
 base::Optional<ParseResult> MakeStructDeclaration(
     ParseResultIterator* child_results) {
+  bool is_export = child_results->NextAs<bool>();
+  StructFlags flags = StructFlag::kNone;
+  if (is_export) flags |= StructFlag::kExport;
+
   auto name = child_results->NextAs<Identifier*>();
   if (!IsValidTypeName(name->value)) {
     NamingConventionError("Struct", name, "UpperCamelCase");
@@ -881,9 +885,9 @@ base::Optional<ParseResult> MakeStructDeclaration(
   LintGenericParameters(generic_parameters);
   auto methods = child_results->NextAs<std::vector<Declaration*>>();
   auto fields = child_results->NextAs<std::vector<StructFieldExpression>>();
-  Declaration* result =
-      MakeNode<StructDeclaration>(name, std::move(methods), std::move(fields),
-                                  std::move(generic_parameters));
+  Declaration* result = MakeNode<StructDeclaration>(
+      flags, name, std::move(methods), std::move(fields),
+      std::move(generic_parameters));
   return ParseResult{result};
 }
 
@@ -1998,7 +2002,7 @@ struct TorqueGrammar : Grammar {
                 Sequence({Token("generates"), &externalString})),
             &optionalClassBody},
            AsSingletonVector<Declaration*, MakeClassDeclaration>()),
-      Rule({Token("struct"), &name,
+      Rule({CheckIf(Token("@export")), Token("struct"), &name,
             TryOrDefault<GenericParameters>(&genericParameters), Token("{"),
             List<Declaration*>(&method),
             List<StructFieldExpression>(&structField), Token("}")},

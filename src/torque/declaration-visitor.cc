@@ -339,8 +339,9 @@ Callable* DeclarationVisitor::Specialize(
         Declarations::CreateIntrinsic(declaration->name->value, type_signature);
   } else {
     BuiltinDeclaration* builtin = BuiltinDeclaration::cast(declaration);
-    callable = CreateBuiltin(builtin, generated_name, readable_name.str(),
-                             type_signature, *body);
+    callable =
+        CreateBuiltin(builtin, GlobalContext::MakeUniqueName(generated_name),
+                      readable_name.str(), type_signature, *body);
   }
   key.generic->specializations().Add(key.specialized_types, callable);
   return callable;

@@ -106,6 +106,9 @@ enum class ClassFlag {
 };
 using ClassFlags = base::Flags<ClassFlag>;
 
+enum class StructFlag { kNone = 0, kExport = 1 << 0 };
+using StructFlags = base::Flags<StructFlag>;
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8

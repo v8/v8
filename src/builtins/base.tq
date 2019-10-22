@@ -3708,6 +3708,7 @@ macro ConvertToRelativeIndex(indexNumber: Number, lengthIntPtr: intptr):
 extern builtin ObjectToString(Context, JSAny): JSAny;
 extern builtin StringRepeat(Context, String, Number): String;
 
+@export
 struct KeyValuePair {
   key: JSAny;
   value: JSAny;

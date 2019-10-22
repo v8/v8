@@ -15,6 +15,15 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
+// This custom copy constructor doesn't copy aliases_ and id_ because they
+// should be distinct for each type.
+Type::Type(const Type& other) V8_NOEXCEPT : TypeBase(other),
+                                            parent_(other.parent_),
+                                            aliases_(),
+                                            id_(TypeOracle::FreshTypeId()) {}
+Type::Type(TypeBase::Kind kind, const Type* parent)
+    : TypeBase(kind), parent_(parent), id_(TypeOracle::FreshTypeId()) {}
+
 std::string Type::ToString() const {
   if (aliases_.size() == 0) return ToExplicitString();
   if (aliases_.size() == 1) return *aliases_.begin();
@@ -32,6 +41,11 @@ std::string Type::ToString() const {
   }
   result << ")";
   return result.str();
+}
+
+std::string Type::SimpleName() const {
+  if (aliases_.empty()) return SimpleNameImpl();
+  return *aliases_.begin();
 }
 
 bool Type::IsSubtypeOf(const Type* supertype) const {
@@ -116,15 +130,13 @@ std::string BuiltinPointerType::ToExplicitString() const {
   return result.str();
 }
 
-std::string BuiltinPointerType::MangledName() const {
+std::string BuiltinPointerType::SimpleNameImpl() const {
   std::stringstream result;
-  result << "FT";
+  result << "BuiltinPointer";
   for (const Type* t : parameter_types_) {
-    std::string arg_type_string = t->MangledName();
-    result << arg_type_string.size() << arg_type_string;
+    result << "_" << t->SimpleName();
   }
-  std::string return_type_string = return_type_->MangledName();
-  result << return_type_string.size() << return_type_string;
+  result << "_" << return_type_->SimpleName();
   return result.str();
 }
 
@@ -143,12 +155,15 @@ std::string UnionType::ToExplicitString() const {
   return result.str();
 }
 
-std::string UnionType::MangledName() const {
+std::string UnionType::SimpleNameImpl() const {
   std::stringstream result;
-  result << "UT";
+  bool first = true;
   for (const Type* t : types_) {
-    std::string arg_type_string = t->MangledName();
-    result << arg_type_string.size() << arg_type_string;
+    if (!first) {
+      result << "_OR_";
+    }
+    first = false;
+    result << t->SimpleName();
   }
   return result.str();
 }
@@ -273,8 +288,22 @@ const Field& AggregateType::LookupField(const std::string& name) const {
   return LookupFieldInternal(name);
 }
 
+StructType::StructType(Namespace* nspace, const StructDeclaration* decl,
+                       MaybeSpecializationKey specialized_from)
+    : AggregateType(Kind::kStructType, nullptr, nspace,
+                    ComputeName(decl->name->value, specialized_from)),
+      decl_(decl),
+      specialized_from_(specialized_from) {
+  if (decl->flags & StructFlag::kExport) {
+    generated_type_name_ = "TorqueStruct" + name();
+  } else {
+    generated_type_name_ =
+        GlobalContext::MakeUniqueName("TorqueStruct" + SimpleName());
+  }
+}
+
 std::string StructType::GetGeneratedTypeNameImpl() const {
-  return "TorqueStruct" + MangledName();
+  return generated_type_name_;
 }
 
 // static
@@ -296,15 +325,12 @@ std::string StructType::ComputeName(
   return s.str();
 }
 
-std::string StructType::MangledName() const {
+std::string StructType::SimpleNameImpl() const {
   std::stringstream result;
-  // TODO(gsps): Add 'ST' as a prefix once we can control the generated type
-  // name from Torque code
   result << decl_->name->value;
   if (specialized_from_) {
     for (const Type* t : specialized_from_->specialized_types) {
-      std::string arg_type_string = t->MangledName();
-      result << arg_type_string.size() << arg_type_string;
+      result << "_" << t->SimpleName();
     }
   }
   return result.str();
@@ -589,9 +615,7 @@ bool IsAssignableFrom(const Type* to, const Type* from) {
   return TypeOracle::IsImplicitlyConvertableFrom(to, from);
 }
 
-bool operator<(const Type& a, const Type& b) {
-  return a.MangledName() < b.MangledName();
-}
+bool operator<(const Type& a, const Type& b) { return a.id() < b.id(); }
 
 VisitResult ProjectStructField(VisitResult structure,
                                const std::string& fieldname) {

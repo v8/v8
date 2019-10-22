@@ -6,6 +6,7 @@
 
 namespace iterator {
   // Returned from IteratorBuiltinsAssembler::GetIterator().
+  @export
   struct IteratorRecord {
     // iteratorRecord.[[Iterator]]
     object: JSReceiver;

@@ -1061,14 +1061,16 @@ struct ExternConstDeclaration : Declaration {
 
 struct StructDeclaration : TypeDeclaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(StructDeclaration)
-  StructDeclaration(SourcePosition pos, Identifier* name,
+  StructDeclaration(SourcePosition pos, StructFlags flags, Identifier* name,
                     std::vector<Declaration*> methods,
                     std::vector<StructFieldExpression> fields,
                     std::vector<Identifier*> generic_parameters)
       : TypeDeclaration(kKind, pos, name),
+        flags(flags),
         methods(std::move(methods)),
         fields(std::move(fields)),
         generic_parameters(std::move(generic_parameters)) {}
+  StructFlags flags;
   std::vector<Declaration*> methods;
   std::vector<StructFieldExpression> fields;
   std::vector<Identifier*> generic_parameters;
