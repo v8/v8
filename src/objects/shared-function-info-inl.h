@@ -706,14 +706,14 @@ String SharedFunctionInfo::inferred_name() {
   return GetReadOnlyRoots().empty_string();
 }
 
-bool SharedFunctionInfo::IsUserJavaScript() {
+bool SharedFunctionInfo::IsUserJavaScript() const {
   Object script_obj = script();
   if (script_obj.IsUndefined()) return false;
   Script script = Script::cast(script_obj);
   return script.IsUserJavaScript();
 }
 
-bool SharedFunctionInfo::IsSubjectToDebugging() {
+bool SharedFunctionInfo::IsSubjectToDebugging() const {
   return IsUserJavaScript() && !HasAsmWasmData();
 }
 

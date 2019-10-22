@@ -1852,12 +1852,13 @@ void SerializerForBackgroundCompilation::ProcessCalleeForCallOrConstruct(
   Handle<SharedFunctionInfo> shared = callee.shared(broker()->isolate());
   if (shared->IsApiFunction()) {
     ProcessApiCall(shared, arguments);
-    DCHECK(!shared->IsInlineable());
+    DCHECK_NE(shared->GetInlineability(), SharedFunctionInfo::kIsInlineable);
   } else if (shared->HasBuiltinId()) {
     ProcessBuiltinCall(shared, new_target, arguments, speculation_mode,
                        padding);
-    DCHECK(!shared->IsInlineable());
-  } else if (shared->IsInlineable() && callee.HasFeedbackVector()) {
+    DCHECK_NE(shared->GetInlineability(), SharedFunctionInfo::kIsInlineable);
+  } else if (shared->GetInlineability() == SharedFunctionInfo::kIsInlineable &&
+             callee.HasFeedbackVector()) {
     CompilationSubject subject =
         callee.ToCompilationSubject(broker()->isolate(), zone());
     environment()->accumulator_hints().Add(

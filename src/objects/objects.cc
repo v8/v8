@@ -4640,7 +4640,7 @@ bool Script::GetPositionInfo(Handle<Script> script, int position,
   return script->GetPositionInfo(position, info, offset_flag);
 }
 
-bool Script::IsUserJavaScript() { return type() == Script::TYPE_NORMAL; }
+bool Script::IsUserJavaScript() const { return type() == Script::TYPE_NORMAL; }
 
 bool Script::ContainsAsmModule() {
   DisallowHeapAllocation no_gc;
@@ -5216,64 +5216,34 @@ Handle<Object> SharedFunctionInfo::GetSourceCodeHarmony(
   return builder.Finish().ToHandleChecked();
 }
 
-namespace {
-void TraceInlining(SharedFunctionInfo shared, const char* msg) {
-  if (FLAG_trace_turbo_inlining) {
-    StdoutStream os;
-    os << Brief(shared) << ": IsInlineable? " << msg << "\n";
-  }
-}
-}  // namespace
-
-bool SharedFunctionInfo::IsInlineable() {
-  if (!script().IsScript()) {
-    TraceInlining(*this, "false (no Script associated with it)");
-    return false;
-  }
+SharedFunctionInfo::Inlineability SharedFunctionInfo::GetInlineability() const {
+  if (!script().IsScript()) return kHasNoScript;
 
   if (GetIsolate()->is_precise_binary_code_coverage() &&
       !has_reported_binary_coverage()) {
     // We may miss invocations if this function is inlined.
-    TraceInlining(*this, "false (requires reported binary coverage)");
-    return false;
+    return kNeedsBinaryCoverage;
   }
 
-  if (optimization_disabled()) {
-    TraceInlining(*this, "false (optimization disabled)");
-    return false;
-  }
+  if (optimization_disabled()) return kHasOptimizationDisabled;
 
   // Built-in functions are handled by the JSCallReducer.
-  if (HasBuiltinId()) {
-    TraceInlining(*this, "false (is a builtin)");
-    return false;
-  }
+  if (HasBuiltinId()) return kIsBuiltin;
 
-  if (!IsUserJavaScript()) {
-    TraceInlining(*this, "false (is not user code)");
-    return false;
-  }
+  if (!IsUserJavaScript()) return kIsNotUserCode;
 
   // If there is no bytecode array, it is either not compiled or it is compiled
   // with WebAssembly for the asm.js pipeline. In either case we don't want to
   // inline.
-  if (!HasBytecodeArray()) {
-    TraceInlining(*this, "false (has no BytecodeArray)");
-    return false;
-  }
+  if (!HasBytecodeArray()) return kHasNoBytecode;
 
   if (GetBytecodeArray().length() > FLAG_max_inlined_bytecode_size) {
-    TraceInlining(*this, "false (length > FLAG_max_inlined_bytecode_size)");
-    return false;
+    return kExceedsBytecodeLimit;
   }
 
-  if (HasBreakInfo()) {
-    TraceInlining(*this, "false (may contain break points)");
-    return false;
-  }
+  if (HasBreakInfo()) return kMayContainBreakPoints;
 
-  TraceInlining(*this, "true");
-  return true;
+  return kIsInlineable;
 }
 
 int SharedFunctionInfo::SourceSize() { return EndPosition() - StartPosition(); }

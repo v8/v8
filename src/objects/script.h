@@ -180,7 +180,7 @@ class Script : public Struct {
   V8_EXPORT_PRIVATE bool GetPositionInfo(int position, PositionInfo* info,
                                          OffsetFlag offset_flag) const;
 
-  bool IsUserJavaScript();
+  bool IsUserJavaScript() const;
 
   // Wrappers for GetPositionInfo
   static int GetColumnNumber(Handle<Script> script, int code_offset);

@@ -761,21 +761,21 @@ class ScopeInfoRef : public HeapObjectRef {
   int ContextLength() const;
 };
 
-#define BROKER_SFI_FIELDS(V)                 \
-  V(int, internal_formal_parameter_count)    \
-  V(bool, has_duplicate_parameters)          \
-  V(int, function_map_index)                 \
-  V(FunctionKind, kind)                      \
-  V(LanguageMode, language_mode)             \
-  V(bool, native)                            \
-  V(bool, HasBreakInfo)                      \
-  V(bool, HasBuiltinId)                      \
-  V(bool, construct_as_builtin)              \
-  V(bool, HasBytecodeArray)                  \
-  V(bool, is_safe_to_skip_arguments_adaptor) \
-  V(bool, IsInlineable)                      \
-  V(int, StartPosition)                      \
-  V(bool, is_compiled)                       \
+#define BROKER_SFI_FIELDS(V)                             \
+  V(int, internal_formal_parameter_count)                \
+  V(bool, has_duplicate_parameters)                      \
+  V(int, function_map_index)                             \
+  V(FunctionKind, kind)                                  \
+  V(LanguageMode, language_mode)                         \
+  V(bool, native)                                        \
+  V(bool, HasBreakInfo)                                  \
+  V(bool, HasBuiltinId)                                  \
+  V(bool, construct_as_builtin)                          \
+  V(bool, HasBytecodeArray)                              \
+  V(bool, is_safe_to_skip_arguments_adaptor)             \
+  V(SharedFunctionInfo::Inlineability, GetInlineability) \
+  V(int, StartPosition)                                  \
+  V(bool, is_compiled)                                   \
   V(bool, IsUserJavaScript)
 
 class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
@@ -790,6 +790,10 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
 #define DECL_ACCESSOR(type, name) type name() const;
   BROKER_SFI_FIELDS(DECL_ACCESSOR)
 #undef DECL_ACCESSOR
+
+  bool IsInlineable() const {
+    return GetInlineability() == SharedFunctionInfo::kIsInlineable;
+  }
 
   bool IsSerializedForCompilation(FeedbackVectorRef feedback) const;
   void SetSerializedForCompilation(FeedbackVectorRef feedback);
