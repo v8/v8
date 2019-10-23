@@ -351,15 +351,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // return address (unless this is somehow accounted for by the called
   // function).
   void CallCFunction(ExternalReference function, int num_arguments,
-                     bool has_function_descriptor = kHasFunctionDescriptor);
+                     bool has_function_descriptor = true);
   void CallCFunction(Register function, int num_arguments,
-                     bool has_function_descriptor = kHasFunctionDescriptor);
+                     bool has_function_descriptor = true);
   void CallCFunction(ExternalReference function, int num_reg_arguments,
                      int num_double_arguments,
-                     bool has_function_descriptor = kHasFunctionDescriptor);
+                     bool has_function_descriptor = true);
   void CallCFunction(Register function, int num_reg_arguments,
                      int num_double_arguments,
-                     bool has_function_descriptor = kHasFunctionDescriptor);
+                     bool has_function_descriptor = true);
 
   // Call a runtime routine. This expects {centry} to contain a fitting CEntry
   // builtin for the target runtime function and uses an indirect call.
