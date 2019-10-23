@@ -569,9 +569,15 @@ void DoPrintElements(std::ostream& os, Object object, int length) {  // NOLINT
 
 template <typename ElementType>
 void PrintTypedArrayElements(std::ostream& os, const ElementType* data_ptr,
-                             size_t length) {
+                             size_t length, bool is_on_heap) {
   if (length == 0) return;
   size_t previous_index = 0;
+  if (i::FLAG_mock_arraybuffer_allocator && !is_on_heap) {
+    // Don't try to print data that's not actually allocated.
+    os << "\n    0-" << length << ": <mocked array buffer bytes>";
+    return;
+  }
+
   ElementType previous_value = data_ptr[0];
   ElementType value = 0;
   for (size_t i = 1; i <= length; i++) {
@@ -695,9 +701,10 @@ void JSObject::PrintElements(std::ostream& os) {  // NOLINT
 #define PRINT_ELEMENTS(Type, type, TYPE, elementType)                         \
   case TYPE##_ELEMENTS: {                                                     \
     size_t length = JSTypedArray::cast(*this).length();                       \
+    bool is_on_heap = JSTypedArray::cast(*this).is_on_heap();                 \
     const elementType* data_ptr =                                             \
         static_cast<const elementType*>(JSTypedArray::cast(*this).DataPtr()); \
-    PrintTypedArrayElements<elementType>(os, data_ptr, length);               \
+    PrintTypedArrayElements<elementType>(os, data_ptr, length, is_on_heap);   \
     break;                                                                    \
   }
       TYPED_ARRAYS(PRINT_ELEMENTS)
@@ -2466,7 +2473,15 @@ void TaggedImpl<kRefType, StorageType>::Print(std::ostream& os) {
 
 #endif  // OBJECT_PRINT
 
-void HeapNumber::HeapNumberPrint(std::ostream& os) { os << value(); }
+void HeapNumber::HeapNumberPrint(std::ostream& os) {
+  double val = value();
+  int64_t i = static_cast<int64_t>(DoubleToInteger(val));
+  if (static_cast<double>(i) == val) {
+    os << i;
+  } else {
+    os << val;
+  }
+}
 
 // TODO(cbruni): remove once the new maptracer is in place.
 void Name::NameShortPrint() {
