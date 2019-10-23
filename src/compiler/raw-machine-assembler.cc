@@ -715,13 +715,13 @@ Node* CallCFunctionImpl(
   builder.AddReturn(return_type);
   for (const auto& arg : args) builder.AddParam(arg.first);
 
+  bool caller_saved_fp_regs = caller_saved_regs && (mode == kSaveFPRegs);
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
   if (caller_saved_regs) flags |= CallDescriptor::kCallerSavedRegisters;
+  if (caller_saved_fp_regs) flags |= CallDescriptor::kCallerSavedFPRegisters;
   if (has_function_descriptor) flags |= CallDescriptor::kHasFunctionDescriptor;
   auto call_descriptor =
       Linkage::GetSimplifiedCDescriptor(rasm->zone(), builder.Build(), flags);
-
-  if (caller_saved_regs) call_descriptor->set_save_fp_mode(mode);
 
   base::SmallVector<Node*, kNumCArgs> nodes(args.size() + 1);
   nodes[0] = function;
