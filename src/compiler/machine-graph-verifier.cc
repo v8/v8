@@ -406,7 +406,11 @@ class MachineRepresentationChecker {
                 inferrer_->GetRepresentation(node->InputAt(0))));
             break;
           case IrOpcode::kChangeTaggedToCompressed:
-            CHECK(IsAnyTagged(inferrer_->GetRepresentation(node->InputAt(0))));
+            if (FLAG_turbo_decompression_elimination) {
+              CheckValueInputIsTagged(node, 0);
+            } else {
+              CheckValueInputIsCompressedOrTagged(node, 0);
+            }
             break;
           case IrOpcode::kChangeTaggedPointerToCompressedPointer:
             CHECK(CanBeTaggedPointer(

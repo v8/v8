@@ -41,4 +41,10 @@
   'BackingStoreTest.RacyGrowWasmMemoryInPlace': [SKIP],
 }],  # tsan == True
 
+##############################################################################
+['not pointer_compression', {
+  # Tests are irrelevant without pointer compression
+  'DecompressionOptimizerTest.*': [SKIP],
+}], # not pointer_compression
+
 ]
