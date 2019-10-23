@@ -131,10 +131,6 @@ namespace regexp {
     iterator.flags = newFlags;
   }
 
-  extern macro RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
-      implicit context: Context)(JSReceiver, RegExpMatchInfo, String):
-      JSRegExpResult;
-
   // https://tc39.github.io/proposal-string-matchall/
   // %RegExpStringIteratorPrototype%.next ( )
   transitioning javascript builtin RegExpStringIteratorPrototypeNext(

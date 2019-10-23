@@ -6,9 +6,7 @@
 
 namespace regexp {
 
-  extern transitioning macro RegExpBuiltinsAssembler::RegExpPrototypeExecBody(
-      implicit context: Context)(JSReceiver, String, constexpr bool): JSAny;
-
+  @export
   transitioning macro RegExpPrototypeExecBodyFast(implicit context: Context)(
       receiver: JSReceiver, string: String): JSAny {
     return RegExpPrototypeExecBody(receiver, string, true);

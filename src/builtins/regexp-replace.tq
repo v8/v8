@@ -121,7 +121,7 @@ namespace regexp {
   }
 
   transitioning macro RegExpReplaceFastString(implicit context: Context)(
-      regexp: FastJSRegExp, string: String, replaceString: String): String {
+      regexp: JSRegExp, string: String, replaceString: String): String {
     // The fast path is reached only if {receiver} is an unmodified JSRegExp
     // instance, {replace_value} is non-callable, and ToString({replace_value})
     // does not contain '$', i.e. we're doing a simple string replacement.
@@ -129,16 +129,17 @@ namespace regexp {
     let lastMatchEnd: Smi = 0;
     let unicode: bool = false;
     const replaceLength: Smi = replaceString.length_smi;
-    const global: bool = regexp.global;
+    const fastRegexp = UnsafeCast<FastJSRegExp>(regexp);
+    const global: bool = fastRegexp.global;
 
     if (global) {
-      unicode = regexp.unicode;
-      regexp.lastIndex = 0;
+      unicode = fastRegexp.unicode;
+      fastRegexp.lastIndex = 0;
     }
 
     while (true) {
       const match: RegExpMatchInfo =
-          regexp::RegExpPrototypeExecBodyWithoutResultFast(regexp, string)
+          RegExpPrototypeExecBodyWithoutResultFast(regexp, string)
           otherwise break;
       const matchStart: Smi = match.GetStartOfCapture(0);
       const matchEnd: Smi = match.GetEndOfCapture(0);
@@ -155,8 +156,19 @@ namespace regexp {
 
       // If match is the empty string, we have to increment lastIndex.
       if (matchEnd == matchStart) {
-        regexp.lastIndex =
-            AdvanceStringIndexFast(string, regexp.lastIndex, unicode);
+        typeswitch (regexp) {
+          case (fastRegexp: FastJSRegExp): {
+            fastRegexp.lastIndex =
+                AdvanceStringIndexFast(string, fastRegexp.lastIndex, unicode);
+          }
+          case (Object): {
+            const lastIndex: JSAny = SlowLoadLastIndex(regexp);
+            const thisIndex: Number = ToLength_Inline(context, lastIndex);
+            const nextIndex: Number =
+                AdvanceStringIndexSlow(string, thisIndex, unicode);
+            SlowStoreLastIndex(regexp, nextIndex);
+          }
+        }
       }
     }
 

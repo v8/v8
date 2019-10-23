@@ -51,10 +51,31 @@ namespace regexp {
     }
   }
 
-  extern macro
-  RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResultFast(
-      implicit context: Context)(JSRegExp, String):
+  extern macro RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
+      implicit context: Context)(JSReceiver, RegExpMatchInfo, String):
+      JSRegExpResult;
+
+  extern transitioning macro
+  RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
+      implicit context: Context)(JSReceiver, String, constexpr bool):
       RegExpMatchInfo labels IfDidNotMatch;
+
+  transitioning macro RegExpPrototypeExecBodyWithoutResultFast(
+      implicit context: Context)(regexp: JSRegExp, string: String):
+      RegExpMatchInfo labels IfDidNotMatch {
+    return RegExpPrototypeExecBodyWithoutResult(regexp, string, true)
+        otherwise IfDidNotMatch;
+  }
+
+  // ES#sec-regexp.prototype.exec
+  // RegExp.prototype.exec ( string )
+  transitioning macro RegExpPrototypeExecBody(implicit context: Context)(
+      maybeRegexp: JSReceiver, string: String,
+      isFastPath: constexpr bool): JSAny {
+    const matchIndices: RegExpMatchInfo = RegExpPrototypeExecBodyWithoutResult(
+        maybeRegexp, string, isFastPath) otherwise return Null;
+    return ConstructNewResultFromMatchInfo(maybeRegexp, matchIndices, string);
+  }
 
   macro IsReceiverInitialRegExpPrototype(implicit context:
                                              Context)(receiver: Object): bool {

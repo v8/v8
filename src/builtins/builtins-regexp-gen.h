@@ -67,15 +67,7 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
 
   TNode<RegExpMatchInfo> RegExpPrototypeExecBodyWithoutResult(
       TNode<Context> context, TNode<JSReceiver> maybe_regexp,
-      TNode<String> string, Label* if_didnotmatch, const bool is_fastpath);
-  TNode<RegExpMatchInfo> RegExpPrototypeExecBodyWithoutResultFast(
-      TNode<Context> context, TNode<JSRegExp> maybe_regexp,
-      TNode<String> string, Label* if_didnotmatch);
-
-  TNode<HeapObject> RegExpPrototypeExecBody(TNode<Context> context,
-                                            TNode<JSReceiver> maybe_regexp,
-                                            TNode<String> string,
-                                            const bool is_fastpath);
+      TNode<String> string, const bool is_fastpath, Label* if_didnotmatch);
 
   // Fast path check logic.
   //

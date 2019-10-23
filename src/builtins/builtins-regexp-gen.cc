@@ -699,7 +699,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 TNode<RegExpMatchInfo>
 RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
     TNode<Context> context, TNode<JSReceiver> maybe_regexp,
-    TNode<String> string, Label* if_didnotmatch, const bool is_fastpath) {
+    TNode<String> string, const bool is_fastpath, Label* if_didnotmatch) {
   if (!is_fastpath) {
     ThrowIfNotInstanceType(context, maybe_regexp, JS_REG_EXP_TYPE,
                            "RegExp.prototype.exec");
@@ -812,42 +812,6 @@ RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
 
   BIND(&out);
   return CAST(var_result.value());
-}
-
-TNode<RegExpMatchInfo>
-RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResultFast(
-    TNode<Context> context, TNode<JSRegExp> maybe_regexp, TNode<String> string,
-    Label* if_didnotmatch) {
-  return RegExpPrototypeExecBodyWithoutResult(context, maybe_regexp, string,
-                                              if_didnotmatch, true);
-}
-
-// ES#sec-regexp.prototype.exec
-// RegExp.prototype.exec ( string )
-TNode<HeapObject> RegExpBuiltinsAssembler::RegExpPrototypeExecBody(
-    TNode<Context> context, TNode<JSReceiver> maybe_regexp,
-    TNode<String> string, const bool is_fastpath) {
-  TVARIABLE(HeapObject, var_result);
-
-  Label if_didnotmatch(this), out(this);
-  TNode<RegExpMatchInfo> match_indices = RegExpPrototypeExecBodyWithoutResult(
-      context, maybe_regexp, string, &if_didnotmatch, is_fastpath);
-
-  // Successful match.
-  {
-    var_result = ConstructNewResultFromMatchInfo(context, maybe_regexp,
-                                                 match_indices, string);
-    Goto(&out);
-  }
-
-  BIND(&if_didnotmatch);
-  {
-    var_result = NullConstant();
-    Goto(&out);
-  }
-
-  BIND(&out);
-  return var_result.value();
 }
 
 TNode<BoolT> RegExpBuiltinsAssembler::IsFastRegExpNoPrototype(
@@ -1529,9 +1493,9 @@ TNode<Object> RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(
 
   BIND(&if_isnotglobal);
   {
-    var_result = is_fastpath ? RegExpPrototypeExecBody(context, CAST(regexp),
-                                                       string, true)
-                             : RegExpExec(context, CAST(regexp), string);
+    var_result =
+        is_fastpath ? RegExpPrototypeExecBodyFast(context, CAST(regexp), string)
+                    : RegExpExec(context, CAST(regexp), string);
     Goto(&done);
   }
 
@@ -1580,7 +1544,7 @@ TNode<Object> RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(
         // array.
         TNode<RegExpMatchInfo> match_indices =
             RegExpPrototypeExecBodyWithoutResult(context, CAST(regexp), string,
-                                                 &if_didnotmatch, true);
+                                                 true, &if_didnotmatch);
         Label dosubstring(this), donotsubstring(this);
         Branch(var_atom.value(), &donotsubstring, &dosubstring);
 
