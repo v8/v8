@@ -195,15 +195,6 @@ declare_args() {
   v8_enable_regexp_interpreter_threaded_dispatch = true
 }
 
-# Toggle pointer compression for correctness fuzzing when building the
-# clang_x64_pointer_compression toolchain. We'll correctness-compare the
-# default build with the clang_x64_pointer_compression build.
-if (v8_multi_arch_build &&
-    rebase_path(get_label_info(":d8", "root_out_dir"), root_build_dir) ==
-    "clang_x64_pointer_compression") {
-  v8_enable_pointer_compression = !v8_enable_pointer_compression
-}
-
 # Derived defaults.
 if (v8_enable_verify_heap == "") {
   v8_enable_verify_heap = v8_enable_debugging_features
@@ -243,6 +234,15 @@ if (v8_enable_fast_torque == "") {
 
 if (v8_enable_single_generation == "") {
   v8_enable_single_generation = v8_disable_write_barriers
+}
+
+# Toggle pointer compression for correctness fuzzing when building the
+# clang_x64_pointer_compression toolchain. We'll correctness-compare the
+# default build with the clang_x64_pointer_compression build.
+if (v8_multi_arch_build &&
+    rebase_path(get_label_info(":d8", "root_out_dir"), root_build_dir) ==
+    "clang_x64_pointer_compression") {
+  v8_enable_pointer_compression = !v8_enable_pointer_compression
 }
 
 assert(!v8_disable_write_barriers || v8_enable_single_generation,
