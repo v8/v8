@@ -1747,7 +1747,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         get_modrm(*current, &mod, &regop, &rm);
         AppendToBuffer("palignr %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
-        AppendToBuffer(",0x%x", (*current) & 3);
+        AppendToBuffer(",0x%x", (*current));
         current += 1;
       } else if (third_byte == 0x14) {
         get_modrm(*current, &mod, &regop, &rm);
@@ -1780,7 +1780,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         // insertps xmm, xmm/m32, imm8
         AppendToBuffer("insertps %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
-        AppendToBuffer(",0x%x", (*current) & 3);
+        AppendToBuffer(",0x%x", (*current));
         current += 1;
       } else if (third_byte == 0x22) {
         get_modrm(*current, &mod, &regop, &rm);
