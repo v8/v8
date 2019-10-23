@@ -75,6 +75,19 @@ void BasicBlock::set_loop_header(BasicBlock* loop_header) {
   loop_header_ = loop_header;
 }
 
+void BasicBlock::TrimNodes(iterator new_end) { nodes_.erase(new_end, end()); }
+
+void BasicBlock::ResetRPOInfo() {
+  loop_number_ = -1;
+  rpo_number_ = -1;
+  dominator_depth_ = -1;
+  dominator_ = nullptr;
+  rpo_next_ = nullptr;
+  loop_header_ = nullptr;
+  loop_end_ = nullptr;
+  loop_depth_ = 0;
+}
+
 // static
 BasicBlock* BasicBlock::GetCommonDominator(BasicBlock* b1, BasicBlock* b2) {
   while (b1 != b2) {

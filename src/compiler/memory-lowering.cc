@@ -50,7 +50,7 @@ MemoryLowering::MemoryLowering(JSGraph* jsgraph, Zone* zone,
                                const char* function_debug_name)
     : jsgraph_(jsgraph),
       zone_(zone),
-      graph_assembler_(jsgraph, nullptr, nullptr, zone),
+      graph_assembler_(jsgraph, zone),
       allocation_folding_(allocation_folding),
       poisoning_level_(poisoning_level),
       write_barrier_assert_failed_(callback),
@@ -96,7 +96,7 @@ Reduction MemoryLowering::ReduceAllocateRaw(
   Node* effect = node->InputAt(1);
   Node* control = node->InputAt(2);
 
-  gasm()->Reset(effect, control);
+  gasm()->InitializeEffectControl(effect, control);
 
   Node* allocate_builtin;
   if (allocation_type == AllocationType::kYoung) {
@@ -162,8 +162,8 @@ Reduction MemoryLowering::ReduceAllocateRaw(
       // Compute the effective inner allocated address.
       value = __ BitcastWordToTagged(
           __ IntAdd(state->top(), __ IntPtrConstant(kHeapObjectTag)));
-      effect = __ ExtractCurrentEffect();
-      control = __ ExtractCurrentControl();
+      effect = gasm()->current_effect();
+      control = gasm()->current_control();
 
       // Extend the allocation {group}.
       group->Add(value);
@@ -216,8 +216,8 @@ Reduction MemoryLowering::ReduceAllocateRaw(
       // Compute the initial object address.
       value = __ BitcastWordToTagged(
           __ IntAdd(done.PhiAt(0), __ IntPtrConstant(kHeapObjectTag)));
-      effect = __ ExtractCurrentEffect();
-      control = __ ExtractCurrentControl();
+      effect = gasm()->current_effect();
+      control = gasm()->current_control();
 
       // Start a new allocation group.
       AllocationGroup* group =
@@ -264,8 +264,8 @@ Reduction MemoryLowering::ReduceAllocateRaw(
 
     __ Bind(&done);
     value = done.PhiAt(0);
-    effect = __ ExtractCurrentEffect();
-    control = __ ExtractCurrentControl();
+    effect = gasm()->current_effect();
+    control = gasm()->current_control();
 
     if (state_ptr) {
       // Create an unfoldable allocation group.

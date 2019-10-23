@@ -41,7 +41,7 @@ class EffectControlLinearizer {
         mask_array_index_(mask_array_index),
         source_positions_(source_positions),
         node_origins_(node_origins),
-        graph_assembler_(js_graph, nullptr, nullptr, temp_zone),
+        graph_assembler_(js_graph, temp_zone),
         frame_state_zapper_(nullptr) {}
 
   void Run();
@@ -253,7 +253,6 @@ class EffectControlLinearizer {
   Node* SmiShiftBitsConstant();
   void TransitionElementsTo(Node* node, Node* array, ElementsKind from,
                             ElementsKind to);
-  void ConnectUnreachableToEnd(Node* effect, Node* control);
 
   Factory* factory() const { return isolate()->factory(); }
   Isolate* isolate() const { return jsgraph()->isolate(); }
@@ -558,6 +557,8 @@ void EffectControlLinearizer::Run() {
   for (BasicBlock* block : *(schedule()->rpo_order())) {
     size_t instr = 0;
 
+    gasm()->Reset(block);
+
     // The control node should be the first.
     Node* control = block->NodeAt(instr);
     DCHECK(NodeProperties::IsControl(control));
@@ -740,6 +741,8 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state,
                                    source_positions_->GetSourcePosition(node));
   NodeOriginTable::Scope origin_scope(node_origins_, "process node", node);
 
+  gasm()->InitializeEffectControl(*effect, *control);
+
   // If the node needs to be wired into the effect/control chain, do this
   // here. Pass current frame state for lowering to eager deoptimization.
   if (TryWireInStateEffect(node, *frame_state, effect, control)) {
@@ -821,10 +824,12 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state,
     *control = node;
   }
 
+  gasm()->AddNode(node);
+
   // Break the effect chain on {Unreachable} and reconnect to the graph end.
   // Mark the following code for deletion by connecting to the {Dead} node.
   if (node->opcode() == IrOpcode::kUnreachable) {
-    ConnectUnreachableToEnd(*effect, *control);
+    gasm()->ConnectUnreachableToEnd();
     *effect = *control = jsgraph()->Dead();
   }
 }
@@ -833,7 +838,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
                                                    Node* frame_state,
                                                    Node** effect,
                                                    Node** control) {
-  gasm()->Reset(*effect, *control);
   Node* result = nullptr;
   switch (node->opcode()) {
     case IrOpcode::kChangeBitToTagged:
@@ -1327,17 +1331,10 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
         node->op()->mnemonic());
   }
 
-  *effect = gasm()->ExtractCurrentEffect();
-  *control = gasm()->ExtractCurrentControl();
+  *effect = gasm()->current_effect();
+  *control = gasm()->current_control();
   NodeProperties::ReplaceUses(node, result, *effect, *control);
   return true;
-}
-
-void EffectControlLinearizer::ConnectUnreachableToEnd(Node* effect,
-                                                      Node* control) {
-  DCHECK_EQ(effect->opcode(), IrOpcode::kUnreachable);
-  Node* throw_node = graph()->NewNode(common()->Throw(), effect, control);
-  NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
 }
 
 #define __ gasm()->

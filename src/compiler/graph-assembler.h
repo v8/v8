@@ -18,6 +18,9 @@ class Graph;
 
 namespace compiler {
 
+class Schedule;
+class BasicBlock;
+
 #define PURE_ASSEMBLER_MACH_UNOP_LIST(V)    \
   V(ChangeInt32ToInt64)                     \
   V(ChangeInt32ToFloat64)                   \
@@ -125,8 +128,9 @@ class GraphAssemblerLabel {
   Node* PhiAt(size_t index);
 
   template <typename... Reps>
-  explicit GraphAssemblerLabel(GraphAssemblerLabelType type, Reps... reps)
-      : type_(type) {
+  explicit GraphAssemblerLabel(GraphAssemblerLabelType type,
+                               BasicBlock* basic_block, Reps... reps)
+      : type_(type), basic_block_(basic_block) {
     STATIC_ASSERT(VarCount == sizeof...(reps));
     MachineRepresentation reps_array[] = {MachineRepresentation::kNone,
                                           reps...};
@@ -149,9 +153,11 @@ class GraphAssemblerLabel {
     return type_ == GraphAssemblerLabelType::kDeferred;
   }
   bool IsLoop() const { return type_ == GraphAssemblerLabelType::kLoop; }
+  BasicBlock* basic_block() { return basic_block_; }
 
   bool is_bound_ = false;
   GraphAssemblerLabelType const type_;
+  BasicBlock* basic_block_;
   size_t merged_count_ = 0;
   Node* effect_;
   Node* control_;
@@ -161,38 +167,46 @@ class GraphAssemblerLabel {
 
 class GraphAssembler {
  public:
-  GraphAssembler(JSGraph* jsgraph, Node* effect, Node* control, Zone* zone);
+  // Constructs a GraphAssembler that operates on an unscheduled graph.
+  GraphAssembler(JSGraph* jsgraph, Zone* zone);
+  // Constructs a GraphAssembler that operates on a scheduled graph, updating
+  // the schedule in the process.
+  GraphAssembler(JSGraph* jsgraph, Schedule* schedule, Zone* zone);
+  ~GraphAssembler();
 
-  void Reset(Node* effect, Node* control);
+  void Reset(BasicBlock* block);
+  void InitializeEffectControl(Node* effect, Node* control);
 
   // Create label.
   template <typename... Reps>
-  static GraphAssemblerLabel<sizeof...(Reps)> MakeLabelFor(
+  GraphAssemblerLabel<sizeof...(Reps)> MakeLabelFor(
       GraphAssemblerLabelType type, Reps... reps) {
-    return GraphAssemblerLabel<sizeof...(Reps)>(type, reps...);
+    return GraphAssemblerLabel<sizeof...(Reps)>(
+        type, NewBasicBlock(type == GraphAssemblerLabelType::kDeferred),
+        reps...);
   }
 
   // Convenience wrapper for creating non-deferred labels.
   template <typename... Reps>
-  static GraphAssemblerLabel<sizeof...(Reps)> MakeLabel(Reps... reps) {
+  GraphAssemblerLabel<sizeof...(Reps)> MakeLabel(Reps... reps) {
     return MakeLabelFor(GraphAssemblerLabelType::kNonDeferred, reps...);
   }
 
   // Convenience wrapper for creating loop labels.
   template <typename... Reps>
-  static GraphAssemblerLabel<sizeof...(Reps)> MakeLoopLabel(Reps... reps) {
+  GraphAssemblerLabel<sizeof...(Reps)> MakeLoopLabel(Reps... reps) {
     return MakeLabelFor(GraphAssemblerLabelType::kLoop, reps...);
   }
 
   // Convenience wrapper for creating deferred labels.
   template <typename... Reps>
-  static GraphAssemblerLabel<sizeof...(Reps)> MakeDeferredLabel(Reps... reps) {
+  GraphAssemblerLabel<sizeof...(Reps)> MakeDeferredLabel(Reps... reps) {
     return MakeLabelFor(GraphAssemblerLabelType::kDeferred, reps...);
   }
 
   // Value creation.
   Node* IntPtrConstant(intptr_t value);
-  Node* Uint32Constant(int32_t value);
+  Node* Uint32Constant(uint32_t value);
   Node* Int32Constant(int32_t value);
   Node* Int64Constant(int64_t value);
   Node* UniqueIntPtrConstant(intptr_t value);
@@ -288,19 +302,42 @@ class GraphAssembler {
   void GotoIfNot(Node* condition, GraphAssemblerLabel<sizeof...(Vars)>* label,
                  Vars...);
 
-  // Extractors (should be only used when destructing/resetting the assembler).
-  Node* ExtractCurrentControl();
-  Node* ExtractCurrentEffect();
+  // Updates current effect and control based on outputs of {node}.
+  void UpdateEffectControlWith(Node* node);
+
+  // Adds {node} to the current position and updates assembler's current effect
+  // and control.
+  Node* AddNode(Node* node);
+
+  // Finalizes the {block} being processed by the assembler, returning the
+  // finalized block (which may be different from the original block).
+  BasicBlock* FinalizeCurrentBlock(BasicBlock* block);
+
+  void ConnectUnreachableToEnd();
+
+  Node* current_control() { return current_control_; }
+  Node* current_effect() { return current_effect_; }
 
  private:
+  class BasicBlockUpdater;
+
   // Adds a decompression node if pointer compression is enabled and the
   // representation loaded is a compressed one. To be used after loads.
   Node* InsertDecompressionIfNeeded(MachineRepresentation rep, Node* value);
   // Adds a compression node if pointer compression is enabled and the
   // representation to be stored is a compressed one. To be used before stores.
   Node* InsertCompressionIfNeeded(MachineRepresentation rep, Node* value);
+
+  // Control flow helpers.
   template <typename... Vars>
   void MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label, Vars... vars);
+  BasicBlock* NewBasicBlock(bool deferred);
+  void BindBasicBlock(BasicBlock* block);
+  void GotoBasicBlock(BasicBlock* block);
+  void GotoIfBasicBlock(BasicBlock* block, Node* branch,
+                        IrOpcode::Value goto_if);
+
+  Node* AddClonedNode(Node* node);
 
   Operator const* ToNumberOperator();
 
@@ -319,6 +356,7 @@ class GraphAssembler {
   JSGraph* jsgraph_;
   Node* current_effect_;
   Node* current_control_;
+  std::unique_ptr<BasicBlockUpdater> block_updater_;
 };
 
 template <size_t VarCount>
@@ -412,8 +450,22 @@ void GraphAssembler::Bind(GraphAssemblerLabel<VarCount>* label) {
 
   current_control_ = label->control_;
   current_effect_ = label->effect_;
+  BindBasicBlock(label->basic_block());
 
   label->SetBound();
+
+  if (label->merged_count_ > 1 || label->IsLoop()) {
+    AddNode(label->control_);
+    AddNode(label->effect_);
+    for (size_t i = 0; i < VarCount; i++) {
+      AddNode(label->bindings_[i]);
+    }
+  } else {
+    // If the basic block does not have a control node, insert a dummy
+    // Merge node, so that other passes have a control node to start from.
+    current_control_ =
+        AddNode(graph()->NewNode(common()->Merge(1), current_control_));
+  }
 }
 
 template <typename... Vars>
@@ -422,6 +474,8 @@ void GraphAssembler::Goto(GraphAssemblerLabel<sizeof...(Vars)>* label,
   DCHECK_NOT_NULL(current_control_);
   DCHECK_NOT_NULL(current_effect_);
   MergeState(label, vars...);
+  GotoBasicBlock(label->basic_block());
+
   current_control_ = nullptr;
   current_effect_ = nullptr;
 }
@@ -438,7 +492,8 @@ void GraphAssembler::GotoIf(Node* condition,
   current_control_ = graph()->NewNode(common()->IfTrue(), branch);
   MergeState(label, vars...);
 
-  current_control_ = graph()->NewNode(common()->IfFalse(), branch);
+  GotoIfBasicBlock(label->basic_block(), branch, IrOpcode::kIfTrue);
+  current_control_ = AddNode(graph()->NewNode(common()->IfFalse(), branch));
 }
 
 template <typename... Vars>
@@ -452,7 +507,8 @@ void GraphAssembler::GotoIfNot(Node* condition,
   current_control_ = graph()->NewNode(common()->IfFalse(), branch);
   MergeState(label, vars...);
 
-  current_control_ = graph()->NewNode(common()->IfTrue(), branch);
+  GotoIfBasicBlock(label->basic_block(), branch, IrOpcode::kIfFalse);
+  current_control_ = AddNode(graph()->NewNode(common()->IfTrue(), branch));
 }
 
 template <typename... Args>
@@ -471,7 +527,7 @@ Node* GraphAssembler::Call(const Operator* op, Args... args) {
   Node* call = graph()->NewNode(op, size, args_array);
   DCHECK_EQ(0, op->ControlOutputCount());
   current_effect_ = call;
-  return call;
+  return AddNode(call);
 }
 
 }  // namespace compiler

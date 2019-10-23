@@ -15,8 +15,7 @@ namespace internal {
 namespace compiler {
 
 SelectLowering::SelectLowering(JSGraph* jsgraph, Zone* zone)
-    : graph_assembler_(jsgraph, nullptr, nullptr, zone),
-      start_(jsgraph->graph()->start()) {}
+    : graph_assembler_(jsgraph, zone), start_(jsgraph->graph()->start()) {}
 
 SelectLowering::~SelectLowering() = default;
 
@@ -34,7 +33,7 @@ Node* SelectLowering::LowerSelect(Node* node) {
   Node* vtrue = node->InputAt(1);
   Node* vfalse = node->InputAt(2);
 
-  gasm()->Reset(start(), start());
+  gasm()->InitializeEffectControl(start(), start());
 
   auto done = __ MakeLabel(p.representation());
 
