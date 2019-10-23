@@ -1952,6 +1952,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bnegi_d(i.OutputSimd128Register(), i.InputSimd128Register(0), 63);
       break;
     }
+    case kMipsF64x2Sqrt: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ fsqrt_d(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
     case kMipsF32x4Splat: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ FmoveLow(kScratchReg, i.InputSingleRegister(0));

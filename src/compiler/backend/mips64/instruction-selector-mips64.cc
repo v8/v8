@@ -2679,6 +2679,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
 #define SIMD_UNOP_LIST(V)                                  \
   V(F64x2Abs, kMips64F64x2Abs)                             \
   V(F64x2Neg, kMips64F64x2Neg)                             \
+  V(F64x2Sqrt, kMips64F64x2Sqrt)                           \
   V(F32x4SConvertI32x4, kMips64F32x4SConvertI32x4)         \
   V(F32x4UConvertI32x4, kMips64F32x4UConvertI32x4)         \
   V(F32x4Abs, kMips64F32x4Abs)                             \
