@@ -1592,6 +1592,36 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
 }
 
 // static
+uint8_t* WasmInstanceObject::GetGlobalStorage(
+    Handle<WasmInstanceObject> instance, const wasm::WasmGlobal& global) {
+  DCHECK(!wasm::ValueTypes::IsReferenceType(global.type));
+  if (global.mutability && global.imported) {
+    return reinterpret_cast<byte*>(
+        instance->imported_mutable_globals()[global.index]);
+  } else {
+    return instance->globals_start() + global.offset;
+  }
+}
+
+// static
+std::pair<Handle<FixedArray>, uint32_t>
+WasmInstanceObject::GetGlobalBufferAndIndex(Handle<WasmInstanceObject> instance,
+                                            const wasm::WasmGlobal& global) {
+  DCHECK(wasm::ValueTypes::IsReferenceType(global.type));
+  Isolate* isolate = instance->GetIsolate();
+  if (global.mutability && global.imported) {
+    Handle<FixedArray> buffer(
+        FixedArray::cast(
+            instance->imported_mutable_globals_buffers().get(global.index)),
+        isolate);
+    Address idx = instance->imported_mutable_globals()[global.index];
+    DCHECK_LE(idx, std::numeric_limits<uint32_t>::max());
+    return {buffer, static_cast<uint32_t>(idx)};
+  }
+  return {handle(instance->tagged_globals_buffer(), isolate), global.offset};
+}
+
+// static
 Handle<WasmExceptionObject> WasmExceptionObject::New(
     Isolate* isolate, const wasm::FunctionSig* sig,
     Handle<HeapObject> exception_tag) {

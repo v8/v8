@@ -1300,14 +1300,15 @@ class ThreadImpl {
   }
 
   WasmValue GetGlobalValue(uint32_t index) {
-    const WasmGlobal* global = &module()->globals[index];
-    switch (global->type) {
-#define CASE_TYPE(wasm, ctype)                                         \
-  case kWasm##wasm: {                                                  \
-    byte* ptr = GetGlobalPtr(global);                                  \
-    return WasmValue(                                                  \
-        ReadLittleEndianValue<ctype>(reinterpret_cast<Address>(ptr))); \
-    break;                                                             \
+    auto& global = module()->globals[index];
+    switch (global.type) {
+#define CASE_TYPE(wasm, ctype)                                          \
+  case kWasm##wasm: {                                                   \
+    byte* ptr =                                                         \
+        WasmInstanceObject::GetGlobalStorage(instance_object_, global); \
+    return WasmValue(                                                   \
+        ReadLittleEndianValue<ctype>(reinterpret_cast<Address>(ptr)));  \
+    break;                                                              \
   }
       WASM_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
@@ -1316,8 +1317,10 @@ class ThreadImpl {
       case kWasmExnRef: {
         HandleScope handle_scope(isolate_);  // Avoid leaking handles.
         Handle<FixedArray> global_buffer;    // The buffer of the global.
-        uint32_t global_index = 0;           // The index into the buffer.
-        GetGlobalBufferAndIndex(global, &global_buffer, &global_index);
+        uint32_t global_index;               // The index into the buffer.
+        std::tie(global_buffer, global_index) =
+            WasmInstanceObject::GetGlobalBufferAndIndex(instance_object_,
+                                                        global);
         Handle<Object> value(global_buffer->get(global_index), isolate_);
         return WasmValue(handle_scope.CloseAndEscape(value));
       }
@@ -2202,34 +2205,6 @@ class ThreadImpl {
         return false;
     }
     return true;
-  }
-
-  byte* GetGlobalPtr(const WasmGlobal* global) {
-    DCHECK(!ValueTypes::IsReferenceType(global->type));
-    if (global->mutability && global->imported) {
-      return reinterpret_cast<byte*>(
-          instance_object_->imported_mutable_globals()[global->index]);
-    } else {
-      return instance_object_->globals_start() + global->offset;
-    }
-  }
-
-  void GetGlobalBufferAndIndex(const WasmGlobal* global,
-                               Handle<FixedArray>* buffer, uint32_t* index) {
-    DCHECK(ValueTypes::IsReferenceType(global->type));
-    if (global->mutability && global->imported) {
-      *buffer =
-          handle(FixedArray::cast(
-                     instance_object_->imported_mutable_globals_buffers().get(
-                         global->index)),
-                 isolate_);
-      Address idx = instance_object_->imported_mutable_globals()[global->index];
-      DCHECK_LE(idx, std::numeric_limits<uint32_t>::max());
-      *index = static_cast<uint32_t>(idx);
-    } else {
-      *buffer = handle(instance_object_->tagged_globals_buffer(), isolate_);
-      *index = global->offset;
-    }
   }
 
   bool ExecuteSimdOp(WasmOpcode opcode, Decoder* decoder, InterpreterCode* code,
@@ -3343,14 +3318,15 @@ class ThreadImpl {
         case kExprGlobalSet: {
           GlobalIndexImmediate<Decoder::kNoValidate> imm(&decoder,
                                                          code->at(pc));
-          const WasmGlobal* global = &module()->globals[imm.index];
-          switch (global->type) {
-#define CASE_TYPE(wasm, ctype)                                    \
-  case kWasm##wasm: {                                             \
-    byte* ptr = GetGlobalPtr(global);                             \
-    WriteLittleEndianValue<ctype>(reinterpret_cast<Address>(ptr), \
-                                  Pop().to<ctype>());             \
-    break;                                                        \
+          auto& global = module()->globals[imm.index];
+          switch (global.type) {
+#define CASE_TYPE(wasm, ctype)                                          \
+  case kWasm##wasm: {                                                   \
+    byte* ptr =                                                         \
+        WasmInstanceObject::GetGlobalStorage(instance_object_, global); \
+    WriteLittleEndianValue<ctype>(reinterpret_cast<Address>(ptr),       \
+                                  Pop().to<ctype>());                   \
+    break;                                                              \
   }
             WASM_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
@@ -3359,8 +3335,10 @@ class ThreadImpl {
             case kWasmExnRef: {
               HandleScope handle_scope(isolate_);  // Avoid leaking handles.
               Handle<FixedArray> global_buffer;    // The buffer of the global.
-              uint32_t global_index = 0;           // The index into the buffer.
-              GetGlobalBufferAndIndex(global, &global_buffer, &global_index);
+              uint32_t global_index;               // The index into the buffer.
+              std::tie(global_buffer, global_index) =
+                  WasmInstanceObject::GetGlobalBufferAndIndex(instance_object_,
+                                                              global);
               global_buffer->set(global_index, *Pop().to_anyref());
               break;
             }

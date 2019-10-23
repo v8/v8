@@ -28,6 +28,7 @@ class SignatureMap;
 class WasmCode;
 struct WasmException;
 struct WasmFeatures;
+struct WasmGlobal;
 class WasmInterpreter;
 struct WasmModule;
 class WasmValue;
@@ -557,6 +558,16 @@ class WasmInstanceObject : public JSObject {
                                             Handle<WasmInstanceObject> instance,
                                             int table_index, int entry_index,
                                             Handle<WasmJSFunction> js_function);
+
+  // Get a raw pointer to the location where the given global is stored.
+  // {global} must not be a reference type.
+  static uint8_t* GetGlobalStorage(Handle<WasmInstanceObject>,
+                                   const wasm::WasmGlobal&);
+
+  // Get the FixedArray and the index in that FixedArray for the given global,
+  // which must be a reference type.
+  static std::pair<Handle<FixedArray>, uint32_t> GetGlobalBufferAndIndex(
+      Handle<WasmInstanceObject>, const wasm::WasmGlobal&);
 
   OBJECT_CONSTRUCTORS(WasmInstanceObject, JSObject);
 
