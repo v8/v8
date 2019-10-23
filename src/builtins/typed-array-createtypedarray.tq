@@ -212,17 +212,12 @@ namespace typed_array {
       map: Map, buffer: JSArrayBuffer, byteOffset: JSAny, length: JSAny,
       elementsInfo: typed_array::TypedArrayElementsInfo): JSTypedArray {
     try {
-      let offset: uintptr = 0;
-      if (byteOffset != Undefined) {
-        // 6. Let offset be ? ToIndex(byteOffset).
-        offset = TryNumberToUintPtr(
-            ToInteger_Inline(context, byteOffset, kTruncateMinusZero))
-            otherwise goto IfInvalidOffset;
+      // 6. Let offset be ? ToIndex(byteOffset).
+      const offset: uintptr = ToIndex(byteOffset) otherwise IfInvalidOffset;
 
-        // 7. If offset modulo elementSize ≠ 0, throw a RangeError exception.
-        if (elementsInfo.IsUnaligned(offset)) {
-          goto IfInvalidAlignment('start offset');
-        }
+      // 7. If offset modulo elementSize ≠ 0, throw a RangeError exception.
+      if (elementsInfo.IsUnaligned(offset)) {
+        goto IfInvalidAlignment('start offset');
       }
 
       let newLength: PositiveSmi = 0;

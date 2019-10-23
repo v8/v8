@@ -1043,6 +1043,8 @@ constexpr uint64_t kHoleNanInt64 =
 // ES6 section 20.1.2.6 Number.MAX_SAFE_INTEGER
 constexpr double kMaxSafeInteger = 9007199254740991.0;  // 2^53-1
 
+constexpr double kMaxUInt32Double = double{kMaxUInt32};
+
 // The order of this enum has to be kept in sync with the predicates below.
 enum class VariableMode : uint8_t {
   // User declared variables:

@@ -1407,6 +1407,7 @@ const kArrayBufferMaxByteLength:
 const kMaxTypedArrayInHeap:
     constexpr int31 generates 'JSTypedArray::kMaxSizeInHeap';
 const kMaxSafeInteger: constexpr float64 generates 'kMaxSafeInteger';
+const kMaxUInt32Double: constexpr float64 generates 'kMaxUInt32Double';
 const kSmiMaxValue: constexpr uintptr generates 'kSmiMaxValue';
 const kSmiMax: uintptr = kSmiMaxValue;
 // TODO(v8:8996): Use uintptr version instead and drop this one.
@@ -1854,6 +1855,7 @@ extern transitioning macro ToInteger_Inline(
     Context, JSAny, constexpr ToIntegerTruncationMode): Number;
 extern transitioning macro ToLength_Inline(Context, JSAny): Number;
 extern transitioning macro ToNumber_Inline(Context, JSAny): Number;
+// TODO(v8:4153): Use ToIndex() instead.
 extern transitioning macro ToSmiIndex(implicit context: Context)(JSAny):
     PositiveSmi labels IfRangeError;
 extern transitioning macro ToSmiLength(implicit context: Context)(JSAny):
@@ -3615,18 +3617,46 @@ macro SameValue(a: JSAny, b: JSAny): bool {
   BranchIfSameValue(a, b) otherwise return true, return false;
 }
 
-transitioning macro ToIndex(input: JSAny, context: Context): Number
-    labels RangeError {
-  if (input == Undefined) {
-    return 0;
-  }
+// https://tc39.github.io/ecma262/#sec-toindex
+@export
+transitioning macro ToIndex(implicit context: Context)(value: JSAny):
+    uintptr labels IfRangeError {
+  if (value == Undefined) return 0;
+  const indexNumber = ToInteger_Inline(context, value, kTruncateMinusZero);
+  return ToIndex(indexNumber) otherwise IfRangeError;
+}
 
-  const value: Number = ToInteger_Inline(context, input, kTruncateMinusZero);
-  if (value < 0 || value > kMaxSafeInteger) {
-    goto RangeError;
-  }
+// https://tc39.github.io/ecma262/#sec-toindex
+// Same as the version above but for Number arguments.
+macro ToIndex(indexNumber: Number): uintptr labels IfRangeError {
+  typeswitch (indexNumber) {
+    case (indexSmi: Smi): {
+      if (indexSmi < 0) goto IfRangeError;
+      const index: uintptr = Unsigned(Convert<intptr>(indexSmi));
+      // Positive Smi values definitely fit into both [0, kMaxSafeInteger] and
+      // [0, kMaxUintPtr] ranges.
+      return index;
+    }
+    case (indexHeapNumber: HeapNumber): {
+      assert(IsNumberNormalized(indexHeapNumber));
+      const indexDouble: float64 = Convert<float64>(indexHeapNumber);
+      // NaNs must already be handled by ToIndex() version above accepting
+      // JSAny indices.
+      assert(!Float64IsNaN(indexDouble));
+      if (indexDouble < 0) goto IfRangeError;
 
-  return value;
+      if constexpr (Is64()) {
+        if (indexDouble > kMaxSafeInteger) goto IfRangeError;
+      } else {
+        // On 32-bit architectures not all safe integers fit into uintptr but
+        // callers handle this case the same way as the safe integer range
+        // overflow case so we don't need special handling for the values in
+        // (kMaxUInt32, kMaxSafeInteger] range.
+        if (indexDouble > kMaxUInt32Double) goto IfRangeError;
+      }
+      return ChangeFloat64ToUintPtr(indexDouble);
+    }
+  }
 }
 
 transitioning macro GetLengthProperty(implicit context: Context)(o: JSAny):
@@ -3694,7 +3724,7 @@ macro ConvertToRelativeIndex(indexNumber: Number, length: uintptr): uintptr {
       const indexDouble: float64 = Convert<float64>(indexHeapNumber);
       // NaNs must already be handled by ConvertToRelativeIndex() version
       // above accepting JSAny indices.
-      assert(indexDouble == indexDouble);
+      assert(!Float64IsNaN(indexDouble));
       const lengthDouble: float64 = Convert<float64>(length);
       assert(lengthDouble <= kMaxSafeInteger);
       if (indexDouble < 0) {

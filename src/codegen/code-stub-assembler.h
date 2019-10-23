@@ -2664,6 +2664,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   };
 
   // ES6 7.1.17 ToIndex, but jumps to range_error if the result is not a Smi.
+  // TODO(v8:4153): Use ToIndex() instead.
   TNode<Smi> ToSmiIndex(TNode<Context> context, TNode<Object> input,
                         Label* range_error);
 
