@@ -1977,13 +1977,14 @@ void StringTrimAssembler::GotoIfNotWhiteSpaceOrLineTerminator(
 
 // Return the |word32| codepoint at {index}. Supports SeqStrings and
 // ExternalStrings.
+// TODO(v8:9880): Use UintPtrT here.
 TNode<Int32T> StringBuiltinsAssembler::LoadSurrogatePairAt(
     SloppyTNode<String> string, SloppyTNode<IntPtrT> length,
     SloppyTNode<IntPtrT> index, UnicodeEncoding encoding) {
   Label handle_surrogate_pair(this), return_result(this);
   TVARIABLE(Int32T, var_result);
   TVARIABLE(Int32T, var_trail);
-  var_result = StringCharCodeAt(string, index);
+  var_result = StringCharCodeAt(string, Unsigned(index));
   var_trail = Int32Constant(0);
 
   GotoIf(Word32NotEqual(Word32And(var_result.value(), Int32Constant(0xFC00)),
@@ -1992,7 +1993,7 @@ TNode<Int32T> StringBuiltinsAssembler::LoadSurrogatePairAt(
   TNode<IntPtrT> next_index = IntPtrAdd(index, IntPtrConstant(1));
 
   GotoIfNot(IntPtrLessThan(next_index, length), &return_result);
-  var_trail = StringCharCodeAt(string, next_index);
+  var_trail = StringCharCodeAt(string, Unsigned(next_index));
   Branch(Word32Equal(Word32And(var_trail.value(), Int32Constant(0xFC00)),
                      Int32Constant(0xDC00)),
          &handle_surrogate_pair, &return_result);
@@ -2154,6 +2155,7 @@ TNode<String> StringBuiltinsAssembler::AllocAndCopyStringCharacters(
   return var_result.value();
 }
 
+// TODO(v8:9880): Use UintPtrT here.
 TNode<String> StringBuiltinsAssembler::SubString(TNode<String> string,
                                                  TNode<IntPtrT> from,
                                                  TNode<IntPtrT> to) {
@@ -2261,7 +2263,7 @@ TNode<String> StringBuiltinsAssembler::SubString(TNode<String> string,
   // Substrings of length 1 are generated through CharCodeAt and FromCharCode.
   BIND(&single_char);
   {
-    TNode<Int32T> char_code = StringCharCodeAt(string, from);
+    TNode<Int32T> char_code = StringCharCodeAt(string, Unsigned(from));
     var_result = StringFromSingleCharCode(char_code);
     Goto(&end);
   }

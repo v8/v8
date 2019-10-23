@@ -57,18 +57,36 @@ namespace string {
   transitioning macro GenerateStringAt(implicit context: Context)(
       receiver: JSAny, position: JSAny,
       methodName: constexpr string): never labels
-  IfInBounds(String, intptr, intptr), IfOutOfBounds {
-    // Check that {receiver} is coercible to Object and convert it to a String.
+  IfInBounds(String, uintptr, uintptr), IfOutOfBounds {
+    // 1. Let O be ? RequireObjectCoercible(this value).
+    // 2. Let S be ? ToString(O).
     const string: String = ToThisString(receiver, methodName);
-    // Convert the {position} to a Smi and check that it's in bounds of
-    // the {string}.
+
+    // 3. Let position be ? ToInteger(pos).
     const indexNumber: Number =
         ToInteger_Inline(context, position, kTruncateMinusZero);
-    if (TaggedIsNotSmi(indexNumber)) goto IfOutOfBounds;
-    const index: intptr = SmiUntag(UnsafeCast<Smi>(indexNumber));
-    const length: intptr = string.length_intptr;
-    if (Convert<uintptr>(index) >= Convert<uintptr>(length)) goto IfOutOfBounds;
-    goto IfInBounds(string, index, length);
+
+    // Convert the {position} to a uintptr and check that it's in bounds of
+    // the {string}.
+    typeswitch (indexNumber) {
+      case (indexSmi: Smi): {
+        const length: uintptr = string.length_uintptr;
+        const index: uintptr = Unsigned(Convert<intptr>(indexSmi));
+        // Max string length fits Smi range, so we can do an unsigned bounds
+        // check.
+        const kMaxStringLengthFitsSmi: constexpr bool =
+            kStringMaxLengthUintptr < kSmiMaxValue;
+        StaticAssert(kMaxStringLengthFitsSmi);
+        if (index >= length) goto IfOutOfBounds;
+        goto IfInBounds(string, index, length);
+      }
+      case (indexHeapNumber: HeapNumber): {
+        assert(IsNumberNormalized(indexHeapNumber));
+        // Valid string indices fit into Smi range, so HeapNumber index is
+        // definitely an out of bounds case.
+        goto IfOutOfBounds;
+      }
+    }
   }
 
   // ES6 #sec-string.prototype.charat
@@ -78,7 +96,7 @@ namespace string {
       GenerateStringAt(receiver, position, 'String.prototype.charAt')
           otherwise IfInBounds, IfOutOfBounds;
     }
-    label IfInBounds(string: String, index: intptr, _length: intptr) {
+    label IfInBounds(string: String, index: uintptr, _length: uintptr) {
       const code: int32 = StringCharCodeAt(string, index);
       return StringFromSingleCharCode(code);
     }
@@ -94,7 +112,7 @@ namespace string {
       GenerateStringAt(receiver, position, 'String.prototype.charCodeAt')
           otherwise IfInBounds, IfOutOfBounds;
     }
-    label IfInBounds(string: String, index: intptr, _length: intptr) {
+    label IfInBounds(string: String, index: uintptr, _length: uintptr) {
       const code: int32 = StringCharCodeAt(string, index);
       return Convert<Smi>(code);
     }
@@ -110,10 +128,11 @@ namespace string {
       GenerateStringAt(receiver, position, 'String.prototype.codePointAt')
           otherwise IfInBounds, IfOutOfBounds;
     }
-    label IfInBounds(string: String, index: intptr, length: intptr) {
+    label IfInBounds(string: String, index: uintptr, length: uintptr) {
       // This is always a call to a builtin from Javascript, so we need to
       // produce UTF32.
-      const code: int32 = LoadSurrogatePairAt(string, length, index, UTF32);
+      const code: int32 =
+          LoadSurrogatePairAt(string, Signed(length), Signed(index), UTF32);
       return Convert<Smi>(code);
     }
     label IfOutOfBounds {
@@ -190,7 +209,7 @@ namespace string {
   }
 
   builtin StringCharAt(implicit context: Context)(
-      receiver: String, position: intptr): String {
+      receiver: String, position: uintptr): String {
     // Load the character code at the {position} from the {receiver}.
     const code: int32 = StringCharCodeAt(receiver, position);
     // And return the single character string with only that {code}

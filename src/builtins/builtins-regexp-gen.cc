@@ -1427,6 +1427,9 @@ TNode<Number> RegExpBuiltinsAssembler::AdvanceStringIndex(
   TNode<Number> index_plus_one = NumberInc(index);
   TVARIABLE(Number, var_result, index_plus_one);
 
+  // TODO(v8:9880): Given that we have to convert index from Number to UintPtrT
+  // anyway, consider using UintPtrT index to simplify the code below.
+
   // Advancing the index has some subtle issues involving the distinction
   // between Smis and HeapNumbers. There's three cases:
   // * {index} is a Smi, {index_plus_one} is a Smi. The standard case.
@@ -1451,16 +1454,18 @@ TNode<Number> RegExpBuiltinsAssembler::AdvanceStringIndex(
 
   BIND(&if_isunicode);
   {
-    TNode<IntPtrT> const string_length = LoadStringLengthAsWord(string);
-    TNode<IntPtrT> untagged_plus_one = SmiUntag(CAST(index_plus_one));
-    GotoIfNot(IntPtrLessThan(untagged_plus_one, string_length), &out);
+    TNode<UintPtrT> string_length = Unsigned(LoadStringLengthAsWord(string));
+    TNode<UintPtrT> untagged_plus_one =
+        Unsigned(SmiUntag(CAST(index_plus_one)));
+    GotoIfNot(UintPtrLessThan(untagged_plus_one, string_length), &out);
 
-    TNode<Int32T> const lead = StringCharCodeAt(string, SmiUntag(CAST(index)));
+    TNode<Int32T> lead =
+        StringCharCodeAt(string, Unsigned(SmiUntag(CAST(index))));
     GotoIfNot(Word32Equal(Word32And(lead, Int32Constant(0xFC00)),
                           Int32Constant(0xD800)),
               &out);
 
-    TNode<Int32T> const trail = StringCharCodeAt(string, untagged_plus_one);
+    TNode<Int32T> trail = StringCharCodeAt(string, untagged_plus_one);
     GotoIfNot(Word32Equal(Word32And(trail, Int32Constant(0xFC00)),
                           Int32Constant(0xDC00)),
               &out);

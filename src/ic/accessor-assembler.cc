@@ -397,10 +397,11 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
 
         Comment("indexed string");
         TNode<String> string_holder = CAST(holder);
-        TNode<IntPtrT> intptr_index = TryToIntptr(p->name(), miss);
-        TNode<IntPtrT> length = LoadStringLengthAsWord(string_holder);
-        GotoIf(UintPtrGreaterThanOrEqual(intptr_index, length), &if_oob);
-        TNode<Int32T> code = StringCharCodeAt(string_holder, intptr_index);
+        TNode<UintPtrT> index = Unsigned(TryToIntptr(p->name(), miss));
+        TNode<UintPtrT> length =
+            Unsigned(LoadStringLengthAsWord(string_holder));
+        GotoIf(UintPtrGreaterThanOrEqual(index, length), &if_oob);
+        TNode<Int32T> code = StringCharCodeAt(string_holder, index);
         TNode<String> result = StringFromSingleCharCode(code);
         Return(result);
 

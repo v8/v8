@@ -6765,12 +6765,9 @@ Node* CodeStubAssembler::FixedArraySizeDoesntFitInNewSpace(Node* element_count,
       element_count, IntPtrOrSmiConstant(max_newspace_elements, mode), mode);
 }
 
-TNode<Int32T> CodeStubAssembler::StringCharCodeAt(SloppyTNode<String> string,
-                                                  SloppyTNode<IntPtrT> index) {
-  CSA_ASSERT(this, IsString(string));
-
-  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(index, IntPtrConstant(0)));
-  CSA_ASSERT(this, IntPtrLessThan(index, LoadStringLengthAsWord(string)));
+TNode<Int32T> CodeStubAssembler::StringCharCodeAt(TNode<String> string,
+                                                  TNode<UintPtrT> index) {
+  CSA_ASSERT(this, UintPtrLessThan(index, LoadStringLengthAsWord(string)));
 
   TVARIABLE(Int32T, var_result);
 
@@ -6779,7 +6776,8 @@ TNode<Int32T> CodeStubAssembler::StringCharCodeAt(SloppyTNode<String> string,
 
   ToDirectStringAssembler to_direct(state(), string);
   to_direct.TryToDirect(&if_runtime);
-  TNode<IntPtrT> const offset = IntPtrAdd(index, to_direct.offset());
+  TNode<UintPtrT> const offset =
+      UintPtrAdd(index, Unsigned(to_direct.offset()));
   TNode<Int32T> const instance_type = to_direct.instance_type();
   TNode<RawPtrT> const string_data = to_direct.PointerToData(&if_runtime);
 
@@ -6804,8 +6802,9 @@ TNode<Int32T> CodeStubAssembler::StringCharCodeAt(SloppyTNode<String> string,
 
   BIND(&if_runtime);
   {
-    TNode<Object> result = CallRuntime(
-        Runtime::kStringCharCodeAt, NoContextConstant(), string, SmiTag(index));
+    TNode<Object> result =
+        CallRuntime(Runtime::kStringCharCodeAt, NoContextConstant(), string,
+                    ChangeUintPtrToTagged(index));
     var_result = SmiToInt32(CAST(result));
     Goto(&return_result);
   }
@@ -9395,7 +9394,7 @@ void CodeStubAssembler::BranchIfMaybeSpecialIndex(TNode<String> name_string,
 
   // If the first character of name is not a digit or '-', or we can't match it
   // to Infinity or NaN, then this is not a special index.
-  TNode<Int32T> first_char = StringCharCodeAt(name_string, IntPtrConstant(0));
+  TNode<Int32T> first_char = StringCharCodeAt(name_string, UintPtrConstant(0));
   // If the name starts with '-', it can be a negative index.
   GotoIf(Word32Equal(first_char, Int32Constant('-')), if_maybe_special_index);
   // If the name starts with 'I', it can be "Infinity".

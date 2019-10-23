@@ -1409,7 +1409,10 @@ const kMaxTypedArrayInHeap:
 const kMaxSafeInteger: constexpr float64 generates 'kMaxSafeInteger';
 const kSmiMaxValue: constexpr uintptr generates 'kSmiMaxValue';
 const kSmiMax: uintptr = kSmiMaxValue;
+// TODO(v8:8996): Use uintptr version instead and drop this one.
 const kStringMaxLength: constexpr int31 generates 'String::kMaxLength';
+const kStringMaxLengthUintptr:
+    constexpr uintptr generates 'String::kMaxLength';
 const kFixedArrayMaxLength:
     constexpr int31 generates 'FixedArray::kMaxLength';
 const kObjectAlignmentMask: constexpr intptr
@@ -1962,7 +1965,7 @@ extern macro LoadBufferSmi(RawPtr, constexpr int32): Smi;
 
 extern runtime StringEqual(Context, String, String): Oddball;
 extern builtin StringLessThan(Context, String, String): Boolean;
-extern macro StringCharCodeAt(String, intptr): int32;
+extern macro StringCharCodeAt(String, uintptr): int32;
 extern runtime StringCompareSequence(Context, String, String, Number): Boolean;
 extern macro StringFromSingleCharCode(int32): String;
 
@@ -2169,6 +2172,8 @@ extern macro TryIntPtrAdd(intptr, intptr): intptr labels Overflow;
 extern macro TryIntPtrSub(intptr, intptr): intptr labels Overflow;
 extern macro TryInt32Mul(int32, int32): int32 labels Overflow;
 
+extern operator '<' macro ConstexprUintPtrLessThan(
+    constexpr uintptr, constexpr uintptr): constexpr bool;
 extern operator '<<' macro ConstexprUintPtrShl(
     constexpr uintptr, constexpr int31): constexpr uintptr;
 extern operator '>>>' macro ConstexprUintPtrShr(
@@ -3685,6 +3690,7 @@ macro ConvertToRelativeIndex(indexNumber: Number, length: uintptr): uintptr {
       }
     }
     case (indexHeapNumber: HeapNumber): {
+      assert(IsNumberNormalized(indexHeapNumber));
       const indexDouble: float64 = Convert<float64>(indexHeapNumber);
       // NaNs must already be handled by ConvertToRelativeIndex() version
       // above accepting JSAny indices.
@@ -3726,6 +3732,7 @@ macro ClampToIndexRange(indexNumber: Number, limit: uintptr): uintptr {
       return index;
     }
     case (indexHeapNumber: HeapNumber): {
+      assert(IsNumberNormalized(indexHeapNumber));
       const indexDouble: float64 = Convert<float64>(indexHeapNumber);
       // NaNs must already be handled by ClampToIndexRange() version
       // above accepting JSAny indices.

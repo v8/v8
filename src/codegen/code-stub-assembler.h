@@ -2606,8 +2606,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // String helpers.
   // Load a character from a String (might flatten a ConsString).
-  TNode<Int32T> StringCharCodeAt(SloppyTNode<String> string,
-                                 SloppyTNode<IntPtrT> index);
+  TNode<Int32T> StringCharCodeAt(TNode<String> string, TNode<UintPtrT> index);
   // Return the single character string with only {code}.
   TNode<String> StringFromSingleCharCode(TNode<Int32T> code);
 
@@ -3581,6 +3580,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return val;
   }
 
+  bool ConstexprUintPtrLessThan(uintptr_t a, uintptr_t b) { return a < b; }
+
   void PerformStackCheck(TNode<Context> context);
 
   void SetPropertyLength(TNode<Context> context, TNode<Object> array,
@@ -3961,6 +3962,7 @@ class ToDirectStringAssembler : public CodeStubAssembler {
 
   TVariable<String> var_string_;
   TVariable<Int32T> var_instance_type_;
+  // TODO(v8:9880): Use UintPtrT here.
   TVariable<IntPtrT> var_offset_;
   TVariable<Word32T> var_is_external_;
 
