@@ -47,11 +47,10 @@ class EffectControlLinearizer {
   void Run();
 
  private:
-  void ProcessNode(Node* node, Node** frame_state, Node** effect,
-                   Node** control);
+  void UpdateEffectControlForNode(Node* node);
+  void ProcessNode(Node* node, Node** frame_state);
 
-  bool TryWireInStateEffect(Node* node, Node* frame_state, Node** effect,
-                            Node** control);
+  bool TryWireInStateEffect(Node* node, Node* frame_state);
   Node* LowerChangeBitToTagged(Node* node);
   Node* LowerChangeInt31ToCompressedSigned(Node* node);
   Node* LowerChangeInt31ToTaggedSigned(Node* node);
@@ -291,11 +290,11 @@ class BlockEffectControlMap {
   explicit BlockEffectControlMap(Zone* temp_zone) : map_(temp_zone) {}
 
   BlockEffectControlData& For(BasicBlock* from, BasicBlock* to) {
-    return map_[std::make_pair(from->rpo_number(), to->rpo_number())];
+    return map_[std::make_pair(from->id().ToInt(), to->id().ToInt())];
   }
 
   const BlockEffectControlData& For(BasicBlock* from, BasicBlock* to) const {
-    return map_.at(std::make_pair(from->rpo_number(), to->rpo_number()));
+    return map_.at(std::make_pair(from->id().ToInt(), to->id().ToInt()));
   }
 
  private:
@@ -359,15 +358,6 @@ void UpdateBlockControl(BasicBlock* block,
                                           i);
     }
   }
-}
-
-bool HasIncomingBackEdges(BasicBlock* block) {
-  for (BasicBlock* pred : block->predecessors()) {
-    if (pred->rpo_number() >= block->rpo_number()) {
-      return true;
-    }
-  }
-  return false;
 }
 
 void RemoveRenameNode(Node* node) {
@@ -555,18 +545,21 @@ void EffectControlLinearizer::Run() {
   NodeVector inputs_buffer(temp_zone());
 
   for (BasicBlock* block : *(schedule()->rpo_order())) {
-    size_t instr = 0;
-
     gasm()->Reset(block);
 
+    BasicBlock::iterator instr = block->begin();
+    BasicBlock::iterator end_instr = block->end();
+
     // The control node should be the first.
-    Node* control = block->NodeAt(instr);
+    Node* control = *instr;
+    gasm()->AddNode(control);
+
     DCHECK(NodeProperties::IsControl(control));
+    bool has_incoming_backedge = IrOpcode::kLoop == control->opcode();
     // Update the control inputs.
-    if (HasIncomingBackEdges(block)) {
+    if (has_incoming_backedge) {
       // If there are back edges, we need to update later because we have not
-      // computed the control yet. This should only happen for loops.
-      DCHECK_EQ(IrOpcode::kLoop, control->opcode());
+      // computed the control yet.
       pending_block_controls.push_back(block);
     } else {
       // If there are no back edges, we can update now.
@@ -577,8 +570,8 @@ void EffectControlLinearizer::Run() {
     // Iterate over the phis and update the effect phis.
     Node* effect_phi = nullptr;
     Node* terminate = nullptr;
-    for (; instr < block->NodeCount(); instr++) {
-      Node* node = block->NodeAt(instr);
+    for (; instr != end_instr; instr++) {
+      Node* node = *instr;
       // Only go through the phis and effect phis.
       if (node->opcode() == IrOpcode::kEffectPhi) {
         // There should be at most one effect phi in a block.
@@ -594,11 +587,12 @@ void EffectControlLinearizer::Run() {
       } else {
         break;
       }
+      gasm()->AddNode(node);
     }
 
     if (effect_phi) {
       // Make sure we update the inputs to the incoming blocks' effects.
-      if (HasIncomingBackEdges(block)) {
+      if (has_incoming_backedge) {
         // In case of loops, we do not update the effect phi immediately
         // because the back predecessor has not been handled yet. We just
         // record the effect phi for later processing.
@@ -642,6 +636,7 @@ void EffectControlLinearizer::Run() {
           effect = graph()->NewNode(
               common()->EffectPhi(static_cast<int>(block->PredecessorCount())),
               static_cast<int>(inputs_buffer.size()), &(inputs_buffer.front()));
+          gasm()->AddNode(effect);
           // For loops, we update the effect phi node later to break cycles.
           if (control->opcode() == IrOpcode::kLoop) {
             pending_effect_phis.push_back(PendingEffectPhi(effect, block));
@@ -683,42 +678,46 @@ void EffectControlLinearizer::Run() {
       }
     }
 
+    gasm()->InitializeEffectControl(effect, control);
+
     // Process the ordinary instructions.
-    for (; instr < block->NodeCount(); instr++) {
-      Node* node = block->NodeAt(instr);
-      ProcessNode(node, &frame_state, &effect, &control);
+    for (; instr != end_instr; instr++) {
+      Node* node = *instr;
+      ProcessNode(node, &frame_state);
     }
+
+    block = gasm()->FinalizeCurrentBlock(block);
 
     switch (block->control()) {
       case BasicBlock::kGoto:
       case BasicBlock::kNone:
         break;
-
       case BasicBlock::kCall:
       case BasicBlock::kTailCall:
       case BasicBlock::kSwitch:
       case BasicBlock::kReturn:
       case BasicBlock::kDeoptimize:
       case BasicBlock::kThrow:
-        ProcessNode(block->control_input(), &frame_state, &effect, &control);
-        break;
-
       case BasicBlock::kBranch:
-        ProcessNode(block->control_input(), &frame_state, &effect, &control);
-        TryCloneBranch(block->control_input(), block, temp_zone(), graph(),
-                       common(), &block_effects, source_positions_,
-                       node_origins_);
+        UpdateEffectControlForNode(block->control_input());
+        gasm()->UpdateEffectControlWith(block->control_input());
         break;
+    }
+
+    if (block->control() == BasicBlock::kBranch) {
+      TryCloneBranch(block->control_input(), block, temp_zone(), graph(),
+                     common(), &block_effects, source_positions_,
+                     node_origins_);
     }
 
     // Store the effect, control and frame state for later use.
     for (BasicBlock* successor : block->successors()) {
       BlockEffectControlData* data = &block_effects.For(block, successor);
       if (data->current_effect == nullptr) {
-        data->current_effect = effect;
+        data->current_effect = gasm()->current_effect();
       }
       if (data->current_control == nullptr) {
-        data->current_control = control;
+        data->current_control = gasm()->current_control();
       }
       data->current_frame_state = frame_state;
     }
@@ -733,19 +732,34 @@ void EffectControlLinearizer::Run() {
     UpdateEffectPhi(pending_effect_phi.effect_phi, pending_effect_phi.block,
                     &block_effects);
   }
+  schedule_->rpo_order()->clear();
 }
 
-void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state,
-                                          Node** effect, Node** control) {
+void EffectControlLinearizer::UpdateEffectControlForNode(Node* node) {
+  // If the node takes an effect, replace with the current one.
+  if (node->op()->EffectInputCount() > 0) {
+    DCHECK_EQ(1, node->op()->EffectInputCount());
+    NodeProperties::ReplaceEffectInput(node, gasm()->current_effect());
+  } else {
+    // New effect chain is only started with a Start or ValueEffect node.
+    DCHECK(node->op()->EffectOutputCount() == 0 ||
+           node->opcode() == IrOpcode::kStart);
+  }
+
+  // Rewire control inputs.
+  for (int i = 0; i < node->op()->ControlInputCount(); i++) {
+    NodeProperties::ReplaceControlInput(node, gasm()->current_control(), i);
+  }
+}
+
+void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state) {
   SourcePositionTable::Scope scope(source_positions_,
                                    source_positions_->GetSourcePosition(node));
   NodeOriginTable::Scope origin_scope(node_origins_, "process node", node);
 
-  gasm()->InitializeEffectControl(*effect, *control);
-
   // If the node needs to be wired into the effect/control chain, do this
   // here. Pass current frame state for lowering to eager deoptimization.
-  if (TryWireInStateEffect(node, *frame_state, effect, control)) {
+  if (TryWireInStateEffect(node, *frame_state)) {
     return;
   }
 
@@ -794,50 +808,19 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state,
   // start nodes are not handled in the ProcessNode method).
   DCHECK_NE(IrOpcode::kIfSuccess, node->opcode());
 
-  // If the node takes an effect, replace with the current one.
-  if (node->op()->EffectInputCount() > 0) {
-    DCHECK_EQ(1, node->op()->EffectInputCount());
-    Node* input_effect = NodeProperties::GetEffectInput(node);
-
-    if (input_effect != *effect) {
-      NodeProperties::ReplaceEffectInput(node, *effect);
-    }
-
-    // If the node produces an effect, update our current effect. (However,
-    // ignore new effect chains started with ValueEffect.)
-    if (node->op()->EffectOutputCount() > 0) {
-      DCHECK_EQ(1, node->op()->EffectOutputCount());
-      *effect = node;
-    }
-  } else {
-    // New effect chain is only started with a Start or ValueEffect node.
-    DCHECK(node->op()->EffectOutputCount() == 0 ||
-           node->opcode() == IrOpcode::kStart);
-  }
-
-  // Rewire control inputs.
-  for (int i = 0; i < node->op()->ControlInputCount(); i++) {
-    NodeProperties::ReplaceControlInput(node, *control, i);
-  }
-  // Update the current control.
-  if (node->op()->ControlOutputCount() > 0) {
-    *control = node;
-  }
+  UpdateEffectControlForNode(node);
 
   gasm()->AddNode(node);
 
-  // Break the effect chain on {Unreachable} and reconnect to the graph end.
-  // Mark the following code for deletion by connecting to the {Dead} node.
   if (node->opcode() == IrOpcode::kUnreachable) {
+    // Break the effect chain on {Unreachable} and reconnect to the graph end.
+    // Mark the following code for deletion by connecting to the {Dead} node.
     gasm()->ConnectUnreachableToEnd();
-    *effect = *control = jsgraph()->Dead();
   }
 }
 
 bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
-                                                   Node* frame_state,
-                                                   Node** effect,
-                                                   Node** control) {
+                                                   Node* frame_state) {
   Node* result = nullptr;
   switch (node->opcode()) {
     case IrOpcode::kChangeBitToTagged:
@@ -1331,9 +1314,8 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
         node->op()->mnemonic());
   }
 
-  *effect = gasm()->current_effect();
-  *control = gasm()->current_control();
-  NodeProperties::ReplaceUses(node, result, *effect, *control);
+  NodeProperties::ReplaceUses(node, result, gasm()->current_effect(),
+                              gasm()->current_control());
   return true;
 }
 

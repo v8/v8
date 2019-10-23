@@ -670,6 +670,7 @@ void GraphAssembler::ConnectUnreachableToEnd() {
   Node* throw_node =
       graph()->NewNode(common()->Throw(), current_effect_, current_control_);
   NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
+  current_effect_ = current_control_ = jsgraph()->Dead();
   if (block_updater_) {
     block_updater_->AddThrow(throw_node);
   }
