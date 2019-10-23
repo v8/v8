@@ -2211,7 +2211,7 @@ VISIT_SIMD_REPLACE_LANE(F32x4)
     InstructionOperand operand0 = g.UseRegister(node->InputAt(0));       \
     InstructionOperand operand1 =                                        \
         g.UseImmediate(OpParameter<int32_t>(node->op()));                \
-    InstructionOperand operand2 = g.UseRegister(node->InputAt(1));       \
+    InstructionOperand operand2 = g.UseUniqueRegister(node->InputAt(1)); \
     if (IsSupported(AVX)) {                                              \
       Emit(kAVX##Type##ReplaceLane, g.DefineAsRegister(node), operand0,  \
            operand1, operand2);                                          \

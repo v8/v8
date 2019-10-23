@@ -1881,14 +1881,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister src = i.InputSimd128Register(0);
       int8_t lane = i.InputInt8(1);
       DoubleRegister rep = i.InputDoubleRegister(2);
+      DCHECK_NE(dst, rep);
 
       DCHECK_LT(lane, 2);
       if (lane == 0) {
         __ vinsertps(dst, src, rep, 0b00000000);
-        __ vinsertps(dst, src, rep, 0b01010000);
+        __ vinsertps(dst, dst, rep, 0b01010000);
       } else {
-        __ vinsertps(dst, src, rep, 0b10100000);
-        __ vinsertps(dst, src, rep, 0b11110000);
+        __ vinsertps(dst, src, rep, 0b00100000);
+        __ vinsertps(dst, dst, rep, 0b01110000);
       }
       break;
     }

@@ -1136,21 +1136,25 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2ExtractLane) {
 
 WASM_SIMD_TEST_NO_LOWERING(F64x2ReplaceLane) {
   WasmRunner<int32_t> r(execution_tier, lower_simd);
-  // Set up a global to hold input/output vector.
-  double* g = r.builder().AddGlobal<double>(kWasmS128);
+  // Set up globals to hold input/output vector.
+  double* g0 = r.builder().AddGlobal<double>(kWasmS128);
+  double* g1 = r.builder().AddGlobal<double>(kWasmS128);
   // Build function to replace each lane with its (FP) index.
   byte temp1 = r.AllocateLocal(kWasmS128);
   BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_F64x2_SPLAT(WASM_F64(1e100))),
-        WASM_SET_LOCAL(temp1, WASM_SIMD_F64x2_REPLACE_LANE(
-                                  0, WASM_GET_LOCAL(temp1), WASM_F64(0.0f))),
+        // Replace lane 0.
         WASM_SET_GLOBAL(0, WASM_SIMD_F64x2_REPLACE_LANE(
+                               0, WASM_GET_LOCAL(temp1), WASM_F64(0.0f))),
+        // Replace lane 1.
+        WASM_SET_GLOBAL(1, WASM_SIMD_F64x2_REPLACE_LANE(
                                1, WASM_GET_LOCAL(temp1), WASM_F64(1.0f))),
         WASM_ONE);
 
   r.Call();
-  for (int i = 0; i < 2; i++) {
-    CHECK_EQ(static_cast<double>(i), ReadLittleEndianValue<double>(&g[i]));
-  }
+  CHECK_EQ(0., ReadLittleEndianValue<double>(&g0[0]));
+  CHECK_EQ(1e100, ReadLittleEndianValue<double>(&g0[1]));
+  CHECK_EQ(1e100, ReadLittleEndianValue<double>(&g1[0]));
+  CHECK_EQ(1., ReadLittleEndianValue<double>(&g1[1]));
 }
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
