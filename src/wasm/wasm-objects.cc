@@ -28,11 +28,6 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 
-#define TRACE(...)                                      \
-  do {                                                  \
-    if (FLAG_trace_wasm_instances) PrintF(__VA_ARGS__); \
-  } while (false)
-
 #define TRACE_IFT(...)              \
   do {                              \
     if (false) PrintF(__VA_ARGS__); \
@@ -1990,7 +1985,7 @@ Handle<AsmWasmData> AsmWasmData::New(
   return result;
 }
 
-#undef TRACE
-#undef TRACE_IFT
 }  // namespace internal
 }  // namespace v8
+
+#undef TRACE_IFT
