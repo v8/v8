@@ -5,6 +5,9 @@
 #include 'src/builtins/builtins-string-gen.h'
 
 namespace string {
+  extern macro StringBuiltinsAssembler::SubString(String, uintptr, uintptr):
+      String;
+
   // ES6 #sec-string.prototype.tostring
   transitioning javascript builtin
   StringPrototypeToString(js-implicit context: Context, receiver: JSAny)():

@@ -46,14 +46,14 @@ namespace proxy {
 
       // 10. Let extensibleTarget be ? IsExtensible(target).
       // 11. If extensibleTarget is true, return true.
-      const extensibleTarget: Object = object::ObjectIsExtensible(target);
+      const extensibleTarget: Object = object::ObjectIsExtensibleImpl(target);
       assert(extensibleTarget == True || extensibleTarget == False);
       if (extensibleTarget == True) {
         return True;
       }
 
       // 12. Let targetProto be ? target.[[GetPrototypeOf]]().
-      const targetProto = object::ObjectGetPrototypeOf(target);
+      const targetProto = object::ObjectGetPrototypeOfImpl(target);
 
       // 13. If SameValue(V, targetProto) is false, throw a TypeError
       // exception.

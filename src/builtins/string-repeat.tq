@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace string_repeat {
+namespace string {
   const kBuiltinName: constexpr string = 'String.prototype.repeat';
 
   builtin StringRepeat(implicit context: Context)(string: String, count: Smi):

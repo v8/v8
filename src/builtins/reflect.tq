@@ -12,7 +12,7 @@ namespace reflect {
   ReflectIsExtensible(js-implicit context: Context)(object: JSAny): JSAny {
     const objectJSReceiver = Cast<JSReceiver>(object)
         otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.isExtensible');
-    return object::ObjectIsExtensible(objectJSReceiver);
+    return object::ObjectIsExtensibleImpl(objectJSReceiver);
   }
 
   // ES6 section 26.1.12 Reflect.preventExtensions

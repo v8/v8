@@ -2,10 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace string_substring {
-
-  extern macro StringBuiltinsAssembler::SubString(String, uintptr, uintptr):
-      String;
+namespace string {
 
   // ES6 #sec-string.prototype.substring
   transitioning javascript builtin StringPrototypeSubstring(

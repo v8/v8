@@ -2,11 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace string_slice {
-
-  extern macro StringBuiltinsAssembler::SubString(String, uintptr, uintptr):
-      String;
-
+namespace string {
   // ES6 #sec-string.prototype.slice ( start, end )
   // https://tc39.github.io/ecma262/#sec-string.prototype.slice
   transitioning javascript builtin StringPrototypeSlice(

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace string_html {
+namespace string {
   extern runtime StringEscapeQuotes(Context, String): String;
 
   // https://tc39.github.io/ecma262/#sec-createhtml
