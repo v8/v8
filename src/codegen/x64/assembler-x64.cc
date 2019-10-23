@@ -2802,7 +2802,7 @@ void Assembler::movdqu(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
-void Assembler::extractps(Register dst, XMMRegister src, byte imm8) {
+void Assembler::extractps(Register dst, XMMRegister src, int8_t imm8) {
   DCHECK(IsEnabled(SSE4_1));
   DCHECK(is_uint8(imm8));
   EnsureSpace ensure_space(this);

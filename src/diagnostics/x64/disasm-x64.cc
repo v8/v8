@@ -941,8 +941,19 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         current += PrintRightOperand(current);
         AppendToBuffer(",%s,0x%x,", NameOfXMMRegister(regop), *current++);
         break;
+      case 0x17:
+        AppendToBuffer("vextractps ");
+        current += PrintRightOperand(current);
+        AppendToBuffer(",%s,0x%x,", NameOfXMMRegister(regop), *current++);
+        break;
       case 0x20:
         AppendToBuffer("vpinsrb %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightByteOperand(current);
+        AppendToBuffer(",0x%x", *current++);
+        break;
+      case 0x21:
+        AppendToBuffer("vinsertps %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
         current += PrintRightByteOperand(current);
         AppendToBuffer(",0x%x", *current++);
@@ -1274,6 +1285,10 @@ int DisassemblerX64::AVXInstruction(byte* data) {
       case 0x57:
         AppendToBuffer("vxorps %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x5B:
+        AppendToBuffer("vcvtdq2ps %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
         break;
       case 0xC2: {

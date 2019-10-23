@@ -80,6 +80,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   template <typename Dst, typename... Args>
   struct AvxHelper {
     Assembler* assm;
+    base::Optional<CpuFeature> feature = base::nullopt;
     // Call a method where the AVX version expects the dst argument to be
     // duplicated.
     template <void (Assembler::*avx)(Dst, Dst, Args...),
@@ -88,6 +89,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
       if (CpuFeatures::IsSupported(AVX)) {
         CpuFeatureScope scope(assm, AVX);
         (assm->*avx)(dst, dst, args...);
+      } else if (feature.has_value()) {
+        DCHECK(CpuFeatures::IsSupported(*feature));
+        CpuFeatureScope scope(assm, *feature);
+        (assm->*no_avx)(dst, args...);
       } else {
         (assm->*no_avx)(dst, args...);
       }
@@ -100,6 +105,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
       if (CpuFeatures::IsSupported(AVX)) {
         CpuFeatureScope scope(assm, AVX);
         (assm->*avx)(dst, args...);
+      } else if (feature.has_value()) {
+        DCHECK(CpuFeatures::IsSupported(*feature));
+        CpuFeatureScope scope(assm, *feature);
+        (assm->*no_avx)(dst, args...);
       } else {
         (assm->*no_avx)(dst, args...);
       }
@@ -113,6 +122,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
         .template emit<&Assembler::v##name, &Assembler::name>(dst, args...); \
   }
 
+#define AVX_OP_SSE4_1(macro_name, name)                                      \
+  template <typename Dst, typename... Args>                                  \
+  void macro_name(Dst dst, Args... args) {                                   \
+    AvxHelper<Dst, Args...>{this, base::Optional<CpuFeature>(SSE4_1)}        \
+        .template emit<&Assembler::v##name, &Assembler::name>(dst, args...); \
+  }
   AVX_OP(Subsd, subsd)
   AVX_OP(Divss, divss)
   AVX_OP(Divsd, divsd)
@@ -167,17 +182,20 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Psrad, psrad)
   AVX_OP(Psrld, psrld)
   AVX_OP(Paddd, paddd)
-  AVX_OP(Pmulld, pmulld)
-  AVX_OP(Pminsd, pminsd)
-  AVX_OP(Pminud, pminud)
-  AVX_OP(Pmaxsd, pmaxsd)
-  AVX_OP(Pmaxud, pmaxud)
   AVX_OP(Pcmpgtd, pcmpgtd)
   AVX_OP(Addpd, addpd)
   AVX_OP(Subpd, subpd)
   AVX_OP(Mulpd, mulpd)
   AVX_OP(Divpd, divpd)
   AVX_OP(Shufps, shufps)
+  AVX_OP(Cvtdq2ps, cvtdq2ps)
+  AVX_OP_SSE4_1(Pmulld, pmulld)
+  AVX_OP_SSE4_1(Pminsd, pminsd)
+  AVX_OP_SSE4_1(Pminud, pminud)
+  AVX_OP_SSE4_1(Pmaxsd, pmaxsd)
+  AVX_OP_SSE4_1(Pmaxud, pmaxud)
+  AVX_OP_SSE4_1(Extractps, extractps)
+  AVX_OP_SSE4_1(Insertps, insertps)
 
 #undef AVX_OP
 

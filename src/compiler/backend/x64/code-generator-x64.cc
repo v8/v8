@@ -2443,26 +2443,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F32x4ExtractLane: {
-      CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      __ extractps(kScratchRegister, i.InputSimd128Register(0), i.InputInt8(1));
-      __ movd(i.OutputDoubleRegister(), kScratchRegister);
+      __ Extractps(kScratchRegister, i.InputSimd128Register(0), i.InputInt8(1));
+      __ Movd(i.OutputDoubleRegister(), kScratchRegister);
       break;
     }
     case kX64F32x4ReplaceLane: {
-      CpuFeatureScope sse_scope(tasm(), SSE4_1);
       // The insertps instruction uses imm8[5:4] to indicate the lane
       // that needs to be replaced.
       byte select = i.InputInt8(1) << 4 & 0x30;
       if (instr->InputAt(2)->IsFPRegister()) {
-        __ insertps(i.OutputSimd128Register(), i.InputDoubleRegister(2),
+        __ Insertps(i.OutputSimd128Register(), i.InputDoubleRegister(2),
                     select);
       } else {
-        __ insertps(i.OutputSimd128Register(), i.InputOperand(2), select);
+        __ Insertps(i.OutputSimd128Register(), i.InputOperand(2), select);
       }
       break;
     }
     case kX64F32x4SConvertI32x4: {
-      __ cvtdq2ps(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ Cvtdq2ps(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kX64F32x4UConvertI32x4: {

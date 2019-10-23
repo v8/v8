@@ -1084,7 +1084,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // SSE 4.1 instruction
   void insertps(XMMRegister dst, XMMRegister src, byte imm8);
   void insertps(XMMRegister dst, Operand src, byte imm8);
-  void extractps(Register dst, XMMRegister src, byte imm8);
+  void extractps(Register dst, XMMRegister src, int8_t imm8);
   void pextrb(Register dst, XMMRegister src, int8_t imm8);
   void pextrb(Operand dst, XMMRegister src, int8_t imm8);
   void pextrw(Register dst, XMMRegister src, int8_t imm8);
@@ -1580,6 +1580,20 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vinstr(0x72, xmm4, dst, src, k66, k0F, kWIG);
     emit(imm8);
   }
+  void vinsertps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 byte imm8) {
+    vinstr(0x21, dst, src1, src2, k66, k0F3A, kWIG);
+    emit(imm8);
+  }
+  void vinsertps(XMMRegister dst, XMMRegister src1, Operand src2, byte imm8) {
+    vinstr(0x21, dst, src1, src2, k66, k0F3A, kWIG);
+    emit(imm8);
+  }
+  void vextractps(Register dst, XMMRegister src, int8_t imm8) {
+    XMMRegister idst = XMMRegister::from_code(dst.code());
+    vinstr(0x17, src, xmm0, idst, k66, k0F3A, kWIG);
+    emit(imm8);
+  }
   void vpextrb(Register dst, XMMRegister src, uint8_t imm8) {
     XMMRegister idst = XMMRegister::from_code(dst.code());
     vinstr(0x14, src, xmm0, idst, k66, k0F3A, kW0);
@@ -1637,6 +1651,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vpshufd(XMMRegister dst, XMMRegister src, uint8_t imm8) {
     vinstr(0x70, dst, xmm0, src, k66, k0F, kWIG);
     emit(imm8);
+  }
+  void vcvtdq2ps(XMMRegister dst, XMMRegister src) {
+    vinstr(0x5B, dst, xmm0, src, kNone, k0F, kWIG);
+  }
+  void vcvtdq2ps(XMMRegister dst, Operand src) {
+    vinstr(0x5B, dst, xmm0, src, kNone, k0F, kWIG);
   }
 
   void vps(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);

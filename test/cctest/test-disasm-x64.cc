@@ -751,6 +751,10 @@ TEST(DisasmX64) {
 #undef EMIT_SSE2_AVXINSTR
 #undef EMIT_SSE34_AVXINSTR
 
+      __ vinsertps(xmm1, xmm2, xmm3, 1);
+      __ vinsertps(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 1);
+      __ vextractps(rax, xmm1, 1);
+
       __ vlddqu(xmm1, Operand(rbx, rcx, times_4, 10000));
       __ vpsllw(xmm0, xmm15, 21);
       __ vpsrlw(xmm0, xmm15, 21);
@@ -771,6 +775,9 @@ TEST(DisasmX64) {
       __ vpinsrd(xmm1, xmm2, Operand(rbx, rcx, times_4, 10000), 2);
       __ vpshufd(xmm1, xmm2, 85);
       __ vshufps(xmm3, xmm2, xmm3, 3);
+
+      __ vcvtdq2ps(xmm5, xmm1);
+      __ vcvtdq2ps(xmm5, Operand(rdx, 4));
     }
   }
 
