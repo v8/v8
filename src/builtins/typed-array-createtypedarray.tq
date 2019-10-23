@@ -70,7 +70,7 @@ namespace typed_array {
   }
 
   transitioning macro TypedArrayInitialize(implicit context: Context)(
-      initialize: constexpr bool, map: Map, length: PositiveSmi,
+      initialize: constexpr bool, map: Map, length: uintptr,
       elementsInfo: typed_array::TypedArrayElementsInfo,
       bufferConstructor: JSReceiver): JSTypedArray {
     const byteLength = elementsInfo.CalculateByteLength(length)
@@ -91,8 +91,7 @@ namespace typed_array {
 
       const isOnHeap: constexpr bool = true;
       const typedArray = AllocateTypedArray(
-          isOnHeap, map, buffer, byteOffset, byteLength,
-          Convert<uintptr>(length));
+          isOnHeap, map, buffer, byteOffset, byteLength, length);
 
       if constexpr (initialize) {
         const backingStore = typedArray.data_ptr;
@@ -113,8 +112,7 @@ namespace typed_array {
       const buffer = Cast<JSArrayBuffer>(bufferObj) otherwise unreachable;
       const isOnHeap: constexpr bool = false;
       return AllocateTypedArray(
-          isOnHeap, map, buffer, byteOffset, byteLength,
-          Convert<uintptr>(length));
+          isOnHeap, map, buffer, byteOffset, byteLength, length);
     }
   }
 
@@ -134,7 +132,8 @@ namespace typed_array {
     const defaultConstructor: Constructor = GetArrayBufferFunction();
     const initialize: constexpr bool = true;
     return TypedArrayInitialize(
-        initialize, map, positiveLength, elementsInfo, defaultConstructor);
+        initialize, map, Convert<uintptr>(positiveLength), elementsInfo,
+        defaultConstructor);
   }
 
   // 22.2.4.4 TypedArray ( object )
@@ -148,7 +147,8 @@ namespace typed_array {
         otherwise ThrowRangeError(kInvalidTypedArrayLength, initialLength);
     const initialize: constexpr bool = false;
     const typedArray = TypedArrayInitialize(
-        initialize, map, length, elementsInfo, bufferConstructor);
+        initialize, map, Convert<uintptr>(length), elementsInfo,
+        bufferConstructor);
 
     try {
       const src: JSTypedArray = Cast<JSTypedArray>(arrayLike) otherwise IfSlow;
@@ -220,13 +220,10 @@ namespace typed_array {
         goto IfInvalidAlignment('start offset');
       }
 
-      let newLength: PositiveSmi = 0;
-      let newByteLength: uintptr;
       // 8. If length is present and length is not undefined, then
-      if (length != Undefined) {
-        // a. Let newLength be ? ToIndex(length).
-        newLength = ToSmiIndex(length) otherwise IfInvalidLength;
-      }
+      // a. Let newLength be ? ToIndex(length).
+      let newLength: uintptr = ToIndex(length) otherwise IfInvalidLength;
+      let newByteLength: uintptr;
 
       // 9. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
       if (IsDetachedBuffer(buffer)) {
@@ -269,8 +266,7 @@ namespace typed_array {
 
       const isOnHeap: constexpr bool = false;
       return AllocateTypedArray(
-          isOnHeap, map, buffer, offset, newByteLength,
-          Convert<uintptr>(newLength));
+          isOnHeap, map, buffer, offset, newByteLength, newLength);
     }
     label IfInvalidAlignment(problemString: String) deferred {
       ThrowInvalidTypedArrayAlignment(map, problemString);
@@ -405,6 +401,19 @@ namespace typed_array {
     if (typedArray.length < length) deferred {
         ThrowTypeError(kTypedArrayTooShort);
       }
+    return typedArray;
+  }
+
+  transitioning macro TypedArraySpeciesCreateByBuffer(implicit context:
+                                                          Context)(
+      methodName: constexpr string, exemplar: JSTypedArray,
+      buffer: JSArrayBuffer, beginByteOffset: uintptr,
+      newLength: uintptr): JSTypedArray {
+    const numArgs: constexpr int31 = 3;
+    // TODO(v8:4153): pass length further as uintptr.
+    const typedArray: JSTypedArray = TypedArraySpeciesCreate(
+        methodName, numArgs, exemplar, buffer, Convert<Number>(beginByteOffset),
+        Convert<Number>(newLength));
     return typedArray;
   }
 }

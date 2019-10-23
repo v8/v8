@@ -12,7 +12,7 @@ namespace typed_array {
 
   macro FastCopy(
       src: typed_array::AttachedJSTypedArray, dest: JSTypedArray, k: uintptr,
-      count: PositiveSmi) labels IfSlow {
+      count: uintptr) labels IfSlow {
     if (IsForceSlowPath()) goto IfSlow;
 
     const srcKind: ElementsKind = src.elements_kind;
@@ -27,10 +27,9 @@ namespace typed_array {
       goto IfSlow;
     }
 
-    const countBytes: uintptr =
-        destInfo.CalculateByteLength(count) otherwise unreachable;
-    const startOffset: uintptr =
-        destInfo.CalculateByteLength(Convert<PositiveSmi>(Signed(k)))
+    const countBytes: uintptr = destInfo.CalculateByteLength(count)
+        otherwise unreachable;
+    const startOffset: uintptr = destInfo.CalculateByteLength(k)
         otherwise unreachable;
     const srcPtr: RawPtr = src.data_ptr + Convert<intptr>(startOffset);
 
@@ -81,11 +80,11 @@ namespace typed_array {
         end != Undefined ? ConvertToRelativeIndex(end, len) : len;
 
     // 8. Let count be max(final - k, 0).
-    const count = Convert<PositiveSmi>(IntPtrMax(Signed(final - k), 0));
+    const count: uintptr = Unsigned(IntPtrMax(Signed(final - k), 0));
 
     // 9. Let A be ? TypedArraySpeciesCreate(O, « count »).
-    const dest: JSTypedArray = TypedArraySpeciesCreateByLength(
-        kBuiltinNameSlice, src, Convert<uintptr>(count));
+    const dest: JSTypedArray =
+        TypedArraySpeciesCreateByLength(kBuiltinNameSlice, src, count);
 
     if (count > 0) {
       try {

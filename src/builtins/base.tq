@@ -1855,9 +1855,6 @@ extern transitioning macro ToInteger_Inline(
     Context, JSAny, constexpr ToIntegerTruncationMode): Number;
 extern transitioning macro ToLength_Inline(Context, JSAny): Number;
 extern transitioning macro ToNumber_Inline(Context, JSAny): Number;
-// TODO(v8:4153): Use ToIndex() instead.
-extern transitioning macro ToSmiIndex(implicit context: Context)(JSAny):
-    PositiveSmi labels IfRangeError;
 extern transitioning macro ToSmiLength(implicit context: Context)(JSAny):
     PositiveSmi labels IfRangeError;
 extern transitioning macro ToString_Inline(Context, JSAny): String;

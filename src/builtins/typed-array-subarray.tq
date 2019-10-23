@@ -38,7 +38,7 @@ namespace typed_array {
         arg1 != Undefined ? ConvertToRelativeIndex(arg1, srcLength) : srcLength;
 
     // 11. Let newLength be max(endIndex - beginIndex, 0).
-    const newLength = Convert<PositiveSmi>(IntPtrMax(Signed(end - begin), 0));
+    const newLength: uintptr = Unsigned(IntPtrMax(Signed(end - begin), 0));
 
     // 12. Let constructorName be the String value of O.[[TypedArrayName]].
     // 13. Let elementSize be the Number value of the Element Size value
@@ -49,16 +49,13 @@ namespace typed_array {
     const srcByteOffset: uintptr = source.byte_offset;
 
     // 15. Let beginByteOffset be srcByteOffset + beginIndex × elementSize.
-    const beginByteOffset = srcByteOffset +
-        elementsInfo.CalculateByteLength(Convert<PositiveSmi>(Signed(begin)))
+    const beginByteOffset =
+        srcByteOffset + elementsInfo.CalculateByteLength(begin)
         otherwise ThrowRangeError(kInvalidArrayBufferLength);
 
     // 16. Let argumentsList be « buffer, beginByteOffset, newLength ».
-    const beginByteOffsetNum = Convert<Number>(beginByteOffset);
-
     // 17. Return ? TypedArraySpeciesCreate(O, argumentsList).
-    const numArgs: constexpr int31 = 3;
-    return TypedArraySpeciesCreate(
-        methodName, numArgs, source, buffer, beginByteOffsetNum, newLength);
+    return TypedArraySpeciesCreateByBuffer(
+        methodName, source, buffer, beginByteOffset, newLength);
   }
 }
