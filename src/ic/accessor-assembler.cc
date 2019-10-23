@@ -2220,13 +2220,13 @@ void AccessorAssembler::EmitElementLoad(
         {
           Comment("BIGINT64_ELEMENTS");
           exit_point->Return(LoadFixedTypedArrayElementAsTagged(
-              data_ptr, intptr_index, BIGINT64_ELEMENTS, INTPTR_PARAMETERS));
+              data_ptr, Unsigned(intptr_index), BIGINT64_ELEMENTS));
         }
         BIND(&biguint64_elements);
         {
           Comment("BIGUINT64_ELEMENTS");
           exit_point->Return(LoadFixedTypedArrayElementAsTagged(
-              data_ptr, intptr_index, BIGUINT64_ELEMENTS, INTPTR_PARAMETERS));
+              data_ptr, Unsigned(intptr_index), BIGUINT64_ELEMENTS));
         }
       }
     }

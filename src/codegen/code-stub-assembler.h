@@ -468,6 +468,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<IntPtrT> OpName(TNode<IntPtrT> a, TNode<IntPtrT> b) {               \
     return IntPtrOpName(a, b);                                              \
   }                                                                         \
+  TNode<UintPtrT> OpName(TNode<UintPtrT> a, TNode<UintPtrT> b) {            \
+    return Unsigned(IntPtrOpName(Signed(a), Signed(b)));                    \
+  }                                                                         \
   TNode<RawPtrT> OpName(TNode<RawPtrT> a, TNode<RawPtrT> b) {               \
     return ReinterpretCast<RawPtrT>(IntPtrOpName(                           \
         ReinterpretCast<IntPtrT>(a), ReinterpretCast<IntPtrT>(b)));         \
@@ -492,6 +495,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> OpName(TNode<Smi> a, TNode<Smi> b) { return SmiOpName(a, b); } \
   TNode<BoolT> OpName(TNode<IntPtrT> a, TNode<IntPtrT> b) {                   \
     return IntPtrOpName(a, b);                                                \
+  }                                                                           \
+  TNode<BoolT> OpName(TNode<UintPtrT> a, TNode<UintPtrT> b) {                 \
+    return IntPtrOpName(Signed(a), Signed(b));                                \
   }                                                                           \
   TNode<BoolT> OpName(TNode<RawPtrT> a, TNode<RawPtrT> b) {                   \
     return IntPtrOpName(a, b);                                                \
@@ -1419,17 +1425,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Float64T> LoadDoubleWithHoleCheck(
       SloppyTNode<Object> base, SloppyTNode<IntPtrT> offset, Label* if_hole,
       MachineType machine_type = MachineType::Float64());
+  TNode<Numeric> LoadFixedTypedArrayElementAsTagged(TNode<RawPtrT> data_pointer,
+                                                    TNode<UintPtrT> index,
+                                                    ElementsKind elements_kind);
   TNode<Numeric> LoadFixedTypedArrayElementAsTagged(
-      TNode<RawPtrT> data_pointer, Node* index_node, ElementsKind elements_kind,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS);
-  TNode<Numeric> LoadFixedTypedArrayElementAsTagged(
-      TNode<RawPtrT> data_pointer, TNode<Smi> index_node,
-      ElementsKind elements_kind) {
-    return LoadFixedTypedArrayElementAsTagged(data_pointer, index_node,
-                                              elements_kind, SMI_PARAMETERS);
-  }
-  TNode<Numeric> LoadFixedTypedArrayElementAsTagged(
-      TNode<RawPtrT> data_pointer, TNode<Smi> index,
+      TNode<RawPtrT> data_pointer, TNode<UintPtrT> index,
       TNode<Int32T> elements_kind);
   // Parts of the above, factored out for readability:
   TNode<BigInt> LoadFixedBigInt64ArrayElementAsTagged(

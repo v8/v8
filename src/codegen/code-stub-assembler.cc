@@ -414,6 +414,11 @@ TNode<IntPtrT> CodeStubAssembler::IntPtrOrSmiConstant<IntPtrT>(int value) {
 }
 
 template <>
+TNode<UintPtrT> CodeStubAssembler::IntPtrOrSmiConstant<UintPtrT>(int value) {
+  return Unsigned(IntPtrConstant(value));
+}
+
+template <>
 TNode<RawPtrT> CodeStubAssembler::IntPtrOrSmiConstant<RawPtrT>(int value) {
   return ReinterpretCast<RawPtrT>(IntPtrConstant(value));
 }
@@ -2395,10 +2400,10 @@ TNode<BigInt> CodeStubAssembler::BigIntFromUint64(TNode<UintPtrT> value) {
 }
 
 TNode<Numeric> CodeStubAssembler::LoadFixedTypedArrayElementAsTagged(
-    TNode<RawPtrT> data_pointer, Node* index_node, ElementsKind elements_kind,
-    ParameterMode parameter_mode) {
+    TNode<RawPtrT> data_pointer, TNode<UintPtrT> index,
+    ElementsKind elements_kind) {
   TNode<IntPtrT> offset =
-      ElementOffsetFromIndex(index_node, elements_kind, parameter_mode, 0);
+      ElementOffsetFromIndex(Signed(index), elements_kind, 0);
   switch (elements_kind) {
     case UINT8_ELEMENTS: /* fall through */
     case UINT8_CLAMPED_ELEMENTS:
@@ -2431,7 +2436,7 @@ TNode<Numeric> CodeStubAssembler::LoadFixedTypedArrayElementAsTagged(
 }
 
 TNode<Numeric> CodeStubAssembler::LoadFixedTypedArrayElementAsTagged(
-    TNode<RawPtrT> data_pointer, TNode<Smi> index,
+    TNode<RawPtrT> data_pointer, TNode<UintPtrT> index,
     TNode<Int32T> elements_kind) {
   TVARIABLE(Numeric, var_result);
   Label done(this), if_unknown_type(this, Label::kDeferred);
@@ -2458,12 +2463,12 @@ TNode<Numeric> CodeStubAssembler::LoadFixedTypedArrayElementAsTagged(
   BIND(&if_unknown_type);
   Unreachable();
 
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)              \
-  BIND(&if_##type##array);                                     \
-  {                                                            \
-    var_result = LoadFixedTypedArrayElementAsTagged(           \
-        data_pointer, index, TYPE##_ELEMENTS, SMI_PARAMETERS); \
-    Goto(&done);                                               \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                        \
+  BIND(&if_##type##array);                                               \
+  {                                                                      \
+    var_result = LoadFixedTypedArrayElementAsTagged(data_pointer, index, \
+                                                    TYPE##_ELEMENTS);    \
+    Goto(&done);                                                         \
   }
   TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
@@ -10770,6 +10775,10 @@ template TNode<IntPtrT> CodeStubAssembler::BuildFastLoop<IntPtrT>(
     const VariableList& vars, TNode<IntPtrT> start_index,
     TNode<IntPtrT> end_index, const FastLoopBody<IntPtrT>& body, int increment,
     IndexAdvanceMode advance_mode);
+template TNode<UintPtrT> CodeStubAssembler::BuildFastLoop<UintPtrT>(
+    const VariableList& vars, TNode<UintPtrT> start_index,
+    TNode<UintPtrT> end_index, const FastLoopBody<UintPtrT>& body,
+    int increment, IndexAdvanceMode advance_mode);
 
 void CodeStubAssembler::BuildFastFixedArrayForEach(
     const CodeStubAssembler::VariableList& vars, Node* fixed_array,
