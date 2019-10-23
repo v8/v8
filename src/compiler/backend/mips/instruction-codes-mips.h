@@ -145,6 +145,10 @@ namespace compiler {
   V(MipsF64x2Abs)                  \
   V(MipsF64x2Neg)                  \
   V(MipsF64x2Sqrt)                 \
+  V(MipsF64x2Add)                  \
+  V(MipsF64x2Sub)                  \
+  V(MipsF64x2Mul)                  \
+  V(MipsF64x2Div)                  \
   V(MipsF32x4Splat)                \
   V(MipsF32x4ExtractLane)          \
   V(MipsF32x4ReplaceLane)          \

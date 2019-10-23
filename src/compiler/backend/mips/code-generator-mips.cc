@@ -519,6 +519,12 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     __ MovFromFloatResult(i.OutputDoubleRegister());                        \
   } while (0)
 
+#define ASSEMBLE_F64X2_ARITHMETIC_BINOP(op)                     \
+  do {                                                          \
+    __ op(i.OutputSimd128Register(), i.InputSimd128Register(0), \
+          i.InputSimd128Register(1));                           \
+  } while (0)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   __ mov(sp, fp);
   __ Pop(ra, fp);
@@ -1955,6 +1961,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kMipsF64x2Sqrt: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ fsqrt_d(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kMipsF64x2Add: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      ASSEMBLE_F64X2_ARITHMETIC_BINOP(fadd_d);
+      break;
+    }
+    case kMipsF64x2Sub: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      ASSEMBLE_F64X2_ARITHMETIC_BINOP(fsub_d);
+      break;
+    }
+    case kMipsF64x2Mul: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      ASSEMBLE_F64X2_ARITHMETIC_BINOP(fmul_d);
+      break;
+    }
+    case kMipsF64x2Div: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      ASSEMBLE_F64X2_ARITHMETIC_BINOP(fdiv_d);
       break;
     }
     case kMipsF32x4Splat: {

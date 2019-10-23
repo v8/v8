@@ -190,6 +190,10 @@ namespace compiler {
   V(Mips64I32x4MaxU)                         \
   V(Mips64I32x4MinU)                         \
   V(Mips64F64x2Sqrt)                         \
+  V(Mips64F64x2Add)                          \
+  V(Mips64F64x2Sub)                          \
+  V(Mips64F64x2Mul)                          \
+  V(Mips64F64x2Div)                          \
   V(Mips64F32x4Abs)                          \
   V(Mips64F32x4Neg)                          \
   V(Mips64F32x4Sqrt)                         \
