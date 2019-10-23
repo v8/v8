@@ -34,14 +34,17 @@ class EffectControlLinearizer {
                           Zone* temp_zone,
                           SourcePositionTable* source_positions,
                           NodeOriginTable* node_origins,
-                          MaskArrayIndexEnable mask_array_index)
+                          MaskArrayIndexEnable mask_array_index,
+                          MaintainSchedule maintain_schedule)
       : js_graph_(js_graph),
         schedule_(schedule),
         temp_zone_(temp_zone),
         mask_array_index_(mask_array_index),
+        maintain_schedule_(maintain_schedule),
         source_positions_(source_positions),
         node_origins_(node_origins),
-        graph_assembler_(js_graph, temp_zone),
+        graph_assembler_(js_graph, temp_zone,
+                         should_maintain_schedule() ? schedule : nullptr),
         frame_state_zapper_(nullptr) {}
 
   void Run();
@@ -253,6 +256,10 @@ class EffectControlLinearizer {
   void TransitionElementsTo(Node* node, Node* array, ElementsKind from,
                             ElementsKind to);
 
+  bool should_maintain_schedule() const {
+    return maintain_schedule_ == MaintainSchedule::kMaintain;
+  }
+
   Factory* factory() const { return isolate()->factory(); }
   Isolate* isolate() const { return jsgraph()->isolate(); }
   JSGraph* jsgraph() const { return js_graph_; }
@@ -270,6 +277,7 @@ class EffectControlLinearizer {
   Schedule* schedule_;
   Zone* temp_zone_;
   MaskArrayIndexEnable mask_array_index_;
+  MaintainSchedule maintain_schedule_;
   RegionObservability region_observability_ = RegionObservability::kObservable;
   SourcePositionTable* source_positions_;
   NodeOriginTable* node_origins_;
@@ -544,6 +552,8 @@ void EffectControlLinearizer::Run() {
   ZoneVector<BasicBlock*> pending_block_controls(temp_zone());
   NodeVector inputs_buffer(temp_zone());
 
+  // TODO(rmcilroy) We should not depend on having rpo_order on schedule, and
+  // instead just do our own RPO walk here.
   for (BasicBlock* block : *(schedule()->rpo_order())) {
     gasm()->Reset(block);
 
@@ -704,7 +714,8 @@ void EffectControlLinearizer::Run() {
         break;
     }
 
-    if (block->control() == BasicBlock::kBranch) {
+    if (!should_maintain_schedule() &&
+        block->control() == BasicBlock::kBranch) {
       TryCloneBranch(block->control_input(), block, temp_zone(), graph(),
                      common(), &block_effects, source_positions_,
                      node_origins_);
@@ -732,6 +743,7 @@ void EffectControlLinearizer::Run() {
     UpdateEffectPhi(pending_effect_phi.effect_phi, pending_effect_phi.block,
                     &block_effects);
   }
+
   schedule_->rpo_order()->clear();
 }
 
@@ -756,6 +768,13 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state) {
   SourcePositionTable::Scope scope(source_positions_,
                                    source_positions_->GetSourcePosition(node));
   NodeOriginTable::Scope origin_scope(node_origins_, "process node", node);
+
+  // If basic block is unreachable after this point, update the node's effect
+  // and control inputs to mark it as dead, but don't process further.
+  if (gasm()->current_effect() == jsgraph()->Dead()) {
+    UpdateEffectControlForNode(node);
+    return;
+  }
 
   // If the node needs to be wired into the effect/control chain, do this
   // here. Pass current frame state for lowering to eager deoptimization.
@@ -6053,10 +6072,11 @@ Node* EffectControlLinearizer::LowerDateNow(Node* node) {
 void LinearizeEffectControl(JSGraph* graph, Schedule* schedule, Zone* temp_zone,
                             SourcePositionTable* source_positions,
                             NodeOriginTable* node_origins,
-                            MaskArrayIndexEnable mask_array_index) {
+                            MaskArrayIndexEnable mask_array_index,
+                            MaintainSchedule maintain_schedule) {
   EffectControlLinearizer linearizer(graph, schedule, temp_zone,
                                      source_positions, node_origins,
-                                     mask_array_index);
+                                     mask_array_index, maintain_schedule);
   linearizer.Run();
 }
 

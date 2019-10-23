@@ -167,11 +167,9 @@ class GraphAssemblerLabel {
 
 class GraphAssembler {
  public:
-  // Constructs a GraphAssembler that operates on an unscheduled graph.
-  GraphAssembler(JSGraph* jsgraph, Zone* zone);
-  // Constructs a GraphAssembler that operates on a scheduled graph, updating
-  // the schedule in the process.
-  GraphAssembler(JSGraph* jsgraph, Schedule* schedule, Zone* zone);
+  // Constructs a GraphAssembler. If {schedule} is not null, the graph assembler
+  // will maintain the schedule as it updates blocks.
+  GraphAssembler(JSGraph* jsgraph, Zone* zone, Schedule* schedule = nullptr);
   ~GraphAssembler();
 
   void Reset(BasicBlock* block);

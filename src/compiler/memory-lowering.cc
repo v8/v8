@@ -44,13 +44,17 @@ class MemoryLowering::AllocationGroup final : public ZoneObject {
 };
 
 MemoryLowering::MemoryLowering(JSGraph* jsgraph, Zone* zone,
+                               GraphAssembler* graph_assembler,
                                PoisoningMitigationLevel poisoning_level,
                                AllocationFolding allocation_folding,
                                WriteBarrierAssertFailedCallback callback,
                                const char* function_debug_name)
-    : jsgraph_(jsgraph),
+    : isolate_(jsgraph->isolate()),
       zone_(zone),
-      graph_assembler_(jsgraph, zone),
+      graph_zone_(jsgraph->graph()->zone()),
+      common_(jsgraph->common()),
+      machine_(jsgraph->machine()),
+      graph_assembler_(graph_assembler),
       allocation_folding_(allocation_folding),
       poisoning_level_(poisoning_level),
       write_barrier_assert_failed_(callback),
@@ -195,7 +199,7 @@ Reduction MemoryLowering::ReduceAllocateRaw(
         if (!allocate_operator_.is_set()) {
           auto descriptor = AllocateDescriptor{};
           auto call_descriptor = Linkage::GetStubCallDescriptor(
-              graph()->zone(), descriptor, descriptor.GetStackParameterCount(),
+              graph_zone(), descriptor, descriptor.GetStackParameterCount(),
               CallDescriptor::kCanUseRoots, Operator::kNoThrow);
           allocate_operator_.set(common()->Call(call_descriptor));
         }
@@ -256,7 +260,7 @@ Reduction MemoryLowering::ReduceAllocateRaw(
     if (!allocate_operator_.is_set()) {
       auto descriptor = AllocateDescriptor{};
       auto call_descriptor = Linkage::GetStubCallDescriptor(
-          graph()->zone(), descriptor, descriptor.GetStackParameterCount(),
+          graph_zone(), descriptor, descriptor.GetStackParameterCount(),
           CallDescriptor::kCanUseRoots, Operator::kNoThrow);
       allocate_operator_.set(common()->Call(call_descriptor));
     }
@@ -274,22 +278,6 @@ Reduction MemoryLowering::ReduceAllocateRaw(
       *state_ptr = AllocationState::Closed(group, effect, zone());
     }
   }
-
-  // Replace all effect uses of {node} with the {effect} and replace
-  // all value uses of {node} with the {value}.
-  for (Edge edge : node->use_edges()) {
-    if (NodeProperties::IsEffectEdge(edge)) {
-      edge.UpdateTo(effect);
-    } else if (NodeProperties::IsValueEdge(edge)) {
-      edge.UpdateTo(value);
-    } else {
-      DCHECK(NodeProperties::IsControlEdge(edge));
-      edge.UpdateTo(control);
-    }
-  }
-
-  // Kill the {node} to make sure we don't leave dangling dead uses.
-  node->Kill();
 
   return Replace(value);
 }
@@ -318,8 +306,8 @@ Reduction MemoryLowering::ReduceLoadElement(Node* node) {
 Reduction MemoryLowering::ReduceLoadField(Node* node) {
   DCHECK_EQ(IrOpcode::kLoadField, node->opcode());
   FieldAccess const& access = FieldAccessOf(node->op());
-  Node* offset = jsgraph()->IntPtrConstant(access.offset - access.tag());
-  node->InsertInput(graph()->zone(), 1, offset);
+  Node* offset = __ IntPtrConstant(access.offset - access.tag());
+  node->InsertInput(graph_zone(), 1, offset);
   MachineType type = access.machine_type;
   if (NeedsPoisoning(access.load_sensitivity)) {
     NodeProperties::ChangeOp(node, machine()->PoisonedLoad(type));
@@ -367,8 +355,8 @@ Reduction MemoryLowering::ReduceStoreField(Node* node,
   Node* value = node->InputAt(1);
   WriteBarrierKind write_barrier_kind = ComputeWriteBarrierKind(
       node, object, value, state, access.write_barrier_kind);
-  Node* offset = jsgraph()->IntPtrConstant(access.offset - access.tag());
-  node->InsertInput(graph()->zone(), 1, offset);
+  Node* offset = __ IntPtrConstant(access.offset - access.tag());
+  node->InsertInput(graph_zone(), 1, offset);
   NodeProperties::ChangeOp(
       node, machine()->Store(StoreRepresentation(
                 access.machine_type.representation(), write_barrier_kind)));
@@ -532,18 +520,6 @@ MemoryLowering::AllocationState::AllocationState(AllocationGroup* group,
 
 bool MemoryLowering::AllocationState::IsYoungGenerationAllocation() const {
   return group() && group()->IsYoungGenerationAllocation();
-}
-
-Graph* MemoryLowering::graph() const { return jsgraph()->graph(); }
-
-Isolate* MemoryLowering::isolate() const { return jsgraph()->isolate(); }
-
-CommonOperatorBuilder* MemoryLowering::common() const {
-  return jsgraph()->common();
-}
-
-MachineOperatorBuilder* MemoryLowering::machine() const {
-  return jsgraph()->machine();
 }
 
 }  // namespace compiler

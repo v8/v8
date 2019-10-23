@@ -1828,6 +1828,8 @@ v8_compiler_sources = [
   "src/compiler/representation-change.h",
   "src/compiler/schedule.cc",
   "src/compiler/schedule.h",
+  "src/compiler/scheduled-machine-lowering.cc",
+  "src/compiler/scheduled-machine-lowering.h",
   "src/compiler/scheduler.cc",
   "src/compiler/scheduler.h",
   "src/compiler/select-lowering.cc",

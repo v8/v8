@@ -65,6 +65,7 @@
 #include "src/compiler/pipeline-statistics.h"
 #include "src/compiler/redundancy-elimination.h"
 #include "src/compiler/schedule.h"
+#include "src/compiler/scheduled-machine-lowering.h"
 #include "src/compiler/scheduler.h"
 #include "src/compiler/select-lowering.h"
 #include "src/compiler/serializer-for-background-compilation.h"
@@ -1645,7 +1646,7 @@ struct EffectControlLinearizationPhase {
       // - introduce effect phis and rewire effects to get SSA again.
       LinearizeEffectControl(data->jsgraph(), schedule, temp_zone,
                              data->source_positions(), data->node_origins(),
-                             mask_array_index);
+                             mask_array_index, MaintainSchedule::kDiscard);
     }
     {
       // The {EffectControlLinearizer} might leave {Dead} nodes behind, so we
@@ -1759,7 +1760,8 @@ struct LateOptimizationPhase {
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->broker(), data->common(),
                                          data->machine(), temp_zone);
-    SelectLowering select_lowering(data->jsgraph(), temp_zone);
+    GraphAssembler graph_assembler(data->jsgraph(), temp_zone);
+    SelectLowering select_lowering(&graph_assembler, data->graph());
     // TODO(v8:7703, solanes): go back to using #if guards once
     // FLAG_turbo_decompression_elimination gets removed.
     DecompressionElimination decompression_elimination(
@@ -1806,20 +1808,48 @@ struct DecompressionOptimizationPhase {
   }
 };
 
-struct MidTierMachineLoweringPhase {
-  static const char* phase_name() { return "V8.TFMidTierMachineLoweringPhase"; }
+struct ScheduledEffectControlLinearizationPhase {
+  static const char* phase_name() {
+    return "V8.TFScheduledEffectControlLinearizationPhase";
+  }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    GraphReducer graph_reducer(temp_zone, data->graph(),
-                               &data->info()->tick_counter(),
-                               data->jsgraph()->Dead());
-    SelectLowering select_lowering(data->jsgraph(), temp_zone);
-    MemoryLowering memory_lowering(data->jsgraph(), temp_zone,
-                                   data->info()->GetPoisoningMitigationLevel());
+    MaskArrayIndexEnable mask_array_index =
+        (data->info()->GetPoisoningMitigationLevel() !=
+         PoisoningMitigationLevel::kDontPoison)
+            ? MaskArrayIndexEnable::kMaskArrayIndex
+            : MaskArrayIndexEnable::kDoNotMaskArrayIndex;
+    // Post-pass for wiring the control/effects
+    // - connect allocating representation changes into the control&effect
+    //   chains and lower them,
+    // - get rid of the region markers,
+    // - introduce effect phis and rewire effects to get SSA again.
+    LinearizeEffectControl(data->jsgraph(), data->schedule(), temp_zone,
+                           data->source_positions(), data->node_origins(),
+                           mask_array_index, MaintainSchedule::kMaintain);
 
-    AddReducer(data, &graph_reducer, &memory_lowering);
-    AddReducer(data, &graph_reducer, &select_lowering);
-    graph_reducer.ReduceGraph();
+    // TODO(rmcilroy) Avoid having to rebuild rpo_order on schedule each time.
+    Scheduler::ComputeSpecialRPO(temp_zone, data->schedule());
+    TraceSchedule(data->info(), data, data->schedule(),
+                  "effect linearization schedule");
+  }
+};
+
+struct ScheduledMachineLoweringPhase {
+  static const char* phase_name() {
+    return "V8.TFScheduledMachineLoweringPhase";
+  }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    ScheduledMachineLowering machine_lowering(
+        data->jsgraph(), data->schedule(), temp_zone, data->source_positions(),
+        data->node_origins(), data->info()->GetPoisoningMitigationLevel());
+    machine_lowering.Run();
+
+    // TODO(rmcilroy) Avoid having to rebuild rpo_order on schedule each time.
+    Scheduler::ComputeSpecialRPO(temp_zone, data->schedule());
+    TraceSchedule(data->info(), data, data->schedule(),
+                  "machine lowered schedule");
   }
 };
 
@@ -2498,18 +2528,19 @@ bool PipelineImpl::OptimizeGraphForMidTier(Linkage* linkage) {
 
   data->BeginPhaseKind("V8.TFBlockBuilding");
 
-  Run<EffectControlLinearizationPhase>();
-  RunPrintAndVerify(EffectControlLinearizationPhase::phase_name(), true);
+  ComputeScheduledGraph();
 
-  Run<MidTierMachineLoweringPhase>();
-  RunPrintAndVerify(MidTierMachineLoweringPhase::phase_name(), true);
+  Run<ScheduledEffectControlLinearizationPhase>();
+  RunPrintAndVerify(ScheduledEffectControlLinearizationPhase::phase_name(),
+                    true);
+
+  Run<ScheduledMachineLoweringPhase>();
+  RunPrintAndVerify(ScheduledMachineLoweringPhase::phase_name(), true);
 
   data->source_positions()->RemoveDecorator();
   if (data->info()->trace_turbo_json_enabled()) {
     data->node_origins()->RemoveDecorator();
   }
-
-  ComputeScheduledGraph();
 
   return SelectInstructions(linkage);
 }

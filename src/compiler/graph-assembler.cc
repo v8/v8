@@ -261,11 +261,16 @@ void GraphAssembler::BasicBlockUpdater::AddThrow(Node* node) {
   }
   schedule_->AddThrow(current_block_, node);
 
-  // Clear original successors and update the original control and control input
-  // to the throw, since this block is now connected directly to end().
-  saved_successors_.clear();
+  // Clear original successors and replace the block's original control and
+  // control input to the throw, since this block is now connected directly to
+  // the end.
+  if (original_control_input_ != nullptr) {
+    NodeProperties::ReplaceUses(original_control_input_, node, nullptr, node);
+    original_control_input_->Kill();
+  }
   original_control_input_ = node;
   original_control_ = BasicBlock::kThrow;
+  saved_successors_.clear();
 }
 
 void GraphAssembler::BasicBlockUpdater::UpdateSuccessors(BasicBlock* block) {
@@ -317,19 +322,14 @@ BasicBlock* GraphAssembler::BasicBlockUpdater::Finalize(BasicBlock* original) {
   return block;
 }
 
-GraphAssembler::GraphAssembler(JSGraph* jsgraph, Zone* zone)
+GraphAssembler::GraphAssembler(JSGraph* jsgraph, Zone* zone, Schedule* schedule)
     : temp_zone_(zone),
       jsgraph_(jsgraph),
       current_effect_(nullptr),
       current_control_(nullptr),
-      block_updater_(nullptr) {}
-
-GraphAssembler::GraphAssembler(JSGraph* jsgraph, Schedule* schedule, Zone* zone)
-    : temp_zone_(zone),
-      jsgraph_(jsgraph),
-      current_effect_(nullptr),
-      current_control_(nullptr),
-      block_updater_(new BasicBlockUpdater(schedule, jsgraph->graph(), zone)) {}
+      block_updater_(schedule != nullptr ? new BasicBlockUpdater(
+                                               schedule, jsgraph->graph(), zone)
+                                         : nullptr) {}
 
 GraphAssembler::~GraphAssembler() = default;
 
@@ -660,7 +660,15 @@ void GraphAssembler::GotoIfBasicBlock(BasicBlock* block, Node* branch,
 
 BasicBlock* GraphAssembler::FinalizeCurrentBlock(BasicBlock* block) {
   if (block_updater_) {
-    return block_updater_->Finalize(block);
+    block = block_updater_->Finalize(block);
+    if (current_control_ == jsgraph()->Dead()) {
+      // If the block's end is unreachable, then reset current effect and
+      // control to that of the block's throw control node.
+      DCHECK(block->control() == BasicBlock::kThrow);
+      Node* throw_node = block->control_input();
+      current_control_ = NodeProperties::GetControlInput(throw_node);
+      current_effect_ = NodeProperties::GetEffectInput(throw_node);
+    }
   }
   return block;
 }

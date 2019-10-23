@@ -185,8 +185,10 @@ MemoryOptimizer::MemoryOptimizer(
     JSGraph* jsgraph, Zone* zone, PoisoningMitigationLevel poisoning_level,
     MemoryLowering::AllocationFolding allocation_folding,
     const char* function_debug_name, TickCounter* tick_counter)
-    : memory_lowering_(jsgraph, zone, poisoning_level, allocation_folding,
-                       WriteBarrierAssertFailed, function_debug_name),
+    : graph_assembler_(jsgraph, zone),
+      memory_lowering_(jsgraph, zone, &graph_assembler_, poisoning_level,
+                       allocation_folding, WriteBarrierAssertFailed,
+                       function_debug_name),
       jsgraph_(jsgraph),
       empty_state_(AllocationState::Empty(zone)),
       pending_(zone),
@@ -311,8 +313,17 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
     }
   }
 
-  memory_lowering()->ReduceAllocateRaw(
+  Reduction reduction = memory_lowering()->ReduceAllocateRaw(
       node, allocation_type, allocation.allow_large_objects(), &state);
+  CHECK(reduction.Changed() && reduction.replacement() != node);
+
+  // Replace all uses of node and kill the node to make sure we don't leave
+  // dangling dead uses.
+  NodeProperties::ReplaceUses(node, reduction.replacement(),
+                              graph_assembler_.current_effect(),
+                              graph_assembler_.current_control());
+  node->Kill();
+
   EnqueueUses(state->effect(), state);
 }
 
