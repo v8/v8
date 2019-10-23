@@ -404,8 +404,7 @@ MachineType AtomicOpType(Operator const* op) {
   V(S1x8AllTrue, Operator::kNoProperties, 1, 0, 1)                            \
   V(S1x16AnyTrue, Operator::kNoProperties, 1, 0, 1)                           \
   V(S1x16AllTrue, Operator::kNoProperties, 1, 0, 1)                           \
-  V(S8x16Swizzle, Operator::kNoProperties, 2, 0, 1)                           \
-  V(StackPointerGreaterThan, Operator::kNoProperties, 1, 0, 1)
+  V(S8x16Swizzle, Operator::kNoProperties, 2, 0, 1)
 
 // The format is:
 // V(Name, properties, value_input_count, control_input_count, output_count)
@@ -898,6 +897,13 @@ struct MachineOperatorGlobalCache {
                    "UnsafePointerAdd", 2, 1, 1, 1, 1, 0) {}
   };
   UnsafePointerAddOperator kUnsafePointerAdd;
+
+  struct StackPointerGreaterThanOperator final : public Operator {
+    StackPointerGreaterThanOperator()
+        : Operator(IrOpcode::kStackPointerGreaterThan, Operator::kEliminatable,
+                   "StackPointerGreaterThan", 1, 1, 0, 1, 1, 0) {}
+  };
+  StackPointerGreaterThanOperator kStackPointerGreaterThan;
 };
 
 struct CommentOperator : public Operator1<const char*> {
@@ -1062,6 +1068,10 @@ const Operator* MachineOperatorBuilder::ProtectedStore(
 
 const Operator* MachineOperatorBuilder::UnsafePointerAdd() {
   return &cache_.kUnsafePointerAdd;
+}
+
+const Operator* MachineOperatorBuilder::StackPointerGreaterThan() {
+  return &cache_.kStackPointerGreaterThan;
 }
 
 const Operator* MachineOperatorBuilder::BitcastWordToTagged() {

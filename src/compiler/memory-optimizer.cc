@@ -21,16 +21,16 @@ namespace {
 
 bool CanAllocate(const Node* node) {
   switch (node->opcode()) {
+    case IrOpcode::kAbortCSAAssert:
     case IrOpcode::kBitcastTaggedToWord:
     case IrOpcode::kBitcastWordToTagged:
-    case IrOpcode::kChangeCompressedToTagged:
-    case IrOpcode::kChangeCompressedSignedToTaggedSigned:
     case IrOpcode::kChangeCompressedPointerToTaggedPointer:
-    case IrOpcode::kChangeTaggedToCompressed:
-    case IrOpcode::kChangeTaggedSignedToCompressedSigned:
+    case IrOpcode::kChangeCompressedSignedToTaggedSigned:
+    case IrOpcode::kChangeCompressedToTagged:
     case IrOpcode::kChangeTaggedPointerToCompressedPointer:
+    case IrOpcode::kChangeTaggedSignedToCompressedSigned:
+    case IrOpcode::kChangeTaggedToCompressed:
     case IrOpcode::kComment:
-    case IrOpcode::kAbortCSAAssert:
     case IrOpcode::kDebugBreak:
     case IrOpcode::kDeoptimizeIf:
     case IrOpcode::kDeoptimizeUnless:
@@ -44,6 +44,8 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kProtectedLoad:
     case IrOpcode::kProtectedStore:
     case IrOpcode::kRetain:
+    case IrOpcode::kStackPointerGreaterThan:
+    case IrOpcode::kStaticAssert:
     // TODO(tebbi): Store nodes might do a bump-pointer allocation.
     //              We should introduce a special bump-pointer store node to
     //              differentiate that.
@@ -54,9 +56,8 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kTaggedPoisonOnSpeculation:
     case IrOpcode::kUnalignedLoad:
     case IrOpcode::kUnalignedStore:
-    case IrOpcode::kUnsafePointerAdd:
     case IrOpcode::kUnreachable:
-    case IrOpcode::kStaticAssert:
+    case IrOpcode::kUnsafePointerAdd:
     case IrOpcode::kWord32AtomicAdd:
     case IrOpcode::kWord32AtomicAnd:
     case IrOpcode::kWord32AtomicCompareExchange:
