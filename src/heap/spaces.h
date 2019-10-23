@@ -641,8 +641,6 @@ class MemoryChunk : public BasicMemoryChunk {
   void SetOldGenerationPageFlags(bool is_marking);
   void SetYoungGenerationPageFlags(bool is_marking);
 
-  static inline MemoryChunk* FromAnyPointerAddress(Address addr);
-
   static inline void UpdateHighWaterMark(Address mark) {
     if (mark == kNullAddress) return;
     // Need to subtract one from the mark because when a chunk is full the

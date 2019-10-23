@@ -692,7 +692,6 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   MemoryChunk* chunk = FromAddress(base);
   DCHECK_EQ(base, chunk->address());
   new (chunk) BasicMemoryChunk(size, area_start, area_end);
-  DCHECK(HasHeaderSentinel(area_start));
 
   chunk->heap_ = heap;
   chunk->set_owner(owner);
@@ -802,15 +801,6 @@ LargePage* LargePage::Initialize(Heap* heap, MemoryChunk* chunk,
   }
 
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(chunk->area_start(), chunk->area_size());
-
-  // Initialize the sentinel value for each page boundary since the mutator
-  // may initialize the object starting from its end.
-  Address sentinel = chunk->address() + MemoryChunk::kHeaderSentinelOffset +
-                     MemoryChunk::kPageSize;
-  while (sentinel < chunk->area_end()) {
-    *reinterpret_cast<intptr_t*>(sentinel) = kNullAddress;
-    sentinel += MemoryChunk::kPageSize;
-  }
 
   LargePage* page = static_cast<LargePage*>(chunk);
   page->SetFlag(MemoryChunk::LARGE_PAGE);
