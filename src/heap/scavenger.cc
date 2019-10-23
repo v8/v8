@@ -402,7 +402,7 @@ Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
       local_pretenuring_feedback_(kInitialLocalPretenuringFeedbackCapacity),
       copied_size_(0),
       promoted_size_(0),
-      allocator_(heap, CompactionSpaceKind::kScavenge),
+      allocator_(heap, LocalSpaceKind::kCompactionSpaceForScavenge),
       is_logging_(is_logging),
       is_incremental_marking_(heap->incremental_marking()->IsMarking()),
       is_compacting_(heap->incremental_marking()->IsCompacting()) {}

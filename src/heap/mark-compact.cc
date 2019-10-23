@@ -468,7 +468,6 @@ void MarkCompactCollector::AddEvacuationCandidate(Page* p) {
   evacuation_candidates_.push_back(p);
 }
 
-
 static void TraceFragmentation(PagedSpace* space) {
   int number_of_pages = space->CountTotalPages();
   intptr_t reserved = (number_of_pages * space->AreaSize());
@@ -537,7 +536,6 @@ void MarkCompactCollector::VerifyMarkbitsAreClean(PagedSpace* space) {
     CHECK_EQ(0, non_atomic_marking_state()->live_bytes(p));
   }
 }
-
 
 void MarkCompactCollector::VerifyMarkbitsAreClean(NewSpace* space) {
   for (Page* p : PageRange(space->first_allocatable_address(), space->top())) {
@@ -786,7 +784,6 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   }
 }
 
-
 void MarkCompactCollector::AbortCompaction() {
   if (compacting_) {
     RememberedSet<OLD_TO_OLD>::ClearAll(heap());
@@ -798,7 +795,6 @@ void MarkCompactCollector::AbortCompaction() {
   }
   DCHECK(evacuation_candidates_.empty());
 }
-
 
 void MarkCompactCollector::Prepare() {
   was_marked_incrementally_ = heap()->incremental_marking()->IsMarking();
@@ -1024,9 +1020,7 @@ class InternalizedStringTableCleaner : public ObjectVisitor {
     UNREACHABLE();
   }
 
-  int PointersRemoved() {
-    return pointers_removed_;
-  }
+  int PointersRemoved() { return pointers_removed_; }
 
  private:
   Heap* heap_;
@@ -2865,7 +2859,7 @@ class FullEvacuator : public Evacuator {
       : Evacuator(collector->heap(), &record_visitor_, &local_allocator_,
                   FLAG_always_promote_young_mc),
         record_visitor_(collector, &ephemeron_remembered_set_),
-        local_allocator_(heap_, CompactionSpaceKind::kMarkCompact),
+        local_allocator_(heap_, LocalSpaceKind::kCompactionSpaceForMarkCompact),
         collector_(collector) {}
 
   GCTracer::BackgroundScope::ScopeId GetBackgroundTracingScope() override {
@@ -4922,7 +4916,8 @@ class YoungGenerationEvacuator : public Evacuator {
       : Evacuator(collector->heap(), &record_visitor_, &local_allocator_,
                   false),
         record_visitor_(collector->heap()->mark_compact_collector()),
-        local_allocator_(heap_, CompactionSpaceKind::kMinorMarkCompact),
+        local_allocator_(heap_,
+                         LocalSpaceKind::kCompactionSpaceForMinorMarkCompact),
         collector_(collector) {}
 
   GCTracer::BackgroundScope::ScopeId GetBackgroundTracingScope() override {

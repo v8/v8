@@ -1640,10 +1640,10 @@ intptr_t Space::GetNextInlineAllocationStepSize() {
 
 PagedSpace::PagedSpace(Heap* heap, AllocationSpace space,
                        Executability executable, FreeList* free_list,
-                       CompactionSpaceKind compaction_space_kind)
+                       LocalSpaceKind local_space_kind)
     : SpaceWithLinearArea(heap, space, free_list),
       executable_(executable),
-      compaction_space_kind_(compaction_space_kind) {
+      local_space_kind_(local_space_kind) {
   area_size_ = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(space);
   accounting_stats_.Clear();
 }
@@ -1664,6 +1664,8 @@ void PagedSpace::RefillFreeList() {
       identity() != MAP_SPACE && identity() != RO_SPACE) {
     return;
   }
+  DCHECK_NE(local_space_kind(), LocalSpaceKind::kOffThreadSpace);
+  DCHECK_IMPLIES(is_local_space(), is_compaction_space());
   DCHECK(!IsDetached());
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   size_t added = 0;
@@ -1682,7 +1684,7 @@ void PagedSpace::RefillFreeList() {
       // Also merge old-to-new remembered sets if not scavenging because of
       // data races: One thread might iterate remembered set, while another
       // thread merges them.
-      if (compaction_space_kind() != CompactionSpaceKind::kScavenge) {
+      if (local_space_kind() != LocalSpaceKind::kCompactionSpaceForScavenge) {
         p->MergeOldToNewRememberedSets();
       }
 
@@ -1708,7 +1710,13 @@ void PagedSpace::RefillFreeList() {
   }
 }
 
-void PagedSpace::MergeCompactionSpace(CompactionSpace* other) {
+void OffThreadSpace::RefillFreeList() {
+  // We should never try to refill the free list in off-thread space, because
+  // we know it will always be fully linear.
+  UNREACHABLE();
+}
+
+void PagedSpace::MergeLocalSpace(LocalSpace* other) {
   base::MutexGuard guard(mutex());
 
   DCHECK(identity() == other->identity());
@@ -1741,7 +1749,6 @@ void PagedSpace::MergeCompactionSpace(CompactionSpace* other) {
   DCHECK_EQ(0u, other->Size());
   DCHECK_EQ(0u, other->Capacity());
 }
-
 
 size_t PagedSpace::CommittedPhysicalMemory() {
   if (!base::OS::HasLazyCommits()) return CommittedMemory();
@@ -2049,7 +2056,7 @@ bool PagedSpace::RefillLinearAllocationAreaFromFreeList(
   // if it is big enough.
   FreeLinearAllocationArea();
 
-  if (!is_compaction_space()) {
+  if (!is_local_space()) {
     heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
         heap()->GCFlagsForIncrementalMarking(),
         kGCCallbackScheduleIdleGarbageCollection);
@@ -3718,6 +3725,12 @@ bool CompactionSpace::SweepAndRetryAllocation(int size_in_bytes,
   return false;
 }
 
+bool OffThreadSpace::SweepAndRetryAllocation(int size_in_bytes,
+                                             AllocationOrigin origin) {
+  // Sweeping is not supported in the off-thread space.
+  UNREACHABLE();
+}
+
 bool PagedSpace::SlowRefillLinearAllocationArea(int size_in_bytes,
                                                 AllocationOrigin origin) {
   VMState<GC> state(heap()->isolate());
@@ -3731,8 +3744,26 @@ bool CompactionSpace::SlowRefillLinearAllocationArea(int size_in_bytes,
   return RawSlowRefillLinearAllocationArea(size_in_bytes, origin);
 }
 
+bool OffThreadSpace::SlowRefillLinearAllocationArea(int size_in_bytes,
+                                                    AllocationOrigin origin) {
+  if (RefillLinearAllocationAreaFromFreeList(size_in_bytes, origin))
+    return true;
+
+  if (Expand()) {
+    DCHECK((CountTotalPages() > 1) ||
+           (static_cast<size_t>(size_in_bytes) <= free_list_->Available()));
+    return RefillLinearAllocationAreaFromFreeList(
+        static_cast<size_t>(size_in_bytes), origin);
+  }
+
+  return false;
+}
+
 bool PagedSpace::RawSlowRefillLinearAllocationArea(int size_in_bytes,
                                                    AllocationOrigin origin) {
+  // Non-compaction local spaces are not supported.
+  DCHECK_IMPLIES(is_local_space(), is_compaction_space());
+
   // Allocation in this space has failed.
   DCHECK_GE(size_in_bytes, 0);
   const int kMaxPagesToSweep = 1;
