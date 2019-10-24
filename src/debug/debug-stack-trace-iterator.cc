@@ -156,12 +156,11 @@ std::unique_ptr<v8::debug::ScopeIterator>
 DebugStackTraceIterator::GetScopeIterator() const {
   DCHECK(!Done());
   StandardFrame* frame = iterator_.frame();
-  if (frame->is_wasm_interpreter_entry()) {
-    return std::unique_ptr<v8::debug::ScopeIterator>(new DebugWasmScopeIterator(
-        isolate_, iterator_.frame(), inlined_frame_index_));
+  if (frame->is_wasm()) {
+    return std::make_unique<DebugWasmScopeIterator>(isolate_, iterator_.frame(),
+                                                    inlined_frame_index_);
   }
-  return std::unique_ptr<v8::debug::ScopeIterator>(
-      new DebugScopeIterator(isolate_, frame_inspector_.get()));
+  return std::make_unique<DebugScopeIterator>(isolate_, frame_inspector_.get());
 }
 
 bool DebugStackTraceIterator::Restart() {
