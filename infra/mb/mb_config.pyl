@@ -137,6 +137,14 @@
       'V8 Clusterfuzz Linux64 UBSan - release builder':
           'release_x64_ubsan_recover_edge',
     },
+    'client.v8.perf' : {
+      'V8 Arm - builder': 'official_arm',
+      'V8 Arm64 - builder': 'official_arm64',
+      'V8 Android Arm - builder': 'official_android_arm',
+      'V8 Android Arm64 - builder': 'official_android_arm64',
+      'V8 Linux - builder': 'official_x86',
+      'V8 Linux64 - builder': 'official_x64',
+    },
     'client.v8.ports': {
       # Arm.
       'V8 Arm - builder': 'release_arm',
@@ -393,6 +401,18 @@
       'release_bot', 'arm64', 'android', 'minimal_symbols',
       'android_strip_outputs'],
 
+    # Official configs for arm
+    'official_arm': [
+      'release_bot', 'arm', 'hard_float', 'official'],
+    'official_arm64': [
+      'release_bot', 'arm64', 'hard_float', 'official'],
+    'official_android_arm': [
+      'release_bot', 'arm', 'android', 'minimal_symbols',
+      'android_strip_outputs', 'official'],
+    'official_android_arm64': [
+      'release_bot', 'arm64', 'android', 'minimal_symbols',
+      'android_strip_outputs', 'official'],
+
     # Release configs for x64.
     'release_x64': [
       'release_bot', 'x64'],
@@ -468,6 +488,10 @@
       'release_bot', 'x64', 'dcheck_always_on',
       'v8_enable_slow_dchecks', 'v8_verify_csa'],
 
+    # Official configs for x64.
+    'official_x64': [
+      'release_bot', 'x64', 'official'],
+
     # Debug configs for x64.
     'debug_x64': [
       'debug_bot', 'x64'],
@@ -536,6 +560,10 @@
     'release_x86_verify_csa': [
       'release_bot', 'x86', 'dcheck_always_on',
       'v8_enable_slow_dchecks', 'v8_verify_csa'],
+
+    # Official configs for x86.
+    'official_x86': [
+        'release_bot', 'x86', 'official'],
   },
 
   'mixins': {
@@ -691,6 +719,11 @@
 
     'release_trybot': {
       'mixins': ['release_bot', 'minimal_symbols', 'dcheck_always_on'],
+    },
+
+    'official': {
+      # TODO(liviurau): switch this to true after new perf builders are in use
+      'gn_args': 'is_official_build=false',
     },
 
     'shared': {
