@@ -513,7 +513,8 @@ base::Optional<ParseResult> MakeIntrinsicDeclaration(
   }
   Declaration* result = declaration;
   if (!generic_parameters.empty()) {
-    result = MakeNode<GenericDeclaration>(generic_parameters, declaration);
+    result =
+        MakeNode<GenericCallableDeclaration>(generic_parameters, declaration);
   }
   return ParseResult{result};
 }
@@ -543,7 +544,8 @@ base::Optional<ParseResult> MakeTorqueMacroDeclaration(
     if (!body) ReportError("A non-generic declaration needs a body.");
   } else {
     if (export_to_csa) ReportError("Cannot export generics to CSA.");
-    result = MakeNode<GenericDeclaration>(generic_parameters, declaration);
+    result =
+        MakeNode<GenericCallableDeclaration>(generic_parameters, declaration);
   }
   return ParseResult{result};
 }
@@ -569,7 +571,8 @@ base::Optional<ParseResult> MakeTorqueBuiltinDeclaration(
   if (generic_parameters.empty()) {
     if (!body) ReportError("A non-generic declaration needs a body.");
   } else {
-    result = MakeNode<GenericDeclaration>(generic_parameters, declaration);
+    result =
+        MakeNode<GenericCallableDeclaration>(generic_parameters, declaration);
   }
   return ParseResult{result};
 }
@@ -612,10 +615,15 @@ base::Optional<ParseResult> MakeAbstractTypeDeclaration(
   if (!IsValidTypeName(name->value)) {
     NamingConventionError("Type", name, "UpperCamelCase");
   }
+  auto generic_parameters = child_results->NextAs<GenericParameters>();
   auto extends = child_results->NextAs<base::Optional<Identifier*>>();
   auto generates = child_results->NextAs<base::Optional<std::string>>();
-  Declaration* decl = MakeNode<AbstractTypeDeclaration>(
+  TypeDeclaration* type_decl = MakeNode<AbstractTypeDeclaration>(
       name, transient, extends, std::move(generates));
+  Declaration* decl = type_decl;
+  if (!generic_parameters.empty()) {
+    decl = MakeNode<GenericTypeDeclaration>(generic_parameters, type_decl);
+  }
 
   auto constexpr_generates =
       child_results->NextAs<base::Optional<std::string>>();
@@ -633,10 +641,15 @@ base::Optional<ParseResult> MakeAbstractTypeDeclaration(
           MakeNode<Identifier>(CONSTEXPR_TYPE_PREFIX + (*extends)->value);
       (*constexpr_extends)->pos = name->pos;
     }
-    AbstractTypeDeclaration* constexpr_decl = MakeNode<AbstractTypeDeclaration>(
+    TypeDeclaration* constexpr_decl = MakeNode<AbstractTypeDeclaration>(
         constexpr_name, transient, constexpr_extends, constexpr_generates);
     constexpr_decl->pos = name->pos;
-    result.push_back(constexpr_decl);
+    Declaration* decl = constexpr_decl;
+    if (!generic_parameters.empty()) {
+      decl =
+          MakeNode<GenericTypeDeclaration>(generic_parameters, constexpr_decl);
+    }
+    result.push_back(decl);
   }
 
   return ParseResult{result};
@@ -885,9 +898,12 @@ base::Optional<ParseResult> MakeStructDeclaration(
   LintGenericParameters(generic_parameters);
   auto methods = child_results->NextAs<std::vector<Declaration*>>();
   auto fields = child_results->NextAs<std::vector<StructFieldExpression>>();
-  Declaration* result = MakeNode<StructDeclaration>(
-      flags, name, std::move(methods), std::move(fields),
-      std::move(generic_parameters));
+  TypeDeclaration* struct_decl = MakeNode<StructDeclaration>(
+      flags, name, std::move(methods), std::move(fields));
+  Declaration* result = struct_decl;
+  if (!generic_parameters.empty()) {
+    result = MakeNode<GenericTypeDeclaration>(generic_parameters, struct_decl);
+  }
   return ParseResult{result};
 }
 
@@ -2008,6 +2024,7 @@ struct TorqueGrammar : Grammar {
             List<StructFieldExpression>(&structField), Token("}")},
            AsSingletonVector<Declaration*, MakeStructDeclaration>()),
       Rule({CheckIf(Token("transient")), Token("type"), &name,
+            TryOrDefault<GenericParameters>(&genericParameters),
             Optional<Identifier*>(Sequence({Token("extends"), &name})),
             Optional<std::string>(
                 Sequence({Token("generates"), &externalString})),

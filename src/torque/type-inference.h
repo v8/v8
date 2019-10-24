@@ -68,8 +68,7 @@ class TypeArgumentInference {
   void Fail(const char* reason) { failure_reason_ = {reason}; }
 
   void Match(TypeExpression* parameter, const Type* argument_type);
-  void MatchGeneric(BasicTypeExpression* parameter,
-                    const StructType* argument_type);
+  void MatchGeneric(BasicTypeExpression* parameter, const Type* argument_type);
 
   size_t num_explicit_;
   std::unordered_map<std::string, size_t> type_parameter_from_name_;

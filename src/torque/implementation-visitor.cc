@@ -1533,12 +1533,13 @@ std::vector<std::string> ImplementationVisitor::GenerateFunctionDeclaration(
 
 namespace {
 
-void FailCallableLookup(const std::string& reason, const QualifiedName& name,
-                        const TypeVector& parameter_types,
-                        const std::vector<Binding<LocalLabel>*>& labels,
-                        const std::vector<Signature>& candidates,
-                        const std::vector<std::tuple<Generic*, const char*>>
-                            inapplicable_generics) {
+void FailCallableLookup(
+    const std::string& reason, const QualifiedName& name,
+    const TypeVector& parameter_types,
+    const std::vector<Binding<LocalLabel>*>& labels,
+    const std::vector<Signature>& candidates,
+    const std::vector<std::tuple<GenericCallable*, const char*>>
+        inapplicable_generics) {
   std::stringstream stream;
   stream << "\n" << reason << ": \n  " << name << "(" << parameter_types << ")";
   if (labels.size() != 0) {
@@ -1555,7 +1556,7 @@ void FailCallableLookup(const std::string& reason, const QualifiedName& name,
   if (inapplicable_generics.size() != 0) {
     stream << "\nfailed to instantiate all of these generic declarations:";
     for (auto& failure : inapplicable_generics) {
-      Generic* generic;
+      GenericCallable* generic;
       const char* reason;
       std::tie(generic, reason) = failure;
       stream << "\n  " << generic->name() << " defined at "
@@ -1565,7 +1566,8 @@ void FailCallableLookup(const std::string& reason, const QualifiedName& name,
   ReportError(stream.str());
 }
 
-Callable* GetOrCreateSpecialization(const SpecializationKey<Generic>& key) {
+Callable* GetOrCreateSpecialization(
+    const SpecializationKey<GenericCallable>& key) {
   if (base::Optional<Callable*> specialization =
           key.generic->specializations().Get(key.specialized_types)) {
     return *specialization;
@@ -1621,9 +1623,9 @@ Callable* ImplementationVisitor::LookupCallable(
 
   std::vector<Declarable*> overloads;
   std::vector<Signature> overload_signatures;
-  std::vector<std::tuple<Generic*, const char*>> inapplicable_generics;
+  std::vector<std::tuple<GenericCallable*, const char*>> inapplicable_generics;
   for (auto* declarable : declaration_container) {
-    if (Generic* generic = Generic::DynamicCast(declarable)) {
+    if (GenericCallable* generic = GenericCallable::DynamicCast(declarable)) {
       TypeArgumentInference inference = generic->InferSpecializationTypes(
           specialization_types, parameter_types);
       if (inference.HasFailed()) {
@@ -1634,7 +1636,8 @@ Callable* ImplementationVisitor::LookupCallable(
       overloads.push_back(generic);
       overload_signatures.push_back(
           DeclarationVisitor::MakeSpecializedSignature(
-              SpecializationKey<Generic>{generic, inference.GetResult()}));
+              SpecializationKey<GenericCallable>{generic,
+                                                 inference.GetResult()}));
     } else if (Callable* callable = Callable::DynamicCast(declarable)) {
       overloads.push_back(callable);
       overload_signatures.push_back(callable->signature());
@@ -1683,11 +1686,12 @@ Callable* ImplementationVisitor::LookupCallable(
     }
   }
 
-  if (Generic* generic = Generic::DynamicCast(overloads[best])) {
+  if (GenericCallable* generic =
+          GenericCallable::DynamicCast(overloads[best])) {
     TypeArgumentInference inference = generic->InferSpecializationTypes(
         specialization_types, parameter_types);
     result = GetOrCreateSpecialization(
-        SpecializationKey<Generic>{generic, inference.GetResult()});
+        SpecializationKey<GenericCallable>{generic, inference.GetResult()});
   } else {
     result = Callable::cast(overloads[best]);
   }
@@ -1936,9 +1940,9 @@ LocationReference ImplementationVisitor::GetLocationReference(
                                         "builtin " + expr->name->value);
   }
   if (expr->generic_arguments.size() != 0) {
-    Generic* generic = Declarations::LookupUniqueGeneric(name);
+    GenericCallable* generic = Declarations::LookupUniqueGeneric(name);
     Callable* specialization =
-        GetOrCreateSpecialization(SpecializationKey<Generic>{
+        GetOrCreateSpecialization(SpecializationKey<GenericCallable>{
             generic, TypeVisitor::ComputeTypeVector(expr->generic_arguments)});
     if (Builtin* builtin = Builtin::DynamicCast(specialization)) {
       DCHECK(!builtin->IsExternal());
@@ -2654,8 +2658,8 @@ void ImplementationVisitor::Visit(Declarable* declarable) {
     case Declarable::kIntrinsic:
     case Declarable::kExternConstant:
     case Declarable::kNamespace:
-    case Declarable::kGeneric:
-    case Declarable::kGenericStructType:
+    case Declarable::kGenericCallable:
+    case Declarable::kGenericType:
       return;
   }
 }

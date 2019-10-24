@@ -56,7 +56,7 @@ std::ostream& operator<<(std::ostream& os, const RuntimeFunction& b) {
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const Generic& g) {
+std::ostream& operator<<(std::ostream& os, const GenericCallable& g) {
   os << "generic " << g.name() << "<";
   PrintCommaSeparatedList(
       os, g.generic_parameters(),
@@ -66,7 +66,7 @@ std::ostream& operator<<(std::ostream& os, const Generic& g) {
   return os;
 }
 
-TypeArgumentInference Generic::InferSpecializationTypes(
+TypeArgumentInference GenericCallable::InferSpecializationTypes(
     const TypeVector& explicit_specialization_types,
     const TypeVector& arguments) {
   size_t implicit_count = declaration()->parameters.implicit_count;
@@ -82,7 +82,7 @@ TypeArgumentInference Generic::InferSpecializationTypes(
   return inference;
 }
 
-base::Optional<Statement*> Generic::CallableBody() {
+base::Optional<Statement*> GenericCallable::CallableBody() {
   if (auto* decl = TorqueMacroDeclaration::DynamicCast(declaration())) {
     return decl->body;
   } else if (auto* decl =

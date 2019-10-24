@@ -25,8 +25,9 @@ class AggregateType;
 struct Identifier;
 class Macro;
 class Method;
-class GenericStructType;
+class GenericType;
 class StructType;
+class Type;
 class ClassType;
 class Value;
 class Namespace;
@@ -80,6 +81,16 @@ class TypeBase {
     return static_cast<const x*>(declarable);               \
   }
 
+using TypeVector = std::vector<const Type*>;
+
+template <typename T>
+struct SpecializationKey {
+  T* generic;
+  TypeVector specialized_types;
+};
+
+using MaybeSpecializationKey = base::Optional<SpecializationKey<GenericType>>;
+
 class V8_EXPORT_PRIVATE Type : public TypeBase {
  public:
   virtual bool IsSubtypeOf(const Type* supertype) const;
@@ -112,9 +123,13 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
   static const Type* CommonSupertype(const Type* a, const Type* b);
   void AddAlias(std::string alias) const { aliases_.insert(std::move(alias)); }
   size_t id() const { return id_; }
+  const MaybeSpecializationKey& GetSpecializedFrom() const {
+    return specialized_from_;
+  }
 
  protected:
-  Type(TypeBase::Kind kind, const Type* parent);
+  Type(TypeBase::Kind kind, const Type* parent,
+       MaybeSpecializationKey specialized_from = base::nullopt);
   Type(const Type& other) V8_NOEXCEPT;
   Type& operator=(const Type& other) = delete;
   const Type* parent() const { return parent_; }
@@ -125,6 +140,9 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
   virtual std::string GetGeneratedTNodeTypeNameImpl() const = 0;
   virtual std::string SimpleNameImpl() const = 0;
 
+  static std::string ComputeName(const std::string& basename,
+                                 MaybeSpecializationKey specialized_from);
+
  private:
   bool IsAbstractName(const std::string& name) const;
 
@@ -132,9 +150,8 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
   const Type* parent_;
   mutable std::set<std::string> aliases_;
   size_t id_;
+  MaybeSpecializationKey specialized_from_;
 };
-
-using TypeVector = std::vector<const Type*>;
 
 inline size_t hash_value(const TypeVector& types) {
   size_t hash = 0;
@@ -150,12 +167,6 @@ struct NameAndType {
 };
 
 std::ostream& operator<<(std::ostream& os, const NameAndType& name_and_type);
-
-template <typename T>
-struct SpecializationKey {
-  T* generic;
-  TypeVector specialized_types;
-};
 
 struct Field {
   // TODO(danno): This likely should be refactored, the handling of the types
@@ -236,8 +247,9 @@ class AbstractType final : public Type {
   friend class TypeOracle;
   AbstractType(const Type* parent, bool transient, const std::string& name,
                const std::string& generated_type,
-               const Type* non_constexpr_version)
-      : Type(Kind::kAbstractType, parent),
+               const Type* non_constexpr_version,
+               MaybeSpecializationKey specialized_from)
+      : Type(Kind::kAbstractType, parent, specialized_from),
         transient_(transient),
         name_(name),
         generated_type_(generated_type),
@@ -450,8 +462,9 @@ class AggregateType : public Type {
 
  protected:
   AggregateType(Kind kind, const Type* parent, Namespace* nspace,
-                const std::string& name)
-      : Type(kind, parent),
+                const std::string& name,
+                MaybeSpecializationKey specialized_from = base::nullopt)
+      : Type(kind, parent, specialized_from),
         is_finalized_(false),
         namespace_(nspace),
         name_(name) {}
@@ -475,18 +488,12 @@ class StructType final : public AggregateType {
  public:
   DECLARE_TYPE_BOILERPLATE(StructType)
 
-  using MaybeSpecializationKey =
-      base::Optional<SpecializationKey<GenericStructType>>;
-
   std::string GetGeneratedTypeNameImpl() const override;
-  const MaybeSpecializationKey& GetSpecializedFrom() const {
-    return specialized_from_;
-  }
 
-  static base::Optional<const Type*> MatchUnaryGeneric(
-      const Type* type, GenericStructType* generic);
-  static base::Optional<const Type*> MatchUnaryGeneric(
-      const StructType* type, GenericStructType* generic);
+  static base::Optional<const Type*> MatchUnaryGeneric(const Type* type,
+                                                       GenericType* generic);
+  static base::Optional<const Type*> MatchUnaryGeneric(const StructType* type,
+                                                       GenericType* generic);
 
  private:
   friend class TypeOracle;
@@ -497,12 +504,8 @@ class StructType final : public AggregateType {
   std::string ToExplicitString() const override;
   std::string SimpleNameImpl() const override;
 
-  static std::string ComputeName(const std::string& basename,
-                                 MaybeSpecializationKey specialized_from);
-
   const StructDeclaration* decl_;
   std::string generated_type_name_;
-  MaybeSpecializationKey specialized_from_;
 };
 
 class TypeAlias;

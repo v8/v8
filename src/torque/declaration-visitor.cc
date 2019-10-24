@@ -32,8 +32,11 @@ void PredeclarationVisitor::Predeclare(Declaration* decl) {
 #undef ENUM_ITEM
     case AstNode::Kind::kNamespaceDeclaration:
       return Predeclare(NamespaceDeclaration::cast(decl));
-    case AstNode::Kind::kGenericDeclaration:
-      return Predeclare(GenericDeclaration::cast(decl));
+    case AstNode::Kind::kGenericCallableDeclaration:
+      return Predeclare(GenericCallableDeclaration::cast(decl));
+    case AstNode::Kind::kGenericTypeDeclaration:
+      return Predeclare(GenericTypeDeclaration::cast(decl));
+
     default:
       // Only processes type declaration nodes, namespaces and generics.
       break;
@@ -172,15 +175,15 @@ void DeclarationVisitor::Visit(ConstDeclaration* decl) {
 }
 
 void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
-  std::vector<Generic*> generic_list =
+  std::vector<GenericCallable*> generic_list =
       Declarations::LookupGeneric(decl->name->value);
   // Find the matching generic specialization based on the concrete parameter
   // list.
-  Generic* matching_generic = nullptr;
+  GenericCallable* matching_generic = nullptr;
   Signature signature_with_types = TypeVisitor::MakeSignature(decl);
-  for (Generic* generic : generic_list) {
+  for (GenericCallable* generic : generic_list) {
     Signature generic_signature_with_types =
-        MakeSpecializedSignature(SpecializationKey<Generic>{
+        MakeSpecializedSignature(SpecializationKey<GenericCallable>{
             generic, TypeVisitor::ComputeTypeVector(decl->generic_parameters)});
     if (signature_with_types.HasSameTypesAs(generic_signature_with_types,
                                             ParameterMode::kIgnoreImplicit)) {
@@ -206,9 +209,9 @@ void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
     stream << "specialization signature:";
     stream << "\n  " << signature_with_types;
     stream << "\ncandidates are:";
-    for (Generic* generic : generic_list) {
+    for (GenericCallable* generic : generic_list) {
       stream << "\n  "
-             << MakeSpecializedSignature(SpecializationKey<Generic>{
+             << MakeSpecializedSignature(SpecializationKey<GenericCallable>{
                     generic,
                     TypeVisitor::ComputeTypeVector(decl->generic_parameters)});
     }
@@ -222,9 +225,9 @@ void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
 
   CallableDeclaration* generic_declaration = matching_generic->declaration();
 
-  Specialize(SpecializationKey<Generic>{matching_generic,
-                                        TypeVisitor::ComputeTypeVector(
-                                            decl->generic_parameters)},
+  Specialize(SpecializationKey<GenericCallable>{matching_generic,
+                                                TypeVisitor::ComputeTypeVector(
+                                                    decl->generic_parameters)},
              generic_declaration, decl, decl->body, decl->pos);
 }
 
@@ -245,7 +248,7 @@ void DeclarationVisitor::Visit(CppIncludeDeclaration* decl) {
 }
 
 void DeclarationVisitor::DeclareSpecializedTypes(
-    const SpecializationKey<Generic>& key) {
+    const SpecializationKey<GenericCallable>& key) {
   size_t i = 0;
   const std::size_t generic_parameter_count =
       key.generic->generic_parameters().size();
@@ -265,7 +268,7 @@ void DeclarationVisitor::DeclareSpecializedTypes(
 }
 
 Signature DeclarationVisitor::MakeSpecializedSignature(
-    const SpecializationKey<Generic>& key) {
+    const SpecializationKey<GenericCallable>& key) {
   CurrentScope::Scope generic_scope(key.generic->ParentScope());
   // Create a temporary fake-namespace just to temporarily declare the
   // specialization aliases for the generic types to create a signature.
@@ -276,7 +279,7 @@ Signature DeclarationVisitor::MakeSpecializedSignature(
 }
 
 Callable* DeclarationVisitor::SpecializeImplicit(
-    const SpecializationKey<Generic>& key) {
+    const SpecializationKey<GenericCallable>& key) {
   base::Optional<Statement*> body = key.generic->CallableBody();
   if (!body && IntrinsicDeclaration::DynamicCast(key.generic->declaration()) ==
                    nullptr) {
@@ -294,7 +297,8 @@ Callable* DeclarationVisitor::SpecializeImplicit(
 }
 
 Callable* DeclarationVisitor::Specialize(
-    const SpecializationKey<Generic>& key, CallableDeclaration* declaration,
+    const SpecializationKey<GenericCallable>& key,
+    CallableDeclaration* declaration,
     base::Optional<const SpecializationDeclaration*> explicit_specialization,
     base::Optional<Statement*> body, SourcePosition position) {
   CurrentSourcePosition::Scope pos_scope(position);

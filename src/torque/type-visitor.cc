@@ -15,12 +15,28 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-const Type* TypeVisitor::ComputeType(TypeDeclaration* decl) {
+const Type* TypeVisitor::ComputeType(TypeDeclaration* decl,
+                                     MaybeSpecializationKey specialized_from) {
   CurrentSourcePosition::Scope scope(decl->pos);
+  Scope* current_scope = CurrentScope::Get();
+  if (specialized_from) {
+    current_scope = TypeOracle::CreateGenericTypeInstatiationNamespace();
+  }
+  CurrentScope::Scope new_current_scope_scope(current_scope);
+  if (specialized_from) {
+    auto& params = specialized_from->generic->generic_parameters();
+    auto arg_types_iterator = specialized_from->specialized_types.begin();
+    for (auto param : params) {
+      TypeAlias* alias = Declarations::DeclareType(param, *arg_types_iterator);
+      alias->SetIsUserDefined(false);
+      arg_types_iterator++;
+    }
+  }
+
   switch (decl->kind) {
 #define ENUM_ITEM(name)        \
   case AstNode::Kind::k##name: \
-    return ComputeType(name::cast(decl));
+    return ComputeType(name::cast(decl), specialized_from);
     AST_TYPE_DECLARATION_NODE_KIND_LIST(ENUM_ITEM)
 #undef ENUM_ITEM
     default:
@@ -28,7 +44,8 @@ const Type* TypeVisitor::ComputeType(TypeDeclaration* decl) {
   }
 }
 
-const Type* TypeVisitor::ComputeType(TypeAliasDeclaration* decl) {
+const Type* TypeVisitor::ComputeType(TypeAliasDeclaration* decl,
+                                     MaybeSpecializationKey specialized_from) {
   const Type* type = ComputeType(decl->type);
   type->AddAlias(decl->name->value);
   return type;
@@ -51,7 +68,8 @@ std::string ComputeGeneratesType(base::Optional<std::string> opt_gen,
 }
 }  // namespace
 
-const AbstractType* TypeVisitor::ComputeType(AbstractTypeDeclaration* decl) {
+const AbstractType* TypeVisitor::ComputeType(
+    AbstractTypeDeclaration* decl, MaybeSpecializationKey specialized_from) {
   std::string generates =
       ComputeGeneratesType(decl->generates, !decl->is_constexpr);
 
@@ -85,7 +103,7 @@ const AbstractType* TypeVisitor::ComputeType(AbstractTypeDeclaration* decl) {
 
   return TypeOracle::GetAbstractType(parent_type, decl->name->value,
                                      decl->transient, generates,
-                                     non_constexpr_version);
+                                     non_constexpr_version, specialized_from);
 }
 
 void DeclareMethods(AggregateType* container_type,
@@ -108,21 +126,10 @@ void DeclareMethods(AggregateType* container_type,
 }
 
 const StructType* TypeVisitor::ComputeType(
-    StructDeclaration* decl,
-    StructType::MaybeSpecializationKey specialized_from) {
+    StructDeclaration* decl, MaybeSpecializationKey specialized_from) {
   StructType* struct_type = TypeOracle::GetStructType(decl, specialized_from);
   CurrentScope::Scope struct_namespace_scope(struct_type->nspace());
   CurrentSourcePosition::Scope position_activator(decl->pos);
-
-  if (specialized_from) {
-    auto& params = specialized_from->generic->generic_parameters();
-    auto arg_types_iterator = specialized_from->specialized_types.begin();
-    for (auto param : params) {
-      TypeAlias* alias = Declarations::DeclareType(param, *arg_types_iterator);
-      alias->SetIsUserDefined(false);
-      arg_types_iterator++;
-    }
-  }
 
   size_t offset = 0;
   for (auto& field : decl->fields) {
@@ -146,7 +153,8 @@ const StructType* TypeVisitor::ComputeType(
   return struct_type;
 }
 
-const ClassType* TypeVisitor::ComputeType(ClassDeclaration* decl) {
+const ClassType* TypeVisitor::ComputeType(
+    ClassDeclaration* decl, MaybeSpecializationKey specialized_from) {
   ClassType* new_class;
   // TODO(sigurds): Remove this hack by introducing a declarable for classes.
   const TypeAlias* alias =
@@ -216,11 +224,11 @@ const Type* TypeVisitor::ComputeType(TypeExpression* type_expression) {
       type = alias->type();
       pos = alias->GetDeclarationPosition();
     } else {
-      auto* generic_struct =
-          Declarations::LookupUniqueGenericStructType(qualified_name);
-      type = TypeOracle::GetGenericStructTypeInstance(generic_struct,
-                                                      ComputeTypeVector(args));
-      pos = generic_struct->declaration()->name->pos;
+      auto* generic_type =
+          Declarations::LookupUniqueGenericType(qualified_name);
+      type = TypeOracle::GetGenericTypeInstance(generic_type,
+                                                ComputeTypeVector(args));
+      pos = generic_type->declaration()->name->pos;
     }
 
     if (GlobalContext::collect_language_server_data()) {
@@ -350,11 +358,16 @@ const StructType* TypeVisitor::ComputeTypeForStructExpression(
   }
 
   QualifiedName qualified_name{basic->namespace_qualification, basic->name};
-  base::Optional<GenericStructType*> maybe_generic_struct =
-      Declarations::TryLookupGenericStructType(qualified_name);
+  base::Optional<GenericType*> maybe_generic_type =
+      Declarations::TryLookupGenericType(qualified_name);
+
+  StructDeclaration* decl =
+      maybe_generic_type
+          ? StructDeclaration::DynamicCast((*maybe_generic_type)->declaration())
+          : nullptr;
 
   // Compute types of non-generic structs as usual
-  if (!maybe_generic_struct) {
+  if (!(maybe_generic_type && decl)) {
     const Type* type = ComputeType(type_expression);
     const StructType* struct_type = StructType::DynamicCast(type);
     if (!struct_type) {
@@ -363,20 +376,20 @@ const StructType* TypeVisitor::ComputeTypeForStructExpression(
     return struct_type;
   }
 
-  auto generic_struct = *maybe_generic_struct;
+  auto generic_type = *maybe_generic_type;
   auto explicit_type_arguments = ComputeTypeVector(basic->generic_arguments);
 
   std::vector<TypeExpression*> term_parameters;
-  auto& fields = generic_struct->declaration()->fields;
+  auto& fields = decl->fields;
   term_parameters.reserve(fields.size());
   for (auto& field : fields) {
     term_parameters.push_back(field.name_and_type.type);
   }
 
-  CurrentScope::Scope generic_scope(generic_struct->ParentScope());
-  TypeArgumentInference inference(
-      generic_struct->declaration()->generic_parameters,
-      explicit_type_arguments, term_parameters, term_argument_types);
+  CurrentScope::Scope generic_scope(generic_type->ParentScope());
+  TypeArgumentInference inference(generic_type->generic_parameters(),
+                                  explicit_type_arguments, term_parameters,
+                                  term_argument_types);
 
   if (inference.HasFailed()) {
     ReportError("failed to infer type arguments for struct ", basic->name,
@@ -384,10 +397,10 @@ const StructType* TypeVisitor::ComputeTypeForStructExpression(
   }
   if (GlobalContext::collect_language_server_data()) {
     LanguageServerData::AddDefinition(type_expression->pos,
-                                      generic_struct->declaration()->name->pos);
+                                      generic_type->declaration()->name->pos);
   }
-  return TypeOracle::GetGenericStructTypeInstance(generic_struct,
-                                                  inference.GetResult());
+  return StructType::cast(
+      TypeOracle::GetGenericTypeInstance(generic_type, inference.GetResult()));
 }
 
 }  // namespace torque

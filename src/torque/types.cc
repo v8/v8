@@ -21,11 +21,16 @@ Type::Type(const Type& other) V8_NOEXCEPT : TypeBase(other),
                                             parent_(other.parent_),
                                             aliases_(),
                                             id_(TypeOracle::FreshTypeId()) {}
-Type::Type(TypeBase::Kind kind, const Type* parent)
-    : TypeBase(kind), parent_(parent), id_(TypeOracle::FreshTypeId()) {}
+Type::Type(TypeBase::Kind kind, const Type* parent,
+           MaybeSpecializationKey specialized_from)
+    : TypeBase(kind),
+      parent_(parent),
+      id_(TypeOracle::FreshTypeId()),
+      specialized_from_(specialized_from) {}
 
 std::string Type::ToString() const {
-  if (aliases_.size() == 0) return ToExplicitString();
+  if (aliases_.size() == 0)
+    return ComputeName(ToExplicitString(), GetSpecializedFrom());
   if (aliases_.size() == 1) return *aliases_.begin();
   std::stringstream result;
   int i = 0;
@@ -44,7 +49,16 @@ std::string Type::ToString() const {
 }
 
 std::string Type::SimpleName() const {
-  if (aliases_.empty()) return SimpleNameImpl();
+  if (aliases_.empty()) {
+    std::stringstream result;
+    result << SimpleNameImpl();
+    if (GetSpecializedFrom()) {
+      for (const Type* t : GetSpecializedFrom()->specialized_types) {
+        result << "_" << t->SimpleName();
+      }
+    }
+    return result.str();
+  }
   return *aliases_.begin();
 }
 
@@ -290,10 +304,9 @@ const Field& AggregateType::LookupField(const std::string& name) const {
 
 StructType::StructType(Namespace* nspace, const StructDeclaration* decl,
                        MaybeSpecializationKey specialized_from)
-    : AggregateType(Kind::kStructType, nullptr, nspace,
-                    ComputeName(decl->name->value, specialized_from)),
-      decl_(decl),
-      specialized_from_(specialized_from) {
+    : AggregateType(Kind::kStructType, nullptr, nspace, decl->name->value,
+                    specialized_from),
+      decl_(decl) {
   if (decl->flags & StructFlag::kExport) {
     generated_type_name_ = "TorqueStruct" + name();
   } else {
@@ -307,9 +320,8 @@ std::string StructType::GetGeneratedTypeNameImpl() const {
 }
 
 // static
-std::string StructType::ComputeName(
-    const std::string& basename,
-    StructType::MaybeSpecializationKey specialized_from) {
+std::string Type::ComputeName(const std::string& basename,
+                              MaybeSpecializationKey specialized_from) {
   if (!specialized_from) return basename;
   std::stringstream s;
   s << basename << "<";
@@ -325,20 +337,11 @@ std::string StructType::ComputeName(
   return s.str();
 }
 
-std::string StructType::SimpleNameImpl() const {
-  std::stringstream result;
-  result << decl_->name->value;
-  if (specialized_from_) {
-    for (const Type* t : specialized_from_->specialized_types) {
-      result << "_" << t->SimpleName();
-    }
-  }
-  return result.str();
-}
+std::string StructType::SimpleNameImpl() const { return decl_->name->value; }
 
 // static
 base::Optional<const Type*> StructType::MatchUnaryGeneric(
-    const Type* type, GenericStructType* generic) {
+    const Type* type, GenericType* generic) {
   if (auto* struct_type = StructType::DynamicCast(type)) {
     return MatchUnaryGeneric(struct_type, generic);
   }
@@ -347,12 +350,12 @@ base::Optional<const Type*> StructType::MatchUnaryGeneric(
 
 // static
 base::Optional<const Type*> StructType::MatchUnaryGeneric(
-    const StructType* type, GenericStructType* generic) {
+    const StructType* type, GenericType* generic) {
   DCHECK_EQ(generic->generic_parameters().size(), 1);
-  if (!type->specialized_from_) {
+  if (!type->GetSpecializedFrom()) {
     return base::nullopt;
   }
-  auto& key = type->specialized_from_.value();
+  auto& key = type->GetSpecializedFrom().value();
   if (key.generic != generic || key.specialized_types.size() != 1) {
     return base::nullopt;
   }

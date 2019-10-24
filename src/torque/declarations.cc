@@ -120,27 +120,28 @@ base::Optional<Builtin*> Declarations::TryLookupBuiltin(
   return EnsureUnique(builtins, name.name, "builtin");
 }
 
-std::vector<Generic*> Declarations::LookupGeneric(const std::string& name) {
-  return EnsureNonempty(FilterDeclarables<Generic>(Lookup(QualifiedName(name))),
-                        name, "generic");
+std::vector<GenericCallable*> Declarations::LookupGeneric(
+    const std::string& name) {
+  return EnsureNonempty(
+      FilterDeclarables<GenericCallable>(Lookup(QualifiedName(name))), name,
+      "generic callable");
 }
 
-Generic* Declarations::LookupUniqueGeneric(const QualifiedName& name) {
-  return EnsureUnique(FilterDeclarables<Generic>(Lookup(name)), name,
-                      "generic");
+GenericCallable* Declarations::LookupUniqueGeneric(const QualifiedName& name) {
+  return EnsureUnique(FilterDeclarables<GenericCallable>(Lookup(name)), name,
+                      "generic callable");
 }
 
-GenericStructType* Declarations::LookupUniqueGenericStructType(
+GenericType* Declarations::LookupUniqueGenericType(const QualifiedName& name) {
+  return EnsureUnique(FilterDeclarables<GenericType>(Lookup(name)), name,
+                      "generic type");
+}
+
+base::Optional<GenericType*> Declarations::TryLookupGenericType(
     const QualifiedName& name) {
-  return EnsureUnique(FilterDeclarables<GenericStructType>(Lookup(name)), name,
-                      "generic struct");
-}
-
-base::Optional<GenericStructType*> Declarations::TryLookupGenericStructType(
-    const QualifiedName& name) {
-  std::vector<GenericStructType*> results = TryLookup<GenericStructType>(name);
+  std::vector<GenericType*> results = TryLookup<GenericType>(name);
   if (results.empty()) return base::nullopt;
-  return EnsureUnique(results, name.name, "generic struct");
+  return EnsureUnique(results, name.name, "generic type");
 }
 
 Namespace* Declarations::DeclareNamespace(const std::string& name) {
@@ -279,15 +280,16 @@ NamespaceConstant* Declarations::DeclareNamespaceConstant(Identifier* name,
   return result;
 }
 
-Generic* Declarations::DeclareGeneric(const std::string& name,
-                                      GenericDeclaration* generic) {
-  return Declare(name, std::unique_ptr<Generic>(new Generic(name, generic)));
+GenericCallable* Declarations::DeclareGenericCallable(
+    const std::string& name, GenericCallableDeclaration* ast_node) {
+  return Declare(name, std::unique_ptr<GenericCallable>(
+                           new GenericCallable(name, ast_node)));
 }
 
-GenericStructType* Declarations::DeclareGenericStructType(
-    const std::string& name, StructDeclaration* decl) {
-  return Declare(name, std::unique_ptr<GenericStructType>(
-                           new GenericStructType(name, decl)));
+GenericType* Declarations::DeclareGenericType(
+    const std::string& name, GenericTypeDeclaration* ast_node) {
+  return Declare(name,
+                 std::unique_ptr<GenericType>(new GenericType(name, ast_node)));
 }
 
 std::string Declarations::GetGeneratedCallableName(

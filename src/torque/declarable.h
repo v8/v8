@@ -50,8 +50,8 @@ class Declarable {
     kBuiltin,
     kRuntimeFunction,
     kIntrinsic,
-    kGeneric,
-    kGenericStructType,
+    kGenericCallable,
+    kGenericType,
     kTypeAlias,
     kExternConstant,
     kNamespaceConstant
@@ -65,8 +65,8 @@ class Declarable {
   bool IsIntrinsic() const { return kind() == kIntrinsic; }
   bool IsBuiltin() const { return kind() == kBuiltin; }
   bool IsRuntimeFunction() const { return kind() == kRuntimeFunction; }
-  bool IsGeneric() const { return kind() == kGeneric; }
-  bool IsGenericStructType() const { return kind() == kGenericStructType; }
+  bool IsGenericCallable() const { return kind() == kGenericCallable; }
+  bool IsGenericType() const { return kind() == kGenericType; }
   bool IsTypeAlias() const { return kind() == kTypeAlias; }
   bool IsExternConstant() const { return kind() == kExternConstant; }
   bool IsNamespaceConstant() const { return kind() == kNamespaceConstant; }
@@ -472,9 +472,9 @@ class SpecializationMap {
   Map specializations_;
 };
 
-class Generic : public Declarable {
+class GenericCallable : public Declarable {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(Generic, generic)
+  DECLARE_DECLARABLE_BOILERPLATE(GenericCallable, generic_callable)
 
   const std::string& name() const { return name_; }
   CallableDeclaration* declaration() const {
@@ -493,40 +493,44 @@ class Generic : public Declarable {
 
  private:
   friend class Declarations;
-  Generic(const std::string& name, GenericDeclaration* generic_declaration)
-      : Declarable(Declarable::kGeneric),
+  GenericCallable(const std::string& name,
+                  GenericCallableDeclaration* generic_declaration)
+      : Declarable(Declarable::kGenericCallable),
         name_(name),
-        generic_declaration_(generic_declaration) {}
+        generic_declaration_(generic_declaration) {
+    DCHECK(!generic_declaration->generic_parameters.empty());
+  }
 
   std::string name_;
-  GenericDeclaration* generic_declaration_;
+  GenericCallableDeclaration* generic_declaration_;
   SpecializationMap<Callable> specializations_;
 };
 
-class GenericStructType : public Declarable {
+class GenericType : public Declarable {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(GenericStructType, generic_type)
+  DECLARE_DECLARABLE_BOILERPLATE(GenericType, generic_type)
   const std::string& name() const { return name_; }
-  StructDeclaration* declaration() const { return declaration_; }
+  TypeDeclaration* declaration() const {
+    return generic_declaration_->declaration;
+  }
   const std::vector<Identifier*>& generic_parameters() const {
-    return declaration_->generic_parameters;
+    return generic_declaration_->generic_parameters;
   }
-  SpecializationMap<const StructType>& specializations() {
-    return specializations_;
-  }
+  SpecializationMap<const Type>& specializations() { return specializations_; }
 
  private:
   friend class Declarations;
-  GenericStructType(const std::string& name, StructDeclaration* declaration)
-      : Declarable(Declarable::kGenericStructType),
+  GenericType(const std::string& name,
+              GenericTypeDeclaration* generic_declaration)
+      : Declarable(Declarable::kGenericType),
         name_(name),
-        declaration_(declaration) {
-    DCHECK_GT(declaration->generic_parameters.size(), 0);
+        generic_declaration_(generic_declaration) {
+    DCHECK(!generic_declaration->generic_parameters.empty());
   }
 
   std::string name_;
-  StructDeclaration* declaration_;
-  SpecializationMap<const StructType> specializations_;
+  GenericTypeDeclaration* generic_declaration_;
+  SpecializationMap<const Type> specializations_;
 };
 
 class TypeAlias : public Declarable {
@@ -572,7 +576,7 @@ class TypeAlias : public Declarable {
 std::ostream& operator<<(std::ostream& os, const Callable& m);
 std::ostream& operator<<(std::ostream& os, const Builtin& b);
 std::ostream& operator<<(std::ostream& os, const RuntimeFunction& b);
-std::ostream& operator<<(std::ostream& os, const Generic& g);
+std::ostream& operator<<(std::ostream& os, const GenericCallable& g);
 
 #undef DECLARE_DECLARABLE_BOILERPLATE
 
