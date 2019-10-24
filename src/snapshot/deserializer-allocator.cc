@@ -26,7 +26,7 @@ Address DeserializerAllocator::AllocateRaw(SnapshotSpace space, int size) {
     AlwaysAllocateScope scope(heap_);
     // Note that we currently do not support deserialization of large code
     // objects.
-    LargeObjectSpace* lo_space = heap_->lo_space();
+    OldLargeObjectSpace* lo_space = heap_->lo_space();
     AllocationResult result = lo_space->AllocateRaw(size);
     HeapObject obj = result.ToObjectChecked();
     deserialized_large_objects_.push_back(obj);

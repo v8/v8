@@ -136,11 +136,7 @@ class MarkBitCellIterator {
   Address cell_base_;
 };
 
-enum LiveObjectIterationMode {
-  kBlackObjects,
-  kGreyObjects,
-  kAllLiveObjects
-};
+enum LiveObjectIterationMode { kBlackObjects, kGreyObjects, kAllLiveObjects };
 
 template <LiveObjectIterationMode mode>
 class LiveObjectRange {
@@ -867,15 +863,13 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   base::Semaphore page_parallel_job_semaphore_;
 
 #ifdef DEBUG
-  enum CollectorState {
-    IDLE,
-    PREPARE_GC,
-    MARK_LIVE_OBJECTS,
-    SWEEP_SPACES,
-    ENCODE_FORWARDING_ADDRESSES,
-    UPDATE_POINTERS,
-    RELOCATE_OBJECTS
-  };
+  enum CollectorState{IDLE,
+                      PREPARE_GC,
+                      MARK_LIVE_OBJECTS,
+                      SWEEP_SPACES,
+                      ENCODE_FORWARDING_ADDRESSES,
+                      UPDATE_POINTERS,
+                      RELOCATE_OBJECTS};
 
   // The current stage of the collector.
   CollectorState state_;

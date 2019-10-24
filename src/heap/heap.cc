@@ -5036,7 +5036,7 @@ void Heap::SetUpSpaces() {
   space_[OLD_SPACE] = old_space_ = new OldSpace(this);
   space_[CODE_SPACE] = code_space_ = new CodeSpace(this);
   space_[MAP_SPACE] = map_space_ = new MapSpace(this);
-  space_[LO_SPACE] = lo_space_ = new LargeObjectSpace(this);
+  space_[LO_SPACE] = lo_space_ = new OldLargeObjectSpace(this);
   space_[NEW_LO_SPACE] = new_lo_space_ =
       new NewLargeObjectSpace(this, new_space_->Capacity());
   space_[CODE_LO_SPACE] = code_lo_space_ = new CodeLargeObjectSpace(this);

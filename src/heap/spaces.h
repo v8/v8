@@ -46,6 +46,7 @@ class CompactionSpace;
 class CompactionSpaceCollection;
 class FreeList;
 class Isolate;
+class LargeObjectSpace;
 class LinearAllocationArea;
 class LocalArrayBufferTracker;
 class LocalSpace;
@@ -437,7 +438,7 @@ class V8_EXPORT_PRIVATE Space : public Malloced {
   virtual size_t Size() = 0;
 
   // Returns size of objects. Can differ from the allocated size
-  // (e.g. see LargeObjectSpace).
+  // (e.g. see OldLargeObjectSpace).
   virtual size_t SizeOfObjects() { return Size(); }
 
   // Approximate amount of physical memory committed for this space.
@@ -3229,16 +3230,12 @@ class LargeObjectSpace : public Space {
  public:
   using iterator = LargePageIterator;
 
-  explicit LargeObjectSpace(Heap* heap);
   LargeObjectSpace(Heap* heap, AllocationSpace id);
 
   ~LargeObjectSpace() override { TearDown(); }
 
   // Releases internal resources, frees objects in this space.
   void TearDown();
-
-  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateRaw(int object_size);
 
   // Available bytes for objects in this space.
   size_t Available() override;
@@ -3293,8 +3290,6 @@ class LargeObjectSpace : public Space {
 
  protected:
   LargePage* AllocateLargePage(int object_size, Executability executable);
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateRaw(int object_size,
-                                                     Executability executable);
 
   size_t size_;          // allocated bytes
   int page_count_;       // number of chunks
@@ -3302,6 +3297,19 @@ class LargeObjectSpace : public Space {
 
  private:
   friend class LargeObjectSpaceObjectIterator;
+};
+
+class OldLargeObjectSpace : public LargeObjectSpace {
+ public:
+  explicit OldLargeObjectSpace(Heap* heap);
+
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT AllocationResult
+  AllocateRaw(int object_size);
+
+ protected:
+  explicit OldLargeObjectSpace(Heap* heap, AllocationSpace id);
+  V8_WARN_UNUSED_RESULT AllocationResult AllocateRaw(int object_size,
+                                                     Executability executable);
 };
 
 class NewLargeObjectSpace : public LargeObjectSpace {
@@ -3333,7 +3341,7 @@ class NewLargeObjectSpace : public LargeObjectSpace {
   size_t capacity_;
 };
 
-class CodeLargeObjectSpace : public LargeObjectSpace {
+class CodeLargeObjectSpace : public OldLargeObjectSpace {
  public:
   explicit CodeLargeObjectSpace(Heap* heap);
 

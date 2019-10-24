@@ -11,6 +11,7 @@
 #include "src/base/lsan.h"
 #include "src/base/macros.h"
 #include "src/base/platform/semaphore.h"
+#include "src/common/globals.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/combined-heap.h"
@@ -4001,10 +4002,7 @@ HeapObject LargeObjectSpaceObjectIterator::Next() {
 }
 
 // -----------------------------------------------------------------------------
-// LargeObjectSpace
-
-LargeObjectSpace::LargeObjectSpace(Heap* heap)
-    : LargeObjectSpace(heap, LO_SPACE) {}
+// OldLargeObjectSpace
 
 LargeObjectSpace::LargeObjectSpace(Heap* heap, AllocationSpace id)
     : Space(heap, id, new NoFreeList()),
@@ -4023,12 +4021,12 @@ void LargeObjectSpace::TearDown() {
   }
 }
 
-AllocationResult LargeObjectSpace::AllocateRaw(int object_size) {
+AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size) {
   return AllocateRaw(object_size, NOT_EXECUTABLE);
 }
 
-AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
-                                               Executability executable) {
+AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size,
+                                                  Executability executable) {
   // Check if we want to force a GC before growing the old space further.
   // If so, fail the allocation.
   if (!heap()->CanExpandOldGeneration(object_size) ||
@@ -4070,7 +4068,6 @@ LargePage* LargeObjectSpace::AllocateLargePage(int object_size,
                                ClearRecordedSlots::kNo);
   return page;
 }
-
 
 size_t LargeObjectSpace::CommittedPhysicalMemory() {
   // On a platform that provides lazy committing of memory, we over-account
@@ -4327,6 +4324,12 @@ void Page::Print() {
 
 #endif  // DEBUG
 
+OldLargeObjectSpace::OldLargeObjectSpace(Heap* heap)
+    : LargeObjectSpace(heap, LO_SPACE) {}
+
+OldLargeObjectSpace::OldLargeObjectSpace(Heap* heap, AllocationSpace id)
+    : LargeObjectSpace(heap, id) {}
+
 NewLargeObjectSpace::NewLargeObjectSpace(Heap* heap, size_t capacity)
     : LargeObjectSpace(heap, NEW_LO_SPACE),
       pending_object_(0),
@@ -4414,21 +4417,21 @@ void NewLargeObjectSpace::SetCapacity(size_t capacity) {
 }
 
 CodeLargeObjectSpace::CodeLargeObjectSpace(Heap* heap)
-    : LargeObjectSpace(heap, CODE_LO_SPACE),
+    : OldLargeObjectSpace(heap, CODE_LO_SPACE),
       chunk_map_(kInitialChunkMapCapacity) {}
 
 AllocationResult CodeLargeObjectSpace::AllocateRaw(int object_size) {
-  return LargeObjectSpace::AllocateRaw(object_size, EXECUTABLE);
+  return OldLargeObjectSpace::AllocateRaw(object_size, EXECUTABLE);
 }
 
 void CodeLargeObjectSpace::AddPage(LargePage* page, size_t object_size) {
-  LargeObjectSpace::AddPage(page, object_size);
+  OldLargeObjectSpace::AddPage(page, object_size);
   InsertChunkMapEntries(page);
 }
 
 void CodeLargeObjectSpace::RemovePage(LargePage* page, size_t object_size) {
   RemoveChunkMapEntries(page);
-  LargeObjectSpace::RemovePage(page, object_size);
+  OldLargeObjectSpace::RemovePage(page, object_size);
 }
 
 }  // namespace internal

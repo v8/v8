@@ -67,11 +67,11 @@ void CodeStatistics::CollectCodeStatistics(PagedSpace* space,
   }
 }
 
-// Collects code size statistics in LargeObjectSpace:
+// Collects code size statistics in OldLargeObjectSpace:
 // - code and metadata size
 // - by code kind (only in debug mode)
 // - by code comment (only in debug mode)
-void CodeStatistics::CollectCodeStatistics(LargeObjectSpace* space,
+void CodeStatistics::CollectCodeStatistics(OldLargeObjectSpace* space,
                                            Isolate* isolate) {
   LargeObjectSpaceObjectIterator obj_it(space);
   for (HeapObject obj = obj_it.Next(); !obj.is_null(); obj = obj_it.Next()) {

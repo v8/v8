@@ -598,7 +598,6 @@ class JSReceiver;
 class JSArray;
 class JSFunction;
 class JSObject;
-class LargeObjectSpace;
 class MacroAssembler;
 class Map;
 class MapSpace;
@@ -616,6 +615,7 @@ class NewSpace;
 class NewLargeObjectSpace;
 class NumberDictionary;
 class Object;
+class OldLargeObjectSpace;
 template <HeapObjectReferenceType kRefType, typename StorageType>
 class TaggedImpl;
 class StrongTaggedValue;
