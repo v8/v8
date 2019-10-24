@@ -51,9 +51,6 @@ using base::WriteUnalignedValue;
 
 #define FOREACH_INTERNAL_OPCODE(V) V(Breakpoint, 0xFF)
 
-#define WASM_CTYPES(V) \
-  V(I32, int32_t) V(I64, int64_t) V(F32, float) V(F64, double) V(S128, Simd128)
-
 #define FOREACH_SIMPLE_BINOP(V) \
   V(I32Add, uint32_t, +)        \
   V(I32Sub, uint32_t, -)        \
@@ -1295,40 +1292,6 @@ class ThreadImpl {
     return WasmInterpreter::Thread::HANDLED;
   }
 
-  uint32_t GetGlobalCount() {
-    return static_cast<uint32_t>(module()->globals.size());
-  }
-
-  WasmValue GetGlobalValue(uint32_t index) {
-    auto& global = module()->globals[index];
-    switch (global.type) {
-#define CASE_TYPE(wasm, ctype)                                          \
-  case kWasm##wasm: {                                                   \
-    byte* ptr =                                                         \
-        WasmInstanceObject::GetGlobalStorage(instance_object_, global); \
-    return WasmValue(                                                   \
-        ReadLittleEndianValue<ctype>(reinterpret_cast<Address>(ptr)));  \
-    break;                                                              \
-  }
-      WASM_CTYPES(CASE_TYPE)
-#undef CASE_TYPE
-      case kWasmAnyRef:
-      case kWasmFuncRef:
-      case kWasmExnRef: {
-        HandleScope handle_scope(isolate_);  // Avoid leaking handles.
-        Handle<FixedArray> global_buffer;    // The buffer of the global.
-        uint32_t global_index;               // The index into the buffer.
-        std::tie(global_buffer, global_index) =
-            WasmInstanceObject::GetGlobalBufferAndIndex(instance_object_,
-                                                        global);
-        Handle<Object> value(global_buffer->get(global_index), isolate_);
-        return WasmValue(handle_scope.CloseAndEscape(value));
-      }
-      default:
-        UNREACHABLE();
-    }
-  }
-
  private:
   // Handle a thrown exception. Returns whether the exception was handled inside
   // the current activation. Unwinds the interpreted stack accordingly.
@@ -1490,11 +1453,11 @@ class ThreadImpl {
     for (auto p : code->locals.type_list) {
       WasmValue val;
       switch (p) {
-#define CASE_TYPE(wasm, ctype) \
-  case kWasm##wasm:            \
-    val = WasmValue(ctype{});  \
+#define CASE_TYPE(valuetype, ctype) \
+  case valuetype:                   \
+    val = WasmValue(ctype{});       \
     break;
-        WASM_CTYPES(CASE_TYPE)
+        FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
         case kWasmAnyRef:
         case kWasmFuncRef:
@@ -3311,7 +3274,8 @@ class ThreadImpl {
           GlobalIndexImmediate<Decoder::kNoValidate> imm(&decoder,
                                                          code->at(pc));
           HandleScope handle_scope(isolate_);
-          Push(GetGlobalValue(imm.index));
+          Push(WasmInstanceObject::GetGlobalValue(
+              instance_object_, module()->globals[imm.index]));
           len = 1 + imm.length;
           break;
         }
@@ -3320,15 +3284,15 @@ class ThreadImpl {
                                                          code->at(pc));
           auto& global = module()->globals[imm.index];
           switch (global.type) {
-#define CASE_TYPE(wasm, ctype)                                          \
-  case kWasm##wasm: {                                                   \
-    byte* ptr =                                                         \
+#define CASE_TYPE(valuetype, ctype)                                     \
+  case valuetype: {                                                     \
+    uint8_t* ptr =                                                      \
         WasmInstanceObject::GetGlobalStorage(instance_object_, global); \
     WriteLittleEndianValue<ctype>(reinterpret_cast<Address>(ptr),       \
                                   Pop().to<ctype>());                   \
     break;                                                              \
   }
-            WASM_CTYPES(CASE_TYPE)
+            FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
             case kWasmAnyRef:
             case kWasmFuncRef:
@@ -4069,12 +4033,6 @@ WasmValue WasmInterpreter::Thread::GetReturnValue(int index) {
 TrapReason WasmInterpreter::Thread::GetTrapReason() {
   return ToImpl(this)->GetTrapReason();
 }
-uint32_t WasmInterpreter::Thread::GetGlobalCount() {
-  return ToImpl(this)->GetGlobalCount();
-}
-WasmValue WasmInterpreter::Thread::GetGlobalValue(uint32_t index) {
-  return ToImpl(this)->GetGlobalValue(index);
-}
 bool WasmInterpreter::Thread::PossibleNondeterminism() {
   return ToImpl(this)->PossibleNondeterminism();
 }
@@ -4259,7 +4217,6 @@ void InterpretedFrameDeleter::operator()(InterpretedFrame* ptr) {
 #undef TRACE
 #undef LANE
 #undef FOREACH_INTERNAL_OPCODE
-#undef WASM_CTYPES
 #undef FOREACH_SIMPLE_BINOP
 #undef FOREACH_OTHER_BINOP
 #undef FOREACH_I32CONV_FLOATOP

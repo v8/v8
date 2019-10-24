@@ -380,11 +380,8 @@ class InterpreterHandle {
           .Assert();
     }
 
-    DCHECK_EQ(1, interpreter()->GetThreadCount());
-    WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
-
-    uint32_t global_count = thread->GetGlobalCount();
-    if (global_count > 0) {
+    auto& globals = module()->globals;
+    if (!globals.empty()) {
       Handle<JSObject> globals_obj =
           isolate_->factory()->NewJSObjectWithNullProto();
       Handle<String> globals_name =
@@ -393,10 +390,11 @@ class InterpreterHandle {
                                                globals_name, globals_obj, NONE)
           .Assert();
 
-      for (uint32_t i = 0; i < global_count; ++i) {
+      for (uint32_t i = 0; i < globals.size(); ++i) {
         const char* label = "global#%d";
         Handle<String> name = PrintFToOneByteString<true>(isolate_, label, i);
-        WasmValue value = thread->GetGlobalValue(i);
+        WasmValue value =
+            WasmInstanceObject::GetGlobalValue(instance, globals[i]);
         Handle<Object> value_obj = WasmValueToValueObject(isolate_, value);
         JSObject::SetOwnPropertyIgnoreAttributes(globals_obj, name, value_obj,
                                                  NONE)

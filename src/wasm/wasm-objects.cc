@@ -27,6 +27,7 @@
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
+#include "src/wasm/wasm-value.h"
 
 #define TRACE_IFT(...)              \
   do {                              \
@@ -1624,6 +1625,30 @@ WasmInstanceObject::GetGlobalBufferAndIndex(Handle<WasmInstanceObject> instance,
     return {buffer, static_cast<uint32_t>(idx)};
   }
   return {handle(instance->tagged_globals_buffer(), isolate), global.offset};
+}
+
+// static
+wasm::WasmValue WasmInstanceObject::GetGlobalValue(
+    Handle<WasmInstanceObject> instance, const wasm::WasmGlobal& global) {
+  Isolate* isolate = instance->GetIsolate();
+  if (wasm::ValueTypes::IsReferenceType(global.type)) {
+    Handle<FixedArray> global_buffer;  // The buffer of the global.
+    uint32_t global_index = 0;         // The index into the buffer.
+    std::tie(global_buffer, global_index) =
+        GetGlobalBufferAndIndex(instance, global);
+    return wasm::WasmValue(handle(global_buffer->get(global_index), isolate));
+  }
+  Address ptr = reinterpret_cast<Address>(GetGlobalStorage(instance, global));
+  using wasm::Simd128;
+  switch (global.type) {
+#define CASE_TYPE(valuetype, ctype) \
+  case wasm::valuetype:             \
+    return wasm::WasmValue(base::ReadLittleEndianValue<ctype>(ptr));
+    FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
+#undef CASE_TYPE
+    default:
+      UNREACHABLE();
+  }
 }
 
 // static

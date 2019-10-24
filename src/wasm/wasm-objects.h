@@ -569,6 +569,10 @@ class WasmInstanceObject : public JSObject {
   static std::pair<Handle<FixedArray>, uint32_t> GetGlobalBufferAndIndex(
       Handle<WasmInstanceObject>, const wasm::WasmGlobal&);
 
+  // Get the value of a global in the given instance.
+  static wasm::WasmValue GetGlobalValue(Handle<WasmInstanceObject>,
+                                        const wasm::WasmGlobal&);
+
   OBJECT_CONSTRUCTORS(WasmInstanceObject, JSObject);
 
  private:

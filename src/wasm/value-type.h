@@ -16,6 +16,9 @@ class Signature;
 
 namespace wasm {
 
+// Type for holding simd values, defined in wasm-value.h.
+class Simd128;
+
 // Type lattice: For any two types connected by a line, the type at the bottom
 // is a subtype of the other type.
 //
@@ -39,6 +42,13 @@ enum ValueType : uint8_t {
   kWasmExnRef,
   kWasmBottom,
 };
+
+#define FOREACH_WASMVALUE_CTYPES(V) \
+  V(kWasmI32, int32_t)              \
+  V(kWasmI64, int64_t)              \
+  V(kWasmF32, float)                \
+  V(kWasmF64, double)               \
+  V(kWasmS128, Simd128)
 
 using FunctionSig = Signature<ValueType>;
 
