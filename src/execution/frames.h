@@ -953,7 +953,6 @@ class WasmCompiledFrame : public StandardFrame {
   uint32_t function_index() const;
   Script script() const override;
   int position() const override;
-  Object context() const override;
   bool at_to_number_conversion() const;
 
   void Summarize(std::vector<FrameSummary>* frames) const override;

@@ -141,9 +141,7 @@ bool DebugWasmScopeIterator::Done() {
 
 void DebugWasmScopeIterator::Advance() {
   DCHECK(!Done());
-  // Local scope information is only available for interpreted frames currently.
-  if (type_ == debug::ScopeIterator::ScopeTypeGlobal &&
-      frame_->is_wasm_interpreter_entry()) {
+  if (type_ == debug::ScopeIterator::ScopeTypeGlobal) {
     type_ = debug::ScopeIterator::ScopeTypeLocal;
   } else {
     // We use ScopeTypeWith type as marker for done.
@@ -158,18 +156,17 @@ v8::debug::ScopeIterator::ScopeType DebugWasmScopeIterator::GetType() {
 
 v8::Local<v8::Object> DebugWasmScopeIterator::GetObject() {
   DCHECK(!Done());
+  Handle<WasmDebugInfo> debug_info(
+      WasmInterpreterEntryFrame::cast(frame_)->debug_info(), isolate_);
   switch (type_) {
     case debug::ScopeIterator::ScopeTypeGlobal: {
-      Handle<WasmInstanceObject> instance =
-          FrameSummary::GetTop(frame_).AsWasm().wasm_instance();
+      Handle<WasmInstanceObject> instance(debug_info->wasm_instance(),
+                                          isolate_);
       return Utils::ToLocal(wasm::GetGlobalScopeObject(instance));
     }
-    case debug::ScopeIterator::ScopeTypeLocal: {
-      Handle<WasmDebugInfo> debug_info(
-          WasmInterpreterEntryFrame::cast(frame_)->debug_info(), isolate_);
+    case debug::ScopeIterator::ScopeTypeLocal:
       return Utils::ToLocal(WasmDebugInfo::GetLocalScopeObject(
           debug_info, frame_->fp(), inlined_frame_index_));
-    }
     default:
       return v8::Local<v8::Object>();
   }
