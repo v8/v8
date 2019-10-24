@@ -37,7 +37,7 @@ namespace reflect {
     const objectJSReceiver = Cast<JSReceiver>(object)
         otherwise ThrowTypeError(kCalledOnNonObject, 'Reflect.setPrototypeOf');
     typeswitch (proto) {
-      case (proto: JSReceiver | Null): {
+      case (proto: JSReceiver|Null): {
         return object::ObjectSetPrototypeOfDontThrow(objectJSReceiver, proto);
       }
       case (JSAny): {

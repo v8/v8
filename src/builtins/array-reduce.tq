@@ -66,7 +66,7 @@ namespace array {
 
   transitioning builtin ArrayReduceLoopContinuation(implicit context: Context)(
       _receiver: JSReceiver, callbackfn: Callable,
-      initialAccumulator: JSAny | TheHole, o: JSReceiver, initialK: Number,
+      initialAccumulator: JSAny|TheHole, o: JSReceiver, initialK: Number,
       length: Number): JSAny {
     let accumulator = initialAccumulator;
 
@@ -117,8 +117,8 @@ namespace array {
 
   transitioning macro FastArrayReduce(implicit context: Context)(
       o: JSReceiver, len: Number, callbackfn: Callable,
-      initialAccumulator: JSAny | TheHole): JSAny
-      labels Bailout(Number, JSAny | TheHole) {
+      initialAccumulator: JSAny|TheHole): JSAny
+      labels Bailout(Number, JSAny|TheHole) {
     const k = 0;
     let accumulator = initialAccumulator;
     Cast<Smi>(len) otherwise goto Bailout(k, accumulator);
@@ -178,14 +178,14 @@ namespace array {
       // exception. (This case is handled at the end of
       // ArrayReduceLoopContinuation).
 
-      const initialValue: JSAny | TheHole =
+      const initialValue: JSAny|TheHole =
           arguments.length > 1 ? arguments[1] : TheHole;
 
       try {
         return FastArrayReduce(o, len, callbackfn, initialValue)
             otherwise Bailout;
       }
-      label Bailout(value: Number, accumulator: JSAny | TheHole) {
+      label Bailout(value: Number, accumulator: JSAny|TheHole) {
         return ArrayReduceLoopContinuation(
             o, callbackfn, accumulator, o, value, len);
       }

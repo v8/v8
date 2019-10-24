@@ -9,7 +9,7 @@ namespace typed_array {
 
   transitioning macro ReduceAllElements(implicit context: Context)(
       array: typed_array::AttachedJSTypedArray, callbackfn: Callable,
-      initialValue: JSAny | TheHole): JSAny {
+      initialValue: JSAny|TheHole): JSAny {
     let witness = typed_array::NewAttachedJSTypedArrayWitness(array);
     const length: uintptr = witness.Get().length;
     let accumulator = initialValue;

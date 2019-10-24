@@ -47,7 +47,7 @@ namespace array {
     initialReceiverLength: Number;
 
     // If the user provided a comparison function, it is stored here.
-    userCmpFn: Undefined | Callable;
+    userCmpFn: Undefined|Callable;
 
     // Function pointer to the comparison function. This can either be a builtin
     // that calls the user-provided comparison function or "SortDefault", which
@@ -132,7 +132,7 @@ namespace array {
   }
 
   transitioning macro NewSortState(implicit context: Context)(
-      receiver: JSReceiver, comparefn: Undefined | Callable,
+      receiver: JSReceiver, comparefn: Undefined|Callable,
       initialReceiverLength: Number): SortState {
     const sortComparePtr =
         comparefn != Undefined ? SortCompareUserFn : SortCompareDefault;
@@ -214,7 +214,7 @@ namespace array {
   // it is first requested, but it has always at least this size.
   const kSortStateTempSize: Smi = 32;
 
-  type LoadFn = builtin(Context, SortState, Smi) => (JSAny | TheHole);
+  type LoadFn = builtin(Context, SortState, Smi) => (JSAny|TheHole);
   type StoreFn = builtin(Context, SortState, Smi, JSAny) => Smi;
   type DeleteFn = builtin(Context, SortState, Smi) => Smi;
   type CanUseSameAccessorFn = builtin(Context, JSReceiver, Map, Number) =>
@@ -228,28 +228,28 @@ namespace array {
   // through a hole.
 
   transitioning builtin Load<ElementsAccessor: type>(
-      context: Context, sortState: SortState, index: Smi): JSAny | TheHole {
+      context: Context, sortState: SortState, index: Smi): JSAny|TheHole {
     const receiver = sortState.receiver;
     if (!HasProperty_Inline(receiver, index)) return TheHole;
     return GetProperty(receiver, index);
   }
 
   Load<FastSmiElements>(context: Context, sortState: SortState, index: Smi):
-      JSAny | TheHole {
+      JSAny|TheHole {
     const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedArray>(object.elements);
     return UnsafeCast<(JSAny | TheHole)>(elements.objects[index]);
   }
 
   Load<FastObjectElements>(context: Context, sortState: SortState, index: Smi):
-      JSAny | TheHole {
+      JSAny|TheHole {
     const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedArray>(object.elements);
     return UnsafeCast<(JSAny | TheHole)>(elements.objects[index]);
   }
 
   Load<FastDoubleElements>(context: Context, sortState: SortState, index: Smi):
-      JSAny | TheHole {
+      JSAny|TheHole {
     try {
       const object = UnsafeCast<JSObject>(sortState.receiver);
       const elements = UnsafeCast<FixedDoubleArray>(object.elements);
@@ -1306,7 +1306,7 @@ namespace array {
     // are ignored.
     let numberOfUndefined: Smi = 0;
     for (let i: Smi = 0; i < receiverLength; ++i) {
-      const element: JSAny | TheHole = loadFn(context, sortState, i);
+      const element: JSAny|TheHole = loadFn(context, sortState, i);
 
       if (element == TheHole) {
         // Do nothing for holes. The result is that elements are

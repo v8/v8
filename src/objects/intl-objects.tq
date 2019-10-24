@@ -18,7 +18,7 @@ extern class JSDateTimeFormat extends JSObject {
   icu_locale: Foreign;                // Managed<icu::Locale>
   icu_simple_date_format: Foreign;    // Managed<icu::SimpleDateFormat>
   icu_date_interval_format: Foreign;  // Managed<icu::DateIntervalFormat>
-  bound_format: JSFunction | Undefined;
+  bound_format: JSFunction|Undefined;
   flags: Smi;
 }
 
@@ -32,7 +32,7 @@ extern class JSNumberFormat extends JSObject {
   locale: String;
   icu_number_formatter:
       Foreign;  // Managed<icu::number::LocalizedNumberFormatter>
-  bound_format: JSFunction | Undefined;
+  bound_format: JSFunction|Undefined;
   flags: Smi;
 }
 
@@ -70,15 +70,15 @@ extern class JSV8BreakIterator extends JSObject {
   locale: String;
   break_iterator: Foreign;  // Managed<icu::BreakIterator>;
   unicode_string: Foreign;  // Managed<icu::UnicodeString>;
-  bound_adopt_text: Undefined | JSFunction;
-  bound_first: Undefined | JSFunction;
-  bound_next: Undefined | JSFunction;
-  bound_current: Undefined | JSFunction;
-  bound_break_type: Undefined | JSFunction;
+  bound_adopt_text: Undefined|JSFunction;
+  bound_first: Undefined|JSFunction;
+  bound_next: Undefined|JSFunction;
+  bound_current: Undefined|JSFunction;
+  bound_break_type: Undefined|JSFunction;
   break_iterator_type: Smi;
 }
 
 extern class JSCollator extends JSObject {
   icu_collator: Foreign;  // Managed<icu::Collator>
-  bound_compare: Undefined | JSFunction;
+  bound_compare: Undefined|JSFunction;
 }

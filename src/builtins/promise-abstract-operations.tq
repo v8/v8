@@ -7,8 +7,9 @@
 // https://tc39.es/ecma262/#sec-promise-abstract-operations
 namespace promise {
   extern macro PromiseBuiltinsAssembler::TriggerPromiseReactions(
-      implicit context: Context)(
-      Smi | PromiseReaction, JSAny, constexpr PromiseReactionType): void;
+      implicit context:
+          Context)(Smi|PromiseReaction, JSAny, constexpr PromiseReactionType):
+      void;
 
   // https://tc39.es/ecma262/#sec-fulfillpromise
   transitioning builtin

@@ -10,7 +10,7 @@ namespace regexp {
   SubString(implicit context: Context)(String, Smi, Smi): String;
 
   extern runtime RegExpExecMultiple(implicit context: Context)(
-      JSRegExp, String, RegExpMatchInfo, JSArray): Null | JSArray;
+      JSRegExp, String, RegExpMatchInfo, JSArray): Null|JSArray;
   extern transitioning runtime
   RegExpReplaceRT(Context, JSReceiver, String, Object): String;
   extern transitioning runtime
@@ -86,7 +86,7 @@ namespace regexp {
 
     const kInitialCapacity: Smi = 16;
     const kInitialLength: Smi = 0;
-    const result: Null | JSArray = RegExpExecMultiple(
+    const result: Null|JSArray = RegExpExecMultiple(
         regexp, string, GetRegExpLastMatchInfo(),
         AllocateJSArray(
             PACKED_ELEMENTS, GetFastPackedElementsJSArrayMap(),
