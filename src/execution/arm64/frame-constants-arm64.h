@@ -73,15 +73,6 @@ class EntryFrameConstants : public AllStatic {
       kCalleeSavedRegisterBytesPushedBeforeFpLrPair;
 };
 
-class ExitFrameConstants : public TypedFrameConstants {
- public:
-  static constexpr int kSPOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
-  DEFINE_TYPED_FRAME_SIZES(1);
-  static constexpr int kLastExitFrameField = kSPOffset;
-
-  static constexpr int kConstantPoolOffset = 0;  // Not used
-};
-
 class WasmCompileLazyFrameConstants : public TypedFrameConstants {
  public:
   static constexpr int kNumberOfSavedGpParamRegs = 8;

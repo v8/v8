@@ -41,21 +41,6 @@ class EntryFrameConstants : public AllStatic {
 #endif
 };
 
-class ExitFrameConstants : public TypedFrameConstants {
- public:
-  static constexpr int kSPOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
-  DEFINE_TYPED_FRAME_SIZES(1);
-
-  static constexpr int kCallerFPOffset = +0 * kSystemPointerSize;
-  static constexpr int kCallerPCOffset = kFPOnStackSize;
-
-  // FP-relative displacement of the caller's SP.  It points just
-  // below the saved PC.
-  static constexpr int kCallerSPDisplacement = kCallerPCOffset + kPCOnStackSize;
-
-  static constexpr int kConstantPoolOffset = 0;  // Not used
-};
-
 class WasmCompileLazyFrameConstants : public TypedFrameConstants {
  public:
   static constexpr int kNumberOfSavedGpParamRegs = 6;

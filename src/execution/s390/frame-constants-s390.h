@@ -19,21 +19,6 @@ class EntryFrameConstants : public AllStatic {
   static constexpr int kArgvOffset = 20 * kSystemPointerSize;
 };
 
-class ExitFrameConstants : public TypedFrameConstants {
- public:
-  static constexpr int kSPOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
-  DEFINE_TYPED_FRAME_SIZES(1);
-
-  // The caller fields are below the frame pointer on the stack.
-  static constexpr int kCallerFPOffset = 0 * kSystemPointerSize;
-  // The calling JS function is below FP.
-  static constexpr int kCallerPCOffset = 1 * kSystemPointerSize;
-
-  // FP-relative displacement of the caller's SP.  It points just
-  // below the saved PC.
-  static constexpr int kCallerSPDisplacement = 2 * kSystemPointerSize;
-};
-
 class WasmCompileLazyFrameConstants : public TypedFrameConstants {
  public:
   static constexpr int kNumberOfSavedGpParamRegs = 4;

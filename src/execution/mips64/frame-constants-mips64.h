@@ -19,25 +19,6 @@ class EntryFrameConstants : public AllStatic {
       -(StandardFrameConstants::kFixedFrameSizeFromFp + kPointerSize);
 };
 
-class ExitFrameConstants : public TypedFrameConstants {
- public:
-  static constexpr int kSPOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
-  DEFINE_TYPED_FRAME_SIZES(1);
-
-  // The caller fields are below the frame pointer on the stack.
-  static constexpr int kCallerFPOffset = +0 * kPointerSize;
-  // The calling JS function is between FP and PC.
-  static constexpr int kCallerPCOffset = +1 * kPointerSize;
-
-  // MIPS-specific: a pointer to the old sp to avoid unnecessary calculations.
-  static constexpr int kCallerSPOffset = +2 * kPointerSize;
-
-  // FP-relative displacement of the caller's SP.
-  static constexpr int kCallerSPDisplacement = +2 * kPointerSize;
-
-  static constexpr int kConstantPoolOffset = 0;  // Not used.
-};
-
 class WasmCompileLazyFrameConstants : public TypedFrameConstants {
  public:
   static constexpr int kNumberOfSavedGpParamRegs = 7;
