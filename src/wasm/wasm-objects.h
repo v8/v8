@@ -871,16 +871,8 @@ class WasmDebugInfo : public Struct {
   // Returns the number of calls / function frames executed in the interpreter.
   V8_EXPORT_PRIVATE uint64_t NumInterpretedCalls();
 
-  // Get scope details for a specific interpreted frame.
-  // Both of these methods return a JSArrays (for the global scope and local
-  // scope respectively) of size {ScopeIterator::kScopeDetailsSize} and layout
-  // as described in debug-scopes.h.
-  //   - The global scope contains information about globals and the memory.
-  //   - The local scope contains information about parameters, locals, and
-  //     stack values.
-  static Handle<JSObject> GetGlobalScopeObject(Handle<WasmDebugInfo>,
-                                               Address frame_pointer,
-                                               int frame_index);
+  // Get local scope details for a specific interpreted frame. It contains
+  // information about parameters, locals, and stack values.
   static Handle<JSObject> GetLocalScopeObject(Handle<WasmDebugInfo>,
                                               Address frame_pointer,
                                               int frame_index);

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/wasm/wasm-debug.h"
+
 #include <unordered_map>
 
 #include "src/base/optional.h"
@@ -361,50 +363,6 @@ class InterpreterHandle {
     return interpreter()->GetThread(0)->NumInterpretedCalls();
   }
 
-  Handle<JSObject> GetGlobalScopeObject(InterpretedFrame* frame,
-                                        Handle<WasmDebugInfo> debug_info) {
-    Isolate* isolate = isolate_;
-    Handle<WasmInstanceObject> instance(debug_info->wasm_instance(), isolate);
-
-    Handle<JSObject> global_scope_object =
-        isolate_->factory()->NewJSObjectWithNullProto();
-    if (instance->has_memory_object()) {
-      Handle<String> name =
-          isolate_->factory()->InternalizeString(StaticCharVector("memory"));
-      Handle<JSArrayBuffer> memory_buffer(
-          instance->memory_object().array_buffer(), isolate_);
-      Handle<JSTypedArray> uint8_array = isolate_->factory()->NewJSTypedArray(
-          kExternalUint8Array, memory_buffer, 0, memory_buffer->byte_length());
-      JSObject::SetOwnPropertyIgnoreAttributes(global_scope_object, name,
-                                               uint8_array, NONE)
-          .Assert();
-    }
-
-    auto& globals = module()->globals;
-    if (!globals.empty()) {
-      Handle<JSObject> globals_obj =
-          isolate_->factory()->NewJSObjectWithNullProto();
-      Handle<String> globals_name =
-          isolate_->factory()->InternalizeString(StaticCharVector("globals"));
-      JSObject::SetOwnPropertyIgnoreAttributes(global_scope_object,
-                                               globals_name, globals_obj, NONE)
-          .Assert();
-
-      for (uint32_t i = 0; i < globals.size(); ++i) {
-        const char* label = "global#%d";
-        Handle<String> name = PrintFToOneByteString<true>(isolate_, label, i);
-        WasmValue value =
-            WasmInstanceObject::GetGlobalValue(instance, globals[i]);
-        Handle<Object> value_obj = WasmValueToValueObject(isolate_, value);
-        JSObject::SetOwnPropertyIgnoreAttributes(globals_obj, name, value_obj,
-                                                 NONE)
-            .Assert();
-      }
-    }
-
-    return global_scope_object;
-  }
-
   Handle<JSObject> GetLocalScopeObject(InterpretedFrame* frame,
                                        Handle<WasmDebugInfo> debug_info) {
     Isolate* isolate = isolate_;
@@ -467,6 +425,48 @@ class InterpreterHandle {
 };
 
 }  // namespace
+
+Handle<JSObject> GetGlobalScopeObject(Handle<WasmInstanceObject> instance) {
+  Isolate* isolate = instance->GetIsolate();
+
+  Handle<JSObject> global_scope_object =
+      isolate->factory()->NewJSObjectWithNullProto();
+  if (instance->has_memory_object()) {
+    Handle<String> name =
+        isolate->factory()->InternalizeString(StaticCharVector("memory"));
+    Handle<JSArrayBuffer> memory_buffer(
+        instance->memory_object().array_buffer(), isolate);
+    Handle<JSTypedArray> uint8_array = isolate->factory()->NewJSTypedArray(
+        kExternalUint8Array, memory_buffer, 0, memory_buffer->byte_length());
+    JSObject::SetOwnPropertyIgnoreAttributes(global_scope_object, name,
+                                             uint8_array, NONE)
+        .Assert();
+  }
+
+  auto& globals = instance->module()->globals;
+  if (globals.size() > 0) {
+    Handle<JSObject> globals_obj =
+        isolate->factory()->NewJSObjectWithNullProto();
+    Handle<String> globals_name =
+        isolate->factory()->InternalizeString(StaticCharVector("globals"));
+    JSObject::SetOwnPropertyIgnoreAttributes(global_scope_object, globals_name,
+                                             globals_obj, NONE)
+        .Assert();
+
+    for (size_t i = 0; i < globals.size(); ++i) {
+      const char* label = "global#%d";
+      Handle<String> name = PrintFToOneByteString<true>(isolate, label, i);
+      WasmValue value =
+          WasmInstanceObject::GetGlobalValue(instance, globals[i]);
+      Handle<Object> value_obj = WasmValueToValueObject(isolate, value);
+      JSObject::SetOwnPropertyIgnoreAttributes(globals_obj, name, value_obj,
+                                               NONE)
+          .Assert();
+    }
+  }
+
+  return global_scope_object;
+}
 
 }  // namespace wasm
 
@@ -618,14 +618,6 @@ wasm::WasmInterpreter::FramePtr WasmDebugInfo::GetInterpretedFrame(
 uint64_t WasmDebugInfo::NumInterpretedCalls() {
   auto* handle = GetInterpreterHandleOrNull(*this);
   return handle ? handle->NumInterpretedCalls() : 0;
-}
-
-// static
-Handle<JSObject> WasmDebugInfo::GetGlobalScopeObject(
-    Handle<WasmDebugInfo> debug_info, Address frame_pointer, int frame_index) {
-  auto* interp_handle = GetInterpreterHandle(*debug_info);
-  auto frame = interp_handle->GetInterpretedFrame(frame_pointer, frame_index);
-  return interp_handle->GetGlobalScopeObject(frame.get(), debug_info);
 }
 
 // static

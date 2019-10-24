@@ -10,6 +10,7 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate.h"
 #include "src/objects/js-generator-inl.h"
+#include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
@@ -158,9 +159,11 @@ v8::Local<v8::Object> DebugWasmScopeIterator::GetObject() {
   Handle<WasmDebugInfo> debug_info(
       WasmInterpreterEntryFrame::cast(frame_)->debug_info(), isolate_);
   switch (type_) {
-    case debug::ScopeIterator::ScopeTypeGlobal:
-      return Utils::ToLocal(WasmDebugInfo::GetGlobalScopeObject(
-          debug_info, frame_->fp(), inlined_frame_index_));
+    case debug::ScopeIterator::ScopeTypeGlobal: {
+      Handle<WasmInstanceObject> instance(debug_info->wasm_instance(),
+                                          isolate_);
+      return Utils::ToLocal(wasm::GetGlobalScopeObject(instance));
+    }
     case debug::ScopeIterator::ScopeTypeLocal:
       return Utils::ToLocal(WasmDebugInfo::GetLocalScopeObject(
           debug_info, frame_->fp(), inlined_frame_index_));
