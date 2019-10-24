@@ -401,6 +401,45 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(instance.exports.main(), [1, 2]);
 })();
 
+(function MultiUnreachablePolymorphicTest() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig_v_i = builder.addType(kSig_v_i);
+  let sig_i_i = builder.addType(kSig_i_i);
+
+  builder.addFunction("block", kSig_v_v)
+    .addBody([
+      kExprReturn,
+      kExprBlock, sig_v_i,
+      kExprDrop,
+      kExprEnd
+    ])
+    .exportAs("block");
+  builder.addFunction("if_else", kSig_v_v)
+    .addBody([
+      kExprReturn,
+      kExprIf, sig_v_i,
+      kExprDrop,
+      kExprElse,
+      kExprDrop,
+      kExprEnd
+    ])
+    .exportAs("if_else");
+  builder.addFunction("loop", kSig_v_v)
+    .addBody([
+      kExprReturn,
+      kExprLoop, sig_i_i,
+      kExprEnd,
+      kExprDrop
+    ])
+    .exportAs("loop");
+  // TODO(thibaudm): Create eh + mv mjsunit test and add try/catch case.
+  let instance = builder.instantiate();
+  instance.exports.block();
+  instance.exports.if_else();
+  instance.exports.loop();
+})();
+
 (function MultiWasmToJSReturnTest() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();

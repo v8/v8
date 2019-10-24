@@ -640,7 +640,7 @@ const char* OpcodeName(uint32_t val) {
   return WasmOpcodes::OpcodeName(static_cast<WasmOpcode>(val));
 }
 
-constexpr uint32_t kCatchInArity = 1;
+constexpr int32_t kCatchInArity = 1;
 
 }  // namespace
 
@@ -665,7 +665,7 @@ struct InterpreterCode {
 class SideTable : public ZoneObject {
  public:
   ControlTransferMap map_;
-  uint32_t max_stack_height_ = 0;
+  int32_t max_stack_height_ = 0;
 
   SideTable(Zone* zone, const WasmModule* module, InterpreterCode* code)
       : map_(zone) {
@@ -674,7 +674,7 @@ class SideTable : public ZoneObject {
 
     // Represents a control flow label.
     class CLabel : public ZoneObject {
-      explicit CLabel(Zone* zone, uint32_t target_stack_height, uint32_t arity)
+      explicit CLabel(Zone* zone, int32_t target_stack_height, uint32_t arity)
           : target_stack_height(target_stack_height),
             arity(arity),
             refs(zone) {}
@@ -682,15 +682,15 @@ class SideTable : public ZoneObject {
      public:
       struct Ref {
         const byte* from_pc;
-        const uint32_t stack_height;
+        const int32_t stack_height;
       };
       const byte* target = nullptr;
-      uint32_t target_stack_height;
+      int32_t target_stack_height;
       // Arity when branching to this label.
       const uint32_t arity;
       ZoneVector<Ref> refs;
 
-      static CLabel* New(Zone* zone, uint32_t stack_height, uint32_t arity) {
+      static CLabel* New(Zone* zone, int32_t stack_height, uint32_t arity) {
         return new (zone) CLabel(zone, stack_height, arity);
       }
 
@@ -701,7 +701,7 @@ class SideTable : public ZoneObject {
       }
 
       // Reference this label from the given location.
-      void Ref(const byte* from_pc, uint32_t stack_height) {
+      void Ref(const byte* from_pc, int32_t stack_height) {
         // Target being bound before a reference means this is a loop.
         DCHECK_IMPLIES(target, *target == kExprLoop);
         refs.push_back({from_pc, stack_height});
@@ -763,7 +763,7 @@ class SideTable : public ZoneObject {
     // control transfers are treated just like other branches in the resulting
     // map. This stack contains indices into the above control stack.
     ZoneVector<size_t> exception_stack(zone);
-    uint32_t stack_height = 0;
+    int32_t stack_height = 0;
     uint32_t func_arity =
         static_cast<uint32_t>(code->function->sig->return_count());
     CLabel* func_label =
@@ -779,7 +779,7 @@ class SideTable : public ZoneObject {
     for (BytecodeIterator i(code->orig_start, code->orig_end, &code->locals);
          i.has_next(); i.next()) {
       WasmOpcode opcode = i.current();
-      uint32_t exceptional_stack_height = 0;
+      int32_t exceptional_stack_height = 0;
       if (WasmOpcodes::IsPrefixOpcode(opcode)) opcode = i.prefixed_opcode();
       bool unreachable = control_stack.back().unreachable;
       if (unreachable) {
@@ -861,7 +861,8 @@ class SideTable : public ZoneObject {
           c->else_label->Finish(&map_, code->orig_start);
           stack_height = c->else_label->target_stack_height;
           c->else_label = nullptr;
-          DCHECK_GE(stack_height, c->end_label->target_stack_height);
+          DCHECK_IMPLIES(!unreachable,
+                         stack_height >= c->end_label->target_stack_height);
           break;
         }
         case kExprTry: {
@@ -895,7 +896,8 @@ class SideTable : public ZoneObject {
           c->else_label->Bind(i.pc() + 1);
           c->else_label->Finish(&map_, code->orig_start);
           c->else_label = nullptr;
-          DCHECK_GE(stack_height, c->end_label->target_stack_height);
+          DCHECK_IMPLIES(!unreachable,
+                         stack_height >= c->end_label->target_stack_height);
           stack_height = c->end_label->target_stack_height + kCatchInArity;
           break;
         }
@@ -906,7 +908,7 @@ class SideTable : public ZoneObject {
           DCHECK_EQ(0, imm.index.exception->sig->return_count());
           size_t params = imm.index.exception->sig->parameter_count();
           // Taken branches pop the exception and push the encoded values.
-          uint32_t height = stack_height - 1 + static_cast<uint32_t>(params);
+          int32_t height = stack_height - 1 + static_cast<int32_t>(params);
           TRACE("control @%u: BrOnExn[depth=%u]\n", i.pc_offset(), depth);
           Control* c = &control_stack[control_stack.size() - depth - 1];
           if (!unreachable) c->end_label->Ref(i.pc(), height);
@@ -922,7 +924,8 @@ class SideTable : public ZoneObject {
             c->end_label->Bind(i.pc() + 1);
           }
           c->Finish(&map_, code->orig_start);
-          DCHECK_GE(stack_height, c->end_label->target_stack_height);
+          DCHECK_IMPLIES(!unreachable,
+                         stack_height >= c->end_label->target_stack_height);
           stack_height = c->end_label->target_stack_height + c->exit_arity;
           control_stack.pop_back();
           break;
