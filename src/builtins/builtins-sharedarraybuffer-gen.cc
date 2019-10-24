@@ -27,15 +27,13 @@ class SharedArrayBufferBuiltinsAssembler : public CodeStubAssembler {
                                 TNode<Context> context,
                                 TNode<Int32T>* out_elements_kind,
                                 TNode<RawPtrT>* out_backing_store);
-  // TODO(v8:4153): Support huge SharedTypedArrays.
-  TNode<Uint32T> ConvertTaggedAtomicIndexToWord32(TNode<Object> index,
-                                                  TNode<Context> context,
-                                                  TNode<Smi>* number_index);
-  void ValidateAtomicIndex(TNode<JSTypedArray> array, TNode<Uint32T> index,
-                           TNode<Context> context);
+
+  TNode<UintPtrT> ValidateAtomicAccess(TNode<JSTypedArray> array,
+                                       TNode<Object> index,
+                                       TNode<Context> context);
 
   inline void DebugSanityCheckAtomicIndex(TNode<JSTypedArray> array,
-                                          TNode<Uint32T> index);
+                                          TNode<UintPtrT> index);
 
   void AtomicBinopBuiltinCommon(TNode<Object> maybe_array, TNode<Object> index,
                                 TNode<Object> value, TNode<Context> context,
@@ -97,51 +95,32 @@ void SharedArrayBufferBuiltinsAssembler::ValidateSharedTypedArray(
 }
 
 // https://tc39.github.io/ecma262/#sec-validateatomicaccess
-TNode<Uint32T>
-SharedArrayBufferBuiltinsAssembler::ConvertTaggedAtomicIndexToWord32(
-    TNode<Object> index, TNode<Context> context, TNode<Smi>* number_index) {
-  TVARIABLE(Uint32T, var_result);
+// ValidateAtomicAccess( typedArray, requestIndex )
+TNode<UintPtrT> SharedArrayBufferBuiltinsAssembler::ValidateAtomicAccess(
+    TNode<JSTypedArray> array, TNode<Object> index, TNode<Context> context) {
   Label done(this), range_error(this);
 
-  // Returns word32 since index cannot be longer than a TypedArray length,
-  // which has a uint32 maximum.
-  // The |number_index| output parameter is used only for architectures that
-  // don't currently have a TF implementation and forward to runtime functions
-  // instead; they expect the value has already been coerced to an integer.
-  // TODO(v8:4153): Use ToIndex() here.
-  *number_index = ToSmiIndex(context, index, &range_error);
-  var_result = Unsigned(SmiToInt32(*number_index));
-  Goto(&done);
+  TNode<UintPtrT> index_uintptr = ToIndex(context, index, &range_error);
+
+  TNode<UintPtrT> array_length = LoadJSTypedArrayLength(array);
+  Branch(UintPtrLessThan(index_uintptr, array_length), &done, &range_error);
 
   BIND(&range_error);
-  { ThrowRangeError(context, MessageTemplate::kInvalidAtomicAccessIndex); }
-
-  BIND(&done);
-  return var_result.value();
-}
-
-void SharedArrayBufferBuiltinsAssembler::ValidateAtomicIndex(
-    TNode<JSTypedArray> array, TNode<Uint32T> index, TNode<Context> context) {
-  // Check if the index is in bounds. If not, throw RangeError.
-  Label check_passed(this);
-  TNode<UintPtrT> array_length = LoadJSTypedArrayLength(array);
-  // TODO(v8:4153): Use UintPtr for the {index} as well.
-  GotoIf(UintPtrLessThan(ChangeUint32ToWord(index), array_length),
-         &check_passed);
-
   ThrowRangeError(context, MessageTemplate::kInvalidAtomicAccessIndex);
 
-  BIND(&check_passed);
+  BIND(&done);
+  return index_uintptr;
 }
 
 void SharedArrayBufferBuiltinsAssembler::DebugSanityCheckAtomicIndex(
-    TNode<JSTypedArray> array, TNode<Uint32T> index) {
+    TNode<JSTypedArray> array, TNode<UintPtrT> index) {
   // In Debug mode, we re-validate the index as a sanity check because
   // ToInteger above calls out to JavaScript. A SharedArrayBuffer can't be
   // detached and the TypedArray length can't change either, so skipping this
   // check in Release mode is safe.
-  CSA_ASSERT(this, UintPtrLessThan(ChangeUint32ToWord(index),
-                                   LoadJSTypedArrayLength(array)));
+  CSA_ASSERT(this, Word32BinaryNot(
+                       IsDetachedBuffer(LoadJSArrayBufferViewBuffer(array))));
+  CSA_ASSERT(this, UintPtrLessThan(index, LoadJSTypedArrayLength(array)));
 }
 
 TNode<BigInt> SharedArrayBufferBuiltinsAssembler::BigIntFromSigned64(
@@ -178,11 +157,7 @@ TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
                            &backing_store);
   TNode<JSTypedArray> array = CAST(maybe_array);
 
-  TNode<Smi> index_integer;
-  TNode<Uint32T> index_word32 =
-      ConvertTaggedAtomicIndexToWord32(index, context, &index_integer);
-  ValidateAtomicIndex(array, index_word32, context);
-  TNode<UintPtrT> index_word = ChangeUint32ToWord(index_word32);
+  TNode<UintPtrT> index_word = ValidateAtomicAccess(array, index, context);
 
   Label i8(this), u8(this), i16(this), u16(this), i32(this), u32(this),
       i64(this), u64(this), other(this);
@@ -219,10 +194,13 @@ TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
                                          WordShl(index_word, 2))));
 #if V8_TARGET_ARCH_MIPS && !_MIPS_ARCH_MIPS32R6
   BIND(&i64);
-  Return(CallRuntime(Runtime::kAtomicsLoad64, context, array, index_integer));
+  Goto(&u64);
 
   BIND(&u64);
-  Return(CallRuntime(Runtime::kAtomicsLoad64, context, array, index_integer));
+  {
+    TNode<Number> index_number = ChangeUintPtrToTagged(index_word);
+    Return(CallRuntime(Runtime::kAtomicsLoad64, context, array, index_number));
+  }
 #else
   BIND(&i64);
   // This uses Uint64() intentionally: AtomicLoad is not implemented for
@@ -253,12 +231,7 @@ TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
                            &backing_store);
   TNode<JSTypedArray> array = CAST(maybe_array);
 
-  TNode<Smi> index_integer;
-  TNode<Uint32T> index_word32 =
-      ConvertTaggedAtomicIndexToWord32(index, context, &index_integer);
-  ValidateAtomicIndex(array, index_word32, context);
-
-  TNode<UintPtrT> index_word = ChangeUint32ToWord(index_word32);
+  TNode<UintPtrT> index_word = ValidateAtomicAccess(array, index, context);
 
   Label u8(this), u16(this), u32(this), u64(this), other(this);
   STATIC_ASSERT(BIGINT64_ELEMENTS > INT32_ELEMENTS);
@@ -268,7 +241,7 @@ TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
   TNode<Number> value_integer = ToInteger_Inline(context, value);
   TNode<Word32T> value_word32 = TruncateTaggedToWord32(context, value_integer);
 
-  DebugSanityCheckAtomicIndex(array, index_word32);
+  DebugSanityCheckAtomicIndex(array, index_word);
 
   int32_t case_values[] = {
       INT8_ELEMENTS,   UINT8_ELEMENTS, INT16_ELEMENTS,
@@ -295,12 +268,13 @@ TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
 
   BIND(&u64);
 #if V8_TARGET_ARCH_MIPS && !_MIPS_ARCH_MIPS32R6
-  Return(CallRuntime(Runtime::kAtomicsStore64, context, array, index_integer,
+  TNode<Number> index_number = ChangeUintPtrToTagged(index_word);
+  Return(CallRuntime(Runtime::kAtomicsStore64, context, array, index_number,
                      value));
 #else
   TNode<BigInt> value_bigint = ToBigInt(context, value);
 
-  DebugSanityCheckAtomicIndex(array, index_word32);
+  DebugSanityCheckAtomicIndex(array, index_word);
 
   TVARIABLE(UintPtrT, var_low);
   TVARIABLE(UintPtrT, var_high);
@@ -329,16 +303,13 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
                            &backing_store);
   TNode<JSTypedArray> array = CAST(maybe_array);
 
-  TNode<Smi> index_integer;
-  TNode<Uint32T> index_word32 =
-      ConvertTaggedAtomicIndexToWord32(index, context, &index_integer);
-  ValidateAtomicIndex(array, index_word32, context);
+  TNode<UintPtrT> index_word = ValidateAtomicAccess(array, index, context);
 
 #if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
-  Return(CallRuntime(Runtime::kAtomicsExchange, context, array, index_integer,
+  TNode<Number> index_number = ChangeUintPtrToTagged(index_word);
+  Return(CallRuntime(Runtime::kAtomicsExchange, context, array, index_number,
                      value));
 #else
-  TNode<UintPtrT> index_word = ChangeUint32ToWord(index_word32);
 
   Label i8(this), u8(this), i16(this), u16(this), i32(this), u32(this),
       i64(this), u64(this), big(this), other(this);
@@ -348,7 +319,7 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
 
   TNode<Number> value_integer = ToInteger_Inline(context, value);
 
-  DebugSanityCheckAtomicIndex(array, index_word32);
+  DebugSanityCheckAtomicIndex(array, index_word);
 
   TNode<Word32T> value_word32 = TruncateTaggedToWord32(context, value_integer);
 
@@ -391,7 +362,7 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
   BIND(&big);
   TNode<BigInt> value_bigint = ToBigInt(context, value);
 
-  DebugSanityCheckAtomicIndex(array, index_word32);
+  DebugSanityCheckAtomicIndex(array, index_word);
 
   TVARIABLE(UintPtrT, var_low);
   TVARIABLE(UintPtrT, var_high);
@@ -434,18 +405,14 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
                            &backing_store);
   TNode<JSTypedArray> array = CAST(maybe_array);
 
-  TNode<Smi> index_integer;
-  TNode<Uint32T> index_word32 =
-      ConvertTaggedAtomicIndexToWord32(index, context, &index_integer);
-  ValidateAtomicIndex(array, index_word32, context);
+  TNode<UintPtrT> index_word = ValidateAtomicAccess(array, index, context);
 
 #if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64 || \
     V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
+  TNode<Number> index_number = ChangeUintPtrToTagged(index_word);
   Return(CallRuntime(Runtime::kAtomicsCompareExchange, context, array,
-                     index_integer, old_value, new_value));
+                     index_number, old_value, new_value));
 #else
-  TNode<UintPtrT> index_word = ChangeUint32ToWord(index_word32);
-
   Label i8(this), u8(this), i16(this), u16(this), i32(this), u32(this),
       i64(this), u64(this), big(this), other(this);
   STATIC_ASSERT(BIGINT64_ELEMENTS > INT32_ELEMENTS);
@@ -455,7 +422,7 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
   TNode<Number> old_value_integer = ToInteger_Inline(context, old_value);
   TNode<Number> new_value_integer = ToInteger_Inline(context, new_value);
 
-  DebugSanityCheckAtomicIndex(array, index_word32);
+  DebugSanityCheckAtomicIndex(array, index_word);
 
   TNode<Word32T> old_value_word32 =
       TruncateTaggedToWord32(context, old_value_integer);
@@ -506,7 +473,7 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
   TNode<BigInt> old_value_bigint = ToBigInt(context, old_value);
   TNode<BigInt> new_value_bigint = ToBigInt(context, new_value);
 
-  DebugSanityCheckAtomicIndex(array, index_word32);
+  DebugSanityCheckAtomicIndex(array, index_word);
 
   TVARIABLE(UintPtrT, var_old_low);
   TVARIABLE(UintPtrT, var_old_high);
@@ -573,17 +540,13 @@ void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
                            &backing_store);
   TNode<JSTypedArray> array = CAST(maybe_array);
 
-  TNode<Smi> index_integer;
-  TNode<Uint32T> index_word32 =
-      ConvertTaggedAtomicIndexToWord32(index, context, &index_integer);
-  ValidateAtomicIndex(array, index_word32, context);
+  TNode<UintPtrT> index_word = ValidateAtomicAccess(array, index, context);
 
 #if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64 || \
     V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
-  Return(CallRuntime(runtime_function, context, array, index_integer, value));
+  TNode<Number> index_number = ChangeUintPtrToTagged(index_word);
+  Return(CallRuntime(runtime_function, context, array, index_number, value));
 #else
-  TNode<UintPtrT> index_word = ChangeUint32ToWord(index_word32);
-
   Label i8(this), u8(this), i16(this), u16(this), i32(this), u32(this),
       i64(this), u64(this), big(this), other(this);
 
@@ -593,7 +556,7 @@ void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
 
   TNode<Number> value_integer = ToInteger_Inline(context, value);
 
-  DebugSanityCheckAtomicIndex(array, index_word32);
+  DebugSanityCheckAtomicIndex(array, index_word);
 
   TNode<Word32T> value_word32 = TruncateTaggedToWord32(context, value_integer);
 
@@ -638,7 +601,7 @@ void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
   BIND(&big);
   TNode<BigInt> value_bigint = ToBigInt(context, value);
 
-  DebugSanityCheckAtomicIndex(array, index_word32);
+  DebugSanityCheckAtomicIndex(array, index_word);
 
   TVARIABLE(UintPtrT, var_low);
   TVARIABLE(UintPtrT, var_high);

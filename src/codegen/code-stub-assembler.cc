@@ -7540,38 +7540,6 @@ TNode<JSReceiver> CodeStubAssembler::ToObject_Inline(TNode<Context> context,
   return result.value();
 }
 
-TNode<Smi> CodeStubAssembler::ToSmiIndex(TNode<Context> context,
-                                         TNode<Object> input,
-                                         Label* range_error) {
-  TVARIABLE(Smi, result);
-  Label check_undefined(this), return_zero(this), defined(this),
-      negative_check(this), done(this);
-
-  GotoIfNot(TaggedIsSmi(input), &check_undefined);
-  result = CAST(input);
-  Goto(&negative_check);
-
-  BIND(&check_undefined);
-  Branch(IsUndefined(input), &return_zero, &defined);
-
-  BIND(&defined);
-  TNode<Number> integer_input =
-      CAST(CallBuiltin(Builtins::kToInteger_TruncateMinusZero, context, input));
-  GotoIfNot(TaggedIsSmi(integer_input), range_error);
-  result = CAST(integer_input);
-  Goto(&negative_check);
-
-  BIND(&negative_check);
-  Branch(SmiLessThan(result.value(), SmiConstant(0)), range_error, &done);
-
-  BIND(&return_zero);
-  result = SmiConstant(0);
-  Goto(&done);
-
-  BIND(&done);
-  return result.value();
-}
-
 TNode<Smi> CodeStubAssembler::ToSmiLength(TNode<Context> context,
                                           TNode<Object> input,
                                           Label* range_error) {
