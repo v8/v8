@@ -336,6 +336,18 @@ TEST(ArrowFunctionInlined) {
       "return foo;");
 }
 
+TEST(BoundFunctionResult) {
+  CheckForSerializedInlinee(
+      "function id(x) { return x }"
+      "function foo() { id.bind(undefined, 42)(); return id; }"
+      "%PrepareFunctionForOptimization(foo);"
+      "%PrepareFunctionForOptimization(id);"
+      "foo();"
+      "foo();"
+      "%OptimizeFunctionOnNextCall(foo);"
+      "foo(); return foo;");
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

@@ -92,7 +92,7 @@ class FunctionalList {
 
   void Clear() { elements_ = nullptr; }
 
-  class iterator {
+  class iterator : public std::iterator<std::forward_iterator_tag, A> {
    public:
     explicit iterator(Cons* cur) : current_(cur) {}
 

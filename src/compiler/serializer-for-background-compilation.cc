@@ -254,6 +254,15 @@ class FunctionalSet {
 
   void Clear() { data_.Clear(); }
 
+  // Warning: quadratic time complexity.
+  bool operator==(const FunctionalSet<T, EqualTo>& other) const {
+    return this->data_.Size() == other.data_.Size() && this->Includes(other) &&
+           other.Includes(*this);
+  }
+  bool operator!=(const FunctionalSet<T, EqualTo>& other) const {
+    return !(*this == other);
+  }
+
   using iterator = typename FunctionalList<T>::iterator;
 
   iterator begin() const { return data_.begin(); }
@@ -281,12 +290,16 @@ struct VirtualContext {
 };
 
 class FunctionBlueprint;
+struct VirtualBoundFunction;
+
 using ConstantsSet = FunctionalSet<Handle<Object>, Handle<Object>::equal_to>;
 using VirtualContextsSet =
     FunctionalSet<VirtualContext, std::equal_to<VirtualContext>>;
 using MapsSet = FunctionalSet<Handle<Map>, Handle<Map>::equal_to>;
 using BlueprintsSet =
     FunctionalSet<FunctionBlueprint, std::equal_to<FunctionBlueprint>>;
+using BoundFunctionsSet =
+    FunctionalSet<VirtualBoundFunction, std::equal_to<VirtualBoundFunction>>;
 
 class Hints {
  public:
@@ -298,17 +311,24 @@ class Hints {
   const MapsSet& maps() const;
   const BlueprintsSet& function_blueprints() const;
   const VirtualContextsSet& virtual_contexts() const;
+  const BoundFunctionsSet& virtual_bound_functions() const;
 
   void AddConstant(Handle<Object> constant, Zone* zone);
   void AddMap(Handle<Map> map, Zone* zone);
-  void AddFunctionBlueprint(FunctionBlueprint function_blueprint, Zone* zone);
-  void AddVirtualContext(VirtualContext virtual_context, Zone* zone);
+  void AddFunctionBlueprint(FunctionBlueprint const& function_blueprint,
+                            Zone* zone);
+  void AddVirtualContext(VirtualContext const& virtual_context, Zone* zone);
+  void AddVirtualBoundFunction(VirtualBoundFunction const& bound_function,
+                               Zone* zone);
 
   void Add(const Hints& other, Zone* zone);
   void AddFromChildSerializer(const Hints& other, Zone* zone);
 
   void Clear();
   bool IsEmpty() const;
+
+  bool operator==(Hints const& other) const;
+  bool operator!=(Hints const& other) const { return !(*this == other); }
 
 #ifdef ENABLE_SLOW_DCHECKS
   bool Includes(Hints const& other) const;
@@ -320,9 +340,28 @@ class Hints {
   ConstantsSet constants_;
   MapsSet maps_;
   BlueprintsSet function_blueprints_;
+  BoundFunctionsSet virtual_bound_functions_;
 };
 
 using HintsVector = ZoneVector<Hints>;
+
+struct VirtualBoundFunction {
+  Hints bound_target;
+  HintsVector bound_arguments;
+
+  VirtualBoundFunction(const Hints& target, const HintsVector& arguments)
+      : bound_target(target), bound_arguments(arguments) {}
+
+  bool operator==(const VirtualBoundFunction& other) const {
+    if (bound_arguments.size() != other.bound_arguments.size()) return false;
+    if (bound_target != other.bound_target) return false;
+
+    for (size_t i = 0; i < bound_arguments.size(); ++i) {
+      if (bound_arguments[i] != other.bound_arguments[i]) return false;
+    }
+    return true;
+  }
+};
 
 // A FunctionBlueprint is a SharedFunctionInfo and a FeedbackVector, plus
 // Hints about the context in which a closure will be created from them.
@@ -616,6 +655,14 @@ CompilationSubject::CompilationSubject(Handle<JSFunction> closure,
   CHECK(closure->has_feedback_vector());
 }
 
+bool Hints::operator==(Hints const& other) const {
+  return constants() == other.constants() &&
+         function_blueprints() == other.function_blueprints() &&
+         maps() == other.maps() &&
+         virtual_contexts() == other.virtual_contexts() &&
+         virtual_bound_functions() == other.virtual_bound_functions();
+}
+
 #ifdef ENABLE_SLOW_DCHECKS
 bool Hints::Includes(Hints const& other) const {
   return constants().Includes(other.constants()) &&
@@ -645,7 +692,12 @@ const VirtualContextsSet& Hints::virtual_contexts() const {
   return virtual_contexts_;
 }
 
-void Hints::AddVirtualContext(VirtualContext virtual_context, Zone* zone) {
+const BoundFunctionsSet& Hints::virtual_bound_functions() const {
+  return virtual_bound_functions_;
+}
+
+void Hints::AddVirtualContext(VirtualContext const& virtual_context,
+                              Zone* zone) {
   virtual_contexts_.Add(virtual_context, zone);
 }
 
@@ -655,9 +707,17 @@ void Hints::AddConstant(Handle<Object> constant, Zone* zone) {
 
 void Hints::AddMap(Handle<Map> map, Zone* zone) { maps_.Add(map, zone); }
 
-void Hints::AddFunctionBlueprint(FunctionBlueprint function_blueprint,
+void Hints::AddFunctionBlueprint(FunctionBlueprint const& function_blueprint,
                                  Zone* zone) {
   function_blueprints_.Add(function_blueprint, zone);
+}
+
+void Hints::AddVirtualBoundFunction(VirtualBoundFunction const& bound_function,
+                                    Zone* zone) {
+  // TODO(mslekova): Consider filtering the hints in the added bound function,
+  // for example: a) Remove any non-JS(Bound)Function constants, b) Truncate the
+  // argument vector the formal parameter count.
+  virtual_bound_functions_.Add(bound_function, zone);
 }
 
 void Hints::Add(const Hints& other, Zone* zone) {
@@ -665,12 +725,18 @@ void Hints::Add(const Hints& other, Zone* zone) {
   for (auto x : other.maps()) AddMap(x, zone);
   for (auto x : other.function_blueprints()) AddFunctionBlueprint(x, zone);
   for (auto x : other.virtual_contexts()) AddVirtualContext(x, zone);
+  for (auto x : other.virtual_bound_functions()) {
+    AddVirtualBoundFunction(x, zone);
+  }
 }
 
 void Hints::AddFromChildSerializer(const Hints& other, Zone* zone) {
   for (auto x : other.constants()) AddConstant(x, zone);
   for (auto x : other.maps()) AddMap(x, zone);
   for (auto x : other.virtual_contexts()) AddVirtualContext(x, zone);
+  for (auto x : other.virtual_bound_functions()) {
+    AddVirtualBoundFunction(x, zone);
+  }
 
   // Adding hints from a child serializer run means copying data out from
   // a zone that's being destroyed. FunctionBlueprints have zone allocated
@@ -687,7 +753,8 @@ void Hints::AddFromChildSerializer(const Hints& other, Zone* zone) {
 
 bool Hints::IsEmpty() const {
   return constants().IsEmpty() && maps().IsEmpty() &&
-         function_blueprints().IsEmpty() && virtual_contexts().IsEmpty();
+         function_blueprints().IsEmpty() && virtual_contexts().IsEmpty() &&
+         virtual_bound_functions().IsEmpty();
 }
 
 std::ostream& operator<<(std::ostream& out,
@@ -708,6 +775,16 @@ std::ostream& operator<<(std::ostream& out,
   return out;
 }
 
+std::ostream& operator<<(std::ostream& out,
+                         const VirtualBoundFunction& virtual_bound_function) {
+  out << std::endl << "    Target: " << virtual_bound_function.bound_target;
+  out << "    Arguments:" << std::endl;
+  for (auto hint : virtual_bound_function.bound_arguments) {
+    out << "    " << hint;
+  }
+  return out;
+}
+
 std::ostream& operator<<(std::ostream& out, const Hints& hints) {
   for (Handle<Object> constant : hints.constants()) {
     out << "  constant " << Brief(*constant) << std::endl;
@@ -721,6 +798,10 @@ std::ostream& operator<<(std::ostream& out, const Hints& hints) {
   for (VirtualContext const& virtual_context : hints.virtual_contexts()) {
     out << "  virtual context " << virtual_context << std::endl;
   }
+  for (VirtualBoundFunction const& virtual_bound_function :
+       hints.virtual_bound_functions()) {
+    out << "  virtual bound function " << virtual_bound_function << std::endl;
+  }
   return out;
 }
 
@@ -729,6 +810,7 @@ void Hints::Clear() {
   constants_.Clear();
   maps_.Clear();
   function_blueprints_.Clear();
+  virtual_bound_functions_.Clear();
   DCHECK(IsEmpty());
 }
 
@@ -1969,6 +2051,14 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
     ProcessCalleeForCallOrConstruct(Callee(hint), new_target, arguments,
                                     speculation_mode, padding);
   }
+
+  for (auto hint : callee.virtual_bound_functions()) {
+    HintsVector new_arguments = hint.bound_arguments;
+    new_arguments.insert(new_arguments.end(), arguments.begin(),
+                         arguments.end());
+    ProcessCallOrConstruct(hint.bound_target, new_target, new_arguments, slot,
+                           padding);
+  }
 }
 
 void SerializerForBackgroundCompilation::ProcessCallVarArgs(
@@ -2180,8 +2270,6 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
         }
       }
       break;
-    // TODO(neis): Might need something like a FunctionBlueprint but for
-    // creating bound functions rather than creating closures.
     case Builtins::kFunctionPrototypeApply:
       if (arguments.size() >= 1) {
         // Drop hints for all arguments except the user-given receiver.
@@ -2257,7 +2345,14 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
     case Builtins::kFastFunctionPrototypeBind:
       if (arguments.size() >= 1 &&
           speculation_mode != SpeculationMode::kDisallowSpeculation) {
-        ProcessHintsForFunctionBind(arguments[0]);
+        Hints const& bound_target = arguments[0];
+        ProcessHintsForFunctionBind(bound_target);
+        HintsVector new_arguments(arguments.begin() + 1, arguments.end(),
+                                  zone());
+        VirtualBoundFunction virtual_bound_function(bound_target,
+                                                    new_arguments);
+        environment()->accumulator_hints().AddVirtualBoundFunction(
+            virtual_bound_function, zone());
       }
       break;
     case Builtins::kObjectGetPrototypeOf:
