@@ -7322,8 +7322,8 @@ TNode<Number> CodeStubAssembler::ToNumber(SloppyTNode<Context> context,
   return var_result.value();
 }
 
-TNode<BigInt> CodeStubAssembler::ToBigInt(SloppyTNode<Context> context,
-                                          SloppyTNode<Object> input) {
+TNode<BigInt> CodeStubAssembler::ToBigInt(TNode<Context> context,
+                                          TNode<Object> input) {
   TVARIABLE(BigInt, var_result);
   Label if_bigint(this), done(this), if_throw(this);
 

@@ -2637,8 +2637,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Try to convert an object to a BigInt. Throws on failure (e.g. for Numbers).
   // https://tc39.github.io/proposal-bigint/#sec-to-bigint
-  TNode<BigInt> ToBigInt(SloppyTNode<Context> context,
-                         SloppyTNode<Object> input);
+  TNode<BigInt> ToBigInt(TNode<Context> context, TNode<Object> input);
 
   // Converts |input| to one of 2^32 integer values in the range 0 through
   // 2^32-1, inclusive.
