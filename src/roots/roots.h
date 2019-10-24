@@ -189,6 +189,7 @@ class Symbol;
   /* Canonical scope infos */                                                  \
   V(ScopeInfo, global_this_binding_scope_info, GlobalThisBindingScopeInfo)     \
   V(ScopeInfo, empty_function_scope_info, EmptyFunctionScopeInfo)              \
+  V(ScopeInfo, native_scope_info, NativeScopeInfo)                             \
   /* Hash seed */                                                              \
   V(ByteArray, hash_seed, HashSeed)
 

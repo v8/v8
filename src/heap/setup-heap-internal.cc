@@ -811,6 +811,10 @@ void Heap::CreateInitialObjects() {
       ScopeInfo::CreateForEmptyFunction(isolate());
   set_empty_function_scope_info(*empty_function);
 
+  Handle<ScopeInfo> native_scope_info =
+      ScopeInfo::CreateForNativeContext(isolate());
+  set_native_scope_info(*native_scope_info);
+
   // Allocate the empty script.
   Handle<Script> script = factory->NewScript(factory->empty_string());
   script->set_type(Script::TYPE_NATIVE);

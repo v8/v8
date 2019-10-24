@@ -1413,8 +1413,9 @@ void InstallMakeError(Isolate* isolate, int builtin_id, int context_index) {
 void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                Handle<JSFunction> empty_function) {
   // --- N a t i v e   C o n t e x t ---
-  // Use the empty scope info.
-  native_context()->set_scope_info(empty_function->shared().scope_info());
+  // Use the native scope info.
+  native_context()->set_scope_info(
+      ReadOnlyRoots(isolate()).native_scope_info());
   native_context()->set_previous(Context());
   // Set extension and global object.
   native_context()->set_extension(*global_object);

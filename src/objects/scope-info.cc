@@ -422,23 +422,29 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
 
 // static
 Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
-  return CreateForBootstrapping(isolate, SCRIPT_SCOPE);
+  return CreateForBootstrapping(isolate, BootstrappingType::kScript);
 }
 
 // static
 Handle<ScopeInfo> ScopeInfo::CreateForEmptyFunction(Isolate* isolate) {
-  return CreateForBootstrapping(isolate, FUNCTION_SCOPE);
+  return CreateForBootstrapping(isolate, BootstrappingType::kFunction);
+}
+
+// static
+Handle<ScopeInfo> ScopeInfo::CreateForNativeContext(Isolate* isolate) {
+  return CreateForBootstrapping(isolate, BootstrappingType::kNative);
 }
 
 // static
 Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
-                                                    ScopeType type) {
-  DCHECK(type == SCRIPT_SCOPE || type == FUNCTION_SCOPE);
-
+                                                    BootstrappingType type) {
   const int parameter_count = 0;
-  const bool is_empty_function = type == FUNCTION_SCOPE;
-  const int context_local_count = is_empty_function ? 0 : 1;
-  const bool has_receiver = !is_empty_function;
+  const bool is_empty_function = type == BootstrappingType::kFunction;
+  const bool is_native_context = type == BootstrappingType::kNative;
+  const bool is_script = type == BootstrappingType::kScript;
+  const int context_local_count =
+      is_empty_function || is_native_context ? 0 : 1;
+  const bool has_receiver = is_script;
   const bool has_inferred_function_name = is_empty_function;
   const bool has_position_info = true;
   const int length = kVariablePartIndex + 2 * context_local_count +
@@ -452,25 +458,26 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
       factory->NewScopeInfo(length, AllocationType::kReadOnly);
 
   // Encode the flags.
-  int flags =
-      ScopeTypeField::encode(type) |
-      SloppyEvalCanExtendVarsField::encode(false) |
-      LanguageModeField::encode(LanguageMode::kSloppy) |
-      DeclarationScopeField::encode(true) |
-      ReceiverVariableField::encode(is_empty_function ? UNUSED : CONTEXT) |
-      HasClassBrandField::encode(false) |
-      HasSavedClassVariableIndexField::encode(false) |
-      HasNewTargetField::encode(false) |
-      FunctionVariableField::encode(is_empty_function ? UNUSED : NONE) |
-      HasInferredFunctionNameField::encode(has_inferred_function_name) |
-      IsAsmModuleField::encode(false) | HasSimpleParametersField::encode(true) |
-      FunctionKindField::encode(FunctionKind::kNormalFunction) |
-      HasOuterScopeInfoField::encode(false) |
-      IsDebugEvaluateScopeField::encode(false) |
-      ForceContextAllocationField::encode(false) |
-      PrivateNameLookupSkipsOuterClassField::encode(false) |
-      CanElideThisHoleChecksField::encode(false) |
-      HasContextExtensionField::encode(false);
+  int flags = ScopeTypeField::encode(is_empty_function ? FUNCTION_SCOPE
+                                                       : SCRIPT_SCOPE) |
+              SloppyEvalCanExtendVarsField::encode(false) |
+              LanguageModeField::encode(LanguageMode::kSloppy) |
+              DeclarationScopeField::encode(true) |
+              ReceiverVariableField::encode(is_script ? CONTEXT : UNUSED) |
+              HasClassBrandField::encode(false) |
+              HasSavedClassVariableIndexField::encode(false) |
+              HasNewTargetField::encode(false) |
+              FunctionVariableField::encode(is_empty_function ? UNUSED : NONE) |
+              HasInferredFunctionNameField::encode(has_inferred_function_name) |
+              IsAsmModuleField::encode(false) |
+              HasSimpleParametersField::encode(true) |
+              FunctionKindField::encode(FunctionKind::kNormalFunction) |
+              HasOuterScopeInfoField::encode(false) |
+              IsDebugEvaluateScopeField::encode(false) |
+              ForceContextAllocationField::encode(false) |
+              PrivateNameLookupSkipsOuterClassField::encode(false) |
+              CanElideThisHoleChecksField::encode(false) |
+              HasContextExtensionField::encode(is_native_context);
   scope_info->SetFlags(flags);
   scope_info->SetParameterCount(parameter_count);
   scope_info->SetContextLocalCount(context_local_count);
@@ -483,7 +490,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
     scope_info->set(index++, ReadOnlyRoots(isolate).this_string());
   }
   DCHECK_EQ(index, scope_info->ContextLocalInfosIndex());
-  if (context_local_count) {
+  if (context_local_count > 0) {
     const uint32_t value =
         VariableModeField::encode(VariableMode::kConst) |
         InitFlagField::encode(kCreatedInitialized) |
@@ -495,8 +502,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
 
   // And here we record that this scopeinfo binds a receiver.
   DCHECK_EQ(index, scope_info->ReceiverInfoIndex());
-  const int receiver_index = scope_info->ContextHeaderLength();
-  if (!is_empty_function) {
+  if (has_receiver) {
+    const int receiver_index = scope_info->ContextHeaderLength();
     scope_info->set(index++, Smi::FromInt(receiver_index));
   }
 
@@ -516,7 +523,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
   DCHECK_EQ(index, scope_info->OuterScopeInfoIndex());
   DCHECK_EQ(index, scope_info->length());
   DCHECK_EQ(scope_info->ParameterCount(), parameter_count);
-  if (type == FUNCTION_SCOPE) {
+  if (is_empty_function || is_native_context) {
     DCHECK_EQ(scope_info->ContextLength(), 0);
   } else {
     DCHECK_EQ(scope_info->ContextLength(),
@@ -685,6 +692,7 @@ Object ScopeInfo::InferredFunctionName() const {
 }
 
 String ScopeInfo::FunctionDebugName() const {
+  if (!HasFunctionName()) return GetReadOnlyRoots().empty_string();
   Object name = FunctionName();
   if (name.IsString() && String::cast(name).length() > 0) {
     return String::cast(name);

@@ -209,6 +209,7 @@ class ScopeInfo : public FixedArray {
       Isolate* isolate, MaybeHandle<ScopeInfo> outer_scope);
   V8_EXPORT_PRIVATE static Handle<ScopeInfo> CreateForEmptyFunction(
       Isolate* isolate);
+  static Handle<ScopeInfo> CreateForNativeContext(Isolate* isolate);
   static Handle<ScopeInfo> CreateGlobalThisBinding(Isolate* isolate);
 
   // Serializes empty scope info.
@@ -323,8 +324,10 @@ class ScopeInfo : public FixedArray {
   int ModuleVariablesIndex() const;
 
   static bool NeedsPositionInfo(ScopeType type);
+
+  enum class BootstrappingType { kScript, kFunction, kNative };
   static Handle<ScopeInfo> CreateForBootstrapping(Isolate* isolate,
-                                                  ScopeType type);
+                                                  BootstrappingType type);
 
   int Lookup(Handle<String> name, int start, int end, VariableMode* mode,
              VariableLocation* location, InitializationFlag* init_flag,
