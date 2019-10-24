@@ -71,7 +71,7 @@ RUNTIME_FUNCTION(Runtime_WasmIsValidFuncRefValue) {
   if (function->IsNull(isolate)) {
     return Smi::FromInt(true);
   }
-  if (WasmExportedFunction::IsWasmExportedFunction(*function)) {
+  if (WasmExternalFunction::IsWasmExternalFunction(*function)) {
     return Smi::FromInt(true);
   }
   return Smi::FromInt(false);

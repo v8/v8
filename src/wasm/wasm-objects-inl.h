@@ -186,7 +186,7 @@ void WasmGlobalObject::SetAnyRef(Handle<Object> value) {
 bool WasmGlobalObject::SetFuncRef(Isolate* isolate, Handle<Object> value) {
   DCHECK_EQ(type(), wasm::kWasmFuncRef);
   if (!value->IsNull(isolate) &&
-      !WasmExportedFunction::IsWasmExportedFunction(*value) &&
+      !WasmExternalFunction::IsWasmExternalFunction(*value) &&
       !WasmCapiFunction::IsWasmCapiFunction(*value)) {
     return false;
   }
