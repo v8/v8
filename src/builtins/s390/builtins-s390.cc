@@ -2020,7 +2020,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
           Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ beq(&arguments_adaptor);
   {
-    __ LoadP(r7, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+    __ LoadP(r7, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
     __ LoadP(r7, FieldMemOperand(r7, JSFunction::kSharedFunctionInfoOffset));
     __ LoadLogicalHalfWordP(
         r7,

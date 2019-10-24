@@ -1883,7 +1883,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
          Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ b(eq, &arguments_adaptor);
   {
-    __ ldr(r5, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+    __ ldr(r5, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
     __ ldr(r5, FieldMemOperand(r5, JSFunction::kSharedFunctionInfoOffset));
     __ ldrh(r5, FieldMemOperand(
                     r5, SharedFunctionInfo::kFormalParameterCountOffset));

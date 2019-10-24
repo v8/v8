@@ -36,7 +36,7 @@ void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
   // - Restart the frame by calling the function.
 
   __ movq(rbp, rbx);
-  __ movq(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+  __ movq(rdi, Operand(rbp, StandardFrameConstants::kFunctionOffset));
   __ leave();
 
   __ LoadTaggedPointerField(

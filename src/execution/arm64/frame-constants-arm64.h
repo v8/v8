@@ -96,20 +96,6 @@ class WasmCompileLazyFrameConstants : public TypedFrameConstants {
       kNumberOfSavedFpParamRegs * kDoubleSize;
 };
 
-class JavaScriptFrameConstants : public AllStatic {
- public:
-  // FP-relative.
-  static constexpr int kLocal0Offset =
-      StandardFrameConstants::kExpressionsOffset;
-
-  // There are two words on the stack (saved fp and saved lr) between fp and
-  // the arguments.
-  static constexpr int kLastParameterOffset = 2 * kSystemPointerSize;
-
-  static constexpr int kFunctionOffset =
-      StandardFrameConstants::kFunctionOffset;
-};
-
 }  // namespace internal
 }  // namespace v8
 

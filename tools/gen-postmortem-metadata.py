@@ -175,9 +175,9 @@ consts_misc = [
     { 'name': 'off_fp_constant_pool',
         'value': 'StandardFrameConstants::kConstantPoolOffset' },
     { 'name': 'off_fp_function',
-        'value': 'JavaScriptFrameConstants::kFunctionOffset' },
+        'value': 'StandardFrameConstants::kFunctionOffset' },
     { 'name': 'off_fp_args',
-        'value': 'JavaScriptFrameConstants::kLastParameterOffset' },
+        'value': 'StandardFrameConstants::kFixedFrameSizeAboveFp' },
 
     { 'name': 'scopeinfo_idx_nparams',
         'value': 'ScopeInfo::kParameterCount' },

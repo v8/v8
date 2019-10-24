@@ -34,7 +34,7 @@ void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
   // - Restart the frame by calling the function.
 
   __ mr(fp, r4);
-  __ LoadP(r4, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ LoadP(r4, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
   __ LeaveFrame(StackFrame::INTERNAL);
   __ LoadP(r3, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
   __ lhz(r3,

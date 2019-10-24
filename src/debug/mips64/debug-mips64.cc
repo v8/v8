@@ -33,7 +33,7 @@ void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
   // - Leave the frame.
   // - Restart the frame by calling the function.
   __ mov(fp, a1);
-  __ Ld(a1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ Ld(a1, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
 
   // Pop return address and frame.
   __ LeaveFrame(StackFrame::INTERNAL);

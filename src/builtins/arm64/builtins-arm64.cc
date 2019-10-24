@@ -2289,8 +2289,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     __ CmpTagged(x4, StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR));
     __ B(eq, &arguments_adaptor);
     {
-      __ Ldr(scratch,
-             MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+      __ Ldr(scratch, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
       __ LoadTaggedPointerField(
           scratch,
           FieldMemOperand(scratch, JSFunction::kSharedFunctionInfoOffset));

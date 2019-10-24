@@ -404,8 +404,6 @@ class WasmGraphBuilder {
 
   bool has_simd() const { return has_simd_; }
 
-  const wasm::WasmModule* module() { return env_ ? env_->module : nullptr; }
-
   wasm::UseTrapHandler use_trap_handler() const {
     return env_ ? env_->use_trap_handler : wasm::kNoTrapHandler;
   }

@@ -149,7 +149,7 @@ TEST(DisasmX64) {
   __ pushq(Immediate(23456));
   __ pushq(rcx);
   __ pushq(rsi);
-  __ pushq(Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+  __ pushq(Operand(rbp, StandardFrameConstants::kFunctionOffset));
   __ pushq(Operand(rbx, rcx, times_4, 0));
   __ pushq(Operand(rbx, rcx, times_4, 0));
   __ pushq(Operand(rbx, rcx, times_4, 10000));

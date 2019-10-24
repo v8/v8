@@ -1104,7 +1104,7 @@ class DebugInfoSection : public DebugSection {
         Writer::Slot<uint32_t> block_size = w->CreateSlotHere<uint32_t>();
         uintptr_t block_start = w->position();
         w->Write<uint8_t>(DW_OP_fbreg);
-        w->WriteSLEB128(JavaScriptFrameConstants::kLastParameterOffset +
+        w->WriteSLEB128(StandardFrameConstants::kFixedFrameSizeAboveFp +
                         kSystemPointerSize * (params - param - 1));
         block_size.set(static_cast<uint32_t>(w->position() - block_start));
       }
@@ -1135,7 +1135,7 @@ class DebugInfoSection : public DebugSection {
         Writer::Slot<uint32_t> block_size = w->CreateSlotHere<uint32_t>();
         uintptr_t block_start = w->position();
         w->Write<uint8_t>(DW_OP_fbreg);
-        w->WriteSLEB128(JavaScriptFrameConstants::kFunctionOffset);
+        w->WriteSLEB128(StandardFrameConstants::kFunctionOffset);
         block_size.set(static_cast<uint32_t>(w->position() - block_start));
       }
 

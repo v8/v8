@@ -1962,7 +1962,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
           Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ beq(&arguments_adaptor);
   {
-    __ LoadP(r8, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+    __ LoadP(r8, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
     __ LoadP(r8, FieldMemOperand(r8, JSFunction::kSharedFunctionInfoOffset));
     __ LoadHalfWord(
         r8,

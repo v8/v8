@@ -136,7 +136,7 @@ TEST(DisasmIa320) {
   __ push(Immediate(23456));
   __ push(ecx);
   __ push(esi);
-  __ push(Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+  __ push(Operand(ebp, StandardFrameConstants::kFunctionOffset));
   __ push(Operand(ebx, ecx, times_4, 0));
   __ push(Operand(ebx, ecx, times_4, 0));
   __ push(Operand(ebx, ecx, times_4, 10000));

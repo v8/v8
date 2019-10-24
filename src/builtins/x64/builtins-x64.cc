@@ -2126,7 +2126,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
           Immediate(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ j(equal, &arguments_adaptor, Label::kNear);
   {
-    __ movq(r8, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+    __ movq(r8, Operand(rbp, StandardFrameConstants::kFunctionOffset));
     __ LoadTaggedPointerField(
         r8, FieldOperand(r8, JSFunction::kSharedFunctionInfoOffset));
     __ movzxwq(

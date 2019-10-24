@@ -9747,7 +9747,7 @@ TNode<ClosureFeedbackCellArray> CodeStubAssembler::LoadClosureFeedbackArray(
 
 TNode<FeedbackVector> CodeStubAssembler::LoadFeedbackVectorForStub() {
   TNode<JSFunction> function =
-      CAST(LoadFromParentFrame(JavaScriptFrameConstants::kFunctionOffset));
+      CAST(LoadFromParentFrame(StandardFrameConstants::kFunctionOffset));
   return CAST(LoadFeedbackVector(function));
 }
 
@@ -9789,7 +9789,7 @@ void CodeStubAssembler::ReportFeedbackUpdate(
 #ifdef V8_TRACE_FEEDBACK_UPDATES
   // Trace the update.
   CallRuntime(Runtime::kInterpreterTraceUpdateFeedback, NoContextConstant(),
-              LoadFromParentFrame(JavaScriptFrameConstants::kFunctionOffset),
+              LoadFromParentFrame(StandardFrameConstants::kFunctionOffset),
               SmiTag(Signed(slot_id)), StringConstant(reason));
 #endif  // V8_TRACE_FEEDBACK_UPDATES
 }

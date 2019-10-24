@@ -1316,7 +1316,7 @@ Object JavaScriptBuiltinContinuationFrame::context() const {
 void JavaScriptBuiltinContinuationWithCatchFrame::SetException(
     Object exception) {
   Address exception_argument_slot =
-      fp() + JavaScriptFrameConstants::kLastParameterOffset +
+      fp() + BuiltinContinuationFrameConstants::kFixedFrameSizeAboveFp +
       kSystemPointerSize;  // Skip over return value slot.
 
   // Only allow setting exception if previous value was the hole.
