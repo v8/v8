@@ -1083,13 +1083,6 @@
 }],  # variant == slow_path
 
 ##############################################################################
-['arch == x64', {
-  # TODO: Flaky test: crbug.com/v8/7899
-  'wasm/asm-wasm-i32': [SKIP],
-  'wasm/asm-wasm-f64': [SKIP],
-}], # arch == x64
-
-##############################################################################
 ['arch not in [x64, arm, arm64] or system != linux', {
   # Unwinding info writer is only supported on x64, arm, and arm64 Linux
   'regress/regress-913844': [SKIP],
