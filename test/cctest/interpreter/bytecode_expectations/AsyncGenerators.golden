@@ -296,7 +296,7 @@ bytecodes: [
                 B(Mov), R(context), R(16),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(160),
+                B(Wide), B(LdaSmi), I16(159),
                 B(Star), R(17),
                 B(LdaConstant), U8(11),
                 B(Star), R(18),

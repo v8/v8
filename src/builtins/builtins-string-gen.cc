@@ -1532,7 +1532,8 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
   RegExpMatchAllAssembler regexp_asm(state());
   {
     Label fast(this), slow(this, Label::kDeferred),
-        throw_exception(this, Label::kDeferred), next(this);
+        throw_exception(this, Label::kDeferred),
+        throw_flags_exception(this, Label::kDeferred), next(this);
 
     // 2. If regexp is neither undefined nor null, then
     //   a. Let isRegExp be ? IsRegExp(regexp).
@@ -1559,7 +1560,9 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
 
       TNode<Object> flags = GetProperty(context, heap_maybe_regexp,
                                         isolate()->factory()->flags_string());
-      RequireObjectCoercible(context, flags, method_name);
+      // TODO(syg): Implement a RequireObjectCoercible with more flexible error
+      // messages.
+      GotoIf(IsNullOrUndefined(flags), &throw_flags_exception);
 
       TNode<String> flags_string = ToString_Inline(context, flags);
       TNode<String> global_char_string = StringConstant("g");
@@ -1571,6 +1574,10 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
 
     BIND(&throw_exception);
     ThrowTypeError(context, MessageTemplate::kRegExpGlobalInvokedOnNonGlobal);
+
+    BIND(&throw_flags_exception);
+    ThrowTypeError(context,
+                   MessageTemplate::kStringMatchAllNullOrUndefinedFlags);
 
     BIND(&next);
   }
