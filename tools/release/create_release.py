@@ -135,6 +135,21 @@ class EditChangeLog(Step):
     TextToFile(changelog_entry, self.Config("CHANGELOG_ENTRY_FILE"))
 
 
+class DeleteBranchRef(Step):
+  MESSAGE = "Delete branch ref."
+
+  def RunStep(self):
+    cmd = "push origin :refs/heads/%s" % self["version"]
+    if self._options.dry_run:
+      print("Dry run. Command:\ngit %s" % cmd)
+    else:
+      try:
+        self.Git(cmd)
+      except Exception:
+        # Be forgiving if branch ref does not exist.
+        pass
+
+
 class PushBranchRef(Step):
   MESSAGE = "Create branch ref."
 
@@ -293,6 +308,7 @@ class CreateRelease(ScriptsBase):
       DetectLastRelease,
       PrepareChangeLog,
       EditChangeLog,
+      DeleteBranchRef,
       PushBranchRef,
       MakeBranch,
       AddChangeLog,

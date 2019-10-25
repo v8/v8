@@ -926,6 +926,7 @@ TBR=reviewer@chromium.org"""
       Cmd("git log -1 --format=%s rev1", "Log text 1.\n"),
       Cmd("git log -1 --format=%B rev1", "Text\nLOG=YES\nBUG=v8:321\nText\n"),
       Cmd("git log -1 --format=%an rev1", "author1@chromium.org\n"),
+      Cmd("git push origin :refs/heads/3.22.5", ""),
       Cmd("git push origin push_hash:refs/heads/3.22.5", ""),
       Cmd("git reset --hard origin/master", ""),
       Cmd("git new-branch work-branch --upstream origin/3.22.5", ""),
