@@ -210,14 +210,13 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     // Use the kJavaScriptCallCodeStartRegister (fixed) register for the
     // indirect target address when calling.
     kFixedTargetRegister = 1u << 7,
-    kAllowCallThroughSlot = 1u << 8,
-    kCallerSavedRegisters = 1u << 9,
+    kCallerSavedRegisters = 1u << 8,
     // The kCallerSavedFPRegisters only matters (and set) when the more general
     // flag for kCallerSavedRegisters above is also set.
-    kCallerSavedFPRegisters = 1u << 10,
+    kCallerSavedFPRegisters = 1u << 9,
     // AIX has a function descriptor by default but it can be disabled for a
     // certain CFunction call (only used for Kind::kCallAddress).
-    kNoFunctionDescriptor = 1u << 11,
+    kNoFunctionDescriptor = 1u << 10,
   };
   using Flags = base::Flags<Flag>;
 

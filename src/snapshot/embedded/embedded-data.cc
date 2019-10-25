@@ -200,16 +200,6 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
         saw_unsafe_builtin = true;
         fprintf(stderr, "%s is not isolate-independent.\n", Builtins::name(i));
       }
-      if (Builtins::IsWasmRuntimeStub(i) &&
-          RelocInfo::RequiresRelocation(code)) {
-        // Wasm additionally requires that its runtime stubs must be
-        // individually PIC (i.e. we must be able to copy each stub outside the
-        // embedded area without relocations). In particular, that means
-        // pc-relative calls to other builtins are disallowed.
-        saw_unsafe_builtin = true;
-        fprintf(stderr, "%s is a wasm runtime stub but needs relocation.\n",
-                Builtins::name(i));
-      }
       if (BuiltinAliasesOffHeapTrampolineRegister(isolate, code)) {
         saw_unsafe_builtin = true;
         fprintf(stderr, "%s aliases the off-heap trampoline register.\n",

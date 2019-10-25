@@ -5872,8 +5872,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             LOAD_RAW(callable_node,
                      wasm::ObjectAccess::ContextOffsetInTaggedJSFunction(),
                      MachineType::TypeCompressedTaggedPointer());
-        args[pos++] = BuildLoadBuiltinFromIsolateRoot(
-            Builtins::kArgumentsAdaptorTrampoline);
+        args[pos++] = mcgraph()->RelocatableIntPtrConstant(
+            wasm::WasmCode::kArgumentsAdaptorTrampoline,
+            RelocInfo::WASM_STUB_CALL);
         args[pos++] = callable_node;                         // target callable
         args[pos++] = undefined_node;                        // new target
         args[pos++] = mcgraph()->Int32Constant(wasm_count);  // argument count
@@ -5901,16 +5902,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           args[pos++] = undefined_node;
         }
 
-#ifdef V8_TARGET_ARCH_IA32
-        // TODO(v8:6666): Remove kAllowCallThroughSlot and use a pc-relative
-        // call instead once builtins are embedded in every build configuration.
-        CallDescriptor::Flags flags = CallDescriptor::kAllowCallThroughSlot;
-#else
-        CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-#endif
         auto call_descriptor = Linkage::GetStubCallDescriptor(
             mcgraph()->zone(), ArgumentsAdaptorDescriptor{}, 1 + wasm_count,
-            flags, Operator::kNoProperties);
+            CallDescriptor::kNoFlags, Operator::kNoProperties,
+            StubCallMode::kCallWasmRuntimeStub);
 
         // Convert wasm numbers to JS values.
         pos = AddArgumentNodes(VectorOf(args), pos, wasm_count, sig_);

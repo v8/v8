@@ -1283,6 +1283,7 @@ namespace internal {
   V(WasmToNumber)                        \
   V(WasmThrow)                           \
   V(WasmRethrow)                         \
+  V(ArgumentsAdaptorTrampoline)          \
   V(DoubleToI)                           \
   V(WasmI64ToBigInt)                     \
   V(WasmI32PairToBigInt)                 \

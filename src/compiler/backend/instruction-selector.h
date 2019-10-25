@@ -559,8 +559,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
     kCallCodeImmediate = 1u << 0,
     kCallAddressImmediate = 1u << 1,
     kCallTail = 1u << 2,
-    kCallFixedTargetRegister = 1u << 3,
-    kAllowCallThroughSlot = 1u << 4
+    kCallFixedTargetRegister = 1u << 3
   };
   using CallBufferFlags = base::Flags<CallBufferFlag>;
 
