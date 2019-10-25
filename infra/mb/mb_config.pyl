@@ -138,12 +138,12 @@
           'release_x64_ubsan_recover_edge',
     },
     'client.v8.perf' : {
-      'V8 Arm - builder': 'official_arm',
-      'V8 Arm64 - builder': 'official_arm64',
-      'V8 Android Arm - builder': 'official_android_arm',
-      'V8 Android Arm64 - builder': 'official_android_arm64',
-      'V8 Linux - builder': 'official_x86',
-      'V8 Linux64 - builder': 'official_x64',
+      'V8 Arm - builder - perf': 'official_arm',
+      'V8 Arm64 - builder - perf': 'official_arm64',
+      'V8 Android Arm - builder - perf': 'official_android_arm',
+      'V8 Android Arm64 - builder - perf': 'official_android_arm64',
+      'V8 Linux - builder - perf': 'official_x86',
+      'V8 Linux64 - builder - perf': 'official_x64',
     },
     'client.v8.ports': {
       # Arm.
