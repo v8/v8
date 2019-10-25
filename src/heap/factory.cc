@@ -4,6 +4,11 @@
 
 #include "src/heap/factory.h"
 
+#include <algorithm>  // For copy
+#include <memory>     // For shared_ptr<>
+#include <string>
+#include <utility>  // For move
+
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast.h"
 #include "src/base/bits.h"

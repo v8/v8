@@ -4,9 +4,11 @@
 
 #include "src/api/api.h"
 
-#include <string.h>  // For memcpy, strlen.
-#include <cmath>     // For isnan.
+#include <algorithm>  // For min
+#include <cmath>      // For isnan.
 #include <limits>
+#include <string>
+#include <utility>  // For move
 #include <vector>
 
 #include "src/api/api-inl.h"
