@@ -1849,8 +1849,6 @@ extern transitioning macro ToInteger_Inline(
     Context, JSAny, constexpr ToIntegerTruncationMode): Number;
 extern transitioning macro ToLength_Inline(Context, JSAny): Number;
 extern transitioning macro ToNumber_Inline(Context, JSAny): Number;
-extern transitioning macro ToSmiLength(implicit context: Context)(JSAny):
-    PositiveSmi labels IfRangeError;
 extern transitioning macro ToString_Inline(Context, JSAny): String;
 extern transitioning macro ToThisString(implicit context: Context)(
     JSAny, String): String;
@@ -2186,6 +2184,11 @@ extern operator '!' macro IsFalse(Boolean): bool;
 
 extern operator '.instanceType' macro LoadInstanceType(HeapObject):
     InstanceType;
+
+operator '.length_uintptr' macro LoadJSArrayLengthAsUintPtr(array: JSArray):
+    uintptr {
+  return Convert<uintptr>(array.length);
+}
 
 extern operator '.length_intptr' macro LoadStringLengthAsWord(String): intptr;
 operator '.length_uintptr' macro LoadStringLengthAsUintPtr(s: String): uintptr {
@@ -2797,8 +2800,6 @@ extern macro TruncateFloat64ToFloat32(float64): float32;
 extern macro TruncateHeapNumberValueToWord32(HeapNumber): int32;
 extern macro LoadJSArrayElementsMap(constexpr ElementsKind, NativeContext): Map;
 extern macro LoadJSArrayElementsMap(ElementsKind, NativeContext): Map;
-extern macro ChangeNonnegativeNumberToUintPtr(Number): uintptr;
-extern macro TryNumberToUintPtr(Number): uintptr labels IfNegative;
 extern macro NumberConstant(constexpr float64): Number;
 extern macro NumberConstant(constexpr int32): Number;
 extern macro NumberConstant(constexpr uint32): Number;
@@ -3012,7 +3013,7 @@ Convert<float64, Number>(n: Number): float64 {
   return ChangeNumberToFloat64(n);
 }
 Convert<uintptr, Number>(n: Number): uintptr {
-  return ChangeNonnegativeNumberToUintPtr(n);
+  return ChangeUintPtrNumberToUintPtr(n);
 }
 Convert<float64, float32>(f: float32): float64 {
   return ChangeFloat32ToFloat64(f);
@@ -3606,46 +3607,101 @@ macro SameValue(a: JSAny, b: JSAny): bool {
   BranchIfSameValue(a, b) otherwise return true, return false;
 }
 
+// TODO(tebbi): Define enum here once they appear in Torque.
+//
+// The value is a SafeInteger that fits into uintptr range, so no bounds checks
+// are necessary.
+const kModeValueIsSafeIntegerUintPtr: constexpr int31 = 0;
+// The value is a SafeInteger that may not fit into uintptr range, so only
+// uintptr bounds check is necessary.
+const kModeValueIsSafeInteger: constexpr int31 = 1;
+// The value is can be whatever non-NaN number, all checks are necessary.
+const kModeValueIsAnyNumber: constexpr int31 = 2;
+
+macro TryNumberToUintPtr(valueNumber: Number, kMode: constexpr int31):
+    uintptr labels IfLessThanZero, IfUIntPtrOverflow, IfSafeIntegerOverflow {
+  typeswitch (valueNumber) {
+    case (valueSmi: Smi): {
+      if (kMode == kModeValueIsAnyNumber) {
+        if (valueSmi < 0) goto IfLessThanZero;
+      } else {
+        assert(valueSmi >= 0);
+      }
+      const value: uintptr = Unsigned(Convert<intptr>(valueSmi));
+      // Positive Smi values definitely fit into both [0, kMaxSafeInteger] and
+      // [0, kMaxUintPtr] ranges.
+      return value;
+    }
+    case (valueHeapNumber: HeapNumber): {
+      assert(IsNumberNormalized(valueHeapNumber));
+      const valueDouble: float64 = Convert<float64>(valueHeapNumber);
+      // NaNs must be handled outside.
+      assert(!Float64IsNaN(valueDouble));
+      if (kMode == kModeValueIsAnyNumber) {
+        if (valueDouble < 0) goto IfLessThanZero;
+      } else {
+        assert(valueDouble >= 0);
+      }
+
+      if constexpr (Is64()) {
+        // On 64-bit architectures uintptr range is bigger than safe integer
+        // range.
+        if (kMode == kModeValueIsAnyNumber) {
+          if (valueDouble > kMaxSafeInteger) goto IfSafeIntegerOverflow;
+        } else {
+          assert(valueDouble <= kMaxSafeInteger);
+        }
+      } else {
+        // On 32-bit architectures uintptr range is smaller than safe integer
+        // range.
+        if (kMode == kModeValueIsAnyNumber ||
+            kMode == kModeValueIsSafeInteger) {
+          if (valueDouble > kMaxUInt32Double) goto IfUIntPtrOverflow;
+        } else {
+          assert(valueDouble <= kMaxUInt32Double);
+        }
+      }
+      return ChangeFloat64ToUintPtr(valueDouble);
+    }
+  }
+}
+
+@export
+macro ChangeUintPtrNumberToUintPtr(value: Number): uintptr {
+  try {
+    return TryNumberToUintPtr(value, kModeValueIsSafeIntegerUintPtr)
+        otherwise InvalidValue, InvalidValue, InvalidValue;
+  }
+  label InvalidValue {
+    unreachable;
+  }
+}
+
+macro ChangeSafeIntegerNumberToUintPtr(value: Number):
+    uintptr labels IfUIntPtrOverflow {
+  try {
+    return TryNumberToUintPtr(value, kModeValueIsSafeInteger)
+        otherwise InvalidValue, IfUIntPtrOverflow, InvalidValue;
+  }
+  label InvalidValue {
+    unreachable;
+  }
+}
+
 // https://tc39.github.io/ecma262/#sec-toindex
+// Unlike ToIndex from the spec this implementation triggers IfRangeError if
+// the result is bigger than min(kMaxUIntPtr, kMaxSafeInteger).
+// We can do this because all callers do a range checks against uintptr length
+// anyway and throw a RangeError in case of out-of-bounds index.
 @export
 transitioning macro ToIndex(implicit context: Context)(value: JSAny):
     uintptr labels IfRangeError {
   if (value == Undefined) return 0;
   const indexNumber = ToInteger_Inline(context, value, kTruncateMinusZero);
-  return ToIndex(indexNumber) otherwise IfRangeError;
-}
-
-// https://tc39.github.io/ecma262/#sec-toindex
-// Same as the version above but for Number arguments.
-macro ToIndex(indexNumber: Number): uintptr labels IfRangeError {
-  typeswitch (indexNumber) {
-    case (indexSmi: Smi): {
-      if (indexSmi < 0) goto IfRangeError;
-      const index: uintptr = Unsigned(Convert<intptr>(indexSmi));
-      // Positive Smi values definitely fit into both [0, kMaxSafeInteger] and
-      // [0, kMaxUintPtr] ranges.
-      return index;
-    }
-    case (indexHeapNumber: HeapNumber): {
-      assert(IsNumberNormalized(indexHeapNumber));
-      const indexDouble: float64 = Convert<float64>(indexHeapNumber);
-      // NaNs must already be handled by ToIndex() version above accepting
-      // JSAny indices.
-      assert(!Float64IsNaN(indexDouble));
-      if (indexDouble < 0) goto IfRangeError;
-
-      if constexpr (Is64()) {
-        if (indexDouble > kMaxSafeInteger) goto IfRangeError;
-      } else {
-        // On 32-bit architectures not all safe integers fit into uintptr but
-        // callers handle this case the same way as the safe integer range
-        // overflow case so we don't need special handling for the values in
-        // (kMaxUInt32, kMaxSafeInteger] range.
-        if (indexDouble > kMaxUInt32Double) goto IfRangeError;
-      }
-      return ChangeFloat64ToUintPtr(indexDouble);
-    }
-  }
+  // Less than 0 case, uintptr range overflow and safe integer range overflow
+  // imply IfRangeError.
+  return TryNumberToUintPtr(indexNumber, kModeValueIsAnyNumber)
+      otherwise IfRangeError, IfRangeError, IfRangeError;
 }
 
 transitioning macro GetLengthProperty(implicit context: Context)(o: JSAny):

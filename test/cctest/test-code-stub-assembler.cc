@@ -338,9 +338,9 @@ TEST(ConvertToRelativeIndex) {
     TNode<Number> length_number = m.CAST(m.Parameter(1));
     TNode<Number> expected_relative_index = m.CAST(m.Parameter(2));
 
-    TNode<UintPtrT> length = m.ChangeNonnegativeNumberToUintPtr(length_number);
+    TNode<UintPtrT> length = m.ChangeUintPtrNumberToUintPtr(length_number);
     TNode<UintPtrT> expected =
-        m.ChangeNonnegativeNumberToUintPtr(expected_relative_index);
+        m.ChangeUintPtrNumberToUintPtr(expected_relative_index);
 
     TNode<UintPtrT> result = m.ConvertToRelativeIndex(index, length);
 

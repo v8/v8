@@ -1127,8 +1127,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load the length of a JSArray instance.
   TNode<Object> LoadJSArgumentsObjectWithLength(
       SloppyTNode<JSArgumentsObjectWithLength> array);
-  // Load the length of a JSArray instance.
-  TNode<Number> LoadJSArrayLength(SloppyTNode<JSArray> array);
   // Load the length of a fast JSArray instance. Returns a positive Smi.
   TNode<Smi> LoadFastJSArrayLength(SloppyTNode<JSArray> array);
   // Load the length of a fixed array base instance.
@@ -2320,10 +2318,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Number> ChangeUintPtrToTagged(TNode<UintPtrT> value);
   TNode<Uint32T> ChangeNumberToUint32(TNode<Number> value);
   TNode<Float64T> ChangeNumberToFloat64(TNode<Number> value);
-  TNode<UintPtrT> TryNumberToUintPtr(TNode<Number> value, Label* if_negative);
-  TNode<UintPtrT> ChangeNonnegativeNumberToUintPtr(TNode<Number> value) {
-    return TryNumberToUintPtr(value, nullptr);
-  }
 
   void TaggedToNumeric(Node* context, Node* value, Label* done,
                        Variable* var_numeric);

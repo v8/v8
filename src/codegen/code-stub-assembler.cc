@@ -1647,11 +1647,6 @@ TNode<HeapObject> CodeStubAssembler::LoadSlowProperties(
       [=] { return CAST(properties); });
 }
 
-TNode<Number> CodeStubAssembler::LoadJSArrayLength(SloppyTNode<JSArray> array) {
-  CSA_ASSERT(this, IsJSArray(array));
-  return CAST(LoadObjectField(array, JSArray::kLengthOffset));
-}
-
 TNode<Object> CodeStubAssembler::LoadJSArgumentsObjectWithLength(
     SloppyTNode<JSArgumentsObjectWithLength> array) {
   return LoadObjectField(array, JSArgumentsObjectWithLength::kLengthOffset);
@@ -5723,37 +5718,6 @@ TNode<Float64T> CodeStubAssembler::ChangeNumberToFloat64(TNode<Number> value) {
   return result.value();
 }
 
-TNode<UintPtrT> CodeStubAssembler::TryNumberToUintPtr(TNode<Number> value,
-                                                      Label* if_negative) {
-  TVARIABLE(UintPtrT, result);
-  Label done(this, &result);
-  Branch(
-      TaggedIsSmi(value),
-      [&] {
-        TNode<Smi> value_smi = CAST(value);
-        if (if_negative == nullptr) {
-          CSA_SLOW_ASSERT(this,
-                          SmiGreaterThanOrEqual(value_smi, SmiConstant(0)));
-        } else {
-          GotoIfNot(TaggedIsPositiveSmi(value), if_negative);
-        }
-        result = UncheckedCast<UintPtrT>(SmiToIntPtr(value_smi));
-        Goto(&done);
-      },
-      [&] {
-        TNode<HeapNumber> value_hn = CAST(value);
-        TNode<Float64T> value = LoadHeapNumberValue(value_hn);
-        if (if_negative != nullptr) {
-          GotoIf(Float64LessThan(value, Float64Constant(0.0)), if_negative);
-        }
-        result = ChangeFloat64ToUintPtr(value);
-        Goto(&done);
-      });
-
-  BIND(&done);
-  return result.value();
-}
-
 TNode<WordT> CodeStubAssembler::TimesSystemPointerSize(
     SloppyTNode<WordT> value) {
   return WordShl(value, kSystemPointerSizeLog2);
@@ -9105,7 +9069,8 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
       GotoIfNot(IsLengthString(
                     LoadObjectField(accessor_info, AccessorInfo::kNameOffset)),
                 if_bailout);
-      var_value.Bind(LoadJSArrayLength(receiver));
+      TNode<JSArray> array = CAST(receiver);
+      var_value.Bind(LoadJSArrayLength(array));
       Goto(&done);
     }
 
@@ -10355,7 +10320,7 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
          IsNonextensibleElementsKind(elements_kind));
 
   Node* length = SelectImpl(
-      IsJSArray(object), [=]() { return LoadJSArrayLength(object); },
+      IsJSArray(object), [=]() { return LoadJSArrayLength(CAST(object)); },
       [=]() { return LoadFixedArrayBaseLength(elements); },
       MachineRepresentation::kTagged);
   length = TaggedToParameter(length, parameter_mode);
@@ -13353,7 +13318,7 @@ void CodeStubAssembler::CheckPrototypeEnumCache(Node* receiver,
 
     // It might still be an empty JSArray.
     GotoIfNot(IsJSArrayMap(object_map), if_slow);
-    TNode<Number> object_length = LoadJSArrayLength(object);
+    TNode<Number> object_length = LoadJSArrayLength(CAST(object));
     Branch(TaggedEqual(object_length, SmiConstant(0)), &if_no_elements,
            if_slow);
 
