@@ -355,7 +355,7 @@ DEFINE_BOOL(assert_types, false,
 DEFINE_BOOL(allocation_site_pretenuring, true,
             "pretenure with allocation sites")
 DEFINE_BOOL(page_promotion, true, "promote pages based on utilization")
-DEFINE_BOOL(always_promote_young_mc, false,
+DEFINE_BOOL(always_promote_young_mc, true,
             "always promote young objects during mark-compact")
 DEFINE_INT(page_promotion_threshold, 70,
            "min percentage of live bytes on a page to enable fast evacuation")
