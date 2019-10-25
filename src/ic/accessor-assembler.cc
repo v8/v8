@@ -543,6 +543,14 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
 
   BIND(&proxy);
   {
+    // TODO(mythria): LoadGlobals don't use this path. LoadGlobals need special
+    // handling with proxies which is currently not supported by builtins. So
+    // for such cases, we should install a slow path and never reach here. Fix
+    // it to not generate this for LoadGlobals.
+    CSA_ASSERT(this,
+               WordNotEqual(IntPtrConstant(static_cast<int>(on_nonexistent)),
+                            IntPtrConstant(static_cast<int>(
+                                OnNonExistent::kThrowReferenceError))));
     TVARIABLE(IntPtrT, var_index);
     TVARIABLE(Name, var_unique);
 

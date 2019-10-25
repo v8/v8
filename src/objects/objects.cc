@@ -1083,7 +1083,7 @@ MaybeHandle<Object> Object::GetLengthFromArrayLike(Isolate* isolate,
 
 // static
 MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
-                                        OnNonExistent on_non_existent) {
+                                        bool is_global_reference) {
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
       case LookupIterator::NOT_FOUND:
@@ -1098,10 +1098,18 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
           receiver = handle(JSGlobalObject::cast(*receiver).global_proxy(),
                             it->isolate());
         }
+        if (is_global_reference) {
+          Maybe<bool> maybe = JSProxy::HasProperty(
+              it->isolate(), it->GetHolder<JSProxy>(), it->GetName());
+          if (maybe.IsNothing() || !maybe.FromJust()) {
+            it->NotFound();
+            return it->isolate()->factory()->undefined_value();
+          }
+        }
         MaybeHandle<Object> result =
             JSProxy::GetProperty(it->isolate(), it->GetHolder<JSProxy>(),
                                  it->GetName(), receiver, &was_found);
-        if (!was_found) it->NotFound();
+        if (!was_found && !is_global_reference) it->NotFound();
         return result;
       }
       case LookupIterator::INTERCEPTOR: {
@@ -1125,11 +1133,6 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
     }
   }
 
-  if (on_non_existent == OnNonExistent::kThrowReferenceError) {
-    THROW_NEW_ERROR(it->isolate(),
-                    NewReferenceError(MessageTemplate::kNotDefined, it->name()),
-                    Object);
-  }
   return it->isolate()->factory()->undefined_value();
 }
 

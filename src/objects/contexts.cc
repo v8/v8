@@ -135,11 +135,11 @@ JSGlobalProxy Context::global_proxy() {
  * Lookups a property in an object environment, taking the unscopables into
  * account. This is used For HasBinding spec algorithms for ObjectEnvironment.
  */
-static Maybe<bool> UnscopableLookup(LookupIterator* it) {
+static Maybe<bool> UnscopableLookup(LookupIterator* it, bool is_with_context) {
   Isolate* isolate = it->isolate();
 
   Maybe<bool> found = JSReceiver::HasProperty(it);
-  if (found.IsNothing() || !found.FromJust()) return found;
+  if (!is_with_context || found.IsNothing() || !found.FromJust()) return found;
 
   Handle<Object> unscopables;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -234,7 +234,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       if ((flags & FOLLOW_PROTOTYPE_CHAIN) == 0 ||
           object->IsJSContextExtensionObject()) {
         maybe = JSReceiver::GetOwnPropertyAttributes(object, name);
-      } else if (context->IsWithContext()) {
+      } else {
         // A with context will never bind "this", but debug-eval may look into
         // a with context when resolving "this". Other synthetic variables such
         // as new.target may be resolved as VariableMode::kDynamicLocal due to
@@ -243,10 +243,11 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
         // TODO(v8:5405): Replace this check with a DCHECK when resolution of
         // of synthetic variables does not go through this code path.
         if (ScopeInfo::VariableIsSynthetic(*name)) {
+          DCHECK(context->IsWithContext());
           maybe = Just(ABSENT);
         } else {
           LookupIterator it(object, name, object);
-          Maybe<bool> found = UnscopableLookup(&it);
+          Maybe<bool> found = UnscopableLookup(&it, context->IsWithContext());
           if (found.IsNothing()) {
             maybe = Nothing<PropertyAttributes>();
           } else {
@@ -256,8 +257,6 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
             maybe = Just(found.FromJust() ? NONE : ABSENT);
           }
         }
-      } else {
-        maybe = JSReceiver::GetPropertyAttributes(object, name);
       }
 
       if (maybe.IsNothing()) return Handle<Object>();
