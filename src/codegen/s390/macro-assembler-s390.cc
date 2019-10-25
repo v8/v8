@@ -1753,7 +1753,7 @@ void MacroAssembler::AssertConstructor(Register object, Register scratch) {
     STATIC_ASSERT(kSmiTag == 0);
     TestIfSmi(object);
     Check(ne, AbortReason::kOperandIsASmiAndNotAConstructor);
-    LoadMap(object, object);
+    LoadMap(scratch, object);
     tm(FieldMemOperand(scratch, Map::kBitFieldOffset),
        Operand(Map::IsConstructorBit::kMask));
     Check(ne, AbortReason::kOperandIsNotAConstructor);
