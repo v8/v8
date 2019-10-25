@@ -744,25 +744,26 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   // of OrderedHashTable, it should be OrderedHashMap or OrderedHashSet.
   template <typename CollectionType>
   void FindOrderedHashTableEntry(
-      Node* table, Node* hash,
+      const TNode<CollectionType> table, const TNode<IntPtrT> hash,
       const std::function<void(TNode<Object>, Label*, Label*)>& key_compare,
-      Variable* entry_start_position, Label* entry_found, Label* not_found);
+      TVariable<IntPtrT>* entry_start_position, Label* entry_found,
+      Label* not_found);
 };
 
 template <typename CollectionType>
 void CollectionsBuiltinsAssembler::FindOrderedHashTableEntry(
-    Node* table, Node* hash,
+    const TNode<CollectionType> table, const TNode<IntPtrT> hash,
     const std::function<void(TNode<Object>, Label*, Label*)>& key_compare,
-    Variable* entry_start_position, Label* entry_found, Label* not_found) {
+    TVariable<IntPtrT>* entry_start_position, Label* entry_found,
+    Label* not_found) {
   // Get the index of the bucket.
   TNode<IntPtrT> const number_of_buckets =
       SmiUntag(CAST(UnsafeLoadFixedArrayElement(
-          CAST(table), CollectionType::NumberOfBucketsIndex())));
+          table, CollectionType::NumberOfBucketsIndex())));
   TNode<WordT> const bucket =
       WordAnd(hash, IntPtrSub(number_of_buckets, IntPtrConstant(1)));
   TNode<IntPtrT> const first_entry = SmiUntag(CAST(UnsafeLoadFixedArrayElement(
-      CAST(table), bucket,
-      CollectionType::HashTableStartIndex() * kTaggedSize)));
+      table, bucket, CollectionType::HashTableStartIndex() * kTaggedSize)));
 
   // Walk the bucket chain.
   TNode<IntPtrT> entry_start;
@@ -786,10 +787,9 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntry(
             var_entry.value(),
             SmiUntag(SmiAdd(
                 CAST(UnsafeLoadFixedArrayElement(
-                    CAST(table), CollectionType::NumberOfElementsIndex())),
+                    table, CollectionType::NumberOfElementsIndex())),
                 CAST(UnsafeLoadFixedArrayElement(
-                    CAST(table),
-                    CollectionType::NumberOfDeletedElementsIndex()))))));
+                    table, CollectionType::NumberOfDeletedElementsIndex()))))));
 
     // Compute the index of the entry relative to kHashTableStartIndex.
     entry_start =
@@ -799,7 +799,7 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntry(
 
     // Load the key from the entry.
     TNode<Object> const candidate_key = UnsafeLoadFixedArrayElement(
-        CAST(table), entry_start,
+        table, entry_start,
         CollectionType::HashTableStartIndex() * kTaggedSize);
 
     key_compare(candidate_key, &if_key_found, &continue_next_entry);
@@ -807,7 +807,7 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntry(
     BIND(&continue_next_entry);
     // Load the index of the next entry in the bucket chain.
     var_entry = SmiUntag(CAST(UnsafeLoadFixedArrayElement(
-        CAST(table), entry_start,
+        table, entry_start,
         (CollectionType::HashTableStartIndex() + CollectionType::kChainOffset) *
             kTaggedSize)));
 
@@ -815,7 +815,7 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntry(
   }
 
   BIND(&if_key_found);
-  entry_start_position->Bind(entry_start);
+  *entry_start_position = entry_start;
   Goto(entry_found);
 }
 
