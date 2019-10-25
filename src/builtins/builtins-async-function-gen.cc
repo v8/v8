@@ -23,12 +23,12 @@ class AsyncFunctionBuiltinsAssembler : public AsyncBuiltinsAssembler {
   void AsyncFunctionAwait(const bool is_predicted_as_caught);
 
   void AsyncFunctionAwaitResumeClosure(
-      Node* const context, Node* const sent_value,
+      const TNode<Context> context, const TNode<Object> sent_value,
       JSGeneratorObject::ResumeMode resume_mode);
 };
 
 void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwaitResumeClosure(
-    Node* context, Node* sent_value,
+    TNode<Context> context, TNode<Object> sent_value,
     JSGeneratorObject::ResumeMode resume_mode) {
   DCHECK(resume_mode == JSGeneratorObject::kNext ||
          resume_mode == JSGeneratorObject::kThrow);
@@ -230,8 +230,8 @@ TF_BUILTIN(AsyncFunctionLazyDeoptContinuation, AsyncFunctionBuiltinsAssembler) {
 
 TF_BUILTIN(AsyncFunctionAwaitRejectClosure, AsyncFunctionBuiltinsAssembler) {
   CSA_ASSERT_JS_ARGC_EQ(this, 1);
-  Node* const sentError = Parameter(Descriptor::kSentError);
-  Node* const context = Parameter(Descriptor::kContext);
+  const TNode<Object> sentError = CAST(Parameter(Descriptor::kSentError));
+  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   AsyncFunctionAwaitResumeClosure(context, sentError,
                                   JSGeneratorObject::kThrow);
@@ -240,8 +240,8 @@ TF_BUILTIN(AsyncFunctionAwaitRejectClosure, AsyncFunctionBuiltinsAssembler) {
 
 TF_BUILTIN(AsyncFunctionAwaitResolveClosure, AsyncFunctionBuiltinsAssembler) {
   CSA_ASSERT_JS_ARGC_EQ(this, 1);
-  Node* const sentValue = Parameter(Descriptor::kSentValue);
-  Node* const context = Parameter(Descriptor::kContext);
+  const TNode<Object> sentValue = CAST(Parameter(Descriptor::kSentValue));
+  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   AsyncFunctionAwaitResumeClosure(context, sentValue, JSGeneratorObject::kNext);
   Return(UndefinedConstant());
