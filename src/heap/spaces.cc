@@ -4087,7 +4087,7 @@ LargePage* CodeLargeObjectSpace::FindPage(Address a) {
   return nullptr;
 }
 
-void LargeObjectSpace::ClearMarkingStateOfLiveObjects() {
+void OldLargeObjectSpace::ClearMarkingStateOfLiveObjects() {
   IncrementalMarking::NonAtomicMarkingState* marking_state =
       heap()->incremental_marking()->non_atomic_marking_state();
   LargeObjectSpaceObjectIterator it(this);
@@ -4119,7 +4119,7 @@ void CodeLargeObjectSpace::RemoveChunkMapEntries(LargePage* page) {
   }
 }
 
-void LargeObjectSpace::PromoteNewLargeObject(LargePage* page) {
+void OldLargeObjectSpace::PromoteNewLargeObject(LargePage* page) {
   DCHECK_EQ(page->owner_identity(), NEW_LO_SPACE);
   DCHECK(page->IsLargePage());
   DCHECK(page->IsFlagSet(MemoryChunk::FROM_PAGE));
