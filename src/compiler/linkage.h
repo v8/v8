@@ -215,9 +215,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     // The kCallerSavedFPRegisters only matters (and set) when the more general
     // flag for kCallerSavedRegisters above is also set.
     kCallerSavedFPRegisters = 1u << 10,
-    // AIX has a function descriptor which we will set to true by default
-    // for all CFunction calls (only used for Kind::kCallAddress).
-    kHasFunctionDescriptor = 1u << 11,
+    // AIX has a function descriptor by default but it can be disabled for a
+    // certain CFunction call (only used for Kind::kCallAddress).
+    kNoFunctionDescriptor = 1u << 11,
   };
   using Flags = base::Flags<Flag>;
 
@@ -302,9 +302,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   bool NeedsCallerSavedFPRegisters() const {
     return flags() & kCallerSavedFPRegisters;
   }
-  bool HasFunctionDescriptor() const {
-    return flags() & kHasFunctionDescriptor;
-  }
+  bool NoFunctionDescriptor() const { return flags() & kNoFunctionDescriptor; }
 
   LinkageLocation GetReturnLocation(size_t index) const {
     return location_sig_->GetReturn(index);

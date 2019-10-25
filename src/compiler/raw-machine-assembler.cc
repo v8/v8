@@ -702,13 +702,13 @@ void RawMachineAssembler::TailCallN(CallDescriptor* call_descriptor,
 
 namespace {
 
-enum FunctionDescriptorMode { kNoFunctionDescriptor, kHasFunctionDescriptor };
+enum FunctionDescriptorMode { kHasFunctionDescriptor, kNoFunctionDescriptor };
 
 Node* CallCFunctionImpl(
     RawMachineAssembler* rasm, Node* function, MachineType return_type,
     std::initializer_list<RawMachineAssembler::CFunctionArg> args,
     bool caller_saved_regs, SaveFPRegsMode mode,
-    FunctionDescriptorMode has_function_descriptor) {
+    FunctionDescriptorMode no_function_descriptor) {
   static constexpr std::size_t kNumCArgs = 10;
 
   MachineSignature::Builder builder(rasm->zone(), 1, args.size());
@@ -719,7 +719,7 @@ Node* CallCFunctionImpl(
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
   if (caller_saved_regs) flags |= CallDescriptor::kCallerSavedRegisters;
   if (caller_saved_fp_regs) flags |= CallDescriptor::kCallerSavedFPRegisters;
-  if (has_function_descriptor) flags |= CallDescriptor::kHasFunctionDescriptor;
+  if (no_function_descriptor) flags |= CallDescriptor::kNoFunctionDescriptor;
   auto call_descriptor =
       Linkage::GetSimplifiedCDescriptor(rasm->zone(), builder.Build(), flags);
 

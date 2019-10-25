@@ -2830,8 +2830,9 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
 #if defined(_AIX)
       // Highest misc_field bit is used on AIX to indicate if a CFunction call
       // has function descriptor or not.
-      misc_field |= call_descriptor->HasFunctionDescriptor()
-                    << kHasFunctionDescriptorBitShift;
+      if (!call_descriptor->NoFunctionDescriptor()) {
+        misc_field |= 1 << kHasFunctionDescriptorBitShift;
+      }
 #endif
       opcode = kArchCallCFunction | MiscField::encode(misc_field);
       break;
