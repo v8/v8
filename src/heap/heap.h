@@ -1979,7 +1979,7 @@ class Heap {
   unsigned int maximum_size_scavenges_ = 0;
 
   // Total time spent in GC.
-  double total_gc_time_ms_;
+  double total_gc_time_ms_ = 0.0;
 
   // Last time an idle notification happened.
   double last_idle_notification_time_ = 0.0;
