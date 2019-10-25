@@ -50,6 +50,10 @@ void BasicBlock::AddPredecessor(BasicBlock* predecessor) {
   predecessors_.push_back(predecessor);
 }
 
+void BasicBlock::RemovePredecessor(size_t index) {
+  predecessors_.erase(predecessors_.begin() + index);
+}
+
 void BasicBlock::AddNode(Node* node) { nodes_.push_back(node); }
 
 void BasicBlock::set_control(Control control) { control_ = control; }

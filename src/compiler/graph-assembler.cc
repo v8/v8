@@ -270,6 +270,10 @@ void GraphAssembler::BasicBlockUpdater::AddThrow(Node* node) {
   }
   original_control_input_ = node;
   original_control_ = BasicBlock::kThrow;
+
+  for (SuccessorInfo succ : saved_successors_) {
+    succ.block->RemovePredecessor(succ.index);
+  }
   saved_successors_.clear();
 }
 

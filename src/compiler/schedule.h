@@ -74,6 +74,7 @@ class V8_EXPORT_PRIVATE BasicBlock final
   BasicBlock* PredecessorAt(size_t index) { return predecessors_[index]; }
   void ClearPredecessors() { predecessors_.clear(); }
   void AddPredecessor(BasicBlock* predecessor);
+  void RemovePredecessor(size_t index);
 
   // Successors.
   BasicBlockVector& successors() { return successors_; }
