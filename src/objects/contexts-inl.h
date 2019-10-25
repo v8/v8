@@ -49,27 +49,8 @@ OBJECT_CONSTRUCTORS_IMPL(Context, HeapObject)
 NEVER_READ_ONLY_SPACE_IMPL(Context)
 CAST_ACCESSOR(Context)
 
-SMI_ACCESSORS(Context, length_and_extension_flag, kLengthOffset)
-SYNCHRONIZED_SMI_ACCESSORS(Context, length_and_extension_flag, kLengthOffset)
-
+SMI_ACCESSORS(Context, length, kLengthOffset)
 CAST_ACCESSOR(NativeContext)
-
-int Context::length() const {
-  return LengthField::decode(length_and_extension_flag());
-}
-
-int Context::synchronized_length() const {
-  return LengthField::decode(synchronized_length_and_extension_flag());
-}
-
-void Context::initialize_length_and_extension_bit(int len,
-                                                  Context::HasExtension flag) {
-  DCHECK(LengthField::is_valid(len));
-  int value = 0;
-  value = LengthField::update(value, len);
-  value = HasExtensionField::update(value, flag == Context::HasExtension::kYes);
-  set_length_and_extension_flag(value);
-}
 
 Object Context::get(int index) const {
   Isolate* isolate = GetIsolateForPtrCompr(*this);
@@ -115,19 +96,17 @@ void Context::set_previous(Context context) { set(PREVIOUS_INDEX, context); }
 Object Context::next_context_link() { return get(Context::NEXT_CONTEXT_LINK); }
 
 bool Context::has_extension() {
-  return (scope_info().HasContextExtension() ||
-          static_cast<bool>(
-              HasExtensionField::decode(length_and_extension_flag()))) &&
-         !extension().IsUndefined();
+  return scope_info().HasContextExtensionSlot() && !extension().IsUndefined();
 }
 
 HeapObject Context::extension() {
+  DCHECK(scope_info().HasContextExtensionSlot());
   return HeapObject::cast(get(EXTENSION_INDEX));
 }
+
 void Context::set_extension(HeapObject object) {
+  DCHECK(scope_info().HasContextExtensionSlot());
   set(EXTENSION_INDEX, object);
-  synchronized_set_length_and_extension_flag(
-      HasExtensionField::update(length_and_extension_flag(), true));
 }
 
 NativeContext Context::native_context() const {

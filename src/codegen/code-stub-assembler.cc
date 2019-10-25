@@ -2652,14 +2652,7 @@ TNode<BoolT> CodeStubAssembler::LoadScopeInfoHasExtensionField(
     TNode<ScopeInfo> scope_info) {
   TNode<IntPtrT> value =
       LoadAndUntagObjectField(scope_info, ScopeInfo::kFlagsOffset);
-  return IsSetWord<ScopeInfo::HasContextExtensionField>(value);
-}
-
-TNode<BoolT> CodeStubAssembler::LoadContextHasExtensionField(
-    SloppyTNode<Context> context) {
-  TNode<IntPtrT> value =
-      LoadAndUntagObjectField(context, Context::kLengthOffset);
-  return IsSetWord<Context::HasExtensionField>(value);
+  return IsSetWord<ScopeInfo::HasContextExtensionSlotField>(value);
 }
 
 TNode<Object> CodeStubAssembler::LoadContextElement(

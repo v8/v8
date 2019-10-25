@@ -64,8 +64,9 @@ class ScopeInfo : public FixedArray {
   // Parameters allocated in the context count as context allocated locals. If
   // no contexts are allocated for this scope ContextLength returns 0.
   int ContextLength() const;
-  bool HasContextExtension() const;
   int ContextHeaderLength() const;
+
+  bool HasContextExtensionSlot() const;
 
   // Does this scope declare a "this" binding?
   bool HasReceiver() const;
@@ -271,7 +272,8 @@ class ScopeInfo : public FixedArray {
       ForceContextAllocationField::Next<bool, 1>;
   using CanElideThisHoleChecksField =
       PrivateNameLookupSkipsOuterClassField::Next<bool, 1>;
-  using HasContextExtensionField = CanElideThisHoleChecksField::Next<bool, 1>;
+  using HasContextExtensionSlotField =
+      CanElideThisHoleChecksField::Next<bool, 1>;
 
   STATIC_ASSERT(kLastFunctionKind <= FunctionKindField::kMax);
 

@@ -464,20 +464,9 @@ class Context : public HeapObject {
   NEVER_READ_ONLY_SPACE
 
   DECL_CAST(Context)
-
-  enum class HasExtension { kYes, kNo };
-
   // [length]: length of the context.
   V8_INLINE int length() const;
-  V8_INLINE int synchronized_length() const;
-  V8_INLINE void initialize_length_and_extension_bit(
-      int len, HasExtension flag = HasExtension::kNo);
-
-  // We use the 30th bit. Otherwise if we set the 31st bit,
-  // the number would be pottentially bigger than an SMI.
-  // Any DCHECK(Smi::IsValue(...)) would fail.
-  using LengthField = BitField<int, 0, kSmiValueSize - 2>;
-  using HasExtensionField = BitField<int, kSmiValueSize - 2, 1>;
+  V8_INLINE void set_length(int value);
 
   // Setter and getter for elements.
   V8_INLINE Object get(int index) const;

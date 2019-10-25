@@ -1410,7 +1410,7 @@ Handle<Context> Factory::NewContext(Handle<Map> map, int size,
       isolate()->heap()->AllocateRawWith<Heap::kRetryOrFail>(size, allocation);
   result.set_map_after_allocation(*map);
   Handle<Context> context(Context::cast(result), isolate());
-  context->initialize_length_and_extension_bit(variadic_part_length);
+  context->set_length(variadic_part_length);
   DCHECK_EQ(context->SizeFromMap(*map), size);
   if (size > Context::kTodoHeaderSize) {
     ObjectSlot start = context->RawField(Context::kTodoHeaderSize);
@@ -1428,9 +1428,9 @@ Handle<NativeContext> Factory::NewNativeContext() {
                  AllocationType::kOld));
   context->set_native_context_map(*map);
   map->set_native_context(*context);
-  context->set_scope_info(ReadOnlyRoots(isolate()).empty_scope_info());
+  context->set_scope_info(ReadOnlyRoots(isolate()).native_scope_info());
   context->set_previous(Context::unchecked_cast(Smi::zero()));
-  context->set_extension(*the_hole_value());
+  context->set_extension(*undefined_value());
   context->set_errors_thrown(Smi::zero());
   context->set_math_random_index(Smi::zero());
   context->set_serialized_objects(*empty_fixed_array());

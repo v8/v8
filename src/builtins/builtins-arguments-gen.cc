@@ -272,7 +272,7 @@ TNode<JSObject> ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(
                                                    ScopeInfo::kFlagsOffset);
     TNode<BInt> context_header_size = IntPtrOrSmiAdd(
         IntPtrToBInt(
-            Signed(DecodeWord<ScopeInfo::HasContextExtensionField>(flags))),
+            Signed(DecodeWord<ScopeInfo::HasContextExtensionSlotField>(flags))),
         BIntConstant(Context::MIN_CONTEXT_SLOTS));
     TVARIABLE(BInt, context_index,
               IntPtrOrSmiSub(IntPtrOrSmiAdd(context_header_size,

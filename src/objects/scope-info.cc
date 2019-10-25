@@ -211,7 +211,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
         PrivateNameLookupSkipsOuterClassField::encode(
             scope->private_name_lookup_skips_outer_class()) |
         CanElideThisHoleChecksField::encode(can_elide_this_hole_checks) |
-        HasContextExtensionField::encode(scope->HasContextExtension());
+        HasContextExtensionSlotField::encode(scope->HasContextExtensionSlot());
     scope_info.SetFlags(flags);
 
     scope_info.SetParameterCount(parameter_count);
@@ -399,7 +399,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
       ForceContextAllocationField::encode(false) |
       PrivateNameLookupSkipsOuterClassField::encode(false) |
       CanElideThisHoleChecksField::encode(false) |
-      HasContextExtensionField::encode(false);
+      HasContextExtensionSlotField::encode(true);
   scope_info->SetFlags(flags);
 
   scope_info->SetParameterCount(0);
@@ -477,7 +477,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
               ForceContextAllocationField::encode(false) |
               PrivateNameLookupSkipsOuterClassField::encode(false) |
               CanElideThisHoleChecksField::encode(false) |
-              HasContextExtensionField::encode(is_native_context);
+              HasContextExtensionSlotField::encode(is_native_context);
   scope_info->SetFlags(flags);
   scope_info->SetParameterCount(parameter_count);
   scope_info->SetContextLocalCount(context_local_count);
@@ -582,13 +582,13 @@ int ScopeInfo::ContextLength() const {
   return 0;
 }
 
-bool ScopeInfo::HasContextExtension() const {
-  return HasContextExtensionField::decode(Flags());
+bool ScopeInfo::HasContextExtensionSlot() const {
+  return HasContextExtensionSlotField::decode(Flags());
 }
 
 int ScopeInfo::ContextHeaderLength() const {
-  return HasContextExtension() ? Context::MIN_CONTEXT_EXTENDED_SLOTS
-                               : Context::MIN_CONTEXT_SLOTS;
+  return HasContextExtensionSlot() ? Context::MIN_CONTEXT_EXTENDED_SLOTS
+                                   : Context::MIN_CONTEXT_SLOTS;
 }
 
 bool ScopeInfo::HasReceiver() const {

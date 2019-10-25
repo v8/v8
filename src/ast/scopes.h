@@ -454,7 +454,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   int num_stack_slots() const { return num_stack_slots_; }
   int num_heap_slots() const { return num_heap_slots_; }
 
-  bool HasContextExtension() const {
+  bool HasContextExtensionSlot() const {
     switch (scope_type_) {
       case MODULE_SCOPE:
       case WITH_SCOPE:  // DebugEvaluateContext as well
@@ -470,8 +470,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     UNREACHABLE();
   }
   int ContextHeaderLength() const {
-    return HasContextExtension() ? Context::MIN_CONTEXT_EXTENDED_SLOTS
-                                 : Context::MIN_CONTEXT_SLOTS;
+    return HasContextExtensionSlot() ? Context::MIN_CONTEXT_EXTENDED_SLOTS
+                                     : Context::MIN_CONTEXT_SLOTS;
   }
 
   int ContextLocalCount() const;

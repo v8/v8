@@ -2302,8 +2302,8 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
   if (HasInferredFunctionName()) {
     os << "\n - inferred function name: " << Brief(InferredFunctionName());
   }
-  if (HasContextExtension()) {
-    os << "\n - has context extension field";
+  if (HasContextExtensionSlot()) {
+    os << "\n - has context extension slot";
   }
   if (CanElideThisHoleChecks()) {
     os << "\n - can elide this hole checks";
