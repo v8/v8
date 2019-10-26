@@ -8408,9 +8408,11 @@ Isolate::AllowJavascriptExecutionScope::~AllowJavascriptExecutionScope() {
 }
 
 Isolate::SuppressMicrotaskExecutionScope::SuppressMicrotaskExecutionScope(
-    Isolate* isolate)
+    Isolate* isolate, MicrotaskQueue* microtask_queue)
     : isolate_(reinterpret_cast<i::Isolate*>(isolate)),
-      microtask_queue_(isolate_->default_microtask_queue()) {
+      microtask_queue_(microtask_queue
+                           ? static_cast<i::MicrotaskQueue*>(microtask_queue)
+                           : isolate_->default_microtask_queue()) {
   isolate_->thread_local_top()->IncrementCallDepth(this);
   microtask_queue_->IncrementMicrotasksSuppressions();
 }
