@@ -1561,7 +1561,7 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
 i::Address FuncData::v8_callback(i::Address host_data_foreign,
                                  i::Address argv) {
   FuncData* self =
-      i::Managed<FuncData>::cast(i::Object(host_data_foreign))->raw();
+      i::Managed<FuncData>::cast(i::Object(host_data_foreign)).raw();
   StoreImpl* store = impl(self->store);
   i::Isolate* isolate = store->i_isolate();
   i::HandleScope scope(isolate);

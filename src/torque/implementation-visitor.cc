@@ -3147,9 +3147,6 @@ void CppClassGenerator::GenerateClassConstructors() {
   hdr_ << "      \"class " << gen_name_ << " should be used as direct base for "
        << name_ << ".\");\n";
   hdr_ << "  }\n";
-  hdr_ << "  D* operator->() { return static_cast<D*>(this); }\n";
-  hdr_ << "  const D* operator->() const { return static_cast<const D*>(this); "
-          "}\n\n";
 
   hdr_ << "protected:\n";
   hdr_ << "  inline explicit " << gen_name_ << "(Address ptr);\n";

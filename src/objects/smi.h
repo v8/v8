@@ -30,8 +30,6 @@ class Smi : public Object {
     DCHECK(HAS_SMI_TAG(ptr));
 #endif
   }
-  Smi* operator->() { return this; }
-  const Smi* operator->() const { return this; }
 
   // Returns the integer value.
   inline int value() const { return Internals::SmiValue(ptr()); }

@@ -918,7 +918,7 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
         Handle<Object> value = lookup->GetDataValue();
 
         if (value->IsThinString()) {
-          value = handle(ThinString::cast(*value)->actual(), isolate());
+          value = handle(ThinString::cast(*value).actual(), isolate());
         }
 
         // Non internalized strings could turn into thin/cons strings
