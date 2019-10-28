@@ -40,6 +40,10 @@ void EmbeddedFileWriter::WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
   v8::internal::SourcePositionTableIterator positions(
       vpos, SourcePositionTableIterator::kExternalOnly);
 
+#ifndef DEBUG
+  CHECK(positions.done());  // Release builds must not contain debug infos.
+#endif
+
   const uint8_t* data = reinterpret_cast<const uint8_t*>(
       blob->InstructionStartOfBuiltin(builtin_id));
   uint32_t size = blob->PaddedInstructionSizeOfBuiltin(builtin_id);

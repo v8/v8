@@ -68,7 +68,10 @@ void CSAGenerator::EmitSourcePosition(SourcePosition pos, bool always_emit) {
 
 void CSAGenerator::EmitInstruction(const Instruction& instruction,
                                    Stack<std::string>* stack) {
+#ifdef DEBUG
   EmitSourcePosition(instruction->pos);
+#endif
+
   switch (instruction.kind()) {
 #define ENUM_ITEM(T)          \
   case InstructionKind::k##T: \
