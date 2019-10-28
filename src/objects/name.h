@@ -183,7 +183,7 @@ class Symbol : public TorqueGeneratedSymbol<Symbol, Name> {
   DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
 #undef FLAGS_BIT_FIELDS
 
-  using BodyDescriptor = FixedBodyDescriptor<kNameOffset, kSize, kSize>;
+  using BodyDescriptor = FixedBodyDescriptor<kDescriptionOffset, kSize, kSize>;
 
   void SymbolShortPrint(std::ostream& os);
 

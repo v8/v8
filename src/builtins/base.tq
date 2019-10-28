@@ -158,7 +158,7 @@ type AnyName = PrivateSymbol|PublicSymbol|String;
 @generateCppClass
 extern class Symbol extends Name {
   flags: int32;
-  name: Object;  // The print name of a symbol, or undefined if none.
+  description: String|Undefined;
 }
 
 type PublicSymbol extends Symbol;

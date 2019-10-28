@@ -1378,7 +1378,7 @@ Handle<Symbol> Factory::NewSymbol(AllocationType allocation) {
   Handle<Symbol> symbol(Symbol::cast(result), isolate());
   symbol->set_hash_field(Name::kIsNotArrayIndexMask |
                          (hash << Name::kHashShift));
-  symbol->set_name(*undefined_value());
+  symbol->set_description(*undefined_value());
   symbol->set_flags(0);
   DCHECK(!symbol->is_private());
   return symbol;
@@ -1394,7 +1394,7 @@ Handle<Symbol> Factory::NewPrivateSymbol(AllocationType allocation) {
 Handle<Symbol> Factory::NewPrivateNameSymbol(Handle<String> name) {
   Handle<Symbol> symbol = NewSymbol();
   symbol->set_is_private_name();
-  symbol->set_name(*name);
+  symbol->set_description(*name);
   return symbol;
 }
 

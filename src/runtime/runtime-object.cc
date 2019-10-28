@@ -41,7 +41,7 @@ MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
 
   if (!it.IsFound() && key->IsSymbol() &&
       Symbol::cast(*key).is_private_name()) {
-    Handle<Object> name_string(Symbol::cast(*key).name(), isolate);
+    Handle<Object> name_string(Symbol::cast(*key).description(), isolate);
     DCHECK(name_string->IsString());
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kInvalidPrivateMemberRead,
@@ -417,7 +417,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(
 
   if (!it.IsFound() && key->IsSymbol() &&
       Symbol::cast(*key).is_private_name()) {
-    Handle<Object> name_string(Symbol::cast(*key).name(), isolate);
+    Handle<Object> name_string(Symbol::cast(*key).description(), isolate);
     DCHECK(name_string->IsString());
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kInvalidPrivateMemberWrite,

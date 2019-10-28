@@ -469,13 +469,14 @@ Handle<String> Object::NoSideEffectsToString(Isolate* isolate,
     Handle<Symbol> symbol = Handle<Symbol>::cast(input);
 
     if (symbol->is_private_name()) {
-      return Handle<String>(String::cast(symbol->name()), isolate);
+      return Handle<String>(String::cast(symbol->description()), isolate);
     }
 
     IncrementalStringBuilder builder(isolate);
     builder.AppendCString("Symbol(");
-    if (symbol->name().IsString()) {
-      builder.AppendString(handle(String::cast(symbol->name()), isolate));
+    if (symbol->description().IsString()) {
+      builder.AppendString(
+          handle(String::cast(symbol->description()), isolate));
     }
     builder.AppendCharacter(')');
 
@@ -4352,7 +4353,8 @@ bool DescriptorArray::IsEqualTo(DescriptorArray other) {
 MaybeHandle<String> Name::ToFunctionName(Isolate* isolate, Handle<Name> name) {
   if (name->IsString()) return Handle<String>::cast(name);
   // ES6 section 9.2.11 SetFunctionName, step 4.
-  Handle<Object> description(Handle<Symbol>::cast(name)->name(), isolate);
+  Handle<Object> description(Handle<Symbol>::cast(name)->description(),
+                             isolate);
   if (description->IsUndefined(isolate)) {
     return isolate->factory()->empty_string();
   }
@@ -5725,11 +5727,11 @@ const char* Symbol::PrivateSymbolToName() const {
 
 void Symbol::SymbolShortPrint(std::ostream& os) {
   os << "<Symbol:";
-  if (!name().IsUndefined()) {
+  if (!description().IsUndefined()) {
     os << " ";
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
-    String::cast(name()).StringShortPrint(&accumulator, false);
+    String::cast(description()).StringShortPrint(&accumulator, false);
     os << accumulator.ToCString().get();
   } else {
     os << " (" << PrivateSymbolToName() << ")";

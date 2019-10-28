@@ -913,7 +913,8 @@ void V8HeapExplorer::ExtractStringReferences(HeapEntry* entry, String string) {
 }
 
 void V8HeapExplorer::ExtractSymbolReferences(HeapEntry* entry, Symbol symbol) {
-  SetInternalReference(entry, "name", symbol.name(), Symbol::kNameOffset);
+  SetInternalReference(entry, "name", symbol.description(),
+                       Symbol::kDescriptionOffset);
 }
 
 void V8HeapExplorer::ExtractJSCollectionReferences(HeapEntry* entry,

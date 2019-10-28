@@ -112,9 +112,9 @@ class CodeEventLogger::NameBuffer {
     } else {
       Symbol symbol = Symbol::cast(name);
       AppendBytes("symbol(");
-      if (!symbol.name().IsUndefined()) {
+      if (!symbol.description().IsUndefined()) {
         AppendBytes("\"");
-        AppendString(String::cast(symbol.name()));
+        AppendString(String::cast(symbol.description()));
         AppendBytes("\" ");
       }
       AppendBytes("hash ");

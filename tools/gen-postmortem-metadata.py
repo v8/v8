@@ -277,7 +277,7 @@ extras_accessors = [
     'ConsString, second, String, kSecondOffset',
     'SlicedString, offset, SMI, kOffsetOffset',
     'ThinString, actual, String, kActualOffset',
-    'Symbol, name, Object, kNameOffset',
+    'Symbol, name, Object, kDescriptionOffset',
 ];
 
 #

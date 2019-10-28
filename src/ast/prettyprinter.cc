@@ -582,7 +582,8 @@ void CallPrinter::PrintLiteral(Handle<Object> value, bool quote) {
     Print(isolate_->factory()->NumberToString(value));
   } else if (value->IsSymbol()) {
     // Symbols can only occur as literals if they were inserted by the parser.
-    PrintLiteral(handle(Handle<Symbol>::cast(value)->name(), isolate_), false);
+    PrintLiteral(handle(Handle<Symbol>::cast(value)->description(), isolate_),
+                 false);
   }
 }
 

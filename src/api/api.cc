@@ -5477,28 +5477,28 @@ v8::String::GetExternalOneByteStringResource() const {
   return nullptr;
 }
 
-Local<Value> Symbol::Name() const {
+Local<Value> Symbol::Description() const {
   i::Handle<i::Symbol> sym = Utils::OpenHandle(this);
 
   i::Isolate* isolate;
   if (!i::GetIsolateFromHeapObject(*sym, &isolate)) {
-    // Symbol is in RO_SPACE, which means that its name is also in RO_SPACE.
-    // Since RO_SPACE objects are immovable we can use the Handle(Address*)
-    // constructor with the address of the name field in the Symbol object
-    // without needing an isolate.
+    // Symbol is in RO_SPACE, which means that its description is also in
+    // RO_SPACE. Since RO_SPACE objects are immovable we can use the
+    // Handle(Address*) constructor with the address of the description
+    // field in the Symbol object without needing an isolate.
     DCHECK(!COMPRESS_POINTERS_BOOL);
-    i::Handle<i::HeapObject> ro_name(reinterpret_cast<i::Address*>(
-        sym->GetFieldAddress(i::Symbol::kNameOffset)));
-    return Utils::ToLocal(ro_name);
+    i::Handle<i::HeapObject> ro_description(reinterpret_cast<i::Address*>(
+        sym->GetFieldAddress(i::Symbol::kDescriptionOffset)));
+    return Utils::ToLocal(ro_description);
   }
 
-  i::Handle<i::Object> name(sym->name(), isolate);
+  i::Handle<i::Object> description(sym->description(), isolate);
 
-  return Utils::ToLocal(name);
+  return Utils::ToLocal(description);
 }
 
 Local<Value> Private::Name() const {
-  return reinterpret_cast<const Symbol*>(this)->Name();
+  return reinterpret_cast<const Symbol*>(this)->Description();
 }
 
 double Number::Value() const {
@@ -7860,7 +7860,7 @@ Local<Symbol> v8::Symbol::New(Isolate* isolate, Local<String> name) {
   LOG_API(i_isolate, Symbol, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::Handle<i::Symbol> result = i_isolate->factory()->NewSymbol();
-  if (!name.IsEmpty()) result->set_name(*Utils::OpenHandle(*name));
+  if (!name.IsEmpty()) result->set_description(*Utils::OpenHandle(*name));
   return Utils::ToLocal(result);
 }
 
@@ -7907,7 +7907,7 @@ Local<Private> v8::Private::New(Isolate* isolate, Local<String> name) {
   LOG_API(i_isolate, Private, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::Handle<i::Symbol> symbol = i_isolate->factory()->NewPrivateSymbol();
-  if (!name.IsEmpty()) symbol->set_name(*Utils::OpenHandle(*name));
+  if (!name.IsEmpty()) symbol->set_description(*Utils::OpenHandle(*name));
   Local<Symbol> result = Utils::ToLocal(symbol);
   return v8::Local<Private>(reinterpret_cast<Private*>(*result));
 }
