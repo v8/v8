@@ -1874,7 +1874,6 @@ MaybeHandle<T> FormatRangeCommon(
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue),
                     T);
   }
-  icu::DateInterval interval(x, y);
 
   icu::DateIntervalFormat* format =
       LazyCreateDateIntervalFormat(isolate, date_time_format);
@@ -1883,8 +1882,19 @@ MaybeHandle<T> FormatRangeCommon(
   }
 
   UErrorCode status = U_ZERO_ERROR;
+
+  icu::SimpleDateFormat* date_format =
+      date_time_format->icu_simple_date_format().raw();
+  const icu::Calendar* calendar = date_format->getCalendar();
+  std::unique_ptr<icu::Calendar> c1(calendar->clone());
+  std::unique_ptr<icu::Calendar> c2(calendar->clone());
+  c1->setTime(x, status);
+  c2->setTime(y, status);
+  // We need to format by Calendar because we need the Gregorian change
+  // adjustment already in the SimpleDateFormat to set the correct value of date
+  // older than Oct 15, 1582.
   icu::FormattedDateInterval formatted =
-      format->formatToValue(interval, status);
+      format->formatToValue(*c1, *c2, status);
   if (U_FAILURE(status)) {
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), T);
   }
