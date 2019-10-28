@@ -3089,7 +3089,7 @@ void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
 
 // This is the main Printf implementation. All other Printf variants call
 // PrintfNoPreserve after setting up one or more PreserveRegisterScopes.
-void MacroAssembler::PrintfNoPreserve(const char* format,
+void TurboAssembler::PrintfNoPreserve(const char* format,
                                       const CPURegister& arg0,
                                       const CPURegister& arg1,
                                       const CPURegister& arg2,
@@ -3122,7 +3122,7 @@ void MacroAssembler::PrintfNoPreserve(const char* format,
   fp_tmp_list.Remove(kPCSVarargsFP);
   fp_tmp_list.Remove(arg0, arg1, arg2, arg3);
 
-  // Override the MacroAssembler's scratch register list. The lists will be
+  // Override the TurboAssembler's scratch register list. The lists will be
   // reset automatically at the end of the UseScratchRegisterScope.
   UseScratchRegisterScope temps(this);
   TmpList()->set_list(tmp_list.list());
@@ -3242,7 +3242,7 @@ void TurboAssembler::CallPrintf(int arg_count, const CPURegister* args) {
 #endif
 }
 
-void MacroAssembler::Printf(const char* format, CPURegister arg0,
+void TurboAssembler::Printf(const char* format, CPURegister arg0,
                             CPURegister arg1, CPURegister arg2,
                             CPURegister arg3) {
   // Printf is expected to preserve all registers, so make sure that none are

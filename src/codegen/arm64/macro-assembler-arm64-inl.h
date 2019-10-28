@@ -771,7 +771,7 @@ void TurboAssembler::Mrs(const Register& rt, SystemRegister sysreg) {
   mrs(rt, sysreg);
 }
 
-void MacroAssembler::Msr(SystemRegister sysreg, const Register& rt) {
+void TurboAssembler::Msr(SystemRegister sysreg, const Register& rt) {
   DCHECK(allow_macro_instructions());
   msr(sysreg, rt);
 }
