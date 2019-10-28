@@ -40,7 +40,7 @@ class GraphAssembler::BasicBlockUpdater {
 
   Zone* temp_zone() { return temp_zone_; }
 
-  bool MightBeScheduled(Node* node);
+  bool IsOriginalNode(Node* node);
   void UpdateSuccessors(BasicBlock* block);
   void SetBlockDeferredFromPredecessors();
   void CopyForChange();
@@ -120,11 +120,15 @@ Node* GraphAssembler::BasicBlockUpdater::AddNode(Node* node, BasicBlock* to) {
 
 Node* GraphAssembler::BasicBlockUpdater::AddClonedNode(Node* node) {
   DCHECK(node->op()->HasProperty(Operator::kPure));
+  if (state_ == kUnchanged) {
+    CopyForChange();
+  }
+
   if (schedule_->IsScheduled(node) &&
       schedule_->block(node) == current_block_) {
     // Node is already scheduled for the current block, don't add it again.
     return node;
-  } else if (!schedule_->IsScheduled(node) && !MightBeScheduled(node)) {
+  } else if (!schedule_->IsScheduled(node) && !IsOriginalNode(node)) {
     // Node is not scheduled yet, so we can add it directly.
     return AddNode(node);
   } else {
@@ -134,7 +138,7 @@ Node* GraphAssembler::BasicBlockUpdater::AddClonedNode(Node* node) {
   }
 }
 
-bool GraphAssembler::BasicBlockUpdater::MightBeScheduled(Node* node) {
+bool GraphAssembler::BasicBlockUpdater::IsOriginalNode(Node* node) {
   // Return true if node was part of the original schedule and might currently
   // be re-added to the schedule after a CopyForChange.
   return node->id() < original_node_count_;
