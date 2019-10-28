@@ -108,9 +108,16 @@ namespace array {
       receiver: JSReceiver, initialReceiverLength: Number): intptr {
     // TODO(szuend): Implement full range sorting, not only up to MaxSmi.
     //               https://crbug.com/v8/7970.
-    let clampedReceiverLength: uintptr =
-        Convert<uintptr>(initialReceiverLength);
-    if (clampedReceiverLength > kSmiMaxValue) {
+    let clampedReceiverLength: uintptr;
+    try {
+      clampedReceiverLength =
+          ChangeSafeIntegerNumberToUintPtr(initialReceiverLength)
+          otherwise UIntPtrOverflow;
+      if (clampedReceiverLength > kSmiMaxValue) {
+        clampedReceiverLength = kSmiMaxValue;
+      }
+    }
+    label UIntPtrOverflow {
       clampedReceiverLength = kSmiMaxValue;
     }
 
