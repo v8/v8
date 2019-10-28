@@ -5184,7 +5184,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* target =
         (stub_mode_ == StubCallMode::kCallWasmRuntimeStub)
             ? mcgraph()->RelocatableIntPtrConstant(
-                  wasm::WasmCode::kWasmAllocateHeapNumber,
+                  wasm::WasmCode::kAllocateHeapNumber,
                   RelocInfo::WASM_STUB_CALL)
             : BuildLoadBuiltinFromIsolateRoot(Builtins::kAllocateHeapNumber);
     if (!allocate_heap_number_operator_.is_set()) {
@@ -5388,8 +5388,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         CallDescriptor::kNoFlags, Operator::kNoProperties, stub_mode_);
     Node* stub_code =
         (stub_mode_ == StubCallMode::kCallWasmRuntimeStub)
-            ? mcgraph()->RelocatableIntPtrConstant(
-                  wasm::WasmCode::kWasmToNumber, RelocInfo::WASM_STUB_CALL)
+            ? mcgraph()->RelocatableIntPtrConstant(wasm::WasmCode::kToNumber,
+                                                   RelocInfo::WASM_STUB_CALL)
             : BuildLoadBuiltinFromIsolateRoot(Builtins::kToNumber);
 
     Node* result = SetEffect(
@@ -5483,7 +5483,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       target =
           (stub_mode_ == StubCallMode::kCallWasmRuntimeStub)
               ? mcgraph()->RelocatableIntPtrConstant(
-                    wasm::WasmCode::kWasmI64ToBigInt, RelocInfo::WASM_STUB_CALL)
+                    wasm::WasmCode::kI64ToBigInt, RelocInfo::WASM_STUB_CALL)
               : BuildLoadBuiltinFromIsolateRoot(Builtins::kI64ToBigInt);
     } else {
       DCHECK(mcgraph()->machine()->Is32());
@@ -5493,8 +5493,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       target =
           (stub_mode_ == StubCallMode::kCallWasmRuntimeStub)
               ? mcgraph()->RelocatableIntPtrConstant(
-                    wasm::WasmCode::kWasmI32PairToBigInt,
-                    RelocInfo::WASM_STUB_CALL)
+                    wasm::WasmCode::kI32PairToBigInt, RelocInfo::WASM_STUB_CALL)
               : BuildLoadBuiltinFromIsolateRoot(Builtins::kI32PairToBigInt);
     }
 
@@ -5511,7 +5510,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       target =
           (stub_mode_ == StubCallMode::kCallWasmRuntimeStub)
               ? mcgraph()->RelocatableIntPtrConstant(
-                    wasm::WasmCode::kWasmBigIntToI64, RelocInfo::WASM_STUB_CALL)
+                    wasm::WasmCode::kBigIntToI64, RelocInfo::WASM_STUB_CALL)
               : BuildLoadBuiltinFromIsolateRoot(Builtins::kBigIntToI64);
     } else {
       DCHECK(mcgraph()->machine()->Is32());
@@ -5521,8 +5520,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       target =
           (stub_mode_ == StubCallMode::kCallWasmRuntimeStub)
               ? mcgraph()->RelocatableIntPtrConstant(
-                    wasm::WasmCode::kWasmBigIntToI32Pair,
-                    RelocInfo::WASM_STUB_CALL)
+                    wasm::WasmCode::kBigIntToI32Pair, RelocInfo::WASM_STUB_CALL)
               : BuildLoadBuiltinFromIsolateRoot(Builtins::kBigIntToI32Pair);
     }
 

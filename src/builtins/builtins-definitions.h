@@ -949,17 +949,14 @@ namespace internal {
                                                                                \
   /* Wasm */                                                                   \
   ASM(WasmCompileLazy, Dummy)                                                  \
-  TFC(WasmAllocateHeapNumber, AllocateHeapNumber)                              \
   TFC(WasmAtomicNotify, WasmAtomicNotify)                                      \
   TFC(WasmI32AtomicWait, WasmI32AtomicWait)                                    \
   TFC(WasmI64AtomicWait, WasmI64AtomicWait)                                    \
   TFC(WasmMemoryGrow, WasmMemoryGrow)                                          \
   TFC(WasmTableGet, WasmTableGet)                                              \
   TFC(WasmTableSet, WasmTableSet)                                              \
-  TFC(WasmRecordWrite, RecordWrite)                                            \
   TFC(WasmStackGuard, NoContext)                                               \
   TFC(WasmStackOverflow, NoContext)                                            \
-  TFC(WasmToNumber, TypeConversion)                                            \
   TFC(WasmThrow, WasmThrow)                                                    \
   TFC(WasmRethrow, WasmThrow)                                                  \
   TFS(ThrowWasmTrapUnreachable)                                                \
@@ -974,10 +971,6 @@ namespace internal {
   TFS(ThrowWasmTrapDataSegmentDropped)                                         \
   TFS(ThrowWasmTrapElemSegmentDropped)                                         \
   TFS(ThrowWasmTrapTableOutOfBounds)                                           \
-  TFC(WasmI64ToBigInt, I64ToBigInt)                                            \
-  TFC(WasmI32PairToBigInt, I32PairToBigInt)                                    \
-  TFC(WasmBigIntToI64, BigIntToI64)                                            \
-  TFC(WasmBigIntToI32Pair, BigIntToI32Pair)                                    \
                                                                                \
   /* WeakMap */                                                                \
   TFJ(WeakMapConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)     \
@@ -1270,25 +1263,25 @@ namespace internal {
 #define WASM_RUNTIME_STUB_LIST(V, VTRAP) \
   FOREACH_WASM_TRAPREASON(VTRAP)         \
   V(WasmCompileLazy)                     \
-  V(WasmAllocateHeapNumber)              \
   V(WasmAtomicNotify)                    \
   V(WasmI32AtomicWait)                   \
   V(WasmI64AtomicWait)                   \
   V(WasmMemoryGrow)                      \
   V(WasmTableGet)                        \
   V(WasmTableSet)                        \
-  V(WasmRecordWrite)                     \
   V(WasmStackGuard)                      \
   V(WasmStackOverflow)                   \
-  V(WasmToNumber)                        \
   V(WasmThrow)                           \
   V(WasmRethrow)                         \
+  V(AllocateHeapNumber)                  \
   V(ArgumentsAdaptorTrampoline)          \
+  V(BigIntToI32Pair)                     \
+  V(BigIntToI64)                         \
   V(DoubleToI)                           \
-  V(WasmI64ToBigInt)                     \
-  V(WasmI32PairToBigInt)                 \
-  V(WasmBigIntToI64)                     \
-  V(WasmBigIntToI32Pair)
+  V(I32PairToBigInt)                     \
+  V(I64ToBigInt)                         \
+  V(RecordWrite)                         \
+  V(ToNumber)
 
 // The exception thrown in the following builtins are caught internally and will
 // not be propagated further or re-thrown

@@ -60,28 +60,6 @@ class WasmBuiltinsAssembler : public CodeStubAssembler {
   }
 };
 
-TF_BUILTIN(WasmAllocateHeapNumber, WasmBuiltinsAssembler) {
-  TNode<Code> target = LoadBuiltinFromFrame(Builtins::kAllocateHeapNumber);
-  TailCallStub(AllocateHeapNumberDescriptor(), target, NoContextConstant());
-}
-
-TF_BUILTIN(WasmRecordWrite, WasmBuiltinsAssembler) {
-  TNode<Object> object = UncheckedParameter(Descriptor::kObject);
-  TNode<Object> slot = UncheckedParameter(Descriptor::kSlot);
-  TNode<Object> remembered = UncheckedParameter(Descriptor::kRememberedSet);
-  TNode<Object> fp_mode = UncheckedParameter(Descriptor::kFPMode);
-  TNode<Code> target = LoadBuiltinFromFrame(Builtins::kRecordWrite);
-  TailCallStub(RecordWriteDescriptor{}, target, NoContextConstant(), object,
-               slot, remembered, fp_mode);
-}
-
-TF_BUILTIN(WasmToNumber, WasmBuiltinsAssembler) {
-  TNode<Object> context = UncheckedParameter(Descriptor::kContext);
-  TNode<Object> argument = UncheckedParameter(Descriptor::kArgument);
-  TNode<Code> target = LoadBuiltinFromFrame(Builtins::kToNumber);
-  TailCallStub(TypeConversionDescriptor(), target, context, argument);
-}
-
 TF_BUILTIN(WasmStackGuard, WasmBuiltinsAssembler) {
   TNode<Object> instance = LoadInstanceFromFrame();
   TNode<Code> centry = LoadCEntryFromInstance(instance);
@@ -283,63 +261,6 @@ TF_BUILTIN(WasmTableSet, WasmBuiltinsAssembler) {
       wasm::WasmOpcodes::TrapReasonToMessageId(wasm::kTrapTableOutOfBounds);
   TailCallRuntimeWithCEntry(Runtime::kThrowWasmError, centry, context,
                             SmiConstant(static_cast<int>(message_id)));
-}
-
-TF_BUILTIN(WasmI64ToBigInt, WasmBuiltinsAssembler) {
-  if (!Is64()) {
-    Unreachable();
-    return;
-  }
-
-  TNode<Code> target = LoadBuiltinFromFrame(Builtins::kI64ToBigInt);
-  TNode<IntPtrT> argument =
-      UncheckedCast<IntPtrT>(Parameter(Descriptor::kArgument));
-
-  TailCallStub(I64ToBigIntDescriptor(), target, NoContextConstant(), argument);
-}
-
-TF_BUILTIN(WasmI32PairToBigInt, WasmBuiltinsAssembler) {
-  if (!Is32()) {
-    Unreachable();
-    return;
-  }
-
-  TNode<Code> target = LoadBuiltinFromFrame(Builtins::kI32PairToBigInt);
-  TNode<IntPtrT> low = UncheckedCast<IntPtrT>(Parameter(Descriptor::kLow));
-  TNode<IntPtrT> high = UncheckedCast<IntPtrT>(Parameter(Descriptor::kHigh));
-
-  TailCallStub(I32PairToBigIntDescriptor(), target, NoContextConstant(), low,
-               high);
-}
-
-TF_BUILTIN(WasmBigIntToI64, WasmBuiltinsAssembler) {
-  if (!Is64()) {
-    Unreachable();
-    return;
-  }
-
-  TNode<Object> context =
-      UncheckedCast<Object>(Parameter(Descriptor::kContext));
-  TNode<Code> target = LoadBuiltinFromFrame(Builtins::kBigIntToI64);
-  TNode<IntPtrT> argument =
-      UncheckedCast<IntPtrT>(Parameter(Descriptor::kArgument));
-
-  TailCallStub(BigIntToI64Descriptor(), target, context, argument);
-}
-
-TF_BUILTIN(WasmBigIntToI32Pair, WasmBuiltinsAssembler) {
-  if (!Is32()) {
-    Unreachable();
-    return;
-  }
-
-  TNode<Object> context =
-      UncheckedCast<Object>(Parameter(Descriptor::kContext));
-  TNode<Code> target = LoadBuiltinFromFrame(Builtins::kBigIntToI32Pair);
-  TNode<IntPtrT> argument =
-      UncheckedCast<IntPtrT>(Parameter(Descriptor::kArgument));
-
-  TailCallStub(BigIntToI32PairDescriptor(), target, context, argument);
 }
 
 #define DECLARE_ENUM(name)                                                \
