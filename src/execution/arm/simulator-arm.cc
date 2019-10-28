@@ -3912,6 +3912,18 @@ void SaturatingNarrow(Simulator* simulator, int Vd, int Vm) {
   simulator->set_neon_register<U, kDoubleSize>(Vd, dst);
 }
 
+template <typename T, typename U>
+void SaturatingUnsignedNarrow(Simulator* simulator, int Vd, int Vm) {
+  static const int kLanes = 16 / sizeof(T);
+  T src[kLanes];
+  U dst[kLanes];
+  simulator->get_neon_register(Vm, src);
+  for (int i = 0; i < kLanes; i++) {
+    dst[i] = Clamp<U>(src[i]);
+  }
+  simulator->set_neon_register<U, kDoubleSize>(Vd, dst);
+}
+
 template <typename T>
 void AddSaturate(Simulator* simulator, int Vd, int Vm, int Vn) {
   static const int kLanes = 16 / sizeof(T);
@@ -5332,27 +5344,35 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           int Vd = instr->VFPDRegValue(kDoublePrecision);
           int Vm = instr->VFPMRegValue(kSimd128Precision);
           NeonSize size = static_cast<NeonSize>(instr->Bits(19, 18));
-          bool is_unsigned = instr->Bit(6) != 0;
+          bool dst_unsigned = instr->Bit(6) != 0;
+          bool src_unsigned = instr->Bit(7, 6) == 0b11;
+          DCHECK_IMPLIES(src_unsigned, dst_unsigned);
           switch (size) {
             case Neon8: {
-              if (is_unsigned) {
+              if (src_unsigned) {
                 SaturatingNarrow<uint16_t, uint8_t>(this, Vd, Vm);
+              } else if (dst_unsigned) {
+                SaturatingUnsignedNarrow<int16_t, uint8_t>(this, Vd, Vm);
               } else {
                 SaturatingNarrow<int16_t, int8_t>(this, Vd, Vm);
               }
               break;
             }
             case Neon16: {
-              if (is_unsigned) {
+              if (src_unsigned) {
                 SaturatingNarrow<uint32_t, uint16_t>(this, Vd, Vm);
+              } else if (dst_unsigned) {
+                SaturatingUnsignedNarrow<int32_t, uint16_t>(this, Vd, Vm);
               } else {
                 SaturatingNarrow<int32_t, int16_t>(this, Vd, Vm);
               }
               break;
             }
             case Neon32: {
-              if (is_unsigned) {
+              if (src_unsigned) {
                 SaturatingNarrow<uint64_t, uint32_t>(this, Vd, Vm);
+              } else if (dst_unsigned) {
+                SaturatingUnsignedNarrow<int64_t, uint32_t>(this, Vd, Vm);
               } else {
                 SaturatingNarrow<int64_t, int32_t>(this, Vd, Vm);
               }

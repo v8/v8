@@ -459,20 +459,20 @@ void ComputePoisonedAddressForLoad(CodeGenerator* codegen,
     DCHECK_EQ(LeaveCC, i.OutputSBit());                                        \
   } while (0)
 
-#define ASSEMBLE_NEON_NARROWING_OP(dt)                \
+#define ASSEMBLE_NEON_NARROWING_OP(dt, sdt)           \
   do {                                                \
     Simd128Register dst = i.OutputSimd128Register(),  \
                     src0 = i.InputSimd128Register(0), \
                     src1 = i.InputSimd128Register(1); \
     if (dst == src0 && dst == src1) {                 \
-      __ vqmovn(dt, dst.low(), src0);                 \
+      __ vqmovn(dt, sdt, dst.low(), src0);            \
       __ vmov(dst.high(), dst.low());                 \
     } else if (dst == src0) {                         \
-      __ vqmovn(dt, dst.low(), src0);                 \
-      __ vqmovn(dt, dst.high(), src1);                \
+      __ vqmovn(dt, sdt, dst.low(), src0);            \
+      __ vqmovn(dt, sdt, dst.high(), src1);           \
     } else {                                          \
-      __ vqmovn(dt, dst.high(), src1);                \
-      __ vqmovn(dt, dst.low(), src0);                 \
+      __ vqmovn(dt, sdt, dst.high(), src1);           \
+      __ vqmovn(dt, sdt, dst.low(), src0);            \
     }                                                 \
   } while (0)
 
@@ -2259,7 +2259,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmI16x8SConvertI32x4:
-      ASSEMBLE_NEON_NARROWING_OP(NeonS16);
+      ASSEMBLE_NEON_NARROWING_OP(NeonS16, NeonS16);
       break;
     case kArmI16x8Add: {
       __ vadd(Neon16, i.OutputSimd128Register(), i.InputSimd128Register(0),
@@ -2343,7 +2343,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmI16x8UConvertI32x4:
-      ASSEMBLE_NEON_NARROWING_OP(NeonU16);
+      ASSEMBLE_NEON_NARROWING_OP(NeonU16, NeonS16);
       break;
     case kArmI16x8AddSaturateU: {
       __ vqadd(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
@@ -2415,7 +2415,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmI8x16SConvertI16x8:
-      ASSEMBLE_NEON_NARROWING_OP(NeonS8);
+      ASSEMBLE_NEON_NARROWING_OP(NeonS8, NeonS8);
       break;
     case kArmI8x16Add: {
       __ vadd(Neon8, i.OutputSimd128Register(), i.InputSimd128Register(0),
@@ -2485,7 +2485,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmI8x16UConvertI16x8:
-      ASSEMBLE_NEON_NARROWING_OP(NeonU8);
+      ASSEMBLE_NEON_NARROWING_OP(NeonU8, NeonS8);
       break;
     case kArmI8x16AddSaturateU: {
       __ vqadd(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),

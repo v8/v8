@@ -779,11 +779,9 @@ void SimdScalarLowering::LowerPack(Node* node, SimdType input_rep_type,
   DCHECK_EQ(2, node->InputCount());
   Node** rep_left = GetReplacementsWithType(node->InputAt(0), input_rep_type);
   Node** rep_right = GetReplacementsWithType(node->InputAt(1), input_rep_type);
-  const Operator* less_op =
-      is_signed ? machine()->Int32LessThan() : machine()->Uint32LessThan();
+  const Operator* less_op = machine()->Int32LessThan();
   Node* min = nullptr;
   Node* max = nullptr;
-  int32_t shift_val = 0;
   MachineRepresentation phi_rep;
   if (output_rep_type == SimdType::kInt16x8) {
     DCHECK(input_rep_type == SimdType::kInt32x4);
@@ -791,8 +789,8 @@ void SimdScalarLowering::LowerPack(Node* node, SimdType input_rep_type,
       min = mcgraph_->Int32Constant(std::numeric_limits<int16_t>::min());
       max = mcgraph_->Int32Constant(std::numeric_limits<int16_t>::max());
     } else {
+      min = mcgraph_->Int32Constant(std::numeric_limits<uint16_t>::min());
       max = mcgraph_->Uint32Constant(std::numeric_limits<uint16_t>::max());
-      shift_val = kShift16;
     }
     phi_rep = MachineRepresentation::kWord16;
   } else {
@@ -802,8 +800,8 @@ void SimdScalarLowering::LowerPack(Node* node, SimdType input_rep_type,
       min = mcgraph_->Int32Constant(std::numeric_limits<int8_t>::min());
       max = mcgraph_->Int32Constant(std::numeric_limits<int8_t>::max());
     } else {
+      min = mcgraph_->Int32Constant(std::numeric_limits<uint8_t>::min());
       max = mcgraph_->Uint32Constant(std::numeric_limits<uint8_t>::max());
-      shift_val = kShift8;
     }
     phi_rep = MachineRepresentation::kWord8;
   }
@@ -815,14 +813,10 @@ void SimdScalarLowering::LowerPack(Node* node, SimdType input_rep_type,
       input = rep_left[i];
     else
       input = rep_right[i - num_lanes / 2];
-    if (is_signed) {
-      Diamond d_min(graph(), common(), graph()->NewNode(less_op, input, min));
-      input = d_min.Phi(phi_rep, min, input);
-    }
+    Diamond d_min(graph(), common(), graph()->NewNode(less_op, input, min));
+    input = d_min.Phi(phi_rep, min, input);
     Diamond d_max(graph(), common(), graph()->NewNode(less_op, max, input));
     rep_node[i] = d_max.Phi(phi_rep, max, input);
-    rep_node[i] =
-        is_signed ? rep_node[i] : FixUpperBits(rep_node[i], shift_val);
   }
   ReplaceNode(node, rep_node, num_lanes);
 }

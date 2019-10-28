@@ -3306,13 +3306,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64I16x8UConvertI32x4: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      XMMRegister dst = i.OutputSimd128Register();
-      // Change negative lanes to 0x7FFFFFFF
-      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ psrld(kScratchDoubleReg, 1);
-      __ pminud(dst, kScratchDoubleReg);
-      __ pminud(kScratchDoubleReg, i.InputSimd128Register(1));
-      __ packusdw(dst, kScratchDoubleReg);
+      __ packusdw(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64I16x8AddSaturateU: {
@@ -3524,13 +3518,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64I8x16UConvertI16x8: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      XMMRegister dst = i.OutputSimd128Register();
-      // Change negative lanes to 0x7FFF
-      __ pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
-      __ psrlw(kScratchDoubleReg, 1);
-      __ pminuw(dst, kScratchDoubleReg);
-      __ pminuw(kScratchDoubleReg, i.InputSimd128Register(1));
-      __ packuswb(dst, kScratchDoubleReg);
+      __ packuswb(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64I8x16ShrU: {

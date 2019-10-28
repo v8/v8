@@ -3063,25 +3063,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kSSEI16x8UConvertI32x4: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
-      XMMRegister dst = i.OutputSimd128Register();
-      // Change negative lanes to 0x7FFFFFFF
-      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ psrld(kScratchDoubleReg, 1);
-      __ pminud(dst, kScratchDoubleReg);
-      __ pminud(kScratchDoubleReg, i.InputOperand(1));
-      __ packusdw(dst, kScratchDoubleReg);
+      __ packusdw(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
     case kAVXI16x8UConvertI32x4: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope avx_scope(tasm(), AVX);
       XMMRegister dst = i.OutputSimd128Register();
-      // Change negative lanes to 0x7FFFFFFF
-      __ vpcmpeqd(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
-      __ vpsrld(kScratchDoubleReg, kScratchDoubleReg, 1);
-      __ vpminud(dst, kScratchDoubleReg, i.InputSimd128Register(0));
-      __ vpminud(kScratchDoubleReg, kScratchDoubleReg, i.InputOperand(1));
-      __ vpackusdw(dst, dst, kScratchDoubleReg);
+      __ vpackusdw(dst, dst, i.InputOperand(1));
       break;
     }
     case kSSEI16x8AddSaturateU: {
@@ -3481,24 +3470,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
-      // Change negative lanes to 0x7FFF
-      __ pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
-      __ psrlw(kScratchDoubleReg, 1);
-      __ pminuw(dst, kScratchDoubleReg);
-      __ pminuw(kScratchDoubleReg, i.InputOperand(1));
-      __ packuswb(dst, kScratchDoubleReg);
+      __ packuswb(dst, i.InputOperand(1));
       break;
     }
     case kAVXI8x16UConvertI16x8: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope avx_scope(tasm(), AVX);
       XMMRegister dst = i.OutputSimd128Register();
-      // Change negative lanes to 0x7FFF
-      __ vpcmpeqw(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
-      __ vpsrlw(kScratchDoubleReg, kScratchDoubleReg, 1);
-      __ vpminuw(dst, kScratchDoubleReg, i.InputSimd128Register(0));
-      __ vpminuw(kScratchDoubleReg, kScratchDoubleReg, i.InputOperand(1));
-      __ vpackuswb(dst, dst, kScratchDoubleReg);
+      __ vpackuswb(dst, dst, i.InputOperand(1));
       break;
     }
     case kSSEI8x16AddSaturateU: {

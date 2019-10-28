@@ -2235,13 +2235,15 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
           PrintDRegister(Vm);
         } else if (instr->Bits(17, 16) == 0x2 && instr->Bits(11, 8) == 0x2 &&
                    instr->Bits(7, 6) != 0) {
-          // vqmovn.<type><size> Dd, Qm.
+          // vqmov{u}n.<type><size> Dd, Qm.
           int Vd = instr->VFPDRegValue(kDoublePrecision);
           int Vm = instr->VFPMRegValue(kSimd128Precision);
-          char type = instr->Bit(6) != 0 ? 'u' : 's';
+          int op = instr->Bits(7, 6);
+          const char* name = op == 0b01 ? "vqmovun" : "vqmovn";
+          char type = op == 0b11 ? 'u' : 's';
           int size = 2 * kBitsPerByte * (1 << instr->Bits(19, 18));
           out_buffer_pos_ +=
-              SNPrintF(out_buffer_ + out_buffer_pos_, "vqmovn.%c%i d%d, q%d",
+              SNPrintF(out_buffer_ + out_buffer_pos_, "%s.%c%i d%d, q%d", name,
                        type, size, Vd, Vm);
         } else {
           int Vd, Vm;

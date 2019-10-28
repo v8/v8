@@ -3690,17 +3690,19 @@ void Assembler::vmovl(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src) {
        0xA * B8 | m * B5 | B4 | vm);
 }
 
-void Assembler::vqmovn(NeonDataType dt, DwVfpRegister dst, QwNeonRegister src) {
+void Assembler::vqmovn(NeonDataType dst_dt, NeonDataType src_dt,
+                       DwVfpRegister dst, QwNeonRegister src) {
   // Instruction details available in ARM DDI 0406C.b, A8.8.1004.
   // vqmovn.<type><size> Dd, Qm. ARM vector narrowing move with saturation.
+  // vqmovun.<type><size> Dd, Qm. Same as above, but produces unsigned results.
   DCHECK(IsEnabled(NEON));
+  DCHECK_IMPLIES(NeonU(src_dt), NeonU(dst_dt));
   int vd, d;
   dst.split_code(&vd, &d);
   int vm, m;
   src.split_code(&vm, &m);
-  int size = NeonSz(dt);
-  int u = NeonU(dt);
-  int op = u != 0 ? 3 : 2;
+  int size = NeonSz(dst_dt);
+  int op = NeonU(src_dt) ? 0b11 : NeonU(dst_dt) ? 0b01 : 0b10;
   emit(0x1E7U * B23 | d * B22 | 0x3 * B20 | size * B18 | 0x2 * B16 | vd * B12 |
        0x2 * B8 | op * B6 | m * B5 | vm);
 }

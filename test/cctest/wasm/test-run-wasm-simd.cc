@@ -228,13 +228,6 @@ T Narrow(int64_t value) {
 }
 
 template <typename T>
-T UnsignedNarrow(int64_t value) {
-  static_assert(sizeof(int64_t) > sizeof(T), "T must be int32_t or smaller");
-  using UnsignedT = typename std::make_unsigned<T>::type;
-  return static_cast<T>(Clamp<UnsignedT>(value & 0xFFFFFFFFu));
-}
-
-template <typename T>
 T AddSaturate(T a, T b) {
   return Clamp<T>(Widen(a) + Widen(b));
 }
@@ -2034,7 +2027,7 @@ WASM_SIMD_TEST(I16x8ConvertI32x4) {
   FOR_INT32_INPUTS(x) {
     r.Call(x);
     int16_t expected_signed = Narrow<int16_t>(x);
-    int16_t expected_unsigned = UnsignedNarrow<int16_t>(x);
+    int16_t expected_unsigned = Narrow<uint16_t>(x);
     for (int i = 0; i < 8; i++) {
       CHECK_EQ(expected_signed, ReadLittleEndianValue<int16_t>(&g0[i]));
       CHECK_EQ(expected_unsigned, ReadLittleEndianValue<int16_t>(&g1[i]));
@@ -2277,7 +2270,7 @@ WASM_SIMD_TEST(I8x16ConvertI16x8) {
   FOR_INT16_INPUTS(x) {
     r.Call(x);
     int8_t expected_signed = Narrow<int8_t>(x);
-    int8_t expected_unsigned = UnsignedNarrow<int8_t>(x);
+    int8_t expected_unsigned = Narrow<uint8_t>(x);
     for (int i = 0; i < 16; i++) {
       CHECK_EQ(expected_signed, ReadLittleEndianValue<int8_t>(&g0[i]));
       CHECK_EQ(expected_unsigned, ReadLittleEndianValue<int8_t>(&g1[i]));

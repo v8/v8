@@ -2245,8 +2245,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Mov(temp, src1.V4S());
         src1 = temp;
       }
-      __ Uqxtn(dst.V4H(), src0.V4S());
-      __ Uqxtn2(dst.V8H(), src1.V4S());
+      __ Sqxtun(dst.V4H(), src0.V4S());
+      __ Sqxtun2(dst.V8H(), src1.V4S());
       break;
     }
       SIMD_BINOP_CASE(kArm64I16x8AddSaturateU, Uqadd, 8H);
@@ -2347,8 +2347,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Mov(temp, src1.V8H());
         src1 = temp;
       }
-      __ Uqxtn(dst.V8B(), src0.V8H());
-      __ Uqxtn2(dst.V16B(), src1.V8H());
+      __ Sqxtun(dst.V8B(), src0.V8H());
+      __ Sqxtun2(dst.V16B(), src1.V8H());
       break;
     }
       SIMD_BINOP_CASE(kArm64I8x16AddSaturateU, Uqadd, 16B);
