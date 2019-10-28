@@ -232,6 +232,34 @@ TEST_F(DecompressionOptimizerTest, Word32ShlSmiTag) {
   EXPECT_EQ(LoadMachRep(load), CompressedMachRep(MachineType::AnyTagged()));
 }
 
+TEST_F(DecompressionOptimizerTest, Word32SarSmiUntag) {
+  // Skip test if decompression elimination is enabled.
+  if (FLAG_turbo_decompression_elimination) {
+    return;
+  }
+
+  // Define variables.
+  Node* const control = graph()->start();
+  Node* object = Parameter(Type::Any(), 0);
+  Node* effect = graph()->start();
+  Node* index = Parameter(Type::UnsignedSmall(), 1);
+
+  // Test only for AnyTagged, since TaggedPointer can't be Smi tagged.
+  // Create the graph.
+  Node* load = graph()->NewNode(machine()->Load(MachineType::AnyTagged()),
+                                object, index, effect, control);
+  Node* truncation = graph()->NewNode(machine()->TruncateInt64ToInt32(), load);
+  Node* smi_shift_bits =
+      graph()->NewNode(common()->Int32Constant(kSmiShiftSize + kSmiTagSize));
+  Node* word32_sar =
+      graph()->NewNode(machine()->Word32Sar(), truncation, smi_shift_bits);
+  graph()->SetEnd(
+      graph()->NewNode(machine()->ChangeInt32ToInt64(), word32_sar));
+  // Change the nodes, and test the change.
+  Reduce();
+  EXPECT_EQ(LoadMachRep(load), CompressedMachRep(MachineType::AnyTagged()));
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
