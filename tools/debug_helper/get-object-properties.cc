@@ -16,130 +16,6 @@ namespace i = v8::internal;
 
 namespace v8_debug_helper_internal {
 
-// INSTANCE_TYPE_CHECKERS_SINGLE_BASE, trimmed down to only classes that have
-// layouts defined in .tq files (this subset relationship is asserted below).
-// For now, this is a hand-maintained list.
-// TODO(v8:7793): Torque should know enough about instance types to generate
-// this list.
-#define TQ_INSTANCE_TYPES_SINGLE_BASE(V)                       \
-  V(ByteArray, BYTE_ARRAY_TYPE)                                \
-  V(BytecodeArray, BYTECODE_ARRAY_TYPE)                        \
-  V(CallHandlerInfo, CALL_HANDLER_INFO_TYPE)                   \
-  V(Cell, CELL_TYPE)                                           \
-  V(DescriptorArray, DESCRIPTOR_ARRAY_TYPE)                    \
-  V(EmbedderDataArray, EMBEDDER_DATA_ARRAY_TYPE)               \
-  V(FeedbackCell, FEEDBACK_CELL_TYPE)                          \
-  V(FeedbackVector, FEEDBACK_VECTOR_TYPE)                      \
-  V(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)                 \
-  V(Foreign, FOREIGN_TYPE)                                     \
-  V(FreeSpace, FREE_SPACE_TYPE)                                \
-  V(HeapNumber, HEAP_NUMBER_TYPE)                              \
-  V(JSArgumentsObject, JS_ARGUMENTS_OBJECT_TYPE)               \
-  V(JSArray, JS_ARRAY_TYPE)                                    \
-  V(JSArrayBuffer, JS_ARRAY_BUFFER_TYPE)                       \
-  V(JSArrayIterator, JS_ARRAY_ITERATOR_TYPE)                   \
-  V(JSAsyncFromSyncIterator, JS_ASYNC_FROM_SYNC_ITERATOR_TYPE) \
-  V(JSAsyncFunctionObject, JS_ASYNC_FUNCTION_OBJECT_TYPE)      \
-  V(JSAsyncGeneratorObject, JS_ASYNC_GENERATOR_OBJECT_TYPE)    \
-  V(JSBoundFunction, JS_BOUND_FUNCTION_TYPE)                   \
-  V(JSDataView, JS_DATA_VIEW_TYPE)                             \
-  V(JSDate, JS_DATE_TYPE)                                      \
-  V(JSFunction, JS_FUNCTION_TYPE)                              \
-  V(JSGlobalObject, JS_GLOBAL_OBJECT_TYPE)                     \
-  V(JSGlobalProxy, JS_GLOBAL_PROXY_TYPE)                       \
-  V(JSMap, JS_MAP_TYPE)                                        \
-  V(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)                   \
-  V(JSModuleNamespace, JS_MODULE_NAMESPACE_TYPE)               \
-  V(JSPromise, JS_PROMISE_TYPE)                                \
-  V(JSProxy, JS_PROXY_TYPE)                                    \
-  V(JSRegExp, JS_REG_EXP_TYPE)                                 \
-  V(JSRegExpStringIterator, JS_REG_EXP_STRING_ITERATOR_TYPE)   \
-  V(JSSet, JS_SET_TYPE)                                        \
-  V(JSStringIterator, JS_STRING_ITERATOR_TYPE)                 \
-  V(JSTypedArray, JS_TYPED_ARRAY_TYPE)                         \
-  V(JSPrimitiveWrapper, JS_PRIMITIVE_WRAPPER_TYPE)             \
-  V(JSFinalizationGroup, JS_FINALIZATION_GROUP_TYPE)           \
-  V(JSFinalizationGroupCleanupIterator,                        \
-    JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE)               \
-  V(JSWeakMap, JS_WEAK_MAP_TYPE)                               \
-  V(JSWeakRef, JS_WEAK_REF_TYPE)                               \
-  V(JSWeakSet, JS_WEAK_SET_TYPE)                               \
-  V(Map, MAP_TYPE)                                             \
-  V(Oddball, ODDBALL_TYPE)                                     \
-  V(PreparseData, PREPARSE_DATA_TYPE)                          \
-  V(PropertyArray, PROPERTY_ARRAY_TYPE)                        \
-  V(PropertyCell, PROPERTY_CELL_TYPE)                          \
-  V(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)             \
-  V(Symbol, SYMBOL_TYPE)                                       \
-  V(WasmExceptionObject, WASM_EXCEPTION_OBJECT_TYPE)           \
-  V(WasmGlobalObject, WASM_GLOBAL_OBJECT_TYPE)                 \
-  V(WasmMemoryObject, WASM_MEMORY_OBJECT_TYPE)                 \
-  V(WasmModuleObject, WASM_MODULE_OBJECT_TYPE)                 \
-  V(WasmTableObject, WASM_TABLE_OBJECT_TYPE)                   \
-  V(WeakArrayList, WEAK_ARRAY_LIST_TYPE)                       \
-  V(WeakCell, WEAK_CELL_TYPE)
-#ifdef V8_INTL_SUPPORT
-
-#define TQ_INSTANCE_TYPES_SINGLE_NOSTRUCTS(V)           \
-  TQ_INSTANCE_TYPES_SINGLE_BASE(V)                      \
-  V(JSV8BreakIterator, JS_V8_BREAK_ITERATOR_TYPE)       \
-  V(JSCollator, JS_COLLATOR_TYPE)                       \
-  V(JSDateTimeFormat, JS_DATE_TIME_FORMAT_TYPE)         \
-  V(JSListFormat, JS_LIST_FORMAT_TYPE)                  \
-  V(JSLocale, JS_LOCALE_TYPE)                           \
-  V(JSNumberFormat, JS_NUMBER_FORMAT_TYPE)              \
-  V(JSPluralRules, JS_PLURAL_RULES_TYPE)                \
-  V(JSRelativeTimeFormat, JS_RELATIVE_TIME_FORMAT_TYPE) \
-  V(JSSegmentIterator, JS_SEGMENT_ITERATOR_TYPE)        \
-  V(JSSegmenter, JS_SEGMENTER_TYPE)
-
-#else
-
-#define TQ_INSTANCE_TYPES_SINGLE_NOSTRUCTS(V) TQ_INSTANCE_TYPES_SINGLE_BASE(V)
-
-#endif  // V8_INTL_SUPPORT
-
-// Used in the static assertion below.
-enum class InstanceTypeCheckersSingle {
-#define ENUM_VALUE(ClassName, INSTANCE_TYPE) k##ClassName = i::INSTANCE_TYPE,
-  INSTANCE_TYPE_CHECKERS_SINGLE(ENUM_VALUE)
-#undef ENUM_VALUE
-};
-
-// Verify that the instance type list above stays in sync with the truth.
-#define CHECK_VALUE(ClassName, INSTANCE_TYPE)                            \
-  static_assert(                                                         \
-      static_cast<i::InstanceType>(                                      \
-          InstanceTypeCheckersSingle::k##ClassName) == i::INSTANCE_TYPE, \
-      "TQ_INSTANCE_TYPES_SINGLE_NOSTRUCTS must be subset of "            \
-      "INSTANCE_TYPE_CHECKERS_SINGLE. Invalid class: " #ClassName);
-TQ_INSTANCE_TYPES_SINGLE_NOSTRUCTS(CHECK_VALUE)
-#undef CHECK_VALUE
-
-// Adapts one STRUCT_LIST_GENERATOR entry to (Name, NAME) format.
-#define STRUCT_INSTANCE_TYPE_ADAPTER(V, NAME, Name, name) V(Name, NAME)
-
-// Pairs of (ClassName, CLASS_NAME_TYPE) for every instance type that
-// corresponds to a single Torque-defined class. Note that all Struct-derived
-// classes are defined in Torque.
-#define TQ_INSTANCE_TYPES_SINGLE(V)     \
-  TQ_INSTANCE_TYPES_SINGLE_NOSTRUCTS(V) \
-  STRUCT_LIST_GENERATOR(STRUCT_INSTANCE_TYPE_ADAPTER, V)
-
-// Likewise, these are the subset of INSTANCE_TYPE_CHECKERS_RANGE that have
-// definitions in .tq files, rearranged with more specific things first. Also
-// includes JSObject and JSReceiver, which in the runtime are optimized to use
-// a one-sided check.
-#define TQ_INSTANCE_TYPES_RANGE(V)                                           \
-  V(Context, FIRST_CONTEXT_TYPE, LAST_CONTEXT_TYPE)                          \
-  V(FixedArray, FIRST_FIXED_ARRAY_TYPE, LAST_FIXED_ARRAY_TYPE)               \
-  V(Microtask, FIRST_MICROTASK_TYPE, LAST_MICROTASK_TYPE)                    \
-  V(String, FIRST_STRING_TYPE, LAST_STRING_TYPE)                             \
-  V(Name, FIRST_NAME_TYPE, LAST_NAME_TYPE)                                   \
-  V(WeakFixedArray, FIRST_WEAK_FIXED_ARRAY_TYPE, LAST_WEAK_FIXED_ARRAY_TYPE) \
-  V(JSObject, FIRST_JS_OBJECT_TYPE, LAST_JS_OBJECT_TYPE)                     \
-  V(JSReceiver, FIRST_JS_RECEIVER_TYPE, LAST_JS_RECEIVER_TYPE)
-
 std::string AppendAddressAndType(const std::string& brief, uintptr_t address,
                                  const char* type) {
   std::stringstream brief_stream;
@@ -173,8 +49,8 @@ TypedObject GetTypedObjectByHint(uintptr_t address,
             std::make_unique<Tq##ClassName>(address)};   \
   }
 
-  TQ_INSTANCE_TYPES_SINGLE(TYPE_NAME_CASE)
-  TQ_INSTANCE_TYPES_RANGE(TYPE_NAME_CASE)
+  TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(TYPE_NAME_CASE)
+  TORQUE_INSTANCE_CHECKERS_RANGE_FULLY_DEFINED(TYPE_NAME_CASE)
   STRING_CLASS_TYPES(TYPE_NAME_CASE)
 
 #undef TYPE_NAME_CASE
@@ -213,7 +89,7 @@ TypedObject GetTypedObjectByInstanceType(uintptr_t address,
 #define INSTANCE_TYPE_CASE(ClassName, INSTANCE_TYPE) \
   case i::INSTANCE_TYPE:                             \
     return {type_source, std::make_unique<Tq##ClassName>(address)};
-    TQ_INSTANCE_TYPES_SINGLE(INSTANCE_TYPE_CASE)
+    TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(INSTANCE_TYPE_CASE)
 #undef INSTANCE_TYPE_CASE
 
     default:
@@ -229,7 +105,7 @@ TypedObject GetTypedObjectByInstanceType(uintptr_t address,
   if (type >= i::FIRST_TYPE && type <= i::LAST_TYPE) {              \
     return {type_source, std::make_unique<Tq##ClassName>(address)}; \
   }
-      TQ_INSTANCE_TYPES_RANGE(INSTANCE_RANGE_CASE)
+      TORQUE_INSTANCE_CHECKERS_RANGE_FULLY_DEFINED(INSTANCE_RANGE_CASE)
 #undef INSTANCE_RANGE_CASE
 
       return {d::TypeCheckResult::kUnknownInstanceType,
@@ -301,12 +177,6 @@ TypedObject GetTypedHeapObject(uintptr_t address, d::MemoryAccessor accessor,
 
   return result;
 }
-
-#undef STRUCT_INSTANCE_TYPE_ADAPTER
-#undef TQ_INSTANCE_TYPES_SINGLE_BASE
-#undef TQ_INSTANCE_TYPES_SINGLE
-#undef TQ_INSTANCE_TYPES_SINGLE_NOSTRUCTS
-#undef TQ_INSTANCE_TYPES_RANGE
 
 // An object visitor that accumulates the first few characters of a string.
 class ReadStringVisitor : public TqObjectVisitor {

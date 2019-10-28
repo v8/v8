@@ -284,7 +284,7 @@ void EvacuationVerifier::VerifyEvacuationOnPage(Address start, Address end) {
   Address current = start;
   while (current < end) {
     HeapObject object = HeapObject::FromAddress(current);
-    if (!object.IsFiller()) object.Iterate(this);
+    if (!object.IsFreeSpaceOrFiller()) object.Iterate(this);
     current += object.Size();
   }
 }
@@ -1744,7 +1744,7 @@ void MarkCompactCollector::ProcessMarkingWorklistInternal() {
   while (!(object = marking_worklist()->Pop()).is_null()) {
     // Left trimming may result in grey or black filler objects on the marking
     // worklist. Ignore these objects.
-    if (object.IsFiller()) {
+    if (object.IsFreeSpaceOrFiller()) {
       // Due to copying mark bits and the fact that grey and black have their
       // first bit set, one word fillers are always black.
       DCHECK_IMPLIES(
@@ -4856,7 +4856,7 @@ void MinorMarkCompactCollector::ProcessMarkingWorklist() {
   MarkingWorklist::View marking_worklist(worklist(), kMainMarker);
   HeapObject object;
   while (marking_worklist.Pop(&object)) {
-    DCHECK(!object.IsFiller());
+    DCHECK(!object.IsFreeSpaceOrFiller());
     DCHECK(object.IsHeapObject());
     DCHECK(heap()->Contains(object));
     DCHECK(non_atomic_marking_state()->IsGrey(object));

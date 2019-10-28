@@ -543,7 +543,7 @@ void Serializer::ObjectSerializer::Serialize() {
   }
 
   // We don't expect fillers.
-  DCHECK(!object_.IsFiller());
+  DCHECK(!object_.IsFreeSpaceOrFiller());
 
   if (object_.IsScript()) {
     // Clear cached line ends.

@@ -1066,7 +1066,7 @@ Address SkipFillers(HeapObject filler, Address end) {
   Address addr = filler.address();
   while (addr < end) {
     filler = HeapObject::FromAddress(addr);
-    CHECK(filler.IsFiller());
+    CHECK(filler.IsFreeSpaceOrFiller());
     addr = filler.address() + filler.Size();
   }
   return addr;
@@ -1084,7 +1084,7 @@ size_t Page::ShrinkToHighWaterMark() {
   // or the area_end.
   HeapObject filler = HeapObject::FromAddress(HighWaterMark());
   if (filler.address() == area_end()) return 0;
-  CHECK(filler.IsFiller());
+  CHECK(filler.IsFreeSpaceOrFiller());
   // Ensure that no objects were allocated in [filler, area_end) region.
   DCHECK_EQ(area_end(), SkipFillers(filler, area_end()));
   // Ensure that no objects will be allocated on this page.
@@ -1107,7 +1107,7 @@ size_t Page::ShrinkToHighWaterMark() {
     heap()->memory_allocator()->PartialFreeMemory(
         this, address() + size() - unused, unused, area_end() - unused);
     if (filler.address() != area_end()) {
-      CHECK(filler.IsFiller());
+      CHECK(filler.IsFreeSpaceOrFiller());
       CHECK_EQ(filler.address() + filler.Size(), area_end());
     }
   }
@@ -2197,7 +2197,7 @@ void PagedSpace::VerifyCountersAfterSweeping() {
     PagedSpaceObjectIterator it(page);
     size_t real_allocated = 0;
     for (HeapObject object = it.Next(); !object.is_null(); object = it.Next()) {
-      if (!object.IsFiller()) {
+      if (!object.IsFreeSpaceOrFiller()) {
         real_allocated += object.Size();
       }
     }
@@ -3916,7 +3916,7 @@ void ReadOnlySpace::RepairFreeListsAfterDeserialization() {
     if (start < end - size) {
       // A region at the high watermark is already in free list.
       HeapObject filler = HeapObject::FromAddress(start);
-      CHECK(filler.IsFiller());
+      CHECK(filler.IsFreeSpaceOrFiller());
       start += filler.Size();
     }
     CHECK_EQ(size, static_cast<int>(end - start));

@@ -371,7 +371,7 @@ TEST(Regress5829) {
   IncrementalMarking::MarkingState* marking_state = marking->marking_state();
   for (auto object_and_size :
        LiveObjectRange<kGreyObjects>(page, marking_state->bitmap(page))) {
-    CHECK(!object_and_size.first.IsFiller());
+    CHECK(!object_and_size.first.IsFreeSpaceOrFiller());
   }
 }
 

@@ -120,26 +120,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
   }
 
   switch (instance_type) {
-    case SYMBOL_TYPE:
-      Symbol::cast(*this).SymbolPrint(os);
-      break;
-    case MAP_TYPE:
-      Map::cast(*this).MapPrint(os);
-      break;
-    case HEAP_NUMBER_TYPE:
-      HeapNumber::cast(*this).HeapNumberPrint(os);
-      os << "\n";
-      break;
-    case BIGINT_TYPE:
-      BigInt::cast(*this).BigIntPrint(os);
-      os << "\n";
-      break;
-    case EMBEDDER_DATA_ARRAY_TYPE:
-      EmbedderDataArray::cast(*this).EmbedderDataArrayPrint(os);
-      break;
-    case FIXED_DOUBLE_ARRAY_TYPE:
-      FixedDoubleArray::cast(*this).FixedDoubleArrayPrint(os);
-      break;
     case FIXED_ARRAY_TYPE:
       FixedArray::cast(*this).FixedArrayPrint(os);
       break;
@@ -180,32 +160,11 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       ObjectBoilerplateDescription::cast(*this)
           .ObjectBoilerplateDescriptionPrint(os);
       break;
-    case PROPERTY_ARRAY_TYPE:
-      PropertyArray::cast(*this).PropertyArrayPrint(os);
-      break;
-    case BYTE_ARRAY_TYPE:
-      ByteArray::cast(*this).ByteArrayPrint(os);
-      break;
-    case BYTECODE_ARRAY_TYPE:
-      BytecodeArray::cast(*this).BytecodeArrayPrint(os);
-      break;
-    case DESCRIPTOR_ARRAY_TYPE:
-      DescriptorArray::cast(*this).DescriptorArrayPrint(os);
-      break;
     case TRANSITION_ARRAY_TYPE:
       TransitionArray::cast(*this).TransitionArrayPrint(os);
       break;
-    case FEEDBACK_CELL_TYPE:
-      FeedbackCell::cast(*this).FeedbackCellPrint(os);
-      break;
     case CLOSURE_FEEDBACK_CELL_ARRAY_TYPE:
       ClosureFeedbackCellArray::cast(*this).ClosureFeedbackCellArrayPrint(os);
-      break;
-    case FEEDBACK_VECTOR_TYPE:
-      FeedbackVector::cast(*this).FeedbackVectorPrint(os);
-      break;
-    case FREE_SPACE_TYPE:
-      FreeSpace::cast(*this).FreeSpacePrint(os);
       break;
 
     case FILLER_TYPE:
@@ -215,79 +174,20 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
-    case JS_ARGUMENTS_OBJECT_TYPE:
     case JS_ERROR_TYPE:
-    // TODO(titzer): debug printing for more wasm objects
-    case WASM_EXCEPTION_OBJECT_TYPE:
       JSObject::cast(*this).JSObjectPrint(os);
-      break;
-    case WASM_MODULE_OBJECT_TYPE:
-      WasmModuleObject::cast(*this).WasmModuleObjectPrint(os);
-      break;
-    case WASM_MEMORY_OBJECT_TYPE:
-      WasmMemoryObject::cast(*this).WasmMemoryObjectPrint(os);
-      break;
-    case WASM_TABLE_OBJECT_TYPE:
-      WasmTableObject::cast(*this).WasmTableObjectPrint(os);
-      break;
-    case WASM_GLOBAL_OBJECT_TYPE:
-      WasmGlobalObject::cast(*this).WasmGlobalObjectPrint(os);
       break;
     case WASM_INSTANCE_OBJECT_TYPE:
       WasmInstanceObject::cast(*this).WasmInstanceObjectPrint(os);
       break;
-    case JS_ASYNC_FUNCTION_OBJECT_TYPE:
-    case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
       JSGeneratorObject::cast(*this).JSGeneratorObjectPrint(os);
-      break;
-    case JS_PROMISE_TYPE:
-      JSPromise::cast(*this).JSPromisePrint(os);
-      break;
-    case JS_ARRAY_TYPE:
-      JSArray::cast(*this).JSArrayPrint(os);
-      break;
-    case JS_REG_EXP_TYPE:
-      JSRegExp::cast(*this).JSRegExpPrint(os);
-      break;
-    case JS_REG_EXP_STRING_ITERATOR_TYPE:
-      JSRegExpStringIterator::cast(*this).JSRegExpStringIteratorPrint(os);
-      break;
-    case ODDBALL_TYPE:
-      Oddball::cast(*this).to_string().Print(os);
-      break;
-    case JS_BOUND_FUNCTION_TYPE:
-      JSBoundFunction::cast(*this).JSBoundFunctionPrint(os);
-      break;
-    case JS_FUNCTION_TYPE:
-      JSFunction::cast(*this).JSFunctionPrint(os);
-      break;
-    case JS_GLOBAL_PROXY_TYPE:
-      JSGlobalProxy::cast(*this).JSGlobalProxyPrint(os);
-      break;
-    case JS_GLOBAL_OBJECT_TYPE:
-      JSGlobalObject::cast(*this).JSGlobalObjectPrint(os);
-      break;
-    case JS_PRIMITIVE_WRAPPER_TYPE:
-      JSPrimitiveWrapper::cast(*this).JSPrimitiveWrapperPrint(os);
-      break;
-    case JS_DATE_TYPE:
-      JSDate::cast(*this).JSDatePrint(os);
       break;
     case CODE_TYPE:
       Code::cast(*this).CodePrint(os);
       break;
     case CODE_DATA_CONTAINER_TYPE:
       CodeDataContainer::cast(*this).CodeDataContainerPrint(os);
-      break;
-    case JS_PROXY_TYPE:
-      JSProxy::cast(*this).JSProxyPrint(os);
-      break;
-    case JS_SET_TYPE:
-      JSSet::cast(*this).JSSetPrint(os);
-      break;
-    case JS_MAP_TYPE:
-      JSMap::cast(*this).JSMapPrint(os);
       break;
     case JS_SET_KEY_VALUE_ITERATOR_TYPE:
     case JS_SET_VALUE_ITERATOR_TYPE:
@@ -298,107 +198,14 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_MAP_VALUE_ITERATOR_TYPE:
       JSMapIterator::cast(*this).JSMapIteratorPrint(os);
       break;
-    case WEAK_CELL_TYPE:
-      WeakCell::cast(*this).WeakCellPrint(os);
-      break;
-    case JS_WEAK_REF_TYPE:
-      JSWeakRef::cast(*this).JSWeakRefPrint(os);
-      break;
-    case JS_FINALIZATION_GROUP_TYPE:
-      JSFinalizationGroup::cast(*this).JSFinalizationGroupPrint(os);
-      break;
-    case JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE:
-      JSFinalizationGroupCleanupIterator::cast(*this)
-          .JSFinalizationGroupCleanupIteratorPrint(os);
-      break;
-    case JS_WEAK_MAP_TYPE:
-      JSWeakMap::cast(*this).JSWeakMapPrint(os);
-      break;
-    case JS_WEAK_SET_TYPE:
-      JSWeakSet::cast(*this).JSWeakSetPrint(os);
-      break;
-    case JS_MODULE_NAMESPACE_TYPE:
-      JSModuleNamespace::cast(*this).JSModuleNamespacePrint(os);
-      break;
-    case FOREIGN_TYPE:
-      Foreign::cast(*this).ForeignPrint(os);
-      break;
-    case CALL_HANDLER_INFO_TYPE:
-      CallHandlerInfo::cast(*this).CallHandlerInfoPrint(os);
-      break;
-    case PREPARSE_DATA_TYPE:
-      PreparseData::cast(*this).PreparseDataPrint(os);
-      break;
-    case UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE:
-      UncompiledDataWithoutPreparseData::cast(*this)
-          .UncompiledDataWithoutPreparseDataPrint(os);
-      break;
-    case UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE:
-      UncompiledDataWithPreparseData::cast(*this)
-          .UncompiledDataWithPreparseDataPrint(os);
-      break;
-    case SHARED_FUNCTION_INFO_TYPE:
-      SharedFunctionInfo::cast(*this).SharedFunctionInfoPrint(os);
-      break;
-    case JS_MESSAGE_OBJECT_TYPE:
-      JSMessageObject::cast(*this).JSMessageObjectPrint(os);
-      break;
-    case CELL_TYPE:
-      Cell::cast(*this).CellPrint(os);
-      break;
-    case PROPERTY_CELL_TYPE:
-      PropertyCell::cast(*this).PropertyCellPrint(os);
-      break;
-    case JS_ARRAY_BUFFER_TYPE:
-      JSArrayBuffer::cast(*this).JSArrayBufferPrint(os);
-      break;
-    case JS_ARRAY_ITERATOR_TYPE:
-      JSArrayIterator::cast(*this).JSArrayIteratorPrint(os);
-      break;
-    case JS_TYPED_ARRAY_TYPE:
-      JSTypedArray::cast(*this).JSTypedArrayPrint(os);
-      break;
-    case JS_DATA_VIEW_TYPE:
-      JSDataView::cast(*this).JSDataViewPrint(os);
-      break;
-#ifdef V8_INTL_SUPPORT
-    case JS_V8_BREAK_ITERATOR_TYPE:
-      JSV8BreakIterator::cast(*this).JSV8BreakIteratorPrint(os);
-      break;
-    case JS_COLLATOR_TYPE:
-      JSCollator::cast(*this).JSCollatorPrint(os);
-      break;
-    case JS_DATE_TIME_FORMAT_TYPE:
-      JSDateTimeFormat::cast(*this).JSDateTimeFormatPrint(os);
-      break;
-    case JS_LIST_FORMAT_TYPE:
-      JSListFormat::cast(*this).JSListFormatPrint(os);
-      break;
-    case JS_LOCALE_TYPE:
-      JSLocale::cast(*this).JSLocalePrint(os);
-      break;
-    case JS_NUMBER_FORMAT_TYPE:
-      JSNumberFormat::cast(*this).JSNumberFormatPrint(os);
-      break;
-    case JS_PLURAL_RULES_TYPE:
-      JSPluralRules::cast(*this).JSPluralRulesPrint(os);
-      break;
-    case JS_RELATIVE_TIME_FORMAT_TYPE:
-      JSRelativeTimeFormat::cast(*this).JSRelativeTimeFormatPrint(os);
-      break;
-    case JS_SEGMENT_ITERATOR_TYPE:
-      JSSegmentIterator::cast(*this).JSSegmentIteratorPrint(os);
-      break;
-    case JS_SEGMENTER_TYPE:
-      JSSegmenter::cast(*this).JSSegmenterPrint(os);
-      break;
-#endif  // V8_INTL_SUPPORT
-#define MAKE_STRUCT_CASE(TYPE, Name, name) \
-  case TYPE:                               \
-    Name::cast(*this).Name##Print(os);     \
+#define MAKE_TORQUE_CASE(Name, TYPE)   \
+  case TYPE:                           \
+    Name::cast(*this).Name##Print(os); \
     break;
-      STRUCT_LIST(MAKE_STRUCT_CASE)
-#undef MAKE_STRUCT_CASE
+      // Every class that has its fields defined in a .tq file and corresponds
+      // to exactly one InstanceType value is included in the following list.
+      TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
+#undef MAKE_TORQUE_CASE
 
     case ALLOCATION_SITE_TYPE:
       AllocationSite::cast(*this).AllocationSitePrint(os);
@@ -412,20 +219,11 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case SCOPE_INFO_TYPE:
       ScopeInfo::cast(*this).ScopeInfoPrint(os);
       break;
-    case SOURCE_TEXT_MODULE_TYPE:
-      SourceTextModule::cast(*this).SourceTextModulePrint(os);
-      break;
-    case SYNTHETIC_MODULE_TYPE:
-      SyntheticModule::cast(*this).SyntheticModulePrint(os);
-      break;
     case FEEDBACK_METADATA_TYPE:
       FeedbackMetadata::cast(*this).FeedbackMetadataPrint(os);
       break;
     case WEAK_FIXED_ARRAY_TYPE:
       WeakFixedArray::cast(*this).WeakFixedArrayPrint(os);
-      break;
-    case WEAK_ARRAY_LIST_TYPE:
-      WeakArrayList::cast(*this).WeakArrayListPrint(os);
       break;
     case INTERNALIZED_STRING_TYPE:
     case EXTERNAL_INTERNALIZED_STRING_TYPE:
@@ -448,8 +246,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case SMALL_ORDERED_HASH_MAP_TYPE:
     case SMALL_ORDERED_HASH_SET_TYPE:
     case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
-    case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
-    case JS_STRING_ITERATOR_TYPE:
       // TODO(all): Handle these types too.
       os << "UNKNOWN TYPE " << map().instance_type();
       UNREACHABLE();
@@ -1193,6 +989,39 @@ void FeedbackNexus::Print(std::ostream& os) {  // NOLINT
     case FeedbackSlotKind::kKindsNumber:
       UNREACHABLE();
   }
+}
+
+void Oddball::OddballPrint(std::ostream& os) {  // NOLINT
+  to_string().Print(os);
+}
+
+void JSAsyncFunctionObject::JSAsyncFunctionObjectPrint(
+    std::ostream& os) {  // NOLINT
+  JSGeneratorObjectPrint(os);
+}
+
+void JSAsyncGeneratorObject::JSAsyncGeneratorObjectPrint(
+    std::ostream& os) {  // NOLINT
+  JSGeneratorObjectPrint(os);
+}
+
+void JSArgumentsObject::JSArgumentsObjectPrint(std::ostream& os) {  // NOLINT
+  JSObjectPrint(os);
+}
+
+void JSStringIterator::JSStringIteratorPrint(std::ostream& os) {  // NOLINT
+  JSObjectPrintHeader(os, *this, "JSStringIterator");
+  os << "\n - string: " << Brief(string());
+  os << "\n - index: " << index();
+  JSObjectPrintBody(os, *this);
+}
+
+void JSAsyncFromSyncIterator::JSAsyncFromSyncIteratorPrint(
+    std::ostream& os) {  // NOLINT
+  JSObjectPrintHeader(os, *this, "JSAsyncFromSyncIterator");
+  os << "\n - sync_iterator: " << Brief(sync_iterator());
+  os << "\n - next: " << Brief(next());
+  JSObjectPrintBody(os, *this);
 }
 
 void JSPrimitiveWrapper::JSPrimitiveWrapperPrint(std::ostream& os) {  // NOLINT
@@ -2464,9 +2293,14 @@ void TaggedImpl<kRefType, StorageType>::Print(std::ostream& os) {
   }
 }
 
+void HeapNumber::HeapNumberPrint(std::ostream& os) {
+  HeapNumberShortPrint(os);
+  os << "\n";
+}
+
 #endif  // OBJECT_PRINT
 
-void HeapNumber::HeapNumberPrint(std::ostream& os) { os << value(); }
+void HeapNumber::HeapNumberShortPrint(std::ostream& os) { os << value(); }
 
 // TODO(cbruni): remove once the new maptracer is in place.
 void Name::NameShortPrint() {

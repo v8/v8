@@ -80,6 +80,7 @@ class ZoneForwardList;
   V(AllocationSite)                            \
   V(ArrayList)                                 \
   V(BigInt)                                    \
+  V(BigIntBase)                                \
   V(BigIntWrapper)                             \
   V(ObjectBoilerplateDescription)              \
   V(Boolean)                                   \
@@ -264,9 +265,26 @@ class ZoneForwardList;
 // Logical sub-types of heap objects that don't correspond to a C++ class but
 // represent some specialization in terms of additional constraints.
 #define HEAP_OBJECT_SPECIALIZED_TYPE_LIST(V) \
+  V(AwaitContext)                            \
+  V(BlockContext)                            \
   V(CallableApiObject)                       \
   V(CallableJSProxy)                         \
-  V(NonNullForeign)
+  V(CatchContext)                            \
+  V(DebugEvaluateContext)                    \
+  V(EvalContext)                             \
+  V(FreeSpaceOrFiller)                       \
+  V(FunctionContext)                         \
+  V(JSApiObject)                             \
+  V(JSMapKeyIterator)                        \
+  V(JSMapKeyValueIterator)                   \
+  V(JSMapValueIterator)                      \
+  V(JSSetKeyValueIterator)                   \
+  V(JSSetValueIterator)                      \
+  V(JSSpecialApiObject)                      \
+  V(ModuleContext)                           \
+  V(NonNullForeign)                          \
+  V(ScriptContext)                           \
+  V(WithContext)
 
 #define HEAP_OBJECT_TYPE_LIST(V)    \
   HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \

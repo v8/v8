@@ -617,9 +617,9 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
 
       // We found a live object.
       if (!object.is_null()) {
-        // Do not use IsFiller() here. This may cause a data race for reading
-        // out the instance type when a new map concurrently is written into
-        // this object while iterating over the object.
+        // Do not use IsFreeSpaceOrFiller() here. This may cause a data race for
+        // reading out the instance type when a new map concurrently is written
+        // into this object while iterating over the object.
         if (map == one_word_filler_map_ || map == two_word_filler_map_ ||
             map == free_space_map_) {
           // There are two reasons why we can get black or grey fillers:

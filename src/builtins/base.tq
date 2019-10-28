@@ -237,7 +237,9 @@ extern class Tuple2 extends Struct {
 @dirtyInstantiatedAbstractClass
 @generatePrint
 @generateCppClass
-extern class Tuple3 extends Tuple2 {
+extern class Tuple3 extends Struct {
+  value1: Object;
+  value2: Object;
   value3: Object;
 }
 

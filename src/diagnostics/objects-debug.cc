@@ -156,27 +156,9 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       String::cast(*this).StringVerify(isolate);
     }
     break;
-    case SYMBOL_TYPE:
-      Symbol::cast(*this).SymbolVerify(isolate);
-      break;
-    case MAP_TYPE:
-      Map::cast(*this).MapVerify(isolate);
-      break;
-    case HEAP_NUMBER_TYPE:
-      CHECK(IsHeapNumber());
-      break;
-    case BIGINT_TYPE:
-      BigInt::cast(*this).BigIntVerify(isolate);
-      break;
-    case CALL_HANDLER_INFO_TYPE:
-      CallHandlerInfo::cast(*this).CallHandlerInfoVerify(isolate);
-      break;
     case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
       ObjectBoilerplateDescription::cast(*this)
           .ObjectBoilerplateDescriptionVerify(isolate);
-      break;
-    case EMBEDDER_DATA_ARRAY_TYPE:
-      EmbedderDataArray::cast(*this).EmbedderDataArrayVerify(isolate);
       break;
     // FixedArray types
     case CLOSURE_FEEDBACK_CELL_ARRAY_TYPE:
@@ -212,45 +194,15 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case WEAK_FIXED_ARRAY_TYPE:
       WeakFixedArray::cast(*this).WeakFixedArrayVerify(isolate);
       break;
-    case WEAK_ARRAY_LIST_TYPE:
-      WeakArrayList::cast(*this).WeakArrayListVerify(isolate);
-      break;
-    case FIXED_DOUBLE_ARRAY_TYPE:
-      FixedDoubleArray::cast(*this).FixedDoubleArrayVerify(isolate);
-      break;
     case FEEDBACK_METADATA_TYPE:
       FeedbackMetadata::cast(*this).FeedbackMetadataVerify(isolate);
-      break;
-    case BYTE_ARRAY_TYPE:
-      ByteArray::cast(*this).ByteArrayVerify(isolate);
-      break;
-    case BYTECODE_ARRAY_TYPE:
-      BytecodeArray::cast(*this).BytecodeArrayVerify(isolate);
-      break;
-    case DESCRIPTOR_ARRAY_TYPE:
-      DescriptorArray::cast(*this).DescriptorArrayVerify(isolate);
       break;
     case TRANSITION_ARRAY_TYPE:
       TransitionArray::cast(*this).TransitionArrayVerify(isolate);
       break;
-    case PROPERTY_ARRAY_TYPE:
-      PropertyArray::cast(*this).PropertyArrayVerify(isolate);
-      break;
-    case FREE_SPACE_TYPE:
-      FreeSpace::cast(*this).FreeSpaceVerify(isolate);
-      break;
-    case FEEDBACK_CELL_TYPE:
-      FeedbackCell::cast(*this).FeedbackCellVerify(isolate);
-      break;
-    case FEEDBACK_VECTOR_TYPE:
-      FeedbackVector::cast(*this).FeedbackVectorVerify(isolate);
-      break;
 
     case CODE_TYPE:
       Code::cast(*this).CodeVerify(isolate);
-      break;
-    case ODDBALL_TYPE:
-      Oddball::cast(*this).OddballVerify(isolate);
       break;
     case JS_OBJECT_TYPE:
     case JS_ERROR_TYPE:
@@ -259,71 +211,11 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
       JSObject::cast(*this).JSObjectVerify(isolate);
       break;
-    case WASM_MODULE_OBJECT_TYPE:
-      WasmModuleObject::cast(*this).WasmModuleObjectVerify(isolate);
-      break;
-    case WASM_TABLE_OBJECT_TYPE:
-      WasmTableObject::cast(*this).WasmTableObjectVerify(isolate);
-      break;
-    case WASM_MEMORY_OBJECT_TYPE:
-      WasmMemoryObject::cast(*this).WasmMemoryObjectVerify(isolate);
-      break;
-    case WASM_GLOBAL_OBJECT_TYPE:
-      WasmGlobalObject::cast(*this).WasmGlobalObjectVerify(isolate);
-      break;
-    case WASM_EXCEPTION_OBJECT_TYPE:
-      WasmExceptionObject::cast(*this).WasmExceptionObjectVerify(isolate);
-      break;
     case WASM_INSTANCE_OBJECT_TYPE:
       WasmInstanceObject::cast(*this).WasmInstanceObjectVerify(isolate);
       break;
-    case JS_ARGUMENTS_OBJECT_TYPE:
-      JSArgumentsObject::cast(*this).JSArgumentsObjectVerify(isolate);
-      break;
     case JS_GENERATOR_OBJECT_TYPE:
       JSGeneratorObject::cast(*this).JSGeneratorObjectVerify(isolate);
-      break;
-    case JS_ASYNC_FUNCTION_OBJECT_TYPE:
-      JSAsyncFunctionObject::cast(*this).JSAsyncFunctionObjectVerify(isolate);
-      break;
-    case JS_ASYNC_GENERATOR_OBJECT_TYPE:
-      JSAsyncGeneratorObject::cast(*this).JSAsyncGeneratorObjectVerify(isolate);
-      break;
-    case JS_PRIMITIVE_WRAPPER_TYPE:
-      JSPrimitiveWrapper::cast(*this).JSPrimitiveWrapperVerify(isolate);
-      break;
-    case JS_DATE_TYPE:
-      JSDate::cast(*this).JSDateVerify(isolate);
-      break;
-    case JS_BOUND_FUNCTION_TYPE:
-      JSBoundFunction::cast(*this).JSBoundFunctionVerify(isolate);
-      break;
-    case JS_FUNCTION_TYPE:
-      JSFunction::cast(*this).JSFunctionVerify(isolate);
-      break;
-    case JS_GLOBAL_PROXY_TYPE:
-      JSGlobalProxy::cast(*this).JSGlobalProxyVerify(isolate);
-      break;
-    case JS_GLOBAL_OBJECT_TYPE:
-      JSGlobalObject::cast(*this).JSGlobalObjectVerify(isolate);
-      break;
-    case CELL_TYPE:
-      Cell::cast(*this).CellVerify(isolate);
-      break;
-    case PROPERTY_CELL_TYPE:
-      PropertyCell::cast(*this).PropertyCellVerify(isolate);
-      break;
-    case JS_ARRAY_TYPE:
-      JSArray::cast(*this).JSArrayVerify(isolate);
-      break;
-    case JS_MODULE_NAMESPACE_TYPE:
-      JSModuleNamespace::cast(*this).JSModuleNamespaceVerify(isolate);
-      break;
-    case JS_SET_TYPE:
-      JSSet::cast(*this).JSSetVerify(isolate);
-      break;
-    case JS_MAP_TYPE:
-      JSMap::cast(*this).JSMapVerify(isolate);
       break;
     case JS_SET_KEY_VALUE_ITERATOR_TYPE:
     case JS_SET_VALUE_ITERATOR_TYPE:
@@ -334,77 +226,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case JS_MAP_VALUE_ITERATOR_TYPE:
       JSMapIterator::cast(*this).JSMapIteratorVerify(isolate);
       break;
-    case JS_ARRAY_ITERATOR_TYPE:
-      JSArrayIterator::cast(*this).JSArrayIteratorVerify(isolate);
-      break;
-    case JS_STRING_ITERATOR_TYPE:
-      JSStringIterator::cast(*this).JSStringIteratorVerify(isolate);
-      break;
-    case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
-      JSAsyncFromSyncIterator::cast(*this).JSAsyncFromSyncIteratorVerify(
-          isolate);
-      break;
-    case WEAK_CELL_TYPE:
-      WeakCell::cast(*this).WeakCellVerify(isolate);
-      break;
-    case JS_WEAK_REF_TYPE:
-      JSWeakRef::cast(*this).JSWeakRefVerify(isolate);
-      break;
-    case JS_FINALIZATION_GROUP_TYPE:
-      JSFinalizationGroup::cast(*this).JSFinalizationGroupVerify(isolate);
-      break;
-    case JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE:
-      JSFinalizationGroupCleanupIterator::cast(*this)
-          .JSFinalizationGroupCleanupIteratorVerify(isolate);
-      break;
-    case JS_WEAK_MAP_TYPE:
-      JSWeakMap::cast(*this).JSWeakMapVerify(isolate);
-      break;
-    case JS_WEAK_SET_TYPE:
-      JSWeakSet::cast(*this).JSWeakSetVerify(isolate);
-      break;
-    case JS_PROMISE_TYPE:
-      JSPromise::cast(*this).JSPromiseVerify(isolate);
-      break;
-    case JS_REG_EXP_TYPE:
-      JSRegExp::cast(*this).JSRegExpVerify(isolate);
-      break;
-    case JS_REG_EXP_STRING_ITERATOR_TYPE:
-      JSRegExpStringIterator::cast(*this).JSRegExpStringIteratorVerify(isolate);
-      break;
     case FILLER_TYPE:
-      break;
-    case JS_PROXY_TYPE:
-      JSProxy::cast(*this).JSProxyVerify(isolate);
-      break;
-    case FOREIGN_TYPE:
-      Foreign::cast(*this).ForeignVerify(isolate);
-      break;
-    case PREPARSE_DATA_TYPE:
-      PreparseData::cast(*this).PreparseDataVerify(isolate);
-      break;
-    case UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE:
-      UncompiledDataWithoutPreparseData::cast(*this)
-          .UncompiledDataWithoutPreparseDataVerify(isolate);
-      break;
-    case UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE:
-      UncompiledDataWithPreparseData::cast(*this)
-          .UncompiledDataWithPreparseDataVerify(isolate);
-      break;
-    case SHARED_FUNCTION_INFO_TYPE:
-      SharedFunctionInfo::cast(*this).SharedFunctionInfoVerify(isolate);
-      break;
-    case JS_MESSAGE_OBJECT_TYPE:
-      JSMessageObject::cast(*this).JSMessageObjectVerify(isolate);
-      break;
-    case JS_ARRAY_BUFFER_TYPE:
-      JSArrayBuffer::cast(*this).JSArrayBufferVerify(isolate);
-      break;
-    case JS_TYPED_ARRAY_TYPE:
-      JSTypedArray::cast(*this).JSTypedArrayVerify(isolate);
-      break;
-    case JS_DATA_VIEW_TYPE:
-      JSDataView::cast(*this).JSDataViewVerify(isolate);
       break;
     case SMALL_ORDERED_HASH_SET_TYPE:
       SmallOrderedHashSet::cast(*this).SmallOrderedHashSetVerify(isolate);
@@ -416,54 +238,18 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       SmallOrderedNameDictionary::cast(*this).SmallOrderedNameDictionaryVerify(
           isolate);
       break;
-    case SOURCE_TEXT_MODULE_TYPE:
-      SourceTextModule::cast(*this).SourceTextModuleVerify(isolate);
-      break;
-    case SYNTHETIC_MODULE_TYPE:
-      SyntheticModule::cast(*this).SyntheticModuleVerify(isolate);
-      break;
     case CODE_DATA_CONTAINER_TYPE:
       CodeDataContainer::cast(*this).CodeDataContainerVerify(isolate);
       break;
-#ifdef V8_INTL_SUPPORT
-    case JS_V8_BREAK_ITERATOR_TYPE:
-      JSV8BreakIterator::cast(*this).JSV8BreakIteratorVerify(isolate);
-      break;
-    case JS_COLLATOR_TYPE:
-      JSCollator::cast(*this).JSCollatorVerify(isolate);
-      break;
-    case JS_DATE_TIME_FORMAT_TYPE:
-      JSDateTimeFormat::cast(*this).JSDateTimeFormatVerify(isolate);
-      break;
-    case JS_LIST_FORMAT_TYPE:
-      JSListFormat::cast(*this).JSListFormatVerify(isolate);
-      break;
-    case JS_LOCALE_TYPE:
-      JSLocale::cast(*this).JSLocaleVerify(isolate);
-      break;
-    case JS_NUMBER_FORMAT_TYPE:
-      JSNumberFormat::cast(*this).JSNumberFormatVerify(isolate);
-      break;
-    case JS_PLURAL_RULES_TYPE:
-      JSPluralRules::cast(*this).JSPluralRulesVerify(isolate);
-      break;
-    case JS_RELATIVE_TIME_FORMAT_TYPE:
-      JSRelativeTimeFormat::cast(*this).JSRelativeTimeFormatVerify(isolate);
-      break;
-    case JS_SEGMENT_ITERATOR_TYPE:
-      JSSegmentIterator::cast(*this).JSSegmentIteratorVerify(isolate);
-      break;
-    case JS_SEGMENTER_TYPE:
-      JSSegmenter::cast(*this).JSSegmenterVerify(isolate);
-      break;
-#endif  // V8_INTL_SUPPORT
 
-#define MAKE_STRUCT_CASE(TYPE, Name, name)   \
+#define MAKE_TORQUE_CASE(Name, TYPE)         \
   case TYPE:                                 \
     Name::cast(*this).Name##Verify(isolate); \
     break;
-      STRUCT_LIST(MAKE_STRUCT_CASE)
-#undef MAKE_STRUCT_CASE
+      // Every class that has its fields defined in a .tq file and corresponds
+      // to exactly one InstanceType value is included in the following list.
+      TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
+#undef MAKE_TORQUE_CASE
 
     case ALLOCATION_SITE_TYPE:
       AllocationSite::cast(*this).AllocationSiteVerify(isolate);
@@ -512,6 +298,8 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
 }
 
 USE_TORQUE_VERIFIER(FreeSpace)
+
+USE_TORQUE_VERIFIER(HeapNumber)
 
 void FeedbackVector::FeedbackVectorVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::FeedbackVectorVerify(*this, isolate);
@@ -1514,8 +1302,8 @@ void AsyncGeneratorRequest::AsyncGeneratorRequestVerify(Isolate* isolate) {
   next().ObjectVerify(isolate);
 }
 
-void BigInt::BigIntVerify(Isolate* isolate) {
-  CHECK(IsBigInt());
+void BigIntBase::BigIntBaseVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::BigIntBaseVerify(*this, isolate);
   CHECK_GE(length(), 0);
   CHECK_IMPLIES(is_zero(), !sign());  // There is no -0n.
 }

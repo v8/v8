@@ -55,7 +55,7 @@ HeapObject SemiSpaceObjectIterator::Next() {
     }
     HeapObject object = HeapObject::FromAddress(current_);
     current_ += object.Size();
-    if (!object.IsFiller()) {
+    if (!object.IsFreeSpaceOrFiller()) {
       return object;
     }
   }
@@ -83,7 +83,7 @@ HeapObject PagedSpaceObjectIterator::FromCurrentPage() {
     const int obj_size = obj.Size();
     cur_addr_ += obj_size;
     DCHECK_LE(cur_addr_, cur_end_);
-    if (!obj.IsFiller()) {
+    if (!obj.IsFreeSpaceOrFiller()) {
       if (obj.IsCode()) {
         DCHECK_EQ(space_, space_->heap()->code_space());
         DCHECK_CODEOBJECT_SIZE(obj_size, space_);

@@ -182,7 +182,7 @@ HeapObject ReadOnlyHeapObjectIterator::Next() {
     const int object_size = object.Size();
     current_addr_ += object_size;
 
-    if (object.IsFiller()) {
+    if (object.IsFreeSpaceOrFiller()) {
       continue;
     }
 

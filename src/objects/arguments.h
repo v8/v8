@@ -21,6 +21,7 @@ class JSArgumentsObject
     : public TorqueGeneratedJSArgumentsObject<JSArgumentsObject, JSObject> {
  public:
   DECL_VERIFIER(JSArgumentsObject)
+  DECL_PRINTER(JSArgumentsObject)
   TQ_OBJECT_CONSTRUCTORS(JSArgumentsObject)
 };
 

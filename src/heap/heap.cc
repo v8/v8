@@ -4261,10 +4261,10 @@ class FixStaleLeftTrimmedHandlesVisitor : public RootVisitor {
     if (!(*p).IsHeapObject()) return;
     HeapObject current = HeapObject::cast(*p);
     const MapWord map_word = current.map_word();
-    if (!map_word.IsForwardingAddress() && current.IsFiller()) {
+    if (!map_word.IsForwardingAddress() && current.IsFreeSpaceOrFiller()) {
 #ifdef DEBUG
       // We need to find a FixedArrayBase map after walking the fillers.
-      while (current.IsFiller()) {
+      while (current.IsFreeSpaceOrFiller()) {
         Address next = current.ptr();
         if (current.map() == ReadOnlyRoots(heap_).one_pointer_filler_map()) {
           next += kTaggedSize;
@@ -5618,7 +5618,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
   }
 
   bool SkipObject(HeapObject object) override {
-    if (object.IsFiller()) return true;
+    if (object.IsFreeSpaceOrFiller()) return true;
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
     if (reachable_.count(chunk) == 0) return true;
     return reachable_[chunk]->count(object) == 0;

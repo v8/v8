@@ -551,7 +551,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
         return false;
       }
       HeapObject dest = map_word.ToForwardingAddress();
-      DCHECK_IMPLIES(marking_state()->IsWhite(obj), obj.IsFiller());
+      DCHECK_IMPLIES(marking_state()->IsWhite(obj), obj.IsFreeSpaceOrFiller());
       *out = dest;
       return true;
     } else if (Heap::InToPage(obj)) {
@@ -579,7 +579,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
         *out = obj;
         return true;
       }
-      DCHECK_IMPLIES(marking_state()->IsWhite(obj), obj.IsFiller());
+      DCHECK_IMPLIES(marking_state()->IsWhite(obj), obj.IsFreeSpaceOrFiller());
       // Skip one word filler objects that appear on the
       // stack when we perform in place array shift.
       if (obj.map() != filler_map) {
@@ -742,7 +742,7 @@ intptr_t IncrementalMarking::ProcessMarkingWorklist(
     if (obj.is_null()) break;
     // Left trimming may result in grey or black filler objects on the marking
     // worklist. Ignore these objects.
-    if (obj.IsFiller()) {
+    if (obj.IsFreeSpaceOrFiller()) {
       // Due to copying mark bits and the fact that grey and black have their
       // first bit set, one word fillers are always black.
       DCHECK_IMPLIES(

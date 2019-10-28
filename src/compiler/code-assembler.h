@@ -106,6 +106,7 @@ inline bool NeedsBoundsCheck(CheckBounds check_bounds) {
 enum class StoreToObjectWriteBarrier { kNone, kMap, kFull };
 
 class AccessCheckNeeded;
+class BigIntBase;
 class BigIntWrapper;
 class ClassBoilerplate;
 class BooleanWrapper;

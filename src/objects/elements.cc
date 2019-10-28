@@ -550,7 +550,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     FixedArrayBase fixed_array_base = holder.elements();
     if (!fixed_array_base.IsHeapObject()) return;
     // Arrays that have been shifted in place can't be verified.
-    if (fixed_array_base.IsFiller()) return;
+    if (fixed_array_base.IsFreeSpaceOrFiller()) return;
     int length = 0;
     if (holder.IsJSArray()) {
       Object length_obj = JSArray::cast(holder).length();

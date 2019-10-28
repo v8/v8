@@ -84,11 +84,6 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithoutPreparseData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithPreparseData)
 
-DEF_GETTER(HeapObject, IsUncompiledData, bool) {
-  return IsUncompiledDataWithoutPreparseData(isolate) ||
-         IsUncompiledDataWithPreparseData(isolate);
-}
-
 OBJECT_CONSTRUCTORS_IMPL(InterpreterData, Struct)
 
 CAST_ACCESSOR(InterpreterData)

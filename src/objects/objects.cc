@@ -2109,7 +2109,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     }
     case HEAP_NUMBER_TYPE: {
       os << "<HeapNumber ";
-      HeapNumber::cast(*this).HeapNumberPrint(os);
+      HeapNumber::cast(*this).HeapNumberShortPrint(os);
       os << ">";
       break;
     }

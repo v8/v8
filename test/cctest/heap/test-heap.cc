@@ -1677,7 +1677,8 @@ TEST(TestAlignedAllocation) {
     CHECK(IsAligned(obj.address(), kDoubleAlignment));
     // There is a filler object before the object.
     filler = HeapObject::FromAddress(start);
-    CHECK(obj != filler && filler.IsFiller() && filler.Size() == kTaggedSize);
+    CHECK(obj != filler && filler.IsFreeSpaceOrFiller() &&
+          filler.Size() == kTaggedSize);
     CHECK_EQ(kTaggedSize + double_misalignment, *top_addr - start);
 
     // Similarly for kDoubleUnaligned.
@@ -1690,7 +1691,8 @@ TEST(TestAlignedAllocation) {
     CHECK(IsAligned(obj.address() + kTaggedSize, kDoubleAlignment));
     // There is a filler object before the object.
     filler = HeapObject::FromAddress(start);
-    CHECK(obj != filler && filler.IsFiller() && filler.Size() == kTaggedSize);
+    CHECK(obj != filler && filler.IsFreeSpaceOrFiller() &&
+          filler.Size() == kTaggedSize);
     CHECK_EQ(kTaggedSize + double_misalignment, *top_addr - start);
   }
 }
@@ -1751,9 +1753,10 @@ TEST(TestAlignedOverAllocation) {
     CHECK(IsAligned(obj.address(), kDoubleAlignment));
     filler = HeapObject::FromAddress(start);
     CHECK(obj != filler);
-    CHECK(filler.IsFiller());
+    CHECK(filler.IsFreeSpaceOrFiller());
     CHECK_EQ(kTaggedSize, filler.Size());
-    CHECK(obj != filler && filler.IsFiller() && filler.Size() == kTaggedSize);
+    CHECK(obj != filler && filler.IsFreeSpaceOrFiller() &&
+          filler.Size() == kTaggedSize);
 
     // Similarly for kDoubleUnaligned.
     start = AlignOldSpace(kDoubleUnaligned, 0);
@@ -1765,7 +1768,8 @@ TEST(TestAlignedOverAllocation) {
     obj = OldSpaceAllocateAligned(kTaggedSize, kDoubleUnaligned);
     CHECK(IsAligned(obj.address() + kTaggedSize, kDoubleAlignment));
     filler = HeapObject::FromAddress(start);
-    CHECK(obj != filler && filler.IsFiller() && filler.Size() == kTaggedSize);
+    CHECK(obj != filler && filler.IsFreeSpaceOrFiller() &&
+          filler.Size() == kTaggedSize);
   }
 }
 
@@ -5818,7 +5822,7 @@ TEST(ContinuousLeftTrimFixedArrayInBlackArea) {
   for (int i = 0; i < 10; i++) {
     trimmed = heap->LeftTrimFixedArray(previous, 1);
     HeapObject filler = HeapObject::FromAddress(previous.address());
-    CHECK(filler.IsFiller());
+    CHECK(filler.IsFreeSpaceOrFiller());
     CHECK(marking_state->IsBlack(trimmed));
     CHECK(marking_state->IsBlack(previous));
     previous = trimmed;
@@ -5829,7 +5833,7 @@ TEST(ContinuousLeftTrimFixedArrayInBlackArea) {
     for (int j = 0; j < 10; j++) {
       trimmed = heap->LeftTrimFixedArray(previous, i);
       HeapObject filler = HeapObject::FromAddress(previous.address());
-      CHECK(filler.IsFiller());
+      CHECK(filler.IsFreeSpaceOrFiller());
       CHECK(marking_state->IsBlack(trimmed));
       CHECK(marking_state->IsBlack(previous));
       previous = trimmed;
@@ -5885,7 +5889,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   isolate->heap()->RightTrimFixedArray(*array, 1);
 
   HeapObject filler = HeapObject::FromAddress(previous);
-  CHECK(filler.IsFiller());
+  CHECK(filler.IsFreeSpaceOrFiller());
   CHECK(marking_state->IsImpossible(filler));
 
   // Trim 10 times by one, two, and three word.
@@ -5894,7 +5898,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
       previous -= kTaggedSize * i;
       isolate->heap()->RightTrimFixedArray(*array, i);
       HeapObject filler = HeapObject::FromAddress(previous);
-      CHECK(filler.IsFiller());
+      CHECK(filler.IsFreeSpaceOrFiller());
       CHECK(marking_state->IsWhite(filler));
     }
   }

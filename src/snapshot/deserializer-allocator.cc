@@ -110,7 +110,8 @@ HeapObject DeserializerAllocator::GetObject(SnapshotSpace space,
   if (next_alignment_ != kWordAligned) {
     int padding = Heap::GetFillToAlign(address, next_alignment_);
     next_alignment_ = kWordAligned;
-    DCHECK(padding == 0 || HeapObject::FromAddress(address).IsFiller());
+    DCHECK(padding == 0 ||
+           HeapObject::FromAddress(address).IsFreeSpaceOrFiller());
     address += padding;
   }
   return HeapObject::FromAddress(address);
