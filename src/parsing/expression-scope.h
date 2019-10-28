@@ -747,13 +747,14 @@ class ArrowHeadParsingScope : public ExpressionParsingScope<Types> {
 
   DeclarationScope* ValidateAndCreateScope() {
     DCHECK(!this->is_verified());
+    DeclarationScope* result = this->parser()->NewFunctionScope(kind());
     if (declaration_error_location.IsValid()) {
       ExpressionScope<Types>::Report(declaration_error_location,
                                      declaration_error_message);
+      return result;
     }
     this->ValidatePattern();
 
-    DeclarationScope* result = this->parser()->NewFunctionScope(kind());
     if (!has_simple_parameter_list_) result->SetHasNonSimpleParameters();
     VariableKind kind = PARAMETER_VARIABLE;
     VariableMode mode =
