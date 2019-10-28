@@ -6012,7 +6012,7 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForInt32Key(
     auto if_match = __ MakeLabel();
     auto if_notmatch = __ MakeLabel();
     auto if_notsmi = __ MakeDeferredLabel();
-    if (COMPRESS_POINTERS_BOOL) {
+    if (COMPRESS_POINTERS_BOOL && FLAG_turbo_decompression_elimination) {
       __ GotoIfNot(ObjectIsSmi(candidate_key), &if_notsmi);
       __ Branch(__ Word32Equal(ChangeCompressedSmiToInt32(candidate_key), key),
                 &if_match, &if_notmatch);
