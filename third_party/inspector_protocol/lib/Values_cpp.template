@@ -281,7 +281,7 @@ void Value::writeJSON(StringBuilder* output) const
     StringUtil::builderAppend(*output, nullValueString, 4);
 }
 
-void Value::writeBinary(std::vector<uint8_t>* bytes) const {
+void Value::AppendSerialized(std::vector<uint8_t>* bytes) const {
     DCHECK(m_type == TypeNull);
     bytes->push_back(cbor::EncodeNull());
 }
@@ -297,12 +297,6 @@ String Value::toJSONString() const
     StringUtil::builderReserve(result, 512);
     writeJSON(&result);
     return StringUtil::builderToString(result);
-}
-
-std::vector<uint8_t> Value::serializeToBinary() {
-    std::vector<uint8_t> bytes;
-    writeBinary(&bytes);
-    return bytes;
 }
 
 bool FundamentalValue::asBoolean(bool* output) const
@@ -353,7 +347,7 @@ void FundamentalValue::writeJSON(StringBuilder* output) const
     }
 }
 
-void FundamentalValue::writeBinary(std::vector<uint8_t>* bytes) const {
+void FundamentalValue::AppendSerialized(std::vector<uint8_t>* bytes) const {
     switch (type()) {
     case TypeDouble:
         cbor::EncodeDouble(m_doubleValue, bytes);
@@ -422,7 +416,7 @@ void EncodeString(const String& s, std::vector<uint8_t>* out) {
 }
 }  // namespace
 
-void StringValue::writeBinary(std::vector<uint8_t>* bytes) const {
+void StringValue::AppendSerialized(std::vector<uint8_t>* bytes) const {
   EncodeString(m_stringValue, bytes);
 }
 
@@ -443,7 +437,7 @@ void BinaryValue::writeJSON(StringBuilder* output) const
     StringUtil::builderAppendQuotedString(*output, m_binaryValue.toBase64());
 }
 
-void BinaryValue::writeBinary(std::vector<uint8_t>* bytes) const {
+void BinaryValue::AppendSerialized(std::vector<uint8_t>* bytes) const {
     cbor::EncodeBinary(span<uint8_t>(m_binaryValue.data(),
                                      m_binaryValue.size()), bytes);
 }
@@ -459,7 +453,11 @@ void SerializedValue::writeJSON(StringBuilder* output) const
     StringUtil::builderAppend(*output, m_serializedJSON);
 }
 
-void SerializedValue::writeBinary(std::vector<uint8_t>* output) const
+std::vector<uint8_t> SerializedValue::TakeSerialized() && {
+    return std::move(m_serializedBinary);
+}
+
+void SerializedValue::AppendSerialized(std::vector<uint8_t>* output) const
 {
     DCHECK(type() == TypeSerialized);
     output->insert(output->end(), m_serializedBinary.begin(), m_serializedBinary.end());
@@ -607,7 +605,7 @@ void DictionaryValue::writeJSON(StringBuilder* output) const
     StringUtil::builderAppend(*output, '}');
 }
 
-void DictionaryValue::writeBinary(std::vector<uint8_t>* bytes) const {
+void DictionaryValue::AppendSerialized(std::vector<uint8_t>* bytes) const {
     cbor::EnvelopeEncoder encoder;
     encoder.EncodeStart(bytes);
     bytes->push_back(cbor::EncodeIndefiniteLengthMapStart());
@@ -616,7 +614,7 @@ void DictionaryValue::writeBinary(std::vector<uint8_t>* bytes) const {
         Dictionary::const_iterator value = m_data.find(key);
         DCHECK(value != m_data.cend() && value->second);
         EncodeString(key, bytes);
-        value->second->writeBinary(bytes);
+        value->second->AppendSerialized(bytes);
     }
     bytes->push_back(cbor::EncodeStop());
     encoder.EncodeStop(bytes);
@@ -656,12 +654,12 @@ void ListValue::writeJSON(StringBuilder* output) const
     StringUtil::builderAppend(*output, ']');
 }
 
-void ListValue::writeBinary(std::vector<uint8_t>* bytes) const {
+void ListValue::AppendSerialized(std::vector<uint8_t>* bytes) const {
     cbor::EnvelopeEncoder encoder;
     encoder.EncodeStart(bytes);
     bytes->push_back(cbor::EncodeIndefiniteLengthArrayStart());
     for (size_t i = 0; i < m_data.size(); ++i) {
-        m_data[i]->writeBinary(bytes);
+        m_data[i]->AppendSerialized(bytes);
     }
     bytes->push_back(cbor::EncodeStop());
     encoder.EncodeStop(bytes);

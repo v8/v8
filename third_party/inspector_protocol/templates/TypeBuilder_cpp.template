@@ -107,7 +107,7 @@ std::unique_ptr<{{type.id}}> {{type.id}}::clone() const
 
 void {{type.id}}::writeBinary(std::vector<uint8_t>* out) const
 {
-    toValue()->writeBinary(out);
+    toValue()->AppendSerialized(out);
 }
 
 // static

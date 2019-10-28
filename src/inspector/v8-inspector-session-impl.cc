@@ -163,7 +163,7 @@ protocol::DictionaryValue* V8InspectorSessionImpl::agentState(
 
 std::unique_ptr<StringBuffer> V8InspectorSessionImpl::serializeForFrontend(
     std::unique_ptr<protocol::Serializable> message) {
-  std::vector<uint8_t> cbor = message->serializeToBinary();
+  std::vector<uint8_t> cbor = std::move(*message).TakeSerialized();
   if (use_binary_protocol_)
     return std::unique_ptr<StringBuffer>(
         new BinaryStringBuffer(std::move(cbor)));
@@ -366,9 +366,7 @@ void V8InspectorSessionImpl::dispatchProtocolMessage(
 }
 
 std::vector<uint8_t> V8InspectorSessionImpl::state() {
-  std::vector<uint8_t> out;
-  m_state->writeBinary(&out);
-  return out;
+  return std::move(*m_state).TakeSerialized();
 }
 
 std::vector<std::unique_ptr<protocol::Schema::API::Domain>>
