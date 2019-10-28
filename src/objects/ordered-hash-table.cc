@@ -961,15 +961,15 @@ OrderedHashTableHandler<SmallOrderedNameDictionary,
 
 template <class SmallTable, class LargeTable>
 bool OrderedHashTableHandler<SmallTable, LargeTable>::Delete(
-    Handle<HeapObject> table, Handle<Object> key) {
+    Isolate* isolate, Handle<HeapObject> table, Handle<Object> key) {
   if (SmallTable::Is(table)) {
-    return SmallTable::Delete(Handle<SmallTable>::cast(table), key);
+    return SmallTable::Delete(isolate, *Handle<SmallTable>::cast(table), *key);
   }
 
   DCHECK(LargeTable::Is(table));
   // Note: Once we migrate to the a big hash table, we never migrate
   // down to a smaller hash table.
-  return LargeTable::Delete(Handle<LargeTable>::cast(table), key);
+  return LargeTable::Delete(isolate, *Handle<LargeTable>::cast(table), *key);
 }
 
 template <class SmallTable, class LargeTable>
@@ -989,6 +989,18 @@ OrderedHashTableHandler<SmallOrderedHashSet, OrderedHashSet>::HasKey(
 template bool
 OrderedHashTableHandler<SmallOrderedHashMap, OrderedHashMap>::HasKey(
     Isolate* isolate, Handle<HeapObject> table, Handle<Object> key);
+
+template bool
+OrderedHashTableHandler<SmallOrderedHashSet, OrderedHashSet>::Delete(
+    Isolate* isolate, Handle<HeapObject> table, Handle<Object> key);
+template bool
+OrderedHashTableHandler<SmallOrderedHashMap, OrderedHashMap>::Delete(
+    Isolate* isolate, Handle<HeapObject> table, Handle<Object> key);
+template bool
+OrderedHashTableHandler<SmallOrderedNameDictionary,
+                        OrderedNameDictionary>::Delete(Isolate* isolate,
+                                                       Handle<HeapObject> table,
+                                                       Handle<Object> key);
 
 MaybeHandle<OrderedHashMap> OrderedHashMapHandler::AdjustRepresentation(
     Isolate* isolate, Handle<SmallOrderedHashMap> table) {
