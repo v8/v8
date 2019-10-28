@@ -762,8 +762,8 @@ void PrintCode(Isolate* isolate, Handle<Code> code,
 #endif  // ENABLE_DISASSEMBLER
 }
 
-void TraceSchedule(OptimizedCompilationInfo* info, PipelineData* data,
-                   Schedule* schedule, const char* phase_name) {
+void TraceScheduleAndVerify(OptimizedCompilationInfo* info, PipelineData* data,
+                            Schedule* schedule, const char* phase_name) {
   if (info->trace_turbo_json_enabled()) {
     AllowHandleDereference allow_deref;
     TurboJsonFile json_of(info, std::ios_base::app);
@@ -783,8 +783,9 @@ void TraceSchedule(OptimizedCompilationInfo* info, PipelineData* data,
     OFStream os(tracing_scope.file());
     os << "-- Schedule --------------------------------------\n" << *schedule;
   }
-}
 
+  if (FLAG_turbo_verify) ScheduleVerifier::Run(schedule);
+}
 
 class SourcePositionWrapper final : public Reducer {
  public:
@@ -1630,9 +1631,8 @@ struct EffectControlLinearizationPhase {
       Schedule* schedule = Scheduler::ComputeSchedule(
           temp_zone, data->graph(), Scheduler::kTempSchedule,
           &data->info()->tick_counter());
-      if (FLAG_turbo_verify) ScheduleVerifier::Run(schedule);
-      TraceSchedule(data->info(), data, schedule,
-                    "effect linearization schedule");
+      TraceScheduleAndVerify(data->info(), data, schedule,
+                             "effect linearization schedule");
 
       MaskArrayIndexEnable mask_array_index =
           (data->info()->GetPoisoningMitigationLevel() !=
@@ -1830,8 +1830,9 @@ struct ScheduledEffectControlLinearizationPhase {
 
     // TODO(rmcilroy) Avoid having to rebuild rpo_order on schedule each time.
     Scheduler::ComputeSpecialRPO(temp_zone, data->schedule());
-    TraceSchedule(data->info(), data, data->schedule(),
-                  "effect linearization schedule");
+    if (FLAG_turbo_verify) Scheduler::GenerateDominatorTree(data->schedule());
+    TraceScheduleAndVerify(data->info(), data, data->schedule(),
+                           "effect linearization schedule");
   }
 };
 
@@ -1848,8 +1849,9 @@ struct ScheduledMachineLoweringPhase {
 
     // TODO(rmcilroy) Avoid having to rebuild rpo_order on schedule each time.
     Scheduler::ComputeSpecialRPO(temp_zone, data->schedule());
-    TraceSchedule(data->info(), data, data->schedule(),
-                  "machine lowered schedule");
+    if (FLAG_turbo_verify) Scheduler::GenerateDominatorTree(data->schedule());
+    TraceScheduleAndVerify(data->info(), data, data->schedule(),
+                           "machine lowered schedule");
   }
 };
 
@@ -1943,7 +1945,6 @@ struct ComputeSchedulePhase {
         data->info()->is_splitting_enabled() ? Scheduler::kSplitNodes
                                              : Scheduler::kNoFlags,
         &data->info()->tick_counter());
-    if (FLAG_turbo_verify) ScheduleVerifier::Run(schedule);
     data->set_schedule(schedule);
   }
 };
@@ -2968,7 +2969,7 @@ void PipelineImpl::ComputeScheduledGraph() {
   RunPrintAndVerify(LateGraphTrimmingPhase::phase_name(), true);
 
   Run<ComputeSchedulePhase>();
-  TraceSchedule(data->info(), data, data->schedule(), "schedule");
+  TraceScheduleAndVerify(data->info(), data, data->schedule(), "schedule");
 }
 
 bool PipelineImpl::SelectInstructions(Linkage* linkage) {
