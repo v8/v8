@@ -677,7 +677,7 @@ class FrameArrayBuilder {
         flags |= FrameArray::kAsmJsAtNumberConversion;
       }
     } else {
-      flags |= FrameArray::kIsWasmFrame;
+      flags |= FrameArray::kIsWasmCompiledFrame;
     }
 
     elements_ = FrameArray::AppendWasmFrame(
@@ -2136,20 +2136,21 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
       Handle<WasmInstanceObject> instance(elements->WasmInstance(i), this);
       uint32_t func_index =
           static_cast<uint32_t>(elements->WasmFunctionIndex(i).value());
-      int code_offset = elements->Offset(i).value();
+      int offset = elements->Offset(i).value();
       bool is_at_number_conversion =
           elements->IsAsmJsWasmFrame(i) &&
           elements->Flags(i).value() & FrameArray::kAsmJsAtNumberConversion;
-      // WasmCode* held alive by the {GlobalWasmCodeRef}.
-      wasm::WasmCode* code =
-          Managed<wasm::GlobalWasmCodeRef>::cast(elements->WasmCodeObject(i))
-              .get()
-              ->code();
-      int byte_offset =
-          FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
-              code, code_offset);
+      if (elements->IsWasmCompiledFrame(i)) {
+        // WasmCode* held alive by the {GlobalWasmCodeRef}.
+        wasm::WasmCode* code =
+            Managed<wasm::GlobalWasmCodeRef>::cast(elements->WasmCodeObject(i))
+                .get()
+                ->code();
+        offset = FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
+            code, offset);
+      }
       int pos = WasmModuleObject::GetSourcePosition(
-          handle(instance->module_object(), this), func_index, byte_offset,
+          handle(instance->module_object(), this), func_index, offset,
           is_at_number_conversion);
       Handle<Script> script(instance->module_object().script(), this);
 
