@@ -41,14 +41,30 @@ class DecompressionOptimizerTest : public GraphTest {
   MachineRepresentation LoadMachRep(Node* node) {
     return LoadRepresentationOf(node->op()).representation();
   }
-
-  const MachineType types[2] = {MachineType::AnyTagged(),
-                                MachineType::TaggedPointer()};
-
   StoreRepresentation CreateStoreRep(MachineType type) {
     return StoreRepresentation(type.representation(),
                                WriteBarrierKind::kFullWriteBarrier);
   }
+
+  const MachineType types[2] = {MachineType::AnyTagged(),
+                                MachineType::TaggedPointer()};
+
+  const Handle<HeapNumber> heap_constants[15] = {
+      factory()->NewHeapNumber(0.0),
+      factory()->NewHeapNumber(-0.0),
+      factory()->NewHeapNumber(11.2),
+      factory()->NewHeapNumber(-11.2),
+      factory()->NewHeapNumber(3.1415 + 1.4142),
+      factory()->NewHeapNumber(3.1415 - 1.4142),
+      factory()->NewHeapNumber(0x0000000000000000),
+      factory()->NewHeapNumber(0x0000000000000001),
+      factory()->NewHeapNumber(0x0000FFFFFFFF0000),
+      factory()->NewHeapNumber(0x7FFFFFFFFFFFFFFF),
+      factory()->NewHeapNumber(0x8000000000000000),
+      factory()->NewHeapNumber(0x8000000000000001),
+      factory()->NewHeapNumber(0x8000FFFFFFFF0000),
+      factory()->NewHeapNumber(0x8FFFFFFFFFFFFFFF),
+      factory()->NewHeapNumber(0xFFFFFFFFFFFFFFFF)};
 
   MachineOperatorBuilder* machine() { return &machine_; }
 
@@ -138,24 +154,7 @@ TEST_F(DecompressionOptimizerTest, Word32EqualDecompressAndConstant) {
   Node* effect = graph()->start();
   Node* index = Parameter(Type::UnsignedSmall(), 1);
 
-  const Handle<HeapNumber> heap_constants[] = {
-      factory()->NewHeapNumber(0.0),
-      factory()->NewHeapNumber(-0.0),
-      factory()->NewHeapNumber(11.2),
-      factory()->NewHeapNumber(-11.2),
-      factory()->NewHeapNumber(3.1415 + 1.4142),
-      factory()->NewHeapNumber(3.1415 - 1.4142),
-      factory()->NewHeapNumber(0x0000000000000000),
-      factory()->NewHeapNumber(0x0000000000000001),
-      factory()->NewHeapNumber(0x0000FFFFFFFF0000),
-      factory()->NewHeapNumber(0x7FFFFFFFFFFFFFFF),
-      factory()->NewHeapNumber(0x8000000000000000),
-      factory()->NewHeapNumber(0x8000000000000001),
-      factory()->NewHeapNumber(0x8000FFFFFFFF0000),
-      factory()->NewHeapNumber(0x8FFFFFFFFFFFFFFF),
-      factory()->NewHeapNumber(0xFFFFFFFFFFFFFFFF)};
-
-  // Test for both AnyTagged and TaggedPointer, for both loads.
+  // Test for both AnyTagged and TaggedPointer.
   for (size_t i = 0; i < arraysize(types); ++i) {
     for (size_t j = 0; j < arraysize(heap_constants); ++j) {
       // Create the graph.
@@ -164,13 +163,14 @@ TEST_F(DecompressionOptimizerTest, Word32EqualDecompressAndConstant) {
       Node* change_to_tagged =
           graph()->NewNode(machine()->ChangeTaggedToCompressed(), load);
       Node* constant =
-          graph()->NewNode(common()->CompressedHeapConstant(heap_constants[j]));
+          graph()->NewNode(common()->HeapConstant(heap_constants[j]));
       graph()->SetEnd(graph()->NewNode(machine()->Word32Equal(),
                                        change_to_tagged, constant));
 
       // Change the nodes, and test the change.
       Reduce();
       EXPECT_EQ(LoadMachRep(load), CompressedMachRep(types[i]));
+      EXPECT_EQ(constant->opcode(), IrOpcode::kCompressedHeapConstant);
     }
   }
 }
