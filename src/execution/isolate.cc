@@ -1094,12 +1094,14 @@ Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
           } else {
             Handle<JSAsyncGeneratorObject> async_generator_object =
                 Handle<JSAsyncGeneratorObject>::cast(generator_object);
-            Handle<AsyncGeneratorRequest> async_generator_request(
-                AsyncGeneratorRequest::cast(async_generator_object->queue()),
-                isolate);
-            Handle<JSPromise> promise(
-                JSPromise::cast(async_generator_request->promise()), isolate);
-            CaptureAsyncStackTrace(isolate, promise, &builder);
+            Handle<Object> queue(async_generator_object->queue(), isolate);
+            if (!queue->IsUndefined(isolate)) {
+              Handle<AsyncGeneratorRequest> async_generator_request =
+                  Handle<AsyncGeneratorRequest>::cast(queue);
+              Handle<JSPromise> promise(
+                  JSPromise::cast(async_generator_request->promise()), isolate);
+              CaptureAsyncStackTrace(isolate, promise, &builder);
+            }
           }
         }
       } else {
