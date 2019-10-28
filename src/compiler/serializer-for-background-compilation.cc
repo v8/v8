@@ -1721,6 +1721,7 @@ void SerializerForBackgroundCompilation::ProcessCreateContext(
       Handle<ScopeInfo>::cast(iterator->GetConstantForIndexOperand(
           scopeinfo_operand_index, broker()->isolate()));
   ScopeInfoRef scope_info_ref(broker(), scope_info);
+  scope_info_ref.SerializeScopeInfoChain();
 
   Hints const& current_context_hints = environment()->current_context_hints();
   Hints& accumulator_hints = environment()->accumulator_hints();
@@ -2701,6 +2702,8 @@ void SerializerForBackgroundCompilation::ProcessCheckContextExtensions(
     ProcessContextAccess(context_hints, Context::EXTENSION_INDEX, i,
                          kSerializeSlot);
   }
+  SharedFunctionInfoRef shared(broker(), environment()->function().shared());
+  shared.SerializeScopeInfoChain();
 }
 
 void SerializerForBackgroundCompilation::ProcessLdaLookupGlobalSlot(

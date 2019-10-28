@@ -1613,15 +1613,38 @@ class ScopeInfoData : public HeapObjectData {
                 Handle<ScopeInfo> object);
 
   int context_length() const { return context_length_; }
+  bool has_outer_scope_info() const { return has_outer_scope_info_; }
+  int flags() const { return flags_; }
+
+  ScopeInfoData* outer_scope_info() const { return outer_scope_info_; }
+  void SerializeScopeInfoChain(JSHeapBroker* broker);
 
  private:
   int const context_length_;
+  bool const has_outer_scope_info_;
+  int const flags_;
+
+  // Only serialized via SerializeScopeInfoChain.
+  ScopeInfoData* outer_scope_info_;
 };
 
 ScopeInfoData::ScopeInfoData(JSHeapBroker* broker, ObjectData** storage,
                              Handle<ScopeInfo> object)
     : HeapObjectData(broker, storage, object),
-      context_length_(object->ContextLength()) {}
+      context_length_(object->ContextLength()),
+      has_outer_scope_info_(object->HasOuterScopeInfo()),
+      flags_(object->Flags()),
+      outer_scope_info_(nullptr) {}
+
+void ScopeInfoData::SerializeScopeInfoChain(JSHeapBroker* broker) {
+  if (outer_scope_info_) return;
+  if (!has_outer_scope_info_) return;
+  outer_scope_info_ =
+      broker
+          ->GetOrCreateData(Handle<ScopeInfo>::cast(object())->OuterScopeInfo())
+          ->AsScopeInfo();
+  outer_scope_info_->SerializeScopeInfoChain(broker);
+}
 
 class SharedFunctionInfoData : public HeapObjectData {
  public:
@@ -1635,6 +1658,8 @@ class SharedFunctionInfoData : public HeapObjectData {
                                    FeedbackVectorRef feedback);
   bool IsSerializedForCompilation(FeedbackVectorRef feedback) const;
   void SerializeFunctionTemplateInfo(JSHeapBroker* broker);
+  ScopeInfoData* scope_info() const { return scope_info_; }
+  void SerializeScopeInfoChain(JSHeapBroker* broker);
   FunctionTemplateInfoData* function_template_info() const {
     return function_template_info_;
   }
@@ -1667,6 +1692,7 @@ class SharedFunctionInfoData : public HeapObjectData {
 #undef DECL_MEMBER
   FunctionTemplateInfoData* function_template_info_;
   ZoneMap<int, JSArrayData*> template_objects_;
+  ScopeInfoData* scope_info_;
 };
 
 SharedFunctionInfoData::SharedFunctionInfoData(
@@ -1687,7 +1713,8 @@ SharedFunctionInfoData::SharedFunctionInfoData(
 #undef INIT_MEMBER
       ,
       function_template_info_(nullptr),
-      template_objects_(broker->zone()) {
+      template_objects_(broker->zone()),
+      scope_info_(nullptr) {
   DCHECK_EQ(HasBuiltinId_, builtin_id_ != Builtins::kNoBuiltinId);
   DCHECK_EQ(HasBytecodeArray_, GetBytecodeArray_ != nullptr);
 }
@@ -1709,6 +1736,16 @@ void SharedFunctionInfoData::SerializeFunctionTemplateInfo(
               Handle<SharedFunctionInfo>::cast(object())->function_data(),
               broker->isolate()))
           ->AsFunctionTemplateInfo();
+}
+
+void SharedFunctionInfoData::SerializeScopeInfoChain(JSHeapBroker* broker) {
+  if (scope_info_) return;
+  scope_info_ =
+      broker
+          ->GetOrCreateData(
+              Handle<SharedFunctionInfo>::cast(object())->scope_info())
+          ->AsScopeInfo();
+  scope_info_->SerializeScopeInfoChain(broker);
 }
 
 bool SharedFunctionInfoData::IsSerializedForCompilation(
@@ -3494,6 +3531,35 @@ int ScopeInfoRef::ContextLength() const {
   return data()->AsScopeInfo()->context_length();
 }
 
+int ScopeInfoRef::Flags() const {
+  IF_BROKER_DISABLED_ACCESS_HANDLE_C(ScopeInfo, Flags);
+  return data()->AsScopeInfo()->flags();
+}
+
+bool ScopeInfoRef::HasContextExtension() const {
+  return ScopeInfo::HasContextExtensionSlotField::decode(Flags());
+}
+
+bool ScopeInfoRef::HasOuterScopeInfo() const {
+  IF_BROKER_DISABLED_ACCESS_HANDLE_C(ScopeInfo, HasOuterScopeInfo);
+  return data()->AsScopeInfo()->has_outer_scope_info();
+}
+
+ScopeInfoRef ScopeInfoRef::OuterScopeInfo() const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleAllocation handle_allocation;
+    AllowHandleDereference handle_dereference;
+    return ScopeInfoRef(
+        broker(), handle(object()->OuterScopeInfo(), broker()->isolate()));
+  }
+  return ScopeInfoRef(broker(), data()->AsScopeInfo()->outer_scope_info());
+}
+
+void ScopeInfoRef::SerializeScopeInfoChain() {
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  data()->AsScopeInfo()->SerializeScopeInfoChain(broker());
+}
+
 bool StringRef::IsExternalString() const {
   IF_BROKER_DISABLED_ACCESS_HANDLE_C(String, IsExternalString);
   return data()->AsString()->is_external_string();
@@ -4010,6 +4076,11 @@ void SharedFunctionInfoRef::SerializeFunctionTemplateInfo() {
   data()->AsSharedFunctionInfo()->SerializeFunctionTemplateInfo(broker());
 }
 
+void SharedFunctionInfoRef::SerializeScopeInfoChain() {
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  data()->AsSharedFunctionInfo()->SerializeScopeInfoChain(broker());
+}
+
 base::Optional<FunctionTemplateInfoRef>
 SharedFunctionInfoRef::function_template_info() const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
@@ -4035,6 +4106,16 @@ int SharedFunctionInfoRef::context_header_size() const {
   IF_BROKER_DISABLED_ACCESS_HANDLE_C(SharedFunctionInfo,
                                      scope_info().ContextHeaderLength);
   return data()->AsSharedFunctionInfo()->context_header_size();
+}
+
+ScopeInfoRef SharedFunctionInfoRef::scope_info() const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleAllocation handle_allocation;
+    AllowHandleDereference handle_dereference;
+    return ScopeInfoRef(broker(),
+                        handle(object()->scope_info(), broker()->isolate()));
+  }
+  return ScopeInfoRef(broker(), data()->AsSharedFunctionInfo()->scope_info());
 }
 
 void JSObjectRef::SerializeObjectCreateMap() {

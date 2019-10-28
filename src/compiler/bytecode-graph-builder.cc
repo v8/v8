@@ -233,6 +233,13 @@ class BytecodeGraphBuilder {
 
   // Check the context chain for extensions, for lookup fast paths.
   Environment* CheckContextExtensions(uint32_t depth);
+  // Slow path taken when we cannot figure out the current scope info.
+  Environment* CheckContextExtensionsSlowPath(uint32_t depth);
+  // Helper function that tries to get the current scope info.
+  base::Optional<ScopeInfoRef> TryGetScopeInfo();
+  // Helper function to create a context extension check.
+  Environment* CheckContextExtensionAtDepth(Environment* slow_environment,
+                                            uint32_t depth);
 
   // Helper function to create binary operation hint from the recorded
   // type feedback.
@@ -1565,12 +1572,95 @@ void BytecodeGraphBuilder::VisitLdaLookupSlotInsideTypeof() {
   BuildLdaLookupSlot(TypeofMode::INSIDE_TYPEOF);
 }
 
+BytecodeGraphBuilder::Environment*
+BytecodeGraphBuilder::CheckContextExtensionAtDepth(
+    Environment* slow_environment, uint32_t depth) {
+  Node* extension_slot = NewNode(
+      javascript()->LoadContext(depth, Context::EXTENSION_INDEX, false));
+  Node* check_no_extension =
+      NewNode(simplified()->ReferenceEqual(), extension_slot,
+              jsgraph()->UndefinedConstant());
+  NewBranch(check_no_extension);
+  {
+    SubEnvironment sub_environment(this);
+    NewIfFalse();
+    // If there is an extension, merge into the slow path.
+    if (slow_environment == nullptr) {
+      slow_environment = environment();
+      NewMerge();
+    } else {
+      slow_environment->Merge(environment(),
+                              bytecode_analysis().GetInLivenessFor(
+                                  bytecode_iterator().current_offset()));
+    }
+  }
+  NewIfTrue();
+  // Do nothing on if there is no extension, eventually falling through to
+  // the fast path.
+  DCHECK_NOT_NULL(slow_environment);
+  return slow_environment;
+}
+
+base::Optional<ScopeInfoRef> BytecodeGraphBuilder::TryGetScopeInfo() {
+  Node* context = environment()->Context();
+  switch (context->opcode()) {
+    case IrOpcode::kJSCreateFunctionContext:
+      return ScopeInfoRef(
+          broker(),
+          CreateFunctionContextParametersOf(context->op()).scope_info());
+    case IrOpcode::kJSCreateBlockContext:
+    case IrOpcode::kJSCreateCatchContext:
+    case IrOpcode::kJSCreateWithContext:
+      return ScopeInfoRef(broker(), ScopeInfoOf(context->op()));
+    case IrOpcode::kParameter: {
+      ScopeInfoRef scope_info = shared_info_.scope_info();
+      if (scope_info.HasOuterScopeInfo()) {
+        scope_info = scope_info.OuterScopeInfo();
+      }
+      return scope_info;
+    }
+    case IrOpcode::kJSGeneratorRestoreContext:
+    case IrOpcode::kOsrValue:
+    case IrOpcode::kPhi:
+      return base::nullopt;
+    default:
+      UNREACHABLE();
+  }
+}
+
 BytecodeGraphBuilder::Environment* BytecodeGraphBuilder::CheckContextExtensions(
     uint32_t depth) {
+  base::Optional<ScopeInfoRef> maybe_scope_info = TryGetScopeInfo();
+  if (!maybe_scope_info.has_value()) {
+    return CheckContextExtensionsSlowPath(depth);
+  }
+
+  ScopeInfoRef scope_info = maybe_scope_info.value();
+  // We only need to check up to the last-but-one depth, because an eval
+  // in the same scope as the variable itself has no way of shadowing it.
+  Environment* slow_environment = nullptr;
+  for (uint32_t d = 0; d < depth; d++) {
+    if (scope_info.HasContextExtension()) {
+      slow_environment = CheckContextExtensionAtDepth(slow_environment, d);
+    }
+    DCHECK_IMPLIES(!scope_info.HasOuterScopeInfo(), d + 1 == depth);
+    if (scope_info.HasOuterScopeInfo()) {
+      scope_info = scope_info.OuterScopeInfo();
+    }
+  }
+
+  // The depth can be zero, in which case no slow-path checks are built, and
+  // the slow path environment can be null.
+  DCHECK_IMPLIES(slow_environment == nullptr, depth == 0);
+  return slow_environment;
+}
+
+BytecodeGraphBuilder::Environment*
+BytecodeGraphBuilder::CheckContextExtensionsSlowPath(uint32_t depth) {
   // Output environment where the context has an extension
   Environment* slow_environment = nullptr;
 
-  // We only need to check up to the last-but-one depth, because the an eval
+  // We only need to check up to the last-but-one depth, because an eval
   // in the same scope as the variable itself has no way of shadowing it.
   for (uint32_t d = 0; d < depth; d++) {
     Node* has_extension = NewNode(javascript()->HasContextExtension(d));
@@ -1580,30 +1670,7 @@ BytecodeGraphBuilder::Environment* BytecodeGraphBuilder::CheckContextExtensions(
     {
       SubEnvironment sub_environment(this);
       NewIfTrue();
-
-      Node* extension_slot = NewNode(
-          javascript()->LoadContext(d, Context::EXTENSION_INDEX, false));
-
-      Node* check_no_extension =
-          NewNode(simplified()->ReferenceEqual(), extension_slot,
-                  jsgraph()->UndefinedConstant());
-
-      NewBranch(check_no_extension);
-      {
-        SubEnvironment sub_environment(this);
-
-        NewIfFalse();
-        // If there is an extension, merge into the slow path.
-        if (slow_environment == nullptr) {
-          slow_environment = environment();
-          NewMerge();
-        } else {
-          slow_environment->Merge(environment(),
-                                  bytecode_analysis().GetInLivenessFor(
-                                      bytecode_iterator().current_offset()));
-        }
-      }
-      NewIfTrue();
+      slow_environment = CheckContextExtensionAtDepth(slow_environment, d);
       undefined_extension_env = environment();
     }
     NewIfFalse();
@@ -1617,8 +1684,7 @@ BytecodeGraphBuilder::Environment* BytecodeGraphBuilder::CheckContextExtensions(
 
   // The depth can be zero, in which case no slow-path checks are built, and
   // the slow path environment can be null.
-  DCHECK(depth == 0 || slow_environment != nullptr);
-
+  DCHECK_IMPLIES(slow_environment == nullptr, depth == 0);
   return slow_environment;
 }
 

@@ -759,6 +759,13 @@ class ScopeInfoRef : public HeapObjectRef {
   Handle<ScopeInfo> object() const;
 
   int ContextLength() const;
+  bool HasOuterScopeInfo() const;
+  int Flags() const;
+  bool HasContextExtension() const;
+
+  // Only serialized via SerializeScopeInfoChain.
+  ScopeInfoRef OuterScopeInfo() const;
+  void SerializeScopeInfoChain();
 };
 
 #define BROKER_SFI_FIELDS(V)                             \
@@ -808,6 +815,9 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
 
   void SerializeFunctionTemplateInfo();
   base::Optional<FunctionTemplateInfoRef> function_template_info() const;
+
+  void SerializeScopeInfoChain();
+  ScopeInfoRef scope_info() const;
 };
 
 class StringRef : public NameRef {
