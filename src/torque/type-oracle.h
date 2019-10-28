@@ -47,9 +47,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
                                  ClassFlags flags, const std::string& generates,
                                  ClassDeclaration* decl,
                                  const TypeAlias* alias) {
-    ClassType* result = new ClassType(parent, CurrentNamespace(), name, flags,
-                                      generates, decl, alias);
-    Get().aggregate_types_.push_back(std::unique_ptr<ClassType>(result));
+    std::unique_ptr<ClassType> type(new ClassType(
+        parent, CurrentNamespace(), name, flags, generates, decl, alias));
+    ClassType* result = type.get();
+    Get().aggregate_types_.push_back(std::move(type));
     return result;
   }
 
@@ -110,8 +111,9 @@ class TypeOracle : public ContextualClass<TypeOracle> {
 
   static const TopType* GetTopType(std::string reason,
                                    const Type* source_type) {
-    TopType* result = new TopType(std::move(reason), source_type);
-    Get().top_types_.push_back(std::unique_ptr<TopType>(result));
+    std::unique_ptr<TopType> type(new TopType(std::move(reason), source_type));
+    TopType* result = type.get();
+    Get().top_types_.push_back(std::move(type));
     return result;
   }
 

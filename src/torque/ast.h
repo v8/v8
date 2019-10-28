@@ -1163,8 +1163,8 @@ DECLARE_CONTEXTUAL_VARIABLE(CurrentAst, Ast);
 
 template <class T, class... Args>
 T* MakeNode(Args... args) {
-  return CurrentAst::Get().AddNode(std::unique_ptr<T>(
-      new T(CurrentSourcePosition::Get(), std::move(args)...)));
+  return CurrentAst::Get().AddNode(
+      std::make_unique<T>(CurrentSourcePosition::Get(), std::move(args)...));
 }
 
 }  // namespace torque
