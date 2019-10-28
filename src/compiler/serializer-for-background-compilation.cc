@@ -734,20 +734,30 @@ void Hints::AddFromChildSerializer(const Hints& other, Zone* zone) {
   for (auto x : other.constants()) AddConstant(x, zone);
   for (auto x : other.maps()) AddMap(x, zone);
   for (auto x : other.virtual_contexts()) AddVirtualContext(x, zone);
-  for (auto x : other.virtual_bound_functions()) {
-    AddVirtualBoundFunction(x, zone);
-  }
 
   // Adding hints from a child serializer run means copying data out from
-  // a zone that's being destroyed. FunctionBlueprints have zone allocated
-  // data, so we've got to make a deep copy to eliminate traces of the
-  // dying zone.
+  // a zone that's being destroyed. FunctionBlueprints and VirtualBoundFunction
+  // have zone allocated data, so we've got to make a deep copy to eliminate
+  // traces of the dying zone.
   for (auto x : other.function_blueprints()) {
     Hints new_blueprint_hints;
     new_blueprint_hints.AddFromChildSerializer(x.context_hints(), zone);
     FunctionBlueprint new_blueprint(x.shared(), x.feedback_vector(),
                                     new_blueprint_hints);
     AddFunctionBlueprint(new_blueprint, zone);
+  }
+  for (auto x : other.virtual_bound_functions()) {
+    Hints new_target_hints;
+    new_target_hints.AddFromChildSerializer(x.bound_target, zone);
+    HintsVector new_arguments_hints(zone);
+    for (auto hint : x.bound_arguments) {
+      Hints new_arg_hints;
+      new_arg_hints.AddFromChildSerializer(hint, zone);
+      new_arguments_hints.push_back(new_arg_hints);
+    }
+    VirtualBoundFunction new_bound_function(new_target_hints,
+                                            new_arguments_hints);
+    AddVirtualBoundFunction(new_bound_function, zone);
   }
 }
 
