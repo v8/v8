@@ -126,7 +126,6 @@ class PropertyCellData : public HeapObjectData {
  private:
   PropertyDetails const property_details_;
 
-  bool serialized_ = false;
   ObjectData* value_ = nullptr;
 };
 
@@ -148,12 +147,11 @@ class FunctionTemplateInfoData : public HeapObjectData {
   KnownReceiversMap& known_receivers() { return known_receivers_; }
 
  private:
-  bool serialized_call_code_ = false;
-  CallHandlerInfoData* call_code_ = nullptr;
   bool is_signature_undefined_ = false;
   bool accept_any_receiver_ = false;
   bool has_call_code_ = false;
 
+  CallHandlerInfoData* call_code_ = nullptr;
   KnownReceiversMap known_receivers_;
 };
 
@@ -170,7 +168,6 @@ class CallHandlerInfoData : public HeapObjectData {
  private:
   Address const callback_;
 
-  bool serialized_ = false;
   ObjectData* data_ = nullptr;
 };
 
@@ -204,35 +201,29 @@ PropertyCellData::PropertyCellData(JSHeapBroker* broker, ObjectData** storage,
       property_details_(object->property_details()) {}
 
 void PropertyCellData::Serialize(JSHeapBroker* broker) {
-  if (serialized_) return;
-  serialized_ = true;
+  if (value_ != nullptr) return;
 
   TraceScope tracer(broker, this, "PropertyCellData::Serialize");
   auto cell = Handle<PropertyCell>::cast(object());
-  DCHECK_NULL(value_);
   value_ = broker->GetOrCreateData(cell->value());
 }
 
 void FunctionTemplateInfoData::SerializeCallCode(JSHeapBroker* broker) {
-  if (serialized_call_code_) return;
-  serialized_call_code_ = true;
+  if (call_code_ != nullptr) return;
 
   TraceScope tracer(broker, this,
                     "FunctionTemplateInfoData::SerializeCallCode");
   auto function_template_info = Handle<FunctionTemplateInfo>::cast(object());
-  DCHECK_NULL(call_code_);
   call_code_ = broker->GetOrCreateData(function_template_info->call_code())
                    ->AsCallHandlerInfo();
   call_code_->Serialize(broker);
 }
 
 void CallHandlerInfoData::Serialize(JSHeapBroker* broker) {
-  if (serialized_) return;
-  serialized_ = true;
+  if (data_ != nullptr) return;
 
   TraceScope tracer(broker, this, "CallHandlerInfoData::Serialize");
   auto call_handler_info = Handle<CallHandlerInfo>::cast(object());
-  DCHECK_NULL(data_);
   data_ = broker->GetOrCreateData(call_handler_info->data());
 }
 
@@ -1835,7 +1826,6 @@ class CellData : public HeapObjectData {
   ObjectData* value() { return value_; }
 
  private:
-  bool serialized_ = false;
   ObjectData* value_ = nullptr;
 };
 
@@ -1844,12 +1834,10 @@ CellData::CellData(JSHeapBroker* broker, ObjectData** storage,
     : HeapObjectData(broker, storage, object) {}
 
 void CellData::Serialize(JSHeapBroker* broker) {
-  if (serialized_) return;
-  serialized_ = true;
+  if (value_ != nullptr) return;
 
   TraceScope tracer(broker, this, "CellData::Serialize");
   auto cell = Handle<Cell>::cast(object());
-  DCHECK_NULL(value_);
   value_ = broker->GetOrCreateData(cell->value());
 }
 
