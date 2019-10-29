@@ -692,15 +692,6 @@ void GraphAssembler::ConnectUnreachableToEnd() {
   }
 }
 
-void GraphAssembler::UpdateEffectControlWith(Node* node) {
-  if (node->op()->EffectOutputCount() > 0) {
-    current_effect_ = node;
-  }
-  if (node->op()->ControlOutputCount() > 0) {
-    current_control_ = node;
-  }
-}
-
 Node* GraphAssembler::AddClonedNode(Node* node) {
   DCHECK(node->op()->HasProperty(Operator::kPure));
   if (block_updater_) {

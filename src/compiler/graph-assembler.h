@@ -301,7 +301,14 @@ class GraphAssembler {
                  Vars...);
 
   // Updates current effect and control based on outputs of {node}.
-  void UpdateEffectControlWith(Node* node);
+  V8_INLINE void UpdateEffectControlWith(Node* node) {
+    if (node->op()->EffectOutputCount() > 0) {
+      current_effect_ = node;
+    }
+    if (node->op()->ControlOutputCount() > 0) {
+      current_control_ = node;
+    }
+  }
 
   // Adds {node} to the current position and updates assembler's current effect
   // and control.
@@ -335,7 +342,7 @@ class GraphAssembler {
   void GotoIfBasicBlock(BasicBlock* block, Node* branch,
                         IrOpcode::Value goto_if);
 
-  Node* AddClonedNode(Node* node);
+  V8_INLINE Node* AddClonedNode(Node* node);
 
   Operator const* ToNumberOperator();
 
