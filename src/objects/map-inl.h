@@ -626,7 +626,7 @@ void Map::UpdateDescriptors(Isolate* isolate, DescriptorArray descriptors,
       CHECK_EQ(Map::GetVisitorId(*this), visitor_id());
     }
 #else
-    SLOW_DCHECK(layout_descriptor()->IsConsistentWithMap(*this));
+    SLOW_DCHECK(layout_descriptor().IsConsistentWithMap(*this));
     DCHECK(visitor_id() == Map::GetVisitorId(*this));
 #endif
   }
@@ -645,7 +645,7 @@ void Map::InitializeDescriptors(Isolate* isolate, DescriptorArray descriptors,
       CHECK(layout_descriptor().IsConsistentWithMap(*this));
     }
 #else
-    SLOW_DCHECK(layout_descriptor()->IsConsistentWithMap(*this));
+    SLOW_DCHECK(layout_descriptor().IsConsistentWithMap(*this));
 #endif
     set_visitor_id(Map::GetVisitorId(*this));
   }

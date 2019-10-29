@@ -1822,7 +1822,7 @@ void Map::InstallDescriptors(Isolate* isolate, Handle<Map> parent,
       CHECK(child->layout_descriptor().IsConsistentWithMap(*child));
     }
 #else
-    SLOW_DCHECK(child->layout_descriptor()->IsConsistentWithMap(*child));
+    SLOW_DCHECK(child->layout_descriptor().IsConsistentWithMap(*child));
 #endif
     child->set_visitor_id(Map::GetVisitorId(*child));
   }
