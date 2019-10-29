@@ -3558,7 +3558,7 @@ TEST(Regress169928) {
   array_data->set(0, Smi::FromInt(1));
   array_data->set(1, Smi::FromInt(2));
 
-  heap::AllocateAllButNBytes(
+  heap::FillCurrentPageButNBytes(
       CcTest::heap()->new_space(),
       JSArray::kSize + AllocationMemento::kSize + kTaggedSize);
 

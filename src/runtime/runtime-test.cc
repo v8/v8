@@ -684,9 +684,15 @@ int FixedArrayLenFromSize(int size) {
 }
 
 void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap) {
+  PauseAllocationObserversScope pause_observers(heap);
   NewSpace* space = heap->new_space();
-  int space_remaining = static_cast<int>(*space->allocation_limit_address() -
-                                         *space->allocation_top_address());
+  // We cannot rely on `space->limit()` to point to the end of the current page
+  // in the case where inline allocations are disabled, it actually points to
+  // the current allocation pointer.
+  DCHECK_IMPLIES(space->heap()->inline_allocation_disabled(),
+                 space->limit() == space->top());
+  int space_remaining =
+      static_cast<int>(space->to_space().page_high() - space->top());
   while (space_remaining > 0) {
     int length = FixedArrayLenFromSize(space_remaining);
     if (length > 0) {
@@ -709,7 +715,6 @@ RUNTIME_FUNCTION(Runtime_SimulateNewspaceFull) {
   HandleScope scope(isolate);
   Heap* heap = isolate->heap();
   NewSpace* space = heap->new_space();
-  PauseAllocationObserversScope pause_observers(heap);
   AlwaysAllocateScope always_allocate(heap);
   do {
     FillUpOneNewSpacePage(isolate, heap);
