@@ -1189,7 +1189,7 @@ namespace {
 
 bool ConvertKeyToIndex(Handle<Object> receiver, Handle<Object> key,
                        uint32_t* index) {
-  if (!receiver->IsJSReceiver()) return false;
+  DCHECK(receiver->IsJSReceiver() || receiver->IsString());
   if (key->ToArrayIndex(index)) return true;
 
   if (!receiver->IsJSTypedArray()) return false;
@@ -1206,7 +1206,7 @@ bool ConvertKeyToIndex(Handle<Object> receiver, Handle<Object> key,
 
 bool CanCache(Handle<Object> receiver, InlineCacheState state) {
   if (!FLAG_use_ic || state == NO_FEEDBACK) return false;
-  if (!receiver->IsJSReceiver()) return false;
+  if (!receiver->IsJSReceiver() && !receiver->IsString()) return false;
   return !receiver->IsAccessCheckNeeded() && !receiver->IsJSPrimitiveWrapper();
 }
 
