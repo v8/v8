@@ -17,6 +17,16 @@
   V(divps, 0F, 5E)              \
   V(maxps, 0F, 5F)
 
+// Instructions dealing with scalar single-precision values.
+#define SSE_INSTRUCTION_LIST_SS(V) \
+  V(sqrtss, F3, 0F, 51)            \
+  V(addss, F3, 0F, 58)             \
+  V(mulss, F3, 0F, 59)             \
+  V(subss, F3, 0F, 5C)             \
+  V(minss, F3, 0F, 5D)             \
+  V(divss, F3, 0F, 5E)             \
+  V(maxss, F3, 0F, 5F)
+
 #define SSE2_INSTRUCTION_LIST(V) \
   V(sqrtpd, 66, 0F, 51)          \
   V(andnpd, 66, 0F, 55)          \

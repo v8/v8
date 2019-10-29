@@ -832,24 +832,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void sahf();
 
-  // SSE instructions
-  void addss(XMMRegister dst, XMMRegister src);
-  void addss(XMMRegister dst, Operand src);
-  void subss(XMMRegister dst, XMMRegister src);
-  void subss(XMMRegister dst, Operand src);
-  void mulss(XMMRegister dst, XMMRegister src);
-  void mulss(XMMRegister dst, Operand src);
-  void divss(XMMRegister dst, XMMRegister src);
-  void divss(XMMRegister dst, Operand src);
-
-  void maxss(XMMRegister dst, XMMRegister src);
-  void maxss(XMMRegister dst, Operand src);
-  void minss(XMMRegister dst, XMMRegister src);
-  void minss(XMMRegister dst, Operand src);
-
-  void sqrtss(XMMRegister dst, XMMRegister src);
-  void sqrtss(XMMRegister dst, Operand src);
-
   void ucomiss(XMMRegister dst, XMMRegister src);
   void ucomiss(XMMRegister dst, Operand src);
   void movaps(XMMRegister dst, XMMRegister src);
@@ -890,7 +872,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   SSE_INSTRUCTION_LIST(DECLARE_SSE_INSTRUCTION)
 #undef DECLARE_SSE_INSTRUCTION
 
-  // SSE2 instructions
+  // SSE instructions with prefix and SSE2 instructions
   void sse2_instr(XMMRegister dst, XMMRegister src, byte prefix, byte escape,
                   byte opcode);
   void sse2_instr(XMMRegister dst, Operand src, byte prefix, byte escape,
@@ -903,6 +885,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     sse2_instr(dst, src, 0x##prefix, 0x##escape, 0x##opcode);         \
   }
 
+  // These SSE instructions have the same encoding as the SSE2 instructions.
+  SSE_INSTRUCTION_LIST_SS(DECLARE_SSE2_INSTRUCTION)
   SSE2_INSTRUCTION_LIST(DECLARE_SSE2_INSTRUCTION)
 #undef DECLARE_SSE2_INSTRUCTION
 

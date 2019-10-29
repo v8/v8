@@ -393,22 +393,6 @@ TEST(DisasmX64) {
     __ movdqu(Operand(rsp, 12), xmm0);
     __ shufps(xmm0, xmm9, 0x0);
 
-    // Arithmetic operation
-    __ addss(xmm1, xmm0);
-    __ addss(xmm1, Operand(rbx, rcx, times_4, 10000));
-    __ mulss(xmm1, xmm0);
-    __ mulss(xmm1, Operand(rbx, rcx, times_4, 10000));
-    __ subss(xmm1, xmm0);
-    __ subss(xmm1, Operand(rbx, rcx, times_4, 10000));
-    __ divss(xmm1, xmm0);
-    __ divss(xmm1, Operand(rbx, rcx, times_4, 10000));
-    __ maxss(xmm1, xmm0);
-    __ maxss(xmm1, Operand(rbx, rcx, times_4, 10000));
-    __ minss(xmm1, xmm0);
-    __ minss(xmm1, Operand(rbx, rcx, times_4, 10000));
-    __ sqrtss(xmm1, xmm0);
-    __ sqrtss(xmm1, Operand(rbx, rcx, times_4, 10000));
-
     __ ucomiss(xmm0, xmm1);
     __ ucomiss(xmm0, Operand(rbx, rcx, times_4, 10000));
 
@@ -416,6 +400,12 @@ TEST(DisasmX64) {
   __ instruction(xmm1, xmm0);                           \
   __ instruction(xmm1, Operand(rbx, rcx, times_4, 10000));
     SSE_INSTRUCTION_LIST(EMIT_SSE_INSTR)
+#undef EMIT_SSE_INSTR
+
+#define EMIT_SSE_INSTR(instruction, notUsed1, notUsed2, notUse3) \
+  __ instruction(xmm1, xmm0);                                    \
+  __ instruction(xmm1, Operand(rbx, rcx, times_4, 10000));
+    SSE_INSTRUCTION_LIST_SS(EMIT_SSE_INSTR)
 #undef EMIT_SSE_INSTR
   }
 
