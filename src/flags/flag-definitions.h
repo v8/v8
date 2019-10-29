@@ -683,8 +683,8 @@ DEFINE_INT(trace_wasm_ast_start, 0,
 DEFINE_INT(trace_wasm_ast_end, 0, "end function for wasm AST trace (exclusive)")
 DEFINE_BOOL(liftoff, false,
             "enable Liftoff, the baseline compiler for WebAssembly")
-DEFINE_DEBUG_BOOL(trace_liftoff, false,
-                  "trace Liftoff, the baseline compiler for WebAssembly")
+DEFINE_BOOL(trace_liftoff, false,
+            "trace Liftoff, the baseline compiler for WebAssembly")
 DEFINE_DEBUG_BOOL(wasm_break_on_decoder_error, false,
                   "debug break when wasm decoder encounters an error")
 DEFINE_BOOL(trace_wasm_memory, false,
