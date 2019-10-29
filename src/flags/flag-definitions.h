@@ -685,8 +685,6 @@ DEFINE_BOOL(liftoff, false,
             "enable Liftoff, the baseline compiler for WebAssembly")
 DEFINE_BOOL(trace_liftoff, false,
             "trace Liftoff, the baseline compiler for WebAssembly")
-DEFINE_DEBUG_BOOL(wasm_break_on_decoder_error, false,
-                  "debug break when wasm decoder encounters an error")
 DEFINE_BOOL(trace_wasm_memory, false,
             "print all memory updates performed in wasm code")
 // Fuzzers use {wasm_tier_mask_for_testing} together with {liftoff} and
