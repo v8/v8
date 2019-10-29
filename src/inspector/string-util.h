@@ -74,10 +74,6 @@ class StringUtil {
     return String16::fromUTF8(reinterpret_cast<const char*>(data), length);
   }
 
-  static String fromUTF16(const uint16_t* data, size_t length) {
-    return String16(data, length);
-  }
-
   static String fromUTF16LE(const uint16_t* data, size_t length) {
     return String16::fromUTF16LE(data, length);
   }
