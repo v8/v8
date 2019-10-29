@@ -2013,6 +2013,7 @@ void JSCollator::JSCollatorPrint(std::ostream& os) {  // NOLINT
 
 void JSDateTimeFormat::JSDateTimeFormatPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, *this, "JSDateTimeFormat");
+  os << "\n - locale: " << Brief(locale());
   os << "\n - icu locale: " << Brief(icu_locale());
   os << "\n - icu simple date format: " << Brief(icu_simple_date_format());
   os << "\n - icu date interval format: " << Brief(icu_date_interval_format());
@@ -2039,6 +2040,7 @@ void JSLocale::JSLocalePrint(std::ostream& os) {  // NOLINT
 void JSNumberFormat::JSNumberFormatPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, *this, "JSNumberFormat");
   os << "\n - locale: " << Brief(locale());
+  os << "\n - numberingSystem: " << Brief(numberingSystem());
   os << "\n - icu_number_formatter: " << Brief(icu_number_formatter());
   os << "\n - bound_format: " << Brief(bound_format());
   JSObjectPrintBody(os, *this);
@@ -2057,6 +2059,7 @@ void JSRelativeTimeFormat::JSRelativeTimeFormatPrint(
     std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, *this, "JSRelativeTimeFormat");
   os << "\n - locale: " << Brief(locale());
+  os << "\n - numberingSystem: " << Brief(numberingSystem());
   os << "\n - style: " << StyleAsString();
   os << "\n - numeric: " << NumericAsString();
   os << "\n - icu formatter: " << Brief(icu_formatter());

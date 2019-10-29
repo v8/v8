@@ -383,14 +383,10 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
 
   Handle<Object> resolved_obj;
 
+  Handle<String> locale = Handle<String>(date_time_format->locale(), isolate);
   CHECK(!date_time_format->icu_locale().is_null());
   CHECK_NOT_NULL(date_time_format->icu_locale().raw());
   icu::Locale* icu_locale = date_time_format->icu_locale().raw();
-  Maybe<std::string> maybe_locale_str = Intl::ToLanguageTag(*icu_locale);
-  MAYBE_RETURN(maybe_locale_str, MaybeHandle<JSObject>());
-  std::string locale_str = maybe_locale_str.FromJust();
-  Handle<String> locale =
-      factory->NewStringFromAsciiChecked(locale_str.c_str());
 
   icu::SimpleDateFormat* icu_simple_date_format =
       date_time_format->icu_simple_date_format().raw();
@@ -1327,6 +1323,27 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   DCHECK(!icu_locale.isBogus());
 
   UErrorCode status = U_ZERO_ERROR;
+  if (calendar_str != nullptr) {
+    auto ca_extension_it = r.extensions.find("ca");
+    if (ca_extension_it != r.extensions.end() &&
+        ca_extension_it->second != calendar_str.get()) {
+      icu_locale.setUnicodeKeywordValue("ca", nullptr, status);
+      CHECK(U_SUCCESS(status));
+    }
+  }
+  if (numbering_system_str != nullptr) {
+    auto nu_extension_it = r.extensions.find("nu");
+    if (nu_extension_it != r.extensions.end() &&
+        nu_extension_it->second != numbering_system_str.get()) {
+      icu_locale.setUnicodeKeywordValue("nu", nullptr, status);
+      CHECK(U_SUCCESS(status));
+    }
+  }
+
+  // Need to keep a copy of icu_locale which not changing "ca", "nu", "hc"
+  // by option.
+  icu::Locale resolved_locale(icu_locale);
+
   if (calendar_str != nullptr &&
       Intl::IsValidCalendar(icu_locale, calendar_str.get())) {
     icu_locale.setUnicodeKeywordValue("ca", calendar_str.get(), status);
@@ -1555,11 +1572,16 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
       if (hc != Intl::ToHourCycle(hc_extension_it->second.c_str())) {
         // Remove -hc- if it does not agree with what we used.
         UErrorCode status = U_ZERO_ERROR;
-        icu_locale.setUnicodeKeywordValue("hc", nullptr, status);
+        resolved_locale.setUnicodeKeywordValue("hc", nullptr, status);
         CHECK(U_SUCCESS(status));
       }
     }
   }
+
+  Maybe<std::string> maybe_locale_str = Intl::ToLanguageTag(resolved_locale);
+  MAYBE_RETURN(maybe_locale_str, MaybeHandle<JSDateTimeFormat>());
+  Handle<String> locale_str = isolate->factory()->NewStringFromAsciiChecked(
+      maybe_locale_str.FromJust().c_str());
 
   Handle<Managed<icu::Locale>> managed_locale =
       Managed<icu::Locale>::FromRawPtr(isolate, 0, icu_locale.clone());
@@ -1587,6 +1609,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
       (time_style == DateTimeStyle::kUndefined)) {
     date_time_format->set_hour_cycle(hc);
   }
+  date_time_format->set_locale(*locale_str);
   date_time_format->set_icu_locale(*managed_locale);
   date_time_format->set_icu_simple_date_format(*managed_format);
   date_time_format->set_icu_date_interval_format(*managed_interval_format);

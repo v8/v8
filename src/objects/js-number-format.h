@@ -97,6 +97,7 @@ class JSNumberFormat : public JSObject {
   STATIC_ASSERT(Style::UNIT <= StyleBits::kMax);
 
   DECL_ACCESSORS(locale, String)
+  DECL_ACCESSORS(numberingSystem, String)
   DECL_ACCESSORS(icu_number_formatter,
                  Managed<icu::number::LocalizedNumberFormatter>)
   DECL_ACCESSORS(bound_format, Object)

@@ -15,6 +15,7 @@
 #include 'src/objects/js-segmenter.h'
 
 extern class JSDateTimeFormat extends JSObject {
+  locale: String;
   icu_locale: Foreign;                // Managed<icu::Locale>
   icu_simple_date_format: Foreign;    // Managed<icu::SimpleDateFormat>
   icu_date_interval_format: Foreign;  // Managed<icu::DateIntervalFormat>
@@ -30,6 +31,7 @@ extern class JSListFormat extends JSObject {
 
 extern class JSNumberFormat extends JSObject {
   locale: String;
+  numberingSystem: String;
   icu_number_formatter:
       Foreign;  // Managed<icu::number::LocalizedNumberFormatter>
   bound_format: JSFunction|Undefined;
@@ -46,6 +48,7 @@ extern class JSPluralRules extends JSObject {
 
 extern class JSRelativeTimeFormat extends JSObject {
   locale: String;
+  numberingSystem: String;
   icu_formatter: Foreign;  // Managed<icu::RelativeDateTimeFormatter>
   flags: Smi;
 }

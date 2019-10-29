@@ -58,6 +58,7 @@ class JSRelativeTimeFormat : public JSObject {
 
   // RelativeTimeFormat accessors.
   DECL_ACCESSORS(locale, String)
+  DECL_ACCESSORS(numberingSystem, String)
 
   DECL_ACCESSORS(icu_formatter, Managed<icu::RelativeDateTimeFormatter>)
 
