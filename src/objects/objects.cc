@@ -4686,7 +4686,6 @@ bool GetPositionInfoSlow(const Script script, int position,
 }
 }  // namespace
 
-#define SMI_VALUE(x) (Smi::ToInt(x))
 bool Script::GetPositionInfo(int position, PositionInfo* info,
                              OffsetFlag offset_flag) const {
   DisallowHeapAllocation no_allocation;
@@ -4731,12 +4730,12 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
     // passed, and positions beyond the end of the script return as failure.
     if (position < 0) {
       position = 0;
-    } else if (position > SMI_VALUE(ends.get(ends_len - 1))) {
+    } else if (position > Smi::ToInt(ends.get(ends_len - 1))) {
       return false;
     }
 
     // Determine line number by doing a binary search on the line ends array.
-    if (SMI_VALUE(ends.get(0)) >= position) {
+    if (Smi::ToInt(ends.get(0)) >= position) {
       info->line = 0;
       info->line_start = 0;
       info->column = position;
@@ -4747,23 +4746,23 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
       while (right > 0) {
         DCHECK_LE(left, right);
         const int mid = (left + right) / 2;
-        if (position > SMI_VALUE(ends.get(mid))) {
+        if (position > Smi::ToInt(ends.get(mid))) {
           left = mid + 1;
-        } else if (position <= SMI_VALUE(ends.get(mid - 1))) {
+        } else if (position <= Smi::ToInt(ends.get(mid - 1))) {
           right = mid - 1;
         } else {
           info->line = mid;
           break;
         }
       }
-      DCHECK(SMI_VALUE(ends.get(info->line)) >= position &&
-             SMI_VALUE(ends.get(info->line - 1)) < position);
-      info->line_start = SMI_VALUE(ends.get(info->line - 1)) + 1;
+      DCHECK(Smi::ToInt(ends.get(info->line)) >= position &&
+             Smi::ToInt(ends.get(info->line - 1)) < position);
+      info->line_start = Smi::ToInt(ends.get(info->line - 1)) + 1;
       info->column = position - info->line_start;
     }
 
     // Line end is position of the linebreak character.
-    info->line_end = SMI_VALUE(ends.get(info->line));
+    info->line_end = Smi::ToInt(ends.get(info->line));
     if (info->line_end > 0) {
       DCHECK(source().IsString());
       String src = String::cast(source());
@@ -4784,7 +4783,6 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
 
   return true;
 }
-#undef SMI_VALUE
 
 int Script::GetColumnNumber(Handle<Script> script, int code_pos) {
   PositionInfo info;
