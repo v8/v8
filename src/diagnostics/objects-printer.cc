@@ -365,9 +365,15 @@ void DoPrintElements(std::ostream& os, Object object, int length) {  // NOLINT
 
 template <typename ElementType>
 void PrintTypedArrayElements(std::ostream& os, const ElementType* data_ptr,
-                             size_t length) {
+                             size_t length, bool is_on_heap) {
   if (length == 0) return;
   size_t previous_index = 0;
+  if (i::FLAG_mock_arraybuffer_allocator && !is_on_heap) {
+    // Don't try to print data that's not actually allocated.
+    os << "\n    0-" << length << ": <mocked array buffer bytes>";
+    return;
+  }
+
   ElementType previous_value = data_ptr[0];
   ElementType value = 0;
   for (size_t i = 1; i <= length; i++) {
@@ -491,9 +497,10 @@ void JSObject::PrintElements(std::ostream& os) {  // NOLINT
 #define PRINT_ELEMENTS(Type, type, TYPE, elementType)                         \
   case TYPE##_ELEMENTS: {                                                     \
     size_t length = JSTypedArray::cast(*this).length();                       \
+    bool is_on_heap = JSTypedArray::cast(*this).is_on_heap();                 \
     const elementType* data_ptr =                                             \
         static_cast<const elementType*>(JSTypedArray::cast(*this).DataPtr()); \
-    PrintTypedArrayElements<elementType>(os, data_ptr, length);               \
+    PrintTypedArrayElements<elementType>(os, data_ptr, length, is_on_heap);   \
     break;                                                                    \
   }
       TYPED_ARRAYS(PRINT_ELEMENTS)
@@ -2300,7 +2307,24 @@ void HeapNumber::HeapNumberPrint(std::ostream& os) {
 
 #endif  // OBJECT_PRINT
 
-void HeapNumber::HeapNumberShortPrint(std::ostream& os) { os << value(); }
+void HeapNumber::HeapNumberShortPrint(std::ostream& os) {
+  static constexpr uint64_t kUint64AllBitsSet =
+      static_cast<uint64_t>(int64_t{-1});
+  // Min/max integer values representable by 52 bits of mantissa and 1 sign bit.
+  static constexpr int64_t kMinSafeInteger =
+      static_cast<int64_t>(kUint64AllBitsSet << 53);
+  static constexpr int64_t kMaxSafeInteger = -(kMinSafeInteger + 1);
+
+  double val = value();
+  if (val == DoubleToInteger(val) &&
+      val >= static_cast<double>(kMinSafeInteger) &&
+      val <= static_cast<double>(kMaxSafeInteger)) {
+    int64_t i = static_cast<int64_t>(val);
+    os << i << ".0";
+  } else {
+    os << val;
+  }
+}
 
 // TODO(cbruni): remove once the new maptracer is in place.
 void Name::NameShortPrint() {
