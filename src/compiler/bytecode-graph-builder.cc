@@ -1622,6 +1622,8 @@ base::Optional<ScopeInfoRef> BytecodeGraphBuilder::TryGetScopeInfo() {
     case IrOpcode::kJSGeneratorRestoreContext:
     case IrOpcode::kOsrValue:
     case IrOpcode::kPhi:
+    // For a large context, the runtime call is still used.
+    case IrOpcode::kJSCallRuntime:
       return base::nullopt;
     default:
       UNREACHABLE();
