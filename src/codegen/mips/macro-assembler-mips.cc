@@ -4400,12 +4400,11 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
   {
     // Load receiver to pass it later to DebugOnFunctionCall hook.
     if (actual.is_reg()) {
-      mov(t0, actual.reg());
+      Lsa(at, sp, actual.reg(), kPointerSizeLog2);
+      lw(t0, MemOperand(at));
     } else {
-      li(t0, actual.immediate());
+      lw(t0, MemOperand(sp, actual.immediate() << kPointerSizeLog2));
     }
-    Lsa(at, sp, t0, kPointerSizeLog2);
-    lw(t0, MemOperand(at));
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
     if (expected.is_reg()) {
