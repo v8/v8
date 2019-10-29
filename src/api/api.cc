@@ -7433,8 +7433,6 @@ v8::ArrayBuffer::Contents v8::ArrayBuffer::GetContents(bool externalize) {
 void v8::ArrayBuffer::Detach() {
   i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
   i::Isolate* isolate = obj->GetIsolate();
-  Utils::ApiCheck(obj->is_external(), "v8::ArrayBuffer::Detach",
-                  "Only externalized ArrayBuffers can be detached");
   Utils::ApiCheck(obj->is_detachable(), "v8::ArrayBuffer::Detach",
                   "Only detachable ArrayBuffers can be detached");
   LOG_API(isolate, ArrayBuffer, Detach);

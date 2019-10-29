@@ -2185,8 +2185,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/extensions/cputracemark-extension.h",
     "src/extensions/externalize-string-extension.cc",
     "src/extensions/externalize-string-extension.h",
-    "src/extensions/free-buffer-extension.cc",
-    "src/extensions/free-buffer-extension.h",
     "src/extensions/gc-extension.cc",
     "src/extensions/gc-extension.h",
     "src/extensions/ignition-statistics-extension.cc",

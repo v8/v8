@@ -1757,11 +1757,11 @@ TEST(TryLookupElement) {
     CHECK_ABSENT(object, 13);
     CHECK_ABSENT(object, 42);
 
-    v8::ArrayBuffer::Contents contents = buffer->Externalize();
-    buffer->Detach();
-    contents.Deleter()(contents.Data(), contents.ByteLength(),
-                       contents.DeleterData());
-
+    {
+      std::shared_ptr<v8::BackingStore> backing_store =
+          buffer->GetBackingStore();
+      buffer->Detach();
+    }
     CHECK_ABSENT(object, 0);
     CHECK_ABSENT(object, 1);
     CHECK_ABSENT(object, -10);

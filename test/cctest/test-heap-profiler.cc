@@ -3027,16 +3027,12 @@ TEST(ArrayBufferSharedBackingStore) {
 
   v8::Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 1024);
   CHECK_EQ(1024, static_cast<int>(ab->ByteLength()));
-  CHECK(!ab->IsExternal());
-  v8::ArrayBuffer::Contents ab_contents = ab->Externalize();
-  CHECK(ab->IsExternal());
+  std::shared_ptr<v8::BackingStore> backing_store = ab->GetBackingStore();
 
-  CHECK_EQ(1024, static_cast<int>(ab_contents.ByteLength()));
-  void* data = ab_contents.Data();
+  CHECK_EQ(1024, static_cast<int>(backing_store->ByteLength()));
+  void* data = backing_store->Data();
   CHECK_NOT_NULL(data);
-  v8::Local<v8::ArrayBuffer> ab2 =
-      v8::ArrayBuffer::New(isolate, data, ab_contents.ByteLength());
-  CHECK(ab2->IsExternal());
+  v8::Local<v8::ArrayBuffer> ab2 = v8::ArrayBuffer::New(isolate, backing_store);
   env->Global()->Set(env.local(), v8_str("ab1"), ab).FromJust();
   env->Global()->Set(env.local(), v8_str("ab2"), ab2).FromJust();
 
@@ -3062,8 +3058,6 @@ TEST(ArrayBufferSharedBackingStore) {
   CHECK(ab2_data);
   CHECK_EQ(ab1_data, ab2_data);
   CHECK_EQ(2, GetRetainersCount(snapshot, ab1_data));
-  ab_contents.Deleter()(ab_contents.Data(), ab_contents.ByteLength(),
-                        ab_contents.DeleterData());
 }
 
 

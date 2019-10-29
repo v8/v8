@@ -2317,23 +2317,6 @@ static char* ReadChars(const char* name, int* size_out) {
   return chars;
 }
 
-struct DataAndPersistent {
-  uint8_t* data;
-  int byte_length;
-  Global<ArrayBuffer> handle;
-};
-
-static void ReadBufferWeakCallback(
-    const v8::WeakCallbackInfo<DataAndPersistent>& data) {
-  int byte_length = data.GetParameter()->byte_length;
-  data.GetIsolate()->AdjustAmountOfExternalAllocatedMemory(
-      -static_cast<intptr_t>(byte_length));
-
-  delete[] data.GetParameter()->data;
-  data.GetParameter()->handle.Reset();
-  delete data.GetParameter();
-}
-
 void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
   static_assert(sizeof(char) == sizeof(uint8_t),
                 "char and uint8_t should both have 1 byte");
@@ -2345,19 +2328,20 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  DataAndPersistent* data = new DataAndPersistent;
-  data->data = reinterpret_cast<uint8_t*>(ReadChars(*filename, &length));
-  if (data->data == nullptr) {
-    delete data;
+  uint8_t* data = reinterpret_cast<uint8_t*>(ReadChars(*filename, &length));
+  if (data == nullptr) {
     Throw(isolate, "Error reading file");
     return;
   }
-  data->byte_length = length;
-  Local<v8::ArrayBuffer> buffer = ArrayBuffer::New(isolate, data->data, length);
-  data->handle.Reset(isolate, buffer);
-  data->handle.SetWeak(data, ReadBufferWeakCallback,
-                       v8::WeakCallbackType::kParameter);
-  isolate->AdjustAmountOfExternalAllocatedMemory(length);
+  std::unique_ptr<v8::BackingStore> backing_store =
+      ArrayBuffer::NewBackingStore(
+          data, length,
+          [](void* data, size_t length, void*) {
+            delete[] reinterpret_cast<uint8_t*>(data);
+          },
+          nullptr);
+  Local<v8::ArrayBuffer> buffer =
+      ArrayBuffer::New(isolate, std::move(backing_store));
 
   args.GetReturnValue().Set(buffer);
 }
@@ -3394,9 +3378,6 @@ class Serializer : public ValueSerializer::Delegate {
       }
 
       auto backing_store = array_buffer->GetBackingStore();
-      if (!array_buffer->IsExternal()) {
-        array_buffer->Externalize(backing_store);
-      }
       data_->backing_stores_.push_back(std::move(backing_store));
       array_buffer->Detach();
     }

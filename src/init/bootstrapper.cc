@@ -15,7 +15,6 @@
 #include "src/execution/protectors.h"
 #include "src/extensions/cputracemark-extension.h"
 #include "src/extensions/externalize-string-extension.h"
-#include "src/extensions/free-buffer-extension.h"
 #include "src/extensions/gc-extension.h"
 #include "src/extensions/ignition-statistics-extension.h"
 #include "src/extensions/statistics-extension.h"
@@ -121,7 +120,6 @@ static bool isValidCpuTraceMarkFunctionName() {
 }
 
 void Bootstrapper::InitializeOncePerProcess() {
-  v8::RegisterExtension(std::make_unique<FreeBufferExtension>());
   v8::RegisterExtension(std::make_unique<GCExtension>(GCFunctionName()));
   v8::RegisterExtension(std::make_unique<ExternalizeStringExtension>());
   v8::RegisterExtension(std::make_unique<StatisticsExtension>());
@@ -4958,8 +4956,6 @@ bool Genesis::InstallExtensions(Isolate* isolate,
                                 v8::ExtensionConfiguration* extensions) {
   ExtensionStates extension_states;  // All extensions have state UNVISITED.
   return InstallAutoExtensions(isolate, &extension_states) &&
-         (!FLAG_expose_free_buffer ||
-          InstallExtension(isolate, "v8/free-buffer", &extension_states)) &&
          (!FLAG_expose_gc ||
           InstallExtension(isolate, "v8/gc", &extension_states)) &&
          (!FLAG_expose_externalize_string ||
