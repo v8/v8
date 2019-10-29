@@ -203,6 +203,10 @@ int HandlerTable::LookupReturn(int pc_offset) {
       index++;
       return *this;
     }
+    Iterator& operator--() {
+      index--;
+      return *this;
+    }
     Iterator& operator+=(difference_type offset) {
       index += offset;
       return *this;
