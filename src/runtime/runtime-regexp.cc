@@ -1055,15 +1055,15 @@ Handle<JSObject> ConstructNamedCaptureGroupsObject(
     const std::function<Object(int)>& f_get_capture) {
   Handle<JSObject> groups = isolate->factory()->NewJSObjectWithNullProto();
 
-  const int capture_count = capture_map->length() >> 1;
-  for (int i = 0; i < capture_count; i++) {
+  const int named_capture_count = capture_map->length() >> 1;
+  for (int i = 0; i < named_capture_count; i++) {
     const int name_ix = i * 2;
     const int index_ix = i * 2 + 1;
 
     Handle<String> capture_name(String::cast(capture_map->get(name_ix)),
                                 isolate);
     const int capture_ix = Smi::ToInt(capture_map->get(index_ix));
-    DCHECK(1 <= capture_ix && capture_ix <= capture_count);
+    DCHECK_GE(capture_ix, 1);  // Explicit groups start at index 1.
 
     Handle<Object> capture_value(f_get_capture(capture_ix), isolate);
     DCHECK(capture_value->IsUndefined(isolate) || capture_value->IsString());
