@@ -24,13 +24,6 @@ using VarState = LiftoffAssembler::VarState;
 
 namespace {
 
-#define __ asm_->
-
-#define TRACE(...)                                            \
-  do {                                                        \
-    if (FLAG_trace_liftoff) PrintF("[liftoff] " __VA_ARGS__); \
-  } while (false)
-
 class StackTransferRecipe {
   struct RegisterMove {
     LiftoffRegister src;
@@ -858,9 +851,6 @@ std::ostream& operator<<(std::ostream& os, VarState slot) {
   }
   UNREACHABLE();
 }
-
-#undef __
-#undef TRACE
 
 }  // namespace wasm
 }  // namespace internal
