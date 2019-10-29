@@ -1036,7 +1036,8 @@ bool ExecuteCompilationUnits(
 
   auto publish_results = [&results_to_publish](
                              BackgroundCompileScope* compile_scope) {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "PublishResults");
+    TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "PublishResults",
+                 "num_results", uint64_t{results_to_publish.size()});
     if (results_to_publish.empty()) return;
     WasmCodeRefScope code_ref_scope;
     std::vector<WasmCode*> code_vector =
@@ -2329,8 +2330,8 @@ void CompilationStateImpl::FinalizeJSToWasmWrappers(
   // TODO(6792): Wrappers below are allocated with {Factory::NewCode}. As an
   // optimization we keep the code space unlocked to avoid repeated unlocking
   // because many such wrapper are allocated in sequence below.
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
-               "FinalizeJSToWasmWrappers");
+  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "FinalizeJSToWasmWrappers",
+               "num_wrappers", uint64_t{js_to_wasm_wrapper_units_.size()});
   CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   for (auto& unit : js_to_wasm_wrapper_units_) {
     Handle<Code> code = unit->Finalize(isolate);
@@ -2348,7 +2349,8 @@ CompilationStateImpl::GetNextCompilationUnit(
 }
 
 void CompilationStateImpl::OnFinishedUnits(Vector<WasmCode*> code_vector) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "OnFinishedUnits");
+  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "OnFinishedUnits",
+               "num_units", uint64_t{code_vector.size()});
 
   base::MutexGuard guard(&callbacks_mutex_);
 
