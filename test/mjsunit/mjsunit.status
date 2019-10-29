@@ -255,6 +255,11 @@
   # Test doesn't work on 32-bit architectures (it would require a
   # regexp pattern with too many captures).
   'regress/regress-976627': [FAIL, ['arch == x64 or arch == arm64 or arch == mips64el or arch == ppc64 or arch == s390x', PASS]],
+
+  # OOM with too many isolates/memory objects (https://crbug.com/1010272)
+  # Predictable tests fail due to race between postMessage and GrowMemory
+  # Agressively skipping test for variants, and simulator runs.
+  'regress/wasm/regress-1010272': [PASS, NO_VARIANTS, ['simulator_run', SKIP], ['system == android', SKIP], ['predictable', SKIP]],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -927,9 +932,6 @@
   # Deadlocks on predictable platform (https://crbug.com/v8/9760).
   'wasm/async-compile': [SKIP],
   'wasm/streaming-compile': [SKIP],
-
-  # Race between postMessage and wasm memory.grow. (https://crbug.com/1010272).
-  'regress/wasm/regress-1010272': [SKIP],
 }],  # 'predictable == True'
 
 ##############################################################################
