@@ -138,7 +138,7 @@ if (!build_with_chromium && is_clang) {
 template("v8_source_set") {
   if (defined(invoker.split_count) && invoker.split_count > 1 &&
       defined(v8_static_library) && v8_static_library && is_win) {
-    link_target_type = "jumbo_split_static_library"
+    link_target_type = "split_static_library"
   } else if (defined(v8_static_library) && v8_static_library) {
     link_target_type = "jumbo_static_library"
   } else {
