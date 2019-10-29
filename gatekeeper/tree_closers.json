@@ -74,6 +74,17 @@
         }
       }
     ],
+    "https://build.chromium.org/p/client.v8.perf": [
+      {
+        "categories": [
+          "v8_all"
+        ],
+        "excluded_builders" : [],
+        "builders": {
+          "*": {}
+        }
+      }
+    ],
     "https://build.chromium.org/p/client.v8.fyi": [
       {
         "excluded_builders" : [
