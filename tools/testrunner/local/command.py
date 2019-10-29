@@ -134,7 +134,7 @@ class BaseCommand(object):
       self._kill_process(process)
     except OSError as e:
       print(e)
-      started_as = self._to_args_list().to_string(relative=True)
+      started_as = self.to_string(relative=True)
       print("Unruly process started as:\n  %s\n" % started_as)
       sys.stdout.flush()
       pass
