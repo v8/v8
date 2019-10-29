@@ -982,7 +982,8 @@ class Map : public HeapObject {
   static const int kMaxFastProperties = 128;
 
   friend class MapUpdater;
-  friend class ConcurrentMarkingVisitor;
+  template <typename ConcreteVisitor, typename MarkingState>
+  friend class MarkingVisitorBase;
 
   OBJECT_CONSTRUCTORS(Map, HeapObject);
 };

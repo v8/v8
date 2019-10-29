@@ -21,26 +21,6 @@
 namespace v8 {
 namespace internal {
 
-template <typename ConcreteState, AccessMode access_mode>
-bool MarkingStateBase<ConcreteState, access_mode>::GreyToBlack(HeapObject obj) {
-  MemoryChunk* p = MemoryChunk::FromHeapObject(obj);
-  MarkBit markbit = MarkBitFrom(p, obj.address());
-  if (!Marking::GreyToBlack<access_mode>(markbit)) return false;
-  static_cast<ConcreteState*>(this)->IncrementLiveBytes(p, obj.Size());
-  return true;
-}
-
-template <typename ConcreteState, AccessMode access_mode>
-bool MarkingStateBase<ConcreteState, access_mode>::WhiteToGrey(HeapObject obj) {
-  return Marking::WhiteToGrey<access_mode>(MarkBitFrom(obj));
-}
-
-template <typename ConcreteState, AccessMode access_mode>
-bool MarkingStateBase<ConcreteState, access_mode>::WhiteToBlack(
-    HeapObject obj) {
-  return WhiteToGrey(obj) && GreyToBlack(obj);
-}
-
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 MarkingVisitor<fixed_array_mode, retaining_path_mode,

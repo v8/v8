@@ -5009,7 +5009,7 @@ void Heap::SetUp() {
         mark_compact_collector_->marking_worklist();
     concurrent_marking_.reset(new ConcurrentMarking(
         this, marking_worklist->shared(), marking_worklist->on_hold(),
-        mark_compact_collector_->weak_objects(), marking_worklist->embedder()));
+        marking_worklist->embedder(), mark_compact_collector_->weak_objects()));
   } else {
     concurrent_marking_.reset(
         new ConcurrentMarking(this, nullptr, nullptr, nullptr, nullptr));

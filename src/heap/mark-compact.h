@@ -9,13 +9,10 @@
 #include <vector>
 
 #include "src/heap/concurrent-marking.h"
+#include "src/heap/marking-visitor.h"
 #include "src/heap/marking.h"
-#include "src/heap/objects-visiting.h"
 #include "src/heap/spaces.h"
 #include "src/heap/sweeper.h"
-#include "src/heap/worklist.h"
-#include "src/objects/heap-object.h"   // For Worklist<HeapObject, ...>
-#include "src/objects/js-weak-refs.h"  // For Worklist<WeakCell, ...>
 
 namespace v8 {
 namespace internal {
@@ -28,53 +25,6 @@ class MigrationObserver;
 class RecordMigratedSlotVisitor;
 class UpdatingItem;
 class YoungGenerationMarkingVisitor;
-
-template <typename ConcreteState, AccessMode access_mode>
-class MarkingStateBase {
- public:
-  V8_INLINE MarkBit MarkBitFrom(HeapObject obj) {
-    return MarkBitFrom(MemoryChunk::FromHeapObject(obj), obj.ptr());
-  }
-
-  // {addr} may be tagged or aligned.
-  V8_INLINE MarkBit MarkBitFrom(MemoryChunk* p, Address addr) {
-    return static_cast<ConcreteState*>(this)->bitmap(p)->MarkBitFromIndex(
-        p->AddressToMarkbitIndex(addr));
-  }
-
-  Marking::ObjectColor Color(HeapObject obj) {
-    return Marking::Color(MarkBitFrom(obj));
-  }
-
-  V8_INLINE bool IsImpossible(HeapObject obj) {
-    return Marking::IsImpossible<access_mode>(MarkBitFrom(obj));
-  }
-
-  V8_INLINE bool IsBlack(HeapObject obj) {
-    return Marking::IsBlack<access_mode>(MarkBitFrom(obj));
-  }
-
-  V8_INLINE bool IsWhite(HeapObject obj) {
-    return Marking::IsWhite<access_mode>(MarkBitFrom(obj));
-  }
-
-  V8_INLINE bool IsGrey(HeapObject obj) {
-    return Marking::IsGrey<access_mode>(MarkBitFrom(obj));
-  }
-
-  V8_INLINE bool IsBlackOrGrey(HeapObject obj) {
-    return Marking::IsBlackOrGrey<access_mode>(MarkBitFrom(obj));
-  }
-
-  V8_INLINE bool WhiteToGrey(HeapObject obj);
-  V8_INLINE bool WhiteToBlack(HeapObject obj);
-  V8_INLINE bool GreyToBlack(HeapObject obj);
-
-  void ClearLiveness(MemoryChunk* chunk) {
-    static_cast<ConcreteState*>(this)->bitmap(chunk)->Clear();
-    static_cast<ConcreteState*>(this)->SetLiveBytes(chunk, 0);
-  }
-};
 
 class MarkBitCellIterator {
  public:
@@ -403,57 +353,6 @@ class MajorNonAtomicMarkingState final
   void SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
     chunk->live_byte_count_ = value;
   }
-};
-
-struct Ephemeron {
-  HeapObject key;
-  HeapObject value;
-};
-
-using EphemeronWorklist = Worklist<Ephemeron, 64>;
-
-// Weak objects encountered during marking.
-struct WeakObjects {
-  Worklist<TransitionArray, 64> transition_arrays;
-
-  // Keep track of all EphemeronHashTables in the heap to process
-  // them in the atomic pause.
-  Worklist<EphemeronHashTable, 64> ephemeron_hash_tables;
-
-  // Keep track of all ephemerons for concurrent marking tasks. Only store
-  // ephemerons in these Worklists if both key and value are unreachable at the
-  // moment.
-  //
-  // MarkCompactCollector::ProcessEphemeronsUntilFixpoint drains and fills these
-  // worklists.
-  //
-  // current_ephemerons is used as draining worklist in the current fixpoint
-  // iteration.
-  EphemeronWorklist current_ephemerons;
-
-  // Stores ephemerons to visit in the next fixpoint iteration.
-  EphemeronWorklist next_ephemerons;
-
-  // When draining the marking worklist new discovered ephemerons are pushed
-  // into this worklist.
-  EphemeronWorklist discovered_ephemerons;
-
-  // TODO(marja): For old space, we only need the slot, not the host
-  // object. Optimize this by adding a different storage for old space.
-  Worklist<std::pair<HeapObject, HeapObjectSlot>, 64> weak_references;
-  Worklist<std::pair<HeapObject, Code>, 64> weak_objects_in_code;
-
-  Worklist<JSWeakRef, 64> js_weak_refs;
-  Worklist<WeakCell, 64> weak_cells;
-
-  Worklist<SharedFunctionInfo, 64> bytecode_flushing_candidates;
-  Worklist<JSFunction, 64> flushed_js_functions;
-};
-
-struct EphemeronMarking {
-  std::vector<HeapObject> newly_discovered;
-  bool newly_discovered_overflowed;
-  size_t newly_discovered_limit;
 };
 
 // Collector for young and old generation.
