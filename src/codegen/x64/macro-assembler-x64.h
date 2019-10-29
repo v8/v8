@@ -705,22 +705,22 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Invoke the JavaScript function code by either calling or jumping.
   void InvokeFunctionCode(Register function, Register new_target,
-                          const ParameterCount& expected,
-                          const ParameterCount& actual, InvokeFlag flag);
+                          Register expected_parameter_count,
+                          Register actual_parameter_count, InvokeFlag flag);
 
   // On function call, call into the debugger.
   void CallDebugOnFunctionCall(Register fun, Register new_target,
-                               const ParameterCount& expected,
-                               const ParameterCount& actual);
+                               Register expected_parameter_count,
+                               Register actual_parameter_count);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function, Register new_target,
-                      const ParameterCount& actual, InvokeFlag flag);
+                      Register actual_parameter_count, InvokeFlag flag);
 
   void InvokeFunction(Register function, Register new_target,
-                      const ParameterCount& expected,
-                      const ParameterCount& actual, InvokeFlag flag);
+                      Register expected_parameter_count,
+                      Register actual_parameter_count, InvokeFlag flag);
 
   // ---------------------------------------------------------------------------
   // Conversions between tagged smi values and non-tagged integer values.
@@ -926,10 +926,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   static const int kNumSafepointSavedRegisters = 12;
 
   // Helper functions for generating invokes.
-  void InvokePrologue(const ParameterCount& expected,
-                      const ParameterCount& actual, Label* done,
-                      bool* definitely_mismatches, InvokeFlag flag,
-                      Label::Distance near_jump);
+  void InvokePrologue(Register expected_parameter_count,
+                      Register actual_parameter_count, Label* done,
+                      InvokeFlag flag);
 
   void EnterExitFramePrologue(bool save_rax, StackFrame::Type frame_type);
 

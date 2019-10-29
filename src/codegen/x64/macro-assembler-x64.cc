@@ -2351,30 +2351,30 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
 }
 
 void MacroAssembler::InvokeFunction(Register function, Register new_target,
-                                    const ParameterCount& actual,
+                                    Register actual_parameter_count,
                                     InvokeFlag flag) {
   LoadTaggedPointerField(
       rbx, FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
   movzxwq(rbx,
           FieldOperand(rbx, SharedFunctionInfo::kFormalParameterCountOffset));
 
-  ParameterCount expected(rbx);
-  InvokeFunction(function, new_target, expected, actual, flag);
+  InvokeFunction(function, new_target, rbx, actual_parameter_count, flag);
 }
 
 void MacroAssembler::InvokeFunction(Register function, Register new_target,
-                                    const ParameterCount& expected,
-                                    const ParameterCount& actual,
+                                    Register expected_parameter_count,
+                                    Register actual_parameter_count,
                                     InvokeFlag flag) {
   DCHECK(function == rdi);
   LoadTaggedPointerField(rsi,
                          FieldOperand(function, JSFunction::kContextOffset));
-  InvokeFunctionCode(rdi, new_target, expected, actual, flag);
+  InvokeFunctionCode(rdi, new_target, expected_parameter_count,
+                     actual_parameter_count, flag);
 }
 
 void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
-                                        const ParameterCount& expected,
-                                        const ParameterCount& actual,
+                                        Register expected_parameter_count,
+                                        Register actual_parameter_count,
                                         InvokeFlag flag) {
   // You can't call a function without a valid frame.
   DCHECK(flag == JUMP_FUNCTION || has_frame());
@@ -2399,127 +2399,81 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   }
 
   Label done;
-  bool definitely_mismatches = false;
-  InvokePrologue(expected, actual, &done, &definitely_mismatches, flag,
-                 Label::kNear);
-  if (!definitely_mismatches) {
-    // We call indirectly through the code field in the function to
-    // allow recompilation to take effect without changing any of the
-    // call sites.
-    static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-    LoadTaggedPointerField(rcx,
-                           FieldOperand(function, JSFunction::kCodeOffset));
-    if (flag == CALL_FUNCTION) {
-      CallCodeObject(rcx);
-    } else {
-      DCHECK(flag == JUMP_FUNCTION);
-      JumpCodeObject(rcx);
-    }
+  InvokePrologue(expected_parameter_count, actual_parameter_count, &done, flag);
+  // We call indirectly through the code field in the function to
+  // allow recompilation to take effect without changing any of the
+  // call sites.
+  static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
+  LoadTaggedPointerField(rcx, FieldOperand(function, JSFunction::kCodeOffset));
+  if (flag == CALL_FUNCTION) {
+    CallCodeObject(rcx);
+  } else {
+    DCHECK(flag == JUMP_FUNCTION);
+    JumpCodeObject(rcx);
   }
   jmp(&done, Label::kNear);
 
   // Deferred debug hook.
   bind(&debug_hook);
-  CallDebugOnFunctionCall(function, new_target, expected, actual);
+  CallDebugOnFunctionCall(function, new_target, expected_parameter_count,
+                          actual_parameter_count);
   jmp(&continue_after_hook, Label::kNear);
 
   bind(&done);
 }
 
-void MacroAssembler::InvokePrologue(const ParameterCount& expected,
-                                    const ParameterCount& actual, Label* done,
-                                    bool* definitely_mismatches,
-                                    InvokeFlag flag,
-                                    Label::Distance near_jump) {
-  bool definitely_matches = false;
-  *definitely_mismatches = false;
-  Label invoke;
-  if (expected.is_immediate()) {
-    DCHECK(actual.is_immediate());
-    Set(rax, actual.immediate());
-    if (expected.immediate() == actual.immediate()) {
-      definitely_matches = true;
-    } else {
-      if (expected.immediate() ==
-          SharedFunctionInfo::kDontAdaptArgumentsSentinel) {
-        // Don't worry about adapting arguments for built-ins that
-        // don't want that done. Skip adaption code by making it look
-        // like we have a match between expected and actual number of
-        // arguments.
-        definitely_matches = true;
-      } else {
-        *definitely_mismatches = true;
-        Set(rbx, expected.immediate());
-      }
-    }
-  } else {
-    if (actual.is_immediate()) {
-      // Expected is in register, actual is immediate. This is the
-      // case when we invoke function values without going through the
-      // IC mechanism.
-      Set(rax, actual.immediate());
-      cmpq(expected.reg(), Immediate(actual.immediate()));
-      j(equal, &invoke, Label::kNear);
-      DCHECK(expected.reg() == rbx);
-    } else if (expected.reg() != actual.reg()) {
-      // Both expected and actual are in (different) registers. This
-      // is the case when we invoke functions using call and apply.
-      cmpq(expected.reg(), actual.reg());
-      j(equal, &invoke, Label::kNear);
-      DCHECK(actual.reg() == rax);
-      DCHECK(expected.reg() == rbx);
-    } else {
-      definitely_matches = true;
-      Move(rax, actual.reg());
-    }
-  }
-
-  if (!definitely_matches) {
+void MacroAssembler::InvokePrologue(Register expected_parameter_count,
+                                    Register actual_parameter_count,
+                                    Label* done, InvokeFlag flag) {
+  if (expected_parameter_count != actual_parameter_count) {
+    Label regular_invoke;
+    // Both expected and actual are in (different) registers. This
+    // is the case when we invoke functions using call and apply.
+    cmpq(expected_parameter_count, actual_parameter_count);
+    j(equal, &regular_invoke, Label::kNear);
+    DCHECK_EQ(actual_parameter_count, rax);
+    DCHECK_EQ(expected_parameter_count, rbx);
     Handle<Code> adaptor = BUILTIN_CODE(isolate(), ArgumentsAdaptorTrampoline);
     if (flag == CALL_FUNCTION) {
       Call(adaptor, RelocInfo::CODE_TARGET);
-      if (!*definitely_mismatches) {
-        jmp(done, near_jump);
-      }
+      jmp(done, Label::kNear);
     } else {
       Jump(adaptor, RelocInfo::CODE_TARGET);
     }
-    bind(&invoke);
+    bind(&regular_invoke);
+  } else {
+    Move(rax, actual_parameter_count);
   }
 }
 
 void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
-                                             const ParameterCount& expected,
-                                             const ParameterCount& actual) {
+                                             Register expected_parameter_count,
+                                             Register actual_parameter_count) {
   FrameScope frame(this, has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
-  if (expected.is_reg()) {
-    SmiTag(expected.reg());
-    Push(expected.reg());
-  }
-  if (actual.is_reg()) {
-    SmiTag(actual.reg());
-    Push(actual.reg());
-    SmiUntag(actual.reg());
-  }
+
+  SmiTag(expected_parameter_count);
+  Push(expected_parameter_count);
+
+  SmiTag(actual_parameter_count);
+  Push(actual_parameter_count);
+  SmiUntag(actual_parameter_count);
+
   if (new_target.is_valid()) {
     Push(new_target);
   }
   Push(fun);
   Push(fun);
-  Push(StackArgumentsAccessor(rbp, actual).GetReceiverOperand());
+  Push(
+      StackArgumentsAccessor(rbp, actual_parameter_count).GetReceiverOperand());
   CallRuntime(Runtime::kDebugOnFunctionCall);
   Pop(fun);
   if (new_target.is_valid()) {
     Pop(new_target);
   }
-  if (actual.is_reg()) {
-    Pop(actual.reg());
-    SmiUntag(actual.reg());
-  }
-  if (expected.is_reg()) {
-    Pop(expected.reg());
-    SmiUntag(expected.reg());
-  }
+  Pop(actual_parameter_count);
+  SmiUntag(actual_parameter_count);
+  Pop(expected_parameter_count);
+  SmiUntag(expected_parameter_count);
 }
 
 void TurboAssembler::StubPrologue(StackFrame::Type type) {

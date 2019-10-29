@@ -565,19 +565,19 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Invoke the JavaScript function code by either calling or jumping.
 
   void InvokeFunctionCode(Register function, Register new_target,
-                          const ParameterCount& expected,
-                          const ParameterCount& actual, InvokeFlag flag);
+                          Register expected_parameter_count,
+                          Register actual_parameter_count, InvokeFlag flag);
 
   // On function call, call into the debugger.
   // This may clobber ecx.
   void CallDebugOnFunctionCall(Register fun, Register new_target,
-                               const ParameterCount& expected,
-                               const ParameterCount& actual);
+                               Register expected_parameter_count,
+                               Register actual_parameter_count);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function, Register new_target,
-                      const ParameterCount& actual, InvokeFlag flag);
+                      Register actual_parameter_count, InvokeFlag flag);
 
   // Compare object type for heap object.
   // Incoming register is heap_object and outgoing register is map.
@@ -707,10 +707,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
  private:
   // Helper functions for generating invokes.
-  void InvokePrologue(const ParameterCount& expected,
-                      const ParameterCount& actual, Label* done,
-                      bool* definitely_mismatches, InvokeFlag flag,
-                      Label::Distance done_distance);
+  void InvokePrologue(Register expected_parameter_count,
+                      Register actual_parameter_count, Label* done,
+                      InvokeFlag flag);
 
   void EnterExitFramePrologue(StackFrame::Type frame_type, Register scratch);
   void EnterExitFrameEpilogue(int argc, bool save_doubles);

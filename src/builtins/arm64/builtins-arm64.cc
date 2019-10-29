@@ -183,8 +183,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     // -----------------------------------
 
     // Call the function.
-    ParameterCount actual(argc);
-    __ InvokeFunction(x1, x3, actual, CALL_FUNCTION);
+    __ InvokeFunctionWithNewTarget(x1, x3, argc, CALL_FUNCTION);
 
     // Restore the context from the frame.
     __ Ldr(cp, MemOperand(fp, ConstructFrameConstants::kContextOffset));
@@ -345,8 +344,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
     // Call the function.
     __ Mov(x0, x12);
-    ParameterCount actual(x0);
-    __ InvokeFunction(x1, x3, actual, CALL_FUNCTION);
+    __ InvokeFunctionWithNewTarget(x1, x3, x0, CALL_FUNCTION);
 
     // ----------- S t a t e -------------
     //  -- sp[0*kSystemPointerSize]: implicit receiver
@@ -2424,9 +2422,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
 
   __ Ldrh(x2,
           FieldMemOperand(x2, SharedFunctionInfo::kFormalParameterCountOffset));
-  ParameterCount actual(x0);
-  ParameterCount expected(x2);
-  __ InvokeFunctionCode(x1, no_reg, expected, actual, JUMP_FUNCTION);
+  __ InvokeFunctionCode(x1, no_reg, x2, x0, JUMP_FUNCTION);
 
   // The function is a "classConstructor", need to raise an exception.
   __ Bind(&class_constructor);

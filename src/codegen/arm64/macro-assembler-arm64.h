@@ -1787,23 +1787,24 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // 'actual' must use an immediate or x0.
   // 'expected' must use an immediate or x2.
   // 'call_kind' must be x5.
-  void InvokePrologue(const ParameterCount& expected,
-                      const ParameterCount& actual, Label* done,
-                      InvokeFlag flag, bool* definitely_mismatches);
+  void InvokePrologue(Register expected_parameter_count,
+                      Register actual_parameter_count, Label* done,
+                      InvokeFlag flag);
 
   // On function call, call into the debugger.
   void CallDebugOnFunctionCall(Register fun, Register new_target,
-                               const ParameterCount& expected,
-                               const ParameterCount& actual);
+                               Register expected_parameter_count,
+                               Register actual_parameter_count);
   void InvokeFunctionCode(Register function, Register new_target,
-                          const ParameterCount& expected,
-                          const ParameterCount& actual, InvokeFlag flag);
+                          Register expected_parameter_count,
+                          Register actual_parameter_count, InvokeFlag flag);
   // Invoke the JavaScript function in the given register.
   // Changes the current context to the context in the function before invoking.
-  void InvokeFunction(Register function, Register new_target,
-                      const ParameterCount& actual, InvokeFlag flag);
-  void InvokeFunction(Register function, const ParameterCount& expected,
-                      const ParameterCount& actual, InvokeFlag flag);
+  void InvokeFunctionWithNewTarget(Register function, Register new_target,
+                                   Register actual_parameter_count,
+                                   InvokeFlag flag);
+  void InvokeFunction(Register function, Register expected_parameter_count,
+                      Register actual_parameter_count, InvokeFlag flag);
 
   // ---- Code generation helpers ----
 

@@ -44,11 +44,9 @@ void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
       x0, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
   __ Ldrh(x0,
           FieldMemOperand(x0, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ mov(x2, x0);
+  __ mov(x3, x0);
 
-  ParameterCount dummy1(x2);
-  ParameterCount dummy2(x0);
-  __ InvokeFunction(x1, dummy1, dummy2, JUMP_FUNCTION);
+  __ InvokeFunctionWithNewTarget(x1, x3, x0, JUMP_FUNCTION);
 }
 
 
