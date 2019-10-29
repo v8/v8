@@ -1102,7 +1102,8 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
         if (is_global_reference) {
           Maybe<bool> maybe = JSProxy::HasProperty(
               it->isolate(), it->GetHolder<JSProxy>(), it->GetName());
-          if (maybe.IsNothing() || !maybe.FromJust()) {
+          if (maybe.IsNothing()) return MaybeHandle<Object>();
+          if (!maybe.FromJust()) {
             it->NotFound();
             return it->isolate()->factory()->undefined_value();
           }
