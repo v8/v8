@@ -796,6 +796,9 @@
   'tzoffset-transition-new-york-noi18n': [SKIP],
   'tzoffset-seoul': [SKIP],
   'tzoffset-seoul-noi18n': [SKIP],
+
+  # Flaky OOM test BUG(v8:9192)
+  'regress/regress-678917': [PASS, FAIL],
 }],  # 'system == windows'
 
 ##############################################################################
