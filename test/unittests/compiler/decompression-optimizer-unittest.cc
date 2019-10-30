@@ -89,7 +89,7 @@ TEST_F(DecompressionOptimizerTest, DirectLoadStore) {
 }
 
 // -----------------------------------------------------------------------------
-// Word32Equal.
+// Word32 Operations.
 
 TEST_F(DecompressionOptimizerTest, Word32EqualTwoDecompresses) {
   // Skip test if decompression elimination is enabled.
@@ -126,7 +126,7 @@ TEST_F(DecompressionOptimizerTest, Word32EqualTwoDecompresses) {
   }
 }
 
-TEST_F(DecompressionOptimizerTest, Word32DecompressAndConstant) {
+TEST_F(DecompressionOptimizerTest, Word32EqualDecompressAndConstant) {
   // Skip test if decompression elimination is enabled.
   if (FLAG_turbo_decompression_elimination) {
     return;
@@ -172,6 +172,35 @@ TEST_F(DecompressionOptimizerTest, Word32DecompressAndConstant) {
       Reduce();
       EXPECT_EQ(LoadMachRep(load), CompressedMachRep(types[i]));
     }
+  }
+}
+
+TEST_F(DecompressionOptimizerTest, Word32AndSmiCheck) {
+  // Skip test if decompression elimination is enabled.
+  if (FLAG_turbo_decompression_elimination) {
+    return;
+  }
+
+  // Define variables.
+  Node* const control = graph()->start();
+  Node* object = Parameter(Type::Any(), 0);
+  Node* effect = graph()->start();
+  Node* index = Parameter(Type::UnsignedSmall(), 1);
+
+  // Test for both AnyTagged and TaggedPointer.
+  for (size_t i = 0; i < arraysize(types); ++i) {
+    // Create the graph.
+    Node* load = graph()->NewNode(machine()->Load(types[i]), object, index,
+                                  effect, control);
+    Node* smi_tag_mask = graph()->NewNode(common()->Int32Constant(kSmiTagMask));
+    Node* word32_and =
+        graph()->NewNode(machine()->Word32And(), load, smi_tag_mask);
+    Node* smi_tag = graph()->NewNode(common()->Int32Constant(kSmiTag));
+    graph()->SetEnd(
+        graph()->NewNode(machine()->Word32Equal(), word32_and, smi_tag));
+    // Change the nodes, and test the change.
+    Reduce();
+    EXPECT_EQ(LoadMachRep(load), CompressedMachRep(types[i]));
   }
 }
 
