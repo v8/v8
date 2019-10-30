@@ -27,7 +27,8 @@ proposal_flags = [{
                   },
                   {
                     'name': 'multi-value',
-                    'flags': ['--experimental-wasm-mv']
+                    'flags': ['--experimental-wasm-mv',
+                              '--no-experimental-wasm-bulk-memory']
                   },
                   ]
 
