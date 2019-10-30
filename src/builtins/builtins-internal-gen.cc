@@ -337,11 +337,11 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     TNode<IntPtrT> page = PageFromAddress(object);
 
     // Load address of SlotSet
-    TNode<IntPtrT> slot_set_array = LoadSlotSetArray(page, &slow_path);
+    TNode<IntPtrT> slot_set = LoadSlotSet(page, &slow_path);
     TNode<IntPtrT> slot_offset = IntPtrSub(slot, page);
 
     // Load bucket
-    TNode<IntPtrT> bucket = LoadBucket(slot_set_array, slot_offset, &slow_path);
+    TNode<IntPtrT> bucket = LoadBucket(slot_set, slot_offset, &slow_path);
 
     // Update cell
     SetBitInCell(bucket, slot_offset);
@@ -352,23 +352,21 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     InsertIntoRememberedSetAndGotoSlow(object, slot, mode, next);
   }
 
-  TNode<IntPtrT> LoadSlotSetArray(TNode<IntPtrT> page, Label* slow_path) {
-    TNode<IntPtrT> slot_set_array = UncheckedCast<IntPtrT>(
+  TNode<IntPtrT> LoadSlotSet(TNode<IntPtrT> page, Label* slow_path) {
+    TNode<IntPtrT> slot_set = UncheckedCast<IntPtrT>(
         Load(MachineType::Pointer(), page,
              IntPtrConstant(MemoryChunk::kOldToNewSlotSetOffset)));
-    GotoIf(WordEqual(slot_set_array, IntPtrConstant(0)), slow_path);
+    GotoIf(WordEqual(slot_set, IntPtrConstant(0)), slow_path);
 
-    return slot_set_array;
+    return slot_set;
   }
 
-  TNode<IntPtrT> LoadBucket(TNode<IntPtrT> slot_set_array,
-                            TNode<WordT> slot_offset, Label* slow_path) {
-    // Assume here that SlotSet only contains of buckets
-    DCHECK_EQ(SlotSet::kSize, SlotSet::kBuckets * sizeof(SlotSet::Bucket));
+  TNode<IntPtrT> LoadBucket(TNode<IntPtrT> slot_set, TNode<WordT> slot_offset,
+                            Label* slow_path) {
     TNode<WordT> bucket_index =
         WordShr(slot_offset, SlotSet::kBitsPerBucketLog2 + kTaggedSizeLog2);
     TNode<IntPtrT> bucket = UncheckedCast<IntPtrT>(
-        Load(MachineType::Pointer(), slot_set_array,
+        Load(MachineType::Pointer(), slot_set,
              WordShl(bucket_index, kSystemPointerSizeLog2)));
     GotoIf(WordEqual(bucket, IntPtrConstant(0)), slow_path);
     return bucket;

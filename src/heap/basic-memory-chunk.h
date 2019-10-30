@@ -112,6 +112,8 @@ class BasicMemoryChunk {
   size_t size() const { return size_; }
   void set_size(size_t size) { size_ = size; }
 
+  size_t buckets() const { return SlotSet::BucketsForSize(size()); }
+
   Address area_start() const { return area_start_; }
 
   Address area_end() const { return area_end_; }
