@@ -804,8 +804,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 #endif
   }
 
-  void PrepareForTailCall(Register callee_args_count,
-                          Register caller_args_count, Register scratch0,
+  void PrepareForTailCall(const ParameterCount& callee_args_count,
+                          Register caller_args_count_reg, Register scratch0,
                           Register scratch1);
 
   // ---------------------------------------------------------------------------
@@ -1119,22 +1119,27 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Removes current frame and its arguments from the stack preserving
   // the arguments and a return address pushed to the stack for the next call.
-  // Both |callee_args_count| and |caller_args_count| do not include
-  // receiver. |callee_args_count| is not modified. |caller_args_count|
+  // Both |callee_args_count| and |caller_args_count_reg| do not include
+  // receiver. |callee_args_count| is not modified, |caller_args_count_reg|
   // is trashed.
 
   // Invoke the JavaScript function code by either calling or jumping.
   void InvokeFunctionCode(Register function, Register new_target,
-                          Register expected, Register actual, InvokeFlag flag);
+                          const ParameterCount& expected,
+                          const ParameterCount& actual, InvokeFlag flag);
 
   // On function call, call into the debugger if necessary.
-  void CheckDebugHook(Register fun, Register new_target, Register expected,
-                      Register actual);
+  void CheckDebugHook(Register fun, Register new_target,
+                      const ParameterCount& expected,
+                      const ParameterCount& actual);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
-  void InvokeFunction(Register function, Register new_target, Register actual,
-                      InvokeFlag flag);
+  void InvokeFunction(Register function, Register new_target,
+                      const ParameterCount& actual, InvokeFlag flag);
+
+  void InvokeFunction(Register function, const ParameterCount& expected,
+                      const ParameterCount& actual, InvokeFlag flag);
 
   // Frame restart support
   void MaybeDropFrames();
@@ -1271,7 +1276,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
   // Helper functions for generating invokes.
-  void InvokePrologue(Register expected, Register actual, Label* done,
+  void InvokePrologue(const ParameterCount& expected,
+                      const ParameterCount& actual, Label* done,
                       bool* definitely_mismatches, InvokeFlag flag);
 
   // Compute memory operands for safepoint stack slots.
