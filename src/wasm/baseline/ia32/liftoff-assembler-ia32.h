@@ -778,36 +778,12 @@ void LiftoffAssembler::emit_i32_shr(Register dst, Register src, int amount) {
 }
 
 bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
-  Label nonzero_input;
-  Label continuation;
-  test(src, src);
-  j(not_zero, &nonzero_input, Label::kNear);
-  mov(dst, Immediate(32));
-  jmp(&continuation, Label::kNear);
-
-  bind(&nonzero_input);
-  // Get most significant bit set (MSBS).
-  bsr(dst, src);
-  // CLZ = 31 - MSBS = MSBS ^ 31.
-  xor_(dst, 31);
-
-  bind(&continuation);
+  Lzcnt(dst, src);
   return true;
 }
 
 bool LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
-  Label nonzero_input;
-  Label continuation;
-  test(src, src);
-  j(not_zero, &nonzero_input, Label::kNear);
-  mov(dst, Immediate(32));
-  jmp(&continuation, Label::kNear);
-
-  bind(&nonzero_input);
-  // Get least significant bit set, which equals number of trailing zeros.
-  bsf(dst, src);
-
-  bind(&continuation);
+  Tzcnt(dst, src);
   return true;
 }
 

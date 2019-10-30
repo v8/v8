@@ -1921,7 +1921,7 @@ void TurboAssembler::Lzcntl(Register dst, Register src) {
   Label not_zero_src;
   bsrl(dst, src);
   j(not_zero, &not_zero_src, Label::kNear);
-  Set(dst, 63);  // 63^31 == 32
+  movl(dst, Immediate(63));  // 63^31 == 32
   bind(&not_zero_src);
   xorl(dst, Immediate(31));  // for x in [0..31], 31^x == 31 - x
 }
@@ -1935,7 +1935,7 @@ void TurboAssembler::Lzcntl(Register dst, Operand src) {
   Label not_zero_src;
   bsrl(dst, src);
   j(not_zero, &not_zero_src, Label::kNear);
-  Set(dst, 63);  // 63^31 == 32
+  movl(dst, Immediate(63));  // 63^31 == 32
   bind(&not_zero_src);
   xorl(dst, Immediate(31));  // for x in [0..31], 31^x == 31 - x
 }
@@ -1949,7 +1949,7 @@ void TurboAssembler::Lzcntq(Register dst, Register src) {
   Label not_zero_src;
   bsrq(dst, src);
   j(not_zero, &not_zero_src, Label::kNear);
-  Set(dst, 127);  // 127^63 == 64
+  movl(dst, Immediate(127));  // 127^63 == 64
   bind(&not_zero_src);
   xorl(dst, Immediate(63));  // for x in [0..63], 63^x == 63 - x
 }
@@ -1963,7 +1963,7 @@ void TurboAssembler::Lzcntq(Register dst, Operand src) {
   Label not_zero_src;
   bsrq(dst, src);
   j(not_zero, &not_zero_src, Label::kNear);
-  Set(dst, 127);  // 127^63 == 64
+  movl(dst, Immediate(127));  // 127^63 == 64
   bind(&not_zero_src);
   xorl(dst, Immediate(63));  // for x in [0..63], 63^x == 63 - x
 }
@@ -1978,7 +1978,7 @@ void TurboAssembler::Tzcntq(Register dst, Register src) {
   bsfq(dst, src);
   j(not_zero, &not_zero_src, Label::kNear);
   // Define the result of tzcnt(0) separately, because bsf(0) is undefined.
-  Set(dst, 64);
+  movl(dst, Immediate(64));
   bind(&not_zero_src);
 }
 
@@ -1992,7 +1992,7 @@ void TurboAssembler::Tzcntq(Register dst, Operand src) {
   bsfq(dst, src);
   j(not_zero, &not_zero_src, Label::kNear);
   // Define the result of tzcnt(0) separately, because bsf(0) is undefined.
-  Set(dst, 64);
+  movl(dst, Immediate(64));
   bind(&not_zero_src);
 }
 
@@ -2005,7 +2005,7 @@ void TurboAssembler::Tzcntl(Register dst, Register src) {
   Label not_zero_src;
   bsfl(dst, src);
   j(not_zero, &not_zero_src, Label::kNear);
-  Set(dst, 32);  // The result of tzcnt is 32 if src = 0.
+  movl(dst, Immediate(32));  // The result of tzcnt is 32 if src = 0.
   bind(&not_zero_src);
 }
 
@@ -2018,7 +2018,7 @@ void TurboAssembler::Tzcntl(Register dst, Operand src) {
   Label not_zero_src;
   bsfl(dst, src);
   j(not_zero, &not_zero_src, Label::kNear);
-  Set(dst, 32);  // The result of tzcnt is 32 if src = 0.
+  movl(dst, Immediate(32));  // The result of tzcnt is 32 if src = 0.
   bind(&not_zero_src);
 }
 

@@ -1591,7 +1591,7 @@ void TurboAssembler::Lzcnt(Register dst, Operand src) {
   Label not_zero_src;
   bsr(dst, src);
   j(not_zero, &not_zero_src, Label::kNear);
-  Move(dst, Immediate(63));  // 63^31 == 32
+  mov(dst, 63);  // 63^31 == 32
   bind(&not_zero_src);
   xor_(dst, Immediate(31));  // for x in [0..31], 31^x == 31-x.
 }
@@ -1605,7 +1605,7 @@ void TurboAssembler::Tzcnt(Register dst, Operand src) {
   Label not_zero_src;
   bsf(dst, src);
   j(not_zero, &not_zero_src, Label::kNear);
-  Move(dst, Immediate(32));  // The result of tzcnt is 32 if src = 0.
+  mov(dst, 32);  // The result of tzcnt is 32 if src = 0.
   bind(&not_zero_src);
 }
 
