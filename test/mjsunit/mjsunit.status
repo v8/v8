@@ -417,7 +417,6 @@
 ##############################################################################
 ['is_full_debug', {
   # Tests too slow in non-optimized debug mode.
-  'compiler/regress-9017': [SKIP],
   'regress/regress-2790': [SKIP],
   'regress/regress-331444': [SKIP],
   'regress/regress-740784': [SKIP],
@@ -612,7 +611,6 @@
   'es6/large-classes-properties': [SKIP],
 
   # Slow tests.
-  'compiler/regress-9017': [PASS, SLOW],
   'es6/block-conflicts-sloppy': [PASS, SLOW],
   'math-floor-part1': [PASS, SLOW],
   'regress/regress-500980': [PASS, SLOW],
