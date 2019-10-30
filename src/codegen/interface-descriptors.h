@@ -68,6 +68,8 @@ namespace internal {
   V(JSTrampoline)                     \
   V(Load)                             \
   V(LoadGlobal)                       \
+  V(LoadGlobalNoFeedback)             \
+  V(LoadNoFeedback)                   \
   V(LoadGlobalWithVector)             \
   V(LoadWithVector)                   \
   V(NewArgumentsElements)             \
@@ -593,6 +595,43 @@ class LoadDescriptor : public CallInterfaceDescriptor {
   static const Register ReceiverRegister();
   static const Register NameRegister();
   static const Register SlotRegister();
+};
+
+class LoadGlobalNoFeedbackDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kName, kICKind)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kName
+                         MachineType::TaggedSigned())  // kICKind
+  DECLARE_DESCRIPTOR(LoadGlobalNoFeedbackDescriptor, CallInterfaceDescriptor)
+
+  static const Register NameRegister() {
+    return LoadDescriptor::NameRegister();
+  }
+
+  static const Register ICKindRegister() {
+    return LoadDescriptor::SlotRegister();
+  }
+};
+
+class LoadNoFeedbackDescriptor : public LoadGlobalNoFeedbackDescriptor {
+ public:
+  DEFINE_PARAMETERS(kReceiver, kName, kICKind)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
+                         MachineType::AnyTagged(),     // kName
+                         MachineType::TaggedSigned())  // kICKind
+  DECLARE_DESCRIPTOR(LoadNoFeedbackDescriptor, LoadGlobalNoFeedbackDescriptor)
+
+  static const Register ReceiverRegister() {
+    return LoadDescriptor::ReceiverRegister();
+  }
+
+  static const Register NameRegister() {
+    return LoadGlobalNoFeedbackDescriptor::NameRegister();
+  }
+
+  static const Register ICKindRegister() {
+    return LoadGlobalNoFeedbackDescriptor::ICKindRegister();
+  }
 };
 
 class LoadGlobalDescriptor : public CallInterfaceDescriptor {

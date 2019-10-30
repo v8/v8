@@ -28,6 +28,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void GenerateLoadIC_Megamorphic();
   void GenerateLoadIC_Noninlined();
   void GenerateLoadIC_NoFeedback();
+  void GenerateLoadGlobalIC_NoFeedback();
   void GenerateLoadICTrampoline();
   void GenerateLoadICTrampoline_Megamorphic();
   void GenerateKeyedLoadIC();
@@ -214,7 +215,9 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   TNode<MaybeObject> LoadDescriptorValueOrFieldType(
       TNode<Map> map, TNode<IntPtrT> descriptor_entry);
 
-  void LoadIC_NoFeedback(const LoadICParameters* p);
+  void LoadIC_NoFeedback(const LoadICParameters* p, TNode<Smi> smi_typeof_mode);
+  void LoadGlobalIC_NoFeedback(TNode<Context> context, TNode<Object> name,
+                               TNode<Smi> smi_typeof_mode);
 
   void KeyedLoadIC(const LoadICParameters* p, LoadAccessMode access_mode);
   void KeyedLoadICGeneric(const LoadICParameters* p);
@@ -306,6 +309,11 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                                    const LazyNode<Name>& lazy_name,
                                    TypeofMode typeof_mode,
                                    ExitPoint* exit_point, Label* miss);
+
+  // This is a copy of ScriptContextTable::Lookup. They should be kept in sync.
+  void ScriptContextTableLookup(TNode<Name> name,
+                                TNode<NativeContext> native_context,
+                                Label* found_hole, Label* not_found);
 
   // StoreIC implementation.
 
