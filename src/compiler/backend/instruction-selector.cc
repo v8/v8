@@ -482,6 +482,7 @@ InstructionOperand OperandForDeopt(Isolate* isolate, OperandGenerator* g,
     case IrOpcode::kFloat64Constant:
     case IrOpcode::kDelayedStringConstant:
       return g->UseImmediate(input);
+    case IrOpcode::kCompressedHeapConstant:
     case IrOpcode::kHeapConstant: {
       if (!CanBeTaggedOrCompressedPointer(rep)) {
         // If we have inconsistent static and dynamic types, e.g. if we
