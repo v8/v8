@@ -51,12 +51,6 @@ class StackArgumentsAccessor {
         extra_displacement_to_last_argument_(
             extra_displacement_to_last_argument) {}
 
-  StackArgumentsAccessor(Register base_reg,
-                         const ParameterCount& parameter_count,
-                         StackArgumentsAccessorReceiverMode receiver_mode =
-                             ARGUMENTS_CONTAIN_RECEIVER,
-                         int extra_displacement_to_last_argument = 0);
-
   Operand GetArgumentOperand(int index);
   Operand GetReceiverOperand() {
     DCHECK(receiver_mode_ == ARGUMENTS_CONTAIN_RECEIVER);
@@ -485,10 +479,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Removes current frame and its arguments from the stack preserving the
   // arguments and a return address pushed to the stack for the next call.  Both
-  // |callee_args_count| and |caller_args_count_reg| do not include receiver.
-  // |callee_args_count| is not modified, |caller_args_count_reg| is trashed.
-  void PrepareForTailCall(const ParameterCount& callee_args_count,
-                          Register caller_args_count_reg, Register scratch0,
+  // |callee_args_count| and |caller_args_count| do not include receiver.
+  // |callee_args_count| is not modified. |caller_args_count| is trashed.
+  void PrepareForTailCall(Register callee_args_count,
+                          Register caller_args_count, Register scratch0,
                           Register scratch1);
 
   // Call a runtime routine. This expects {centry} to contain a fitting CEntry

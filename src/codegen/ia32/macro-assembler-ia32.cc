@@ -1028,36 +1028,18 @@ void MacroAssembler::JumpToInstructionStream(Address entry) {
 }
 
 void TurboAssembler::PrepareForTailCall(
-    const ParameterCount& callee_args_count, Register caller_args_count_reg,
-    Register scratch0, Register scratch1,
-    int number_of_temp_values_after_return_address) {
-#if DEBUG
-  if (callee_args_count.is_reg()) {
-    DCHECK(!AreAliased(callee_args_count.reg(), caller_args_count_reg, scratch0,
-                       scratch1));
-  } else {
-    DCHECK(!AreAliased(caller_args_count_reg, scratch0, scratch1));
-  }
-#endif
+    Register callee_args_count, Register caller_args_count, Register scratch0,
+    Register scratch1, int number_of_temp_values_after_return_address) {
+  DCHECK(!AreAliased(callee_args_count, caller_args_count, scratch0, scratch1));
 
   // Calculate the destination address where we will put the return address
   // after we drop current frame.
   Register new_sp_reg = scratch0;
-  if (callee_args_count.is_reg()) {
-    sub(caller_args_count_reg, callee_args_count.reg());
-    lea(new_sp_reg,
-        Operand(ebp, caller_args_count_reg, times_system_pointer_size,
-                StandardFrameConstants::kCallerPCOffset -
-                    number_of_temp_values_after_return_address *
-                        kSystemPointerSize));
-  } else {
-    lea(new_sp_reg,
-        Operand(ebp, caller_args_count_reg, times_system_pointer_size,
-                StandardFrameConstants::kCallerPCOffset -
-                    (callee_args_count.immediate() +
-                     number_of_temp_values_after_return_address) *
-                        kSystemPointerSize));
-  }
+  sub(caller_args_count, callee_args_count);
+  lea(new_sp_reg, Operand(ebp, caller_args_count, times_system_pointer_size,
+                          StandardFrameConstants::kCallerPCOffset -
+                              number_of_temp_values_after_return_address *
+                                  kSystemPointerSize));
 
   if (FLAG_debug_code) {
     cmp(esp, new_sp_reg);
@@ -1078,15 +1060,9 @@ void TurboAssembler::PrepareForTailCall(
   mov(ebp, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
 
   // +2 here is to copy both receiver and return address.
-  Register count_reg = caller_args_count_reg;
-  if (callee_args_count.is_reg()) {
-    lea(count_reg, Operand(callee_args_count.reg(),
-                           2 + number_of_temp_values_after_return_address));
-  } else {
-    mov(count_reg, Immediate(callee_args_count.immediate() + 2 +
-                             number_of_temp_values_after_return_address));
-    // TODO(ishell): Unroll copying loop for small immediate values.
-  }
+  Register count_reg = caller_args_count;
+  lea(count_reg, Operand(callee_args_count,
+                         2 + number_of_temp_values_after_return_address));
 
   // Now copy callee arguments to the caller frame going backwards to avoid
   // callee arguments corruption (source and destination areas could overlap).

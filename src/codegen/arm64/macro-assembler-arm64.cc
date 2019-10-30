@@ -2074,23 +2074,16 @@ void TurboAssembler::CallForDeoptimization(Address target, int deopt_id) {
   DCHECK_EQ(SizeOfCodeGeneratedSince(&start), Deoptimizer::kDeoptExitSize);
 }
 
-void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
-                                        Register caller_args_count_reg,
+void TurboAssembler::PrepareForTailCall(Register callee_args_count,
+                                        Register caller_args_count,
                                         Register scratch0, Register scratch1) {
-#if DEBUG
-  if (callee_args_count.is_reg()) {
-    DCHECK(!AreAliased(callee_args_count.reg(), caller_args_count_reg, scratch0,
-                       scratch1));
-  } else {
-    DCHECK(!AreAliased(caller_args_count_reg, scratch0, scratch1));
-  }
-#endif
+  DCHECK(!AreAliased(callee_args_count, caller_args_count, scratch0, scratch1));
 
   // Calculate the end of destination area where we will put the arguments
   // after we drop current frame. We add kSystemPointerSize to count the
   // receiver argument which is not included into formal parameters count.
   Register dst_reg = scratch0;
-  Add(dst_reg, fp, Operand(caller_args_count_reg, LSL, kSystemPointerSizeLog2));
+  Add(dst_reg, fp, Operand(caller_args_count, LSL, kSystemPointerSizeLog2));
   Add(dst_reg, dst_reg,
       StandardFrameConstants::kCallerSPOffset + kSystemPointerSize);
   // Round dst_reg up to a multiple of 16 bytes, so that we overwrite any
@@ -2098,15 +2091,10 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
   Add(dst_reg, dst_reg, 15);
   Bic(dst_reg, dst_reg, 15);
 
-  Register src_reg = caller_args_count_reg;
+  Register src_reg = caller_args_count;
   // Calculate the end of source area. +kSystemPointerSize is for the receiver.
-  if (callee_args_count.is_reg()) {
-    Add(src_reg, sp,
-        Operand(callee_args_count.reg(), LSL, kSystemPointerSizeLog2));
-    Add(src_reg, src_reg, kSystemPointerSize);
-  } else {
-    Add(src_reg, sp, (callee_args_count.immediate() + 1) * kSystemPointerSize);
-  }
+  Add(src_reg, sp, Operand(callee_args_count, LSL, kSystemPointerSizeLog2));
+  Add(src_reg, src_reg, kSystemPointerSize);
 
   // Round src_reg up to a multiple of 16 bytes, so we include any potential
   // padding in the copy.

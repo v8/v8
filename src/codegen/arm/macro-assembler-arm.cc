@@ -1494,35 +1494,23 @@ void TurboAssembler::MovFromFloatParameter(DwVfpRegister dst) {
   MovFromFloatResult(dst);
 }
 
-void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
-                                        Register caller_args_count_reg,
+void TurboAssembler::PrepareForTailCall(Register callee_args_count,
+                                        Register caller_args_count,
                                         Register scratch0, Register scratch1) {
-#if DEBUG
-  if (callee_args_count.is_reg()) {
-    DCHECK(!AreAliased(callee_args_count.reg(), caller_args_count_reg, scratch0,
-                       scratch1));
-  } else {
-    DCHECK(!AreAliased(caller_args_count_reg, scratch0, scratch1));
-  }
-#endif
+  DCHECK(!AreAliased(callee_args_count, caller_args_count, scratch0, scratch1));
 
   // Calculate the end of destination area where we will put the arguments
   // after we drop current frame. We add kPointerSize to count the receiver
   // argument which is not included into formal parameters count.
   Register dst_reg = scratch0;
-  add(dst_reg, fp, Operand(caller_args_count_reg, LSL, kPointerSizeLog2));
+  add(dst_reg, fp, Operand(caller_args_count, LSL, kPointerSizeLog2));
   add(dst_reg, dst_reg,
       Operand(StandardFrameConstants::kCallerSPOffset + kPointerSize));
 
-  Register src_reg = caller_args_count_reg;
+  Register src_reg = caller_args_count;
   // Calculate the end of source area. +kPointerSize is for the receiver.
-  if (callee_args_count.is_reg()) {
-    add(src_reg, sp, Operand(callee_args_count.reg(), LSL, kPointerSizeLog2));
-    add(src_reg, src_reg, Operand(kPointerSize));
-  } else {
-    add(src_reg, sp,
-        Operand((callee_args_count.immediate() + 1) * kPointerSize));
-  }
+  add(src_reg, sp, Operand(callee_args_count, LSL, kPointerSizeLog2));
+  add(src_reg, src_reg, Operand(kPointerSize));
 
   if (FLAG_debug_code) {
     cmp(src_reg, dst_reg);

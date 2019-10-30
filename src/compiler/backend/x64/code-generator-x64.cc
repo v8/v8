@@ -632,9 +632,7 @@ void CodeGenerator::AssemblePopArgumentsAdaptorFrame(Register args_reg,
   __ SmiUntag(caller_args_count_reg,
               Operand(rbp, ArgumentsAdaptorFrameConstants::kLengthOffset));
 
-  ParameterCount callee_args_count(args_reg);
-  __ PrepareForTailCall(callee_args_count, caller_args_count_reg, scratch2,
-                        scratch3);
+  __ PrepareForTailCall(args_reg, caller_args_count_reg, scratch2, scratch3);
   __ bind(&done);
 }
 

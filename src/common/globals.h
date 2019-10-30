@@ -628,7 +628,6 @@ class FullObjectSlot;
 class FullMaybeObjectSlot;
 class FullHeapObjectSlot;
 class OldSpace;
-class ParameterCount;
 class ReadOnlySpace;
 class RelocInfo;
 class Scope;
