@@ -95,6 +95,7 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(ArchStackSlot)                        \
   V(ArchWordPoisonOnSpeculation)          \
   V(ArchStackPointerGreaterThan)          \
+  V(ArchStackCheckOffset)                 \
   V(Word32AtomicLoadInt8)                 \
   V(Word32AtomicLoadUint8)                \
   V(Word32AtomicLoadInt16)                \

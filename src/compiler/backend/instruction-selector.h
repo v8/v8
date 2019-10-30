@@ -346,6 +346,10 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
                                     size_t input_count,
                                     InstructionOperand* inputs,
                                     FlagsContinuation* cont);
+  Instruction* EmitWithContinuation(
+      InstructionCode opcode, size_t output_count, InstructionOperand* outputs,
+      size_t input_count, InstructionOperand* inputs, size_t temp_count,
+      InstructionOperand* temps, FlagsContinuation* cont);
 
   // ===========================================================================
   // ===== Architecture-independent deoptimization exit emission methods. ======
@@ -765,6 +769,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   ZoneVector<Instruction*> instructions_;
   InstructionOperandVector continuation_inputs_;
   InstructionOperandVector continuation_outputs_;
+  InstructionOperandVector continuation_temps_;
   BoolVector defined_;
   BoolVector used_;
   IntVector effect_level_;

@@ -248,6 +248,7 @@ void InstructionScheduler::Schedule() {
 int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
   switch (instr->arch_opcode()) {
     case kArchNop:
+    case kArchStackCheckOffset:
     case kArchFramePointer:
     case kArchParentFramePointer:
     case kArchStackSlot:  // Despite its name this opcode will produce a

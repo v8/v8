@@ -10,6 +10,7 @@
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/string-constants.h"
 #include "src/compiler/backend/code-generator-impl.h"
+#include "src/compiler/globals.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/wasm-compiler.h"
@@ -113,6 +114,32 @@ void CodeGenerator::AddProtectedInstructionLanding(uint32_t instr_offset,
 void CodeGenerator::CreateFrameAccessState(Frame* frame) {
   FinishFrame(frame);
   frame_access_state_ = new (zone()) FrameAccessState(frame);
+}
+
+bool CodeGenerator::ShouldApplyOffsetToStackCheck(Instruction* instr,
+                                                  uint32_t* offset) {
+  DCHECK_EQ(instr->arch_opcode(), kArchStackPointerGreaterThan);
+
+  StackCheckKind kind =
+      static_cast<StackCheckKind>(MiscField::decode(instr->opcode()));
+  if (kind != StackCheckKind::kJSFunctionEntry) return false;
+
+  uint32_t stack_check_offset = *offset = GetStackCheckOffset();
+  return stack_check_offset > 0;
+}
+
+uint32_t CodeGenerator::GetStackCheckOffset() {
+  if (!frame_access_state()->has_frame()) return 0;
+
+  int32_t optimized_frame_height =
+      frame()->GetTotalFrameSlotCount() * kSystemPointerSize;
+  DCHECK(is_int32(max_unoptimized_frame_height_));
+  int32_t signed_max_unoptimized_frame_height =
+      static_cast<int32_t>(max_unoptimized_frame_height_);
+
+  int32_t signed_offset =
+      std::max(signed_max_unoptimized_frame_height - optimized_frame_height, 0);
+  return (signed_offset <= 0) ? 0 : static_cast<uint32_t>(signed_offset);
 }
 
 CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(

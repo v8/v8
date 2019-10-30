@@ -329,7 +329,8 @@ void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position,
   *effect = limit;
 
   Node* check = graph()->NewNode(
-      mcgraph()->machine()->StackPointerGreaterThan(), limit, *effect);
+      mcgraph()->machine()->StackPointerGreaterThan(StackCheckKind::kWasm),
+      limit, *effect);
   *effect = check;
 
   Diamond stack_check(graph(), mcgraph()->common(), check, BranchHint::kTrue);

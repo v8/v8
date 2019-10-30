@@ -692,7 +692,6 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   V(GeneratorRestoreContinuation, Operator::kNoThrow, 1, 1)              \
   V(GeneratorRestoreContext, Operator::kNoThrow, 1, 1)                   \
   V(GeneratorRestoreInputOrDebugPos, Operator::kNoThrow, 1, 1)           \
-  V(StackCheck, Operator::kNoWrite, 0, 0)                                \
   V(Debugger, Operator::kNoProperties, 0, 0)                             \
   V(FulfillPromise, Operator::kNoDeopt | Operator::kNoThrow, 2, 1)       \
   V(PerformPromiseThen, Operator::kNoDeopt | Operator::kNoThrow, 4, 1)   \
@@ -1341,6 +1340,15 @@ const Operator* JSOperatorBuilder::CloneObject(FeedbackSource const& feedback,
       "JSCloneObject",                                   // name
       1, 1, 1, 1, 1, 2,                                  // counts
       parameters);                                       // parameter
+}
+
+const Operator* JSOperatorBuilder::StackCheck(StackCheckKind kind) {
+  return new (zone()) Operator1<StackCheckKind>(  // --
+      IrOpcode::kJSStackCheck,                    // opcode
+      Operator::kNoWrite,                         // properties
+      "JSStackCheck",                             // name
+      0, 1, 1, 0, 1, 2,                           // counts
+      kind);                                      // parameter
 }
 
 const Operator* JSOperatorBuilder::CreateEmptyLiteralObject() {
