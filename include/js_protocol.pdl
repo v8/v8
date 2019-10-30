@@ -783,6 +783,14 @@ domain Profiler
       # Type profile entries for parameters and return values of the functions in the script.
       array of TypeProfileEntry entries
 
+  # Collected counter information.
+  experimental type CounterInfo extends object
+    properties
+      # Counter name.
+      string name
+      # Counter value.
+      integer value
+
   command disable
 
   command enable
@@ -839,6 +847,18 @@ domain Profiler
     returns
       # Type profile for all scripts since startTypeProfile() was turned on.
       array of ScriptTypeProfile result
+
+  # Enable run time call stats collection.
+  experimental command enableRuntimeCallStats
+
+  # Disable run time call stats collection.
+  experimental command disableRuntimeCallStats
+
+  # Retrieve run time call stats.
+  experimental command getRuntimeCallStats
+    returns
+      # Collected counter information.
+      array of CounterInfo result
 
   event consoleProfileFinished
     parameters
