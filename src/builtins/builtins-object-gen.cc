@@ -1062,9 +1062,9 @@ TF_BUILTIN(ObjectPrototypeValueOf, CodeStubAssembler) {
 
 // ES #sec-object.create
 TF_BUILTIN(CreateObjectWithoutProperties, ObjectBuiltinsAssembler) {
-  TNode<Object> const prototype = CAST(Parameter(Descriptor::kPrototypeArg));
-  TNode<Context> const context = CAST(Parameter(Descriptor::kContext));
-  TNode<NativeContext> const native_context = LoadNativeContext(context);
+  const TNode<Object> prototype = CAST(Parameter(Descriptor::kPrototypeArg));
+  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const TNode<NativeContext> native_context = LoadNativeContext(context);
   Label call_runtime(this, Label::kDeferred), prototype_null(this),
       prototype_jsreceiver(this);
   {
@@ -1221,8 +1221,8 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
 
 // ES #sec-object.is
 TF_BUILTIN(ObjectIs, ObjectBuiltinsAssembler) {
-  TNode<Object> const left = CAST(Parameter(Descriptor::kLeft));
-  TNode<Object> const right = CAST(Parameter(Descriptor::kRight));
+  const TNode<Object> left = CAST(Parameter(Descriptor::kLeft));
+  const TNode<Object> right = CAST(Parameter(Descriptor::kRight));
 
   Label return_true(this), return_false(this);
   BranchIfSameValue(left, right, &return_true, &return_false);
@@ -1235,15 +1235,15 @@ TF_BUILTIN(ObjectIs, ObjectBuiltinsAssembler) {
 }
 
 TF_BUILTIN(CreateIterResultObject, ObjectBuiltinsAssembler) {
-  TNode<Object> const value = CAST(Parameter(Descriptor::kValue));
-  TNode<Oddball> const done = CAST(Parameter(Descriptor::kDone));
-  TNode<Context> const context = CAST(Parameter(Descriptor::kContext));
+  const TNode<Object> value = CAST(Parameter(Descriptor::kValue));
+  const TNode<Oddball> done = CAST(Parameter(Descriptor::kDone));
+  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
-  TNode<NativeContext> const native_context = LoadNativeContext(context);
-  TNode<Map> const map = CAST(
+  const TNode<NativeContext> native_context = LoadNativeContext(context);
+  const TNode<Map> map = CAST(
       LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX));
 
-  TNode<JSObject> const result = AllocateJSObjectFromMap(map);
+  const TNode<JSObject> result = AllocateJSObjectFromMap(map);
 
   StoreObjectFieldNoWriteBarrier(result, JSIteratorResult::kValueOffset, value);
   StoreObjectFieldNoWriteBarrier(result, JSIteratorResult::kDoneOffset, done);

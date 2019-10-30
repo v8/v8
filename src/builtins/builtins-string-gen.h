@@ -91,9 +91,9 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   using StringAtAccessor = std::function<TNode<Object>(
       TNode<String> receiver, TNode<IntPtrT> length, TNode<IntPtrT> index)>;
 
-  void StringIndexOf(TNode<String> const subject_string,
-                     TNode<String> const search_string,
-                     TNode<Smi> const position,
+  void StringIndexOf(const TNode<String> subject_string,
+                     const TNode<String> search_string,
+                     const TNode<Smi> position,
                      const std::function<void(TNode<Smi>)>& f_return);
 
   TNode<Smi> IndexOfDollarChar(Node* const context, Node* const string);
@@ -186,7 +186,7 @@ class StringTrimAssembler : public StringBuiltinsAssembler {
       : StringBuiltinsAssembler(state) {}
 
   V8_EXPORT_PRIVATE void GotoIfNotWhiteSpaceOrLineTerminator(
-      TNode<Word32T> const char_code, Label* const if_not_whitespace);
+      const TNode<Word32T> char_code, Label* const if_not_whitespace);
 
  protected:
   void Generate(String::TrimMode mode, const char* method, TNode<IntPtrT> argc,
@@ -195,9 +195,9 @@ class StringTrimAssembler : public StringBuiltinsAssembler {
   void ScanForNonWhiteSpaceOrLineTerminator(
       Node* const string_data, Node* const string_data_offset,
       Node* const is_stringonebyte, TVariable<IntPtrT>* const var_index,
-      TNode<IntPtrT> const end, int increment, Label* const if_none_found);
+      const TNode<IntPtrT> end, int increment, Label* const if_none_found);
 
-  void BuildLoop(TVariable<IntPtrT>* const var_index, TNode<IntPtrT> const end,
+  void BuildLoop(TVariable<IntPtrT>* const var_index, const TNode<IntPtrT> end,
                  int increment, Label* const if_none_found, Label* const out,
                  const std::function<Node*(Node*)>& get_character);
 };

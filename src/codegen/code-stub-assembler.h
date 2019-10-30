@@ -197,7 +197,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 #define CSA_ASSERT_JS_ARGC_OP(csa, Op, op, expected)                         \
   (csa)->Assert(                                                             \
       [&]() -> compiler::Node* {                                             \
-        TNode<Word32T> const argc = UncheckedCast<Word32T>(                  \
+        const TNode<Word32T> argc = UncheckedCast<Word32T>(                  \
             (csa)->Parameter(Descriptor::kJSActualArgumentsCount));          \
         return (csa)->Op(argc, (csa)->Int32Constant(expected));              \
       },                                                                     \
@@ -3540,7 +3540,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <class... TArgs>
   Node* MakeTypeError(MessageTemplate message, Node* context, TArgs... args) {
     STATIC_ASSERT(sizeof...(TArgs) <= 3);
-    TNode<Object> const make_type_error = LoadContextElement(
+    const TNode<Object> make_type_error = LoadContextElement(
         LoadNativeContext(context), Context::MAKE_TYPE_ERROR_INDEX);
     return CallJS(CodeFactory::Call(isolate()), context, make_type_error,
                   UndefinedConstant(), SmiConstant(message), args...);

@@ -1195,7 +1195,7 @@ void CodeStubAssembler::BranchIfJSReceiver(SloppyTNode<Object> object,
 
 void CodeStubAssembler::GotoIfForceSlowPath(Label* if_true) {
 #ifdef V8_ENABLE_FORCE_SLOW_PATH
-  TNode<ExternalReference> const force_slow_path_addr =
+  const TNode<ExternalReference> force_slow_path_addr =
       ExternalConstant(ExternalReference::force_slow_path(isolate()));
   Node* const force_slow = Load(MachineType::Uint8(), force_slow_path_addr);
 
@@ -2752,11 +2752,11 @@ TNode<Map> CodeStubAssembler::LoadJSArrayElementsMap(
 
 TNode<BoolT> CodeStubAssembler::IsGeneratorFunction(
     TNode<JSFunction> function) {
-  TNode<SharedFunctionInfo> const shared_function_info =
+  const TNode<SharedFunctionInfo> shared_function_info =
       LoadObjectField<SharedFunctionInfo>(
           function, JSFunction::kSharedFunctionInfoOffset);
 
-  TNode<Uint32T> const function_kind =
+  const TNode<Uint32T> function_kind =
       DecodeWord32<SharedFunctionInfo::FunctionKindBits>(LoadObjectField(
           shared_function_info, SharedFunctionInfo::kFlagsOffset,
           MachineType::Uint32()));
@@ -4862,7 +4862,7 @@ void CodeStubAssembler::MoveElements(ElementsKind kind,
                     IntPtrConstant(ElementsKindToByteSize(kind)));
       auto loop_body = [&](Node* array, Node* offset) {
         Node* const element = Load(MachineType::AnyTagged(), array, offset);
-        TNode<WordT> const delta_offset = IntPtrAdd(offset, delta);
+        const TNode<WordT> delta_offset = IntPtrAdd(offset, delta);
         Store(array, delta_offset, element);
       };
 
@@ -4955,7 +4955,7 @@ void CodeStubAssembler::CopyElements(ElementsKind kind,
           src_elements, kind, begin, end,
           [&](Node* array, Node* offset) {
             Node* const element = Load(MachineType::AnyTagged(), array, offset);
-            TNode<WordT> const delta_offset = IntPtrAdd(offset, delta);
+            const TNode<WordT> delta_offset = IntPtrAdd(offset, delta);
             if (write_barrier == SKIP_WRITE_BARRIER) {
               StoreNoWriteBarrier(MachineRepresentation::kTagged, dst_elements,
                                   delta_offset, element);
@@ -5818,7 +5818,7 @@ Node* CodeStubAssembler::ThrowIfNotInstanceType(Node* context, Node* value,
 
   // Load the instance type of the {value}.
   var_value_map.Bind(LoadMap(value));
-  TNode<Uint16T> const value_instance_type =
+  const TNode<Uint16T> value_instance_type =
       LoadMapInstanceType(var_value_map.value());
 
   Branch(Word32Equal(value_instance_type, Int32Constant(instance_type)), &out,
@@ -5843,7 +5843,7 @@ void CodeStubAssembler::ThrowIfNotJSReceiver(TNode<Context> context,
 
   // Load the instance type of the {value}.
   TNode<Map> value_map = LoadMap(CAST(value));
-  TNode<Uint16T> const value_instance_type = LoadMapInstanceType(value_map);
+  const TNode<Uint16T> value_instance_type = LoadMapInstanceType(value_map);
 
   Branch(IsJSReceiverInstanceType(value_instance_type), &done,
          &throw_exception);
@@ -6012,8 +6012,8 @@ TNode<BoolT> CodeStubAssembler::IsPromiseSpeciesProtectorCellInvalid() {
 
 TNode<BoolT> CodeStubAssembler::IsPrototypeInitialArrayPrototype(
     SloppyTNode<Context> context, SloppyTNode<Map> map) {
-  TNode<NativeContext> const native_context = LoadNativeContext(context);
-  TNode<Object> const initial_array_prototype = LoadContextElement(
+  const TNode<NativeContext> native_context = LoadNativeContext(context);
+  const TNode<Object> initial_array_prototype = LoadContextElement(
       native_context, Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
   TNode<HeapObject> proto = LoadMapPrototype(map);
   return TaggedEqual(proto, initial_array_prototype);
@@ -6021,8 +6021,8 @@ TNode<BoolT> CodeStubAssembler::IsPrototypeInitialArrayPrototype(
 
 TNode<BoolT> CodeStubAssembler::IsPrototypeTypedArrayPrototype(
     SloppyTNode<Context> context, SloppyTNode<Map> map) {
-  TNode<NativeContext> const native_context = LoadNativeContext(context);
-  TNode<Object> const typed_array_prototype =
+  const TNode<NativeContext> native_context = LoadNativeContext(context);
+  const TNode<Object> typed_array_prototype =
       LoadContextElement(native_context, Context::TYPED_ARRAY_PROTOTYPE_INDEX);
   TNode<HeapObject> proto = LoadMapPrototype(map);
   TNode<HeapObject> proto_of_proto = Select<HeapObject>(
@@ -6033,32 +6033,32 @@ TNode<BoolT> CodeStubAssembler::IsPrototypeTypedArrayPrototype(
 
 TNode<BoolT> CodeStubAssembler::IsFastAliasedArgumentsMap(
     TNode<Context> context, TNode<Map> map) {
-  TNode<NativeContext> const native_context = LoadNativeContext(context);
-  TNode<Object> const arguments_map = LoadContextElement(
+  const TNode<NativeContext> native_context = LoadNativeContext(context);
+  const TNode<Object> arguments_map = LoadContextElement(
       native_context, Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX);
   return TaggedEqual(arguments_map, map);
 }
 
 TNode<BoolT> CodeStubAssembler::IsSlowAliasedArgumentsMap(
     TNode<Context> context, TNode<Map> map) {
-  TNode<NativeContext> const native_context = LoadNativeContext(context);
-  TNode<Object> const arguments_map = LoadContextElement(
+  const TNode<NativeContext> native_context = LoadNativeContext(context);
+  const TNode<Object> arguments_map = LoadContextElement(
       native_context, Context::SLOW_ALIASED_ARGUMENTS_MAP_INDEX);
   return TaggedEqual(arguments_map, map);
 }
 
 TNode<BoolT> CodeStubAssembler::IsSloppyArgumentsMap(TNode<Context> context,
                                                      TNode<Map> map) {
-  TNode<NativeContext> const native_context = LoadNativeContext(context);
-  TNode<Object> const arguments_map =
+  const TNode<NativeContext> native_context = LoadNativeContext(context);
+  const TNode<Object> arguments_map =
       LoadContextElement(native_context, Context::SLOPPY_ARGUMENTS_MAP_INDEX);
   return TaggedEqual(arguments_map, map);
 }
 
 TNode<BoolT> CodeStubAssembler::IsStrictArgumentsMap(TNode<Context> context,
                                                      TNode<Map> map) {
-  TNode<NativeContext> const native_context = LoadNativeContext(context);
-  TNode<Object> const arguments_map =
+  const TNode<NativeContext> native_context = LoadNativeContext(context);
+  const TNode<Object> arguments_map =
       LoadContextElement(native_context, Context::STRICT_ARGUMENTS_MAP_INDEX);
   return TaggedEqual(arguments_map, map);
 }
@@ -6348,7 +6348,7 @@ TNode<BoolT> CodeStubAssembler::IsFixedArrayWithKindOrEmpty(
 
   GotoIf(IsFixedArrayWithKind(object, kind), &out);
 
-  TNode<Smi> const length = LoadFixedArrayBaseLength(CAST(object));
+  const TNode<Smi> length = LoadFixedArrayBaseLength(CAST(object));
   GotoIf(SmiEqual(length, SmiConstant(0)), &out);
 
   var_result = Int32FalseConstant();
@@ -6738,10 +6738,10 @@ TNode<Int32T> CodeStubAssembler::StringCharCodeAt(TNode<String> string,
 
   ToDirectStringAssembler to_direct(state(), string);
   to_direct.TryToDirect(&if_runtime);
-  TNode<UintPtrT> const offset =
+  const TNode<UintPtrT> offset =
       UintPtrAdd(index, Unsigned(to_direct.offset()));
-  TNode<Int32T> const instance_type = to_direct.instance_type();
-  TNode<RawPtrT> const string_data = to_direct.PointerToData(&if_runtime);
+  const TNode<Int32T> instance_type = to_direct.instance_type();
+  const TNode<RawPtrT> string_data = to_direct.PointerToData(&if_runtime);
 
   // Check if the {string} is a TwoByteSeqString or a OneByteSeqString.
   Branch(IsOneByteStringInstanceType(instance_type), &if_stringisonebyte,
@@ -6864,7 +6864,7 @@ TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
     };
     STATIC_ASSERT(arraysize(values) == arraysize(labels));
 
-    TNode<Int32T> const representation = Word32And(
+    const TNode<Int32T> representation = Word32And(
         var_instance_type_.value(), Int32Constant(kStringRepresentationMask));
     Switch(representation, if_bailout, values, labels, arraysize(values));
   }
@@ -6873,12 +6873,12 @@ TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
   // Flat cons strings have an empty second part.
   BIND(&if_iscons);
   {
-    TNode<String> const string = var_string_.value();
+    const TNode<String> string = var_string_.value();
     GotoIfNot(IsEmptyString(
                   LoadObjectField<String>(string, ConsString::kSecondOffset)),
               if_bailout);
 
-    TNode<String> const lhs =
+    const TNode<String> lhs =
         LoadObjectField<String>(string, ConsString::kFirstOffset);
     var_string_ = lhs;
     var_instance_type_ = LoadInstanceType(lhs);
@@ -6892,12 +6892,12 @@ TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
     if (!FLAG_string_slices || (flags_ & kDontUnpackSlicedStrings)) {
       Goto(if_bailout);
     } else {
-      TNode<String> const string = var_string_.value();
-      TNode<IntPtrT> const sliced_offset =
+      const TNode<String> string = var_string_.value();
+      const TNode<IntPtrT> sliced_offset =
           LoadAndUntagObjectField(string, SlicedString::kOffsetOffset);
       var_offset_ = IntPtrAdd(var_offset_.value(), sliced_offset);
 
-      TNode<String> const parent =
+      const TNode<String> parent =
           LoadObjectField<String>(string, SlicedString::kParentOffset);
       var_string_ = parent;
       var_instance_type_ = LoadInstanceType(parent);
@@ -6909,10 +6909,10 @@ TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
   // Thin string. Fetch the actual string.
   BIND(&if_isthin);
   {
-    TNode<String> const string = var_string_.value();
-    TNode<String> const actual_string =
+    const TNode<String> string = var_string_.value();
+    const TNode<String> actual_string =
         LoadObjectField<String>(string, ThinString::kActualOffset);
-    TNode<Uint16T> const actual_instance_type = LoadInstanceType(actual_string);
+    const TNode<Uint16T> actual_instance_type = LoadInstanceType(actual_string);
 
     var_string_ = actual_string;
     var_instance_type_ = actual_instance_type;
@@ -7351,8 +7351,8 @@ void CodeStubAssembler::TaggedToNumeric(Node* context, Node* value, Label* done,
 // ES#sec-touint32
 TNode<Number> CodeStubAssembler::ToUint32(SloppyTNode<Context> context,
                                           SloppyTNode<Object> input) {
-  TNode<Float64T> const float_zero = Float64Constant(0.0);
-  TNode<Float64T> const float_two_32 =
+  const TNode<Float64T> float_zero = Float64Constant(0.0);
+  const TNode<Float64T> float_two_32 =
       Float64Constant(static_cast<double>(1ULL << 32));
 
   Label out(this);
@@ -7368,7 +7368,7 @@ TNode<Number> CodeStubAssembler::ToUint32(SloppyTNode<Context> context,
     BIND(&next);
   }
 
-  TNode<Number> const number = ToNumber(context, input);
+  const TNode<Number> number = ToNumber(context, input);
   var_result.Bind(number);
 
   // Perhaps we have a positive smi now.
@@ -7383,7 +7383,7 @@ TNode<Number> CodeStubAssembler::ToUint32(SloppyTNode<Context> context,
 
   BIND(&if_isnegativesmi);
   {
-    TNode<Int32T> const uint32_value = SmiToInt32(CAST(number));
+    const TNode<Int32T> uint32_value = SmiToInt32(CAST(number));
     TNode<Float64T> float64_value = ChangeUint32ToFloat64(uint32_value);
     var_result.Bind(AllocateHeapNumberWithValue(float64_value));
     Goto(&out);
@@ -7392,7 +7392,7 @@ TNode<Number> CodeStubAssembler::ToUint32(SloppyTNode<Context> context,
   BIND(&if_isheapnumber);
   {
     Label return_zero(this);
-    TNode<Float64T> const value = LoadHeapNumberValue(CAST(number));
+    const TNode<Float64T> value = LoadHeapNumberValue(CAST(number));
 
     {
       // +-0.
@@ -7411,7 +7411,7 @@ TNode<Number> CodeStubAssembler::ToUint32(SloppyTNode<Context> context,
     {
       // +Infinity.
       Label next(this);
-      TNode<Float64T> const positive_infinity =
+      const TNode<Float64T> positive_infinity =
           Float64Constant(std::numeric_limits<double>::infinity());
       Branch(Float64Equal(value, positive_infinity), &return_zero, &next);
       BIND(&next);
@@ -7420,7 +7420,7 @@ TNode<Number> CodeStubAssembler::ToUint32(SloppyTNode<Context> context,
     {
       // -Infinity.
       Label next(this);
-      TNode<Float64T> const negative_infinity =
+      const TNode<Float64T> negative_infinity =
           Float64Constant(-1.0 * std::numeric_limits<double>::infinity());
       Branch(Float64Equal(value, negative_infinity), &return_zero, &next);
       BIND(&next);
@@ -7436,7 +7436,7 @@ TNode<Number> CodeStubAssembler::ToUint32(SloppyTNode<Context> context,
       x = Float64Add(x, float_two_32);
       x = Float64Mod(x, float_two_32);
 
-      TNode<Number> const result = ChangeFloat64ToTagged(x);
+      const TNode<Number> result = ChangeFloat64ToTagged(x);
       var_result.Bind(result);
       Goto(&out);
     }
@@ -7772,7 +7772,7 @@ void CodeStubAssembler::TryInternalizeString(
     Label* if_not_internalized, Label* if_bailout) {
   TNode<ExternalReference> function =
       ExternalConstant(ExternalReference::try_internalize_string_function());
-  TNode<ExternalReference> const isolate_ptr =
+  const TNode<ExternalReference> isolate_ptr =
       ExternalConstant(ExternalReference::isolate_address(isolate()));
   TNode<Object> result =
       CAST(CallCFunction(function, MachineType::AnyTagged(),
@@ -8034,9 +8034,9 @@ Node* CodeStubAssembler::ComputeUnseededHash(Node* key) {
 }
 
 Node* CodeStubAssembler::ComputeSeededHash(Node* key) {
-  TNode<ExternalReference> const function_addr =
+  const TNode<ExternalReference> function_addr =
       ExternalConstant(ExternalReference::compute_integer_hash());
-  TNode<ExternalReference> const isolate_ptr =
+  const TNode<ExternalReference> isolate_ptr =
       ExternalConstant(ExternalReference::isolate_address(isolate()));
 
   MachineType type_ptr = MachineType::Pointer();
@@ -12211,10 +12211,10 @@ void CodeStubAssembler::BranchIfSameValue(SloppyTNode<Object> lhs,
           // value.
           Label if_lhsisheapnumber(this), if_lhsisstring(this),
               if_lhsisbigint(this);
-          TNode<Map> const lhs_map = LoadMap(CAST(lhs));
+          const TNode<Map> lhs_map = LoadMap(CAST(lhs));
           GotoIf(IsHeapNumberMap(lhs_map), &if_lhsisheapnumber);
           if (mode != SameValueMode::kNumbersOnly) {
-            TNode<Uint16T> const lhs_instance_type =
+            const TNode<Uint16T> lhs_instance_type =
                 LoadMapInstanceType(lhs_map);
             GotoIf(IsStringInstanceType(lhs_instance_type), &if_lhsisstring);
             GotoIf(IsBigIntInstanceType(lhs_instance_type), &if_lhsisbigint);
@@ -12235,7 +12235,7 @@ void CodeStubAssembler::BranchIfSameValue(SloppyTNode<Object> lhs,
               // Now we can only yield true if {rhs} is also a String
               // with the same sequence of characters.
               GotoIfNot(IsString(CAST(rhs)), if_false);
-              TNode<Object> const result = CallBuiltin(
+              const TNode<Object> result = CallBuiltin(
                   Builtins::kStringEqual, NoContextConstant(), lhs, rhs);
               Branch(IsTrue(result), if_true, if_false);
             }
@@ -12243,7 +12243,7 @@ void CodeStubAssembler::BranchIfSameValue(SloppyTNode<Object> lhs,
             BIND(&if_lhsisbigint);
             {
               GotoIfNot(IsBigInt(CAST(rhs)), if_false);
-              TNode<Object> const result = CallRuntime(
+              const TNode<Object> result = CallRuntime(
                   Runtime::kBigIntEqualToBigInt, NoContextConstant(), lhs, rhs);
               Branch(IsTrue(result), if_true, if_false);
             }
@@ -12271,8 +12271,8 @@ void CodeStubAssembler::BranchIfSameNumberValue(TNode<Float64T> lhs_value,
     // We still need to handle the case when {lhs} and {rhs} are -0.0 and
     // 0.0 (or vice versa). Compare the high word to
     // distinguish between the two.
-    TNode<Uint32T> const lhs_hi_word = Float64ExtractHighWord32(lhs_value);
-    TNode<Uint32T> const rhs_hi_word = Float64ExtractHighWord32(rhs_value);
+    const TNode<Uint32T> lhs_hi_word = Float64ExtractHighWord32(lhs_value);
+    const TNode<Uint32T> rhs_hi_word = Float64ExtractHighWord32(rhs_value);
 
     // If x is +0 and y is -0, return false.
     // If x is -0 and y is +0, return false.
@@ -13109,19 +13109,19 @@ Node* CodeStubAssembler::IsDebugActive() {
 }
 
 Node* CodeStubAssembler::IsPromiseHookEnabled() {
-  TNode<RawPtrT> const promise_hook = Load<RawPtrT>(
+  const TNode<RawPtrT> promise_hook = Load<RawPtrT>(
       ExternalConstant(ExternalReference::promise_hook_address(isolate())));
   return WordNotEqual(promise_hook, IntPtrConstant(0));
 }
 
 Node* CodeStubAssembler::HasAsyncEventDelegate() {
-  TNode<RawPtrT> const async_event_delegate = Load<RawPtrT>(ExternalConstant(
+  const TNode<RawPtrT> async_event_delegate = Load<RawPtrT>(ExternalConstant(
       ExternalReference::async_event_delegate_address(isolate())));
   return WordNotEqual(async_event_delegate, IntPtrConstant(0));
 }
 
 Node* CodeStubAssembler::IsPromiseHookEnabledOrHasAsyncEventDelegate() {
-  TNode<Uint8T> const promise_hook_or_async_event_delegate =
+  const TNode<Uint8T> promise_hook_or_async_event_delegate =
       Load<Uint8T>(ExternalConstant(
           ExternalReference::promise_hook_or_async_event_delegate_address(
               isolate())));
@@ -13130,7 +13130,7 @@ Node* CodeStubAssembler::IsPromiseHookEnabledOrHasAsyncEventDelegate() {
 
 Node* CodeStubAssembler::
     IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() {
-  TNode<Uint8T> const promise_hook_or_debug_is_active_or_async_event_delegate =
+  const TNode<Uint8T> promise_hook_or_debug_is_active_or_async_event_delegate =
       Load<Uint8T>(ExternalConstant(
           ExternalReference::
               promise_hook_or_debug_is_active_or_async_event_delegate_address(
@@ -13260,14 +13260,14 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
 TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithMapAndContext(
     TNode<Map> map, TNode<SharedFunctionInfo> shared_info,
     TNode<Context> context) {
-  TNode<Code> const code = GetSharedFunctionInfoCode(shared_info);
+  const TNode<Code> code = GetSharedFunctionInfoCode(shared_info);
 
   // TODO(ishell): All the callers of this function pass map loaded from
   // Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX. So we can remove
   // map parameter.
   CSA_ASSERT(this, Word32BinaryNot(IsConstructorMap(map)));
   CSA_ASSERT(this, Word32BinaryNot(IsFunctionWithPrototypeSlotMap(map)));
-  TNode<HeapObject> const fun = Allocate(JSFunction::kSizeWithoutPrototype);
+  const TNode<HeapObject> fun = Allocate(JSFunction::kSizeWithoutPrototype);
   STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kTaggedSize);
   StoreMapNoWriteBarrier(fun, map);
   StoreObjectFieldRoot(fun, JSObject::kPropertiesOrHashOffset,
@@ -13432,7 +13432,7 @@ void CodeStubAssembler::InitializeSyntheticFunctionContext(
                                  SmiConstant(slots));
 
   TNode<Context> context = CAST(context_heap_object);
-  TNode<Object> const empty_scope_info =
+  const TNode<Object> empty_scope_info =
       LoadContextElement(native_context, Context::SCOPE_INFO_INDEX);
   StoreContextElementNoWriteBarrier(context, Context::SCOPE_INFO_INDEX,
                                     empty_scope_info);

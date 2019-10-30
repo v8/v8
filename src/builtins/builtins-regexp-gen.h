@@ -168,13 +168,13 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
 
   TNode<Object> RegExpPrototypeMatchBody(TNode<Context> context,
                                          TNode<Object> regexp,
-                                         TNode<String> const string,
+                                         const TNode<String> string,
                                          const bool is_fastpath);
 
   TNode<JSArray> RegExpPrototypeSplitBody(TNode<Context> context,
                                           TNode<JSRegExp> regexp,
-                                          TNode<String> const string,
-                                          TNode<Smi> const limit);
+                                          const TNode<String> string,
+                                          const TNode<Smi> limit);
 };
 
 class RegExpMatchAllAssembler : public RegExpBuiltinsAssembler {

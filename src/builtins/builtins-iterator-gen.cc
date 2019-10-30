@@ -69,7 +69,7 @@ IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
     }
 
     BIND(&get_next);
-    TNode<Object> const next =
+    const TNode<Object> next =
         GetProperty(context, iterator, factory()->next_string());
     GotoIfException(next, if_exception, exception);
 
@@ -387,7 +387,7 @@ void IteratorBuiltinsAssembler::FastIterableToList(
         iterable, context, &string_maybe_fast_call, &check_map);
 
     BIND(&string_maybe_fast_call);
-    TNode<IntPtrT> const length = LoadStringLengthAsWord(CAST(iterable));
+    const TNode<IntPtrT> length = LoadStringLengthAsWord(CAST(iterable));
     // Use string length as conservative approximation of number of codepoints.
     GotoIf(
         IntPtrGreaterThan(length, IntPtrConstant(JSArray::kMaxFastArrayLength)),

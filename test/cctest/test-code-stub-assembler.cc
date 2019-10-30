@@ -71,7 +71,7 @@ TEST(CallCFunction) {
   CodeStubAssembler m(asm_tester.state());
 
   {
-    TNode<ExternalReference> const fun_constant = m.ExternalConstant(
+    const TNode<ExternalReference> fun_constant = m.ExternalConstant(
         ExternalReference::Create(reinterpret_cast<Address>(sum10)));
 
     MachineType type_intptr = MachineType::IntPtr();
@@ -105,7 +105,7 @@ TEST(CallCFunctionWithCallerSavedRegisters) {
   CodeStubAssembler m(asm_tester.state());
 
   {
-    TNode<ExternalReference> const fun_constant = m.ExternalConstant(
+    const TNode<ExternalReference> fun_constant = m.ExternalConstant(
         ExternalReference::Create(reinterpret_cast<Address>(sum3)));
 
     MachineType type_intptr = MachineType::IntPtr();
@@ -2456,7 +2456,7 @@ TEST(AllocateAndInitJSPromise) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  TNode<JSPromise> const promise = m.AllocateAndInitJSPromise(m.CAST(context));
+  const TNode<JSPromise> promise = m.AllocateAndInitJSPromise(m.CAST(context));
   m.Return(promise);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -2473,7 +2473,7 @@ TEST(AllocateAndSetJSPromise) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  TNode<JSPromise> const promise = m.AllocateAndSetJSPromise(
+  const TNode<JSPromise> promise = m.AllocateAndSetJSPromise(
       m.CAST(context), v8::Promise::kRejected, m.SmiConstant(1));
   m.Return(promise);
 
@@ -2536,7 +2536,7 @@ TEST(PromiseHasHandler) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  TNode<JSPromise> const promise =
+  const TNode<JSPromise> promise =
       m.AllocateAndInitJSPromise(m.CAST(context), m.UndefinedConstant());
   m.Return(m.SelectBooleanConstant(m.PromiseHasHandler(promise)));
 
@@ -2554,10 +2554,10 @@ TEST(CreatePromiseResolvingFunctionsContext) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  TNode<NativeContext> const native_context = m.LoadNativeContext(context);
+  const TNode<NativeContext> native_context = m.LoadNativeContext(context);
   const TNode<JSPromise> promise =
       m.AllocateAndInitJSPromise(m.CAST(context), m.UndefinedConstant());
-  TNode<Context> const promise_context =
+  const TNode<Context> promise_context =
       m.CreatePromiseResolvingFunctionsContext(
           promise, m.BooleanConstant(false), native_context);
   m.Return(promise_context);
@@ -2582,7 +2582,7 @@ TEST(CreatePromiseResolvingFunctions) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  TNode<NativeContext> const native_context = m.LoadNativeContext(context);
+  const TNode<NativeContext> native_context = m.LoadNativeContext(context);
   const TNode<JSPromise> promise =
       m.AllocateAndInitJSPromise(m.CAST(context), m.UndefinedConstant());
   PromiseResolvingFunctions funcs = m.CreatePromiseResolvingFunctions(
@@ -2672,7 +2672,7 @@ TEST(AllocateFunctionWithMapAndContext) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  TNode<NativeContext> const native_context = m.LoadNativeContext(context);
+  const TNode<NativeContext> native_context = m.LoadNativeContext(context);
   const TNode<JSPromise> promise =
       m.AllocateAndInitJSPromise(m.CAST(context), m.UndefinedConstant());
   TNode<Context> promise_context = m.CreatePromiseResolvingFunctionsContext(
@@ -2680,9 +2680,9 @@ TEST(AllocateFunctionWithMapAndContext) {
   TNode<Object> resolve_info = m.LoadContextElement(
       native_context,
       Context::PROMISE_CAPABILITY_DEFAULT_RESOLVE_SHARED_FUN_INDEX);
-  TNode<Object> const map = m.LoadContextElement(
+  const TNode<Object> map = m.LoadContextElement(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
-  TNode<JSFunction> const resolve = m.AllocateFunctionWithMapAndContext(
+  const TNode<JSFunction> resolve = m.AllocateFunctionWithMapAndContext(
       m.CAST(map), m.CAST(resolve_info), promise_context);
   m.Return(resolve);
 
@@ -2710,9 +2710,9 @@ TEST(CreatePromiseGetCapabilitiesExecutorContext) {
   PromiseBuiltinsAssembler m(asm_tester.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  TNode<NativeContext> const native_context = m.LoadNativeContext(context);
+  const TNode<NativeContext> native_context = m.LoadNativeContext(context);
 
-  TNode<Map> const map = m.PromiseCapabilityMapConstant();
+  const TNode<Map> map = m.PromiseCapabilityMapConstant();
   Node* const capability = m.AllocateStruct(map);
   m.StoreObjectFieldNoWriteBarrier(
       capability, PromiseCapability::kPromiseOffset, m.UndefinedConstant());
@@ -2745,12 +2745,12 @@ TEST(NewPromiseCapability) {
     PromiseBuiltinsAssembler m(asm_tester.state());
 
     Node* const context = m.Parameter(kNumParams + 2);
-    TNode<NativeContext> const native_context = m.LoadNativeContext(context);
-    TNode<Object> const promise_constructor =
+    const TNode<NativeContext> native_context = m.LoadNativeContext(context);
+    const TNode<Object> promise_constructor =
         m.LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
 
-    TNode<Oddball> const debug_event = m.TrueConstant();
-    TNode<Object> const capability =
+    const TNode<Oddball> debug_event = m.TrueConstant();
+    const TNode<Object> capability =
         m.CallBuiltin(Builtins::kNewPromiseCapability, context,
                       promise_constructor, debug_event);
     m.Return(capability);
@@ -2792,8 +2792,8 @@ TEST(NewPromiseCapability) {
     Node* const context = m.Parameter(kNumParams + 2);
 
     Node* const constructor = m.Parameter(1);
-    TNode<Oddball> const debug_event = m.TrueConstant();
-    TNode<Object> const capability = m.CallBuiltin(
+    const TNode<Oddball> debug_event = m.TrueConstant();
+    const TNode<Object> capability = m.CallBuiltin(
         Builtins::kNewPromiseCapability, context, constructor, debug_event);
     m.Return(capability);
 

@@ -26,13 +26,13 @@ using PromiseResolvingFunctions = TorqueStructPromiseResolvingFunctions;
 
 TNode<JSPromise> PromiseBuiltinsAssembler::AllocateJSPromise(
     TNode<Context> context) {
-  TNode<NativeContext> const native_context = LoadNativeContext(context);
-  TNode<JSFunction> const promise_fun =
+  const TNode<NativeContext> native_context = LoadNativeContext(context);
+  const TNode<JSFunction> promise_fun =
       CAST(LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX));
   CSA_ASSERT(this, IsFunctionWithPrototypeSlotMap(LoadMap(promise_fun)));
-  TNode<Object> const promise_map =
+  const TNode<Object> promise_map =
       LoadObjectField(promise_fun, JSFunction::kPrototypeOrInitialMapOffset);
-  TNode<HeapObject> const promise =
+  const TNode<HeapObject> promise =
       Allocate(JSPromise::kSizeWithEmbedderFields);
   StoreMapNoWriteBarrier(promise, promise_map);
   StoreObjectFieldRoot(promise, JSPromise::kPropertiesOrHashOffset,
@@ -169,7 +169,7 @@ Node* PromiseBuiltinsAssembler::CreatePromiseAllResolveElementContext(
   TNode<JSArray> values_array = AllocateJSArray(
       PACKED_ELEMENTS, array_map, IntPtrConstant(0), SmiConstant(0));
 
-  TNode<Context> const context = AllocateSyntheticFunctionContext(
+  const TNode<Context> context = AllocateSyntheticFunctionContext(
       CAST(native_context), PromiseBuiltins::kPromiseAllResolveElementLength);
   StoreContextElementNoWriteBarrier(
       context, PromiseBuiltins::kPromiseAllResolveElementRemainingSlot,
@@ -221,15 +221,15 @@ TNode<Context> PromiseBuiltinsAssembler::CreatePromiseResolvingFunctionsContext(
 }
 
 Node* PromiseBuiltinsAssembler::PromiseHasHandler(Node* promise) {
-  TNode<Smi> const flags =
+  const TNode<Smi> flags =
       CAST(LoadObjectField(promise, JSPromise::kFlagsOffset));
   return IsSetWord(SmiUntag(flags), 1 << JSPromise::kHasHandlerBit);
 }
 
 void PromiseBuiltinsAssembler::PromiseSetHasHandler(Node* promise) {
-  TNode<Smi> const flags =
+  const TNode<Smi> flags =
       CAST(LoadObjectField(promise, JSPromise::kFlagsOffset));
-  TNode<Smi> const new_flags =
+  const TNode<Smi> new_flags =
       SmiOr(flags, SmiConstant(1 << JSPromise::kHasHandlerBit));
   StoreObjectFieldNoWriteBarrier(promise, JSPromise::kFlagsOffset, new_flags);
 }
@@ -241,7 +241,7 @@ TNode<BoolT> PromiseBuiltinsAssembler::IsPromiseStatus(
 
 TNode<Word32T> PromiseBuiltinsAssembler::PromiseStatus(Node* promise) {
   STATIC_ASSERT(JSPromise::kStatusShift == 0);
-  TNode<Smi> const flags =
+  const TNode<Smi> flags =
       CAST(LoadObjectField(promise, JSPromise::kFlagsOffset));
   return Word32And(SmiToInt32(flags), Int32Constant(JSPromise::kStatusMask));
 }
@@ -253,16 +253,16 @@ void PromiseBuiltinsAssembler::PromiseSetStatus(
   CHECK_NE(status, v8::Promise::kPending);
 
   TNode<Smi> mask = SmiConstant(status);
-  TNode<Smi> const flags =
+  const TNode<Smi> flags =
       CAST(LoadObjectField(promise, JSPromise::kFlagsOffset));
   StoreObjectFieldNoWriteBarrier(promise, JSPromise::kFlagsOffset,
                                  SmiOr(flags, mask));
 }
 
 void PromiseBuiltinsAssembler::PromiseSetHandledHint(Node* promise) {
-  TNode<Smi> const flags =
+  const TNode<Smi> flags =
       CAST(LoadObjectField(promise, JSPromise::kFlagsOffset));
-  TNode<Smi> const new_flags =
+  const TNode<Smi> new_flags =
       SmiOr(flags, SmiConstant(1 << JSPromise::kHandledHintBit));
   StoreObjectFieldNoWriteBarrier(promise, JSPromise::kFlagsOffset, new_flags);
 }
@@ -282,7 +282,7 @@ void PromiseBuiltinsAssembler::PerformPromiseThen(
                IsUndefined(result_promise_or_capability)));
 
   Label if_pending(this), if_notpending(this), done(this);
-  TNode<Word32T> const status = PromiseStatus(promise);
+  const TNode<Word32T> status = PromiseStatus(promise);
   Branch(IsPromiseStatus(status, v8::Promise::kPending), &if_pending,
          &if_notpending);
 
@@ -389,7 +389,7 @@ TF_BUILTIN(PerformPromiseThen, PromiseBuiltinsAssembler) {
 TNode<PromiseReaction> PromiseBuiltinsAssembler::AllocatePromiseReaction(
     TNode<Object> next, TNode<HeapObject> promise_or_capability,
     TNode<HeapObject> fulfill_handler, TNode<HeapObject> reject_handler) {
-  TNode<HeapObject> const reaction = Allocate(PromiseReaction::kSize);
+  const TNode<HeapObject> reaction = Allocate(PromiseReaction::kSize);
   StoreMapNoWriteBarrier(reaction, RootIndex::kPromiseReactionMap);
   StoreObjectFieldNoWriteBarrier(reaction, PromiseReaction::kNextOffset, next);
   StoreObjectFieldNoWriteBarrier(reaction,
@@ -406,7 +406,7 @@ TNode<PromiseReactionJobTask>
 PromiseBuiltinsAssembler::AllocatePromiseReactionJobTask(
     TNode<Map> map, TNode<Context> context, TNode<Object> argument,
     TNode<HeapObject> handler, TNode<HeapObject> promise_or_capability) {
-  TNode<HeapObject> const microtask =
+  const TNode<HeapObject> microtask =
       Allocate(PromiseReactionJobTask::kSizeOfAllPromiseReactionJobTasks);
   StoreMapNoWriteBarrier(microtask, map);
   StoreObjectFieldNoWriteBarrier(
@@ -571,7 +571,7 @@ Node* PromiseBuiltinsAssembler::InvokeThen(Node* native_context, Node* receiver,
   VARIABLE(var_result, MachineRepresentation::kTagged);
   Label if_fast(this), if_slow(this, Label::kDeferred), done(this, &var_result);
   GotoIf(TaggedIsSmi(receiver), &if_slow);
-  TNode<Map> const receiver_map = LoadMap(receiver);
+  const TNode<Map> receiver_map = LoadMap(receiver);
   // We can skip the "then" lookup on {receiver} if it's [[Prototype]]
   // is the (initial) Promise.prototype and the Promise#then protector
   // is intact, as that guards the lookup path for the "then" property
@@ -581,7 +581,7 @@ Node* PromiseBuiltinsAssembler::InvokeThen(Node* native_context, Node* receiver,
 
   BIND(&if_fast);
   {
-    TNode<Object> const then =
+    const TNode<Object> then =
         LoadContextElement(native_context, Context::PROMISE_THEN_INDEX);
     Node* const result =
         CallJS(CodeFactory::CallFunction(
@@ -593,7 +593,7 @@ Node* PromiseBuiltinsAssembler::InvokeThen(Node* native_context, Node* receiver,
 
   BIND(&if_slow);
   {
-    TNode<Object> const then = GetProperty(native_context, receiver,
+    const TNode<Object> then = GetProperty(native_context, receiver,
                                            isolate()->factory()->then_string());
     Node* const result = CallJS(
         CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
@@ -621,7 +621,7 @@ Node* PromiseBuiltinsAssembler::CallResolve(Node* native_context,
 
   BIND(&if_fast);
   {
-    TNode<Object> const result = CallBuiltin(
+    const TNode<Object> result = CallBuiltin(
         Builtins::kPromiseResolve, native_context, constructor, value);
     GotoIfException(result, if_exception, var_exception);
 
@@ -686,7 +686,7 @@ void PromiseBuiltinsAssembler::BranchIfPromiseThenLookupChainIntact(
 
   GotoIfForceSlowPath(if_slow);
   GotoIfNot(IsJSPromiseMap(receiver_map), if_slow);
-  TNode<Object> const promise_prototype =
+  const TNode<Object> promise_prototype =
       LoadContextElement(native_context, Context::PROMISE_PROTOTYPE_INDEX);
   GotoIfNot(TaggedEqual(LoadMapPrototype(receiver_map), promise_prototype),
             if_slow);
@@ -771,12 +771,12 @@ TF_BUILTIN(PromiseCapabilityDefaultReject, PromiseBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
 
   // 2. Let promise be F.[[Promise]].
-  TNode<Object> const promise =
+  const TNode<Object> promise =
       LoadContextElement(context, PromiseBuiltins::kPromiseSlot);
 
   // 3. Let alreadyResolved be F.[[AlreadyResolved]].
   Label if_already_resolved(this, Label::kDeferred);
-  TNode<Object> const already_resolved =
+  const TNode<Object> already_resolved =
       LoadContextElement(context, PromiseBuiltins::kAlreadyResolvedSlot);
 
   // 4. If alreadyResolved.[[Value]] is true, return undefined.
@@ -787,7 +787,7 @@ TF_BUILTIN(PromiseCapabilityDefaultReject, PromiseBuiltinsAssembler) {
       context, PromiseBuiltins::kAlreadyResolvedSlot, TrueConstant());
 
   // 6. Return RejectPromise(promise, reason).
-  TNode<Object> const debug_event =
+  const TNode<Object> debug_event =
       LoadContextElement(context, PromiseBuiltins::kDebugEventSlot);
   Return(CallBuiltin(Builtins::kRejectPromise, context, promise, reason,
                      debug_event));
@@ -805,12 +805,12 @@ TF_BUILTIN(PromiseCapabilityDefaultResolve, PromiseBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
 
   // 2. Let promise be F.[[Promise]].
-  TNode<Object> const promise =
+  const TNode<Object> promise =
       LoadContextElement(context, PromiseBuiltins::kPromiseSlot);
 
   // 3. Let alreadyResolved be F.[[AlreadyResolved]].
   Label if_already_resolved(this, Label::kDeferred);
-  TNode<Object> const already_resolved =
+  const TNode<Object> already_resolved =
       LoadContextElement(context, PromiseBuiltins::kAlreadyResolvedSlot);
 
   // 4. If alreadyResolved.[[Value]] is true, return undefined.
@@ -863,11 +863,11 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
 
   GotoIf(TaggedIsSmi(executor), &if_notcallable);
 
-  TNode<Map> const executor_map = LoadMap(CAST(executor));
+  const TNode<Map> executor_map = LoadMap(CAST(executor));
   GotoIfNot(IsCallableMap(executor_map), &if_notcallable);
 
-  TNode<NativeContext> const native_context = LoadNativeContext(context);
-  TNode<JSFunction> const promise_fun =
+  const TNode<NativeContext> native_context = LoadNativeContext(context);
+  const TNode<JSFunction> promise_fun =
       CAST(LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX));
   Node* const is_debug_active = IsDebugActive();
   Label if_targetisnotmodified(this),
@@ -886,7 +886,7 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
 
   BIND(&if_targetisnotmodified);
   {
-    TNode<JSPromise> const instance = AllocateAndInitJSPromise(context);
+    const TNode<JSPromise> instance = AllocateAndInitJSPromise(context);
     var_result.Bind(instance);
     Goto(&debug_push);
   }
@@ -954,7 +954,7 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
   // Silently fail if the stack looks fishy.
   BIND(&if_noaccess);
   {
-    TNode<Smi> const counter_id =
+    const TNode<Smi> counter_id =
         SmiConstant(v8::Isolate::kPromiseConstructorReturnedUndefined);
     CallRuntime(Runtime::kIncrementUseCounter, context, counter_id);
     Return(UndefinedConstant());
@@ -978,10 +978,10 @@ TF_BUILTIN(PromisePrototypeThen, PromiseBuiltinsAssembler) {
   // 3. Let C be ? SpeciesConstructor(promise, %Promise%).
   Label fast_promise_capability(this), slow_constructor(this, Label::kDeferred),
       slow_promise_capability(this, Label::kDeferred);
-  TNode<NativeContext> const native_context = LoadNativeContext(context);
+  const TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<JSFunction> promise_fun =
       CAST(LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX));
-  TNode<Map> const promise_map = LoadMap(js_promise);
+  const TNode<Map> promise_map = LoadMap(js_promise);
   BranchIfPromiseSpeciesLookupChainIntact(
       native_context, promise_map, &fast_promise_capability, &slow_constructor);
 
@@ -1007,8 +1007,8 @@ TF_BUILTIN(PromisePrototypeThen, PromiseBuiltinsAssembler) {
 
   BIND(&slow_promise_capability);
   {
-    TNode<Oddball> const debug_event = TrueConstant();
-    TNode<PromiseCapability> const capability = CAST(CallBuiltin(
+    const TNode<Oddball> debug_event = TrueConstant();
+    const TNode<PromiseCapability> capability = CAST(CallBuiltin(
         Builtins::kNewPromiseCapability, context, constructor, debug_event));
     var_result_promise =
         LoadObjectField(capability, PromiseCapability::kPromiseOffset);
@@ -1061,12 +1061,12 @@ TF_BUILTIN(PromisePrototypeThen, PromiseBuiltinsAssembler) {
 TF_BUILTIN(PromisePrototypeCatch, PromiseBuiltinsAssembler) {
   // 1. Let promise be the this value.
   Node* const receiver = Parameter(Descriptor::kReceiver);
-  TNode<Oddball> const on_fulfilled = UndefinedConstant();
+  const TNode<Oddball> on_fulfilled = UndefinedConstant();
   Node* const on_rejected = Parameter(Descriptor::kOnRejected);
   Node* const context = Parameter(Descriptor::kContext);
 
   // 2. Return ? Invoke(promise, "then", « undefined, onRejected »).
-  TNode<NativeContext> const native_context = LoadNativeContext(context);
+  const TNode<NativeContext> native_context = LoadNativeContext(context);
   Return(InvokeThen(native_context, receiver, on_fulfilled, on_rejected));
 }
 
@@ -1090,7 +1090,7 @@ TF_BUILTIN(PromiseResolveThenableJob, PromiseBuiltinsAssembler) {
   TNode<Object> promise_then =
       LoadContextElement(native_context, Context::PROMISE_THEN_INDEX);
   GotoIfNot(TaggedEqual(then, promise_then), &if_slow);
-  TNode<Map> const thenable_map = LoadMap(thenable);
+  const TNode<Map> thenable_map = LoadMap(thenable);
   GotoIfNot(IsJSPromiseMap(thenable_map), &if_slow);
   GotoIf(IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(),
          &if_slow);
@@ -1215,7 +1215,7 @@ void PromiseBuiltinsAssembler::PromiseReactionJob(Node* context, Node* argument,
     {
       // In the general case we need to call the (user provided)
       // promiseCapability.[[Resolve]] function.
-      TNode<Object> const resolve = LoadObjectField(
+      const TNode<Object> resolve = LoadObjectField(
           promise_or_capability, PromiseCapability::kResolveOffset);
       Node* const result = CallJS(
           CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
@@ -1248,7 +1248,7 @@ void PromiseBuiltinsAssembler::PromiseReactionJob(Node* context, Node* argument,
       Label if_exception(this, Label::kDeferred);
       VARIABLE(var_exception, MachineRepresentation::kTagged,
                TheHoleConstant());
-      TNode<Object> const reject = LoadObjectField(
+      const TNode<Object> reject = LoadObjectField(
           promise_or_capability, PromiseCapability::kRejectOffset);
       Node* const result = CallJS(
           CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
@@ -1322,7 +1322,7 @@ TF_BUILTIN(PromiseResolve, PromiseBuiltinsAssembler) {
 
   // Check if {value} is a JSPromise.
   GotoIf(TaggedIsSmi(value), &if_need_to_allocate);
-  TNode<Map> const value_map = LoadMap(CAST(value));
+  const TNode<Map> value_map = LoadMap(CAST(value));
   GotoIfNot(IsJSPromiseMap(value_map), &if_need_to_allocate);
 
   // We can skip the "constructor" lookup on {value} if it's [[Prototype]]
@@ -1362,24 +1362,24 @@ TF_BUILTIN(PromiseResolve, PromiseBuiltinsAssembler) {
     // create NewPromiseCapability.
     BIND(&if_nativepromise);
     {
-      TNode<JSPromise> const result = AllocateAndInitJSPromise(context);
+      const TNode<JSPromise> result = AllocateAndInitJSPromise(context);
       CallBuiltin(Builtins::kResolvePromise, context, result, value);
       Return(result);
     }
 
     BIND(&if_notnativepromise);
     {
-      TNode<Oddball> const debug_event = TrueConstant();
-      TNode<PromiseCapability> const capability = CAST(CallBuiltin(
+      const TNode<Oddball> debug_event = TrueConstant();
+      const TNode<PromiseCapability> capability = CAST(CallBuiltin(
           Builtins::kNewPromiseCapability, context, constructor, debug_event));
 
-      TNode<Object> const resolve =
+      const TNode<Object> resolve =
           LoadObjectField(capability, PromiseCapability::kResolveOffset);
       CallJS(
           CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
           context, resolve, UndefinedConstant(), value);
 
-      TNode<Object> const result =
+      const TNode<Object> result =
           LoadObjectField(capability, PromiseCapability::kPromiseOffset);
       Return(result);
     }
@@ -1392,7 +1392,7 @@ TF_BUILTIN(PromiseGetCapabilitiesExecutor, PromiseBuiltinsAssembler) {
   Node* const reject = Parameter(Descriptor::kReject);
   Node* const context = Parameter(Descriptor::kContext);
 
-  TNode<PromiseCapability> const capability =
+  const TNode<PromiseCapability> capability =
       CAST(LoadContextElement(context, PromiseBuiltins::kCapabilitySlot));
 
   Label if_alreadyinvoked(this, Label::kDeferred);
@@ -1423,7 +1423,7 @@ TF_BUILTIN(PromiseReject, PromiseBuiltinsAssembler) {
                        "PromiseReject");
 
   Label if_nativepromise(this), if_custompromise(this, Label::kDeferred);
-  TNode<NativeContext> const native_context = LoadNativeContext(context);
+  const TNode<NativeContext> native_context = LoadNativeContext(context);
 
   TNode<Object> promise_fun =
       LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
@@ -1432,7 +1432,7 @@ TF_BUILTIN(PromiseReject, PromiseBuiltinsAssembler) {
 
   BIND(&if_nativepromise);
   {
-    TNode<JSPromise> const promise =
+    const TNode<JSPromise> promise =
         AllocateAndSetJSPromise(context, v8::Promise::kRejected, reason);
     CallRuntime(Runtime::kPromiseRejectEventFromStack, context, promise,
                 reason);
@@ -1442,18 +1442,18 @@ TF_BUILTIN(PromiseReject, PromiseBuiltinsAssembler) {
   BIND(&if_custompromise);
   {
     // 3. Let promiseCapability be ? NewPromiseCapability(C).
-    TNode<Oddball> const debug_event = TrueConstant();
-    TNode<PromiseCapability> const capability = CAST(CallBuiltin(
+    const TNode<Oddball> debug_event = TrueConstant();
+    const TNode<PromiseCapability> capability = CAST(CallBuiltin(
         Builtins::kNewPromiseCapability, context, receiver, debug_event));
 
     // 4. Perform ? Call(promiseCapability.[[Reject]], undefined, « r »).
-    TNode<Object> const reject =
+    const TNode<Object> reject =
         LoadObjectField(capability, PromiseCapability::kRejectOffset);
     CallJS(CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
            context, reject, UndefinedConstant(), reason);
 
     // 5. Return promiseCapability.[[Promise]].
-    TNode<Object> const promise =
+    const TNode<Object> promise =
         LoadObjectField(capability, PromiseCapability::kPromiseOffset);
     Return(promise);
   }
@@ -1471,11 +1471,11 @@ std::pair<Node*, Node*> PromiseBuiltinsAssembler::CreatePromiseFinallyFunctions(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
   const TNode<SharedFunctionInfo> then_finally_info = CAST(LoadContextElement(
       native_context, Context::PROMISE_THEN_FINALLY_SHARED_FUN));
-  TNode<JSFunction> const then_finally = AllocateFunctionWithMapAndContext(
+  const TNode<JSFunction> then_finally = AllocateFunctionWithMapAndContext(
       map, then_finally_info, promise_context);
   const TNode<SharedFunctionInfo> catch_finally_info = CAST(LoadContextElement(
       native_context, Context::PROMISE_CATCH_FINALLY_SHARED_FUN));
-  TNode<JSFunction> const catch_finally = AllocateFunctionWithMapAndContext(
+  const TNode<JSFunction> catch_finally = AllocateFunctionWithMapAndContext(
       map, catch_finally_info, promise_context);
   return std::make_pair(then_finally, catch_finally);
 }
@@ -1483,7 +1483,7 @@ std::pair<Node*, Node*> PromiseBuiltinsAssembler::CreatePromiseFinallyFunctions(
 TF_BUILTIN(PromiseValueThunkFinally, PromiseBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
 
-  TNode<Object> const value =
+  const TNode<Object> value =
       LoadContextElement(context, PromiseBuiltins::kValueSlot);
   Return(value);
 }
@@ -1499,7 +1499,7 @@ Node* PromiseBuiltinsAssembler::CreateValueThunkFunction(Node* value,
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
   const TNode<SharedFunctionInfo> value_thunk_info = CAST(LoadContextElement(
       native_context, Context::PROMISE_VALUE_THUNK_FINALLY_SHARED_FUN));
-  TNode<JSFunction> const value_thunk = AllocateFunctionWithMapAndContext(
+  const TNode<JSFunction> value_thunk = AllocateFunctionWithMapAndContext(
       map, value_thunk_info, value_thunk_context);
   return value_thunk;
 }
@@ -1511,7 +1511,7 @@ TF_BUILTIN(PromiseThenFinally, PromiseBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
 
   // 1. Let onFinally be F.[[OnFinally]].
-  TNode<HeapObject> const on_finally =
+  const TNode<HeapObject> on_finally =
       CAST(LoadContextElement(context, PromiseBuiltins::kOnFinallySlot));
 
   // 2.  Assert: IsCallable(onFinally) is true.
@@ -1523,18 +1523,18 @@ TF_BUILTIN(PromiseThenFinally, PromiseBuiltinsAssembler) {
       context, on_finally, UndefinedConstant());
 
   // 4. Let C be F.[[Constructor]].
-  TNode<JSFunction> const constructor =
+  const TNode<JSFunction> constructor =
       CAST(LoadContextElement(context, PromiseBuiltins::kConstructorSlot));
 
   // 5. Assert: IsConstructor(C) is true.
   CSA_ASSERT(this, IsConstructor(constructor));
 
   // 6. Let promise be ? PromiseResolve(C, result).
-  TNode<Object> const promise =
+  const TNode<Object> promise =
       CallBuiltin(Builtins::kPromiseResolve, context, constructor, result);
 
   // 7. Let valueThunk be equivalent to a function that returns value.
-  TNode<NativeContext> const native_context = LoadNativeContext(context);
+  const TNode<NativeContext> native_context = LoadNativeContext(context);
   Node* const value_thunk = CreateValueThunkFunction(value, native_context);
 
   // 8. Return ? Invoke(promise, "then", « valueThunk »).
@@ -1544,7 +1544,7 @@ TF_BUILTIN(PromiseThenFinally, PromiseBuiltinsAssembler) {
 TF_BUILTIN(PromiseThrowerFinally, PromiseBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
 
-  TNode<Object> const reason =
+  const TNode<Object> reason =
       LoadContextElement(context, PromiseBuiltins::kValueSlot);
   CallRuntime(Runtime::kThrow, context, reason);
   Unreachable();
@@ -1561,7 +1561,7 @@ Node* PromiseBuiltinsAssembler::CreateThrowerFunction(Node* reason,
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
   const TNode<SharedFunctionInfo> thrower_info = CAST(LoadContextElement(
       native_context, Context::PROMISE_THROWER_FINALLY_SHARED_FUN));
-  TNode<JSFunction> const thrower =
+  const TNode<JSFunction> thrower =
       AllocateFunctionWithMapAndContext(map, thrower_info, thrower_context);
   return thrower;
 }
@@ -1573,7 +1573,7 @@ TF_BUILTIN(PromiseCatchFinally, PromiseBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
 
   // 1. Let onFinally be F.[[OnFinally]].
-  TNode<HeapObject> const on_finally =
+  const TNode<HeapObject> on_finally =
       CAST(LoadContextElement(context, PromiseBuiltins::kOnFinallySlot));
 
   // 2. Assert: IsCallable(onFinally) is true.
@@ -1585,18 +1585,18 @@ TF_BUILTIN(PromiseCatchFinally, PromiseBuiltinsAssembler) {
       context, on_finally, UndefinedConstant());
 
   // 4. Let C be F.[[Constructor]].
-  TNode<JSFunction> const constructor =
+  const TNode<JSFunction> constructor =
       CAST(LoadContextElement(context, PromiseBuiltins::kConstructorSlot));
 
   // 5. Assert: IsConstructor(C) is true.
   CSA_ASSERT(this, IsConstructor(constructor));
 
   // 6. Let promise be ? PromiseResolve(C, result).
-  TNode<Object> const promise =
+  const TNode<Object> promise =
       CallBuiltin(Builtins::kPromiseResolve, context, constructor, result);
 
   // 7. Let thrower be equivalent to a function that throws reason.
-  TNode<NativeContext> const native_context = LoadNativeContext(context);
+  const TNode<NativeContext> native_context = LoadNativeContext(context);
   Node* const thrower = CreateThrowerFunction(reason, native_context);
 
   // 8. Return ? Invoke(promise, "then", « thrower »).
@@ -1617,18 +1617,18 @@ TF_BUILTIN(PromisePrototypeFinally, PromiseBuiltinsAssembler) {
                        "Promise.prototype.finally");
 
   // 3. Let C be ? SpeciesConstructor(promise, %Promise%).
-  TNode<NativeContext> const native_context = LoadNativeContext(context);
-  TNode<Object> const promise_fun =
+  const TNode<NativeContext> native_context = LoadNativeContext(context);
+  const TNode<Object> promise_fun =
       LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
   VARIABLE(var_constructor, MachineRepresentation::kTagged, promise_fun);
   Label slow_constructor(this, Label::kDeferred), done_constructor(this);
-  TNode<Map> const receiver_map = LoadMap(receiver);
+  const TNode<Map> receiver_map = LoadMap(receiver);
   GotoIfNot(IsJSPromiseMap(receiver_map), &slow_constructor);
   BranchIfPromiseSpeciesLookupChainIntact(native_context, receiver_map,
                                           &done_constructor, &slow_constructor);
   BIND(&slow_constructor);
   {
-    TNode<JSReceiver> const constructor =
+    const TNode<JSReceiver> constructor =
         SpeciesConstructor(context, receiver, CAST(promise_fun));
     var_constructor.Bind(constructor);
     Goto(&done_constructor);
@@ -1728,9 +1728,9 @@ TF_BUILTIN(RejectPromise, PromiseBuiltinsAssembler) {
 
 // ES #sec-promise-resolve-functions
 TF_BUILTIN(ResolvePromise, PromiseBuiltinsAssembler) {
-  TNode<JSPromise> const promise = CAST(Parameter(Descriptor::kPromise));
-  TNode<Object> const resolution = CAST(Parameter(Descriptor::kResolution));
-  TNode<Context> const context = CAST(Parameter(Descriptor::kContext));
+  const TNode<JSPromise> promise = CAST(Parameter(Descriptor::kPromise));
+  const TNode<Object> resolution = CAST(Parameter(Descriptor::kResolution));
+  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   Label do_enqueue(this), if_fulfill(this), if_reject(this, Label::kDeferred),
       if_runtime(this, Label::kDeferred);
@@ -1759,11 +1759,11 @@ TF_BUILTIN(ResolvePromise, PromiseBuiltinsAssembler) {
   // is intact, as that guards the lookup path for the "then" property
   // on JSPromise instances which have the (initial) %PromisePrototype%.
   Label if_fast(this), if_receiver(this), if_slow(this, Label::kDeferred);
-  TNode<NativeContext> const native_context = LoadNativeContext(context);
+  const TNode<NativeContext> native_context = LoadNativeContext(context);
   GotoIfForceSlowPath(&if_slow);
   GotoIf(IsPromiseThenProtectorCellInvalid(), &if_slow);
   GotoIfNot(IsJSPromiseMap(resolution_map), &if_receiver);
-  TNode<Object> const promise_prototype =
+  const TNode<Object> promise_prototype =
       LoadContextElement(native_context, Context::PROMISE_PROTOTYPE_INDEX);
   Branch(TaggedEqual(LoadMapPrototype(resolution_map), promise_prototype),
          &if_fast, &if_slow);
@@ -1785,7 +1785,7 @@ TF_BUILTIN(ResolvePromise, PromiseBuiltinsAssembler) {
     // results from async generators.
     CSA_ASSERT(this, IsJSReceiverMap(resolution_map));
     CSA_ASSERT(this, Word32BinaryNot(IsPromiseThenProtectorCellInvalid()));
-    TNode<Object> const iterator_result_map =
+    const TNode<Object> iterator_result_map =
         LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
     Branch(TaggedEqual(resolution_map, iterator_result_map), &if_fulfill,
            &if_slow);
@@ -1802,7 +1802,7 @@ TF_BUILTIN(ResolvePromise, PromiseBuiltinsAssembler) {
 
     // 11. If IsCallable(thenAction) is false, then
     GotoIf(TaggedIsSmi(then), &if_fulfill);
-    TNode<Map> const then_map = LoadMap(CAST(then));
+    const TNode<Map> then_map = LoadMap(CAST(then));
     GotoIfNot(IsCallableMap(then_map), &if_fulfill);
     var_then = CAST(then);
     Goto(&do_enqueue);
@@ -1888,9 +1888,9 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
     // Let next be IteratorStep(iteratorRecord.[[Iterator]]).
     // If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
     // ReturnIfAbrupt(next).
-    TNode<Map> const fast_iterator_result_map = CAST(
+    const TNode<Map> fast_iterator_result_map = CAST(
         LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX));
-    TNode<JSReceiver> const next = iter_assembler.IteratorStep(
+    const TNode<JSReceiver> next = iter_assembler.IteratorStep(
         native_context, iterator, &done_loop, fast_iterator_result_map,
         if_exception, var_exception);
 
@@ -1898,12 +1898,12 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
     // If nextValue is an abrupt completion, set iteratorRecord.[[Done]] to
     //     true.
     // ReturnIfAbrupt(nextValue).
-    TNode<Object> const next_value = iter_assembler.IteratorValue(
+    const TNode<Object> next_value = iter_assembler.IteratorValue(
         native_context, next, fast_iterator_result_map, if_exception,
         var_exception);
 
     // Check if we reached the limit.
-    TNode<Smi> const index = var_index.value();
+    const TNode<Smi> index = var_index.value();
     GotoIf(SmiEqual(index, SmiConstant(PropertyArray::HashField::kMax)),
            &too_many_elements);
 
@@ -1912,7 +1912,7 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
 
     // Set remainingElementsCount.[[Value]] to
     //     remainingElementsCount.[[Value]] + 1.
-    TNode<Smi> const remaining_elements_count = CAST(LoadContextElement(
+    const TNode<Smi> remaining_elements_count = CAST(LoadContextElement(
         resolve_element_context,
         PromiseBuiltins::kPromiseAllResolveElementRemainingSlot));
     StoreContextElementNoWriteBarrier(
@@ -1931,9 +1931,9 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
     // Set resolveElement.[[Values]] to values.
     // Set resolveElement.[[Capability]] to resultCapability.
     // Set resolveElement.[[RemainingElements]] to remainingElementsCount.
-    TNode<Object> const resolve_element_fun = create_resolve_element_function(
+    const TNode<Object> resolve_element_fun = create_resolve_element_function(
         resolve_element_context, index, native_context, Cast(capability));
-    TNode<Object> const reject_element_fun = create_reject_element_function(
+    const TNode<Object> reject_element_fun = create_reject_element_function(
         resolve_element_context, index, native_context, Cast(capability));
 
     // We can skip the "resolve" lookup on the {constructor} as well as the
@@ -1959,7 +1959,7 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
            &if_slow);
     GotoIf(IsPromiseSpeciesProtectorCellInvalid(), &if_slow);
     GotoIf(TaggedIsSmi(next_value), &if_slow);
-    TNode<Map> const next_value_map = LoadMap(CAST(next_value));
+    const TNode<Map> next_value_map = LoadMap(CAST(next_value));
     BranchIfPromiseThenLookupChainIntact(native_context, next_value_map,
                                          &if_fast, &if_slow);
 
@@ -1984,7 +1984,7 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
 
       // Perform ? Invoke(nextPromise, "then", « resolveElement,
       //                  resultCapability.[[Reject]] »).
-      TNode<Object> const then =
+      const TNode<Object> then =
           GetProperty(native_context, next_promise, factory()->then_string());
       GotoIfException(then, &close_iterator, var_exception);
 
@@ -2017,7 +2017,7 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
     // function and pass the larger indices via a separate context, but it
     // doesn't seem likely that we need this, and it's unclear how the rest
     // of the system deals with 2**21 live Promises anyways.
-    TNode<Object> const result =
+    const TNode<Object> result =
         CallRuntime(Runtime::kThrowRangeError, native_context,
                     SmiConstant(MessageTemplate::kTooManyElementsInPromiseAll));
     GotoIfException(result, &close_iterator, var_exception);
@@ -2053,14 +2053,14 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
     // capacity here. We may already have elements here in case of some
     // fancy Thenable that calls the resolve callback immediately, so we need
     // to handle that correctly here.
-    TNode<JSArray> const values_array = CAST(LoadContextElement(
+    const TNode<JSArray> values_array = CAST(LoadContextElement(
         resolve_element_context,
         PromiseBuiltins::kPromiseAllResolveElementValuesArraySlot));
-    TNode<FixedArrayBase> const old_elements = LoadElements(values_array);
-    TNode<Smi> const old_capacity = LoadFixedArrayBaseLength(old_elements);
-    TNode<Smi> const new_capacity = var_index.value();
+    const TNode<FixedArrayBase> old_elements = LoadElements(values_array);
+    const TNode<Smi> old_capacity = LoadFixedArrayBaseLength(old_elements);
+    const TNode<Smi> new_capacity = var_index.value();
     GotoIf(SmiGreaterThanOrEqual(old_capacity, new_capacity), &return_promise);
-    TNode<FixedArrayBase> const new_elements =
+    const TNode<FixedArrayBase> new_elements =
         AllocateFixedArray(PACKED_ELEMENTS, new_capacity, SMI_PARAMETERS,
                            AllocationFlag::kAllowLargeObjectAllocation);
     CopyFixedArrayElements(PACKED_ELEMENTS, old_elements, PACKED_ELEMENTS,
@@ -2075,9 +2075,9 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
     //                    « valuesArray »).
     BIND(&resolve_promise);
     {
-      TNode<Object> const resolve =
+      const TNode<Object> resolve =
           LoadObjectField(capability, PromiseCapability::kResolveOffset);
-      TNode<Object> const values_array = LoadContextElement(
+      const TNode<Object> values_array = LoadContextElement(
           resolve_element_context,
           PromiseBuiltins::kPromiseAllResolveElementValuesArraySlot);
       Node* const resolve_call = CallJS(
@@ -2091,7 +2091,7 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
     BIND(&return_promise);
   }
 
-  TNode<Object> const promise =
+  const TNode<Object> promise =
       LoadObjectField(capability, PromiseCapability::kPromiseOffset);
   return promise;
 }
@@ -2110,8 +2110,8 @@ void PromiseBuiltinsAssembler::Generate_PromiseAll(
   // Let promiseCapability be ? NewPromiseCapability(C).
   // Don't fire debugEvent so that forwarding the rejection through all does not
   // trigger redundant ExceptionEvents
-  TNode<Oddball> const debug_event = FalseConstant();
-  TNode<PromiseCapability> const capability = CAST(CallBuiltin(
+  const TNode<Oddball> debug_event = FalseConstant();
+  const TNode<PromiseCapability> capability = CAST(CallBuiltin(
       Builtins::kNewPromiseCapability, context, receiver, debug_event));
 
   VARIABLE(var_exception, MachineRepresentation::kTagged, TheHoleConstant());
@@ -2137,12 +2137,12 @@ void PromiseBuiltinsAssembler::Generate_PromiseAll(
   {
     // Exception must be bound to a JS value.
     CSA_SLOW_ASSERT(this, IsNotTheHole(var_exception.value()));
-    TNode<Object> const reject =
+    const TNode<Object> reject =
         LoadObjectField(capability, PromiseCapability::kRejectOffset);
     CallJS(CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
            context, reject, UndefinedConstant(), var_exception.value());
 
-    TNode<Object> const promise =
+    const TNode<Object> promise =
         LoadObjectField(capability, PromiseCapability::kPromiseOffset);
     Return(promise);
   }
@@ -2389,20 +2389,20 @@ TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
   VARIABLE(var_exception, MachineRepresentation::kTagged, TheHoleConstant());
 
   Node* const receiver = Parameter(Descriptor::kReceiver);
-  TNode<Context> const context = CAST(Parameter(Descriptor::kContext));
+  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   ThrowIfNotJSReceiver(context, CAST(receiver),
                        MessageTemplate::kCalledOnNonObject, "Promise.race");
 
   // Let promiseCapability be ? NewPromiseCapability(C).
   // Don't fire debugEvent so that forwarding the rejection through all does not
   // trigger redundant ExceptionEvents
-  TNode<Oddball> const debug_event = FalseConstant();
-  TNode<PromiseCapability> const capability = CAST(CallBuiltin(
+  const TNode<Oddball> debug_event = FalseConstant();
+  const TNode<PromiseCapability> capability = CAST(CallBuiltin(
       Builtins::kNewPromiseCapability, context, receiver, debug_event));
 
-  TNode<Object> const resolve =
+  const TNode<Object> resolve =
       LoadObjectField(capability, PromiseCapability::kResolveOffset);
-  TNode<Object> const reject =
+  const TNode<Object> reject =
       LoadObjectField(capability, PromiseCapability::kRejectOffset);
 
   Label close_iterator(this, Label::kDeferred);
@@ -2425,7 +2425,7 @@ TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
     // as that guards the lookup path for the "resolve" property on the
     // Promise constructor.
     Label loop(this), break_loop(this), if_slow(this, Label::kDeferred);
-    TNode<NativeContext> const native_context = LoadNativeContext(context);
+    const TNode<NativeContext> native_context = LoadNativeContext(context);
     TVARIABLE(Object, var_promise_resolve_function, UndefinedConstant());
     GotoIfNotPromiseResolveLookupChainIntact(native_context, receiver,
                                              &if_slow);
@@ -2448,13 +2448,13 @@ TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
 
     BIND(&loop);
     {
-      TNode<Map> const fast_iterator_result_map = CAST(LoadContextElement(
+      const TNode<Map> fast_iterator_result_map = CAST(LoadContextElement(
           native_context, Context::ITERATOR_RESULT_MAP_INDEX));
 
       // Let next be IteratorStep(iteratorRecord.[[Iterator]]).
       // If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
       // ReturnIfAbrupt(next).
-      TNode<JSReceiver> const next = iter_assembler.IteratorStep(
+      const TNode<JSReceiver> next = iter_assembler.IteratorStep(
           context, iterator, &break_loop, fast_iterator_result_map,
           &reject_promise, &var_exception);
 
@@ -2462,7 +2462,7 @@ TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
       // If nextValue is an abrupt completion, set iteratorRecord.[[Done]] to
       //     true.
       // ReturnIfAbrupt(nextValue).
-      TNode<Object> const next_value =
+      const TNode<Object> next_value =
           iter_assembler.IteratorValue(context, next, fast_iterator_result_map,
                                        &reject_promise, &var_exception);
 
@@ -2474,7 +2474,7 @@ TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
 
       // Perform ? Invoke(nextPromise, "then", « resolveElement,
       //                  resultCapability.[[Reject]] »).
-      TNode<Object> const then =
+      const TNode<Object> then =
           GetProperty(context, next_promise, factory()->then_string());
       GotoIfException(then, &close_iterator, &var_exception);
 
@@ -2506,12 +2506,12 @@ TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
 
   BIND(&reject_promise);
   {
-    TNode<Object> const reject =
+    const TNode<Object> reject =
         LoadObjectField(capability, PromiseCapability::kRejectOffset);
     CallJS(CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
            context, reject, UndefinedConstant(), var_exception.value());
 
-    TNode<Object> const promise =
+    const TNode<Object> promise =
         LoadObjectField(capability, PromiseCapability::kPromiseOffset);
     Return(promise);
   }

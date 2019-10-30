@@ -1618,7 +1618,7 @@ class ArrayFlattenAssembler : public CodeStubAssembler {
       // b. Let exists be ? HasProperty(source, P).
       CSA_ASSERT(this,
                  SmiGreaterThanOrEqual(CAST(source_index), SmiConstant(0)));
-      TNode<Oddball> const exists =
+      const TNode<Oddball> exists =
           HasProperty(context, source, source_index, kHasProperty);
 
       // c. If exists is true, then
@@ -1660,7 +1660,7 @@ class ArrayFlattenAssembler : public CodeStubAssembler {
           CSA_ASSERT(this, IsJSArray(element));
 
           // 1. Let elementLen be ? ToLength(? Get(element, "length")).
-          TNode<Object> const element_length =
+          const TNode<Object> element_length =
               LoadObjectField(element, JSArray::kLengthOffset);
 
           // 2. Set targetIndex to ? FlattenIntoArray(target, element,
@@ -1677,7 +1677,7 @@ class ArrayFlattenAssembler : public CodeStubAssembler {
           CSA_ASSERT(this, IsJSProxy(element));
 
           // 1. Let elementLen be ? ToLength(? Get(element, "length")).
-          TNode<Number> const element_length = ToLength_Inline(
+          const TNode<Number> element_length = ToLength_Inline(
               context, GetProperty(context, element, LengthStringConstant()));
 
           // 2. Set targetIndex to ? FlattenIntoArray(target, element,
@@ -1758,18 +1758,18 @@ TF_BUILTIN(FlatMapIntoArray, ArrayFlattenAssembler) {
 
 // https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flat
 TF_BUILTIN(ArrayPrototypeFlat, CodeStubAssembler) {
-  TNode<IntPtrT> const argc =
+  const TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
-  TNode<Context> const context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> const receiver = args.GetReceiver();
-  TNode<Object> const depth = args.GetOptionalArgumentValue(0);
+  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const TNode<Object> receiver = args.GetReceiver();
+  const TNode<Object> depth = args.GetOptionalArgumentValue(0);
 
   // 1. Let O be ? ToObject(this value).
-  TNode<JSReceiver> const o = ToObject_Inline(context, receiver);
+  const TNode<JSReceiver> o = ToObject_Inline(context, receiver);
 
   // 2. Let sourceLen be ? ToLength(? Get(O, "length")).
-  TNode<Number> const source_length =
+  const TNode<Number> source_length =
       ToLength_Inline(context, GetProperty(context, o, LengthStringConstant()));
 
   // 3. Let depthNum be 1.
@@ -1786,9 +1786,9 @@ TF_BUILTIN(ArrayPrototypeFlat, CodeStubAssembler) {
   BIND(&done);
 
   // 5. Let A be ? ArraySpeciesCreate(O, 0).
-  TNode<JSReceiver> const constructor =
+  const TNode<JSReceiver> constructor =
       CAST(CallRuntime(Runtime::kArraySpeciesConstructor, context, o));
-  TNode<JSReceiver> const a = Construct(context, constructor, SmiConstant(0));
+  const TNode<JSReceiver> a = Construct(context, constructor, SmiConstant(0));
 
   // 6. Perform ? FlattenIntoArray(A, O, sourceLen, 0, depthNum).
   CallBuiltin(Builtins::kFlattenIntoArray, context, a, o, source_length,
@@ -1800,18 +1800,18 @@ TF_BUILTIN(ArrayPrototypeFlat, CodeStubAssembler) {
 
 // https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flatMap
 TF_BUILTIN(ArrayPrototypeFlatMap, CodeStubAssembler) {
-  TNode<IntPtrT> const argc =
+  const TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
-  TNode<Context> const context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> const receiver = args.GetReceiver();
-  TNode<Object> const mapper_function = args.GetOptionalArgumentValue(0);
+  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  const TNode<Object> receiver = args.GetReceiver();
+  const TNode<Object> mapper_function = args.GetOptionalArgumentValue(0);
 
   // 1. Let O be ? ToObject(this value).
-  TNode<JSReceiver> const o = ToObject_Inline(context, receiver);
+  const TNode<JSReceiver> o = ToObject_Inline(context, receiver);
 
   // 2. Let sourceLen be ? ToLength(? Get(O, "length")).
-  TNode<Number> const source_length =
+  const TNode<Number> source_length =
       ToLength_Inline(context, GetProperty(context, o, LengthStringConstant()));
 
   // 3. If IsCallable(mapperFunction) is false, throw a TypeError exception.
@@ -1820,12 +1820,12 @@ TF_BUILTIN(ArrayPrototypeFlatMap, CodeStubAssembler) {
   GotoIfNot(IsCallable(CAST(mapper_function)), &if_not_callable);
 
   // 4. If thisArg is present, let T be thisArg; else let T be undefined.
-  TNode<Object> const t = args.GetOptionalArgumentValue(1);
+  const TNode<Object> t = args.GetOptionalArgumentValue(1);
 
   // 5. Let A be ? ArraySpeciesCreate(O, 0).
-  TNode<JSReceiver> const constructor =
+  const TNode<JSReceiver> constructor =
       CAST(CallRuntime(Runtime::kArraySpeciesConstructor, context, o));
-  TNode<JSReceiver> const a = Construct(context, constructor, SmiConstant(0));
+  const TNode<JSReceiver> a = Construct(context, constructor, SmiConstant(0));
 
   // 6. Perform ? FlattenIntoArray(A, O, sourceLen, 0, 1, mapperFunction, T).
   CallBuiltin(Builtins::kFlatMapIntoArray, context, a, o, source_length,

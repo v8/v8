@@ -1018,10 +1018,10 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
   BuildFastLoop<Smi>(
       SmiConstant(0), final_length.value(),
       [&](TNode<Smi> index) {
-        TNode<Object> const k_value =
+        const TNode<Object> k_value =
             GetProperty(context, final_source.value(), index);
 
-        TNode<Object> const mapped_value =
+        const TNode<Object> mapped_value =
             CallJS(CodeFactory::Call(isolate()), context, map_fn, this_arg,
                    k_value, index);
 

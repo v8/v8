@@ -67,7 +67,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
 
   // Bump the closure counter encoded the {feedback_cell}s map.
   {
-    TNode<Map> const feedback_cell_map = LoadMap(feedback_cell);
+    const TNode<Map> feedback_cell_map = LoadMap(feedback_cell);
     Label no_closures(this), one_closure(this), cell_done(this);
 
     GotoIf(IsNoClosuresCellMap(feedback_cell_map), &no_closures);
@@ -91,7 +91,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   // SharedFunctionInfo::function_map_index().
   TNode<Uint32T> flags = LoadObjectField<Uint32T>(
       shared_function_info, SharedFunctionInfo::kFlagsOffset);
-  TNode<IntPtrT> const function_map_index = Signed(IntPtrAdd(
+  const TNode<IntPtrT> function_map_index = Signed(IntPtrAdd(
       DecodeWordFromWord32<SharedFunctionInfo::FunctionMapIndexBits>(flags),
       IntPtrConstant(Context::FIRST_FUNCTION_MAP_INDEX)));
   CSA_ASSERT(this, UintPtrLessThanOrEqual(
@@ -100,8 +100,8 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
 
   // Get the function map in the current native context and set that
   // as the map of the allocated object.
-  TNode<NativeContext> const native_context = LoadNativeContext(context);
-  TNode<Map> const function_map =
+  const TNode<NativeContext> native_context = LoadNativeContext(context);
+  const TNode<Map> function_map =
       CAST(LoadContextElement(native_context, function_map_index));
 
   // Create a new closure from the given function info in new space
