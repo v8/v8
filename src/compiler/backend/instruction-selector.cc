@@ -2670,10 +2670,6 @@ void InstructionSelector::VisitF64x2UConvertI64x2(Node* node) {
 }
 #if !V8_TARGET_ARCH_ARM64
 #if !V8_TARGET_ARCH_IA32
-void InstructionSelector::VisitF64x2Eq(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitF64x2Ne(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitF64x2Lt(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitF64x2Le(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Min(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Max(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2Neg(Node* node) { UNIMPLEMENTED(); }

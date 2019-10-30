@@ -1837,6 +1837,78 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef ASSEMBLE_F64X2_ARITHMETIC_BINOP
+    case kArmF64x2Eq: {
+      UseScratchRegisterScope temps(tasm());
+      Register scratch = temps.Acquire();
+      __ mov(scratch, Operand(0));
+      __ VFPCompareAndSetFlags(i.InputSimd128Register(0).low(),
+                               i.InputSimd128Register(1).low());
+      __ mov(scratch, Operand(-1), LeaveCC, eq);
+      __ vmov(i.OutputSimd128Register().low(), scratch, scratch);
+
+      __ mov(scratch, Operand(0));
+      __ VFPCompareAndSetFlags(i.InputSimd128Register(0).high(),
+                               i.InputSimd128Register(1).high());
+      __ mov(scratch, Operand(-1), LeaveCC, eq);
+      __ vmov(i.OutputSimd128Register().high(), scratch, scratch);
+      break;
+    }
+    case kArmF64x2Ne: {
+      UseScratchRegisterScope temps(tasm());
+      Register scratch = temps.Acquire();
+      __ mov(scratch, Operand(0));
+      __ VFPCompareAndSetFlags(i.InputSimd128Register(0).low(),
+                               i.InputSimd128Register(1).low());
+      __ mov(scratch, Operand(-1), LeaveCC, ne);
+      __ vmov(i.OutputSimd128Register().low(), scratch, scratch);
+
+      __ mov(scratch, Operand(0));
+      __ VFPCompareAndSetFlags(i.InputSimd128Register(0).high(),
+                               i.InputSimd128Register(1).high());
+      __ mov(scratch, Operand(-1), LeaveCC, ne);
+      __ vmov(i.OutputSimd128Register().high(), scratch, scratch);
+      break;
+    }
+    case kArmF64x2Lt: {
+      UseScratchRegisterScope temps(tasm());
+      Register scratch = temps.Acquire();
+      __ mov(scratch, Operand(0));
+      __ VFPCompareAndSetFlags(i.InputSimd128Register(0).low(),
+                               i.InputSimd128Register(1).low());
+      __ mov(scratch, Operand(-1), LeaveCC, lt);
+      // Check for NaN.
+      __ mov(scratch, Operand(0), LeaveCC, vs);
+      __ vmov(i.OutputSimd128Register().low(), scratch, scratch);
+
+      __ mov(scratch, Operand(0));
+      __ VFPCompareAndSetFlags(i.InputSimd128Register(0).high(),
+                               i.InputSimd128Register(1).high());
+      __ mov(scratch, Operand(-1), LeaveCC, lt);
+      // Check for NaN.
+      __ mov(scratch, Operand(0), LeaveCC, vs);
+      __ vmov(i.OutputSimd128Register().high(), scratch, scratch);
+      break;
+    }
+    case kArmF64x2Le: {
+      UseScratchRegisterScope temps(tasm());
+      Register scratch = temps.Acquire();
+      __ mov(scratch, Operand(0));
+      __ VFPCompareAndSetFlags(i.InputSimd128Register(0).low(),
+                               i.InputSimd128Register(1).low());
+      __ mov(scratch, Operand(-1), LeaveCC, le);
+      // Check for NaN.
+      __ mov(scratch, Operand(0), LeaveCC, vs);
+      __ vmov(i.OutputSimd128Register().low(), scratch, scratch);
+
+      __ mov(scratch, Operand(0));
+      __ VFPCompareAndSetFlags(i.InputSimd128Register(0).high(),
+                               i.InputSimd128Register(1).high());
+      __ mov(scratch, Operand(-1), LeaveCC, le);
+      // Check for NaN.
+      __ mov(scratch, Operand(0), LeaveCC, vs);
+      __ vmov(i.OutputSimd128Register().high(), scratch, scratch);
+      break;
+    }
     case kArmF32x4Splat: {
       int src_code = i.InputFloatRegister(0).code();
       __ vdup(Neon32, i.OutputSimd128Register(),

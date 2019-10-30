@@ -286,7 +286,6 @@ T Sqrt(T a) {
   return std::sqrt(a);
 }
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32
 // only used for F64x2 tests below
 int64_t Equal(double a, double b) { return a == b ? -1 : 0; }
 
@@ -384,7 +383,6 @@ bool ExpectFused(ExecutionTier tier) {
 #endif
 }
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32
 
 }  // namespace
 
@@ -1368,7 +1366,6 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Div) {
   RunF64x2BinOpTest(execution_tier, lower_simd, kExprF64x2Div, Div);
 }
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32
 void RunF64x2CompareOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                            WasmOpcode opcode, DoubleCompareOp expected_op) {
   WasmRunner<int32_t, double, double> r(execution_tier, lower_simd);
@@ -1378,7 +1375,12 @@ void RunF64x2CompareOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
   byte value1 = 0, value2 = 1;
   byte temp1 = r.AllocateLocal(kWasmS128);
   byte temp2 = r.AllocateLocal(kWasmS128);
+  // Make the lanes of each temp compare differently:
+  // temp1 = y, x and temp2 = y, y.
   BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(value1))),
+        WASM_SET_LOCAL(temp1,
+                       WASM_SIMD_F64x2_REPLACE_LANE(1, WASM_GET_LOCAL(temp1),
+                                                    WASM_GET_LOCAL(value2))),
         WASM_SET_LOCAL(temp2, WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(value2))),
         WASM_SET_GLOBAL(0, WASM_SIMD_BINOP(opcode, WASM_GET_LOCAL(temp1),
                                            WASM_GET_LOCAL(temp2))),
@@ -1391,10 +1393,10 @@ void RunF64x2CompareOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
       double diff = x - y;  // Model comparison as subtraction.
       if (!PlatformCanRepresent(diff)) continue;
       r.Call(x, y);
-      int64_t expected = expected_op(x, y);
-      for (int i = 0; i < 2; i++) {
-        CHECK_EQ(expected, ReadLittleEndianValue<int64_t>(&g[i]));
-      }
+      int64_t expected0 = expected_op(x, y);
+      int64_t expected1 = expected_op(y, y);
+      CHECK_EQ(expected0, ReadLittleEndianValue<int64_t>(&g[0]));
+      CHECK_EQ(expected1, ReadLittleEndianValue<int64_t>(&g[1]));
     }
   }
 }
@@ -1423,6 +1425,7 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Le) {
   RunF64x2CompareOpTest(execution_tier, lower_simd, kExprF64x2Le, LessEqual);
 }
 
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32
 WASM_SIMD_TEST_NO_LOWERING(F64x2Min) {
   RunF64x2BinOpTest(execution_tier, lower_simd, kExprF64x2Min, JSMin);
 }

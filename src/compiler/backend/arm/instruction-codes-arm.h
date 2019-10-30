@@ -138,6 +138,10 @@ namespace compiler {
   V(ArmF64x2Sub)                   \
   V(ArmF64x2Mul)                   \
   V(ArmF64x2Div)                   \
+  V(ArmF64x2Eq)                    \
+  V(ArmF64x2Ne)                    \
+  V(ArmF64x2Lt)                    \
+  V(ArmF64x2Le)                    \
   V(ArmF32x4Splat)                 \
   V(ArmF32x4ExtractLane)           \
   V(ArmF32x4ReplaceLane)           \
