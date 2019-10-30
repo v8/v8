@@ -88,6 +88,16 @@
   V(por, 66, 0F, EB)             \
   V(pxor, 66, 0F, EF)
 
+// Instructions dealing with scalar double-precision values.
+#define SSE2_INSTRUCTION_LIST_SD(V) \
+  V(sqrtsd, F2, 0F, 51)             \
+  V(addsd, F2, 0F, 58)              \
+  V(mulsd, F2, 0F, 59)              \
+  V(subsd, F2, 0F, 5C)              \
+  V(minsd, F2, 0F, 5D)              \
+  V(divsd, F2, 0F, 5E)              \
+  V(maxsd, F2, 0F, 5F)
+
 #define SSSE3_INSTRUCTION_LIST(V) \
   V(pabsb, 66, 0F, 38, 1C)        \
   V(pabsw, 66, 0F, 38, 1D)        \

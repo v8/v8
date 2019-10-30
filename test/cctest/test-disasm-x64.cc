@@ -425,20 +425,6 @@ TEST(DisasmX64) {
     __ movdqa(xmm0, Operand(rbx, rcx, times_4, 10000));
     __ movdqa(Operand(rbx, rcx, times_4, 10000), xmm0);
 
-    __ addsd(xmm1, xmm0);
-    __ addsd(xmm1, Operand(rbx, rcx, times_4, 10000));
-    __ mulsd(xmm1, xmm0);
-    __ mulsd(xmm1, Operand(rbx, rcx, times_4, 10000));
-    __ subsd(xmm1, xmm0);
-    __ subsd(xmm1, Operand(rbx, rcx, times_4, 10000));
-    __ divsd(xmm1, xmm0);
-    __ divsd(xmm1, Operand(rbx, rcx, times_4, 10000));
-    __ minsd(xmm1, xmm0);
-    __ minsd(xmm1, Operand(rbx, rcx, times_4, 10000));
-    __ maxsd(xmm1, xmm0);
-    __ maxsd(xmm1, Operand(rbx, rcx, times_4, 10000));
-    __ sqrtsd(xmm1, xmm0);
-    __ sqrtsd(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ ucomisd(xmm0, xmm1);
 
     __ andpd(xmm0, xmm1);
@@ -467,6 +453,7 @@ TEST(DisasmX64) {
   __ instruction(xmm5, Operand(rdx, 4));
 
     SSE2_INSTRUCTION_LIST(EMIT_SSE2_INSTR)
+    SSE2_INSTRUCTION_LIST_SD(EMIT_SSE2_INSTR)
 #undef EMIT_SSE2_INSTR
   }
 

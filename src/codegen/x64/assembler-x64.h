@@ -888,6 +888,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // These SSE instructions have the same encoding as the SSE2 instructions.
   SSE_INSTRUCTION_LIST_SS(DECLARE_SSE2_INSTRUCTION)
   SSE2_INSTRUCTION_LIST(DECLARE_SSE2_INSTRUCTION)
+  SSE2_INSTRUCTION_LIST_SD(DECLARE_SSE2_INSTRUCTION)
 #undef DECLARE_SSE2_INSTRUCTION
 
 #define DECLARE_SSE2_AVX_INSTRUCTION(instruction, prefix, escape, opcode)    \
@@ -1053,28 +1054,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void cvtsd2si(Register dst, XMMRegister src);
   void cvtsd2siq(Register dst, XMMRegister src);
 
-  void addsd(XMMRegister dst, XMMRegister src);
-  void addsd(XMMRegister dst, Operand src);
-  void subsd(XMMRegister dst, XMMRegister src);
-  void subsd(XMMRegister dst, Operand src);
-  void mulsd(XMMRegister dst, XMMRegister src);
-  void mulsd(XMMRegister dst, Operand src);
-  void divsd(XMMRegister dst, XMMRegister src);
-  void divsd(XMMRegister dst, Operand src);
-
-  void maxsd(XMMRegister dst, XMMRegister src);
-  void maxsd(XMMRegister dst, Operand src);
-  void minsd(XMMRegister dst, XMMRegister src);
-  void minsd(XMMRegister dst, Operand src);
-
   void andpd(XMMRegister dst, XMMRegister src);
   void andpd(XMMRegister dst, Operand src);
   void orpd(XMMRegister dst, XMMRegister src);
   void orpd(XMMRegister dst, Operand src);
   void xorpd(XMMRegister dst, XMMRegister src);
   void xorpd(XMMRegister dst, Operand src);
-  void sqrtsd(XMMRegister dst, XMMRegister src);
-  void sqrtsd(XMMRegister dst, Operand src);
 
   void haddps(XMMRegister dst, XMMRegister src);
   void haddps(XMMRegister dst, Operand src);
