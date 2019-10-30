@@ -460,7 +460,10 @@ class ModuleDecoderImpl : public Decoder {
         DecodeSourceMappingURLSection();
         break;
       case kDebugInfoSectionCode:
-        module_->source_map_url.assign("wasm://dwarf");
+        // If there is an explicit source map, prefer it over DWARF info.
+        if (!has_seen_unordered_section(kSourceMappingURLSectionCode)) {
+          module_->source_map_url.assign("wasm://dwarf");
+        }
         consume_bytes(static_cast<uint32_t>(end_ - start_), ".debug_info");
         break;
       case kCompilationHintsSectionCode:
