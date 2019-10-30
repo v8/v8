@@ -118,6 +118,12 @@
   V(pmaxud, 66, 0F, 38, 3F)      \
   V(pmulld, 66, 0F, 38, 40)
 
+#define SSE4_EXTRACT_INSTRUCTION_LIST(V) \
+  V(extractps, 66, 0F, 3A, 17)           \
+  V(pextrb, 66, 0F, 3A, 14)              \
+  V(pextrw, 66, 0F, 3A, 15)              \
+  V(pextrd, 66, 0F, 3A, 16)
+
 #define SSE4_2_INSTRUCTION_LIST(V) V(pcmpgtq, 66, 0F, 38, 37)
 
 #endif  // V8_CODEGEN_X64_SSE_INSTR_H_

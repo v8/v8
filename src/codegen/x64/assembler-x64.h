@@ -925,6 +925,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 #undef DECLARE_SSSE3_INSTRUCTION
 
   // SSE4
+  void sse4_instr(Register dst, XMMRegister src, byte prefix, byte escape1,
+                  byte escape2, byte opcode, int8_t imm8);
+  void sse4_instr(Operand dst, XMMRegister src, byte prefix, byte escape1,
+                  byte escape2, byte opcode, int8_t imm8);
+  void sse4_instr(XMMRegister dst, Register src, byte prefix, byte escape1,
+                  byte escape2, byte opcode, int8_t imm8);
   void sse4_instr(XMMRegister dst, XMMRegister src, byte prefix, byte escape1,
                   byte escape2, byte opcode);
   void sse4_instr(XMMRegister dst, Operand src, byte prefix, byte escape1,
@@ -940,6 +946,20 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   SSE4_INSTRUCTION_LIST(DECLARE_SSE4_INSTRUCTION)
 #undef DECLARE_SSE4_INSTRUCTION
+
+#define DECLARE_SSE4_EXTRACT_INSTRUCTION(instruction, prefix, escape1,     \
+                                         escape2, opcode)                  \
+  void instruction(Register dst, XMMRegister src, int8_t imm8) {           \
+    sse4_instr(dst, src, 0x##prefix, 0x##escape1, 0x##escape2, 0x##opcode, \
+               imm8);                                                      \
+  }                                                                        \
+  void instruction(Operand dst, XMMRegister src, int8_t imm8) {            \
+    sse4_instr(dst, src, 0x##prefix, 0x##escape1, 0x##escape2, 0x##opcode, \
+               imm8);                                                      \
+  }
+
+  SSE4_EXTRACT_INSTRUCTION_LIST(DECLARE_SSE4_EXTRACT_INSTRUCTION)
+#undef DECLARE_SSE4_EXTRACT_INSTRUCTION
 
   // SSE4.2
   void sse4_2_instr(XMMRegister dst, XMMRegister src, byte prefix, byte escape1,
@@ -1068,13 +1088,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // SSE 4.1 instruction
   void insertps(XMMRegister dst, XMMRegister src, byte imm8);
   void insertps(XMMRegister dst, Operand src, byte imm8);
-  void extractps(Register dst, XMMRegister src, int8_t imm8);
-  void pextrb(Register dst, XMMRegister src, int8_t imm8);
-  void pextrb(Operand dst, XMMRegister src, int8_t imm8);
-  void pextrw(Register dst, XMMRegister src, int8_t imm8);
-  void pextrw(Operand dst, XMMRegister src, int8_t imm8);
-  void pextrd(Register dst, XMMRegister src, int8_t imm8);
-  void pextrd(Operand dst, XMMRegister src, int8_t imm8);
   void pextrq(Register dst, XMMRegister src, int8_t imm8);
   void pinsrb(XMMRegister dst, Register src, int8_t imm8);
   void pinsrb(XMMRegister dst, Operand src, int8_t imm8);

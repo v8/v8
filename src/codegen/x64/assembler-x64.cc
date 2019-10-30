@@ -2802,45 +2802,6 @@ void Assembler::movdqu(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
-void Assembler::extractps(Register dst, XMMRegister src, int8_t imm8) {
-  DCHECK(IsEnabled(SSE4_1));
-  DCHECK(is_uint8(imm8));
-  EnsureSpace ensure_space(this);
-  emit(0x66);
-  emit_optional_rex_32(src, dst);
-  emit(0x0F);
-  emit(0x3A);
-  emit(0x17);
-  emit_sse_operand(src, dst);
-  emit(imm8);
-}
-
-void Assembler::pextrb(Register dst, XMMRegister src, int8_t imm8) {
-  DCHECK(IsEnabled(SSE4_1));
-  DCHECK(is_uint8(imm8));
-  EnsureSpace ensure_space(this);
-  emit(0x66);
-  emit_optional_rex_32(src, dst);
-  emit(0x0F);
-  emit(0x3A);
-  emit(0x14);
-  emit_sse_operand(src, dst);
-  emit(imm8);
-}
-
-void Assembler::pextrb(Operand dst, XMMRegister src, int8_t imm8) {
-  DCHECK(IsEnabled(SSE4_1));
-  DCHECK(is_uint8(imm8));
-  EnsureSpace ensure_space(this);
-  emit(0x66);
-  emit_optional_rex_32(src, dst);
-  emit(0x0F);
-  emit(0x3A);
-  emit(0x14);
-  emit_sse_operand(src, dst);
-  emit(imm8);
-}
-
 void Assembler::pinsrw(XMMRegister dst, Register src, int8_t imm8) {
   DCHECK(is_uint8(imm8));
   EnsureSpace ensure_space(this);
@@ -2860,56 +2821,6 @@ void Assembler::pinsrw(XMMRegister dst, Operand src, int8_t imm8) {
   emit(0x0F);
   emit(0xC4);
   emit_sse_operand(dst, src);
-  emit(imm8);
-}
-
-void Assembler::pextrw(Register dst, XMMRegister src, int8_t imm8) {
-  DCHECK(IsEnabled(SSE4_1));
-  DCHECK(is_uint8(imm8));
-  EnsureSpace ensure_space(this);
-  emit(0x66);
-  emit_optional_rex_32(src, dst);
-  emit(0x0F);
-  emit(0x3A);
-  emit(0x15);
-  emit_sse_operand(src, dst);
-  emit(imm8);
-}
-
-void Assembler::pextrw(Operand dst, XMMRegister src, int8_t imm8) {
-  DCHECK(IsEnabled(SSE4_1));
-  DCHECK(is_uint8(imm8));
-  EnsureSpace ensure_space(this);
-  emit(0x66);
-  emit_optional_rex_32(src, dst);
-  emit(0x0F);
-  emit(0x3A);
-  emit(0x15);
-  emit_sse_operand(src, dst);
-  emit(imm8);
-}
-
-void Assembler::pextrd(Register dst, XMMRegister src, int8_t imm8) {
-  DCHECK(IsEnabled(SSE4_1));
-  EnsureSpace ensure_space(this);
-  emit(0x66);
-  emit_optional_rex_32(src, dst);
-  emit(0x0F);
-  emit(0x3A);
-  emit(0x16);
-  emit_sse_operand(src, dst);
-  emit(imm8);
-}
-
-void Assembler::pextrd(Operand dst, XMMRegister src, int8_t imm8) {
-  DCHECK(IsEnabled(SSE4_1));
-  EnsureSpace ensure_space(this);
-  emit(0x66);
-  emit_optional_rex_32(src, dst);
-  emit(0x0F);
-  emit(0x3A);
-  emit(0x16);
-  emit_sse_operand(src, dst);
   emit(imm8);
 }
 
@@ -2939,6 +2850,7 @@ void Assembler::pinsrq(XMMRegister dst, Register src, int8_t imm8) {
 
 void Assembler::pinsrq(XMMRegister dst, Operand src, int8_t imm8) {
   DCHECK(IsEnabled(SSE4_1));
+  DCHECK(is_uint8(imm8));
   EnsureSpace ensure_space(this);
   emit(0x66);
   emit_rex_64(dst, src);
@@ -2950,76 +2862,34 @@ void Assembler::pinsrq(XMMRegister dst, Operand src, int8_t imm8) {
 }
 
 void Assembler::pinsrd(XMMRegister dst, Register src, int8_t imm8) {
-  DCHECK(IsEnabled(SSE4_1));
-  EnsureSpace ensure_space(this);
-  emit(0x66);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x3A);
-  emit(0x22);
-  emit_sse_operand(dst, src);
-  emit(imm8);
+  sse4_instr(dst, src, 0x66, 0x0F, 0x3A, 0x22, imm8);
 }
 
 void Assembler::pinsrd(XMMRegister dst, Operand src, int8_t imm8) {
-  DCHECK(IsEnabled(SSE4_1));
-  EnsureSpace ensure_space(this);
-  emit(0x66);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x3A);
-  emit(0x22);
-  emit_sse_operand(dst, src);
+  DCHECK(is_uint8(imm8));
+  sse4_instr(dst, src, 0x66, 0x0F, 0x3A, 0x22);
   emit(imm8);
 }
 
 void Assembler::pinsrb(XMMRegister dst, Register src, int8_t imm8) {
-  DCHECK(IsEnabled(SSE4_1));
-  EnsureSpace ensure_space(this);
-  emit(0x66);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x3A);
-  emit(0x20);
-  emit_sse_operand(dst, src);
-  emit(imm8);
+  sse4_instr(dst, src, 0x66, 0x0F, 0x3A, 0x20, imm8);
 }
 
 void Assembler::pinsrb(XMMRegister dst, Operand src, int8_t imm8) {
-  DCHECK(IsEnabled(SSE4_1));
-  EnsureSpace ensure_space(this);
-  emit(0x66);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x3A);
-  emit(0x20);
-  emit_sse_operand(dst, src);
+  DCHECK(is_uint8(imm8));
+  sse4_instr(dst, src, 0x66, 0x0F, 0x3A, 0x20);
   emit(imm8);
 }
 
 void Assembler::insertps(XMMRegister dst, XMMRegister src, byte imm8) {
-  DCHECK(CpuFeatures::IsSupported(SSE4_1));
   DCHECK(is_uint8(imm8));
-  EnsureSpace ensure_space(this);
-  emit(0x66);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x3A);
-  emit(0x21);
-  emit_sse_operand(dst, src);
+  sse4_instr(dst, src, 0x66, 0x0F, 0x3A, 0x21);
   emit(imm8);
 }
 
 void Assembler::insertps(XMMRegister dst, Operand src, byte imm8) {
-  DCHECK(CpuFeatures::IsSupported(SSE4_1));
   DCHECK(is_uint8(imm8));
-  EnsureSpace ensure_space(this);
-  emit(0x66);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x3A);
-  emit(0x21);
-  emit_sse_operand(dst, src);
+  sse4_instr(dst, src, 0x66, 0x0F, 0x3A, 0x21);
   emit(imm8);
 }
 
@@ -3758,28 +3628,14 @@ void Assembler::cmpltsd(XMMRegister dst, XMMRegister src) {
 
 void Assembler::roundss(XMMRegister dst, XMMRegister src, RoundingMode mode) {
   DCHECK(!IsEnabled(AVX));
-  DCHECK(IsEnabled(SSE4_1));
-  EnsureSpace ensure_space(this);
-  emit(0x66);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x3A);
-  emit(0x0A);
-  emit_sse_operand(dst, src);
+  sse4_instr(dst, src, 0x66, 0x0F, 0x3A, 0x0A);
   // Mask precision exception.
   emit(static_cast<byte>(mode) | 0x8);
 }
 
 void Assembler::roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode) {
   DCHECK(!IsEnabled(AVX));
-  DCHECK(IsEnabled(SSE4_1));
-  EnsureSpace ensure_space(this);
-  emit(0x66);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0x3A);
-  emit(0x0B);
-  emit_sse_operand(dst, src);
+  sse4_instr(dst, src, 0x66, 0x0F, 0x3A, 0x0B);
   // Mask precision exception.
   emit(static_cast<byte>(mode) | 0x8);
 }
@@ -4441,6 +4297,21 @@ void Assembler::ssse3_instr(XMMRegister dst, Operand src, byte prefix,
   emit_sse_operand(dst, src);
 }
 
+void Assembler::sse4_instr(XMMRegister dst, Register src, byte prefix,
+                           byte escape1, byte escape2, byte opcode,
+                           int8_t imm8) {
+  DCHECK(is_uint8(imm8));
+  DCHECK(IsEnabled(SSE4_1));
+  EnsureSpace ensure_space(this);
+  emit(prefix);
+  emit_optional_rex_32(dst, src);
+  emit(escape1);
+  emit(escape2);
+  emit(opcode);
+  emit_sse_operand(dst, src);
+  emit(imm8);
+}
+
 void Assembler::sse4_instr(XMMRegister dst, XMMRegister src, byte prefix,
                            byte escape1, byte escape2, byte opcode) {
   DCHECK(IsEnabled(SSE4_1));
@@ -4463,6 +4334,36 @@ void Assembler::sse4_instr(XMMRegister dst, Operand src, byte prefix,
   emit(escape2);
   emit(opcode);
   emit_sse_operand(dst, src);
+}
+
+void Assembler::sse4_instr(Register dst, XMMRegister src, byte prefix,
+                           byte escape1, byte escape2, byte opcode,
+                           int8_t imm8) {
+  DCHECK(is_uint8(imm8));
+  DCHECK(IsEnabled(SSE4_1));
+  EnsureSpace ensure_space(this);
+  emit(prefix);
+  emit_optional_rex_32(src, dst);
+  emit(escape1);
+  emit(escape2);
+  emit(opcode);
+  emit_sse_operand(src, dst);
+  emit(imm8);
+}
+
+void Assembler::sse4_instr(Operand dst, XMMRegister src, byte prefix,
+                           byte escape1, byte escape2, byte opcode,
+                           int8_t imm8) {
+  DCHECK(is_uint8(imm8));
+  DCHECK(IsEnabled(SSE4_1));
+  EnsureSpace ensure_space(this);
+  emit(prefix);
+  emit_optional_rex_32(src, dst);
+  emit(escape1);
+  emit(escape2);
+  emit(opcode);
+  emit_sse_operand(src, dst);
+  emit(imm8);
 }
 
 void Assembler::sse4_2_instr(XMMRegister dst, XMMRegister src, byte prefix,

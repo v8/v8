@@ -505,6 +505,11 @@ TEST(DisasmX64) {
   __ instruction(xmm5, xmm1);                                                 \
   __ instruction(xmm5, Operand(rdx, 4));
 
+#define EMIT_SSE34_IMM_INSTR(instruction, notUsed1, notUsed2, notUsed3, \
+                             notUsed4)                                  \
+  __ instruction(rbx, xmm15, 0);                                        \
+  __ instruction(Operand(rax, 10), xmm0, 1);
+
   {
     if (CpuFeatures::IsSupported(SSSE3)) {
       CpuFeatureScope scope(&assm, SSSE3);
@@ -518,11 +523,7 @@ TEST(DisasmX64) {
     if (CpuFeatures::IsSupported(SSE4_1)) {
       CpuFeatureScope scope(&assm, SSE4_1);
       __ insertps(xmm5, xmm1, 123);
-      __ extractps(rax, xmm1, 0);
-      __ pextrw(rbx, xmm2, 1);
       __ pinsrw(xmm2, rcx, 1);
-      __ pextrd(rbx, xmm15, 0);
-      __ pextrd(r12, xmm0, 1);
       __ pextrq(r12, xmm0, 1);
       __ pinsrd(xmm9, r9, 0);
       __ pinsrd(xmm5, Operand(rax, 4), 1);
@@ -582,6 +583,7 @@ TEST(DisasmX64) {
       __ cvtdq2ps(xmm5, Operand(rdx, 4));
 
       SSE4_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
+      SSE4_EXTRACT_INSTRUCTION_LIST(EMIT_SSE34_IMM_INSTR)
     }
   }
 
@@ -593,6 +595,7 @@ TEST(DisasmX64) {
     }
   }
 #undef EMIT_SSE34_INSTR
+#undef EMIT_SSE34_IMM_INSTR
 
   // AVX instruction
   {
