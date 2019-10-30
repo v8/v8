@@ -1310,7 +1310,13 @@ Node* CodeAssembler::CallStubN(StubCallMode call_mode,
   int implicit_nodes = descriptor.HasContextParameter() ? 2 : 1;
   DCHECK_LE(implicit_nodes, input_count);
   int argc = input_count - implicit_nodes;
-  DCHECK_LE(descriptor.GetParameterCount(), argc);
+#ifdef DEBUG
+  if (descriptor.AllowVarArgs()) {
+    DCHECK_LE(descriptor.GetParameterCount(), argc);
+  } else {
+    DCHECK_EQ(descriptor.GetParameterCount(), argc);
+  }
+#endif
   // Extra arguments not mentioned in the descriptor are passed on the stack.
   int stack_parameter_count = argc - descriptor.GetRegisterParameterCount();
   DCHECK_LE(descriptor.GetStackParameterCount(), stack_parameter_count);
