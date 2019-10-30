@@ -2372,12 +2372,12 @@ void CompilationStateImpl::OnFinishedUnits(Vector<WasmCode*> code_vector) {
   DCHECK_EQ(compilation_progress_.size(),
             native_module_->module()->num_declared_functions);
 
+  bool completes_baseline_compilation = false;
+  bool completes_top_tier_compilation = false;
+
   for (WasmCode* code : code_vector) {
     DCHECK_NOT_NULL(code);
     DCHECK_LT(code->index(), native_module_->num_functions());
-
-    bool completes_baseline_compilation = false;
-    bool completes_top_tier_compilation = false;
 
     if (code->index() < native_module_->num_imported_functions()) {
       // Import wrapper.
@@ -2429,10 +2429,10 @@ void CompilationStateImpl::OnFinishedUnits(Vector<WasmCode*> code_vector) {
       }
       DCHECK_LE(0, outstanding_baseline_units_);
     }
-
-    TriggerCallbacks(completes_baseline_compilation,
-                     completes_top_tier_compilation);
   }
+
+  TriggerCallbacks(completes_baseline_compilation,
+                   completes_top_tier_compilation);
 }
 
 void CompilationStateImpl::OnFinishedJSToWasmWrapperUnits(int num) {
