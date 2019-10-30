@@ -1537,7 +1537,10 @@ void AsyncCompileJob::FinishCompile() {
         AllocationType::kOld);
     script->set_source_mapping_url(*src_map_str.ToHandleChecked());
   }
-  isolate_->debug()->OnAfterCompile(script);
+  {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "Debug::OnAfterCompile");
+    isolate_->debug()->OnAfterCompile(script);
+  }
 
   auto compilation_state =
       Impl(module_object_->native_module()->compilation_state());
@@ -1579,6 +1582,8 @@ void AsyncCompileJob::AsyncCompileFailed() {
 }
 
 void AsyncCompileJob::AsyncCompileSucceeded(Handle<WasmModuleObject> result) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
+               "CompilationResultResolver::OnCompilationSucceeded");
   resolver_->OnCompilationSucceeded(result);
 }
 
