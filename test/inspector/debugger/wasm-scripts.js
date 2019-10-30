@@ -17,16 +17,18 @@ let sessions = [
 
 utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
-// Add two empty functions. Both should be registered as individual scripts at
-// module creation time.
-var builder = new WasmModuleBuilder();
-builder.addFunction('nopFunction', kSig_v_v).addBody([kExprNop]);
-builder.addFunction('main', kSig_v_v)
-    .addBody([kExprBlock, kWasmStmt, kExprI32Const, 2, kExprDrop, kExprEnd])
-    .exportAs('main');
-var module_bytes = builder.toArray();
-builder.addCustomSection('.debug_info', []);
-var module_bytes_with_dwarf = builder.toArray();
+// Create module with given custom sections.
+function createModule(...customSections) {
+  var builder = new WasmModuleBuilder();
+  builder.addFunction('nopFunction', kSig_v_v).addBody([kExprNop]);
+  builder.addFunction('main', kSig_v_v)
+      .addBody([kExprBlock, kWasmStmt, kExprI32Const, 2, kExprDrop, kExprEnd])
+      .exportAs('main');
+  for (var { name, value } of customSections) {
+    builder.addCustomSection(name, value);
+  }
+  return builder.toArray();
+}
 
 function testFunction(bytes) {
   // Compilation triggers registration of wasm scripts.
@@ -34,16 +36,37 @@ function testFunction(bytes) {
 }
 
 contextGroup.addScript(testFunction.toString(), 0, 0, 'v8://test/testFunction');
-contextGroup.addScript('var module_bytes = ' + JSON.stringify(module_bytes));
-contextGroup.addScript('var module_bytes_with_dwarf = ' + JSON.stringify(module_bytes_with_dwarf));
 
 InspectorTest.log(
     'Check that each inspector gets two wasm scripts at module creation time.');
 
+// Sample .debug_info section.
+// Content doesn't matter, as we don't try to parse it in V8,
+// but should be non-empty to check that we're skipping it correctly.
+const dwarfSection = { name: '.debug_info', value: [1, 2, 3, 4, 5] };
+
+// Sample sourceMappingURL section set to "abc".
+const sourceMapSection = { name: 'sourceMappingURL', value: [3, 97, 98, 99] };
+
 sessions[0].Protocol.Runtime
     .evaluate({
-      'expression': '//# sourceURL=v8://test/runTestRunction\n' +
-          'testFunction(module_bytes); testFunction(module_bytes_with_dwarf);'
+      'expression': `//# sourceURL=v8://test/runTestRunction
+
+      // no debug info
+      testFunction([${createModule()}]);
+
+      // DWARF
+      testFunction([${createModule(dwarfSection)}]);
+
+      // Source map
+      testFunction([${createModule(sourceMapSection)}]);
+
+      // DWARF + source map
+      testFunction([${createModule(dwarfSection, sourceMapSection)}]);
+
+      // Source map + DWARF (different order)
+      testFunction([${createModule(sourceMapSection, dwarfSection)}]);
+      `
     })
     .then(() => (
       // At this point all scripts were parsed.
@@ -89,7 +112,7 @@ function trackScripts(debuggerParams) {
   async function loadScript({url, scriptId, sourceMapURL}) {
     InspectorTest.log(`Session #${sessionId}: Script #${scripts.length} parsed. URL: ${url}. Source map URL: ${sourceMapURL}`);
     let scriptSource;
-    if (sourceMapURL === "wasm://dwarf") {
+    if (sourceMapURL) {
       let {result: {bytecode}} = await Protocol.Debugger.getWasmBytecode({scriptId});
       // Binary value is represented as base64 in JSON, decode it.
       bytecode = decodeBase64(bytecode);
