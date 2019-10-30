@@ -1022,7 +1022,7 @@ void Type::PrintTo(std::ostream& os) const {
   if (this->IsBitset()) {
     BitsetType::Print(os, this->AsBitset());
   } else if (this->IsHeapConstant()) {
-    os << "HeapConstant(" << Brief(*this->AsHeapConstant()->Value()) << ")";
+    os << "HeapConstant(" << this->AsHeapConstant()->Ref() << ")";
   } else if (this->IsOtherNumberConstant()) {
     os << "OtherNumberConstant(" << this->AsOtherNumberConstant()->Value()
        << ")";
