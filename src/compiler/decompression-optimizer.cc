@@ -55,14 +55,16 @@ void DecompressionOptimizer::MarkNodes() {
 void DecompressionOptimizer::MarkNodeInputs(Node* node) {
   // Mark the value inputs.
   switch (node->opcode()) {
-    // TODO(v8:7703): To be removed when the TaggedEqual implementation stops
-    // using ChangeTaggedToCompressed.
+    // UNOPS.
+    // TODO(v8:7703): ChangeTaggedToCompressed case to be removed when the
+    // TaggedEqual implementation stops using ChangeTaggedToCompressed.
     case IrOpcode::kChangeTaggedToCompressed:
     case IrOpcode::kTruncateInt64ToInt32:
       DCHECK_EQ(node->op()->ValueInputCount(), 1);
       MaybeMarkAndQueueForRevisit(node->InputAt(0),
                                   State::kOnly32BitsObserved);  // value
       break;
+    // BINOPS.
     case IrOpcode::kWord32And:
     case IrOpcode::kWord32Equal:
       DCHECK_EQ(node->op()->ValueInputCount(), 2);
@@ -71,6 +73,7 @@ void DecompressionOptimizer::MarkNodeInputs(Node* node) {
       MaybeMarkAndQueueForRevisit(node->InputAt(1),
                                   State::kOnly32BitsObserved);  // value_1
       break;
+    // SPECIAL CASES.
     case IrOpcode::kStore:
     case IrOpcode::kProtectedStore:
     case IrOpcode::kUnalignedStore:
