@@ -370,6 +370,16 @@ std::unique_ptr<StreamingDecoder::DecodingState>
 StreamingDecoder::DecodeSectionID::Next(StreamingDecoder* streaming) {
   TRACE_STREAMING("DecodeSectionID: %s section\n",
                   SectionName(static_cast<SectionCode>(id_)));
+  if (id_ == SectionCode::kCodeSectionCode) {
+    // Explicitly check for multiple code sections as module decoder never
+    // sees the code section and hence cannot track this section.
+    if (streaming->code_section_processed_) {
+      // TODO(mstarzinger): This error message (and others in this class) is
+      // different for non-streaming decoding. Bring them in sync and test.
+      return streaming->Error("code section can only appear once");
+    }
+    streaming->code_section_processed_ = true;
+  }
   return std::make_unique<DecodeSectionLength>(id_, module_offset_);
 }
 
@@ -391,22 +401,13 @@ StreamingDecoder::DecodeSectionLength::NextWithValue(
     if (!streaming->ok()) return nullptr;
     // There is no payload, we go to the next section immediately.
     return std::make_unique<DecodeSectionID>(streaming->module_offset_);
-  } else {
-    if (section_id_ == SectionCode::kCodeSectionCode) {
-      // Explicitly check for multiple code sections as module decoder never
-      // sees the code section and hence cannot track this section.
-      if (streaming->code_section_processed_) {
-        // TODO(mstarzinger): This error message (and other in this class) is
-        // different for non-streaming decoding. Bring them in sync and test.
-        return streaming->Error("code section can only appear once");
-      }
-      streaming->code_section_processed_ = true;
-      // We reached the code section. All functions of the code section are put
-      // into the same SectionBuffer.
-      return std::make_unique<DecodeNumberOfFunctions>(buf);
-    }
-    return std::make_unique<DecodeSectionPayload>(buf);
   }
+  if (section_id_ == SectionCode::kCodeSectionCode) {
+    // We reached the code section. All functions of the code section are put
+    // into the same SectionBuffer.
+    return std::make_unique<DecodeNumberOfFunctions>(buf);
+  }
+  return std::make_unique<DecodeSectionPayload>(buf);
 }
 
 std::unique_ptr<StreamingDecoder::DecodingState>

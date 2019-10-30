@@ -8,18 +8,6 @@
 
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
-function module(bytes) {
-  let buffer = bytes;
-  if (typeof buffer === 'string') {
-    buffer = new ArrayBuffer(bytes.length);
-    let view = new Uint8Array(buffer);
-    for (let i = 0; i < bytes.length; ++i) {
-      view[i] = bytes.charCodeAt(i);
-    }
-  }
-  return new WebAssembly.Module(buffer);
-}
-
 function testErrorPosition(bytes, pos, test_name) {
   assertThrowsAsync(
       WebAssembly.compile(bytes.trunc_buffer()), WebAssembly.CompileError,
@@ -299,7 +287,7 @@ function testErrorPosition(bytes, pos, test_name) {
   ]);
   bytes.emit_bytes([
       kCodeSectionCode,  // section id
-      6,                 // section length (too big)
+      6,                 // section length
       1,                 // functions count
       4,                 // body size
       0,                 // locals count
@@ -310,6 +298,45 @@ function testErrorPosition(bytes, pos, test_name) {
   // Find error at the index of kExprLocalGet.
   let pos = bytes.length - 1 - 1;
   testErrorPosition(bytes, pos, 'testInvalidCode');
+})();
+
+(function testCodeSectionRepeats() {
+  let bytes = new Binary;
+  bytes.emit_header();
+  bytes.emit_bytes([
+      kTypeSectionCode,       // section id
+      4,                      // section length
+      1,                      // number of types
+      kWasmFunctionTypeForm,  // type
+      0,                      // number of parameter
+      0                       // number of returns
+  ]);
+  bytes.emit_bytes([
+      kFunctionSectionCode,  // section id
+      2,                     // section length
+      1,                     // number of functions
+      0                      // signature index
+  ]);
+  bytes.emit_bytes([
+      kCodeSectionCode,  // section id
+      4,                 // section length
+      1,                 // functions count
+      2,                 // body size
+      0,                 // locals count
+      kExprEnd           // body
+  ]);
+  let pos = bytes.length;
+  bytes.emit_bytes([
+      kCodeSectionCode,  // section id (repeating)
+      4,                 // section length
+      1,                 // functions count
+      2,                 // body size
+      0,                 // locals count
+      kExprEnd           // body
+  ]);
+
+  // Find error at the second kCodeSectionCode.
+  testErrorPosition(bytes, pos, 'testCodeSectionRepeats');
 })();
 
 (function testCodeSectionSizeZero() {
@@ -331,10 +358,10 @@ function testErrorPosition(bytes, pos, test_name) {
   ]);
   bytes.emit_bytes([
       kCodeSectionCode,  // section id
-      0,                 // section length (too big)
+      0,                 // section length (empty)
   ]);
 
-  // Find error at the index of kExprLocalGet.
+  // Find error at the code section length.
   let pos = bytes.length - 1;
   testErrorPosition(bytes, pos, 'testCodeSectionSizeZero');
 })();
