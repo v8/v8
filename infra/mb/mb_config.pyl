@@ -722,7 +722,8 @@
     },
 
     'official': {
-      'gn_args': 'is_official_build=true',
+      # TODO(liviurau): switch this to true after new perf builders are in use
+      'gn_args': 'is_official_build=false',
     },
 
     'shared': {
