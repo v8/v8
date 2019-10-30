@@ -2011,6 +2011,45 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Psubq(dst, src);
       break;
     }
+    case kIA32I64x2Shl: {
+      XMMRegister tmp = i.TempSimd128Register(0);
+      Register shift = i.InputRegister(1);
+      // Take shift value modulo 64.
+      __ and_(shift, Immediate(63));
+      __ Movd(tmp, shift);
+      __ Psllq(i.OutputSimd128Register(), i.InputSimd128Register(0), tmp);
+      break;
+    }
+    case kIA32I64x2ShrS: {
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(0);
+      XMMRegister tmp = i.TempSimd128Register(0);
+      XMMRegister tmp2 = i.TempSimd128Register(1);
+      Operand shift = i.InputOperand(1);
+
+      // Take shift value modulo 64.
+      __ and_(shift, Immediate(63));
+      __ Movd(tmp, shift);
+
+      // Set up a mask [0x80000000,0,0x80000000,0].
+      __ Pcmpeqb(tmp2, tmp2);
+      __ Psllq(tmp2, tmp2, 63);
+
+      __ Psrlq(tmp2, tmp2, tmp);
+      __ Psrlq(dst, src, tmp);
+      __ Pxor(dst, tmp2);
+      __ Psubq(dst, tmp2);
+      break;
+    }
+    case kIA32I64x2ShrU: {
+      XMMRegister tmp = i.TempSimd128Register(0);
+      Register shift = i.InputRegister(1);
+      // Take shift value modulo 64.
+      __ and_(shift, Immediate(63));
+      __ Movd(tmp, shift);
+      __ Psrlq(i.OutputSimd128Register(), i.InputSimd128Register(0), tmp);
+      break;
+    }
     case kSSEF32x4Splat: {
       DCHECK_EQ(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       XMMRegister dst = i.OutputSimd128Register();

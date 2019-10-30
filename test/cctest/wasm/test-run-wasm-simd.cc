@@ -968,7 +968,6 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2Neg) {
                    base::NegateWithWraparound);
 }
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 void RunI64x2ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                          WasmOpcode opcode, Int64ShiftOp expected_op) {
   // Intentionally shift by 64, should be no-op.
@@ -1010,6 +1009,7 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2ShrU) {
                       LogicalShiftRight);
 }
 
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 void RunI64x2BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                        WasmOpcode opcode, Int64BinOp expected_op) {
   WasmRunner<int32_t, int64_t, int64_t> r(execution_tier, lower_simd);

@@ -2067,6 +2067,10 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I16x8ShrS)                \
   V(I16x8ShrU)
 
+#define SIMD_SHIFT_OPCODES_UNIFED_SSE_AVX(V) \
+  V(I64x2Shl)                                \
+  V(I64x2ShrU)
+
 #define SIMD_I8X16_RIGHT_SHIFT_OPCODES(V) \
   V(I8x16ShrS)                            \
   V(I8x16ShrU)
@@ -2129,6 +2133,21 @@ void InstructionSelector::VisitI64x2Neg(Node* node) {
   IA32OperandGenerator g(this);
   InstructionOperand operand0 = g.UseUnique(node->InputAt(0));
   Emit(kIA32I64x2Neg, g.DefineAsRegister(node), operand0);
+}
+
+void InstructionSelector::VisitI64x2ShrS(Node* node) {
+  IA32OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempSimd128Register(),
+                                g.TempSimd128Register()};
+  if (IsSupported(AVX)) {
+    Emit(kIA32I64x2ShrS, g.DefineAsRegister(node),
+         g.UseUniqueRegister(node->InputAt(0)), g.Use(node->InputAt(1)),
+         arraysize(temps), temps);
+  } else {
+    Emit(kIA32I64x2ShrS, g.DefineSameAsFirst(node),
+         g.UseUniqueRegister(node->InputAt(0)), g.Use(node->InputAt(1)),
+         arraysize(temps), temps);
+  }
 }
 
 void InstructionSelector::VisitF32x4Splat(Node* node) {
@@ -2251,6 +2270,14 @@ VISIT_SIMD_REPLACE_LANE_USE_REG(F64x2)
 SIMD_SHIFT_OPCODES(VISIT_SIMD_SHIFT)
 #undef VISIT_SIMD_SHIFT
 #undef SIMD_SHIFT_OPCODES
+
+#define VISIT_SIMD_SHIFT_UNIFIED_SSE_AVX(Opcode)                 \
+  void InstructionSelector::Visit##Opcode(Node* node) {          \
+    VisitRROSimdShift(this, node, kIA32##Opcode, kIA32##Opcode); \
+  }
+SIMD_SHIFT_OPCODES_UNIFED_SSE_AVX(VISIT_SIMD_SHIFT_UNIFIED_SSE_AVX)
+#undef VISIT_SIMD_SHIFT_UNIFIED_SSE_AVX
+#undef SIMD_SHIFT_OPCODES_UNIFED_SSE_AVX
 
 #define VISIT_SIMD_I8x16_RIGHT_SHIFT(Opcode)                \
   void InstructionSelector::Visit##Opcode(Node* node) {     \
