@@ -1578,6 +1578,8 @@ extern class JSRegExp extends JSObject {
 
 extern transitioning macro AllocateJSIteratorResult(implicit context: Context)(
     JSAny, Boolean): JSObject;
+extern macro AllocateSyntheticFunctionContext(
+    NativeContext, constexpr int32): Context;
 
 // Note: Although a condition for a FastJSRegExp is having a positive smi
 // lastIndex (see RegExpBuiltinsAssembler::BranchIfFastRegExp), it is possible
@@ -2770,6 +2772,21 @@ Cast<Smi|PromiseReaction>(o: Object): Smi|PromiseReaction labels CastError {
   }
 }
 
+Cast<PromiseCapability>(o: HeapObject): PromiseCapability labels CastError {
+  if (IsPromiseCapability(o)) return %RawDownCast<PromiseCapability>(o);
+  goto CastError;
+}
+
+Cast<SharedFunctionInfo>(o: HeapObject): SharedFunctionInfo labels CastError {
+  if (IsSharedFunctionInfo(o)) return %RawDownCast<SharedFunctionInfo>(o);
+  goto CastError;
+}
+
+Cast<JSPromise>(o: HeapObject): JSPromise labels CastError {
+  if (IsJSPromise(o)) return %RawDownCast<JSPromise>(o);
+  goto CastError;
+}
+
 extern macro AllocateHeapNumberWithValue(float64): HeapNumber;
 extern macro ChangeInt32ToTagged(int32): Number;
 extern macro ChangeUint32ToTagged(uint32): Number;
@@ -3076,11 +3093,13 @@ extern macro FixedArrayMapConstant(): Map;
 extern macro FixedCOWArrayMapConstant(): Map;
 extern macro EmptyByteArrayConstant(): ByteArray;
 extern macro EmptyFixedArrayConstant(): FixedArray;
+extern macro PromiseCapabilityMapConstant(): Map;
 
 const kFixedArrayMap: Map = FixedArrayMapConstant();
 const kCOWMap: Map = FixedCOWArrayMapConstant();
 const kEmptyByteArray: ByteArray = EmptyByteArrayConstant();
 const kEmptyFixedArray: FixedArray = EmptyFixedArrayConstant();
+const kPromiseCapabilityMap: Map = PromiseCapabilityMapConstant();
 
 extern macro IsPrototypeInitialArrayPrototype(implicit context: Context)(Map):
     bool;
@@ -3544,6 +3563,7 @@ extern macro IsJSRegExpStringIterator(HeapObject): bool;
 extern macro IsMap(HeapObject): bool;
 extern macro IsJSFunction(HeapObject): bool;
 extern macro IsJSObject(HeapObject): bool;
+extern macro IsJSPromise(HeapObject): bool;
 extern macro IsJSTypedArray(HeapObject): bool;
 extern macro IsNumberDictionary(HeapObject): bool;
 extern macro IsContext(HeapObject): bool;
@@ -3563,7 +3583,9 @@ extern macro IsSymbol(HeapObject): bool;
 extern macro IsJSArrayMap(Map): bool;
 extern macro IsExtensibleMap(Map): bool;
 extern macro IsJSPrimitiveWrapper(HeapObject): bool;
+extern macro IsPromiseCapability(HeapObject): bool;
 extern macro IsPromiseReaction(HeapObject): bool;
+extern macro IsSharedFunctionInfo(HeapObject): bool;
 extern macro IsCustomElementsReceiverInstanceType(int32): bool;
 extern macro Typeof(JSAny): String;
 

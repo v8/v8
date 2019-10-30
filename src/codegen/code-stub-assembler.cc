@@ -13411,16 +13411,27 @@ void CodeStubAssembler::PerformStackCheck(TNode<Context> context) {
   BIND(&ok);
 }
 
-void CodeStubAssembler::InitializeSyntheticFunctionContext(Node* native_context,
-                                                           Node* context,
-                                                           int slots) {
+TNode<Context> CodeStubAssembler::AllocateSyntheticFunctionContext(
+    TNode<NativeContext> native_context, int slots) {
+  DCHECK_GE(slots, Context::MIN_CONTEXT_SLOTS);
+  TNode<HeapObject> context_heap_object =
+      AllocateInNewSpace(FixedArray::SizeFor(slots));
+  InitializeSyntheticFunctionContext(native_context, context_heap_object,
+                                     slots);
+  return CAST(context_heap_object);
+}
+
+void CodeStubAssembler::InitializeSyntheticFunctionContext(
+    TNode<NativeContext> native_context, TNode<HeapObject> context_heap_object,
+    int slots) {
   DCHECK_GE(slots, Context::MIN_CONTEXT_SLOTS);
   TNode<Map> map = CAST(
       LoadContextElement(native_context, Context::FUNCTION_CONTEXT_MAP_INDEX));
-  StoreMapNoWriteBarrier(context, map);
-  StoreObjectFieldNoWriteBarrier(context, FixedArray::kLengthOffset,
+  StoreMapNoWriteBarrier(context_heap_object, map);
+  StoreObjectFieldNoWriteBarrier(context_heap_object, FixedArray::kLengthOffset,
                                  SmiConstant(slots));
 
+  TNode<Context> context = CAST(context_heap_object);
   TNode<Object> const empty_scope_info =
       LoadContextElement(native_context, Context::SCOPE_INFO_INDEX);
   StoreContextElementNoWriteBarrier(context, Context::SCOPE_INFO_INDEX,

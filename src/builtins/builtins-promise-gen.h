@@ -46,11 +46,6 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
       TNode<JSPromise> promise_to_resolve, TNode<JSReceiver> then,
       TNode<JSReceiver> thenable, TNode<Context> context);
 
-  std::pair<TNode<JSFunction>, TNode<JSFunction>>
-  CreatePromiseResolvingFunctions(TNode<JSPromise> promise,
-                                  TNode<Object> debug_event,
-                                  TNode<NativeContext> native_context);
-
   Node* PromiseHasHandler(Node* promise);
 
   // Creates the context used by all Promise.all resolve element closures,
@@ -71,9 +66,6 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
       TNode<JSPromise> promise, TNode<Object> debug_event,
       TNode<NativeContext> native_context);
 
-  Node* CreatePromiseGetCapabilitiesExecutorContext(Node* promise_capability,
-                                                    Node* native_context);
-
   // The below methods are only temporarily public until they are
   // migrated to torque.
   void TriggerPromiseReactions(Node* context, Node* promise, Node* result,
@@ -89,9 +81,6 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
                           TNode<HeapObject> on_fulfilled,
                           TNode<HeapObject> on_rejected,
                           TNode<HeapObject> result_promise_or_capability);
-
-  TNode<Context> CreatePromiseContext(TNode<NativeContext> native_context,
-                                      int slots);
 
   // We can skip the "resolve" lookup on {constructor} if it's the (initial)
   // Promise constructor and the Promise.resolve() protector is intact, as

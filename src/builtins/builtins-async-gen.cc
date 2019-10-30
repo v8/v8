@@ -295,8 +295,8 @@ TNode<Context> AsyncBuiltinsAssembler::AllocateAsyncIteratorValueUnwrapContext(
     TNode<NativeContext> native_context, TNode<Oddball> done) {
   CSA_ASSERT(this, IsBoolean(done));
 
-  TNode<Context> context =
-      CreatePromiseContext(native_context, ValueUnwrapContext::kLength);
+  TNode<Context> context = AllocateSyntheticFunctionContext(
+      native_context, ValueUnwrapContext::kLength);
   StoreContextElementNoWriteBarrier(context, ValueUnwrapContext::kDoneSlot,
                                     done);
   return context;

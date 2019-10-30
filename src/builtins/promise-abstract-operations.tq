@@ -2,10 +2,34 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include 'src/builtins/builtins-promise.h'
 #include 'src/builtins/builtins-promise-gen.h'
 
 // https://tc39.es/ecma262/#sec-promise-abstract-operations
 namespace promise {
+  const PROMISE_FUNCTION_INDEX: constexpr NativeContextSlot
+  generates 'Context::PROMISE_FUNCTION_INDEX';
+  const STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX: constexpr NativeContextSlot
+  generates 'Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX';
+  const PROMISE_CAPABILITY_DEFAULT_RESOLVE_SHARED_FUN_INDEX:
+      constexpr NativeContextSlot
+  generates 'Context::PROMISE_CAPABILITY_DEFAULT_RESOLVE_SHARED_FUN_INDEX'
+      ;
+  const PROMISE_CAPABILITY_DEFAULT_REJECT_SHARED_FUN_INDEX:
+      constexpr NativeContextSlot
+  generates 'Context::PROMISE_CAPABILITY_DEFAULT_REJECT_SHARED_FUN_INDEX'
+      ;
+  const PROMISE_GET_CAPABILITIES_EXECUTOR_SHARED_FUN:
+      constexpr NativeContextSlot
+  generates 'Context::PROMISE_GET_CAPABILITIES_EXECUTOR_SHARED_FUN';
+  const kNotConstructor: constexpr MessageTemplate
+  generates 'MessageTemplate::kNotConstructor';
+  const kPromiseNonCallable: constexpr MessageTemplate
+  generates 'MessageTemplate::kPromiseNonCallable';
+
+  extern macro AllocateFunctionWithMapAndContext(
+      Map, SharedFunctionInfo, Context): JSFunction;
+
   extern macro PromiseBuiltinsAssembler::TriggerPromiseReactions(
       implicit context:
           Context)(Smi|PromiseReaction, JSAny, constexpr PromiseReactionType):
@@ -33,5 +57,119 @@ namespace promise {
     // 7. Return TriggerPromiseReactions(reactions, value).
     TriggerPromiseReactions(reactions, value, kPromiseReactionFulfill);
     return Undefined;
+  }
+
+  const kPromiseCapabilitySize:
+      constexpr int31 generates 'PromiseCapability::kSize';
+  const kPromiseBuiltinsCapabilitiesContextLength: constexpr int31
+  generates 'PromiseBuiltins::kCapabilitiesContextLength';
+  const kPromiseBuiltinsCapabilitySlot: constexpr ContextSlot
+  generates 'PromiseBuiltins::kCapabilitySlot';
+
+  extern macro
+  PromiseBuiltinsAssembler::AllocateAndInitJSPromise(Context): JSPromise;
+  extern macro
+  PromiseBuiltinsAssembler::CreatePromiseResolvingFunctionsContext(
+      JSPromise, Object, NativeContext): Context;
+
+  @export
+  macro CreatePromiseCapabilitiesExecutorContext(
+      nativeContext: NativeContext, capability: PromiseCapability): Context {
+    const executorContext = AllocateSyntheticFunctionContext(
+        nativeContext, kPromiseBuiltinsCapabilitiesContextLength);
+
+    executorContext[kPromiseBuiltinsCapabilitySlot] = capability;
+    return executorContext;
+  }
+
+  macro CreatePromiseCapability(
+      promise: JSReceiver|Undefined, resolve: JSFunction|Undefined,
+      reject: JSFunction|Undefined): PromiseCapability {
+    return new PromiseCapability{
+      map: kPromiseCapabilityMap,
+      promise: promise,
+      resolve: resolve,
+      reject: reject
+    };
+  }
+
+  @export
+  struct PromiseResolvingFunctions {
+    resolve: JSFunction;
+    reject: JSFunction;
+  }
+
+  @export
+  macro CreatePromiseResolvingFunctions(implicit context: Context)(
+      promise: JSPromise, debugEvent: Object, nativeContext: NativeContext):
+      PromiseResolvingFunctions {
+    const promiseContext = CreatePromiseResolvingFunctionsContext(
+        promise, debugEvent, nativeContext);
+    const map = UnsafeCast<Map>(
+        nativeContext[STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX]);
+    const resolveInfo = UnsafeCast<SharedFunctionInfo>(
+        nativeContext[PROMISE_CAPABILITY_DEFAULT_RESOLVE_SHARED_FUN_INDEX]);
+    const resolve: JSFunction =
+        AllocateFunctionWithMapAndContext(map, resolveInfo, promiseContext);
+    const rejectInfo = UnsafeCast<SharedFunctionInfo>(
+        nativeContext[PROMISE_CAPABILITY_DEFAULT_REJECT_SHARED_FUN_INDEX]);
+    const reject: JSFunction =
+        AllocateFunctionWithMapAndContext(map, rejectInfo, promiseContext);
+    return PromiseResolvingFunctions{resolve: resolve, reject: reject};
+  }
+
+  transitioning macro
+  InnerNewPromiseCapability(implicit context: Context)(
+      constructor: HeapObject, debugEvent: Object): PromiseCapability {
+    const nativeContext = LoadNativeContext(context);
+    if (TaggedEqual(constructor, nativeContext[PROMISE_FUNCTION_INDEX])) {
+      const promise = AllocateAndInitJSPromise(nativeContext);
+
+      const pair =
+          CreatePromiseResolvingFunctions(promise, debugEvent, nativeContext);
+
+      return CreatePromiseCapability(promise, pair.resolve, pair.reject);
+    } else {
+      // We have to create the capability before the associated promise
+      // because the builtin PromiseConstructor uses the executor.
+      const capability =
+          CreatePromiseCapability(Undefined, Undefined, Undefined);
+      const executorContext =
+          CreatePromiseCapabilitiesExecutorContext(nativeContext, capability);
+
+      const executorInfo = UnsafeCast<SharedFunctionInfo>(
+          nativeContext[PROMISE_GET_CAPABILITIES_EXECUTOR_SHARED_FUN]);
+      const functionMap = UnsafeCast<Map>(
+          nativeContext[STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX]);
+      const executor = AllocateFunctionWithMapAndContext(
+          functionMap, executorInfo, executorContext);
+
+      const promiseConstructor = UnsafeCast<Constructor>(constructor);
+      const promise = Construct(promiseConstructor, executor);
+      capability.promise = promise;
+
+      if (!TaggedIsCallable(capability.resolve) ||
+          !TaggedIsCallable(capability.reject)) {
+        ThrowTypeError(kPromiseNonCallable);
+      }
+      return capability;
+    }
+  }
+
+  // https://tc39.es/ecma262/#sec-newpromisecapability
+  transitioning builtin
+  NewPromiseCapability(implicit context: Context)(
+      maybeConstructor: Object, debugEvent: Object): PromiseCapability {
+    typeswitch (maybeConstructor) {
+      case (Smi): {
+        ThrowTypeError(kNotConstructor, maybeConstructor);
+      }
+      case (constructor: HeapObject): {
+        if (!IsConstructor(constructor)) {
+          ThrowTypeError(kNotConstructor, maybeConstructor);
+        }
+        return InnerNewPromiseCapability(constructor, debugEvent);
+      }
+    }
   }
 }

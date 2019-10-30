@@ -2514,7 +2514,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsNotWeakFixedArraySubclass(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsZeroOrContext(SloppyTNode<Object> object);
 
-  inline Node* IsSharedFunctionInfo(Node* object) {
+  inline TNode<BoolT> IsSharedFunctionInfo(Node* object) {
     return IsSharedFunctionInfoMap(LoadMap(object));
   }
 
@@ -3556,6 +3556,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   bool ConstexprInt31Equal(int31_t a, int31_t b) { return a == b; }
   bool ConstexprInt31NotEqual(int31_t a, int31_t b) { return a != b; }
   bool ConstexprInt31GreaterThanEqual(int31_t a, int31_t b) { return a >= b; }
+  bool ConstexprInt32GreaterThanEqual(int32_t a, int32_t b) { return a >= b; }
   uint32_t ConstexprUint32Add(uint32_t a, uint32_t b) { return a + b; }
   int31_t ConstexprInt31Add(int31_t a, int31_t b) {
     int32_t val;
@@ -3682,7 +3683,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                              Label* if_bailout = nullptr,
                              TVariable<Int32T>* var_instance_type = nullptr);
 
-  void InitializeSyntheticFunctionContext(Node* native_context, Node* context,
+  TNode<Context> AllocateSyntheticFunctionContext(
+      TNode<NativeContext> native_context, int slots);
+  void InitializeSyntheticFunctionContext(TNode<NativeContext> native_context,
+                                          TNode<HeapObject> context_heap_object,
                                           int slots);
 
   TNode<JSArray> ArrayCreate(TNode<Context> context, TNode<Number> length);

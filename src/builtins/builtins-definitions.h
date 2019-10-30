@@ -757,8 +757,6 @@ namespace internal {
   TFJ(PromiseCapabilityDefaultResolve, 1, kReceiver, kResolution)              \
   /* ES6 #sec-getcapabilitiesexecutor-functions */                             \
   TFJ(PromiseGetCapabilitiesExecutor, 2, kReceiver, kResolve, kReject)         \
-  /* ES6 #sec-newpromisecapability */                                          \
-  TFS(NewPromiseCapability, kConstructor, kDebugEvent)                         \
   TFJ(PromiseConstructorLazyDeoptContinuation, 4, kReceiver, kPromise,         \
       kReject, kException, kResult)                                            \
   /* ES6 #sec-promise-executor */                                              \

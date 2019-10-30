@@ -40,6 +40,7 @@ using Label = CodeAssemblerLabel;
 using Variable = CodeAssemblerVariable;
 template <class T>
 using TVariable = TypedCodeAssemblerVariable<T>;
+using PromiseResolvingFunctions = TorqueStructPromiseResolvingFunctions;
 
 Handle<String> MakeString(const char* str) {
   Isolate* isolate = CcTest::i_isolate();
@@ -2584,9 +2585,9 @@ TEST(CreatePromiseResolvingFunctions) {
   TNode<NativeContext> const native_context = m.LoadNativeContext(context);
   const TNode<JSPromise> promise =
       m.AllocateAndInitJSPromise(m.CAST(context), m.UndefinedConstant());
-  Node *resolve, *reject;
-  std::tie(resolve, reject) = m.CreatePromiseResolvingFunctions(
-      promise, m.BooleanConstant(false), native_context);
+  PromiseResolvingFunctions funcs = m.CreatePromiseResolvingFunctions(
+      m.CAST(context), promise, m.BooleanConstant(false), native_context);
+  Node *resolve = funcs.resolve, *reject = funcs.reject;
   TNode<IntPtrT> const kSize = m.IntPtrConstant(2);
   TNode<FixedArray> const arr =
       m.Cast(m.AllocateFixedArray(PACKED_ELEMENTS, kSize));
@@ -2719,8 +2720,8 @@ TEST(CreatePromiseGetCapabilitiesExecutorContext) {
       capability, PromiseCapability::kResolveOffset, m.UndefinedConstant());
   m.StoreObjectFieldNoWriteBarrier(capability, PromiseCapability::kRejectOffset,
                                    m.UndefinedConstant());
-  Node* const executor_context =
-      m.CreatePromiseGetCapabilitiesExecutorContext(capability, native_context);
+  Node* const executor_context = m.CreatePromiseCapabilitiesExecutorContext(
+      native_context, m.CAST(capability));
   m.Return(executor_context);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);

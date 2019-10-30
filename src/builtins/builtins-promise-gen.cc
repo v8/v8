@@ -22,6 +22,7 @@ namespace internal {
 
 using Node = compiler::Node;
 using IteratorRecord = TorqueStructIteratorRecord;
+using PromiseResolvingFunctions = TorqueStructPromiseResolvingFunctions;
 
 TNode<JSPromise> PromiseBuiltinsAssembler::AllocateJSPromise(
     TNode<Context> context) {
@@ -98,27 +99,6 @@ TNode<JSPromise> PromiseBuiltinsAssembler::AllocateAndSetJSPromise(
   return instance;
 }
 
-std::pair<TNode<JSFunction>, TNode<JSFunction>>
-PromiseBuiltinsAssembler::CreatePromiseResolvingFunctions(
-    TNode<JSPromise> promise, TNode<Object> debug_event,
-    TNode<NativeContext> native_context) {
-  const TNode<Context> promise_context = CreatePromiseResolvingFunctionsContext(
-      promise, debug_event, native_context);
-  const TNode<Map> map = CAST(LoadContextElement(
-      native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
-  const TNode<SharedFunctionInfo> resolve_info = CAST(LoadContextElement(
-      native_context,
-      Context::PROMISE_CAPABILITY_DEFAULT_RESOLVE_SHARED_FUN_INDEX));
-  const TNode<JSFunction> resolve =
-      AllocateFunctionWithMapAndContext(map, resolve_info, promise_context);
-  const TNode<SharedFunctionInfo> reject_info = CAST(LoadContextElement(
-      native_context,
-      Context::PROMISE_CAPABILITY_DEFAULT_REJECT_SHARED_FUN_INDEX));
-  const TNode<JSFunction> reject =
-      AllocateFunctionWithMapAndContext(map, reject_info, promise_context);
-  return std::make_pair(resolve, reject);
-}
-
 void PromiseBuiltinsAssembler::ExtractHandlerContext(Node* handler,
                                                      Variable* var_context) {
   VARIABLE(var_handler, MachineRepresentation::kTagged, handler);
@@ -179,98 +159,6 @@ void PromiseBuiltinsAssembler::ExtractHandlerContext(Node* handler,
   BIND(&done);
 }
 
-// ES #sec-newpromisecapability
-TF_BUILTIN(NewPromiseCapability, PromiseBuiltinsAssembler) {
-  TNode<Context> const context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> const constructor = CAST(Parameter(Descriptor::kConstructor));
-  TNode<Object> const debug_event = CAST(Parameter(Descriptor::kDebugEvent));
-  TNode<NativeContext> const native_context = LoadNativeContext(context);
-
-  Label if_not_constructor(this, Label::kDeferred),
-      if_notcallable(this, Label::kDeferred), if_fast_promise_capability(this),
-      if_slow_promise_capability(this, Label::kDeferred);
-  GotoIf(TaggedIsSmi(constructor), &if_not_constructor);
-  GotoIfNot(IsConstructorMap(LoadMap(CAST(constructor))), &if_not_constructor);
-  Branch(TaggedEqual(constructor,
-                     LoadContextElement(native_context,
-                                        Context::PROMISE_FUNCTION_INDEX)),
-         &if_fast_promise_capability, &if_slow_promise_capability);
-
-  BIND(&if_fast_promise_capability);
-  {
-    TNode<JSPromise> promise =
-        AllocateAndInitJSPromise(native_context, UndefinedConstant());
-
-    Node* resolve = nullptr;
-    Node* reject = nullptr;
-    std::tie(resolve, reject) =
-        CreatePromiseResolvingFunctions(promise, debug_event, native_context);
-
-    TNode<HeapObject> capability = Allocate(PromiseCapability::kSize);
-    StoreMapNoWriteBarrier(capability, RootIndex::kPromiseCapabilityMap);
-    StoreObjectFieldNoWriteBarrier(capability,
-                                   PromiseCapability::kPromiseOffset, promise);
-    StoreObjectFieldNoWriteBarrier(capability,
-                                   PromiseCapability::kResolveOffset, resolve);
-    StoreObjectFieldNoWriteBarrier(capability, PromiseCapability::kRejectOffset,
-                                   reject);
-    Return(capability);
-  }
-
-  BIND(&if_slow_promise_capability);
-  {
-    TNode<HeapObject> capability = Allocate(PromiseCapability::kSize);
-    StoreMapNoWriteBarrier(capability, RootIndex::kPromiseCapabilityMap);
-    StoreObjectFieldRoot(capability, PromiseCapability::kPromiseOffset,
-                         RootIndex::kUndefinedValue);
-    StoreObjectFieldRoot(capability, PromiseCapability::kResolveOffset,
-                         RootIndex::kUndefinedValue);
-    StoreObjectFieldRoot(capability, PromiseCapability::kRejectOffset,
-                         RootIndex::kUndefinedValue);
-
-    TNode<Context> executor_context =
-        CAST(CreatePromiseGetCapabilitiesExecutorContext(capability,
-                                                         native_context));
-    TNode<SharedFunctionInfo> executor_info = CAST(LoadContextElement(
-        native_context, Context::PROMISE_GET_CAPABILITIES_EXECUTOR_SHARED_FUN));
-    TNode<Map> function_map = CAST(LoadContextElement(
-        native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
-    TNode<JSFunction> executor = AllocateFunctionWithMapAndContext(
-        function_map, executor_info, executor_context);
-
-    TNode<JSReceiver> promise =
-        Construct(native_context, CAST(constructor), executor);
-    StoreObjectField(capability, PromiseCapability::kPromiseOffset, promise);
-
-    TNode<Object> resolve =
-        LoadObjectField(capability, PromiseCapability::kResolveOffset);
-    GotoIf(TaggedIsSmi(resolve), &if_notcallable);
-    GotoIfNot(IsCallable(CAST(resolve)), &if_notcallable);
-
-    TNode<Object> reject =
-        LoadObjectField(capability, PromiseCapability::kRejectOffset);
-    GotoIf(TaggedIsSmi(reject), &if_notcallable);
-    GotoIfNot(IsCallable(CAST(reject)), &if_notcallable);
-    Return(capability);
-  }
-
-  BIND(&if_not_constructor);
-  ThrowTypeError(context, MessageTemplate::kNotConstructor, constructor);
-
-  BIND(&if_notcallable);
-  ThrowTypeError(context, MessageTemplate::kPromiseNonCallable);
-}
-
-TNode<Context> PromiseBuiltinsAssembler::CreatePromiseContext(
-    TNode<NativeContext> native_context, int slots) {
-  DCHECK_GE(slots, Context::MIN_CONTEXT_SLOTS);
-
-  TNode<HeapObject> const context =
-      AllocateInNewSpace(FixedArray::SizeFor(slots));
-  InitializeSyntheticFunctionContext(native_context, context, slots);
-  return CAST(context);
-}
-
 Node* PromiseBuiltinsAssembler::CreatePromiseAllResolveElementContext(
     Node* promise_capability, Node* native_context) {
   CSA_ASSERT(this, IsNativeContext(native_context));
@@ -281,7 +169,7 @@ Node* PromiseBuiltinsAssembler::CreatePromiseAllResolveElementContext(
   TNode<JSArray> values_array = AllocateJSArray(
       PACKED_ELEMENTS, array_map, IntPtrConstant(0), SmiConstant(0));
 
-  TNode<Context> const context = CreatePromiseContext(
+  TNode<Context> const context = AllocateSyntheticFunctionContext(
       CAST(native_context), PromiseBuiltins::kPromiseAllResolveElementLength);
   StoreContextElementNoWriteBarrier(
       context, PromiseBuiltins::kPromiseAllResolveElementRemainingSlot,
@@ -321,7 +209,7 @@ PromiseBuiltinsAssembler::CreatePromiseAllResolveElementFunction(
 TNode<Context> PromiseBuiltinsAssembler::CreatePromiseResolvingFunctionsContext(
     TNode<JSPromise> promise, TNode<Object> debug_event,
     TNode<NativeContext> native_context) {
-  const TNode<Context> context = CreatePromiseContext(
+  const TNode<Context> context = AllocateSyntheticFunctionContext(
       native_context, PromiseBuiltins::kPromiseContextLength);
   StoreContextElementNoWriteBarrier(context, PromiseBuiltins::kPromiseSlot,
                                     promise);
@@ -329,16 +217,6 @@ TNode<Context> PromiseBuiltinsAssembler::CreatePromiseResolvingFunctionsContext(
       context, PromiseBuiltins::kAlreadyResolvedSlot, FalseConstant());
   StoreContextElementNoWriteBarrier(context, PromiseBuiltins::kDebugEventSlot,
                                     debug_event);
-  return context;
-}
-
-Node* PromiseBuiltinsAssembler::CreatePromiseGetCapabilitiesExecutorContext(
-    Node* promise_capability, Node* native_context) {
-  int kContextLength = PromiseBuiltins::kCapabilitiesContextLength;
-  TNode<Context> context =
-      CreatePromiseContext(CAST(native_context), kContextLength);
-  StoreContextElementNoWriteBarrier(context, PromiseBuiltins::kCapabilitySlot,
-                                    promise_capability);
   return context;
 }
 
@@ -1038,9 +916,9 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
   {
     Label out(this), if_rejectpromise(this), debug_pop(this, Label::kDeferred);
 
-    Node *resolve, *reject;
-    std::tie(resolve, reject) = CreatePromiseResolvingFunctions(
-        CAST(var_result.value()), TrueConstant(), native_context);
+    PromiseResolvingFunctions funcs = CreatePromiseResolvingFunctions(
+        context, CAST(var_result.value()), TrueConstant(), native_context);
+    Node *resolve = funcs.resolve, *reject = funcs.reject;
 
     Node* const maybe_exception = CallJS(
         CodeFactory::Call(isolate, ConvertReceiverMode::kNullOrUndefined),
@@ -1254,10 +1132,10 @@ TF_BUILTIN(PromiseResolveThenableJob, PromiseBuiltinsAssembler) {
 
   BIND(&if_slow);
   {
-    Node* resolve = nullptr;
-    Node* reject = nullptr;
-    std::tie(resolve, reject) = CreatePromiseResolvingFunctions(
-        promise_to_resolve, FalseConstant(), native_context);
+    TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+    PromiseResolvingFunctions funcs = CreatePromiseResolvingFunctions(
+        context, promise_to_resolve, FalseConstant(), native_context);
+    Node *resolve = funcs.resolve, *reject = funcs.reject;
 
     Label if_exception(this, Label::kDeferred);
     VARIABLE(var_exception, MachineRepresentation::kTagged, TheHoleConstant());
@@ -1583,7 +1461,7 @@ TF_BUILTIN(PromiseReject, PromiseBuiltinsAssembler) {
 
 std::pair<Node*, Node*> PromiseBuiltinsAssembler::CreatePromiseFinallyFunctions(
     Node* on_finally, Node* constructor, Node* native_context) {
-  const TNode<Context> promise_context = CreatePromiseContext(
+  const TNode<Context> promise_context = AllocateSyntheticFunctionContext(
       CAST(native_context), PromiseBuiltins::kPromiseFinallyContextLength);
   StoreContextElementNoWriteBarrier(
       promise_context, PromiseBuiltins::kOnFinallySlot, on_finally);
@@ -1612,7 +1490,7 @@ TF_BUILTIN(PromiseValueThunkFinally, PromiseBuiltinsAssembler) {
 
 Node* PromiseBuiltinsAssembler::CreateValueThunkFunction(Node* value,
                                                          Node* native_context) {
-  const TNode<Context> value_thunk_context = CreatePromiseContext(
+  const TNode<Context> value_thunk_context = AllocateSyntheticFunctionContext(
       CAST(native_context),
       PromiseBuiltins::kPromiseValueThunkOrReasonContextLength);
   StoreContextElementNoWriteBarrier(value_thunk_context,
@@ -1674,7 +1552,7 @@ TF_BUILTIN(PromiseThrowerFinally, PromiseBuiltinsAssembler) {
 
 Node* PromiseBuiltinsAssembler::CreateThrowerFunction(Node* reason,
                                                       Node* native_context) {
-  const TNode<Context> thrower_context = CreatePromiseContext(
+  const TNode<Context> thrower_context = AllocateSyntheticFunctionContext(
       CAST(native_context),
       PromiseBuiltins::kPromiseValueThunkOrReasonContextLength);
   StoreContextElementNoWriteBarrier(thrower_context,
