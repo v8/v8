@@ -41,15 +41,13 @@ void BitVector::Iterator::Advance() {
 }
 
 int BitVector::Count() const {
-  if (data_length_ == 0) {
-    return base::bits::CountPopulation(data_.inline_);
-  } else {
-    int count = 0;
-    for (int i = 0; i < data_length_; i++) {
-      count += base::bits::CountPopulation(data_.ptr_[i]);
-    }
-    return count;
+  if (is_inline()) return base::bits::CountPopulation(data_.inline_);
+
+  int count = 0;
+  for (int i = 0; i < data_length_; i++) {
+    count += base::bits::CountPopulation(data_.ptr_[i]);
   }
+  return count;
 }
 
 }  // namespace internal
