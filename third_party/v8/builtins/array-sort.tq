@@ -234,7 +234,7 @@ namespace array {
   // copied values from the prototype chain to the receiver if they were visible
   // through a hole.
 
-  transitioning builtin Load<ElementsAccessor: type extends ElementsKind>(
+  transitioning builtin Load<ElementsAccessor : type extends ElementsKind>(
       context: Context, sortState: SortState, index: Smi): JSAny|TheHole {
     const receiver = sortState.receiver;
     if (!HasProperty_Inline(receiver, index)) return TheHole;
@@ -268,7 +268,7 @@ namespace array {
     }
   }
 
-  transitioning builtin Store<ElementsAccessor: type extends ElementsKind>(
+  transitioning builtin Store<ElementsAccessor : type extends ElementsKind>(
       context: Context, sortState: SortState, index: Smi, value: JSAny): Smi {
     SetProperty(sortState.receiver, index, value);
     return kSuccess;
@@ -301,7 +301,7 @@ namespace array {
     return kSuccess;
   }
 
-  transitioning builtin Delete<ElementsAccessor: type extends ElementsKind>(
+  transitioning builtin Delete<ElementsAccessor : type extends ElementsKind>(
       context: Context, sortState: SortState, index: Smi): Smi {
     const receiver = sortState.receiver;
     DeleteProperty(receiver, index, kStrict);
@@ -381,7 +381,7 @@ namespace array {
     return v;
   }
 
-  builtin CanUseSameAccessor<ElementsAccessor: type extends ElementsKind>(
+  builtin CanUseSameAccessor<ElementsAccessor : type extends ElementsKind>(
       context: Context, receiver: JSReceiver, initialReceiverMap: Map,
       initialReceiverLength: Number): Boolean {
     if (receiver.map != initialReceiverMap) return False;
