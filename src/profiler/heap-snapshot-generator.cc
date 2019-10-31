@@ -942,11 +942,16 @@ void V8HeapExplorer::ExtractEphemeronHashTableReferences(
                      table.OffsetOfElementAt(value_index));
     HeapEntry* key_entry = GetEntry(key);
     HeapEntry* value_entry = GetEntry(value);
-    if (key_entry && value_entry) {
-      const char* edge_name =
-          names_->GetFormatted("key %s in WeakMap", key_entry->name());
+    HeapEntry* table_entry = GetEntry(table);
+    if (key_entry && value_entry && !key.IsUndefined()) {
+      const char* edge_name = names_->GetFormatted(
+          "part of key (%s @%u) -> value (%s @%u) pair in WeakMap (table @%u)",
+          key_entry->name(), key_entry->id(), value_entry->name(),
+          value_entry->id(), table_entry->id());
       key_entry->SetNamedAutoIndexReference(HeapGraphEdge::kInternal, edge_name,
                                             value_entry, names_);
+      table_entry->SetNamedAutoIndexReference(HeapGraphEdge::kInternal,
+                                              edge_name, value_entry, names_);
     }
   }
 }

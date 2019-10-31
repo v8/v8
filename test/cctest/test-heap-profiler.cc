@@ -839,13 +839,24 @@ TEST(HeapSnapshotEphemeron) {
   const v8::HeapGraphNode* key = GetProperty(
       env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "key");
   CHECK(key);
+  const v8::HeapGraphNode* weakmap = GetProperty(
+      env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "wm");
+  CHECK(weakmap);
+  const v8::HeapGraphNode* weakmap_table = GetProperty(
+      env->GetIsolate(), weakmap, v8::HeapGraphEdge::kInternal, "table");
+  CHECK(weakmap_table);
   bool success = false;
   for (int i = 0, count = key->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* edge = key->GetChild(i);
     const v8::HeapGraphNode* child = edge->GetToNode();
     if (!strcmp("ValueClass", GetName(child))) {
       v8::String::Utf8Value edge_name(CcTest::isolate(), edge->GetName());
-      CHECK(EndsWith(*edge_name, " / key KeyClass in WeakMap"));
+      std::stringstream end_of_label;
+      end_of_label << "/ part of key (KeyClass @" << key->GetId()
+                   << ") -> value (ValueClass @" << child->GetId()
+                   << ") pair in WeakMap (table @" << weakmap_table->GetId()
+                   << ")";
+      CHECK(EndsWith(*edge_name, end_of_label.str().c_str()));
       success = true;
       break;
     }
