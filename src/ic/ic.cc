@@ -427,7 +427,13 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name,
 
   if (it.IsFound() || !ShouldThrowReferenceError()) {
     // Update inline cache and stub cache.
-    if (use_ic) UpdateCaches(&it);
+    if (use_ic) {
+      UpdateCaches(&it);
+    } else if (state() == NO_FEEDBACK) {
+      // Tracing IC stats
+      IsLoadGlobalIC() ? TraceIC("LoadGlobalIC", name)
+                       : TraceIC("LoadIC", name);
+    }
 
     if (IsAnyHas()) {
       // Named lookup in the object.
@@ -488,6 +494,8 @@ MaybeHandle<Object> LoadGlobalIC::Load(Handle<Name> name,
           TRACE_HANDLER_STATS(isolate(), LoadGlobalIC_SlowStub);
           SetCache(name, LoadHandler::LoadSlow(isolate()));
         }
+        TraceIC("LoadGlobalIC", name);
+      } else if (state() == NO_FEEDBACK) {
         TraceIC("LoadGlobalIC", name);
       }
       return result;
@@ -1415,8 +1423,9 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
         SetCache(name, StoreHandler::StoreSlow(isolate()));
       }
       TraceIC("StoreGlobalIC", name);
+    } else if (state() == NO_FEEDBACK) {
+      TraceIC("StoreGlobalIC", name);
     }
-
     script_context->set(lookup_result.slot_index, *value);
     return value;
   }
@@ -1471,7 +1480,13 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
       use_ic = false;
     }
   }
-  if (use_ic) UpdateCaches(&it, value, store_origin);
+  if (use_ic) {
+    UpdateCaches(&it, value, store_origin);
+  } else if (state() == NO_FEEDBACK) {
+    // Tracing IC Stats for No Feedback State.
+    IsStoreGlobalIC() ? TraceIC("StoreGlobalIC", name)
+                      : TraceIC("StoreIC", name);
+  }
 
   MAYBE_RETURN_NULL(Object::SetProperty(
       &it, value, store_origin, Nothing<ShouldThrow>(), IsStoreGlobalIC()));
