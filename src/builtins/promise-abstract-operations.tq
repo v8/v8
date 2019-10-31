@@ -27,8 +27,6 @@ namespace promise {
   const PROMISE_GET_CAPABILITIES_EXECUTOR_SHARED_FUN:
       constexpr NativeContextSlot
   generates 'Context::PROMISE_GET_CAPABILITIES_EXECUTOR_SHARED_FUN';
-  const kNotConstructor: constexpr MessageTemplate
-  generates 'MessageTemplate::kNotConstructor';
   const kPromiseNonCallable: constexpr MessageTemplate
   generates 'MessageTemplate::kPromiseNonCallable';
 

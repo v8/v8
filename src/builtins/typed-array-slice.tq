@@ -59,7 +59,7 @@ namespace typed_array {
     // 1. Let O be the this value.
     // 2. Perform ? ValidateTypedArray(O).
     const src: JSTypedArray =
-        typed_array::ValidateTypedArray(context, receiver, kBuiltinNameSlice);
+        ValidateTypedArray(context, receiver, kBuiltinNameSlice);
 
     // 3. Let len be O.[[ArrayLength]].
     const len: uintptr = src.length;

@@ -7512,44 +7512,6 @@ TNode<JSReceiver> CodeStubAssembler::ToObject_Inline(TNode<Context> context,
   return result.value();
 }
 
-TNode<Smi> CodeStubAssembler::ToSmiLength(TNode<Context> context,
-                                          TNode<Object> input,
-                                          Label* range_error) {
-  TVARIABLE(Smi, result);
-  Label to_integer(this), negative_check(this),
-      heap_number_negative_check(this), return_zero(this), done(this);
-
-  GotoIfNot(TaggedIsSmi(input), &to_integer);
-  result = CAST(input);
-  Goto(&negative_check);
-
-  BIND(&to_integer);
-  {
-    TNode<Number> integer_input = CAST(
-        CallBuiltin(Builtins::kToInteger_TruncateMinusZero, context, input));
-    GotoIfNot(TaggedIsSmi(integer_input), &heap_number_negative_check);
-    result = CAST(integer_input);
-    Goto(&negative_check);
-
-    // integer_input can still be a negative HeapNumber here.
-    BIND(&heap_number_negative_check);
-    TNode<HeapNumber> heap_number_input = CAST(integer_input);
-    Branch(IsTrue(CallBuiltin(Builtins::kLessThan, context, heap_number_input,
-                              SmiConstant(0))),
-           &return_zero, range_error);
-  }
-
-  BIND(&negative_check);
-  Branch(SmiLessThan(result.value(), SmiConstant(0)), &return_zero, &done);
-
-  BIND(&return_zero);
-  result = SmiConstant(0);
-  Goto(&done);
-
-  BIND(&done);
-  return result.value();
-}
-
 TNode<Number> CodeStubAssembler::ToLength_Inline(SloppyTNode<Context> context,
                                                  SloppyTNode<Object> input) {
   TNode<Smi> smi_zero = SmiConstant(0);
@@ -10593,11 +10555,7 @@ TNode<TIndex> CodeStubAssembler::BuildFastLoop(const VariableList& vars,
   return var.value();
 }
 
-// Instantiate BuildFastLoop for Smi and IntPtrT.
-template TNode<Smi> CodeStubAssembler::BuildFastLoop<Smi>(
-    const VariableList& vars, TNode<Smi> start_index, TNode<Smi> end_index,
-    const FastLoopBody<Smi>& body, int increment,
-    IndexAdvanceMode advance_mode);
+// Instantiate BuildFastLoop for IntPtrT and UintPtrT.
 template TNode<IntPtrT> CodeStubAssembler::BuildFastLoop<IntPtrT>(
     const VariableList& vars, TNode<IntPtrT> start_index,
     TNode<IntPtrT> end_index, const FastLoopBody<IntPtrT>& body, int increment,

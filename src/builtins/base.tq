@@ -1373,6 +1373,8 @@ const kInvalidArrayBufferLength: constexpr MessageTemplate
     generates 'MessageTemplate::kInvalidArrayBufferLength';
 const kInvalidArrayLength: constexpr MessageTemplate
     generates 'MessageTemplate::kInvalidArrayLength';
+const kNotConstructor: constexpr MessageTemplate
+    generates 'MessageTemplate::kNotConstructor';
 const kCalledNonCallable: constexpr MessageTemplate
     generates 'MessageTemplate::kCalledNonCallable';
 const kCalledOnNullOrUndefined: constexpr MessageTemplate
@@ -1491,7 +1493,7 @@ extern macro Int32FalseConstant(): bool;
 extern macro EmptyStringConstant(): EmptyString;
 extern macro LengthStringConstant(): String;
 extern macro NanConstant(): NaN;
-extern macro IteratorSymbolConstant(): Symbol;
+extern macro IteratorSymbolConstant(): PublicSymbol;
 extern macro MatchSymbolConstant(): Symbol;
 
 const TheHole: TheHole = TheHoleConstant();
@@ -3245,8 +3247,6 @@ operator '[]=' macro StoreFixedArrayDirect(a: FixedArray, i: Smi, v: Object) {
 }
 
 extern macro GetNumberDictionaryNumberOfElements(NumberDictionary): Smi;
-extern macro GetIteratorMethod(implicit context: Context)(HeapObject): JSAny
-    labels IfIteratorUndefined;
 
 extern macro LoadConstructorOrBackPointer(Map): Object;
 
@@ -3653,6 +3653,7 @@ extern macro IsName(HeapObject): bool;
 extern macro IsPrivateSymbol(HeapObject): bool;
 extern macro IsNumber(Object): bool;
 extern macro IsNumberNormalized(Number): bool;
+extern macro IsSafeInteger(Object): bool;
 extern macro IsOddball(HeapObject): bool;
 extern macro IsSymbol(HeapObject): bool;
 extern macro IsJSArrayMap(Map): bool;
@@ -3826,11 +3827,29 @@ transitioning macro GetLengthProperty(implicit context: Context)(o: JSAny):
 }
 
 transitioning macro GetMethod(implicit context: Context)(
-    o: JSAny, name: constexpr string): Callable labels IfNullOrUndefined {
+    o: JSAny, name: AnyName): Callable labels IfNullOrUndefined,
+    IfMethodNotCallable(JSAny) {
   const value = GetProperty(o, name);
+  // TODO(v8:9933): Consider checking for null/undefined after checking for
+  // callable because the latter seems to be more common.
   if (value == Undefined || value == Null) goto IfNullOrUndefined;
   return Cast<Callable>(value)
-      otherwise ThrowTypeError(kPropertyNotFunction, value, name, o);
+      otherwise goto IfMethodNotCallable(value);
+}
+
+transitioning macro GetMethod(implicit context: Context)(
+    o: JSAny, name: String): Callable labels IfNullOrUndefined {
+  try {
+    return GetMethod(o, name) otherwise IfNullOrUndefined, IfMethodNotCallable;
+  }
+  label IfMethodNotCallable(value: JSAny) deferred {
+    ThrowTypeError(kPropertyNotFunction, value, name, o);
+  }
+}
+
+transitioning macro GetMethod(implicit context: Context)(
+    o: JSAny, name: constexpr string): Callable labels IfNullOrUndefined {
+  return GetMethod(o, StringConstant(name)) otherwise IfNullOrUndefined;
 }
 
 extern macro NumberToString(Number): String;

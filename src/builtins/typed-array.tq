@@ -79,63 +79,85 @@ namespace typed_array {
       RawPtr, uintptr, constexpr ElementsKind): Numeric;
   extern macro TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromNumeric(
       Context, JSTypedArray, uintptr, Numeric, constexpr ElementsKind);
+  extern macro TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromTagged(
+      Context, JSTypedArray, uintptr, JSAny,
+      constexpr ElementsKind) labels IfDetached;
 
   type LoadNumericFn = builtin(Context, JSTypedArray, uintptr) => Numeric;
-  type StoreNumericFn = builtin(Context, JSTypedArray, uintptr, Numeric) =>
-      JSAny;
+  type StoreNumericFn = builtin(Context, JSTypedArray, uintptr, Numeric) => Smi;
+  type StoreJSAnyFn = builtin(Context, JSTypedArray, uintptr, JSAny) => Smi;
 
-  struct LoadStoreFn {
+  // The result codes returned by StoreNumericFn and StoreJSAnyFn builtins.
+  const kStoreSucceded: Smi = 0;
+  const kStoreFailureArrayDetached: Smi = 1;
+
+  struct TypedArrayAccessor {
+    LoadNumeric(
+        context: Context, array: JSTypedArray, index: uintptr): Numeric {
+      const loadfn: LoadNumericFn = this.loadNumericFn;
+      return loadfn(context, array, index);
+    }
+
+    StoreNumeric(
+        context: Context, array: JSTypedArray, index: uintptr, value: Numeric) {
+      const storefn: StoreNumericFn = this.storeNumericFn;
+      const result = storefn(context, array, index, value);
+      assert(result == kStoreSucceded);
+    }
+
+    StoreJSAny(
+        context: Context, array: JSTypedArray, index: uintptr, value: JSAny)
+        labels IfDetached {
+      const storefn: StoreJSAnyFn = this.storeJSAnyFn;
+      const result = storefn(context, array, index, value);
+      if (result == kStoreFailureArrayDetached) {
+        goto IfDetached;
+      }
+      assert(result == kStoreSucceded);
+    }
+
     loadNumericFn: LoadNumericFn;
     storeNumericFn: StoreNumericFn;
+    storeJSAnyFn: StoreJSAnyFn;
   }
 
-  macro GetLoadStoreFnForElementsKind(elementsKind: ElementsKind): LoadStoreFn {
-    let loadNumericFn: LoadNumericFn;
-    let storeNumericFn: StoreNumericFn;
+  macro GetTypedArrayAccessor<T : type extends ElementsKind>():
+      TypedArrayAccessor {
+    const loadNumericFn = LoadTypedElement<T>;
+    const storeNumericFn = StoreTypedElementNumeric<T>;
+    const storeJSAnyFn = StoreTypedElementJSAny<T>;
+    return TypedArrayAccessor{loadNumericFn, storeNumericFn, storeJSAnyFn};
+  }
 
+  macro GetTypedArrayAccessor(elementsKind: ElementsKind): TypedArrayAccessor {
     if (IsElementsKindGreaterThan(elementsKind, UINT32_ELEMENTS)) {
       if (elementsKind == INT32_ELEMENTS) {
-        loadNumericFn = LoadTypedElement<Int32Elements>;
-        storeNumericFn = StoreTypedElementNumeric<Int32Elements>;
+        return GetTypedArrayAccessor<Int32Elements>();
       } else if (elementsKind == FLOAT32_ELEMENTS) {
-        loadNumericFn = LoadTypedElement<Float32Elements>;
-        storeNumericFn = StoreTypedElementNumeric<Float32Elements>;
+        return GetTypedArrayAccessor<Float32Elements>();
       } else if (elementsKind == FLOAT64_ELEMENTS) {
-        loadNumericFn = LoadTypedElement<Float64Elements>;
-        storeNumericFn = StoreTypedElementNumeric<Float64Elements>;
+        return GetTypedArrayAccessor<Float64Elements>();
       } else if (elementsKind == UINT8_CLAMPED_ELEMENTS) {
-        loadNumericFn = LoadTypedElement<Uint8ClampedElements>;
-        storeNumericFn = StoreTypedElementNumeric<Uint8ClampedElements>;
+        return GetTypedArrayAccessor<Uint8ClampedElements>();
       } else if (elementsKind == BIGUINT64_ELEMENTS) {
-        loadNumericFn = LoadTypedElement<BigUint64Elements>;
-        storeNumericFn = StoreTypedElementNumeric<BigUint64Elements>;
+        return GetTypedArrayAccessor<BigUint64Elements>();
       } else if (elementsKind == BIGINT64_ELEMENTS) {
-        loadNumericFn = LoadTypedElement<BigInt64Elements>;
-        storeNumericFn = StoreTypedElementNumeric<BigInt64Elements>;
-      } else {
-        unreachable;
+        return GetTypedArrayAccessor<BigInt64Elements>();
       }
     } else {
       if (elementsKind == UINT8_ELEMENTS) {
-        loadNumericFn = LoadTypedElement<Uint8Elements>;
-        storeNumericFn = StoreTypedElementNumeric<Uint8Elements>;
+        return GetTypedArrayAccessor<Uint8Elements>();
       } else if (elementsKind == INT8_ELEMENTS) {
-        loadNumericFn = LoadTypedElement<Int8Elements>;
-        storeNumericFn = StoreTypedElementNumeric<Int8Elements>;
+        return GetTypedArrayAccessor<Int8Elements>();
       } else if (elementsKind == UINT16_ELEMENTS) {
-        loadNumericFn = LoadTypedElement<Uint16Elements>;
-        storeNumericFn = StoreTypedElementNumeric<Uint16Elements>;
+        return GetTypedArrayAccessor<Uint16Elements>();
       } else if (elementsKind == INT16_ELEMENTS) {
-        loadNumericFn = LoadTypedElement<Int16Elements>;
-        storeNumericFn = StoreTypedElementNumeric<Int16Elements>;
+        return GetTypedArrayAccessor<Int16Elements>();
       } else if (elementsKind == UINT32_ELEMENTS) {
-        loadNumericFn = LoadTypedElement<Uint32Elements>;
-        storeNumericFn = StoreTypedElementNumeric<Uint32Elements>;
-      } else {
-        unreachable;
+        return GetTypedArrayAccessor<Uint32Elements>();
       }
     }
-    return LoadStoreFn{loadNumericFn, storeNumericFn};
+    unreachable;
   }
 
   extern macro TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(
@@ -179,11 +201,11 @@ namespace typed_array {
   macro NewAttachedJSTypedArrayWitness(array: AttachedJSTypedArray):
       AttachedJSTypedArrayWitness {
     const kind = array.elements_kind;
-    const accessors: LoadStoreFn = GetLoadStoreFnForElementsKind(kind);
+    const accessor: TypedArrayAccessor = GetTypedArrayAccessor(kind);
     return AttachedJSTypedArrayWitness{
       stable: array,
       unstable: array,
-      loadfn: accessors.loadNumericFn
+      loadfn: accessor.loadNumericFn
     };
   }
 
@@ -231,10 +253,25 @@ namespace typed_array {
 
   builtin StoreTypedElementNumeric<T : type extends ElementsKind>(
       context: Context, typedArray: JSTypedArray, index: uintptr,
-      value: Numeric): JSAny {
+      value: Numeric): Smi {
     StoreJSTypedArrayElementFromNumeric(
         context, typedArray, index, value, KindForArrayType<T>());
-    return Undefined;
+    return kStoreSucceded;
+  }
+
+  // Returns True on sucess or False if the typedArrays was detached.
+  builtin StoreTypedElementJSAny<T : type extends ElementsKind>(
+      context: Context, typedArray: JSTypedArray, index: uintptr,
+      value: JSAny): Smi {
+    try {
+      StoreJSTypedArrayElementFromTagged(
+          context, typedArray, index, value, KindForArrayType<T>())
+          otherwise IfDetached;
+    }
+    label IfDetached {
+      return kStoreFailureArrayDetached;
+    }
+    return kStoreSucceded;
   }
 
   transitioning macro CallCompare(
@@ -345,10 +382,8 @@ namespace typed_array {
 
     const comparefn: Callable =
         Cast<Callable>(comparefnObj) otherwise unreachable;
-    const accessors: LoadStoreFn =
-        GetLoadStoreFnForElementsKind(array.elements_kind);
-    const loadfn = accessors.loadNumericFn;
-    const storefn = accessors.storeNumericFn;
+    const accessor: TypedArrayAccessor =
+        GetTypedArrayAccessor(array.elements_kind);
 
     // Prepare the two work arrays. All numbers are converted to tagged
     // objects first, and merge sorted between the two FixedArrays.
@@ -357,7 +392,7 @@ namespace typed_array {
     const work2: FixedArray = AllocateZeroedFixedArray(Convert<intptr>(len));
 
     for (let i: uintptr = 0; i < len; ++i) {
-      const element: Numeric = loadfn(context, array, i);
+      const element: Numeric = accessor.LoadNumeric(context, array, i);
       work1.objects[i] = element;
       work2.objects[i] = element;
     }
@@ -365,8 +400,10 @@ namespace typed_array {
     TypedArrayMergeSort(work2, 0, len, work1, array, comparefn);
 
     // work1 contains the sorted numbers. Write them back.
-    for (let i: uintptr = 0; i < len; ++i)
-      storefn(context, array, i, UnsafeCast<Numeric>(work1.objects[i]));
+    for (let i: uintptr = 0; i < len; ++i) {
+      accessor.StoreNumeric(
+          context, array, i, UnsafeCast<Numeric>(work1.objects[i]));
+    }
 
     return array;
   }

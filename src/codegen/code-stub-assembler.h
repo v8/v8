@@ -2659,10 +2659,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     kTruncateMinusZero,
   };
 
-  // ES6 7.1.15 ToLength, but jumps to range_error if the result is not a Smi.
-  TNode<Smi> ToSmiLength(TNode<Context> context, TNode<Object> input,
-                         Label* range_error);
-
   // ES6 7.1.15 ToLength, but with inlined fast path.
   TNode<Number> ToLength_Inline(SloppyTNode<Context> context,
                                 SloppyTNode<Object> input);

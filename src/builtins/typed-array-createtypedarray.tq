@@ -283,15 +283,46 @@ namespace typed_array {
     }
   }
 
+  // 22.2.4.6 TypedArrayCreate ( constructor, argumentList )
+  // ES #typedarray-create
+  @export
+  transitioning macro TypedArrayCreateByLength(implicit context: Context)(
+      constructor: Constructor, length: Number, methodName: constexpr string):
+      JSTypedArray {
+    assert(IsSafeInteger(length));
+
+    // 1. Let newTypedArray be ? Construct(constructor, argumentList).
+    const newTypedArrayObj = Construct(constructor, length);
+
+    // 2. Perform ? ValidateTypedArray(newTypedArray).
+    //    ValidateTypedArray currently returns the array, not the ViewBuffer.
+    const newTypedArray: JSTypedArray =
+        ValidateTypedArray(context, newTypedArrayObj, methodName);
+
+    if (IsDetachedBuffer(newTypedArray.buffer)) deferred {
+        ThrowTypeError(kDetachedOperation, methodName);
+      }
+
+    // 3. If argumentList is a List of a single Number, then
+    //   a. If newTypedArray.[[ArrayLength]] < argumentList[0], throw a
+    //      TypeError exception.
+    if (newTypedArray.length < Convert<uintptr>(length)) deferred {
+        ThrowTypeError(kTypedArrayTooShort);
+      }
+
+    // 4. Return newTypedArray.
+    return newTypedArray;
+  }
+
   transitioning macro ConstructByJSReceiver(implicit context:
                                                 Context)(obj: JSReceiver): never
       labels IfConstructByArrayLike(JSReceiver, uintptr, JSReceiver) {
     try {
-      const iteratorMethod: Object =
-          GetIteratorMethod(obj) otherwise IfIteratorUndefined;
-      const iteratorFn: Callable = Cast<Callable>(iteratorMethod)
-          otherwise ThrowTypeError(kIteratorSymbolNonCallable);
-      ConstructByIterable(obj, iteratorFn)
+      // TODO(v8:8906): Use iterator::GetIteratorMethod() once it supports
+      // labels.
+      const iteratorMethod = GetMethod(obj, IteratorSymbolConstant())
+          otherwise IfIteratorUndefined, IfIteratorNotCallable;
+      ConstructByIterable(obj, iteratorMethod)
           otherwise IfConstructByArrayLike;
     }
     label IfIteratorUndefined {
@@ -306,6 +337,9 @@ namespace typed_array {
     }
     label IfInvalidLength(length: Number) {
       ThrowRangeError(kInvalidTypedArrayLength, length);
+    }
+    label IfIteratorNotCallable(_value: JSAny) deferred {
+      ThrowTypeError(kIteratorSymbolNonCallable);
     }
   }
 
