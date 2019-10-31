@@ -2356,6 +2356,14 @@ TEST_F(WasmModuleVerifyTest, MultipleNameSections) {
   EXPECT_EQ(3u, result.value()->name.length());
 }
 
+TEST_F(WasmModuleVerifyTest, BadNameSection) {
+  static const byte data[] = {SECTION_NAMES(
+      0, ADD_COUNT(ADD_COUNT('s', 'r', 'c', '/', 'x', 0xff, 'z', '.', 'c')))};
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_TRUE(result.ok());
+  EXPECT_EQ(0u, result.value()->name.length());
+}
+
 TEST_F(WasmModuleVerifyTest, PassiveDataSegment) {
   static const byte data[] = {
       // memory declaration ----------------------------------------------------
