@@ -470,7 +470,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
   GetProperty(LookupIterator* it, bool is_global_reference = false);
 
-  // ES6 [[Set]] (when passed kDontThrow)
+  // ES6 [[Set]] (when passed kDontThrow and is_global_reference is false)
   // Invariants for this and related functions (unless stated otherwise):
   // 1) When the result is Nothing, an exception is pending.
   // 2) When passed kThrowOnError, the result is never Just(false).
@@ -479,7 +479,8 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // covered by it (eg., concerning API callbacks).
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Maybe<bool> SetProperty(
       LookupIterator* it, Handle<Object> value, StoreOrigin store_origin,
-      Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>());
+      Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>(),
+      bool is_global_reference = false);
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
   SetProperty(Isolate* isolate, Handle<Object> object, Handle<Name> name,
               Handle<Object> value,
@@ -692,7 +693,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // Return value is only meaningful if [found] is set to true on return.
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetPropertyInternal(
       LookupIterator* it, Handle<Object> value, Maybe<ShouldThrow> should_throw,
-      StoreOrigin store_origin, bool* found);
+      StoreOrigin store_origin, bool is_global_reference, bool* found);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Name> ConvertToName(
       Isolate* isolate, Handle<Object> input);

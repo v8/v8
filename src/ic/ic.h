@@ -251,7 +251,8 @@ class StoreIC : public IC {
 
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> Store(
       Handle<Object> object, Handle<Name> name, Handle<Object> value,
-      StoreOrigin store_origin = StoreOrigin::kNamed);
+      StoreOrigin store_origin = StoreOrigin::kNamed,
+      bool should_update_feedback = true);
 
   bool LookupForWrite(LookupIterator* it, Handle<Object> value,
                       StoreOrigin store_origin);
@@ -275,8 +276,9 @@ class StoreGlobalIC : public StoreIC {
                 FeedbackSlot slot, FeedbackSlotKind kind)
       : StoreIC(isolate, vector, slot, kind) {}
 
-  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Store(Handle<Name> name,
-                                                  Handle<Object> value);
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> Store(
+      Handle<Name> name, Handle<Object> value,
+      bool should_update_feedback = true);
 };
 
 enum KeyedStoreCheckMap { kDontCheckMap, kCheckMap };

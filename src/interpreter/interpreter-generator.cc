@@ -214,7 +214,7 @@ IGNITION_HANDLER(LdaGlobalInsideTypeof, InterpreterLoadGlobalAssembler) {
 // StaGlobal <name_index> <slot>
 //
 // Store the value in the accumulator into the global with name in constant pool
-// entry <name_index> using FeedBackVector slot <slot>.
+// entry <name_index> using FeedbackVector slot <slot>.
 IGNITION_HANDLER(StaGlobal, InterpreterAssembler) {
   TNode<Context> context = GetContext();
 

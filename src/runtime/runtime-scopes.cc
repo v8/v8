@@ -931,22 +931,38 @@ MaybeHandle<Object> StoreLookupSlot(
   // Slow case: The property is not in a context slot.  It is either in a
   // context extension object, a property of the subject of a with, or a
   // property of the global object.
-  Handle<JSReceiver> object;
   if (attributes != ABSENT) {
     // The property exists on the holder.
-    object = Handle<JSReceiver>::cast(holder);
+    Handle<JSReceiver> object = Handle<JSReceiver>::cast(holder);
+
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, value, Object::SetProperty(isolate, object, name, value),
+        Object);
   } else if (is_strict(language_mode)) {
     // If absent in strict mode: throw.
     THROW_NEW_ERROR(
         isolate, NewReferenceError(MessageTemplate::kNotDefined, name), Object);
   } else {
     // If absent in sloppy mode: add the property to the global object.
-    object = handle(context->global_object(), isolate);
+    Handle<JSObject> object(context->global_object(), isolate);
+
+    if (context_lookup_flags ==
+        static_cast<ContextLookupFlags>(DONT_FOLLOW_CHAINS)) {
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, value, Object::SetProperty(isolate, object, name, value),
+          Object);
+    } else {
+      // When we follow the context chain, we would have already done a lookup
+      // on the global object, so we should not call SetProperty which does a
+      // lookup again. This would be user visible when there are proxies.
+      LookupIterator it(isolate, object, name, object,
+                        LookupIterator::OWN_SKIP_INTERCEPTOR);
+      MAYBE_RETURN_NULL(JSObject::AddDataProperty(&it, value, NONE,
+                                                  Just(ShouldThrow::kDontThrow),
+                                                  StoreOrigin::kMaybeKeyed));
+    }
   }
 
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
-                             Object::SetProperty(isolate, object, name, value),
-                             Object);
   return value;
 }
 
