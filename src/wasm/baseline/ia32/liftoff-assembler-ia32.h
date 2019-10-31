@@ -777,14 +777,12 @@ void LiftoffAssembler::emit_i32_shr(Register dst, Register src, int amount) {
   shr(dst, amount);
 }
 
-bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
+void LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
   Lzcnt(dst, src);
-  return true;
 }
 
-bool LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
+void LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
   Tzcnt(dst, src);
-  return true;
 }
 
 bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {

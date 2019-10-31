@@ -626,14 +626,12 @@ I32_BINOP_I(xor, Xor)
 
 #undef I32_BINOP_I
 
-bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
+void LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
   TurboAssembler::Clz(dst, src);
-  return true;
 }
 
-bool LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
+void LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
   TurboAssembler::Ctz(dst, src);
-  return true;
 }
 
 bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {

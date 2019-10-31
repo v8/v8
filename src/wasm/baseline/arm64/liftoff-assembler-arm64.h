@@ -563,15 +563,13 @@ FP64_UNOP(f64_sqrt, Fsqrt)
 #undef I64_SHIFTOP
 #undef I64_SHIFTOP_I
 
-bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
+void LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
   Clz(dst.W(), src.W());
-  return true;
 }
 
-bool LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
+void LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
   Rbit(dst.W(), src.W());
   Clz(dst.W(), dst.W());
-  return true;
 }
 
 bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {

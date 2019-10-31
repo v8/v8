@@ -417,8 +417,8 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_i32_shr(Register dst, Register src, int amount);
 
   // i32 unops.
-  inline bool emit_i32_clz(Register dst, Register src);
-  inline bool emit_i32_ctz(Register dst, Register src);
+  inline void emit_i32_clz(Register dst, Register src);
+  inline void emit_i32_ctz(Register dst, Register src);
   inline bool emit_i32_popcnt(Register dst, Register src);
 
   // i64 binops.

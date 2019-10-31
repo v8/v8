@@ -747,15 +747,13 @@ FP64_UNOP(f64_sqrt, vsqrt)
 #undef FP64_UNOP
 #undef FP64_BINOP
 
-bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
+void LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
   clz(dst, src);
-  return true;
 }
 
-bool LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
+void LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
   rbit(dst, src);
   clz(dst, dst);
-  return true;
 }
 
 bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {

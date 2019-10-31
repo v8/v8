@@ -740,14 +740,12 @@ void LiftoffAssembler::emit_i32_shr(Register dst, Register src, int amount) {
   shrl(dst, Immediate(amount));
 }
 
-bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
+void LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
   Lzcntl(dst, src);
-  return true;
 }
 
-bool LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
+void LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
   Tzcntl(dst, src);
-  return true;
 }
 
 bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
