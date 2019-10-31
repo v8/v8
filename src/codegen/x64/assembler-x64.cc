@@ -1072,6 +1072,7 @@ void Assembler::call(Address entry, RelocInfo::Mode rmode) {
 
 void Assembler::call(Handle<Code> target, RelocInfo::Mode rmode) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
+  DCHECK(target->IsExecutable());
   EnsureSpace ensure_space(this);
   // 1110 1000 #32-bit disp.
   emit(0xE8);

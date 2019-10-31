@@ -957,6 +957,11 @@ class V8_EXPORT_PRIVATE Factory {
       return *this;
     }
 
+    CodeBuilder& set_is_executable(bool executable) {
+      is_executable_ = executable;
+      return *this;
+    }
+
     // Indicates the CodeDataContainer should be allocated in read-only space.
     // As an optimization, if the kind-specific flags match that of a canonical
     // container, it will be used instead.
@@ -984,6 +989,7 @@ class V8_EXPORT_PRIVATE Factory {
     Handle<ByteArray> source_position_table_;
     Handle<DeoptimizationData> deoptimization_data_ =
         DeoptimizationData::Empty(isolate_);
+    bool is_executable_ = true;
     bool read_only_data_container_ = false;
     bool is_movable_ = true;
     bool is_turbofanned_ = false;
