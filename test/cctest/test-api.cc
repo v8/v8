@@ -9646,6 +9646,38 @@ TEST(DetachedAccesses) {
 }
 
 
+TEST(DetachedWindow) {
+  LocalContext env1;
+  v8::HandleScope scope(env1->GetIsolate());
+
+  // Create second environment.
+  Local<ObjectTemplate> inner_global_template =
+      FunctionTemplate::New(env1->GetIsolate())->InstanceTemplate();
+  v8::Local<Context> env2 =
+      Context::New(env1->GetIsolate(), nullptr, inner_global_template);
+
+  Local<Value> foo = v8_str("foo");
+
+  // Set same security token for env1 and env2.
+  env1->SetSecurityToken(foo);
+  env2->SetSecurityToken(foo);
+
+  {
+    v8::Context::Scope scope(env2);
+    CompileRun("function fun() { }");
+    CHECK(env1->Global()
+              ->Set(env1.local(), v8_str("fun"), CompileRun("fun"))
+              .FromJust());
+  }
+
+  env2->SetDetachedWindowReason(v8::Context::kDetachedWindowByNavigation);
+
+  CompileRun("fun()");
+  // This merely tests for not crashing, because currently
+  // Runtime_ReportDetachedWindowAccess does nothing.
+}
+
+
 static bool allowed_access = false;
 static bool AccessBlocker(Local<v8::Context> accessing_context,
                           Local<v8::Object> accessed_object,

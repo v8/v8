@@ -1431,6 +1431,7 @@ Handle<NativeContext> Factory::NewNativeContext() {
   context->set_scope_info(ReadOnlyRoots(isolate()).native_scope_info());
   context->set_previous(Context::unchecked_cast(Smi::zero()));
   context->set_extension(*undefined_value());
+  context->SetDetachedWindowReason(v8::Context::kWindowNotDetached);
   context->set_errors_thrown(Smi::zero());
   context->set_math_random_index(Smi::zero());
   context->set_serialized_objects(*empty_fixed_array());

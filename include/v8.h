@@ -9905,6 +9905,32 @@ class V8_EXPORT Context {
   void DetachGlobal();
 
   /**
+   * Reason for detaching a window.
+   */
+  enum DetachedWindowReason {
+    kWindowNotDetached = 0,
+    kDetachedWindowByNavigation,
+    kDetachedWindowByClosing,
+    kDetachedWindowByOtherReason
+  };
+
+  /**
+   * Sets a reason for detaching window, for reporting purposes.
+   *
+   * This API is experimental and may change or be deleted. Do not use!
+   *
+   * A window is a Blink concept. This API marks the context as backing
+   * a detached window. This doesn't necessarily mean that the context is
+   * detached.
+   *
+   * Every time a JS function is called within a context that has a non-zero
+   * DetachedWindowReason, Runtime::kReportDetachedWindowAccess is invoked,
+   * which will report this call to Blink via a callback, which in turn can
+   * report number of such calls via UKM metrics.
+   */
+  void SetDetachedWindowReason(DetachedWindowReason reason);
+
+  /**
    * Creates a new context and returns a handle to the newly allocated
    * context.
    *

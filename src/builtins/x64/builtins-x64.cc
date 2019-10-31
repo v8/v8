@@ -2206,6 +2206,15 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
            Immediate(SharedFunctionInfo::IsNativeBit::kMask |
                      SharedFunctionInfo::IsStrictBit::kMask));
   __ j(not_zero, &done_convert);
+
+  // Check if the window is marked as detached.
+  Label detached_window, after_detached_window;
+  __ LoadNativeContextSlot(Context::DETACHED_WINDOW_REASON_INDEX,
+                           kScratchRegister);
+  __ Cmp(kScratchRegister, Smi::zero());
+  __ j(not_zero, &detached_window);
+  __ bind(&after_detached_window);
+
   {
     // ----------- S t a t e -------------
     //  -- rax : the number of arguments (not including the receiver)
@@ -2283,6 +2292,15 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
     __ Push(rdi);
     __ CallRuntime(Runtime::kThrowConstructorNonCallableError);
   }
+
+  __ bind(&detached_window);
+  {
+    FrameScope frame(masm, StackFrame::INTERNAL);
+    __ PushCallerSaved(kDontSaveFPRegs, kScratchRegister);
+    __ CallRuntime(Runtime::kReportDetachedWindowAccess);
+    __ PopCallerSaved(kDontSaveFPRegs, kScratchRegister);
+  }
+  __ jmp(&after_detached_window);
 }
 
 namespace {

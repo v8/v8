@@ -485,5 +485,16 @@ STATIC_ASSERT(NativeContext::kSize ==
               (Context::SizeFor(NativeContext::NATIVE_CONTEXT_SLOTS) +
                kSystemPointerSize));
 
+void NativeContext::SetDetachedWindowReason(
+    v8::Context::DetachedWindowReason reason) {
+  set_detached_window_reason(Smi::FromEnum(reason));
+}
+
+v8::Context::DetachedWindowReason NativeContext::GetDetachedWindowReason()
+    const {
+  return static_cast<v8::Context::DetachedWindowReason>(
+      detached_window_reason().value());
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -82,6 +82,19 @@ RUNTIME_FUNCTION(Runtime_ThrowSymbolAsyncIteratorInvalid) {
       isolate, NewTypeError(MessageTemplate::kSymbolAsyncIteratorInvalid));
 }
 
+RUNTIME_FUNCTION(Runtime_ReportDetachedWindowAccess) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  Handle<NativeContext> native_context(isolate->context().native_context(),
+                                       isolate);
+  // TODO(bartekn,chromium:1018156): Report this to Blink, for it to emit it
+  // via UKM. Use native_context->detached_window_reason().value()
+  // This will be addressed as the first step after this CL lands.
+
+  // The return value isn't needed, but RUNTIME_FUNCTION sets it up.
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 #define THROW_ERROR(isolate, args, call)                               \
   HandleScope scope(isolate);                                          \
   DCHECK_LE(1, args.length());                                         \

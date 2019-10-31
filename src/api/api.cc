@@ -6002,6 +6002,20 @@ void Context::DetachGlobal() {
   isolate->bootstrapper()->DetachGlobal(context);
 }
 
+void Context::SetDetachedWindowReason(DetachedWindowReason reason) {
+  i::Handle<i::Context> context = Utils::OpenHandle(this);
+  i::Isolate* isolate = context->GetIsolate();
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
+  CHECK(context->IsNativeContext());
+  i::Handle<i::NativeContext> native_context =
+      i::Handle<i::NativeContext>::cast(context);
+  // Prioritize kDetachedWindowByNavigation over other reasons.
+  if (native_context->GetDetachedWindowReason() !=
+      kDetachedWindowByNavigation) {
+    native_context->SetDetachedWindowReason(reason);
+  }
+}
+
 Local<v8::Object> Context::GetExtrasBindingObject() {
   i::Handle<i::Context> context = Utils::OpenHandle(this);
   i::Isolate* isolate = context->GetIsolate();

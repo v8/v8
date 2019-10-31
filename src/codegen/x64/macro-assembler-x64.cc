@@ -1185,10 +1185,10 @@ void MacroAssembler::SmiCompare(Register dst, Smi src) {
 }
 
 void MacroAssembler::Cmp(Register dst, Smi src) {
-  DCHECK_NE(dst, kScratchRegister);
   if (src.value() == 0) {
     test_tagged(dst, dst);
   } else {
+    DCHECK_NE(dst, kScratchRegister);
     Register constant_reg = GetSmiConstant(src);
     cmp_tagged(dst, constant_reg);
   }

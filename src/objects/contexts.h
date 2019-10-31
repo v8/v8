@@ -366,6 +366,7 @@ enum ContextLookupFlags {
   V(WEAKMAP_GET_INDEX, JSFunction, weakmap_get)                                \
   V(WEAKSET_ADD_INDEX, JSFunction, weakset_add)                                \
   V(OSR_CODE_CACHE_INDEX, WeakFixedArray, osr_code_cache)                      \
+  V(DETACHED_WINDOW_REASON_INDEX, Smi, detached_window_reason)                 \
   NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)
 
 // A table of all script contexts. Every loaded top-level script with top-level
@@ -728,6 +729,9 @@ class NativeContext : public Context {
   void ResetErrorsThrown();
   void IncrementErrorsThrown();
   int GetErrorsThrown();
+
+  void SetDetachedWindowReason(v8::Context::DetachedWindowReason reason);
+  v8::Context::DetachedWindowReason GetDetachedWindowReason() const;
 
  private:
   STATIC_ASSERT(OffsetOfElementAt(EMBEDDER_DATA_INDEX) ==
