@@ -924,9 +924,54 @@ icu::Calendar* CreateCalendar(Isolate* isolate, const icu::Locale& icu_locale,
   return calendar_cache.Pointer()->CreateCalendar(icu_locale, tz);
 }
 
+icu::UnicodeString ReplaceHourCycleInPattern(icu::UnicodeString pattern,
+                                             Intl::HourCycle hc) {
+  char16_t replacement;
+  switch (hc) {
+    case Intl::HourCycle::kUndefined:
+      return pattern;
+    case Intl::HourCycle::kH11:
+      replacement = 'K';
+      break;
+    case Intl::HourCycle::kH12:
+      replacement = 'h';
+      break;
+    case Intl::HourCycle::kH23:
+      replacement = 'H';
+      break;
+    case Intl::HourCycle::kH24:
+      replacement = 'k';
+      break;
+  }
+  bool replace = true;
+  icu::UnicodeString result;
+  for (int32_t i = 0; i < pattern.length(); i++) {
+    char16_t ch = pattern.charAt(i);
+    switch (ch) {
+      case '\'':
+        replace = !replace;
+        result.append(ch);
+        break;
+      case 'H':
+        V8_FALLTHROUGH;
+      case 'h':
+        V8_FALLTHROUGH;
+      case 'K':
+        V8_FALLTHROUGH;
+      case 'k':
+        result.append(replace ? replacement : ch);
+        break;
+      default:
+        result.append(ch);
+        break;
+    }
+  }
+  return result;
+}
+
 std::unique_ptr<icu::SimpleDateFormat> CreateICUDateFormat(
     const icu::Locale& icu_locale, const icu::UnicodeString& skeleton,
-    icu::DateTimePatternGenerator* generator) {
+    icu::DateTimePatternGenerator* generator, Intl::HourCycle hc) {
   // See https://github.com/tc39/ecma402/issues/225 . The best pattern
   // generation needs to be done in the base locale according to the
   // current spec however odd it may be. See also crbug.com/826549 .
@@ -941,6 +986,7 @@ std::unique_ptr<icu::SimpleDateFormat> CreateICUDateFormat(
   UErrorCode status = U_ZERO_ERROR;
   pattern = generator->getBestPattern(skeleton, UDATPG_MATCH_HOUR_FIELD_LENGTH,
                                       status);
+  pattern = ReplaceHourCycleInPattern(pattern, hc);
   CHECK(U_SUCCESS(status));
 
   // Make formatter from skeleton. Calendar and numbering system are added
@@ -958,7 +1004,8 @@ class DateFormatCache {
  public:
   icu::SimpleDateFormat* Create(const icu::Locale& icu_locale,
                                 const icu::UnicodeString& skeleton,
-                                icu::DateTimePatternGenerator* generator) {
+                                icu::DateTimePatternGenerator* generator,
+                                Intl::HourCycle hc) {
     std::string key;
     skeleton.toUTF8String<std::string>(key);
     key += ":";
@@ -974,7 +1021,7 @@ class DateFormatCache {
       map_.clear();
     }
     std::unique_ptr<icu::SimpleDateFormat> instance(
-        CreateICUDateFormat(icu_locale, skeleton, generator));
+        CreateICUDateFormat(icu_locale, skeleton, generator, hc));
     if (instance.get() == nullptr) return nullptr;
     map_[key] = std::move(instance);
     return static_cast<icu::SimpleDateFormat*>(map_[key]->clone());
@@ -987,11 +1034,11 @@ class DateFormatCache {
 
 std::unique_ptr<icu::SimpleDateFormat> CreateICUDateFormatFromCache(
     const icu::Locale& icu_locale, const icu::UnicodeString& skeleton,
-    icu::DateTimePatternGenerator* generator) {
+    icu::DateTimePatternGenerator* generator, Intl::HourCycle hc) {
   static base::LazyInstance<DateFormatCache>::type cache =
       LAZY_INSTANCE_INITIALIZER;
   return std::unique_ptr<icu::SimpleDateFormat>(
-      cache.Pointer()->Create(icu_locale, skeleton, generator));
+      cache.Pointer()->Create(icu_locale, skeleton, generator, hc));
 }
 
 icu::UnicodeString SkeletonFromDateFormat(
@@ -1192,7 +1239,7 @@ std::unique_ptr<icu::SimpleDateFormat> DateTimeStylePattern(
   }
 
   return CreateICUDateFormatFromCache(icu_locale, ReplaceSkeleton(skeleton, hc),
-                                      generator);
+                                      generator, hc);
 }
 
 class DateTimePatternGeneratorCache {
@@ -1529,12 +1576,12 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
 
     icu::UnicodeString skeleton_ustr(skeleton.c_str());
     icu_date_format = CreateICUDateFormatFromCache(icu_locale, skeleton_ustr,
-                                                   generator.get());
+                                                   generator.get(), hc);
     if (icu_date_format.get() == nullptr) {
       // Remove extensions and try again.
       icu_locale = icu::Locale(icu_locale.getBaseName());
       icu_date_format = CreateICUDateFormatFromCache(icu_locale, skeleton_ustr,
-                                                     generator.get());
+                                                     generator.get(), hc);
       if (icu_date_format.get() == nullptr) {
         FATAL("Failed to create ICU date format, are ICU data files missing?");
       }

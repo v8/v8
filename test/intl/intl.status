@@ -41,6 +41,8 @@
   'number-format/unified/notation-engineering-formatToParts': [PASS, FAIL],
   'number-format/unified/notation-scientific-formatToParts': [PASS, FAIL],
 
+  # http://crbug/v8/9930
+  'date-format/format_range_hour_cycle': [FAIL],
 }],  # ALWAYS
 
 ['variant == no_wasm_traps', {
