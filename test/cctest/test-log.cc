@@ -170,7 +170,7 @@ class ScopedLoggerInitializer {
       // conditions will be triggered.
       if (address_column >= columns.size()) continue;
       uintptr_t address =
-          strtoll(columns.at(address_column).c_str(), nullptr, 16);
+          strtoull(columns.at(address_column).c_str(), nullptr, 16);
       if (address == 0) continue;
       if (!allow_duplicates) {
         auto match = map.find(address);
