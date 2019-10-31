@@ -31,31 +31,18 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
  public:
   using Key = typename Shape::Key;
   // Returns the value at entry.
-  Object ValueAt(InternalIndex entry) {
-    Isolate* isolate = GetIsolateForPtrCompr(*this);
-    return ValueAt(isolate, entry);
-  }
-  Object ValueAt(Isolate* isolate, InternalIndex entry) {
-    return this->get(isolate, DerivedHashTable::EntryToIndex(entry) +
-                                  Derived::kEntryValueIndex);
-  }
+  inline Object ValueAt(InternalIndex entry);
+  inline Object ValueAt(Isolate* isolate, InternalIndex entry);
 
   // Set the value for entry.
-  void ValueAtPut(InternalIndex entry, Object value) {
-    this->set(DerivedHashTable::EntryToIndex(entry) + Derived::kEntryValueIndex,
-              value);
-  }
+  inline void ValueAtPut(InternalIndex entry, Object value);
 
   // Returns the property details for the property at entry.
-  PropertyDetails DetailsAt(InternalIndex entry) {
-    return Shape::DetailsAt(Derived::cast(*this), entry);
-  }
+  inline PropertyDetails DetailsAt(InternalIndex entry);
 
   // Set the details for entry.
-  void DetailsAtPut(Isolate* isolate, InternalIndex entry,
-                    PropertyDetails value) {
-    Shape::DetailsAtPut(isolate, Derived::cast(*this), entry, value);
-  }
+  inline void DetailsAtPut(Isolate* isolate, InternalIndex entry,
+                           PropertyDetails value);
 
   // Delete a property from the dictionary.
   V8_WARN_UNUSED_RESULT static Handle<Derived> DeleteEntry(
@@ -104,21 +91,11 @@ class BaseDictionaryShape : public BaseShape<Key> {
  public:
   static const bool kHasDetails = true;
   template <typename Dictionary>
-  static inline PropertyDetails DetailsAt(Dictionary dict,
-                                          InternalIndex entry) {
-    STATIC_ASSERT(Dictionary::kEntrySize == 3);
-    DCHECK(entry.is_found());
-    return PropertyDetails(Smi::cast(dict.get(Dictionary::EntryToIndex(entry) +
-                                              Dictionary::kEntryDetailsIndex)));
-  }
+  static inline PropertyDetails DetailsAt(Dictionary dict, InternalIndex entry);
 
   template <typename Dictionary>
   static inline void DetailsAtPut(Isolate* isolate, Dictionary dict,
-                                  InternalIndex entry, PropertyDetails value) {
-    STATIC_ASSERT(Dictionary::kEntrySize == 3);
-    dict.set(Dictionary::EntryToIndex(entry) + Dictionary::kEntryDetailsIndex,
-             value.AsSmi());
-  }
+                                  InternalIndex entry, PropertyDetails value);
 };
 
 class NameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
@@ -146,26 +123,11 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) BaseNameDictionary
   static const int kEntryValueIndex = 1;
 
   // Accessors for next enumeration index.
-  void SetNextEnumerationIndex(int index) {
-    DCHECK_NE(0, index);
-    this->set(kNextEnumerationIndexIndex, Smi::FromInt(index));
-  }
+  inline void SetNextEnumerationIndex(int index);
+  inline int NextEnumerationIndex();
 
-  int NextEnumerationIndex() {
-    return Smi::ToInt(this->get(kNextEnumerationIndexIndex));
-  }
-
-  void SetHash(int hash) {
-    DCHECK(PropertyArray::HashField::is_valid(hash));
-    this->set(kObjectHashIndex, Smi::FromInt(hash));
-  }
-
-  int Hash() const {
-    Object hash_obj = this->get(kObjectHashIndex);
-    int hash = Smi::ToInt(hash_obj);
-    DCHECK(PropertyArray::HashField::is_valid(hash));
-    return hash;
-  }
+  inline void SetHash(int hash);
+  inline int Hash() const;
 
   // Creates a new dictionary.
   V8_WARN_UNUSED_RESULT static Handle<Derived> New(

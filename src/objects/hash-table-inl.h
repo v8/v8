@@ -7,6 +7,7 @@
 
 #include "src/objects/hash-table.h"
 
+#include "src/execution/isolate-utils-inl.h"
 #include "src/heap/heap.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/heap-object-inl.h"
@@ -183,6 +184,17 @@ bool HashTable<Derived, Shape>::ToKey(Isolate* isolate, InternalIndex entry,
 }
 
 template <typename Derived, typename Shape>
+Object HashTable<Derived, Shape>::KeyAt(InternalIndex entry) {
+  Isolate* isolate = GetIsolateForPtrCompr(*this);
+  return KeyAt(isolate, entry);
+}
+
+template <typename Derived, typename Shape>
+Object HashTable<Derived, Shape>::KeyAt(Isolate* isolate, InternalIndex entry) {
+  return get(isolate, EntryToIndex(entry) + kEntryKeyIndex);
+}
+
+template <typename Derived, typename Shape>
 void HashTable<Derived, Shape>::set_key(int index, Object value) {
   DCHECK(!IsEphemeronHashTable());
   FixedArray::set(index, value);
@@ -193,6 +205,16 @@ void HashTable<Derived, Shape>::set_key(int index, Object value,
                                         WriteBarrierMode mode) {
   DCHECK(!IsEphemeronHashTable());
   FixedArray::set(index, value, mode);
+}
+
+template <typename Derived, typename Shape>
+void HashTable<Derived, Shape>::SetCapacity(int capacity) {
+  // To scale a computed hash code to fit within the hash table, we
+  // use bit-wise AND with a mask, so the capacity must be positive
+  // and non-zero.
+  DCHECK_GT(capacity, 0);
+  DCHECK_LE(capacity, kMaxCapacity);
+  set(kCapacityIndex, Smi::FromInt(capacity));
 }
 
 template <typename KeyT>
