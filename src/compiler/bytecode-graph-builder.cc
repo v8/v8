@@ -4168,7 +4168,7 @@ void BuildGraphFromBytecode(JSHeapBroker* broker, Zone* local_zone,
                             SourcePositionTable* source_positions,
                             int inlining_id, BytecodeGraphBuilderFlags flags,
                             TickCounter* tick_counter) {
-  DCHECK(shared_info.IsSerializedForCompilation(feedback_vector));
+  DCHECK(broker->IsSerializedForCompilation(shared_info, feedback_vector));
   BytecodeGraphBuilder builder(
       broker, local_zone, broker->target_native_context(), shared_info,
       feedback_vector, osr_offset, jsgraph, invocation_frequency,

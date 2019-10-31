@@ -1645,9 +1645,6 @@ class SharedFunctionInfoData : public HeapObjectData {
   int builtin_id() const { return builtin_id_; }
   int context_header_size() const { return context_header_size_; }
   BytecodeArrayData* GetBytecodeArray() const { return GetBytecodeArray_; }
-  void SetSerializedForCompilation(JSHeapBroker* broker,
-                                   FeedbackVectorRef feedback);
-  bool IsSerializedForCompilation(FeedbackVectorRef feedback) const;
   void SerializeFunctionTemplateInfo(JSHeapBroker* broker);
   ScopeInfoData* scope_info() const { return scope_info_; }
   void SerializeScopeInfoChain(JSHeapBroker* broker);
@@ -1675,9 +1672,6 @@ class SharedFunctionInfoData : public HeapObjectData {
   int const builtin_id_;
   int context_header_size_;
   BytecodeArrayData* const GetBytecodeArray_;
-  ZoneUnorderedSet<Handle<FeedbackVector>, Handle<FeedbackVector>::hash,
-                   Handle<FeedbackVector>::equal_to>
-      serialized_for_compilation_;
 #define DECL_MEMBER(type, name) type const name##_;
   BROKER_SFI_FIELDS(DECL_MEMBER)
 #undef DECL_MEMBER
@@ -1697,8 +1691,7 @@ SharedFunctionInfoData::SharedFunctionInfoData(
           object->HasBytecodeArray()
               ? broker->GetOrCreateData(object->GetBytecodeArray())
                     ->AsBytecodeArray()
-              : nullptr),
-      serialized_for_compilation_(broker->zone())
+              : nullptr)
 #define INIT_MEMBER(type, name) , name##_(object->name())
           BROKER_SFI_FIELDS(INIT_MEMBER)
 #undef INIT_MEMBER
@@ -1708,13 +1701,6 @@ SharedFunctionInfoData::SharedFunctionInfoData(
       scope_info_(nullptr) {
   DCHECK_EQ(HasBuiltinId_, builtin_id_ != Builtins::kNoBuiltinId);
   DCHECK_EQ(HasBytecodeArray_, GetBytecodeArray_ != nullptr);
-}
-
-void SharedFunctionInfoData::SetSerializedForCompilation(
-    JSHeapBroker* broker, FeedbackVectorRef feedback) {
-  CHECK(serialized_for_compilation_.insert(feedback.object()).second);
-  TRACE(broker, "Set function " << this << " with " << feedback
-                                << " as serialized for compilation");
 }
 
 void SharedFunctionInfoData::SerializeFunctionTemplateInfo(
@@ -1737,12 +1723,6 @@ void SharedFunctionInfoData::SerializeScopeInfoChain(JSHeapBroker* broker) {
               Handle<SharedFunctionInfo>::cast(object())->scope_info())
           ->AsScopeInfo();
   scope_info_->SerializeScopeInfoChain(broker);
-}
-
-bool SharedFunctionInfoData::IsSerializedForCompilation(
-    FeedbackVectorRef feedback) const {
-  return serialized_for_compilation_.find(feedback.object()) !=
-         serialized_for_compilation_.end();
 }
 
 class SourceTextModuleData : public HeapObjectData {
@@ -2280,7 +2260,8 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
       feedback_(zone()),
       bytecode_analyses_(zone()),
       property_access_infos_(zone()),
-      typed_array_string_tags_(zone()) {
+      typed_array_string_tags_(zone()),
+      serialized_functions_(zone()) {
   // Note that this initialization of {refs_} with the minimal initial capacity
   // is redundant in the normal use case (concurrent compilation enabled,
   // standard objects to be serialized), as the map is going to be replaced
@@ -2529,6 +2510,42 @@ StringRef JSHeapBroker::GetTypedArrayStringTag(ElementsKind kind) {
   size_t idx = kind - FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND;
   CHECK_LT(idx, typed_array_string_tags_.size());
   return StringRef(this, typed_array_string_tags_[idx]);
+}
+
+bool JSHeapBroker::ShouldBeSerializedForCompilation(
+    const SharedFunctionInfoRef& shared, const FeedbackVectorRef& feedback,
+    const HintsVector& arguments) const {
+  SerializedFunction function{shared, feedback};
+  auto matching_functions = serialized_functions_.equal_range(function);
+  return std::find_if(matching_functions.first, matching_functions.second,
+                      [&arguments](const auto& entry) {
+                        return entry.second == arguments;
+                      }) == matching_functions.second;
+}
+
+void JSHeapBroker::SetSerializedForCompilation(
+    const SharedFunctionInfoRef& shared, const FeedbackVectorRef& feedback,
+    const HintsVector& arguments) {
+  HintsVector arguments_copy_in_broker_zone(zone());
+  for (auto const& hints : arguments) {
+    Hints hint_copy_in_broker_zone;
+    hint_copy_in_broker_zone.AddFromChildSerializer(hints, zone());
+    arguments_copy_in_broker_zone.push_back(hint_copy_in_broker_zone);
+  }
+
+  SerializedFunction function = {shared, feedback};
+  serialized_functions_.insert({function, arguments_copy_in_broker_zone});
+  TRACE(this, "Set function " << shared << " with " << feedback
+                              << " as serialized for compilation");
+}
+
+bool JSHeapBroker::IsSerializedForCompilation(
+    const SharedFunctionInfoRef& shared,
+    const FeedbackVectorRef& feedback) const {
+  if (mode() == kDisabled) return true;
+
+  SerializedFunction function = {shared, feedback};
+  return serialized_functions_.find(function) != serialized_functions_.end();
 }
 
 bool JSHeapBroker::IsArrayOrObjectPrototype(const JSObjectRef& object) const {
@@ -4051,14 +4068,6 @@ JSArrayRef SharedFunctionInfoRef::GetTemplateObject(
   return JSArrayRef(broker(), array);
 }
 
-void SharedFunctionInfoRef::SetSerializedForCompilation(
-    FeedbackVectorRef feedback) {
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  CHECK(HasBytecodeArray());
-  data()->AsSharedFunctionInfo()->SetSerializedForCompilation(broker(),
-                                                              feedback);
-}
-
 void SharedFunctionInfoRef::SerializeFunctionTemplateInfo() {
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsSharedFunctionInfo()->SerializeFunctionTemplateInfo(broker());
@@ -4082,12 +4091,6 @@ SharedFunctionInfoRef::function_template_info() const {
       data()->AsSharedFunctionInfo()->function_template_info();
   if (!function_template_info) return base::nullopt;
   return FunctionTemplateInfoRef(broker(), function_template_info);
-}
-
-bool SharedFunctionInfoRef::IsSerializedForCompilation(
-    FeedbackVectorRef feedback) const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) return HasBytecodeArray();
-  return data()->AsSharedFunctionInfo()->IsSerializedForCompilation(feedback);
 }
 
 int SharedFunctionInfoRef::context_header_size() const {

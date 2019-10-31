@@ -53,8 +53,8 @@ TEST(SerializeEmptyFunction) {
   SerializerTester tester(
       "function f() {}; %EnsureFeedbackVectorForFunction(f); return f;");
   JSFunctionRef function = tester.function();
-  CHECK(
-      function.shared().IsSerializedForCompilation(function.feedback_vector()));
+  CHECK(tester.broker()->IsSerializedForCompilation(
+      function.shared(), function.feedback_vector()));
 }
 
 // This helper function allows for testing whether an inlinee candidate
@@ -64,7 +64,8 @@ void CheckForSerializedInlinee(const char* source, int argc = 0,
                                Handle<Object> argv[] = {}) {
   SerializerTester tester(source);
   JSFunctionRef f = tester.function();
-  CHECK(f.shared().IsSerializedForCompilation(f.feedback_vector()));
+  CHECK(tester.broker()->IsSerializedForCompilation(f.shared(),
+                                                    f.feedback_vector()));
 
   MaybeHandle<Object> g_obj = Execution::Call(
       tester.isolate(), tester.function().object(),
@@ -81,7 +82,7 @@ void CheckForSerializedInlinee(const char* source, int argc = 0,
                               handle(g_func->shared(), tester.isolate()));
   FeedbackVectorRef g_fv(tester.broker(),
                          handle(g_func->feedback_vector(), tester.isolate()));
-  CHECK(g_sfi.IsSerializedForCompilation(g_fv));
+  CHECK(tester.broker()->IsSerializedForCompilation(g_sfi, g_fv));
 }
 
 TEST(SerializeInlinedClosure) {
@@ -342,6 +343,22 @@ TEST(BoundFunctionResult) {
       "function foo() { id.bind(undefined, 42)(); return id; }"
       "%PrepareFunctionForOptimization(foo);"
       "%PrepareFunctionForOptimization(id);"
+      "foo();"
+      "foo();"
+      "%OptimizeFunctionOnNextCall(foo);"
+      "foo(); return foo;");
+}
+
+TEST(MultipleFunctionCalls) {
+  CheckForSerializedInlinee(
+      "function inc(x) { return ++x; }"
+      "function dec(x) { return --x; }"
+      "function apply(f, x) { return f(x); }"
+      "function foo() { apply(inc, 42); apply(dec, 42); return dec; }"
+      "%PrepareFunctionForOptimization(inc);"
+      "%PrepareFunctionForOptimization(dec);"
+      "%PrepareFunctionForOptimization(apply);"
+      "%PrepareFunctionForOptimization(foo);"
       "foo();"
       "foo();"
       "%OptimizeFunctionOnNextCall(foo);"

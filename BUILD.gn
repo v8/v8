@@ -1820,6 +1820,7 @@ v8_compiler_sources = [
   "src/compiler/select-lowering.h",
   "src/compiler/serializer-for-background-compilation.cc",
   "src/compiler/serializer-for-background-compilation.h",
+  "src/compiler/serializer-hints.h",
   "src/compiler/simd-scalar-lowering.cc",
   "src/compiler/simd-scalar-lowering.h",
   "src/compiler/simplified-lowering.cc",

@@ -803,9 +803,6 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
     return GetInlineability() == SharedFunctionInfo::kIsInlineable;
   }
 
-  bool IsSerializedForCompilation(FeedbackVectorRef feedback) const;
-  void SetSerializedForCompilation(FeedbackVectorRef feedback);
-
   // Template objects may not be created at compilation time. This method
   // wraps the retrieval of the template object and creates it if
   // necessary.

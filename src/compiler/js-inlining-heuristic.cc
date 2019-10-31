@@ -37,7 +37,7 @@ bool CanConsiderForInlining(JSHeapBroker* broker,
   }
 
   DCHECK(shared.HasBytecodeArray());
-  if (!shared.IsSerializedForCompilation(feedback_vector)) {
+  if (!broker->IsSerializedForCompilation(shared, feedback_vector)) {
     TRACE_BROKER_MISSING(
         broker, "data for " << shared << " (not serialized for compilation)");
     TRACE("Cannot consider " << shared << " for inlining with "

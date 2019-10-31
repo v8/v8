@@ -431,7 +431,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // Determine the target's feedback vector and its context.
   Node* context;
   FeedbackVectorRef feedback_vector = DetermineCallContext(node, &context);
-  CHECK(shared_info->IsSerializedForCompilation(feedback_vector));
+  CHECK(broker()->IsSerializedForCompilation(*shared_info, feedback_vector));
 
   // ----------------------------------------------------------------
   // After this point, we've made a decision to inline this function.

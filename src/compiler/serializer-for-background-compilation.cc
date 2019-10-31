@@ -10,8 +10,8 @@
 #include "src/compiler/access-info.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/compilation-dependencies.h"
-#include "src/compiler/functional-list.h"
 #include "src/compiler/js-heap-broker.h"
+#include "src/compiler/serializer-hints.h"
 #include "src/compiler/zone-stats.h"
 #include "src/handles/handles-inl.h"
 #include "src/ic/call-optimization.h"
@@ -232,118 +232,6 @@ namespace compiler {
   UNCONDITIONAL_JUMPS_LIST(V)         \
   UNREACHABLE_BYTECODE_LIST(V)
 
-template <typename T, typename EqualTo>
-class FunctionalSet {
- public:
-  void Add(T const& elem, Zone* zone) {
-    for (auto const& l : data_) {
-      if (equal_to(l, elem)) return;
-    }
-    data_.PushFront(elem, zone);
-  }
-
-  bool Includes(FunctionalSet<T, EqualTo> const& other) const {
-    return std::all_of(other.begin(), other.end(), [&](T const& other_elem) {
-      return std::any_of(this->begin(), this->end(), [&](T const& this_elem) {
-        return equal_to(this_elem, other_elem);
-      });
-    });
-  }
-
-  bool IsEmpty() const { return data_.begin() == data_.end(); }
-
-  void Clear() { data_.Clear(); }
-
-  // Warning: quadratic time complexity.
-  bool operator==(const FunctionalSet<T, EqualTo>& other) const {
-    return this->data_.Size() == other.data_.Size() && this->Includes(other) &&
-           other.Includes(*this);
-  }
-  bool operator!=(const FunctionalSet<T, EqualTo>& other) const {
-    return !(*this == other);
-  }
-
-  using iterator = typename FunctionalList<T>::iterator;
-
-  iterator begin() const { return data_.begin(); }
-  iterator end() const { return data_.end(); }
-
- private:
-  static EqualTo equal_to;
-  FunctionalList<T> data_;
-};
-
-template <typename T, typename EqualTo>
-EqualTo FunctionalSet<T, EqualTo>::equal_to;
-
-struct VirtualContext {
-  unsigned int distance;
-  Handle<Context> context;
-
-  VirtualContext(unsigned int distance_in, Handle<Context> context_in)
-      : distance(distance_in), context(context_in) {
-    CHECK_GT(distance, 0);
-  }
-  bool operator==(const VirtualContext& other) const {
-    return context.equals(other.context) && distance == other.distance;
-  }
-};
-
-class FunctionBlueprint;
-struct VirtualBoundFunction;
-
-using ConstantsSet = FunctionalSet<Handle<Object>, Handle<Object>::equal_to>;
-using VirtualContextsSet =
-    FunctionalSet<VirtualContext, std::equal_to<VirtualContext>>;
-using MapsSet = FunctionalSet<Handle<Map>, Handle<Map>::equal_to>;
-using BlueprintsSet =
-    FunctionalSet<FunctionBlueprint, std::equal_to<FunctionBlueprint>>;
-using BoundFunctionsSet =
-    FunctionalSet<VirtualBoundFunction, std::equal_to<VirtualBoundFunction>>;
-
-class Hints {
- public:
-  Hints() = default;
-
-  static Hints SingleConstant(Handle<Object> constant, Zone* zone);
-
-  const ConstantsSet& constants() const;
-  const MapsSet& maps() const;
-  const BlueprintsSet& function_blueprints() const;
-  const VirtualContextsSet& virtual_contexts() const;
-  const BoundFunctionsSet& virtual_bound_functions() const;
-
-  void AddConstant(Handle<Object> constant, Zone* zone);
-  void AddMap(Handle<Map> map, Zone* zone);
-  void AddFunctionBlueprint(FunctionBlueprint const& function_blueprint,
-                            Zone* zone);
-  void AddVirtualContext(VirtualContext const& virtual_context, Zone* zone);
-  void AddVirtualBoundFunction(VirtualBoundFunction const& bound_function,
-                               Zone* zone);
-
-  void Add(const Hints& other, Zone* zone);
-  void AddFromChildSerializer(const Hints& other, Zone* zone);
-
-  void Clear();
-  bool IsEmpty() const;
-
-  bool operator==(Hints const& other) const;
-  bool operator!=(Hints const& other) const { return !(*this == other); }
-
-#ifdef ENABLE_SLOW_DCHECKS
-  bool Includes(Hints const& other) const;
-  bool Equals(Hints const& other) const;
-#endif
-
- private:
-  VirtualContextsSet virtual_contexts_;
-  ConstantsSet constants_;
-  MapsSet maps_;
-  BlueprintsSet function_blueprints_;
-  BoundFunctionsSet virtual_bound_functions_;
-};
-
-using HintsVector = ZoneVector<Hints>;
 
 struct VirtualBoundFunction {
   Hints bound_target;
@@ -470,7 +358,8 @@ class SerializerForBackgroundCompilation {
       ZoneStats* zone_stats, JSHeapBroker* broker,
       CompilationDependencies* dependencies, Handle<JSFunction> closure,
       SerializerForBackgroundCompilationFlags flags, BailoutId osr_offset);
-  Hints Run();  // NOTE: Returns empty for an already-serialized function.
+  Hints Run();  // NOTE: Returns empty for an
+                // already-serialized function.
 
   class Environment;
 
@@ -616,6 +505,7 @@ class SerializerForBackgroundCompilation {
   ZoneUnorderedMap<int, Environment*> jump_target_environments_;
   SerializerForBackgroundCompilationFlags const flags_;
   BailoutId const osr_offset_;
+  const HintsVector arguments_;
 };
 
 void RunSerializerForBackgroundCompilation(
@@ -1045,7 +935,8 @@ SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
           zone(), CompilationSubject(closure, broker_->isolate(), zone()))),
       jump_target_environments_(zone()),
       flags_(flags),
-      osr_offset_(osr_offset) {
+      osr_offset_(osr_offset),
+      arguments_(zone()) {
   JSFunctionRef(broker, closure).Serialize();
 }
 
@@ -1063,7 +954,8 @@ SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
                                    new_target, arguments, padding)),
       jump_target_environments_(zone()),
       flags_(flags),
-      osr_offset_(BailoutId::None()) {
+      osr_offset_(BailoutId::None()),
+      arguments_(arguments) {
   TraceScope tracer(
       broker_, this,
       "SerializerForBackgroundCompilation::SerializerForBackgroundCompilation");
@@ -1099,13 +991,15 @@ Hints SerializerForBackgroundCompilation::Run() {
                                     << broker()->zone()->allocation_size());
   SharedFunctionInfoRef shared(broker(), environment()->function().shared());
   FeedbackVectorRef feedback_vector_ref(broker(), feedback_vector());
-  if (shared.IsSerializedForCompilation(feedback_vector_ref)) {
+  if (!broker()->ShouldBeSerializedForCompilation(shared, feedback_vector_ref,
+                                                  arguments_)) {
     TRACE_BROKER(broker(), "Already ran serializer for SharedFunctionInfo "
                                << Brief(*shared.object())
                                << ", bailing out.\n");
     return Hints();
   }
-  shared.SetSerializedForCompilation(feedback_vector_ref);
+  broker()->SetSerializedForCompilation(shared, feedback_vector_ref,
+                                        arguments_);
 
   // We eagerly call the {EnsureSourcePositionsAvailable} for all serialized
   // SFIs while still on the main thread. Source positions will later be used
