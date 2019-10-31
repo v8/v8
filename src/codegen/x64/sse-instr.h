@@ -6,6 +6,9 @@
 #define V8_CODEGEN_X64_SSE_INSTR_H_
 
 #define SSE_INSTRUCTION_LIST(V) \
+  V(sqrtps, 0F, 51)             \
+  V(rsqrtps, 0F, 52)            \
+  V(rcpps, 0F, 53)              \
   V(andps, 0F, 54)              \
   V(andnps, 0F, 55)             \
   V(orps, 0F, 56)               \

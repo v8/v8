@@ -548,10 +548,6 @@ TEST(DisasmX64) {
       __ cmpnlepd(xmm5, xmm1);
       __ cmpnlepd(xmm5, Operand(rbx, rcx, times_4, 10000));
 
-      __ rcpps(xmm5, xmm1);
-      __ rcpps(xmm5, Operand(rdx, 4));
-      __ sqrtps(xmm5, xmm1);
-      __ sqrtps(xmm5, Operand(rdx, 4));
       __ movups(xmm5, xmm1);
       __ movups(xmm5, Operand(rdx, 4));
       __ movups(Operand(rdx, 4), xmm5);

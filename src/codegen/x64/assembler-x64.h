@@ -1106,12 +1106,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
 #undef SSE_CMP_P
 
-  void rcpps(XMMRegister dst, XMMRegister src);
-  void rcpps(XMMRegister dst, Operand src);
-  void rsqrtps(XMMRegister dst, XMMRegister src);
-  void rsqrtps(XMMRegister dst, Operand src);
-  void sqrtps(XMMRegister dst, XMMRegister src);
-  void sqrtps(XMMRegister dst, Operand src);
   void movups(XMMRegister dst, XMMRegister src);
   void movups(XMMRegister dst, Operand src);
   void movups(Operand dst, XMMRegister src);
