@@ -9,7 +9,7 @@ namespace internal {
 namespace torque {
 
 TypeArgumentInference::TypeArgumentInference(
-    const NameVector& type_parameters,
+    const GenericParameters& type_parameters,
     const TypeVector& explicit_type_arguments,
     const std::vector<TypeExpression*>& term_parameters,
     const TypeVector& term_argument_types)
@@ -26,7 +26,7 @@ TypeArgumentInference::TypeArgumentInference(
   }
 
   for (size_t i = 0; i < type_parameters.size(); i++) {
-    type_parameter_from_name_[type_parameters[i]->value] = i;
+    type_parameter_from_name_[type_parameters[i].name->value] = i;
   }
   for (size_t i = 0; i < num_explicit_; i++) {
     inferred_[i] = {explicit_type_arguments[i]};

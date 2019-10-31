@@ -6,6 +6,7 @@
 
 #include "src/torque/ast.h"
 #include "src/torque/server-data.h"
+#include "src/torque/type-inference.h"
 #include "src/torque/type-visitor.h"
 
 namespace v8 {
@@ -182,6 +183,12 @@ void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
   GenericCallable* matching_generic = nullptr;
   Signature signature_with_types = TypeVisitor::MakeSignature(decl);
   for (GenericCallable* generic : generic_list) {
+    // This argument inference is just to trigger constraint checking on the
+    // generic arguments.
+    TypeArgumentInference inference = generic->InferSpecializationTypes(
+        TypeVisitor::ComputeTypeVector(decl->generic_parameters),
+        signature_with_types.GetExplicitTypes());
+    if (inference.HasFailed()) continue;
     Signature generic_signature_with_types =
         MakeSpecializedSignature(SpecializationKey<GenericCallable>{
             generic, TypeVisitor::ComputeTypeVector(decl->generic_parameters)});
@@ -261,7 +268,7 @@ void DeclarationVisitor::DeclareSpecializedTypes(
   }
 
   for (auto type : key.specialized_types) {
-    Identifier* generic_type_name = key.generic->generic_parameters()[i++];
+    Identifier* generic_type_name = key.generic->generic_parameters()[i++].name;
     TypeAlias* alias = Declarations::DeclareType(generic_type_name, type);
     alias->SetIsUserDefined(false);
   }
@@ -312,7 +319,7 @@ Callable* DeclarationVisitor::Specialize(
            << std::to_string(generic_parameter_count) << ")";
     ReportError(stream.str());
   }
-  if (key.generic->specializations().Get(key.specialized_types)) {
+  if (key.generic->GetSpecialization(key.specialized_types)) {
     ReportError("cannot redeclare specialization of ", key.generic->name(),
                 " with types <", key.specialized_types, ">");
   }
@@ -347,7 +354,7 @@ Callable* DeclarationVisitor::Specialize(
         CreateBuiltin(builtin, GlobalContext::MakeUniqueName(generated_name),
                       readable_name.str(), type_signature, *body);
   }
-  key.generic->specializations().Add(key.specialized_types, callable);
+  key.generic->AddSpecialization(key.specialized_types, callable);
   return callable;
 }
 

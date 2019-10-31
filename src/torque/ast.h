@@ -1018,6 +1018,13 @@ struct ConstDeclaration : Declaration {
   Expression* expression;
 };
 
+struct GenericParameter {
+  Identifier* name;
+  base::Optional<TypeExpression*> constraint;
+};
+
+using GenericParameters = std::vector<GenericParameter>;
+
 // The AST re-shuffles generics from the concrete syntax:
 // Instead of the generic parameters being part of a normal declaration,
 // a declaration with generic parameters gets wrapped in a generic declaration,
@@ -1027,26 +1034,26 @@ struct ConstDeclaration : Declaration {
 struct GenericCallableDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(GenericCallableDeclaration)
   GenericCallableDeclaration(SourcePosition pos,
-                             std::vector<Identifier*> generic_parameters,
+                             GenericParameters generic_parameters,
                              CallableDeclaration* declaration)
       : Declaration(kKind, pos),
         generic_parameters(std::move(generic_parameters)),
         declaration(declaration) {}
 
-  std::vector<Identifier*> generic_parameters;
+  GenericParameters generic_parameters;
   CallableDeclaration* declaration;
 };
 
 struct GenericTypeDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(GenericTypeDeclaration)
   GenericTypeDeclaration(SourcePosition pos,
-                         std::vector<Identifier*> generic_parameters,
+                         GenericParameters generic_parameters,
                          TypeDeclaration* declaration)
       : Declaration(kKind, pos),
         generic_parameters(std::move(generic_parameters)),
         declaration(declaration) {}
 
-  std::vector<Identifier*> generic_parameters;
+  GenericParameters generic_parameters;
   TypeDeclaration* declaration;
 };
 

@@ -253,7 +253,7 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     for (GenericCallable* from_constexpr :
          Declarations::LookupGeneric(kFromConstexprMacroName)) {
       if (base::Optional<const Callable*> specialization =
-              from_constexpr->specializations().Get({to, from})) {
+              from_constexpr->GetSpecialization({to, from})) {
         if ((*specialization)->signature().GetExplicitTypes() ==
             TypeVector{from}) {
           return true;

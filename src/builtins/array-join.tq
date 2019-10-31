@@ -11,7 +11,7 @@ namespace array {
   ArrayBuiltinsAssembler::CallJSArrayArrayJoinConcatToSequentialString(
       FixedArray, intptr, String, String): String;
 
-  transitioning builtin LoadJoinElement<T: type>(
+  transitioning builtin LoadJoinElement<T : type extends ElementsKind>(
       context: Context, receiver: JSReceiver, k: uintptr): JSAny {
     return GetProperty(receiver, Convert<Number>(k));
   }
@@ -50,7 +50,7 @@ namespace array {
     return AllocateHeapNumberWithValue(element);
   }
 
-  builtin LoadJoinTypedElement<T: type>(
+  builtin LoadJoinTypedElement<T : type extends ElementsKind>(
       context: Context, receiver: JSReceiver, k: uintptr): JSAny {
     const typedArray: JSTypedArray = UnsafeCast<JSTypedArray>(receiver);
     assert(!IsDetachedBuffer(typedArray.buffer));

@@ -1538,7 +1538,7 @@ void FailCallableLookup(
     const TypeVector& parameter_types,
     const std::vector<Binding<LocalLabel>*>& labels,
     const std::vector<Signature>& candidates,
-    const std::vector<std::tuple<GenericCallable*, const char*>>
+    const std::vector<std::pair<GenericCallable*, std::string>>
         inapplicable_generics) {
   std::stringstream stream;
   stream << "\n" << reason << ": \n  " << name << "(" << parameter_types << ")";
@@ -1556,9 +1556,8 @@ void FailCallableLookup(
   if (inapplicable_generics.size() != 0) {
     stream << "\nfailed to instantiate all of these generic declarations:";
     for (auto& failure : inapplicable_generics) {
-      GenericCallable* generic;
-      const char* reason;
-      std::tie(generic, reason) = failure;
+      GenericCallable* generic = failure.first;
+      const std::string& reason = failure.second;
       stream << "\n  " << generic->name() << " defined at "
              << generic->Position() << ":\n    " << reason << "\n";
     }
@@ -1569,7 +1568,7 @@ void FailCallableLookup(
 Callable* GetOrCreateSpecialization(
     const SpecializationKey<GenericCallable>& key) {
   if (base::Optional<Callable*> specialization =
-          key.generic->specializations().Get(key.specialized_types)) {
+          key.generic->GetSpecialization(key.specialized_types)) {
     return *specialization;
   }
   return DeclarationVisitor::SpecializeImplicit(key);
@@ -1623,14 +1622,14 @@ Callable* ImplementationVisitor::LookupCallable(
 
   std::vector<Declarable*> overloads;
   std::vector<Signature> overload_signatures;
-  std::vector<std::tuple<GenericCallable*, const char*>> inapplicable_generics;
+  std::vector<std::pair<GenericCallable*, std::string>> inapplicable_generics;
   for (auto* declarable : declaration_container) {
     if (GenericCallable* generic = GenericCallable::DynamicCast(declarable)) {
       TypeArgumentInference inference = generic->InferSpecializationTypes(
           specialization_types, parameter_types);
       if (inference.HasFailed()) {
         inapplicable_generics.push_back(
-            std::make_tuple(generic, inference.GetFailureReason()));
+            std::make_pair(generic, inference.GetFailureReason()));
         continue;
       }
       overloads.push_back(generic);

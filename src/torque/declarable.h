@@ -446,19 +446,46 @@ class Intrinsic : public Callable {
   }
 };
 
-template <class T>
-class SpecializationMap {
+class TypeConstraint {
+ public:
+  base::Optional<std::string> IsViolated(const Type*) const;
+
+  static TypeConstraint Unconstrained() { return {}; }
+  static TypeConstraint SubtypeConstraint(const Type* upper_bound) {
+    TypeConstraint result;
+    result.upper_bound = {upper_bound};
+    return result;
+  }
+
  private:
-  using Map = std::unordered_map<TypeVector, T*, base::hash<TypeVector>>;
+  base::Optional<const Type*> upper_bound;
+};
+
+base::Optional<std::string> FindConstraintViolation(
+    const std::vector<const Type*>& types,
+    const std::vector<TypeConstraint>& constraints);
+
+std::vector<TypeConstraint> ComputeConstraints(
+    Scope* scope, const GenericParameters& parameters);
+
+template <class SpecializationType, class DeclarationType>
+class GenericDeclarable : public Declarable {
+ private:
+  using Map = std::unordered_map<TypeVector, SpecializationType,
+                                 base::hash<TypeVector>>;
 
  public:
-  SpecializationMap() {}
-
-  void Add(const TypeVector& type_arguments, T* specialization) {
+  void AddSpecialization(const TypeVector& type_arguments,
+                         SpecializationType specialization) {
     DCHECK_EQ(0, specializations_.count(type_arguments));
+    if (auto violation =
+            FindConstraintViolation(type_arguments, Constraints())) {
+      Error(*violation).Throw();
+    }
     specializations_[type_arguments] = specialization;
   }
-  base::Optional<T*> Get(const TypeVector& type_arguments) const {
+  base::Optional<SpecializationType> GetSpecialization(
+      const TypeVector& type_arguments) const {
     auto it = specializations_.find(type_arguments);
     if (it != specializations_.end()) return it->second;
     return base::nullopt;
@@ -468,22 +495,38 @@ class SpecializationMap {
   iterator begin() const { return specializations_.begin(); }
   iterator end() const { return specializations_.end(); }
 
- private:
-  Map specializations_;
-};
-
-class GenericCallable : public Declarable {
- public:
-  DECLARE_DECLARABLE_BOILERPLATE(GenericCallable, generic_callable)
-
   const std::string& name() const { return name_; }
-  CallableDeclaration* declaration() const {
-    return generic_declaration_->declaration;
-  }
-  const std::vector<Identifier*> generic_parameters() const {
+  auto declaration() const { return generic_declaration_->declaration; }
+  const GenericParameters& generic_parameters() const {
     return generic_declaration_->generic_parameters;
   }
-  SpecializationMap<Callable>& specializations() { return specializations_; }
+
+  const std::vector<TypeConstraint>& Constraints() {
+    if (!constraints_)
+      constraints_ = {ComputeConstraints(ParentScope(), generic_parameters())};
+    return *constraints_;
+  }
+
+ protected:
+  GenericDeclarable(Declarable::Kind kind, const std::string& name,
+                    DeclarationType generic_declaration)
+      : Declarable(kind),
+        name_(name),
+        generic_declaration_(generic_declaration) {
+    DCHECK(!generic_declaration->generic_parameters.empty());
+  }
+
+ private:
+  std::string name_;
+  DeclarationType generic_declaration_;
+  Map specializations_;
+  base::Optional<std::vector<TypeConstraint>> constraints_;
+};
+
+class GenericCallable
+    : public GenericDeclarable<Callable*, GenericCallableDeclaration*> {
+ public:
+  DECLARE_DECLARABLE_BOILERPLATE(GenericCallable, generic_callable)
 
   base::Optional<Statement*> CallableBody();
 
@@ -495,42 +538,21 @@ class GenericCallable : public Declarable {
   friend class Declarations;
   GenericCallable(const std::string& name,
                   GenericCallableDeclaration* generic_declaration)
-      : Declarable(Declarable::kGenericCallable),
-        name_(name),
-        generic_declaration_(generic_declaration) {
-    DCHECK(!generic_declaration->generic_parameters.empty());
-  }
-
-  std::string name_;
-  GenericCallableDeclaration* generic_declaration_;
-  SpecializationMap<Callable> specializations_;
+      : GenericDeclarable<Callable*, GenericCallableDeclaration*>(
+            Declarable::kGenericCallable, name, generic_declaration) {}
 };
 
-class GenericType : public Declarable {
+class GenericType
+    : public GenericDeclarable<const Type*, GenericTypeDeclaration*> {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(GenericType, generic_type)
-  const std::string& name() const { return name_; }
-  TypeDeclaration* declaration() const {
-    return generic_declaration_->declaration;
-  }
-  const std::vector<Identifier*>& generic_parameters() const {
-    return generic_declaration_->generic_parameters;
-  }
-  SpecializationMap<const Type>& specializations() { return specializations_; }
 
  private:
   friend class Declarations;
   GenericType(const std::string& name,
               GenericTypeDeclaration* generic_declaration)
-      : Declarable(Declarable::kGenericType),
-        name_(name),
-        generic_declaration_(generic_declaration) {
-    DCHECK(!generic_declaration->generic_parameters.empty());
-  }
-
-  std::string name_;
-  GenericTypeDeclaration* generic_declaration_;
-  SpecializationMap<const Type> specializations_;
+      : GenericDeclarable<const Type*, GenericTypeDeclaration*>(
+            Declarable::kGenericType, name, generic_declaration) {}
 };
 
 class TypeAlias : public Declarable {

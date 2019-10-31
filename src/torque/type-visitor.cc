@@ -27,7 +27,8 @@ const Type* TypeVisitor::ComputeType(TypeDeclaration* decl,
     auto& params = specialized_from->generic->generic_parameters();
     auto arg_types_iterator = specialized_from->specialized_types.begin();
     for (auto param : params) {
-      TypeAlias* alias = Declarations::DeclareType(param, *arg_types_iterator);
+      TypeAlias* alias =
+          Declarations::DeclareType(param.name, *arg_types_iterator);
       alias->SetIsUserDefined(false);
       arg_types_iterator++;
     }

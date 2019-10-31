@@ -84,6 +84,8 @@ enum class ParseResultHolderBase::TypeId {
   kStdVectorOfTypeswitchCase,
   kStdVectorOfIdentifierPtr,
   kOptionalClassBody,
+  kGenericParameter,
+  kGenericParameters,
 
   kJsonValue,
   kJsonMember,

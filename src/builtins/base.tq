@@ -342,8 +342,9 @@ extern class DescriptorArray extends HeapObject {
 // These intrinsics should never be called from Torque code. They're used
 // internally by the 'new' operator and only declared here because it's simpler
 // than building the definition from C++.
-intrinsic %GetAllocationBaseSize<Class: type>(map: Map): intptr;
-intrinsic %Allocate<Class: type>(size: intptr): Class;
+intrinsic %GetAllocationBaseSize<Class : type extends HeapObject>(map: Map):
+    intptr;
+intrinsic %Allocate<Class : type extends HeapObject>(size: intptr): Class;
 intrinsic %GetStructMap(instanceKind: constexpr InstanceType): Map;
 
 intrinsic %AddIndexedFieldSizeToObjectSize<T: type>(
@@ -2258,7 +2259,7 @@ extern macro HeapObjectToRegExpMatchInfo(HeapObject):
 extern macro TaggedToNumber(Object): Number
     labels CastError;
 
-macro Cast<A: type>(implicit context: Context)(o: Object): A
+macro Cast<A : type extends Object>(implicit context: Context)(o: Object): A
     labels CastError {
   return Cast<A>(TaggedToHeapObject(o) otherwise CastError)
       otherwise CastError;
@@ -2419,7 +2420,7 @@ Cast<Number|TheHole>(o: Object): Number|TheHole labels CastError {
   }
 }
 
-macro Cast<A: type>(o: HeapObject): A
+macro Cast<A : type extends HeapObject>(o: HeapObject): A
     labels CastError;
 
 Cast<HeapObject>(o: HeapObject): HeapObject
@@ -2551,7 +2552,7 @@ Cast<Symbol>(o: HeapObject): Symbol
   goto CastError;
 }
 
-macro Cast<T: type>(o: Symbol): T labels CastError;
+macro Cast<T : type extends Symbol>(o: Symbol): T labels CastError;
 Cast<PublicSymbol>(o: Symbol): PublicSymbol labels CastError {
   if (IsPrivateSymbol(o)) goto CastError;
   return %RawDownCast<PublicSymbol>(o);
@@ -3079,12 +3080,14 @@ Convert<PromiseState, int32>(s: int32): PromiseState {
   return %RawDownCast<PromiseState>(s);
 }
 
-macro Is<A: type, B: type>(implicit context: Context)(o: B): bool {
+macro Is<A : type extends Object, B : type extends Object>(
+    implicit context: Context)(o: B): bool {
   Cast<A>(o) otherwise return false;
   return true;
 }
 
-macro UnsafeCast<A: type>(implicit context: Context)(o: Object): A {
+macro UnsafeCast<A : type extends Object>(implicit context: Context)(o: Object):
+    A {
   assert(Is<A>(o));
   return %RawDownCast<A>(o);
 }
@@ -3349,7 +3352,8 @@ macro TorqueCopyElements(
       count);
 }
 
-macro LoadElementNoHole<T: type>(a: JSArray, index: Smi): JSAny
+macro LoadElementNoHole<T : type extends FixedArrayBase>(
+    a: JSArray, index: Smi): JSAny
     labels IfHole;
 
 LoadElementNoHole<FixedArray>(implicit context: Context)(

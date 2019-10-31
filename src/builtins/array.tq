@@ -8,13 +8,13 @@ namespace array {
   // Naming convention from elements.cc. We have a similar intent but implement
   // fastpaths using generics instead of using a class hierarchy for elements
   // kinds specific implementations.
-  type GenericElementsAccessor;
-  type FastPackedSmiElements;
-  type FastPackedObjectElements;
-  type FastPackedDoubleElements;
-  type FastSmiOrObjectElements;
-  type FastDoubleElements;
-  type DictionaryElements;
+  type GenericElementsAccessor extends ElementsKind;
+  type FastPackedSmiElements extends ElementsKind;
+  type FastPackedObjectElements extends ElementsKind;
+  type FastPackedDoubleElements extends ElementsKind;
+  type FastSmiOrObjectElements extends ElementsKind;
+  type FastDoubleElements extends ElementsKind;
+  type DictionaryElements extends ElementsKind;
 
   macro EnsureWriteableFastElements(implicit context: Context)(array: JSArray) {
     assert(IsFastElementsKind(array.map.elements_kind));
