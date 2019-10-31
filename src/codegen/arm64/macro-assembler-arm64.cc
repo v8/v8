@@ -1906,7 +1906,6 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode) {
     }
   }
 
-  DCHECK(code->IsExecutable());
   if (CanUseNearCallOrJump(rmode)) {
     EmbeddedObjectIndex index = AddEmbeddedObject(code);
     DCHECK(is_int32(index));
@@ -2981,8 +2980,6 @@ void TurboAssembler::Check(Condition cond, AbortReason reason) {
   // Will not return here.
   Bind(&ok);
 }
-
-void TurboAssembler::Trap() { Brk(0); }
 
 void TurboAssembler::Abort(AbortReason reason) {
 #ifdef DEBUG

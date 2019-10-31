@@ -587,11 +587,6 @@ bool Code::IsWeakObjectInOptimizedCode(HeapObject object) {
          InstanceTypeChecker::IsContext(instance_type);
 }
 
-bool Code::IsExecutable() {
-  return !Builtins::IsBuiltinId(builtin_index()) || !is_off_heap_trampoline() ||
-         Builtins::CodeObjectIsExecutable(builtin_index());
-}
-
 // This field has to have relaxed atomic accessors because it is accessed in the
 // concurrent marker.
 RELAXED_INT32_ACCESSORS(CodeDataContainer, kind_specific_flags,

@@ -315,7 +315,6 @@ void Builtins::EmitCodeCreateEvents(Isolate* isolate) {
 }
 
 namespace {
-enum TrampolineType { kAbort, kJump };
 
 class OffHeapTrampolineGenerator {
  public:
@@ -324,16 +323,12 @@ class OffHeapTrampolineGenerator {
         masm_(isolate, CodeObjectRequired::kYes,
               ExternalAssemblerBuffer(buffer_, kBufferSize)) {}
 
-  CodeDesc Generate(Address off_heap_entry, TrampolineType type) {
+  CodeDesc Generate(Address off_heap_entry) {
     // Generate replacement code that simply tail-calls the off-heap code.
     DCHECK(!masm_.has_frame());
     {
       FrameScope scope(&masm_, StackFrame::NONE);
-      if (type == TrampolineType::kJump) {
-        masm_.JumpToInstructionStream(off_heap_entry);
-      } else {
-        masm_.Trap();
-      }
+      masm_.JumpToInstructionStream(off_heap_entry);
     }
 
     CodeDesc desc;
@@ -357,22 +352,16 @@ constexpr int OffHeapTrampolineGenerator::kBufferSize;
 
 // static
 Handle<Code> Builtins::GenerateOffHeapTrampolineFor(
-    Isolate* isolate, Address off_heap_entry, int32_t kind_specfic_flags,
-    bool generate_jump_to_instruction_stream) {
+    Isolate* isolate, Address off_heap_entry, int32_t kind_specfic_flags) {
   DCHECK_NOT_NULL(isolate->embedded_blob());
   DCHECK_NE(0, isolate->embedded_blob_size());
 
   OffHeapTrampolineGenerator generator(isolate);
-
-  CodeDesc desc =
-      generator.Generate(off_heap_entry, generate_jump_to_instruction_stream
-                                             ? TrampolineType::kJump
-                                             : TrampolineType::kAbort);
+  CodeDesc desc = generator.Generate(off_heap_entry);
 
   return Factory::CodeBuilder(isolate, desc, Code::BUILTIN)
-      .set_read_only_data_container(kind_specfic_flags)
       .set_self_reference(generator.CodeObject())
-      .set_is_executable(generate_jump_to_instruction_stream)
+      .set_read_only_data_container(kind_specfic_flags)
       .Build();
 }
 
@@ -382,7 +371,7 @@ Handle<ByteArray> Builtins::GenerateOffHeapTrampolineRelocInfo(
   OffHeapTrampolineGenerator generator(isolate);
   // Generate a jump to a dummy address as we're not actually interested in the
   // generated instruction stream.
-  CodeDesc desc = generator.Generate(kNullAddress, TrampolineType::kJump);
+  CodeDesc desc = generator.Generate(kNullAddress);
 
   Handle<ByteArray> reloc_info = isolate->factory()->NewByteArray(
       desc.reloc_size, AllocationType::kReadOnly);
@@ -429,64 +418,6 @@ bool Builtins::AllowDynamicFunction(Isolate* isolate, Handle<JSFunction> target,
   }
   if (*responsible_context == target->context()) return true;
   return isolate->MayAccess(responsible_context, target_global_proxy);
-}
-
-// static
-bool Builtins::CodeObjectIsExecutable(int builtin_index) {
-  // If the runtime/optimized code always knows when executing a given builtin
-  // that it is a builtin, then that builtin does not need an executable Code
-  // object. Such Code objects can go in read_only_space (and can even be
-  // smaller with no branch instruction), thus saving memory.
-
-  // Builtins with JS linkage will always have executable Code objects since
-  // they can be called directly from jitted code with no way of determining
-  // that they are builtins at generation time. E.g.
-  //   f = Array.of;
-  //   f(1, 2, 3);
-  if (Builtins::KindOf(builtin_index) == Builtins::TFJ) return true;
-
-  // There are some other non-TF builtins that also have JS linkage like
-  // InterpreterEntryTrampoline which are explicitly allow-listed below.
-  // TODO(delphick): Some of these builtins do not fit with the above, but
-  // currently cause problems if they're not executable. This list should be
-  // pared down as much as possible.
-  switch (builtin_index) {
-    case Builtins::kInterpreterEntryTrampoline:
-    case Builtins::kToNumber:
-    case Builtins::kI64ToBigInt:
-    case Builtins::kBigIntToI64:
-    case Builtins::kCompileLazy:
-    case Builtins::kCompileLazyDeoptimizedCode:
-    case Builtins::kAllocateHeapNumber:
-    case Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_BuiltinExit:
-    case Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit:
-    case Builtins::kCEntry_Return1_SaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case Builtins::kCEntry_Return1_SaveFPRegs_ArgvOnStack_BuiltinExit:
-    case Builtins::kCEntry_Return2_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case Builtins::kCEntry_Return2_DontSaveFPRegs_ArgvOnStack_BuiltinExit:
-    case Builtins::kCEntry_Return2_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit:
-    case Builtins::kCEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case Builtins::kCEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit:
-    case Builtins::kCallFunction_ReceiverIsNullOrUndefined:
-    case Builtins::kCallFunction_ReceiverIsNotNullOrUndefined:
-    case Builtins::kCallFunction_ReceiverIsAny:
-    case Builtins::kCallBoundFunction:
-    case Builtins::kCall_ReceiverIsNullOrUndefined:
-    case Builtins::kCall_ReceiverIsNotNullOrUndefined:
-    case Builtins::kCall_ReceiverIsAny:
-    case Builtins::kArgumentsAdaptorTrampoline:
-    case Builtins::kHandleApiCall:
-    case Builtins::kInstantiateAsmJs:
-    case Builtins::kIterableToFixedArrayForWasm:
-
-      // required for ia32
-    case Builtins::kI32PairToBigInt:
-    case Builtins::kBigIntToI32Pair:
-      return true;
-    default:
-      return false;
-  }
 }
 
 Builtins::Name ExampleBuiltinForTorqueFunctionPointerType(

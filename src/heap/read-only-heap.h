@@ -42,8 +42,6 @@ class ReadOnlyHeap final {
   // and it may be safely disposed of.
   void OnHeapTearDown();
 
-  // Returns whether the address is within the read-only space.
-  V8_EXPORT_PRIVATE static bool Contains(Address address);
   // Returns whether the object resides in the read-only space.
   V8_EXPORT_PRIVATE static bool Contains(HeapObject object);
   // Gets read-only roots from an appropriate root list: shared read-only root

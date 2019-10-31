@@ -2778,8 +2778,6 @@ void TurboAssembler::CallForDeoptimization(Address target, int deopt_id) {
   call(target, RelocInfo::RUNTIME_ENTRY);
 }
 
-void TurboAssembler::Trap() { int3(); }
-
 }  // namespace internal
 }  // namespace v8
 
