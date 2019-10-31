@@ -66,11 +66,6 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
       TNode<JSPromise> promise, TNode<Object> debug_event,
       TNode<NativeContext> native_context);
 
-  // The below methods are only temporarily public until they are
-  // migrated to torque.
-  void TriggerPromiseReactions(Node* context, Node* promise, Node* result,
-                               PromiseReaction::Type type);
-
  protected:
   void PromiseInit(Node* promise);
 
@@ -158,8 +153,6 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
 
   TNode<BoolT> IsPromiseStatus(TNode<Word32T> actual,
                                v8::Promise::PromiseState expected);
-  void PromiseSetStatus(Node* promise, v8::Promise::PromiseState status);
-
   TNode<JSPromise> AllocateJSPromise(TNode<Context> context);
 
   void ExtractHandlerContext(Node* handler, Variable* var_context);

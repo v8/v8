@@ -246,19 +246,6 @@ TNode<Word32T> PromiseBuiltinsAssembler::PromiseStatus(Node* promise) {
   return Word32And(SmiToInt32(flags), Int32Constant(JSPromise::kStatusMask));
 }
 
-void PromiseBuiltinsAssembler::PromiseSetStatus(
-    Node* promise, v8::Promise::PromiseState const status) {
-  CSA_ASSERT(this,
-             IsPromiseStatus(PromiseStatus(promise), v8::Promise::kPending));
-  CHECK_NE(status, v8::Promise::kPending);
-
-  TNode<Smi> mask = SmiConstant(status);
-  const TNode<Smi> flags =
-      CAST(LoadObjectField(promise, JSPromise::kFlagsOffset));
-  StoreObjectFieldNoWriteBarrier(promise, JSPromise::kFlagsOffset,
-                                 SmiOr(flags, mask));
-}
-
 void PromiseBuiltinsAssembler::PromiseSetHandledHint(Node* promise) {
   const TNode<Smi> flags =
       CAST(LoadObjectField(promise, JSPromise::kFlagsOffset));
@@ -439,128 +426,6 @@ PromiseBuiltinsAssembler::AllocatePromiseResolveThenableJobTask(
   StoreObjectFieldNoWriteBarrier(
       microtask, PromiseResolveThenableJobTask::kThenableOffset, thenable);
   return CAST(microtask);
-}
-
-// ES #sec-triggerpromisereactions
-void PromiseBuiltinsAssembler::TriggerPromiseReactions(
-    Node* context, Node* reactions, Node* argument,
-    PromiseReaction::Type type) {
-  // We need to reverse the {reactions} here, since we record them on the
-  // JSPromise in the reverse order.
-  {
-    VARIABLE(var_current, MachineRepresentation::kTagged, reactions);
-    VARIABLE(var_reversed, MachineRepresentation::kTagged,
-             SmiConstant(Smi::zero()));
-
-    // As an additional safety net against misuse of the V8 Extras API, we
-    // sanity check the {reactions} to make sure that they are actually
-    // PromiseReaction instances and not actual JavaScript values (which
-    // would indicate that we're rejecting or resolving an already settled
-    // promise), see https://crbug.com/931640 for details on this.
-    TNode<Map> promise_reaction_map = PromiseReactionMapConstant();
-
-    Label loop(this, {&var_current, &var_reversed}), done_loop(this);
-    Goto(&loop);
-    BIND(&loop);
-    {
-      Node* current = var_current.value();
-      GotoIf(TaggedIsSmi(current), &done_loop);
-      CSA_CHECK(this,
-                TaggedEqual(LoadMap(CAST(current)), promise_reaction_map));
-      var_current.Bind(LoadObjectField(current, PromiseReaction::kNextOffset));
-      StoreObjectField(current, PromiseReaction::kNextOffset,
-                       var_reversed.value());
-      var_reversed.Bind(current);
-      Goto(&loop);
-    }
-    BIND(&done_loop);
-    reactions = var_reversed.value();
-  }
-
-  // Morph the {reactions} into PromiseReactionJobTasks and push them
-  // onto the microtask queue.
-  {
-    VARIABLE(var_current, MachineRepresentation::kTagged, reactions);
-
-    Label loop(this, {&var_current}), done_loop(this);
-    Goto(&loop);
-    BIND(&loop);
-    {
-      Node* current = var_current.value();
-      GotoIf(TaggedIsSmi(current), &done_loop);
-      var_current.Bind(LoadObjectField(current, PromiseReaction::kNextOffset));
-
-      VARIABLE(var_context, MachineRepresentation::kTagged,
-               UndefinedConstant());
-
-      Node* primary_handler;
-      Node* secondary_handler;
-      if (type == PromiseReaction::kFulfill) {
-        primary_handler =
-            LoadObjectField(current, PromiseReaction::kFulfillHandlerOffset);
-        secondary_handler =
-            LoadObjectField(current, PromiseReaction::kRejectHandlerOffset);
-      } else {
-        primary_handler =
-            LoadObjectField(current, PromiseReaction::kRejectHandlerOffset);
-        secondary_handler =
-            LoadObjectField(current, PromiseReaction::kFulfillHandlerOffset);
-      }
-
-      {
-        Label use_fallback(this, Label::kDeferred), done(this);
-        ExtractHandlerContext(primary_handler, &var_context);
-        Branch(IsUndefined(var_context.value()), &use_fallback, &done);
-
-        BIND(&use_fallback);
-        var_context.Bind(context);
-        ExtractHandlerContext(secondary_handler, &var_context);
-        CSA_ASSERT(this, IsNotUndefined(var_context.value()));
-        Goto(&done);
-
-        BIND(&done);
-      }
-
-      // Morph {current} from a PromiseReaction into a PromiseReactionJobTask
-      // and schedule that on the microtask queue. We try to minimize the number
-      // of stores here to avoid screwing up the store buffer.
-      STATIC_ASSERT(
-          static_cast<int>(PromiseReaction::kSize) ==
-          static_cast<int>(
-              PromiseReactionJobTask::kSizeOfAllPromiseReactionJobTasks));
-      if (type == PromiseReaction::kFulfill) {
-        StoreMapNoWriteBarrier(current,
-                               RootIndex::kPromiseFulfillReactionJobTaskMap);
-        StoreObjectField(current, PromiseReactionJobTask::kArgumentOffset,
-                         argument);
-        StoreObjectField(current, PromiseReactionJobTask::kContextOffset,
-                         var_context.value());
-        STATIC_ASSERT(
-            static_cast<int>(PromiseReaction::kFulfillHandlerOffset) ==
-            static_cast<int>(PromiseReactionJobTask::kHandlerOffset));
-        STATIC_ASSERT(
-            static_cast<int>(PromiseReaction::kPromiseOrCapabilityOffset) ==
-            static_cast<int>(
-                PromiseReactionJobTask::kPromiseOrCapabilityOffset));
-      } else {
-        StoreMapNoWriteBarrier(current,
-                               RootIndex::kPromiseRejectReactionJobTaskMap);
-        StoreObjectField(current, PromiseReactionJobTask::kArgumentOffset,
-                         argument);
-        StoreObjectField(current, PromiseReactionJobTask::kContextOffset,
-                         var_context.value());
-        StoreObjectField(current, PromiseReactionJobTask::kHandlerOffset,
-                         primary_handler);
-        STATIC_ASSERT(
-            static_cast<int>(PromiseReaction::kPromiseOrCapabilityOffset) ==
-            static_cast<int>(
-                PromiseReactionJobTask::kPromiseOrCapabilityOffset));
-      }
-      CallBuiltin(Builtins::kEnqueueMicrotask, var_context.value(), current);
-      Goto(&loop);
-    }
-    BIND(&done_loop);
-  }
 }
 
 template <typename... TArgs>
@@ -1678,52 +1543,6 @@ TF_BUILTIN(PromisePrototypeFinally, PromiseBuiltinsAssembler) {
   BIND(&perform_finally);
   Return(InvokeThen(native_context, receiver, var_then_finally.value(),
                     var_catch_finally.value()));
-}
-
-// ES #sec-rejectpromise
-TF_BUILTIN(RejectPromise, PromiseBuiltinsAssembler) {
-  Node* const promise = Parameter(Descriptor::kPromise);
-  Node* const reason = Parameter(Descriptor::kReason);
-  Node* const debug_event = Parameter(Descriptor::kDebugEvent);
-  Node* const context = Parameter(Descriptor::kContext);
-
-  CSA_ASSERT(this, TaggedIsNotSmi(promise));
-  CSA_ASSERT(this, IsJSPromise(promise));
-  CSA_ASSERT(this, IsBoolean(debug_event));
-  Label if_runtime(this, Label::kDeferred);
-
-  // If promise hook is enabled or the debugger is active, let
-  // the runtime handle this operation, which greatly reduces
-  // the complexity here and also avoids a couple of back and
-  // forth between JavaScript and C++ land.
-  GotoIf(IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(),
-         &if_runtime);
-
-  // 7. If promise.[[PromiseIsHandled]] is false, perform
-  //    HostPromiseRejectionTracker(promise, "reject").
-  // We don't try to handle rejecting {promise} without handler
-  // here, but we let the C++ code take care of this completely.
-  GotoIfNot(PromiseHasHandler(promise), &if_runtime);
-
-  // 2. Let reactions be promise.[[PromiseRejectReactions]].
-  TNode<Object> reactions =
-      LoadObjectField(promise, JSPromise::kReactionsOrResultOffset);
-
-  // 3. Set promise.[[PromiseResult]] to reason.
-  // 4. Set promise.[[PromiseFulfillReactions]] to undefined.
-  // 5. Set promise.[[PromiseRejectReactions]] to undefined.
-  StoreObjectField(promise, JSPromise::kReactionsOrResultOffset, reason);
-
-  // 6. Set promise.[[PromiseState]] to "rejected".
-  PromiseSetStatus(promise, Promise::kRejected);
-
-  // 7. Return TriggerPromiseReactions(reactions, reason).
-  TriggerPromiseReactions(context, reactions, reason, PromiseReaction::kReject);
-  Return(UndefinedConstant());
-
-  BIND(&if_runtime);
-  TailCallRuntime(Runtime::kRejectPromise, context, promise, reason,
-                  debug_event);
 }
 
 // ES #sec-promise-resolve-functions

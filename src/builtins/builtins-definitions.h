@@ -747,8 +747,6 @@ namespace internal {
   TFS(ForInFilter, kKey, kObject)                                              \
                                                                                \
   /* Promise */                                                                \
-  /* ES #sec-rejectpromise */                                                  \
-  TFS(RejectPromise, kPromise, kReason, kDebugEvent)                           \
   /* ES #sec-promise-resolve-functions */                                      \
   /* Starting at step 6 of "Promise Resolve Functions" */                      \
   TFS(ResolvePromise, kPromise, kResolution)                                   \

@@ -74,6 +74,7 @@ class JSPromise : public TorqueGeneratedJSPromise<JSPromise, JSObject> {
 
   static const int kStatusShift = 0;
   static const int kStatusMask = 0x3;
+  static const int kHasHandlerMask = 0x4;
   STATIC_ASSERT(v8::Promise::kPending == 0);
   STATIC_ASSERT(v8::Promise::kFulfilled == 1);
   STATIC_ASSERT(v8::Promise::kRejected == 2);

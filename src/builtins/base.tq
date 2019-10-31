@@ -1151,12 +1151,16 @@ const kPromisePending: constexpr PromiseState
     generates 'Promise::kPending';
 const kPromiseFulfilled: constexpr PromiseState
     generates 'Promise::kFulfilled';
+const kPromiseRejected: constexpr PromiseState
+    generates 'Promise::kRejected';
 
 // JSPromise constants
 const kJSPromiseStatusMask: constexpr int31
     generates 'JSPromise::kStatusMask';
 const kJSPromiseStatusShift: constexpr int31
     generates 'JSPromise::kStatusShift';
+const kJSPromiseHasHandlerMask: constexpr int31
+    generates 'JSPromise::kHasHandlerMask';
 
 @generateCppClass
 extern class JSPromise extends JSObject {
@@ -1174,9 +1178,13 @@ extern class JSPromise extends JSObject {
     this.flags = this.flags | mask;
   }
 
+  HasHandler(): bool {
+    return (this.flags & kJSPromiseHasHandlerMask) != 0;
+  }
+
   // Smi 0 terminated list of PromiseReaction objects in case the JSPromise was
   // not settled yet, otherwise the result.
-  reactions_or_result: Smi|PromiseReaction|JSAny;
+  reactions_or_result: Zero|PromiseReaction|JSAny;
   flags: Smi;
 }
 
@@ -1356,6 +1364,10 @@ const kEmptyFixedArrayRootIndex:
     constexpr RootIndex generates 'RootIndex::kEmptyFixedArray';
 const kTheHoleValueRootIndex:
     constexpr RootIndex generates 'RootIndex::kTheHoleValue';
+const kPromiseFulfillReactionJobTaskMapRootIndex: constexpr RootIndex
+    generates 'RootIndex::kPromiseFulfillReactionJobTaskMap';
+const kPromiseRejectReactionJobTaskMapRootIndex: constexpr RootIndex
+    generates 'RootIndex::kPromiseRejectReactionJobTaskMap';
 
 const kInvalidArrayBufferLength: constexpr MessageTemplate
     generates 'MessageTemplate::kInvalidArrayBufferLength';
@@ -1490,6 +1502,7 @@ const False: False = FalseConstant();
 const kEmptyString: EmptyString = EmptyStringConstant();
 const kLengthString: String = LengthStringConstant();
 const kNaN: NaN = NanConstant();
+const kZero: Zero = %RawDownCast<Zero>(SmiConstant(0));
 
 const true: constexpr bool generates 'true';
 const false: constexpr bool generates 'false';
@@ -1532,6 +1545,14 @@ extern class PromiseCapability extends Struct {
 type PromiseReactionType extends int31 constexpr 'PromiseReaction::Type';
 const kPromiseReactionFulfill: constexpr PromiseReactionType
     generates 'PromiseReaction::kFulfill';
+const kPromiseReactionReject: constexpr PromiseReactionType
+    generates 'PromiseReaction::kReject';
+const kPromiseReactionSize:
+    constexpr int31 generates 'PromiseReaction::kSize';
+const kPromiseReactionFulfillHandlerOffset: constexpr int31
+    generates 'PromiseReaction::kFulfillHandlerOffset';
+const kPromiseReactionPromiseOrCapabilityOffset: constexpr int31
+    generates 'PromiseReaction::kPromiseOrCapabilityOffset';
 
 @generateCppClass
 extern class PromiseReaction extends Struct {
@@ -1542,6 +1563,14 @@ extern class PromiseReaction extends Struct {
   // (general case), or undefined (in case of await).
   promise_or_capability: JSPromise|PromiseCapability|Undefined;
 }
+
+// PromiseReactionJobTask constants
+const kPromiseReactionJobTaskSizeOfAllPromiseReactionJobTasks: constexpr int31
+    generates 'PromiseReactionJobTask::kSizeOfAllPromiseReactionJobTasks';
+const kPromiseReactionJobTaskHandlerOffset: constexpr int31
+    generates 'PromiseReactionJobTask::kHandlerOffset';
+const kPromiseReactionJobTaskPromiseOrCapabilityOffset: constexpr int31
+    generates 'PromiseReactionJobTask::kPromiseOrCapabilityOffset';
 
 @abstract
 @generateCppClass
@@ -2275,6 +2304,11 @@ Cast<PositiveSmi>(o: Object): PositiveSmi
   return TaggedToPositiveSmi(o) otherwise CastError;
 }
 
+Cast<Zero>(o: Object): Zero labels CastError {
+  if (TaggedEqual(o, SmiConstant(0))) return %RawDownCast<Zero>(o);
+  goto CastError;
+}
+
 Cast<Number>(o: Object): Number
     labels CastError {
   return TaggedToNumber(o) otherwise CastError;
@@ -2754,6 +2788,22 @@ Cast<JSReceiver|Null>(o: HeapObject): JSReceiver|Null
   }
 }
 
+Cast<PromiseFulfillReactionJobTask>(o: HeapObject):
+    PromiseFulfillReactionJobTask labels CastError {
+  if (IsPromiseFulfillReactionJobTask(o)) {
+    return %RawDownCast<PromiseFulfillReactionJobTask>(o);
+  }
+  goto CastError;
+}
+
+Cast<PromiseRejectReactionJobTask>(o: HeapObject):
+    PromiseRejectReactionJobTask labels CastError {
+  if (IsPromiseRejectReactionJobTask(o)) {
+    return %RawDownCast<PromiseRejectReactionJobTask>(o);
+  }
+  goto CastError;
+}
+
 Cast<PromiseReaction>(o: HeapObject): PromiseReaction labels CastError {
   if (IsPromiseReaction(o)) return %RawDownCast<PromiseReaction>(o);
   goto CastError;
@@ -2771,6 +2821,26 @@ Cast<Smi|PromiseReaction>(o: Object): Smi|PromiseReaction labels CastError {
       goto CastError;
     }
   }
+}
+
+Cast<Zero|PromiseReaction>(implicit context: Context)(o: Object): Zero|
+    PromiseReaction labels CastError {
+  typeswitch (o) {
+    case (o: Zero): {
+      return o;
+    }
+    case (o: PromiseReaction): {
+      return o;
+    }
+    case (Object): {
+      goto CastError;
+    }
+  }
+}
+
+Cast<JSBoundFunction>(o: HeapObject): JSBoundFunction labels CastError {
+  if (IsJSBoundFunction(o)) return %RawDownCast<JSBoundFunction>(o);
+  goto CastError;
 }
 
 Cast<PromiseCapability>(o: HeapObject): PromiseCapability labels CastError {
@@ -3566,6 +3636,7 @@ extern macro IsJSRegExp(HeapObject): bool;
 extern macro IsJSRegExpStringIterator(HeapObject): bool;
 extern macro IsMap(HeapObject): bool;
 extern macro IsJSFunction(HeapObject): bool;
+extern macro IsJSBoundFunction(HeapObject): bool;
 extern macro IsJSObject(HeapObject): bool;
 extern macro IsJSPromise(HeapObject): bool;
 extern macro IsJSTypedArray(HeapObject): bool;
@@ -3589,6 +3660,8 @@ extern macro IsExtensibleMap(Map): bool;
 extern macro IsJSPrimitiveWrapper(HeapObject): bool;
 extern macro IsPromiseCapability(HeapObject): bool;
 extern macro IsPromiseReaction(HeapObject): bool;
+extern macro IsPromiseRejectReactionJobTask(HeapObject): bool;
+extern macro IsPromiseFulfillReactionJobTask(HeapObject): bool;
 extern macro IsSharedFunctionInfo(HeapObject): bool;
 extern macro IsCustomElementsReceiverInstanceType(int32): bool;
 extern macro Typeof(JSAny): String;

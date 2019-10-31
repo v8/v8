@@ -15,6 +15,7 @@
 #include "src/objects/arguments.h"
 #include "src/objects/bigint.h"
 #include "src/objects/objects.h"
+#include "src/objects/promise.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"
 #include "src/roots/roots.h"
@@ -2441,6 +2442,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsAllocationSiteInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsJSFunctionMap(SloppyTNode<Map> map);
   TNode<BoolT> IsJSFunction(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsJSBoundFunction(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSGeneratorObject(TNode<HeapObject> object);
   TNode<BoolT> IsJSGlobalProxyInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsJSGlobalProxyMap(SloppyTNode<Map> map);
@@ -2480,6 +2482,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsPropertyArray(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsPropertyCell(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsPromiseReaction(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsPromiseRejectReactionJobTask(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsPromiseFulfillReactionJobTask(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsPrototypeInitialArrayPrototype(SloppyTNode<Context> context,
                                                 SloppyTNode<Map> map);
   TNode<BoolT> IsPrototypeTypedArrayPrototype(SloppyTNode<Context> context,
@@ -3457,7 +3461,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                             TNode<Context> context);
 
   // Debug helpers
-  Node* IsDebugActive();
+  TNode<BoolT> IsDebugActive();
 
   // JSArrayBuffer helpers
   TNode<Uint32T> LoadJSArrayBufferBitField(TNode<JSArrayBuffer> array_buffer);
@@ -3510,10 +3514,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<Context> context);
 
   // Promise helpers
-  Node* IsPromiseHookEnabled();
-  Node* HasAsyncEventDelegate();
-  Node* IsPromiseHookEnabledOrHasAsyncEventDelegate();
-  Node* IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate();
+  TNode<BoolT> IsPromiseHookEnabled();
+  TNode<BoolT> HasAsyncEventDelegate();
+  TNode<BoolT> IsPromiseHookEnabledOrHasAsyncEventDelegate();
+  TNode<BoolT> IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate();
 
   // for..in helpers
   void CheckPrototypeEnumCache(Node* receiver, Node* receiver_map,

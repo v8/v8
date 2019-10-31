@@ -6332,6 +6332,16 @@ TNode<BoolT> CodeStubAssembler::IsPromiseReaction(
   return HasInstanceType(object, PROMISE_REACTION_TYPE);
 }
 
+TNode<BoolT> CodeStubAssembler::IsPromiseRejectReactionJobTask(
+    SloppyTNode<HeapObject> object) {
+  return HasInstanceType(object, PROMISE_REJECT_REACTION_JOB_TASK_TYPE);
+}
+
+TNode<BoolT> CodeStubAssembler::IsPromiseFulfillReactionJobTask(
+    SloppyTNode<HeapObject> object) {
+  return HasInstanceType(object, PROMISE_FULFILL_REACTION_JOB_TASK_TYPE);
+}
+
 // This complicated check is due to elements oddities. If a smi array is empty
 // after Array.p.shift, it is replaced by the empty array constant. If it is
 // later filled with a double element, we try to grow it but pass in a double
@@ -6555,6 +6565,11 @@ TNode<BoolT> CodeStubAssembler::IsAllocationSiteInstanceType(
 
 TNode<BoolT> CodeStubAssembler::IsJSFunction(SloppyTNode<HeapObject> object) {
   return IsJSFunctionMap(LoadMap(object));
+}
+
+TNode<BoolT> CodeStubAssembler::IsJSBoundFunction(
+    SloppyTNode<HeapObject> object) {
+  return HasInstanceType(object, JS_BOUND_FUNCTION_TYPE);
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSFunctionMap(SloppyTNode<Map> map) {
@@ -13102,25 +13117,25 @@ TNode<BoolT> CodeStubAssembler::IsElementsKindInRange(
       Int32Constant(higher_reference_kind - lower_reference_kind));
 }
 
-Node* CodeStubAssembler::IsDebugActive() {
+TNode<BoolT> CodeStubAssembler::IsDebugActive() {
   TNode<Uint8T> is_debug_active = Load<Uint8T>(
       ExternalConstant(ExternalReference::debug_is_active_address(isolate())));
   return Word32NotEqual(is_debug_active, Int32Constant(0));
 }
 
-Node* CodeStubAssembler::IsPromiseHookEnabled() {
+TNode<BoolT> CodeStubAssembler::IsPromiseHookEnabled() {
   const TNode<RawPtrT> promise_hook = Load<RawPtrT>(
       ExternalConstant(ExternalReference::promise_hook_address(isolate())));
   return WordNotEqual(promise_hook, IntPtrConstant(0));
 }
 
-Node* CodeStubAssembler::HasAsyncEventDelegate() {
+TNode<BoolT> CodeStubAssembler::HasAsyncEventDelegate() {
   const TNode<RawPtrT> async_event_delegate = Load<RawPtrT>(ExternalConstant(
       ExternalReference::async_event_delegate_address(isolate())));
   return WordNotEqual(async_event_delegate, IntPtrConstant(0));
 }
 
-Node* CodeStubAssembler::IsPromiseHookEnabledOrHasAsyncEventDelegate() {
+TNode<BoolT> CodeStubAssembler::IsPromiseHookEnabledOrHasAsyncEventDelegate() {
   const TNode<Uint8T> promise_hook_or_async_event_delegate =
       Load<Uint8T>(ExternalConstant(
           ExternalReference::promise_hook_or_async_event_delegate_address(
@@ -13128,7 +13143,7 @@ Node* CodeStubAssembler::IsPromiseHookEnabledOrHasAsyncEventDelegate() {
   return Word32NotEqual(promise_hook_or_async_event_delegate, Int32Constant(0));
 }
 
-Node* CodeStubAssembler::
+TNode<BoolT> CodeStubAssembler::
     IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() {
   const TNode<Uint8T> promise_hook_or_debug_is_active_or_async_event_delegate =
       Load<Uint8T>(ExternalConstant(
