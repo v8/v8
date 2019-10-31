@@ -292,6 +292,10 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
 
   const char* DebugName() const;
 
+  bool operator==(const CallInterfaceDescriptor& other) const {
+    return data() == other.data();
+  }
+
  protected:
   const CallInterfaceDescriptorData* data() const { return data_; }
 

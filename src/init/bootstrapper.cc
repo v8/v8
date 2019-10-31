@@ -382,6 +382,8 @@ V8_NOINLINE Handle<JSFunction> CreateFunction(
     Isolate* isolate, Handle<String> name, InstanceType type, int instance_size,
     int inobject_properties, Handle<HeapObject> prototype,
     Builtins::Name builtin_id) {
+  DCHECK(Builtins::HasJSLinkage(builtin_id));
+
   Handle<JSFunction> result;
 
   NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithPrototype(
@@ -412,6 +414,7 @@ V8_NOINLINE Handle<JSFunction> InstallFunction(
     Isolate* isolate, Handle<JSObject> target, Handle<String> name,
     InstanceType type, int instance_size, int inobject_properties,
     Handle<HeapObject> prototype, Builtins::Name call) {
+  DCHECK(Builtins::HasJSLinkage(call));
   Handle<JSFunction> function = CreateFunction(
       isolate, name, type, instance_size, inobject_properties, prototype, call);
   JSObject::AddProperty(isolate, target, name, function, DONT_ENUM);
@@ -431,6 +434,7 @@ V8_NOINLINE Handle<JSFunction> SimpleCreateFunction(Isolate* isolate,
                                                     Handle<String> name,
                                                     Builtins::Name call,
                                                     int len, bool adapt) {
+  DCHECK(Builtins::HasJSLinkage(call));
   NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithoutPrototype(
       name, call, LanguageMode::kStrict);
   Handle<JSFunction> fun = isolate->factory()->NewFunction(args);

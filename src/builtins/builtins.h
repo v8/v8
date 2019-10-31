@@ -95,6 +95,7 @@ class Builtins {
 
   static CallInterfaceDescriptor CallInterfaceDescriptorFor(Name name);
   V8_EXPORT_PRIVATE static Callable CallableFor(Isolate* isolate, Name name);
+  static bool HasJSLinkage(int index);
 
   static int GetStackParameterCount(Name name);
 

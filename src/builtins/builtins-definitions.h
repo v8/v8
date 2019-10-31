@@ -97,8 +97,8 @@ namespace internal {
   ASM(JSEntry, Dummy)                                                          \
   ASM(JSConstructEntry, Dummy)                                                 \
   ASM(JSRunMicrotasksEntry, RunMicrotasksEntry)                                \
-  ASM(JSEntryTrampoline, Dummy)                                                \
-  ASM(JSConstructEntryTrampoline, Dummy)                                       \
+  ASM(JSEntryTrampoline, JSTrampoline)                                         \
+  ASM(JSConstructEntryTrampoline, JSTrampoline)                                \
   ASM(ResumeGeneratorTrampoline, ResumeGenerator)                              \
                                                                                \
   /* String helpers */                                                         \
@@ -116,7 +116,7 @@ namespace internal {
   TFS(OrderedHashTableHealIndex, kTable, kIndex)                               \
                                                                                \
   /* Interpreter */                                                            \
-  ASM(InterpreterEntryTrampoline, Dummy)                                       \
+  ASM(InterpreterEntryTrampoline, JSTrampoline)                                \
   ASM(InterpreterPushArgsThenCall, InterpreterPushArgsThenCall)                \
   ASM(InterpreterPushUndefinedAndArgsThenCall, InterpreterPushArgsThenCall)    \
   ASM(InterpreterPushArgsThenCallWithFinalSpread, InterpreterPushArgsThenCall) \
@@ -522,12 +522,12 @@ namespace internal {
                                                                                \
   /* Function */                                                               \
   CPP(FunctionConstructor)                                                     \
-  ASM(FunctionPrototypeApply, Dummy)                                           \
+  ASM(FunctionPrototypeApply, JSTrampoline)                                    \
   CPP(FunctionPrototypeBind)                                                   \
   /* ES6 #sec-function.prototype.bind */                                       \
   TFJ(FastFunctionPrototypeBind,                                               \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
-  ASM(FunctionPrototypeCall, Dummy)                                            \
+  ASM(FunctionPrototypeCall, JSTrampoline)                                     \
   /* ES6 #sec-function.prototype-@@hasinstance */                              \
   TFJ(FunctionPrototypeHasInstance, 1, kReceiver, kV)                          \
   /* ES6 #sec-function.prototype.tostring */                                   \
@@ -796,8 +796,8 @@ namespace internal {
   TFJ(PromiseAllSettledRejectElementClosure, 1, kReceiver, kValue)             \
                                                                                \
   /* Reflect */                                                                \
-  ASM(ReflectApply, Dummy)                                                     \
-  ASM(ReflectConstruct, Dummy)                                                 \
+  ASM(ReflectApply, JSTrampoline)                                              \
+  ASM(ReflectConstruct, JSTrampoline)                                          \
   CPP(ReflectDefineProperty)                                                   \
   CPP(ReflectGetOwnPropertyDescriptor)                                         \
   CPP(ReflectOwnKeys)                                                          \

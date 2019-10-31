@@ -1759,8 +1759,8 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     } else if (shared.HasBuiltinId() && Builtins::IsCpp(shared.builtin_id())) {
       // Patch {node} to a direct CEntry call.
       ReduceBuiltin(jsgraph(), node, shared.builtin_id(), arity, flags);
-    } else if (shared.HasBuiltinId() &&
-               Builtins::KindOf(shared.builtin_id()) == Builtins::TFJ) {
+    } else if (shared.HasBuiltinId()) {
+      DCHECK(Builtins::HasJSLinkage(shared.builtin_id()));
       // Patch {node} to a direct code object call.
       Callable callable = Builtins::CallableFor(
           isolate(), static_cast<Builtins::Name>(shared.builtin_id()));

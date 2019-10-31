@@ -2440,7 +2440,6 @@ void JSHeapBroker::InitializeRefsMap() {
         Builtins::kCallFunction_ReceiverIsNotNullOrUndefined,
         Builtins::kCallFunction_ReceiverIsNullOrUndefined,
         Builtins::kCloneFastJSArray,
-        Builtins::kCompileLazy,
         Builtins::kConstructFunctionForwardVarargs,
         Builtins::kForInFilter,
         Builtins::kGetProperty,
@@ -2457,8 +2456,8 @@ void JSHeapBroker::InitializeRefsMap() {
       GetOrCreateData(b->builtin_handle(id));
     }
   }
-  for (int32_t id = 0; id < Builtins::builtin_count; ++id) {
-    if (Builtins::KindOf(id) == Builtins::TFJ) {
+  for (int32_t id = 0; id < Builtins::kFirstBytecodeHandler; ++id) {
+    if (Builtins::HasJSLinkage(id)) {
       GetOrCreateData(b->builtin_handle(id));
     }
   }

@@ -189,6 +189,13 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
 }
 
 // static
+bool Builtins::HasJSLinkage(int builtin_index) {
+  Name name = static_cast<Name>(builtin_index);
+  DCHECK_NE(BCH, Builtins::KindOf(name));
+  return CallInterfaceDescriptorFor(name) == JSTrampolineDescriptor{};
+}
+
+// static
 const char* Builtins::name(int index) {
   DCHECK(IsBuiltinId(index));
   return builtin_metadata[index].name;
