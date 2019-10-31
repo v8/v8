@@ -1201,39 +1201,25 @@ void TurboAssembler::MovFromFloatParameter(const DoubleRegister dst) {
   Move(dst, d0);
 }
 
-void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
-                                        Register caller_args_count_reg,
+void TurboAssembler::PrepareForTailCall(Register callee_args_count,
+                                        Register caller_args_count,
                                         Register scratch0, Register scratch1) {
-#if DEBUG
-  if (callee_args_count.is_reg()) {
-    DCHECK(!AreAliased(callee_args_count.reg(), caller_args_count_reg, scratch0,
-                       scratch1));
-  } else {
-    DCHECK(!AreAliased(caller_args_count_reg, scratch0, scratch1));
-  }
-#endif
+  DCHECK(!AreAliased(callee_args_count, caller_args_count, scratch0, scratch1));
 
   // Calculate the end of destination area where we will put the arguments
   // after we drop current frame. We AddP kSystemPointerSize to count the
   // receiver argument which is not included into formal parameters count.
   Register dst_reg = scratch0;
-  ShiftLeftP(dst_reg, caller_args_count_reg, Operand(kSystemPointerSizeLog2));
+  ShiftLeftP(dst_reg, caller_args_count, Operand(kSystemPointerSizeLog2));
   AddP(dst_reg, fp, dst_reg);
   AddP(dst_reg, dst_reg,
        Operand(StandardFrameConstants::kCallerSPOffset + kSystemPointerSize));
 
-  Register src_reg = caller_args_count_reg;
+  Register src_reg = caller_args_count;
   // Calculate the end of source area. +kSystemPointerSize is for the receiver.
-  if (callee_args_count.is_reg()) {
-    ShiftLeftP(src_reg, callee_args_count.reg(),
-               Operand(kSystemPointerSizeLog2));
-    AddP(src_reg, sp, src_reg);
-    AddP(src_reg, src_reg, Operand(kSystemPointerSize));
-  } else {
-    mov(src_reg,
-        Operand((callee_args_count.immediate() + 1) * kSystemPointerSize));
-    AddP(src_reg, src_reg, sp);
-  }
+  ShiftLeftP(src_reg, callee_args_count, Operand(kSystemPointerSizeLog2));
+  AddP(src_reg, sp, src_reg);
+  AddP(src_reg, src_reg, Operand(kSystemPointerSize));
 
   if (FLAG_debug_code) {
     CmpLogicalP(src_reg, dst_reg);
@@ -1251,11 +1237,7 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
   // so they must be pre-decremented in the loop.
   Register tmp_reg = scratch1;
   Label loop;
-  if (callee_args_count.is_reg()) {
-    AddP(tmp_reg, callee_args_count.reg(), Operand(1));  // +1 for receiver
-  } else {
-    mov(tmp_reg, Operand(callee_args_count.immediate() + 1));
-  }
+  AddP(tmp_reg, callee_args_count, Operand(1));  // +1 for receiver
   LoadRR(r1, tmp_reg);
   bind(&loop);
   LoadP(tmp_reg, MemOperand(src_reg, -kSystemPointerSize));
