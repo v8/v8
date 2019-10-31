@@ -46,20 +46,13 @@ group("v8_perf") {
 
   data_deps = [
     "..:v8_python_base",
-    "cctest:cctest",
     "..:d8",
     "../tools:v8_android_test_runner_deps",
+    "../tools:v8_testrunner",
   ]
 
   data = [
     "../tools/run_perf.py",
-
-    # TODO(machenbach): These files are referenced by the perf runner.
-    # They should be transformed into a proper python module.
-    "../tools/testrunner/local/android.py",
-    "../tools/testrunner/local/command.py",
-    "../tools/testrunner/local/utils.py",
-    "../tools/testrunner/objects/output.py",
 
     # This is often used to trigger performance bots. We include it in the
     # isolate to not get these builds deduped.
