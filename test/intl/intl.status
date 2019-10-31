@@ -37,10 +37,6 @@
   # https://code.google.com/p/v8/issues/detail?id=9312
   'regress-9312': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9876
-  'number-format/unified/notation-engineering-formatToParts': [PASS, FAIL],
-  'number-format/unified/notation-scientific-formatToParts': [PASS, FAIL],
-
   # http://crbug/v8/9930
   'date-format/format_range_hour_cycle': [FAIL],
 }],  # ALWAYS
