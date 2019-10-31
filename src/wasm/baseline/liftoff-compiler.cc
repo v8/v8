@@ -2185,8 +2185,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(AccountingAllocator* allocator,
                                                 WasmFeatures* detected) {
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                "ExecuteLiftoffCompilation", "func_index", func_index,
-               "body_size",
-               static_cast<uint32_t>(func_body.end - func_body.start));
+               "body_size", func_body.end - func_body.start);
 
   Zone zone(allocator, "LiftoffCompilationZone");
   const WasmModule* module = env ? env->module : nullptr;

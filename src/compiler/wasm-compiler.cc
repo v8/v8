@@ -6943,8 +6943,7 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
     wasm::WasmFeatures* detected) {
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                "ExecuteTurbofanCompilation", "func_index", func_index,
-               "body_size",
-               static_cast<uint32_t>(func_body.end - func_body.start));
+               "body_size", func_body.end - func_body.start);
   Zone zone(wasm_engine->allocator(), ZONE_NAME);
   MachineGraph* mcgraph = new (&zone) MachineGraph(
       new (&zone) Graph(&zone), new (&zone) CommonOperatorBuilder(&zone),
