@@ -2520,41 +2520,41 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F32x4Sqrt: {
-      __ sqrtps(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ Sqrtps(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kX64F32x4RecipApprox: {
-      __ rcpps(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ Rcpps(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kX64F32x4RecipSqrtApprox: {
-      __ rsqrtps(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ Rsqrtps(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kX64F32x4Add: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ addps(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Addps(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64F32x4AddHoriz: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope sse_scope(tasm(), SSE3);
-      __ haddps(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Haddps(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64F32x4Sub: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ subps(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Subps(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64F32x4Mul: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ mulps(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Mulps(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64F32x4Div: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ divps(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ Divps(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64F32x4Min: {
