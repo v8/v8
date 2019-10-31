@@ -253,6 +253,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
     Call(ip);
     return;
   }
+  DCHECK(code->IsExecutable());
   call(code, rmode);
 }
 
@@ -4397,6 +4398,8 @@ void TurboAssembler::CallForDeoptimization(Address target, int deopt_id) {
   lghi(r10, Operand(deopt_id));
   Call(target, RelocInfo::RUNTIME_ENTRY);
 }
+
+void TurboAssembler::Trap() { stop(); }
 
 }  // namespace internal
 }  // namespace v8
