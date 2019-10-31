@@ -1652,13 +1652,14 @@ bool ModifyCodeGenerationFromStrings(Isolate* isolate, Handle<Context> context,
       isolate->modify_code_gen_callback();
   RuntimeCallTimerScope timer(
       isolate, RuntimeCallCounterId::kCodeGenerationFromStringsCallbacks);
-  MaybeLocal<v8::String> modified_source =
+  ModifyCodeGenerationFromStringsResult result =
       modify_callback(v8::Utils::ToLocal(context), v8::Utils::ToLocal(*source));
-  if (modified_source.IsEmpty()) return false;
-
-  // Use the new source (which might be the same as the old source) and return.
-  *source = Utils::OpenHandle(*modified_source.ToLocalChecked(), false);
-  return true;
+  if (result.codegen_allowed && !result.modified_source.IsEmpty()) {
+    // Use the new source (which might be the same as the old source).
+    *source =
+        Utils::OpenHandle(*result.modified_source.ToLocalChecked(), false);
+  }
+  return result.codegen_allowed;
 }
 
 // Run Embedder-mandated checks before generating code from a string.
@@ -1676,38 +1677,49 @@ bool ModifyCodeGenerationFromStrings(Isolate* isolate, Handle<Context> context,
 // - !source_is_null() and unknown_object can't be true at the same time.
 std::pair<MaybeHandle<String>, bool> Compiler::ValidateDynamicCompilationSource(
     Isolate* isolate, Handle<Context> context,
-    Handle<i::Object> source_object) {
-  Handle<String> source;
-  if (source_object->IsString()) source = Handle<String>::cast(source_object);
-
+    Handle<i::Object> original_source) {
   // Check if the context unconditionally allows code gen from strings.
   // allow_code_gen_from_strings can be many things, so we'll always check
   // against the 'false' literal, so that e.g. undefined and 'true' are treated
   // the same.
   if (!context->allow_code_gen_from_strings().IsFalse(isolate)) {
-    return {source, !source_object->IsString()};
+    if (!original_source->IsString()) {
+      return {MaybeHandle<String>(), true};
+    }
+    return {Handle<String>::cast(original_source), false};
   }
 
   // Check if the context allows code generation for this string.
   // allow_code_gen_callback only allows proper strings.
   // (I.e., let allow_code_gen_callback decide, if it has been set.)
   if (isolate->allow_code_gen_callback()) {
-    if (source_object->IsString() &&
-        CodeGenerationFromStringsAllowed(isolate, context, source)) {
-      return {source, !source_object->IsString()};
+    if (!original_source->IsString()) {
+      return {MaybeHandle<String>(), true};
     }
+    Handle<String> string_source = Handle<String>::cast(original_source);
+    if (!CodeGenerationFromStringsAllowed(isolate, context, string_source)) {
+      return {MaybeHandle<String>(), false};
+    }
+    return {string_source, false};
   }
 
   // Check if the context wants to block or modify this source object.
   // Double-check that we really have a string now.
   // (Let modify_code_gen_callback decide, if it's been set.)
   if (isolate->modify_code_gen_callback()) {
-    if (ModifyCodeGenerationFromStrings(isolate, context, &source_object) &&
-        source_object->IsString())
-      return {Handle<String>::cast(source_object), false};
+    Handle<i::Object> modified_source = original_source;
+    if (!ModifyCodeGenerationFromStrings(isolate, context, &modified_source)) {
+      return {MaybeHandle<String>(), false};
+    }
+    if (!modified_source->IsString()) {
+      return {MaybeHandle<String>(), true};
+    }
+    return {Handle<String>::cast(modified_source), false};
   }
 
-  return {MaybeHandle<String>(), !source_object->IsString()};
+  // If unconditional codegen was disabled, and no callback defined, we block
+  // strings and allow all other objects.
+  return {MaybeHandle<String>(), !original_source->IsString()};
 }
 
 MaybeHandle<JSFunction> Compiler::GetFunctionFromValidatedString(

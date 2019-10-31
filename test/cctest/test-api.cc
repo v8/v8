@@ -19319,20 +19319,34 @@ bool CodeGenerationDisallowed(Local<Context> context, Local<String> source) {
   return false;
 }
 
-v8::MaybeLocal<String> ModifyCodeGeneration(Local<Context> context,
-                                            Local<Value> source) {
-  // For testing purposes, deny all odd-length strings and replace '2' with '3'
-  String::Utf8Value utf8(context->GetIsolate(), source);
-  DCHECK(utf8.length());
-  if (utf8.length() == 0 || utf8.length() % 2 != 0)
-    return v8::MaybeLocal<String>();
+v8::ModifyCodeGenerationFromStringsResult ModifyCodeGeneration(
+    Local<Context> context, Local<Value> source) {
+  // Allow (passthrough, unmodified) all objects that are not strings.
+  if (!source->IsString()) {
+    return {/* codegen_allowed= */ true, v8::MaybeLocal<String>()};
+  }
 
+  String::Utf8Value utf8(context->GetIsolate(), source);
+  DCHECK_GT(utf8.length(), 0);
+
+  // Allow (unmodified) all strings that contain "44".
+  if (strstr(*utf8, "44") != nullptr) {
+    return {/* codegen_allowed= */ true, v8::MaybeLocal<String>()};
+  }
+
+  // Deny all odd-length strings.
+  if (utf8.length() == 0 || utf8.length() % 2 != 0) {
+    return {/* codegen_allowed= */ false, v8::MaybeLocal<String>()};
+  }
+
+  // Allow even-length strings and modify them by replacing all '2' with '3'.
   for (char* i = *utf8; *i != '\0'; i++) {
     if (*i == '2') *i = '3';
   }
-  return String::NewFromUtf8(context->GetIsolate(), *utf8,
-                             v8::NewStringType::kNormal)
-      .ToLocalChecked();
+  return {/* codegen_allowed= */ true,
+          String::NewFromUtf8(context->GetIsolate(), *utf8,
+                              v8::NewStringType::kNormal)
+              .ToLocalChecked()};
 }
 
 THREADED_TEST(AllowCodeGenFromStrings) {
@@ -19383,6 +19397,12 @@ TEST(ModifyCodeGenFromStrings) {
 
   result = CompileRun("var f = new Function('return 42;'); f()");
   CHECK_EQ(43, result->Int32Value(context.local()).FromJust());
+
+  result = CompileRun("eval(43)");
+  CHECK_EQ(43, result->Int32Value(context.local()).FromJust());
+
+  result = CompileRun("var f = new Function('return 44;'); f();");
+  CHECK_EQ(44, result->Int32Value(context.local()).FromJust());
 
   // Test 'disallowed' cases.
   TryCatch try_catch(CcTest::isolate());
