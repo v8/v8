@@ -1928,8 +1928,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                   "start-arity and end-arity of one-armed if must match");
               break;
             }
+            if (!TypeCheckOneArmedIf(c)) break;
           }
-
           if (!TypeCheckFallThru()) break;
 
           if (control_.size() == 1) {
@@ -3033,12 +3033,28 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return true;
   }
 
+  bool TypeCheckOneArmedIf(Control* c) {
+    static_assert(validate, "Call this function only within VALIDATE");
+    DCHECK(c->is_onearmed_if());
+    DCHECK_EQ(c->start_merge.arity, c->end_merge.arity);
+    for (uint32_t i = 0; i < c->start_merge.arity; ++i) {
+      Value& start = c->start_merge[i];
+      Value& end = c->end_merge[i];
+      if (!ValueTypes::IsSubType(start.type, end.type)) {
+        this->errorf(this->pc_, "type error in merge[%u] (expected %s, got %s)",
+                     i, ValueTypes::TypeName(end.type),
+                     ValueTypes::TypeName(start.type));
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   bool TypeCheckFallThru() {
+    static_assert(validate, "Call this function only whithin VALIDATE");
     Control& c = control_.back();
     if (V8_LIKELY(c.reachable())) {
-      // We only do type-checking here. This is only needed during validation.
-      if (!validate) return true;
-
       uint32_t expected = c.end_merge.arity;
       DCHECK_GE(stack_.size(), c.stack_depth);
       uint32_t actual = static_cast<uint32_t>(stack_.size()) - c.stack_depth;

@@ -295,6 +295,24 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(instance.exports.main(1), 6);
 })();
 
+(function MultiIfOneArmedNoTypeCheckTest() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig_i_l = builder.addType(kSig_i_l);
+
+  builder.addFunction("main", kSig_i_v)
+    .addBody([
+      kExprI64Const, 0,
+      kExprI32Const, 0,
+      kExprIf, sig_i_l,
+      kExprDrop,
+      kExprI32Const, 0,
+      kExprEnd]);
+
+  assertThrows(() => new WebAssembly.Module(builder.toBuffer()),
+      WebAssembly.CompileError, /expected i32, got i64/);
+})();
+
 (function MultiResultTest() {
   print("MultiResultTest");
   let builder = new WasmModuleBuilder();
