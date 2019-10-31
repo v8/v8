@@ -1391,6 +1391,7 @@ AsyncCompileJob::AsyncCompileJob(
       api_method_name_(api_method_name),
       enabled_features_(enabled),
       wasm_lazy_compilation_(FLAG_wasm_lazy_compilation),
+      start_time_(base::TimeTicks::Now()),
       bytes_copy_(std::move(bytes_copy)),
       wire_bytes_(bytes_copy_.get(), bytes_copy_.get() + length),
       resolver_(std::move(resolver)) {
@@ -1450,7 +1451,6 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
   AsyncCompileJob* job_;
   WasmEngine* wasm_engine_;
   std::unique_ptr<CompilationUnitBuilder> compilation_unit_builder_;
-  base::TimeTicks start_time_;
   int num_functions_ = 0;
 };
 
@@ -1527,6 +1527,15 @@ void AsyncCompileJob::FinishCompile() {
   if (!is_after_deserialization) {
     PrepareRuntimeObjects();
   }
+
+  // Measure duration of baseline compilation or deserialization from cache.
+  if (base::TimeTicks::IsHighResolution()) {
+    base::TimeDelta duration = base::TimeTicks::Now() - start_time_;
+    int duration_usecs = static_cast<int>(duration.InMicroseconds());
+    isolate_->counters()->wasm_streaming_finish_wasm_module_time()->AddSample(
+        duration_usecs);
+  }
+
   DCHECK(!isolate_->context().is_null());
   // Finish the wasm script now and make it public to the debugger.
   Handle<Script> script(module_object_->script(), isolate_);
@@ -1946,8 +1955,7 @@ AsyncStreamingProcessor::AsyncStreamingProcessor(AsyncCompileJob* job)
     : decoder_(job->enabled_features_),
       job_(job),
       wasm_engine_(job_->isolate_->wasm_engine()),
-      compilation_unit_builder_(nullptr),
-      start_time_(base::TimeTicks::Now()) {}
+      compilation_unit_builder_(nullptr) {}
 
 void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(
     const WasmError& error) {
@@ -2176,12 +2184,6 @@ bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
 
   MaybeHandle<WasmModuleObject> result =
       DeserializeNativeModule(job_->isolate_, module_bytes, wire_bytes);
-  if (base::TimeTicks::IsHighResolution()) {
-    base::TimeDelta duration = base::TimeTicks::Now() - start_time_;
-    auto* histogram = job_->isolate_->counters()
-                          ->wasm_streaming_deserialize_wasm_module_time();
-    histogram->AddSample(static_cast<int>(duration.InMicroseconds()));
-  }
 
   if (result.is_null()) return false;
 
