@@ -7,6 +7,7 @@
 
 #include "src/base/flags.h"
 #include "src/compiler/frame-states.h"
+#include "src/compiler/globals.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/node-properties.h"
 #include "src/deoptimizer/deoptimize-reason.h"
@@ -106,7 +107,8 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
   Reduction ReduceCallOrConstructWithArrayLikeOrSpread(
       Node* node, int arity, CallFrequency const& frequency,
-      FeedbackSource const& feedback);
+      FeedbackSource const& feedback, SpeculationMode speculation_mode,
+      CallFeedbackRelation feedback_relation);
   Reduction ReduceJSConstruct(Node* node);
   Reduction ReduceJSConstructWithArrayLike(Node* node);
   Reduction ReduceJSConstructWithSpread(Node* node);

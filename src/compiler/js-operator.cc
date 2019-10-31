@@ -23,8 +23,7 @@ std::ostream& operator<<(std::ostream& os, CallFrequency const& f) {
 }
 
 CallFrequency CallFrequencyOf(Operator const* op) {
-  DCHECK(op->opcode() == IrOpcode::kJSCallWithArrayLike ||
-         op->opcode() == IrOpcode::kJSConstructWithArrayLike);
+  DCHECK_EQ(op->opcode(), IrOpcode::kJSConstructWithArrayLike);
   return OpParameter<CallFrequency>(op);
 }
 
@@ -66,11 +65,13 @@ ConstructParameters const& ConstructParametersOf(Operator const* op) {
 }
 
 std::ostream& operator<<(std::ostream& os, CallParameters const& p) {
-  return os << p.arity() << ", " << p.frequency() << ", " << p.convert_mode();
+  return os << p.arity() << ", " << p.frequency() << ", " << p.convert_mode()
+            << ", " << p.speculation_mode() << ", " << p.feedback_relation();
 }
 
 const CallParameters& CallParametersOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kJSCall ||
+         op->opcode() == IrOpcode::kJSCallWithArrayLike ||
          op->opcode() == IrOpcode::kJSCallWithSpread);
   return OpParameter<CallParameters>(op);
 }
@@ -882,15 +883,12 @@ const Operator* JSOperatorBuilder::CallForwardVarargs(size_t arity,
       parameters);                                               // parameter
 }
 
-const Operator* JSOperatorBuilder::Call(size_t arity,
-                                        CallFrequency const& frequency,
-                                        FeedbackSource const& feedback,
-                                        ConvertReceiverMode convert_mode,
-                                        SpeculationMode speculation_mode) {
-  DCHECK_IMPLIES(speculation_mode == SpeculationMode::kAllowSpeculation,
-                 feedback.IsValid());
+const Operator* JSOperatorBuilder::Call(
+    size_t arity, CallFrequency const& frequency,
+    FeedbackSource const& feedback, ConvertReceiverMode convert_mode,
+    SpeculationMode speculation_mode, CallFeedbackRelation feedback_relation) {
   CallParameters parameters(arity, frequency, feedback, convert_mode,
-                            speculation_mode);
+                            speculation_mode, feedback_relation);
   return new (zone()) Operator1<CallParameters>(   // --
       IrOpcode::kJSCall, Operator::kNoProperties,  // opcode
       "JSCall",                                    // name
@@ -899,21 +897,26 @@ const Operator* JSOperatorBuilder::Call(size_t arity,
 }
 
 const Operator* JSOperatorBuilder::CallWithArrayLike(
-    CallFrequency const& frequency) {
-  return new (zone()) Operator1<CallFrequency>(                 // --
+    const CallFrequency& frequency, const FeedbackSource& feedback,
+    SpeculationMode speculation_mode, CallFeedbackRelation feedback_relation) {
+  CallParameters parameters(2, frequency, feedback, ConvertReceiverMode::kAny,
+                            speculation_mode, feedback_relation);
+  return new (zone()) Operator1<CallParameters>(                // --
       IrOpcode::kJSCallWithArrayLike, Operator::kNoProperties,  // opcode
       "JSCallWithArrayLike",                                    // name
       3, 1, 1, 1, 1, 2,                                         // counts
-      frequency);                                               // parameter
+      parameters);                                              // parameter
 }
 
 const Operator* JSOperatorBuilder::CallWithSpread(
     uint32_t arity, CallFrequency const& frequency,
-    FeedbackSource const& feedback, SpeculationMode speculation_mode) {
+    FeedbackSource const& feedback, SpeculationMode speculation_mode,
+    CallFeedbackRelation feedback_relation) {
   DCHECK_IMPLIES(speculation_mode == SpeculationMode::kAllowSpeculation,
                  feedback.IsValid());
   CallParameters parameters(arity, frequency, feedback,
-                            ConvertReceiverMode::kAny, speculation_mode);
+                            ConvertReceiverMode::kAny, speculation_mode,
+                            feedback_relation);
   return new (zone()) Operator1<CallParameters>(             // --
       IrOpcode::kJSCallWithSpread, Operator::kNoProperties,  // opcode
       "JSCallWithSpread",                                    // name

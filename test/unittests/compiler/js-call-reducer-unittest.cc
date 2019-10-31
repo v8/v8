@@ -115,9 +115,9 @@ class JSCallReducerTest : public TypedGraphTest {
     Handle<FeedbackVector> vector =
         FeedbackVector::New(isolate(), shared, closure_feedback_cell_array);
     FeedbackSource feedback(vector, FeedbackSlot(0));
-    return javascript()->Call(arity, CallFrequency(), feedback,
-                              ConvertReceiverMode::kAny,
-                              SpeculationMode::kAllowSpeculation);
+    return javascript()->Call(
+        arity, CallFrequency(), feedback, ConvertReceiverMode::kAny,
+        SpeculationMode::kAllowSpeculation, CallFeedbackRelation::kRelated);
   }
 
  private:

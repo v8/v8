@@ -165,12 +165,20 @@ class CallParameters final {
   CallParameters(size_t arity, CallFrequency const& frequency,
                  FeedbackSource const& feedback,
                  ConvertReceiverMode convert_mode,
-                 SpeculationMode speculation_mode)
+                 SpeculationMode speculation_mode,
+                 CallFeedbackRelation feedback_relation)
       : bit_field_(ArityField::encode(arity) |
+                   CallFeedbackRelationField::encode(feedback_relation) |
                    SpeculationModeField::encode(speculation_mode) |
                    ConvertReceiverModeField::encode(convert_mode)),
         frequency_(frequency),
-        feedback_(feedback) {}
+        feedback_(feedback) {
+    // CallFeedbackRelation is ignored if the feedback slot is invalid.
+    DCHECK_IMPLIES(speculation_mode == SpeculationMode::kAllowSpeculation,
+                   feedback.IsValid());
+    DCHECK_IMPLIES(!feedback.IsValid(),
+                   feedback_relation == CallFeedbackRelation::kUnrelated);
+  }
 
   size_t arity() const { return ArityField::decode(bit_field_); }
   CallFrequency const& frequency() const { return frequency_; }
@@ -181,6 +189,10 @@ class CallParameters final {
 
   SpeculationMode speculation_mode() const {
     return SpeculationModeField::decode(bit_field_);
+  }
+
+  CallFeedbackRelation feedback_relation() const {
+    return CallFeedbackRelationField::decode(bit_field_);
   }
 
   bool operator==(CallParameters const& that) const {
@@ -197,7 +209,8 @@ class CallParameters final {
                               feedback_hash(p.feedback_));
   }
 
-  using ArityField = BitField<size_t, 0, 28>;
+  using ArityField = BitField<size_t, 0, 27>;
+  using CallFeedbackRelationField = BitField<CallFeedbackRelation, 27, 1>;
   using SpeculationModeField = BitField<SpeculationMode, 28, 1>;
   using ConvertReceiverModeField = BitField<ConvertReceiverMode, 29, 2>;
 
@@ -815,12 +828,19 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
       size_t arity, CallFrequency const& frequency = CallFrequency(),
       FeedbackSource const& feedback = FeedbackSource(),
       ConvertReceiverMode convert_mode = ConvertReceiverMode::kAny,
-      SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation);
-  const Operator* CallWithArrayLike(CallFrequency const& frequency);
+      SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation,
+      CallFeedbackRelation feedback_relation =
+          CallFeedbackRelation::kUnrelated);
+  const Operator* CallWithArrayLike(
+      CallFrequency const& frequency,
+      const FeedbackSource& feedback = FeedbackSource{},
+      SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation,
+      CallFeedbackRelation feedback_relation = CallFeedbackRelation::kRelated);
   const Operator* CallWithSpread(
       uint32_t arity, CallFrequency const& frequency = CallFrequency(),
       FeedbackSource const& feedback = FeedbackSource(),
-      SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation);
+      SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation,
+      CallFeedbackRelation feedback_relation = CallFeedbackRelation::kRelated);
   const Operator* CallRuntime(Runtime::FunctionId id);
   const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);
   const Operator* CallRuntime(const Runtime::Function* function, size_t arity);

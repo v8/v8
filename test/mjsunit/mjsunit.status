@@ -1106,6 +1106,9 @@
   'compiler/diamond-followedby-branch': [SKIP],
   'compiler/load-elimination-const-field': [SKIP],
   'compiler/constant-fold-add-static': [SKIP],
+
+  # Some tests rely on inlining.
+  'compiler/opt-higher-order-functions': [SKIP],
 }],  # variant == turboprop
 
 ##############################################################################

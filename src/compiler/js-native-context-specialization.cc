@@ -1439,7 +1439,8 @@ Reduction JSNativeContextSpecialization::ReduceJSGetIterator(Node* node) {
                              : feedback.AsCall().speculation_mode();
   const Operator* call_op =
       javascript()->Call(2, CallFrequency(), p.callFeedback(),
-                         ConvertReceiverMode::kNotNullOrUndefined, mode);
+                         ConvertReceiverMode::kNotNullOrUndefined, mode,
+                         CallFeedbackRelation::kRelated);
   Node* call_property = graph()->NewNode(call_op, load_property, receiver,
                                          context, frame_state, effect, control);
   effect = call_property;

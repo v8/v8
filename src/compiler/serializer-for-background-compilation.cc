@@ -2138,14 +2138,12 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
         new_arguments.push_back(arguments[0]);  // O
         for (auto constant : callback.constants()) {
           ProcessCalleeForCallOrConstruct(constant, base::nullopt,
-                                          new_arguments,
-                                          SpeculationMode::kDisallowSpeculation,
+                                          new_arguments, speculation_mode,
                                           kMissingArgumentsAreUndefined);
         }
         for (auto blueprint : callback.function_blueprints()) {
           ProcessCalleeForCallOrConstruct(Callee(blueprint), base::nullopt,
-                                          new_arguments,
-                                          SpeculationMode::kDisallowSpeculation,
+                                          new_arguments, speculation_mode,
                                           kMissingArgumentsAreUndefined);
         }
       }
@@ -2165,14 +2163,12 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
         new_arguments.push_back(arguments[0]);  // O
         for (auto constant : callback.constants()) {
           ProcessCalleeForCallOrConstruct(constant, base::nullopt,
-                                          new_arguments,
-                                          SpeculationMode::kDisallowSpeculation,
+                                          new_arguments, speculation_mode,
                                           kMissingArgumentsAreUndefined);
         }
         for (auto blueprint : callback.function_blueprints()) {
           ProcessCalleeForCallOrConstruct(Callee(blueprint), base::nullopt,
-                                          new_arguments,
-                                          SpeculationMode::kDisallowSpeculation,
+                                          new_arguments, speculation_mode,
                                           kMissingArgumentsAreUndefined);
         }
       }
@@ -2189,8 +2185,7 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
         HintsVector new_arguments({new_receiver}, zone());
         for (auto constant : arguments[0].constants()) {
           ProcessCalleeForCallOrConstruct(constant, base::nullopt,
-                                          new_arguments,
-                                          SpeculationMode::kDisallowSpeculation,
+                                          new_arguments, speculation_mode,
                                           kMissingArgumentsAreUnknown);
         }
       }
@@ -2222,9 +2217,9 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
         HintsVector new_arguments(arguments.begin() + 1, arguments.end(),
                                   zone());
         for (auto constant : arguments[0].constants()) {
-          ProcessCalleeForCallOrConstruct(
-              constant, base::nullopt, new_arguments,
-              SpeculationMode::kDisallowSpeculation, padding);
+          ProcessCalleeForCallOrConstruct(constant, base::nullopt,
+                                          new_arguments, speculation_mode,
+                                          padding);
         }
       }
       break;

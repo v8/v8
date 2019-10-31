@@ -2231,8 +2231,9 @@ void BytecodeGraphBuilder::BuildCall(ConvertReceiverMode receiver_mode,
   FeedbackSource feedback = CreateFeedbackSource(slot_id);
   CallFrequency frequency = ComputeCallFrequency(slot_id);
   SpeculationMode speculation_mode = GetSpeculationMode(slot_id);
-  const Operator* op = javascript()->Call(arg_count, frequency, feedback,
-                                          receiver_mode, speculation_mode);
+  const Operator* op =
+      javascript()->Call(arg_count, frequency, feedback, receiver_mode,
+                         speculation_mode, CallFeedbackRelation::kRelated);
 
   JSTypeHintLowering::LoweringResult lowering = TryBuildSimplifiedCall(
       op, args, static_cast<int>(arg_count), feedback.slot);
@@ -2415,8 +2416,9 @@ void BytecodeGraphBuilder::VisitCallWithSpread() {
   int const slot_id = bytecode_iterator().GetIndexOperand(3);
   FeedbackSource feedback = CreateFeedbackSource(slot_id);
   CallFrequency frequency = ComputeCallFrequency(slot_id);
+  SpeculationMode speculation_mode = GetSpeculationMode(slot_id);
   const Operator* op = javascript()->CallWithSpread(
-      static_cast<int>(reg_count + 1), frequency, feedback);
+      static_cast<int>(reg_count + 1), frequency, feedback, speculation_mode);
 
   JSTypeHintLowering::LoweringResult lowering = TryBuildSimplifiedCall(
       op, args, static_cast<int>(arg_count), feedback.slot);
