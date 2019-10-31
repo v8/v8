@@ -389,7 +389,7 @@ namespace typed_array {
         newObj = Construct(constructor, arg0, arg1, arg2);
       }
 
-      return typed_array::ValidateTypedArray(context, newObj, methodName);
+      return ValidateTypedArray(context, newObj, methodName);
     }
   }
 

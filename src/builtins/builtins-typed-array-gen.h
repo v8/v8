@@ -112,11 +112,11 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   void SetJSTypedArrayOffHeapDataPtr(TNode<JSTypedArray> holder,
                                      TNode<RawPtrT> base,
                                      TNode<UintPtrT> offset);
-  void StoreJSTypedArrayElementFromTagged(TNode<Context> context,
-                                          TNode<JSTypedArray> typed_array,
-                                          TNode<UintPtrT> index_node,
-                                          TNode<Object> value,
-                                          ElementsKind elements_kind);
+  void StoreJSTypedArrayElementFromNumeric(TNode<Context> context,
+                                           TNode<JSTypedArray> typed_array,
+                                           TNode<UintPtrT> index_node,
+                                           TNode<Numeric> value,
+                                           ElementsKind elements_kind);
 };
 
 }  // namespace internal

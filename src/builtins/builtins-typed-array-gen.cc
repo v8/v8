@@ -570,9 +570,9 @@ void TypedArrayBuiltinsAssembler::SetJSTypedArrayOffHeapDataPtr(
       holder, JSTypedArray::kExternalPointerOffset, base);
 }
 
-void TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromTagged(
+void TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromNumeric(
     TNode<Context> context, TNode<JSTypedArray> typed_array,
-    TNode<UintPtrT> index, TNode<Object> value, ElementsKind elements_kind) {
+    TNode<UintPtrT> index, TNode<Numeric> value, ElementsKind elements_kind) {
   TNode<RawPtrT> data_ptr = LoadJSTypedArrayDataPtr(typed_array);
   switch (elements_kind) {
     case UINT8_ELEMENTS:

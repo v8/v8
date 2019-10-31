@@ -77,11 +77,66 @@ namespace typed_array {
       ElementsKind): bool;
   extern macro LoadFixedTypedArrayElementAsTagged(
       RawPtr, uintptr, constexpr ElementsKind): Numeric;
-  extern macro TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromTagged(
-      Context, JSTypedArray, uintptr, JSAny, constexpr ElementsKind);
+  extern macro TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromNumeric(
+      Context, JSTypedArray, uintptr, Numeric, constexpr ElementsKind);
 
-  type LoadFn = builtin(Context, JSTypedArray, uintptr) => JSAny;
-  type StoreFn = builtin(Context, JSTypedArray, uintptr, JSAny) => JSAny;
+  type LoadNumericFn = builtin(Context, JSTypedArray, uintptr) => Numeric;
+  type StoreNumericFn = builtin(Context, JSTypedArray, uintptr, Numeric) =>
+      JSAny;
+
+  struct LoadStoreFn {
+    loadNumericFn: LoadNumericFn;
+    storeNumericFn: StoreNumericFn;
+  }
+
+  macro GetLoadStoreFnForElementsKind(elementsKind: ElementsKind): LoadStoreFn {
+    let loadNumericFn: LoadNumericFn;
+    let storeNumericFn: StoreNumericFn;
+
+    if (IsElementsKindGreaterThan(elementsKind, UINT32_ELEMENTS)) {
+      if (elementsKind == INT32_ELEMENTS) {
+        loadNumericFn = LoadTypedElement<Int32Elements>;
+        storeNumericFn = StoreTypedElementNumeric<Int32Elements>;
+      } else if (elementsKind == FLOAT32_ELEMENTS) {
+        loadNumericFn = LoadTypedElement<Float32Elements>;
+        storeNumericFn = StoreTypedElementNumeric<Float32Elements>;
+      } else if (elementsKind == FLOAT64_ELEMENTS) {
+        loadNumericFn = LoadTypedElement<Float64Elements>;
+        storeNumericFn = StoreTypedElementNumeric<Float64Elements>;
+      } else if (elementsKind == UINT8_CLAMPED_ELEMENTS) {
+        loadNumericFn = LoadTypedElement<Uint8ClampedElements>;
+        storeNumericFn = StoreTypedElementNumeric<Uint8ClampedElements>;
+      } else if (elementsKind == BIGUINT64_ELEMENTS) {
+        loadNumericFn = LoadTypedElement<BigUint64Elements>;
+        storeNumericFn = StoreTypedElementNumeric<BigUint64Elements>;
+      } else if (elementsKind == BIGINT64_ELEMENTS) {
+        loadNumericFn = LoadTypedElement<BigInt64Elements>;
+        storeNumericFn = StoreTypedElementNumeric<BigInt64Elements>;
+      } else {
+        unreachable;
+      }
+    } else {
+      if (elementsKind == UINT8_ELEMENTS) {
+        loadNumericFn = LoadTypedElement<Uint8Elements>;
+        storeNumericFn = StoreTypedElementNumeric<Uint8Elements>;
+      } else if (elementsKind == INT8_ELEMENTS) {
+        loadNumericFn = LoadTypedElement<Int8Elements>;
+        storeNumericFn = StoreTypedElementNumeric<Int8Elements>;
+      } else if (elementsKind == UINT16_ELEMENTS) {
+        loadNumericFn = LoadTypedElement<Uint16Elements>;
+        storeNumericFn = StoreTypedElementNumeric<Uint16Elements>;
+      } else if (elementsKind == INT16_ELEMENTS) {
+        loadNumericFn = LoadTypedElement<Int16Elements>;
+        storeNumericFn = StoreTypedElementNumeric<Int16Elements>;
+      } else if (elementsKind == UINT32_ELEMENTS) {
+        loadNumericFn = LoadTypedElement<Uint32Elements>;
+        storeNumericFn = StoreTypedElementNumeric<Uint32Elements>;
+      } else {
+        unreachable;
+      }
+    }
+    return LoadStoreFn{loadNumericFn, storeNumericFn};
+  }
 
   extern macro TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(
       JSTypedArray, ByteArray, uintptr): void;
@@ -112,57 +167,24 @@ namespace typed_array {
     }
 
     Load(implicit context: Context)(k: uintptr): JSAny {
-      const lf: LoadFn = this.loadfn;
+      const lf: LoadNumericFn = this.loadfn;
       return lf(context, this.unstable, k);
     }
 
     stable: JSTypedArray;
     unstable: AttachedJSTypedArray;
-    loadfn: LoadFn;
+    loadfn: LoadNumericFn;
   }
 
   macro NewAttachedJSTypedArrayWitness(array: AttachedJSTypedArray):
       AttachedJSTypedArrayWitness {
     const kind = array.elements_kind;
+    const accessors: LoadStoreFn = GetLoadStoreFnForElementsKind(kind);
     return AttachedJSTypedArrayWitness{
       stable: array,
       unstable: array,
-      loadfn: GetLoadFnForElementsKind(kind)
+      loadfn: accessors.loadNumericFn
     };
-  }
-
-  macro GetLoadFnForElementsKind(elementsKind: ElementsKind): LoadFn {
-    if (IsElementsKindGreaterThan(elementsKind, UINT32_ELEMENTS)) {
-      if (elementsKind == INT32_ELEMENTS) {
-        return LoadFixedElement<Int32Elements>;
-      } else if (elementsKind == FLOAT32_ELEMENTS) {
-        return LoadFixedElement<Float32Elements>;
-      } else if (elementsKind == FLOAT64_ELEMENTS) {
-        return LoadFixedElement<Float64Elements>;
-      } else if (elementsKind == UINT8_CLAMPED_ELEMENTS) {
-        return LoadFixedElement<Uint8ClampedElements>;
-      } else if (elementsKind == BIGUINT64_ELEMENTS) {
-        return LoadFixedElement<BigUint64Elements>;
-      } else if (elementsKind == BIGINT64_ELEMENTS) {
-        return LoadFixedElement<BigInt64Elements>;
-      } else {
-        unreachable;
-      }
-    } else {
-      if (elementsKind == UINT8_ELEMENTS) {
-        return LoadFixedElement<Uint8Elements>;
-      } else if (elementsKind == INT8_ELEMENTS) {
-        return LoadFixedElement<Int8Elements>;
-      } else if (elementsKind == UINT16_ELEMENTS) {
-        return LoadFixedElement<Uint16Elements>;
-      } else if (elementsKind == INT16_ELEMENTS) {
-        return LoadFixedElement<Int16Elements>;
-      } else if (elementsKind == UINT32_ELEMENTS) {
-        return LoadFixedElement<Uint32Elements>;
-      } else {
-        unreachable;
-      }
-    }
   }
 
   macro KindForArrayType<T : type extends ElementsKind>():
@@ -201,16 +223,16 @@ namespace typed_array {
     return BIGINT64_ELEMENTS;
   }
 
-  builtin LoadFixedElement<T : type extends ElementsKind>(
-      _context: Context, array: JSTypedArray, index: uintptr): JSAny {
+  builtin LoadTypedElement<T : type extends ElementsKind>(
+      _context: Context, array: JSTypedArray, index: uintptr): Numeric {
     return LoadFixedTypedArrayElementAsTagged(
         array.data_ptr, index, KindForArrayType<T>());
   }
 
-  builtin StoreFixedElement<T : type extends ElementsKind>(
+  builtin StoreTypedElementNumeric<T : type extends ElementsKind>(
       context: Context, typedArray: JSTypedArray, index: uintptr,
-      value: JSAny): JSAny {
-    typed_array::StoreJSTypedArrayElementFromTagged(
+      value: Numeric): JSAny {
+    StoreJSTypedArrayElementFromNumeric(
         context, typedArray, index, value, KindForArrayType<T>());
     return Undefined;
   }
@@ -323,53 +345,10 @@ namespace typed_array {
 
     const comparefn: Callable =
         Cast<Callable>(comparefnObj) otherwise unreachable;
-    let loadfn: LoadFn;
-    let storefn: StoreFn;
-
-    const elementsKind: ElementsKind = array.elements_kind;
-
-    if (IsElementsKindGreaterThan(elementsKind, UINT32_ELEMENTS)) {
-      if (elementsKind == INT32_ELEMENTS) {
-        loadfn = LoadFixedElement<Int32Elements>;
-        storefn = StoreFixedElement<Int32Elements>;
-      } else if (elementsKind == FLOAT32_ELEMENTS) {
-        loadfn = LoadFixedElement<Float32Elements>;
-        storefn = StoreFixedElement<Float32Elements>;
-      } else if (elementsKind == FLOAT64_ELEMENTS) {
-        loadfn = LoadFixedElement<Float64Elements>;
-        storefn = StoreFixedElement<Float64Elements>;
-      } else if (elementsKind == UINT8_CLAMPED_ELEMENTS) {
-        loadfn = LoadFixedElement<Uint8ClampedElements>;
-        storefn = StoreFixedElement<Uint8ClampedElements>;
-      } else if (elementsKind == BIGUINT64_ELEMENTS) {
-        loadfn = LoadFixedElement<BigUint64Elements>;
-        storefn = StoreFixedElement<BigUint64Elements>;
-      } else if (elementsKind == BIGINT64_ELEMENTS) {
-        loadfn = LoadFixedElement<BigInt64Elements>;
-        storefn = StoreFixedElement<BigInt64Elements>;
-      } else {
-        unreachable;
-      }
-    } else {
-      if (elementsKind == UINT8_ELEMENTS) {
-        loadfn = LoadFixedElement<Uint8Elements>;
-        storefn = StoreFixedElement<Uint8Elements>;
-      } else if (elementsKind == INT8_ELEMENTS) {
-        loadfn = LoadFixedElement<Int8Elements>;
-        storefn = StoreFixedElement<Int8Elements>;
-      } else if (elementsKind == UINT16_ELEMENTS) {
-        loadfn = LoadFixedElement<Uint16Elements>;
-        storefn = StoreFixedElement<Uint16Elements>;
-      } else if (elementsKind == INT16_ELEMENTS) {
-        loadfn = LoadFixedElement<Int16Elements>;
-        storefn = StoreFixedElement<Int16Elements>;
-      } else if (elementsKind == UINT32_ELEMENTS) {
-        loadfn = LoadFixedElement<Uint32Elements>;
-        storefn = StoreFixedElement<Uint32Elements>;
-      } else {
-        unreachable;
-      }
-    }
+    const accessors: LoadStoreFn =
+        GetLoadStoreFnForElementsKind(array.elements_kind);
+    const loadfn = accessors.loadNumericFn;
+    const storefn = accessors.storeNumericFn;
 
     // Prepare the two work arrays. All numbers are converted to tagged
     // objects first, and merge sorted between the two FixedArrays.
@@ -378,7 +357,7 @@ namespace typed_array {
     const work2: FixedArray = AllocateZeroedFixedArray(Convert<intptr>(len));
 
     for (let i: uintptr = 0; i < len; ++i) {
-      const element: JSAny = loadfn(context, array, i);
+      const element: Numeric = loadfn(context, array, i);
       work1.objects[i] = element;
       work2.objects[i] = element;
     }
@@ -387,7 +366,7 @@ namespace typed_array {
 
     // work1 contains the sorted numbers. Write them back.
     for (let i: uintptr = 0; i < len; ++i)
-      storefn(context, array, i, UnsafeCast<JSAny>(work1.objects[i]));
+      storefn(context, array, i, UnsafeCast<Numeric>(work1.objects[i]));
 
     return array;
   }

@@ -75,7 +75,7 @@ TNode<Object> ArrayBuiltinsAssembler::TypedArrayMapProcessor(
 
   // The only way how this can bailout is because of a detached buffer.
   // TODO(v8:4153): Consider checking IsDetachedBuffer() and calling
-  // TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromTagged() here
+  // TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromNumeric() here
   // instead to avoid converting k_number back to UintPtrT.
   EmitElementStore(a(), k_number, num_value, source_elements_kind_,
                    KeyedAccessStoreMode::STANDARD_STORE, &detached, context());
