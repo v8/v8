@@ -239,6 +239,9 @@ class GraphAssembler {
   Node* IntPtrEqual(Node* left, Node* right);
   Node* TaggedEqual(Node* left, Node* right);
 
+  Node* SmiSub(Node* left, Node* right);
+  Node* SmiLessThan(Node* left, Node* right);
+
   Node* Float64RoundDown(Node* value);
   Node* Float64RoundTruncate(Node* value);
 

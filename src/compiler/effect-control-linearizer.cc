@@ -3560,8 +3560,8 @@ Node* EffectControlLinearizer::LowerArgumentsLength(Node* node) {
         __ IntPtrConstant(ArgumentsAdaptorFrameConstants::kLengthOffset));
 
     Node* rest_length =
-        __ IntSub(arguments_length, __ SmiConstant(formal_parameter_count));
-    __ GotoIf(__ IntLessThan(rest_length, __ SmiConstant(0)), &done,
+        __ SmiSub(arguments_length, __ SmiConstant(formal_parameter_count));
+    __ GotoIf(__ SmiLessThan(rest_length, __ SmiConstant(0)), &done,
               __ SmiConstant(0));
     __ Goto(&done, rest_length);
 

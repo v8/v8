@@ -431,6 +431,22 @@ Node* GraphAssembler::TaggedEqual(Node* left, Node* right) {
   return WordEqual(left, right);
 }
 
+Node* GraphAssembler::SmiSub(Node* left, Node* right) {
+  if (COMPRESS_POINTERS_BOOL) {
+    return Int32Sub(ChangeTaggedToCompressed(left),
+                    ChangeTaggedToCompressed(right));
+  }
+  return IntSub(left, right);
+}
+
+Node* GraphAssembler::SmiLessThan(Node* left, Node* right) {
+  if (COMPRESS_POINTERS_BOOL) {
+    return Int32LessThan(ChangeTaggedToCompressed(left),
+                         ChangeTaggedToCompressed(right));
+  }
+  return IntLessThan(left, right);
+}
+
 Node* GraphAssembler::Float64RoundDown(Node* value) {
   CHECK(machine()->Float64RoundDown().IsSupported());
   return AddNode(graph()->NewNode(machine()->Float64RoundDown().op(), value));
