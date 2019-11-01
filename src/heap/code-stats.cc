@@ -61,7 +61,7 @@ void CodeStatistics::ResetCodeAndMetadataStatistics(Isolate* isolate) {
 // - by code comment (only in debug mode)
 void CodeStatistics::CollectCodeStatistics(PagedSpace* space,
                                            Isolate* isolate) {
-  PagedSpaceObjectIterator obj_it(space);
+  PagedSpaceObjectIterator obj_it(isolate->heap(), space);
   for (HeapObject obj = obj_it.Next(); !obj.is_null(); obj = obj_it.Next()) {
     RecordCodeAndMetadataStatistics(obj, isolate);
   }

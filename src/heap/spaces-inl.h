@@ -85,7 +85,7 @@ HeapObject PagedSpaceObjectIterator::FromCurrentPage() {
     DCHECK_LE(cur_addr_, cur_end_);
     if (!obj.IsFreeSpaceOrFiller()) {
       if (obj.IsCode()) {
-        DCHECK_EQ(space_, space_->heap()->code_space());
+        DCHECK_EQ(space_, heap_->code_space());
         DCHECK_CODEOBJECT_SIZE(obj_size, space_);
       } else {
         DCHECK_OBJECT_SIZE(obj_size);

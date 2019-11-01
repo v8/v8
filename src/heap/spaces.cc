@@ -48,29 +48,24 @@ STATIC_ASSERT(kClearedWeakHeapObjectLower32 < LargePage::kHeaderSize);
 // ----------------------------------------------------------------------------
 // PagedSpaceObjectIterator
 
-PagedSpaceObjectIterator::PagedSpaceObjectIterator(PagedSpace* space)
+PagedSpaceObjectIterator::PagedSpaceObjectIterator(Heap* heap,
+                                                   PagedSpace* space)
     : cur_addr_(kNullAddress),
       cur_end_(kNullAddress),
+      heap_(heap),
       space_(space),
       page_range_(space->first_page(), nullptr),
-      current_page_(page_range_.begin()) {
-#ifdef V8_SHARED_RO_HEAP
-  DCHECK_NE(space->identity(), RO_SPACE);
-#endif
-}
+      current_page_(page_range_.begin()) {}
 
-PagedSpaceObjectIterator::PagedSpaceObjectIterator(Page* page)
+PagedSpaceObjectIterator::PagedSpaceObjectIterator(Heap* heap,
+                                                   PagedSpace* space,
+                                                   Page* page)
     : cur_addr_(kNullAddress),
       cur_end_(kNullAddress),
-      space_(reinterpret_cast<PagedSpace*>(page->owner())),
+      heap_(heap),
+      space_(space),
       page_range_(page),
       current_page_(page_range_.begin()) {
-#ifdef V8_SHARED_RO_HEAP
-  // TODO(v8:7464): Always enforce this once PagedSpace::Verify is no longer
-  // used to verify read-only space for non-shared builds.
-  DCHECK(!page->InReadOnlySpace());
-#endif  // V8_SHARED_RO_HEAP
-
 #ifdef DEBUG
   AllocationSpace owner = page->owner_identity();
   DCHECK(owner == RO_SPACE || owner == OLD_SPACE || owner == MAP_SPACE ||
@@ -86,10 +81,9 @@ bool PagedSpaceObjectIterator::AdvanceToNextPage() {
   Page* cur_page = *(current_page_++);
 
 #ifdef ENABLE_MINOR_MC
-  Heap* heap = space_->heap();
-  heap->mark_compact_collector()->sweeper()->EnsurePageIsIterable(cur_page);
+  heap_->mark_compact_collector()->sweeper()->EnsurePageIsIterable(cur_page);
   if (cur_page->IsFlagSet(Page::SWEEP_TO_ITERATE)) {
-    heap->minor_mark_compact_collector()->MakeIterable(
+    heap_->minor_mark_compact_collector()->MakeIterable(
         cur_page, MarkingTreatmentMode::CLEAR,
         FreeSpaceTreatmentMode::IGNORE_FREE_SPACE);
   }
@@ -2026,8 +2020,9 @@ void PagedSpace::SetReadAndWritable() {
   }
 }
 
-std::unique_ptr<ObjectIterator> PagedSpace::GetObjectIterator() {
-  return std::unique_ptr<ObjectIterator>(new PagedSpaceObjectIterator(this));
+std::unique_ptr<ObjectIterator> PagedSpace::GetObjectIterator(Heap* heap) {
+  return std::unique_ptr<ObjectIterator>(
+      new PagedSpaceObjectIterator(heap, this));
 }
 
 bool PagedSpace::RefillLinearAllocationAreaFromFreeList(
@@ -2101,7 +2096,15 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
   }
 
   for (Page* page : *this) {
-    CHECK(page->owner() == this);
+#ifdef V8_SHARED_RO_HEAP
+    if (identity() == RO_SPACE) {
+      CHECK_NULL(page->owner());
+    } else {
+      CHECK_EQ(page->owner(), this);
+    }
+#else
+    CHECK_EQ(page->owner(), this);
+#endif
 
     for (int i = 0; i < kNumTypes; i++) {
       external_page_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
@@ -2111,7 +2114,7 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
       allocation_pointer_found_in_space = true;
     }
     CHECK(page->SweepingDone());
-    PagedSpaceObjectIterator it(page);
+    PagedSpaceObjectIterator it(isolate->heap(), this, page);
     Address end_of_previous_object = page->area_start();
     Address top = page->area_end();
 
@@ -2165,16 +2168,17 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
   }
   CHECK(allocation_pointer_found_in_space);
 #ifdef DEBUG
-  VerifyCountersAfterSweeping();
+  VerifyCountersAfterSweeping(isolate->heap());
 #endif
 }
 
 void PagedSpace::VerifyLiveBytes() {
+  DCHECK_NE(identity(), RO_SPACE);
   IncrementalMarking::MarkingState* marking_state =
       heap()->incremental_marking()->marking_state();
   for (Page* page : *this) {
     CHECK(page->SweepingDone());
-    PagedSpaceObjectIterator it(page);
+    PagedSpaceObjectIterator it(heap(), this, page);
     int black_size = 0;
     for (HeapObject object = it.Next(); !object.is_null(); object = it.Next()) {
       // All the interior pointers should be contained in the heap.
@@ -2188,13 +2192,13 @@ void PagedSpace::VerifyLiveBytes() {
 #endif  // VERIFY_HEAP
 
 #ifdef DEBUG
-void PagedSpace::VerifyCountersAfterSweeping() {
+void PagedSpace::VerifyCountersAfterSweeping(Heap* heap) {
   size_t total_capacity = 0;
   size_t total_allocated = 0;
   for (Page* page : *this) {
     DCHECK(page->SweepingDone());
     total_capacity += page->area_size();
-    PagedSpaceObjectIterator it(page);
+    PagedSpaceObjectIterator it(heap, this, page);
     size_t real_allocated = 0;
     for (HeapObject object = it.Next(); !object.is_null(); object = it.Next()) {
       if (!object.IsFreeSpaceOrFiller()) {
@@ -2583,7 +2587,7 @@ void SpaceWithLinearArea::InlineAllocationStep(Address top,
   }
 }
 
-std::unique_ptr<ObjectIterator> NewSpace::GetObjectIterator() {
+std::unique_ptr<ObjectIterator> NewSpace::GetObjectIterator(Heap* heap) {
   return std::unique_ptr<ObjectIterator>(new SemiSpaceObjectIterator(this));
 }
 
@@ -2876,7 +2880,7 @@ void SemiSpace::set_age_mark(Address mark) {
   }
 }
 
-std::unique_ptr<ObjectIterator> SemiSpace::GetObjectIterator() {
+std::unique_ptr<ObjectIterator> SemiSpace::GetObjectIterator(Heap* heap) {
   // Use the NewSpace::NewObjectIterator to iterate the ToSpace.
   UNREACHABLE();
 }
@@ -4202,7 +4206,8 @@ bool LargeObjectSpace::ContainsSlow(Address addr) {
   return false;
 }
 
-std::unique_ptr<ObjectIterator> LargeObjectSpace::GetObjectIterator() {
+std::unique_ptr<ObjectIterator> LargeObjectSpace::GetObjectIterator(
+    Heap* heap) {
   return std::unique_ptr<ObjectIterator>(
       new LargeObjectSpaceObjectIterator(this));
 }
@@ -4298,30 +4303,6 @@ void LargeObjectSpace::Print() {
     obj.Print(os);
   }
 }
-
-void Page::Print() {
-  // Make a best-effort to print the objects in the page.
-  PrintF("Page@%p in %s\n", reinterpret_cast<void*>(this->address()),
-         Heap::GetSpaceName(this->owner_identity()));
-  PrintF(" --------------------------------------\n");
-  PagedSpaceObjectIterator objects(this);
-  unsigned mark_size = 0;
-  for (HeapObject object = objects.Next(); !object.is_null();
-       object = objects.Next()) {
-    bool is_marked =
-        heap()->incremental_marking()->marking_state()->IsBlackOrGrey(object);
-    PrintF(" %c ", (is_marked ? '!' : ' '));  // Indent a little.
-    if (is_marked) {
-      mark_size += object.Size();
-    }
-    object.ShortPrint();
-    PrintF("\n");
-  }
-  PrintF(" --------------------------------------\n");
-  PrintF(" Marked: %x, LiveCount: %" V8PRIdPTR "\n", mark_size,
-         heap()->incremental_marking()->marking_state()->live_bytes(this));
-}
-
 #endif  // DEBUG
 
 OldLargeObjectSpace::OldLargeObjectSpace(Heap* heap)

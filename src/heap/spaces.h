@@ -455,7 +455,7 @@ class V8_EXPORT_PRIVATE Space : public Malloced {
     }
   }
 
-  virtual std::unique_ptr<ObjectIterator> GetObjectIterator() = 0;
+  virtual std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) = 0;
 
   void AccountCommitted(size_t bytes) {
     DCHECK_GE(committed_ + bytes, committed_);
@@ -1101,10 +1101,6 @@ class Page : public MemoryChunk {
   void MoveOldToNewRememberedSetForSweeping();
   void MergeOldToNewRememberedSets();
 
-#ifdef DEBUG
-  void Print();
-#endif  // DEBUG
-
  private:
   friend class MemoryAllocator;
 };
@@ -1619,8 +1615,8 @@ class PageRange {
 class V8_EXPORT_PRIVATE PagedSpaceObjectIterator : public ObjectIterator {
  public:
   // Creates a new object iterator in a given space.
-  explicit PagedSpaceObjectIterator(PagedSpace* space);
-  explicit PagedSpaceObjectIterator(Page* page);
+  PagedSpaceObjectIterator(Heap* heap, PagedSpace* space);
+  PagedSpaceObjectIterator(Heap* heap, PagedSpace* space, Page* page);
 
   // Advance to the next object, skipping free spaces and other fillers and
   // skipping the special garbage section of which there is one per space.
@@ -1637,6 +1633,7 @@ class V8_EXPORT_PRIVATE PagedSpaceObjectIterator : public ObjectIterator {
 
   Address cur_addr_;  // Current iteration point.
   Address cur_end_;   // End iteration point.
+  Heap* heap_;
   PagedSpace* space_;
   PageRange page_range_;
   PageRange::iterator current_page_;
@@ -2442,7 +2439,7 @@ class V8_EXPORT_PRIVATE PagedSpace
 #endif
 
 #ifdef DEBUG
-  void VerifyCountersAfterSweeping();
+  void VerifyCountersAfterSweeping(Heap* heap);
   void VerifyCountersBeforeConcurrentSweeping();
   // Print meta info and objects in this space.
   void Print() override;
@@ -2493,7 +2490,7 @@ class V8_EXPORT_PRIVATE PagedSpace
 
   size_t ShrinkPageToHighWaterMark(Page* page);
 
-  std::unique_ptr<ObjectIterator> GetObjectIterator() override;
+  std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) override;
 
   void SetLinearAllocationArea(Address top, Address limit);
 
@@ -2701,7 +2698,7 @@ class SemiSpace : public Space {
   iterator begin() { return iterator(first_page()); }
   iterator end() { return iterator(nullptr); }
 
-  std::unique_ptr<ObjectIterator> GetObjectIterator() override;
+  std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) override;
 
 #ifdef DEBUG
   V8_EXPORT_PRIVATE void Print() override;
@@ -2996,7 +2993,7 @@ class V8_EXPORT_PRIVATE NewSpace
   iterator begin() { return to_space_.begin(); }
   iterator end() { return to_space_.end(); }
 
-  std::unique_ptr<ObjectIterator> GetObjectIterator() override;
+  std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) override;
 
   SemiSpace& from_space() { return from_space_; }
   SemiSpace& to_space() { return to_space_; }
@@ -3268,7 +3265,7 @@ class LargeObjectSpace : public Space {
   iterator begin() { return iterator(first_page()); }
   iterator end() { return iterator(nullptr); }
 
-  std::unique_ptr<ObjectIterator> GetObjectIterator() override;
+  std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) override;
 
 #ifdef VERIFY_HEAP
   virtual void Verify(Isolate* isolate);

@@ -1392,7 +1392,7 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
     PagedSpaceIterator spaces(this);
     for (PagedSpace* space = spaces.Next(); space != nullptr;
          space = spaces.Next()) {
-      PagedSpaceObjectIterator it(space);
+      PagedSpaceObjectIterator it(this, space);
       for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
         objects_by_size[obj.Size()].push_back(obj);
       }
@@ -3985,14 +3985,8 @@ void Heap::Verify() {
 
 void Heap::VerifyReadOnlyHeap() {
   CHECK(!read_only_space_->writable());
-  // TODO(v8:7464): Always verify read-only space once PagedSpace::Verify
-  // supports verifying shared read-only space. Currently
-  // PagedSpaceObjectIterator is explicitly disabled for read-only space when
-  // sharing is enabled, because it relies on PagedSpace::heap_ being non-null.
-#ifndef V8_SHARED_RO_HEAP
   VerifyReadOnlyPointersVisitor read_only_visitor(this);
   read_only_space_->Verify(isolate(), &read_only_visitor);
-#endif
 }
 
 class SlotVerifyingVisitor : public ObjectVisitor {
@@ -4155,7 +4149,7 @@ void Heap::VerifyCountersAfterSweeping() {
   PagedSpaceIterator spaces(this);
   for (PagedSpace* space = spaces.Next(); space != nullptr;
        space = spaces.Next()) {
-    space->VerifyCountersAfterSweeping();
+    space->VerifyCountersAfterSweeping(this);
   }
 }
 
@@ -5730,7 +5724,7 @@ HeapObjectIterator::HeapObjectIterator(
     default:
       break;
   }
-  object_iterator_ = space_iterator_->Next()->GetObjectIterator();
+  object_iterator_ = space_iterator_->Next()->GetObjectIterator(heap_);
 }
 
 HeapObjectIterator::~HeapObjectIterator() {
@@ -5764,7 +5758,7 @@ HeapObject HeapObjectIterator::NextObject() {
   } else {
     // Go though the spaces looking for one that has objects.
     while (space_iterator_->HasNext()) {
-      object_iterator_ = space_iterator_->Next()->GetObjectIterator();
+      object_iterator_ = space_iterator_->Next()->GetObjectIterator(heap_);
       obj = object_iterator_.get()->Next();
       if (!obj.is_null()) {
         return obj;
