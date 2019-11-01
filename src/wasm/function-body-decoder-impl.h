@@ -1695,7 +1695,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return true;
   }
 
-  bool CheckHasSharedMemory() {
+  bool CheckHasMemoryForAtomics() {
+    if (FLAG_wasm_atomics_on_non_shared_memory && CheckHasMemory()) return true;
     if (!VALIDATE(this->module_->has_shared_memory)) {
       this->error(this->pc_ - 1, "Atomic opcodes used without shared memory");
       return false;
@@ -2791,7 +2792,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         this->error("invalid atomic opcode");
         return 0;
     }
-    if (!CheckHasSharedMemory()) return 0;
+    if (!CheckHasMemoryForAtomics()) return 0;
     MemoryAccessImmediate<validate> imm(
         this, this->pc_ + 1, ElementSizeLog2Of(memtype.representation()));
     len += imm.length;
