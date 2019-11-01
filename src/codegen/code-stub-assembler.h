@@ -3206,28 +3206,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<Map> LoadReceiverMap(SloppyTNode<Object> receiver);
 
-  enum class ArgumentsAccessMode { kLoad, kStore, kHas };
-  // Emits keyed sloppy arguments has. Returns whether the key is in the
-  // arguments.
-  Node* HasKeyedSloppyArguments(Node* receiver, Node* key, Label* bailout) {
-    return EmitKeyedSloppyArguments(receiver, key, nullptr, bailout,
-                                    ArgumentsAccessMode::kHas);
-  }
-
-  // Emits keyed sloppy arguments load. Returns either the loaded value.
-  Node* LoadKeyedSloppyArguments(Node* receiver, Node* key, Label* bailout) {
-    return EmitKeyedSloppyArguments(receiver, key, nullptr, bailout,
-                                    ArgumentsAccessMode::kLoad);
-  }
-
-  // Emits keyed sloppy arguments store.
-  void StoreKeyedSloppyArguments(Node* receiver, Node* key, Node* value,
-                                 Label* bailout) {
-    DCHECK_NOT_NULL(value);
-    EmitKeyedSloppyArguments(receiver, key, value, bailout,
-                             ArgumentsAccessMode::kStore);
-  }
-
   // Loads script context from the script context table.
   TNode<Context> LoadScriptContext(TNode<Context> context,
                                    TNode<IntPtrT> context_index);
@@ -3731,12 +3709,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Int32T> SmiShiftBitsConstant32() {
     return Int32Constant(kSmiShiftSize + kSmiTagSize);
   }
-
-  // Emits keyed sloppy arguments load if the |value| is nullptr or store
-  // otherwise. Returns either the loaded value or |value|.
-  Node* EmitKeyedSloppyArguments(Node* receiver, Node* key, Node* value,
-                                 Label* bailout,
-                                 ArgumentsAccessMode access_mode);
 
   TNode<String> AllocateSlicedString(RootIndex map_root_index,
                                      TNode<Uint32T> length,
