@@ -217,7 +217,6 @@ DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED_BASE(V)                                     \
-  V(harmony_optional_chaining, "harmony optional chaining syntax") \
   V(harmony_private_methods, "harmony private methods in class literals")
 
 #ifdef V8_INTL_SUPPORT
@@ -240,7 +239,8 @@ DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
   V(harmony_import_meta, "harmony import.meta property")       \
   V(harmony_dynamic_import, "harmony dynamic import")          \
   V(harmony_promise_all_settled, "harmony Promise.allSettled") \
-  V(harmony_nullish, "harmony nullish operator")
+  V(harmony_nullish, "harmony nullish operator")               \
+  V(harmony_optional_chaining, "harmony optional chaining syntax")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V)                               \
