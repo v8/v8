@@ -582,9 +582,6 @@
   # https://github.com/tc39/test262/pull/2349
   'intl402/Locale/constructor-options-region-valid': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9741
-  'intl402/Locale/constructor-tag': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9818
   'built-ins/AsyncFunction/proto-from-ctor-realm': [FAIL],
 
