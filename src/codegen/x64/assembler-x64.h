@@ -1317,14 +1317,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vmovdqu(XMMRegister dst, Operand src);
   void vmovdqu(Operand dst, XMMRegister src);
 
-#define AVX_SP_3(instr, opcode) \
-  AVX_S_3(instr, opcode)        \
-  AVX_P_3(instr, opcode)
-
-#define AVX_S_3(instr, opcode)  \
-  AVX_3(instr##ss, opcode, vss) \
-  AVX_3(instr##sd, opcode, vsd)
-
 #define AVX_P_3(instr, opcode)  \
   AVX_3(instr##ps, opcode, vps) \
   AVX_3(instr##pd, opcode, vpd)
@@ -1337,21 +1329,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     impl(opcode, dst, src1, src2);                                  \
   }
 
-  // vsqrtpd is defined by sqrtpd in SSE2_INSTRUCTION_LIST
-  AVX_S_3(vsqrt, 0x51)
   AVX_3(vsqrtps, 0x51, vps)
   AVX_3(vrsqrtps, 0x52, vps)
   AVX_3(vrcpps, 0x53, vps)
-  AVX_S_3(vadd, 0x58)
   AVX_3(vaddps, 0x58, vps)
-  AVX_S_3(vsub, 0x5c)
   AVX_3(vsubps, 0x5c, vps)
-  AVX_S_3(vmul, 0x59)
   AVX_3(vmulps, 0x59, vps)
-  AVX_S_3(vdiv, 0x5e)
   AVX_3(vdivps, 0x5e, vps)
-  AVX_S_3(vmin, 0x5d)
-  AVX_S_3(vmax, 0x5f)
   AVX_P_3(vand, 0x54)
   AVX_3(vandnps, 0x55, vps)
   AVX_P_3(vor, 0x56)
@@ -1359,10 +1343,19 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   AVX_3(vcvtsd2ss, 0x5a, vsd)
   AVX_3(vhaddps, 0x7c, vsd)
 
+#define AVX_SCALAR(instr, prefix, escape, opcode)                      \
+  void v##instr(XMMRegister dst, XMMRegister src1, XMMRegister src2) { \
+    vinstr(0x##opcode, dst, src1, src2, k##prefix, k##escape, kWIG);   \
+  }                                                                    \
+  void v##instr(XMMRegister dst, XMMRegister src1, Operand src2) {     \
+    vinstr(0x##opcode, dst, src1, src2, k##prefix, k##escape, kWIG);   \
+  }
+  SSE_INSTRUCTION_LIST_SS(AVX_SCALAR)
+  SSE2_INSTRUCTION_LIST_SD(AVX_SCALAR)
+#undef AVX_SCALAR
+
 #undef AVX_3
-#undef AVX_S_3
 #undef AVX_P_3
-#undef AVX_SP_3
 
   void vpsrlq(XMMRegister dst, XMMRegister src, byte imm8) {
     vpd(0x73, xmm2, dst, src);
