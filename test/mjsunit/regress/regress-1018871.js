@@ -12,24 +12,3 @@ function f() {
   x;
 }
 assertThrows(f, RangeError);
-
-function f_store() {
-  var obj = {z: 0};
-  var proxy = new Proxy(obj, {
-    has() { z = 10; },
-  });
-  Object.setPrototypeOf(v_this, proxy);
-  z = 10;
-}
-assertThrows(f_store, RangeError);
-
-function f_set() {
-  var obj = {z: 0};
-  var proxy = new Proxy(obj, {
-    has() {return true; },
-    set() { z = x; }
-  });
-  Object.setPrototypeOf(v_this, proxy);
-  z = 10;
-}
-assertThrows(f_set, RangeError);

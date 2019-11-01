@@ -2439,8 +2439,7 @@ MaybeHandle<Object> Object::SetProperty(Isolate* isolate, Handle<Object> object,
 Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
                                         Handle<Object> value,
                                         Maybe<ShouldThrow> should_throw,
-                                        StoreOrigin store_origin,
-                                        bool is_global_reference, bool* found) {
+                                        StoreOrigin store_origin, bool* found) {
   it->UpdateProtector();
   DCHECK(it->IsFound());
 
@@ -2467,15 +2466,6 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
         if (receiver->IsJSGlobalObject()) {
           receiver = handle(JSGlobalObject::cast(*receiver).global_proxy(),
                             it->isolate());
-        }
-        if (is_global_reference) {
-          Maybe<bool> maybe = JSProxy::HasProperty(
-              it->isolate(), it->GetHolder<JSProxy>(), it->GetName());
-          if (maybe.IsNothing()) return Nothing<bool>();
-          if (!maybe.FromJust()) {
-            *found = false;
-            return Nothing<bool>();
-          }
         }
         return JSProxy::SetProperty(it->GetHolder<JSProxy>(), it->GetName(),
                                     value, receiver, should_throw);
@@ -2562,12 +2552,11 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
 
 Maybe<bool> Object::SetProperty(LookupIterator* it, Handle<Object> value,
                                 StoreOrigin store_origin,
-                                Maybe<ShouldThrow> should_throw,
-                                bool is_global_reference) {
+                                Maybe<ShouldThrow> should_throw) {
   if (it->IsFound()) {
     bool found = true;
-    Maybe<bool> result = SetPropertyInternal(
-        it, value, should_throw, store_origin, is_global_reference, &found);
+    Maybe<bool> result =
+        SetPropertyInternal(it, value, should_throw, store_origin, &found);
     if (found) return result;
   }
 
@@ -2592,8 +2581,8 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
 
   if (it->IsFound()) {
     bool found = true;
-    Maybe<bool> result = SetPropertyInternal(it, value, should_throw,
-                                             store_origin, false, &found);
+    Maybe<bool> result =
+        SetPropertyInternal(it, value, should_throw, store_origin, &found);
     if (found) return result;
   }
 

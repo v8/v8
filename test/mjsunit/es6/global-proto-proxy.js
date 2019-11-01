@@ -13,7 +13,6 @@ var global = this;
   var proxy = new Proxy(target, {
     has(target, property) {
       calledHas = true;
-      if (property == 'makeGlobal') return true;
       return Reflect.has(target, property);
     },
     get(target, property, receiver) {

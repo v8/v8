@@ -1324,9 +1324,6 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
         case LookupIterator::TRANSITION:
           UNREACHABLE();
         case LookupIterator::JSPROXY:
-          // StoreGlobals should check for HasProperty before setting the value.
-          // Builtins currently don't handle this.
-          if (IsStoreGlobalIC()) return false;
           return true;
         case LookupIterator::INTERCEPTOR: {
           Handle<JSObject> holder = it->GetHolder<JSObject>();
@@ -1382,8 +1379,7 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
 }
 
 MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
-                                         Handle<Object> value,
-                                         bool should_update_feedback) {
+                                         Handle<Object> value) {
   DCHECK(name->IsString());
 
   // Look up in script context table.
@@ -1410,8 +1406,7 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
       return ReferenceError(name);
     }
 
-    bool use_ic =
-        (state() != NO_FEEDBACK) && FLAG_use_ic && should_update_feedback;
+    bool use_ic = (state() != NO_FEEDBACK) && FLAG_use_ic;
     if (use_ic) {
       if (nexus()->ConfigureLexicalVarMode(
               lookup_result.context_index, lookup_result.slot_index,
@@ -1430,14 +1425,12 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
     return value;
   }
 
-  return StoreIC::Store(global, name, value, StoreOrigin::kNamed,
-                        should_update_feedback);
+  return StoreIC::Store(global, name, value);
 }
 
 MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
                                    Handle<Object> value,
-                                   StoreOrigin store_origin,
-                                   bool should_update_feedback) {
+                                   StoreOrigin store_origin) {
   // TODO(verwaest): Let SetProperty do the migration, since storing a property
   // might deprecate the current map again, if value does not fit.
   if (MigrateDeprecated(isolate(), object)) {
@@ -1448,8 +1441,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     return result;
   }
 
-  bool use_ic =
-      (state() != NO_FEEDBACK) && FLAG_use_ic && should_update_feedback;
+  bool use_ic = (state() != NO_FEEDBACK) && FLAG_use_ic;
   // If the object is undefined or null it's illegal to try to set any
   // properties on it; throw a TypeError in that case.
   if (object->IsNullOrUndefined(isolate())) {
@@ -1488,8 +1480,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
                       : TraceIC("StoreIC", name);
   }
 
-  MAYBE_RETURN_NULL(Object::SetProperty(
-      &it, value, store_origin, Nothing<ShouldThrow>(), IsStoreGlobalIC()));
+  MAYBE_RETURN_NULL(Object::SetProperty(&it, value, store_origin));
   return value;
 }
 
@@ -2379,9 +2370,36 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
   }
 #endif
 
-  StoreGlobalIC ic(isolate, Handle<FeedbackVector>(), FeedbackSlot(),
-                   FeedbackSlotKind::kStoreGlobalStrict);
-  RETURN_RESULT_OR_FAILURE(isolate, ic.Store(name, value, false));
+  Handle<JSGlobalObject> global = isolate->global_object();
+  Handle<Context> native_context = isolate->native_context();
+  Handle<ScriptContextTable> script_contexts(
+      native_context->script_context_table(), isolate);
+
+  ScriptContextTable::LookupResult lookup_result;
+  if (ScriptContextTable::Lookup(isolate, *script_contexts, *name,
+                                 &lookup_result)) {
+    Handle<Context> script_context = ScriptContextTable::GetContext(
+        isolate, script_contexts, lookup_result.context_index);
+    if (lookup_result.mode == VariableMode::kConst) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewTypeError(MessageTemplate::kConstAssign, global, name));
+    }
+
+    Handle<Object> previous_value(script_context->get(lookup_result.slot_index),
+                                  isolate);
+
+    if (previous_value->IsTheHole(isolate)) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
+    }
+
+    script_context->set(lookup_result.slot_index, *value);
+    return *value;
+  }
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Runtime::SetObjectProperty(isolate, global, name, value,
+                                          StoreOrigin::kMaybeKeyed));
 }
 
 RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
