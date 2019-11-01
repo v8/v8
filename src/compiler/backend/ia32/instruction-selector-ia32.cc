@@ -2027,6 +2027,10 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(S128Or)                \
   V(S128Xor)
 
+#define SIMD_BINOP_UNIFIED_SSE_AVX_LIST(V) \
+  V(I64x2Add)                              \
+  V(I64x2Sub)
+
 #define SIMD_UNOP_LIST(V)   \
   V(F32x4SConvertI32x4)     \
   V(F32x4RecipApprox)       \
@@ -2147,6 +2151,21 @@ void InstructionSelector::VisitI64x2ShrS(Node* node) {
     Emit(kIA32I64x2ShrS, g.DefineSameAsFirst(node),
          g.UseUniqueRegister(node->InputAt(0)), g.Use(node->InputAt(1)),
          arraysize(temps), temps);
+  }
+}
+
+void InstructionSelector::VisitI64x2Mul(Node* node) {
+  IA32OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempSimd128Register(),
+                                g.TempSimd128Register()};
+  if (IsSupported(AVX)) {
+    Emit(kIA32I64x2Mul, g.DefineAsRegister(node),
+         g.UseUniqueRegister(node->InputAt(0)),
+         g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
+  } else {
+    Emit(kIA32I64x2Mul, g.DefineSameAsFirst(node),
+         g.UseUniqueRegister(node->InputAt(0)),
+         g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
   }
 }
 
@@ -2335,6 +2354,14 @@ SIMD_ALLTRUE_LIST(VISIT_SIMD_ALLTRUE)
 SIMD_BINOP_LIST(VISIT_SIMD_BINOP)
 #undef VISIT_SIMD_BINOP
 #undef SIMD_BINOP_LIST
+
+#define VISIT_SIMD_BINOP_UNIFIED_SSE_AVX(Opcode)             \
+  void InstructionSelector::Visit##Opcode(Node* node) {      \
+    VisitRROFloat(this, node, kIA32##Opcode, kIA32##Opcode); \
+  }
+SIMD_BINOP_UNIFIED_SSE_AVX_LIST(VISIT_SIMD_BINOP_UNIFIED_SSE_AVX)
+#undef VISIT_SIMD_BINOP_UNIFIED_SSE_AVX
+#undef SIMD_BINOP_UNIFIED_SSE_AVX_LIST
 
 void VisitPack(InstructionSelector* selector, Node* node, ArchOpcode avx_opcode,
                ArchOpcode sse_opcode) {

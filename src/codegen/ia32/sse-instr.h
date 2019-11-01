@@ -12,6 +12,7 @@
   V(paddb, 66, 0F, FC)           \
   V(paddw, 66, 0F, FD)           \
   V(paddd, 66, 0F, FE)           \
+  V(paddq, 66, 0F, D4)           \
   V(paddsb, 66, 0F, EC)          \
   V(paddsw, 66, 0F, ED)          \
   V(paddusb, 66, 0F, DC)         \
@@ -32,6 +33,7 @@
   V(psllw, 66, 0F, F1)           \
   V(pslld, 66, 0F, F2)           \
   V(psllq, 66, 0F, F3)           \
+  V(pmuludq, 66, 0F, F4)         \
   V(psraw, 66, 0F, E1)           \
   V(psrad, 66, 0F, E2)           \
   V(psrlw, 66, 0F, D1)           \
