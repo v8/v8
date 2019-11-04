@@ -91,6 +91,18 @@ void DecompressionOptimizer::MarkNodeInputs(Node* node) {
               ? State::kOnly32BitsObserved
               : State::kEverythingObserved);  // value
       break;
+    // The deopt code knows how to handle Compressed inputs, both
+    // MachineRepresentation kCompressed values and CompressedHeapConstants.
+    case IrOpcode::kFrameState:  // Fall through.
+    // TODO(v8:7703): kStateValues doesn't appear in any test linked to Loads or
+    // HeapConstants. Do we care about this case?
+    case IrOpcode::kStateValues:  // Fall through.
+    case IrOpcode::kTypedStateValues:
+      for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
+        MaybeMarkAndQueueForRevisit(node->InputAt(i),
+                                    State::kOnly32BitsObserved);
+      }
+      break;
     default:
       // To be conservative, we assume that all value inputs need to be 64 bits
       // unless noted otherwise.

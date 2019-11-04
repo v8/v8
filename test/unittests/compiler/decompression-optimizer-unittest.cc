@@ -260,6 +260,54 @@ TEST_F(DecompressionOptimizerTest, Word32SarSmiUntag) {
   EXPECT_EQ(LoadMachRep(load), CompressedMachRep(MachineType::AnyTagged()));
 }
 
+// -----------------------------------------------------------------------------
+// FrameState and TypedStateValues interaction.
+
+TEST_F(DecompressionOptimizerTest, TypedStateValues) {
+  // Skip test if decompression elimination is enabled.
+  if (FLAG_turbo_decompression_elimination) {
+    return;
+  }
+
+  // Define variables.
+  Node* const control = graph()->start();
+  Node* object = Parameter(Type::Any(), 0);
+  Node* effect = graph()->start();
+  Node* index = Parameter(Type::UnsignedSmall(), 1);
+  const int number_of_inputs = 2;
+  const ZoneVector<MachineType>* types_for_state_values =
+      new (graph()->zone()->New(sizeof(ZoneVector<MachineType>)))
+          ZoneVector<MachineType>(number_of_inputs, graph()->zone());
+  SparseInputMask dense = SparseInputMask::Dense();
+
+  // Test for both AnyTagged and TaggedPointer.
+  for (size_t i = 0; i < arraysize(types); ++i) {
+    for (size_t j = 0; j < arraysize(heap_constants); ++j) {
+      // Create the graph.
+      Node* load = graph()->NewNode(machine()->Load(types[i]), object, index,
+                                    effect, control);
+      Node* constant_1 =
+          graph()->NewNode(common()->HeapConstant(heap_constants[j]));
+      Node* typed_state_values = graph()->NewNode(
+          common()->TypedStateValues(types_for_state_values, dense), load,
+          constant_1);
+      Node* constant_2 =
+          graph()->NewNode(common()->HeapConstant(heap_constants[j]));
+      graph()->SetEnd(graph()->NewNode(
+          common()->FrameState(BailoutId::None(),
+                               OutputFrameStateCombine::Ignore(), nullptr),
+          typed_state_values, typed_state_values, typed_state_values,
+          constant_2, UndefinedConstant(), graph()->start()));
+
+      // Change the nodes, and test the change.
+      Reduce();
+      EXPECT_EQ(LoadMachRep(load), CompressedMachRep(types[i]));
+      EXPECT_EQ(constant_1->opcode(), IrOpcode::kCompressedHeapConstant);
+      EXPECT_EQ(constant_2->opcode(), IrOpcode::kCompressedHeapConstant);
+    }
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
