@@ -396,7 +396,8 @@ HeapObject Deserializer::ReadObject(SnapshotSpace space) {
 
 #ifdef DEBUG
   if (obj.IsCode()) {
-    DCHECK_EQ(space, SnapshotSpace::kCode);
+    DCHECK(space == SnapshotSpace::kCode ||
+           space == SnapshotSpace::kReadOnlyHeap);
   } else {
     DCHECK_NE(space, SnapshotSpace::kCode);
   }

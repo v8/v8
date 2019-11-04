@@ -85,7 +85,9 @@ HeapObject PagedSpaceObjectIterator::FromCurrentPage() {
     DCHECK_LE(cur_addr_, cur_end_);
     if (!obj.IsFreeSpaceOrFiller()) {
       if (obj.IsCode()) {
-        DCHECK_EQ(space_, heap_->code_space());
+        DCHECK_IMPLIES(
+            space_ != heap_->code_space(),
+            space_ == heap_->read_only_space() && Code::cast(obj).is_builtin());
         DCHECK_CODEOBJECT_SIZE(obj_size, space_);
       } else {
         DCHECK_OBJECT_SIZE(obj_size);
@@ -159,6 +161,10 @@ bool NewSpace::ToSpaceContainsSlow(Address a) {
 
 bool NewSpace::ToSpaceContains(Object o) { return to_space_.Contains(o); }
 bool NewSpace::FromSpaceContains(Object o) { return from_space_.Contains(o); }
+
+bool PagedSpace::Contains(Address addr) {
+  return Page::FromAddress(addr)->owner() == this;
+}
 
 bool PagedSpace::Contains(Object o) {
   if (!o.IsHeapObject()) return false;

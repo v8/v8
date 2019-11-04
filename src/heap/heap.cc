@@ -6142,14 +6142,37 @@ Code Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
     return GcSafeCastToCode(large_page->GetObject(), inner_pointer);
   }
 
-  // Iterate through the page until we reach the end or find an object starting
-  // after the inner pointer.
-  Page* page = Page::FromAddress(inner_pointer);
+  if (V8_LIKELY(code_space()->Contains(inner_pointer))) {
+    // Iterate through the page until we reach the end or find an object
+    // starting after the inner pointer.
+    Page* page = Page::FromAddress(inner_pointer);
 
-  Address start =
-      page->GetCodeObjectRegistry()->GetCodeObjectStartFromInnerAddress(
-          inner_pointer);
-  return GcSafeCastToCode(HeapObject::FromAddress(start), inner_pointer);
+    Address start =
+        page->GetCodeObjectRegistry()->GetCodeObjectStartFromInnerAddress(
+            inner_pointer);
+    return GcSafeCastToCode(HeapObject::FromAddress(start), inner_pointer);
+  }
+
+  // It can only fall through to here during debugging, where for instance "jco"
+  // was called on an address within a RO_SPACE builtin. It cannot reach here
+  // during stack iteration as RO_SPACE memory is not executable so cannot
+  // appear on the stack as an instruction address.
+  DCHECK(ReadOnlyHeap::Contains(
+      HeapObject::FromAddress(inner_pointer & ~kHeapObjectTagMask)));
+
+  // TODO(delphick): Possibly optimize this as it iterates over all pages in
+  // RO_SPACE instead of just the one containing the address.
+  ReadOnlyHeapObjectIterator iterator(isolate()->read_only_heap());
+  for (HeapObject object = iterator.Next(); !object.is_null();
+       object = iterator.Next()) {
+    if (!object.IsCode()) continue;
+    Code code = Code::cast(object);
+    if (inner_pointer >= code.address() &&
+        inner_pointer < code.address() + code.Size()) {
+      return code;
+    }
+  }
+  UNREACHABLE();
 }
 
 void Heap::WriteBarrierForCodeSlow(Code code) {

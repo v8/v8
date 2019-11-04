@@ -107,6 +107,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void RetpolineJump(Register reg);
 
+  void Trap() override;
+
   void CallForDeoptimization(Address target, int deopt_id);
 
   // Call a runtime routine. This expects {centry} to contain a fitting CEntry
