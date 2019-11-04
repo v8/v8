@@ -22,18 +22,6 @@ class WasmBuiltinsAssembler : public CodeStubAssembler {
     return UncheckedCast<Object>(Parameter(index));
   }
 
-  TNode<Code> LoadBuiltinFromFrame(Builtins::Name id) {
-    TNode<Object> instance = LoadInstanceFromFrame();
-    TNode<IntPtrT> isolate_root = UncheckedCast<IntPtrT>(
-        Load(MachineType::Pointer(), instance,
-             IntPtrConstant(WasmInstanceObject::kIsolateRootOffset -
-                            kHeapObjectTag)));
-    TNode<Code> target = UncheckedCast<Code>(
-        Load(MachineType::TaggedPointer(), isolate_root,
-             IntPtrConstant(IsolateData::builtin_slot_offset(id))));
-    return target;
-  }
-
   TNode<Object> LoadInstanceFromFrame() {
     return UncheckedCast<Object>(
         LoadFromParentFrame(WasmCompiledFrameConstants::kWasmInstanceOffset));
@@ -98,16 +86,11 @@ TF_BUILTIN(WasmAtomicNotify, WasmBuiltinsAssembler) {
   TNode<Object> instance = LoadInstanceFromFrame();
   TNode<Code> centry = LoadCEntryFromInstance(instance);
 
-  TNode<Code> target = LoadBuiltinFromFrame(Builtins::kAllocateHeapNumber);
-
   // TODO(aseemgarg): Use SMIs if possible for address and count
-  TNode<HeapNumber> address_heap = UncheckedCast<HeapNumber>(
-      CallStub(AllocateHeapNumberDescriptor(), target, NoContextConstant()));
-  StoreHeapNumberValue(address_heap, ChangeUint32ToFloat64(address));
-
-  TNode<HeapNumber> count_heap = UncheckedCast<HeapNumber>(
-      CallStub(AllocateHeapNumberDescriptor(), target, NoContextConstant()));
-  StoreHeapNumberValue(count_heap, ChangeUint32ToFloat64(count));
+  TNode<HeapNumber> address_heap =
+      AllocateHeapNumberWithValue(ChangeUint32ToFloat64(address));
+  TNode<HeapNumber> count_heap =
+      AllocateHeapNumberWithValue(ChangeUint32ToFloat64(count));
 
   TNode<Smi> result_smi = UncheckedCast<Smi>(CallRuntimeWithCEntry(
       Runtime::kWasmAtomicNotify, centry, NoContextConstant(), instance,
@@ -126,21 +109,12 @@ TF_BUILTIN(WasmI32AtomicWait, WasmBuiltinsAssembler) {
   TNode<Object> instance = LoadInstanceFromFrame();
   TNode<Code> centry = LoadCEntryFromInstance(instance);
 
-  TNode<Code> target = LoadBuiltinFromFrame(Builtins::kAllocateHeapNumber);
-
   // TODO(aseemgarg): Use SMIs if possible for address and expected_value
-  TNode<HeapNumber> address_heap = UncheckedCast<HeapNumber>(
-      CallStub(AllocateHeapNumberDescriptor(), target, NoContextConstant()));
-  StoreHeapNumberValue(address_heap, ChangeUint32ToFloat64(address));
-
-  TNode<HeapNumber> expected_value_heap = UncheckedCast<HeapNumber>(
-      CallStub(AllocateHeapNumberDescriptor(), target, NoContextConstant()));
-  StoreHeapNumberValue(expected_value_heap,
-                       ChangeInt32ToFloat64(expected_value));
-
-  TNode<HeapNumber> timeout_heap = UncheckedCast<HeapNumber>(
-      CallStub(AllocateHeapNumberDescriptor(), target, NoContextConstant()));
-  StoreHeapNumberValue(timeout_heap, timeout);
+  TNode<HeapNumber> address_heap =
+      AllocateHeapNumberWithValue(ChangeUint32ToFloat64(address));
+  TNode<HeapNumber> expected_value_heap =
+      AllocateHeapNumberWithValue(ChangeInt32ToFloat64(expected_value));
+  TNode<HeapNumber> timeout_heap = AllocateHeapNumberWithValue(timeout);
 
   TNode<Smi> result_smi = UncheckedCast<Smi>(CallRuntimeWithCEntry(
       Runtime::kWasmI32AtomicWait, centry, NoContextConstant(), instance,
@@ -161,26 +135,14 @@ TF_BUILTIN(WasmI64AtomicWait, WasmBuiltinsAssembler) {
   TNode<Object> instance = LoadInstanceFromFrame();
   TNode<Code> centry = LoadCEntryFromInstance(instance);
 
-  TNode<Code> target = LoadBuiltinFromFrame(Builtins::kAllocateHeapNumber);
-
   // TODO(aseemgarg): Use SMIs if possible for address and expected_value
-  TNode<HeapNumber> address_heap = UncheckedCast<HeapNumber>(
-      CallStub(AllocateHeapNumberDescriptor(), target, NoContextConstant()));
-  StoreHeapNumberValue(address_heap, ChangeUint32ToFloat64(address));
-
-  TNode<HeapNumber> expected_value_high_heap = UncheckedCast<HeapNumber>(
-      CallStub(AllocateHeapNumberDescriptor(), target, NoContextConstant()));
-  StoreHeapNumberValue(expected_value_high_heap,
-                       ChangeUint32ToFloat64(expected_value_high));
-
-  TNode<HeapNumber> expected_value_low_heap = UncheckedCast<HeapNumber>(
-      CallStub(AllocateHeapNumberDescriptor(), target, NoContextConstant()));
-  StoreHeapNumberValue(expected_value_low_heap,
-                       ChangeUint32ToFloat64(expected_value_low));
-
-  TNode<HeapNumber> timeout_heap = UncheckedCast<HeapNumber>(
-      CallStub(AllocateHeapNumberDescriptor(), target, NoContextConstant()));
-  StoreHeapNumberValue(timeout_heap, timeout);
+  TNode<HeapNumber> address_heap =
+      AllocateHeapNumberWithValue(ChangeUint32ToFloat64(address));
+  TNode<HeapNumber> expected_value_high_heap =
+      AllocateHeapNumberWithValue(ChangeUint32ToFloat64(expected_value_high));
+  TNode<HeapNumber> expected_value_low_heap =
+      AllocateHeapNumberWithValue(ChangeUint32ToFloat64(expected_value_low));
+  TNode<HeapNumber> timeout_heap = AllocateHeapNumberWithValue(timeout);
 
   TNode<Smi> result_smi = UncheckedCast<Smi>(CallRuntimeWithCEntry(
       Runtime::kWasmI64AtomicWait, centry, NoContextConstant(), instance,
