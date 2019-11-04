@@ -852,6 +852,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void MovFromFloatParameter(DoubleRegister dst);
   void MovFromFloatResult(DoubleRegister dst);
 
+  void Trap() override;
+
   // Emit code for a truncating division by a constant. The dividend register is
   // unchanged and ip gets clobbered. Dividend and result must be different.
   void TruncateDoubleToI(Isolate* isolate, Zone* zone, Register result,

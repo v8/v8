@@ -290,6 +290,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
     bind(&skip);
     return;
   }
+  DCHECK(code->IsExecutable());
   Call(code.address(), rmode, cond);
 }
 
@@ -3043,6 +3044,8 @@ void TurboAssembler::ZeroExtHalfWord(Register dst, Register src) {
 void TurboAssembler::ZeroExtWord32(Register dst, Register src) {
   clrldi(dst, src, Operand(32));
 }
+
+void TurboAssembler::Trap() { stop(); }
 
 }  // namespace internal
 }  // namespace v8
