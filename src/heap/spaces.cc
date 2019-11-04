@@ -4311,6 +4311,18 @@ OldLargeObjectSpace::OldLargeObjectSpace(Heap* heap)
 OldLargeObjectSpace::OldLargeObjectSpace(Heap* heap, AllocationSpace id)
     : LargeObjectSpace(heap, id) {}
 
+void OldLargeObjectSpace::MergeOffThreadSpace(
+    OffThreadLargeObjectSpace* other) {
+  DCHECK(identity() == other->identity());
+
+  while (!other->memory_chunk_list().Empty()) {
+    LargePage* page = other->first_page();
+    int size = page->GetObject().Size();
+    other->RemovePage(page, size);
+    AddPage(page, size);
+  }
+}
+
 NewLargeObjectSpace::NewLargeObjectSpace(Heap* heap, size_t capacity)
     : LargeObjectSpace(heap, NEW_LO_SPACE),
       pending_object_(0),
@@ -4413,6 +4425,21 @@ void CodeLargeObjectSpace::AddPage(LargePage* page, size_t object_size) {
 void CodeLargeObjectSpace::RemovePage(LargePage* page, size_t object_size) {
   RemoveChunkMapEntries(page);
   OldLargeObjectSpace::RemovePage(page, object_size);
+}
+
+OffThreadLargeObjectSpace::OffThreadLargeObjectSpace(Heap* heap)
+    : LargeObjectSpace(heap, LO_SPACE) {}
+
+AllocationResult OffThreadLargeObjectSpace::AllocateRaw(int object_size) {
+  LargePage* page = AllocateLargePage(object_size, NOT_EXECUTABLE);
+  if (page == nullptr) return AllocationResult::Retry(identity());
+
+  return page->GetObject();
+}
+
+void OffThreadLargeObjectSpace::FreeUnmarkedObjects() {
+  // We should never try to free objects in this space.
+  UNREACHABLE();
 }
 
 }  // namespace internal
