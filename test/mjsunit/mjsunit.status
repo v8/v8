@@ -502,6 +502,11 @@
 }],  # 'arch == arm64'
 
 ##############################################################################
+['arch == arm64 and simulator_run', {
+  'regress/regress-454725': [PASS, SLOW],
+}],  # 'arch == arm64 and simulator_run'
+
+##############################################################################
 ['arch == arm64 and mode == debug and simulator_run', {
 
   # Pass but take too long with the simulator in debug mode.
