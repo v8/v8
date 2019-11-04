@@ -670,19 +670,6 @@ class LiftoffCompiler {
     __ PushRegister(result_type, dst);
   }
 
-  void EmitI32UnOpWithCFallback(bool (LiftoffAssembler::*emit_fn)(Register,
-                                                                  Register),
-                                ExternalReference (*fallback_fn)()) {
-    auto emit_with_c_fallback = [=](LiftoffRegister dst, LiftoffRegister src) {
-      if (emit_fn && (asm_.*emit_fn)(dst.gp(), src.gp())) return;
-      ExternalReference ext_ref = fallback_fn();
-      ValueType sig_i_i_reps[] = {kWasmI32, kWasmI32};
-      FunctionSig sig_i_i(1, 1, sig_i_i_reps);
-      GenerateCCall(&dst, &sig_i_i, kWasmStmt, &src, ext_ref);
-    };
-    EmitUnOp<kWasmI32, kWasmI32>(emit_with_c_fallback);
-  }
-
   template <ValueType type>
   void EmitFloatUnOpWithCFallback(
       bool (LiftoffAssembler::*emit_fn)(DoubleRegister, DoubleRegister),
@@ -842,8 +829,14 @@ class LiftoffCompiler {
             });
         break;
       case kExprI32Popcnt:
-        EmitI32UnOpWithCFallback(&LiftoffAssembler::emit_i32_popcnt,
-                                 &ExternalReference::wasm_word32_popcnt);
+        EmitUnOp<kWasmI32, kWasmI32>(
+            [=](LiftoffRegister dst, LiftoffRegister src) {
+              if (__ emit_i32_popcnt(dst.gp(), src.gp())) return;
+              ValueType sig_i_i_reps[] = {kWasmI32, kWasmI32};
+              FunctionSig sig_i_i(1, 1, sig_i_i_reps);
+              GenerateCCall(&dst, &sig_i_i, kWasmStmt, &src,
+                            ExternalReference::wasm_word32_popcnt());
+            });
         break;
       case kExprI64Popcnt:
         return unsupported(decoder, kComplexOperation,
