@@ -74,6 +74,10 @@ void DecompressionOptimizer::MarkNodeInputs(Node* node) {
                                   State::kOnly32BitsObserved);  // value
       break;
     // BINOPS.
+    case IrOpcode::kInt32LessThan:
+    case IrOpcode::kInt32LessThanOrEqual:
+    case IrOpcode::kUint32LessThan:
+    case IrOpcode::kUint32LessThanOrEqual:
     case IrOpcode::kWord32And:
     case IrOpcode::kWord32Equal:
       DCHECK_EQ(node->op()->ValueInputCount(), 2);

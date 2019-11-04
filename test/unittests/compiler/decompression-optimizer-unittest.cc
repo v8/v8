@@ -461,6 +461,34 @@ TEST_F(DecompressionOptimizerTest, PhiWithOneCompressedAndOneTagged) {
   }
 }
 
+// -----------------------------------------------------------------------------
+// Int cases.
+
+TEST_F(DecompressionOptimizerTest, Int32LessThanOrEqualFromSpeculative) {
+  // This case tests for what SpeculativeNumberLessThanOrEqual is lowered to.
+  // Skip test if decompression elimination is enabled.
+  if (FLAG_turbo_decompression_elimination) {
+    return;
+  }
+
+  // Define variables.
+  Node* const control = graph()->start();
+  Node* object = Parameter(Type::Any(), 0);
+  Node* effect = graph()->start();
+  Node* index = Parameter(Type::UnsignedSmall(), 1);
+
+  // Test only for AnyTagged, since TaggedPointer can't be a Smi.
+  // Create the graph.
+  Node* load = graph()->NewNode(machine()->Load(MachineType::AnyTagged()),
+                                object, index, effect, control);
+  Node* constant = graph()->NewNode(common()->Int64Constant(5));
+  graph()->SetEnd(
+      graph()->NewNode(machine()->Int32LessThanOrEqual(), load, constant));
+  // Change the nodes, and test the change.
+  Reduce();
+  EXPECT_EQ(LoadMachRep(load), CompressedMachRep(MachineType::AnyTagged()));
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
