@@ -160,10 +160,8 @@ template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
     VisitFixedArrayWithProgressBar(Map map, FixedArray object,
                                    MemoryChunk* chunk) {
-  // The concurrent marker can process larger chunks than the main thread
-  // marker.
-  const int kProgressBarScanningChunk =
-      RoundUp(kMaxRegularHeapObjectSize, kTaggedSize);
+  const int kProgressBarScanningChunk = kMaxRegularHeapObjectSize;
+  STATIC_ASSERT(kMaxRegularHeapObjectSize % kTaggedSize == 0);
   DCHECK(concrete_visitor()->marking_state()->IsBlackOrGrey(object));
   concrete_visitor()->marking_state()->GreyToBlack(object);
   int size = FixedArray::BodyDescriptor::SizeOf(map, object);
