@@ -2200,11 +2200,7 @@ bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
 int GetMaxBackgroundTasks() {
   if (NeedsDeterministicCompile()) return 0;
   int num_worker_threads = V8::GetCurrentPlatform()->NumberOfWorkerThreads();
-  int flag_limit = FLAG_wasm_num_compilation_tasks;
-  if (flag_limit >= 0) {
-    num_worker_threads = std::min(num_worker_threads, flag_limit);
-  }
-  return num_worker_threads;
+  return std::min(FLAG_wasm_num_compilation_tasks, num_worker_threads);
 }
 
 CompilationStateImpl::CompilationStateImpl(
