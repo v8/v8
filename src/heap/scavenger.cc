@@ -360,9 +360,14 @@ void ScavengerCollector::CollectGarbage() {
   // TODO(hpayer): Don't free all as soon as we have an intermediate generation.
   heap_->new_lo_space()->FreeDeadObjects([](HeapObject) { return true; });
 
-  RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(heap_, [](MemoryChunk* chunk) {
-    RememberedSet<OLD_TO_NEW>::FreeEmptyBuckets(chunk);
-  });
+  {
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_FREE_REMEMBERED_SET);
+
+    RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
+        heap_, [](MemoryChunk* chunk) {
+          RememberedSet<OLD_TO_NEW>::FreeEmptyBuckets(chunk);
+        });
+  }
 
   // Update how much has survived scavenge.
   heap_->IncrementYoungSurvivorsCounter(heap_->SurvivedYoungObjectSize());
