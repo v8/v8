@@ -67,16 +67,12 @@ TF_BUILTIN(WasmAtomicNotify, WasmBuiltinsAssembler) {
   TNode<Uint32T> count = UncheckedCast<Uint32T>(Parameter(Descriptor::kCount));
 
   TNode<Object> instance = LoadInstanceFromFrame();
-
-  // TODO(aseemgarg): Use SMIs if possible for address and count
-  TNode<HeapNumber> address_heap =
-      AllocateHeapNumberWithValue(ChangeUint32ToFloat64(address));
-  TNode<HeapNumber> count_heap =
-      AllocateHeapNumberWithValue(ChangeUint32ToFloat64(count));
+  TNode<Number> address_number = ChangeUint32ToTagged(address);
+  TNode<Number> count_number = ChangeUint32ToTagged(count);
 
   TNode<Smi> result_smi = UncheckedCast<Smi>(
       CallRuntime(Runtime::kWasmAtomicNotify, NoContextConstant(), instance,
-                  address_heap, count_heap));
+                  address_number, count_number));
   ReturnRaw(SmiToInt32(result_smi));
 }
 
@@ -89,17 +85,13 @@ TF_BUILTIN(WasmI32AtomicWait, WasmBuiltinsAssembler) {
       UncheckedCast<Float64T>(Parameter(Descriptor::kTimeout));
 
   TNode<Object> instance = LoadInstanceFromFrame();
-
-  // TODO(aseemgarg): Use SMIs if possible for address and expected_value
-  TNode<HeapNumber> address_heap =
-      AllocateHeapNumberWithValue(ChangeUint32ToFloat64(address));
-  TNode<HeapNumber> expected_value_heap =
-      AllocateHeapNumberWithValue(ChangeInt32ToFloat64(expected_value));
-  TNode<HeapNumber> timeout_heap = AllocateHeapNumberWithValue(timeout);
+  TNode<Number> address_number = ChangeUint32ToTagged(address);
+  TNode<Number> expected_value_number = ChangeInt32ToTagged(expected_value);
+  TNode<Number> timeout_number = ChangeFloat64ToTagged(timeout);
 
   TNode<Smi> result_smi = UncheckedCast<Smi>(
       CallRuntime(Runtime::kWasmI32AtomicWait, NoContextConstant(), instance,
-                  address_heap, expected_value_heap, timeout_heap));
+                  address_number, expected_value_number, timeout_number));
   ReturnRaw(SmiToInt32(result_smi));
 }
 
@@ -114,19 +106,17 @@ TF_BUILTIN(WasmI64AtomicWait, WasmBuiltinsAssembler) {
       UncheckedCast<Float64T>(Parameter(Descriptor::kTimeout));
 
   TNode<Object> instance = LoadInstanceFromFrame();
+  TNode<Number> address_number = ChangeUint32ToTagged(address);
+  TNode<Number> expected_value_high_number =
+      ChangeUint32ToTagged(expected_value_high);
+  TNode<Number> expected_value_low_number =
+      ChangeUint32ToTagged(expected_value_low);
+  TNode<Number> timeout_number = ChangeFloat64ToTagged(timeout);
 
-  // TODO(aseemgarg): Use SMIs if possible for address and expected_value
-  TNode<HeapNumber> address_heap =
-      AllocateHeapNumberWithValue(ChangeUint32ToFloat64(address));
-  TNode<HeapNumber> expected_value_high_heap =
-      AllocateHeapNumberWithValue(ChangeUint32ToFloat64(expected_value_high));
-  TNode<HeapNumber> expected_value_low_heap =
-      AllocateHeapNumberWithValue(ChangeUint32ToFloat64(expected_value_low));
-  TNode<HeapNumber> timeout_heap = AllocateHeapNumberWithValue(timeout);
-
-  TNode<Smi> result_smi = UncheckedCast<Smi>(CallRuntime(
-      Runtime::kWasmI64AtomicWait, NoContextConstant(), instance, address_heap,
-      expected_value_high_heap, expected_value_low_heap, timeout_heap));
+  TNode<Smi> result_smi = UncheckedCast<Smi>(
+      CallRuntime(Runtime::kWasmI64AtomicWait, NoContextConstant(), instance,
+                  address_number, expected_value_high_number,
+                  expected_value_low_number, timeout_number));
   ReturnRaw(SmiToInt32(result_smi));
 }
 
