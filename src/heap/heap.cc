@@ -652,7 +652,9 @@ void Heap::ReportStatisticsAfterGC() {
 
 void Heap::AddHeapObjectAllocationTracker(
     HeapObjectAllocationTracker* tracker) {
-  if (allocation_trackers_.empty()) DisableInlineAllocation();
+  if (allocation_trackers_.empty() && FLAG_inline_new) {
+    DisableInlineAllocation();
+  }
   allocation_trackers_.push_back(tracker);
 }
 
@@ -661,7 +663,9 @@ void Heap::RemoveHeapObjectAllocationTracker(
   allocation_trackers_.erase(std::remove(allocation_trackers_.begin(),
                                          allocation_trackers_.end(), tracker),
                              allocation_trackers_.end());
-  if (allocation_trackers_.empty()) EnableInlineAllocation();
+  if (allocation_trackers_.empty() && FLAG_inline_new) {
+    EnableInlineAllocation();
+  }
 }
 
 void Heap::AddRetainingPathTarget(Handle<HeapObject> object,
