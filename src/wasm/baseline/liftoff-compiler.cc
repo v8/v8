@@ -821,6 +821,8 @@ class LiftoffCompiler {
       CASE_I64_UNOP(I64SExtendI8, i64_signextend_i8)
       CASE_I64_UNOP(I64SExtendI16, i64_signextend_i16)
       CASE_I64_UNOP(I64SExtendI32, i64_signextend_i32)
+      CASE_I64_UNOP(I64Clz, i64_clz)
+      CASE_I64_UNOP(I64Ctz, i64_ctz)
       case kExprI32Eqz:
         DCHECK(decoder->lookahead(0, kExprI32Eqz));
         if (decoder->lookahead(1, kExprBrIf)) {
@@ -833,18 +835,16 @@ class LiftoffCompiler {
               __ emit_i32_eqz(dst.gp(), src.gp());
             });
         break;
-      case kExprI32Popcnt:
-        EmitI32UnOpWithCFallback(&LiftoffAssembler::emit_i32_popcnt,
-                                 &ExternalReference::wasm_word32_popcnt);
-        break;
       case kExprI64Eqz:
         EmitUnOp<kWasmI64, kWasmI32>(
             [=](LiftoffRegister dst, LiftoffRegister src) {
               __ emit_i64_eqz(dst.gp(), src);
             });
         break;
-      case kExprI64Clz:
-      case kExprI64Ctz:
+      case kExprI32Popcnt:
+        EmitI32UnOpWithCFallback(&LiftoffAssembler::emit_i32_popcnt,
+                                 &ExternalReference::wasm_word32_popcnt);
+        break;
       case kExprI64Popcnt:
         return unsupported(decoder, kComplexOperation,
                            WasmOpcodes::OpcodeName(opcode));

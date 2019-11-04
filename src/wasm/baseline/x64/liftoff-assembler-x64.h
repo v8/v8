@@ -885,6 +885,14 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
   shrq(dst.gp(), Immediate(amount));
 }
 
+void LiftoffAssembler::emit_i64_clz(LiftoffRegister dst, LiftoffRegister src) {
+  Lzcntq(dst.gp(), src.gp());
+}
+
+void LiftoffAssembler::emit_i64_ctz(LiftoffRegister dst, LiftoffRegister src) {
+  Tzcntq(dst.gp(), src.gp());
+}
+
 void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
   movsxlq(dst, src);
 }

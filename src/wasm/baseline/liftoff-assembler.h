@@ -460,6 +460,10 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
                            int amount);
 
+  // i64 unops.
+  inline void emit_i64_clz(LiftoffRegister dst, LiftoffRegister src);
+  inline void emit_i64_ctz(LiftoffRegister dst, LiftoffRegister src);
+
   inline void emit_i32_to_intptr(Register dst, Register src);
 
   inline void emit_ptrsize_add(Register dst, Register lhs, Register rhs) {

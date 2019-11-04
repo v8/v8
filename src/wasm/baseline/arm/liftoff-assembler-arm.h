@@ -964,6 +964,45 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
   LsrPair(dst.low_gp(), dst.high_gp(), src.low_gp(), src_high, amount);
 }
 
+void LiftoffAssembler::emit_i64_clz(LiftoffRegister dst, LiftoffRegister src) {
+  // return high == 0 ? 32 + CLZ32(low) : CLZ32(high);
+  Label done;
+  Label high_is_zero;
+  cmp(src.high_gp(), Operand(0));
+  b(&high_is_zero, eq);
+
+  clz(dst.low_gp(), src.high_gp());
+  jmp(&done);
+
+  bind(&high_is_zero);
+  clz(dst.low_gp(), src.low_gp());
+  add(dst.low_gp(), dst.low_gp(), Operand(32));
+
+  bind(&done);
+  mov(dst.high_gp(), Operand(0));  // High word of result is always 0.
+}
+
+void LiftoffAssembler::emit_i64_ctz(LiftoffRegister dst, LiftoffRegister src) {
+  // return low == 0 ? 32 + CTZ32(high) : CTZ32(low);
+  // CTZ32(x) = CLZ(RBIT(x))
+  Label done;
+  Label low_is_zero;
+  cmp(src.low_gp(), Operand(0));
+  b(&low_is_zero, eq);
+
+  rbit(dst.low_gp(), src.low_gp());
+  clz(dst.low_gp(), dst.low_gp());
+  jmp(&done);
+
+  bind(&low_is_zero);
+  rbit(dst.low_gp(), src.high_gp());
+  clz(dst.low_gp(), dst.low_gp());
+  add(dst.low_gp(), dst.low_gp(), Operand(32));
+
+  bind(&done);
+  mov(dst.high_gp(), Operand(0));  // High word of result is always 0.
+}
+
 bool LiftoffAssembler::emit_f32_ceil(DoubleRegister dst, DoubleRegister src) {
   if (CpuFeatures::IsSupported(ARMv8)) {
     CpuFeatureScope scope(this, ARMv8);

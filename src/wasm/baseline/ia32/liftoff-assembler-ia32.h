@@ -1015,6 +1015,69 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
   ShrPair(dst.high_gp(), dst.low_gp(), amount);
 }
 
+void LiftoffAssembler::emit_i64_clz(LiftoffRegister dst, LiftoffRegister src) {
+  // return high == 0 ? 32 + CLZ32(low) : CLZ32(high);
+  Label done;
+  Register safe_dst = dst.low_gp();
+  if (src.low_gp() == safe_dst) safe_dst = dst.high_gp();
+  if (CpuFeatures::IsSupported(LZCNT)) {
+    CpuFeatureScope scope(this, LZCNT);
+    lzcnt(safe_dst, src.high_gp());  // Sets CF if high == 0.
+    j(not_carry, &done, Label::kNear);
+    lzcnt(safe_dst, src.low_gp());
+    add(safe_dst, Immediate(32));  // 32 + CLZ32(low)
+  } else {
+    // CLZ32(x) =^ x == 0 ? 32 : 31 - BSR32(x)
+    Label high_is_zero;
+    bsr(safe_dst, src.high_gp());  // Sets ZF is high == 0.
+    j(zero, &high_is_zero, Label::kNear);
+    xor_(safe_dst, Immediate(31));  // for x in [0..31], 31^x == 31-x.
+    jmp(&done, Label::kNear);
+
+    bind(&high_is_zero);
+    Label low_not_zero;
+    bsr(safe_dst, src.low_gp());
+    j(not_zero, &low_not_zero, Label::kNear);
+    mov(safe_dst, Immediate(64 ^ 63));  // 64, after the xor below.
+    bind(&low_not_zero);
+    xor_(safe_dst, 63);  // for x in [0..31], 63^x == 63-x.
+  }
+
+  bind(&done);
+  if (safe_dst != dst.low_gp()) mov(dst.low_gp(), safe_dst);
+  xor_(dst.high_gp(), dst.high_gp());  // High word of result is always 0.
+}
+
+void LiftoffAssembler::emit_i64_ctz(LiftoffRegister dst, LiftoffRegister src) {
+  // return low == 0 ? 32 + CTZ32(high) : CTZ32(low);
+  Label done;
+  Register safe_dst = dst.low_gp();
+  if (src.high_gp() == safe_dst) safe_dst = dst.high_gp();
+  if (CpuFeatures::IsSupported(BMI1)) {
+    CpuFeatureScope scope(this, BMI1);
+    tzcnt(safe_dst, src.low_gp());  // Sets CF if low == 0.
+    j(not_carry, &done, Label::kNear);
+    tzcnt(safe_dst, src.high_gp());
+    add(safe_dst, Immediate(32));  // 32 + CTZ32(high)
+  } else {
+    // CTZ32(x) =^ x == 0 ? 32 : BSF32(x)
+    bsf(safe_dst, src.low_gp());  // Sets ZF is low == 0.
+    j(not_zero, &done, Label::kNear);
+
+    Label high_not_zero;
+    bsf(safe_dst, src.high_gp());
+    j(not_zero, &high_not_zero, Label::kNear);
+    mov(safe_dst, 64);  // low == 0 and high == 0
+    jmp(&done);
+    bind(&high_not_zero);
+    add(safe_dst, Immediate(32));  // 32 + CTZ32(high)
+  }
+
+  bind(&done);
+  if (safe_dst != dst.low_gp()) mov(dst.low_gp(), safe_dst);
+  xor_(dst.high_gp(), dst.high_gp());  // High word of result is always 0.
+}
+
 void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
   // This is a nop on ia32.
 }
