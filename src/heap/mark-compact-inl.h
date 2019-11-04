@@ -338,8 +338,7 @@ void MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
   // descriptor array is grey. So we need to do two steps: WhiteToGrey and
   // GreyToBlack. Alternatively, we could check WhiteToGrey || WhiteToBlack.
   if (marking_state()->WhiteToGrey(descriptors)) {
-    if (retaining_path_mode == TraceRetainingPathMode::kEnabled &&
-        V8_UNLIKELY(FLAG_track_retaining_path)) {
+    if (V8_UNLIKELY(FLAG_track_retaining_path)) {
       heap_->AddRetainer(host, descriptors);
     }
   }
@@ -357,8 +356,7 @@ void MarkingVisitor<fixed_array_mode, retaining_path_mode,
                                               HeapObject object) {
   if (marking_state()->WhiteToGrey(object)) {
     marking_worklist()->Push(object);
-    if (retaining_path_mode == TraceRetainingPathMode::kEnabled &&
-        V8_UNLIKELY(FLAG_track_retaining_path)) {
+    if (V8_UNLIKELY(FLAG_track_retaining_path)) {
       heap_->AddRetainer(host, object);
     }
   }
