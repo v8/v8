@@ -452,12 +452,8 @@ bool Builtins::CodeObjectIsExecutable(int builtin_index) {
   // pared down as much as possible.
   switch (builtin_index) {
     case Builtins::kInterpreterEntryTrampoline:
-    case Builtins::kToNumber:
-    case Builtins::kI64ToBigInt:
-    case Builtins::kBigIntToI64:
     case Builtins::kCompileLazy:
     case Builtins::kCompileLazyDeoptimizedCode:
-    case Builtins::kAllocateHeapNumber:
     case Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
     case Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_BuiltinExit:
     case Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit:
@@ -478,11 +474,6 @@ bool Builtins::CodeObjectIsExecutable(int builtin_index) {
     case Builtins::kArgumentsAdaptorTrampoline:
     case Builtins::kHandleApiCall:
     case Builtins::kInstantiateAsmJs:
-    case Builtins::kIterableToFixedArrayForWasm:
-
-      // required for ia32
-    case Builtins::kI32PairToBigInt:
-    case Builtins::kBigIntToI32Pair:
       return true;
     default:
       return false;

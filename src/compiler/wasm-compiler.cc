@@ -5179,15 +5179,24 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     return call_descriptor;
   }
 
+  Node* GetBuiltinPointerTarget(Builtins::Name builtin_id) {
+    static_assert(std::is_same<Smi, BuiltinPtr>(), "BuiltinPtr must be Smi");
+    return graph()->NewNode(mcgraph()->common()->NumberConstant(builtin_id));
+  }
+
+  Node* GetTargetForBuiltinCall(wasm::WasmCode::RuntimeStubId wasm_stub,
+                                Builtins::Name builtin_id) {
+    return (stub_mode_ == StubCallMode::kCallWasmRuntimeStub)
+               ? mcgraph()->RelocatableIntPtrConstant(wasm_stub,
+                                                      RelocInfo::WASM_STUB_CALL)
+               : GetBuiltinPointerTarget(builtin_id);
+  }
+
   Node* BuildAllocateHeapNumberWithValue(Node* value, Node* control) {
     MachineOperatorBuilder* machine = mcgraph()->machine();
     CommonOperatorBuilder* common = mcgraph()->common();
-    Node* target =
-        (stub_mode_ == StubCallMode::kCallWasmRuntimeStub)
-            ? mcgraph()->RelocatableIntPtrConstant(
-                  wasm::WasmCode::kAllocateHeapNumber,
-                  RelocInfo::WASM_STUB_CALL)
-            : BuildLoadBuiltinFromIsolateRoot(Builtins::kAllocateHeapNumber);
+    Node* target = GetTargetForBuiltinCall(wasm::WasmCode::kAllocateHeapNumber,
+                                           Builtins::kAllocateHeapNumber);
     if (!allocate_heap_number_operator_.is_set()) {
       auto call_descriptor = Linkage::GetStubCallDescriptor(
           mcgraph()->zone(), AllocateHeapNumberDescriptor(), 0,
@@ -5242,13 +5251,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
               isolate_root, graph()->start()));
     }
     return undefined_value_node_.get();
-  }
-
-  Node* BuildLoadBuiltinFromIsolateRoot(int builtin_index) {
-    DCHECK(Builtins::IsBuiltinId(builtin_index));
-    Node* isolate_root = BuildLoadIsolateRoot();
-    return LOAD_TAGGED_POINTER(isolate_root,
-                               IsolateData::builtin_slot_offset(builtin_index));
   }
 
   Node* BuildChangeInt32ToTagged(Node* value) {
@@ -5387,14 +5389,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         mcgraph()->zone(), TypeConversionDescriptor{}, 0,
         CallDescriptor::kNoFlags, Operator::kNoProperties, stub_mode_);
-    Node* stub_code =
-        (stub_mode_ == StubCallMode::kCallWasmRuntimeStub)
-            ? mcgraph()->RelocatableIntPtrConstant(wasm::WasmCode::kToNumber,
-                                                   RelocInfo::WASM_STUB_CALL)
-            : BuildLoadBuiltinFromIsolateRoot(Builtins::kToNumber);
+    Node* target =
+        GetTargetForBuiltinCall(wasm::WasmCode::kToNumber, Builtins::kToNumber);
 
     Node* result = SetEffect(
-        graph()->NewNode(mcgraph()->common()->Call(call_descriptor), stub_code,
+        graph()->NewNode(mcgraph()->common()->Call(call_descriptor), target,
                          node, js_context, Effect(), Control()));
 
     SetSourcePosition(result, 1);
@@ -5481,21 +5480,15 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     Node* target;
     if (mcgraph()->machine()->Is64()) {
-      target =
-          (stub_mode_ == StubCallMode::kCallWasmRuntimeStub)
-              ? mcgraph()->RelocatableIntPtrConstant(
-                    wasm::WasmCode::kI64ToBigInt, RelocInfo::WASM_STUB_CALL)
-              : BuildLoadBuiltinFromIsolateRoot(Builtins::kI64ToBigInt);
+      target = GetTargetForBuiltinCall(wasm::WasmCode::kI64ToBigInt,
+                                       Builtins::kI64ToBigInt);
     } else {
       DCHECK(mcgraph()->machine()->Is32());
       // On 32-bit platforms we already set the target to the
       // I32PairToBigInt builtin here, so that we don't have to replace the
       // target in the int64-lowering.
-      target =
-          (stub_mode_ == StubCallMode::kCallWasmRuntimeStub)
-              ? mcgraph()->RelocatableIntPtrConstant(
-                    wasm::WasmCode::kI32PairToBigInt, RelocInfo::WASM_STUB_CALL)
-              : BuildLoadBuiltinFromIsolateRoot(Builtins::kI32PairToBigInt);
+      target = GetTargetForBuiltinCall(wasm::WasmCode::kI32PairToBigInt,
+                                       Builtins::kI32PairToBigInt);
     }
 
     return SetEffect(
@@ -5508,21 +5501,15 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     Node* target;
     if (mcgraph()->machine()->Is64()) {
-      target =
-          (stub_mode_ == StubCallMode::kCallWasmRuntimeStub)
-              ? mcgraph()->RelocatableIntPtrConstant(
-                    wasm::WasmCode::kBigIntToI64, RelocInfo::WASM_STUB_CALL)
-              : BuildLoadBuiltinFromIsolateRoot(Builtins::kBigIntToI64);
+      target = GetTargetForBuiltinCall(wasm::WasmCode::kBigIntToI64,
+                                       Builtins::kBigIntToI64);
     } else {
       DCHECK(mcgraph()->machine()->Is32());
       // On 32-bit platforms we already set the target to the
       // BigIntToI32Pair builtin here, so that we don't have to replace the
       // target in the int64-lowering.
-      target =
-          (stub_mode_ == StubCallMode::kCallWasmRuntimeStub)
-              ? mcgraph()->RelocatableIntPtrConstant(
-                    wasm::WasmCode::kBigIntToI32Pair, RelocInfo::WASM_STUB_CALL)
-              : BuildLoadBuiltinFromIsolateRoot(Builtins::kBigIntToI32Pair);
+      target = GetTargetForBuiltinCall(wasm::WasmCode::kBigIntToI32Pair,
+                                       Builtins::kBigIntToI32Pair);
     }
 
     return SetEffect(SetControl(
@@ -5673,14 +5660,14 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   Node* BuildMultiReturnFixedArrayFromIterable(const wasm::FunctionSig* sig,
                                                Node* iterable, Node* context) {
     Node* iterable_to_fixed_array =
-        BuildLoadBuiltinFromIsolateRoot(Builtins::kIterableToFixedArrayForWasm);
+        GetBuiltinPointerTarget(Builtins::kIterableToFixedArrayForWasm);
     IterableToFixedArrayForWasmDescriptor interface_descriptor;
     Node* length = BuildChangeUint31ToSmi(
         Uint32Constant(static_cast<uint32_t>(sig->return_count())));
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         mcgraph()->zone(), interface_descriptor,
         interface_descriptor.GetStackParameterCount(), CallDescriptor::kNoFlags,
-        Operator::kNoProperties, StubCallMode::kCallCodeObject);
+        Operator::kNoProperties, StubCallMode::kCallBuiltinPointer);
     return SetEffect(graph()->NewNode(
         mcgraph()->common()->Call(call_descriptor), iterable_to_fixed_array,
         iterable, length, context, Effect(), Control()));
@@ -5923,15 +5910,15 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case WasmImportCallKind::kUseCallBuiltin: {
         base::SmallVector<Node*, 16> args(wasm_count + 7);
         int pos = 0;
-        args[pos++] =
-            BuildLoadBuiltinFromIsolateRoot(Builtins::kCall_ReceiverIsAny);
+        args[pos++] = GetBuiltinPointerTarget(Builtins::kCall_ReceiverIsAny);
         args[pos++] = callable_node;
         args[pos++] = mcgraph()->Int32Constant(wasm_count);  // argument count
         args[pos++] = undefined_node;                        // receiver
 
         auto call_descriptor = Linkage::GetStubCallDescriptor(
             graph()->zone(), CallTrampolineDescriptor{}, wasm_count + 1,
-            CallDescriptor::kNoFlags, Operator::kNoProperties);
+            CallDescriptor::kNoFlags, Operator::kNoProperties,
+            StubCallMode::kCallBuiltinPointer);
 
         // Convert wasm numbers to JS values.
         pos = AddArgumentNodes(VectorOf(args), pos, wasm_count, sig_);
@@ -6196,8 +6183,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // Call the underlying closure.
     base::SmallVector<Node*, 16> args(wasm_count + 7);
     int pos = 0;
-    args[pos++] =
-        BuildLoadBuiltinFromIsolateRoot(Builtins::kCall_ReceiverIsAny);
+    args[pos++] = GetBuiltinPointerTarget(Builtins::kCall_ReceiverIsAny);
     args[pos++] = callable;
     args[pos++] = mcgraph()->Int32Constant(wasm_count);   // argument count
     args[pos++] = BuildLoadUndefinedValueFromInstance();  // receiver
@@ -6205,7 +6191,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         graph()->zone(), CallTrampolineDescriptor{}, wasm_count + 1,
         CallDescriptor::kNoFlags, Operator::kNoProperties,
-        StubCallMode::kCallCodeObject);
+        StubCallMode::kCallBuiltinPointer);
 
     // Convert parameter JS values to wasm numbers and back to JS values.
     for (int i = 0; i < wasm_count; ++i) {
@@ -6378,7 +6364,7 @@ std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
   Node* effect = nullptr;
 
   WasmWrapperGraphBuilder builder(zone.get(), &mcgraph, sig, nullptr,
-                                  StubCallMode::kCallCodeObject,
+                                  StubCallMode::kCallBuiltinPointer,
                                   enabled_features);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
@@ -6793,7 +6779,7 @@ MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
   Node* effect = nullptr;
 
   WasmWrapperGraphBuilder builder(zone.get(), &mcgraph, sig, nullptr,
-                                  StubCallMode::kCallCodeObject,
+                                  StubCallMode::kCallBuiltinPointer,
                                   wasm::WasmFeaturesFromIsolate(isolate));
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
@@ -6840,7 +6826,7 @@ MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
   Node* effect = nullptr;
 
   WasmWrapperGraphBuilder builder(zone.get(), &mcgraph, sig, nullptr,
-                                  StubCallMode::kCallCodeObject,
+                                  StubCallMode::kCallBuiltinPointer,
                                   wasm::WasmFeaturesFromIsolate(isolate));
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
