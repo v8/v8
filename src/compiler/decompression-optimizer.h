@@ -63,6 +63,9 @@ class V8_EXPORT_PRIVATE DecompressionOptimizer final {
   // Change node's op from HeapConstant to CompressedHeapConstant.
   void ChangeHeapConstant(Node* const node);
 
+  // Change the phi's representation from Tagged to Compressed.
+  void ChangePhi(Node* const node);
+
   // Change node's load into a compressed one.
   void ChangeLoad(Node* const node);
 

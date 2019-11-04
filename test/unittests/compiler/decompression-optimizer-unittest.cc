@@ -308,6 +308,159 @@ TEST_F(DecompressionOptimizerTest, TypedStateValues) {
   }
 }
 
+// -----------------------------------------------------------------------------
+// Phi
+
+TEST_F(DecompressionOptimizerTest, PhiDecompressOrNot) {
+  // Skip test if decompression elimination is enabled.
+  if (FLAG_turbo_decompression_elimination) {
+    return;
+  }
+
+  // Define variables.
+  Node* const control = graph()->start();
+  Node* object = Parameter(Type::Any(), 0);
+  Node* effect = graph()->start();
+  Node* index = Parameter(Type::UnsignedSmall(), 1);
+  const int number_of_inputs = 2;
+
+  // Test for both AnyTagged and TaggedPointer.
+  for (size_t i = 0; i < arraysize(types); ++i) {
+    for (size_t j = 0; j < arraysize(heap_constants); ++j) {
+      // Create the graph.
+      // Base pointer
+      Node* load_1 = graph()->NewNode(machine()->Load(types[i]), object, index,
+                                      effect, control);
+      Node* constant_1 =
+          graph()->NewNode(common()->HeapConstant(heap_constants[j]));
+      Node* phi_1 = graph()->NewNode(
+          common()->Phi(types[i].representation(), number_of_inputs), load_1,
+          constant_1, control);
+
+      // Value
+      Node* load_2 = graph()->NewNode(machine()->Load(types[i]), object, index,
+                                      effect, control);
+      Node* constant_2 =
+          graph()->NewNode(common()->HeapConstant(heap_constants[j]));
+      Node* phi_2 = graph()->NewNode(
+          common()->Phi(types[i].representation(), number_of_inputs), load_2,
+          constant_2, control);
+
+      graph()->SetEnd(
+          graph()->NewNode(machine()->Store(CreateStoreRep(types[i])), phi_1,
+                           index, phi_2, effect, control));
+
+      // Change the nodes, and test the change.
+      Reduce();
+      // Base pointer should not be compressed.
+      EXPECT_EQ(LoadMachRep(load_1), types[i].representation());
+      EXPECT_EQ(constant_1->opcode(), IrOpcode::kHeapConstant);
+      EXPECT_EQ(PhiRepresentationOf(phi_1->op()), types[i].representation());
+      // Value should be compressed.
+      EXPECT_EQ(LoadMachRep(load_2), CompressedMachRep(types[i]));
+      EXPECT_EQ(constant_2->opcode(), IrOpcode::kCompressedHeapConstant);
+      EXPECT_EQ(PhiRepresentationOf(phi_2->op()), CompressedMachRep(types[i]));
+    }
+  }
+}
+
+TEST_F(DecompressionOptimizerTest, CascadingPhi) {
+  // Skip test if decompression elimination is enabled.
+  if (FLAG_turbo_decompression_elimination) {
+    return;
+  }
+
+  // Define variables.
+  Node* const control = graph()->start();
+  Node* object = Parameter(Type::Any(), 0);
+  Node* effect = graph()->start();
+  Node* index = Parameter(Type::UnsignedSmall(), 1);
+  const int number_of_inputs = 2;
+
+  // Test for both AnyTagged and TaggedPointer.
+  for (size_t i = 0; i < arraysize(types); ++i) {
+    // Create the graph.
+    Node* load_1 = graph()->NewNode(machine()->Load(types[i]), object, index,
+                                    effect, control);
+    Node* load_2 = graph()->NewNode(machine()->Load(types[i]), object, index,
+                                    effect, control);
+    Node* load_3 = graph()->NewNode(machine()->Load(types[i]), object, index,
+                                    effect, control);
+    Node* load_4 = graph()->NewNode(machine()->Load(types[i]), object, index,
+                                    effect, control);
+
+    Node* phi_1 = graph()->NewNode(
+        common()->Phi(types[i].representation(), number_of_inputs), load_1,
+        load_2, control);
+    Node* phi_2 = graph()->NewNode(
+        common()->Phi(types[i].representation(), number_of_inputs), load_3,
+        load_4, control);
+
+    Node* final_phi = graph()->NewNode(
+        common()->Phi(types[i].representation(), number_of_inputs), phi_1,
+        phi_2, control);
+
+    // Value
+    graph()->SetEnd(final_phi);
+    // Change the nodes, and test the change.
+    Reduce();
+    // Loads are all compressed
+    EXPECT_EQ(LoadMachRep(load_1), CompressedMachRep(types[i]));
+    EXPECT_EQ(LoadMachRep(load_2), CompressedMachRep(types[i]));
+    EXPECT_EQ(LoadMachRep(load_3), CompressedMachRep(types[i]));
+    EXPECT_EQ(LoadMachRep(load_4), CompressedMachRep(types[i]));
+    // Phis too
+    EXPECT_EQ(PhiRepresentationOf(phi_1->op()), CompressedMachRep(types[i]));
+    EXPECT_EQ(PhiRepresentationOf(phi_2->op()), CompressedMachRep(types[i]));
+    EXPECT_EQ(PhiRepresentationOf(final_phi->op()),
+              CompressedMachRep(types[i]));
+  }
+}
+
+TEST_F(DecompressionOptimizerTest, PhiWithOneCompressedAndOneTagged) {
+  // If the phi is Compressed but one of the inputs is Tagged, then we insert a
+  // ChangeTaggedToCompressed node.
+
+  // Skip test if decompression elimination is enabled.
+  if (FLAG_turbo_decompression_elimination) {
+    return;
+  }
+
+  // Define variables.
+  Node* const control = graph()->start();
+  Node* object = Parameter(Type::Any(), 0);
+  Node* effect = graph()->start();
+  Node* index = Parameter(Type::UnsignedSmall(), 1);
+  const int number_of_inputs = 2;
+
+  // Test for both AnyTagged and TaggedPointer.
+  for (size_t i = 0; i < arraysize(types); ++i) {
+    for (size_t j = 0; j < arraysize(heap_constants); ++j) {
+      // Create the graph.
+      // Base pointer in load_2, and phi input for value
+      Node* load_1 = graph()->NewNode(machine()->Load(types[i]), object, index,
+                                      effect, control);
+
+      // load_2 blocks load_1 from being compressed.
+      Node* load_2 = graph()->NewNode(machine()->Load(types[i]), load_1, index,
+                                      effect, control);
+      Node* phi = graph()->NewNode(
+          common()->Phi(types[i].representation(), number_of_inputs), load_1,
+          load_2, control);
+
+      graph()->SetEnd(
+          graph()->NewNode(machine()->Store(CreateStoreRep(types[i])), object,
+                           index, phi, effect, control));
+
+      // Change the nodes, and test the change.
+      Reduce();
+      EXPECT_EQ(LoadMachRep(load_1), types[i].representation());
+      EXPECT_EQ(LoadMachRep(load_2), CompressedMachRep(types[i]));
+      EXPECT_EQ(PhiRepresentationOf(phi->op()), CompressedMachRep(types[i]));
+    }
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

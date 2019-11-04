@@ -679,7 +679,11 @@ class MachineRepresentationChecker {
               case MachineRepresentation::kCompressedPointer:
               case MachineRepresentation::kCompressedSigned:
                 for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
-                  CheckValueInputIsCompressed(node, i);
+                  if (FLAG_turbo_decompression_elimination) {
+                    CheckValueInputIsCompressed(node, i);
+                  } else {
+                    CheckValueInputIsCompressedOrTagged(node, i);
+                  }
                 }
                 break;
               case MachineRepresentation::kWord32:
