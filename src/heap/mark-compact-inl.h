@@ -91,9 +91,7 @@ template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 int MarkingVisitor<fixed_array_mode, retaining_path_mode,
                    MarkingState>::VisitFixedArray(Map map, FixedArray object) {
-  return (fixed_array_mode == FixedArrayVisitationMode::kRegular)
-             ? Parent::VisitFixedArray(map, object)
-             : VisitFixedArrayIncremental(map, object);
+  return VisitFixedArrayIncremental(map, object);
 }
 
 template <FixedArrayVisitationMode fixed_array_mode,
