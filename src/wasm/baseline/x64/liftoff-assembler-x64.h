@@ -722,10 +722,22 @@ void LiftoffAssembler::emit_i32_shl(Register dst, Register src, Register amount,
                                         &Assembler::shll_cl, pinned);
 }
 
+void LiftoffAssembler::emit_i32_shl(Register dst, Register src,
+                                    int32_t amount) {
+  if (dst != src) movl(dst, src);
+  shll(dst, Immediate(amount & 31));
+}
+
 void LiftoffAssembler::emit_i32_sar(Register dst, Register src, Register amount,
                                     LiftoffRegList pinned) {
   liftoff::EmitShiftOperation<kWasmI32>(this, dst, src, amount,
                                         &Assembler::sarl_cl, pinned);
+}
+
+void LiftoffAssembler::emit_i32_sar(Register dst, Register src,
+                                    int32_t amount) {
+  if (dst != src) movl(dst, src);
+  sarl(dst, Immediate(amount & 31));
 }
 
 void LiftoffAssembler::emit_i32_shr(Register dst, Register src, Register amount,
@@ -734,10 +746,10 @@ void LiftoffAssembler::emit_i32_shr(Register dst, Register src, Register amount,
                                         &Assembler::shrl_cl, pinned);
 }
 
-void LiftoffAssembler::emit_i32_shr(Register dst, Register src, int amount) {
+void LiftoffAssembler::emit_i32_shr(Register dst, Register src,
+                                    int32_t amount) {
   if (dst != src) movl(dst, src);
-  DCHECK(is_uint5(amount));
-  shrl(dst, Immediate(amount));
+  shrl(dst, Immediate(amount & 31));
 }
 
 void LiftoffAssembler::emit_i32_clz(Register dst, Register src) {

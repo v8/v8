@@ -693,6 +693,14 @@ void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
     Register scratch = temps.Acquire();                                        \
     and_(scratch, amount, Operand(0x1f));                                      \
     instruction(dst, src, Operand(scratch));                                   \
+  }                                                                            \
+  void LiftoffAssembler::emit_##name(Register dst, Register src,               \
+                                     int32_t amount) {                         \
+    if (V8_LIKELY((amount & 31) != 0)) {                                       \
+      instruction(dst, src, Operand(amount & 31));                             \
+    } else if (dst != src) {                                                   \
+      mov(dst, src);                                                           \
+    }                                                                          \
   }
 #define FP32_UNOP(name, instruction)                                           \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
@@ -865,11 +873,6 @@ void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
   b(trap_div_by_zero, eq);
   // Compute remainder.
   mls(dst, scratch, rhs, lhs);
-}
-
-void LiftoffAssembler::emit_i32_shr(Register dst, Register src, int amount) {
-  DCHECK(is_uint5(amount));
-  lsr(dst, src, Operand(amount));
 }
 
 void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,

@@ -410,11 +410,13 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_i32_xor(Register dst, Register lhs, int32_t imm);
   inline void emit_i32_shl(Register dst, Register src, Register amount,
                            LiftoffRegList pinned = {});
+  inline void emit_i32_shl(Register dst, Register src, int32_t amount);
   inline void emit_i32_sar(Register dst, Register src, Register amount,
                            LiftoffRegList pinned = {});
+  inline void emit_i32_sar(Register dst, Register src, int32_t amount);
   inline void emit_i32_shr(Register dst, Register src, Register amount,
                            LiftoffRegList pinned = {});
-  inline void emit_i32_shr(Register dst, Register src, int amount);
+  inline void emit_i32_shr(Register dst, Register src, int32_t amount);
 
   // i32 unops.
   inline void emit_i32_clz(Register dst, Register src);

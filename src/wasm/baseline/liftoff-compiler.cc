@@ -998,12 +998,6 @@ class LiftoffCompiler {
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_f64_set_cond(cond, dst.gp(), lhs.fp(), rhs.fp());          \
         });
-#define CASE_I32_SHIFTOP(opcode, fn)                                         \
-  case kExpr##opcode:                                                        \
-    return EmitBinOp<kWasmI32, kWasmI32>(                                    \
-        [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
-          __ emit_##fn(dst.gp(), lhs.gp(), rhs.gp(), {});                    \
-        });
 #define CASE_I64_SHIFTOP(opcode, fn)                                           \
   case kExpr##opcode:                                                          \
     return EmitBinOp<kWasmI64, kWasmI64>([=](LiftoffRegister dst,              \
@@ -1067,9 +1061,9 @@ class LiftoffCompiler {
       CASE_F64_CMPOP(F64Gt, kUnsignedGreaterThan)
       CASE_F64_CMPOP(F64Le, kUnsignedLessEqual)
       CASE_F64_CMPOP(F64Ge, kUnsignedGreaterEqual)
-      CASE_I32_SHIFTOP(I32Shl, i32_shl)
-      CASE_I32_SHIFTOP(I32ShrS, i32_sar)
-      CASE_I32_SHIFTOP(I32ShrU, i32_shr)
+      CASE_I32_BINOPI(I32Shl, i32_shl)
+      CASE_I32_BINOPI(I32ShrS, i32_sar)
+      CASE_I32_BINOPI(I32ShrU, i32_shr)
       CASE_I64_SHIFTOP(I64Shl, i64_shl)
       CASE_I64_SHIFTOP(I64ShrS, i64_sar)
       CASE_I64_SHIFTOP(I64ShrU, i64_shr)
@@ -1204,7 +1198,6 @@ class LiftoffCompiler {
 #undef CASE_I64_CMPOP
 #undef CASE_F32_CMPOP
 #undef CASE_F64_CMPOP
-#undef CASE_I32_SHIFTOP
 #undef CASE_I64_SHIFTOP
 #undef CASE_CCALL_BINOP
   }
