@@ -997,6 +997,7 @@ torque_files = [
   "src/builtins/typed-array-findindex.tq",
   "src/builtins/typed-array-foreach.tq",
   "src/builtins/typed-array-from.tq",
+  "src/builtins/typed-array-of.tq",
   "src/builtins/typed-array-reduce.tq",
   "src/builtins/typed-array-reduceright.tq",
   "src/builtins/typed-array-slice.tq",

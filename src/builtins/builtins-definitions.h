@@ -938,8 +938,6 @@ namespace internal {
   TFJ(TypedArrayPrototypeToStringTag, 0, kReceiver)                            \
   /* ES6 %TypedArray%.prototype.map */                                         \
   TFJ(TypedArrayPrototypeMap, SharedFunctionInfo::kDontAdaptArgumentsSentinel) \
-  /* ES6 %TypedArray%.of */                                                    \
-  TFJ(TypedArrayOf, SharedFunctionInfo::kDontAdaptArgumentsSentinel)           \
                                                                                \
   /* Wasm */                                                                   \
   ASM(WasmCompileLazy, Dummy)                                                  \
