@@ -903,6 +903,14 @@ void LiftoffAssembler::emit_i64_ctz(LiftoffRegister dst, LiftoffRegister src) {
   Tzcntq(dst.gp(), src.gp());
 }
 
+bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
+                                       LiftoffRegister src) {
+  if (!CpuFeatures::IsSupported(POPCNT)) return false;
+  CpuFeatureScope scope(this, POPCNT);
+  popcntq(dst.gp(), src.gp());
+  return true;
+}
+
 void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
   movsxlq(dst, src);
 }

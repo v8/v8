@@ -1083,6 +1083,21 @@ void LiftoffAssembler::emit_i64_ctz(LiftoffRegister dst, LiftoffRegister src) {
   xor_(dst.high_gp(), dst.high_gp());  // High word of result is always 0.
 }
 
+bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
+                                       LiftoffRegister src) {
+  if (!CpuFeatures::IsSupported(POPCNT)) return false;
+  CpuFeatureScope scope(this, POPCNT);
+  // Produce partial popcnts in the two dst registers.
+  Register src1 = src.high_gp() == dst.low_gp() ? src.high_gp() : src.low_gp();
+  Register src2 = src.high_gp() == dst.low_gp() ? src.low_gp() : src.high_gp();
+  popcnt(dst.low_gp(), src1);
+  popcnt(dst.high_gp(), src2);
+  // Add the two into the lower dst reg, clear the higher dst reg.
+  add(dst.low_gp(), dst.high_gp());
+  xor_(dst.high_gp(), dst.high_gp());
+  return true;
+}
+
 void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
   // This is a nop on ia32.
 }

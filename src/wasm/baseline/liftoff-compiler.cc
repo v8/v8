@@ -839,8 +839,20 @@ class LiftoffCompiler {
             });
         break;
       case kExprI64Popcnt:
-        return unsupported(decoder, kComplexOperation,
-                           WasmOpcodes::OpcodeName(opcode));
+        EmitUnOp<kWasmI64, kWasmI64>(
+            [=](LiftoffRegister dst, LiftoffRegister src) {
+              if (__ emit_i64_popcnt(dst, src)) return;
+              // The c function returns i32. We will zero-extend later.
+              ValueType sig_i_l_reps[] = {kWasmI32, kWasmI64};
+              FunctionSig sig_i_l(1, 1, sig_i_l_reps);
+              LiftoffRegister c_call_dst = kNeedI64RegPair ? dst.low() : dst;
+              GenerateCCall(&c_call_dst, &sig_i_l, kWasmStmt, &src,
+                            ExternalReference::wasm_word64_popcnt());
+              // Now zero-extend the result to i64.
+              __ emit_type_conversion(kExprI64UConvertI32, dst, c_call_dst,
+                                      nullptr);
+            });
+        break;
       case kExprI32SConvertSatF32:
       case kExprI32UConvertSatF32:
       case kExprI32SConvertSatF64:

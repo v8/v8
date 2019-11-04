@@ -762,30 +762,36 @@ void LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
   clz(dst, dst);
 }
 
-bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
-  {
-    UseScratchRegisterScope temps(this);
-    LiftoffRegList pinned = LiftoffRegList::ForRegs(dst);
-    Register scratch = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
-    Register scratch_2 = GetUnusedRegister(kGpReg, pinned).gp();
-    // x = x - ((x & (0x55555555 << 1)) >> 1)
-    and_(scratch, src, Operand(0xaaaaaaaa));
-    sub(dst, src, Operand(scratch, LSR, 1));
-    // x = (x & 0x33333333) + ((x & (0x33333333 << 2)) >> 2)
-    mov(scratch, Operand(0x33333333));
-    and_(scratch_2, dst, Operand(scratch, LSL, 2));
-    and_(scratch, dst, scratch);
-    add(dst, scratch, Operand(scratch_2, LSR, 2));
-  }
+namespace liftoff {
+inline void GeneratePopCnt(Assembler* assm, Register dst, Register src,
+                           Register scratch1, Register scratch2) {
+  DCHECK(!AreAliased(dst, scratch1, scratch2));
+  if (src == scratch1) std::swap(scratch1, scratch2);
+  // x = x - ((x & (0x55555555 << 1)) >> 1)
+  assm->and_(scratch1, src, Operand(0xaaaaaaaa));
+  assm->sub(dst, src, Operand(scratch1, LSR, 1));
+  // x = (x & 0x33333333) + ((x & (0x33333333 << 2)) >> 2)
+  assm->mov(scratch1, Operand(0x33333333));
+  assm->and_(scratch2, dst, Operand(scratch1, LSL, 2));
+  assm->and_(scratch1, dst, scratch1);
+  assm->add(dst, scratch1, Operand(scratch2, LSR, 2));
   // x = (x + (x >> 4)) & 0x0F0F0F0F
-  add(dst, dst, Operand(dst, LSR, 4));
-  and_(dst, dst, Operand(0x0f0f0f0f));
+  assm->add(dst, dst, Operand(dst, LSR, 4));
+  assm->and_(dst, dst, Operand(0x0f0f0f0f));
   // x = x + (x >> 8)
-  add(dst, dst, Operand(dst, LSR, 8));
+  assm->add(dst, dst, Operand(dst, LSR, 8));
   // x = x + (x >> 16)
-  add(dst, dst, Operand(dst, LSR, 16));
+  assm->add(dst, dst, Operand(dst, LSR, 16));
   // x = x & 0x3F
-  and_(dst, dst, Operand(0x3f));
+  assm->and_(dst, dst, Operand(0x3f));
+}
+}  // namespace liftoff
+
+bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
+  LiftoffRegList pinned = LiftoffRegList::ForRegs(dst);
+  Register scratch1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  Register scratch2 = GetUnusedRegister(kGpReg, pinned).gp();
+  liftoff::GeneratePopCnt(this, dst, src, scratch1, scratch2);
   return true;
 }
 
@@ -999,6 +1005,23 @@ void LiftoffAssembler::emit_i64_ctz(LiftoffRegister dst, LiftoffRegister src) {
 
   bind(&done);
   mov(dst.high_gp(), Operand(0));  // High word of result is always 0.
+}
+
+bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
+                                       LiftoffRegister src) {
+  // Produce partial popcnts in the two dst registers, making sure not to
+  // overwrite the second src register before using it.
+  Register src1 = src.high_gp() == dst.low_gp() ? src.high_gp() : src.low_gp();
+  Register src2 = src.high_gp() == dst.low_gp() ? src.low_gp() : src.high_gp();
+  LiftoffRegList pinned = LiftoffRegList::ForRegs(dst, src2);
+  Register scratch1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  Register scratch2 = GetUnusedRegister(kGpReg, pinned).gp();
+  liftoff::GeneratePopCnt(this, dst.low_gp(), src1, scratch1, scratch2);
+  liftoff::GeneratePopCnt(this, dst.high_gp(), src2, scratch1, scratch2);
+  // Now add the two into the lower dst reg and clear the higher dst reg.
+  add(dst.low_gp(), dst.low_gp(), dst.high_gp());
+  mov(dst.high_gp(), Operand(0));
+  return true;
 }
 
 bool LiftoffAssembler::emit_f32_ceil(DoubleRegister dst, DoubleRegister src) {
