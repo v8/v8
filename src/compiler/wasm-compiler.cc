@@ -6853,7 +6853,7 @@ MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
                              MachineType::Pointer(),    // argv
                              MachineType::Pointer()};   // c_entry_fp
   MachineSignature incoming_sig(1, 4, sig_types);
-  // Traps need the root register, for TailCallRuntimeWithCEntry to call
+  // Traps need the root register, for TailCallRuntime to call
   // Runtime::kThrowWasmError.
   CallDescriptor::Flags flags = CallDescriptor::kInitializeRootRegister;
   CallDescriptor* incoming =

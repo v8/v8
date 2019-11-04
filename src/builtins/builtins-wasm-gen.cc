@@ -33,49 +33,32 @@ class WasmBuiltinsAssembler : public CodeStubAssembler {
              IntPtrConstant(WasmInstanceObject::kNativeContextOffset -
                             kHeapObjectTag)));
   }
-
-  TNode<Code> LoadCEntryFromInstance(TNode<Object> instance) {
-    TNode<IntPtrT> isolate_root = UncheckedCast<IntPtrT>(
-        Load(MachineType::Pointer(), instance,
-             IntPtrConstant(WasmInstanceObject::kIsolateRootOffset -
-                            kHeapObjectTag)));
-    auto centry_id =
-        Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit;
-    TNode<Code> target = UncheckedCast<Code>(
-        Load(MachineType::TaggedPointer(), isolate_root,
-             IntPtrConstant(IsolateData::builtin_slot_offset(centry_id))));
-    return target;
-  }
 };
 
 TF_BUILTIN(WasmStackGuard, WasmBuiltinsAssembler) {
   TNode<Object> instance = LoadInstanceFromFrame();
-  TNode<Code> centry = LoadCEntryFromInstance(instance);
   TNode<Object> context = LoadContextFromInstance(instance);
-  TailCallRuntimeWithCEntry(Runtime::kWasmStackGuard, centry, context);
+  TailCallRuntime(Runtime::kWasmStackGuard, context);
 }
 
 TF_BUILTIN(WasmStackOverflow, WasmBuiltinsAssembler) {
   TNode<Object> instance = LoadInstanceFromFrame();
-  TNode<Code> centry = LoadCEntryFromInstance(instance);
   TNode<Object> context = LoadContextFromInstance(instance);
-  TailCallRuntimeWithCEntry(Runtime::kThrowWasmStackOverflow, centry, context);
+  TailCallRuntime(Runtime::kThrowWasmStackOverflow, context);
 }
 
 TF_BUILTIN(WasmThrow, WasmBuiltinsAssembler) {
   TNode<Object> exception = UncheckedParameter(Descriptor::kException);
   TNode<Object> instance = LoadInstanceFromFrame();
-  TNode<Code> centry = LoadCEntryFromInstance(instance);
   TNode<Object> context = LoadContextFromInstance(instance);
-  TailCallRuntimeWithCEntry(Runtime::kThrow, centry, context, exception);
+  TailCallRuntime(Runtime::kThrow, context, exception);
 }
 
 TF_BUILTIN(WasmRethrow, WasmBuiltinsAssembler) {
   TNode<Object> exception = UncheckedParameter(Descriptor::kException);
   TNode<Object> instance = LoadInstanceFromFrame();
-  TNode<Code> centry = LoadCEntryFromInstance(instance);
   TNode<Object> context = LoadContextFromInstance(instance);
-  TailCallRuntimeWithCEntry(Runtime::kReThrow, centry, context, exception);
+  TailCallRuntime(Runtime::kReThrow, context, exception);
 }
 
 TF_BUILTIN(WasmAtomicNotify, WasmBuiltinsAssembler) {
@@ -84,7 +67,6 @@ TF_BUILTIN(WasmAtomicNotify, WasmBuiltinsAssembler) {
   TNode<Uint32T> count = UncheckedCast<Uint32T>(Parameter(Descriptor::kCount));
 
   TNode<Object> instance = LoadInstanceFromFrame();
-  TNode<Code> centry = LoadCEntryFromInstance(instance);
 
   // TODO(aseemgarg): Use SMIs if possible for address and count
   TNode<HeapNumber> address_heap =
@@ -92,9 +74,9 @@ TF_BUILTIN(WasmAtomicNotify, WasmBuiltinsAssembler) {
   TNode<HeapNumber> count_heap =
       AllocateHeapNumberWithValue(ChangeUint32ToFloat64(count));
 
-  TNode<Smi> result_smi = UncheckedCast<Smi>(CallRuntimeWithCEntry(
-      Runtime::kWasmAtomicNotify, centry, NoContextConstant(), instance,
-      address_heap, count_heap));
+  TNode<Smi> result_smi = UncheckedCast<Smi>(
+      CallRuntime(Runtime::kWasmAtomicNotify, NoContextConstant(), instance,
+                  address_heap, count_heap));
   ReturnRaw(SmiToInt32(result_smi));
 }
 
@@ -107,7 +89,6 @@ TF_BUILTIN(WasmI32AtomicWait, WasmBuiltinsAssembler) {
       UncheckedCast<Float64T>(Parameter(Descriptor::kTimeout));
 
   TNode<Object> instance = LoadInstanceFromFrame();
-  TNode<Code> centry = LoadCEntryFromInstance(instance);
 
   // TODO(aseemgarg): Use SMIs if possible for address and expected_value
   TNode<HeapNumber> address_heap =
@@ -116,9 +97,9 @@ TF_BUILTIN(WasmI32AtomicWait, WasmBuiltinsAssembler) {
       AllocateHeapNumberWithValue(ChangeInt32ToFloat64(expected_value));
   TNode<HeapNumber> timeout_heap = AllocateHeapNumberWithValue(timeout);
 
-  TNode<Smi> result_smi = UncheckedCast<Smi>(CallRuntimeWithCEntry(
-      Runtime::kWasmI32AtomicWait, centry, NoContextConstant(), instance,
-      address_heap, expected_value_heap, timeout_heap));
+  TNode<Smi> result_smi = UncheckedCast<Smi>(
+      CallRuntime(Runtime::kWasmI32AtomicWait, NoContextConstant(), instance,
+                  address_heap, expected_value_heap, timeout_heap));
   ReturnRaw(SmiToInt32(result_smi));
 }
 
@@ -133,7 +114,6 @@ TF_BUILTIN(WasmI64AtomicWait, WasmBuiltinsAssembler) {
       UncheckedCast<Float64T>(Parameter(Descriptor::kTimeout));
 
   TNode<Object> instance = LoadInstanceFromFrame();
-  TNode<Code> centry = LoadCEntryFromInstance(instance);
 
   // TODO(aseemgarg): Use SMIs if possible for address and expected_value
   TNode<HeapNumber> address_heap =
@@ -144,10 +124,9 @@ TF_BUILTIN(WasmI64AtomicWait, WasmBuiltinsAssembler) {
       AllocateHeapNumberWithValue(ChangeUint32ToFloat64(expected_value_low));
   TNode<HeapNumber> timeout_heap = AllocateHeapNumberWithValue(timeout);
 
-  TNode<Smi> result_smi = UncheckedCast<Smi>(CallRuntimeWithCEntry(
-      Runtime::kWasmI64AtomicWait, centry, NoContextConstant(), instance,
-      address_heap, expected_value_high_heap, expected_value_low_heap,
-      timeout_heap));
+  TNode<Smi> result_smi = UncheckedCast<Smi>(CallRuntime(
+      Runtime::kWasmI64AtomicWait, NoContextConstant(), instance, address_heap,
+      expected_value_high_heap, expected_value_low_heap, timeout_heap));
   ReturnRaw(SmiToInt32(result_smi));
 }
 
@@ -162,10 +141,9 @@ TF_BUILTIN(WasmMemoryGrow, WasmBuiltinsAssembler) {
 
   TNode<Smi> num_pages_smi = SmiFromInt32(num_pages);
   TNode<Object> instance = LoadInstanceFromFrame();
-  TNode<Code> centry = LoadCEntryFromInstance(instance);
   TNode<Object> context = LoadContextFromInstance(instance);
-  TNode<Smi> ret_smi = UncheckedCast<Smi>(CallRuntimeWithCEntry(
-      Runtime::kWasmMemoryGrow, centry, context, instance, num_pages_smi));
+  TNode<Smi> ret_smi = UncheckedCast<Smi>(
+      CallRuntime(Runtime::kWasmMemoryGrow, context, instance, num_pages_smi));
   TNode<Int32T> ret = SmiToInt32(ret_smi);
   ReturnRaw(ret);
 
@@ -177,7 +155,6 @@ TF_BUILTIN(WasmTableGet, WasmBuiltinsAssembler) {
   TNode<Int32T> entry_index =
       UncheckedCast<Int32T>(Parameter(Descriptor::kEntryIndex));
   TNode<Object> instance = LoadInstanceFromFrame();
-  TNode<Code> centry = LoadCEntryFromInstance(instance);
   TNode<Object> context = LoadContextFromInstance(instance);
   Label entry_index_out_of_range(this, Label::kDeferred);
 
@@ -189,21 +166,20 @@ TF_BUILTIN(WasmTableGet, WasmBuiltinsAssembler) {
   TNode<Smi> table_index_smi =
       UncheckedCast<Smi>(Parameter(Descriptor::kTableIndex));
 
-  TailCallRuntimeWithCEntry(Runtime::kWasmFunctionTableGet, centry, context,
-                            instance, table_index_smi, entry_index_smi);
+  TailCallRuntime(Runtime::kWasmFunctionTableGet, context, instance,
+                  table_index_smi, entry_index_smi);
 
   BIND(&entry_index_out_of_range);
   MessageTemplate message_id =
       wasm::WasmOpcodes::TrapReasonToMessageId(wasm::kTrapTableOutOfBounds);
-  TailCallRuntimeWithCEntry(Runtime::kThrowWasmError, centry, context,
-                            SmiConstant(static_cast<int>(message_id)));
+  TailCallRuntime(Runtime::kThrowWasmError, context,
+                  SmiConstant(static_cast<int>(message_id)));
 }
 
 TF_BUILTIN(WasmTableSet, WasmBuiltinsAssembler) {
   TNode<Int32T> entry_index =
       UncheckedCast<Int32T>(Parameter(Descriptor::kEntryIndex));
   TNode<Object> instance = LoadInstanceFromFrame();
-  TNode<Code> centry = LoadCEntryFromInstance(instance);
   TNode<Object> context = LoadContextFromInstance(instance);
   Label entry_index_out_of_range(this, Label::kDeferred);
 
@@ -215,25 +191,24 @@ TF_BUILTIN(WasmTableSet, WasmBuiltinsAssembler) {
   TNode<Smi> table_index_smi =
       UncheckedCast<Smi>(Parameter(Descriptor::kTableIndex));
   TNode<Object> value = UncheckedCast<Object>(Parameter(Descriptor::kValue));
-  TailCallRuntimeWithCEntry(Runtime::kWasmFunctionTableSet, centry, context,
-                            instance, table_index_smi, entry_index_smi, value);
+  TailCallRuntime(Runtime::kWasmFunctionTableSet, context, instance,
+                  table_index_smi, entry_index_smi, value);
 
   BIND(&entry_index_out_of_range);
   MessageTemplate message_id =
       wasm::WasmOpcodes::TrapReasonToMessageId(wasm::kTrapTableOutOfBounds);
-  TailCallRuntimeWithCEntry(Runtime::kThrowWasmError, centry, context,
-                            SmiConstant(static_cast<int>(message_id)));
+  TailCallRuntime(Runtime::kThrowWasmError, context,
+                  SmiConstant(static_cast<int>(message_id)));
 }
 
-#define DECLARE_ENUM(name)                                                \
-  TF_BUILTIN(ThrowWasm##name, WasmBuiltinsAssembler) {                    \
-    TNode<Object> instance = LoadInstanceFromFrame();                     \
-    TNode<Code> centry = LoadCEntryFromInstance(instance);                \
-    TNode<Object> context = LoadContextFromInstance(instance);            \
-    MessageTemplate message_id =                                          \
-        wasm::WasmOpcodes::TrapReasonToMessageId(wasm::k##name);          \
-    TailCallRuntimeWithCEntry(Runtime::kThrowWasmError, centry, context,  \
-                              SmiConstant(static_cast<int>(message_id))); \
+#define DECLARE_ENUM(name)                                       \
+  TF_BUILTIN(ThrowWasm##name, WasmBuiltinsAssembler) {           \
+    TNode<Object> instance = LoadInstanceFromFrame();            \
+    TNode<Object> context = LoadContextFromInstance(instance);   \
+    MessageTemplate message_id =                                 \
+        wasm::WasmOpcodes::TrapReasonToMessageId(wasm::k##name); \
+    TailCallRuntime(Runtime::kThrowWasmError, context,           \
+                    SmiConstant(static_cast<int>(message_id)));  \
   }
 FOREACH_WASM_TRAPREASON(DECLARE_ENUM)
 #undef DECLARE_ENUM
