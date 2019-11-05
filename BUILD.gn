@@ -952,6 +952,7 @@ torque_files = [
   "src/builtins/internal-coverage.tq",
   "src/builtins/iterator.tq",
   "src/builtins/math.tq",
+  "src/builtins/number.tq",
   "src/builtins/object-fromentries.tq",
   "src/builtins/object.tq",
   "src/builtins/promise-abstract-operations.tq",

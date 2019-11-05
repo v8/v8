@@ -93,6 +93,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(GlobalPropertyCellMap, global_property_cell_map, PropertyCellMap)          \
   V(has_instance_symbol, has_instance_symbol, HasInstanceSymbol)               \
   V(HeapNumberMap, heap_number_map, HeapNumberMap)                             \
+  V(Infinity_string, Infinity_string, InfinityString)                          \
   V(is_concat_spreadable_symbol, is_concat_spreadable_symbol,                  \
     IsConcatSpreadableSymbol)                                                  \
   V(iterator_symbol, iterator_symbol, IteratorSymbol)                          \
@@ -101,9 +102,11 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(match_symbol, match_symbol, MatchSymbol)                                   \
   V(megamorphic_symbol, megamorphic_symbol, MegamorphicSymbol)                 \
   V(MetaMap, meta_map, MetaMap)                                                \
+  V(minus_Infinity_string, minus_Infinity_string, MinusInfinityString)         \
   V(MinusZeroValue, minus_zero_value, MinusZero)                               \
   V(name_string, name_string, NameString)                                      \
   V(NanValue, nan_value, Nan)                                                  \
+  V(NaN_string, NaN_string, NaNString)                                         \
   V(next_string, next_string, NextString)                                      \
   V(NoClosuresCellMap, no_closures_cell_map, NoClosuresCellMap)                \
   V(null_to_string, null_to_string, NullToString)                              \
@@ -149,7 +152,8 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(undefined_to_string, undefined_to_string, UndefinedToString)               \
   V(UndefinedValue, undefined_value, Undefined)                                \
   V(uninitialized_symbol, uninitialized_symbol, UninitializedSymbol)           \
-  V(WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArrayMap)
+  V(WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArrayMap)                \
+  V(zero_string, zero_string, ZeroString)
 
 #define HEAP_IMMOVABLE_OBJECT_LIST(V)   \
   HEAP_MUTABLE_IMMOVABLE_OBJECT_LIST(V) \
