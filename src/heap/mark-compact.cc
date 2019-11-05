@@ -4437,11 +4437,6 @@ void MinorMarkCompactCollector::CollectGarbage() {
     heap()->new_lo_space()->FreeDeadObjects([](HeapObject) { return true; });
   }
 
-  RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
-      heap(), [](MemoryChunk* chunk) {
-        RememberedSet<OLD_TO_NEW>::FreeEmptyBuckets(chunk);
-      });
-
   heap()->account_external_memory_concurrently_freed();
 }
 

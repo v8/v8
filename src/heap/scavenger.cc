@@ -244,12 +244,14 @@ void ScavengerCollector::CollectGarbage() {
   const bool is_logging = isolate_->LogObjectRelocation();
   const int num_scavenge_tasks = NumberOfScavengeTasks();
   OneshotBarrier barrier(base::TimeDelta::FromMilliseconds(kMaxWaitTimeMs));
+  Worklist<MemoryChunk*, 64> empty_chunks;
   Scavenger::CopiedList copied_list(num_scavenge_tasks);
   Scavenger::PromotionList promotion_list(num_scavenge_tasks);
   EphemeronTableList ephemeron_table_list(num_scavenge_tasks);
   for (int i = 0; i < num_scavenge_tasks; i++) {
-    scavengers[i] = new Scavenger(this, heap_, is_logging, &copied_list,
-                                  &promotion_list, &ephemeron_table_list, i);
+    scavengers[i] =
+        new Scavenger(this, heap_, is_logging, &empty_chunks, &copied_list,
+                      &promotion_list, &ephemeron_table_list, i);
     job.AddTask(new ScavengingTask(heap_, scavengers[i], &barrier));
   }
 
@@ -362,11 +364,20 @@ void ScavengerCollector::CollectGarbage() {
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_FREE_REMEMBERED_SET);
+    MemoryChunk* chunk;
 
+    while (empty_chunks.Pop(kMainThreadId, &chunk)) {
+      RememberedSet<OLD_TO_NEW>::CheckPossiblyEmptyBuckets(chunk);
+    }
+
+#ifdef DEBUG
     RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
         heap_, [](MemoryChunk* chunk) {
-          RememberedSet<OLD_TO_NEW>::FreeEmptyBuckets(chunk);
+          SlotSet* slot_set = chunk->slot_set<OLD_TO_NEW>();
+          DCHECK_IMPLIES(slot_set != nullptr,
+                         slot_set->IsPossiblyEmptyCleared());
         });
+#endif
   }
 
   // Update how much has survived scavenge.
@@ -412,10 +423,12 @@ int ScavengerCollector::NumberOfScavengeTasks() {
 }
 
 Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
+                     Worklist<MemoryChunk*, 64>* empty_chunks,
                      CopiedList* copied_list, PromotionList* promotion_list,
                      EphemeronTableList* ephemeron_table_list, int task_id)
     : collector_(collector),
       heap_(heap),
+      empty_chunks_(empty_chunks, task_id),
       promotion_list_(promotion_list, task_id),
       copied_list_(copied_list, task_id),
       ephemeron_table_list_(ephemeron_table_list, task_id),
@@ -459,22 +472,28 @@ void Scavenger::AddPageToSweeperIfNecessary(MemoryChunk* page) {
 
 void Scavenger::ScavengePage(MemoryChunk* page) {
   CodePageMemoryModificationScope memory_modification_scope(page);
-  InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(page);
-  RememberedSet<OLD_TO_NEW>::Iterate(
-      page,
-      [this, &filter](MaybeObjectSlot slot) {
-        if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
-        return CheckAndScavengeObject(heap_, slot);
-      },
-      SlotSet::KEEP_EMPTY_BUCKETS);
-  filter = InvalidatedSlotsFilter::OldToNew(page);
-  RememberedSetSweeping::Iterate(
-      page,
-      [this, &filter](MaybeObjectSlot slot) {
-        if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
-        return CheckAndScavengeObject(heap_, slot);
-      },
-      SlotSet::KEEP_EMPTY_BUCKETS);
+
+  if (page->slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() != nullptr) {
+    InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(page);
+    RememberedSet<OLD_TO_NEW>::IterateAndTrackEmptyBuckets(
+        page,
+        [this, &filter](MaybeObjectSlot slot) {
+          if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
+          return CheckAndScavengeObject(heap_, slot);
+        },
+        empty_chunks_);
+  }
+
+  if (page->sweeping_slot_set<AccessMode::NON_ATOMIC>() != nullptr) {
+    InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(page);
+    RememberedSetSweeping::Iterate(
+        page,
+        [this, &filter](MaybeObjectSlot slot) {
+          if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
+          return CheckAndScavengeObject(heap_, slot);
+        },
+        SlotSet::KEEP_EMPTY_BUCKETS);
+  }
 
   if (page->invalidated_slots<OLD_TO_NEW>() != nullptr) {
     // The invalidated slots are not needed after old-to-new slots were
@@ -596,6 +615,7 @@ void Scavenger::Finalize() {
   heap()->IncrementPromotedObjectsSize(promoted_size_);
   collector_->MergeSurvivingNewLargeObjects(surviving_new_large_objects_);
   allocator_.Finalize();
+  empty_chunks_.FlushToGlobal();
   ephemeron_table_list_.FlushToGlobal();
   for (auto it = ephemeron_remembered_set_.begin();
        it != ephemeron_remembered_set_.end(); ++it) {

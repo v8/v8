@@ -12,6 +12,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/spaces.h"
+#include "src/heap/worklist.h"
 
 namespace v8 {
 namespace internal {
@@ -36,6 +37,20 @@ class RememberedSetOperations {
     if (slot_set != nullptr) {
       slots +=
           slot_set->Iterate(chunk->address(), chunk->buckets(), callback, mode);
+    }
+    return slots;
+  }
+
+  template <typename Callback>
+  static int IterateAndTrackEmptyBuckets(
+      SlotSet* slot_set, MemoryChunk* chunk, Callback callback,
+      Worklist<MemoryChunk*, 64>::View empty_chunks) {
+    int slots = 0;
+    if (slot_set != nullptr) {
+      bool found_empty_bucket = false;
+      slots += slot_set->IterateAndTrackEmptyBuckets(
+          chunk->address(), chunk->buckets(), callback, &found_empty_bucket);
+      if (found_empty_bucket) empty_chunks.Push(chunk);
     }
     return slots;
   }
@@ -149,12 +164,36 @@ class RememberedSet : public AllStatic {
     return RememberedSetOperations::Iterate(slot_set, chunk, callback, mode);
   }
 
+  template <typename Callback>
+  static int IterateAndTrackEmptyBuckets(
+      MemoryChunk* chunk, Callback callback,
+      Worklist<MemoryChunk*, 64>::View empty_chunks) {
+    SlotSet* slots = chunk->slot_set<type>();
+    bool empty_bucket_found = false;
+    int slot_count = RememberedSetOperations::IterateAndTrackEmptyBuckets(
+        slots, chunk, callback, empty_chunks);
+    if (empty_bucket_found) empty_chunks.Push(chunk);
+    return slot_count;
+  }
+
   static void FreeEmptyBuckets(MemoryChunk* chunk) {
     DCHECK(type == OLD_TO_NEW);
     SlotSet* slot_set = chunk->slot_set<type>();
-    if (slot_set != nullptr) {
-      slot_set->FreeEmptyBuckets(chunk->buckets());
+    if (slot_set != nullptr && slot_set->FreeEmptyBuckets(chunk->buckets())) {
+      chunk->ReleaseSlotSet<type>();
     }
+  }
+
+  static bool CheckPossiblyEmptyBuckets(MemoryChunk* chunk) {
+    DCHECK(type == OLD_TO_NEW);
+    SlotSet* slot_set = chunk->slot_set<type, AccessMode::NON_ATOMIC>();
+    if (slot_set != nullptr &&
+        slot_set->CheckPossiblyEmptyBuckets(chunk->buckets())) {
+      chunk->ReleaseSlotSet<type>();
+      return true;
+    }
+
+    return false;
   }
 
   // Given a page and a typed slot in that page, this function adds the slot
