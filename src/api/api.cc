@@ -10604,29 +10604,18 @@ void Testing::PrepareStressRun(int run) {
       "--noalways-opt";
   static const char* kForcedOptimizations = "--always-opt";
 
-  // If deoptimization stressed turn on frequent deoptimization. If no value
-  // is spefified through --deopt-every-n-times use a default default value.
+  // In deopt-stress mode turn on frequent deoptimization. If no value
+  // is specified through --deopt-every-n-times use a default value.
   static const char* kDeoptEvery13Times = "--deopt-every-n-times=13";
   if (internal::Testing::stress_type() == Testing::kStressTypeDeopt &&
       internal::FLAG_deopt_every_n_times == 0) {
     V8::SetFlagsFromString(kDeoptEvery13Times);
   }
-
-#ifdef DEBUG
-  // As stressing in debug mode only make two runs skip the deopt stressing
-  // here.
   if (run == GetStressRuns() - 1) {
     V8::SetFlagsFromString(kForcedOptimizations);
   } else {
     V8::SetFlagsFromString(kLazyOptimizations);
   }
-#else
-  if (run == GetStressRuns() - 1) {
-    V8::SetFlagsFromString(kForcedOptimizations);
-  } else if (run != GetStressRuns() - 2) {
-    V8::SetFlagsFromString(kLazyOptimizations);
-  }
-#endif
 }
 
 void Testing::DeoptimizeAll(Isolate* isolate) {
