@@ -21,12 +21,29 @@ namespace wasm {
 
 namespace {
 
+debug::Location TranslateLocation(WasmRunnerBase* runner,
+                                  const debug::Location& loc) {
+  // Convert locations from {func_index, offset_in_func} to
+  // {0, offset_in_module}.
+  int func_index = loc.GetLineNumber();
+  int func_offset = runner->builder().GetFunctionAt(func_index)->code.offset();
+  int offset = loc.GetColumnNumber() + func_offset;
+  return {0, offset};
+}
+
 void CheckLocations(
-    NativeModule* native_module, debug::Location start, debug::Location end,
+    WasmRunnerBase* runner, NativeModule* native_module, debug::Location start,
+    debug::Location end,
     std::initializer_list<debug::Location> expected_locations_init) {
   std::vector<debug::BreakLocation> locations;
-  bool success =
-      WasmScript::GetPossibleBreakpoints(native_module, start, end, &locations);
+  std::vector<debug::Location> expected_locations;
+  for (auto loc : expected_locations_init) {
+    expected_locations.push_back(TranslateLocation(runner, loc));
+  }
+
+  bool success = WasmScript::GetPossibleBreakpoints(
+      native_module, TranslateLocation(runner, start),
+      TranslateLocation(runner, end), &locations);
   CHECK(success);
 
   printf("got %d locations: ", static_cast<int>(locations.size()));
@@ -36,7 +53,6 @@ void CheckLocations(
   }
   printf("\n");
 
-  std::vector<debug::Location> expected_locations(expected_locations_init);
   CHECK_EQ(expected_locations.size(), locations.size());
   for (size_t i = 0, e = locations.size(); i != e; ++i) {
     CHECK_EQ(expected_locations[i].GetLineNumber(),
@@ -46,11 +62,12 @@ void CheckLocations(
   }
 }
 
-void CheckLocationsFail(NativeModule* native_module, debug::Location start,
-                        debug::Location end) {
+void CheckLocationsFail(WasmRunnerBase* runner, NativeModule* native_module,
+                        debug::Location start, debug::Location end) {
   std::vector<debug::BreakLocation> locations;
-  bool success =
-      WasmScript::GetPossibleBreakpoints(native_module, start, end, &locations);
+  bool success = WasmScript::GetPossibleBreakpoints(
+      native_module, TranslateLocation(runner, start),
+      TranslateLocation(runner, end), &locations);
   CHECK(!success);
 }
 
@@ -275,21 +292,21 @@ WASM_COMPILED_EXEC_TEST(WasmCollectPossibleBreakpoints) {
 
   std::vector<debug::Location> locations;
   // Check all locations for function 0.
-  CheckLocations(native_module, {0, 0}, {1, 0},
+  CheckLocations(&runner, native_module, {0, 0}, {0, 10},
                  {{0, 1}, {0, 2}, {0, 4}, {0, 6}, {0, 7}});
   // Check a range ending at an instruction.
-  CheckLocations(native_module, {0, 2}, {0, 4}, {{0, 2}});
+  CheckLocations(&runner, native_module, {0, 2}, {0, 4}, {{0, 2}});
   // Check a range ending one behind an instruction.
-  CheckLocations(native_module, {0, 2}, {0, 5}, {{0, 2}, {0, 4}});
+  CheckLocations(&runner, native_module, {0, 2}, {0, 5}, {{0, 2}, {0, 4}});
   // Check a range starting at an instruction.
-  CheckLocations(native_module, {0, 7}, {0, 8}, {{0, 7}});
+  CheckLocations(&runner, native_module, {0, 7}, {0, 8}, {{0, 7}});
   // Check from an instruction to beginning of next function.
-  CheckLocations(native_module, {0, 7}, {1, 0}, {{0, 7}});
+  CheckLocations(&runner, native_module, {0, 7}, {0, 10}, {{0, 7}});
   // Check from end of one function (no valid instruction position) to beginning
   // of next function. Must be empty, but not fail.
-  CheckLocations(native_module, {0, 8}, {1, 0}, {});
+  CheckLocations(&runner, native_module, {0, 8}, {0, 10}, {});
   // Check from one after the end of the function. Must fail.
-  CheckLocationsFail(native_module, {0, 9}, {1, 0});
+  CheckLocationsFail(&runner, native_module, {0, 9}, {0, 10});
 }
 
 WASM_COMPILED_EXEC_TEST(WasmSimpleBreak) {

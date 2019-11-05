@@ -781,9 +781,7 @@ struct implement<Ref> {
   using type = RefImpl<Ref, i::JSReceiver>;
 };
 
-Ref::~Ref() {
-  delete impl(this);
-}
+Ref::~Ref() { delete impl(this); }
 
 void Ref::operator delete(void* p) {}
 
@@ -895,7 +893,7 @@ own<Frame> CreateFrameFromInternal(i::Handle<i::FixedArray> frames, int index,
                                       isolate);
   i::Handle<i::WasmInstanceObject> instance =
       i::StackTraceFrame::GetWasmInstance(frame);
-  uint32_t func_index = i::StackTraceFrame::GetLineNumber(frame);
+  uint32_t func_index = i::StackTraceFrame::GetWasmFunctionIndex(frame);
   size_t func_offset = i::StackTraceFrame::GetFunctionOffset(frame);
   size_t module_offset = i::StackTraceFrame::GetColumnNumber(frame);
   return own<Frame>(seal<Frame>(new (std::nothrow) FrameImpl(
@@ -1977,7 +1975,7 @@ own<Instance> Instance::make(Store* store_abs, const Module* module_abs,
     if (thrower.error()) {
       *trap = implement<Trap>::type::make(
           store, GetProperException(isolate, thrower.Reify()));
-      DCHECK(!thrower.error());  // Reify() called Reset().
+      DCHECK(!thrower.error());                   // Reify() called Reset().
       DCHECK(!isolate->has_pending_exception());  // Hasn't been thrown yet.
       return own<Instance>();
     } else if (isolate->has_pending_exception()) {

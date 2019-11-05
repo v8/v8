@@ -1210,6 +1210,7 @@ extern class StackFrameInfo extends Struct {
   column_number: Smi;
   promise_all_index: Smi;
   script_id: Smi;
+  wasm_function_index: Smi;
   script_name: String|Null|Undefined;
   script_name_or_source_url: String|Null|Undefined;
   function_name: String|Null|Undefined;

@@ -1680,9 +1680,9 @@ void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
     printf("%s\n", exception_string);
   } else if (message->GetScriptOrigin().Options().IsWasm()) {
     // Print wasm-function[(function index)]:(offset): (message).
-    int function_index = message->GetLineNumber(context).FromJust() - 1;
+    int function_index = message->GetWasmFunctionIndex();
     int offset = message->GetStartColumn(context).FromJust();
-    printf("wasm-function[%d]:%d: %s\n", function_index, offset,
+    printf("wasm-function[%d]:0x%x: %s\n", function_index, offset,
            exception_string);
   } else {
     // Print (filename):(line number): (message).

@@ -68,13 +68,13 @@ int GetWasmFunctionOffset(const WasmModule* module, uint32_t func_index) {
 }
 
 // static
-int GetContainingWasmFunction(const WasmModule* module, uint32_t byte_offset) {
+int GetNearestWasmFunction(const WasmModule* module, uint32_t byte_offset) {
   const std::vector<WasmFunction>& functions = module->functions;
 
   // Binary search for a function containing the given position.
   int left = 0;                                    // inclusive
   int right = static_cast<int>(functions.size());  // exclusive
-  if (right == 0) return false;
+  if (right == 0) return -1;
   while (right - left > 1) {
     int mid = left + (right - left) / 2;
     if (functions[mid].code.offset() <= byte_offset) {
@@ -83,14 +83,23 @@ int GetContainingWasmFunction(const WasmModule* module, uint32_t byte_offset) {
       right = mid;
     }
   }
-  // If the found function does not contains the given position, return -1.
-  const WasmFunction& func = functions[left];
-  if (byte_offset < func.code.offset() ||
-      byte_offset >= func.code.end_offset()) {
-    return -1;
-  }
 
   return left;
+}
+
+// static
+int GetContainingWasmFunction(const WasmModule* module, uint32_t byte_offset) {
+  int func_index = GetNearestWasmFunction(module, byte_offset);
+
+  if (func_index >= 0) {
+    // If the found function does not contain the given position, return -1.
+    const WasmFunction& func = module->functions[func_index];
+    if (byte_offset < func.code.offset() ||
+        byte_offset >= func.code.end_offset()) {
+      return -1;
+    }
+  }
+  return func_index;
 }
 
 // static

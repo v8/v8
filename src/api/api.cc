@@ -2920,6 +2920,26 @@ int Message::GetStartColumn() const {
   return self->GetColumnNumber();
 }
 
+int Message::GetWasmFunctionIndex() const {
+  auto self = Utils::OpenHandle(this);
+  i::Isolate* isolate = self->GetIsolate();
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
+  EscapableHandleScope handle_scope(reinterpret_cast<Isolate*>(isolate));
+  i::JSMessageObject::EnsureSourcePositionsAvailable(isolate, self);
+  int start_position = self->GetColumnNumber();
+  if (start_position == -1) return Message::kNoWasmFunctionIndexInfo;
+
+  i::Handle<i::Script> script(self->script(), isolate);
+
+  if (script->type() != i::Script::TYPE_WASM) {
+    return Message::kNoWasmFunctionIndexInfo;
+  }
+
+  auto debug_script = ToApiHandle<debug::Script>(script);
+  return Local<debug::WasmScript>::Cast(debug_script)
+      ->GetContainingFunction(start_position);
+}
+
 Maybe<int> Message::GetStartColumn(Local<Context> context) const {
   return Just(GetStartColumn());
 }
@@ -9446,12 +9466,6 @@ bool debug::Script::GetPossibleBreakpoints(
 int debug::Script::GetSourceOffset(const debug::Location& location) const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   if (script->type() == i::Script::TYPE_WASM) {
-    if (this->SourceMappingURL().IsEmpty()) {
-      i::wasm::NativeModule* native_module = script->wasm_native_module();
-      const i::wasm::WasmModule* module = native_module->module();
-      return i::wasm::GetWasmFunctionOffset(module, location.GetLineNumber()) +
-             location.GetColumnNumber();
-    }
     DCHECK_EQ(0, location.GetLineNumber());
     return location.GetColumnNumber();
   }
@@ -9574,6 +9588,17 @@ std::pair<int, int> debug::WasmScript::GetFunctionRange(
   DCHECK_GE(i::kMaxInt, func.code.end_offset());
   return std::make_pair(static_cast<int>(func.code.offset()),
                         static_cast<int>(func.code.end_offset()));
+}
+
+int debug::WasmScript::GetContainingFunction(int byte_offset) const {
+  i::DisallowHeapAllocation no_gc;
+  i::Handle<i::Script> script = Utils::OpenHandle(this);
+  DCHECK_EQ(i::Script::TYPE_WASM, script->type());
+  i::wasm::NativeModule* native_module = script->wasm_native_module();
+  const i::wasm::WasmModule* module = native_module->module();
+  DCHECK_LE(0, byte_offset);
+
+  return i::wasm::GetContainingWasmFunction(module, byte_offset);
 }
 
 uint32_t debug::WasmScript::GetFunctionHash(int function_index) {

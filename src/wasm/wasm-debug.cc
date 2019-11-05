@@ -916,52 +916,45 @@ bool WasmScript::GetPossibleBreakpoints(
     std::vector<v8::debug::BreakLocation>* locations) {
   DisallowHeapAllocation no_gc;
 
-  const std::vector<wasm::WasmFunction>& functions =
-      native_module->module()->functions;
-  if (start.GetLineNumber() < 0 || start.GetColumnNumber() < 0 ||
+  const wasm::WasmModule* module = native_module->module();
+  const std::vector<wasm::WasmFunction>& functions = module->functions;
+
+  if (start.GetLineNumber() != 0 || start.GetColumnNumber() < 0 ||
       (!end.IsEmpty() &&
-       (end.GetLineNumber() < 0 || end.GetColumnNumber() < 0)))
+       (end.GetLineNumber() != 0 || end.GetColumnNumber() < 0 ||
+        end.GetColumnNumber() < start.GetColumnNumber())))
     return false;
 
   // start_func_index, start_offset and end_func_index is inclusive.
   // end_offset is exclusive.
   // start_offset and end_offset are module-relative byte offsets.
-  uint32_t start_func_index = start.GetLineNumber();
-  if (start_func_index >= functions.size()) return false;
-  int start_func_len = functions[start_func_index].code.length();
-  if (start.GetColumnNumber() > start_func_len) return false;
-  uint32_t start_offset =
-      functions[start_func_index].code.offset() + start.GetColumnNumber();
-  uint32_t end_func_index;
+  // We set strict to false because offsets may be between functions.
+  int start_func_index =
+      GetNearestWasmFunction(module, start.GetColumnNumber());
+  if (start_func_index < 0) return false;
+  uint32_t start_offset = start.GetColumnNumber();
+  int end_func_index;
   uint32_t end_offset;
+
   if (end.IsEmpty()) {
     // Default: everything till the end of the Script.
     end_func_index = static_cast<uint32_t>(functions.size() - 1);
     end_offset = functions[end_func_index].code.end_offset();
   } else {
     // If end is specified: Use it and check for valid input.
-    end_func_index = static_cast<uint32_t>(end.GetLineNumber());
-
-    // Special case: Stop before the start of the next function. Change to: Stop
-    // at the end of the function before, such that we don't disassemble the
-    // next function also.
-    if (end.GetColumnNumber() == 0 && end_func_index > 0) {
-      --end_func_index;
-      end_offset = functions[end_func_index].code.end_offset();
-    } else {
-      if (end_func_index >= functions.size()) return false;
-      end_offset =
-          functions[end_func_index].code.offset() + end.GetColumnNumber();
-      if (end_offset > functions[end_func_index].code.end_offset())
-        return false;
-    }
+    end_offset = end.GetColumnNumber();
+    end_func_index = GetNearestWasmFunction(module, end_offset);
+    DCHECK_GE(end_func_index, start_func_index);
   }
 
+  if (start_func_index == end_func_index &&
+      start_offset > functions[end_func_index].code.end_offset())
+    return false;
   AccountingAllocator alloc;
   Zone tmp(&alloc, ZONE_NAME);
   const byte* module_start = native_module->wire_bytes().begin();
 
-  for (uint32_t func_idx = start_func_index; func_idx <= end_func_index;
+  for (int func_idx = start_func_index; func_idx <= end_func_index;
        ++func_idx) {
     const wasm::WasmFunction& func = functions[func_idx];
     if (func.code.length() == 0) continue;
@@ -978,7 +971,7 @@ bool WasmScript::GetPossibleBreakpoints(
         break;
       }
       if (total_offset < start_offset) continue;
-      locations->emplace_back(func_idx, offset, debug::kCommonBreakLocation);
+      locations->emplace_back(0, total_offset, debug::kCommonBreakLocation);
     }
   }
   return true;
