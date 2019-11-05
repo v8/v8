@@ -254,8 +254,8 @@ void KeyedStoreGenericAssembler::TryChangeToHoleyMapHelper(
   if (AllocationSite::ShouldTrack(packed_kind, holey_kind)) {
     TrapAllocationMemento(receiver, bailout);
   }
-  TNode<Object> holey_map =
-      LoadContextElement(native_context, Context::ArrayMapIndex(holey_kind));
+  TNode<Map> holey_map = CAST(
+      LoadContextElement(native_context, Context::ArrayMapIndex(holey_kind)));
   StoreMap(receiver, holey_map);
   Goto(done);
 }

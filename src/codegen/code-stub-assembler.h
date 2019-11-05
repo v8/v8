@@ -1203,7 +1203,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                               Label* if_hash_not_computed = nullptr);
 
   // Load length field of a String object as Smi value.
-  TNode<Smi> LoadStringLengthAsSmi(SloppyTNode<String> string);
+  TNode<Smi> LoadStringLengthAsSmi(TNode<String> string);
   // Load length field of a String object as intptr_t value.
   TNode<IntPtrT> LoadStringLengthAsWord(SloppyTNode<String> string);
   // Load length field of a String object as uint32_t value.
@@ -1524,7 +1524,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   // Store the Map of an HeapObject.
-  void StoreMap(Node* object, Node* map);
+  void StoreMap(TNode<HeapObject> object, TNode<Map> map);
   void StoreMapNoWriteBarrier(Node* object, RootIndex map_root_index);
   void StoreMapNoWriteBarrier(Node* object, Node* map);
   void StoreObjectFieldRoot(Node* object, int offset, RootIndex root);
@@ -3249,8 +3249,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   Node* CopyElementsOnWrite(Node* object, Node* elements, ElementsKind kind,
                             Node* length, ParameterMode mode, Label* bailout);
 
-  void TransitionElementsKind(Node* object, Node* map, ElementsKind from_kind,
-                              ElementsKind to_kind, Label* bailout);
+  void TransitionElementsKind(TNode<JSObject> object, TNode<Map> map,
+                              ElementsKind from_kind, ElementsKind to_kind,
+                              Label* bailout);
 
   void TrapAllocationMemento(Node* object, Label* memento_found);
 

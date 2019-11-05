@@ -1915,8 +1915,7 @@ TNode<Uint32T> CodeStubAssembler::LoadNameHash(SloppyTNode<Name> name,
   return Unsigned(Word32Shr(hash_field, Int32Constant(Name::kHashShift)));
 }
 
-TNode<Smi> CodeStubAssembler::LoadStringLengthAsSmi(
-    SloppyTNode<String> string) {
+TNode<Smi> CodeStubAssembler::LoadStringLengthAsSmi(TNode<String> string) {
   return SmiFromIntPtr(LoadStringLengthAsWord(string));
 }
 
@@ -2896,8 +2895,8 @@ void CodeStubAssembler::StoreObjectFieldNoWriteBarrier(
                       IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)), value);
 }
 
-void CodeStubAssembler::StoreMap(Node* object, Node* map) {
-  OptimizedStoreMap(UncheckedCast<HeapObject>(object), CAST(map));
+void CodeStubAssembler::StoreMap(TNode<HeapObject> object, TNode<Map> map) {
+  OptimizedStoreMap(object, map);
 }
 
 void CodeStubAssembler::StoreMapNoWriteBarrier(Node* object,
@@ -10343,7 +10342,8 @@ Node* CodeStubAssembler::CopyElementsOnWrite(Node* object, Node* elements,
   return new_elements_var.value();
 }
 
-void CodeStubAssembler::TransitionElementsKind(Node* object, Node* map,
+void CodeStubAssembler::TransitionElementsKind(TNode<JSObject> object,
+                                               TNode<Map> map,
                                                ElementsKind from_kind,
                                                ElementsKind to_kind,
                                                Label* bailout) {
@@ -10367,7 +10367,7 @@ void CodeStubAssembler::TransitionElementsKind(Node* object, Node* map,
         IsJSArray(object),
         [=]() {
           CSA_ASSERT(this, IsFastElementsKind(LoadElementsKind(object)));
-          return SmiUntag(LoadFastJSArrayLength(object));
+          return SmiUntag(LoadFastJSArrayLength(CAST(object)));
         },
         [=]() { return elements_length; },
         MachineType::PointerRepresentation());
