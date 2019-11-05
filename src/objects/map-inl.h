@@ -211,7 +211,8 @@ void Map::SetEnumLength(int length) {
 
 FixedArrayBase Map::GetInitialElements() const {
   FixedArrayBase result;
-  if (has_fast_elements() || has_fast_string_wrapper_elements()) {
+  if (has_fast_elements() || has_fast_string_wrapper_elements() ||
+      has_any_nonextensible_elements()) {
     result = GetReadOnlyRoots().empty_fixed_array();
   } else if (has_fast_sloppy_arguments_elements()) {
     result = GetReadOnlyRoots().empty_sloppy_arguments_elements();
