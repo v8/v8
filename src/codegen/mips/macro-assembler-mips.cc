@@ -4270,35 +4270,21 @@ void TurboAssembler::MovToFloatParameters(DoubleRegister src1,
 // -----------------------------------------------------------------------------
 // JavaScript invokes.
 
-void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
-                                        Register caller_args_count_reg,
+void TurboAssembler::PrepareForTailCall(Register callee_args_count,
+                                        Register caller_args_count,
                                         Register scratch0, Register scratch1) {
-#if DEBUG
-  if (callee_args_count.is_reg()) {
-    DCHECK(!AreAliased(callee_args_count.reg(), caller_args_count_reg, scratch0,
-                       scratch1));
-  } else {
-    DCHECK(!AreAliased(caller_args_count_reg, scratch0, scratch1));
-  }
-#endif
-
   // Calculate the end of destination area where we will put the arguments
   // after we drop current frame. We add kPointerSize to count the receiver
   // argument which is not included into formal parameters count.
   Register dst_reg = scratch0;
-  Lsa(dst_reg, fp, caller_args_count_reg, kPointerSizeLog2);
+  Lsa(dst_reg, fp, caller_args_count, kPointerSizeLog2);
   Addu(dst_reg, dst_reg,
        Operand(StandardFrameConstants::kCallerSPOffset + kPointerSize));
 
-  Register src_reg = caller_args_count_reg;
+  Register src_reg = caller_args_count;
   // Calculate the end of source area. +kPointerSize is for the receiver.
-  if (callee_args_count.is_reg()) {
-    Lsa(src_reg, sp, callee_args_count.reg(), kPointerSizeLog2);
-    Addu(src_reg, src_reg, Operand(kPointerSize));
-  } else {
-    Addu(src_reg, sp,
-         Operand((callee_args_count.immediate() + 1) * kPointerSize));
-  }
+  Lsa(src_reg, sp, callee_args_count, kPointerSizeLog2);
+  Addu(src_reg, src_reg, Operand(kPointerSize));
 
   if (FLAG_debug_code) {
     Check(lo, AbortReason::kStackAccessBelowStackPointer, src_reg,
@@ -4330,68 +4316,39 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
   mov(sp, dst_reg);
 }
 
-void MacroAssembler::InvokePrologue(const ParameterCount& expected,
-                                    const ParameterCount& actual, Label* done,
-                                    bool* definitely_mismatches,
-                                    InvokeFlag flag) {
-  bool definitely_matches = false;
-  *definitely_mismatches = false;
+void MacroAssembler::InvokePrologue(Register expected_parameter_count,
+                                    Register actual_parameter_count,
+                                    Label* done, InvokeFlag flag) {
   Label regular_invoke;
 
-  // Check whether the expected and actual arguments count match. If not,
-  // setup registers according to contract with ArgumentsAdaptorTrampoline:
+  // Check whether the expected and actual arguments count match. The registers
+  // are set up according to contract with ArgumentsAdaptorTrampoline:
   //  a0: actual arguments count
   //  a1: function (passed through to callee)
   //  a2: expected arguments count
 
   // The code below is made a lot easier because the calling code already sets
-  // up actual and expected registers according to the contract if values are
-  // passed in registers.
-  DCHECK(actual.is_immediate() || actual.reg() == a0);
-  DCHECK(expected.is_immediate() || expected.reg() == a2);
+  // up actual and expected registers according to the contract.
+  DCHECK_EQ(actual_parameter_count, a0);
+  DCHECK_EQ(expected_parameter_count, a2);
 
-  if (expected.is_immediate()) {
-    DCHECK(actual.is_immediate());
-    li(a0, Operand(actual.immediate()));
-    if (expected.immediate() == actual.immediate()) {
-      definitely_matches = true;
-    } else {
-      const int sentinel = SharedFunctionInfo::kDontAdaptArgumentsSentinel;
-      if (expected.immediate() == sentinel) {
-        // Don't worry about adapting arguments for builtins that
-        // don't want that done. Skip adaption code by making it look
-        // like we have a match between expected and actual number of
-        // arguments.
-        definitely_matches = true;
-      } else {
-        *definitely_mismatches = true;
-        li(a2, Operand(expected.immediate()));
-      }
-    }
-  } else if (actual.is_immediate()) {
-    li(a0, Operand(actual.immediate()));
-    Branch(&regular_invoke, eq, expected.reg(), Operand(a0));
+  Branch(&regular_invoke, eq, expected_parameter_count,
+         Operand(actual_parameter_count));
+
+  Handle<Code> adaptor = BUILTIN_CODE(isolate(), ArgumentsAdaptorTrampoline);
+  if (flag == CALL_FUNCTION) {
+    Call(adaptor);
+    Branch(done);
   } else {
-    Branch(&regular_invoke, eq, expected.reg(), Operand(actual.reg()));
+    Jump(adaptor, RelocInfo::CODE_TARGET);
   }
 
-  if (!definitely_matches) {
-    Handle<Code> adaptor = BUILTIN_CODE(isolate(), ArgumentsAdaptorTrampoline);
-    if (flag == CALL_FUNCTION) {
-      Call(adaptor);
-      if (!*definitely_mismatches) {
-        Branch(done);
-      }
-    } else {
-      Jump(adaptor, RelocInfo::CODE_TARGET);
-    }
-    bind(&regular_invoke);
-  }
+  bind(&regular_invoke);
 }
 
 void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
-                                    const ParameterCount& expected,
-                                    const ParameterCount& actual) {
+                                    Register expected_parameter_count,
+                                    Register actual_parameter_count) {
   Label skip_hook;
   li(t0, ExternalReference::debug_hook_on_function_call_address(isolate()));
   lb(t0, MemOperand(t0));
@@ -4399,22 +4356,16 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
 
   {
     // Load receiver to pass it later to DebugOnFunctionCall hook.
-    if (actual.is_reg()) {
-      Lsa(at, sp, actual.reg(), kPointerSizeLog2);
-      lw(t0, MemOperand(at));
-    } else {
-      lw(t0, MemOperand(sp, actual.immediate() << kPointerSizeLog2));
-    }
+    Lsa(at, sp, actual_parameter_count, kPointerSizeLog2);
+    lw(t0, MemOperand(at));
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
-    if (expected.is_reg()) {
-      SmiTag(expected.reg());
-      Push(expected.reg());
-    }
-    if (actual.is_reg()) {
-      SmiTag(actual.reg());
-      Push(actual.reg());
-    }
+    SmiTag(expected_parameter_count);
+    Push(expected_parameter_count);
+
+    SmiTag(actual_parameter_count);
+    Push(actual_parameter_count);
+
     if (new_target.is_valid()) {
       Push(new_target);
     }
@@ -4426,29 +4377,28 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
     if (new_target.is_valid()) {
       Pop(new_target);
     }
-    if (actual.is_reg()) {
-      Pop(actual.reg());
-      SmiUntag(actual.reg());
-    }
-    if (expected.is_reg()) {
-      Pop(expected.reg());
-      SmiUntag(expected.reg());
-    }
+
+    Pop(actual_parameter_count);
+    SmiUntag(actual_parameter_count);
+
+    Pop(expected_parameter_count);
+    SmiUntag(expected_parameter_count);
   }
   bind(&skip_hook);
 }
 
 void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
-                                        const ParameterCount& expected,
-                                        const ParameterCount& actual,
+                                        Register expected_parameter_count,
+                                        Register actual_parameter_count,
                                         InvokeFlag flag) {
   // You can't call a function without a valid frame.
-  DCHECK(flag == JUMP_FUNCTION || has_frame());
-  DCHECK(function == a1);
+  DCHECK_IMPLIES(flag == CALL_FUNCTION, has_frame());
+  DCHECK_EQ(function, a1);
   DCHECK_IMPLIES(new_target.is_valid(), new_target == a3);
 
   // On function call, call into the debugger if necessary.
-  CheckDebugHook(function, new_target, expected, actual);
+  CheckDebugHook(function, new_target, expected_parameter_count,
+                 actual_parameter_count);
 
   // Clear the new.target register if not given.
   if (!new_target.is_valid()) {
@@ -4456,36 +4406,34 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   }
 
   Label done;
-  bool definitely_mismatches = false;
-  InvokePrologue(expected, actual, &done, &definitely_mismatches, flag);
-  if (!definitely_mismatches) {
-    // We call indirectly through the code field in the function to
-    // allow recompilation to take effect without changing any of the
-    // call sites.
-    Register code = kJavaScriptCallCodeStartRegister;
-    lw(code, FieldMemOperand(function, JSFunction::kCodeOffset));
-    if (flag == CALL_FUNCTION) {
-      Addu(code, code, Code::kHeaderSize - kHeapObjectTag);
-      Call(code);
-    } else {
-      DCHECK(flag == JUMP_FUNCTION);
-      Addu(code, code, Code::kHeaderSize - kHeapObjectTag);
-      Jump(code);
-    }
-    // Continue here if InvokePrologue does handle the invocation due to
-    // mismatched parameter counts.
-    bind(&done);
+  InvokePrologue(expected_parameter_count, actual_parameter_count, &done, flag);
+  // We call indirectly through the code field in the function to
+  // allow recompilation to take effect without changing any of the
+  // call sites.
+  Register code = kJavaScriptCallCodeStartRegister;
+  lw(code, FieldMemOperand(function, JSFunction::kCodeOffset));
+  if (flag == CALL_FUNCTION) {
+    Addu(code, code, Code::kHeaderSize - kHeapObjectTag);
+    Call(code);
+  } else {
+    DCHECK(flag == JUMP_FUNCTION);
+    Addu(code, code, Code::kHeaderSize - kHeapObjectTag);
+    Jump(code);
   }
+
+  // Continue here if InvokePrologue does handle the invocation due to
+  // mismatched parameter counts.
+  bind(&done);
 }
 
-void MacroAssembler::InvokeFunction(Register function, Register new_target,
-                                    const ParameterCount& actual,
-                                    InvokeFlag flag) {
+void MacroAssembler::InvokeFunctionWithNewTarget(
+    Register function, Register new_target, Register actual_parameter_count,
+    InvokeFlag flag) {
   // You can't call a function without a valid frame.
-  DCHECK(flag == JUMP_FUNCTION || has_frame());
+  DCHECK_IMPLIES(flag == CALL_FUNCTION, has_frame());
 
   // Contract with called JS functions requires that function is passed in a1.
-  DCHECK(function == a1);
+  DCHECK_EQ(function, a1);
   Register expected_reg = a2;
   Register temp_reg = t0;
 
@@ -4495,24 +4443,25 @@ void MacroAssembler::InvokeFunction(Register function, Register new_target,
       FieldMemOperand(temp_reg,
                       SharedFunctionInfo::kFormalParameterCountOffset));
 
-  ParameterCount expected(expected_reg);
-  InvokeFunctionCode(function, new_target, expected, actual, flag);
+  InvokeFunctionCode(function, new_target, expected_reg, actual_parameter_count,
+                     flag);
 }
 
 void MacroAssembler::InvokeFunction(Register function,
-                                    const ParameterCount& expected,
-                                    const ParameterCount& actual,
+                                    Register expected_parameter_count,
+                                    Register actual_parameter_count,
                                     InvokeFlag flag) {
   // You can't call a function without a valid frame.
-  DCHECK(flag == JUMP_FUNCTION || has_frame());
+  DCHECK_IMPLIES(flag == CALL_FUNCTION, has_frame());
 
   // Contract with called JS functions requires that function is passed in a1.
-  DCHECK(function == a1);
+  DCHECK_EQ(function, a1);
 
   // Get the function and setup the context.
   lw(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
 
-  InvokeFunctionCode(a1, no_reg, expected, actual, flag);
+  InvokeFunctionCode(a1, no_reg, expected_parameter_count,
+                     actual_parameter_count, flag);
 }
 
 // ---------------------------------------------------------------------------

@@ -466,11 +466,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Removes current frame and its arguments from the stack preserving
   // the arguments and a return address pushed to the stack for the next call.
-  // Both |callee_args_count| and |caller_args_count_reg| do not include
-  // receiver. |callee_args_count| is not modified, |caller_args_count_reg|
+  // Both |callee_args_count| and |caller_args_count| do not include
+  // receiver. |callee_args_count| is not modified. |caller_args_count|
   // is trashed.
-  void PrepareForTailCall(const ParameterCount& callee_args_count,
-                          Register caller_args_count_reg, Register scratch0,
+  void PrepareForTailCall(Register callee_args_count,
+                          Register caller_args_count, Register scratch0,
                           Register scratch1);
 
   int CalculateStackPassedWords(int num_reg_arguments,
@@ -1029,21 +1029,21 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Invoke the JavaScript function code by either calling or jumping.
   void InvokeFunctionCode(Register function, Register new_target,
-                          const ParameterCount& expected,
-                          const ParameterCount& actual, InvokeFlag flag);
+                          Register expected_parameter_count,
+                          Register actual_parameter_count, InvokeFlag flag);
 
   // On function call, call into the debugger if necessary.
   void CheckDebugHook(Register fun, Register new_target,
-                      const ParameterCount& expected,
-                      const ParameterCount& actual);
+                      Register expected_parameter_count,
+                      Register actual_parameter_count);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
-  void InvokeFunction(Register function, Register new_target,
-                      const ParameterCount& actual, InvokeFlag flag);
-
-  void InvokeFunction(Register function, const ParameterCount& expected,
-                      const ParameterCount& actual, InvokeFlag flag);
+  void InvokeFunctionWithNewTarget(Register function, Register new_target,
+                                   Register actual_parameter_count,
+                                   InvokeFlag flag);
+  void InvokeFunction(Register function, Register expected_parameter_count,
+                      Register actual_parameter_count, InvokeFlag flag);
 
   // Frame restart support.
   void MaybeDropFrames();
@@ -1175,9 +1175,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
  private:
   // Helper functions for generating invokes.
-  void InvokePrologue(const ParameterCount& expected,
-                      const ParameterCount& actual, Label* done,
-                      bool* definitely_mismatches, InvokeFlag flag);
+  void InvokePrologue(Register expected_parameter_count,
+                      Register actual_parameter_count, Label* done,
+                      InvokeFlag flag);
 
   // Compute memory operands for safepoint stack slots.
   static int SafepointRegisterStackIndex(int reg_code);
