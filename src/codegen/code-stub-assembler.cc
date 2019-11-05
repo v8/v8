@@ -9776,20 +9776,50 @@ TNode<IntPtrT> CodeStubAssembler::TryToIntptr(
   Label done(this, &var_intptr_key), key_is_smi(this), key_is_heapnumber(this);
   GotoIf(TaggedIsSmi(key), &key_is_smi);
 
-  if (var_instance_type != nullptr) {
-    *var_instance_type = LoadInstanceType(CAST(key));
+  TNode<Map> map = LoadMap(CAST(key));
+  TNode<Int32T> instance_type = LoadMapInstanceType(map);
+  if (var_instance_type != nullptr) *var_instance_type = instance_type;
+  GotoIf(IsHeapNumberInstanceType(instance_type), &key_is_heapnumber);
+  GotoIfNot(IsStringInstanceType(instance_type), if_not_intptr);
+
+  Label if_has_cached_index(this), if_calculate_index(this);
+  TNode<Uint32T> hash = LoadNameHashField(CAST(key));
+
+  Branch(IsClearWord32(hash, Name::kDoesNotContainCachedArrayIndexMask),
+         &if_has_cached_index, &if_calculate_index);
+
+  BIND(&if_has_cached_index);
+  {
+    TNode<IntPtrT> index =
+        Signed(DecodeWordFromWord32<String::ArrayIndexValueBits>(hash));
+    CSA_ASSERT(this, IntPtrLessThan(index, IntPtrConstant(INT_MAX)));
+    var_intptr_key = index;
+    Goto(&done);
   }
 
-  Node* function = ExternalConstant(
-      ExternalReference::object_to_array_index_slow_function());
-  TNode<Int32T> result = UncheckedCast<Int32T>(
-      CallCFunction(function, MachineType::Int32(),
-                    std::make_pair(MachineType::AnyTagged(), key)));
-  GotoIf(Word32Equal(Int32Constant(-1), result), if_not_intptr);
-  if (if_bailout == nullptr) if_bailout = if_not_intptr;
-  GotoIf(Word32Equal(Int32Constant(-2), result), if_bailout);
-  var_intptr_key = ChangeInt32ToIntPtr(result);
-  Goto(&done);
+  BIND(&if_calculate_index);
+  {
+    Node* function =
+        ExternalConstant(ExternalReference::string_to_int32_function());
+    TNode<Int32T> result = UncheckedCast<Int32T>(
+        CallCFunction(function, MachineType::Int32(),
+                      std::make_pair(MachineType::AnyTagged(), key)));
+    GotoIf(Word32Equal(Int32Constant(-1), result), if_not_intptr);
+    if (if_bailout == nullptr) if_bailout = if_not_intptr;
+    GotoIf(Word32Equal(Int32Constant(-2), result), if_bailout);
+    var_intptr_key = ChangeInt32ToIntPtr(result);
+    Goto(&done);
+  }
+
+  BIND(&key_is_heapnumber);
+  {
+    TNode<Float64T> value = LoadHeapNumberValue(CAST(key));
+    TNode<Int32T> int_value = RoundFloat64ToInt32(value);
+    GotoIfNot(Float64Equal(value, ChangeInt32ToFloat64(int_value)),
+              if_not_intptr);
+    var_intptr_key = ChangeInt32ToIntPtr(int_value);
+    Goto(&done);
+  }
 
   BIND(&key_is_smi);
   {

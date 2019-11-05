@@ -159,7 +159,6 @@ class StatsCounter;
   V(mutable_big_int_absolute_sub_and_canonicalize_function,                   \
     "MutableBigInt_AbsoluteSubAndCanonicalize")                               \
   V(new_deoptimizer_function, "Deoptimizer::New()")                           \
-  V(object_to_array_index_slow_function, "Object::ToArrayIndexSlow")          \
   V(orderedhashmap_gethash_raw, "orderedhashmap_gethash_raw")                 \
   V(printf_function, "printf")                                                \
   V(refill_math_random, "MathRandom::RefillCache")                            \
@@ -168,6 +167,7 @@ class StatsCounter;
   V(search_string_raw_two_one, "search_string_raw_two_one")                   \
   V(search_string_raw_two_two, "search_string_raw_two_two")                   \
   V(smi_lexicographic_compare_function, "smi_lexicographic_compare_function") \
+  V(string_to_int32_function, "String::ToInt32")                              \
   V(try_internalize_string_function, "try_internalize_string_function")       \
   V(wasm_call_trap_callback_for_testing,                                      \
     "wasm::call_trap_callback_for_testing")                                   \
