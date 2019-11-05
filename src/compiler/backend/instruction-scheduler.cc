@@ -5,8 +5,8 @@
 #include "src/compiler/backend/instruction-scheduler.h"
 
 #include "src/base/iterator.h"
+#include "src/base/optional.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/execution/isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -50,7 +50,7 @@ InstructionScheduler::StressSchedulerQueue::PopBestCandidate(int cycle) {
   DCHECK(!IsEmpty());
   // Choose a random element from the ready list.
   auto candidate = nodes_.begin();
-  std::advance(candidate, isolate()->random_number_generator()->NextInt(
+  std::advance(candidate, random_number_generator()->NextInt(
                               static_cast<int>(nodes_.size())));
   ScheduleGraphNode* result = *candidate;
   nodes_.erase(candidate);
@@ -81,7 +81,12 @@ InstructionScheduler::InstructionScheduler(Zone* zone,
       pending_loads_(zone),
       last_live_in_reg_marker_(nullptr),
       last_deopt_or_trap_(nullptr),
-      operands_map_(zone) {}
+      operands_map_(zone) {
+  if (FLAG_turbo_stress_instruction_scheduling) {
+    random_number_generator_ =
+        base::Optional<base::RandomNumberGenerator>(FLAG_random_seed);
+  }
+}
 
 void InstructionScheduler::StartBlock(RpoNumber rpo) {
   DCHECK(graph_.empty());

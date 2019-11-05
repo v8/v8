@@ -5,10 +5,16 @@
 #ifndef V8_COMPILER_BACKEND_INSTRUCTION_SCHEDULER_H_
 #define V8_COMPILER_BACKEND_INSTRUCTION_SCHEDULER_H_
 
+#include "src/base/optional.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
+
+namespace base {
+class RandomNumberGenerator;
+}
+
 namespace internal {
 namespace compiler {
 
@@ -138,7 +144,9 @@ class InstructionScheduler final : public ZoneObject {
     ScheduleGraphNode* PopBestCandidate(int cycle);
 
    private:
-    Isolate* isolate() { return scheduler_->isolate(); }
+    base::RandomNumberGenerator* random_number_generator() {
+      return scheduler_->random_number_generator();
+    }
   };
 
   // Perform scheduling for the current block specifying the queue type to
@@ -200,7 +208,9 @@ class InstructionScheduler final : public ZoneObject {
 
   Zone* zone() { return zone_; }
   InstructionSequence* sequence() { return sequence_; }
-  Isolate* isolate() { return sequence()->isolate(); }
+  base::RandomNumberGenerator* random_number_generator() {
+    return &random_number_generator_.value();
+  }
 
   Zone* zone_;
   InstructionSequence* sequence_;
@@ -230,6 +240,8 @@ class InstructionScheduler final : public ZoneObject {
   // Keep track of definition points for virtual registers. This is used to
   // record operand dependencies in the scheduling graph.
   ZoneMap<int32_t, ScheduleGraphNode*> operands_map_;
+
+  base::Optional<base::RandomNumberGenerator> random_number_generator_;
 };
 
 }  // namespace compiler
