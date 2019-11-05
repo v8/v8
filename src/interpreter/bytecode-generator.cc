@@ -5626,9 +5626,9 @@ void BytecodeGenerator::VisitTemplateLiteral(TemplateLiteral* expr) {
 void BytecodeGenerator::BuildThisVariableLoad() {
   DeclarationScope* receiver_scope = closure_scope()->GetReceiverScope();
   Variable* var = receiver_scope->receiver();
+  // TODO(littledan): implement 'this' hole check elimination.
   HoleCheckMode hole_check_mode =
-      (IsDerivedConstructor(receiver_scope->function_kind()) &&
-       !receiver_scope->can_elide_this_hole_checks())
+      IsDerivedConstructor(receiver_scope->function_kind())
           ? HoleCheckMode::kRequired
           : HoleCheckMode::kElided;
   BuildVariableLoad(var, hole_check_mode);

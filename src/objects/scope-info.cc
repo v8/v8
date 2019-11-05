@@ -173,7 +173,6 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
     bool has_simple_parameters = false;
     bool is_asm_module = false;
     bool sloppy_eval_can_extend_vars = false;
-    bool can_elide_this_hole_checks = false;
     if (scope->is_function_scope()) {
       DeclarationScope* function_scope = scope->AsDeclarationScope();
       has_simple_parameters = function_scope->has_simple_parameters();
@@ -184,8 +183,6 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
       function_kind = scope->AsDeclarationScope()->function_kind();
       sloppy_eval_can_extend_vars =
           scope->AsDeclarationScope()->sloppy_eval_can_extend_vars();
-      can_elide_this_hole_checks =
-          scope->AsDeclarationScope()->can_elide_this_hole_checks();
     }
 
     // Encode the flags.
@@ -210,7 +207,6 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
             scope->ForceContextForLanguageMode()) |
         PrivateNameLookupSkipsOuterClassField::encode(
             scope->private_name_lookup_skips_outer_class()) |
-        CanElideThisHoleChecksField::encode(can_elide_this_hole_checks) |
         HasContextExtensionSlotField::encode(scope->HasContextExtensionSlot());
     scope_info.SetFlags(flags);
 
@@ -398,7 +394,6 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
       IsDebugEvaluateScopeField::encode(false) |
       ForceContextAllocationField::encode(false) |
       PrivateNameLookupSkipsOuterClassField::encode(false) |
-      CanElideThisHoleChecksField::encode(false) |
       HasContextExtensionSlotField::encode(true);
   scope_info->SetFlags(flags);
 
@@ -476,7 +471,6 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
               IsDebugEvaluateScopeField::encode(false) |
               ForceContextAllocationField::encode(false) |
               PrivateNameLookupSkipsOuterClassField::encode(false) |
-              CanElideThisHoleChecksField::encode(false) |
               HasContextExtensionSlotField::encode(is_native_context);
   scope_info->SetFlags(flags);
   scope_info->SetParameterCount(parameter_count);
@@ -672,11 +666,6 @@ void ScopeInfo::SetIsDebugEvaluateScope() {
 bool ScopeInfo::PrivateNameLookupSkipsOuterClass() const {
   if (length() == 0) return false;
   return PrivateNameLookupSkipsOuterClassField::decode(Flags());
-}
-
-bool ScopeInfo::CanElideThisHoleChecks() const {
-  if (length() == 0) return false;
-  return CanElideThisHoleChecksField::decode(Flags());
 }
 
 bool ScopeInfo::HasContext() const { return ContextLength() > 0; }

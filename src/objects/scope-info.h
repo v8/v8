@@ -53,9 +53,6 @@ class ScopeInfo : public FixedArray {
   // Does this scope make a sloppy eval call?
   bool SloppyEvalCanExtendVars() const;
 
-  // True if we can elide 'this' hole checks in this scope.
-  bool CanElideThisHoleChecks() const;
-
   // Return the number of context slots for code if a context is allocated. This
   // number consists of three parts:
   //  1. Size of header for every context.
@@ -270,10 +267,8 @@ class ScopeInfo : public FixedArray {
   using ForceContextAllocationField = IsDebugEvaluateScopeField::Next<bool, 1>;
   using PrivateNameLookupSkipsOuterClassField =
       ForceContextAllocationField::Next<bool, 1>;
-  using CanElideThisHoleChecksField =
-      PrivateNameLookupSkipsOuterClassField::Next<bool, 1>;
   using HasContextExtensionSlotField =
-      CanElideThisHoleChecksField::Next<bool, 1>;
+      PrivateNameLookupSkipsOuterClassField::Next<bool, 1>;
 
   STATIC_ASSERT(kLastFunctionKind <= FunctionKindField::kMax);
 

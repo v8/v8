@@ -2144,9 +2144,6 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
   if (HasContextExtensionSlot()) {
     os << "\n - has context extension slot";
   }
-  if (CanElideThisHoleChecks()) {
-    os << "\n - can elide this hole checks";
-  }
 
   if (HasPositionInfo()) {
     os << "\n - start position: " << StartPosition();

@@ -106,7 +106,7 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 36
+bytecode array length: 40
 bytecodes: [
                 B(Mov), R(closure), R(1),
   /*  113 E> */ B(StackCheck),
@@ -120,9 +120,12 @@ bytecodes: [
                 B(Ldar), R(this),
                 B(ThrowSuperAlreadyCalledIfNotHole),
                 B(Mov), R(5), R(this),
-  /*  128 S> */ B(LdaSmi), I8(2),
+  /*  128 S> */ B(Ldar), R(this),
+                B(ThrowSuperNotCalledIfHole),
+                B(LdaSmi), I8(2),
   /*  136 E> */ B(StaNamedProperty), R(this), U8(0), U8(2),
                 B(Ldar), R(this),
+                B(ThrowSuperNotCalledIfHole),
   /*  141 S> */ B(Return),
 ]
 constant pool: [
@@ -146,7 +149,7 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 32
+bytecode array length: 36
 bytecodes: [
                 B(Mov), R(closure), R(1),
   /*  112 E> */ B(StackCheck),
@@ -158,9 +161,12 @@ bytecodes: [
                 B(Ldar), R(this),
                 B(ThrowSuperAlreadyCalledIfNotHole),
                 B(Mov), R(4), R(this),
-  /*  126 S> */ B(LdaSmi), I8(2),
+  /*  126 S> */ B(Ldar), R(this),
+                B(ThrowSuperNotCalledIfHole),
+                B(LdaSmi), I8(2),
   /*  134 E> */ B(StaNamedProperty), R(this), U8(0), U8(2),
                 B(Ldar), R(this),
+                B(ThrowSuperNotCalledIfHole),
   /*  139 S> */ B(Return),
 ]
 constant pool: [
