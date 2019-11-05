@@ -366,6 +366,14 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister lhs,
   bailout(kUnsupportedArchitecture, "i64_shr");
 }
 
+void LiftoffAssembler::emit_i64_clz(LiftoffRegister dst, LiftoffRegister src) {
+  bailout(kUnsupportedArchitecture, "i64_clz");
+}
+
+void LiftoffAssembler::emit_i64_ctz(LiftoffRegister dst, LiftoffRegister src) {
+  bailout(kUnsupportedArchitecture, "i64_ctz");
+}
+
 void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
 #ifdef V8_TARGET_ARCH_S390X
   bailout(kUnsupportedArchitecture, "emit_i32_to_intptr");
