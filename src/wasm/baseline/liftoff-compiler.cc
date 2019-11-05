@@ -881,7 +881,7 @@ class LiftoffCompiler {
 
     LiftoffAssembler::VarState rhs_slot = __ cache_state()->stack_state.back();
     // Check if the RHS is an immediate.
-    if (rhs_slot.loc() == LiftoffAssembler::VarState::kIntConst) {
+    if (rhs_slot.is_const()) {
       __ cache_state()->stack_state.pop_back();
       int32_t imm = rhs_slot.i32_const();
 
@@ -1010,14 +1010,17 @@ class LiftoffCompiler {
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_f64_set_cond(cond, dst.gp(), lhs.fp(), rhs.fp());          \
         });
-#define CASE_I64_SHIFTOP(opcode, fn)                                   \
-  case kExpr##opcode:                                                  \
-    return EmitBinOp<kWasmI64, kWasmI64>([=](LiftoffRegister dst,      \
-                                             LiftoffRegister src,      \
-                                             LiftoffRegister amount) { \
-      __ emit_##fn(dst, src,                                           \
-                   amount.is_pair() ? amount.low_gp() : amount.gp());  \
-    });
+#define CASE_I64_SHIFTOP(opcode, fn)                                      \
+  case kExpr##opcode:                                                     \
+    return EmitBinOpImm<kWasmI64, kWasmI64>(                              \
+        [=](LiftoffRegister dst, LiftoffRegister src,                     \
+            LiftoffRegister amount) {                                     \
+          __ emit_##fn(dst, src,                                          \
+                       amount.is_pair() ? amount.low_gp() : amount.gp()); \
+        },                                                                \
+        [=](LiftoffRegister dst, LiftoffRegister src, int32_t amount) {   \
+          __ emit_##fn(dst, src, amount);                                 \
+        });
 #define CASE_CCALL_BINOP(opcode, type, ext_ref_fn)                           \
   case kExpr##opcode:                                                        \
     return EmitBinOp<kWasmI32, kWasmI32>(                                    \

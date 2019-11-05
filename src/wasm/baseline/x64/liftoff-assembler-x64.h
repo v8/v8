@@ -876,10 +876,22 @@ void LiftoffAssembler::emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
                                         &Assembler::shlq_cl);
 }
 
+void LiftoffAssembler::emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
+                                    int32_t amount) {
+  if (dst.gp() != src.gp()) movq(dst.gp(), src.gp());
+  shlq(dst.gp(), Immediate(amount & 63));
+}
+
 void LiftoffAssembler::emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
                                     Register amount) {
   liftoff::EmitShiftOperation<kWasmI64>(this, dst.gp(), src.gp(), amount,
                                         &Assembler::sarq_cl);
+}
+
+void LiftoffAssembler::emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
+                                    int32_t amount) {
+  if (dst.gp() != src.gp()) movq(dst.gp(), src.gp());
+  sarq(dst.gp(), Immediate(amount & 63));
 }
 
 void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
@@ -889,10 +901,9 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
 }
 
 void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
-                                    int amount) {
-  if (dst.gp() != src.gp()) movl(dst.gp(), src.gp());
-  DCHECK(is_uint6(amount));
-  shrq(dst.gp(), Immediate(amount));
+                                    int32_t amount) {
+  if (dst != src) movq(dst.gp(), src.gp());
+  shrq(dst.gp(), Immediate(amount & 63));
 }
 
 void LiftoffAssembler::emit_i64_clz(LiftoffRegister dst, LiftoffRegister src) {

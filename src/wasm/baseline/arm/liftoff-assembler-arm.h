@@ -217,6 +217,16 @@ inline void EmitFloatMinOrMax(LiftoffAssembler* assm, RegisterType dst,
   assm->bind(&done);
 }
 
+inline Register EnsureNoAlias(Assembler* assm, Register reg,
+                              Register must_not_alias,
+                              UseScratchRegisterScope* temps) {
+  if (reg != must_not_alias) return reg;
+  Register tmp = temps->Acquire();
+  DCHECK_NE(reg, tmp);
+  assm->mov(tmp, reg);
+  return tmp;
+}
+
 }  // namespace liftoff
 
 int LiftoffAssembler::PrepareStackFrame() {
@@ -944,9 +954,29 @@ void LiftoffAssembler::emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
   liftoff::I64Shiftop<&TurboAssembler::LslPair, true>(this, dst, src, amount);
 }
 
+void LiftoffAssembler::emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
+                                    int32_t amount) {
+  UseScratchRegisterScope temps(this);
+  // {src.low_gp()} will still be needed after writing {dst.high_gp()}.
+  Register src_low =
+      liftoff::EnsureNoAlias(this, src.low_gp(), dst.high_gp(), &temps);
+
+  LslPair(dst.low_gp(), dst.high_gp(), src_low, src.high_gp(), amount & 63);
+}
+
 void LiftoffAssembler::emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
                                     Register amount) {
   liftoff::I64Shiftop<&TurboAssembler::AsrPair, false>(this, dst, src, amount);
+}
+
+void LiftoffAssembler::emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
+                                    int32_t amount) {
+  UseScratchRegisterScope temps(this);
+  // {src.high_gp()} will still be needed after writing {dst.low_gp()}.
+  Register src_high =
+      liftoff::EnsureNoAlias(this, src.high_gp(), dst.low_gp(), &temps);
+
+  AsrPair(dst.low_gp(), dst.high_gp(), src.low_gp(), src_high, amount & 63);
 }
 
 void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
@@ -955,17 +985,13 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
 }
 
 void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
-                                    int amount) {
-  DCHECK(is_uint6(amount));
+                                    int32_t amount) {
   UseScratchRegisterScope temps(this);
-  Register src_high = src.high_gp();
   // {src.high_gp()} will still be needed after writing {dst.low_gp()}.
-  if (src_high == dst.low_gp()) {
-    src_high = GetUnusedRegister(kGpReg).gp();
-    TurboAssembler::Move(src_high, dst.low_gp());
-  }
+  Register src_high =
+      liftoff::EnsureNoAlias(this, src.high_gp(), dst.low_gp(), &temps);
 
-  LsrPair(dst.low_gp(), dst.high_gp(), src.low_gp(), src_high, amount);
+  LsrPair(dst.low_gp(), dst.high_gp(), src.low_gp(), src_high, amount & 63);
 }
 
 void LiftoffAssembler::emit_i64_clz(LiftoffRegister dst, LiftoffRegister src) {

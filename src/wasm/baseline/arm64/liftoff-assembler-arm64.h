@@ -495,13 +495,10 @@ void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
   void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister src, \
                                      Register amount) {                        \
     instruction(dst.gp().X(), src.gp().X(), amount.X());                       \
-  }
-#define I64_SHIFTOP_I(name, instruction)                                       \
-  I64_SHIFTOP(name, instruction)                                               \
+  }                                                                            \
   void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister src, \
-                                     int amount) {                             \
-    DCHECK(is_uint6(amount));                                                  \
-    instruction(dst.gp().X(), src.gp().X(), amount);                           \
+                                     int32_t amount) {                         \
+    instruction(dst.gp().X(), src.gp().X(), amount & 63);                      \
   }
 
 I32_BINOP_I(i32_add, Add)
@@ -521,7 +518,7 @@ I64_BINOP_I(i64_or, Orr)
 I64_BINOP_I(i64_xor, Eor)
 I64_SHIFTOP(i64_shl, Lsl)
 I64_SHIFTOP(i64_sar, Asr)
-I64_SHIFTOP_I(i64_shr, Lsr)
+I64_SHIFTOP(i64_shr, Lsr)
 FP32_BINOP(f32_add, Fadd)
 FP32_BINOP(f32_sub, Fsub)
 FP32_BINOP(f32_mul, Fmul)
@@ -558,7 +555,6 @@ FP64_UNOP(f64_sqrt, Fsqrt)
 #undef FP64_UNOP_RETURN_TRUE
 #undef I32_SHIFTOP
 #undef I64_SHIFTOP
-#undef I64_SHIFTOP_I
 
 void LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
   Clz(dst.W(), src.W());

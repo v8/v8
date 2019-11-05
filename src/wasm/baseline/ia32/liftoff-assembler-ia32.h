@@ -1001,12 +1001,38 @@ void LiftoffAssembler::emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
                                    &TurboAssembler::ShlPair_cl);
 }
 
+void LiftoffAssembler::emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
+                                    int32_t amount) {
+  amount &= 63;
+  if (amount >= 32) {
+    if (dst.high_gp() != src.low_gp()) mov(dst.high_gp(), src.low_gp());
+    if (amount != 32) shl(dst.high_gp(), amount - 32);
+    xor_(dst.low_gp(), dst.low_gp());
+  } else {
+    if (dst != src) Move(dst, src, kWasmI64);
+    ShlPair(dst.high_gp(), dst.low_gp(), amount);
+  }
+}
+
 void LiftoffAssembler::emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
                                     Register amount) {
   liftoff::Emit64BitShiftOperation(this, dst, src, amount,
                                    &TurboAssembler::SarPair_cl);
 }
 
+void LiftoffAssembler::emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
+                                    int32_t amount) {
+  amount &= 63;
+  if (amount >= 32) {
+    if (dst.low_gp() != src.high_gp()) mov(dst.low_gp(), src.high_gp());
+    if (dst.high_gp() != src.high_gp()) mov(dst.high_gp(), src.high_gp());
+    if (amount != 32) sar(dst.low_gp(), amount - 32);
+    sar(dst.high_gp(), 31);
+  } else {
+    if (dst != src) Move(dst, src, kWasmI64);
+    SarPair(dst.high_gp(), dst.low_gp(), amount);
+  }
+}
 void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
                                     Register amount) {
   liftoff::Emit64BitShiftOperation(this, dst, src, amount,
@@ -1014,10 +1040,16 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
 }
 
 void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
-                                    int amount) {
-  if (dst != src) Move(dst, src, kWasmI64);
-  DCHECK(is_uint6(amount));
-  ShrPair(dst.high_gp(), dst.low_gp(), amount);
+                                    int32_t amount) {
+  amount &= 63;
+  if (amount >= 32) {
+    if (dst.low_gp() != src.high_gp()) mov(dst.low_gp(), src.high_gp());
+    if (amount != 32) shr(dst.low_gp(), amount - 32);
+    xor_(dst.high_gp(), dst.high_gp());
+  } else {
+    if (dst != src) Move(dst, src, kWasmI64);
+    ShrPair(dst.high_gp(), dst.low_gp(), amount);
+  }
 }
 
 void LiftoffAssembler::emit_i64_clz(LiftoffRegister dst, LiftoffRegister src) {
