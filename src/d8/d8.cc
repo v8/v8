@@ -2924,9 +2924,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
                strcmp(argv[i], "--no-stress-opt") == 0) {
       options.stress_opt = false;
       argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--stress-deopt") == 0) {
-      options.stress_deopt = true;
-      argv[i] = nullptr;
     } else if (strcmp(argv[i], "--stress-background-compile") == 0) {
       options.stress_background_compile = true;
       argv[i] = nullptr;
@@ -2938,7 +2935,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
                strcmp(argv[i], "--no-always-opt") == 0) {
       // No support for stressing if we can't use --always-opt.
       options.stress_opt = false;
-      options.stress_deopt = false;
     } else if (strcmp(argv[i], "--logfile-per-isolate") == 0) {
       logfile_per_isolate = true;
       argv[i] = nullptr;
@@ -3644,9 +3640,8 @@ int Shell::Main(int argc, char* argv[]) {
       tracing_controller->StartTracing(trace_config);
     }
 
-    if (options.stress_opt || options.stress_deopt) {
-      Testing::SetStressRunType(options.stress_opt ? Testing::kStressTypeOpt
-                                                   : Testing::kStressTypeDeopt);
+    if (options.stress_opt) {
+      Testing::SetStressRunType(Testing::kStressTypeOpt);
       options.stress_runs = Testing::GetStressRuns();
       for (int i = 0; i < options.stress_runs && result == 0; i++) {
         printf("============ Stress %d/%d ============\n", i + 1,
