@@ -243,6 +243,10 @@ void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
   void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister src, \
                                      Register amount) {                        \
     bailout(kUnsupportedArchitecture, "i64 shiftop: " #name);                  \
+  }                                                                            \
+  void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister src, \
+                                     int32_t amount) {                         \
+    bailout(kUnsupportedArchitecture, "i64 shiftop: " #name);                  \
   }
 
 UNIMPLEMENTED_I32_BINOP_I(i32_add)
@@ -366,11 +370,6 @@ bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
                                      Label* trap_div_by_zero) {
   bailout(kUnsupportedArchitecture, "i64_remu");
   return true;
-}
-
-void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister lhs,
-                                    int amount) {
-  bailout(kUnsupportedArchitecture, "i64_shr");
 }
 
 void LiftoffAssembler::emit_i64_clz(LiftoffRegister dst, LiftoffRegister src) {
