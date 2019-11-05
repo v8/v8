@@ -10603,13 +10603,11 @@ void HeapProfiler::RemoveBuildEmbedderGraphCallback(
       callback, data);
 }
 
-v8::Testing::StressType internal::Testing::stress_type_ =
-    v8::Testing::kStressTypeOpt;
-
+// Deprecated.
 void Testing::SetStressRunType(Testing::StressType type) {
-  internal::Testing::set_stress_type(type);
 }
 
+// Deprecated.
 int Testing::GetStressRuns() {
   if (internal::FLAG_stress_runs != 0) return internal::FLAG_stress_runs;
 #ifdef DEBUG
@@ -10621,6 +10619,7 @@ int Testing::GetStressRuns() {
 #endif
 }
 
+// Deprecated.
 void Testing::PrepareStressRun(int run) {
   static const char* kLazyOptimizations =
       "--prepare-always-opt "
@@ -10636,6 +10635,7 @@ void Testing::PrepareStressRun(int run) {
   }
 }
 
+// Deprecated.
 void Testing::DeoptimizeAll(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::HandleScope scope(i_isolate);
