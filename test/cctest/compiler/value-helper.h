@@ -315,7 +315,25 @@ class ValueHelper {
   static constexpr Vector<const uint32_t> ror_vector() {
     return ArrayVector(ror_array);
   }
+
+  template <typename T>
+  static constexpr Vector<const T> GetVector();
 };
+
+template <>
+constexpr Vector<const int8_t> ValueHelper::GetVector() {
+  return int8_vector();
+}
+
+template <>
+constexpr Vector<const uint8_t> ValueHelper::GetVector() {
+  return uint8_vector();
+}
+
+template <>
+constexpr Vector<const int16_t> ValueHelper::GetVector() {
+  return int16_vector();
+}
 
 // Helper macros that can be used in FOR_INT32_INPUTS(i) { ... i ... }
 #define FOR_INPUTS(ctype, itype, var) \

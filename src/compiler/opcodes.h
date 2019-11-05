@@ -932,7 +932,8 @@
   V(S1x8AnyTrue)                \
   V(S1x8AllTrue)                \
   V(S1x16AnyTrue)               \
-  V(S1x16AllTrue)
+  V(S1x16AllTrue)               \
+  V(LoadTransform)
 
 #define VALUE_OP_LIST(V)  \
   COMMON_OP_LIST(V)       \

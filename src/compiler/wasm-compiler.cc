@@ -3739,6 +3739,77 @@ Node* WasmGraphBuilder::TraceMemoryOperation(bool is_store,
   return call;
 }
 
+namespace {
+LoadTransformation GetLoadTransformation(
+    MachineType memtype, wasm::LoadTransformationKind transform) {
+  switch (transform) {
+    case wasm::LoadTransformationKind::kSplat: {
+      if (memtype == MachineType::Int8()) {
+        return LoadTransformation::kS8x16LoadSplat;
+      } else if (memtype == MachineType::Int16()) {
+        return LoadTransformation::kS16x8LoadSplat;
+      }
+      break;
+    }
+    case wasm::LoadTransformationKind::kExtend: {
+      if (memtype == MachineType::Int8()) {
+        return LoadTransformation::kI16x8Load8x8S;
+      } else if (memtype == MachineType::Uint8()) {
+        return LoadTransformation::kI16x8Load8x8U;
+      }
+      break;
+    }
+  }
+  UNREACHABLE();
+}
+
+LoadKind GetLoadKind(MachineGraph* mcgraph, MachineType memtype,
+                     bool use_trap_handler) {
+  if (memtype.representation() == MachineRepresentation::kWord8 ||
+      mcgraph->machine()->UnalignedLoadSupported(memtype.representation())) {
+    if (use_trap_handler) {
+      return LoadKind::kProtected;
+    }
+    return LoadKind::kNormal;
+  }
+  // TODO(eholk): Support unaligned loads with trap handlers.
+  DCHECK(!use_trap_handler);
+  return LoadKind::kUnaligned;
+}
+}  // namespace
+
+Node* WasmGraphBuilder::LoadTransform(MachineType memtype,
+                                      wasm::LoadTransformationKind transform,
+                                      Node* index, uint32_t offset,
+                                      uint32_t alignment,
+                                      wasm::WasmCodePosition position) {
+  // Wasm semantics throw on OOB. Introduce explicit bounds check and
+  // conditioning when not using the trap handler.
+  index = BoundsCheckMem(wasm::ValueTypes::MemSize(memtype), index, offset,
+                         position, kCanOmitBoundsCheck);
+
+  LoadTransformation transformation = GetLoadTransformation(memtype, transform);
+  LoadKind load_kind = GetLoadKind(mcgraph(), memtype, use_trap_handler());
+
+  Node* load = SetEffect(graph()->NewNode(
+      mcgraph()->machine()->LoadTransform(load_kind, transformation),
+      MemBuffer(offset), index, Effect(), Control()));
+
+  if (load_kind == LoadKind::kProtected) {
+    SetSourcePosition(load, position);
+  }
+
+#if defined(V8_TARGET_BIG_ENDIAN)
+  load = BuildChangeEndiannessLoad(load, memtype, wasm::ValueType::kSimd128);
+#endif
+
+  if (FLAG_trace_wasm_memory) {
+    TraceMemoryOperation(false, memtype.representation(), index, offset,
+                         position);
+  }
+  return load;
+}
+
 Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
                                 Node* index, uint32_t offset,
                                 uint32_t alignment,

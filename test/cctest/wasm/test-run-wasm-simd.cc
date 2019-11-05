@@ -470,6 +470,11 @@ bool ExpectFused(ExecutionTier tier) {
 #define WASM_SIMD_F32x4_QFMA(a, b, c) a, b, c, WASM_SIMD_OP(kExprF32x4Qfma)
 #define WASM_SIMD_F32x4_QFMS(a, b, c) a, b, c, WASM_SIMD_OP(kExprF32x4Qfms)
 
+#define WASM_SIMD_LOAD_SPLAT(opcode, index) \
+  index, WASM_SIMD_OP(opcode), ZERO_ALIGNMENT, ZERO_OFFSET
+#define WASM_SIMD_LOAD_EXTEND(opcode, index) \
+  index, WASM_SIMD_OP(opcode), ZERO_ALIGNMENT, ZERO_OFFSET
+
 // Runs tests of compiled code, using the interpreter as a reference.
 #define WASM_SIMD_COMPILED_TEST(name)                              \
   void RunWasm_##name##_Impl(LowerSimd lower_simd,                 \
@@ -3248,6 +3253,79 @@ WASM_SIMD_TEST(SimdLoadStoreLoadMemargOffset) {
   }
 }
 
+#if V8_TARGET_ARCH_X64
+template <typename T>
+void RunLoadSplatTest(ExecutionTier execution_tier, LowerSimd lower_simd,
+                      WasmOpcode op) {
+  if (execution_tier == ExecutionTier::kInterpreter) {
+    // TODO(zhin): implement for interpreter
+    return;
+  }
+  constexpr int lanes = 16 / sizeof(T);
+  constexpr int mem_index = 16;  // Load from mem index 16 (bytes).
+  WasmRunner<int32_t> r(execution_tier, lower_simd);
+  T* memory = r.builder().AddMemoryElems<T>(kWasmPageSize / sizeof(T));
+  T* global = r.builder().AddGlobal<T>(kWasmS128);
+  BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_SPLAT(op, WASM_I32V(mem_index))),
+        WASM_ONE);
+
+  for (T x : compiler::ValueHelper::GetVector<T>()) {
+    // 16-th byte in memory is lanes-th element (size T) of memory.
+    r.builder().WriteMemory(&memory[lanes], x);
+    r.Call();
+    for (int i = 0; i < lanes; i++) {
+      CHECK_EQ(x, ReadLittleEndianValue<T>(&global[i]));
+    }
+  }
+}
+
+WASM_SIMD_TEST_NO_LOWERING(S8x16LoadSplat) {
+  RunLoadSplatTest<int8_t>(execution_tier, lower_simd, kExprS8x16LoadSplat);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(S16x8LoadSplat) {
+  RunLoadSplatTest<int16_t>(execution_tier, lower_simd, kExprS16x8LoadSplat);
+}
+
+template <typename S, typename T>
+void RunLoadExtendTest(ExecutionTier execution_tier, LowerSimd lower_simd,
+                       WasmOpcode op) {
+  if (execution_tier == ExecutionTier::kInterpreter) {
+    // TODO(zhin): implement for interpreter
+    return;
+  }
+  constexpr int lanes_s = 16 / sizeof(S);
+  constexpr int lanes_t = 16 / sizeof(T);
+  constexpr int mem_index = 16;  // Load from mem index 16 (bytes).
+  WasmRunner<int32_t> r(execution_tier, lower_simd);
+  S* memory = r.builder().AddMemoryElems<S>(kWasmPageSize / sizeof(S));
+  T* global = r.builder().AddGlobal<T>(kWasmS128);
+  BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_EXTEND(op, WASM_I32V(mem_index))),
+        WASM_ONE);
+
+  for (S x : compiler::ValueHelper::GetVector<S>()) {
+    for (int i = 0; i < lanes_s; i++) {
+      // 16-th byte in memory is lanes-th element (size T) of memory.
+      r.builder().WriteMemory(&memory[lanes_s + i], x);
+    }
+    r.Call();
+    for (int i = 0; i < lanes_t; i++) {
+      CHECK_EQ(static_cast<T>(x), ReadLittleEndianValue<T>(&global[i]));
+    }
+  }
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I16x8Load8x8U) {
+  RunLoadExtendTest<uint8_t, uint16_t>(execution_tier, lower_simd,
+                                       kExprI16x8Load8x8U);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I16x8Load8x8S) {
+  RunLoadExtendTest<int8_t, int16_t>(execution_tier, lower_simd,
+                                     kExprI16x8Load8x8S);
+}
+#endif  // V8_TARGET_ARCH_X64
+
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 || \
     V8_TARGET_ARCH_ARM
 #define WASM_SIMD_ANYTRUE_TEST(format, lanes, max, param_type)                \
@@ -3469,6 +3547,8 @@ WASM_EXTRACT_I16x8_TEST(S, UINT16) WASM_EXTRACT_I16x8_TEST(I, INT16)
 #undef WASM_SIMD_F64x2_QFMS
 #undef WASM_SIMD_F32x4_QFMA
 #undef WASM_SIMD_F32x4_QFMS
+#undef WASM_SIMD_LOAD_SPLAT
+#undef WASM_SIMD_LOAD_EXTEND
 
 }  // namespace test_run_wasm_simd
 }  // namespace wasm

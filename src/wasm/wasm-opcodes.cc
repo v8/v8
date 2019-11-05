@@ -322,6 +322,11 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_F32x4_OP(Qfma, "qfma")
     CASE_F32x4_OP(Qfms, "qfms")
 
+    CASE_S8x16_OP(LoadSplat, "load_splat")
+    CASE_S16x8_OP(LoadSplat, "load_splat")
+    CASE_I16x8_OP(Load8x8S, "load8x8_s")
+    CASE_I16x8_OP(Load8x8U, "load8x8_u")
+
     // Atomic operations.
     CASE_OP(AtomicNotify, "atomic.notify")
     CASE_INT_OP(AtomicWait, "atomic.wait")

@@ -328,6 +328,34 @@ void InstructionSelector::VisitAbortCSAAssert(Node* node) {
   Emit(kArchAbortCSAAssert, g.NoOutput(), g.UseFixed(node->InputAt(0), rdx));
 }
 
+void InstructionSelector::VisitLoadTransform(Node* node) {
+  LoadTransformParameters params = LoadTransformParametersOf(node->op());
+  ArchOpcode opcode = kArchNop;
+  switch (params.transformation) {
+    case LoadTransformation::kS8x16LoadSplat:
+      opcode = kX64S8x16LoadSplat;
+      break;
+    case LoadTransformation::kS16x8LoadSplat:
+      opcode = kX64S16x8LoadSplat;
+      break;
+    case LoadTransformation::kI16x8Load8x8S:
+      opcode = kX64I16x8Load8x8S;
+      break;
+    case LoadTransformation::kI16x8Load8x8U:
+      opcode = kX64I16x8Load8x8U;
+      break;
+    default:
+      UNREACHABLE();
+  }
+  // x64 supports unaligned loads
+  DCHECK_NE(params.kind, LoadKind::kUnaligned);
+  InstructionCode code = opcode;
+  if (params.kind == LoadKind::kProtected) {
+    code |= MiscField::encode(kMemoryAccessProtected);
+  }
+  VisitLoad(node, node, code);
+}
+
 void InstructionSelector::VisitLoad(Node* node, Node* value,
                                     InstructionCode opcode) {
   X64OperandGenerator g(this);

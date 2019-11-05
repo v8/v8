@@ -1393,6 +1393,10 @@ void InstructionSelector::VisitNode(Node* node) {
       MarkAsRepresentation(type.representation(), node);
       return VisitLoad(node);
     }
+    case IrOpcode::kLoadTransform: {
+      MarkAsRepresentation(MachineRepresentation::kSimd128, node);
+      return VisitLoadTransform(node);
+    }
     case IrOpcode::kPoisonedLoad: {
       LoadRepresentation type = LoadRepresentationOf(node->op());
       MarkAsRepresentation(type.representation(), node);
@@ -2662,6 +2666,7 @@ void InstructionSelector::VisitI64x2ReplaceLaneI32Pair(Node* node) {
 #endif  // !V8_TARGET_ARCH_IA32
 
 #if !V8_TARGET_ARCH_X64
+void InstructionSelector::VisitLoadTransform(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2SConvertI64x2(Node* node) {
   UNIMPLEMENTED();
 }

@@ -1765,6 +1765,12 @@ class LiftoffCompiler {
                            offset, decoder->position());
     }
   }
+  void LoadTransform(FullDecoder* decoder, LoadType type,
+                     LoadTransformationKind transform,
+                     const MemoryAccessImmediate<validate>& imm,
+                     const Value& index_val, Value* result) {
+    unsupported(decoder, kSimd, "simd");
+  }
 
   void StoreMem(FullDecoder* decoder, StoreType type,
                 const MemoryAccessImmediate<validate>& imm,

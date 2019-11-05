@@ -616,6 +616,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   // Visit the load node with a value and opcode to replace with.
   void VisitLoad(Node* node, Node* value, InstructionCode opcode);
+  void VisitLoadTransform(Node* node, Node* value, InstructionCode opcode);
   void VisitFinishRegion(Node* node);
   void VisitParameter(Node* node);
   void VisitIfException(Node* node);

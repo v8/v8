@@ -683,6 +683,11 @@ struct ControlBase {
   }
 };
 
+enum class LoadTransformationKind : uint8_t {
+  kSplat,
+  kExtend,
+};
+
 // This is the list of callback functions that an interface for the
 // WasmFullDecoder should implement.
 // F(Name, args...)
@@ -733,6 +738,8 @@ struct ControlBase {
   F(Else, Control* if_block)                                                  \
   F(LoadMem, LoadType type, const MemoryAccessImmediate<validate>& imm,       \
     const Value& index, Value* result)                                        \
+  F(LoadTransform, LoadType type, LoadTransformationKind transform,           \
+    MemoryAccessImmediate<validate>& imm, const Value& index, Value* result)  \
   F(StoreMem, StoreType type, const MemoryAccessImmediate<validate>& imm,     \
     const Value& index, const Value& value)                                   \
   F(CurrentMemoryPages, Value* result)                                        \
@@ -2556,6 +2563,16 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return imm.length;
   }
 
+  int DecodeLoadTransformMem(LoadType type, LoadTransformationKind transform) {
+    if (!CheckHasMemory()) return 0;
+    MemoryAccessImmediate<validate> imm(this, this->pc_ + 1, type.size_log_2());
+    auto index = Pop(0, kWasmI32);
+    auto* result = Push(ValueType::kWasmS128);
+    CALL_INTERFACE_IF_REACHABLE(LoadTransform, type, transform, imm, index,
+                                result);
+    return imm.length;
+  }
+
   int DecodeStoreMem(StoreType store, int prefix_len = 0) {
     if (!CheckHasMemory()) return 0;
     MemoryAccessImmediate<validate> imm(this, this->pc_ + prefix_len,
@@ -2737,6 +2754,22 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         break;
       case kExprS128StoreMem:
         len = DecodeStoreMem(StoreType::kS128Store, 1);
+        break;
+      case kExprS8x16LoadSplat:
+        len = DecodeLoadTransformMem(LoadType::kI32Load8S,
+                                     LoadTransformationKind::kSplat);
+        break;
+      case kExprS16x8LoadSplat:
+        len = DecodeLoadTransformMem(LoadType::kI32Load16S,
+                                     LoadTransformationKind::kSplat);
+        break;
+      case kExprI16x8Load8x8S:
+        len = DecodeLoadTransformMem(LoadType::kI32Load8S,
+                                     LoadTransformationKind::kExtend);
+        break;
+      case kExprI16x8Load8x8U:
+        len = DecodeLoadTransformMem(LoadType::kI32Load8U,
+                                     LoadTransformationKind::kExtend);
         break;
       default: {
         FunctionSig* sig = WasmOpcodes::Signature(opcode);

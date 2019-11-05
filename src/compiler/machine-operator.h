@@ -50,6 +50,40 @@ using LoadRepresentation = MachineType;
 V8_EXPORT_PRIVATE LoadRepresentation LoadRepresentationOf(Operator const*)
     V8_WARN_UNUSED_RESULT;
 
+enum class LoadKind {
+  kNormal,
+  kUnaligned,
+  kProtected,
+};
+
+size_t hash_value(LoadKind);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, LoadKind);
+
+enum class LoadTransformation {
+  kS8x16LoadSplat,
+  kS16x8LoadSplat,
+  kI16x8Load8x8S,
+  kI16x8Load8x8U,
+};
+
+size_t hash_value(LoadTransformation);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, LoadTransformation);
+
+struct LoadTransformParameters {
+  LoadKind kind;
+  LoadTransformation transformation;
+};
+
+size_t hash_value(LoadTransformParameters);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
+                                           LoadTransformParameters);
+
+V8_EXPORT_PRIVATE LoadTransformParameters const& LoadTransformParametersOf(
+    Operator const*) V8_WARN_UNUSED_RESULT;
+
 // A Store needs a MachineType and a WriteBarrierKind in order to emit the
 // correct write barrier.
 class StoreRepresentation final {
@@ -667,6 +701,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Load(LoadRepresentation rep);
   const Operator* PoisonedLoad(LoadRepresentation rep);
   const Operator* ProtectedLoad(LoadRepresentation rep);
+
+  const Operator* LoadTransform(LoadKind kind, LoadTransformation transform);
 
   // store [base + index], value
   const Operator* Store(StoreRepresentation rep);

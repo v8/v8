@@ -3688,6 +3688,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ movq(rsp, tmp);
       break;
     }
+    case kX64S8x16LoadSplat: {
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ pinsrb(i.OutputSimd128Register(), i.MemoryOperand(), 0);
+      __ pxor(kScratchDoubleReg, kScratchDoubleReg);
+      __ pshufb(i.OutputSimd128Register(), kScratchDoubleReg);
+      break;
+    }
+    case kX64S16x8LoadSplat: {
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ pinsrw(i.OutputSimd128Register(), i.MemoryOperand(), 0);
+      __ pshuflw(i.OutputSimd128Register(), i.OutputSimd128Register(), 0);
+      __ punpcklqdq(i.OutputSimd128Register(), i.OutputSimd128Register());
+      break;
+    }
+    case kX64I16x8Load8x8S: {
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ pmovsxbw(i.OutputSimd128Register(), i.MemoryOperand());
+      break;
+    }
+    case kX64I16x8Load8x8U: {
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      __ pmovzxbw(i.OutputSimd128Register(), i.MemoryOperand());
+      break;
+    }
     case kX64S32x4Swizzle: {
       DCHECK_EQ(2, instr->InputCount());
       ASSEMBLE_SIMD_IMM_INSTR(pshufd, i.OutputSimd128Register(), 0,

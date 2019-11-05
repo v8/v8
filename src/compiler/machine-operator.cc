@@ -32,6 +32,56 @@ std::ostream& operator<<(std::ostream& os, StoreRepresentation rep) {
   return os << rep.representation() << ", " << rep.write_barrier_kind();
 }
 
+size_t hash_value(LoadKind kind) { return static_cast<size_t>(kind); }
+
+std::ostream& operator<<(std::ostream& os, LoadKind kind) {
+  switch (kind) {
+    case LoadKind::kNormal:
+      return os << "kNormal";
+    case LoadKind::kUnaligned:
+      return os << "kUnaligned";
+    case LoadKind::kProtected:
+      return os << "kProtected";
+  }
+  UNREACHABLE();
+}
+
+size_t hash_value(LoadTransformation rep) { return static_cast<size_t>(rep); }
+
+std::ostream& operator<<(std::ostream& os, LoadTransformation rep) {
+  switch (rep) {
+    case LoadTransformation::kS8x16LoadSplat:
+      return os << "kS8x16LoadSplat";
+    case LoadTransformation::kS16x8LoadSplat:
+      return os << "kS16x8LoadSplat";
+    case LoadTransformation::kI16x8Load8x8S:
+      return os << "kI16x8Load8x8S";
+    case LoadTransformation::kI16x8Load8x8U:
+      return os << "kI16x8Load8x8U";
+  }
+  UNREACHABLE();
+}
+
+size_t hash_value(LoadTransformParameters params) {
+  return base::hash_combine(params.kind, params.transformation);
+}
+
+std::ostream& operator<<(std::ostream& os, LoadTransformParameters params) {
+  return os << "(" << params.kind << " " << params.transformation << ")";
+}
+
+LoadTransformParameters const& LoadTransformParametersOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kLoadTransform, op->opcode());
+  return OpParameter<LoadTransformParameters>(op);
+}
+
+bool operator==(LoadTransformParameters lhs, LoadTransformParameters rhs) {
+  return lhs.transformation == rhs.transformation && lhs.kind == rhs.kind;
+}
+
+bool operator!=(LoadTransformParameters lhs, LoadTransformParameters rhs) {
+  return !(lhs == rhs);
+}
 
 LoadRepresentation LoadRepresentationOf(Operator const* op) {
   DCHECK(IrOpcode::kLoad == op->opcode() ||
@@ -472,6 +522,12 @@ MachineType AtomicOpType(Operator const* op) {
   V(kCompressedPointer)                \
   V(kCompressed)
 
+#define LOAD_TRANSFORM_LIST(V) \
+  V(S8x16LoadSplat)            \
+  V(S16x8LoadSplat)            \
+  V(I16x8Load8x8S)             \
+  V(I16x8Load8x8U)
+
 #define ATOMIC_U32_TYPE_LIST(V) \
   V(Uint8)                      \
   V(Uint16)                     \
@@ -586,6 +642,28 @@ struct MachineOperatorGlobalCache {
   ProtectedLoad##Type##Operator kProtectedLoad##Type;
   MACHINE_TYPE_LIST(LOAD)
 #undef LOAD
+
+#define LOAD_TRANSFORM_KIND(TYPE, KIND)                                     \
+  struct KIND##LoadTransform##TYPE##Operator final                          \
+      : public Operator1<LoadTransformParameters> {                         \
+    KIND##LoadTransform##TYPE##Operator()                                   \
+        : Operator1<LoadTransformParameters>(                               \
+              IrOpcode::kLoadTransform,                                     \
+              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite, \
+              #KIND "LoadTransform", 2, 1, 1, 1, 1, 0,                      \
+              LoadTransformParameters{LoadKind::k##KIND,                    \
+                                      LoadTransformation::k##TYPE}) {}      \
+  };                                                                        \
+  KIND##LoadTransform##TYPE##Operator k##KIND##LoadTransform##TYPE;
+
+#define LOAD_TRANSFORM(TYPE)           \
+  LOAD_TRANSFORM_KIND(TYPE, Normal)    \
+  LOAD_TRANSFORM_KIND(TYPE, Unaligned) \
+  LOAD_TRANSFORM_KIND(TYPE, Protected)
+
+  LOAD_TRANSFORM_LIST(LOAD_TRANSFORM)
+#undef LOAD_TRANSFORM
+#undef LOAD_TRANSFORM_KIND
 
 #define STACKSLOT(Size, Alignment)                                     \
   struct StackSlotOfSize##Size##OfAlignment##Alignment##Operator final \
@@ -1017,6 +1095,23 @@ const Operator* MachineOperatorBuilder::ProtectedLoad(LoadRepresentation rep) {
   UNREACHABLE();
 }
 
+const Operator* MachineOperatorBuilder::LoadTransform(
+    LoadKind kind, LoadTransformation transform) {
+#define LOAD_TRANSFORM_KIND(TYPE, KIND)                                        \
+  if (kind == LoadKind::k##KIND && transform == LoadTransformation::k##TYPE) { \
+    return &cache_.k##KIND##LoadTransform##TYPE;                               \
+  }
+#define LOAD_TRANSFORM(TYPE)           \
+  LOAD_TRANSFORM_KIND(TYPE, Normal)    \
+  LOAD_TRANSFORM_KIND(TYPE, Unaligned) \
+  LOAD_TRANSFORM_KIND(TYPE, Protected)
+
+  LOAD_TRANSFORM_LIST(LOAD_TRANSFORM)
+#undef LOAD_TRANSFORM
+#undef LOAD_TRANSFORM_KIND
+  UNREACHABLE();
+}
+
 const Operator* MachineOperatorBuilder::StackSlot(int size, int alignment) {
   DCHECK_LE(0, size);
   DCHECK(alignment == 0 || alignment == 4 || alignment == 8 || alignment == 16);
@@ -1420,6 +1515,7 @@ StackCheckKind StackCheckKindOf(Operator const* op) {
 #undef ATOMIC64_REPRESENTATION_LIST
 #undef SIMD_LANE_OP_LIST
 #undef STACK_SLOT_CACHED_SIZES_ALIGNMENTS_LIST
+#undef LOAD_TRANSFORM_LIST
 
 }  // namespace compiler
 }  // namespace internal

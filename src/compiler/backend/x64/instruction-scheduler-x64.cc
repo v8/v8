@@ -361,6 +361,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Movsd:
     case kX64Movss:
     case kX64Movdqu:
+    case kX64S8x16LoadSplat:
+    case kX64S16x8LoadSplat:
+    case kX64I16x8Load8x8S:
+    case kX64I16x8Load8x8U:
       return instr->HasOutput() ? kIsLoadOperation : kHasSideEffect;
 
     case kX64Peek:
