@@ -9,6 +9,7 @@
 #include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/platform.h"
+#include "src/base/small-vector.h"
 #include "src/base/v8-fallthrough.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/assembler-inl.h"
@@ -1127,25 +1128,17 @@ Node* WasmGraphBuilder::IfDefault(Node* sw) {
 }
 
 Node* WasmGraphBuilder::Return(Vector<Node*> vals) {
-  static const int kStackAllocatedNodeBufferSize = 8;
-  Node* stack_buffer[kStackAllocatedNodeBufferSize];
-  std::vector<Node*> heap_buffer;
-
-  Node** buf = stack_buffer;
   unsigned count = static_cast<unsigned>(vals.size());
-  if (count + 3 > kStackAllocatedNodeBufferSize) {
-    heap_buffer.resize(count + 3);
-    buf = heap_buffer.data();
-  }
+  base::SmallVector<Node*, 8> buf(count + 3);
 
   buf[0] = mcgraph()->Int32Constant(0);
   if (count > 0) {
-    memcpy(buf + 1, vals.begin(), sizeof(void*) * count);
+    memcpy(buf.data() + 1, vals.begin(), sizeof(void*) * count);
   }
   buf[count + 1] = Effect();
   buf[count + 2] = Control();
-  Node* ret =
-      graph()->NewNode(mcgraph()->common()->Return(count), count + 3, buf);
+  Node* ret = graph()->NewNode(mcgraph()->common()->Return(count), count + 3,
+                               buf.data());
 
   MergeControlToEnd(mcgraph(), ret);
   return ret;
