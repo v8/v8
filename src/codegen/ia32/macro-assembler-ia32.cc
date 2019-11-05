@@ -571,9 +571,10 @@ void TurboAssembler::Cvttsd2ui(Register dst, Operand src, XMMRegister tmp) {
 }
 
 void TurboAssembler::ShlPair(Register high, Register low, uint8_t shift) {
+  DCHECK_GE(63, shift);
   if (shift >= 32) {
     mov(high, low);
-    shl(high, shift - 32);
+    if (shift != 32) shl(high, shift - 32);
     xor_(low, low);
   } else {
     shld(high, low, shift);
@@ -593,12 +594,13 @@ void TurboAssembler::ShlPair_cl(Register high, Register low) {
 }
 
 void TurboAssembler::ShrPair(Register high, Register low, uint8_t shift) {
+  DCHECK_GE(63, shift);
   if (shift >= 32) {
     mov(low, high);
-    shr(low, shift - 32);
+    if (shift != 32) shr(low, shift - 32);
     xor_(high, high);
   } else {
-    shrd(high, low, shift);
+    shrd(low, high, shift);
     shr(high, shift);
   }
 }
@@ -615,12 +617,13 @@ void TurboAssembler::ShrPair_cl(Register high, Register low) {
 }
 
 void TurboAssembler::SarPair(Register high, Register low, uint8_t shift) {
+  DCHECK_GE(63, shift);
   if (shift >= 32) {
     mov(low, high);
-    sar(low, shift - 32);
+    if (shift != 32) sar(low, shift - 32);
     sar(high, 31);
   } else {
-    shrd(high, low, shift);
+    shrd(low, high, shift);
     sar(high, shift);
   }
 }

@@ -1188,6 +1188,7 @@ void TurboAssembler::LslPair(Register dst_low, Register dst_high,
 void TurboAssembler::LslPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
                              uint32_t shift) {
+  DCHECK_GE(63, shift);
   DCHECK(!AreAliased(dst_high, src_low));
 
   if (shift == 0) {
@@ -1236,6 +1237,7 @@ void TurboAssembler::LsrPair(Register dst_low, Register dst_high,
 void TurboAssembler::LsrPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
                              uint32_t shift) {
+  DCHECK_GE(63, shift);
   DCHECK(!AreAliased(dst_low, src_high));
 
   if (shift == 32) {
@@ -1283,6 +1285,7 @@ void TurboAssembler::AsrPair(Register dst_low, Register dst_high,
 void TurboAssembler::AsrPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
                              uint32_t shift) {
+  DCHECK_GE(63, shift);
   DCHECK(!AreAliased(dst_low, src_high));
 
   if (shift == 32) {

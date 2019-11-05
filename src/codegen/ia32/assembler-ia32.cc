@@ -1194,7 +1194,7 @@ void Assembler::shrd(Register dst, Register src, uint8_t shift) {
   EnsureSpace ensure_space(this);
   EMIT(0x0F);
   EMIT(0xAC);
-  emit_operand(dst, Operand(src));
+  emit_operand(src, Operand(dst));
   EMIT(shift);
 }
 
