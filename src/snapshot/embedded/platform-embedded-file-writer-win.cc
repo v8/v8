@@ -634,7 +634,8 @@ void PlatformEmbeddedFileWriterWin::DeclareLabel(const char* name) {
 
 void PlatformEmbeddedFileWriterWin::SourceInfo(int fileid, const char* filename,
                                                int line) {
-  fprintf(fp_, ".loc %d %d\n", fileid, line);
+  // BUG(9944): Use .cv_loc to ensure CodeView information is used on
+  // Windows.
 }
 
 void PlatformEmbeddedFileWriterWin::DeclareFunctionBegin(const char* name) {
@@ -666,11 +667,8 @@ void PlatformEmbeddedFileWriterWin::FilePrologue() {}
 
 void PlatformEmbeddedFileWriterWin::DeclareExternalFilename(
     int fileid, const char* filename) {
-  // Replace any Windows style paths (backslashes) with forward
-  // slashes.
-  std::string fixed_filename(filename);
-  std::replace(fixed_filename.begin(), fixed_filename.end(), '\\', '/');
-  fprintf(fp_, ".file %d \"%s\"\n", fileid, fixed_filename.c_str());
+  // BUG(9944): Use .cv_filename to ensure CodeView information is used on
+  // Windows.
 }
 
 void PlatformEmbeddedFileWriterWin::FileEpilogue() {}
