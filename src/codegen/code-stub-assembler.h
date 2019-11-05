@@ -126,6 +126,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
     PromiseRejectReactionJobTaskMap)                                           \
   V(prototype_string, prototype_string, PrototypeString)                       \
   V(PrototypeInfoMap, prototype_info_map, PrototypeInfoMap)                    \
+  V(replace_symbol, replace_symbol, ReplaceSymbol)                             \
   V(regexp_to_string, regexp_to_string, RegexpToString)                        \
   V(resolve_string, resolve_string, ResolveString)                             \
   V(SharedFunctionInfoMap, shared_function_info_map, SharedFunctionInfoMap)    \

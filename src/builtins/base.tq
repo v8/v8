@@ -2828,6 +2828,21 @@ Cast<Smi|PromiseReaction>(o: Object): Smi|PromiseReaction labels CastError {
   }
 }
 
+Cast<String|Callable>(implicit context: Context)(o: Object): String|
+    Callable labels CastError {
+  typeswitch (o) {
+    case (o: String): {
+      return o;
+    }
+    case (o: Callable): {
+      return o;
+    }
+    case (Object): {
+      goto CastError;
+    }
+  }
+}
+
 Cast<Zero|PromiseReaction>(implicit context: Context)(o: Object): Zero|
     PromiseReaction labels CastError {
   typeswitch (o) {
@@ -3853,6 +3868,14 @@ transitioning macro GetMethod(implicit context: Context)(
 transitioning macro GetMethod(implicit context: Context)(
     o: JSAny, name: constexpr string): Callable labels IfNullOrUndefined {
   return GetMethod(o, StringConstant(name)) otherwise IfNullOrUndefined;
+}
+
+transitioning macro GetMethod(implicit context: Context)(
+    o: JSAny, symbol: Symbol): Callable labels IfNullOrUndefined {
+  const value = GetProperty(o, symbol);
+  if (value == Undefined || value == Null) goto IfNullOrUndefined;
+  return Cast<Callable>(value)
+      otherwise ThrowTypeError(kPropertyNotFunction, value, symbol, o);
 }
 
 extern macro NumberToString(Number): String;

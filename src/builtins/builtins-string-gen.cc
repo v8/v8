@@ -1235,11 +1235,10 @@ TNode<Smi> StringBuiltinsAssembler::IndexOfDollarChar(Node* const context,
   return dollar_ix;
 }
 
-compiler::Node* StringBuiltinsAssembler::GetSubstitution(
-    Node* context, Node* subject_string, Node* match_start_index,
-    Node* match_end_index, Node* replace_string) {
-  CSA_ASSERT(this, IsString(subject_string));
-  CSA_ASSERT(this, IsString(replace_string));
+TNode<String> StringBuiltinsAssembler::GetSubstitution(
+    TNode<Context> context, TNode<String> subject_string,
+    TNode<Smi> match_start_index, TNode<Smi> match_end_index,
+    TNode<String> replace_string) {
   CSA_ASSERT(this, TaggedIsPositiveSmi(match_start_index));
   CSA_ASSERT(this, TaggedIsPositiveSmi(match_end_index));
 
@@ -1273,7 +1272,7 @@ compiler::Node* StringBuiltinsAssembler::GetSubstitution(
   }
 
   BIND(&out);
-  return var_result.value();
+  return CAST(var_result.value());
 }
 
 // ES6 #sec-string.prototype.replace

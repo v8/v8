@@ -984,6 +984,7 @@ torque_files = [
   "src/builtins/string-iterator.tq",
   "src/builtins/string-pad.tq",
   "src/builtins/string-repeat.tq",
+  "src/builtins/string-replaceall.tq",
   "src/builtins/string-slice.tq",
   "src/builtins/string-startswith.tq",
   "src/builtins/string-substring.tq",

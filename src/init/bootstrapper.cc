@@ -4438,6 +4438,17 @@ void Genesis::InitializeGlobal_harmony_regexp_match_indices() {
   initial_map->AppendDescriptor(isolate(), &d);
 }
 
+void Genesis::InitializeGlobal_harmony_string_replaceall() {
+  if (!FLAG_harmony_string_replaceall) return;
+
+  Handle<JSFunction> string_fun(native_context()->string_function(), isolate());
+  Handle<JSObject> string_prototype(
+      JSObject::cast(string_fun->instance_prototype()), isolate());
+
+  SimpleInstallFunction(isolate(), string_prototype, "replaceAll",
+                        Builtins::kStringPrototypeReplaceAll, 2, true);
+}
+
 #ifdef V8_INTL_SUPPORT
 
 void Genesis::InitializeGlobal_harmony_intl_segmenter() {

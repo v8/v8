@@ -16,9 +16,11 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
   // ES#sec-getsubstitution
-  Node* GetSubstitution(Node* context, Node* subject_string,
-                        Node* match_start_index, Node* match_end_index,
-                        Node* replace_string);
+  TNode<String> GetSubstitution(TNode<Context> context,
+                                TNode<String> subject_string,
+                                TNode<Smi> match_start_index,
+                                TNode<Smi> match_end_index,
+                                TNode<String> replace_string);
   void StringEqual_Core(SloppyTNode<String> lhs, Node* lhs_instance_type,
                         SloppyTNode<String> rhs, Node* rhs_instance_type,
                         TNode<IntPtrT> length, Label* if_equal,
