@@ -1948,8 +1948,7 @@ class LiftoffCompiler {
       // 3) mask = diff & neg_index
       __ emit_i32_and(mask, diff, neg_index);
       // 4) mask = mask >> 31
-      __ LoadConstant(LiftoffRegister(tmp_const), WasmValue(int32_t{31}));
-      __ emit_i32_sar(mask, mask, tmp_const, pinned);
+      __ emit_i32_sar(mask, mask, 31);
 
       // Apply mask.
       __ emit_i32_and(index, index, mask);
@@ -1958,12 +1957,9 @@ class LiftoffCompiler {
     DEBUG_CODE_COMMENT("Check indirect call signature");
     // Load the signature from {instance->ift_sig_ids[key]}
     LOAD_INSTANCE_FIELD(table, IndirectFunctionTableSigIds, kSystemPointerSize);
-    // Multiply {index} by 4 to represent kInt32Size items.
-    STATIC_ASSERT(kInt32Size == 4);
-    // TODO(wasm): use a emit_i32_shli() instead of two adds.
-    // (currently cannot use shl on ia32/x64 because it clobbers %rcx).
-    __ emit_i32_add(index, index, index);
-    __ emit_i32_add(index, index, index);
+    // Shift {index} by 2 (multiply by 4) to represent kInt32Size items.
+    STATIC_ASSERT((1 << 2) == kInt32Size);
+    __ emit_i32_shl(index, index, 2);
     __ Load(LiftoffRegister(scratch), table, index, 0, LoadType::kI32Load,
             pinned);
 
