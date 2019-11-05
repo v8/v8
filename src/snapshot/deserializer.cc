@@ -156,13 +156,6 @@ void Deserializer::LogScriptEvents(Script script) {
   LOG(isolate_,
       ScriptEvent(Logger::ScriptEventType::kDeserialize, script.id()));
   LOG(isolate_, ScriptDetails(script));
-  TRACE_EVENT_OBJECT_CREATED_WITH_ID(
-      TRACE_DISABLED_BY_DEFAULT("v8.compile"), "Script",
-      TRACE_ID_WITH_SCOPE("v8::internal::Script", script.id()));
-  TRACE_EVENT_OBJECT_SNAPSHOT_WITH_ID(
-      TRACE_DISABLED_BY_DEFAULT("v8.compile"), "Script",
-      TRACE_ID_WITH_SCOPE("v8::internal::Script", script.id()),
-      script.ToTracedValue());
 }
 
 StringTableInsertionKey::StringTableInsertionKey(String string)

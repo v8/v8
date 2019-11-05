@@ -284,8 +284,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
     trace_turbo_filename_ = std::move(filename);
   }
 
-  std::unique_ptr<v8::tracing::TracedValue> ToTracedValue();
-
   TickCounter& tick_counter() { return tick_counter_; }
 
  private:
