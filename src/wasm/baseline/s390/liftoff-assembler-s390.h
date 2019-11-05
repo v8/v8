@@ -229,14 +229,14 @@ void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
     bailout(kUnsupportedArchitecture, "fp unop: " #name);                      \
     return true;                                                               \
   }
-#define UNIMPLEMENTED_I32_SHIFTOP(name)                                        \
-  void LiftoffAssembler::emit_##name(Register dst, Register src,               \
-                                     Register amount, LiftoffRegList pinned) { \
-    bailout(kUnsupportedArchitecture, "i32 shiftop: " #name);                  \
+#define UNIMPLEMENTED_I32_SHIFTOP(name)                          \
+  void LiftoffAssembler::emit_##name(Register dst, Register src, \
+                                     Register amount) {          \
+    bailout(kUnsupportedArchitecture, "i32 shiftop: " #name);    \
   }
 #define UNIMPLEMENTED_I64_SHIFTOP(name)                                        \
   void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister src, \
-                                     Register amount, LiftoffRegList pinned) { \
+                                     Register amount) {                        \
     bailout(kUnsupportedArchitecture, "i64 shiftop: " #name);                  \
   }
 

@@ -716,11 +716,8 @@ void LiftoffAssembler::emit_i32_xor(Register dst, Register lhs, int32_t imm) {
 namespace liftoff {
 inline void EmitShiftOperation(LiftoffAssembler* assm, Register dst,
                                Register src, Register amount,
-                               void (Assembler::*emit_shift)(Register),
-                               LiftoffRegList pinned) {
-  pinned.set(dst);
-  pinned.set(src);
-  pinned.set(amount);
+                               void (Assembler::*emit_shift)(Register)) {
+  LiftoffRegList pinned = LiftoffRegList::ForRegs(dst, src, amount);
   // If dst is ecx, compute into a tmp register first, then move to ecx.
   if (dst == ecx) {
     Register tmp = assm->GetUnusedRegister(kGpReg, pinned).gp();
@@ -753,10 +750,9 @@ inline void EmitShiftOperation(LiftoffAssembler* assm, Register dst,
 }
 }  // namespace liftoff
 
-void LiftoffAssembler::emit_i32_shl(Register dst, Register src, Register amount,
-                                    LiftoffRegList pinned) {
-  liftoff::EmitShiftOperation(this, dst, src, amount, &Assembler::shl_cl,
-                              pinned);
+void LiftoffAssembler::emit_i32_shl(Register dst, Register src,
+                                    Register amount) {
+  liftoff::EmitShiftOperation(this, dst, src, amount, &Assembler::shl_cl);
 }
 
 void LiftoffAssembler::emit_i32_shl(Register dst, Register src,
@@ -765,10 +761,9 @@ void LiftoffAssembler::emit_i32_shl(Register dst, Register src,
   shl(dst, amount & 31);
 }
 
-void LiftoffAssembler::emit_i32_sar(Register dst, Register src, Register amount,
-                                    LiftoffRegList pinned) {
-  liftoff::EmitShiftOperation(this, dst, src, amount, &Assembler::sar_cl,
-                              pinned);
+void LiftoffAssembler::emit_i32_sar(Register dst, Register src,
+                                    Register amount) {
+  liftoff::EmitShiftOperation(this, dst, src, amount, &Assembler::sar_cl);
 }
 
 void LiftoffAssembler::emit_i32_sar(Register dst, Register src,
@@ -777,10 +772,9 @@ void LiftoffAssembler::emit_i32_sar(Register dst, Register src,
   sar(dst, amount & 31);
 }
 
-void LiftoffAssembler::emit_i32_shr(Register dst, Register src, Register amount,
-                                    LiftoffRegList pinned) {
-  liftoff::EmitShiftOperation(this, dst, src, amount, &Assembler::shr_cl,
-                              pinned);
+void LiftoffAssembler::emit_i32_shr(Register dst, Register src,
+                                    Register amount) {
+  liftoff::EmitShiftOperation(this, dst, src, amount, &Assembler::shr_cl);
 }
 
 void LiftoffAssembler::emit_i32_shr(Register dst, Register src,
@@ -965,10 +959,9 @@ inline LiftoffRegister ReplaceInPair(LiftoffRegister pair, Register old_reg,
 
 inline void Emit64BitShiftOperation(
     LiftoffAssembler* assm, LiftoffRegister dst, LiftoffRegister src,
-    Register amount, void (TurboAssembler::*emit_shift)(Register, Register),
-    LiftoffRegList pinned) {
+    Register amount, void (TurboAssembler::*emit_shift)(Register, Register)) {
   // Temporary registers cannot overlap with {dst}.
-  pinned.set(dst);
+  LiftoffRegList pinned = LiftoffRegList::ForRegs(dst);
 
   constexpr size_t kMaxRegMoves = 3;
   base::SmallVector<LiftoffAssembler::ParallelRegisterMoveTuple, kMaxRegMoves>
@@ -1003,21 +996,21 @@ inline void Emit64BitShiftOperation(
 }  // namespace liftoff
 
 void LiftoffAssembler::emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
-                                    Register amount, LiftoffRegList pinned) {
+                                    Register amount) {
   liftoff::Emit64BitShiftOperation(this, dst, src, amount,
-                                   &TurboAssembler::ShlPair_cl, pinned);
+                                   &TurboAssembler::ShlPair_cl);
 }
 
 void LiftoffAssembler::emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
-                                    Register amount, LiftoffRegList pinned) {
+                                    Register amount) {
   liftoff::Emit64BitShiftOperation(this, dst, src, amount,
-                                   &TurboAssembler::SarPair_cl, pinned);
+                                   &TurboAssembler::SarPair_cl);
 }
 
 void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
-                                    Register amount, LiftoffRegList pinned) {
+                                    Register amount) {
   liftoff::Emit64BitShiftOperation(this, dst, src, amount,
-                                   &TurboAssembler::ShrPair_cl, pinned);
+                                   &TurboAssembler::ShrPair_cl);
 }
 
 void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,

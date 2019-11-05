@@ -998,13 +998,13 @@ class LiftoffCompiler {
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_f64_set_cond(cond, dst.gp(), lhs.fp(), rhs.fp());          \
         });
-#define CASE_I64_SHIFTOP(opcode, fn)                                           \
-  case kExpr##opcode:                                                          \
-    return EmitBinOp<kWasmI64, kWasmI64>([=](LiftoffRegister dst,              \
-                                             LiftoffRegister src,              \
-                                             LiftoffRegister amount) {         \
-      __ emit_##fn(dst, src, amount.is_pair() ? amount.low_gp() : amount.gp(), \
-                   {});                                                        \
+#define CASE_I64_SHIFTOP(opcode, fn)                                   \
+  case kExpr##opcode:                                                  \
+    return EmitBinOp<kWasmI64, kWasmI64>([=](LiftoffRegister dst,      \
+                                             LiftoffRegister src,      \
+                                             LiftoffRegister amount) { \
+      __ emit_##fn(dst, src,                                           \
+                   amount.is_pair() ? amount.low_gp() : amount.gp());  \
     });
 #define CASE_CCALL_BINOP(opcode, type, ext_ref_fn)                           \
   case kExpr##opcode:                                                        \

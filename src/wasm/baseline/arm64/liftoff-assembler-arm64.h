@@ -482,18 +482,18 @@ void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
     instruction(dst.D(), src.D());                                             \
     return true;                                                               \
   }
-#define I32_SHIFTOP(name, instruction)                                         \
-  void LiftoffAssembler::emit_##name(Register dst, Register src,               \
-                                     Register amount, LiftoffRegList pinned) { \
-    instruction(dst.W(), src.W(), amount.W());                                 \
-  }                                                                            \
-  void LiftoffAssembler::emit_##name(Register dst, Register src,               \
-                                     int32_t amount) {                         \
-    instruction(dst.W(), src.W(), amount & 31);                                \
+#define I32_SHIFTOP(name, instruction)                           \
+  void LiftoffAssembler::emit_##name(Register dst, Register src, \
+                                     Register amount) {          \
+    instruction(dst.W(), src.W(), amount.W());                   \
+  }                                                              \
+  void LiftoffAssembler::emit_##name(Register dst, Register src, \
+                                     int32_t amount) {           \
+    instruction(dst.W(), src.W(), amount & 31);                  \
   }
 #define I64_SHIFTOP(name, instruction)                                         \
   void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister src, \
-                                     Register amount, LiftoffRegList pinned) { \
+                                     Register amount) {                        \
     instruction(dst.gp().X(), src.gp().X(), amount.X());                       \
   }
 #define I64_SHIFTOP_I(name, instruction)                                       \

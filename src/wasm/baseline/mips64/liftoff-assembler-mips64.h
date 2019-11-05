@@ -639,10 +639,10 @@ bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
   return true;
 }
 
-#define I32_SHIFTOP(name, instruction)                                      \
-  void LiftoffAssembler::emit_i32_##name(                                   \
-      Register dst, Register src, Register amount, LiftoffRegList pinned) { \
-    instruction(dst, src, amount);                                          \
+#define I32_SHIFTOP(name, instruction)                               \
+  void LiftoffAssembler::emit_i32_##name(Register dst, Register src, \
+                                         Register amount) {          \
+    instruction(dst, src, amount);                                   \
   }
 #define I32_SHIFTOP_I(name, instruction)                             \
   I32_SHIFTOP(name, instruction##v)                                  \
@@ -739,11 +739,10 @@ I64_BINOP_I(xor, Xor)
 
 #undef I64_BINOP_I
 
-#define I64_SHIFTOP(name, instruction)                                         \
-  void LiftoffAssembler::emit_i64_##name(LiftoffRegister dst,                  \
-                                         LiftoffRegister src, Register amount, \
-                                         LiftoffRegList pinned) {              \
-    instruction(dst.gp(), src.gp(), amount);                                   \
+#define I64_SHIFTOP(name, instruction)                             \
+  void LiftoffAssembler::emit_i64_##name(                          \
+      LiftoffRegister dst, LiftoffRegister src, Register amount) { \
+    instruction(dst.gp(), src.gp(), amount);                       \
   }
 #define I64_SHIFTOP_I(name, instruction)                                    \
   I64_SHIFTOP(name, instruction##v)                                         \

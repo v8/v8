@@ -165,8 +165,7 @@ template <void (TurboAssembler::*op)(Register, Register, Register, Register,
                                      Register),
           bool is_left_shift>
 inline void I64Shiftop(LiftoffAssembler* assm, LiftoffRegister dst,
-                       LiftoffRegister src, Register amount,
-                       LiftoffRegList pinned) {
+                       LiftoffRegister src, Register amount) {
   Register src_low = src.low_gp();
   Register src_high = src.high_gp();
   Register dst_low = dst.low_gp();
@@ -174,8 +173,7 @@ inline void I64Shiftop(LiftoffAssembler* assm, LiftoffRegister dst,
   // Left shift writes {dst_high} then {dst_low}, right shifts write {dst_low}
   // then {dst_high}.
   Register clobbered_dst_reg = is_left_shift ? dst_high : dst_low;
-  pinned.set(clobbered_dst_reg);
-  pinned.set(src);
+  LiftoffRegList pinned = LiftoffRegList::ForRegs(clobbered_dst_reg, src);
   Register amount_capped =
       pinned.set(assm->GetUnusedRegister(kGpReg, pinned)).gp();
   assm->and_(amount_capped, amount, Operand(0x3F));
@@ -686,21 +684,21 @@ void LiftoffAssembler::FillStackSlotsWithZero(uint32_t index, uint32_t count) {
                                      int32_t imm) {              \
     instruction(dst, lhs, Operand(imm));                         \
   }
-#define I32_SHIFTOP(name, instruction)                                         \
-  void LiftoffAssembler::emit_##name(Register dst, Register src,               \
-                                     Register amount, LiftoffRegList pinned) { \
-    UseScratchRegisterScope temps(this);                                       \
-    Register scratch = temps.Acquire();                                        \
-    and_(scratch, amount, Operand(0x1f));                                      \
-    instruction(dst, src, Operand(scratch));                                   \
-  }                                                                            \
-  void LiftoffAssembler::emit_##name(Register dst, Register src,               \
-                                     int32_t amount) {                         \
-    if (V8_LIKELY((amount & 31) != 0)) {                                       \
-      instruction(dst, src, Operand(amount & 31));                             \
-    } else if (dst != src) {                                                   \
-      mov(dst, src);                                                           \
-    }                                                                          \
+#define I32_SHIFTOP(name, instruction)                           \
+  void LiftoffAssembler::emit_##name(Register dst, Register src, \
+                                     Register amount) {          \
+    UseScratchRegisterScope temps(this);                         \
+    Register scratch = temps.Acquire();                          \
+    and_(scratch, amount, Operand(0x1f));                        \
+    instruction(dst, src, Operand(scratch));                     \
+  }                                                              \
+  void LiftoffAssembler::emit_##name(Register dst, Register src, \
+                                     int32_t amount) {           \
+    if (V8_LIKELY((amount & 31) != 0)) {                         \
+      instruction(dst, src, Operand(amount & 31));               \
+    } else if (dst != src) {                                     \
+      mov(dst, src);                                             \
+    }                                                            \
   }
 #define FP32_UNOP(name, instruction)                                           \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
@@ -936,21 +934,18 @@ bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
 }
 
 void LiftoffAssembler::emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
-                                    Register amount, LiftoffRegList pinned) {
-  liftoff::I64Shiftop<&TurboAssembler::LslPair, true>(this, dst, src, amount,
-                                                      pinned);
+                                    Register amount) {
+  liftoff::I64Shiftop<&TurboAssembler::LslPair, true>(this, dst, src, amount);
 }
 
 void LiftoffAssembler::emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
-                                    Register amount, LiftoffRegList pinned) {
-  liftoff::I64Shiftop<&TurboAssembler::AsrPair, false>(this, dst, src, amount,
-                                                       pinned);
+                                    Register amount) {
+  liftoff::I64Shiftop<&TurboAssembler::AsrPair, false>(this, dst, src, amount);
 }
 
 void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
-                                    Register amount, LiftoffRegList pinned) {
-  liftoff::I64Shiftop<&TurboAssembler::LsrPair, false>(this, dst, src, amount,
-                                                       pinned);
+                                    Register amount) {
+  liftoff::I64Shiftop<&TurboAssembler::LsrPair, false>(this, dst, src, amount);
 }
 
 void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
