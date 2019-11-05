@@ -311,6 +311,12 @@ bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
   return true;
 }
 
+bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
+                                       LiftoffRegister src) {
+  bailout(kUnsupportedArchitecture, "i64_popcnt");
+  return true;
+}
+
 void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
                                      Label* trap_div_by_zero,
                                      Label* trap_div_unrepresentable) {
