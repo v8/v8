@@ -4312,23 +4312,11 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
   isolate_->IterateDeferredHandles(v);
   v->Synchronize(VisitorSynchronization::kHandleScope);
 
-  // Iterate over the builtin code objects and code stubs in the
-  // heap. Note that it is not necessary to iterate over code objects
-  // on scavenge collections.
+  // Iterate over the builtin code objects in the heap. Note that it is not
+  // necessary to iterate over code objects on scavenge collections.
   if (!isMinorGC) {
     IterateBuiltins(v);
     v->Synchronize(VisitorSynchronization::kBuiltins);
-
-    // The dispatch table is set up directly from the builtins using
-    // IntitializeDispatchTable so there is no need to iterate to create it.
-    if (mode != VISIT_FOR_SERIALIZATION) {
-      // Currently we iterate the dispatch table to update pointers to possibly
-      // moved Code objects for bytecode handlers.
-      // TODO(v8:6666): Remove iteration once builtins are embedded (and thus
-      // immovable) in every build configuration.
-      isolate_->interpreter()->IterateDispatchTable(v);
-      v->Synchronize(VisitorSynchronization::kDispatchTable);
-    }
   }
 
   // Iterate over global handles.
@@ -4403,7 +4391,7 @@ void Heap::IterateBuiltins(RootVisitor* v) {
                         FullObjectSlot(builtin_address(i)));
   }
 
-  // The entry table does not need to be updated if all builtins are embedded.
+  // The entry table doesn't need to be updated since all builtins are embedded.
   STATIC_ASSERT(Builtins::AllBuiltinsAreIsolateIndependent());
 }
 

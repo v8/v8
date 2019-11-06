@@ -89,6 +89,7 @@ Code Interpreter::GetBytecodeHandler(Bytecode bytecode,
 
 void Interpreter::SetBytecodeHandler(Bytecode bytecode,
                                      OperandScale operand_scale, Code handler) {
+  DCHECK(handler.is_off_heap_trampoline());
   DCHECK(handler.kind() == Code::BYTECODE_HANDLER);
   size_t index = GetDispatchTableIndex(bytecode, operand_scale);
   dispatch_table_[index] = handler.InstructionStart();
@@ -101,39 +102,6 @@ size_t Interpreter::GetDispatchTableIndex(Bytecode bytecode,
   size_t index = static_cast<size_t>(bytecode);
   return index + BytecodeOperands::OperandScaleAsIndex(operand_scale) *
                      kEntriesPerOperandScale;
-}
-
-void Interpreter::IterateDispatchTable(RootVisitor* v) {
-  if (!isolate_->serializer_enabled() && isolate_->embedded_blob() != nullptr) {
-// If we're not generating a snapshot, then every bytecode handler will be
-// off-heap, so there's no point iterating over them.
-#ifdef DEBUG
-    for (int i = 0; i < kDispatchTableSize; i++) {
-      Address code_entry = dispatch_table_[i];
-      CHECK(code_entry == kNullAddress ||
-            InstructionStream::PcIsOffHeap(isolate_, code_entry));
-    }
-#endif  // DEBUG
-    return;
-  }
-
-  for (int i = 0; i < kDispatchTableSize; i++) {
-    Address code_entry = dispatch_table_[i];
-    // Skip over off-heap bytecode handlers since they will never move.
-    if (InstructionStream::PcIsOffHeap(isolate_, code_entry)) continue;
-
-    // TODO(jkummerow): Would it hurt to simply do:
-    // if (code_entry == kNullAddress) continue;
-    Code code;
-    if (code_entry != kNullAddress) {
-      code = Code::GetCodeFromTargetAddress(code_entry);
-    }
-    Code old_code = code;
-    v->VisitRootPointer(Root::kDispatchTable, nullptr, FullObjectSlot(&code));
-    if (code != old_code) {
-      dispatch_table_[i] = code.entry();
-    }
-  }
 }
 
 int Interpreter::InterruptBudget() {

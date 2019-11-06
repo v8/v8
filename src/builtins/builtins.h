@@ -136,9 +136,6 @@ class Builtins {
     return kAllBuiltinsAreIsolateIndependent;
   }
 
-  // Wasm runtime stubs are treated specially by wasm. To guarantee reachability
-  // through near jumps, their code is completely copied into a fresh off-heap
-  // area.
   static bool IsWasmRuntimeStub(int index);
 
   // Initializes the table of builtin entry points based on the current contents
