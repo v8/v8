@@ -2965,7 +2965,11 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
         info(), data->graph(), data->schedule(), data->isolate()));
   }
 
-  bool verify_stub_graph = data->verify_graph();
+  bool verify_stub_graph =
+      data->verify_graph() ||
+      (FLAG_turbo_verify_machine_graph != nullptr &&
+       (!strcmp(FLAG_turbo_verify_machine_graph, "*") ||
+        !strcmp(FLAG_turbo_verify_machine_graph, data->debug_name())));
   // Jump optimization runs instruction selection twice, but the instruction
   // selector mutates nodes like swapping the inputs of a load, which can
   // violate the machine graph verification rules. So we skip the second
@@ -2974,10 +2978,7 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
   if (jump_opt && jump_opt->is_optimizing()) {
     verify_stub_graph = false;
   }
-  if (verify_stub_graph ||
-      (FLAG_turbo_verify_machine_graph != nullptr &&
-       (!strcmp(FLAG_turbo_verify_machine_graph, "*") ||
-        !strcmp(FLAG_turbo_verify_machine_graph, data->debug_name())))) {
+  if (verify_stub_graph) {
     if (FLAG_trace_verify_csa) {
       AllowHandleDereference allow_deref;
       CodeTracer::Scope tracing_scope(data->GetCodeTracer());
