@@ -26,9 +26,8 @@ using InnerScopeCallsEvalField =
     ScopeSloppyEvalCanExtendVarsField::Next<bool, 1>;
 using NeedsPrivateNameContextChainRecalcField =
     InnerScopeCallsEvalField::Next<bool, 1>;
-using CanElideThisHoleChecks =
+using ShouldSaveClassVariableIndexField =
     NeedsPrivateNameContextChainRecalcField::Next<bool, 1>;
-using ShouldSaveClassVariableIndexField = CanElideThisHoleChecks::Next<bool, 1>;
 
 using VariableMaybeAssignedField = BitField8<bool, 0, 1>;
 using VariableContextAllocatedField = VariableMaybeAssignedField::Next<bool, 1>;
@@ -357,7 +356,7 @@ void PreparseDataBuilder::SaveDataForScope(Scope* scope) {
   byte_data_.WriteUint8(scope->scope_type());
 #endif
 
-  uint8_t scope_data_flags =
+  uint8_t eval_and_private_recalc =
       ScopeSloppyEvalCanExtendVarsField::encode(
           scope->is_declaration_scope() &&
           scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) |
@@ -366,14 +365,11 @@ void PreparseDataBuilder::SaveDataForScope(Scope* scope) {
           scope->is_function_scope() &&
           scope->AsDeclarationScope()
               ->needs_private_name_context_chain_recalc()) |
-      CanElideThisHoleChecks::encode(
-          scope->is_declaration_scope() &&
-          scope->AsDeclarationScope()->can_elide_this_hole_checks()) |
       ShouldSaveClassVariableIndexField::encode(
           scope->is_class_scope() &&
           scope->AsClassScope()->should_save_class_variable_index());
   byte_data_.Reserve(kUint8Size);
-  byte_data_.WriteUint8(scope_data_flags);
+  byte_data_.WriteUint8(eval_and_private_recalc);
 
   if (scope->is_function_scope()) {
     Variable* function = scope->AsDeclarationScope()->function_var();
@@ -624,9 +620,6 @@ void BaseConsumedPreparseData<Data>::RestoreDataForScope(
   }
   if (NeedsPrivateNameContextChainRecalcField::decode(scope_data_flags)) {
     scope->AsDeclarationScope()->RecordNeedsPrivateNameContextChainRecalc();
-  }
-  if (CanElideThisHoleChecks::decode(scope_data_flags)) {
-    scope->AsDeclarationScope()->set_can_elide_this_hole_checks();
   }
   if (ShouldSaveClassVariableIndexField::decode(scope_data_flags)) {
     Variable* var;
