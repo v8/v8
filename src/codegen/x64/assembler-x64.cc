@@ -1113,20 +1113,6 @@ void Assembler::call(Operand op) {
   emit_operand(0x2, op);
 }
 
-// Calls directly to the given address using a relative offset.
-// Should only ever be used in Code objects for calls within the
-// same Code object. Should not be used when generating new code (use labels),
-// but only when patching existing code.
-void Assembler::call(Address target) {
-  EnsureSpace ensure_space(this);
-  // 1110 1000 #32-bit disp.
-  emit(0xE8);
-  Address source = reinterpret_cast<Address>(pc_) + 4;
-  intptr_t displacement = target - source;
-  DCHECK(is_int32(displacement));
-  emitl(static_cast<int32_t>(displacement));
-}
-
 void Assembler::clc() {
   EnsureSpace ensure_space(this);
   emit(0xF8);

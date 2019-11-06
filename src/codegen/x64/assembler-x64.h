@@ -732,12 +732,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void call(Handle<Code> target,
             RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);
 
-  // Calls directly to the given address using a relative offset.
-  // Should only ever be used in Code objects for calls within the
-  // same Code object. Should not be used when generating new code (use labels),
-  // but only when patching existing code.
-  void call(Address target);
-
   // Call near absolute indirect, address in register
   void call(Register adr);
 
