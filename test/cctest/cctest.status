@@ -443,7 +443,7 @@
   # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
   'test-api/WasmI32AtomicWaitCallback': [SKIP],
   'test-api/WasmI64AtomicWaitCallback': [SKIP],
-  'test-api/WasmStreaming*': [SKIP],
+  'test-api-wasm/WasmStreaming*': [SKIP],
   'test-backing-store/Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree': [SKIP],
   'test-c-wasm-entry/*': [SKIP],
   'test-jump-table-assembler/*': [SKIP],
