@@ -215,7 +215,10 @@ RUNTIME_FUNCTION(Runtime_RuntimeEvaluateREPL) {
   CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, DebugEvaluate::GlobalREPL(isolate, source));
+      isolate, result,
+      DebugEvaluate::Global(isolate, source,
+                            debug::EvaluateGlobalMode::kDefault,
+                            REPLMode::kYes));
 
   return *result;
 }

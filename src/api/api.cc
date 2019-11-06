@@ -9864,14 +9864,16 @@ v8::Local<debug::GeneratorObject> debug::GeneratorObject::Cast(
 
 MaybeLocal<v8::Value> debug::EvaluateGlobal(v8::Isolate* isolate,
                                             v8::Local<v8::String> source,
-                                            EvaluateGlobalMode mode) {
+                                            EvaluateGlobalMode mode,
+                                            bool repl) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(internal_isolate, Value);
+  i::REPLMode repl_mode = repl ? i::REPLMode::kYes : i::REPLMode::kNo;
   Local<Value> result;
-  has_pending_exception =
-      !ToLocal<Value>(i::DebugEvaluate::Global(
-                          internal_isolate, Utils::OpenHandle(*source), mode),
-                      &result);
+  has_pending_exception = !ToLocal<Value>(
+      i::DebugEvaluate::Global(internal_isolate, Utils::OpenHandle(*source),
+                               mode, repl_mode),
+      &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
 }

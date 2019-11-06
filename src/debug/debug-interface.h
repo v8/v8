@@ -479,8 +479,8 @@ enum class EvaluateGlobalMode {
 };
 
 V8_EXPORT_PRIVATE v8::MaybeLocal<v8::Value> EvaluateGlobal(
-    v8::Isolate* isolate, v8::Local<v8::String> source,
-    EvaluateGlobalMode mode);
+    v8::Isolate* isolate, v8::Local<v8::String> source, EvaluateGlobalMode mode,
+    bool repl_mode = false);
 
 int GetDebuggingId(v8::Local<v8::Function> function);
 
