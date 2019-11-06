@@ -282,12 +282,10 @@ TEST(DisasmX64) {
   __ call(&L2);
   __ nop();
   __ bind(&L2);
-  // TODO(mstarzinger): The following is protected.
-  // __ call(Operand(rbx, rcx, times_4, 10000));
+  __ call(rcx);
   __ nop();
   Handle<Code> ic = BUILTIN_CODE(isolate, ArrayFrom);
   __ call(ic, RelocInfo::CODE_TARGET);
-  __ nop();
   __ nop();
 
   __ jmp(&L1);
