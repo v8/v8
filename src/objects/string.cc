@@ -903,25 +903,6 @@ ComparisonResult String::Compare(Isolate* isolate, Handle<String> x,
   return result;
 }
 
-int32_t String::ToInt32(Address key_addr) {
-  DisallowHeapAllocation no_gc;
-  String key(key_addr);
-  uint32_t index;
-  if (!key.AsArrayIndex(&index)) return -1;
-  if (index <= INT_MAX) return index;
-
-  // TODO(gsathya): This check exists because we only support upto
-  // INT_MAX for element access in the builtins. We return -2 to
-  // distinguish the case where index <= JSArray::kMaxArrayIndex and
-  // index > INT_MAX so the builtin can handle this appropriately.
-  //
-  // Once we change the builtins to correctly support element access
-  // for indices up to JSArray::kMaxArrayIndex, this check can go
-  // away.
-  if (index <= JSArray::kMaxArrayIndex) return -2;
-  return -1;
-}
-
 Object String::IndexOf(Isolate* isolate, Handle<Object> receiver,
                        Handle<Object> search, Handle<Object> position) {
   if (receiver->IsNullOrUndefined(isolate)) {

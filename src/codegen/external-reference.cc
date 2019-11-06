@@ -641,7 +641,8 @@ FUNCTION_REFERENCE(copy_typed_array_elements_to_typed_array,
 FUNCTION_REFERENCE(copy_typed_array_elements_slice, CopyTypedArrayElementsSlice)
 FUNCTION_REFERENCE(try_internalize_string_function,
                    StringTable::LookupStringIfExists_NoAllocate)
-FUNCTION_REFERENCE(string_to_int32_function, String::ToInt32)
+FUNCTION_REFERENCE(object_to_array_index_slow_function,
+                   Object::ToArrayIndexSlow)
 
 static Address LexicographicCompareWrapper(Isolate* isolate, Address smi_x,
                                            Address smi_y) {
