@@ -20,8 +20,6 @@ class HandlerBuiltinsAssembler : public CodeStubAssembler {
 
  protected:
   void Generate_KeyedStoreIC_SloppyArguments();
-  void Generate_KeyedStoreIC_Slow();
-  void Generate_StoreInArrayLiteralIC_Slow();
 
   // Essentially turns runtime elements kinds (TNode<Int32T>) into
   // compile-time types (int) by dispatching over the runtime type and
@@ -202,14 +200,6 @@ TF_BUILTIN(LoadIC_StringWrapperLength, CodeStubAssembler) {
   Return(LoadStringLengthAsSmi(string));
 }
 
-TF_BUILTIN(KeyedLoadIC_Slow, CodeStubAssembler) {
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> name = CAST(Parameter(Descriptor::kName));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-
-  TailCallRuntime(Runtime::kGetProperty, context, receiver, name);
-}
-
 void Builtins::Generate_KeyedStoreIC_Megamorphic(
     compiler::CodeAssemblerState* state) {
   KeyedStoreGenericGenerator::Generate(state);
@@ -218,74 +208,6 @@ void Builtins::Generate_KeyedStoreIC_Megamorphic(
 void Builtins::Generate_StoreIC_NoFeedback(
     compiler::CodeAssemblerState* state) {
   StoreICNoFeedbackGenerator::Generate(state);
-}
-
-// TODO(mythria): Create a Descriptor without feedback vector and slot
-// parameters.
-void HandlerBuiltinsAssembler::Generate_KeyedStoreIC_Slow() {
-  using Descriptor = StoreWithVectorDescriptor;
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> name = CAST(Parameter(Descriptor::kName));
-  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-
-  // The slow case calls into the runtime to complete the store without causing
-  // an IC miss that would otherwise cause a transition to the generic stub.
-  TailCallRuntime(Runtime::kKeyedStoreIC_Slow, context, value, receiver, name);
-}
-
-TF_BUILTIN(KeyedStoreIC_Slow, HandlerBuiltinsAssembler) {
-  Generate_KeyedStoreIC_Slow();
-}
-
-TF_BUILTIN(KeyedStoreIC_Slow_Standard, HandlerBuiltinsAssembler) {
-  Generate_KeyedStoreIC_Slow();
-}
-
-TF_BUILTIN(KeyedStoreIC_Slow_GrowNoTransitionHandleCOW,
-           HandlerBuiltinsAssembler) {
-  Generate_KeyedStoreIC_Slow();
-}
-
-TF_BUILTIN(KeyedStoreIC_Slow_NoTransitionIgnoreOOB, HandlerBuiltinsAssembler) {
-  Generate_KeyedStoreIC_Slow();
-}
-
-TF_BUILTIN(KeyedStoreIC_Slow_NoTransitionHandleCOW, HandlerBuiltinsAssembler) {
-  Generate_KeyedStoreIC_Slow();
-}
-
-void HandlerBuiltinsAssembler::Generate_StoreInArrayLiteralIC_Slow() {
-  using Descriptor = StoreWithVectorDescriptor;
-  TNode<JSArray> array = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> index = CAST(Parameter(Descriptor::kName));
-  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TailCallRuntime(Runtime::kStoreInArrayLiteralIC_Slow, context, value, array,
-                  index);
-}
-
-TF_BUILTIN(StoreInArrayLiteralIC_Slow, HandlerBuiltinsAssembler) {
-  Generate_StoreInArrayLiteralIC_Slow();
-}
-
-TF_BUILTIN(StoreInArrayLiteralIC_Slow_Standard, HandlerBuiltinsAssembler) {
-  Generate_StoreInArrayLiteralIC_Slow();
-}
-
-TF_BUILTIN(StoreInArrayLiteralIC_Slow_GrowNoTransitionHandleCOW,
-           HandlerBuiltinsAssembler) {
-  Generate_StoreInArrayLiteralIC_Slow();
-}
-
-TF_BUILTIN(StoreInArrayLiteralIC_Slow_NoTransitionIgnoreOOB,
-           HandlerBuiltinsAssembler) {
-  Generate_StoreInArrayLiteralIC_Slow();
-}
-
-TF_BUILTIN(StoreInArrayLiteralIC_Slow_NoTransitionHandleCOW,
-           HandlerBuiltinsAssembler) {
-  Generate_StoreInArrayLiteralIC_Slow();
 }
 
 // All possible fast-to-fast transitions. Transitions to dictionary mode are not
@@ -674,14 +596,6 @@ TF_BUILTIN(HasIndexedInterceptorIC, CodeStubAssembler) {
   BIND(&if_keyisinvalid);
   TailCallRuntime(Runtime::kKeyedHasIC_Miss, context, receiver, key, slot,
                   vector);
-}
-
-TF_BUILTIN(HasIC_Slow, CodeStubAssembler) {
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Object> name = CAST(Parameter(Descriptor::kName));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-
-  TailCallRuntime(Runtime::kHasProperty, context, receiver, name);
 }
 
 }  // namespace internal

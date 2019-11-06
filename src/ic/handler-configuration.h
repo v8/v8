@@ -224,6 +224,13 @@ class StoreHandler final : public DataHandler {
   // Index of a value entry in the descriptor array.
   using DescriptorBits =
       LookupOnReceiverBits::Next<unsigned, kDescriptorIndexBitCount>;
+
+  //
+  // Encodes the bits when StoreSlow contains KeyedAccessStoreMode.
+  //
+  using KeyedAccessStoreModeBits =
+      DescriptorBits::Next<KeyedAccessStoreMode, 2>;
+
   //
   // Encoding when KindBits contains kTransitionToConstant.
   //
@@ -291,10 +298,14 @@ class StoreHandler final : public DataHandler {
   static inline Handle<Smi> StoreInterceptor(Isolate* isolate);
 
   // Creates a Smi-handler for storing a property.
-  static inline Handle<Smi> StoreSlow(Isolate* isolate);
+  static inline Handle<Smi> StoreSlow(
+      Isolate* isolate, KeyedAccessStoreMode store_mode = STANDARD_STORE);
 
   // Creates a Smi-handler for storing a property on a proxy.
   static inline Handle<Smi> StoreProxy(Isolate* isolate);
+
+  // Decodes the KeyedAccessStoreMode from a {handler}.
+  static KeyedAccessStoreMode GetKeyedAccessStoreMode(MaybeObject handler);
 
  private:
   static inline Handle<Smi> StoreField(Isolate* isolate, Kind kind,
