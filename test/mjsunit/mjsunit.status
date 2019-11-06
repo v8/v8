@@ -1072,13 +1072,14 @@
   # Slow tests.
   'regress/regress-crbug-493779': [SKIP],
   'string-replace-gc': [SKIP],
-  'wasm/stack': [SKIP],
 }],  # variant == slow_path and gc_stress
 
 ##############################################################################
 ['variant == slow_path', {
-  # Slow tests.
+  # Slow tests doing too many array manipulations each of which takes slow
+  # path usually through a runtime call.
   'regress/wasm/regress-9759': [SKIP],
+  'wasm/stack': [SKIP],
 
   # Tests that are not compatible with the --force-slow-path mode.
   'filter-element-kinds': [SKIP],
