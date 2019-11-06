@@ -215,9 +215,7 @@ namespace internal {
                                                                                \
   /* Handlers */                                                               \
   TFH(KeyedLoadIC_PolymorphicName, LoadWithVector)                             \
-  TFH(KeyedLoadIC_Slow, LoadWithVector)                                        \
   TFH(KeyedStoreIC_Megamorphic, Store)                                         \
-  TFH(KeyedStoreIC_Slow, StoreWithVector)                                      \
   TFH(LoadGlobalIC_NoFeedback, LoadGlobalNoFeedback)                           \
   TFH(LoadIC_FunctionPrototype, LoadWithVector)                                \
   TFH(LoadIC_StringLength, LoadWithVector)                                     \
@@ -225,25 +223,16 @@ namespace internal {
   TFH(LoadIC_NoFeedback, LoadNoFeedback)                                       \
   TFH(StoreGlobalIC_Slow, StoreWithVector)                                     \
   TFH(StoreIC_NoFeedback, Store)                                               \
-  TFH(StoreInArrayLiteralIC_Slow, StoreWithVector)                             \
   TFH(KeyedLoadIC_SloppyArguments, LoadWithVector)                             \
   TFH(LoadIndexedInterceptorIC, LoadWithVector)                                \
   TFH(KeyedStoreIC_SloppyArguments_Standard, StoreWithVector)                  \
   TFH(KeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW, StoreWithVector) \
   TFH(KeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB, StoreWithVector)     \
   TFH(KeyedStoreIC_SloppyArguments_NoTransitionHandleCOW, StoreWithVector)     \
-  TFH(StoreInArrayLiteralIC_Slow_Standard, StoreWithVector)                    \
   TFH(StoreFastElementIC_Standard, StoreWithVector)                            \
   TFH(StoreFastElementIC_GrowNoTransitionHandleCOW, StoreWithVector)           \
   TFH(StoreFastElementIC_NoTransitionIgnoreOOB, StoreWithVector)               \
   TFH(StoreFastElementIC_NoTransitionHandleCOW, StoreWithVector)               \
-  TFH(StoreInArrayLiteralIC_Slow_GrowNoTransitionHandleCOW, StoreWithVector)   \
-  TFH(StoreInArrayLiteralIC_Slow_NoTransitionIgnoreOOB, StoreWithVector)       \
-  TFH(StoreInArrayLiteralIC_Slow_NoTransitionHandleCOW, StoreWithVector)       \
-  TFH(KeyedStoreIC_Slow_Standard, StoreWithVector)                             \
-  TFH(KeyedStoreIC_Slow_GrowNoTransitionHandleCOW, StoreWithVector)            \
-  TFH(KeyedStoreIC_Slow_NoTransitionIgnoreOOB, StoreWithVector)                \
-  TFH(KeyedStoreIC_Slow_NoTransitionHandleCOW, StoreWithVector)                \
   TFH(ElementsTransitionAndStore_Standard, StoreTransition)                    \
   TFH(ElementsTransitionAndStore_GrowNoTransitionHandleCOW, StoreTransition)   \
   TFH(ElementsTransitionAndStore_NoTransitionIgnoreOOB, StoreTransition)       \
@@ -251,7 +240,6 @@ namespace internal {
   TFH(KeyedHasIC_PolymorphicName, LoadWithVector)                              \
   TFH(KeyedHasIC_SloppyArguments, LoadWithVector)                              \
   TFH(HasIndexedInterceptorIC, LoadWithVector)                                 \
-  TFH(HasIC_Slow, LoadWithVector)                                              \
                                                                                \
   /* Microtask helpers */                                                      \
   TFS(EnqueueMicrotask, kMicrotask)                                            \

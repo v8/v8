@@ -1109,14 +1109,6 @@ bool BuiltinHasKeyedAccessStoreMode(int builtin_index) {
     case Builtins::kStoreFastElementIC_GrowNoTransitionHandleCOW:
     case Builtins::kStoreFastElementIC_NoTransitionIgnoreOOB:
     case Builtins::kStoreFastElementIC_NoTransitionHandleCOW:
-    case Builtins::kStoreInArrayLiteralIC_Slow_Standard:
-    case Builtins::kStoreInArrayLiteralIC_Slow_GrowNoTransitionHandleCOW:
-    case Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionIgnoreOOB:
-    case Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionHandleCOW:
-    case Builtins::kKeyedStoreIC_Slow_Standard:
-    case Builtins::kKeyedStoreIC_Slow_GrowNoTransitionHandleCOW:
-    case Builtins::kKeyedStoreIC_Slow_NoTransitionIgnoreOOB:
-    case Builtins::kKeyedStoreIC_Slow_NoTransitionHandleCOW:
     case Builtins::kElementsTransitionAndStore_Standard:
     case Builtins::kElementsTransitionAndStore_GrowNoTransitionHandleCOW:
     case Builtins::kElementsTransitionAndStore_NoTransitionIgnoreOOB:
@@ -1132,26 +1124,18 @@ KeyedAccessStoreMode KeyedAccessStoreModeForBuiltin(int builtin_index) {
   DCHECK(BuiltinHasKeyedAccessStoreMode(builtin_index));
   switch (builtin_index) {
     case Builtins::kKeyedStoreIC_SloppyArguments_Standard:
-    case Builtins::kStoreInArrayLiteralIC_Slow_Standard:
-    case Builtins::kKeyedStoreIC_Slow_Standard:
     case Builtins::kStoreFastElementIC_Standard:
     case Builtins::kElementsTransitionAndStore_Standard:
       return STANDARD_STORE;
     case Builtins::kKeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW:
-    case Builtins::kStoreInArrayLiteralIC_Slow_GrowNoTransitionHandleCOW:
-    case Builtins::kKeyedStoreIC_Slow_GrowNoTransitionHandleCOW:
     case Builtins::kStoreFastElementIC_GrowNoTransitionHandleCOW:
     case Builtins::kElementsTransitionAndStore_GrowNoTransitionHandleCOW:
       return STORE_AND_GROW_HANDLE_COW;
     case Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB:
-    case Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionIgnoreOOB:
-    case Builtins::kKeyedStoreIC_Slow_NoTransitionIgnoreOOB:
     case Builtins::kStoreFastElementIC_NoTransitionIgnoreOOB:
     case Builtins::kElementsTransitionAndStore_NoTransitionIgnoreOOB:
       return STORE_IGNORE_OUT_OF_BOUNDS;
     case Builtins::kKeyedStoreIC_SloppyArguments_NoTransitionHandleCOW:
-    case Builtins::kStoreInArrayLiteralIC_Slow_NoTransitionHandleCOW:
-    case Builtins::kKeyedStoreIC_Slow_NoTransitionHandleCOW:
     case Builtins::kStoreFastElementIC_NoTransitionHandleCOW:
     case Builtins::kElementsTransitionAndStore_NoTransitionHandleCOW:
       return STORE_HANDLE_COW;
@@ -1178,14 +1162,29 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
     if (maybe_code_handler.object()->IsStoreHandler()) {
       Handle<StoreHandler> data_handler =
           Handle<StoreHandler>::cast(maybe_code_handler.object());
-      handler = handle(Code::cast(data_handler->smi_handler()),
-                       vector().GetIsolate());
+
+      if ((data_handler->smi_handler()).IsSmi()) {
+        // Decode the KeyedAccessStoreMode information from the Handler.
+        mode = StoreHandler::GetKeyedAccessStoreMode(
+            MaybeObject::FromObject(data_handler->smi_handler()));
+        if (mode != STANDARD_STORE) return mode;
+        continue;
+      } else {
+        handler = handle(Code::cast(data_handler->smi_handler()),
+                         vector().GetIsolate());
+      }
+
     } else if (maybe_code_handler.object()->IsSmi()) {
-      // Skip proxy handlers and the slow handler.
+      // Skip for Proxy Handlers.
+      if (*(maybe_code_handler.object()) ==
+          *StoreHandler::StoreProxy(GetIsolate()))
+        continue;
+      // Verify it is Slow handler
       DCHECK(*(maybe_code_handler.object()) ==
-                 *StoreHandler::StoreProxy(GetIsolate()) ||
-             *(maybe_code_handler.object()) ==
                  *StoreHandler::StoreSlow(GetIsolate()));
+      // Decode the KeyedAccessStoreMode information from the Handler.
+      mode = StoreHandler::GetKeyedAccessStoreMode(*maybe_code_handler);
+      if (mode != STANDARD_STORE) return mode;
       continue;
     } else {
       // Element store without prototype chain check.

@@ -1126,13 +1126,12 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
   InstanceType instance_type = receiver_map->instance_type();
   if (instance_type < FIRST_NONSTRING_TYPE) {
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadIndexedStringDH);
-    if (IsAnyHas()) return BUILTIN_CODE(isolate(), HasIC_Slow);
+    if (IsAnyHas()) return LoadHandler::LoadSlow(isolate());
     return LoadHandler::LoadIndexedString(isolate(), load_mode);
   }
   if (instance_type < FIRST_JS_RECEIVER_TYPE) {
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_SlowStub);
-    return IsAnyHas() ? BUILTIN_CODE(isolate(), HasIC_Slow)
-                      : BUILTIN_CODE(isolate(), KeyedLoadIC_Slow);
+    return LoadHandler::LoadSlow(isolate());
   }
   if (instance_type == JS_PROXY_TYPE) {
     return LoadHandler::LoadProxy(isolate());
@@ -1905,7 +1904,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
   }
 
   // TODO(ishell): move to StoreHandler::StoreElement().
-  Handle<Code> code;
+  Handle<Object> code;
   if (receiver_map->has_sloppy_arguments_elements()) {
     // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_KeyedStoreSloppyArgumentsStub);
@@ -1921,18 +1920,16 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
   } else if (IsStoreInArrayLiteralICKind(kind())) {
     // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), StoreInArrayLiteralIC_SlowStub);
-    code =
-        CodeFactory::StoreInArrayLiteralIC_Slow(isolate(), store_mode).code();
+    return StoreHandler::StoreSlow(isolate(), store_mode);
   } else {
     // TODO(jgruber): Update counter name.
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreElementStub);
     DCHECK(DICTIONARY_ELEMENTS == receiver_map->elements_kind() ||
            receiver_map->has_frozen_elements());
-    code = CodeFactory::KeyedStoreIC_Slow(isolate(), store_mode).code();
+    code = StoreHandler::StoreSlow(isolate(), store_mode);
   }
 
   if (IsStoreInArrayLiteralICKind(kind())) return code;
-
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
   if (validity_cell->IsSmi()) {

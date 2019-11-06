@@ -177,6 +177,19 @@ KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(MaybeObject handler) {
 }
 
 // static
+KeyedAccessStoreMode StoreHandler::GetKeyedAccessStoreMode(
+    MaybeObject handler) {
+  DisallowHeapAllocation no_gc;
+  if (handler->IsSmi()) {
+    int const raw_handler = handler.ToSmi().value();
+    KeyedAccessStoreMode store_mode =
+        KeyedAccessStoreModeBits::decode(raw_handler);
+    return store_mode;
+  }
+  return STANDARD_STORE;
+}
+
+// static
 Handle<Object> StoreHandler::StoreElementTransition(
     Isolate* isolate, Handle<Map> receiver_map, Handle<Map> transition,
     KeyedAccessStoreMode store_mode) {
