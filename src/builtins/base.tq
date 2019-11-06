@@ -1419,6 +1419,11 @@ const kArrayBufferMaxByteLength:
     constexpr uintptr generates 'JSArrayBuffer::kMaxByteLength';
 const kMaxTypedArrayInHeap:
     constexpr int31 generates 'JSTypedArray::kMaxSizeInHeap';
+// CSA does not support 64-bit types on 32-bit platforms so as a workaround the
+// kMaxSafeIntegerUint64 is defined as uintptr and allowed to be used only
+// inside if constexpr (Is64()) i.e. on 64-bit architectures.
+const kMaxSafeIntegerUint64: constexpr uintptr
+    generates 'static_cast<uintptr_t>(kMaxSafeIntegerUint64)';
 const kMaxSafeInteger: constexpr float64 generates 'kMaxSafeInteger';
 const kMaxUInt32Double: constexpr float64 generates 'kMaxUInt32Double';
 const kSmiMaxValue: constexpr uintptr generates 'kSmiMaxValue';
@@ -1463,6 +1468,10 @@ const kInvalidDataViewAccessorOffset: constexpr MessageTemplate
     generates 'MessageTemplate::kInvalidDataViewAccessorOffset';
 const kStrictReadOnlyProperty: constexpr MessageTemplate
     generates 'MessageTemplate::kStrictReadOnlyProperty';
+const kTypedArraySetOffsetOutOfBounds: constexpr MessageTemplate
+    generates 'MessageTemplate::kTypedArraySetOffsetOutOfBounds';
+const kInvalidArgument: constexpr MessageTemplate
+    generates 'MessageTemplate::kInvalidArgument';
 
 const kString: constexpr PrimitiveType
     generates 'PrimitiveType::kString';
@@ -2036,6 +2045,9 @@ extern macro IsElementsKindLessThanOrEqual(
     ElementsKind, constexpr ElementsKind): bool;
 extern macro IsElementsKindGreaterThan(
     ElementsKind, constexpr ElementsKind): bool;
+extern macro IsElementsKindInRange(
+    ElementsKind, constexpr ElementsKind, constexpr ElementsKind): bool;
+
 extern macro IsFastElementsKind(constexpr ElementsKind): constexpr bool;
 extern macro IsDoubleElementsKind(constexpr ElementsKind): constexpr bool;
 
@@ -2694,6 +2706,8 @@ Cast<FastJSRegExp>(implicit context: Context)(o: HeapObject): FastJSRegExp
 
 Cast<FastJSArray>(implicit context: Context)(o: HeapObject): FastJSArray
     labels CastError {
+  if (IsForceSlowPath()) goto CastError;
+
   const map: Map = o.map;
   if (!IsJSArrayMap(map)) goto CastError;
 
@@ -3727,6 +3741,28 @@ macro SameValue(a: JSAny, b: JSAny): bool {
   BranchIfSameValue(a, b) otherwise return true, return false;
 }
 
+// Does "if (index1 + index2 > limit) goto IfOverflow" in an uintptr overflow
+// friendly way where index1 and index2 are in [0, kMaxSafeInteger] range.
+macro CheckIntegerIndexAdditionOverflow(
+    index1: uintptr, index2: uintptr, limit: uintptr) labels IfOverflow {
+  if constexpr (Is64()) {
+    assert(index1 <= kMaxSafeIntegerUint64);
+    assert(index2 <= kMaxSafeIntegerUint64);
+    // Given that both index1 and index2 are in a safe integer range the
+    // addition can't overflow.
+    if (index1 + index2 > limit) goto IfOverflow;
+  } else {
+    // Uintptr range is "smaller" than [0, kMaxSafeInteger] range, so
+    // "index1 + index2" may overflow, so we check the condition in the
+    // following way "if (index1 > limit - index2) goto IfOverflow" and check
+    // that "limit - index2" does not underflow.
+    const index1Limit = limit - index2;
+    if (index1 > index1Limit) goto IfOverflow;
+    // Handle potential index1Limit underflow.
+    if (index1Limit > limit) goto IfOverflow;
+  }
+}
+
 // TODO(tebbi): Define enum here once they appear in Torque.
 //
 // The value is a SafeInteger that fits into uintptr range, so no bounds checks
@@ -3806,6 +3842,14 @@ macro ChangeSafeIntegerNumberToUintPtr(value: Number):
   label InvalidValue {
     unreachable;
   }
+}
+
+transitioning macro ToUintPtr(implicit context: Context)(value: JSAny):
+    uintptr labels IfLessThanZero, IfUIntPtrOverflow, IfSafeIntegerOverflow {
+  if (value == Undefined) return 0;
+  const indexNumber = ToInteger_Inline(context, value, kTruncateMinusZero);
+  return TryNumberToUintPtr(indexNumber, kModeValueIsAnyNumber)
+      otherwise IfLessThanZero, IfUIntPtrOverflow, IfSafeIntegerOverflow;
 }
 
 // https://tc39.github.io/ecma262/#sec-toindex

@@ -35,13 +35,13 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                                            TNode<UintPtrT> byte_offset);
 
   // Returns true if kind is either UINT8_ELEMENTS or UINT8_CLAMPED_ELEMENTS.
-  TNode<BoolT> IsUint8ElementsKind(TNode<Word32T> kind);
+  TNode<BoolT> IsUint8ElementsKind(TNode<Int32T> kind);
 
   // Returns true if kind is either BIGINT64_ELEMENTS or BIGUINT64_ELEMENTS.
-  TNode<BoolT> IsBigInt64ElementsKind(TNode<Word32T> kind);
+  TNode<BoolT> IsBigInt64ElementsKind(TNode<Int32T> kind);
 
   // Returns the byte size of an element for a TypedArray elements kind.
-  TNode<IntPtrT> GetTypedArrayElementSize(TNode<Word32T> elements_kind);
+  TNode<IntPtrT> GetTypedArrayElementSize(TNode<Int32T> elements_kind);
 
   // Returns information (byte size and map) about a TypedArray's elements.
   ElementsInfo GetTypedArrayElementsInfo(TNode<JSTypedArray> typed_array);
@@ -57,16 +57,6 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                                          TNode<Object> obj,
                                          const char* method_name);
 
-  // Fast path for setting a TypedArray (source) onto another TypedArray
-  // (target) at an element offset.
-  void SetTypedArraySource(TNode<Context> context, TNode<JSTypedArray> source,
-                           TNode<JSTypedArray> target, TNode<IntPtrT> offset,
-                           Label* call_runtime, Label* if_source_too_large);
-
-  void SetJSArraySource(TNode<Context> context, TNode<JSArray> source,
-                        TNode<JSTypedArray> target, TNode<IntPtrT> offset,
-                        Label* call_runtime, Label* if_source_too_large);
-
   void CallCMemmove(TNode<RawPtrT> dest_ptr, TNode<RawPtrT> src_ptr,
                     TNode<UintPtrT> byte_length);
 
@@ -78,12 +68,12 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
 
   void CallCCopyFastNumberJSArrayElementsToTypedArray(
       TNode<Context> context, TNode<JSArray> source, TNode<JSTypedArray> dest,
-      TNode<IntPtrT> source_length, TNode<IntPtrT> offset);
+      TNode<UintPtrT> source_length, TNode<UintPtrT> offset);
 
   void CallCCopyTypedArrayElementsToTypedArray(TNode<JSTypedArray> source,
                                                TNode<JSTypedArray> dest,
-                                               TNode<IntPtrT> source_length,
-                                               TNode<IntPtrT> offset);
+                                               TNode<UintPtrT> source_length,
+                                               TNode<UintPtrT> offset);
 
   void CallCCopyTypedArrayElementsSlice(TNode<JSTypedArray> source,
                                         TNode<JSTypedArray> dest,

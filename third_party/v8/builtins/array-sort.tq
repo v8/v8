@@ -150,7 +150,6 @@ namespace array {
     let canUseSameAccessorFn: CanUseSameAccessorFn;
 
     try {
-      if (IsForceSlowPath()) goto Slow;
       const a: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
 
       // Copy copy-on-write (COW) arrays.

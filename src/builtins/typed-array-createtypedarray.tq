@@ -355,8 +355,7 @@ namespace typed_array {
 
     // 5. Let elementSize be the Number value of the Element Size value in Table
     // 56 for constructorName.
-    const elementsInfo: typed_array::TypedArrayElementsInfo =
-        typed_array::GetTypedArrayElementsInfo(map);
+    const elementsInfo = GetTypedArrayElementsInfo(map);
 
     try {
       typeswitch (arg1) {

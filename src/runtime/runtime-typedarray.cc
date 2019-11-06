@@ -42,7 +42,7 @@ RUNTIME_FUNCTION(Runtime_TypedArrayCopyElements) {
   CHECK(TryNumberToSize(*length_obj, &length));
 
   ElementsAccessor* accessor = target->GetElementsAccessor();
-  return accessor->CopyElements(source, target, length);
+  return accessor->CopyElements(source, target, length, 0);
 }
 
 RUNTIME_FUNCTION(Runtime_TypedArrayGetBuffer) {
@@ -149,49 +149,25 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   return *array;
 }
 
-// 22.2.3.23 %TypedArray%.prototype.set ( overloaded [ , offset ] )
 RUNTIME_FUNCTION(Runtime_TypedArraySet) {
   HandleScope scope(isolate);
-  Handle<JSTypedArray> target = args.at<JSTypedArray>(0);
-  Handle<Object> obj = args.at(1);
-  Handle<Smi> offset = args.at<Smi>(2);
+  DCHECK_EQ(4, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, target, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, source, 1);
+  CONVERT_NUMBER_ARG_HANDLE_CHECKED(length_obj, 2);
+  CONVERT_NUMBER_ARG_HANDLE_CHECKED(offset_obj, 3);
 
-  DCHECK(!target->WasDetached());  // Checked in TypedArrayPrototypeSet.
-  DCHECK(!obj->IsJSTypedArray());  // Should be handled by CSA.
-  DCHECK_LE(0, offset->value());
+  size_t length;
+  CHECK(TryNumberToSize(*length_obj, &length));
 
-  const uint32_t uint_offset = static_cast<uint32_t>(offset->value());
+  size_t offset;
+  CHECK(TryNumberToSize(*offset_obj, &offset));
+  DCHECK_LE(offset, kMaxUInt32);
 
-  if (obj->IsNumber()) {
-    // For number as a first argument, throw TypeError
-    // instead of silently ignoring the call, so that
-    // users know they did something wrong.
-    // (Consistent with Firefox and Blink/WebKit)
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kInvalidArgument));
-  }
-
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, obj,
-                                     Object::ToObject(isolate, obj));
-
-  Handle<Object> len;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, len,
-      Object::GetProperty(isolate, obj, isolate->factory()->length_string()));
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, len,
-                                     Object::ToLength(isolate, len));
-
-  if (uint_offset + len->Number() > target->length()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError(MessageTemplate::kTypedArraySetSourceTooLarge));
-  }
-
-  uint32_t int_l;
-  CHECK(DoubleToUint32IfEqualToSelf(len->Number(), &int_l));
-
-  Handle<JSReceiver> source = Handle<JSReceiver>::cast(obj);
   ElementsAccessor* accessor = target->GetElementsAccessor();
-  return accessor->CopyElements(source, target, int_l, uint_offset);
+  // TODO(v8:4153): Support huge TypedArrays.
+  return accessor->CopyElements(source, target, length,
+                                static_cast<uint32_t>(offset));
 }
 
 }  // namespace internal

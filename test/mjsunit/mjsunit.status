@@ -1072,6 +1072,12 @@
   # Slow tests.
   'regress/regress-crbug-493779': [SKIP],
   'string-replace-gc': [SKIP],
+}],  # variant == slow_path and gc_stress
+
+##############################################################################
+['variant == slow_path', {
+  # Tests that are not compatible with the --force-slow-path mode.
+  'filter-element-kinds': [SKIP],
 }],  # variant == slow_path
 
 ##############################################################################

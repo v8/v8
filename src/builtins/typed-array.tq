@@ -73,6 +73,8 @@ namespace typed_array {
       JSTypedArray): TypedArrayElementsInfo;
   extern macro TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(Map):
       TypedArrayElementsInfo;
+  extern macro TypedArrayBuiltinsAssembler::IsUint8ElementsKind(ElementsKind):
+      bool;
   extern macro TypedArrayBuiltinsAssembler::IsBigInt64ElementsKind(
       ElementsKind): bool;
   extern macro LoadFixedTypedArrayElementAsTagged(

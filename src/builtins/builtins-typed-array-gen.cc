@@ -168,19 +168,19 @@ TF_BUILTIN(TypedArrayPrototypeLength, TypedArrayBuiltinsAssembler) {
 }
 
 TNode<BoolT> TypedArrayBuiltinsAssembler::IsUint8ElementsKind(
-    TNode<Word32T> kind) {
+    TNode<Int32T> kind) {
   return Word32Or(Word32Equal(kind, Int32Constant(UINT8_ELEMENTS)),
                   Word32Equal(kind, Int32Constant(UINT8_CLAMPED_ELEMENTS)));
 }
 
 TNode<BoolT> TypedArrayBuiltinsAssembler::IsBigInt64ElementsKind(
-    TNode<Word32T> kind) {
-  return Word32Or(Word32Equal(kind, Int32Constant(BIGINT64_ELEMENTS)),
-                  Word32Equal(kind, Int32Constant(BIGUINT64_ELEMENTS)));
+    TNode<Int32T> kind) {
+  STATIC_ASSERT(BIGUINT64_ELEMENTS + 1 == BIGINT64_ELEMENTS);
+  return IsElementsKindInRange(kind, BIGUINT64_ELEMENTS, BIGINT64_ELEMENTS);
 }
 
 TNode<IntPtrT> TypedArrayBuiltinsAssembler::GetTypedArrayElementSize(
-    TNode<Word32T> elements_kind) {
+    TNode<Int32T> elements_kind) {
   TVARIABLE(IntPtrT, element_size);
 
   DispatchTypedArrayByElementsKind(
@@ -264,127 +264,6 @@ TNode<JSTypedArray> TypedArrayBuiltinsAssembler::ValidateTypedArray(
   return CAST(obj);
 }
 
-void TypedArrayBuiltinsAssembler::SetTypedArraySource(
-    TNode<Context> context, TNode<JSTypedArray> source,
-    TNode<JSTypedArray> target, TNode<IntPtrT> offset, Label* call_runtime,
-    Label* if_source_too_large) {
-  CSA_ASSERT(this, Word32BinaryNot(
-                       IsDetachedBuffer(LoadJSArrayBufferViewBuffer(source))));
-  CSA_ASSERT(this, Word32BinaryNot(
-                       IsDetachedBuffer(LoadJSArrayBufferViewBuffer(target))));
-  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(offset, IntPtrConstant(0)));
-  CSA_ASSERT(this,
-             IntPtrLessThanOrEqual(offset, IntPtrConstant(Smi::kMaxValue)));
-
-  // Check for possible range errors.
-
-  TNode<IntPtrT> source_length = Signed(LoadJSTypedArrayLength(source));
-  TNode<IntPtrT> target_length = Signed(LoadJSTypedArrayLength(target));
-  TNode<IntPtrT> required_target_length = IntPtrAdd(source_length, offset);
-
-  GotoIf(IntPtrGreaterThan(required_target_length, target_length),
-         if_source_too_large);
-
-  // Grab pointers and byte lengths we need later on.
-
-  TNode<RawPtrT> target_data_ptr = LoadJSTypedArrayDataPtr(target);
-  TNode<RawPtrT> source_data_ptr = LoadJSTypedArrayDataPtr(source);
-
-  TNode<Int32T> source_el_kind = LoadElementsKind(source);
-  TNode<Int32T> target_el_kind = LoadElementsKind(target);
-
-  TNode<IntPtrT> source_el_size = GetTypedArrayElementSize(source_el_kind);
-  TNode<IntPtrT> target_el_size = GetTypedArrayElementSize(target_el_kind);
-
-  // A note on byte lengths: both source- and target byte lengths must be valid,
-  // i.e. it must be possible to allocate an array of the given length. That
-  // means we're safe from overflows in the following multiplication.
-  TNode<IntPtrT> source_byte_length = IntPtrMul(source_length, source_el_size);
-  CSA_ASSERT(this,
-             UintPtrGreaterThanOrEqual(source_byte_length, IntPtrConstant(0)));
-
-  Label call_memmove(this), fast_c_call(this), out(this), exception(this);
-
-  // A fast memmove call can be used when the source and target types are are
-  // the same or either Uint8 or Uint8Clamped.
-  GotoIf(Word32Equal(source_el_kind, target_el_kind), &call_memmove);
-  GotoIfNot(IsUint8ElementsKind(source_el_kind), &fast_c_call);
-  Branch(IsUint8ElementsKind(target_el_kind), &call_memmove, &fast_c_call);
-
-  BIND(&call_memmove);
-  {
-    TNode<RawPtrT> target_start =
-        RawPtrAdd(target_data_ptr, IntPtrMul(offset, target_el_size));
-    CallCMemmove(target_start, source_data_ptr, Unsigned(source_byte_length));
-    Goto(&out);
-  }
-
-  BIND(&fast_c_call);
-  {
-    CSA_ASSERT(
-        this, UintPtrGreaterThanOrEqual(
-                  IntPtrMul(target_length, target_el_size), IntPtrConstant(0)));
-
-    GotoIf(Word32NotEqual(IsBigInt64ElementsKind(source_el_kind),
-                          IsBigInt64ElementsKind(target_el_kind)),
-           &exception);
-
-    TNode<IntPtrT> source_length = Signed(LoadJSTypedArrayLength(source));
-    CallCCopyTypedArrayElementsToTypedArray(source, target, source_length,
-                                            offset);
-    Goto(&out);
-  }
-
-  BIND(&exception);
-  ThrowTypeError(context, MessageTemplate::kBigIntMixedTypes);
-
-  BIND(&out);
-}
-
-void TypedArrayBuiltinsAssembler::SetJSArraySource(
-    TNode<Context> context, TNode<JSArray> source, TNode<JSTypedArray> target,
-    TNode<IntPtrT> offset, Label* call_runtime, Label* if_source_too_large) {
-  CSA_ASSERT(this, IsFastJSArray(source, context));
-  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(offset, IntPtrConstant(0)));
-  CSA_ASSERT(this,
-             IntPtrLessThanOrEqual(offset, IntPtrConstant(Smi::kMaxValue)));
-
-  TNode<IntPtrT> source_length = SmiUntag(LoadFastJSArrayLength(source));
-  TNode<IntPtrT> target_length = Signed(LoadJSTypedArrayLength(target));
-
-  // Maybe out of bounds?
-  GotoIf(IntPtrGreaterThan(IntPtrAdd(source_length, offset), target_length),
-         if_source_too_large);
-
-  // Nothing to do if {source} is empty.
-  Label out(this), fast_c_call(this);
-  GotoIf(IntPtrEqual(source_length, IntPtrConstant(0)), &out);
-
-  // Dispatch based on the source elements kind.
-  {
-    // These are the supported elements kinds in TryCopyElementsFastNumber.
-    int32_t values[] = {
-        PACKED_SMI_ELEMENTS, HOLEY_SMI_ELEMENTS, PACKED_DOUBLE_ELEMENTS,
-        HOLEY_DOUBLE_ELEMENTS,
-    };
-    Label* labels[] = {
-        &fast_c_call, &fast_c_call, &fast_c_call, &fast_c_call,
-    };
-    STATIC_ASSERT(arraysize(values) == arraysize(labels));
-
-    TNode<Int32T> source_elements_kind = LoadElementsKind(source);
-    Switch(source_elements_kind, call_runtime, values, labels,
-           arraysize(values));
-  }
-
-  BIND(&fast_c_call);
-  GotoIf(IsBigInt64ElementsKind(LoadElementsKind(target)), call_runtime);
-  CallCCopyFastNumberJSArrayElementsToTypedArray(context, source, target,
-                                                 source_length, offset);
-  Goto(&out);
-  BIND(&out);
-}
-
 void TypedArrayBuiltinsAssembler::CallCMemmove(TNode<RawPtrT> dest_ptr,
                                                TNode<RawPtrT> src_ptr,
                                                TNode<UintPtrT> byte_length) {
@@ -419,11 +298,9 @@ void TypedArrayBuiltinsAssembler::CallCMemset(TNode<RawPtrT> dest_ptr,
 }
 
 void TypedArrayBuiltinsAssembler::
-    CallCCopyFastNumberJSArrayElementsToTypedArray(TNode<Context> context,
-                                                   TNode<JSArray> source,
-                                                   TNode<JSTypedArray> dest,
-                                                   TNode<IntPtrT> source_length,
-                                                   TNode<IntPtrT> offset) {
+    CallCCopyFastNumberJSArrayElementsToTypedArray(
+        TNode<Context> context, TNode<JSArray> source, TNode<JSTypedArray> dest,
+        TNode<UintPtrT> source_length, TNode<UintPtrT> offset) {
   CSA_ASSERT(this,
              Word32BinaryNot(IsBigInt64ElementsKind(LoadElementsKind(dest))));
   TNode<ExternalReference> f = ExternalConstant(
@@ -438,7 +315,7 @@ void TypedArrayBuiltinsAssembler::
 
 void TypedArrayBuiltinsAssembler::CallCCopyTypedArrayElementsToTypedArray(
     TNode<JSTypedArray> source, TNode<JSTypedArray> dest,
-    TNode<IntPtrT> source_length, TNode<IntPtrT> offset) {
+    TNode<UintPtrT> source_length, TNode<UintPtrT> offset) {
   TNode<ExternalReference> f = ExternalConstant(
       ExternalReference::copy_typed_array_elements_to_typed_array());
   CallCFunction(f, MachineType::AnyTagged(),
@@ -590,84 +467,6 @@ void TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromTagged(
 
   TNode<RawPtrT> data_ptr = LoadJSTypedArrayDataPtr(typed_array);
   StoreElement(data_ptr, elements_kind, index, prepared_value);
-}
-
-// ES #sec-get-%typedarray%.prototype.set
-TF_BUILTIN(TypedArrayPrototypeSet, TypedArrayBuiltinsAssembler) {
-  const char* method_name = "%TypedArray%.prototype.set";
-  TNode<Int32T> argc =
-      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  CodeStubArguments args(this, argc);
-
-  Label if_source_is_typed_array(this), if_source_is_fast_jsarray(this),
-      if_offset_is_out_of_bounds(this, Label::kDeferred),
-      if_source_too_large(this, Label::kDeferred),
-      if_receiver_is_not_typedarray(this, Label::kDeferred);
-
-  // Check the receiver is a typed array.
-  TNode<Object> receiver = args.GetReceiver();
-  GotoIf(TaggedIsSmi(receiver), &if_receiver_is_not_typedarray);
-  GotoIfNot(IsJSTypedArray(CAST(receiver)), &if_receiver_is_not_typedarray);
-
-  // Normalize offset argument (using ToInteger) and handle heap number cases.
-  TNode<Object> offset = args.GetOptionalArgumentValue(1, SmiConstant(0));
-  TNode<Number> offset_num =
-      ToInteger_Inline(context, offset, kTruncateMinusZero);
-
-  // Since ToInteger always returns a Smi if the given value is within Smi
-  // range, and the only corner case of -0.0 has already been truncated to 0.0,
-  // we can simply throw unless the offset is a non-negative Smi.
-  // TODO(jgruber): It's an observable spec violation to throw here if
-  // {offset_num} is a positive number outside the Smi range. Per spec, we need
-  // to check for detached buffers and call the observable ToObject/ToLength
-  // operations first.
-  GotoIfNot(TaggedIsPositiveSmi(offset_num), &if_offset_is_out_of_bounds);
-  TNode<Smi> offset_smi = CAST(offset_num);
-
-  // Check the receiver is not detached.
-  ThrowIfArrayBufferViewBufferIsDetached(context, CAST(receiver), method_name);
-
-  // Check the source argument is valid and whether a fast path can be taken.
-  Label call_runtime(this);
-  TNode<Object> source = args.GetOptionalArgumentValue(0);
-  GotoIf(TaggedIsSmi(source), &call_runtime);
-  GotoIf(IsJSTypedArray(CAST(source)), &if_source_is_typed_array);
-  BranchIfFastJSArray(source, context, &if_source_is_fast_jsarray,
-                      &call_runtime);
-
-  // Fast path for a typed array source argument.
-  BIND(&if_source_is_typed_array);
-  {
-    // Check the source argument is not detached.
-    ThrowIfArrayBufferViewBufferIsDetached(context, CAST(source), method_name);
-
-    SetTypedArraySource(context, CAST(source), CAST(receiver),
-                        SmiUntag(offset_smi), &call_runtime,
-                        &if_source_too_large);
-    args.PopAndReturn(UndefinedConstant());
-  }
-
-  // Fast path for a fast JSArray source argument.
-  BIND(&if_source_is_fast_jsarray);
-  {
-    SetJSArraySource(context, CAST(source), CAST(receiver),
-                     SmiUntag(offset_smi), &call_runtime, &if_source_too_large);
-    args.PopAndReturn(UndefinedConstant());
-  }
-
-  BIND(&call_runtime);
-  args.PopAndReturn(CallRuntime(Runtime::kTypedArraySet, context, receiver,
-                                source, offset_smi));
-
-  BIND(&if_offset_is_out_of_bounds);
-  ThrowRangeError(context, MessageTemplate::kTypedArraySetOffsetOutOfBounds);
-
-  BIND(&if_source_too_large);
-  ThrowRangeError(context, MessageTemplate::kTypedArraySetSourceTooLarge);
-
-  BIND(&if_receiver_is_not_typedarray);
-  ThrowTypeError(context, MessageTemplate::kNotTypedArray);
 }
 
 // ES #sec-get-%typedarray%.prototype-@@tostringtag

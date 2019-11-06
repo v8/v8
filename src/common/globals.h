@@ -1051,7 +1051,8 @@ constexpr uint64_t kHoleNanInt64 =
     (static_cast<uint64_t>(kHoleNanUpper32) << 32) | kHoleNanLower32;
 
 // ES6 section 20.1.2.6 Number.MAX_SAFE_INTEGER
-constexpr double kMaxSafeInteger = 9007199254740991.0;  // 2^53-1
+constexpr uint64_t kMaxSafeIntegerUint64 = 9007199254740991;  // 2^53-1
+constexpr double kMaxSafeInteger = static_cast<double>(kMaxSafeIntegerUint64);
 
 constexpr double kMaxUInt32Double = double{kMaxUInt32};
 

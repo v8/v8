@@ -390,21 +390,8 @@ namespace data_view {
       const elementSize: uintptr = DataViewElementSize(kind);
 
       // 10. If getIndex + elementSize > viewSize, throw a RangeError exception.
-      if constexpr (Is64()) {
-        // Given that
-        // a) getIndex is in [0, kMaxSafeInteger] range
-        // b) elementSize is in [1, 8] range
-        // the addition can't overflow.
-        if (getIndex + elementSize > viewSize) goto RangeError;
-      } else {
-        // In order to avoid operating on float64s we deal with uintptr values
-        // and do two comparisons to handle potential uintptr overflow on
-        // 32-bit architectures.
-        const lastPossibleElementOffset: uintptr = viewSize - elementSize;
-        // Check if lastPossibleElementOffset underflowed.
-        if (lastPossibleElementOffset > viewSize) goto RangeError;
-        if (getIndex > lastPossibleElementOffset) goto RangeError;
-      }
+      CheckIntegerIndexAdditionOverflow(getIndex, elementSize, viewSize)
+          otherwise RangeError;
 
       // 11. Let bufferIndex be getIndex + viewOffset.
       const bufferIndex: uintptr = getIndex + viewOffset;
@@ -697,21 +684,8 @@ namespace data_view {
       const elementSize: uintptr = DataViewElementSize(kind);
 
       // 12. If getIndex + elementSize > viewSize, throw a RangeError exception.
-      if constexpr (Is64()) {
-        // Given that
-        // a) getIndex is in [0, kMaxSafeInteger] range
-        // b) elementSize is in [1, 8] range
-        // the addition can't overflow.
-        if (getIndex + elementSize > viewSize) goto RangeError;
-      } else {
-        // In order to avoid operating on float64s we deal with uintptr values
-        // and do two comparisons to handle potential uintptr overflow on
-        // 32-bit architectures.
-        const lastPossibleElementOffset: uintptr = viewSize - elementSize;
-        // Check if lastPossibleElementOffset underflowed.
-        if (lastPossibleElementOffset > viewSize) goto RangeError;
-        if (getIndex > lastPossibleElementOffset) goto RangeError;
-      }
+      CheckIntegerIndexAdditionOverflow(getIndex, elementSize, viewSize)
+          otherwise RangeError;
 
       // 13. Let bufferIndex be getIndex + viewOffset.
       const bufferIndex: uintptr = getIndex + viewOffset;

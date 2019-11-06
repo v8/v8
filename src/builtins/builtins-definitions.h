@@ -932,8 +932,6 @@ namespace internal {
   CPP(TypedArrayPrototypeLastIndexOf)                                          \
   /* ES6 #sec-%typedarray%.prototype.reverse */                                \
   CPP(TypedArrayPrototypeReverse)                                              \
-  /* ES6 %TypedArray%.prototype.set */                                         \
-  TFJ(TypedArrayPrototypeSet, SharedFunctionInfo::kDontAdaptArgumentsSentinel) \
   /* ES6 #sec-get-%typedarray%.prototype-@@tostringtag */                      \
   TFJ(TypedArrayPrototypeToStringTag, 0, kReceiver)                            \
   /* ES6 %TypedArray%.prototype.map */                                         \

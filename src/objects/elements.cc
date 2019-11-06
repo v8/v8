@@ -4771,6 +4771,8 @@ void CopyFastNumberJSArrayElementsToTypedArray(Address raw_context,
   switch (destination.GetElementsKind()) {
 #define TYPED_ARRAYS_CASE(Type, type, TYPE, ctype)                             \
   case TYPE##_ELEMENTS:                                                        \
+    /* TODO(v8:4153): handle huge offsets here. */                             \
+    DCHECK_LE(offset, kMaxUInt32);                                             \
     CHECK(Type##ElementsAccessor::TryCopyElementsFastNumber(                   \
         context, source, destination, length, static_cast<uint32_t>(offset))); \
     break;
@@ -4790,6 +4792,8 @@ void CopyTypedArrayElementsToTypedArray(Address raw_source,
   switch (destination.GetElementsKind()) {
 #define TYPED_ARRAYS_CASE(Type, type, TYPE, ctype)                   \
   case TYPE##_ELEMENTS:                                              \
+    /* TODO(v8:4153): handle huge offsets here. */                   \
+    DCHECK_LE(offset, kMaxUInt32);                                   \
     Type##ElementsAccessor::CopyElementsFromTypedArray(              \
         source, destination, length, static_cast<uint32_t>(offset)); \
     break;
