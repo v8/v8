@@ -3001,13 +3001,11 @@ Node* WasmGraphBuilder::BuildI64Rol(Node* left, Node* right) {
   // Implement Rol by Ror since TurboFan does not have Rol opcode.
   // TODO(weiliang): support Word64Rol opcode in TurboFan.
   Int64Matcher m(right);
-  if (m.HasValue()) {
-    return Binop(wasm::kExprI64Ror, left,
-                 mcgraph()->Int64Constant(64 - (m.Value() & 0x3F)));
-  } else {
-    return Binop(wasm::kExprI64Ror, left,
-                 Binop(wasm::kExprI64Sub, mcgraph()->Int64Constant(64), right));
-  }
+  Node* inv_right =
+      m.HasValue()
+          ? mcgraph()->Int64Constant(64 - (m.Value() & 0x3F))
+          : Binop(wasm::kExprI64Sub, mcgraph()->Int64Constant(64), right);
+  return Binop(wasm::kExprI64Ror, left, inv_right);
 }
 
 Node* WasmGraphBuilder::Invert(Node* node) {

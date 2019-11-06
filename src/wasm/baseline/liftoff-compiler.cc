@@ -1023,13 +1023,15 @@ class LiftoffCompiler {
         });
 #define CASE_CCALL_BINOP(opcode, type, ext_ref_fn)                           \
   case kExpr##opcode:                                                        \
-    return EmitBinOp<kWasmI32, kWasmI32>(                                    \
+    return EmitBinOp<kWasm##type, kWasm##type>(                              \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           LiftoffRegister args[] = {lhs, rhs};                               \
           auto ext_ref = ExternalReference::ext_ref_fn();                    \
-          ValueType sig_i_ii_reps[] = {kWasmI32, kWasmI32, kWasmI32};        \
-          FunctionSig sig_i_ii(1, 2, sig_i_ii_reps);                         \
-          GenerateCCall(&dst, &sig_i_ii, kWasmStmt, args, ext_ref);          \
+          ValueType sig_reps[] = {kWasm##type, kWasm##type, kWasm##type};    \
+          const bool out_via_stack = kWasm##type == kWasmI64;                \
+          FunctionSig sig(out_via_stack ? 0 : 1, 2, sig_reps);               \
+          ValueType out_arg_type = out_via_stack ? kWasmI64 : kWasmStmt;     \
+          GenerateCCall(&dst, &sig, out_arg_type, args, ext_ref);            \
         });
     switch (opcode) {
       CASE_I32_BINOPI(I32Add, i32_add)
@@ -1079,11 +1081,13 @@ class LiftoffCompiler {
       CASE_I32_BINOPI(I32Shl, i32_shl)
       CASE_I32_BINOPI(I32ShrS, i32_sar)
       CASE_I32_BINOPI(I32ShrU, i32_shr)
+      CASE_CCALL_BINOP(I32Rol, I32, wasm_word32_rol)
+      CASE_CCALL_BINOP(I32Ror, I32, wasm_word32_ror)
       CASE_I64_SHIFTOP(I64Shl, i64_shl)
       CASE_I64_SHIFTOP(I64ShrS, i64_sar)
       CASE_I64_SHIFTOP(I64ShrU, i64_shr)
-      CASE_CCALL_BINOP(I32Rol, I32, wasm_word32_rol)
-      CASE_CCALL_BINOP(I32Ror, I32, wasm_word32_ror)
+      CASE_CCALL_BINOP(I64Rol, I64, wasm_word64_rol)
+      CASE_CCALL_BINOP(I64Ror, I64, wasm_word64_ror)
       CASE_FLOAT_BINOP(F32Add, F32, f32_add)
       CASE_FLOAT_BINOP(F32Sub, F32, f32_sub)
       CASE_FLOAT_BINOP(F32Mul, F32, f32_mul)
@@ -1197,10 +1201,6 @@ class LiftoffCompiler {
           }
         });
         break;
-      case kExprI64Rol:
-      case kExprI64Ror:
-        return unsupported(decoder, kComplexOperation,
-                           WasmOpcodes::OpcodeName(opcode));
       default:
         UNREACHABLE();
     }

@@ -196,6 +196,8 @@ class StatsCounter;
   V(wasm_word32_popcnt, "wasm::word32_popcnt")                                \
   V(wasm_word32_rol, "wasm::word32_rol")                                      \
   V(wasm_word32_ror, "wasm::word32_ror")                                      \
+  V(wasm_word64_rol, "wasm::word64_rol")                                      \
+  V(wasm_word64_ror, "wasm::word64_ror")                                      \
   V(wasm_word64_ctz, "wasm::word64_ctz")                                      \
   V(wasm_word64_popcnt, "wasm::word64_popcnt")                                \
   V(wasm_memory_copy, "wasm::memory_copy")                                    \
