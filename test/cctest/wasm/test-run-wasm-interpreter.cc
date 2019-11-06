@@ -449,7 +449,6 @@ TEST(ReferenceTypeLocals) {
     BUILD(r, WASM_REF_IS_NULL(WASM_TEE_LOCAL(0, WASM_REF_NULL)));
     CHECK_EQ(1, r.Call());
   }
-  // TODO(mstarzinger): Test and support global anyref variables.
 }
 
 TEST(TestPossibleNondeterminism) {
