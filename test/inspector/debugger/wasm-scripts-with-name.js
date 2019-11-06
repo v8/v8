@@ -30,7 +30,7 @@ contextGroup.addScript('var module_bytes = ' + JSON.stringify(module_bytes));
 contextGroup.addScript('var module_bytes_with_name = ' + JSON.stringify(module_bytes_with_name));
 
 InspectorTest.log(
-    'Check that each inspector gets two wasm scripts at module creation time.');
+    'Check that the inspector gets four wasm scripts at module creation time.');
 
 sessions[0].Protocol.Runtime
     .evaluate({

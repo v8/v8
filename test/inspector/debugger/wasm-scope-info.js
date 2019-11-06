@@ -111,7 +111,7 @@ async function waitForWasmScripts() {
   while (wasm_script_ids.length < 2) {
     let script_msg = await Protocol.Debugger.onceScriptParsed();
     let url = script_msg.params.url;
-    if (url.startsWith('wasm://')) {
+    if (url.startsWith('wasm://') && url.split('/').length == 5) {
       InspectorTest.log('Got wasm script!');
       wasm_script_ids.push(script_msg.params.scriptId);
     }

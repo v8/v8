@@ -224,11 +224,13 @@ domain Debugger
       # Id of the script to get source for.
       Runtime.ScriptId scriptId
     returns
-      # Script source.
+      # Script source (empty in case of Wasm bytecode).
       string scriptSource
+      # Wasm bytecode.
+      optional binary bytecode
 
-  # Returns bytecode for the WebAssembly script with given id.
-  command getWasmBytecode
+  # This command is deprecated. Use getScriptSource instead.
+  deprecated command getWasmBytecode
     parameters
       # Id of the Wasm script to get source for.
       Runtime.ScriptId scriptId

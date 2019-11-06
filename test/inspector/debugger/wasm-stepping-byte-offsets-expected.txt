@@ -1,328 +1,305 @@
-Tests stepping through wasm scripts
-Installing code an global variable.
-Calling instantiate function.
-Waiting for two wasm scripts to be parsed.
-Ignoring script with url v8://test/callInstantiate
-Ignoring script with url wasm://wasm/18214bfe
-Got wasm script: wasm://wasm/18214bfe/18214bfe-0
-Requesting source for wasm://wasm/18214bfe/18214bfe-0...
-Got wasm script: wasm://wasm/18214bfe/18214bfe-1
-Requesting source for wasm://wasm/18214bfe/18214bfe-1...
-func $wasm_A
-  nop
-  nop
-end
-
-func $wasm_B (param i32)
-  loop
-    local.get 0
-    if
-      local.get 0
-      i32.const 1
-      i32.sub
-      local.set 0
-      call 0
-      br 1
-    end
-  end
-end
-
-Setting breakpoint on line 7 (on the setlocal before the call), url wasm://wasm/18214bfe/18214bfe-1
+Tests stepping through wasm scripts with source maps
+Installing code an global variable and instantiate.
+Got wasm script: wasm://wasm/18214bfe
+Requesting source for wasm://wasm/18214bfe...
+Source retrieved without error: true
+Setting breakpoint on offset 54 (on the setlocal before the call), url wasm://wasm/18214bfe
+Result: {"id":4,"result":{"breakpointId":"4:0:54:4","actualLocation":{"scriptId":"4","lineNumber":0,"columnNumber":54}}}
 {
-    columnNumber : 6
-    lineNumber : 7
+    columnNumber : 54
+    lineNumber : 0
     scriptId : <scriptId>
 }
-Paused at wasm://wasm/18214bfe/18214bfe-1:7:6:       >local.set 0
+Paused at wasm://wasm/18214bfe/18214bfe-1:7:6
 at wasm_B (7:6):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":4} (Object)
-   stack: {"0":3} (Object)
+   locals: {"arg#0":4}
+   stack: {"0":3}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/18214bfe/18214bfe-1:8:6:       >call 0
+Paused at wasm://wasm/18214bfe/18214bfe-1:8:6
 at wasm_B (8:6):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":3} (Object)
-   stack: {} (Object)
+   locals: {"arg#0":3}
+   stack: {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/18214bfe/18214bfe-0:1:2:   >nop
+Paused at wasm://wasm/18214bfe/18214bfe-0:1:2
 at wasm_A (1:2):
  - scope (global):
    -- skipped
  - scope (local):
-   stack: {} (Object)
+   stack: {}
 at wasm_B (8:6):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":3} (Object)
-   stack: {} (Object)
+   locals: {"arg#0":3}
+   stack: {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOver called
-Paused at wasm://wasm/18214bfe/18214bfe-0:2:2:   >nop
+Paused at wasm://wasm/18214bfe/18214bfe-0:2:2
 at wasm_A (2:2):
  - scope (global):
    -- skipped
  - scope (local):
-   stack: {} (Object)
+   stack: {}
 at wasm_B (8:6):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":3} (Object)
-   stack: {} (Object)
+   locals: {"arg#0":3}
+   stack: {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOut called
-Paused at wasm://wasm/18214bfe/18214bfe-1:9:6:       >br 1
+Paused at wasm://wasm/18214bfe/18214bfe-1:9:6
 at wasm_B (9:6):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":3} (Object)
-   stack: {} (Object)
+   locals: {"arg#0":3}
+   stack: {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOut called
-Paused at wasm://wasm/18214bfe/18214bfe-1:7:6:       >local.set 0
+Paused at wasm://wasm/18214bfe/18214bfe-1:7:6
 at wasm_B (7:6):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":3} (Object)
-   stack: {"0":2} (Object)
+   locals: {"arg#0":3}
+   stack: {"0":2}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOver called
-Paused at wasm://wasm/18214bfe/18214bfe-1:8:6:       >call 0
+Paused at wasm://wasm/18214bfe/18214bfe-1:8:6
 at wasm_B (8:6):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":2} (Object)
-   stack: {} (Object)
+   locals: {"arg#0":2}
+   stack: {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOver called
-Paused at wasm://wasm/18214bfe/18214bfe-1:9:6:       >br 1
+Paused at wasm://wasm/18214bfe/18214bfe-1:9:6
 at wasm_B (9:6):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":2} (Object)
-   stack: {} (Object)
+   locals: {"arg#0":2}
+   stack: {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.resume called
-Paused at wasm://wasm/18214bfe/18214bfe-1:7:6:       >local.set 0
+Paused at wasm://wasm/18214bfe/18214bfe-1:7:6
 at wasm_B (7:6):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":2} (Object)
-   stack: {"0":1} (Object)
+   locals: {"arg#0":2}
+   stack: {"0":1}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/18214bfe/18214bfe-1:8:6:       >call 0
+Paused at wasm://wasm/18214bfe/18214bfe-1:8:6
 at wasm_B (8:6):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":1} (Object)
-   stack: {} (Object)
+   locals: {"arg#0":1}
+   stack: {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/18214bfe/18214bfe-0:1:2:   >nop
+Paused at wasm://wasm/18214bfe/18214bfe-0:1:2
 at wasm_A (1:2):
  - scope (global):
    -- skipped
  - scope (local):
-   stack: {} (Object)
+   stack: {}
 at wasm_B (8:6):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":1} (Object)
-   stack: {} (Object)
+   locals: {"arg#0":1}
+   stack: {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOut called
-Paused at wasm://wasm/18214bfe/18214bfe-1:9:6:       >br 1
+Paused at wasm://wasm/18214bfe/18214bfe-1:9:6
 at wasm_B (9:6):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":1} (Object)
-   stack: {} (Object)
+   locals: {"arg#0":1}
+   stack: {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/18214bfe/18214bfe-1:1:2:   >loop
+Paused at wasm://wasm/18214bfe/18214bfe-1:1:2
 at wasm_B (1:2):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":1} (Object)
-   stack: {} (Object)
+   locals: {"arg#0":1}
+   stack: {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/18214bfe/18214bfe-1:2:4:     >local.get 0
+Paused at wasm://wasm/18214bfe/18214bfe-1:2:4
 at wasm_B (2:4):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":1} (Object)
-   stack: {} (Object)
+   locals: {"arg#0":1}
+   stack: {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/18214bfe/18214bfe-1:3:4:     >if
+Paused at wasm://wasm/18214bfe/18214bfe-1:3:4
 at wasm_B (3:4):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":1} (Object)
-   stack: {"0":1} (Object)
+   locals: {"arg#0":1}
+   stack: {"0":1}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/18214bfe/18214bfe-1:4:6:       >local.get 0
+Paused at wasm://wasm/18214bfe/18214bfe-1:4:6
 at wasm_B (4:6):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":1} (Object)
-   stack: {} (Object)
+   locals: {"arg#0":1}
+   stack: {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/18214bfe/18214bfe-1:5:6:       >i32.const 1
+Paused at wasm://wasm/18214bfe/18214bfe-1:5:6
 at wasm_B (5:6):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":1} (Object)
-   stack: {"0":1} (Object)
+   locals: {"arg#0":1}
+   stack: {"0":1}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/18214bfe/18214bfe-1:6:6:       >i32.sub
+Paused at wasm://wasm/18214bfe/18214bfe-1:6:6
 at wasm_B (6:6):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":1} (Object)
-   stack: {"0":1,"1":1} (Object)
+   locals: {"arg#0":1}
+   stack: {"0":1,"1":1}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/18214bfe/18214bfe-1:7:6:       >local.set 0
+Paused at wasm://wasm/18214bfe/18214bfe-1:7:6
 at wasm_B (7:6):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":1} (Object)
-   stack: {"0":0} (Object)
+   locals: {"arg#0":1}
+   stack: {"0":0}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/18214bfe/18214bfe-1:8:6:       >call 0
+Paused at wasm://wasm/18214bfe/18214bfe-1:8:6
 at wasm_B (8:6):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":0} (Object)
-   stack: {} (Object)
+   locals: {"arg#0":0}
+   stack: {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/18214bfe/18214bfe-0:1:2:   >nop
+Paused at wasm://wasm/18214bfe/18214bfe-0:1:2
 at wasm_A (1:2):
  - scope (global):
    -- skipped
  - scope (local):
-   stack: {} (Object)
+   stack: {}
 at wasm_B (8:6):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":0} (Object)
-   stack: {} (Object)
+   locals: {"arg#0":0}
+   stack: {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/18214bfe/18214bfe-0:2:2:   >nop
+Paused at wasm://wasm/18214bfe/18214bfe-0:2:2
 at wasm_A (2:2):
  - scope (global):
    -- skipped
  - scope (local):
-   stack: {} (Object)
+   stack: {}
 at wasm_B (8:6):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":0} (Object)
-   stack: {} (Object)
+   locals: {"arg#0":0}
+   stack: {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/18214bfe/18214bfe-0:3:0: >end
+Paused at wasm://wasm/18214bfe/18214bfe-0:3:0
 at wasm_A (3:0):
  - scope (global):
    -- skipped
  - scope (local):
-   stack: {} (Object)
+   stack: {}
 at wasm_B (8:6):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":0} (Object)
-   stack: {} (Object)
+   locals: {"arg#0":0}
+   stack: {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/18214bfe/18214bfe-1:9:6:       >br 1
+Paused at wasm://wasm/18214bfe/18214bfe-1:9:6
 at wasm_B (9:6):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":0} (Object)
-   stack: {} (Object)
+   locals: {"arg#0":0}
+   stack: {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped

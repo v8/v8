@@ -522,13 +522,15 @@ void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
        &wasmTranslation](V8InspectorSessionImpl* session) {
         auto agent = session->debuggerAgent();
         if (!agent->enabled()) return;
+        agent->didParseSource(
+            V8DebuggerScript::Create(isolate, script, is_live_edited, agent,
+                                     client),
+            !has_compile_error);
         if (script->IsWasm() && script->SourceMappingURL().IsEmpty()) {
+          // In this case we also create fake scripts corresponding to each
+          // function.
+          // TODO(leese): Get rid of this once frontend no longer uses these.
           wasmTranslation.AddScript(script.As<v8::debug::WasmScript>(), agent);
-        } else {
-          agent->didParseSource(
-              V8DebuggerScript::Create(isolate, script, is_live_edited, agent,
-                                       client),
-              !has_compile_error);
         }
       });
 }
