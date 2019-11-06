@@ -644,8 +644,8 @@ DEFINE_BOOL(assume_asmjs_origin, false,
             "force wasm decoder to assume input is internal asm-wasm format")
 DEFINE_BOOL(wasm_disable_structured_cloning, false,
             "disable wasm structured cloning")
-DEFINE_INT(wasm_num_compilation_tasks, 10,
-           "number of parallel compilation tasks for wasm")
+DEFINE_INT(wasm_num_compilation_tasks, 128,
+           "maximum number of parallel compilation tasks for wasm")
 DEFINE_DEBUG_BOOL(trace_wasm_native_heap, false,
                   "trace wasm native heap events")
 DEFINE_BOOL(wasm_write_protect_code_memory, false,
