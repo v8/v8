@@ -72,6 +72,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
   for (Variable* var : *scope->locals()) {
     switch (var->location()) {
       case VariableLocation::CONTEXT:
+      case VariableLocation::REPL_GLOBAL:
         context_local_count++;
         break;
       case VariableLocation::MODULE:
@@ -207,7 +208,8 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
             scope->ForceContextForLanguageMode()) |
         PrivateNameLookupSkipsOuterClassField::encode(
             scope->private_name_lookup_skips_outer_class()) |
-        HasContextExtensionSlotField::encode(scope->HasContextExtensionSlot());
+        HasContextExtensionSlotField::encode(scope->HasContextExtensionSlot()) |
+        IsReplModeScopeField::encode(scope->is_repl_mode_scope());
     scope_info.SetFlags(flags);
 
     scope_info.SetParameterCount(parameter_count);
@@ -221,7 +223,8 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
 
     for (Variable* var : *scope->locals()) {
       switch (var->location()) {
-        case VariableLocation::CONTEXT: {
+        case VariableLocation::CONTEXT:
+        case VariableLocation::REPL_GLOBAL: {
           // Due to duplicate parameters, context locals aren't guaranteed to
           // come in order.
           int local_index = var->index() - scope->ContextHeaderLength();
@@ -394,7 +397,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
       IsDebugEvaluateScopeField::encode(false) |
       ForceContextAllocationField::encode(false) |
       PrivateNameLookupSkipsOuterClassField::encode(false) |
-      HasContextExtensionSlotField::encode(true);
+      HasContextExtensionSlotField::encode(true) |
+      IsReplModeScopeField::encode(false);
   scope_info->SetFlags(flags);
 
   scope_info->SetParameterCount(0);
@@ -471,7 +475,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
               IsDebugEvaluateScopeField::encode(false) |
               ForceContextAllocationField::encode(false) |
               PrivateNameLookupSkipsOuterClassField::encode(false) |
-              HasContextExtensionSlotField::encode(is_native_context);
+              HasContextExtensionSlotField::encode(is_native_context) |
+              IsReplModeScopeField::encode(false);
   scope_info->SetFlags(flags);
   scope_info->SetParameterCount(parameter_count);
   scope_info->SetContextLocalCount(context_local_count);
@@ -666,6 +671,11 @@ void ScopeInfo::SetIsDebugEvaluateScope() {
 bool ScopeInfo::PrivateNameLookupSkipsOuterClass() const {
   if (length() == 0) return false;
   return PrivateNameLookupSkipsOuterClassField::decode(Flags());
+}
+
+bool ScopeInfo::IsReplModeScope() const {
+  if (length() == 0) return false;
+  return IsReplModeScopeField::decode(Flags());
 }
 
 bool ScopeInfo::HasContext() const { return ContextLength() > 0; }

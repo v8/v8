@@ -380,30 +380,31 @@ namespace internal {
   F(StringReplaceNonGlobalRegExpWithFunction, 3, 1) \
   F(StringSplit, 3, 1)
 
-#define FOR_EACH_INTRINSIC_SCOPES(F, I)   \
-  F(DeclareEvalFunction, 2, 1)            \
-  F(DeclareEvalVar, 1, 1)                 \
-  F(DeclareGlobals, 3, 1)                 \
-  F(DeleteLookupSlot, 1, 1)               \
-  F(LoadLookupSlot, 1, 1)                 \
-  F(LoadLookupSlotInsideTypeof, 1, 1)     \
-  F(NewArgumentsElements, 3, 1)           \
-                                          \
-  F(NewClosure, 2, 1)                     \
-  F(NewClosure_Tenured, 2, 1)             \
-  F(NewFunctionContext, 1, 1)             \
-  F(NewRestParameter, 1, 1)               \
-  F(NewScriptContext, 1, 1)               \
-  F(NewSloppyArguments, 3, 1)             \
-  F(NewSloppyArguments_Generic, 1, 1)     \
-  F(NewStrictArguments, 1, 1)             \
-  F(PushBlockContext, 1, 1)               \
-  F(PushCatchContext, 2, 1)               \
-  F(PushModuleContext, 2, 1)              \
-  F(PushWithContext, 2, 1)                \
-  F(StoreLookupSlot_Sloppy, 2, 1)         \
-  F(StoreLookupSlot_SloppyHoisting, 2, 1) \
-  F(StoreLookupSlot_Strict, 2, 1)         \
+#define FOR_EACH_INTRINSIC_SCOPES(F, I)     \
+  F(DeclareEvalFunction, 2, 1)              \
+  F(DeclareEvalVar, 1, 1)                   \
+  F(DeclareGlobals, 3, 1)                   \
+  F(DeleteLookupSlot, 1, 1)                 \
+  F(LoadLookupSlot, 1, 1)                   \
+  F(LoadLookupSlotInsideTypeof, 1, 1)       \
+  F(NewArgumentsElements, 3, 1)             \
+                                            \
+  F(NewClosure, 2, 1)                       \
+  F(NewClosure_Tenured, 2, 1)               \
+  F(NewFunctionContext, 1, 1)               \
+  F(NewRestParameter, 1, 1)                 \
+  F(NewScriptContext, 1, 1)                 \
+  F(NewSloppyArguments, 3, 1)               \
+  F(NewSloppyArguments_Generic, 1, 1)       \
+  F(NewStrictArguments, 1, 1)               \
+  F(PushBlockContext, 1, 1)                 \
+  F(PushCatchContext, 2, 1)                 \
+  F(PushModuleContext, 2, 1)                \
+  F(PushWithContext, 2, 1)                  \
+  F(StoreGlobalNoHoleCheckForReplLet, 2, 1) \
+  F(StoreLookupSlot_Sloppy, 2, 1)           \
+  F(StoreLookupSlot_SloppyHoisting, 2, 1)   \
+  F(StoreLookupSlot_Strict, 2, 1)           \
   F(ThrowConstAssignError, 0, 1)
 
 #define FOR_EACH_INTRINSIC_STRINGS(F, I)  \
@@ -511,6 +512,7 @@ namespace internal {
   F(PrintWithNameForAssert, 2, 1)             \
   F(RedirectToWasmInterpreter, 2, 1)          \
   F(RunningInSimulator, 0, 1)                 \
+  F(RuntimeEvaluateREPL, 1, 1)                \
   F(SerializeWasmModule, 1, 1)                \
   F(SetAllocationTimeout, -1 /* 2 || 3 */, 1) \
   F(SetForceSlowPath, 1, 1)                   \

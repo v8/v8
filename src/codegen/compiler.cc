@@ -135,6 +135,12 @@ ScriptOriginOptions OriginOptionsForEval(Object script) {
                              outer_origin_options.IsOpaque());
 }
 
+REPLMode OriginReplMode(Object script) {
+  if (!script.IsScript()) return REPLMode::kNo;
+
+  return Script::cast(script).is_repl_mode() ? REPLMode::kYes : REPLMode::kNo;
+}
+
 }  // namespace
 
 // ----------------------------------------------------------------------------
@@ -1542,8 +1548,9 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     allow_eval_cache = true;
   } else {
     ParseInfo parse_info(isolate);
-    script = parse_info.CreateScript(
-        isolate, source, OriginOptionsForEval(outer_info->script()));
+    script = parse_info.CreateScript(isolate, source,
+                                     OriginOptionsForEval(outer_info->script()),
+                                     OriginReplMode(outer_info->script()));
     script->set_compilation_type(Script::COMPILATION_TYPE_EVAL);
     script->set_eval_from_shared(*outer_info);
     if (eval_position == kNoSourcePosition) {
@@ -1964,8 +1971,8 @@ Handle<Script> NewScript(Isolate* isolate, ParseInfo* parse_info,
                          ScriptOriginOptions origin_options,
                          NativesFlag natives) {
   // Create a script object describing the script to be compiled.
-  Handle<Script> script =
-      parse_info->CreateScript(isolate, source, origin_options, natives);
+  Handle<Script> script = parse_info->CreateScript(
+      isolate, source, origin_options, script_details.repl_mode, natives);
   Handle<Object> script_name;
   if (script_details.name_obj.ToHandle(&script_name)) {
     script->set_name(*script_name);
@@ -2058,6 +2065,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     // No cache entry found compile the script.
     NewScript(isolate, &parse_info, source, script_details, origin_options,
               natives);
+    DCHECK_EQ(parse_info.is_repl_mode(), parse_info.script()->is_repl_mode());
 
     // Compile the function and add it to the isolate cache.
     if (origin_options.IsModule()) parse_info.set_module();

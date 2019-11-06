@@ -664,6 +664,10 @@ void SharedFunctionInfo::set_script(HeapObject script) {
   }
 }
 
+bool SharedFunctionInfo::is_repl_mode() const {
+  return script().IsScript() && Script::cast(script()).is_repl_mode();
+}
+
 bool SharedFunctionInfo::HasDebugInfo() const {
   return script_or_debug_info().IsDebugInfo();
 }

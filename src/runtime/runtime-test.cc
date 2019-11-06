@@ -13,6 +13,7 @@
 #include "src/codegen/compiler.h"
 #include "src/codegen/pending-optimization-table.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
+#include "src/debug/debug-evaluate.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
@@ -206,6 +207,17 @@ RUNTIME_FUNCTION(Runtime_RunningInSimulator) {
 #else
   return ReadOnlyRoots(isolate).false_value();
 #endif
+}
+
+RUNTIME_FUNCTION(Runtime_RuntimeEvaluateREPL) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, DebugEvaluate::GlobalREPL(isolate, source));
+
+  return *result;
 }
 
 RUNTIME_FUNCTION(Runtime_ICsAreEnabled) {

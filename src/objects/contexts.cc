@@ -289,6 +289,17 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
                                       &maybe_assigned_flag, &is_static_flag);
       DCHECK(slot_index < 0 || slot_index >= MIN_CONTEXT_SLOTS);
       if (slot_index >= 0) {
+        // Re-direct lookup to the ScriptContextTable in case we find a hole in
+        // a REPL script context. REPL scripts allow re-declaration of
+        // script-level let bindings. The value itself is stored in the script
+        // context of the first script that declared a variable, all other
+        // script contexts will contain 'the hole' for that particular name.
+        if (scope_info.IsReplModeScope() &&
+            context->get(slot_index).IsTheHole(isolate)) {
+          context = Handle<Context>(context->previous(), isolate);
+          continue;
+        }
+
         if (FLAG_trace_contexts) {
           PrintF("=> found local in context slot %d (mode = %hhu)\n",
                  slot_index, static_cast<uint8_t>(mode));

@@ -480,7 +480,11 @@ MaybeHandle<Object> LoadGlobalIC::Load(Handle<Name> name,
       if (result->IsTheHole(isolate())) {
         // Do not install stubs and stay pre-monomorphic for
         // uninitialized accesses.
-        return ReferenceError(name);
+        THROW_NEW_ERROR(
+            isolate(),
+            NewReferenceError(MessageTemplate::kAccessedUninitializedVariable,
+                              name),
+            Object);
       }
 
       bool use_ic = (state() != NO_FEEDBACK) && FLAG_use_ic && update_feedback;
@@ -1403,7 +1407,11 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
     if (previous_value->IsTheHole(isolate())) {
       // Do not install stubs and stay pre-monomorphic for
       // uninitialized accesses.
-      return ReferenceError(name);
+      THROW_NEW_ERROR(
+          isolate(),
+          NewReferenceError(MessageTemplate::kAccessedUninitializedVariable,
+                            name),
+          Object);
     }
 
     bool use_ic = (state() != NO_FEEDBACK) && FLAG_use_ic;
@@ -2390,7 +2398,8 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
 
     if (previous_value->IsTheHole(isolate)) {
       THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
+          isolate, NewReferenceError(
+                       MessageTemplate::kAccessedUninitializedVariable, name));
     }
 
     script_context->set(lookup_result.slot_index, *value);

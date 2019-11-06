@@ -121,6 +121,9 @@ class Variable final : public ZoneObject {
   bool IsLookupSlot() const { return location() == VariableLocation::LOOKUP; }
   bool IsGlobalObjectProperty() const;
 
+  // True for 'let' variables declared in the script scope of a REPL script.
+  bool IsReplGlobalLet() const;
+
   bool is_dynamic() const { return IsDynamicVariableMode(mode()); }
 
   // Returns the InitializationFlag this Variable was created with.
@@ -234,6 +237,9 @@ class Variable final : public ZoneObject {
     return mode == VariableMode::kVar ? kCreatedInitialized
                                       : kNeedsInitialization;
   }
+
+  // Rewrites the VariableLocation of repl script scope 'lets' to REPL_GLOBAL.
+  void RewriteLocationForRepl();
 
   using List = base::ThreadedList<Variable>;
 

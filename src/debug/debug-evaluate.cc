@@ -58,6 +58,30 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
   return result;
 }
 
+MaybeHandle<Object> DebugEvaluate::GlobalREPL(Isolate* isolate,
+                                              Handle<String> source) {
+  Handle<Context> context = isolate->native_context();
+  Compiler::ScriptDetails script_details(isolate->factory()->empty_string());
+  script_details.repl_mode = REPLMode::kYes;
+  ScriptOriginOptions origin_options(false, true);
+  MaybeHandle<SharedFunctionInfo> maybe_function_info =
+      Compiler::GetSharedFunctionInfoForScript(
+          isolate, source, script_details, origin_options, nullptr, nullptr,
+          ScriptCompiler::kNoCompileOptions, ScriptCompiler::kNoCacheNoReason,
+          NOT_NATIVES_CODE);
+
+  Handle<SharedFunctionInfo> shared_info;
+  if (!maybe_function_info.ToHandle(&shared_info)) return MaybeHandle<Object>();
+
+  Handle<JSFunction> fun =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(shared_info,
+                                                            context);
+  MaybeHandle<Object> result = Execution::Call(
+      isolate, fun, Handle<JSObject>(context->global_proxy(), isolate), 0,
+      nullptr);
+  return result;
+}
+
 MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
                                          StackFrameId frame_id,
                                          int inlined_jsframe_index,

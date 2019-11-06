@@ -1272,6 +1272,9 @@ void AstPrinter::VisitVariableProxy(VariableProxy* node) {
       case VariableLocation::MODULE:
         SNPrintF(buf + pos, " module");
         break;
+      case VariableLocation::REPL_GLOBAL:
+        SNPrintF(buf + pos, " repl global[%d]", var->index());
+        break;
     }
     PrintLiteralWithModeIndented(buf.begin(), var, node->raw_name());
   }

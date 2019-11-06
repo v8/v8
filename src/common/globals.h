@@ -787,6 +787,12 @@ enum class BytecodeFlushMode {
   kStressFlushBytecode,
 };
 
+// Indicates whether a script should be parsed and compiled in REPL mode.
+enum class REPLMode {
+  kYes,
+  kNo,
+};
+
 // Flag indicating whether code is built into the VM (one of the natives files).
 enum NativesFlag { NOT_NATIVES_CODE, EXTENSION_CODE, INSPECTOR_CODE };
 
@@ -1195,7 +1201,17 @@ enum VariableLocation : uint8_t {
   // A named slot in a module's export table.
   MODULE,
 
-  kLastVariableLocation = MODULE
+  // An indexed slot in a script context. index() is the variable
+  // index in the context object on the heap, starting at 0.
+  // Important: REPL_GLOBAL variables from different scripts with the
+  //            same name share a single script context slot. Every
+  //            script context will reserve a slot, but only one will be used.
+  // REPL_GLOBAL variables are stored in script contexts, but accessed like
+  // globals, i.e. they always require a lookup at runtime to find the right
+  // script context.
+  REPL_GLOBAL,
+
+  kLastVariableLocation = REPL_GLOBAL
 };
 
 // ES6 specifies declarative environment records with mutable and immutable

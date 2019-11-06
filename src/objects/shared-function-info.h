@@ -364,6 +364,9 @@ class SharedFunctionInfo : public HeapObject {
   inline HeapObject script() const;
   inline void set_script(HeapObject script);
 
+  // True if the underlying script was parsed and compiled in REPL mode.
+  inline bool is_repl_mode() const;
+
   // The function is subject to debugging if a debug info is attached.
   inline bool HasDebugInfo() const;
   inline DebugInfo GetDebugInfo() const;

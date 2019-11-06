@@ -297,6 +297,7 @@ void Scope::SetDefaults() {
   private_name_lookup_skips_outer_class_ = false;
 
   must_use_preparsed_scope_data_ = false;
+  is_repl_mode_scope_ = false;
 
   num_stack_slots_ = 0;
   num_heap_slots_ = ContextHeaderLength();
@@ -362,6 +363,7 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
       if (deserialization_mode == DeserializationMode::kIncludingVariables) {
         script_scope->SetScriptScopeInfo(handle(scope_info, isolate));
       }
+      if (scope_info.IsReplModeScope()) script_scope->set_is_repl_mode_scope();
       DCHECK(!scope_info.HasOuterScopeInfo());
       break;
     } else if (scope_info.scope_type() == FUNCTION_SCOPE) {
@@ -582,6 +584,7 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
   }
 
   if (!scope->AllocateVariables(info)) return false;
+  scope->GetScriptScope()->RewriteReplGlobalVariables();
 
 #ifdef DEBUG
   if (FLAG_print_scopes) {
@@ -1335,6 +1338,14 @@ DeclarationScope* Scope::GetReceiverScope() {
   return scope->AsDeclarationScope();
 }
 
+DeclarationScope* Scope::GetScriptScope() {
+  Scope* scope = this;
+  while (!scope->is_script_scope()) {
+    scope = scope->outer_scope();
+  }
+  return scope->AsDeclarationScope();
+}
+
 Scope* Scope::GetOuterScopeWithContext() {
   Scope* scope = outer_scope_;
   while (scope && !scope->NeedsContext()) {
@@ -1551,6 +1562,17 @@ void DeclarationScope::AnalyzePartially(Parser* parser,
   unresolved_list_ = std::move(new_unresolved_list);
 }
 
+void DeclarationScope::RewriteReplGlobalVariables() {
+  DCHECK(is_script_scope());
+  if (!is_repl_mode_scope()) return;
+
+  for (VariableMap::Entry* p = variables_.Start(); p != nullptr;
+       p = variables_.Next(p)) {
+    Variable* var = reinterpret_cast<Variable*>(p->value);
+    var->RewriteLocationForRepl();
+  }
+}
+
 #ifdef DEBUG
 namespace {
 
@@ -1599,6 +1621,9 @@ void PrintLocation(Variable* var) {
       break;
     case VariableLocation::MODULE:
       PrintF("module");
+      break;
+    case VariableLocation::REPL_GLOBAL:
+      PrintF("repl global[%d]", var->index());
       break;
   }
 }
@@ -2147,7 +2172,6 @@ bool Scope::MustAllocateInContext(Variable* var) {
   }
   return var->has_forced_context_allocation() || inner_scope_calls_eval_;
 }
-
 
 void Scope::AllocateStackSlot(Variable* var) {
   if (is_block_scope()) {

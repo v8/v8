@@ -771,6 +771,8 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode) const {
         UNREACHABLE();
         break;
 
+      case VariableLocation::REPL_GLOBAL:
+        // REPL declared variables are ignored for now.
       case VariableLocation::UNALLOCATED:
         continue;
 
@@ -927,6 +929,10 @@ bool ScopeIterator::SetLocalVariableValue(Handle<String> variable_name,
           // Drop assignments to unallocated locals.
           DCHECK(var->is_this() ||
                  *variable_name == ReadOnlyRoots(isolate_).arguments_string());
+          return false;
+
+        case VariableLocation::REPL_GLOBAL:
+          // Assignments to REPL declared variables are ignored for now.
           return false;
 
         case VariableLocation::PARAMETER: {

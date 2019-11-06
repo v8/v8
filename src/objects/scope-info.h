@@ -197,6 +197,10 @@ class ScopeInfo : public FixedArray {
   // closest outer class when resolving private names.
   bool PrivateNameLookupSkipsOuterClass() const;
 
+  // REPL mode scopes allow re-declaraction of let variables. They come from
+  // debug evaluate but are different to IsDebugEvaluateScope().
+  bool IsReplModeScope() const;
+
 #ifdef DEBUG
   bool Equals(ScopeInfo other) const;
 #endif
@@ -269,6 +273,7 @@ class ScopeInfo : public FixedArray {
       ForceContextAllocationField::Next<bool, 1>;
   using HasContextExtensionSlotField =
       PrivateNameLookupSkipsOuterClassField::Next<bool, 1>;
+  using IsReplModeScopeField = HasContextExtensionSlotField::Next<bool, 1>;
 
   STATIC_ASSERT(kLastFunctionKind <= FunctionKindField::kMax);
 

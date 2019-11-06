@@ -112,15 +112,20 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       int eval_scope_position, int eval_position);
 
   struct ScriptDetails {
-    ScriptDetails() : line_offset(0), column_offset(0) {}
+    ScriptDetails()
+        : line_offset(0), column_offset(0), repl_mode(REPLMode::kNo) {}
     explicit ScriptDetails(Handle<Object> script_name)
-        : line_offset(0), column_offset(0), name_obj(script_name) {}
+        : line_offset(0),
+          column_offset(0),
+          name_obj(script_name),
+          repl_mode(REPLMode::kNo) {}
 
     int line_offset;
     int column_offset;
     i::MaybeHandle<i::Object> name_obj;
     i::MaybeHandle<i::Object> source_map_url;
     i::MaybeHandle<i::FixedArray> host_defined_options;
+    REPLMode repl_mode;
   };
 
   // Create a function that results from wrapping |source| in a function,

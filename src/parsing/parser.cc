@@ -440,6 +440,7 @@ void Parser::InitializeEmptyScopeChain(ParseInfo* info) {
   DeclarationScope* script_scope = NewScriptScope();
   info->set_script_scope(script_scope);
   original_scope_ = script_scope;
+  if (info->is_repl_mode()) script_scope->set_is_repl_mode_scope();
 }
 
 void Parser::DeserializeScopeChain(

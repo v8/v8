@@ -26,6 +26,9 @@ class DebugEvaluate : public AllStatic {
   static MaybeHandle<Object> Global(Isolate* isolate, Handle<String> source,
                                     debug::EvaluateGlobalMode mode);
 
+  static MaybeHandle<Object> GlobalREPL(Isolate* isolate,
+                                        Handle<String> source);
+
   // Evaluate a piece of JavaScript in the context of a stack frame for
   // debugging.  Things that need special attention are:
   // - Parameters and stack-allocated locals need to be materialized.  Altered
