@@ -44,6 +44,8 @@ ADDITIONAL_FLAGS = [
   (0.1, '--regexp-interpret-all'),
   (0.1, '--regexp-tier-up-ticks=10'),
   (0.1, '--regexp-tier-up-ticks=100'),
+  (0.1, '--turbo-instruction-scheduling'),
+  (0.1, '--turbo-stress-instruction-scheduling'),
 ]
 
 class Config(object):
