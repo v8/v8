@@ -2440,6 +2440,14 @@ void InstructionSelector::VisitF64x2Mul(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF64x2Div(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitF64x2Eq(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF64x2Ne(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF64x2Lt(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF64x2Le(Node* node) { UNIMPLEMENTED(); }
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
