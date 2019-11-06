@@ -2655,7 +2655,7 @@ void InstructionSelector::VisitWord64AtomicCompareExchange(Node* node) {
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_PPC
         // !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_S390
 
-#if !V8_TARGET_ARCH_IA32
+#if !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM
 // This is only needed on 32-bit to split the 64-bit value into two operands.
 void InstructionSelector::VisitI64x2SplatI32Pair(Node* node) {
   UNIMPLEMENTED();

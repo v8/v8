@@ -1909,6 +1909,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmov(i.OutputSimd128Register().high(), scratch, scratch);
       break;
     }
+    case kArmI64x2SplatI32Pair: {
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vdup(Neon32, dst, i.InputRegister(0));
+      __ ReplaceLane(dst, dst, i.InputRegister(1), NeonS32, 1);
+      __ ReplaceLane(dst, dst, i.InputRegister(1), NeonS32, 3);
+      break;
+    }
+    case kArmI64x2ReplaceLaneI32Pair: {
+      Simd128Register dst = i.OutputSimd128Register();
+      int8_t lane = i.InputInt8(1);
+      __ ReplaceLane(dst, dst, i.InputRegister(2), NeonS32, lane * 2);
+      __ ReplaceLane(dst, dst, i.InputRegister(3), NeonS32, lane * 2 + 1);
+      break;
+    }
     case kArmF32x4Splat: {
       int src_code = i.InputFloatRegister(0).code();
       __ vdup(Neon32, i.OutputSimd128Register(),
