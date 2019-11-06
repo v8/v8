@@ -12,11 +12,13 @@
           "V8 Linux64 - debug - perfetto",
           "V8 Linux64 - fyi",
           "V8 Linux64 - gcov coverage",
+          "V8 Linux64 gcc - debug",
           "V8 Linux64 TSAN - concurrent marking",
           "V8 Linux64 TSAN - isolates",
           "V8 Linux - arm - sim - lite",
           "V8 Linux - arm - sim - lite - debug",
           "V8 Linux - full debug",
+          "V8 Linux gcc",
           "V8 Win64 ASAN"
         ],
         "builders": {
