@@ -864,6 +864,40 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
           kScratchReg);
 }
 
+void LiftoffAssembler::emit_i64_clz(LiftoffRegister dst, LiftoffRegister src) {
+  // return high == 0 ? 32 + CLZ32(low) : CLZ32(high);
+  Label done;
+  Label high_is_zero;
+  Branch(&high_is_zero, eq, src.high_gp(), Operand(zero_reg));
+
+  clz(dst.low_gp(), src.high_gp());
+  jmp(&done);
+
+  bind(&high_is_zero);
+  clz(dst.low_gp(), src.low_gp());
+  Addu(dst.low_gp(), dst.low_gp(), Operand(32));
+
+  bind(&done);
+  mov(dst.high_gp(), zero_reg);  // High word of result is always 0.
+}
+
+void LiftoffAssembler::emit_i64_ctz(LiftoffRegister dst, LiftoffRegister src) {
+  // return low == 0 ? 32 + CTZ32(high) : CTZ32(low);
+  Label done;
+  Label low_is_zero;
+  Branch(&low_is_zero, eq, src.low_gp(), Operand(zero_reg));
+
+  Ctz(dst.low_gp(), src.low_gp());
+  jmp(&done);
+
+  bind(&low_is_zero);
+  Ctz(dst.low_gp(), src.high_gp());
+  Addu(dst.low_gp(), dst.low_gp(), Operand(32));
+
+  bind(&done);
+  mov(dst.high_gp(), zero_reg);  // High word of result is always 0.
+}
+
 void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
   // This is a nop on mips32.
 }
