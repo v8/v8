@@ -915,11 +915,10 @@ export class GraphView extends PhaseView {
     const dy = maxY - minY;
     const x = (minX + maxX) / 2;
     const y = (minY + maxY) / 2;
-    const scale = Math.min(width / (1.1 * dx), height / (1.1 * dy));
+    const scale = Math.min(width / dx, height / dy) * 0.9;
     this.svg
-      .transition().duration(300).call(this.panZoom.translateTo, x, y)
-      .transition().duration(300).call(this.panZoom.scaleTo, scale)
-      .transition().duration(300).call(this.panZoom.translateTo, x, y);
+      .transition().duration(120).call(this.panZoom.scaleTo, scale)
+      .transition().duration(120).call(this.panZoom.translateTo, x, y);
   }
 
   viewWholeGraph() {
