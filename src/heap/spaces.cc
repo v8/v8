@@ -3713,7 +3713,8 @@ bool CompactionSpace::SweepAndRetryAllocation(int size_in_bytes,
                                               AllocationOrigin origin) {
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   if (FLAG_concurrent_sweeping && collector->sweeping_in_progress()) {
-    collector->sweeper()->ParallelSweepSpace(identity(), 0);
+    collector->sweeper()->ParallelSweepSpace(
+        identity(), 0, 0, Sweeper::FreeSpaceMayContainInvalidatedSlots::kYes);
     RefillFreeList();
     return RefillLinearAllocationAreaFromFreeList(size_in_bytes, origin);
   }
@@ -3824,7 +3825,7 @@ bool PagedSpace::RawSlowRefillLinearAllocationArea(int size_in_bytes,
   }
 
   // If sweeper threads are active, wait for them at that point and steal
-  // elements form their free-lists. Allocation may still fail their which
+  // elements from their free-lists. Allocation may still fail their which
   // would indicate that there is not enough memory for the given allocation.
   return SweepAndRetryAllocation(size_in_bytes, origin);
 }
