@@ -271,6 +271,7 @@
       {'name': 'v8testing', 'shards': 3},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
       {'name': 'v8testing', 'variant': 'minor_mc', 'shards': 1},
+      {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
     ],
   },
   'v8_linux64_gc_stress_custom_snapshot_dbg_ng_triggered': {
@@ -327,6 +328,7 @@
       {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'assert_types'},
       {'name': 'v8testing', 'variant': 'extra'},
+      {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
     ],
   },
   'v8_linux64_perfetto_dbg_ng_triggered': {
@@ -362,6 +364,7 @@
       {'name': 'v8testing', 'variant': 'extra'},
       {'name': 'v8testing', 'variant': 'minor_mc'},
       {'name': 'v8testing', 'variant': 'slow_path'},
+      {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
     ],
   },
   # TODO(machenbach): Experimental builder with incomplete configs. Should be
@@ -833,6 +836,7 @@
       {'name': 'v8testing', 'variant': 'assert_types'},
       {'name': 'v8testing', 'variant': 'extra'},
       {'name': 'v8testing', 'variant': 'minor_mc', 'shards': 1},
+      {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
       # Noavx.
       {
         'name': 'mozilla',
@@ -890,6 +894,7 @@
       {'name': 'v8testing', 'variant': 'extra'},
       {'name': 'v8testing', 'variant': 'minor_mc', 'shards': 1},
       {'name': 'v8testing', 'variant': 'slow_path', 'shards': 1},
+      {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
       # Noavx.
       {
         'name': 'mozilla',
