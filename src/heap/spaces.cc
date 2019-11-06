@@ -3695,8 +3695,9 @@ size_t PagedSpace::SizeOfObjects() {
   return Size() - (limit() - top());
 }
 
-bool PagedSpace::SweepAndRetryAllocation(int size_in_bytes,
-                                         AllocationOrigin origin) {
+bool PagedSpace::EnsureSweptAndRetryAllocation(int size_in_bytes,
+                                               AllocationOrigin origin) {
+  DCHECK(!is_local_space());
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
     // Wait for the sweeper threads here and complete the sweeping phase.
@@ -3707,24 +3708,6 @@ bool PagedSpace::SweepAndRetryAllocation(int size_in_bytes,
     return RefillLinearAllocationAreaFromFreeList(size_in_bytes, origin);
   }
   return false;
-}
-
-bool CompactionSpace::SweepAndRetryAllocation(int size_in_bytes,
-                                              AllocationOrigin origin) {
-  MarkCompactCollector* collector = heap()->mark_compact_collector();
-  if (FLAG_concurrent_sweeping && collector->sweeping_in_progress()) {
-    collector->sweeper()->ParallelSweepSpace(
-        identity(), 0, 0, Sweeper::FreeSpaceMayContainInvalidatedSlots::kYes);
-    RefillFreeList();
-    return RefillLinearAllocationAreaFromFreeList(size_in_bytes, origin);
-  }
-  return false;
-}
-
-bool OffThreadSpace::SweepAndRetryAllocation(int size_in_bytes,
-                                             AllocationOrigin origin) {
-  // Sweeping is not supported in the off-thread space.
-  UNREACHABLE();
 }
 
 bool PagedSpace::SlowRefillLinearAllocationArea(int size_in_bytes,
@@ -3784,24 +3767,9 @@ bool PagedSpace::RawSlowRefillLinearAllocationArea(int size_in_bytes,
             static_cast<size_t>(size_in_bytes), origin))
       return true;
 
-    // Cleanup invalidated old-to-new refs for compaction space in the
-    // final atomic pause.
-    Sweeper::FreeSpaceMayContainInvalidatedSlots
-        invalidated_slots_in_free_space =
-            is_compaction_space()
-                ? Sweeper::FreeSpaceMayContainInvalidatedSlots::kYes
-                : Sweeper::FreeSpaceMayContainInvalidatedSlots::kNo;
-
-    // If sweeping is still in progress try to sweep pages.
-    int max_freed = collector->sweeper()->ParallelSweepSpace(
-        identity(), size_in_bytes, kMaxPagesToSweep,
-        invalidated_slots_in_free_space);
-    RefillFreeList();
-    if (max_freed >= size_in_bytes) {
-      if (RefillLinearAllocationAreaFromFreeList(
-              static_cast<size_t>(size_in_bytes), origin))
-        return true;
-    }
+    if (SweepAndRetryAllocation(size_in_bytes, kMaxPagesToSweep, size_in_bytes,
+                                origin))
+      return true;
   }
 
   if (is_compaction_space()) {
@@ -3824,10 +3792,36 @@ bool PagedSpace::RawSlowRefillLinearAllocationArea(int size_in_bytes,
         static_cast<size_t>(size_in_bytes), origin);
   }
 
-  // If sweeper threads are active, wait for them at that point and steal
-  // elements from their free-lists. Allocation may still fail their which
-  // would indicate that there is not enough memory for the given allocation.
-  return SweepAndRetryAllocation(size_in_bytes, origin);
+  if (is_compaction_space()) {
+    return SweepAndRetryAllocation(0, 0, size_in_bytes, origin);
+
+  } else {
+    // If sweeper threads are active, wait for them at that point and steal
+    // elements from their free-lists. Allocation may still fail here which
+    // would indicate that there is not enough memory for the given allocation.
+    return EnsureSweptAndRetryAllocation(size_in_bytes, origin);
+  }
+}
+
+bool PagedSpace::SweepAndRetryAllocation(int required_freed_bytes,
+                                         int max_pages, int size_in_bytes,
+                                         AllocationOrigin origin) {
+  // Cleanup invalidated old-to-new refs for compaction space in the
+  // final atomic pause.
+  Sweeper::FreeSpaceMayContainInvalidatedSlots invalidated_slots_in_free_space =
+      is_compaction_space() ? Sweeper::FreeSpaceMayContainInvalidatedSlots::kYes
+                            : Sweeper::FreeSpaceMayContainInvalidatedSlots::kNo;
+
+  MarkCompactCollector* collector = heap()->mark_compact_collector();
+  if (collector->sweeping_in_progress()) {
+    int max_freed = collector->sweeper()->ParallelSweepSpace(
+        identity(), required_freed_bytes, max_pages,
+        invalidated_slots_in_free_space);
+    RefillFreeList();
+    if (max_freed >= size_in_bytes)
+      return RefillLinearAllocationAreaFromFreeList(size_in_bytes, origin);
+  }
+  return false;
 }
 
 // -----------------------------------------------------------------------------

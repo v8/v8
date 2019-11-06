@@ -2546,8 +2546,13 @@ class V8_EXPORT_PRIVATE PagedSpace
   // not successful, wait for the sweeper threads and retry free-list
   // allocation. Returns false if there is not enough space and the caller
   // has to retry after collecting garbage.
-  V8_WARN_UNUSED_RESULT virtual bool SweepAndRetryAllocation(
+  V8_WARN_UNUSED_RESULT bool EnsureSweptAndRetryAllocation(
       int size_in_bytes, AllocationOrigin origin);
+
+  V8_WARN_UNUSED_RESULT bool SweepAndRetryAllocation(int required_freed_bytes,
+                                                     int max_pages,
+                                                     int size_in_bytes,
+                                                     AllocationOrigin origin);
 
   // Slow path of AllocateRaw. This function is space-dependent. Returns false
   // if there is not enough space and the caller has to retry after
@@ -3059,9 +3064,6 @@ class V8_EXPORT_PRIVATE CompactionSpace : public LocalSpace {
   }
 
  protected:
-  V8_WARN_UNUSED_RESULT bool SweepAndRetryAllocation(
-      int size_in_bytes, AllocationOrigin origin) override;
-
   V8_WARN_UNUSED_RESULT bool SlowRefillLinearAllocationArea(
       int size_in_bytes, AllocationOrigin origin) override;
 };
@@ -3162,9 +3164,6 @@ class V8_EXPORT_PRIVATE OffThreadSpace : public LocalSpace {
                    LocalSpaceKind::kOffThreadSpace) {}
 
  protected:
-  V8_WARN_UNUSED_RESULT bool SweepAndRetryAllocation(
-      int size_in_bytes, AllocationOrigin origin) override;
-
   V8_WARN_UNUSED_RESULT bool SlowRefillLinearAllocationArea(
       int size_in_bytes, AllocationOrigin origin) override;
 
