@@ -143,7 +143,8 @@ class AsyncCompileJob {
     return outstanding_finishers_.fetch_sub(1) == 1;
   }
 
-  void CreateNativeModule(std::shared_ptr<const WasmModule> module);
+  void CreateNativeModule(std::shared_ptr<const WasmModule> module,
+                          size_t code_size_estimate);
   void PrepareRuntimeObjects();
 
   void FinishCompile();

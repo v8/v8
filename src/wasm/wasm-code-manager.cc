@@ -1540,18 +1540,33 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
 
 // static
 size_t WasmCodeManager::EstimateNativeModuleCodeSize(const WasmModule* module) {
+  int num_functions = static_cast<int>(module->num_declared_functions);
+  int num_imported_functions = static_cast<int>(module->num_imported_functions);
+  int code_section_length = 0;
+  if (num_functions > 0) {
+    DCHECK_EQ(module->functions.size(), num_imported_functions + num_functions);
+    auto* first_fn = &module->functions[module->num_imported_functions];
+    auto* last_fn = &module->functions.back();
+    code_section_length =
+        static_cast<int>(last_fn->code.end_offset() - first_fn->code.offset());
+  }
+  return EstimateNativeModuleCodeSize(num_functions, num_imported_functions,
+                                      code_section_length);
+}
+
+// static
+size_t WasmCodeManager::EstimateNativeModuleCodeSize(int num_functions,
+                                                     int num_imported_functions,
+                                                     int code_section_length) {
   constexpr size_t kCodeSizeMultiplier = 4;
   constexpr size_t kCodeOverhead = 32;     // for prologue, stack check, ...
   constexpr size_t kStaticCodeSize = 512;  // runtime stubs, ...
   constexpr size_t kImportSize = 64 * kSystemPointerSize;
 
-  size_t estimate = kStaticCodeSize;
-  for (auto& function : module->functions) {
-    estimate += kCodeOverhead + kCodeSizeMultiplier * function.code.length();
-  }
-  estimate += kImportSize * module->num_imported_functions;
-
-  return estimate;
+  return kStaticCodeSize                              // static
+         + kCodeOverhead * num_functions              // per function
+         + kCodeSizeMultiplier * code_section_length  // per opcode (~ byte)
+         + kImportSize * num_imported_functions;      // per import
 }
 
 // static
