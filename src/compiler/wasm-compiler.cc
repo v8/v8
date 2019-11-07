@@ -3737,7 +3737,7 @@ Node* WasmGraphBuilder::LoadTransform(MachineType memtype,
   }
 
 #if defined(V8_TARGET_BIG_ENDIAN)
-  load = BuildChangeEndiannessLoad(load, memtype, wasm::ValueType::kSimd128);
+  load = BuildChangeEndiannessLoad(load, memtype, wasm::ValueType::kWasmS128);
 #endif
 
   if (FLAG_trace_wasm_memory) {
