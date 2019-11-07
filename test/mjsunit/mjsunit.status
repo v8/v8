@@ -445,7 +445,6 @@
   # tests.
   'asm/embenchen/box2d': [SKIP],
   'asm/embenchen/lua_binarytrees': [SKIP],
-  'big-object-literal': [SKIP],
   'compiler/regress-arguments': [SKIP],
   'compiler/regress-gvn': [SKIP],
   'compiler/regress-4': [SKIP],
@@ -526,7 +525,6 @@
 ['asan == True', {
   # Skip tests not suitable for ASAN.
   'big-array-literal': [SKIP],
-  'big-object-literal': [SKIP],
   'regress/regress-crbug-178790': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4639
@@ -626,7 +624,6 @@
 
   # Long running tests. Skipping because having them timeout takes too long on
   # the buildbot.
-  'big-object-literal': [SKIP],
   'compiler/alloc-number': [SKIP],
   'regress/regress-490': [SKIP],
   'regress/regress-create-exception': [SKIP],
@@ -770,7 +767,6 @@
 ##############################################################################
 ['system == windows', {
   # TODO(mstarzinger): Too slow with turbo fan.
-  'big-object-literal': [SKIP],
   'math-floor-of-div': [PASS, ['mode == debug', SKIP]],
   'math-floor-of-div-nosudiv': [PASS, ['mode == debug', SKIP]],
   'unicodelctest': [PASS, ['mode == debug', SKIP]],
@@ -801,12 +797,6 @@
   'regress/regress-779407': [SKIP],
   'regress/regress-852258': [SKIP],
 }],  # 'system == android'
-
-##############################################################################
-['system == macos', {
-  # BUG(v8:5333)
-  'big-object-literal': [SKIP],
-}],  # 'system == macos'
 
 ##############################################################################
 ['isolates', {
@@ -963,7 +953,6 @@
 ['variant == stress', {
   # Slow tests.
   'array-natives-elements': [SKIP],
-  'big-object-literal': [SKIP],
   'es6/array-iterator-turbo': [SKIP],
   'ignition/regress-599001-verifyheap': [SKIP],
   'unicode-test': [SKIP],
