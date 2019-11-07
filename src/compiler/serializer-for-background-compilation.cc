@@ -2073,24 +2073,27 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
     case Builtins::kPromisePrototypeCatch: {
       // For JSCallReducer::ReducePromisePrototypeCatch.
       if (speculation_mode != SpeculationMode::kDisallowSpeculation) {
-        CHECK_GE(arguments.size(), 1);
-        ProcessMapHintsForPromises(arguments[0]);
+        if (arguments.size() >= 1) {
+          ProcessMapHintsForPromises(arguments[0]);
+        }
       }
       break;
     }
     case Builtins::kPromisePrototypeFinally: {
       // For JSCallReducer::ReducePromisePrototypeFinally.
       if (speculation_mode != SpeculationMode::kDisallowSpeculation) {
-        CHECK_GE(arguments.size(), 1);
-        ProcessMapHintsForPromises(arguments[0]);
+        if (arguments.size() >= 1) {
+          ProcessMapHintsForPromises(arguments[0]);
+        }
       }
       break;
     }
     case Builtins::kPromisePrototypeThen: {
       // For JSCallReducer::ReducePromisePrototypeThen.
       if (speculation_mode != SpeculationMode::kDisallowSpeculation) {
-        CHECK_GE(arguments.size(), 1);
-        ProcessMapHintsForPromises(arguments[0]);
+        if (arguments.size() >= 1) {
+          ProcessMapHintsForPromises(arguments[0]);
+        }
       }
       break;
     }
