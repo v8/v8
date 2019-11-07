@@ -79,7 +79,6 @@ int GetByteWidth(MachineRepresentation rep) {
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
-    case MachineRepresentation::kCompressedSigned:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
       // TODO(ishell): kTaggedSize once half size locations are supported.

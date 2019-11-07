@@ -500,7 +500,6 @@ MachineType AtomicOpType(Operator const* op) {
   V(TaggedSigned)            \
   V(TaggedPointer)           \
   V(AnyTagged)               \
-  V(CompressedSigned)        \
   V(CompressedPointer)       \
   V(AnyCompressed)
 
@@ -515,7 +514,6 @@ MachineType AtomicOpType(Operator const* op) {
   V(kTaggedSigned)                     \
   V(kTaggedPointer)                    \
   V(kTagged)                           \
-  V(kCompressedSigned)                 \
   V(kCompressedPointer)                \
   V(kCompressed)
 

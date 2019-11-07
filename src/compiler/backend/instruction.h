@@ -472,7 +472,6 @@ class LocationOperand : public InstructionOperand {
       case MachineRepresentation::kTaggedSigned:
       case MachineRepresentation::kTaggedPointer:
       case MachineRepresentation::kTagged:
-      case MachineRepresentation::kCompressedSigned:
       case MachineRepresentation::kCompressedPointer:
       case MachineRepresentation::kCompressed:
         return true;

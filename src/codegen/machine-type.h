@@ -24,7 +24,6 @@ enum class MachineRepresentation : uint8_t {
   kTaggedSigned,
   kTaggedPointer,
   kTagged,
-  kCompressedSigned,
   kCompressedPointer,
   kCompressed,
   // FP representations must be last, and in order of increasing size.
@@ -106,11 +105,7 @@ class MachineType {
   }
   constexpr bool IsCompressed() const {
     return representation() == MachineRepresentation::kCompressedPointer ||
-           representation() == MachineRepresentation::kCompressedSigned ||
            representation() == MachineRepresentation::kCompressed;
-  }
-  constexpr bool IsCompressedSigned() const {
-    return representation() == MachineRepresentation::kCompressedSigned;
   }
   constexpr bool IsCompressedPointer() const {
     return representation() == MachineRepresentation::kCompressedPointer;
@@ -180,10 +175,6 @@ class MachineType {
   }
   constexpr static MachineType AnyTagged() {
     return MachineType(MachineRepresentation::kTagged, MachineSemantic::kAny);
-  }
-  constexpr static MachineType CompressedSigned() {
-    return MachineType(MachineRepresentation::kCompressedSigned,
-                       MachineSemantic::kInt32);
   }
   constexpr static MachineType CompressedPointer() {
     return MachineType(MachineRepresentation::kCompressedPointer,
@@ -271,8 +262,6 @@ class MachineType {
         return MachineType::AnyCompressed();
       case MachineRepresentation::kCompressedPointer:
         return MachineType::CompressedPointer();
-      case MachineRepresentation::kCompressedSigned:
-        return MachineType::CompressedSigned();
       default:
         UNREACHABLE();
     }
@@ -328,14 +317,8 @@ inline bool CanBeTaggedOrCompressedPointer(MachineRepresentation rep) {
   return CanBeTaggedPointer(rep) || CanBeCompressedPointer(rep);
 }
 
-inline bool CanBeCompressedSigned(MachineRepresentation rep) {
-  return rep == MachineRepresentation::kCompressed ||
-         rep == MachineRepresentation::kCompressedSigned;
-}
-
 inline bool IsAnyCompressed(MachineRepresentation rep) {
-  return CanBeCompressedPointer(rep) ||
-         rep == MachineRepresentation::kCompressedSigned;
+  return CanBeCompressedPointer(rep);
 }
 
 // Gets the log2 of the element size in bytes of the machine type.
@@ -357,7 +340,6 @@ V8_EXPORT_PRIVATE inline int ElementSizeLog2Of(MachineRepresentation rep) {
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
-    case MachineRepresentation::kCompressedSigned:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
       return kTaggedSizeLog2;

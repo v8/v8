@@ -216,7 +216,6 @@ Node* RepresentationChanger::GetRepresentationFor(
     case MachineRepresentation::kNone:
       return node;
     case MachineRepresentation::kCompressed:
-    case MachineRepresentation::kCompressedSigned:
     case MachineRepresentation::kCompressedPointer:
       UNREACHABLE();
   }

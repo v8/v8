@@ -619,7 +619,6 @@ class MachineRepresentationChecker {
                 break;
               case MachineRepresentation::kCompressed:
               case MachineRepresentation::kCompressedPointer:
-              case MachineRepresentation::kCompressedSigned:
                 for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
                     CheckValueInputIsCompressedOrTagged(node, i);
                 }
@@ -722,7 +721,6 @@ class MachineRepresentationChecker {
     switch (inferrer_->GetRepresentation(input)) {
       case MachineRepresentation::kCompressed:
       case MachineRepresentation::kCompressedPointer:
-      case MachineRepresentation::kCompressedSigned:
         return;
       default:
         break;
@@ -758,7 +756,6 @@ class MachineRepresentationChecker {
     switch (inferrer_->GetRepresentation(input)) {
       case MachineRepresentation::kCompressed:
       case MachineRepresentation::kCompressedPointer:
-      case MachineRepresentation::kCompressedSigned:
       case MachineRepresentation::kTagged:
       case MachineRepresentation::kTaggedPointer:
       case MachineRepresentation::kTaggedSigned:
@@ -844,7 +841,6 @@ class MachineRepresentationChecker {
       case MachineRepresentation::kWord32:
         return;
       case MachineRepresentation::kCompressed:
-      case MachineRepresentation::kCompressedSigned:
       case MachineRepresentation::kCompressedPointer:
         return;
       default:
@@ -989,7 +985,6 @@ class MachineRepresentationChecker {
         // kTaggedPointer and the other way around, but at the moment, this
         // happens in dead code.
         return IsAnyTagged(actual);
-      case MachineRepresentation::kCompressedSigned:
       case MachineRepresentation::kCompressedPointer:
       case MachineRepresentation::kFloat32:
       case MachineRepresentation::kFloat64:

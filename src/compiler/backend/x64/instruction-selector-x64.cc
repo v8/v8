@@ -241,7 +241,6 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
     case MachineRepresentation::kWord32:
       opcode = kX64Movl;
       break;
-    case MachineRepresentation::kCompressedSigned:   // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:
 #ifdef V8_COMPRESS_POINTERS
@@ -290,7 +289,6 @@ ArchOpcode GetStoreOpcode(StoreRepresentation store_rep) {
       return kX64Movw;
     case MachineRepresentation::kWord32:
       return kX64Movl;
-    case MachineRepresentation::kCompressedSigned:   // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:
 #ifdef V8_COMPRESS_POINTERS
@@ -630,7 +628,6 @@ bool TryMergeTruncateInt64ToInt32IntoLoad(InstructionSelector* selector,
       case MachineRepresentation::kWord64:
       case MachineRepresentation::kTaggedSigned:
       case MachineRepresentation::kTagged:
-      case MachineRepresentation::kCompressedSigned:  // Fall through.
       case MachineRepresentation::kCompressed:        // Fall through.
         opcode = kX64Movl;
         break;

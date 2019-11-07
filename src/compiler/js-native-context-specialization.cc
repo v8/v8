@@ -2436,7 +2436,6 @@ JSNativeContextSpecialization::BuildPropertyStore(
         break;
       case MachineRepresentation::kNone:
       case MachineRepresentation::kBit:
-      case MachineRepresentation::kCompressedSigned:
       case MachineRepresentation::kCompressedPointer:
       case MachineRepresentation::kCompressed:
       case MachineRepresentation::kWord8:
