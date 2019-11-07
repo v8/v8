@@ -2889,12 +2889,12 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           false, NONE);
     SimpleInstallFunction(isolate_, console, "warn", Builtins::kConsoleWarn, 0,
                           false, NONE);
-    SimpleInstallFunction(isolate_, console, "dir", Builtins::kConsoleDir, 1,
+    SimpleInstallFunction(isolate_, console, "dir", Builtins::kConsoleDir, 0,
                           false, NONE);
     SimpleInstallFunction(isolate_, console, "dirxml", Builtins::kConsoleDirXml,
                           0, false, NONE);
     SimpleInstallFunction(isolate_, console, "table", Builtins::kConsoleTable,
-                          1, false, NONE);
+                          0, false, NONE);
     SimpleInstallFunction(isolate_, console, "trace", Builtins::kConsoleTrace,
                           0, false, NONE);
     SimpleInstallFunction(isolate_, console, "group", Builtins::kConsoleGroup,
