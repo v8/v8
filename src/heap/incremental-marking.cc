@@ -13,6 +13,8 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/mark-compact-inl.h"
+#include "src/heap/marking-visitor-inl.h"
+#include "src/heap/marking-visitor.h"
 #include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
@@ -29,11 +31,6 @@
 
 namespace v8 {
 namespace internal {
-
-using IncrementalMarkingMarkingVisitor =
-    MarkingVisitor<FixedArrayVisitationMode::kIncremental,
-                   TraceRetainingPathMode::kDisabled,
-                   IncrementalMarking::MarkingState>;
 
 void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
                                         size_t size) {
@@ -70,6 +67,11 @@ IncrementalMarking::IncrementalMarking(
   SetState(STOPPED);
 }
 
+IncrementalMarking::~IncrementalMarking() {
+  // Avoid default destructor, which would be inlined in the header file
+  // and cause compile errors due marking_visitor_ not fully defined.
+}
+
 void IncrementalMarking::RecordWriteSlow(HeapObject obj, HeapObjectSlot slot,
                                          HeapObject value) {
   if (BaseRecordWrite(obj, value) && slot.address() != kNullAddress) {
@@ -102,9 +104,7 @@ void IncrementalMarking::MarkBlackAndVisitObjectDueToLayoutChange(
   TRACE_EVENT0("v8", "V8.GCIncrementalMarkingLayoutChange");
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_LAYOUT_CHANGE);
   marking_state()->WhiteToGrey(obj);
-  if (marking_state()->GreyToBlack(obj)) {
-    RevisitObject(obj);
-  }
+  marking_visitor_->Visit(obj.map(), obj);
 }
 
 void IncrementalMarking::NotifyLeftTrimming(HeapObject from, HeapObject to) {
@@ -338,6 +338,15 @@ void IncrementalMarking::StartMarking() {
   SetState(MARKING);
 
   ActivateIncrementalWriteBarrier();
+
+  MarkCompactCollector* collector = heap_->mark_compact_collector();
+
+  marking_visitor_ = std::make_unique<MarkCompactCollector::MarkingVisitor>(
+      collector->marking_state(), collector->marking_worklist()->shared(),
+      collector->marking_worklist()->embedder(), collector->weak_objects(),
+      heap_, collector->epoch(), Heap::GetBytecodeFlushMode(),
+      heap_->local_embedder_heap_tracer()->InUse(),
+      heap_->is_current_gc_forced());
 
 // Marking bits are cleared by the sweeper.
 #ifdef VERIFY_HEAP
@@ -680,29 +689,6 @@ void IncrementalMarking::UpdateMarkedBytesAfterScavenge(
   bytes_marked_ -= Min(bytes_marked_, dead_bytes_in_new_space);
 }
 
-int IncrementalMarking::VisitObject(Map map, HeapObject obj) {
-  DCHECK(marking_state()->IsGrey(obj) || marking_state()->IsBlack(obj));
-  if (!marking_state()->GreyToBlack(obj)) {
-    // The object can already be black in these cases:
-    // 1. The object is a fixed array with the progress bar.
-    // 2. The object is a JSObject that was colored black before
-    //    unsafe layout change.
-    // 3. The object is a string that was colored black before
-    //    unsafe layout change.
-    // 4. The object is materizalized by the deoptimizer.
-    // 5. The object is a descriptor array marked black by
-    //    the descriptor array marking barrier.
-    DCHECK(obj.IsHashTable() || obj.IsPropertyArray() || obj.IsFixedArray() ||
-           obj.IsContext() || obj.IsJSObject() || obj.IsString() ||
-           obj.IsDescriptorArray());
-  }
-  DCHECK(marking_state()->IsBlack(obj));
-  WhiteToGreyAndPush(map);
-  IncrementalMarkingMarkingVisitor visitor(heap()->mark_compact_collector(),
-                                           marking_state());
-  return visitor.Visit(map, obj);
-}
-
 void IncrementalMarking::ProcessBlackAllocatedObject(HeapObject obj) {
   if (IsMarking() && marking_state()->IsBlack(obj)) {
     RevisitObject(obj);
@@ -715,23 +701,16 @@ void IncrementalMarking::RevisitObject(HeapObject obj) {
   DCHECK_IMPLIES(MemoryChunk::FromHeapObject(obj)->IsFlagSet(
                      MemoryChunk::HAS_PROGRESS_BAR),
                  0u == MemoryChunk::FromHeapObject(obj)->ProgressBar());
-  Map map = obj.map();
-  WhiteToGreyAndPush(map);
-  IncrementalMarkingMarkingVisitor visitor(heap()->mark_compact_collector(),
-                                           marking_state());
-  visitor.Visit(map, obj);
+  MarkCompactCollector::MarkingVisitor::RevisitScope revisit(
+      marking_visitor_.get());
+  marking_visitor_->Visit(obj.map(), obj);
 }
 
-void IncrementalMarking::VisitDescriptors(HeapObject host,
-                                          DescriptorArray descriptors,
-                                          int number_of_own_descriptors) {
-  IncrementalMarkingMarkingVisitor visitor(heap()->mark_compact_collector(),
-                                           marking_state());
-  // This is necessary because the Scavenger records slots only for the
-  // promoted black objects and the marking visitor of DescriptorArray skips
-  // the descriptors marked by the visitor.VisitDescriptors() below.
-  visitor.MarkDescriptorArrayBlack(host, descriptors);
-  visitor.VisitDescriptors(descriptors, number_of_own_descriptors);
+void IncrementalMarking::MarkDescriptorArrayFromWriteBarrier(
+    HeapObject host, DescriptorArray descriptors,
+    int number_of_own_descriptors) {
+  marking_visitor_->MarkDescriptorArrayFromWriteBarrier(
+      host, descriptors, number_of_own_descriptors);
 }
 
 intptr_t IncrementalMarking::ProcessMarkingWorklist(
@@ -755,7 +734,7 @@ intptr_t IncrementalMarking::ProcessMarkingWorklist(
           marking_state()->IsBlackOrGrey(obj));
       continue;
     }
-    bytes_processed += VisitObject(obj.map(), obj);
+    bytes_processed += marking_visitor_->Visit(obj.map(), obj);
   }
   return bytes_processed;
 }

@@ -185,8 +185,6 @@ enum class RememberedSetUpdatingMode { ALL, OLD_TO_NEW_ONLY };
 // Base class for minor and full MC collectors.
 class MarkCompactCollectorBase {
  public:
-  static const int kMainThread = 0;
-
   virtual ~MarkCompactCollectorBase() = default;
 
   virtual void SetUp() = 0;
@@ -288,9 +286,9 @@ class MinorNonAtomicMarkingState final
   }
 };
 
-// This marking state is used when concurrent marking is running.
-class IncrementalMarkingState final
-    : public MarkingStateBase<IncrementalMarkingState, AccessMode::ATOMIC> {
+// This is used by marking visitors.
+class MajorMarkingState final
+    : public MarkingStateBase<MajorMarkingState, AccessMode::ATOMIC> {
  public:
   ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(const MemoryChunk* chunk) const {
     DCHECK_EQ(reinterpret_cast<intptr_t>(&chunk->marking_bitmap_) -
@@ -314,6 +312,8 @@ class IncrementalMarkingState final
   }
 };
 
+// This is used by Scavenger and Evacuator in TransferColor.
+// Live byte increments have to be atomic.
 class MajorAtomicMarkingState final
     : public MarkingStateBase<MajorAtomicMarkingState, AccessMode::ATOMIC> {
  public:
@@ -355,16 +355,101 @@ class MajorNonAtomicMarkingState final
   }
 };
 
+// The index of the main thread task used by concurrent/parallel GC.
+const int kMainThreadTask = 0;
+
+// This visitor is used for marking on the main thread. It is cheaper than
+// the concurrent marking visitor because it does not snapshot JSObjects.
+template <typename MarkingState>
+class MainMarkingVisitor final
+    : public MarkingVisitorBase<MainMarkingVisitor<MarkingState>,
+                                MarkingState> {
+ public:
+  // This is used for revisiting objects that were black allocated.
+  class RevisitScope {
+   public:
+    explicit RevisitScope(MainMarkingVisitor* visitor) : visitor_(visitor) {
+      DCHECK(!visitor->revisiting_object_);
+      visitor->revisiting_object_ = true;
+    }
+    ~RevisitScope() {
+      DCHECK(visitor_->revisiting_object_);
+      visitor_->revisiting_object_ = false;
+    }
+
+   private:
+    MainMarkingVisitor<MarkingState>* visitor_;
+  };
+
+  MainMarkingVisitor(MarkingState* marking_state,
+                     MarkingWorklist* marking_worklist,
+                     EmbedderTracingWorklist* embedder_worklist,
+                     WeakObjects* weak_objects, Heap* heap,
+                     unsigned mark_compact_epoch,
+                     BytecodeFlushMode bytecode_flush_mode,
+                     bool embedder_tracing_enabled, bool is_forced_gc)
+      : MarkingVisitorBase<MainMarkingVisitor<MarkingState>, MarkingState>(
+            kMainThreadTask, marking_worklist, embedder_worklist, weak_objects,
+            heap, mark_compact_epoch, bytecode_flush_mode,
+            embedder_tracing_enabled, is_forced_gc),
+        marking_state_(marking_state),
+        revisiting_object_(false) {}
+
+  // HeapVisitor override to allow revisiting of black objects.
+  bool ShouldVisit(HeapObject object) {
+    return marking_state_->GreyToBlack(object) ||
+           V8_UNLIKELY(revisiting_object_);
+  }
+
+  void MarkDescriptorArrayFromWriteBarrier(HeapObject host,
+                                           DescriptorArray descriptors,
+                                           int number_of_own_descriptors);
+
+ private:
+  // Functions required by MarkingVisitorBase.
+
+  template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
+  int VisitJSObjectSubclass(Map map, T object);
+
+  template <typename T>
+  int VisitLeftTrimmableArray(Map map, T object);
+
+  template <typename TSlot>
+  void RecordSlot(HeapObject object, TSlot slot, HeapObject target);
+
+  void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject target);
+
+  void SynchronizePageAccess(HeapObject heap_object) {
+    // Nothing to do on the main thread.
+  }
+
+  MarkingState* marking_state() { return marking_state_; }
+
+  TraceRetainingPathMode retaining_path_mode() {
+    return (V8_UNLIKELY(FLAG_track_retaining_path))
+               ? TraceRetainingPathMode::kEnabled
+               : TraceRetainingPathMode::kDisabled;
+  }
+
+  MarkingState* const marking_state_;
+
+  friend class MarkingVisitorBase<MainMarkingVisitor<MarkingState>,
+                                  MarkingState>;
+  bool revisiting_object_;
+};
+
 // Collector for young and old generation.
 class MarkCompactCollector final : public MarkCompactCollectorBase {
  public:
 #ifdef V8_CONCURRENT_MARKING
-  using MarkingState = IncrementalMarkingState;
+  using MarkingState = MajorMarkingState;
 #else
   using MarkingState = MajorNonAtomicMarkingState;
 #endif  // V8_CONCURRENT_MARKING
-
+  using AtomicMarkingState = MajorAtomicMarkingState;
   using NonAtomicMarkingState = MajorNonAtomicMarkingState;
+
+  using MarkingVisitor = MainMarkingVisitor<MarkingState>;
 
   // Wrapper for the shared worklist.
   class MarkingWorklist {
@@ -376,18 +461,18 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     explicit MarkingWorklist(Heap* heap) {}
 
     void Push(HeapObject object) {
-      bool success = shared_.Push(kMainThread, object);
+      bool success = shared_.Push(kMainThreadTask, object);
       USE(success);
       DCHECK(success);
     }
 
     HeapObject Pop() {
       HeapObject result;
-      if (shared_.Pop(kMainThread, &result)) return result;
+      if (shared_.Pop(kMainThreadTask, &result)) return result;
 #ifdef V8_CONCURRENT_MARKING
       // The expectation is that this work list is empty almost all the time
       // and we can thus avoid the emptiness checks by putting it last.
-      if (on_hold_.Pop(kMainThread, &result)) return result;
+      if (on_hold_.Pop(kMainThreadTask, &result)) return result;
 #endif
       return HeapObject();
     }
@@ -399,19 +484,19 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     }
 
     bool IsEmpty() {
-      return shared_.IsLocalEmpty(kMainThread) &&
-             on_hold_.IsLocalEmpty(kMainThread) &&
+      return shared_.IsLocalEmpty(kMainThreadTask) &&
+             on_hold_.IsLocalEmpty(kMainThreadTask) &&
              shared_.IsGlobalPoolEmpty() && on_hold_.IsGlobalPoolEmpty();
     }
 
     bool IsEmbedderEmpty() {
-      return embedder_.IsLocalEmpty(kMainThread) &&
+      return embedder_.IsLocalEmpty(kMainThreadTask) &&
              embedder_.IsGlobalPoolEmpty();
     }
 
     int Size() {
-      return static_cast<int>(shared_.LocalSize(kMainThread) +
-                              on_hold_.LocalSize(kMainThread));
+      return static_cast<int>(shared_.LocalSize(kMainThreadTask) +
+                              on_hold_.LocalSize(kMainThreadTask));
     }
 
     // Calls the specified callback on each element of the deques and replaces
@@ -426,8 +511,9 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     }
 
     void ShareWorkIfGlobalPoolIsEmpty() {
-      if (!shared_.IsLocalEmpty(kMainThread) && shared_.IsGlobalPoolEmpty()) {
-        shared_.FlushToGlobal(kMainThread);
+      if (!shared_.IsLocalEmpty(kMainThreadTask) &&
+          shared_.IsGlobalPoolEmpty()) {
+        shared_.FlushToGlobal(kMainThreadTask);
       }
     }
 
@@ -540,35 +626,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   WeakObjects* weak_objects() { return &weak_objects_; }
 
   inline void AddTransitionArray(TransitionArray array);
-
-  void AddEphemeronHashTable(EphemeronHashTable table) {
-    weak_objects_.ephemeron_hash_tables.Push(kMainThread, table);
-  }
-
-  void AddEphemeron(HeapObject key, HeapObject value) {
-    weak_objects_.discovered_ephemerons.Push(kMainThread,
-                                             Ephemeron{key, value});
-  }
-
-  void AddWeakReference(HeapObject host, HeapObjectSlot slot) {
-    weak_objects_.weak_references.Push(kMainThread, std::make_pair(host, slot));
-  }
-
-  void AddWeakObjectInCode(HeapObject object, Code code) {
-    weak_objects_.weak_objects_in_code.Push(kMainThread,
-                                            std::make_pair(object, code));
-  }
-
-  void AddWeakRef(JSWeakRef weak_ref) {
-    weak_objects_.js_weak_refs.Push(kMainThread, weak_ref);
-  }
-
-  void AddWeakCell(WeakCell weak_cell) {
-    weak_objects_.weak_cells.Push(kMainThread, weak_cell);
-  }
-
-  inline void AddBytecodeFlushingCandidate(SharedFunctionInfo flush_candidate);
-  inline void AddFlushedJSFunction(JSFunction flushed_function);
 
   void AddNewlyDiscovered(HeapObject object) {
     if (ephemeron_marking_.newly_discovered_overflowed) return;
@@ -811,97 +868,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   friend class FullEvacuator;
   friend class RecordMigratedSlotVisitor;
-};
-
-template <FixedArrayVisitationMode fixed_array_mode,
-          TraceRetainingPathMode retaining_path_mode, typename MarkingState>
-class MarkingVisitor final
-    : public HeapVisitor<
-          int,
-          MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>> {
- public:
-  using Parent = HeapVisitor<
-      int, MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>>;
-
-  V8_INLINE MarkingVisitor(MarkCompactCollector* collector,
-                           MarkingState* marking_state);
-
-  V8_INLINE bool ShouldVisitMapPointer() { return false; }
-
-  V8_INLINE int VisitBytecodeArray(Map map, BytecodeArray object);
-  V8_INLINE int VisitDescriptorArray(Map map, DescriptorArray object);
-  V8_INLINE int VisitEphemeronHashTable(Map map, EphemeronHashTable object);
-  V8_INLINE int VisitFixedArray(Map map, FixedArray object);
-  V8_INLINE int VisitJSApiObject(Map map, JSObject object);
-  V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer object);
-  V8_INLINE int VisitJSFunction(Map map, JSFunction object);
-  V8_INLINE int VisitJSDataView(Map map, JSDataView object);
-  V8_INLINE int VisitJSTypedArray(Map map, JSTypedArray object);
-  V8_INLINE int VisitMap(Map map, Map object);
-  V8_INLINE int VisitSharedFunctionInfo(Map map, SharedFunctionInfo object);
-  V8_INLINE int VisitTransitionArray(Map map, TransitionArray object);
-  V8_INLINE int VisitWeakCell(Map map, WeakCell object);
-  V8_INLINE int VisitJSWeakRef(Map map, JSWeakRef object);
-
-  // ObjectVisitor implementation.
-  V8_INLINE void VisitPointer(HeapObject host, ObjectSlot p) final {
-    VisitPointerImpl(host, p);
-  }
-  V8_INLINE void VisitPointer(HeapObject host, MaybeObjectSlot p) final {
-    VisitPointerImpl(host, p);
-  }
-  V8_INLINE void VisitPointers(HeapObject host, ObjectSlot start,
-                               ObjectSlot end) final {
-    VisitPointersImpl(host, start, end);
-  }
-  V8_INLINE void VisitPointers(HeapObject host, MaybeObjectSlot start,
-                               MaybeObjectSlot end) final {
-    VisitPointersImpl(host, start, end);
-  }
-  V8_INLINE void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final;
-  V8_INLINE void VisitCodeTarget(Code host, RelocInfo* rinfo) final;
-
-  // Weak list pointers should be ignored during marking. The lists are
-  // reconstructed after GC.
-  void VisitCustomWeakPointers(HeapObject host, ObjectSlot start,
-                               ObjectSlot end) final {}
-
-  V8_INLINE void VisitDescriptors(DescriptorArray descriptors,
-                                  int number_of_own_descriptors);
-  // Marks the descriptor array black without pushing it on the marking work
-  // list and visits its header.
-  V8_INLINE void MarkDescriptorArrayBlack(HeapObject host,
-                                          DescriptorArray descriptors);
-
- private:
-  // Granularity in which FixedArrays are scanned if |fixed_array_mode|
-  // is true.
-  static const int kProgressBarScanningChunk = kMaxRegularHeapObjectSize;
-
-  template <typename TSlot>
-  V8_INLINE void VisitPointerImpl(HeapObject host, TSlot p);
-
-  template <typename TSlot>
-  V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end);
-
-  V8_INLINE int VisitFixedArrayIncremental(Map map, FixedArray object);
-
-  template <typename T>
-  V8_INLINE int VisitEmbedderTracingSubclass(Map map, T object);
-
-  // Marks the object grey and pushes it on the marking work list.
-  V8_INLINE void MarkObject(HeapObject host, HeapObject obj);
-
-  MarkingState* marking_state() { return marking_state_; }
-
-  MarkCompactCollector::MarkingWorklist* marking_worklist() const {
-    return collector_->marking_worklist();
-  }
-
-  Heap* const heap_;
-  MarkCompactCollector* const collector_;
-  MarkingState* const marking_state_;
-  const unsigned mark_compact_epoch_;
 };
 
 class EvacuationScope {

@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_MARKING_VISITOR_H_
 #define V8_HEAP_MARKING_VISITOR_H_
 
+#include "src/common/globals.h"
 #include "src/heap/marking.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/spaces.h"
@@ -136,32 +137,34 @@ class MarkingStateBase {
 //
 // Derived classes are expected to provide the following:
 // - ConcreteVisitor::marking_state method,
-// - ConcreteVisitor::VisitJSObjectSubclass method,
-// - ConcreteVisitor::VisitLeftTrimmableArray method,
+// - ConcreteVisitor::retaining_path_mode method,
 // - ConcreteVisitor::RecordSlot method,
 // - ConcreteVisitor::RecordRelocSlot method,
-// - ConcreteVisitor::SynchronizePageAccess method.
+// - ConcreteVisitor::SynchronizePageAccess method,
+// - ConcreteVisitor::VisitJSObjectSubclass method,
+// - ConcreteVisitor::VisitLeftTrimmableArray method.
+// These methods capture the difference between the concurrent and main thread
+// marking visitors. For example, the concurrent visitor has to use the
+// snapshotting protocol to visit JSObject and left-trimmable FixedArrays.
+
 template <typename ConcreteVisitor, typename MarkingState>
 class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
  public:
   MarkingVisitorBase(int task_id, MarkingWorklist* marking_worklist,
                      EmbedderTracingWorklist* embedder_worklist,
-                     WeakObjects* weak_objects, unsigned mark_compact_epoch,
+                     WeakObjects* weak_objects, Heap* heap,
+                     unsigned mark_compact_epoch,
                      BytecodeFlushMode bytecode_flush_mode,
                      bool is_embedder_tracing_enabled, bool is_forced_gc)
       : marking_worklist_(marking_worklist),
         embedder_worklist_(embedder_worklist),
         weak_objects_(weak_objects),
+        heap_(heap),
         task_id_(task_id),
         mark_compact_epoch_(mark_compact_epoch),
         bytecode_flush_mode_(bytecode_flush_mode),
         is_embedder_tracing_enabled_(is_embedder_tracing_enabled),
         is_forced_gc_(is_forced_gc) {}
-
-  // HeapVisitor overrides for objects that require custom visitation.
-  V8_INLINE bool ShouldVisit(HeapObject object) {
-    return concrete_visitor()->marking_state()->GreyToBlack(object);
-  }
 
   V8_INLINE int VisitBytecodeArray(Map map, BytecodeArray object);
   V8_INLINE int VisitDescriptorArray(Map map, DescriptorArray object);
@@ -235,6 +238,7 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   MarkingWorklist* const marking_worklist_;
   EmbedderTracingWorklist* const embedder_worklist_;
   WeakObjects* const weak_objects_;
+  Heap* const heap_;
   const int task_id_;
   const unsigned mark_compact_epoch_;
   const BytecodeFlushMode bytecode_flush_mode_;

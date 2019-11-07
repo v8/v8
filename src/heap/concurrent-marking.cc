@@ -81,13 +81,13 @@ class ConcurrentMarkingVisitor final
  public:
   ConcurrentMarkingVisitor(int task_id, MarkingWorklist* marking_worklist,
                            EmbedderTracingWorklist* embedder_worklist,
-                           WeakObjects* weak_objects,
+                           WeakObjects* weak_objects, Heap* heap,
                            unsigned mark_compact_epoch,
                            BytecodeFlushMode bytecode_flush_mode,
                            bool embedder_tracing_enabled, bool is_forced_gc,
                            MemoryChunkDataMap* memory_chunk_data)
       : MarkingVisitorBase(task_id, marking_worklist, embedder_worklist,
-                           weak_objects, mark_compact_epoch,
+                           weak_objects, heap, mark_compact_epoch,
                            bytecode_flush_mode, embedder_tracing_enabled,
                            is_forced_gc),
         marking_state_(memory_chunk_data),
@@ -155,6 +155,11 @@ class ConcurrentMarkingVisitor final
       weak_objects_->next_ephemerons.Push(task_id_, Ephemeron{key, value});
     }
     return false;
+  }
+
+  // HeapVisitor override.
+  bool ShouldVisit(HeapObject object) {
+    return marking_state_.GreyToBlack(object);
   }
 
  private:
@@ -298,6 +303,10 @@ class ConcurrentMarkingVisitor final
 
   ConcurrentMarkingState* marking_state() { return &marking_state_; }
 
+  TraceRetainingPathMode retaining_path_mode() {
+    return TraceRetainingPathMode::kDisabled;
+  }
+
   ConcurrentMarkingState marking_state_;
   MemoryChunkDataMap* memory_chunk_data_;
   SlotSnapshot slot_snapshot_;
@@ -384,7 +393,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
   size_t kBytesUntilInterruptCheck = 64 * KB;
   int kObjectsUntilInterrupCheck = 1000;
   ConcurrentMarkingVisitor visitor(
-      task_id, marking_worklist_, embedder_worklist_, weak_objects_,
+      task_id, marking_worklist_, embedder_worklist_, weak_objects_, heap_,
       task_state->mark_compact_epoch, Heap::GetBytecodeFlushMode(),
       heap_->local_embedder_heap_tracer()->InUse(), task_state->is_forced_gc,
       &task_state->memory_chunk_data);

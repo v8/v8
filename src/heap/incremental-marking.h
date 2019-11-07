@@ -36,13 +36,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   enum GCRequestType { NONE, COMPLETE_MARKING, FINALIZATION };
 
-#ifdef V8_CONCURRENT_MARKING
-  using MarkingState = IncrementalMarkingState;
-#else
-  using MarkingState = MajorNonAtomicMarkingState;
-#endif  // V8_CONCURRENT_MARKING
-  using AtomicMarkingState = MajorAtomicMarkingState;
-  using NonAtomicMarkingState = MajorNonAtomicMarkingState;
+  using MarkingState = MarkCompactCollector::MarkingState;
+  using AtomicMarkingState = MarkCompactCollector::AtomicMarkingState;
+  using NonAtomicMarkingState = MarkCompactCollector::NonAtomicMarkingState;
 
   class PauseBlackAllocationScope {
    public:
@@ -95,6 +91,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   IncrementalMarking(Heap* heap,
                      MarkCompactCollector::MarkingWorklist* marking_worklist,
                      WeakObjects* weak_objects);
+  ~IncrementalMarking();
 
   MarkingState* marking_state() { return &marking_state_; }
 
@@ -207,8 +204,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   void RevisitObject(HeapObject obj);
   // Ensures that all descriptors int range [0, number_of_own_descripts)
   // are visited.
-  void VisitDescriptors(HeapObject host, DescriptorArray array,
-                        int number_of_own_descriptors);
+  void MarkDescriptorArrayFromWriteBarrier(HeapObject host,
+                                           DescriptorArray array,
+                                           int number_of_own_descriptors);
 
   void RecordWriteSlow(HeapObject obj, HeapObjectSlot slot, HeapObject value);
   void RecordWriteIntoCode(Code host, RelocInfo* rinfo, HeapObject value);
@@ -289,9 +287,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
       intptr_t bytes_to_process,
       ForceCompletionAction completion = DO_NOT_FORCE_COMPLETION);
 
-  // Visits the object and returns its size.
-  V8_INLINE int VisitObject(Map map, HeapObject obj);
-
   // Updates scheduled_bytes_to_mark_ to ensure marking progress based on
   // time.
   void ScheduleBytesToMarkBasedOnTime(double time_ms);
@@ -325,6 +320,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   Heap* const heap_;
   MarkCompactCollector::MarkingWorklist* const marking_worklist_;
   WeakObjects* weak_objects_;
+
+  std::unique_ptr<MarkCompactCollector::MarkingVisitor> marking_visitor_;
 
   double start_time_ms_;
   size_t initial_old_generation_size_;

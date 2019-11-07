@@ -1615,6 +1615,8 @@ V8_INLINE bool operator!(ExceptionStatus status) {
   return !static_cast<bool>(status);
 }
 
+enum class TraceRetainingPathMode { kEnabled, kDisabled };
+
 }  // namespace internal
 }  // namespace v8
 

@@ -23,6 +23,10 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::MarkObject(
   concrete_visitor()->SynchronizePageAccess(object);
   if (concrete_visitor()->marking_state()->WhiteToGrey(object)) {
     marking_worklist_->Push(task_id_, object);
+    if (V8_UNLIKELY(concrete_visitor()->retaining_path_mode() ==
+                    TraceRetainingPathMode::kEnabled)) {
+      heap_->AddRetainer(host, object);
+    }
   }
 }
 
@@ -110,7 +114,7 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitCodeTarget(
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitBytecodeArray(
     Map map, BytecodeArray object) {
-  if (!ShouldVisit(object)) return 0;
+  if (!concrete_visitor()->ShouldVisit(object)) return 0;
   int size = BytecodeArray::BodyDescriptor::SizeOf(map, object);
   this->VisitMapPointer(object);
   BytecodeArray::BodyDescriptor::IterateBody(map, object, size, this);
@@ -135,7 +139,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSFunction(
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitSharedFunctionInfo(
     Map map, SharedFunctionInfo shared_info) {
-  if (!ShouldVisit(shared_info)) return 0;
+  if (!concrete_visitor()->ShouldVisit(shared_info)) return 0;
 
   int size = SharedFunctionInfo::BodyDescriptor::SizeOf(map, shared_info);
   this->VisitMapPointer(shared_info);
@@ -252,7 +256,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSTypedArray(
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEphemeronHashTable(
     Map map, EphemeronHashTable table) {
-  if (!ShouldVisit(table)) return 0;
+  if (!concrete_visitor()->ShouldVisit(table)) return 0;
   weak_objects_->ephemeron_hash_tables.Push(task_id_, table);
 
   for (InternalIndex i : table.IterateEntries()) {
@@ -313,7 +317,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSWeakRef(
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitWeakCell(
     Map map, WeakCell weak_cell) {
-  if (!ShouldVisit(weak_cell)) return 0;
+  if (!concrete_visitor()->ShouldVisit(weak_cell)) return 0;
 
   int size = WeakCell::BodyDescriptor::SizeOf(map, weak_cell);
   this->VisitMapPointer(weak_cell);
@@ -367,7 +371,7 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptors(
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorArray(
     Map map, DescriptorArray array) {
-  if (!ShouldVisit(array)) return 0;
+  if (!concrete_visitor()->ShouldVisit(array)) return 0;
   this->VisitMapPointer(array);
   int size = DescriptorArray::BodyDescriptor::SizeOf(map, array);
   VisitPointers(array, array.GetFirstPointerSlot(), array.GetDescriptorSlot(0));
@@ -378,7 +382,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorArray(
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitMap(Map meta_map,
                                                                 Map map) {
-  if (!ShouldVisit(map)) return 0;
+  if (!concrete_visitor()->ShouldVisit(map)) return 0;
   int size = Map::BodyDescriptor::SizeOf(meta_map, map);
   if (map.CanTransition()) {
     // Maps that can transition share their descriptor arrays and require
@@ -413,7 +417,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitMap(Map meta_map,
 template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitTransitionArray(
     Map map, TransitionArray array) {
-  if (!ShouldVisit(array)) return 0;
+  if (!concrete_visitor()->ShouldVisit(array)) return 0;
   this->VisitMapPointer(array);
   int size = TransitionArray::BodyDescriptor::SizeOf(map, array);
   TransitionArray::BodyDescriptor::IterateBody(map, array, size, this);

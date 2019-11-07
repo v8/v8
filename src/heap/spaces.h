@@ -968,7 +968,7 @@ class MemoryChunk : public BasicMemoryChunk {
   void InitializeReservedMemory() { reservation_.Reset(); }
 
   friend class ConcurrentMarkingState;
-  friend class IncrementalMarkingState;
+  friend class MajorMarkingState;
   friend class MajorAtomicMarkingState;
   friend class MajorNonAtomicMarkingState;
   friend class MemoryAllocator;

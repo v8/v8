@@ -97,10 +97,6 @@ enum class ClearFreedMemoryMode { kClearFreedMemory, kDontClearFreedMemory };
 
 enum ExternalBackingStoreType { kArrayBuffer, kExternalString, kNumTypes };
 
-enum class FixedArrayVisitationMode { kRegular, kIncremental };
-
-enum class TraceRetainingPathMode { kEnabled, kDisabled };
-
 enum class RetainingPathOption { kDefault, kTrackEphemeronPath };
 
 enum class AllocationOrigin {
@@ -2099,9 +2095,8 @@ class Heap {
   friend class IncrementalMarking;
   friend class IncrementalMarkingJob;
   friend class OldLargeObjectSpace;
-  template <FixedArrayVisitationMode fixed_array_mode,
-            TraceRetainingPathMode retaining_path_mode, typename MarkingState>
-  friend class MarkingVisitor;
+  template <typename ConcreteVisitor, typename MarkingState>
+  friend class MarkingVisitorBase;
   friend class MarkCompactCollector;
   friend class MarkCompactCollectorBase;
   friend class MinorMarkCompactCollector;
