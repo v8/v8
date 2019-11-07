@@ -732,8 +732,8 @@ bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
     instruction(dst, src, amount);                                   \
   }
 
-I32_SHIFTOP(shl, sllv)
-I32_SHIFTOP(sar, srav)
+I32_SHIFTOP_I(shl, sll)
+I32_SHIFTOP_I(sar, sra)
 I32_SHIFTOP_I(shr, srl)
 
 #undef I32_SHIFTOP
