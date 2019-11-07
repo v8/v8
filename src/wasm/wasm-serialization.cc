@@ -614,13 +614,15 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
                        false, i::wasm::kWasmOrigin, isolate->counters(),
                        isolate->wasm_engine()->allocator());
   if (decode_result.failed()) return {};
-  CHECK_NOT_NULL(decode_result.value());
-  WasmModule* module = decode_result.value().get();
+  std::shared_ptr<WasmModule> module = std::move(decode_result.value());
+  CHECK_NOT_NULL(module);
   Handle<Script> script = CreateWasmScript(
       isolate, wire_bytes, module->source_map_url, module->name);
 
+  size_t code_size_estimate =
+      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get());
   auto shared_native_module = isolate->wasm_engine()->NewNativeModule(
-      isolate, enabled_features, std::move(decode_result.value()));
+      isolate, enabled_features, std::move(module), code_size_estimate);
   shared_native_module->SetWireBytes(OwnedVector<uint8_t>::Of(wire_bytes_vec));
 
   Handle<FixedArray> export_wrappers;

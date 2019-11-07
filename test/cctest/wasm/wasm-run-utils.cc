@@ -318,8 +318,10 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
       isolate_->factory()->NewScript(isolate_->factory()->empty_string());
   script->set_type(Script::TYPE_WASM);
 
+  size_t code_size_estimate =
+      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(test_module_.get());
   auto native_module = isolate_->wasm_engine()->NewNativeModule(
-      isolate_, enabled_features_, test_module_);
+      isolate_, enabled_features_, test_module_, code_size_estimate);
   native_module->SetWireBytes(OwnedVector<const uint8_t>());
 
   Handle<WasmModuleObject> module_object =

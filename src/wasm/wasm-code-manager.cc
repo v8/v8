@@ -1555,7 +1555,7 @@ size_t WasmCodeManager::EstimateNativeModuleCodeSize(const WasmModule* module) {
 }
 
 // static
-size_t WasmCodeManager::EstimateNativeModuleNonCodeSize(
+size_t WasmCodeManager::EstimateNativeModuleMetaDataSize(
     const WasmModule* module) {
   size_t wasm_module_estimate = EstimateStoredSize(module);
 

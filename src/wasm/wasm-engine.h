@@ -175,16 +175,12 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Create a new NativeModule. The caller is responsible for its
   // lifetime. The native module will be given some memory for code,
   // which will be page size aligned. The size of the initial memory
-  // is determined with a heuristic based on the total size of wasm
-  // code. The native module may later request more memory.
-  // TODO(titzer): isolate is only required here for CompilationState.
+  // is determined by {code_size_estimate}. The native module may later request
+  // more memory.
+  // TODO(wasm): isolate is only required here for CompilationState.
   std::shared_ptr<NativeModule> NewNativeModule(
       Isolate* isolate, const WasmFeatures& enabled_features,
-      std::shared_ptr<const WasmModule> module);
-  std::shared_ptr<NativeModule> NewNativeModule(
-      Isolate* isolate, const WasmFeatures& enabled_features,
-      size_t code_size_estimate, bool can_request_more,
-      std::shared_ptr<const WasmModule> module);
+      std::shared_ptr<const WasmModule> module, size_t code_size_estimate);
 
   void FreeNativeModule(NativeModule*);
 

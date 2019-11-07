@@ -1365,8 +1365,10 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
       OwnedVector<uint8_t>::Of(wire_bytes.module_bytes());
 
   // Create a new {NativeModule} first.
+  size_t code_size_estimate =
+      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get());
   auto native_module = isolate->wasm_engine()->NewNativeModule(
-      isolate, enabled, std::move(module));
+      isolate, enabled, std::move(module), code_size_estimate);
   native_module->SetWireBytes(std::move(wire_bytes_copy));
 
   CompileNativeModule(isolate, thrower, wasm_module, native_module.get());
@@ -1498,8 +1500,10 @@ void AsyncCompileJob::CreateNativeModule(
   // breakpoints on a (potentially empty) subset of the instances.
   // Create the module object.
 
+  size_t code_size_estimate =
+      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get());
   native_module_ = isolate_->wasm_engine()->NewNativeModule(
-      isolate_, enabled_features_, std::move(module));
+      isolate_, enabled_features_, std::move(module), code_size_estimate);
   native_module_->SetWireBytes({std::move(bytes_copy_), wire_bytes_.length()});
 
   if (stream_) stream_->NotifyNativeModuleCreated(native_module_);

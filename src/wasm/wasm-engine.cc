@@ -673,18 +673,11 @@ void WasmEngine::LogOutstandingCodesForIsolate(Isolate* isolate) {
 
 std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
     Isolate* isolate, const WasmFeatures& enabled,
-    std::shared_ptr<const WasmModule> module) {
-  size_t code_size_estimate =
-      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get());
-  return NewNativeModule(isolate, enabled, code_size_estimate,
-                         !wasm::NativeModule::kNeedsFarJumpsBetweenCodeSpaces ||
-                             FLAG_wasm_far_jump_table,
-                         std::move(module));
-}
-
-std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
-    Isolate* isolate, const WasmFeatures& enabled, size_t code_size_estimate,
-    bool can_request_more, std::shared_ptr<const WasmModule> module) {
+    std::shared_ptr<const WasmModule> module, size_t code_size_estimate) {
+  // TODO(clemensb): Remove --wasm-far-jump-table and {can_request_more}.
+  bool can_request_more =
+      !wasm::NativeModule::kNeedsFarJumpsBetweenCodeSpaces ||
+      FLAG_wasm_far_jump_table;
   std::shared_ptr<NativeModule> native_module =
       code_manager_.NewNativeModule(this, isolate, enabled, code_size_estimate,
                                     can_request_more, std::move(module));

@@ -209,7 +209,7 @@ Handle<WasmModuleObject> WasmModuleObject::New(
   // allocating a new {Managed<T>} that the {WasmModuleObject} references.
   size_t memory_estimate =
       code_size_estimate +
-      wasm::WasmCodeManager::EstimateNativeModuleNonCodeSize(module);
+      wasm::WasmCodeManager::EstimateNativeModuleMetaDataSize(module);
   Handle<Managed<wasm::NativeModule>> managed_native_module =
       Managed<wasm::NativeModule>::FromSharedPtr(isolate, memory_estimate,
                                                  std::move(native_module));
@@ -2032,7 +2032,7 @@ Handle<AsmWasmData> AsmWasmData::New(
   const WasmModule* module = native_module->module();
   size_t memory_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module) +
-      wasm::WasmCodeManager::EstimateNativeModuleNonCodeSize(module);
+      wasm::WasmCodeManager::EstimateNativeModuleMetaDataSize(module);
   Handle<Managed<wasm::NativeModule>> managed_native_module =
       Managed<wasm::NativeModule>::FromSharedPtr(isolate, memory_estimate,
                                                  std::move(native_module));
