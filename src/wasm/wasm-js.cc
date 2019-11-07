@@ -565,7 +565,8 @@ void WasmStreamingPromiseFailedCallback(
   streaming->Abort(args[0]);
 }
 
-// WebAssembly.compileStreaming(Promise<Response>) -> Promise
+// WebAssembly.compileStreaming(Response | Promise<Response>)
+//   -> Promise<WebAssembly.Module>
 void WebAssemblyCompileStreaming(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
@@ -822,6 +823,9 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 }
 
+// WebAssembly.instantiateStreaming(Response | Promise<Response> [, imports])
+//   -> Promise<ResultObject>
+// (where ResultObject has a "module" and an "instance" field)
 void WebAssemblyInstantiateStreaming(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
