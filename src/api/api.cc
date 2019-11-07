@@ -5708,6 +5708,9 @@ bool v8::V8::Dispose() {
   return true;
 }
 
+SharedMemoryStatistics::SharedMemoryStatistics()
+    : total_read_only_space_size_(0), total_size_(0) {}
+
 HeapStatistics::HeapStatistics()
     : total_heap_size_(0),
       total_heap_size_executable_(0),
@@ -8468,6 +8471,11 @@ i::Address* Isolate::GetDataFromSnapshotOnce(size_t index) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i::FixedArray list = i_isolate->heap()->serialized_objects();
   return GetSerializedDataFromFixedArray(i_isolate, list, index);
+}
+
+void Isolate::GetSharedMemoryStatistics(SharedMemoryStatistics* statistics) {
+  statistics->total_read_only_space_size_ = 0;
+  statistics->total_size_ = 0;
 }
 
 void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {

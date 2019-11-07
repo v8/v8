@@ -7454,9 +7454,30 @@ typedef size_t (*NearHeapLimitCallback)(void* data, size_t current_heap_limit,
                                         size_t initial_heap_limit);
 
 /**
+ * Collection of shared per-process V8 memory information.
+ *
+ * Instances of this class can be passed to
+ * v8::Isolate::GetSharedMemoryStatistics to get shared memory statistics from
+ * V8.
+ */
+class V8_EXPORT SharedMemoryStatistics {
+ public:
+  SharedMemoryStatistics();
+  size_t total_read_only_space_size() { return total_read_only_space_size_; }
+  size_t total_size() { return total_size_; }
+
+ private:
+  size_t total_read_only_space_size_;
+  size_t total_size_;
+
+  friend class V8;
+  friend class Isolate;
+};
+
+/**
  * Collection of V8 heap information.
  *
- * Instances of this class can be passed to v8::V8::HeapStatistics to
+ * Instances of this class can be passed to v8::Isolate::GetHeapStatistics to
  * get heap statistics from V8.
  */
 class V8_EXPORT HeapStatistics {
@@ -8419,6 +8440,11 @@ class V8_EXPORT Isolate {
    */
   template <class T>
   V8_INLINE MaybeLocal<T> GetDataFromSnapshotOnce(size_t index);
+
+  /**
+   * Get statistics about the shared memory usage.
+   */
+  void GetSharedMemoryStatistics(SharedMemoryStatistics* statistics);
 
   /**
    * Get statistics about the heap memory usage.
