@@ -454,16 +454,6 @@ bool Builtins::CodeObjectIsExecutable(int builtin_index) {
     case Builtins::kInterpreterEntryTrampoline:
     case Builtins::kCompileLazy:
     case Builtins::kCompileLazyDeoptimizedCode:
-    case Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_BuiltinExit:
-    case Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit:
-    case Builtins::kCEntry_Return1_SaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case Builtins::kCEntry_Return1_SaveFPRegs_ArgvOnStack_BuiltinExit:
-    case Builtins::kCEntry_Return2_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case Builtins::kCEntry_Return2_DontSaveFPRegs_ArgvOnStack_BuiltinExit:
-    case Builtins::kCEntry_Return2_DontSaveFPRegs_ArgvInRegister_NoBuiltinExit:
-    case Builtins::kCEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit:
-    case Builtins::kCEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit:
     case Builtins::kCallFunction_ReceiverIsNullOrUndefined:
     case Builtins::kCallFunction_ReceiverIsNotNullOrUndefined:
     case Builtins::kCallFunction_ReceiverIsAny:
@@ -474,6 +464,10 @@ bool Builtins::CodeObjectIsExecutable(int builtin_index) {
     case Builtins::kArgumentsAdaptorTrampoline:
     case Builtins::kHandleApiCall:
     case Builtins::kInstantiateAsmJs:
+
+    // TODO(delphick): Remove this when calls to it have the trampoline inlined
+    // or are converted to use kCallBuiltinPointer.
+    case Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
       return true;
     default:
       return false;
