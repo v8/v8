@@ -135,6 +135,18 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
   }
 }
 
+inline Register EnsureNoAlias(Assembler* assm, Register reg,
+                              LiftoffRegister must_not_alias,
+                              UseScratchRegisterScope* temps) {
+  if (reg != must_not_alias.low_gp() && reg != must_not_alias.high_gp())
+    return reg;
+  Register tmp = temps->Acquire();
+  DCHECK_NE(must_not_alias.low_gp(), tmp);
+  DCHECK_NE(must_not_alias.high_gp(), tmp);
+  assm->movz(tmp, reg, zero_reg);
+  return tmp;
+}
+
 #if defined(V8_TARGET_BIG_ENDIAN)
 inline void ChangeEndiannessLoad(LiftoffAssembler* assm, LiftoffRegister dst,
                                  LoadType type, LiftoffRegList pinned) {
@@ -845,10 +857,34 @@ void LiftoffAssembler::emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
                                    &TurboAssembler::ShlPair);
 }
 
+void LiftoffAssembler::emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
+                                    int32_t amount) {
+  UseScratchRegisterScope temps(this);
+  // {src.low_gp()} will still be needed after writing {dst.high_gp()}.
+  Register src_low = liftoff::EnsureNoAlias(this, src.low_gp(), dst, &temps);
+  DCHECK_NE(dst.low_gp(), kScratchReg);
+  DCHECK_NE(dst.high_gp(), kScratchReg);
+
+  ShlPair(dst.low_gp(), dst.high_gp(), src_low, src.high_gp(), amount,
+          kScratchReg);
+}
+
 void LiftoffAssembler::emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
                                     Register amount) {
   liftoff::Emit64BitShiftOperation(this, dst, src, amount,
                                    &TurboAssembler::SarPair);
+}
+
+void LiftoffAssembler::emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
+                                    int32_t amount) {
+  UseScratchRegisterScope temps(this);
+  // {src.high_gp()} will still be needed after writing {dst.low_gp()}.
+  Register src_high = liftoff::EnsureNoAlias(this, src.high_gp(), dst, &temps);
+  DCHECK_NE(dst.low_gp(), kScratchReg);
+  DCHECK_NE(dst.high_gp(), kScratchReg);
+
+  SarPair(dst.low_gp(), dst.high_gp(), src.low_gp(), src_high, amount,
+          kScratchReg);
 }
 
 void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
@@ -858,9 +894,14 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
 }
 
 void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
-                                    int amount) {
-  DCHECK(is_uint6(amount));
-  ShrPair(dst.high_gp(), dst.low_gp(), src.high_gp(), src.low_gp(), amount,
+                                    int32_t amount) {
+  UseScratchRegisterScope temps(this);
+  // {src.high_gp()} will still be needed after writing {dst.low_gp()}.
+  Register src_high = liftoff::EnsureNoAlias(this, src.high_gp(), dst, &temps);
+  DCHECK_NE(dst.low_gp(), kScratchReg);
+  DCHECK_NE(dst.high_gp(), kScratchReg);
+
+  ShrPair(dst.low_gp(), dst.high_gp(), src.low_gp(), src_high, amount,
           kScratchReg);
 }
 

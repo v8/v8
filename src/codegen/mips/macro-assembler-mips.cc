@@ -1562,12 +1562,12 @@ void TurboAssembler::ShlPair(Register dst_low, Register dst_high,
                              uint32_t shift, Register scratch) {
   shift = shift & 0x3F;
   if (shift == 0) {
-    mov(dst_low, src_low);
     mov(dst_high, src_high);
+    mov(dst_low, src_low);
   } else if (shift < 32) {
     if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
-      srl(dst_high, src_low, 32 - shift);
       Ins(dst_high, src_high, shift, 32 - shift);
+      srl(dst_high, src_low, 32 - shift);
       sll(dst_low, src_low, shift);
     } else {
       sll(dst_high, src_high, shift);
@@ -1624,8 +1624,8 @@ void TurboAssembler::ShrPair(Register dst_low, Register dst_high,
       Ins(dst_low, src_high, 32 - shift, shift);
       srl(dst_high, src_high, shift);
     } else {
-      srl(dst_high, src_high, shift);
       srl(dst_low, src_low, shift);
+      srl(dst_high, src_high, shift);
       shift = 32 - shift;
       sll(scratch, src_high, shift);
       Or(dst_low, dst_low, scratch);
@@ -1674,8 +1674,8 @@ void TurboAssembler::SarPair(Register dst_low, Register dst_high,
       Ins(dst_low, src_high, 32 - shift, shift);
       sra(dst_high, src_high, shift);
     } else {
-      sra(dst_high, src_high, shift);
       srl(dst_low, src_low, shift);
+      sra(dst_high, src_high, shift);
       shift = 32 - shift;
       sll(scratch, src_high, shift);
       Or(dst_low, dst_low, scratch);

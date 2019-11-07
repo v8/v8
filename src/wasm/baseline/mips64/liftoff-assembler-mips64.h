@@ -766,8 +766,8 @@ I64_BINOP_I(xor, Xor)
     instruction(dst.gp(), src.gp(), amount);                                \
   }
 
-I64_SHIFTOP(shl, dsllv)
-I64_SHIFTOP(sar, dsrav)
+I64_SHIFTOP_I(shl, dsll)
+I64_SHIFTOP_I(sar, dsra)
 I64_SHIFTOP_I(shr, dsrl)
 
 #undef I64_SHIFTOP
