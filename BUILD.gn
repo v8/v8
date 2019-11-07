@@ -1693,8 +1693,6 @@ v8_compiler_sources = [
   "src/compiler/csa-load-elimination.h",
   "src/compiler/dead-code-elimination.cc",
   "src/compiler/dead-code-elimination.h",
-  "src/compiler/decompression-elimination.cc",
-  "src/compiler/decompression-elimination.h",
   "src/compiler/decompression-optimizer.cc",
   "src/compiler/decompression-optimizer.h",
   "src/compiler/diamond.h",

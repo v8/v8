@@ -22,9 +22,7 @@ class Graph;
 // AnyTagged (since TaggedSigned avoids full decompression always), and
 // HeapConstants.
 
-// DecompressionOptimizer will run only when pointer compression is enabled. For
-// the moment, it's also requires FLAG_turbo_decompression_elimination to be
-// disabled. This flag is only temporary to test out the implementation.
+// DecompressionOptimizer will run only when pointer compression is enabled.
 
 // The phase needs to be run when Machine are present in the graph, i.e
 // at the very end of the pipeline. Also, since this phase may change

@@ -76,11 +76,6 @@ class DecompressionOptimizerTest : public GraphTest {
 // Direct Load into Store.
 
 TEST_F(DecompressionOptimizerTest, DirectLoadStore) {
-  // Skip test if decompression elimination is enabled.
-  if (FLAG_turbo_decompression_elimination) {
-    return;
-  }
-
   // Define variables.
   Node* const control = graph()->start();
   Node* object = Parameter(Type::Any(), 0);
@@ -108,11 +103,6 @@ TEST_F(DecompressionOptimizerTest, DirectLoadStore) {
 // Word32 Operations.
 
 TEST_F(DecompressionOptimizerTest, Word32EqualTwoDecompresses) {
-  // Skip test if decompression elimination is enabled.
-  if (FLAG_turbo_decompression_elimination) {
-    return;
-  }
-
   // Define variables.
   Node* const control = graph()->start();
   Node* object = Parameter(Type::Any(), 0);
@@ -143,11 +133,6 @@ TEST_F(DecompressionOptimizerTest, Word32EqualTwoDecompresses) {
 }
 
 TEST_F(DecompressionOptimizerTest, Word32EqualDecompressAndConstant) {
-  // Skip test if decompression elimination is enabled.
-  if (FLAG_turbo_decompression_elimination) {
-    return;
-  }
-
   // Define variables.
   Node* const control = graph()->start();
   Node* object = Parameter(Type::Any(), 0);
@@ -176,11 +161,6 @@ TEST_F(DecompressionOptimizerTest, Word32EqualDecompressAndConstant) {
 }
 
 TEST_F(DecompressionOptimizerTest, Word32AndSmiCheck) {
-  // Skip test if decompression elimination is enabled.
-  if (FLAG_turbo_decompression_elimination) {
-    return;
-  }
-
   // Define variables.
   Node* const control = graph()->start();
   Node* object = Parameter(Type::Any(), 0);
@@ -205,11 +185,6 @@ TEST_F(DecompressionOptimizerTest, Word32AndSmiCheck) {
 }
 
 TEST_F(DecompressionOptimizerTest, Word32ShlSmiTag) {
-  // Skip test if decompression elimination is enabled.
-  if (FLAG_turbo_decompression_elimination) {
-    return;
-  }
-
   // Define variables.
   Node* const control = graph()->start();
   Node* object = Parameter(Type::Any(), 0);
@@ -233,11 +208,6 @@ TEST_F(DecompressionOptimizerTest, Word32ShlSmiTag) {
 }
 
 TEST_F(DecompressionOptimizerTest, Word32SarSmiUntag) {
-  // Skip test if decompression elimination is enabled.
-  if (FLAG_turbo_decompression_elimination) {
-    return;
-  }
-
   // Define variables.
   Node* const control = graph()->start();
   Node* object = Parameter(Type::Any(), 0);
@@ -264,11 +234,6 @@ TEST_F(DecompressionOptimizerTest, Word32SarSmiUntag) {
 // FrameState and TypedStateValues interaction.
 
 TEST_F(DecompressionOptimizerTest, TypedStateValues) {
-  // Skip test if decompression elimination is enabled.
-  if (FLAG_turbo_decompression_elimination) {
-    return;
-  }
-
   // Define variables.
   Node* const control = graph()->start();
   Node* object = Parameter(Type::Any(), 0);
@@ -312,11 +277,6 @@ TEST_F(DecompressionOptimizerTest, TypedStateValues) {
 // Phi
 
 TEST_F(DecompressionOptimizerTest, PhiDecompressOrNot) {
-  // Skip test if decompression elimination is enabled.
-  if (FLAG_turbo_decompression_elimination) {
-    return;
-  }
-
   // Define variables.
   Node* const control = graph()->start();
   Node* object = Parameter(Type::Any(), 0);
@@ -365,11 +325,6 @@ TEST_F(DecompressionOptimizerTest, PhiDecompressOrNot) {
 }
 
 TEST_F(DecompressionOptimizerTest, CascadingPhi) {
-  // Skip test if decompression elimination is enabled.
-  if (FLAG_turbo_decompression_elimination) {
-    return;
-  }
-
   // Define variables.
   Node* const control = graph()->start();
   Node* object = Parameter(Type::Any(), 0);
@@ -421,11 +376,6 @@ TEST_F(DecompressionOptimizerTest, PhiWithOneCompressedAndOneTagged) {
   // If the phi is Compressed but one of the inputs is Tagged, then we insert a
   // ChangeTaggedToCompressed node.
 
-  // Skip test if decompression elimination is enabled.
-  if (FLAG_turbo_decompression_elimination) {
-    return;
-  }
-
   // Define variables.
   Node* const control = graph()->start();
   Node* object = Parameter(Type::Any(), 0);
@@ -466,11 +416,6 @@ TEST_F(DecompressionOptimizerTest, PhiWithOneCompressedAndOneTagged) {
 
 TEST_F(DecompressionOptimizerTest, Int32LessThanOrEqualFromSpeculative) {
   // This case tests for what SpeculativeNumberLessThanOrEqual is lowered to.
-  // Skip test if decompression elimination is enabled.
-  if (FLAG_turbo_decompression_elimination) {
-    return;
-  }
-
   // Define variables.
   Node* const control = graph()->start();
   Node* object = Parameter(Type::Any(), 0);

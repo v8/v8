@@ -1521,11 +1521,6 @@ DEFINE_BOOL(interpreted_frames_native_stack, false,
             "profilers).")
 #endif
 
-// TODO(v8:9206, solanes): remove this when smi-corrupting reducer is fully on.
-DEFINE_BOOL_READONLY(turbo_decompression_elimination, false,
-                     "enable the decompression elimination system when "
-                     "pointer compression is enabled.")
-
 //
 // Disassembler only flags
 //

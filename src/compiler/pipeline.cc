@@ -36,7 +36,6 @@
 #include "src/compiler/control-flow-optimizer.h"
 #include "src/compiler/csa-load-elimination.h"
 #include "src/compiler/dead-code-elimination.h"
-#include "src/compiler/decompression-elimination.h"
 #include "src/compiler/decompression-optimizer.h"
 #include "src/compiler/effect-control-linearizer.h"
 #include "src/compiler/escape-analysis-reducer.h"
@@ -1742,14 +1741,6 @@ struct LateOptimizationPhase {
                                          data->machine(), temp_zone);
     GraphAssembler graph_assembler(data->jsgraph(), temp_zone);
     SelectLowering select_lowering(&graph_assembler, data->graph());
-    // TODO(v8:7703, solanes): go back to using #if guards once
-    // FLAG_turbo_decompression_elimination gets removed.
-    DecompressionElimination decompression_elimination(
-        &graph_reducer, data->graph(), data->machine(), data->common());
-    if (COMPRESS_POINTERS_BOOL && FLAG_turbo_decompression_elimination) {
-      AddReducer(data, &graph_reducer, &decompression_elimination);
-    }
-    USE(decompression_elimination);
     AddReducer(data, &graph_reducer, &branch_condition_elimination);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &machine_reducer);
@@ -1780,7 +1771,7 @@ struct DecompressionOptimizationPhase {
   static const char* phase_name() { return "V8.TFDecompressionOptimization"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    if (COMPRESS_POINTERS_BOOL && !FLAG_turbo_decompression_elimination) {
+    if (COMPRESS_POINTERS_BOOL) {
       DecompressionOptimizer decompression_optimizer(
           temp_zone, data->graph(), data->common(), data->machine());
       decompression_optimizer.Reduce();
@@ -1876,14 +1867,6 @@ struct CsaOptimizationPhase {
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->broker(), data->common(),
                                          data->machine(), temp_zone);
-    // TODO(v8:7703, solanes): go back to using #if guards once
-    // FLAG_turbo_decompression_elimination gets removed.
-    DecompressionElimination decompression_elimination(
-        &graph_reducer, data->graph(), data->machine(), data->common());
-    if (COMPRESS_POINTERS_BOOL && FLAG_turbo_decompression_elimination) {
-      AddReducer(data, &graph_reducer, &decompression_elimination);
-    }
-    USE(decompression_elimination);
     AddReducer(data, &graph_reducer, &branch_condition_elimination);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &machine_reducer);

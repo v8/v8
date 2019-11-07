@@ -139,7 +139,7 @@ namespace {
 
 bool IsCompatible(MachineRepresentation r1, MachineRepresentation r2) {
   if (r1 == r2) return true;
-  return IsAnyCompressedTagged(r1) && IsAnyCompressedTagged(r2);
+  return IsAnyTagged(r1) && IsAnyTagged(r2);
 }
 
 }  // namespace
@@ -807,7 +807,7 @@ Reduction LoadElimination::ReduceEnsureWritableFastElements(Node* node) {
   // Add the new elements on {object}.
   state = state->AddField(
       object, FieldIndexOf(JSObject::kElementsOffset, kTaggedSize),
-      {node, MachineType::RepCompressedTaggedPointer()}, zone());
+      {node, MachineRepresentation::kTaggedPointer}, zone());
   return UpdateState(node, state);
 }
 
@@ -835,7 +835,7 @@ Reduction LoadElimination::ReduceMaybeGrowFastElements(Node* node) {
   // Add the new elements on {object}.
   state = state->AddField(
       object, FieldIndexOf(JSObject::kElementsOffset, kTaggedSize),
-      {node, MachineType::RepCompressedTaggedPointer()}, zone());
+      {node, MachineRepresentation::kTaggedPointer}, zone());
   return UpdateState(node, state);
 }
 
@@ -913,7 +913,7 @@ Reduction LoadElimination::ReduceLoadField(Node* node,
   if (state == nullptr) return NoChange();
   if (access.offset == HeapObject::kMapOffset &&
       access.base_is_tagged == kTaggedBase) {
-    DCHECK(IsAnyCompressedTagged(access.machine_type.representation()));
+    DCHECK(IsAnyTagged(access.machine_type.representation()));
     ZoneHandleSet<Map> object_maps;
     if (state->LookupMaps(object, &object_maps) && object_maps.size() == 1) {
       Node* value = jsgraph()->HeapConstant(object_maps[0]);
@@ -977,7 +977,7 @@ Reduction LoadElimination::ReduceStoreField(Node* node,
   if (state == nullptr) return NoChange();
   if (access.offset == HeapObject::kMapOffset &&
       access.base_is_tagged == kTaggedBase) {
-    DCHECK(IsAnyCompressedTagged(access.machine_type.representation()));
+    DCHECK(IsAnyTagged(access.machine_type.representation()));
     // Kill all potential knowledge about the {object}s map.
     state = state->KillMaps(object, zone());
     Type const new_value_type = NodeProperties::GetType(new_value);

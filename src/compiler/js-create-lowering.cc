@@ -1630,7 +1630,7 @@ Node* JSCreateLowering::AllocateFastLiteral(Node* effect, Node* control,
                           property_name.object(),
                           MaybeHandle<Map>(),
                           Type::Any(),
-                          MachineType::TypeCompressedTagged(),
+                          MachineType::AnyTagged(),
                           kFullWriteBarrier,
                           LoadSensitivity::kUnsafe,
                           const_field_info};
