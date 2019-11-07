@@ -898,6 +898,19 @@ void LiftoffAssembler::emit_i64_ctz(LiftoffRegister dst, LiftoffRegister src) {
   mov(dst.high_gp(), zero_reg);  // High word of result is always 0.
 }
 
+bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
+                                       LiftoffRegister src) {
+  // Produce partial popcnts in the two dst registers.
+  Register src1 = src.high_gp() == dst.low_gp() ? src.high_gp() : src.low_gp();
+  Register src2 = src.high_gp() == dst.low_gp() ? src.low_gp() : src.high_gp();
+  TurboAssembler::Popcnt(dst.low_gp(), src1);
+  TurboAssembler::Popcnt(dst.high_gp(), src2);
+  // Now add the two into the lower dst reg and clear the higher dst reg.
+  addu(dst.low_gp(), dst.low_gp(), dst.high_gp());
+  mov(dst.high_gp(), zero_reg);
+  return true;
+}
+
 void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
   // This is a nop on mips32.
 }
