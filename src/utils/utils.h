@@ -90,24 +90,6 @@ inline bool ClampToBounds(T index, T* length, T max) {
   return !oob;
 }
 
-inline int MostSignificantBit(uint32_t x) {
-  static const int msb4[] = {0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4};
-  int nibble = 0;
-  if (x & 0xffff0000) {
-    nibble += 16;
-    x >>= 16;
-  }
-  if (x & 0xff00) {
-    nibble += 8;
-    x >>= 8;
-  }
-  if (x & 0xf0) {
-    nibble += 4;
-    x >>= 4;
-  }
-  return nibble + msb4[x];
-}
-
 template <typename T>
 static T ArithmeticShiftRight(T x, int shift) {
   DCHECK_LE(0, shift);
@@ -120,26 +102,6 @@ static T ArithmeticShiftRight(T x, int shift) {
   } else {
     return x >> shift;
   }
-}
-
-template <typename T>
-int Compare(const T& a, const T& b) {
-  if (a == b)
-    return 0;
-  else if (a < b)
-    return -1;
-  else
-    return 1;
-}
-
-// Compare function to compare the object pointer value of two
-// handlified objects. The handles are passed as pointers to the
-// handles.
-template <typename T>
-class Handle;  // Forward declaration.
-template <typename T>
-int HandleObjectPointerCompare(const Handle<T>* a, const Handle<T>* b) {
-  return Compare<T*>(*(*a), *(*b));
 }
 
 // Returns the maximum of the two parameters.
@@ -183,13 +145,6 @@ typename std::make_unsigned<T>::type Abs(T a) {
   unsignedT x = static_cast<unsignedT>(a);
   unsignedT y = static_cast<unsignedT>(a >> (sizeof(T) * 8 - 1));
   return (x ^ y) - y;
-}
-
-// Returns the negative absolute value of its argument.
-template <typename T,
-          typename = typename std::enable_if<std::is_signed<T>::value>::type>
-T Nabs(T a) {
-  return a < 0 ? a : -a;
 }
 
 inline double Modulo(double x, double y) {
@@ -485,45 +440,6 @@ static const int kInt64LowerHalfMemoryOffset = 4;
 static const int kInt64UpperHalfMemoryOffset = 0;
 #endif  // V8_TARGET_LITTLE_ENDIAN
 
-// A static resource holds a static instance that can be reserved in
-// a local scope using an instance of Access.  Attempts to re-reserve
-// the instance will cause an error.
-template <typename T>
-class StaticResource {
- public:
-  StaticResource() : is_reserved_(false) {}
-
- private:
-  template <typename S>
-  friend class Access;
-  T instance_;
-  bool is_reserved_;
-};
-
-// Locally scoped access to a static resource.
-template <typename T>
-class Access {
- public:
-  explicit Access(StaticResource<T>* resource)
-      : resource_(resource), instance_(&resource->instance_) {
-    DCHECK(!resource->is_reserved_);
-    resource->is_reserved_ = true;
-  }
-
-  ~Access() {
-    resource_->is_reserved_ = false;
-    resource_ = nullptr;
-    instance_ = nullptr;
-  }
-
-  T* value() { return instance_; }
-  T* operator->() { return instance_; }
-
- private:
-  StaticResource<T>* resource_;
-  T* instance_;
-};
-
 // A pointer that can only be set once and doesn't allow NULL values.
 template <typename T>
 class SetOncePointer {
@@ -606,41 +522,6 @@ inline int TenToThe(int exponent) {
   for (int i = 1; i < exponent; i++) answer *= 10;
   return answer;
 }
-
-template <typename ElementType, int NumElements>
-class EmbeddedContainer {
- public:
-  EmbeddedContainer() : elems_() {}
-
-  int length() const { return NumElements; }
-  const ElementType& operator[](int i) const {
-    DCHECK(i < length());
-    return elems_[i];
-  }
-  ElementType& operator[](int i) {
-    DCHECK(i < length());
-    return elems_[i];
-  }
-
- private:
-  ElementType elems_[NumElements];
-};
-
-template <typename ElementType>
-class EmbeddedContainer<ElementType, 0> {
- public:
-  int length() const { return 0; }
-  const ElementType& operator[](int i) const {
-    UNREACHABLE();
-    static ElementType t = 0;
-    return t;
-  }
-  ElementType& operator[](int i) {
-    UNREACHABLE();
-    static ElementType t = 0;
-    return t;
-  }
-};
 
 // Helper class for building result strings in a character buffer. The
 // purpose of the class is to use safe operations that checks the
