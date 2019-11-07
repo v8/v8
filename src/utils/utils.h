@@ -53,8 +53,6 @@ inline char HexCharOfValue(int value) {
   return value - 10 + 'A';
 }
 
-inline int BoolToInt(bool b) { return b ? 1 : 0; }
-
 // Checks if value is in range [lower_limit, higher_limit] using a single
 // branch.
 template <typename T, typename U>
