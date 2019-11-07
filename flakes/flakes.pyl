@@ -19,6 +19,26 @@
 
 [
   {
+    "bisect_buildername": "V8 Linux64 - internal snapshot",
+    "bisect_mastername": "client.v8",
+    "bug_url": "https://crbug.com/v8/9192",
+    "build_config": "Release",
+    "extra_args": [],
+    "isolated_name": "bot_default",
+    "num_shards": 4,
+    "repetitions": 5000,
+    "swarming_dimensions": [
+      "cpu:x86-64",
+      "gpu:none",
+      "os:Ubuntu-14.04",
+      "pool:Chrome",
+    ],
+    "test_name": "mjsunit/regress/regress-678917",
+    "timeout_sec": 60,
+    "total_timeout_sec": 120,
+    "variant": "stress",
+  },
+  {
     "bisect_buildername": "V8 Linux64 - shared",
     "bisect_mastername": "client.v8",
     "bug_url": "https://crbug.com/v8/9054",
@@ -77,5 +97,25 @@
     "timeout_sec": 60,
     "total_timeout_sec": 0,
     "variant": "interpreted_regexp",
+  },
+  {
+    "bisect_buildername": "V8 Linux64 UBSanVptr",
+    "bisect_mastername": "client.v8",
+    "bug_url": "https://crbug.com/v8/8653",
+    "build_config": "Release",
+    "extra_args": [],
+    "isolated_name": "bot_default",
+    "num_shards": 4,
+    "repetitions": 5000,
+    "swarming_dimensions": [
+      "cpu:x86-64",
+      "gpu:none",
+      "os:Ubuntu-14.04",
+      "pool:Chrome",
+    ],
+    "test_name": "mjsunit/compiler/array-multiple-receiver-maps",
+    "timeout_sec": 60,
+    "total_timeout_sec": 120,
+    "variant": "stress_incremental_marking",
   },
 ]
