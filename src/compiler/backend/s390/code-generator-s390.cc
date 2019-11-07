@@ -168,7 +168,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, Register offset,
                        Register value, Register scratch0, Register scratch1,
-                       RecordWriteMode mode, StubCallMode stub_mode)
+                       RecordWriteMode mode, StubCallMode stub_mode,
+                       UnwindingInfoWriter* unwinding_info_writer)
       : OutOfLineCode(gen),
         object_(object),
         offset_(offset),
@@ -179,11 +180,13 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         mode_(mode),
         stub_mode_(stub_mode),
         must_save_lr_(!gen->frame_access_state()->has_frame()),
+        unwinding_info_writer_(unwinding_info_writer),
         zone_(gen->zone()) {}
 
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, int32_t offset,
                        Register value, Register scratch0, Register scratch1,
-                       RecordWriteMode mode, StubCallMode stub_mode)
+                       RecordWriteMode mode, StubCallMode stub_mode,
+                       UnwindingInfoWriter* unwinding_info_writer)
       : OutOfLineCode(gen),
         object_(object),
         offset_(no_reg),
@@ -194,6 +197,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         mode_(mode),
         stub_mode_(stub_mode),
         must_save_lr_(!gen->frame_access_state()->has_frame()),
+        unwinding_info_writer_(unwinding_info_writer),
         zone_(gen->zone()) {}
 
   void Generate() final {
@@ -217,6 +221,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     if (must_save_lr_) {
       // We need to save and restore r14 if the frame was elided.
       __ Push(r14);
+      unwinding_info_writer_->MarkLinkRegisterOnTopOfStack(__ pc_offset());
     }
     if (mode_ == RecordWriteMode::kValueIsEphemeronKey) {
       __ CallEphemeronKeyBarrier(object_, scratch1_, save_fp_mode);
@@ -230,6 +235,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     if (must_save_lr_) {
       // We need to save and restore r14 if the frame was elided.
       __ Pop(r14);
+      unwinding_info_writer_->MarkPopLinkRegisterFromTopOfStack(__ pc_offset());
     }
   }
 
@@ -243,6 +249,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   RecordWriteMode const mode_;
   StubCallMode stub_mode_;
   bool must_save_lr_;
+  UnwindingInfoWriter* const unwinding_info_writer_;
   Zone* zone_;
 };
 
@@ -1164,6 +1171,7 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
 
 void CodeGenerator::AssembleDeconstructFrame() {
   __ LeaveFrame(StackFrame::MANUAL);
+  unwinding_info_writer_.MarkFrameDeconstructed(__ pc_offset());
 }
 
 void CodeGenerator::AssemblePrepareTailCall() {
@@ -1633,16 +1641,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           AddressingModeField::decode(instr->opcode());
       if (addressing_mode == kMode_MRI) {
         int32_t offset = i.InputInt32(1);
-        ool = new (zone())
-            OutOfLineRecordWrite(this, object, offset, value, scratch0,
-                                 scratch1, mode, DetermineStubCallMode());
+        ool = new (zone()) OutOfLineRecordWrite(
+            this, object, offset, value, scratch0, scratch1, mode,
+            DetermineStubCallMode(), &unwinding_info_writer_);
         __ StoreP(value, MemOperand(object, offset));
       } else {
         DCHECK_EQ(kMode_MRR, addressing_mode);
         Register offset(i.InputRegister(1));
-        ool = new (zone())
-            OutOfLineRecordWrite(this, object, offset, value, scratch0,
-                                 scratch1, mode, DetermineStubCallMode());
+        ool = new (zone()) OutOfLineRecordWrite(
+            this, object, offset, value, scratch0, scratch1, mode,
+            DetermineStubCallMode(), &unwinding_info_writer_);
         __ StoreP(value, MemOperand(object, offset));
       }
       __ CheckPageFlag(object, scratch0,
@@ -3113,6 +3121,7 @@ void CodeGenerator::AssembleConstructFrame() {
         }
       }
     }
+    unwinding_info_writer_.MarkFrameConstructed(__ pc_offset());
   }
 
   int required_slots =
@@ -3216,6 +3225,8 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   if (double_saves != 0) {
     __ MultiPopDoubles(double_saves);
   }
+
+  unwinding_info_writer_.MarkBlockWillExit();
 
   S390OperandConverter g(this, nullptr);
   if (call_descriptor->IsCFunctionCall()) {
