@@ -3833,6 +3833,7 @@ macro ChangeUintPtrNumberToUintPtr(value: Number): uintptr {
   }
 }
 
+@export
 macro ChangeSafeIntegerNumberToUintPtr(value: Number):
     uintptr labels IfUIntPtrOverflow {
   try {

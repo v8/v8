@@ -1414,12 +1414,10 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
   TNode<JSArrayIterator> iterator = CAST(maybe_iterator);
 
   // Let a be O.[[IteratedObject]].
-  TNode<JSReceiver> array =
-      CAST(LoadObjectField(iterator, JSArrayIterator::kIteratedObjectOffset));
+  TNode<JSReceiver> array = LoadJSArrayIteratorIteratedObject(iterator);
 
   // Let index be O.[[ArrayIteratorNextIndex]].
-  TNode<Number> index =
-      CAST(LoadObjectField(iterator, JSArrayIterator::kNextIndexOffset));
+  TNode<Number> index = LoadJSArrayIteratorNextIndex(iterator);
   CSA_ASSERT(this, IsNumberNonNegativeSafeInteger(index));
 
   // Dispatch based on the type of the {array}.
@@ -1440,9 +1438,8 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     TNode<Uint32T> length32 =
         ChangeNumberToUint32(LoadJSArrayLength(CAST(array)));
     GotoIfNot(Uint32LessThan(index32, length32), &set_done);
-    StoreObjectField(
-        iterator, JSArrayIterator::kNextIndexOffset,
-        ChangeUint32ToTagged(Unsigned(Int32Add(index32, Int32Constant(1)))));
+    StoreJSArrayIteratorNextIndex(
+        iterator, ChangeUint32ToTagged(Uint32Add(index32, Uint32Constant(1))));
 
     var_done = FalseConstant();
     var_value = index;
@@ -1482,8 +1479,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
         CallBuiltin(Builtins::kToLength, context,
                     GetProperty(context, array, factory()->length_string())));
     GotoIfNumberGreaterThanOrEqual(index, length, &set_done);
-    StoreObjectField(iterator, JSArrayIterator::kNextIndexOffset,
-                     NumberInc(index));
+    StoreJSArrayIteratorNextIndex(iterator, NumberInc(index));
 
     var_done = FalseConstant();
     var_value = index;
@@ -1516,7 +1512,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     TNode<Number> max_length =
         SelectConstant(IsJSArray(array), NumberConstant(kMaxUInt32),
                        NumberConstant(kMaxSafeInteger));
-    StoreObjectField(iterator, JSArrayIterator::kNextIndexOffset, max_length);
+    StoreJSArrayIteratorNextIndex(iterator, max_length);
     Goto(&allocate_iterator_result);
   }
 
@@ -1528,9 +1524,9 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
 
   BIND(&if_typedarray);
   {
-    // If {array} is a JSTypedArray, the {index} must always be a Smi.
-    // TODO(v8:4153): Update this and the relevant TurboFan code.
-    TNode<UintPtrT> index_uintptr = Unsigned(SmiUntag(CAST(index)));
+    // Overflowing uintptr range also means end of iteration.
+    TNode<UintPtrT> index_uintptr =
+        ChangeSafeIntegerNumberToUintPtr(index, &allocate_iterator_result);
 
     // Check that the {array}s buffer wasn't detached.
     ThrowIfArrayBufferViewBufferIsDetached(context, CAST(array), method_name);
@@ -1544,8 +1540,9 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
               &allocate_iterator_result);
     // TODO(v8:4153): Consider storing next index as uintptr. Update this and
     // the relevant TurboFan code.
-    StoreObjectFieldNoWriteBarrier(iterator, JSArrayIterator::kNextIndexOffset,
-                                   SmiInc(CAST(index)));
+    StoreJSArrayIteratorNextIndex(
+        iterator,
+        ChangeUintPtrToTagged(UintPtrAdd(index_uintptr, UintPtrConstant(1))));
 
     var_done = FalseConstant();
     var_value = index;
