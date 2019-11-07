@@ -21,6 +21,8 @@ class TickCounter;
 
 namespace compiler {
 
+class LiveSet;
+
 static const int32_t kUnassignedRegister = RegisterConfiguration::kMaxRegisters;
 
 enum RegisterKind { GENERAL_REGISTERS, FP_REGISTERS };
@@ -277,8 +279,8 @@ class RegisterAllocationData final : public ZoneObject {
   const ZoneVector<TopLevelLiveRange*>& fixed_simd128_live_ranges() const {
     return fixed_simd128_live_ranges_;
   }
-  ZoneVector<BitVector*>& live_in_sets() { return live_in_sets_; }
-  ZoneVector<BitVector*>& live_out_sets() { return live_out_sets_; }
+  ZoneVector<LiveSet*>& live_in_sets() { return live_in_sets_; }
+  ZoneVector<LiveSet*>& live_out_sets() { return live_out_sets_; }
   ZoneVector<SpillRange*>& spill_ranges() { return spill_ranges_; }
   DelayedReferences& delayed_references() { return delayed_references_; }
   InstructionSequence* code() const { return code_; }
@@ -352,8 +354,8 @@ class RegisterAllocationData final : public ZoneObject {
   const char* const debug_name_;
   const RegisterConfiguration* const config_;
   PhiMap phi_map_;
-  ZoneVector<BitVector*> live_in_sets_;
-  ZoneVector<BitVector*> live_out_sets_;
+  ZoneVector<LiveSet*> live_in_sets_;
+  ZoneVector<LiveSet*> live_out_sets_;
   ZoneVector<TopLevelLiveRange*> live_ranges_;
   ZoneVector<TopLevelLiveRange*> fixed_live_ranges_;
   ZoneVector<TopLevelLiveRange*> fixed_float_live_ranges_;
@@ -1103,8 +1105,8 @@ class LiveRangeBuilder final : public ZoneObject {
 
   // Phase 3: compute liveness of all virtual register.
   void BuildLiveRanges();
-  static BitVector* ComputeLiveOut(const InstructionBlock* block,
-                                   RegisterAllocationData* data);
+  static LiveSet* ComputeLiveOut(const InstructionBlock* block,
+                                 RegisterAllocationData* data);
 
  private:
   using SpillMode = RegisterAllocationData::SpillMode;
@@ -1116,9 +1118,7 @@ class LiveRangeBuilder final : public ZoneObject {
   Zone* allocation_zone() const { return data()->allocation_zone(); }
   Zone* code_zone() const { return code()->zone(); }
   const RegisterConfiguration* config() const { return data()->config(); }
-  ZoneVector<BitVector*>& live_in_sets() const {
-    return data()->live_in_sets();
-  }
+  ZoneVector<LiveSet*>& live_in_sets() const { return data()->live_in_sets(); }
 
   // Verification.
   void Verify() const;
@@ -1128,10 +1128,10 @@ class LiveRangeBuilder final : public ZoneObject {
   bool NextIntervalStartsInDifferentBlocks(const UseInterval* interval) const;
 
   // Liveness analysis support.
-  void AddInitialIntervals(const InstructionBlock* block, BitVector* live_out);
-  void ProcessInstructions(const InstructionBlock* block, BitVector* live);
-  void ProcessPhis(const InstructionBlock* block, BitVector* live);
-  void ProcessLoopHeader(const InstructionBlock* block, BitVector* live);
+  void AddInitialIntervals(const InstructionBlock* block, LiveSet* live_out);
+  void ProcessInstructions(const InstructionBlock* block, LiveSet* live);
+  void ProcessPhis(const InstructionBlock* block, LiveSet* live);
+  void ProcessLoopHeader(const InstructionBlock* block, LiveSet* live);
 
   static int FixedLiveRangeID(int index) { return -index - 1; }
   int FixedFPLiveRangeID(int index, MachineRepresentation rep);

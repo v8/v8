@@ -88,6 +88,8 @@ class PersistentMap {
     return !(*this == other);
   }
 
+  Zone* zone() const { return zone_; }
+
   // The iterator produces key-value pairs in the lexicographical order of
   // hash value and key. It produces exactly the key-value pairs where the value
   // is not the default value.
