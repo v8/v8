@@ -3702,6 +3702,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ punpcklqdq(i.OutputSimd128Register(), i.OutputSimd128Register());
       break;
     }
+    case kX64S32x4LoadSplat: {
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      // TODO(v8:9886): AVX codegen
+      __ movss(i.OutputSimd128Register(), i.MemoryOperand());
+      __ shufps(i.OutputSimd128Register(), i.OutputSimd128Register(),
+                static_cast<byte>(0));
+      break;
+    }
+    case kX64S64x2LoadSplat: {
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      // TODO(v8:9886): AVX codegen
+      __ movsd(i.OutputSimd128Register(), i.MemoryOperand());
+      __ punpcklqdq(i.OutputSimd128Register(), i.OutputSimd128Register());
+      break;
+    }
     case kX64I16x8Load8x8S: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ pmovsxbw(i.OutputSimd128Register(), i.MemoryOperand());

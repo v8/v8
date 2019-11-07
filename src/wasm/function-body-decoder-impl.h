@@ -2763,6 +2763,14 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         len = DecodeLoadTransformMem(LoadType::kI32Load16S,
                                      LoadTransformationKind::kSplat);
         break;
+      case kExprS32x4LoadSplat:
+        len = DecodeLoadTransformMem(LoadType::kI32Load,
+                                     LoadTransformationKind::kSplat);
+        break;
+      case kExprS64x2LoadSplat:
+        len = DecodeLoadTransformMem(LoadType::kI64Load,
+                                     LoadTransformationKind::kSplat);
+        break;
       case kExprI16x8Load8x8S:
         len = DecodeLoadTransformMem(LoadType::kI32Load8S,
                                      LoadTransformationKind::kExtend);

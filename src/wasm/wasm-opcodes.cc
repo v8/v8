@@ -31,6 +31,7 @@ namespace wasm {
 #define CASE_I16x8_OP(name, str) CASE_OP(I16x8##name, "i16x8." str)
 #define CASE_I8x16_OP(name, str) CASE_OP(I8x16##name, "i8x16." str)
 #define CASE_S128_OP(name, str) CASE_OP(S128##name, "s128." str)
+#define CASE_S64x2_OP(name, str) CASE_OP(S64x2##name, "s64x2." str)
 #define CASE_S32x4_OP(name, str) CASE_OP(S32x4##name, "s32x4." str)
 #define CASE_S16x8_OP(name, str) CASE_OP(S16x8##name, "s16x8." str)
 #define CASE_S8x16_OP(name, str) CASE_OP(S8x16##name, "s8x16." str)
@@ -324,6 +325,8 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
 
     CASE_S8x16_OP(LoadSplat, "load_splat")
     CASE_S16x8_OP(LoadSplat, "load_splat")
+    CASE_S32x4_OP(LoadSplat, "load_splat")
+    CASE_S64x2_OP(LoadSplat, "load_splat")
     CASE_I16x8_OP(Load8x8S, "load8x8_s")
     CASE_I16x8_OP(Load8x8U, "load8x8_u")
 
@@ -359,6 +362,7 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
 #undef CASE_I16x8_OP
 #undef CASE_I8x16_OP
 #undef CASE_S128_OP
+#undef CASE_S64x2_OP
 #undef CASE_S32x4_OP
 #undef CASE_S16x8_OP
 #undef CASE_S8x16_OP

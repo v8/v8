@@ -312,6 +312,8 @@ namespace compiler {
   V(X64S8x16Shuffle)                      \
   V(X64S8x16LoadSplat)                    \
   V(X64S16x8LoadSplat)                    \
+  V(X64S32x4LoadSplat)                    \
+  V(X64S64x2LoadSplat)                    \
   V(X64I16x8Load8x8S)                     \
   V(X64I16x8Load8x8U)                     \
   V(X64S32x4Swizzle)                      \

@@ -335,6 +335,16 @@ constexpr Vector<const int16_t> ValueHelper::GetVector() {
   return int16_vector();
 }
 
+template <>
+constexpr Vector<const int32_t> ValueHelper::GetVector() {
+  return int32_vector();
+}
+
+template <>
+constexpr Vector<const int64_t> ValueHelper::GetVector() {
+  return int64_vector();
+}
+
 // Helper macros that can be used in FOR_INT32_INPUTS(i) { ... i ... }
 #define FOR_INPUTS(ctype, itype, var) \
   for (ctype var : ::v8::internal::compiler::ValueHelper::itype##_vector())

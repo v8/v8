@@ -63,6 +63,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, LoadKind);
 enum class LoadTransformation {
   kS8x16LoadSplat,
   kS16x8LoadSplat,
+  kS32x4LoadSplat,
+  kS64x2LoadSplat,
   kI16x8Load8x8S,
   kI16x8Load8x8U,
 };

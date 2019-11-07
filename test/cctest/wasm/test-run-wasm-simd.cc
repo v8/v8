@@ -3287,6 +3287,14 @@ WASM_SIMD_TEST_NO_LOWERING(S16x8LoadSplat) {
   RunLoadSplatTest<int16_t>(execution_tier, lower_simd, kExprS16x8LoadSplat);
 }
 
+WASM_SIMD_TEST_NO_LOWERING(S32x4LoadSplat) {
+  RunLoadSplatTest<int32_t>(execution_tier, lower_simd, kExprS32x4LoadSplat);
+}
+
+WASM_SIMD_TEST_NO_LOWERING(S64x2LoadSplat) {
+  RunLoadSplatTest<int64_t>(execution_tier, lower_simd, kExprS64x2LoadSplat);
+}
+
 template <typename S, typename T>
 void RunLoadExtendTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                        WasmOpcode op) {

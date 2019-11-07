@@ -54,6 +54,10 @@ std::ostream& operator<<(std::ostream& os, LoadTransformation rep) {
       return os << "kS8x16LoadSplat";
     case LoadTransformation::kS16x8LoadSplat:
       return os << "kS16x8LoadSplat";
+    case LoadTransformation::kS32x4LoadSplat:
+      return os << "kS32x4LoadSplat";
+    case LoadTransformation::kS64x2LoadSplat:
+      return os << "kS64x2LoadSplat";
     case LoadTransformation::kI16x8Load8x8S:
       return os << "kI16x8Load8x8S";
     case LoadTransformation::kI16x8Load8x8U:
@@ -525,6 +529,8 @@ MachineType AtomicOpType(Operator const* op) {
 #define LOAD_TRANSFORM_LIST(V) \
   V(S8x16LoadSplat)            \
   V(S16x8LoadSplat)            \
+  V(S32x4LoadSplat)            \
+  V(S64x2LoadSplat)            \
   V(I16x8Load8x8S)             \
   V(I16x8Load8x8U)
 

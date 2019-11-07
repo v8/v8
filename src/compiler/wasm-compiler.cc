@@ -3685,6 +3685,10 @@ LoadTransformation GetLoadTransformation(
         return LoadTransformation::kS8x16LoadSplat;
       } else if (memtype == MachineType::Int16()) {
         return LoadTransformation::kS16x8LoadSplat;
+      } else if (memtype == MachineType::Int32()) {
+        return LoadTransformation::kS32x4LoadSplat;
+      } else if (memtype == MachineType::Int64()) {
+        return LoadTransformation::kS64x2LoadSplat;
       }
       break;
     }

@@ -338,6 +338,12 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
     case LoadTransformation::kS16x8LoadSplat:
       opcode = kX64S16x8LoadSplat;
       break;
+    case LoadTransformation::kS32x4LoadSplat:
+      opcode = kX64S32x4LoadSplat;
+      break;
+    case LoadTransformation::kS64x2LoadSplat:
+      opcode = kX64S64x2LoadSplat;
+      break;
     case LoadTransformation::kI16x8Load8x8S:
       opcode = kX64I16x8Load8x8S;
       break;
