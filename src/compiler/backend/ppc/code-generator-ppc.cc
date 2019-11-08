@@ -1150,7 +1150,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         if (is_int16(offset)) {
           __ subi(lhs_register, sp, Operand(offset));
         } else {
-          __ mov(kScratchReg, Operand(kScratchReg));
+          __ mov(kScratchReg, Operand(offset));
           __ sub(lhs_register, sp, kScratchReg);
         }
       }
