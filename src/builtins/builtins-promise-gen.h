@@ -133,7 +133,7 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
       const TorqueStructIteratorRecord& record,
       const PromiseAllResolvingElementFunction& create_resolve_element_function,
       const PromiseAllResolvingElementFunction& create_reject_element_function,
-      Label* if_exception, Variable* var_exception);
+      Label* if_exception, TVariable<Object>* var_exception);
 
   void SetForwardingHandlerIfTrue(Node* context, Node* condition,
                                   const NodeGenerator& object);

@@ -1659,7 +1659,7 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
     const IteratorRecord& iterator,
     const PromiseAllResolvingElementFunction& create_resolve_element_function,
     const PromiseAllResolvingElementFunction& create_reject_element_function,
-    Label* if_exception, Variable* var_exception) {
+    Label* if_exception, TVariable<Object>* var_exception) {
   IteratorBuiltinsAssembler iter_assembler(state());
 
   TNode<NativeContext> native_context = LoadNativeContext(context);
@@ -1933,7 +1933,7 @@ void PromiseBuiltinsAssembler::Generate_PromiseAll(
   const TNode<PromiseCapability> capability = CAST(CallBuiltin(
       Builtins::kNewPromiseCapability, context, receiver, debug_event));
 
-  VARIABLE(var_exception, MachineRepresentation::kTagged, TheHoleConstant());
+  TVARIABLE(Object, var_exception, TheHoleConstant());
   Label reject_promise(this, &var_exception, Label::kDeferred);
 
   // Let iterator be GetIterator(iterable).
@@ -2205,7 +2205,7 @@ TF_BUILTIN(PromiseAllSettledRejectElementClosure, PromiseBuiltinsAssembler) {
 // Promise.race ( iterable )
 TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
   IteratorBuiltinsAssembler iter_assembler(state());
-  VARIABLE(var_exception, MachineRepresentation::kTagged, TheHoleConstant());
+  TVARIABLE(Object, var_exception, TheHoleConstant());
 
   Node* const receiver = Parameter(Descriptor::kReceiver);
   const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
