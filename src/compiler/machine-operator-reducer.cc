@@ -228,7 +228,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         return Changed(node);
       }
       if (m.right().IsPowerOf2()) {  // x * 2^n => x << n
-        node->ReplaceInput(1, Int32Constant(WhichPowerOf2(m.right().Value())));
+        node->ReplaceInput(
+            1, Int32Constant(base::bits::WhichPowerOfTwo(m.right().Value())));
         NodeProperties::ChangeOp(node, machine()->Word32Shl());
         Reduction reduction = ReduceWord32Shl(node);
         return reduction.Changed() ? reduction : Changed(node);
@@ -863,7 +864,7 @@ Reduction MachineOperatorReducer::ReduceInt32Div(Node* node) {
     Node* const dividend = m.left().node();
     Node* quotient = dividend;
     if (base::bits::IsPowerOfTwo(Abs(divisor))) {
-      uint32_t const shift = WhichPowerOf2(Abs(divisor));
+      uint32_t const shift = base::bits::WhichPowerOfTwo(Abs(divisor));
       DCHECK_NE(0u, shift);
       if (shift > 1) {
         quotient = Word32Sar(quotient, 31);
@@ -902,7 +903,8 @@ Reduction MachineOperatorReducer::ReduceUint32Div(Node* node) {
     Node* const dividend = m.left().node();
     uint32_t const divisor = m.right().Value();
     if (base::bits::IsPowerOfTwo(divisor)) {  // x / 2^n => x >> n
-      node->ReplaceInput(1, Uint32Constant(WhichPowerOf2(m.right().Value())));
+      node->ReplaceInput(
+          1, Uint32Constant(base::bits::WhichPowerOfTwo(m.right().Value())));
       node->TrimInputCount(2);
       NodeProperties::ChangeOp(node, machine()->Word32Shr());
       return Changed(node);

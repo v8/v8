@@ -1076,7 +1076,8 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   const int frame_alignment = ActivationFrameAlignment();
   if (frame_alignment > kPointerSize) {
     DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
-    ClearRightImm(sp, sp, Operand(WhichPowerOf2(frame_alignment)));
+    ClearRightImm(sp, sp,
+                  Operand(base::bits::WhichPowerOfTwo(frame_alignment)));
   }
   li(r0, Operand::Zero());
   StorePU(r0, MemOperand(sp, -kNumRequiredStackFrameSlots * kPointerSize));
@@ -1856,7 +1857,8 @@ void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
     mr(scratch, sp);
     addi(sp, sp, Operand(-(stack_passed_arguments + 1) * kPointerSize));
     DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
-    ClearRightImm(sp, sp, Operand(WhichPowerOf2(frame_alignment)));
+    ClearRightImm(sp, sp,
+                  Operand(base::bits::WhichPowerOfTwo(frame_alignment)));
     StoreP(scratch, MemOperand(sp, stack_passed_arguments * kPointerSize));
   } else {
     // Make room for stack arguments

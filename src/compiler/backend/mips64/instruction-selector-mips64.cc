@@ -954,21 +954,21 @@ void InstructionSelector::VisitInt32Mul(Node* node) {
     if (base::bits::IsPowerOfTwo(value)) {
       Emit(kMips64Shl | AddressingModeField::encode(kMode_None),
            g.DefineAsRegister(node), g.UseRegister(m.left().node()),
-           g.TempImmediate(WhichPowerOf2(value)));
+           g.TempImmediate(base::bits::WhichPowerOfTwo(value)));
       return;
     }
     if (base::bits::IsPowerOfTwo(value - 1) && kArchVariant == kMips64r6 &&
         value - 1 > 0 && value - 1 <= 31) {
       Emit(kMips64Lsa, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
            g.UseRegister(m.left().node()),
-           g.TempImmediate(WhichPowerOf2(value - 1)));
+           g.TempImmediate(base::bits::WhichPowerOfTwo(value - 1)));
       return;
     }
     if (base::bits::IsPowerOfTwo(value + 1)) {
       InstructionOperand temp = g.TempRegister();
       Emit(kMips64Shl | AddressingModeField::encode(kMode_None), temp,
            g.UseRegister(m.left().node()),
-           g.TempImmediate(WhichPowerOf2(value + 1)));
+           g.TempImmediate(base::bits::WhichPowerOfTwo(value + 1)));
       Emit(kMips64Sub | AddressingModeField::encode(kMode_None),
            g.DefineAsRegister(node), temp, g.UseRegister(m.left().node()));
       return;
@@ -1009,7 +1009,7 @@ void InstructionSelector::VisitInt64Mul(Node* node) {
     if (base::bits::IsPowerOfTwo(value)) {
       Emit(kMips64Dshl | AddressingModeField::encode(kMode_None),
            g.DefineAsRegister(node), g.UseRegister(m.left().node()),
-           g.TempImmediate(WhichPowerOf2(value)));
+           g.TempImmediate(base::bits::WhichPowerOfTwo(value)));
       return;
     }
     if (base::bits::IsPowerOfTwo(value - 1) && kArchVariant == kMips64r6 &&
@@ -1017,14 +1017,14 @@ void InstructionSelector::VisitInt64Mul(Node* node) {
       // Dlsa macro will handle the shifting value out of bound cases.
       Emit(kMips64Dlsa, g.DefineAsRegister(node),
            g.UseRegister(m.left().node()), g.UseRegister(m.left().node()),
-           g.TempImmediate(WhichPowerOf2(value - 1)));
+           g.TempImmediate(base::bits::WhichPowerOfTwo(value - 1)));
       return;
     }
     if (base::bits::IsPowerOfTwo(value + 1)) {
       InstructionOperand temp = g.TempRegister();
       Emit(kMips64Dshl | AddressingModeField::encode(kMode_None), temp,
            g.UseRegister(m.left().node()),
-           g.TempImmediate(WhichPowerOf2(value + 1)));
+           g.TempImmediate(base::bits::WhichPowerOfTwo(value + 1)));
       Emit(kMips64Dsub | AddressingModeField::encode(kMode_None),
            g.DefineAsRegister(node), temp, g.UseRegister(m.left().node()));
       return;

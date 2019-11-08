@@ -131,6 +131,27 @@ constexpr inline bool IsPowerOfTwo(T value) {
   return value > 0 && (value & (value - 1)) == 0;
 }
 
+// Identical to {CountTrailingZeros}, but only works for powers of 2.
+template <typename T,
+          typename = typename std::enable_if<std::is_integral<T>::value>::type>
+inline constexpr int WhichPowerOfTwo(T value) {
+#if V8_HAS_CXX14_CONSTEXPR
+  DCHECK(IsPowerOfTwo(value));
+#endif
+#if V8_HAS_BUILTIN_CTZ
+  STATIC_ASSERT(sizeof(T) <= 8);
+  return sizeof(T) == 8 ? __builtin_ctzll(static_cast<uint64_t>(value))
+                        : __builtin_ctz(static_cast<uint32_t>(value));
+#else
+  // Fall back to popcount (see "Hacker's Delight" by Henry S. Warren, Jr.),
+  // chapter 5-4. On x64, since is faster than counting in a loop and faster
+  // than doing binary search.
+  using U = typename std::make_unsigned<T>::type;
+  U u = value;
+  return CountPopulation(static_cast<U>(u - 1));
+#endif
+}
+
 // RoundUpToPowerOfTwo32(value) returns the smallest power of two which is
 // greater than or equal to |value|. If you pass in a |value| that is already a
 // power of two, it is returned as is. |value| must be less than or equal to

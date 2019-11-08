@@ -565,7 +565,9 @@ void MacroAssembler::And(Register dst, Register src1, const Operand& src2,
              base::bits::IsPowerOfTwo(src2.immediate() + 1)) {
     CpuFeatureScope scope(this, ARMv7);
     ubfx(dst, src1, 0,
-         WhichPowerOf2(static_cast<uint32_t>(src2.immediate()) + 1), cond);
+         base::bits::WhichPowerOfTwo(static_cast<uint32_t>(src2.immediate()) +
+                                     1),
+         cond);
   } else {
     and_(dst, src1, src2, LeaveCC, cond);
   }

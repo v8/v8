@@ -1135,7 +1135,8 @@ void RegExpMacroAssemblerPPC::CallCheckStackGuardState(Register scratch) {
     __ mr(scratch, sp);
     __ addi(sp, sp, Operand(-(stack_passed_arguments + 1) * kPointerSize));
     DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
-    __ ClearRightImm(sp, sp, Operand(WhichPowerOf2(frame_alignment)));
+    __ ClearRightImm(sp, sp,
+                     Operand(base::bits::WhichPowerOfTwo(frame_alignment)));
     __ StoreP(scratch, MemOperand(sp, stack_passed_arguments * kPointerSize));
   } else {
     // Make room for stack arguments

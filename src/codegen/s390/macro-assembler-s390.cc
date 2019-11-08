@@ -1794,7 +1794,8 @@ void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
     LoadRR(scratch, sp);
     lay(sp, MemOperand(sp, -(stack_passed_arguments + 1) * kSystemPointerSize));
     DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
-    ClearRightImm(sp, sp, Operand(WhichPowerOf2(frame_alignment)));
+    ClearRightImm(sp, sp,
+                  Operand(base::bits::WhichPowerOfTwo(frame_alignment)));
     StoreP(scratch,
            MemOperand(sp, (stack_passed_arguments)*kSystemPointerSize));
   } else {

@@ -90,47 +90,6 @@ inline bool ClampToBounds(T index, T* length, T max) {
   return !oob;
 }
 
-// X must be a power of 2.  Returns the number of trailing zeros.
-template <typename T,
-          typename = typename std::enable_if<std::is_integral<T>::value>::type>
-inline int WhichPowerOf2(T x) {
-  DCHECK(base::bits::IsPowerOfTwo(x));
-  int bits = 0;
-#ifdef DEBUG
-  const T original_x = x;
-#endif
-  constexpr int max_bits = sizeof(T) * 8;
-  static_assert(max_bits <= 64, "integral types are not bigger than 64 bits");
-// Avoid shifting by more than the bit width of x to avoid compiler warnings.
-#define CHECK_BIGGER(s)                                      \
-  if (max_bits > s && x >= T{1} << (max_bits > s ? s : 0)) { \
-    bits += s;                                               \
-    x >>= max_bits > s ? s : 0;                              \
-  }
-  CHECK_BIGGER(32)
-  CHECK_BIGGER(16)
-  CHECK_BIGGER(8)
-  CHECK_BIGGER(4)
-#undef CHECK_BIGGER
-  switch (x) {
-    default:
-      UNREACHABLE();
-    case 8:
-      bits++;
-      V8_FALLTHROUGH;
-    case 4:
-      bits++;
-      V8_FALLTHROUGH;
-    case 2:
-      bits++;
-      V8_FALLTHROUGH;
-    case 1:
-      break;
-  }
-  DCHECK_EQ(T{1} << bits, original_x);
-  return bits;
-}
-
 inline int MostSignificantBit(uint32_t x) {
   static const int msb4[] = {0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4};
   int nibble = 0;

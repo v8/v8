@@ -6,6 +6,7 @@
 
 #include <ostream>
 
+#include "src/base/bits.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/machine-type.h"
@@ -504,7 +505,7 @@ TNode<IntPtrT> CodeAssembler::IntPtrDiv(TNode<IntPtrT> left,
       return IntPtrConstant(left_constant / right_constant);
     }
     if (base::bits::IsPowerOfTwo(right_constant)) {
-      return WordSar(left, WhichPowerOf2(right_constant));
+      return WordSar(left, base::bits::WhichPowerOfTwo(right_constant));
     }
   }
   return UncheckedCast<IntPtrT>(raw_assembler()->IntPtrDiv(left, right));
@@ -539,11 +540,11 @@ TNode<WordT> CodeAssembler::IntPtrMul(SloppyTNode<WordT> left,
       return IntPtrConstant(left_constant * right_constant);
     }
     if (base::bits::IsPowerOfTwo(left_constant)) {
-      return WordShl(right, WhichPowerOf2(left_constant));
+      return WordShl(right, base::bits::WhichPowerOfTwo(left_constant));
     }
   } else if (is_right_constant) {
     if (base::bits::IsPowerOfTwo(right_constant)) {
-      return WordShl(left, WhichPowerOf2(right_constant));
+      return WordShl(left, base::bits::WhichPowerOfTwo(right_constant));
     }
   }
   return UncheckedCast<IntPtrT>(raw_assembler()->IntPtrMul(left, right));

@@ -4,6 +4,7 @@
 
 #include "src/compiler/effect-control-linearizer.h"
 
+#include "src/base/bits.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/machine-type.h"
 #include "src/common/ptr-compr-inl.h"
@@ -2084,7 +2085,7 @@ Node* EffectControlLinearizer::LowerCheckedInt32Div(Node* node,
     // right shift on {lhs}).
     int32_t divisor = m.Value();
     Node* mask = __ Int32Constant(divisor - 1);
-    Node* shift = __ Int32Constant(WhichPowerOf2(divisor));
+    Node* shift = __ Int32Constant(base::bits::WhichPowerOfTwo(divisor));
     Node* check = __ Word32Equal(__ Word32And(lhs, mask), zero);
     __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, FeedbackSource(),
                        check, frame_state);
@@ -2277,7 +2278,7 @@ Node* EffectControlLinearizer::LowerCheckedUint32Div(Node* node,
     // shift on {lhs}).
     uint32_t divisor = m.Value();
     Node* mask = __ Uint32Constant(divisor - 1);
-    Node* shift = __ Uint32Constant(WhichPowerOf2(divisor));
+    Node* shift = __ Uint32Constant(base::bits::WhichPowerOfTwo(divisor));
     Node* check = __ Word32Equal(__ Word32And(lhs, mask), zero);
     __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, FeedbackSource(),
                        check, frame_state);
