@@ -56,7 +56,7 @@ void GeneratorBuiltinsAssembler::InnerResume(
                                  SmiConstant(resume_mode));
 
   // Resume the {receiver} using our trampoline.
-  TVARIABLE(HeapObject, var_exception);
+  TVARIABLE(Object, var_exception);
   Label if_exception(this, Label::kDeferred), if_final_return(this);
   TNode<Object> result = CallStub(CodeFactory::ResumeGenerator(isolate()),
                                   context, value, receiver);
