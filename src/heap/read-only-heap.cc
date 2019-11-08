@@ -97,6 +97,7 @@ ReadOnlyHeap* ReadOnlyHeap::CreateAndAttachToIsolate(Isolate* isolate) {
 
 void ReadOnlyHeap::InitFromIsolate(Isolate* isolate) {
   DCHECK(!init_complete_);
+  read_only_space_->ShrinkImmortalImmovablePages();
 #ifdef V8_SHARED_RO_HEAP
   void* const isolate_ro_roots = reinterpret_cast<void*>(
       isolate->roots_table().read_only_roots_begin().address());
