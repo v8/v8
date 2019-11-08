@@ -241,7 +241,9 @@ class AbstractType final : public Type {
     return nullptr;
   }
 
-  std::vector<std::string> GetRuntimeTypes() const override { return {name()}; }
+  std::vector<std::string> GetRuntimeTypes() const override {
+    return {GetGeneratedTNodeTypeName()};
+  }
 
  private:
   friend class TypeOracle;

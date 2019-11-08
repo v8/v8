@@ -105,7 +105,8 @@ operator '==' macro FrameTypeEquals(f1: FrameType, f2: FrameType): bool {
   return TaggedEqual(f1, f2);
 }
 
-macro Cast<A: type>(implicit context: Context)(o: Frame): A labels CastError;
+macro Cast<A : type extends Frame>(implicit context: Context)(o: Frame):
+    A labels CastError;
 Cast<StandardFrame>(implicit context: Context)(f: Frame):
     StandardFrame labels CastError {
   const o: HeapObject =

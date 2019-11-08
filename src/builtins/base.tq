@@ -24,8 +24,22 @@
 type void;
 type never;
 
-type Tagged generates 'TNode<Object>' constexpr 'ObjectPtr';
-type Smi extends Tagged generates 'TNode<Smi>' constexpr 'Smi';
+type Tagged generates 'TNode<MaybeObject>' constexpr 'MaybeObject';
+type StrongTagged extends Tagged
+    generates 'TNode<Object>' constexpr 'ObjectPtr';
+type Smi extends StrongTagged generates 'TNode<Smi>' constexpr 'Smi';
+// A possibly cleared weak pointer with a bit pattern that distinguishes it from
+// strong HeapObject pointers and Smi values.
+type WeakHeapObject extends Tagged;
+type Weak<T : type extends HeapObject> extends WeakHeapObject;
+
+type Object = Smi|HeapObject;
+type MaybeObject = Smi|HeapObject|WeakHeapObject;
+
+@abstract
+extern class HeapObject extends StrongTagged {
+  map: Map;
+}
 
 // A Smi that is greater than or equal to 0. See TaggedIsPositiveSmi.
 type PositiveSmi extends Smi;
@@ -36,12 +50,18 @@ type Zero extends PositiveSmi;
 // A value with the size of Tagged which may contain arbitrary data.
 type Uninitialized extends Tagged;
 
-@abstract
-extern class HeapObject extends Tagged {
-  map: Map;
-}
+extern macro MakeWeak(HeapObject): WeakHeapObject;
+extern macro GetHeapObjectAssumeWeak(WeakHeapObject):
+    HeapObject labels ClearedWeakPointer;
+extern macro IsWeakOrCleared(MaybeObject): bool;
 
-type Object = Smi|HeapObject;
+macro StrongToWeak<T: type>(x: T): Weak<T> {
+  return %RawDownCast<Weak<T>>(MakeWeak(x));
+}
+macro WeakToStrong<T: type>(x: Weak<T>): T labels ClearedWeakPointer {
+  const x = GetHeapObjectAssumeWeak(x) otherwise ClearedWeakPointer;
+  return %RawDownCast<T>(x);
+}
 
 // Defined to coincide with https://tc39.es/ecma262/#sec-ispropertykey
 // Doesn't include PrivateSymbol.
@@ -260,6 +280,8 @@ extern class FixedArray extends FixedArrayBase {
   objects[length]: Object;
 }
 
+type EmptyFixedArray extends FixedArray;
+
 extern class FixedDoubleArray extends FixedArrayBase {
   floats[length]: float64;
 }
@@ -287,6 +309,23 @@ extern class TransitionArray extends WeakFixedArray;
 type InstanceType extends uint16 constexpr 'v8::internal::InstanceType';
 
 extern class Map extends HeapObject {
+  PrototypeInfo(): PrototypeInfo labels HasNoPrototypeInfo {
+    typeswitch (this.transitions_or_prototype_info) {
+      case (Weak<Map>): {
+        goto HasNoPrototypeInfo;
+      }
+      case (Smi): {
+        goto HasNoPrototypeInfo;
+      }
+      case (info: PrototypeInfo): {
+        return info;
+      }
+      case (Map | TransitionArray): {
+        goto HasNoPrototypeInfo;
+      }
+    }
+  }
+
   instance_size_in_words: uint8;
   in_object_properties_start_or_constructor_function_index: uint8;
   used_or_unused_instance_size_in_words: uint8;
@@ -299,16 +338,20 @@ extern class Map extends HeapObject {
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
   @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 
-  prototype: HeapObject;
+  prototype: JSReceiver|Null;
   constructor_or_back_pointer_or_native_context: Object;
   instance_descriptors: DescriptorArray;
   @if(V8_DOUBLE_FIELDS_UNBOXING) layout_descriptor: LayoutDescriptor;
   @ifnot(V8_DOUBLE_FIELDS_UNBOXING) layout_descriptor: void;
   dependent_code: DependentCode;
   prototype_validity_cell: Smi|Cell;
-  // TODO(v8:9108): Misusing "weak" keyword; type should be
-  //     Map | Weak<Map> | TransitionArray | PrototypeInfo | Smi.
-  weak transitions_or_prototype_info: Map|TransitionArray|PrototypeInfo|Smi;
+  weak transitions_or_prototype_info: Map|Weak<Map>|TransitionArray|
+      PrototypeInfo|Smi;
+}
+
+@export
+macro LoadMapPrototypeInfo(m: Map): PrototypeInfo labels HasNoPrototypeInfo {
+  return m.PrototypeInfo() otherwise HasNoPrototypeInfo;
 }
 
 @generatePrint
@@ -457,7 +500,7 @@ macro GetDerivedMap(implicit context: Context)(
 
 macro AllocateFastOrSlowJSObjectFromMap(implicit context: Context)(map: Map):
     JSObject {
-  let properties = kEmptyFixedArray;
+  let properties: EmptyFixedArray|NameDictionary = kEmptyFixedArray;
   if (IsDictionaryMap(map)) {
     properties = AllocateNameDictionary(kNameDictionaryInitialCapacity);
   }
@@ -714,8 +757,7 @@ extern class JSMessageObject extends JSObject {
 extern class WeakArrayList extends HeapObject {
   capacity: Smi;
   length: Smi;
-  // TODO(v8:8983): declare variable-sized region for contained MaybeObject's
-  // objects[length]: MaybeObject;
+  objects[length]: MaybeObject;
 }
 
 extern class PrototypeInfo extends Struct {
@@ -723,9 +765,16 @@ extern class PrototypeInfo extends Struct {
   prototype_users: WeakArrayList|Zero;
   registry_slot: Smi;
   validity_cell: Object;
-  // TODO(v8:9108): Should be Weak<Map> | Undefined.
-  @noVerifier object_create_map: Map|Undefined;
+  object_create_map: Weak<Map>|Undefined;
   bit_field: Smi;
+}
+
+extern macro PrototypeInfoMapConstant(): Map;
+const kPrototypeInfoMap: Map = PrototypeInfoMapConstant();
+
+Cast<PrototypeInfo>(o: HeapObject): PrototypeInfo labels CastError {
+  if (o.map != kPrototypeInfoMap) goto CastError;
+  return %RawDownCast<PrototypeInfo>(o);
 }
 
 extern class Script extends Struct {
@@ -872,6 +921,8 @@ const REGEXP_LAST_MATCH_INFO_INDEX: constexpr NativeContextSlot
     generates 'Context::REGEXP_LAST_MATCH_INFO_INDEX';
 const INITIAL_STRING_ITERATOR_MAP_INDEX: constexpr NativeContextSlot
     generates 'Context::INITIAL_STRING_ITERATOR_MAP_INDEX';
+const SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP: constexpr NativeContextSlot
+    generates 'Context::SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP';
 extern operator '[]' macro LoadContextElement(
     NativeContext, NativeContextSlot): Object;
 extern operator '[]=' macro StoreContextElement(
@@ -1102,10 +1153,9 @@ extern class DataHandler extends Struct {
   validity_cell: Smi|Cell;
 
   // Space for the following fields may or may not be allocated.
-  // TODO(v8:9108): Misusing "weak" keyword; should be MaybeObject.
-  @noVerifier weak data_1: Object;
-  @noVerifier weak data_2: Object;
-  @noVerifier weak data_3: Object;
+  @noVerifier data_1: MaybeObject;
+  @noVerifier data_2: MaybeObject;
+  @noVerifier data_3: MaybeObject;
 }
 
 extern class LoadHandler extends DataHandler;
@@ -1741,8 +1791,7 @@ extern class DebugInfo extends Struct {
 
 extern class FeedbackVector extends HeapObject {
   shared_function_info: SharedFunctionInfo;
-  // TODO(v8:9108): currently no support for MaybeObject in Torque
-  @noVerifier optimized_code_weak_or_smi: Object;
+  optimized_code_weak_or_smi: Weak<Code>|Smi;
   closure_feedback_cell_array: FixedArray;
   length: int32;
   invocation_count: int32;
@@ -2122,14 +2171,16 @@ extern operator '==' macro TaggedEqual(TaggedWithIdentity, Object): bool;
 extern operator '==' macro TaggedEqual(Object, TaggedWithIdentity): bool;
 extern operator '==' macro TaggedEqual(
     TaggedWithIdentity, TaggedWithIdentity): bool;
+extern operator '==' macro TaggedEqual(WeakHeapObject, WeakHeapObject): bool;
 extern operator '!=' macro TaggedNotEqual(TaggedWithIdentity, Object): bool;
 extern operator '!=' macro TaggedNotEqual(Object, TaggedWithIdentity): bool;
 extern operator '!=' macro TaggedNotEqual(
     TaggedWithIdentity, TaggedWithIdentity): bool;
+extern operator '!=' macro TaggedNotEqual(WeakHeapObject, WeakHeapObject): bool;
 // Do not overload == and != if it is unclear if object identity is the right
 // equality.
-extern macro TaggedEqual(Object, Object): bool;
-extern macro TaggedNotEqual(Object, Object): bool;
+extern macro TaggedEqual(MaybeObject, MaybeObject): bool;
+extern macro TaggedNotEqual(MaybeObject, MaybeObject): bool;
 
 extern operator '+' macro SmiAdd(Smi, Smi): Smi;
 extern operator '-' macro SmiSub(Smi, Smi): Smi;
@@ -2305,6 +2356,18 @@ extern macro HeapObjectToRegExpMatchInfo(HeapObject):
 extern macro TaggedToNumber(Object): Number
     labels CastError;
 
+macro Cast<A : type extends WeakHeapObject>(o: A|Object): A labels CastError {
+  if (!IsWeakOrCleared(o)) goto CastError;
+  return %RawDownCast<A>(o);
+}
+
+macro Cast<A: type>(o: MaybeObject): A labels CastError;
+
+Cast<Undefined>(o: MaybeObject): Undefined labels CastError {
+  if (TaggedNotEqual(o, Undefined)) goto CastError;
+  return %RawDownCast<Undefined>(o);
+}
+
 macro Cast<A : type extends Object>(implicit context: Context)(o: Object): A
     labels CastError {
   return Cast<A>(TaggedToHeapObject(o) otherwise CastError)
@@ -2333,8 +2396,8 @@ Cast<Number>(o: Object): Number
 
 Cast<Undefined>(o: Object): Undefined
     labels CastError {
-  if (o != Undefined) goto CastError;
-  return %RawDownCast<Undefined>(o);
+  const o: MaybeObject = o;
+  return Cast<Undefined>(o) otherwise CastError;
 }
 
 Cast<Numeric>(o: Object): Numeric labels CastError {
@@ -2487,7 +2550,7 @@ Cast<Null>(o: HeapObject): Null
 
 Cast<Undefined>(o: HeapObject): Undefined
     labels CastError {
-  const o: Object = o;
+  const o: MaybeObject = o;
   return Cast<Undefined>(o) otherwise CastError;
 }
 
@@ -3199,13 +3262,13 @@ macro UnsafeCast<A : type extends Object>(implicit context: Context)(o: Object):
 extern macro FixedArrayMapConstant(): Map;
 extern macro FixedCOWArrayMapConstant(): Map;
 extern macro EmptyByteArrayConstant(): ByteArray;
-extern macro EmptyFixedArrayConstant(): FixedArray;
+extern macro EmptyFixedArrayConstant(): EmptyFixedArray;
 extern macro PromiseCapabilityMapConstant(): Map;
 
 const kFixedArrayMap: Map = FixedArrayMapConstant();
 const kCOWMap: Map = FixedCOWArrayMapConstant();
 const kEmptyByteArray: ByteArray = EmptyByteArrayConstant();
-const kEmptyFixedArray: FixedArray = EmptyFixedArrayConstant();
+const kEmptyFixedArray: EmptyFixedArray = EmptyFixedArrayConstant();
 const kPromiseCapabilityMap: Map = PromiseCapabilityMapConstant();
 
 extern macro IsPrototypeInitialArrayPrototype(implicit context: Context)(Map):
@@ -3347,8 +3410,10 @@ extern macro AllocateJSArray(constexpr ElementsKind, Map, Smi, Smi): JSArray;
 extern macro AllocateJSArray(Map, FixedArrayBase, Smi): JSArray;
 extern macro AllocateJSObjectFromMap(Map): JSObject;
 extern macro AllocateJSObjectFromMap(
-    Map, FixedArray | PropertyArray, FixedArray, constexpr AllocationFlags,
-    constexpr SlackTrackingMode): JSObject;
+    Map, NameDictionary | EmptyFixedArray | PropertyArray): JSObject;
+extern macro AllocateJSObjectFromMap(
+    Map, NameDictionary | EmptyFixedArray | PropertyArray, FixedArray,
+    constexpr AllocationFlags, constexpr SlackTrackingMode): JSObject;
 
 extern macro LoadDoubleWithHoleCheck(FixedDoubleArray, Smi): float64
     labels IfHole;

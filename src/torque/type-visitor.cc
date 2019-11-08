@@ -167,12 +167,12 @@ const ClassType* TypeVisitor::ComputeType(
       ReportError("Extern class must extend another type.");
     }
     const Type* super_type = TypeVisitor::ComputeType(*decl->super);
-    if (super_type != TypeOracle::GetTaggedType()) {
+    if (super_type != TypeOracle::GetStrongTaggedType()) {
       const ClassType* super_class = ClassType::DynamicCast(super_type);
       if (!super_class) {
         ReportError(
             "class \"", decl->name->value,
-            "\" must extend either Tagged or an already declared class");
+            "\" must extend either StrongTagged or an already declared class");
       }
       if (super_class->HasUndefinedLayout() &&
           !(decl->flags & ClassFlag::kUndefinedLayout)) {
@@ -283,8 +283,11 @@ void TypeVisitor::VisitClassFieldsAndMethods(
         field_expression.name_and_type.type->pos);
     const Type* field_type = ComputeType(field_expression.name_and_type.type);
     if (!(class_declaration->flags & ClassFlag::kExtern)) {
-      if (!field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-        ReportError("non-extern classes do not support untagged fields");
+      if (!field_type->IsSubtypeOf(TypeOracle::GetObjectType())) {
+        ReportError(
+            "non-extern classes only support subtypes of type Object, but "
+            "found type ",
+            *field_type);
       }
       if (field_expression.weak) {
         ReportError("non-extern classes do not support weak fields");

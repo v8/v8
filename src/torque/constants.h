@@ -32,6 +32,7 @@ static const char* const JSANY_TYPE_STRING = "JSAny";
 static const char* const JSOBJECT_TYPE_STRING = "JSObject";
 static const char* const SMI_TYPE_STRING = "Smi";
 static const char* const TAGGED_TYPE_STRING = "Tagged";
+static const char* const STRONG_TAGGED_TYPE_STRING = "StrongTagged";
 static const char* const UNINITIALIZED_TYPE_STRING = "Uninitialized";
 static const char* const RAWPTR_TYPE_STRING = "RawPtr";
 static const char* const CONST_STRING_TYPE_STRING = "constexpr string";

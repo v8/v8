@@ -1130,7 +1130,7 @@ TNode<Int32T> CodeStubAssembler::TruncateIntPtrToInt32(
   return ReinterpretCast<Int32T>(value);
 }
 
-TNode<BoolT> CodeStubAssembler::TaggedIsSmi(TNode<MaybeObject> a) {
+TNode<BoolT> CodeStubAssembler::TaggedIsSmi(SloppyTNode<MaybeObject> a) {
   STATIC_ASSERT(kSmiTagMask < kMaxUInt32);
   return Word32Equal(
       Word32And(TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(a)),
@@ -1138,7 +1138,7 @@ TNode<BoolT> CodeStubAssembler::TaggedIsSmi(TNode<MaybeObject> a) {
       Int32Constant(0));
 }
 
-TNode<BoolT> CodeStubAssembler::TaggedIsNotSmi(TNode<MaybeObject> a) {
+TNode<BoolT> CodeStubAssembler::TaggedIsNotSmi(SloppyTNode<MaybeObject> a) {
   return Word32BinaryNot(TaggedIsSmi(a));
 }
 
@@ -1747,24 +1747,6 @@ TNode<DescriptorArray> CodeStubAssembler::LoadMapDescriptors(
 TNode<HeapObject> CodeStubAssembler::LoadMapPrototype(SloppyTNode<Map> map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
   return LoadObjectField<HeapObject>(map, Map::kPrototypeOffset);
-}
-
-TNode<PrototypeInfo> CodeStubAssembler::LoadMapPrototypeInfo(
-    SloppyTNode<Map> map, Label* if_no_proto_info) {
-  Label if_strong_heap_object(this);
-  CSA_ASSERT(this, IsMap(map));
-  TNode<MaybeObject> maybe_prototype_info =
-      LoadMaybeWeakObjectField(map, Map::kTransitionsOrPrototypeInfoOffset);
-  TVARIABLE(Object, prototype_info);
-  DispatchMaybeObject(maybe_prototype_info, if_no_proto_info, if_no_proto_info,
-                      if_no_proto_info, &if_strong_heap_object,
-                      &prototype_info);
-
-  BIND(&if_strong_heap_object);
-  GotoIfNot(TaggedEqual(LoadMap(CAST(prototype_info.value())),
-                        PrototypeInfoMapConstant()),
-            if_no_proto_info);
-  return CAST(prototype_info.value());
 }
 
 TNode<IntPtrT> CodeStubAssembler::LoadMapInstanceSizeInWords(

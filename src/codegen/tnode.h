@@ -231,7 +231,9 @@ class int31_t {
 
 template <class T, class U>
 struct is_subtype {
-  static const bool value = std::is_base_of<U, T>::value;
+  static const bool value =
+      std::is_base_of<U, T>::value || (std::is_same<U, MaybeObject>::value &&
+                                       std::is_convertible<T, Object>::value);
 };
 template <class T1, class T2, class U>
 struct is_subtype<UnionT<T1, T2>, U> {
@@ -301,19 +303,11 @@ struct types_have_common_values<UnionT<T1, T2>, UnionT<U1, U2>> {
                             types_have_common_values<T2, U2>::value;
 };
 
-template <class T>
-struct types_have_common_values<T, MaybeObject> {
-  static const bool value = types_have_common_values<T, Object>::value;
-};
-
-template <class T>
-struct types_have_common_values<MaybeObject, T> {
-  static const bool value = types_have_common_values<Object, T>::value;
-};
-
 // TNode<T> is an SSA value with the static type tag T, which is one of the
 // following:
-//   - a subclass of internal::Object represents a tagged type
+//   - MaybeObject represents the type of all tagged values, including weak
+//     pointers.
+//   - a subclass of internal::Object represents a non-weak tagged type.
 //   - a subclass of internal::UntaggedT represents an untagged type
 //   - ExternalReference
 //   - PairT<T1, T2> for an operation returning two values, with types T1

@@ -915,14 +915,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Int32T> TruncateIntPtrToInt32(SloppyTNode<IntPtrT> value);
 
   // Check a value for smi-ness
-  TNode<BoolT> TaggedIsSmi(TNode<MaybeObject> a);
-  TNode<BoolT> TaggedIsSmi(SloppyTNode<Object> a) {
-    return TaggedIsSmi(UncheckedCast<MaybeObject>(a));
-  }
-  TNode<BoolT> TaggedIsNotSmi(TNode<MaybeObject> a);
-  TNode<BoolT> TaggedIsNotSmi(SloppyTNode<Object> a) {
-    return TaggedIsNotSmi(UncheckedCast<MaybeObject>(a));
-  }
+  TNode<BoolT> TaggedIsSmi(SloppyTNode<MaybeObject> a);
+  TNode<BoolT> TaggedIsNotSmi(SloppyTNode<MaybeObject> a);
+
   // Check that the value is a non-negative smi.
   TNode<BoolT> TaggedIsPositiveSmi(SloppyTNode<Object> a);
   // Check that a word has a word-aligned address.
@@ -1071,9 +1066,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CAST(
         LoadFromObject(MachineTypeOf<T>::value, reference.object, offset));
   }
-  template <class T, typename std::enable_if<
-                         std::is_convertible<TNode<T>, TNode<UntaggedT>>::value,
-                         int>::type = 0>
+  template <class T,
+            typename std::enable_if<
+                std::is_convertible<TNode<T>, TNode<UntaggedT>>::value ||
+                    std::is_same<T, MaybeObject>::value,
+                int>::type = 0>
   TNode<T> LoadReference(Reference reference) {
     TNode<IntPtrT> offset =
         IntPtrSub(reference.offset, IntPtrConstant(kHeapObjectTag));
@@ -1081,7 +1078,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
         LoadFromObject(MachineTypeOf<T>::value, reference.object, offset));
   }
   template <class T, typename std::enable_if<
-                         std::is_convertible<TNode<T>, TNode<Object>>::value,
+                         std::is_convertible<TNode<T>, TNode<Object>>::value ||
+                             std::is_same<T, MaybeObject>::value,
                          int>::type = 0>
   void StoreReference(Reference reference, TNode<T> value) {
     MachineRepresentation rep = MachineRepresentationOf<T>::value;
@@ -1162,10 +1160,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<DescriptorArray> LoadMapDescriptors(SloppyTNode<Map> map);
   // Load the prototype of a map.
   TNode<HeapObject> LoadMapPrototype(SloppyTNode<Map> map);
-  // Load the prototype info of a map. The result has to be checked if it is a
-  // prototype info object or not.
-  TNode<PrototypeInfo> LoadMapPrototypeInfo(SloppyTNode<Map> map,
-                                            Label* if_has_no_proto_info);
   // Load the instance size of a Map.
   TNode<IntPtrT> LoadMapInstanceSizeInWords(SloppyTNode<Map> map);
   // Load the inobject properties start of a Map (valid only for JSObjects).
@@ -1224,10 +1218,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                            TVariable<Object>* extracted);
   // See MaybeObject for semantics of these functions.
   TNode<BoolT> IsStrong(TNode<MaybeObject> value);
-  // This variant is for overzealous checking.
-  TNode<BoolT> IsStrong(TNode<Object> value) {
-    return IsStrong(ReinterpretCast<MaybeObject>(value));
-  }
   TNode<HeapObject> GetHeapObjectIfStrong(TNode<MaybeObject> value,
                                           Label* if_not_strong);
 
@@ -3513,10 +3503,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Support for printf-style debugging
   void Print(const char* s);
   void Print(const char* prefix, Node* tagged_value);
-  inline void Print(SloppyTNode<Object> tagged_value) {
-    return Print(nullptr, tagged_value);
-  }
-  inline void Print(TNode<MaybeObject> tagged_value) {
+  void Print(SloppyTNode<MaybeObject> tagged_value) {
     return Print(nullptr, tagged_value);
   }
 

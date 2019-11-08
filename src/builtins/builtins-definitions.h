@@ -703,7 +703,6 @@ namespace internal {
   TFJ(ObjectAssign, SharedFunctionInfo::kDontAdaptArgumentsSentinel)           \
   /* ES #sec-object.create */                                                  \
   TFJ(ObjectCreate, SharedFunctionInfo::kDontAdaptArgumentsSentinel)           \
-  TFS(CreateObjectWithoutProperties, kPrototypeArg)                            \
   CPP(ObjectDefineGetter)                                                      \
   CPP(ObjectDefineProperties)                                                  \
   CPP(ObjectDefineProperty)                                                    \

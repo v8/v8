@@ -3444,14 +3444,16 @@ void GenerateClassFieldVerifier(const std::string& class_name,
   if (!f.generate_verify) return;
   const Type* field_type = f.name_and_type.type;
 
-  // We only verify tagged types, not raw numbers or pointers. Note that this
-  // must check against GetObjectType not GetTaggedType, because Uninitialized
-  // is a Tagged but should not be verified.
-  if (!field_type->IsSubtypeOf(TypeOracle::GetObjectType())) return;
+  // We only verify tagged types, not raw numbers or pointers.
+  if (!field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) return;
+  // Do not verify if the field may be uninitialized.
+  if (TypeOracle::GetUninitializedType()->IsSubtypeOf(field_type)) return;
 
   if (f.index) {
-    if (f.index->type != TypeOracle::GetSmiType()) {
-      ReportError("Non-SMI values are not (yet) supported as indexes.");
+    const Type* index_type = f.index->type;
+    if (index_type != TypeOracle::GetSmiType()) {
+      Error("Expected type Smi for indexed field but found type ", *index_type)
+          .Position(f.pos);
     }
     // We already verified the index field because it was listed earlier, so we
     // can assume it's safe to read here.
@@ -3462,9 +3464,11 @@ void GenerateClassFieldVerifier(const std::string& class_name,
     cc_contents << "  {\n";
   }
 
-  const char* object_type = f.is_weak ? "MaybeObject" : "Object";
+  bool maybe_object =
+      !f.name_and_type.type->IsSubtypeOf(TypeOracle::GetStrongTaggedType());
+  const char* object_type = maybe_object ? "MaybeObject" : "Object";
   const char* verify_fn =
-      f.is_weak ? "VerifyMaybeObjectPointer" : "VerifyPointer";
+      maybe_object ? "VerifyMaybeObjectPointer" : "VerifyPointer";
   const char* index_offset = f.index ? "i * kTaggedSize" : "0";
   // Name the local var based on the field name for nicer CHECK output.
   const std::string value = f.name_and_type.name + "__value";
@@ -3483,10 +3487,11 @@ void GenerateClassFieldVerifier(const std::string& class_name,
   // the Object type because it would not check anything beyond what we already
   // checked with VerifyPointer.
   if (f.name_and_type.type != TypeOracle::GetObjectType()) {
-    std::string type_check = f.is_weak ? value + ".IsWeakOrCleared()" : "";
+    std::string type_check = maybe_object ? value + ".IsWeakOrCleared()" : "";
     std::string strong_value =
-        value + (f.is_weak ? ".GetHeapObjectOrSmi()" : "");
+        value + (maybe_object ? ".GetHeapObjectOrSmi()" : "");
     for (const std::string& runtime_type : field_type->GetRuntimeTypes()) {
+      if (runtime_type == "MaybeObject") continue;
       if (!type_check.empty()) type_check += " || ";
       type_check += strong_value + ".Is" + runtime_type + "()";
     }

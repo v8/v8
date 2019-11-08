@@ -27,11 +27,13 @@ namespace torque_internal {
   }
 }
 
-type Tagged generates 'TNode<Object>' constexpr 'ObjectPtr';
-type Smi extends Tagged generates 'TNode<Smi>' constexpr 'Smi';
+type Tagged generates 'TNode<MaybeObject>' constexpr 'MaybeObject';
+type StrongTagged extends Tagged generates 'TNode<Object>' constexpr 'ObjectPtr';
+type Smi extends StrongTagged generates 'TNode<Smi>' constexpr 'Smi';
+type Uninitialized extends Tagged;
 
 @abstract
-extern class HeapObject extends Tagged {
+extern class HeapObject extends StrongTagged {
   map: Map;
 }
 type Map extends HeapObject generates 'TNode<Map>';

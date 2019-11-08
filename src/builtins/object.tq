@@ -24,6 +24,9 @@ namespace runtime {
   extern transitioning runtime
   JSReceiverSetPrototypeOfDontThrow(implicit context:
                                         Context)(JSReceiver, JSAny): JSAny;
+
+  extern transitioning runtime ObjectCreate(implicit context:
+                                                Context)(JSAny, JSAny): JSAny;
 }  // namespace runtime
 
 namespace object {
@@ -89,6 +92,48 @@ namespace object {
         otherwise return runtime::JSReceiverSetPrototypeOfDontThrow(
         objectJSReceiver, proto);
     return proxy::ProxySetPrototypeOf(objectJSProxy, proto, False);
+  }
+
+  transitioning builtin CreateObjectWithoutProperties(
+      implicit context: Context)(prototype: JSAny): JSAny {
+    const nativeContext = LoadNativeContext(context);
+
+    try {
+      let map: Map;
+      let properties: NameDictionary|EmptyFixedArray;
+      typeswitch (prototype) {
+        case (Null): {
+          map = UnsafeCast<Map>(
+              nativeContext[SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP]);
+          properties = AllocateNameDictionary(kNameDictionaryInitialCapacity);
+        }
+        case (prototype: JSReceiver): {
+          properties = kEmptyFixedArray;
+          const objectFunction =
+              UnsafeCast<JSFunction>(nativeContext[OBJECT_FUNCTION_INDEX]);
+          map = UnsafeCast<Map>(objectFunction.prototype_or_initial_map);
+          if (prototype != map.prototype) {
+            const prototypeInfo =
+                prototype.map.PrototypeInfo() otherwise Runtime;
+            typeswitch (prototypeInfo.object_create_map) {
+              case (Undefined): {
+                goto Runtime;
+              }
+              case (weak_map: Weak<Map>): {
+                map = WeakToStrong(weak_map) otherwise Runtime;
+              }
+            }
+          }
+        }
+        case (JSAny): {
+          goto Runtime;
+        }
+      }
+      return AllocateJSObjectFromMap(map, properties);
+    }
+    label Runtime deferred {
+      return runtime::ObjectCreate(prototype, Undefined);
+    }
   }
 
   // ES6 section 19.1.2.11 Object.isExtensible ( O )
