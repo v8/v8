@@ -7,6 +7,7 @@
 
 #include "src/base/optional.h"
 #include "src/codegen/code-stub-assembler.h"
+#include "src/compiler/code-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -425,7 +426,7 @@ class ExitPoint {
   using CodeAssemblerVariable = compiler::CodeAssemblerVariable;
 
  public:
-  using IndirectReturnHandler = std::function<void(Node* result)>;
+  using IndirectReturnHandler = std::function<void(TNode<Object> result)>;
 
   explicit ExitPoint(CodeStubAssembler* assembler)
       : ExitPoint(assembler, nullptr) {}
@@ -435,9 +436,9 @@ class ExitPoint {
       : asm_(assembler), indirect_return_handler_(indirect_return_handler) {}
 
   ExitPoint(CodeStubAssembler* assembler, CodeAssemblerLabel* out,
-            CodeAssemblerVariable* var_result)
-      : ExitPoint(assembler, [=](Node* result) {
-          var_result->Bind(result);
+            compiler::CodeAssembler::TVariable<Object>* var_result)
+      : ExitPoint(assembler, [=](TNode<Object> result) {
+          *var_result = result;
           assembler->Goto(out);
         }) {
     DCHECK_EQ(out != nullptr, var_result != nullptr);
@@ -473,7 +474,7 @@ class ExitPoint {
     }
   }
 
-  void Return(Node* const result) {
+  void Return(const TNode<Object> result) {
     if (IsDirect()) {
       asm_->Return(result);
     } else {

@@ -1115,7 +1115,7 @@ void KeyedStoreGenericAssembler::SetProperty(TNode<Context> context,
   StoreICParameters p(context, receiver, unique_name, value, {}, nullptr);
 
   Label done(this), slow(this, Label::kDeferred);
-  ExitPoint exit_point(this, [&](Node* result) { Goto(&done); });
+  ExitPoint exit_point(this, [&](TNode<Object> result) { Goto(&done); });
 
   CSA_ASSERT(this, Word32Equal(is_simple_receiver,
                                IsSimpleObjectMap(LoadMap(receiver))));

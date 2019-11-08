@@ -902,7 +902,7 @@ void AccessorAssembler::HandleLoadICProtoHandler(
     if (access_mode == LoadAccessMode::kHas) {
       exit_point->Return(TrueConstant());
     } else {
-      exit_point->Return(maybe_holder_or_constant);
+      exit_point->Return(CAST(maybe_holder_or_constant));
     }
   }
 
