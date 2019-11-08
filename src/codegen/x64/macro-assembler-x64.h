@@ -494,10 +494,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                           Register caller_args_count, Register scratch0,
                           Register scratch1);
 
-  // Call a runtime routine. This expects {centry} to contain a fitting CEntry
-  // builtin for the target runtime function and uses an indirect call.
-  void CallRuntimeWithCEntry(Runtime::FunctionId fid, Register centry);
-
   void InitializeRootRegister() {
     ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
     Move(kRootRegister, isolate_root);

@@ -361,10 +361,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                      int num_double_arguments,
                      bool has_function_descriptor = true);
 
-  // Call a runtime routine. This expects {centry} to contain a fitting CEntry
-  // builtin for the target runtime function and uses an indirect call.
-  void CallRuntimeWithCEntry(Runtime::FunctionId fid, Register centry);
-
   void MovFromFloatParameter(DoubleRegister dst);
   void MovFromFloatResult(DoubleRegister dst);
 

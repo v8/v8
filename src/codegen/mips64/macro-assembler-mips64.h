@@ -527,10 +527,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                      Label* condition_met);
 #undef COND_ARGS
 
-  // Call a runtime routine. This expects {centry} to contain a fitting CEntry
-  // builtin for the target runtime function and uses an indirect call.
-  void CallRuntimeWithCEntry(Runtime::FunctionId fid, Register centry);
-
   // Performs a truncating conversion of a floating point number as used by
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32.
   // Exits with 'result' holding the answer.

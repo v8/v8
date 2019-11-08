@@ -1518,15 +1518,6 @@ void TurboAssembler::TryInlineTruncateDoubleToI(Register result,
   beq(done);
 }
 
-void TurboAssembler::CallRuntimeWithCEntry(Runtime::FunctionId fid,
-                                           Register centry) {
-  const Runtime::Function* f = Runtime::FunctionForId(fid);
-  mov(r2, Operand(f->nargs));
-  Move(r3, ExternalReference::Create(f));
-  DCHECK(!AreAliased(centry, r2, r3));
-  CallCodeObject(centry);
-}
-
 void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
                                  SaveFPRegsMode save_doubles) {
   // All parameters are on the stack.  r2 has the return value after call.

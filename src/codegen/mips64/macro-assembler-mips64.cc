@@ -4881,20 +4881,6 @@ void TurboAssembler::MulOverflow(Register dst, Register left,
   xor_(overflow, overflow, scratch);
 }
 
-void TurboAssembler::CallRuntimeWithCEntry(Runtime::FunctionId fid,
-                                           Register centry) {
-  const Runtime::Function* f = Runtime::FunctionForId(fid);
-  // TODO(1236192): Most runtime routines don't need the number of
-  // arguments passed in because it is constant. At some point we
-  // should remove this need and make the runtime routine entry code
-  // smarter.
-  PrepareCEntryArgs(f->nargs);
-  PrepareCEntryFunction(ExternalReference::Create(f));
-  DCHECK(!AreAliased(centry, a0, a1));
-  Daddu(centry, centry, Operand(Code::kHeaderSize - kHeapObjectTag));
-  Call(centry);
-}
-
 void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
                                  SaveFPRegsMode save_doubles) {
   // All parameters are on the stack. v0 has the return value after call.

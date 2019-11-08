@@ -590,20 +590,6 @@ void TurboAssembler::Abort(AbortReason reason) {
   int3();
 }
 
-void TurboAssembler::CallRuntimeWithCEntry(Runtime::FunctionId fid,
-                                           Register centry) {
-  const Runtime::Function* f = Runtime::FunctionForId(fid);
-  // TODO(1236192): Most runtime routines don't need the number of
-  // arguments passed in because it is constant. At some point we
-  // should remove this need and make the runtime routine entry code
-  // smarter.
-  Set(rax, f->nargs);
-  LoadAddress(rbx, ExternalReference::Create(f));
-  DCHECK(!AreAliased(centry, rax, rbx));
-  DCHECK(centry == rcx);
-  CallCodeObject(centry);
-}
-
 void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
                                  SaveFPRegsMode save_doubles) {
   // If the expected number of arguments of the runtime function is

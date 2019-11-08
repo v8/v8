@@ -980,20 +980,6 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
   Call(code, RelocInfo::CODE_TARGET);
 }
 
-void TurboAssembler::CallRuntimeWithCEntry(Runtime::FunctionId fid,
-                                           Register centry) {
-  const Runtime::Function* f = Runtime::FunctionForId(fid);
-  // TODO(1236192): Most runtime routines don't need the number of
-  // arguments passed in because it is constant. At some point we
-  // should remove this need and make the runtime routine entry code
-  // smarter.
-  Move(kRuntimeCallArgCountRegister, Immediate(f->nargs));
-  Move(kRuntimeCallFunctionRegister, Immediate(ExternalReference::Create(f)));
-  DCHECK(!AreAliased(centry, kRuntimeCallArgCountRegister,
-                     kRuntimeCallFunctionRegister));
-  CallCodeObject(centry);
-}
-
 void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
   // ----------- S t a t e -------------
   //  -- esp[0]                 : return address

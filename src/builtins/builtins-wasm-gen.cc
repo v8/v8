@@ -61,6 +61,13 @@ TF_BUILTIN(WasmRethrow, WasmBuiltinsAssembler) {
   TailCallRuntime(Runtime::kReThrow, context, exception);
 }
 
+TF_BUILTIN(WasmTraceMemory, WasmBuiltinsAssembler) {
+  TNode<Object> info = UncheckedParameter(Descriptor::kMemoryTracingInfo);
+  TNode<Object> instance = LoadInstanceFromFrame();
+  TNode<Object> context = LoadContextFromInstance(instance);
+  TailCallRuntime(Runtime::kWasmTraceMemory, context, info);
+}
+
 TF_BUILTIN(WasmAtomicNotify, WasmBuiltinsAssembler) {
   TNode<Uint32T> address =
       UncheckedCast<Uint32T>(Parameter(Descriptor::kAddress));

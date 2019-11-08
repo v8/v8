@@ -949,6 +949,7 @@ namespace internal {
   TFC(WasmStackOverflow, NoContext)                                            \
   TFC(WasmThrow, WasmThrow)                                                    \
   TFC(WasmRethrow, WasmThrow)                                                  \
+  TFS(WasmTraceMemory, kMemoryTracingInfo)                                     \
   TFS(ThrowWasmTrapUnreachable)                                                \
   TFS(ThrowWasmTrapMemOutOfBounds)                                             \
   TFS(ThrowWasmTrapUnalignedAccess)                                            \
@@ -1263,6 +1264,7 @@ namespace internal {
   V(WasmStackOverflow)                   \
   V(WasmThrow)                           \
   V(WasmRethrow)                         \
+  V(WasmTraceMemory)                     \
   V(AllocateHeapNumber)                  \
   V(ArgumentsAdaptorTrampoline)          \
   V(BigIntToI32Pair)                     \

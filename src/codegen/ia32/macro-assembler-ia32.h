@@ -111,10 +111,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void CallForDeoptimization(Address target, int deopt_id);
 
-  // Call a runtime routine. This expects {centry} to contain a fitting CEntry
-  // builtin for the target runtime function and uses an indirect call.
-  void CallRuntimeWithCEntry(Runtime::FunctionId fid, Register centry);
-
   // Jump the register contains a smi.
   inline void JumpIfSmi(Register value, Label* smi_label,
                         Label::Distance distance = Label::kFar) {

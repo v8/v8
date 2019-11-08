@@ -1669,47 +1669,20 @@ class LiftoffCompiler {
     __ Store(info.gp(), no_reg, offsetof(MemoryTracingInfo, mem_rep), address,
              StoreType::kI32Store8, pinned);
 
+    WasmTraceMemoryDescriptor descriptor;
+    DCHECK_EQ(0, descriptor.GetStackParameterCount());
+    DCHECK_EQ(1, descriptor.GetRegisterParameterCount());
+    Register param_reg = descriptor.GetRegisterParameter(0);
+    if (info.gp() != param_reg) {
+      __ Move(param_reg, info.gp(), LiftoffAssembler::kWasmIntPtr);
+    }
+
     source_position_table_builder_.AddPosition(__ pc_offset(),
                                                SourcePosition(position), false);
-
-    Register args[] = {info.gp()};
-    GenerateRuntimeCall(Runtime::kWasmTraceMemory, arraysize(args), args);
-    __ DeallocateStackSlot(sizeof(MemoryTracingInfo));
-  }
-
-  void GenerateRuntimeCall(Runtime::FunctionId runtime_function, int num_args,
-                           Register* args) {
-    // Currently, only one argument is supported. More arguments require some
-    // caution for the parallel register moves (reuse StackTransferRecipe).
-    DCHECK_EQ(1, num_args);
-#ifdef DEBUG
-    auto call_descriptor = compiler::Linkage::GetRuntimeCallDescriptor(
-        compilation_zone_, runtime_function, num_args,
-        compiler::Operator::kNoProperties, compiler::CallDescriptor::kNoFlags);
-    constexpr size_t kInputShift = 1;  // Input 0 is the call target.
-    compiler::LinkageLocation param_loc =
-        call_descriptor->GetInputLocation(kInputShift);
-    // Runtime calls take their arguments on the stack.
-    DCHECK(param_loc.IsCallerFrameSlot());
-#endif
-    LiftoffStackSlots stack_slots(&asm_);
-    stack_slots.Add(LiftoffAssembler::VarState(LiftoffAssembler::kWasmIntPtr,
-                                               LiftoffRegister(args[0])));
-    stack_slots.Construct();
-
-    // Set context to "no context" for the runtime call.
-    __ TurboAssembler::Move(kContextRegister,
-                            Smi::FromInt(Context::kNoContext));
-    Register centry = kJavaScriptCallCodeStartRegister;
-    LOAD_INSTANCE_FIELD(centry, IsolateRoot, kSystemPointerSize);
-    // All cache registers are spilled and there are no register arguments.
-    LiftoffRegList pinned;
-    auto centry_id =
-        Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit;
-    __ LoadTaggedPointer(centry, centry, no_reg,
-                         IsolateData::builtin_slot_offset(centry_id), pinned);
-    __ CallRuntimeWithCEntry(runtime_function, centry);
+    __ CallRuntimeStub(WasmCode::kWasmTraceMemory);
     safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kNoLazyDeopt);
+
+    __ DeallocateStackSlot(sizeof(MemoryTracingInfo));
   }
 
   Register AddMemoryMasking(Register index, uint32_t* offset,
