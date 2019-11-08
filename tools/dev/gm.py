@@ -87,6 +87,8 @@ TESTSUITES_TARGETS = {"benchmarks": "d8",
               "test262": "d8",
               "unittests": "unittests",
               "wasm-api-tests": "wasm_api_tests",
+              "wasm-js": "d8",
+              "wasm-spec-tests": "d8",
               "webkit": "d8"}
 
 OUTDIR = "out"
