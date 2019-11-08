@@ -46,6 +46,17 @@ ADDITIONAL_FLAGS = [
   (0.1, '--regexp-tier-up-ticks=100'),
   (0.1, '--turbo-instruction-scheduling'),
   (0.1, '--turbo-stress-instruction-scheduling'),
+  (0.1, '--no-enable-sse3'),
+  (0.1, '--no-enable-ssse3'),
+  (0.1, '--no-enable-sse4_1'),
+  (0.1, '--no-enable-sse4_2'),
+  (0.1, '--no-enable-sahf'),
+  (0.1, '--no-enable-avx'),
+  (0.1, '--no-enable-fma3'),
+  (0.1, '--no-enable-bmi1'),
+  (0.1, '--no-enable-bmi2'),
+  (0.1, '--no-enable-lzcnt'),
+  (0.1, '--no-enable-popcnt'),
 ]
 
 class Config(object):

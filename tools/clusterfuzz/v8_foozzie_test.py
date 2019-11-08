@@ -43,6 +43,9 @@ class ConfigTest(unittest.TestCase):
           '--second-d8=d8',
           '--second-config-extra-flags=--stress-scavenge=100',
           '--second-config-extra-flags=--no-regexp-tier-up',
+          '--second-config-extra-flags=--no-enable-ssse3',
+          '--second-config-extra-flags=--no-enable-bmi2',
+          '--second-config-extra-flags=--no-enable-lzcnt',
         ],
         v8_fuzz_config.Config('foo', Rng(), 42).choose_foozzie_flags(),
     )
