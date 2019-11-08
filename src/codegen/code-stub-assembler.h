@@ -3035,8 +3035,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                        value);
   }
 
-  Node* GetMethod(Node* context, Node* object, Handle<Name> name,
-                  Label* if_null_or_undefined);
+  TNode<Object> GetMethod(TNode<Context> context, TNode<Object> object,
+                          Handle<Name> name, Label* if_null_or_undefined);
 
   TNode<Object> GetIteratorMethod(TNode<Context> context,
                                   TNode<HeapObject> heap_obj,

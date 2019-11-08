@@ -8771,9 +8771,10 @@ void CodeStubAssembler::TryHasOwnProperty(Node* object, Node* map,
   }
 }
 
-Node* CodeStubAssembler::GetMethod(Node* context, Node* object,
-                                   Handle<Name> name,
-                                   Label* if_null_or_undefined) {
+TNode<Object> CodeStubAssembler::GetMethod(TNode<Context> context,
+                                           TNode<Object> object,
+                                           Handle<Name> name,
+                                           Label* if_null_or_undefined) {
   TNode<Object> method = GetProperty(context, object, name);
 
   GotoIf(IsUndefined(method), if_null_or_undefined);
@@ -8785,9 +8786,8 @@ Node* CodeStubAssembler::GetMethod(Node* context, Node* object,
 TNode<Object> CodeStubAssembler::GetIteratorMethod(
     TNode<Context> context, TNode<HeapObject> heap_obj,
     Label* if_iteratorundefined) {
-  return CAST(GetMethod(context, heap_obj,
-                        isolate()->factory()->iterator_symbol(),
-                        if_iteratorundefined));
+  return GetMethod(context, heap_obj, isolate()->factory()->iterator_symbol(),
+                   if_iteratorundefined);
 }
 
 void CodeStubAssembler::LoadPropertyFromFastObject(
