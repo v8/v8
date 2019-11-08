@@ -7457,21 +7457,23 @@ typedef size_t (*NearHeapLimitCallback)(void* data, size_t current_heap_limit,
  * Collection of shared per-process V8 memory information.
  *
  * Instances of this class can be passed to
- * v8::Isolate::GetSharedMemoryStatistics to get shared memory statistics from
- * V8.
+ * v8::V8::GetSharedMemoryStatistics to get shared memory statistics from V8.
  */
 class V8_EXPORT SharedMemoryStatistics {
  public:
   SharedMemoryStatistics();
-  size_t total_read_only_space_size() { return total_read_only_space_size_; }
-  size_t total_size() { return total_size_; }
+  size_t read_only_space_size() { return read_only_space_size_; }
+  size_t read_only_space_used_size() { return read_only_space_used_size_; }
+  size_t read_only_space_physical_size() {
+    return read_only_space_physical_size_;
+  }
 
  private:
-  size_t total_read_only_space_size_;
-  size_t total_size_;
+  size_t read_only_space_size_;
+  size_t read_only_space_used_size_;
+  size_t read_only_space_physical_size_;
 
   friend class V8;
-  friend class Isolate;
 };
 
 /**
@@ -8440,11 +8442,6 @@ class V8_EXPORT Isolate {
    */
   template <class T>
   V8_INLINE MaybeLocal<T> GetDataFromSnapshotOnce(size_t index);
-
-  /**
-   * Get statistics about the shared memory usage.
-   */
-  void GetSharedMemoryStatistics(SharedMemoryStatistics* statistics);
 
   /**
    * Get statistics about the heap memory usage.
@@ -9469,6 +9466,11 @@ class V8_EXPORT V8 {
   static void SetUnhandledExceptionCallback(
       UnhandledExceptionCallback unhandled_exception_callback);
 #endif
+
+  /**
+   * Get statistics about the shared memory usage.
+   */
+  static void GetSharedMemoryStatistics(SharedMemoryStatistics* statistics);
 
  private:
   V8();

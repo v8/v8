@@ -5709,7 +5709,9 @@ bool v8::V8::Dispose() {
 }
 
 SharedMemoryStatistics::SharedMemoryStatistics()
-    : total_read_only_space_size_(0), total_size_(0) {}
+    : read_only_space_size_(0),
+      read_only_space_used_size_(0),
+      read_only_space_physical_size_(0) {}
 
 HeapStatistics::HeapStatistics()
     : total_heap_size_(0),
@@ -5762,6 +5764,12 @@ void v8::V8::InitializeExternalStartupDataFromFile(const char* snapshot_blob) {
 }
 
 const char* v8::V8::GetVersion() { return i::Version::GetVersion(); }
+
+void V8::GetSharedMemoryStatistics(SharedMemoryStatistics* statistics) {
+  statistics->read_only_space_size_ = 0;
+  statistics->read_only_space_used_size_ = 0;
+  statistics->read_only_space_physical_size_ = 0;
+}
 
 template <typename ObjectType>
 struct InvokeBootstrapper;
@@ -8473,11 +8481,6 @@ i::Address* Isolate::GetDataFromSnapshotOnce(size_t index) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i::FixedArray list = i_isolate->heap()->serialized_objects();
   return GetSerializedDataFromFixedArray(i_isolate, list, index);
-}
-
-void Isolate::GetSharedMemoryStatistics(SharedMemoryStatistics* statistics) {
-  statistics->total_read_only_space_size_ = 0;
-  statistics->total_size_ = 0;
 }
 
 void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
