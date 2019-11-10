@@ -60,36 +60,26 @@ ADDITIONAL_FLAGS = [
 ]
 
 class Config(object):
-  def __init__(self, name, rng=None, random_seed=None):
+  def __init__(self, name, rng=None):
     """
     Args:
       name: Name of the used fuzzer.
       rng: Random number generator for generating experiments.
       random_seed: Random-seed used for d8 throughout one fuzz session.
-      TODO(machenbach): Remove random_seed after a grace period of a couple of
-      days. We only have it to keep bisection stable. Afterwards we can just
-      use rng.
     """
     self.name = name
     self.rng = rng or random.Random()
-    self.random_seed = random_seed
 
   def choose_foozzie_flags(self):
     """Randomly chooses a configuration from FOOZZIE_EXPERIMENTS.
 
     Returns: List of flags to pass to v8_foozzie.py fuzz harness.
     """
-    # TODO(machenbach): Temporarily use same RNG state for all test cases in one
-    # fuzz session. See also TODO above.
-    if self.random_seed is not None:
-      flags_rng = random.Random(self.random_seed)
-    else:
-      flags_rng = random.Random()
 
     # Add additional flags to second config based on experiment percentages.
     extra_flags = []
     for p, flag in ADDITIONAL_FLAGS:
-      if flags_rng.random() < p:
+      if self.rng.random() < p:
         extra_flags.append('--second-config-extra-flags=%s' % flag)
 
     # Calculate flags determining the experiment.
