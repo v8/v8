@@ -189,6 +189,7 @@
       'v8_android_arm_compile_rel': 'release_android_arm',
       'v8_android_arm64_compile_dbg': 'debug_android_arm64',
       'v8_android_arm64_n5x_rel_ng': 'release_android_arm64',
+      'v8_fuchsia_compile_rel': 'release_x64_fuchsia_trybot',
       'v8_fuchsia_rel_ng': 'release_x64_fuchsia_trybot',
       'v8_ios_simulator': 'release_x64_ios_simulator',
       'v8_linux_rel_ng': 'release_x86_gcmole_trybot',
