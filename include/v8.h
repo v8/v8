@@ -5226,7 +5226,9 @@ class V8_EXPORT TypedArray : public ArrayBufferView {
   /*
    * The largest typed array size that can be constructed using New.
    */
-  static constexpr size_t kMaxLength = internal::kSmiMaxValue;
+  static constexpr size_t kMaxLength = internal::kApiSystemPointerSize == 4
+                                           ? internal::kSmiMaxValue
+                                           : 0x7FFFFFFF;  // kMaxInt32
 
   /**
    * Number of elements in this typed array

@@ -129,19 +129,12 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
 
  private:
   static constexpr size_t kVMThreshold = 65536;
-  static constexpr size_t kTwoGB = 2u * 1024u * 1024u * 1024u;
 
   void* AllocateVM(size_t length) {
     DCHECK_LE(kVMThreshold, length);
-    // TODO(titzer): allocations should fail if >= 2gb because array buffers
-    // store their lengths as a SMI internally.
-    if (length >= kTwoGB) return nullptr;
-
     v8::PageAllocator* page_allocator = i::GetPlatformPageAllocator();
     size_t page_size = page_allocator->AllocatePageSize();
     size_t allocated = RoundUp(length, page_size);
-    // Rounding up could go over the limit.
-    if (allocated >= kTwoGB) return nullptr;
     return i::AllocatePages(page_allocator, nullptr, allocated, page_size,
                             PageAllocator::kReadWrite);
   }

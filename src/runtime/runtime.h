@@ -265,6 +265,7 @@ namespace internal {
   F(GetModuleNamespace, 1, 1)
 
 #define FOR_EACH_INTRINSIC_NUMBERS(F, I) \
+  F(ArrayBufferMaxByteLength, 0, 1)      \
   F(GetHoleNaNLower, 0, 1)               \
   F(GetHoleNaNUpper, 0, 1)               \
   I(IsSmi, 1, 1)                         \
@@ -273,7 +274,8 @@ namespace internal {
   F(NumberToString, 1, 1)                \
   F(StringParseFloat, 1, 1)              \
   F(StringParseInt, 2, 1)                \
-  F(StringToNumber, 1, 1)
+  F(StringToNumber, 1, 1)                \
+  F(TypedArrayMaxLength, 0, 1)
 
 #define FOR_EACH_INTRINSIC_OBJECT(F, I)                         \
   F(AddDictionaryProperty, 3, 1)                                \

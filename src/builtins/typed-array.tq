@@ -24,9 +24,8 @@ namespace typed_array {
   struct TypedArrayElementsInfo {
     // Calculates the number of bytes required for specified number of elements.
     CalculateByteLength(length: uintptr): uintptr labels IfInvalid {
-      // TODO(v8:4153): use kArrayBufferMaxByteLength instead of kSmiMaxValue
-      // to allow creation of huge TypedArrays.
-      const maxArrayLength = kSmiMaxValue >>> this.sizeLog2;
+      if (length > kTypedArrayMaxLength) goto IfInvalid;
+      const maxArrayLength = kArrayBufferMaxByteLength >>> this.sizeLog2;
       if (length > maxArrayLength) goto IfInvalid;
       const byteLength = length << this.sizeLog2;
       return byteLength;
@@ -36,9 +35,7 @@ namespace typed_array {
     // of bytes.
     CalculateLength(byteLength: uintptr): uintptr labels IfInvalid {
       const length = byteLength >>> this.sizeLog2;
-      // TODO(v8:4153): use kArrayBufferMaxByteLength instead of kSmiMaxValue
-      // to allow creation of huge TypedArrays.
-      if (length > kSmiMaxValue) goto IfInvalid;
+      if (length > kTypedArrayMaxLength) goto IfInvalid;
       return length;
     }
 

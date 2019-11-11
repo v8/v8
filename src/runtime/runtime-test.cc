@@ -1273,6 +1273,18 @@ RUNTIME_FUNCTION(Runtime_HeapObjectVerify) {
   return isolate->heap()->ToBoolean(true);
 }
 
+RUNTIME_FUNCTION(Runtime_ArrayBufferMaxByteLength) {
+  HandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  return *isolate->factory()->NewNumber(JSArrayBuffer::kMaxByteLength);
+}
+
+RUNTIME_FUNCTION(Runtime_TypedArrayMaxLength) {
+  HandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  return *isolate->factory()->NewNumber(JSTypedArray::kMaxLength);
+}
+
 RUNTIME_FUNCTION(Runtime_WasmGetNumberOfInstances) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());

@@ -7633,8 +7633,9 @@ size_t v8::TypedArray::Length() {
   return obj->WasDetached() ? 0 : obj->length();
 }
 
-static_assert(v8::TypedArray::kMaxLength == i::Smi::kMaxValue,
-              "v8::TypedArray::kMaxLength must match i::Smi::kMaxValue");
+static_assert(
+    v8::TypedArray::kMaxLength == i::JSTypedArray::kMaxLength,
+    "v8::TypedArray::kMaxLength must match i::JSTypedArray::kMaxLength");
 
 #define TYPED_ARRAY_NEW(Type, type, TYPE, ctype)                           \
   Local<Type##Array> Type##Array::New(Local<ArrayBuffer> array_buffer,     \

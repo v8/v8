@@ -315,6 +315,8 @@ const kMaxArrayIndex:
     constexpr uint32 generates 'JSArray::kMaxArrayIndex';
 const kArrayBufferMaxByteLength:
     constexpr uintptr generates 'JSArrayBuffer::kMaxByteLength';
+const kTypedArrayMaxLength:
+    constexpr uintptr generates 'JSTypedArray::kMaxLength';
 const kMaxTypedArrayInHeap:
     constexpr int31 generates 'JSTypedArray::kMaxSizeInHeap';
 // CSA does not support 64-bit types on 32-bit platforms so as a workaround the
