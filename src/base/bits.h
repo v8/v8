@@ -27,31 +27,36 @@ constexpr inline
     typename std::enable_if<std::is_unsigned<T>::value && sizeof(T) <= 8,
                             unsigned>::type
     CountPopulation(T value) {
+  STATIC_ASSERT(sizeof(T) <= 8);
 #if V8_HAS_BUILTIN_POPCOUNT
   return sizeof(T) == 8 ? __builtin_popcountll(static_cast<uint64_t>(value))
                         : __builtin_popcount(static_cast<uint32_t>(value));
 #else
   constexpr uint64_t mask[] = {0x5555555555555555, 0x3333333333333333,
-                               0x0f0f0f0f0f0f0f0f, 0x00ff00ff00ff00ff,
-                               0x0000ffff0000ffff, 0x00000000ffffffff};
+                               0x0f0f0f0f0f0f0f0f};
+  // Start with 1 bit wide buckets of [0,1].
   value = ((value >> 1) & mask[0]) + (value & mask[0]);
+  // Having 2 bit wide buckets of [0,2] now.
   value = ((value >> 2) & mask[1]) + (value & mask[1]);
-  value = ((value >> 4) & mask[2]) + (value & mask[2]);
+  // Having 4 bit wide buckets of [0,4] now.
+  value = (value >> 4) + value;
+  // Having 4 bit wide buckets of [0,8] now.
   if (sizeof(T) > 1)
-    value = ((value >> (sizeof(T) > 1 ? 8 : 0)) & mask[3]) + (value & mask[3]);
-  if (sizeof(T) > 2)
-    value = ((value >> (sizeof(T) > 2 ? 16 : 0)) & mask[4]) + (value & mask[4]);
-  if (sizeof(T) > 4)
-    value = ((value >> (sizeof(T) > 4 ? 32 : 0)) & mask[5]) + (value & mask[5]);
-  return static_cast<unsigned>(value);
+    value = ((value >> (sizeof(T) > 1 ? 8 : 0)) & mask[2]) + (value & mask[2]);
+  // Having 8 bit wide buckets of [0,16] now.
+  if (sizeof(T) > 2) value = (value >> (sizeof(T) > 2 ? 16 : 0)) + value;
+  // Having 8 bit wide buckets of [0,32] now.
+  if (sizeof(T) > 4) value = (value >> (sizeof(T) > 4 ? 32 : 0)) + value;
+  // Having 8 bit wide buckets of [0,64] now.
+  return static_cast<unsigned>(value & 0xff);
 #endif
 }
 
 // ReverseBits(value) returns |value| in reverse bit order.
 template <typename T>
 T ReverseBits(T value) {
-  DCHECK((sizeof(value) == 1) || (sizeof(value) == 2) || (sizeof(value) == 4) ||
-         (sizeof(value) == 8));
+  STATIC_ASSERT((sizeof(value) == 1) || (sizeof(value) == 2) ||
+                (sizeof(value) == 4) || (sizeof(value) == 8));
   T result = 0;
   for (unsigned i = 0; i < (sizeof(value) * 8); i++) {
     result = (result << 1) | (value & 1);
