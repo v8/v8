@@ -1188,6 +1188,9 @@ void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
 
   AllocateTopLevelRegisters();
 
+  // Perform a stack-check before the body.
+  builder()->StackCheck(info()->literal()->start_position());
+
   if (info()->literal()->CanSuspend()) {
     BuildGeneratorPrologue();
   }
@@ -1251,9 +1254,6 @@ void BytecodeGenerator::GenerateBytecodeBody() {
 
   // Emit initializing assignments for module namespace imports (if any).
   VisitModuleNamespaceImports();
-
-  // Perform a stack-check before the body.
-  builder()->StackCheck(literal->start_position());
 
   // The derived constructor case is handled in VisitCallSuper.
   if (IsBaseConstructor(function_kind())) {

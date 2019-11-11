@@ -14,6 +14,7 @@ frame size: 10
 parameter count: 1
 bytecode array length: 63
 bytecodes: [
+  /*   10 E> */ B(StackCheck),
                 B(CreateFunctionContext), U8(0), U8(4),
                 B(PushContext), R(1),
                 B(Ldar), R(this),
@@ -22,7 +23,6 @@ bytecodes: [
                 B(StaCurrentContextSlot), U8(5),
                 B(Ldar), R(0),
                 B(StaCurrentContextSlot), U8(4),
-  /*   10 E> */ B(StackCheck),
   /*   14 S> */ B(LdaLookupGlobalSlot), U8(1), U8(0), U8(1),
                 B(Star), R(2),
                 B(LdaConstant), U8(2),
@@ -59,6 +59,7 @@ frame size: 10
 parameter count: 1
 bytecode array length: 64
 bytecodes: [
+  /*   10 E> */ B(StackCheck),
                 B(CreateFunctionContext), U8(0), U8(4),
                 B(PushContext), R(1),
                 B(Ldar), R(this),
@@ -67,7 +68,6 @@ bytecodes: [
                 B(StaCurrentContextSlot), U8(5),
                 B(Ldar), R(0),
                 B(StaCurrentContextSlot), U8(4),
-  /*   10 E> */ B(StackCheck),
   /*   14 S> */ B(LdaLookupGlobalSlot), U8(1), U8(0), U8(1),
                 B(Star), R(2),
                 B(LdaConstant), U8(2),
@@ -105,6 +105,7 @@ frame size: 10
 parameter count: 1
 bytecode array length: 64
 bytecodes: [
+  /*   10 E> */ B(StackCheck),
                 B(CreateFunctionContext), U8(0), U8(4),
                 B(PushContext), R(1),
                 B(Ldar), R(this),
@@ -113,7 +114,6 @@ bytecodes: [
                 B(StaCurrentContextSlot), U8(5),
                 B(Ldar), R(0),
                 B(StaCurrentContextSlot), U8(4),
-  /*   10 E> */ B(StackCheck),
   /*   14 S> */ B(LdaSmi), I8(20),
   /*   16 E> */ B(StaLookupSlot), U8(1), U8(0),
   /*   22 S> */ B(LdaLookupGlobalSlot), U8(2), U8(0), U8(1),
@@ -156,6 +156,7 @@ frame size: 10
 parameter count: 1
 bytecode array length: 63
 bytecodes: [
+  /*   38 E> */ B(StackCheck),
                 B(CreateFunctionContext), U8(0), U8(4),
                 B(PushContext), R(1),
                 B(Ldar), R(this),
@@ -164,7 +165,6 @@ bytecodes: [
                 B(StaCurrentContextSlot), U8(5),
                 B(Ldar), R(0),
                 B(StaCurrentContextSlot), U8(4),
-  /*   38 E> */ B(StackCheck),
   /*   44 S> */ B(LdaLookupGlobalSlot), U8(1), U8(0), U8(1),
                 B(Star), R(2),
                 B(LdaConstant), U8(2),
@@ -206,6 +206,7 @@ frame size: 10
 parameter count: 1
 bytecode array length: 63
 bytecodes: [
+  /*   34 E> */ B(StackCheck),
                 B(CreateFunctionContext), U8(0), U8(4),
                 B(PushContext), R(1),
                 B(Ldar), R(this),
@@ -214,7 +215,6 @@ bytecodes: [
                 B(StaCurrentContextSlot), U8(5),
                 B(Ldar), R(0),
                 B(StaCurrentContextSlot), U8(4),
-  /*   34 E> */ B(StackCheck),
   /*   40 S> */ B(LdaLookupGlobalSlot), U8(1), U8(0), U8(1),
                 B(Star), R(2),
                 B(LdaConstant), U8(2),
