@@ -303,7 +303,6 @@ ArchOpcode SelectLoadOpcode(Node* node) {
 #else
     case MachineRepresentation::kWord64:  // Fall through.
 #endif
-    case MachineRepresentation::kCompressedSigned:   // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kSimd128:  // Fall through.
@@ -757,7 +756,6 @@ static void VisitGeneralStore(
       case MachineRepresentation::kTaggedSigned:       // Fall through.
       case MachineRepresentation::kTaggedPointer:      // Fall through.
       case MachineRepresentation::kTagged:             // Fall through.
-      case MachineRepresentation::kCompressedSigned:   // Fall through.
       case MachineRepresentation::kCompressedPointer:  // Fall through.
       case MachineRepresentation::kCompressed:         // Fall through.
 #endif
@@ -772,7 +770,6 @@ static void VisitGeneralStore(
       case MachineRepresentation::kTaggedSigned:       // Fall through.
       case MachineRepresentation::kTaggedPointer:      // Fall through.
       case MachineRepresentation::kTagged:             // Fall through.
-      case MachineRepresentation::kCompressedSigned:   // Fall through.
       case MachineRepresentation::kCompressedPointer:  // Fall through.
       case MachineRepresentation::kCompressed:         // Fall through.
       case MachineRepresentation::kWord64:
