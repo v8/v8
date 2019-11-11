@@ -3909,9 +3909,9 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
             return Changed(node);
           }
 
-          // Otherwise we can only lower to JSCreate if we know that
-          // the value parameter is ignored, which is only the case if
-          // the {new_target} and {target} are definitely not identical.
+          // If {target} is not the same as {new_target} (i.e. the Object
+          // constructor), {value} will be ignored and therefore we can lower
+          // to {JSCreate}. See https://tc39.es/ecma262/#sec-object-value.
           HeapObjectMatcher mnew_target(new_target);
           if (mnew_target.HasValue() &&
               !mnew_target.Ref(broker()).equals(function)) {

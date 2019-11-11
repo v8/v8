@@ -395,6 +395,7 @@ class SerializerForBackgroundCompilation {
   void ProcessCallOrConstruct(Hints callee, base::Optional<Hints> new_target,
                               const HintsVector& arguments, FeedbackSlot slot,
                               MissingArgumentsPolicy padding);
+  void ProcessNewTargetForConstruct(Hints const& new_target);
   void ProcessCallVarArgs(
       ConvertReceiverMode receiver_mode, Hints const& callee,
       interpreter::Register first_reg, int reg_count, FeedbackSlot slot,
@@ -1965,6 +1966,38 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
                          arguments.end());
     ProcessCallOrConstruct(hint.bound_target, new_target, new_arguments, slot,
                            padding);
+  }
+
+  // For JSNativeContextSpecialization::InferReceiverRootMap
+  if (new_target.has_value()) {
+    ProcessNewTargetForConstruct(*new_target);
+  }
+}
+
+void SerializerForBackgroundCompilation::ProcessNewTargetForConstruct(
+    Hints const& new_target_hints) {
+  for (Handle<Object> target : new_target_hints.constants()) {
+    if (target->IsJSBoundFunction()) {
+      // Unroll the bound function
+      while (target->IsJSBoundFunction()) {
+        target = handle(
+            Handle<JSBoundFunction>::cast(target)->bound_target_function(),
+            broker()->isolate());
+      }
+    }
+    if (target->IsJSFunction()) {
+      Handle<JSFunction> new_target(Handle<JSFunction>::cast(target));
+      if (new_target->has_prototype_slot(broker()->isolate()) &&
+          new_target->has_initial_map()) {
+        environment()->accumulator_hints().AddMap(
+            handle(new_target->initial_map(), broker()->isolate()), zone());
+      }
+    }
+  }
+
+  for (auto const& virtual_bound_function :
+       new_target_hints.virtual_bound_functions()) {
+    ProcessNewTargetForConstruct(virtual_bound_function.bound_target);
   }
 }
 
