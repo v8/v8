@@ -18,17 +18,17 @@ namespace internal {
 
 // ES6 #sec-math.abs
 TF_BUILTIN(MathAbs, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   // We might need to loop once for ToNumber conversion.
-  VARIABLE(var_x, MachineRepresentation::kTagged);
+  TVARIABLE(Object, var_x);
   Label loop(this, &var_x);
-  var_x.Bind(Parameter(Descriptor::kX));
+  var_x = CAST(Parameter(Descriptor::kX));
   Goto(&loop);
   BIND(&loop);
   {
     // Load the current {x} value.
-    Node* x = var_x.value();
+    TNode<Object> x = var_x.value();
 
     // Check if {x} is a Smi or a HeapObject.
     Label if_xissmi(this), if_xisnotsmi(this);
@@ -36,34 +36,36 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
 
     BIND(&if_xissmi);
     {
+      TNode<Smi> x_smi = CAST(x);
       Label if_overflow(this, Label::kDeferred);
 
       // check if support abs function
       if (IsIntPtrAbsWithOverflowSupported()) {
-        TNode<PairT<IntPtrT, BoolT>> pair = IntPtrAbsWithOverflow(x);
-        Node* overflow = Projection(1, pair);
+        TNode<PairT<IntPtrT, BoolT>> pair =
+            IntPtrAbsWithOverflow(BitcastTaggedToWordForTagAndSmiBits(x_smi));
+        TNode<BoolT> overflow = Projection<1>(pair);
         GotoIf(overflow, &if_overflow);
 
         // There is a Smi representation for negated {x}.
-        Node* result = Projection(0, pair);
+        TNode<IntPtrT> result = Projection<0>(pair);
         Return(BitcastWordToTagged(result));
 
       } else {
         // Check if {x} is already positive.
         Label if_xispositive(this), if_xisnotpositive(this);
-        BranchIfSmiLessThanOrEqual(SmiConstant(0), CAST(x), &if_xispositive,
+        BranchIfSmiLessThanOrEqual(SmiConstant(0), x_smi, &if_xispositive,
                                    &if_xisnotpositive);
 
         BIND(&if_xispositive);
         {
           // Just return the input {x}.
-          Return(x);
+          Return(x_smi);
         }
 
         BIND(&if_xisnotpositive);
         {
           // Try to negate the {x} value.
-          TNode<Smi> result = TrySmiSub(SmiConstant(0), CAST(x), &if_overflow);
+          TNode<Smi> result = TrySmiSub(SmiConstant(0), x_smi, &if_overflow);
           Return(result);
         }
       }
@@ -76,11 +78,13 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
     {
       // Check if {x} is a HeapNumber.
       Label if_xisheapnumber(this), if_xisnotheapnumber(this, Label::kDeferred);
-      Branch(IsHeapNumber(x), &if_xisheapnumber, &if_xisnotheapnumber);
+      TNode<HeapObject> x_heap_object = CAST(x);
+      Branch(IsHeapNumber(x_heap_object), &if_xisheapnumber,
+             &if_xisnotheapnumber);
 
       BIND(&if_xisheapnumber);
       {
-        TNode<Float64T> x_value = LoadHeapNumberValue(x);
+        TNode<Float64T> x_value = LoadHeapNumberValue(x_heap_object);
         TNode<Float64T> value = Float64Abs(x_value);
         TNode<HeapNumber> result = AllocateHeapNumberWithValue(value);
         Return(result);
@@ -89,7 +93,7 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
       BIND(&if_xisnotheapnumber);
       {
         // Need to convert {x} to a Number first.
-        var_x.Bind(CallBuiltin(Builtins::kNonNumberToNumber, context, x));
+        var_x = CallBuiltin(Builtins::kNonNumberToNumber, context, x);
         Goto(&loop);
       }
     }
@@ -97,16 +101,16 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
 }
 
 void MathBuiltinsAssembler::MathRoundingOperation(
-    Node* context, Node* x,
+    TNode<Context> context, TNode<Object> x,
     TNode<Float64T> (CodeStubAssembler::*float64op)(SloppyTNode<Float64T>)) {
   // We might need to loop once for ToNumber conversion.
-  VARIABLE(var_x, MachineRepresentation::kTagged, x);
+  TVARIABLE(Object, var_x, x);
   Label loop(this, &var_x);
   Goto(&loop);
   BIND(&loop);
   {
     // Load the current {x} value.
-    Node* x = var_x.value();
+    TNode<Object> x = var_x.value();
 
     // Check if {x} is a Smi or a HeapObject.
     Label if_xissmi(this), if_xisnotsmi(this);
@@ -122,11 +126,13 @@ void MathBuiltinsAssembler::MathRoundingOperation(
     {
       // Check if {x} is a HeapNumber.
       Label if_xisheapnumber(this), if_xisnotheapnumber(this, Label::kDeferred);
-      Branch(IsHeapNumber(x), &if_xisheapnumber, &if_xisnotheapnumber);
+      TNode<HeapObject> x_heap_object = CAST(x);
+      Branch(IsHeapNumber(x_heap_object), &if_xisheapnumber,
+             &if_xisnotheapnumber);
 
       BIND(&if_xisheapnumber);
       {
-        TNode<Float64T> x_value = LoadHeapNumberValue(x);
+        TNode<Float64T> x_value = LoadHeapNumberValue(x_heap_object);
         TNode<Float64T> value = (this->*float64op)(x_value);
         TNode<Number> result = ChangeFloat64ToTagged(value);
         Return(result);
@@ -135,7 +141,7 @@ void MathBuiltinsAssembler::MathRoundingOperation(
       BIND(&if_xisnotheapnumber);
       {
         // Need to convert {x} to a Number first.
-        var_x.Bind(CallBuiltin(Builtins::kNonNumberToNumber, context, x));
+        var_x = CallBuiltin(Builtins::kNonNumberToNumber, context, x);
         Goto(&loop);
       }
     }
@@ -162,23 +168,23 @@ void MathBuiltinsAssembler::MathMaxMin(
 
 // ES6 #sec-math.ceil
 TF_BUILTIN(MathCeil, MathBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> x = CAST(Parameter(Descriptor::kX));
   MathRoundingOperation(context, x, &CodeStubAssembler::Float64Ceil);
 }
 
 // ES6 #sec-math.floor
 TF_BUILTIN(MathFloor, MathBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> x = CAST(Parameter(Descriptor::kX));
   MathRoundingOperation(context, x, &CodeStubAssembler::Float64Floor);
 }
 
 // ES6 #sec-math.imul
 TF_BUILTIN(MathImul, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
-  Node* y = Parameter(Descriptor::kY);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> x = CAST(Parameter(Descriptor::kX));
+  TNode<Object> y = CAST(Parameter(Descriptor::kY));
   TNode<Word32T> x_value = TruncateTaggedToWord32(context, x);
   TNode<Word32T> y_value = TruncateTaggedToWord32(context, y);
   TNode<Int32T> value = Signed(Int32Mul(x_value, y_value));
@@ -186,9 +192,9 @@ TF_BUILTIN(MathImul, CodeStubAssembler) {
   Return(result);
 }
 
-CodeStubAssembler::Node* MathBuiltinsAssembler::MathPow(Node* context,
-                                                        Node* base,
-                                                        Node* exponent) {
+TNode<Number> MathBuiltinsAssembler::MathPow(TNode<Context> context,
+                                             TNode<Object> base,
+                                             TNode<Object> exponent) {
   TNode<Float64T> base_value = TruncateTaggedToFloat64(context, base);
   TNode<Float64T> exponent_value = TruncateTaggedToFloat64(context, exponent);
   TNode<Float64T> value = Float64Pow(base_value, exponent_value);
@@ -197,13 +203,15 @@ CodeStubAssembler::Node* MathBuiltinsAssembler::MathPow(Node* context,
 
 // ES6 #sec-math.pow
 TF_BUILTIN(MathPow, MathBuiltinsAssembler) {
-  Return(MathPow(Parameter(Descriptor::kContext), Parameter(Descriptor::kBase),
-                 Parameter(Descriptor::kExponent)));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> base = CAST(Parameter(Descriptor::kBase));
+  TNode<Object> exponent = CAST(Parameter(Descriptor::kExponent));
+  Return(MathPow(context, base, exponent));
 }
 
 // ES6 #sec-math.random
 TF_BUILTIN(MathRandom, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<NativeContext> native_context = LoadNativeContext(context);
 
   // Load cache index.
@@ -244,15 +252,15 @@ TF_BUILTIN(MathRandom, CodeStubAssembler) {
 
 // ES6 #sec-math.round
 TF_BUILTIN(MathRound, MathBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> x = CAST(Parameter(Descriptor::kX));
   MathRoundingOperation(context, x, &CodeStubAssembler::Float64Round);
 }
 
 // ES6 #sec-math.trunc
 TF_BUILTIN(MathTrunc, MathBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* x = Parameter(Descriptor::kX);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> x = CAST(Parameter(Descriptor::kX));
   MathRoundingOperation(context, x, &CodeStubAssembler::Float64Trunc);
 }
 

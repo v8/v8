@@ -15,11 +15,12 @@ class MathBuiltinsAssembler : public CodeStubAssembler {
   explicit MathBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  Node* MathPow(Node* context, Node* base, Node* exponent);
+  TNode<Number> MathPow(TNode<Context> context, TNode<Object> base,
+                        TNode<Object> exponent);
 
  protected:
   void MathRoundingOperation(
-      Node* context, Node* x,
+      TNode<Context> context, TNode<Object> x,
       TNode<Float64T> (CodeStubAssembler::*float64op)(SloppyTNode<Float64T>));
   void MathMaxMin(TNode<Context> context, TNode<Int32T> argc,
                   TNode<Float64T> (CodeStubAssembler::*float64op)(
