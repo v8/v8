@@ -53,11 +53,6 @@
   'conversions': [SKIP],
 }],  # '(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simulator_run'
 
-['arch == arm and not simulator_run', {
-  # Too slow on chromebooks.
-  'br_table': [SKIP],
-}],  # 'arch == arm and not simulator_run'
-
 ['arch == ppc or arch == ppc64', {
   # These tests fail because ppc float min and max doesn't convert sNaN to qNaN.
   'f32': [SKIP],

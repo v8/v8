@@ -38,6 +38,7 @@ class Verifier::Visitor {
         check_inputs(check_inputs),
         code_type(code_type) {}
 
+  void CheckSwitch(Node* node, const AllNodes& all);
   void Check(Node* node, const AllNodes& all);
 
   Zone* zone;
@@ -91,6 +92,47 @@ class Verifier::Visitor {
     }
   }
 };
+
+void Verifier::Visitor::CheckSwitch(Node* node, const AllNodes& all) {
+  // Count the number of {kIfValue} uses.
+  int case_count = 0;
+  bool expect_default = true;
+
+  // Data structure to check that each {kIfValue} has a unique value.
+  std::unordered_set<int32_t> if_value_parameters;
+
+  Node::Uses uses = node->uses();
+  for (const Node* use : uses) {
+    CHECK(all.IsLive(use));
+    switch (use->opcode()) {
+      case IrOpcode::kIfValue: {
+        // Check if each value is unique.
+        CHECK(
+            if_value_parameters.emplace(IfValueParametersOf(use->op()).value())
+                .second);
+        ++case_count;
+        break;
+      }
+      case IrOpcode::kIfDefault: {
+        // We expect exactly one {kIfDefault}.
+        CHECK(expect_default);
+        expect_default = false;
+        break;
+      }
+      default: {
+        FATAL("Switch #%d illegally used by #%d:%s", node->id(), use->id(),
+              use->op()->mnemonic());
+        break;
+      }
+    }
+  }
+
+  CHECK(!expect_default);
+  // + 1 because of the one {kIfDefault}.
+  CHECK_EQ(node->op()->ControlOutputCount(), case_count + 1);
+  // Type is empty.
+  CheckNotTyped(node);
+}
 
 void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
   int value_count = node->op()->ValueInputCount();
@@ -289,36 +331,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
     }
     case IrOpcode::kSwitch: {
-      // Switch uses are Case and Default.
-      int count_case = 0, count_default = 0;
-      for (const Node* use : node->uses()) {
-        CHECK(all.IsLive(use));
-        switch (use->opcode()) {
-          case IrOpcode::kIfValue: {
-            for (const Node* user : node->uses()) {
-              if (user != use && user->opcode() == IrOpcode::kIfValue) {
-                CHECK_NE(IfValueParametersOf(use->op()).value(),
-                         IfValueParametersOf(user->op()).value());
-              }
-            }
-            ++count_case;
-            break;
-          }
-          case IrOpcode::kIfDefault: {
-            ++count_default;
-            break;
-          }
-          default: {
-            FATAL("Switch #%d illegally used by #%d:%s", node->id(), use->id(),
-                  use->op()->mnemonic());
-            break;
-          }
-        }
-      }
-      CHECK_EQ(1, count_default);
-      CHECK_EQ(node->op()->ControlOutputCount(), count_case + count_default);
-      // Type is empty.
-      CheckNotTyped(node);
+      CheckSwitch(node, all);
       break;
     }
     case IrOpcode::kIfValue:
