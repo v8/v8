@@ -93,7 +93,7 @@ class SimpleProgressIndicator(ProgressIndicator):
         print(result.output.stdout.strip())
       print("Command: %s" % result.cmd.to_string())
       if result.output.HasCrashed():
-        print("exit code: %d" % result.output.exit_code)
+        print("exit code: %s" % result.output.exit_code_string)
         print("--- CRASHED ---")
         crashed += 1
       if result.output.HasTimedOut():
@@ -247,7 +247,7 @@ class CompactProgressIndicator(ProgressIndicator):
         print(self._templates['stderr'] % stderr)
       print("Command: %s" % result.cmd.to_string(relative=True))
       if output.HasCrashed():
-        print("exit code: %d" % output.exit_code)
+        print("exit code: %s" % output.exit_code_string)
         print("--- CRASHED ---")
       if output.HasTimedOut():
         print("--- TIMEOUT ---")
