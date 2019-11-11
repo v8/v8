@@ -748,11 +748,6 @@ namespace internal {
   /* ES #sec-promise-resolve-functions */                                      \
   /* Starting at step 6 of "Promise Resolve Functions" */                      \
   TFS(ResolvePromise, kPromise, kResolution)                                   \
-  /* ES #sec-promise-reject-functions */                                       \
-  TFJ(PromiseCapabilityDefaultReject, 1, kReceiver, kReason)                   \
-  /* ES #sec-promise-resolve-functions */                                      \
-  TFJ(PromiseCapabilityDefaultResolve, 1, kReceiver, kResolution)              \
-  /* ES6 #sec-getcapabilitiesexecutor-functions */                             \
   TFJ(PromiseGetCapabilitiesExecutor, 2, kReceiver, kResolve, kReject)         \
   TFJ(PromiseConstructorLazyDeoptContinuation, 4, kReceiver, kPromise,         \
       kReject, kException, kResult)                                            \

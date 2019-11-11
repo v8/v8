@@ -7,7 +7,15 @@
 
 namespace runtime {
   extern transitioning runtime
-  RejectPromise(implicit context: Context)(JSPromise, JSAny, Boolean): Object;
+  RejectPromise(implicit context: Context)(JSPromise, JSAny, Boolean): JSAny;
+
+  extern transitioning runtime
+  PromiseRejectAfterResolved(implicit context: Context)(JSPromise, JSAny):
+      JSAny;
+
+  extern transitioning runtime
+  PromiseResolveAfterResolved(implicit context: Context)(JSPromise, JSAny):
+      JSAny;
 }
 
 // https://tc39.es/ecma262/#sec-promise-abstract-operations
@@ -36,6 +44,8 @@ namespace promise {
   extern macro PromiseReactionMapConstant(): Map;
   extern macro PromiseFulfillReactionJobTaskMapConstant(): Map;
   extern macro PromiseRejectReactionJobTaskMapConstant(): Map;
+  extern transitioning builtin
+  ResolvePromise(Context, JSPromise, JSAny): JSAny;
 
   extern transitioning builtin
   EnqueueMicrotask(Context, PromiseReactionJobTask): Undefined;
@@ -196,7 +206,7 @@ namespace promise {
   // https://tc39.es/ecma262/#sec-rejectpromise
   transitioning builtin
   RejectPromise(implicit context: Context)(
-      promise: JSPromise, reason: JSAny, debugEvent: Boolean): Object {
+      promise: JSPromise, reason: JSAny, debugEvent: Boolean): JSAny {
     // If promise hook is enabled or the debugger is active, let
     // the runtime handle this operation, which greatly reduces
     // the complexity here and also avoids a couple of back and
@@ -233,6 +243,12 @@ namespace promise {
   generates 'PromiseBuiltins::kCapabilitiesContextLength';
   const kPromiseBuiltinsCapabilitySlot: constexpr ContextSlot
   generates 'PromiseBuiltins::kCapabilitySlot';
+  const kPromiseBuiltinsPromiseSlot: constexpr ContextSlot
+  generates 'PromiseBuiltins::kPromiseSlot';
+  const kPromiseBuiltinsAlreadyResolvedSlot: constexpr ContextSlot
+  generates 'PromiseBuiltins::kAlreadyResolvedSlot';
+  const kPromiseBuiltinsDebugEventSlot: constexpr ContextSlot
+  generates 'PromiseBuiltins::kDebugEventSlot';
 
   extern macro
   PromiseBuiltinsAssembler::AllocateAndInitJSPromise(Context): JSPromise;
@@ -339,5 +355,54 @@ namespace promise {
         return InnerNewPromiseCapability(constructor, debugEvent);
       }
     }
+  }
+
+  // https://tc39.es/ecma262/#sec-promise-reject-functions
+  transitioning javascript builtin
+  PromiseCapabilityDefaultReject(js-implicit context: Context, receiver: JSAny)(
+      reason: JSAny): JSAny {
+    // 2. Let promise be F.[[Promise]].
+    const promise = UnsafeCast<JSPromise>(context[kPromiseBuiltinsPromiseSlot]);
+
+    // 3. Let alreadyResolved be F.[[AlreadyResolved]].
+    const alreadyResolved =
+        UnsafeCast<Boolean>(context[kPromiseBuiltinsAlreadyResolvedSlot]);
+
+    // 4. If alreadyResolved.[[Value]] is true, return undefined.
+    if (alreadyResolved == True) {
+      return runtime::PromiseRejectAfterResolved(promise, reason);
+    }
+
+    // 5. Set alreadyResolved.[[Value]] to true.
+    context[kPromiseBuiltinsAlreadyResolvedSlot] = True;
+
+    // 6. Return RejectPromise(promise, reason).
+    const debugEvent =
+        UnsafeCast<Boolean>(context[kPromiseBuiltinsDebugEventSlot]);
+    return RejectPromise(promise, reason, debugEvent);
+  }
+
+  // https://tc39.es/ecma262/#sec-promise-resolve-functions
+  transitioning javascript builtin
+  PromiseCapabilityDefaultResolve(
+      js-implicit context: Context, receiver: JSAny)(resolution: JSAny): JSAny {
+    // 2. Let promise be F.[[Promise]].
+    const promise = UnsafeCast<JSPromise>(context[kPromiseBuiltinsPromiseSlot]);
+
+    // 3. Let alreadyResolved be F.[[AlreadyResolved]].
+    const alreadyResolved =
+        UnsafeCast<Boolean>(context[kPromiseBuiltinsAlreadyResolvedSlot]);
+
+    // 4. If alreadyResolved.[[Value]] is true, return undefined.
+    if (alreadyResolved == True) {
+      return runtime::PromiseResolveAfterResolved(promise, resolution);
+    }
+
+    // 5. Set alreadyResolved.[[Value]] to true.
+    context[kPromiseBuiltinsAlreadyResolvedSlot] = True;
+
+    // The rest of the logic (and the catch prediction) is
+    // encapsulated in the dedicated ResolvePromise builtin.
+    return ResolvePromise(context, promise, resolution);
   }
 }
