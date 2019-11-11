@@ -505,64 +505,49 @@ constexpr const FunctionSig* kCachedSigs[] = {
     nullptr, FOREACH_SIGNATURE(DECLARE_SIG_ENTRY)};
 #undef DECLARE_SIG_ENTRY
 
-// gcc 4.7 - 4.9 has a bug which causes the constexpr attribute to get lost when
-// passing functions (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=52892). Hence
-// encapsulate these constexpr functions in functors.
-// TODO(clemensb): Remove this once we require gcc >= 5.0.
-
-struct GetShortOpcodeSigIndex {
-  constexpr WasmOpcodeSig operator()(byte opcode) const {
+constexpr WasmOpcodeSig GetShortOpcodeSigIndex(byte opcode) {
 #define CASE(name, opc, sig) opcode == opc ? kSigEnum_##sig:
     return FOREACH_SIMPLE_OPCODE(CASE) FOREACH_SIMPLE_PROTOTYPE_OPCODE(CASE)
         kSigEnum_None;
 #undef CASE
-  }
-};
+}
 
-struct GetAsmJsOpcodeSigIndex {
-  constexpr WasmOpcodeSig operator()(byte opcode) const {
+constexpr WasmOpcodeSig GetAsmJsOpcodeSigIndex(byte opcode) {
 #define CASE(name, opc, sig) opcode == opc ? kSigEnum_##sig:
     return FOREACH_ASMJS_COMPAT_OPCODE(CASE) kSigEnum_None;
 #undef CASE
-  }
-};
+}
 
-struct GetSimdOpcodeSigIndex {
-  constexpr WasmOpcodeSig operator()(byte opcode) const {
+constexpr WasmOpcodeSig GetSimdOpcodeSigIndex(byte opcode) {
 #define CASE(name, opc, sig) opcode == (opc & 0xFF) ? kSigEnum_##sig:
     return FOREACH_SIMD_0_OPERAND_OPCODE(CASE) FOREACH_SIMD_MEM_OPCODE(CASE)
         kSigEnum_None;
 #undef CASE
-  }
-};
+}
 
-struct GetAtomicOpcodeSigIndex {
-  constexpr WasmOpcodeSig operator()(byte opcode) const {
+constexpr WasmOpcodeSig GetAtomicOpcodeSigIndex(byte opcode) {
 #define CASE(name, opc, sig) opcode == (opc & 0xFF) ? kSigEnum_##sig:
     return FOREACH_ATOMIC_OPCODE(CASE) FOREACH_ATOMIC_0_OPERAND_OPCODE(CASE)
         kSigEnum_None;
 #undef CASE
 }
-};
 
-struct GetNumericOpcodeSigIndex {
-  constexpr WasmOpcodeSig operator()(byte opcode) const {
+constexpr WasmOpcodeSig GetNumericOpcodeSigIndex(byte opcode) {
 #define CASE(name, opc, sig) opcode == (opc & 0xFF) ? kSigEnum_##sig:
     return FOREACH_NUMERIC_OPCODE(CASE) kSigEnum_None;
 #undef CASE
-  }
-};
+}
 
 constexpr std::array<WasmOpcodeSig, 256> kShortSigTable =
-    base::make_array<256>(GetShortOpcodeSigIndex{});
+    base::make_array<256>(GetShortOpcodeSigIndex);
 constexpr std::array<WasmOpcodeSig, 256> kSimpleAsmjsExprSigTable =
-    base::make_array<256>(GetAsmJsOpcodeSigIndex{});
+    base::make_array<256>(GetAsmJsOpcodeSigIndex);
 constexpr std::array<WasmOpcodeSig, 256> kSimdExprSigTable =
-    base::make_array<256>(GetSimdOpcodeSigIndex{});
+    base::make_array<256>(GetSimdOpcodeSigIndex);
 constexpr std::array<WasmOpcodeSig, 256> kAtomicExprSigTable =
-    base::make_array<256>(GetAtomicOpcodeSigIndex{});
+    base::make_array<256>(GetAtomicOpcodeSigIndex);
 constexpr std::array<WasmOpcodeSig, 256> kNumericExprSigTable =
-    base::make_array<256>(GetNumericOpcodeSigIndex{});
+    base::make_array<256>(GetNumericOpcodeSigIndex);
 
 }  // namespace
 
