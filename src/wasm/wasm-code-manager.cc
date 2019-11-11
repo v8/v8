@@ -1254,7 +1254,8 @@ void NativeModule::AddCodeSpace(
   int num_function_slots = NumWasmFunctionsInFarJumpTable(num_wasm_functions);
   far_jump_table = CreateEmptyJumpTableInRegion(
       JumpTableAssembler::SizeForNumberOfFarJumpSlots(
-          WasmCode::kRuntimeStubCount, num_function_slots),
+          WasmCode::kRuntimeStubCount,
+          NumWasmFunctionsInFarJumpTable(num_function_slots)),
       region, allocator_lock);
   CHECK(region.contains(far_jump_table->instruction_start()));
   EmbeddedData embedded_data = EmbeddedData::FromBlob();
