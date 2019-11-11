@@ -1477,7 +1477,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void GotoIfPrototypeRequiresRuntimeLookup(TNode<JSFunction> function,
                                             TNode<Map> map, Label* runtime);
   // Load the "prototype" property of a JSFunction.
-  Node* LoadJSFunctionPrototype(TNode<JSFunction> function, Label* if_bailout);
+  TNode<HeapObject> LoadJSFunctionPrototype(TNode<JSFunction> function,
+                                            Label* if_bailout);
 
   TNode<BytecodeArray> LoadSharedFunctionInfoBytecodeArray(
       SloppyTNode<SharedFunctionInfo> shared);
@@ -1677,12 +1678,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                             Label* bailout, Node* elements, Node* index,
                             Node* value);
   // Consumes args into the array, and returns tagged new length.
-  TNode<Smi> BuildAppendJSArray(ElementsKind kind, SloppyTNode<JSArray> array,
+  TNode<Smi> BuildAppendJSArray(ElementsKind kind, TNode<JSArray> array,
                                 CodeStubArguments* args,
                                 TVariable<IntPtrT>* arg_index, Label* bailout);
   // Pushes value onto the end of array.
-  void BuildAppendJSArray(ElementsKind kind, Node* array, Node* value,
-                          Label* bailout);
+  void BuildAppendJSArray(ElementsKind kind, TNode<JSArray> array,
+                          TNode<Object> value, Label* bailout);
 
   void StoreFieldsNoWriteBarrier(TNode<IntPtrT> start_address,
                                  TNode<IntPtrT> end_address,

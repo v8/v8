@@ -1197,7 +1197,7 @@ void CodeStubAssembler::GotoIfForceSlowPath(Label* if_true) {
 #ifdef V8_ENABLE_FORCE_SLOW_PATH
   const TNode<ExternalReference> force_slow_path_addr =
       ExternalConstant(ExternalReference::force_slow_path(isolate()));
-  Node* const force_slow = Load(MachineType::Uint8(), force_slow_path_addr);
+  const TNode<Uint8T> force_slow = Load<Uint8T>(force_slow_path_addr);
 
   GotoIf(force_slow, if_true);
 #endif
@@ -1485,8 +1485,8 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(SloppyTNode<Object> value,
     BIND(&if_heapnumber);
     {
       // Load the floating point value of {value}.
-      Node* value_value = LoadObjectField(
-          value_heapobject, HeapNumber::kValueOffset, MachineType::Float64());
+      TNode<Float64T> value_value =
+          LoadObjectField<Float64T>(value_heapobject, HeapNumber::kValueOffset);
 
       // Check if the floating point {value} is neither 0.0, -0.0 nor NaN.
       Branch(Float64LessThan(Float64Constant(0.0), Float64Abs(value_value)),
@@ -2695,8 +2695,7 @@ TNode<Context> CodeStubAssembler::LoadModuleContext(
 
   Label context_found(this);
 
-  Variable* context_search_loop_variables[1] = {&cur_context};
-  Label context_search(this, 1, context_search_loop_variables);
+  Label context_search(this, &cur_context);
 
   // Loop until cur_context->map() is module_map.
   Goto(&context_search);
@@ -2780,8 +2779,8 @@ void CodeStubAssembler::GotoIfPrototypeRequiresRuntimeLookup(
          runtime);
 }
 
-Node* CodeStubAssembler::LoadJSFunctionPrototype(TNode<JSFunction> function,
-                                                 Label* if_bailout) {
+TNode<HeapObject> CodeStubAssembler::LoadJSFunctionPrototype(
+    TNode<JSFunction> function, Label* if_bailout) {
   CSA_ASSERT(this, IsFunctionWithPrototypeSlotMap(LoadMap(function)));
   CSA_ASSERT(this, IsClearWord32<Map::HasNonInstancePrototypeBit>(
                        LoadMapBitField(LoadMap(function))));
@@ -2802,16 +2801,16 @@ Node* CodeStubAssembler::LoadJSFunctionPrototype(TNode<JSFunction> function,
 
 TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
     SloppyTNode<SharedFunctionInfo> shared) {
-  TNode<Object> function_data =
-      LoadObjectField(shared, SharedFunctionInfo::kFunctionDataOffset);
+  TNode<HeapObject> function_data = LoadObjectField<HeapObject>(
+      shared, SharedFunctionInfo::kFunctionDataOffset);
 
-  VARIABLE(var_result, MachineRepresentation::kTagged, function_data);
+  TVARIABLE(HeapObject, var_result, function_data);
   Label done(this, &var_result);
 
-  GotoIfNot(HasInstanceType(CAST(function_data), INTERPRETER_DATA_TYPE), &done);
-  TNode<Object> bytecode_array = LoadObjectField(
-      CAST(function_data), InterpreterData::kBytecodeArrayOffset);
-  var_result.Bind(bytecode_array);
+  GotoIfNot(HasInstanceType(function_data, INTERPRETER_DATA_TYPE), &done);
+  TNode<BytecodeArray> bytecode_array = LoadObjectField<BytecodeArray>(
+      function_data, InterpreterData::kBytecodeArrayOffset);
+  var_result = bytecode_array;
   Goto(&done);
 
   BIND(&done);
@@ -3054,11 +3053,10 @@ void CodeStubAssembler::PossiblyGrowElementsCapacity(
 }
 
 TNode<Smi> CodeStubAssembler::BuildAppendJSArray(ElementsKind kind,
-                                                 SloppyTNode<JSArray> array,
+                                                 TNode<JSArray> array,
                                                  CodeStubArguments* args,
                                                  TVariable<IntPtrT>* arg_index,
                                                  Label* bailout) {
-  CSA_SLOW_ASSERT(this, IsJSArray(array));
   Comment("BuildAppendJSArray: ", ElementsKindToString(kind));
   Label pre_bailout(this);
   Label success(this);
@@ -3121,13 +3119,14 @@ void CodeStubAssembler::TryStoreArrayElement(ElementsKind kind,
   StoreElement(elements, kind, index, value, mode);
 }
 
-void CodeStubAssembler::BuildAppendJSArray(ElementsKind kind, Node* array,
-                                           Node* value, Label* bailout) {
-  CSA_SLOW_ASSERT(this, IsJSArray(array));
+void CodeStubAssembler::BuildAppendJSArray(ElementsKind kind,
+                                           TNode<JSArray> array,
+                                           TNode<Object> value,
+                                           Label* bailout) {
   Comment("BuildAppendJSArray: ", ElementsKindToString(kind));
   ParameterMode mode = OptimalParameterMode();
   TVARIABLE(BInt, var_length, SmiToBInt(LoadFastJSArrayLength(array)));
-  VARIABLE(var_elements, MachineRepresentation::kTagged, LoadElements(array));
+  TVARIABLE(FixedArrayBase, var_elements, LoadElements(array));
 
   // Resize the capacity of the fixed array if it doesn't fit.
   Node* growth = IntPtrOrSmiConstant(1, mode);
@@ -3282,7 +3281,7 @@ TNode<UintPtrT> CodeStubAssembler::LoadBigIntDigit(TNode<BigInt> bigint,
 TNode<ByteArray> CodeStubAssembler::AllocateByteArray(TNode<UintPtrT> length,
                                                       AllocationFlags flags) {
   Comment("AllocateByteArray");
-  VARIABLE(var_result, MachineRepresentation::kTagged);
+  TVARIABLE(Object, var_result);
 
   // Compute the ByteArray size and check if it fits into new space.
   Label if_lengthiszero(this), if_sizeissmall(this),
@@ -3306,7 +3305,7 @@ TNode<ByteArray> CodeStubAssembler::AllocateByteArray(TNode<UintPtrT> length,
     StoreMapNoWriteBarrier(result, RootIndex::kByteArrayMap);
     StoreObjectFieldNoWriteBarrier(result, ByteArray::kLengthOffset,
                                    SmiTag(Signed(length)));
-    var_result.Bind(result);
+    var_result = result;
     Goto(&if_join);
   }
 
@@ -3316,13 +3315,13 @@ TNode<ByteArray> CodeStubAssembler::AllocateByteArray(TNode<UintPtrT> length,
     TNode<Object> result =
         CallRuntime(Runtime::kAllocateByteArray, NoContextConstant(),
                     ChangeUintPtrToTagged(length));
-    var_result.Bind(result);
+    var_result = result;
     Goto(&if_join);
   }
 
   BIND(&if_lengthiszero);
   {
-    var_result.Bind(EmptyByteArrayConstant());
+    var_result = EmptyByteArrayConstant();
     Goto(&if_join);
   }
 
