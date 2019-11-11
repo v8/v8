@@ -442,8 +442,8 @@ TF_BUILTIN(ExtractFastJSArray, ArrayBuiltinsAssembler) {
   ParameterMode mode = OptimalParameterMode();
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<JSArray> array = CAST(Parameter(Descriptor::kSource));
-  Node* begin = TaggedToParameter(Parameter(Descriptor::kBegin), mode);
-  Node* count = TaggedToParameter(Parameter(Descriptor::kCount), mode);
+  TNode<BInt> begin = SmiToBInt(CAST(Parameter(Descriptor::kBegin)));
+  TNode<BInt> count = SmiToBInt(CAST(Parameter(Descriptor::kCount)));
 
   CSA_ASSERT(this, Word32BinaryNot(IsNoElementsProtectorCellInvalid()));
 
@@ -659,10 +659,11 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
         GotoIf(IsUndefined(map_function), &next);
 
         CSA_ASSERT(this, IsCallable(CAST(map_function)));
-        Node* v = CallJS(CodeFactory::Call(isolate()), context, map_function,
-                         this_arg, value.value(), index.value());
+        TNode<Object> v =
+            CallJS(CodeFactory::Call(isolate()), context, map_function,
+                   this_arg, value.value(), index.value());
         GotoIfException(v, &on_exception, &var_exception);
-        value = CAST(v);
+        value = v;
         Goto(&next);
         BIND(&next);
       }
