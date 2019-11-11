@@ -1351,6 +1351,7 @@ if (!v8_use_external_startup_data) {
       "//:gn_visibility",
     ]
 
+    deps = []
     public_deps = [
       # This should be public so downstream targets can declare the snapshot
       # output file as their inputs.
