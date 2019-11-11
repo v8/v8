@@ -743,11 +743,10 @@ TEST(TryToName) {
 
   {
     // TryToName(<internalized uncacheable number string less than
-    // INT_MAX>) => is_keyisindex: number.
+    // INT_MAX>) => bailout
     Handle<Object> key =
         isolate->factory()->InternalizeUtf8String("2147483647");
-    Handle<Object> index = isolate->factory()->NewNumber(2147483647);
-    ft.CheckTrue(key, expect_index, index);
+    ft.CheckTrue(key, expect_bailout);
   }
 
   {
@@ -765,8 +764,7 @@ TEST(TryToName) {
     // TryToName(<number string without cached index>) => is_keyisindex: number.
     Handle<String> key = isolate->factory()->NewStringFromAsciiChecked("153");
     CHECK(!key->HasHashCode());
-    Handle<Object> index(Smi::FromInt(153), isolate);
-    ft.CheckTrue(key, expect_index, index);
+    ft.CheckTrue(key, expect_bailout);
   }
 
   {

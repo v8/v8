@@ -315,7 +315,9 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
   if (support_elements == kSupportElements) {
     Label if_element(this), if_indexed_string(this), if_property(this),
         if_hole(this), unimplemented_elements_kind(this),
-        if_oob(this, Label::kDeferred);
+        if_oob(this, Label::kDeferred), try_string_to_array_index(this),
+        emit_element_load(this);
+    TVARIABLE(IntPtrT, var_intptr_index);
     GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kElement)),
            &if_element);
 
@@ -331,16 +333,42 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
     }
 
     BIND(&if_element);
-    Comment("element_load");
-    TNode<IntPtrT> intptr_index = TryToIntptr(p->name(), miss);
-    TNode<BoolT> is_jsarray_condition =
-        IsSetWord<LoadHandler::IsJsArrayBits>(handler_word);
-    TNode<Uint32T> elements_kind =
-        DecodeWord32FromWord<LoadHandler::ElementsKindBits>(handler_word);
-    EmitElementLoad(holder, elements_kind, intptr_index, is_jsarray_condition,
-                    &if_hole, &rebox_double, &var_double_value,
-                    &unimplemented_elements_kind, &if_oob, miss, exit_point,
-                    access_mode);
+    {
+      Comment("element_load");
+      TVARIABLE(Int32T, var_instance_type);
+      TNode<IntPtrT> intptr_index = TryToIntptr(
+          p->name(), &try_string_to_array_index, &var_instance_type);
+      var_intptr_index = intptr_index;
+      Goto(&emit_element_load);
+
+      BIND(&try_string_to_array_index);
+      {
+        GotoIfNot(IsStringInstanceType(var_instance_type.value()), miss);
+
+        Node* function = ExternalConstant(
+            ExternalReference::string_to_array_index_function());
+        TNode<Int32T> result = UncheckedCast<Int32T>(
+            CallCFunction(function, MachineType::Int32(),
+                          std::make_pair(MachineType::AnyTagged(), p->name())));
+        GotoIf(Word32Equal(Int32Constant(-1), result), miss);
+        CSA_ASSERT(this, Int32GreaterThanOrEqual(result, Int32Constant(0)));
+        var_intptr_index = ChangeInt32ToIntPtr(result);
+
+        Goto(&emit_element_load);
+      }
+
+      BIND(&emit_element_load);
+      {
+        TNode<BoolT> is_jsarray_condition =
+            IsSetWord<LoadHandler::IsJsArrayBits>(handler_word);
+        TNode<Uint32T> elements_kind =
+            DecodeWord32FromWord<LoadHandler::ElementsKindBits>(handler_word);
+        EmitElementLoad(holder, elements_kind, var_intptr_index.value(),
+                        is_jsarray_condition, &if_hole, &rebox_double,
+                        &var_double_value, &unimplemented_elements_kind,
+                        &if_oob, miss, exit_point, access_mode);
+      }
+    }
 
     BIND(&unimplemented_elements_kind);
     {
@@ -366,7 +394,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
       // in case of typed arrays, where integer indexed properties
       // aren't looked up in the prototype chain.
       GotoIf(IsJSTypedArray(holder), &return_undefined);
-      GotoIf(IntPtrLessThan(intptr_index, IntPtrConstant(0)), miss);
+      GotoIf(IntPtrLessThan(var_intptr_index.value(), IntPtrConstant(0)), miss);
 
       // For all other receivers we need to check that the prototype chain
       // doesn't contain any elements.

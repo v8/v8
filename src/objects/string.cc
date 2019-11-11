@@ -395,6 +395,16 @@ Handle<String> String::Trim(Isolate* isolate, Handle<String> string,
   return isolate->factory()->NewSubString(string, left, right);
 }
 
+int32_t String::ToArrayIndex(Address addr) {
+  DisallowHeapAllocation no_gc;
+  String key(addr);
+
+  uint32_t index;
+  if (!key.AsArrayIndex(&index)) return -1;
+  if (index <= INT_MAX) return index;
+  return -1;
+}
+
 bool String::LooksValid() {
   // TODO(leszeks): Maybe remove this check entirely, Heap::Contains uses
   // basically the same logic as the way we access the heap in the first place.

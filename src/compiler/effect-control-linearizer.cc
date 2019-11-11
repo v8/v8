@@ -2495,19 +2495,41 @@ Node* EffectControlLinearizer::LowerCheckedTaggedToArrayIndex(
   // In the Smi case, just convert to int32.
   __ Goto(&done, ChangeSmiToInt32(value));
 
+  // In the non-Smi case, check the heap numberness, load the number and convert
+  // to int32.
   __ Bind(&if_not_smi);
+  auto if_not_heap_number = __ MakeDeferredLabel();
+  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+  Node* is_heap_number = __ TaggedEqual(value_map, __ HeapNumberMapConstant());
+  __ GotoIfNot(is_heap_number, &if_not_heap_number);
+
+  Node* number = __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
+  number =
+      BuildCheckedFloat64ToInt32(CheckForMinusZeroMode::kDontCheckForMinusZero,
+                                 params.feedback(), number, frame_state);
+  __ Goto(&done, number);
+
+  __ Bind(&if_not_heap_number);
+  auto calculate_index = __ MakeDeferredLabel();
+  Node* value_instance_type =
+      __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
+  Node* is_string = __ Uint32LessThan(value_instance_type,
+                                      __ Uint32Constant(FIRST_NONSTRING_TYPE));
+  __ DeoptimizeIfNot(DeoptimizeReason::kNotAString, params.feedback(),
+                     is_string, frame_state);
+
   MachineSignature::Builder builder(graph()->zone(), 1, 1);
   builder.AddReturn(MachineType::Int32());
   builder.AddParam(MachineType::TaggedPointer());
-  Node* object_to_array_index_function = __ ExternalConstant(
-      ExternalReference::object_to_array_index_slow_function());
+  Node* string_to_array_index_function =
+      __ ExternalConstant(ExternalReference::string_to_array_index_function());
   auto call_descriptor =
       Linkage::GetSimplifiedCDescriptor(graph()->zone(), builder.Build());
   Node* index = __ Call(common()->Call(call_descriptor),
-                        object_to_array_index_function, value);
+                        string_to_array_index_function, value);
 
   __ DeoptimizeIf(DeoptimizeReason::kNotAnArrayIndex, params.feedback(),
-                  __ Int32LessThan(index, __ Int32Constant(0)), frame_state);
+                  __ Word32Equal(index, __ Int32Constant(-1)), frame_state);
 
   __ Goto(&done, index);
 
@@ -2523,7 +2545,6 @@ Node* EffectControlLinearizer::LowerCheckedTaggedToInt32(Node* node,
 
   auto if_not_smi = __ MakeDeferredLabel();
   auto done = __ MakeLabel(MachineRepresentation::kWord32);
-
   Node* check = ObjectIsSmi(value);
   __ GotoIfNot(check, &if_not_smi);
   // In the Smi case, just convert to int32.

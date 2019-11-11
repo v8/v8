@@ -3658,7 +3658,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                      GetOwnPropertyMode mode = kCallJSGetter);
 
   TNode<IntPtrT> TryToIntptr(SloppyTNode<Object> key, Label* if_not_intptr,
-                             Label* if_bailout = nullptr,
                              TVariable<Int32T>* var_instance_type = nullptr);
 
   TNode<Context> AllocateSyntheticFunctionContext(
